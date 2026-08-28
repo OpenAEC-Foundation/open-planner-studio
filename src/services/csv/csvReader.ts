@@ -17,6 +17,7 @@ interface ParsedRow {
   finish: string;
   predecessors: string;
   taskType: string;
+  customTaskTypeId: string;
   status: string;
   completion: number;
   actualStart?: string;
@@ -150,6 +151,7 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
     finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
     predecessors: ['predecessors', 'predecessor', 'voorgangers', 'depends on', 'links'],
     taskType: ['task type', 'type', 'tasktype', 'taaktype'],
+    customTaskTypeId: ['ops custom task type id'],
     status: ['status'],
     completion: ['completion', 'completion (%)', '% complete', 'percent', 'voltooiing'],
     actualStart: ['actual start', 'actualstart', 'werkelijke start'],
@@ -208,6 +210,7 @@ export function readCSV(content: string): ImportResult {
       finish: parseDate(get('finish')),
       predecessors: get('predecessors'),
       taskType: get('taskType', 'CONSTRUCTION'),
+      customTaskTypeId: get('customTaskTypeId').trim(),
       status: get('status', 'NOT_STARTED'),
       completion,
       actualStart: actualStartRaw ? parseDate(actualStartRaw) : undefined,
@@ -224,7 +227,20 @@ export function readCSV(content: string): ImportResult {
   // Een niet-IFC-classificatie uit CSV is geen reden om gegevens naar CONSTRUCTION te degraderen.
   // Hij wordt uitsluitend in dit geïmporteerde project een USERDEFINED-type, nooit automatisch
   // onderdeel van de persoonlijke app-brede lijst.
-  const customByName = new Map<string, CustomTaskType>();
+  const customById = new Map<string, CustomTaskType>();
+  const customIdByName = new Map<string, string>();
+  const registerCustomType = (type: CustomTaskType): CustomTaskType | undefined => {
+    const existingById = customById.get(type.id);
+    if (existingById) return existingById.name.localeCompare(
+      type.name, undefined, { sensitivity: 'accent' },
+    ) === 0 ? existingById : undefined;
+    const nameKey = type.name.toLocaleLowerCase();
+    const existingId = customIdByName.get(nameKey);
+    if (existingId && existingId !== type.id) return undefined;
+    customById.set(type.id, type);
+    customIdByName.set(nameKey, type.id);
+    return type;
+  };
 
   for (const row of rows) {
     const id = generateId('task');
@@ -234,12 +250,22 @@ export function readCSV(content: string): ImportResult {
     const parsedType = parseTaskType(rawType);
     const isBuiltin = TASK_TYPES.includes(rawType.toUpperCase() as TaskType);
     let customTaskTypeId: string | undefined;
-    if (rawType && !isBuiltin) {
+    if (row.customTaskTypeId) {
+      customTaskTypeId = row.customTaskTypeId;
+      // Een ontbrekende catalogusnaam is beschadigd maar niet fataal: de stabiele id blijft aan
+      // de taak hangen en de UI toont de neutrale USERDEFINED-terugval. Onze eigen CSV schrijft
+      // normaal de leesbare naam in Task Type; USERDEFINED betekent dus expliciet "naam ontbreekt".
+      if (rawType && rawType.toUpperCase() !== 'USERDEFINED') {
+        registerCustomType({ id: customTaskTypeId, name: rawType });
+      }
+    } else if (rawType && !isBuiltin) {
+      // OPS schrijft een stabiel id mee. Externe CSV zonder dat veld blijft op de naam gededupliceerd.
       const key = rawType.toLocaleLowerCase();
-      let custom = customByName.get(key);
+      const existingId = customIdByName.get(key);
+      let custom = existingId ? customById.get(existingId) : undefined;
       if (!custom) {
         custom = { id: generateId('tasktype'), name: rawType };
-        customByName.set(key, custom);
+        registerCustomType(custom);
       }
       customTaskTypeId = custom.id;
     }
@@ -329,6 +355,6 @@ export function readCSV(content: string): ImportResult {
     sequences,
     resources: [],
     assignments: [],
-    customTaskTypes: [...customByName.values()],
+    customTaskTypes: [...customById.values()],
   };
 }

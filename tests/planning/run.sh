@@ -254,6 +254,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DCCHECK="$DIR/.document-contract-check.mjs"
   if bundle_check "$DIR/check-document-contract.ts" "$DCCHECK"; then node "$DCCHECK" || STATUS=1; fi
 
+  CTTCHECK="$DIR/.custom-task-types-check.mjs"
+  if bundle_check "$DIR/check-custom-task-types.ts" "$CTTCHECK"; then node "$CTTCHECK" || STATUS=1; fi
+
   # Band-collapse (issue #35): "alle groepen in-/uitklappen" via de echte store-acties. De valkuil
   # is de sleutelbron: een ingeklapte band emit zijn subbanden niet, dus een route via `viewRows`
   # slaat precies de al-dichtgeklapte takken over. Aantoonbaar rood tegen die naïeve route.

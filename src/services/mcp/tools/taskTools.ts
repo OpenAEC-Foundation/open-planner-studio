@@ -97,6 +97,7 @@ function fieldContext(
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.
     calendarExists: (id: string) => s.calendars.some((c) => c.id === id) || id === s.calendar.id,
+    customTaskTypes: s.customTaskTypes,
   };
 }
 
@@ -157,6 +158,9 @@ function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string
  */
 function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome {
   const st = ctx.app.store.getState();
+  for (const item of items) {
+    if (item.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(item.patch.customTaskType);
+  }
   const anchor = st.project.startDate || formatDate(new Date());
   const bulk: BulkTaskItem[] = items.map((it) => {
     const top = it.patch.top;
@@ -331,7 +335,11 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
     if (u.fields !== undefined) {
       const res = resolveFieldsPatch(ctx.app.store.getState(), id, u.fields);
       if (!res.ok) { rejections.push({ id, reason: res.reason }); rejectedHere = true; }
-      else { ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time); touched = true; }
+      else {
+        if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
+        ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        touched = true;
+      }
     }
     if (u.progress !== undefined) {
       // VORM eerst (audit-fix K3): `applyProgressUpdate` leest exact completion/actualStart/

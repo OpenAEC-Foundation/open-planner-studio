@@ -20,4 +20,12 @@ When you assign a personal type to a task, OPS also stores a project copy with i
 
 For IFC software outside OPS, such a task remains valid as `USERDEFINED`; the readable name is stored in the standard ObjectType field. OPS additionally stores the stable identity in project metadata, so renaming never breaks existing task assignments.
 
+## Import and export
+
+IFC is the complete, recommended interchange and storage format for personal task types. CSV export writes a separate OPS id column alongside the readable type name, so a subsequent import keeps name and identity together. An unknown type name in an external CSV is imported as **From this project** and is not automatically added to **My task types**.
+
+MS Project XML and P6 XML do not have an equivalent standard field for this OPS classification. OPS therefore writes an identifiable free-text field that other planners may ignore. A direct OPS export and import preserves the identity, but another application may remove that free field when editing or exporting the file again. Save the result as IFC when the classification must remain intact.
+
+Native `.mpp` is import-only. An imported Microsoft Project task type is not the same thing as a personal OPS task type. You can assign a personal type after importing and save the result as IFC; OPS does not create `.mpp` exports containing personal task types.
+
 Removing a type from **My task types** never deletes tasks or rewrites project files. Its project copy remains under **From this project** in an open project.

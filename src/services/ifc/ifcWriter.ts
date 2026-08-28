@@ -323,8 +323,8 @@ function writeTaskTypeMeta(
   ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
 ): void {
   const used = new Set(tasks.map(t => t.customTaskTypeId).filter((id): id is string => !!id));
+  if (used.size === 0) return;
   const definitions = customTaskTypes.filter(t => used.has(t.id));
-  if (definitions.length === 0) return;
   const taskTypeIds: Record<string, string> = {};
   for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[guidOf(ctx, task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });

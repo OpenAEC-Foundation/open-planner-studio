@@ -467,6 +467,13 @@ function getTask(s: AppState, args: GetTaskArgs) {
     name: task.name,
     description: task.description,
     taskType: task.taskType,
+    ...(task.customTaskTypeId ? {
+      customTaskType: {
+        id: task.customTaskTypeId,
+        // Een beschadigd/oud project mag leesbaar blijven: de id blijft zichtbaar, naam is dan null.
+        name: s.customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name ?? null,
+      },
+    } : {}),
     status: task.status,
     isMilestone: task.isMilestone,
     ...(task.milestoneKind ? { milestoneKind: task.milestoneKind } : {}),

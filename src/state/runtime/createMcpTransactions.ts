@@ -17,6 +17,7 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
+import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
 
@@ -108,6 +109,10 @@ function createMcpDraft(
       if (parentId !== null && !parentTask) {
         throw new Error(`draft.addTask: onbekende parentId '${parentId}'`);
       }
+      const inheritedTaskType = partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
+      const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
+        ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
+        : undefined;
 
       const task: Task = {
         id,
@@ -116,7 +121,8 @@ function createMcpDraft(
         wbsCode: partial.wbsCode || '',
         // Overerving (2026-08-14): zie taskSlice.ts addTask — zelfde regel, MCP-pad (ook gebruikt
         // door draft.addTasks, die top-down per item deze functie aanroept).
-        taskType: partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED'),
+        taskType: inheritedTaskType,
+        customTaskTypeId: inheritedCustomTaskTypeId,
         status: partial.status || 'NOT_STARTED',
         isMilestone: partial.isMilestone || false,
         milestoneKind: partial.milestoneKind,
@@ -403,6 +409,25 @@ function createMcpDraft(
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
       }
+      s.isDirty = true;
+    });
+  },
+
+  /** Materialiseer de snapshot tegelijk met de taakmutatie; bestaande ids zijn onveranderlijk. */
+  ensureCustomTaskType(type: CustomTaskType): void {
+    store.setState((s) => {
+      const normalized = { id: type.id.trim(), name: type.name.trim() };
+      if (!normalized.id || !normalized.name) throw new Error('draft.ensureCustomTaskType: id en naam mogen niet leeg zijn');
+      const existing = s.customTaskTypes.find(candidate => candidate.id === normalized.id);
+      if (existing) {
+        if (existing.name !== normalized.name) throw new Error(`draft.ensureCustomTaskType: id '${normalized.id}' heeft al naam '${existing.name}'`);
+        return;
+      }
+      const sameName = s.customTaskTypes.find(candidate => candidate.name.localeCompare(
+        normalized.name, undefined, { sensitivity: 'accent' },
+      ) === 0);
+      if (sameName) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameName.id}'`);
+      s.customTaskTypes.push(normalized);
       s.isDirty = true;
     });
   },

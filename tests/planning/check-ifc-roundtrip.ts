@@ -213,6 +213,7 @@ const TP: Task = {
 const TM = {
   id: 't-m', name: 'Oplevering', description: 'Contractuele opleverdatum', wbsCode: '1.1',
   taskType: 'INSTALLATION', status: 'COMPLETED', isMilestone: true, milestoneKind: 'FINISH',
+  customTaskTypeId: '',
   mandatory: true, priority: 700, levelingDelay: 3,
   // Z14: de vier Z0-typecontractvelden round-trippen nu écht via ifcPsets.ts (zie TASK_CANON
   // hieronder). `levelingDelayElapsed` staat hier BEWUST op `true` (niet `false`): de writer
@@ -509,7 +510,9 @@ const TIME_CANON = {
 
 const TASK_CANON = {
   id: { skip: 'regenereert bij inlezen; wbsCode is de natuurlijke sleutel (Keys.task)' },
-  name: KEEP, description: KEEP, wbsCode: KEEP, taskType: KEEP, status: KEEP,
+  name: KEEP, description: KEEP, wbsCode: KEEP, taskType: KEEP,
+  customTaskTypeId: { skip: 'lege optionele fixturewaarde normaliseert naar undefined; echte custom-id wordt gedekt door check-custom-task-types.ts' },
+  status: KEEP,
   isMilestone: KEEP, milestoneKind: KEEP, mandatory: KEEP, priority: KEEP, levelingDelay: KEEP,
   // Z14: de vier Z0-typecontractvelden round-trippen nu écht (ifcPsets.ts: `OPS_Leveling`
   // uitgebreid met LevelingDelayMinutes/-Elapsed, `OPS_TaskSplits` en `OPS_ManualScheduling` nieuw)

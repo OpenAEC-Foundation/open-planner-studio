@@ -4,10 +4,14 @@ import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
+import type { CustomTaskType } from '@/types/taskType';
 import { projectFileBase } from '@/utils/documents';
 import {
   effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
+
+const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
+const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
@@ -225,6 +229,7 @@ export function writeMSPDI(
   resourceCalendars: WorkCalendar[] = [],
   baselines: Baseline[] = [],
   activeBaselineId: string | null = null,
+  customTaskTypes: readonly CustomTaskType[] = [],
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -464,6 +469,13 @@ export function writeMSPDI(
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
+    if (task.customTaskTypeId) {
+      const type = customTaskTypes.find(candidate => candidate.id === task.customTaskTypeId);
+      // MSPDI vrije tekst-uitbreiding: vreemde clients negeren dit; OPS leest hem terug zonder
+      // de native MSP Task Type (resource-inspanning) te misbruiken.
+      const value = JSON.stringify({ ops: OPS_CUSTOM_TASK_TYPE_MARKER, id: task.customTaskTypeId, ...(type ? { name: type.name } : {}) });
+      lines.push(`${indent(3)}<ExtendedAttribute><FieldID>${OPS_CUSTOM_TASK_TYPE_FIELD_ID}</FieldID><Value>${escapeXML(value)}</Value></ExtendedAttribute>`);
+    }
     // Datum-constraint (fase 2.9, §6): primair als MSPDI ConstraintType/ConstraintDate. ASAP ⇒ niets
     // (golden rule). Secundair is niet uitdrukbaar (één element, gewaarschuwd hierboven). Soft MSO/MFO
     // degradeert naar SNET/FNET (soft↔hard-val, gewaarschuwd hierboven).

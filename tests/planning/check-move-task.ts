@@ -141,6 +141,12 @@ eq('31 addTask met ouder: expliciete taskType op het kind wint van de ouder', ta
 const idRootZonderType = S().addTask({ name: 'RootZonderType' });
 eq('32 addTask zonder ouder: root valt terug op de bouwmodus-default (CONSTRUCTION)', task(idRootZonderType)?.taskType, 'CONSTRUCTION');
 
+const idOuderCustom = S().addTask({ name: 'OuderCustom', taskType: 'USERDEFINED', customTaskTypeId: 'ops-engineering' });
+const idKindCustomErft = S().addTask({ name: 'KindCustomErft', parentId: idOuderCustom });
+eq('33 addTask erft de stabiele custom-type-id samen met USERDEFINED', task(idKindCustomErft)?.customTaskTypeId, 'ops-engineering');
+const idKindBuiltinWint = S().addTask({ name: 'KindBuiltinWint', parentId: idOuderCustom, taskType: 'CONSTRUCTION' });
+eq('34 expliciete builtin op kind wist de custom-type-id van de ouder', task(idKindBuiltinWint)?.customTaskTypeId, undefined);
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  move-task-check: alle checks groen (${checks})`);

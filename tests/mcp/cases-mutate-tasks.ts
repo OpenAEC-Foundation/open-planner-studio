@@ -430,4 +430,42 @@ test('add_tasks: dubbele tempId ⇒ harde VALIDATION op toolniveau, store byte-i
   assertEq(store.getState().undoStack.length, undoLen, 'geen undo-snapshot (pre-transactie afgevangen)');
 });
 
+test('custom task type: MCP materialiseert id+naam atomisch en behoudt builtin-enumcontract', async () => {
+  reset();
+  const ctx = makeCtx();
+  const custom = { id: 'ops-type-gevel', name: 'Gevelinspectie' };
+  const res = await call('planner_add_tasks', { tasks: [
+    { tempId: 'CUSTOM', name: 'Inspectie', taskType: 'USERDEFINED', customTaskType: custom },
+  ] }, ctx);
+  const data = okData(res);
+  const id = data.created.CUSTOM as string;
+  assertEq(taskById(id)?.taskType, 'USERDEFINED', 'custom type gebruikt expliciet USERDEFINED, nooit CONSTRUCTION');
+  assertEq(taskById(id)?.customTaskTypeId, custom.id, 'taak bewaart de stabiele custom-id');
+  assertEq(store.getState().customTaskTypes, [custom], 'projectsnapshot bevat id plus naam');
+
+  const conflict = await call('planner_update_tasks', { updates: [{ id, fields: {
+    customTaskType: { id: custom.id, name: 'Andere naam' },
+  } }] }, ctx);
+  assert(conflict.ok && conflict.itemRejections?.length === 1, 'zelfde id met andere snapshotnaam wordt zacht geweigerd');
+  assertEq(taskById(id)?.customTaskTypeId, custom.id, 'conflict beschadigt bestaande taak niet');
+
+  const nameConflict = await call('planner_add_tasks', { tasks: [{
+    tempId: 'CUSTOM_NAME_CONFLICT', name: 'Andere inspectie',
+    customTaskType: { id: 'ops-type-anders', name: 'gevelinspectie' },
+  }] }, ctx);
+  assert(!nameConflict.ok && nameConflict.code === 'VALIDATION', 'zelfde naam met andere id wordt case-insensitive geweigerd');
+  assertEq(store.getState().tasks.some(task => task.name === 'Andere inspectie'), false, 'naamconflict maakt geen halve taak');
+
+  const builtin = await call('planner_update_tasks', { updates: [{ id, fields: { taskType: 'CONSTRUCTION' } }] }, ctx);
+  assert(builtin.ok, 'expliciete builtin-update blijft toegestaan');
+  assertEq(taskById(id)?.taskType, 'CONSTRUCTION', 'builtin-enum blijft ongewijzigd bruikbaar');
+  assertEq(taskById(id)?.customTaskTypeId, undefined, 'builtin-update wist de custom-toewijzing');
+
+  const opvolger = { id: 'ops-type-keuring', name: 'Keuring' };
+  const customUpdate = await call('planner_update_tasks', { updates: [{ id, fields: { customTaskType: opvolger } }] }, ctx);
+  assert(customUpdate.ok, 'update kan een nieuw custom type materialiseren');
+  assertEq(taskById(id)?.customTaskTypeId, opvolger.id, 'update bewaart de nieuwe stabiele id');
+  assertEq(store.getState().customTaskTypes, [custom, opvolger], 'update voegt de nieuwe projectsnapshot toe zonder de oude te herschrijven');
+});
+
 await run();

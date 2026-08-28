@@ -5,6 +5,11 @@ import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, isHourCalendar, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
+import type { CustomTaskType } from '@/types/taskType';
+
+const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
+const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
+const OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID = 900000001;
 
 // Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
 // benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
@@ -183,6 +188,7 @@ export function writeP6XML(
   resources: Resource[],
   assignments: ResourceAssignment[],
   resourceCalendars: WorkCalendar[] = [],
+  customTaskTypes: readonly CustomTaskType[] = [],
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -470,6 +476,28 @@ export function writeP6XML(
     const taskCalObjId = (task.calendarId && calObjMap.get(task.calendarId)) || 1;
     lines.push(`${indent(2)}<CalendarObjectId>${taskCalObjId}</CalendarObjectId>`);
     lines.push(`${indent(1)}</Activity>`);
+  }
+
+  // P6 PMXML modelleert UDF-definities en -waarden als losse top-level objecten. De activity houdt
+  // dus geen verzonnen genest element; ForeignObjectId koppelt de vrije tekst aan de taak. Andere
+  // clients mogen dit veld negeren zonder dat we een verkeerd native P6-activitytype claimen.
+  const customTasks = leafTasks.filter(task => task.customTaskTypeId);
+  if (customTasks.length > 0) {
+    lines.push(`${indent(1)}<UDFType>`);
+    lines.push(`${indent(2)}<ObjectId>${OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID}</ObjectId>`);
+    lines.push(`${indent(2)}<SubjectArea>Activity</SubjectArea>`);
+    lines.push(`${indent(2)}<Title>${OPS_CUSTOM_TASK_TYPE_UDF_TITLE}</Title>`);
+    lines.push(`${indent(2)}<DataType>Text</DataType>`);
+    lines.push(`${indent(1)}</UDFType>`);
+    for (const task of customTasks) {
+      const type = customTaskTypes.find(candidate => candidate.id === task.customTaskTypeId);
+      const value = JSON.stringify({ ops: OPS_CUSTOM_TASK_TYPE_MARKER, id: task.customTaskTypeId, ...(type ? { name: type.name } : {}) });
+      lines.push(`${indent(1)}<UDFValue>`);
+      lines.push(`${indent(2)}<ForeignObjectId>${taskObjMap.get(task.id)}</ForeignObjectId>`);
+      lines.push(`${indent(2)}<UDFTypeObjectId>${OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID}</UDFTypeObjectId>`);
+      lines.push(`${indent(2)}<Text>${escapeXML(value)}</Text>`);
+      lines.push(`${indent(1)}</UDFValue>`);
+    }
   }
 
   // Relationships (sequences). P6 kent geen procent-lag en geen lag-eenheid per relatie

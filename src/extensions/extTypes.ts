@@ -181,6 +181,8 @@ export interface ExtTask {
     | 'RENOVATION'
     | 'MAINTENANCE'
     | 'USERDEFINED';
+  /** OPS-customclassificatie. Id is stabiel; name is de projectsnapshot die een importer meegeeft. */
+  customTaskType?: { id: string; name?: string };
   status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED';
   isMilestone: boolean;
   milestoneKind?: 'START' | 'FINISH';
@@ -354,4 +356,6 @@ export interface ExtImportResult {
   sequences: ExtSequence[];
   resources: ExtResource[];
   assignments: ExtAssignment[];
+  /** Per-projectcatalogus voor USERDEFINED-taken; wordt niet automatisch app-breed opgeslagen. */
+  customTaskTypes?: { id: string; name: string }[];
 }

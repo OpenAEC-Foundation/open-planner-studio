@@ -222,6 +222,7 @@ const mkInput = (id: string, name: string): RecoveryDocInput => ({
   resourceCalendars: recCalendars,              // pre-2.8a-naam — moet als `calendars` landen
   activityCodeTypes: [{ id: `act-${id}`, name: 'Herstel-code', values: [] }],
   customFieldDefs: [],
+  customTaskTypes: [{ id: `type-${id}`, name: `Type ${name}` }],
   baselines: [{ id: `bl-${id}`, name: 'Herstel-BL', createdAt: '2031-01-01', tasks: [] } as never],
   activeBaselineId: `bl-${id}`,
   filePath: `/tmp/${id}.ifc`,
@@ -237,6 +238,7 @@ eq('d recovery: project overgenomen', S().project.name, 'DocB');
 eq('d recovery: tasks overgenomen', S().tasks.map(t => t.id), ['task-rec-b']);
 eq('d recovery: resourceCalendars → calendars (alias)', S().calendars.map(c => c.id), ['cal-rec']);
 eq('d recovery: activityCodeTypes overgenomen', S().activityCodeTypes.map(a => a.id), ['act-rec-b']);
+eq('d recovery: customTaskTypes overgenomen', S().customTaskTypes, [{ id: 'type-rec-b', name: 'Type DocB' }]);
 eq('d recovery: activeBaselineId overgenomen', S().activeBaselineId, 'bl-rec-b');
 eq('d recovery: filePath overgenomen', S().filePath, '/tmp/rec-b.ifc');
 truthy('d recovery: isDirty', S().isDirty === true);
@@ -256,6 +258,7 @@ S().switchDocument('rec-a');
 eq('d recovery: switch naar rec-a laadt zijn project', S().project.name, 'DocA');
 eq('d recovery: rec-a tasks correct', S().tasks.map(t => t.id), ['task-rec-a']);
 eq('d recovery: rec-a calendars (alias)', S().calendars.map(c => c.id), ['cal-rec']);
+eq('d recovery: rec-a customTaskTypes uit registry', S().customTaskTypes, [{ id: 'type-rec-a', name: 'Type DocA' }]);
 eq('d recovery: rec-a filePath', S().filePath, '/tmp/rec-a.ifc');
 
 // Direct payloadFromInput-eenheidscheck: alias + verse defaults.

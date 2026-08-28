@@ -78,12 +78,13 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
           {!task.customTaskTypeId && task.taskType === 'USERDEFINED' && <option value="USERDEFINED">{t('taskType.USERDEFINED')}</option>}
         </optgroup>
         {personal.length > 0 && <optgroup label={t('taskType.personalGroup')}>
-          {personal.map(type => <option key={type.id} value={customValue(type.id)}>{type.name}</option>)}
+          {personal.map(type => <option key={type.id} value={customValue(type.id)}>{type.id === task.customTaskTypeId && selectedProject ? selectedProject.name : type.name}</option>)}
         </optgroup>}
         {projectOnly.length > 0 && <optgroup label={t('taskType.projectGroup')}>
           {projectOnly.map(type => <option key={type.id} value={customValue(type.id)}>{type.name}</option>)}
         </optgroup>}
         {selectedProject && !personal.some(type => type.id === selectedProject.id) && !projectOnly.some(type => type.id === selectedProject.id) && <option value={selected}>{selectedProject.name}</option>}
+        {task.customTaskTypeId && !selectedProject && <option value={selected}>{t('taskType.USERDEFINED')}</option>}
         <option disabled>────────────</option>
         <option value={ACTION_NEW}>{t('taskType.new')}</option>
         <option value={ACTION_MANAGE}>{t('taskType.manage')}</option>

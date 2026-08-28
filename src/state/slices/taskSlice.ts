@@ -297,6 +297,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // moment van aanmaken; indenteren/verslepen van een bestaande taak laat taskType met rust.
       // Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
+      const inheritedTaskType = partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
+      const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
+        ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
+        : undefined;
 
       const task: Task = {
         id,
@@ -305,7 +309,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         wbsCode: partial.wbsCode || '',
         // Bouwmodus (2026-07-13): neutraal taaktype-default in bouw-agnostische modus (USERDEFINED)
         // i.p.v. CONSTRUCTION. Alleen de default bij aanmaken verandert; de enum blijft intact.
-        taskType: partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED'),
+        taskType: inheritedTaskType,
+        customTaskTypeId: inheritedCustomTaskTypeId,
         status: partial.status || 'NOT_STARTED',
         isMilestone: partial.isMilestone || false,
         milestoneKind: partial.milestoneKind,

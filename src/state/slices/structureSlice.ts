@@ -43,10 +43,15 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
 
   ensureProjectTaskType: (type) => {
     set((s) => {
-      const existing = s.customTaskTypes.find(x => x.id === type.id);
-      if (existing || !type.name.trim()) return;
+      const id = type.id.trim();
+      const name = type.name.trim();
+      const existing = s.customTaskTypes.find(x => x.id === id);
+      const sameName = s.customTaskTypes.find(x => x.name.localeCompare(
+        name, undefined, { sensitivity: 'accent' },
+      ) === 0);
+      if (existing || sameName || !id || !name) return;
       runtime.beginUndoable(s);
-      s.customTaskTypes.push({ id: type.id, name: type.name.trim() });
+      s.customTaskTypes.push({ id, name });
       finishMutation(s);
     });
   },

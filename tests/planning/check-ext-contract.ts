@@ -90,7 +90,7 @@ const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
 ] as const);
 
 const EXT_TASK_KEYS = keys<ExtTask>()([
-  'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind',
+  'id', 'name', 'description', 'wbsCode', 'taskType', 'customTaskType', 'status', 'isMilestone', 'milestoneKind',
   'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
@@ -163,7 +163,8 @@ const VOL_TASK = {
   name: 'Fundering',
   description: 'beschrijving',
   wbsCode: '1.2',
-  taskType: 'CONSTRUCTION',
+  taskType: 'USERDEFINED',
+  customTaskTypeId: 'ops-ext-type',
   status: 'STARTED',
   isMilestone: false,
   milestoneKind: 'FINISH',
@@ -265,6 +266,10 @@ eq('7 toExtAssignment vult elk ExtAssignment-veld', aanwezig(toExtAssignment(VOL
 // `undefined` neerzet zou de check hierboven passeren.
 for (const k of EXT_TASK_KEYS) {
   if (k === 'time') continue; // apart, hieronder
+  if (k === 'customTaskType') {
+    eq('8 toExtTask draagt de stabiele custom-type-id over', toExtTask(VOL_TASK).customTaskType, { id: VOL_TASK.customTaskTypeId });
+    continue;
+  }
   eq(`8 toExtTask draagt "${String(k)}" over`,
     (toExtTask(VOL_TASK) as unknown as Record<string, unknown>)[k as string],
     (VOL_TASK as unknown as Record<string, unknown>)[k as string]);

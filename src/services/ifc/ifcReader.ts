@@ -817,11 +817,25 @@ function extractTaskTypeMeta(
   if (typeof raw !== 'string') return [];
   try {
     const parsed = JSON.parse(raw) as { definitions?: unknown; taskTypeIds?: unknown };
-    const definitions: CustomTaskType[] = Array.isArray(parsed.definitions)
-      ? parsed.definitions.filter((x): x is CustomTaskType => !!x && typeof x === 'object' && typeof (x as CustomTaskType).id === 'string' && typeof (x as CustomTaskType).name === 'string')
-          .map(x => ({ id: x.id.trim(), name: x.name.trim() })).filter(x => !!x.id && !!x.name)
-      : [];
-    const known = new Set(definitions.map(x => x.id));
+    const definitions: CustomTaskType[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    if (Array.isArray(parsed.definitions)) {
+      for (const rawDefinition of parsed.definitions) {
+        if (!rawDefinition || typeof rawDefinition !== 'object'
+          || typeof (rawDefinition as CustomTaskType).id !== 'string'
+          || typeof (rawDefinition as CustomTaskType).name !== 'string') continue;
+        const definition = {
+          id: (rawDefinition as CustomTaskType).id.trim(),
+          name: (rawDefinition as CustomTaskType).name.trim(),
+        };
+        const nameKey = definition.name.toLocaleLowerCase();
+        if (!definition.id || !definition.name || seenIds.has(definition.id) || seenNames.has(nameKey)) continue;
+        seenIds.add(definition.id);
+        seenNames.add(nameKey);
+        definitions.push(definition);
+      }
+    }
     if (!parsed.taskTypeIds || typeof parsed.taskTypeIds !== 'object') return definitions;
     const byStep = new Map<string, string>(taskStepIdMap);
     const byTaskId = new Map(tasks.map(t => [t.id, t]));
@@ -830,9 +844,9 @@ function extractTaskTypeMeta(
       const taskId = byStep.get(stepId);
       const typeId = (parsed.taskTypeIds as Record<string, unknown>)[stripQuotes(entity.args[0] || '')];
       const task = taskId ? byTaskId.get(taskId) : undefined;
-      if (task && typeof typeId === 'string' && known.has(typeId)) {
+      if (task && typeof typeId === 'string' && typeId.trim()) {
         task.taskType = 'USERDEFINED';
-        task.customTaskTypeId = typeId;
+        task.customTaskTypeId = typeId.trim();
       }
     }
     return definitions;

@@ -12,11 +12,15 @@ import { isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
+import type { CustomTaskType } from '@/types/taskType';
 import { WORKCONTOUR_TO_CURVE } from './mspdiWriter';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
   promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
+
+const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
+const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 // T4 (MSPDI-uitzonderingssemantiek, spiegel van T3) — hergebruikt T3's `buildContributions`
 // (record-opbouw MET budget-klem TIJDENS de opbouw, niet pas erna) en `resolveContributions`
 // (precedentie-/invariant-motor) rechtstreeks i.p.v. een tweede expansie te bouwen (plan-§T4).
@@ -171,6 +175,27 @@ function parseMSPDuration(s: string, hoursPerDay: number): number {
   return 0;
 }
 
+/** Eigen MSPDI-uitbreiding; andere clients mogen de vrije ExtendedAttribute negeren. */
+function readOpsCustomTaskType(task: Element): { id: string; name?: string } | undefined {
+  const attrs = task.getElementsByTagName('ExtendedAttribute');
+  for (const attr of attrs) {
+    if (attr.parentElement !== task || getElementText(attr, 'FieldID') !== OPS_CUSTOM_TASK_TYPE_FIELD_ID) continue;
+    try {
+      const raw: unknown = JSON.parse(getElementText(attr, 'Value'));
+      if (raw && typeof raw === 'object'
+        && (raw as { ops?: unknown }).ops === OPS_CUSTOM_TASK_TYPE_MARKER
+        && typeof (raw as { id?: unknown }).id === 'string') {
+        const id = (raw as { id: string }).id.trim();
+        const name = typeof (raw as { name?: unknown }).name === 'string'
+          ? (raw as { name: string }).name.trim()
+          : '';
+        if (id) return { id, ...(name ? { name } : {}) };
+      }
+    } catch { /* vreemde vrije attributen zijn geen taaktype */ }
+  }
+  return undefined;
+}
+
 /** Geëxporteerd (fase 3.8 e1, T7) zodat `mppReader.ts`'s TBkndCons-relatielezer exact dezelfde
  *  code-tabel gebruikt i.p.v. een eigen kopie — MPXJ's `RelationType.getInstance` (ConstraintFactory
  *  .java) gebruikt letterlijk dezelfde 0=FF/1=FS/2=SF/3=SS-codering met dezelfde FS-terugval voor
@@ -291,6 +316,7 @@ export function readMSPDI(content: string): ImportResult {
   // Parse tasks
   const taskElements = root.getElementsByTagName('Task');
   const tasks: Task[] = [];
+  const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
@@ -386,6 +412,10 @@ export function readMSPDI(content: string): ImportResult {
     const percentComplete = getElementInt(te, 'PercentComplete');
     const priority = getElementInt(te, 'Priority', 500);
     const description = getElementText(te, 'Notes');
+    const customTaskType = readOpsCustomTaskType(te);
+    if (customTaskType?.name && !customTaskTypes.has(customTaskType.id)) {
+      customTaskTypes.set(customTaskType.id, { id: customTaskType.id, name: customTaskType.name });
+    }
 
     // Actuals (fase 2.6, §9.1) — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
     const actualStartRaw = getElementText(te, 'ActualStart');
@@ -442,7 +472,8 @@ export function readMSPDI(content: string): ImportResult {
       name,
       description,
       wbsCode: wbs,
-      taskType: 'CONSTRUCTION',
+      taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
+      ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
       status,
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
@@ -587,6 +618,7 @@ export function readMSPDI(content: string): ImportResult {
     resources,
     assignments,
     resourceCalendars,
+    customTaskTypes: [...customTaskTypes.values()],
     baselines,
     activeBaselineId,
   };

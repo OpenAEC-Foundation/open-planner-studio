@@ -37,6 +37,7 @@ import type {
   TaskType,
 } from '@/types/task';
 import { TASK_TYPES } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
 
 // --- Patch-vorm ----------------------------------------------------------------------------------
 
@@ -52,6 +53,7 @@ export interface TaskTimePatch {
 export interface TaskFieldPatch {
   top: Partial<Task>;
   time?: TaskTimePatch;
+  customTaskType?: CustomTaskType;
 }
 
 /** Wat de validator over de DOELTAAK moet weten (bij aanmaak: een verse, lege taak). */
@@ -64,6 +66,7 @@ export interface TaskFieldContext {
   hasAssignments: boolean;
   /** Bestaat deze kalender-id in de bibliotheek? */
   calendarExists: (id: string) => boolean;
+  customTaskTypes: readonly CustomTaskType[];
 }
 
 const DURATION_TYPES: DurationType[] = ['WORKTIME', 'ELAPSEDTIME'];
@@ -102,6 +105,7 @@ export const TASK_FIELD_NAMES = [
   'duration',
   'durationType',
   'taskType',
+  'customTaskType',
   'isMilestone',
   'milestoneKind',
   'mandatory',
@@ -225,6 +229,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
 
   const top: Partial<Task> = {};
   const time: TaskTimePatch = {};
+  let customTaskType: CustomTaskType | undefined;
 
   // Effectieve mijlpaal-status: wat er ná deze patch geldt (de duur-0-invariant hangt daaraan).
   const effMilestone = 'isMilestone' in raw ? raw.isMilestone === true : ctx.currentIsMilestone;
@@ -259,6 +264,30 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       return { ok: false, reason: `\`taskType\` moet één van ${TASK_TYPES.join(' | ')} zijn` };
     }
     top.taskType = raw.taskType as TaskType;
+    if (raw.taskType !== 'USERDEFINED') top.customTaskTypeId = undefined;
+  }
+  if ('customTaskType' in raw) {
+    const value = raw.customTaskType;
+    if (!isPlainObject(value) || typeof value.id !== 'string' || typeof value.name !== 'string'
+      || value.id.trim() === '' || value.name.trim() === '') {
+      return { ok: false, reason: '`customTaskType` moet { id, name } met niet-lege strings zijn' };
+    }
+    if ('taskType' in raw && raw.taskType !== 'USERDEFINED') {
+      return { ok: false, reason: '`customTaskType` vereist taskType USERDEFINED (of laat taskType weg)' };
+    }
+    const candidate = { id: value.id.trim(), name: value.name.trim() };
+    const existing = ctx.customTaskTypes.find(type => type.id === candidate.id);
+    if (existing && existing.name !== candidate.name) {
+      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${existing.name}'` };
+    }
+    const sameName = ctx.customTaskTypes.find(type => type.id !== candidate.id
+      && type.name.localeCompare(candidate.name, undefined, { sensitivity: 'accent' }) === 0);
+    if (sameName) {
+      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameName.id}'` };
+    }
+    customTaskType = candidate;
+    top.taskType = 'USERDEFINED';
+    top.customTaskTypeId = candidate.id;
   }
   if ('isMilestone' in raw) {
     if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` moet een boolean zijn' };
@@ -310,7 +339,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   }
 
   const hasTime = Object.keys(time).length > 0;
-  return { ok: true, patch: { top, ...(hasTime ? { time } : {}) } };
+  return { ok: true, patch: { top, ...(hasTime ? { time } : {}), ...(customTaskType ? { customTaskType } : {}) } };
 }
 
 // --- Voortgangs-allowlist (`update_tasks.progress`) ----------------------------------------------
@@ -422,6 +451,12 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   },
   durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = werkdagen (default), ELAPSEDTIME = doorlooptijd.' },
   taskType: { type: 'string', enum: TASK_TYPES },
+  customTaskType: {
+    type: 'object',
+    description: 'OPS-customtype met stabiele id en projectsnapshot-naam; zet taskType op USERDEFINED. Een bestaand id kan niet van naam veranderen.',
+    properties: { id: { type: 'string' }, name: { type: 'string' } },
+    required: ['id', 'name'], additionalProperties: false,
+  },
   isMilestone: {
     type: 'boolean',
     description:
