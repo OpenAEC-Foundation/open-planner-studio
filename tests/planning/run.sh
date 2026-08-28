@@ -330,6 +330,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERPRODUCTFIDCHECK="$DIR/.xer-product-fidelity.mjs"
   if bundle_check "$DIR/check-xer-product-fidelity.ts" "$XERPRODUCTFIDCHECK"; then node "$XERPRODUCTFIDCHECK" || STATUS=1; fi
 
+  # X12: de oude twee-pinmeting blijft tijdelijk als regressiedossier bestaan, maar deze adapter
+  # meet de echte productketen over iedere door X1 geselecteerde entry en elk geïmporteerd project.
+  X12PRODUCTFIDCHECK="$DIR/.xer-product-fidelity-x12.mjs"
+  if bundle_check "$DIR/check-xer-product-fidelity-x12.ts" "$X12PRODUCTFIDCHECK"; then
+    node "$X12PRODUCTFIDCHECK" || STATUS=1
+  fi
+
   # X4a oorspronkelijke bytes: CP1252 + beide UTF-16-BOM-vormen door web, Tauri, recents en de
   # dev-bridge; de MCP-route heeft dezelfde drie fixtures in tests/mcp/cases-doc-file.ts.
   XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"

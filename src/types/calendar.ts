@@ -1,6 +1,10 @@
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import type { LibraryOrigin } from '@/types/library';
 
+/** Diagnose van de P6/XER-penalty-pset na IFC-inlezen. `REJECTED` en `ABSENT` maken expliciet
+ * dat P6-kalendersemantiek NIET is geactiveerd; alleen de twee geldige staten dragen `p6Source`. */
+export type P6NonWorkPenaltyDatesState = 'ABSENT' | 'VALID_EMPTY' | 'VALID_VALUES' | 'REJECTED';
+
 export interface WorkCalendar {
   id: string;
   name: string;
@@ -28,6 +32,22 @@ export interface WorkCalendar {
    *  dag- of uur-lus raakt dit veld. INVARIANT (afgedwongen door de parser, T3/T4, niet hier): een datum
    *  komt nooit tegelijk in `holidays` én in `workingExceptions` voor. */
   workingExceptions?: WorkingException[];
+  /**
+   * Expliciete herkomst van de P6-projectielaag. Alleen de XER-reader zet `XER`; IFC mag dit
+   * uitsluitend als round-tripmetadata van zo'n import bewaren. Zonder deze stempel zijn alle
+   * kalenderprimitieven en solverpaden gewone OPS-/formaatneutrale kalendersemantiek.
+   */
+  p6Source?: 'XER';
+  /**
+   * Alleen voor een kalender met `p6Source: 'XER'` en een door P6 zelf anders getelde, redundante vrije-dagrecord:
+   * een vrije uitzondering op een al niet-werkende weekdag, of een direct aangrenzende herhaling
+   * van dezelfde vrije datum. P6 laat zo'n record als één extra niet-werkdag meewegen in uurduur-
+   * en floatwandelingen, hoewel de kalenderdatum zelf al niet werkt. De XER-reader bewaart alleen
+   * de unieke brondata die dit gedrag dragen; afwezig is de algemene kalendersemantiek byte-identiek.
+   */
+  p6NonWorkPenaltyDates?: string[];
+  /** IFC-round-tripdiagnose voor de complete penaltylijst. Afwezig = geen P6-penaltypset gezien. */
+  p6NonWorkPenaltyDatesState?: P6NonWorkPenaltyDatesState;
 }
 
 /** Dag-uitzondering die werktijd TOEVOEGT/AANPAST op een anders niet-werkende dag (fase 3.8, T2;

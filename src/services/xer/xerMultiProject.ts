@@ -20,6 +20,11 @@ export type { XerBaselineFallbackReason, XerDocumentExternalLink } from '@/servi
 
 export interface XerMultiProjectImport extends MultiDocumentImport {
   documents: XerMultiProjectDocument[];
+  /** Alle niet-lege, door de productreader gemapte taakprojecten, óók projecten die X-O2 alleen
+   *  als baseline materialiseert en daarom niet als document openen. Dit is echte solverinvoer,
+   *  geen P6-uitvoer/orakelprojectie; productfidelity kan zo iedere taakdragende bron exact één
+   *  keer oplossen zonder de gebruikerszichtbare documentselectie te veranderen. */
+  taskProjects: XerMultiProjectDocument[];
   activeProjectId: string | null;
   /** Cross-projectbrondata tussen geopende documenten; bewust geen Sequence/Task.externalLinks. */
   externalLinks: XerDocumentExternalLink[];
@@ -170,6 +175,8 @@ function materializeBaseline(
     const matched = ownerById.get(task.id) ?? ownerByCode.get(task.wbsCode);
     return {
       taskId: matched?.id ?? task.id,
+      sourceTaskId: task.id,
+      sourceTaskCode: task.wbsCode,
       start: task.time.earlyStart || task.time.scheduleStart,
       finish: task.time.earlyFinish || task.time.scheduleFinish,
       duration: task.time.scheduleDuration,
@@ -180,6 +187,7 @@ function materializeBaseline(
   const finishes = tasks.map(task => task.finish).filter(Boolean).sort();
   return {
     id: `xer-baseline:${ownerProjectId}:${sourceProjectId}`,
+    sourceProjectId,
     name: source?.project.name || sourceProjectRow.cells.proj_short_name || sourceProjectId,
     createdAt: source?.project.modifiedAt || source?.project.createdAt
       || owner.project.modifiedAt || owner.project.createdAt,
@@ -333,6 +341,10 @@ export function assembleXerMultiProjectImport(
       ? -1
       : documents.findIndex(document => document.projectId === activeProjectId),
     documents,
+    taskProjects: nonEmptyProjectRows.map(projectRow => ({
+      projectId: projectRow.cells.proj_id,
+      result: mappedByProject.get(projectRow.cells.proj_id)!,
+    })),
     activeProjectId,
     externalLinks,
     report,

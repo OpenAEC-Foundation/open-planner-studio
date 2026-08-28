@@ -314,13 +314,17 @@ eq('6 aanwezig baselineproject wordt één echte actieve OPS-baseline, geen docu
 eq('7 baseline koppelt id/code onafhankelijk en bewaart een baseline-only taak',
   importedBaseline?.tasks.map(item => ({
     taskId: item.taskId,
+    sourceTaskId: item.sourceTaskId,
+    sourceTaskCode: item.sourceTaskCode,
     start: item.start,
     finish: item.finish,
   })), [
-    { taskId: 'M-SAME-ID', start: '2026-04-01', finish: '2026-04-02' },
-    { taskId: 'M-CODE', start: '2026-04-03', finish: '2026-04-04' },
-    { taskId: 'B-OLD', start: '2026-04-05', finish: '2026-04-06' },
+    { taskId: 'M-SAME-ID', sourceTaskId: 'M-SAME-ID', sourceTaskCode: 'CODE-ID-OLD', start: '2026-04-01', finish: '2026-04-02' },
+    { taskId: 'M-CODE', sourceTaskId: 'B-CODE', sourceTaskCode: 'CODE-MATCH', start: '2026-04-03', finish: '2026-04-04' },
+    { taskId: 'B-OLD', sourceTaskId: 'B-OLD', sourceTaskCode: 'CODE-OLD', start: '2026-04-05', finish: '2026-04-06' },
   ]);
+eq('7a baseline bewaart de uitgesloten bronprojectidentiteit naast de ownerkoppeling',
+  importedBaseline?.sourceProjectId, 'P-BASE');
 eq('7b baseline-materialisatie muteert de geïnjecteerde X4a-resultaten niet', {
   baselines: mainResult.baselines,
   activeBaselineId: mainResult.activeBaselineId,

@@ -136,7 +136,10 @@ export function readIFC(
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(entities, entityMap, baselineTaskStepIds);
-  const sequences = extractSequences(entities, entityMap, taskStepIdMap);
+  const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
+    entities, entityMap, new Set(taskStepIdMap.keys()),
+  );
+  const sequences = extractSequences(entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
@@ -1106,6 +1109,7 @@ function extractSequences(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
+  p6BoundarySequenceGuids: ReadonlySet<string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -1194,10 +1198,71 @@ function extractSequences(
     if (lagUnit) seq.lagUnit = lagUnit;
     if (lagPercent !== undefined) seq.lagPercent = lagPercent;
     if (lagMinutes !== undefined) seq.lagMinutes = lagMinutes;
+    if (p6BoundarySequenceGuids.has(stripQuotes(se.args[0] || ''))) {
+      seq.p6StartAtPredecessorFinishBoundary = true;
+    }
     sequences.push(seq);
   }
 
   return sequences;
+}
+
+/**
+ * X12: lees de relationele P6-grensmetadata. De pset hangt schema-geldig op de IfcWorkSchedule;
+ * de payload bevat daarom IfcRelSequence-GlobalIds in plaats van vluchtige OPS-relatie-id's.
+ * Corrupt/ongeldig metadata blijft inert: alleen een volledige string-array activeert een vlag.
+ */
+function extractP6BoundarySequenceGuids(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  liveTaskStepIds: ReadonlySet<string>,
+): Set<string> {
+  // Alleen een niet-baseline schema dat de daadwerkelijk ingelezen live taken bestuurt/nest,
+  // is voor deze import het relevante IfcWorkSchedule. Een gelijknamige losse pset is geen bewijs.
+  const relevantScheduleIds = new Set<string>();
+  for (const entity of entities) {
+    if (entity.type === 'IFCRELNESTS') {
+      const scheduleId = parseRef(entity.args[4] || '');
+      const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !(schedule.args[14] || '').includes('BASELINE')
+        && parseRefs(entity.args[5] || '').some(id => liveTaskStepIds.has(id))) {
+        relevantScheduleIds.add(scheduleId!);
+      }
+    } else if (entity.type === 'IFCRELASSIGNSTOCONTROL') {
+      const scheduleId = parseRef(entity.args[6] || '');
+      const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !(schedule.args[14] || '').includes('BASELINE')
+        && parseRefs(entity.args[4] || '').some(id => liveTaskStepIds.has(id))) {
+        relevantScheduleIds.add(scheduleId!);
+      }
+    }
+  }
+
+  const accepted: Set<string>[] = [];
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const owners = parseRefs(rel.args[4] || '');
+    if (owners.length !== 1 || !relevantScheduleIds.has(owners[0])) continue;
+    const entity = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!entity || entity.type !== 'IFCPROPERTYSET'
+      || stripQuotes(entity.args[2] || '') !== PSET.Sequences) continue;
+    for (const propRef of parseRefs(entity.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string') continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every(value => typeof value === 'string' && value.length > 0)) {
+          accepted.push(new Set(parsed));
+        }
+      } catch { /* corrupt relationeel bronmetadata blijft inert */ }
+    }
+  }
+  // Meer dan één geldige bron voor dezelfde semantiek is ambigu en faalt gesloten. Een orphan of
+  // pset op een ander schema telt niet mee en kan een latere geldige koppeling dus niet maskeren.
+  return accepted.length === 1 ? accepted[0] : new Set();
 }
 
 /** Parse een getypeerd NominalValue zoals IFCTEXT('x'), IFCREAL(1.5), IFCBOOLEAN(.T.),
@@ -1710,11 +1775,16 @@ function extractCalendarHoursPerDay(
  * property ⇒ `undefined` — de aanroeper valt dan terug op "alles in ExceptionTimes is een
  * feestdag", het conservatieve pre-T5-gedrag voor bestanden zonder deze markering.
  */
-function extractWorkingExceptionStepIds(
+function extractCalendarExceptionMetadata(
   calStepId: string,
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-): Set<string> | undefined {
+): {
+  workingExceptionIds?: Set<string>;
+  p6Source?: 'XER';
+  p6NonWorkPenaltyDates?: string[];
+  p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
+} {
   for (const rel of entities) {
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const objectRefs = parseRefs(rel.args[4] || '');
@@ -1726,19 +1796,66 @@ function extractWorkingExceptionStepIds(
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
 
+    const result: {
+      workingExceptionIds?: Set<string>;
+      p6Source?: 'XER';
+      p6NonWorkPenaltyDates?: string[];
+      p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
+    } = {};
+    let p6SourceSeen = false;
+    let rejectedDiagnosticSeen = false;
+    let penaltyState: import('@/types/calendar').P6NonWorkPenaltyDatesState = 'ABSENT';
+    let candidatePenaltyDates: string[] | undefined;
     for (const prop of props) {
-      if (stripQuotes(prop.args[0] || '') !== 'WorkingExceptionIds') continue;
+      const name = stripQuotes(prop.args[0] || '');
+      if (name !== 'WorkingExceptionIds' && name !== 'P6Source'
+        && name !== 'P6NonWorkPenaltyDates' && name !== 'P6NonWorkPenaltyDatesState') continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
+      if (name === 'P6NonWorkPenaltyDatesState') {
+        if (value === 'REJECTED') rejectedDiagnosticSeen = true;
+        continue;
+      }
+      if (name === 'P6Source') {
+        if (value === 'XER') p6SourceSeen = true;
+        continue;
+      }
       try {
         const parsed = JSON.parse(value);
-        if (Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
-          return new Set(parsed);
+        if (name === 'WorkingExceptionIds'
+          && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
+          result.workingExceptionIds = new Set(parsed);
+        } else if (name === 'P6NonWorkPenaltyDates' && Array.isArray(parsed)) {
+          const dates = parsed.filter((candidate): candidate is string => {
+            if (typeof candidate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return false;
+            const date = new Date(`${candidate}T00:00:00Z`);
+            return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === candidate;
+          });
+          if (dates.length === parsed.length) {
+            candidatePenaltyDates = [...new Set(dates)];
+            penaltyState = candidatePenaltyDates.length === 0 ? 'VALID_EMPTY' : 'VALID_VALUES';
+          } else {
+            penaltyState = 'REJECTED';
+          }
+        } else if (name === 'P6NonWorkPenaltyDates') {
+          penaltyState = 'REJECTED';
         }
-      } catch { /* corrupte JSON: negeren — valt terug op "alles is feestdag" */ }
+      } catch {
+        if (name === 'P6NonWorkPenaltyDates') penaltyState = 'REJECTED';
+      }
     }
+    if (!rejectedDiagnosticSeen && p6SourceSeen
+      && (penaltyState === 'VALID_EMPTY' || penaltyState === 'VALID_VALUES')) {
+      result.p6Source = 'XER';
+      result.p6NonWorkPenaltyDates = candidatePenaltyDates ?? [];
+      result.p6NonWorkPenaltyDatesState = penaltyState;
+    } else if (rejectedDiagnosticSeen || p6SourceSeen) {
+      // All-or-nothing: ontbrekende of corrupte lijst mag de XER-stempel niet half actief laten.
+      result.p6NonWorkPenaltyDatesState = rejectedDiagnosticSeen ? 'REJECTED' : penaltyState;
+    }
+    return result;
   }
-  return undefined;
+  return {};
 }
 
 /** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit: naam/omschrijving/feestdagen
@@ -1828,7 +1945,8 @@ function buildCalendarFromEntity(
   // pset-check als WERKDAG worden ingelezen — een regressie t.o.v. het conservatieve pre-T5-gedrag.
   // Geen markering (eigen bestand van vóór deze herziening, of extern) ⇒ alles in ExceptionTimes
   // is een feestdag, óók met een gevulde recurrence-ref.
-  const workingExceptionIds = extractWorkingExceptionStepIds(cal.id, entities, entityMap);
+  const calendarExceptionMetadata = extractCalendarExceptionMetadata(cal.id, entities, entityMap);
+  const workingExceptionIds = calendarExceptionMetadata.workingExceptionIds;
   const exceptionRefs = parseRefs(cal.args[6] || '');
   const holidays: Holiday[] = [];
   const workingExceptions: WorkingException[] = [];
@@ -1887,6 +2005,13 @@ function buildCalendarFromEntity(
   // een expliciete lege array — beide zijn overal `?? []`-equivalent, dus geen gedragsverschil.
   calendar.holidays = holidays;
   if (workingExceptions.length > 0) calendar.workingExceptions = workingExceptions;
+  if (calendarExceptionMetadata.p6Source === 'XER') {
+    calendar.p6Source = 'XER';
+    calendar.p6NonWorkPenaltyDates = calendarExceptionMetadata.p6NonWorkPenaltyDates ?? [];
+  }
+  if (calendarExceptionMetadata.p6NonWorkPenaltyDatesState) {
+    calendar.p6NonWorkPenaltyDatesState = calendarExceptionMetadata.p6NonWorkPenaltyDatesState;
+  }
 
   // §4.3/§8.2 golden rule: createDefaultCalendar() zet altijd `generation` (nieuwe projecten zijn
   // per definitie gegenereerd) — een uit IFC gelezen kalender is dat NIET tenzij de OPS_Calendar-

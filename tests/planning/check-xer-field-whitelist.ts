@@ -1,6 +1,7 @@
 /**
- * De veldlijsten-poort (X0, XER-etappeplan §4.1) — legt de whitelist, de verboden-lijst en de
- * "genegeerd — geen planningsdata"-bak als GETYPEERDE CONSTANTEN vast, en toetst ze tegen de
+ * De veldlijsten-poort (X0, XER-etappeplan §4.1) — legt invoer, berekende uitvoer, nog niet
+ * ondersteunde external-dependency-proxyvelden en genegeerde niet-planningsdata apart vast,
+ * en toetst ze tegen de
  * daadwerkelijke TASK-`%F`-kolommen over het hele publieke XER-corpus (§4.3: bestandsnamen mogen
  * gewoon in tests/commits — dit is geen bedrijfsdata, anders dan `OPS_MPP_CORPUS`).
  *
@@ -15,7 +16,7 @@
  * MINIMALE %T/%F-tabelscan (geen tokenizer-hergebruik — er is nog niets om te hergebruiken; X2 bouwt
  * de echte grammatica) die uitsluitend kolomNAMEN uittrekt, nooit rijwaarden leest of interpreteert.
  *
- * HET GATENKAAS-MECHANISME (planreview M2): een corpus-`%F`-kolom die in GEEN van de drie bakken
+ * HET GATENKAAS-MECHANISME (planreview M2): een corpus-`%F`-kolom die in GEEN van de vier bakken
  * staat is een poortfout — precies de fout die de eerste twee-bakken-versie van dit plan maakte en
  * die de her-check ving. Schrap je een whitelist- (of verboden-, of genegeerd-)veld zonder het elders
  * te herplaatsen, dan valt die kolom terug tussen wal en schip en gaat de scan ROOD (mét corpus
@@ -37,7 +38,7 @@ const truthy = (label: string, cond: boolean) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-// De drie bakken (XER-etappeplan §4.1, bijgewerkt na de delta-check-redactieronde 076f67ec)
+// De vier bakken (XER-etappeplan §4.1 + D4-review: external proxy is geen lokale rekenuitvoer)
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -80,12 +81,20 @@ export const XER_TASK_FORBIDDEN = [
   'total_float_hr_cnt', 'free_float_hr_cnt',
   'driving_path_flag',
   'float_path', 'float_path_order',
-  'external_early_start_date', 'external_late_end_date',
   'old_restart_date', 'old_reend_date', 'old_remain_drtn_hr_cnt',
   'crt_path_num',
   'critical_drtn_hr_cnt',
   'act_drtn_hr_cnt',
   'plan_start_date', 'plan_end_date',
+] as const;
+
+/**
+ * BAK 2b — P6-proxy/input voor externe afhankelijkheden. Dit is géén berekende lokale TASK-
+ * uitvoer, maar OPS ondersteunt deze bronsemantiek nog niet. Daarom blijft hij bewust buiten de
+ * reader/solver en krijgt hij een eigen non-interferencecontract in de X12-productpoort.
+ */
+export const XER_TASK_EXTERNAL_DEPENDENCY_PROXY = [
+  'external_early_start_date', 'external_late_end_date',
 ] as const;
 
 /**
@@ -154,6 +163,7 @@ export const XER_TASK_IGNORED: readonly string[] = [
   const buckets: [string, readonly string[]][] = [
     ['whitelist', XER_TASK_WHITELIST],
     ['forbidden', XER_TASK_FORBIDDEN],
+    ['external-dependency-proxy', XER_TASK_EXTERNAL_DEPENDENCY_PROXY],
     ['ignored', XER_TASK_IGNORED],
   ];
   for (const [name, list] of buckets) {
@@ -165,18 +175,22 @@ export const XER_TASK_IGNORED: readonly string[] = [
   }
   const whitelistSet = new Set(XER_TASK_WHITELIST as readonly string[]);
   const forbiddenSet = new Set(XER_TASK_FORBIDDEN as readonly string[]);
+  const externalProxySet = new Set(XER_TASK_EXTERNAL_DEPENDENCY_PROXY as readonly string[]);
   const ignoredSet = new Set(XER_TASK_IGNORED);
   for (const f of whitelistSet) {
     truthy(`"${f}" staat niet óók in forbidden`, !forbiddenSet.has(f));
+    truthy(`"${f}" staat niet óók in external-dependency-proxy`, !externalProxySet.has(f));
     truthy(`"${f}" staat niet óók in ignored`, !ignoredSet.has(f));
   }
   for (const f of forbiddenSet) {
+    truthy(`"${f}" staat niet óók in external-dependency-proxy`, !externalProxySet.has(f));
     truthy(`"${f}" staat niet óók in ignored`, !ignoredSet.has(f));
   }
+  for (const f of externalProxySet) truthy(`"${f}" staat niet óók in ignored`, !ignoredSet.has(f));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-// De corpusscan: union van alle TASK-%F-kolommen over OPS_XER_CORPUS, tegen de drie bakken.
+// De corpusscan: union van alle TASK-%F-kolommen over OPS_XER_CORPUS, tegen de vier bakken.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 const CORPUS = process.env.OPS_XER_CORPUS;
@@ -257,14 +271,16 @@ if (!CORPUS) {
 
   const whitelistSet = new Set(XER_TASK_WHITELIST as readonly string[]);
   const forbiddenSet = new Set(XER_TASK_FORBIDDEN as readonly string[]);
+  const externalProxySet = new Set(XER_TASK_EXTERNAL_DEPENDENCY_PROXY as readonly string[]);
   const ignoredSet = new Set(XER_TASK_IGNORED);
 
   const unclassified: string[] = [];
   for (const [col, exampleFile] of unionFirstSeen) {
     const inWhitelist = whitelistSet.has(col);
     const inForbidden = forbiddenSet.has(col);
+    const inExternalProxy = externalProxySet.has(col);
     const inIgnored = ignoredSet.has(col);
-    const bucketCount = Number(inWhitelist) + Number(inForbidden) + Number(inIgnored);
+    const bucketCount = Number(inWhitelist) + Number(inForbidden) + Number(inExternalProxy) + Number(inIgnored);
     if (bucketCount === 0) {
       unclassified.push(`"${col}" (bv. ${exampleFile})`);
     } else if (bucketCount > 1) {
@@ -278,7 +294,7 @@ if (!CORPUS) {
   checks++;
   if (unclassified.length > 0) {
     diffs.push(
-      `xer-field-whitelist: ${unclassified.length} TASK-%F-kolom(men) uit het corpus staan in géén van de drie bakken (whitelist/forbidden/ignored) — gatenkaas-mechanisme, plan §4.1: ${unclassified.join(', ')}`,
+      `xer-field-whitelist: ${unclassified.length} TASK-%F-kolom(men) uit het corpus staan in géén van de vier bakken (whitelist/forbidden/external-proxy/ignored) — gatenkaas-mechanisme, plan §4.1: ${unclassified.join(', ')}`,
     );
   }
 

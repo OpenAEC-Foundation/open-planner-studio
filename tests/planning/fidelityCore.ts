@@ -37,14 +37,16 @@ function isCanonicalMinute(value: string): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 16) === value;
 }
 
-/** XER-poortvergelijking: uitsluitend twee geldige canonieke minuten kunnen exact zijn. */
+/** XER-minuutvergelijking: exact blijft de enige groene uitkomst; een geldige andere minuut op
+ *  dezelfde datum krijgt de diagnostische `sameday`-bak en blijft dus een deviation. */
 export function classifyMinuteExact(
   ours: string | undefined,
   truth: string | null,
 ): FidelityVerdict {
   if (truth === null || ours === undefined) return 'missing';
   if (!isCanonicalMinute(ours) || !isCanonicalMinute(truth)) return 'diff';
-  return ours === truth ? 'exact' : 'diff';
+  if (ours === truth) return 'exact';
+  return dayOf(ours) === dayOf(truth) ? 'sameday' : 'diff';
 }
 
 export interface FidelityValuePair {

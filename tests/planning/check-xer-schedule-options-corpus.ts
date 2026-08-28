@@ -422,8 +422,8 @@ function projectResult(
         earlyFinish: task.time.earlyFinish,
         lateStart: task.time.lateStart,
         lateFinish: task.time.lateFinish,
-        totalFloatMinutes: Math.round(task.time.totalFloat * minutesPerDay),
-        freeFloatMinutes: Math.round(task.time.freeFloat * minutesPerDay),
+        totalFloatMinutes: task.time.totalFloat * minutesPerDay,
+        freeFloatMinutes: task.time.freeFloat * minutesPerDay,
         isCritical: cpm.tasks.get(task.id)?.isCritical,
       };
     });
@@ -465,37 +465,6 @@ function variantDefinitions(
     projectCriticalDefinition: {
       chosen: { schedulingOptions: { criticalDefinition } },
       counterfactual: { schedulingOptions: { criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 } } },
-    },
-  };
-}
-
-function rawProjectCriticalDefinition(
-  tables: RawXerTables,
-  projectId: string,
-): SchedulingOptions['criticalDefinition'] {
-  const row = tables.get('PROJECT')?.rows.find(item => item.cells.proj_id?.trim() === projectId);
-  if (!row) return { mode: 'totalFloat', thresholdHours: 0 };
-  const token = row.cells.critical_path_type?.trim().toUpperCase() ?? '';
-  if (token === 'CT_DRIVPATH') return { mode: 'longestPath' };
-  const raw = row.cells.critical_drtn_hr_cnt?.trim().replace(',', '.') ?? '';
-  const thresholdHours = raw === '' ? 0 : Number(raw);
-  return {
-    mode: 'totalFloat',
-    thresholdHours: Number.isFinite(thresholdHours) ? thresholdHours : 0,
-  };
-}
-
-function independentXerDefaults(tables: RawXerTables, projectId: string): SolverVariant {
-  return {
-    progressMode: 'RETAINED_LOGIC',
-    schedulingOptions: {
-      lagCalendar: 'predecessor',
-      criticalDefinition: rawProjectCriticalDefinition(tables, projectId),
-      totalFloatMode: 'finish',
-      makeOpenEndedCritical: false,
-      useExpectedFinishDates: true,
-      preserveActualDatesInBackwardPass: true,
-      clampNegativeFreeFloat: true,
     },
   };
 }
@@ -717,8 +686,18 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       tasks: file.truth.tasks.filter(task => openedProjectIds.has(task.projectId)),
     };
     oracleNegativeFloatTasks = openedTruth.tasks.filter(taskHasNegativeFloat).length;
-    const xerDefaultsVariants = importedProjects.map(imported =>
-      independentXerDefaults(file.rawScan.tables, imported.project.id));
+    // Gebruik ook hier het onafhankelijke PROJECT/SCHEDOPTIONS-orakel. De oude lokale subset
+    // controleerde slechts zeven publieke opties en verklaarde daardoor iedere correct bedrade
+    // XER-defaultset met interne bronsemantiek ten onrechte als "niet bedraad". Dit pad leest
+    // nog steeds uitsluitend raw tabellen; het importeert geen productie-afleiding.
+    const xerDefaultsExpected = importedProjects.map(imported =>
+      expectedXerScheduleOptions(file.rawScan, imported.project.id, {
+        taskCount: imported.tasks.filter(task => task.p6ActivityType !== undefined).length,
+      }));
+    const xerDefaultsVariants = xerDefaultsExpected.map(expected => ({
+      progressMode: expected.progressMode,
+      schedulingOptions: expected.schedulingOptions,
+    }));
     openedProjectsWithDefaults += importedProjects.length;
     wiredProjectsWithDefaults += importedProjects.filter((imported, index) =>
       JSON.stringify({
@@ -727,7 +706,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
         source: imported.xer?.scheduleOptions.source,
       }) === JSON.stringify({
         ...xerDefaultsVariants[index],
-        source: 'xer-defaults',
+        source: xerDefaultsExpected[index].source,
       })).length;
     const house = importedProjects.map(imported => projectResult(imported, {}));
     const houseMeasurement = measureXerFidelity(openedTruth, house);
@@ -888,17 +867,20 @@ if (!root) {
   const measured = measureCorpus(root);
   eq('openbare populatie en negatieve-floatverdeling', measured.population, {
     scanned: 93,
-    oracleAxisFiles: 60,
-    rawWithSchedOptions: 24,
-    rawWithoutSchedOptions: 36,
-    projectAddressableSchedOptions: 23,
-    functionallyWithoutSchedOptions: 37,
-    measured: 35,
+    // De rauwe X12-meetlat normaliseert completed taken niet meer naar actuals. Twee bestanden
+    // die uitsluitend via die oude substitutie een as leken te dragen vallen daarom bewust uit
+    // deze SCHEDOPTIONS-populatie; de historische v8-pin blijft afzonderlijk rood en ongemoeid.
+    oracleAxisFiles: 58,
+    rawWithSchedOptions: 23,
+    rawWithoutSchedOptions: 35,
+    projectAddressableSchedOptions: 22,
+    functionallyWithoutSchedOptions: 36,
+    measured: 34,
     deferred: 2,
-    readableFiles: 35,
-    openedProjectsWithDefaults: 36,
-    wiredProjectsWithDefaults: 36,
-    concreteProjectsCompared: 84,
+    readableFiles: 34,
+    openedProjectsWithDefaults: 35,
+    wiredProjectsWithDefaults: 35,
+    concreteProjectsCompared: 70,
     oracleNegativeFloatFiles: 5,
     withoutSchedOptionsNegativeFloatFiles: 4,
     rawNegativeFloatFiles: 6,

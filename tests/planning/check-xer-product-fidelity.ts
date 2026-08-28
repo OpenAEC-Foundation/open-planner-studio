@@ -55,8 +55,8 @@ function solved(bytes: Uint8Array): XerSolvedProject {
         earlyFinish: task.time.earlyFinish,
         lateStart: task.time.lateStart,
         lateFinish: task.time.lateFinish,
-        totalFloatMinutes: Math.round(task.time.totalFloat * minutesPerDay),
-        freeFloatMinutes: Math.round(task.time.freeFloat * minutesPerDay),
+        totalFloatMinutes: task.time.totalFloat * minutesPerDay,
+        freeFloatMinutes: task.time.freeFloat * minutesPerDay,
       };
     }),
   };

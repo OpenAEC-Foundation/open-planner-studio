@@ -70,6 +70,7 @@
 
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { solveProject } from '@/engine/scheduler/solveProject';
 import { ALL_RECORDED_SLOT_KEYS, IFC_TASKTIME_SLOTS, TASKTIME_SLOT, IFC_TASK_SLOTS, TASK_SLOT } from '@/services/ifc/ifcTaskSlots';
 import type { Task, TaskTime, ExternalLink, TaskSplitGap, TaskTimephasedContour } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -135,6 +136,9 @@ const projCal = {
     { name: 'Nieuwjaar', startDate: '2027-01-01', endDate: '2027-01-01' },
   ],
   workingExceptions: [],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: ['2026-12-27'],
+  p6NonWorkPenaltyDatesState: 'VALID_VALUES',
   generation: PROJ_GEN, shift: 'SECOND',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-projcal', poolVersion: 4 },
 } satisfies Omit<Required<WorkCalendar>, 'workTime'>;
@@ -146,6 +150,9 @@ const libCal = {
     { name: 'Overwerkdag', startDate: '2026-08-08', endDate: '2026-08-08', bands: [{ start: 360, end: 720 }] },
     { name: 'Verschoven werkdag', startDate: '2026-08-15', endDate: '2026-08-15' },
   ],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: [],
+  p6NonWorkPenaltyDatesState: 'VALID_EMPTY',
   generation: LIB_GEN, shift: 'THIRD',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-libcal', poolVersion: 4 },
 } satisfies Omit<Required<WorkCalendar>, 'workTime'>;
@@ -159,6 +166,9 @@ const _CALENDAR_FIELD_WITNESS = {
   id: 'w', name: 'w', description: 'w', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
   workingExceptions: [{ name: 'w', startDate: '2026-01-01', endDate: '2026-01-01', bands: [{ start: 0, end: 60 }] }],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: [],
+  p6NonWorkPenaltyDatesState: 'VALID_EMPTY',
   generation: PROJ_GEN, shift: 'FIRST',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-witness', poolVersion: 1 },
   workTime: { byWeekday: { 1: [{ start: 480, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },
@@ -308,7 +318,7 @@ const tasks: Task[] = [TP, TM, TX, TY];
 // mutueel exclusief (lagPercent wint altijd in de writer en zou lagDays overschrijven). De
 // veld-volledigheid bewaken we via een type-only getuige; de round-trip-relaties zijn realistisch.
 const sequences: Sequence[] = [
-  { id: 's1', predecessorId: 't-x', successorId: 't-m', type: 'FINISH_START', lagDays: 2, lagUnit: 'ELAPSEDTIME' },
+  { id: 's1', predecessorId: 't-x', successorId: 't-m', type: 'FINISH_START', lagDays: 2, lagUnit: 'ELAPSEDTIME', p6StartAtPredecessorFinishBoundary: true },
   { id: 's2', predecessorId: 't-x', successorId: 't-y', type: 'START_START', lagDays: 0, lagPercent: 50 },
   { id: 's3', predecessorId: 't-y', successorId: 't-m', type: 'FINISH_FINISH', lagDays: 1 },
   { id: 's4', predecessorId: 't-x', successorId: 't-m', type: 'START_FINISH', lagDays: 0 },
@@ -317,6 +327,7 @@ const sequences: Sequence[] = [
 const _SEQUENCE_FIELD_WITNESS = {
   id: 'w', predecessorId: 'a', successorId: 'b', type: 'FINISH_START',
   lagDays: 1, lagMinutes: 60, lagUnit: 'WORKTIME', lagPercent: 25,
+  p6StartAtPredecessorFinishBoundary: false,
 } satisfies Required<Sequence>;
 void _SEQUENCE_FIELD_WITNESS;
 
@@ -350,6 +361,7 @@ const assignments: ResourceAssignment[] = [
 
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
 const SCHED_OPTS = {
+  p6Source: 'XER',
   lagCalendar: 'successor',
   criticalDefinition: { mode: 'longestPath', threshold: -1, thresholdHours: -8 },
   totalFloatMode: 'finish',
@@ -357,6 +369,13 @@ const SCHED_OPTS = {
   useExpectedFinishDates: false,
   preserveActualDatesInBackwardPass: true,
   clampNegativeFreeFloat: true,
+  p6ZeroDurationUsesPlannedBoundary: true,
+  p6UseTaskPlannedStartFloor: true,
+  p6FinishMilestoneBoundaryWindow: true,
+  p6PreserveActualInstants: true,
+  p6UseRemainingStartForProgress: true,
+  p6PreserveZeroDurationConstraintInstants: true,
+  useProjectEndDateForFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob
@@ -487,6 +506,9 @@ const CALENDAR_CANON = {
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(e => canonize(WORKING_EXCEPTION_CANON, e, k)),
   },
+  p6Source: KEEP,
+  p6NonWorkPenaltyDates: KEEP,
+  p6NonWorkPenaltyDatesState: KEEP,
   generation: KEEP,
   workTime: { skip: 'aanwezig ⇒ UUR-kalender; deze fixture is dag-modus. Uur-round-trip: check-adapters-hours.ts' },
   shift: KEEP,
@@ -584,6 +606,7 @@ const SEQUENCE_CANON = {
   predecessorId: { as: 'pred', get: (s: Sequence, k: Keys) => k.task(s.predecessorId) },
   successorId: { as: 'succ', get: (s: Sequence, k: Keys) => k.task(s.successorId) },
   type: KEEP, lagDays: KEEP, lagMinutes: KEEP, lagUnit: KEEP, lagPercent: KEEP,
+  p6StartAtPredecessorFinishBoundary: KEEP,
 } satisfies CanonSpec<Sequence>;
 
 const RESOURCE_CANON = {
@@ -622,12 +645,13 @@ const PROJECT_CANON = {
 
 const BASELINE_TASK_CANON = {
   taskId: { as: 'task', get: (bt: BaselineTask, k: Keys) => k.task(bt.taskId) },
+  sourceTaskId: KEEP, sourceTaskCode: KEEP,
   start: KEEP, finish: KEEP, duration: KEEP, isMilestone: KEEP, milestoneKind: KEEP,
 } satisfies CanonSpec<BaselineTask>;
 
 const BASELINE_CANON = {
   id: KEEP,   // baseline-ids round-trippen letterlijk mee (OPS_Baselines-JSON)
-  name: KEEP, createdAt: KEEP,
+  name: KEEP, createdAt: KEEP, sourceProjectId: KEEP,
   tasks: {
     get: (b: Baseline, k: Keys) => (b.tasks ?? []).map(bt => canonize(BASELINE_TASK_CANON, bt, k))
       .sort((x, y) => String(x.task).localeCompare(String(y.task))),
@@ -732,6 +756,115 @@ function collectDiffs(path: string, a: unknown, b: unknown, out: string[]): void
 const expectedInput: ImportResult = { ...fixture, resourceCalendars: (fixture.resourceCalendars ?? []).filter(c => c.id !== fixture.project.calendarId) };
 const rt1 = readIFC(writeIFC(fixture));
 const rt2 = readIFC(writeIFC(rt1));
+
+const hasP6BoundarySequence = (input: ImportResult) =>
+  input.sequences.some(sequence => sequence.p6StartAtPredecessorFinishBoundary === true);
+
+{
+  const validIfc = writeIFC(fixture);
+  const lines = validIfc.split('\n');
+  const psetIndex = lines.findIndex(line => line.includes("'OPS_Sequences'"));
+  assert(psetIndex >= 0, 'OPS_Sequences-pset ontbreekt in de geldige writerfixture');
+  const psetId = lines[psetIndex].match(/^#(\d+)=/)?.[1];
+  assert(!!psetId, 'STEP-id van OPS_Sequences-pset ontbreekt');
+  const relationIndex = lines.findIndex(line => line.includes('IFCRELDEFINESBYPROPERTIES(')
+    && line.endsWith(`,#${psetId});`));
+  assert(relationIndex >= 0, 'IFCRELDEFINESBYPROPERTIES voor OPS_Sequences ontbreekt');
+
+  const orphan = readIFC(lines.filter((_, index) => index !== relationIndex).join('\n'));
+  assert(!hasP6BoundarySequence(orphan),
+    'een orphan OPS_Sequences-pset zonder relatie naar het live schema blijft inert');
+
+  const maskedLines = [...lines];
+  maskedLines.splice(psetIndex, 0,
+    "#990001=IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT('[\"masker\"]'),$);",
+    "#990002=IFCPROPERTYSET('maskerpset00000000000001',#1,'OPS_Sequences',$,(#990001));");
+  const masked = readIFC(maskedLines.join('\n'));
+  assert(hasP6BoundarySequence(masked),
+    'een eerdere orphan OPS_Sequences-pset mag de later geldig gekoppelde pset niet maskeren');
+
+  const baselineScheduleId = lines.find(line => line.includes('IFCWORKSCHEDULE(') && line.includes('.BASELINE.'))
+    ?.match(/^#(\d+)=/)?.[1];
+  assert(!!baselineScheduleId, 'baseline-IFCWORKSCHEDULE ontbreekt in de fixture');
+  const wrongLines = [...lines];
+  wrongLines[relationIndex] = wrongLines[relationIndex].replace(/,\(#[^)]+\),(#\d+)\);$/, `,(#${baselineScheduleId}),$1);`);
+  const wrongSchedule = readIFC(wrongLines.join('\n'));
+  assert(!hasP6BoundarySequence(wrongSchedule),
+    'OPS_Sequences op een baseline/verkeerd schema activeert de live relatie niet');
+
+  const owner = lines[relationIndex].match(/,\((#\d+)\),#\d+\);$/)?.[1];
+  assert(!!owner, 'live schema-eigenaar ontbreekt in OPS_Sequences-relatie');
+  const duplicateLines = [...lines];
+  duplicateLines.splice(relationIndex + 1, 0,
+    "#990003=IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT('[\"duplicaat\"]'),$);",
+    "#990004=IFCPROPERTYSET('duplicaatpset000000000001',#1,'OPS_Sequences',$,(#990003));",
+    `#990005=IFCRELDEFINESBYPROPERTIES('duplicaatrel0000000000001',#1,$,$,(${owner}),#990004);`);
+  const duplicate = readIFC(duplicateLines.join('\n'));
+  assert(!hasP6BoundarySequence(duplicate),
+    'twee geldig gekoppelde OPS_Sequences-bronnen zijn ambigu en falen gesloten');
+}
+
+{
+  const orphanPenaltyIfc = writeIFC(fixture).split('\n')
+    .filter(line => !line.includes("IFCPROPERTYSINGLEVALUE('P6Source'"))
+    .join('\n');
+  const orphanPenalty = readIFC(orphanPenaltyIfc);
+  assert(orphanPenalty.calendar.p6Source === undefined
+    && orphanPenalty.calendar.p6NonWorkPenaltyDates === undefined,
+  'P6NonWorkPenaltyDates zonder P6Source=XER blijft bij IFC-inlees inert en wordt niet gematerialiseerd');
+}
+
+{
+  const absentPenaltyIfc = writeIFC(fixture).split('\n')
+    .filter(line => !line.includes("IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates'"))
+    .join('\n');
+  const absentPenalty = readIFC(absentPenaltyIfc);
+  assert(absentPenalty.calendar.p6Source === undefined
+    && absentPenalty.calendar.p6NonWorkPenaltyDates === undefined
+    && absentPenalty.calendar.p6NonWorkPenaltyDatesState === 'ABSENT',
+  'P6Source=XER zonder penaltylijst blijft diagnostisch ABSENT en activeert geen halve P6-kalendersemantiek');
+}
+
+{
+  const rejectedPenaltyIfc = writeIFC(fixture).replace(
+    '["2026-12-27"]', '["2026-12-27",7]',
+  );
+  const rejectedPenalty = readIFC(rejectedPenaltyIfc);
+  assert(rejectedPenalty.calendar.p6Source === undefined
+    && rejectedPenalty.calendar.p6NonWorkPenaltyDates === undefined
+    && rejectedPenalty.calendar.p6NonWorkPenaltyDatesState === 'REJECTED',
+  'één corrupte P6-penaltywaarde wijst de volledige lijst diagnostisch af en laat p6Source niet half actief');
+
+  const rejectedInput: ImportResult = {
+    ...fixture,
+    calendar: {
+      ...fixture.calendar,
+      p6Source: undefined,
+      p6NonWorkPenaltyDates: undefined,
+      p6NonWorkPenaltyDatesState: 'REJECTED',
+    },
+  };
+  const rejectedRoundTrip = readIFC(writeIFC(rejectedInput));
+  assert(rejectedRoundTrip.calendar.p6Source === undefined
+    && rejectedRoundTrip.calendar.p6NonWorkPenaltyDates === undefined
+    && rejectedRoundTrip.calendar.p6NonWorkPenaltyDatesState === 'REJECTED',
+  'REJECTED penaltydiagnostiek rondt inert afzonderlijk door IFC zonder P6-herkomst te herstellen');
+  const solveAxes = (input: ImportResult) => {
+    const solved = solveProject({
+      tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
+      calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
+      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
+    });
+    assert(!solved.error, `solverfout in REJECTED-inertietest: ${solved.error}`);
+    return input.tasks.map(task => [task.wbsCode, task.time.earlyStart, task.time.earlyFinish,
+      task.time.lateStart, task.time.lateFinish, task.time.totalFloat, task.time.freeFloat]);
+  };
+  const clean = { ...rejectedRoundTrip, calendar: { ...rejectedRoundTrip.calendar,
+    p6NonWorkPenaltyDatesState: undefined } };
+  assert(JSON.stringify(solveAxes(rejectedRoundTrip)) === JSON.stringify(solveAxes(clean)),
+    'REJECTED penaltydiagnostiek is solver-inert');
+}
 
 {
   const diffs: string[] = [];

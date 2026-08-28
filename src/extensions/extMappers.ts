@@ -47,14 +47,20 @@ import type {
 
 // ── Kleine helpers (diepe kopie van geneste, mogelijk bevroren, waarden) ──
 
-/** `SchedulingOptions`/`ExtSchedulingOptions` zijn structureel gelijk; één helper dekt beide
- *  richtingen. De geneste `criticalDefinition`/`floatPaths` MOETEN mee-gekopieerd worden —
- *  een kale spread zou daar bevroren store-referenties doorgeven (reviewbevinding pakket N). */
-function copySchedulingOptions<T extends ExtSchedulingOptions>(o: T): T {
-  const copy = { ...o };
-  if (copy.criticalDefinition) copy.criticalDefinition = { ...copy.criticalDefinition };
-  if (copy.floatPaths) copy.floatPaths = { ...copy.floatPaths };
-  return copy;
+/** Publieke scheduling-options worden veld-voor-veld gereconstrueerd. Dit is tegelijk een
+ *  mutabiliteitsgrens en een beveiligingsgrens: runtime-objecten van JS-extensies kunnen extra
+ *  interne `p6*`-sleutels dragen die niet in `ExtSchedulingOptions` staan. Een spread zou die
+ *  ongemerkt als solverinvoer activeren. De native XER-lezer zet zulke bronopties rechtstreeks op
+ *  het interne model en loopt dus niet door deze generieke extensie-invoer. */
+function publicSchedulingOptions(o: ExtSchedulingOptions): ExtSchedulingOptions {
+  return {
+    lagCalendar: o.lagCalendar,
+    criticalDefinition: o.criticalDefinition ? { ...o.criticalDefinition } : undefined,
+    totalFloatMode: o.totalFloatMode,
+    makeOpenEndedCritical: o.makeOpenEndedCritical,
+    nearCriticalThreshold: o.nearCriticalThreshold,
+    floatPaths: o.floatPaths ? { ...o.floatPaths } : undefined,
+  };
 }
 
 function copyConstraint(c: TaskConstraint): ExtTaskConstraint {
@@ -162,7 +168,7 @@ export function toExtProject(p: Project): ExtProject {
     wbsAutoNumber: p.wbsAutoNumber,
     statusDate: p.statusDate,
     progressMode: p.progressMode,
-    schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
+    schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
 
@@ -181,7 +187,7 @@ export function fromExtProject(p: ExtProject): Project {
     wbsAutoNumber: p.wbsAutoNumber,
     statusDate: p.statusDate,
     progressMode: p.progressMode,
-    schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
+    schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
 
@@ -200,6 +206,8 @@ export function toExtCalendar(c: WorkCalendar): ExtCalendar {
     workTime: c.workTime ? copyWorkTime(c.workTime) : undefined,
     shift: c.shift,
     workingExceptions: c.workingExceptions ? c.workingExceptions.map(copyWorkingException) : undefined,
+    p6Source: c.p6Source,
+    p6NonWorkPenaltyDates: c.p6NonWorkPenaltyDates ? [...c.p6NonWorkPenaltyDates] : undefined,
   };
 }
 
@@ -571,6 +579,7 @@ export function toExtSequence(s: Sequence): ExtSequence {
     lagMinutes: s.lagMinutes,
     lagUnit: s.lagUnit,
     lagPercent: s.lagPercent,
+    p6StartAtPredecessorFinishBoundary: s.p6StartAtPredecessorFinishBoundary,
   };
 }
 

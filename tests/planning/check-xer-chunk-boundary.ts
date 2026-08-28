@@ -49,6 +49,12 @@ try {
 // expliciete §4-verbodslijst hier statisch dicht: ook een toekomstige, ogenschijnlijk handige
 // veldtoegang maakt deze poort rood.
 const reader = readFileSync(join(srcRoot, 'services', 'xer', 'xerReader.ts'), 'utf8');
+// `PROJECT.plan_end_date` is een P6-invoer voor de expliciete X5-optie
+// `useProjectEndDateForFloat`; dezelfde naam in TASK is daarentegen opgeslagen rekenuitvoer.
+// Haal uitsluitend de aantoonbaar project-scoped toegang uit de statische firewallscan, zodat de
+// poort de productregel bewaakt zonder twee verschillende tabellen op veldnaam te verwarren.
+const readerWithoutComments = reader.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+const readerWithoutAllowedProjectInput = readerWithoutComments.split('projectRow.cells.plan_end_date').join('');
 const forbiddenTaskFields = [
   'early_', 'late_', 'restart_date', 'reend_date',
   'rem_late_start_date', 'rem_late_end_date',
@@ -60,7 +66,9 @@ const forbiddenTaskFields = [
   'plan_start_date', 'plan_end_date',
 ] as const;
 for (const field of forbiddenTaskFields) {
-  if (reader.includes(field)) diffs.push(`xerReader.ts bevat verboden P6-uitvoerveld ${field}`);
+  if (readerWithoutAllowedProjectInput.includes(field)) {
+    diffs.push(`xerReader.ts bevat verboden P6-uitvoerveld ${field}`);
+  }
 }
 
 if (diffs.length > 0) {

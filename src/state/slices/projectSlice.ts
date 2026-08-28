@@ -362,7 +362,9 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     // wijzigt niet tussen de "voor"- en "na"-solve hieronder (alleen datums schuiven), dus één
     // expansie op `s.tasks` volstaat voor beide takken.
     const { sequences: expandedSequences } = expandSummaryRelations(s.tasks, s.sequences);
-    const solve = (tasks: Task[], dataDate: string | undefined, projectStartDate: string): CPMResult => {
+    const solve = (
+      tasks: Task[], dataDate: string | undefined, projectStartDate: string, projectEndDate: string,
+    ): CPMResult => {
       const leaf = tasks.filter(isLeafTask);
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
         dataDate,
@@ -372,6 +374,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
         // de HUIDIGE projectstart, de "na"-solve tegen de NIEUWE — anders zou deze preview een
         // wortel-taak vóór zijn eigen projectbegin kunnen tonen.
         projectStartDate,
+        projectEndDate,
       }).solve();
     };
 
@@ -399,11 +402,14 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     }
 
     const fresh = s.cpmResult && !s.cpmResult.error && !s.scheduleStale ? s.cpmResult : null;
-    const before = fresh ?? solve(s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate, s.project.startDate);
+    const before = fresh ?? solve(
+      s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate, s.project.startDate, s.project.endDate,
+    );
     const after = solve(
       s.tasks.map((t) => shiftTask(t, delta)),
       shiftIso(s.project.statusDate, delta),
       newStartDate,
+      shiftIso(s.project.endDate, delta) || s.project.endDate,
     );
 
     if (after.error) return { ...empty, error: after.error };

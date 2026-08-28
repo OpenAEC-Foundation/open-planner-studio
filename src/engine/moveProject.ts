@@ -169,6 +169,7 @@ const AVAILABILITY_STEP_VERDICTS = {
 
 const BASELINE_VERDICTS = {
   id: 'n/a', name: 'n/a',
+  sourceProjectId: 'n/a',
   createdAt: 'keep',              // archiefdatum — ook NIET bij shiftBaselines:true
   tasks: 'shift',                 // alleen bij shiftBaselines:true
   projectEnd: 'shift',            // idem
@@ -176,7 +177,7 @@ const BASELINE_VERDICTS = {
 } satisfies Record<keyof Baseline, MoveVerdict>;
 
 const BASELINE_TASK_VERDICTS = {
-  taskId: 'n/a',
+  taskId: 'n/a', sourceTaskId: 'n/a', sourceTaskCode: 'n/a',
   start: 'shift', finish: 'shift',
   duration: 'n/a', isMilestone: 'n/a', milestoneKind: 'n/a',
 } satisfies Record<keyof BaselineTask, MoveVerdict>;

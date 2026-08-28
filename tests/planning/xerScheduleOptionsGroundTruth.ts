@@ -186,6 +186,10 @@ export function expectedXerScheduleOptions(
     };
   }
   const schedulingOptions: SchedulingOptions = {
+    // Onafhankelijk testorakel: deze XER-eigen switches zijn letterlijk uit de toegestane
+    // PROJECT/SCHEDOPTIONS-bronvorm afgeleid als vaste, brongebonden defaults — geen import van
+    // `xerScheduleOptions.ts`, zodat een productwijziging de verwachting niet kan meeschuiven.
+    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition,
     totalFloatMode: 'finish',
@@ -193,6 +197,15 @@ export function expectedXerScheduleOptions(
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
+    p6ZeroDurationUsesPlannedBoundary: true,
+    p6UseTaskPlannedStartFloor: true,
+    p6FinishMilestoneBoundaryWindow: true,
+    p6PreserveActualInstants: true,
+    // PROJECT is de bron van deze keuze, óók als een project geen SCHEDOPTIONS-rij heeft.
+    // Dit blijft een onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
+    p6UseRemainingStartForProgress:
+      projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y',
+    p6PreserveZeroDurationConstraintInstants: true,
   };
   if (!scheduleRow) {
     return {
@@ -216,8 +229,13 @@ export function expectedXerScheduleOptions(
   );
   const retainedToken = scheduleRow.cells.sched_use_project_end_date_for_float?.trim() ?? '';
   let retainedSource: IndependentXerScheduleExpected['retainedSource'] = {};
-  if (retainedToken.toUpperCase() === 'Y') retainedSource = { sched_use_project_end_date_for_float: true };
-  else if (retainedToken.toUpperCase() === 'N') retainedSource = { sched_use_project_end_date_for_float: false };
+  if (retainedToken.toUpperCase() === 'Y') {
+    retainedSource = { sched_use_project_end_date_for_float: true };
+    schedulingOptions.useProjectEndDateForFloat = true;
+  } else if (retainedToken.toUpperCase() === 'N') {
+    retainedSource = { sched_use_project_end_date_for_float: false };
+    schedulingOptions.useProjectEndDateForFloat = false;
+  }
   else if (retainedToken) fallback(
     fallbacks, scheduleRow, 'sched_use_project_end_date_for_float', retainedToken, 'niet bewaard',
   );

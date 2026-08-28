@@ -58,9 +58,9 @@ const multiSource = bytes([
   '%R\tC4\tVier uur\t4\t20\t',
   '%R\tC8\tAcht uur\t8\t40\t',
   '%T\tPROJECT',
-  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tcritical_path_type\tcritical_drtn_hr_cnt',
-  '%R\tP-A\tProject A\tC4\t2026-01-05 08:00\tCT_TotFloat\t8',
-  '%R\tP-B\tProject B\tC8\t2026-01-05 08:00\tCT_DrivPath\t0',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tcritical_path_type\tcritical_drtn_hr_cnt\trem_target_link_flag',
+  '%R\tP-A\tProject A\tC4\t2026-01-05 08:00\tCT_TotFloat\t8\tY',
+  '%R\tP-B\tProject B\tC8\t2026-01-05 08:00\tCT_DrivPath\t0\tN',
   '%T\tSCHEDOPTIONS',
   '%F\tproj_id\tsched_calendar_on_relationship_lag\tsched_float_type\tsched_retained_logic\tsched_progress_override\tsched_open_critical_flag\tsched_use_expect_end_flag\tsched_use_project_end_date_for_float\tlevelprioritylist\tschedhash',
   '%R\tP-A\trcal_Successor\tft_ss\tN\tY\tY\tN\tY\tA-RAW\tHASH-A',
@@ -105,6 +105,7 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
     id: 'P-A',
     progressMode: 'PROGRESS_OVERRIDE',
     schedulingOptions: {
+      p6Source: 'XER',
       lagCalendar: 'successor',
       criticalDefinition: { mode: 'totalFloat', thresholdHours: 8 },
       totalFloatMode: 'start',
@@ -112,12 +113,20 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       useExpectedFinishDates: false,
       preserveActualDatesInBackwardPass: true,
       clampNegativeFreeFloat: true,
+      p6ZeroDurationUsesPlannedBoundary: true,
+      p6UseTaskPlannedStartFloor: true,
+      p6FinishMilestoneBoundaryWindow: true,
+      p6PreserveActualInstants: true,
+      p6UseRemainingStartForProgress: true,
+      p6PreserveZeroDurationConstraintInstants: true,
+      useProjectEndDateForFloat: true,
     },
   },
   {
     id: 'P-B',
     progressMode: 'RETAINED_LOGIC',
     schedulingOptions: {
+      p6Source: 'XER',
       lagCalendar: '24hour',
       criticalDefinition: { mode: 'longestPath' },
       totalFloatMode: 'finish',
@@ -125,9 +134,44 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       useExpectedFinishDates: true,
       preserveActualDatesInBackwardPass: true,
       clampNegativeFreeFloat: true,
+      p6ZeroDurationUsesPlannedBoundary: true,
+      p6UseTaskPlannedStartFloor: true,
+      p6FinishMilestoneBoundaryWindow: true,
+      p6PreserveActualInstants: true,
+      p6UseRemainingStartForProgress: false,
+      p6PreserveZeroDurationConstraintInstants: true,
+      useProjectEndDateForFloat: false,
     },
   },
 ]);
+
+// De onafhankelijke raw-ground-truth moet precies dezelfde projectgebonden schakelaars afleiden
+// als de productlezer, maar mag hem niet importeren. Dit dekt de OZB-klasse: PROJECT-invoer en
+// SCHEDOPTIONS-invoer worden per project samengevoegd, ook in een meerdocumentbestand.
+const independentMultiTruth = scanRawXerScheduleOptions(multiSource);
+eq('2a onafhankelijke SCHEDOPTIONS-grondwaarheid combineert PROJECT en SCHEDOPTIONS per project',
+  ['P-A', 'P-B'].map(projectId => {
+    const expected = expectedXerScheduleOptions(independentMultiTruth, projectId, { taskCount: 1 });
+    return {
+      projectId,
+      useRemainingStartForProgress: expected.schedulingOptions.p6UseRemainingStartForProgress,
+      useProjectEndDateForFloat: expected.schedulingOptions.useProjectEndDateForFloat,
+      retainedSource: expected.retainedSource,
+    };
+  }), [
+    {
+      projectId: 'P-A',
+      useRemainingStartForProgress: true,
+      useProjectEndDateForFloat: true,
+      retainedSource: { sched_use_project_end_date_for_float: true },
+    },
+    {
+      projectId: 'P-B',
+      useRemainingStartForProgress: false,
+      useProjectEndDateForFloat: false,
+      retainedSource: { sched_use_project_end_date_for_float: false },
+    },
+  ]);
 
 eq('3 retained bronvlag, onbekend enumtoken en volledige bronrij blijven per project zichtbaar', [
   scheduleMetadata(projectA!),
@@ -208,6 +252,7 @@ eq('4 ontbrekende SCHEDOPTIONS krijgt altijd de expliciete P6-defaultset op de 4
 }, {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
+    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition: { mode: 'totalFloat', thresholdHours: 8 },
     totalFloatMode: 'finish',
@@ -215,6 +260,12 @@ eq('4 ontbrekende SCHEDOPTIONS krijgt altijd de expliciete P6-defaultset op de 4
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
+    p6ZeroDurationUsesPlannedBoundary: true,
+    p6UseTaskPlannedStartFloor: true,
+    p6FinishMilestoneBoundaryWindow: true,
+    p6PreserveActualInstants: true,
+    p6UseRemainingStartForProgress: false,
+    p6PreserveZeroDurationConstraintInstants: true,
   },
   projectHours: 8,
   taskHours: 4,

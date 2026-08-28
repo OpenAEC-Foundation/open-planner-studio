@@ -541,6 +541,8 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
           dataDate: payload.project.statusDate,
           progressMode: payload.project.progressMode,
           schedulingOptions: payload.project.schedulingOptions,
+          projectStartDate: payload.project.startDate,
+          projectEndDate: payload.project.endDate,
         });
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.

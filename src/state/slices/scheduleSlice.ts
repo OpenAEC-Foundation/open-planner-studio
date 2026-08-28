@@ -119,6 +119,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
         // CPMSolver) — zonder deze optie kon een taak met een verouderde `scheduleStart` (bv. gezet
         // vóór een latere wijziging van de projectstartdatum) gewoon vóór het projectbegin doorlopen.
         projectStartDate: s.project.startDate,
+        projectEndDate: s.project.endDate,
       });
 
       // If circular dependency detected, store the result (with error) and bail
@@ -244,6 +245,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
         // Zelfde projectstart-vloer als runCPM hierboven (gebruikstest-bevinding 2026-08) — anders
         // zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
         projectStartDate: s.project.startDate,
+        projectEndDate: s.project.endDate,
       },
     );
   },

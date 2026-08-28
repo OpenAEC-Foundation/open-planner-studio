@@ -12,7 +12,7 @@
  * tussencategorie zoals bij een dag-vs-uur-gemengd .mpp-corpus. Per as is het dus binair: een
  * meting wijkt af, of niet — vandaar `Deviations`/`Measurable` i.p.v. `Exact`/`Sameday`/`Diff`. De
  * assen: ES/EF/LS/LF (datums) + TF/FF (float, via de formule uit plan §1:
- * `ons_float_in_minuten === round(p6_float_uren × 60)`).
+ * `ons_float_in_minuten === p6_float_uren × 60`; fractionele minuten blijven fractioneel).
  *
  * `Measurable` bestaat APART van `Deviations` omdat de orakeldekking scheef is (planreview M1,
  * her-check-meting): na herkomstselectie en beide deduplagen zijn ES/EF/LS/LF/TF/FF respectievelijk
@@ -38,6 +38,15 @@ export interface XerFidelityCounters {
   lf: XerFidelityAxisCounts; // late finish
   tf: XerFidelityAxisCounts; // total float
   ff: XerFidelityAxisCounts; // free float
+}
+
+/** Scannerfeiten die buiten de minuutvergelijking vallen maar nooit stil verloren mogen gaan.
+ * Datums blijven op de vier productassen minuut-exact; aanwezigheid en inhoud van een eventuele
+ * secondencomponent worden afzonderlijk geteld. Float behoudt de exacte numerieke minuutwaarde. */
+export interface XerScannerPrecisionFacts {
+  dateSecondCells: { es: number; ef: number; ls: number; lf: number };
+  dateNonZeroSubminuteCells: { es: number; ef: number; ls: number; lf: number };
+  floatFractionalMinuteCells: { tf: number; ff: number };
 }
 
 /** Één as, nul metingen — de "leeg maar welgevormd"-bouwsteen voor het harness-skelet hieronder. */
@@ -67,6 +76,9 @@ export interface XerFidelityBaselineEntry {
   tasks: number;
   projects: number;
   counters: XerFidelityCounters;
+  /** Voorbereide baselinevorm voor het aparte precisiefeit. In D4/A-C wordt dit corpusloos gepind;
+   *  de bestaande corpusbaseline wordt pas in de expliciete metadata-migratieronde bijgewerkt. */
+  precision?: XerScannerPrecisionFacts;
   /** OPTIONEEL — schema-vingerafdruk voor het §2-dedupmechanisme (het Hotel-paar-geval: geen
    *  byte-hash-duplicaat, wel dezelfde proj_id-set/taakcodes/orakelwaarden). De dedup-LOGICA zelf
    *  is X1-werk; dit veld legt alleen de PLEK in de baseline-vorm vast zodat X1 'm niet zelf hoeft

@@ -40,6 +40,7 @@ export interface DecodedXerCalendarData {
   bands: WorkTimeBands;
   holidays: Holiday[];
   workingExceptions: WorkingException[];
+  p6NonWorkPenaltyDates: string[];
   hasExplicitClockBands: boolean;
   deviates: boolean;
   recoveries: XerCalendarRecovery[];
@@ -486,6 +487,7 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
       bands: defaultXerBands(),
       holidays: [],
       workingExceptions: [],
+      p6NonWorkPenaltyDates: [],
       hasExplicitClockBands: false,
       deviates: false,
       recoveries: [],
@@ -535,7 +537,9 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
 
   const holidaysByDate = new Map<string, Holiday>();
   const workingByDate = new Map<string, WorkingException>();
+  const p6NonWorkPenaltyDates = new Set<string>();
   let duplicateException = false;
+  let previousNonWorkDate: string | undefined;
   const exceptionContainers = root.children.filter(record => record.name === 'Exceptions');
   if (exceptionContainers.length > 1) recoveries.push('MULTIPLE_EXCEPTIONS');
   for (const exception of exceptionContainers.flatMap(container => container.children)) {
@@ -543,6 +547,21 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
     const canonicalException = canonicalizeBands({ 1: bandsFromRecords(exception.children) }).bands;
     assertNoBandOverlap(canonicalException);
     const exceptionBands = canonicalException.byWeekday[1];
+    const nonWork = exceptionBands.length === 0;
+    if (nonWork) {
+      const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+      const isoDay = (day === 0 ? 7 : day) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+      // P6 6.x/7.x rekent twee redundante recordvormen als één extra niet-werkdag: een vrije
+      // uitzondering op een weekdag die al geen banden draagt, en een DIRECT aangrenzende vrije
+      // herhaling. Een later opnieuw voorkomende datum telt niet: rehab-2 bevat zo'n herhaald
+      // overlappend exceptionblok en P6 telt uitsluitend de aangrenzende duplicaten daarin.
+      if (bands.byWeekday[isoDay].length === 0 || previousNonWorkDate === date) {
+        p6NonWorkPenaltyDates.add(date);
+      }
+      previousNonWorkDate = date;
+    } else {
+      previousNonWorkDate = undefined;
+    }
     if (holidaysByDate.has(date) || workingByDate.has(date)) duplicateException = true;
     if (exceptionBands.length > 0) {
       holidaysByDate.delete(date);
@@ -555,12 +574,16 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
       holidaysByDate.set(date, { name: 'Kalenderuitzondering', startDate: date, endDate: date });
     }
   }
+  // Een werkende uitzondering wint ook voor de brongebonden P6-straf. De datum draagt dan echte
+  // banden en is geen redundante vrije-dagrecord meer.
+  for (const date of workingByDate.keys()) p6NonWorkPenaltyDates.delete(date);
   if (duplicateException) recoveries.push('DUPLICATE_EXCEPTION');
 
   return {
     bands,
     holidays: Array.from(holidaysByDate.values()),
     workingExceptions: Array.from(workingByDate.values()),
+    p6NonWorkPenaltyDates: Array.from(p6NonWorkPenaltyDates).sort(),
     hasExplicitClockBands,
     deviates: hasExplicitClockBands && canonical.deviates,
     recoveries,
@@ -673,6 +696,9 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
       holidays: decoded.holidays,
       ...(decoded.workingExceptions.length > 0
         ? { workingExceptions: decoded.workingExceptions }
+        : {}),
+      ...(explicitDay === undefined && decoded.p6NonWorkPenaltyDates.length > 0
+        ? { p6Source: 'XER' as const, p6NonWorkPenaltyDates: decoded.p6NonWorkPenaltyDates }
         : {}),
       calendarType: calendarType(rawCalendarType),
       rawCalendarType,

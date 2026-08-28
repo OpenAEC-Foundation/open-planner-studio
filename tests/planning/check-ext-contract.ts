@@ -75,7 +75,7 @@ const EXT_PROJECT_KEYS = keys<ExtProject>()([
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
-  'holidays', 'workTime', 'shift', 'workingExceptions',
+  'holidays', 'workTime', 'shift', 'workingExceptions', 'p6Source', 'p6NonWorkPenaltyDates',
 ] as const);
 
 const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
@@ -101,6 +101,7 @@ const EXT_TASK_KEYS = keys<ExtTask>()([
 
 const EXT_SEQUENCE_KEYS = keys<ExtSequence>()([
   'id', 'predecessorId', 'successorId', 'type', 'lagDays', 'lagMinutes', 'lagUnit', 'lagPercent',
+  'p6StartAtPredecessorFinishBoundary',
 ] as const);
 
 const EXT_RESOURCE_KEYS = keys<ExtResource>()([
@@ -121,13 +122,33 @@ const NIET_PUBLIEK = {
   // beheerd. Een extensie die deze stempels kon zetten zou een projectkopie kunnen laten dóén
   // alsof hij uit een bibliotheek komt.
   project: ['companyId', 'companyName'] as readonly string[],
-  calendar: ['generation', 'libraryOrigin'] as readonly string[],
+  // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
+  // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
+  calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
   taskTime: [] as readonly string[],
   sequence: [] as readonly string[],
   assignment: [] as readonly string[],
 };
+
+// Zichtbare velden die een extensie uitsluitend mag LEZEN. Dit is een andere grens dan
+// `NIET_PUBLIEK`: `toExt*` geeft ze bewust door, maar `fromExt*` accepteert ze niet als generieke
+// solverinvoer. Alleen de native XER-reader mag de relationele P6-bronvlag afleiden.
+const LEES_ALLEEN_EXT = {
+  project: [] as readonly string[],
+  calendar: ['p6Source', 'p6NonWorkPenaltyDates'] as readonly string[],
+  resource: [] as readonly string[],
+  task: [] as readonly string[],
+  taskTime: [] as readonly string[],
+  sequence: ['p6StartAtPredecessorFinishBoundary'] as readonly string[],
+  assignment: [] as readonly string[],
+};
+
+const PUBLIC_SCHEDULING_OPTION_KEYS = [
+  'lagCalendar', 'criticalDefinition', 'totalFloatMode', 'makeOpenEndedCritical',
+  'nearCriticalThreshold', 'floatPaths',
+] as const;
 
 // ── (b) Maximale fixtures — élk optioneel veld gevuld ────────────────────────
 
@@ -234,13 +255,75 @@ const VOL_CALENDAR = {
   workTime: { byWeekday: { 1: [{ start: 420, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },
   shift: 'SECOND',
   workingExceptions: [{ name: 'Inhaaldag', startDate: '2026-06-06', endDate: '2026-06-06' }],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: ['2026-06-07'],
+  p6NonWorkPenaltyDatesState: 'VALID_VALUES',
   libraryOrigin: { companyId: 'b1', libraryItemId: 'i1', poolVersion: 2, syncedHash: 'h1' },
 } satisfies Required<WorkCalendar>;
 
 const VOL_SEQUENCE = {
   id: 's1', predecessorId: 'a', successorId: 'b', type: 'START_START',
   lagDays: 2, lagMinutes: 960, lagUnit: 'ELAPSEDTIME', lagPercent: 50,
+  p6StartAtPredecessorFinishBoundary: false,
 } satisfies Required<Sequence>;
+
+// X12-fixronde: P6-relatieherkomst is uitleesbaar voor analyse, maar een gewone extensie-import
+// of `addSequence` mag nooit zelf P6-solvergedrag inschakelen. Alleen de native XER-lezer heeft
+// een expliciete bronmodus die deze vlag mag materialiseren.
+eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug in', {
+  exposed: toExtSequence({ ...VOL_SEQUENCE, p6StartAtPredecessorFinishBoundary: true })
+    .p6StartAtPredecessorFinishBoundary,
+  imported: fromExtSequence({ ...VOL_SEQUENCE, p6StartAtPredecessorFinishBoundary: true })
+    .p6StartAtPredecessorFinishBoundary,
+}, { exposed: true, imported: undefined });
+
+{
+  const hostileOptions = {
+    ...VOL_PROJECT.schedulingOptions,
+    p6Source: 'XER' as const,
+    useExpectedFinishDates: true,
+    preserveActualDatesInBackwardPass: true,
+    clampNegativeFreeFloat: true,
+    p6ZeroDurationUsesPlannedBoundary: true,
+    p6UseTaskPlannedStartFloor: true,
+    p6FinishMilestoneBoundaryWindow: true,
+    p6PreserveActualInstants: true,
+    p6UseRemainingStartForProgress: true,
+    p6PreserveZeroDurationConstraintInstants: true,
+    useProjectEndDateForFloat: true,
+    resumeFromActualElapsed: true,
+    unstartedIgnoresStatusDate: true,
+  };
+  const imported = fromExtProject({
+    ...toExtProject(VOL_PROJECT),
+    schedulingOptions: hostileOptions,
+  } as ExtProject);
+  eq('X12 generieke extensie-invoer reconstrueert uitsluitend de publieke schedulingOptions-whitelist',
+    Object.keys(imported.schedulingOptions ?? {}).sort(), [...PUBLIC_SCHEDULING_OPTION_KEYS].sort());
+  eq('X12 toExtProject toont evenmin interne runtime-opties uit een intern project',
+    Object.keys(toExtProject({ ...VOL_PROJECT, schedulingOptions: hostileOptions }).schedulingOptions ?? {}).sort(),
+    [...PUBLIC_SCHEDULING_OPTION_KEYS].sort());
+}
+
+{
+  const exposed = toExtCalendar(VOL_CALENDAR);
+  const imported = fromExtCalendar({
+    ...exposed,
+    p6Source: 'XER',
+    p6NonWorkPenaltyDates: ['2026-06-07'],
+    p6NonWorkPenaltyDatesState: 'VALID_VALUES',
+  } as ExtCalendar & { p6NonWorkPenaltyDatesState: string });
+  eq('X12 kalenderherkomst is zichtbaar in het read-model maar generieke invoer activeert haar niet', {
+    exposedSource: exposed.p6Source,
+    exposedDates: exposed.p6NonWorkPenaltyDates,
+    importedSource: imported.p6Source,
+    importedDates: imported.p6NonWorkPenaltyDates,
+    importedState: imported.p6NonWorkPenaltyDatesState,
+  }, {
+    exposedSource: 'XER', exposedDates: ['2026-06-07'],
+    importedSource: undefined, importedDates: undefined, importedState: undefined,
+  });
+}
 
 const VOL_RESOURCE = {
   id: 'r1', name: 'Kraan', type: 'EQUIPMENT', description: 'omschrijving',
@@ -299,25 +382,25 @@ for (const [naam, ext, bron, sleutels] of [
     label: string,
     intern: object,
     bron: object,
-    nietPubliek: readonly string[],
+    nietSchrijfbaar: readonly string[],
   ) => {
-    const verwacht = Object.keys(bron).filter(k => !nietPubliek.includes(k));
+    const verwacht = Object.keys(bron).filter(k => !nietSchrijfbaar.includes(k));
     eq(label, verwacht.filter(k => !(k in intern)), []);
   };
   controle('11 fromExtProject vult elk intern Project-veld',
-    fromExtProject(toExtProject(VOL_PROJECT)), VOL_PROJECT, NIET_PUBLIEK.project);
+    fromExtProject(toExtProject(VOL_PROJECT)), VOL_PROJECT, [...NIET_PUBLIEK.project, ...LEES_ALLEEN_EXT.project]);
   controle('12 fromExtCalendar vult elk intern WorkCalendar-veld',
-    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), VOL_CALENDAR, NIET_PUBLIEK.calendar);
+    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]);
   controle('13 fromExtTask vult elk intern Task-veld',
-    fromExtTask(toExtTask(VOL_TASK)), VOL_TASK, NIET_PUBLIEK.task);
+    fromExtTask(toExtTask(VOL_TASK)), VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]);
   controle('14 fromExtTaskTime vult elk intern TaskTime-veld',
-    fromExtTaskTime(toExtTaskTime(VOL_TIME)), VOL_TIME, NIET_PUBLIEK.taskTime);
+    fromExtTaskTime(toExtTaskTime(VOL_TIME)), VOL_TIME, [...NIET_PUBLIEK.taskTime, ...LEES_ALLEEN_EXT.taskTime]);
   controle('15 fromExtSequence vult elk intern Sequence-veld',
-    fromExtSequence(toExtSequence(VOL_SEQUENCE)), VOL_SEQUENCE, NIET_PUBLIEK.sequence);
+    fromExtSequence(toExtSequence(VOL_SEQUENCE)), VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]);
   controle('16 fromExtResource vult elk intern Resource-veld',
-    fromExtResource(toExtResource(VOL_RESOURCE)), VOL_RESOURCE, NIET_PUBLIEK.resource);
+    fromExtResource(toExtResource(VOL_RESOURCE)), VOL_RESOURCE, [...NIET_PUBLIEK.resource, ...LEES_ALLEEN_EXT.resource]);
   controle('17 fromExtAssignment vult elk intern ResourceAssignment-veld',
-    fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT, NIET_PUBLIEK.assignment);
+    fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT, [...NIET_PUBLIEK.assignment, ...LEES_ALLEEN_EXT.assignment]);
 
   // En de keerzijde: de niet-publieke velden moeten óók echt WEG zijn aan de ext-kant. Zonder deze
   // check zou "niet publiek" een lijst worden die je vult zodra iets rood wordt.
@@ -337,11 +420,13 @@ for (const [naam, ext, bron, sleutels] of [
   const stripNietPubliek = (o: object, weg: readonly string[]) =>
     Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
   eq('19 project round-trip',
-    fromExtProject(toExtProject(VOL_PROJECT)), stripNietPubliek(VOL_PROJECT, NIET_PUBLIEK.project));
+    fromExtProject(toExtProject(VOL_PROJECT)), stripNietPubliek(VOL_PROJECT, [...NIET_PUBLIEK.project, ...LEES_ALLEEN_EXT.project]));
   eq('20 kalender round-trip',
-    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, NIET_PUBLIEK.calendar));
+    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]));
   eq('21 taak round-trip', fromExtTask(toExtTask(VOL_TASK)), VOL_TASK);
-  eq('22 relatie round-trip', fromExtSequence(toExtSequence(VOL_SEQUENCE)), VOL_SEQUENCE);
+  eq('22 relatie round-trip bewaart geen native-XER-solvervlag via generieke extensie-invoer',
+    fromExtSequence(toExtSequence(VOL_SEQUENCE)),
+    stripNietPubliek(VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]));
   eq('23 resource round-trip',
     fromExtResource(toExtResource(VOL_RESOURCE)), stripNietPubliek(VOL_RESOURCE, NIET_PUBLIEK.resource));
   eq('24 toewijzing round-trip', fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT);

@@ -48,6 +48,8 @@ export interface SolveProjectInput {
    *  zónder voorganger — die start op zijn eigen, ingelezen `scheduleStart` (`ownAnchor`), ook als
    *  die vóór de projectstart ligt; "een ingelezen anker wordt nooit door de vloer overruled". */
   projectStartDate?: string;
+  /** `project.endDate`; alleen bronsemantisch actief via useProjectEndDateForFloat. */
+  projectEndDate?: string;
 }
 
 /**
@@ -79,6 +81,7 @@ export function solveProject(input: SolveProjectInput): CPMResult {
     // gedragswijzigend (afwezig/leeg ⇒ byte-identiek); de latere golven activeren ze.
     schedulingOptions: input.schedulingOptions,
     projectStartDate: input.projectStartDate,
+    projectEndDate: input.projectEndDate,
   });
   const result = solver.solve();
   // I2 (CPM-review): de solver rekende op de GEËXPANDEERDE (synthetische) relatie-set, dus zijn

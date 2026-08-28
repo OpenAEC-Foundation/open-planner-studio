@@ -7,8 +7,11 @@
  * toegestane P6-orakelvelden worden gelezen.
  */
 
+import type { XerScannerPrecisionFacts } from './xerFidelityTypes';
+
 export type XerGroundTruthEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 export type XerFidelityAxis = 'es' | 'ef' | 'ls' | 'lf' | 'tf' | 'ff';
+export type XerDateFidelityAxis = 'es' | 'ef' | 'ls' | 'lf';
 
 export const XER_FIDELITY_AXES: readonly XerFidelityAxis[] = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'];
 
@@ -18,6 +21,8 @@ export interface XerGroundTruthTask {
   taskCode: string;
   statusCode: string;
   axes: Record<XerFidelityAxis, string | number | null>;
+  /** Ruwe secondencomponent per datumas (`null` = de broncel had geen secondencomponent). */
+  rawDateSeconds: Record<XerDateFidelityAxis, string | null>;
   drivingPath: boolean | null;
   /** Niet-lege effectieve broncellen na statussemantiek; parsefouten staan apart in `errors`. */
   presentAxes: Record<XerFidelityAxis, boolean>;
@@ -31,6 +36,8 @@ export interface XerGroundTruth {
   errors: string[];
   /** Niet-fatale expliciete formaatkeuzes die de onafhankelijke scanner niet stil mag maken. */
   numberFormatIssues: string[];
+  /** Apart gepinde scannerfeiten; geen van deze waarden wordt product- of solverinvoer. */
+  precision: XerScannerPrecisionFacts;
 }
 
 const IDENTITY_FIELDS = ['proj_id', 'task_id', 'task_code'] as const;
@@ -72,24 +79,33 @@ function parseOracleDate(
   taskId: string,
   field: string,
   errors: string[],
-): string | null {
+): { minute: string | null; rawSeconds: string | null } {
   const value = raw?.trim() ?? '';
-  if (!value || value === '0') return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/.exec(value);
+  if (!value || value === '0') return { minute: null, rawSeconds: null };
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/.exec(value);
   if (!match) {
     errors.push(`TASK ${taskId}/${field}: ongeldige datum ${JSON.stringify(value)}`);
-    return null;
+    return { minute: null, rawSeconds: null };
   }
-  const [, year, month, day, rawHour, rawMinute] = match;
+  const [, year, month, day, rawHour, rawMinute, rawSecond, rawFraction] = match;
   const hour = rawHour ?? '00';
   const minute = rawMinute ?? '00';
+  if (rawSecond !== undefined && Number(rawSecond) > 59) {
+    errors.push(`TASK ${taskId}/${field}: ongeldige datum ${JSON.stringify(value)}`);
+    return { minute: null, rawSeconds: null };
+  }
   const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00Z`);
   if (Number.isNaN(date.getTime())
     || date.toISOString().slice(0, 16) !== `${year}-${month}-${day}T${hour}:${minute}`) {
     errors.push(`TASK ${taskId}/${field}: ongeldige datum ${JSON.stringify(value)}`);
-    return null;
+    return { minute: null, rawSeconds: null };
   }
-  return `${year}-${month}-${day}T${hour}:${minute}`;
+  return {
+    minute: `${year}-${month}-${day}T${hour}:${minute}`,
+    rawSeconds: rawSecond === undefined
+      ? null
+      : `${rawSecond}${rawFraction === undefined ? '' : `.${rawFraction}`}`,
+  };
 }
 
 function inspectNumberSymbol(
@@ -220,7 +236,8 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** P6-float staat in uren; het orakel wordt meteen naar afgeronde minuten genormaliseerd. */
+/** P6-float staat in uren; vermenigvuldigen met 60 behoudt halve/fractionele minuten. Er is
+ * bewust geen integerafronding of epsilonpad. */
 function parseFloatMinutes(
   raw: string | undefined,
   taskId: string,
@@ -246,7 +263,7 @@ function parseFloatMinutes(
     errors.push(`TASK ${taskId}/${field}: ongeldig getal ${JSON.stringify(value)}`);
     return null;
   }
-  return Math.round(hours * 60);
+  return hours * 60;
 }
 
 function parseDrivingPath(
@@ -299,15 +316,13 @@ function buildTask(
   if (statusCode && !KNOWN_STATUS_CODES.has(normalizedStatus)) {
     errors.push(`TASK ${taskId}/status_code: onbekende waarde ${JSON.stringify(statusCode)}`);
   }
-  const completed = normalizedStatus === 'tk_complete';
-  const startField = completed ? 'act_start_date' : 'early_start_date';
-  const finishField = completed ? 'act_end_date' : 'early_end_date';
-  const lateStartField = completed ? 'act_start_date' : 'late_start_date';
-  const lateFinishField = completed ? 'act_end_date' : 'late_end_date';
-  const start = parseOracleDate(row.get(startField), taskId, startField, errors);
-  const finish = parseOracleDate(row.get(finishField), taskId, finishField, errors);
-  const lateStart = completed ? start : parseOracleDate(row.get(lateStartField), taskId, lateStartField, errors);
-  const lateFinish = completed ? finish : parseOracleDate(row.get(lateFinishField), taskId, lateFinishField, errors);
+  // Deze scanner is uitsluitend de rauwe XER-meetlat. Ook op een completed activiteit zijn
+  // early/late/float opgeslagen P6-uitvoer, nooit reader- of solverinvoer. Actuals blijven
+  // afzonderlijke toegestane bronvelden in de productielezer; ze normaliseren het orakel niet.
+  const start = parseOracleDate(row.get('early_start_date'), taskId, 'early_start_date', errors);
+  const finish = parseOracleDate(row.get('early_end_date'), taskId, 'early_end_date', errors);
+  const lateStart = parseOracleDate(row.get('late_start_date'), taskId, 'late_start_date', errors);
+  const lateFinish = parseOracleDate(row.get('late_end_date'), taskId, 'late_end_date', errors);
 
   return {
     projectId,
@@ -315,19 +330,25 @@ function buildTask(
     taskCode,
     statusCode,
     axes: {
-      es: start,
-      ef: finish,
-      ls: lateStart,
-      lf: lateFinish,
+      es: start.minute,
+      ef: finish.minute,
+      ls: lateStart.minute,
+      lf: lateFinish.minute,
       tf: parseFloatMinutes(row.get('total_float_hr_cnt'), taskId, 'total_float_hr_cnt', format, errors),
       ff: parseFloatMinutes(row.get('free_float_hr_cnt'), taskId, 'free_float_hr_cnt', format, errors),
     },
+    rawDateSeconds: {
+      es: start.rawSeconds,
+      ef: finish.rawSeconds,
+      ls: lateStart.rawSeconds,
+      lf: lateFinish.rawSeconds,
+    },
     drivingPath: parseDrivingPath(row.get('driving_path_flag'), taskId, errors),
     presentAxes: {
-      es: start !== null,
-      ef: finish !== null,
-      ls: lateStart !== null,
-      lf: lateFinish !== null,
+      es: start.minute !== null,
+      ef: finish.minute !== null,
+      ls: lateStart.minute !== null,
+      lf: lateFinish.minute !== null,
       tf: !!row.get('total_float_hr_cnt')?.trim(),
       ff: !!row.get('free_float_hr_cnt')?.trim(),
     },
@@ -399,11 +420,31 @@ export function scanXerGroundTruth(bytes: Uint8Array): XerGroundTruth {
       }
     }
   }
+  const dateAxes: readonly XerDateFidelityAxis[] = ['es', 'ef', 'ls', 'lf'];
+  const dateSecondCells = { es: 0, ef: 0, ls: 0, lf: 0 };
+  const dateNonZeroSubminuteCells = { es: 0, ef: 0, ls: 0, lf: 0 };
+  for (const task of tasks) {
+    for (const axis of dateAxes) {
+      const seconds = task.rawDateSeconds[axis];
+      if (seconds === null) continue;
+      dateSecondCells[axis]++;
+      if (Number(seconds) !== 0) dateNonZeroSubminuteCells[axis]++;
+    }
+  }
+  const precision: XerScannerPrecisionFacts = {
+    dateSecondCells,
+    dateNonZeroSubminuteCells,
+    floatFractionalMinuteCells: {
+      tf: tasks.filter(task => typeof task.axes.tf === 'number' && !Number.isInteger(task.axes.tf)).length,
+      ff: tasks.filter(task => typeof task.axes.ff === 'number' && !Number.isInteger(task.axes.ff)).length,
+    },
+  };
   return {
     encoding,
     projects: sawProjectTable ? declaredProjects : taskProjects,
     tasks,
     errors,
     numberFormatIssues,
+    precision,
   };
 }

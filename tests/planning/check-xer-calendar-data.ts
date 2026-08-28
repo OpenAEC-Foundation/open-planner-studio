@@ -104,8 +104,9 @@ eq('4 uitzondering met AM/PM-uren is een werkende uitzondering', decoded.working
 }]);
 eq('5 gelezen klokbanden dragen het XER-uursignaal', decoded.hasExplicitClockBands, true);
 
-// Breuk die dit vangt: een lege clndr_data als volledig niet-werkend behandelen in plaats van P6's
-// gedocumenteerde terugval ma-vr 08:00-16:00.
+// Breuk die dit vangt: een lege clndr_data als volledig niet-werkend behandelen. De decoder houdt
+// een neutrale 5x8-default; de reader mag die per kalender verfijnen wanneer geplande bronvelden
+// een P6-lunchdag bewijzen (zie check-xer-reader).
 const empty = decodeXerCalendarData('');
 eq('6 lege kalenderdata valt terug op ma-vr 08:00-16:00', empty.bands.byWeekday, {
   1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }],

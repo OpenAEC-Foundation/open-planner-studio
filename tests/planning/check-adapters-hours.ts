@@ -130,6 +130,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   roundTrip('MSPDI', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
   eq('MSPDI zonder CriticalSlackLimit introduceert geen schedulingOptions',
     p.project.schedulingOptions, undefined);
+  eq('MSPDI introduceert geen XER-project- of kalenderprovenance',
+    [p.project.schedulingOptions?.p6Source, p.calendar.p6Source], [undefined, undefined]);
 }
 
 // ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────

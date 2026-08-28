@@ -51,7 +51,11 @@ export interface RelationBoundaryFlags {
 }
 
 /** Bereken de mijlpaal-grensvlaggen voor het (voorganger, opvolger)-paar (één bron van waarheid). */
-export function relationBoundaryFlags(predTask: Task, succTask: Task): RelationBoundaryFlags {
+export function relationBoundaryFlags(
+  predTask: Task,
+  succTask: Task,
+  p6ZeroDurationSuccessorAtFinish = false,
+): RelationBoundaryFlags {
   // H3 (Opus-review T15-iteratie-2): `predTask.isMilestone ||` verwijderd — voor ELKE bestaande
   // ECHTE (0-duur) mijlpaal was `scheduleDuration <= 0` al waar, dus de kale vlag toevoegen was
   // altijd redundant vóór T15 (mijlpaal-met-duur bestond toen nog niet). Ná T15 maakte diezelfde
@@ -83,11 +87,14 @@ export function relationBoundaryFlags(predTask: Task, succTask: Task): RelationB
   // corpus-/synthetische case raakt dit), maar niet langer alleen een hypothetisch MCP-pad.
   const predIsMilestone = predTask.time.scheduleDuration <= 0;
   const predKind = predTask.isMilestone ? predTask.milestoneKind : undefined;
+  const p6FinishBoundary = p6ZeroDurationSuccessorAtFinish && isZeroDurationMilestone(succTask);
   return {
     predEndsBeginOfDay: predIsMilestone && predKind !== 'FINISH',
     predStartsNextDay: predIsMilestone && predKind === 'FINISH',
-    succIsFinishMs: succTask.isMilestone && succTask.milestoneKind === 'FINISH',
-    succIsStartMs: succTask.isMilestone && succTask.milestoneKind === 'START',
+    succIsFinishMs: p6FinishBoundary
+      || (succTask.isMilestone && succTask.milestoneKind === 'FINISH'),
+    succIsStartMs: !p6FinishBoundary
+      && succTask.isMilestone && succTask.milestoneKind === 'START',
   };
 }
 
@@ -204,8 +211,9 @@ export function forwardConstraint(
   successor: Task,
   predEng: CalendarEngine,
   succEng: CalendarEngine,
+  p6ZeroDurationSuccessorAtFinish = false,
 ): Date {
-  const flags = relationBoundaryFlags(predTask, successor);
+  const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
   if (predEng.isHourMode || succEng.isHourMode) {
     return forwardHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
   }
@@ -280,9 +288,10 @@ export function forwardFinishFloor(
   successor: Task,
   predEng: CalendarEngine,
   succEng: CalendarEngine,
+  p6ZeroDurationSuccessorAtFinish = false,
 ): Date | null {
   if (seq.type !== 'START_FINISH') return null;
-  const flags = relationBoundaryFlags(predTask, successor);
+  const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
   if (predEng.isHourMode || succEng.isHourMode) {
     return sfReqFinishHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
   }
@@ -301,8 +310,9 @@ export function backwardConstraint(
   succTask: Task,
   predEng: CalendarEngine,
   succEng: CalendarEngine,
+  p6ZeroDurationSuccessorAtFinish = false,
 ): Date {
-  const flags = relationBoundaryFlags(predTask, succTask);
+  const flags = relationBoundaryFlags(predTask, succTask, p6ZeroDurationSuccessorAtFinish);
   if (predEng.isHourMode || succEng.isHourMode) {
     return backwardHour(deps, succResult, seq, predTask, predEng, succEng, flags);
   }
@@ -704,6 +714,11 @@ function forwardHour(
         }
         return se.availableStart(target);
       }
+      // P6/XER bewaart bij een expliciet bronpatroon de gedeelde finish/startgrens als de
+      // opvolger-ES: geplande opvolgerstart == geplande voorgangerfinish, nul-lag FS, exact op een
+      // kalenderbandeinde. De reader zet de vlag uitsluitend uit toegestane invoervelden; zonder
+      // vlag blijft de algemene halfopen-bandsemantiek hieronder byte-identiek.
+      if (seq.p6StartAtPredecessorFinishBoundary) return predResult.ef;
       const predDone = (succIsFinishMs || predEndsBeginOfDay)
         ? predResult.ef                       // mijlpaal-grens: geen dag-boundary-+1 (dag-conceptueel)
         : pe.predDoneAt(predResult.ef);
@@ -869,6 +884,9 @@ function backwardHour(
         // Klok-minuten terug vanaf succ.LS, dan achteruit-snap in de voorganger.
         return deps.snapOnOrBefore(pe, new Date(succResult.ls.getTime() - elapsedMin()));
       }
+      // Spiegel van de XER/P6-forwardgrens hierboven: de late finish van de voorganger mag exact
+      // op de late start van de opvolger liggen; een `prevWorkInstant` zou één band terugtrekken.
+      if (seq.p6StartAtPredecessorFinishBoundary) return succResult.ls;
       const succDayStart = () => deps.startOfDay(succResult.ls);
       if (pe.isHourMode && se.isHourMode) {
         // hour-hour: pred.LF = prevWorkInstant( succ.LS ⊖ lag ) (scenario 1-6 backward).

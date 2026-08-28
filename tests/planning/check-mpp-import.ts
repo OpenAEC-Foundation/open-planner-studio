@@ -1169,6 +1169,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         resumeFromActualElapsed: true,
         unstartedIgnoresStatusDate: true,
       }));
+    truthy('I4 end-to-end readMPP: project en kalender krijgen nooit XER-provenance',
+      result.project.schedulingOptions?.p6Source === undefined && result.calendar.p6Source === undefined);
     truthy('I4 end-to-end readMPP: hoursPerDay uit MINUTES_PER_DAY (480/60)', result.calendar.hoursPerDay === 8);
     truthy('I4 end-to-end readMPP: 6 taken', result.tasks.length === 6);
 

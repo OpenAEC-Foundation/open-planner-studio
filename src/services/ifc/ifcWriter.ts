@@ -267,6 +267,7 @@ export function writeIFC(input: WriteIFCInput): string {
   for (const seq of sequences) {
     writeSequence(ctx, seq, ownerHistId);
   }
+  writeSequenceMeta(ctx, workSchedId, sequences, ownerHistId);
 
   // Resources
   for (const res of resources) {
@@ -806,7 +807,10 @@ function writeCalendarGenerationMeta(
   const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
   const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
   const hasWorkingExceptions = workingExceptionStepIds.length > 0;
-  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions) return;
+  const hasP6Source = cal.p6Source === 'XER';
+  const hasRejectedPenaltyDiagnostic = cal.p6NonWorkPenaltyDatesState === 'REJECTED';
+  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride
+    && !hasWorkingExceptions && !hasP6Source && !hasRejectedPenaltyDiagnostic) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -836,6 +840,18 @@ function writeCalendarGenerationMeta(
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(idJson)}),$)`));
+  }
+  if (hasP6Source) {
+    props.push(addLine(ctx, `_opscal_p6source_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('P6Source',$,IFCLABEL('XER'),$)`));
+  }
+  if (hasP6Source) {
+    props.push(addLine(ctx, `_opscal_p6penalty_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcStr(JSON.stringify(cal.p6NonWorkPenaltyDates ?? []))}),$)`));
+  }
+  if (hasRejectedPenaltyDiagnostic) {
+    props.push(addLine(ctx, `_opscal_p6penaltystate_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDatesState',$,IFCLABEL('REJECTED'),$)`));
   }
   const setId = addLine(ctx, `_pset_opscal_${cal.id}`,
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_opscal_' + cal.id))},#${ownerHistId},${ifcStr(PSET.Calendar)},$,(${props.map(i => `#${i}`).join(',')}))`);
@@ -979,6 +995,30 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
 
   addLine(ctx, `seq_${seq.id}`,
     `IFCRELSEQUENCE(${ifcStr(guidOf(ctx, seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
+}
+
+/**
+ * X12: relatie-eigen P6/XER-ankerdata. IFC 4.3 staat geen `IfcPropertySet` rechtstreeks op een
+ * `IfcRelSequence` toe (die is geen IfcObjectDefinition). Daarom is dit een geldige pset op de
+ * IfcWorkSchedule, met de werkelijk geschreven IFC-GlobalId van iedere gemarkeerde relatie als
+ * sleutel. Dat bewaart de semantiek relationeel én blijft interoperabel STEP.
+ */
+function writeSequenceMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  sequences: readonly Sequence[],
+  ownerHistId: number,
+): void {
+  const boundarySequenceGuids = sequences
+    .filter(sequence => sequence.p6StartAtPredecessorFinishBoundary === true)
+    .map(sequence => guidOf(ctx, sequence.id));
+  if (boundarySequenceGuids.length === 0) return;
+  const propId = addLine(ctx, '_ps_seq_boundary',
+    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcStr(JSON.stringify(boundarySequenceGuids))}),$)`);
+  const setId = addLine(ctx, '_pset_sequences',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_sequences'))},#${ownerHistId},${ifcStr(PSET.Sequences)},$,(#${propId}))`);
+  addLine(ctx, '_rel_sequences',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_sequences'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
 function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): void {

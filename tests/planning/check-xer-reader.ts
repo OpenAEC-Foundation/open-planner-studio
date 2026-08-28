@@ -95,7 +95,181 @@ eq('2 projectdatumbereik komt uit input-TASK-velden, nooit uit PROJECT plan/outp
 eq('3 PROJECT-kalender blijft de hoofdkalender', {
   id: result.calendar.id,
   hourMode: result.calendar.workTime !== undefined,
-}, { id: 'C1', hourMode: true });
+  mondayBands: result.calendar.workTime?.byWeekday[1],
+}, { id: 'C1', hourMode: true, mondayBands: [{ start: 480, end: 960 }] });
+
+// X12-kalenderbandfixture: `clndr_data` is leeg, maar de toegestane geplande invoer bewijst een
+// P6 Standard 5x8-dag met lunchpauze: 40 uur vanaf wo 08:00 eindigt di 17:00, niet 16:00.
+// De bestaande Brugrenovatie-fixture hierboven bewijst tegelijk dat een lege kalender met
+// volledige-dagfinishes om 16:00 aaneengesloten 08:00-16:00 blijft.
+const p6Lunch = read([
+  'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC1\tStandard 5x8\tCA_Base\t8\t40\t',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+  '%R\tP1\tP6 lunchdag\tC1\t2026-04-01 08:00\t2026-04-01 08:00',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+  '%R\t1010\tP1\tC1\tA1010\tOntwerp\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-04-01 08:00\t2026-04-07 17:00',
+  '%R\t2010\tP1\tC1\tA2010\tFrame\tTT_Task\tDT_FixedDUR\tTK_NotStart\t60\t60\t2026-04-29 08:00\t2026-05-08 17:00',
+  '%R\t2020\tP1\tC1\tA2020\tDak\tTT_Task\tDT_FixedDUR\tTK_NotStart\t32\t32\t2026-05-11 08:00\t2026-05-14 17:00',
+  '%R\t3000\tP1\tC1\tA3000\tInspectie\tTT_Task\tDT_FixedDUR\tTK_NotStart\t16\t16\t2026-05-15 08:00\t2026-05-18 17:00',
+  '%R\t3010\tP1\tC1\tA3010\tProjecteinde\tTT_Mile\tDT_FixedDUR\tTK_NotStart\t0\t0\t2026-05-18 17:00\t2026-05-18 17:00',
+  '%R\t4000\tP1\tC1\tA4000\tDagtaak\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-05-20 08:00\t2026-05-20 17:00',
+  '%R\t4010\tP1\tC1\tA4010\tVolgende start\tTT_Mile\tDT_FixedDUR\tTK_NotStart\t0\t0\t2026-05-21 08:00\t2026-05-21 08:00',
+  '%R\t5000\tP1\tC1\tA5000\tVroege voorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-05-25 08:00\t2026-05-25 17:00',
+  '%R\t5010\tP1\tC1\tA5010\tGepland na ruimte\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-01 08:00\t2026-06-01 17:00',
+  '%R\t6000\tP1\tC1\tA6000\tLaat anker\tTT_Task\tDT_FixedDUR\tTK_NotStart\t0\t0\t2026-06-02 16:49\t2026-06-02 16:49',
+  '%R\t6010\tP1\tC1\tA6010\tSS-opvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-03 08:00\t2026-06-03 17:00',
+  '%R\t7000\tP1\tC1\tA7000\tP6 eindgrens +1 minuut\tTT_FinMile\tDT_FixedDUR\tTK_NotStart\t0\t0\t2026-06-10 08:01\t2026-06-10 08:01',
+  '%R\t8000\tP1\tC1\tA8000\tVoorganger met eindgrens\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-05-25 08:00\t2026-05-25 17:00',
+  '%R\t8010\tP1\tC1\tA8010\tGeplande FS-eindgrens\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-05-25 17:00\t2026-05-26 17:00',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR1\t2020\t2010\tP1\tP1\tPR_FS\t0',
+  '%R\tR2\t3010\t3000\tP1\tP1\tPR_FS\t0',
+  '%R\tR3\t4010\t4000\tP1\tP1\tPR_FS\t0',
+  '%R\tR4\t5010\t5000\tP1\tP1\tPR_FS\t0',
+  '%R\tR5\t6010\t6000\tP1\tP1\tPR_SS\t0',
+  '%R\tR6\t7000\t5000\tP1\tP1\tPR_FS\t0',
+  '%R\tR7\t8010\t8000\tP1\tP1\tPR_FS\t0',
+  '%E',
+]);
+solveProject({
+  tasks: p6Lunch.tasks,
+  sequences: p6Lunch.sequences,
+  calendar: p6Lunch.calendar,
+  calendars: p6Lunch.resourceCalendars ?? [],
+  dataDate: p6Lunch.project.statusDate,
+  progressMode: p6Lunch.project.progressMode,
+  schedulingOptions: p6Lunch.project.schedulingOptions,
+  projectStartDate: p6Lunch.project.startDate,
+});
+eq('3a lege P6-5x8-kalender leidt lunchbanden af uit geplande start/eind/duur', {
+  bands: p6Lunch.calendar.workTime?.byWeekday[1],
+  earlyFinish: p6Lunch.tasks.find(task => task.id === '1010')?.time.earlyFinish,
+}, {
+  bands: [{ start: 480, end: 720 }, { start: 780, end: 1020 }],
+  earlyFinish: '2026-04-07T17:00',
+});
+eq('3b P6-planned window bewaart fractionele duur en FS neemt volgende werkstart', {
+  predecessorFinish: p6Lunch.tasks.find(task => task.id === '2010')?.time.earlyFinish,
+  successorStart: p6Lunch.tasks.find(task => task.id === '2020')?.time.earlyStart,
+}, {
+  predecessorFinish: '2026-05-08T17:00',
+  successorStart: '2026-05-11T08:00',
+});
+eq('3c P6 nulduurmijlpaal met FS+0 landt op de voorganger-finishgrens',
+  p6Lunch.tasks.find(task => task.id === '3010')?.time.earlyStart,
+  '2026-05-18T17:00');
+eq('3d P6-startmijlpaal op geplande dagstart blijft de volgende werkstart',
+  p6Lunch.tasks.find(task => task.id === '4010')?.time.earlyStart,
+  '2026-05-21T08:00');
+eq('3e XER-geplande start blijft ondergrens wanneer voorgangerlogica eerder vrijgeeft',
+  p6Lunch.tasks.find(task => task.id === '5010')?.time.earlyStart,
+  '2026-06-01T08:00');
+eq('3f een geplande volgende-start vervangt geen relatie-instant binnen één dag',
+  p6Lunch.tasks.find(task => task.id === '6010')?.time.earlyStart,
+  '2026-06-02T16:49');
+eq('3g P6 TT_FinMile op bandstart plus één minuut gebruikt start- en vorige finishgrens', {
+  earlyStart: p6Lunch.tasks.find(task => task.id === '7000')?.time.earlyStart,
+  earlyFinish: p6Lunch.tasks.find(task => task.id === '7000')?.time.earlyFinish,
+  lateStart: p6Lunch.tasks.find(task => task.id === '7000')?.time.lateStart,
+  lateFinish: p6Lunch.tasks.find(task => task.id === '7000')?.time.lateFinish,
+}, {
+  earlyStart: '2026-06-10T08:00',
+  earlyFinish: '2026-06-09T17:00',
+  lateStart: '2026-06-10T08:00',
+  lateFinish: '2026-06-09T17:00',
+});
+eq('3h XER-reader markeert de expliciete geplande FS-finishgrens brongebonden',
+  p6Lunch.sequences.find(sequence => sequence.id === 'R7')?.p6StartAtPredecessorFinishBoundary,
+  true);
+eq('3i XER-FS bewaart een expliciete geplande start op de voorganger-finishgrens', {
+  predecessorFinish: p6Lunch.tasks.find(task => task.id === '8000')?.time.earlyFinish,
+  successorStart: p6Lunch.tasks.find(task => task.id === '8010')?.time.earlyStart,
+  successorFinish: p6Lunch.tasks.find(task => task.id === '8010')?.time.earlyFinish,
+}, {
+  predecessorFinish: '2026-05-25T17:00',
+  successorStart: '2026-05-25T17:00',
+  successorFinish: '2026-05-26T17:00',
+});
+
+// X12-voortgangsfixture: sommige geldige XER-producenten leveren bij CP_Drtn wel de expliciete
+// target-/restduur maar geen redundante `complete_pct`-kolom. Status+restduur blijven dan de
+// invoerwaarheid; 40 resterende uren op 80 totaal betekent 50%, niet 0%/nogmaals 80 uur.
+const p6DurationProgressWithoutPct = read([
+  'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC1\tStandard 5x8\tCA_Base\t8\t40\t',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+  '%R\tP1\tVoortgang zonder percentage\tC1\t2026-06-01 08:00\t2026-05-25 08:00',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date',
+  '%R\tT1\tP1\tC1\tA100\tActieve duurtaak\tTT_Task\tDT_FixedDUR\tTK_Active\tCP_Drtn\t80\t40\t2026-05-25 08:00\t2026-06-05 17:00\t2026-05-25 08:00',
+  '%E',
+]);
+solveProject({
+  tasks: p6DurationProgressWithoutPct.tasks,
+  sequences: p6DurationProgressWithoutPct.sequences,
+  calendar: p6DurationProgressWithoutPct.calendar,
+  calendars: p6DurationProgressWithoutPct.resourceCalendars ?? [],
+  dataDate: p6DurationProgressWithoutPct.project.statusDate,
+  progressMode: p6DurationProgressWithoutPct.project.progressMode,
+  schedulingOptions: p6DurationProgressWithoutPct.project.schedulingOptions,
+  projectStartDate: p6DurationProgressWithoutPct.project.startDate,
+});
+eq('3j CP_Drtn zonder complete_pct leidt voortgang en restwerk af uit expliciete bronduur', {
+  completion: p6DurationProgressWithoutPct.tasks[0]?.time.completion,
+  remainingMinutes: p6DurationProgressWithoutPct.tasks[0]?.time.remainingMinutes,
+  earlyFinish: p6DurationProgressWithoutPct.tasks[0]?.time.earlyFinish,
+}, {
+  completion: 0.5,
+  remainingMinutes: 2400,
+  earlyFinish: '2026-06-05T17:00',
+});
+
+// X12-actualfixture: P6-actuals zijn geregistreerde broninstants, ook wanneer ze buiten een
+// kalenderband op 00:00 liggen. De XER-route mag ze niet naar dezelfde-dag-start/vorige-finish
+// normaliseren; dat zou zowel datum als minuut van een historisch feit wijzigen.
+const p6MidnightActual = read([
+  'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC1\tStandard 5x8\tCA_Base\t8\t40\t',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+  '%R\tP1\tP6 actualinstants\tC1\t2026-06-01 08:00\t2026-05-01 08:00',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+  '%R\tT1\tP1\tC1\tA100\tVoltooid om middernacht\tTT_Task\tDT_FixedDUR\tTK_Complete\tCP_Phys\t100\t40\t0\t2026-05-04 08:00\t2026-05-08 17:00\t2026-05-03 00:00\t2026-05-10 00:00',
+  '%E',
+]);
+solveProject({
+  tasks: p6MidnightActual.tasks,
+  sequences: p6MidnightActual.sequences,
+  calendar: p6MidnightActual.calendar,
+  calendars: p6MidnightActual.resourceCalendars ?? [],
+  dataDate: p6MidnightActual.project.statusDate,
+  progressMode: p6MidnightActual.project.progressMode,
+  schedulingOptions: p6MidnightActual.project.schedulingOptions,
+  projectStartDate: p6MidnightActual.project.startDate,
+});
+eq('3k XER/P6 behoudt voltooide actual start/finish als minuutexacte broninstants', {
+  earlyStart: p6MidnightActual.tasks[0]?.time.earlyStart,
+  earlyFinish: p6MidnightActual.tasks[0]?.time.earlyFinish,
+  lateStart: p6MidnightActual.tasks[0]?.time.lateStart,
+  lateFinish: p6MidnightActual.tasks[0]?.time.lateFinish,
+}, {
+  earlyStart: '2026-05-03T00:00',
+  earlyFinish: '2026-05-10T00:00',
+  lateStart: '2026-05-03T00:00',
+  lateFinish: '2026-05-10T00:00',
+});
 
 const byId = new Map(result.tasks.map(task => [task.id, task]));
 eq('4 WBS-rijen worden exact één samenvattingstaak, vóór activiteiten en stabiel gesorteerd',
@@ -200,6 +374,63 @@ eq('13 externe relatie is uitsluitend brondata en geen solver-Sequence', {
     type: 'FS',
     lagMinutes: 240,
   }],
+});
+
+// X12 late-pass RED/GREEN: P6 mag alleen het toegestane PROJECT.plan_end_date als late
+// projecteinde-anker gebruiken wanneer SCHEDOPTIONS dat expliciet vraagt. De bronwaarde ligt op
+// middernacht; in de projectkalender betekent dat het voorafgaande bandeinde (28 februari 17:00).
+const p6ProjectEndForFloat = read([
+  'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC-END\tZeven dagen\tP-END\tCA_Project\t8\t56\t(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||2()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||3()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||4()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||5()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||6()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||7()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))))    (0||Exceptions()())))',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tplan_start_date\tplan_end_date',
+  '%R\tP-END\tProjecteinde voor float\tC-END\t2013-02-27 17:00\t2013-03-01 00:00',
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id\tsched_use_project_end_date_for_float',
+  '%R\tP-END\tY',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tcstr_type\tcstr_date',
+  '%R\tT-START\tP-END\tC-END\tSTART\tProjectstart\tTT_Mile\tDT_FixedDrtn\tTK_NotStart\t0\t0\t2012-05-01 08:00\t2012-05-01 08:00\tCS_MSOB\t2012-05-01 08:00',
+  '%R\tT-END\tP-END\tC-END\tEND\tProjecteinde\tTT_FinMile\tDT_FixedDrtn\tTK_NotStart\t0\t0\t2013-02-27 17:00\t2013-02-27 17:00\t\t',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR-END\tT-END\tT-START\tP-END\tP-END\tPR_FS\t0',
+  '%E',
+]);
+const p6ProjectEndTasks = p6ProjectEndForFloat.tasks.map(task => ({ ...task, time: { ...task.time } }));
+const p6ProjectEndSolveInput = {
+  tasks: p6ProjectEndTasks,
+  sequences: p6ProjectEndForFloat.sequences,
+  calendar: p6ProjectEndForFloat.calendar,
+  calendars: p6ProjectEndForFloat.resourceCalendars ?? [],
+  schedulingOptions: p6ProjectEndForFloat.project.schedulingOptions,
+  projectStartDate: p6ProjectEndForFloat.project.startDate,
+  projectEndDate: p6ProjectEndForFloat.project.endDate,
+};
+solveProject(p6ProjectEndSolveInput);
+const p6ProjectEndTask = p6ProjectEndTasks.find(task => task.id === 'T-END');
+const p6ProjectStartTask = p6ProjectEndTasks.find(task => task.id === 'T-START');
+eq('13a SCHEDOPTIONS projecteinde geeft één P6-werkdag late float zonder outputvelden', {
+  importedProjectEnd: p6ProjectEndForFloat.project.endDate,
+  useProjectEndDateForFloat: p6ProjectEndForFloat.project.schedulingOptions?.useProjectEndDateForFloat,
+  lateFinish: p6ProjectEndTask?.time.lateFinish,
+  totalFloatMinutes: (p6ProjectEndTask?.time.totalFloat ?? NaN) * 8 * 60,
+  freeFloatMinutes: (p6ProjectEndTask?.time.freeFloat ?? NaN) * 8 * 60,
+}, {
+  importedProjectEnd: '2013-03-01T00:00',
+  useProjectEndDateForFloat: true,
+  lateFinish: '2013-02-28T17:00',
+  totalFloatMinutes: 480,
+  freeFloatMinutes: 0,
+});
+eq('13b P6 SNLT op de exacte startband houdt een nulduurmijlpaal op die broninstant', {
+  lateStart: p6ProjectStartTask?.time.lateStart,
+  lateFinish: p6ProjectStartTask?.time.lateFinish,
+}, {
+  lateStart: '2012-05-01T08:00',
+  lateFinish: '2012-05-01T08:00',
 });
 
 function typedError(label: string, lines: readonly string[], code: string): void {

@@ -97,6 +97,11 @@ export interface ExtCalendar {
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
   /** Dag-uitzonderingen die een dag WERKEND maken (fase 3.8, T2/T13). Afwezig ⇒ geen. */
   workingExceptions?: ExtWorkingException[];
+  /** Alleen-lezen P6/XER-herkomststempel. `toExtCalendar` toont hem voor analyse;
+   *  `fromExtCalendar` accepteert hem nooit als generieke solverinvoer. */
+  p6Source?: 'XER';
+  /** Alleen-lezen P6/XER-vrije-dagprojecties. Een extensie-import kan ze niet activeren. */
+  p6NonWorkPenaltyDates?: string[];
 }
 
 // ── Taak ──
@@ -274,6 +279,9 @@ export interface ExtSequence {
   lagUnit?: 'WORKTIME' | 'ELAPSEDTIME';
   /** Procentuele lag (% van voorgangerduur). Sluit lagDays uit. */
   lagPercent?: number;
+  /** P6/XER-nul-lag-FS behoudt een expliciete voorganger-finishgrens als startrepresentatie.
+   *  Leesmetadata: gewone extensies mogen dit niet via import of mutatie activeren. */
+  readonly p6StartAtPredecessorFinishBoundary?: boolean;
 }
 
 // ── Resource ──

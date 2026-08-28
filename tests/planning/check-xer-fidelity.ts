@@ -35,17 +35,21 @@ const fixture = [
   'ERMHDR\t8.4',
   '%T\tTASK',
   `%F\t${header.join('\t')}`,
-  '%R\tP1\t1\tA\tAlpha\tTK_NotStart\t\t\t2026-01-05 08:00\t2026-01-05 17:00\t2026-01-06 08:00\t2026-01-06 17:00\t1.25\t0.5\tY',
-  // Completed gebruikt de actuals voor alle vier datumassen. De Windows-1252-é dwingt de eigen
-  // encodingfallback af; de latere productielezer of diens tokenizer komt hier niet aan te pas.
-  '%R\tP2\t2\tB\tCaf\u00e9\tTK_Complete\t2026-02-02 09:15:30\t2026-02-03 16:45:00\t2099-01-01\t2099-01-02\t2099-01-03\t2099-01-04\t\t-0.125\tN',
+  '%R\tP1\t1\tA\tAlpha\tTK_NotStart\t\t\t2026-01-05 08:00\t2026-01-05 17:00\t2026-01-06 08:00\t2026-01-06 17:00\t1.25\t0.125\tY',
+  // Een completed activiteit houdt actuals én P6' opgeslagen rekenuitvoer naast elkaar. Dit is
+  // uitsluitend een orakelfixture: de grondwaarheidscanner moet de zes opgeslagen assen lezen,
+  // zonder die uitkomst ooit als invoer van readXER of de solver door te geven. De Windows-1252-é
+  // dwingt de eigen encodingfallback af; de latere productielezer of diens tokenizer komt hier
+  // niet aan te pas.
+  '%R\tP2\t2\tB\tCaf\u00e9\tTK_Complete\t2026-02-02 09:15:30\t2026-02-03 16:45:00\t2099-01-01 08:00:30\t2099-01-02 17:00:00\t2099-01-03 08:00:15.250\t2099-01-04 17:00\t\t-0.125\tN',
   '%E',
 ].join('\r\n');
 const bytes = Buffer.from(fixture, 'latin1');
 const truth = scanXerGroundTruth(bytes);
 
 // Breuken die dit vangt: delen van tokenizer/veldkaart met de productielezer, UTF-8-only decoderen,
-// of completed-taken tegen de opgeslagen early/late-uitvoer meten in plaats van tegen actuals.
+// of completed-taken stil naar actuals normaliseren in plaats van de opgeslagen XER-uitvoer rauw te
+// meten. Actuals blijven hier broninvoer; stored early/late zijn uitsluitend het meet-orakel.
 eq('1 scanner kiest Windows-1252 zelfstandig', truth.encoding, 'windows-1252');
 eq('1a scanner leest beide projecten', [...truth.projects], ['P1', 'P2']);
 eq('1b scanner leest taakidentiteit en zeven rapportageassen', truth.tasks[0], {
@@ -56,26 +60,34 @@ eq('1b scanner leest taakidentiteit en zeven rapportageassen', truth.tasks[0], {
   axes: {
     es: '2026-01-05T08:00', ef: '2026-01-05T17:00',
     ls: '2026-01-06T08:00', lf: '2026-01-06T17:00',
-    tf: 75, ff: 30,
+    tf: 75, ff: 7.5,
   },
+  rawDateSeconds: { es: null, ef: null, ls: null, lf: null },
   drivingPath: true,
   presentAxes: { es: true, ef: true, ls: true, lf: true, tf: true, ff: true },
 });
-eq('1c completed gebruikt actuals en rondt fractionele float naar minuten', truth.tasks[1], {
+eq('1c completed bewaart rauwe early/late-orakels plus subminuutfeit en exacte fractionele float', truth.tasks[1], {
   projectId: 'P2',
   taskId: '2',
   taskCode: 'B',
   statusCode: 'TK_Complete',
   axes: {
-    es: '2026-02-02T09:15', ef: '2026-02-03T16:45',
-    ls: '2026-02-02T09:15', lf: '2026-02-03T16:45',
-    tf: null, ff: -7,
+    es: '2099-01-01T08:00', ef: '2099-01-02T17:00',
+    ls: '2099-01-03T08:00', lf: '2099-01-04T17:00',
+    tf: null, ff: -7.5,
   },
+  rawDateSeconds: { es: '30', ef: '00', ls: '15.250', lf: null },
   drivingPath: false,
   presentAxes: { es: true, ef: true, ls: true, lf: true, tf: false, ff: true },
 });
 eq('1d geldige fixture heeft geen stille scannerfouten',
   (truth as unknown as { errors: string[] }).errors, []);
+eq('1d2 scanner pint secondenpresence, niet-nulseconden en fractionele minuten afzonderlijk',
+  truth.precision, {
+    dateSecondCells: { es: 1, ef: 1, ls: 1, lf: 0 },
+    dateNonZeroSubminuteCells: { es: 1, ef: 0, ls: 1, lf: 0 },
+    floatFractionalMinuteCells: { tf: 0, ff: 2 },
+  });
 
 const commaFixture = Buffer.from([
   'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tProject Management\tEUR',
@@ -85,7 +97,7 @@ const commaFixture = Buffer.from([
   '%R\tEUR\t,\t.\tCOMMA\tPERIOD',
   '%T\tTASK',
   `%F\t${header.join('\t')}`,
-  '%R\tP1\tC\tC\tComma\tTK_Complete\t2026-04-01 08:00\t2026-04-02 17:00\t\t\t\t\t1,25\t0,5\tY',
+  '%R\tP1\tC\tC\tComma\tTK_Complete\t2026-04-01 08:00\t2026-04-02 17:00\t2026-04-01 08:00\t2026-04-02 17:00\t2026-04-01 08:00\t2026-04-02 17:00\t0,125\t-0,125\tY',
   '%E',
 ].join('\n'));
 const commaTruth = scanXerGroundTruth(commaFixture) as unknown as {
@@ -93,9 +105,9 @@ const commaTruth = scanXerGroundTruth(commaFixture) as unknown as {
   errors: string[];
 };
 
-// Breuk die dit vangt: Number(value) gebruiken zonder CURRTYPE en completed-aanwezigheid op de
-// lege early/late-broncellen baseren in plaats van op de effectieve actuals.
-eq('1e CURRTYPE-kommafloat blijft meetbaar in afgeronde minuten', commaTruth.tasks[0], {
+// Breuk die dit vangt: Number(value) gebruiken zonder CURRTYPE. De stored date-assen zijn hier
+// bewust aanwezig, zodat deze floatfixture geen tweede semantiek over completed-actuals mengt.
+eq('1e CURRTYPE-kommafloat blijft meetbaar in exacte fractionele minuten', commaTruth.tasks[0], {
   projectId: 'P1',
   taskId: 'C',
   taskCode: 'C',
@@ -103,8 +115,9 @@ eq('1e CURRTYPE-kommafloat blijft meetbaar in afgeronde minuten', commaTruth.tas
   axes: {
     es: '2026-04-01T08:00', ef: '2026-04-02T17:00',
     ls: '2026-04-01T08:00', lf: '2026-04-02T17:00',
-    tf: 75, ff: 30,
+    tf: 7.5, ff: -7.5,
   },
+  rawDateSeconds: { es: null, ef: null, ls: null, lf: null },
   drivingPath: true,
   presentAxes: { es: true, ef: true, ls: true, lf: true, tf: true, ff: true },
 });
@@ -240,7 +253,7 @@ const sourceDateVariants = scanXerGroundTruth(Buffer.from([
   'ERMHDR\t23.12',
   '%T\tTASK',
   `%F\t${header.join('\t')}`,
-  '%R\tP1\tDATE_ONLY\tDATE_ONLY\tDate only\tTK_Complete\t2026-04-01\t2026-04-02\t\t\t\t\t\t\t',
+  '%R\tP1\tDATE_ONLY\tDATE_ONLY\tDate only\tTK_Complete\t2026-04-01\t2026-04-02\t2026-04-01\t2026-04-02\t2026-04-01\t2026-04-02\t\t\t',
   '%R\tP1\tNO_STATUS\tNO_STATUS\tNo status\t\t\t\t2026-04-03\t2026-04-04\t2026-04-05\t2026-04-06\t1\t0\t',
   '%R\tP1\tZERO\tZERO\tP6 zero sentinel\tTK_NotStart\t\t\t0\t0\t0\t0\t\t\t',
   '%E',
@@ -313,16 +326,16 @@ const measured = measureXerFidelity(truth, [
       sourceTaskId: '1', taskCode: 'A',
       earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-05T17:00',
       lateStart: '2026-01-06T08:00', lateFinish: '2026-01-06T17:01',
-      totalFloatMinutes: 75, freeFloatMinutes: 30, drivingPath: false,
+      totalFloatMinutes: 75, freeFloatMinutes: 7.5, drivingPath: false,
     }],
   },
   {
     projectId: 'P2',
     tasks: [{
       sourceTaskId: '2', taskCode: 'B',
-      earlyStart: '2026-02-02T09:15', earlyFinish: '2026-02-03T16:45',
-      lateStart: '2026-02-02T09:15', lateFinish: '2026-02-03T16:45',
-      totalFloatMinutes: 123, freeFloatMinutes: -7, drivingPath: false,
+      earlyStart: '2099-01-01T08:00', earlyFinish: '2099-01-02T17:00',
+      lateStart: '2099-01-03T08:00', lateFinish: '2099-01-04T17:00',
+      totalFloatMinutes: 123, freeFloatMinutes: -7.5, drivingPath: false,
     }],
   },
 ]);

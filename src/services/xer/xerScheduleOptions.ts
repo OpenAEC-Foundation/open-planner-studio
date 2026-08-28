@@ -92,8 +92,8 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
   { field: 'sched_use_expect_end_flag', status: 'mapped', target: 'schedulingOptions.useExpectedFinishDates' },
   {
     field: 'sched_use_project_end_date_for_float',
-    status: 'todo',
-    reason: 'Meerdere gelijktijdig geplande projecten ontbreken; X5 bewaart de bronwaarde zonder solversturing.',
+    status: 'mapped',
+    target: 'schedulingOptions.useProjectEndDateForFloat',
   },
   { field: 'schedhash', status: 'ignored', reason: 'Technische bronhash; geen planningssemantiek of stabiele OPS-identiteit.' },
   { field: 'schedoptions_id', status: 'ignored', reason: 'Technische rij-identiteit; proj_id is de projectbinding.' },
@@ -109,6 +109,7 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
 export const XER_SCHEDULING_DEFAULTS = {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
+    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 },
     totalFloatMode: 'finish',
@@ -116,6 +117,12 @@ export const XER_SCHEDULING_DEFAULTS = {
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
+    p6ZeroDurationUsesPlannedBoundary: true,
+    p6UseTaskPlannedStartFloor: true,
+    p6FinishMilestoneBoundaryWindow: true,
+    p6PreserveActualInstants: true,
+    p6UseRemainingStartForProgress: false,
+    p6PreserveZeroDurationConstraintInstants: true,
   },
 } as const satisfies { progressMode: ProgressMode; schedulingOptions: SchedulingOptions };
 
@@ -311,6 +318,13 @@ export function deriveXerScheduleOptions(
   context: { hoursPerDay?: number; taskCount?: number } = {},
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
+  const projectRow = index.projectRowsById.get(projectId)?.row;
+  // PROJECT.rem_target_link_flag is het documentgedragen P6-signaal dat remaining en target
+  // gekoppeld blijven. Alleen dan beschrijven de XER Early/Late Start-assen bij een lopende taak
+  // het resterende werkvenster; ontbrekend/N behoudt de historische Actual Start. De afleiding
+  // gebruikt uitsluitend PROJECT-invoer en nooit early/late/float-orakelcellen.
+  defaults.schedulingOptions.p6UseRemainingStartForProgress =
+    projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y';
   const fallbacks: XerScheduleOptionFallback[] = [];
   const sourceRowIndexes = [...(index.sourceRowIndexesByProject.get(projectId) ?? [])];
   const retainedRows = sourceRowIndexes.map(rowIndex => index.sourceArchive.rows[rowIndex]);
@@ -363,6 +377,9 @@ export function deriveXerScheduleOptions(
   const retainedSource = retainedProjectEndValue === undefined
     ? {}
     : { sched_use_project_end_date_for_float: retainedProjectEndValue };
+  if (retainedProjectEndValue !== undefined) {
+    schedulingOptions.useProjectEndDateForFloat = retainedProjectEndValue;
+  }
 
   const progressMode = progressModeValue(row, fallbacks);
 

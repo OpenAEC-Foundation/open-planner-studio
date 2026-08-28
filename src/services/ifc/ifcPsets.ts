@@ -88,6 +88,10 @@ export const PSET = {
   XerSourceArchive: 'OPS_XerSourceArchive',
   /** X9: selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
   XerDocument: 'OPS_XerDocument',
+  /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
+   *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
+   *  koppeling toch exact, zonder een schema-ongeldige relatie te serialiseren. */
+  Sequences: 'OPS_Sequences',
   // Per kalender (afwijkende vorm — alleen naam gedeeld).
   Calendar: 'OPS_Calendar',
   // Bedrijfsbibliotheek-pool als autoritatief JSON-blob op het IfcProject (spec B1, §4).

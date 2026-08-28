@@ -23,7 +23,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   type XerFidelityAxisCounts, type XerFidelityCounters, type XerFidelityBaselineEntry,
-  type XerFidelityBaseline, emptyAxisCounts, emptyCounters, createEmptyXerFidelityBaseline,
+  type XerFidelityBaseline, type XerScannerPrecisionFacts,
+  emptyAxisCounts, emptyCounters, createEmptyXerFidelityBaseline,
 } from './xerFidelityTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -68,13 +69,13 @@ function keys<T>() {
 const AXIS_COUNTS_KEYS = keys<XerFidelityAxisCounts>()(['deviations', 'measurable'] as const);
 const COUNTERS_KEYS = keys<XerFidelityCounters>()(['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const);
 const ENTRY_KEYS = keys<XerFidelityBaselineEntry>()([
-  'label', 'tasks', 'projects', 'counters', 'schemaFingerprint', 'reason',
+  'label', 'tasks', 'projects', 'counters', 'precision', 'schemaFingerprint', 'reason',
 ] as const);
 // Optionele subset — plain, TYPEGETOETST tegen `keyof`, maar bewust NIET zelf compile-volledig (dat
 // zou de required/optional-scheiding zelf weer dupliceren). REQUIRED wordt hieronder AFGELEID als
 // "alles in ENTRY_KEYS min dit" — dus een nieuw veld dat je vergeet hier te noemen valt automatisch
 // in REQUIRED, wat de striktere (veiligere) kant is voor een niet-geclassificeerd veld.
-const OPTIONAL_ENTRY_KEYS: readonly (keyof XerFidelityBaselineEntry)[] = ['schemaFingerprint', 'reason'];
+const OPTIONAL_ENTRY_KEYS: readonly (keyof XerFidelityBaselineEntry)[] = ['precision', 'schemaFingerprint', 'reason'];
 const REQUIRED_ENTRY_KEYS = ENTRY_KEYS.filter(k => !OPTIONAL_ENTRY_KEYS.includes(k));
 
 // ── (b) Runtime-validator ────────────────────────────────────────────────────────────────────
@@ -112,6 +113,19 @@ function validateCounters(v: unknown, path: string, problems: string[]): void {
   }
 }
 
+function validatePrecision(v: unknown, path: string, problems: string[]): void {
+  if (!isPlainObject(v)) { problems.push(`${path}: geen object`); return; }
+  const expected = ['dateSecondCells', 'dateNonZeroSubminuteCells', 'floatFractionalMinuteCells'] as const satisfies readonly (keyof XerScannerPrecisionFacts)[];
+  for (const key of expected) {
+    const block = v[key];
+    if (!isPlainObject(block)) { problems.push(`${path}.${key}: ontbreekt of geen object`); continue; }
+    const axes = key === 'floatFractionalMinuteCells' ? ['tf', 'ff'] : ['es', 'ef', 'ls', 'lf'];
+    for (const axis of axes) {
+      if (!isNonNegNumber(block[axis])) problems.push(`${path}.${key}.${axis}: geen niet-negatief getal`);
+    }
+  }
+}
+
 function validateEntry(v: unknown, path: string, problems: string[]): void {
   if (!isPlainObject(v)) { problems.push(`${path}: geen object`); return; }
   for (const k of REQUIRED_ENTRY_KEYS) {
@@ -121,6 +135,7 @@ function validateEntry(v: unknown, path: string, problems: string[]): void {
   if ('tasks' in v && !isNonNegNumber(v.tasks)) problems.push(`${path}.tasks: geen niet-negatief getal`);
   if ('projects' in v && !isNonNegNumber(v.projects)) problems.push(`${path}.projects: geen niet-negatief getal`);
   if ('counters' in v) validateCounters(v.counters, `${path}.counters`, problems);
+  if ('precision' in v) validatePrecision(v.precision, `${path}.precision`, problems);
   if ('schemaFingerprint' in v && typeof v.schemaFingerprint !== 'string') problems.push(`${path}.schemaFingerprint: geen string`);
   if ('reason' in v && typeof v.reason !== 'string') problems.push(`${path}.reason: geen string`);
   for (const k of Object.keys(v)) {

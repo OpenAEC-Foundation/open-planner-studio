@@ -41,6 +41,9 @@ export class CalendarEngine {
   // `workDaysPerWeek`/`countWorkWeekdays` (die kennen alleen het vaste weekpatroon) en moet dus als
   // EXTRA werkdag worden opgeteld in `workDaysBetween` — vandaar een eigen gesorteerde index.
   private workingExceptionOnNonWorkWeekdayIdxSorted: number[];
+  // Alleen data voor de EXPLICIETE P6-XER-projectiemethoden onderaan. De generieke kalender-
+  // algebra leest deze index nergens en blijft daardoor fysiek en volledig invers.
+  private p6NonWorkPenaltyDayIdxSorted: number[];
   // Veiligheidsgrenzen tegen vastlopen bij een kapotte kalender (geen werkdagen)
   // of een ongeldige/sentinel-datum: MAX_SCAN = max dagen zoeken naar een werkdag;
   // MAX_DAYS = absolute iteratielimiet (~547 jaar) voor de tel-lussen.
@@ -95,6 +98,11 @@ export class CalendarEngine {
     this.workingExceptionOnNonWorkWeekdayIdxSorted = [...this.workingExceptionDaySet]
       .filter((idx) => !this.workDayMask[isoDayOfWeek(new Date(idx * CalendarEngine.MS_PER_DAY))])
       .sort((a, b) => a - b);
+    this.p6NonWorkPenaltyDayIdxSorted = calendar.p6Source === 'XER'
+      ? [...new Set((calendar.p6NonWorkPenaltyDates ?? []).map(date =>
+        Math.floor(parseDate(date).getTime() / CalendarEngine.MS_PER_DAY),
+      ).filter(Number.isFinite))].sort((a, b) => a - b)
+      : [];
     // ── Fase 2.8b: modus-detectie + uur-setup (§4.1). Afwezige `workTime` ⇒ dag-modus:
     //    dan wordt niets hieronder geraakt en draaien de bevroren dag-lussen ongewijzigd.
     this.mode = calendar.workTime ? 'hour' : 'day';
@@ -709,6 +717,11 @@ export class CalendarEngine {
    *  landt geeft die eindgrens terug (legitiem finish-moment). `minutes ≤ 0` ⇒ start ongewijzigd
    *  (spiegelt `addWorkDays`' `≤0`-tak, voor mijlpalen). */
   addWorkMinutes(startInstant: Date, minutes: number): Date {
+    return this.addPhysicalWorkMinutes(startInstant, minutes);
+  }
+
+  /** Bestaande fysieke bandwandeling, zonder P6-bronpenalty. */
+  private addPhysicalWorkMinutes(startInstant: Date, minutes: number): Date {
     if (minutes <= 0) return new Date(startInstant.getTime());
     let remaining = Math.min(minutes, CalendarEngine.MAX_MINUTES);
     let curMs = this.nextWorkInstant(startInstant).getTime();
@@ -732,6 +745,11 @@ export class CalendarEngine {
   /** Trek `minutes` werkminuten af van `endInstant` (spiegel van `addWorkMinutes`, §4.2/§5.2). Een
    *  landing exact op een bandstart is legitiem (rand `(start,end]`). */
   subtractWorkMinutes(endInstant: Date, minutes: number): Date {
+    return this.subtractPhysicalWorkMinutes(endInstant, minutes);
+  }
+
+  /** Bestaande fysieke achterwaartse bandwandeling, zonder P6-bronpenalty. */
+  private subtractPhysicalWorkMinutes(endInstant: Date, minutes: number): Date {
     if (minutes <= 0) return new Date(endInstant.getTime());
     let remaining = Math.min(minutes, CalendarEngine.MAX_MINUTES);
     let curMs = this.prevWorkInstant(endInstant).getTime();
@@ -755,6 +773,52 @@ export class CalendarEngine {
   /** Getekende werkminuten in `[a,b)` (§5.5, voor vrije speling). Positief als b>a, negatief als
    *  b<a, 0 als gelijk. */
   workMinutesBetween(a: Date, b: Date): number {
+    return this.physicalWorkMinutesBetween(a, b);
+  }
+
+  /**
+   * P6-XER-resultaatprojectie voor een backward duur-/lagwandeling. Dit is uitdrukkelijk GEEN
+   * kalenderprimitief: `subtractWorkMinutes` blijft de inverse van `addWorkMinutes`. De solver mag
+   * deze methode alleen kiezen wanneer óók het project `schedulingOptions.p6Source === 'XER'`
+   * draagt; deze kalender controleert onafhankelijk haar eigen `p6Source` via de lege index.
+   */
+  subtractP6XerProjectedWorkMinutes(endInstant: Date, minutes: number): Date {
+    if (minutes <= 0 || this.p6NonWorkPenaltyDayIdxSorted.length === 0) {
+      return this.subtractPhysicalWorkMinutes(endInstant, minutes);
+    }
+    let adjustedMinutes = minutes;
+    let result = this.subtractPhysicalWorkMinutes(endInstant, adjustedMinutes);
+    for (let iteration = 0; iteration <= this.p6NonWorkPenaltyDayIdxSorted.length; iteration++) {
+      const nextMinutes = minutes + this.p6NonWorkPenaltyMinutesBetween(result, endInstant);
+      if (nextMinutes === adjustedMinutes) return result;
+      adjustedMinutes = nextMinutes;
+      result = this.subtractPhysicalWorkMinutes(endInstant, adjustedMinutes);
+    }
+    return result;
+  }
+
+  /** P6-XER-resultaatprojectie voor TF/FF; de generieke `workMinutesBetween` blijft fysiek. */
+  p6XerProjectedWorkMinutesBetween(a: Date, b: Date): number {
+    const physical = this.physicalWorkMinutesBetween(a, b);
+    if (physical === 0 || this.p6NonWorkPenaltyDayIdxSorted.length === 0) return physical;
+    const sign = physical > 0 ? 1 : -1;
+    const adjusted = Math.max(0, Math.abs(physical) - this.p6NonWorkPenaltyMinutesBetween(a, b));
+    return sign * adjusted;
+  }
+
+  /** Virtuele extra P6-nietwerktijd in het datum-inclusieve venster tussen twee instants. */
+  private p6NonWorkPenaltyMinutesBetween(a: Date, b: Date): number {
+    if (this.p6NonWorkPenaltyDayIdxSorted.length === 0) return 0;
+    const aIdx = Math.floor(a.getTime() / CalendarEngine.MS_PER_DAY);
+    const bIdx = Math.floor(b.getTime() / CalendarEngine.MS_PER_DAY);
+    const startIdx = Math.min(aIdx, bIdx);
+    const lastIdx = Math.max(aIdx, bIdx);
+    return this.countSortedIdxInRange(this.p6NonWorkPenaltyDayIdxSorted, startIdx, lastIdx)
+      * this.hoursPerDay * 60;
+  }
+
+  /** Bestaande fysieke bandminuten in `[a,b)`, zonder P6-bronpenalty. */
+  private physicalWorkMinutesBetween(a: Date, b: Date): number {
     const aMs = a.getTime();
     const bMs = b.getTime();
     if (aMs === bMs) return 0;

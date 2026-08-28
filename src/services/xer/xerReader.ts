@@ -11,7 +11,13 @@
 import type {
   ImportResult, XerEnumFallback, XerExternalRelation, XerImportMetadata,
 } from '@/services/importTypes';
-import { getCalendarBands, promoteHourCalendar } from '@/services/subdayIo';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import {
+  canonicalizeBands,
+  getCalendarBands,
+  promoteHourCalendar,
+  registerCalendarBands,
+} from '@/services/subdayIo';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type {
@@ -218,6 +224,79 @@ function sourceInstant(raw: string, hourMode: boolean): string | undefined {
   const parsed = parseInstant(normalized);
   if (Number.isNaN(parsed.getTime())) return undefined;
   return formatInstant(parsed, hourMode ? 'hour' : 'day');
+}
+
+function clockMinute(raw: string): number | undefined {
+  const match = raw.trim().match(/^\d{4}-\d{2}-\d{2}[ T](\d{1,2}):(\d{2})/);
+  if (!match) return undefined;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return undefined;
+  return hour * 60 + minute;
+}
+
+/**
+ * Een lege `CALENDAR.clndr_data` verliest de bandvorm, terwijl P6 de toegestane geplande
+ * `target_start_date`/`target_end_date` en `target_drtn_hr_cnt` wel bewaart. Voor activiteiten
+ * met een geheel aantal kalenderdagen is het modale start/eind-klokpaar daardoor bronbewijs voor
+ * de standaardwerkdag van die effectieve kalender. Alleen twee beslisbare vormen worden hersteld:
+ * een aaneengesloten band (klokspan === netto daguren) en P6's standaard lunchpauze 12:00-13:00.
+ * Geen early/late/float-output komt in deze afleiding voor.
+ */
+function inferBlankCalendarBands(
+  tables: XerTables,
+  calendar: WorkCalendar,
+  activityRows: readonly XerRow[],
+  projectCalendarId: string,
+): boolean {
+  const sourceRow = (tables.tables.get('CALENDAR')?.rows ?? [])
+    .find(row => row.cells.clndr_id.trim() === calendar.id);
+  if (!sourceRow || (sourceRow.cells.clndr_data ?? '').trim() !== '') return false;
+
+  const pairCounts = new Map<string, number>();
+  for (const row of activityRows) {
+    if ((row.cells.clndr_id || projectCalendarId) !== calendar.id) continue;
+    const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
+    const dayCount = durationHours / calendar.hoursPerDay;
+    if (!(durationHours > 0) || Math.abs(dayCount - Math.round(dayCount)) > 1e-9) continue;
+    const start = clockMinute(row.cells.target_start_date ?? '');
+    const finish = clockMinute(row.cells.target_end_date ?? '');
+    if (start === undefined || finish === undefined || finish <= start) continue;
+    const key = `${start}:${finish}`;
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+  }
+  let best: { start: number; finish: number; count: number } | undefined;
+  for (const [key, count] of pairCounts) {
+    const [start, finish] = key.split(':').map(Number);
+    if (!best || count > best.count || (count === best.count && key < `${best.start}:${best.finish}`)) {
+      best = { start, finish, count };
+    }
+  }
+  if (!best) return false;
+
+  const netMinutes = calendar.hoursPerDay * 60;
+  const spanMinutes = best.finish - best.start;
+  let dayBands: { start: number; end: number }[] | undefined;
+  if (spanMinutes === netMinutes) {
+    dayBands = [{ start: best.start, end: best.finish }];
+  } else {
+    const gapMinutes = spanMinutes - netMinutes;
+    const lunchStart = 12 * 60;
+    const lunchEnd = lunchStart + gapMinutes;
+    if (gapMinutes > 0 && best.start < lunchStart && lunchEnd < best.finish) {
+      dayBands = [
+        { start: best.start, end: lunchStart },
+        { start: lunchEnd, end: best.finish },
+      ];
+    }
+  }
+  if (!dayBands) return false;
+  const byDay = Object.fromEntries(calendar.workDays.map(day => [day, dayBands]));
+  const canonical = canonicalizeBands(byDay).bands;
+  registerCalendarBands(calendar, { canonical, deviates: dayBands.length > 1 });
+  calendar.workStartHour = best.start / 60;
+  calendar.workEndHour = best.finish / 60;
+  return true;
 }
 
 /** X7-broninstant: de vorm hoort bij dit ene veld, niet bij de kalender die een buurveld promoveert. */
@@ -490,7 +569,11 @@ function readXerProject(
       hourSignalCalendarIds.add(calendarId);
     }
   }
+  const plannedWindowCalendarIds = new Set<string>();
   for (const calendar of calendarList) {
+    if (inferBlankCalendarBands(tables, calendar, activityRows, projectCalendar.id)) {
+      plannedWindowCalendarIds.add(calendar.id);
+    }
     promoteHourCalendar(
       calendar,
       getCalendarBands(calendar),
@@ -498,6 +581,10 @@ function readXerProject(
       false,
     );
   }
+  const calendarEngines = new Map(calendarList.map(calendar => [
+    calendar.id,
+    new CalendarEngine(calendar),
+  ] as const));
 
   const enumFallbacks: XerEnumFallback[] = [];
   const projectDefaultDuration = durationTypeOf(
@@ -511,13 +598,30 @@ function readXerProject(
   for (const row of activityRows) {
     const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
     const hourMode = effectiveCalendar.workTime !== undefined;
-    const start = sourceInstant(row.cells.target_start_date ?? '', hourMode)
+    let start = sourceInstant(row.cells.target_start_date ?? '', hourMode)
       ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
       ?? '1970-01-01';
-    const finish = sourceInstant(row.cells.target_end_date ?? '', hourMode) ?? start;
+    let finish = sourceInstant(row.cells.target_end_date ?? '', hourMode) ?? start;
+    // P6 XER kan een TT_FinMile op de eerste minuut ná een werkbandgrens serialiseren met gelijke
+    // target start/finish. Voor deze nulduur-activiteit is die minuut een grenscodering, geen werk:
+    // de mijlpaal hoort bij de bandstart en de finishzijde bij het vorige werkbandeinde. De regel is
+    // bewust gesloten op TT_FinMile + start===finish + exact bandstart+1; een gewone activiteit,
+    // een andere minuut of een reeds exacte bandgrens blijft letterlijk zoals aangeleverd.
+    if (hourMode && start === finish
+      && row.cells.task_type?.trim().toLowerCase() === 'tt_finmile') {
+      const engine = calendarEngines.get(effectiveCalendar.id);
+      const raw = parseInstant(start);
+      const bands = engine?.effectiveBandsOn(raw) ?? [];
+      const minute = raw.getUTCHours() * 60 + raw.getUTCMinutes();
+      if (bands.length > 0 && minute === bands[0].start + 1) {
+        const bandStart = new Date(raw.getTime() - 60_000);
+        start = formatInstant(bandStart, 'hour');
+        finish = formatInstant(engine!.prevWorkInstant(bandStart), 'hour');
+      }
+    }
     const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
-    const durationMinutes = Math.round(durationHours * 60);
+    const sourceDurationMinutes = Math.round(durationHours * 60);
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);
     const durationType = durationTypeOf(
@@ -535,10 +639,20 @@ function readXerProject(
     // van een actieve taak; ze mogen een expliciete TK_NotStart nooit de solver-in-progressroute
     // in trekken. CP_Drtn en CP_Units lezen complete_pct, CP_Phys leest uitsluitend
     // phys_complete_pct — geen familie valt terug op de percentagekolom van een andere familie.
+    // Lees uitsluitend de percentagefamilie die de expliciete P6-status en -methode werkelijk
+    // gebruiken. Anders kan bijvoorbeeld een corrupte `complete_pct` een CP_Phys-taak (waar
+    // uitsluitend `phys_complete_pct` betekenis heeft) ten onrechte onopenbaar maken.
+    const durationCompletionPercent = !statusForcesCompletion
+      && (completePctType === 'CP_Drtn' || completePctType === 'CP_Units')
+      ? numberOf(tables, row, 'complete_pct')
+      : null;
     const completionPercent = statusForcesCompletion
       ? 0
       : completePctType === 'CP_Drtn' || completePctType === 'CP_Units'
-        ? numberOf(tables, row, 'complete_pct') ?? 0
+        ? durationCompletionPercent
+          ?? (completePctType === 'CP_Drtn' && remainingHours !== null && durationHours > 0
+            ? (1 - remainingHours / durationHours) * 100
+            : 0)
         : numberOf(tables, row, 'phys_complete_pct') ?? 0;
     const completion = statusToken === 'tk_complete'
       ? 1
@@ -546,6 +660,22 @@ function readXerProject(
         ? 0
         : Math.max(0, Math.min(1, completionPercent / 100));
     const parentId = row.cells.wbs_id ? wbsTaskId(projectId, row.cells.wbs_id) : null;
+    const plannedWindowMinutes = hourMode && plannedWindowCalendarIds.has(effectiveCalendar.id)
+      ? calendarEngines.get(effectiveCalendar.id)?.workMinutesBetween(
+        parseInstant(start), parseInstant(finish),
+      )
+      : undefined;
+    // Alleen bij een lege bronkalender mag het target-venster de door ontbrekende banddata verloren
+    // fractionele slotdag herstellen. De expliciete targetduur blijft autoritair zodra vensterwerk
+    // en bronduur meer dan één effectieve dag verschillen: target_start/target_end mogen immers
+    // planningsruimte omvatten en zijn dan geen alternatieve duurkolom. Zo is de positieve vorm
+    // kalender-afleidbaar en de negatieve vorm gesloten zonder stored P6-rekenuitvoer te lezen.
+    const plannedWindowRepairsFractionalDay = plannedWindowMinutes !== undefined
+      && plannedWindowMinutes > 0
+      && Math.abs(plannedWindowMinutes - sourceDurationMinutes) <= hoursPerDay * 60;
+    const durationMinutes = plannedWindowRepairsFractionalDay
+      ? plannedWindowMinutes
+      : sourceDurationMinutes;
     const time = createDefaultTaskTime(start, durationMinutes / (hoursPerDay * 60));
     time.scheduleFinish = finish;
     time.earlyStart = start;
@@ -554,11 +684,14 @@ function readXerProject(
     time.lateFinish = finish;
     time.completion = completion;
     const p6RemainingHours = status === 'STARTED' && completePctType === 'CP_Drtn'
+      && durationCompletionPercent !== null
       ? durationHours * (1 - completion)
       : remainingHours;
     if (hourMode) {
       time.durationMinutes = durationMinutes;
-      if (p6RemainingHours !== null) time.remainingMinutes = Math.round(p6RemainingHours * 60);
+      if (p6RemainingHours !== null) {
+        time.remainingMinutes = Math.round(p6RemainingHours * 60);
+      }
     } else if (p6RemainingHours !== null) {
       time.remainingTime = p6RemainingHours / hoursPerDay;
     }
@@ -618,11 +751,27 @@ function readXerProject(
     });
   }
 
+  const projectHourMode = projectCalendar.workTime !== undefined;
+  const derivedSchedule = deriveXerScheduleOptions(scheduleOptionsIndex, projectId, {
+    hoursPerDay: projectCalendar.hoursPerDay,
+    taskCount: mappedActivities.length,
+  });
+  const {
+    progressMode,
+    schedulingOptions,
+    ...scheduleOptionsMetadata
+  } = derivedSchedule;
   const starts = mappedActivities.map(task => task.time.scheduleStart).filter(Boolean).sort();
   const finishes = mappedActivities.map(task => task.time.scheduleFinish).filter(Boolean).sort();
   const projectStart = starts[0];
-  const projectEnd = finishes[finishes.length - 1] ?? projectStart;
-  const projectHourMode = projectCalendar.workTime !== undefined;
+  const taskDerivedProjectEnd = finishes[finishes.length - 1] ?? projectStart;
+  const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
+  // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
+  // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the historical
+  // task-derived project range remains byte-identical for XER and every other format.
+  const projectEnd = schedulingOptions.useProjectEndDateForFloat && sourceProjectEnd
+    ? sourceProjectEnd
+    : taskDerivedProjectEnd;
   const statusDate = sourceInstant(projectRow.cells.last_recalc_date ?? '', projectHourMode);
 
   const wbsRows = stableWbsRows(rawWbsRows, projectId);
@@ -693,6 +842,21 @@ function readXerProject(
     const predecessorLocal = predecessorProjectId === projectId && taskById.has(row.cells.pred_task_id);
     const successorLocal = successorProjectId === projectId && taskById.has(row.cells.task_id);
     if (predecessorLocal && successorLocal) {
+      const predecessor = taskById.get(row.cells.pred_task_id)!;
+      const successor = taskById.get(row.cells.task_id)!;
+      const predecessorCalendar = calendarEngines.get(
+        predecessor.calendarId ?? projectCalendar.id,
+      ) ?? calendarEngines.get(projectCalendar.id)!;
+      const plannedPredecessorFinish = parseInstant(predecessor.time.scheduleFinish);
+      const plannedSuccessorStart = parseInstant(successor.time.scheduleStart);
+      const finishMinute = plannedPredecessorFinish.getUTCHours() * 60
+        + plannedPredecessorFinish.getUTCMinutes();
+      const p6StartAtPredecessorFinishBoundary = relationType.sequence === 'FINISH_START'
+        && lagMinutes === 0
+        && predecessorCalendar.isHourMode
+        && plannedPredecessorFinish.getTime() === plannedSuccessorStart.getTime()
+        && predecessorCalendar.effectiveBandsOn(plannedPredecessorFinish)
+          .some(band => band.end === finishMinute);
       sequences.push({
         id: relationId,
         predecessorId: row.cells.pred_task_id,
@@ -700,6 +864,9 @@ function readXerProject(
         type: relationType.sequence,
         lagMinutes,
         lagDays: lagMinutes / (projectCalendar.hoursPerDay * 60),
+        ...(p6StartAtPredecessorFinishBoundary
+          ? { p6StartAtPredecessorFinishBoundary: true }
+          : {}),
       });
     } else if (successorLocal && predecessorProjectId !== projectId) {
       externalRelations.push({
@@ -725,16 +892,6 @@ function readXerProject(
       });
     }
   }
-
-  const derivedSchedule = deriveXerScheduleOptions(scheduleOptionsIndex, projectId, {
-    hoursPerDay: projectCalendar.hoursPerDay,
-    taskCount: mappedActivities.length,
-  });
-  const {
-    progressMode,
-    schedulingOptions,
-    ...scheduleOptionsMetadata
-  } = derivedSchedule;
 
   return {
     project: {

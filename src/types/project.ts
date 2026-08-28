@@ -8,6 +8,9 @@ export type ProgressMode = 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
  * een ander schema geven (§7). De solver leest ze via `CPMOptions.schedulingOptions`.
  */
 export interface SchedulingOptions {
+  /** Expliciete provenance voor P6-XER-projectieregels. Alleen de XER-reader zet deze waarde;
+   *  IFC bewaart haar uitsluitend om een XER-import semantisch gelijk te round-trippen. */
+  p6Source?: 'XER';
   /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' = de huidige
    *  LAG_CALENDAR-constante (lagCalendar.ts) ⇒ byte-identiek. */
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
@@ -34,6 +37,33 @@ export interface SchedulingOptions {
   /** P6/XER rapporteert vrije float niet negatief: bij een onhaalbare late constraint blijft TF
    *  negatief maar wordt FF nul. Afwezig/false bewaart de algemene getekende OPS-semantiek. */
   clampNegativeFreeFloat?: boolean;
+  /** P6/XER gebruikt voor een nulduurmijlpaal de in TASK geplande kalendergrens: een geplande
+   *  dagstart blijft startmijlpaal, een gepland bandeinde mag op de voorgangerfinish landen.
+   *  Afwezig/false houdt de algemene/MSP-conventie byte-identiek. */
+  p6ZeroDurationUsesPlannedBoundary?: boolean;
+  /** XER TASK.target_start_date kan bij P6 naast het netwerk een geplande vloer vertegenwoordigen,
+   *  maar alleen wanneer start én finish meer dan één kalenderdag later liggen dan de berekende
+   *  netwerkgrens. Een gewone volgende-bandstart is geen vrije planning en activeert deze regel
+   *  niet. Alleen XER zet de vlag; andere bronnen houden de generieke netwerksemantiek. */
+  p6UseTaskPlannedStartFloor?: boolean;
+  /** P6 kan een TT_FinMile als twee aangrenzende kalendergrenzen opslaan (ES op bandstart,
+   *  EF op het vorige bandeinde). Alleen XER activeert deze representatie. */
+  p6FinishMilestoneBoundaryWindow?: boolean;
+  /** XER/P6: geregistreerde actual start/finish zijn broninstants en worden niet naar een
+   *  kalenderband genormaliseerd. Default afwezig houdt de bestaande formaatsemantiek. */
+  p6PreserveActualInstants?: boolean;
+  /** XER/P6 bewaart Actual Start als historie, maar de zesassige Early/Late Start van een lopende
+   *  activiteit beschrijft de start van het resterende werk (`max(statusdatum, relatiegrens)`).
+   *  Alleen het XER-importpad zet deze bronvlag; andere formaten blijven hun bestaande zichtbare
+   *  actual-startvenster gebruiken. */
+  p6UseRemainingStartForProgress?: boolean;
+  /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
+   *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit. */
+  p6PreserveZeroDurationConstraintInstants?: boolean;
+  /** XER/P6: gebruik PROJECT.plan_end_date als late-pass-anker wanneer
+   *  SCHEDOPTIONS.sched_use_project_end_date_for_float=Y. De datum zelf blijft project.endDate;
+   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit. */
+  useProjectEndDateForFloat?: boolean;
   /** Near-critical-drempel in werkdagen (fractioneel in uur-modus). Default undefined ⇒ feature uit. */
   nearCriticalThreshold?: number;
   /** Multiple float paths. Default undefined ⇒ uit (byte-identiek). */
