@@ -1,6 +1,7 @@
 import type { SchedulingOptions } from '@/types/project';
 import type { Task } from '@/types/task';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 /**
  * Alleen een bewezen XER-bladactiviteit mag voor een voltooide taak de P6-statusdatum als
@@ -19,6 +20,7 @@ export function usesP6CompletedDataDateWindow(
 ): boolean {
   return schedulingOptions?.p6Source === 'XER'
     && schedulingOptions.p6UseRemainingStartForProgress === true
+    && isLeafTask(task)
     && task.p6ProjectId !== undefined && task.p6ProjectId !== ''
     && task.p6TaskId !== undefined && task.p6TaskId !== ''
     && task.p6ExplicitTargetWindow === true

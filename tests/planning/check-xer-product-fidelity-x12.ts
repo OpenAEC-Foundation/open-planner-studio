@@ -13,6 +13,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import type { WorkCalendar } from '@/types/calendar';
+import { usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
 import { buildXerTargetBaseline, type XerCorpusFile, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
 import { measureXerProductFidelity, type XerProductAxisCounts } from './xerProductFidelity';
@@ -1555,20 +1556,26 @@ async function productBaseline(
 // X12 completed/actual-pakket. P6's opgeslagen early/late zijn uitsluitend de onafhankelijke
 // meetlat; deze fixture maakt ze daarom NIET tot productinvoer. Het broncontract dat de
 // productketen wel ontvangt is de XER-taskwindow (`target_*`), de status en de actuals. De
-// completed XER-activiteit moet zijn P6-planningswindow behouden wanneer haar geregistreerde
-// historie daarvan afwijkt. De aanvullende vormen bewaken dat de grens smal blijft: meerdere
-// assignments zijn niet causaal, actieve taken en completed milestones vallen er buiten en een
+// completed XER-activiteit reconstrueert in dit pakket uitsluitend P6's vroege window wanneer haar
+// geregistreerde historie daarvan afwijkt. Late datums en floats blijven op de al bestaande
+// completed-semantiek; dat afzonderlijke orakelprobleem blijft bewust open. De aanvullende vormen
+// bewaken dat de grens smal blijft: meerdere assignments zijn niet causaal, onvolledige provenance,
+// actieve taken, LOE, suspend/resume, summaries en completed milestones vallen erbuiten en een
 // gewone/IFC-taak behoudt de bestaande actual-semantiek.
 {
   type CompletedFixtureKind = 'completed-task' | 'active-task' | 'completed-milestone';
+  type TargetShape = 'both' | 'start-only' | 'invalid-start';
   const completedPackageBytes = (
     kind: CompletedFixtureKind, assignments: 0 | 2 = 0, rawOutput: 'oracle' | 'mutated' = 'oracle',
+    targetShape: TargetShape = 'both',
   ) => {
     const completed = kind !== 'active-task';
     const milestone = kind === 'completed-milestone';
     const remTargetLink = kind === 'active-task' ? 'N' : 'Y';
-    const targetStart = '2026-01-02 08:00';
-    const targetFinish = milestone ? targetStart : '2026-01-02 16:00';
+    const projectTargetStart = '2026-01-02 08:00';
+    const projectTargetFinish = milestone ? projectTargetStart : '2026-01-02 16:00';
+    const targetStart = targetShape === 'invalid-start' ? 'geen-datum' : projectTargetStart;
+    const targetFinish = targetShape === 'start-only' ? '' : projectTargetFinish;
     const actualStart = kind === 'active-task' ? '2026-01-07 08:00' : '2026-01-08 08:00';
     const actualFinish = completed ? (milestone ? actualStart : '2026-01-08 16:00') : '';
     // Dit zijn bewust uitsluitend orakelcellen in de fixture: de readerwhitelist verbiedt ze.
@@ -1583,7 +1590,7 @@ async function productBaseline(
       `%R\tC1\tStandaard 5x8\tCA_Base\t8\t40\t${fiveDayCalendarData('08:00', '16:00')}`,
       '%T\tPROJECT',
       '%F\tproj_id\tproj_short_name\tclndr_id\trem_target_link_flag\tlast_recalc_date\tplan_start_date\tplan_end_date',
-      `%R\tP\tCompleted package\tC1\t${remTargetLink}\t2026-01-05 08:00\t${targetStart}\t${targetFinish}`,
+      `%R\tP\tCompleted package\tC1\t${remTargetLink}\t2026-01-05 08:00\t${projectTargetStart}\t${projectTargetFinish}`,
       '%T\tTASK',
       '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tearly_start_date\tearly_end_date\tlate_start_date\tlate_end_date\ttotal_float_hr_cnt\tfree_float_hr_cnt',
       `%R\tT1\tP\tC1\tA100\tCompleted fidelity\t${milestone ? 'TT_Mile' : 'TT_Task'}\tDT_FixedDUR2\t${completed ? 'TK_Complete' : 'TK_Active'}\tCP_Drtn\t${milestone ? '0' : '8'}\t${completed ? '0' : '4'}\t${targetStart}\t${targetFinish}\t${actualStart}\t${actualFinish}\t${milestone ? actualStart : rawEarlyStart}\t${milestone ? actualStart : rawEarlyFinish}\t${milestone ? actualStart : rawLateStart}\t${milestone ? actualStart : rawLateFinish}\t0\t0`,
@@ -1608,8 +1615,11 @@ async function productBaseline(
   const two = readXER(completedPackageBytes('completed-task', 2));
   const active = readXER(completedPackageBytes('active-task'));
   const milestone = readXER(completedPackageBytes('completed-milestone'));
+  const startOnly = readXER(completedPackageBytes('completed-task', 0, 'oracle', 'start-only'));
+  const invalidStart = readXER(completedPackageBytes('completed-task', 0, 'oracle', 'invalid-start'));
   if (isMultiDocumentImport(one) || isMultiDocumentImport(oneRawMutated) || isMultiDocumentImport(two)
-    || isMultiDocumentImport(active) || isMultiDocumentImport(milestone)) {
+    || isMultiDocumentImport(active) || isMultiDocumentImport(milestone)
+    || isMultiDocumentImport(startOnly) || isMultiDocumentImport(invalidStart)) {
     throw new Error('X12 completed/actual-fixtures moeten elk één project opleveren');
   }
   const resultOf = (input: ImportResult) => solveImported(input).tasks.find(task => task.taskCode === 'A100');
@@ -1618,7 +1628,9 @@ async function productBaseline(
   const twoResult = resultOf(two);
   const activeResult = resultOf(active);
   const milestoneResult = resultOf(milestone);
-  eq('X12 F1 completed gewone XER-taak volgt de toegestane P6-statusdatum, niet actuals of raw output', {
+  const startOnlyResult = resultOf(startOnly);
+  const invalidStartResult = resultOf(invalidStart);
+  eq('X12 F1 completed gewone XER-taak reconstrueert alleen P6 ES/EF uit de statusdatumroute', {
     explicitTargetWindow: one.tasks.find(task => task.wbsCode === 'A100')?.p6ExplicitTargetWindow,
     earlyStart: oneResult?.earlyStart, earlyFinish: oneResult?.earlyFinish,
     lateStart: oneResult?.lateStart, lateFinish: oneResult?.lateFinish,
@@ -1626,7 +1638,7 @@ async function productBaseline(
   }, {
     explicitTargetWindow: true,
     earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
-    lateStart: '2026-01-02T08:00', lateFinish: '2026-01-02T16:00',
+    lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T16:00',
     totalFloatMinutes: 0, freeFloatMinutes: 0,
   });
   eq('X12 F1 raw early/late-mutatatie beïnvloedt de solver niet', {
@@ -1634,8 +1646,8 @@ async function productBaseline(
     mutatedAxes: [oneRawMutatedResult?.earlyStart, oneRawMutatedResult?.earlyFinish,
       oneRawMutatedResult?.lateStart, oneRawMutatedResult?.lateFinish],
   }, {
-    oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-02T08:00', '2026-01-02T16:00'],
-    mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-02T08:00', '2026-01-02T16:00'],
+    oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
+    mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
   });
   // De statusdatum, taakprovenance en gewone geplande start moeten ook na de native opslaggrens
   // aanwezig blijven; XER-archiefreconstructie levert daarmee dezelfde brongebonden route op.
@@ -1647,7 +1659,7 @@ async function productBaseline(
       oneReloadedResult?.lateStart, oneReloadedResult?.lateFinish],
   }, {
     explicitTargetWindow: true,
-    axes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-02T08:00', '2026-01-02T16:00'],
+    axes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
   });
   eq('X12 F2 meerdere XER-assignments veranderen completed-bronsemantiek niet', {
     assignmentCount: two.assignments.length,
@@ -1665,6 +1677,155 @@ async function productBaseline(
   }, {
     earlyStart: '2026-01-08T08:00', earlyFinish: '2026-01-08T08:00',
     lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T08:00',
+  });
+
+  eq('X12 presencepoort vereist twee geldige expliciete TASK-targetvelden', {
+    startOnly: {
+      presence: startOnly.tasks.find(task => task.wbsCode === 'A100')?.p6ExplicitTargetWindow,
+      early: [startOnlyResult?.earlyStart, startOnlyResult?.earlyFinish],
+    },
+    invalidStart: {
+      presence: invalidStart.tasks.find(task => task.wbsCode === 'A100')?.p6ExplicitTargetWindow,
+      early: [invalidStartResult?.earlyStart, invalidStartResult?.earlyFinish],
+    },
+  }, {
+    startOnly: { presence: undefined, early: ['2026-01-08T08:00', '2026-01-08T16:00'] },
+    invalidStart: { presence: undefined, early: ['2026-01-08T08:00', '2026-01-08T16:00'] },
+  });
+
+  const oneTask = one.tasks.find(task => task.wbsCode === 'A100');
+  if (!oneTask) throw new Error('X12 F1 mist A100');
+  const variantResult = (patch: Partial<typeof oneTask>) => resultOf({
+    ...one,
+    tasks: one.tasks.map(task => task.id === oneTask.id ? { ...task, ...patch } : task),
+  });
+  const noPresenceResult = variantResult({ p6ExplicitTargetWindow: undefined });
+  const loeResult = variantResult({ p6ActivityType: 'TT_LOE', isHammock: true });
+  const suspendedResult = variantResult({
+    p6SuspendResume: true,
+    time: { ...oneTask.time, stop: '2026-01-06T08:00', resume: '2026-01-07T08:00' },
+  });
+  eq('X12 fail-closed route weigert ontbrekende presence, LOE en suspend/resume', {
+    noPresence: [noPresenceResult?.earlyStart, noPresenceResult?.earlyFinish],
+    loe: [loeResult?.earlyStart, loeResult?.earlyFinish],
+    suspended: [suspendedResult?.earlyStart, suspendedResult?.earlyFinish],
+  }, {
+    noPresence: ['2026-01-08T08:00', '2026-01-08T16:00'],
+    loe: ['2026-01-02T08:00', '2026-01-02T08:00'],
+    suspended: ['2026-01-08T08:00', '2026-01-08T16:00'],
+  });
+
+  const summaryCandidate = { ...oneTask, isSummary: true, childIds: ['child'] };
+  const activeTask = active.tasks.find(task => task.wbsCode === 'A100');
+  const milestoneTask = milestone.tasks.find(task => task.wbsCode === 'A100');
+  if (!activeTask || !milestoneTask) throw new Error('X12 negatieve predicatefixtures missen A100');
+  eq('X12 completed bronpredicate blijft fail-closed voor alle uitgesloten bronvormen', {
+    noPresence: usesP6CompletedDataDateWindow(
+      { ...oneTask, p6ExplicitTargetWindow: undefined }, one.project.schedulingOptions),
+    active: usesP6CompletedDataDateWindow(activeTask, active.project.schedulingOptions),
+    milestone: usesP6CompletedDataDateWindow(milestoneTask, milestone.project.schedulingOptions),
+    loe: usesP6CompletedDataDateWindow(
+      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, one.project.schedulingOptions),
+    suspendResume: usesP6CompletedDataDateWindow(
+      { ...oneTask, p6SuspendResume: true }, one.project.schedulingOptions),
+    summary: usesP6CompletedDataDateWindow(summaryCandidate, one.project.schedulingOptions),
+    generic: usesP6CompletedDataDateWindow(oneTask, undefined),
+  }, {
+    noPresence: false, active: false, milestone: false, loe: false,
+    suspendResume: false, summary: false, generic: false,
+  });
+
+  const predecessor = {
+    ...oneTask,
+    id: 'open-predecessor',
+    wbsCode: 'P100',
+    name: 'Open predecessor',
+    status: 'NOT_STARTED' as const,
+    p6TaskId: 'T0',
+    p6ExplicitTargetWindow: undefined,
+    time: {
+      ...oneTask.time,
+      scheduleStart: '2026-01-05T08:00', scheduleFinish: '2026-01-05T16:00',
+      scheduleDuration: 1, durationMinutes: 480,
+      completion: 0, remainingTime: 1, remainingMinutes: 480,
+      actualStart: undefined, actualFinish: undefined,
+    },
+  };
+  const connected: ImportResult = {
+    ...one,
+    tasks: [predecessor, oneTask],
+    sequences: [{
+      id: 'A-FS-B', predecessorId: predecessor.id, successorId: oneTask.id,
+      type: 'FINISH_START', lagDays: 0,
+    }],
+  };
+  const connectedSolved = solveImported(connected).tasks;
+  const connectedA = connectedSolved.find(task => task.taskCode === 'P100');
+  const connectedB = connectedSolved.find(task => task.taskCode === 'A100');
+  eq('X12 A→FS→B(completed) houdt B-inversie buiten backwarddruk op open A', {
+    a: {
+      earlyStart: connectedA?.earlyStart, earlyFinish: connectedA?.earlyFinish,
+      lateStart: connectedA?.lateStart, lateFinish: connectedA?.lateFinish,
+      totalFloatMinutes: connectedA?.totalFloatMinutes,
+    },
+    b: {
+      earlyStart: connectedB?.earlyStart, earlyFinish: connectedB?.earlyFinish,
+      lateStart: connectedB?.lateStart, lateFinish: connectedB?.lateFinish,
+      freeFloatMinutes: connectedB?.freeFloatMinutes,
+    },
+  }, {
+    a: {
+      earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-05T16:00',
+      lateStart: '2026-01-05T08:00', lateFinish: '2026-01-05T16:00', totalFloatMinutes: 0,
+    },
+    b: {
+      earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
+      lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T16:00', freeFloatMinutes: 0,
+    },
+  });
+
+  const openSuccessor = {
+    ...predecessor,
+    id: 'open-successor',
+    wbsCode: 'S100',
+    name: 'Open successor',
+    p6TaskId: 'T2',
+    time: {
+      ...predecessor.time,
+      scheduleStart: '2026-01-01T08:00', scheduleFinish: '2026-01-01T16:00',
+    },
+  };
+  const displayOnlyCandidate: ImportResult = {
+    ...one,
+    tasks: [oneTask, openSuccessor],
+    sequences: [{
+      id: 'B-FS-S', predecessorId: oneTask.id, successorId: openSuccessor.id,
+      type: 'FINISH_START', lagDays: 0,
+    }],
+  };
+  const displayOnlyCpm = solveProject({
+    tasks: displayOnlyCandidate.tasks,
+    sequences: displayOnlyCandidate.sequences,
+    calendar: displayOnlyCandidate.calendar,
+    calendars: displayOnlyCandidate.resourceCalendars ?? [],
+    dataDate: displayOnlyCandidate.project.statusDate,
+    progressMode: displayOnlyCandidate.project.progressMode,
+    schedulingOptions: displayOnlyCandidate.project.schedulingOptions,
+    projectStartDate: displayOnlyCandidate.project.startDate,
+    projectEndDate: displayOnlyCandidate.project.endDate,
+  });
+  if (displayOnlyCpm.error) throw new Error(`X12 display-only candidate faalde: ${displayOnlyCpm.error}`);
+  const displayOnlyCompleted = displayOnlyCandidate.tasks.find(task => task.wbsCode === 'A100');
+  const displayOnlySuccessor = displayOnlyCandidate.tasks.find(task => task.wbsCode === 'S100');
+  eq('X12 completed-weergaveprojectie beweegt open successor of projectfinish niet', {
+    completedDisplay: [displayOnlyCompleted?.time.earlyStart, displayOnlyCompleted?.time.earlyFinish],
+    successor: [displayOnlySuccessor?.time.earlyStart, displayOnlySuccessor?.time.earlyFinish,
+      displayOnlySuccessor?.time.lateStart, displayOnlySuccessor?.time.lateFinish],
+    projectEnd: displayOnlyCpm.projectEnd,
+  }, {
+    completedDisplay: ['2026-01-05T08:00', '2026-01-02T16:00'],
+    successor: ['2026-01-09T08:00', '2026-01-09T16:00', '2026-01-09T08:00', '2026-01-09T16:00'],
+    projectEnd: '2026-01-09T16:00',
   });
 
   // F5: hetzelfde TaskTime-paar zonder de twee XER-provenancevoorwaarden moet het generieke
@@ -1691,12 +1852,18 @@ async function productBaseline(
   };
   const genericResult = genericTask(generic);
   const genericIfcResult = genericTask(genericIfc);
-  eq('X12 F5 generiek en gewoon IFC behouden bestaande actualdatumsemantiek', {
-    generic: [genericResult?.time.earlyStart, genericResult?.time.earlyFinish],
-    ifc: [genericIfcResult?.time.earlyStart, genericIfcResult?.time.earlyFinish],
+  eq('X12 F5 generieke non-XER-bron en gewoon IFC behouden alle bestaande datum-/floatvelden', {
+    generic: [genericResult?.time.earlyStart, genericResult?.time.earlyFinish,
+      genericResult?.time.lateStart, genericResult?.time.lateFinish,
+      genericResult?.time.totalFloat, genericResult?.time.freeFloat],
+    ifc: [genericIfcResult?.time.earlyStart, genericIfcResult?.time.earlyFinish,
+      genericIfcResult?.time.lateStart, genericIfcResult?.time.lateFinish,
+      genericIfcResult?.time.totalFloat, genericIfcResult?.time.freeFloat],
   }, {
-    generic: ['2026-01-08T08:00', '2026-01-08T16:00'],
-    ifc: ['2026-01-08T08:00', '2026-01-08T16:00'],
+    generic: ['2026-01-08T08:00', '2026-01-08T16:00',
+      '2026-01-08T16:00', '2026-01-08T16:00', 0, 0],
+    ifc: ['2026-01-08T08:00', '2026-01-08T16:00',
+      '2026-01-08T16:00', '2026-01-08T16:00', 0, 0],
   });
 }
 

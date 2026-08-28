@@ -370,11 +370,6 @@ export class CPMSolver {
     return this.options.schedulingOptions?.p6Source === 'XER' && value === true;
   }
 
-  /**
-   * Fail-closed discriminator voor P6's completed data-date-route. Alleen de XER-reader kan de
-   * expliciete TASK-windowpresence zetten; een fallback of later berekende `scheduleStart` kan
-   * deze route dus nooit activeren. Geen opgeslagen P6-uitkomst wordt gelezen.
-   */
   private usesP6CompletedDataDateWindow(task: Task): boolean {
     return this.dataDate !== null && isP6CompletedDataDateCandidate(task, this.options.schedulingOptions);
   }
@@ -391,6 +386,18 @@ export class CPMSolver {
     return this.options.schedulingOptions?.p6Source === 'XER'
       ? eng.p6XerProjectedWorkMinutesBetween(a, b)
       : eng.workMinutesBetween(a, b);
+  }
+
+  /** De voortgangstakken gebruiken soms de resourcekalender van exact één walk als effectieve klok. */
+  private progressCalendarFor(task: Task, fallback = this.calendarFor(task)): CalendarEngine {
+    let progressCal = fallback;
+    if (task.timephasedDurationWalks && task.timephasedDurationWalks.length === 1) {
+      const candidate = this.engineForCal(
+        resolveCalendar(task.timephasedDurationWalks[0].resourceCalendarId, this.registry, this.projectCal),
+      );
+      if (candidate.isHourMode) progressCal = candidate;
+    }
+    return progressCal;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1112,6 +1119,7 @@ export class CPMSolver {
       hammockNoFinishDriverIds: this.hammockNoFinishDriverIds,
       projectEngine: this.projectEngine,
       calendarFor: (t) => this.calendarFor(t),
+      progressCalendarFor: (t) => this.progressCalendarFor(t),
       signedFloat: (a, b, eng, task) => this.signedFloat(a, b, eng, task),
       projectedWorkMinutesBetween: (eng, a, b) => this.projectedWorkMinutesBetween(eng, a, b),
       constraintInstant: (c, eng) => this.constraintInstant(c, eng),
@@ -1623,31 +1631,9 @@ export class CPMSolver {
       // gedeeltelijke wandeling. Afwezig/niet-activeerbaar (>1 toewijzing, dag-modus-resourcekalender,
       // geen echte afwijking) ⇒ `progressCal = cal`, BYTE-IDENTIEK — dat is de overgrote meerderheid
       // van alle taken, inclusief de volledige Z12-/Z6-/Z7-populaties (regressiewacht hieronder).
-      let progressCal = cal;
-      if (task.timephasedDurationWalks && task.timephasedDurationWalks.length === 1) {
-        const candidate = this.engineForCal(
-          resolveCalendar(task.timephasedDurationWalks[0].resourceCalendarId, this.registry, this.projectCal),
-        );
-        if (candidate.isHourMode) progressCal = candidate;
-      }
+      const progressCal = this.progressCalendarFor(task, cal);
       {
         const t = task.time;
-        const p6CompletedAtDataDate = t.actualFinish && t.completion >= 1
-          && this.usesP6CompletedDataDateWindow(task);
-        if (p6CompletedAtDataDate) {
-          // P6's completed-bladactiviteit blijft niet op haar historische actual-window staan:
-          // de toegestane statusdatum is haar forward referentie en nul restwerk eindigt op het
-          // voorafgaande werkinstant. Dit reconstrueert P6's statusdatumsemantiek zonder een
-          // opgeslagen early/late- of floatkolom te lezen. De bronpoort is fail-closed; andere
-          // formaten, milestones en suspend/resume behouden de bestaande actual-tak hieronder.
-          const es = this.snapOnOrAfter(progressCal, dataDate!);
-          const ef = progressCal.prevWorkInstant(es);
-          if (this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true) {
-            for (const seq of preds) this.seqConstraint.delete(seq.id);
-          }
-          results.set(taskId, { es, ef });
-          continue;
-        }
         if (t.actualFinish && t.completion >= 1) {
           // (1) VOLTOOID: volledig gepind op actuals — geen forward-drift voorbij actualFinish.
           // B4 (Opus-her-check T15-fixronde): `snapActualForward` i.p.v. een kale parse — snapt
@@ -2801,8 +2787,17 @@ export class CPMSolver {
 
     // Find project end date (latest early finish)
     let projectEnd = new Date(0);
-    for (const { ef } of earlyDates.values()) {
-      if (ef > projectEnd) projectEnd = ef;
+    for (const taskId of order) {
+      const early = earlyDates.get(taskId);
+      const task = this.tasks.get(taskId);
+      if (!early || !task) continue;
+      let candidateEf = early.ef;
+      if (this.usesP6CompletedDataDateWindow(task)) {
+        const progressCal = this.progressCalendarFor(task);
+        const projectedEs = this.snapOnOrAfter(progressCal, this.dataDate!);
+        candidateEf = progressCal.prevWorkInstant(projectedEs);
+      }
+      if (candidateEf > projectEnd) projectEnd = candidateEf;
     }
     if (this.options.schedulingOptions?.useProjectEndDateForFloat === true) {
       const configuredProjectEnd = parseInstant(this.options.projectEndDate ?? '');
@@ -2819,12 +2814,10 @@ export class CPMSolver {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
 
-      // Brongebonden XER-beleid: een voltooide activiteit houdt normaal haar geregistreerde
-      // actual-window aan de late zijde. De smalle completed-taskbronvorm gebruikt echter de
-      // bestaande P6-statusdatum/netwerksemantiek; opgeslagen XER early/late/float-uitkomsten zijn op beide
-      // paden bewust nooit solverinvoer. Niet-XER en mijlpalen behouden hun bestaande gedrag.
-      if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1
-        && !this.usesP6CompletedDataDateWindow(task)) {
+      // Brongebonden XER-beleid: een voltooide activiteit houdt haar bestaande completed-pin aan
+      // de late zijde. De smalle data-date-route verandert uitsluitend de forwarddatums; opgeslagen
+      // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
+      if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1) {
         const ed = earlyDates.get(taskId)!;
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
         continue;
@@ -2910,8 +2903,7 @@ export class CPMSolver {
         if (!succResult || !succTask) continue;
         // Een voltooide P6-opvolger beschrijft historie en mag de late finish van een nog open
         // voorganger niet door haar historische actual finish terugtrekken.
-        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1
-          && !this.usesP6CompletedDataDateWindow(succTask)) continue;
+        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen

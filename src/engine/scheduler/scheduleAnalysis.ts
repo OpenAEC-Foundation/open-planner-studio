@@ -37,6 +37,7 @@ export interface ScheduleAnalysisInput {
   projectEngine: CalendarEngine;
   // ── Aan de solver gebonden, stateless kalender-helpers (modus-bewust, §5) ──
   calendarFor: (task: Task) => CalendarEngine;
+  progressCalendarFor: (task: Task) => CalendarEngine;
   /** `task` optioneel (T8): ELAPSEDTIME ⇒ kale klok-span i.p.v. werkdag-telling, zie
    *  `CPMSolver.signedFloat`/`duration.ts`'s `signedElapsedSpan`. */
   signedFloat: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
@@ -60,7 +61,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     schedulingOptions, dataDate,
     truncatedLeadIds, hardPinViolatedIds, hammockNoFinishDriverIds,
     projectEngine,
-    calendarFor, signedFloat, projectedWorkMinutesBetween,
+    calendarFor, progressCalendarFor, signedFloat, projectedWorkMinutesBetween,
     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
   } = input;
 
@@ -230,8 +231,18 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
     const completed = !!dataDate && tt.completion >= 1;
-    const p6CompletedDataDateWindow = completed
-      && usesP6CompletedDataDateWindow(taskObj, so);
+    const completedDisplayWindow = completed
+      && usesP6CompletedDataDateWindow(taskObj, so)
+      ? (() => {
+        const progressCal = progressCalendarFor(taskObj);
+        const es = snapOnOrAfter(progressCal, dataDate!);
+        return {
+          es,
+          ef: progressCal.prevWorkInstant(es),
+          mode: modeOf(progressCal),
+        };
+      })()
+      : null;
     const finishFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     const startFloat = signedFloat(early.es, late.ls, cal, taskObj);
     // Een EXPLICIETE P6-modus geldt ook voor lopende taken: start = LS−ES, finish = LF−EF en
@@ -348,12 +359,11 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
 
     // Serialisatie (§2.4/§5): de MODUS van de eigen kalender is de enige discriminator — dag-taak ⇒
     // `formatDate` (byte-identiek), uur-taak ⇒ `YYYY-MM-DDTHH:mm`.
-    const mode = modeOf(cal);
-    const displayActualLate = completed && so?.preserveActualDatesInBackwardPass === true
-      && !p6CompletedDataDateWindow;
+    const mode = completedDisplayWindow?.mode ?? modeOf(cal);
+    const displayActualLate = completed && so?.preserveActualDatesInBackwardPass === true;
     taskResults.set(taskId, {
-      earlyStart: formatInstant(early.es, mode),
-      earlyFinish: formatInstant(early.ef, mode),
+      earlyStart: formatInstant(completedDisplayWindow?.es ?? early.es, mode),
+      earlyFinish: formatInstant(completedDisplayWindow?.ef ?? early.ef, mode),
       lateStart: formatInstant(displayActualLate ? early.es : late.ls, mode),
       lateFinish: formatInstant(displayActualLate ? early.ef : late.lf, mode),
       totalFloat: tf,
