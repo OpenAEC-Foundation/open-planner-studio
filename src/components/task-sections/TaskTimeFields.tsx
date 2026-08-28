@@ -1,27 +1,21 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { WorkCalendar } from '@/types/calendar';
-import { isHourCalendar } from '@/services/subdayIo';
-import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
-import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
-import { formatDuration } from '@/utils/durationFormat';
-import { Field, Input, HourDurationField } from './shared';
+import { Field } from './shared';
+import { TaskDurationField } from './TaskDurationField';
 
 /**
- * Start + duur (dag/uur-boxen) — sectie 4 uit `TaskPropertiesPanel` (fase 2.10, item 2), oorspronkelijk
- * exact de bestaande paneel-JSX bij extractie. Pakket G (bugfix, zie scheduleSlice.ts:96-100) wijzigde
+ * Start + gedeelde taakduur — sectie 4 uit `TaskPropertiesPanel`. Dialoog en paneel monteren
+ * allebei `TaskDurationField`, zodat parser, validatie, omzetvoorstel en toegankelijkheid identiek
+ * blijven. Pakket G (bugfix, zie scheduleSlice.ts:96-100) wijzigde
  * het Start-veld nadien: het toonde vroeger de rauwe `scheduleStart`-anker terwijl elk ander oppervlak
  * (Gantt/tabel/tooltip/TaskDialog) `earlyStart || scheduleStart` toont — nu getrokken gelijk.
  *
- * LET OP (KRITIEK spec-risico, item 2-voorstel): dit is een PANEL-ONLY sectie. `TaskDialog` deelt
- * deze component NIET — de dialoog heeft een eigen, dialoogspecifieke duur-UI (drie gesyncte
- * dagen/uren/totaal-vakjes) mét een subtiele Save-tijd-commit-regel ("scheduleStart alleen bijwerken
- * als de gebruiker die daadwerkelijk wijzigde", "duur-bron behouden tenzij gewijzigd") die WEL bij de
- * dialoog-specifieke code hoort en NIET verplaatst mag worden (zie ontwerp-doc, item 2). Instant-apply
- * hier zou die drift-preventie-logica breken. Hammock-toggle/-info staat apart in
- * `TaskHammockFields` (WEL gedeeld — puur informatief, geen commit-risico).
+ * Het startveld blijft paneel-instant-apply; `TaskDialog` bewaart zijn bestaande Save-commitgrens.
+ * Alleen de duurbediening is gedeeld. Hammock-toggle/-info staat apart in `TaskHammockFields`.
  */
 export function TaskTimeFields({ task, onChange }: {
   task: Task;
@@ -30,18 +24,12 @@ export function TaskTimeFields({ task, onChange }: {
   const { t } = useTranslation('task');
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
   const updateTime = (key: string, value: string | number) => {
     onChange({ time: { ...task.time, [key]: value } });
   };
 
   const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
-  // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
-  // mijlpaal-met-duur (T15) op een uur-kalender hoort gewoon het uur-duurveld te krijgen, niet
-  // stilzwijgend naar het dag-pad geduwd te worden (dat forceerde hieronder value=0+disabled).
-  const hourTask = enableHourPlanning && isHourCalendar(cal) && !isZeroDurationMilestone(task);
-
   // Getoonde start = berekende start, consistent met Gantt/tabel/tooltip/TaskDialog
   // (`earlyStart || scheduleStart`). `scheduleStart` blijft de GEPLANDE anker — zie
   // scheduleSlice.ts:96-100 ("BEWUST GEEN scheduleStart-ANKER-drift"). Commit schrijft daarom alleen
@@ -55,7 +43,10 @@ export function TaskTimeFields({ task, onChange }: {
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
       <span className="ui-card-header !text-xs">{t('properties.time')}</span>
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* In de smalle rechterrail zou de helft van een tweekolomsrij de duurwaarde weer tot een
+          strookje drukken. Start en duur blijven dezelfde velden, maar krijgen hier elk de volle
+          paneelbreedte; de dialoog heeft onafhankelijk daarvan voldoende ruimte voor twee kolommen. */}
+      <div className="grid grid-cols-1 gap-2">
         <Field label={t('properties.start')}>
           <DateTextInput
             className="input !text-xs !px-2.5 !py-1.5"
@@ -65,54 +56,8 @@ export function TaskTimeFields({ task, onChange }: {
             onCommit={v => { if (v !== shownStart) updateTime('scheduleStart', v); }}
           />
         </Field>
-        {/* Label modus-bewust (FIX golf, §6.4): een uur-taak toont uur-waarden, dus het label moet
-            "(uren)" tonen i.p.v. het misleidende "(dagen)". Dag-taken houden het dagen-label (dag-taken
-            kunnen per invariant Bevinding 2 geen sub-dag-duur dragen, dus het veld blijft dagen). */}
-        <Field label={hourTask ? t('properties.durationHours') : t('properties.duration')}>
-          {(() => {
-            // Hammock (fase 2.9 §5.3): de duur is AFGELEID uit de span tussen start- en
-            // finish-driver — read-only weergave (invoer wordt door de solver overschreven).
-            if (task.isHammock) {
-              const hpd = effHoursPerDay(cal);
-              const text = hourTask
-                ? formatDuration(task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60, hpd, 'hours')
-                : `${task.time.scheduleDuration}`;
-              return (
-                <input
-                  value={text}
-                  disabled
-                  title={t('properties.hammockDerivedHint')}
-                  className="input !text-xs !px-2.5 !py-1.5 opacity-60 cursor-not-allowed"
-                  data-ops-hammock-duration
-                />
-              );
-            }
-            if (!hourTask) {
-              return (
-                <Input
-                  type="number"
-                  // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag —
-                  // een mijlpaal-met-duur toont/bewerkt haar eigen duur, zoals elke andere taak.
-                  value={isZeroDurationMilestone(task) ? 0 : task.time.scheduleDuration}
-                  onChange={v => updateTime('scheduleDuration', parseInt(v) || 0)}
-                  min={0}
-                  disabled={isZeroDurationMilestone(task)}
-                />
-              );
-            }
-            const hpd = effHoursPerDay(cal);
-            const minutes = task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60;
-            return (
-              <HourDurationField
-                key={task.id}
-                minutes={minutes}
-                hpd={hpd}
-                onCommitMinutes={m => onChange({
-                  time: { ...task.time, durationMinutes: m, scheduleDuration: hpd > 0 ? m / (hpd * 60) : task.time.scheduleDuration },
-                })}
-              />
-            );
-          })()}
+        <Field label={t('duration.label')}>
+          <TaskDurationField task={task} calendar={cal} onChange={onChange} />
         </Field>
       </div>
     </>

@@ -30,6 +30,21 @@
     "MAINTENANCE": "Maintenance",
     "USERDEFINED": "Autre"
   },
+  "duration": {
+    "label": "Durée",
+    "unit": "Unité de durée",
+    "days": "Jours",
+    "hours": "Heures",
+    "invalid": "Saisissez un nombre entier de jours ou d'heures, par exemple 2d ou 12h.",
+    "enableHourPlanningFirst": "Activez la planification horaire pour modifier cette tâche en heures.",
+    "enableHourPlanning": "Activer la planification horaire",
+    "requiresWorkBlocks": "Ce calendrier n'a pas d'horaires de travail valides. Vérifiez ses jours et horaires de travail.",
+    "conversionNotExact": "Cette durée ne peut pas être convertie exactement en jours entiers avec le calendrier actuel. L'unité existante est conservée ; saisissez vous-même une nouvelle valeur valide.",
+    "conversionProposal": "Proposition de conversion exacte : {{value}}. Appliquez-la ou conservez l'unité actuelle.",
+    "applyProposal": "Appliquer la proposition",
+    "keepCurrent": "Conserver",
+    "unitInfo": "L'unité choisie appartient à cette tâche. Les jours comptent les jours ouvrés ; les heures comptent les heures de travail du calendrier. Un autre calendrier ne change ni l'unité ni la durée saisie, mais peut changer la date de fin."
+  },
   "dialog": {
     "editTitle": "Modifier la tâche",
     "newTitle": "Nouvelle tâche",

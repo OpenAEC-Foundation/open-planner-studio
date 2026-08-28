@@ -7,8 +7,9 @@ import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import {
-  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult } from '@/services/importTypes';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
@@ -204,8 +205,13 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
+  const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = taskDurationUnitForIo(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
   const { calStepId: projectCalStepId, workingExceptionStepIds: projectWorkingExceptionStepIds }
-    = writeCalendar(ctx, calendar, ownerHistId);
+    = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
   writeCalendarGenerationMeta(ctx, projectCalStepId, calendar, ownerHistId, projectWorkingExceptionStepIds);
 
   // Work plan & schedule
@@ -237,10 +243,9 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Tasks. Fase 2.8b (§7.1): per taak de effectieve kalender bepaalt uur- vs dag-modus
   // (uur ⇒ echte tijden + minuut-duren; dag ⇒ byte-identiek `T07:00:00` + `P0Y0M{days}D`).
-  const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
   for (const task of tasks) {
     const effCal = effCalByTask.get(task.id);
-    writeTask(ctx, task, ownerHistId, project.statusDate, isHourCalendar(effCal), effCal?.hoursPerDay ?? calendar.hoursPerDay);
+    writeTask(ctx, task, ownerHistId, project.statusDate, taskDurationUnitForIo(task) === 'hours', effCal?.hoursPerDay ?? calendar.hoursPerDay);
   }
 
   // WBS nesting
@@ -272,6 +277,7 @@ export function writeIFC(input: WriteIFCInput): string {
     ctx, resources, tasks,
     resourceCalendars.filter(c => c.id !== project.calendarId),
     ownerHistId,
+    hourTaskCalendarIds,
   );
 
   // Resource assignments
@@ -367,6 +373,10 @@ function writeStructure(
   if (project.wbsAutoNumber !== undefined) {
     projSettingProps.push(addLine(ctx, '_ps_wbsauto',
       `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
+  }
+  if (project.defaultTaskDurationUnit) {
+    projSettingProps.push(addLine(ctx, '_ps_defaultdurationunit',
+      `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
   }
   if (project.statusDate) {
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
@@ -655,11 +665,18 @@ interface WriteCalendarResult {
   workingExceptionStepIds: number[];
 }
 
-function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): WriteCalendarResult {
+function writeCalendar(
+  ctx: WriteContext,
+  cal: WorkCalendar,
+  ownerHistId: number,
+  key: string = '_calendar',
+  includeEffectiveScalarBands = false,
+): WriteCalendarResult {
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
   let timePeriodRefs: string;
-  if (cal.workTime) {
+  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+  if (workTime) {
     // Fase 2.8b (§7.1): UUR-kalender ⇒ `TimePeriods` als LIJST van per-dag-banden
     // (`IfcRecurrencePattern.TimePeriods` is native een lijst). Eén band ⇒ ongewijzigde output
     // (byte-identiek). IFC's enkele recurrence draagt één set periodes voor alle DayComponent-dagen;
@@ -667,7 +684,7 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
     // wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag (`end % 1440`), waaruit de
     // reader de wrap herkent (`end ≤ start`).
     const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
-    const bands = (firstDay && cal.workTime.byWeekday[firstDay]) || [];
+    const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
     const ids = bands.map((b) =>
       addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`),
     );
@@ -823,9 +840,12 @@ function writeCalendarLibrary(
   tasks: Task[],
   calendars: WorkCalendar[],
   ownerHistId: number,
+  hourTaskCalendarIds: Set<string>,
 ): void {
   for (const cal of calendars) {
-    const { calStepId, workingExceptionStepIds } = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`);
+    const { calStepId, workingExceptionStepIds } = writeCalendar(
+      ctx, cal, ownerHistId, `calendar_${cal.id}`, hourTaskCalendarIds.has(cal.id),
+    );
     writeCalendarGenerationMeta(ctx, calStepId, cal, ownerHistId, workingExceptionStepIds);
 
     const resRefs = resources
@@ -857,7 +877,11 @@ function writeTask(
   // minuut-precies (`durationMinutes`, bron van waarheid; anders afgeleid uit de dag-duur). In
   // DAG-modus valt alles terug op het bestaande `T07:00:00`/`P0Y0M{days}D`-pad ⇒ byte-identiek.
   const dt = isHour ? ifcDateTimeHour : ifcDateTime;
-  const schedDurArg = isHour ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay)) : ifcDuration(t.scheduleDuration);
+  // De ISO-vorm bewaart de TAAK-eenheid: P…D = werkdagen, PT…H…M = werkuren. De kalender bepaalt
+  // alleen de datetime-precisie en plaatsing; een uurkalender maakt van een dagtaak geen urentaak.
+  const schedDurArg = taskDurationUnitForIo(task) === 'hours'
+    ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay))
+    : ifcDuration(t.scheduleDuration);
   // Voortgang (fase 2.6, §8.1) — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
   // 19 Completion. Golden rule: een taak zonder actuals houdt 14-18 op `$` ⇒ byte-identieke

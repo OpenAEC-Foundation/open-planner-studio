@@ -97,6 +97,8 @@
     "enableHourPlanning": "시간 단위 계획 사용",
     "enableHourPlanningHint": "시간/분 단위 스케줄링을 켭니다: 시간 단위 시간축, 근무 시간대가 있는 교대, 시간 단위로 정확한 작업 막대. 끄면 ⇒ 앱은 이전처럼 완전히 일 단위로 유지됩니다.",
     "allowMixedDayHour": "일/시간 혼합 계획 허용",
+    "defaultTaskDurationUnit": "새 작업의 기본 단위",
+    "defaultTaskDurationUnitHint": "새 작업을 근무일 또는 근무 시간 중 어떤 단위로 시작할지 정합니다. 기존 작업은 바뀌지 않습니다.",
     "durationDisplay": "기간 표시",
     "durationDisplayAuto": "자동 (작업별 고유 단위)",
     "durationDisplayDays": "항상 일",
@@ -706,7 +708,9 @@
   },
   "duration": {
     "suffixDay": "일",
-    "suffixHour": "시",
+    "suffixHour": "h",
+    "days": "일",
+    "hours": "시간",
     "suffixMinute": "분"
   },
   "shortcuts": {

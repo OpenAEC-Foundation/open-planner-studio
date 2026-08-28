@@ -60,7 +60,7 @@ const mk = (id: string, o: Partial<Task['time']> = {}, extra: Partial<Task> = {}
   id, name: id, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
   isMilestone: false, priority: 5, parentId: null, childIds: [], resourceIds: [],
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 5,
+    durationType: 'WORKTIME', durationUnit: o.durationUnit ?? (o.durationMinutes != null ? 'hours' : 'days'), scheduleDuration: 5,
     scheduleStart: '2026-03-02', scheduleFinish: '2026-03-06',
     earlyStart: '2026-03-02', earlyFinish: '2026-03-06',
     lateStart: '2026-03-02', lateFinish: '2026-03-06',

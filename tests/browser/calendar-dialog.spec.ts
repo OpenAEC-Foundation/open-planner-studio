@@ -84,6 +84,6 @@ test('kalenderdialoog rangschikt beide zichtbare weekdagrijen volgens de eerste 
   });
   const taskDialog = page.locator('[data-ops-task-dialog]');
   await expect(taskDialog).toBeVisible();
-  await taskDialog.getByLabel('Calendar').click();
+  await taskDialog.getByLabel('Calendar', { exact: true }).click();
   await expect(page.getByRole('option', { name: 'Project calendar: Bouwkalender 2026' })).toBeVisible();
 });

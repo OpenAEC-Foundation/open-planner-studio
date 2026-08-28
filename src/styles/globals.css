@@ -459,6 +459,12 @@ html, body, #root {
   font-weight: 600;
 }
 
+/* Deze tooltip hoort bij een gewone HTML-bediening (niet bij tijdelijke canvas-hover). Daardoor
+   mag de portal ook voor hit-testing boven de Gantt liggen; de knop sluit hem zelf bij mouseleave. */
+.duration-unit-tooltip {
+  pointer-events: auto;
+}
+
 /* Issue #65: alleen de WBS-kolom veert mee; de overige kolommen blijven over alle regels gelijk.
    De container-query is gekoppeld aan de echte paneelinhoud (niet het viewport): op de minimale
    railbreedte krijgt WBS een eigen regel, terwijl de vier bedieningselementen eronder uitlijnen. */

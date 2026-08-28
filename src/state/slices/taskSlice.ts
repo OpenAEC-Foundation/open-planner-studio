@@ -11,6 +11,7 @@ import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds
 import { finishMutation } from '../transaction';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
+import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 /**
  * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
@@ -297,6 +298,27 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // moment van aanmaken; indenteren/verslepen van een bestaande taak laat taskType met rust.
       // Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
+      const effectiveNewTaskCalendar = partial.calendarId
+        ? (s.calendars.find(calendar => calendar.id === partial.calendarId) ?? s.calendar)
+        : s.calendar;
+      const defaultDurationUnit = s.ui.enableHourPlanning
+        && s.project.defaultTaskDurationUnit === 'hours'
+        && hasConcreteWorkBlocks(effectiveNewTaskCalendar)
+        ? 'hours'
+        : 'days';
+      const initialTime = mergeTaskTime(createDefaultTaskTime(
+        now,
+        partial.isMilestone ? 0 : 5,
+        defaultDurationUnit,
+      ), partial.time);
+      if (initialTime.durationUnit === 'hours') {
+        const hoursPerDay = effectiveNewTaskCalendar.workTime
+          ? deriveHoursPerDay(effectiveNewTaskCalendar.workTime, effectiveNewTaskCalendar.hoursPerDay)
+          : effectiveNewTaskCalendar.hoursPerDay;
+        initialTime.scheduleDuration = hoursPerDay > 0
+          ? (initialTime.durationMinutes ?? 0) / (hoursPerDay * 60)
+          : 0;
+      }
 
       const task: Task = {
         id,
@@ -319,7 +341,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // veld-voor-veld gemerged met de verse default i.p.v. ongewijzigd overgenomen — anders bleef
         // een ontbrekend veld (bv. `completion`) `undefined` tot writeIFC crashte op
         // `time.completion.toFixed(1)`. Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
-        time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
+        time: initialTime,
         resourceIds: partial.resourceIds || [],
         color: partial.color,
         constraint: partial.constraint,
@@ -912,7 +934,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           priority: 500,
           parentId: parent ?? null,
           childIds: template.tasks.filter(c => c.parentId === tt.id).map(c => idMap.get(c.id)!),
-          time: createDefaultTaskTime(startDate, tt.isMilestone ? 0 : tt.durationDays),
+          // Het sjablooncontract draagt expliciet `durationDays`; behandel dat niet als een
+          // handmatig nieuw-taakgetal dat door de projectstandaard van betekenis mag veranderen.
+          time: createDefaultTaskTime(startDate, tt.isMilestone ? 0 : tt.durationDays, 'days'),
           resourceIds: [],
         });
       }

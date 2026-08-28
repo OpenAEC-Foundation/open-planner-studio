@@ -1,9 +1,8 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './CPMSolver';
-import { effectiveCalendarOf } from '@/utils/taskDuration';
-import { isHourCalendar } from '@/services/subdayIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
+import { taskDurationUnit } from './duration';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -26,7 +25,7 @@ export interface ApplyCpmCalendars {
   calendars: WorkCalendar[];
 }
 
-export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmCalendars): void {
+export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpmCalendars): void {
   for (const task of tasks) {
     const r = result.tasks.get(task.id);
     if (!r) continue;
@@ -55,8 +54,7 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     // houdt zijn ANKER-instant maar wordt idempotent naar de datetime-vorm genormaliseerd
     // (parseInstant→formatInstant('hour') verandert de instant niet, dus geen drift). Dag-taken
     // blijven ONGEMOEID ⇒ byte-identiek (`formatDate`, verify:examples).
-    const effCal = effectiveCalendarOf(task, cals.projectCalendar, cals.calendars);
-    if (isHourCalendar(effCal)) {
+    if (taskDurationUnit(task) === 'hours') {
       task.time.scheduleFinish = r.earlyFinish;
       task.time.scheduleStart = formatInstant(parseInstant(task.time.scheduleStart), 'hour');
     }

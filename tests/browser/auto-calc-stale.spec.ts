@@ -30,7 +30,9 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
   await nameCell.locator('input').fill('Eerste S1-taak automatisch');
   await page.keyboard.press('Enter');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
-  expect(await page.evaluate(() => (window as Window & { __s1StaleAppearances: number }).__s1StaleAppearances)).toBe(0);
+  expect(await page.evaluate(() => (
+    window as unknown as Window & { __s1StaleAppearances: number }
+  ).__s1StaleAppearances)).toBe(0);
 
   await page.evaluate(() => {
     const store = window.__OPS__!.store.getState();

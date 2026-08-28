@@ -30,6 +30,21 @@
     "MAINTENANCE": "Konserwacja",
     "USERDEFINED": "Inne"
   },
+  "duration": {
+    "label": "Czas trwania",
+    "unit": "Jednostka czasu trwania",
+    "days": "Dni",
+    "hours": "Godziny",
+    "invalid": "Wprowadź całkowitą liczbę dni lub godzin, na przykład 2d albo 12h.",
+    "enableHourPlanningFirst": "Włącz planowanie godzinowe, aby edytować to zadanie godzinowe.",
+    "enableHourPlanning": "Włącz planowanie godzinowe",
+    "requiresWorkBlocks": "Ten kalendarz nie ma prawidłowych godzin pracy. Sprawdź dni i godziny pracy.",
+    "conversionNotExact": "Tego czasu nie można dokładnie przeliczyć na całe dni w bieżącym kalendarzu. Dotychczasowa jednostka pozostaje; wprowadź nową prawidłową wartość.",
+    "conversionProposal": "Dokładna propozycja przeliczenia: {{value}}. Zastosuj ją lub zachowaj bieżącą jednostkę.",
+    "applyProposal": "Zastosuj propozycję",
+    "keepCurrent": "Zachowaj",
+    "unitInfo": "Wybrana jednostka należy do tego zadania. Dni liczą dni robocze, a godziny liczą godziny pracy w kalendarzu. Inny kalendarz nie zmienia jednostki ani wpisanego czasu, ale może zmienić datę zakończenia."
+  },
   "dialog": {
     "editTitle": "Edytuj zadanie",
     "newTitle": "Nowe zadanie",

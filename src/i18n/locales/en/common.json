@@ -100,6 +100,8 @@
     "enableHourPlanning": "Enable hour planning",
     "enableHourPlanningHint": "Turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular as before.",
     "allowMixedDayHour": "Allow mixed day/hour planning",
+    "defaultTaskDurationUnit": "Default unit for new tasks",
+    "defaultTaskDurationUnitHint": "Determines whether new tasks start in working days or working hours. Existing tasks do not change.",
     "durationDisplay": "Duration display",
     "durationDisplayAuto": "Automatic (native unit per task)",
     "durationDisplayDays": "Always days",
@@ -716,6 +718,8 @@
   "duration": {
     "suffixDay": "d",
     "suffixHour": "h",
+    "days": "Days",
+    "hours": "Hours",
     "suffixMinute": "m"
   },
   "shortcuts": {
