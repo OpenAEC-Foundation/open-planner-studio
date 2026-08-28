@@ -215,3 +215,42 @@ function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<G
     && (left.range === null) === (right.range === null)
     && sameOrderedIds(left.selectedTaskIds, right.selectedTaskIds);
 }
+
+/**
+ * Browserreview, observatie 1: een gantt-klik (of elke andere aanroeper van `selectTask`) publiceert
+ * alleen `state.activeTaskId`/`state.selectedTaskIds` — de bron van de RIJmarkering
+ * (`data-grid-row-selected`, een 3px accentbalk). De CELcursor (`selection.active`, de bron van
+ * `data-grid-active`, een 2px accentrand) is een apart, gridintern begrip dat zonder deze functie
+ * op de OUDE cel bleef staan. Een gantt-klik en pijltjesnavigatie naar dezelfde taak zagen er
+ * daardoor met TWEE verschillende stijlen uit (spec §14 legt nu vast dat beide routes hetzelfde
+ * opleveren). Deze functie trekt ze gelijk: zodra de gepubliceerde actieve taak niet meer
+ * overeenkomt met de rij van de huidige celcursor, springt de cursor mee naar die rij — in
+ * dezelfde kolom als daarvoor, zodat het overzicht niet van kolom verspringt bij een gantt-klik.
+ * Blijft de celcursor al op de juiste rij staan (de gewone gridklik-route, die zelf al
+ * `selectTask` aanroept ná het zetten van `active`), dan is dit een no-op op de celcursor.
+ */
+export function syncActiveCellToPublishedTask(
+  reconciled: Readonly<GridSelectionState>,
+  publishedActiveTaskId: string | null,
+  publishedSelectedTaskIds: readonly string[],
+  rowIndex: TaskGridRowIndex,
+  columns: readonly TaskColumnId[],
+): GridSelectionState {
+  const activeRow = publishedActiveTaskId
+    ? rowIndex.taskRows.find(row => row.task.id === publishedActiveTaskId)
+    : undefined;
+  if (activeRow && activeRow.rowKey !== reconciled.active?.rowKey) {
+    const columnId = reconciled.active?.columnId ?? columns[0];
+    if (columnId) {
+      const jumped = updateGridSelection(
+        createEmptyGridSelection(),
+        { rowKey: activeRow.rowKey, columnId },
+        rowIndex,
+        columns,
+        'replace',
+      );
+      return { ...jumped, selectedTaskIds: [...publishedSelectedTaskIds], activeTaskId: publishedActiveTaskId };
+    }
+  }
+  return { ...reconciled, selectedTaskIds: [...publishedSelectedTaskIds], activeTaskId: publishedActiveTaskId };
+}

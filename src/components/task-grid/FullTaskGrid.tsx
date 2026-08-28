@@ -32,6 +32,7 @@ import { taskRelations } from '@/engine/taskGrid/relationIndex';
 import {
   createEmptyGridSelection,
   reconcileGridSelection,
+  syncActiveCellToPublishedTask,
   updateGridSelection,
   type GridCellAddress,
   type GridSelectionState,
@@ -421,13 +422,13 @@ export function TaskGridSurface({
       const samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length
         && current.selectedTaskIds.every(id => selectedTaskIds.includes(id));
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
-      return samePublishedSelection && samePublishedActiveTask
-        ? reconciled
-        : {
-            ...reconciled,
-            selectedTaskIds: [...selectedTaskIds],
-            activeTaskId: publishedActiveTaskId,
-          };
+      if (samePublishedSelection && samePublishedActiveTask) return reconciled;
+
+      // Browserreview, observatie 1: syncActiveCellToPublishedTask trekt de celcursor
+      // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
+      // die functie voor waarom dat zonder deze aanroep uit elkaar liep tussen een gantt-klik en
+      // pijltjesnavigatie.
+      return syncActiveCellToPublishedTask(reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds);
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;

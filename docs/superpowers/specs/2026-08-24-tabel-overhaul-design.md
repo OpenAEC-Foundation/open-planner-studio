@@ -527,6 +527,17 @@ Een taakactie zoals verwijderen, inspringen of uitspringen werkt op alle geselec
 is bewust: de gebruiker heeft die taken zelf geselecteerd. De actieve cel blijft wel het anker voor
 typen en plakken.
 
+**Twee losse visuele talen, altijd consistent (browserreview, observatie 1).** "Geselecteerde
+taak" (de rijmarkering, een accentbalk over de volledige rij) en "actieve cel" (de celcursor, een
+volledige accentrand) zijn bewust twee VERSCHILLENDE stijlen — de eerste zegt "deze taak/taken zijn
+geselecteerd", de tweede zegt "hier zou typen/Enter/F2 een bewerking starten". Beide stijlen horen
+wél altijd op DEZELFDE taak te landen, ongeacht de route: een klik op een taakbalk in de Gantt, een
+klik op een gridcel en pijltjesnavigatie moeten voor dezelfde taak dezelfde celcursor + dezelfde
+rijmarkering opleveren. Een gantt-klik publiceert alleen `state.activeTaskId`/`selectedTaskIds`
+(de bron van de rijmarkering); `syncActiveCellToPublishedTask`
+(`src/engine/taskGrid/selection.ts`) trekt de celcursor daar telkens achteraan — in dezelfde kolom
+als daarvoor, zodat het overzicht niet van kolom verspringt bij een gantt-klik.
+
 ### 7.2 Navigatie
 
 - Pijlen: één cel verplaatsen.

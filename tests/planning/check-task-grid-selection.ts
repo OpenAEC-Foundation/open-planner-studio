@@ -4,6 +4,7 @@ import {
   createEmptyGridSelection,
   gridSelectionCells,
   reconcileGridSelection,
+  syncActiveCellToPublishedTask,
   updateGridSelection,
 } from '@/engine/taskGrid/selection';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
@@ -197,6 +198,43 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   const emptyAgain = reconcileGridSelection(empty, rowIndex, rowIndex, columns, columns);
   ok('Een reeds lege selectie blijft dezelfde referentie (geen actieve cel om te reconciliëren)',
     emptyAgain === empty);
+}
+
+// Browserreview, observatie 1: een gantt-klik (of elke andere selectTask-aanroeper) publiceert
+// alleen state.activeTaskId/state.selectedTaskIds — de bron van de RIJmarkering
+// (data-grid-row-selected). syncActiveCellToPublishedTask moet de CELcursor (selection.active, de
+// bron van data-grid-active) meenemen naar dezelfde taak, anders zien een gantt-klik en
+// pijltjesnavigatie naar dezelfde taak er met twee verschillende stijlen uit.
+{
+  const rows = ids.slice(0, 4).map(id => taskRow(id));
+  const rowIndex = indexed(rows);
+
+  // 1) De celcursor staat nog op taak 1 (kolom 2); de gepubliceerde actieve taak is taak 3 (een
+  //    gantt-klik daarheen). De cursor moet meespringen naar taak 3, in DEZELFDE kolom.
+  const onTask1 = updateGridSelection(createEmptyGridSelection(), cell(ids[0], 2), rowIndex, columns, 'replace');
+  const jumped = syncActiveCellToPublishedTask(onTask1, ids[2], [ids[2]], rowIndex, columns);
+  eq('De celcursor springt mee naar de gepubliceerde actieve taak', jumped.active, cell(ids[2], 2));
+  eq('De kolom van de celcursor blijft ongewijzigd bij de sprong', jumped.active?.columnId, columns[2]);
+  eq('De rijmarkering (selectedTaskIds) volgt de gepubliceerde selectie', jumped.selectedTaskIds, [ids[2]]);
+  eq('activeTaskId is de gepubliceerde actieve taak', jumped.activeTaskId, ids[2]);
+
+  // 2) De celcursor staat AL op de juiste rij (de gewone gridklik-route, die zelf al selectTask
+  //    aanriep ná het zetten van `active`) — geen sprong nodig, de cursor blijft op zijn plek.
+  const alreadyOnTask3 = updateGridSelection(createEmptyGridSelection(), cell(ids[2], 1), rowIndex, columns, 'replace');
+  const noJump = syncActiveCellToPublishedTask(alreadyOnTask3, ids[2], [ids[2]], rowIndex, columns);
+  eq('Geen sprong wanneer de celcursor al op de juiste rij staat', noJump.active, cell(ids[2], 1));
+
+  // 3) Meervoudige selectie (Ctrl-klik in de gantt): de VOLLEDIGE gepubliceerde taakset komt mee,
+  //    ook al bepaalt alleen de actieve taak waar de celcursor landt.
+  const multiJump = syncActiveCellToPublishedTask(onTask1, ids[2], [ids[0], ids[2]], rowIndex, columns);
+  eq('Meervoudige selectie: de celcursor volgt de actieve taak', multiJump.active, cell(ids[2], 2));
+  eq('Meervoudige selectie: selectedTaskIds bevat de volledige gepubliceerde set',
+    multiJump.selectedTaskIds, [ids[0], ids[2]]);
+
+  // 4) Geen gepubliceerde actieve taak (bv. na deselectAll): geen sprong, alleen de metadata volgt.
+  const deselected = syncActiveCellToPublishedTask(onTask1, null, [], rowIndex, columns);
+  eq('Zonder gepubliceerde actieve taak blijft de celcursor ongemoeid', deselected.active, cell(ids[0], 2));
+  eq('Zonder gepubliceerde actieve taak is activeTaskId null', deselected.activeTaskId, null);
 }
 
 // De rij-index wordt buiten het commando gememoized: een gewone klik mag geen 50.000 rijen scannen.
