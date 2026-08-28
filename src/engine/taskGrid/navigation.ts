@@ -29,7 +29,7 @@ export type TaskGridCommand =
   | { kind: 'commit-edit'; cell: GridCellAddress; nextCell: GridCellAddress }
   | { kind: 'cancel-edit'; cell: GridCellAddress }
   | { kind: 'clear-cells' }
-  | { kind: 'insert-task'; afterRowKey: string; targetColumnId: TaskColumnId }
+  | { kind: 'insert-task'; anchorRowKey: string; targetColumnId: TaskColumnId }
   | { kind: 'exit-to-container' }
   | { kind: 'unhandled' };
 
@@ -132,7 +132,7 @@ export function resolveTaskGridCommand(input: TaskGridCommandInput): TaskGridCom
   if ((event.key === 'Enter' || event.key === 'F2') && !hasCommandModifier) return startEdit(input);
   if ((event.key === 'Delete' || event.key === 'Backspace') && !hasCommandModifier) return { kind: 'clear-cells' };
   if (event.key === 'Insert' && !hasCommandModifier) {
-    return { kind: 'insert-task', afterRowKey: active.rowKey, targetColumnId: taskColumnId('task.name') };
+    return { kind: 'insert-task', anchorRowKey: active.rowKey, targetColumnId: taskColumnId('task.name') };
   }
   if (!hasCommandModifier && !event.altKey && event.key.length === 1) return startEdit(input, event.key);
   return { kind: 'unhandled' };

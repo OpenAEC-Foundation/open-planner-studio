@@ -730,7 +730,8 @@
       "edit": "Modifica",
       "structure": "Struttura",
       "view": "Visualizza",
-      "nav": "Navigazione"
+      "nav": "Navigazione",
+      "grid": "Tabella"
     },
     "view": {
       "exitFullscreen": "Esci dalla presentazione",
@@ -750,6 +751,12 @@
       "switchDocument": "Cambia documento",
       "scrollToToday": "Vai a oggi",
       "help": "Apri guida"
+    },
+    "grid": {
+      "navigate": "Cella successiva/precedente",
+      "edit": "Modifica cella",
+      "typeToReplace": "Digitare sostituisce il contenuto della cella",
+      "clearCell": "Cancella contenuto della cella"
     }
   },
   "welcome": {

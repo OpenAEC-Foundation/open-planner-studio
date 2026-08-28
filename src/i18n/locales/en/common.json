@@ -721,7 +721,8 @@
       "edit": "Edit",
       "structure": "Structure",
       "view": "View",
-      "nav": "Navigation"
+      "nav": "Navigation",
+      "grid": "Table"
     },
     "view": {
       "exitFullscreen": "Exit presentation",
@@ -741,6 +742,12 @@
       "switchDocument": "Switch document",
       "scrollToToday": "Jump to today",
       "help": "Open help"
+    },
+    "grid": {
+      "navigate": "Next/previous cell",
+      "edit": "Edit cell",
+      "typeToReplace": "Typing replaces the cell content",
+      "clearCell": "Clear cell content"
     }
   },
   "welcome": {

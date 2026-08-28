@@ -6,8 +6,9 @@ import { Dialog } from '@/components/common/Dialog';
 import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo } from '@/hooks/keyboard/shortcutRegistry';
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 
-/** Volgorde uit het ontwerpdocument (§"Overzichtsdialoog"). */
-const CATEGORY_ORDER: ShortcutCategory[] = ['file', 'edit', 'structure', 'view', 'nav'];
+/** Volgorde uit het ontwerpdocument (§"Overzichtsdialoog"); `grid` staat achteraan als eigen
+ *  sectie voor de taakgridtoetsen (zie shortcutRegistry.ts). */
+const CATEGORY_ORDER: ShortcutCategory[] = ['file', 'edit', 'structure', 'view', 'nav', 'grid'];
 
 interface ShortcutRow {
   labelKey: string;
@@ -23,7 +24,7 @@ interface ShortcutRow {
  * gewoon mee: deze dialoog is puur informatief, geen afhandel-pad.
  */
 function buildRows(): Record<ShortcutCategory, ShortcutRow[]> {
-  const byCategory: Record<ShortcutCategory, ShortcutRow[]> = { file: [], edit: [], structure: [], view: [], nav: [] };
+  const byCategory: Record<ShortcutCategory, ShortcutRow[]> = { file: [], edit: [], structure: [], view: [], nav: [], grid: [] };
   const index = new Map<string, ShortcutRow>(); // key: `${category}:${labelKey}`
 
   for (const entry of SHORTCUTS) {

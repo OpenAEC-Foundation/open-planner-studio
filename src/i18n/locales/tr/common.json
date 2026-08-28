@@ -721,7 +721,8 @@
       "edit": "Düzenle",
       "structure": "Yapı",
       "view": "Görünüm",
-      "nav": "Gezinme"
+      "nav": "Gezinme",
+      "grid": "Tablo"
     },
     "view": {
       "exitFullscreen": "Sunumdan çık",
@@ -741,6 +742,12 @@
       "switchDocument": "Belge değiştir",
       "scrollToToday": "Bugüne git",
       "help": "Yardımı aç"
+    },
+    "grid": {
+      "navigate": "Sonraki/önceki hücre",
+      "edit": "Hücreyi düzenle",
+      "typeToReplace": "Yazmak hücre içeriğinin yerini alır",
+      "clearCell": "Hücre içeriğini temizle"
     }
   },
   "welcome": {

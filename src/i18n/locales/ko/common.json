@@ -712,7 +712,8 @@
       "edit": "편집",
       "structure": "구조",
       "view": "보기",
-      "nav": "탐색"
+      "nav": "탐색",
+      "grid": "테이블"
     },
     "view": {
       "exitFullscreen": "프레젠테이션 종료",
@@ -732,6 +733,12 @@
       "switchDocument": "문서 전환",
       "scrollToToday": "오늘로 이동",
       "help": "도움말 열기"
+    },
+    "grid": {
+      "navigate": "다음/이전 셀",
+      "edit": "셀 편집",
+      "typeToReplace": "입력하면 셀 내용이 대체됩니다",
+      "clearCell": "셀 내용 지우기"
     }
   },
   "welcome": {

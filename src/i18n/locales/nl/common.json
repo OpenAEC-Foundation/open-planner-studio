@@ -721,7 +721,8 @@
       "edit": "Bewerken",
       "structure": "Structuur",
       "view": "Weergave",
-      "nav": "Navigatie"
+      "nav": "Navigatie",
+      "grid": "Tabel"
     },
     "view": {
       "exitFullscreen": "Presentatie verlaten",
@@ -741,6 +742,12 @@
       "switchDocument": "Wissel van document",
       "scrollToToday": "Spring naar vandaag",
       "help": "Help openen"
+    },
+    "grid": {
+      "navigate": "Volgende/vorige cel",
+      "edit": "Cel bewerken",
+      "typeToReplace": "Typen vervangt de celinhoud",
+      "clearCell": "Celinhoud wissen"
     }
   },
   "welcome": {

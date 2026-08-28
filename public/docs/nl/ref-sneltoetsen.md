@@ -9,13 +9,16 @@ De volledige, altijd actuele sneltoetsenlijst zit in de app zelf: het venster **
 
 ## Wat je ziet
 
-De lijst is gegroepeerd in vijf categorieën:
+De lijst is gegroepeerd in zes categorieën:
 
 - **Bestand** — berekenen, opslaan, openen, nieuw project.
 - **Bewerken** — kopiëren/plakken, ongedaan maken, verwijderen, selecteren.
 - **Structuur** — in-/uitspringen, invoegen, mijlpaal, taken verplaatsen.
 - **Weergave** — presentatie, zoomen, dit venster zelf.
 - **Navigatie** — documentwissel, naar vandaag springen, Help openen (F1).
+- **Tabel** — de toetsen binnen een taakcel: Tab/Shift+Tab tussen cellen, Enter of F2 om te
+  bewerken, direct typen om de celinhoud te vervangen, Insert om een taak boven de actieve rij in
+  te voegen en Delete om alleen de celinhoud te wissen (niet de taak zelf).
 
 Heeft een actie meerdere toetscombinaties, dan staan die samen op één regel ("of"). Op macOS toont het venster automatisch **Cmd** in plaats van **Ctrl**.
 

@@ -739,7 +739,8 @@
       "edit": "Edycja",
       "structure": "Struktura",
       "view": "Widok",
-      "nav": "Nawigacja"
+      "nav": "Nawigacja",
+      "grid": "Tabela"
     },
     "view": {
       "exitFullscreen": "Zamknij prezentację",
@@ -759,6 +760,12 @@
       "switchDocument": "Przełącz dokument",
       "scrollToToday": "Przejdź do dziś",
       "help": "Otwórz pomoc"
+    },
+    "grid": {
+      "navigate": "Następna/poprzednia komórka",
+      "edit": "Edytuj komórkę",
+      "typeToReplace": "Pisanie zastępuje zawartość komórki",
+      "clearCell": "Wyczyść zawartość komórki"
     }
   },
   "welcome": {

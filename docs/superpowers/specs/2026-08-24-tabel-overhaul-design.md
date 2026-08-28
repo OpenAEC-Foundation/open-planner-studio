@@ -539,7 +539,9 @@ typen en plakken.
 - Escape: annuleert en herstelt de oude waarde tijdens bewerken. In selectiemodus (geen editor
   open) verhuist Escape de browserfocus naar de gridcontainer zonder de actieve cel te wijzigen —
   ook dit is de expliciete uitgang uit de grid, zie hieronder.
-- Insert: maakt via de bestaande bewaakte invoegroute een taak en opent direct de naamcel.
+- Insert: maakt via de bestaande bewaakte invoegroute een taak **boven** de actieve taak en opent
+  direct de naamcel — dezelfde betekenis als de globale sneltoets `structure.insertAbove`.
+  "Onder" invoegen blijft bereikbaar via Ctrl+I (`structure.insertBelow`), ook binnen de tabel.
 - Home / End: eerste/laatste zichtbare kolom van de taakrij.
 - Ctrl+Home / Ctrl+End: eerste/laatste taakcel van de zichtbare grid.
 - Bestaande sneltoetsen voor in-/uitspringen blijven leidend. Ctrl+pijl-links/rechts krijgt hier

@@ -721,7 +721,8 @@
       "edit": "Bearbeiten",
       "structure": "Struktur",
       "view": "Ansicht",
-      "nav": "Navigation"
+      "nav": "Navigation",
+      "grid": "Tabelle"
     },
     "view": {
       "exitFullscreen": "Präsentation verlassen",
@@ -741,6 +742,12 @@
       "switchDocument": "Dokument wechseln",
       "scrollToToday": "Zu heute springen",
       "help": "Hilfe öffnen"
+    },
+    "grid": {
+      "navigate": "Nächste/vorherige Zelle",
+      "edit": "Zelle bearbeiten",
+      "typeToReplace": "Tippen ersetzt den Zellinhalt",
+      "clearCell": "Zellinhalt löschen"
     }
   },
   "welcome": {

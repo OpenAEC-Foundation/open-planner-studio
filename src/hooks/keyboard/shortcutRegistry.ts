@@ -35,7 +35,7 @@ import { computeScrollToDate } from '@/utils/ganttViewport';
 import { COMMANDS } from '@/state/commands';
 import i18n from '@/i18n/config';
 
-export type ShortcutCategory = 'file' | 'edit' | 'structure' | 'view' | 'nav';
+export type ShortcutCategory = 'file' | 'edit' | 'structure' | 'view' | 'nav' | 'grid';
 
 export interface ShortcutCombo {
   key: string;                 // KeyboardEvent.key, case-insensitive vergeleken
@@ -498,6 +498,75 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'context.fitToProject',
     displayOnly: true,
     run: () => { /* displayOnly: useZoomShortcuts.ts handelt dit af */ },
+  },
+
+  // --- displayOnly: taakgridtoetsen (zie src/engine/taskGrid/navigation.ts). Deze toetsen worden
+  //     al binnen de gridcontainer zelf afgehandeld (DataGridCore.tsx → resolveTaskGridCommand,
+  //     vóór ze deze globale matcher ooit bereiken); ze staan hier uitsluitend zodat het
+  //     Sneltoetsen-venster de VOLLEDIGE lijst toont, niet alleen de globale sneltoetsen.
+  //     Tab/Shift+Tab en Enter/F2 delen elk hun labelKey (twee combo's -> één rij).
+  {
+    id: 'grid.navigateNext',
+    combo: { key: 'Tab' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.navigate',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    id: 'grid.navigatePrevious',
+    combo: { key: 'Tab', shift: true },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.navigate',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    id: 'grid.editEnter',
+    combo: { key: 'Enter' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.edit',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    id: 'grid.editF2',
+    combo: { key: 'F2' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.edit',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Geen letterlijke toetscombinatie — ieder afdrukbaar teken start bewerken. `keyGlyph` in
+    // shortcutFormat.ts laat een meerkarakter-`key` ongewijzigd staan (zelfde mechanisme als de
+    // "+ / ="-uitzondering voor zoom), dus dit rendert precies als geschreven.
+    id: 'grid.typeToReplace',
+    combo: { key: 'A–Z, 0–9, …' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.typeToReplace',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Zelfde betekenis als de globale `structure.insertAbove` (zie FullTaskGrid.tsx: de grid volgt
+    // hier bewust de globale richting) — hergebruikt daarom dezelfde, al vertaalde labelKey.
+    id: 'grid.insertAbove',
+    combo: { key: 'Insert' },
+    category: 'grid',
+    labelKey: 'context.insertAbove',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Wist alleen de inhoud van de geselecteerde cellen — niet de taak/taken zelf (dat is
+    // `context.delete`). Zie FIX 1 in tabel-overhaul-review-fixes.md voor de eerdere val hier.
+    id: 'grid.clearCell',
+    combo: { key: 'Delete' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.clearCell',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
   },
 ];
 

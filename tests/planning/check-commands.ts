@@ -25,6 +25,7 @@ import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS, isCommandEnabled, type Command } from '@/state/commands';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
+import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
 
 const S = () => useAppStore.getState();
 
@@ -271,6 +272,75 @@ for (const cmd of Object.values(COMMANDS) as Command[]) {
       eq(`32 ${waar}: geen eigen implementatie meer van "${fragment}"`, bron.includes(fragment), false);
     }
   }
+}
+
+// ── 33. Taakgridtoetsen zijn zichtbaar in het Sneltoetsen-venster ──────────────────────────
+//
+// Eindreview-bevinding: Tab/Shift+Tab, Enter/F2, direct typen, Insert en Delete (celinhoud wissen)
+// stonden nergens in `SHORTCUTS` — het venster dat rechtstreeks uit dit register rendert (zie
+// ShortcutsDialog.tsx) toonde ze dus niet, ondanks de claim dat de lijst "nooit achterloopt".
+// Deze check bewaakt de BRON (het register), niet de gerenderde DOM.
+{
+  const grid = SHORTCUTS.filter(entry => entry.category === 'grid');
+  const byId = new Map(grid.map(entry => [entry.id, entry] as const));
+
+  checks++;
+  if (!grid.every(entry => entry.displayOnly === true)) {
+    diffs.push('33a alle grid-entries zijn displayOnly (de gridcontainer handelt ze zelf af, niet de globale matcher)');
+  }
+
+  const expectTab = (id: string, shift: boolean) => {
+    checks++;
+    const entry = byId.get(id);
+    if (!entry || entry.combo.key !== 'Tab' || Boolean(entry.combo.shift) !== shift) {
+      diffs.push(`33b ${id} ontbreekt of heeft de verkeerde combo`);
+    }
+  };
+  expectTab('grid.navigateNext', false);
+  expectTab('grid.navigatePrevious', true);
+
+  const expectKey = (id: string, key: string) => {
+    checks++;
+    const entry = byId.get(id);
+    if (!entry || entry.combo.key !== key) diffs.push(`33c ${id} ontbreekt of heeft de verkeerde combo`);
+  };
+  expectKey('grid.editEnter', 'Enter');
+  expectKey('grid.editF2', 'F2');
+  expectKey('grid.typeToReplace', 'A–Z, 0–9, …');
+  expectKey('grid.insertAbove', 'Insert');
+  expectKey('grid.clearCell', 'Delete');
+
+  eq('33d Tab en Shift+Tab delen dezelfde labelKey (één rij in de dialoog)',
+    byId.get('grid.navigateNext')?.labelKey, byId.get('grid.navigatePrevious')?.labelKey);
+  eq('33e Enter en F2 delen dezelfde labelKey (één rij in de dialoog)',
+    byId.get('grid.editEnter')?.labelKey, byId.get('grid.editF2')?.labelKey);
+  eq('33f de grid-Insert hergebruikt dezelfde labelKey als de globale structure.insertAbove',
+    byId.get('grid.insertAbove')?.labelKey,
+    SHORTCUTS.find(entry => entry.id === 'structure.insertAbove')?.labelKey);
+
+  checks++;
+  if (byId.get('grid.clearCell')?.labelKey === byId.get('grid.insertAbove')?.labelKey) {
+    diffs.push('33g grid.clearCell (celinhoud wissen) moet een ander label hebben dan "Invoegen boven"');
+  }
+}
+
+// ── 34. De grid volgt de globale Insert-richting (boven, niet onder) ──────────────────────
+//
+// Eindreview-bevinding: `FullTaskGrid.tsx` deed Insert altijd 'below', terwijl de globale
+// sneltoets (`structure.insertAbove`, Insert zonder modifier) 'above' doet. Beide moeten dezelfde
+// richting gebruiken — anders doet dezelfde fysieke toets iets anders binnen versus buiten een
+// gefocuste taakcel.
+{
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const { join, dirname } = await import('node:path');
+  let root = dirname(fileURLToPath(import.meta.url));
+  const { existsSync } = await import('node:fs');
+  while (!existsSync(join(root, 'package.json')) && dirname(root) !== root) root = dirname(root);
+  const fullGrid = readFileSync(join(root, 'src/components/task-grid/FullTaskGrid.tsx'), 'utf8');
+  const insertBlock = /if \(command\.kind === 'insert-task'\) \{([\s\S]*?)\n    \}/.exec(fullGrid)?.[1] ?? '';
+  eq('34 de grid voegt via Insert boven de actieve taak in, net als structure.insertAbove',
+    /insertTaskRelativeToScope\(\[row\.task\.id\],\s*'above'/.test(insertBlock), true);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

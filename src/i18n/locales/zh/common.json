@@ -712,7 +712,8 @@
       "edit": "编辑",
       "structure": "结构",
       "view": "视图",
-      "nav": "导航"
+      "nav": "导航",
+      "grid": "表格"
     },
     "view": {
       "exitFullscreen": "退出演示",
@@ -732,6 +733,12 @@
       "switchDocument": "切换文档",
       "scrollToToday": "跳转到今天",
       "help": "打开帮助"
+    },
+    "grid": {
+      "navigate": "下一个/上一个单元格",
+      "edit": "编辑单元格",
+      "typeToReplace": "输入将替换单元格内容",
+      "clearCell": "清除单元格内容"
     }
   },
   "welcome": {

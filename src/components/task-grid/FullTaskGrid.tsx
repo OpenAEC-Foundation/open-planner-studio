@@ -551,9 +551,12 @@ export function TaskGridSurface({
     }
     if (command.kind === 'insert-task') {
       if (!finishEditing()) return;
-      const row = rowIndex.taskByRowKey.get(command.afterRowKey);
+      const row = rowIndex.taskByRowKey.get(command.anchorRowKey);
       if (!row) return;
-      const id = insertTaskRelativeToScope([row.task.id], 'below', {
+      // De grid volgt hier de globale betekenis van de Insert-toets (`structure.insertAbove` in
+      // shortcutRegistry.ts): boven de actieve taak invoegen. "Onder" blijft bereikbaar via
+      // Ctrl+I (`structure.insertBelow`), ook binnen de tabel.
+      const id = insertTaskRelativeToScope([row.task.id], 'above', {
         name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
       });
       if (!id) return;

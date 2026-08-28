@@ -163,7 +163,7 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
   eq('Delete vraagt atomaire leegmaak', command('Delete'), { kind: 'clear-cells' });
   eq('Backspace vraagt atomaire leegmaak', command('Backspace'), { kind: 'clear-cells' });
   eq('Direct typen start vervangende editor', command('x'), { kind: 'start-edit', cell: active, replacement: 'x' });
-  eq('Insert vraagt bewaakte taakinsert', command('Insert'), { kind: 'insert-task', afterRowKey: 't2', targetColumnId: taskColumnId('task.name') });
+  eq('Insert vraagt bewaakte taakinsert', command('Insert'), { kind: 'insert-task', anchorRowKey: 't2', targetColumnId: taskColumnId('task.name') });
   eq('Ctrl+pijl-links blijft voor bestaande structuurshortcut', command('ArrowLeft', { ctrlKey: true }), { kind: 'unhandled' });
   eq('Ctrl+pijl-rechts blijft voor bestaande structuurshortcut', command('ArrowRight', { ctrlKey: true }), { kind: 'unhandled' });
   eq('Cmd+pijl-links blijft voor bestaande structuurshortcut', command('ArrowLeft', { metaKey: true }), { kind: 'unhandled' });

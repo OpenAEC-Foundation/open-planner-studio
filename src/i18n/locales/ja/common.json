@@ -712,7 +712,8 @@
       "edit": "編集",
       "structure": "構造",
       "view": "表示",
-      "nav": "ナビゲーション"
+      "nav": "ナビゲーション",
+      "grid": "テーブル"
     },
     "view": {
       "exitFullscreen": "プレゼンテーションを終了",
@@ -732,6 +733,12 @@
       "switchDocument": "ドキュメントを切り替え",
       "scrollToToday": "今日にジャンプ",
       "help": "ヘルプを開く"
+    },
+    "grid": {
+      "navigate": "次/前のセル",
+      "edit": "セルを編集",
+      "typeToReplace": "入力するとセルの内容が置き換わります",
+      "clearCell": "セルの内容を消去"
     }
   },
   "welcome": {
