@@ -29,6 +29,16 @@
 // en de allerlaatste `taskEnd`) EXCLUSIEF: het startpunt van het volgende segment — net als de
 // bestaande uur-modus-necking (`CalendarEngine.workIntervalsBetween`) al doet.
 //
+// DEFENSIEF (guard-lat bewust GELIJK aan `splitTotalSpanMinutes` in `duration.ts` — zelfde
+// dreigingsmodel: `splitGaps` is afgeleide data die via MCP of een handgemaakte IFC/JSON-import
+// kan binnenkomen, dus niet blind vertrouwd). Beide wandelfuncties hieronder spiegelen die guards
+// letterlijk: een gat met een niet-eindige `afterMinutes`/`gapMinutes` of `gapMinutes <= 0` wordt
+// overgeslagen, en de aspositie wordt geklemd (`gapStartAxis = Math.max(afterMinutes, axisPos)`)
+// zodat een wanordelijk/overlappend gat de as nooit terug de tijd in laat lopen — een gat dat
+// daarna nog steeds ontaardt (`gapEndAxis <= gapStartAxis`) draagt niets bij en wordt ook
+// overgeslagen. Dit voorkomt tegelijk dat een NaN uit een niet-finite gat doorsijpelt naar
+// `Math.round`/`Math.max` verderop (die geven dan stil `NaN` terug in plaats van een fout).
+//
 // Consumenten: `splitBarGeometry` (renderer/print), `ResourceLoad` (histogram/bezetting),
 // `ResourceLeveler` (boekhouding). Eén wandeling, drie lezers — dat is het hele punt van deze
 // module: vóór B1c-W0 kopieerde elke consument zijn eigen (pre-H1) as-wandeling, en die liepen
@@ -70,12 +80,17 @@ export function computeSplitSegments(
 
   const segments: SplitSegmentBounds[] = [];
   let cursor = taskStart;
-  let prevAxis = 0;
+  let axisPos = 0;
   for (const gap of sorted) {
-    const gapStart = walk(cursor, gap.afterMinutes - prevAxis);
+    // Defensief, spiegelt `splitTotalSpanMinutes` (duration.ts) — zie de moduleuitleg hierboven.
+    if (!Number.isFinite(gap.afterMinutes) || !Number.isFinite(gap.gapMinutes) || gap.gapMinutes <= 0) continue;
+    const gapStartAxis = Math.max(gap.afterMinutes, axisPos);
+    const gapEndAxis = gap.afterMinutes + gap.gapMinutes;
+    if (gapEndAxis <= gapStartAxis) continue; // volledig al ingehaald/ontaard — geen segmentgrens
+    const gapStart = walk(cursor, gapStartAxis - axisPos);
     segments.push({ start: cursor, end: gapStart });
-    cursor = walk(gapStart, gap.gapMinutes);
-    prevAxis = gap.afterMinutes + gap.gapMinutes; // H1: het gat telt zichzelf mee op de as
+    cursor = walk(gapStart, gapEndAxis - gapStartAxis); // alleen het niet al ingehaalde deel
+    axisPos = gapEndAxis; // H1: het gat telt zichzelf mee op de as
   }
   segments.push({ start: cursor, end: taskEnd });
   return segments;
@@ -98,14 +113,21 @@ export function splitDayPattern(
   const sorted = [...gaps].sort((a, b) => a.afterMinutes - b.afterMinutes);
   const mpd = Math.max(1, minutesPerDay);
   const blocks: Array<{ work: number; gap: number }> = [];
-  let prevAxis = 0;
+  let axisPos = 0;
   let used = 0;
   for (const g of sorted) {
-    const work = Math.min(Math.max(0, Math.round((g.afterMinutes - prevAxis) / mpd)), durationDays - used);
-    const gap = Math.max(0, Math.round(g.gapMinutes / mpd));
+    // Defensief, spiegelt `splitTotalSpanMinutes` (duration.ts) — zie de moduleuitleg hierboven.
+    // Zonder deze guard sijpelt een niet-finite gat door naar `Math.round`/`Math.max` verderop
+    // (die geven dan stil `NaN` terug in plaats van het gat simpelweg te negeren).
+    if (!Number.isFinite(g.afterMinutes) || !Number.isFinite(g.gapMinutes) || g.gapMinutes <= 0) continue;
+    const gapStartAxis = Math.max(g.afterMinutes, axisPos);
+    const gapEndAxis = g.afterMinutes + g.gapMinutes;
+    if (gapEndAxis <= gapStartAxis) continue; // volledig al ingehaald/ontaard — geen blok
+    const work = Math.min(Math.max(0, Math.round((gapStartAxis - axisPos) / mpd)), durationDays - used);
+    const gap = Math.max(0, Math.round((gapEndAxis - gapStartAxis) / mpd));
     blocks.push({ work, gap });
     used += work;
-    prevAxis = g.afterMinutes + g.gapMinutes; // H1: het gat telt zichzelf mee op de as
+    axisPos = gapEndAxis; // H1: het gat telt zichzelf mee op de as
   }
   blocks.push({ work: Math.max(0, durationDays - used), gap: 0 });
   return blocks;
