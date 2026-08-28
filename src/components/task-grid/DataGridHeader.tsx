@@ -3,7 +3,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type DragEvent,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react';
@@ -52,6 +51,49 @@ export function keyboardResizeWidth(
 ): number {
   const step = shiftKey ? 32 : 8;
   return clampWidth(width + (key === 'ArrowRight' ? step : -step));
+}
+
+/** Eén kolomkop-rechthoek (viewport-coördinaten, zoals `getBoundingClientRect()` teruggeeft) t.b.v.
+ *  `resolveColumnDropTarget`. */
+export interface ColumnHeaderRect {
+  id: TaskColumnId;
+  pinned: boolean;
+  left: number;
+  right: number;
+}
+
+/**
+ * Browserreview, observatie 7: bepaalt de kolom-invoegpositie voor kolomherordenen GEBIEDSDEKKEND
+ * over de volledige headerbreedte i.p.v. een smalle strook op de kolomgrens zelf — en klemt de
+ * pointerpositie naar de dichtstbijzijnde geldige grens zodra hij BUITEN alle kolomkoppen valt (te
+ * ver naar links, te ver naar rechts voorbij de laatste kolom, of — via de window-brede
+ * dragover/drop-luisteraars die deze functie aanroepen, zie de useEffect hieronder — een paar pixels
+ * te laag, over de rijen). Zonder die klem viel een drop die net niet op een headercel landde stil
+ * terug op niets: geen enkele kolomkop kreeg het dragover/drop-event, dus de herordening werd
+ * zwijgend genegeerd — precies het "je moet exact op de grens droppen"-gevoel uit de melding.
+ *
+ * Elke kandidaat (alle kolommen behalve de gesleepte zelf, en alleen uit dezelfde pin-groep — een
+ * vastgezette kolom mag niet tussen losse kolommen belanden en andersom, zelfde regel als voorheen)
+ * levert zijn linkerhelft op als "before" en zijn rechterhelft als "after", zodat ELKE positie in de
+ * headerbalk een geldig doel is — nooit een dode zone.
+ */
+export function resolveColumnDropTarget(
+  rects: readonly ColumnHeaderRect[],
+  draggedColumnId: TaskColumnId,
+  clientX: number,
+): { columnId: TaskColumnId; placement: 'before' | 'after' } | null {
+  const dragged = rects.find(rect => rect.id === draggedColumnId);
+  const candidates = rects
+    .filter(rect => rect.id !== draggedColumnId && (!dragged || rect.pinned === dragged.pinned))
+    .slice()
+    .sort((a, b) => a.left - b.left);
+  if (candidates.length === 0) return null;
+  const minLeft = candidates[0].left;
+  const maxRight = candidates[candidates.length - 1].right;
+  const x = Math.max(minLeft, Math.min(clientX, maxRight));
+  const hit = candidates.find(rect => x < rect.right) ?? candidates[candidates.length - 1];
+  const midpoint = hit.left + (hit.right - hit.left) / 2;
+  return { columnId: hit.id, placement: x < midpoint ? 'before' : 'after' };
 }
 
 export interface DataGridHeaderProps {
@@ -119,6 +161,7 @@ export function DataGridHeader({
   const previewFrameRef = useRef<number | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<TaskColumnId | null>(null);
   const [dropTarget, setDropTarget] = useState<HeaderDropTarget | null>(null);
+  const headerRowRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<HeaderContextMenuState | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ left: 0, top: 0 });
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -260,22 +303,54 @@ export function DataGridHeader({
     onResizeCommit?.(column.id, column.width, after);
   };
 
-  const updateDropTarget = (event: DragEvent<HTMLDivElement>, column: DataGridColumnModel) => {
-    if (!draggedColumnId || draggedColumnId === column.id) return;
-    const dragged = columns.find(candidate => candidate.id === draggedColumnId);
-    if (!dragged || dragged.pinned !== column.pinned) {
-      event.dataTransfer.dropEffect = 'none';
-      setDropTarget(null);
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    const rect = event.currentTarget.getBoundingClientRect();
-    setDropTarget({
-      columnId: column.id,
-      placement: event.clientX < rect.left + rect.width / 2 ? 'before' : 'after',
+  // Browserreview, observatie 7: window-brede dragover/drop-luisteraars i.p.v. per-kolomkop
+  // handlers (die vervielen hier). Zolang draggedColumnId gezet is (een kolomherordening loopt),
+  // vangt dit ELKE dragover/drop in het hele document — ook ver voorbij de laatste kolom, of een
+  // paar pixels onder de headerrij (over de tabelrijen). resolveColumnDropTarget klemt de
+  // pointerpositie altijd naar de dichtstbijzijnde geldige grens; zonder deze window-luisteraars
+  // kreeg zo'n net-mis drop GEEN dragover/drop-event op een headercel (native dragover/drop vuurt
+  // alleen op het element letterlijk onder de cursor), en werd de herordening zwijgend genegeerd —
+  // precies het "je moet exact op de grens droppen"-gevoel uit de melding. `preventDefault()` moet
+  // vallen op ÉÉN van de dragover-events in de keten om de browser een drop toe te staan; een
+  // window-listener (bubble-fase, standaard) is daar een geldige plek voor.
+  const collectHeaderRects = (): ColumnHeaderRect[] => {
+    const row = headerRowRef.current;
+    if (!row) return [];
+    return Array.from(row.querySelectorAll<HTMLElement>('[data-grid-column-id]')).map(el => {
+      const rect = el.getBoundingClientRect();
+      return {
+        id: el.getAttribute('data-grid-column-id') as TaskColumnId,
+        pinned: el.getAttribute('data-grid-pinned') === 'true',
+        left: rect.left,
+        right: rect.right,
+      };
     });
   };
+
+  useEffect(() => {
+    if (!draggedColumnId) return;
+    const handleDragOver = (event: globalThis.DragEvent) => {
+      const target = resolveColumnDropTarget(collectHeaderRects(), draggedColumnId, event.clientX);
+      if (!target) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      setDropTarget(target);
+    };
+    const handleDrop = (event: globalThis.DragEvent) => {
+      event.preventDefault();
+      const target = resolveColumnDropTarget(collectHeaderRects(), draggedColumnId, event.clientX);
+      if (target) onReorderColumn?.(draggedColumnId, target.columnId, target.placement);
+      setDraggedColumnId(null);
+      setDropTarget(null);
+    };
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('drop', handleDrop);
+    return () => {
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('drop', handleDrop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draggedColumnId, onReorderColumn]);
 
   const contextMenuPortal = contextMenu && contextColumn && typeof document !== 'undefined'
     ? createPortal(
@@ -342,6 +417,7 @@ export function DataGridHeader({
   return (
     <>
       <div
+        ref={headerRowRef}
         role="row"
         aria-rowindex={1}
         className="task-grid-header-row"
@@ -358,6 +434,7 @@ export function DataGridHeader({
             dir={textDirection}
             aria-colindex={columnIndex + 1}
             data-grid-pinned={column.pinned ? 'true' : undefined}
+            data-grid-column-id={column.id}
             className="task-grid-column-header"
             draggable={onReorderColumn !== undefined}
             data-grid-dragging={draggedColumnId === column.id ? 'true' : undefined}
@@ -377,15 +454,11 @@ export function DataGridHeader({
               event.dataTransfer.setData('text/plain', column.id);
               setDraggedColumnId(column.id);
             }}
-            onDragOver={event => updateDropTarget(event, column)}
-            onDrop={event => {
-              event.preventDefault();
-              if (draggedColumnId && dropTarget?.columnId === column.id) {
-                onReorderColumn?.(draggedColumnId, column.id, dropTarget.placement);
-              }
-              setDraggedColumnId(null);
-              setDropTarget(null);
-            }}
+            // onDragOver/onDrop staan niet meer per kolomkop — de window-brede luisteraars
+            // hierboven (observatie 7) vangen ELKE dragover/drop tijdens een actieve
+            // herordening, geklemd naar de dichtstbijzijnde geldige grens. onDragEnd blijft als
+            // vangnet voor het geval de sleep buiten het venster eindigt (bv. losgelaten buiten
+            // de browser) zonder dat er ooit een 'drop' vuurt.
             onDragEnd={() => {
               setDraggedColumnId(null);
               setDropTarget(null);

@@ -433,12 +433,24 @@
   font-size: 10px;
 }
 
+/* Browserreview, observatie 7 (grijpzone-kant): was `inset-inline-end: -4px; width: 8px` — een
+ * band van 4px aan WEERSZIJDEN van de kolomgrens. `beginResize`'s `onPointerDown` roept
+ * `event.preventDefault()` aan, wat de NATIEVE HTML5-slepginitiatie onderdrukt (preventDefault op
+ * pointerdown/mousedown is precies het mechanisme waarmee je dragstart voorkomt) — een poging om
+ * een kolom te HERORDENEN door 'm net bij de rand vast te pakken (een natuurlijke plek om te
+ * grijpen) landde zo op de resize-greep i.p.v. de herordenbare kopruimte, en startte dan een resize
+ * (of niets) in plaats van een sleep. Bij een kolom van de minimumbreedte (40px) at 8px band 20% van
+ * de breedte in beslag — en ELKE kolom draagt ook nog eens 2px overhang van de greep van zijn linker
+ * buur. Smaller gemaakt (4px totaal i.p.v. 8px) zodat er meer ruimte overblijft voor herordenen; de
+ * greep blijft een gangbare resize-hitbox (vergelijkbaar met Excel/Sheets, die ook een paar pixels
+ * breed zijn, geen 8).
+ */
 .task-grid-resize-handle {
   position: absolute;
   inset-block: 0;
-  inset-inline-end: -4px;
+  inset-inline-end: -2px;
   z-index: 2;
-  width: 8px;
+  width: 4px;
   padding: 0;
   border: 0;
   background: transparent;

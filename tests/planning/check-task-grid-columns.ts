@@ -11,6 +11,7 @@ import {
 } from '@/engine/taskGrid/preferences';
 import { buildColumnChooserModel, type TaskGridColumnOption } from '@/components/task-grid/ColumnChooser';
 import { resizeGuidelineLeft } from '@/components/task-grid/DataGridCore';
+import { resolveColumnDropTarget, type ColumnHeaderRect } from '@/components/task-grid/DataGridHeader';
 import { TaskGrid, type TaskGridLabels } from '@/components/task-grid/TaskGrid';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { nextTaskGridMenuIndex } from '@/engine/taskGrid/menuNavigation';
@@ -232,6 +233,44 @@ eq('Een zichtbare header biedt verwijderen en resizen zonder sorteersignaal', [
   eq('Laatste kolom: cumulatief tot de totale breedte', resizeGuidelineLeft(cols, id('c')), 200);
   eq('Kolom niet (meer) aanwezig ⇒ geen hulplijn', resizeGuidelineLeft(cols, id('verwijderd')), null);
   eq('Lege kolommenlijst ⇒ geen hulplijn', resizeGuidelineLeft([], id('a')), null);
+}
+
+// ── resolveColumnDropTarget (browserreview, observatie 7) ─────────────────────────────────────
+// Gebiedsdekkende kolomherordening: elke positie in de headerbalk moet een geldig doel opleveren,
+// nooit een dode zone — inclusief ver voorbij de eerste/laatste kolom (geklemd naar de
+// dichtstbijzijnde grens) en zonder de gesleepte kolom zelf of kolommen uit een andere pin-groep
+// als kandidaat.
+{
+  const rect = (rectId: string, left: number, right: number, pinned = false): ColumnHeaderRect =>
+    ({ id: id(rectId), left, right, pinned });
+  // a: 0-40, b: 40-140 (midden op 90), c: 140-200, d: 200-260 — geen kolom is de gesleepte.
+  const rects = [rect('a', 0, 40), rect('b', 40, 140), rect('c', 140, 200), rect('d', 200, 260)];
+
+  eq('Linkerhelft van een kolom ⇒ before', resolveColumnDropTarget(rects, id('z'), 60), { columnId: id('b'), placement: 'before' });
+  eq('Rechterhelft van een kolom ⇒ after', resolveColumnDropTarget(rects, id('z'), 120), { columnId: id('b'), placement: 'after' });
+  eq('Exact op het midden telt als after (x < midpoint is dan false)', resolveColumnDropTarget(rects, id('z'), 90), { columnId: id('b'), placement: 'after' });
+
+  eq('Ver voorbij de EERSTE kolom klemt naar die kolom, before',
+    resolveColumnDropTarget(rects, id('z'), -500), { columnId: id('a'), placement: 'before' });
+  eq('Exact op de linkerrand van de eerste kolom ⇒ before',
+    resolveColumnDropTarget(rects, id('z'), 0), { columnId: id('a'), placement: 'before' });
+  eq('Ver voorbij de LAATSTE kolom klemt naar die kolom, after — nooit een genegeerde drop',
+    resolveColumnDropTarget(rects, id('z'), 5000), { columnId: id('d'), placement: 'after' });
+  eq('Exact op de rechterrand van de laatste kolom ⇒ after',
+    resolveColumnDropTarget(rects, id('z'), 260), { columnId: id('d'), placement: 'after' });
+
+  eq('De gesleepte kolom zelf is nooit een kandidaat (drop op zijn eigen positie valt op de buur)',
+    resolveColumnDropTarget(rects, id('b'), 90), { columnId: id('c'), placement: 'before' });
+
+  const withPinned = [rect('p1', 0, 40, true), rect('p2', 40, 80, true), rect('u1', 80, 180, false)];
+  eq('Een vastgezette kolom mag alleen tussen andere vastgezette kolommen landen',
+    resolveColumnDropTarget(withPinned, id('p1'), 500), { columnId: id('p2'), placement: 'after' });
+  eq('Een losse kolom mag niet tussen vastgezette kolommen landen, klemt naar de losse groep',
+    resolveColumnDropTarget(withPinned, id('u1'), 0), null);
+
+  eq('Geen kandidaten over (enige andere kolom is de gesleepte zelf) ⇒ geen doel',
+    resolveColumnDropTarget([rect('solo', 0, 100)], id('solo'), 50), null);
+  eq('Lege rechthoekenlijst ⇒ geen doel', resolveColumnDropTarget([], id('a'), 50), null);
 }
 
 if (diffs.length) {
