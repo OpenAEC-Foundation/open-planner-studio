@@ -15,7 +15,7 @@
  */
 import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
-import { computePreviewRasterLimits, PREVIEW_MAX_SOURCE_PIXELS, PREVIEW_QUALITY_RASTER_BUDGETS } from '@/services/print/previewSafety';
+import { computePreviewRasterLimits, PREVIEW_MAX_PAGE_PIXELS } from '@/services/print/previewSafety';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task, TaskTime } from '@/types/task';
@@ -406,12 +406,11 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 }
 {
   const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2, 3);
-  ok(20_000 * limits.renderScale * 10_000 * limits.renderScale <= PREVIEW_MAX_SOURCE_PIXELS + 1,
-    `preview-basiscanvas blijft binnen pixelbudget (got ${limits.renderScale})`);
-  const sourcePixels = 20_000 * limits.renderScale * 10_000 * limits.renderScale;
   const pagePixels = limits.maxPages * 2384 * 1684 * limits.pageSupersample * limits.pageSupersample;
-  ok(limits.maxPages >= 1 && sourcePixels + pagePixels <= PREVIEW_QUALITY_RASTER_BUDGETS[3] + 20_000,
-    `A1-preview deelt bron- en paginabudget (got ${limits.maxPages} pagina's @ ${limits.pageSupersample})`);
+  ok(pagePixels <= PREVIEW_MAX_PAGE_PIXELS + 20_000,
+    `A1-preview begrenst één zichtbare page-local buffer (got ${pagePixels})`);
+  ok(limits.renderScale === 6,
+    `page-local bronbemonstering volgt kwaliteit × DPR zonder rapporthoogte (got ${limits.renderScale})`);
   ok(limits.pageSupersample > 0 && limits.maxPages === 1,
     `extreme A1-preview blijft bruikbaar met alleen de zichtbare pagina (got ${limits.pageSupersample})`);
 }

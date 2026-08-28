@@ -8,12 +8,11 @@ import { PAPER_PT, type Orientation, type PaperSize } from './tileLayout';
 // Een normale A4-preview met circa 260 rijen blijft zo op 1× scherp. Alleen uitzonderlijk grote
 // rapporten worden teruggeschaald; vóór deze grens werd ook de alledaagse preview uitgezoomd en
 // vervolgens op papierformaat opgeblazen.
-export const PREVIEW_MAX_SOURCE_PIXELS = 24_000_000;
-/** Kwaliteit bepaalt een expliciet totaalbudget voor broncanvas plus actieve pagina's. */
-export const PREVIEW_QUALITY_RASTER_BUDGETS = { 1: 9_000_000, 2: 18_000_000, 3: 30_000_000 } as const;
+/** Kwaliteit bepaalt een expliciet totaalbudget voor actieve pagina-PNG's, nooit voor een volledig broncanvas. */
+export const PREVIEW_QUALITY_RASTER_BUDGETS = { 1: 9_000_000, 2: 18_000_000, 3: 12_000_000 } as const;
 export const PREVIEW_MAX_RASTER_PIXELS = PREVIEW_QUALITY_RASTER_BUDGETS[2];
-export const PREVIEW_MAX_PAGE_PIXELS = 6_000_000;
-/** De kwaliteitsschaal is zowel de bron-renderScale als de zichtbare pagina-dichtheid. */
+export const PREVIEW_MAX_PAGE_PIXELS = PREVIEW_QUALITY_RASTER_BUDGETS[3];
+/** De kwaliteitsschaal is ook de directe, page-local bronbemonstering. */
 export const PREVIEW_RENDER_SCALE = 2;
 export const PREVIEW_MAX_PAGES = 30;
 export type PreviewQuality = 1 | 2 | 3;
@@ -40,43 +39,34 @@ export function computePreviewRasterLimits(
   devicePixelRatio = 1,
   quality: PreviewQuality = 2,
 ): PreviewRasterLimits {
-  const width = Number.isFinite(logicalWidth) ? Math.max(1, logicalWidth) : 1;
-  const height = Number.isFinite(logicalHeight) ? Math.max(1, logicalHeight) : 1;
-  const logicalPixels = width * height;
-
+  // De parameters blijven deel van het pure publieke contract: de oude broncanvasroute gebruikte
+  // ze voor zijn totale oppervlak. De page-local route rekent bewust niet meer op rapporthoogte.
+  void logicalWidth;
+  void logicalHeight;
   const dpr = Math.max(1, devicePixelRatio);
   const qualityFactor: PreviewQuality = quality === 1 || quality === 3 ? quality : 2;
-  // Maximaal kiest bewust één actieve pagina; zo kan de bron én de daadwerkelijk zichtbare pagina
-  // 3× worden zonder een tweede nabije pagina blind veel geheugen te laten vasthouden.
-  const activePages = qualityFactor === 3 ? 1 : 2;
+  // Maximaal kiest bewust één actieve pagina; Standard/Hoog mogen alleen nabijpagina's houden
+  // wanneer die samen binnen hun kwaliteitsspecifieke pagebudget passen.
   const budget = PREVIEW_QUALITY_RASTER_BUDGETS[qualityFactor];
 
-  // Houd minstens één rasterpixel in beide richtingen over. Bron en pagina krijgen vervolgens
-  // dezelfde terugschalingsfactor wanneer het gezamenlijke budget krapper is, zodat nooit een
-  // hoge-res pagina uit een duidelijk lagere-res bron wordt uitvergroot.
-  const minScale = Math.max(1 / width, 1 / height);
   const paper = PAPER_PT[paperSize];
   const pageWidth = orientation === 'landscape' ? paper.height : paper.width;
   const pageHeight = orientation === 'landscape' ? paper.width : paper.height;
   const wantedRenderScale = qualityFactor * dpr;
   const wantedSupersample = (Math.max(1, cssPageWidth) * dpr * qualityFactor) / pageWidth;
   const pagePixelArea = Math.max(1, pageWidth * pageHeight);
-  const wantedPixels = logicalPixels * wantedRenderScale * wantedRenderScale
-    + pagePixelArea * wantedSupersample * wantedSupersample * activePages;
-  const sharedCap = Math.min(
-    1,
-    Math.sqrt(budget / Math.max(1, wantedPixels)),
-    Math.sqrt(PREVIEW_MAX_SOURCE_PIXELS / Math.max(1, logicalPixels * wantedRenderScale * wantedRenderScale)),
+  const wantedPagePixels = pagePixelArea * wantedSupersample * wantedSupersample;
+  // Alleen een extreem grote zichtbare pagina (bv. DPR 3 + A1 portret) wordt geklemd. Een lang
+  // rapport heeft hier geen invloed meer op: dat is precies het verschil met de oude broncanvasroute.
+  const pageSupersample = Math.max(
+    1 / Math.max(pageWidth, pageHeight),
+    wantedSupersample * Math.min(1, Math.sqrt(PREVIEW_MAX_PAGE_PIXELS / wantedPagePixels)),
   );
-  const renderScale = Math.max(minScale, wantedRenderScale * sharedCap);
-  const pageSupersample = Math.max(1 / Math.max(pageWidth, pageHeight), wantedSupersample * sharedCap);
-  const sourcePixels = logicalPixels * renderScale * renderScale;
-  const pageBudget = Math.max(1, budget - sourcePixels);
   const pixelsPerPage = Math.max(1, Math.ceil(pagePixelArea * pageSupersample * pageSupersample));
   const maxPages = Math.max(1, Math.min(
     PREVIEW_MAX_PAGES,
-    qualityFactor === 3 ? 1 : Math.floor(pageBudget / pixelsPerPage),
+    qualityFactor === 3 ? 1 : Math.floor(budget / pixelsPerPage),
   ));
 
-  return { renderScale, maxPages, pageSupersample };
+  return { renderScale: wantedRenderScale, maxPages, pageSupersample };
 }

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { measurePrintReport, renderPrintCanvas, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { measurePrintReport, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
-import { paginateCanvasToPdfBytes, paginateCanvasToTile } from '@/services/print/paginate';
+import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
 import { computeTileLayout } from '@/services/print/tileLayout';
 import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
@@ -460,11 +460,9 @@ export function ReportPanel() {
     previewUserScrolledRef.current = false;
     previewInitialPageLimitRef.current = 0;
     let timer: number | undefined;
-    let source: HTMLCanvasElement | undefined;
     const release = () => {
       if (timer !== undefined) window.clearTimeout(timer);
       timer = undefined;
-      if (source) { source.width = 0; source.height = 0; source = undefined; }
       if (previewJobRef.current?.release === release) previewJobRef.current = null;
     };
     if (reportType !== 'gantt') {
@@ -488,8 +486,6 @@ export function ReportPanel() {
         logicalWidth, logicalHeight, lowerPaper, options.orientation, cssPageWidth, window.devicePixelRatio,
         PREVIEW_QUALITY_FACTORS[previewQuality],
       );
-      source = document.createElement('canvas');
-      renderPrintCanvas(source, tasks, sequences, calendar, projectName, options, previewLimits.renderScale);
       const tileOptions = {
         paperSize: lowerPaper,
         orientation: options.orientation,
@@ -507,7 +503,7 @@ export function ReportPanel() {
       const total = layout.rows * layout.cols;
       const rendered = new Set<number>();
       const renderPage = (index: number) => {
-        if (cancelled || generation !== previewGenerationRef.current || !source || rendered.has(index)) return;
+        if (cancelled || generation !== previewGenerationRef.current || rendered.has(index)) return;
         // De grens voorkomt dat een extreem lang rapport alsnog een onbeperkte afbeeldingscache wordt.
         // Oude, niet-zichtbare pagina's worden vervangen; daardoor kan verder scrollen altijd de
         // juiste pagina materialiseren in plaats van na de eerste N pagina's dood te lopen.
@@ -521,12 +517,21 @@ export function ReportPanel() {
           }
         }
         rendered.add(index);
-        const page = paginateCanvasToTile(source, tileOptions, index);
-        if (!page || cancelled || generation !== previewGenerationRef.current) { page && (page.width = page.height = 0); return; }
+        const page = document.createElement('canvas');
+        renderPrintPreviewPage(page, tasks, sequences, calendar, projectName, options, {
+          layout,
+          pageIndex: index,
+          supersample: previewLimits.pageSupersample,
+        });
+        if (cancelled || generation !== previewGenerationRef.current) { page.width = page.height = 0; return; }
         const result = { dataUrl: page.toDataURL('image/png'), wPt: layout.pageWidthPt, hPt: layout.pageHeightPt };
         page.width = 0; page.height = 0;
         setPreviewPages(previous => {
           if (generation !== previewGenerationRef.current) return previous;
+          // Maximaal houdt precies één actuele zichtbare pagina vast. Tot het nieuwe raster klaar
+          // is blijft de vorige preview staan; daarna mogen oude nabijpagina's niet als verborgen
+          // tweede buffer achterblijven.
+          if (previewLimits.maxPages === 1) return new Map([[index, result]]);
           const next = new Map(previous); next.set(index, result); return next;
         });
       };

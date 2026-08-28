@@ -1,7 +1,7 @@
 import { expect, seedProject, test } from './fixtures/ops';
 
-test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pagina’s', async ({ page, ops: _ops }) => {
-  await seedProject(page, Array.from({ length: 140 }, (_, i) => ({
+test('De Vaart-preview blijft scherp en bundelt snelle kopwijzigingen', async ({ page, ops: _ops }) => {
+  await seedProject(page, Array.from({ length: 260 }, (_, i) => ({
     name: `Taak ${i + 1}`,
     start: `2026-01-${String(1 + (i % 20)).padStart(2, '0')}`,
     finish: `2026-03-${String(1 + (i % 20)).padStart(2, '0')}`,
@@ -29,14 +29,37 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
     if (!(image instanceof HTMLImageElement)) throw new Error('preview is geen afbeelding');
     return { naturalWidth: image.naturalWidth, cssWidth: image.getBoundingClientRect().width };
   });
-  expect(density.naturalWidth).toBeGreaterThanOrEqual(density.cssWidth * 1.4);
+  expect(density.naturalWidth).toBeGreaterThanOrEqual(1_790);
+  expect(density.naturalWidth).toBeLessThanOrEqual(1_810);
   const initialCalls = await page.evaluate(() => (
     (window as unknown as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls
   ));
   expect(initialCalls).toBeLessThanOrEqual(3);
 
+  const highSrc = await preview.getAttribute('src');
+  await previewQuality.click();
+  await page.getByRole('option', { name: /^(Standard \(100%\)|Standaard \(100%\))$/ }).click();
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(highSrc);
+  await expect.poll(() => preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0))
+    .toBeGreaterThanOrEqual(890);
+  const standardWidth = await preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0);
+  expect(standardWidth).toBeLessThanOrEqual(910);
+
+  const standardSrc = await preview.getAttribute('src');
+  await previewQuality.click();
+  await page.getByRole('option', { name: /^(Maximum \(300%\)|Maximaal \(300%\))$/ }).click();
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(standardSrc);
+  await expect.poll(() => preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0))
+    .toBeGreaterThanOrEqual(2_690);
+  const maximumWidth = await preview.evaluate(image => image instanceof HTMLImageElement ? image.naturalWidth : 0);
+  expect(maximumWidth).toBeLessThanOrEqual(2_710);
+  await expect(page.locator('[data-preview-page] img')).toHaveCount(1);
+
   const field = page.getByPlaceholder(/^(Company name|Bedrijfsnaam)$/);
   const before = await preview.getAttribute('src');
+  const beforeTypingCalls = await page.evaluate(() => (
+    (window as unknown as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls
+  ));
   await field.fill('A');
   await field.fill('AB');
   await field.fill('ABC');
@@ -44,7 +67,7 @@ test('rapportpreview bundelt snelle kopwijzigingen en rastert niet blind alle pa
   const afterCalls = await page.evaluate(() => (
     (window as unknown as Window & { __opsPreviewDataUrls: number }).__opsPreviewDataUrls
   ));
-  expect(afterCalls - initialCalls).toBeLessThanOrEqual(3);
+  expect(afterCalls - beforeTypingCalls).toBeLessThanOrEqual(3);
 
 });
 
