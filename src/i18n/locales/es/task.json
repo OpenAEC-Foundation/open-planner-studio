@@ -28,7 +28,8 @@
     "MOVE": "Reubicación",
     "RENOVATION": "Renovación",
     "MAINTENANCE": "Mantenimiento",
-    "USERDEFINED": "Otro"
+    "USERDEFINED": "Otro",
+    "builtinGroup": "Tipos integrados", "personalGroup": "Mis tipos de tarea", "projectGroup": "De este proyecto", "new": "+ Nuevo tipo de tarea…", "manage": "Gestionar tipos de tarea…", "newTitle": "Nuevo tipo de tarea", "manageTitle": "Gestionar tipos de tarea", "name": "Nombre", "fixed": "Fijo", "empty": "Aún no hay tipos de tarea personales.", "rename": "Editar", "remove": "Eliminar", "addToMine": "Añadir a mis tipos de tarea", "confirmRemove": "Este tipo se usa en el proyecto abierto. ¿Eliminarlo de Mis tipos de tarea? La copia del proyecto se conserva."
   },
   "dialog": {
     "editTitle": "Editar tarea",

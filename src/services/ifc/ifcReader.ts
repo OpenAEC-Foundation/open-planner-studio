@@ -1,4 +1,5 @@
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
@@ -140,6 +141,7 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded,
   );
+  const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   // Z14b (Z8-nataak, F1-fixronde) — LAAG-4-kalenderwandelingen, eigen pset (zie de functie se
   // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
@@ -177,7 +179,7 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
 
   return {
     project, calendar, tasks, sequences, resources, assignments,
-    activityCodeTypes, customFieldDefs, resourceCalendars,
+    activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars,
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
     recordedFields,
@@ -784,6 +786,7 @@ function extractTasks(
       description: ifcSlotText(te.args[TASK_SLOT.description]),
       wbsCode: ifcSlotText(te.args[TASK_SLOT.identification]),
       taskType: te.args[predefinedTypeIdx] ? parseTaskType(te.args[predefinedTypeIdx]) : 'CONSTRUCTION',
+      customTaskTypeId: undefined,
       status: 'NOT_STARTED',
       isMilestone,
       priority,
@@ -795,6 +798,45 @@ function extractTasks(
   }
 
   return { tasks, taskStepIdMap, taskTimeEntities, recordedFields };
+}
+
+/** Lees de OPS-catalogus defensief. Zonder metadata blijft een extern/oud USERDEFINED-bestand
+ * gewoon USERDEFINED; ObjectType wordt daarbij niet als id geraden. */
+function extractTaskTypeMeta(
+  entities: StepEntity[], entityMap: Map<string, StepEntity>, tasks: Task[], taskStepIdMap: Map<string, string>,
+): CustomTaskType[] {
+  let raw: unknown;
+  for (const pset of entities) {
+    if (pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.TaskTypes) continue;
+    for (const ref of parseRefs(pset.args[4] || '')) {
+      const prop = entityMap.get(ref);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE' || stripQuotes(prop.args[0] || '') !== 'TaskTypes') continue;
+      raw = parseTypedValue(prop.args[2] || '');
+    }
+  }
+  if (typeof raw !== 'string') return [];
+  try {
+    const parsed = JSON.parse(raw) as { definitions?: unknown; taskTypeIds?: unknown };
+    const definitions: CustomTaskType[] = Array.isArray(parsed.definitions)
+      ? parsed.definitions.filter((x): x is CustomTaskType => !!x && typeof x === 'object' && typeof (x as CustomTaskType).id === 'string' && typeof (x as CustomTaskType).name === 'string')
+          .map(x => ({ id: x.id.trim(), name: x.name.trim() })).filter(x => !!x.id && !!x.name)
+      : [];
+    const known = new Set(definitions.map(x => x.id));
+    if (!parsed.taskTypeIds || typeof parsed.taskTypeIds !== 'object') return definitions;
+    const byStep = new Map<string, string>(taskStepIdMap);
+    const byTaskId = new Map(tasks.map(t => [t.id, t]));
+    for (const [stepId, entity] of entityMap) {
+      if (entity.type !== 'IFCTASK') continue;
+      const taskId = byStep.get(stepId);
+      const typeId = (parsed.taskTypeIds as Record<string, unknown>)[stripQuotes(entity.args[0] || '')];
+      const task = taskId ? byTaskId.get(taskId) : undefined;
+      if (task && typeof typeId === 'string' && known.has(typeId)) {
+        task.taskType = 'USERDEFINED';
+        task.customTaskTypeId = typeId;
+      }
+    }
+    return definitions;
+  } catch { return []; }
 }
 
 /** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,

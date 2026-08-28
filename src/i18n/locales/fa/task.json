@@ -28,7 +28,8 @@
     "MOVE": "جابجایی",
     "RENOVATION": "بازسازی",
     "MAINTENANCE": "نگهداری",
-    "USERDEFINED": "سایر"
+    "USERDEFINED": "سایر",
+    "builtinGroup": "نوع‌های داخلی", "personalGroup": "نوع‌های کار من", "projectGroup": "از این پروژه", "new": "+ نوع کار جدید…", "manage": "مدیریت نوع‌های کار…", "newTitle": "نوع کار جدید", "manageTitle": "مدیریت نوع‌های کار", "name": "نام", "fixed": "ثابت", "empty": "هنوز نوع کار شخصی وجود ندارد.", "rename": "ویرایش", "remove": "حذف", "addToMine": "افزودن به نوع‌های کار من", "confirmRemove": "این نوع در پروژه باز استفاده می‌شود. از نوع‌های کار من حذف شود؟ نسخه پروژه باقی می‌ماند."
   },
   "dialog": {
     "editTitle": "ویرایش وظیفه",

@@ -28,7 +28,8 @@
     "MOVE": "移設",
     "RENOVATION": "改修",
     "MAINTENANCE": "保守",
-    "USERDEFINED": "その他"
+    "USERDEFINED": "その他",
+    "builtinGroup": "組み込みの種類", "personalGroup": "自分のタスク種類", "projectGroup": "このプロジェクトから", "new": "+ 新しいタスク種類…", "manage": "タスク種類を管理…", "newTitle": "新しいタスク種類", "manageTitle": "タスク種類を管理", "name": "名前", "fixed": "固定", "empty": "個人用タスク種類はまだありません。", "rename": "編集", "remove": "削除", "addToMine": "自分のタスク種類に追加", "confirmRemove": "この種類は開いているプロジェクトで使われています。自分のタスク種類から削除しますか？プロジェクトのコピーは残ります。"
   },
   "dialog": {
     "editTitle": "タスクの編集",

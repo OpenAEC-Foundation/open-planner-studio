@@ -28,7 +28,8 @@
     "MOVE": "Déplacement",
     "RENOVATION": "Rénovation",
     "MAINTENANCE": "Maintenance",
-    "USERDEFINED": "Autre"
+    "USERDEFINED": "Autre",
+    "builtinGroup": "Types intégrés", "personalGroup": "Mes types de tâche", "projectGroup": "De ce projet", "new": "+ Nouveau type de tâche…", "manage": "Gérer les types de tâche…", "newTitle": "Nouveau type de tâche", "manageTitle": "Gérer les types de tâche", "name": "Nom", "fixed": "Fixe", "empty": "Aucun type de tâche personnel.", "rename": "Modifier", "remove": "Supprimer", "addToMine": "Ajouter à mes types de tâche", "confirmRemove": "Ce type est utilisé dans le projet ouvert. Le supprimer de Mes types de tâche ? La copie du projet reste disponible."
   },
   "dialog": {
     "editTitle": "Modifier la tâche",

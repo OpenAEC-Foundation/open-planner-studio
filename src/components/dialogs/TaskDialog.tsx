@@ -21,6 +21,7 @@ import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSe
 import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
+import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 
 /** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
@@ -47,6 +48,8 @@ export function TaskDialog() {
   const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
+  const customTaskTypes = useAppStore(s => s.customTaskTypes);
+  const ensureProjectTaskType = useAppStore(s => s.ensureProjectTaskType);
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
@@ -134,6 +137,11 @@ export function TaskDialog() {
 
   const handleSave = () => {
     if (!draft.name.trim()) return;
+    if (draft.customTaskTypeId) {
+      const definition = customTaskTypes.find(type => type.id === draft.customTaskTypeId)
+        ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
+      if (definition) ensureProjectTaskType(definition);
+    }
 
     // Duur-schrijfregel (§6.4): uur-taak ⇒ `durationMinutes = totaalUren × 60` + afgeleide
     // `scheduleDuration` (dagen). Dag-taak/mijlpaal ⇒ het naakte aantal werkdagen, GEEN
@@ -305,6 +313,7 @@ export function TaskDialog() {
             onChange={onChange}
             onCalendarChange={id => onChange({ calendarId: id })}
             hideName
+            materializeTaskType={false}
           />
 
           {/* Bovenliggende taak (item 2, besluit 2): blijft dialoog-only — bestaat niet in het

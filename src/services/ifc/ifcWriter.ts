@@ -6,6 +6,7 @@ import { Project, SchedulingOptions } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
+import type { CustomTaskType } from '@/types/taskType';
 import {
   effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
@@ -132,6 +133,7 @@ export function writeIFC(input: WriteIFCInput): string {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes = [],
     customFieldDefs = [],
+    customTaskTypes = [],
     resourceCalendars = [],
     baselines = [],
     activeBaselineId = null,
@@ -240,7 +242,8 @@ export function writeIFC(input: WriteIFCInput): string {
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
   for (const task of tasks) {
     const effCal = effCalByTask.get(task.id);
-    writeTask(ctx, task, ownerHistId, project.statusDate, isHourCalendar(effCal), effCal?.hoursPerDay ?? calendar.hoursPerDay);
+    writeTask(ctx, task, ownerHistId, project.statusDate, isHourCalendar(effCal), effCal?.hoursPerDay ?? calendar.hoursPerDay,
+      customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name);
   }
 
   // WBS nesting
@@ -293,6 +296,7 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Structuurdefinities (activity codes / custom fields) + waarden per taak + projectsettings
   writeStructure(ctx, project, tasks, activityCodeTypes, customFieldDefs, ownerHistId);
+  writeTaskTypeMeta(ctx, tasks, customTaskTypes, ownerHistId);
   // Bedrijfsbibliotheek-pool (spec B1, §4): alleen een pool-BESTAND draagt dit; anders undefined ⇒ niets.
   writeLibraryPool(ctx, ownerHistId, libraryPool);
 
@@ -311,6 +315,25 @@ export function writeIFC(input: WriteIFCInput): string {
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
   return header + ctx.lines.join('\n') + footer;
+}
+
+/** Eigen taaktypen blijven IFC-geldig: de taak zelf is `.USERDEFINED.` met een ObjectType-label;
+ * deze project-pset bewaart alleen de stabiele OPS-id en projectkopie. */
+function writeTaskTypeMeta(
+  ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
+): void {
+  const used = new Set(tasks.map(t => t.customTaskTypeId).filter((id): id is string => !!id));
+  const definitions = customTaskTypes.filter(t => used.has(t.id));
+  if (definitions.length === 0) return;
+  const taskTypeIds: Record<string, string> = {};
+  for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[guidOf(ctx, task.id)] = task.customTaskTypeId;
+  const value = JSON.stringify({ definitions, taskTypeIds });
+  const propId = addLine(ctx, '_ps_tasktypes_json',
+    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(value)}),$)`);
+  const setId = addLine(ctx, '_pset_tasktypes',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tasktypes'))},#${ownerHistId},${ifcStr(PSET.TaskTypes)},$,(#${propId}))`);
+  addLine(ctx, '_rel_tasktypes',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_tasktypes'))},#${ownerHistId},$,$,(#${ctx.idMap.get('_project')}),#${setId})`);
 }
 
 // FIELD_MEASURE (IfcSimplePropertyTemplate.PrimaryMeasureType per custom-field-type) is verhuisd
@@ -850,7 +873,7 @@ function writeCalendarLibrary(
 
 function writeTask(
   ctx: WriteContext, task: Task, ownerHistId: number, statusDate: string | undefined,
-  isHour: boolean, effHoursPerDay: number,
+  isHour: boolean, effHoursPerDay: number, customTaskTypeLabel?: string,
 ): void {
   const t = task.time;
   // Fase 2.8b (§7.1): in UUR-modus dragen de datetimes de echte tijd-van-de-dag en is de duur
@@ -888,7 +911,7 @@ function writeTask(
     `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);
 
   const taskCtx: TaskWriteCtx = {
-    task, ownerHistId, guidArg: ifcStr(guidOf(ctx, task.id)), taskTimeId,
+    task, ownerHistId, guidArg: ifcStr(guidOf(ctx, task.id)), taskTimeId, customTaskTypeLabel,
   };
   addLine(ctx, `task_${task.id}`,
     `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);

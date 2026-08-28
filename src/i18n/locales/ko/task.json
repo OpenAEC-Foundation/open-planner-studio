@@ -28,7 +28,8 @@
     "MOVE": "이전",
     "RENOVATION": "리모델링",
     "MAINTENANCE": "유지보수",
-    "USERDEFINED": "기타"
+    "USERDEFINED": "기타",
+    "builtinGroup": "기본 제공 유형", "personalGroup": "내 작업 유형", "projectGroup": "이 프로젝트에서", "new": "+ 새 작업 유형…", "manage": "작업 유형 관리…", "newTitle": "새 작업 유형", "manageTitle": "작업 유형 관리", "name": "이름", "fixed": "고정", "empty": "개인 작업 유형이 아직 없습니다.", "rename": "편집", "remove": "삭제", "addToMine": "내 작업 유형에 추가", "confirmRemove": "이 유형은 열린 프로젝트에서 사용됩니다. 내 작업 유형에서 삭제할까요? 프로젝트 사본은 유지됩니다."
   },
   "dialog": {
     "editTitle": "작업 편집",

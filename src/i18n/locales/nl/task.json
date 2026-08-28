@@ -28,7 +28,21 @@
     "MOVE": "Verplaatsing",
     "RENOVATION": "Renovatie",
     "MAINTENANCE": "Onderhoud",
-    "USERDEFINED": "Overig"
+    "USERDEFINED": "Overig",
+    "builtinGroup": "Ingebouwde typen",
+    "personalGroup": "Mijn taaktypen",
+    "projectGroup": "Uit dit project",
+    "new": "+ Nieuw taaktype…",
+    "manage": "Taaktypen beheren…",
+    "newTitle": "Nieuw taaktype",
+    "manageTitle": "Taaktypen beheren",
+    "name": "Naam",
+    "fixed": "Vast",
+    "empty": "Nog geen eigen taaktypen.",
+    "rename": "Bewerken",
+    "remove": "Verwijderen",
+    "addToMine": "Toevoegen aan mijn taaktypen",
+    "confirmRemove": "Dit type wordt in het geopende project gebruikt. Verwijderen uit Mijn taaktypen? De projectkopie blijft behouden."
   },
   "dialog": {
     "editTitle": "Taak bewerken",

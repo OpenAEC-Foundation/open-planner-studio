@@ -28,7 +28,8 @@
     "MOVE": "搬迁",
     "RENOVATION": "翻新",
     "MAINTENANCE": "维护",
-    "USERDEFINED": "其他"
+    "USERDEFINED": "其他",
+    "builtinGroup": "内置类型", "personalGroup": "我的任务类型", "projectGroup": "来自此项目", "new": "+ 新建任务类型…", "manage": "管理任务类型…", "newTitle": "新建任务类型", "manageTitle": "管理任务类型", "name": "名称", "fixed": "固定", "empty": "尚无个人任务类型。", "rename": "编辑", "remove": "删除", "addToMine": "添加到我的任务类型", "confirmRemove": "此类型正在当前项目中使用。要从我的任务类型中删除吗？项目副本将保留。"
   },
   "dialog": {
     "editTitle": "编辑任务",

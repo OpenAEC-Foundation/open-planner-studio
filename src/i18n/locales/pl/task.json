@@ -28,7 +28,8 @@
     "MOVE": "Przeniesienie",
     "RENOVATION": "Renowacja",
     "MAINTENANCE": "Konserwacja",
-    "USERDEFINED": "Inne"
+    "USERDEFINED": "Inne",
+    "builtinGroup": "Typy wbudowane", "personalGroup": "Moje typy zadań", "projectGroup": "Z tego projektu", "new": "+ Nowy typ zadania…", "manage": "Zarządzaj typami zadań…", "newTitle": "Nowy typ zadania", "manageTitle": "Zarządzaj typami zadań", "name": "Nazwa", "fixed": "Stałe", "empty": "Brak własnych typów zadań.", "rename": "Edytuj", "remove": "Usuń", "addToMine": "Dodaj do moich typów zadań", "confirmRemove": "Ten typ jest używany w otwartym projekcie. Usunąć z moich typów zadań? Kopia projektu pozostanie."
   },
   "dialog": {
     "editTitle": "Edytuj zadanie",

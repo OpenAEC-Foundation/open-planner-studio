@@ -79,7 +79,7 @@ const TASK_TIME_VERDICTS = {
 } satisfies Record<keyof TaskTime, MoveVerdict>;
 
 const TASK_VERDICTS = {
-  id: 'n/a', name: 'n/a', description: 'n/a', wbsCode: 'n/a', taskType: 'n/a', status: 'n/a',
+  id: 'n/a', name: 'n/a', description: 'n/a', wbsCode: 'n/a', taskType: 'n/a', customTaskTypeId: 'n/a', status: 'n/a',
   isMilestone: 'n/a', milestoneKind: 'n/a', mandatory: 'n/a', priority: 'n/a',
   levelingDelay: 'n/a',           // vertraging in werkdagen (relatief)
   levelingDelayMinutes: 'n/a',    // Z0: subdag-precisie van levelingDelay, zelfde relatieve aard

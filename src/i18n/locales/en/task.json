@@ -28,7 +28,21 @@
     "MOVE": "Relocation",
     "RENOVATION": "Renovation",
     "MAINTENANCE": "Maintenance",
-    "USERDEFINED": "Other"
+    "USERDEFINED": "Other",
+    "builtinGroup": "Built-in types",
+    "personalGroup": "My task types",
+    "projectGroup": "From this project",
+    "new": "+ New task type…",
+    "manage": "Manage task types…",
+    "newTitle": "New task type",
+    "manageTitle": "Manage task types",
+    "name": "Name",
+    "fixed": "Fixed",
+    "empty": "No personal task types yet.",
+    "rename": "Edit",
+    "remove": "Remove",
+    "addToMine": "Add to my task types",
+    "confirmRemove": "This type is used in the open project. Remove it from My task types? The project copy remains."
   },
   "dialog": {
     "editTitle": "Edit task",

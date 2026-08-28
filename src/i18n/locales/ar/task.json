@@ -28,7 +28,8 @@
     "MOVE": "نقل",
     "RENOVATION": "تجديد",
     "MAINTENANCE": "صيانة",
-    "USERDEFINED": "أخرى"
+    "USERDEFINED": "أخرى",
+    "builtinGroup": "أنواع مدمجة", "personalGroup": "أنواع مهامي", "projectGroup": "من هذا المشروع", "new": "+ نوع مهمة جديد…", "manage": "إدارة أنواع المهام…", "newTitle": "نوع مهمة جديد", "manageTitle": "إدارة أنواع المهام", "name": "الاسم", "fixed": "ثابت", "empty": "لا توجد أنواع مهام شخصية بعد.", "rename": "تحرير", "remove": "حذف", "addToMine": "أضف إلى أنواع مهامي", "confirmRemove": "هذا النوع مستخدم في المشروع المفتوح. هل تريد حذفه من أنواع مهامي؟ ستبقى نسخة المشروع."
   },
   "dialog": {
     "editTitle": "تعديل المهمة",

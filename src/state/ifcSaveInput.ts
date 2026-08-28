@@ -17,6 +17,7 @@ export type IFCSaveSource = Pick<
   | 'assignments'
   | 'activityCodeTypes'
   | 'customFieldDefs'
+  | 'customTaskTypes'
   | 'calendars'
   | 'baselines'
   | 'activeBaselineId'
@@ -39,6 +40,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     assignments: src.assignments,
     activityCodeTypes: src.activityCodeTypes,
     customFieldDefs: src.customFieldDefs,
+    customTaskTypes: src.customTaskTypes,
     resourceCalendars: src.calendars,
     baselines: src.baselines,
     activeBaselineId: src.activeBaselineId,
@@ -49,7 +51,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
  *  deze lijst aan het type, zodat hij niet stil kan afdrijven van `buildWriteIFCInput`. */
 const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
-  'activityCodeTypes', 'customFieldDefs', 'calendars', 'baselines', 'activeBaselineId',
+  'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;

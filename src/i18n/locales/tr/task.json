@@ -28,7 +28,8 @@
     "MOVE": "Taşıma",
     "RENOVATION": "Yenileme",
     "MAINTENANCE": "Bakım",
-    "USERDEFINED": "Diğer"
+    "USERDEFINED": "Diğer",
+    "builtinGroup": "Yerleşik türler", "personalGroup": "Görev türlerim", "projectGroup": "Bu projeden", "new": "+ Yeni görev türü…", "manage": "Görev türlerini yönet…", "newTitle": "Yeni görev türü", "manageTitle": "Görev türlerini yönet", "name": "Ad", "fixed": "Sabit", "empty": "Henüz kişisel görev türü yok.", "rename": "Düzenle", "remove": "Sil", "addToMine": "Görev türlerime ekle", "confirmRemove": "Bu tür açık projede kullanılıyor. Görev türlerimden silinsin mi? Proje kopyası korunur."
   },
   "dialog": {
     "editTitle": "Görevi düzenle",

@@ -1,4 +1,5 @@
 import type { CustomFieldValue } from '@/types/structure';
+export type { CustomTaskType } from '@/types/taskType';
 
 export type TaskType =
   | 'CONSTRUCTION'
@@ -294,6 +295,9 @@ export interface Task {
   description: string;
   wbsCode: string;
   taskType: TaskType;
+  /** Alleen bij `USERDEFINED`: stabiele verwijzing naar de projectcatalogus. Ontbreekt bij
+   * oudere IFC-bestanden die USERDEFINED zonder OPS-definitie gebruikten. */
+  customTaskTypeId?: string;
   status: TaskStatus;
   isMilestone: boolean;
   /** Alleen relevant bij isMilestone; undefined = automatisch (zie MilestoneKind). */

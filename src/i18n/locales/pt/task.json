@@ -28,7 +28,8 @@
     "MOVE": "Transferência",
     "RENOVATION": "Renovação",
     "MAINTENANCE": "Manutenção",
-    "USERDEFINED": "Outro"
+    "USERDEFINED": "Outro",
+    "builtinGroup": "Tipos integrados", "personalGroup": "Meus tipos de tarefa", "projectGroup": "Deste projeto", "new": "+ Novo tipo de tarefa…", "manage": "Gerir tipos de tarefa…", "newTitle": "Novo tipo de tarefa", "manageTitle": "Gerir tipos de tarefa", "name": "Nome", "fixed": "Fixo", "empty": "Ainda não há tipos de tarefa pessoais.", "rename": "Editar", "remove": "Remover", "addToMine": "Adicionar aos meus tipos de tarefa", "confirmRemove": "Este tipo é usado no projeto aberto. Removê-lo dos meus tipos de tarefa? A cópia do projeto permanece."
   },
   "dialog": {
     "editTitle": "Editar tarefa",

@@ -209,6 +209,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       calendars: deepClone(src.calendars),
       activityCodeTypes: deepClone(src.activityCodeTypes),
       customFieldDefs: deepClone(src.customFieldDefs),
+      customTaskTypes: deepClone(src.customTaskTypes),
       baselines: deepClone(src.baselines),
       activeBaselineId: src.activeBaselineId,
       cpmResult: src.cpmResult,

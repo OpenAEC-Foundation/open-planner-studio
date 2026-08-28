@@ -28,7 +28,8 @@
     "MOVE": "Trasferimento",
     "RENOVATION": "Ristrutturazione",
     "MAINTENANCE": "Manutenzione",
-    "USERDEFINED": "Altro"
+    "USERDEFINED": "Altro",
+    "builtinGroup": "Tipi integrati", "personalGroup": "I miei tipi di attività", "projectGroup": "Da questo progetto", "new": "+ Nuovo tipo di attività…", "manage": "Gestisci tipi di attività…", "newTitle": "Nuovo tipo di attività", "manageTitle": "Gestisci tipi di attività", "name": "Nome", "fixed": "Fisso", "empty": "Nessun tipo di attività personale.", "rename": "Modifica", "remove": "Rimuovi", "addToMine": "Aggiungi ai miei tipi di attività", "confirmRemove": "Questo tipo è usato nel progetto aperto. Rimuoverlo dai miei tipi di attività? La copia del progetto rimane."
   },
   "dialog": {
     "editTitle": "Modifica attività",

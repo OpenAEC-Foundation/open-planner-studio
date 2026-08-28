@@ -7,6 +7,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
 import { csvDateOrToday } from '@/services/importDates';
 import type { ImportResult } from '@/services/importTypes';
+import type { CustomTaskType } from '@/types/taskType';
 
 interface ParsedRow {
   wbs: string;
@@ -220,17 +221,35 @@ export function readCSV(content: string): ImportResult {
   // Create tasks and map WBS -> task id
   const tasks: Task[] = [];
   const wbsToId = new Map<string, string>();
+  // Een niet-IFC-classificatie uit CSV is geen reden om gegevens naar CONSTRUCTION te degraderen.
+  // Hij wordt uitsluitend in dit geïmporteerde project een USERDEFINED-type, nooit automatisch
+  // onderdeel van de persoonlijke app-brede lijst.
+  const customByName = new Map<string, CustomTaskType>();
 
   for (const row of rows) {
     const id = generateId('task');
     wbsToId.set(row.wbs, id);
 
+    const rawType = row.taskType.trim();
+    const parsedType = parseTaskType(rawType);
+    const isBuiltin = TASK_TYPES.includes(rawType.toUpperCase() as TaskType);
+    let customTaskTypeId: string | undefined;
+    if (rawType && !isBuiltin) {
+      const key = rawType.toLocaleLowerCase();
+      let custom = customByName.get(key);
+      if (!custom) {
+        custom = { id: generateId('tasktype'), name: rawType };
+        customByName.set(key, custom);
+      }
+      customTaskTypeId = custom.id;
+    }
     tasks.push({
       id,
       name: row.name,
       description: row.description,
       wbsCode: row.wbs,
-      taskType: parseTaskType(row.taskType),
+      taskType: customTaskTypeId ? 'USERDEFINED' : parsedType,
+      ...(customTaskTypeId ? { customTaskTypeId } : {}),
       status: parseStatus(row.status),
       isMilestone: row.duration === 0,
       priority: 0,
@@ -310,5 +329,6 @@ export function readCSV(content: string): ImportResult {
     sequences,
     resources: [],
     assignments: [],
+    customTaskTypes: [...customByName.values()],
   };
 }

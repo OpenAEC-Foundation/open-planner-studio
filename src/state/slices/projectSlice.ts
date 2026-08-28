@@ -6,6 +6,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { diffDays } from '@/utils/dateUtils';
@@ -127,6 +128,7 @@ export interface ProjectSlice {
     resourceCalendars?: WorkCalendar[];
     activityCodeTypes?: ActivityCodeType[];
     customFieldDefs?: CustomFieldDef[];
+    customTaskTypes?: CustomTaskType[];
     baselines?: Baseline[];
     activeBaselineId?: string | null;
   }) => void;

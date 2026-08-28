@@ -28,7 +28,8 @@
     "MOVE": "Umzug",
     "RENOVATION": "Renovierung",
     "MAINTENANCE": "Wartung",
-    "USERDEFINED": "Sonstiges"
+    "USERDEFINED": "Sonstiges",
+    "builtinGroup": "Integrierte Typen", "personalGroup": "Meine Aufgabentypen", "projectGroup": "Aus diesem Projekt", "new": "+ Neuer Aufgabentyp…", "manage": "Aufgabentypen verwalten…", "newTitle": "Neuer Aufgabentyp", "manageTitle": "Aufgabentypen verwalten", "name": "Name", "fixed": "Fest", "empty": "Noch keine eigenen Aufgabentypen.", "rename": "Bearbeiten", "remove": "Löschen", "addToMine": "Zu meinen Aufgabentypen hinzufügen", "confirmRemove": "Dieser Typ wird im geöffneten Projekt verwendet. Aus meinen Aufgabentypen löschen? Die Projektkopie bleibt erhalten."
   },
   "dialog": {
     "editTitle": "Aufgabe bearbeiten",

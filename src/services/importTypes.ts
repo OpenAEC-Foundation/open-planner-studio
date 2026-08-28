@@ -4,6 +4,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
@@ -60,6 +61,7 @@ export interface ImportResult {
   resourceCalendars?: WorkCalendar[];
   activityCodeTypes?: ActivityCodeType[];
   customFieldDefs?: CustomFieldDef[];
+  customTaskTypes?: CustomTaskType[];
   baselines?: Baseline[];
   activeBaselineId?: string | null;
   /** OPTIONEEL — een pool-bestand (spec B1, §4) draagt zijn autoritatieve pool-JSON in het
