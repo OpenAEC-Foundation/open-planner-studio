@@ -48,7 +48,15 @@ export function resolveTaskGridCommand(input: TaskGridCommandInput): TaskGridCom
   if (!active || columns.length === 0 || rows.length === 0) return { kind: 'unhandled' };
   const rowIndex = input.rowIndex.taskIndexByRowKey.get(active.rowKey) ?? -1;
   const columnIndex = columns.indexOf(active.columnId);
-  if (rowIndex < 0 || columnIndex < 0 || event.altKey) return { kind: 'unhandled' };
+  // AltGr (fysiek: Ctrl+Alt tegelijk, gerapporteerd als event.ctrlKey === event.altKey === true)
+  // en macOS Option leveren op NL/DE/PL-indelingen resp. op de Mac afdrukbare tekens op (@, €, [,
+  // \, |, …) die de browser als één-teken `event.key` doorgeeft. Zonder deze uitzondering bailt de
+  // regel hieronder op `event.altKey` en start typen-om-te-bewerken daar nooit. Cmd+Alt (macOS) en
+  // kale Ctrl blijven wél gereserveerd voor commando's — alleen de combinatie die typografisch een
+  // letterlijk teken oplevert (nooit met metaKey) krijgt deze uitzondering, en alleen wanneer
+  // `event.key` daadwerkelijk één teken is (anders is het een navigatietoets, geen letter/cijfer).
+  const isAltTypingCombo = event.key.length === 1 && event.altKey && !event.metaKey;
+  if (rowIndex < 0 || columnIndex < 0 || (event.altKey && !isAltTypingCombo)) return { kind: 'unhandled' };
 
   if (input.mode === 'edit') {
     if (event.key === 'Escape') return { kind: 'cancel-edit', cell: active };
@@ -134,6 +142,11 @@ export function resolveTaskGridCommand(input: TaskGridCommandInput): TaskGridCom
   if (event.key === 'Insert' && !hasCommandModifier) {
     return { kind: 'insert-task', anchorRowKey: active.rowKey, targetColumnId: taskColumnId('task.name') };
   }
-  if (!hasCommandModifier && !event.altKey && event.key.length === 1) return startEdit(input, event.key);
+  // AltGr rapporteert ctrlKey===true (dus hasCommandModifier===true) — die combinatie mag hier
+  // dus NIET via `!hasCommandModifier` worden geblokkeerd zolang `isAltTypingCombo` al vaststelt
+  // dat dit een letterlijk teken is en geen commando (metaKey is daar altijd uitgesloten).
+  if ((!hasCommandModifier && !event.altKey && event.key.length === 1) || isAltTypingCombo) {
+    return startEdit(input, event.key);
+  }
   return { kind: 'unhandled' };
 }

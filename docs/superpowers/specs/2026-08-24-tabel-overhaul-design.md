@@ -535,7 +535,10 @@ typen en plakken.
   browser (WCAG 2.1.2, geen toetsenbordval) — zie hieronder.
 - Enter of F2: actieve bewerkbare cel bewerken.
 - Tijdens bewerken: Enter commit en gaat één taakrij omlaag; Shift+Enter commit en gaat omhoog.
-- Direct typen: vervangt de bestaande celinhoud en start bewerken.
+- Direct typen: vervangt de bestaande celinhoud en start bewerken. Dit geldt ook voor AltGr
+  (fysiek Ctrl+Alt tegelijk — NL/DE/PL-toetsenbordindelingen gebruiken dat voor @, €, [, \, |, …)
+  en voor macOS Option, zolang `event.key` één afdrukbaar teken is en metaKey niet is ingedrukt.
+  Kale Ctrl (zonder Alt) en elke combinatie met metaKey (Cmd) blijven commando's, geen typen.
 - Escape: annuleert en herstelt de oude waarde tijdens bewerken. In selectiemodus (geen editor
   open) verhuist Escape de browserfocus naar de gridcontainer zonder de actieve cel te wijzigen —
   ook dit is de expliciete uitgang uit de grid, zie hieronder.

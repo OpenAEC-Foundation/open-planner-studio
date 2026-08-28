@@ -118,10 +118,13 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
     key: string,
     options: {
       mode?: 'select' | 'edit'; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean;
-      activeCell?: typeof active; readOnly?: boolean; viewportHeight?: number;
+      altKey?: boolean; activeCell?: typeof active; readOnly?: boolean; viewportHeight?: number;
     } = {},
   ) => resolveTaskGridCommand({
-    event: { key, shiftKey: options.shiftKey, ctrlKey: options.ctrlKey, metaKey: options.metaKey },
+    event: {
+      key, shiftKey: options.shiftKey, ctrlKey: options.ctrlKey, metaKey: options.metaKey,
+      altKey: options.altKey,
+    },
     mode: options.mode ?? 'select',
     active: options.activeCell ?? active,
     rowIndex: taskRowIndex,
@@ -163,6 +166,23 @@ for (const control of ['text', 'number', 'select', 'other'] as GridControlKind[]
   eq('Delete vraagt atomaire leegmaak', command('Delete'), { kind: 'clear-cells' });
   eq('Backspace vraagt atomaire leegmaak', command('Backspace'), { kind: 'clear-cells' });
   eq('Direct typen start vervangende editor', command('x'), { kind: 'start-edit', cell: active, replacement: 'x' });
+
+  // FIX 7 (eindreview): AltGr (fysiek Ctrl+Alt, NL/DE/PL-indelingen) en macOS Option leveren
+  // afdrukbare tekens op (@, €, [, \, |, …) die eerder nergens een editor startten, omdat de
+  // functie op elke `event.altKey` bailde. Cmd(+Alt) en kale Ctrl blijven wél commando's.
+  eq('AltGr+@ (Ctrl+Alt samen) start typen-om-te-bewerken',
+    command('@', { ctrlKey: true, altKey: true }), { kind: 'start-edit', cell: active, replacement: '@' });
+  eq('macOS Option+e (kaal Alt) start typen-om-te-bewerken',
+    command('e', { altKey: true }), { kind: 'start-edit', cell: active, replacement: 'e' });
+  eq('Cmd+Option (metaKey erbij) blijft een commando, geen typen',
+    command('e', { altKey: true, metaKey: true }), { kind: 'unhandled' });
+  eq('Kale Ctrl zonder Alt blijft een commando, geen typen',
+    command('c', { ctrlKey: true }), { kind: 'unhandled' });
+  eq('Ctrl+C (kopiëren) blijft onaangeroerd een commando',
+    command('c', { ctrlKey: true }), { kind: 'unhandled' });
+  eq('Alt+ArrowLeft (geen afdrukbaar teken) blijft gereserveerd voor uitspringen',
+    command('ArrowLeft', { altKey: true }), { kind: 'unhandled' });
+
   eq('Insert vraagt bewaakte taakinsert', command('Insert'), { kind: 'insert-task', anchorRowKey: 't2', targetColumnId: taskColumnId('task.name') });
   eq('Ctrl+pijl-links blijft voor bestaande structuurshortcut', command('ArrowLeft', { ctrlKey: true }), { kind: 'unhandled' });
   eq('Ctrl+pijl-rechts blijft voor bestaande structuurshortcut', command('ArrowRight', { ctrlKey: true }), { kind: 'unhandled' });
