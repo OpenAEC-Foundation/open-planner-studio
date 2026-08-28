@@ -30,6 +30,9 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
+import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseInstant, formatInstant } from '@/utils/dateUtils';
 
 const S = () => useAppStore.getState();
 
@@ -43,9 +46,14 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   checks++;
   if (actual !== expected) diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
 }
+/** Getalvergelijking met tolerantie — voor px-posities die uit een deling volgen. */
+function near(label: string, actual: number, expected: number, tol = 0.01): void {
+  checks++;
+  if (!(Math.abs(actual - expected) <= tol)) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected} (±${tol})`);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Deel A — GanttRenderer (canvas)
+// Gedeeld gereedschap — de canvas-opnemer en de twee kalenders
 // ═══════════════════════════════════════════════════════════════════════════
 
 interface RRect { x: number; y: number; w: number; h: number; fillStyle: string }
@@ -94,6 +102,116 @@ const DAY_CAL: WorkCalendar = {
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Deel 0 — `computeSplitSegments` rechtstreeks: LIGT DE AS GOED?
+//
+// De as-definitie (H1) staat in `TaskSplitGap`'s docblok en wordt door `splitTotalSpanMinutes`
+// (`duration.ts`) al zo gelezen: `afterMinutes` is de positie van het gat op MSP's cumulatieve
+// `elapsedWorkMinutes`-as, en die telt de EERDERE GATEN AL MEE. Het zuivere werksegment vóór een
+// gat is dus `afterMinutes − asPositie`, met een asPositie die na elk gat naar
+// `afterMinutes + gapMinutes` springt.
+//
+// De renderer las die as eerder fout (asPositie sprong naar `afterMinutes`, dus zónder de gatlengte
+// erbij) en telde elk voorgaand gat daardoor DUBBEL. Dat is met een assertie op het AANTAL
+// segmenten niet te zien — beide lezingen geven evenveel segmenten. Alleen de GRENZEN verraden het,
+// en alleen bij ≥2 gaten die elkaar op de as niet overlappen. Vandaar dit blok.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const dayEng = new CalendarEngine(DAY_CAL);
+const hourEng = new CalendarEngine(HOUR_CAL);
+
+/** Segmentgrenzen als `"start→eind"`-strings, zodat één `eq` de hele lijst toetst. */
+function segStrings(
+  gaps: TaskSplitGap[] | undefined, from: string, to: string, hourMode: boolean, eng: CalendarEngine,
+): string {
+  const mode = hourMode ? 'hour' : 'day';
+  return computeSplitSegments(gaps, parseInstant(from), parseInstant(to), hourMode, eng)
+    .map(s => `${formatInstant(s.start, mode)}→${formatInstant(s.end, mode)}`)
+    .join(' | ');
+}
+
+// ── 0a. Dag-modus, twee NIET-overlappende gaten (de reviewer-reproductie) ──────────────────────
+//    3 zuivere werkdagen met twee gaten van 1 dag. Op de correcte as: gat 1 op 480 (na dag 1),
+//    gat 2 op 1440 (= 480 werk + 480 gat + 480 werk). CPM-spanne = 5 werkdagen ⇒ ma 06-01 t/m
+//    vr 06-05. De werkblokken zijn dus ma | wo | vr, elk exact één dag.
+//    De oude, foute as gaf hier 06-01→06-02, 06-03→06-05 (twéé werkdagen waar er één hoort) en
+//    06-08→06-05 — een segment dat ACHTERSTEVOREN, ná het taakeinde begint.
+console.log('-- split-bar-render: as-definitie (H1) bij twee niet-overlappende gaten --');
+eq(
+  'dag-modus, gaten {480,480}+{1440,480} ⇒ werkblokken ma | wo | vr',
+  segStrings([{ afterMinutes: 480, gapMinutes: 480 }, { afterMinutes: 1440, gapMinutes: 480 }],
+    '2026-06-01', '2026-06-05', false, dayEng),
+  '2026-06-01→2026-06-02 | 2026-06-03→2026-06-04 | 2026-06-05→2026-06-05',
+);
+
+// ── 0b. Uur-modus, twee niet-overlappende gaten van een uur ────────────────────────────────────
+//    Werk 120 | gat 60 | werk 120 | gat 60 | werk 120 op één werkdag 08:00-16:00.
+//    As: gat 1 op 120, gat 2 op 300 (= 120 werk + 60 gat + 120 werk). Spanne 480 min ⇒ 08:00-16:00.
+eq(
+  'uur-modus, gaten {120,60}+{300,60} ⇒ 08-10 | 11-13 | 14-16',
+  segStrings([{ afterMinutes: 120, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }],
+    '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
+  '2026-06-01T08:00→2026-06-01T10:00 | 2026-06-01T11:00→2026-06-01T13:00 | 2026-06-01T14:00→2026-06-01T16:00',
+);
+
+// ── 0c. Drie gaten: de fout groeide met elk volgend gat (het derde segment liep bij de oude as
+//    drie gatlengtes achter). Werk 60 | gat 60 | werk 60 | gat 60 | werk 60 | gat 60 | werk 60. ──
+eq(
+  'uur-modus, drie gaten ⇒ vier gelijke werkblokken van een uur',
+  segStrings(
+    [{ afterMinutes: 60, gapMinutes: 60 }, { afterMinutes: 180, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }],
+    '2026-06-01T08:00', '2026-06-01T15:00', true, hourEng),
+  '2026-06-01T08:00→2026-06-01T09:00 | 2026-06-01T10:00→2026-06-01T11:00 | '
+  + '2026-06-01T12:00→2026-06-01T13:00 | 2026-06-01T14:00→2026-06-01T15:00',
+);
+
+// ── 0d. Volgorde-onafhankelijk: dezelfde gaten omgekeerd aangeleverd geven dezelfde grenzen ────
+eq(
+  'ongesorteerde invoer geeft dezelfde grenzen',
+  segStrings([{ afterMinutes: 300, gapMinutes: 60 }, { afterMinutes: 120, gapMinutes: 60 }],
+    '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
+  segStrings([{ afterMinutes: 120, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }],
+    '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
+);
+
+// ── 0e. Overlappende gaten vallen samen tot ÉÉN werkonderbreking — dezelfde klemregel als
+//    `splitTotalSpanMinutes` (`duration.ts`) hanteert, dus het aantal zichtbare werkblokken komt
+//    overeen met wat de CPM-spanne telt. Gat 1 beslaat de as [120,240); gat 2 begint op 180 en
+//    ligt dus middenin gat 1 — geklemd op 240, doorlopend tot 300. Samen één onderbreking over de
+//    as [120,300), dus 10:00-13:00. ────────────────────────────────────────────────────────────
+eq(
+  'overlappende gaten ⇒ 2 werkblokken (samengevoegd tot één onderbreking)',
+  segStrings([{ afterMinutes: 120, gapMinutes: 120 }, { afterMinutes: 180, gapMinutes: 120 }],
+    '2026-06-01T08:00', '2026-06-01T14:00', true, hourEng),
+  '2026-06-01T08:00→2026-06-01T10:00 | 2026-06-01T13:00→2026-06-01T14:00',
+);
+
+// ── 0f. Vijandige invoer (`splitGaps` is afgeleide data en kan via IFC/MCP corrupt binnenkomen):
+//    NaN/Infinity/niet-positieve gatlengtes worden overgeslagen, en geen enkele grens komt ooit
+//    voorbij het taakeinde te liggen. ──────────────────────────────────────────────────────────
+eq(
+  'ontaarde gaten (NaN/Infinity/gapMinutes<=0) worden overgeslagen ⇒ één doorlopende balk',
+  segStrings(
+    [{ afterMinutes: NaN, gapMinutes: 60 }, { afterMinutes: 120, gapMinutes: 0 },
+      { afterMinutes: 60, gapMinutes: -120 }, { afterMinutes: Infinity, gapMinutes: 60 }],
+    '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
+  '2026-06-01T08:00→2026-06-01T16:00',
+);
+{
+  const wild = computeSplitSegments(
+    [{ afterMinutes: 480, gapMinutes: 480 }, { afterMinutes: 100000, gapMinutes: 480 }],
+    parseInstant('2026-06-01'), parseInstant('2026-06-05'), false, dayEng,
+  );
+  const endMs = parseInstant('2026-06-05').getTime();
+  ok('geen enkele segmentgrens komt voorbij het taakeinde',
+    wild.every(s => s.start.getTime() <= endMs && s.end.getTime() <= endMs));
+  ok('geen enkel segment loopt achterstevoren', wild.every(s => s.end.getTime() >= s.start.getTime()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Deel A — GanttRenderer (canvas)
+// ═══════════════════════════════════════════════════════════════════════════
+
 S().newProject();
 S().addTask({ name: 'basis' });
 const base = S().tasks[0];
@@ -115,7 +233,10 @@ function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { 
     rows,
     sequences: [],
     calendar: DAY_CAL,
-    effectiveCalById: new Map([['row0', HOUR_CAL], ['row1', HOUR_CAL], ['row2', HOUR_CAL], ['dayrow', DAY_CAL]]),
+    effectiveCalById: new Map([
+      ['row0', HOUR_CAL], ['row1', HOUR_CAL], ['row2', HOUR_CAL],
+      ['dayrow', DAY_CAL], ['dayrow2', DAY_CAL],
+    ]),
     view,
     selectedTaskIds: [],
     collapsedTaskIds: [],
@@ -137,24 +258,75 @@ const barTop = (i: number) => HDRH + i * ROWH;
 const inRow = (r: { y: number }, i: number) => r.y >= barTop(i) && r.y < barTop(i + 1);
 const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
 
-// ── 1. Taak met 2 gaten ⇒ 3 roundRect-aanroepen op die rij + de necking-connector ertussen ────
-console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten + connector --');
+// ── 1. Taak met 2 NIET-OVERLAPPENDE gaten ⇒ 3 roundRect-aanroepen op die rij, op de X-POSITIES
+//    die de as voorschrijft, plus de necking-connector ertussen.
+//
+//    Het aantal segmenten alleen is geen bewijs: beide as-lezingen geven er drie. Deze case pint
+//    daarom de randen. Uur-modus, werkdag 08:00-16:00, zoom 240 px/dag ⇒ 10 px/uur en x(08:00)=380.
+//    Werk 120 | gat 60 | werk 120 | gat 60 | werk 120 ⇒ blokken 08-10, 11-13, 14-16, dus
+//    x = 380..400, 410..430, 440..460 — drie blokken van 20 px met 10 px ertussen.
+console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-posities + connector --');
 {
   const twoGaps: TaskSplitGap[] = [
-    { afterMinutes: 240, gapMinutes: 480 },
-    { afterMinutes: 480, gapMinutes: 480 },
+    { afterMinutes: 120, gapMinutes: 60 },
+    { afterMinutes: 300, gapMinutes: 60 },
   ];
   const rows: ViewRow[] = [
-    { kind: 'task', task: hourTask('row0', '2026-06-01T08:00', '2026-06-04T12:00', twoGaps), depth: 0, dimmed: false },
+    { kind: 'task', task: hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps), depth: 0, dimmed: false },
   ];
   // barSplitMode:'never' — bewijst meteen mede dat de necking-instelling hier NIET aan te pas komt
   // (O5): met 'never' zou de kalender-necking nooit splitsen, maar `splitGaps` doet het toch.
-  const { rects, lines } = renderRows(rows, { barSplitMode: 'never' });
+  const { rects, lines } = renderRows(rows, { barSplitMode: 'never', view: { ...view, zoom: 240 } });
   const row0Rects = rects.filter(r => inRow(r, 0));
   eq('2 gaten ⇒ exact 3 roundRect-aanroepen (3 segmenten) op die rij', row0Rects.length, 3);
+  if (row0Rects.length === 3) {
+    const [s1, s2, s3] = row0Rects;
+    near('segment 1 begint op x(08:00)', s1.x, 380);
+    near('segment 1 is 2 werkuren breed', s1.w, 20);
+    near('segment 2 begint op x(11:00) — NIET op 14:00 (dubbel getelde gaten)', s2.x, 410);
+    near('segment 2 is 2 werkuren breed', s2.w, 20);
+    near('segment 3 begint op x(14:00)', s3.x, 440);
+    near('segment 3 loopt tot x(16:00), het taakeinde', s3.x + s3.w, 460);
+  }
   const connectorLines = lines.filter(l => Math.abs(l.y - rowMidY(0)) < 0.01);
   eq('necking-connector: exact 1 moveTo + 1 lineTo op halve rijhoogte', connectorLines.length, 2);
   ok('connector: eerst moveTo dan lineTo', connectorLines[0]?.kind === 'move' && connectorLines[1]?.kind === 'line');
+}
+
+// ── 2. Dezelfde assertie in DAG-modus, op de reviewer-reproductie: 3 zuivere werkdagen met twee
+//    gaten van één dag ({480,480} en {1440,480}). CPM-spanne 5 werkdagen (ma 06-01 t/m vr 06-05),
+//    dus de werkblokken zijn ma | wo | vr. Met zoom 30 en viewStart 06-01 is x(06-01)=300 en elke
+//    dag 30 px breed ⇒ blokken op 300, 360 en 420, elk 30 px.
+//    Op de oude as werd blok 2 twee dagen breed en begon blok 3 ná het taakeinde (achterstevoren).
+console.log('-- split-bar-render: dag-modus, twee gaten ⇒ ma | wo | vr op de juiste x --');
+{
+  const twoDayGaps: TaskSplitGap[] = [
+    { afterMinutes: 480, gapMinutes: 480 },
+    { afterMinutes: 1440, gapMinutes: 480 },
+  ];
+  const dayTask: Task = {
+    ...base, id: 'dayrow2',
+    time: {
+      ...base.time,
+      earlyStart: '2026-06-01', earlyFinish: '2026-06-05',
+      scheduleStart: '2026-06-01', scheduleFinish: '2026-06-05', completion: 0,
+    },
+    splitGaps: twoDayGaps,
+  } as Task;
+  const { rects } = renderRows([{ kind: 'task', task: dayTask, depth: 0, dimmed: false }]);
+  const dayRects = rects.filter(r => inRow(r, 0));
+  eq('dag-modus, 2 gaten ⇒ exact 3 segmenten', dayRects.length, 3);
+  if (dayRects.length === 3) {
+    const [s1, s2, s3] = dayRects;
+    near('maandag: x 300, breedte 30', s1.x, 300);
+    near('maandag is één dag breed', s1.w, 30);
+    near('woensdag begint op x 360 — NIET op 330 (blok 2 twee dagen breed)', s2.x, 360);
+    near('woensdag is één dag breed, niet twee', s2.w, 30);
+    near('vrijdag begint op x 420, binnen de balk', s3.x, 420);
+    near('vrijdag loopt tot x 450 (inclusieve laatste dag)', s3.x + s3.w, 450);
+    ok('geen enkel segment loopt achterstevoren of buiten de balk',
+      dayRects.every(r => r.w > 0 && r.x >= 300 && r.x + r.w <= 450));
+  }
 }
 
 // ── 3. barSplitMode:'never' ⇒ een taak ZONDER splitGaps blijft ONgesplitst (scheiding van de
@@ -304,6 +476,21 @@ console.log('-- split-bar-render (print/PDF): dezelfde assertie op de Draw2D-opn
   } catch (e) { err = e; }
   ok(`renderReport gooit niet: ${String(err)}`, err === null);
   eq('print: 2 gaten ⇒ exact 3 roundRect-aanroepen (3 segmenten)', rects.length, 3);
+  // Segmentranden, net als in de Gantt — maar `renderReport`'s rij-/kolomgeometrie is bewust niet
+  // extern zichtbaar (zelfde uitleg als in `check-print-working-exceptions.ts`), dus meten we
+  // RELATIEF: segment 1 is 3 werkdagen breed, dus zijn breedte gedeeld door 3 geeft de px-per-dag
+  // van dit rapport. Daarmee liggen de overige randen vast.
+  //   werk 3d (ma 06-01→do 06-04) | gat 2d | werk 1d (ma 06-08→di 06-09) | gat 2d | rest
+  // Op de oude as werd blok 2 drie dagen breed en schoof blok 3 vier dagen op.
+  if (rects.length === 3) {
+    const [s1, s2, s3] = rects;
+    const pxPerDay = s1.w / 3;
+    ok(`opzet: rapportschaal ruim boven de 2px-minimumbreedte (${pxPerDay.toFixed(2)} px/dag)`, pxPerDay > 4);
+    near('print: gat 1 is 4 kalenderdagen breed (do→ma)', (s2.x - (s1.x + s1.w)) / pxPerDay, 4, 0.05);
+    near('print: werkblok 2 is 1 werkdag breed, niet 3', s2.w / pxPerDay, 1, 0.05);
+    near('print: gat 2 is 2 kalenderdagen breed (di→do)', (s3.x - (s2.x + s2.w)) / pxPerDay, 2, 0.05);
+    ok('print: geen segment loopt achterstevoren', [s1, s2, s3].every(r => r.w > 0));
+  }
   const connectorLines = lines.filter(isConnectorLine);
   eq('print: necking-connector — exact 1 moveTo + 1 lineTo', connectorLines.length, 2);
   ok('print: connector eerst moveTo dan lineTo', connectorLines[0]?.kind === 'move' && connectorLines[1]?.kind === 'line');
