@@ -304,6 +304,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     OPS_RELAX_PERF=0 node "$TGPERFCHECK" || STATUS=1
     unset 'BUNDLES[-1]'
   fi
+  # Bulk-plak-performance (FIX 5 uit de eindreview): eigen zware, tijdzone-onafhankelijke poort,
+  # zelfde reden als hierboven om hem niet vijf keer extra in de TZ-matrix mee te nemen.
+  TGPASTEPERFCHECK="$DIR/.task-grid-paste-performance.mjs"
+  if bundle_check "$DIR/check-task-grid-paste-performance.ts" "$TGPASTEPERFCHECK"; then
+    node "$TGPASTEPERFCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
   TGARIACHECK="$DIR/.task-grid-aria.mjs"
   if bundle_check "$DIR/check-task-grid-aria.ts" "$TGARIACHECK"; then node "$TGARIACHECK" || STATUS=1; fi
   TGDOMCHECK="$DIR/.task-grid-dom-budget.mjs"

@@ -591,11 +591,18 @@ function validCustomFieldValue(def: CustomFieldDef, value: unknown): boolean {
  * De invoertaak blijft byte-voor-byte ongemoeid; de transactie publiceert de uitkomst pas nadat
  * alle intents in dezelfde geïsoleerde draft geldig zijn bevonden.
  */
-export function planTaskCellEdit(
+/** Alles wat één celwrite oplevert, BEHALVE `changed` — die vergelijking is een volledige
+ * `JSON.stringify(task)` van beide kanten en dus verreweg de duurste stap hier. Losgetrokken van
+ * `planTaskCellEdit` omdat `planTaskCellEdits` (meervoud) deze functie per deelwrite in een lus
+ * aanroept zonder ooit naar `changed` te kijken (zie daar) — die tussentijdse `changed`-berekening
+ * was dus zuiver verspilde rekentijd, gemeten als de dominante kost achter de bulk-plak-bevriezing
+ * uit de eindreview (2.000 taken × 27 kolommen). `planTaskCellEdit` blijft voor externe aanroepers
+ * de volledige, ongewijzigde vorm — inclusief `changed` — leveren. */
+function applyOneCellEdit(
   task: Task,
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
-): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
+): GridResult<Omit<PlannedTaskEdit, 'changed'>, readonly CellValidationError[]> {
   if (task.id !== edit.taskId) return failure('taskMismatch', edit);
   const id = String(edit.columnId);
   const expected = expectedRoute(id);
@@ -631,13 +638,21 @@ export function planTaskCellEdit(
     || edit.route === 'task-constraint'
     || edit.route === 'task-hammock'
     || String(edit.columnId) === 'task.priority';
+  return { ok: true, value: { task: next, timephasedGuidanceLost, scheduleStale } };
+}
+
+export function planTaskCellEdit(
+  task: Task,
+  edit: CellEditIntent,
+  environment: TaskEditPlanEnvironment,
+): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
+  const applied = applyOneCellEdit(task, edit, environment);
+  if (!applied.ok) return applied;
   return {
     ok: true,
     value: {
-      task: next,
-      changed: JSON.stringify(task) !== JSON.stringify(next),
-      timephasedGuidanceLost,
-      scheduleStale,
+      ...applied.value,
+      changed: JSON.stringify(task) !== JSON.stringify(applied.value.task),
     },
   };
 }
@@ -673,7 +688,9 @@ export function planTaskCellEdits(
   const progressEdits = edits.filter(edit => edit.route === 'task-progress');
   for (const edit of edits) {
     if (edit.route === 'task-constraint' || edit.route === 'task-progress') continue;
-    const planned = planTaskCellEdit(next, edit, environment);
+    // applyOneCellEdit, niet planTaskCellEdit: deze lus keek nooit naar `.changed` van een
+    // tussenstap, dus de dure JSON.stringify-vergelijking hierboven was hier pure verspilling.
+    const planned = applyOneCellEdit(next, edit, environment);
     if (!planned.ok) return planned;
     next = planned.value.task;
     timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;

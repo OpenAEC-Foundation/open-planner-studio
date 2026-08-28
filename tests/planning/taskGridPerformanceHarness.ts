@@ -5,10 +5,13 @@ import { createTaskGridRowIndex, type TaskGridRowIndex } from '@/engine/taskGrid
 import { createEmptyGridSelection, updateGridSelection } from '@/engine/taskGrid/selection';
 import { computeVirtualWindow } from '@/engine/taskGrid/virtualization';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
+import { planTaskGridPaste, serializeTaskGridTsv, type TaskGridClipboardEnvironment } from '@/engine/taskGrid/clipboard';
+import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
+import { useAppStore } from '@/state/appStore';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
-import type { TaskColumnId } from '@/types/taskGrid';
+import type { TaskColumnContext, TaskColumnDescriptor, TaskColumnId } from '@/types/taskGrid';
 
 export const TASK_GRID_PERFORMANCE_COUNTS = Object.freeze({
   taskCount: 50_000,
@@ -23,11 +26,27 @@ export const TASK_GRID_PERFORMANCE_COUNTS = Object.freeze({
   selectionAdapterRelationCount: 2_999,
 });
 
+// Eindreview-bevinding: bulk-plakken bevroor de app. Gemeten 2.000 taken × 27 kolommen (16.000
+// writes) ⇒ 4.446 ms synchroon vóór de fix in gridTransaction.ts (de gezamenlijke-eindtoestand-
+// controle voor conditioneel schrijfbare cellen kopieerde daar per cel × per prefixlengte de
+// VOLLEDIGE tasksById-map). Zie runTaskGridPasteBenchmark hieronder.
+export const TASK_GRID_PASTE_PERFORMANCE_COUNTS = Object.freeze({
+  taskCount: 2_000,
+  columnCount: 27,
+});
+
 export const TASK_GRID_PERFORMANCE_BUDGETS = Object.freeze({
   relationIndexMs: 500,
   commandBatchMs: 100,
   selectionAdapterMs: 2,
   virtualWindowMs: 5,
+  // Gemeten mediaan na de FIX 5-reparaties (10 losse processen op de gebruikte sandbox): 764–1.378
+  // ms, mediaan ~1.300 ms. Budget is ~2× die mediaan, zie docs/superpowers/evidence/
+  // tabel-overhaul-review-fixes.md, sectie "Verwerking onafhankelijke eindreview". Vóór de fix was
+  // dit exact scenario niet eens haalbaar binnen enkele seconden (zie het commentaar bij
+  // TASK_GRID_PASTE_PERFORMANCE_COUNTS hierboven) — dit blijft een echte regressiegrens: hij kan
+  // falen als de gezamenlijke-eindtoestandcontrole ooit weer O(taken × schrijfacties) wordt.
+  pasteCommitMs: 3_000,
 });
 
 export interface TaskGridPerformanceFixture {
@@ -251,5 +270,121 @@ export function runTaskGridPerformanceBenchmark(
     },
     mountedRows,
     mountedDataCells: mountedRows * counts.columnCount,
+  };
+}
+
+export interface TaskGridPasteBenchmark {
+  counts: typeof TASK_GRID_PASTE_PERFORMANCE_COUNTS;
+  budgetMs: number;
+  writeCount: number;
+  prepared: boolean;
+  elapsedMs: number;
+}
+
+/**
+ * Reproduceert de bulk-plak-bevinding uit de eindreview op de ECHTE store: `wbsAutoNumber` staat
+ * aan (dus `task.wbsCode` is een conditioneel schrijfbare cel op elke rij — precies de kolom die
+ * de review aanwees), en de plak dekt alle taken × alle gekozen kolommen tegelijk. De brontekst is
+ * de eigen `copy()`-weergave van elke cel, zodat elke waarde gegarandeerd geldig parseert zonder
+ * per kolomtype handmatig een format te hoeven verzinnen. De plak hoeft niet te SLAGEN (wbsCode
+ * blijft door `wbsAutoNumber` conditioneel read-only) — de meting gaat over hoe lang de
+ * gezamenlijke-eindtoestandcontrole erover doet om dat te bepalen, niet over het eindresultaat.
+ */
+/**
+ * Genereert per (rij, kolom) een geldige, van de huidige waarde AFWIJKENDE brontekst — puur op
+ * `valueKind`, zonder een specifieke kolom-id te hoeven kennen. Nodig omdat `planTaskGridPaste`
+ * een no-op (dezelfde canonieke waarde terugplakken) al vóór de `PasteIntent` elimineert: een
+ * paste die de bestaande waarden herhaalt zou de gemeten hot path — de gezamenlijke-eindtoestand-
+ * controle in gridTransaction.ts — dus stilzwijgend overslaan.
+ */
+function syntheticPasteText(descriptor: TaskColumnDescriptor, rowIndex: number, columnIndex: number): string {
+  switch (descriptor.valueKind) {
+    case 'text': return `Gewijzigd ${rowIndex}-${columnIndex}`;
+    case 'number': return String(1 + ((rowIndex + columnIndex) % 200));
+    case 'boolean': return (rowIndex + columnIndex) % 2 === 0 ? 'true' : 'false';
+    case 'enum': {
+      const options = descriptor.editorOptions ?? [];
+      return options.length > 0 ? options[(rowIndex + columnIndex) % options.length].value : '';
+    }
+    case 'date': return '15-01-2027';
+    case 'datetime': return '15-01-2027 09:30';
+    case 'duration': return `${1 + (rowIndex % 9)}d`;
+    default: return '';
+  }
+}
+
+export function runTaskGridPasteBenchmark(): TaskGridPasteBenchmark {
+  const { taskCount, columnCount } = TASK_GRID_PASTE_PERFORMANCE_COUNTS;
+  const store = useAppStore;
+  const S = () => store.getState();
+  S().newProject();
+  S().setWbsAutoNumber(true);
+  for (let index = 0; index < taskCount; index++) S().addTask({ name: `Taak ${index}` });
+
+  const state = S();
+  const descriptors = buildTaskColumnRegistry({
+    projectId: state.project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [],
+  });
+  // Alleen gewone, per-cel bewerkbare velden — relaties/technische samengestelde kolommen
+  // ('tokens'/'technical') hebben een eigen tokenformaat en horen niet in deze meting.
+  const writable = descriptors.filter(descriptor => descriptor.readOnly !== true
+    && typeof descriptor.parse === 'function'
+    && descriptor.valueKind !== 'tokens' && descriptor.valueKind !== 'technical');
+  const wbsPosition = writable.findIndex(descriptor => descriptor.id === taskColumnId('task.wbsCode'));
+  const ordered = wbsPosition > 0
+    ? [writable[wbsPosition], ...writable.slice(0, wbsPosition), ...writable.slice(wbsPosition + 1)]
+    : writable;
+  const columns: TaskColumnId[] = ordered.slice(0, columnCount).map(descriptor => descriptor.id);
+  const columnDescriptors = ordered.slice(0, columnCount);
+  const descriptorMap = new Map(descriptors.map(descriptor => [descriptor.id, descriptor]));
+
+  const assignmentsByTaskId = new Map<string, typeof state.assignments>();
+  for (const assignment of state.assignments) {
+    const current = assignmentsByTaskId.get(assignment.taskId);
+    if (current) current.push(assignment);
+    else assignmentsByTaskId.set(assignment.taskId, [assignment]);
+  }
+  const context: TaskColumnContext = {
+    projectId: state.project.id,
+    tasksById: new Map(state.tasks.map(task => [task.id, task])),
+    relationIndex: buildTaskRelationIndex(state.tasks, state.sequences, state.cpmResult),
+    assignmentsByTaskId,
+    resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
+    baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
+    scheduleStale: state.scheduleStale,
+    wbsAutoNumber: true,
+    effectiveHoursPerDay: () => 8,
+  };
+  const matrix = state.tasks.map((_task, rowIndex) => columnDescriptors.map(
+    (descriptor, columnIndex) => syntheticPasteText(descriptor, rowIndex, columnIndex),
+  ));
+  const source = serializeTaskGridTsv(matrix);
+
+  const rows: ViewRow[] = state.tasks.map(task => ({
+    kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false,
+  }));
+  const rowIndex = createTaskGridRowIndex(rows);
+  const start = { rowKey: rows[0].rowKey, columnId: columns[0] };
+  const end = { rowKey: rows[rows.length - 1].rowKey, columnId: columns[columns.length - 1] };
+  let selection = updateGridSelection(createEmptyGridSelection(), start, rowIndex, columns, 'replace');
+  selection = updateGridSelection(selection, end, rowIndex, columns, 'extend');
+  const environment: TaskGridClipboardEnvironment = {
+    selection, rowIndex, columns, descriptors: descriptorMap, context, dateNotation: 'dmy',
+  };
+
+  const planned = planTaskGridPaste(source, environment);
+  if (!planned.ok) throw new Error('Paste-benchmarkfixture kon zichzelf niet plannen — geen geldig 2.000×27-blok');
+  const writeCount = planned.value.writes.length;
+
+  const startedAt = performance.now();
+  const result = S().runGridMutation([planned.value]);
+  const elapsedMs = performance.now() - startedAt;
+
+  return {
+    counts: TASK_GRID_PASTE_PERFORMANCE_COUNTS,
+    budgetMs: TASK_GRID_PERFORMANCE_BUDGETS.pasteCommitMs,
+    writeCount,
+    prepared: result.ok || result.errors.length > 0,
+    elapsedMs,
   };
 }

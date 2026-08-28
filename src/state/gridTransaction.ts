@@ -218,16 +218,22 @@ function orderWritesForDependentTransitions(
     ...primaryConstraintTargets.keys(), ...secondaryConstraintTargets.keys(),
     ...assignmentTaskIds,
   ]);
+  // PRESTATIE (bevinding uit de eindreview): hieronder liep vroeger `ordered.forEach(...)` — een
+  // scan over ALLE writes van de HELE paste — voor iedere taak in `affectedTaskIds` apart. Bij
+  // 2.000 taken × 27 kolommen is dat tot ~2.000 volledige scans van ~50.000 writes: verreweg de
+  // duurste stap van de bulk-plak-bevriezing uit de eindreview. Eén vooraf gebouwde index
+  // (taakid → posities) maakt dit één keer O(writes) in plaats van O(taken × writes).
+  const positionsByTaskId = new Map<string, number[]>();
+  ordered.forEach((write, index) => {
+    const existing = positionsByTaskId.get(write.taskId);
+    if (existing) existing.push(index);
+    else positionsByTaskId.set(write.taskId, [index]);
+  });
   for (const taskId of affectedTaskIds) {
     const targetMilestone = targets.get(taskId);
     const targetHammock = hammockTargets.get(taskId);
-    const positions: number[] = [];
-    const taskWrites: GridWriteIntent[] = [];
-    ordered.forEach((write, index) => {
-      if (write.taskId !== taskId) return;
-      positions.push(index);
-      taskWrites.push(write);
-    });
+    const positions = positionsByTaskId.get(taskId) ?? [];
+    const taskWrites = positions.map(position => ordered[position]);
     const rank = (write: GridWriteIntent): number => {
       let value = 0;
       if (targetMilestone === true) {
@@ -392,11 +398,17 @@ function applyCellEdits(
   state: AppState,
   edits: readonly CellEditIntent[],
   runtime: GridColumnRuntime,
+  // PRESTATIE (bevinding uit de eindreview): een `state.tasks.findIndex(...)` hier was een
+  // lineaire scan over het VOLLEDIGE document, per taak opnieuw. De caller bouwt die index al
+  // één keer (`draftTaskIndexById` in prepareGridMutation); hem hier meegeven maakt dit O(1) in
+  // plaats van O(document). De caller vervangt nooit posities in `state.tasks` (alleen elementen
+  // op dezelfde index), dus deze kaart blijft geldig zolang deze functie draait.
+  taskIndexById: ReadonlyMap<string, number>,
 ): GridResult<{ timephasedGuidanceLost: boolean }, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false } };
-  const taskIndex = state.tasks.findIndex(candidate => candidate.id === first.taskId);
-  const task = state.tasks[taskIndex];
+  const taskIndex = taskIndexById.get(first.taskId) ?? -1;
+  const task = taskIndex >= 0 ? state.tasks[taskIndex] : undefined;
   if (!task) return { ok: false, errors: [validationError('taskNotFound', first, first.value)] };
   const validatedEdits: CellEditIntent[] = [];
   for (const edit of edits) {
@@ -441,26 +453,82 @@ function applyCellEdits(
   // writes van dezelfde taak haar controller in een schrijfbare toestand zetten. De eigen write
   // telt bewust niet mee: zo kan een compacte notitiecel zichzelf niet openzetten door eerst de
   // meerdere notities te overschrijven. Dit vervangt de oude kolom-id-whitelist volledig.
+  //
+  // PRESTATIE (bevinding uit de eindreview): dit kopieerde vroeger `runtime.context.tasksById` —
+  // de VOLLEDIGE documentkaart — voor iedere combinatie van (conditioneel schrijfbare cel ×
+  // prefixlengte). Gemeten: 2.000 taken × 27 kolommen plakken deed dat tot ~2.000× per taak,
+  // resulterend in 4.446 ms synchrone bevriezing. De kaart hoeft maar ÉÉN keer per taak te worden
+  // gekopieerd — alleen `task.id` verandert tussen de projecties, de rest van het document niet —
+  // dus hij wordt hier eenmalig aangemaakt en daarna alleen die ene entry bijgewerkt (structureel
+  // gedeeld tussen alle conditioneel schrijfbare cellen en alle prefixlengtes van deze taak).
+  // Zelfde semantiek, zelfde alles-of-niets-uitkomst: op het moment dat `descriptor.readOnly`
+  // wordt aangeroepen bevat de kaart precies dezelfde waarden als de oude per-aanroep-kopie.
+  let sharedProjectedTasksById: Map<string, AppState['tasks'][number]> | null = null;
+  let sharedProjectedContext: TaskColumnContext | null = null;
+  const ensureProjectedContext = (): { tasksById: Map<string, AppState['tasks'][number]>; context: TaskColumnContext } => {
+    if (!sharedProjectedTasksById || !sharedProjectedContext) {
+      sharedProjectedTasksById = new Map(runtime.context.tasksById);
+      sharedProjectedContext = { ...runtime.context, tasksById: sharedProjectedTasksById };
+    }
+    return { tasksById: sharedProjectedTasksById, context: sharedProjectedContext };
+  };
+
+  // Alleen deze vier velden bepalen ooit de conditionele readOnly-uitkomst van een ANDERE cel
+  // (zie descriptor.readOnly hierboven in taskColumnRegistry.ts: wbsCode/milestoneKind/mandatory/
+  // constraint.hard/isHammock/scheduleDuration lezen uitsluitend `ctx.wbsAutoNumber`,
+  // `task.isMilestone`, `task.constraint?.type` of `task.isHammock`; alleen `task.notes` leest een
+  // veld dat het zelf schrijft, en heeft dus per definitie geen ANDERE write die het beïnvloedt).
+  // Tussenliggende, niet-controller writes kunnen de conditionele uitkomst dus nooit veranderen:
+  // het is voldoende ELKE controllerGRENS te bekijken, niet elke prefixlengte van ALLE overige
+  // writes. `orderWritesForDependentTransitions` heeft de controllers al in hun canonieke
+  // onderlinge volgorde gezet, dus filteren op deze vier id's uit `validatedEdits` behoudt precies
+  // die volgorde.
+  const CONTROLLER_COLUMN_IDS = new Set([
+    'task.isMilestone', 'task.isHammock', 'task.constraint.type', 'task.constraint2.type',
+  ]);
+  let sharedControllerStates: readonly { task: AppState['tasks'][number] }[] | null = null;
+  const buildControllerStates = (excludeEdit: CellEditIntent): readonly { task: AppState['tasks'][number] }[] => {
+    const controllerEdits = validatedEdits.filter(
+      candidate => candidate !== excludeEdit && CONTROLLER_COLUMN_IDS.has(String(candidate.columnId)),
+    );
+    const states: { task: AppState['tasks'][number] }[] = [{ task }];
+    for (let prefixLength = 1; prefixLength <= controllerEdits.length; prefixLength++) {
+      const projected = planTaskCellEdits(task, controllerEdits.slice(0, prefixLength), environment);
+      if (projected.ok) states.push({ task: projected.value.task });
+    }
+    return states;
+  };
+
   for (const edit of validatedEdits) {
     const descriptor = runtime.descriptors.get(String(edit.columnId));
     if (!descriptor || typeof descriptor.readOnly !== 'function'
       || !descriptor.readOnly(task, runtime.context)) continue;
+    const { tasksById: projectedTasksById, context: projectedContext } = ensureProjectedContext();
+
+    // De vrijwel altijd genomen, snelle tak: de gecontroleerde cel is zelf geen controllerveld
+    // (dat zijn wbsCode/milestoneKind/mandatory/constraint.hard/isHammock/scheduleDuration/notes),
+    // dus de gedeelde controller-alleen-toestandenreeks van deze taak dekt precies dezelfde
+    // uitkomsten als de oude, uitputtende prefixlus — nu zonder ze telkens opnieuw te herplannen.
+    if (!CONTROLLER_COLUMN_IDS.has(String(edit.columnId))) {
+      if (!sharedControllerStates) sharedControllerStates = buildControllerStates(edit);
+      let jointlyWritable = false;
+      for (const state of sharedControllerStates) {
+        projectedTasksById.set(task.id, state.task);
+        if (!descriptor.readOnly(state.task, projectedContext)) { jointlyWritable = true; break; }
+      }
+      if (!jointlyWritable) return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+      continue;
+    }
+
+    // Zeldzame/toekomstige uitzondering: de gecontroleerde cel is zelf (ook) een controllerveld.
+    // Geen enkele huidige descriptor doet dit, maar mocht dat ooit veranderen, dan valt dit terug
+    // op de oorspronkelijke, uitputtende prefixcontrole — zelfde semantiek, geen snelkoppeling.
     const otherEdits = validatedEdits.filter(candidate => candidate !== edit);
     let jointlyWritable = false;
-    // Controleer elke geldige controllerprojectie die de overige writes in hun canonieke volgorde
-    // bereiken. Dat omvat zowel vóór als ná een overgang: bij hangmat→mijlpaal is duur alleen
-    // tussen die twee controllers schrijfbaar, maar de eindtoestand canonicaliseert hem daarna
-    // terecht naar nul. De eigen write ontbreekt uit iedere projectie en kan zichzelf dus nooit
-    // openzetten.
     for (let prefixLength = 1; prefixLength <= otherEdits.length; prefixLength++) {
       const projected = planTaskCellEdits(task, otherEdits.slice(0, prefixLength), environment);
       if (!projected.ok) continue;
-      const projectedTasksById = new Map(runtime.context.tasksById);
       projectedTasksById.set(task.id, projected.value.task);
-      const projectedContext: TaskColumnContext = {
-        ...runtime.context,
-        tasksById: projectedTasksById,
-      };
       if (!descriptor.readOnly(projected.value.task, projectedContext)) {
         jointlyWritable = true;
         break;
@@ -543,7 +611,7 @@ export function prepareGridMutation(
         if (appliedCellTaskIds.has(write.taskId)) continue;
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
-        const applied = applyCellEdits(draft, taskWrites, runtime);
+        const applied = applyCellEdits(draft, taskWrites, runtime, draftTaskIndexById);
         if (!applied.ok) errors.push(...applied.errors);
         else {
           const currentTaskIndex = draftTaskIndexById.get(write.taskId);
