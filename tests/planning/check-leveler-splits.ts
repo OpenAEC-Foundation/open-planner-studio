@@ -57,7 +57,7 @@ function task(id: string, earlyStart: string, earlyFinish: string, durationDays:
     id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: durationDays,
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: durationDays,
       scheduleStart: earlyStart, scheduleFinish: earlyFinish,
       earlyStart, earlyFinish, lateStart: earlyStart, lateFinish: earlyFinish,
       freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
