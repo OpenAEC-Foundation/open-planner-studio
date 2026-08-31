@@ -115,7 +115,19 @@ export type TaskDurationUnit = 'days' | 'hours';
  * en een triviaal `moveProject.ts`-verdict (er staat geen datum in, dus "n/a" is aantoonbaar
  * correct — zelfde taxonomie als `levelingDelay` — in plaats van een handgeschreven shift).
  */
-export interface TaskSplitGap { afterMinutes: number; gapMinutes: number }
+export interface TaskSplitGap {
+  afterMinutes: number;
+  gapMinutes: number;
+  /** OPTIONEEL — waar dit gat vandaan komt (B1c-plan-2 taak 7, spec §4 "Herkomst"). AFWEZIG =
+   *  brondata: een split die uit een `.mpp`-import komt (`deriveSplitGapsForTasks`) of die de
+   *  gebruiker zelf via een importbestand meebracht — die wordt NOOIT door de nivelleerder
+   *  aangeraakt. `'leveling'` = door de verdeler ingevoegde pauzedag: idempotent herschreven bij een
+   *  nieuwe nivellering, gewist door "nivellering wissen"/"alles terugdraaien"
+   *  (`clearLevelingGaps`, `taskDefaults.ts`), en gewist zodra de tijdbasis van de taak wijzigt (een
+   *  gat op een verouderde as is geen planning maar ruis — de WIRING van die laatste invalidatie is
+   *  etappe 3). Afwezig ⇒ byte-identiek voor elk bestaand bestand. */
+  source?: 'leveling';
+}
 
 /**
  * Eén rauwe periode uit een gedecodeerd .mpp-timephased-blok (Z14b — zie `Task.timephasedContours`

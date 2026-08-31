@@ -221,7 +221,14 @@ const TM = {
   // bestaande bestanden) — `false` zou dus stil normaliseren naar `undefined` terug en deze cel
   // niets bewijzen (dezelfde valkuil als `shift: 'FIRST'`/ASAP-constraint hierboven in het bestand).
   levelingDelayMinutes: 45, levelingDelayElapsed: true,
-  splitGaps: [{ afterMinutes: 120, gapMinutes: 60 } satisfies TaskSplitGap],
+  // B1c-plan-2 taak 7: het herkomstveld op een werkonderbreking. Twee gaten in ÉÉN taak — het
+  // eerste (bestaand fixture-gegeven) zonder `source` (importsplit — byte-identiek gedrag), het
+  // tweede MET `source: 'leveling'` (een door de verdeler ingevoegde pauzedag) — zodat de gewone
+  // whole-fixture round-trip hierboven BEIDE vormen in één keer bewijst.
+  splitGaps: [
+    { afterMinutes: 120, gapMinutes: 60 } satisfies TaskSplitGap,
+    { afterMinutes: 480, gapMinutes: 480, source: 'leveling' } satisfies TaskSplitGap,
+  ],
   manuallyScheduled: true,
   // Z14b: het Z8-venster round-trippt nu écht via `OPS_TimephasedWindow` (zie TASK_CANON hieronder
   // — echte KEEP-vergelijking i.p.v. de vroegere skip-cellen).
@@ -1900,6 +1907,67 @@ const rt2 = readIFC(writeIFC(rt1));
   const leegSlot = readIFC(extern("#5=IFCWORKPLAN('gW',$,'Plan',$,$,$,$,$,$,$,$,$,$,$,.PLANNED.);"));
   assert(leegSlot.project.startDate === '2026-03-02',
     `(16c) een leeg IFCWORKPLAN-StartTime-slot telt als afwezig (geen "vandaag") — kreeg ${JSON.stringify(leegSlot.project.startDate)}`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (17) B1c-plan-2 taak 7: `TaskSplitGap.source` (spec §4, "Herkomst"). Het round-trip-bewijs voor
+//      een BEKENDE `source`-waarde (`'leveling'`) en een AFWEZIGE `source` zit al in de whole-
+//      fixture-vergelijking hierboven (TM se `splitGaps`, twee gaten). Hier de twee gevallen die dat
+//      niet dekt: vijandige invoer (een onbekende `source`-string) en de pure `clearLevelingGaps`-
+//      helper (die niets met IFC te maken heeft, maar leunt op hetzelfde `TaskSplitGap`-contract).
+{
+  // (17a) Vijandige invoer: een gat met `source: "iets-anders"` in het IFC verliest ALLEEN het
+  // source-veld — het gat zelf blijft staan (conservatief, zelfde lat als blok (13)'s corrupte-
+  // JSON-tak). Patch de FIRST 'Splits'-property (TM se, zie blok (13)) naar een JSON-array met een
+  // niet-bestaande source-waarde.
+  const ifc17 = writeIFC(fixture);
+  const lines17 = ifc17.split('\n');
+  const splitsIdx17 = lines17.findIndex(l => l.includes("IFCPROPERTYSINGLEVALUE('Splits',"));
+  assert(splitsIdx17 >= 0, '(17a) kon de Splits-property niet vinden');
+  // JSON.stringify van dit object bevat geen enkele quote (dubbele-quotes-JSON binnen een STEP-
+  // string), dus geen escaping nodig — anders dan `ifcStr` (die enkele quotes verdubbelt, `''`).
+  const hostileGaps = JSON.stringify([{ afterMinutes: 120, gapMinutes: 60, source: 'iets-anders' }]);
+  assert(!hostileGaps.includes("'"), '(17a) vooronderstelling: de JSON bevat geen quotes om te escapen');
+  const hostileLine = lines17[splitsIdx17].replace(/IFCTEXT\('[^']*'\)/, `IFCTEXT('${hostileGaps}')`);
+  assert(hostileLine !== lines17[splitsIdx17], '(17a) kon de Splits-waarde niet patchen');
+  lines17[splitsIdx17] = hostileLine;
+
+  const rt17 = readIFC(lines17.join('\n'));
+  const tm17 = rt17.tasks.find(t => t.wbsCode === '1.1'); // TM
+  assert(!!tm17?.splitGaps && tm17.splitGaps.length === 1,
+    `(17a) het gat zelf blijft staan ondanks de onbekende source — kreeg ${JSON.stringify(tm17?.splitGaps)}`);
+  assert(tm17?.splitGaps?.[0].source === undefined,
+    `(17a) een onbekende source-waarde wordt WEGGELATEN (gesloten verzameling) — kreeg ${JSON.stringify(tm17?.splitGaps?.[0].source)}`);
+  assert(tm17?.splitGaps?.[0].afterMinutes === 120 && tm17?.splitGaps?.[0].gapMinutes === 60,
+    `(17a) afterMinutes/gapMinutes blijven ongemoeid — kreeg ${JSON.stringify(tm17?.splitGaps?.[0])}`);
+
+  // (17b) `clearLevelingGaps` (taskDefaults.ts): wist uitsluitend gaten met source 'leveling', laat
+  // importsplits staan, en geeft `true` terug precies wanneer er iets gewist is (zelfde contract als
+  // `clearTimephasedWindow` in dat bestand).
+  const { clearLevelingGaps } = await import('@/utils/taskDefaults');
+  const gapImport: TaskSplitGap = { afterMinutes: 120, gapMinutes: 60 };
+  const gapLeveling: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480, source: 'leveling' };
+
+  const taskBoth: Task = { ...TX, splitGaps: [gapImport, gapLeveling] };
+  const clearedBoth = clearLevelingGaps(taskBoth);
+  assert(clearedBoth === true, '(17b) clearLevelingGaps geeft true terug als er iets gewist is');
+  assert(JSON.stringify(taskBoth.splitGaps) === JSON.stringify([gapImport]),
+    `(17b) alleen het leveling-gat is gewist, het importsplit blijft — kreeg ${JSON.stringify(taskBoth.splitGaps)}`);
+
+  const taskOnlyLeveling: Task = { ...TX, splitGaps: [gapLeveling] };
+  const clearedOnlyLeveling = clearLevelingGaps(taskOnlyLeveling);
+  assert(clearedOnlyLeveling === true, '(17b) clearLevelingGaps geeft true terug (enige gat was leveling)');
+  assert(taskOnlyLeveling.splitGaps === undefined,
+    `(17b) leeg resultaat ⇒ splitGaps wordt undefined, niet een lege array (golden rule) — kreeg ${JSON.stringify(taskOnlyLeveling.splitGaps)}`);
+
+  const taskOnlyImport: Task = { ...TX, splitGaps: [gapImport] };
+  const clearedOnlyImport = clearLevelingGaps(taskOnlyImport);
+  assert(clearedOnlyImport === false, '(17b) clearLevelingGaps geeft false terug als er niets te wissen viel');
+  assert(JSON.stringify(taskOnlyImport.splitGaps) === JSON.stringify([gapImport]),
+    '(17b) importsplit blijft ongemoeid bij een no-op-aanroep');
+
+  const taskNoGaps: Task = { ...TX, splitGaps: undefined };
+  assert(clearLevelingGaps(taskNoGaps) === false, '(17b) geen splitGaps ⇒ no-op, false');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

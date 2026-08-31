@@ -278,6 +278,27 @@ export function clearTimephasedDurationWalks(task: Task): boolean {
   return false;
 }
 
+/**
+ * Wist de door de nivelleerder ingevoegde werkonderbrekingen (`source === 'leveling'`) van `task` en
+ * laat IMPORTSPLITS (gaten zonder `source`) staan — B1c-plan-2 taak 7, spec §4, "Herkomst"/
+ * "Invalidatie". Geeft `true` terug wanneer er daadwerkelijk iets gewist is; zelfde contract als
+ * `clearTimephasedWindow` hierboven (mpp-nul-data-etappe, bewerkmelding). Blijft er niets over, dan
+ * wordt `splitGaps` op `undefined` gezet (niet op een lege array) — de golden rule van de
+ * IFC-round-trip is "leeg/afwezig ⇒ niets geschreven".
+ *
+ * De AANROEPPLEKKEN (bewerkingen die de tijdbasis van een taak raken: duur, kalender, handmatige
+ * datums, voortgang) worden in B1c-etappe 3 bedraad; zolang niets leveling-gaps schrijft, kan er ook
+ * niets verouderen.
+ */
+export function clearLevelingGaps(task: Task): boolean {
+  const gaps = task.splitGaps;
+  if (!gaps || gaps.length === 0) return false;
+  const kept = gaps.filter(g => g.source !== 'leveling');
+  if (kept.length === gaps.length) return false;
+  task.splitGaps = kept.length > 0 ? kept : undefined;
+  return true;
+}
+
 /** OPTIONEEL — TRUE zodra de taak nog ACTIEVE Z8-sturing draagt (laag 3 en/of laag 4): een gezet
  *  `timephasedFinishFloor`/`timephasedStartAnchor` (laag 3) of een niet-lege
  *  `timephasedDurationWalks` (laag 4). Bedoeld voor de eigenschappenpaneel-markering (mpp-nul-data-
