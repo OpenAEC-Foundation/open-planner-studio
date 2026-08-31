@@ -420,6 +420,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERSCOPECHECK="$DIR/.leveler-scope.mjs"
   if bundle_check "$DIR/check-leveler-scope.ts" "$LEVELERSCOPECHECK"; then node "$LEVELERSCOPECHECK" || STATUS=1; fi
 
+  # B1c-plan-2 taak 4: het uitloop-plafond (`overrunCeilingDays`) als per-taak-venster, met eigen
+  # redenen (CEILING_TOO_TIGHT/CEILING_UNREACHABLE) i.p.v. een generiek capaciteitstekort.
+  LEVELERCEILINGCHECK="$DIR/.leveler-ceiling.mjs"
+  if bundle_check "$DIR/check-leveler-ceiling.ts" "$LEVELERCEILINGCHECK"; then node "$LEVELERCEILINGCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

@@ -65,11 +65,25 @@ export interface LevelingOptions {
    *  poolitem te maken hebben moeten precies blijven staan waar ze staan — anders lost B1c een
    *  bibliotheekconflict op door het hele document te herschikken. */
   scopeTaskIds?: string[];
+  /** Maximale uitloop van de projecteinddatum, in werkdagen t.o.v. de HUIDIGE (mét bestaande
+   *  nivellering berekende) planning — spec §4, "Plafond-referentiepunt". De motor vertaalt dit naar
+   *  een per-taak-venster `lateStart + N` op de TAAKkalender (ELAPSEDTIME: kalenderdagen, zelfde as
+   *  als `shiftByLevelingDelay`). `0` ⇒ identiek aan `constrainToFloat: true`: de einddatum staat
+   *  vast maar de float mag benut worden. Afwezig ⇒ onbegrensd (bestaand leveling-gedrag).
+   *  Staat `constrainToFloat` óók aan, dan wint het STRENGSTE venster. */
+  overrunCeilingDays?: number;
 }
 
 /** Reden waarom een taak onopgelost bleef (A3, deze golf) — de nivelleer-dialoog kiest hierop de
- *  bijpassende uitleg. */
-export type LevelingReason = 'CALENDAR_MISMATCH' | 'INSUFFICIENT_CAPACITY' | 'INTRINSIC_OVERRUN';
+ *  bijpassende uitleg. Uitgebreid in B1c-plan-2 taak 4 met een eerlijkere taxonomie: een
+ *  onbereikbaar/te krap plafond is geen "onvoldoende capaciteit". */
+export type LevelingReason =
+  | 'CALENDAR_MISMATCH' | 'INSUFFICIENT_CAPACITY' | 'INTRINSIC_OVERRUN'
+  /** Het uitloop-plafond laat te weinig ruimte: binnen `lateStart + plafond` is geen venster vrij. */
+  | 'CEILING_TOO_TIGHT'
+  /** Uitloop geven helpt hier niet: een deadline/backward-constraint duwt het venster vóór de
+   *  precedence-feasible start — de taak kan zelfs zónder capaciteitsdruk niet binnen het plafond. */
+  | 'CEILING_UNREACHABLE';
 
 /** Eén verschuiving voor de preview-tabel (A1): elke taak wiens start wijzigt t.o.v. het huidige
  *  schema — óók niet-geresourcete opvolgers die enkel via de forward pass meeschuiven. */
@@ -229,6 +243,22 @@ export function levelResources(
     baseline.tasks.get(id)?.lateStart ?? taskById.get(id)!.time.lateStart;
   const baseFloat = (id: string): number =>
     baseline.tasks.get(id)?.totalFloat ?? taskById.get(id)!.time.totalFloat;
+
+  // B1c-plan-2 taak 4: het uitloop-plafond als per-taak-venster, op de VERSE baseline-lateStart
+  // (dus mét de behouden out-of-scope-delays uit taak 3 — precies het referentiepunt dat de spec
+  // eist: "t.o.v. de huidige opgeslagen projecteinddatum, mét bestaande nivellering"). `0` ⇒
+  // identiek aan `constrainToFloat: true`. Staan beide aan, dan wint het STRENGSTE venster.
+  const windowLimit = (id: string): Date | null => {
+    const ls = parseDate(baseLs(id));
+    const ceilingDays = options.overrunCeilingDays;
+    if (ceilingDays === undefined) return options.constrainToFloat ? ls : null;
+    const t = taskById.get(id)!;
+    const ceiling = t.time.durationType === 'ELAPSEDTIME'
+      ? addCalendarDays(ls, ceilingDays)
+      : engineForTask(t).addWorkingDaysSigned(ls, ceilingDays);
+    // Beide aan ⇒ het strengste venster wint.
+    return options.constrainToFloat && ls < ceiling ? ls : ceiling;
+  };
 
   // Dagenset (I5/I6, kwaliteitsronde taak 4) die `task`, gestart op `startDate`, daadwerkelijk boekt
   // — GEDEELD door zowel de kandidaat-capaciteitscheck in `findSlot` als de uiteindelijke boeking in
@@ -480,9 +510,13 @@ export function levelResources(
       // delay-meting hieronder en `findSlot`s kandidaat-scan.
       startDate = nextCandidateFor(pickedTask, pf);
     } else {
-      // Smoothing-venster uit de VERSE baseline lateStart (A2), niet uit de stale cpmResult.
-      const ls = options.constrainToFloat ? parseDate(baseLs(pick)) : null;
-      const slot = findSlot(pick, pf, ls);
+      // Vensterbovengrens: het strengste van (a) de float (constrainToFloat) en (b) het
+      // uitloop-plafond (`overrunCeilingDays`, B1c-plan-2 taak 4). Beide op de VERSE
+      // baseline-lateStart (A2), dus mét de behouden out-of-scope-delays uit taak 3 — dat is precies
+      // het referentiepunt dat de spec eist ("t.o.v. de huidige opgeslagen projecteinddatum, mét
+      // bestaande nivellering").
+      const limit = windowLimit(pick);
+      const slot = findSlot(pick, pf, limit);
       startDate = slot.start;
       slotUnresolved = slot.unresolved;
       slotReason = slot.reason;
@@ -575,12 +609,22 @@ export function levelResources(
   function findSlot(
     taskId: string,
     pf: Date,
-    ls: Date | null,
+    limit: Date | null,
   ): { start: Date; unresolved: string[]; reason?: LevelingReason } {
     const task = taskById.get(taskId)!;
     const byRes = demandByTask.get(taskId)!;
 
     let cand = nextCandidateFor(task, pf);
+
+    // CEILING_UNREACHABLE (B1c-plan-2 taak 4, spec §4): staat er een plafond, en ligt de EERSTE
+    // kandidaat (= `cand` hierboven, dezelfde waarde als `nextCandidateFor(task, pf)`) er al
+    // voorbij, dan is het venster leeg vóórdat capaciteit ook maar geraadpleegd is — de binder is
+    // dan een deadline/backward-constraint (die drukt `lateStart` naar voren), niet de capaciteit.
+    // Bewust ALLEEN bij een expliciet plafond: met kaal `constrainToFloat` is `pf > ls` bestaand,
+    // getest gedrag (de eerste kandidaat wordt altijd geprobeerd) en dat blijft byte-identiek.
+    const ceilingSet = options.overrunCeilingDays !== undefined;
+    const ceilingUnreachable = ceilingSet && limit !== null && cand > limit;
+
     let calendarFeasibleSeen = false; // is er überhaupt een venster waar élke vraagdag óók een resource-werkdag is?
     let guard = 0;
     while (guard++ < scanLimit) {
@@ -600,7 +644,7 @@ export function levelResources(
       // afketsen. `occ.length > 0` is de minimale, correcte voorwaarde: er moet gewoon IETS te boeken zijn.
       if (occ.length > 0 && fits(byRes, occ)) return { start: cand, unresolved: [] };
       const next = nextCandidateAfterFor(task, cand);
-      if (ls && next > ls) break; // volgende kandidaat valt buiten de float — geen slot
+      if (limit && next > limit) break; // volgende kandidaat valt buiten het venster — geen slot
       cand = next;
     }
 
@@ -617,19 +661,30 @@ export function levelResources(
     return {
       start: snappedPf,
       unresolved: [...new Set(conflicts)].sort(),
-      reason: reasonFor(byRes, calendarFeasibleSeen),
+      reason: reasonFor(byRes, calendarFeasibleSeen, ceilingSet, ceilingUnreachable),
     };
   }
 
-  /** Reden waarom er geen slot bestaat (A3). Volgorde: intrinsiek (de piekvraag overtreft de
-   *  maximale capaciteit van de resource ongeacht plaatsing) → kalender-mismatch (geen enkel venster
-   *  waar alle vraagdagen ook resource-werkdagen zijn) → anders onvoldoende vrije capaciteit. */
-  function reasonFor(byRes: Map<string, number[]>, calendarFeasibleSeen: boolean): LevelingReason {
+  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taak 4). Volgorde: intrinsiek (de
+   *  piekvraag overtreft de maximale capaciteit van de resource ongeacht plaatsing) →
+   *  CEILING_UNREACHABLE (een deadline/backward-constraint maakt elk plafond onbereikbaar — gaat
+   *  vóór de kalender/capaciteit: het enige geval waarin de gebruiker iets anders moet doen dan
+   *  plafond of capaciteit bijstellen) → kalender-mismatch (geen enkel venster waar alle vraagdagen
+   *  ook resource-werkdagen zijn) → CEILING_TOO_TIGHT (venster bekend en te krap) → anders
+   *  onvoldoende vrije capaciteit. */
+  function reasonFor(
+    byRes: Map<string, number[]>,
+    calendarFeasibleSeen: boolean,
+    ceilingSet: boolean,
+    ceilingUnreachable: boolean,
+  ): LevelingReason {
     for (const [resId, arr] of byRes) {
       const peak = arr.length > 0 ? Math.max(...arr) : 0;
       if (peak > maxCapacityOf(resId) + EPS) return 'INTRINSIC_OVERRUN';
     }
+    if (ceilingUnreachable) return 'CEILING_UNREACHABLE';
     if (!calendarFeasibleSeen) return 'CALENDAR_MISMATCH';
+    if (ceilingSet) return 'CEILING_TOO_TIGHT';
     return 'INSUFFICIENT_CAPACITY';
   }
 
