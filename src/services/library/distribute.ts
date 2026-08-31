@@ -173,6 +173,39 @@ function currentProjectEnd(tasks: Task[]): string {
   return end;
 }
 
+/** `currentProjectEnd`, maar STALE-bewust (fixronde B1c-plan-2-etappe-2, bevinding 3). Deelnemers
+ *  krijgen hun `projectEndBefore` uit een VERSE `defaultLevelRun`-solve (zie hierboven); een gepind/
+ *  #63/`cannotMove`-document draait de motor niet en las tot nu toe altijd de rauwe
+ *  `t.time.earlyFinish` — bij een STALE document (open, maar niet herberekend sinds de laatste
+ *  taakwijziging) een verouderd getal, inconsistent met wat de deelnemers wél zien.
+ *
+ *  Zelfde route als de efemere doorrekening in `occupancy.ts`s `ephemeralSolve`: een KLOON
+ *  doorrekenen, geen write-back naar de payload. #63-documenten (`datesAsRecorded`) zijn hier per
+ *  invariant NOOIT stale — `scheduleStale` mag nooit `true` zijn terwijl `datesAsRecorded` aanstaat
+ *  (bewaakt door `tests/planning/check-recorded-dates.ts`) — dus deze tak raakt hun opgeslagen datums
+ *  nooit aan; die blijven altijd via de rauwe (want per definitie verse) `earlyFinish` gelezen. Een
+ *  mislukte solve (cyclus, solverfout) valt terug op de rauwe datums — hetzelfde vangnetgedrag als
+ *  `ephemeralSolve`. */
+function currentProjectEndFor(doc: DistributionDocInput): string {
+  if (!doc.scheduleStale) return currentProjectEnd(doc.levelInput.tasks);
+  try {
+    const tasks = cloneTasksForSolve(doc.levelInput.tasks);
+    const result = solveProject({
+      tasks,
+      sequences: doc.levelInput.sequences,
+      calendar: doc.calendar,
+      calendars: doc.calendars,
+      dataDate: doc.levelInput.dataDate,
+      progressMode: doc.levelInput.progressMode,
+      schedulingOptions: doc.levelInput.schedulingOptions,
+    });
+    if (result.error) return currentProjectEnd(doc.levelInput.tasks);
+    return currentProjectEnd(tasks);
+  } catch {
+    return currentProjectEnd(doc.levelInput.tasks);
+  }
+}
+
 /** Werkdagen die de einddatum is opgeschoven (getekend), op de PROJECTkalender van het document —
  *  zelfde meting als `ResourceLeveler.ts`s eigen `shifts`-berekening (M9). */
 function endShiftWorkdays(before: string, after: string, calendar: WorkCalendar): number {
@@ -312,17 +345,25 @@ export function computeDistribution(
   const residualOn = (iso: string): number =>
     Math.max(0, maxUnitsOn(poolItem, iso) - (fixedLoadByDay[iso] ?? 0) - (placed[iso] ?? 0));
 
-  const makeLedgerForDoc = (doc: DistributionDocInput, horizonIso: string | null): LevelingPoolLedger => ({
-    poolItemOf: (resourceId: string): string | null => {
-      const r = doc.resources.find(x => x.id === resourceId);
-      if (!r || r.libraryOrigin === undefined) return null;
-      if (r.libraryOrigin.companyId !== companyId || r.libraryOrigin.libraryItemId !== libraryItemId) return null;
-      return libraryItemId;
-    },
-    residualOn: (_itemId: string, iso: string): number => residualOn(iso),
-    book: (_itemId: string, iso: string, units: number): void => bookPlaced(iso, units),
-    horizonIso,
-  });
+  // Bevinding 5 (fixronde B1c-plan-2-etappe-2): `poolItemOf` wordt door `findSlot` per KANDIDAATDAG
+  // aangeroepen (elke conflictcheck, elke boeking); een `Array.find` over `doc.resources` daarbinnen
+  // is dus O(kandidaten × resources) i.p.v. één keer O(resources) per document. `makeLedgerForDoc`
+  // zelf draait al maar één keer per deelnemend document (zie de aanroep hieronder), dus de map hier
+  // bouwen — buiten `poolItemOf`, binnen `makeLedgerForDoc` — is voldoende.
+  const makeLedgerForDoc = (doc: DistributionDocInput, horizonIso: string | null): LevelingPoolLedger => {
+    const resourceById = new Map(doc.resources.map(r => [r.id, r]));
+    return {
+      poolItemOf: (resourceId: string): string | null => {
+        const r = resourceById.get(resourceId);
+        if (!r || r.libraryOrigin === undefined) return null;
+        if (r.libraryOrigin.companyId !== companyId || r.libraryOrigin.libraryItemId !== libraryItemId) return null;
+        return libraryItemId;
+      },
+      residualOn: (_itemId: string, iso: string): number => residualOn(iso),
+      book: (_itemId: string, iso: string, units: number): void => bookPlaced(iso, units),
+      horizonIso,
+    };
+  };
 
   // Deelnemers: alle documenten met een booking op dit poolitem, MIN de vaste-last-documenten,
   // gesorteerd op rangorde (dan `docId` voor een stabiele tie-break — spec §4 stap 3, "één pass").
@@ -354,7 +395,7 @@ export function computeDistribution(
   for (const booking of row.docs) {
     const input = docById.get(booking.docId);
     if (!input || (!input.pinned && !input.datesAsRecorded)) continue;
-    const end = currentProjectEnd(input.levelInput.tasks);
+    const end = currentProjectEndFor(input);
     results.push({
       docId: booking.docId,
       title: booking.title,
@@ -371,7 +412,7 @@ export function computeDistribution(
   }
 
   for (const doc of participants) {
-    const scopeTaskIds = scopeTaskIdsFor(doc, companyId, libraryItemId);
+    const scopeTaskIds = scopeTaskIdsByDoc.get(doc.docId)!;
     const tasksById = new Map(doc.levelInput.tasks.map(t => [t.id, t]));
     const cannotMove = scopeTaskIds.length > 0 && scopeTaskIds.every(id => tasksById.get(id)?.priority === 1000);
 
