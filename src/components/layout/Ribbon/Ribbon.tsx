@@ -41,6 +41,7 @@ const MINI_ATTR = 'data-ribbon-mini';
 const MINI_ITEM_ATTR = 'data-ribbon-mini-item';
 const GRID_ATTR = 'data-ribbon-grid';
 const AUTOTITLE_ATTR = 'data-ribbon-autotitle';
+const FULLY_MINI_ATTR = 'data-ribbon-fully-mini';
 
 /** Past de inhoud horizontaal binnen de zichtbare breedte? */
 const fitsWidth = (scroll: HTMLElement) => scroll.scrollWidth <= scroll.clientWidth + 1;
@@ -74,6 +75,16 @@ function soleGridItem(btn: HTMLElement, groupContent: Element): HTMLElement | nu
     el = el.parentElement;
   }
   return el.parentElement === groupContent ? el : null;
+}
+
+/** Markeer groepen waarvan alle automatisch verkleinbare knoppen mini zijn geworden. */
+function syncFullyMiniGroups(scroll: HTMLElement): void {
+  scroll.querySelectorAll<HTMLElement>('.ribbon-group').forEach(group => {
+    const buttons = Array.from(group.querySelectorAll<HTMLElement>('.ribbon-btn'));
+    const fullyMini = buttons.length > 0 && buttons.every(btn => btn.hasAttribute(MINI_ATTR));
+    if (fullyMini) group.setAttribute(FULLY_MINI_ATTR, '');
+    else group.removeAttribute(FULLY_MINI_ATTR);
+  });
 }
 
 /** Zet de laatste `k` knoppen (rechts → links) op mini en synchroniseert de grid-markeringen. */
@@ -121,6 +132,10 @@ function applyMiniPlan(scroll: HTMLElement, buttons: HTMLElement[], k: number): 
   });
   items.forEach(el => el.setAttribute(MINI_ITEM_ATTR, ''));
   grids.forEach(el => el.setAttribute(GRID_ATTR, ''));
+  // Het groepslabel mag alleen verticaal worden als de hele groep zijn knoppen kwijt is. Dit moet
+  // al tijdens de binaire meetstappen gebeuren: de smallere labelkolom kan bepalen hoeveel knoppen
+  // uiteindelijk naar mini moeten degraderen.
+  syncFullyMiniGroups(scroll);
 }
 
 /**
