@@ -10,6 +10,7 @@ import {
 } from '@/engine/scheduler/ResourceLeveler';
 import { finishMutation, markScheduleStale } from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 
 export interface ScheduleSlice {
@@ -252,6 +253,10 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
   },
 
   applyLeveling: (result) => {
+    // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): telt HOEVEEL taken hier hun sub-dag-
+    // precisie verliezen, voor de eenmalige-per-document melding hieronder (buiten de producer,
+    // zie `notifyTimephasedLoss`-precedent — `notify` roept zelf `set` aan, dus niet genest).
+    let roundedCount = 0;
     set((s) => {
       runtime.beginUndoable(s);
       // Idempotent: eerst álle levelingDelays wissen, dan de nieuwe zetten — zo levert een
@@ -260,6 +265,16 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       for (const task of s.tasks) {
         const d = result.delays[task.id];
         task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
+        // M10: `CPMSolver.shiftByLevelingDelay` leest `levelingDelayMinutes` VÓÓR `levelingDelay`.
+        // Een achtergebleven sub-dag-waarde (uit een `.mpp`-import) zou de zojuist berekende delay
+        // stil overrulen — nivelleren zou dan zichtbaar niets doen. De nivelleerder rekent in hele
+        // werkdagen, dus de sub-dag-precisie van de VORIGE nivellering vervalt hier bewust — dat is
+        // zichtbaar gebruikersverlies (eigenaarsbesluit 2026-08-31), geteld voor de melding hieronder.
+        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
+          roundedCount++;
+        }
+        task.levelingDelayMinutes = undefined;
+        task.levelingDelayElapsed = undefined;
       }
       // Wél de stale-vlag (issue #63): dit is een datum-rakende mutatie, en `stale` is het signaal
       // waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat — in dezelfde producer
@@ -267,18 +282,35 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // De aansluitende runCPM zet `scheduleStale` meteen weer op false.
       finishMutation(s, { stale: true });
     });
+    if (roundedCount > 0) {
+      notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
+    }
     get().runCPM();
   },
 
   clearLeveling: () => {
     let changed = false;
+    let roundedCount = 0;
     set((s) => {
-      if (!s.tasks.some((t) => t.levelingDelay !== undefined)) return; // niets te wissen, geen snapshot
+      // M10: het no-op-guard breidt uit naar `levelingDelayMinutes` — anders zou een taak die
+      // UITSLUITEND sub-dag-precisie draagt (geen `levelingDelay`) hier stil overgeslagen worden.
+      if (!s.tasks.some((t) =>
+        t.levelingDelay !== undefined || t.levelingDelayMinutes !== undefined)) return; // niets te wissen, geen snapshot
       runtime.beginUndoable(s);
-      for (const task of s.tasks) task.levelingDelay = undefined;
+      for (const task of s.tasks) {
+        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
+          roundedCount++;
+        }
+        task.levelingDelay = undefined;
+        task.levelingDelayMinutes = undefined;
+        task.levelingDelayElapsed = undefined;
+      }
       finishMutation(s, { stale: true }); // zie applyLeveling; de aansluitende runCPM wist de vlag.
       changed = true;
     });
+    if (roundedCount > 0) {
+      notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
+    }
     if (changed) get().runCPM();
   },
 });

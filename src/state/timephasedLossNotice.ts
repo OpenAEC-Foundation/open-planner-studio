@@ -34,6 +34,7 @@ export function claimTimephasedLossNotice(docId: string): boolean {
  *  triggert 'm voor alle latere cases "al gemeld" maken. */
 export function __resetTimephasedLossNoticeForTests(): void {
   notifiedDocIds.clear();
+  notifiedLevelingDelayDocIds.clear();
 }
 
 /**
@@ -59,6 +60,7 @@ export function __resetTimephasedLossNoticeForTests(): void {
  */
 export function clearTimephasedLossNoticeForDoc(docId: string): void {
   notifiedDocIds.delete(docId);
+  notifiedLevelingDelayDocIds.delete(docId);
 }
 
 /** Het artikel-id waar de melding + de paneelmarkering (DEEL 2) naar doorlinken (mpp-nul-data-
@@ -84,5 +86,46 @@ export function notifyTimephasedLoss(
     params: { count },
     dedupeKey: `mpp-timephased-lost-${docId}`,
     helpArticleId: MPP_TIMEPHASED_HELP_ARTICLE_ID,
+  });
+}
+
+/**
+ * B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31) — een EIGEN `Set`, apart van
+ * `notifiedDocIds` hierboven: een document kan onafhankelijk zowel urensturing (DEEL 1/2) als
+ * nivelleervertraging-precisie (M10) verliezen, dus de ene gate mag de andere niet onderdrukken.
+ * Zelfde sessie-only, permanent-per-document contract als `notifiedDocIds`.
+ */
+const notifiedLevelingDelayDocIds = new Set<string>();
+
+/** Zelfde contract als `claimTimephasedLossNotice` hierboven, maar voor de sub-dag-nivelleer-
+ *  vertraging (M10, eigenaarsbesluit 2026-08-31) — apart geregistreerd, want de twee soorten
+ *  MSP-precisieverlies zijn onafhankelijk van elkaar en horen elk hun eigen eenmalige melding te
+ *  krijgen. */
+export function claimLevelingDelayRoundedNotice(docId: string): boolean {
+  if (notifiedLevelingDelayDocIds.has(docId)) return false;
+  notifiedLevelingDelayDocIds.add(docId);
+  return true;
+}
+
+/**
+ * Gedeelde notify-aanroep voor `applyLeveling`/`clearLeveling` (`scheduleSlice.ts`,
+ * `createMcpTransactions.ts`): claimt de eenmalige-per-document-gate en pusht de melding als de
+ * claim slaagt. `count` is het aantal taken dat in DEZE bewerking aantoonbaar sub-dag-precisie
+ * verloor (`levelingDelayMinutes`/`levelingDelayElapsed` gewist terwijl minstens één van beide
+ * gezet was) — `<= 0` is een no-op (nooit aanroepen zonder een echt verlies).
+ */
+export function notifyLevelingDelayRounded(
+  notify: (n: NotifyInput) => void,
+  docId: string,
+  count: number,
+): void {
+  if (count <= 0) return;
+  if (!claimLevelingDelayRoundedNotice(docId)) return;
+  notify({
+    severity: 'info',
+    messageKey: 'notifications.levelingDelayRoundedToWorkdays',
+    params: { count },
+    dedupeKey: `leveling-delay-rounded-${docId}`,
+    helpArticleId: MPP_TIMEPHASED_HELP_ARTICLE_ID, // zelfde gids, sectie "Nivellering"
   });
 }

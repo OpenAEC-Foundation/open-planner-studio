@@ -184,7 +184,18 @@ export function levelResources(
 
   // Werkkopie ZONDER levelingDelays. Voedt (a) de VERSE baseline-solve (sorteersleutels/PF/vensters,
   // A2/A4) en (b) — nadat de lus de delays erop gezet heeft — de proef-solve voor de preview (A1).
-  const workTasks: Task[] = tasks.map(t => ({ ...t, levelingDelay: undefined, time: { ...t.time } }));
+  // B1c-plan-2 taak 1 (M10): ook de sub-dag-precisie (`levelingDelayMinutes`/`levelingDelayElapsed`)
+  // strippen — `CPMSolver.shiftByLevelingDelay` leest die VÓÓR `levelingDelay`, dus een
+  // `.mpp`-geïmporteerde vertraging op een taak MET voorganger zou hier stil in de baseline blijven
+  // staan en zowel de sorteersleutels als de PF vervalsen (zie `check-leveling-delay-units.ts`,
+  // deel 2, voor het concrete voorbeeld: het conflict verdween volledig uit beeld).
+  const workTasks: Task[] = tasks.map(t => ({
+    ...t,
+    levelingDelay: undefined,
+    levelingDelayMinutes: undefined,
+    levelingDelayElapsed: undefined,
+    time: { ...t.time },
+  }));
   const workById = new Map(workTasks.map(t => [t.id, t]));
 
   // A2/A4: VERSE baseline — de enige bron voor sorteersleutels (totalFloat/earlyStart), PF-basis en

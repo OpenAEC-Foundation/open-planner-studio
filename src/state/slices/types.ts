@@ -180,7 +180,11 @@ export type NotificationMessageKey =
   | 'notifications.mppEncrypted'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
-  | 'notifications.mppTimephasedSteeringLost';
+  | 'notifications.mppTimephasedSteeringLost'
+  // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
+  // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
+  // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
+  | 'notifications.levelingDelayRoundedToWorkdays';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

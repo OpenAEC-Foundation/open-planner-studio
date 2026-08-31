@@ -26,6 +26,8 @@
     "projectStartAnchorsClamped_other": "Project start moved: {{count}} task anchors without a predecessor or constraint were shifted to the new start date.",
     "mppTimephasedSteeringLost_one": "MS Project's hour distribution no longer drives {{count}} task after this edit; the original distribution stays in the file.",
     "mppTimephasedSteeringLost_other": "MS Project's hour distribution no longer drives {{count}} tasks after this edit; the original distribution stays in the file.",
+    "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
+    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
     "readMore": "Read more"
   },
   "yes": "Yes",

@@ -408,6 +408,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERSPLITSCHECK="$DIR/.leveler-splits.mjs"
   if bundle_check "$DIR/check-leveler-splits.ts" "$LEVELERSPLITSCHECK"; then node "$LEVELERSPLITSCHECK" || STATUS=1; fi
 
+  # B1c-plan-2 taak 1 (M10): `levelingDelayMinutes` had in CPMSolver.shiftByLevelingDelay al
+  # voorrang op `levelingDelay`, maar applyLeveling/clearLeveling en de leveler-baseline kenden
+  # alleen `levelingDelay` — een stille no-op-familie op elk .mpp-geïmporteerd project. Plus de
+  # eenmalige K8a-waarschuwing die het overschrijven van de sub-dag-precisie meldt.
+  LEVELDELAYUNITSCHECK="$DIR/.leveling-delay-units.mjs"
+  if bundle_check "$DIR/check-leveling-delay-units.ts" "$LEVELDELAYUNITSCHECK"; then node "$LEVELDELAYUNITSCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

@@ -38,6 +38,12 @@
     "mppTimephasedSteeringLost_few": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} مهام بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
     "mppTimephasedSteeringLost_many": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} مهمة بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
     "mppTimephasedSteeringLost_other": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} من المهام بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
+    "levelingDelayRoundedToWorkdays_zero": "لا توجد مهمة تُقرَّب لها مهلة موازنة MS Project الدقيقة بالدقيقة إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_one": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمة واحدة إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_two": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمتين إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_few": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهام إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة.",
     "readMore": "اقرأ المزيد"
   },
   "yes": "نعم",

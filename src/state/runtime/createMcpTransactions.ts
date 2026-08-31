@@ -10,7 +10,7 @@ import {
 } from '@/utils/taskDefaults';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
-import { notifyTimephasedLoss } from '../timephasedLossNotice';
+import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { McpTransactionLease } from './storeRuntime';
 import type { DurationType, Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -714,24 +714,54 @@ function createMcpDraft(
    * Snapshot/recompute-vrije variant van de store-`applyLeveling`: schrijft alle `levelingDelay`-
    * waarden (idempotent — reset eerst álles, dan de nieuwe delays). GEEN eigen `runCPM`: de transactie
    * herrekent aan het eind en verwerkt de delays dan precies één keer.
+   *
+   * B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31) — zelfde fix + melding als de store-
+   * `applyLeveling` (`scheduleSlice.ts`): strip ook `levelingDelayMinutes`/`levelingDelayElapsed`
+   * (anders overrult `CPMSolver.shiftByLevelingDelay` de zojuist geschreven delay), en meld het
+   * eenmalig per document als dat écht iets wiste. De notify-aanroep staat BEWUST BUITEN
+   * `store.setState`: `notify` roept zelf `set` aan, dus genest zou een tweede, nog lopende
+   * Immer-produce triggeren (zelfde precedent als de eind-notify in `run()` hieronder).
    */
   applyLeveling(result: LevelingResult): void {
+    let roundedCount = 0;
     store.setState((s) => {
       for (const task of s.tasks) {
         const d = result.delays[task.id];
         task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
+        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
+          roundedCount++;
+        }
+        task.levelingDelayMinutes = undefined;
+        task.levelingDelayElapsed = undefined;
       }
       s.isDirty = true;
     });
+    if (roundedCount > 0) {
+      const state = store.getState();
+      notifyLevelingDelayRounded(state.notify, state.activeDocumentId, roundedCount);
+    }
   },
 
   /** Snapshot/recompute-vrije variant van de store-`clearLeveling`: zet alle `levelingDelay` terug op
-   *  undefined. GEEN eigen `runCPM` (de transactie herrekent). */
+   *  undefined. GEEN eigen `runCPM` (de transactie herrekent). M10: zelfde sub-dag-strip + melding
+   *  als `applyLeveling` hierboven — zie dat docblok voor de "notify buiten setState"-motivering. */
   clearLeveling(): void {
+    let roundedCount = 0;
     store.setState((s) => {
-      for (const task of s.tasks) task.levelingDelay = undefined;
+      for (const task of s.tasks) {
+        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
+          roundedCount++;
+        }
+        task.levelingDelay = undefined;
+        task.levelingDelayMinutes = undefined;
+        task.levelingDelayElapsed = undefined;
+      }
       s.isDirty = true;
     });
+    if (roundedCount > 0) {
+      const state = store.getState();
+      notifyLevelingDelayRounded(state.notify, state.activeDocumentId, roundedCount);
+    }
   },
 
   /**

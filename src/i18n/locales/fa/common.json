@@ -26,6 +26,8 @@
     "projectStartAnchorsClamped_other": "شروع پروژه جابه‌جا شد: {{count}} لنگر وظیفه بدون پیش‌نیاز یا محدودیت به تاریخ شروع جدید منتقل شدند.",
     "mppTimephasedSteeringLost_one": "توزیع ساعات MS Project پس از این ویرایش دیگر {{count}} وظیفه را هدایت نمی‌کند؛ توزیع اصلی در فایل نگه داشته می‌شود.",
     "mppTimephasedSteeringLost_other": "توزیع ساعات MS Project پس از این ویرایش دیگر {{count}} وظیفه را هدایت نمی‌کند؛ توزیع اصلی در فایل نگه داشته می‌شود.",
+    "levelingDelayRoundedToWorkdays_one": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
+    "levelingDelayRoundedToWorkdays_other": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
     "readMore": "بیشتر بخوانید"
   },
   "yes": "بله",

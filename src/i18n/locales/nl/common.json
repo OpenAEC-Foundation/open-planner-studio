@@ -26,6 +26,8 @@
     "projectStartAnchorsClamped_other": "Projectstart verzet: {{count}} taakankers zonder voorganger of constraint zijn meegeschoven naar de nieuwe startdatum.",
     "mppTimephasedSteeringLost_one": "De urenverdeling uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
     "mppTimephasedSteeringLost_other": "De urenverdeling uit MS Project stuurt {{count}} taken niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
+    "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
+    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
     "readMore": "Lees meer"
   },
   "yes": "Ja",
