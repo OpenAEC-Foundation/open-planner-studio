@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
 import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
-import { MS_PER_DAY } from '@/engine/renderer/timeAxis';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
+import { resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { ROW_DRAG_THRESHOLD } from './constants';
@@ -24,6 +26,8 @@ export interface DragState {
   originalDuration: number;
   /** Fase 2.8b (§6.3): originele `durationMinutes` bij drag-start (uur-taken); undefined = dag-taak. */
   originalDurationMinutes?: number;
+  /** Gantt-aspositie bij pointer-down; de volgende muisbewegingen worden hiertegen afgezet. */
+  pointerStart?: Date;
 }
 
 interface UseBarDragOptions {
@@ -47,6 +51,9 @@ interface UseBarDragOptions {
     startClientX: number;
     startClientY: number;
   }) => void;
+  /** De exacte as waarmee de renderer de balk heeft getekend, inclusief werkdagencompressie. */
+  axis: GanttAxis;
+  canvasRef: RefObject<HTMLCanvasElement | null>;
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
@@ -60,19 +67,22 @@ interface UseBarDragOptions {
 // Issue #21 punt 5 (review §10.3): onder werkdagen-as-compressie (`compressNonWorkdays`) stelt een
 // GETOONDE kolom een WERKDAG voor i.p.v. een kalenderdag — de dag-modus-branches (body/left/right,
 // hieronder) vertalen `daysDelta` daarom via `shiftByDisplayedColumns` (`addWorkingDaysSigned` i.p.v.
-// `addCalendarDays`). Toggle uit ⇒ ongewijzigd. De UUR-tak (`handleHourDrag`) blijft BEWUST op het
-// oude lineaire ms-pad (§6 van het ontwerp: een uur-balk die een naad kruist tekent bij compressie
-// "over de naad heen" — bekende, gedocumenteerde v1-beperking, geen regressie t.o.v. vandaag).
-export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask, onVerticalBodyDrag }: UseBarDragOptions) {
+// `addCalendarDays`). Toggle uit ⇒ ongewijzigd. De UUR-tak leest de gedeelde Gantt-as terug en laat
+// daarna CalendarEngine de werkminuten/werkbanden bepalen, dus een naad onder werkdagencompressie
+// volgt precies wat de gebruiker op de as zag.
+export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask, onVerticalBodyDrag, axis, canvasRef }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   // De kaart met effectieve taakkalenders verandert ook wanneer een live drag de taak muteert. Het
   // effect wordt dan terecht met actuele kalenderinvoer herstart, maar dat mag geen nieuw
   // coalesce-venster openen: één pointergesture blijft exact één undoable handeling.
   const undoKeyRef = useRef<string | null>(null);
   const startBarDrag = useCallback((next: DragState) => {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    const pointerStart = rect ? axis.xToDate(next.startX - rect.left) : undefined;
     undoKeyRef.current = `bardrag:${next.taskId}:${++dragSeq}`;
-    setDragState(next);
-  }, []);
+    setDragState({ ...next, pointerStart });
+  }, [axis, canvasRef]);
 
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
@@ -83,10 +93,8 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     const undoKey = undoKeyRef.current;
     if (!undoKey) return;
 
-    // Fase 2.8b (§6.3): een UUR-taak (datumstring met tijdcomponent) sleept/rekt op HELE UREN — het
-    // snap-quantum is nooit fijner dan 60 min (kwartier-snap bestaat niet). Slepen muteert
-    // `durationMinutes` (hele minuten); de engine snapt bij de volgende runCPM naar de eerstvolgende
-    // werk-instant (snap op het uur-raster, niet op de banden). Dag-taken houden exact het dag-pad.
+    // Een UUR-taak (datumstring met tijdcomponent) behoudt zijn minutenbron. Dag-taken houden het
+    // bestaande dag-pad hieronder letterlijk gescheiden.
     const isHourDrag = dragState.originalStart.includes('T');
 
     // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
@@ -113,72 +121,54 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     // verandert. Randen zijn bewust altijd horizontale duur-grepen.
     let direction: 'undecided' | 'horizontal' = 'undecided';
 
-    // Snap-quantum (§6.3): de actieve minor-tier, maar NOOIT fijner dan 60 min (kwartier-snap
-    // bestaat niet). Zo is het quantum bij uur-zoom 1 uur en bij lagere zoom grover (dag/week);
-    // altijd een veelvoud van 60 min ⇒ slepen muteert de duur in HELE uren (§6.4).
-    // issue #21 punt 2 (vervolg): zonder urenplanning snapt een sleep bij hoge zoom op DAGEN
-    // (minor='day'), want pickTiers geeft dan geen uur-tier. Met urenplanning aan blijft de
-    // uur-snapping exact als voorheen. Derde arg stemt overeen met renderer/scaleFromZoom.
+    // Snap-quantum is dezelfde actieve minor-tier als de tijdkop. Op kwartierzoom is 15 minuten
+    // werkelijk bereikbaar; zonder die opt-in blijft de ondergrens één uur. Met urenplanning uit
+    // blijft de as voor nieuwe gebaren dag-granulair, maar bestaande urentaken behouden hun eigen
+    // werkminuten en worden nooit naar dagen omgezet.
     const minorTier = pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor;
-    const quantumMin = Math.max(60, Math.round(TIER_CONFIG[minorTier].stepDays * 1440));
-    const quantumMs = quantumMin * 60000;
+    const quantumMin = Math.max(enableQuarterHourZoom ? 15 : 60, Math.round(TIER_CONFIG[minorTier].stepDays * 1440));
 
-    const handleHourDrag = (pixelDelta: number) => {
-      // 1 kolom = zoom px = MS_PER_DAY ms (issue #21 punt 5, fase 0-consolidatie: dezelfde
-      // constante als `timeAxis.dateToX`, i.p.v. een eigen `86400000`-kopie). `daysDelta` blijft
-      // een RELATIEVE pixel→tijd-verhouding — geen absolute canvas-x, dus geen `xToDate`-aanroep
-      // hier (zie tests/planning/check-axis-consolidation.ts en het rapport voor de afweging).
-      const rawMs = (pixelDelta / zoom) * MS_PER_DAY;
-      const snappedMs = Math.round(rawMs / quantumMs) * quantumMs;
-      if (snappedMs === 0) return;
-      const deltaMin = Math.round(snappedMs / 60000);
+    const handleHourDrag = (event: MouseEvent) => {
+      const canvas = canvasRef.current;
+      const rect = canvas?.getBoundingClientRect();
+      if (!rect || !dragState.pointerStart) return;
+      // Lees de actuele pointerposities terug via DEZELFDE GanttAxis als de renderer. Daardoor
+      // betekent één getoonde kolom onder werkdagencompressie ook voor een uurtaak precies de
+      // kolom die de gebruiker zag, in plaats van een lineaire kalenderdag-aanname.
+      const pointerCurrent = axis.xToDate(event.clientX - rect.left);
       const origStart = parseInstant(dragState.originalStart);
       const origFinish = parseInstant(dragState.originalFinish);
       const baseTime = getTask(dragState.taskId)?.time;
       if (!baseTime) return;
-      // Originele werk-duur bij drag-start; val terug op de klok-span als het veld ontbrak.
+      // Volg dezelfde K2-fabriek als de scheduler en resourceberekeningen: expliciete banden
+      // (inclusief pauzes) winnen, maar een oudere/zuiver dag-granulaire kalender blijft bruikbaar.
+      const effectiveHourCalendar = calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
       const origMinutes = dragState.originalDurationMinutes
-        ?? Math.max(60, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
-
-      if (dragState.edge === 'body') {
-        // Verplaatsen: duur ongewijzigd, start+finish schuiven mee (op het quantum).
-        const newStart = new Date(origStart.getTime() + snappedMs);
-        const newFinish = new Date(origFinish.getTime() + snappedMs);
-        updateTask(dragState.taskId, {
-          time: {
-            ...baseTime,
-            scheduleStart: formatInstant(newStart, 'hour'),
-            scheduleFinish: formatInstant(newFinish, 'hour'),
-            earlyStart: formatInstant(newStart, 'hour'),
-            earlyFinish: formatInstant(newFinish, 'hour'),
-          },
-        }, { coalesceKey: undoKey });
-      } else if (dragState.edge === 'right') {
-        // Rekken vanaf rechts: duur ± deltaMin HELE werk-uren. De provisionele klok-finish geeft
-        // directe feedback; runCPM snapt daarna op het uur-raster naar de werk-instant.
-        const newMinutes = Math.max(60, origMinutes + deltaMin);
-        const newFinish = new Date(origFinish.getTime() + snappedMs);
-        updateTask(dragState.taskId, {
-          time: {
-            ...baseTime,
-            scheduleFinish: formatInstant(newFinish, 'hour'),
-            earlyFinish: formatInstant(newFinish, 'hour'),
-            durationMinutes: newMinutes,
-          },
-        }, { coalesceKey: undoKey });
-      } else if (dragState.edge === 'left') {
-        // Rekken vanaf links: start schuift, duur ∓ deltaMin HELE werk-uren (start eerder ⇒ langer).
-        const newMinutes = Math.max(60, origMinutes - deltaMin);
-        const newStart = new Date(origStart.getTime() + snappedMs);
-        updateTask(dragState.taskId, {
-          time: {
-            ...baseTime,
-            scheduleStart: formatInstant(newStart, 'hour'),
-            earlyStart: formatInstant(newStart, 'hour'),
-            durationMinutes: newMinutes,
-          },
-        }, { coalesceKey: undoKey });
-      }
+        ?? Math.max(1, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
+      const result = resolveHourBarDrag({
+        calendar: new CalendarEngine(effectiveHourCalendar),
+        edge: dragState.edge,
+        originalStart: origStart,
+        originalFinish: origFinish,
+        originalDurationMinutes: origMinutes,
+        pointerStart: dragState.pointerStart,
+        pointerCurrent,
+        snapMinutes: quantumMin,
+      });
+      const nextStart = formatInstant(result.start, 'hour');
+      const nextFinish = formatInstant(result.finish, 'hour');
+      if (baseTime.scheduleStart === nextStart && baseTime.scheduleFinish === nextFinish
+        && baseTime.durationMinutes === result.durationMinutes) return;
+      updateTask(dragState.taskId, {
+        time: {
+          ...baseTime,
+          scheduleStart: nextStart,
+          scheduleFinish: nextFinish,
+          earlyStart: nextStart,
+          earlyFinish: nextFinish,
+          durationMinutes: result.durationMinutes,
+        },
+      }, { coalesceKey: undoKey });
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -202,7 +192,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       }
       const pixelDelta = e.clientX - dragState.startX;
       if (isHourDrag) {
-        handleHourDrag(pixelDelta);
+        handleHourDrag(e);
         return;
       }
       const daysDelta = Math.round(pixelDelta / zoom);
@@ -298,6 +288,8 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     getTask,
     updateTask,
     onVerticalBodyDrag,
+    axis,
+    canvasRef,
   ]);
 
   return { dragState, startBarDrag, active: !!dragState };
