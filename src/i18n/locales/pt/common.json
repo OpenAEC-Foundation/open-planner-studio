@@ -618,6 +618,8 @@
       "invalidWorkTimeOrder": "A hora de início tem de ser anterior à hora de fim.",
       "increaseTime": "Aumentar a hora em 15 minutos",
       "decreaseTime": "Diminuir a hora em 15 minutos",
+      "increaseBreakDuration": "Aumentar a duração da pausa em 15 minutos",
+      "decreaseBreakDuration": "Diminuir a duração da pausa em 15 minutos",
       "start": "Início da pausa", "duration": "Duração da pausa (minutos)", "hint": "Os períodos de trabalho são calculados automaticamente. Duração 0 remove a pausa.",
       "errors": { "invalidDuration": "A duração deve ser um número inteiro de minutos igual ou superior a 0.", "outsideWorkingDay": "A pausa deve ficar totalmente dentro do dia de trabalho.", "consumesWorkingDay": "A pausa não pode ocupar todo o dia de trabalho." }
     },

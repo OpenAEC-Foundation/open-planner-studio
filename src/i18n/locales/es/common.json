@@ -618,6 +618,8 @@
       "invalidWorkTimeOrder": "La hora de inicio debe ser anterior a la hora de finalización.",
       "increaseTime": "Aumentar la hora 15 minutos",
       "decreaseTime": "Reducir la hora 15 minutos",
+      "increaseBreakDuration": "Aumentar la duración de la pausa 15 minutos",
+      "decreaseBreakDuration": "Reducir la duración de la pausa 15 minutos",
       "start": "Inicio de la pausa", "duration": "Duración de la pausa (minutos)", "hint": "Las franjas de trabajo se calculan automáticamente. Duración 0 elimina la pausa.",
       "errors": { "invalidDuration": "La duración debe ser un número entero de minutos igual o mayor que 0.", "outsideWorkingDay": "La pausa debe estar completamente dentro de la jornada laboral.", "consumesWorkingDay": "La pausa no puede ocupar toda la jornada laboral." }
     },

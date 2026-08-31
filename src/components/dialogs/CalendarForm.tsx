@@ -39,8 +39,24 @@ function timeToMinutes(value: string): number | undefined {
 
 const TIME_STEP_MINUTES = 15;
 
-type ScalarTimeField = 'workStart' | 'workEnd' | 'breakStart';
-type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeOrder' | 'invalidStart';
+type ScalarTimeField = 'workStart' | 'workEnd' | 'breakStart' | 'breakDuration';
+type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeOrder' | 'invalidStart' | 'invalidDuration' | 'outsideWorkingDay' | 'consumesWorkingDay';
+
+function StepButtons({ onStep, increaseLabel, decreaseLabel, dataAttribute }: {
+  onStep: (delta: number) => void;
+  increaseLabel: string;
+  decreaseLabel: string;
+  dataAttribute: string;
+}) {
+  return <span className="flex w-5 shrink-0 flex-col gap-0.5">
+    <button type="button" className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent" aria-label={increaseLabel} title={increaseLabel} onClick={() => onStep(TIME_STEP_MINUTES)} data-ops-scalar-time-step={`${dataAttribute}-up`}>
+      <ChevronUp size={11} aria-hidden="true" />
+    </button>
+    <button type="button" className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent" aria-label={decreaseLabel} title={decreaseLabel} onClick={() => onStep(-TIME_STEP_MINUTES)} data-ops-scalar-time-step={`${dataAttribute}-down`}>
+      <ChevronDown size={11} aria-hidden="true" />
+    </button>
+  </span>;
+}
 
 /**
  * Een bewust gewoon tekstveld voor de drie scalar-tijden. Native time/number-invoer verschilt per
@@ -93,30 +109,13 @@ function ScalarTimeInput({
         data-ops-work-end={dataAttribute === 'work-end' ? true : undefined}
         data-ops-simple-break-start={dataAttribute === 'break-start' ? true : undefined}
       />
-      <span className="flex w-5 shrink-0 flex-col gap-0.5">
-        <button
-          type="button"
-          className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent"
-          aria-label={increaseLabel}
-          title={increaseLabel}
-          onClick={() => onStep(TIME_STEP_MINUTES)}
-          data-ops-scalar-time-step={`${dataAttribute}-up`}
-        >
-          <ChevronUp size={11} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent"
-          aria-label={decreaseLabel}
-          title={decreaseLabel}
-          onClick={() => onStep(-TIME_STEP_MINUTES)}
-          data-ops-scalar-time-step={`${dataAttribute}-down`}
-        >
-          <ChevronDown size={11} aria-hidden="true" />
-        </button>
-      </span>
+      <StepButtons onStep={onStep} increaseLabel={increaseLabel} decreaseLabel={decreaseLabel} dataAttribute={dataAttribute} />
     </div>
   );
+}
+
+function minutesFromText(value: string): number | undefined {
+  return /^\d+$/.test(value) && Number(value) <= 24 * 60 ? Number(value) : undefined;
 }
 
 /**
@@ -173,6 +172,8 @@ export function CalendarForm({
   const [workEndText, setWorkEndText] = useState(() => minutesToTime(draft.workEndHour * 60));
   const [simpleBreakStartText, setSimpleBreakStartText] = useState(() =>
     minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60));
+  const [simpleBreakDurationText, setSimpleBreakDurationText] = useState(() =>
+    String(draft.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration));
   const [scalarTimeIssues, setScalarTimeIssues] = useState<Partial<Record<ScalarTimeField, ScalarTimeIssue>>>({});
   const netHoursFormatter = useMemo(
     () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -208,6 +209,16 @@ export function CalendarForm({
       return next;
     });
   }, [draft.simpleBreakStartMinute]);
+
+  useEffect(() => {
+    setSimpleBreakDurationText(String(draft.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration));
+    setScalarTimeIssues(issues => {
+      if (!issues.breakDuration) return issues;
+      const next = { ...issues };
+      delete next.breakDuration;
+      return next;
+    });
+  }, [draft.simpleBreakDurationMinutes, inferredSimpleBreakDuration]);
 
   useEffect(() => {
     onScalarTimeValidityChange?.(Object.keys(scalarTimeIssues).length > 0);
@@ -427,6 +438,57 @@ export function CalendarForm({
     patchSimpleBreak({ simpleBreakStartMinute: minute });
   };
 
+  const simpleBreakDurationIssue = (text: string): ScalarTimeIssue | undefined => {
+    const duration = minutesFromText(text);
+    if (duration === undefined) return 'invalidDuration';
+    return scalarBreakIssue(
+      draft.workStartHour * 60,
+      draft.workEndHour * 60,
+      draft.simpleBreakStartMinute ?? 12 * 60,
+      duration,
+    );
+  };
+
+  const updateSimpleBreakDurationText = (value: string) => {
+    setSimpleBreakDurationText(value);
+    // Een tekstwijziging blijft lokaal, maar Apply moet wel onmiddellijk weten dat bijvoorbeeld
+    // een onvolledige, te grote of buiten-de-dag liggende pauze niet geldig is.
+    setScalarTimeIssue('breakDuration', simpleBreakDurationIssue(value));
+  };
+
+  const commitSimpleBreakDuration = () => {
+    const duration = minutesFromText(simpleBreakDurationText);
+    if (duration === undefined) {
+      setScalarTimeIssue('breakDuration', 'invalidDuration');
+      return;
+    }
+    const issue = simpleBreakDurationIssue(simpleBreakDurationText);
+    if (issue) {
+      setScalarTimeIssue('breakDuration', issue);
+      return;
+    }
+    setScalarTimeIssue('breakDuration');
+    patchSimpleBreak({ simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60, simpleBreakDurationMinutes: duration });
+  };
+
+  const stepSimpleBreakDuration = (delta: number) => {
+    const current = minutesFromText(simpleBreakDurationText);
+    if (current === undefined) {
+      setScalarTimeIssue('breakDuration', 'invalidDuration');
+      return;
+    }
+    const nextDuration = current + delta;
+    if (nextDuration < 0 || nextDuration > 24 * 60) return;
+    const issue = scalarBreakIssue(draft.workStartHour * 60, draft.workEndHour * 60, draft.simpleBreakStartMinute ?? 12 * 60, nextDuration);
+    if (issue) {
+      setScalarTimeIssue('breakDuration', issue);
+      return;
+    }
+    setSimpleBreakDurationText(String(nextDuration));
+    setScalarTimeIssue('breakDuration');
+    patchSimpleBreak({ simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60, simpleBreakDurationMinutes: nextDuration });
+  };
+
   const stepScalarTime = (
     field: ScalarTimeField,
     text: string,
@@ -630,22 +692,20 @@ export function CalendarForm({
             <label className="text-text-secondary font-medium" htmlFor="ops-simple-break-duration">
               {tCommon('calendar.simpleBreak.duration')}
             </label>
-            <input
-              id="ops-simple-break-duration"
-              type="number"
-              min={0}
-              max={24 * 60}
-              step={5}
-              value={draft.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration}
-              onChange={e => patchSimpleBreak({
-                // De zichtbare standaard 12:00 moet ook daadwerkelijk in het model landen als
-                // de gebruiker alleen de duur invult (geen beginveld-event nodig).
-                simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60,
-                simpleBreakDurationMinutes: Number(e.target.value),
-              })}
-              className={inputCls}
-              data-ops-simple-break-duration
-            />
+            <div className="flex min-w-0 items-stretch gap-1">
+              <input id="ops-simple-break-duration" type="text" inputMode="numeric" value={simpleBreakDurationText}
+                onChange={event => updateSimpleBreakDurationText(event.target.value)}
+                onBlur={commitSimpleBreakDuration}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') { event.preventDefault(); commitSimpleBreakDuration(); }
+                  else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); stepSimpleBreakDuration(event.key === 'ArrowUp' ? TIME_STEP_MINUTES : -TIME_STEP_MINUTES); }
+                }}
+                className={inputCls + ' min-w-0 flex-1'} data-ops-simple-break-duration />
+              <StepButtons onStep={stepSimpleBreakDuration}
+                increaseLabel={tCommon('calendar.simpleBreak.increaseBreakDuration')}
+                decreaseLabel={tCommon('calendar.simpleBreak.decreaseBreakDuration')}
+                dataAttribute="break-duration" />
+            </div>
           </div>
           <p className="col-span-2 text-[11px] text-text-secondary">
             {tCommon('calendar.simpleBreak.hint')}
@@ -660,6 +720,12 @@ export function CalendarForm({
                     ? tCommon('calendar.simpleBreak.invalidWorkTimeOrder')
                 : scalarTimeIssues.breakStart === 'invalidStart'
                   ? tCommon('calendar.simpleBreak.invalidStart')
+                : scalarTimeIssues.breakDuration
+                  ? scalarTimeIssues.breakDuration === 'invalidDuration'
+                    ? tCommon('calendar.simpleBreak.errors.invalidDuration')
+                    : scalarTimeIssues.breakDuration === 'outsideWorkingDay'
+                      ? tCommon('calendar.simpleBreak.errors.outsideWorkingDay')
+                      : tCommon('calendar.simpleBreak.errors.consumesWorkingDay')
                 : scalarBreakError
                   ? tCommon(`calendar.simpleBreak.errors.${scalarBreakError}` as const)
                   : null}

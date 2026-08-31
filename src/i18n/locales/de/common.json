@@ -610,6 +610,8 @@
       "invalidWorkTimeOrder": "Die Startzeit muss vor der Endzeit liegen.",
       "increaseTime": "Zeit um 15 Minuten erhöhen",
       "decreaseTime": "Zeit um 15 Minuten verringern",
+      "increaseBreakDuration": "Pausendauer um 15 Minuten erhöhen",
+      "decreaseBreakDuration": "Pausendauer um 15 Minuten verringern",
       "start": "Pausenbeginn", "duration": "Pausendauer (Minuten)", "hint": "Arbeitszeitbänder werden automatisch abgeleitet. Dauer 0 bedeutet einen durchgehenden Arbeitstag.",
       "errors": { "invalidDuration": "Die Pausendauer muss eine ganze Minutenanzahl ab 0 sein.", "outsideWorkingDay": "Die Pause muss vollständig innerhalb des Arbeitstags liegen.", "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen." }
     },

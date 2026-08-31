@@ -626,6 +626,8 @@
       "invalidWorkTimeOrder": "Godzina rozpoczęcia musi być wcześniejsza niż godzina zakończenia.",
       "increaseTime": "Zwiększ godzinę o 15 minut",
       "decreaseTime": "Zmniejsz godzinę o 15 minut",
+      "increaseBreakDuration": "Zwiększ czas przerwy o 15 minut",
+      "decreaseBreakDuration": "Zmniejsz czas przerwy o 15 minut",
       "start": "Początek przerwy", "duration": "Czas przerwy (minuty)", "hint": "Przedziały pracy są wyliczane automatycznie. Czas 0 usuwa przerwę.",
       "errors": { "invalidDuration": "Czas musi być całkowitą liczbą minut nie mniejszą niż 0.", "outsideWorkingDay": "Przerwa musi mieścić się w dniu pracy.", "consumesWorkingDay": "Przerwa nie może zajmować całego dnia pracy." }
     },

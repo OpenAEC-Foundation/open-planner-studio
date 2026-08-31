@@ -618,6 +618,8 @@
       "invalidWorkTimeOrder": "L’orario di inizio deve precedere l’orario di fine.",
       "increaseTime": "Aumenta l’orario di 15 minuti",
       "decreaseTime": "Riduci l’orario di 15 minuti",
+      "increaseBreakDuration": "Aumenta la durata della pausa di 15 minuti",
+      "decreaseBreakDuration": "Riduci la durata della pausa di 15 minuti",
       "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
       "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
     },

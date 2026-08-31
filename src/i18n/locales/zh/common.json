@@ -602,6 +602,8 @@
       "invalidWorkTimeOrder": "开始时间必须早于结束时间。",
       "increaseTime": "将时间增加15分钟",
       "decreaseTime": "将时间减少15分钟",
+      "increaseBreakDuration": "将休息时长增加15分钟",
+      "decreaseBreakDuration": "将休息时长减少15分钟",
       "start": "休息开始时间", "duration": "休息时长（分钟）", "hint": "工作时段会自动推导。时长为 0 表示连续工作日。",
       "errors": { "invalidDuration": "休息时长必须是大于或等于 0 的整数分钟。", "outsideWorkingDay": "休息必须完全在设定的工作日内。", "consumesWorkingDay": "休息不能占用整个工作日。" }
     },

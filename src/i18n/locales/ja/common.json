@@ -602,6 +602,8 @@
       "invalidWorkTimeOrder": "開始時刻は終了時刻より前である必要があります。",
       "increaseTime": "時刻を15分進める",
       "decreaseTime": "時刻を15分戻す",
+      "increaseBreakDuration": "休憩時間を15分増やす",
+      "decreaseBreakDuration": "休憩時間を15分減らす",
       "start": "休憩開始", "duration": "休憩時間（分）", "hint": "勤務時間帯は自動的に導出されます。0 分は連続勤務日です。",
       "errors": { "invalidDuration": "休憩時間は 0 以上の整数分でなければなりません。", "outsideWorkingDay": "休憩は設定した勤務日の範囲内でなければなりません。", "consumesWorkingDay": "休憩が勤務日全体を占めることはできません。" }
     },

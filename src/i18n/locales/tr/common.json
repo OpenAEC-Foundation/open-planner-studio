@@ -610,6 +610,8 @@
       "invalidWorkTimeOrder": "Başlangıç saati bitiş saatinden önce olmalıdır.",
       "increaseTime": "Saati 15 dakika artır",
       "decreaseTime": "Saati 15 dakika azalt",
+      "increaseBreakDuration": "Mola süresini 15 dakika artır",
+      "decreaseBreakDuration": "Mola süresini 15 dakika azalt",
       "start": "Mola başlangıcı", "duration": "Mola süresi (dakika)", "hint": "Çalışma aralıkları otomatik türetilir. 0 süre molayı kaldırır.",
       "errors": { "invalidDuration": "Süre 0 veya daha büyük tam dakika olmalıdır.", "outsideWorkingDay": "Mola çalışma günü içinde olmalıdır.", "consumesWorkingDay": "Mola tüm çalışma gününü kaplayamaz." }
     },

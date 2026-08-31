@@ -610,6 +610,8 @@
       "invalidWorkTimeOrder": "Start time must be before end time.",
       "increaseTime": "Increase time by 15 minutes",
       "decreaseTime": "Decrease time by 15 minutes",
+      "increaseBreakDuration": "Increase break duration by 15 minutes",
+      "decreaseBreakDuration": "Decrease break duration by 15 minutes",
       "start": "Break starts",
       "duration": "Break duration (minutes)",
       "hint": "Set a break start and duration; net hours and working-time bands are derived automatically. Set duration to 0 for a continuous working day.",
