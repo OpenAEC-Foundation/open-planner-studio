@@ -255,6 +255,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCOMPLETEDSUSPENDCHECK="$DIR/.xer-completed-suspend-resume-window.mjs"
   if bundle_check "$DIR/check-xer-completed-suspend-resume-window.ts" "$XERCOMPLETEDSUSPENDCHECK"; then node "$XERCOMPLETEDSUSPENDCHECK" || STATUS=1; fi
 
+  # X7 smalle CP_Phys-uitbreiding: alleen de bewezen completed XER-leafsubset mag dezelfde
+  # completed-windowroute gebruiken; de eigen fixture bewaakt de solverroute en fail-closed grenzen.
+  XERCOMPLETEDCPPHYSCHECK="$DIR/.xer-completed-cp-phys-window.mjs"
+  if bundle_check "$DIR/check-xer-completed-cp-phys-window.ts" "$XERCOMPLETEDCPPHYSCHECK"; then node "$XERCOMPLETEDCPPHYSCHECK" || STATUS=1; fi
+
   # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
   XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
   if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi

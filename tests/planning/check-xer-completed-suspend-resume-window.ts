@@ -231,11 +231,11 @@ const rejectionCases: Array<{
     want: { eligible: false, reason: 'hasSuspendResume' },
   },
   {
-    label: 'CP_Phys',
+    label: 'CP_Phys blijft buiten de suspend/resume-uitzondering',
     mutate: (_imported, task) => {
       task.p6CompletePctType = 'CP_Phys';
     },
-    want: { eligible: false, reason: 'wrongCompletePctType' },
+    want: { eligible: false, reason: 'hasSuspendResume' },
   },
   {
     label: 'ander durationtype',

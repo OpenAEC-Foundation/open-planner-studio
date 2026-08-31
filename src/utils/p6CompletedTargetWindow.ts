@@ -56,9 +56,10 @@ function mayUseSuspendResumeCompletedWindow(
  *
  * De onafhankelijke guards maken de representatie fail-closed na IFC, undo en extensie-
  * round-trips: project-, taak-, voortgangstype- en activiteitstypeprovenance moeten tegelijk
- * bestaan. De vastgelegde `CP_Drtn`/`DT_FixedDUR2`-vorm is de kleinste onafhankelijke bronvorm
- * waarvoor de corpusprobe de completed statusdatum-route bevestigt. Een P6 suspend/resume-paar
- * blijft standaard fail-closed en mag uitsluitend door deze poort wanneer de taak zelf al
+ * bestaan. De vastgelegde `CP_Drtn`/`DT_FixedDUR2`-vorm en de afzonderlijk bewezen
+ * `CP_Phys`/`DT_FixedDUR2`/`TT_Task`-subvorm zijn de onafhankelijke bronvormen waarvoor de
+ * corpusprobes de completed statusdatum-route bevestigen. Een P6 suspend/resume-paar
+ * blijft standaard fail-closed en mag uitsluitend door de bestaande CP_Drtn-poort wanneer de taak zelf al
  * aantoonbaar voltooid is, haar actual-finish parseerbaar binnen het expliciete targetvenster en
  * de projectstatusdatum valt (`target_end_date <= actualFinish <= dataDate`), de backward-actual-
  * preserve-vlag aan staat, de resume niet ná de actual-finish valt en het interne stop/resume-paar
@@ -88,14 +89,21 @@ export function explainP6CompletedDataDateWindow(
   if (task.p6ExplicitTargetWindow !== true) {
     return { eligible: false, reason: 'missingExplicitTargetWindow' };
   }
-  if (task.p6CompletePctType !== 'CP_Drtn') return { eligible: false, reason: 'wrongCompletePctType' };
+  const isPhysicalCompletion = task.p6CompletePctType === 'CP_Phys';
+  if (task.p6CompletePctType !== 'CP_Drtn' && !isPhysicalCompletion) {
+    return { eligible: false, reason: 'wrongCompletePctType' };
+  }
   if (task.p6DurationType !== 'DT_FixedDUR2') return { eligible: false, reason: 'wrongDurationType' };
-  if (task.p6ActivityType !== 'TT_Task' && task.p6ActivityType !== 'TT_Rsrc') {
+  const validActivity = task.p6ActivityType === 'TT_Task'
+    || (!isPhysicalCompletion && task.p6ActivityType === 'TT_Rsrc');
+  if (!validActivity) {
     return { eligible: false, reason: 'wrongActivityType' };
   }
-  if (task.p6SuspendResume === true && !mayUseSuspendResumeCompletedWindow(task, dataDate, schedulingOptions)) {
+  if (task.p6SuspendResume === true
+    && (isPhysicalCompletion || !mayUseSuspendResumeCompletedWindow(task, dataDate, schedulingOptions))) {
     return { eligible: false, reason: 'hasSuspendResume' };
   }
+  if (isPhysicalCompletion && !task.time.actualFinish) return { eligible: false, reason: 'notCompleted' };
   if (task.time.completion < 1) return { eligible: false, reason: 'notCompleted' };
   if (isZeroDurationMilestone(task)) return { eligible: false, reason: 'zeroDurationMilestone' };
   return { eligible: true, reason: 'eligible' };
