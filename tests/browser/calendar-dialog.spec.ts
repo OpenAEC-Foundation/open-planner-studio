@@ -65,6 +65,8 @@ test('kalenderdialoog rangschikt beide zichtbare weekdagrijen volgens de eerste 
 
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ weekStartDay: 'monday' }));
   await expect(firstWeekday).toHaveText('Mon');
+  await expect(dialog.locator('[data-ops-derived-hpd]')).toHaveText('8h');
+  await expect(dialog.locator('[data-ops-worktime-editor]')).not.toContainText(/\d(?:\.\d+)?u\b/);
 
   await dialog.locator('[data-ops-cal-apply]').click();
   await expect(dialog).toBeHidden();
@@ -98,12 +100,24 @@ test('eenvoudig pauzepatroon leidt netto uren af, bewaart het en blokkeert een o
   await expect(dialog).toBeVisible();
   const pauseStart = dialog.locator('[data-ops-simple-break-start]');
   const pauseDuration = dialog.locator('[data-ops-simple-break-duration]');
+  const netHours = dialog.locator('[data-ops-simple-break-net-hours]');
   await expect(pauseStart).toHaveValue('12:00');
   await expect(pauseDuration).toHaveValue('60');
+  await expect(pauseStart).not.toHaveAttribute('type', 'time');
+  await expect(dialog.locator('input[type="time"]')).toHaveCount(0);
+  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours.locator('input')).toHaveCount(0);
+  await expect(dialog.getByText('Net hours per day', { exact: true })).toBeVisible();
+  await expect(dialog).not.toContainText('ribbon.calendarDialog.netHoursPerDay');
 
   await pauseStart.fill('12:00');
-  await pauseDuration.fill('55');
+  await pauseStart.press('Enter');
+  await pauseDuration.fill('35');
+  await expect(netHours).toHaveText('8.42 h');
+  await pauseDuration.fill('30');
+  await expect(netHours).toHaveText('8.50 h');
   await pauseDuration.fill('60');
+  await expect(netHours).toHaveText('8.00 h');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.hoursPerDay)).toBe(8);
   await dialog.locator('[data-ops-cal-apply]').click();
   await expect(dialog).toBeHidden();
@@ -115,7 +129,12 @@ test('eenvoudig pauzepatroon leidt netto uren af, bewaart het en blokkeert een o
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true }));
   await expect(dialog).toBeVisible();
   await pauseStart.fill('15:30');
+  await pauseStart.press('Enter');
   await pauseDuration.fill('60');
+  await expect(dialog.locator('[data-ops-simple-break-error]')).toBeVisible();
+  await expect(dialog.locator('[data-ops-cal-apply]')).toBeDisabled();
+  await pauseStart.fill('15:3');
+  await pauseStart.press('Enter');
   await expect(dialog.locator('[data-ops-simple-break-error]')).toBeVisible();
   await expect(dialog.locator('[data-ops-cal-apply]')).toBeDisabled();
   await dialog.locator('[data-ops-cal-cancel]').click();

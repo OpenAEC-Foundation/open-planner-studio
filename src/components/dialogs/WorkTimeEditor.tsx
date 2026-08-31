@@ -77,7 +77,7 @@ export function WorkTimeEditor({
                 {tMenu(`ribbon.calendarDialog.days.${wd}` as 'ribbon.calendarDialog.days.1')}
               </span>
               <span className="text-[10px] text-text-secondary tabular-nums">
-                {(dayMinutes(wd) / 60).toFixed(2)}u
+                {(dayMinutes(wd) / 60).toFixed(2)}h
               </span>
               <div className="flex-1" />
               <button type="button" onClick={() => addBand(wd)}
@@ -131,7 +131,7 @@ export function WorkTimeEditor({
       })}
       <div className="flex items-center justify-between pt-1">
         <span className="text-[11px] font-medium text-text-secondary">{tCommon('calendar.worktime.derivedHpd')}</span>
-        <span className="text-[11px] font-semibold text-accent tabular-nums" data-ops-derived-hpd>{derivedHpd}u</span>
+        <span className="text-[11px] font-semibold text-accent tabular-nums" data-ops-derived-hpd>{derivedHpd}h</span>
       </div>
       {hasBreak && (
         <span className="text-[10px] text-text-secondary italic" data-ops-break-hint>

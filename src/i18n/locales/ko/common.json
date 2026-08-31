@@ -596,6 +596,7 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
+      "invalidStart": "유효한 휴식 시작 시간을 HH:MM 형식으로 입력하세요.",
       "start": "휴식 시작", "duration": "휴식 시간(분)", "hint": "근무 시간대가 자동으로 계산됩니다. 0분은 연속 근무일입니다.",
       "errors": { "invalidDuration": "휴식 시간은 0 이상의 정수 분이어야 합니다.", "outsideWorkingDay": "휴식은 설정된 근무일 안에 모두 있어야 합니다.", "consumesWorkingDay": "휴식이 근무일 전체를 차지할 수 없습니다." }
     },

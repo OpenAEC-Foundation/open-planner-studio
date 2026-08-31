@@ -620,6 +620,7 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
+      "invalidStart": "Wprowadź prawidłową godzinę przerwy w formacie HH:MM.",
       "start": "Początek przerwy", "duration": "Czas przerwy (minuty)", "hint": "Przedziały pracy są wyliczane automatycznie. Czas 0 usuwa przerwę.",
       "errors": { "invalidDuration": "Czas musi być całkowitą liczbą minut nie mniejszą niż 0.", "outsideWorkingDay": "Przerwa musi mieścić się w dniu pracy.", "consumesWorkingDay": "Przerwa nie może zajmować całego dnia pracy." }
     },

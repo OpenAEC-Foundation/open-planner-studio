@@ -604,6 +604,7 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
+      "invalidStart": "Enter a valid break time as HH:MM.",
       "start": "Break starts",
       "duration": "Break duration (minutes)",
       "hint": "Set a break start and duration; net hours and working-time bands are derived automatically. Set duration to 0 for a continuous working day.",

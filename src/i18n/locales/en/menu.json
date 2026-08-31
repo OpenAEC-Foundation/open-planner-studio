@@ -65,6 +65,7 @@
       "startHour": "Start (hour)",
       "endHour": "End (hour)",
       "hoursPerDay": "Hours per day",
+      "netHoursPerDay": "Net hours per day",
       "holidaysSection": "Holidays",
       "holidayName": "Description",
       "from": "From",

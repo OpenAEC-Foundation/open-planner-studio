@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, X } from 'lucide-react';
 import type { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
@@ -47,13 +47,16 @@ function timeToMinutes(value: string): number | undefined {
 export function CalendarForm({
   draft,
   onChange,
+  onSimpleBreakStartValidityChange,
   projectYearSpan,
 }: {
   draft: WorkCalendar;
   onChange: (patch: Partial<WorkCalendar>) => void;
+  /** De aanroeper bezit de Apply-knop en moet ook een lokaal ongeldige HH:MM-invoer kunnen blokkeren. */
+  onSimpleBreakStartValidityChange?: (invalid: boolean) => void;
   projectYearSpan?: { from: number; to: number };
 }) {
-  const { t: tMenu } = useTranslation('menu');
+  const { t: tMenu, i18n } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
@@ -69,6 +72,11 @@ export function CalendarForm({
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState('');
   const hourMode = isHourCalendar(draft);
+  const hasSimpleBreakPattern = draft.simpleBreakStartMinute !== undefined
+    || draft.simpleBreakDurationMinutes !== undefined;
+  // Met globale urenplanning aan is de netto tijd altijd een afleiding: expliciete weekbanden
+  // zijn leidend en een legacy scalar behoudt zijn bestaande, impliciet afgeleide urenwaarde.
+  const showNetHoursReadout = enableHourPlanning || hasSimpleBreakPattern;
   const scalarBreakError = scalarBreakIssue(
     draft.workStartHour * 60,
     draft.workEndHour * 60,
@@ -81,6 +89,22 @@ export function CalendarForm({
   const inferredSimpleBreakDuration = Math.max(0, Math.round(
     (draft.workEndHour - draft.workStartHour - draft.hoursPerDay) * 60,
   ));
+  const [simpleBreakStartText, setSimpleBreakStartText] = useState(() =>
+    minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60));
+  const [simpleBreakStartTextInvalid, setSimpleBreakStartTextInvalid] = useState(false);
+  const netHoursFormatter = useMemo(
+    () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    [i18n.language],
+  );
+
+  useEffect(() => {
+    setSimpleBreakStartText(minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60));
+    setSimpleBreakStartTextInvalid(false);
+  }, [draft.simpleBreakStartMinute]);
+
+  useEffect(() => {
+    onSimpleBreakStartValidityChange?.(simpleBreakStartTextInvalid);
+  }, [onSimpleBreakStartValidityChange, simpleBreakStartTextInvalid]);
 
   useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
 
@@ -214,6 +238,19 @@ export function CalendarForm({
     onChange({ ...patch, ...materializedLegacyDuration, ...(netHours !== undefined ? { hoursPerDay: netHours } : {}) });
   };
 
+  // Een gewoon tekstveld houdt de bediening en vormgeving gelijk aan de overige scalarvelden.
+  // Pas bij blur of Enter wordt een complete HH:MM-waarde naar het model geschreven, zodat een
+  // half getypte tijd nooit de kalender of de Apply-validatie kan vervuilen.
+  const commitSimpleBreakStart = () => {
+    const minute = timeToMinutes(simpleBreakStartText);
+    if (minute === undefined) {
+      setSimpleBreakStartTextInvalid(true);
+      return;
+    }
+    setSimpleBreakStartTextInvalid(false);
+    patchSimpleBreak({ simpleBreakStartMinute: minute });
+  };
+
   // Presets (fase 2.8a, §13/out-of-scope — "24/7"-kalender was al gedefinieerd in het ontwerp als
   // workDays [1..7]-preset, maar had geen knop; alleen handmatig 7 dagen aanvinken). Echte
   // dag/nacht-PLOEGEN (twee elkaar afwisselende kalenders) blijven fase 2.8b — dit is uitsluitend
@@ -342,18 +379,29 @@ export function CalendarForm({
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary font-medium">
-              {tMenu('ribbon.calendarDialog.hoursPerDay')}
+              {showNetHoursReadout
+                ? tMenu('ribbon.calendarDialog.netHoursPerDay')
+                : tMenu('ribbon.calendarDialog.hoursPerDay')}
             </label>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              value={draft.hoursPerDay}
-              onChange={e => onChange({ hoursPerDay: Number(e.target.value) })}
-              className={inputCls + (draft.simpleBreakStartMinute !== undefined || draft.simpleBreakDurationMinutes !== undefined ? ' opacity-60' : '')}
-              disabled={draft.simpleBreakStartMinute !== undefined || draft.simpleBreakDurationMinutes !== undefined}
-            />
+            {showNetHoursReadout ? (
+              <output
+                className="py-1.5 font-semibold text-text-primary tabular-nums"
+                aria-live="polite"
+                data-ops-simple-break-net-hours
+              >
+                {netHoursFormatter.format(draft.hoursPerDay)} h
+              </output>
+            ) : (
+              <input
+                type="number"
+                min={0}
+                max={24}
+                step={0.5}
+                value={draft.hoursPerDay}
+                onChange={e => onChange({ hoursPerDay: Number(e.target.value) })}
+                className={inputCls}
+              />
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3" data-ops-simple-break>
@@ -363,11 +411,22 @@ export function CalendarForm({
             </label>
             <input
               id="ops-simple-break-start"
-              type="time"
-              value={minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60)}
+              type="text"
+              inputMode="numeric"
+              placeholder="HH:MM"
+              value={simpleBreakStartText}
               onChange={e => {
-                const minute = timeToMinutes(e.target.value);
-                if (minute !== undefined) patchSimpleBreak({ simpleBreakStartMinute: minute });
+                setSimpleBreakStartText(e.target.value);
+                // Een tussenstand (bijv. alleen "1") is toegestaan tijdens typen. Was de
+                // waarde al bij blur afgekeurd, hef de blokkade pas op bij een complete HH:MM.
+                if (timeToMinutes(e.target.value) !== undefined) setSimpleBreakStartTextInvalid(false);
+              }}
+              onBlur={commitSimpleBreakStart}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commitSimpleBreakStart();
+                }
               }}
               className={inputCls}
               data-ops-simple-break-start
@@ -397,9 +456,13 @@ export function CalendarForm({
           <p className="col-span-2 text-[11px] text-text-secondary">
             {tCommon('calendar.simpleBreak.hint')}
           </p>
-          {scalarBreakError && (
+          {(scalarBreakError || simpleBreakStartTextInvalid) && (
             <p className="col-span-2 text-[11px] text-red-600" role="alert" data-ops-simple-break-error>
-              {tCommon(`calendar.simpleBreak.errors.${scalarBreakError}` as const)}
+              {simpleBreakStartTextInvalid
+                ? tCommon('calendar.simpleBreak.invalidStart')
+                : scalarBreakError
+                  ? tCommon(`calendar.simpleBreak.errors.${scalarBreakError}` as const)
+                  : null}
             </p>
           )}
         </div>
@@ -414,7 +477,7 @@ export function CalendarForm({
             {hourMode && (
               <span className="text-[11px] text-text-secondary">
                 {tCommon('calendar.worktime.derivedHpd')}{' '}
-                <span className="font-semibold text-accent tabular-nums">{draft.hoursPerDay}u</span>
+                <span className="font-semibold text-accent tabular-nums">{draft.hoursPerDay}h</span>
               </span>
             )}
           </div>

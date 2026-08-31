@@ -54,14 +54,17 @@ export function ResourceCalendarDialog({
   const [draft, setDraft] = useState<WorkCalendar>(() =>
     existing ? structuredClone(existing) : { ...createDefaultCalendar(), id: generateId('rescal'), name: '' },
   );
+  const [simpleBreakStartTextInvalid, setSimpleBreakStartTextInvalid] = useState(false);
+
+  const simpleBreakInvalid = simpleBreakStartTextInvalid || scalarBreakIssue(
+    draft.workStartHour * 60,
+    draft.workEndHour * 60,
+    draft.simpleBreakStartMinute,
+    draft.simpleBreakDurationMinutes,
+  ) !== undefined;
 
   const handleApply = () => {
-    if (scalarBreakIssue(
-      draft.workStartHour * 60,
-      draft.workEndHour * 60,
-      draft.simpleBreakStartMinute,
-      draft.simpleBreakDurationMinutes,
-    )) return;
+    if (simpleBreakInvalid) return;
     if (poolCompanyId) {
       if (existing) {
         updatePoolCalendar(poolCompanyId, existing.id, draft);
@@ -99,6 +102,7 @@ export function ResourceCalendarDialog({
         <CalendarForm
           draft={draft}
           onChange={patch => setDraft(d => ({ ...d, ...patch }))}
+          onSimpleBreakStartValidityChange={setSimpleBreakStartTextInvalid}
           projectYearSpan={projectYearSpan}
         />
 
@@ -106,12 +110,7 @@ export function ResourceCalendarDialog({
           <button onClick={onClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button onClick={handleApply} disabled={scalarBreakIssue(
-            draft.workStartHour * 60,
-            draft.workEndHour * 60,
-            draft.simpleBreakStartMinute,
-            draft.simpleBreakDurationMinutes,
-          ) !== undefined} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
+          <button onClick={handleApply} disabled={simpleBreakInvalid} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
             {tCommon('apply')}
           </button>
         </div>
