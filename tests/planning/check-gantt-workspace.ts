@@ -22,6 +22,8 @@ const canvas = read('src/components/canvas/GanttCanvas.tsx');
 const renderer = read('src/engine/renderer/GanttRenderer.ts');
 const styles = read('src/styles/globals.css');
 
+const cssRule = (selector: RegExp): string => styles.match(selector)?.[1] ?? '';
+
 ok('GanttWorkspace bestaat', exists(workspacePath));
 ok('GanttTaskGrid bestaat', exists(gridPath));
 ok('App rendert de workspace in plaats van het canvas rechtstreeks',
@@ -62,6 +64,41 @@ ok('Effectieve splittergrens bewaart minimaal 180 px tijdlijn',
   effectiveTaskGridMax(640) === 460 && effectiveTaskGridMax(1280) === 800);
 ok('Dezelfde klem begrenst opgeslagen, pointer- en toetsenbordbreedte',
   clampTaskGridWidth(900, 640) === 460 && clampTaskGridWidth(100, 640) === 150);
+
+const splitterInteractionRule = cssRule(
+  /\.gantt-workspace-splitter:hover,[\s\S]*?\.gantt-workspace-splitter:focus-visible\s*\{([^}]*)\}/,
+);
+const splitterBaseRule = cssRule(/\.gantt-workspace-splitter\s*\{([^}]*)\}/);
+ok('De splittergrijpzone ligt volledig aan de Gantt-kant en bedekt de tabelscrollbar niet',
+  splitterBaseRule.includes('transform: translateX(100%)'));
+ok('De splitter toont één grenslijn binnen een verder transparante grijpzone',
+  splitterBaseRule.includes('border: 0')
+    && splitterBaseRule.includes('border-inline-start: 1px solid var(--theme-border)')
+    && !splitterBaseRule.includes('border-inline-end')
+    && splitterBaseRule.includes('background: transparent'));
+ok('De paneelsplitter blijft tijdens hover, focus en resizen neutraal',
+  splitterInteractionRule.includes('background: transparent')
+    && !splitterInteractionRule.includes('var(--theme-accent)'));
+
+ok('De verticale taakgrid-scrollbaan begint pas onder de kolomkop',
+  /\.task-grid-core::\-webkit-scrollbar-track:vertical\s*\{[^}]*margin-block-start:\s*var\(--task-grid-header-height\)/s.test(styles));
+
+ok('Taaknamen benutten de cel tot vlak voor de rechter kolomgrens',
+  /\.task-grid-cell:has\(\.full-task-grid-name\)\s*\{[^}]*padding-inline-end:\s*1px/s.test(styles));
+
+const chooserAnchorRule = cssRule(/\.task-grid-column-chooser-anchor\s*\{([^}]*)\}/);
+const addColumnRule = cssRule(/\.task-grid-add-column\s*\{([^}]*)\}/);
+ok('De kolomkiezer reserveert slechts een compacte strook van zestien pixels',
+  /--task-grid-chooser-strip:\s*16px/.test(styles)
+    && chooserAnchorRule.includes('padding-inline: 0'));
+ok('De kiezerstrook volgt de scrollende header en inhoud in plaats van de scrollcontainer te versmallen',
+  !cssRule(/\.task-grid-core\s*\{([^}]*)\}/).includes('padding-inline-end')
+    && /\.task-grid-header-row,\s*\.task-grid-body\s*\{[^}]*padding-inline-end:\s*var\(--task-grid-chooser-strip/s.test(styles));
+ok('De plusknop is een kaal icoon zonder permanent vierkant vlak',
+  addColumnRule.includes('width: 16px')
+    && addColumnRule.includes('height: 18px')
+    && addColumnRule.includes('background: transparent')
+    && addColumnRule.includes('border: 0'));
 
 const ganttGrid = exists(gridPath) ? read(gridPath) : '';
 const fullGrid = read('src/components/task-grid/FullTaskGrid.tsx');
