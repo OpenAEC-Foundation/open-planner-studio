@@ -1290,8 +1290,9 @@ function levelingData(
       '(INTRINSIC_OVERRUN = de taak vraagt op zichzelf al meer dan de capaciteit, CALENDAR_MISMATCH = ' +
       'resource- en taakkalender sluiten niet aan, INSUFFICIENT_CAPACITY = er is domweg te weinig capaciteit, ' +
       'CEILING_TOO_TIGHT = het uitloop-plafond laat te weinig ruimte, CEILING_UNREACHABLE = een deadline/' +
-      'backward-constraint maakt elk plafond onbereikbaar, NO_WINDOW_IN_HORIZON = de zoekhorizon liep leeg ' +
-      'zonder een passend venster te vinden).',
+      'backward-constraint maakt elk plafond onbereikbaar, RESIDUAL_FULL = de eigen projectinzet had ' +
+      'ruimte maar de restcapaciteit van het bibliotheek-poolitem is op — andere documenten bezetten de ' +
+      'pool, NO_WINDOW_IN_HORIZON = de zoekhorizon liep leeg zonder een passend venster te vinden).',
     );
   }
   // `projectEndAfter` is de VOORSPELLING van de nivelleerder; `projectEnd` is wat er ná de
