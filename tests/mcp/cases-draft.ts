@@ -232,7 +232,7 @@ test('draft.applyLeveling zet delays; de eind-runCPM verwerkt ze precies één k
     draft.applyLeveling({
       delays: { [id]: 3 },
       unresolved: {}, unresolvedReasons: {}, shifts: {},
-      projectEndBefore: '', projectEndAfter: '',
+      projectEndBefore: '', projectEndAfter: '', gaps: {},
     });
   });
 

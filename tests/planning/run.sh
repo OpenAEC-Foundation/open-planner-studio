@@ -437,6 +437,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERPOOLLEDGERCHECK="$DIR/.leveler-pool-ledger.mjs"
   if bundle_check "$DIR/check-leveler-pool-ledger.ts" "$LEVELERPOOLLEDGERCHECK"; then node "$LEVELERPOOLLEDGERCHECK" || STATUS=1; fi
 
+  # B1c-plan-2 taak 9: de onderbreek-modus (`allowSplits`) — dag-voor-dag-plaatsing als fallback ná
+  # een mislukte aaneengesloten scan, met leveling-gaten (`LevelingResult.gaps`) op WORKTIME+
+  # completion-0-taken (dag- én uur-modus, eigenaarsbesluit 2026-08-31), nooit op ELAPSEDTIME of een
+  # gestarte taak, en met behoud van bestaande importsplits.
+  LEVELERSPLITMODECHECK="$DIR/.leveler-splitmode.mjs"
+  if bundle_check "$DIR/check-leveler-splitmode.ts" "$LEVELERSPLITMODECHECK"; then node "$LEVELERSPLITMODECHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

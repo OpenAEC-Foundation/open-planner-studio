@@ -138,7 +138,7 @@ S().updateTask(idT, { levelingDelayMinutes: 2400, levelingDelayElapsed: true });
 
 S().applyLeveling({
   delays: { [idT]: 2 }, unresolved: {}, unresolvedReasons: {}, shifts: {},
-  projectEndBefore: '2026-06-01', projectEndAfter: '2026-06-03',
+  projectEndBefore: '2026-06-01', projectEndAfter: '2026-06-03', gaps: {},
 });
 {
   const t = S().tasks.find(x => x.id === idT)!;

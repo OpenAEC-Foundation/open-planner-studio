@@ -227,7 +227,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     if (!cpm || cpm.error) {
       // Geen (geldige) CPM-run: niets te nivelleren — lege, veilige uitkomst.
       const end = cpm?.projectEnd ?? '';
-      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
+      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
     const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);

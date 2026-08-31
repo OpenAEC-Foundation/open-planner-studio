@@ -38,7 +38,7 @@
 // gezet — exact de route die `applyLeveling`→`runCPM` straks echt neemt. Zo bevat de preview óók
 // niet-geresourcete FS-opvolgers die pas via de forward pass meeschuiven (die zaten niet in de oude
 // heuristiek die alleen geplaatste taken optelde).
-import type { Task } from '@/types/task';
+import type { Task, TaskSplitGap } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
@@ -46,7 +46,7 @@ import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { distributeUnits, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
-import { enumerateTaskWorkDays } from './splitWalk';
+import { enumerateTaskWorkDays, splitGapsFromWorkDayBlocks } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 
 /**
@@ -104,6 +104,21 @@ export interface LevelingOptions {
    *  Afwezig ⇒ alleen de bestaande per-resource-toets (byte-identiek met het gedrag van vóór
    *  B1c-etappe-2). */
   poolLedger?: LevelingPoolLedger;
+  /** B1c-plan-2 taak 9: "Onderbrekingen toestaan" (spec §4 stap 0; MS Project: *Leveling can create
+   *  splits in remaining work*). `false`/afwezig ⇒ bestaand gedrag: een taak wijkt alleen als GEHEEL
+   *  (uitloop). `true` ⇒ de nivelleerder mag pauzedagen invoegen wanneer er geen aaneengesloten
+   *  venster past — MAAR uitsluitend als FALLBACK, ná een mislukte aaneengesloten scan (zie
+   *  `findSlot`); zonder een bindend venster (`overrunCeilingDays`/`constrainToFloat`) vindt die scan
+   *  op den duur altijd een aaneengesloten gat, dus deze optie is in de praktijk gekoppeld aan een
+   *  plafond.
+   *
+   *  V1-GRENS (bewust, zie het plan bij taak 9 — verbreed 2026-08-31): taken met
+   *  `durationType === 'WORKTIME'` en `completion === 0` komen ervoor in aanmerking, ONGEACHT
+   *  `durationUnit` — dag- én uur-modus. Een ingevoegde pauze is en blijft ALTIJD een hele werkdag,
+   *  ook op een uur-modus-taak (de gaten-machinerie zelf blijft dag-granulair); alleen de SPANNE rekt,
+   *  nooit de vraag. ELAPSEDTIME blijft uitgesloten (geen werkdagbegrip), en MSP's eigen formulering
+   *  is "splits in REMAINING work" — een gestarte taak wijkt uitsluitend via uitloop. */
+  allowSplits?: boolean;
 }
 
 /** Reden waarom een taak onopgelost bleef (A3, deze golf) — de nivelleer-dialoog kiest hierop de
@@ -147,6 +162,12 @@ export interface LevelingResult {
   shifts: Record<string, LevelingShift>;
   projectEndBefore: string;
   projectEndAfter: string;
+  /** B1c-plan-2 taak 9: taskId → de door de nivelleerder INGEVOEGDE werkonderbrekingen, inclusief de
+   *  importsplits die de taak al droeg (de volledige, te schrijven `splitGaps`-waarde — niet alleen
+   *  het verschil). Alleen aanwezig voor taken die daadwerkelijk een leveling-gat kregen;
+   *  `applyLeveling` schrijft dit veld pas in etappe 3. Zonder `allowSplits` blijft dit altijd `{}`
+   *  (byte-identiek). */
+  gaps: Record<string, TaskSplitGap[]>;
 }
 
 // Float-tolerantie: dag-granulaire eenheden zijn honderdsten (largestRemainderRound, §4.1); een
@@ -294,12 +315,14 @@ export function levelResources(
   const baseline = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
   if (baseline.error) {
     const end = cpmResult.projectEnd;
-    return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
+    return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
   }
   const baseEs = (id: string): string =>
     baseline.tasks.get(id)?.earlyStart ?? taskById.get(id)!.time.earlyStart;
   const baseLs = (id: string): string =>
     baseline.tasks.get(id)?.lateStart ?? taskById.get(id)!.time.lateStart;
+  const baseLf = (id: string): string =>
+    baseline.tasks.get(id)?.lateFinish ?? taskById.get(id)!.time.lateFinish;
   const baseFloat = (id: string): number =>
     baseline.tasks.get(id)?.totalFloat ?? taskById.get(id)!.time.totalFloat;
 
@@ -317,6 +340,22 @@ export function levelResources(
       : engineForTask(t).addWorkingDaysSigned(ls, ceilingDays);
     // Beide aan ⇒ het strengste venster wint.
     return options.constrainToFloat && ls < ceiling ? ls : ceiling;
+  };
+
+  // B1c-plan-2 taak 9: bovengrens voor de LAATSTE werkdag in de onderbreek-modus — spiegelt
+  // `windowLimit` hierboven, maar op de baseline-LATEFINISH i.p.v. -LATESTART. Met onderbrekingen
+  // schuift de START van een taak misschien nauwelijks (de eerste losse vrije dag kan vlak bij haar
+  // PF liggen), maar het EINDE schuift wél mee met elk ingevoegd gat — en het plafond gaat over de
+  // EINDdatum, dus dát is wat hier gebonden moet worden, niet de start.
+  const finishWindowLimit = (id: string): Date | null => {
+    const lf = parseDate(baseLf(id));
+    const ceilingDays = options.overrunCeilingDays;
+    if (ceilingDays === undefined) return options.constrainToFloat ? lf : null;
+    const t = taskById.get(id)!;
+    const ceiling = t.time.durationType === 'ELAPSEDTIME'
+      ? addCalendarDays(lf, ceilingDays)
+      : engineForTask(t).addWorkingDaysSigned(lf, ceilingDays);
+    return options.constrainToFloat && lf < ceiling ? lf : ceiling;
   };
 
   // Dagenset (I5/I6, kwaliteitsronde taak 4) die `task`, gestart op `startDate`, daadwerkelijk boekt
@@ -477,9 +516,13 @@ export function levelResources(
   // gedrag — ook een onopgeloste taak boekt op haar project-grootboek, zodat het conflict zichtbaar
   // blijft); alleen de POOL-boeking is voorwaardelijk — spec §4 stap 3, "niet-plaatsbaar = tekort,
   // geen cascade".
-  const bookDemandAt = (taskId: string, startDate: Date, toPoolLedger: boolean): string[] => {
+  // B1c-plan-2 taak 9: `occOverride` — de onderbreek-modus zet de nieuwe leveling-gaten pas op de
+  // WERKKOPIE (`workById`), niet op het originele `taskById`-object dat `occurrenceFor` hierboven
+  // leest; zonder deze override zou de boeking dus de OUDE (ongescatterde) dagenset gebruiken. De
+  // scatter-aanroepplek geeft de al-gekozen dagen rechtstreeks door en slaat `occurrenceFor` zo over.
+  const bookDemandAt = (taskId: string, startDate: Date, toPoolLedger: boolean, occOverride?: string[]): string[] => {
     const task = taskById.get(taskId)!;
-    const occ = occurrenceFor(task, startDate);
+    const occ = occOverride ?? occurrenceFor(task, startDate);
     const byRes = demandByTask.get(taskId)!;
     for (const [resId, arr] of byRes) {
       const poolItem = ledger && toPoolLedger ? ledger.poolItemOf(resId) : null;
@@ -565,6 +608,10 @@ export function levelResources(
   const delays: Record<string, number> = {};
   const unresolved: Record<string, string[]> = {};
   const unresolvedReasons: Record<string, LevelingReason> = {};
+  // B1c-plan-2 taak 9: taskId → de volledige, te schrijven `splitGaps`-waarde (bestaande
+  // importsplits + eventuele nieuwe leveling-gaten). Alleen gezet voor taken die daadwerkelijk via
+  // `findSlot`s scatter-tak geplaatst zijn — zonder `allowSplits` blijft dit `{}`.
+  const gapsOut: Record<string, TaskSplitGap[]> = {};
 
   const allPredsPlaced = (id: string) => predsOf.get(id)!.every(p => placed.has(p));
 
@@ -582,6 +629,7 @@ export function levelResources(
     let startDate: Date;
     let slotUnresolved: string[] = [];
     let slotReason: LevelingReason | undefined;
+    let scatterDays: string[] | undefined;
     if (pinnedSet.has(pick)) {
       // Vastgepind (§5.4/A4): volgt zijn (mogelijk verschoven) voorgangers via PF, maar schuift NIET
       // voor capaciteit — geen scan. Boeking op PF valt zo samen met de finale CPM-positie (waar de
@@ -600,6 +648,24 @@ export function levelResources(
       startDate = slot.start;
       slotUnresolved = slot.unresolved;
       slotReason = slot.reason;
+      // B1c-plan-2 taak 9: `findSlot` leverde een dag-voor-dag (onderbroken) plaatsing i.p.v. een
+      // aaneengesloten venster. De gaten moeten op de WERKKOPIE staan VÓÓR de proef-solve aan het
+      // eind van deze functie (A1) — anders belooft `projectEndAfter` een einddatum die de echte
+      // `applyLeveling` → `runCPM` straks nooit haalt — en ná de PF-berekening van déze taak (die
+      // ging al over de start, niet de spanne). Vandaar hier, meteen na de `findSlot`-aanroep.
+      if (slot.scatterDays) {
+        scatterDays = slot.scatterDays;
+        const mpd = engineForTask(pickedTask).hoursPerDay * 60;
+        const newGaps: TaskSplitGap[] = [
+          ...(pickedTask.splitGaps ?? []),
+          ...splitGapsFromWorkDayBlocks(blocksFromDays(scatterDays, engineForTask(pickedTask)), mpd, 'leveling'),
+        ];
+        workById.get(pick)!.splitGaps = newGaps; // ⇒ de proef-solve (A1) ziet de opgerekte spanne
+        gapsOut[pick] = newGaps;                 // ⇒ komt in LevelingResult.gaps
+        // L3-memo (taak 2): deze taak kreeg een NIEUWE dagenset tijdens de run — wis haar cache-
+        // entries, anders valt een latere aanroep op de oude (voor-scatter) dagenset.
+        for (const key of [...occCache.keys()]) if (key.startsWith(`${pick}|`)) occCache.delete(key);
+      }
     }
 
     // B1c-plan-2 taak 6: dit IS de spec-regel "niet-plaatsbaar = tekort per document, geen cascade"
@@ -609,7 +675,7 @@ export function levelResources(
     // ongeacht of dat past. Dat het restprofiel daardoor op 0 geklemd kan raken terwijl er
     // feitelijk overboeking is, is geen motorprobleem: de verdeler detecteert dat als een tekort op
     // poolniveau (taak 10, buiten dit plan).
-    bookDemandAt(pick, startDate, slotUnresolved.length === 0);
+    bookDemandAt(pick, startDate, slotUnresolved.length === 0, scatterDays);
     placedStartIso.set(pick, formatDate(startDate));
     // B1c-W0.3: gemeten in DEZELFDE eenheid als `CPMSolver.forwardPass`'s `shiftByLevelingDelay`
     // (CPMSolver.ts) straks bij de TOEPASSING van deze `levelingDelay` gebruikt — twee aparte takken,
@@ -673,6 +739,7 @@ export function levelResources(
     shifts,
     projectEndBefore: cpmResult.projectEnd,
     projectEndAfter,
+    gaps: gapsOut,
   };
 
   // --- lokale helpers (sluiten over booked/demandByTask/capacityOf/projEngine) ---
@@ -697,7 +764,7 @@ export function levelResources(
     taskId: string,
     pf: Date,
     limit: Date | null,
-  ): { start: Date; unresolved: string[]; reason?: LevelingReason } {
+  ): { start: Date; unresolved: string[]; reason?: LevelingReason; scatterDays?: string[] } {
     const task = taskById.get(taskId)!;
     const byRes = demandByTask.get(taskId)!;
 
@@ -757,6 +824,19 @@ export function levelResources(
       cand = next;
     }
     if (guard >= HARD_SCAN_CAP) horizonExhausted = true; // vangrail: ook dít is een uitputting, geen venstergrens
+
+    // ── Onderbreek-modus (B1c-plan-2 taak 9, spec §4 stap 0) ────────────────────────────────────
+    // Er is geen AANEENGESLOTEN venster gevonden. Mag de taak onderbroken worden, dan plaatsen we
+    // haar dag-voor-dag: loop vanaf de gesnapte PF over de kandidaat-werkdagen en neem telkens de
+    // eerstvolgende dag waarop de vraag van de VOLGENDE curve-index past. De overgeslagen werkdagen
+    // ertussen worden de pauzedagen. Greedy van links naar rechts — bewust GEEN zoektocht: de spec
+    // (§3.4) verbiedt iteratie over kandidaatstanden, en het greedy-antwoord is per constructie de
+    // vroegst mogelijke onderbroken plaatsing. Gebonden door `finishWindowLimit` (de FINISH-versie
+    // van het plafond, niet de start-`limit` hierboven) — zie het docblok daar.
+    if (splitEligible(task)) {
+      const scatterDays = scatterSlot(taskId, pf, finishWindowLimit(taskId));
+      if (scatterDays) return { start: parseDate(scatterDays[0]), unresolved: [], scatterDays };
+    }
 
     // Geen slot: blijf op de gesnapte PF, verzamel de conflictdagen (waar de vraag de restcapaciteit
     // overschrijdt) — dezelfde dagenset (`occurrenceFor`) als de boeking straks zou gebruiken.
@@ -851,6 +931,89 @@ export function levelResources(
       }
     }
     return true;
+  }
+
+  /** Mag deze taak leveling-gaten krijgen (B1c-plan-2 taak 9)? Zie de v1-grens bij
+   *  `LevelingOptions.allowSplits` (verbreed 2026-08-31: `durationUnit` speelt geen rol meer — dag-
+   *  én uur-modus komen in aanmerking, mits WORKTIME en niet-gestart). */
+  function splitEligible(task: Task): boolean {
+    return options.allowSplits === true
+      && task.time.durationType === 'WORKTIME'
+      && task.time.completion === 0;
+  }
+
+  /** Past curve-index `i` van deze taak op dag `iso`? Zelfde twee toetsen als `fits` (projectinzet
+   *  én poolitem-grootboek), maar voor één index/één dag — de dag-voor-dag-tegenhanger van `fits`s
+   *  aaneengesloten-venstercheck (B1c-plan-2 taak 9). */
+  function dayFits(byRes: Map<string, number[]>, i: number, iso: string): boolean {
+    for (const [resId, arr] of byRes) {
+      if (i >= arr.length) continue; // geen vraag op deze curve-index voor deze resource
+      const amt = arr[i];
+      if (amt <= 0) continue;
+      if (bookedOn(resId, iso) + amt > capacityOf(resId, iso) + EPS) return false;
+      const poolItem = ledger ? ledger.poolItemOf(resId) : null;
+      if (poolItem !== null && amt > ledger!.residualOn(poolItem, iso) + EPS) return false;
+    }
+    return true;
+  }
+
+  /** Dag-voor-dag-plaatsing (B1c-plan-2 taak 9). Geeft de gekozen werkdagen (ISO, oplopend) of
+   *  `null` wanneer er binnen het venster geen volledige set te vinden is. `finishLimit` begrenst de
+   *  LAATSTE dag (niet de start): met onderbrekingen groeit de FINISH van de taak, en dát is wat het
+   *  plafond moet binden (zie `finishWindowLimit`). */
+  function scatterSlot(taskId: string, pf: Date, finishLimit: Date | null): string[] | null {
+    const task = taskById.get(taskId)!;
+    const byRes = demandByTask.get(taskId)!;
+    // LET OP — uur-modus (eigenaarsbesluit 2026-08-31, v1-grens verbreed): `task.time.scheduleDuration`
+    // is voor een uur-modus-taak GEEN geheel getal in het algemeen — `distributeUnits`
+    // (ResourceLoad.ts) rondt dat AL af naar boven tot curve-SLOTS (de `for (let i = 0; i <
+    // durationDays; i++)`-lus loopt door tot de volgende hele dag), dus `demandByTask`s array-lengte
+    // is altijd de juiste GEHELE werkdagen-telling, voor dag- én uur-modus. `need` moet daarom het
+    // AANTAL CURVE-SLOTS zijn, NOOIT de rauwe `scheduleDuration` rechtstreeks — anders stopt de
+    // scatter-lus (`chosen.length < need`) voortijdig bij een fractioneel plafond. Voor dag-modus is
+    // dit BYTE-IDENTIEK (`scheduleDuration` is daar al een geheel getal, dus `Math.ceil` verandert
+    // niets). De `Math.ceil(...)`-fallback dekt alleen het theoretische geval zonder enige vraag op
+    // een geselecteerde resource (`byRes` leeg) — `splitEligible` wordt normaliter pas bereikt nadat
+    // `hasDemand` al vraag bevestigde, dus dit pad is defensief.
+    const need = byRes.values().next().value?.length ?? Math.ceil(task.time.scheduleDuration);
+    const chosen: string[] = [];
+    let cand = nextCandidateFor(task, pf);
+    let guard = 0;
+    while (chosen.length < need && guard++ < HARD_SCAN_CAP) {
+      if (finishLimit && cand > finishLimit) return null;
+      const iso = formatDate(cand);
+      if (dayFits(byRes, chosen.length, iso)) chosen.push(iso);
+      cand = nextCandidateAfterFor(task, cand);
+    }
+    return chosen.length === need ? chosen : null;
+  }
+
+  /** Werk/gat-blokken (hele werkdagen) uit een oplopende lijst GEKOZEN ISO-werkdagen — de
+   *  tegenhanger van `scatterSlot`: hoeveel werkdagen van `engine` zijn er tussen elke opeenvolgende
+   *  gekozen dag overgeslagen? Voedt `splitGapsFromWorkDayBlocks` (B1c-plan-2 taak 9). */
+  function blocksFromDays(days: string[], engine: CalendarEngine): Array<{ work: number; gap: number }> {
+    const blocks: Array<{ work: number; gap: number }> = [];
+    let work = 0;
+    let cursor: Date | null = null;
+    for (const iso of days) {
+      const d = parseDate(iso);
+      if (cursor === null) {
+        work = 1;
+      } else {
+        // Werkdagen STRIKT tussen `cursor` en `d`: `workDaysBetween` telt beide grenzen inclusief
+        // (dezelfde conventie als de delay-meting hierboven), dus −2 geeft het aantal ertussen.
+        const gapDays = engine.workDaysBetween(cursor, d) - 2;
+        if (gapDays > 0) {
+          blocks.push({ work, gap: gapDays });
+          work = 1;
+        } else {
+          work += 1; // aaneengesloten met de vorige gekozen dag — geen gat
+        }
+      }
+      cursor = d;
+    }
+    blocks.push({ work, gap: 0 });
+    return blocks;
   }
 }
 
