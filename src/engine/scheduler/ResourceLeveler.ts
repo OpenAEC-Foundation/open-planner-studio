@@ -49,6 +49,34 @@ import { distributeUnits, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
 import { enumerateTaskWorkDays } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 
+/**
+ * Het GEDEELDE poolitem-grootboek (spec §4, "twee grootboeken"). De motor toetst per `resourceId`
+ * tegen de eigen projectinzet; dit grootboek voegt de tweede toets toe: de restcapaciteit van het
+ * BIBLIOTHEEK-poolitem waaraan de resource via zijn `libraryOrigin`-stempel hangt.
+ *
+ * "Beide toetsen moeten slagen" is identiek aan de `min(projectinzet, poolrest)`-formulering elders
+ * in de spec — twee schrijfwijzen van dezelfde regel, geen tegenspraak.
+ *
+ * De implementatie hiervan woont bij de aanroeper (de verdeler, `services/library/distribute.ts`) en
+ * is bewust NIET van de motor: hij is gedeeld over meerdere documenten, en de motor draait per
+ * document. Injecteerbaar dus, zelfde patroon als `OccupancyEphemeralSolve` in `occupancy.ts`.
+ */
+export interface LevelingPoolLedger {
+  /** Het poolitem waaraan `resourceId` hangt, of `null` wanneer deze resource geen
+   *  bibliotheekstempel heeft — dan geldt alleen de gewone per-resource-toets. */
+  poolItemOf(resourceId: string): string | null;
+  /** Restcapaciteit van dat poolitem op die dag. ALTIJD ≥ 0 (de implementatie klemt; spec §4). */
+  residualOn(poolItemId: string, iso: string): number;
+  /** Boek geplaatste vraag terug. UITSLUITEND aangeroepen voor een taak die daadwerkelijk een
+   *  passend venster kreeg — een niet-plaatsbare taak boekt NIET (spec §4 stap 3: anders wordt het
+   *  restprofiel negatief en cascadeert het tekort naar elk volgend document). */
+  book(poolItemId: string, iso: string, units: number): void;
+  /** Laatste dag waarvoor het restprofiel betekenisvol is; `null` ⇒ geen extra horizon-eis. Zie de
+   *  scanhorizon hieronder: zodra er vaste last van buiten dit document in het grootboek zit, kan
+   *  het eerste vrije venster voorbij `totalWork + marge` liggen. */
+  horizonIso: string | null;
+}
+
 export interface LevelingOptions {
   /** true = smoothing: alleen binnen de totale float schuiven, einddatum heilig, onoplosbare
    *  conflicten blijven gemarkeerd staan. false = leveling: mag de einddatum verschuiven. */
@@ -72,6 +100,10 @@ export interface LevelingOptions {
    *  vast maar de float mag benut worden. Afwezig ⇒ onbegrensd (bestaand leveling-gedrag).
    *  Staat `constrainToFloat` óók aan, dan wint het STRENGSTE venster. */
   overrunCeilingDays?: number;
+  /** B1c-plan-2 taak 6: het gedeelde poolitem-grootboek — zie `LevelingPoolLedger` hierboven.
+   *  Afwezig ⇒ alleen de bestaande per-resource-toets (byte-identiek met het gedrag van vóór
+   *  B1c-etappe-2). */
+  poolLedger?: LevelingPoolLedger;
 }
 
 /** Reden waarom een taak onopgelost bleef (A3, deze golf) — de nivelleer-dialoog kiest hierop de
@@ -88,7 +120,10 @@ export type LevelingReason =
    *  `scanLimit` een ONDERGRENS-argument (zie het blok bij `scanLimit`), dus dit is een reële
    *  uitkomst en geen "onvoldoende capaciteit" — de motor weet simpelweg niet of er verderop nog
    *  ruimte is. */
-  | 'NO_WINDOW_IN_HORIZON';
+  | 'NO_WINDOW_IN_HORIZON'
+  /** De eigen projectinzet had ruimte, maar de RESTcapaciteit van het bibliotheek-poolitem is op —
+   *  andere documenten bezetten de pool (spec §4-taxonomie, B1c-plan-2 taak 6). */
+  | 'RESIDUAL_FULL';
 
 /** Eén verschuiving voor de preview-tabel (A1): elke taak wiens start wijzigt t.o.v. het huidige
  *  schema — óók niet-geresourcete opvolgers die enkel via de forward pass meeschuiven. */
@@ -117,6 +152,11 @@ export interface LevelingResult {
 // Float-tolerantie: dag-granulaire eenheden zijn honderdsten (largestRemainderRound, §4.1); een
 // kleine epsilon voorkomt dat 1.0000000001 > 1.0 een fantoomconflict oplevert.
 const EPS = 1e-9;
+
+// B1c-plan-2 taak 6: harde bovengrens voor de kandidaat-scan wanneer er een poolitem-grootboek MET
+// horizon is meegegeven (`ledger.horizonIso`) — die kan de scan voorbij de gewone, taak-eigen
+// `scanLimit` (L4) duwen. Zelfde orde als `CalendarEngine`s eigen `MAX_DAYS`-veiligheidsgrens.
+const HARD_SCAN_CAP = 200_000;
 
 export function levelResources(
   tasks: Task[],
@@ -224,6 +264,11 @@ export function levelResources(
   // (mogelijk al genivelleerde) positie — zie de selectieve strip hieronder en de indelingslus.
   const scope = options.scopeTaskIds ? new Set(options.scopeTaskIds) : null;
   const inScope = (id: string): boolean => scope === null || scope.has(id);
+
+  // B1c-plan-2 taak 6: het gedeelde poolitem-grootboek (of `undefined` — dan is dit hele blok een
+  // no-op en blijft de motor byte-identiek aan vóór deze taak). Gelezen door `fits`, `bookDemandAt`
+  // en `findSlot` (inclusief zijn conflictverzamelaar), allemaal verderop in deze functie.
+  const ledger = options.poolLedger;
 
   // Werkkopie ZONDER levelingDelays — voor taken IN scope. Voedt (a) de VERSE baseline-solve
   // (sorteersleutels/PF/vensters, A2/A4) en (b) — nadat de lus de delays erop gezet heeft — de
@@ -413,18 +458,35 @@ export function levelResources(
   };
   const bookedOn = (resId: string, iso: string) => booked[resId]?.[iso] ?? 0;
 
+  // B1c-plan-2 taak 6: reden-sturing. Faalde ELKE afgewezen kandidaat van de huidige `findSlot`-
+  // aanroep uitsluitend op het POOLitem-grootboek, dan is de eerlijke uitkomst "restcapaciteit vol
+  // — anderen bezetten de pool" (RESIDUAL_FULL), niet het generieke "onvoldoende capaciteit" (dat
+  // wijst de gebruiker naar zijn eigen projectinzet, waar niets mis mee is). Gedeeld tussen `fits`
+  // en `findSlot` (beide sluiten over deze `levelResources`-scope) — `findSlot` reset 'm bij de
+  // start van elke aanroep, `fits` zet 'm op `false` zodra de PROJECTtoets faalt.
+  let poolBlockedOnly = false;
+
   // Geplaatste posities (voor boekhouding/debug): iso-startdag.
   const placedStartIso = new Map<string, string>();
 
   // Boek de dagvraag van een taak af vanaf een gegeven startdag — via `occurrenceFor` hierboven
   // (I5/I6, kwaliteitsronde taak 4: dezelfde dagenset als `findSlot`s capaciteitscheck gebruikt,
   // zodat conflictdetectie en boeking niet meer uit elkaar kunnen lopen).
-  const bookDemandAt = (taskId: string, startDate: Date): string[] => {
+  // B1c-plan-2 taak 6: `toPoolLedger` bepaalt of deze boeking OOK in het gedeelde poolitem-
+  // grootboek komt. De per-resource boeking (`book(resId, ...)`) blijft ONVOORWAARDELIJK (bestaand
+  // gedrag — ook een onopgeloste taak boekt op haar project-grootboek, zodat het conflict zichtbaar
+  // blijft); alleen de POOL-boeking is voorwaardelijk — spec §4 stap 3, "niet-plaatsbaar = tekort,
+  // geen cascade".
+  const bookDemandAt = (taskId: string, startDate: Date, toPoolLedger: boolean): string[] => {
     const task = taskById.get(taskId)!;
     const occ = occurrenceFor(task, startDate);
     const byRes = demandByTask.get(taskId)!;
     for (const [resId, arr] of byRes) {
-      for (let i = 0; i < arr.length && i < occ.length; i++) book(resId, occ[i], arr[i]);
+      const poolItem = ledger && toPoolLedger ? ledger.poolItemOf(resId) : null;
+      for (let i = 0; i < arr.length && i < occ.length; i++) {
+        book(resId, occ[i], arr[i]);
+        if (poolItem !== null) ledger!.book(poolItem, occ[i], arr[i]);
+      }
     }
     return occ;
   };
@@ -494,7 +556,9 @@ export function levelResources(
   // — dus `baseEs(id)` is hier al haar VERSCHOVEN, genivelleerde positie, niet haar kale PF.
   for (const id of fixedLoadIds) {
     const startIso = baseEs(id);
-    bookDemandAt(id, parseDate(startIso));
+    // B1c-plan-2 taak 6: `toPoolLedger: true` — een onverplaatsbare of out-of-scope taak bezet de
+    // pool ECHT (ze is per definitie al geplaatst, dus geen "niet-plaatsbaar = geen cascade"-geval).
+    bookDemandAt(id, parseDate(startIso), true);
     placedStartIso.set(id, startIso);
   }
 
@@ -538,7 +602,14 @@ export function levelResources(
       slotReason = slot.reason;
     }
 
-    bookDemandAt(pick, startDate);
+    // B1c-plan-2 taak 6: dit IS de spec-regel "niet-plaatsbaar = tekort per document, geen cascade"
+    // (§4 stap 3) — alleen een taak die daadwerkelijk een passend venster kreeg (`slotUnresolved`
+    // leeg) boekt in het GEDEELDE poolitem-grootboek. Vastgepinde taken (priority 1000) scannen niet
+    // (`slotUnresolved` blijft hun default `[]`) en boeken dus WÉL — correct: ze bezetten de pool
+    // ongeacht of dat past. Dat het restprofiel daardoor op 0 geklemd kan raken terwijl er
+    // feitelijk overboeking is, is geen motorprobleem: de verdeler detecteert dat als een tekort op
+    // poolniveau (taak 10, buiten dit plan).
+    bookDemandAt(pick, startDate, slotUnresolved.length === 0);
     placedStartIso.set(pick, formatDate(startDate));
     // B1c-W0.3: gemeten in DEZELFDE eenheid als `CPMSolver.forwardPass`'s `shiftByLevelingDelay`
     // (CPMSolver.ts) straks bij de TOEPASSING van deze `levelingDelay` gebruikt — twee aparte takken,
@@ -630,6 +701,11 @@ export function levelResources(
     const task = taskById.get(taskId)!;
     const byRes = demandByTask.get(taskId)!;
 
+    // B1c-plan-2 taak 6: reset de reden-sturing bij elke aanroep — zie de declaratie hierboven bij
+    // `booked`/`bookedOn`. Zonder grootboek (`ledger === undefined`) blijft dit `false`, dus de
+    // RESIDUAL_FULL-tak in `reasonFor` kan nooit geraakt worden — byte-identiek.
+    poolBlockedOnly = ledger !== undefined;
+
     let cand = nextCandidateFor(task, pf);
 
     // CEILING_UNREACHABLE (B1c-plan-2 taak 4, spec §4): staat er een plafond, en ligt de EERSTE
@@ -642,13 +718,21 @@ export function levelResources(
     const ceilingUnreachable = ceilingSet && limit !== null && cand > limit;
 
     let calendarFeasibleSeen = false; // is er überhaupt een venster waar élke vraagdag óók een resource-werkdag is?
+    // B1c-plan-2 taak 6: `scanLimit` (L4) is de taak-eigen ondergrens; een grootboek MET horizon
+    // (`ledger.horizonIso`) kan die overschrijden — zodra het grootboek externe vaste last bevat, kan
+    // het eerste vrije venster voorbij `totalWork + marge` liggen. De lus loopt daarom nu tot de harde
+    // `HARD_SCAN_CAP`, en `scanLimit` wordt hieronder een INLINE afkap-voorwaarde i.p.v. de loop-bound
+    // zelf — voor `ledger === undefined` (dus `horizonDate === null`) is dat exact hetzelfde aantal
+    // iteraties als de oude `while (guard++ < scanLimit)`-vorm (zie het commitbericht voor het bewijs).
+    const horizonDate = ledger?.horizonIso ? parseDate(ledger.horizonIso) : null;
     let guard = 0;
-    // B1c-plan-2 taak 5 (naad-hygiëne): onderscheid WAAROM de scan zonder slot eindigt — via de
-    // venstergrens (`break` hieronder, een bewuste gebruikerskeuze) of doordat `scanLimit` simpelweg
-    // opraakte (een rekengrens, zie het blok bij `scanLimit`). `true` is de default: wordt hij nooit
-    // op `false` gezet, dan is de lus via `guard >= scanLimit` uitgestapt, dus een echte uitputting.
-    let horizonExhausted = true;
-    while (guard++ < scanLimit) {
+    // B1c-plan-2 taak 5 (naad-hygiëne), herzien in taak 6: onderscheid WAAROM de scan zonder slot
+    // eindigt — via de venstergrens (`break` hieronder, een bewuste gebruikerskeuze) of doordat de
+    // horizon (scanLimit, evt. verlengd door het grootboek) simpelweg opraakte (een rekengrens).
+    // `false` is nu de default (was `true` t/m taak 5): alleen de horizon-tak hieronder — én de
+    // `HARD_SCAN_CAP`-vangrail ná de lus — zetten hem op `true`.
+    let horizonExhausted = false;
+    while (guard++ < HARD_SCAN_CAP) {
       const occ = occurrenceFor(task, cand);
       if (!calendarFeasibleSeen && calendarOk(byRes, occ)) calendarFeasibleSeen = true;
       // L1 (slotronde taak 4): een LEEG kandidaatvenster (`occ.length === 0`) telt NIET als passend.
@@ -665,9 +749,14 @@ export function levelResources(
       // afketsen. `occ.length > 0` is de minimale, correcte voorwaarde: er moet gewoon IETS te boeken zijn.
       if (occ.length > 0 && fits(byRes, occ)) return { start: cand, unresolved: [] };
       const next = nextCandidateAfterFor(task, cand);
-      if (limit && next > limit) { horizonExhausted = false; break; } // venstergrens (float/plafond) — geen slot
+      if (limit && next > limit) break; // venstergrens (float/plafond) — geen slot, geen horizon-uitputting
+      // B1c-plan-2 taak 6: de venstergrens (hierboven) wint van de horizon — een plafond is een
+      // gebruikerskeuze, de horizon een rekengrens. Zonder grootboek-horizon (`horizonDate === null`)
+      // stopt dit exact bij `guard === scanLimit`, byte-identiek aan de oude loop-bound.
+      if (guard >= scanLimit && !(horizonDate && next <= horizonDate)) { horizonExhausted = true; break; }
       cand = next;
     }
+    if (guard >= HARD_SCAN_CAP) horizonExhausted = true; // vangrail: ook dít is een uitputting, geen venstergrens
 
     // Geen slot: blijf op de gesnapte PF, verzamel de conflictdagen (waar de vraag de restcapaciteit
     // overschrijdt) — dezelfde dagenset (`occurrenceFor`) als de boeking straks zou gebruiken.
@@ -675,6 +764,13 @@ export function levelResources(
     const occ = occurrenceFor(task, snappedPf);
     const conflicts: string[] = [];
     for (const [resId, arr] of byRes) {
+      // B1c-plan-2 taak 6 (afwijking van het plan-voorschrift, zie commitbericht): het plan gaf hier
+      // letterlijk alleen de bestaande projecttoets; zonder de pool-tak hieronder bleef een taak die
+      // UITSLUITEND op het poolitem-grootboek vastloopt met een LEGE conflictdagenlijst zitten — de
+      // hoofdlus zet `unresolved[pick]`/`unresolvedReasons[pick]` alleen bij `slotUnresolved.length >
+      // 0`, dus RESIDUAL_FULL zou stilzwijgend verdwijnen. Spiegelt `fits`'s tweede toets: de POOL-tak
+      // wordt alleen bekeken als de PROJECTtoets al slaagde (elke-if, geen dubbele push).
+      const poolItem = ledger ? ledger.poolItemOf(resId) : null;
       for (let i = 0; i < arr.length && i < occ.length; i++) {
         // B1c-plan-2 taak 5 (naad-hygiëne): zelfde nul-guard als `fits` hieronder — een dag zonder
         // vraag (`arr[i] <= 0`) kan niet botsen, ook niet als een ANDERE (bv. vastgepinde) taak die
@@ -682,6 +778,7 @@ export function levelResources(
         // conflictdag van DEZE taak (fantoomconflict) — zie `check-leveler-seam.ts` geval 3.
         if (arr[i] <= 0) continue;
         if (bookedOn(resId, occ[i]) + arr[i] > capacityOf(resId, occ[i]) + EPS) conflicts.push(occ[i]);
+        else if (poolItem !== null && arr[i] > ledger!.residualOn(poolItem, occ[i]) + EPS) conflicts.push(occ[i]);
       }
     }
     return {
@@ -691,14 +788,15 @@ export function levelResources(
     };
   }
 
-  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taken 4/5). Volgorde: intrinsiek
+  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taken 4/5/6). Volgorde: intrinsiek
    *  (de piekvraag overtreft de maximale capaciteit van de resource ongeacht plaatsing) →
    *  CEILING_UNREACHABLE (een deadline/backward-constraint maakt elk plafond onbereikbaar — gaat
    *  vóór de kalender/capaciteit: het enige geval waarin de gebruiker iets anders moet doen dan
    *  plafond of capaciteit bijstellen) → kalender-mismatch (geen enkel venster waar alle vraagdagen
    *  ook resource-werkdagen zijn) → CEILING_TOO_TIGHT (venster bekend en te krap ⇒ concreter dan een
-   *  kale horizon-uitputting) → NO_WINDOW_IN_HORIZON (de scan liep leeg zonder gekend venster) →
-   *  anders onvoldoende vrije capaciteit. */
+   *  kale horizon-uitputting) → RESIDUAL_FULL (elke afgewezen kandidaat faalde uitsluitend op het
+   *  poolitem-grootboek — de eigen projectinzet had steeds ruimte) → NO_WINDOW_IN_HORIZON (de scan
+   *  liep leeg zonder gekend venster) → anders onvoldoende vrije capaciteit. */
   function reasonFor(
     byRes: Map<string, number[]>,
     calendarFeasibleSeen: boolean,
@@ -713,6 +811,7 @@ export function levelResources(
     if (ceilingUnreachable) return 'CEILING_UNREACHABLE';
     if (!calendarFeasibleSeen) return 'CALENDAR_MISMATCH';
     if (ceilingSet) return 'CEILING_TOO_TIGHT';
+    if (poolBlockedOnly) return 'RESIDUAL_FULL';
     if (horizonExhausted) return 'NO_WINDOW_IN_HORIZON';
     return 'INSUFFICIENT_CAPACITY';
   }
@@ -734,12 +833,21 @@ export function levelResources(
     return true;
   }
 
-  /** Past de dagvraag `byRes` op de opeenvolgende werkdagen `occ` binnen de restcapaciteit? */
+  /** Past de dagvraag `byRes` op de opeenvolgende werkdagen `occ` binnen de restcapaciteit? B1c-
+   *  plan-2 taak 6: TWEE toetsen moeten allebei slagen — (a) de bestaande per-resource-toets tegen
+   *  de eigen projectinzet, én (b) — alleen als er een `poolLedger` is en de resource daaraan hangt —
+   *  het gedeelde poolitem-grootboek. Dat is dezelfde regel als de `min(projectinzet, poolrest)`-
+   *  formulering elders in de spec (zie `LevelingPoolLedger`s docblok), twee schrijfwijzen van één
+   *  ding. `poolBlockedOnly` (findSlot-scope) wordt hier op `false` gezet zodra de PROJECTtoets
+   *  faalt — zo weet `reasonFor` achteraf of ELKE afwijzing binnen deze `findSlot`-aanroep
+   *  uitsluitend aan de pool lag. */
   function fits(byRes: Map<string, number[]>, occ: string[]): boolean {
     for (const [resId, arr] of byRes) {
+      const poolItem = ledger ? ledger.poolItemOf(resId) : null;
       for (let i = 0; i < arr.length && i < occ.length; i++) {
         if (arr[i] <= 0) continue;
-        if (bookedOn(resId, occ[i]) + arr[i] > capacityOf(resId, occ[i]) + EPS) return false;
+        if (bookedOn(resId, occ[i]) + arr[i] > capacityOf(resId, occ[i]) + EPS) { poolBlockedOnly = false; return false; }
+        if (poolItem !== null && arr[i] > ledger!.residualOn(poolItem, occ[i]) + EPS) return false;
       }
     }
     return true;

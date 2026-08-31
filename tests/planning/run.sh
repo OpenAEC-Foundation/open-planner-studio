@@ -431,6 +431,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERSEAMCHECK="$DIR/.leveler-seam.mjs"
   if bundle_check "$DIR/check-leveler-seam.ts" "$LEVELERSEAMCHECK"; then node "$LEVELERSEAMCHECK" || STATUS=1; fi
 
+  # B1c-plan-2 taak 6: het injecteerbare poolitem-grootboek (`LevelingPoolLedger`) als TWEEDE
+  # capaciteitstoets naast de bestaande per-resource-toets — beide moeten slagen, boeken gebeurt
+  # alleen bij een daadwerkelijk geplaatste taak (geen cascade), reden RESIDUAL_FULL.
+  LEVELERPOOLLEDGERCHECK="$DIR/.leveler-pool-ledger.mjs"
+  if bundle_check "$DIR/check-leveler-pool-ledger.ts" "$LEVELERPOOLLEDGERCHECK"; then node "$LEVELERPOOLLEDGERCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"
