@@ -1,14 +1,18 @@
-# B1c — Etappe 3: het schrijfpad en het paneel (implementatieplan)
+# B1c — Etappe 3: het schrijfpad en de dialoog (implementatieplan)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** B1c afmaken: het **schrijfpad** (spec §5 — Toepassen over het actieve én de slapende documenten,
-per-document-undo, "alles terugdraaien") en het **paneel** (spec §6/§7 — fasestroken met plafond-handles
-en pins, rangordelijst, gereedschapsschakelaar, voor/na-histogram, voorstel-invalidatie), plus de
-i18n-pass en de gebruikersgids die daarbij horen (spec §8). Leidende bron:
+per-document-undo, "alles terugdraaien") en de **verdeeldialoog** (spec §6/§7 — fasestroken met
+plafond-handles en pins, rangordelijst, gereedschapsschakelaar, voor/na-histogram, voorstel-invalidatie),
+plus de i18n-pass en de gebruikersgids die daarbij horen (spec §8). Leidende bron:
 `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`; alle eigenaarsbesluiten
 staan in §11 daarvan. Waar dit plan de spec **concretiseert** staat dat expliciet als
-**KEUZE VAN DIT PLAN**; waar het bewust **afwijkt** staat **AFWIJKING — VOORLEGGEN**.
+**KEUZE VAN DIT PLAN**; waar het bewust **afwijkt** staat **AFWIJKING — VOORLEGGEN**. Twee besluiten van
+de eigenaar op 2026-08-31 zijn al in dit plan verwerkt (gemarkeerd als **besluit eigenaar 2026-08-31**
+op hun plek): de dialoogstanden (pin, plafond, rangorde) zijn sessie-stand, niet projectdata (bevestiging van de bestaande keuze
+hieronder), en de verdeelflow wordt een losse dialoog in plaats van de eerder gekozen drill-down (taak 8
+e.v., met de gevolgen daarvan in taken 9–13 en 15).
 
 **Architecture:** vier lagen, van binnen naar buiten. De onderste twee bestaan al (etappe 2) en worden
 hier alleen afgemaakt; de bovenste twee zijn nieuw.
@@ -23,9 +27,13 @@ hier alleen afgemaakt; de bovenste twee zijn nieuw.
    voor/na-preview (taak 11).
 3. **Het schrijfpad** — nieuw: `src/state/runtime/scratchDocument.ts` (headless scratch-instantie) plus
    `applyDistribution`/`undoDistribution` op `librarySlice`. Dit is de laag die spec §5 beschrijft.
-4. **Het paneel** — nieuw: `src/components/panels/DistributionPanel/`, gemount vanuit
-   `ResourceOccupancyView`. Gewoon DOM/React (Canvas is uitsluitend voor de Gantt), geen native
-   dialogs, geen nieuw meldingskanaal.
+4. **De verdeeldialoog** — nieuw: `src/components/dialogs/DistributionDialog/`, gemount vanuit
+   `App.tsx` achter `ui.showDistributionDialog`, via de gedeelde `Dialog`-component en de
+   `hasBlockingDialogOpen`-guard (besluit eigenaar 2026-08-31, taak 8) — de eerste versie van dit plan
+   koos hier een drill-down binnen `ResourceOccupancyView`, dat is teruggedraaid. Geopend vanuit de
+   conflictregel in `ResourceOccupancyView` en, analoog aan `showLevelingDialog`, een knop op de
+   Resources-ribbon. Gewoon DOM/React (Canvas is uitsluitend voor de Gantt), geen native dialogs, geen
+   nieuw meldingskanaal.
 
 **Tech Stack:** TypeScript strict, React 19, geen frameworks. Headless tests als `check-*.ts` onder
 `tests/planning/` (registratie in `tests/planning/run.sh`) en `tests/library/` (`run_check check-x`
@@ -48,8 +56,8 @@ tekst "alles groen"; `tests/library/` print zijn faalregels **ingesprongen** (` 
 - Het schrijfpad naar slapende documenten via een headless scratch-instantie, met de twee
   singleton-randen (extensie-emitter, `notify`) dichtgezet (taken 5 en 6, spec §5).
 - De i18n-pass: alle zeven `LevelingReason`-codes, de drie `DistributionBlockReason`-codes en élke
-  paneeltekst, in veertien locales met CLDR-pluralcategorieën (taak 7, spec §8).
-- Het paneel: ingang vanuit de conflictregel, gereedschapsschakelaar, rangordelijst, "Verdeel
+  dialoogtekst, in veertien locales met CLDR-pluralcategorieën (taak 7, spec §8).
+- De verdeeldialoog: ingang vanuit de conflictregel, gereedschapsschakelaar, rangordelijst, "Verdeel
   automatisch"/"Herbereken" met bezig-toestand en schaal-degradatie, fasestroken met pin en
   plafond-handle (toetsenbord én pointer), voor/na-histogram, Toepassen/verwerpen, de
   "toegepast"-strook met "alles terugdraaien", voorstel-invalidatie (taken 8–13, spec §6/§6a/§7).
@@ -65,34 +73,37 @@ tekst "alles groen"; `tests/library/` print zijn faalregels **ingesprongen** (` 
 | Cross-machine boekingen / gedeelde opslag | buiten scope (spec §10) |
 | MCP-tools voor de verdeler | buiten scope (spec §10, "additief zodra gevraagd") |
 | Automatisch hernivelleren bij elke bewerking | buiten scope (spec §10, F5-filosofie) |
-| Split-view / multi-window voor het paneel | buiten scope (CLAUDE.md, store-ownership) |
-| Pins/plafonds die een app-herstart of een `.ifc`-round-trip overleven | **etappe 4 of later** — zie de bak "Waar de tune-state woont" hieronder |
+| Split-view / multi-window voor de verdeeldialoog | buiten scope (CLAUDE.md, store-ownership) |
+| Pins/plafonds die een app-herstart of een `.ifc`-round-trip overleven | **mogelijke latere uitbreiding, geen v1-werk** — besloten door de eigenaar, zie de bak "Waar de tune-state woont" hieronder |
 
-### Waar de tune-state woont (KEUZE VAN DIT PLAN, expliciet)
+### Waar de tune-state woont (KEUZE VAN DIT PLAN, bevestigd door de eigenaar 2026-08-31)
 
 De opdracht bij dit plan noemde het documentcontract voor "nieuwe per-document-instellingen zoals
 pin/plafond". Dit plan zet ze **niet** in `DOCUMENT_FIELDS`, maar in `ui` (dat in
 `documentContract.ts`'s `AppGlobalKey` al als app-globaal geclassificeerd staat, dus er verandert
 niets aan de contract-asserties). Drie redenen, alle drie hard:
 
-1. **Het paneel kijkt naar N documenten tegelijk.** Pin en plafond van élk deelnemend document moeten
+1. **De dialoog kijkt naar N documenten tegelijk.** Pin en plafond van élk deelnemend document moeten
    in één render leesbaar zijn. In `DOCUMENT_FIELDS` wonen ze per document — voor het actieve
-   top-level, voor de slapers in hun payload — dus het paneel zou zijn eigen bediening uit twee
+   top-level, voor de slapers in hun payload — dus de dialoog zou zijn eigen bediening uit twee
    verschillende plekken moeten samenrapen, en een pin zetten op een slapend document zou een
    payload-mutatie zijn.
 2. **Het zijn geen projectdata.** `DOCUMENT_FIELDS` bepaalt óók wat er in de undo-snapshot zit en wat
    `newProject()` reset. Een pin in de snapshot betekent dat Ctrl+Z in het actieve document een
-   paneelbediening terugdraait; dat is precies de soort verwarring die het documentcontract elders
+   dialoogbediening terugdraait; dat is precies de soort verwarring die het documentcontract elders
    voorkomt.
 3. **Ze horen bij één verdeelsessie, niet bij het project.** Spec §6a laat het voorstel al vervallen
    bij elke rang-, plafond-, pin- of gereedschapswijziging: de tune-state is de invoer van een
    momentopname, geen opgeslagen projecteigenschap. De spec vraagt nergens om persistentie ervan.
 
-**AFWIJKING — VOORLEGGEN aan de eigenaar:** wil hij dat een pin of een plafond een app-herstart
-overleeft (of zelfs door het IFC round-trippt), dan is dat een bewuste uitbreiding: dan hoort er een
-veld in `DOCUMENT_FIELDS` bij plus een `OPS_`-pset, en dan verandert de betekenis van de pin van
-"deze verdeelsessie" naar "dit project ligt vast". Dit plan bouwt de eerste lezing; de tweede is een
-apart besluit.
+**Besluit eigenaar 2026-08-31:** de dialoogstanden (pin, plafond, rangorde) zijn **tijdelijk** —
+sessie-stand, geen projectbestand. Dit bevestigt de keuze hierboven expliciet: Ctrl+Z in het actieve
+document raakt de tune-state nooit, en na een herstart begint de gebruiker neutraal (float-gesorteerd,
+geen pins, geen plafonds). Wat hierboven nog als **AFWIJKING — VOORLEGGEN** stond — wil de eigenaar dat
+een pin of een plafond een app-herstart overleeft (of zelfs door het IFC round-trippt) — is daarmee
+beantwoord: dat blijft een **mogelijke latere uitbreiding**, geen v1-werk. Kiest de eigenaar daar ooit
+voor, dan hoort er een veld in `DOCUMENT_FIELDS` bij plus een `OPS_`-pset, en dan verandert de betekenis
+van de pin van "deze verdeelsessie" naar "dit project ligt vast" — een apart besluit, niet dit plan.
 
 ---
 
@@ -134,15 +145,17 @@ etappe 2 (`a281f665`).
   scratch-instantie in taak 5 een slapende payload in- en uitlaadt.
 - **`resetDocumentScopedUI(s)`** (`src/state/slices/documentSlice.ts`, regel ~56) is de ENE plek waar
   `ui`-velden die naar het uitgaande document wijzen worden opgeruimd; hij draait bij
-  `newDocument`/`switchDocument`/`closeDocument`/`duplicateDocument`/`restoreDocuments`. Het paneel
-  moet daar in taak 12 aan gekoppeld worden.
+  `newDocument`/`switchDocument`/`closeDocument`/`duplicateDocument`/`restoreDocuments`. De
+  verdeeldialoog moet daar in taak 12 aan gekoppeld worden — en sluit dan (besluit eigenaar
+  2026-08-31), niet alleen zijn voorstel laten vervallen.
 - **`ResourceOccupancyView`** (`src/components/panels/ResourceOccupancyView.tsx`, 837 regels) is het
   bezettingsoverzicht: één `useMemo` rond `computeLibraryOccupancy` met een per-payload-`WeakMap`-cache
-  op de bibliotheek-SNIT, plus een SVG-histogram (`OccupancyHistogram`) met gatcompressie. Het paneel
-  hangt hieraan vast en deelt in taak 9 zijn tijdas.
+  op de bibliotheek-SNIT, plus een SVG-histogram (`OccupancyHistogram`) met gatcompressie. De
+  conflictregel hierin draagt de ingang naar de verdeeldialoog (taak 8) en de dialoog deelt in taak 9
+  zijn tijdas — maar rendert zelf los, via `App.tsx` (geen inbedding meer in deze view).
 - **Meldingen** lopen sinds K8a via één kanaal (`get().notify({ severity, messageKey, … })`,
   `uiSlice`). Geen `alert()`, geen native dialogs, geen tweede toast-mechaniek. Actieknoppen bestaan
-  in dat kanaal NIET — daarom woont "alles terugdraaien" in het paneel zelf (spec §5).
+  in dat kanaal NIET — daarom woont "alles terugdraaien" in de dialoog zelf (spec §5).
 - **De testrunners.** `tests/planning/run.sh` registreert een check met twee regels (kopieer het
   `LEVELERSPLITSCHECK`-blok). `tests/library/run.sh` is één regel `run_check check-x` onderaan en
   draait `tsc -p tests/library/tsconfig.check.json` als eerste stap, dus fixture-typen worden daar
@@ -156,7 +169,7 @@ etappe 2 (`a281f665`).
 ## Task 1: de vijf doorgeschoven bevindingen uit de eindkeuring van etappe 2
 
 **Waarom hier en niet later.** Bevindingen 11 en 12 zitten in `scatterSlot`/`findSlot` — precies de
-code die het paneel straks per handle-loslating aanroept; 6 zit in het grootboek dat taak 11
+code die de verdeeldialoog straks per handle-loslating aanroept; 6 zit in het grootboek dat taak 11
 uitbreidt; 10 is regeleinde-ruis die élke latere diff in `src/types/task.ts` onleesbaar maakt.
 Nummering volgt de eindkeuring van etappe 2.
 
@@ -735,7 +748,7 @@ export interface StoreRuntime {
    * interne `undoSeq`: dat volgnummer stuurt de coalesce-vergelijking en beweegt daarom juist niet
    * tijdens een sleepreeks, en `undoStack.length` is onbruikbaar omdat `MAX_UNDO` van onderaf trimt.
    *
-   * Afnemer: de voorstel-invalidatie van het B1c-verdeelpaneel. Die combineert deze teller met de
+   * Afnemer: de voorstel-invalidatie van de B1c-verdeeldialoog. Die combineert deze teller met de
    * REFERENTIES van de documentvelden waarop het voorstel gerekend heeft — de teller is de goedkope,
    * grofmazige backstop; de referenties maken de bewaking sluitend (`runCPM` muteert datums zonder
    * ooit langs `beginUndoable` te komen).
@@ -1163,14 +1176,14 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 7: de i18n-pass — reden-taxonomie + alle paneelteksten, veertien locales
+## Task 7: de i18n-pass — reden-taxonomie + alle dialoogteksten, veertien locales
 
 **Spec §8**: *"Volledig via `t(...)`, veertien talen, CLDR-pluralen (dag/dagen-teksten!)."* Etappe 2
 stelde deze pass bewust uit (één sleutel toevoegen kost veertien bestanden); hier gebeurt hij in één
 keer, vóór de UI-taken, zodat die alleen nog `t(...)` hoeven te consumeren.
 
-Twee delen: **(a)** de reden-taxonomie, met een gedeelde mapping die `LevelingDialog` en het nieuwe
-paneel allebei gebruiken, en **(b)** de complete paneelsleutelset.
+Twee delen: **(a)** de reden-taxonomie, met een gedeelde mapping die `LevelingDialog` en de nieuwe
+verdeeldialoog allebei gebruiken, en **(b)** de complete dialoogsleutelset.
 
 **Files:**
 - Create: `src/utils/levelingReasonKey.ts`
@@ -1184,7 +1197,7 @@ paneel allebei gebruiken, en **(b)** de complete paneelsleutelset.
 
 ```ts
 /**
- * `LevelingReason` → i18n-sleutel. Eén mapping voor de nivelleerdialoog én het B1c-verdeelpaneel;
+ * `LevelingReason` → i18n-sleutel. Eén mapping voor de nivelleerdialoog én de B1c-verdeeldialoog;
  * vóór B1c-etappe-3 stond dit als een if/else-keten in `LevelingDialog.tsx` die drie van de zeven
  * codes kende en de rest ZONDER uitleg liet — een horizon-uitputting las daar als "onvoldoende
  * capaciteit".
@@ -1230,7 +1243,7 @@ verplaats hem naar `reason.intrinsicOverrun` en werk de aanroep bij; kies één 
 }
 ```
 
-Nieuwe sectie `resource.distribution` (volledige lijst; het paneel gebruikt uitsluitend deze):
+Nieuwe sectie `resource.distribution` (volledige lijst; de dialoog gebruikt uitsluitend deze):
 
 | sleutel | NL |
 |---|---|
@@ -1324,31 +1337,52 @@ Verwacht: exit 0, 0, 0. `verify:i18n` is hier de hoofdpoort; hij rekent met CLDR
 
 ```bash
 git add src/utils/levelingReasonKey.ts src/components/dialogs/LevelingDialog.tsx src/i18n/locales tests/
-git commit -m "feat(i18n): reden-taxonomie en verdeelpaneelteksten in veertien talen (B1c)
+git commit -m "feat(i18n): reden-taxonomie en verdeeldialoogteksten in veertien talen (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 8: het paneel — ingang, ui-state en de voorstel-berekening
+## Task 8: de verdeeldialoog — ingang, ui-state en de voorstel-berekening
 
 **Spec §7** (plek in de UI) en **§3.4** (discrete rekenmomenten, bezig-toestand, schaal-degradatie).
 
-**KEUZE VAN DIT PLAN — geen modal, maar een drill-down.** Spec §7 zegt "paneel/dialoog". Dit plan
-kiest **een drill-down binnen `ResourceOccupancyView`**: het paneel vervangt de tabel + het histogram
-zolang het open staat, met een "← Terug naar bezetting"-knop. Redenen: de flow is te hoog voor de
-gedeelde `Dialog` (histogram + N fasestroken + rangordelijst + knoppenbalk), de gedeelde `Dialog` is in
-dit product voor korte bevestigingen, en `hasBlockingDialogOpen` zou een modaal paneel met álle andere
-dialogen laten botsen terwijl het hier juist een werkoppervlak is. De Resources-tab blijft dus zijn
-eigen schakelaar houden en het paneel is een derde niveau binnen de Bezettingsweergave.
+**Besluit eigenaar 2026-08-31 — losse dialoog, geen drill-down.** Dit plan koos in zijn eerste versie
+een drill-down binnen `ResourceOccupancyView` (KEUZE VAN DIT PLAN, hieronder had gestaan waarom).
+De eigenaar heeft die keuze **teruggedraaid**: de verdeelflow wordt een **losse dialoog**, via de
+gedeelde `Dialog`-component (focus-trap) en de `hasBlockingDialogOpen`-guard, gemount vanuit `App.tsx`
+achter een eigen `ui.show*`-vlag — conform de bestaande dialoogconventies (CLAUDE.md: "Global dialogs
+… mount from `App.tsx` behind `ui.show*` flags"; "native alleen bestandskiezers"). Het patroon is
+letterlijk dat van `showLevelingDialog`/`LevelingDialog.tsx`: een sessie-boolean in `UIState`, een
+`use`-callback op een ribbonknop die 'm zet, en een `{showX && <XDialog />}`-regel in `App.tsx`. De
+dialoog moet groot genoeg zijn voor histogram + N fasestroken + rangordelijst + knoppenbalk — qua
+chrome-opbouw (header/Esc/backdrop/Enter, `max-h-[90vh]`, scroll binnenin) naar het patroon van
+`ProjectInfoDialog` (die gebruikt `w-[560px]`), maar merkbaar breder omdat de inhoud een werkoppervlak
+is en geen formulier — richt op iets in de orde van `w-[960px] max-w-[95vw]`.
+
+De **ingang** blijft de conflictregel in `ResourceOccupancyView` (zet de ui-state en de open-vlag);
+daarnaast komt er, analoog aan hoe nivelleren dat al doet (`ribbonConfig.tsx`, regel ~603:
+`use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({
+showLevelingDialog: true }) }; }`), een knop op de Resources-ribbon die de dialoog opent — met het
+laatst gebruikte bibliotheekitem/`companyId` als voorinvulling, of, zonder een eerder geopend item, de
+dialoog met `selectHint` totdat de gebruiker via het bezettingsoverzicht een conflict kiest.
+
+Gedrag bij documentwissel (spec §6a: het voorstel vervalt — hier expliciet als **dialoogsluiting**
+i.p.v. paneelsluiting, zie taak 12 stap 3): een documentwissel sluit de dialoog. `hasBlockingDialogOpen`
+(`shortcutRegistry.ts`) en de MCP-blokkeerlijst (`services/mcp/tools/runtime.ts`) leren de nieuwe vlag
+kennen, net als elke andere dialoogvlag.
 
 **Files:**
-- Modify: `src/state/slices/types.ts` (`UIState` + de `DistributionUiState`-vorm)
-- Modify: `src/state/slices/uiSlice.ts` (default)
-- Create: `src/components/panels/DistributionPanel/DistributionPanel.tsx`
-- Create: `src/components/panels/DistributionPanel/useDistributionProposal.ts`
-- Modify: `src/components/panels/ResourceOccupancyView.tsx` (de "Verdelen…"-ingang + de drill-down)
+- Modify: `src/state/slices/types.ts` (`UIState` + `showDistributionDialog` + de `DistributionUiState`-vorm)
+- Modify: `src/state/slices/uiSlice.ts` (defaults)
+- Modify: `src/hooks/keyboard/shortcutRegistry.ts` (`hasBlockingDialogOpen`)
+- Modify: `src/services/mcp/tools/runtime.ts` (dezelfde vlaggenlijst)
+- Modify: `src/App.tsx` (mount achter `ui.showDistributionDialog`)
+- Create: `src/components/dialogs/DistributionDialog/DistributionDialog.tsx`
+- Create: `src/components/dialogs/DistributionDialog/useDistributionProposal.ts`
+- Modify: `src/components/panels/ResourceOccupancyView.tsx` (de "Verdelen…"-ingang zet de open-vlag)
+- Modify: `src/components/layout/Ribbon/ribbonConfig.tsx` (Resources-ribbonknop, analoog aan `showLevelingDialog`)
 - Create: `tests/browser/leveling-distribution.spec.ts`
 
 - [ ] **Step 1: Schrijf de falende browsertest**
@@ -1358,55 +1392,70 @@ eigen schakelaar houden en het paneel is een derde niveau binnen de Bezettingswe
 fixture en voor state-asserties):
 
 ```ts
-// leveling-distribution.spec.ts — B1c-plan3, het verdeelpaneel. Fixture: twee documenten, dezelfde
+// leveling-distribution.spec.ts — B1c-plan3, de verdeeldialoog. Fixture: twee documenten, dezelfde
 // bibliotheek, één poolitem met een echt conflict. `window.__OPS__` zet de fixture; élke handeling
 // hieronder is een ECHTE klik/toets.
 
-test('verdeelpaneel: openen vanuit de conflictregel en een voorstel rekenen', async ({ page }) => {
+test('verdeeldialoog: openen vanuit de conflictregel, een voorstel rekenen, focus-trap en sluiten', async ({ page }) => {
   await seedTwoConflictingDocuments(page);
   await page.getByRole('button', { name: /^(Occupancy|Bezetting)$/ }).click();
   // De conflictregel draagt de ingang.
   await page.locator('[data-ops-occupancy-row]').first().getByRole('button', { name: /Verdelen|Distribute/ }).click();
-  await expect(page.locator('[data-ops-distribution-panel]')).toBeVisible();
+  await expect(page.locator('[data-ops-distribution-dialog]')).toBeVisible();
+  // De gedeelde Dialog houdt Tab binnen de dialoog (CLAUDE.md, "gedeelde Dialog heeft een
+  // focus-trap") — dezelfde asserttrant als de bestaande dialoogtests in `tests/browser/`.
+  await expect(page.locator('[data-ops-distribution-dialog] :focus')).toHaveCount(1);
+  // Het overzicht eronder blijft zichtbaar: de dialoog is een overlay, geen vervanging van de content.
+  await expect(page.locator('[data-ops-occupancy-row]').first()).toBeVisible();
   // Het voorstel rekent bij het openen (spec §3.4, eerste discrete moment) en levert per document
   // een strook.
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
-  // Terug laat het overzicht weer zien en ruimt de paneelstate op.
-  await page.getByRole('button', { name: /Terug naar bezetting|Back to occupancy/ }).click();
-  await expect(page.locator('[data-ops-distribution-panel]')).toHaveCount(0);
+  // Esc sluit, zoals elke andere dialoog (LAYOUTS.md §3.3). Het bezettingsoverzicht eronder was al
+  // die tijd gewoon aanwezig; er is dus niets terug te "geven".
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-ops-distribution-dialog]')).toHaveCount(0);
 });
 
-test('verdeelpaneel: de gereedschapsschakelaar laat het voorstel vervallen met reden', async ({ page }) => {
-  /* … open het paneel … */
+test('verdeeldialoog: de gereedschapsschakelaar laat het voorstel vervallen met reden', async ({ page }) => {
+  /* … open de dialoog … */
   await page.getByRole('switch', { name: /Onderbrekingen toestaan|Allow splits/ }).click();
   await expect(page.locator('[data-ops-distribution-stale]')).toBeVisible();
   await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
   await expect(page.locator('[data-ops-distribution-stale]')).toHaveCount(0);
 });
 
-test('verdeelpaneel: een geblokkeerd voorstel legt uit waarom en biedt geen Toepassen', async ({ page }) => {
+test('verdeeldialoog: een geblokkeerd voorstel legt uit waarom en biedt geen Toepassen', async ({ page }) => {
   await seedUncountedDocument(page);   // een document met een relatiecyclus ⇒ counted: false
-  /* … open het paneel … */
+  /* … open de dialoog … */
   await expect(page.locator('[data-ops-distribution-blocked]')).toContainText(/doorrekenen|calculate/i);
   await expect(page.getByRole('button', { name: /^(Toepassen|Apply)$/ })).toBeDisabled();
 });
 ```
 
-Draai `npm run test:browser` en verwacht rood (het paneel bestaat nog niet).
+Draai `npm run test:browser` en verwacht rood (de dialoog bestaat nog niet).
 
 - [ ] **Step 2: De ui-state**
 
 `src/state/slices/types.ts`, in `UIState`:
 
 ```ts
-  /** session — het B1c-verdeelpaneel (spec §6/§6a). App-globaal, NIET per document: het paneel kijkt
-   *  naar N documenten tegelijk, en pin/plafond/rangorde zijn de invoer van één verdeelsessie, geen
-   *  projectdata (zie de scope-bak in het implementatieplan). `null` ⇒ het paneel is dicht.
+  /** session — of de B1c-verdeeldialoog open staat. Zelfde patroon als `showLevelingDialog`: een
+   *  gewone dialoogvlag, bewaakt door `hasBlockingDialogOpen()` en gemount in `App.tsx`. Gescheiden
+   *  van `levelingDistribution` hieronder omdat de tune-state en het toegepast-record een sluiting
+   *  moeten OVERLEVEN — sluit de gebruiker de dialoog en opent hij 'm opnieuw op dezelfde
+   *  conflictregel, dan staat de "toegepast"-strook (met "alles terugdraaien") er nog steeds. Alleen
+   *  `resetDocumentScopedUI` (documentwissel, spec §6a) en het kiezen van een ANDER poolitem legen
+   *  ook `levelingDistribution` zelf. */
+  showDistributionDialog: boolean;
+  /** session — de tune-state van de B1c-verdeeldialoog (spec §6/§6a). App-globaal, NIET per document:
+   *  de dialoog kijkt naar N documenten tegelijk, en pin/plafond/rangorde zijn de invoer van één
+   *  verdeelsessie, geen projectdata (zie de scope-bak in het implementatieplan — **besluit eigenaar
+   *  2026-08-31**: dit is sessie-stand, geen projectbestand). `null` ⇒ er is nog geen sessie gestart
+   *  (vóór de eerste keer openen, of ná het sluiten van het poolitem/de bibliotheek).
    *
-   *  Bewust ZONDER het voorstel zelf: dat is afgeleide data en woont in de componentstate van het
-   *  paneel — zelfde filosofie als `DerivedKey` in het documentcontract. Wat hier staat is
-   *  uitsluitend wat een gebruiker heeft INGESTELD, plus het toegepast-record (dat een paneel-hersluiting
-   *  moet overleven zodat "alles terugdraaien" bereikbaar blijft). */
+   *  Bewust ZONDER het voorstel zelf: dat is afgeleide data en woont in de componentstate van de
+   *  dialoog — zelfde filosofie als `DerivedKey` in het documentcontract. Wat hier staat is
+   *  uitsluitend wat een gebruiker heeft INGESTELD, plus het toegepast-record (zie hierboven). */
   levelingDistribution: DistributionUiState | null;
 ```
 
@@ -1426,18 +1475,18 @@ export interface DistributionUiState {
 }
 ```
 
-Default in `uiSlice`: `levelingDistribution: null`. **Niet** in `settingsRegistry` — dit is
-sessie-state, geen instelling.
+Defaults in `uiSlice`: `showDistributionDialog: false, levelingDistribution: null`. **Niet** in
+`settingsRegistry` — dit is sessie-state, geen instelling (besluit eigenaar 2026-08-31).
 
 - [ ] **Step 3: De voorstel-hook**
 
 `useDistributionProposal.ts` — de discrete rekenmomenten, de bezig-toestand en de degradatie op één
-plek, zodat het paneel zelf alleen rendert:
+plek, zodat de dialoog zelf alleen rendert:
 
 ```ts
 /**
  * Berekent het verdelingsvoorstel op de DISCRETE momenten uit spec §3.4 — nooit per sleep-pixel.
- * Rekenmomenten: paneel openen, "Verdeel automatisch"/"Herbereken", loslaten van een handle of een
+ * Rekenmomenten: dialoog openen, "Verdeel automatisch"/"Herbereken", loslaten van een handle of een
  * toetsenbord-stap, en een pin-, rangorde- of gereedschapswijziging. Alles daartussen laat het
  * bestaande voorstel staan en zet alleen `staleReason`.
  *
@@ -1463,7 +1512,7 @@ aan (`librarySlice`, §7-cache). Voor de verdeler mag dat **niet**: `defaultLeve
 `doc.resources`/`doc.assignments` rechtstreeks aan `levelResources`, en die moet de VOLLEDIGE
 projectinzet zien — anders lost B1c een bibliotheekconflict op door een projectconflict te maken
 (spec §4 stap 2, "de bestaande per-resource-toets tegen de eigen projectinzet"). Bouw de invoer voor
-het paneel dus uit de **volledige** payloadvelden:
+de dialoog dus uit de **volledige** payloadvelden:
 
 ```ts
     const inputs: DistributionDocInput[] = payloads.map(({ id, payload }, i) => ({
@@ -1494,10 +1543,14 @@ kleinste totale float over zijn boekende taken op dit poolitem, uit de counted c
 uit de doorgerekende taken van elk document, met de scope-taken uit `scopeTaskIdsFor` — exporteer die
 helper uit `distribute.ts` in plaats van hem na te bouwen.
 
-- [ ] **Step 4: Het paneel-skelet en de ingang**
+- [ ] **Step 4: De dialoog-chrome en de ingang**
 
-`DistributionPanel.tsx` rendert, van boven naar beneden (spec §7):
-1. Kop met "← Terug naar bezetting", de itemnaam en `subtitle`.
+`DistributionDialog.tsx` gebruikt de gedeelde `Dialog` (zie de motivering en het maatvoorbeeld
+bovenaan deze taak) en rendert daarbinnen, van boven naar beneden (spec §7):
+1. Kop met de itemnaam en `subtitle`, en de gewone dialoog-sluitknop (X) — Esc en een backdrop-klik
+   sluiten ook, via `Dialog`'s eigen `onCancel`/`onBackdropClick` (het patroon van elke andere
+   dialoog in dit product, bv. `ProjectInfoDialog`). Er is geen "terug"-knop: de dialoog is een
+   overlay, het bezettingsoverzicht eronder is nooit weggehaald.
 2. Een blokkade-blok (`data-ops-distribution-blocked`) mét `t(DISTRIBUTION_BLOCK_KEY[reason])` en de
    documenttitels erbij — of, zonder blokkade:
 3. De gereedschapsschakelaar (`role="switch"`, `aria-checked`) met het prijskaartje (taak 13 vult de
@@ -1511,12 +1564,15 @@ helper uit `distribute.ts` in plaats van hem na te bouwen.
    "Verdeel automatisch" / "Herbereken" / "Toepassen" / "Verwerpen" (taak 12 bedraadt Toepassen).
 
 `ResourceOccupancyView.tsx`: in de conflictbadge-cel een knop `t('resource.distribution.open')` die
-`setUI({ levelingDistribution: { companyId, libraryItemId: row.libraryItemId, allowSplits: false,
-order: <float-volgorde>, pinned: {}, ceilings: {}, applied: null } })` zet. Toon de knop **alleen**
-bij `hasConflict` (spec §7: "vanuit een conflictregel"). Wanneer `ui.levelingDistribution` gezet is
-én bij déze `companyId` hoort, rendert de view het paneel **in plaats van** de tabel en het
-histogram; hoort het bij een andere bibliotheek, dan negeert de view het (dat kan alleen ontstaan als
-het actieve project van bibliotheek wisselt — taak 12 ruimt dat op).
+`setUI({ showDistributionDialog: true, levelingDistribution: { companyId, libraryItemId:
+row.libraryItemId, allowSplits: false, order: <float-volgorde>, pinned: {}, ceilings: {}, applied:
+null } })` zet — of, staat er al een `levelingDistribution` voor DÉZELFDE `libraryItemId` (de gebruiker
+sloot de dialoog en opent 'm opnieuw, inclusief een eventueel `applied`-record), dan zet die knop
+alleen `showDistributionDialog: true` en laat de bestaande tune-state en het toegepast-record staan.
+Toon de knop **alleen** bij `hasConflict` (spec §7: "vanuit een conflictregel"). De Resources-ribbonknop
+(zie boven) doet hetzelfde, met het laatst geopende poolitem als default. Het overzicht (tabel +
+histogram) blijft **ongewijzigd zichtbaar** terwijl de dialoog open staat — er is geen "in plaats van"
+meer, want de dialoog rendert los, via `App.tsx`.
 
 - [ ] **Step 5: Draai**
 
@@ -1532,9 +1588,11 @@ Verwacht: exit 0 ×3. Bij een falende browsertest: `test-results/` bevat screens
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/state/slices/types.ts src/state/slices/uiSlice.ts src/components/panels/ \
+git add src/state/slices/types.ts src/state/slices/uiSlice.ts src/hooks/keyboard/shortcutRegistry.ts \
+       src/services/mcp/tools/runtime.ts src/App.tsx src/components/dialogs/DistributionDialog/ \
+       src/components/panels/ResourceOccupancyView.tsx src/components/layout/Ribbon/ribbonConfig.tsx \
        tests/browser/leveling-distribution.spec.ts
-git commit -m "feat(library): verdeelpaneel — ingang vanuit de conflictregel, voorstel op discrete momenten (B1c)
+git commit -m "feat(library): verdeeldialoog — ingang vanuit de conflictregel, voorstel op discrete momenten (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -1557,15 +1615,15 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 **Files:**
 - Create: `src/components/panels/occupancyAxis.ts` (gedeelde tijdas, uit `ResourceOccupancyView`)
 - Modify: `src/components/panels/ResourceOccupancyView.tsx` (de as-opbouw eruit trekken)
-- Create: `src/components/panels/DistributionPanel/PhaseStrip.tsx`
-- Modify: `src/components/panels/DistributionPanel/DistributionPanel.tsx`
+- Create: `src/components/dialogs/DistributionDialog/PhaseStrip.tsx`
+- Modify: `src/components/dialogs/DistributionDialog/DistributionDialog.tsx`
 - Modify: `tests/browser/leveling-distribution.spec.ts`
 
 - [ ] **Step 1: Schrijf de falende browsertest**
 
 ```ts
 test('fasestroken: pin en plafond zijn met het toetsenbord te bedienen', async ({ page }) => {
-  /* … open het paneel op de conflictrij … */
+  /* … open de dialoog op de conflictrij … */
   const strip = page.locator('[data-ops-distribution-strip]').first();
 
   // De pin is een toggle-knop met aria-pressed (spec §6).
@@ -1608,7 +1666,7 @@ test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', 
 
 ```ts
 /**
- * De gedeelde tijdas van het bezettingsoverzicht en het verdeelpaneel: segmentindeling met
+ * De gedeelde tijdas van het bezettingsoverzicht en de verdeeldialoog: segmentindeling met
  * gatcompressie, dagbreedte en x-posities per ISO-dag.
  *
  * Waarom gedeeld: het histogram (§5a), de fasestroken (§6) en de voor/na-preview (§7) MOETEN op
@@ -1684,12 +1742,13 @@ npm run verify:gantt-boundaries; echo "exit: $?"
 npx tsc --noEmit -p tsconfig.json; echo "exit: $?"
 ```
 
-`verify:gantt-boundaries` is hier bewust in de lijst: het paneel tekent SVG en mag **niet** aan de
+`verify:gantt-boundaries` is hier bewust in de lijst: de dialoog tekent SVG en mag **niet** aan de
 Canvas-renderer, viewport- of pointer-grenzen van de Gantt raken.
 
 ```bash
-git add src/components/panels/ tests/browser/leveling-distribution.spec.ts
-git commit -m "feat(library): fasestroken met pin en plafond-handle in het verdeelpaneel (B1c)
+git add src/components/panels/occupancyAxis.ts src/components/panels/ResourceOccupancyView.tsx \
+       src/components/dialogs/DistributionDialog/ tests/browser/leveling-distribution.spec.ts
+git commit -m "feat(library): fasestroken met pin en plafond-handle in de verdeeldialoog (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -1704,19 +1763,19 @@ verschijnt bij loslaten (discrete doorrekenmomenten) — nooit per sleep-pixel."
 
 Deze taak staat bewust ná taak 9: de toetsenbordbediening is de bron van waarheid (dezelfde
 `setCeiling`-functie), het slepen is een tweede invoerroute erop. **Zou etappe 3 moeten inkorten, dan
-is dít de enige UI-taak die naar een etappe 4 kan** — het paneel is zonder slepen volledig bedienbaar.
+is dít de enige UI-taak die naar een etappe 4 kan** — de dialoog is zonder slepen volledig bedienbaar.
 De spec eist hem voor v1, dus hij staat hier gewoon in.
 
 **Files:**
-- Modify: `src/components/panels/DistributionPanel/PhaseStrip.tsx`
+- Modify: `src/components/dialogs/DistributionDialog/PhaseStrip.tsx`
 - Modify: `tests/browser/leveling-distribution.spec.ts`
-- Modify: `src/components/panels/DistributionPanel/DistributionPanel.tsx` (rangorde-slepen, zie stap 3)
+- Modify: `src/components/dialogs/DistributionDialog/DistributionDialog.tsx` (rangorde-slepen, zie stap 3)
 
 - [ ] **Step 1: Schrijf de falende browsertest**
 
 ```ts
 test('plafond-handle: slepen snapt op hele werkdagen en rekent pas bij loslaten', async ({ page }) => {
-  /* … open het paneel … */
+  /* … open de dialoog … */
   const handle = strip.locator('[data-ops-distribution-handle]');
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -1794,7 +1853,7 @@ npm run lint; echo "exit: $?"
 ```
 
 ```bash
-git add src/components/panels/DistributionPanel/ tests/browser/leveling-distribution.spec.ts
+git add src/components/dialogs/DistributionDialog/ tests/browser/leveling-distribution.spec.ts
 git commit -m "feat(library): plafond-handle en rangorde met de muis, rekenen pas bij loslaten (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -1802,7 +1861,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 11: het voor/na-histogram bovenin het paneel
+## Task 11: het voor/na-histogram bovenin de dialoog
 
 **Spec §7**: *"bovenin het histogram als voor/na-preview"*.
 
@@ -1814,8 +1873,8 @@ boekingen. Deze taak maakt dat naar buiten leesbaar.
 **Files:**
 - Modify: `src/services/library/distribute.ts`
 - Modify: `tests/library/check-distribute.ts`
-- Create: `src/components/panels/DistributionPanel/BeforeAfterChart.tsx`
-- Modify: `src/components/panels/DistributionPanel/DistributionPanel.tsx`
+- Create: `src/components/dialogs/DistributionDialog/BeforeAfterChart.tsx`
+- Modify: `src/components/dialogs/DistributionDialog/DistributionDialog.tsx`
 - Modify: `tests/browser/leveling-distribution.spec.ts`
 
 - [ ] **Step 1: Schrijf de falende tests**
@@ -1842,7 +1901,7 @@ En een browsertest:
 
 ```ts
 test('voor/na-preview: de na-stand blijft binnen de capaciteitslijn', async ({ page }) => {
-  /* … open het paneel, "Verdeel automatisch" … */
+  /* … open de dialoog, "Verdeel automatisch" … */
   await expect(page.locator('[data-ops-distribution-chart-before]')).toBeVisible();
   await expect(page.locator('[data-ops-distribution-chart-after]')).toBeVisible();
   // De conflictdagen staan in de VOOR-stand rood en in de NA-stand niet meer.
@@ -1894,7 +1953,7 @@ npm run test:browser 2>&1 | tail -20; echo "exit: ${PIPESTATUS[0]}"
 ```
 
 ```bash
-git add src/services/library/distribute.ts src/components/panels/DistributionPanel/ tests/
+git add src/services/library/distribute.ts src/components/dialogs/DistributionDialog/ tests/
 git commit -m "feat(library): voor/na-preview van de verdeling, uit dezelfde boekhouding als het grootboek (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -1904,12 +1963,12 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ## Task 12: Toepassen, de "toegepast"-strook met "alles terugdraaien", en de voorstel-invalidatie
 
-**Spec §5** (de terugweg woont in het paneel, niet in een melding) en **§6a** (levensduur van het
+**Spec §5** (de terugweg woont in de dialoog, niet in een melding) en **§6a** (levensduur van het
 voorstel).
 
 **Files:**
-- Modify: `src/components/panels/DistributionPanel/DistributionPanel.tsx`
-- Modify: `src/components/panels/DistributionPanel/useDistributionProposal.ts`
+- Modify: `src/components/dialogs/DistributionDialog/DistributionDialog.tsx`
+- Modify: `src/components/dialogs/DistributionDialog/useDistributionProposal.ts`
 - Modify: `src/state/slices/documentSlice.ts` (`resetDocumentScopedUI`)
 - Modify: `tests/browser/leveling-distribution.spec.ts`
 - Modify: `tests/library/check-apply-distribution.ts` (invalidatie-asserts op storeniveau)
@@ -1918,7 +1977,7 @@ voorstel).
 
 ```ts
 test('toepassen: schrijft in beide projecten en biedt daarna "alles terugdraaien"', async ({ page }) => {
-  /* … open het paneel, "Verdeel automatisch" … */
+  /* … open de dialoog, "Verdeel automatisch" … */
   await page.getByRole('button', { name: /^(Toepassen|Apply)$/ }).click();
   // Beide documenten dragen de delays; de strook staat er, permanent (geen 5s-timeout — spec §5).
   await expect(page.locator('[data-ops-distribution-applied]')).toBeVisible();
@@ -1942,17 +2001,21 @@ test('toepassen is uitgeschakeld-met-reden zolang er een tekort is', async ({ pa
 });
 
 test('het voorstel vervalt met reden zodra er in een betrokken document gewerkt wordt', async ({ page }) => {
-  /* … open het paneel, reken … */
+  /* … open de dialoog, reken … */
   // Een ECHTE bewerking in het actieve document (via het lint/de tabel, niet via __OPS__).
   await editATaskDurationThroughTheUi(page);
   await expect(page.locator('[data-ops-distribution-stale]')).toContainText(/niet meer actueel|no longer/i);
   await expect(page.getByRole('button', { name: /^(Toepassen|Apply)$/ })).toBeDisabled();
 });
 
-test('van document wisselen laat het voorstel vervallen', async ({ page }) => {
-  /* … open het paneel, reken, dan Ctrl+2 … */
+test('van document wisselen sluit de dialoog', async ({ page }) => {
+  /* … open de dialoog, reken, dan Ctrl+2 … */
   await page.keyboard.press('Control+2');
-  await expect(page.locator('[data-ops-distribution-stale]')).toBeVisible();
+  // Besluit eigenaar 2026-08-31: het voorstel VERVALT (spec §6a) en dat betekent hier — anders dan de
+  // vorige, teruggedraaide drill-down-lezing — dat de DIALOOG SLUIT, niet dat hij openblijft met een
+  // vervallen voorstel. Het overzicht eronder blijft gewoon staan; de gebruiker opent opnieuw op de
+  // conflictregel.
+  await expect(page.locator('[data-ops-distribution-dialog]')).toHaveCount(0);
 });
 ```
 
@@ -2001,29 +2064,42 @@ veranderde documenten. Verder:
 | pin gewijzigd | `stale.pin` |
 | gereedschapsschakelaar | `stale.tool` |
 | mutatie in een betrokken document | `stale.edited` |
-| document geopend/gesloten dat op dit poolitem boekt | `stale.documents` |
-| documentwissel | `stale.documents` |
 
-De eerste vier zijn **gewone hertriggering**: het paneel rekent er meteen op door (behalve in de
-gedegradeerde modus, waar hij alleen de reden toont). De laatste drie zetten `staleReason` en
-**rekenen niet** vanzelf — dan is er iets buiten het paneel gebeurd en beslist de gebruiker.
+Alle vijf zijn **gewone hertriggering**: de dialoog rekent er meteen op door (behalve in de
+gedegradeerde modus, waar hij alleen de reden toont). **Anders dan de vorige versie van dit plan**
+staan "document geopend/gesloten dat op dit poolitem boekt" en "documentwissel" hier niet meer als
+`staleReason`-tak: die twee gebeurtenissen lopen altijd via `newDocument`/`switchDocument`/
+`closeDocument`/`duplicateDocument`/`restoreDocuments` — precies de triggerlijst van
+`resetDocumentScopedUI` — en sluiten dus de hele dialoog (besluit eigenaar 2026-08-31, hieronder) in
+plaats van hem open te laten staan met een vervallen voorstel. **Let op de i18n-nasleep:** taak 7 gaf
+al een `stale.documents`-sleutel ("De geopende projecten zijn veranderd…") voor precies dit geval; die
+sleutel heeft na deze taak geen aanroepplek meer. Verwijder hem uit de veertien locales, of — als de
+uitvoerder een scenario vindt waarin een document verandert zonder een van de vijf
+`resetDocumentScopedUI`-triggers (meld dat als het bestaat) — houd hem aan die plek vast. Niet
+stilzwijgend laten staan als dode sleutel.
 
 `resetDocumentScopedUI` (documentSlice, regel ~56):
 
 ```ts
-  // B1c (spec §6a): het verdeelpaneel kijkt naar een MOMENTOPNAME van meerdere documenten. Een
+  // B1c (spec §6a): de verdeeldialoog kijkt naar een MOMENTOPNAME van meerdere documenten. Een
   // documentwissel of een gesloten document maakt zijn tune-state (rangorde/pins/plafonds op docId)
   // en zijn toegepast-record onbetrouwbaar: het record verwijst naar undo-diepten van documenten die
-  // er misschien niet meer zijn. Sluit het paneel; het overzicht eronder blijft gewoon staan en de
-  // gebruiker opent het opnieuw op de conflictregel.
+  // er misschien niet meer zijn. BESLUIT EIGENAAR 2026-08-31: dat betekent hier dat de DIALOOG SLUIT
+  // (niet dat hij openblijft met een vervallen voorstel — dat was de vraag in de vorige versie van dit
+  // plan, tégen de toen nog gekozen drill-down; met een losse dialoog is sluiten het enige zinnige
+  // gevolg, want er is geen "eronder" om op terug te vallen zoals bij een drill-down). Het
+  // bezettingsoverzicht blijft gewoon staan; de gebruiker opent de dialoog opnieuw op de conflictregel,
+  // en start dan met een verse tune-state (tenzij hetzelfde poolitem nog een `applied`-record droeg —
+  // zie taak 8 stap 4, de "zelfde item"-tak van de ingangsknop).
+  s.ui.showDistributionDialog = false;
   s.ui.levelingDistribution = null;
 ```
 
-**AFWIJKING — VOORLEGGEN:** spec §6a zegt dat het voorstel bij een documentwissel *vervalt*, niet dat
-het paneel *sluit*. Dit plan sluit het, omdat de tune-state op docId's staat en de spec verder geen
-gedrag voor "paneel open, ander document actief" beschrijft. Wil de eigenaar dat het paneel open
-blijft met een vervallen voorstel, dan is dat één regel minder hier plus een `staleReason`-tak — meld
-het als het zo hoort.
+Dit is geen open vraag meer: spec §6a zegt dat het voorstel bij een documentwissel *vervalt*, en de
+eigenaar heeft op 2026-08-31 bevestigd dat dat hier als **dialoogsluiting** landt, niet als een
+openblijvende dialoog met een vervallen voorstel. De vorige versie van dit plan had dit nog als
+AFWIJKING — VOORLEGGEN staan (toen nog geformuleerd als "het paneel sluit i.p.v. alleen het voorstel
+laat vervallen"); dat is hiermee beantwoord.
 
 - [ ] **Step 4: Draai en commit**
 
@@ -2034,8 +2110,8 @@ bash tests/planning/run.sh 2>&1 | tail -5; echo "exit: $?"
 ```
 
 ```bash
-git add src/components/panels/DistributionPanel/ src/state/slices/documentSlice.ts tests/
-git commit -m "feat(library): verdeling toepassen vanuit het paneel, met een permanente terugweg (B1c)
+git add src/components/dialogs/DistributionDialog/ src/state/slices/documentSlice.ts tests/
+git commit -m "feat(library): verdeling toepassen vanuit de dialoog, met een permanente terugweg (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -2055,15 +2131,15 @@ een kostenlabel is `computeDistribution` opnieuw draaien met een andere rangorde
 hetzelfde met de andere `allowSplits`-stand.
 
 **Files:**
-- Modify: `src/components/panels/DistributionPanel/useDistributionProposal.ts`
-- Modify: `src/components/panels/DistributionPanel/DistributionPanel.tsx`
+- Modify: `src/components/dialogs/DistributionDialog/useDistributionProposal.ts`
+- Modify: `src/components/dialogs/DistributionDialog/DistributionDialog.tsx`
 - Modify: `tests/browser/leveling-distribution.spec.ts`
 
 - [ ] **Step 1: Schrijf de falende browsertest**
 
 ```ts
 test('kostenlabels en prijskaartjes verschijnen en verdwijnen met het voorstel', async ({ page }) => {
-  /* … open het paneel op een klein project (onder de ondersteunde schaal) … */
+  /* … open de dialoog op een klein project (onder de ondersteunde schaal) … */
   // Elk rangorde-regeltje draagt zijn kostenlabel na de eerste berekening.
   await expect(page.locator('[data-ops-distribution-rank-row] [data-ops-distribution-cost]'))
     .toHaveCount(2);
@@ -2074,9 +2150,9 @@ test('kostenlabels en prijskaartjes verschijnen en verdwijnen met het voorstel',
   await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
 });
 
-test('boven de ondersteunde schaal rekent het paneel alleen op de knop', async ({ page }) => {
+test('boven de ondersteunde schaal rekent de dialoog alleen op de knop', async ({ page }) => {
   await seedLargeProject(page, { tasks: 1200 });   // > MAX_TASKS_AUTO
-  /* … open het paneel … */
+  /* … open de dialoog … */
   await expect(page.locator('[data-ops-distribution-degraded]')).toBeVisible();
   // Kostenlabels worden dan NIET vooraf gerekend.
   await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
@@ -2093,7 +2169,7 @@ test('boven de ondersteunde schaal rekent het paneel alleen op de knop', async (
  * De kostenlabels (spec §4 stap 1). "Alleen dit project laten opschuiven kost +N werkdagen" is:
  * draai `computeDistribution` opnieuw met dít document op rang 1 en alle andere deelnemers gepind,
  * en lees zijn `endShiftWorkdays`. Dat is per label een VOLLEDIGE run — vandaar het cachebeleid van
- * §3.4: alleen onder de ondersteunde schaal, alleen bij paneelopening en na een invalidatie, en
+ * §3.4: alleen onder de ondersteunde schaal, alleen bij dialoogopening en na een invalidatie, en
  * daarna gecachet tot het voorstel vervalt. Boven die schaal blijft het label leeg met
  * `compute.pressRecompute`; de gebruiker vraagt ze dan expliciet op.
  *
@@ -2114,7 +2190,7 @@ npm run test:browser 2>&1 | tail -20; echo "exit: ${PIPESTATUS[0]}"
 ```
 
 ```bash
-git add src/components/panels/DistributionPanel/ tests/browser/leveling-distribution.spec.ts
+git add src/components/dialogs/DistributionDialog/ tests/browser/leveling-distribution.spec.ts
 git commit -m "feat(library): kostenlabels per project en prijskaartjes per gereedschapsstand (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -2146,7 +2222,7 @@ enkelvoudige lijsten, `**vet**`/`*cursief*`/`` `code` ``, codeblokken, afbeeldin
 Secties die er hoe dan ook in horen:
 - **Wanneer je dit gebruikt** — je ziet in het bezettingsoverzicht een rode conflictbadge, en je wilt
   hem wegwerken zonder één project willekeurig op te offeren.
-- **Het paneel openen** — vanaf de conflictregel, met de link naar
+- **De dialoog openen** — vanaf de conflictregel (of de knop op de Resources-ribbon), met de link naar
   [Bezettingsoverzicht](docs://gids-bezettingsoverzicht).
 - **Wie wordt het meest ontzien** — de rangorde, wat "speling" hier betekent, en het kostenlabel.
 - **Onderbrekingen toestaan** — uit = het werk schuift in één stuk op; aan = het werk mag pauzedagen
@@ -2191,11 +2267,13 @@ stappen (zien, dan oplossen).
 
 - [ ] **Step 3: `docs/library.md`**
 
-Voeg onder de bestaande B1c-alinea (die etappe 2 achterliet met "het schrijfpad en het paneel bestaan
-nog niet") één blok toe: dat het paneel er nu is, waar het zit, wat pin en plafond betekenen, dat
-Toepassen in meerdere documenten schrijft met per document een gewone undo-stap, en dat de tune-state
-bij de verdeelsessie hoort en geen projecteigenschap is (met de verwijzing naar de scope-bak van dit
-plan). Verwijder de "bestaan nog niet"-zin.
+Voeg onder de bestaande B1c-alinea (§5, punt 5: "Verdeler-kern bestaat, nog zonder schrijfpad/paneel …
+het schrijfpad … en het paneel dat dit voorstel toont, bestaan nog niet") één blok toe: dat de
+verdeling nu via een dialoog gaat (geen drill-down — besluit eigenaar 2026-08-31), waar hij vandaan te
+openen is (conflictregel + Resources-ribbon), wat pin en plafond betekenen, dat Toepassen in meerdere
+documenten schrijft met per document een gewone undo-stap, en dat de tune-state bij de verdeelsessie
+hoort en geen projecteigenschap is — sessie-stand, overleeft geen herstart (met de verwijzing naar de
+scope-bak van dit plan). Verwijder de "bestaan nog niet"-zin.
 
 - [ ] **Step 4: Draai en commit**
 
@@ -2239,7 +2317,7 @@ Poorten die in dit plan bijzondere aandacht verdienen:
 - **`verify:cycles`** — de toegestane richting blijft `services/library` → `engine/scheduler`.
   `state/runtime/scratchDocument` → `state/appStore` → alle slices is de nieuwe kant; loopt daar een
   cyclus, zie taak 5 stap 4.
-- **`verify:gantt-boundaries`** — het paneel tekent SVG in de DOM en hoort de Canvas-renderer-,
+- **`verify:gantt-boundaries`** — de verdeeldialoog tekent SVG in de DOM en hoort de Canvas-renderer-,
   viewport- en pointergrenzen van de Gantt niet te raken.
 
 - [ ] **Step 2: De browserpoort**
@@ -2253,7 +2331,7 @@ Verwacht: exit 0. Dekking die deze etappe moet hebben opgeleverd in
 
 | flow | taak |
 |---|---|
-| paneel openen vanuit de conflictregel, twee stroken, terug | 8 |
+| dialoog openen vanuit de conflictregel, focus-trap, twee stroken, sluiten (Esc) | 8 |
 | gereedschapsschakelaar ⇒ vervallen met reden ⇒ herberekenen | 8 |
 | geblokkeerd voorstel: uitleg + Toepassen uit | 8 |
 | pin met `aria-pressed`, plafond met pijltjes/Home/End, `aria-valuetext` | 9 |
@@ -2263,7 +2341,7 @@ Verwacht: exit 0. Dekking die deze etappe moet hebben opgeleverd in
 | voor/na-preview: conflictdagen weg in de na-stand | 11 |
 | Toepassen in twee projecten + "alles terugdraaien" | 12 |
 | Toepassen uitgeschakeld-met-reden bij een tekort | 12 |
-| voorstel vervalt bij een echte bewerking en bij een documentwissel | 12 |
+| voorstel vervalt bij een echte bewerking; documentwissel sluit de dialoog | 12 |
 | kostenlabels/prijskaartjes + de gedegradeerde modus | 13 |
 
 Ontbreekt er een rij, dan is die taak niet af — vul hem aan vóór je deze stap afvinkt.
@@ -2290,7 +2368,7 @@ Ontbreekt er een rij, dan is die taak niet af — vul hem aan vóór je deze sta
 | §5 — scope-behoudend toepassen, derde plek (`applyLeveling`) | 2 |
 | §5 — de doorrekening wordt gepersisteerd | 6 (geval 3) |
 | §5 — ook in handmatige modus | 6 (geval 3) |
-| §5 — de terugweg in het paneel, niet in een melding | 12 |
+| §5 — de terugweg in de dialoog, niet in een melding | 12 |
 | §6 — fasestrook per document, gaten getekend | 9 |
 | §6 — handle = plafond, label = einddatum-effect, gestippelde staart | 9 |
 | §6 — pin bevriest einddatum én werkdagen, telt als vaste last | 9 (UI), 6 (schrijfpad slaat 'm over) |
@@ -2307,18 +2385,25 @@ Ontbreekt er een rij, dan is die taak niet af — vul hem aan vóór je deze sta
 | Doorgeschoven punt d (ribbon-enable-check) | 2 |
 
 **Drie plekken waar dit plan concretiseert (gemarkeerd als KEUZE VAN DIT PLAN).**
-1. Het paneel is een **drill-down** binnen `ResourceOccupancyView`, geen modale `Dialog` (taak 8).
+1. ~~Het paneel is een **drill-down** binnen `ResourceOccupancyView`, geen modale `Dialog`~~ —
+   **teruggedraaid door de eigenaar (besluit 2026-08-31, taak 8): een losse dialoog, via de gedeelde
+   `Dialog` en `hasBlockingDialogOpen`.** Zie de gevolgen daarvan in taken 9–13 en 15.
 2. De **tune-state woont in `ui`**, niet in `DOCUMENT_FIELDS` — met de volledige redenering in de
-   scope-bak bovenaan.
+   scope-bak bovenaan. **Bevestigd door de eigenaar (besluit 2026-08-31): sessie-stand, geen
+   projectbestand.**
 3. De **vingerafdruk is de mutatieteller PLUS de referentieset**; de teller alléén, zoals §6a hem
    beschrijft, mist een gecoalesceerde sleepreeks en `runCPM` (taak 4).
 
-**Twee plekken die de eigenaar moet zien (AFWIJKING — VOORLEGGEN).**
-1. **Pin/plafond zijn sessiegebonden, niet opgeslagen.** Wil de eigenaar dat een pin een herstart of
-   zelfs het IFC overleeft, dan verandert de betekenis van "pin" en hoort er een documentveld plus een
-   `OPS_`-pset bij. Dit plan bouwt de sessie-lezing.
-2. **Documentwissel sluit het paneel** in plaats van alleen het voorstel te laten vervallen (taak 12,
-   stap 3). Eén regel verschil; de spec beschrijft het gedrag niet.
+**Twee plekken die de eigenaar al gezien heeft — allebei besloten op 2026-08-31.**
+1. **Pin/plafond zijn sessiegebonden, niet opgeslagen.** Stond hier als AFWIJKING — VOORLEGGEN: wil de
+   eigenaar dat een pin een herstart of zelfs het IFC overleeft, dan verandert de betekenis van "pin"
+   en hoort er een documentveld plus een `OPS_`-pset bij. **Besluit: nee — dit plan bouwt en houdt de
+   sessie-lezing; persistentie is een mogelijke latere uitbreiding, geen v1-werk.** Zie de bak "Waar de
+   tune-state woont" bovenaan.
+2. **Documentwissel sluit de dialoog** in plaats van alleen het voorstel te laten vervallen (taak 12,
+   stap 3). Stond hier als open vraag ("de spec beschrijft het gedrag niet"). **Besluit: ja, sluiten —
+   en dat past ook beter bij de tweede beslissing van dezelfde dag (losse dialoog i.p.v. drill-down):
+   een dialoog heeft geen "eronder" om open te laten staan met een vervallen voorstel.**
 
 **Eén bevinding die dit plan onderweg oploste en die de eigenaar mag weten.** `levelResources` stripte
 in zijn baseline wél `levelingDelay` maar niet de leveling-**gaten**. Zonder taak 2 stap 2 zou een
