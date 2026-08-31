@@ -868,15 +868,23 @@ export function levelResources(
     };
   }
 
-  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taken 4/5/6). Volgorde: intrinsiek
+  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taken 4/5/6; volgorde RESIDUAL_FULL
+   *  vóór CEILING_TOO_TIGHT sinds de B1c-plan-2-etappe-2-fixronde, bevinding 4). Volgorde: intrinsiek
    *  (de piekvraag overtreft de maximale capaciteit van de resource ongeacht plaatsing) →
    *  CEILING_UNREACHABLE (een deadline/backward-constraint maakt elk plafond onbereikbaar — gaat
    *  vóór de kalender/capaciteit: het enige geval waarin de gebruiker iets anders moet doen dan
    *  plafond of capaciteit bijstellen) → kalender-mismatch (geen enkel venster waar alle vraagdagen
-   *  ook resource-werkdagen zijn) → CEILING_TOO_TIGHT (venster bekend en te krap ⇒ concreter dan een
-   *  kale horizon-uitputting) → RESIDUAL_FULL (elke afgewezen kandidaat faalde uitsluitend op het
-   *  poolitem-grootboek — de eigen projectinzet had steeds ruimte) → NO_WINDOW_IN_HORIZON (de scan
-   *  liep leeg zonder gekend venster) → anders onvoldoende vrije capaciteit. */
+   *  ook resource-werkdagen zijn) → RESIDUAL_FULL (elke afgewezen kandidaat faalde uitsluitend op het
+   *  poolitem-grootboek — de eigen projectinzet had steeds ruimte) → CEILING_TOO_TIGHT (venster
+   *  bekend en te krap ⇒ concreter dan een kale horizon-uitputting) → NO_WINDOW_IN_HORIZON (de scan
+   *  liep leeg zonder gekend venster) → anders onvoldoende vrije capaciteit.
+   *
+   *  RESIDUAL_FULL vóór CEILING_TOO_TIGHT (en niet andersom): `computeDistribution` zet vrijwel
+   *  altijd een plafond (`overrunCeilingDays`), dus `ceilingSet` staat bijna elke aanroep aan — met de
+   *  oude volgorde won CEILING_TOO_TIGHT dan ALTIJD en was RESIDUAL_FULL in de praktijk onbereikbaar,
+   *  ook wanneer de taak uitsluitend vastliep op andere projecten die de pool bezetten (spec §4 eist
+   *  restcapaciteit-vol en plafond-te-krap als twee aparte, eerlijke uitkomsten — de gebruiker moet
+   *  naar de pool gewezen worden, niet naar zijn eigen (onschuldige) plafond). */
   function reasonFor(
     byRes: Map<string, number[]>,
     calendarFeasibleSeen: boolean,
@@ -890,8 +898,8 @@ export function levelResources(
     }
     if (ceilingUnreachable) return 'CEILING_UNREACHABLE';
     if (!calendarFeasibleSeen) return 'CALENDAR_MISMATCH';
-    if (ceilingSet) return 'CEILING_TOO_TIGHT';
     if (poolBlockedOnly) return 'RESIDUAL_FULL';
+    if (ceilingSet) return 'CEILING_TOO_TIGHT';
     if (horizonExhausted) return 'NO_WINDOW_IN_HORIZON';
     return 'INSUFFICIENT_CAPACITY';
   }

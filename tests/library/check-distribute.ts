@@ -181,7 +181,12 @@ console.log('-- distribute: rangorde is de fairness-knop (case 3) --');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Case 4 (§9.4): plafonds hard — d1 (rank1, geen plafond) bezet 08-03+08-04 volledig; d2 (rank2, 1 wd,
-// eigen deadline op ma ⇒ float 0, plafond 1) kan niet ver genoeg wijken ⇒ tekort, CEILING_TOO_TIGHT.
+// eigen deadline op ma ⇒ float 0, plafond 1) kan niet ver genoeg wijken ⇒ tekort. Reden is RESIDUAL_FULL
+// (fixronde B1c-plan-2-etappe-2, bevinding 4, was CEILING_TOO_TIGHT): d2 se EIGEN projectinzet had op
+// 08-03 nooit een probleem (RA se maxUnits is ruim) — elke afgewezen kandidaat liep uitsluitend vast op
+// het GEDEELDE poolgrootboek dat d1 al volledig bezet houdt (`poolBlockedOnly`), dus de eerlijke reden
+// wijst naar de pool, niet naar d2 se eigen (onschuldige) plafond van 1 werkdag. Zie case 4b hieronder
+// voor het omgekeerde: een taak die WEL door haar eigen plafond geblokkeerd wordt (geen pool-conflict).
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: plafonds zijn hard (case 4) --');
 {
@@ -203,10 +208,38 @@ console.log('-- distribute: plafonds zijn hard (case 4) --');
   assert(p4.docs[1].docId === 'd2', 'case 4: d2 staat op index 1');
   assert(p4.docs[1].shortfalls.length > 0, 'case 4: d2 houdt een tekort over');
   assert(
-    p4.docs[1].shortfalls[0]?.reason === 'CEILING_TOO_TIGHT',
-    `case 4: reden is CEILING_TOO_TIGHT (kreeg ${p4.docs[1].shortfalls[0]?.reason})`,
+    p4.docs[1].shortfalls[0]?.reason === 'RESIDUAL_FULL',
+    `case 4: reden is RESIDUAL_FULL — het is de pool, niet d2 se eigen plafond (kreeg ${p4.docs[1].shortfalls[0]?.reason})`,
   );
   assert(p4.hasShortfall === true, 'case 4: hasShortfall staat');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Case 4b (fixronde B1c-plan-2-etappe-2, bevinding 4): het omgekeerde van case 4 — GEEN blokker op de
+// pool (poolcapaciteit ruim, niemand anders boekt), maar d1 se EIGEN (krappe) projectinzet blokkeert
+// A2, en met plafond 0 kan A2 ook geen dag uitwijken. Zelfde fixture als case 9 (min met de
+// projectinzet), maar nu MET een plafond van 0 werkdagen — case 9 liet A2 nog gewoon 1 dag wijken;
+// hier kán dat niet meer, dus wordt het een tekort. De afwijzing lag nooit aan de pool (die had de
+// hele week ruimte), dus de eerlijke reden blijft CEILING_TOO_TIGHT.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: CEILING_TOO_TIGHT blijft bestaan zonder pool-blokkade (case 4b) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 5)]); // ruime pool, niemand anders boekt
+  const d1 = distDoc('d1', {
+    rank: 1, ceilingWorkdays: 0,
+    resources: [stamped('d1-r1', 'lib-1', 'c1', { maxUnits: 1 })], // krappe PROJECTinzet
+    tasks: [
+      task('a1', '2026-08-03', '2026-08-03', 1, { priority: 900 }),
+      task('a2', '2026-08-03', '2026-08-03', 1, { priority: 100, deadline: '2026-08-03' }),
+    ],
+    assignments: [assign('d1-a1', 'a1', 'd1-r1', 1), assign('d1-a2', 'a2', 'd1-r1', 1)],
+  });
+  const p4b = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
+  const shortfallA2 = p4b.docs[0].shortfalls.find(s => s.taskId === 'a2');
+  assert(
+    shortfallA2?.reason === 'CEILING_TOO_TIGHT',
+    `case 4b: zonder pool-blokkade blijft het eigen plafond de reden (kreeg ${shortfallA2?.reason})`,
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -515,6 +548,52 @@ console.log('-- distribute: onderbreek-modus schrijft geldige splitGaps (case 15
     JSON.stringify(back.tasks[0]?.splitGaps) === JSON.stringify(gaps),
     `case 15: het leveling-gat (incl. herkomstveld) overleeft de IFC-round-trip (kreeg ${JSON.stringify(back.tasks[0]?.splitGaps)}, verwacht ${JSON.stringify(gaps)})`,
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Case 16 (fixronde B1c-plan-2-etappe-2, bevinding 1) — repro van de keurder: twee documenten die elk
+// 1 eenheid van een MATERIAL-poolitem met capaciteit 1 boeken op dezelfde dag. `levelResources`
+// nivelleert `MATERIAL` nooit (spec §5.3, `renewable`-filter), dus zonder de `MATERIAL_ITEM`-poort
+// kreeg elke scope-taak stilzwijgend `hasDemand === false`: een LEEG voorstel dat "opgelost" oogt
+// (geen delays, geen tekorten), terwijl het bezettingsoverzicht gewoon een conflict toont.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: MATERIAL-poolitem blokkeert de hele actie (case 16, bevinding 1) --');
+{
+  const p = pool([poolRes('lib-mat', 'Beton', 1, { type: 'MATERIAL' })]);
+  const mk = (id: string, rank: number) => distDoc(id, {
+    rank,
+    resources: [stamped(`${id}-r1`, 'lib-mat', 'c1', { type: 'MATERIAL' })],
+    tasks: [task(`${id}-t1`, '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign(`${id}-a1`, `${id}-t1`, `${id}-r1`, 1)],
+  });
+  const p16 = computeDistribution('c1', p, 'lib-mat', [mk('d1', 1), mk('d2', 2)], OPTS_OFF);
+  assert(p16.blocked?.reason === 'MATERIAL_ITEM', `case 16: MATERIAL-poolitem blokkeert (kreeg ${p16.blocked?.reason})`);
+  assert(p16.docs.length === 0, 'case 16: en levert geen leeg "opgelost"-voorstel');
+  assert(
+    JSON.stringify([...(p16.blocked?.docIds ?? [])].sort()) === JSON.stringify(['d1', 'd2']),
+    `case 16: noemt beide documenten die er al op boeken (kreeg ${JSON.stringify(p16.blocked?.docIds)})`,
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Case 17 (fixronde B1c-plan-2-etappe-2, bevinding 1, algemener deel): het poolitem zelf is LABOR
+// (geen `MATERIAL_ITEM`-blokkade), maar de gestempelde PROJECTresource staat — inconsistent —  op
+// MATERIAL. Dezelfde "geen enkele scope-taak heeft vraag"-situatie als case 16, nu zonder dat het
+// poolitem het zelf verraadt: het algemenere `NO_DEMAND`-vangnet moet dit alsnog blokkeren i.p.v. een
+// leeg "opgelost"-voorstel te tonen.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: NO_DEMAND is het algemenere vangnet naast MATERIAL_ITEM (case 17, bevinding 1) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]); // poolitem zelf: gewoon LABOR
+  const d1 = distDoc('d1', {
+    rank: 1,
+    resources: [stamped('d1-r1', 'lib-1', 'c1', { type: 'MATERIAL' })], // inconsistente stempel
+    tasks: [task('a1', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('d1-a1', 'a1', 'd1-r1', 1)],
+  });
+  const p17 = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
+  assert(p17.blocked?.reason === 'NO_DEMAND', `case 17: algemener vangnet blokkeert (kreeg ${p17.blocked?.reason})`);
+  assert(p17.docs.length === 0, 'case 17: en levert geen leeg "opgelost"-voorstel');
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

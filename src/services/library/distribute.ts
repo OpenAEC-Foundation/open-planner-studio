@@ -79,6 +79,19 @@ export interface DistributionOptions {
 /** Waarom een document niet kon wijken — DOCUMENT-niveau, naast de taak-niveau `LevelingReason`. */
 export type DistributionPinReason = 'pin' | 'dates-as-recorded';
 
+/** Waarom de HELE actie geblokkeerd is (§3.1-vorm: vóór al het rekenwerk, geen stille uitsluiting).
+ *  - `UNCOUNTED_DOCUMENT` — een deelnemer is niet doorgerekend (zie `computeLibraryOccupancy`).
+ *  - `MATERIAL_ITEM` (fixronde B1c-plan-2-etappe-2, bevinding 1) — `levelResources` nivelleert nooit
+ *    `MATERIAL` (spec §5.3, `ResourceLeveler.ts`s `renewable`-filter); zonder deze poort filterde
+ *    `computeDistribution` niet op resourcetype, dus elke scope-taak kreeg stilzwijgend `hasDemand
+ *    === false` — een LEEG voorstel dat "opgelost" oogt (geen delays, geen tekorten) terwijl het
+ *    bezettingsoverzicht gewoon een conflict toont.
+ *  - `NO_DEMAND` — algemener vangnet: geen enkele deelnemende scope-taak heeft daadwerkelijk vraag op
+ *    een nivelleerbare (niet-MATERIAL) resource. In de praktijk raakt dit vrijwel alleen een
+ *    inconsistente stempel (projectresource op `MATERIAL` gezet terwijl het poolitem zelf dat niet
+ *    is); zonder deze poort zou dat dezelfde lege-succes-illusie geven als `MATERIAL_ITEM`. */
+export type DistributionBlockReason = 'UNCOUNTED_DOCUMENT' | 'MATERIAL_ITEM' | 'NO_DEMAND';
+
 export interface DistributionShortfall {
   taskId: string;
   reason: LevelingReason;
@@ -107,8 +120,10 @@ export interface DistributionDocResult {
 
 export interface DistributionProposal {
   libraryItemId: string;
-  /** Niet-null ⇒ er is GEEN voorstel; `docs` is leeg. */
-  blocked: { reason: 'UNCOUNTED_DOCUMENT'; docIds: string[] } | null;
+  /** Niet-null ⇒ er is GEEN voorstel; `docs` is leeg. Zie `DistributionBlockReason` voor de drie
+   *  redenen — allemaal in dezelfde vorm (`reason` + `docIds`), ook waar `docIds` voor een reden
+   *  (`MATERIAL_ITEM`) minder betekenisvol is dan voor `UNCOUNTED_DOCUMENT`. */
+  blocked: { reason: DistributionBlockReason; docIds: string[] } | null;
   docs: DistributionDocResult[];
   /** ISO-dag → vaste last (gepinde documenten + documenten buiten de verdeling die op dit poolitem
    *  boeken). Voedt de fasestrook-achtergrond in etappe 3. */
@@ -182,6 +197,30 @@ function scopeTaskIdsFor(doc: DistributionDocInput, companyId: string, libraryIt
   return [...new Set(doc.assignments.filter(a => stampedResourceIds.has(a.resourceId)).map(a => a.taskId))];
 }
 
+/** Heeft minstens één taak in `scopeTaskIds` daadwerkelijk vraag die `levelResources` zou zien
+ *  (fixronde B1c-plan-2-etappe-2, bevinding 1)? Mirror van `ResourceLeveler.ts`s eigen `hasDemand`-
+ *  voorwaarden (niet-mijlpaal, geen verzameltaak, `scheduleDuration > 0`, een toewijzing met
+ *  `unitsPerDay > 0` op een NIET-`MATERIAL`-resource — de motor nivelleert `MATERIAL` nooit, spec
+ *  §5.3). `scopeTaskIdsFor` levert alleen taken die al via een stempel op DIT poolitem boeken; als
+ *  GEEN daarvan hier `true` geeft, zou de motor niets plaatsen en de aanroeper een leeg — maar
+ *  "opgelost" ogend — voorstel krijgen. */
+function scopeHasDemand(doc: DistributionDocInput, scopeTaskIds: string[]): boolean {
+  if (scopeTaskIds.length === 0) return false;
+  const scopeSet = new Set(scopeTaskIds);
+  const tasksById = new Map(doc.levelInput.tasks.map(t => [t.id, t]));
+  const resById = new Map(doc.resources.map(r => [r.id, r]));
+  for (const a of doc.assignments) {
+    if (!scopeSet.has(a.taskId) || a.unitsPerDay <= 0) continue;
+    const res = resById.get(a.resourceId);
+    if (!res || res.type === 'MATERIAL') continue;
+    const task = tasksById.get(a.taskId);
+    if (!task || task.isMilestone || task.childIds.length > 0) continue;
+    if (task.time.scheduleDuration <= 0) continue;
+    return true;
+  }
+  return false;
+}
+
 /** Ondergrens-argument voor `LevelingPoolLedger.horizonIso` (zelfde geest als `scanLimit`/L4 in
  *  `ResourceLeveler.ts`, B1c-plan-2 taak 6): de laatste dag met vaste last of al geplaatste
  *  boeking, plus een marge van de langste taakspanne over de deelnemende documenten. Dit is GEEN
@@ -242,6 +281,15 @@ export function computeDistribution(
     return { ...empty, blocked: { reason: 'UNCOUNTED_DOCUMENT', docIds: uncounted.map(b => b.docId) } };
   }
 
+  // Bevinding 1 (fixronde B1c-plan-2-etappe-2): `levelResources` nivelleert `MATERIAL` nooit (spec
+  // §5.3) — zonder deze poort zou elke scope-taak stilzwijgend `hasDemand === false` krijgen, niets
+  // boeken en niets tekortkomen: een LEEG voorstel dat "opgelost" oogt. Vóór al het rekenwerk, net
+  // als de UNCOUNTED_DOCUMENT-poort hierboven — de reden ligt aan het POOLITEM, niet aan een
+  // specifiek document, dus `docIds` noemt iedereen die er (volgens de bezetting) al op boekt.
+  if (poolItem.type === 'MATERIAL') {
+    return { ...empty, blocked: { reason: 'MATERIAL_ITEM', docIds: row.docs.map(b => b.docId) } };
+  }
+
   const docById = new Map(docs.map(d => [d.docId, d]));
   const bookingByDocId = new Map(row.docs.map(b => [b.docId, b]));
 
@@ -286,6 +334,19 @@ export function computeDistribution(
     .map(b => docById.get(b.docId)!)
     .sort((a, b) => a.rank - b.rank || a.docId.localeCompare(b.docId));
 
+  // Bevinding 1 (algemener deel): scope-taak-id's per deelnemer alvast bepalen — nodig voor de
+  // NO_DEMAND-poort hieronder én voor de hoofdlus verderop (één berekening, niet twee).
+  const scopeTaskIdsByDoc = new Map(participants.map(doc => [doc.docId, scopeTaskIdsFor(doc, companyId, libraryItemId)]));
+
+  // Algemener vangnet naast `MATERIAL_ITEM` hierboven: zijn er wél deelnemers, maar heeft GEEN
+  // ENKELE daarvan daadwerkelijk vraag op dit poolitem (zie `scopeHasDemand`s docblok voor wanneer
+  // dat — buiten een MATERIAL-poolitem — kan gebeuren)? Dan zou de hoofdlus verderop alsnog een leeg
+  // maar "opgelost" ogend voorstel opleveren. GEEN documenten (bv. alles gepind) is geen blokkade —
+  // dat is gewoon een geldig voorstel zonder deelnemers (zie case 7).
+  if (participants.length > 0 && !participants.some(doc => scopeHasDemand(doc, scopeTaskIdsByDoc.get(doc.docId)!))) {
+    return { ...empty, blocked: { reason: 'NO_DEMAND', docIds: participants.map(d => d.docId) } };
+  }
+
   const results: DistributionDocResult[] = [];
 
   // Vaste-last-/#63-documenten eerst in de uitkomst (volgorde is verder niet betekenisvol voor deze
@@ -320,7 +381,7 @@ export function computeDistribution(
       // gewoon niet verplaatsbaar), geen motor-run.
       const booking = bookingByDocId.get(doc.docId)!;
       for (const [iso, units] of Object.entries(booking.dailyLoad)) bookPlaced(iso, units);
-      const end = currentProjectEnd(doc.levelInput.tasks);
+      const end = currentProjectEndFor(doc);
       results.push({
         docId: doc.docId, title: doc.title, participated: true, cannotMove: true,
         delays: {}, gaps: {}, projectEndBefore: end, projectEndAfter: end, endShiftWorkdays: 0, shortfalls: [],
