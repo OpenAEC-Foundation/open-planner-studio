@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Guardado automático", "noFile": "Guarde primero este proyecto para usar el guardado automático.", "onHint": "El guardado automático está activo: los cambios se escriben en este archivo.", "offHint": "El guardado automático está desactivado. La recuperación sigue activa." },
   "notifications": {
     "dismiss": "Cerrar notificación",
     "openFailed": "No se pudo abrir el archivo",

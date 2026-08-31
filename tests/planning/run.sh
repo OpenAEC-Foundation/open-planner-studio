@@ -635,6 +635,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECCHECK="$DIR/.recovery-integrity.mjs"
   if bundle_check "$DIR/check-recovery-integrity.ts" "$RECCHECK"; then node "$RECCHECK" || STATUS=1; fi
 
+  # S2: werkelijk automatisch opslaan is nadrukkelijk geen crashherstel. De controller bewaakt
+  # het bestaande schrijfdoel, single-flight, nieuwste-run en de dirty-race zonder browser/Tauri-I/O.
+  AACHECK="$DIR/.actual-autosave.mjs"
+  if bundle_check "$DIR/check-actual-autosave.ts" "$AACHECK"; then node "$AACHECK" || STATUS=1; fi
+
   # Recovery-isolatie tussen instanties (bevinding K5). De opruimlogica veegde op PREFIX door de
   # gedeelde appDataDir. Twee gelijktijdige vensters wisten daarmee elkaars snapshots — en omdat
   # de productie-base (`recovery`) een prefix is van elke dev-base (`recovery.<slug>`), wiste één

@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "自動保存", "noFile": "自動保存を使うには、先にこのプロジェクトを保存してください。", "onHint": "自動保存はオンです。変更はこのファイルに書き込まれます。", "offHint": "自動保存はオフです。クラッシュ復元は常に有効です。" },
   "notifications": {
     "dismiss": "通知を閉じる",
     "openFailed": "ファイルを開けませんでした",

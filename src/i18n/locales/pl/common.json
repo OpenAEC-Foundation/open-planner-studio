@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Automatyczny zapis", "noFile": "Najpierw zapisz ten projekt, aby użyć automatycznego zapisu.", "onHint": "Automatyczny zapis jest włączony: zmiany są zapisywane w tym pliku.", "offHint": "Automatyczny zapis jest wyłączony. Odzyskiwanie po awarii pozostaje aktywne." },
   "notifications": {
     "dismiss": "Zamknij powiadomienie",
     "openFailed": "Nie udało się otworzyć pliku",

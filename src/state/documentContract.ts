@@ -74,6 +74,8 @@ export interface DocumentPayload {
   filePath: string | null;
   /** Web-opslaan-doel (browser-bestandstoegang). ALLEEN het FSA-opslaan-doel — nooit identiteit/titel (die blijft filePath: echt pad in Tauri, bestandsnaam in web). null in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
+  /** Persoonlijke sessiekeuze: echte bestands-AutoSave, geen IFC-data en geen crashherstel. */
+  autoSaveToFile: boolean;
   isDirty: boolean;
 }
 
@@ -220,6 +222,8 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'redoStack', get: (s) => s.redoStack, set: (s, v) => { s.redoStack = v; }, fresh: () => [], snapshot: 'none' }),
   field({ key: 'filePath', get: (s) => s.filePath, set: (s, v) => { s.filePath = v; }, fresh: () => null, snapshot: 'none' }),
   field({ key: 'fileHandle', get: (s) => s.fileHandle, set: (s, v) => { s.fileHandle = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.fileHandle ?? null }),
+  // Runtime-only: rijdt mee tussen open tabbladen, maar nooit door IFC of recoverymetadata.
+  field({ key: 'autoSaveToFile', get: (s) => s.autoSaveToFile, set: (s, v) => { s.autoSaveToFile = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.autoSaveToFile ?? false }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
 ];
 

@@ -2,6 +2,12 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": {
+    "label": "Automatisch opslaan",
+    "noFile": "Sla dit project eerst op om automatisch opslaan te gebruiken.",
+    "onHint": "Automatisch opslaan staat aan: wijzigingen worden naar dit bestand geschreven.",
+    "offHint": "Automatisch opslaan staat uit. Crashherstel blijft altijd actief."
+  },
   "notifications": {
     "dismiss": "Melding sluiten",
     "openFailed": "Bestand openen mislukt",
