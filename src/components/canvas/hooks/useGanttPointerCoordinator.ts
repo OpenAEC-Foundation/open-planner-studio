@@ -114,6 +114,8 @@ export function useGanttPointerCoordinator(
     getTask,
     updateTask,
     onVerticalBodyDrag: treeMode ? startVerticalBarDrag : undefined,
+    axis: viewport.sharedAxis,
+    canvasRef,
   });
   const onRelationDrawn = useCallback((sourceTaskId: string, targetTaskId: string, x: number, y: number) => {
     setRelationPopover({ sourceTaskId, targetTaskId, x, y });

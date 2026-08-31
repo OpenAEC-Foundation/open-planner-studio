@@ -412,6 +412,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DDCHECK="$DIR/.drag-duration-badge.mjs"
   if bundle_check "$DIR/check-drag-duration-badge.ts" "$DDCHECK"; then node "$DDCHECK" || STATUS=1; fi
 
+  # T2: de Gantt-uurinteractie rekent via CalendarEngine, zodat pauzes, nachten,
+  # weekenden en feestdagen niet als gewerkte duur mee kunnen lekken.
+  HBDCHECK="$DIR/.hour-bar-drag.mjs"
+  if bundle_check "$DIR/check-hour-bar-drag.ts" "$HBDCHECK"; then node "$HBDCHECK" || STATUS=1; fi
+
   # Tijd-as-consolidatie (issue #21 punt 5, fase 0): geconsolideerde `timeAxis.dateToX`/`xToDate`/
   # `xToDayOffset` vs. letterlijk-gekopieerde OUDE formules (printPreview/GanttCanvas/GanttRenderer/
   # useBarDrag), plus een live-render-vergelijking van de grid-`startOffset`. Bewijst dat de

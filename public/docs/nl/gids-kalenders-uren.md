@@ -45,7 +45,7 @@ Opnieuw genereren voegt ontbrekende jaren toe en laat handmatig ingevoerde strem
 
 Open **Instellingen → Tijdlijn / Zoomen** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Zet daaronder ook **Gemengde dag/uur-planning toestaan** aan als je de eenheid per taak wilt kunnen kiezen; zonder die tweede voorkeur blijft de compacte duurinvoer zichtbaar, maar niet de Dagen/Uren-keuze.
 
-Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Voor je zo'n duur kunt bewerken, vraagt Open Planner Studio om urenplanning in te schakelen.
+Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Je kunt zo'n balk in het Gantt-diagram nog verplaatsen of aan een rand vergroten/verkleinen; de dagrasterstap verandert daarbij nooit de opgeslagen werkminuten in dagen. Schakel urenplanning in voor uur- of kwartierpreciese invoer en het fijnere tijdsraster.
 
 Kies in **Projectinformatie** ook **Standaardeenheid voor nieuwe taken: Dagen/Uren**. Dit is een projectinstelling en geldt voor alle handmatig aangemaakte nieuwe taken. De instelling verandert bestaande taken niet. Als urenplanning uit staat, beginnen nieuwe taken altijd veilig in dagen.
 
@@ -139,7 +139,7 @@ De uurwaarde past niet exact in een geheel aantal beschikbare werkdagen vanaf de
 
 **Een geïmporteerde urentaak is zichtbaar terwijl urenplanning uit staat**
 
-Dat beschermt de brongegevens. De precieze minuten blijven opgeslagen en worden niet in dagen veranderd. Schakel urenplanning in voordat je de duur bewerkt.
+Dat beschermt de brongegevens. De precieze minuten blijven opgeslagen en worden niet in dagen veranderd. Je kunt de balk op het dagraster nog verslepen of aan een rand aanpassen; schakel urenplanning in voor uur- of kwartierpreciese invoer en het fijnere tijdsraster.
 
 **`2d(16h)` of `16h(2d)` lijkt dubbel**
 

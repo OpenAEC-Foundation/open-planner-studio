@@ -45,7 +45,7 @@ Regenerating adds missing years while retaining manually entered closures.
 
 Open **Settings → Timeline / Zoom** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Also turn on **Allow mixed day/hour planning** below it when you want to choose a unit per task; without that second preference the compact duration input remains visible, but the Days/Hours choice does not.
 
-When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. Before editing such a duration, Open Planner Studio asks you to enable hour planning.
+When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. You can still move such a bar in the Gantt or resize it from an edge; the day-grid step never turns its stored working minutes into days. Enable hour planning for hour- or quarter-precise entry and the finer time grid.
 
 In **Project information**, also choose **Default unit for new tasks: Days/Hours**. This is a project setting used by every manual new-task route. It does not change existing tasks. When hour planning is off, new tasks always start safely in days.
 
@@ -141,7 +141,7 @@ The hour value does not exactly match a whole number of available working days f
 
 **An imported hour task is visible while hour planning is off**
 
-That protects the source data. Exact minutes remain stored and are not changed into days. Enable hour planning before editing the duration.
+That protects the source data. Exact minutes remain stored and are not changed into days. You can still move the bar on the day grid or adjust it from an edge; enable hour planning for hour- or quarter-precise entry and the finer time grid.
 
 **`2d(16h)` or `16h(2d)` looks duplicated**
 
