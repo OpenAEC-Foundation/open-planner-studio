@@ -368,11 +368,39 @@
   outline: none;
 }
 
+/* Vervolgmelding op observatie 3a/3b (probleem B): was `display: inline-flex` — een INLINE box
+ * sizet zich (shrink-to-fit) naar zijn EIGEN inhoud (triehoekje + tekst), niet naar de beschikbare
+ * breedte van zijn ouder (`.task-grid-cell-content`, block, dus geen flex-context die deze rij zou
+ * dwingen te krimpen). `min-width:0`/`overflow:hidden` op deze laag of de tekst-span erin doen dan
+ * NIETS — die eigenschappen laten iets krimpen ALS iets anders het beperkt, maar niets deed dat
+ * hier. `display: flex` (blokniveau) vult i.p.v. dat de beschikbare breedte van de ouder, wat de
+ * tekst-span (`.full-task-grid-name-label`, `min-width:0`) een ECHTE beperking geeft om binnen te
+ * krimpen — pas dan werken overflow:hidden/text-overflow:ellipsis daarop zoals bedoeld. */
 .full-task-grid-name {
   min-width: 0;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Vervolgmelding op observatie 3a/3b (probleem B): `.full-task-grid-name` is zelf een
+ * `inline-flex`-rij (in-/uitklaptriehoekje + evt. "+"-knop + de tekst) zonder eigen
+ * overflow/text-overflow — `text-overflow: ellipsis` op de vooroudercontainer
+ * (`.task-grid-cell-content`) kan de afknipplek niet correct berekenen zodra de tekst genest zit
+ * in een EIGEN flex-container in plaats van een rechtstreeks tekstkind: de ellips ("…") werd
+ * daardoor nooit getoond, en de daadwerkelijke afknip leunde uitsluitend op de
+ * `overflow: hidden` van die voorouder — geen eigen begrenzing op déze laag. Bij smalle kolommen
+ * bleef de layout-doos van `.full-task-grid-name` daardoor BREDER dan zijn eigen ouder (gemeten:
+ * tot 30px breder dan `.task-grid-cell-content`), puur toevallig nog steeds geklemd door die
+ * voorouder — een aanname die breekt zodra iets in die keten verandert. Deze klasse geeft de
+ * TEKST zelf (niet de rij eromheen) zijn eigen `min-width:0` (kan binnen de flex-rij krimpen,
+ * ondanks het vaste-breedte triehoekje ernaast) plus `overflow:hidden`/`text-overflow:ellipsis` —
+ * de clip zit nu op de plek waar de tekst zelf staat, niet alleen bij de voorouder. */
+.full-task-grid-name-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .full-task-grid-disclosure {

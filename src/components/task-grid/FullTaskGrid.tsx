@@ -770,7 +770,14 @@ export function TaskGridSurface({
               )}
             </>
           )}
-          <span>{base.text}</span>
+          {/* Vervolgmelding op observatie 3a/3b (probleem B): deze span draagt de daadwerkelijke
+           * tekst en had zelf geen clip — text-overflow:ellipsis op de VOOROUDER
+           * (.task-grid-cell-content) kan niet over deze geneste inline-flex-grens heen rekenen
+           * (.full-task-grid-name, voor het in-/uitklaptriehoekje + tekst samen), dus de ellipsis
+           * werd nooit getoond en de clip leunde uitsluitend op de overflow:hidden van die
+           * vooroudercontainer — geen eigen begrenzing op dít element. Zie
+           * .full-task-grid-name-label in globals.css voor de eigen overflow/ellipsis/min-width. */}
+          <span className="full-task-grid-name-label">{base.text}</span>
         </span>
       ) : undefined,
     };
