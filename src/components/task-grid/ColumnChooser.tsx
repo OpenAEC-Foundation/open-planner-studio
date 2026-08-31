@@ -97,6 +97,30 @@ function nextFrame(callback: () => void): void {
   else setTimeout(callback, 0);
 }
 
+/**
+ * Screenshotbevinding: het paneel is uitsluitend rechts-verankerd aan de trigger (CSS `right`)
+ * zonder linkerklem. Staat de trigger dicht genoeg bij de linkerkant van het venster — het plusje
+ * in een smal Gantt-taakgridpaneel, vlak bij de splitter — dan steekt het (vaste
+ * `min(310px, 100vw-16px)`-brede) paneel links voorbij x=0 en wordt het daar door de viewport
+ * afgesneden: labels als "…ezen"/"…GEBRUIKT" missen hun begin.
+ *
+ * Deze pure functie bepaalt of dat gebeurt: `naturalLeft` is waar het paneel zou landen bij pure
+ * rechtsverankering (triggerRect.right - panelWidth). Past het (>= viewportMargin), dan geeft dit
+ * `null` terug — de aanroeper laat de bestaande `right`-verankering dan met rust. Past het niet,
+ * dan schuift dit de linkerrand naar rechts tot 'm binnen het venster valt (nooit voorbij de
+ * rechterrand, voor het geval `naturalLeft` zelf al negatief genoeg is om ook rechts te missen).
+ */
+export function clampColumnChooserLeft(
+  triggerRight: number,
+  panelWidth: number,
+  innerWidth: number,
+  viewportMargin = 8,
+): number | null {
+  const naturalLeft = triggerRight - panelWidth;
+  if (naturalLeft >= viewportMargin) return null;
+  return Math.max(viewportMargin, Math.min(naturalLeft, innerWidth - panelWidth - viewportMargin));
+}
+
 export function ColumnChooser({
   options,
   recentIds,
@@ -152,10 +176,31 @@ export function ColumnChooser({
     setPanelPosition({
       position: 'fixed',
       ...verticalPosition,
-      right: Math.max(8, window.innerWidth - rect.right),
+      right: Math.max(viewportMargin, window.innerWidth - rect.right),
       maxHeight: Math.max(80, openAbove ? availableAbove : availableBelow),
     });
   }, [open]);
+
+  // De eerste pass hierboven kan de werkelijke paneelbreedte nog niet meten (het paneel bestaat nog
+  // niet); deze tweede pass loopt ná mount, meet 'm via `panelRef` en schuift het paneel naar rechts
+  // (van `right`- naar expliciete `left`-verankering) zodra `clampColumnChooserLeft` een klem nodig
+  // acht — naar hetzelfde meet-ná-mount-patroon als het kolomkop-contextmenu (DataGridHeader.tsx).
+  // De guard (bail als de herberekende `left` al gelijk is aan de huidige) voorkomt een oneindige
+  // effect-lus: zonder klem nodig raakt `panelPosition` nooit aan, dus blijft dit effect stil.
+  useLayoutEffect(() => {
+    if (!open || !panelPosition) return;
+    const trigger = triggerRef.current;
+    const panel = panelRef.current;
+    if (!trigger || !panel) return;
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelWidth = panel.getBoundingClientRect().width;
+    const clampedLeft = clampColumnChooserLeft(triggerRect.right, panelWidth, window.innerWidth);
+    if (clampedLeft === null) return;
+    setPanelPosition(current => {
+      if (!current || (current.left === clampedLeft && current.right === undefined)) return current;
+      return { ...current, right: undefined, left: clampedLeft };
+    });
+  }, [open, panelPosition]);
 
   useEffect(() => {
     if (open && panelPosition) nextFrame(() => searchRef.current?.focus());

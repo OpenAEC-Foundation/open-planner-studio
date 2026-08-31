@@ -5,6 +5,19 @@
 .task-grid-core {
   position: relative;
   overflow: auto;
+  /* Screenshotbevinding: het plusje (`.task-grid-column-chooser-anchor`) hangt `position:absolute`
+     over de rechterbovenhoek van dit paneel, ONAFHANKELIJK van de horizontale scrollpositie van de
+     kolommen eronder — het schuift niet mee. Zonder deze inham lag het dus letterlijk bovenop de
+     tekst van de laatst zichtbare kolomkop zodra die kolom (bijna) tot de rand liep, wat bij DUUR
+     alleen een "D…" overliet. `padding-inline-end` (border-box, zie Tailwind-preflight hierboven)
+     knapt hier de content-box zelf — niet alleen de scrollbare staart — dezelfde
+     `--task-grid-chooser-strip`-breedte af, dus de headerrij (`width:auto`, gevuld tot de
+     beschikbare breedte zolang de kolommen daarbinnen passen) laat die strook links liggen ongeacht
+     kolombreedte of paneelbreedte. Passen de kolommen niet meer, dan volgt gewoon horizontaal
+     scrollen — geen overlap, wel een iets eerdere scrollbalk. `--task-grid-chooser-strip` staat op
+     `.task-grid-shell` (zie aldaar) zodat deze afstand en de knopbreedte niet uit elkaar kunnen
+     lopen. */
+  padding-inline-end: var(--task-grid-chooser-strip, 34px);
   background: var(--theme-surface);
   color: var(--theme-text);
   font-family: var(--font-body);
@@ -494,6 +507,10 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
+  /* Eén bron voor de breedte van de "kolom toevoegen"-strook (knop 22px + 6px opvulling aan
+     weerszijden): `.task-grid-core` reserveert 'm als padding, `.task-grid-column-chooser-anchor`
+     zet 'm als eigen breedte. Uit elkaar laten lopen zou de inham hierboven weer laten missen. */
+  --task-grid-chooser-strip: 34px;
 }
 
 .task-grid-column-header[data-grid-dragging="true"] {
@@ -552,9 +569,11 @@
   z-index: calc(var(--z-sticky) + 1);
   inset-block-start: 0;
   inset-inline-end: 0;
+  width: var(--task-grid-chooser-strip, 34px);
   height: var(--task-grid-header-height);
   display: flex;
   align-items: center;
+  justify-content: center;
   padding-inline: 6px;
   background: var(--theme-surface-alt);
 }

@@ -9,7 +9,11 @@ import {
   setTaskGridColumnPinned,
   taskGridAutoFitValueVersion,
 } from '@/engine/taskGrid/preferences';
-import { buildColumnChooserModel, type TaskGridColumnOption } from '@/components/task-grid/ColumnChooser';
+import {
+  buildColumnChooserModel,
+  clampColumnChooserLeft,
+  type TaskGridColumnOption,
+} from '@/components/task-grid/ColumnChooser';
 import { resolveColumnDropTarget, type ColumnHeaderRect } from '@/components/task-grid/DataGridHeader';
 import { TaskGrid, type TaskGridLabels } from '@/components/task-grid/TaskGrid';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -95,6 +99,22 @@ eq('Zoeken is labelongevoelig en vindt over categorieën heen',
 eq('Alle tien vaste categorieën bestaan in vaste volgorde, ook wanneer sommige leeg zijn',
   chooser.categories.map(category => category.category),
   ['task', 'planning', 'constraints', 'relations', 'resources', 'progress', 'computed', 'baseline', 'custom', 'technical']);
+
+// Screenshotbevinding: het kolomkiezerpaneel (bij het plusje) hing puur rechts-verankerd aan de
+// trigger, zonder linkerklem — bij een trigger dicht bij de linker vensterrand (smal
+// Gantt-taakgridpaneel, vlak bij de splitter) stak het brede paneel voorbij x=0 en werd het daar
+// afgesneden. `clampColumnChooserLeft` is de pure klemfunctie achter de fix.
+eq('Past het paneel rechts-verankerd binnen het venster, dan is geen klem nodig',
+  clampColumnChooserLeft(900, 310, 1280), null);
+eq('Trigger vlak bij de linker vensterrand (reproductie: plusje naast de gantt-splitter, browserreview): '
+  + 'paneel schuift naar de margin i.p.v. links af te snijden',
+  clampColumnChooserLeft(157, 310, 480), 8);
+eq('Precies op de marge past geen klem meer toe (grensgeval)',
+  clampColumnChooserLeft(318, 310, 480), null);
+eq('Eén pixel binnen de marge klemt nog net naar de marge',
+  clampColumnChooserLeft(317, 310, 480), 8);
+eq('Een paneel breder dan het hele venster klemt naar de linkermarge, nooit voorbij de rechterrand',
+  clampColumnChooserLeft(50, 500, 320), 8);
 
 const autoFitRows = Array.from({ length: 20_001 }, (_, index) => ({
   rowKey: `row-${index}`,
