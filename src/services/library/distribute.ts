@@ -338,12 +338,24 @@ export function computeDistribution(
     }
   }
 
-  // Het gedeelde poolitem-grootboek (§4 stap 2): `placed` accumuleert over ALLE deelnemende
-  // documenten, in rangorde — dat IS de sequentiële kern van het protocol.
-  const placed: Record<string, number> = {};
-  const bookPlaced = (iso: string, units: number) => { placed[iso] = (placed[iso] ?? 0) + units; };
-  const residualOn = (iso: string): number =>
-    Math.max(0, maxUnitsOn(poolItem, iso) - (fixedLoadByDay[iso] ?? 0) - (placed[iso] ?? 0));
+  // Het gedeelde poolitem-grootboek (§4 stap 2), PER ITEM geboekt (B1c-plan3 taak 1, bevinding 6).
+  // Vandaag levert `poolItemOf` uitsluitend `libraryItemId` terug, dus één emmer zou volstaan — maar
+  // dat is een ongeschreven invariant, en het contract van `LevelingPoolLedger` belooft expliciet een
+  // per-item-boekhouding. De sleutel gebruiken kost niets en maakt een latere verdeler over meerdere
+  // poolitems tegelijk een uitbreiding in plaats van een herschrijving. `placed[libraryItemId]`
+  // accumuleert over ALLE deelnemende documenten, in rangorde — dat IS de sequentiële kern van het
+  // protocol.
+  const placedByItem: Record<string, Record<string, number>> = {};
+  const bookPlaced = (itemId: string, iso: string, units: number) => {
+    const bucket = placedByItem[itemId] ?? (placedByItem[itemId] = {});
+    bucket[iso] = (bucket[iso] ?? 0) + units;
+  };
+  const residualOn = (itemId: string, iso: string): number =>
+    itemId === libraryItemId
+      ? Math.max(0, maxUnitsOn(poolItem, iso) - (fixedLoadByDay[iso] ?? 0) - (placedByItem[itemId]?.[iso] ?? 0))
+      // Een ander item hoort in deze run niet voor te komen (zie `poolItemOf`); geef 0 terug in
+      // plaats van de capaciteit van DIT item — dat zou een vreemd item gratis ruimte geven.
+      : 0;
 
   // Bevinding 5 (fixronde B1c-plan-2-etappe-2): `poolItemOf` wordt door `findSlot` per KANDIDAATDAG
   // aangeroepen (elke conflictcheck, elke boeking); een `Array.find` over `doc.resources` daarbinnen
@@ -359,8 +371,8 @@ export function computeDistribution(
         if (r.libraryOrigin.companyId !== companyId || r.libraryOrigin.libraryItemId !== libraryItemId) return null;
         return libraryItemId;
       },
-      residualOn: (_itemId: string, iso: string): number => residualOn(iso),
-      book: (_itemId: string, iso: string, units: number): void => bookPlaced(iso, units),
+      residualOn: (itemId: string, iso: string): number => residualOn(itemId, iso),
+      book: (itemId: string, iso: string, units: number): void => bookPlaced(itemId, iso, units),
       horizonIso,
     };
   };
@@ -421,7 +433,7 @@ export function computeDistribution(
       // bestaande boeking rechtstreeks in het grootboek (het document bezet de pool wél — het is
       // gewoon niet verplaatsbaar), geen motor-run.
       const booking = bookingByDocId.get(doc.docId)!;
-      for (const [iso, units] of Object.entries(booking.dailyLoad)) bookPlaced(iso, units);
+      for (const [iso, units] of Object.entries(booking.dailyLoad)) bookPlaced(libraryItemId, iso, units);
       const end = currentProjectEndFor(doc);
       results.push({
         docId: doc.docId, title: doc.title, participated: true, cannotMove: true,
@@ -430,7 +442,7 @@ export function computeDistribution(
       continue;
     }
 
-    const horizonIso = computeHorizonIso(fixedLoadByDay, placed, participants);
+    const horizonIso = computeHorizonIso(fixedLoadByDay, placedByItem[libraryItemId] ?? {}, participants);
     const levelOptions: LevelingOptions = {
       constrainToFloat: false,
       scopeTaskIds,
@@ -461,8 +473,9 @@ export function computeDistribution(
   }
 
   const residualByDay: Record<string, number> = {};
-  for (const iso of new Set([...Object.keys(fixedLoadByDay), ...Object.keys(placed)])) {
-    residualByDay[iso] = residualOn(iso);
+  const placedThisItem = placedByItem[libraryItemId] ?? {};
+  for (const iso of new Set([...Object.keys(fixedLoadByDay), ...Object.keys(placedThisItem)])) {
+    residualByDay[iso] = residualOn(libraryItemId, iso);
   }
 
   return {

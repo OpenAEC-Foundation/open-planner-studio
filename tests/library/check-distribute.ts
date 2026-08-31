@@ -5,7 +5,8 @@
 // stijl van deze suite.
 //
 // Draait via run.sh. Exit 0 = alles groen.
-import { computeDistribution, type DistributionDocInput } from '@/services/library/distribute';
+import { computeDistribution, type DistributionDocInput, type DistributionLevelRun } from '@/services/library/distribute';
+import type { LevelingPoolLedger } from '@/engine/scheduler/ResourceLeveler';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { createDefaultProject } from '@/state/slices/projectSlice';
@@ -594,6 +595,44 @@ console.log('-- distribute: NO_DEMAND is het algemenere vangnet naast MATERIAL_I
   const p17 = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
   assert(p17.blocked?.reason === 'NO_DEMAND', `case 17: algemener vangnet blokkeert (kreeg ${p17.blocked?.reason})`);
   assert(p17.docs.length === 0, 'case 17: en levert geen leeg "opgelost"-voorstel');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 1, bevinding 6: het grootboek boekt PER ITEM. `makeLedgerForDoc` negeerde `itemId`
+// volledig (`residualOn: (_itemId, iso) => residualOn(iso)`). Dat was tot dusver correct omdat
+// `poolItemOf` uitsluitend `libraryItemId` teruggeeft — maar het is een ONGESCHREVEN invariant, en
+// een toekomstige verdeler over meerdere poolitems tegelijk zou stil alles op één hoop boeken. Deze
+// case pint dat de sleutel gebruikt WORDT: de `runLeveling`-hook (dezelfde injecteerbare motor-rand
+// als de rest van dit bestand) vangt de door `computeDistribution` gebouwde `poolLedger` op, zodat
+// de test rechtstreeks tegen `book`/`residualOn` kan toetsen — `makeLedgerForDoc` zelf is niet
+// geëxporteerd.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: het poolitem-grootboek boekt PER ITEM (bevinding 6) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+  const d1 = distDoc('d1', {
+    rank: 1,
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [task('a1', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('d1-a1', 'a1', 'd1-r1', 1)],
+  });
+  let capturedLedger: LevelingPoolLedger | undefined;
+  const stubRun: DistributionLevelRun = (_doc, options) => {
+    capturedLedger = options.poolLedger;
+    return {
+      delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {},
+      projectEndBefore: '2026-08-03', projectEndAfter: '2026-08-03', gaps: {},
+    };
+  };
+  computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF, stubRun);
+  const l = capturedLedger!;
+  assert(l !== undefined, 'bevinding 6: de motor-run kreeg een poolLedger mee');
+  const before = l.residualOn('lib-1', '2026-08-03');
+  l.book('een-ander-item', '2026-08-03', 99);
+  assert(
+    l.residualOn('lib-1', '2026-08-03') === before,
+    'bevinding 6: een boeking op een ANDER itemId raakt dit poolitem niet',
+  );
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
