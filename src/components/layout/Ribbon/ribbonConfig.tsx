@@ -606,7 +606,17 @@ const resourcesTab: RibbonTabConfig = [
         kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
-          const hasLeveling = useAppStore(s => s.tasks.some(t => t.levelingDelay !== undefined));
+          // B1c-plan3 taak 2: houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
+          // `clearLeveling` (`scheduleSlice.ts`) — een knop die inschakelt terwijl de actie een
+          // no-op is, of andersom, is de bug die dit repareert. Vóór deze uitbreiding stond "Nivellering
+          // wissen" grijs op een `.mpp`-project met uitsluitend sub-dag-precisie (`levelingDelayMinutes`/
+          // `levelingDelayElapsed`) én op een project dat alleen ingevoegde pauzedagen draagt
+          // (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
+          const hasLeveling = useAppStore(s => s.tasks.some(t =>
+            t.levelingDelay !== undefined
+            || t.levelingDelayMinutes !== undefined
+            || t.levelingDelayElapsed !== undefined
+            || (t.splitGaps ?? []).some(g => g.source === 'leveling')));
           return { onClick: () => clearLeveling(), disabled: !hasLeveling };
         },
       },

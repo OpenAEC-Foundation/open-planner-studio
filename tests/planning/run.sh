@@ -444,6 +444,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERSPLITMODECHECK="$DIR/.leveler-splitmode.mjs"
   if bundle_check "$DIR/check-leveler-splitmode.ts" "$LEVELERSPLITMODECHECK"; then node "$LEVELERSPLITMODECHECK" || STATUS=1; fi
 
+  # B1c-plan3 taak 2: `applyLeveling` schrijft scope-behoudend en schrijft ook `splitGaps`;
+  # `clearLeveling` wist ook de leveling-gaten (met een no-op-guard die gaten meetelt); de
+  # motor-baseline is idempotent in de onderbreek-modus (geen accumulatie bij een tweede run).
+  APPLYLEVELINGSCOPECHECK="$DIR/.apply-leveling-scope.mjs"
+  if bundle_check "$DIR/check-apply-leveling-scope.ts" "$APPLYLEVELINGSCOPECHECK"; then node "$APPLYLEVELINGSCOPECHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

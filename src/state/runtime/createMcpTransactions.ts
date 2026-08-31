@@ -6,7 +6,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
 } from '@/utils/taskDefaults';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
@@ -711,9 +711,9 @@ function createMcpDraft(
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`applyLeveling`: schrijft alle `levelingDelay`-
-   * waarden (idempotent — reset eerst álles, dan de nieuwe delays). GEEN eigen `runCPM`: de transactie
-   * herrekent aan het eind en verwerkt de delays dan precies één keer.
+   * Snapshot/recompute-vrije variant van de store-`applyLeveling`: schrijft `levelingDelay`s +
+   * `splitGaps` (idempotent — reset eerst álles binnen de scope, dan de nieuwe waarden). GEEN eigen
+   * `runCPM`: de transactie herrekent aan het eind en verwerkt de delays dan precies één keer.
    *
    * B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31) — zelfde fix + melding als de store-
    * `applyLeveling` (`scheduleSlice.ts`): strip ook `levelingDelayMinutes`/`levelingDelayElapsed`
@@ -721,18 +721,29 @@ function createMcpDraft(
    * eenmalig per document als dat écht iets wiste. De notify-aanroep staat BEWUST BUITEN
    * `store.setState`: `notify` roept zelf `set` aan, dus genest zou een tweede, nog lopende
    * Immer-produce triggeren (zelfde precedent als de eind-notify in `run()` hieronder).
+   *
+   * B1c-plan3 taak 2 — zelfde twee uitbreidingen als de store-variant: `write` is nu
+   * `Pick<LevelingResult, 'delays' | 'gaps'>` (een volle `LevelingResult` blijft toewijsbaar) met een
+   * optionele `opts.scopeTaskIds` die het resetten tot de gescopete taken beperkt, en `write.gaps`
+   * wordt geschreven/idempotent teruggedraaid via `clearLevelingGaps` — deze twee mogen NOOIT uit
+   * elkaar lopen met `scheduleSlice.ts`'s `applyLeveling`.
    */
-  applyLeveling(result: LevelingResult): void {
+  applyLeveling(write: Pick<LevelingResult, 'delays' | 'gaps'>, opts?: { scopeTaskIds?: string[] }): void {
     let roundedCount = 0;
     store.setState((s) => {
+      const scope = opts?.scopeTaskIds ? new Set(opts.scopeTaskIds) : null;
       for (const task of s.tasks) {
-        const d = result.delays[task.id];
+        if (scope && !scope.has(task.id)) continue;
+        const d = write.delays[task.id];
         task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
         if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
           roundedCount++;
         }
         task.levelingDelayMinutes = undefined;
         task.levelingDelayElapsed = undefined;
+        const g = write.gaps[task.id];
+        if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
+        else clearLevelingGaps(task);
       }
       s.isDirty = true;
     });
@@ -743,8 +754,10 @@ function createMcpDraft(
   },
 
   /** Snapshot/recompute-vrije variant van de store-`clearLeveling`: zet alle `levelingDelay` terug op
-   *  undefined. GEEN eigen `runCPM` (de transactie herrekent). M10: zelfde sub-dag-strip + melding
-   *  als `applyLeveling` hierboven — zie dat docblok voor de "notify buiten setState"-motivering. */
+   *  undefined en wist de leveling-gaten. GEEN eigen `runCPM` (de transactie herrekent). M10: zelfde
+   *  sub-dag-strip + melding als `applyLeveling` hierboven — zie dat docblok voor de "notify buiten
+   *  setState"-motivering. B1c-plan3 taak 2: zelfde `clearLevelingGaps`-uitbreiding als de
+   *  store-variant. */
   clearLeveling(): void {
     let roundedCount = 0;
     store.setState((s) => {
@@ -755,6 +768,7 @@ function createMcpDraft(
         task.levelingDelay = undefined;
         task.levelingDelayMinutes = undefined;
         task.levelingDelayElapsed = undefined;
+        clearLevelingGaps(task);
       }
       s.isDirty = true;
     });

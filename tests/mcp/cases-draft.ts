@@ -228,12 +228,11 @@ test('draft.applyLeveling zet delays; de eind-runCPM verwerkt ze precies één k
   const baseStart = store.getState().tasks.find((t) => t.id === id)!.time.earlyStart;
 
   const before = store.getState().undoStack.length;
+  // B1c-plan3 taak 2: `applyLeveling` accepteert sinds nu `Pick<LevelingResult, 'delays' | 'gaps'>`
+  // — alleen wat de functie daadwerkelijk leest hoeft in deze object-literal te staan (excess-
+  // property-check).
   const res = runInMcpTransaction(() => {
-    draft.applyLeveling({
-      delays: { [id]: 3 },
-      unresolved: {}, unresolvedReasons: {}, shifts: {},
-      projectEndBefore: '', projectEndAfter: '', gaps: {},
-    });
+    draft.applyLeveling({ delays: { [id]: 3 }, gaps: {} });
   });
 
   assert(res.ok, 'transactie hoort te slagen');

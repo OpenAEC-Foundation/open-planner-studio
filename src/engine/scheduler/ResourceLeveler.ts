@@ -303,8 +303,27 @@ export function levelResources(
   // is nu vaste last, geen te herberekenen sorteersleutel. Dat is precies de spec-plicht die
   // `computePF` moet doorstaan: een opvolger van een out-of-scope taak moet haar VERSCHOVEN
   // (behouden-delay) positie volgen, niet haar ongenivelleerde positie.
+  // B1c-plan3 taak 2 (idempotentie-voorwaarde): `splitGaps` hoort symmetrisch bij deze strip — een
+  // gat met `source === 'leveling'` is UITVOER van een eerdere nivellering, precies zoals
+  // `levelingDelay` dat is. Stond het hier in de baseline, dan las een tweede nivellering het als
+  // brondata en legde er nieuwe gaten bovenop — accumulatie in plaats van het idempotente
+  // herschrijven dat spec §4 ("Herkomst") eist. IMPORTSPLITS (gaten zónder `source`) zijn wél
+  // brondata en blijven staan; `stripLevelingGaps` is dezelfde regel als `clearLevelingGaps` in
+  // `taskDefaults.ts`, maar puur — de motor muteert de invoer nooit.
+  const stripLevelingGaps = (gaps: TaskSplitGap[] | undefined): TaskSplitGap[] | undefined => {
+    if (!gaps || gaps.length === 0) return gaps;
+    const kept = gaps.filter(g => g.source !== 'leveling');
+    return kept.length > 0 ? kept : undefined;
+  };
   const workTasks: Task[] = tasks.map(t => inScope(t.id)
-    ? { ...t, levelingDelay: undefined, levelingDelayMinutes: undefined, levelingDelayElapsed: undefined, time: { ...t.time } }
+    ? {
+        ...t,
+        levelingDelay: undefined,
+        levelingDelayMinutes: undefined,
+        levelingDelayElapsed: undefined,
+        splitGaps: stripLevelingGaps(t.splitGaps),
+        time: { ...t.time },
+      }
     : { ...t, time: { ...t.time } });
   const workById = new Map(workTasks.map(t => [t.id, t]));
 
@@ -517,11 +536,16 @@ export function levelResources(
   // blijft); alleen de POOL-boeking is voorwaardelijk — spec §4 stap 3, "niet-plaatsbaar = tekort,
   // geen cascade".
   // B1c-plan-2 taak 9: `occOverride` — de onderbreek-modus zet de nieuwe leveling-gaten pas op de
-  // WERKKOPIE (`workById`), niet op het originele `taskById`-object dat `occurrenceFor` hierboven
-  // leest; zonder deze override zou de boeking dus de OUDE (ongescatterde) dagenset gebruiken. De
-  // scatter-aanroepplek geeft de al-gekozen dagen rechtstreeks door en slaat `occurrenceFor` zo over.
+  // WERKKOPIE (`workById`) NA het `findSlot`-resultaat; zonder deze override zou de boeking dus de
+  // OUDE (ongescatterde) dagenset gebruiken. De scatter-aanroepplek geeft de al-gekozen dagen
+  // rechtstreeks door en slaat `occurrenceFor` zo over.
+  // B1c-plan3 taak 2: `task` komt sinds nu uit `workById`, niet `taskById` — voor een IN-SCOPE taak
+  // is dat de GESTRIPTE baseline (zie `stripLevelingGaps` hierboven); voor een taak BUITEN de scope
+  // is `workById` een byte-identieke spread van `taskById` (dezelfde `splitGaps`-array-referentie),
+  // dus dit verandert niets aan de vastelast-boeking. Zonder deze wissel zou een taak die een
+  // leveling-gat uit een VORIGE nivellering droeg dat gat hier alsnog als brondata lezen.
   const bookDemandAt = (taskId: string, startDate: Date, toPoolLedger: boolean, occOverride?: string[]): string[] => {
-    const task = taskById.get(taskId)!;
+    const task = workById.get(taskId)!;
     const occ = occOverride ?? occurrenceFor(task, startDate);
     const byRes = demandByTask.get(taskId)!;
     for (const [resId, arr] of byRes) {
@@ -656,8 +680,12 @@ export function levelResources(
       if (slot.scatterDays) {
         scatterDays = slot.scatterDays;
         const mpd = engineForTask(pickedTask).hoursPerDay * 60;
+        // B1c-plan3 taak 2: stapel op de GESTRIPTE werkkopie (`workById`), niet op de originele
+        // taak (`pickedTask`, uit `taskById`) — anders komen de leveling-gaten van de VORIGE
+        // nivellering alsnog in dit resultaat terecht (accumulatie in plaats van herschrijven).
+        const workCopy = workById.get(pick)!;
         const newGaps: TaskSplitGap[] = [
-          ...(pickedTask.splitGaps ?? []),
+          ...(workCopy.splitGaps ?? []),
           ...splitGapsFromWorkDayBlocks(blocksFromDays(scatterDays, engineForTask(pickedTask)), mpd, 'leveling'),
         ];
         workById.get(pick)!.splitGaps = newGaps; // ⇒ de proef-solve (A1) ziet de opgerekte spanne
@@ -765,7 +793,14 @@ export function levelResources(
     pf: Date,
     limit: Date | null,
   ): { start: Date; unresolved: string[]; reason?: LevelingReason; scatterDays?: string[] } {
-    const task = taskById.get(taskId)!;
+    // B1c-plan3 taak 2: `task` komt uit `workById`, niet `taskById` — `findSlot` wordt uitsluitend
+    // aangeroepen voor movable/vastgepinde (dus per definitie IN-SCOPE) taken, dus dit is precies de
+    // GESTRIPTE baseline. Zonder deze wissel zou `occurrenceFor` hieronder (via `computeOccurrence`)
+    // een leveling-gat uit een VORIGE nivellering als brondata lezen — de kandidaat-scan zou dan een
+    // gesplitste dagenset toetsen in plaats van de schone aaneengesloten baseline waar deze functie
+    // vanuit gaat, en de idempotentie-eis van spec §4 ("Herkomst") zou stuklopen. Zie `bookDemandAt`
+    // hierboven voor dezelfde wissel en dezelfde motivering.
+    const task = workById.get(taskId)!;
     const byRes = demandByTask.get(taskId)!;
 
     // B1c-plan-2 taak 6: reset de reden-sturing bij elke aanroep — zie de declaratie hierboven bij
@@ -977,7 +1012,11 @@ export function levelResources(
    *  LAATSTE dag (niet de start): met onderbrekingen groeit de FINISH van de taak, en dát is wat het
    *  plafond moet binden (zie `finishWindowLimit`). */
   function scatterSlot(taskId: string, pf: Date, finishLimit: Date | null): string[] | null {
-    const task = taskById.get(taskId)!;
+    // B1c-plan3 taak 2: `task` komt uit `workById`, zelfde wissel als `findSlot`/`bookDemandAt`
+    // hierboven, voor consistentie — `scatterSlot` leest hier vandaag geen `splitGaps`, maar de
+    // gedeelde bron voorkomt dat een latere uitbreiding stilzwijgend weer op de ongestripte
+    // `taskById` gaat leunen.
+    const task = workById.get(taskId)!;
     const byRes = demandByTask.get(taskId)!;
     // LET OP — uur-modus (eigenaarsbesluit 2026-08-31, v1-grens verbreed): `task.time.scheduleDuration`
     // is voor een uur-modus-taak GEEN geheel getal in het algemeen — `distributeUnits`
