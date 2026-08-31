@@ -256,8 +256,15 @@ export function levelResources(
   // `CPMSolver.forwardPass` negeren `levelingDelay`, dus beide horen NOOIT een delay te krijgen en
   // WEL als vaste last te boeken.
   const isImmovableTask = (task: Task): boolean => isCompletedTask(task) || isInProgressTask(task);
-  const occurrenceFor = (task: Task, startDate: Date): string[] => {
-    if (isNaN(startDate.getTime())) return [];
+  // L3 (W0-keuring): `occurrenceFor` wordt in de kandidaat-scan van `findSlot` per kandidaatdag
+  // opnieuw berekend, en daarna nóg eens door `bookDemandAt` voor de gekozen dag — telkens een
+  // volledige `splitDayPattern` + kalenderwandeling. Het antwoord hangt uitsluitend af van
+  // (taak, startdag) en beide zijn binnen één `levelResources`-aanroep onveranderlijk, dus
+  // memoiseren is zuiver. UITZONDERING: de onderbreek-modus (taak 9 van dit plan) kent een taak
+  // NIEUWE `splitGaps` toe tijdens de run — die MOET daarna `occCache.delete(...)` voor die taak
+  // doen; zie de aanroepplek daar.
+  const occCache = new Map<string, string[]>();
+  const computeOccurrence = (task: Task, startDate: Date): string[] => {
     const taskEngine = engineForTask(task);
     // SMAL op `isCompletedTask` — BEWUST NIET samengevoegd met `isInProgressTask` (W1): voor een
     // VOLTOOIDE taak is `earlyFinish` gezaghebbend uit de actuals afgeleid (zie hieronder), maar voor
@@ -278,6 +285,15 @@ export function levelResources(
       return enumerateWorkDays(taskEngine, formatDate(startDate), formatDate(shiftedFinish));
     }
     return enumerateTaskWorkDays(task.splitGaps, taskEngine, formatDate(startDate), task.time.scheduleDuration);
+  };
+  const occurrenceFor = (task: Task, startDate: Date): string[] => {
+    if (isNaN(startDate.getTime())) return []; // niet cachen: geen sleutel te maken (I4-precedent)
+    const key = `${task.id}|${formatDate(startDate)}`;
+    const hit = occCache.get(key);
+    if (hit) return hit;
+    const result = computeOccurrence(task, startDate);
+    occCache.set(key, result);
+    return result;
   };
 
   // Dagvraag per taak per geselecteerde resource: som van distributeUnits over alle assignments

@@ -728,6 +728,52 @@ console.log('-- leveler-splits: meerdaagse voltooide taak over een feestdagenblo
     (r14.delays['t14-real'] ?? 0) > 0);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 15 (B1c-plan-2 taak 2, L3): memoisatie van `occurrenceFor` is ZUIVER — twee identieke
+// `levelResources`-aanroepen op dezelfde (niet-gemuteerde) invoer moeten byte-identieke resultaten
+// geven. De cache mag nooit tussen taken of tussen startdagen lekken. Bewust een fixture MET een
+// gesplitste taak (zie geval 1) ÉN een taak op een afwijkende (zesdaagse) kalender (zie geval 2):
+// dat zijn de twee gevallen waarin de dagenset per taak verschilt, dus waarin een verkeerde
+// cachesleutel (bv. alleen de datum, zonder taak-id) meteen zichtbaar wordt.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splits: memoisatie van occurrenceFor is zuiver (geval 15, L3) --');
+{
+  // Gesplitste taak A + concurrent B op A's gat (projectkalender) — spiegelt geval 1.
+  const taskA = task('a15', '2026-06-01', '2026-06-05', 3, {
+    priority: 600,
+    splitGaps: [
+      { afterMinutes: 480, gapMinutes: 480 },
+      { afterMinutes: 1440, gapMinutes: 480 },
+    ],
+  });
+  const taskB = task('b15', '2026-06-02', '2026-06-02', 1, { priority: 500 });
+
+  // Taak op een afwijkende (zesdaagse) kalender + concurrent op de projectkalender — spiegelt geval 2.
+  const taskD = task('d15', '2026-06-05', '2026-06-05', 1, { priority: 900 });
+  const taskC = task('c15', '2026-06-05', '2026-06-05', 1, { priority: 100, calendarId: 'cal-six-day-leveler' });
+
+  const resourceR1 = res('r1-15', 1);
+  const resourceR2 = res('r2-15', 1, { calendarId: 'cal-six-day-leveler' });
+  const assignments = [
+    assign('a15-r1', 'a15', 'r1-15', 1),
+    assign('b15-r1', 'b15', 'r1-15', 1),
+    assign('d15-r2', 'd15', 'r2-15', 1),
+    assign('c15-r2', 'c15', 'r2-15', 1),
+  ];
+  const cpmResult = stubCpmResult('2026-06-05');
+  const tasksList: Task[] = [taskA, taskB, taskD, taskC];
+  const resourcesList: Resource[] = [resourceR1, resourceR2];
+  const run1 = levelResources(
+    tasksList, [], resourcesList, assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  );
+  const run2 = levelResources(
+    tasksList, [], resourcesList, assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  );
+
+  eq('memo-zuiverheid: twee identieke runs, identiek resultaat',
+    JSON.stringify(run1), JSON.stringify(run2));
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-splits: alle checks groen (${checks})`);
