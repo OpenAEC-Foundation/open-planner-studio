@@ -22,6 +22,12 @@ export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
   criticalPath: string[];
   /**
+   * Optionele, niet-persistente XER-diagnose van de geplande-startvloer. Alleen gevuld voor
+   * ingelezen P6-activiteiten waarvoor de bronoptie actief is en het volledige doelvenster
+   * beschikbaar is. Dit zijspoor beschrijft de beslissing; het neemt er niet aan deel.
+   */
+  plannedFloorTraceByTaskId?: Readonly<Record<string, CPMPlannedFloorTrace>>;
+  /**
    * Ids van driving relaties (P6-definitie): de door de relatie gegenereerde grens ís de
    * aangenomen early-datum van de opvolger (relationship free float = 0). Gelijkspel is
    * toegestaan — een opvolger kan meerdere driving voorgangers hebben. Rekenresultaat,
@@ -68,6 +74,17 @@ export interface CPMResult {
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
+}
+
+export interface CPMPlannedFloorTrace {
+  preFloorEarlyStart: string;
+  preFloorEarlyFinish: string;
+  targetStart: string;
+  targetFinish: string;
+  plannedWindowIsLater: boolean;
+  boundarySource: 'project-start' | 'relationship' | 'relationship:p6-predecessor-finish-boundary';
+  boundarySequenceId?: string;
+  boundaryPredecessorTaskCode?: string;
 }
 
 /** Voortgangs-opties (fase 2.6). Leeg ⇒ geen statusdatum-gedrag (byte-identiek aan vóór 2.6). */
@@ -246,6 +263,8 @@ export class CPMSolver {
   // blok). Verzameld in de forward pass, zacht gerapporteerd als `cappedTaskIds`. Geen error, geen
   // rollback — de kalenderwijziging is legitiem; de waarschuwing wijst de te repareren taak aan.
   private cappedTaskIds: string[] = [];
+  // Test-/replaydiagnose van de P6-planned-floor-beslissing. Nooit teruggeschreven naar Task/IFC.
+  private plannedFloorTraceByTaskId: Record<string, CPMPlannedFloorTrace> = {};
 
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
@@ -1058,6 +1077,7 @@ export class CPMSolver {
     this.hardPinViolatedIds = [];
     this.hammockNoFinishDriverIds = [];
     this.cappedTaskIds = [];
+    this.plannedFloorTraceByTaskId = {};
     this.dataDate = null; // wordt hieronder herzet; zo blijft hij ook over guard-returns heen nooit stale
     this.projectStartRaw = null; // idem — herzet vóór elke solve, nooit stale over guard-returns heen
 
@@ -1134,6 +1154,9 @@ export class CPMSolver {
     // erna), kan dezelfde `taskId` twee keer gepusht worden als BEIDE tegen de onwerkbaar-venster-cap
     // lopen — vóór T9 kon een taak hoogstens via één pad hier terechtkomen, dus dit kon niet.
     if (this.cappedTaskIds.length > 0) result.cappedTaskIds = [...new Set(this.cappedTaskIds)];
+    if (Object.keys(this.plannedFloorTraceByTaskId).length > 0) {
+      result.plannedFloorTraceByTaskId = { ...this.plannedFloorTraceByTaskId };
+    }
     // T8-rooktest: idem voor relaties die een niet-bladtaak raakten en al bij de constructie
     // genegeerd zijn (zie de guard in de constructor) — byte-identiek default zolang dat niet gebeurt.
     if (this.droppedSequenceIds.length > 0) result.droppedSequenceIds = [...this.droppedSequenceIds];
@@ -1508,6 +1531,41 @@ export class CPMSolver {
             ? plannedFloor > earlyStart
             : plannedFloor.getTime() - earlyStart.getTime() > MS_PER_DAY
               && plannedFinish.getTime() - networkFinish.getTime() > MS_PER_DAY;
+          if (
+            this.options.schedulingOptions?.p6Source === 'XER'
+            && task.p6ActivityType !== undefined
+            && !Number.isNaN(plannedFloor.getTime())
+            && !Number.isNaN(plannedFinish.getTime())
+            && !Number.isNaN(networkFinish.getTime())
+          ) {
+            const drivingSequences = preds.filter(sequence =>
+              this.seqConstraint.get(sequence.id)?.getTime() === earlyStart.getTime());
+            const drivingSequence = drivingSequences.length === 1 ? drivingSequences[0] : undefined;
+            const projectStartIsBoundary = drivingSequences.length === 0
+              && projectStart?.getTime() === earlyStart.getTime();
+            const drivingPredecessor = drivingSequence
+              ? this.tasks.get(drivingSequence.predecessorId)
+              : undefined;
+            const boundarySource = drivingSequence
+              ? drivingSequence.p6StartAtPredecessorFinishBoundary
+                ? 'relationship:p6-predecessor-finish-boundary' as const
+                : 'relationship' as const
+              : 'project-start' as const;
+            // Bij meerdere gelijke relatiedrivers is er geen unieke voorgangerbron. Laat de trace
+            // dan geheel weg in plaats van een willekeurige relatie of projectstart te rapporteren.
+            if (drivingSequence || projectStartIsBoundary) {
+              this.plannedFloorTraceByTaskId[taskId] = {
+                preFloorEarlyStart: earlyStart.toISOString().slice(0, 16),
+                preFloorEarlyFinish: networkFinish.toISOString().slice(0, 16),
+                targetStart: plannedFloor.toISOString().slice(0, 16),
+                targetFinish: plannedFinish.toISOString().slice(0, 16),
+                plannedWindowIsLater,
+                boundarySource,
+                ...(drivingSequence ? { boundarySequenceId: drivingSequence.id } : {}),
+                ...(drivingPredecessor ? { boundaryPredecessorTaskCode: drivingPredecessor.wbsCode } : {}),
+              };
+            }
+          }
           if (plannedWindowIsLater) earlyStart = plannedFloor;
         }
         // Vloer-afkap: wilde óók de strengste relatie de taak nog vóór het projectbegin trekken,

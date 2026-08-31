@@ -1,6 +1,7 @@
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { solveProject } from '@/engine/scheduler/solveProject';
+import type { CPMPlannedFloorTrace } from '@/engine/scheduler/CPMSolver';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import type { WorkCalendar } from '@/types/calendar';
@@ -64,8 +65,13 @@ function canonicalProductMinute(value: string | undefined): string | undefined {
   return value?.match(/^\d{4}-\d{2}-\d{2}$/) ? `${value}T00:00` : value;
 }
 
-/** Eén solvegraph tegelijk; de projectie bewaart daarna uitsluitend taakidentiteit en zes waarden. */
-function solveImported(imported: XerReplayMutableSolveInput): XerSolvedProject {
+/** Eén solvegraph tegelijk; de projectie bewaart daarna alleen taakuitkomsten en replaytrace. */
+interface XerReplaySolveResult {
+  project: XerSolvedProject;
+  plannedFloorTraceByTaskCode: Readonly<Record<string, CPMPlannedFloorTrace>>;
+}
+
+function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResult {
   const cpm = solveProject({
     tasks: imported.tasks,
     sequences: imported.sequences,
@@ -86,23 +92,32 @@ function solveImported(imported: XerReplayMutableSolveInput): XerSolvedProject {
     id,
     new CalendarEngine(calendar).hoursPerDay * 60,
   ]));
+  const sourceTaskById = new Map(imported.tasks.map(task => [task.id, task] as const));
+  const plannedFloorTraceByTaskCode = Object.fromEntries(Object.entries(cpm.plannedFloorTraceByTaskId ?? {})
+    .flatMap(([taskId, trace]) => {
+      const taskCode = sourceTaskById.get(taskId)?.wbsCode;
+      return taskCode ? [[taskCode, trace] as const] : [];
+    }));
   return {
-    projectId: imported.project.id,
-    tasks: imported.tasks.filter(task => task.p6ActivityType !== undefined).map(task => {
-      const calendar = (task.calendarId ? calendars.get(task.calendarId) : undefined) ?? imported.calendar;
-      const minutesPerDay = floatMinutesPerDay.get(calendar.id)!;
-      return {
-        sourceTaskId: task.id,
-        taskCode: task.wbsCode,
-        earlyStart: canonicalProductMinute(task.time.earlyStart),
-        earlyFinish: canonicalProductMinute(task.time.earlyFinish),
-        lateStart: canonicalProductMinute(task.time.lateStart),
-        lateFinish: canonicalProductMinute(task.time.lateFinish),
-        totalFloatMinutes: task.time.totalFloat * minutesPerDay,
-        freeFloatMinutes: task.time.freeFloat * minutesPerDay,
-        drivingPath: task.time.isCritical,
-      };
-    }),
+    plannedFloorTraceByTaskCode,
+    project: {
+      projectId: imported.project.id,
+      tasks: imported.tasks.filter(task => task.p6ActivityType !== undefined).map(task => {
+        const calendar = (task.calendarId ? calendars.get(task.calendarId) : undefined) ?? imported.calendar;
+        const minutesPerDay = floatMinutesPerDay.get(calendar.id)!;
+        return {
+          sourceTaskId: task.id,
+          taskCode: task.wbsCode,
+          earlyStart: canonicalProductMinute(task.time.earlyStart),
+          earlyFinish: canonicalProductMinute(task.time.earlyFinish),
+          lateStart: canonicalProductMinute(task.time.lateStart),
+          lateFinish: canonicalProductMinute(task.time.lateFinish),
+          totalFloatMinutes: task.time.totalFloat * minutesPerDay,
+          freeFloatMinutes: task.time.freeFloat * minutesPerDay,
+          drivingPath: task.time.isCritical,
+        };
+      }),
+    },
   };
 }
 
@@ -193,7 +208,7 @@ export function replayXerProductBeforeOracle(
     imported: XerReplayMutableSolveInput,
     phase: XerReplayLifecycleEvent['phase'],
     inputOrigin: XerReplayLifecycleEvent['inputOrigin'],
-  ): XerSolvedProject {
+  ): XerReplaySolveResult {
     activeSolveClones++;
     try {
       options.onLifecycleEvent?.({
@@ -224,7 +239,28 @@ export function replayXerProductBeforeOracle(
     })));
 
     const replayInput = cloneSolveInput(imported);
-    addProject(baseline, solveOne(replayInput, 'baseline', 'fresh-source-clone'), 'baseline');
+    const baselineSolve = solveOne(replayInput, 'baseline', 'fresh-source-clone');
+    for (const log of predicate) {
+      if (log.projectId !== imported.project.id) continue;
+      const trace = baselineSolve.plannedFloorTraceByTaskCode[log.taskCode];
+      if (!trace) continue;
+      log.source = {
+        ...log.source,
+        plannedFloorTracePreFloorEarlyStart: trace.preFloorEarlyStart,
+        plannedFloorTracePreFloorEarlyFinish: trace.preFloorEarlyFinish,
+        plannedFloorTraceTargetStart: trace.targetStart,
+        plannedFloorTraceTargetFinish: trace.targetFinish,
+        plannedFloorTracePlannedWindowIsLater: trace.plannedWindowIsLater,
+        plannedFloorTraceBoundarySource: trace.boundarySource,
+        ...(trace.boundarySequenceId
+          ? { plannedFloorTraceBoundarySequenceId: trace.boundarySequenceId }
+          : {}),
+        ...(trace.boundaryPredecessorTaskCode
+          ? { plannedFloorTraceBoundaryPredecessorTaskCode: trace.boundaryPredecessorTaskCode }
+          : {}),
+      };
+    }
+    addProject(baseline, baselineSolve.project, 'baseline');
     projectsSolvedSequentially++;
 
     const inputOrigin = candidate.replayFrom === 'source'
@@ -232,7 +268,7 @@ export function replayXerProductBeforeOracle(
       : 'baseline-solved-clone';
     if (candidate.replayFrom === 'source') Object.assign(replayInput, cloneSolveInput(imported));
     candidate.apply(replayInput, matchedTaskCodes);
-    addProject(counterfactual, solveOne(replayInput, 'counterfactual', inputOrigin), 'counterfactual');
+    addProject(counterfactual, solveOne(replayInput, 'counterfactual', inputOrigin).project, 'counterfactual');
     projectsSolvedSequentially++;
   }
 

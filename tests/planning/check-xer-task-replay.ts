@@ -200,6 +200,135 @@ function truth(projectId = 'P1', taskCode = 'A100'): XerGroundTruth {
   });
 }
 
+function tasksByCode(projects: XerSolvedProject[]): Map<string, XerSolvedTask> {
+  return new Map(projects.flatMap(project => project.tasks.map(task => [task.taskCode, task] as const)));
+}
+
+function predicateByCode(predicateLogs: readonly XerReplayPredicateLog[]): Map<string, XerReplayPredicateLog> {
+  return new Map(predicateLogs.map(log => [log.taskCode, log] as const));
+}
+
+{
+  const earlyShiftCalendar = '(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|07:00|f|15:00)())))      (0||2()(        (0||0(s|07:00|f|15:00)())))      (0||3()(        (0||0(s|07:00|f|15:00)())))      (0||4()(        (0||0(s|07:00|f|15:00)())))      (0||5()(        (0||0(s|07:00|f|15:00)())))      (0||6()())      (0||7()())))    (0||Exceptions()())))';
+  const traceFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    `%R\tC2\tVroege ploeg\tP1\tCA_Project\t8\t40\t${earlyShiftCalendar}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tPlanned floor trace\tC1\t2026-06-01 08:00\t2026-06-01 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tFB-P\tP1\tC1\tFB-PRED\tFloor bind pred\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-01 08:00\t2026-06-01 17:00',
+    '%R\tFB-S\tP1\tC1\tFB-SUCC\tFloor bind succ\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-04 08:00\t2026-06-04 17:00',
+    '%R\tOD-P\tP1\tC1\tOD-PRED\tOne day pred\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-01 08:00\t2026-06-01 17:00',
+    '%R\tOD-S\tP1\tC1\tOD-SUCC\tOne day succ\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-03 08:00\t2026-06-03 17:00',
+    '%R\tFN-P\tP1\tC1\tFN-PRED\tFinish not later pred\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-01 08:00\t2026-06-01 17:00',
+    '%R\tFN-S\tP1\tC1\tFN-SUCC\tFinish not later succ\tTT_Task\tDT_FixedDUR\tTK_NotStart\t24\t24\t2026-06-04 08:00\t2026-06-04 17:00',
+    '%R\tBC-P\tP1\tC2\tBC-PRED\tBoundary pred\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-02 07:00\t2026-06-02 15:00',
+    '%R\tBC-S\tP1\tC1\tBC-SUCC\tBoundary succ\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-02 15:00\t2026-06-03 15:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR-FB\tFB-S\tFB-P\tP1\tP1\tPR_FS\t0',
+    '%R\tR-OD\tOD-S\tOD-P\tP1\tP1\tPR_FS\t0',
+    '%R\tR-FN\tFN-S\tFN-P\tP1\tP1\tPR_FS\t0',
+    '%R\tR-BC\tBC-S\tBC-P\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ].join('\n'));
+  const traceReplay = replayXerProductBeforeOracle(traceFixture, syntheticZeroRegressionCandidate);
+  const baselineByCode = tasksByCode(traceReplay.baseline);
+  const predicateLogs = predicateByCode(traceReplay.predicate);
+  eq('task replay: planned-floor trace family projecteert baseline-uitkomsten en diagnosevelden via het replayharnas', {
+    floorBinds: {
+      earlyStart: baselineByCode.get('FB-SUCC')?.earlyStart,
+      earlyFinish: baselineByCode.get('FB-SUCC')?.earlyFinish,
+      source: predicateLogs.get('FB-SUCC')?.source,
+    },
+    exactOneDay: {
+      earlyStart: baselineByCode.get('OD-SUCC')?.earlyStart,
+      earlyFinish: baselineByCode.get('OD-SUCC')?.earlyFinish,
+      source: predicateLogs.get('OD-SUCC')?.source,
+    },
+    finishNotLater: {
+      earlyStart: baselineByCode.get('FN-SUCC')?.earlyStart,
+      earlyFinish: baselineByCode.get('FN-SUCC')?.earlyFinish,
+      source: predicateLogs.get('FN-SUCC')?.source,
+    },
+    predecessorBoundary: {
+      earlyStart: baselineByCode.get('BC-SUCC')?.earlyStart,
+      earlyFinish: baselineByCode.get('BC-SUCC')?.earlyFinish,
+      source: predicateLogs.get('BC-SUCC')?.source,
+    },
+  }, {
+    floorBinds: {
+      earlyStart: '2026-06-04T08:00',
+      earlyFinish: '2026-06-04T17:00',
+      source: {
+        p6Source: 'XER',
+        activityType: 'TT_Task',
+        plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
+        plannedFloorTracePreFloorEarlyFinish: '2026-06-02T17:00',
+        plannedFloorTraceTargetStart: '2026-06-04T08:00',
+        plannedFloorTraceTargetFinish: '2026-06-04T17:00',
+        plannedFloorTracePlannedWindowIsLater: true,
+        plannedFloorTraceBoundarySource: 'relationship',
+        plannedFloorTraceBoundarySequenceId: 'R-FB',
+        plannedFloorTraceBoundaryPredecessorTaskCode: 'FB-PRED',
+      },
+    },
+    exactOneDay: {
+      earlyStart: '2026-06-02T08:00',
+      earlyFinish: '2026-06-02T17:00',
+      source: {
+        p6Source: 'XER',
+        activityType: 'TT_Task',
+        plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
+        plannedFloorTracePreFloorEarlyFinish: '2026-06-02T17:00',
+        plannedFloorTraceTargetStart: '2026-06-03T08:00',
+        plannedFloorTraceTargetFinish: '2026-06-03T17:00',
+        plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceBoundarySource: 'relationship',
+        plannedFloorTraceBoundarySequenceId: 'R-OD',
+        plannedFloorTraceBoundaryPredecessorTaskCode: 'OD-PRED',
+      },
+    },
+    finishNotLater: {
+      earlyStart: '2026-06-02T08:00',
+      earlyFinish: '2026-06-04T17:00',
+      source: {
+        p6Source: 'XER',
+        activityType: 'TT_Task',
+        plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
+        plannedFloorTracePreFloorEarlyFinish: '2026-06-04T17:00',
+        plannedFloorTraceTargetStart: '2026-06-04T08:00',
+        plannedFloorTraceTargetFinish: '2026-06-04T17:00',
+        plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceBoundarySource: 'relationship',
+        plannedFloorTraceBoundarySequenceId: 'R-FN',
+        plannedFloorTraceBoundaryPredecessorTaskCode: 'FN-PRED',
+      },
+    },
+    predecessorBoundary: {
+      earlyStart: '2026-06-02T15:00',
+      earlyFinish: '2026-06-03T15:00',
+      source: {
+        p6Source: 'XER',
+        activityType: 'TT_Task',
+        plannedFloorTracePreFloorEarlyStart: '2026-06-02T15:00',
+        plannedFloorTracePreFloorEarlyFinish: '2026-06-03T15:00',
+        plannedFloorTraceTargetStart: '2026-06-02T15:00',
+        plannedFloorTraceTargetFinish: '2026-06-03T15:00',
+        plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceBoundarySource: 'relationship:p6-predecessor-finish-boundary',
+        plannedFloorTraceBoundarySequenceId: 'R-BC',
+        plannedFloorTraceBoundaryPredecessorTaskCode: 'BC-PRED',
+      },
+    },
+  });
+}
+
 function solved(projectId = 'P1', taskCode = 'A100', overrides: Partial<XerSolvedTask> = {}): XerSolvedProject {
   return {
     projectId,
