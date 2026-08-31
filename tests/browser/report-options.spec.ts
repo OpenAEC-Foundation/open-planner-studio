@@ -29,7 +29,10 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
 
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
-  await expect(preview).toHaveAttribute('src', /^data:image\/png/, { timeout: 20_000 });
+  // De preview gebruikt bewust revocable Blob-URL's: een dataURL hield grote base64-strings na
+  // snelle her-renders onnodig in het geheugen. Dit contract test alleen dat er een verse PNG-
+  // preview staat; de P1-performanceflow bewaakt apart dat vervangen URL's worden ingetrokken.
+  await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
   const previewBefore = await preview.getAttribute('src');
 
   const legend = page.getByLabel(/^(Legend|Legenda)$/);

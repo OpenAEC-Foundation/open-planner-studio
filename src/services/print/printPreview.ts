@@ -6,7 +6,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
-import { printableWidthLogicalPx } from '@/services/print/tileLayout';
+import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
 // `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
 import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
@@ -1119,6 +1119,140 @@ export function renderPrintCanvas(
     (w, h) => new CanvasDraw2D(canvas, w, h, dpr),
     tasks, sequences, calendar, projectName, options,
   );
+}
+
+/** Eén logische bronuitsnede die direct in een fysiek pagina-venster wordt getekend. */
+export interface PrintReportWindow {
+  sourceX: number;
+  sourceY: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  destinationX: number;
+  destinationY: number;
+  /** Doelpixels per logische rapportpixel. */
+  rasterScale: number;
+}
+
+/**
+ * Teken één begrensd logisch rapportvenster direct naar een bestaand pagina-canvas.
+ *
+ * Dit is uitsluitend voor de live preview: de volledige rapportlay-out wordt nog steeds door
+ * {@link renderReport} berekend en {@link TileLayout} blijft de bron van waarheid voor vensters,
+ * marges en kopherhaling. Anders dan de oude route ontstaat er alleen geen tijdelijk canvas voor
+ * alle rapportpagina's samen. Export blijft via {@link renderPrintCanvas} en de bestaande
+ * pagineerder lopen.
+ */
+export function renderPrintReportWindow(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  window: PrintReportWindow,
+): RenderReportResult {
+  let draw: CanvasDraw2D | undefined;
+  try {
+    return renderReport(
+      (logicalW, logicalH) => {
+        draw = new CanvasDraw2D(canvas, logicalW, logicalH, window.rasterScale, window);
+        return draw;
+      },
+      tasks, sequences, calendar, projectName, options,
+    );
+  } finally {
+    draw?.dispose();
+  }
+}
+
+/** Invoer voor één direct gerasterde live-previewpagina. */
+export interface PrintPreviewPageInput {
+  layout: TileLayout;
+  pageIndex: number;
+  /** Exacte rasterbreedte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterWidth: number;
+  /** Exacte rasterhoogte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterHeight: number;
+  /** Fysieke pixels per PDF-punt van de zichtbare pagina. */
+  supersample: number;
+}
+
+/**
+ * Raster één zichtbare rapportpagina rechtstreeks vanuit de gedeelde logische renderer.
+ *
+ * De kop- en bodyvensters zijn bewust dezelfde uit {@link TileLayout} als de exportpagineerder.
+ * Daardoor blijven pagina-aantal, volgorde, herhaalde kop en bevroren kolommen exact gelijk,
+ * terwijl een lange planning nooit eerst een volledig hoog-res broncanvas hoeft op te bouwen.
+ */
+export function renderPrintPreviewPage(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  input: PrintPreviewPageInput,
+): void {
+  const { layout, pageIndex, rasterWidth, rasterHeight, supersample } = input;
+  const totalPages = layout.rows * layout.cols;
+  if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) return;
+  const row = layout.bodyRows[Math.floor(pageIndex / layout.cols)];
+  const column = layout.columns[pageIndex % layout.cols];
+  if (!row || !column) return;
+
+  const pxPt = Math.max(1 / Math.max(layout.pageWidthPt, layout.pageHeightPt), supersample);
+  const pageWidth = Math.max(1, Math.round(rasterWidth));
+  const pageHeight = Math.max(1, Math.round(rasterHeight));
+  canvas.width = pageWidth;
+  canvas.height = pageHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('renderPrintPreviewPage: kon 2D-context niet verkrijgen');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pageWidth, pageHeight);
+
+  const rasterScale = layout.scale * pxPt;
+  const renderWindow = (sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number, destinationX: number, destinationY: number) => {
+    if (sourceWidth <= 0 || sourceHeight <= 0) return;
+    renderPrintReportWindow(canvas, tasks, sequences, calendar, projectName, options, {
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      destinationX,
+      destinationY,
+      rasterScale,
+    });
+  };
+
+  for (const win of column.xWindows) {
+    const destinationX = win.pageX * pxPt;
+    if (layout.repeatHeaderPx > 0) {
+      renderWindow(
+        win.srcX,
+        0,
+        win.srcW,
+        layout.repeatHeaderPx,
+        destinationX,
+        layout.marginPt * pxPt,
+      );
+    }
+    renderWindow(
+      win.srcX,
+      row.srcY,
+      win.srcW,
+      row.srcH,
+      destinationX,
+      layout.bodyTopPt * pxPt,
+    );
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#999999';
+  ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${pageIndex + 1} / ${totalPages}`, (layout.pageWidthPt - layout.marginPt) * pxPt,
+    (layout.pageHeightPt - layout.marginPt * 0.5) * pxPt);
 }
 
 /**

@@ -30,6 +30,8 @@ const STORAGE_KEY = 'reportSettings';
 export type ReportType = 'gantt' | 'milestones' | 'variance';
 export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
+/** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
+export type ReportPreviewQuality = '100' | '200' | '300';
 
 export interface ReportSettings {
   reportType: ReportType;
@@ -54,6 +56,7 @@ export interface ReportSettings {
   statusLine: 'none' | 'statusDate' | 'progress';
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus (#54). */
   followView: boolean;
+  previewQuality: ReportPreviewQuality;
 }
 
 /**
@@ -81,6 +84,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportFontScale: 100,
   statusLine: 'none',
   followView: false,
+  previewQuality: '200',
 };
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
@@ -88,6 +92,7 @@ const REPORT_TYPES: readonly ReportType[] = ['gantt', 'milestones', 'variance'];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
+const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
@@ -154,6 +159,9 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     reportFontScale: parseNumberChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
+    // `previewZoom` uit de kortstondige 69ad-versie wordt bewust genegeerd: de preview verandert
+    // sindsdien nooit meer van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
+    previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
   };
 }
 

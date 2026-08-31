@@ -15,7 +15,12 @@
  */
 import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
-import { computePreviewRasterLimits, PREVIEW_MAX_PAGE_PIXELS, PREVIEW_MAX_SOURCE_PIXELS } from '@/services/print/previewSafety';
+import {
+  computePreviewRasterLimits,
+  PREVIEW_MAX_PAGE_PIXELS,
+  PREVIEW_MAX_RASTER_PIXELS,
+  PREVIEW_QUALITY_RASTER_BUDGETS,
+} from '@/services/print/previewSafety';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task, TaskTime } from '@/types/task';
@@ -385,11 +390,39 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 // De preview mag niet eerst een broncanvas en tientallen A1-pagina's zonder rasterbudget maken.
 // Dit is puur rekenwerk, dus de bescherming is toetsbaar zonder een browsercanvas te reserveren.
 {
-  const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape');
-  ok(20_000 * limits.renderScale * 10_000 * limits.renderScale <= PREVIEW_MAX_SOURCE_PIXELS + 1,
-    `preview-basiscanvas blijft binnen pixelbudget (got ${limits.renderScale})`);
-  ok(limits.maxPages >= 1 && limits.maxPages * 2384 * 1684 <= PREVIEW_MAX_PAGE_PIXELS + 10_000,
-    `A1-preview beperkt tegelijk vastgehouden pagina's (got ${limits.maxPages})`);
+  // Alle kwaliteitsstanden houden exact dezelfde CSS-breedte. Voor het vaste A3-landscape
+  // voorbeeld is de onderste stand zelf al leesbaar: 900 × 636 rasterpixels. Hoog en Maximaal
+  // verhogen uitsluitend die rasterdichtheid naar 1350 × 954 en 1800 × 1272.
+  const cssWidth = 900;
+  const standard = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 1);
+  const high = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 2);
+  const maximum = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 3);
+  const standardRaster = { width: standard.pageRasterWidth, height: standard.pageRasterHeight };
+  const highRaster = { width: high.pageRasterWidth, height: high.pageRasterHeight };
+  const maximumRaster = { width: maximum.pageRasterWidth, height: maximum.pageRasterHeight };
+  ok(standardRaster.width === 900 && standardRaster.height === 636,
+    `Standaard rastert A3-landscape op 900×636 (got ${standardRaster.width}×${standardRaster.height})`);
+  ok(highRaster.width === 1_350 && highRaster.height === 954,
+    `Hoog rastert A3-landscape op 1350×954 (got ${highRaster.width}×${highRaster.height})`);
+  ok(maximumRaster.width === 1_800 && maximumRaster.height === 1_272,
+    `Maximaal rastert A3-landscape op 1800×1272 (got ${maximumRaster.width}×${maximumRaster.height})`);
+  ok(maximum.maxPages <= high.maxPages,
+    'Maximaal houdt niet meer pagina’s tegelijk vast dan Hoog');
+}
+{
+  for (const quality of [1, 2, 3] as const) {
+    const limits = computePreviewRasterLimits(20_000, 10_000, 'a1', 'landscape', 900, 2, quality);
+    const onePagePixels = 2384 * 1684 * limits.pageSupersample * limits.pageSupersample;
+    const cachedPixels = limits.maxPages * onePagePixels;
+    ok(onePagePixels <= PREVIEW_MAX_PAGE_PIXELS + 20_000,
+      `A1-preview begrenst iedere page-local buffer op kwaliteit ${quality} (got ${onePagePixels})`);
+    ok(cachedPixels <= PREVIEW_QUALITY_RASTER_BUDGETS[quality] + 40_000,
+      `A1-preview respecteert het eigen cachebudget op kwaliteit ${quality} (got ${cachedPixels})`);
+    ok(limits.pageSupersample > 0 && limits.maxPages >= 2,
+      `extreme A1-preview houdt twee aangrenzende pagina’s bruikbaar op kwaliteit ${quality} (got ${limits.maxPages})`);
+  }
+  ok(PREVIEW_QUALITY_RASTER_BUDGETS[3] === PREVIEW_MAX_RASTER_PIXELS,
+    'het maximale kwaliteitsbudget blijft de globale rastergrens');
 }
 {
   const absurdlyLong = mkTask('very-long', 'Veilige lange tijdas', {
