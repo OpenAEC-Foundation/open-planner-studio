@@ -79,6 +79,7 @@ check('highlights: alleen whitelisted iconen', !!highlights && [highlights.prima
 check('highlights: stats zijn lokaal beschikbaar', highlights?.stats.commitsSincePrevious === 360 && highlights.stats.addedCodeLines === 45066);
 check('highlights: onbekende versie valt veilig terug', getReleaseHighlights('1900.1.1') === null);
 check('highlights: alle 14 locales hebben release-inhoud', hasLocalizedReleaseContent('2026.8.1'));
+check('highlights: ook zichtbare rubrieklabels zijn vertaald', getReleaseHighlights('2026.8.1', 'nl')?.secondary[0]?.category === 'RESOURCEBIBLIOTHEKEN' && getReleaseHighlights('2026.8.1', 'ar')?.secondary[0]?.category === 'الموارد');
 
 if (failures > 0) {
   console.error(`\nTOTAAL: ${failures} afwijking(en)`);
