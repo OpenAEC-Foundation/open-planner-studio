@@ -23,6 +23,7 @@ npm run test:browser      # los: echte gebruikersflows in Chromium via Playwrigh
 npm run verify:examples   # los: de gebundelde voorbeelden laden/rekenen door zoals verwacht
 npm run verify:docs       # los: in-app gidsen — nl+en hard vereist, overige 12 talen indien aanwezig
 npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-pluralcategorieën meegerekend)
+npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
 npm run verify:audit      # los: npm audit --audit-level=high

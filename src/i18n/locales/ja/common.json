@@ -330,7 +330,7 @@
       "sameSize": "前のバージョンと同じサイズ",
       "daysSincePrevious": "前回のリリースから：{{count}} 日",
       "currentOnly": "現在バージョン {{version}} を使用しています",
-      "whatsNewButton": "更新内容"
+      "whatsNewButton": "更新内容", "newVersion": "新しいバージョン", "readGuide": "ガイドを読む", "fullNotes": "完全なリリースノートを見る", "openFailed": "リリースノートを開けませんでした。", "inNumbers": "この更新の数字", "days": "前回リリースからの日数", "commits": "前回リリース以降のコミット", "codeLines": "追加コード行", "codeLinesHint": "アプリ、Rust、スクリプト、テストの追加行。", "smallerLabel": "小さいパッケージ", "largerLabel": "大きいパッケージ", "acknowledge": "了解"
     }
   },
   "statusWarnings": {

@@ -333,7 +333,7 @@
       "sameSize": "هم‌اندازهٔ نسخهٔ قبلی",
       "daysSincePrevious": "از انتشار قبلی: {{count}} روز",
       "currentOnly": "اکنون از نسخهٔ {{version}} استفاده می‌کنید",
-      "whatsNewButton": "تازه‌ها"
+      "whatsNewButton": "تازه‌ها", "newVersion": "نسخه جدید", "readGuide": "راهنما را بخوانید", "fullNotes": "یادداشت‌های کامل انتشار", "openFailed": "یادداشت‌های انتشار باز نشدند.", "inNumbers": "این به‌روزرسانی در اعداد", "days": "روز از انتشار قبلی", "commits": "کامیت از انتشار قبلی", "codeLines": "خط کد افزوده", "codeLinesHint": "خطوط افزوده در برنامه، Rust، اسکریپت‌ها و آزمون‌ها.", "smallerLabel": "بسته کوچک‌تر", "largerLabel": "بسته بزرگ‌تر", "acknowledge": "متوجه شدم"
     }
   },
   "statusWarnings": {

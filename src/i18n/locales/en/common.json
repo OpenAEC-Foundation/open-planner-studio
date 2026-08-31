@@ -333,7 +333,19 @@
       "sameSize": "Same size as the previous version",
       "daysSincePrevious": "Since the previous release: {{count}} days",
       "currentOnly": "You're now running version {{version}}",
-      "whatsNewButton": "What's new"
+      "whatsNewButton": "What's new",
+      "newVersion": "New version",
+      "readGuide": "Read the guide",
+      "fullNotes": "See full release notes",
+      "openFailed": "The release notes could not be opened.",
+      "inNumbers": "This update in numbers",
+      "days": "days since previous release",
+      "commits": "commits since previous release",
+      "codeLines": "added lines of code",
+      "codeLinesHint": "Gross added lines in application code, Rust, scripts and tests; documentation, translations, lockfiles and generated files are excluded.",
+      "smallerLabel": "smaller package",
+      "largerLabel": "larger package",
+      "acknowledge": "Got it"
     }
   },
   "statusWarnings": {

@@ -333,7 +333,19 @@
       "sameSize": "Even groot als de vorige versie",
       "daysSincePrevious": "Sinds de vorige release: {{count}} dagen",
       "currentOnly": "Je draait nu versie {{version}}",
-      "whatsNewButton": "Wat is er nieuw"
+      "whatsNewButton": "Wat is er nieuw",
+      "newVersion": "Nieuwe versie",
+      "readGuide": "Lees de gids",
+      "fullNotes": "Volledige release notes",
+      "openFailed": "De release notes konden niet worden geopend.",
+      "inNumbers": "Deze update in cijfers",
+      "days": "dagen sinds vorige release",
+      "commits": "commits sinds vorige release",
+      "codeLines": "toegevoegde regels code",
+      "codeLinesHint": "Bruto toegevoegde regels in appcode, Rust, scripts en tests; documentatie, vertalingen, lockbestanden en gegenereerde bestanden tellen niet mee.",
+      "smallerLabel": "kleiner pakket",
+      "largerLabel": "groter pakket",
+      "acknowledge": "Begrepen"
     }
   },
   "statusWarnings": {

@@ -25,6 +25,7 @@
     "verify:examples": "node scripts/run-ts.mjs scripts/verify-examples.ts",
     "verify:docs": "node scripts/run-ts.mjs scripts/verify-docs.ts",
     "verify:i18n": "node scripts/i18n-diff.mjs",
+    "verify:release-highlights": "node scripts/release-highlights.mjs",
     "verify:store-boundaries": "node scripts/verify-store-boundaries.mjs",
     "verify:gantt-boundaries": "node scripts/verify-gantt-boundaries.mjs",
     "verify:cycles": "node scripts/verify-cycles.mjs",
