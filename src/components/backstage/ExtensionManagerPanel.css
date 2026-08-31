@@ -56,7 +56,7 @@
 }
 
 .ext-install-btn:hover { background: var(--theme-hover); border-color: var(--theme-accent); }
-.ext-install-btn:disabled { opacity: 0.5; cursor: default; }
+.ext-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ext-search {
   padding: 6px 10px;
@@ -148,7 +148,7 @@
   padding: 0;
   cursor: pointer;
 }
-.ext-toggle:disabled { opacity: 0.5; cursor: default; }
+.ext-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ext-toggle-track {
   width: 34px;

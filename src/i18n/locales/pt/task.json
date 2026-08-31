@@ -28,7 +28,23 @@
     "MOVE": "Transferência",
     "RENOVATION": "Renovação",
     "MAINTENANCE": "Manutenção",
-    "USERDEFINED": "Outro"
+    "USERDEFINED": "Outro",
+    "builtinGroup": "Tipos integrados", "personalGroup": "Meus tipos de tarefa", "projectGroup": "Deste projeto", "new": "+ Novo tipo de tarefa…", "manage": "Gerir tipos de tarefa…", "newTitle": "Novo tipo de tarefa", "manageTitle": "Gerir tipos de tarefa", "name": "Nome", "fixed": "Fixo", "empty": "Ainda não há tipos de tarefa pessoais.", "rename": "Editar", "remove": "Remover", "addToMine": "Adicionar aos meus tipos de tarefa", "confirmRemove": "Este tipo é usado no projeto aberto. Removê-lo dos meus tipos de tarefa? A cópia do projeto permanece."
+  },
+  "duration": {
+    "label": "Duração",
+    "unit": "Unidade de duração",
+    "days": "Dias",
+    "hours": "Horas",
+    "invalid": "Introduza um número inteiro de dias ou horas, por exemplo 2d ou 12h.",
+    "enableHourPlanningFirst": "Ative o planeamento por horas para editar esta tarefa horária.",
+    "enableHourPlanning": "Ativar planeamento por horas",
+    "requiresWorkBlocks": "Este calendário não tem horários de trabalho válidos. Verifique os dias e horários de trabalho.",
+    "conversionNotExact": "Esta duração não pode ser convertida exatamente em dias inteiros no calendário atual. A unidade existente é mantida; introduza um novo valor válido.",
+    "conversionProposal": "Proposta de conversão exata: {{value}}. Aplique-a ou mantenha a unidade atual.",
+    "applyProposal": "Aplicar proposta",
+    "keepCurrent": "Manter",
+    "unitInfo": "A unidade escolhida pertence a esta tarefa. Os dias contam dias úteis; as horas contam horas de trabalho no calendário. Outro calendário não altera a unidade nem a duração introduzida, mas pode alterar a data de fim."
   },
   "dialog": {
     "editTitle": "Editar tarefa",

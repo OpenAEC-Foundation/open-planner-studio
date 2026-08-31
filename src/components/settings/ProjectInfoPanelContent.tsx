@@ -12,6 +12,7 @@ import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/ge
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
 import type { Project, SchedulingOptions } from '@/types/project';
+import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
  *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
@@ -90,7 +91,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const isNew = mode === 'wizard';
     const { t: tMenu } = useTranslation('menu');
     const { t: tCommon } = useTranslation('common');
+    const { t: tTask } = useTranslation('task');
     const project = useAppStore(s => s.project);
+    const projectCalendar = useAppStore(s => s.calendar);
     const activeDocumentId = useAppStore(s => s.activeDocumentId);
     const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
     const setProject = useAppStore(s => s.setProject);
@@ -104,6 +107,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [company, setCompany] = useState(isNew ? '' : project.company);
     const [startDate, setStartDate] = useState(isNew ? formatDate(new Date()) : project.startDate);
     const [endDate, setEndDate] = useState(isNew ? '' : project.endDate);
+    const [defaultTaskDurationUnit, setDefaultTaskDurationUnit] = useState<'days' | 'hours'>(
+      isNew ? 'days' : (project.defaultTaskDurationUnit ?? 'days'),
+    );
     // Berekening-sectie als DRAFT (fase 2.9-fix): net als Naam/Omschrijving bewerkt de Berekening-sectie
     // een lokale kopie; de store wijzigt pas op submit() (consistent Annuleren-gedrag). Vers gemount ⇒
     // initialiseert uit het huidige project.
@@ -144,6 +150,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     // Urenplanning aan; een niet-default preset materialiseert workTime + shift op de nieuwe kalender.
     const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
     const [shiftPreset, setShiftPreset] = useState<ShiftPresetKey>('day');
+    const canDefaultToHours = isNew ? shiftPreset !== 'day' : hasConcreteWorkBlocks(projectCalendar);
     // GO-NA-fix 1b: net als companyTouched — de Berekening-sectie/runCPM-tak committeert ALLEEN als de
     // gebruiker CalcOptionsSection in deze mount daadwerkelijk bewerkte.
     const [calcTouched, setCalcTouched] = useState(false);
@@ -171,6 +178,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       setCompany(p.company);
       setStartDate(p.startDate);
       setEndDate(p.endDate);
+      setDefaultTaskDurationUnit(p.defaultTaskDurationUnit ?? 'days');
       setSchedulingOptionsRaw(p.schedulingOptions ?? {});
       setCalcTouched(false);
       setLinkedCompanyId(p.companyId ?? '');
@@ -217,6 +225,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           name, description, author, company, startDate, endDate,
           calendar,
           phaseNames: templatePhases(template),
+          defaultTaskDurationUnit: enableHourPlanning && canDefaultToHours ? defaultTaskDurationUnit : 'days',
         });
         // Spec §2/§5: koppel aan het gekozen bedrijf (default = standaardbedrijf). Herkenning start
         // pas als het project al inhoud heeft — bij een vers, leeg project is dat een no-op. Geen
@@ -240,7 +249,14 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         // aanraakte (GO-NA-fix 1b — anders geen spurious dirty / geen onnodige herberekening op een
         // stale of nooit-bekeken draft). Genormaliseerd via JSON-roundtrip zodat undefined-sleutels
         // verdwijnen ⇒ leeg wordt `undefined` (byte-identiek met "geen opties").
-        const patch: Partial<Project> = { name, description, author, company, startDate, endDate };
+        const patch: Partial<Project> = {
+          name, description, author, company, startDate, endDate,
+          // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata.
+          // Nieuwe taken vallen in taskSlice veilig terug op dagen zolang de capability of
+          // concrete werkblokken ontbreken; alleen deze voorkeur hier stil terugzetten zou een
+          // ongerelateerde metadata-edit echter dataverlies laten veroorzaken.
+          defaultTaskDurationUnit,
+        };
         let soChanged = false;
         if (calcTouched) {
           const normalized = JSON.parse(JSON.stringify(schedulingOptions)) as SchedulingOptions;
@@ -422,6 +438,26 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
             <DateTextInput value={endDate} onCommit={setEndDate} className={inputCls} ariaLabel={tMenu('projectInfo.endDate')} />
           </div>
         </div>
+
+        {enableHourPlanning && (
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium">
+              {tCommon('settings.defaultTaskDurationUnit')}
+            </label>
+            <Select
+              aria-label={tCommon('settings.defaultTaskDurationUnit')}
+              value={defaultTaskDurationUnit}
+              onChange={value => setDefaultTaskDurationUnit(value as 'days' | 'hours')}
+              options={[
+                { value: 'days', label: tCommon('duration.days') },
+                { value: 'hours', label: tCommon('duration.hours'), disabled: !canDefaultToHours },
+              ]}
+            />
+            <p className="scrollzoom-hint">
+              {canDefaultToHours ? tCommon('settings.defaultTaskDurationUnitHint') : tTask('duration.requiresWorkBlocks')}
+            </p>
+          </div>
+        )}
 
         {isNew && (
           <>

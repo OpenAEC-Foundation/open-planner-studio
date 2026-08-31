@@ -54,6 +54,7 @@ import {
 } from './sequenceFields';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
+import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -97,6 +98,15 @@ function fieldContext(
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.
     calendarExists: (id: string) => s.calendars.some((c) => c.id === id) || id === s.calendar.id,
+    customTaskTypes: s.customTaskTypes,
+    durationCalendar: (requestedId) => {
+      const id = requestedId === undefined ? task?.calendarId : requestedId ?? undefined;
+      const calendar = id ? (s.calendars.find((c) => c.id === id) ?? s.calendar) : s.calendar;
+      return {
+        hoursPerDay: calendar.workTime ? deriveHoursPerDay(calendar.workTime, calendar.hoursPerDay) : calendar.hoursPerDay,
+        hasWorkBlocks: hasConcreteWorkBlocks(calendar),
+      };
+    },
   };
 }
 
@@ -157,6 +167,9 @@ function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string
  */
 function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome {
   const st = ctx.app.store.getState();
+  for (const item of items) {
+    if (item.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(item.patch.customTaskType);
+  }
   const anchor = st.project.startDate || formatDate(new Date());
   const bulk: BulkTaskItem[] = items.map((it) => {
     const top = it.patch.top;
@@ -164,8 +177,13 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
     let time: Task['time'] | undefined;
     if (tp) {
       // Geen expliciete duur ⇒ dezelfde default als draft.addTask (mijlpaal 0, anders 5 werkdagen).
-      const days = tp.scheduleDuration ?? (top.isMilestone ? 0 : 5);
-      time = createDefaultTaskTime(anchor, days);
+      const unit = tp.durationUnit ?? 'days';
+      const nativeAmount = unit === 'hours'
+        ? (tp.durationMinutes ?? 0) / 60
+        : (tp.scheduleDuration ?? (top.isMilestone ? 0 : 5));
+      time = createDefaultTaskTime(anchor, nativeAmount, unit);
+      if (tp.scheduleDuration !== undefined) time.scheduleDuration = tp.scheduleDuration;
+      if (tp.durationMinutes !== undefined) time.durationMinutes = tp.durationMinutes;
       if (tp.durationType !== undefined) time.durationType = tp.durationType;
     }
     return {
@@ -190,7 +208,7 @@ const addTasks: BatchStepTool = {
     'syntax waarop latere `planner_batch`-stappen hun verwijzingen herkennen; het schema dwingt die ' +
     'vorm nu overal af, zodat dezelfde call binnen én buiten een batch werkt. ' +
     '`position` is de invoeg-index binnen de ouder en klemt stil naar [0, aantal siblings]. ' +
-    'Geef de DUUR direct mee met `duration` (hele werkdagen; zonder dat veld krijgt een taak de ' +
+    'Geef de DUUR direct mee met `duration` en desgewenst `durationUnit` (`days`/`hours`; zonder duur krijgt een taak de ' +
     'standaard 5 werkdagen). Een mijlpaal (`isMilestone`) heeft per definitie duur 0 — `duration` > 0 ' +
     'is daar een fout. ' + TASK_FIELDS_DOC + ' Bij add_tasks is een onbekende sleutel een HARDE fout ' +
     '(de hele call faalt), niet een per-item-weigering. Retourneert de volledige tempId→realId-map, de ' +
@@ -331,7 +349,11 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
     if (u.fields !== undefined) {
       const res = resolveFieldsPatch(ctx.app.store.getState(), id, u.fields);
       if (!res.ok) { rejections.push({ id, reason: res.reason }); rejectedHere = true; }
-      else { ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time); touched = true; }
+      else {
+        if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
+        ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        touched = true;
+      }
     }
     if (u.progress !== undefined) {
       // VORM eerst (audit-fix K3): `applyProgressUpdate` leest exact completion/actualStart/
@@ -357,7 +379,7 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    'Wijzig bestaande taken. Per item: `fields` (naam, DUUR in werkdagen, constraints, deadline, ' +
+    'Wijzig bestaande taken. Per item: `fields` (naam, DUUR plus `durationUnit`, constraints, deadline, ' +
     'kalender, …; GEEN voortgangsvelden) en/of `progress` (voortgangspad: UITSLUITEND `completion` in ' +
     'PROCENTEN 0–100, `actualStart` en `actualFinish` als ISO-datum — elke andere sleutel, en een leeg ' +
     '`progress`-object, wordt per item zacht GEWEIGERD, nooit stil genegeerd). ' + TASK_FIELDS_DOC + ' Een ' +

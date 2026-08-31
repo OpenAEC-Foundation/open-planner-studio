@@ -162,6 +162,7 @@ export function toExtProject(p: Project): ExtProject {
     wbsAutoNumber: p.wbsAutoNumber,
     statusDate: p.statusDate,
     progressMode: p.progressMode,
+    defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
@@ -181,6 +182,7 @@ export function fromExtProject(p: ExtProject): Project {
     wbsAutoNumber: p.wbsAutoNumber,
     statusDate: p.statusDate,
     progressMode: p.progressMode,
+    defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
@@ -224,6 +226,7 @@ export function fromExtCalendar(c: ExtCalendar): WorkCalendar {
 export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
   return {
     durationType: tt.durationType,
+    durationUnit: tt.durationUnit,
     scheduleDuration: tt.scheduleDuration,
     durationMinutes: tt.durationMinutes,
     scheduleStart: tt.scheduleStart,
@@ -271,6 +274,7 @@ export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
   const finish = tt.scheduleFinish ?? start;
   return {
     durationType: tt.durationType ?? 'WORKTIME',
+    durationUnit: tt.durationUnit ?? (tt.durationMinutes != null ? 'hours' : 'days'),
     scheduleDuration: tt.scheduleDuration ?? 0,
     durationMinutes: tt.durationMinutes,
     scheduleStart: start,
@@ -300,13 +304,14 @@ export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
 
 // ── Taak ──
 
-export function toExtTask(t: Task): ExtTask {
+export function toExtTask(t: Task, customTaskType?: { id: string; name: string }): ExtTask {
   return {
     id: t.id,
     name: t.name,
     description: t.description,
     wbsCode: t.wbsCode,
     taskType: t.taskType,
+    ...(t.customTaskTypeId ? { customTaskType: customTaskType ?? { id: t.customTaskTypeId } } : {}),
     status: t.status,
     isMilestone: t.isMilestone,
     milestoneKind: t.milestoneKind,
@@ -353,6 +358,7 @@ export function fromExtTask(t: ExtTask): Task {
     description: t.description,
     wbsCode: t.wbsCode,
     taskType: t.taskType,
+    ...(t.customTaskType?.id.trim() ? { customTaskTypeId: t.customTaskType.id.trim(), taskType: 'USERDEFINED' } : {}),
     status: t.status,
     isMilestone: t.isMilestone,
     milestoneKind: t.milestoneKind,
@@ -402,7 +408,14 @@ export function fromExtTaskInput(
   if (input.id !== undefined) out.id = input.id;
   if (input.description !== undefined) out.description = input.description;
   if (input.wbsCode !== undefined) out.wbsCode = input.wbsCode;
-  if (input.taskType !== undefined) out.taskType = input.taskType;
+  if (input.taskType !== undefined) {
+    out.taskType = input.taskType;
+    if (input.taskType !== 'USERDEFINED') out.customTaskTypeId = undefined;
+  }
+  if (input.customTaskType?.id) {
+    out.taskType = 'USERDEFINED';
+    out.customTaskTypeId = input.customTaskType.id.trim();
+  }
   if (input.status !== undefined) out.status = input.status;
   if (input.isMilestone !== undefined) out.isMilestone = input.isMilestone;
   if (input.milestoneKind !== undefined) out.milestoneKind = input.milestoneKind;
@@ -504,7 +517,14 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.name !== undefined) out.name = updates.name;
   if (updates.description !== undefined) out.description = updates.description;
   if (updates.wbsCode !== undefined) out.wbsCode = updates.wbsCode;
-  if (updates.taskType !== undefined) out.taskType = updates.taskType;
+  if (updates.taskType !== undefined) {
+    out.taskType = updates.taskType;
+    if (updates.taskType !== 'USERDEFINED') out.customTaskTypeId = undefined;
+  }
+  if (updates.customTaskType?.id) {
+    out.taskType = 'USERDEFINED';
+    out.customTaskTypeId = updates.customTaskType.id.trim();
+  }
   if (updates.status !== undefined) out.status = updates.status;
   if (updates.isMilestone !== undefined) out.isMilestone = updates.isMilestone;
   if (updates.milestoneKind !== undefined) out.milestoneKind = updates.milestoneKind;
@@ -644,6 +664,26 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
  * blijven `undefined` en de store valt terug op zijn defaults.
  */
 export function fromExtImportResult(r: ExtImportResult): ImportResult {
+  const catalog = new Map<string, { id: string; name: string }>();
+  const names = new Map<string, string>();
+  const addType = (raw: { id: string; name: string }, source: string) => {
+    const type = { id: raw.id.trim(), name: raw.name.trim() };
+    if (!type.id || !type.name) throw new Error(`${source}: customTaskType vereist een niet-lege id en naam`);
+    const byId = catalog.get(type.id);
+    if (byId && byId.name !== type.name) throw new Error(`${source}: customTaskType-id '${type.id}' heeft conflicterende namen`);
+    const nameKey = type.name.toLocaleLowerCase();
+    const byName = names.get(nameKey);
+    if (byName && byName !== type.id) throw new Error(`${source}: customTaskType-naam '${type.name}' heeft conflicterende ids`);
+    catalog.set(type.id, type);
+    names.set(nameKey, type.id);
+  };
+  for (const type of r.customTaskTypes ?? []) addType(type, 'ExtImportResult.customTaskTypes');
+  for (const task of r.tasks) {
+    if (task.customTaskType?.name) addType(
+      { id: task.customTaskType.id, name: task.customTaskType.name },
+      `ExtImportResult.tasks['${task.id}']`,
+    );
+  }
   return {
     project: fromExtProject(r.project),
     calendar: fromExtCalendar(r.calendar),
@@ -651,6 +691,7 @@ export function fromExtImportResult(r: ExtImportResult): ImportResult {
     sequences: r.sequences.map(fromExtSequence),
     resources: r.resources.map(fromExtResource),
     assignments: r.assignments.map(fromExtAssignment),
+    customTaskTypes: [...catalog.values()],
   };
 }
 

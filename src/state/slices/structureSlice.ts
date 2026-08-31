@@ -1,4 +1,5 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
+import type { CustomTaskType } from '@/types/taskType';
 import { generateId } from '@/utils/id';
 import { finishMutation } from '../transaction';
 import type { AppSliceFactory } from './types';
@@ -12,6 +13,8 @@ import type { AppSliceFactory } from './types';
 export interface StructureSlice {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
+  /** Projectkopieën van de zelfgekozen taaktypen; bewust per document en IFC-roundtrip. */
+  customTaskTypes: CustomTaskType[];
 
   addActivityCodeType: (name: string) => string;
   renameActivityCodeType: (id: string, name: string) => void;
@@ -30,11 +33,28 @@ export interface StructureSlice {
   removeCustomField: (id: string) => void;
   /** Zet een veldwaarde op een taak (null = waarde weghalen). */
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
+  ensureProjectTaskType: (type: CustomTaskType) => void;
 }
 
 export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) => (set, get) => ({
   activityCodeTypes: [],
   customFieldDefs: [],
+  customTaskTypes: [],
+
+  ensureProjectTaskType: (type) => {
+    set((s) => {
+      const id = type.id.trim();
+      const name = type.name.trim();
+      const existing = s.customTaskTypes.find(x => x.id === id);
+      const sameName = s.customTaskTypes.find(x => x.name.localeCompare(
+        name, undefined, { sensitivity: 'accent' },
+      ) === 0);
+      if (existing || sameName || !id || !name) return;
+      runtime.beginUndoable(s);
+      s.customTaskTypes.push({ id, name });
+      finishMutation(s);
+    });
+  },
 
   addActivityCodeType: (name) => {
     const id = generateId('act');

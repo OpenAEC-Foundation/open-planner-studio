@@ -4,6 +4,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { CustomTaskType } from '@/types/taskType';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
@@ -16,6 +17,7 @@ import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultView } from './defaults';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from './syncProjectCalendar';
+import { normalizeTaskDurationUnits } from '@/utils/taskDefaults';
 
 /**
  * HET DOCUMENTCONTRACT — één canonieke bron voor de per-document-state (audit P10, F1/F3).
@@ -51,6 +53,7 @@ export interface DocumentPayload {
   calendars: WorkCalendar[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
+  customTaskTypes: CustomTaskType[];
   selectedTaskIds: string[];
   cpmResult: CPMResult | null;
   /** Afgeleide belasting per document (A5): anders toont het histogram na een tabwissel dat van het
@@ -186,7 +189,10 @@ export const DOCUMENT_FIELDS = [
   // restore alsnog uit `calendars`, maar zonder eigen snapshot-waarde zou de undo-orphan-fallback
   // (`promoteProjectCalendarToLibrary`) de NIEUWE cache promoveren i.p.v. de oude.
   field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'data' }),
-  field({ key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data' }),
+  field({
+    key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data',
+    fromPayload: (p) => normalizeTaskDurationUnits(p.tasks ?? []),
+  }),
   field({ key: 'sequences', get: (s) => s.sequences, set: (s, v) => { s.sequences = v; }, fresh: () => [], snapshot: 'data' }),
   field({ key: 'resources', get: (s) => s.resources, set: (s, v) => { s.resources = v; }, fresh: () => [], snapshot: 'data' }),
   field({ key: 'assignments', get: (s) => s.assignments, set: (s, v) => { s.assignments = v; }, fresh: () => [], snapshot: 'data' }),
@@ -197,6 +203,7 @@ export const DOCUMENT_FIELDS = [
   }),
   field({ key: 'activityCodeTypes', get: (s) => s.activityCodeTypes, set: (s, v) => { s.activityCodeTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.activityCodeTypes ?? [] }),
   field({ key: 'customFieldDefs', get: (s) => s.customFieldDefs, set: (s, v) => { s.customFieldDefs = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customFieldDefs ?? [] }),
+  field({ key: 'customTaskTypes', get: (s) => s.customTaskTypes, set: (s, v) => { s.customTaskTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customTaskTypes ?? [] }),
   field({ key: 'selectedTaskIds', get: (s) => s.selectedTaskIds, set: (s, v) => { s.selectedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
   field({ key: 'cpmResult', get: (s) => s.cpmResult, set: (s, v) => { s.cpmResult = v; }, fresh: () => null, snapshot: 'derived' }),
   field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.resourceLoadResult ?? null }),
@@ -361,6 +368,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     calendars: parsed.resourceCalendars ?? [],
     activityCodeTypes: parsed.activityCodeTypes ?? [],
     customFieldDefs: parsed.customFieldDefs ?? [],
+    customTaskTypes: parsed.customTaskTypes ?? [],
     baselines: parsed.baselines ?? [],
     activeBaselineId: parsed.activeBaselineId ?? null,
     filePath,

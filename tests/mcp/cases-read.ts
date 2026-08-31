@@ -248,6 +248,23 @@ test('get_task: onbekend id ⇒ nette NOT_FOUND', () => {
   assertEq(res.ok ? '' : res.code, 'NOT_FOUND', 'code NOT_FOUND');
 });
 
+test('get_task: custom taaktype leest stabiele id plus projectsnapshotnaam en toont een ontbrekende naam eerlijk', () => {
+  cleanProject();
+  S().ensureProjectTaskType({ id: 'ops-read-type', name: 'Engineering' });
+  const known = S().addTask({
+    name: 'Custom bekend', taskType: 'USERDEFINED', customTaskTypeId: 'ops-read-type',
+    time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  const orphan = S().addTask({
+    name: 'Custom wees', taskType: 'USERDEFINED', customTaskTypeId: 'ops-read-orphan',
+    time: createDefaultTaskTime('2026-06-02', 1),
+  });
+  assertEq(callOk('planner_get_task', { taskId: known }).customTaskType,
+    { id: 'ops-read-type', name: 'Engineering' }, 'bekende projectsnapshot is volledig leesbaar');
+  assertEq(callOk('planner_get_task', { taskId: orphan }).customTaskType,
+    { id: 'ops-read-orphan', name: null }, 'ontbrekende catalogentry degradeert niet naar CONSTRUCTION');
+});
+
 // =================================================================================================
 // 5) planner_get_critical_path — driving-paren allebei kritiek
 // =================================================================================================

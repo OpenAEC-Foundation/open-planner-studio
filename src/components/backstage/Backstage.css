@@ -234,7 +234,7 @@
 }
 .backstage-export-card:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 /* Voorbeelden: showcase- vs. eenvoudig-groep */

@@ -469,6 +469,12 @@ html, body, #root {
   font-weight: 600;
 }
 
+/* Deze tooltip hoort bij een gewone HTML-bediening (niet bij tijdelijke canvas-hover). Daardoor
+   mag de portal ook voor hit-testing boven de Gantt liggen; de knop sluit hem zelf bij mouseleave. */
+.duration-unit-tooltip {
+  pointer-events: auto;
+}
+
 /* Issue #65: alleen de WBS-kolom veert mee; de overige kolommen blijven over alle regels gelijk.
    De container-query is gekoppeld aan de echte paneelinhoud (niet het viewport): op de minimale
    railbreedte krijgt WBS een eigen regel, terwijl de vier bedieningselementen eronder uitlijnen. */
@@ -659,6 +665,19 @@ html, body, #root {
    ============================================================================ */
 
 /* Buttons (DESIGN-SYSTEM.md §3.1) */
+/* Echte bedieningselementen moeten ook buiten de gedeelde `.btn`-klasse direct als zodanig
+   herkenbaar zijn. `:where()` houdt de specificiteit op nul: invoer-, sleep- en resizecursors
+   die een component bewust specifieker instelt, blijven dus ongewijzigd leidend. */
+:where(button:not(:disabled):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"])) {
+  cursor: pointer;
+}
+
+/* Een semantisch uitgeschakelde custom control gebruikt soms aria-disabled in plaats van het
+   native attribuut; beide varianten krijgen dezelfde niet-klikbare aanwijzing. */
+:where(button:disabled, button[aria-disabled="true"], [role="button"][aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

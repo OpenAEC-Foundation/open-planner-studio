@@ -11,6 +11,7 @@ export function StatusBar() {
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
   const scheduleStale = useAppStore(s => s.scheduleStale);
+  const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const view = useAppStore(s => s.view);
   const isDirty = useAppStore(s => s.isDirty);
@@ -59,7 +60,9 @@ export function StatusBar() {
           )}
         </>
       )}
-      {scheduleStale && (
+      {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
+          Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
+      {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
         <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
           ⚠ {t('status.scheduleStale')}
         </span>

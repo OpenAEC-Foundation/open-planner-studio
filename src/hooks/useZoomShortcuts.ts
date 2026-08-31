@@ -33,6 +33,10 @@ export function useZoomShortcuts({
       const centerX = rect.width / 2;
 
       const v = latest.current;
+      // Sommige browser-/toetsenbordcombinaties leveren bij Ctrl+0 niet consequent dezelfde
+      // `key`, maar wel de fysieke nulcode. De sneltoets blijft daardoor ook op numpad en
+      // niet-US-layouts ondubbelzinnig een fit-to-project; een kale 0 herstelt alleen de zoom.
+      const isZero = e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0';
 
       if ((e.key === '+' || e.key === '=') && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -40,12 +44,12 @@ export function useZoomShortcuts({
       } else if (e.key === '-' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         zoomAt(v.zoom / 1.1, centerX);
-      } else if (e.key === '0' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        resetZoom();
-      } else if (e.key === '0' && (e.ctrlKey || e.metaKey)) {
+      } else if (isZero && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         fitToProject();
+      } else if (isZero) {
+        e.preventDefault();
+        resetZoom();
       }
     };
 

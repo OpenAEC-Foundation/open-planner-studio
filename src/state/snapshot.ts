@@ -45,7 +45,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 export type Snapshot = Pick<
   DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
-  | 'activityCodeTypes' | 'customFieldDefs' | 'cpmResult' | 'resourceLoadResult'
+  | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult' | 'resourceLoadResult'
   | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded'
 >;
 
@@ -124,6 +124,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     calendars: raw.calendars ?? legacy.resourceCalendars ?? [],
     activityCodeTypes: raw.activityCodeTypes ?? [],
     customFieldDefs: raw.customFieldDefs ?? [],
+    customTaskTypes: raw.customTaskTypes ?? [],
     cpmResult: raw.cpmResult ?? null,
     resourceLoadResult: raw.resourceLoadResult ?? null,
     scheduleStale: raw.scheduleStale ?? false,

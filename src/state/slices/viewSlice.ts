@@ -2,7 +2,7 @@
 // import-cyclus met documentContract/snapshot te breken. Hier doorgegeven voor bestaande importers.
 import { createDefaultView } from '../defaults';
 export { createDefaultView };
-import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
@@ -60,7 +60,7 @@ export interface ViewSlice {
    *  GanttCanvas kent de canvas-afmetingen en de bijgewerkte `viewRows` (ná het uitklappen) en
    *  voert daar de echte zoom-/scrollberekening uit (`computeFocusTaskHorizontal`/
    *  `computeFocusTaskScrollY` in `ganttViewport.ts`). */
-  focusOnTask: (taskId: string) => void;
+  focusOnTask: (taskId: string, opts?: { preserveZoom?: boolean }) => void;
   /** Wis het `pendingFocusTaskId`-signaal (door GanttCanvas aangeroepen nadat de sprong is
    *  uitgevoerd). */
   clearPendingFocusTask: () => void;
@@ -95,7 +95,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
 
   setZoom: (zoom) =>
     set((s) => {
-      const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
       s.view.zoom = Math.max(0.5, Math.min(max, zoom));
     }),
 
@@ -107,7 +107,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   setTimeScale: (scale) => {
     const s = get();
     const oldZoom = s.view.zoom;
-    const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+    const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
     const newZoom = Math.max(0.5, Math.min(max, TIMESCALE_ZOOM[scale]));
     const chartW = getGanttChartWidth();
     if (chartW !== null && newZoom !== oldZoom) {
@@ -155,17 +155,19 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       s.view.pendingFit = false;
     }),
 
-  focusOnTask: (taskId) => {
+  focusOnTask: (taskId, opts) => {
     get().expandAncestorsOf(taskId);
     get().selectTask(taskId);
     set((s) => {
       s.view.pendingFocusTaskId = taskId;
+      s.view.pendingFocusTaskPreserveZoom = opts?.preserveZoom;
     });
   },
 
   clearPendingFocusTask: () =>
     set((s) => {
       s.view.pendingFocusTaskId = undefined;
+      s.view.pendingFocusTaskPreserveZoom = undefined;
     }),
 
   setHistogramResource: (resourceId) =>

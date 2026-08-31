@@ -110,8 +110,9 @@ export function computeContentSpanDays(
   effectiveViewStart: string,
   compressNonWorkdays: boolean,
   axis: GanttAxis,
+  navigationEndDates: string[] = [],
 ): number | null {
-  if (tasks.length === 0) return null;
+  if (tasks.length === 0 && navigationEndDates.length === 0) return null;
   let maxDays = 365;
   for (const task of tasks) {
     const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
@@ -124,6 +125,14 @@ export function computeContentSpanDays(
         : diffDays(effectiveViewStart, end);
       if (days > maxDays) maxDays = days;
     }
+  }
+  for (const end of navigationEndDates) {
+    const parsed = parseDate(end);
+    if (Number.isNaN(parsed.getTime())) continue;
+    const days = compressNonWorkdays
+      ? axis.daySpan(parseDate(effectiveViewStart), parsed)
+      : diffDays(effectiveViewStart, end);
+    if (days > maxDays) maxDays = days;
   }
   return maxDays;
 }

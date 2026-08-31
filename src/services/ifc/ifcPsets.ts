@@ -66,6 +66,8 @@ export const PSET = {
   // Structuur/waarden op project- of taak-niveau (afwijkende vorm — alleen naam gedeeld).
   ProjectSettings: 'OPS_ProjectSettings',
   StructureMeta: 'OPS_StructureMeta',
+  /** Projectcatalogus voor eigen taaktypen, inclusief per-taak stabile id-map. */
+  TaskTypes: 'OPS_TaskTypes',
   CustomFields: 'OPS_CustomFields',
   ActivityCodes: 'OPS_ActivityCodes',
   // Per-resource / per-taak-assignment (afwijkende vorm — alleen naam gedeeld).

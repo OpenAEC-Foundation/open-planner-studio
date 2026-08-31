@@ -20,7 +20,7 @@ import {
   setGanttScrollBounds,
 } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
-import { MS_PER_DAY } from '@/engine/renderer/timeAxis';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   HISTOGRAM_MAX_HEIGHT,
@@ -53,9 +53,16 @@ export function useGanttViewportCoordinator(
   const latest = useRef(input);
   latest.current = input;
 
+  // Ook zonder taken moet de tijdlijn de concrete kalenderuitzonderingen kunnen bereiken. Een
+  // feestdag is dan de enige domeindatum die de gebruiker naar de Gantt kan willen pannen.
+  const calendarNavigationDates = useMemo(() => input.tasks.length === 0 ? ({
+    starts: input.calendar.holidays.map(holiday => holiday.startDate),
+    ends: input.calendar.holidays.map(holiday => holiday.endDate || holiday.startDate),
+  }) : ({ starts: [], ends: [] }), [input.calendar.holidays, input.tasks.length]);
+
   const effectiveViewStart = useMemo(
-    () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate),
-    [input.tasks, input.view.viewStartDate],
+    () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate, calendarNavigationDates.starts),
+    [input.tasks, input.view.viewStartDate, calendarNavigationDates.starts],
   );
   const effectiveView = useMemo(
     () => ({ ...input.view, viewStartDate: effectiveViewStart }),
@@ -78,8 +85,9 @@ export function useGanttViewportCoordinator(
       effectiveViewStart,
       input.compressNonWorkdays,
       sharedAxis,
+      calendarNavigationDates.ends,
     ),
-    [input.tasks, effectiveViewStart, input.compressNonWorkdays, sharedAxis],
+    [input.tasks, effectiveViewStart, input.compressNonWorkdays, sharedAxis, calendarNavigationDates.ends],
   );
   const contentWidthFor = useCallback(
     (zoom: number, tableWidth: number) => computeContentWidth(contentSpanDays, zoom, tableWidth),
@@ -135,6 +143,7 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
+      current.enableHourPlanning,
     );
     if (!fit) return;
     current.setZoom(fit.zoom);
@@ -147,6 +156,7 @@ export function useGanttViewportCoordinator(
     taskTableWidth: input.taskTableWidth,
     view: input.view,
     enableQuarterHourZoom: input.enableQuarterHourZoom,
+    enableHourPlanning: input.enableHourPlanning,
     scrollMode: input.scrollMode,
     positionDivision: input.positionDivision,
     modifierMap: input.modifierMap,
@@ -176,13 +186,15 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width - current.taskTableWidth,
       current.enableQuarterHourZoom,
+      current.enableHourPlanning,
+      calendarNavigationDates.starts,
     );
     current.clearPendingFit();
     if (!fit) return;
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll]);
+  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, calendarNavigationDates.starts]);
 
   useEffect(() => {
     const current = latest.current;
@@ -207,14 +219,24 @@ export function useGanttViewportCoordinator(
       current.clearPendingFocusTask();
       return;
     }
-    const origin = parseDate(effectiveViewStart);
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
     const finish = hourMode ? parseInstant(finishString) : parseDate(finishString);
-    const finishMillis = finish.getTime() + (hourMode ? 0 : MS_PER_DAY);
-    const durationDays = (finishMillis - start.getTime()) / MS_PER_DAY;
-    const middleDayOffset = ((start.getTime() + finishMillis) / 2 - origin.getTime()) / MS_PER_DAY;
-    const horizontal = computeFocusTaskHorizontal(durationDays, middleDayOffset, usableWidth);
+    // `sharedAxis` bevat de actuele scrollX. Tel hem eerst terug op om contentcoördinaten te
+    // krijgen; de resulterende eenheden zijn kalenderdagen op de gewone as en werkdagen onder
+    // "Show only working days". Zo rekent de focusroute exact in dezelfde eenheden als de
+    // renderer én de horizontale scrollgrens.
+    const startContentX = sharedAxis.dateToX(start) + current.view.scrollX - current.taskTableWidth;
+    const finishContentX = sharedAxis.dateToX(finish) + current.view.scrollX
+      - current.taskTableWidth + (hourMode ? 0 : current.view.zoom);
+    const durationDays = (finishContentX - startContentX) / current.view.zoom;
+    const middleDayOffset = (startContentX + finishContentX) / (2 * current.view.zoom);
+    const horizontal = current.view.pendingFocusTaskPreserveZoom
+      ? {
+          zoom: current.view.zoom,
+          scrollX: Math.max(0, middleDayOffset * current.view.zoom - usableWidth / 2),
+        }
+      : computeFocusTaskHorizontal(durationDays, middleDayOffset, usableWidth);
     const rowIndex = current.rows.findIndex(
       row => row.kind === 'task' && row.task.id === taskId,
     );
@@ -231,9 +253,9 @@ export function useGanttViewportCoordinator(
       rect.height,
     ));
     current.clearPendingFocusTask();
-    current.setZoom(horizontal.zoom);
+    if (!current.view.pendingFocusTaskPreserveZoom) current.setZoom(horizontal.zoom);
     current.setScroll(horizontal.scrollX, scrollY);
-  }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.taskTableWidth, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, effectiveViewStart, contentWidthFor]);
+  }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.taskTableWidth, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
 
   useEffect(() => {
     const element = primaryHScrollRef.current;
@@ -306,7 +328,7 @@ export function useGanttViewportCoordinator(
           requestedZoom,
           anchorX,
           taskTableWidth: 0,
-          maxZoom: current.enableQuarterHourZoom ? 1000 : 400,
+          maxZoom: maxGanttZoom(current.enableQuarterHourZoom, current.enableHourPlanning),
         });
         if (next) current.setSplitView({
           ...currentSplit,

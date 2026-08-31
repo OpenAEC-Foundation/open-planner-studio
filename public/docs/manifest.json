@@ -66,8 +66,8 @@
     {
       "id": "gids-kalenders-uren",
       "title": {
-        "nl": "Kalenders & uren-planning",
-        "en": "Calendars & hour planning",
+        "nl": "Kalenders, werkdagen & werkuren",
+        "en": "Calendars, working days & working hours",
         "de": "Kalender & Stundenplanung",
         "fr": "Calendriers & planification horaire",
         "es": "Calendarios y planificación por horas",
@@ -581,6 +581,26 @@
         "fa": "بازیابی پس از یک خرابی"
       },
       "layer": "referentie"
+    },
+    {
+      "id": "gids-taaktypen",
+      "title": {
+        "nl": "Taaktypen",
+        "en": "Task types",
+        "de": "Task types",
+        "fr": "Task types",
+        "es": "Task types",
+        "zh": "Task types",
+        "it": "Task types",
+        "pt": "Task types",
+        "pl": "Task types",
+        "tr": "Task types",
+        "ar": "Task types",
+        "ja": "Task types",
+        "ko": "Task types",
+        "fa": "Task types"
+      },
+      "layer": "gidsen"
     },
     {
       "id": "ref-sneltoetsen",

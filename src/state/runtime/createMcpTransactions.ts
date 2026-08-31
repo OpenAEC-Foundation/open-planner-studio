@@ -17,6 +17,7 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
+import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
 
@@ -108,6 +109,10 @@ function createMcpDraft(
       if (parentId !== null && !parentTask) {
         throw new Error(`draft.addTask: onbekende parentId '${parentId}'`);
       }
+      const inheritedTaskType = partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
+      const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
+        ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
+        : undefined;
 
       const task: Task = {
         id,
@@ -116,7 +121,8 @@ function createMcpDraft(
         wbsCode: partial.wbsCode || '',
         // Overerving (2026-08-14): zie taskSlice.ts addTask — zelfde regel, MCP-pad (ook gebruikt
         // door draft.addTasks, die top-down per item deze functie aanroept).
-        taskType: partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED'),
+        taskType: inheritedTaskType,
+        customTaskTypeId: inheritedCustomTaskTypeId,
         status: partial.status || 'NOT_STARTED',
         isMilestone: partial.isMilestone || false,
         milestoneKind: partial.milestoneKind,
@@ -371,7 +377,8 @@ function createMcpDraft(
    *
    * Verschil met `updateTaskFields`: hier kan een aanroeper per constructie geen hele geneste tak
    * meegeven — `timePatch` kent alleen `scheduleDuration`, `durationType` en de expliciete
-   * `clearDurationMinutes`. Dat laatste is nodig omdat `durationMinutes` op een uur-kalender de BRON
+   * `durationUnit` en `clearDurationMinutes`. Dat laatste is nodig omdat `durationMinutes` bij een
+   * urentaak de BRON
    * VAN WAARHEID is (`durationDaysOf`): een achtergebleven minutenwaarde zou een zojuist gezette
    * dag-duur stil overrulen. `delete` (niet `= undefined`) houdt het Task-object schoon voor de
    * IFC-round-trip. Onbekend id ⇒ stille no-op (zoals `updateTaskFields`).
@@ -379,7 +386,7 @@ function createMcpDraft(
   patchTaskFields(
     id: string,
     top: Partial<Task>,
-    timePatch?: { scheduleDuration?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
+    timePatch?: { scheduleDuration?: number; durationUnit?: 'days' | 'hours'; durationMinutes?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
   ): void {
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
@@ -389,6 +396,8 @@ function createMcpDraft(
       let timeTouched = false;
       if (timePatch) {
         if (timePatch.scheduleDuration !== undefined) { task.time.scheduleDuration = timePatch.scheduleDuration; timeTouched = true; }
+        if (timePatch.durationUnit !== undefined) { task.time.durationUnit = timePatch.durationUnit; timeTouched = true; }
+        if (timePatch.durationMinutes !== undefined) { task.time.durationMinutes = timePatch.durationMinutes; timeTouched = true; }
         if (timePatch.durationType !== undefined) { task.time.durationType = timePatch.durationType; timeTouched = true; }
         if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
       }
@@ -403,6 +412,25 @@ function createMcpDraft(
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
       }
+      s.isDirty = true;
+    });
+  },
+
+  /** Materialiseer de snapshot tegelijk met de taakmutatie; bestaande ids zijn onveranderlijk. */
+  ensureCustomTaskType(type: CustomTaskType): void {
+    store.setState((s) => {
+      const normalized = { id: type.id.trim(), name: type.name.trim() };
+      if (!normalized.id || !normalized.name) throw new Error('draft.ensureCustomTaskType: id en naam mogen niet leeg zijn');
+      const existing = s.customTaskTypes.find(candidate => candidate.id === normalized.id);
+      if (existing) {
+        if (existing.name !== normalized.name) throw new Error(`draft.ensureCustomTaskType: id '${normalized.id}' heeft al naam '${existing.name}'`);
+        return;
+      }
+      const sameName = s.customTaskTypes.find(candidate => candidate.name.localeCompare(
+        normalized.name, undefined, { sensitivity: 'accent' },
+      ) === 0);
+      if (sameName) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameName.id}'`);
+      s.customTaskTypes.push(normalized);
       s.isDirty = true;
     });
   },

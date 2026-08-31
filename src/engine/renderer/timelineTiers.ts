@@ -13,11 +13,26 @@ export const TIMESCALE_ZOOM: Record<TimeScale, number> = {
   month: 18,
   week: 45,
   day: 100,
-  // Fase 2.8b (§6.2): uur-preset, midden in de 'hour'-band (zoom≥300 in `scaleFromZoom`), zodat
-  // de keuze round-trip-stabiel 'hour' teruggeeft. Ligt onder de dag-max (400) ⇒ altijd bereikbaar,
-  // ook zonder kwartier-zoom.
-  hour: 350,
+  // Een uurcel is `zoom / 24` pixels breed. Met de oude 350px/dag kreeg een label als “08:00”
+  // slechts 14,6px ruimte en de overlapbeveiliging moest hem altijd onderdrukken. 1000px/dag
+  // geeft elke uurcel genoeg plaats voor een werkelijk leesbaar label.
+  hour: 1000,
 };
+
+/** Maximum zonder de expliciete kwartierinstelling: dagweergave blijft de fijnste schaal. */
+export const MAX_DAY_ZOOM = 400;
+/** Uurweergave zonder kwartierlabels: één uurcel is bij 1000px/dag breed genoeg voor `08:00`. */
+export const MAX_HOUR_ZOOM = 1000;
+/**
+ * Minimum om alle kwartierlabels zonder overlap te kunnen tonen: een label als `08:15` heeft
+ * circa 30px plus de binnenmarges nodig; 4000px/dag levert 41,7px per kwartier.
+ */
+export const MAX_QUARTER_HOUR_ZOOM = 4000;
+
+export function maxGanttZoom(enableQuarterHourZoom: boolean, enableHourPlanning = false): number {
+  if (enableQuarterHourZoom) return MAX_QUARTER_HOUR_ZOOM;
+  return enableHourPlanning ? MAX_HOUR_ZOOM : MAX_DAY_ZOOM;
+}
 
 /**
  * Leidt de getoonde tijdschaal af uit de zoom (§3.2). Leest dezelfde banden als `pickTiers`.

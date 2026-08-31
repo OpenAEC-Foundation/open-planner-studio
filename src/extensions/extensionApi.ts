@@ -60,6 +60,33 @@ export function createExtensionApi(
   const cleanupFns: (() => void)[] = [];
   const batch = createBatchTransactions(document);
 
+  const customTaskTypeToMaterialize = (
+    type: { id: string; name?: string } | undefined,
+  ): { id: string; name: string } | undefined => {
+    if (!type) return undefined;
+    const id = type.id.trim();
+    if (!id) throw new Error(`Extensie "${extensionId}": customTaskType.id mag niet leeg zijn`);
+    const state = document.store.getState();
+    const existing = state.customTaskTypes.find(candidate => candidate.id === id);
+    const name = type.name?.trim();
+    if (existing) {
+      if (name && existing.name !== name) {
+        throw new Error(`Extensie "${extensionId}": customTaskType-id '${id}' heeft al projectsnapshot '${existing.name}'`);
+      }
+      return undefined;
+    }
+    if (!name) {
+      throw new Error(`Extensie "${extensionId}": onbekend customTaskType-id '${id}' vereist ook een naam`);
+    }
+    const sameName = state.customTaskTypes.find(candidate => candidate.name.localeCompare(
+      name, undefined, { sensitivity: 'accent' },
+    ) === 0);
+    if (sameName) {
+      throw new Error(`Extensie "${extensionId}": customTaskType-naam '${name}' bestaat al met id '${sameName.id}'`);
+    }
+    return { id, name };
+  };
+
   const settingsPrefix = `ops-ext:${extensionId}:`;
 
   const api: ExtensionApi = {
@@ -83,13 +110,41 @@ export function createExtensionApi(
     data: {
       getProject: () => toExtProject(document.store.getState().project),
       getCalendar: () => toExtCalendar(document.store.getState().calendar),
-      getTasks: () => document.store.getState().tasks.map(toExtTask),
+      getTasks: () => {
+        const state = document.store.getState();
+        return state.tasks.map(task => toExtTask(task, task.customTaskTypeId
+          ? state.customTaskTypes.find(type => type.id === task.customTaskTypeId)
+          : undefined));
+      },
       getSequences: () => document.store.getState().sequences.map(toExtSequence),
       getResources: () => document.store.getState().resources.map(toExtResource),
       getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
-      addTask: (task) => document.store.getState().addTask(fromExtTaskInput(task)),
-      updateTask: (id, updates) =>
-        document.store.getState().updateTask(id, fromExtTaskUpdates(updates)),
+      addTask: (task) => {
+        const materialize = customTaskTypeToMaterialize(task.customTaskType);
+        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
+        // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
+        return batch.withTransaction(() => {
+          document.store.getState().ensureProjectTaskType(materialize);
+          return document.store.getState().addTask(fromExtTaskInput(task));
+        });
+      },
+      updateTask: (id, updates) => {
+        // Bestaand API-gedrag voor een onbekend taak-id is een stille no-op; materialiseer in dat
+        // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
+        if (!document.store.getState().tasks.some(task => task.id === id)) {
+          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          return;
+        }
+        const materialize = customTaskTypeToMaterialize(updates.customTaskType);
+        if (!materialize) {
+          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          return;
+        }
+        batch.withTransaction(() => {
+          document.store.getState().ensureProjectTaskType(materialize);
+          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+        });
+      },
       addSequence: (seq) => document.store.getState().addSequence(fromExtSequenceInput(seq)),
       loadProject: (result: ExtImportResult) => {
         const store = document.store.getState();

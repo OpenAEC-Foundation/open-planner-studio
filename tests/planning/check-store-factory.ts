@@ -242,6 +242,41 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('18d data.getResources leest document B', api.data.getResources().map(r => r.name), ['Kraan B']);
   eq('18e data.getAssignments leest document B', api.data.getAssignments().length, 1);
 
+  const customUndoVoor = B.getState().undoStack.length;
+  const customId = api.data.addTask({
+    name: 'Engineering B',
+    customTaskType: { id: '  ops-engineering  ', name: '  Engineering  ' },
+  });
+  eq('18f extensie materialiseert getrimde custom id+naam in document B',
+    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering' }]);
+  eq('18g extensie kent de custom classificatie aan de taak toe',
+    B.getState().tasks.find(task => task.id === customId)?.customTaskTypeId, 'ops-engineering');
+  eq('18h extensielezing geeft stabiele id plus projectsnapshotnaam terug',
+    api.data.getTasks().find(task => task.id === customId)?.customTaskType,
+    { id: 'ops-engineering', name: 'Engineering' });
+  eq('18i catalogusmaterialisatie plus taak vormt één undo-stap',
+    B.getState().undoStack.length, customUndoVoor + 1);
+
+  let nameConflict = false;
+  try {
+    api.data.addTask({ name: 'Conflict', customTaskType: { id: 'ops-anders', name: 'engineering' } });
+  } catch { nameConflict = true; }
+  eq('18j dezelfde naam met andere id wordt vóór mutatie geweigerd', nameConflict, true);
+  eq('18k geweigerde extensieclassificatie maakt geen halve taak',
+    B.getState().tasks.some(task => task.name === 'Conflict'), false);
+
+  api.data.updateTask(customId, { taskType: 'CONSTRUCTION' });
+  eq('18l expliciete builtin via extensie wist alleen de taaktoewijzing',
+    B.getState().tasks.find(task => task.id === customId)?.customTaskTypeId, undefined);
+  eq('18m builtin-update behoudt de projectsnapshot',
+    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering' }]);
+  api.data.updateTask(customId, { customTaskType: { id: 'ops-engineering' } });
+  eq('18n bestaand custom id kan zonder herhaalde naam opnieuw worden toegewezen',
+    B.getState().tasks.find(task => task.id === customId)?.customTaskTypeId, 'ops-engineering');
+  api.data.updateTask('bestaat-niet', { customTaskType: { id: 'ops-wees', name: 'Wees' } });
+  eq('18o onbekend update-id materialiseert geen wees in de projectcatalogus',
+    B.getState().customTaskTypes, [{ id: 'ops-engineering', name: 'Engineering' }]);
+
   A.setState({ scheduleStale: true });
   B.setState({ scheduleStale: true });
   const aVoorRecalculate = capturePayload(A.getState());
@@ -250,6 +285,14 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('19a recalculate raakt planning A niet', capturePayload(A.getState()), aVoorRecalculate);
 
   const sdk = getExtensionSdk();
+  const sdkCustomTask = sdk.factory.createTask({
+    name: 'SDK custom',
+    customTaskType: { id: ' ops-sdk ', name: ' SDK type ' },
+  });
+  eq('19b SDK-factory behoudt stabiele custom id plus getrimde snapshotnaam',
+    sdkCustomTask.customTaskType, { id: 'ops-sdk', name: 'SDK type' });
+  eq('19c SDK-factory zet custom classificaties nooit stil op CONSTRUCTION',
+    sdkCustomTask.taskType, 'USERDEFINED');
   const geladenProject = sdk.factory.emptyImportResult({
     project: { ...sdk.factory.createProject(), name: 'Geladen via extensie in B' },
     tasks: [sdk.factory.createTask({ name: 'Geladen taak B' })],
@@ -260,6 +303,20 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('20a loadProject vult alleen document B', B.getState().tasks.map(task => task.name), ['Geladen taak B']);
   eq('20b loadProject rekent document B door', B.getState().scheduleStale, false);
   eq('20c loadProject laat document A byte-inhoudelijk gelijk', capturePayload(A.getState()), aVoorLoad);
+
+  const conflictProject = sdk.factory.emptyImportResult({
+    tasks: [sdk.factory.createTask({
+      name: 'Conflictimport',
+      customTaskType: { id: 'ops-conflict-a', name: 'Dubbel' },
+    })],
+    customTaskTypes: [{ id: 'ops-conflict-b', name: 'dubbel' }],
+  });
+  const bVoorConflictLoad = capturePayload(B.getState());
+  let importConflict = false;
+  try { api.data.loadProject(conflictProject); } catch { importConflict = true; }
+  eq('20d extensie-import weigert dezelfde naam met conflicterende ids', importConflict, true);
+  eq('20e conflicterende extensie-import laat het document byte-inhoudelijk gelijk',
+    capturePayload(B.getState()), bVoorConflictLoad);
 
   api.importers.register({
     id: 'context-importer',

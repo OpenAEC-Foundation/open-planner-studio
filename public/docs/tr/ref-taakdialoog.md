@@ -36,8 +36,7 @@ Görev başına bir kontrol listesi: her satırın bir **tamamlandı onay kutusu
 ## Zaman
 
 - **Başlangıç tarihi** — hesaplanan erken başlangıcı gösterir; manuel bir değişiklik yeni tarihi planlanan başlangıç olarak sabitler.
-- **Süre (iş günü)** — tam iş günü; bir kilometre taşı için devre dışıdır.
-- **Saat planlaması etkinken** ve görevde bir saat takvimi varken, üç senkronize kutu görünür: **Gün**, **Saat** ve **Toplam saat** (yalnızca tam sayılar). Bir saat takvimi olmadan bir ipucu gösterilir: "Saat girişi bir saat takvimi (çalışma saatleri) gerektirir." Bkz. [Takvimler & saat planlaması](docs://gids-kalenders-uren).
+- İletişim kutusu ve özellikler paneli aynı **Süre [değer] [Gün | Saat]** denetimini kullanır. `2d`, `12h` veya `12u` takma adını yazın. Saat için somut çalışma bantları gerekir; bunlar yoksa görev değişmez. Bkz. [Takvimler & saat planlaması](docs://gids-kalenders-uren).
 
 ## Hammock (türetilmiş süre)
 

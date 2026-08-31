@@ -103,6 +103,8 @@
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
+    "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
+    "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
     "durationDisplay": "Visualizzazione della durata",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
@@ -257,6 +259,9 @@
     "openBadge": "{{count}} aperti",
     "switchHint": "⌘1–9 per cambiare",
     "openProject": "Apri progetto",
+    "newOrOpenTitle": "Avvia un progetto",
+    "newProject": "Nuovo progetto",
+    "openExistingProject": "Apri progetto esistente",
     "allProjects": "Tutti i progetti",
     "active": "Attivo",
     "tasksWord": "attività",
@@ -690,7 +695,7 @@
       "none": "(nessuno)"
     },
     "presentation": {
-      "hint": "Premi F11 per uscire dalla modalità presentazione"
+      "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."
     },
     "splitView": {
       "primary": "Principale",
@@ -722,6 +727,8 @@
   "duration": {
     "suffixDay": "g",
     "suffixHour": "h",
+    "days": "Giorni",
+    "hours": "Ore",
     "suffixMinute": "m"
   },
   "shortcuts": {

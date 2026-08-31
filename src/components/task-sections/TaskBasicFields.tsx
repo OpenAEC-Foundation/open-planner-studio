@@ -1,8 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { Task, TaskType } from '@/types/task';
-import { useTaskTypeLabels } from '@/i18n/taskTypes';
+import { Task } from '@/types/task';
 import { Select } from '@/components/common/Select';
+import { TaskTypeField } from './TaskTypeField';
 import { Field, Input } from './shared';
 
 /**
@@ -21,22 +22,35 @@ import { Field, Input } from './shared';
  * select-all-ref op bij het openen) — deze sectie slaat het dan over zodat het niet dubbel
  * verschijnt. Het paneel laat dit weg (toont het naam-veld gewoon hier).
  */
-export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: {
+export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, materializeTaskType = true }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;
   onCalendarChange: (calendarId: string | undefined) => void;
   hideName?: boolean;
+  materializeTaskType?: boolean;
 }) {
   const { t } = useTranslation('task');
-  const { options: taskTypeOptions } = useTaskTypeLabels();
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
   const calendars = useAppStore(s => s.calendars);
+  const projectCalendar = useAppStore(s => s.calendar);
+  const pendingTaskNameFocusId = useAppStore(s => s.ui.pendingTaskNameFocusId);
+  const setUI = useAppStore(s => s.setUI);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (hideName || pendingTaskNameFocusId !== task.id) return;
+    const input = nameInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+    setUI({ pendingTaskNameFocusId: null });
+  }, [hideName, pendingTaskNameFocusId, setUI, task.id]);
 
   return (
     <>
       {!hideName && (
         <Field label={t('properties.name')}>
-          <Input value={task.name} onChange={v => onChange({ name: v })} />
+          <Input ref={nameInputRef} value={task.name} onChange={v => onChange({ name: v })} />
         </Field>
       )}
 
@@ -59,14 +73,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: 
         />
       </Field>
 
-      <Field label={t('properties.type')}>
-        <Select
-          aria-label={t('properties.type')}
-          value={task.taskType}
-          onChange={v => onChange({ taskType: v as TaskType })}
-          options={taskTypeOptions.map(tt => ({ value: tt.value, label: tt.label }))}
-        />
-      </Field>
+      <TaskTypeField task={task} onChange={onChange} materializeProjectType={materializeTaskType} />
 
       <Field label={t('properties.calendar')}>
         <Select
@@ -74,7 +81,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: 
           value={task.calendarId ?? ''}
           onChange={v => onCalendarChange(v || undefined)}
           options={[
-            { value: '', label: t('properties.calendarProject') },
+            { value: '', label: `${t('properties.calendarProject')}: ${projectCalendar.name}` },
             ...calendars.map(c => ({ value: c.id, label: c.name })),
           ]}
         />

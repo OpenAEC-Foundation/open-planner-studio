@@ -26,7 +26,12 @@ export function TaskMilestoneFields({ task, onChange }: {
               onChange({
                 isMilestone: on,
                 ...(on ? {} : { milestoneKind: undefined, mandatory: undefined }),
-                time: { ...task.time, scheduleDuration: on ? 0 : (task.time.scheduleDuration || 5) },
+                time: {
+                  ...task.time,
+                  durationUnit: on ? 'days' : task.time.durationUnit,
+                  scheduleDuration: on ? 0 : (task.time.scheduleDuration || 5),
+                  durationMinutes: on ? undefined : task.time.durationMinutes,
+                },
               });
             }}
             className="accent-accent"

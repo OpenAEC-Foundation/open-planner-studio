@@ -47,7 +47,7 @@ Zobacz 4-dniowy kalendarz zasobu w praktyce: monterzy w [Nieuwbouw 6 Rijwoningen
 
 Domyślnie Open Planner Studio działa całkowicie z granulacją **dniową** — każde zadanie ma czas trwania w pełnych dniach (roboczych). Dla zadań, które wolisz planować co do godziny (pomyśl o betonowaniu, które zaczyna się o 7:00 i musi być gotowe do 14:00, dobrze przed zmianą pogody), istnieje opcjonalne **Planowanie godzinowe**.
 
-Włącz główny przełącznik przez **Ustawienia → Oś czasu / Powiększenie → Włącz planowanie godzinowe**. Dodaje to skalę czasu w godzinach, zmiany z pasmami czasu pracy oraz paski zadań z dokładnością do godziny; przy wyłączonym przełączniku aplikacja działa w pełni tak jak wcześniej, z granulacją dniową. Istnieje też opcja **Zezwól na mieszane planowanie dniowo-godzinowe**, którą włączasz, jeśli chcesz łączyć zadania dniowe i godzinowe w tym samym projekcie (patrz niżej).
+Włącz główny przełącznik przez **Ustawienia → Oś czasu / Powiększenie → Włącz planowanie godzinowe**. Dodaje to skalę godzinową i pasma czasu pracy; przy wyłączonym przełączniku nowe zadania zaczynają się w dniach, a istniejące wartości godzinowe pozostają zachowane.
 
 ## Pasma i zmiany czasu pracy
 
@@ -71,7 +71,7 @@ Dokładnie tak w praktyce planowane są zadania betonowania: zadanie „Vloer st
 
 ## Mieszanie zadań dniowych i godzinowych
 
-Projekt nie musi działać w całości na godzinach, aby skorzystać z planowania godzinowego: przy zaznaczonym **Zezwól na mieszane planowanie dniowo-godzinowe**, zadania dniowe (na zwykłym kalendarzu projektu) i zadania godzinowe (na kalendarzu godzinowym) mogą współistnieć i wiązać się ze sobą w tym samym harmonogramie. W takim przypadku tabela zadań pokazuje czas trwania każdego zadania we własnej jednostce — zadanie dniowe w dniach, zadanie godzinowe w godzinach — i ostrzega na dole tabeli, gdy zadania z różnymi godzinami na dzień działają obok siebie, dzięki czemu pozostaje jasne, które porównania są jabłkami do jabłek, a które nie.
+Projekt nie musi działać w całości na godzinach: po włączeniu planowania godzinowego zadania dniowe i godzinowe mogą współistnieć i być powiązane. Jednostka należy do zadania i nie jest wyprowadzana z kalendarza.
 
 ## Czytaj dalej
 

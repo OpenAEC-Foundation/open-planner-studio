@@ -74,7 +74,7 @@ function keys<T>() {
 
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
-  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'schedulingOptions',
+  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
 ] as const);
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
@@ -83,14 +83,14 @@ const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
 ] as const);
 
 const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
-  'durationType', 'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish',
+  'durationType', 'durationUnit', 'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish',
   'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'freeFloat', 'totalFloat', 'isCritical',
   'interferingFloat', 'isNearCritical', 'floatPath', 'actualStart', 'actualFinish',
   'actualDuration', 'remainingTime', 'remainingMinutes', 'completion', 'resume', 'stop',
 ] as const);
 
 const EXT_TASK_KEYS = keys<ExtTask>()([
-  'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind',
+  'id', 'name', 'description', 'wbsCode', 'taskType', 'customTaskType', 'status', 'isMilestone', 'milestoneKind',
   'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
@@ -134,6 +134,7 @@ const NIET_PUBLIEK = {
 
 const VOL_TIME = {
   durationType: 'WORKTIME',
+  durationUnit: 'hours',
   scheduleDuration: 5,
   durationMinutes: 2400,
   scheduleStart: '2026-06-01',
@@ -163,7 +164,8 @@ const VOL_TASK = {
   name: 'Fundering',
   description: 'beschrijving',
   wbsCode: '1.2',
-  taskType: 'CONSTRUCTION',
+  taskType: 'USERDEFINED',
+  customTaskTypeId: 'ops-ext-type',
   status: 'STARTED',
   isMilestone: false,
   milestoneKind: 'FINISH',
@@ -209,6 +211,7 @@ const VOL_PROJECT = {
   createdAt: '2026-01-01T00:00:00', modifiedAt: '2026-01-02T00:00:00',
   author: 'Auteur', company: 'Bedrijf',
   wbsAutoNumber: true, statusDate: '2026-06-01', progressMode: 'PROGRESS_OVERRIDE',
+  defaultTaskDurationUnit: 'days',
   schedulingOptions: {
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath', threshold: -1 },
@@ -265,6 +268,10 @@ eq('7 toExtAssignment vult elk ExtAssignment-veld', aanwezig(toExtAssignment(VOL
 // `undefined` neerzet zou de check hierboven passeren.
 for (const k of EXT_TASK_KEYS) {
   if (k === 'time') continue; // apart, hieronder
+  if (k === 'customTaskType') {
+    eq('8 toExtTask draagt de stabiele custom-type-id over', toExtTask(VOL_TASK).customTaskType, { id: VOL_TASK.customTaskTypeId });
+    continue;
+  }
   eq(`8 toExtTask draagt "${String(k)}" over`,
     (toExtTask(VOL_TASK) as unknown as Record<string, unknown>)[k as string],
     (VOL_TASK as unknown as Record<string, unknown>)[k as string]);

@@ -38,7 +38,7 @@
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .library-detail-actions button:hover:not(:disabled) { background: var(--theme-hover); border-color: var(--theme-accent); }
-.library-detail-actions button:disabled { opacity: 0.5; cursor: default; }
+.library-detail-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 .library-detail-actions .danger { color: var(--error); }
 .library-detail-actions .danger:hover:not(:disabled) { border-color: var(--error); }
 

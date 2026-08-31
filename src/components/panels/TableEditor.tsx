@@ -11,7 +11,6 @@ import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { DateTextInput, parseFlexibleDate } from '@/components/common/DateTextInput';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationDisplay, detectMixedCalendars, durationSuffixesFrom } from '@/utils/taskDuration';
-import { isHourCalendar } from '@/services/subdayIo';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { AlertTriangle } from 'lucide-react';
 import { useTableRowDrag } from './hooks/useTableRowDrag';
@@ -184,7 +183,7 @@ export function TableEditor() {
   // die dat hier vangt).
   const durationEditSeed = useCallback((task: Task): string => {
     const cal = effectiveCalendarOf(task, projectCal, calendars);
-    if (enableHourPlanning && isHourCalendar(cal) && !task.isMilestone) {
+    if (enableHourPlanning && task.time.durationUnit === 'hours' && !task.isMilestone) {
       const hpd = effHoursPerDay(cal);
       const min = task.time.durationMinutes ?? task.time.scheduleDuration * hpd * 60;
       return formatDuration(min, hpd, 'hours');
@@ -310,7 +309,7 @@ export function TableEditor() {
       // divergeren van wat CPM en de canvas-tabel tonen.
       if (!task.isMilestone) {
         const cal = effectiveCalendarOf(task, projectCal, calendars);
-        if (enableHourPlanning && isHourCalendar(cal)) {
+        if (enableHourPlanning && task.time.durationUnit === 'hours') {
           // Uur-taak (§6.4): accepteert "20u"/"2d 4u"/"90m" via parseDuration (hele eenheden).
           // Een parse-fout (o.a. decimalen) laat de duur onveranderd.
           const hpd = effHoursPerDay(cal);
