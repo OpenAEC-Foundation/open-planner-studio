@@ -729,49 +729,48 @@ console.log('-- leveler-splits: meerdaagse voltooide taak over een feestdagenblo
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Geval 15 (B1c-plan-2 taak 2, L3): memoisatie van `occurrenceFor` is ZUIVER — twee identieke
-// `levelResources`-aanroepen op dezelfde (niet-gemuteerde) invoer moeten byte-identieke resultaten
-// geven. De cache mag nooit tussen taken of tussen startdagen lekken. Bewust een fixture MET een
-// gesplitste taak (zie geval 1) ÉN een taak op een afwijkende (zesdaagse) kalender (zie geval 2):
-// dat zijn de twee gevallen waarin de dagenset per taak verschilt, dus waarin een verkeerde
-// cachesleutel (bv. alleen de datum, zonder taak-id) meteen zichtbaar wordt.
+// Geval 15 (B1c-plan-2 taak 2, L3; scherper gemaakt in de B1c-plan-2-etappe-2-fixronde, bevinding 2):
+// memoisatie van `occurrenceFor` is ZUIVER — de cachesleutel moet op (taak, startdag) sleutelen, niet
+// op alleen de startdag. De oorspronkelijke versie van dit geval vergeleek twee identieke
+// `levelResources`-aanroepen met elkaar: omdat `occCache` per aanroep vers wordt aangemaakt
+// (`ResourceLeveler.ts`), gaf een FOUTE sleutel in BEIDE runs hetzelfde (foute) antwoord — de test kon
+// dus per constructie nooit falen. Deze fixture pint in plaats daarvan de LETTERLIJKE, juiste uitkomst
+// van één run, op een scenario dat een datum-only-sleutel aantoonbaar anders laat uitpakken (geverifieerd
+// door de sleutel lokaal terug te zetten naar `${formatDate(startDate)}`: X15/Y15/Z15 hieronder gaf dan
+// `delays: {}` in plaats van `z15: 2`).
+//
+// X (dur 1, prio 900, eigen resource rx) plaatst als eerste op 06-01 — haar occurrence (1 dag) komt in
+// de cache. Y (dur 3, prio 500, eigen resource ry, GEEN conflict met X) start ook op 06-01: met een
+// datum-only-sleutel leest Y's `occurrenceFor(y15, 06-01)` ten onrechte X's 1-dagse occurrence terug in
+// plaats van haar eigen 3-daagse, dus Y's conflict-/boekingslus (`i < occ.length`) stopt na dag 1 — Y
+// boekt dan nooit 06-02/06-03 op ry. Z (dur 1, prio 100, óók op ry, 06-02) botst met Y's ECHTE dag 2 en
+// hoort dus te wijken — met de kapotte cache ziet Z geen conflict en blijft gewoon staan.
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- leveler-splits: memoisatie van occurrenceFor is zuiver (geval 15, L3) --');
+console.log('-- leveler-splits: memoisatie van occurrenceFor sleutelt op (taak, startdag) (geval 15, L3) --');
 {
-  // Gesplitste taak A + concurrent B op A's gat (projectkalender) — spiegelt geval 1.
-  const taskA = task('a15', '2026-06-01', '2026-06-05', 3, {
-    priority: 600,
-    splitGaps: [
-      { afterMinutes: 480, gapMinutes: 480 },
-      { afterMinutes: 1440, gapMinutes: 480 },
-    ],
-  });
-  const taskB = task('b15', '2026-06-02', '2026-06-02', 1, { priority: 500 });
+  const taskX = task('x15', '2026-06-01', '2026-06-01', 1, { priority: 900 });
+  const taskY = task('y15', '2026-06-01', '2026-06-03', 3, { priority: 500 });
+  const taskZ = task('z15', '2026-06-02', '2026-06-02', 1, { priority: 100 });
 
-  // Taak op een afwijkende (zesdaagse) kalender + concurrent op de projectkalender — spiegelt geval 2.
-  const taskD = task('d15', '2026-06-05', '2026-06-05', 1, { priority: 900 });
-  const taskC = task('c15', '2026-06-05', '2026-06-05', 1, { priority: 100, calendarId: 'cal-six-day-leveler' });
-
-  const resourceR1 = res('r1-15', 1);
-  const resourceR2 = res('r2-15', 1, { calendarId: 'cal-six-day-leveler' });
+  const resourceRX = res('rx-15', 1);
+  const resourceRY = res('ry-15', 1);
   const assignments = [
-    assign('a15-r1', 'a15', 'r1-15', 1),
-    assign('b15-r1', 'b15', 'r1-15', 1),
-    assign('d15-r2', 'd15', 'r2-15', 1),
-    assign('c15-r2', 'c15', 'r2-15', 1),
+    assign('x15-r', 'x15', 'rx-15', 1),
+    assign('y15-r', 'y15', 'ry-15', 1),
+    assign('z15-r', 'z15', 'ry-15', 1),
   ];
-  const cpmResult = stubCpmResult('2026-06-05');
-  const tasksList: Task[] = [taskA, taskB, taskD, taskC];
-  const resourcesList: Resource[] = [resourceR1, resourceR2];
-  const run1 = levelResources(
-    tasksList, [], resourcesList, assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
-  );
-  const run2 = levelResources(
-    tasksList, [], resourcesList, assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+  const cpmResult = stubCpmResult('2026-06-03');
+  const tasksList: Task[] = [taskX, taskY, taskZ];
+  const resourcesList: Resource[] = [resourceRX, resourceRY];
+  const run = levelResources(
+    tasksList, [], resourcesList, assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
   );
 
-  eq('memo-zuiverheid: twee identieke runs, identiek resultaat',
-    JSON.stringify(run1), JSON.stringify(run2));
+  eq('memo-zuiverheid: Z wijkt 2 dagen om Y se ECHTE (3-daagse) bezetting van ry heen',
+    run.delays, { z15: 2 });
+  eq('memo-zuiverheid: Z se nieuwe start is 06-04, ná Y se volledige occurrence',
+    run.shifts['z15']?.newStart, '2026-06-04');
+  eq('memo-zuiverheid: geen onopgeloste conflicten', run.unresolved, {});
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
