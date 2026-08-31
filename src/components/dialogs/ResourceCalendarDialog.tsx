@@ -54,9 +54,9 @@ export function ResourceCalendarDialog({
   const [draft, setDraft] = useState<WorkCalendar>(() =>
     existing ? structuredClone(existing) : { ...createDefaultCalendar(), id: generateId('rescal'), name: '' },
   );
-  const [simpleBreakStartTextInvalid, setSimpleBreakStartTextInvalid] = useState(false);
+  const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
-  const simpleBreakInvalid = simpleBreakStartTextInvalid || scalarBreakIssue(
+  const simpleBreakInvalid = scalarTimeTextInvalid || scalarBreakIssue(
     draft.workStartHour * 60,
     draft.workEndHour * 60,
     draft.simpleBreakStartMinute,
@@ -102,7 +102,7 @@ export function ResourceCalendarDialog({
         <CalendarForm
           draft={draft}
           onChange={patch => setDraft(d => ({ ...d, ...patch }))}
-          onSimpleBreakStartValidityChange={setSimpleBreakStartTextInvalid}
+          onScalarTimeValidityChange={setScalarTimeTextInvalid}
           projectYearSpan={projectYearSpan}
         />
 

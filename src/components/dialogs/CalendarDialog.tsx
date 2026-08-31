@@ -35,7 +35,7 @@ export function CalendarDialog() {
   const [localCalendars, setLocalCalendars] = useState<WorkCalendar[]>([]);
   const [localProjectId, setLocalProjectId] = useState<string>(project.calendarId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [simpleBreakStartTextInvalid, setSimpleBreakStartTextInvalid] = useState(false);
+  const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
   // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente §4.3-
   // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
@@ -51,7 +51,7 @@ export function CalendarDialog() {
   }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
-  const simpleBreakInvalid = simpleBreakStartTextInvalid || localCalendars.some((calendar) => scalarBreakIssue(
+  const simpleBreakInvalid = scalarTimeTextInvalid || localCalendars.some((calendar) => scalarBreakIssue(
     calendar.workStartHour * 60,
     calendar.workEndHour * 60,
     calendar.simpleBreakStartMinute,
@@ -226,7 +226,7 @@ export function CalendarDialog() {
                   key={selected.id}
                   draft={selected}
                   onChange={patchSelected}
-                  onSimpleBreakStartValidityChange={setSimpleBreakStartTextInvalid}
+                  onScalarTimeValidityChange={setScalarTimeTextInvalid}
                   projectYearSpan={projectYearSpan}
                 />
               </>

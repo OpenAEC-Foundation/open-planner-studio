@@ -613,6 +613,11 @@
     },
     "simpleBreak": {
       "invalidStart": "Saisissez une heure de pause valide au format HH:MM.",
+      "invalidWorkStart": "Saisissez une heure de début valide au format HH:MM.",
+      "invalidWorkEnd": "Saisissez une heure de fin valide au format HH:MM.",
+      "invalidWorkTimeOrder": "L’heure de début doit précéder l’heure de fin.",
+      "increaseTime": "Augmenter l’heure de 15 minutes",
+      "decreaseTime": "Réduire l’heure de 15 minutes",
       "start": "Début de la pause", "duration": "Durée de la pause (minutes)", "hint": "Les plages de travail sont déduites automatiquement. Une durée de 0 supprime la pause.",
       "errors": { "invalidDuration": "La durée doit être un nombre entier de minutes supérieur ou égal à 0.", "outsideWorkingDay": "La pause doit être entièrement comprise dans la journée de travail.", "consumesWorkingDay": "La pause ne peut pas couvrir toute la journée de travail." }
     },

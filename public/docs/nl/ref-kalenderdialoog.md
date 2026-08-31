@@ -24,12 +24,13 @@ Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkko
 
 - **Naam** — vrije naam.
 - **Werkdagen** — knoppen **Ma** t/m **Zo**; aan = werkdag. Presets: **Ma–vr** (standaardweek, 07–16 u, 8 u/dag) en **Continu (24/7)**.
-- **Begin (uur)** / **Einde (uur)** / **Uren per dag** — de dag-brede werktijd. Verborgen zodra de kalender werktijd-banden heeft én Urenplanning aan staat; dan sturen de banden de tijden.
-- **Pauze begint** / **Pauzeduur (minuten)** — het eenvoudige patroon voor een scalaire kalender. De begintijd is standaard 12:00; de duur bepaalt de afgeleide netto uren en werkbanden. Duur 0 betekent geen pauze. De dialoog weigert een pauze buiten de werkdag of een pauze die de hele dag inneemt.
+- **Begin** / **Einde** — de dag-brede werktijd in 24-uurs `HH:MM`, met kwartierstappen via pijltjes en Arrow Up/Down. Begin is standaard 07:00, Einde 16:00; Einde kan 24:00 zijn. Een complete geldige waarde wordt bij Enter of het verlaten van het veld vastgelegd, zodat onvolledige tekst de kalender nooit verandert. Deze velden zijn verborgen zodra handmatig ingevoerde werktijdbanden leidend zijn.
+- **Netto-uren per dag** — altijd een niet-bewerkbare waarde met twee decimalen en `h`, afgeleid uit Begin, Einde, Pauze begint en Pauzeduur. Ook met Urenplanning uit wordt dit nooit een invoerveld.
+- **Pauze begint** / **Pauzeduur (minuten)** — het eenvoudige patroon voor een scalaire kalender. Pauze begint gebruikt hetzelfde 24-uurs `HH:MM`-veld met kwartierstappen en is standaard 12:00. De duur bepaalt de afgeleide netto uren en werkbanden. Duur 0 betekent geen pauze. De dialoog weigert ongeldige tekst, een omgekeerde werkdag, een pauze buiten de werkdag en een pauze die de hele dag inneemt.
 
 ## Werktijden (alleen met Urenplanning ingeschakeld)
 
-- **Afgeleide uren/dag** — controlegetal, afgeleid uit de banden.
+- **Netto-uren per dag** — dezelfde niet-bewerkbare waarde met twee decimalen en `h`, afgeleid uit de leidende banden.
 - Presets: **Dagdienst**, **2 ploegen**, **3 ploegen**, **Nachtploeg**, **24/7** — elk zet de werktijd-banden in één keer.
 - **Bewaar als preset…** — sla de huidige werktijden op als eigen preset (op dit apparaat); eigen presets verschijnen als knoppen met een verwijder-kruisje.
 - **Per weekdag instellen…** / **Werktijden tonen/verbergen** — opent of in-/uitklapt de banden-editor.
