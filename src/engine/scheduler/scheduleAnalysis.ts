@@ -7,7 +7,7 @@ import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
-import { explainP6CompletedDataDateWindow, usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
 import { explainDisplayActualLateEligibility } from './p6CompletedRouteTrace';
 
 /**
@@ -240,8 +240,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
     const completed = !!dataDate && tt.completion >= 1;
-    const completedDisplayWindow = completed
-      && usesP6CompletedDataDateWindow(taskObj, so)
+    const completedWindowDecision = explainP6CompletedDataDateWindow(taskObj, dataDate, so);
+    const completedDisplayWindow = completedWindowDecision.eligible
       ? (() => {
         const progressCal = progressCalendarFor(taskObj);
         const es = snapOnOrAfter(progressCal, dataDate!);
@@ -381,7 +381,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         lateStartSource: 'subDuration' as const,
         freeFloatSource: 'derivedFromSuccessor' as const,
         displayActualLate: false,
-        completedWindow: explainP6CompletedDataDateWindow(taskObj, so),
+        completedWindow: completedWindowDecision,
         backwardActualPin: { eligible: false, reason: 'missingDataDate' } as const,
         displayActualLateDecision: { eligible: false, reason: 'missingDataDate' } as const,
       };

@@ -1719,17 +1719,18 @@ async function productBaseline(
   const activeTask = active.tasks.find(task => task.wbsCode === 'A100');
   const milestoneTask = milestone.tasks.find(task => task.wbsCode === 'A100');
   if (!activeTask || !milestoneTask) throw new Error('X12 negatieve predicatefixtures missen A100');
+  const completedGuardDataDate = new Date(0);
   eq('X12 completed bronpredicate blijft fail-closed voor alle uitgesloten bronvormen', {
     noPresence: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6ExplicitTargetWindow: undefined }, one.project.schedulingOptions),
-    active: usesP6CompletedDataDateWindow(activeTask, active.project.schedulingOptions),
-    milestone: usesP6CompletedDataDateWindow(milestoneTask, milestone.project.schedulingOptions),
+      { ...oneTask, p6ExplicitTargetWindow: undefined }, completedGuardDataDate, one.project.schedulingOptions),
+    active: usesP6CompletedDataDateWindow(activeTask, completedGuardDataDate, active.project.schedulingOptions),
+    milestone: usesP6CompletedDataDateWindow(milestoneTask, completedGuardDataDate, milestone.project.schedulingOptions),
     loe: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, one.project.schedulingOptions),
+      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, completedGuardDataDate, one.project.schedulingOptions),
     suspendResume: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6SuspendResume: true }, one.project.schedulingOptions),
-    summary: usesP6CompletedDataDateWindow(summaryCandidate, one.project.schedulingOptions),
-    generic: usesP6CompletedDataDateWindow(oneTask, undefined),
+      { ...oneTask, p6SuspendResume: true }, completedGuardDataDate, one.project.schedulingOptions),
+    summary: usesP6CompletedDataDateWindow(summaryCandidate, completedGuardDataDate, one.project.schedulingOptions),
+    generic: usesP6CompletedDataDateWindow(oneTask, completedGuardDataDate, undefined),
   }, {
     noPresence: false, active: false, milestone: false, loe: false,
     suspendResume: false, summary: false, generic: false,

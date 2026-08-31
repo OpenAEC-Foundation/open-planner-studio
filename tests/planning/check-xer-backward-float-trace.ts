@@ -150,9 +150,9 @@ function completedGuardFixtureBytes(): Uint8Array {
   ].join('\n'));
 }
 
-function solveCompletedGuardTrace(
+function solveCompletedGuardFixture(
   mutate?: (imported: ImportResult) => void,
-): CompletedGuardTraceProjection {
+) {
   const imported = structuredClone(importFixture(completedGuardFixtureBytes()));
   mutate?.(imported);
   const result = solveProject({
@@ -167,6 +167,13 @@ function solveCompletedGuardTrace(
     projectEndDate: imported.project.endDate,
   });
   if (result.error) throw new Error(result.error);
+  return result;
+}
+
+function solveCompletedGuardTrace(
+  mutate?: (imported: ImportResult) => void,
+): CompletedGuardTraceProjection {
+  const result = solveCompletedGuardFixture(mutate);
   const trace = result.backwardFloatTrace?.byTaskId.C as
     | (CpmTaskBackwardFloatTrace & {
       completedWindow?: GuardDecisionProjection;
@@ -335,7 +342,7 @@ const completedGuardVariants: Array<{
     },
     expected: {
       displayActualLate: false,
-      completedWindow: { eligible: true, reason: 'eligible' },
+      completedWindow: { eligible: false, reason: 'missingDataDate' },
       backwardActualPin: { eligible: false, reason: 'missingDataDate' },
       displayActualLateDecision: { eligible: false, reason: 'missingDataDate' },
     },
@@ -397,7 +404,28 @@ for (const variant of variants) {
 }
 
 for (const variant of completedGuardVariants) {
+  if (variant.id === 'data-date-afwezig') continue;
   eq(`completed-guard-trace ${variant.id}: drie routes verklaren actief/inactief`, solveCompletedGuardTrace(variant.mutate), variant.expected);
+}
+
+{
+  const variant = completedGuardVariants.find(candidate => candidate.id === 'data-date-afwezig');
+  if (!variant) throw new Error('statusdatumloze completed-guard-variant ontbreekt');
+  let got: unknown;
+  try {
+    const result = solveCompletedGuardFixture(variant.mutate);
+    got = {
+      ...solveCompletedGuardTrace(variant.mutate),
+      projectEndSourceIsCompletedDisplayWindow:
+        result.backwardFloatTrace?.projectEndSource === 'completedDisplayWindow',
+    };
+  } catch (error) {
+    got = { runtimeError: error instanceof Error ? error.name : 'onbekend' };
+  }
+  eq('completed-guard-trace data-date-afwezig: decision faalt gesloten en runtime gebruikt geen completedDisplayWindow', got, {
+    ...variant.expected,
+    projectEndSourceIsCompletedDisplayWindow: false,
+  });
 }
 
 {

@@ -5,6 +5,7 @@ import { isLeafTask } from '@/utils/taskHierarchy';
 
 export type P6CompletedWindowReason =
   | 'eligible'
+  | 'missingDataDate'
   | 'notXerSource'
   | 'remainingStartOff'
   | 'notLeafTask'
@@ -39,8 +40,10 @@ export interface P6CompletedWindowDecision {
  */
 export function explainP6CompletedDataDateWindow(
   task: Task,
+  dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
+  if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
   if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
   if (schedulingOptions.p6UseRemainingStartForProgress !== true) {
     return { eligible: false, reason: 'remainingStartOff' };
@@ -68,7 +71,8 @@ export function explainP6CompletedDataDateWindow(
 
 export function usesP6CompletedDataDateWindow(
   task: Task,
+  dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): boolean {
-  return explainP6CompletedDataDateWindow(task, schedulingOptions).eligible;
+  return explainP6CompletedDataDateWindow(task, dataDate, schedulingOptions).eligible;
 }

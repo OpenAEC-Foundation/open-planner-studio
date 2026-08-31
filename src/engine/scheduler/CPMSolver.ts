@@ -16,7 +16,6 @@ import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   explainP6CompletedDataDateWindow,
   type P6CompletedWindowDecision,
-  usesP6CompletedDataDateWindow as isP6CompletedDataDateCandidate,
 } from '@/utils/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
@@ -435,8 +434,8 @@ export class CPMSolver {
     return this.options.schedulingOptions?.p6Source === 'XER' && value === true;
   }
 
-  private usesP6CompletedDataDateWindow(task: Task): boolean {
-    return this.dataDate !== null && isP6CompletedDataDateCandidate(task, this.options.schedulingOptions);
+  private p6CompletedDataDateWindowDecision(task: Task): P6CompletedWindowDecision {
+    return explainP6CompletedDataDateWindow(task, this.dataDate, this.options.schedulingOptions);
   }
 
   private recordBackwardFloatTrace(
@@ -2923,7 +2922,8 @@ export class CPMSolver {
       const early = earlyDates.get(taskId);
       const task = this.tasks.get(taskId);
       if (!early || !task) continue;
-      const usesCompletedDisplayWindow = this.usesP6CompletedDataDateWindow(task);
+      const completedWindow = this.p6CompletedDataDateWindowDecision(task);
+      const usesCompletedDisplayWindow = completedWindow.eligible;
       let candidateEf = early.ef;
       if (usesCompletedDisplayWindow) {
         const progressCal = this.progressCalendarFor(task);
@@ -2954,7 +2954,7 @@ export class CPMSolver {
     for (const taskId of reversed) {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
-      const completedWindow = explainP6CompletedDataDateWindow(task, this.options.schedulingOptions);
+      const completedWindow = this.p6CompletedDataDateWindowDecision(task);
       const backwardActualPin = explainBackwardActualPinEligibility(
         task,
         this.dataDate,
