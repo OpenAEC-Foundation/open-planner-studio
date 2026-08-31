@@ -28,6 +28,13 @@ import { runReadTool, toolError } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef, McpToolResult, McpErrorCode, McpToolAnnotations } from '../contracts';
 import type { Task } from '@/types/task';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+
+function nativeDuration(task: Task): number {
+  return taskDurationUnit(task) === 'hours'
+    ? (task.time.durationMinutes ?? 0) / 60
+    : task.time.scheduleDuration;
+}
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
@@ -316,7 +323,8 @@ function getProjectOverview(s: AppState) {
       id: t.id,
       wbs: t.wbsCode,
       name: t.name,
-      dur: t.time.scheduleDuration,
+      dur: nativeDuration(t),
+      durUnit: taskDurationUnit(t),
       start: t.time.earlyStart,
       end: t.time.earlyFinish,
     };
@@ -390,7 +398,8 @@ function listTasks(s: AppState, args: ListTasksArgs) {
       id: t.id,
       wbs: t.wbsCode,
       name: t.name,
-      dur: t.time.scheduleDuration,
+      dur: nativeDuration(t),
+      durUnit: taskDurationUnit(t),
       start: t.time.earlyStart,
       end: t.time.earlyFinish,
       status: t.status,
@@ -487,7 +496,8 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
     parentId: task.parentId,
     childIds: task.childIds,
-    duration: tt.scheduleDuration,
+    duration: nativeDuration(task),
+    durationUnit: taskDurationUnit(task),
     durationType: tt.durationType,
     schedule: {
       earlyStart: tt.earlyStart,

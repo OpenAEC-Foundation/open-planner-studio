@@ -30,7 +30,7 @@ export interface DurationSuffixes {
 }
 
 /** Default-suffixen (NL, tevens de PARSEBARE vorm) — invoer blijft taalonafhankelijk d/u/h/m (§6.4). */
-export const DEFAULT_DURATION_SUFFIXES: DurationSuffixes = { day: 'd', hour: 'u', minute: 'm' };
+export const DEFAULT_DURATION_SUFFIXES: DurationSuffixes = { day: 'd', hour: 'h', minute: 'm' };
 
 /**
  * Parse een duur-invoer naar integer MINUTEN, of `null` bij een parse-fout.

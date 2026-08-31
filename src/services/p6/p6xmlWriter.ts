@@ -2,9 +2,14 @@ import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar } from '@/types/calendar';
-import { effectiveCalendarByTask, isHourCalendar, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
+import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
+
+/** OPS-eigen, schema-native P6-UDF waarmee gemengde dag-/urentaken exact terugkomen. */
+export const OPS_P6_DURATION_UNIT_UDF_TITLE = 'OPS_TaskDurationUnit';
+export const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
 
 // Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
 // benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
@@ -122,16 +127,19 @@ export const P6_DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
  *  werkdagen (`cal.workDays`) krijgen een `<WorkTime>`-blok, niet-werkdagen blijven leeg (P6 leest
  *  afwezigheid van `WorkTime` als niet-werkend). Altijd geschreven (geen golden-rule-gate: er
  *  zijn geen bestaande P6-golden-bestanden om te breken, en dit was tot nu toe een gat, §8.4). */
-function writeStandardWorkWeek(lines: string[], indent: (level: number) => string, cal: WorkCalendar): void {
+function writeStandardWorkWeek(
+  lines: string[], indent: (level: number) => string, cal: WorkCalendar, includeEffectiveScalarBands = false,
+): void {
+  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
   lines.push(`${indent(2)}<StandardWorkWeek>`);
   for (let day = 1; day <= 7; day++) {
     lines.push(`${indent(3)}<StandardWorkHour>`);
     lines.push(`${indent(4)}<DayOfWeek>${P6_DAY_NAMES[day]}</DayOfWeek>`);
-    if (cal.workTime) {
+    if (workTime) {
       // Fase 2.8b (§7.2): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkTime>-blokken
       // (pauze/split-shift/nachtploeg). Een wrap-band (`end > 1440`) emitteert het eind als
       // tijd-van-de-dag (`end % 1440`, via `minutesToClock`), waaruit de reader de wrap herkent.
-      for (const b of cal.workTime.byWeekday[day as 1] ?? []) {
+      for (const b of workTime.byWeekday[day as 1] ?? []) {
         lines.push(`${indent(4)}<WorkTime>`);
         lines.push(`${indent(5)}<Start>${minutesToClock(b.start)}</Start>`);
         lines.push(`${indent(5)}<Finish>${minutesToClock(b.end)}</Finish>`);
@@ -169,7 +177,7 @@ function writeHolidayOrExceptions(lines: string[], indent: (level: number) => st
     lines.push(`${indent(3)}<HolidayOrException>`);
     lines.push(`${indent(4)}<Name>${escapeXML(h.name)}</Name>`);
     lines.push(`${indent(4)}<Date>${formatP6DateTime(h.startDate)}</Date>`);
-    lines.push(`${indent(4)}<FinishDate>${formatP6DateTime(h.endDate)}</FinishDate>`);
+    lines.push(`${indent(4)}<FinishDate>${formatP6DateTime(holidayEndDate(h))}</FinishDate>`);
     lines.push(`${indent(3)}</HolidayOrException>`);
   }
   lines.push(`${indent(2)}</HolidayOrExceptions>`);
@@ -288,6 +296,10 @@ export function writeP6XML(
 
   // Fase 2.8b (§7.2): effectieve kalender per taak → uur- vs dag-modus.
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = task.time.durationUnit === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
 
   // WBS elements (parent tasks)
   const wbsTasks = tasks.filter(t => t.childIds.length > 0);
@@ -313,6 +325,17 @@ export function writeP6XML(
   }
   lines.push(`${indent(1)}</Project>`);
 
+  // P6 heeft geen native dag/uur-vlag per activity: PlannedDuration zelf staat altijd in uren.
+  // Een Text-UDF is wel een officiële uitbreidingsroute. De reader vertrouwt deze waarden alleen
+  // wanneer ook deze exacte definitie aanwezig is; vreemde/legacy P6 houdt zo de oude
+  // kalenderprecisie-classificatie.
+  lines.push(`${indent(1)}<UDFType>`);
+  lines.push(`${indent(2)}<ObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</ObjectId>`);
+  lines.push(`${indent(2)}<SubjectArea>Activity</SubjectArea>`);
+  lines.push(`${indent(2)}<Title>${OPS_P6_DURATION_UNIT_UDF_TITLE}</Title>`);
+  lines.push(`${indent(2)}<DataType>Text</DataType>`);
+  lines.push(`${indent(1)}</UDFType>`);
+
   // Calendar
   lines.push(`${indent(1)}<Calendar>`);
   lines.push(`${indent(2)}<ObjectId>1</ObjectId>`);
@@ -321,7 +344,7 @@ export function writeP6XML(
   lines.push(`${indent(2)}<HoursPerDay>${calendar.hoursPerDay}</HoursPerDay>`);
   lines.push(`${indent(2)}<HoursPerWeek>${calendar.hoursPerDay * calendar.workDays.length}</HoursPerWeek>`);
   lines.push(`${indent(2)}<HoursPerMonth>${calendar.hoursPerDay * 20}</HoursPerMonth>`);
-  writeStandardWorkWeek(lines, indent, calendar);
+  writeStandardWorkWeek(lines, indent, calendar, hourTaskCalendarIds.has(calendar.id));
   writeHolidayOrExceptions(lines, indent, calendar);
   lines.push(`${indent(1)}</Calendar>`);
 
@@ -337,7 +360,7 @@ export function writeP6XML(
     lines.push(`${indent(2)}<HoursPerDay>${cal.hoursPerDay}</HoursPerDay>`);
     lines.push(`${indent(2)}<HoursPerWeek>${cal.hoursPerDay * cal.workDays.length}</HoursPerWeek>`);
     lines.push(`${indent(2)}<HoursPerMonth>${cal.hoursPerDay * 20}</HoursPerMonth>`);
-    writeStandardWorkWeek(lines, indent, cal);
+    writeStandardWorkWeek(lines, indent, cal, hourTaskCalendarIds.has(cal.id));
     writeHolidayOrExceptions(lines, indent, cal);
     lines.push(`${indent(1)}</Calendar>`);
   }
@@ -421,9 +444,9 @@ export function writeP6XML(
     // Fase 2.8b (§7.2): uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen
     // dag-afronding); dag-taak ⇒ het bestaande `dagen × hpd`-pad (byte-identiek).
     const effCal = effCalByTask.get(task.id);
-    const isHour = isHourCalendar(effCal);
+    const isHour = task.time.durationUnit === 'hours';
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
-    const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, calendar.hoursPerDay);
+    const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, effHpd);
     lines.push(`${indent(2)}<PlannedDuration>${plannedDur}</PlannedDuration>`);
     lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(task.time.earlyStart || task.time.scheduleStart)}</PlannedStartDate>`);
     lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
@@ -470,6 +493,16 @@ export function writeP6XML(
     const taskCalObjId = (task.calendarId && calObjMap.get(task.calendarId)) || 1;
     lines.push(`${indent(2)}<CalendarObjectId>${taskCalObjId}</CalendarObjectId>`);
     lines.push(`${indent(1)}</Activity>`);
+  }
+
+  for (const task of leafTasks) {
+    const foreignObjectId = taskObjMap.get(task.id)!;
+    lines.push(`${indent(1)}<UDFValue>`);
+    lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
+    lines.push(`${indent(2)}<ForeignObjectId>${foreignObjectId}</ForeignObjectId>`);
+    lines.push(`${indent(2)}<UDFTypeObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</UDFTypeObjectId>`);
+    lines.push(`${indent(2)}<Text>${task.time.durationUnit}</Text>`);
+    lines.push(`${indent(1)}</UDFValue>`);
   }
 
   // Relationships (sequences). P6 kent geen procent-lag en geen lag-eenheid per relatie

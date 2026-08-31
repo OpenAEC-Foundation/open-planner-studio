@@ -30,6 +30,21 @@
     "MAINTENANCE": "保守",
     "USERDEFINED": "その他"
   },
+  "duration": {
+    "label": "期間",
+    "unit": "期間の単位",
+    "days": "日",
+    "hours": "時間",
+    "invalid": "2d や 12h のように、日数または時間数を整数で入力してください。",
+    "enableHourPlanningFirst": "この時間タスクを編集するには時間計画を有効にしてください。",
+    "enableHourPlanning": "時間計画を有効にする",
+    "requiresWorkBlocks": "このカレンダーには有効な稼働時間がありません。稼働日と稼働時間を確認してください。",
+    "conversionNotExact": "この期間は現在のカレンダーで整数の日数へ正確に変換できません。既存の単位を保ちます。新しい有効な値を入力してください。",
+    "conversionProposal": "正確な変換候補：{{value}}。適用するか、現在の単位を保ってください。",
+    "applyProposal": "候補を適用",
+    "keepCurrent": "保持",
+    "unitInfo": "選択した単位はこのタスクに属します。日は稼働日を数え、時間はカレンダー内の作業時間を数えます。別のカレンダーにしても単位や入力した期間は変わりませんが、終了日は変わる場合があります。"
+  },
   "dialog": {
     "editTitle": "タスクの編集",
     "newTitle": "新しいタスク",

@@ -97,6 +97,8 @@
     "enableHourPlanning": "時間計画を有効にする",
     "enableHourPlanningHint": "時間・分単位のスケジューリングを有効にします：時間の時間軸、稼働時間帯を持つシフト、時間単位で正確なタスクバー。オフの場合 ⇒ アプリは従来どおり完全に日単位のままです。",
     "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
+    "defaultTaskDurationUnit": "新しいタスクの既定単位",
+    "defaultTaskDurationUnitHint": "新しいタスクを稼働日または作業時間のどちらで開始するかを決めます。既存のタスクは変わりません。",
     "durationDisplay": "期間の表示",
     "durationDisplayAuto": "自動（タスクごとの単位）",
     "durationDisplayDays": "常に日",
@@ -251,6 +253,9 @@
     "openBadge": "{{count}} 件開いています",
     "switchHint": "⌘1–9 で切り替え",
     "openProject": "プロジェクトを開く",
+    "newOrOpenTitle": "プロジェクトを開始",
+    "newProject": "新しいプロジェクト",
+    "openExistingProject": "既存のプロジェクトを開く",
     "allProjects": "すべてのプロジェクト",
     "active": "アクティブ",
     "tasksWord": "タスク",
@@ -590,6 +595,18 @@
       "night": "夜勤",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "有効な休憩開始時刻を HH:MM で入力してください。",
+      "invalidWorkStart": "有効な開始時刻を HH:MM 形式で入力してください。",
+      "invalidWorkEnd": "有効な終了時刻を HH:MM 形式で入力してください。",
+      "invalidWorkTimeOrder": "開始時刻は終了時刻より前である必要があります。",
+      "increaseTime": "時刻を15分進める",
+      "decreaseTime": "時刻を15分戻す",
+      "increaseBreakDuration": "休憩時間を15分増やす",
+      "decreaseBreakDuration": "休憩時間を15分減らす",
+      "start": "休憩開始", "duration": "休憩時間（分）", "hint": "勤務時間帯は自動的に導出されます。0 分は連続勤務日です。",
+      "errors": { "invalidDuration": "休憩時間は 0 以上の整数分でなければなりません。", "outsideWorkingDay": "休憩は設定した勤務日の範囲内でなければなりません。", "consumesWorkingDay": "休憩が勤務日全体を占めることはできません。" }
+    },
     "worktime": {
       "section": "稼働時間",
       "derivedHpd": "算出された時間/日：",
@@ -674,7 +691,7 @@
       "none": "(なし)"
     },
     "presentation": {
-      "hint": "F11キーを押すとプレゼンテーションモードを終了します"
+      "hint": "Esc または F11 を押して全画面表示を終了します。"
     },
     "splitView": {
       "primary": "プライマリ",
@@ -703,7 +720,9 @@
   },
   "duration": {
     "suffixDay": "日",
-    "suffixHour": "時",
+    "suffixHour": "h",
+    "days": "日",
+    "hours": "時間",
     "suffixMinute": "分"
   },
   "shortcuts": {

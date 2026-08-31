@@ -39,7 +39,7 @@ mas as próprias definições e o que fazem são idênticas de qualquer forma; e
 
 ## Separador Linha de tempo / Zoom
 
-- **Planeamento por horas** — **Ativar planeamento por horas** ativa o agendamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desligado ⇒ a aplicação permanece totalmente granular por dias. Com o interruptor ligado, aparece **Permitir planeamento misto de dias/horas** (tarefas de dias e de horas num só projeto). Se abrir um ficheiro que contém planeamento por horas enquanto o interruptor está desligado, uma barra no topo oferece **Ativar planeamento por horas**. Veja [Calendários & planeamento por horas](docs://gids-kalenders-uren).
+- **Planeamento por horas** — **Ativar planeamento por horas** ativa a escala horária e as faixas de trabalho. Desligado, as novas tarefas começam em dias e as tarefas horárias existentes mantêm o valor exato. Ligado, tarefas de dias e horas podem coexistir. Veja [Calendários & planeamento por horas](docs://gids-kalenders-uren).
 - **Exibição da duração** — **Automática (unidade própria por tarefa)**, **Sempre dias** ou **Sempre horas**.
 - **Barras de tarefa nas interrupções** — **Nunca dividir**, **Dividir ao selecionar** ou **Dividir sempre**: se uma barra se divide visualmente à volta de dias não úteis.
 - **Eixo temporal** — **Mostrar apenas dias úteis** comprime a linha do tempo: os fins de semana e feriados do calendário do projeto são ignorados, para que uma tarefa de 5 dias úteis tenha exatamente 5 colunas de largura, seja como for o calendário entre eles.

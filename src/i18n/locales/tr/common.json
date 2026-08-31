@@ -100,6 +100,8 @@
     "enableHourPlanning": "Saat planlamasını etkinleştir",
     "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
+    "defaultTaskDurationUnit": "Yeni görevler için varsayılan birim",
+    "defaultTaskDurationUnitHint": "Yeni görevlerin iş günüyle mi çalışma saatiyle mi başlayacağını belirler. Mevcut görevler değişmez.",
     "durationDisplay": "Süre gösterimi",
     "durationDisplayAuto": "Otomatik (göreve özgü birim)",
     "durationDisplayDays": "Her zaman gün",
@@ -254,6 +256,9 @@
     "openBadge": "{{count}} açık",
     "switchHint": "Geçiş için ⌘1–9",
     "openProject": "Proje aç",
+    "newOrOpenTitle": "Proje başlat",
+    "newProject": "Yeni proje",
+    "openExistingProject": "Mevcut projeyi aç",
     "allProjects": "Tüm projeler",
     "active": "Etkin",
     "tasksWord": "görev",
@@ -598,6 +603,18 @@
       "night": "Gece vardiyası",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "HH:MM biçiminde geçerli bir mola saati girin.",
+      "invalidWorkStart": "HH:MM biçiminde geçerli bir başlangıç saati girin.",
+      "invalidWorkEnd": "HH:MM biçiminde geçerli bir bitiş saati girin.",
+      "invalidWorkTimeOrder": "Başlangıç saati bitiş saatinden önce olmalıdır.",
+      "increaseTime": "Saati 15 dakika artır",
+      "decreaseTime": "Saati 15 dakika azalt",
+      "increaseBreakDuration": "Mola süresini 15 dakika artır",
+      "decreaseBreakDuration": "Mola süresini 15 dakika azalt",
+      "start": "Mola başlangıcı", "duration": "Mola süresi (dakika)", "hint": "Çalışma aralıkları otomatik türetilir. 0 süre molayı kaldırır.",
+      "errors": { "invalidDuration": "Süre 0 veya daha büyük tam dakika olmalıdır.", "outsideWorkingDay": "Mola çalışma günü içinde olmalıdır.", "consumesWorkingDay": "Mola tüm çalışma gününü kaplayamaz." }
+    },
     "worktime": {
       "section": "Çalışma saatleri",
       "derivedHpd": "Türetilmiş saat/gün:",
@@ -682,7 +699,7 @@
       "none": "(yok)"
     },
     "presentation": {
-      "hint": "Sunum modundan çıkmak için F11'e basın"
+      "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."
     },
     "splitView": {
       "primary": "Birincil",
@@ -712,7 +729,9 @@
   },
   "duration": {
     "suffixDay": "g",
-    "suffixHour": "s",
+    "suffixHour": "h",
+    "days": "Gün",
+    "hours": "Saat",
     "suffixMinute": "dk"
   },
   "shortcuts": {

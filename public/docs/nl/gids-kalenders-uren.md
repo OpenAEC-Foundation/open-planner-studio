@@ -1,80 +1,154 @@
-# Kalenders & uren-planning
+# Kalenders, werkdagen en werkuren
 
-Een taak van "5 dagen" betekent alleen iets in combinatie met een kalender: welke dagen zijn werkdagen, welke uren wordt er gewerkt, en welke dagen vallen sowieso af door een feestdag of een tijdelijke stremming? Deze gids behandelt de projectkalender, resource-kalenders, en de optionele uren-planning voor wie tot op het uur nauwkeurig wil plannen.
+Open Planner Studio bewaart bij iedere gewone taak niet alleen een getal, maar ook de betekenis ervan: **Dagen** of **Uren**. Die keuze hoort bij de taak. De kalender bepaalt vervolgens waar die duur in de tijd past. Hij verandert nooit uit zichzelf de gekozen eenheid of het ingevoerde aantal.
 
-## Wat je hier leert
+Deze gids legt het volledige model uit. Hij is bedoeld voor planners die dagtaken en urentaken in één project willen gebruiken zonder verborgen omrekening.
 
-- De projectkalender instellen: werkdagen, werktijden, feestdagen.
-- Feestdagen automatisch per jaar genereren, inclusief de bouwvak.
-- Een tijdelijke, ad-hoc stremming toevoegen (bijvoorbeeld vorstverlet).
-- Een resource een eigen kalender geven, bijvoorbeeld voor een 4-daagse werkweek.
-- De hoofdschakelaar **Urenplanning** aanzetten en werktijd-banden/ploegen instellen.
-- Hoe dag- en uurtaken naast elkaar in dezelfde planning bestaan.
+## Het mentale model
 
-Volg mee met [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) (vorstverlet, 4-daagse resourcekalender) en met [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) (uren-planning voor stort- en vlechtwerk), beide ook te openen via **Bestand → Voorbeelden**.
+Een **dagtaak** telt gehele werkbare kalenderdagen. `2d` betekent twee beschikbare werkdagen. Een werkdag met tien werkuren telt nog steeds als één dag; een werkdag met acht uur ook. Weekenden, feestdagen en andere niet-werkdagen tellen niet mee.
 
-## De projectkalender
+Een **urentaak** telt exacte werkminuten binnen de effectieve werktijdblokken van de taakkalender. `12h` gebruikt dus werkelijk twaalf werkuren. Op een kalender van acht uur per dag is dat één volledige dag plus vier uur. Op een kalender van tien uur per dag is het één volledige dag plus twee uur.
 
-Kalenders beheer je in het venster **Kalenders**, te openen via de lintgroep **Kalender** op het tabblad **Planning** (de knoppen **Kalender** en **Vrije dagen** openen hetzelfde venster). Dit venster toont links een bibliotheek van alle kalenders in het project — niet alleen de projectkalender, maar ook eventuele resource-kalenders (zie verderop) — met een sterretje bij de kalender die momenteel **Projectkalender** is. Selecteer een kalender links en bewerk hem rechts; met **Als projectdefault** maak je een andere kalender uit de lijst de nieuwe projectkalender. Voor de geselecteerde kalender stel je in:
+Hieruit volgt de hoofdregel:
 
-- **Werkdagen** — welke van de zeven weekdagen (Ma t/m Zo) als werkdag tellen. Standaard maandag t/m vrijdag.
-- **Werktijden** — **Begin (uur)**, **Einde (uur)** en de daaruit afgeleide **Uren per dag**.
-- **Feestdagen** — een lijst met vrije dagen, elk met een **Omschrijving**, een datum **Van** en **Tot**.
+- De taak bewaart **wat** je hebt ingevoerd: dagen of uren, en hoeveel.
+- De kalender bepaalt **wanneer** die dagen of uren kunnen worden uitgevoerd.
+- Een kalenderwissel mag de eenheid en hoeveelheid niet veranderen. Alleen begin- en eindverdeling kunnen verschuiven.
 
-Wijzigingen aan de projectkalender werken direct door in de berekening: taken die op een nu-vrije dag zouden vallen, schuiven door naar de eerstvolgende werkdag.
+## De projectkalender instellen
 
-### Feestdagen automatisch genereren
+Open **Planning → Kalender**. Links staat de kalenderbibliotheek en een ster markeert de huidige projectkalender. Selecteer een kalender om de werkdagen, werktijden en feestdagen te bewerken. Met **Als projectdefault** maak je een andere kalender de projectkalender.
 
-In plaats van feestdagen één voor één in te typen, kun je ze automatisch laten genereren via **Feestdagen genereren…** in het kalendervenster. Kies een **Land** (Nederland, Duitsland, België, Frankrijk, Verenigd Koninkrijk, Oostenrijk, Zwitserland) en optioneel een **Regio**. Voor Nederland is er bovendien een specifieke bouwoptie: **Bouwvak**, met de keuze **Noord**, **Midden** of **Zuid** (of **Geen**). De gegenereerde bouwvak-datums zijn adviesdatums — de app waarschuwt hier zelf voor: controleer de exacte datums bij Bouwend Nederland voor het lopende jaar. Na het kiezen van land/regio toont het venster een voorbeeld — bijvoorbeeld "12 feestdagen, 1-1-2026–31-12-2026" — voordat je op **Genereren** klikt.
+De kalender bevat:
 
-Genereer je feestdagen voor een project dat over de jaargrens loopt of later wordt verlengd, dan herkent Open Planner Studio dat de al gegenereerde feestdagen niet meer de volledige projectperiode dekken en biedt het venster **Opnieuw genereren** aan om de ontbrekende jaren toe te voegen — zonder de eerder handmatig toegevoegde feestdagen te verliezen.
+- **Werkdagen** — de weekdagen waarop werk mogelijk is.
+- **Werktijden** — concrete tijdblokken, bijvoorbeeld 08:00–12:00 en 12:30–16:30.
+- **Feestdagen** — vrije datums of periodes met een omschrijving.
 
-### Ad-hoc stremmingen (bijvoorbeeld vorstverlet)
+Een gat tussen twee werktijdblokken is een pauze. Een dag met bijvoorbeeld alleen 08:00–12:00 is een gedeeltelijke werkdag. Voor een dagtaak telt zo'n beschikbare dag als één werkdag. Voor een urentaak levert hij slechts vier werkuren.
 
-Niet elke onderbreking van het werk is een jaarlijks terugkerende feestdag. Voor eenmalige, projectspecifieke stremmingen — een week vorstverlet, een lokale evenementenstremming — voeg je gewoon handmatig een extra regel toe via **Feestdag toevoegen** in dezelfde lijst: geef een **Omschrijving** (bijvoorbeeld "Vorstverlet") en een periode **Van**/**Tot** op. Zo'n ad-hoc stremming werkt technisch identiek aan een gegenereerde feestdag — de CPM-berekening houdt er evengoed rekening mee — maar staat los van de automatische jaarlijkse generatie, dus een volgende **Opnieuw genereren** overschrijft hem niet.
+Gebruik [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) om een project met vorstverlet en een afwijkende resourcekalender te bekijken. Het voorbeeld [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) bevat werkzaamheden die baat hebben bij urenplanning.
 
-Zie een vorstverlet-periode in de praktijk in de showcase [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): de gedeelde fundering van de zes woningen bevat een periode vorstverlet die als losse feestdag-achtige entry aan de kalender is toegevoegd, los van de automatisch gegenereerde Nederlandse feestdagen.
+### Feestdagen en eenmalige stremmingen
 
-## Resource-kalenders
+Via **Feestdagen genereren…** kun je feestdagen voor een land, regio en jaar laten toevoegen. Voor Nederland kun je ook adviesdatums voor de bouwvak genereren; controleer die altijd bij Bouwend Nederland.
 
-Naast de ene projectkalender kan elke resource een eigen kalender krijgen — bijvoorbeeld voor een onderaannemer die maar vier dagen per week beschikbaar is, terwijl de rest van het project vijf dagen draait. Resource-kalenders beheer je via het veld **Kalender** op de resource (met de knop **Bewerken…** ernaast) of de titel **Resourcekalender** van het bewerkvenster; standaard staat een resource op **Projectkalender**.
+Een vorstperiode of lokale sluiting voeg je handmatig toe met **Feestdag toevoegen**. Zo'n datum werkt voor beide soorten taken hetzelfde als blokkade:
 
-Een resource-kalender gebruikt hetzelfde formulier als de projectkalender (**Werkdagen**, **Werktijden**, **Feestdagen**), maar is puur informatief voor de resource: hij verandert niets aan de CPM-datums van de taak zelf. Wat hij wél beïnvloedt, is de **belasting** (histogram) en de **nivellering**: staat een resource op een 4-daagse week terwijl de taak waarop hij is toegewezen 5 werkdagen loopt, dan toont de resource-belasting een tekort op de vijfde dag, en waarschuwt het nivelleringsvenster (**Resources nivelleren**) dat de resource niet op alle dagen werkt die de taak nodig heeft — verschuiven binnen de speling lost dat kalendermismatch dan niet vanzelf op.
+- een dagtaak slaat de feestdag volledig over;
+- een urentaak kan op die dag geen werkminuten verbruiken en gaat verder in het eerstvolgende werkblok.
 
-Bekijk een 4-daagse resourcekalender in de praktijk: de installateurs in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) draaien op een eigen kalender met een verkorte werkweek, terwijl de rest van het project op de normale projectkalender doorloopt.
+Opnieuw genereren voegt ontbrekende jaren toe en laat handmatig ingevoerde stremmingen staan.
 
-## Uren-planning: de hoofdschakelaar
+### Urenplanning inschakelen
 
-Standaard werkt Open Planner Studio volledig **dag-granulair** — elke taak heeft een duur in hele (werk)dagen. Voor taken die je liever op het uur plant (denk aan een stortwerk dat om 7:00 begint en om 14:00 klaar moet zijn, ruim vóór het weer omslaat), is er de optionele **Urenplanning**.
+Open **Instellingen → Tijdlijn / Zoomen** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Zet daaronder ook **Gemengde dag/uur-planning toestaan** aan als je de eenheid per taak wilt kunnen kiezen; zonder die tweede voorkeur blijft de compacte duurinvoer zichtbaar, maar niet de Dagen/Uren-keuze.
 
-Zet de hoofdschakelaar aan via **Instellingen → Tijdlijn / Zoomen → Urenplanning inschakelen**. Dit voegt een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken toe; staat de schakelaar uit, dan werkt de app volledig zoals voorheen, dag-granulair. Er is ook een optie **Gemengde dag/uur-planning toestaan**, die je aanzet als je in hetzelfde project zowel dag-taken als uur-taken wilt combineren (zie hieronder).
+Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Voor je zo'n duur kunt bewerken, vraagt Open Planner Studio om urenplanning in te schakelen.
 
-## Werktijd-banden en ploegen
+Kies in **Projectinformatie** ook **Standaardeenheid voor nieuwe taken: Dagen/Uren**. Dit is een projectinstelling en geldt voor alle handmatig aangemaakte nieuwe taken. De instelling verandert bestaande taken niet. Als urenplanning uit staat, beginnen nieuwe taken altijd veilig in dagen.
 
-Met urenplanning aan krijgt de kalender een extra niveau: in plaats van alleen "werkdag ja/nee" stel je per dag **werktijd-banden** in (sectie **Werktijden** in het kalendervenster) — de exacte tijdvakken waarin gewerkt wordt. Een gat tussen twee banden is automatisch een pauze; wil je een pauze inplannen, pas dan gewoon de tijden van de aangrenzende banden aan zodat er een gat ontstaat.
+## Werktijdblokken en ploegen
 
-Om niet elke keer handmatig banden te hoeven intekenen, zijn er kant-en-klare **ploeg-presets**:
+Iedere geldige kalender ondersteunt dag- én urentaken. Heeft een kalender nog geen handmatige blokken per weekdag, dan leidt Open Planner Studio ze af uit het eenvoudige patroon. Stel **Begin**, **Einde** en **Pauze begint** in als 24-uurs HH:MM (standaard 07:00, 16:00 en 12:00); elk heeft pijltjes voor kwartierstappen. Geef vervolgens de **Pauzeduur** in minuten op: die heeft dezelfde niet-native kwartierstappen en Pijl omhoog/omlaag, maar blijft een minutenwaarde van 0 tot 1440. Zo wordt 07:00–16:00 met een pauze vanaf 12:00 van 60 minuten automatisch 07:00–12:00 en 13:00–16:00. 09:00–17:00 met 30 minuten pauze vanaf 12:00 wordt 09:00–12:00 en 12:30–17:00. Een duur van 0 betekent één doorlopende band; 08:00–16:00 zonder pauze blijft dus 08:00–16:00. **Netto-uren per dag** volgen dit patroon en zijn altijd een niet-bewerkbare waarde met twee decimalen en `h`.
 
-- **Dagdienst** — reguliere kantoortijden, één band per dag.
-- **2 ploegen** — twee opeenvolgende diensten.
-- **3 ploegen** — drie opeenvolgende diensten, dekt bijna de volledige dag.
-- **Nachtploeg** — een dienst die doorloopt over middernacht.
-- **24/7** — continubedrijf, geen onderbreking.
+Begin moet vóór Einde liggen; de pauze moet volledig binnen die werkdag vallen en mag de dag niet volledig opslokken. De dialoog blokkeert toepassen en legt ongeldige of onvolledige tijd uit, zonder de kalender te wijzigen. Oude kalenders zonder deze twee pauzevelden houden hun bestaande gedrag: het verschil tussen de klokspanne en de historisch opgeslagen uren wordt eerst als middaggat geïnterpreteerd en pas expliciet zodra je een scalaire tijd wijzigt. De per-weekdag-editor en ploegpresets, zoals **Dagdienst**, **2 ploegen**, **3 ploegen**, **Nachtploeg** en **24/7**, hebben altijd voorrang: zodra je daarin bands instelt, zijn die de bron van waarheid. Een nachtblok kan over middernacht lopen.
 
-Naast deze presets kun je de banden ook volledig **Per weekdag instellen…**, bijvoorbeeld als de vrijdag korter is dan de rest van de week. Heb je een eigen combinatie samengesteld die je vaker wilt hergebruiken, bewaar die dan met **Bewaar als preset…** — de preset wordt lokaal op dit apparaat bewaard en is daarna in elk project weer te kiezen. De sectie toont ook de **Afgeleide uren/dag**: het aantal effectieve werkuren dat uit de ingestelde banden volgt.
+De afgeleide waarde **Netto-uren per dag** helpt bij presentatie, maar bepaalt niet de eenheid van een taak. Dagtaken blijven werkdagen tellen; een urentaak gebruikt uitsluitend de effectieve bands. Alleen een lege of ongeldige kalender kan uren niet plannen. Er is geen stille taak-, eenheid- of kalenderconversie en geen afronding.
 
-## Taken op uurbasis
+## Duur per taak invoeren
 
-Met urenplanning aan en een taak op een **uur-kalender** (een kalender met werktijd-banden in plaats van alleen hele dagen) toont het taakbewerkvenster extra velden: **Duur (uren)** naast **Duur (dagen)**, en een totaal in **Totaal uren**. Een uur-kalender is vereist voor uren-invoer — probeer je uren in te vullen op een gewone dag-kalender, dan wijst de hint daarop.
+De dubbelklikdialoog en het vaste eigenschappenpaneel gebruiken dezelfde bediening:
 
-Dit is precies hoe stort-taken in de praktijk worden gepland: een taak "Vloer storten toren A" met een duur van bijvoorbeeld 6 uur, gekoppeld aan een ploeg-kalender die die dag een ochtenddienst heeft. Bekijk dit patroon in de grote showcase [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc), die uren-planning gebruikt voor het vlechtwerk en de stortwerkzaamheden.
+**Duur [waarde] [Dagen | Uren]**
 
-## Dag- en uurtaken mixen
+Je kunt de selector gebruiken of een suffix typen:
 
-Een project hoeft niet volledig op uren te draaien om van urenplanning te profiteren: met **Gemengde dag/uur-planning toestaan** aangevinkt, kunnen dag-taken (op de gewone projectkalender) en uur-taken (op een uur-kalender) naast elkaar in dezelfde planning bestaan en met elkaar in relatie staan. De taaktabel toont in dat geval per taak de duur in zijn eigen eenheid — een dag-taak in dagen, een uur-taak in uren — en waarschuwt onderaan de tabel als taken met verschillende uren-per-dag door elkaar heen lopen, zodat het duidelijk blijft welke vergelijking wel en niet één-op-één is.
+- `2d` kiest **Dagen** en bewaart twee werkdagen.
+- `12h` kiest **Uren** en bewaart exact 720 werkminuten.
+- `12u` blijft geldig als Nederlandse invoeralias en wordt daarna universeel als `12h` getoond.
+- Zonder suffix volgt een geheel getal de eenheid die in de selector staat.
+
+Een expliciet suffix wint dus altijd van de selector en synchroniseert die selector. Normale handmatige invoer gebruikt gehele dagen of gehele uren. Minuutprecisie die al uit een import of bestand komt, blijft echter exact bewaard en wordt nooit stil afgerond.
+
+Bij import bewaart Open Planner Studio een expliciete taakeenheid wanneer het bronformaat die kan leveren. IFC onderscheidt dag- en uurduur in zijn ISO-duur. Door Open Planner Studio geëxporteerde MSPDI- en P6 XML-bestanden dragen de expliciete keuze per taak mee; externe of oudere bestanden zonder die markering behouden de compatibele kalenderprecisieregel. CSV-duur wordt als dagen gelezen. Een toevallig geheel aantal daguren verandert een expliciete keuze nooit.
+
+Een echte nulduur-mijlpaal heeft geen bewerkbare eenheid. Ook samenvattingstaken en hammocktaken tonen een afgeleide duur; daar voeg je geen tweede handmatige duurbron aan toe.
+
+Het informatie-icoon naast de selector vat het contract samen. Het is bereikbaar met de muis én met het toetsenbord.
+
+## Plannings- en omzetvoorbeelden
+
+**Voorbeelden met 8 en 10 uur**
+
+Neem een taak die op maandag begint:
+
+- `2d` op een 8-uurskalender gebruikt maandag en dinsdag: feitelijk 16 uur.
+- Dezelfde `2d` op een 10-uurskalender gebruikt nog steeds maandag en dinsdag: feitelijk 20 uur.
+- `12h` op een 8-uurskalender gebruikt maandag volledig en dinsdag nog vier uur.
+- Dezelfde `12h` op een 10-uurskalender gebruikt maandag volledig en dinsdag nog twee uur.
+
+Een pauze verbruikt voor een urentaak geen duur. Bij blokken 08:00–12:00 en 13:00–17:00 eindigt een taak van zes uur om 15:00, niet om 14:00. Een dagtaak telt die dag ondanks de pauze als één beschikbare werkdag.
+
+**Een kalender wijzigen**
+
+Als je een taak naar een andere kalender verplaatst, blijft `2d` precies `2d` en blijft `12h` precies `12h`. Open Planner Studio herberekent alleen waar die vaste hoeveelheid werk past. Daardoor kan de einddatum of eindtijd veranderen.
+
+Dit is belangrijk bij een overgang van acht naar tien uur per dag. Een urentaak van twaalf uur wordt op de langere werkdagen eerder klaar. Een dagtaak van twee dagen blijft twee dagen en omvat op die kalender juist meer feitelijke uren. Geen van beide gevallen verandert de taakidentiteit.
+
+**Relaties, lag en constraints in een gemengde planning**
+
+Een relatie bepaalt eerst de grens waar de opvolger mag beginnen of eindigen. Daarna verbruikt de opvolger zijn eigen duur op zijn eigen kalender. Zo kan een dagtaak zonder omzetting voorganger zijn van een urentaak, en andersom. Een FS-relatie van een `2d`-taak naar een `6h`-taak laat de opvolger dus na de finishgrens zes concrete werkuren opnemen; de twee werkdagen van de voorganger worden niet in zes of zestien uur herschreven.
+
+Werk-tijdlag en -lead worden kalenderbewust toegepast volgens het relatietype. Een datumconstraint, deadline of vastgelegde werkelijke datum begrenst de plaatsing, maar verandert evenmin de gekozen duur. Voer na een kalender-, relatie- of constraintwijziging **Berekenen** uit: planning wordt bewust handmatig herberekend en niet reactief. Controleer bij een onverwachte finish daarom achtereenvolgens de relatie, lag/lead, constraint en effectieve taakkalender; de getoonde `d` of `h` hoort onveranderd te blijven.
+
+**Expliciet omzetten zonder stil afronden**
+
+De selector mag hetzelfde getal niet herinterpreteren: `2d` wordt nooit zomaar `2h`. Wanneer je de eenheid wisselt, berekent Open Planner Studio vanaf de taakstart en op de huidige taakkalender een exact voorstel.
+
+Is de omzetting exact in de toegestane hele eenheid, dan zie je het voorstel voordat je het toepast. Twee werkdagen van acht uur kunnen bijvoorbeeld worden voorgesteld als `16h`.
+
+Is de omzetting niet exact, dan wordt niets afgerond. `12h` is op een 8-uurskalender anderhalve werkdag en kan dus niet als gehele dagtaak worden toegepast. De oude eenheid en waarde blijven staan totdat je zelf een nieuwe geldige waarde invoert, bijvoorbeeld `1d` of `2d`.
+
+**Duurweergave lezen**
+
+Onder **Instellingen → Duurweergave** kies je **Automatisch**, **Dagen** of **Uren**. Dit is alleen presentatie; de instelling wijzigt geen taakgegevens.
+
+In **Automatisch** zie je altijd de gekozen taakeenheid: een dagtaak van twee dagen als `2d` en een urentaak van twaalf uur als `12h`. Ook zestien uur op een 8-uurskalender blijft dus `16h`; de kalender mag de expliciete keuze niet laten lijken op een dagtaak.
+
+Bij een geforceerde andere weergave blijft de oorspronkelijke waarde tussen haakjes herkenbaar. Zo kun je vergelijken zonder dat Open Planner Studio de opgeslagen eenheid converteert.
+
+## Resourcekalenders
+
+Een resource kan een eigen kalender krijgen, bijvoorbeeld voor een onderaannemer met een vierdaagse werkweek. Die kalender beïnvloedt resourcebelasting en nivellering, maar vervangt niet automatisch de taakkalender en verandert nooit de taakeenheid. Bekijk dit in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
+
+## Problemen oplossen
+
+**Uren kan niet worden gekozen**
+
+Controleer eerst of **Urenplanning inschakelen** aan staat. Controleer daarna of de effectieve taakkalender geldige werkdagen, tijden en uren per dag heeft. Handmatige weekblokken zijn optioneel: zonder die blokken leidt de planner de effectieve werktijden automatisch af.
+
+**Een kalenderwissel verandert de einddatum**
+
+Dat is normaal als de nieuwe werkdagen, feestdagen of werktijdblokken anders zijn. Controleer de taakwaarde: `2d` of `12h` hoort onveranderd te zijn. Voer **Berekenen** uit om de nieuwe verdeling te zien.
+
+**Omzetten naar dagen wordt geweigerd**
+
+De uurwaarde past niet exact in een geheel aantal beschikbare werkdagen vanaf de taakstart. Open Planner Studio rondt niet. Behoud uren of voer bewust een nieuw geheel aantal dagen in.
+
+**Een geïmporteerde urentaak is zichtbaar terwijl urenplanning uit staat**
+
+Dat beschermt de brongegevens. De precieze minuten blijven opgeslagen en worden niet in dagen veranderd. Schakel urenplanning in voordat je de duur bewerkt.
+
+**`2d(16h)` of `16h(2d)` lijkt dubbel**
+
+Je hebt **Dagen** of **Uren** als vaste duurweergave gekozen. Het eerste deel volgt die presentatievoorkeur; de waarde tussen haakjes toont de blijvende taakeenheid. Kies **Automatisch** om alleen de native waarde te zien. De instelling verandert de taak zelf niet.
 
 ## Verder lezen
 
-- Zie vorstverlet en een 4-daagse resourcekalender in de praktijk: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- Zie uren-planning voor stort- en vlechtwerk in de praktijk: [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
-- Relaties en lag/lead werken op dezelfde kalender-eenheden — lees de gids [Relaties & constraints](docs://gids-relaties-constraints) voor het verschil tussen werkdagen- en doorlooptijd-lag.
+- Lees [Relaties & constraints](docs://gids-relaties-constraints) voor kalenderbewuste relaties en lag/lead.
+- Bekijk de kalender en het vorstverlet opnieuw in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
+- Onderzoek de vierdaagse resourcekalender in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
+- Open [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) voor uurwerk in een groot project.
+- Vergelijk het stort- en vlechtwerk in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).

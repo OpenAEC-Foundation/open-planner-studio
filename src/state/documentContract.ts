@@ -16,6 +16,7 @@ import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultView } from './defaults';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from './syncProjectCalendar';
+import { normalizeTaskDurationUnits } from '@/utils/taskDefaults';
 
 /**
  * HET DOCUMENTCONTRACT — één canonieke bron voor de per-document-state (audit P10, F1/F3).
@@ -186,7 +187,10 @@ export const DOCUMENT_FIELDS = [
   // restore alsnog uit `calendars`, maar zonder eigen snapshot-waarde zou de undo-orphan-fallback
   // (`promoteProjectCalendarToLibrary`) de NIEUWE cache promoveren i.p.v. de oude.
   field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'data' }),
-  field({ key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data' }),
+  field({
+    key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data',
+    fromPayload: (p) => normalizeTaskDurationUnits(p.tasks ?? []),
+  }),
   field({ key: 'sequences', get: (s) => s.sequences, set: (s, v) => { s.sequences = v; }, fresh: () => [], snapshot: 'data' }),
   field({ key: 'resources', get: (s) => s.resources, set: (s, v) => { s.resources = v; }, fresh: () => [], snapshot: 'data' }),
   field({ key: 'assignments', get: (s) => s.assignments, set: (s, v) => { s.assignments = v; }, fresh: () => [], snapshot: 'data' }),

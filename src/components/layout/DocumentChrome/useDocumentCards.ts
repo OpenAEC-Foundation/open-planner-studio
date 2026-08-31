@@ -6,7 +6,6 @@ import {
   untitledOrdinals, displayDocumentTitle,
   type ThumbBar,
 } from '@/utils/documents';
-import { buildImportLabels } from '@/i18n/importLabels';
 
 export interface DocumentCard {
   id: string;
@@ -86,10 +85,8 @@ export function useDocumentCards(): DocumentCard[] {
 
 /** Gedeelde acties voor alle drie de chrome-stijlen + het overzicht. */
 export function useDocumentActions() {
-  const { t } = useTranslation('common');
   const switchDocument = useAppStore((s) => s.switchDocument);
   const closeDocument = useAppStore((s) => s.closeDocument);
-  const openFile = useAppStore((s) => s.openFile);
   const setUI = useAppStore((s) => s.setUI);
 
   const switchTo = useCallback((id: string) => switchDocument(id), [switchDocument]);
@@ -106,11 +103,10 @@ export function useDocumentActions() {
 
   const openOverview = useCallback(() => setUI({ showProjectOverview: true }), [setUI]);
   const closeOverview = useCallback(() => setUI({ showProjectOverview: false }), [setUI]);
-  // De store-laag heeft geen `t(...)`; het label voor een bestand zónder IFCPROJECT gaat mee.
-  const openProject = useCallback(
-    () => { void openFile(buildImportLabels(t)); },
-    [openFile, t],
+  const chooseNewOrOpenProject = useCallback(
+    () => setUI({ showNewOrOpenProjectDialog: true }),
+    [setUI],
   );
 
-  return { switchTo, closeWithGuard, openOverview, closeOverview, openProject };
+  return { switchTo, closeWithGuard, openOverview, closeOverview, chooseNewOrOpenProject };
 }

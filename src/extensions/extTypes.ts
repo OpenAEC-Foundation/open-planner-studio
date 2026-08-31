@@ -38,6 +38,8 @@ export interface ExtProject {
   statusDate?: string;
   /** Voortgangs-scheduling-modus. undefined ⇒ RETAINED_LOGIC. */
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
+  /** Projectstandaard voor handmatig aangemaakte taken. Oudere extensies mogen dit weglaten. */
+  defaultTaskDurationUnit?: 'days' | 'hours';
   /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
 }
@@ -90,6 +92,9 @@ export interface ExtCalendar {
   workEndHour: number;
   /** Netto werkuren per dag. */
   hoursPerDay: number;
+  /** Optioneel eenvoudig scalar-pauzepatroon, in minuten vanaf middernacht / minuten duur. */
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
   holidays: ExtHoliday[];
   /** Per-weekdag werktijd-banden. Aanwezig ⇒ uur-kalender; afwezig ⇒ dag-kalender. */
   workTime?: ExtWorkTimeBands;
@@ -104,6 +109,8 @@ export interface ExtCalendar {
 /** Ext-facing taaktijd (planning + CPM-uitkomst). Spiegelt {@link import('@/types/task').TaskTime}. */
 export interface ExtTaskTime {
   durationType: 'WORKTIME' | 'ELAPSEDTIME';
+  /** Blijvende invoereenheid; oudere extensies mogen dit veld weglaten. */
+  durationUnit?: 'days' | 'hours';
   /** Duur in werkdagen. */
   scheduleDuration: number;
   /** Canonieke duur in integer minuten (uur-modus). Afwezig ⇒ dag-modus. */

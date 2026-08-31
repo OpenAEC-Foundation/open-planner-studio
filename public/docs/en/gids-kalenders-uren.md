@@ -1,80 +1,156 @@
-# Calendars & hour planning
+# Calendars, working days and working hours
 
-A task with a duration of "5 days" only means something in combination with a calendar: which days are working days, which hours is work done, and which days fall away because of a holiday or a temporary closure? This guide covers the project calendar, resource calendars, and the optional hour planning for anyone who wants to schedule down to the hour.
+Open Planner Studio stores not only a number for each ordinary task, but also what that number means: **Days** or **Hours**. That choice belongs to the task. The calendar then determines where the duration fits in time. It never changes the selected unit or entered amount by itself.
 
-## What you'll learn here
+This guide explains the complete model. It is for planners who want to use day tasks and hour tasks in one project without hidden conversion.
 
-- Setting up the project calendar: work days, working times, holidays.
-- Generating holidays automatically per year, including the construction holiday.
-- Adding a one-off, ad-hoc closure (for example a frost stop).
-- Giving a resource its own calendar, for example for a 4-day work week.
-- Turning on the **Hour planning** main switch and setting up working-time bands/shifts.
-- How day-based and hour-based tasks coexist in the same schedule.
+## The mental model
 
-Follow along with [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) (frost stop, 4-day resource calendar) and with [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) (hour planning for rebar and pour work), both also available via **File → Examples**.
+A **day task** counts whole workable calendar days. `2d` means two available working days. A working day containing ten hours still counts as one day; so does a day containing eight hours. Weekends, holidays and other non-working days do not count.
 
-## The project calendar
+An **hour task** counts exact working minutes within the effective working-time bands of the task calendar. `12h` therefore consumes twelve actual working hours. On an eight-hour calendar that is one full day plus four hours. On a ten-hour calendar it is one full day plus two hours.
 
-Calendars are managed in the **Calendars** window, opened via the **Calendar** ribbon group on the **Planning** tab (both the **Calendar** and **Holidays** buttons open the same window). This window shows a library of every calendar in the project on the left — not just the project calendar, but also any resource calendars (see below) — with a star marking whichever calendar is currently the **Project calendar**. Select a calendar on the left and edit it on the right; use **Set as project default** to make a different calendar from the list the new project calendar. For the selected calendar you set:
+The central rule is:
 
-- **Work days** — which of the seven weekdays (Mon through Sun) count as a work day. Monday through Friday by default.
-- **Work hours** — **Start (hour)**, **End (hour)** and the resulting **Hours per day**.
-- **Holidays** — a list of days off, each with a **Description** and a **From**/**Until** date.
+- The task stores **what** you entered: days or hours, and how many.
+- The calendar determines **when** those days or hours can be performed.
+- Changing calendar must not change the unit or amount. Only the start/finish distribution may move.
 
-Changes to the project calendar take effect immediately in the calculation: tasks that would otherwise fall on a now-non-working day shift to the next work day.
+## Setting up the project calendar
 
-### Generating holidays automatically
+Open **Planning → Calendar**. The calendar library is on the left and a star marks the current project calendar. Select a calendar to edit its work days, working times and holidays. Use **Set as project default** to choose a different project calendar.
 
-Instead of typing holidays in one by one, you can generate them automatically via **Generate holidays…** in the calendar window. Choose a **Country** (Netherlands, Germany, Belgium, France, United Kingdom, Austria, Switzerland) and optionally a **Region**. For the Netherlands there's also a specific construction option: **Construction holiday**, with the choice of **North**, **Central** or **South** (or **None**). The generated construction-holiday dates are advisory dates — the app warns about this itself: verify the exact dates with Bouwend Nederland for the current year. After picking country/region, the window shows a preview — for example "12 holidays, 1-1-2026–31-12-2026" — before you click **Generate**.
+A calendar contains:
 
-If you generate holidays for a project that spans a year boundary or is later extended, Open Planner Studio recognises that the already-generated holidays no longer cover the full project period and the window offers **Regenerate** to add the missing years — without losing any holidays you added manually earlier.
+- **Work days** — weekdays on which work is possible.
+- **Working times** — concrete time bands, for example 08:00–12:00 and 12:30–16:30.
+- **Holidays** — non-working dates or ranges with a description.
 
-### Ad-hoc closures (for example a frost stop)
+A gap between two working-time bands is a break. A day containing only 08:00–12:00 is a partial working day. A day task counts that available day as one working day. An hour task gets only four working hours from it.
 
-Not every interruption of work is a yearly recurring holiday. For one-off, project-specific closures — a week of frost stop, a local event closure — you simply add an extra row manually via **Add holiday** in the same list: give it a **Description** (for example "Frost stop") and a **From**/**Until** period. Such an ad-hoc closure works technically identically to a generated holiday — the CPM calculation takes it into account just the same — but is separate from the automatic yearly generation, so a subsequent **Regenerate** won't overwrite it.
+Use [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) to inspect a project with a frost stop and a different resource calendar. [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) contains activities that benefit from hour planning.
 
-See a frost-stop period in practice in the [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) example: the shared foundation of the six houses includes a frost-stop period added as a separate holiday-like entry on the calendar, apart from the automatically generated Dutch holidays.
+### Holidays and one-off closures
 
-## Resource calendars
+Use **Generate holidays…** to add holidays for a country, region and year. The Netherlands option can also generate advisory construction-holiday dates; always verify them with Bouwend Nederland.
 
-Besides the one project calendar, every resource can get its own calendar — for example for a subcontractor who's only available four days a week, while the rest of the project runs five days. Resource calendars are managed via the **Calendar** field on the resource (with the **Edit…** button next to it) or the **Resource calendar** window title; by default a resource is set to **Project calendar**.
+Add a frost period or local closure manually with **Add holiday**. Such a date blocks both task types:
 
-A resource calendar uses the same form as the project calendar (**Work days**, **Work hours**, **Holidays**), but is purely informational for the resource: it changes nothing about the task's own CPM dates. What it does affect is the **load** (histogram) and **levelling**: if a resource is set to a 4-day week while the task it's assigned to runs 5 work days, the resource load shows a shortfall on the fifth day, and the levelling window (**Level resources**) warns that the resource doesn't work on all the days the task needs — shifting within the float won't automatically resolve that calendar mismatch.
+- a day task skips the holiday completely;
+- an hour task cannot consume working minutes that day and continues in the next working-time band.
 
-See a 4-day resource calendar in practice: the installers in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) run on their own calendar with a shortened work week, while the rest of the project keeps running on the normal project calendar.
+Regenerating adds missing years while retaining manually entered closures.
 
-## Hour planning: the main switch
+### Enabling hour planning
 
-By default, Open Planner Studio works entirely at **day granularity** — every task has a duration in whole (work) days. For tasks you'd rather plan by the hour (think of a pour that starts at 7:00 and must be done by 14:00, well before the weather turns), there's the optional **Hour planning**.
+Open **Settings → Timeline / Zoom** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Also turn on **Allow mixed day/hour planning** below it when you want to choose a unit per task; without that second preference the compact duration input remains visible, but the Days/Hours choice does not.
 
-Turn on the main switch via **Settings → Timeline / Zoom → Enable hour planning**. This adds an hour timescale, shifts with working-time bands, and hour-precise task bars; with the switch off, the app works entirely as before, at day granularity. There's also an option **Allow mixed day/hour planning**, which you turn on if you want to combine both day-based and hour-based tasks in the same project (see below).
+When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. Before editing such a duration, Open Planner Studio asks you to enable hour planning.
+
+In **Project information**, also choose **Default unit for new tasks: Days/Hours**. This is a project setting used by every manual new-task route. It does not change existing tasks. When hour planning is off, new tasks always start safely in days.
 
 ## Working-time bands and shifts
 
-With hour planning on, the calendar gets an extra layer: instead of just "work day yes/no", you set **working-time bands** per day (the **Working times** section in the calendar window) — the exact time slots during which work happens. A gap between two bands automatically becomes a break; to schedule a break, simply adjust the times of the adjacent bands so a gap appears.
+Every valid calendar supports both day and hour tasks. If a calendar has no manually entered per-weekday bands, Open Planner Studio derives them from the simple pattern. Set **Start**, **End** and **Break starts** as 24-hour HH:MM (07:00, 16:00 and 12:00 by default); each has quarter-hour arrow controls. Then set **Break duration** in minutes: it has the same non-native quarter-hour controls and Arrow Up/Down, but remains a minute value from 0 to 1440. For example, 07:00–16:00 with a 60-minute break starting at 12:00 becomes 07:00–12:00 and 13:00–16:00. 09:00–17:00 with a 30-minute break at 12:00 becomes 09:00–12:00 and 12:30–17:00. A duration of 0 means one continuous band, so 08:00–16:00 without a break remains 08:00–16:00. **Net hours per day** follows this pattern and is always a read-only two-decimal `h` value.
 
-So you don't have to draw bands by hand every time, there are ready-made **shift presets**:
+Start must precede End; the break must fit entirely within that working day and cannot consume it all. The dialog blocks Apply and explains an invalid or incomplete time instead of changing the calendar. Older calendars without the two break fields retain their existing behavior: their difference between clock span and the historic stored hours is initially interpreted as a midday gap and becomes explicit only after a scalar time is edited. The per-weekday editor and shift presets, such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** and **24/7**, always take precedence: once you set bands there, those are the source of truth. A night band can cross midnight.
 
-- **Day shift** — regular office hours, one band per day.
-- **2 shifts** — two consecutive shifts.
-- **3 shifts** — three consecutive shifts, covering almost the entire day.
-- **Night shift** — a shift that runs past midnight.
-- **24/7** — continuous operation, no interruption.
+**Net hours per day** helps with presentation but does not determine a task unit. Day tasks continue to count working days; an hour task uses only the effective bands. Only an empty or invalid calendar cannot schedule hours. There is no silent task, unit or calendar conversion and no rounding.
 
-Besides these presets, you can also **Set per weekday…** the bands completely by hand, for example if Friday is shorter than the rest of the week. Put together a combination of your own that you want to reuse more often? Save it with **Save as preset…** — the preset is stored locally on this device and can then be picked again in any project. The section also shows the **Derived hours/day**: the number of effective working hours that follows from the configured bands.
+The derived **Net hours per day** helps with presentation, but it does not determine a task's unit. Without concrete bands the scheduler cannot know exactly where twelve working hours fit. If you select **Hours** for a task whose calendar has no bands, Open Planner Studio changes nothing. It explains that you must choose a calendar with working times or add them first. There is no day fallback and no rounding.
 
-## Hour-based tasks
+## Entering duration per task
 
-With hour planning on and a task on an **hour calendar** (a calendar with working-time bands rather than just whole days), the task edit window shows extra fields: **Duration (hours)** next to **Duration (days)**, and a total in **Total hours**. An hour calendar is required for hour input — try to enter hours on a regular day calendar, and the hint points that out.
+The double-click dialog and fixed properties panel use the same control:
 
-This is exactly how pour tasks are scheduled in practice: a task "Vloer storten toren A" (Pour floor tower A) with a duration of, say, 6 hours, linked to a shift calendar that has a morning shift that day. See this pattern in the large example [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc), which uses hour planning for the rebar and pour work.
+**Duration [value] [Days | Hours]**
 
-## Mixing day-based and hour-based tasks
+Use the selector or type a suffix:
 
-A project doesn't have to run entirely on hours to benefit from hour planning: with **Allow mixed day/hour planning** checked, day-based tasks (on the regular project calendar) and hour-based tasks (on an hour calendar) can coexist and relate to each other in the same schedule. In that case the task table shows each task's duration in its own unit — a day task in days, an hour task in hours — and warns at the bottom of the table when tasks with different hours-per-day run alongside each other, so it stays clear which comparisons are apples-to-apples and which aren't.
+- `2d` selects **Days** and stores two working days.
+- `12h` selects **Hours** and stores exactly 720 working minutes.
+- `12u` remains accepted as the existing Dutch input alias and is subsequently displayed universally as `12h`.
+- Without a suffix, a whole number follows the unit shown in the selector.
+
+An explicit suffix therefore always wins and synchronises the selector. Normal manual entry uses whole days or whole hours. Minute precision already present in an import or file remains exact and is never silently rounded.
+
+On import, Open Planner Studio preserves an explicit task unit when the source format can supply one. IFC distinguishes day and hour durations in its ISO duration. MSPDI and P6 XML files exported by Open Planner Studio carry the explicit choice with each task; foreign or older files without that marker keep the compatible calendar-precision rule. CSV duration is read as days. A coincidental whole number of day-hours never changes an explicit choice.
+
+A genuine zero-duration milestone has no editable unit. Summary and hammock tasks also show derived duration; they do not gain a competing manual source.
+
+The information icon beside the selector summarises the contract. It is reachable with both pointer and keyboard.
+
+## Planning and conversion examples
+
+**Examples with 8 and 10 hours**
+
+Consider a task that starts on Monday:
+
+- `2d` on an 8-hour calendar uses Monday and Tuesday: 16 actual hours.
+- The same `2d` on a 10-hour calendar still uses Monday and Tuesday: 20 actual hours.
+- `12h` on an 8-hour calendar uses all of Monday and another four hours on Tuesday.
+- The same `12h` on a 10-hour calendar uses all of Monday and another two hours on Tuesday.
+
+A break consumes no duration for an hour task. With bands 08:00–12:00 and 13:00–17:00, a six-hour task finishes at 15:00, not 14:00. A day task still counts that day as one available working day despite the break.
+
+**Changing a calendar**
+
+When you move a task to another calendar, `2d` remains exactly `2d` and `12h` remains exactly `12h`. Open Planner Studio only recalculates where that fixed amount of work fits. The finish date or time may therefore change.
+
+This matters when moving from eight to ten hours per day. A twelve-hour task finishes earlier on the longer working days. A two-day task stays two days and instead contains more actual hours on that calendar. Neither case changes the task's identity.
+
+**Relationships, lag and constraints in a mixed schedule**
+
+A relationship first determines the boundary at which the successor may start or finish. The successor then consumes its own duration on its own calendar. A day task can therefore precede an hour task without conversion, and vice versa. An FS relationship from a `2d` task to a `6h` task makes the successor consume six concrete working hours after the finish boundary; the predecessor's two working days are not rewritten as six or sixteen hours.
+
+Working-time lag and lead are applied with calendar awareness according to the relationship type. A date constraint, deadline or recorded actual date limits placement but likewise does not change the selected duration. Run **Calculate** after changing a calendar, relationship or constraint: scheduling is deliberately recalculated manually rather than reactively. If a finish is unexpected, check the relationship, lag/lead, constraint and effective task calendar in that order; the displayed `d` or `h` should remain unchanged.
+
+**Explicit conversion without silent rounding**
+
+The selector must never reinterpret the same number: `2d` never simply becomes `2h`. When you change unit, Open Planner Studio calculates an exact proposal from the task start on the current task calendar.
+
+If conversion is exact in the allowed whole unit, you see the proposal before applying it. Two eight-hour working days can, for example, be proposed as `16h`.
+
+If conversion is not exact, nothing is rounded. `12h` is one and a half working days on an eight-hour calendar and cannot be applied as a whole-day task. The old unit and value remain until you enter a new valid value yourself, such as `1d` or `2d`.
+
+**Reading duration display**
+
+Choose **Automatic**, **Days** or **Hours** under **Settings → Duration display**. This affects presentation only; it does not change task data.
+
+In **Automatic**, the selected task unit is always shown: a two-day task appears as `2d` and a twelve-hour task as `12h`. Even sixteen hours on an eight-hour calendar remains `16h`; the calendar must not make the explicit choice look like a day task.
+
+With another display forced, the native value remains recognisable in parentheses. This lets you compare values without Open Planner Studio converting the stored unit.
+
+## Resource calendars
+
+A resource can have its own calendar, for example for a subcontractor on a four-day week. It affects resource load and leveling, but does not automatically replace the task calendar and never changes the task unit. You can inspect this in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
+
+## Troubleshooting
+
+**Hours cannot be selected**
+
+First check that **Enable hour planning** is on. Then check whether the effective task calendar has valid working days, times and hours per day. Manual weekday bands are optional: without them the planner derives effective working times automatically.
+
+**Changing calendar changes the finish date**
+
+That is expected when work days, holidays or working-time bands differ. Check the task value: `2d` or `12h` should be unchanged. Run **Calculate** to see the new distribution.
+
+**Conversion to days is refused**
+
+The hour value does not exactly match a whole number of available working days from the task start. Open Planner Studio does not round. Retain hours or deliberately enter a new whole number of days.
+
+**An imported hour task is visible while hour planning is off**
+
+That protects the source data. Exact minutes remain stored and are not changed into days. Enable hour planning before editing the duration.
+
+**`2d(16h)` or `16h(2d)` looks duplicated**
+
+You selected **Days** or **Hours** as the fixed duration display. The first part follows that presentation preference; the value in parentheses shows the persistent task unit. Choose **Automatic** to see only the native value. The setting does not change the task itself.
 
 ## Keep reading
 
-- See a frost stop and a 4-day resource calendar in practice: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- See hour planning for rebar and pour work in practice: [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
-- Relations and lag/lead work on the same calendar units — read [Relations & constraints](docs://gids-relaties-constraints) for the difference between work-day and elapsed-time lag.
+- Read [Relations & constraints](docs://gids-relaties-constraints) for calendar-aware relations and lag/lead.
+- Revisit the calendar and frost-stop setup in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
+- Inspect the four-day resource calendar in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
+- Open [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) for hour work in a large project.
+- Compare the pour and rebar activities in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).

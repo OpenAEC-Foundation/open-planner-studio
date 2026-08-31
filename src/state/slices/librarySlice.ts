@@ -1124,7 +1124,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         const pIdx = libId ? draftPool.resources.findIndex((r) => r.id === libId) : -1;
         if (pIdx < 0) return;
         // Overschrijf de gevolgde velden van het poolitem met de bestandswaarden.
-        for (const f of RESOURCE_DIFF_FIELDS_LOCAL) (draftPool.resources[pIdx] as Record<string, unknown>)[f] = (item as Record<string, unknown>)[f];
+        for (const f of RESOURCE_DIFF_FIELDS_LOCAL) (draftPool.resources[pIdx] as unknown as Record<string, unknown>)[f] = (item as unknown as Record<string, unknown>)[f];
         // Bewezen patroon (zie promoteResourceToPool hierboven): werk verder met de PLAIN
         // `bumped`-return-waarde, niet met een current()-herlezing van s.pools[companyId] — die
         // combinatie (plain top-level object met nog-proxied nested arrays) laat Immers current()
@@ -1140,7 +1140,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         const libId = item.libraryOrigin?.libraryItemId;
         const pIdx = libId ? draftPool.calendars.findIndex((c) => c.id === libId) : -1;
         if (pIdx < 0) return;
-        for (const f of CALENDAR_DIFF_FIELDS_LOCAL) (draftPool.calendars[pIdx] as Record<string, unknown>)[f] = (item as Record<string, unknown>)[f];
+        for (const f of CALENDAR_DIFF_FIELDS_LOCAL) (draftPool.calendars[pIdx] as unknown as Record<string, unknown>)[f] = (item as unknown as Record<string, unknown>)[f];
         const bumped = bumpPool(draftPool);
         s.pools[companyId] = bumped;
         const newHash = computeCalendarHash(bumped.calendars[pIdx]);

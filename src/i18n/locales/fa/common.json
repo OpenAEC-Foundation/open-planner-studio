@@ -100,6 +100,8 @@
     "enableHourPlanning": "فعال‌سازی برنامه‌ریزی ساعتی",
     "enableHourPlanningHint": "زمان‌بندی ساعت/دقیقه را فعال می‌کند: یک مقیاس زمانی ساعتی، شیفت‌های دارای بازه‌های ساعت کاری و نوارهای وظیفه با دقت ساعتی. خاموش ⇐ برنامه مانند قبل کاملاً بر پایه روز باقی می‌ماند.",
     "allowMixedDayHour": "اجازه دادن به برنامه‌ریزی ترکیبی روز/ساعت",
+    "defaultTaskDurationUnit": "واحد پیش‌فرض وظایف جدید",
+    "defaultTaskDurationUnitHint": "مشخص می‌کند وظایف جدید با روز کاری یا ساعت کاری شروع شوند. وظایف موجود تغییر نمی‌کنند.",
     "durationDisplay": "نمایش مدت",
     "durationDisplayAuto": "خودکار (واحد اختصاصی هر وظیفه)",
     "durationDisplayDays": "همیشه روز",
@@ -254,6 +256,9 @@
     "openBadge": "{{count}} باز",
     "switchHint": "⌘1–9 برای جابجایی",
     "openProject": "باز کردن پروژه",
+    "newOrOpenTitle": "شروع پروژه",
+    "newProject": "پروژه جدید",
+    "openExistingProject": "باز کردن پروژه موجود",
     "allProjects": "همه پروژه‌ها",
     "active": "فعال",
     "tasksWord": "وظایف",
@@ -598,6 +603,18 @@
       "night": "شیفت شب",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "یک زمان استراحت معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkStart": "یک زمان شروع معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkEnd": "یک زمان پایان معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkTimeOrder": "زمان شروع باید پیش از زمان پایان باشد.",
+      "increaseTime": "افزایش زمان به اندازه ۱۵ دقیقه",
+      "decreaseTime": "کاهش زمان به اندازه ۱۵ دقیقه",
+      "increaseBreakDuration": "افزایش مدت استراحت به اندازه ۱۵ دقیقه",
+      "decreaseBreakDuration": "کاهش مدت استراحت به اندازه ۱۵ دقیقه",
+      "start": "شروع استراحت", "duration": "مدت استراحت (دقیقه)", "hint": "بازه های کاری خودکار استخراج می شوند. مدت ۰ یعنی روز کاری پیوسته.",
+      "errors": { "invalidDuration": "مدت استراحت باید تعداد صحیح دقیقه و حداقل ۰ باشد.", "outsideWorkingDay": "استراحت باید کاملا در روز کاری تنظیم شده باشد.", "consumesWorkingDay": "استراحت نمی تواند کل روز کاری را بگیرد." }
+    },
     "worktime": {
       "section": "ساعات کاری",
       "derivedHpd": "ساعت/روز مشتق‌شده:",
@@ -682,7 +699,7 @@
       "none": "(هیچ‌کدام)"
     },
     "presentation": {
-      "hint": "برای خروج از حالت ارائه، F11 را فشار دهید"
+      "hint": "برای خروج از تمام‌صفحه، Esc یا F11 را فشار دهید."
     },
     "splitView": {
       "primary": "اصلی",
@@ -712,7 +729,9 @@
   },
   "duration": {
     "suffixDay": "ر",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "روز",
+    "hours": "ساعت",
     "suffixMinute": "د"
   },
   "shortcuts": {

@@ -75,7 +75,7 @@ export function RightRail() {
   const widthSplitter = useSplitter({
     min: RIGHT_PANEL_MIN_WIDTH,
     max: () => Math.round(window.innerWidth * 0.6),
-    computeSize: e => Math.round(window.innerWidth - e.clientX),
+    computeSize: e => Math.round(document.documentElement.dir === 'rtl' ? e.clientX : window.innerWidth - e.clientX),
     onResize: w => useAppStore.getState().setUI({ rightPanelWidth: w }),
     onCommit: () => { void saveRightPanelWidth(useAppStore.getState().ui.rightPanelWidth); },
   });
@@ -128,18 +128,18 @@ export function RightRail() {
 
   return (
     <div
-      className="ui-card flex flex-col overflow-hidden"
+      className="ui-card flex flex-col overflow-visible"
       style={{ width: rightPanelWidth, minWidth: RIGHT_PANEL_MIN_WIDTH, position: 'relative' }}
       data-tour-anchor="properties-panel"
       data-ops-rail
     >
-      {/* Sleepgrijpzone voor de BREEDTE (fase 2.10, punt 3 — ongewijzigd overgenomen): geen
-          zichtbare balk, maar een onzichtbare grijpzone over de binnenrand van het paneel, zelfde
-          patroon als de tabel/chart-splitter in GanttCanvas. `insetInlineStart` i.p.v. `left`
-          zodat de zone in RTL (ar/fa) meespiegelt naar de juiste rand. Neemt geen ruimte in. */}
+      {/* Sleepgrijpzone voor de BREEDTE: grijpt 8 px aan weerszijden van de zichtbare scheiding.
+          De rail zelf houdt zijn inhoud in de stapel hieronder geknipt; de buitenste kaart blijft
+          bewust zichtbaar zodat de helft die boven de Gantt hangt niet door `overflow-hidden`
+          verdwijnt. `insetInlineStart` spiegelt de zone voor ar/fa. */}
       <div
         onMouseDown={e => { e.preventDefault(); widthSplitter.start(); }}
-        style={{ position: 'absolute', insetInlineStart: -4, top: 0, bottom: 0, width: 8, cursor: 'col-resize', zIndex: 10 }}
+        style={{ position: 'absolute', insetInlineStart: -8, top: 0, bottom: 0, width: 16, cursor: 'col-resize', zIndex: 10 }}
         data-ops-right-panel-resize
       />
 

@@ -112,6 +112,8 @@
     "enableHourPlanning": "تفعيل التخطيط بالساعات",
     "enableHourPlanningHint": "يفعّل الجدولة بالساعة/الدقيقة: مقياس زمني بالساعات، ونوبات عمل ذات نطاقات أوقات عمل، وأشرطة مهام دقيقة على مستوى الساعة. عند الإيقاف ⇐ يبقى التطبيق مبنيًا بالكامل على اليوم كما كان.",
     "allowMixedDayHour": "السماح بالتخطيط المختلط باليوم/الساعة",
+    "defaultTaskDurationUnit": "الوحدة الافتراضية للمهام الجديدة",
+    "defaultTaskDurationUnitHint": "تحدد ما إذا كانت المهام الجديدة تبدأ بأيام العمل أو ساعات العمل. لا تتغير المهام الحالية.",
     "durationDisplay": "عرض المدة",
     "durationDisplayAuto": "تلقائي (وحدة خاصة بكل مهمة)",
     "durationDisplayDays": "أيام دائمًا",
@@ -266,6 +268,9 @@
     "openBadge": "{{count}} مفتوح",
     "switchHint": "⌘1–9 للتبديل",
     "openProject": "فتح مشروع",
+    "newOrOpenTitle": "بدء مشروع",
+    "newProject": "مشروع جديد",
+    "openExistingProject": "فتح مشروع موجود",
     "allProjects": "كل المشاريع",
     "active": "نشط",
     "tasksWord": "مهام",
@@ -630,6 +635,18 @@
       "night": "وردية ليلية",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "أدخل وقت استراحة صالحا بصيغة HH:MM.",
+      "invalidWorkStart": "أدخل وقت بدء صالحا بصيغة HH:MM.",
+      "invalidWorkEnd": "أدخل وقت انتهاء صالحا بصيغة HH:MM.",
+      "invalidWorkTimeOrder": "يجب أن يكون وقت البدء قبل وقت الانتهاء.",
+      "increaseTime": "زد الوقت 15 دقيقة",
+      "decreaseTime": "أنقص الوقت 15 دقيقة",
+      "increaseBreakDuration": "زد مدة الاستراحة 15 دقيقة",
+      "decreaseBreakDuration": "أنقص مدة الاستراحة 15 دقيقة",
+      "start": "بداية الاستراحة", "duration": "مدة الاستراحة (دقائق)", "hint": "تُشتق فترات العمل تلقائيا. المدة 0 تعني يوم عمل متصل.",
+      "errors": { "invalidDuration": "يجب أن تكون مدة الاستراحة عددا صحيحا من الدقائق يساوي 0 أو أكثر.", "outsideWorkingDay": "يجب أن تقع الاستراحة كاملة داخل يوم العمل المحدد.", "consumesWorkingDay": "لا يمكن أن تستغرق الاستراحة يوم العمل كله." }
+    },
     "worktime": {
       "section": "أوقات العمل",
       "derivedHpd": "الساعات/اليوم المشتقة:",
@@ -714,7 +731,7 @@
       "none": "(بلا)"
     },
     "presentation": {
-      "hint": "اضغط F11 للخروج من وضع العرض التقديمي"
+      "hint": "اضغط Esc أو F11 للخروج من ملء الشاشة."
     },
     "splitView": {
       "primary": "أساسي",
@@ -748,7 +765,9 @@
   },
   "duration": {
     "suffixDay": "ي",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "أيام",
+    "hours": "ساعات",
     "suffixMinute": "د"
   },
   "shortcuts": {

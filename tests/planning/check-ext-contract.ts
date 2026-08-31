@@ -74,16 +74,16 @@ function keys<T>() {
 
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
-  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'schedulingOptions',
+  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
 ] as const);
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
-  'holidays', 'workTime', 'shift', 'workingExceptions',
+  'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'holidays', 'workTime', 'shift', 'workingExceptions',
 ] as const);
 
 const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
-  'durationType', 'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish',
+  'durationType', 'durationUnit', 'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish',
   'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'freeFloat', 'totalFloat', 'isCritical',
   'interferingFloat', 'isNearCritical', 'floatPath', 'actualStart', 'actualFinish',
   'actualDuration', 'remainingTime', 'remainingMinutes', 'completion', 'resume', 'stop',
@@ -134,6 +134,7 @@ const NIET_PUBLIEK = {
 
 const VOL_TIME = {
   durationType: 'WORKTIME',
+  durationUnit: 'hours',
   scheduleDuration: 5,
   durationMinutes: 2400,
   scheduleStart: '2026-06-01',
@@ -209,6 +210,7 @@ const VOL_PROJECT = {
   createdAt: '2026-01-01T00:00:00', modifiedAt: '2026-01-02T00:00:00',
   author: 'Auteur', company: 'Bedrijf',
   wbsAutoNumber: true, statusDate: '2026-06-01', progressMode: 'PROGRESS_OVERRIDE',
+  defaultTaskDurationUnit: 'days',
   schedulingOptions: {
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath', threshold: -1 },
@@ -223,6 +225,7 @@ const VOL_PROJECT = {
 const VOL_CALENDAR = {
   id: 'cal1', name: 'Kalender', description: 'omschrijving',
   workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+  simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60,
   holidays: [{ name: 'Kerst', startDate: '2026-12-25', endDate: '2026-12-26' }],
   generation: { ruleSetId: 'NL', generatedFromYear: 2026, generatedToYear: 2028, region: 'noord', breakChoice: 'noord' },
   workTime: { byWeekday: { 1: [{ start: 420, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },

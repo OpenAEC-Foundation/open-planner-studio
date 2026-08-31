@@ -10,6 +10,11 @@ import type { CPMResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+
+// Alle kalenderconsumenten, ook de dag-granulaire resource-paden, ontvangen dezelfde
+// materialisatie van het eenvoudige pauzepatroon als CPM en de Gantt. Daarmee kan een latere
+// verfijning naar intra-dag-resourcebelasting niet op een afwijkende scalarinterpretatie landen.
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
  *  tussen punten; niet genormaliseerd (distributeUnits normaliseert zelf via Σraw). */
@@ -142,7 +147,7 @@ export function computeResourceLoad(
   const overallocatedDays: Record<string, string[]> = {};
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  const projectEngine = new CalendarEngine(projectCalendar);
+  const projectEngine = new CalendarEngine(calendarForEngine(projectCalendar));
 
   // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource, §2.4).
   const validAssignments = assignments.filter(a => {
@@ -172,7 +177,9 @@ export function computeResourceLoad(
     const bucket = load[resource.id];
     if (!bucket) continue;
 
-    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar));
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar),
+    ));
 
     capacity[resource.id] = {};
     for (const iso of Object.keys(bucket)) {
@@ -278,7 +285,7 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const { tasks, assignments, resources, calendar, calendars, resourceIds, from, to, bucket } = input;
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  const projectEngine = new CalendarEngine(calendar);
+  const projectEngine = new CalendarEngine(calendarForEngine(calendar));
 
   // 1. Per-assignment dag-verdeling — dezelfde filter/mapping als computeResourceLoad (leaf, geen
   //    milestone), zodat de veroorzaker-bijdragen exact optellen tot de per-resource-dagbelasting.
@@ -357,7 +364,9 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const report: HistogramReport = { resources: [] };
   for (const resource of reported) {
     const dailyLoad = loadByResource.get(resource.id) ?? new Map<string, number>();
-    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, calendars, calendar));
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, calendars, calendar),
+    ));
 
     // Dag-granulaire overbelaste dagen: load > capaciteit (resource-kalender), over de belaste dagen.
     const overDays = new Set<string>();

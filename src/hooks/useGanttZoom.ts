@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { computeAnchoredZoom, getGanttScrollBounds } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import type { ModifierMap, PositionDivision, ScrollMode } from '@/state/slices/types';
 import type { ViewState } from '@/types/view';
 
@@ -9,6 +10,7 @@ interface UseGanttZoomOpts {
   taskTableWidth: number;
   view: ViewState;
   enableQuarterHourZoom: boolean;
+  enableHourPlanning: boolean;
   scrollMode: ScrollMode;
   positionDivision: PositionDivision;
   modifierMap: ModifierMap;
@@ -23,6 +25,7 @@ export function useGanttZoom({
   taskTableWidth,
   view,
   enableQuarterHourZoom,
+  enableHourPlanning,
   scrollMode,
   positionDivision,
   modifierMap,
@@ -30,19 +33,19 @@ export function useGanttZoom({
   setScroll,
 }: UseGanttZoomOpts) {
   // Latest values in a ref so the wheel handler doesn't re-attach every render
-  const latest = useRef({ view, enableQuarterHourZoom, scrollMode, positionDivision, modifierMap });
-  latest.current = { view, enableQuarterHourZoom, scrollMode, positionDivision, modifierMap };
+  const latest = useRef({ view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap });
+  latest.current = { view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap };
 
   // Cursor-anchored zoom step. anchorX is canvas-X (pixels from canvas left edge).
   const zoomAt = useCallback((newZoom: number, anchorX: number) => {
-    const { view: v, enableQuarterHourZoom: enableQH } = latest.current;
+    const { view: v, enableQuarterHourZoom: enableQH, enableHourPlanning: enableHours } = latest.current;
     const next = computeAnchoredZoom({
       currentZoom: v.zoom,
       currentScrollX: v.scrollX,
       requestedZoom: newZoom,
       anchorX,
       taskTableWidth,
-      maxZoom: enableQH ? 1000 : 400,
+      maxZoom: maxGanttZoom(enableQH, enableHours),
     });
     if (!next) return;
     setZoom(next.zoom);

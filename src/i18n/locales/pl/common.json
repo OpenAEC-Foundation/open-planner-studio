@@ -106,6 +106,8 @@
     "enableHourPlanning": "Włącz planowanie godzinowe",
     "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
     "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
+    "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
+    "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
     "durationDisplay": "Wyświetlanie czasu trwania",
     "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
     "durationDisplayDays": "Zawsze w dniach",
@@ -260,6 +262,9 @@
     "openBadge": "Otwarte: {{count}}",
     "switchHint": "⌘1–9 aby przełączyć",
     "openProject": "Otwórz projekt",
+    "newOrOpenTitle": "Rozpocznij projekt",
+    "newProject": "Nowy projekt",
+    "openExistingProject": "Otwórz istniejący projekt",
     "allProjects": "Wszystkie projekty",
     "active": "Aktywny",
     "tasksWord": "zadania",
@@ -614,6 +619,18 @@
       "night": "Zmiana nocna",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Wprowadź prawidłową godzinę przerwy w formacie HH:MM.",
+      "invalidWorkStart": "Wprowadź prawidłową godzinę rozpoczęcia w formacie HH:MM.",
+      "invalidWorkEnd": "Wprowadź prawidłową godzinę zakończenia w formacie HH:MM.",
+      "invalidWorkTimeOrder": "Godzina rozpoczęcia musi być wcześniejsza niż godzina zakończenia.",
+      "increaseTime": "Zwiększ godzinę o 15 minut",
+      "decreaseTime": "Zmniejsz godzinę o 15 minut",
+      "increaseBreakDuration": "Zwiększ czas przerwy o 15 minut",
+      "decreaseBreakDuration": "Zmniejsz czas przerwy o 15 minut",
+      "start": "Początek przerwy", "duration": "Czas przerwy (minuty)", "hint": "Przedziały pracy są wyliczane automatycznie. Czas 0 usuwa przerwę.",
+      "errors": { "invalidDuration": "Czas musi być całkowitą liczbą minut nie mniejszą niż 0.", "outsideWorkingDay": "Przerwa musi mieścić się w dniu pracy.", "consumesWorkingDay": "Przerwa nie może zajmować całego dnia pracy." }
+    },
     "worktime": {
       "section": "Godziny pracy",
       "derivedHpd": "Wyliczone godziny/dzień:",
@@ -698,7 +715,7 @@
       "none": "(brak)"
     },
     "presentation": {
-      "hint": "Naciśnij F11, aby wyjść z trybu prezentacji"
+      "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."
     },
     "splitView": {
       "primary": "Główny",
@@ -730,7 +747,9 @@
   },
   "duration": {
     "suffixDay": "d",
-    "suffixHour": "g",
+    "suffixHour": "h",
+    "days": "Dni",
+    "hours": "Godziny",
     "suffixMinute": "min"
   },
   "shortcuts": {

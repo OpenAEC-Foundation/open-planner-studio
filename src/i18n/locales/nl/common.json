@@ -100,6 +100,8 @@
     "enableHourPlanning": "Urenplanning inschakelen",
     "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
     "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
+    "defaultTaskDurationUnit": "Standaardeenheid voor nieuwe taken",
+    "defaultTaskDurationUnitHint": "Bepaalt of nieuwe taken standaard in werkdagen of werkuren beginnen. Bestaande taken veranderen niet.",
     "durationDisplay": "Duurweergave",
     "durationDisplayAuto": "Automatisch (eigen eenheid per taak)",
     "durationDisplayDays": "Altijd dagen",
@@ -254,6 +256,9 @@
     "openBadge": "{{count}} open",
     "switchHint": "⌘1–9 om te wisselen",
     "openProject": "Project openen",
+    "newOrOpenTitle": "Project starten",
+    "newProject": "Nieuw project",
+    "openExistingProject": "Bestaand project openen",
     "allProjects": "Alle projecten",
     "active": "Actief",
     "tasksWord": "taken",
@@ -598,6 +603,24 @@
       "night": "Nachtploeg",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Vul een geldige pauzetijd in als UU:MM.",
+      "invalidWorkStart": "Vul een geldige begintijd in als UU:MM.",
+      "invalidWorkEnd": "Vul een geldige eindtijd in als UU:MM.",
+      "invalidWorkTimeOrder": "De begintijd moet vóór de eindtijd liggen.",
+      "increaseTime": "Verhoog tijd met 15 minuten",
+      "decreaseTime": "Verlaag tijd met 15 minuten",
+      "increaseBreakDuration": "Verhoog pauzeduur met 15 minuten",
+      "decreaseBreakDuration": "Verlaag pauzeduur met 15 minuten",
+      "start": "Pauze begint",
+      "duration": "Pauzeduur (minuten)",
+      "hint": "Stel een pauzebegin en -duur in; de netto uren en werktijdblokken worden automatisch afgeleid. Zet de duur op 0 voor een doorlopende werkdag.",
+      "errors": {
+        "invalidDuration": "De pauzeduur moet een heel aantal minuten van 0 of meer zijn.",
+        "outsideWorkingDay": "De pauze moet volledig binnen de ingestelde werkdag vallen.",
+        "consumesWorkingDay": "De pauze mag niet de volledige werkdag beslaan."
+      }
+    },
     "worktime": {
       "section": "Werktijden",
       "derivedHpd": "Afgeleide uren/dag:",
@@ -682,7 +705,7 @@
       "none": "(geen)"
     },
     "presentation": {
-      "hint": "Druk op F11 om de presentatiemodus te sluiten"
+      "hint": "Druk op Esc of F11 om volledig scherm te verlaten."
     },
     "splitView": {
       "primary": "Primair",
@@ -712,7 +735,9 @@
   },
   "duration": {
     "suffixDay": "d",
-    "suffixHour": "u",
+    "suffixHour": "h",
+    "days": "Dagen",
+    "hours": "Uren",
     "suffixMinute": "m"
   },
   "shortcuts": {

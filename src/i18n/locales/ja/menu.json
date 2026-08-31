@@ -65,6 +65,7 @@
       "startHour": "開始（時）",
       "endHour": "終了（時）",
       "hoursPerDay": "1日の時間数",
+      "netHoursPerDay": "1日の正味時間",
       "holidaysSection": "祝日",
       "holidayName": "説明",
       "from": "開始",

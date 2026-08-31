@@ -77,6 +77,15 @@ export interface ExternalLink {
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
 
 /**
+ * De door de gebruiker gekozen, blijvende eenheid van een taakduur.
+ *
+ * INVARIANT: bij `days` is `scheduleDuration` de enige invoerbron; bij `hours` is
+ * `durationMinutes` de enige invoerbron. Een kalender bepaalt uitsluitend waar die hoeveelheid
+ * past en mag deze identiteit nooit afleiden, converteren of overschrijven.
+ */
+export type TaskDurationUnit = 'days' | 'hours';
+
+/**
  * Eén werkonderbreking in een gesplitste taak (MS Project: "split") — etappe "nul afwijkingen"
  * (Z0/Z4 leidden dit af, Z7 consumeert het in de CPM: `CPMSolver.ts`/`duration.ts`'s
  * `splitTotalSpanMinutes`).
@@ -156,14 +165,12 @@ export type MilestoneKind = 'START' | 'FINISH';
 
 export interface TaskTime {
   durationType: DurationType;
-  scheduleDuration: number; // in work days
-  /** OPTIONEEL — canonieke duur in integer MINUTEN (fase 2.8b, §3.1). Aanwezig ⇒ bron van
-   *  waarheid; het effectieve `scheduleDuration` is dan de afgeleide `minuten / (effHoursPerDay
-   *  × 60)`. Afwezig ⇒ `scheduleDuration` (werkdagen) is de bron (dag-modus, byte-identiek).
-   *  INVARIANT (Bevinding 2): `durationMinutes` wordt alleen gezet én gerespecteerd wanneer de
-   *  effectieve kalender uur-modus is; op een dag-kalender is sub-dag-duur ongedefinieerd en
-   *  valt `durationDaysOf` ALTIJD terug op `scheduleDuration` (nooit een fractionele dag in
-   *  `addWorkDays`). Zie `src/engine/scheduler/duration.ts`. */
+  durationUnit: TaskDurationUnit;
+  /** Canonieke invoerbron wanneer `durationUnit === 'days'`: gehele werkbare kalenderdagen. */
+  scheduleDuration: number;
+  /** Canonieke invoerbron wanneer `durationUnit === 'hours'`: exacte werkminuten. Oude data zonder
+   *  `durationUnit` migreert deterministisch naar uren zodra dit veld aanwezig is; minuutprecisie
+   *  uit imports blijft daarbij ongewijzigd. */
   durationMinutes?: number;
   scheduleStart: string;    // ISO 8601 — date-only in dag-modus, datetime in uur-modus
   scheduleFinish: string;   // ISO 8601 — date-only in dag-modus, datetime in uur-modus
@@ -223,11 +230,11 @@ export interface TaskTime {
 
 /** INVOER — door de gebruiker/importers geschreven. `runCPM` raakt deze normaliter niet aan, MAAR
  *  overschrijft in UUR-modus `scheduleStart`/`scheduleFinish` (naar de berekende instants,
- *  `scheduleSlice.ts`) en `scheduleDuration` (+ `durationMinutes` op een uur-kalender) voor
+ *  `scheduleSlice.ts`) en de passende afgeleide duurbron (`scheduleDuration` of `durationMinutes`) voor
  *  HAMMOCK-taken (afgeleide span, `CPMSolver`). `durationType` blijft puur invoer. */
 export type TaskTimeInput = Pick<
   TaskTime,
-  'durationType' | 'scheduleDuration' | 'durationMinutes' | 'scheduleStart' | 'scheduleFinish'
+  'durationType' | 'durationUnit' | 'scheduleDuration' | 'durationMinutes' | 'scheduleStart' | 'scheduleFinish'
   | 'resume' | 'stop'
 >;
 

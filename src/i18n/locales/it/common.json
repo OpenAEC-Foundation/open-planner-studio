@@ -103,6 +103,8 @@
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
+    "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
+    "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
     "durationDisplay": "Visualizzazione della durata",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
@@ -257,6 +259,9 @@
     "openBadge": "{{count}} aperti",
     "switchHint": "⌘1–9 per cambiare",
     "openProject": "Apri progetto",
+    "newOrOpenTitle": "Avvia un progetto",
+    "newProject": "Nuovo progetto",
+    "openExistingProject": "Apri progetto esistente",
     "allProjects": "Tutti i progetti",
     "active": "Attivo",
     "tasksWord": "attività",
@@ -606,6 +611,18 @@
       "night": "Turno notturno",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Inserisci un orario di pausa valido come HH:MM.",
+      "invalidWorkStart": "Inserisci un orario di inizio valido nel formato HH:MM.",
+      "invalidWorkEnd": "Inserisci un orario di fine valido nel formato HH:MM.",
+      "invalidWorkTimeOrder": "L’orario di inizio deve precedere l’orario di fine.",
+      "increaseTime": "Aumenta l’orario di 15 minuti",
+      "decreaseTime": "Riduci l’orario di 15 minuti",
+      "increaseBreakDuration": "Aumenta la durata della pausa di 15 minuti",
+      "decreaseBreakDuration": "Riduci la durata della pausa di 15 minuti",
+      "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
+    },
     "worktime": {
       "section": "Orari di lavoro",
       "derivedHpd": "Ore/giorno derivate:",
@@ -690,7 +707,7 @@
       "none": "(nessuno)"
     },
     "presentation": {
-      "hint": "Premi F11 per uscire dalla modalità presentazione"
+      "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."
     },
     "splitView": {
       "primary": "Principale",
@@ -722,6 +739,8 @@
   "duration": {
     "suffixDay": "g",
     "suffixHour": "h",
+    "days": "Giorni",
+    "hours": "Ore",
     "suffixMinute": "m"
   },
   "shortcuts": {

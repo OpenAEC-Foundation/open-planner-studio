@@ -9,6 +9,14 @@ export interface WorkCalendar {
   workStartHour: number; // e.g., 7
   workEndHour: number;   // e.g., 16
   hoursPerDay: number;   // net working hours (e.g., 8)
+  /**
+   * Optioneel eenvoudig pauzepatroon voor scalaire kalenders. De begintijd is minuten vanaf
+   * middernacht en de duur is minuten. Alleen wanneer er géén expliciete `workTime`-banden zijn,
+   * leidt `effectiveWorkTime` hieruit de netto werkbanden af. Afwezig houdt het historische
+   * gedrag intact: het verschil tussen klokspanne en `hoursPerDay` wordt rond 12:00 gelegd.
+   */
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
   holidays: Holiday[];   // GEMATERIALISEERDE exception-ranges (bron van waarheid voor de engine)
   /** OPTIONEEL — generatie-herkomst (fase 2.8a). Aanwezig ⇒ de feestdagen in `holidays` zijn door de
    *  engine gegenereerd en kunnen opnieuw worden gematerialiseerd bij projectperiode-wijziging.
@@ -78,4 +86,9 @@ export interface Holiday {
   name: string;
   startDate: string; // ISO 8601 date
   endDate: string;   // ISO 8601 date
+}
+
+/** Een lege einddatum uit de kalenderdialoog is een eendaagse feestdag. */
+export function holidayEndDate(holiday: Holiday): string {
+  return holiday.endDate || holiday.startDate;
 }

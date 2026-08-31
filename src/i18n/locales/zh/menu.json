@@ -65,6 +65,7 @@
       "startHour": "开始（时）",
       "endHour": "结束（时）",
       "hoursPerDay": "每日工时",
+      "netHoursPerDay": "每日净工时",
       "holidaysSection": "假日",
       "holidayName": "描述",
       "from": "从",

@@ -103,6 +103,8 @@
     "enableHourPlanning": "Ativar planeamento por horas",
     "enableHourPlanningHint": "Ativa o escalonamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desativado ⇒ a aplicação permanece totalmente granular por dias, como antes.",
     "allowMixedDayHour": "Permitir planeamento misto de dias/horas",
+    "defaultTaskDurationUnit": "Unidade predefinida para novas tarefas",
+    "defaultTaskDurationUnitHint": "Define se as novas tarefas começam em dias úteis ou horas de trabalho. As tarefas existentes não mudam.",
     "durationDisplay": "Exibição da duração",
     "durationDisplayAuto": "Automática (unidade própria por tarefa)",
     "durationDisplayDays": "Sempre dias",
@@ -257,6 +259,9 @@
     "openBadge": "{{count}} abertos",
     "switchHint": "⌘1–9 para alternar",
     "openProject": "Abrir projeto",
+    "newOrOpenTitle": "Iniciar projeto",
+    "newProject": "Novo projeto",
+    "openExistingProject": "Abrir projeto existente",
     "allProjects": "Todos os projetos",
     "active": "Ativo",
     "tasksWord": "tarefas",
@@ -606,6 +611,18 @@
       "night": "Turno noturno",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Introduza uma hora de pausa válida como HH:MM.",
+      "invalidWorkStart": "Introduza uma hora de início válida no formato HH:MM.",
+      "invalidWorkEnd": "Introduza uma hora de fim válida no formato HH:MM.",
+      "invalidWorkTimeOrder": "A hora de início tem de ser anterior à hora de fim.",
+      "increaseTime": "Aumentar a hora em 15 minutos",
+      "decreaseTime": "Diminuir a hora em 15 minutos",
+      "increaseBreakDuration": "Aumentar a duração da pausa em 15 minutos",
+      "decreaseBreakDuration": "Diminuir a duração da pausa em 15 minutos",
+      "start": "Início da pausa", "duration": "Duração da pausa (minutos)", "hint": "Os períodos de trabalho são calculados automaticamente. Duração 0 remove a pausa.",
+      "errors": { "invalidDuration": "A duração deve ser um número inteiro de minutos igual ou superior a 0.", "outsideWorkingDay": "A pausa deve ficar totalmente dentro do dia de trabalho.", "consumesWorkingDay": "A pausa não pode ocupar todo o dia de trabalho." }
+    },
     "worktime": {
       "section": "Horários de trabalho",
       "derivedHpd": "Horas/dia derivadas:",
@@ -690,7 +707,7 @@
       "none": "(nenhum)"
     },
     "presentation": {
-      "hint": "Prima F11 para sair do modo de apresentação"
+      "hint": "Prima Esc ou F11 para sair do ecrã inteiro."
     },
     "splitView": {
       "primary": "Principal",
@@ -722,6 +739,8 @@
   "duration": {
     "suffixDay": "d",
     "suffixHour": "h",
+    "days": "Dias",
+    "hours": "Horas",
     "suffixMinute": "m"
   },
   "shortcuts": {

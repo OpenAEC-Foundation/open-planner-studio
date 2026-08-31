@@ -36,8 +36,7 @@ Eine Checkliste pro Aufgabe: Jede Zeile hat ein **Erledigt**-Kontrollkästchen, 
 ## Zeit
 
 - **Startdatum** — zeigt den berechneten frühesten Anfang; eine manuelle Änderung verankert das neue Datum als geplanten Anfang.
-- **Dauer (Arbeitstage)** — ganze Arbeitstage; bei einem Meilenstein deaktiviert.
-- Mit **aktivierter Stundenplanung** und einem Stundenkalender bei der Aufgabe erscheinen drei synchronisierte Felder: **Tage**, **Stunden** und **Stunden gesamt** (nur ganze Zahlen). Ohne Stundenkalender zeigt ein Hinweis: „Die Stundeneingabe erfordert einen Stundenkalender (Arbeitszeiten)." Siehe [Kalender & Stundenplanung](docs://gids-kalenders-uren).
+- Dialog und Eigenschaften verwenden dieselbe Bedienung **Dauer [Wert] [Tage | Stunden]**. Geben Sie `2d`, `12h` oder den Eingabealias `12u` ein. Stunden erfordern konkrete Arbeitszeitbänder; ohne sie bleibt der Vorgang unverändert. Siehe [Kalender & Stundenplanung](docs://gids-kalenders-uren).
 
 ## Hammock (abgeleitete Dauer)
 

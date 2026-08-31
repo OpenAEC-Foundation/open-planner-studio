@@ -1,13 +1,14 @@
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Copy, Trash2, Star } from 'lucide-react';
-import type { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { Dialog } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
+import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
 
 /**
  * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1; buffer-herziening fase 2.8b): links een lijst van
@@ -34,6 +35,7 @@ export function CalendarDialog() {
   const [localCalendars, setLocalCalendars] = useState<WorkCalendar[]>([]);
   const [localProjectId, setLocalProjectId] = useState<string>(project.calendarId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
   // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente §4.3-
   // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
@@ -49,16 +51,54 @@ export function CalendarDialog() {
   }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
+  const simpleBreakInvalid = scalarTimeTextInvalid || localCalendars.some((calendar) => scalarBreakIssue(
+    calendar.workStartHour * 60,
+    calendar.workEndHour * 60,
+    calendar.simpleBreakStartMinute,
+    calendar.simpleBreakDurationMinutes,
+  ) !== undefined);
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
 
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
   const cancel = () => setUI({ showCalendarDialog: false });
 
+  // Lege einddatums zijn in de editor bewust toegestaan: bij opslag worden zij canoniek dezelfde
+  // dag als de startdatum. Zo blijft het domeinmodel en alle bestaande readers/schrijvers eenduidig.
+  const commit = () => {
+    const calendars = localCalendars.map(calendar => ({
+      ...calendar,
+      holidays: calendar.holidays.map(holiday => ({ ...holiday, endDate: holidayEndDate(holiday) })),
+    }));
+    commitCalendarLibrary(calendars, localProjectId);
+    runCPM();
+  };
+
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
-    commitCalendarLibrary(localCalendars, localProjectId);
-    runCPM();
+    if (simpleBreakInvalid) return;
+    commit();
     setUI({ showCalendarDialog: false });
+  };
+
+  // Alleen gewone enkelregelige invoervelden in déze dialoog gebruiken Enter als "opslaan en
+  // open blijven". Knoppen, selects, checkboxen en invoervelden die de toets al zelf afhandelen
+  // houden hun eigen native betekenis; andere dialogs gebruiken nog steeds hun bestaande contract.
+  const commitOnInputEnter = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return;
+    const target = event.target;
+    const ownsEnter = target instanceof HTMLButtonElement
+      || target instanceof HTMLSelectElement
+      || (target instanceof HTMLInputElement
+        && ['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit'].includes(target.type));
+    if (ownsEnter) {
+      // Niet preventDefault: een knop moet bij Enter nog steeds zelf klikken.
+      event.stopPropagation();
+      return;
+    }
+    if (!(target instanceof HTMLInputElement) || target.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    commit();
   };
 
   const handleNew = () => {
@@ -114,7 +154,7 @@ export function CalendarDialog() {
       onCancel={cancel}
       onConfirm={confirm}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
-      panelProps={{ 'data-ops-calendar-dialog': true }}
+      panelProps={{ 'data-ops-calendar-dialog': true, onKeyDown: commitOnInputEnter }}
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
@@ -186,6 +226,7 @@ export function CalendarDialog() {
                   key={selected.id}
                   draft={selected}
                   onChange={patchSelected}
+                  onScalarTimeValidityChange={setScalarTimeTextInvalid}
                   projectYearSpan={projectYearSpan}
                 />
               </>
@@ -203,7 +244,8 @@ export function CalendarDialog() {
           <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
             {tCommon('cancel')}
           </button>
-          <button onClick={confirm} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-cal-apply>
+          <button onClick={confirm} disabled={simpleBreakInvalid}
+            className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40" data-ops-cal-apply>
             {tCommon('apply')}
           </button>
         </div>

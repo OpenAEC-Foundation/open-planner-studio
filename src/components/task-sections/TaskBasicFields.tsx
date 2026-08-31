@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Task, TaskType } from '@/types/task';
@@ -31,12 +32,25 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: 
   const { options: taskTypeOptions } = useTaskTypeLabels();
   const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
   const calendars = useAppStore(s => s.calendars);
+  const projectCalendar = useAppStore(s => s.calendar);
+  const pendingTaskNameFocusId = useAppStore(s => s.ui.pendingTaskNameFocusId);
+  const setUI = useAppStore(s => s.setUI);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (hideName || pendingTaskNameFocusId !== task.id) return;
+    const input = nameInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+    setUI({ pendingTaskNameFocusId: null });
+  }, [hideName, pendingTaskNameFocusId, setUI, task.id]);
 
   return (
     <>
       {!hideName && (
         <Field label={t('properties.name')}>
-          <Input value={task.name} onChange={v => onChange({ name: v })} />
+          <Input ref={nameInputRef} value={task.name} onChange={v => onChange({ name: v })} />
         </Field>
       )}
 
@@ -74,7 +88,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName }: 
           value={task.calendarId ?? ''}
           onChange={v => onCalendarChange(v || undefined)}
           options={[
-            { value: '', label: t('properties.calendarProject') },
+            { value: '', label: `${t('properties.calendarProject')}: ${projectCalendar.name}` },
             ...calendars.map(c => ({ value: c.id, label: c.name })),
           ]}
         />

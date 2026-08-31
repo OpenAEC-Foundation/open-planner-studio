@@ -3,12 +3,12 @@ import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
-import { WorkCalendar } from '@/types/calendar';
-import { isHourCalendar } from '@/services/subdayIo';
-import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
+import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
+import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { firstRowIndexByTask, type ViewRow } from '@/engine/view/visibleRows';
 // #21: resource-accent — dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
@@ -292,17 +292,20 @@ export class GanttRenderer {
     return this.colors.normal;
   }
 
-  /**
-   * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
-   * AAN ⇒ de eigen eenheid per taak via de Duurweergave-instelling (dag-taak "3d", uur-taak "20u").
-   */
+  /** Duurkolom-tekst (§6.5): de blijvende taakeenheid blijft óók zichtbaar wanneer de globale
+   * urenplanningsschakelaar uit staat; die schakelaar mag geïmporteerde urendata niet herinterpreteren. */
   private durationText(task: Task): string {
     // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
     // mijlpaal-met-duur (T15) toont haar EIGEN duur, niet "0d" (zelfde discriminator als de solver).
     if (isZeroDurationMilestone(task)) return '0d';
-    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}d`;
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', this.opts.durationSuffixes);
+    return formatTaskDurationDisplay(
+      task,
+      cal,
+      this.opts.durationDisplay ?? 'auto',
+      this.opts.enableHourPlanning ?? false,
+      this.opts.durationSuffixes,
+    );
   }
 
   /** Kapt tekst af met een ellipsis zodra hij niet in `maxWidth` past (issue #38 punt 5): de
@@ -384,8 +387,16 @@ export class GanttRenderer {
    *  dag-kalender staat / geen kalendermap is meegegeven — dan wordt er niet opgesplitst. */
   private engineFor(task: Task): CalendarEngine | null {
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    if (!isHourCalendar(cal)) return null;
-    return this.engineForAnyMode(task);
+    if (taskDurationUnit(task) !== 'hours') return null;
+    const effectiveCalendar = calendarWithEffectiveWorkTime(cal);
+    if (!effectiveCalendar) return null;
+    const key = `${cal.id}\u0000effective-hour`;
+    let eng = this.engineCache.get(key);
+    if (!eng) {
+      eng = new CalendarEngine(effectiveCalendar);
+      this.engineCache.set(key, eng);
+    }
+    return eng;
   }
 
   /** Of een uur-taakbalk in werkblok-segmenten wordt getekend (§6.9): 'always' ⇒ altijd,
@@ -554,7 +565,7 @@ export class GanttRenderer {
 
     for (const h of this.opts.calendar.holidays) {
       const start = parseDate(h.startDate);
-      const end = parseDate(h.endDate);
+      const end = parseDate(holidayEndDate(h));
       const days = diffCalendarDays(start, end) + 1;
       const widthPx = days * zoom;
       if (widthPx < minWidthPx) continue; // te smal voor een leesbaar label
@@ -772,11 +783,10 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    // issue #21 punt 2 (vervolg, user-besluit): de HEADER toont áltijd de dagplanning-opbouw
-    // (maand/week/dag), ook met urenplanning aan — de oude dag/uur-band gaf een fontsprong en
-    // een lege uurrij. De uur-tiers leven alleen nog in de sleep-snapping (useBarDrag geeft
-    // de urenplanning-vlag wél door aan pickTiers).
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
+    // De kopstrook volgt dezelfde tierkeuze als de uurinteractie. De oude harde `false` maakte
+    // de instelling “kwartieren tonen bij ver inzoomen” alleen voor snapping effectief: uren en
+    // kwartieren werden in de schermtijdlijn nooit getekend.
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
 
     // Visible date range. Issue #21 punt 5 (header-bugfix, vervolg fase 3 van
     // werkdagen-as-ontwerp.md §4.1/§10): via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`)
@@ -1625,7 +1635,6 @@ export class GanttRenderer {
       const minutes = task.time.durationMinutes ?? taskDurationMinutes(task, cal);
       return formatDuration(minutes, effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', sfx);
     }
-    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}${sfx.day}`;
     return this.durationText(task);
   }
 

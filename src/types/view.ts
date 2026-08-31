@@ -131,4 +131,6 @@ export interface ViewState {
    *  voert de zoom-/scrollberekening uit (kent de canvas-afmetingen, de store niet) en wist het
    *  meteen weer. Transient — zelfde precedent als `pendingFit`. */
   pendingFocusTaskId?: string;
+  /** Houd de huidige zoom vast tijdens een focusverzoek (nieuwe taak); alleen de scroll beweegt. */
+  pendingFocusTaskPreserveZoom?: boolean;
 }

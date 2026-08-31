@@ -24,11 +24,13 @@ All edits — including new/duplicate/delete — happen in a working copy. **App
 
 - **Name** — free name.
 - **Work days** — buttons **Mon** through **Sun**; on = working day. Presets: **Mon–Fri** (standard week, 07–16 h, 8 h/day) and **Continuous (24/7)**.
-- **Start (hour)** / **End (hour)** / **Hours per day** — the day-wide working time. Hidden once the calendar has working-time bands and hour planning is on; the bands then drive the times.
+- **Start** / **End** — the day-wide working time in 24-hour `HH:MM`, including quarter-hour step buttons and Arrow Up/Down. Start defaults to 07:00 and End to 16:00; End can be 24:00. A complete valid value is committed on Enter or leaving the field, so unfinished text never changes the calendar. These controls are hidden once manually entered working-time bands are authoritative.
+- **Net hours per day** — always a read-only, two-decimal `h` value derived from Start, End, Break starts and Break duration. It does not become editable when hour planning is off.
+- **Break starts** / **Break duration (minutes)** — the simple pattern for a scalar calendar. Break starts uses the same 24-hour `HH:MM` field and quarter-hour controls, and defaults to 12:00. Duration remains a number of minutes, with its own non-native quarter-hour step buttons and Arrow Up/Down; it ranges from 0 to 1440. Duration determines the derived net hours and work bands. Duration 0 means no break. The dialog refuses invalid text, an inverted day, or a break outside the working day or one that consumes it all.
 
 ## Working times (only with hour planning enabled)
 
-- **Derived hours/day** — check figure, derived from the bands.
+- **Net hours per day** — the same read-only two-decimal `h` readout, derived from the authoritative bands.
 - Presets: **Day shift**, **2 shifts**, **3 shifts**, **Night shift**, **24/7** — each sets the working-time bands in one go.
 - **Save as preset…** — save the current working times as your own preset (on this device); own presets appear as buttons with a delete cross.
 - **Set per weekday…** / **Show/hide working times** — opens or collapses the band editor.

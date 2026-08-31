@@ -100,6 +100,8 @@
     "enableHourPlanning": "Stundenplanung aktivieren",
     "enableHourPlanningHint": "Aktiviert Stunden-/Minuten-Scheduling: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt wie bisher vollständig tagesgenau.",
     "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
+    "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
+    "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
     "durationDisplay": "Daueranzeige",
     "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
     "durationDisplayDays": "Immer Tage",
@@ -254,6 +256,9 @@
     "openBadge": "{{count}} offen",
     "switchHint": "⌘1–9 zum Wechseln",
     "openProject": "Projekt öffnen",
+    "newOrOpenTitle": "Projekt starten",
+    "newProject": "Neues Projekt",
+    "openExistingProject": "Bestehendes Projekt öffnen",
     "allProjects": "Alle Projekte",
     "active": "Aktiv",
     "tasksWord": "Aufgaben",
@@ -598,6 +603,18 @@
       "night": "Nachtschicht",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Geben Sie eine gültige Pausenzeit als HH:MM ein.",
+      "invalidWorkStart": "Geben Sie eine gültige Startzeit als HH:MM ein.",
+      "invalidWorkEnd": "Geben Sie eine gültige Endzeit als HH:MM ein.",
+      "invalidWorkTimeOrder": "Die Startzeit muss vor der Endzeit liegen.",
+      "increaseTime": "Zeit um 15 Minuten erhöhen",
+      "decreaseTime": "Zeit um 15 Minuten verringern",
+      "increaseBreakDuration": "Pausendauer um 15 Minuten erhöhen",
+      "decreaseBreakDuration": "Pausendauer um 15 Minuten verringern",
+      "start": "Pausenbeginn", "duration": "Pausendauer (Minuten)", "hint": "Arbeitszeitbänder werden automatisch abgeleitet. Dauer 0 bedeutet einen durchgehenden Arbeitstag.",
+      "errors": { "invalidDuration": "Die Pausendauer muss eine ganze Minutenanzahl ab 0 sein.", "outsideWorkingDay": "Die Pause muss vollständig innerhalb des Arbeitstags liegen.", "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen." }
+    },
     "worktime": {
       "section": "Arbeitszeiten",
       "derivedHpd": "Abgeleitete Stunden/Tag:",
@@ -682,7 +699,7 @@
       "none": "(keins)"
     },
     "presentation": {
-      "hint": "F11 drücken, um den Präsentationsmodus zu beenden"
+      "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."
     },
     "splitView": {
       "primary": "Primär",
@@ -712,7 +729,9 @@
   },
   "duration": {
     "suffixDay": "T",
-    "suffixHour": "Std",
+    "suffixHour": "h",
+    "days": "Tage",
+    "hours": "Stunden",
     "suffixMinute": "Min"
   },
   "shortcuts": {

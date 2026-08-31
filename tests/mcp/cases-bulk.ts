@@ -188,7 +188,7 @@ test('draft.addTasks mijlpaal met expliciete duur > 0 ⇒ transactie faalt schoo
         name: 'foute-mijlpaal',
         isMilestone: true,
         time: {
-          durationType: 'WORKTIME', scheduleDuration: 3, scheduleStart: '2026-01-01', scheduleFinish: '2026-01-06',
+          durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 3, scheduleStart: '2026-01-01', scheduleFinish: '2026-01-06',
           earlyStart: '2026-01-01', earlyFinish: '2026-01-06', lateStart: '2026-01-01', lateFinish: '2026-01-06',
           freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
         },
