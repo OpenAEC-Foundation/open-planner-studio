@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Otomatik kaydet", "noFile": "Otomatik kaydetmeyi kullanmak için önce bu projeyi kaydedin.", "onHint": "Otomatik kaydet açık: değişiklikler bu dosyaya yazılır.", "offHint": "Otomatik kaydet kapalı. Çökme kurtarma etkin kalır." },
   "notifications": {
     "dismiss": "Bildirimi kapat",
     "openFailed": "Dosya açılamadı",

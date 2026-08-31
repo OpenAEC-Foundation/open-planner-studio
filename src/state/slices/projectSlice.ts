@@ -81,6 +81,8 @@ export interface ProjectSlice {
   /** Web-opslaan-doel (spec §4). ALLEEN het FSA-opslaan-doel — nooit voor identiteit/titel;
    *  die blijven bij `filePath` (echt pad in Tauri, bestandsnaam in web). `null` in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
+  /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
+  autoSaveToFile: boolean;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -165,6 +167,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   isDirty: false,
   filePath: null,
   fileHandle: null,
+  autoSaveToFile: false,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de

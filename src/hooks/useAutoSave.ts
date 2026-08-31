@@ -4,6 +4,10 @@ import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { saveRecovery, type RecoveryDocContent } from '@/services/recovery/recoveryStore';
+import { canWriteToRefWithoutPrompt, saveToRefWithoutPrompt, type FileRef } from '@/services/fileAccess';
+import { actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
+import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { sameIFCSource } from '@/state/ifcSaveInput';
 
 // Auto-save GETHROTTLED op ~10 s (voorheen 800 ms-debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
@@ -93,6 +97,54 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       if (timer) clearTimeout(timer);
       unsub();
     };
+  }, [autoSaveEnabled]);
+
+  // Echte AutoSave is een APART mechanisme: recovery hierboven blijft alle gewijzigde documenten
+  // snapshotten, ook wanneer deze keuze uitstaat of een document nog nooit is opgeslagen.
+  useEffect(() => {
+    const controller = createActualAutoSaveController({
+      listCandidates: (): ActualAutoSaveCandidate[] => {
+        // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
+        // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
+        if (!autoSaveEnabled.current || isProjectFileWriteBusy()) return [];
+        return useAppStore.getState().getOpenDocumentPayloads().map(({ id, payload }) => {
+          const ref: FileRef | null = payload.fileHandle
+            ? { kind: 'handle', handle: payload.fileHandle }
+            : (isTauri() && payload.filePath ? { kind: 'path', path: payload.filePath } : null);
+          return { id, enabled: payload.autoSaveToFile, dirty: payload.isDirty, ref, source: payload };
+        });
+      },
+      serialize: candidate => writeIFC(buildWriteIFCInput(candidate.source)),
+      canWrite: canWriteToRefWithoutPrompt,
+      write: (candidate, content) => runProjectFileWrite(async () => {
+        // Wachten op een handmatige write mag nooit alsnog een inmiddels oude autosave-inhoud
+        // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock.
+        const current = useAppStore.getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
+        if (!current || !sameIFCSource(candidate.source, current)) return false;
+        return saveToRefWithoutPrompt(candidate.ref!, content);
+      }),
+      markSavedIfUnchanged: candidate => useAppStore.getState().markAutoSaveVersionSaved(candidate.id, candidate.source),
+      onFailure: (_candidate, error) => {
+        console.error('Werkelijke AutoSave mislukt:', error);
+        useAppStore.getState().notify({
+          severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: (error as Error).message,
+          dedupeKey: 'actual-autosave',
+        });
+      },
+    });
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastRunAt = 0;
+    const request = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        lastRunAt = Date.now();
+        void controller.flush();
+      }, actualAutoSaveDelay(lastRunAt, Date.now()));
+    };
+    const unsub = useAppStore.subscribe(request);
+    return () => { if (timer) clearTimeout(timer); unsub(); };
   }, [autoSaveEnabled]);
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er

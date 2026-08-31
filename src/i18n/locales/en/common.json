@@ -2,6 +2,12 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": {
+    "label": "AutoSave",
+    "noFile": "Save this project first to use AutoSave.",
+    "onHint": "AutoSave is on: changes are written to this file.",
+    "offHint": "AutoSave is off. Crash recovery remains active."
+  },
   "notifications": {
     "dismiss": "Close notification",
     "openFailed": "Failed to open file",

@@ -20,6 +20,7 @@ import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -273,7 +274,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    saveFile: async () => {
+    saveFile: async () => runProjectFileWrite(async () => {
       const state = get();
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
       // pad niet opnieuw velden kan laten vallen.
@@ -320,9 +321,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         console.error('Save failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
       }
-    },
+    }),
 
-    saveFileAs: async () => {
+    saveFileAs: async () => runProjectFileWrite(async () => {
       const state = get();
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
       // pad niet opnieuw velden kan laten vallen.
@@ -349,7 +350,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         console.error('Save As failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
       }
-    },
+    }),
 
     exportAs: async (format: ExportFormat): Promise<ExportResult> => {
       // K7 (docs/onderhoudbaarheid): alle vier exporters schrijven de CPM-uitvoer

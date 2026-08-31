@@ -13,6 +13,7 @@ import {
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -109,6 +110,10 @@ export interface DocumentSlice {
    *  doorrekening is afgeleide data, geen bewerking). Het ACTIEVE document valt hier bewust buiten
    *  — dat heeft zijn eigen pad (`useAutoCalcCPM` → `runCPM`, ~100 ms). */
   recalculateStaleSleepingDocuments: () => number;
+  /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
+  setAutoSaveToFile: (enabled: boolean) => void;
+  /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
+  markAutoSaveVersionSaved: (id: string, source: IFCSaveSource) => void;
 }
 
 /**
@@ -225,6 +230,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       redoStack: [],
       filePath: null,
       fileHandle: null,
+      autoSaveToFile: false,
       isDirty: true,
     };
 
@@ -370,6 +376,26 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       id: d.id,
       payload: d.id === s.activeDocumentId ? capturePayload(s) : d.payload!,
     }));
+  },
+
+  setAutoSaveToFile: (enabled) => {
+    set((s) => { s.autoSaveToFile = enabled; });
+  },
+
+  markAutoSaveVersionSaved: (id, source) => {
+    const state = get();
+    if (id === state.activeDocumentId) {
+      if (sameIFCSource(source, state)) set((s) => { s.isDirty = false; });
+      return;
+    }
+    const sleeping = state.documents.find((d) => d.id === id)?.payload;
+    if (!sleeping || !sameIFCSource(source, sleeping)) return;
+    set((s) => {
+      const target = s.documents.find((d) => d.id === id)?.payload;
+      // De bronvergelijking gebeurde vóór de producer tegen de plain payload. Binnen Immer zou
+      // `target` een proxy zijn en dus nooit referentie-gelijk kunnen zijn met `source`.
+      if (target) target.isDirty = false;
+    });
   },
 
   restoreDocuments: (docs, activeId) => {

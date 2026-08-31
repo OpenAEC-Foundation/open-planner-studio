@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Guardar automaticamente", "noFile": "Guarde primeiro este projeto para usar a gravação automática.", "onHint": "A gravação automática está ativa: as alterações são gravadas neste ficheiro.", "offHint": "A gravação automática está desativada. A recuperação continua ativa." },
   "notifications": {
     "dismiss": "Fechar notificação",
     "openFailed": "Falha ao abrir o arquivo",

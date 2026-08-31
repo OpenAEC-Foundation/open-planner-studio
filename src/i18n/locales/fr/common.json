@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Enregistrement automatique", "noFile": "Enregistrez d’abord ce projet pour utiliser l’enregistrement automatique.", "onHint": "L’enregistrement automatique est actif : les modifications sont écrites dans ce fichier.", "offHint": "L’enregistrement automatique est désactivé. La récupération reste active." },
   "notifications": {
     "dismiss": "Fermer la notification",
     "openFailed": "Échec de l'ouverture du fichier",
