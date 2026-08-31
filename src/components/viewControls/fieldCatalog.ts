@@ -80,7 +80,12 @@ export function filterFieldList(ctx: FieldCatalogCtx): FieldRef[] {
 }
 
 /** Groepeerbare veldenlijst (§7.4): WBS, taskType, activity codes, custom fields, resource. */
-export function groupFieldList(ctx: FieldCatalogCtx): FieldRef[] {
+export function groupFieldList(
+  ctx: {
+    activityCodeTypes: ReadonlyArray<ActivityCodeType>;
+    customFieldDefs: ReadonlyArray<CustomFieldDef>;
+  },
+): FieldRef[] {
   return [
     ...GROUP_BUILTIN_KEYS.map((key): FieldRef => ({ src: 'builtin', key })),
     ...ctx.activityCodeTypes.map((t): FieldRef => ({ src: 'activityCode', typeId: t.id })),

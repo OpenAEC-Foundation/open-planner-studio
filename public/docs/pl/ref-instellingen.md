@@ -39,7 +39,7 @@ same ustawienia i to, co robią, są w obu przypadkach identyczne; ten artykuł 
 
 ## Karta Oś czasu / Powiększenie
 
-- **Planowanie godzinowe** — **Włącz planowanie godzinowe** włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa. Przy włączonym przełączniku pojawia się **Zezwól na mieszane planowanie dniowo-godzinowe** (zadania dniowe i godzinowe w jednym projekcie). Jeśli otworzysz plik zawierający planowanie godzinowe przy wyłączonym przełączniku, pasek na górze oferuje **Włącz planowanie godzinowe**. Zobacz [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren).
+- **Planowanie godzinowe** — **Włącz planowanie godzinowe** udostępnia skalę godzinową i pasma czasu pracy. Po wyłączeniu nowe zadania zaczynają się w dniach, a istniejące zadania godzinowe zachowują dokładną wartość. Po włączeniu zadania dniowe i godzinowe mogą współistnieć. Zobacz [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren).
 - **Wyświetlanie czasu trwania** — **Automatycznie (własna jednostka dla zadania)**, **Zawsze w dniach** lub **Zawsze w godzinach**.
 - **Paski zadań przy przerwach** — **Nigdy nie dziel**, **Dziel przy zaznaczeniu** lub **Zawsze dziel**: czy pasek wizualnie dzieli się wokół dni niepracujących.
 - **Oś czasu** — **Pokazuj tylko dni robocze** kompresuje oś czasu: weekendy i święta z kalendarza projektu są pomijane, dzięki czemu zadanie trwające 5 dni roboczych ma dokładnie 5 kolumn szerokości, niezależnie od tego, jak wygląda kalendarz pomiędzy nimi.

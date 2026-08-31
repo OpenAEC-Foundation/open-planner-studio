@@ -5,7 +5,7 @@
 //
 // Aan het eind: de payload-meting (geen poort) — JSON-groottes van overview/list_tasks(p1)/
 // histogram(week) op het 2500-taken-benchmarkproject, gerapporteerd via console.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
@@ -15,15 +15,10 @@ import type { WorkCalendar } from '@/types/calendar';
 const S = () => useAppStore.getState();
 
 /** Verse leest-ctx (drift/pauze niet relevant voor leestools). */
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 /** Roep een geregistreerde tool op naam aan en verwacht ok:true; geeft de `data` terug (getypeerd los). */
@@ -251,6 +246,23 @@ test('get_task: onbekend id ⇒ nette NOT_FOUND', () => {
   const res = callErr('planner_get_task', { taskId: 'bestaat-niet' });
   assert(!res.ok, 'moet falen');
   assertEq(res.ok ? '' : res.code, 'NOT_FOUND', 'code NOT_FOUND');
+});
+
+test('get_task: custom taaktype leest stabiele id plus projectsnapshotnaam en toont een ontbrekende naam eerlijk', () => {
+  cleanProject();
+  S().ensureProjectTaskType({ id: 'ops-read-type', name: 'Engineering' });
+  const known = S().addTask({
+    name: 'Custom bekend', taskType: 'USERDEFINED', customTaskTypeId: 'ops-read-type',
+    time: createDefaultTaskTime('2026-06-01', 1),
+  });
+  const orphan = S().addTask({
+    name: 'Custom wees', taskType: 'USERDEFINED', customTaskTypeId: 'ops-read-orphan',
+    time: createDefaultTaskTime('2026-06-02', 1),
+  });
+  assertEq(callOk('planner_get_task', { taskId: known }).customTaskType,
+    { id: 'ops-read-type', name: 'Engineering' }, 'bekende projectsnapshot is volledig leesbaar');
+  assertEq(callOk('planner_get_task', { taskId: orphan }).customTaskType,
+    { id: 'ops-read-orphan', name: null }, 'ontbrekende catalogentry degradeert niet naar CONSTRUCTION');
 });
 
 // =================================================================================================

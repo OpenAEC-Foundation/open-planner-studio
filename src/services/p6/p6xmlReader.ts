@@ -11,11 +11,19 @@ import { normalizeImportedProgress } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
-import { P6_DAY_NAMES, P6_NAME_TO_CURVE } from './p6xmlWriter';
+import type { CustomTaskType } from '@/types/taskType';
+import {
+  OPS_P6_DURATION_UNIT_UDF_TITLE,
+  P6_DAY_NAMES,
+  P6_NAME_TO_CURVE,
+} from './p6xmlWriter';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
   promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
+
+const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
+const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const P6_TIME_ANCHOR = '08:00:00';
@@ -45,6 +53,20 @@ function getElementInt(parent: Element, tagName: string, fallback = 0): number {
 
 function getElementFloat(parent: Element, tagName: string, fallback = 0): number {
   return toFloat(getElementText(parent, tagName), fallback);
+}
+
+function parseOpsCustomTaskType(rawText: string): { id: string; name?: string } | undefined {
+  try {
+    const raw: unknown = JSON.parse(rawText);
+    if (!raw || typeof raw !== 'object'
+      || (raw as { ops?: unknown }).ops !== OPS_CUSTOM_TASK_TYPE_MARKER
+      || typeof (raw as { id?: unknown }).id !== 'string') return undefined;
+    const id = (raw as { id: string }).id.trim();
+    const name = typeof (raw as { name?: unknown }).name === 'string'
+      ? (raw as { name: string }).name.trim()
+      : '';
+    return id ? { id, ...(name ? { name } : {}) } : undefined;
+  } catch { return undefined; }
 }
 
 /** P6-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met MSPDI (F5-a). */
@@ -329,7 +351,54 @@ export function readP6XML(content: string): ImportResult {
   const activityElements = getAllByLocalName(doc, 'Activity');
   const actObjIdToId = new Map<number, string>();
   const leafTasks: Task[] = [];
+  const customTaskTypes = new Map<string, CustomTaskType>();
   const taskHourById = new Map<string, boolean>(); // taak-id → uur-modus (voor lag-eenheid, §7.2)
+
+  // PMXML bewaart UDF's als top-level objecten. Selecteer uitsluitend onze benoemde definitie en
+  // marker, zodat een toevallig JSON-object in een vreemde vrije tekst nooit taaktype-data wordt.
+  const opsUdfTypeIds = new Set<number>();
+  for (const udfType of getAllByLocalName(doc, 'UDFType')) {
+    if (getElementText(udfType, 'Title') !== OPS_CUSTOM_TASK_TYPE_UDF_TITLE) continue;
+    const objectId = getElementInt(udfType, 'ObjectId', -1);
+    if (objectId >= 0) opsUdfTypeIds.add(objectId);
+  }
+  const customTaskTypeByActivityObjectId = new Map<number, { id: string; name?: string }>();
+  for (const udfValue of getAllByLocalName(doc, 'UDFValue')) {
+    if (!opsUdfTypeIds.has(getElementInt(udfValue, 'UDFTypeObjectId', -1))) continue;
+    const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
+    // Oracle noemt het tekstveld `Text`. `TextValue` blijft als tolerante leeskant bestaan voor
+    // tijdelijke OPS-builds die vóór deze contractcorrectie zijn gemaakt.
+    const parsed = parseOpsCustomTaskType(
+      getElementText(udfValue, 'Text') || getElementText(udfValue, 'TextValue'),
+    );
+    if (foreignObjectId >= 0 && parsed && !customTaskTypeByActivityObjectId.has(foreignObjectId)) {
+      customTaskTypeByActivityObjectId.set(foreignObjectId, parsed);
+    }
+  }
+
+  // PlannedDuration is in P6 altijd een hoeveelheid uren en zegt dus niet of OPS die taak als
+  // werkdagen of als exacte werkuren moet behandelen. Alleen onze exact benoemde Activity-Text-UDF
+  // is expliciet; zonder definitie blijven vreemde/legacy bestanden op de bestaande
+  // kalenderprecisie-regel. Losse UDFValue-tags worden bewust niet vertrouwd.
+  const durationUnitUdfIds = new Set<number>();
+  for (const udfType of getAllByLocalName(doc, 'UDFType')) {
+    if (getElementText(udfType, 'SubjectArea') !== 'Activity') continue;
+    if (getElementText(udfType, 'DataType') !== 'Text') continue;
+    if (getElementText(udfType, 'Title') !== OPS_P6_DURATION_UNIT_UDF_TITLE) continue;
+    const objectId = getElementInt(udfType, 'ObjectId', -1);
+    if (objectId >= 0) durationUnitUdfIds.add(objectId);
+  }
+  const explicitUnitByActivityObjectId = new Map<number, 'days' | 'hours'>();
+  if (durationUnitUdfIds.size > 0) {
+    for (const udfValue of getAllByLocalName(doc, 'UDFValue')) {
+      if (!durationUnitUdfIds.has(getElementInt(udfValue, 'UDFTypeObjectId', -1))) continue;
+      const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
+      const value = getElementText(udfValue, 'Text');
+      if (foreignObjectId >= 0 && (value === 'days' || value === 'hours')) {
+        explicitUnitByActivityObjectId.set(foreignObjectId, value);
+      }
+    }
+  }
 
   // Fase 2.8b (§7.2): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
   // taken. `calById` mapt zowel de projectkalender als de bibliotheek-kalenders; `effCalIdOf` geeft
@@ -375,6 +444,10 @@ export function readP6XML(content: string): ImportResult {
     const plannedFinishRaw = getElementText(actEl, 'PlannedFinishDate');
     const percentComplete = getElementFloat(actEl, 'PhysicalPercentComplete');
     const description = getElementText(actEl, 'Description');
+    const customTaskType = customTaskTypeByActivityObjectId.get(objId);
+    if (customTaskType?.name && !customTaskTypes.has(customTaskType.id)) {
+      customTaskTypes.set(customTaskType.id, { id: customTaskType.id, name: customTaskType.name });
+    }
     const wbsObjId = getElementInt(actEl, 'WBSObjectId', -1);
     // Taak-kalender (fase 2.8a, §8.3): effectieve <CalendarObjectId> → task.calendarId. ObjectId 1
     // (of ontbrekend, legacy-bestanden) = projectkalender ⇒ undefined (bestaande conventie).
@@ -383,7 +456,8 @@ export function readP6XML(content: string): ImportResult {
 
     // Fase 2.8b (§7.2): uur- vs dag-modus voor deze taak.
     const effCalId = effCalIdOf(calObjId);
-    const isHour = hourModeCalIds.has(effCalId);
+    const explicitUnit = explicitUnitByActivityObjectId.get(objId);
+    const isHour = explicitUnit ? explicitUnit === 'hours' : hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
     const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
@@ -402,7 +476,7 @@ export function readP6XML(content: string): ImportResult {
 
     // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid; dag ⇒ `Math.round(uren/hpd)` (bestaand).
     const durationMinutes = isHour ? Math.round(plannedDuration * 60) : undefined;
-    const durationDays = isHour ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0) : p6HoursToDays(plannedDuration, hoursPerDay);
+    const durationDays = isHour ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0) : p6HoursToDays(plannedDuration, effHpd);
     const isMilestone = p6Type.includes('Milestone');
     // Fase 2.4: P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
     const milestoneKind = !isMilestone ? undefined
@@ -449,7 +523,8 @@ export function readP6XML(content: string): ImportResult {
       name,
       description,
       wbsCode: actId,
-      taskType: 'CONSTRUCTION',
+      taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
+      ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
       status,
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
@@ -460,6 +535,7 @@ export function readP6XML(content: string): ImportResult {
       ...(constraint2 ? { constraint2 } : {}),
       time: {
         durationType: 'WORKTIME',
+        durationUnit: isHour ? 'hours' : 'days',
         scheduleDuration: durationDays,
         ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: plannedStart,
@@ -563,6 +639,7 @@ export function readP6XML(content: string): ImportResult {
     resources,
     assignments,
     resourceCalendars,
+    customTaskTypes: [...customTaskTypes.values()],
   };
 }
 

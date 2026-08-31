@@ -189,7 +189,14 @@
     "taskHintBelow": "Nuova attività subito sotto la selezione",
     "taskHintAppend": "Nuova attività in fondo all’elenco",
     "columnsHintTable": "Scegli le colonne della vista Tabella",
-    "columnsHintGoToTable": "Scegli le colonne della vista Tabella — visibili nella scheda Tabella"
+    "columnsHintGoToTable": "Scegli le colonne della vista Tabella — visibili nella scheda Tabella",
+    "toggleResourceAccent": "Accento risorsa",
+    "screenColors": "Colori barre",
+    "screenColors_critical": "Percorso critico",
+    "screenColors_auto": "Per attività — automatico",
+    "screenColors_category": "Per categoria",
+    "screenColorsMissingField": "Questo campo non esiste nel progetto. Viene usato temporaneamente il tipo di attività.",
+    "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico."
   },
   "ifc": {
     "title": "Editor IFC",
@@ -331,6 +338,12 @@
     "installing": "Installazione...",
     "installedBadge": "Installata",
     "installError": "Installazione non riuscita.",
+    "quarantined": "Quarantena",
+    "quarantineReason": "Motivo: {{reason}}",
+    "quarantineRemove": "Rimuovi dall'archivio",
+    "quarantineEmptyName": "Estensione non valida",
+    "catalogEntriesSkipped": "Voci di catalogo ignorate: {{count}}",
+    "storageWriteFailed": "Impossibile salvare lo stato dell'estensione.",
     "import": "Importa",
     "importSubtitle": "Importa dati di progetto tramite le estensioni installate.",
     "importEmpty": "Nessuna estensione di importazione installata. Aggiungine una tramite Estensioni."

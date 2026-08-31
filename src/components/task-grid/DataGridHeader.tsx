@@ -349,7 +349,6 @@ export function DataGridHeader({
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('drop', handleDrop);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draggedColumnId, onReorderColumn]);
 
   const contextMenuPortal = contextMenu && contextColumn && typeof document !== 'undefined'

@@ -24,7 +24,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // Recente bestanden leven in IndexedDB (async, met eenmalige localStorage-migratie) —
     // één keer bij opstart in de store hydrateren.
     void useAppStore.getState().hydrateRecentFiles();
-  }, []);
+  }, [setUI]);
 
   // Taakgridvoorkeuren wachten bewust tot de recoverykeuze volledig is afgehandeld. Bij mount is
   // de store nog het lege startdocument; direct lezen zou daardoor de dynamische defaults en een

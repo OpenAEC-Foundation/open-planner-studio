@@ -25,9 +25,12 @@
     "projectStartAnchorsClamped_other": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "mppTimephasedSteeringLost_one": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
     "mppTimephasedSteeringLost_other": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
+    "readMore": "Daha fazla bilgi",
     "pasteSkippedReadOnly_one": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
     "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
-    "readMore": "Daha fazla bilgi"
+    "librarySaveFailed": "Kitaplık kaydedilemedi",
+    "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
+    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar."
   },
   "yes": "Evet",
   "no": "Hayır",
@@ -101,6 +104,8 @@
     "enableHourPlanning": "Saat planlamasını etkinleştir",
     "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
+    "defaultTaskDurationUnit": "Yeni görevler için varsayılan birim",
+    "defaultTaskDurationUnitHint": "Yeni görevlerin iş günüyle mi çalışma saatiyle mi başlayacağını belirler. Mevcut görevler değişmez.",
     "durationDisplay": "Süre gösterimi",
     "durationDisplayAuto": "Otomatik (göreve özgü birim)",
     "durationDisplayDays": "Her zaman gün",
@@ -255,6 +260,9 @@
     "openBadge": "{{count}} açık",
     "switchHint": "Geçiş için ⌘1–9",
     "openProject": "Proje aç",
+    "newOrOpenTitle": "Proje başlat",
+    "newProject": "Yeni proje",
+    "openExistingProject": "Mevcut projeyi aç",
     "allProjects": "Tüm projeler",
     "active": "Etkin",
     "tasksWord": "görev",
@@ -546,7 +554,8 @@
       "capacity": "Kapasite",
       "documents": "Belgeler",
       "selectHint": "Histogramı görmek için bir kaynak seçin."
-    }
+    },
+    "color": "Renk"
   },
   "calendar": {
     "library": {
@@ -682,7 +691,7 @@
       "none": "(yok)"
     },
     "presentation": {
-      "hint": "Sunum modundan çıkmak için F11'e basın"
+      "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."
     },
     "splitView": {
       "primary": "Birincil",
@@ -712,7 +721,9 @@
   },
   "duration": {
     "suffixDay": "g",
-    "suffixHour": "s",
+    "suffixHour": "h",
+    "days": "Gün",
+    "hours": "Saat",
     "suffixMinute": "dk"
   },
   "shortcuts": {

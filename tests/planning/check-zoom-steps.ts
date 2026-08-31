@@ -18,7 +18,8 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
-import { ZOOM_STEP, DEFAULT_ZOOM, computeTimelineZoom } from '@/utils/ganttViewport';
+import { ZOOM_STEP, DEFAULT_ZOOM, computeAnchoredZoom, computeTimelineZoom } from '@/utils/ganttViewport';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 
 const S = () => useAppStore.getState();
 
@@ -60,6 +61,49 @@ eq('03c zoom op de lokale linkerrand behoudt de datum onder de cursor',
   computeTimelineZoom(30, 60, 900, 0, 400), { zoom: 60, scrollX: 1800 });
 eq('03d zoom op de lokale rechterrand behoudt de datum onder de cursor',
   computeTimelineZoom(30, 60, 900, 639, 400), { zoom: 60, scrollX: 2439 });
+
+// De wheelpaden van primary en secondary delen na de viewportextractie exact deze ankerformule.
+// 300px canvas-X, 100px tabel, scrollX 80 en zoom 20 ⇒ dag 14 onder de cursor. Bij zoom 40 moet
+// scrollX 360 worden om diezelfde dag onder canvas-X 300 te houden.
+eq('03c geankerde zoom houdt dezelfde dag onder de cursor', computeAnchoredZoom({
+  currentZoom: 20,
+  currentScrollX: 80,
+  requestedZoom: 40,
+  anchorX: 300,
+  chartOriginX: 100,
+  maxZoom: 400,
+}), { zoom: 40, scrollX: 360 });
+eq('03d geankerde zoom klemt secondary zonder taaktabel op dezelfde route', computeAnchoredZoom({
+  currentZoom: 50,
+  currentScrollX: 150,
+  requestedZoom: 2000,
+  anchorX: 250,
+  chartOriginX: 0,
+  maxZoom: 1000,
+}), { zoom: 1000, scrollX: 7750 });
+eq('03e ongewijzigde geankerde zoom is een expliciete no-op', computeAnchoredZoom({
+  currentZoom: 30,
+  currentScrollX: 90,
+  requestedZoom: 30,
+  anchorX: 200,
+  chartOriginX: 0,
+  maxZoom: 400,
+}), null);
+
+// G1: uren- en kwartierlabels zijn alleen bruikbaar als de zoomgrens de breedte van hun cellen
+// toelaat. Bewaak zowel de pure grens als de twee store-paden die alle zoomgebaar-/ribbonresultaten
+// uiteindelijk klemmen.
+eq('03f dagmodus blijft tot 400 px/dag begrensd', maxGanttZoom(false, false), 400);
+eq('03g urenmodus bereikt 1000 px/dag', maxGanttZoom(false, true), 1000);
+eq('03h kwartiermodus bereikt 4000 px/dag', maxGanttZoom(true, true), 4000);
+S().setUI({ enableHourPlanning: true, enableQuarterHourZoom: false });
+S().setZoom(1000);
+eq('03i setZoom kapt urenmodus niet voortijdig af', S().view.zoom, 1000);
+S().setUI({ enableQuarterHourZoom: true });
+S().setTimeScale('hour');
+eq('03j tijdschaal uur blijft bereikbaar met kwartiermodus aan', S().view.zoom, 1000);
+S().setZoom(4000);
+eq('03k setZoom bereikt de kwartiergrens', S().view.zoom, 4000);
 
 // ── 2) Bron: geen kale zoomwaarden meer naast setZoom. ───────────────────────
 {

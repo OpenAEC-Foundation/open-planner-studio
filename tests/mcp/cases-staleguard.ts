@@ -11,6 +11,8 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { ensureFreshSchedule } from '@/services/mcp/staleGuard';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { WorkCalendar } from '@/types/calendar';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
@@ -102,6 +104,33 @@ test('stale met kringverwijzing ⇒ {recomputed:true} + error gezet, geen throw'
 
   assertEq(out!.recomputed, true, 'recomputed');
   assert(typeof out!.error === 'string' && out!.error.length > 0, `error moet gezet zijn bij een cyclus, kreeg ${JSON.stringify(out!.error)}`);
+});
+
+test('ensureFreshSchedule(B) herrekent uitsluitend B en laat de app-singleton byte-identiek', () => {
+  cleanProject();
+  S().setProject({ name: 'Versheidscontext A' });
+  S().addTask({ name: 'Taak A', time: createDefaultTaskTime('2026-06-01', 2) });
+  S().runCPM();
+  const aBefore = JSON.stringify(capturePayload(S()));
+  const aCpm = S().cpmResult;
+
+  const B = createAppStoreContext();
+  const b = B.store.getState();
+  b.setCalendar({ ...b.calendar, workDays: [...CLEAN_WORKDAYS], holidays: [] } as WorkCalendar);
+  b.setProject({ name: 'Versheidscontext B', startDate: '2026-06-01' });
+  const taskId = b.addTask({ name: 'Taak B', time: createDefaultTaskTime('2026-06-01', 3) });
+  b.runCPM();
+  const finishBefore = B.store.getState().tasks.find((task) => task.id === taskId)!.time.earlyFinish;
+  B.store.getState().updateTask(taskId, { time: createDefaultTaskTime('2026-06-01', 15) });
+
+  const out = ensureFreshSchedule(B);
+
+  assertEq(out.recomputed, true, 'de stale B-context hoort herrekend te zijn');
+  assertEq(B.store.getState().scheduleStale, false, 'alleen B hoort weer vers te zijn');
+  const finishAfter = B.store.getState().tasks.find((task) => task.id === taskId)!.time.earlyFinish;
+  assert(finishAfter > finishBefore, 'B hoort datums voor de langere duur te krijgen');
+  assertEq(JSON.stringify(capturePayload(S())), aBefore, 'B-versheid mag A byte-inhoudelijk niet wijzigen');
+  assert(S().cpmResult === aCpm, 'B-versheid mag A zelfs niet onnodig herrekenen');
 });
 
 await run();

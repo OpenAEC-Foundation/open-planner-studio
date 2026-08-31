@@ -28,6 +28,7 @@
   },
   "taskGrid": {
     "columns": {
+      "customTaskType": "自定义任务类型",
       "activityCodeData":"活动代码数据","actualDuration":"实际工期","actualFinish":"实际完成日期","actualStart":"实际开始日期","assignedResources":"已分配资源","assignmentCurve":"分配曲线","assignmentId":"分配 ID","assignmentResourceId":"分配资源 ID","assignmentTaskId":"分配任务 ID","assignmentUnits":"每日分配单位","calendar":"日历","childIds":"子任务 ID","color":"颜色","completion":"进度","constraint2Date":"次要约束日期","constraint2Type":"次要约束类型","constraintDate":"约束日期","constraintHard":"强制约束","constraintType":"约束类型","critical":"关键","customFieldData":"自定义字段数据","deadline":"截止日期","description":"描述","duration":"工期","durationMinutes":"工期（分钟）","durationType":"工期类型","earlyFinish":"最早完成","earlyStart":"最早开始","effortDriven":"投入量驱动","externalRelationData":"外部关系数据","floatPath":"浮时路径","freeFloat":"自由浮时","hammock":"吊床任务（派生工期）","interferingFloat":"干扰浮时","internalRelationData":"内部关系数据","lateFinish":"最晚完成","lateStart":"最晚开始","levelingDelay":"资源调配延迟","levelingDelayElapsed":"已用时间调配延迟","levelingDelayMinutes":"资源调配延迟（分钟）","mandatoryMilestone":"强制里程碑","manuallyScheduled":"手动计划","milestone":"里程碑","milestoneKind":"里程碑类型","mspTaskType":"Microsoft Project 任务类型","name":"任务名称","nearCritical":"接近关键","noteData":"备注数据","notes":"备注","parentId":"父任务 ID","priority":"资源调配优先级","remainingMinutes":"剩余（分钟）","remainingTime":"剩余（工作日）","resourceIds":"资源 ID","resume":"恢复日期","scheduleFinish":"计划完成日期","scheduleStart":"计划开始日期","splitGaps":"中断间隔","status":"状态","stop":"停止日期","taskId":"任务 ID","taskType":"任务类型","timephasedContours":"时间分段分布","timephasedDurationWalks":"时间分段工期区段","timephasedFinishFloor":"时间分段完成下限","timephasedStartAnchor":"时间分段开始锚点","totalFloat":"总浮时","wbs":"工作分解结构（WBS）","workWindowFinish":"工作窗口结束","workWindowStart":"工作窗口开始"
     },
     "category": {
@@ -84,7 +85,23 @@
     "MOVE": "搬迁",
     "RENOVATION": "翻新",
     "MAINTENANCE": "维护",
-    "USERDEFINED": "其他"
+    "USERDEFINED": "其他",
+    "builtinGroup": "内置类型", "personalGroup": "我的任务类型", "projectGroup": "来自此项目", "new": "+ 新建任务类型…", "manage": "管理任务类型…", "newTitle": "新建任务类型", "manageTitle": "管理任务类型", "name": "名称", "fixed": "固定", "empty": "尚无个人任务类型。", "rename": "编辑", "remove": "删除", "addToMine": "添加到我的任务类型", "confirmRemove": "此类型正在当前项目中使用。要从我的任务类型中删除吗？项目副本将保留。"
+  },
+  "duration": {
+    "label": "工期",
+    "unit": "工期单位",
+    "days": "天",
+    "hours": "小时",
+    "invalid": "请输入整数天数或小时数，例如 2d 或 12h。",
+    "enableHourPlanningFirst": "请启用小时计划后再编辑此小时任务。",
+    "enableHourPlanning": "启用小时计划",
+    "requiresWorkBlocks": "此日历没有有效的工作时间。请检查工作日和工作时间。",
+    "conversionNotExact": "此工期无法在当前日历中精确转换为整数天。现有单位将保留；请自行输入新的有效值。",
+    "conversionProposal": "精确转换建议：{{value}}。应用该建议或保留当前单位。",
+    "applyProposal": "应用建议",
+    "keepCurrent": "保留",
+    "unitInfo": "所选单位属于此任务。天数计算工作日；小时数计算日历内的工作小时。更换日历不会改变单位或输入的工期，但可能改变完成日期。"
   },
   "dialog": {
     "editTitle": "编辑任务",

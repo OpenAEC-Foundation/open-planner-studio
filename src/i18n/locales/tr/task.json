@@ -28,6 +28,7 @@
   },
   "taskGrid": {
     "columns": {
+      "customTaskType": "Özel görev türü",
       "activityCodeData":"Aktivite kodu verileri","actualDuration":"Gerçekleşen süre","actualFinish":"Gerçekleşen bitiş","actualStart":"Gerçekleşen başlangıç","assignedResources":"Atanan kaynaklar","assignmentCurve":"Atama eğrisi","assignmentId":"Atama kimliği","assignmentResourceId":"Atama kaynak kimliği","assignmentTaskId":"Atama görev kimliği","assignmentUnits":"Günlük atama birimleri","calendar":"Takvim","childIds":"Alt görev kimlikleri","color":"Renk","completion":"İlerleme","constraint2Date":"İkincil kısıtlama tarihi","constraint2Type":"İkincil kısıtlama türü","constraintDate":"Kısıtlama tarihi","constraintHard":"Kesin kısıtlama","constraintType":"Kısıtlama türü","critical":"Kritik","customFieldData":"Özel alan verileri","deadline":"Son tarih","description":"Açıklama","duration":"Süre","durationMinutes":"Süre (dakika)","durationType":"Süre türü","earlyFinish":"Erken bitiş","earlyStart":"Erken başlangıç","effortDriven":"Efor odaklı","externalRelationData":"Dış ilişki verileri","floatPath":"Bolluk yolu","freeFloat":"Serbest bolluk","hammock":"Hammock (türetilmiş süre)","interferingFloat":"Engelleyici bolluk","internalRelationData":"İç ilişki verileri","lateFinish":"Geç bitiş","lateStart":"Geç başlangıç","levelingDelay":"Kaynak dengeleme gecikmesi","levelingDelayElapsed":"Geçen dengeleme gecikmesi","levelingDelayMinutes":"Dengeleme gecikmesi (dakika)","mandatoryMilestone":"Zorunlu kilometre taşı","manuallyScheduled":"Elle planlandı","milestone":"Kilometre taşı","milestoneKind":"Kilometre taşı türü","mspTaskType":"Microsoft Project görev türü","name":"Görev adı","nearCritical":"Kritiğe yakın","noteData":"Not verileri","notes":"Notlar","parentId":"Üst görev kimliği","priority":"Dengeleme önceliği","remainingMinutes":"Kalan (dakika)","remainingTime":"Kalan (iş günü)","resourceIds":"Kaynak kimlikleri","resume":"Sürdürme tarihi","scheduleFinish":"Planlanan bitiş","scheduleStart":"Planlanan başlangıç","splitGaps":"Kesintiler","status":"Durum","stop":"Durdurma tarihi","taskId":"Görev kimliği","taskType":"Görev türü","timephasedContours":"Zaman aşamalı dağılımlar","timephasedDurationWalks":"Zaman aşamalı süre parçaları","timephasedFinishFloor":"Zaman aşamalı bitiş alt sınırı","timephasedStartAnchor":"Zaman aşamalı başlangıç çıpası","totalFloat":"Toplam bolluk","wbs":"İş kırılım yapısı (WBS)","workWindowFinish":"Çalışma penceresi bitişi","workWindowStart":"Çalışma penceresi başlangıcı"
     },
     "category": {
@@ -88,7 +89,23 @@
     "MOVE": "Taşıma",
     "RENOVATION": "Yenileme",
     "MAINTENANCE": "Bakım",
-    "USERDEFINED": "Diğer"
+    "USERDEFINED": "Diğer",
+    "builtinGroup": "Yerleşik türler", "personalGroup": "Görev türlerim", "projectGroup": "Bu projeden", "new": "+ Yeni görev türü…", "manage": "Görev türlerini yönet…", "newTitle": "Yeni görev türü", "manageTitle": "Görev türlerini yönet", "name": "Ad", "fixed": "Sabit", "empty": "Henüz kişisel görev türü yok.", "rename": "Düzenle", "remove": "Sil", "addToMine": "Görev türlerime ekle", "confirmRemove": "Bu tür açık projede kullanılıyor. Görev türlerimden silinsin mi? Proje kopyası korunur."
+  },
+  "duration": {
+    "label": "Süre",
+    "unit": "Süre birimi",
+    "days": "Gün",
+    "hours": "Saat",
+    "invalid": "2d veya 12h gibi tam gün ya da saat sayısı girin.",
+    "enableHourPlanningFirst": "Bu saat görevini düzenlemek için saat planlamasını etkinleştirin.",
+    "enableHourPlanning": "Saat planlamasını etkinleştir",
+    "requiresWorkBlocks": "Bu takvimde geçerli çalışma saatleri yok. Çalışma günlerini ve saatlerini kontrol edin.",
+    "conversionNotExact": "Bu süre mevcut takvimde tam günlere kesin olarak dönüştürülemiyor. Mevcut birim korunur; yeni ve geçerli bir değer girin.",
+    "conversionProposal": "Kesin dönüşüm önerisi: {{value}}. Öneriyi uygulayın veya mevcut birimi koruyun.",
+    "applyProposal": "Öneriyi uygula",
+    "keepCurrent": "Koru",
+    "unitInfo": "Seçilen birim bu göreve aittir. Günler iş günlerini, saatler takvim içindeki çalışma saatlerini sayar. Farklı bir takvim birimi veya girilen süreyi değiştirmez, ancak bitiş tarihini değiştirebilir."
   },
   "dialog": {
     "editTitle": "Görevi düzenle",

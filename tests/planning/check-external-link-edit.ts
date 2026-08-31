@@ -8,7 +8,7 @@ const stubbedSourceTask = (id: string): Task => ({
   id, name: id, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
   isMilestone: false, priority: 5, parentId: null, childIds: [], resourceIds: [],
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 5,
+    durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 5,
     scheduleStart: '2026-05-04', scheduleFinish: '2026-05-08',
     earlyStart: '2026-05-04', earlyFinish: '2026-05-08',
     lateStart: '2026-05-04', lateFinish: '2026-05-08',

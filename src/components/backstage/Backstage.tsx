@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
@@ -36,10 +36,10 @@ export function Backstage() {
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
   const isDirty = useAppStore(s => s.isDirty); // top-level = het actieve document
 
-  const closeBackstage = () => {
+  const closeBackstage = useCallback(() => {
     // Terug naar Start-tab
     setUI({ activeRibbonTab: 'start' });
-  };
+  }, [setUI]);
 
   const handleCloseProject = () => {
     // Backstage éérst dicht: de sluit-bevestiging hoort boven de gewone werkruimte te staan, niet
@@ -55,7 +55,7 @@ export function Backstage() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [closeBackstage]);
 
   const goTo = (s: BackstageSection) => setUI({ backstageSection: s });
 

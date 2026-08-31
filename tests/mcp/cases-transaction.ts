@@ -6,6 +6,10 @@
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
+import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 
@@ -104,6 +108,7 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
 
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
   const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
+  const notificationsBefore = JSON.stringify(store.getState().ui.notifications);
   const beforeCpmError = store.getState().cpmResult?.error ?? null;
   const beforeViewRows = JSON.stringify(store.getState().viewRows);
   const beforeResourceLoad = JSON.stringify(store.getState().resourceLoadResult);
@@ -136,6 +141,8 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
     'rollback herstelt resourceLoadResult exact en laat geen null/tussenresultaat achter');
   assertEq(store.getState().isDirty, false,
     'een geweigerde MCP-transactie maakt een vooraf schoon document niet dirty');
+  assertEq(JSON.stringify(store.getState().ui.notifications), notificationsBefore,
+    'de tijdelijke solverfoutmelding hoort samen met de mislukte transactie terug te rollen');
 });
 
 // 6) Geneste aanroep is verboden: de geneste `runInMcpTransaction` gooit, en die throw laat de
@@ -210,6 +217,186 @@ test('na een rollback pusht een keyed mutatie een eigen snapshot', () => {
     afterRollback + 1,
     'keyed mutatie ná rollback hoort een eigen snapshot te pushen (coalesce gereset, suppressie uit)',
   );
+});
+
+// 9) De contextfactory bezit state, runtimelease en eindherberekening per AppStoreContext. Deze
+//    cases gebruiken bewust géén singletonwrapper: twee gewone Zustandstores zouden zonder de
+//    runtimechecks hieronder ten onrechte onafhankelijk kunnen lijken.
+function warmContext(context: AppStoreContext): void {
+  context.store.getState().addTask({ name: 'factory-warmup' });
+  context.store.getState().undo();
+}
+
+const stackDepths = (context: AppStoreContext) => ({
+  undo: historyDepthsForActiveScope(context.store.getState()).undoDepth,
+  redo: historyDepthsForActiveScope(context.store.getState()).redoDepth,
+});
+
+test('createMcpTransactions(B): succes muteert en herrekent alleen B met één eigen undo', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  warmContext(A);
+  warmContext(B);
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const aNotificationsVoor = JSON.stringify(A.store.getState().ui.notifications);
+  const bUndoVoor = historyDepthsForActiveScope(B.store.getState()).undoDepth;
+  const originalRunCPM = B.store.getState().runCPM;
+  let bRunCPMCalls = 0;
+  B.store.setState({
+    runCPM: () => {
+      bRunCPMCalls++;
+      originalRunCPM();
+    },
+  });
+
+  const result = txB.run(() => txB.draft.addTask({ name: 'alleen in factory-B' }));
+
+  assert(result.ok, 'de contextgebonden transactie hoort te slagen');
+  assert(result.ok && B.store.getState().tasks.some((task) => task.id === result.value),
+    'de generieke returnwaarde hoort het in B aangemaakte taak-id te zijn');
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
+    'factory-B hoort precies één eigen undo-snapshot te maken');
+  assertEq(bRunCPMCalls, 1, 'factory-B hoort B precies éénmaal aan het eind te herrekenen');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
+    'document A hoort byte-inhoudelijk gelijk te blijven');
+  assertEq(JSON.stringify(A.store.getState().ui.notifications), aNotificationsVoor,
+    'notificaties van A horen gelijk te blijven');
+});
+
+test('createMcpTransactions(B): callbackthrow rolt alleen B volledig terug', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  warmContext(A);
+  warmContext(B);
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const aNotificationsVoor = JSON.stringify(A.store.getState().ui.notifications);
+  const bVoor = JSON.stringify(createSnapshot(B.store.getState()));
+  const bStacksVoor = stackDepths(B);
+
+  const result = txB.run(() => {
+    txB.draft.addTask({ name: 'verdwijnt uit B' });
+    throw new Error('factory-boem');
+  });
+
+  assert(!result.ok && result.error === 'factory-boem', 'de callbackthrow hoort als gefaald resultaat terug te komen');
+  assertEq(JSON.stringify(createSnapshot(B.store.getState())), bVoor,
+    'B hoort na callbackthrow exact naar de beginsnapshot terug te keren');
+  assertEq(stackDepths(B), bStacksVoor, 'undo en redo van B horen exact teruggezet te zijn');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
+    'callbackrollback in B mag A niet wijzigen');
+  assertEq(JSON.stringify(A.store.getState().ui.notifications), aNotificationsVoor,
+    'callbackrollback in B mag A-notificaties niet wijzigen');
+});
+
+test('nested run op hetzelfde factoryobject propageert en rolt outer B terug; B blijft herbruikbaar', () => {
+  const B = createAppStoreContext();
+  warmContext(B);
+  const txB = createMcpTransactions(B);
+  const voor = JSON.stringify(createSnapshot(B.store.getState()));
+  const stacksVoor = stackDepths(B);
+
+  const outer = txB.run(() => {
+    txB.draft.addTask({ name: 'outer-zelfde-factory' });
+    txB.run(() => txB.draft.addTask({ name: 'inner-zelfde-factory' }));
+  });
+
+  assert(!outer.ok && /herintreedbaar/i.test(outer.error),
+    'de nested enter hoort de outer callback als fout te bereiken');
+  assertEq(JSON.stringify(createSnapshot(B.store.getState())), voor,
+    'de outer call hoort volledig terug te rollen na de nested weigering');
+  assertEq(stackDepths(B), stacksVoor, 'nested weigering mag geen extra undo/redo achterlaten');
+
+  const herstel = txB.run(() => txB.draft.addTask({ name: 'B-na-nested-rollback' }));
+  assert(herstel.ok, 'dezelfde factory hoort na rollback opnieuw bruikbaar te zijn');
+});
+
+test('tweede factory op dezelfde B-runtime kan reentrancy niet omzeilen', () => {
+  const B = createAppStoreContext();
+  warmContext(B);
+  const txB = createMcpTransactions(B);
+  const txB2 = createMcpTransactions(B);
+  const voor = JSON.stringify(createSnapshot(B.store.getState()));
+  const stacksVoor = stackDepths(B);
+
+  const outer = txB.run(() => {
+    txB.draft.addTask({ name: 'outer-eerste-factory' });
+    txB2.run(() => txB2.draft.addTask({ name: 'inner-tweede-factory' }));
+  });
+
+  assert(!outer.ok && /herintreedbaar/i.test(outer.error),
+    'de tweede factory hoort op B\'s actieve runtimelease geweigerd te worden');
+  assertEq(JSON.stringify(createSnapshot(B.store.getState())), voor,
+    'de weigering via factory twee hoort de outer B-call volledig terug te rollen');
+  assertEq(stackDepths(B), stacksVoor,
+    'twee factoryobjecten op B mogen geen extra undo/redo produceren');
+
+  const herstel = txB2.run(() => txB2.draft.addTask({ name: 'B2-na-rollback' }));
+  assert(herstel.ok, 'factory twee hoort na de gesloten outer lease bruikbaar te zijn');
+});
+
+test('synchrone txA.run binnen txB.run is toegestaan en iedere context houdt eigen undo', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  warmContext(A);
+  warmContext(B);
+  const txA = createMcpTransactions(A);
+  const txB = createMcpTransactions(B);
+  const aUndoVoor = historyDepthsForActiveScope(A.store.getState()).undoDepth;
+  const bUndoVoor = historyDepthsForActiveScope(B.store.getState()).undoDepth;
+
+  const outer = txB.run(() => {
+    const bId = txB.draft.addTask({ name: 'B-outer' });
+    const inner = txA.run(() => txA.draft.addTask({ name: 'A-inner' }));
+    if (!inner.ok) throw new Error(inner.error);
+    return { aId: inner.value, bId };
+  });
+
+  assert(outer.ok, 'een transactie op A hoort tijdens een actieve B-transactie toegestaan te zijn');
+  assert(outer.ok && A.store.getState().tasks.some((task) => task.id === outer.value.aId),
+    'de inner returnwaarde hoort naar de taak in A te wijzen');
+  assert(outer.ok && B.store.getState().tasks.some((task) => task.id === outer.value.bId),
+    'de outer returnwaarde hoort naar de taak in B te wijzen');
+  assertEq(historyDepthsForActiveScope(A.store.getState()).undoDepth, aUndoVoor + 1,
+    'A krijgt precies één eigen undo');
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
+    'B krijgt precies één eigen undo');
+});
+
+test('succes en rollback breken B-coalescing maar laten A-coalescing doorlopen', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  const aId = A.store.getState().addTask({ name: 'A-coalesce-start' });
+  const bId = B.store.getState().addTask({ name: 'B-coalesce-start' });
+  A.store.setState({ historyEvents: [], nextHistorySequence: 1 });
+  B.store.setState({ historyEvents: [], nextHistorySequence: 1 });
+  A.runtime.resetUndoCoalescing();
+  B.runtime.resetUndoCoalescing();
+  for (const name of ['A-1', 'A-2']) A.store.getState().updateTask(aId, { name }, { coalesceKey: 'edit:name' });
+  for (const name of ['B-1', 'B-2']) B.store.getState().updateTask(bId, { name }, { coalesceKey: 'edit:name' });
+  const txB = createMcpTransactions(B);
+
+  const succes = txB.run(() => txB.draft.updateTaskFields(bId, { description: 'B-succes' }));
+  assert(succes.ok, 'voorwaarde: de eerste B-transactie hoort te slagen');
+  B.store.getState().updateTask(bId, { name: 'B-na-succes' }, { coalesceKey: 'edit:name' });
+  A.store.getState().updateTask(aId, { name: 'A-na-B-succes' }, { coalesceKey: 'edit:name' });
+  assertEq(stackDepths(B), { undo: 3, redo: 0 },
+    'na B-succes hoort dezelfde key een nieuwe B-snapshot te maken');
+  assertEq(stackDepths(A), { undo: 1, redo: 0 },
+    'B-succes mag de lopende A-coalescereeks niet breken');
+
+  const bUndoVoorRollback = historyDepthsForActiveScope(B.store.getState()).undoDepth;
+  const rollback = txB.run(() => { throw new Error('coalesce-rollback'); });
+  assert(!rollback.ok, 'voorwaarde: de tweede B-transactie hoort terug te rollen');
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoorRollback,
+    'de rollback zelf hoort geen B-undo achter te laten');
+  B.store.getState().updateTask(bId, { name: 'B-na-rollback' }, { coalesceKey: 'edit:name' });
+  A.store.getState().updateTask(aId, { name: 'A-na-B-rollback' }, { coalesceKey: 'edit:name' });
+  assertEq(stackDepths(B), { undo: 4, redo: 0 },
+    'na B-rollback hoort dezelfde key opnieuw een nieuwe B-snapshot te maken');
+  assertEq(stackDepths(A), { undo: 1, redo: 0 },
+    'B-rollback mag de lopende A-coalescereeks evenmin breken');
 });
 
 await run();

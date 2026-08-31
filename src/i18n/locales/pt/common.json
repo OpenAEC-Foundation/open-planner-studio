@@ -28,10 +28,14 @@
     "mppTimephasedSteeringLost_one": "A distribuição de horas do MS Project não controla mais {{count}} tarefa após esta edição; a distribuição original permanece guardada no arquivo.",
     "mppTimephasedSteeringLost_many": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no arquivo.",
     "mppTimephasedSteeringLost_other": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no arquivo.",
+    "readMore": "Saiba mais",
     "pasteSkippedReadOnly_one": "{{count}} célula ignorada: é somente leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
     "pasteSkippedReadOnly_many": "{{count}} células ignoradas: são somente leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
     "pasteSkippedReadOnly_other": "{{count}} células ignoradas: são somente leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
-    "readMore": "Saiba mais"
+    "librarySaveFailed": "Não foi possível guardar a biblioteca",
+    "levelingDelayRoundedToWorkdays_one": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefa para dias úteis inteiros.",
+    "levelingDelayRoundedToWorkdays_many": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
+    "levelingDelayRoundedToWorkdays_other": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros."
   },
   "yes": "Sim",
   "no": "Não",
@@ -105,6 +109,8 @@
     "enableHourPlanning": "Ativar planeamento por horas",
     "enableHourPlanningHint": "Ativa o escalonamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desativado ⇒ a aplicação permanece totalmente granular por dias, como antes.",
     "allowMixedDayHour": "Permitir planeamento misto de dias/horas",
+    "defaultTaskDurationUnit": "Unidade predefinida para novas tarefas",
+    "defaultTaskDurationUnitHint": "Define se as novas tarefas começam em dias úteis ou horas de trabalho. As tarefas existentes não mudam.",
     "durationDisplay": "Exibição da duração",
     "durationDisplayAuto": "Automática (unidade própria por tarefa)",
     "durationDisplayDays": "Sempre dias",
@@ -259,6 +265,9 @@
     "openBadge": "{{count}} abertos",
     "switchHint": "⌘1–9 para alternar",
     "openProject": "Abrir projeto",
+    "newOrOpenTitle": "Iniciar projeto",
+    "newProject": "Novo projeto",
+    "openExistingProject": "Abrir projeto existente",
     "allProjects": "Todos os projetos",
     "active": "Ativo",
     "tasksWord": "tarefas",
@@ -555,7 +564,8 @@
       "capacity": "Capacidade",
       "documents": "Documentos",
       "selectHint": "Selecione um recurso para ver o histograma."
-    }
+    },
+    "color": "Cor"
   },
   "calendar": {
     "library": {
@@ -691,7 +701,7 @@
       "none": "(nenhum)"
     },
     "presentation": {
-      "hint": "Prima F11 para sair do modo de apresentação"
+      "hint": "Prima Esc ou F11 para sair do ecrã inteiro."
     },
     "splitView": {
       "primary": "Principal",
@@ -723,6 +733,8 @@
   "duration": {
     "suffixDay": "d",
     "suffixHour": "h",
+    "days": "Dias",
+    "hours": "Horas",
     "suffixMinute": "m"
   },
   "shortcuts": {

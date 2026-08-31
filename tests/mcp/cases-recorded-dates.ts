@@ -12,6 +12,9 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { externIfc } from '../fixtures/recordedDatesIfc';
+import { createAppStoreContext } from '@/state/appStore';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 const S = () => store.getState();
@@ -100,6 +103,30 @@ test('MCP-transactie buiten de modus: onveranderd één undo-stap', () => {
 
   assert(res.ok, 'transactie hoort te slagen');
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'onveranderd: één undo-stap');
+});
+
+test('contextfactory B verlaat recorded-dates met één B-undo en laat A buiten beeld', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  B.store.getState().applyLoadedProject(readIFC(externIfc('factory-B')), { filePath: null, recompute: true });
+  B.store.getState().showRecordedDates();
+  const bId = B.store.getState().tasks.find((task) => task.wbsCode === '1.2')!.id;
+  const aTakenVoor = A.store.getState().tasks.length;
+  const aUndoVoor = historyDepthsForActiveScope(A.store.getState()).undoDepth;
+  const bUndoVoor = historyDepthsForActiveScope(B.store.getState()).undoDepth;
+  const txB = createMcpTransactions(B);
+
+  const result = txB.run(() => txB.draft.addTask({ name: 'factory-B-in-recorded-mode' }));
+
+  assert(result.ok, 'de contextgebonden transactie hoort in recorded-dates-modus te slagen');
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
+    'modus verlaten plus B-mutatie hoort samen precies één B-undo te zijn');
+  assertEq(B.store.getState().datesAsRecorded, false, 'alleen B hoort zijn recorded-dates-modus te verlaten');
+  assertEq(B.store.getState().tasks.find((task) => task.id === bId)!.time.earlyStart, '2026-03-09',
+    'B hoort op zijn herberekende datum te staan');
+  assertEq(A.store.getState().tasks.length, aTakenVoor, 'A-taken horen onaangeroerd te blijven');
+  assertEq(historyDepthsForActiveScope(A.store.getState()).undoDepth, aUndoVoor,
+    'A-undo hoort onaangeroerd te blijven');
 });
 
 await run();

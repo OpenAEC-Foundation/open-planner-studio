@@ -189,7 +189,14 @@
     "taskHintBelow": "وظیفه جدید درست زیر انتخاب",
     "taskHintAppend": "وظیفه جدید در انتهای فهرست",
     "columnsHintTable": "انتخاب ستون‌های نمای جدول",
-    "columnsHintGoToTable": "انتخاب ستون‌های نمای جدول — در زبانه جدول دیده می‌شود"
+    "columnsHintGoToTable": "انتخاب ستون‌های نمای جدول — در زبانه جدول دیده می‌شود",
+    "toggleResourceAccent": "تأکید منبع",
+    "screenColors": "رنگ میله‌ها",
+    "screenColors_critical": "مسیر بحرانی",
+    "screenColors_auto": "به ازای هر کار — خودکار",
+    "screenColors_category": "بر اساس دسته",
+    "screenColorsMissingField": "این فیلد در این پروژه وجود ندارد. نوع کار موقتاً استفاده می‌شود.",
+    "screenColorsHint": "خارج از حالت مسیر بحرانی، حاشیه قرمز مسیر بحرانی را نشان می‌دهد."
   },
   "ifc": {
     "title": "ویرایشگر IFC",
@@ -331,6 +338,12 @@
     "installing": "در حال نصب...",
     "installedBadge": "نصب‌شده",
     "installError": "نصب ناموفق بود.",
+    "quarantined": "قرنطینه",
+    "quarantineReason": "دلیل: {{reason}}",
+    "quarantineRemove": "حذف از فضای ذخیره‌سازی",
+    "quarantineEmptyName": "افزونه نامعتبر",
+    "catalogEntriesSkipped": "ورودی‌های ردشده کاتالوگ: {{count}}",
+    "storageWriteFailed": "وضعیت افزونه ذخیره نشد.",
     "import": "درون‌ریزی",
     "importSubtitle": "درون‌ریزی داده‌های پروژه از طریق افزونه‌های نصب‌شده.",
     "importEmpty": "افزونه درون‌ریزی نصب نشده است. از بخش افزونه‌ها اضافه کنید."

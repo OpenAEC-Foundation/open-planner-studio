@@ -47,7 +47,6 @@
 //      `planner_add_tasks.tasks[].tempId` draagt bijvoorbeeld `pattern: ^tmp[-_]`, en een hergebruikte
 //      tempId wordt door `resolveTempIds` juist wél naar een echt id herschreven. Door ná
 //      `resolveTempIds` te valideren keuren we exact de args die de stap daadwerkelijk uitvoert.
-import { useAppStore } from '@/state/appStore';
 // Bewust de leaf-module `toolIndex` en NIET `toolRegistry`: die laatste importeert alle tool-modules
 // (incl. deze) en zou een import-cyclus opleveren — zie de kop van toolIndex.ts.
 import { getTool } from '../toolIndex';
@@ -261,11 +260,11 @@ function formatReport(report: StepReport[]): string {
  * Eindigt de herberekening in `cpmResult.error` (kringverwijzing), dan is dat
  * een structurele stapfout: gooien, zodat de hele batch schoon terugrolt.
  */
-export function recomputeMidBatch(): void {
-  useAppStore.getState().runCPM();
-  useAppStore.getState().recomputeViewRows();
-  useAppStore.getState().recomputeResourceLoad();
-  const err = useAppStore.getState().cpmResult?.error;
+export function recomputeMidBatch(ctx: McpContext): void {
+  ctx.app.store.getState().runCPM();
+  ctx.app.store.getState().recomputeViewRows();
+  ctx.app.store.getState().recomputeResourceLoad();
+  const err = ctx.app.store.getState().cpmResult?.error;
   if (err) throw new McpStepError(classify(err), `tussentijdse herberekening faalde: ${err}`);
 }
 
@@ -349,7 +348,7 @@ export function executeSteps(
 
       // Verse planning vóór een lezing of een levelingstap die op mutaties volgt (spec §Compositie).
       if (mutatedSinceRecompute && (def.kind === 'read' || def.name === LEVEL_TOOL)) {
-        recomputeMidBatch();
+        recomputeMidBatch(ctx);
         mutatedSinceRecompute = false;
       }
 

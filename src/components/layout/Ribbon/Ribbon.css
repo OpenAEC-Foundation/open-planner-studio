@@ -28,7 +28,7 @@
   font-weight: 500;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: all 0.15s ease;
-  cursor: default;
+  cursor: pointer;
   position: relative;
 }
 
@@ -121,6 +121,15 @@
   justify-content: flex-start;
 }
 
+/* Issue #78: vier kleine knoppen in één verticale stapel waren hoger dan de
+   inhoudsruimte van de groep en kwamen tegen het groepsbijschrift. Twee eigen
+   stapels houden Zoom +/- en Herstellen/Passend op project in een 2×2-grid. */
+.ribbon-time-scale-controls {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+}
+
 /* Ribbon Buttons - Default (Large) */
 .ribbon-btn {
   display: flex;
@@ -131,7 +140,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
   min-width: 54px;
   gap: 4px;
@@ -305,7 +314,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--theme-text-dim);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 .ribbon-collapse-toggle:hover {

@@ -1,5 +1,4 @@
 import { restoreSnapshot } from '../snapshot';
-import { resetUndoCoalescing } from '../transaction';
 import {
   materializeHistoryEventTargets,
   recordSessionHistoryDeltas,
@@ -11,7 +10,8 @@ import {
 import { saveTaskGridPreferences } from '@/utils/settingsStore';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import type { AppState } from '../appStore';
-import type { AppSlice } from './types';
+import type { StoreRuntime } from '../runtime/storeRuntime';
+import type { AppSlice, AppSliceFactory } from './types';
 
 export interface HistorySlice {
   /** App-globale, niet-gepersisteerde chronologie over alle geopende documenten en gridsurfaces. */
@@ -48,11 +48,12 @@ function persistGridWhenNeeded(state: Readonly<AppState>, event: SessionHistoryE
 }
 
 function applyHistoryEvent(
+  runtime: StoreRuntime,
   set: Parameters<AppSlice<HistorySlice>>[0],
   get: Parameters<AppSlice<HistorySlice>>[1],
   direction: 'undo' | 'redo',
 ): void {
-  resetUndoCoalescing();
+  runtime.resetUndoCoalescing();
   const current = get();
   const event = direction === 'undo'
     ? selectUndoHistoryEvent(current.historyEvents, current.activeDocumentId)
@@ -85,7 +86,7 @@ function applyHistoryEvent(
   persistGridWhenNeeded(get(), event);
 }
 
-export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
+export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (set, get) => ({
   historyEvents: [],
   nextHistorySequence: 1,
 
@@ -97,6 +98,6 @@ export const createHistorySlice: AppSlice<HistorySlice> = (set, get) => ({
     if (recorded) persistGridWhenNeeded(get(), recorded);
   },
 
-  undo: () => applyHistoryEvent(set, get, 'undo'),
-  redo: () => applyHistoryEvent(set, get, 'redo'),
+  undo: () => applyHistoryEvent(runtime, set, get, 'undo'),
+  redo: () => applyHistoryEvent(runtime, set, get, 'redo'),
 });

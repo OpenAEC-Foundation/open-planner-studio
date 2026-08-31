@@ -21,7 +21,7 @@
 //  14. move_project ⇒ verschuift de bestaande planning in één undo-stap
 //  15. save_baseline: stale ⇒ eerst herrekenen, baseline op verse datums + batchable:false in de def
 //  16. registratie/tools-list-vorm: zeven tools, prefix + description + vier annotaties
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
@@ -44,15 +44,11 @@ function reset(): void {
   store.getState().newProject();
 }
 
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...overrides,
-  };
+  });
 }
 
 function tool(name: string) {

@@ -23,8 +23,31 @@
 };
 
 // Pas ná de shim de store importeren en re-exporteren.
-import { useAppStore } from '@/state/appStore';
-export { useAppStore };
+import { appStoreContext, useAppStore, type AppStoreContext } from '@/state/appStore';
+import { mcpTransactions } from '@/state/mcpTransaction';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import type { McpContext } from '@/services/mcp/contracts';
+export { appStoreContext, useAppStore };
+
+export type McpContextOverrides = Partial<Omit<McpContext, 'app' | 'transactions'>>;
+
+/** Bouw een testcontext met transacties die aantoonbaar bij dezelfde storecontext horen. */
+export function makeMcpContext(
+  app: AppStoreContext = appStoreContext,
+  overrides: McpContextOverrides = {},
+): McpContext {
+  return {
+    app,
+    transactions: app === appStoreContext ? mcpTransactions : createMcpTransactions(app),
+    expectedDocId: null,
+    tempIdMap: new Map<string, string>(),
+    paused: false,
+    readOnly: false,
+    ensureBackup: async () => null,
+    markDuplicateBorn: () => {},
+    ...overrides,
+  };
+}
 
 // --- Mini-assertielaag ---------------------------------------------------------------------------
 interface RegisteredTest {

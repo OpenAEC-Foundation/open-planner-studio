@@ -47,7 +47,7 @@ Vea un calendario de recurso de 4 días en la práctica: los instaladores en [Ni
 
 Por defecto, Open Planner Studio trabaja completamente a **granularidad de día** — cada tarea tiene una duración en días (laborables) enteros. Para tareas que prefiera planificar por horas (piense en un vertido de hormigón que empieza a las 7:00 y debe terminar a las 14:00, bien antes de que cambie el tiempo), existe la **Planificación por horas** opcional.
 
-Active el interruptor principal mediante **Configuración → Línea de tiempo / Zoom → Activar planificación por horas**. Esto añade una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora; con el interruptor apagado, la aplicación sigue funcionando exactamente igual que antes, a granularidad de día. También hay una opción **Permitir planificación mixta de días/horas**, que activa si quiere combinar tareas basadas en días y tareas basadas en horas en el mismo proyecto (vea más abajo).
+Active el interruptor principal mediante **Configuración → Línea de tiempo / Zoom → Activar planificación por horas**. Esto añade una escala horaria, bandas de trabajo y barras precisas; con el interruptor apagado, las tareas nuevas comienzan en días y los valores horarios existentes se conservan.
 
 ## Bandas de horario laboral y turnos
 
@@ -71,7 +71,7 @@ Así es exactamente como se planifican en la práctica las tareas de vertido: un
 
 ## Combinar tareas basadas en días y en horas
 
-Un proyecto no tiene que funcionar completamente por horas para beneficiarse de la planificación por horas: con **Permitir planificación mixta de días/horas** marcado, las tareas basadas en días (en el calendario normal del proyecto) y las tareas basadas en horas (en un calendario horario) pueden convivir y relacionarse entre sí en la misma planificación. En ese caso, la tabla de tareas muestra la duración de cada tarea en su propia unidad — una tarea de día en días, una tarea de hora en horas — y avisa al pie de la tabla cuando conviven tareas con distintas horas por día, para que quede claro qué comparaciones son homogéneas y cuáles no.
+Un proyecto no tiene que funcionar completamente por horas: al activar la planificación por horas, las tareas de días y horas pueden convivir y relacionarse. La unidad pertenece a la tarea y no se deduce de su calendario.
 
 ## Siga leyendo
 

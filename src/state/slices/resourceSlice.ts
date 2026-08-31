@@ -1,11 +1,11 @@
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { generateId } from '@/utils/id';
-import { beginUndoable, finishMutation } from '../transaction';
+import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { clearTimephasedWindow, clearTimephasedDurationWalks } from '@/utils/taskDefaults';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 
 /** Puur leesbaarheids-alias: `WorkCalendar` heeft al `id`/`name`, dus geen aparte intersectie
  *  nodig — een resource-kalender IS gewoon een `WorkCalendar` (zie fase 2.5-ontwerp §3.1). */
@@ -48,7 +48,7 @@ export interface ResourceSlice {
 const isValidUnits = (n: unknown): n is number =>
   typeof n === 'number' && Number.isFinite(n) && n > 0;
 
-export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
+export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => (set, get) => ({
   resources: [],
   assignments: [],
   calendars: [],
@@ -56,9 +56,13 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   addResource: (res) => {
     const id = generateId('res');
     set((s) => {
-      beginUndoable(s);
-      s.resources.push({ ...res, id });
-      finishMutation(s);
+      runtime.beginUndoable(s);
+      // #21: automatische kleur bij aanmaak (B7) — eerste vrije paletkleur, tenzij de aanroeper
+      // zelf al een kleur meegaf (de resource-editor kan dat). Kleurloze resources vallen in de
+      // weergave terug op de deterministische hash — dit veld is dus puur gemak, geen vereiste.
+      const color = res.color ?? nextFreePaletteColor(s.resources);
+      s.resources.push({ ...res, id, color });
+      runtime.finishMutation(s);
     });
     // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
     get().recomputeResourceLoad();
@@ -78,9 +82,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         delete patch.maxUnits;
       }
       if (Object.keys(patch).length === 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(s.resources[idx], patch);
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -89,7 +93,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   removeResource: (id) => {
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.resources = s.resources.filter(r => r.id !== id);
       s.assignments = s.assignments.filter(a => a.resourceId !== id);
       // Verweesde verwijzingen in task.resourceIds opruimen.
@@ -101,7 +105,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       for (const r of s.resources) {
         if (r.parentId === id) r.parentId = undefined;
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -126,7 +130,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       // invariant via de bestaande eigenschappen-/lint-route alsnog worden omzeild.
       if (s.assignments.some(a => a.taskId === taskId && a.resourceId === resourceId)) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const id = generateId('asgn');
       s.assignments.push({ id, taskId, resourceId, unitsPerDay, curve });
@@ -141,7 +145,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       const clearedWindow = clearTimephasedWindow(task);
       const clearedWalks = clearTimephasedDurationWalks(task);
       lostTimephasedGuidance = clearedWindow || clearedWalks;
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeResourceLoad();
@@ -160,9 +164,9 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         delete patch.unitsPerDay;
       }
       if (Object.keys(patch).length === 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(s.assignments[idx], patch);
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -175,7 +179,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       const removed = s.assignments.find(a => a.id === assignmentId);
       if (!removed) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       s.assignments = s.assignments.filter(a => a.id !== assignmentId);
       // task.resourceIds alleen opschonen als er geen andere toewijzing van
@@ -195,7 +199,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         const clearedWalks = clearTimephasedDurationWalks(removedTask);
         lostTimephasedGuidance = clearedWindow || clearedWalks;
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeResourceLoad();
@@ -220,7 +224,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       );
       if (alreadyOnTarget) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const oldTaskId = assignment.taskId;
       assignment.taskId = newTaskId;
@@ -250,7 +254,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
       const clearedNewWindow = clearTimephasedWindow(newTask);
       const clearedNewWalks = clearTimephasedDurationWalks(newTask);
       if (clearedNewWindow || clearedNewWalks) lostCount++;
-      finishMutation(s);
+      runtime.finishMutation(s);
       moved = true;
     });
     if (moved && lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
@@ -264,10 +268,10 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
   addCalendar: (cal) => {
     const id = generateId('cal');
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s); // houd de gedenormaliseerde projectkalender-cache in sync (§9.1).
-      finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend (§5.4).
+      runtime.finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend (§5.4).
     });
     get().recomputeResourceLoad();
   return id;
@@ -277,12 +281,12 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
       // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
       const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
-      finishMutation(s, { stale: !onlyName });
+      runtime.finishMutation(s, { stale: !onlyName });
     });
     get().recomputeResourceLoad();
   },
@@ -294,7 +298,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     let lostCount = 0;
     set((s) => {
       if (!s.calendars.some(c => c.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars = s.calendars.filter(c => c.id !== id);
       // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.
       for (const r of s.resources) {
@@ -319,7 +323,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
       }
       syncProjectCalendar(s);
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     });
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
@@ -329,7 +333,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
     // mpp-nul-data-etappe, DEEL 1 — zie `removeCalendar` hierboven.
     let lostCount = 0;
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars = calendars;
       const ids = new Set(calendars.map(c => c.id));
       // Verweesde verwijzingen opruimen (spiegelt removeCalendar, §4.3/§9.2): resources én taken
@@ -351,7 +355,7 @@ export const createResourceSlice: AppSlice<ResourceSlice> = (set, get) => ({
         s.project.calendarId = calendars[0].id;
       }
       syncProjectCalendar(s);
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     });
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();

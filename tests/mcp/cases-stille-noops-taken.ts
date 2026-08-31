@@ -12,7 +12,7 @@
 //   H1  de leeskant geeft `FS`/`SS`/`FF`/`SF`; de schrijfkant eiste FINISH_START.
 //   H2  de leeskant geeft lag als string (`"+2d"`, `"+50%"`); de schrijfkant eiste een number.
 //   L3  move_task gooide een niet-numerieke `position` stil weg.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 
@@ -23,13 +23,9 @@ function reset(): void {
 }
 
 function makeCtx(): McpContext {
-  return {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  });
 }
 
 async function call(name: string, args: unknown): Promise<McpToolResult> {

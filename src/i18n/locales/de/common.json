@@ -25,9 +25,12 @@
     "projectStartAnchorsClamped_other": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurden auf das neue Startdatum verschoben.",
     "mppTimephasedSteeringLost_one": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgang nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
     "mppTimephasedSteeringLost_other": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgänge nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
+    "readMore": "Mehr erfahren",
     "pasteSkippedReadOnly_one": "{{count}} Zelle übersprungen: Sie ist schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
     "pasteSkippedReadOnly_other": "{{count}} Zellen übersprungen: Sie sind schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
-    "readMore": "Mehr erfahren"
+    "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
+    "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
+    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage."
   },
   "yes": "Ja",
   "no": "Nein",
@@ -101,6 +104,8 @@
     "enableHourPlanning": "Stundenplanung aktivieren",
     "enableHourPlanningHint": "Aktiviert Stunden-/Minuten-Scheduling: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt wie bisher vollständig tagesgenau.",
     "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
+    "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
+    "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
     "durationDisplay": "Daueranzeige",
     "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
     "durationDisplayDays": "Immer Tage",
@@ -255,6 +260,9 @@
     "openBadge": "{{count}} offen",
     "switchHint": "⌘1–9 zum Wechseln",
     "openProject": "Projekt öffnen",
+    "newOrOpenTitle": "Projekt starten",
+    "newProject": "Neues Projekt",
+    "openExistingProject": "Bestehendes Projekt öffnen",
     "allProjects": "Alle Projekte",
     "active": "Aktiv",
     "tasksWord": "Aufgaben",
@@ -546,7 +554,8 @@
       "capacity": "Kapazität",
       "documents": "Dokumente",
       "selectHint": "Wählen Sie eine Ressource aus, um das Histogramm zu sehen."
-    }
+    },
+    "color": "Farbe"
   },
   "calendar": {
     "library": {
@@ -682,7 +691,7 @@
       "none": "(keins)"
     },
     "presentation": {
-      "hint": "F11 drücken, um den Präsentationsmodus zu beenden"
+      "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."
     },
     "splitView": {
       "primary": "Primär",
@@ -712,7 +721,9 @@
   },
   "duration": {
     "suffixDay": "T",
-    "suffixHour": "Std",
+    "suffixHour": "h",
+    "days": "Tage",
+    "hours": "Stunden",
     "suffixMinute": "Min"
   },
   "shortcuts": {

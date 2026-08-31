@@ -165,7 +165,8 @@ eq('7a na reset wordt er weer geweigerd', await askExtensionConsent(vraag), fals
     const gates = (src.service.match(/gateConsent\(/g) ?? []).length;
     eq('9 er zijn precies drie gateConsent-plekken (definitie + zip-pad + js-pad)', gates, 3);
     eq('9c en de poort bouwt de vraag via buildConsentRequest', /askExtensionConsent\(buildConsentRequest\(/.test(src.service), true);
-    eq('9a het zip-pad gaat langs de poort', /if \(!await gateConsent\(\{ \.\.\.manifest, id \}, id, opts\)\) return 'declined';/.test(src.service), true);
+    eq('9a het zip-pad gaat langs de poort',
+      /if \(!await gateConsent\(manifest, manifest\.id, opts\)\) return 'declined';/.test(src.service), true);
     eq('9b het js-pad ook', /if \(!await gateConsent\(manifest, manifest\.id, \{ source: 'js'/.test(src.service), true);
 
     // De poort staat VÓÓR de eerste schrijfactie. Zou hij erna staan, dan laat een weigering een
@@ -173,10 +174,33 @@ eq('7a na reset wordt er weer geweigerd', await askExtensionConsent(vraag), fals
     // kunnen zien, omdat de installatie zelf niet headless draait.
     const zip = src.service.slice(src.service.indexOf('export async function installFromZipBlob'));
     const gateIdx = zip.indexOf('gateConsent');
+    const parseIdx = zip.indexOf('parseZipEntries');
+    const identityIdx = zip.indexOf('manifest.id !== expected.id');
     const saveIdx = zip.indexOf('saveExtensionToDb');
     const disableIdx = zip.indexOf('disableExtension');
+    eq('10 de ZIP-parser staat vóór consent', parseIdx > -1 && parseIdx < gateIdx, true);
+    eq('10b de verwachte catalogusidentiteit wordt vóór consent gecontroleerd',
+      identityIdx > -1 && identityIdx < gateIdx, true);
     eq('10 de poort staat vóór het opslaan', gateIdx > -1 && gateIdx < saveIdx, true);
     eq('10a en vóór het deactiveren van een vorige versie', gateIdx > -1 && gateIdx < disableIdx, true);
+
+    eq('10c overrideId bestaat niet meer in het installatiepad', /overrideId/.test(src.service), false);
+    const catalogInstall = src.service.slice(
+      src.service.indexOf('export async function installFromCatalog'),
+      src.service.indexOf('export interface DownloadVerdict'),
+    );
+    eq('10d catalogusinstallatie bindt id én versie als verwachte identiteit',
+      /installFromZipBlob\([\s\S]*?\{ id: entry\.id, version: entry\.version \}/.test(catalogInstall), true);
+
+    const jsInstall = src.service.slice(
+      src.service.indexOf('export async function installFromJsFile'),
+      src.service.indexOf('// ── ZIP-afhandeling'),
+    );
+    eq('10e losse JavaScript wordt vóór consent gevalideerd',
+      jsInstall.indexOf('manifestFromJavaScript') > -1
+        && jsInstall.indexOf('manifestFromJavaScript') < jsInstall.indexOf('gateConsent'), true);
+    eq('10f ook de directe dev-bridge codefixture valideert haar manifest',
+      /parseExtensionManifest\(manifest, 'fresh'\)/.test(src.devBridge), true);
 
     // De bypass is er alleen voor de dev-bridge. Staat hij ergens in een gebruikerspad, dan wordt
     // de vraag daar stil overgeslagen.

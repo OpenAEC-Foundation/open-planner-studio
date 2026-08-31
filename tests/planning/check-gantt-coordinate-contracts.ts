@@ -102,6 +102,10 @@ const renderOptionsSource = fs.readFileSync(path.join(root, 'src/components/canv
 const rendererSource = fs.readFileSync(path.join(root, 'src/engine/renderer/GanttRenderer.ts'), 'utf8');
 const histogramSource = fs.readFileSync(path.join(root, 'src/engine/renderer/HistogramRenderer.ts'), 'utf8');
 const ganttCanvasSource = fs.readFileSync(path.join(root, 'src/components/canvas/GanttCanvas.tsx'), 'utf8');
+const ganttViewportCoordinatorSource = fs.readFileSync(
+  path.join(root, 'src/components/canvas/hooks/useGanttViewportCoordinator.ts'),
+  'utf8',
+);
 const ganttWorkspaceSource = fs.readFileSync(path.join(root, 'src/components/canvas/GanttWorkspace.tsx'), 'utf8');
 const timelineHookSources = [
   'useCanvasLayer.ts',
@@ -171,7 +175,8 @@ equal('relatiebron weigert x=width', edgeRenderer.getRelationSourceAt(640, rowMi
 equal('GanttRenderer kent geen taskTableWidth meer', /taskTableWidth/.test(rendererSource), false);
 equal('GanttRenderer tekent geen canvas-taaktabel meer', /drawTaskTable|columnHeaders/.test(rendererSource), false);
 equal('GanttRenderer heeft geen lokale tabelhit-tests meer', /isInTaskTable|isCollapseToggle|isAddButton/.test(rendererSource), false);
-equal('primaire gedeelde as begint letterlijk op 0', /buildSharedAxis\(\{[\s\S]*?chartOriginX:\s*0\b/.test(ganttCanvasSource), true);
+equal('primaire gedeelde as begint letterlijk op 0',
+  /buildSharedAxis\(\{[\s\S]*?chartOriginX:\s*0\b/.test(ganttViewportCoordinatorSource), true);
 equal('timelinehooks trekken geen paneel- of tabelbreedte af', /taskTableWidth|leftPanelWidth/.test(timelineHookSources), false);
 
 // Task 16C: zoomankers, splitverhoudingen en DOM-scrollrange rekenen uitsluitend binnen de echte

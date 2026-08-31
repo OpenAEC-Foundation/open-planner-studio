@@ -22,14 +22,16 @@
 import './domShim';
 import fs from 'node:fs';
 import path from 'node:path';
-import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { contextMenuOutlineScope, contextMenuBulk } from '@/components/canvas/contextMenuScope';
+import { createTaskBulkActions } from '@/state/taskBulkActions';
 import {
   insertAnchorForScope, addTaskNearSelection, insertTaskRelativeToScope, canInsertRelative,
 } from '@/state/taskInsertActions';
 import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
 import { RIBBON_TABS, type RibbonGroupSpec } from '@/components/layout/Ribbon/ribbonConfig';
 import type { Task } from '@/types/task';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -112,7 +114,12 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
     isMilestone: true,
     milestoneKind: 'FINISH',
     mandatory: true,
-    time: { ...task(c)!.time, scheduleDuration: 3, durationMinutes: 1440 },
+    time: {
+      ...task(c)!.time,
+      durationUnit: 'hours',
+      scheduleDuration: 3,
+      durationMinutes: 1440,
+    },
   });
   S().selectTasks([c], false);
   contextMenuBulk.toggleMilestone(task(c)!);
@@ -649,6 +656,29 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
     eq('90 Backspace: zelfde bulk-route — alles weg in één undo-stap',
       [zichtbaar(), S().historyEvents.filter(event => event.state === 'applied').length - undoVoorBs], [['Taak A'], 1]);
   }
+}
+
+// ── 15) De bulkcore hoort uitsluitend bij haar eigen storecontext ──────────────────────────
+{
+  const B = createAppStoreContext();
+  const b1 = B.store.getState().addTask({ name: 'B-1' });
+  const b2 = B.store.getState().addTask({ name: 'B-2' });
+  const bUndoBefore = historyDepthsForActiveScope(B.store.getState()).undoDepth;
+  const appBefore = {
+    taskIds: S().tasks.map(task => task.id),
+    undoDepth: historyDepthsForActiveScope(S()).undoDepth,
+  };
+
+  const bulkB = createTaskBulkActions(B);
+  bulkB.applyToTaskIds([b1, b2], (state, id) => state.deleteTask(id));
+
+  eq('91 contextbulk B: beide B-taken verwijderd', B.store.getState().tasks.length, 0);
+  eq('92 contextbulk B: precies één B-undo voor de hele handeling',
+    historyDepthsForActiveScope(B.store.getState()).undoDepth - bUndoBefore, 1);
+  eq('93 contextbulk B: appcontext A blijft byte- en tellermatig gelijk', {
+    taskIds: S().tasks.map(task => task.id),
+    undoDepth: historyDepthsForActiveScope(S()).undoDepth,
+  }, appBefore);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

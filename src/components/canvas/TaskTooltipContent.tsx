@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useDisplayDate } from '@/hooks/displayDate';
+import { useAppStore } from '@/state/appStore';
+import { durationSuffixesFrom, effectiveCalendarOf, formatTaskDurationDisplay } from '@/utils/taskDuration';
 import { Task } from '@/types/task';
 
 /**
@@ -12,7 +14,18 @@ import { Task } from '@/types/task';
 export function TaskTooltipContent({ task }: { task: Task }) {
   const { t: tTask } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const projectCalendar = useAppStore((s) => s.calendar);
+  const calendars = useAppStore((s) => s.calendars);
+  const durationDisplay = useAppStore((s) => s.ui.durationDisplay);
+  const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
   const dd = useDisplayDate();
+  const duration = formatTaskDurationDisplay(
+    task,
+    effectiveCalendarOf(task, projectCalendar, calendars),
+    durationDisplay,
+    enableHourPlanning,
+    durationSuffixesFrom(tCommon),
+  );
   // Tooltip-datums volgen de datumnotatie-instelling (taak #53); leeg → '-'.
   const formatTooltipDate = (dateStr: string) => (dateStr ? dd.date(dateStr) : '-');
 
@@ -25,7 +38,7 @@ export function TaskTooltipContent({ task }: { task: Task }) {
       </div>
       <div className="tooltip-row">
         <span className="tooltip-label">{tTask('table.duration')}:</span>
-        <span className="tooltip-value">{task.time.scheduleDuration}d</span>
+        <span className="tooltip-value">{duration}</span>
       </div>
       <div className="tooltip-row">
         <span className="tooltip-label">{tTask('table.start')}:</span>

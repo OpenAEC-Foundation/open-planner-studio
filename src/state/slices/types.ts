@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from '../appStore';
+import type { StoreRuntime } from '../runtime/storeRuntime';
 
 /**
  * StateCreator-alias voor alle slices: eerste generic is de VOLLEDIGE store
@@ -8,6 +9,7 @@ import type { AppState } from '../appStore';
  * Type-only import van AppState → de import-cyclus is compile-time-only en veilig.
  */
 export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [], T>;
+export type AppSliceFactory<T> = (runtime: StoreRuntime) => AppSlice<T>;
 
 // View-/render-contract-types wonen nu in `@/types/view` (fase 1, thema E). Hier her-geëxporteerd
 // zodat state-laag-consumenten (slices, componenten) hun bestaande imports niet hoeven te wijzigen;
@@ -15,14 +17,16 @@ export type AppSlice<T> = StateCreator<AppState, [['zustand/immer', never]], [],
 // (DATE_NOTATIONS, DURATION_DISPLAYS, BAR_SPLIT_MODES) blijven hieronder in de state-laag.
 import type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
-  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode,
+  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
   GroupLevel, SortLevel, Layout, SplitViewState, ViewState,
 } from '@/types/view';
+import type { BarColorSelection } from '@/types/barColor';
 export type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
-  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode,
+  BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
   GroupLevel, SortLevel, Layout, SplitViewState, ViewState,
 };
+export type { BarColorSelection };
 
 // MCP-bridge (fase 1): status-shape voor de AI-serverindicator in de ui-state. Type-only import →
 // geen runtime-cyclus (contracts.ts is dependency-vrij).
@@ -160,6 +164,7 @@ export type NotificationSeverity = 'error' | 'info';
 export type NotificationMessageKey =
   | 'notifications.openFailed'
   | 'notifications.saveFailed'
+  | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
   | 'notifications.autoSaveFailed'
   | 'notifications.recoveryReadFailed'
@@ -176,7 +181,11 @@ export type NotificationMessageKey =
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.mppTimephasedSteeringLost'
-  | 'notifications.pasteSkippedReadOnly';
+  | 'notifications.pasteSkippedReadOnly'
+  // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
+  // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
+  // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
+  | 'notifications.levelingDelayRoundedToWorkdays';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */
@@ -249,6 +258,10 @@ export interface UIState {
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
+  /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
+  showNewOrOpenProjectDialog: boolean;
+  /** Een pas gemaakte taak krijgt éénmalig de naamfocus in het eigenschappenpaneel. */
+  pendingTaskNameFocusId: string | null;
   showFeedbackDialog: boolean;              // session — feedback-dialoog open
   showStructureDialog: boolean;             // session — codes & velden-beheer open
   traceMode: TraceMode;                     // session — path tracing rond de geselecteerde taak
@@ -285,6 +298,11 @@ export interface UIState {
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt (fase 2.6)
   showProgressLine: boolean;                // persisted — voortgangslijn in de Gantt (fase 2.6)
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt (fase 2.6)
+  /** #21: dun streepje in de resourcekleur onder taakbalken (scherm-accent; de balkvulling zelf
+   *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
+  showResourceAccent: boolean;               // persisted
+  /** #21: canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
+  barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus (fase 2.7, §9); niet gepersisteerd
   showMiniMap: boolean;                     // persisted — mini-map naast/onder de Gantt (fase 2.7, §11)
   // --- Fase 2.7 golf 3: dialogen (§5.5/§6/§13.1/§8) ---

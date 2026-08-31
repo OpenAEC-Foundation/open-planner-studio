@@ -22,10 +22,11 @@
 // MOET de eerste import blijven: `@/i18n/config` raakt `document` bij het laden, en imports worden
 // gehoist — losse statements hierboven zouden te laat draaien. Zie domStub.ts.
 import './domStub';
-import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { COMMANDS, isCommandEnabled, type Command } from '@/state/commands';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
 import { SHORTCUTS } from '@/hooks/keyboard/shortcutRegistry';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const S = () => useAppStore.getState();
 
@@ -84,8 +85,39 @@ eq('10 delete: één handeling = één undo-stap (niet N)', S().historyEvents.fi
 run(COMMANDS.undo);
 eq('11 delete: één undo brengt ze allebei terug', S().tasks.filter(t => t.id === idA || t.id === idB).length, 2);
 
+// Het commandocontract krijgt de doelstore expliciet mee. Een eerdere implementatie gebruikte
+// desondanks de app-gebonden bulkadapter, waardoor `COMMANDS.delete.run(storeB)` stil store A
+// muteerde. Hetzelfde taak-id aan beide kanten maakt zowel het gemiste doel als de nevenschade
+// zichtbaar; alleen controleren dat B niet veranderde zou de singletonmutatie missen.
+{
+  const contextB = createAppStoreContext();
+  const sharedId = contextB.store.getState().addTask({ name: 'Alleen in context B' });
+
+  S().newProject();
+  const appId = S().addTask({ name: 'Alleen in appcontext A' });
+  useAppStore.setState((s) => {
+    const appTask = s.tasks.find((task) => task.id === appId);
+    if (appTask) appTask.id = sharedId;
+  });
+
+  contextB.store.getState().selectTask(sharedId);
+  const appUndoBefore = historyDepthsForActiveScope(S()).undoDepth;
+  const contextBUndoBefore = historyDepthsForActiveScope(contextB.store.getState()).undoDepth;
+  COMMANDS.delete.run(contextB.store.getState());
+
+  eq('11a delete gebruikt de meegegeven context',
+    contextB.store.getState().tasks.some((task) => task.id === sharedId), false);
+  eq('11b delete schrijft precies één undo-stap in de meegegeven context',
+    historyDepthsForActiveScope(contextB.store.getState()).undoDepth, contextBUndoBefore + 1);
+  eq('11c delete laat de appcontext ongemoeid',
+    S().tasks.map((task) => task.id), [sharedId]);
+  eq('11d delete laat ook de undo van de appcontext ongemoeid',
+    historyDepthsForActiveScope(S()).undoDepth, appUndoBefore);
+}
+
 // ── 3) indent / outdent — het contract dat afwijkt van het rapportvoorstel ───
 // In boommodus: gewoon inspringen.
+S().newProject();
 S().setGroup([]);
 const idParent = S().addTask({ name: 'Ouder' });
 const idChild = S().addTask({ name: 'Kind' });

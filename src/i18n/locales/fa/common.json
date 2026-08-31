@@ -25,9 +25,12 @@
     "projectStartAnchorsClamped_other": "شروع پروژه جابه‌جا شد: {{count}} لنگر وظیفه بدون پیش‌نیاز یا محدودیت به تاریخ شروع جدید منتقل شدند.",
     "mppTimephasedSteeringLost_one": "توزیع ساعات MS Project پس از این ویرایش دیگر {{count}} وظیفه را هدایت نمی‌کند؛ توزیع اصلی در فایل نگه داشته می‌شود.",
     "mppTimephasedSteeringLost_other": "توزیع ساعات MS Project پس از این ویرایش دیگر {{count}} وظیفه را هدایت نمی‌کند؛ توزیع اصلی در فایل نگه داشته می‌شود.",
+    "readMore": "بیشتر بخوانید",
     "pasteSkippedReadOnly_one": "{{count}} سلول رد شد: فقط‌خواندنی است (مثلاً کد WBS شماره‌گذاری‌شده خودکار یا یک ستون محاسبه‌شده).",
     "pasteSkippedReadOnly_other": "{{count}} سلول رد شد: فقط‌خواندنی هستند (مثلاً کد WBS شماره‌گذاری‌شده خودکار یا یک ستون محاسبه‌شده).",
-    "readMore": "بیشتر بخوانید"
+    "librarySaveFailed": "ذخیره‌سازی کتابخانه ناموفق بود",
+    "levelingDelayRoundedToWorkdays_one": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
+    "levelingDelayRoundedToWorkdays_other": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند."
   },
   "yes": "بله",
   "no": "خیر",
@@ -101,6 +104,8 @@
     "enableHourPlanning": "فعال‌سازی برنامه‌ریزی ساعتی",
     "enableHourPlanningHint": "زمان‌بندی ساعت/دقیقه را فعال می‌کند: یک مقیاس زمانی ساعتی، شیفت‌های دارای بازه‌های ساعت کاری و نوارهای وظیفه با دقت ساعتی. خاموش ⇐ برنامه مانند قبل کاملاً بر پایه روز باقی می‌ماند.",
     "allowMixedDayHour": "اجازه دادن به برنامه‌ریزی ترکیبی روز/ساعت",
+    "defaultTaskDurationUnit": "واحد پیش‌فرض وظایف جدید",
+    "defaultTaskDurationUnitHint": "مشخص می‌کند وظایف جدید با روز کاری یا ساعت کاری شروع شوند. وظایف موجود تغییر نمی‌کنند.",
     "durationDisplay": "نمایش مدت",
     "durationDisplayAuto": "خودکار (واحد اختصاصی هر وظیفه)",
     "durationDisplayDays": "همیشه روز",
@@ -255,6 +260,9 @@
     "openBadge": "{{count}} باز",
     "switchHint": "⌘1–9 برای جابجایی",
     "openProject": "باز کردن پروژه",
+    "newOrOpenTitle": "شروع پروژه",
+    "newProject": "پروژه جدید",
+    "openExistingProject": "باز کردن پروژه موجود",
     "allProjects": "همه پروژه‌ها",
     "active": "فعال",
     "tasksWord": "وظایف",
@@ -546,7 +554,8 @@
       "capacity": "ظرفیت",
       "documents": "اسناد",
       "selectHint": "برای دیدن هیستوگرام یک منبع را انتخاب کنید."
-    }
+    },
+    "color": "رنگ"
   },
   "calendar": {
     "library": {
@@ -682,7 +691,7 @@
       "none": "(هیچ‌کدام)"
     },
     "presentation": {
-      "hint": "برای خروج از حالت ارائه، F11 را فشار دهید"
+      "hint": "برای خروج از تمام‌صفحه، Esc یا F11 را فشار دهید."
     },
     "splitView": {
       "primary": "اصلی",
@@ -712,7 +721,9 @@
   },
   "duration": {
     "suffixDay": "ر",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "روز",
+    "hours": "ساعت",
     "suffixMinute": "د"
   },
   "shortcuts": {

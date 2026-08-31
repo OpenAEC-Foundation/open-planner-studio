@@ -28,6 +28,7 @@
   },
   "taskGrid": {
     "columns": {
+      "customTaskType": "نوع وظیفه سفارشی",
       "activityCodeData":"داده‌های کد فعالیت","actualDuration":"مدت واقعی","actualFinish":"پایان واقعی","actualStart":"شروع واقعی","assignedResources":"منابع تخصیص‌یافته","assignmentCurve":"منحنی تخصیص","assignmentId":"شناسه تخصیص","assignmentResourceId":"شناسه منبع تخصیص","assignmentTaskId":"شناسه وظیفه تخصیص","assignmentUnits":"واحدهای تخصیص در روز","calendar":"تقویم","childIds":"شناسه وظیفه‌های فرزند","color":"رنگ","completion":"پیشرفت","constraint2Date":"تاریخ محدودیت ثانویه","constraint2Type":"نوع محدودیت ثانویه","constraintDate":"تاریخ محدودیت","constraintHard":"محدودیت سخت","constraintType":"نوع محدودیت","critical":"بحرانی","customFieldData":"داده‌های فیلد سفارشی","deadline":"مهلت نهایی","description":"توضیحات","duration":"مدت","durationMinutes":"مدت (دقیقه)","durationType":"نوع مدت","earlyFinish":"پایان زودهنگام","earlyStart":"شروع زودهنگام","effortDriven":"مبتنی بر تلاش","externalRelationData":"داده‌های رابطه خارجی","floatPath":"مسیر شناوری","freeFloat":"شناوری آزاد","hammock":"وظیفه هموک (مدت مشتق‌شده)","interferingFloat":"شناوری مزاحم","internalRelationData":"داده‌های رابطه داخلی","lateFinish":"پایان دیرهنگام","lateStart":"شروع دیرهنگام","levelingDelay":"تأخیر تسطیح منابع","levelingDelayElapsed":"تأخیر سپری‌شده تسطیح","levelingDelayMinutes":"تأخیر تسطیح (دقیقه)","mandatoryMilestone":"نقطه عطف الزامی","manuallyScheduled":"زمان‌بندی دستی","milestone":"نقطه عطف","milestoneKind":"نوع نقطه عطف","mspTaskType":"نوع وظیفه Microsoft Project","name":"نام وظیفه","nearCritical":"نزدیک به بحرانی","noteData":"داده‌های یادداشت","notes":"یادداشت‌ها","parentId":"شناسه وظیفه والد","priority":"اولویت تسطیح","remainingMinutes":"باقی‌مانده (دقیقه)","remainingTime":"باقی‌مانده (روز کاری)","resourceIds":"شناسه‌های منبع","resume":"تاریخ ازسرگیری","scheduleFinish":"پایان برنامه‌ریزی‌شده","scheduleStart":"شروع برنامه‌ریزی‌شده","splitGaps":"وقفه‌ها","status":"وضعیت","stop":"تاریخ توقف","taskId":"شناسه وظیفه","taskType":"نوع وظیفه","timephasedContours":"منحنی‌های زمان‌بندی‌شده","timephasedDurationWalks":"بخش‌های مدت زمان‌بندی‌شده","timephasedFinishFloor":"حد پایین پایان زمان‌بندی‌شده","timephasedStartAnchor":"لنگر شروع زمان‌بندی‌شده","totalFloat":"شناوری کل","wbs":"ساختار شکست کار (WBS)","workWindowFinish":"پایان بازه کاری","workWindowStart":"شروع بازه کاری"
     },
     "category": {
@@ -88,7 +89,23 @@
     "MOVE": "جابجایی",
     "RENOVATION": "بازسازی",
     "MAINTENANCE": "نگهداری",
-    "USERDEFINED": "سایر"
+    "USERDEFINED": "سایر",
+    "builtinGroup": "نوع‌های داخلی", "personalGroup": "نوع‌های کار من", "projectGroup": "از این پروژه", "new": "+ نوع کار جدید…", "manage": "مدیریت نوع‌های کار…", "newTitle": "نوع کار جدید", "manageTitle": "مدیریت نوع‌های کار", "name": "نام", "fixed": "ثابت", "empty": "هنوز نوع کار شخصی وجود ندارد.", "rename": "ویرایش", "remove": "حذف", "addToMine": "افزودن به نوع‌های کار من", "confirmRemove": "این نوع در پروژه باز استفاده می‌شود. از نوع‌های کار من حذف شود؟ نسخه پروژه باقی می‌ماند."
+  },
+  "duration": {
+    "label": "مدت",
+    "unit": "واحد مدت",
+    "days": "روز",
+    "hours": "ساعت",
+    "invalid": "تعداد صحیح روز یا ساعت را وارد کنید، برای نمونه 2d یا 12h.",
+    "enableHourPlanningFirst": "برای ویرایش این وظیفه ساعتی، برنامه‌ریزی ساعتی را فعال کنید.",
+    "enableHourPlanning": "فعال‌کردن برنامه‌ریزی ساعتی",
+    "requiresWorkBlocks": "این تقویم زمان‌های کاری معتبر ندارد. روزها و زمان‌های کاری را بررسی کنید.",
+    "conversionNotExact": "این مدت در تقویم کنونی دقیقاً به روزهای کامل تبدیل نمی‌شود. واحد موجود حفظ می‌شود؛ مقدار معتبر تازه‌ای وارد کنید.",
+    "conversionProposal": "پیشنهاد تبدیل دقیق: {{value}}. آن را اعمال کنید یا واحد کنونی را نگه دارید.",
+    "applyProposal": "اعمال پیشنهاد",
+    "keepCurrent": "نگه داشتن",
+    "unitInfo": "واحد انتخاب‌شده متعلق به این وظیفه است. روزها، روزهای کاری را می‌شمارند؛ ساعت‌ها، ساعات کاری داخل تقویم را. تقویم دیگر واحد یا مدت واردشده را تغییر نمی‌دهد، اما ممکن است تاریخ پایان را تغییر دهد."
   },
   "dialog": {
     "editTitle": "ویرایش وظیفه",

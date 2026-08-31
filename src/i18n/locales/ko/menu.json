@@ -189,7 +189,14 @@
     "taskHintBelow": "선택한 작업 바로 아래에 새 작업 추가",
     "taskHintAppend": "목록 맨 아래에 새 작업 추가",
     "columnsHintTable": "테이블 보기의 열 선택",
-    "columnsHintGoToTable": "테이블 보기의 열 선택 — 테이블 탭에 표시됩니다"
+    "columnsHintGoToTable": "테이블 보기의 열 선택 — 테이블 탭에 표시됩니다",
+    "toggleResourceAccent": "리소스 강조",
+    "screenColors": "막대 색상",
+    "screenColors_critical": "임계 경로",
+    "screenColors_auto": "작업별 — 자동",
+    "screenColors_category": "범주별",
+    "screenColorsMissingField": "이 필드는 이 프로젝트에 없습니다. 작업 유형을 임시로 사용합니다.",
+    "screenColorsHint": "임계 경로 모드 외에는 빨간 테두리가 임계 경로를 표시합니다."
   },
   "ifc": {
     "title": "IFC 편집기",
@@ -331,6 +338,12 @@
     "installing": "설치 중...",
     "installedBadge": "설치됨",
     "installError": "설치에 실패했습니다.",
+    "quarantined": "격리",
+    "quarantineReason": "이유: {{reason}}",
+    "quarantineRemove": "저장소에서 제거",
+    "quarantineEmptyName": "잘못된 확장 프로그램",
+    "catalogEntriesSkipped": "건너뛴 카탈로그 항목: {{count}}",
+    "storageWriteFailed": "확장 프로그램 상태를 저장하지 못했습니다.",
     "import": "가져오기",
     "importSubtitle": "설치된 확장 프로그램으로 프로젝트 데이터를 가져옵니다.",
     "importEmpty": "가져오기 확장 프로그램이 없습니다. 확장 프로그램에서 추가하세요."

@@ -9,7 +9,7 @@
 //
 // `undo`/`redo`/`run_cpm` lopen NIET via de transactie (ze beheren hun eigen undo-stack, resp. zijn
 // een pure herberekening) maar wél via dezelfde guards (`guardNonTransactional`).
-import type { McpToolDef, McpToolOk, McpToolResult } from '../contracts';
+import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from '../contracts';
 // Alleen als TYPE geïmporteerd (SYNC-2): `import type` wordt bij het compileren volledig weggestreept,
 // dus dit legt géén runtime-import naar `batchTool` (dat zelf via de leaf-module `toolIndex` opzoekt).
 import type { BatchStepTool } from './batchTool';
@@ -21,8 +21,8 @@ import {
   type MutationOutcome,
 } from './runtime';
 import { enrichOk, freshDates, okDirect, okEnvelope, projectEndInfo } from './helpers';
-import { useAppStore } from '@/state/appStore';
-import { draft, type BulkTaskItem } from '@/state/mcpTransaction';
+import type { AppState } from '@/state/appStore';
+import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
 import {
   parseProgress,
@@ -55,6 +55,7 @@ import {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -88,7 +89,7 @@ function stepValidationError(message: string): McpStepError {
 // =================================================================================================
 /** Bouw de validatiecontext voor de veld-allowlist. `task` afwezig ⇒ een NIEUWE taak (add_tasks). */
 function fieldContext(
-  s: ReturnType<typeof useAppStore.getState>,
+  s: AppState,
   task?: Task,
 ): TaskFieldContext {
   return {
@@ -98,6 +99,15 @@ function fieldContext(
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.
     calendarExists: (id: string) => s.calendars.some((c) => c.id === id) || id === s.calendar.id,
+    customTaskTypes: s.customTaskTypes,
+    durationCalendar: (requestedId) => {
+      const id = requestedId === undefined ? task?.calendarId : requestedId ?? undefined;
+      const calendar = id ? (s.calendars.find((c) => c.id === id) ?? s.calendar) : s.calendar;
+      return {
+        hoursPerDay: calendar.workTime ? deriveHoursPerDay(calendar.workTime, calendar.hoursPerDay) : calendar.hoursPerDay,
+        hasWorkBlocks: hasConcreteWorkBlocks(calendar),
+      };
+    },
   };
 }
 
@@ -110,12 +120,11 @@ interface ParsedAddItem {
 }
 
 /** Vormvalidatie van `add_tasks`; string = foutboodschap. */
-function parseAddTasks(args: unknown): ParsedAddItem[] | string {
+function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string {
   const a = (args ?? {}) as { tasks?: unknown };
   if (!Array.isArray(a.tasks) || a.tasks.length === 0) {
     return 'add_tasks vereist een niet-lege `tasks`-array';
   }
-  const st = useAppStore.getState();
   const seenTemp = new Set<string>();
   const parsed: ParsedAddItem[] = [];
   for (const it of a.tasks) {
@@ -140,7 +149,7 @@ function parseAddTasks(args: unknown): ParsedAddItem[] | string {
     // per-item-weigering (het contract is de volledige tempId→realId-map, alles of niets).
     const { tempId: _t, parentId: _p, position: _pos, ...fields } = raw;
     void _t; void _p; void _pos;
-    const res = parseTaskFields(fields, fieldContext(st));
+    const res = parseTaskFields(fields, fieldContext(state));
     if (!res.ok) return `taak '${tid}': ${res.reason}`;
     parsed.push({
       tempId: tid,
@@ -157,8 +166,11 @@ function parseAddTasks(args: unknown): ParsedAddItem[] | string {
  * dat `draft.addTask` verwacht: ALTIJD via `createDefaultTaskTime` (die leidt ook een consistente
  * `scheduleFinish` af) — nooit een met de hand gevuld half `TaskTime`.
  */
-function addTasksCore(items: ParsedAddItem[]): MutationOutcome {
-  const st = useAppStore.getState();
+function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome {
+  const st = ctx.app.store.getState();
+  for (const item of items) {
+    if (item.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(item.patch.customTaskType);
+  }
   const anchor = st.project.startDate || formatDate(new Date());
   const bulk: BulkTaskItem[] = items.map((it) => {
     const top = it.patch.top;
@@ -166,8 +178,13 @@ function addTasksCore(items: ParsedAddItem[]): MutationOutcome {
     let time: Task['time'] | undefined;
     if (tp) {
       // Geen expliciete duur ⇒ dezelfde default als draft.addTask (mijlpaal 0, anders 5 werkdagen).
-      const days = tp.scheduleDuration ?? (top.isMilestone ? 0 : 5);
-      time = createDefaultTaskTime(anchor, days);
+      const unit = tp.durationUnit ?? 'days';
+      const nativeAmount = unit === 'hours'
+        ? (tp.durationMinutes ?? 0) / 60
+        : (tp.scheduleDuration ?? (top.isMilestone ? 0 : 5));
+      time = createDefaultTaskTime(anchor, nativeAmount, unit);
+      if (tp.scheduleDuration !== undefined) time.scheduleDuration = tp.scheduleDuration;
+      if (tp.durationMinutes !== undefined) time.durationMinutes = tp.durationMinutes;
       if (tp.durationType !== undefined) time.durationType = tp.durationType;
     }
     return {
@@ -179,7 +196,7 @@ function addTasksCore(items: ParsedAddItem[]): MutationOutcome {
       ...(time ? { time } : {}),
     };
   });
-  const map = draft.addTasks(bulk);
+  const map = ctx.transactions.draft.addTasks(bulk);
   return { data: { created: Object.fromEntries(map) } };
 }
 
@@ -192,7 +209,7 @@ const addTasks: BatchStepTool = {
     'syntax waarop latere `planner_batch`-stappen hun verwijzingen herkennen; het schema dwingt die ' +
     'vorm nu overal af, zodat dezelfde call binnen én buiten een batch werkt. ' +
     '`position` is de invoeg-index binnen de ouder en klemt stil naar [0, aantal siblings]. ' +
-    'Geef de DUUR direct mee met `duration` (hele werkdagen; zonder dat veld krijgt een taak de ' +
+    'Geef de DUUR direct mee met `duration` en desgewenst `durationUnit` (`days`/`hours`; zonder duur krijgt een taak de ' +
     'standaard 5 werkdagen). Een mijlpaal (`isMilestone`) heeft per definitie duur 0 — `duration` > 0 ' +
     'is daar een fout. ' + TASK_FIELDS_DOC + ' Bij add_tasks is een onbekende sleutel een HARDE fout ' +
     '(de hele call faalt), niet een per-item-weigering. Retourneert de volledige tempId→realId-map, de ' +
@@ -232,21 +249,22 @@ const addTasks: BatchStepTool = {
     required: ['tasks'],
     additionalProperties: false,
   },
-  batchStep(args) {
-    const parsed = parseAddTasks(args);
+  batchStep(args, ctx) {
+    const parsed = parseAddTasks(args, ctx.app.store.getState());
     if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return addTasksCore(parsed);
+    return addTasksCore(ctx, parsed);
   },
   async handler(args, ctx) {
-    const parsed = parseAddTasks(args);
+    const parsed = parseAddTasks(args, ctx.app.store.getState());
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addTasksCore(parsed));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addTasksCore(ctx, parsed));
     return enrichOk(res, () => {
       const created = (res as McpToolOk).data as { created: Record<string, string> };
-      const { projectEnd, cappedTaskIds } = projectEndInfo();
+      const state = ctx.app.store.getState();
+      const { projectEnd, cappedTaskIds } = projectEndInfo(state);
       return {
         created: created.created,
-        tasks: freshDates(Object.values(created.created)),
+        tasks: freshDates(state, Object.values(created.created)),
         projectEnd,
         ...(cappedTaskIds ? { cappedTaskIds } : {}),
       };
@@ -275,7 +293,7 @@ const FORBIDDEN_PROGRESS_IN_FIELDS = (fields: any): string | null => {
  * taak ONGEWIJZIGD (een `progress` in hetzelfde item loopt wél gewoon door — bewuste granulariteit).
  */
 function resolveFieldsPatch(
-  state: ReturnType<typeof useAppStore.getState>,
+  state: AppState,
   id: string,
   fields: unknown,
 ): { ok: true; patch: TaskFieldPatch } | { ok: false; reason: string } {
@@ -291,7 +309,7 @@ function resolveFieldsPatch(
  *  progress-checks (bereik, statusdatum, verzameltaak) blijven dynamisch — die kent alleen
  *  `applyProgressUpdate` (zie de restgeval-noot bij de handler). */
 function classifyUpdate(
-  state: ReturnType<typeof useAppStore.getState>,
+  state: AppState,
   u: { id: string; fields?: any; progress?: any },
 ): { executable: true } | { executable: false; rejection: { id: string; reason: string } } {
   const missing = validate.taskExists(state, u.id);
@@ -319,20 +337,24 @@ function parseUpdateTasks(args: unknown): { id: string; fields?: any; progress?:
 }
 
 /** Synchrone, transactie-vrije kern van `update_tasks`. */
-function updateTasksCore(updates: { id: string; fields?: any; progress?: any }[]): MutationOutcome {
-  const statusDate = useAppStore.getState().project.statusDate;
+function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; progress?: any }[]): MutationOutcome {
+  const statusDate = ctx.app.store.getState().project.statusDate;
   const rejections: { id: string; reason: string }[] = [];
   const applied: string[] = [];
   for (const u of updates) {
     const id = u.id;
-    const exists = validate.taskExists(useAppStore.getState(), id);
+    const exists = validate.taskExists(ctx.app.store.getState(), id);
     if (exists) { rejections.push(exists); continue; }
     let touched = false;
     let rejectedHere = false;
     if (u.fields !== undefined) {
-      const res = resolveFieldsPatch(useAppStore.getState(), id, u.fields);
+      const res = resolveFieldsPatch(ctx.app.store.getState(), id, u.fields);
       if (!res.ok) { rejections.push({ id, reason: res.reason }); rejectedHere = true; }
-      else { draft.patchTaskFields(id, res.patch.top, res.patch.time); touched = true; }
+      else {
+        if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
+        ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        touched = true;
+      }
     }
     if (u.progress !== undefined) {
       // VORM eerst (audit-fix K3): `applyProgressUpdate` leest exact completion/actualStart/
@@ -344,7 +366,7 @@ function updateTasksCore(updates: { id: string; fields?: any; progress?: any }[]
       else {
         const patch: ProgressPatch = shape.value;
         let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'niet-uitgevoerd' };
-        useAppStore.setState((s) => { pr = progress.applyProgressUpdate(s, id, patch, statusDate); });
+        ctx.app.store.setState((s) => { pr = progress.applyProgressUpdate(s, id, patch, statusDate); });
         if (pr.applied) touched = true;
         else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
       }
@@ -358,7 +380,7 @@ function updateTasksCore(updates: { id: string; fields?: any; progress?: any }[]
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    'Wijzig bestaande taken. Per item: `fields` (naam, DUUR in werkdagen, constraints, deadline, ' +
+    'Wijzig bestaande taken. Per item: `fields` (naam, DUUR plus `durationUnit`, constraints, deadline, ' +
     'kalender, …; GEEN voortgangsvelden) en/of `progress` (voortgangspad: UITSLUITEND `completion` in ' +
     'PROCENTEN 0–100, `actualStart` en `actualFinish` als ISO-datum — elke andere sleutel, en een leeg ' +
     '`progress`-object, wordt per item zacht GEWEIGERD, nooit stil genegeerd). ' + TASK_FIELDS_DOC + ' Een ' +
@@ -414,10 +436,10 @@ const updateTasks: BatchStepTool = {
   // Géén lege-batch-snelpad nodig: dat snelpad bestaat alleen om een overbodige TRANSACTIE (snapshot +
   // redo-wipe + backup) te vermijden, en binnen een batch bezit `planner_batch` die al. Zijn er nul
   // uitvoerbare items, dan levert de kern gewoon `updated: []` met alle weigeringen.
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseUpdateTasks(args);
     if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return updateTasksCore(parsed);
+    return updateTasksCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseUpdateTasks(args);
@@ -430,7 +452,7 @@ const updateTasks: BatchStepTool = {
     // betreedt de transactie; is er verder nul effect, dan kan die ene transactie nog een snapshot
     // pushen. Bewuste rest — de meest voorkomende klasse (existentie/statische fouten) valt hier vooraf af.
     {
-      const st = useAppStore.getState();
+      const st = ctx.app.store.getState();
       const staticRej: { id: string; reason: string }[] = [];
       let anyExecutable = false;
       for (const u of updates) {
@@ -441,13 +463,14 @@ const updateTasks: BatchStepTool = {
       if (!anyExecutable) {
         const g = guardNonTransactional(ctx);
         if (g) return g;
-        return okDirect(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo().projectEnd }, staticRej);
+        return okDirect(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(st).projectEnd }, staticRej);
       }
     }
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateTasksCore(updates));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateTasksCore(ctx, updates));
     return enrichOk(res, () => {
       const updated = ((res as McpToolOk).data as { updated: string[] }).updated;
-      return { updated, tasks: freshDates(updated), projectEnd: projectEndInfo().projectEnd };
+      const state = ctx.app.store.getState();
+      return { updated, tasks: freshDates(state, updated), projectEnd: projectEndInfo(state).projectEnd };
     });
   },
 };
@@ -477,8 +500,8 @@ function parseIdList(args: unknown, toolLabel: string): string[] | string {
  * `cascadedTaskIds` + de meegewiste relaties/toewijzingen), en een id dat al door een eerdere cascade
  * verdween telt als SUCCES (`deleted`), niet als weigering.
  */
-function deleteTasksCore(ids: string[]): MutationOutcome {
-  const before = useAppStore.getState();
+function deleteTasksCore(ctx: McpContext, ids: string[]): MutationOutcome {
+  const before = ctx.app.store.getState();
   const existedBefore = new Set(before.tasks.map((t) => t.id));
   const seqBefore = before.sequences.length;
   const asgBefore = before.assignments.length;
@@ -487,19 +510,19 @@ function deleteTasksCore(ids: string[]): MutationOutcome {
   // Set: een id dat tweemaal in `ids` staat mag niet tweemaal in het rapport belanden.
   const deletedSet = new Set<string>();
   for (const id of ids) {
-    const exists = validate.taskExists(useAppStore.getState(), id);
+    const exists = validate.taskExists(ctx.app.store.getState(), id);
     if (exists) {
       // Al meegenomen door de cascade van een eerder id in DEZELFDE call (of een dubbel id) ⇒ succes.
       if (existedBefore.has(id)) { deletedSet.add(id); continue; }
       rejections.push(exists);
       continue;
     }
-    draft.deleteTask(id);
+    ctx.transactions.draft.deleteTask(id);
     deletedSet.add(id);
   }
   const deleted = [...deletedSet];
 
-  const after = useAppStore.getState();
+  const after = ctx.app.store.getState();
   const stillThere = new Set(after.tasks.map((t) => t.id));
   const deletedTaskIds = [...existedBefore].filter((id) => !stillThere.has(id));
   const requested = new Set(ids);
@@ -536,10 +559,10 @@ const deleteTasks: BatchStepTool = {
   },
   // Zie de noot bij update_tasks: het lege-batch-snelpad is puur transactie-vermijding en dus
   // overbodig binnen een batch.
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseIdList(args, 'delete_tasks');
     if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return deleteTasksCore(parsed);
+    return deleteTasksCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseIdList(args, 'delete_tasks');
@@ -548,7 +571,7 @@ const deleteTasks: BatchStepTool = {
     // Lege-batch-snelpad (reviewfix Issue 2): bestaat geen enkel id, return dan direct Ok mét de
     // weigeringen — zónder transactie/backup/snapshot/redo-wipe.
     {
-      const st = useAppStore.getState();
+      const st = ctx.app.store.getState();
       const staticRej = validate.tasksExist(st, ids);
       if (staticRej.length === ids.length) {
         const g = guardNonTransactional(ctx);
@@ -562,17 +585,17 @@ const deleteTasks: BatchStepTool = {
             cascadedTaskIds: [],
             removedDependencyCount: 0,
             removedAssignmentCount: 0,
-            projectEnd: projectEndInfo().projectEnd,
+            projectEnd: projectEndInfo(st).projectEnd,
           },
           staticRej,
         );
       }
     }
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => deleteTasksCore(ids));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => deleteTasksCore(ctx, ids));
     return enrichOk(res, () => ({
       // Het volledige cascade-rapport uit de kern doorgeven (M1) — niet alleen `deleted`.
       ...((res as McpToolOk).data as object),
-      projectEnd: projectEndInfo().projectEnd,
+      projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
     }));
   },
 };
@@ -603,9 +626,9 @@ function parseMoveTask(args: unknown): { id: string; newParentId: string | null;
 
 /** Synchrone, transactie-vrije kern van `move_task`. Structurele fouten (onbekend id, kringouder)
  *  gooien een `McpStepError` — die code overleeft de rollback van beide aanroepers. */
-function moveTaskCore(p: { id: string; newParentId: string | null; position?: number }): MutationOutcome {
+function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | null; position?: number }): MutationOutcome {
   const { id, newParentId, position } = p;
-  const st = useAppStore.getState();
+  const st = ctx.app.store.getState();
   if (!st.tasks.some((t) => t.id === id)) throw new McpStepError('NOT_FOUND', `taak '${id}' bestaat niet`);
   if (newParentId !== null) {
     if (!st.tasks.some((t) => t.id === newParentId)) {
@@ -618,7 +641,7 @@ function moveTaskCore(p: { id: string; newParentId: string | null; position?: nu
       cur = cur.parentId ? st.tasks.find((t) => t.id === cur!.parentId) : undefined;
     }
   }
-  useAppStore.getState().moveTask(id, newParentId, position);
+  ctx.app.store.getState().moveTask(id, newParentId, position);
   return { data: { moved: id } };
 }
 
@@ -641,20 +664,20 @@ const moveTask: BatchStepTool = {
     required: ['id', 'newParentId'],
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseMoveTask(args);
     if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return moveTaskCore(parsed);
+    return moveTaskCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseMoveTask(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const id = parsed.id;
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => moveTaskCore(parsed));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => moveTaskCore(ctx, parsed));
     return enrichOk(res, () => ({
       moved: id,
-      tasks: freshDates([id]),
-      projectEnd: projectEndInfo().projectEnd,
+      tasks: freshDates(ctx.app.store.getState(), [id]),
+      projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
     }));
   },
 };
@@ -664,7 +687,7 @@ const moveTask: BatchStepTool = {
  *  lege-batch-snelpad en de transactie-fn; de kring-check is GEEN onderdeel (die draait alleen op de
  *  kandidaten, ín de transactie, als harde stap-fout). */
 function classifyDeps(
-  st: ReturnType<typeof useAppStore.getState>,
+  st: AppState,
   deps: { predecessorId: string; successorId: string; type: string; lag?: unknown }[],
 ): {
   candidates: { predecessorId: string; successorId: string; type: SequenceType; lag: ParsedLag }[];
@@ -721,9 +744,10 @@ function parseAddDeps(args: unknown): { predecessorId: string; successorId: stri
 
 /** Synchrone, transactie-vrije kern van `add_dependencies`. Een kring is een HARDE stapfout. */
 function addDependenciesCore(
+  ctx: McpContext,
   deps: { predecessorId: string; successorId: string; type: string; lag?: unknown }[],
 ): MutationOutcome {
-  const st = useAppStore.getState();
+  const st = ctx.app.store.getState();
   const { candidates, rejections } = classifyDeps(st, deps);
   // Kring over de UNIE (bestaande + alle kandidaten) ⇒ harde stap-fout.
   const cyc = validate.noCycle(st, candidates.map((c) => ({ predecessorId: c.predecessorId, successorId: c.successorId })));
@@ -735,7 +759,7 @@ function addDependenciesCore(
     // (dagen óf procent) — één bron, gedeeld met `update_dependencies`. Op een NIEUWE relatie laten
     // we de lege sleutels weg (er valt niets te wissen); de update-kant zet ze bewust wél expliciet.
     const lp = lagPatchOf(c.lag);
-    const newId = draft.addSequence({
+    const newId = ctx.transactions.draft.addSequence({
       predecessorId: c.predecessorId,
       successorId: c.successorId,
       type: c.type,
@@ -798,10 +822,10 @@ const addDependencies: BatchStepTool = {
     required: ['dependencies'],
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseAddDeps(args);
     if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return addDependenciesCore(parsed);
+    return addDependenciesCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseAddDeps(args);
@@ -811,17 +835,18 @@ const addDependencies: BatchStepTool = {
     // items onbekend/dubbel/verkeerd type), return dan direct Ok mét de weigeringen — zónder
     // transactie/backup/snapshot/redo-wipe.
     {
-      const pre = classifyDeps(useAppStore.getState(), deps);
+      const state = ctx.app.store.getState();
+      const pre = classifyDeps(state, deps);
       if (pre.candidates.length === 0) {
         const g = guardNonTransactional(ctx);
         if (g) return g;
-        return okDirect(ctx, { added: [], projectEnd: projectEndInfo().projectEnd }, pre.rejections);
+        return okDirect(ctx, { added: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addDependenciesCore(deps));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addDependenciesCore(ctx, deps));
     return enrichOk(res, () => ({
       added: ((res as McpToolOk).data as { added: string[] }).added,
-      projectEnd: projectEndInfo().projectEnd,
+      projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
     }));
   },
 };
@@ -832,8 +857,8 @@ const addDependencies: BatchStepTool = {
 // binnen de transactie (snapshot-/recompute-vrij — de suppressievlag + eind-runCPM dekken hem).
 // =================================================================================================
 /** Synchrone, transactie-vrije kern van `remove_dependencies`. */
-function removeDependenciesCore(ids: string[]): MutationOutcome {
-  const st = useAppStore.getState();
+function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome {
+  const st = ctx.app.store.getState();
   const rejections: { id: string; reason: string }[] = [];
   const toRemove = new Set<string>();
   const removed: string[] = [];
@@ -842,7 +867,7 @@ function removeDependenciesCore(ids: string[]): MutationOutcome {
     else rejections.push({ id, reason: `relatie '${id}' bestaat niet` });
   }
   if (toRemove.size > 0) {
-    useAppStore.setState((s) => {
+    ctx.app.store.setState((s) => {
       s.sequences = s.sequences.filter((x) => !toRemove.has(x.id));
       s.isDirty = true;
     });
@@ -866,10 +891,10 @@ const removeDependencies: BatchStepTool = {
     required: ['ids'],
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseIdList(args, 'remove_dependencies');
     if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return removeDependenciesCore(parsed);
+    return removeDependenciesCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseIdList(args, 'remove_dependencies');
@@ -878,19 +903,19 @@ const removeDependencies: BatchStepTool = {
     // Lege-batch-snelpad (reviewfix Issue 2): bestaat geen enkele opgegeven relatie, return dan direct
     // Ok mét de weigeringen — zónder transactie/backup/snapshot/redo-wipe.
     {
-      const st = useAppStore.getState();
+      const st = ctx.app.store.getState();
       const existing = new Set(st.sequences.map((s) => s.id));
       if (!ids.some((id) => existing.has(id))) {
         const g = guardNonTransactional(ctx);
         if (g) return g;
         const rej = ids.map((id) => ({ id, reason: `relatie '${id}' bestaat niet` }));
-        return okDirect(ctx, { removed: [], projectEnd: projectEndInfo().projectEnd }, rej);
+        return okDirect(ctx, { removed: [], projectEnd: projectEndInfo(st).projectEnd }, rej);
       }
     }
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => removeDependenciesCore(ids));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => removeDependenciesCore(ctx, ids));
     return enrichOk(res, () => ({
       removed: ((res as McpToolOk).data as { removed: string[] }).removed,
-      projectEnd: projectEndInfo().projectEnd,
+      projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
     }));
   },
 };
@@ -910,12 +935,12 @@ const removeDependencies: BatchStepTool = {
 function historyStep(ctx: Parameters<McpToolDef['handler']>[1], dir: 'undo' | 'redo'): McpToolResult {
   const g = guardNonTransactional(ctx);
   if (g) return g;
-  const before = useAppStore.getState();
+  const before = ctx.app.store.getState();
   const depthsBefore = historyDepthsForActiveScope(before);
   const depthBefore = dir === 'undo' ? depthsBefore.undoDepth : depthsBefore.redoDepth;
-  if (dir === 'undo') useAppStore.getState().undo();
-  else useAppStore.getState().redo();
-  const after = useAppStore.getState();
+  if (dir === 'undo') ctx.app.store.getState().undo();
+  else ctx.app.store.getState().redo();
+  const after = ctx.app.store.getState();
   const depthsAfter = historyDepthsForActiveScope(after);
   const done = depthBefore > 0;
   return {
@@ -980,8 +1005,8 @@ const runCpm: McpToolDef = {
   handler(_args, ctx): McpToolResult {
     const g = guardNonTransactional(ctx);
     if (g) return g;
-    useAppStore.getState().runCPM();
-    const cpm = useAppStore.getState().cpmResult;
+    ctx.app.store.getState().runCPM();
+    const cpm = ctx.app.store.getState().cpmResult;
     return {
       ok: true,
       envelope: okEnvelope(ctx),

@@ -24,6 +24,7 @@
 // presentatie-afsluiting nooit meer bereiken.
 
 import { useAppStore } from '@/state/appStore';
+import type { UIState } from '@/state/slices/types';
 import type { AppState } from '@/state/appStore';
 import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
 // DOM-vrij en JSX-vrij bij constructie (zie de kop van dat bestand): de anker- en weergaveregels
@@ -66,8 +67,7 @@ export interface ShortcutDef {
  *  net zo goed modale overlays (welkomstdialoog: los dialoogvenster; rondleiding: sinds de
  *  fix voor doorklik-corruptie een écht modale overlay, zie TourOverlay.tsx) en ontbraken hier
  *  per abuis, waardoor bv. F2/Insert/Ctrl+A tijdens de rondleiding gewoon doorvuurden. */
-export function hasBlockingDialogOpen(): boolean {
-  const ui = useAppStore.getState().ui;
+export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): boolean {
   return (
     ui.showTaskDialog || ui.showProjectSettings || ui.showProjectInfoDialog ||
     ui.showSettingsDialog || ui.showCalendarDialog || ui.showUpdateDialog ||

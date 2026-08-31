@@ -22,8 +22,10 @@
     "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",
     "projectStartAnchorsClamped_other": "项目开始日期已更改：{{count}} 个没有前置任务或限制的任务起点已移至新的开始日期。",
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
+    "readMore": "了解更多",
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
-    "readMore": "了解更多"
+    "librarySaveFailed": "无法保存库",
+    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"
   },
   "yes": "是",
   "no": "否",
@@ -97,6 +99,8 @@
     "enableHourPlanning": "启用小时计划",
     "enableHourPlanningHint": "启用小时/分钟排程：小时级时间刻度、带工作时间段的班次，以及精确到小时的任务条。关闭 ⇒ 应用将保持与之前一样完全按天粒度运行。",
     "allowMixedDayHour": "允许混合按天/按小时计划",
+    "defaultTaskDurationUnit": "新任务的默认单位",
+    "defaultTaskDurationUnitHint": "决定新任务以工作日还是工作小时开始。现有任务不会改变。",
     "durationDisplay": "工期显示",
     "durationDisplayAuto": "自动（按任务自身单位）",
     "durationDisplayDays": "始终按天",
@@ -251,6 +255,9 @@
     "openBadge": "已打开 {{count}} 个",
     "switchHint": "⌘1–9 切换",
     "openProject": "打开项目",
+    "newOrOpenTitle": "开始项目",
+    "newProject": "新建项目",
+    "openExistingProject": "打开现有项目",
     "allProjects": "所有项目",
     "active": "活动",
     "tasksWord": "任务",
@@ -537,7 +544,8 @@
       "capacity": "产能",
       "documents": "文档",
       "selectHint": "选择一个资源以查看直方图。"
-    }
+    },
+    "color": "颜色"
   },
   "calendar": {
     "library": {
@@ -673,7 +681,7 @@
       "none": "(无)"
     },
     "presentation": {
-      "hint": "按 F11 退出演示模式"
+      "hint": "按 Esc 或 F11 退出全屏模式。"
     },
     "splitView": {
       "primary": "主要",
@@ -702,7 +710,9 @@
   },
   "duration": {
     "suffixDay": "天",
-    "suffixHour": "时",
+    "suffixHour": "h",
+    "days": "天",
+    "hours": "小时",
     "suffixMinute": "分"
   },
   "shortcuts": {

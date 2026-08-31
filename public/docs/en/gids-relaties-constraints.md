@@ -77,6 +77,8 @@ clickable button. Hover over it to see the same details as hovering over a
 task bar in the Gantt chart (name, WBS, duration, start/finish, status, critical path, total
 float). Click it to select that task: the Gantt chart zooms and scrolls to it, automatically
 expanding any collapsed parent task that was hiding it.
+A gold WBS button is a predecessor of the selected task; a purple button is a successor.
+Long WBS numbers are truncated in the row, but remain fully visible in the hover details.
 
 ## Constraint types
 

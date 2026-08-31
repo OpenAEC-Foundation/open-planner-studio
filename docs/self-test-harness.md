@@ -13,11 +13,56 @@ Doel: Claude Code kan functies zelf uittesten voordat een mens erbij hoeft.
 Begin altijd bij Tier 1; pak Tier 2 wanneer je de échte Tauri-runtime of schijf-I/O nodig hebt.
 De round-trip-check (`roundTrip()`: serialiseer→parse, meet dataverlies) werkt in beide tiers.
 
+## Gecommitteerde browserpoort
+
+De vaste regressiesuite staat in `tests/browser/` en draait als vijfde gedragssuite achter zowel
+`npm test` als `npm run verify`. Installeer Chromium en zijn Linux-afhankelijkheden eenmalig en start
+de suite daarna via de worktree-veilige runner:
+
+```bash
+npx playwright install --with-deps --only-shell chromium
+npm run test:browser
+```
+
+De runner reserveert een afzonderlijke browserpoort per worktree, start en stopt zelf Vite en draait
+Chromium headless shell met één worker en nul retries. Een gerichte run geeft argumenten door, bv.
+`npm run test:browser -- tests/browser/gantt-drag-undo.spec.ts` of
+`npm run test:browser -- --grep "documentwissel"`. Bij falen staan screenshot en trace in
+`test-results/` en het HTML-rapport in `playwright-report/`; de gedeelde CI-, live- en release-gates
+uploaden deze mappen als foutartefact.
+
+De scheidslijn is bindend: klikken, typen, slepen, scrollen, taal kiezen en documenttabs wisselen
+gebeurt met echte muis-, toetsenbord- en DOM-events. `window.__OPS__` mag vooraf deterministische
+fixtures maken en achteraf domeinstate, painttellingen of renderergeometrie lezen. Het mag de
+gebruikershandeling zelf niet uitvoeren.
+
+### Extensieopslag en quarantaine
+
+`tests/browser/extensions-storage.spec.ts` legt rechtstreeks vier echte records in de
+`ops-extensions`-objectstore: een geldig legacyrecord, een vorm-kapot record, een identiteitsmismatch
+en een modern geldig record. Daarna gebruikt de test `window.__OPS__.extensions.scanStored()` alleen
+als observatienaad om te bewijzen dat scannen niets uitvoert of herschrijft. Na een echte reload
+controleert hij via de store dat alleen geldige records ready zijn en opent hij met echte kliks
+**Bestand → Extensies**. De quarantainekaarten, afwezige toggles en tweeklik-verwijdering worden via
+de DOM bediend; de IndexedDB-sleutels en `onLoad`-effecten worden onafhankelijk nagemeten.
+
+Dezelfde fixture beschadigt vervolgens een ready record ná startup en klikt de echte
+aan/uit-schakelaar. Dat bewijst de hervalidatie vlak vóór uitvoering: de kaart verhuist naar
+quarantaine en de effectteller verandert niet. Twee extra auto-enabled records leggen vast dat een
+`onLoad`-fout een runtimefout blijft en een later geldig record niet blokkeert.
+
+De dev-bridge mag voor geautomatiseerde ZIP-tests uitsluitend de menselijke vertrouwensvraag
+overslaan via `window.__OPS__.extensions.installFromZip(...)`. Dat pad gebruikt verder exact de
+productievolgorde: ZIP-parse, manifest- en identiteitsvalidatie, veilige paden, opslag en activatie.
+Er bestaat geen dev-optie die validatie omzeilt. De consentdialoog zelf test je afzonderlijk met
+`window.__OPS__.extensions.consent.set(fn)` en `.reset()`.
+
 ## Tier 1 — Licht (standaard): Playwright MCP → browser-dev-build
 
-Werkt tegen de **browser-dev-build** op de aan dit worktree toegewezen poort (zie de `▶`-print van `npm run dev` of `.claude/launch.json` → `opsDevPort`) (dezelfde React-UI als de
-desktop-app; "fully functional except file I/O and auto-save"). Geen eigen server, geen extra deps
-in het project.
+Werkt tegen de **browser-dev-build** op de aan dit worktree toegewezen poort (zie de `▶`-print van
+`npm run dev` of `.claude/launch.json` → `opsDevPort`). Dit is dezelfde React-UI als de desktop-app;
+de browser heeft eigen file-I/O en IndexedDB-recovery. Alleen Tauri-gepoorte functies, zoals de
+in-app updater en native pluginpaden, ontbreken. Deze handmatige tier start geen eigen server.
 
 ### Onderdelen
 - **`.mcp.json`** (repo-root) — koppelt de officiële Playwright MCP-server
@@ -29,6 +74,8 @@ in het project.
 - **`window.__OPS__`** (`src/utils/devBridge.ts`) — dev-only haak met:
   - `store` — de Zustand-store (`getState()` / `setState()` / `subscribe()`)
   - `log` — de log-bus (`snapshot()` geeft gelogde regels + opgevangen fouten)
+  - `gantt` — observer-only Canvasgeometrie en paintinformatie:
+    `taskBarPoint(taskId, edge, surface)`, `paintCount(surface)` en `lastSize(surface)`
 
   Strikt `import.meta.env.DEV`-gated → niet aanwezig in productie-builds.
 
@@ -65,9 +112,13 @@ De commit-default in `.mcp.json` blijft `--headless`. Headed gebruikt de volledi
 (staat al in `~/.cache/ms-playwright/`); headless gebruikt de kleinere `chromium_headless_shell`.
 
 ### Waarom state uitlezen i.p.v. pixels
-De Gantt is een `<canvas>`: een taakbalk "aanklikken" gaat op pixelcoördinaten en een screenshot
-zegt niets hard over correctheid. De betrouwbare check is de echte store-state (datums, kritiek pad,
-`totalFloat`, `isCritical`) via `window.__OPS__`.
+De Gantt is een `<canvas>`: een screenshot zegt niets hard over domeincorrectheid en vaste
+pixelcoördinaten zijn breekbaar. Lokaliseer daarom een echte pointerhandeling met bijvoorbeeld
+`window.__OPS__.gantt.taskBarPoint(taskId, 'body', 'primary')`, voer de muishandeling via Playwright
+uit en controleer daarna de echte store-state (datums, selectie, undo, kritiek pad, `totalFloat`) via
+`window.__OPS__.store`. Voor repaintbewijs zijn `paintCount('primary')` en
+`lastSize('histogram')` observer-only; ze starten zelf geen paint. Wacht bij Gantt-paintchecks eerst
+op `document.fonts.ready` en controleer daarna twee rustige vensters van elk 500 ms.
 
 ### Wat Tier 1 niet dekt
 De échte Tauri-runtime: fysiek bestanden naar schijf schrijven/lezen (plugin-fs werkt alleen in Tauri)

@@ -189,7 +189,14 @@
     "taskHintBelow": "選択したタスクのすぐ下に新しいタスクを追加します",
     "taskHintAppend": "リストの末尾に新しいタスクを追加します",
     "columnsHintTable": "テーブル ビューの列を選択",
-    "columnsHintGoToTable": "テーブル ビューの列を選択 — テーブル タブに表示されます"
+    "columnsHintGoToTable": "テーブル ビューの列を選択 — テーブル タブに表示されます",
+    "toggleResourceAccent": "リソースアクセント",
+    "screenColors": "バーの色",
+    "screenColors_critical": "クリティカルパス",
+    "screenColors_auto": "タスクごと — 自動",
+    "screenColors_category": "カテゴリ別",
+    "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。一時的にタスクタイプを使用します。",
+    "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。"
   },
   "ifc": {
     "title": "IFC エディタ",
@@ -331,6 +338,12 @@
     "installing": "インストール中...",
     "installedBadge": "インストール済み",
     "installError": "インストールに失敗しました。",
+    "quarantined": "隔離",
+    "quarantineReason": "理由: {{reason}}",
+    "quarantineRemove": "ストレージから削除",
+    "quarantineEmptyName": "無効な拡張機能",
+    "catalogEntriesSkipped": "スキップしたカタログ項目: {{count}}",
+    "storageWriteFailed": "拡張機能の状態を保存できませんでした。",
     "import": "インポート",
     "importSubtitle": "インストール済みの拡張機能でプロジェクトデータをインポート。",
     "importEmpty": "インポート用拡張機能がありません。拡張機能から追加してください。"

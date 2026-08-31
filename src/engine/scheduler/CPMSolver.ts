@@ -2,6 +2,7 @@ import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { SchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import {
@@ -10,6 +11,7 @@ import {
 import {
   durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
+  taskDurationUnit,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import {
@@ -311,16 +313,28 @@ export class CPMSolver {
     }
   }
 
-  /** Engine voor een concrete kalender (gecachet op kalender-id). */
-  private engineForCal(cal: WorkCalendar): CalendarEngine {
-    let e = this.engineCache.get(cal.id);
-    if (!e) { e = new CalendarEngine(cal); this.engineCache.set(cal.id, e); }
+  /**
+   * Engine voor een concrete kalender. Voor een urentaak materialiseren we een eventueel scalar
+   * model alléén in deze afgeleide engine; de persistente kalender en alle dagtaken blijven
+   * ongewijzigd daggranulair. De afzonderlijke cache-sleutel voorkomt een moduslek tussen beide.
+   */
+  private engineForCal(cal: WorkCalendar, effectiveHourBands = false): CalendarEngine {
+    const key = effectiveHourBands ? `${cal.id}\u0000effective-hour` : cal.id;
+    let e = this.engineCache.get(key);
+    if (!e) {
+      const engineCalendar = effectiveHourBands ? calendarWithEffectiveWorkTime(cal) : cal;
+      e = new CalendarEngine(engineCalendar ?? cal);
+      this.engineCache.set(key, e);
+    }
     return e;
   }
 
   /** De kalender-engine waarin de duur/constraints/float van `task` rekenen (§5.2). */
   private calendarFor(task: Task): CalendarEngine {
-    return this.engineForCal(resolveCalendar(task.calendarId, this.registry, this.projectCal));
+    return this.engineForCal(
+      resolveCalendar(task.calendarId, this.registry, this.projectCal),
+      taskDurationUnit(task) === 'hours',
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -598,7 +612,7 @@ export class CPMSolver {
     if (task.time.durationType === 'ELAPSEDTIME') {
       return { date: addElapsedMinutes(start, elapsedMinutesOf(task, eng)), capped: false };
     }
-    if (eng.isHourMode) {
+    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       // Z13 (dossier "rauw anker zonder constraint"): `start` exact op een band-eind (`ownAnchor`
       // hierboven laat zo'n wortel-anker sinds deze fix bewust RAUW) — INVOERBEWIJS (corpusbestand
@@ -623,6 +637,15 @@ export class CPMSolver {
         ? this.dayFirstBandStart(eng, start) ?? start
         : start;
       return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
+    }
+    if (eng.isHourMode) {
+      const totalDays = task.time.scheduleDuration;
+      if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
+      const dayResult = eng.addWorkDaysChecked(this.startOfDay(start), totalDays);
+      return {
+        date: this.dayLastBandEnd(eng, dayResult.date) ?? dayResult.date,
+        capped: dayResult.capped,
+      };
     }
     const totalDays = splitTotalSpanDays(task, eng);
     return eng.addWorkDaysChecked(start, totalDays);
@@ -652,7 +675,7 @@ export class CPMSolver {
     if (task.time.durationType === 'ELAPSEDTIME') {
       return subtractElapsedMinutes(end, elapsedMinutesOf(task, eng));
     }
-    if (eng.isHourMode) {
+    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
       // Z13 (backward-spiegel van `addDurationChecked`s band-eind-wacht): voor een WORTEL-taak
@@ -708,6 +731,12 @@ export class CPMSolver {
         }
       }
       return natural;
+    }
+    if (eng.isHourMode) {
+      const totalDays = task.time.scheduleDuration;
+      if (totalDays <= 0) return new Date(end.getTime());
+      const firstDay = eng.subtractWorkDays(this.startOfDay(end), totalDays);
+      return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
     const totalDays = splitTotalSpanDays(task, eng);
     return eng.subtractWorkDays(end, totalDays);
@@ -797,13 +826,21 @@ export class CPMSolver {
    *  Zelfde as-wandeling/ELAPSEDTIME-uitsluiting als `addDurationChecked` (`splitTotalSpanMinutes`/
    *  `splitTotalSpanDays`, `duration.ts` — Z7-fixronde-H1). */
   private startFromFinish(eng: CalendarEngine, finish: Date, task: Task): Date {
-    if (eng.isHourMode) {
+    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
       if (task.time.durationType === 'ELAPSEDTIME') {
         return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
       }
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       return eng.subtractWorkMinutes(finish, totalMinutes);
+    }
+    if (eng.isHourMode) {
+      if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
+      if (task.time.durationType === 'ELAPSEDTIME') return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
+      const totalDays = task.time.scheduleDuration;
+      if (totalDays <= 0) return new Date(finish.getTime());
+      const firstDay = eng.subtractWorkDays(this.startOfDay(finish), totalDays);
+      return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
     // H3 (Opus-review T15-iteratie-2, herbevestigd via msp-30-mutatiebewijs): `isZeroDurationMilestone`
     // i.p.v. de kale vlag — anders viel een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
@@ -825,13 +862,21 @@ export class CPMSolver {
    *  Z7 (aangrijpingspunt 4, splits) — zelfde as-wandeling, spiegel van `startFromFinish`
    *  hierboven (Z7-fixronde-H1). */
   private finishFromStart(eng: CalendarEngine, start: Date, task: Task): Date {
-    if (eng.isHourMode) {
+    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       if (isZeroDurationMilestone(task)) return new Date(start.getTime());
       if (task.time.durationType === 'ELAPSEDTIME') {
         return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
       }
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       return eng.addWorkMinutes(start, totalMinutes);
+    }
+    if (eng.isHourMode) {
+      if (isZeroDurationMilestone(task)) return new Date(start.getTime());
+      if (task.time.durationType === 'ELAPSEDTIME') return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
+      const totalDays = task.time.scheduleDuration;
+      if (totalDays <= 0) return new Date(start.getTime());
+      const lastDay = eng.addWorkDaysChecked(this.startOfDay(start), totalDays).date;
+      return this.dayLastBandEnd(eng, lastDay) ?? lastDay;
     }
     // H3 (Opus-review T15-iteratie-2) — zelfde reden als `startFromFinish` hierboven.
     if (!isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME') {
@@ -848,7 +893,9 @@ export class CPMSolver {
    *  werkdag-telling. `task` optioneel: afwezig (of WORKTIME) ⇒ exact de oude twee takken. */
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return signedElapsedSpan(a, b, eng);
-    if (eng.isHourMode) return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
+    if (eng.isHourMode && (!task || isZeroDurationMilestone(task) || taskDurationUnit(task) === 'hours')) {
+      return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
+    }
     return this.signedWorkDays(a, b, eng);
   }
 
@@ -877,6 +924,30 @@ export class CPMSolver {
     // datums ver in de toekomst opleveren zonder enige waarschuwing. Degradeer met een fout.
     if (!this.projectEngine.hasWorkingDays()) {
       return emptyResult('Kalender heeft geen werkdagen ingesteld');
+    }
+
+    // Elke expliciete eenheid heeft precies een eigen invoerbron. Valideer die bron voor er ook
+    // maar een datum of afgeleide duur wordt teruggeschreven: anders zou een ontbrekende/negatieve
+    // urenduur via `?? 0` stil als nulpunt worden gepland, of een corrupte dagduur achteruit lopen.
+    for (const task of this.tasks.values()) {
+      const unit = taskDurationUnit(task);
+      const source = unit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration;
+      if (typeof source !== 'number' || !Number.isFinite(source) || source < 0) {
+        const label = unit === 'hours' ? 'urenduur' : 'dagduur';
+        return emptyResult(`Ongeldige ${label} voor taak "${task.name}"`);
+      }
+    }
+
+    // Een WORKTIME-urentaak heeft geen geldige dagfallback: haar exacte minuten kunnen uitsluitend
+    // door concrete werkblokken worden verdeeld. Dit vangt ook bestaande/geïmporteerde urentaken
+    // wanneer hun kalender later naar een bandloze dagkalender wordt gewisseld. De taakbron blijft
+    // onaangeroerd; de solve stopt vóór enige datum- of duurmutatie.
+    for (const task of this.tasks.values()) {
+      if (taskDurationUnit(task) === 'hours'
+        && task.time.durationType === 'WORKTIME'
+        && !this.calendarFor(task).isHourMode) {
+        return emptyResult(`Uurtaak "${task.name}" heeft geen geldige werktijden in zijn kalender`);
+      }
     }
 
     // Guard: een taak met een onparseerbare startdatum zou anders Invalid Dates
@@ -1067,7 +1138,7 @@ export class CPMSolver {
       // Een hammock loopt mee in topologische volgorde (drivers staan er per definitie vóór). ES =
       // de gewone forward-max over SS/FS-voorganger-bounds + projectstart-vloer; EF = de max over de
       // FF/SF-voorganger-bounds (ondergrens ES). De AFGELEIDE duur (span ES→EF) wordt naar
-      // `scheduleDuration` (+ `durationMinutes` op een uur-kalender) geschreven; eigen duur-invoer
+      // precies één afgeleide duurbron (`scheduleDuration` of `durationMinutes`) geschreven; eigen duur-invoer
       // wordt genegeerd. `isHammock` afwezig ⇒ deze tak draait niet (byte-identiek).
       if (task.isHammock) {
         const es = this.hammockEarlyStart(task, preds, results, projectStart, cal);
@@ -1079,12 +1150,17 @@ export class CPMSolver {
         // uur-omrekening deelt daarbij door de VASTE klokdag (24 × 60), NOOIT door `cal.hoursPerDay`
         // — dat zou dezelfde dubbele-deling-valkuil zijn die T10 in de lezer fixte, hier toegepast
         // op de duur-herberekening i.p.v. op de leeskant.
+        // Hammockduur is volledig afgeleid en dus niet door de gebruiker gekozen. Leg na elke
+        // solve precies één passende bron vast: minuten als de kalender concrete banden heeft,
+        // anders werkdagen. Zo blijven er ook hier geen twee concurrerende invoerbronnen staan.
+        task.time.durationUnit = cal.isHourMode ? 'hours' : 'days';
         if (task.time.durationType === 'ELAPSEDTIME') {
           if (cal.isHourMode) {
             const mins = Math.round((ef.getTime() - es.getTime()) / MS_PER_MIN);
             task.time.durationMinutes = mins;
             task.time.scheduleDuration = mins / (24 * 60);
           } else {
+            task.time.durationMinutes = undefined;
             task.time.scheduleDuration = (ef.getTime() - es.getTime()) / MS_PER_DAY;
           }
         } else if (cal.isHourMode) {
@@ -1092,6 +1168,7 @@ export class CPMSolver {
           task.time.durationMinutes = mins;
           task.time.scheduleDuration = mins / (cal.hoursPerDay * 60);
         } else {
+          task.time.durationMinutes = undefined;
           task.time.scheduleDuration = cal.workDaysBetween(es, ef);
         }
         results.set(taskId, { es, ef });
@@ -1412,6 +1489,7 @@ export class CPMSolver {
       if (task.timephasedDurationWalks && task.timephasedDurationWalks.length === 1) {
         const candidate = this.engineForCal(
           resolveCalendar(task.timephasedDurationWalks[0].resourceCalendarId, this.registry, this.projectCal),
+          taskDurationUnit(task) === 'hours',
         );
         if (candidate.isHourMode) progressCal = candidate;
       }
@@ -1472,9 +1550,11 @@ export class CPMSolver {
           // terwijl een VOLTOOIDE taak se weekend-actualStart dat niet deed — dezelfde soort taak
           // kreeg zo een ANDER antwoord al naargelang completion toevallig <1 of ===1 stond.
           const actualES = t.actualStart ? this.snapActualForward(progressCal, this.parseIn(progressCal, t.actualStart)) : earlyStart;
-          // Restwerk: uur ⇒ `remainingMinutes ?? durationMinutes × (1−completion)`; dag ⇒ werkdagen (§5.3).
-          const totalSpan = progressCal.isHourMode ? durationMinutesOf(task, progressCal) : t.scheduleDuration;
-          const remaining = progressCal.isHourMode
+          // Restwerk volgt de blijvende TAAK-eenheid, nooit de kalenderidentiteit: uur ⇒
+          // `remainingMinutes ?? durationMinutes × (1−completion)`; dag ⇒ werkdagen (§5.3).
+          const progressInHours = taskDurationUnit(task) === 'hours';
+          const totalSpan = progressInHours ? durationMinutesOf(task, progressCal) : t.scheduleDuration;
+          const remaining = progressInHours
             ? Math.max(0, t.remainingMinutes ?? Math.round(totalSpan * (1 - t.completion)))
             : Math.max(0, t.remainingTime ?? Math.round(totalSpan * (1 - t.completion)));
           // M2 (Opus-review, 2026-08-17): ELAPSEDTIME-bewustheid — T8 maakte de rest van de solver
@@ -1494,7 +1574,7 @@ export class CPMSolver {
           // i.p.v. de kale vlag, anders klapt het restwerk van een VOORTGANG-dragende mijlpaal-met-duur-
           // ELAPSEDTIME-taak stil om naar WORKTIME-semantiek (zelfde bugklasse als msp-30).
           const isElapsedTask = !isZeroDurationMilestone(task) && t.durationType === 'ELAPSEDTIME';
-          const remainingElapsedMinutes = isElapsedTask ? (progressCal.isHourMode ? remaining : remaining * 24 * 60) : 0;
+          const remainingElapsedMinutes = isElapsedTask ? (progressInHours ? remaining : remaining * 24 * 60) : 0;
           let remStart = dataDate ?? actualES;                      // ondergrens: statusdatum, anders de eigen actualStart (M1)
           // Z12-herwerk (dossier out-of-sequence-actuals): `true` zodra `remStart` hieronder uit het
           // RESUME-veld komt i.p.v. de gewone voorganger-druk/elapsed-vloer — stuurt de ef<es-
@@ -1664,8 +1744,8 @@ export class CPMSolver {
               // naar de eerstvolgende werkdag — geverifieerd tegen `CalendarEngine.addWorkDaysChecked`:
               // dag 1 vanaf een vrijdag = die vrijdag zelf, dag 2 = de eerstvolgende maandag).
               const elapsedAnchor = isElapsedTask
-                ? addElapsedMinutes(actualES, progressCal.isHourMode ? elapsed : elapsed * 24 * 60)
-                : progressCal.isHourMode
+                ? addElapsedMinutes(actualES, progressInHours ? elapsed : elapsed * 24 * 60)
+                : progressInHours
                   ? this.snapOnOrAfter(progressCal, progressCal.addWorkMinutes(actualES, elapsed))
                   : (() => {
                       const r = progressCal.addWorkDaysChecked(actualES, elapsed + 1);
@@ -1803,25 +1883,26 @@ export class CPMSolver {
           // bewust NIET gedaan.
           let remainingWithGaps = remaining;
           if (!isElapsedTask && task.splitGaps && task.splitGaps.length > 0) {
-            const totalSpanMinutes = progressCal.isHourMode ? totalSpan : totalSpan * progressCal.hoursPerDay * 60;
-            const remainingMinutesUnits = progressCal.isHourMode ? remaining : remaining * progressCal.hoursPerDay * 60;
+            const totalSpanMinutes = progressInHours ? totalSpan : totalSpan * progressCal.hoursPerDay * 60;
+            const remainingMinutesUnits = progressInHours ? remaining : remaining * progressCal.hoursPerDay * 60;
             const completedSpanMinutes = Math.max(0, totalSpanMinutes - remainingMinutesUnits);
             const totalAxisMinutes = splitTotalSpanMinutes(task.splitGaps, totalSpanMinutes);
             const completedAxisMinutes = splitTotalSpanMinutes(task.splitGaps, completedSpanMinutes);
             const remainingAxisMinutes = Math.max(0, totalAxisMinutes - completedAxisMinutes);
-            remainingWithGaps = progressCal.isHourMode
+            remainingWithGaps = progressInHours
               ? remainingAxisMinutes
               : remainingAxisMinutes / (progressCal.hoursPerDay * 60);
           }
           let ef: Date;
           if (isElapsedTask) {
             ef = addElapsedMinutes(remStart, remainingElapsedMinutes);
-          } else if (progressCal.isHourMode) {
+          } else if (progressInHours) {
             ef = progressCal.addWorkMinutes(remStart, remainingWithGaps);
           } else {
             // WP7: ook het rest-werk-pad kan tegen de onwerkbaar-venster-cap lopen ⇒ checked-variant.
             const r = progressCal.addWorkDaysChecked(remStart, remainingWithGaps);
-            ef = r.date;
+            // Een dagtaak op een kalender met banden omvat de volledige laatste beschikbare dag.
+            ef = progressCal.isHourMode ? (this.dayLastBandEnd(progressCal, r.date) ?? r.date) : r.date;
             if (r.capped) this.cappedTaskIds.push(taskId);
           }
           // Z12-herwerk, reviewbevinding L1: de VOLTOOID-tak (hierboven, `if (ef < es) es = ef`)
@@ -2147,7 +2228,7 @@ export class CPMSolver {
       if (durMin != null) {
         for (const walk of task.timephasedDurationWalks) {
           const resCal = resolveCalendar(walk.resourceCalendarId, this.registry, this.projectCal);
-          const resEng = this.engineForCal(resCal);
+          const resEng = this.engineForCal(resCal, taskDurationUnit(task) === 'hours');
           if (!resEng.isHourMode) continue;
           // Z19-apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
           // taakduur — zie het docblok hierboven.

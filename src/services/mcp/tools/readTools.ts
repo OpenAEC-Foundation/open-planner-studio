@@ -22,13 +22,19 @@
 // zo) én `cpmResult` altijd gevuld (de reconstructie). "Modus aan én verouderd" is dus onbereikbaar
 // — vastgelegd in check-recorded-dates.ts (10.C). Daarmee blijft `readOnlyHint:true` verdedigbaar.
 
-import { useAppStore } from '@/state/appStore';
 import type { AppState } from '@/state/appStore';
 import { ensureFreshSchedule } from '../staleGuard';
 import { runReadTool, toolError } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef, McpToolResult, McpErrorCode, McpToolAnnotations } from '../contracts';
 import type { Task } from '@/types/task';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+
+function nativeDuration(task: Task): number {
+  return taskDurationUnit(task) === 'hours'
+    ? (task.time.durationMinutes ?? 0) / 60
+    : task.time.scheduleDuration;
+}
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
@@ -317,7 +323,8 @@ function getProjectOverview(s: AppState) {
       id: t.id,
       wbs: t.wbsCode,
       name: t.name,
-      dur: t.time.scheduleDuration,
+      dur: nativeDuration(t),
+      durUnit: taskDurationUnit(t),
       start: t.time.earlyStart,
       end: t.time.earlyFinish,
     };
@@ -391,7 +398,8 @@ function listTasks(s: AppState, args: ListTasksArgs) {
       id: t.id,
       wbs: t.wbsCode,
       name: t.name,
-      dur: t.time.scheduleDuration,
+      dur: nativeDuration(t),
+      durUnit: taskDurationUnit(t),
       start: t.time.earlyStart,
       end: t.time.earlyFinish,
       status: t.status,
@@ -468,6 +476,13 @@ function getTask(s: AppState, args: GetTaskArgs) {
     name: task.name,
     description: task.description,
     taskType: task.taskType,
+    ...(task.customTaskTypeId ? {
+      customTaskType: {
+        id: task.customTaskTypeId,
+        // Een beschadigd/oud project mag leesbaar blijven: de id blijft zichtbaar, naam is dan null.
+        name: s.customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name ?? null,
+      },
+    } : {}),
     status: task.status,
     isMilestone: task.isMilestone,
     ...(task.milestoneKind ? { milestoneKind: task.milestoneKind } : {}),
@@ -488,7 +503,8 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
     parentId: task.parentId,
     childIds: task.childIds,
-    duration: tt.scheduleDuration,
+    duration: nativeDuration(task),
+    durationUnit: taskDurationUnit(task),
     durationType: tt.durationType,
     schedule: {
       earlyStart: tt.earlyStart,
@@ -676,7 +692,7 @@ interface HistogramArgs {
   bucket?: unknown;
 }
 
-function getResourceHistogram(args: HistogramArgs) {
+function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   // H10 — VALIDEREN VÓÓR DE (potentieel dure) RECOMPUTE. Drie stille faalgevallen zaten hier:
   //   - `bucket` werd gecoërceerd (`bucket: 'day'` werd stil 'week');
   //   - niet-string `resourceIds` werden weggefilterd; viel alles weg, dan werd `scoped` false en
@@ -697,7 +713,7 @@ function getResourceHistogram(args: HistogramArgs) {
     if (args.resourceIds.some((x) => typeof x !== 'string' || x === '')) {
       throw new ToolError('VALIDATION', '`resourceIds` mag alleen niet-lege resource-id-strings bevatten.');
     }
-    const known = new Set(useAppStore.getState().resources.map((r) => r.id));
+    const known = new Set(ctx.app.store.getState().resources.map((r) => r.id));
     const unknown = (args.resourceIds as string[]).filter((id) => !known.has(id));
     if (unknown.length > 0) {
       throw new ToolError('VALIDATION',
@@ -709,8 +725,8 @@ function getResourceHistogram(args: HistogramArgs) {
   // Vers herrekenen wanneer stale of nog nooit gerekend. Dit is de enige leestool die de cache
   // raakt; het is een versheids-refresh, geen mutatie — en hij kan de undo-stack niet raken, want
   // "datums zoals opgeslagen" is onbereikbaar in combinatie met stale/nooit-gerekend (zie de kop).
-  const fresh = ensureFreshSchedule();
-  const s = useAppStore.getState(); // verse state ná een eventuele recompute
+  const fresh = ensureFreshSchedule(ctx.app);
+  const s = ctx.app.store.getState(); // verse contextstate ná een eventuele recompute
 
   const bucket: 'dag' | 'week' = args.bucket === 'dag' ? 'dag' : 'week';
   const from = typeof args.van === 'string' ? args.van : undefined;
@@ -1108,7 +1124,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, () => getResourceHistogram((args ?? {}) as HistogramArgs)),
+    handler: (args, ctx) => readTool(ctx, () => getResourceHistogram(ctx, (args ?? {}) as HistogramArgs)),
   },
   {
     name: 'planner_get_calendars',

@@ -3,7 +3,7 @@
 // (architect-besluit 5: alleen Backstage-NavItem + F1, geen ribbon-knop). Manifest + artikelen
 // worden at-runtime gefetcht via `BASE_URL`, exact hetzelfde patroon als
 // `public/examples/manifest.json` (zie `ExamplesSection` hierboven in Backstage.tsx).
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -176,10 +176,11 @@ export function HelpPanel() {
     return ids;
   }, [query, searchIndex]);
 
-  const handleNavigate = (id: string) => setSelectedId(id);
+  const handleNavigate = useCallback((id: string) => setSelectedId(id), []);
 
-  // Zelfde open-flow als Backstage → Voorbeelden: laden en vooraf berekenen, daarna terug naar Start.
-  const handleOpenExample = async (file: string) => {
+  // Zelfde open-flow als Backstage → Voorbeelden (`ExamplesSection.handleOpen` hierboven in
+  // Backstage.tsx): fetch → openExampleFromString → runCPM → terug naar het Start-tabblad.
+  const handleOpenExample = useCallback(async (file: string) => {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}examples/${file}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -194,7 +195,7 @@ export function HelpPanel() {
     } catch (err) {
       console.error(`[Help] Voorbeeld "${file}" openen mislukt:`, err);
     }
-  };
+  }, [openExampleFromString, setUI, tCommon]);
 
   const selectedMeta = manifest?.articles.find(a => a.id === selectedId) ?? null;
   const selectedContent = selectedId ? articles[selectedId] : undefined;
@@ -206,8 +207,7 @@ export function HelpPanel() {
       onNavigate: handleNavigate,
       onOpenExample: (f) => { void handleOpenExample(f); },
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedContent]);
+  }, [selectedContent, handleNavigate, handleOpenExample]);
 
   return (
     <div className="help-panel">

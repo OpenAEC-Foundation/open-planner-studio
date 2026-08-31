@@ -37,7 +37,7 @@ const dynamicWith = (
 ): FieldCoverage => ({ kind, columnIds: ids(...values), dynamicFamily });
 
 const TASK_TIME_COLUMNS = [
-  'task.time.durationType', 'task.time.scheduleDuration', 'task.time.durationMinutes',
+  'task.time.durationType', 'task.time.durationUnit', 'task.time.scheduleDuration', 'task.time.durationMinutes',
   'task.time.scheduleStart', 'task.time.scheduleFinish', 'task.time.resume', 'task.time.stop',
   'task.time.earlyStart', 'task.time.earlyFinish', 'task.time.lateStart', 'task.time.lateFinish',
   'task.time.freeFloat', 'task.time.totalFloat', 'task.time.isCritical',
@@ -52,6 +52,7 @@ export const TASK_FIELD_COVERAGE = {
   description: field('direct', 'task.description'),
   wbsCode: field('direct', 'task.wbsCode'),
   taskType: field('direct', 'task.taskType'),
+  customTaskTypeId: field('direct', 'task.customTaskTypeId'),
   status: field('direct', 'task.status'),
   isMilestone: field('direct', 'task.isMilestone'),
   milestoneKind: field('direct', 'task.milestoneKind'),
@@ -86,6 +87,7 @@ export const TASK_FIELD_COVERAGE = {
 
 export const TASK_TIME_FIELD_COVERAGE = {
   durationType: field('direct', 'task.time.durationType'),
+  durationUnit: field('direct', 'task.time.durationUnit'),
   scheduleDuration: field('direct', 'task.time.scheduleDuration'),
   durationMinutes: field('technical', 'task.time.durationMinutes'),
   scheduleStart: field('direct', 'task.time.scheduleStart'),
@@ -160,6 +162,7 @@ export const BASELINE_TASK_FIELD_COVERAGE = {
 export const SPLIT_GAP_FIELD_COVERAGE = {
   afterMinutes: field('composite', 'task.splitGaps'),
   gapMinutes: field('composite', 'task.splitGaps'),
+  source: field('technical', 'task.splitGaps'),
 } satisfies Record<keyof TaskSplitGap, FieldCoverage>;
 
 export const CONTOUR_FIELD_COVERAGE = {

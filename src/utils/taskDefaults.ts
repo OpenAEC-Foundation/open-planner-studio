@@ -1,5 +1,5 @@
 import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
-import type { Task, TaskTime } from '@/types/task';
+import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
 
 /**
  * Fabrieksfunctie voor een verse {@link TaskTime}. Leeft in de utils-laag (niet in `src/types/`)
@@ -8,6 +8,7 @@ import type { Task, TaskTime } from '@/types/task';
 export function createDefaultTaskTime(
   start: string,
   durationDays: number,
+  durationUnit: TaskDurationUnit = 'days',
 ): TaskTime {
   // Derive a finish consistent with the duration so the Gantt bar spans the
   // right number of days before CPM runs. Matches CalendarEngine.addWorkDays
@@ -22,7 +23,9 @@ export function createDefaultTaskTime(
       : start;
   return {
     durationType: 'WORKTIME',
+    durationUnit,
     scheduleDuration: durationDays,
+    ...(durationUnit === 'hours' ? { durationMinutes: durationDays * 60 } : {}),
     scheduleStart: start,
     scheduleFinish: finish,
     earlyStart: start,
@@ -63,7 +66,7 @@ export function createDefaultTaskTime(
  * scheduleStart/scheduleFinish/early-/lateStart/-Finish/freeFloat/totalFloat/isCritical/completion)
  * krijgen de terugval-merge (`??`, dus expliciete `false`/`0` blijven staan).
  *
- * **Optionele velden** (durationMinutes/interferingFloat/isNearCritical/floatPath/actualStart/
+ * **Optionele velden** (interferingFloat/isNearCritical/floatPath/actualStart/
  * -Finish/actualDuration/remainingTime/-Minutes/resume/stop) krijgen de SLEUTEL-AANWEZIGHEID-conventie
  * (spec-review-fixronde 2026-08-17 — de eerdere "altijd 1-op-1 uit `partial`" bleek zelf een gat: een
  * partiële update die alleen `scheduleStart` noemde, wiste zo alsnog `durationMinutes`/`actualStart`/
@@ -74,8 +77,9 @@ export function createDefaultTaskTime(
  *     de verse default zet deze velden nooit).
  *   - `'veld' in partial` **true**, ook als de waarde `undefined` is ⇒ BEWUSTE CLEAR ⇒ neem
  *     `partial.veld` over (dus `undefined`). Dit is de vorm die `TaskDialog.tsx` nu gebruikt
- *     (`time.durationMinutes = undefined`, NIET `delete time.durationMinutes` — een `delete` verwijdert
- *     de sleutel weer en zou hier ONDERWEG naar `updateTask` alsnog als "niet genoemd" gelezen worden).
+ *     Voor `durationMinutes` geldt sinds de expliciete taakeenheid een strengere invariant: bij een
+ *     urentaak is dat veld de verplichte bron van waarheid en kan een losse `undefined` de bron dus
+ *     niet wissen. Wisselen naar `durationUnit: 'days'` wist hem wel atomair.
  * Dit is de enige manier waarop JS/TS "bewust gewist" van "nooit genoemd" kán onderscheiden — beide
  * zien er identiek uit zodra je alleen naar de WAARDE kijkt (`??`), dus de eerdere `??`-vorm voor
  * optionele velden kon de twee wensen fundamenteel niet uit elkaar houden. Voor ADD is dit
@@ -85,9 +89,15 @@ export function createDefaultTaskTime(
  * steeds) — de eerdere docstring noemde dit ten onrechte "onverenigbaar".
  */
 export function mergeTaskTime(base: TaskTime, partial: Partial<TaskTime> | undefined): TaskTime {
-  if (!partial) return base;
-  return {
+  if (!partial) partial = {};
+  const legacyBase = base as TaskTime & { durationUnit?: TaskDurationUnit };
+  const durationUnit = partial.durationUnit
+    ?? (('durationMinutes' in partial && partial.durationMinutes != null) ? 'hours' : undefined)
+    ?? legacyBase.durationUnit
+    ?? (('durationMinutes' in partial ? partial.durationMinutes : legacyBase.durationMinutes) != null ? 'hours' : 'days');
+  const merged: TaskTime = {
     durationType: partial.durationType ?? base.durationType,
+    durationUnit,
     scheduleDuration: partial.scheduleDuration ?? base.scheduleDuration,
     scheduleStart: partial.scheduleStart ?? base.scheduleStart,
     scheduleFinish: partial.scheduleFinish ?? base.scheduleFinish,
@@ -117,6 +127,37 @@ export function mergeTaskTime(base: TaskTime, partial: Partial<TaskTime> | undef
     resume: 'resume' in partial ? partial.resume : base.resume,
     stop: 'stop' in partial ? partial.stop : base.stop,
   };
+  if (merged.durationUnit === 'days') {
+    merged.durationMinutes = undefined;
+  } else if (merged.durationMinutes == null && taskDurationUnitOfTime(base) === 'hours') {
+    // Een partiele update mag de enige native bron van een bestaande urentaak niet los wissen.
+    // De expliciete eenheidswissel naar dagen hierboven blijft de enige geldige clear-operatie.
+    merged.durationMinutes = base.durationMinutes;
+  }
+  return merged;
+}
+
+function taskDurationUnitOfTime(time: TaskTime): TaskDurationUnit {
+  const legacy = time as TaskTime & { durationUnit?: TaskDurationUnit };
+  return legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+}
+
+/** Deterministische leesmigratie voor documentpayloads en recoverydata van vóór de eenheidskeuze. */
+export function normalizeTaskDurationUnits(tasks: Task[]): Task[] {
+  return tasks.map((task) => {
+    // Het documentcontract wordt ook met bewust onvolledige poison-fixtures getest. Laat zulke
+    // bestaande invaliditeit aan de contracttest over; de leesmigratie heeft uitsluitend iets te
+    // normaliseren wanneer er daadwerkelijk een TaskTime-tak aanwezig is.
+    if (!task?.time) return task;
+    const legacy = task.time as TaskTime & { durationUnit?: TaskDurationUnit };
+    const durationUnit = legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+    if (legacy.durationUnit === durationUnit && !(durationUnit === 'days' && legacy.durationMinutes != null)) {
+      return task;
+    }
+    const time: TaskTime = { ...legacy, durationUnit };
+    if (durationUnit === 'days') time.durationMinutes = undefined;
+    return { ...task, time };
+  });
 }
 
 /**
@@ -191,7 +232,7 @@ export function mergeTaskTime(base: TaskTime, partial: Partial<TaskTime> | undef
  *  dat onderscheid hoeft hier niet apart bewaakt te worden.
  */
 const TIMEPHASED_WINDOW_TIME_TRIGGERS = new Set<keyof TaskTime>([
-  'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish', 'durationType',
+  'scheduleDuration', 'durationMinutes', 'durationUnit', 'scheduleStart', 'scheduleFinish', 'durationType',
 ]);
 
 /** `true` als `timeUpdate` minstens één trigger-sleutel NOEMT (sleutel-aanwezigheid, spiegelt
@@ -235,6 +276,27 @@ export function clearTimephasedWindow(task: Task): boolean {
 export function clearTimephasedDurationWalks(task: Task): boolean {
   if (task.timephasedDurationWalks !== undefined) { delete task.timephasedDurationWalks; return true; }
   return false;
+}
+
+/**
+ * Wist de door de nivelleerder ingevoegde werkonderbrekingen (`source === 'leveling'`) van `task` en
+ * laat IMPORTSPLITS (gaten zonder `source`) staan — B1c-plan-2 taak 7, spec §4, "Herkomst"/
+ * "Invalidatie". Geeft `true` terug wanneer er daadwerkelijk iets gewist is; zelfde contract als
+ * `clearTimephasedWindow` hierboven (mpp-nul-data-etappe, bewerkmelding). Blijft er niets over, dan
+ * wordt `splitGaps` op `undefined` gezet (niet op een lege array) — de golden rule van de
+ * IFC-round-trip is "leeg/afwezig ⇒ niets geschreven".
+ *
+ * De AANROEPPLEKKEN (bewerkingen die de tijdbasis van een taak raken: duur, kalender, handmatige
+ * datums, voortgang) worden in B1c-etappe 3 bedraad; zolang niets leveling-gaps schrijft, kan er ook
+ * niets verouderen.
+ */
+export function clearLevelingGaps(task: Task): boolean {
+  const gaps = task.splitGaps;
+  if (!gaps || gaps.length === 0) return false;
+  const kept = gaps.filter(g => g.source !== 'leveling');
+  if (kept.length === gaps.length) return false;
+  task.splitGaps = kept.length > 0 ? kept : undefined;
+  return true;
 }
 
 /** OPTIONEEL — TRUE zodra de taak nog ACTIEVE Z8-sturing draagt (laag 3 en/of laag 4): een gezet

@@ -6,6 +6,10 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { __resetTimephasedLossNoticeForTests } from '@/state/timephasedLossNotice';
 
 const store = useAppStore;
 
@@ -228,7 +232,7 @@ test('draft.applyLeveling zet delays; de eind-runCPM verwerkt ze precies één k
     draft.applyLeveling({
       delays: { [id]: 3 },
       unresolved: {}, unresolvedReasons: {}, shifts: {},
-      projectEndBefore: '', projectEndAfter: '',
+      projectEndBefore: '', projectEndAfter: '', gaps: {},
     });
   });
 
@@ -246,6 +250,75 @@ test('draft.applyLeveling zet delays; de eind-runCPM verwerkt ze precies één k
   const t2 = store.getState().tasks.find((x) => x.id === id);
   assertEq(t2?.levelingDelay, undefined, 'levelingDelay hoort gewist te zijn');
   assertEq(t2?.time.earlyStart, baseStart, 'earlyStart hoort terug op de baseline te staan');
+});
+
+// --- Contextfactory: draft hoort bij precies één actieve run --------------------------------------
+test('contextdraft buiten zijn eigen actieve run faalt vóór mutatie', () => {
+  const context = createAppStoreContext();
+  const tx = createMcpTransactions(context);
+  const voor = JSON.stringify(capturePayload(context.store.getState()));
+  let fout = '';
+
+  try {
+    tx.draft.addTask({ name: 'mag-niet-buiten-run' });
+  } catch (error) {
+    fout = error instanceof Error ? error.message : String(error);
+  }
+
+  assert(/actieve|transactie|run/i.test(fout), 'draft buiten run hoort een herkenbare fout te gooien');
+  assertEq(JSON.stringify(capturePayload(context.store.getState())), voor,
+    'de weigering hoort vóór iedere statemutatie plaats te vinden');
+});
+
+test('draft van factory B schrijft uitsluitend in documentcontext B', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const result = txB.run(() => txB.draft.addTask({ name: 'draft-context-B' }));
+
+  assert(result.ok, 'de B-draft hoort binnen zijn eigen run te slagen');
+  assert(B.store.getState().tasks.some((task) => task.name === 'draft-context-B'),
+    'de taak hoort in B te staan');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
+    'de B-draft mag A niet wijzigen');
+});
+
+test('timephased-verliesteller en melding horen uitsluitend bij de actieve B-lease', () => {
+  __resetTimephasedLossNoticeForTests();
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  const aId = A.store.getState().addTask({ name: 'timephased-A' });
+  const bId = B.store.getState().addTask({ name: 'timephased-B' });
+  const windowFields = {
+    timephasedFinishFloor: '2026-08-10T17:00',
+    timephasedStartAnchor: '2026-08-03T08:00',
+    timephasedContours: [{
+      resourceUid: 7,
+      periods: [{ afterMinutes: 0, minutes: 120, workMinutes: 120, kind: 'actual' as const }],
+    }],
+  };
+  A.store.getState().updateTask(aId, windowFields);
+  B.store.getState().updateTask(bId, windowFields);
+  A.store.setState((state) => { state.ui.notifications = []; });
+  B.store.setState((state) => { state.ui.notifications = []; });
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const txB = createMcpTransactions(B);
+  const bTask = B.store.getState().tasks.find((task) => task.id === bId)!;
+
+  const result = txB.run(() => {
+    txB.draft.updateTaskFields(bId, {
+      time: { ...bTask.time, scheduleDuration: bTask.time.scheduleDuration + 1 },
+    });
+  });
+
+  assert(result.ok && result.timephasedGuidanceLost === 1,
+    'de actieve B-lease hoort precies één verloren taak te tellen');
+  assertEq(B.store.getState().ui.notifications.length, 1, 'B hoort precies één verliesmelding te krijgen');
+  assertEq(B.store.getState().ui.notifications[0]?.params?.count, 1, 'de B-melding hoort teller 1 te dragen');
+  assertEq(A.store.getState().ui.notifications.length, 0, 'A mag geen verliesmelding krijgen');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
+    'timephased verlies in B mag document A niet wijzigen');
 });
 
 // --- 9) Z14b — edit-time-invalidatie van het GELEZEN Z8-venster (eigenaarsprincipe 2026-08-18) ----

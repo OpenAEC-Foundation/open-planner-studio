@@ -1,6 +1,6 @@
 import type { Project } from '@/types/project';
 import type { AppState } from '../appStore';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 import { generateId } from '@/utils/id';
 import {
   capturePayload,
@@ -11,7 +11,6 @@ import {
   type RecoveryDocInput,
 } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import {
@@ -184,7 +183,7 @@ function openProjectNames(s: AppState): string[] {
 
 const INITIAL_DOC_ID = generateId('doc');
 
-export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
+export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => (set, get) => ({
   documents: [{ id: INITIAL_DOC_ID, payload: null }],
   activeDocumentId: INITIAL_DOC_ID,
 
@@ -212,7 +211,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
   duplicateDocument: (name) => {
     // Een documentwissel breekt een lopende coalesce-reeks af (zie switchDocument): de kopie mag niet
     // stilzwijgend verdergaan op de undo-stap van de bron.
-    resetUndoCoalescing();
+    runtime.resetUndoCoalescing();
     const source = get();
     // `outgoing` = de bron per referentie (wordt zo in de registry geparkeerd — identiek aan wat
     // newDocument/switchDocument doen). `src` lezen we ook als de bron van de kloon.
@@ -238,6 +237,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       calendars: deepClone(src.calendars),
       activityCodeTypes: deepClone(src.activityCodeTypes),
       customFieldDefs: deepClone(src.customFieldDefs),
+      customTaskTypes: deepClone(src.customTaskTypes),
       baselines: deepClone(src.baselines),
       activeBaselineId: src.activeBaselineId,
       cpmResult: src.cpmResult,
@@ -280,7 +280,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     if (id === state.activeDocumentId) return;
     // Een documentwissel breekt een lopende coalesce-reeks af (pakket H): terugswitchen mag niet
     // stilzwijgend verdergaan op de undo-stap van vóór de wissel.
-    resetUndoCoalescing();
+    runtime.resetUndoCoalescing();
     const target = state.documents.find((d) => d.id === id);
     if (!target || !target.payload) return;
     const outgoing = capturePayload(state);

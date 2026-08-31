@@ -8,7 +8,7 @@ import {
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays,
+  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3,
 } from 'lucide-react';
@@ -18,11 +18,12 @@ import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import {
-  saveShowBaselineOverlay, saveShowProgressLine, saveShowStatusDateLine,
+  saveShowBaselineOverlay, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
 import type { RibbonTab } from '@/state/slices/types';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
+  ScreenColorsPopoverButton,
   ExportDropdown, ResourceAssignDropdown, LayoutGroupContent, PresentationGroupContent,
   TimeScaleGroupContent, DisplayGroupContent, OverallocationIndicator, IfcInfo,
   useColumnsButtonBinding,
@@ -705,6 +706,21 @@ const beeldTab: RibbonTabConfig = [
               const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
               const setUI = useAppStore(s => s.setUI);
               return { active: showStatusDateLine, onClick: () => { const next = !showStatusDateLine; setUI({ showStatusDateLine: next }); void saveShowStatusDateLine(next); } };
+            },
+          },
+        ],
+      },
+      // De vaste linthoogte draagt drie kleine knoppen per stack. Kleurmodus en resource-accent
+      // vormen daarom samen de tweede verticale kolom, niet twee losse horizontale groepsitems.
+      {
+        kind: 'stack', id: 'colorAccentStack', items: [
+          { kind: 'component', id: 'screenColors', Component: ScreenColorsPopoverButton },
+          {
+            kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
+            use: () => {
+              const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
+              const setUI = useAppStore(s => s.setUI);
+              return { active: showResourceAccent, onClick: () => { const next = !showResourceAccent; setUI({ showResourceAccent: next }); void saveShowResourceAccent(next); } };
             },
           },
         ],

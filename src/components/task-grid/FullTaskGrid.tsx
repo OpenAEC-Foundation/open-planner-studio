@@ -233,6 +233,7 @@ export function TaskGridSurface({
   const baselines = useAppStore(state => state.baselines);
   const activityCodeTypes = useAppStore(state => state.activityCodeTypes);
   const customFieldDefs = useAppStore(state => state.customFieldDefs);
+  const customTaskTypes = useAppStore(state => state.customTaskTypes);
   const project = useAppStore(state => state.project);
   const calendar = useAppStore(state => state.calendar);
   const calendars = useAppStore(state => state.calendars);
@@ -335,6 +336,7 @@ export function TaskGridSurface({
     baselines,
     activityCodeTypes,
     customFieldDefs,
+    customTaskTypes,
     scheduleStale,
     wbsAutoNumber: project.wbsAutoNumber === true,
     dateNotation,
@@ -346,13 +348,13 @@ export function TaskGridSurface({
       key => tTask(key, { defaultValue: key }),
     ),
     labelForBoolean: value => tCommon(value ? 'yes' : 'no'),
-    labelForText: (key, values) => key.startsWith('resource.curve.')
+    labelForText: (key, values) => key.startsWith('resource.curve.') || key.startsWith('duration.')
       ? tCommon(key, { ...values, defaultValue: key })
       : tTask(key, { ...values, defaultValue: key }),
     textDirection,
   }), [
-    activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions,
-    cpmResult, customFieldDefs, dateNotation, project.id, project.wbsAutoNumber, resources,
+    activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
+    cpmResult, customFieldDefs, customTaskTypes, dateNotation, project.id, project.wbsAutoNumber, resources,
     scheduleStale, sequences, tCommon, tTask, tasks, textDirection,
   ]);
   const adapter = useMemo(() => createTaskGridAdapter({
@@ -516,13 +518,19 @@ export function TaskGridSurface({
   const handleCommand = useCallback((command: TaskGridCommand) => {
     if (command.kind === 'move') {
       if (!finishEditing()) return;
-      applySelection(updateGridSelection(
+      const next = updateGridSelection(
         selection,
         command.cell,
         rowIndex,
         visibleColumnIds,
         command.extend ? 'extend' : 'replace',
-      ));
+      );
+      applySelection(next);
+      if (!command.extend && onPlainTaskClick) {
+        const meta = adapter.rowMetaByKey.get(command.cell.rowKey);
+        const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
+        if (task) onPlainTaskClick(task);
+      }
       return;
     }
     if (command.kind === 'start-edit') {
@@ -568,7 +576,7 @@ export function TaskGridSurface({
       setSelection(updateGridSelection(createEmptyGridSelection(), cell, createTaskGridRowIndex(useAppStore.getState().viewRows), visibleColumnIds, 'replace'));
       setEditing({ documentId: activeDocumentId, cell, replacement: '' });
     }
-  }, [activeDocumentId, applySelection, calculatedReadOnlyFallback, clipboardEnvironment, finishEditing, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, visibleColumnIds]);
+  }, [activeDocumentId, adapter.rowMetaByKey, applySelection, calculatedReadOnlyFallback, clipboardEnvironment, finishEditing, onPlainTaskClick, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, tasksById, visibleColumnIds]);
 
   const { startRowDrag, dragState, active: rowDragActive } = useTableRowDrag({
     rows: viewRows,
@@ -619,7 +627,7 @@ export function TaskGridSurface({
       resizeColumn: column => tTask('taskGrid.history.resizeColumn', { column }),
       autoFitColumn: column => tTask('taskGrid.history.autoFitColumn', { column }),
     },
-  }), [tCommon, tTask]);
+  }), [tTask]);
 
   const computeAutoFitWidth = useCallback(async (columnId: TaskColumnId): Promise<number | null> => {
     const descriptor = adapter.descriptorsById.get(columnId);
@@ -651,7 +659,7 @@ export function TaskGridSurface({
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [activeDocumentId, adapter, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, containerRef, rowIndex.taskRows, uiFontScale]);
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
@@ -781,7 +789,7 @@ export function TaskGridSurface({
         </span>
       ) : undefined,
     };
-  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tTask, tasksById, toggleCollapse, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));

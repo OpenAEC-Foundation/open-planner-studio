@@ -1200,6 +1200,9 @@ button.task-grid-relation-reference {
   --theme-active-border: #EA580C;
   --theme-warning-text: #F59E0B;
   --theme-grid-weekend: rgba(255, 255, 255, 0.035);
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
+     aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
+  --theme-grid-week-band: rgba(255, 255, 255, 0.028);
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1255,6 +1258,9 @@ button.task-grid-relation-reference {
   --theme-active-border: #C2410C;
   --theme-warning-text: #946200;
   --theme-grid-weekend: #E6EBF2;
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): subtieler dan de weekend-
+     arcering, want hij bedekt hele weken i.p.v. losse dagkolommen. */
+  --theme-grid-week-band: #EFF3F8;
   --theme-bar-float: #059669;
   --theme-critical-text: #D12020;
   --theme-input-bg: #FFFFFF;
@@ -1301,6 +1307,10 @@ button.task-grid-relation-reference {
      (1.23:1 vs #000, 1.16:1 vs #0a0a0a) — was onzichtbaar toen hij uit
      input-bg #000000 (= bg) werd getekend. */
   --theme-grid-weekend: #1c1c1c;
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): iets zwakker dan de
+     weekend-band maar nog zichtbaar op #0a0a0a (de band moet als vlak leesbaar blijven,
+     niet als per-dag-arcering concurreren). */
+  --theme-grid-week-band: #141414;
   /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
@@ -1518,6 +1528,102 @@ html, body, #root {
   font-weight: 600;
 }
 
+/* Deze tooltip hoort bij een gewone HTML-bediening (niet bij tijdelijke canvas-hover). Daardoor
+   mag de portal ook voor hit-testing boven de Gantt liggen; de knop sluit hem zelf bij mouseleave. */
+.duration-unit-tooltip {
+  pointer-events: auto;
+}
+
+/* Issue #65: alleen de WBS-kolom veert mee; de overige kolommen blijven over alle regels gelijk.
+   De container-query is gekoppeld aan de echte paneelinhoud (niet het viewport): op de minimale
+   railbreedte krijgt WBS een eigen regel, terwijl de vier bedieningselementen eronder uitlijnen. */
+.dependency-list {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dependency-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0.75rem 4rem 3.5rem 1rem;
+  grid-template-areas: "wbs driving type lag remove";
+  column-gap: 0.25rem;
+  align-items: center;
+}
+
+.dependency-wbs-cell,
+.dependency-wbs-link { grid-area: wbs; }
+.dependency-driving-slot { grid-area: driving; }
+.dependency-type-field { grid-area: type; }
+.dependency-lag-field { grid-area: lag; }
+.dependency-remove-button { grid-area: remove; }
+
+@container (max-width: 14rem) {
+  .dependency-row {
+    grid-template-areas:
+      "wbs wbs wbs wbs wbs"
+      ". driving type lag remove";
+    row-gap: 0.25rem;
+  }
+}
+
+/* Het WBS-nummer is navigatie, geen kaal tekstlabel. De semantische tracekleur blijft als vaste
+   rolmarkering zichtbaar; de tekst en focusring gebruiken de contrastrijke themakleur. De rol staat
+   daarnaast uitgeschreven in de toegankelijke knopnaam, zodat kleur niet de enige informatiedrager
+   is. Onderstreping, handcursor en hovervlak maken de klikbaarheid ook zonder kleur herkenbaar. */
+.dependency-wbs-link {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  color: var(--theme-text);
+  text-align: start;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: background-color 120ms ease, text-decoration-thickness 120ms ease;
+}
+
+.dependency-wbs-link::before {
+  content: '';
+  display: inline-block;
+  box-sizing: border-box;
+  width: 6px;
+  height: 10px;
+  margin-inline-end: 4px;
+  vertical-align: -1px;
+  background: var(--dependency-role-color);
+  border: 1px solid var(--theme-text);
+}
+
+.dependency-wbs-link[data-dependency-role="predecessor"]::before {
+  border-radius: 999px;
+}
+
+.dependency-wbs-link[data-dependency-role="successor"]::before {
+  border-radius: 1px;
+}
+
+.dependency-wbs-link:hover {
+  background: var(--theme-hover);
+  text-decoration-thickness: 2px;
+}
+
+.dependency-wbs-link:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
+  background: var(--theme-hover);
+}
+
+.dependency-driving-slot {
+  display: flex;
+  width: 0.75rem;
+  height: 0.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Toast notification — gecentraliseerde gebruikersmeldingen (bevinding K8). De stapel-container
    positioneert; de losse melding verzorgt alleen inhoud + klik. De naam is ops-toast (was
    gantt-toast): de meldingen komen ook uit Backstage/tabel/rapport, waar geen canvas is. */
@@ -1618,6 +1724,19 @@ html, body, #root {
    ============================================================================ */
 
 /* Buttons (DESIGN-SYSTEM.md §3.1) */
+/* Echte bedieningselementen moeten ook buiten de gedeelde `.btn`-klasse direct als zodanig
+   herkenbaar zijn. `:where()` houdt de specificiteit op nul: invoer-, sleep- en resizecursors
+   die een component bewust specifieker instelt, blijven dus ongewijzigd leidend. */
+:where(button:not(:disabled):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"])) {
+  cursor: pointer;
+}
+
+/* Een semantisch uitgeschakelde custom control gebruikt soms aria-disabled in plaats van het
+   native attribuut; beide varianten krijgen dezelfde niet-klikbare aanwijzing. */
+:where(button:disabled, button[aria-disabled="true"], [role="button"][aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

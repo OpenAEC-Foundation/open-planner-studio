@@ -13,15 +13,17 @@ npm run tauri:build  # Produce desktop installers
 npm run bump X.Y.Z   # CalVer-versie syncen (package.json + tauri.conf.json + lock; Cargo.toml blijft bewust 0.1.0)
 npm run verify       # DE poort — exact wat CI, de release-gate en de deploy-gate draaien
 npm run typecheck    # tsc --noEmit over src/ én scripts/+tests/ (tsconfig.tests.json)
-npm run lint         # los: ESLint over src/ — géén stijlregels, alleen promise-afhandeling + control-regex
-npm test             # alle vier de suites: planning, library, mcp, dev-server
+npm run lint         # los: ESLint over src/ — promises, control-regex en harde React-hookregels
+npm test             # alle vijf de suites: planning, library, mcp, dev-server, browser
 npm run test:planning     # los: CPM/kalender-regressiesuite (== bash tests/planning/run.sh)
 npm run test:library      # los: bibliotheek/IFC/i18n-checks
 npm run test:mcp          # los: MCP-tools
 npm run test:dev-server   # los: node:test-units + integratietest van de dev-serverpoort/-locks
+npm run test:browser      # los: echte gebruikersflows in Chromium via Playwright
 npm run verify:examples   # los: de gebundelde voorbeelden laden/rekenen door zoals verwacht
 npm run verify:docs       # los: in-app gidsen — nl+en hard vereist, overige 12 talen indien aanwezig
 npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-pluralcategorieën meegerekend)
+npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
 npm run verify:audit      # los: npm audit --audit-level=high
 npm run gen:examples      # Voorbeeldprojecten (public/examples) opnieuw genereren
@@ -30,7 +32,7 @@ npm run publish:wiki      # GitHub-wiki genereren uit repo-bronnen (dry-run; `--
 
 `npm run dev` gaat via `scripts/dev-server.mjs`: dat wijst deze worktree via `scripts/dev-port.mjs` een **vaste** poort toe (verankerd aan de worktree-root, 3007–3106), claimt een guard-slot via `scripts/dev-lock.mjs` zodat een tweede start in dezelfde worktree wordt geweigerd in plaats van stilletjes een andere poort te pakken, stempelt `.claude/launch.json` met die poort (zodat `preview_start` meteen de juiste worktree opent), en spawnt dan pas Vite. `tauri:dev` (`scripts/tauri-dev.mjs`) doet hetzelfde en start `tauri dev` met een matchende `--config` `devUrl` plus `OPS_DEV_PORT`/`OPS_DEV_INSTANCE`/`OPS_DEV_GUARDED` in de env (de geneste `dev`-start slaat de toewijzing dan over). Zo kunnen **meerdere worktrees hun dev- en desktopbuild tegelijk draaien** — elk met een eigen poort (het venster laadt nooit de Vite van een andere worktree) en eigen `recovery.<slug>.*`-auto-save-bestanden (concurrent instanties overschrijven elkaar niet in de gedeelde `appDataDir`). `vite.config.ts` leest `OPS_DEV_PORT` met `strictPort` — dat is de harde backstop: twee worktrees op dezelfde poort geeft EADDRINUSE in plaats van een verkeerde build. `App.tsx` leest de slug via de `__OPS_DEV_INSTANCE__`-define. De regressietests hiervoor staan in `tests/dev-server/`.
 
-Er is geen vitest/jest; `tsc` is de statische hoofdcheck — draai `npm run typecheck` (dekt óók `scripts/` en `tests/`, incl. het casus-schema) in plaats van alleen `npm run build`. TypeScript staat op `strict` met `noUnusedLocals`/`noUnusedParameters`, dus builds leggen vaak dode code bloot. Daarnaast draait er een **bewust minimale** ESLint-config (`eslint.config.js`): géén stijlregels — alleen `no-floating-promises`, `no-misused-promises` en `no-control-regex`, precies de dingen die `tsc` niet ziet en die hier eerder stil zijn misgegaan. `import/no-cycle` staat er bewust NIET in: `verify:cycles` doet dat beter (graaf ná type-erasure, dus geen valse treffers op `import type`). De gedragstests zitten in vier suites, samen achter `npm test`:
+Er is geen vitest/jest; `tsc` is de statische hoofdcheck — draai `npm run typecheck` (dekt óók `scripts/` en `tests/`, incl. het casus-schema) in plaats van alleen `npm run build`. TypeScript staat op `strict` met `noUnusedLocals`/`noUnusedParameters`, dus builds leggen vaak dode code bloot. Daarnaast draait er een **bewust minimale** ESLint-config (`eslint.config.js`): géén stijlregels — wel `no-floating-promises`, `no-misused-promises`, `no-control-regex`, `react-hooks/rules-of-hooks` en `react-hooks/exhaustive-deps`, plus een fout op ongebruikte suppressies. `import/no-cycle` staat er bewust NIET in: `verify:cycles` doet dat beter (graaf ná type-erasure, dus geen valse treffers op `import type`). De gedragstests zitten in vijf suites, samen achter `npm test`:
 
 | suite | wat | runner |
 |---|---|---|
@@ -38,6 +40,16 @@ Er is geen vitest/jest; `tsc` is de statische hoofdcheck — draai `npm run type
 | `tests/library/` | bibliotheek, pool-IFC, vijandige IFC-invoer, i18n-meervouden | `run.sh` |
 | `tests/mcp/` | de MCP-tools headless tegen de echte store | `run.sh` |
 | `tests/dev-server/` | poortallocatie en flock-races van de dev-server | `node:test` + `integration.sh` |
+| `tests/browser/` | echte muis-, toets-, wheel- en DOM-handelingen voor Gantt, documenten, TableEditor, dialogen en panelen; state-/paintasserties via de dev-only brug | Playwright Chromium headless shell |
+
+Installeer de browser en Linux-systeemafhankelijkheden eenmalig met
+`npx playwright install --with-deps --only-shell chromium`. `npm run test:browser` reserveert daarna
+een afzonderlijke poort voor deze worktree, start en stopt zelf een bewaakte Vite-server en draait
+met één worker en nul retries. Gebruik bij falen `test-results/` voor screenshots en traces en
+`playwright-report/` voor het HTML-rapport; de CI-, live- en release-gates uploaden die mappen zeven
+dagen als `playwright-*`-artefact. Testhandelingen lopen via echte browser-events. De dev-only
+`window.__OPS__`-brug mag deterministische fixtures zetten en domeinstate of Canvasgeometrie lezen,
+maar mag de geteste gebruikershandeling niet vervangen.
 
 Draai de planningssuite na elke wijziging aan planningscode. **De suite print "alles groen" ook bij exit 1** wanneer het bundelen faalt — vertrouw op de **exitcode**, nooit op de tail. Een `grep` op faalregels is een handig extraatje maar **geen poort**: `grep '^XX'` werkt alleen voor `tests/planning/`. De bibliotheeksuite print zijn faalregels **ingesprongen** (`console.log(\`   XX ${msg}\`)` in `tests/library/check-*.ts`), dus `grep -c '^XX'` geeft daar 0 terwijl de suite rood staat — gemeten 2026-07-28. Gebruik `grep -c 'XX '` als je toch wilt tellen, en laat de exitcode altijd het oordeel vellen. `npm run verify` is de poort die CI, de release-gate en de deploy-gate alle drie draaien — dat is één definitie in `package.json`, dus wat je lokaal draait is letterlijk wat CI draait. Zie `tests/planning/README.md` voor het toevoegen van cases.
 
@@ -98,7 +110,27 @@ De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/re
 
 `src/state/appStore.ts` is een compositie-root: `create<AppState>()(immer(...))` combineert de slice-creators uit `src/state/slices/` plus de gridtransactieslice. Elke slice is getypeerd als `AppSlice<XSlice>` (zie `slices/types.ts`) tegen de **volledige** `AppState`, zodat cross-slice acties (runCPM, undo/redo, newProject, file-I/O) gewoon de hele Immer-draft muteren. Nieuwe state/acties horen in de passende slice; `slices/types.ts` bevat daarnaast gedeelde type/enum-definities (`ViewState`, `UIState`, …). Domain-types staan in `src/types/`. De renderer leest alleen uit de store.
 
-Multi-document is **single-active**: het actieve document leeft op top-level (project/tasks/sequences/… zoals altijd), zodat alle slices, componenten en de renderer single-document blijven. `documentSlice` bewaart de overige geopende documenten als losse `DocumentPayload`-snapshots en swapt top-level ↔ payload bij `switchDocument`/`newDocument`/`closeDocument`. Per-document: project, kalender, taken/relaties/resources/toewijzingen, selectie, `cpmResult`, `view`, `collapsedTaskIds`, `filePath` en `isDirty`. De undo/redo-opslag is geen stapel in iedere payload maar één app-globale, niet-gepersisteerde sessiechronologie (`historyEvents`/`nextHistorySequence`); undo en redo kiezen daaruit het toepasselijke event voor het actieve document of de betreffende gridsurface. Ook de rest van `ui`, `taskClipboard` en de taakgridvoorkeuren zijn app-globaal. Er is altijd minstens één document; het laatste sluiten reset naar een leeg document. De document-chrome-UI staat in `src/components/layout/DocumentChrome/`: `DocumentTabBar`, `ProjectRail` en `SwitcherPill` zijn drie instelbare stijlen (`ui.documentChromeStyle` ∈ `'tabs' | 'rail' | 'switcher'`, persistent), plus een `ProjectOverview`-overlay en `CloseDocumentDialog` met 3-weg sluitbevestiging (opslaan/niet opslaan/annuleren); Ctrl/⌘ 1–9 springt naar het n-de document. `openFile`/`openRecentFile` openen in een **nieuw** document tenzij het actieve tabblad nog leeg en ongewijzigd is (`isActivePristine` in `fileSlice`); "Nieuw" opent de projectwizard (`ProjectInfoDialog` met kalender-presets en faseringssjablonen, via `ui.showNewProjectDialog`) in plaats van een kaal `newProject()`.
+De gemounte productinterface gebruikt bewust exact één `appStoreContext`; React-componenten blijven
+die app-singleton atomisch lezen via `useAppStore(selector)`. Dezelfde compositie-root kan voor
+headless code en isolatietests wel onafhankelijke contexten maken met `createAppStoreContext()`.
+Ownership is daarbij expliciet:
+
+| oppervlak | eigenaar |
+|---|---|
+| React UI-selectors en de gemounte productinterface | `useAppStore` / `appStoreContext` |
+| documentstate, undo/redo en niet-documentaire state binnen één context | `AppStoreContext.store` |
+| undo-coalescing, batchdiepte, MCP-lease en timephased-verliestelling | `AppStoreContext.runtime` |
+| batch-, MCP- en extensie-`data.*`-uitvoering | de expliciet meegegeven documentcontext |
+| extensie-ribbon/importers/cleanup en notificaties | de expliciet geïnjecteerde app-hostbinding |
+| app-lifecycleregistries zoals extensie-instanties, eventbus, PDF-fontproviders en SDK-windowbinding | app-globaal |
+| `batchTransaction.ts` en `mcpTransaction.ts` | dunne compatibiliteitsadapters die alleen `appStoreContext` binden |
+
+Core runtimefactories en storegebonden MCP-tools mogen daarom nooit zelf `useAppStore` of
+`appStoreContext` importeren. `npm run verify:store-boundaries` bewaakt die grens mechanisch. Een
+tweede context is een correct headless/testfundament, geen productbelofte voor multi-window of een
+multi-store-Reactinterface.
+
+Multi-document is **single-active**: het actieve document leeft op top-level (project/tasks/sequences/… zoals altijd), zodat alle slices, componenten en de renderer single-document blijven. `documentSlice` bewaart de overige geopende documenten als losse `DocumentPayload`-snapshots en swapt top-level ↔ payload bij `switchDocument`/`newDocument`/`closeDocument`. Per-document: project, kalender, taken/relaties/resources/toewijzingen, selectie, `cpmResult`, `view`, `collapsedTaskIds`, `filePath` en `isDirty`. De undo/redo-opslag is geen stapel in iedere payload maar één niet-gepersisteerde sessiechronologie binnen de appcontext (`historyEvents`/`nextHistorySequence`); undo en redo kiezen daaruit het toepasselijke event voor het actieve document of de betreffende gridsurface. Ook de rest van `ui`, `taskClipboard` en de taakgridvoorkeuren is appcontext-globaal en wordt niet met een document geswapt. Er is altijd minstens één document; het laatste sluiten reset naar een leeg document. De document-chrome-UI staat in `src/components/layout/DocumentChrome/`: `DocumentTabBar`, `ProjectRail` en `SwitcherPill` zijn drie instelbare stijlen (`ui.documentChromeStyle` ∈ `'tabs' | 'rail' | 'switcher'`, persistent), plus een `ProjectOverview`-overlay en `CloseDocumentDialog` met 3-weg sluitbevestiging (opslaan/niet opslaan/annuleren); Ctrl/⌘ 1–9 springt naar het n-de document. `openFile`/`openRecentFile` openen in een **nieuw** document tenzij het actieve tabblad nog leeg en ongewijzigd is (`isActivePristine` in `fileSlice`); "Nieuw" opent de projectwizard (`ProjectInfoDialog` met kalender-presets en faseringssjablonen, via `ui.showNewProjectDialog`) in plaats van een kaal `newProject()`.
 
 Scheduling is **manual, not reactive**: the actual solve — leaf-filter → `CPMSolver` (which owns `CalendarEngine`) → write computed fields (early/late dates, total float, critical-path flag) back onto the tasks — lives in `solveProject()` (`src/engine/scheduler/solveProject.ts`), extracted from `runCPM` in A3/M3 so it has exactly one implementation. The `runCPM` action (`scheduleSlice.ts`) is a thin wrapper: it calls `solveProject` directly on the Immer draft (`s.tasks` mutated in place), then sets `cpmResult`/`resourceLoadResult` and clears `scheduleStale`. It does not re-run on every edit — triggered explicitly by F5, the ribbon **Calculate** button, the menu, and after an IFC load. Editing tasks without calling `runCPM` leaves the schedule stale, so call it after mutating tasks/sequences/calendar. The same `solveProject` also powers the resource-occupancy overview (see *Resourcebibliotheken* below): opening the overview runs it there on a **clone** (`cloneTasksForSolve`) of a stale, non-active document's tasks — ephemeral, no write-back. Is **Automatisch berekenen** aan, dan gebeurt dat efemere doorrekenen nog steeds, en draait `documentSlice`'s `recalculateStaleSleepingDocuments()` er **daarnaast** overheen: die rekent óók op een kloon van de payload-taken en schrijft juist díé kloon terug (no undo snapshot, mirroring `runCPM`'s semantics). Die kloon is geen detail maar de atomiciteitsgarantie — de payload blijft onaangeraakt tot de solve slaagt, zodat een cyclus niets halfs achterlaat. Het actieve document blijft buiten die actie en houdt zijn eigen pad via `useAutoCalcCPM`.
 

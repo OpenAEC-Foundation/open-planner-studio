@@ -20,7 +20,7 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
-import type { Baseline } from '@/types/baseline';
+import { buildBaselineOverlay, type BaselineOverlay } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
@@ -31,25 +31,8 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, parseDate } from '@/utils/dateUtils';
 
 /** Overlay-datums uit de actieve baseline, keyed op Task.id. */
-export type BaselineOverlay = NonNullable<GanttRenderOptions['baselineOverlay']>;
-
-/**
- * Overlay-map uit de actieve baseline. `undefined` (geen actieve baseline, of een id dat niet meer
- * bestaat) betekent voor de renderer: teken geen baseline-schaduwen.
- */
-export function buildBaselineOverlay(
-  baselines: Baseline[],
-  activeBaselineId: string | null | undefined,
-): BaselineOverlay | undefined {
-  if (!activeBaselineId) return undefined;
-  const active = baselines.find(b => b.id === activeBaselineId);
-  if (!active) return undefined;
-  const map: BaselineOverlay = new Map();
-  for (const bt of active.tasks) {
-    map.set(bt.taskId, { start: bt.start, finish: bt.finish, isMilestone: bt.isMilestone });
-  }
-  return map;
-}
+export { buildBaselineOverlay };
+export type { BaselineOverlay };
 
 export interface SharedAxisInput {
   calendar: WorkCalendar;
@@ -93,8 +76,9 @@ export function computeContentSpanDays(
   effectiveViewStart: string,
   compressNonWorkdays: boolean,
   axis: GanttAxis,
+  navigationEndDates: string[] = [],
 ): number | null {
-  if (tasks.length === 0) return null;
+  if (tasks.length === 0 && navigationEndDates.length === 0) return null;
   let maxDays = 365;
   for (const task of tasks) {
     const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
@@ -107,6 +91,14 @@ export function computeContentSpanDays(
         : diffDays(effectiveViewStart, end);
       if (days > maxDays) maxDays = days;
     }
+  }
+  for (const end of navigationEndDates) {
+    const parsed = parseDate(end);
+    if (Number.isNaN(parsed.getTime())) continue;
+    const days = compressNonWorkdays
+      ? axis.daySpan(parseDate(effectiveViewStart), parsed)
+      : diffDays(effectiveViewStart, end);
+    if (days > maxDays) maxDays = days;
   }
   return maxDays;
 }
@@ -211,6 +203,16 @@ export type GanttRenderOptionsInput =
     /** Rauw resultaat; de driving/violated/missed-lijsten worden hier één keer uitgepakt. */
     cpmResult: CPMResult | null | undefined;
   };
+
+/**
+ * Rendererinvoer die vóór een canvaspaint kan worden samengesteld. De host meet breedte en hoogte
+ * pas in `useCanvasLayer` en vult precies die twee velden daar aan; alle inhoudelijke opties blijven
+ * verplicht en worden nog steeds door dezelfde bouwer gevalideerd.
+ */
+export type GanttRenderOptionsSourceInput = Omit<
+  GanttRenderOptionsInput,
+  'canvasWidth' | 'canvasHeight'
+>;
 
 /**
  * Zet de invoer om in het `GanttRenderOptions`-object dat `GanttRenderer` verwacht. Puur — geen

@@ -6,6 +6,7 @@ import {
 import { activityCodeColumnId, customFieldColumnId, taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { CellEditIntent, CellEditRoute } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -38,16 +39,22 @@ const baseTask = {
   status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
   resourceIds: [], activityCodes: {}, customFields: {},
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 5,
+    durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 5,
     scheduleStart: '2026-01-05', scheduleFinish: '2026-01-09',
     earlyStart: '2026-01-05', earlyFinish: '2026-01-09',
     lateStart: '2026-01-05', lateFinish: '2026-01-09',
     freeFloat: 0, totalFloat: 0, isCritical: true, completion: 0,
   },
 } as Task;
+const effectiveCalendar: WorkCalendar = {
+  id: 'cal-hour', name: 'Acht uur', description: '', workDays: [1, 2, 3, 4, 5],
+  workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+};
 const environment = {
   projectId: 'p-1', wbsAutoNumber: false, statusDate: '2026-01-07',
   calendarIds: new Set(['cal-hour']), effectiveHoursPerDay: 8, hourMode: false,
+  effectiveCalendar, enableHourPlanning: true,
+  customTaskTypeIds: new Set(['custom-installation']),
   activityCodeTypes: [{ id: 'fase', name: 'Fase', values: [{ id: 'bouw', code: 'B' }] }],
   customFieldDefs: [
     { id: 'aantal', name: 'Aantal', type: 'integer' as const },
@@ -81,6 +88,20 @@ for (const [columnId, value, field, expected] of textCases) {
   const result = plan(columnId, 'task-field', value);
   eq(`${columnId}: bewaakte taakveldwrite`, result.ok ? result.value.task[field] : result, expected);
 }
+const customTaskType = plan('task.customTaskTypeId', 'task-field', 'custom-installation');
+eq('Projecttaaktype zet id en USERDEFINED atomair', customTaskType.ok ? {
+  taskType: customTaskType.value.task.taskType,
+  customTaskTypeId: customTaskType.value.task.customTaskTypeId,
+} : customTaskType, { taskType: 'USERDEFINED', customTaskTypeId: 'custom-installation' });
+const builtInTaskType = plan('task.taskType', 'task-field', 'INSTALLATION', {
+  ...baseTask, taskType: 'USERDEFINED', customTaskTypeId: 'custom-installation',
+});
+eq('Ingebouwd taaktype wist de oude custom-id atomair', builtInTaskType.ok ? {
+  taskType: builtInTaskType.value.task.taskType,
+  customTaskTypeId: builtInTaskType.value.task.customTaskTypeId,
+} : builtInTaskType, { taskType: 'INSTALLATION' });
+eq('Onbekend projecttaaktype wordt geweigerd',
+  plan('task.customTaskTypeId', 'task-field', 'verdwenen').ok, false);
 eq('WBS-autonummering weigert een write',
   plan('task.wbsCode', 'task-field', '9', baseTask, { wbsAutoNumber: true }).ok, false);
 eq('Prioriteit buiten bereik blijft ook in de planner geweigerd',
@@ -111,6 +132,37 @@ eq('Uurkalender bewaart minuten en houdt de dagafgeleide consistent', hourDurati
   days: hourDuration.value.task.time.scheduleDuration,
   minutes: hourDuration.value.task.time.durationMinutes,
 } : hourDuration, { days: 0.1875, minutes: 90 });
+const nativeHourDuration = plan('task.time.scheduleDuration', 'task-schedule', {
+  unit: 'hours', durationMinutes: 90, explicitUnit: true,
+});
+eq('Tabelduur met uur-suffix wisselt de taakbron atomair naar uren', nativeHourDuration.ok ? {
+  unit: nativeHourDuration.value.task.time.durationUnit,
+  days: nativeHourDuration.value.task.time.scheduleDuration,
+  minutes: nativeHourDuration.value.task.time.durationMinutes,
+} : nativeHourDuration, { unit: 'hours', days: 0.1875, minutes: 90 });
+const nativeDayDuration = plan('task.time.scheduleDuration', 'task-schedule', {
+  unit: 'days', scheduleDuration: 3, explicitUnit: true,
+}, { ...baseTask, time: { ...baseTask.time, durationUnit: 'hours', durationMinutes: 90 } });
+eq('Tabelduur met dag-suffix wisselt atomair naar dagen en wist minuten', nativeDayDuration.ok ? {
+  unit: nativeDayDuration.value.task.time.durationUnit,
+  days: nativeDayDuration.value.task.time.scheduleDuration,
+  minutes: nativeDayDuration.value.task.time.durationMinutes,
+} : nativeDayDuration, { unit: 'days', days: 3 });
+const exactUnitConversion = plan('task.time.durationUnit', 'task-schedule', 'hours');
+eq('Losse eenheidscel past alleen een exact kalendervoorstel toe', exactUnitConversion.ok ? {
+  unit: exactUnitConversion.value.task.time.durationUnit,
+  days: exactUnitConversion.value.task.time.scheduleDuration,
+  minutes: exactUnitConversion.value.task.time.durationMinutes,
+} : exactUnitConversion, { unit: 'hours', days: 5, minutes: 2400 });
+eq('Niet-exacte uur-naar-dagconversie wordt geweigerd', plan(
+  'task.time.durationUnit', 'task-schedule', 'days',
+  { ...baseTask, time: { ...baseTask.time, durationUnit: 'hours', scheduleDuration: 0.1875, durationMinutes: 90 } },
+).ok, false);
+eq('Ureninvoer volgt de urenplanningpoort', plan(
+  'task.time.scheduleDuration', 'task-schedule',
+  { unit: 'hours', durationMinutes: 90, explicitUnit: true }, baseTask,
+  { enableHourPlanning: false },
+).ok, false);
 
 const steered = {
   ...baseTask,

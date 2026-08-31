@@ -189,7 +189,14 @@
     "taskHintBelow": "Neuer Vorgang direkt unter der Auswahl",
     "taskHintAppend": "Neuer Vorgang am Ende der Liste",
     "columnsHintTable": "Spalten der Tabellenansicht wählen",
-    "columnsHintGoToTable": "Spalten der Tabellenansicht wählen — sichtbar im Register Tabelle"
+    "columnsHintGoToTable": "Spalten der Tabellenansicht wählen — sichtbar im Register Tabelle",
+    "toggleResourceAccent": "Ressourcen-Akzent",
+    "screenColors": "Balkenfarben",
+    "screenColors_critical": "Kritischer Pfad",
+    "screenColors_auto": "Pro Aufgabe — automatisch",
+    "screenColors_category": "Nach Kategorie",
+    "screenColorsMissingField": "Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird der Aufgabentyp verwendet.",
+    "screenColorsHint": "Außerhalb des Modus „Kritischer Pfad“ markiert ein roter Rand den kritischen Pfad."
   },
   "ifc": {
     "title": "IFC-Editor",
@@ -331,6 +338,12 @@
     "installing": "Wird installiert...",
     "installedBadge": "Installiert",
     "installError": "Installation fehlgeschlagen.",
+    "quarantined": "Quarantäne",
+    "quarantineReason": "Grund: {{reason}}",
+    "quarantineRemove": "Aus dem Speicher entfernen",
+    "quarantineEmptyName": "Ungültige Erweiterung",
+    "catalogEntriesSkipped": "Übersprungene Katalogeinträge: {{count}}",
+    "storageWriteFailed": "Der Erweiterungsstatus konnte nicht gespeichert werden.",
     "import": "Importieren",
     "importSubtitle": "Projektdaten über installierte Erweiterungen importieren.",
     "importEmpty": "Keine Import-Erweiterungen installiert. Fügen Sie eine über Erweiterungen hinzu."

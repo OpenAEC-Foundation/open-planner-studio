@@ -12,15 +12,21 @@ import type {
   ConstraintType,
   MilestoneKind,
   Task,
+  TaskDurationUnit,
   TaskStatus,
   TaskType,
 } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import type {
   CellEditIntent,
   CellValidationError,
   GridResult,
 } from '@/types/taskGrid';
 import { parseInstant } from '@/utils/dateUtils';
+import {
+  proposeTaskDurationConversion,
+  type ParsedTaskDuration,
+} from '@/utils/taskDurationInput';
 import {
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
@@ -44,6 +50,9 @@ export interface TaskEditPlanEnvironment {
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
+  effectiveCalendar?: WorkCalendar;
+  enableHourPlanning?: boolean;
+  customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
 }
@@ -108,9 +117,10 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   if (columnId.startsWith('task.constraint') || columnId === 'task.deadline') return 'task-constraint';
   if (columnId === 'task.isHammock') return 'task-hammock';
   if (columnId === 'task.calendarId' || columnId.startsWith('task.time.schedule')
-    || columnId === 'task.time.durationType') return 'task-schedule';
+    || columnId === 'task.time.durationType' || columnId === 'task.time.durationUnit') return 'task-schedule';
   if (columnId === 'task.name' || columnId === 'task.description' || columnId === 'task.wbsCode'
-    || columnId === 'task.taskType' || columnId === 'task.priority' || columnId === 'task.color'
+    || columnId === 'task.taskType' || columnId === 'task.customTaskTypeId'
+    || columnId === 'task.priority' || columnId === 'task.color'
     || columnId === 'task.notes') {
     return 'task-field';
   }
@@ -146,6 +156,14 @@ function applyTaskField(
       return failure('enum', edit);
     }
     task.taskType = edit.value as TaskType;
+    if (task.taskType !== 'USERDEFINED') task.customTaskTypeId = undefined;
+  } else if (id === 'task.customTaskTypeId') {
+    if (!optionalString(edit.value)) return failure('enum', edit);
+    if (edit.value !== undefined && !environment.customTaskTypeIds?.has(edit.value)) {
+      return failure('enum', edit);
+    }
+    task.customTaskTypeId = edit.value;
+    if (edit.value !== undefined) task.taskType = 'USERDEFINED';
   } else if (id === 'task.priority') {
     if (!finite(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
       return failure('range', edit);
@@ -180,7 +198,51 @@ function applyScheduleEdit(
       task.time.durationType = edit.value;
       lost = clearScheduleGuidance(task, true);
     }
+  } else if (id === 'task.time.durationUnit') {
+    if (edit.value !== 'days' && edit.value !== 'hours') return failure('enum', edit);
+    const target = edit.value as TaskDurationUnit;
+    if (target === task.time.durationUnit) return { ok: true, value: false };
+    if (target === 'hours' && environment.enableHourPlanning !== true) {
+      return failure('hourPlanningDisabled', edit);
+    }
+    if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
+    const proposal = proposeTaskDurationConversion(task, target, environment.effectiveCalendar);
+    if (!proposal) return failure('durationConversionNotExact', edit);
+    task.time.durationUnit = proposal.unit;
+    if (proposal.unit === 'days') {
+      task.time.scheduleDuration = proposal.scheduleDuration ?? 0;
+      task.time.durationMinutes = undefined;
+    } else {
+      if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
+        return failure('calendarHours', edit);
+      }
+      const minutes = proposal.durationMinutes ?? 0;
+      task.time.durationMinutes = minutes;
+      task.time.scheduleDuration = minutes / (environment.effectiveHoursPerDay * 60);
+    }
+    lost = clearScheduleGuidance(task, true);
   } else if (id === 'task.time.scheduleDuration') {
+    if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
+      const parsed = edit.value as ParsedTaskDuration;
+      if (parsed.unit === 'hours') {
+        if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
+        if (!finite(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
+        if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
+          return failure('calendarHours', edit);
+        }
+        task.time.durationUnit = 'hours';
+        task.time.durationMinutes = parsed.durationMinutes;
+        task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
+      } else {
+        if (!finite(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
+          || parsed.scheduleDuration < 0) return failure('duration', edit);
+        task.time.durationUnit = 'days';
+        task.time.scheduleDuration = parsed.scheduleDuration;
+        task.time.durationMinutes = undefined;
+      }
+      lost = clearScheduleGuidance(task, true);
+      return { ok: true, value: lost };
+    }
     if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
     const hoursPerDay = environment.effectiveHoursPerDay;

@@ -28,6 +28,7 @@
   },
   "taskGrid": {
     "columns": {
+      "customTaskType": "Niestandardowy typ zadania",
       "activityCodeData":"Dane kodów czynności","actualDuration":"Rzeczywisty czas trwania","actualFinish":"Rzeczywiste zakończenie","actualStart":"Rzeczywiste rozpoczęcie","assignedResources":"Przydzielone zasoby","assignmentCurve":"Krzywa przydziału","assignmentId":"Identyfikator przydziału","assignmentResourceId":"Identyfikator zasobu przydziału","assignmentTaskId":"Identyfikator zadania przydziału","assignmentUnits":"Jednostki przydziału dziennie","calendar":"Kalendarz","childIds":"Identyfikatory zadań podrzędnych","color":"Kolor","completion":"Postęp","constraint2Date":"Data ograniczenia dodatkowego","constraint2Type":"Typ ograniczenia dodatkowego","constraintDate":"Data ograniczenia","constraintHard":"Twarde ograniczenie","constraintType":"Typ ograniczenia","critical":"Krytyczne","customFieldData":"Dane pól niestandardowych","deadline":"Termin ostateczny","description":"Opis","duration":"Czas trwania","durationMinutes":"Czas trwania (minuty)","durationType":"Typ czasu trwania","earlyFinish":"Najwcześniejsze zakończenie","earlyStart":"Najwcześniejsze rozpoczęcie","effortDriven":"Sterowane nakładem pracy","externalRelationData":"Dane relacji zewnętrznych","floatPath":"Ścieżka zapasu","freeFloat":"Zapas swobodny","hammock":"Hammock (czas pochodny)","interferingFloat":"Zapas zakłócający","internalRelationData":"Dane relacji wewnętrznych","lateFinish":"Najpóźniejsze zakończenie","lateStart":"Najpóźniejsze rozpoczęcie","levelingDelay":"Opóźnienie bilansowania","levelingDelayElapsed":"Upłynięte opóźnienie bilansowania","levelingDelayMinutes":"Opóźnienie bilansowania (minuty)","mandatoryMilestone":"Obowiązkowy kamień milowy","manuallyScheduled":"Planowane ręcznie","milestone":"Kamień milowy","milestoneKind":"Typ kamienia milowego","mspTaskType":"Typ zadania Microsoft Project","name":"Nazwa zadania","nearCritical":"Prawie krytyczne","noteData":"Dane notatek","notes":"Notatki","parentId":"Identyfikator zadania nadrzędnego","priority":"Priorytet bilansowania","remainingMinutes":"Pozostało (minuty)","remainingTime":"Pozostało (dni robocze)","resourceIds":"Identyfikatory zasobów","resume":"Data wznowienia","scheduleFinish":"Planowane zakończenie","scheduleStart":"Planowane rozpoczęcie","splitGaps":"Przerwy","status":"Stan","stop":"Data zatrzymania","taskId":"Identyfikator zadania","taskType":"Typ zadania","timephasedContours":"Kontury okresowe","timephasedDurationWalks":"Okresowe segmenty czasu trwania","timephasedFinishFloor":"Dolna granica okresowego zakończenia","timephasedStartAnchor":"Kotwica okresowego rozpoczęcia","totalFloat":"Zapas całkowity","wbs":"Struktura podziału pracy (SPP)","workWindowFinish":"Koniec okna pracy","workWindowStart":"Początek okna pracy"
     },
     "category": {
@@ -96,7 +97,23 @@
     "MOVE": "Przeniesienie",
     "RENOVATION": "Renowacja",
     "MAINTENANCE": "Konserwacja",
-    "USERDEFINED": "Inne"
+    "USERDEFINED": "Inne",
+    "builtinGroup": "Typy wbudowane", "personalGroup": "Moje typy zadań", "projectGroup": "Z tego projektu", "new": "+ Nowy typ zadania…", "manage": "Zarządzaj typami zadań…", "newTitle": "Nowy typ zadania", "manageTitle": "Zarządzaj typami zadań", "name": "Nazwa", "fixed": "Stałe", "empty": "Brak własnych typów zadań.", "rename": "Edytuj", "remove": "Usuń", "addToMine": "Dodaj do moich typów zadań", "confirmRemove": "Ten typ jest używany w otwartym projekcie. Usunąć z moich typów zadań? Kopia projektu pozostanie."
+  },
+  "duration": {
+    "label": "Czas trwania",
+    "unit": "Jednostka czasu trwania",
+    "days": "Dni",
+    "hours": "Godziny",
+    "invalid": "Wprowadź całkowitą liczbę dni lub godzin, na przykład 2d albo 12h.",
+    "enableHourPlanningFirst": "Włącz planowanie godzinowe, aby edytować to zadanie godzinowe.",
+    "enableHourPlanning": "Włącz planowanie godzinowe",
+    "requiresWorkBlocks": "Ten kalendarz nie ma prawidłowych godzin pracy. Sprawdź dni i godziny pracy.",
+    "conversionNotExact": "Tego czasu nie można dokładnie przeliczyć na całe dni w bieżącym kalendarzu. Dotychczasowa jednostka pozostaje; wprowadź nową prawidłową wartość.",
+    "conversionProposal": "Dokładna propozycja przeliczenia: {{value}}. Zastosuj ją lub zachowaj bieżącą jednostkę.",
+    "applyProposal": "Zastosuj propozycję",
+    "keepCurrent": "Zachowaj",
+    "unitInfo": "Wybrana jednostka należy do tego zadania. Dni liczą dni robocze, a godziny liczą godziny pracy w kalendarzu. Inny kalendarz nie zmienia jednostki ani wpisanego czasu, ale może zmienić datę zakończenia."
   },
   "dialog": {
     "editTitle": "Edytuj zadanie",

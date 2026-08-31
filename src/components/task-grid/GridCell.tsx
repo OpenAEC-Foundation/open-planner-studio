@@ -45,6 +45,8 @@ export function GridCell({
       role="gridcell"
       dir={textDirection}
       data-grid-data-cell="true"
+      data-grid-row-key={cell.rowKey}
+      data-grid-column-id={column.id}
       data-grid-cell-key={gridCellKey(cell)}
       data-grid-pinned={column.pinned ? 'true' : undefined}
       data-grid-active={active ? 'true' : undefined}

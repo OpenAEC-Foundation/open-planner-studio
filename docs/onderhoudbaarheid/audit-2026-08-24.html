@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Actuele onderhoudbaarheidsaudit van Open Planner Studio, gemeten op 24 augustus 2026.">
+  <meta name="color-scheme" content="light">
+  <title>Actuele code-audit — Open Planner Studio</title>
+  <style>
+    @font-face {
+      font-family: "OPS Inter";
+      src: url("../../src/services/pdf/fonts/Inter-Regular.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "OPS Inter";
+      src: url("../../src/services/pdf/fonts/Inter-Bold.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+
+    :root {
+      --blueprint: #071720;
+      --blueprint-soft: #0d2530;
+      --blueprint-line: #21424d;
+      --paper: #eef2f3;
+      --paper-high: #f8faf9;
+      --paper-low: #e2e9eb;
+      --ink: #10242c;
+      --ink-soft: #49616a;
+      --cyan: #41bfd0;
+      --cyan-deep: #087f91;
+      --green: #2c8f61;
+      --green-bright: #70d3a0;
+      --amber: #dc8538;
+      --red: #c94e52;
+      --white: #f5fbfc;
+      --rule: #b9c7cb;
+      --rail: min(6vw, 4.5rem);
+      --content: 76rem;
+      --display: "Arial Narrow", "Aptos Narrow", "Roboto Condensed", "OPS Inter", sans-serif;
+      --body: "OPS Inter", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--blueprint);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--body);
+      font-size: 1rem;
+      line-height: 1.6;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+
+    a:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--cyan);
+      outline-offset: 4px;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 0.75rem;
+      left: 0.75rem;
+      transform: translateY(-160%);
+      padding: 0.65rem 0.85rem;
+      color: var(--blueprint);
+      background: var(--white);
+      font: 700 0.75rem/1 var(--mono);
+      text-decoration: none;
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .topbar {
+      position: absolute;
+      z-index: 20;
+      inset: 0 0 auto;
+      height: 4.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 var(--rail);
+      color: var(--white);
+      border-bottom: 1px solid rgba(245, 251, 252, 0.18);
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-weight: 700;
+    }
+
+    .wordmark-mark {
+      width: 1.55rem;
+      height: 1.55rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      font-size: 0.62rem;
+    }
+
+    .topbar-meta {
+      display: flex;
+      gap: clamp(0.75rem, 3vw, 2.5rem);
+      color: #a9c0c7;
+    }
+
+    .hero {
+      min-height: 46rem;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: center;
+      color: var(--white);
+      background-color: var(--blueprint);
+      background-image:
+        linear-gradient(rgba(65, 191, 208, 0.065) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(65, 191, 208, 0.065) 1px, transparent 1px);
+      background-size: 3.25rem 3.25rem;
+      border-bottom: 0.42rem solid var(--cyan);
+    }
+
+    .hero::after {
+      content: "CURRENT / VERIFIED / 2026.08.24";
+      position: absolute;
+      z-index: -1;
+      right: -2rem;
+      bottom: 1.4rem;
+      color: rgba(245, 251, 252, 0.035);
+      font: 700 clamp(3.6rem, 9vw, 9.5rem)/0.8 var(--display);
+      letter-spacing: -0.055em;
+      white-space: nowrap;
+    }
+
+    .hero-inner {
+      width: min(calc(100% - var(--rail) - var(--rail)), var(--content));
+      margin: 5.5rem auto 3.5rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(27rem, 0.95fr);
+      gap: clamp(3rem, 8vw, 7.5rem);
+      align-items: center;
+    }
+
+    .eyebrow,
+    .section-kicker,
+    .micro-label {
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      line-height: 1.4;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0 0 1.5rem;
+      color: var(--cyan);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 2.7rem;
+      height: 2px;
+      background: var(--cyan);
+    }
+
+    h1,
+    h2,
+    h3,
+    p { margin-top: 0; }
+
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.6rem;
+      font-family: var(--display);
+      font-size: clamp(4rem, 8vw, 7.8rem);
+      line-height: 0.82;
+      font-weight: 700;
+      letter-spacing: -0.052em;
+      text-transform: uppercase;
+      text-wrap: balance;
+    }
+
+    h1 span {
+      display: block;
+      color: var(--cyan);
+      -webkit-text-stroke: 1px var(--cyan);
+      color: transparent;
+    }
+
+    .hero-copy {
+      max-width: 38rem;
+      margin-bottom: 2rem;
+      color: #b8cbd1;
+      font-size: clamp(1.02rem, 1.6vw, 1.22rem);
+      line-height: 1.6;
+    }
+
+    .hero-copy strong { color: var(--white); }
+
+    .verdict-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      min-height: 2.45rem;
+      padding: 0.55rem 0.8rem;
+      border: 1px solid var(--green-bright);
+      background: rgba(112, 211, 160, 0.08);
+      color: var(--green-bright);
+      font: 700 0.71rem/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .verdict-chip::before {
+      content: "";
+      width: 0.5rem;
+      height: 0.5rem;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .hero-plan {
+      position: relative;
+      padding: 1.2rem 0 0 2.4rem;
+    }
+
+    .hero-plan::before,
+    .hero-plan::after {
+      content: "";
+      position: absolute;
+      background: var(--blueprint-line);
+    }
+
+    .hero-plan::before { left: 0; top: 0; bottom: 0; width: 1px; }
+    .hero-plan::after { left: 0; right: 0; top: 0; height: 1px; }
+
+    .plan-axis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin: 0 0 1.15rem;
+      color: #6f929d;
+      font: 400 0.6rem/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .plan-axis span:not(:first-child) { text-align: right; }
+
+    .plan-row {
+      display: grid;
+      grid-template-columns: 8.4rem 1fr;
+      align-items: center;
+      gap: 0.8rem;
+      min-height: 3.35rem;
+      border-top: 1px solid rgba(245, 251, 252, 0.1);
+    }
+
+    .plan-label {
+      color: #c1d2d7;
+      font: 400 0.69rem/1.25 var(--mono);
+    }
+
+    .plan-track {
+      position: relative;
+      height: 0.72rem;
+      background: rgba(245, 251, 252, 0.07);
+    }
+
+    .plan-bar {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--extent);
+      background: var(--bar);
+      transform-origin: left;
+      animation: chart-in 0.85s cubic-bezier(.2, .8, .2, 1) both;
+      animation-delay: var(--delay);
+    }
+
+    .plan-bar::after {
+      content: attr(data-end);
+      position: absolute;
+      top: -1.1rem;
+      right: 0;
+      color: var(--bar);
+      font: 700 0.55rem/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .plan-bar.strong { --bar: var(--green-bright); }
+    .plan-bar.partial { --bar: var(--amber); }
+    .plan-bar.open { --bar: var(--cyan); }
+
+    @keyframes chart-in {
+      from { transform: scaleX(0); opacity: 0.35; }
+      to { transform: scaleX(1); opacity: 1; }
+    }
+
+    .plan-note {
+      margin: 1.15rem 0 0;
+      color: #6f929d;
+      font: 400 0.63rem/1.5 var(--mono);
+    }
+
+    .snapshot {
+      position: relative;
+      z-index: 2;
+      margin-top: -2.15rem;
+    }
+
+    .snapshot-inner {
+      width: min(calc(100% - var(--rail) - var(--rail)), var(--content));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      background: var(--paper-high);
+      border: 1px solid var(--rule);
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 1.4rem 1.2rem 1.25rem;
+      border-right: 1px solid var(--rule);
+    }
+
+    .stat:last-child { border-right: 0; }
+
+    .stat-value {
+      display: block;
+      margin-bottom: 0.42rem;
+      font-family: var(--display);
+      font-size: clamp(1.8rem, 3vw, 2.75rem);
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--ink-soft);
+      font: 400 0.63rem/1.4 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .stat.good .stat-value { color: var(--green); }
+    .stat.attention .stat-value { color: var(--amber); }
+
+    main { overflow: hidden; }
+
+    .section {
+      padding: clamp(5.2rem, 9vw, 8rem) var(--rail);
+    }
+
+    .section-inner {
+      width: min(100%, var(--content));
+      margin: 0 auto;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+      gap: clamp(2rem, 7vw, 8rem);
+      align-items: end;
+      margin-bottom: clamp(2.5rem, 6vw, 5rem);
+    }
+
+    .section-kicker {
+      align-self: start;
+      color: var(--cyan-deep);
+    }
+
+    h2 {
+      max-width: 18ch;
+      margin-bottom: 1rem;
+      font-family: var(--display);
+      font-size: clamp(2.8rem, 5.5vw, 5.6rem);
+      line-height: 0.92;
+      font-weight: 700;
+      letter-spacing: -0.045em;
+      text-transform: uppercase;
+      text-wrap: balance;
+    }
+
+    .section-intro {
+      max-width: 46rem;
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: clamp(1rem, 1.6vw, 1.18rem);
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--rule);
+      border-left: 1px solid var(--rule);
+    }
+
+    .proof {
+      position: relative;
+      min-height: 20rem;
+      padding: clamp(1.5rem, 3vw, 2.6rem);
+      background: var(--paper-high);
+      border-right: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .proof-index {
+      display: block;
+      margin-bottom: clamp(3rem, 6vw, 5.5rem);
+      color: var(--cyan-deep);
+      font: 700 0.68rem/1 var(--mono);
+      letter-spacing: 0.08em;
+    }
+
+    .proof-state {
+      position: absolute;
+      top: 1.6rem;
+      right: 1.6rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--green);
+      font: 700 0.6rem/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .proof-state::before {
+      content: "";
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .proof h3 {
+      max-width: 22ch;
+      margin-bottom: 0.85rem;
+      font-family: var(--display);
+      font-size: clamp(1.45rem, 2.6vw, 2.35rem);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+    }
+
+    .proof p {
+      max-width: 34rem;
+      color: var(--ink-soft);
+      font-size: 0.93rem;
+    }
+
+    .path {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--rule);
+      color: var(--cyan-deep);
+      font: 400 0.66rem/1.45 var(--mono);
+      overflow-wrap: anywhere;
+    }
+
+    .risk-section {
+      color: var(--white);
+      background: var(--blueprint);
+    }
+
+    .risk-section .section-kicker { color: var(--cyan); }
+    .risk-section .section-intro { color: #9cb5bd; }
+
+    .risk-list {
+      border-top: 1px solid var(--blueprint-line);
+    }
+
+    details.risk {
+      border-bottom: 1px solid var(--blueprint-line);
+    }
+
+    details.risk summary {
+      position: relative;
+      list-style: none;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 4.5rem minmax(0, 1.2fr) minmax(12rem, 0.8fr) 2rem;
+      gap: 1.2rem;
+      align-items: center;
+      min-height: 7.7rem;
+      padding: 1.25rem 0;
+    }
+
+    details.risk summary::-webkit-details-marker { display: none; }
+
+    .risk-id {
+      color: var(--cyan);
+      font: 700 0.7rem/1 var(--mono);
+      letter-spacing: 0.08em;
+    }
+
+    .risk-title {
+      font-family: var(--display);
+      font-size: clamp(1.35rem, 2.6vw, 2.3rem);
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      text-transform: uppercase;
+    }
+
+    .risk-class {
+      color: #7898a2;
+      font: 400 0.67rem/1.5 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .risk-class strong {
+      display: block;
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    .risk-toggle {
+      width: 1.6rem;
+      height: 1.6rem;
+      position: relative;
+      border: 1px solid #58747c;
+    }
+
+    .risk-toggle::before,
+    .risk-toggle::after {
+      content: "";
+      position: absolute;
+      inset: 50% auto auto 50%;
+      width: 0.65rem;
+      height: 1px;
+      background: var(--cyan);
+      transform: translate(-50%, -50%);
+      transition: transform 0.2s ease;
+    }
+
+    .risk-toggle::after { transform: translate(-50%, -50%) rotate(90deg); }
+    details[open] .risk-toggle::after { transform: translate(-50%, -50%) rotate(0); }
+
+    .risk-body {
+      display: grid;
+      grid-template-columns: 4.5rem minmax(0, 1.2fr) minmax(12rem, 0.8fr) 2rem;
+      gap: 1.2rem;
+      padding: 0 0 2.5rem;
+    }
+
+    .risk-copy { grid-column: 2; }
+    .risk-action { grid-column: 3; }
+
+    .risk-body p {
+      color: #b7cbd1;
+      font-size: 0.92rem;
+    }
+
+    .evidence-box {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      color: #b4e5eb;
+      background: var(--blueprint-soft);
+      border-left: 2px solid var(--cyan);
+      font: 400 0.7rem/1.7 var(--mono);
+      white-space: pre-line;
+    }
+
+    .risk-action {
+      align-self: start;
+      padding: 1rem;
+      border: 1px solid var(--blueprint-line);
+    }
+
+    .risk-action .micro-label {
+      display: block;
+      margin-bottom: 0.7rem;
+      color: var(--amber);
+    }
+
+    .risk-action p {
+      margin-bottom: 0;
+      color: #9eb8c0;
+      font-size: 0.82rem;
+    }
+
+    .guardrail {
+      display: grid;
+      grid-template-columns: 0.62fr 1.38fr;
+      gap: clamp(2rem, 7vw, 7.5rem);
+      align-items: start;
+    }
+
+    .guardrail-statement {
+      position: sticky;
+      top: 2rem;
+      padding-top: 1.1rem;
+      border-top: 0.35rem solid var(--ink);
+    }
+
+    .guardrail-statement strong {
+      display: block;
+      margin-bottom: 1rem;
+      font-family: var(--display);
+      font-size: clamp(2.3rem, 4.8vw, 4.8rem);
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+    }
+
+    .guardrail-statement p { color: var(--ink-soft); }
+
+    .signal-list {
+      counter-reset: signals;
+      border-top: 1px solid var(--rule);
+    }
+
+    .signal {
+      counter-increment: signals;
+      display: grid;
+      grid-template-columns: 3rem 1fr;
+      gap: 1.1rem;
+      padding: 1.6rem 0;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .signal::before {
+      content: "S" counter(signals, decimal-leading-zero);
+      color: var(--amber);
+      font: 700 0.7rem/1.4 var(--mono);
+    }
+
+    .signal h3 {
+      margin-bottom: 0.45rem;
+      font-family: var(--display);
+      font-size: 1.45rem;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .signal p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 0.9rem;
+    }
+
+    .programme {
+      background: var(--paper-high);
+      border-top: 1px solid var(--rule);
+    }
+
+    .programme-chart {
+      display: grid;
+      grid-template-columns: minmax(10rem, 0.75fr) repeat(3, minmax(7rem, 1fr));
+      border-top: 1px solid var(--rule);
+      border-left: 1px solid var(--rule);
+    }
+
+    .programme-chart > * {
+      min-width: 0;
+      border-right: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .programme-head {
+      padding: 0.75rem;
+      color: var(--ink-soft);
+      background: var(--paper-low);
+      font: 700 0.62rem/1.25 var(--mono);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .programme-name {
+      padding: 1.15rem;
+    }
+
+    .programme-name strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-family: var(--display);
+      font-size: 1.12rem;
+      line-height: 1.05;
+      text-transform: uppercase;
+    }
+
+    .programme-name span {
+      color: var(--ink-soft);
+      font: 400 0.62rem/1.35 var(--mono);
+    }
+
+    .programme-cell {
+      min-height: 5rem;
+      padding: 1.25rem 0.55rem;
+      background: rgba(226, 233, 235, 0.32);
+    }
+
+    .workbar {
+      height: 1.05rem;
+      margin-top: 0.65rem;
+      background: var(--cyan-deep);
+    }
+
+    .workbar.amber { background: var(--amber); }
+    .workbar.ink { background: var(--ink); }
+    .workbar.green { background: var(--green); }
+
+    .programme-note {
+      max-width: 54rem;
+      margin: 1.5rem 0 0 auto;
+      color: var(--ink-soft);
+      font-size: 0.82rem;
+    }
+
+    .programme-plan-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.25rem 0 0 auto;
+      padding: 0.8rem 1rem;
+      color: var(--white);
+      background: var(--blueprint-soft);
+      font: 700 0.68rem/1 var(--mono);
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+
+    .programme-plan-link::after { content: "\2192"; color: var(--amber); }
+    .programme-plan-link:hover, .programme-plan-link:focus-visible { background: var(--blueprint); }
+
+    .method {
+      color: var(--white);
+      background: var(--blueprint-soft);
+      border-top: 1px solid var(--blueprint-line);
+    }
+
+    .method-grid {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: clamp(2rem, 8vw, 8rem);
+    }
+
+    .method h2 { color: var(--white); }
+
+    .method-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--blueprint-line);
+    }
+
+    .method-list li {
+      display: grid;
+      grid-template-columns: 2rem 1fr;
+      gap: 0.8rem;
+      padding: 1rem 0;
+      color: #acc2c9;
+      border-bottom: 1px solid var(--blueprint-line);
+      font-size: 0.86rem;
+    }
+
+    .method-list b {
+      color: var(--cyan);
+      font: 700 0.66rem/1.5 var(--mono);
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 2rem;
+      padding: 2rem var(--rail);
+      color: #7899a2;
+      background: var(--blueprint);
+      border-top: 1px solid var(--blueprint-line);
+      font: 400 0.62rem/1.5 var(--mono);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 62rem) {
+      .hero-inner { grid-template-columns: minmax(0, 1fr); }
+      .hero-plan { max-width: 38rem; }
+      .snapshot-inner { grid-template-columns: repeat(3, 1fr); }
+      .stat:nth-child(3) { border-right: 0; }
+      .stat:nth-child(-n + 3) { border-bottom: 1px solid var(--rule); }
+      .section-heading { grid-template-columns: 1fr; gap: 1rem; }
+      .risk-body,
+      details.risk summary { grid-template-columns: 3.4rem minmax(0, 1fr) 2rem; }
+      .risk-class { grid-column: 2; }
+      .risk-toggle { grid-column: 3; grid-row: 1 / span 2; }
+      .risk-copy { grid-column: 2 / -1; }
+      .risk-action { grid-column: 2 / -1; }
+    }
+
+    @media (max-width: 46rem) {
+      :root { --rail: 1.15rem; }
+      .topbar-meta span:not(:last-child) { display: none; }
+      .hero { min-height: auto; }
+      .hero-inner { margin-top: 7rem; }
+      h1 { font-size: clamp(2.6rem, 13.5vw, 4.2rem); }
+      .hero-plan { padding-left: 1rem; }
+      .plan-row { grid-template-columns: 6.5rem 1fr; }
+      .snapshot { margin-top: 0; }
+      .snapshot-inner { width: 100%; grid-template-columns: repeat(2, 1fr); border-left: 0; border-right: 0; }
+      .stat { border-bottom: 1px solid var(--rule); }
+      .stat:nth-child(2n) { border-right: 0; }
+      .stat:last-child { grid-column: 1 / -1; border-bottom: 0; }
+      .proof-grid { grid-template-columns: 1fr; }
+      .proof { min-height: 17rem; }
+      details.risk summary { min-height: 9rem; }
+      .risk-id { align-self: start; padding-top: 0.2rem; }
+      .risk-title { font-size: 1.45rem; }
+      .guardrail { grid-template-columns: 1fr; }
+      .guardrail-statement { position: static; }
+      .programme-chart { grid-template-columns: minmax(8rem, 1fr) repeat(3, minmax(4.4rem, 0.7fr)); overflow-x: auto; }
+      .programme-name { padding: 0.8rem; }
+      .programme-head { font-size: 0.55rem; }
+      .programme-cell { padding-inline: 0.35rem; }
+      .method-grid { grid-template-columns: 1fr; }
+      footer { flex-direction: column; gap: 0.5rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .plan-bar { animation: none; }
+      .risk-toggle::after { transition: none; }
+    }
+
+    @media print {
+      :root { --rail: 1.2cm; }
+      .topbar { position: static; color: var(--ink); border-bottom-color: var(--rule); }
+      .hero { min-height: auto; color: var(--ink); background: var(--paper-high); border-bottom-color: var(--ink); }
+      .hero-inner { margin-block: 1.5cm; grid-template-columns: 1fr; }
+      .hero-copy, .plan-label, .plan-note { color: var(--ink-soft); }
+      .hero-plan { display: none; }
+      h1, h1 span { color: var(--ink); -webkit-text-stroke: 0; }
+      .verdict-chip { color: var(--green); }
+      .snapshot { margin-top: 0; }
+      .section { padding-block: 1.4cm; }
+      .risk-section, .method, footer { color: var(--ink); background: var(--paper-high); }
+      .risk-section .section-intro, .risk-body p, .method-list li { color: var(--ink-soft); }
+      .risk-title, .method h2 { color: var(--ink); }
+      details.risk:not([open]) .risk-body { display: grid; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#inhoud">Ga naar de inhoud</a>
+
+  <header class="topbar" aria-label="Rapportkop">
+    <div class="wordmark"><span class="wordmark-mark" aria-hidden="true">OPS</span> Open Planner Studio</div>
+    <div class="topbar-meta">
+      <span>Actuele code-audit</span>
+      <span>Branch codex/kwaliteitsonderzoek</span>
+      <span>24.08.2026</span>
+    </div>
+  </header>
+
+  <section class="hero" aria-labelledby="hoofdtitel">
+    <div class="hero-inner">
+      <div>
+        <p class="eyebrow">Alleen de huidige code</p>
+        <h1 id="hoofdtitel">Stevige kern.<span>Zware veranderlaag.</span></h1>
+        <p class="hero-copy">
+          De huidige codebase levert <strong>hard bewijs voor domeinlogica, persistence en uitlevering</strong>.
+          Het open werk zit niet in aangetoond dataverlies of een kapotte releaseketen, maar in de laag waar
+          veel gebruikersinteractie, globale state en grote componenten samenkomen.
+        </p>
+        <div class="verdict-chip">Conditioneel gezond voor doorontwikkeling</div>
+      </div>
+
+      <div class="hero-plan" aria-label="Kwalitatief overzicht van de bewijsreikwijdte">
+        <div class="plan-axis" aria-hidden="true"><span>bron</span><span>contract</span><span>gedrag</span><span>UI</span></div>
+        <div class="plan-row">
+          <span class="plan-label">IFC / recovery</span>
+          <span class="plan-track"><span class="plan-bar strong" style="--extent: 96%; --delay: .08s" data-end="hard bewijs"></span></span>
+        </div>
+        <div class="plan-row">
+          <span class="plan-label">planning / formaten</span>
+          <span class="plan-track"><span class="plan-bar strong" style="--extent: 91%; --delay: .16s" data-end="diep getest"></span></span>
+        </div>
+        <div class="plan-row">
+          <span class="plan-label">UI-bedrading</span>
+          <span class="plan-track"><span class="plan-bar partial" style="--extent: 48%; --delay: .24s" data-end="gedeeltelijk"></span></span>
+        </div>
+        <div class="plan-row">
+          <span class="plan-label">store-isolatie</span>
+          <span class="plan-track"><span class="plan-bar open" style="--extent: 34%; --delay: .32s" data-end="open werk"></span></span>
+        </div>
+        <p class="plan-note">Kwalitatieve auditweergave — de balklengtes zijn geen coveragepercentages.</p>
+      </div>
+    </div>
+  </section>
+
+  <aside class="snapshot" aria-label="Actuele metingen">
+    <div class="snapshot-inner">
+      <div class="stat"><span class="stat-value">91.510</span><span class="stat-label">regels src · TS/TSX</span></div>
+      <div class="stat"><span class="stat-value">47.341</span><span class="stat-label">regels tests · TypeScript</span></div>
+      <div class="stat good"><span class="stat-value">exit 0</span><span class="stat-label">volledige verify-poort</span></div>
+      <div class="stat good"><span class="stat-value">0</span><span class="stat-label">cycli · 412 modules</span></div>
+      <div class="stat attention"><span class="stat-value">0</span><span class="stat-label">gerenderde TSX-tests</span></div>
+    </div>
+  </aside>
+
+  <main id="inhoud">
+    <section class="section" aria-labelledby="bewijs-titel">
+      <div class="section-inner">
+        <header class="section-heading">
+          <p class="section-kicker">01 / Wat aantoonbaar staat</p>
+          <div>
+            <h2 id="bewijs-titel">De vangrails zijn echt.</h2>
+            <p class="section-intro">
+              Dit zijn geen intenties uit documentatie. Ze zijn afgeleid uit de huidige broncode en opnieuw uitgevoerd
+              op de huidige worktree. Samen maken ze regressies in de domeinkern zichtbaar en blokkerend.
+            </p>
+          </div>
+        </header>
+
+        <div class="proof-grid">
+          <article class="proof">
+            <span class="proof-index">P–01</span><span class="proof-state">bevestigd</span>
+            <h3>Één volledige kwaliteitsgate</h3>
+            <p><code>npm run verify</code> controleert bron én tests/scripts, vier gedragssuites, voorbeelden, documentatie, i18n, importcycli en hoge dependencykwetsbaarheden.</p>
+            <span class="path">package.json:17 · lokaal uitgevoerd met exitcode 0</span>
+          </article>
+
+          <article class="proof">
+            <span class="proof-index">P–02</span><span class="proof-state">bevestigd</span>
+            <h3>Documentstate kan niet stil ontsnappen</h3>
+            <p>Het documentcontract classificeert projectdata, globale data en afgeleide state compile-time. Capture, hydrate, undo en recovery delen dezelfde velddefinitie.</p>
+            <span class="path">src/state/documentContract.ts</span>
+          </article>
+
+          <article class="proof">
+            <span class="proof-index">P–03</span><span class="proof-state">bevestigd</span>
+            <h3>De engine kent de store niet</h3>
+            <p>Onder <code>src/engine</code> staan geen imports van de globale Zustand-store. Planning, kalenderlogica en rendering zijn daardoor rechtstreeks headless te testen.</p>
+            <span class="path">src/engine/ · actuele importscan</span>
+          </article>
+
+          <article class="proof">
+            <span class="proof-index">P–04</span><span class="proof-state">bevestigd</span>
+            <h3>Uitlevering volgt dezelfde poort</h3>
+            <p>CI, browserdeploy en release draaien dezelfde <code>npm run verify</code>-definitie. De actuele dependency-audit meldt nul kwetsbaarheden op niveau hoog of kritiek.</p>
+            <span class="path">.github/workflows/{ci,live,release}.yml</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section risk-section" aria-labelledby="risico-titel">
+      <div class="section-inner">
+        <header class="section-heading">
+          <p class="section-kicker">02 / Actueel open werk</p>
+          <div>
+            <h2 id="risico-titel">Waar veranderingen nog te veel raken.</h2>
+            <p class="section-intro">
+              De onderstaande punten zijn actueel in de huidige code. Ze zijn bewust geformuleerd als onderhoudbaarheidsrisico
+              of bewijsgrens—niet als productiebug zolang geen gebruikersfout is gereproduceerd.
+            </p>
+          </div>
+        </header>
+
+        <div class="risk-list">
+          <details class="risk" open>
+            <summary>
+              <span class="risk-id">R–01</span>
+              <span class="risk-title">UI-bedrading heeft geen uitvoerbare eindtest</span>
+              <span class="risk-class"><strong>Hoogste prioriteit</strong> bewijsgrens</span>
+              <span class="risk-toggle" aria-hidden="true"></span>
+            </summary>
+            <div class="risk-body">
+              <div class="risk-copy">
+                <p>De repository bevat 102 TSX-componenten, maar geen TSX-testbestand en geen DOM- of browserrunner in de automatische gate. Rendererhelpers worden diep getest; de bedrading die de juiste storewaarden aan die helpers moet geven niet.</p>
+                <div class="evidence-box">tests/planning/check-gantt-render-options.ts:17–24
+De test noemt zelf een typecorrecte verkeerde argumentbedrading die groen blijft zonder browserpass.
+
+Tijdelijke strengere ESLint-run: 21 exhaustive-deps-meldingen.
+Dat zijn waarschuwingen om te beoordelen, niet 21 bewezen bugs.</div>
+              </div>
+              <aside class="risk-action">
+                <span class="micro-label">Eerstvolgende stap</span>
+                <p>Zet <code>rules-of-hooks</code> direct aan en voeg een kleine browserpoort toe voor Gantt-bedrading, balkslepen en documentwissel.</p>
+              </aside>
+            </div>
+          </details>
+
+          <details class="risk">
+            <summary>
+              <span class="risk-id">R–02</span>
+              <span class="risk-title">De store-slices delen één wereldwijde instantie</span>
+              <span class="risk-class"><strong>Structureel</strong> isolatiegrens</span>
+              <span class="risk-toggle" aria-hidden="true"></span>
+            </summary>
+            <div class="risk-body">
+              <div class="risk-copy">
+                <p>De slices verbeteren de ordening, maar elk slice-type ziet de volledige <code>AppState</code>. Buiten React grijpen veel diensten en transacties rechtstreeks naar <code>useAppStore</code>, waardoor de factory nog geen echte dependency-injectiegrens is.</p>
+                <div class="evidence-box">1.075 useAppStore-verwijzingen · 126 bestanden
+245 directe useAppStore.getState()-calls
+
+src/state/appStore.ts:47–74 documenteert zelf dat een tweede store bij batch- of MCP-transacties op de verkeerde instantie kan landen.</div>
+              </div>
+              <aside class="risk-action">
+                <span class="micro-label">Veilige richting</span>
+                <p>Begin bij niet-UI-code: laat transacties en diensten een kleine store-adapter ontvangen. Geen alles-in-één storemigratie.</p>
+              </aside>
+            </div>
+          </details>
+
+          <details class="risk">
+            <summary>
+              <span class="risk-id">R–03</span>
+              <span class="risk-title">Interactie concentreert zich in enkele zeer grote eenheden</span>
+              <span class="risk-class"><strong>Structureel</strong> veranderkosten</span>
+              <span class="risk-toggle" aria-hidden="true"></span>
+            </summary>
+            <div class="risk-body">
+              <div class="risk-copy">
+                <p><code>GanttCanvas</code> is tegelijk storeconsument, viewportcontroller, invoerregisseur en rendererhost. De losse canvas-hooks zijn een goede beweging, maar de hoofdcomponent blijft een grote wijzigingsknoop zonder gerenderde componenttest.</p>
+                <div class="evidence-box">src/components/canvas/GanttCanvas.tsx
+1.764 regels in het bestand · 60 useAppStore-selecties
+
+src/components/panels/TableEditor.tsx
+922 regels in het bestand · 27 useAppStore-selecties</div>
+              </div>
+              <aside class="risk-action">
+                <span class="micro-label">Snijrichting</span>
+                <p>Splits eerst renderer-options, viewport/scroll en pointerinteracties. Houd de uiteindelijke DOM-shell dun en test elke grens afzonderlijk.</p>
+              </aside>
+            </div>
+          </details>
+
+          <details class="risk">
+            <summary>
+              <span class="risk-id">R–04</span>
+              <span class="risk-title">Onbetrouwbare extensiedata krijgt te vroeg een TypeScript-type</span>
+              <span class="risk-class"><strong>Middel</strong> runtime-contract</span>
+              <span class="risk-toggle" aria-hidden="true"></span>
+            </summary>
+            <div class="risk-body">
+              <div class="risk-copy">
+                <p>Een ZIP-manifest wordt na <code>JSON.parse</code> direct als <code>ExtensionManifest</code> behandeld. Toestemming, checksumcontrole en SVG-sanitisatie bestaan wel, maar de vorm van de manifestvelden wordt niet aan de ingang gevalideerd.</p>
+                <div class="evidence-box">src/extensions/extensionService.ts:324
+const manifest: ExtensionManifest = JSON.parse(...)
+
+src/components/backstage/ExtensionManagerPanel.tsx:85–88
+De UI neemt daarna stringvelden aan en roept toLowerCase() aan.</div>
+              </div>
+              <aside class="risk-action">
+                <span class="micro-label">Gerichte ingreep</span>
+                <p>Valideer nieuwe manifesten en normaliseer bestaande IndexedDB-records vóór registratie in de store.</p>
+              </aside>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="signalen-titel">
+      <div class="section-inner guardrail">
+        <div class="guardrail-statement">
+          <p class="section-kicker">03 / Leeswijzer</p>
+          <strong id="signalen-titel">Een signaal is nog geen defect.</strong>
+          <p>Deze scheidslijn voorkomt dat onderhoudbaarheidsmetingen worden opgeblazen tot productieclaims die niet zijn gereproduceerd.</p>
+        </div>
+
+        <div class="signal-list">
+          <article class="signal">
+            <div>
+              <h3>Hooklint</h3>
+              <p>De 21 meldingen onder <code>exhaustive-deps</code> vragen classificatie. Stabiele refs en bewuste snapshots kunnen legitiem zijn; een ontbrekende dependency kan ook een stale closure verbergen. Eerst beoordelen, dan pas tellen.</p>
+            </div>
+          </article>
+          <article class="signal">
+            <div>
+              <h3>Cyclomatische complexiteit</h3>
+              <p>Een tijdelijke scan vond 25 functies met complexiteit 40 of hoger, maximum 109. Dat lokaliseert reviewkosten, maar bewijst geen fout—zeker niet in formaatparsers en schedulingcode met brede karakteriseringstests.</p>
+            </div>
+          </article>
+          <article class="signal">
+            <div>
+              <h3>Bestandsgrootte</h3>
+              <p>Dertien productiebestanden zijn groter dan 1.000 regels. Een groot formaatregister kan coherent zijn; een groot UI-component met tientallen hooks en storeselecties is veel directer gekoppeld aan veranderkosten.</p>
+            </div>
+          </article>
+          <article class="signal">
+            <div>
+              <h3>Groene gate</h3>
+              <p>Een groene poort bewijst de scenario’s die werkelijk worden uitgevoerd. Hij bewijst niet automatisch browserbedrading, visuele staat of interacties waarvoor geen runner bestaat.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section programme" aria-labelledby="programma-titel">
+      <div class="section-inner">
+        <header class="section-heading">
+          <p class="section-kicker">04 / Rendementsvolgorde</p>
+          <div>
+            <h2 id="programma-titel">Klein bewijswerk vóór grote verbouwing.</h2>
+            <p class="section-intro">De volgorde is gekozen op risicoreductie per ingreep. De scheduler of IFC-laag blind opsplitsen staat hier bewust niet vooraan.</p>
+          </div>
+        </header>
+
+        <div class="programme-chart" role="img" aria-label="Gefaseerd onderhoudsprogramma: bewijs, context, extensies, store-isolatie en daarna Gantt-grenzen">
+          <div class="programme-head">Werkpakket</div>
+          <div class="programme-head">0 · fundament</div>
+          <div class="programme-head">1–2 · contract</div>
+          <div class="programme-head">3 · extractie</div>
+
+          <div class="programme-name"><strong>Bewijspoorten</strong><span>browser + hooks vóór refactors</span></div>
+          <div class="programme-cell"><div class="workbar green"></div></div><div class="programme-cell"></div><div class="programme-cell"></div>
+
+          <div class="programme-name"><strong>Storecontext</strong><span>runtime + batchfactory als gedeelde naad</span></div>
+          <div class="programme-cell"><div class="workbar green"></div></div><div class="programme-cell"></div><div class="programme-cell"></div>
+
+          <div class="programme-name"><strong>Extensiecontract</strong><span>vier ingangen + zichtbare quarantaine</span></div>
+          <div class="programme-cell"></div><div class="programme-cell"><div class="workbar amber"></div></div><div class="programme-cell"></div>
+
+          <div class="programme-name"><strong>Store &amp; MCP</strong><span>rollback, coalescing en tools per context</span></div>
+          <div class="programme-cell"></div><div class="programme-cell"><div class="workbar"></div></div><div class="programme-cell"></div>
+
+          <div class="programme-name"><strong>Gantt-grenzen</strong><span>host, viewport en pointer na bewijs</span></div>
+          <div class="programme-cell"></div><div class="programme-cell"></div><div class="programme-cell"><div class="workbar ink"></div></div>
+        </div>
+        <p class="programme-note">Geen doorlooptijdschatting. De balken tonen uitsluitend de seriële afhankelijkheid; de TableEditor blijft bewust bevroren tot de bredere tabelrevisie.</p>
+        <a class="programme-plan-link" href="../superpowers/README.md">Open ontwerp en vier uitvoerplannen</a>
+      </div>
+    </section>
+
+    <section class="section method" aria-labelledby="methode-titel">
+      <div class="section-inner method-grid">
+        <div>
+          <p class="section-kicker">05 / Bewijsbasis</p>
+          <h2 id="methode-titel">Hoe deze stand tot stand kwam.</h2>
+        </div>
+        <ol class="method-list">
+          <li><b>01</b><span>Actuele broninspectie op branch <code>codex/kwaliteitsonderzoek</code>, HEAD <code>693f37a4</code>.</span></li>
+          <li><b>02</b><span>Volledige lokale <code>npm run verify</code>; proces eindigde met exitcode 0.</span></li>
+          <li><b>03</b><span>Tijdelijke strengere ESLint-run met de officiële React-hookregels, zonder de projectconfig te wijzigen.</span></li>
+          <li><b>04</b><span>Actuele tellingen van bestanden, regels, storeverwijzingen en componentstructuur.</span></li>
+          <li><b>05</b><span>Handmatige controle van de expliciet gedocumenteerde bewijsgrenzen in tests en storefactory.</span></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Open Planner Studio · actuele onderhoudbaarheidsaudit</span>
+    <span>Momentopname · 24 augustus 2026 · geen coveragepercentage</span>
+  </footer>
+</body>
+</html>

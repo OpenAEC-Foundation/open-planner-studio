@@ -17,6 +17,7 @@ export function IFCPanel() {
   const assignments = useAppStore(s => s.assignments);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const resourceCalendars = useAppStore(s => s.calendars);
   // B4-fix (audit P2): baselines/activeBaselineId meesturen — voorheen schreef dit paneel stil
   // ONVOLLEDIGE IFC (baselines gingen verloren bij genereren/kopiëren vanuit de IFC-tab).
@@ -28,9 +29,9 @@ export function IFCPanel() {
   const generated = useMemo(() => {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, calendars: resourceCalendars, baselines, activeBaselineId,
+      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -38,11 +39,11 @@ export function IFCPanel() {
   const handleGenerate = useCallback(() => {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, calendars: resourceCalendars, baselines, activeBaselineId,
+      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
 
   const handleApply = useCallback(() => {
     try {
@@ -57,7 +58,7 @@ export function IFCPanel() {
         detail: (err as Error).message,
       });
     }
-  }, [content, loadState, notify]);
+  }, [content, loadState, notify, tCommon]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(content);

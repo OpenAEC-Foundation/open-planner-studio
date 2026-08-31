@@ -11,12 +11,11 @@
 // zodat kopiëren en plakken tussen documenten werkt. Beide velden blijven op het top-level van
 // `AppState` staan, dus `documentContract.ts` verandert niet mee: die leest `s.selectedTaskIds`,
 // niet `s.selection.selectedTaskIds`.
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { collectSubtreeIds } from '@/state/taskTree';
-import { beginUndoable, finishMutation } from '@/state/transaction';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { generateId } from '@/utils/id';
 import {
@@ -74,7 +73,7 @@ export interface SelectionSlice {
   pasteTasks: () => string[];
 }
 
-export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
+export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) => (set, get) => ({
   selectedTaskIds: [],
   activeTaskId: null,
   taskClipboard: null,
@@ -190,7 +189,7 @@ export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
       const clip = s.taskClipboard;
       if (!clip || clip.tasks.length === 0) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const copiedIds = new Set(clip.tasks.map(t => t.id));
       const resourceExists = new Set(s.resources.map(r => r.id));
@@ -265,7 +264,7 @@ export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
 
       s.selectedTaskIds = newRootIds;
       s.activeTaskId = newRootIds[0] ?? null;
-      finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
     return newRootIds;

@@ -189,7 +189,14 @@
     "taskHintBelow": "Nieuwe taak direct onder de selectie",
     "taskHintAppend": "Nieuwe taak onderaan de lijst",
     "columnsHintTable": "Kolommen van de Tabel-weergave kiezen",
-    "columnsHintGoToTable": "Kolommen van de Tabel-weergave kiezen — te zien op het tabblad Tabel"
+    "columnsHintGoToTable": "Kolommen van de Tabel-weergave kiezen — te zien op het tabblad Tabel",
+    "toggleResourceAccent": "Resource-accent",
+    "screenColors": "Balkkleuren",
+    "screenColors_critical": "Kritiek pad",
+    "screenColors_auto": "Per taak — automatisch",
+    "screenColors_category": "Op categorie",
+    "screenColorsMissingField": "Dit veld bestaat niet in dit project. Taaktype wordt tijdelijk gebruikt.",
+    "screenColorsHint": "Buiten Kritiek pad markeert een rode rand het kritieke pad."
   },
   "ifc": {
     "title": "IFC-editor",
@@ -331,6 +338,12 @@
     "installing": "Bezig...",
     "installedBadge": "Geïnstalleerd",
     "installError": "Installatie mislukt.",
+    "quarantined": "Quarantaine",
+    "quarantineReason": "Reden: {{reason}}",
+    "quarantineRemove": "Uit opslag verwijderen",
+    "quarantineEmptyName": "Ongeldige extensie",
+    "catalogEntriesSkipped": "Overgeslagen catalogusitems: {{count}}",
+    "storageWriteFailed": "De extensiestatus kon niet worden opgeslagen.",
     "import": "Importeren",
     "importSubtitle": "Importeer projectdata via geïnstalleerde extensies.",
     "importEmpty": "Geen import-extensies geïnstalleerd. Voeg er een toe via Extensies."

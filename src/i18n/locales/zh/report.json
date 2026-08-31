@@ -17,6 +17,7 @@
   "showLegend": "图例",
   "showTaskNames": "在任务条上显示名称",
   "showCompletion": "显示完成度",
+  "showBaselineOverlay": "显示基线叠加层",
   "autoFit": "自动适配纸张",
   "zoom": "缩放：",
   "repeatHeader": "在每页重复页眉",
@@ -38,11 +39,13 @@
   "legend": {
     "criticalPath": "关键路径",
     "normal": "普通",
+    "baseline": "基线",
     "milestone": "里程碑",
     "summary": "摘要",
     "float": "浮动",
     "completion": "完成度",
-    "relationStyle": "驱动 / 非驱动"
+    "relationStyle": "驱动 / 非驱动",
+    "categoriesMore_other": "… 还有 {{count}} 个类别"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -100,5 +103,19 @@
     "total": "里程碑",
     "mandatoryCount": "强制",
     "lateCount": "延迟"
-  }
+  },
+  "barColorModeLabel": "条形图颜色：",
+  "barColorMode_critical": "关键路径",
+  "barColorMode_auto": "按任务 — 自动",
+  "barColorMode_category": "按类别",
+  "barColorFieldLabel": "类别字段",
+  "barColorMissingField": "此项目中不存在该字段。暂时使用任务类型。",
+  "statusLineLabel": "状态线：",
+  "statusLine_none": "无",
+  "statusLine_statusDate": "状态日期线",
+  "statusLine_progress": "进度线",
+  "statusLineHint": "请先设置状态日期",
+  "followView": "跟随视图（筛选、分组、排序）",
+  "statusDateLabel": "状态日期",
+  "progressDateLabel": "进度日期"
 }

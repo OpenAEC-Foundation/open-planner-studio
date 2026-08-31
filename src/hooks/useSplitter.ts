@@ -1,4 +1,5 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 // Generieke sleep-splitter — hetzelfde patroon dat door de app werd gedupliceerd
 // (rechterpaneel-rand in App, tabel/chart-rand in GanttCanvas): losse drag-state,
@@ -28,17 +29,19 @@ export interface Splitter {
 export function useSplitter(opts: UseSplitterOptions): Splitter {
   const [dragOwner, setDragOwner] = useState<'mouse' | number | null>(null);
   const isResizing = dragOwner !== null;
+  const optsRef = useLatestRef(opts);
 
   useEffect(() => {
     if (dragOwner === null) return;
     const resizeFrom = (e: Pick<MouseEvent, 'clientX' | 'clientY'>) => {
-      const maxW = typeof opts.max === 'function' ? opts.max() : opts.max;
-      const size = Math.min(maxW, Math.max(opts.min, opts.computeSize(e)));
-      opts.onResize(size);
+      const current = optsRef.current;
+      const maxW = typeof current.max === 'function' ? current.max() : current.max;
+      const size = Math.min(maxW, Math.max(current.min, current.computeSize(e)));
+      current.onResize(size);
     };
     const finish = () => {
       setDragOwner(null);
-      opts.onCommit?.();
+      optsRef.current.onCommit?.();
     };
     const handleMouseMove = (event: MouseEvent) => resizeFrom(event);
     const handlePointerMove = (event: PointerEvent) => {
@@ -62,7 +65,7 @@ export function useSplitter(opts: UseSplitterOptions): Splitter {
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [dragOwner]);
+  }, [dragOwner, optsRef]);
 
   return {
     isResizing,

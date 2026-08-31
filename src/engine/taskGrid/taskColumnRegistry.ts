@@ -2,6 +2,7 @@ import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
 import type {
   CellValidationError,
   CellEditRoute,
@@ -35,6 +36,11 @@ import {
 } from '@/engine/taskGrid/relationCell';
 import { isParsedRelationTokenArray } from '@/engine/taskGrid/relationPlan';
 import { parseDuration as parseDurationMinutes } from '@/utils/durationFormat';
+import {
+  formatTaskDurationInput,
+  parseTaskDurationInput,
+  type ParsedTaskDuration,
+} from '@/utils/taskDurationInput';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -46,6 +52,7 @@ export interface TaskColumnRegistryInput {
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
   baselines: readonly Baseline[];
+  customTaskTypes?: readonly CustomTaskType[];
 }
 
 type ValueKind = TaskColumnDescriptor['valueKind'];
@@ -271,8 +278,43 @@ const parseTaskDuration: Parser = (text, task, ctx) => {
   // verliezen en van de kolomcontext afhankelijke fractionele dagen doorgeven.
   return minutes === null ? failure('duration', text) : success(minutes);
 };
-const validateDuration = finiteNumber({ min: 0 });
 const validateOptionalDuration = finiteNumber({ min: 0, optional: true });
+
+function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
+  if (!value || typeof value !== 'object') return false;
+  const parsed = value as Partial<ParsedTaskDuration>;
+  if (parsed.unit === 'days') {
+    return typeof parsed.scheduleDuration === 'number'
+      && Number.isSafeInteger(parsed.scheduleDuration)
+      && parsed.scheduleDuration >= 0;
+  }
+  return parsed.unit === 'hours'
+    && typeof parsed.durationMinutes === 'number'
+    && Number.isSafeInteger(parsed.durationMinutes)
+    && parsed.durationMinutes >= 0;
+}
+
+const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
+  const parsed = parseTaskDurationInput(text, task.time.durationUnit);
+  if (parsed) return success(parsed);
+  // Achterwaartse klembordcompatibiliteit: de bestaande rasterparser accepteert samengestelde
+  // invoer zoals `2d 4u` en draagt die als minuten naar de oude transactieroute. Nieuwe enkelvoudige
+  // invoer (`2d`, `12h`, of een getal in de huidige taakeenheid) gebruikt het expliciete unitobject.
+  const legacyMinutes = parseDurationMinutes(text, effectiveHoursPerDay(task, ctx));
+  return legacyMinutes === null ? failure('duration', text) : success(legacyMinutes);
+};
+const validateScheduledTaskDuration: Validator = value =>
+  isParsedTaskDuration(value)
+    || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    ? success(value)
+    : failure('duration', value);
+
+function scheduledTaskDurationText(task: Task, ctx?: TaskColumnContext): string {
+  const suffixKey = task.time.durationUnit === 'hours' ? 'duration.suffixHour' : 'duration.suffixDay';
+  const fallback = task.time.durationUnit === 'hours' ? 'h' : 'd';
+  const suffix = ctx?.labelForText?.(suffixKey) ?? fallback;
+  return `${formatTaskDurationInput(task)}${suffix}`;
+}
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -507,13 +549,26 @@ function parseTokens(text: string): string[] {
   return text.split(/[,;\n]/).map(value => value.trim()).filter(Boolean);
 }
 
-function fixedTaskColumns(): TaskColumnDescriptor[] {
+function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
+  const customTaskTypes = input.customTaskTypes ?? [];
+  const customTaskTypeIds = customTaskTypes.map(type => type.id);
   const columns: TaskColumnDescriptor[] = [
     readonlyColumn({ id: 'task.id', labelKey: 'taskGrid.columns.taskId', category: 'technical', valueKind: 'text', read: task => task.id }),
     editableColumn({ id: 'task.name', labelKey: 'taskGrid.columns.name', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 220, read: task => task.name, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
     editableColumn({ id: 'task.description', labelKey: 'taskGrid.columns.description', category: 'task', valueKind: 'text', editorKind: 'text', defaultWidth: 280, read: task => task.description, parse: parseText, validate: value => typeof value === 'string' ? success(value) : failure('text', value) }),
     editableColumn({ id: 'task.wbsCode', labelKey: 'taskGrid.columns.wbs', category: 'task', valueKind: 'text', editorKind: 'text', read: task => task.wbsCode, readOnly: (_task, ctx) => ctx.wbsAutoNumber === true, parse: parseText, validate: value => typeof value === 'string' && value.trim() ? success(value) : failure('required', value) }),
     editableColumn({ id: 'task.taskType', labelKey: 'taskGrid.columns.taskType', category: 'task', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskType', TASK_TYPES), read: task => task.taskType, parse: enumParser(TASK_TYPES), validate: enumValidator(TASK_TYPES) }),
+    editableColumn({
+      id: 'task.customTaskTypeId', labelKey: 'taskGrid.columns.customTaskType', category: 'task',
+      valueKind: 'enum', editorKind: 'enum',
+      editorOptions: [
+        { value: '', label: '—' },
+        ...customTaskTypes.map(type => ({ value: type.id, label: type.name })),
+      ],
+      read: task => task.customTaskTypeId,
+      parse: enumParser(customTaskTypeIds, true),
+      validate: enumValidator(customTaskTypeIds, true),
+    }),
     editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskStatus', TASK_STATUSES), route: 'task-progress', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
     editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('milestoneKind', MILESTONE_KINDS, true), route: 'task-milestone', read: task => task.milestoneKind, readOnly: task => !task.isMilestone, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
@@ -587,7 +642,8 @@ function fixedTaskColumns(): TaskColumnDescriptor[] {
 function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.scheduleDuration, readOnly: task => task.isHammock === true || (task.isMilestone && task.time.scheduleDuration === 0), format: value => value === undefined ? '—' : `${value}d`, copy: task => `${task.time.scheduleDuration}d`, parse: parseTaskDuration, validate: validateDuration }),
+    editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => scheduledTaskDurationText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
@@ -958,7 +1014,7 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
  * de bouw onmiddellijk in plaats van stil een descriptor te overschrijven. */
 export function buildTaskColumnRegistry(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
   const columns = [
-    ...fixedTaskColumns(),
+    ...fixedTaskColumns(input),
     ...activityCodeColumns(input),
     ...customFieldColumns(input),
     ...baselineColumns(input),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -55,6 +55,8 @@ export function PoolImportDialog() {
   const [action, setAction] = useState<'add' | 'replace'>('replace');
   const [imported, setImported] = useState<CompanyPool | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const openDefaultsRef = useRef({ companies, defaultCompanyId, poolImportCompanyId });
+  openDefaultsRef.current = { companies, defaultCompanyId, poolImportCompanyId };
 
   // Clamp bij openen naar het GEOPENDE bedrijf (fix B1: `poolImportCompanyId`, gezet door de opener
   // in Backstage) — anders het standaardbedrijf, anders het eerste geldige bedrijf. Voorkomt zowel
@@ -65,12 +67,16 @@ export function PoolImportDialog() {
   // gekozen is (issue #19).
   useEffect(() => {
     if (!open) return;
-    const preferred = (poolImportCompanyId && companies.some(c => c.id === poolImportCompanyId))
-      ? poolImportCompanyId
-      : defaultCompanyId;
-    const valid = companies.some(c => c.id === preferred) ? preferred : companies[0]?.id;
+    const { companies: currentCompanies, defaultCompanyId: currentDefaultCompanyId,
+      poolImportCompanyId: currentPoolImportCompanyId } = openDefaultsRef.current;
+    const preferred = currentPoolImportCompanyId
+      && currentCompanies.some(c => c.id === currentPoolImportCompanyId)
+      ? currentPoolImportCompanyId
+      : currentDefaultCompanyId;
+    const valid = currentCompanies.some(c => c.id === preferred)
+      ? preferred
+      : currentCompanies[0]?.id;
     if (valid) setCompanyId(valid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;

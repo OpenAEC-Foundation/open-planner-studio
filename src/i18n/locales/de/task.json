@@ -28,6 +28,7 @@
   },
   "taskGrid": {
     "columns": {
+      "customTaskType": "Benutzerdefinierter Aufgabentyp",
       "activityCodeData": "Aktivitätscodedaten", "actualDuration": "Tatsächliche Dauer", "actualFinish": "Tatsächliches Ende", "actualStart": "Tatsächlicher Anfang",
       "assignedResources": "Zugewiesene Ressourcen", "assignmentCurve": "Zuordnungskurve", "assignmentId": "Zuordnungs-ID", "assignmentResourceId": "Ressourcen-ID der Zuordnung", "assignmentTaskId": "Aufgaben-ID der Zuordnung", "assignmentUnits": "Zuordnungseinheiten pro Tag",
       "calendar": "Kalender", "childIds": "IDs untergeordneter Aufgaben", "color": "Farbe", "completion": "Fortschritt",
@@ -101,7 +102,23 @@
     "MOVE": "Umzug",
     "RENOVATION": "Renovierung",
     "MAINTENANCE": "Wartung",
-    "USERDEFINED": "Sonstiges"
+    "USERDEFINED": "Sonstiges",
+    "builtinGroup": "Integrierte Typen", "personalGroup": "Meine Aufgabentypen", "projectGroup": "Aus diesem Projekt", "new": "+ Neuer Aufgabentyp…", "manage": "Aufgabentypen verwalten…", "newTitle": "Neuer Aufgabentyp", "manageTitle": "Aufgabentypen verwalten", "name": "Name", "fixed": "Fest", "empty": "Noch keine eigenen Aufgabentypen.", "rename": "Bearbeiten", "remove": "Löschen", "addToMine": "Zu meinen Aufgabentypen hinzufügen", "confirmRemove": "Dieser Typ wird im geöffneten Projekt verwendet. Aus meinen Aufgabentypen löschen? Die Projektkopie bleibt erhalten."
+  },
+  "duration": {
+    "label": "Dauer",
+    "unit": "Dauereinheit",
+    "days": "Tage",
+    "hours": "Stunden",
+    "invalid": "Geben Sie eine ganze Anzahl Tage oder Stunden ein, zum Beispiel 2d oder 12h.",
+    "enableHourPlanningFirst": "Aktivieren Sie die Stundenplanung, um diesen Stundenvorgang zu bearbeiten.",
+    "enableHourPlanning": "Stundenplanung aktivieren",
+    "requiresWorkBlocks": "Dieser Kalender hat keine gültigen Arbeitszeiten. Prüfen Sie Arbeitstage und Arbeitszeiten.",
+    "conversionNotExact": "Diese Dauer lässt sich im aktuellen Kalender nicht exakt in ganze Tage umrechnen. Die vorhandene Einheit bleibt erhalten; geben Sie selbst einen neuen gültigen Wert ein.",
+    "conversionProposal": "Exakter Umrechnungsvorschlag: {{value}}. Vorschlag anwenden oder aktuelle Einheit beibehalten.",
+    "applyProposal": "Vorschlag anwenden",
+    "keepCurrent": "Beibehalten",
+    "unitInfo": "Die gewählte Einheit gehört zu diesem Vorgang. Tage zählen Arbeitstage; Stunden zählen Arbeitsstunden innerhalb des Kalenders. Ein anderer Kalender ändert weder Einheit noch eingegebene Dauer, kann aber das Enddatum ändern."
   },
   "dialog": {
     "editTitle": "Aufgabe bearbeiten",

@@ -7,7 +7,7 @@ import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRe
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
@@ -16,7 +16,6 @@ import { hydratePayload, payloadFromImport } from '../documentContract';
 import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
-import { beginUndoable, finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
@@ -123,7 +122,7 @@ export interface FileSlice {
   applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
 }
 
-export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
+export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   // Voeg een geopend/opgeslagen bestand toe aan de recents (elke herbruikbare ref).
   const pushRecent = async (ref: FileRef | null, name: string) => {
     if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents (spec §6)
@@ -404,7 +403,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         case 'csv':
           content = writeCSV(
             state.project, state.calendar, state.tasks,
-            state.sequences, state.resources, state.assignments,
+            state.sequences, state.resources, state.assignments, state.customTaskTypes,
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
@@ -416,7 +415,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
             // Baselines meegeven (fase 2.6, §9.1): de actieve baseline gaat naar MSPDI-slot 0.
             // Zonder deze twee argumenten viel de writer terug op zijn defaults ([] / null) en
             // ging de baseline stil verloren bij export, terwijl de reader hem wél inleest.
-            state.baselines, state.activeBaselineId,
+            state.baselines, state.activeBaselineId, state.customTaskTypes,
           );
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -424,7 +423,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         case 'p6':
           content = writeP6XML(
             state.project, state.calendar, state.tasks,
-            state.sequences, state.resources, state.assignments, state.calendars,
+            state.sequences, state.resources, state.assignments, state.calendars, state.customTaskTypes,
           );
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -514,9 +513,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           // undo van een OUDERE bewerking zou `datesAsRecorded: true` terugzetten terwijl de
           // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
           // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
-          beginUndoable(s);
+          runtime.beginUndoable(s);
           s.tasks = result.tasks;
-          finishMutation(s, { stale: true });
+          runtime.finishMutation(s, { stale: true });
           applied = true;
         });
         if (applied) {
@@ -617,9 +616,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         let applied = false;
         set((s) => {
           if (s.activeDocumentId !== targetDocumentId) return;
-          beginUndoable(s);
+          runtime.beginUndoable(s);
           s.tasks = tasks;
-          finishMutation(s, { stale: true });
+          runtime.finishMutation(s, { stale: true });
           applied = true;
         });
         if (applied) {

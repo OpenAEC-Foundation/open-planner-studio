@@ -31,11 +31,16 @@
     "mppTimephasedSteeringLost_few": "{{count}} zadania straciły powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "mppTimephasedSteeringLost_many": "{{count}} zadań straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "mppTimephasedSteeringLost_other": "{{count}} zadania straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
+    "readMore": "Dowiedz się więcej",
     "pasteSkippedReadOnly_one": "{{count}} komórka pominięta: jest tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
     "pasteSkippedReadOnly_few": "{{count}} komórki pominięte: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
     "pasteSkippedReadOnly_many": "{{count}} komórek pominiętych: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
     "pasteSkippedReadOnly_other": "{{count}} komórki pominięte: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
-    "readMore": "Dowiedz się więcej"
+    "librarySaveFailed": "Nie można było zapisać biblioteki",
+    "levelingDelayRoundedToWorkdays_one": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadania do pełnych dni roboczych.",
+    "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
   },
   "yes": "Tak",
   "no": "Nie",
@@ -109,6 +114,8 @@
     "enableHourPlanning": "Włącz planowanie godzinowe",
     "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
     "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
+    "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
+    "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
     "durationDisplay": "Wyświetlanie czasu trwania",
     "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
     "durationDisplayDays": "Zawsze w dniach",
@@ -263,6 +270,9 @@
     "openBadge": "Otwarte: {{count}}",
     "switchHint": "⌘1–9 aby przełączyć",
     "openProject": "Otwórz projekt",
+    "newOrOpenTitle": "Rozpocznij projekt",
+    "newProject": "Nowy projekt",
+    "openExistingProject": "Otwórz istniejący projekt",
     "allProjects": "Wszystkie projekty",
     "active": "Aktywny",
     "tasksWord": "zadania",
@@ -564,7 +574,8 @@
       "capacity": "Zdolność",
       "documents": "Dokumenty",
       "selectHint": "Wybierz zasób, aby zobaczyć histogram."
-    }
+    },
+    "color": "Kolor"
   },
   "calendar": {
     "library": {
@@ -700,7 +711,7 @@
       "none": "(brak)"
     },
     "presentation": {
-      "hint": "Naciśnij F11, aby wyjść z trybu prezentacji"
+      "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."
     },
     "splitView": {
       "primary": "Główny",
@@ -732,7 +743,9 @@
   },
   "duration": {
     "suffixDay": "d",
-    "suffixHour": "g",
+    "suffixHour": "h",
+    "days": "Dni",
+    "hours": "Godziny",
     "suffixMinute": "min"
   },
   "shortcuts": {

@@ -9,13 +9,15 @@
 // Draait headless tegen de ECHTE store, net als cases-mutate-cal-res.ts / cases-read.ts: de
 // muterende tools worden RECHTSTREEKS op hun module-array aangeroepen (buiten de dispatcher om, dus
 // onafhankelijk van generieke schemavalidatie daar); de leestools via de registry.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { getTool } from '@/services/mcp/toolRegistry';
 import { ensureFreshSchedule } from '@/services/mcp/staleGuard';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import type { WorkCalendar, Holiday } from '@/types/calendar';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
 
 const S = () => useAppStore.getState();
 
@@ -25,15 +27,10 @@ const S = () => useAppStore.getState();
 S().addTask({ name: 'warmup' });
 S().undo();
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 function mtool(name: string) {
@@ -369,6 +366,46 @@ test('H9: `level_resources` op een nooit-berekend document rekent eerst (before/
   const data = okData(await call('planner_level_resources', { dryRun: true }));
   assertEq(data.recomputed, true, 'recomputed gemeld');
   assert(!!data.projectEndBefore, 'projectEndBefore gevuld');
+});
+
+test('H9: MCP-versheidspaden voor histogram, leveling en baseline blijven volledig in context B', async () => {
+  cleanProject([]);
+  S().setProject({ name: 'Versheids-MCP A' });
+  S().addTask({ name: 'Alleen A' });
+  S().runCPM();
+  const aBefore = JSON.stringify(capturePayload(S()));
+  const aCpm = S().cpmResult;
+
+  const makeNeverCalculatedB = () => {
+    const B = createAppStoreContext();
+    B.store.getState().applyLoadedProject(generateBenchmarkProject(30), { filePath: null, recompute: false });
+    B.store.getState().setProject({ name: 'Versheids-MCP B' });
+    return { B, ctx: makeMcpContext(B) };
+  };
+
+  const histogramFixture = makeNeverCalculatedB();
+  const histogramTool = getTool('planner_get_resource_histogram')!;
+  const histogram = await histogramTool.handler({}, histogramFixture.ctx);
+  assert(histogram.ok && (histogram.data as { recomputed: boolean }).recomputed,
+    'histogram hoort de nooit-berekende B-context eerst te herrekenen');
+  assert(histogramFixture.B.store.getState().cpmResult !== null, 'histogram hoort B van een cpmResult te voorzien');
+
+  const levelingFixture = makeNeverCalculatedB();
+  const leveling = await mtool('planner_level_resources').handler({ dryRun: true }, levelingFixture.ctx);
+  assert(leveling.ok && (leveling.data as { recomputed: boolean }).recomputed,
+    'leveling hoort de nooit-berekende B-context eerst te herrekenen');
+  assert(levelingFixture.B.store.getState().cpmResult !== null, 'leveling hoort B van een cpmResult te voorzien');
+
+  const baselineFixture = makeNeverCalculatedB();
+  const baseline = await mtool('planner_save_baseline').handler({ name: 'B-nulmeting' }, baselineFixture.ctx);
+  assert(baseline.ok && (baseline.data as { recomputed: boolean }).recomputed,
+    'save_baseline hoort de nooit-berekende B-context eerst te herrekenen');
+  assert(baselineFixture.B.store.getState().baselines.some((item) => item.name === 'B-nulmeting'),
+    'de baseline hoort uitsluitend in B te zijn opgeslagen');
+
+  assertEq(JSON.stringify(capturePayload(S())), aBefore,
+    'de drie versheidspaden op B mogen A byte-inhoudelijk niet wijzigen');
+  assert(S().cpmResult === aCpm, 'de drie B-versheidspaden mogen A niet herrekenen');
 });
 
 test('H9: al-berekend + niet-stale ⇒ nog steeds GEEN recompute (referentie identiek) — regressie', () => {

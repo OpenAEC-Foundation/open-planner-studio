@@ -1,10 +1,11 @@
 import { current } from 'immer';
-import type { AppSlice } from './types';
+import type { AppSliceFactory, NotifyInput } from './types';
 import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
+import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, DEMO_COMPANY_ID, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
-import { beginUndoable, finishMutation, markScheduleStale } from '../transaction';
+import { markScheduleStale } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
 import { invalidateUndoneHistoryForScopes, type HistoryScopeKey } from '../sessionHistory';
@@ -232,19 +233,51 @@ export function normalizeLoadedLibrary(lib: Partial<CompanyLibrary> | null | und
   return { companies, defaultCompanyId, pools };
 }
 
-/** Serialiseer de huidige bibliotheek-state en persisteer 'm (fire-and-forget, fouten gaan naar appLog). */
-function persist(get: () => { companies: Company[]; defaultCompanyId: string; pools: Record<string, CompanyPool>; libraryLoaded: boolean }): void {
+type LibraryPersistenceState = {
+  companies: Company[];
+  defaultCompanyId: string;
+  pools: Record<string, CompanyPool>;
+  libraryLoaded: boolean;
+  notify: (notification: NotifyInput) => void;
+};
+
+/**
+ * Serialiseer de huidige bibliotheek-state en persisteer hem.
+ *
+ * Een mislukte achtergrondopslag was eerder uitsluitend zichtbaar in de
+ * debugterminal. Dat is onvoldoende: de gebruiker moet weten dat een zojuist
+ * gewijzigde bibliotheek na herstart verloren kan gaan. De aparte
+ * `library-save`-sleutel voorkomt tegelijk een toast-stapel bij een aanhoudende
+ * opslagfout.
+ */
+export async function persistLibrary(
+  get: () => LibraryPersistenceState,
+  save: (library: CompanyLibrary) => Promise<void> = saveLibrary,
+): Promise<void> {
   // Vóór initLibrary() is de state nog de verse seed; wegschrijven zou die door de async load heen
   // laten overschrijven (of, erger, de echte opgeslagen bibliotheek voortijdig overschrijven).
   if (!get().libraryLoaded) return;
   const s = get();
   const lib: CompanyLibrary = { companies: s.companies, defaultCompanyId: s.defaultCompanyId, pools: s.pools };
-  saveLibrary(lib).catch((err) => {
+  try {
+    await save(lib);
+  } catch (err) {
     appLog.emit('error', 'library', 'saveLibrary faalde', err);
-  });
+    s.notify({
+      severity: 'error',
+      messageKey: 'notifications.librarySaveFailed',
+      detail: err instanceof Error ? err.message : String(err),
+      dedupeKey: 'library-save',
+    });
+  }
 }
 
-export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
+/** Fire-and-forget-oproep voor de synchronische slice-acties. */
+function persist(get: () => LibraryPersistenceState): void {
+  void persistLibrary(get);
+}
+
+export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (set, get) => ({
   companies: createDefaultLibrary().companies,
   defaultCompanyId: DEFAULT_COMPANY_ID,
   pools: createDefaultLibrary().pools,
@@ -384,7 +417,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         // VÓÓR de stempel vast, zodat een undo van DEZE actie de stempel weer verwijdert (poolkopie
         // blijft staan — bewust, zie docs/library.md "Bekende kleine punten"), maar een LATERE
         // ongerelateerde undo 'm niet meer kan meesleuren.
-        beginUndoable(s);
+        runtime.beginUndoable(s);
         // GO-NA-FIX 3 (critreview 9f9f0aa): een net-gepromoveerd item is byte-identiek aan zijn
         // poolitem — de back-stamp krijgt daarom meteen de hash VAN DAT POOLITEM mee, anders
         // classificeert het projectitem in latere taken als 'deviated' (spurieuze afwijkingsvraag).
@@ -395,7 +428,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         // de herkomst NIET weg als de PROJECTDEFAULT-kalender werd gepromoveerd → functieverlies bij
         // herladen (geen bijwerken, dedup stuk). Onvoorwaardelijk & goedkoop (spiegel updateCalendar).
         syncProjectCalendar(s);
-        finishMutation(s);
+        runtime.finishMutation(s);
       }
       newId = id;
     });
@@ -427,10 +460,10 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       set((s) => {
         const idx = s.resources.findIndex((r) => r.id === resource.id);
         if (idx < 0 || s.resources[idx].libraryOrigin) return; // onbekend, of al gestempeld: no-op.
-        beginUndoable(s);
+        runtime.beginUndoable(s);
         const pool = s.pools[companyId];
         s.resources[idx].libraryOrigin = makeOrigin(pool, existingMatch.id, computeResourceHash(existingMatch));
-        finishMutation(s);
+        runtime.finishMutation(s);
         linked = true;
       });
       if (linked) get().recomputeViewRows();
@@ -453,11 +486,11 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       if (src) {
         // Fix B4: undo-beschermde projectstempel-mutatie — zie de uitgebreide toelichting bij
         // promoteCalendarToPool hierboven (identiek patroon, resource-variant).
-        beginUndoable(s);
+        runtime.beginUndoable(s);
         // GO-NA-FIX 3 (critreview 9f9f0aa): zelfde toelichting als promoteCalendarToPool hierboven.
         const poolRes = bumped.resources.find((r) => r.id === id)!;
         src.libraryOrigin = makeOrigin(bumped, id, computeResourceHash(poolRes));
-        finishMutation(s);
+        runtime.finishMutation(s);
       }
       newId = id;
     });
@@ -527,7 +560,11 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       if (!pool) return;
       const id = generateId('res');
       const { libraryOrigin: _o, parentId: _p, calendarId: _c, ...rest } = resource as import('@/types/resource').Resource;
-      pool.resources.push({ ...structuredClone(rest), id });
+      // #21 (B7): nieuwe bibliotheekresource krijgt automatisch de eerste vrije paletkleur
+      // (tenzij de aanroeper er een meegaf). Promoties vanuit het project doen dat bewust NIET —
+      // die kunnen al een gekozen kleur dragen.
+      const color = rest.color ?? nextFreePaletteColor(pool.resources);
+      pool.resources.push({ ...structuredClone(rest), id, color });
       s.pools[companyId] = bumpPool(pool);
       newId = id;
     });
@@ -559,7 +596,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       // (her)bind naar hetzelfde bedrijf (of de EERSTE bind vanuit ongebonden) strip niets en mag dus
       // GEEN loze undo-stap opleveren.
       const isRebind = !!previous && previous !== companyId;
-      if (isRebind) beginUndoable(s);
+      if (isRebind) runtime.beginUndoable(s);
       s.project.companyId = company.id;
       s.project.companyName = company.name;
       s.project.modifiedAt = new Date().toISOString();
@@ -572,7 +609,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       }
       // isDirty blijft onvoorwaardelijk (élke bind is een wijziging); scheduleStale blijft ongemoeid
       // (strippen van een stempel raakt geen kalenderWAARDEN, dus geen datumimpact).
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
   },
 
@@ -598,11 +635,11 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         result = { added: false, calendarId: copy.calendar.id };
         return;
       }
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars = [...s.calendars, copy.calendar];
       s.isDirty = true;
       result = { added: true, calendarId: copy.calendar.id };
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     // Pure kalender-mutatie → histogram verversen (spiegel resourceSlice.addCalendar:224-225).
     get().recomputeResourceLoad();
@@ -631,14 +668,14 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         result = { added: false, resourceId: copy.resource.id };
         return;
       }
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       // Meereizende kalender toevoegen als hij vers is (dedup gaf `reused: true` ⇒ al aanwezig).
       if (copy.travelingCalendar && !copy.travelingCalendar.reused) {
         s.calendars = [...s.calendars, copy.travelingCalendar.calendar];
       }
       s.resources = [...s.resources, copy.resource];
       result = { added: true, resourceId: copy.resource.id };
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     // Pure resource-mutatie → histogram + rijen verversen (spiegel resourceSlice.addResource:61-64).
     get().recomputeResourceLoad();
@@ -679,10 +716,10 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       // loze undo-stap bij een no-op: dat geldt niet alleen voor 'removed' (origineel weg) maar ook
       // voor 'up-to-date' (project is al gelijk aan de pool; critreview taak 9).
       if (diffCalendarVsPool(snapCal, pool).status !== 'changed') return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendars[idx] = applyCalendarUpdate(snapCal, pool);
       syncProjectCalendar(s); // gedenormaliseerde projectkalender-cache in sync (E-2, §9.1).
-      finishMutation(s, { stale: true }); // kalenderwijziging raakt datums.
+      runtime.finishMutation(s, { stale: true }); // kalenderwijziging raakt datums.
     });
     get().recomputeResourceLoad();
   },
@@ -700,9 +737,9 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       // No-op vóór beginUndoable (E-3): alleen 'changed' rechtvaardigt een mutatie — 'removed'
       // (origineel weg) én 'up-to-date' (al gelijk) leveren beide geen undo-stap op (critreview taak 9).
       if (diffResourceVsPool(snapRes, pool).status !== 'changed') return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.resources[idx] = applyResourceUpdate(snapRes, pool);
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (E-2, §4.3).
@@ -969,7 +1006,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       if (!anyApplicable) return;
       // GO-NA-fix 1: dit is een expliciet gebruikersgebaar — undoable, met de gebruikelijke
       // slice-conventie (beginUndoable vóór, finishMutation ná de mutatie).
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       let calendarLinked = false;
       // Plan-eis 5: alles in één set() — atomisch, geen half-gestempelde tussentoestand.
       for (const link of links) {
@@ -990,7 +1027,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       }
       s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
       // GO-NA-fix 2: een gelinkte kalender raakt datums ⇒ scheduleStale (patroon updateProjectCalendarFromLibrary).
-      finishMutation(s, { stale: calendarLinked });
+      runtime.finishMutation(s, { stale: calendarLinked });
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows();
@@ -1001,13 +1038,13 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
       // GO-NA-fix 1: een al-los project (geen binding, dus per invariant ook geen stempels) is een
       // no-op — geen loze undo-stap.
       if (!s.project.companyId) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.project.companyId = undefined;
       s.project.companyName = undefined;
       s.resources = s.resources.map((r) => { const { libraryOrigin: _d, ...rest } = r; return rest; });
       s.calendars = s.calendars.map((c) => { const { libraryOrigin: _d, ...rest } = c; return rest; });
       s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? { ...s.calendar };
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows();
@@ -1056,7 +1093,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         const pIdx = libId ? draftPool.resources.findIndex((r) => r.id === libId) : -1;
         if (pIdx < 0) return;
         // Overschrijf de gevolgde velden van het poolitem met de bestandswaarden.
-        for (const f of RESOURCE_DIFF_FIELDS_LOCAL) (draftPool.resources[pIdx] as Record<string, unknown>)[f] = (item as Record<string, unknown>)[f];
+        for (const f of RESOURCE_DIFF_FIELDS_LOCAL) (draftPool.resources[pIdx] as unknown as Record<string, unknown>)[f] = (item as unknown as Record<string, unknown>)[f];
         // Bewezen patroon (zie promoteResourceToPool hierboven): werk verder met de PLAIN
         // `bumped`-return-waarde, niet met een current()-herlezing van s.pools[companyId] — die
         // combinatie (plain top-level object met nog-proxied nested arrays) laat Immers current()
@@ -1072,7 +1109,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
         const libId = item.libraryOrigin?.libraryItemId;
         const pIdx = libId ? draftPool.calendars.findIndex((c) => c.id === libId) : -1;
         if (pIdx < 0) return;
-        for (const f of CALENDAR_DIFF_FIELDS_LOCAL) (draftPool.calendars[pIdx] as Record<string, unknown>)[f] = (item as Record<string, unknown>)[f];
+        for (const f of CALENDAR_DIFF_FIELDS_LOCAL) (draftPool.calendars[pIdx] as unknown as Record<string, unknown>)[f] = (item as unknown as Record<string, unknown>)[f];
         const bumped = bumpPool(draftPool);
         s.pools[companyId] = bumped;
         const newHash = computeCalendarHash(bumped.calendars[pIdx]);
@@ -1095,7 +1132,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
     set((s) => {
       const idx = s.resources.findIndex((r) => r.id === resourceId);
       if (idx < 0 || !s.resources[idx].libraryOrigin) return; // onbekend id of al stempel-loos: no-op.
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       const calendarId = s.resources[idx].calendarId;
       const { libraryOrigin: _drop, ...rest } = s.resources[idx];
       s.resources[idx] = rest;
@@ -1119,7 +1156,7 @@ export const createLibrarySlice: AppSlice<LibrarySlice> = (set, get) => ({
           }
         }
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     // Puur stempels weg: geen enkel bewaard VELD verandert (naam/type/tarief/eenheid/maxUnits/kalender-
     // INHOUD blijven exact wat ze waren), dus geen datumimpact en geen belasting-/rijenherberekening

@@ -17,8 +17,7 @@ import {
 import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
-
-const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+import { orderedWeekDays } from '@/utils/weekDays';
 
 /**
  * Presentational kalenderformulier (naam, werkdagen, uren, feestdagen) — kent geen store.
@@ -42,6 +41,7 @@ export function CalendarForm({
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const weekStartDay = useAppStore(s => s.ui.weekStartDay);
 
   const [showGenerator, setShowGenerator] = useState(false);
   // Werktijden-UI (§6.6): eigen presets (app-niveau localStorage), banden-editor achter een knop,
@@ -183,7 +183,7 @@ export function CalendarForm({
 
   const addHoliday = () => {
     const today = new Date().toISOString().slice(0, 10);
-    onChange({ holidays: [...draft.holidays, { name: '', startDate: today, endDate: today }] });
+    onChange({ holidays: [...draft.holidays, { name: '', startDate: today, endDate: '' }] });
   };
 
   const removeHoliday = (index: number) => {
@@ -234,7 +234,7 @@ export function CalendarForm({
           </div>
         </div>
         <div className="flex gap-1.5">
-          {WEEK_DAYS.map(day => {
+          {orderedWeekDays(weekStartDay).map(day => {
             const active = draft.workDays.includes(day);
             return (
               <button
@@ -374,7 +374,7 @@ export function CalendarForm({
 
           {/* Banden-editor: zichtbaar zodra de kalender in uur-modus is (elke uur-preset), tenzij ingeklapt. */}
           {draft.workTime && !bandsCollapsed && (
-            <WorkTimeEditor bands={draft.workTime} onChange={applyBands} />
+            <WorkTimeEditor bands={draft.workTime} onChange={applyBands} weekStartDay={weekStartDay} />
           )}
         </div>
       )}

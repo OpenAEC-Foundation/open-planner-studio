@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create, type Mutate, type StoreApi, type UseBoundStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { enableMapSet } from 'immer';
 import { createProjectSlice, type ProjectSlice } from './slices/projectSlice';
@@ -22,6 +22,7 @@ import {
   createGridTransactionSlice,
   type GridTransactionSlice,
 } from './gridTransaction';
+import { createStoreRuntime, type StoreRuntime } from './runtime/storeRuntime';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -51,60 +52,59 @@ export type AppState = ProjectSlice &
   TaskGridSlice &
   GridTransactionSlice;
 
+export type AppStore = UseBoundStore<
+  Mutate<StoreApi<AppState>, [['zustand/immer', never]]>
+>;
+
+export interface AppStoreContext {
+  /** Documentstate, undo/redo en niet-documentaire appstate van precies deze context. */
+  store: AppStore;
+  /** Undo-coalescing, batchdiepte, MCP-lease en timephased-verlies van precies deze context. */
+  runtime: StoreRuntime;
+}
+
 /**
- * Bouw een NIEUWE, onafhankelijke store-instantie (K-item 41).
+ * Bouw één onafhankelijke storecontext. Documentstate, undo/redo en uitvoeringsmetadata lekken niet
+ * tussen contexten. `ui` en `taskClipboard` zijn bewust niet documentgebonden: zij overleven een
+ * documentwissel binnen hun eigen context, maar worden evenmin met een andere context gedeeld.
  *
- * WAAROM DIT BESTAAT. De app draait op één singleton (`useAppStore`, hieronder), en dat blijft
- * voorlopig zo: 1.048 verwijzingen in 123 bestanden lezen die singleton rechtstreeks. Deze factory
- * verandert daar niets aan — hij maakt alleen mogelijk wat met een kale `create(...)`-expressie
- * onmogelijk was: een TWEEDE store. Dat is de opening naar split-view met twee documenten naast
- * elkaar, cross-project rekenen en een gedeelde resourcepool.
- *
- * WAT EEN TWEEDE INSTANTIE VANDAAG WÉL KAN. Alles wat via de store zelf loopt: eigen project, eigen
- * taken/relaties/resources, eigen selectie, eigen session-historyledger en eigen `runCPM`. Twee
- * instanties zitten elkaar daarin niet in de weg.
- *
- * WAT HIJ NOG NIET KAN — lees dit vóór je hem gebruikt. Drie mechanismen hangen nog aan de
- * singleton of aan module-state, en die zijn dus GEDEELD tussen instanties:
- *
- *   1. `batchTransaction.withTransaction` en `mcpTransaction.runInMcpTransaction` importeren
- *      `useAppStore` rechtstreeks. Een bulk-transactie op instantie B landt op instantie A.
- *   2. `transaction.ts` houdt de undo-coalescing, de batch-diepte en de MCP-suppressie in
- *      MODULE-variabelen. Twee instanties delen die uitvoeringsstaat, dus een batch op A
- *      onderdrukt de historyregistratie van B.
- *   3. De app-globale registers (extensies, MCP-server, SDK, bibliotheek-persistentie) kennen maar
- *      één store. Dat is voor een deel bewust — een extensie hoort niet per venster te bestaan —
- *      maar het is niet uitgezocht welk deel.
- *
- * Die drie zijn geen bijzaak: ze zijn precies het werk dat ná deze factory komt.
- * `tests/planning/check-store-factory.ts` toetst zowel wat er wél onafhankelijk is als dat deze
- * koppelingen er NOG steeds zijn — zodat de test rood wordt zodra iemand er een oplost en eraan
- * herinnert de vastpinning weg te halen (zelfde mechaniek als `KNOWN_GAPS` in de round-trip-test).
+ * Batch-, MCP- en extensie-datafactories krijgen dit volledige object; zo kunnen zij state noch
+ * suppressie-/leasemetadata uit een singleton halen. App-lifecycleregistries buiten de
+ * Zustandfactory (plugininstances, eventbus en SDK-windowbinding) blijven bewust app-global; de
+ * gemounte productinterface en React-selectors binden die aan `appStoreContext` hieronder.
  */
-export function createAppStore() {
-  return create<AppState>()(
+export function createAppStoreContext(): AppStoreContext {
+  const runtime = createStoreRuntime();
+  const store = create<AppState>()(
     immer((...a) => ({
-      ...createProjectSlice(...a),
-      ...createTaskSlice(...a),
-      ...createSelectionSlice(...a),
-      ...createSequenceSlice(...a),
-      ...createResourceSlice(...a),
-      ...createScheduleSlice(...a),
-      ...createHistorySlice(...a),
+      ...createProjectSlice(runtime)(...a),
+      ...createTaskSlice(runtime)(...a),
+      ...createSelectionSlice(runtime)(...a),
+      ...createSequenceSlice(runtime)(...a),
+      ...createResourceSlice(runtime)(...a),
+      ...createScheduleSlice(runtime)(...a),
+      ...createHistorySlice(runtime)(...a),
       ...createViewSlice(...a),
       ...createUiSlice(...a),
-      ...createFileSlice(...a),
+      ...createFileSlice(runtime)(...a),
       ...createExtensionSlice(...a),
-      ...createDocumentSlice(...a),
-      ...createStructureSlice(...a),
-      ...createBaselineSlice(...a),
-      ...createLibrarySlice(...a),
+      ...createDocumentSlice(runtime)(...a),
+      ...createStructureSlice(runtime)(...a),
+      ...createBaselineSlice(runtime)(...a),
+      ...createLibrarySlice(runtime)(...a),
       ...createTaskGridSlice(...a),
       ...createGridTransactionSlice(...a),
     })),
   );
+  return { store, runtime };
 }
 
-/** De store van de app. Eén instantie, gebouwd met de factory hierboven. */
-export const useAppStore = createAppStore();
+/** Compatibiliteitsfactory voor callers die alleen de bekende Zustandvorm nodig hebben. */
+export function createAppStore(): AppStore {
+  return createAppStoreContext().store;
+}
+
+/** De gemounte productinterface blijft exact één appcontext gebruiken. */
+export const appStoreContext = createAppStoreContext();
+export const useAppStore = appStoreContext.store;
 bindDefaultGridTransactionStore(useAppStore.getState, useAppStore.setState);

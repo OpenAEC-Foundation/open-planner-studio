@@ -20,7 +20,7 @@
 //      onderliggende bladtaken, MS Project-semantiek) — alleen een relatie tussen een taak en zijn
 //      EIGEN (voor)ouder-samenvatting wordt nog geweigerd (`relationRules.ts`, `isAncestorRelation`).
 //      Mijlpalen blijven expliciet toegestaan als voorganger/opvolger.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import { createSnapshot } from '@/state/snapshot';
@@ -39,15 +39,11 @@ store.getState().undo();
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────────────
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...over,
-  };
+  });
 }
 
 async function call(name: string, args: unknown, ctx: McpContext = makeCtx()): Promise<McpToolResult> {

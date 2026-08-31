@@ -4,7 +4,9 @@
  * In tegenstelling tot de per-extensie `ExtensionApi` (die `onLoad(api)` ontvangt en
  * permissie-checks + opruimen per extensie regelt) is de SDK GLOBAAL en STATELOOS:
  * alleen constanten, versie-info en pure helpers om geldige domeinobjecten te bouwen.
- * Niets hier muteert de store of omzeilt permissies — mutaties lopen via `api.data.*`.
+ * Niets hier muteert de store of omzeilt permissies — mutaties lopen via `api.data.*`, dat door de
+ * host aan één expliciete documentcontext wordt gebonden. Deze SDK, de eventbus en registries
+ * blijven appglobaal.
  */
 import type { ExtensionCategory, ExtensionPermission } from './types';
 import type {
@@ -78,6 +80,7 @@ function buildInternalTask(partial: Partial<Task> & { name: string }): Task {
     description: partial.description ?? '',
     wbsCode: partial.wbsCode ?? '',
     taskType: partial.taskType ?? 'CONSTRUCTION',
+    customTaskTypeId: partial.customTaskTypeId,
     status: partial.status ?? 'NOT_STARTED',
     isMilestone: partial.isMilestone ?? false,
     priority: partial.priority ?? 0,
@@ -91,7 +94,11 @@ function buildInternalTask(partial: Partial<Task> & { name: string }): Task {
 
 /** Ext-facing createTask: bouw intern (defaults) en map naar het publieke contract. */
 function createExtTask(partial: Partial<ExtTask> & { name: string }): ExtTask {
-  return toExtTask(buildInternalTask(fromExtTaskInput(partial)));
+  const custom = partial.customTaskType;
+  const definition = custom?.id.trim() && custom.name?.trim()
+    ? { id: custom.id.trim(), name: custom.name.trim() }
+    : undefined;
+  return toExtTask(buildInternalTask(fromExtTaskInput(partial)), definition);
 }
 
 function emptyImportResult(overrides?: Partial<ExtImportResult>): ExtImportResult {

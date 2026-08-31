@@ -17,7 +17,7 @@
 //     batch-kern) worden vóór enige mutatie geweigerd;
 //   - max 100 stappen; één backup-trigger met kind 'batch';
 //   - de stappenloop is volledig SYNCHROON (statische assert op de eigen broncode).
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { readTools } from '@/services/mcp/tools/readTools';
 import {
@@ -43,15 +43,11 @@ store.getState().undo();
 interface BackupCall { docId: string; kind: McpToolDef['kind'] }
 let backupCalls: BackupCall[] = [];
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ensureBackup: async (docId, kind) => { backupCalls.push({ docId, kind }); return null; },
     ...over,
-  };
+  });
 }
 
 // ── Stub-tools ───────────────────────────────────────────────────────────────────────────────────
@@ -173,7 +169,7 @@ const batchDef = batchTools[0];
 interface Step { tool: string; args?: unknown }
 
 /** Draai `planner_batch` met een verse ctx en geef het resultaat terug. */
-async function runBatch(steps: Step[], over: Partial<McpContext> = {}): Promise<McpToolResult> {
+async function runBatch(steps: Step[], over: McpContextOverrides = {}): Promise<McpToolResult> {
   return batchDef.handler({ steps }, makeCtx(over));
 }
 

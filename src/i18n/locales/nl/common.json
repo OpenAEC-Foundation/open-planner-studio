@@ -25,9 +25,12 @@
     "projectStartAnchorsClamped_other": "Projectstart verzet: {{count}} taakankers zonder voorganger of constraint zijn meegeschoven naar de nieuwe startdatum.",
     "mppTimephasedSteeringLost_one": "De urenverdeling uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
     "mppTimephasedSteeringLost_other": "De urenverdeling uit MS Project stuurt {{count}} taken niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
+    "readMore": "Lees meer",
     "pasteSkippedReadOnly_one": "{{count}} cel overgeslagen: hij is read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
     "pasteSkippedReadOnly_other": "{{count}} cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
-    "readMore": "Lees meer"
+    "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
+    "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
+    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
   },
   "yes": "Ja",
   "no": "Nee",
@@ -101,6 +104,8 @@
     "enableHourPlanning": "Urenplanning inschakelen",
     "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
     "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
+    "defaultTaskDurationUnit": "Standaardeenheid voor nieuwe taken",
+    "defaultTaskDurationUnitHint": "Bepaalt of nieuwe taken standaard in werkdagen of werkuren beginnen. Bestaande taken veranderen niet.",
     "durationDisplay": "Duurweergave",
     "durationDisplayAuto": "Automatisch (eigen eenheid per taak)",
     "durationDisplayDays": "Altijd dagen",
@@ -255,6 +260,9 @@
     "openBadge": "{{count}} open",
     "switchHint": "⌘1–9 om te wisselen",
     "openProject": "Project openen",
+    "newOrOpenTitle": "Project starten",
+    "newProject": "Nieuw project",
+    "openExistingProject": "Bestaand project openen",
     "allProjects": "Alle projecten",
     "active": "Actief",
     "tasksWord": "taken",
@@ -546,7 +554,8 @@
       "capacity": "Capaciteit",
       "documents": "Documenten",
       "selectHint": "Selecteer een resource om het histogram te zien."
-    }
+    },
+    "color": "Kleur"
   },
   "calendar": {
     "library": {
@@ -682,7 +691,7 @@
       "none": "(geen)"
     },
     "presentation": {
-      "hint": "Druk op F11 om de presentatiemodus te sluiten"
+      "hint": "Druk op Esc of F11 om volledig scherm te verlaten."
     },
     "splitView": {
       "primary": "Primair",
@@ -712,7 +721,9 @@
   },
   "duration": {
     "suffixDay": "d",
-    "suffixHour": "u",
+    "suffixHour": "h",
+    "days": "Dagen",
+    "hours": "Uren",
     "suffixMinute": "m"
   },
   "shortcuts": {

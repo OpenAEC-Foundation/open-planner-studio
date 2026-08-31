@@ -77,6 +77,8 @@ als klikbare knop. Hover erover voor dezelfde details als bij
 het hoveren over een taakbalk in het Gantt-diagram (naam, WBS, duur, start/finish, status, kritiek
 pad, total float). Klik erop om die taak te selecteren: het Gantt-diagram zoomt en scrolt ernaartoe,
 en klapt automatisch elke ingeklapte oudertaak uit als de gekoppelde taak daardoor verborgen was.
+Een gouden WBS-knop is een voorganger van de geselecteerde taak; een paarse knop is een opvolger.
+Lange WBS-nummers worden in de regel afgekapt, maar blijven volledig zichtbaar in de hoverdetails.
 
 ## Constraint-types
 

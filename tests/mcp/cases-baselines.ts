@@ -21,7 +21,7 @@
 //  14. batch met onbekend veld / onbekend id ⇒ hele batch teruggedraaid, niets gewijzigd
 //  15. IFC-round-trip: meerdere baselines, namen mét apostrof, en de actief-markering
 //  16. registratie/tools-list-vorm: vier tools, prefix, description, annotaties, batch-kern
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { baselineTools } from '@/services/mcp/tools/baselineTools';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -41,15 +41,11 @@ registerAllTools();
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: S().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...over,
-  };
+  });
 }
 
 async function call(name: string, args: unknown = {}, ctx: McpContext = makeCtx()): Promise<McpToolResult> {
@@ -528,7 +524,7 @@ test('17. pauze / alleen-lezen weigeren zowel de echte mutatie als het no-op-sne
   const b = await save('B'); // B is actief ⇒ activate(B) is het no-op-pad, activate(A) het mutatie-pad
 
   for (const flag of ['paused', 'readOnly'] as const) {
-    const ctx = makeCtx({ [flag]: true } as Partial<McpContext>);
+    const ctx = makeCtx({ [flag]: true } as McpContextOverrides);
     const noop = await callErr('planner_activate_baseline', { baselineId: b }, ctx);
     assertEq(noop.code, flag === 'paused' ? 'PAUSED' : 'READ_ONLY', `${flag}: no-op-pad geweigerd`);
     const mut = await callErr('planner_activate_baseline', { baselineId: a }, ctx);

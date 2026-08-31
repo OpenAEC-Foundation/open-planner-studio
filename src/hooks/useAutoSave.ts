@@ -93,7 +93,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       if (timer) clearTimeout(timer);
       unsub();
     };
-  }, []);
+  }, [autoSaveEnabled]);
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er
   // niet-opgeslagen wijzigingen zijn. Tauri heeft daarvoor zijn eigen sluitflow

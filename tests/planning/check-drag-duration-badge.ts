@@ -265,7 +265,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
     time: {
       ...t.time, scheduleStart: '2026-08-03T08:00', scheduleFinish: '2026-08-03T17:00',
       earlyStart: '2026-08-03T08:00', earlyFinish: '2026-08-03T17:00',
-      scheduleDuration: 1, durationMinutes: 300,
+      durationUnit: 'hours', scheduleDuration: 1, durationMinutes: 300,
     },
   });
   const effectiveCalById = new Map<string, WorkCalendar>([[hourTask.id, hourCal]]);
@@ -273,7 +273,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
   for (const enableHourPlanning of [false, true]) {
     const opts = baseOpts(rowsOf(hourTask.id), 300, 0, { effectiveCalById, enableHourPlanning });
     const b = badge(opts, { taskId: hourTask.id, edge: 'right' }, `uurtaak(hp=${enableHourPlanning})`);
-    eq(`uurtaak(hp=${enableHourPlanning}): label in uren`, b.text.text, '5u');
+    eq(`uurtaak(hp=${enableHourPlanning}): label in uren`, b.text.text, '5h');
   }
 }
 

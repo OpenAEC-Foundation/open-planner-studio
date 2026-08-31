@@ -3,7 +3,7 @@
 //
 // De store is hier niet nodig; we importeren `test`/`assert`/`run` uit de harness (die de DOM-shim
 // en de store-re-export meebrengt — onschadelijk) en registreren stub-tools in de registry.
-import { test, assert, assertEq, run } from './harness';
+import { makeMcpContext, test, assert, assertEq, run } from './harness';
 import type { McpToolDef, McpToolResult, McpContext } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import {
@@ -77,13 +77,7 @@ const rejectTool: McpToolDef = {
 // interne staat vervangen, dus deze blijven gedurende de hele run geregistreerd.
 registerToolModules([[echoTool], [failTool], [throwTool], [rejectTool]]);
 
-const ctx: McpContext = {
-  expectedDocId: null,
-  tempIdMap: new Map<string, string>(),
-  paused: false,
-  readOnly: false,
-  ensureBackup: async () => null,
-};
+const ctx: McpContext = makeMcpContext();
 
 /** Stuur een rauw JSON-RPC-bericht en parse het antwoord (of geef de rauwe string terug). */
 async function send(body: unknown): Promise<any> {

@@ -4,6 +4,22 @@ Ontwerp- en implementatiedocumenten: waaróm iets gebouwd is zoals het gebouwd i
 overzicht en geen regel, waardoor niet te zien was wat er nog liep en wat allang opgeleverd was
 (K-item 40).
 
+## Actief programma (2026-08-24)
+
+Het actuele onderhoudbaarheidsprogramma is nog **niet uitgevoerd**. Lees de documenten in deze
+volgorde; de sprong naar alleen taak 1 van Plan 2 is een bewuste contextvoorwaarde voor Plan 1:
+
+1. [`specs/2026-08-24-onderhoudbaarheidsprogramma-design.md`](specs/2026-08-24-onderhoudbaarheidsprogramma-design.md)
+2. [`plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md`](plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md)
+3. Plan 2, alleen taak 1:
+   [`plans/2026-08-24-onderhoudbaarheid-2-store-runtime-isolatie.md`](plans/2026-08-24-onderhoudbaarheid-2-store-runtime-isolatie.md)
+4. [`plans/2026-08-24-onderhoudbaarheid-1-extensiecontract.md`](plans/2026-08-24-onderhoudbaarheid-1-extensiecontract.md)
+5. Plan 2, taken 2 en verder.
+6. [`plans/2026-08-24-onderhoudbaarheid-3-gantt-grenzen.md`](plans/2026-08-24-onderhoudbaarheid-3-gantt-grenzen.md)
+
+De visuele nulmeting staat in
+[`docs/onderhoudbaarheid/audit-2026-08-24.html`](../onderhoudbaarheid/audit-2026-08-24.html).
+
 ## De regel
 
 | waar | wat |
@@ -20,9 +36,10 @@ de reden dat er nu niet meer verplaatst is dan hieronder staat — zie *Wat er g
 Drie dingen nagekeken, want het rapport ging uit van "het overgrote deel is opgeleverd" en dat klopt,
 maar de conclusie "dus verplaatsen" niet zomaar:
 
-1. **Alle 44 documenten in `specs/` en `plans/` beschrijven functionaliteit die aantoonbaar in de code
-   zit.** Per document is een distinctief spoor gecontroleerd (een bestand of een symbool dat alleen
-   bestaat als de functie er is): 44 van de 44. Er ligt hier dus geen ontwerp meer in de wacht.
+1. **De toenmalige 44 documenten in `specs/` en `plans/` beschreven functionaliteit die aantoonbaar
+   in de code zat.** Per document is een distinctief spoor gecontroleerd (een bestand of een symbool
+   dat alleen bestaat als de functie er is): 44 van de 44. Dit was de stand op 2026-08-17; het
+   actieve programma hierboven is later toegevoegd en valt nadrukkelijk niet onder die conclusie.
 2. **De afvinkvakjes in de plannen zijn waardeloos als signaal.** Alle negen plannen hebben nul
    afgevinkte en tientallen open vakjes, terwijl de functies wél bestaan. Ze zijn nooit bijgehouden.
    Gebruik ze niet om te bepalen wat af is; de code is het bewijs.
@@ -56,9 +73,11 @@ Wél verplaatst, omdat ze nergens meer bij horen:
 | `lagen-en-federatie-conceptplan.md` | conceptplan, niet uitgevoerd |
 | `workflows/triple-verify.js` | hulpscript, aangehaald vanuit `docs/TODO.md` |
 
-**`specs/` (35) en `plans/` (9)** — per feature het ontwerp respectievelijk het uitvoerplan. De
-bestandsnaam begint met de datum, dus chronologisch bladeren werkt. Alle 44 beschrijven opgeleverde
-functionaliteit; lees ze als *waarom het zo is*, niet als *wat er is*. **Bij twijfel wint de code.**
+**`specs/` en `plans/`** — per feature het ontwerp respectievelijk het uitvoerplan. De bestandsnaam
+begint met de datum, dus chronologisch bladeren werkt. Documenten van vóór het actieve programma
+zijn vooral naslag; de vijf hierboven genoemde bestanden zijn uitvoerwerk. **Bij twijfel wint de
+actuele code, behalve wanneer een nog uit te voeren plan juist expliciet een gewenste grens
+definieert.**
 
 ## Verwante mappen
 

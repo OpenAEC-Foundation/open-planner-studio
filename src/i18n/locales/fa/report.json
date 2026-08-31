@@ -17,6 +17,7 @@
   "showLegend": "راهنما",
   "showTaskNames": "نام وظایف روی نوارها",
   "showCompletion": "نمایش پیشرفت",
+  "showBaselineOverlay": "نمایش هم‌پوشانی خط مبنا",
   "autoFit": "تنظیم خودکار روی کاغذ",
   "zoom": "بزرگنمایی:",
   "repeatHeader": "تکرار سرصفحه در هر صفحه",
@@ -40,11 +41,15 @@
   "legend": {
     "criticalPath": "مسیر بحرانی",
     "normal": "عادی",
+    "baseline": "خط مبنا",
     "milestone": "نقطه عطف",
     "summary": "خلاصه",
     "float": "شناوری",
     "completion": "پیشرفت",
-    "relationStyle": "تعیین‌کننده / غیرتعیین‌کننده"
+    "relationStyle": "تعیین‌کننده / غیرتعیین‌کننده",
+    "categoriesMore_zero": "… و {{count}} دسته دیگر",
+    "categoriesMore_one": "… و یک دسته دیگر",
+    "categoriesMore_other": "… و {{count}} دسته دیگر"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -102,5 +107,19 @@
     "total": "نقاط عطف",
     "mandatoryCount": "الزامی",
     "lateCount": "با تأخیر"
-  }
+  },
+  "barColorModeLabel": "رنگ میله‌ها:",
+  "barColorMode_critical": "مسیر بحرانی",
+  "barColorMode_auto": "به ازای هر کار — خودکار",
+  "barColorMode_category": "بر اساس دسته",
+  "barColorFieldLabel": "فیلد دسته",
+  "barColorMissingField": "این فیلد در این پروژه وجود ندارد. نوع کار موقتاً استفاده می‌شود.",
+  "statusLineLabel": "خط وضعیت:",
+  "statusLine_none": "هیچ",
+  "statusLine_statusDate": "خط تاریخ وضعیت",
+  "statusLine_progress": "خط پیشرفت",
+  "statusLineHint": "ابتدا یک تاریخ وضعیت تعیین کنید",
+  "followView": "دنبال‌کردن نما (فیلتر، گروه‌بندی، مرتب‌سازی)",
+  "statusDateLabel": "تاریخ وضعیت",
+  "progressDateLabel": "تاریخ پیشرفت"
 }

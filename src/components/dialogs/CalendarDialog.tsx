@@ -1,8 +1,8 @@
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Copy, Trash2, Star } from 'lucide-react';
-import type { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
@@ -46,8 +46,7 @@ export function CalendarDialog() {
     setLocalProjectId(st.project.calendarId);
     setSelectedId(cals.find(c => c.id === st.project.calendarId)?.id ?? cals[0]?.id ?? null);
     setReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
@@ -55,11 +54,42 @@ export function CalendarDialog() {
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
   const cancel = () => setUI({ showCalendarDialog: false });
 
+  // Lege einddatums zijn in de editor bewust toegestaan: bij opslag worden zij canoniek dezelfde
+  // dag als de startdatum. Zo blijft het domeinmodel en alle bestaande readers/schrijvers eenduidig.
+  const commit = () => {
+    const calendars = localCalendars.map(calendar => ({
+      ...calendar,
+      holidays: calendar.holidays.map(holiday => ({ ...holiday, endDate: holidayEndDate(holiday) })),
+    }));
+    commitCalendarLibrary(calendars, localProjectId);
+    runCPM();
+  };
+
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
-    commitCalendarLibrary(localCalendars, localProjectId);
-    runCPM();
+    commit();
     setUI({ showCalendarDialog: false });
+  };
+
+  // Alleen gewone enkelregelige invoervelden in déze dialoog gebruiken Enter als "opslaan en
+  // open blijven". Knoppen, selects, checkboxen en invoervelden die de toets al zelf afhandelen
+  // houden hun eigen native betekenis; andere dialogs gebruiken nog steeds hun bestaande contract.
+  const commitOnInputEnter = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return;
+    const target = event.target;
+    const ownsEnter = target instanceof HTMLButtonElement
+      || target instanceof HTMLSelectElement
+      || (target instanceof HTMLInputElement
+        && ['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit'].includes(target.type));
+    if (ownsEnter) {
+      // Niet preventDefault: een knop moet bij Enter nog steeds zelf klikken.
+      event.stopPropagation();
+      return;
+    }
+    if (!(target instanceof HTMLInputElement) || target.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    commit();
   };
 
   const handleNew = () => {
@@ -115,7 +145,7 @@ export function CalendarDialog() {
       onCancel={cancel}
       onConfirm={confirm}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
-      panelProps={{ 'data-ops-calendar-dialog': true }}
+      panelProps={{ 'data-ops-calendar-dialog': true, onKeyDown: commitOnInputEnter }}
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
           <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>

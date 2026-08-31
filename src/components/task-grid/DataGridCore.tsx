@@ -273,7 +273,16 @@ export function DataGridCore({
       lastRequestedActiveKey: lastRequestedActiveKeyRef.current,
     });
     lastRequestedActiveKeyRef.current = activeKey;
-    if (!shouldRequestFocus || !selection.active) {
+    const container = containerRef.current;
+    const focused = typeof document === 'undefined' ? null : document.activeElement;
+    const focusBelongsElsewhere = Boolean(
+      container
+      && focused
+      && focused !== document.body
+      && focused.isConnected
+      && !container.contains(focused),
+    );
+    if (!shouldRequestFocus || !selection.active || focusBelongsElsewhere) {
       pendingFocusKeyRef.current = null;
       return;
     }

@@ -29,7 +29,6 @@
 // echte implementatie importeert `@tauri-apps/*` DYNAMISCH binnen een `isTauri()`-tak (anders breekt
 // de web-build), de headless tests spuiten een in-memory fs in.
 
-import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isActivePristine } from '@/state/slices/fileSlice';
@@ -254,7 +253,7 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'INTERNAL', `Kon het doelpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      const state = useAppStore.getState();
+      const state = ctx.app.store.getState();
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen.
       const content = writeIFC(buildWriteIFCInput(state));
@@ -265,7 +264,7 @@ export const fileTools: McpToolDef[] = [
       }
       return {
         ok: true,
-        envelope: buildEnvelope(),
+        envelope: buildEnvelope(ctx),
         data: {
           path,
           // Aantal TEKENS van het IFC-document (geen bytes: UTF-8 is multi-byte voor niet-ASCII
@@ -369,7 +368,7 @@ export const fileTools: McpToolDef[] = [
 
       // Exact het bestaande laadpatroon (fileSlice.openFile): pristine tabblad hergebruiken, anders
       // een nieuw document — er is bewust geen merge.
-      const store = useAppStore.getState();
+      const store = ctx.app.store.getState();
       const reusedActiveTab = isActivePristine(store);
       if (!reusedActiveTab) store.newDocument();
       const format = formatOf(path, content);
@@ -382,7 +381,7 @@ export const fileTools: McpToolDef[] = [
       // wat je wilt. `formatOf` blijft puur het AI-facing label (`format` hieronder, voor de respons
       // en de notices) — de opslagdoel-beslissing leest voortaan uitsluitend `readFormat.
       // canBeSaveTarget`, dezelfde registry-vlag als `fileSlice.ts`.
-      useAppStore.getState().applyLoadedProject(parsed, {
+      ctx.app.store.getState().applyLoadedProject(parsed, {
         filePath: readFormat.canBeSaveTarget ? path : null,
         fileHandle: null,
         recompute: true,
@@ -393,7 +392,7 @@ export const fileTools: McpToolDef[] = [
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
 
-      const after = useAppStore.getState();
+      const after = ctx.app.store.getState();
       const notices: string[] = [];
       if (format === 'CSV') {
         notices.push('CSV bevat geen kalender (het document draait nu op de STANDAARDkalender — datums kunnen afwijken) en geen resources/toewijzingen.');
@@ -407,7 +406,7 @@ export const fileTools: McpToolDef[] = [
       }
       return {
         ok: true,
-        envelope: buildEnvelope(),
+        envelope: buildEnvelope(ctx),
         data: {
           documentId: after.activeDocumentId,
           path,

@@ -22,8 +22,10 @@
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
+    "readMore": "詳細を見る",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
-    "readMore": "詳細を見る"
+    "librarySaveFailed": "ライブラリを保存できませんでした",
+    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
   },
   "yes": "はい",
   "no": "いいえ",
@@ -97,6 +99,8 @@
     "enableHourPlanning": "時間計画を有効にする",
     "enableHourPlanningHint": "時間・分単位のスケジューリングを有効にします：時間の時間軸、稼働時間帯を持つシフト、時間単位で正確なタスクバー。オフの場合 ⇒ アプリは従来どおり完全に日単位のままです。",
     "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
+    "defaultTaskDurationUnit": "新しいタスクの既定単位",
+    "defaultTaskDurationUnitHint": "新しいタスクを稼働日または作業時間のどちらで開始するかを決めます。既存のタスクは変わりません。",
     "durationDisplay": "期間の表示",
     "durationDisplayAuto": "自動（タスクごとの単位）",
     "durationDisplayDays": "常に日",
@@ -251,6 +255,9 @@
     "openBadge": "{{count}} 件開いています",
     "switchHint": "⌘1–9 で切り替え",
     "openProject": "プロジェクトを開く",
+    "newOrOpenTitle": "プロジェクトを開始",
+    "newProject": "新しいプロジェクト",
+    "openExistingProject": "既存のプロジェクトを開く",
     "allProjects": "すべてのプロジェクト",
     "active": "アクティブ",
     "tasksWord": "タスク",
@@ -537,7 +544,8 @@
       "capacity": "キャパシティ",
       "documents": "ドキュメント",
       "selectHint": "ヒストグラムを表示するにはリソースを選択してください。"
-    }
+    },
+    "color": "色"
   },
   "calendar": {
     "library": {
@@ -673,7 +681,7 @@
       "none": "(なし)"
     },
     "presentation": {
-      "hint": "F11キーを押すとプレゼンテーションモードを終了します"
+      "hint": "Esc または F11 を押して全画面表示を終了します。"
     },
     "splitView": {
       "primary": "プライマリ",
@@ -702,7 +710,9 @@
   },
   "duration": {
     "suffixDay": "日",
-    "suffixHour": "時",
+    "suffixHour": "h",
+    "days": "日",
+    "hours": "時間",
     "suffixMinute": "分"
   },
   "shortcuts": {

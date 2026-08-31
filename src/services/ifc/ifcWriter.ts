@@ -3,12 +3,14 @@ import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project, SchedulingOptions } from '@/types/project';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
+import type { CustomTaskType } from '@/types/taskType';
 import {
-  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult } from '@/services/importTypes';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
@@ -132,6 +134,7 @@ export function writeIFC(input: WriteIFCInput): string {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes = [],
     customFieldDefs = [],
+    customTaskTypes = [],
     resourceCalendars = [],
     baselines = [],
     activeBaselineId = null,
@@ -204,8 +207,13 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
+  const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = taskDurationUnitForIo(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
   const { calStepId: projectCalStepId, workingExceptionStepIds: projectWorkingExceptionStepIds }
-    = writeCalendar(ctx, calendar, ownerHistId);
+    = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
   writeCalendarGenerationMeta(ctx, projectCalStepId, calendar, ownerHistId, projectWorkingExceptionStepIds);
 
   // Work plan & schedule
@@ -237,10 +245,13 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Tasks. Fase 2.8b (§7.1): per taak de effectieve kalender bepaalt uur- vs dag-modus
   // (uur ⇒ echte tijden + minuut-duren; dag ⇒ byte-identiek `T07:00:00` + `P0Y0M{days}D`).
-  const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
   for (const task of tasks) {
     const effCal = effCalByTask.get(task.id);
-    writeTask(ctx, task, ownerHistId, project.statusDate, isHourCalendar(effCal), effCal?.hoursPerDay ?? calendar.hoursPerDay);
+    writeTask(
+      ctx, task, ownerHistId, project.statusDate, taskDurationUnitForIo(task) === 'hours',
+      effCal?.hoursPerDay ?? calendar.hoursPerDay,
+      customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name,
+    );
   }
 
   // WBS nesting
@@ -272,6 +283,7 @@ export function writeIFC(input: WriteIFCInput): string {
     ctx, resources, tasks,
     resourceCalendars.filter(c => c.id !== project.calendarId),
     ownerHistId,
+    hourTaskCalendarIds,
   );
 
   // Resource assignments
@@ -293,6 +305,7 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Structuurdefinities (activity codes / custom fields) + waarden per taak + projectsettings
   writeStructure(ctx, project, tasks, activityCodeTypes, customFieldDefs, ownerHistId);
+  writeTaskTypeMeta(ctx, tasks, customTaskTypes, ownerHistId);
   // Bedrijfsbibliotheek-pool (spec B1, §4): alleen een pool-BESTAND draagt dit; anders undefined ⇒ niets.
   writeLibraryPool(ctx, ownerHistId, libraryPool);
 
@@ -311,6 +324,25 @@ export function writeIFC(input: WriteIFCInput): string {
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
   return header + ctx.lines.join('\n') + footer;
+}
+
+/** Eigen taaktypen blijven IFC-geldig: de taak zelf is `.USERDEFINED.` met een ObjectType-label;
+ * deze project-pset bewaart alleen de stabiele OPS-id en projectkopie. */
+function writeTaskTypeMeta(
+  ctx: WriteContext, tasks: Task[], customTaskTypes: CustomTaskType[], ownerHistId: number,
+): void {
+  const used = new Set(tasks.map(t => t.customTaskTypeId).filter((id): id is string => !!id));
+  if (used.size === 0) return;
+  const definitions = customTaskTypes.filter(t => used.has(t.id));
+  const taskTypeIds: Record<string, string> = {};
+  for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[guidOf(ctx, task.id)] = task.customTaskTypeId;
+  const value = JSON.stringify({ definitions, taskTypeIds });
+  const propId = addLine(ctx, '_ps_tasktypes_json',
+    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(value)}),$)`);
+  const setId = addLine(ctx, '_pset_tasktypes',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tasktypes'))},#${ownerHistId},${ifcStr(PSET.TaskTypes)},$,(#${propId}))`);
+  addLine(ctx, '_rel_tasktypes',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_tasktypes'))},#${ownerHistId},$,$,(#${ctx.idMap.get('_project')}),#${setId})`);
 }
 
 // FIELD_MEASURE (IfcSimplePropertyTemplate.PrimaryMeasureType per custom-field-type) is verhuisd
@@ -372,6 +404,10 @@ function writeStructure(
   if (project.wbsAutoNumber !== undefined) {
     projSettingProps.push(addLine(ctx, '_ps_wbsauto',
       `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
+  }
+  if (project.defaultTaskDurationUnit) {
+    projSettingProps.push(addLine(ctx, '_ps_defaultdurationunit',
+      `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
   }
   if (project.statusDate) {
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
@@ -660,11 +696,18 @@ interface WriteCalendarResult {
   workingExceptionStepIds: number[];
 }
 
-function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number, key: string = '_calendar'): WriteCalendarResult {
+function writeCalendar(
+  ctx: WriteContext,
+  cal: WorkCalendar,
+  ownerHistId: number,
+  key: string = '_calendar',
+  includeEffectiveScalarBands = false,
+): WriteCalendarResult {
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
   let timePeriodRefs: string;
-  if (cal.workTime) {
+  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+  if (workTime) {
     // Fase 2.8b (§7.1): UUR-kalender ⇒ `TimePeriods` als LIJST van per-dag-banden
     // (`IfcRecurrencePattern.TimePeriods` is native een lijst). Eén band ⇒ ongewijzigde output
     // (byte-identiek). IFC's enkele recurrence draagt één set periodes voor alle DayComponent-dagen;
@@ -672,7 +715,7 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
     // wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag (`end % 1440`), waaruit de
     // reader de wrap herkent (`end ≤ start`).
     const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
-    const bands = (firstDay && cal.workTime.byWeekday[firstDay]) || [];
+    const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
     const ids = bands.map((b) =>
       addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`),
     );
@@ -696,7 +739,7 @@ function writeCalendar(ctx: WriteContext, cal: WorkCalendar, ownerHistId: number
   const holidayRefs: string[] = [];
   for (const holiday of cal.holidays) {
     const hId = addLine(ctx, `_holiday_${holiday.name}`,
-      `IFCWORKTIME(${ifcStr(holiday.name)},.PREDICTED.,$,$,'${holiday.startDate}','${holiday.endDate}')`);
+      `IFCWORKTIME(${ifcStr(holiday.name)},.PREDICTED.,$,$,'${holiday.startDate}','${holidayEndDate(holiday)}')`);
     holidayRefs.push(`#${hId}`);
   }
 
@@ -773,7 +816,10 @@ function writeCalendarGenerationMeta(
   const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
   const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
   const hasWorkingExceptions = workingExceptionStepIds.length > 0;
-  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions) return;
+  // Een enkele 08:00–16:00-band is aan de IFC-kant niet te onderscheiden van een dagkalender met
+  // dezelfde scalar-uren. De OPS-markering bewaart daarom de kalenderidentiteit ook zonder urentaak.
+  const isHourCalendar = cal.workTime !== undefined;
+  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions && !isHourCalendar) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -798,6 +844,10 @@ function writeCalendarGenerationMeta(
   if (needsHoursPerDayOverride) {
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(${cal.hoursPerDay}),$)`));
+  }
+  if (isHourCalendar) {
+    props.push(addLine(ctx, `_opscal_hourmode_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.T.),$)`));
   }
   if (hasWorkingExceptions) {
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
@@ -828,9 +878,12 @@ function writeCalendarLibrary(
   tasks: Task[],
   calendars: WorkCalendar[],
   ownerHistId: number,
+  hourTaskCalendarIds: Set<string>,
 ): void {
   for (const cal of calendars) {
-    const { calStepId, workingExceptionStepIds } = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`);
+    const { calStepId, workingExceptionStepIds } = writeCalendar(
+      ctx, cal, ownerHistId, `calendar_${cal.id}`, hourTaskCalendarIds.has(cal.id),
+    );
     writeCalendarGenerationMeta(ctx, calStepId, cal, ownerHistId, workingExceptionStepIds);
 
     const resRefs = resources
@@ -855,14 +908,18 @@ function writeCalendarLibrary(
 
 function writeTask(
   ctx: WriteContext, task: Task, ownerHistId: number, statusDate: string | undefined,
-  isHour: boolean, effHoursPerDay: number,
+  isHour: boolean, effHoursPerDay: number, customTaskTypeLabel?: string,
 ): void {
   const t = task.time;
   // Fase 2.8b (§7.1): in UUR-modus dragen de datetimes de echte tijd-van-de-dag en is de duur
   // minuut-precies (`durationMinutes`, bron van waarheid; anders afgeleid uit de dag-duur). In
   // DAG-modus valt alles terug op het bestaande `T07:00:00`/`P0Y0M{days}D`-pad ⇒ byte-identiek.
   const dt = isHour ? ifcDateTimeHour : ifcDateTime;
-  const schedDurArg = isHour ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay)) : ifcDuration(t.scheduleDuration);
+  // De ISO-vorm bewaart de TAAK-eenheid: P…D = werkdagen, PT…H…M = werkuren. De kalender bepaalt
+  // alleen de datetime-precisie en plaatsing; een uurkalender maakt van een dagtaak geen urentaak.
+  const schedDurArg = taskDurationUnitForIo(task) === 'hours'
+    ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay))
+    : ifcDuration(t.scheduleDuration);
   // Voortgang (fase 2.6, §8.1) — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
   // 19 Completion. Golden rule: een taak zonder actuals houdt 14-18 op `$` ⇒ byte-identieke
@@ -893,7 +950,7 @@ function writeTask(
     `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);
 
   const taskCtx: TaskWriteCtx = {
-    task, ownerHistId, guidArg: ifcStr(guidOf(ctx, task.id)), taskTimeId,
+    task, ownerHistId, guidArg: ifcStr(guidOf(ctx, task.id)), taskTimeId, customTaskTypeLabel,
   };
   addLine(ctx, `task_${task.id}`,
     `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);
@@ -978,6 +1035,13 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
     if (res.unitOfMeasure) {
       const id = addLine(ctx, `_resuom_${res.id}`,
         `IFCPROPERTYSINGLEVALUE('UnitOfMeasure',$,IFCLABEL(${ifcStr(res.unitOfMeasure)}),$)`);
+      props.push(`#${id}`);
+    }
+    if (res.color) {
+      // #21: weergavekleur (hex) voor de resource-kleurmodi in de rapportexport. Presentatie, geen
+      // planningsdata — reist mee in het project-IFC zodat de export op elke machine gelijk kleurt.
+      const id = addLine(ctx, `_rescol_${res.id}`,
+        `IFCPROPERTYSINGLEVALUE('Color',$,IFCTEXT(${ifcStr(res.color)}),$)`);
       props.push(`#${id}`);
     }
     if (res.availabilitySteps && res.availabilitySteps.length > 0) {

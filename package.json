@@ -9,12 +9,13 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
     "lint": "eslint src",
-    "test": "npm run test:planning && npm run test:library && npm run test:mcp && npm run test:dev-server",
+    "test": "npm run test:planning && npm run test:library && npm run test:mcp && npm run test:dev-server && npm run test:browser",
     "test:planning": "bash tests/planning/run.sh",
     "test:library": "bash tests/library/run.sh",
     "test:mcp": "bash tests/mcp/run.sh",
     "test:dev-server": "node --test tests/dev-server/*.test.mjs && bash tests/dev-server/integration.sh",
-    "verify": "npm run typecheck && npm run lint && npm test && npm run verify:examples && npm run verify:docs && npm run verify:i18n && npm run verify:cycles && npm run verify:audit",
+    "test:browser": "node scripts/run-browser-tests.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run verify:examples && npm run verify:docs && npm run verify:i18n && npm run verify:store-boundaries && npm run verify:gantt-boundaries && npm run verify:cycles && npm run verify:audit",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "node scripts/tauri-dev.mjs",
@@ -24,6 +25,8 @@
     "verify:examples": "node scripts/run-ts.mjs scripts/verify-examples.ts",
     "verify:docs": "node scripts/run-ts.mjs scripts/verify-docs.ts",
     "verify:i18n": "node scripts/i18n-diff.mjs",
+    "verify:store-boundaries": "node scripts/verify-store-boundaries.mjs",
+    "verify:gantt-boundaries": "node scripts/verify-gantt-boundaries.mjs",
     "verify:cycles": "node scripts/verify-cycles.mjs",
     "verify:audit": "npm audit --audit-level=high",
     "publish:wiki": "node scripts/publish-wiki.mjs"
@@ -54,6 +57,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4.2.0",
     "@tauri-apps/cli": "^2.11.0",
     "@types/node": "^22.20.1",

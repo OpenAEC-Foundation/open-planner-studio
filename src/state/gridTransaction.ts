@@ -137,6 +137,7 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
     baselines: state.baselines,
+    customTaskTypes: state.customTaskTypes,
   });
   return { descriptors: new Map(descriptors.map(descriptor => [descriptor.id, descriptor])), context };
 }
@@ -457,6 +458,9 @@ function applyCellEdits(
     calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourCalendar(effectiveCalendar) === true,
+    effectiveCalendar,
+    enableHourPlanning: state.ui.enableHourPlanning,
+    customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
   };

@@ -473,13 +473,17 @@ function buildAndSolve(c: Case): {
       throw new Error(`taak "${t.name}": ouder "${t.parent}" nog niet gedefinieerd — zet de ouder eerder in de tasks-lijst`);
     }
     const start = t.start ?? anchor;
-    // Duur-resolutie (fase 2.8b, §8.1): een string ⇒ `parseDuration` naar MINUTEN (uur-modus) met het
-    // afgeleide `scheduleDuration = minuten/(effHpd×60)`; een getal ⇒ werkdagen (dag-modus, ongewijzigd).
+    // Duur-resolutie (fase 2.8b, §8.1): een zuivere `Nd`-string en een getal zijn dagtaken;
+    // `h`/`u`/`m`-strings gaan via `parseDuration` naar MINUTEN (urentaak) met het afgeleide
+    // `scheduleDuration = minuten/(effHpd×60)`. Zo test de DSL dezelfde expliciete suffixregel als
+    // de productinvoer en kan `1d` niet toevallig als `8h` groen worden.
     let durDays: number;
     let durMinutes: number | undefined;
     if (t.milestone && t.dur === undefined) {
       // T15: het gebruikelijke pad — een mijlpaal ZONDER expliciete `dur` blijft byte-identiek 0.
       durDays = 0;
+    } else if (typeof t.dur === 'string' && /^\d+d$/i.test(t.dur.trim())) {
+      durDays = Number.parseInt(t.dur, 10);
     } else if (typeof t.dur === 'string') {
       const effHpd = effHoursPerDayFor(t.calendar);
       const mins = parseDuration(t.dur, effHpd);
@@ -489,7 +493,11 @@ function buildAndSolve(c: Case): {
     } else {
       durDays = t.dur ?? 1;
     }
-    const time = createDefaultTaskTime(start, durDays);
+    // De case-DSL vertegenwoordigt de twee native invoervormen expliciet. Dit is ook de
+    // deterministische legacy-migratie die de productiecode toepast (minuten aanwezig => uren);
+    // de kalender bepaalt deze identiteit nooit. `durationMinutesRaw` blijft juist een expliciete
+    // dagtaak met een vreemd oud minuutveld, zodat "expliciete eenheid wint" gericht testbaar blijft.
+    const time = createDefaultTaskTime(start, durDays, durMinutes !== undefined ? 'hours' : 'days');
     if (durMinutes !== undefined) time.durationMinutes = durMinutes;
     // Rauwe override (§8.3-invariant): zet `durationMinutes` los van `scheduleDuration`.
     if (t.durationMinutesRaw !== undefined) time.durationMinutes = t.durationMinutesRaw;

@@ -948,7 +948,7 @@ function observed(state: AppState): unknown {
     conditionallyReadOnlyCellEditIds,
     [
       'task.constraint.hard', 'task.isHammock', 'task.mandatory', 'task.milestoneKind',
-      'task.notes', 'task.time.scheduleDuration', 'task.wbsCode',
+      'task.notes', 'task.time.durationUnit', 'task.time.scheduleDuration', 'task.wbsCode',
     ].sort());
   for (const controllerId of controllerIdsInSource) {
     ok(`Controllerveld ${controllerId} bestaat als echte, via cell-edit schrijfbare kolom`,

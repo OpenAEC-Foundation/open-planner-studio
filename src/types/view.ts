@@ -67,6 +67,14 @@ export type FilterNode =
       value2?: string | number; // alleen 'between'
     };
 
+/** App-brede filterpreset. Bewust alleen het filter, zodat wisselen nooit kolommen, groepering,
+ * sortering of tijdschaal van de actuele weergave raakt. */
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filter: FilterNode;
+}
+
 export interface GroupLevel {
   field: FieldRef;
   dir: 'asc' | 'desc'; // volgorde waarin de banden zelf verschijnen
@@ -125,4 +133,6 @@ export interface ViewState {
    *  voert de zoom-/scrollberekening uit (kent de canvas-afmetingen, de store niet) en wist het
    *  meteen weer. Transient — zelfde precedent als `pendingFit`. */
   pendingFocusTaskId?: string;
+  /** Houd de huidige zoom vast tijdens een focusverzoek (nieuwe taak); alleen de scroll beweegt. */
+  pendingFocusTaskPreserveZoom?: boolean;
 }

@@ -7,6 +7,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
 import type { DateNotation } from '@/types/view';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { classifyTraceTask, taskGridTraceClass, type TaskTrace } from '@/engine/taskGrid/trace';
@@ -102,6 +103,7 @@ export interface CreateTaskGridAdapterDomainInput {
   baselines: readonly Baseline[];
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
+  customTaskTypes?: readonly CustomTaskType[];
   scheduleStale: boolean;
   wbsAutoNumber: boolean;
   labelForColumn: (labelKey: string) => string;
@@ -241,6 +243,7 @@ export function createTaskGridAdapterDomain(
     activityCodeTypes: input.activityCodeTypes,
     customFieldDefs: input.customFieldDefs,
     baselines: input.baselines,
+    customTaskTypes: input.customTaskTypes,
   }).filter(descriptor => descriptor.available(context)).map(descriptor => (
     descriptor.valueKind === 'tokens' && String(descriptor.id).startsWith('assignment.')
       ? {

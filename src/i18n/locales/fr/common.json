@@ -28,10 +28,14 @@
     "mppTimephasedSteeringLost_one": "La répartition horaire de MS Project ne pilote plus {{count}} tâche après cette modification ; la répartition d'origine reste conservée dans le fichier.",
     "mppTimephasedSteeringLost_many": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
     "mppTimephasedSteeringLost_other": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
+    "readMore": "En savoir plus",
     "pasteSkippedReadOnly_one": "{{count}} cellule ignorée : elle est en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
     "pasteSkippedReadOnly_many": "{{count}} cellules ignorées : elles sont en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
     "pasteSkippedReadOnly_other": "{{count}} cellules ignorées : elles sont en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
-    "readMore": "En savoir plus"
+    "librarySaveFailed": "La bibliothèque n'a pas pu être enregistrée",
+    "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
+    "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières."
   },
   "yes": "Oui",
   "no": "Non",
@@ -105,6 +109,8 @@
     "enableHourPlanning": "Activer la planification horaire",
     "enableHourPlanningHint": "Active la planification heure/minute : une échelle de temps en heures, des équipes avec des plages horaires de travail et des barres de tâche précises à l'heure près. Désactivé ⇒ l'application reste entièrement en granularité journalière, comme auparavant.",
     "allowMixedDayHour": "Autoriser la planification mixte jour/heure",
+    "defaultTaskDurationUnit": "Unité par défaut des nouvelles tâches",
+    "defaultTaskDurationUnitHint": "Détermine si les nouvelles tâches commencent en jours ouvrés ou en heures de travail. Les tâches existantes ne changent pas.",
     "durationDisplay": "Affichage de la durée",
     "durationDisplayAuto": "Automatique (unité propre à chaque tâche)",
     "durationDisplayDays": "Toujours en jours",
@@ -259,6 +265,9 @@
     "openBadge": "{{count}} ouverts",
     "switchHint": "⌘1–9 pour changer",
     "openProject": "Ouvrir le projet",
+    "newOrOpenTitle": "Démarrer un projet",
+    "newProject": "Nouveau projet",
+    "openExistingProject": "Ouvrir un projet existant",
     "allProjects": "Tous les projets",
     "active": "Actif",
     "tasksWord": "tâches",
@@ -555,7 +564,8 @@
       "capacity": "Capacité",
       "documents": "Documents",
       "selectHint": "Sélectionnez une ressource pour voir l'histogramme."
-    }
+    },
+    "color": "Couleur"
   },
   "calendar": {
     "library": {
@@ -691,7 +701,7 @@
       "none": "(aucun)"
     },
     "presentation": {
-      "hint": "Appuyez sur F11 pour quitter le mode présentation"
+      "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."
     },
     "splitView": {
       "primary": "Principal",
@@ -723,6 +733,8 @@
   "duration": {
     "suffixDay": "j",
     "suffixHour": "h",
+    "days": "Jours",
+    "hours": "Heures",
     "suffixMinute": "min"
   },
   "shortcuts": {

@@ -30,7 +30,7 @@ const task = {
   status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
   resourceIds: [], activityCodes: {}, customFields: {},
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 1,
+    durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 1,
     scheduleStart: '2026-01-01', scheduleFinish: '2026-01-01',
     earlyStart: '2026-01-01', earlyFinish: '2026-01-01',
     lateStart: '2026-01-01', lateFinish: '2026-01-01',

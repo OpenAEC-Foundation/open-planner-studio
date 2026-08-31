@@ -189,7 +189,14 @@
     "taskHintBelow": "在所选任务下方插入新任务",
     "taskHintAppend": "在列表末尾添加新任务",
     "columnsHintTable": "选择“表格”视图的列",
-    "columnsHintGoToTable": "选择“表格”视图的列 — 在“表格”选项卡中显示"
+    "columnsHintGoToTable": "选择“表格”视图的列 — 在“表格”选项卡中显示",
+    "toggleResourceAccent": "资源强调色",
+    "screenColors": "条形图颜色",
+    "screenColors_critical": "关键路径",
+    "screenColors_auto": "按任务 — 自动",
+    "screenColors_category": "按类别",
+    "screenColorsMissingField": "此项目中不存在该字段。暂时使用任务类型。",
+    "screenColorsHint": "在关键路径模式之外，红色边框标示关键路径。"
   },
   "ifc": {
     "title": "IFC 编辑器",
@@ -331,6 +338,12 @@
     "installing": "正在安装...",
     "installedBadge": "已安装",
     "installError": "安装失败。",
+    "quarantined": "隔离区",
+    "quarantineReason": "原因：{{reason}}",
+    "quarantineRemove": "从存储中删除",
+    "quarantineEmptyName": "无效扩展",
+    "catalogEntriesSkipped": "已跳过的目录条目：{{count}}",
+    "storageWriteFailed": "无法保存扩展状态。",
     "import": "导入",
     "importSubtitle": "通过已安装的扩展导入项目数据。",
     "importEmpty": "未安装导入扩展。请通过“扩展”添加。"

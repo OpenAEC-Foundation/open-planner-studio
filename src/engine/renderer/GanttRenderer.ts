@@ -1,14 +1,22 @@
 import { Task } from '@/types/task';
+import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
-import { WorkCalendar } from '@/types/calendar';
-import { isHourCalendar } from '@/services/subdayIo';
-import { effHoursPerDay, taskDurationMinutes } from '@/utils/taskDuration';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
+import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
+import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
+// #21: resource-accent — dezelfde pure toewijzings-module als de printlaag (één definitie van
+// "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
+import { assignmentsFor, computeBarColors, type BarPalette } from '@/services/print/barColors';
+import type { BarColorContext } from '@/services/print/barColorCategories';
+import type { BarColorSelection } from '@/types/barColor';
+import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 import { readGanttPalette, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
@@ -41,8 +49,25 @@ export interface GanttRenderOptions {
   showStatusDateLine?: boolean;                          // UI-toggle
   showProgressLine?: boolean;                            // UI-toggle
   showBaselineOverlay?: boolean;                         // UI-toggle
+  /** #21: dun streepje resourcekleur ónder elke bladbalk (gesegmenteerd bij meerdere resources).
+   *  Supplement, geen vervanging: de balkvulling blijft kritiek-pad-gekleurd. */
+  showResourceAccent?: boolean;                          // UI-toggle
+  /** Donker schermthema: het resource-accent verlicht te donkere kleuren naar een minimale
+   *  zichtbaarheid (#21 — gemeten: slate-achtige tinten vielen weg op de donkere werkruimte).
+   *  De EXPORT past dit NIET toe: papier is licht, daar staat de exacte kleur. */
+  darkTheme?: boolean;
+  /** Eén app-globale kleurkeuze voor zowel scherm als rapport. Ontbreekt = kritiek-padbeeld. */
+  barColorSelection?: BarColorSelection;
+  /** Projectcontext voor exact dezelfde categorievelden als onder Group. */
+  activityCodeTypes?: ActivityCodeType[];
+  customFieldDefs?: CustomFieldDef[];
+  taskTypeLabels?: Record<string, string>;
+  barColorNoneLabel?: string;
+  /** Voor het accent: resources + toewijzingen (de renderer leeft buiten de store). */
+  resources?: import('@/types/resource').Resource[];
+  assignments?: import('@/types/resource').ResourceAssignment[];
   /** Overlay-datums uit de actieve baseline, keyed op Task.id (alleen leaf-taken). */
-  baselineOverlay?: Map<string, { start: string; finish: string; isMilestone: boolean }>;
+  baselineOverlay?: BaselineOverlay;
   canvasWidth: number;
   canvasHeight: number;
   rowHeight: number;
@@ -177,6 +202,7 @@ export class GanttRenderer {
    *  Stuurt de grid-/arceringkeuze in `drawGridBackground` (§4.2: geen niet-werkdagen ⇒ geen
    *  arcering, geen dubbele rasterlijnen op de samengevallen naad-x). */
   private compressed: boolean;
+  private barColorContext: BarColorContext;
 
   /** Alpha voor gedimde rijen (filter-ouderketen, §4.2). */
   private static readonly DIM_ALPHA = 0.45;
@@ -203,6 +229,14 @@ export class GanttRenderer {
     this.violatedSet = new Set(opts.violatedConstraintTaskIds ?? []);
     this.missedDeadlineSet = new Set(opts.missedDeadlineTaskIds ?? []);
     this.highContrast = !!opts.highContrast;
+    this.barColorContext = {
+      activityCodeTypes: opts.activityCodeTypes ?? [],
+      customFieldDefs: opts.customFieldDefs ?? [],
+      resources: opts.resources ?? [],
+      assignments: opts.assignments ?? [],
+      taskTypeLabels: opts.taskTypeLabels,
+      noneLabel: opts.barColorNoneLabel ?? '(geen)',
+    };
     // Issue #21 punt 5 (fase 2): `opts.axis` (indien meegegeven door GanttCanvas — de gedeelde
     // instantie met HistogramRenderer, §10.1) wint; anders bouwt de renderer zelf een as uit de
     // eigen opts (secundaire split-view-pane, headless tests zonder axis-prop). Toggle
@@ -235,7 +269,7 @@ export class GanttRenderer {
   }
 
   /** Basis-balkkleur (fase 2.9 §5.4): kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
-   *  eigen kleur/normaal-blauw. `overrideColor` (trace-tint) wint altijd. Near-critical en de
+   *  normaal-blauw. `overrideColor` (trace-tint) wint altijd. Near-critical en de
    *  float-path-tint zijn analyse-overlays die alleen bestaan wanneer hun optie aanstaat ⇒ default
    *  byte-identiek (`isNearCritical`/`floatPath` afwezig). */
   private barColor(task: Task, overrideColor?: string): string {
@@ -247,20 +281,23 @@ export class GanttRenderer {
       const tints = this.colors.floatPathTints;
       return tints[(fp - 2) % tints.length];
     }
-    return task.color || this.colors.normal;
+    return this.colors.normal;
   }
 
-  /**
-   * Duurkolom-tekst (§6.5). Urenplanning UIT ⇒ byte-identiek het huidige `${scheduleDuration}d`.
-   * AAN ⇒ de eigen eenheid per taak via de Duurweergave-instelling (dag-taak "3d", uur-taak "20u").
-   */
+  /** Duurkolom-tekst (§6.5): de blijvende taakeenheid blijft óók zichtbaar wanneer de globale
+   * urenplanningsschakelaar uit staat; die schakelaar mag geïmporteerde urendata niet herinterpreteren. */
   private durationText(task: Task): string {
     // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
     // mijlpaal-met-duur (T15) toont haar EIGEN duur, niet "0d" (zelfde discriminator als de solver).
     if (isZeroDurationMilestone(task)) return '0d';
-    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}d`;
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    return formatDuration(taskDurationMinutes(task, cal), effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', this.opts.durationSuffixes);
+    return formatTaskDurationDisplay(
+      task,
+      cal,
+      this.opts.durationDisplay ?? 'auto',
+      this.opts.enableHourPlanning ?? false,
+      this.opts.durationSuffixes,
+    );
   }
 
   /** Convert a date (with optional sub-day precision) to X position on canvas.
@@ -329,8 +366,16 @@ export class GanttRenderer {
    *  dag-kalender staat / geen kalendermap is meegegeven — dan wordt er niet opgesplitst. */
   private engineFor(task: Task): CalendarEngine | null {
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    if (!isHourCalendar(cal)) return null;
-    return this.engineForAnyMode(task);
+    if (taskDurationUnit(task) !== 'hours') return null;
+    const effectiveCalendar = calendarWithEffectiveWorkTime(cal);
+    if (!effectiveCalendar) return null;
+    const key = `${cal.id}\u0000effective-hour`;
+    let eng = this.engineCache.get(key);
+    if (!eng) {
+      eng = new CalendarEngine(effectiveCalendar);
+      this.engineCache.set(key, eng);
+    }
+    return eng;
   }
 
   /** Of een uur-taakbalk in werkblok-segmenten wordt getekend (§6.9): 'always' ⇒ altijd,
@@ -353,18 +398,20 @@ export class GanttRenderer {
     // Draw layers
     this.drawGridBackground();
     this.drawTodayLine();
-    this.drawStatusDateLine();
     this.drawDependencyArrows();
     this.drawTaskBars();
     // Ná de taakbalken (niet direct na de grid): een balk die een feestdagblok overspant zou het
     // naamlabel anders overschilderen — juist het scenario dat §6.2 zichtbaar moet maken (2.5-QA:
     // "opgerekte balk van vier weken" zonder duiding).
     this.drawHolidayLabels();
-    this.drawProgressLine();
-    // Issue #51: het duur-pilletje van een lopende rand-sleep, na alle chart-lagen zodat het
-    // leesbaar bovenop de balk staat, maar vóór de header.
+    // Issue #51: het duur-pilletje van een lopende rand-sleep. Ná alle chart-lagen (het moet
+    // leesbaar bovenop de balk staan), maar vóór de header.
     this.drawDragDurationBadge();
     this.drawTimelineHeader();
+    // Referentielijnen horen boven alle lagen te liggen. De voortgangslijn is alleen actief
+    // wanneer de losse statusdatumlijn terugtreedt, dus deze aanroepen blijven exclusief.
+    this.drawProgressLine();
+    this.drawStatusDateLine();
   }
 
   private drawGridBackground(): void {
@@ -397,9 +444,29 @@ export class GanttRenderer {
         const x = this.axis.dateToX(date);
         const dayOfWeek = isoDayOfWeek(date);
 
-        // Geen arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag terug
-        // (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
+        // Geen weekend-arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag
+        // terug (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
         // arceren (§4.2: "de arcering vervalt volledig").
+        //
+        // Issue #21 punt 2 — om-en-om weekbanden: juist DIE weggevallen arcering was de enige
+        // visuele weekscheiding ("je gebruikt de weekenddagen als visuele scheiding, die zijn
+        // namelijk lichter"). Daarom krijgen hier de kolommen van ONEVEN weeknummers een licht
+        // getinte achtergrond en de even weken de neutrale canvas-kleur. De pariteit hangt BEWUST
+        // aan het WEEKNUMMER (via `getWeekNumberFor`, dezelfde bron als het "W{n}"-headerlabel)
+        // en niet aan "om en om vanaf de beeldrand": nummer-pariteit is scroll-invariant, terwijl
+        // een beeldrand-telling de hele banding zou laten verspringen bij elke horizontale
+        // scroll/zoom — precies wat storend is. `weekStartDay` gaat mee, zodat de bandgrens op
+        // exact dezelfde dag valt als de dikke weekscheidingslijn hieronder (ma bij 'monday',
+        // zo bij 'sunday'). Bekend en geaccepteerd randgeval: rond de jaarwissel kunnen twee
+        // aangrenzende weken dezelfde pariteit hebben (W53→W1 is oneven→oneven); de dikke weeklijn
+        // markeert die ene grens dan alsnog, en de band blijft consistent met het getoonde
+        // weeknummer. Alleen in deze gecomprimeerde tak — niet-gecomprimeerd is de
+        // weekend-arcering zelf de scheiding en blijft dat pad byte-identiek.
+        if (getWeekNumberFor(date, this.opts.weekStartDay ?? 'monday') % 2 === 1) {
+          ctx.fillStyle = this.colors.gridWeekBand;
+          ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
+        }
+
         ctx.strokeStyle = this.colors.grid;
         ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
         ctx.beginPath();
@@ -474,7 +541,7 @@ export class GanttRenderer {
 
     for (const h of this.opts.calendar.holidays) {
       const start = parseDate(h.startDate);
-      const end = parseDate(h.endDate);
+      const end = parseDate(holidayEndDate(h));
       const days = diffCalendarDays(start, end) + 1;
       const widthPx = days * zoom;
       if (widthPx < minWidthPx) continue; // te smal voor een leesbaar label
@@ -632,7 +699,7 @@ export class GanttRenderer {
 
   /** Baseline-onderbalk (fase 2.6, §6.2): dunne balk (of ruit voor mijlpalen) in de baseline-kleur
    *  onder de hoofdbalk, uit de actieve-baseline-overlay. Alleen als de taak een baseline-entry heeft. */
-  private drawBaselineOverlay(task: Task, y: number, height: number): void {
+  private drawBaselineOverlay(task: Task, y: number, height: number, resourceAccentHeight = 0): void {
     const overlay = this.opts.baselineOverlay;
     if (!overlay || this.opts.showBaselineOverlay === false) return;
     const entry = overlay.get(task.id);
@@ -640,8 +707,15 @@ export class GanttRenderer {
 
     const ctx = this.ctx;
     const zoom = this.opts.view.zoom;
-    const baseHeight = Math.max(2, height * 0.28);
-    const baseY = y + height + 1;
+    const preferredBaseHeight = Math.max(2, height * 0.28);
+    const baseY = y + height + 1 + resourceAccentHeight;
+    // Resource-accent en baseline delen de vrije ruimte onder de hoofdbalk. Houd de baseline bij
+    // de combinatie binnen dezelfde rij; bij de kleinste ondersteunde tekengrootte resteert nog
+    // ruim 2 px en blijft de baseline dus zichtbaar zonder het accent te bedekken.
+    const rowBottom = y + height + (this.opts.rowHeight - height) / 2;
+    const baseHeight = resourceAccentHeight > 0
+      ? Math.min(preferredBaseHeight, Math.max(2, rowBottom - baseY))
+      : preferredBaseHeight;
     ctx.fillStyle = this.colors.baseline;
 
     if (entry.isMilestone) {
@@ -684,11 +758,10 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    // issue #21 punt 2 (vervolg, user-besluit): de HEADER toont áltijd de dagplanning-opbouw
-    // (maand/week/dag), ook met urenplanning aan — de oude dag/uur-band gaf een fontsprong en
-    // een lege uurrij. De uur-tiers leven alleen nog in de sleep-snapping (useBarDrag geeft
-    // de urenplanning-vlag wél door aan pickTiers).
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, false);
+    // De kopstrook volgt dezelfde tierkeuze als de uurinteractie. De oude harde `false` maakte
+    // de instelling “kwartieren tonen bij ver inzoomen” alleen voor snapping effectief: uren en
+    // kwartieren werden in de schermtijdlijn nooit getekend.
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
 
     // Visible date range. Issue #21 punt 5 (header-bugfix, vervolg fase 3 van
     // werkdagen-as-ontwerp.md §4.1/§10): via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`)
@@ -929,6 +1002,7 @@ export class GanttRenderer {
       // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur (T15) is
       // voor de PLANNING geen mijlpaal (zelfde discriminator als de solver) en tekent dus als een
       // gewone balk, niet als ruit.
+      let resourceAccentHeight = 0;
       if (isZeroDurationMilestone(task)) {
         this.drawMilestone(task, y, barHeight, isSelected, overrideColor);
       } else if (task.childIds.length > 0) {
@@ -936,7 +1010,7 @@ export class GanttRenderer {
       } else if (task.isHammock) {
         this.drawHammockBar(task, y, barHeight, isSelected, overrideColor);
       } else {
-        this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
+        resourceAccentHeight = this.drawTaskBar(task, y, barHeight, isSelected, overrideColor);
       }
       this.drawConstraintMarkers(task, y);
       this.drawNotesIndicator(task, y);
@@ -945,11 +1019,11 @@ export class GanttRenderer {
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
       this.drawExternalGhosts(task, y, barHeight);
       // Baseline-onderbalk (fase 2.6): op volle dekking, ná het eventuele dim-herstel.
-      this.drawBaselineOverlay(task, y, barHeight);
+      this.drawBaselineOverlay(task, y, barHeight, resourceAccentHeight);
     }
   }
 
-  private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
+  private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {
     const ctx = this.ctx;
     const geo = this.barGeometry(task);
     const { x1, x2 } = geo;
@@ -965,11 +1039,48 @@ export class GanttRenderer {
     const floatWidth = task.time.totalFloat > 0 && !task.time.isCritical
       ? task.time.totalFloat * this.opts.view.zoom
       : 0;
-    if (x2 + floatWidth < 0 || x1 >= this.opts.canvasWidth) return;
+    if (x2 + floatWidth < 0 || x1 > this.opts.canvasWidth) return 0;
 
     const width = Math.max(x2 - x1, 4);
-    const color = this.barColor(task, overrideColor);
-    const progressColor = task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
+    // De gedeelde selectie gebruikt dezelfde pure engine als print. In critical blijft de
+    // bestaande schermanalyse (float-pad-tinten) intact; Task.color wordt nergens meer gelezen.
+    const selection = this.opts.barColorSelection ?? { mode: 'critical' as const };
+    const dark = this.opts.darkTheme === true;
+    const modeAdvies = selection.mode === 'critical'
+      ? null
+      : computeBarColors(
+          task,
+          selection,
+          this.barColorContext,
+          {
+            critical: this.colors.critical, normal: this.colors.normal,
+            nearCritical: this.colors.nearCritical, milestone: this.colors.milestone,
+            uncategorized: this.colors.ghost,
+          } satisfies BarPalette,
+          width,
+        );
+    const modeColor = modeAdvies && modeAdvies.kind === 'solid'
+      ? ensureThemeVisible(modeAdvies.fill, dark)
+      : null;
+    // Resource-segmenten als x-intervallen over [x1,x2] — buiten de uur-split-lus voorbereid, zodat
+    // elk werkblok-segment zijn deel van de kleursegmenten tekent (gaten blijven gaten).
+    const modeSegments: { cx1: number; cx2: number; color: string }[] = [];
+    if (!overrideColor && modeAdvies && modeAdvies.kind === 'segments') {
+      let cx = x1;
+      modeAdvies.segments.forEach((seg, si) => {
+        const isLast = si === modeAdvies.segments.length - 1;
+        const w = isLast ? x2 - cx : (x2 - x1) * seg.weight;
+        modeSegments.push({ cx1: cx, cx2: cx + w, color: ensureThemeVisible(seg.color, dark) });
+        cx += w;
+      });
+    }
+
+    const color = overrideColor ?? modeColor ?? this.barColor(task);
+    // Voortgangsvulling: in de modi ligt er geen bijpassende "licht"-variant van een willekeurige
+    // moduskleur — dan de vaste semi-transparante donkere laag (zelfde keuze als de printlaag).
+    const progressColor = selection.mode !== 'critical'
+      ? 'rgba(0, 0, 0, 0.25)'
+      : task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
 
     // Fase 2.8b (§6.9): een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
     // weg) volgens de instelling; dag-taken en niet-gesplitste uur-taken zijn één doorlopend segment.
@@ -1019,11 +1130,26 @@ export class GanttRenderer {
     const progressEnd = x1 + width * task.time.completion;
     for (const s of segs) {
       const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
-      // Segment-achtergrond
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(s.x1, y, sw, height, 3);
-      ctx.fill();
+      if (modeSegments.length > 0) {
+        // Resource-modus: kleursegmenten binnen dít werkblok (overlap van elk kleurinterval met
+        // [s.x1, s.x2]) — uur-split-gaten blijven zo gaten, precies als bij een enkele kleur.
+        for (let mi = 0; mi < modeSegments.length; mi++) {
+          const ms = modeSegments[mi];
+          const ox1 = Math.max(ms.cx1, s.x1);
+          const ox2 = Math.min(ms.cx2, s.x2);
+          if (ox2 - ox1 < 0.5) continue;
+          ctx.fillStyle = ms.color;
+          ctx.beginPath();
+          ctx.roundRect(ox1, y, ox2 - ox1, height, mi === 0 ? 3 : 0);
+          ctx.fill();
+        }
+      } else {
+        // Segment-achtergrond
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(s.x1, y, sw, height, 3);
+        ctx.fill();
+      }
       // Voortgangsvulling: het deel van dit segment links van de globale voortgangsgrens.
       if (task.time.completion > 0 && progressEnd > s.x1) {
         const pw = Math.min(s.x1 + sw, progressEnd) - s.x1;
@@ -1034,6 +1160,18 @@ export class GanttRenderer {
           ctx.fill();
         }
       }
+    }
+
+    // #21: rode rand om kritieke taken — in de scherm-kleurmodi uit het modusadvies (spiegel van
+    // de rapportmodi), in 'critical' bij een expliciete taakkleur (de kleur is dan de vulling;
+    // zonder rand zou het kritieke pad onleesbaar worden). Volle [x1,x2]-extent, ook bij splits.
+    const outlineColor = overrideColor ? null : modeAdvies?.outline;
+    if (outlineColor) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(x1 - 0.75, y - 0.75, width + 1.5, height + 1.5, 3);
+      ctx.stroke();
     }
 
     // High-contrast-thema (fase 2.9 §5.4, BINDEND): kleur alléén is onvoldoende, dus de drie
@@ -1080,6 +1218,30 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
+    // Resource-accent (#21): dun streepje in de resourcekleur direct ónder de balk, gesegmenteerd
+    // naar rato van unitsPerDay bij meerdere resources. Eén vast hoogtemaatje van 3 px — subtiel
+    // genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk genoeg om "wie doet dit" te lezen.
+    let resourceAccentHeight = 0;
+    if (this.opts.showResourceAccent) {
+      const rows = assignmentsFor(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
+      if (rows.length > 0) {
+        const total = rows.reduce((a, r) => a + r.unitsPerDay, 0) || 1;
+        const accentH = 3;
+        const accentY = y + height + 1;
+        let ax = x1;
+        rows.forEach((r, i) => {
+          const isLast = i === rows.length - 1;
+          const w = isLast ? x2 - ax : (x2 - x1) * (r.unitsPerDay / total);
+          // Donker thema: te donkere resourcekleuren verlichten — anders is het streepje onzichtbaar
+          // tegen de donkere werkruimte (hue/verzadiging intact, dus nog steeds herkenbaar dezelfde).
+          ctx.fillStyle = ensureThemeVisible(r.color, this.opts.darkTheme === true);
+          ctx.fillRect(ax, accentY, Math.max(w, 1), accentH);
+          ax += w;
+        });
+        resourceAccentHeight = accentH;
+      }
+    }
+
     // Task name on bar (if wide enough)
     if (width > 40) {
       ctx.fillStyle = this.colors.barText;
@@ -1092,6 +1254,7 @@ export class GanttRenderer {
       ctx.fillText(task.name, x1 + 6, y + height / 2);
       ctx.restore();
     }
+    return resourceAccentHeight;
   }
 
   /**
@@ -1215,9 +1378,27 @@ export class GanttRenderer {
       ctx.closePath();
     };
 
-    ctx.fillStyle = overrideColor ?? this.colors.milestone;
+    const selection = this.opts.barColorSelection ?? { mode: 'critical' as const };
+    const advice = selection.mode === 'critical'
+      ? null
+      : computeBarColors(task, selection, this.barColorContext, {
+          critical: this.colors.critical,
+          normal: this.colors.normal,
+          nearCritical: this.colors.nearCritical,
+          milestone: this.colors.milestone,
+          uncategorized: this.colors.ghost,
+        });
+    const milestoneFill = advice?.kind === 'segments' ? advice.segments[0].color : advice?.fill;
+    ctx.fillStyle = overrideColor ?? ensureThemeVisible(milestoneFill ?? this.colors.milestone, this.opts.darkTheme === true);
     diamond(size);
     ctx.fill();
+
+    if (!overrideColor && advice?.outline) {
+      ctx.strokeStyle = advice.outline;
+      ctx.lineWidth = 1.5;
+      diamond(size);
+      ctx.stroke();
+    }
 
     // Verplichte (contractuele) mijlpaal: dubbel-ruit-effect — witte kern in de ruit.
     if (task.mandatory) {
@@ -1426,7 +1607,6 @@ export class GanttRenderer {
       const minutes = task.time.durationMinutes ?? taskDurationMinutes(task, cal);
       return formatDuration(minutes, effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', sfx);
     }
-    if (!this.opts.enableHourPlanning) return `${task.time.scheduleDuration}${sfx.day}`;
     return this.durationText(task);
   }
 
@@ -1818,6 +1998,32 @@ export class GanttRenderer {
       if (row) rows.push(row);
     }
     return uniqueTaskIds(rows);
+  }
+
+  /** Dev/browser-testnaad: vind de werkelijk getekende sleepbalk zonder geometrie te dupliceren.
+   *  De methode blijft bewust in de renderer: alleen die bezit rijpositie, tijdas en hit-testbeleid.
+   *  Datumloze terugvalstubs, nulduurmijlpalen en verzameltaken zijn niet sleepbaar en leveren
+   *  daarom net als `getTaskBarBounds` geen fictieve rechthoek op. */
+  getTaskBarRect(taskId: string): { left: number; right: number; top: number; bottom: number } | null {
+    const rowIndex = this.rowIndexByTask.get(taskId);
+    if (rowIndex === undefined) return null;
+    const row = this.rows[rowIndex];
+    if (row?.kind !== 'task') return null;
+    const task = row.task;
+    if (task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
+    if (!(task.time.earlyStart || task.time.scheduleStart) || !(task.time.earlyFinish || task.time.scheduleFinish)) {
+      return null;
+    }
+
+    const { x1, x2 } = this.barGeometry(task);
+    const barHeight = this.opts.rowHeight * 0.5;
+    const top = this.rowToY(rowIndex) + (this.opts.rowHeight - barHeight) / 2;
+    return {
+      left: x1,
+      right: x1 + Math.max(x2 - x1, 4),
+      top,
+      bottom: top + barHeight,
+    };
   }
 
   /** Hit test: get task bar bounds for a task at row index (for drag & drop) */

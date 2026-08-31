@@ -2,7 +2,7 @@
  * Canvas → multi-page PDF-tegeling.
  *
  * Snijdt een bron-`HTMLCanvasElement` (het gerenderde rapport/Gantt) in pagina-tegels op een
- * echt papierformaat (A4/A3) en zet die via {@link buildImagePdf} om in één geldige multi-page
+ * echt papierformaat (A4/A3/A2/A1) en zet die via {@link buildImagePdf} om in één geldige multi-page
  * PDF. Puur browser (gebruikt off-screen `<canvas>`-en + `drawImage`); de PDF-bytelaag zelf is
  * dependency-loos (`src/utils/miniPdf.ts`).
  *

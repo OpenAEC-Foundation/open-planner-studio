@@ -38,6 +38,8 @@ export interface ExtProject {
   statusDate?: string;
   /** Voortgangs-scheduling-modus. undefined ⇒ RETAINED_LOGIC. */
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
+  /** Projectstandaard voor handmatig aangemaakte taken. Oudere extensies mogen dit weglaten. */
+  defaultTaskDurationUnit?: 'days' | 'hours';
   /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
 }
@@ -104,6 +106,8 @@ export interface ExtCalendar {
 /** Ext-facing taaktijd (planning + CPM-uitkomst). Spiegelt {@link import('@/types/task').TaskTime}. */
 export interface ExtTaskTime {
   durationType: 'WORKTIME' | 'ELAPSEDTIME';
+  /** Blijvende invoereenheid; oudere extensies mogen dit veld weglaten. */
+  durationUnit?: 'days' | 'hours';
   /** Duur in werkdagen. */
   scheduleDuration: number;
   /** Canonieke duur in integer minuten (uur-modus). Afwezig ⇒ dag-modus. */
@@ -181,6 +185,8 @@ export interface ExtTask {
     | 'RENOVATION'
     | 'MAINTENANCE'
     | 'USERDEFINED';
+  /** OPS-customclassificatie. Id is stabiel; name is de projectsnapshot die een importer meegeeft. */
+  customTaskType?: { id: string; name?: string };
   status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED';
   isMilestone: boolean;
   milestoneKind?: 'START' | 'FINISH';
@@ -280,6 +286,8 @@ export interface ExtResource {
   availabilitySteps?: ExtAvailabilityStep[];
   unitOfMeasure?: string;
   parentId?: string;
+  /** Optionele weergavekleur voor resource-accenten en resourcegekleurde balken. */
+  color?: string;
 }
 
 /** Ext-facing resource-toewijzing. Spiegelt {@link import('@/types/resource').ResourceAssignment}. */
@@ -352,4 +360,6 @@ export interface ExtImportResult {
   sequences: ExtSequence[];
   resources: ExtResource[];
   assignments: ExtAssignment[];
+  /** Per-projectcatalogus voor USERDEFINED-taken; wordt niet automatisch app-breed opgeslagen. */
+  customTaskTypes?: { id: string; name: string }[];
 }

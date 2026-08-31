@@ -7,7 +7,7 @@ import './DocumentChrome.css';
 export function DocumentTabBar() {
   const { t } = useTranslation('common');
   const cards = useDocumentCards();
-  const { switchTo, closeWithGuard, openProject, openOverview } = useDocumentActions();
+  const { switchTo, closeWithGuard, chooseNewOrOpenProject, openOverview } = useDocumentActions();
 
   return (
     <div className="ops-tabstrip" data-ops-tabstrip>
@@ -27,6 +27,7 @@ export function DocumentTabBar() {
           title={card.fileName ?? card.title}
           onClick={() => switchTo(card.id)}
           data-ops-tab={card.id}
+          data-testid="document-tab"
         >
           <span className="ops-dot" />
           <span className="ops-tab-name">{card.title}</span>
@@ -43,8 +44,8 @@ export function DocumentTabBar() {
 
       <button
         className="ops-iconbtn ops-tabstrip-add"
-        title={t('documents.openProject')}
-        onClick={openProject}
+        title={t('documents.newOrOpenTitle')}
+        onClick={chooseNewOrOpenProject}
       >
         <Plus size={15} />
       </button>

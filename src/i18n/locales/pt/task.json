@@ -28,6 +28,7 @@
   },
   "taskGrid": {
     "columns": {
+      "customTaskType": "Tipo de tarefa personalizado",
       "activityCodeData":"Dados dos códigos de atividade","actualDuration":"Duração real","actualFinish":"Fim real","actualStart":"Início real","assignedResources":"Recursos atribuídos","assignmentCurve":"Curva de atribuição","assignmentId":"ID da atribuição","assignmentResourceId":"ID do recurso da atribuição","assignmentTaskId":"ID da tarefa da atribuição","assignmentUnits":"Unidades de atribuição por dia","calendar":"Calendário","childIds":"IDs das tarefas subordinadas","color":"Cor","completion":"Progresso","constraint2Date":"Data da restrição secundária","constraint2Type":"Tipo da restrição secundária","constraintDate":"Data da restrição","constraintHard":"Restrição rígida","constraintType":"Tipo de restrição","critical":"Crítica","customFieldData":"Dados dos campos personalizados","deadline":"Prazo","description":"Descrição","duration":"Duração","durationMinutes":"Duração (minutos)","durationType":"Tipo de duração","earlyFinish":"Fim antecipado","earlyStart":"Início antecipado","effortDriven":"Orientada pelo esforço","externalRelationData":"Dados das relações externas","floatPath":"Caminho de folga","freeFloat":"Folga livre","hammock":"Hammock (duração derivada)","interferingFloat":"Folga interferente","internalRelationData":"Dados das relações internas","lateFinish":"Fim tardio","lateStart":"Início tardio","levelingDelay":"Atraso de nivelamento","levelingDelayElapsed":"Atraso de nivelamento decorrido","levelingDelayMinutes":"Atraso de nivelamento (minutos)","mandatoryMilestone":"Marco obrigatório","manuallyScheduled":"Agendada manualmente","milestone":"Marco","milestoneKind":"Tipo de marco","mspTaskType":"Tipo de tarefa do Microsoft Project","name":"Nome da tarefa","nearCritical":"Quase crítica","noteData":"Dados das notas","notes":"Notas","parentId":"ID da tarefa principal","priority":"Prioridade de nivelamento","remainingMinutes":"Restante (minutos)","remainingTime":"Restante (dias úteis)","resourceIds":"IDs dos recursos","resume":"Data de retoma","scheduleFinish":"Fim planeado","scheduleStart":"Início planeado","splitGaps":"Interrupções","status":"Estado","stop":"Data de paragem","taskId":"ID da tarefa","taskType":"Tipo de tarefa","timephasedContours":"Contornos faseados no tempo","timephasedDurationWalks":"Segmentos de duração faseados no tempo","timephasedFinishFloor":"Limite inferior do fim faseado","timephasedStartAnchor":"Âncora do início faseado","totalFloat":"Folga total","wbs":"Estrutura analítica do projeto (EAP)","workWindowFinish":"Fim da janela de trabalho","workWindowStart":"Início da janela de trabalho"
     },
     "category": {
@@ -92,7 +93,23 @@
     "MOVE": "Transferência",
     "RENOVATION": "Renovação",
     "MAINTENANCE": "Manutenção",
-    "USERDEFINED": "Outro"
+    "USERDEFINED": "Outro",
+    "builtinGroup": "Tipos integrados", "personalGroup": "Meus tipos de tarefa", "projectGroup": "Deste projeto", "new": "+ Novo tipo de tarefa…", "manage": "Gerir tipos de tarefa…", "newTitle": "Novo tipo de tarefa", "manageTitle": "Gerir tipos de tarefa", "name": "Nome", "fixed": "Fixo", "empty": "Ainda não há tipos de tarefa pessoais.", "rename": "Editar", "remove": "Remover", "addToMine": "Adicionar aos meus tipos de tarefa", "confirmRemove": "Este tipo é usado no projeto aberto. Removê-lo dos meus tipos de tarefa? A cópia do projeto permanece."
+  },
+  "duration": {
+    "label": "Duração",
+    "unit": "Unidade de duração",
+    "days": "Dias",
+    "hours": "Horas",
+    "invalid": "Introduza um número inteiro de dias ou horas, por exemplo 2d ou 12h.",
+    "enableHourPlanningFirst": "Ative o planeamento por horas para editar esta tarefa horária.",
+    "enableHourPlanning": "Ativar planeamento por horas",
+    "requiresWorkBlocks": "Este calendário não tem horários de trabalho válidos. Verifique os dias e horários de trabalho.",
+    "conversionNotExact": "Esta duração não pode ser convertida exatamente em dias inteiros no calendário atual. A unidade existente é mantida; introduza um novo valor válido.",
+    "conversionProposal": "Proposta de conversão exata: {{value}}. Aplique-a ou mantenha a unidade atual.",
+    "applyProposal": "Aplicar proposta",
+    "keepCurrent": "Manter",
+    "unitInfo": "A unidade escolhida pertence a esta tarefa. Os dias contam dias úteis; as horas contam horas de trabalho no calendário. Outro calendário não altera a unidade nem a duração introduzida, mas pode alterar a data de fim."
   },
   "dialog": {
     "editTitle": "Editar tarefa",

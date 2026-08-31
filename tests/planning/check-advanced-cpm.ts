@@ -8,6 +8,9 @@
 //
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { Task, TaskConstraint, ExternalLink } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -25,6 +28,7 @@ import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 
 const diffs: string[] = [];
 let checks = 0;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const eq = (label: string, got: unknown, want: unknown) => {
   checks++;
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
@@ -83,6 +87,16 @@ eq('05 fieldKind freeFloat = number', fieldKind(bk('freeFloat'), dummyCtx), 'num
 eq('06 fieldKind interferingFloat = number', fieldKind(bk('interferingFloat'), dummyCtx), 'number');
 eq('07 fieldKind isNearCritical = boolean', fieldKind(bk('isNearCritical'), dummyCtx), 'boolean');
 eq('08 fieldKind floatPath = number', fieldKind(bk('floatPath'), dummyCtx), 'number');
+
+// ── 1b) Issue #80: CPM-resultaten zijn hele weergegeven dagen ─────────────────────────────────
+// Het paneel heeft geen React-rendertestharnas. Deze lichte bronguard fixeert daarom de concrete
+// gebruikersweergave: vrije en interfererende speling mogen geen rekenartefacten met lange
+// decimalen tonen (zoals 2.2916666666666665), maar worden op de dichtstbijzijnde dag afgerond.
+const cpmResultSection = readFileSync(join(ROOT, 'src/components/task-sections/TaskCpmResultSection.tsx'), 'utf8');
+eq('08a CPM-paneel rondt vrije speling af op hele dagen',
+  /\{Math\.round\(task\.time\.freeFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
+eq('08b CPM-paneel rondt interfererende speling af op hele dagen',
+  /\{Math\.round\(task\.time\.interferingFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
 
 // ── 2) CPMResult-vormcontract: criticalPaths ALTIJD [criticalPath] (§3.5/§4.6) ─
 eq('09 criticalPaths lengte precies 1 (floatPaths uit)', rA.criticalPaths.length, 1);
@@ -324,7 +338,7 @@ const H8: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkH(id: string, mins: number, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, mins / 480, extra);           // scheduleStart 2026-06-01 (ongebruikt) → anker in H8
-  t.time = createDefaultTaskTime('2026-07-06', mins / 480);
+  t.time = createDefaultTaskTime('2026-07-06', mins / 480, 'hours');
   t.time.durationMinutes = mins;
   return t;
 }
@@ -852,7 +866,7 @@ const RCAL: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkProg(id: string, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, 1, extra);
-  t.time = createDefaultTaskTime('2026-07-06', 1); // 2026-07-06 = ma
+  t.time = createDefaultTaskTime('2026-07-06', 1, 'hours'); // 2026-07-06 = ma
   t.time.durationMinutes = 480;
   t.time.completion = 0.5;
   t.time.actualStart = '2026-07-06T08:00';

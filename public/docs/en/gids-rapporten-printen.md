@@ -27,18 +27,39 @@ the left.
 
 A full, formatted printout of the Gantt bars — this is the only report type with a settings block:
 
-- **Paper**: A4, A3 or A1.
+- **Paper**: A4, A3, A2 or A1.
 - **Orientation**: landscape or portrait.
-- **Auto-fit to paper** (on = the schedule scales automatically to the chosen size) or a manual
-  **zoom** slider if you turn auto-fit off.
+- **Auto-fit to paper** (on = the time axis is automatically compressed to the chosen size) or a
+  manual **zoom** slider if you turn auto-fit off. Even for a multi-year schedule, the activity
+  table and report text remain the same physical size on A4, A3, A2 and A1; only the time axis becomes
+  denser or wider.
 - **Font size** — 90, 100, 110 or 125%; scales the report text, row height and header/footer,
   independently of the zoom level above.
 - **Repeat header on each page** — on by default; keeps the report header visible on every printed
   page instead of only the first.
 - **Timeline over** — spreads the Gantt timeline across 1 to 8 pages side by side; only available
-  with auto-fit on.
+  with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
+  the table text.
 - Toggles for **task names on bars**, **show completion**, **critical path**, **show float**,
   **dependencies**, **weekends** and **legend**.
+- **Bar colors** — one choice shared by the on-screen Gantt and the report. *Critical path* gives
+  the familiar red/orange/blue; *Per task — automatic* gives every task a stable palette color;
+  *By category* lets you select a field from the same list as **Group**. For example, choose
+  **Task type** to give construction, installation and demolition one color each, or the
+  **Discipline** activity code to color each discipline. WBS, custom fields and **Resource** are
+  available too. With Resource, a task assigned to multiple parties gets a segmented bar weighted
+  by their assignment. Tasks without a value use neutral gray. Outside *Critical path*, a **red
+  outline** keeps critical tasks recognizable and the legend lists only values visible in the
+  report. Change the choice under **View** and it updates here immediately — and vice versa. If a
+  previously selected project field is absent from the current project, the app temporarily uses
+  Task type without forgetting your selection.
+- **Status line** — *None* (default), *Status date line* (a vertical dashed line at the project's
+  status date) or *Progress line* (the same zigzag line as on screen: per task a bulge toward the
+  progress position). Without a status date in the project nothing is drawn — set one first via
+  the project info; the panel points this out.
+- **Follow view** — when on, the export prints exactly what you see on screen: the active filter,
+  grouping, sorting and collapsed groups stay collapsed. Off (default), the export prints the full
+  task tree.
 - A **company** field (auto-fills from the project setting, but is separately editable here) and the
   **author** (read-only, from the project info).
 

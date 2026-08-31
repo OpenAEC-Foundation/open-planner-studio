@@ -30,7 +30,6 @@
 // vertaalsleutels ("Ongedaan maken" op een knop, een langere omschrijving in de sneltoetslijst).
 import type { AppState } from '@/state/appStore';
 import { buildImportLabels } from '@/i18n/importLabels';
-import { deleteTasksBulk } from '@/state/taskBulkActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { saveShowHistogram } from '@/utils/settingsStore';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
@@ -84,9 +83,9 @@ export const COMMANDS = {
   },
   delete: {
     id: 'delete',
-    // Gedeelde bulk-route (één handeling = één undo-stap), zelfde als het contextmenu — een kale
-    // `deleteTask`-lus kostte hier N keer Ctrl+Z.
-    run: (s) => { deleteTasksBulk(s.selectedTaskIds); },
+    // Storegebonden bulk-route: het expliciete `run(store)`-contract mag nooit via de
+    // app-singleton teruglekken. Het contextmenu gebruikt dezelfde storeactie via zijn adapter.
+    run: (s) => { s.deleteTasksBulk(s.selectedTaskIds); },
     isEnabled: hasSelection,
   },
   indent: {

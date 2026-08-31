@@ -17,6 +17,7 @@
   "showLegend": "범례",
   "showTaskNames": "바에 작업 이름 표시",
   "showCompletion": "진행률 표시",
+  "showBaselineOverlay": "기준선 오버레이 표시",
   "autoFit": "용지에 자동 맞춤",
   "zoom": "확대/축소:",
   "repeatHeader": "각 페이지에 머리글 반복",
@@ -38,11 +39,13 @@
   "legend": {
     "criticalPath": "크리티컬 패스",
     "normal": "일반",
+    "baseline": "기준선",
     "milestone": "마일스톤",
     "summary": "요약",
     "float": "여유",
     "completion": "진행률",
-    "relationStyle": "주도 / 비주도"
+    "relationStyle": "주도 / 비주도",
+    "categoriesMore_other": "… 외 {{count}}개 범주"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -100,5 +103,19 @@
     "total": "마일스톤",
     "mandatoryCount": "필수",
     "lateCount": "지연"
-  }
+  },
+  "barColorModeLabel": "막대 색상:",
+  "barColorMode_critical": "임계 경로",
+  "barColorMode_auto": "작업별 — 자동",
+  "barColorMode_category": "범주별",
+  "barColorFieldLabel": "범주 필드",
+  "barColorMissingField": "이 필드는 이 프로젝트에 없습니다. 작업 유형을 임시로 사용합니다.",
+  "statusLineLabel": "상태선:",
+  "statusLine_none": "없음",
+  "statusLine_statusDate": "상태 날짜선",
+  "statusLine_progress": "진행선",
+  "statusLineHint": "먼저 상태 날짜를 설정하세요",
+  "followView": "보기 따르기(필터, 그룹화, 정렬)",
+  "statusDateLabel": "상태 날짜",
+  "progressDateLabel": "진행 날짜"
 }

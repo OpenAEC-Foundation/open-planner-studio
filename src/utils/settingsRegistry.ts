@@ -17,6 +17,7 @@
 // serialisatieformaat) blijven ongemoeid.
 
 import { snapToChoice } from '@/utils/numberChoice';
+import { loadBarColorSelection } from '@/utils/barColorSettings';
 import type { UIState } from '@/state/slices/types';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import {
@@ -163,6 +164,7 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'showBaselineOverlay', field: 'showBaselineOverlay', parse: parseBoolean }),
   setting({ key: 'showProgressLine', field: 'showProgressLine', parse: parseBoolean }),
   setting({ key: 'showStatusDateLine', field: 'showStatusDateLine', parse: parseBoolean }),
+  setting({ key: 'showResourceAccent', field: 'showResourceAccent', parse: parseBoolean }),
 
   // Mini-map (view-state)
   setting({ key: 'showMiniMap', field: 'showMiniMap', parse: parseBoolean }),
@@ -211,6 +213,10 @@ export async function loadAllSettings(): Promise<Partial<UIState>> {
 
   // Afwijker 2: bouwmodus (synchroon; altijd gezet).
   patch.constructionMode = loadConstructionMode();
+
+  // Afwijker 3: één objectkeuze met legacy-migratie uit twee oude instellingen. Dit past niet in
+  // het 1-op-1-register: de loader leest de canonieke sleutel en alleen bij ontbreken beide bronnen.
+  patch.barColorSelection = await loadBarColorSelection();
 
   // 1-op-1-descriptors.
   for (const d of SETTINGS) {

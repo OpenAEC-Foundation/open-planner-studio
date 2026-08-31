@@ -100,7 +100,7 @@ const task = {
   timephasedContours: [{ resourceUid: 7, periods: [{ kind: 'remaining', workMinutes: 30, minutes: 60, afterMinutes: 0 }] }],
   notes: [{ done: false, text: 'B', id: 'n-1' }],
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 1, scheduleStart: '2026-01-01', scheduleFinish: '2026-01-01',
+    durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 1, scheduleStart: '2026-01-01', scheduleFinish: '2026-01-01',
     earlyStart: '2026-01-01', earlyFinish: '2026-01-01', lateStart: '2026-01-01', lateFinish: '2026-01-01',
     freeFloat: 0, totalFloat: 0, isCritical: true, completion: 0,
   },
@@ -175,6 +175,7 @@ const registry = buildTaskColumnRegistry({
     id: 'fase:1', name: 'Fase', values: [{ id: 'v-1', code: 'A' }, { id: 'v-2', code: 'A' }],
   }],
   customFieldDefs: [{ id: 'cf:1', name: 'Eigen veld', type: 'text' }],
+  customTaskTypes: [{ id: 'custom-installation', name: 'Speciale installatie' }],
   baselines: [baseline],
 });
 
@@ -219,6 +220,19 @@ eq('relation.warnings is een aparte read-only kolom met alle indexmeldingen',
   relationWarnings.format(relationWarnings.read(task, ctx), task, ctx),
   '← 0.9: niet meegerekend, lead afgekapt, buiten volgorde; ← Bron: bron ontbreekt');
 ok('vaste naamkolom bestaat', registry.some(column => column.id === 'task.name'));
+const customTaskType = registry.find(column => column.id === 'task.customTaskTypeId')!;
+eq('projecttaaktypekolom biedt de stabiele id met de projectnaam aan', customTaskType.editorOptions, [
+  { value: '', label: '—' },
+  { value: 'custom-installation', label: 'Speciale installatie' },
+]);
+const durationUnit = registry.find(column => column.id === 'task.time.durationUnit')!;
+eq('duureenheid is een gewone bewaakte enumcel, niet een berekende kolom', {
+  editorKind: durationUnit.editorKind,
+  readOnly: typeof durationUnit.readOnly === 'function'
+    ? durationUnit.readOnly(task, ctx)
+    : durationUnit.readOnly,
+  value: durationUnit.read(task, ctx),
+}, { editorKind: 'enum', readOnly: false, value: 'days' });
 ok('activity-codegenerator bevat project-id', registry.some(column => column.id === activityCodeColumnId(ctx.projectId, 'fase:1')));
 ok('custom-fieldgenerator bevat project-id', registry.some(column => column.id === customFieldColumnId(ctx.projectId, 'cf:1')));
 eq('iedere baseline levert acht kolommen', registry.filter(column => decodeDynamicTaskColumnId(column.id)?.kind === 'baseline').length, 8);
@@ -369,6 +383,14 @@ eq('conditioneel read-only WBS plant geen intent',
   blockedWbs.ok ? null : blockedWbs.errors[0].code, 'readOnly');
 
 const duration = registry.find(column => column.id === 'task.time.scheduleDuration')!;
+const translatedDurationCtx: TaskColumnContext = {
+  ...ctx,
+  labelForText: key => key === 'duration.suffixDay' ? 'T' : key,
+};
+eq('duurweergave vertaalt de suffix zonder de canonieke kopieervorm te wijzigen', {
+  display: duration.format(duration.read(task, translatedDurationCtx), task, translatedDurationCtx),
+  copy: duration.copy(task, translatedDurationCtx),
+}, { display: '1T', copy: '1d' });
 const hammockTask = { ...task, isHammock: true } as Task;
 eq('duur is conditioneel read-only voor een hammock',
   typeof duration.readOnly === 'function' && duration.readOnly(hammockTask, ctx), true);

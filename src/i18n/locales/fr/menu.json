@@ -189,7 +189,14 @@
     "taskHintBelow": "Nouvelle tâche juste en dessous de la sélection",
     "taskHintAppend": "Nouvelle tâche en bas de la liste",
     "columnsHintTable": "Choisir les colonnes de la vue Tableau",
-    "columnsHintGoToTable": "Choisir les colonnes de la vue Tableau — visibles sous l’onglet Tableau"
+    "columnsHintGoToTable": "Choisir les colonnes de la vue Tableau — visibles sous l’onglet Tableau",
+    "toggleResourceAccent": "Accent ressource",
+    "screenColors": "Couleurs des barres",
+    "screenColors_critical": "Chemin critique",
+    "screenColors_auto": "Par tâche — automatique",
+    "screenColors_category": "Par catégorie",
+    "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. Le type de tâche est utilisé temporairement.",
+    "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique."
   },
   "ifc": {
     "title": "Éditeur IFC",
@@ -331,6 +338,12 @@
     "installing": "Installation...",
     "installedBadge": "Installée",
     "installError": "Échec de l'installation.",
+    "quarantined": "Quarantaine",
+    "quarantineReason": "Raison : {{reason}}",
+    "quarantineRemove": "Supprimer du stockage",
+    "quarantineEmptyName": "Extension non valide",
+    "catalogEntriesSkipped": "Entrées de catalogue ignorées : {{count}}",
+    "storageWriteFailed": "L'état de l'extension n'a pas pu être enregistré.",
     "import": "Importer",
     "importSubtitle": "Importez des données de projet via les extensions installées.",
     "importEmpty": "Aucune extension d'import installée. Ajoutez-en une via Extensions."
