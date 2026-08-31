@@ -444,6 +444,40 @@
    en zouden de breedte anders op 70px vastpinnen. */
 .ribbon-display-grid .ribbon-btn.small[data-ribbon-mini] { width: auto; min-width: 0; }
 
+/* Volledig automatisch ingeklapte groep: zet de naam van de groep (bijvoorbeeld
+   "Baselines & progress") naast het mini-knoppenblok als één leesbaar gedraaid label. Als de tekst
+   niet in de beschikbare hoogte past, maakt normale witruimte een volgende verticale kolom. De
+   toestand wordt door Ribbon.tsx alleen gezet wanneer alle ribbon-knoppen in deze groep mini zijn;
+   gedeeltelijk ingeklapte groepen houden hun gewone label onder de knoppen. */
+.ribbon-group[data-ribbon-fully-mini] {
+  flex-direction: row;
+  align-items: stretch;
+}
+.ribbon-group[data-ribbon-fully-mini] .ribbon-group-content {
+  flex: 0 0 auto;
+}
+.ribbon-group[data-ribbon-fully-mini] .ribbon-group-label {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 16px;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: calc(8px * var(--ui-font-scale, 1));
+  letter-spacing: 0.06em;
+}
+
 /* File tab (backstage trigger) — altijd amber, opvallend links */
 .ribbon-tab--file {
   background: var(--theme-file-tab-bg);
