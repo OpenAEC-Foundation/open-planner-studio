@@ -21,14 +21,39 @@ interface Variant {
   remainingStart: boolean;
   useProjectEndDateForFloat: boolean;
   finishMilestoneBoundary: boolean;
+  fixtureShape?: 'network' | 'completedOnly';
+  laterOpenTaskWinsProjectEnd?: boolean;
   expected: {
-    projectEndSource: string;
+    projectEndSource?: string;
     completedLateStartSource: string;
-    milestoneFreeFloatSource: string;
+    milestoneFreeFloatSource?: string;
+    taskIds: string[];
   };
 }
 
 function fixtureBytes(variant: Variant): Uint8Array {
+  const taskRows = variant.fixtureShape === 'completedOnly'
+    ? [
+      '%R\tC\tP1\tC1\tCOMP\tVoltooide winnaar\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t8\t0\t2026-08-04 07:00\t2026-08-04 15:00\t2026-08-04 07:00\t2026-08-04 15:00',
+    ]
+    : [
+      '%R\tP\tP1\tC1\tPRED\tEchte voorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-03 07:00\t2026-08-03 15:00\t\t',
+      '%R\tC\tP1\tC1\tDUP\tVoltooide leaf\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t8\t0\t2026-08-04 07:00\t2026-08-04 15:00\t2026-08-04 07:00\t2026-08-04 15:00',
+      '%R\tO\tP1\tC1\tOPEN\tOpen opvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-05 07:00\t2026-08-05 15:00\t\t',
+      '%R\tM\tP1\tC1\tDUP\tFinish milestone\tTT_FinMile\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t0\t0\t2026-08-06 07:01\t2026-08-06 07:01\t\t',
+    ];
+  const laterOpenWinnerRows = variant.laterOpenTaskWinsProjectEnd
+    ? [
+      '%R\tL\tP1\tC1\tLATE\tLatere open winnaar\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-20 07:00\t2026-08-20 15:00\t\t',
+    ]
+    : [];
+  const taskPredRows = variant.fixtureShape === 'completedOnly'
+    ? []
+    : [
+      '%R\tR-PC\tC\tP\tP1\tP1\tPR_FS\t0',
+      '%R\tR-PO\tO\tP\tP1\tP1\tPR_FS\t0',
+      '%R\tR-OM\tM\tO\tP1\tP1\tPR_FS\t0',
+    ];
   return new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-08-17\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -42,15 +67,11 @@ function fixtureBytes(variant: Variant): Uint8Array {
     `%R\tP1\t${variant.useProjectEndDateForFloat ? 'Y' : 'N'}`,
     '%T\tTASK',
     '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
-    '%R\tP\tP1\tC1\tPRED\tEchte voorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-03 07:00\t2026-08-03 15:00\t\t',
-    '%R\tC\tP1\tC1\tDUP\tVoltooide leaf\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t8\t0\t2026-08-04 07:00\t2026-08-04 15:00\t2026-08-04 07:00\t2026-08-04 15:00',
-    '%R\tO\tP1\tC1\tOPEN\tOpen opvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-05 07:00\t2026-08-05 15:00\t\t',
-    '%R\tM\tP1\tC1\tDUP\tFinish milestone\tTT_FinMile\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t0\t0\t2026-08-06 07:01\t2026-08-06 07:01\t\t',
+    ...taskRows,
+    ...laterOpenWinnerRows,
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
-    '%R\tR-PC\tC\tP\tP1\tP1\tPR_FS\t0',
-    '%R\tR-PO\tO\tP\tP1\tP1\tPR_FS\t0',
-    '%R\tR-OM\tM\tO\tP1\tP1\tPR_FS\t0',
+    ...taskPredRows,
     '%E',
   ].join('\n'));
 }
@@ -100,39 +121,61 @@ function solveTraceVariant(variant: Variant): TraceProjection {
 
 const variants: Variant[] = [
   {
-    id: 'completed-window', remainingStart: true, useProjectEndDateForFloat: false,
+    id: 'completed-window-wint',
+    remainingStart: true,
+    useProjectEndDateForFloat: false,
     finishMilestoneBoundary: true,
+    fixtureShape: 'completedOnly',
     expected: {
       projectEndSource: 'completedDisplayWindow',
       completedLateStartSource: 'subRemainingDuration',
+      taskIds: ['C'],
+    },
+  },
+  {
+    id: 'completed-window-verliest-van-latere-open-taak',
+    remainingStart: true,
+    useProjectEndDateForFloat: false,
+    finishMilestoneBoundary: true,
+    fixtureShape: 'network',
+    laterOpenTaskWinsProjectEnd: true,
+    expected: {
+      projectEndSource: 'maxEarlyFinish',
+      completedLateStartSource: 'subRemainingDuration',
       milestoneFreeFloatSource: 'projectEndFinishMilestoneBoundary',
+      taskIds: ['C', 'L', 'M', 'O', 'P'],
     },
   },
   {
     id: 'remaining-start-uit', remainingStart: false, useProjectEndDateForFloat: false,
     finishMilestoneBoundary: true,
+    fixtureShape: 'network',
     expected: {
       projectEndSource: 'maxEarlyFinish',
       completedLateStartSource: 'subDuration',
       milestoneFreeFloatSource: 'projectEndFinishMilestoneBoundary',
+      taskIds: ['C', 'M', 'O', 'P'],
     },
   },
   {
     id: 'expliciet-projecteinde', remainingStart: true, useProjectEndDateForFloat: true,
     finishMilestoneBoundary: true,
+    fixtureShape: 'network',
     expected: {
       projectEndSource: 'useProjectEndDateForFloat',
       completedLateStartSource: 'subRemainingDuration',
       milestoneFreeFloatSource: 'clampedZero',
+      taskIds: ['C', 'M', 'O', 'P'],
     },
   },
   {
     id: 'finish-boundary-uit', remainingStart: true, useProjectEndDateForFloat: false,
     finishMilestoneBoundary: false,
+    fixtureShape: 'network',
     expected: {
-      projectEndSource: 'completedDisplayWindow',
       completedLateStartSource: 'subRemainingDuration',
       milestoneFreeFloatSource: 'derivedFromSuccessor',
+      taskIds: ['C', 'M', 'O', 'P'],
     },
   },
 ];
@@ -164,21 +207,29 @@ const variants: Variant[] = [
 for (const variant of variants) {
   const trace = solveTraceVariant(variant);
   eq(`backward-float-trace ${variant.id}: beslisbronnen`, {
-    projectEndSource: trace.projectEndSource,
+    ...(variant.expected.projectEndSource !== undefined
+      ? { projectEndSource: trace.projectEndSource }
+      : {}),
     completedLateStartSource: (trace.completed as { lateStartSource?: string } | undefined)?.lateStartSource,
     completedDisplayActualLate: (trace.completed as { displayActualLate?: boolean } | undefined)?.displayActualLate,
-    milestoneFreeFloatSource: (trace.milestone as { freeFloatSource?: string } | undefined)?.freeFloatSource,
+    ...(variant.expected.milestoneFreeFloatSource !== undefined
+      ? { milestoneFreeFloatSource: (trace.milestone as { freeFloatSource?: string } | undefined)?.freeFloatSource }
+      : {}),
   }, {
-    projectEndSource: variant.expected.projectEndSource,
+    ...(variant.expected.projectEndSource !== undefined
+      ? { projectEndSource: variant.expected.projectEndSource }
+      : {}),
     completedLateStartSource: variant.expected.completedLateStartSource,
     completedDisplayActualLate: true,
-    milestoneFreeFloatSource: variant.expected.milestoneFreeFloatSource,
+    ...(variant.expected.milestoneFreeFloatSource !== undefined
+      ? { milestoneFreeFloatSource: variant.expected.milestoneFreeFloatSource }
+      : {}),
   });
   eq(`backward-float-trace ${variant.id}: task.id is de enige trace-identiteit`, {
     taskIds: trace.taskIds,
     hasTaskCodeKey: trace.taskIds.includes('DUP'),
   }, {
-    taskIds: ['C', 'M', 'O', 'P'],
+    taskIds: variant.expected.taskIds,
     hasTaskCodeKey: false,
   });
 }

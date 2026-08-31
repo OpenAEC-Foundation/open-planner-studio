@@ -2908,17 +2908,20 @@ export class CPMSolver {
       const early = earlyDates.get(taskId);
       const task = this.tasks.get(taskId);
       if (!early || !task) continue;
+      const usesCompletedDisplayWindow = this.usesP6CompletedDataDateWindow(task);
       let candidateEf = early.ef;
-      let projectEndSource: CpmProjectEndSource = 'maxEarlyFinish';
-      if (this.usesP6CompletedDataDateWindow(task)) {
+      if (usesCompletedDisplayWindow) {
         const progressCal = this.progressCalendarFor(task);
         const projectedEs = this.snapOnOrAfter(progressCal, this.dataDate!);
         candidateEf = progressCal.prevWorkInstant(projectedEs);
-        projectEndSource = 'completedDisplayWindow';
-        if (this.backwardFloatTrace) this.backwardFloatTrace.projectEndSource = projectEndSource;
       }
       if (candidateEf > projectEnd) {
         projectEnd = candidateEf;
+        if (this.backwardFloatTrace) {
+          this.backwardFloatTrace.projectEndSource = usesCompletedDisplayWindow
+            ? 'completedDisplayWindow'
+            : 'maxEarlyFinish';
+        }
       }
     }
     if (this.options.schedulingOptions?.useProjectEndDateForFloat === true) {
