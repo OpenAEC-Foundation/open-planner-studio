@@ -175,7 +175,7 @@ export interface GanttPointerCoordinatorInput {
   >;
   viewport: Pick<
     GanttViewportCoordinatorOutput,
-    'refs' | 'effectiveView' | 'splitters'
+    'refs' | 'effectiveView' | 'sharedAxis' | 'splitters'
   >;
   tasks: Task[];
   calendar: WorkCalendar;

@@ -63,6 +63,7 @@
       "startHour": "Begin (uur)",
       "endHour": "Einde (uur)",
       "hoursPerDay": "Uren per dag",
+      "netHoursPerDay": "Netto-uren per dag",
       "holidaysSection": "Feestdagen",
       "holidayName": "Omschrijving",
       "from": "Van",

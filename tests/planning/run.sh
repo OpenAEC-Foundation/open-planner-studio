@@ -544,6 +544,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DDCHECK="$DIR/.drag-duration-badge.mjs"
   if bundle_check "$DIR/check-drag-duration-badge.ts" "$DDCHECK"; then node "$DDCHECK" || STATUS=1; fi
 
+  # T2: de Gantt-uurinteractie rekent via CalendarEngine, zodat pauzes, nachten,
+  # weekenden en feestdagen niet als gewerkte duur mee kunnen lekken.
+  HBDCHECK="$DIR/.hour-bar-drag.mjs"
+  if bundle_check "$DIR/check-hour-bar-drag.ts" "$HBDCHECK"; then node "$HBDCHECK" || STATUS=1; fi
+
   # Tijd-as-consolidatie (issue #21 punt 5, fase 0): geconsolideerde `timeAxis.dateToX`/`xToDate`/
   # `xToDayOffset` vs. letterlijk-gekopieerde OUDE formules (printPreview/GanttCanvas/GanttRenderer/
   # useBarDrag), plus een live-render-vergelijking van de grid-`startOffset`. Bewijst dat de
@@ -762,6 +767,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECCHECK="$DIR/.recovery-integrity.mjs"
   if bundle_check "$DIR/check-recovery-integrity.ts" "$RECCHECK"; then node "$RECCHECK" || STATUS=1; fi
 
+  # S2: werkelijk automatisch opslaan is nadrukkelijk geen crashherstel. De controller bewaakt
+  # het bestaande schrijfdoel, single-flight, nieuwste-run en de dirty-race zonder browser/Tauri-I/O.
+  AACHECK="$DIR/.actual-autosave.mjs"
+  if bundle_check "$DIR/check-actual-autosave.ts" "$AACHECK"; then node "$AACHECK" || STATUS=1; fi
+
   # Recovery-isolatie tussen instanties (bevinding K5). De opruimlogica veegde op PREFIX door de
   # gedeelde appDataDir. Twee gelijktijdige vensters wisten daarmee elkaars snapshots — en omdat
   # de productie-base (`recovery`) een prefix is van elke dev-base (`recovery.<slug>`), wiste één
@@ -784,6 +794,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.
   T1DURCHECK="$DIR/.task-duration-unit.mjs"
   if bundle_check "$DIR/check-task-duration-unit.ts" "$T1DURCHECK"; then node "$T1DURCHECK" || STATUS=1; fi
+
+  # K2: scalaire pauzevelden leiden effectief werktijd af, blokkeren ongeldige patronen en
+  # overleven IFC, undo/redo en documentwissel.
+  BREAKCHECK="$DIR/.calendar-breaks.mjs"
+  if bundle_check "$DIR/check-calendar-breaks.ts" "$BREAKCHECK"; then node "$BREAKCHECK" || STATUS=1; fi
 
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een

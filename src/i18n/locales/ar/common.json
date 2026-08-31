@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "الحفظ التلقائي", "noFile": "احفظ هذا المشروع أولاً لاستخدام الحفظ التلقائي.", "onHint": "الحفظ التلقائي قيد التشغيل: تُكتب التغييرات في هذا الملف.", "offHint": "الحفظ التلقائي متوقف. يظل استرداد الأعطال نشطاً." },
   "notifications": {
     "dismiss": "إغلاق الإشعار",
     "openFailed": "تعذّر فتح الملف",
@@ -357,7 +358,7 @@
       "sameSize": "بنفس حجم الإصدار السابق",
       "daysSincePrevious": "منذ الإصدار السابق: {{count}} يوم",
       "currentOnly": "أنت تستخدم الآن الإصدار {{version}}",
-      "whatsNewButton": "الجديد"
+      "whatsNewButton": "الجديد", "newVersion": "إصدار جديد", "readGuide": "اقرأ الدليل", "fullNotes": "عرض ملاحظات الإصدار الكاملة", "openFailed": "تعذر فتح ملاحظات الإصدار.", "inNumbers": "هذا التحديث بالأرقام", "days": "أيام منذ الإصدار السابق", "commits": "التزامات منذ الإصدار السابق", "codeLines": "أسطر كود مضافة", "codeLinesHint": "أسطر مضافة إجمالاً في التطبيق وRust والبرامج النصية والاختبارات.", "smallerLabel": "حزمة أصغر", "largerLabel": "حزمة أكبر", "acknowledge": "مفهوم"
     }
   },
   "statusWarnings": {
@@ -646,6 +647,18 @@
       "threeShift": "ثلاث ورديات",
       "night": "وردية ليلية",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "أدخل وقت استراحة صالحا بصيغة HH:MM.",
+      "invalidWorkStart": "أدخل وقت بدء صالحا بصيغة HH:MM.",
+      "invalidWorkEnd": "أدخل وقت انتهاء صالحا بصيغة HH:MM.",
+      "invalidWorkTimeOrder": "يجب أن يكون وقت البدء قبل وقت الانتهاء.",
+      "increaseTime": "زد الوقت 15 دقيقة",
+      "decreaseTime": "أنقص الوقت 15 دقيقة",
+      "increaseBreakDuration": "زد مدة الاستراحة 15 دقيقة",
+      "decreaseBreakDuration": "أنقص مدة الاستراحة 15 دقيقة",
+      "start": "بداية الاستراحة", "duration": "مدة الاستراحة (دقائق)", "hint": "تُشتق فترات العمل تلقائيا. المدة 0 تعني يوم عمل متصل.",
+      "errors": { "invalidDuration": "يجب أن تكون مدة الاستراحة عددا صحيحا من الدقائق يساوي 0 أو أكثر.", "outsideWorkingDay": "يجب أن تقع الاستراحة كاملة داخل يوم العمل المحدد.", "consumesWorkingDay": "لا يمكن أن تستغرق الاستراحة يوم العمل كله." }
     },
     "worktime": {
       "section": "أوقات العمل",

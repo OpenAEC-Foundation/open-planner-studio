@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Automatyczny zapis", "noFile": "Najpierw zapisz ten projekt, aby użyć automatycznego zapisu.", "onHint": "Automatyczny zapis jest włączony: zmiany są zapisywane w tym pliku.", "offHint": "Automatyczny zapis jest wyłączony. Odzyskiwanie po awarii pozostaje aktywne." },
   "notifications": {
     "dismiss": "Zamknij powiadomienie",
     "openFailed": "Nie udało się otworzyć pliku",
@@ -347,7 +348,7 @@
       "sameSize": "Taki sam rozmiar jak poprzednia wersja",
       "daysSincePrevious": "Od poprzedniego wydania: {{count}} dni",
       "currentOnly": "Używasz teraz wersji {{version}}",
-      "whatsNewButton": "Co nowego"
+      "whatsNewButton": "Co nowego", "newVersion": "Nowa wersja", "readGuide": "Przeczytaj przewodnik", "fullNotes": "Pełne informacje o wydaniu", "openFailed": "Nie można otworzyć informacji o wydaniu.", "inNumbers": "Ta aktualizacja w liczbach", "days": "dni od poprzedniego wydania", "commits": "commity od poprzedniego wydania", "codeLines": "dodane linie kodu", "codeLinesHint": "Dodane linie aplikacji, Rust, skryptów i testów.", "smallerLabel": "mniejszy pakiet", "largerLabel": "większy pakiet", "acknowledge": "Rozumiem"
     }
   },
   "statusWarnings": {
@@ -626,6 +627,18 @@
       "threeShift": "3 zmiany",
       "night": "Zmiana nocna",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Wprowadź prawidłową godzinę przerwy w formacie HH:MM.",
+      "invalidWorkStart": "Wprowadź prawidłową godzinę rozpoczęcia w formacie HH:MM.",
+      "invalidWorkEnd": "Wprowadź prawidłową godzinę zakończenia w formacie HH:MM.",
+      "invalidWorkTimeOrder": "Godzina rozpoczęcia musi być wcześniejsza niż godzina zakończenia.",
+      "increaseTime": "Zwiększ godzinę o 15 minut",
+      "decreaseTime": "Zmniejsz godzinę o 15 minut",
+      "increaseBreakDuration": "Zwiększ czas przerwy o 15 minut",
+      "decreaseBreakDuration": "Zmniejsz czas przerwy o 15 minut",
+      "start": "Początek przerwy", "duration": "Czas przerwy (minuty)", "hint": "Przedziały pracy są wyliczane automatycznie. Czas 0 usuwa przerwę.",
+      "errors": { "invalidDuration": "Czas musi być całkowitą liczbą minut nie mniejszą niż 0.", "outsideWorkingDay": "Przerwa musi mieścić się w dniu pracy.", "consumesWorkingDay": "Przerwa nie może zajmować całego dnia pracy." }
     },
     "worktime": {
       "section": "Godziny pracy",

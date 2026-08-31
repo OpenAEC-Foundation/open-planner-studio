@@ -63,6 +63,7 @@
       "startHour": "Beginn (Stunde)",
       "endHour": "Ende (Stunde)",
       "hoursPerDay": "Stunden pro Tag",
+      "netHoursPerDay": "Nettoarbeitsstunden pro Tag",
       "holidaysSection": "Feiertage",
       "holidayName": "Beschreibung",
       "from": "Von",

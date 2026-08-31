@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "자동 저장", "noFile": "자동 저장을 사용하려면 먼저 이 프로젝트를 저장하세요.", "onHint": "자동 저장이 켜져 있습니다. 변경 사항이 이 파일에 기록됩니다.", "offHint": "자동 저장이 꺼져 있습니다. 충돌 복구는 계속 활성화됩니다." },
   "notifications": {
     "dismiss": "알림 닫기",
     "openFailed": "파일을 열 수 없습니다",
@@ -332,7 +333,7 @@
       "sameSize": "이전 버전과 동일한 크기",
       "daysSincePrevious": "이전 릴리스 이후: {{count}}일",
       "currentOnly": "현재 {{version}} 버전을 사용 중입니다",
-      "whatsNewButton": "새로운 기능"
+      "whatsNewButton": "새로운 기능", "newVersion": "새 버전", "readGuide": "가이드 읽기", "fullNotes": "전체 릴리스 노트 보기", "openFailed": "릴리스 노트를 열 수 없습니다.", "inNumbers": "이번 업데이트 수치", "days": "이전 릴리스 이후 일수", "commits": "이전 릴리스 이후 커밋", "codeLines": "추가된 코드 줄", "codeLinesHint": "앱, Rust, 스크립트 및 테스트의 추가 줄입니다.", "smallerLabel": "더 작은 패키지", "largerLabel": "더 큰 패키지", "acknowledge": "확인"
     }
   },
   "statusWarnings": {
@@ -596,6 +597,18 @@
       "threeShift": "3교대",
       "night": "야간 근무",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "유효한 휴식 시작 시간을 HH:MM 형식으로 입력하세요.",
+      "invalidWorkStart": "유효한 시작 시간을 HH:MM 형식으로 입력하세요.",
+      "invalidWorkEnd": "유효한 종료 시간을 HH:MM 형식으로 입력하세요.",
+      "invalidWorkTimeOrder": "시작 시간은 종료 시간보다 앞서야 합니다.",
+      "increaseTime": "시간을 15분 늘리기",
+      "decreaseTime": "시간을 15분 줄이기",
+      "increaseBreakDuration": "휴식 시간을 15분 늘리기",
+      "decreaseBreakDuration": "휴식 시간을 15분 줄이기",
+      "start": "휴식 시작", "duration": "휴식 시간(분)", "hint": "근무 시간대가 자동으로 계산됩니다. 0분은 연속 근무일입니다.",
+      "errors": { "invalidDuration": "휴식 시간은 0 이상의 정수 분이어야 합니다.", "outsideWorkingDay": "휴식은 설정된 근무일 안에 모두 있어야 합니다.", "consumesWorkingDay": "휴식이 근무일 전체를 차지할 수 없습니다." }
     },
     "worktime": {
       "section": "근무 시간",

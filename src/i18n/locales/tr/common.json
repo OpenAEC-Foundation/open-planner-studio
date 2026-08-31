@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Otomatik kaydet", "noFile": "Otomatik kaydetmeyi kullanmak için önce bu projeyi kaydedin.", "onHint": "Otomatik kaydet açık: değişiklikler bu dosyaya yazılır.", "offHint": "Otomatik kaydet kapalı. Çökme kurtarma etkin kalır." },
   "notifications": {
     "dismiss": "Bildirimi kapat",
     "openFailed": "Dosya açılamadı",
@@ -337,7 +338,7 @@
       "sameSize": "Önceki sürümle aynı boyutta",
       "daysSincePrevious": "Önceki sürümden bu yana: {{count}} gün",
       "currentOnly": "Şu anda {{version}} sürümünü kullanıyorsunuz",
-      "whatsNewButton": "Yenilikler"
+      "whatsNewButton": "Yenilikler", "newVersion": "Yeni sürüm", "readGuide": "Kılavuzu oku", "fullNotes": "Tüm sürüm notlarını gör", "openFailed": "Sürüm notları açılamadı.", "inNumbers": "Bu güncelleme sayılarla", "days": "önceki sürümden beri gün", "commits": "önceki sürümden beri commit", "codeLines": "eklenen kod satırı", "codeLinesHint": "Uygulama, Rust, betikler ve testlerdeki eklenen satırlar.", "smallerLabel": "daha küçük paket", "largerLabel": "daha büyük paket", "acknowledge": "Anladım"
     }
   },
   "statusWarnings": {
@@ -606,6 +607,18 @@
       "threeShift": "3 vardiya",
       "night": "Gece vardiyası",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "HH:MM biçiminde geçerli bir mola saati girin.",
+      "invalidWorkStart": "HH:MM biçiminde geçerli bir başlangıç saati girin.",
+      "invalidWorkEnd": "HH:MM biçiminde geçerli bir bitiş saati girin.",
+      "invalidWorkTimeOrder": "Başlangıç saati bitiş saatinden önce olmalıdır.",
+      "increaseTime": "Saati 15 dakika artır",
+      "decreaseTime": "Saati 15 dakika azalt",
+      "increaseBreakDuration": "Mola süresini 15 dakika artır",
+      "decreaseBreakDuration": "Mola süresini 15 dakika azalt",
+      "start": "Mola başlangıcı", "duration": "Mola süresi (dakika)", "hint": "Çalışma aralıkları otomatik türetilir. 0 süre molayı kaldırır.",
+      "errors": { "invalidDuration": "Süre 0 veya daha büyük tam dakika olmalıdır.", "outsideWorkingDay": "Mola çalışma günü içinde olmalıdır.", "consumesWorkingDay": "Mola tüm çalışma gününü kaplayamaz." }
     },
     "worktime": {
       "section": "Çalışma saatleri",

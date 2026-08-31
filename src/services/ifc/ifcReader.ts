@@ -1574,6 +1574,31 @@ function extractCalendarHoursPerDay(
   return undefined;
 }
 
+/** Leest het optionele eenvoudige scalar-pauzepatroon uit `OPS_Calendar`. */
+function extractCalendarSimpleBreak(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> {
+  const result: Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> = {};
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+    for (const prop of props) {
+      const value = parseTypedValue(prop.args[2] || '');
+      if (typeof value !== 'number' || !Number.isInteger(value)) continue;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakStart') result.simpleBreakStartMinute = value;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakDuration') result.simpleBreakDurationMinutes = value;
+    }
+  }
+  return result;
+}
+
 /** OPS-eigen aanvulling op IFC's ambigue standaardwerkweek: bewaart dat een kalender met precies
  * één gewone band toch uur-modus was. Zonder de markering blijft de conservatieve externe fallback
  * dag-modus; alleen bestanden die OPS zelf schreef krijgen dit expliciete vertrouwen. */
@@ -1660,6 +1685,7 @@ function buildCalendarFromEntity(
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
   calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes

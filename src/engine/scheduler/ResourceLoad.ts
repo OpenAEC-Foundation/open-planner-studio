@@ -11,6 +11,7 @@ import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { enumerateTaskWorkDays } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
  *  tussen punten; niet genormaliseerd (distributeUnits normaliseert zelf via Σraw). */
@@ -135,7 +136,9 @@ function engineForTask(
   if (!eng) {
     eng = key === ''
       ? projectEngine
-      : new CalendarEngine(resolveCalendar(task.calendarId, calendarRegistry, projectCalendar));
+      : new CalendarEngine(calendarForEngine(
+        resolveCalendar(task.calendarId, calendarRegistry, projectCalendar),
+      ));
     cache.set(key, eng);
   }
   return eng;
@@ -227,7 +230,7 @@ export function computeResourceLoad(
   const overallocatedDays: Record<string, string[]> = {};
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  const projectEngine = new CalendarEngine(projectCalendar);
+  const projectEngine = new CalendarEngine(calendarForEngine(projectCalendar));
   // W0: de dag-mapping volgt de TAAKkalender (dezelfde engine waarmee de CPM duur en splits
   // rekent — zie `engineForTask` hierboven), niet onvoorwaardelijk de projectkalender. Cache per
   // calendarId, één Map per aanroep van deze functie.
@@ -269,7 +272,9 @@ export function computeResourceLoad(
     const bucket = load[resource.id];
     if (!bucket) continue;
 
-    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar));
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar),
+    ));
 
     capacity[resource.id] = {};
     for (const iso of Object.keys(bucket)) {
@@ -394,7 +399,7 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const { tasks, assignments, resources, calendar, calendars, resourceIds, from, to, bucket } = input;
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  const projectEngine = new CalendarEngine(calendar);
+  const projectEngine = new CalendarEngine(calendarForEngine(calendar));
   // W0: zelfde taakkalender-mapping als computeResourceLoad (zie `engineForTask` hierboven) — één
   // definitie, gecachet per calendarId voor deze aanroep.
   const taskEngineCache = new Map<string, CalendarEngine>();
@@ -482,7 +487,9 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const report: HistogramReport = { resources: [] };
   for (const resource of reported) {
     const dailyLoad = loadByResource.get(resource.id) ?? new Map<string, number>();
-    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, calendars, calendar));
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, calendars, calendar),
+    ));
 
     // Dag-granulaire overbelaste dagen: load > capaciteit (resource-kalender), over de belaste dagen.
     const overDays = new Set<string>();

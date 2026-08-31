@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Guardado automático", "noFile": "Guarde primero este proyecto para usar el guardado automático.", "onHint": "El guardado automático está activo: los cambios se escriben en este archivo.", "offHint": "El guardado automático está desactivado. La recuperación sigue activa." },
   "notifications": {
     "dismiss": "Cerrar notificación",
     "openFailed": "No se pudo abrir el archivo",
@@ -342,7 +343,7 @@
       "sameSize": "Del mismo tamaño que la versión anterior",
       "daysSincePrevious": "Desde la versión anterior: {{count}} días",
       "currentOnly": "Ahora estás usando la versión {{version}}",
-      "whatsNewButton": "Novedades"
+      "whatsNewButton": "Novedades", "newVersion": "Nueva versión", "readGuide": "Leer la guía", "fullNotes": "Ver notas de versión completas", "openFailed": "No se pudieron abrir las notas de versión.", "inNumbers": "Esta actualización en cifras", "days": "días desde la versión anterior", "commits": "commits desde la versión anterior", "codeLines": "líneas de código añadidas", "codeLinesHint": "Líneas añadidas en aplicación, Rust, scripts y pruebas.", "smallerLabel": "paquete más pequeño", "largerLabel": "paquete más grande", "acknowledge": "Entendido"
     }
   },
   "statusWarnings": {
@@ -616,6 +617,18 @@
       "threeShift": "3 turnos",
       "night": "Turno de noche",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Introduzca una hora de pausa válida como HH:MM.",
+      "invalidWorkStart": "Introduzca una hora de inicio válida en formato HH:MM.",
+      "invalidWorkEnd": "Introduzca una hora de finalización válida en formato HH:MM.",
+      "invalidWorkTimeOrder": "La hora de inicio debe ser anterior a la hora de finalización.",
+      "increaseTime": "Aumentar la hora 15 minutos",
+      "decreaseTime": "Reducir la hora 15 minutos",
+      "increaseBreakDuration": "Aumentar la duración de la pausa 15 minutos",
+      "decreaseBreakDuration": "Reducir la duración de la pausa 15 minutos",
+      "start": "Inicio de la pausa", "duration": "Duración de la pausa (minutos)", "hint": "Las franjas de trabajo se calculan automáticamente. Duración 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La duración debe ser un número entero de minutos igual o mayor que 0.", "outsideWorkingDay": "La pausa debe estar completamente dentro de la jornada laboral.", "consumesWorkingDay": "La pausa no puede ocupar toda la jornada laboral." }
     },
     "worktime": {
       "section": "Horarios de trabajo",

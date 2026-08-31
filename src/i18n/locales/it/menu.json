@@ -63,6 +63,7 @@
       "startHour": "Inizio (ora)",
       "endHour": "Fine (ora)",
       "hoursPerDay": "Ore al giorno",
+      "netHoursPerDay": "Ore nette al giorno",
       "holidaysSection": "Festività",
       "holidayName": "Descrizione",
       "from": "Da",

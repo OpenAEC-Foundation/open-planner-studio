@@ -21,6 +21,7 @@ import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import {
   invalidateUndoneHistoryForScopes,
   removeSessionHistoryForDocumentFromState,
@@ -301,7 +302,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    saveFile: async () => {
+    saveFile: async () => runProjectFileWrite(async () => {
       const state = get();
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
       // pad niet opnieuw velden kan laten vallen.
@@ -348,9 +349,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         console.error('Save failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
       }
-    },
+    }),
 
-    saveFileAs: async () => {
+    saveFileAs: async () => runProjectFileWrite(async () => {
       const state = get();
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
       // pad niet opnieuw velden kan laten vallen.
@@ -377,7 +378,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         console.error('Save As failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
       }
-    },
+    }),
 
     exportAs: async (format: ExportFormat): Promise<ExportResult> => {
       // K7 (docs/onderhoudbaarheid): alle vier exporters schrijven de CPM-uitvoer

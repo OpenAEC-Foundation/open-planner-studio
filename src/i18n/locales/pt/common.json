@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Guardar automaticamente", "noFile": "Guarde primeiro este projeto para usar a gravação automática.", "onHint": "A gravação automática está ativa: as alterações são gravadas neste ficheiro.", "offHint": "A gravação automática está desativada. A recuperação continua ativa." },
   "notifications": {
     "dismiss": "Fechar notificação",
     "openFailed": "Falha ao abrir o arquivo",
@@ -342,7 +343,7 @@
       "sameSize": "Do mesmo tamanho que a versão anterior",
       "daysSincePrevious": "Desde a versão anterior: {{count}} dias",
       "currentOnly": "Você está usando a versão {{version}}",
-      "whatsNewButton": "Novidades"
+      "whatsNewButton": "Novidades", "newVersion": "Nova versão", "readGuide": "Ler o guia", "fullNotes": "Ver notas de versão completas", "openFailed": "Não foi possível abrir as notas de versão.", "inNumbers": "Esta atualização em números", "days": "dias desde a versão anterior", "commits": "commits desde a versão anterior", "codeLines": "linhas de código adicionadas", "codeLinesHint": "Linhas adicionadas na aplicação, Rust, scripts e testes.", "smallerLabel": "pacote menor", "largerLabel": "pacote maior", "acknowledge": "Entendi"
     }
   },
   "statusWarnings": {
@@ -616,6 +617,18 @@
       "threeShift": "3 turnos",
       "night": "Turno noturno",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Introduza uma hora de pausa válida como HH:MM.",
+      "invalidWorkStart": "Introduza uma hora de início válida no formato HH:MM.",
+      "invalidWorkEnd": "Introduza uma hora de fim válida no formato HH:MM.",
+      "invalidWorkTimeOrder": "A hora de início tem de ser anterior à hora de fim.",
+      "increaseTime": "Aumentar a hora em 15 minutos",
+      "decreaseTime": "Diminuir a hora em 15 minutos",
+      "increaseBreakDuration": "Aumentar a duração da pausa em 15 minutos",
+      "decreaseBreakDuration": "Diminuir a duração da pausa em 15 minutos",
+      "start": "Início da pausa", "duration": "Duração da pausa (minutos)", "hint": "Os períodos de trabalho são calculados automaticamente. Duração 0 remove a pausa.",
+      "errors": { "invalidDuration": "A duração deve ser um número inteiro de minutos igual ou superior a 0.", "outsideWorkingDay": "A pausa deve ficar totalmente dentro do dia de trabalho.", "consumesWorkingDay": "A pausa não pode ocupar todo o dia de trabalho." }
     },
     "worktime": {
       "section": "Horários de trabalho",

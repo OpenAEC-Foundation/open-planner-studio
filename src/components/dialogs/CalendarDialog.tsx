@@ -8,6 +8,7 @@ import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { Dialog } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
+import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
 
 /**
  * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1; buffer-herziening fase 2.8b): links een lijst van
@@ -34,6 +35,7 @@ export function CalendarDialog() {
   const [localCalendars, setLocalCalendars] = useState<WorkCalendar[]>([]);
   const [localProjectId, setLocalProjectId] = useState<string>(project.calendarId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
   // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente §4.3-
   // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
@@ -49,6 +51,12 @@ export function CalendarDialog() {
   }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
+  const simpleBreakInvalid = scalarTimeTextInvalid || localCalendars.some((calendar) => scalarBreakIssue(
+    calendar.workStartHour * 60,
+    calendar.workEndHour * 60,
+    calendar.simpleBreakStartMinute,
+    calendar.simpleBreakDurationMinutes,
+  ) !== undefined);
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
 
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
@@ -67,6 +75,7 @@ export function CalendarDialog() {
 
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
+    if (simpleBreakInvalid) return;
     commit();
     setUI({ showCalendarDialog: false });
   };
@@ -217,6 +226,7 @@ export function CalendarDialog() {
                   key={selected.id}
                   draft={selected}
                   onChange={patchSelected}
+                  onScalarTimeValidityChange={setScalarTimeTextInvalid}
                   projectYearSpan={projectYearSpan}
                 />
               </>
@@ -234,7 +244,8 @@ export function CalendarDialog() {
           <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
             {tCommon('cancel')}
           </button>
-          <button onClick={confirm} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-cal-apply>
+          <button onClick={confirm} disabled={simpleBreakInvalid}
+            className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40" data-ops-cal-apply>
             {tCommon('apply')}
           </button>
         </div>

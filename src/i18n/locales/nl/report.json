@@ -20,6 +20,7 @@
   "showBaselineOverlay": "Baseline-overlay tonen",
   "autoFit": "Auto-fit op papier",
   "zoom": "Zoomen:",
+  "previewQuality": { "label": "Previewkwaliteit", "standard": "Standaard", "high": "Hoog", "maximum": "Maximaal" },
   "repeatHeader": "Kop op elke pagina herhalen",
   "reportFontScaleLabel": "Lettergrootte:",
   "timelineColumnsLabel": "Tijdlijn over:",

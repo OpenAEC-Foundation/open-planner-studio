@@ -79,7 +79,7 @@ const EXT_PROJECT_KEYS = keys<ExtProject>()([
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
-  'holidays', 'workTime', 'shift', 'workingExceptions',
+  'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'holidays', 'workTime', 'shift', 'workingExceptions',
 ] as const);
 
 const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
@@ -226,6 +226,7 @@ const VOL_PROJECT = {
 const VOL_CALENDAR = {
   id: 'cal1', name: 'Kalender', description: 'omschrijving',
   workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+  simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60,
   holidays: [{ name: 'Kerst', startDate: '2026-12-25', endDate: '2026-12-26' }],
   generation: { ruleSetId: 'NL', generatedFromYear: 2026, generatedToYear: 2028, region: 'noord', breakChoice: 'noord' },
   workTime: { byWeekday: { 1: [{ start: 420, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },

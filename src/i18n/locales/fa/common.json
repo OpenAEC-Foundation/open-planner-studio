@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "ذخیره خودکار", "noFile": "برای استفاده از ذخیره خودکار ابتدا این پروژه را ذخیره کنید.", "onHint": "ذخیره خودکار روشن است: تغییرات در این فایل نوشته می‌شوند.", "offHint": "ذخیره خودکار خاموش است. بازیابی خرابی فعال می‌ماند." },
   "notifications": {
     "dismiss": "بستن اعلان",
     "openFailed": "باز کردن فایل ناموفق بود",
@@ -337,7 +338,7 @@
       "sameSize": "هم‌اندازهٔ نسخهٔ قبلی",
       "daysSincePrevious": "از انتشار قبلی: {{count}} روز",
       "currentOnly": "اکنون از نسخهٔ {{version}} استفاده می‌کنید",
-      "whatsNewButton": "تازه‌ها"
+      "whatsNewButton": "تازه‌ها", "newVersion": "نسخه جدید", "readGuide": "راهنما را بخوانید", "fullNotes": "یادداشت‌های کامل انتشار", "openFailed": "یادداشت‌های انتشار باز نشدند.", "inNumbers": "این به‌روزرسانی در اعداد", "days": "روز از انتشار قبلی", "commits": "کامیت از انتشار قبلی", "codeLines": "خط کد افزوده", "codeLinesHint": "خطوط افزوده در برنامه، Rust، اسکریپت‌ها و آزمون‌ها.", "smallerLabel": "بسته کوچک‌تر", "largerLabel": "بسته بزرگ‌تر", "acknowledge": "متوجه شدم"
     }
   },
   "statusWarnings": {
@@ -606,6 +607,18 @@
       "threeShift": "سه شیفت",
       "night": "شیفت شب",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "یک زمان استراحت معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkStart": "یک زمان شروع معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkEnd": "یک زمان پایان معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkTimeOrder": "زمان شروع باید پیش از زمان پایان باشد.",
+      "increaseTime": "افزایش زمان به اندازه ۱۵ دقیقه",
+      "decreaseTime": "کاهش زمان به اندازه ۱۵ دقیقه",
+      "increaseBreakDuration": "افزایش مدت استراحت به اندازه ۱۵ دقیقه",
+      "decreaseBreakDuration": "کاهش مدت استراحت به اندازه ۱۵ دقیقه",
+      "start": "شروع استراحت", "duration": "مدت استراحت (دقیقه)", "hint": "بازه های کاری خودکار استخراج می شوند. مدت ۰ یعنی روز کاری پیوسته.",
+      "errors": { "invalidDuration": "مدت استراحت باید تعداد صحیح دقیقه و حداقل ۰ باشد.", "outsideWorkingDay": "استراحت باید کاملا در روز کاری تنظیم شده باشد.", "consumesWorkingDay": "استراحت نمی تواند کل روز کاری را بگیرد." }
     },
     "worktime": {
       "section": "ساعات کاری",

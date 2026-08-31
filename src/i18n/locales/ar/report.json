@@ -20,6 +20,7 @@
   "showBaselineOverlay": "إظهار تراكب خط الأساس",
   "autoFit": "ملاءمة تلقائية للورق",
   "zoom": "تكبير:",
+  "previewQuality": { "label": "جودة المعاينة", "standard": "قياسي", "high": "عالية", "maximum": "قصوى" },
   "repeatHeader": "تكرار الرأس في كل صفحة",
   "reportFontScaleLabel": "حجم الخط:",
   "timelineColumnsLabel": "الجدول الزمني عبر:",

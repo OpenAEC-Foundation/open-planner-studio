@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Salvataggio automatico", "noFile": "Salva prima questo progetto per usare il salvataggio automatico.", "onHint": "Il salvataggio automatico è attivo: le modifiche vengono scritte in questo file.", "offHint": "Il salvataggio automatico è disattivato. Il recupero rimane attivo." },
   "notifications": {
     "dismiss": "Chiudi notifica",
     "openFailed": "Apertura del file non riuscita",
@@ -342,7 +343,7 @@
       "sameSize": "Stessa dimensione della versione precedente",
       "daysSincePrevious": "Dalla versione precedente: {{count}} giorni",
       "currentOnly": "Stai usando la versione {{version}}",
-      "whatsNewButton": "Novità"
+      "whatsNewButton": "Novità", "newVersion": "Nuova versione", "readGuide": "Leggi la guida", "fullNotes": "Note di rilascio complete", "openFailed": "Impossibile aprire le note di rilascio.", "inNumbers": "Questo aggiornamento in numeri", "days": "giorni dalla versione precedente", "commits": "commit dalla versione precedente", "codeLines": "righe di codice aggiunte", "codeLinesHint": "Righe aggiunte in applicazione, Rust, script e test.", "smallerLabel": "pacchetto più piccolo", "largerLabel": "pacchetto più grande", "acknowledge": "Capito"
     }
   },
   "statusWarnings": {
@@ -616,6 +617,18 @@
       "threeShift": "3 turni",
       "night": "Turno notturno",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Inserisci un orario di pausa valido come HH:MM.",
+      "invalidWorkStart": "Inserisci un orario di inizio valido nel formato HH:MM.",
+      "invalidWorkEnd": "Inserisci un orario di fine valido nel formato HH:MM.",
+      "invalidWorkTimeOrder": "L’orario di inizio deve precedere l’orario di fine.",
+      "increaseTime": "Aumenta l’orario di 15 minuti",
+      "decreaseTime": "Riduci l’orario di 15 minuti",
+      "increaseBreakDuration": "Aumenta la durata della pausa di 15 minuti",
+      "decreaseBreakDuration": "Riduci la durata della pausa di 15 minuti",
+      "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
     },
     "worktime": {
       "section": "Orari di lavoro",

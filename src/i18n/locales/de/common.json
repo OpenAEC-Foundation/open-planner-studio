@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Automatisch speichern", "noFile": "Speichern Sie dieses Projekt zuerst, um AutoSave zu verwenden.", "onHint": "AutoSave ist aktiv: Änderungen werden in diese Datei geschrieben.", "offHint": "AutoSave ist aus. Die Wiederherstellung bleibt aktiv." },
   "notifications": {
     "dismiss": "Benachrichtigung schließen",
     "openFailed": "Datei konnte nicht geöffnet werden",
@@ -337,7 +338,7 @@
       "sameSize": "Gleich groß wie die vorige Version",
       "daysSincePrevious": "Seit dem vorigen Release: {{count}} Tage",
       "currentOnly": "Du verwendest jetzt Version {{version}}",
-      "whatsNewButton": "Neuerungen"
+      "whatsNewButton": "Neuerungen", "newVersion": "Neue Version", "readGuide": "Anleitung lesen", "fullNotes": "Vollständige Versionshinweise", "openFailed": "Die Versionshinweise konnten nicht geöffnet werden.", "inNumbers": "Dieses Update in Zahlen", "days": "Tage seit der letzten Version", "commits": "Commits seit der letzten Version", "codeLines": "hinzugefügte Codezeilen", "codeLinesHint": "Brutto hinzugefügte Zeilen in Anwendung, Rust, Skripten und Tests.", "smallerLabel": "kleineres Paket", "largerLabel": "größeres Paket", "acknowledge": "Verstanden"
     }
   },
   "statusWarnings": {
@@ -606,6 +607,18 @@
       "threeShift": "3 Schichten",
       "night": "Nachtschicht",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Geben Sie eine gültige Pausenzeit als HH:MM ein.",
+      "invalidWorkStart": "Geben Sie eine gültige Startzeit als HH:MM ein.",
+      "invalidWorkEnd": "Geben Sie eine gültige Endzeit als HH:MM ein.",
+      "invalidWorkTimeOrder": "Die Startzeit muss vor der Endzeit liegen.",
+      "increaseTime": "Zeit um 15 Minuten erhöhen",
+      "decreaseTime": "Zeit um 15 Minuten verringern",
+      "increaseBreakDuration": "Pausendauer um 15 Minuten erhöhen",
+      "decreaseBreakDuration": "Pausendauer um 15 Minuten verringern",
+      "start": "Pausenbeginn", "duration": "Pausendauer (Minuten)", "hint": "Arbeitszeitbänder werden automatisch abgeleitet. Dauer 0 bedeutet einen durchgehenden Arbeitstag.",
+      "errors": { "invalidDuration": "Die Pausendauer muss eine ganze Minutenanzahl ab 0 sein.", "outsideWorkingDay": "Die Pause muss vollständig innerhalb des Arbeitstags liegen.", "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen." }
     },
     "worktime": {
       "section": "Arbeitszeiten",

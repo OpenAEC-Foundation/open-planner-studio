@@ -63,6 +63,7 @@
       "startHour": "Początek (godz.)",
       "endHour": "Koniec (godz.)",
       "hoursPerDay": "Godzin dziennie",
+      "netHoursPerDay": "Godziny netto dziennie",
       "holidaysSection": "Dni wolne",
       "holidayName": "Opis",
       "from": "Od",

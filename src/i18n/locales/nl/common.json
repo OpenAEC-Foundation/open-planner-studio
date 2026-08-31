@@ -2,6 +2,12 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": {
+    "label": "Automatisch opslaan",
+    "noFile": "Sla dit project eerst op om automatisch opslaan te gebruiken.",
+    "onHint": "Automatisch opslaan staat aan: wijzigingen worden naar dit bestand geschreven.",
+    "offHint": "Automatisch opslaan staat uit. Crashherstel blijft altijd actief."
+  },
   "notifications": {
     "dismiss": "Melding sluiten",
     "openFailed": "Bestand openen mislukt",
@@ -337,7 +343,19 @@
       "sameSize": "Even groot als de vorige versie",
       "daysSincePrevious": "Sinds de vorige release: {{count}} dagen",
       "currentOnly": "Je draait nu versie {{version}}",
-      "whatsNewButton": "Wat is er nieuw"
+      "whatsNewButton": "Wat is er nieuw",
+      "newVersion": "Nieuwe versie",
+      "readGuide": "Lees de gids",
+      "fullNotes": "Volledige release notes",
+      "openFailed": "De release notes konden niet worden geopend.",
+      "inNumbers": "Deze update in cijfers",
+      "days": "dagen sinds vorige release",
+      "commits": "commits sinds vorige release",
+      "codeLines": "toegevoegde regels code",
+      "codeLinesHint": "Bruto toegevoegde regels in appcode, Rust, scripts en tests; documentatie, vertalingen, lockbestanden en gegenereerde bestanden tellen niet mee.",
+      "smallerLabel": "kleiner pakket",
+      "largerLabel": "groter pakket",
+      "acknowledge": "Begrepen"
     }
   },
   "statusWarnings": {
@@ -606,6 +624,24 @@
       "threeShift": "3 ploegen",
       "night": "Nachtploeg",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Vul een geldige pauzetijd in als UU:MM.",
+      "invalidWorkStart": "Vul een geldige begintijd in als UU:MM.",
+      "invalidWorkEnd": "Vul een geldige eindtijd in als UU:MM.",
+      "invalidWorkTimeOrder": "De begintijd moet vóór de eindtijd liggen.",
+      "increaseTime": "Verhoog tijd met 15 minuten",
+      "decreaseTime": "Verlaag tijd met 15 minuten",
+      "increaseBreakDuration": "Verhoog pauzeduur met 15 minuten",
+      "decreaseBreakDuration": "Verlaag pauzeduur met 15 minuten",
+      "start": "Pauze begint",
+      "duration": "Pauzeduur (minuten)",
+      "hint": "Stel een pauzebegin en -duur in; de netto uren en werktijdblokken worden automatisch afgeleid. Zet de duur op 0 voor een doorlopende werkdag.",
+      "errors": {
+        "invalidDuration": "De pauzeduur moet een heel aantal minuten van 0 of meer zijn.",
+        "outsideWorkingDay": "De pauze moet volledig binnen de ingestelde werkdag vallen.",
+        "consumesWorkingDay": "De pauze mag niet de volledige werkdag beslaan."
+      }
     },
     "worktime": {
       "section": "Werktijden",

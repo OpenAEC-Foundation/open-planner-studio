@@ -138,7 +138,7 @@ const projCal = {
   workingExceptions: [],
   generation: PROJ_GEN, shift: 'SECOND',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-projcal', poolVersion: 4 },
-} satisfies Omit<Required<WorkCalendar>, 'workTime'>;
+} satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 const libCal = {
   id: 'libcal', name: 'Sublokatie kalender', description: 'Ma-za 07-15',
   workDays: [1, 2, 3, 4, 5, 6], workStartHour: 7, workEndHour: 15, hoursPerDay: 8,
@@ -149,7 +149,7 @@ const libCal = {
   ],
   generation: LIB_GEN, shift: 'THIRD',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-libcal', poolVersion: 4 },
-} satisfies Omit<Required<WorkCalendar>, 'workTime'>;
+} satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 
 // Type-only VOLLEDIGHEIDSGETUIGE voor WorkCalendar: `workTime` aanwezig ⇒ UUR-kalender, wat de
 // dag-modus-round-trip zou ontsporen (durationMinutes/echte tijden). De veld-volledigheid van
@@ -159,6 +159,7 @@ const libCal = {
 const _CALENDAR_FIELD_WITNESS = {
   id: 'w', name: 'w', description: 'w', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30,
   workingExceptions: [{ name: 'w', startDate: '2026-01-01', endDate: '2026-01-01', bands: [{ start: 0, end: 60 }] }],
   generation: PROJ_GEN, shift: 'FIRST',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-witness', poolVersion: 1 },
@@ -478,6 +479,8 @@ const CALENDAR_CANON = {
   name: KEEP, description: KEEP,
   workDays: { get: (c: WorkCalendar) => [...c.workDays] },
   workStartHour: KEEP, workEndHour: KEEP, hoursPerDay: KEEP,
+  simpleBreakStartMinute: { skip: 'optioneel scalar-pauzepatroon; gedekt door check-calendar-breaks.ts' },
+  simpleBreakDurationMinutes: { skip: 'optioneel scalar-pauzepatroon; gedekt door check-calendar-breaks.ts' },
   holidays: {
     get: (c: WorkCalendar, k: Keys) => [...c.holidays]
       .sort((a, b) => a.name.localeCompare(b.name))

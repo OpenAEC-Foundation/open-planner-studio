@@ -63,6 +63,7 @@
       "startHour": "시작 (시)",
       "endHour": "종료 (시)",
       "hoursPerDay": "일일 근무 시간",
+      "netHoursPerDay": "일일 순 근무 시간",
       "holidaysSection": "공휴일",
       "holidayName": "설명",
       "from": "시작",

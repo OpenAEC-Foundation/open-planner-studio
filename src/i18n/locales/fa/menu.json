@@ -63,6 +63,7 @@
       "startHour": "شروع (ساعت)",
       "endHour": "پایان (ساعت)",
       "hoursPerDay": "ساعت در روز",
+      "netHoursPerDay": "ساعت خالص در روز",
       "holidaysSection": "تعطیلات",
       "holidayName": "توضیحات",
       "from": "از",

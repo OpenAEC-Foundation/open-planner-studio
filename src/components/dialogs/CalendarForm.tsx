@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
 import type { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
 import { CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { WorkTimeEditor } from './WorkTimeEditor';
@@ -18,6 +18,105 @@ import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
 import { orderedWeekDays } from '@/utils/weekDays';
+import { scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
+
+function minutesToTime(value: number): string {
+  const totalMinutes = Math.round(value);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function timeToMinutes(value: string): number | undefined {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return undefined;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 24 && minutes >= 0 && minutes < 60 && (hours < 24 || minutes === 0)
+    ? hours * 60 + minutes
+    : undefined;
+}
+
+const TIME_STEP_MINUTES = 15;
+
+type ScalarTimeField = 'workStart' | 'workEnd' | 'breakStart' | 'breakDuration';
+type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeOrder' | 'invalidStart' | 'invalidDuration' | 'outsideWorkingDay' | 'consumesWorkingDay';
+
+function StepButtons({ onStep, increaseLabel, decreaseLabel, dataAttribute }: {
+  onStep: (delta: number) => void;
+  increaseLabel: string;
+  decreaseLabel: string;
+  dataAttribute: string;
+}) {
+  return <span className="flex w-5 shrink-0 flex-col gap-0.5">
+    <button type="button" className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent" aria-label={increaseLabel} title={increaseLabel} onClick={() => onStep(TIME_STEP_MINUTES)} data-ops-scalar-time-step={`${dataAttribute}-up`}>
+      <ChevronUp size={11} aria-hidden="true" />
+    </button>
+    <button type="button" className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent" aria-label={decreaseLabel} title={decreaseLabel} onClick={() => onStep(-TIME_STEP_MINUTES)} data-ops-scalar-time-step={`${dataAttribute}-down`}>
+      <ChevronDown size={11} aria-hidden="true" />
+    </button>
+  </span>;
+}
+
+/**
+ * Een bewust gewoon tekstveld voor de drie scalar-tijden. Native time/number-invoer verschilt per
+ * browser (klokje, AM/PM en spinners); dit veld houdt OPS overal bij 24-uurs HH:MM. De aanroeper
+ * bewaart tusseninvoer lokaal en schrijft uitsluitend gevalideerde minuten naar het kalenderdraft.
+ */
+function ScalarTimeInput({
+  id,
+  value,
+  onTextChange,
+  onCommit,
+  onStep,
+  increaseLabel,
+  decreaseLabel,
+  className,
+  dataAttribute,
+}: {
+  id: string;
+  value: string;
+  onTextChange: (value: string) => void;
+  onCommit: () => void;
+  onStep: (delta: number) => void;
+  increaseLabel: string;
+  decreaseLabel: string;
+  className: string;
+  dataAttribute: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-stretch gap-1">
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        placeholder="HH:MM"
+        value={value}
+        onChange={event => onTextChange(event.target.value)}
+        onBlur={onCommit}
+        onKeyDown={event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            onCommit();
+          } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            onStep(event.key === 'ArrowUp' ? TIME_STEP_MINUTES : -TIME_STEP_MINUTES);
+          }
+        }}
+        className={className + ' min-w-0 flex-1'}
+        data-ops-scalar-time={dataAttribute}
+        data-ops-work-start={dataAttribute === 'work-start' ? true : undefined}
+        data-ops-work-end={dataAttribute === 'work-end' ? true : undefined}
+        data-ops-simple-break-start={dataAttribute === 'break-start' ? true : undefined}
+      />
+      <StepButtons onStep={onStep} increaseLabel={increaseLabel} decreaseLabel={decreaseLabel} dataAttribute={dataAttribute} />
+    </div>
+  );
+}
+
+function minutesFromText(value: string): number | undefined {
+  return /^\d+$/.test(value) && Number(value) <= 24 * 60 ? Number(value) : undefined;
+}
 
 /**
  * Presentational kalenderformulier (naam, werkdagen, uren, feestdagen) — kent geen store.
@@ -32,13 +131,16 @@ import { orderedWeekDays } from '@/utils/weekDays';
 export function CalendarForm({
   draft,
   onChange,
+  onScalarTimeValidityChange,
   projectYearSpan,
 }: {
   draft: WorkCalendar;
   onChange: (patch: Partial<WorkCalendar>) => void;
+  /** De aanroeper bezit Apply en moet lokaal ongeldige, nog niet-gecommitte HH:MM-invoer blokkeren. */
+  onScalarTimeValidityChange?: (invalid: boolean) => void;
   projectYearSpan?: { from: number; to: number };
 }) {
-  const { t: tMenu } = useTranslation('menu');
+  const { t: tMenu, i18n } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
@@ -54,6 +156,73 @@ export function CalendarForm({
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState('');
   const hourMode = isHourCalendar(draft);
+  const scalarBreakError = scalarBreakIssue(
+    draft.workStartHour * 60,
+    draft.workEndHour * 60,
+    draft.simpleBreakStartMinute,
+    draft.simpleBreakDurationMinutes,
+  );
+  // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
+  // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
+  // 08:00–16:00 / 8 uur terecht 0 minuten toont.
+  const inferredSimpleBreakDuration = Math.max(0, Math.round(
+    (draft.workEndHour - draft.workStartHour - draft.hoursPerDay) * 60,
+  ));
+  const [workStartText, setWorkStartText] = useState(() => minutesToTime(draft.workStartHour * 60));
+  const [workEndText, setWorkEndText] = useState(() => minutesToTime(draft.workEndHour * 60));
+  const [simpleBreakStartText, setSimpleBreakStartText] = useState(() =>
+    minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60));
+  const [simpleBreakDurationText, setSimpleBreakDurationText] = useState(() =>
+    String(draft.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration));
+  const [scalarTimeIssues, setScalarTimeIssues] = useState<Partial<Record<ScalarTimeField, ScalarTimeIssue>>>({});
+  const netHoursFormatter = useMemo(
+    () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    [i18n.language],
+  );
+
+  useEffect(() => {
+    setWorkStartText(minutesToTime(draft.workStartHour * 60));
+    setScalarTimeIssues(issues => {
+      if (!issues.workStart) return issues;
+      const next = { ...issues };
+      delete next.workStart;
+      return next;
+    });
+  }, [draft.workStartHour]);
+
+  useEffect(() => {
+    setWorkEndText(minutesToTime(draft.workEndHour * 60));
+    setScalarTimeIssues(issues => {
+      if (!issues.workEnd) return issues;
+      const next = { ...issues };
+      delete next.workEnd;
+      return next;
+    });
+  }, [draft.workEndHour]);
+
+  useEffect(() => {
+    setSimpleBreakStartText(minutesToTime(draft.simpleBreakStartMinute ?? 12 * 60));
+    setScalarTimeIssues(issues => {
+      if (!issues.breakStart) return issues;
+      const next = { ...issues };
+      delete next.breakStart;
+      return next;
+    });
+  }, [draft.simpleBreakStartMinute]);
+
+  useEffect(() => {
+    setSimpleBreakDurationText(String(draft.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration));
+    setScalarTimeIssues(issues => {
+      if (!issues.breakDuration) return issues;
+      const next = { ...issues };
+      delete next.breakDuration;
+      return next;
+    });
+  }, [draft.simpleBreakDurationMinutes, inferredSimpleBreakDuration]);
+
+  useEffect(() => {
+    onScalarTimeValidityChange?.(Object.keys(scalarTimeIssues).length > 0);
+  }, [onScalarTimeValidityChange, scalarTimeIssues]);
 
   useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
 
@@ -68,6 +237,8 @@ export function CalendarForm({
       workStartHour: patch.workStartHour,
       workEndHour: patch.workEndHour,
       hoursPerDay: patch.hoursPerDay,
+      simpleBreakStartMinute: patch.simpleBreakStartMinute,
+      simpleBreakDurationMinutes: patch.simpleBreakDurationMinutes,
       ...(description !== undefined ? { description } : null),
     });
     // Elke uur-preset ⇒ editor meteen open/zichtbaar (uitgeklapt); dag-preset heeft geen editor.
@@ -119,6 +290,10 @@ export function CalendarForm({
       workTime: bands,
       hoursPerDay: deriveHoursPerDay(bands, draft.hoursPerDay),
       workDays: workDaysFromBands(bands),
+      // Handmatige weekbanden zijn absoluut leidend; laat geen oud scalar-pauzepatroon als
+      // tweede bron naast deze expliciete keuze bestaan.
+      simpleBreakStartMinute: undefined,
+      simpleBreakDurationMinutes: undefined,
     });
   };
   const [genParams, setGenParams] = useState<HolidayGenParams>(() =>
@@ -165,15 +340,202 @@ export function CalendarForm({
     onChange({ workDays });
   };
 
+  // Het eenvoudige patroon is geen tweede engineformule: de netto uren worden alleen als
+  // gebruikersfeedback uit hetzelfde effectieve-worktime-model afgeleid. Expliciete weekbanden
+  // blijven volledig buiten dit pad en dus absoluut leidend.
+  const patchSimpleBreak = (patch: Partial<WorkCalendar>) => {
+    // Een oude scalar heeft een impliciete pauze om haar bestaande netto-uren te verklaren. Zodra
+    // de gebruiker één van die vier scalarbedieningen wijzigt, wordt die bestaande semantiek veilig
+    // expliciet: anders zouden Start/Einde een oud handmatig hoursPerDay-veld als verborgen bron
+    // behouden en zou de readout niet werkelijk afgeleid zijn.
+    const changesScalarTime = patch.workStartHour !== undefined
+      || patch.workEndHour !== undefined
+      || patch.simpleBreakStartMinute !== undefined
+      || patch.simpleBreakDurationMinutes !== undefined;
+    const materializedLegacyDuration = changesScalarTime && draft.simpleBreakDurationMinutes === undefined
+      ? {
+          simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60,
+          simpleBreakDurationMinutes: inferredSimpleBreakDuration,
+        }
+      : {};
+    const next = { ...draft, ...materializedLegacyDuration, ...patch };
+    const netHours = simpleBreakNetHours(next);
+    onChange({ ...materializedLegacyDuration, ...patch, ...(netHours !== undefined ? { hoursPerDay: netHours } : {}) });
+  };
+
+  const setScalarTimeIssue = (field: ScalarTimeField, issue?: ScalarTimeIssue) => {
+    setScalarTimeIssues(issues => {
+      if (issue === undefined && issues[field] === undefined) return issues;
+      const next = { ...issues };
+      if (issue === undefined) delete next[field];
+      else next[field] = issue;
+      return next;
+    });
+  };
+
+  const updateScalarTimeText = (
+    field: ScalarTimeField,
+    setText: (value: string) => void,
+    value: string,
+  ) => {
+    setText(value);
+    // Tusseninvoer blijft in het DOM en raakt het model nooit. Alleen een volledig gevormde
+    // HH:MM wist een eerdere tekstfout; inhoudelijke grenzen worden bij blur/Enter beoordeeld.
+    if (timeToMinutes(value) !== undefined) setScalarTimeIssue(field);
+  };
+
+  const scalarTimesAreValid = (patch: Partial<WorkCalendar>) => {
+    const next = { ...draft, ...patch };
+    const start = Math.round(next.workStartHour * 60);
+    const end = Math.round(next.workEndHour * 60);
+    if (start < 0 || start >= 24 * 60 || end <= 0 || end > 24 * 60 || start >= end) return false;
+    // Ook een legacy-scalar zonder zichtbare pauzevelden draagt zijn bestaande netto-tijd als
+    // impliciete middagpauze. Dezelfde controle beschermt dus een nieuw Start/Einde tegen het
+    // ongemerkt buiten de nieuwe werkdag drukken van die pauze.
+    const breakStart = next.simpleBreakStartMinute ?? 12 * 60;
+    const breakDuration = next.simpleBreakDurationMinutes ?? inferredSimpleBreakDuration;
+    return breakStart >= start && breakStart < end
+      && scalarBreakIssue(start, end, breakStart, breakDuration) === undefined;
+  };
+
+  // Pas bij blur of Enter wordt een complete, inhoudelijk geldige HH:MM-waarde naar het model
+  // geschreven. Daarmee blijft ook omgekeerde of buiten-de-dag liggende tusseninvoer veilig lokaal.
+  const commitWorkStart = () => {
+    const minute = timeToMinutes(workStartText);
+    if (minute === undefined) {
+      setScalarTimeIssue('workStart', 'invalidWorkStart');
+      return;
+    }
+    if (!scalarTimesAreValid({ workStartHour: minute / 60 })) {
+      setScalarTimeIssue('workStart', 'invalidWorkTimeOrder');
+      return;
+    }
+    setScalarTimeIssue('workStart');
+    patchSimpleBreak({ workStartHour: minute / 60 });
+  };
+
+  const commitWorkEnd = () => {
+    const minute = timeToMinutes(workEndText);
+    if (minute === undefined) {
+      setScalarTimeIssue('workEnd', 'invalidWorkEnd');
+      return;
+    }
+    if (!scalarTimesAreValid({ workEndHour: minute / 60 })) {
+      setScalarTimeIssue('workEnd', 'invalidWorkTimeOrder');
+      return;
+    }
+    setScalarTimeIssue('workEnd');
+    patchSimpleBreak({ workEndHour: minute / 60 });
+  };
+
+  const commitSimpleBreakStart = () => {
+    const minute = timeToMinutes(simpleBreakStartText);
+    if (minute === undefined || !scalarTimesAreValid({ simpleBreakStartMinute: minute })) {
+      setScalarTimeIssue('breakStart', 'invalidStart');
+      return;
+    }
+    setScalarTimeIssue('breakStart');
+    patchSimpleBreak({ simpleBreakStartMinute: minute });
+  };
+
+  const simpleBreakDurationIssue = (text: string): ScalarTimeIssue | undefined => {
+    const duration = minutesFromText(text);
+    if (duration === undefined) return 'invalidDuration';
+    return scalarBreakIssue(
+      draft.workStartHour * 60,
+      draft.workEndHour * 60,
+      draft.simpleBreakStartMinute ?? 12 * 60,
+      duration,
+    );
+  };
+
+  const updateSimpleBreakDurationText = (value: string) => {
+    setSimpleBreakDurationText(value);
+    // Een tekstwijziging blijft lokaal, maar Apply moet wel onmiddellijk weten dat bijvoorbeeld
+    // een onvolledige, te grote of buiten-de-dag liggende pauze niet geldig is.
+    setScalarTimeIssue('breakDuration', simpleBreakDurationIssue(value));
+  };
+
+  const commitSimpleBreakDuration = () => {
+    const duration = minutesFromText(simpleBreakDurationText);
+    if (duration === undefined) {
+      setScalarTimeIssue('breakDuration', 'invalidDuration');
+      return;
+    }
+    const issue = simpleBreakDurationIssue(simpleBreakDurationText);
+    if (issue) {
+      setScalarTimeIssue('breakDuration', issue);
+      return;
+    }
+    setScalarTimeIssue('breakDuration');
+    patchSimpleBreak({ simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60, simpleBreakDurationMinutes: duration });
+  };
+
+  const stepSimpleBreakDuration = (delta: number) => {
+    const current = minutesFromText(simpleBreakDurationText);
+    if (current === undefined) {
+      setScalarTimeIssue('breakDuration', 'invalidDuration');
+      return;
+    }
+    const nextDuration = current + delta;
+    if (nextDuration < 0 || nextDuration > 24 * 60) return;
+    const issue = scalarBreakIssue(draft.workStartHour * 60, draft.workEndHour * 60, draft.simpleBreakStartMinute ?? 12 * 60, nextDuration);
+    if (issue) {
+      setScalarTimeIssue('breakDuration', issue);
+      return;
+    }
+    setSimpleBreakDurationText(String(nextDuration));
+    setScalarTimeIssue('breakDuration');
+    patchSimpleBreak({ simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60, simpleBreakDurationMinutes: nextDuration });
+  };
+
+  const stepScalarTime = (
+    field: ScalarTimeField,
+    text: string,
+    setText: (value: string) => void,
+    delta: number,
+  ) => {
+    const current = timeToMinutes(text);
+    if (current === undefined) {
+      setScalarTimeIssue(field, field === 'workStart' ? 'invalidWorkStart' : field === 'workEnd' ? 'invalidWorkEnd' : 'invalidStart');
+      return;
+    }
+    const nextMinute = current + delta;
+    // Start en pauze eindigen uiterlijk op 23:45; einde accepteert expliciet 24:00. Er is nooit
+    // een wrap naar een volgende/vorige dag, ook niet wanneer de gebruiker een pijl ingedrukt houdt.
+    const inRange = field === 'workEnd'
+      ? nextMinute > 0 && nextMinute <= 24 * 60
+      : nextMinute >= 0 && nextMinute < 24 * 60;
+    if (!inRange) return;
+    const patch = field === 'workStart'
+      ? { workStartHour: nextMinute / 60 }
+      : field === 'workEnd'
+        ? { workEndHour: nextMinute / 60 }
+        : { simpleBreakStartMinute: nextMinute };
+    if (!scalarTimesAreValid(patch)) {
+      setScalarTimeIssue(field, field === 'breakStart' ? 'invalidStart' : 'invalidWorkTimeOrder');
+      return;
+    }
+    setText(minutesToTime(nextMinute));
+    setScalarTimeIssue(field);
+    patchSimpleBreak(patch);
+  };
+
   // Presets (fase 2.8a, §13/out-of-scope — "24/7"-kalender was al gedefinieerd in het ontwerp als
   // workDays [1..7]-preset, maar had geen knop; alleen handmatig 7 dagen aanvinken). Echte
   // dag/nacht-PLOEGEN (twee elkaar afwisselende kalenders) blijven fase 2.8b — dit is uitsluitend
   // de ene-doorlopende-kalender-preset. "Ma-vr" ernaast herstelt symmetrisch de standaard.
   const applyContinuousPreset = () => {
-    onChange({ workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24 });
+    onChange({
+      workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+      simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+    });
   };
   const applyWeekdaysPreset = () => {
-    onChange({ workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8 });
+    onChange({
+      workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+      simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+    });
   };
 
   const updateHoliday = (index: number, patch: Partial<Holiday>) => {
@@ -254,65 +616,129 @@ export function CalendarForm({
         </div>
       </div>
 
-      {/* Work hours — scalar-UI (dag-kalender). Verborgen in uur-modus mét Urenplanning aan; dan
-          stuurt de banden-editor de tijden en toont de sectie hieronder de afgeleide hoursPerDay. */}
-      {!(enableHourPlanning && hourMode) && (
-        <div className="grid grid-cols-3 gap-3">
+      {/* Netto-uren zijn in elke kalenderstand uitsluitend een afleiding. De scalarbediening blijft
+          verborgen zodra weekbanden autoritatief zijn, maar de readout zelf wisselt nooit van vorm
+          of bewerkbaarheid door de Urenplanning-toggle. */}
+      <div className="grid grid-cols-3 gap-3">
+        {!(enableHourPlanning && hourMode) && (
+          <>
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary font-medium">
+            <label className="text-text-secondary font-medium" htmlFor="ops-work-start">
               {tMenu('ribbon.calendarDialog.startHour')}
             </label>
-            <input
-              type="number"
-              min={0}
-              max={23}
-              value={draft.workStartHour}
-              onChange={e => onChange({ workStartHour: Number(e.target.value) })}
+            <ScalarTimeInput
+              id="ops-work-start"
+              value={workStartText}
+              onTextChange={value => updateScalarTimeText('workStart', setWorkStartText, value)}
+              onCommit={commitWorkStart}
+              onStep={delta => stepScalarTime('workStart', workStartText, setWorkStartText, delta)}
+              increaseLabel={tCommon('calendar.simpleBreak.increaseTime')}
+              decreaseLabel={tCommon('calendar.simpleBreak.decreaseTime')}
               className={inputCls}
+              dataAttribute="work-start"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary font-medium">
+            <label className="text-text-secondary font-medium" htmlFor="ops-work-end">
               {tMenu('ribbon.calendarDialog.endHour')}
             </label>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              value={draft.workEndHour}
-              onChange={e => onChange({ workEndHour: Number(e.target.value) })}
+            <ScalarTimeInput
+              id="ops-work-end"
+              value={workEndText}
+              onTextChange={value => updateScalarTimeText('workEnd', setWorkEndText, value)}
+              onCommit={commitWorkEnd}
+              onStep={delta => stepScalarTime('workEnd', workEndText, setWorkEndText, delta)}
+              increaseLabel={tCommon('calendar.simpleBreak.increaseTime')}
+              decreaseLabel={tCommon('calendar.simpleBreak.decreaseTime')}
               className={inputCls}
+              dataAttribute="work-end"
+            />
+          </div>
+          </>
+        )}
+        <div className="flex flex-col gap-1">
+          <label className="text-text-secondary font-medium">
+            {tMenu('ribbon.calendarDialog.netHoursPerDay')}
+          </label>
+          <output
+            className="py-1.5 font-semibold text-text-primary tabular-nums"
+            aria-live="polite"
+            data-ops-simple-break-net-hours
+          >
+            {netHoursFormatter.format(draft.hoursPerDay)} h
+          </output>
+        </div>
+      </div>
+      {!(enableHourPlanning && hourMode) && (
+        <>
+        <div className="grid grid-cols-2 gap-3" data-ops-simple-break>
+          <div className="flex flex-col gap-1">
+            <label className="text-text-secondary font-medium" htmlFor="ops-simple-break-start">
+              {tCommon('calendar.simpleBreak.start')}
+            </label>
+            <ScalarTimeInput
+              id="ops-simple-break-start"
+              value={simpleBreakStartText}
+              onTextChange={value => updateScalarTimeText('breakStart', setSimpleBreakStartText, value)}
+              onCommit={commitSimpleBreakStart}
+              onStep={delta => stepScalarTime('breakStart', simpleBreakStartText, setSimpleBreakStartText, delta)}
+              increaseLabel={tCommon('calendar.simpleBreak.increaseTime')}
+              decreaseLabel={tCommon('calendar.simpleBreak.decreaseTime')}
+              className={inputCls}
+              dataAttribute="break-start"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-text-secondary font-medium">
-              {tMenu('ribbon.calendarDialog.hoursPerDay')}
+            <label className="text-text-secondary font-medium" htmlFor="ops-simple-break-duration">
+              {tCommon('calendar.simpleBreak.duration')}
             </label>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              value={draft.hoursPerDay}
-              onChange={e => onChange({ hoursPerDay: Number(e.target.value) })}
-              className={inputCls}
-            />
+            <div className="flex min-w-0 items-stretch gap-1">
+              <input id="ops-simple-break-duration" type="text" inputMode="numeric" value={simpleBreakDurationText}
+                onChange={event => updateSimpleBreakDurationText(event.target.value)}
+                onBlur={commitSimpleBreakDuration}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') { event.preventDefault(); commitSimpleBreakDuration(); }
+                  else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); stepSimpleBreakDuration(event.key === 'ArrowUp' ? TIME_STEP_MINUTES : -TIME_STEP_MINUTES); }
+                }}
+                className={inputCls + ' min-w-0 flex-1'} data-ops-simple-break-duration />
+              <StepButtons onStep={stepSimpleBreakDuration}
+                increaseLabel={tCommon('calendar.simpleBreak.increaseBreakDuration')}
+                decreaseLabel={tCommon('calendar.simpleBreak.decreaseBreakDuration')}
+                dataAttribute="break-duration" />
+            </div>
           </div>
+          <p className="col-span-2 text-[11px] text-text-secondary">
+            {tCommon('calendar.simpleBreak.hint')}
+          </p>
+          {(scalarBreakError || Object.keys(scalarTimeIssues).length > 0) && (
+            <p className="col-span-2 text-[11px] text-red-600" role="alert" data-ops-simple-break-error>
+              {scalarTimeIssues.workStart === 'invalidWorkStart'
+                ? tCommon('calendar.simpleBreak.invalidWorkStart')
+                : scalarTimeIssues.workEnd === 'invalidWorkEnd'
+                  ? tCommon('calendar.simpleBreak.invalidWorkEnd')
+                  : scalarTimeIssues.workStart === 'invalidWorkTimeOrder' || scalarTimeIssues.workEnd === 'invalidWorkTimeOrder'
+                    ? tCommon('calendar.simpleBreak.invalidWorkTimeOrder')
+                : scalarTimeIssues.breakStart === 'invalidStart'
+                  ? tCommon('calendar.simpleBreak.invalidStart')
+                : scalarTimeIssues.breakDuration
+                  ? scalarTimeIssues.breakDuration === 'invalidDuration'
+                    ? tCommon('calendar.simpleBreak.errors.invalidDuration')
+                    : scalarTimeIssues.breakDuration === 'outsideWorkingDay'
+                      ? tCommon('calendar.simpleBreak.errors.outsideWorkingDay')
+                      : tCommon('calendar.simpleBreak.errors.consumesWorkingDay')
+                : scalarBreakError
+                  ? tCommon(`calendar.simpleBreak.errors.${scalarBreakError}` as const)
+                  : null}
+            </p>
+          )}
         </div>
+        </>
       )}
 
       {/* Werktijden / ploegen (§6.6) — alleen met Urenplanning aan; anders exact de 2.8a scalar-UI. */}
       {enableHourPlanning && (
         <div className="flex flex-col gap-2" data-ops-worktime-section>
-          <div className="flex items-center justify-between">
-            <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
-            {hourMode && (
-              <span className="text-[11px] text-text-secondary">
-                {tCommon('calendar.worktime.derivedHpd')}{' '}
-                <span className="font-semibold text-accent tabular-nums">{draft.hoursPerDay}u</span>
-              </span>
-            )}
-          </div>
+          <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
 
           {/* Preset-rij: ingebouwde presets + eigen presets (met verwijder-kruisje). */}
           <div className="flex flex-wrap gap-1.5">

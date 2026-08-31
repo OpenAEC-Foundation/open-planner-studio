@@ -92,6 +92,9 @@ export interface ExtCalendar {
   workEndHour: number;
   /** Netto werkuren per dag. */
   hoursPerDay: number;
+  /** Optioneel eenvoudig scalar-pauzepatroon, in minuten vanaf middernacht / minuten duur. */
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
   holidays: ExtHoliday[];
   /** Per-weekdag werktijd-banden. Aanwezig ⇒ uur-kalender; afwezig ⇒ dag-kalender. */
   workTime?: ExtWorkTimeBands;

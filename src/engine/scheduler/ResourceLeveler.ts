@@ -48,6 +48,7 @@ import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { distributeUnits, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
 import { enumerateTaskWorkDays, splitGapsFromWorkDayBlocks } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /**
  * Het GEDEELDE poolitem-grootboek (spec §4, "twee grootboeken"). De motor toetst per `resourceId`
@@ -199,7 +200,7 @@ export function levelResources(
   // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
   cpmOptions: CPMOptions = {},
 ): LevelingResult {
-  const projEngine = new CalendarEngine(projectCalendar);
+  const projEngine = new CalendarEngine(calendarForEngine(projectCalendar));
 
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
   const renewable = resources.filter(r => r.type !== 'MATERIAL');
@@ -212,7 +213,9 @@ export function levelResources(
   const resById = new Map(resources.map(r => [r.id, r]));
   const engineByRes = new Map<string, CalendarEngine>();
   for (const r of selectedResources) {
-    engineByRes.set(r.id, new CalendarEngine(resolveCalendar(r.calendarId, resourceCalendars, projectCalendar)));
+    engineByRes.set(r.id, new CalendarEngine(calendarForEngine(
+      resolveCalendar(r.calendarId, resourceCalendars, projectCalendar),
+    )));
   }
 
   // Kalender-engine voor de TAAKkalender (B1c-W0.2/W0.3) — spiegelt `ResourceLoad.ts`s
@@ -227,7 +230,9 @@ export function levelResources(
     if (!eng) {
       eng = key === ''
         ? projEngine
-        : new CalendarEngine(resolveCalendar(task.calendarId, resourceCalendars, projectCalendar));
+        : new CalendarEngine(calendarForEngine(
+          resolveCalendar(task.calendarId, resourceCalendars, projectCalendar),
+        ));
       taskEngineCache.set(key, eng);
     }
     return eng;
