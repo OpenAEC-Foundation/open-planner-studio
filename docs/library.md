@@ -404,6 +404,19 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    vast id geven) staat als openstaand punt in `docs/TODO.md` — vergt een migratie voor bestaande
    installaties en opgeslagen stempels, daarom nu niet gedaan.
 
+5. **Verdeler-kern bestaat, nog zonder schrijfpad/paneel.** Sinds B1c-etappe 2
+   (`src/services/library/distribute.ts`) is er een pure rekenkern die, gegeven een poolitem en de
+   geopende documenten die erop boeken, een verdelingsvoorstel berekent: documenten worden één voor
+   één, in een opgegeven rangorde, tegen de restcapaciteit geplaatst — nummer 1 nivelleert alleen
+   tegen vaste last, elk volgend document ziet de echte boekingen van zijn voorgangers. Er toetst
+   daarbij TWEE grootboeken tegelijk: de eigen projectinzet van het document én de gedeelde
+   restcapaciteit van het poolitem (`min(projectinzet, poolrest)`, zelfde formule als het
+   bezettingsoverzicht hierboven). Past een taak niet, dan wordt ze als tekort geregistreerd en boekt
+   ze niets in het gedeelde grootboek — een tekort cascadeert dus niet naar de volgende documenten in
+   de rangorde. Deze kern draait volledig puur (`computeDistribution`, headless getest in
+   `tests/library/check-distribute.ts`); het schrijfpad (de gevonden verschuivingen daadwerkelijk
+   toepassen) en het paneel dat dit voorstel toont, bestaan nog niet.
+
 ## Bekende kleine punten
 
 - **CRLF wordt genormaliseerd.** Tekstvelden (namen, omschrijvingen) met Windows-regeleinden (CRLF)
