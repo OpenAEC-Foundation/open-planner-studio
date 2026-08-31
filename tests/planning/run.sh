@@ -337,6 +337,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     node "$X12PRODUCTFIDCHECK" || STATUS=1
   fi
 
+  # XER task-level counterfactual replay: corpusloze I/R/U-, oracle-firewall- en identityfixtures;
+  # met OPS_XER_CORPUS daarnaast de canonieke X12-selectie entry/project-voor-entry/project.
+  XERTASKREPLAYCHECK="$DIR/.xer-task-replay.mjs"
+  if bundle_check "$DIR/check-xer-task-replay.ts" "$XERTASKREPLAYCHECK"; then
+    node "$XERTASKREPLAYCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X4a oorspronkelijke bytes: CP1252 + beide UTF-16-BOM-vormen door web, Tauri, recents en de
   # dev-bridge; de MCP-route heeft dezelfde drie fixtures in tests/mcp/cases-doc-file.ts.
   XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"
