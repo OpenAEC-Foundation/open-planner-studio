@@ -415,6 +415,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELDELAYUNITSCHECK="$DIR/.leveling-delay-units.mjs"
   if bundle_check "$DIR/check-leveling-delay-units.ts" "$LEVELDELAYUNITSCHECK"; then node "$LEVELDELAYUNITSCHECK" || STATUS=1; fi
 
+  # B1c-plan-2 taak 3: `scopeTaskIds` begrenst WAT er genivelleerd wordt — taken buiten de scope
+  # behouden hun bestaande levelingDelay en tellen als vaste last, incl. de computePF-validatieplicht.
+  LEVELERSCOPECHECK="$DIR/.leveler-scope.mjs"
+  if bundle_check "$DIR/check-leveler-scope.ts" "$LEVELERSCOPECHECK"; then node "$LEVELERSCOPECHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

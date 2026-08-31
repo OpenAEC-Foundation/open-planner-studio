@@ -56,6 +56,15 @@ export interface LevelingOptions {
   /** default: alle renewable resources (LABOR/EQUIPMENT/CREW/SUBCONTRACTOR). Materiaal wordt er
    *  altijd uit gefilterd, ook als het expliciet meegegeven wordt (§5.3). */
   resourceIds?: string[];
+  /** Alleen deze taken mogen (opnieuw) genivelleerd worden. Taken BUITEN de scope behouden hun
+   *  bestaande `levelingDelay`/`splitGaps` en tellen mee als VASTE LAST op hun huidige, genivelleerde
+   *  positie — ze worden nooit verschoven en verschijnen nooit in `delays`. Afwezig ⇒ alle taken
+   *  (byte-identiek met het gedrag van vóór B1c-etappe-2).
+   *
+   *  Waarom dit bestaat (spec §5): de verdeler nivelleert per POOLITEM. De taken die niets met dat
+   *  poolitem te maken hebben moeten precies blijven staan waar ze staan — anders lost B1c een
+   *  bibliotheekconflict op door het hele document te herschikken. */
+  scopeTaskIds?: string[];
 }
 
 /** Reden waarom een taak onopgelost bleef (A3, deze golf) — de nivelleer-dialoog kiest hierop de
@@ -182,20 +191,27 @@ export function levelResources(
   const leafSet = new Set(tasks.map(t => t.id));
   const creationIndex = new Map(tasks.map((t, i) => [t.id, i]));
 
-  // Werkkopie ZONDER levelingDelays. Voedt (a) de VERSE baseline-solve (sorteersleutels/PF/vensters,
-  // A2/A4) en (b) — nadat de lus de delays erop gezet heeft — de proef-solve voor de preview (A1).
+  // Scope (B1c-plan-2 taak 3, spec §5 "scope-behoudend toepassen"). `null` = alles in scope; dat is
+  // het bestaande gedrag. Een taak BUITEN de scope wordt behandeld als vaste last op haar HUIDIGE
+  // (mogelijk al genivelleerde) positie — zie de selectieve strip hieronder en de indelingslus.
+  const scope = options.scopeTaskIds ? new Set(options.scopeTaskIds) : null;
+  const inScope = (id: string): boolean => scope === null || scope.has(id);
+
+  // Werkkopie ZONDER levelingDelays — voor taken IN scope. Voedt (a) de VERSE baseline-solve
+  // (sorteersleutels/PF/vensters, A2/A4) en (b) — nadat de lus de delays erop gezet heeft — de
+  // proef-solve voor de preview (A1).
   // B1c-plan-2 taak 1 (M10): ook de sub-dag-precisie (`levelingDelayMinutes`/`levelingDelayElapsed`)
   // strippen — `CPMSolver.shiftByLevelingDelay` leest die VÓÓR `levelingDelay`, dus een
   // `.mpp`-geïmporteerde vertraging op een taak MET voorganger zou hier stil in de baseline blijven
   // staan en zowel de sorteersleutels als de PF vervalsen (zie `check-leveling-delay-units.ts`,
   // deel 2, voor het concrete voorbeeld: het conflict verdween volledig uit beeld).
-  const workTasks: Task[] = tasks.map(t => ({
-    ...t,
-    levelingDelay: undefined,
-    levelingDelayMinutes: undefined,
-    levelingDelayElapsed: undefined,
-    time: { ...t.time },
-  }));
+  // B1c-plan-2 taak 3: een taak BUITEN de scope behoudt haar bestaande delay/sub-dag-precisie — die
+  // is nu vaste last, geen te herberekenen sorteersleutel. Dat is precies de spec-plicht die
+  // `computePF` moet doorstaan: een opvolger van een out-of-scope taak moet haar VERSCHOVEN
+  // (behouden-delay) positie volgen, niet haar ongenivelleerde positie.
+  const workTasks: Task[] = tasks.map(t => inScope(t.id)
+    ? { ...t, levelingDelay: undefined, levelingDelayMinutes: undefined, levelingDelayElapsed: undefined, time: { ...t.time } }
+    : { ...t, time: { ...t.time } });
   const workById = new Map(workTasks.map(t => [t.id, t]));
 
   // A2/A4: VERSE baseline — de enige bron voor sorteersleutels (totalFloat/earlyStart), PF-basis en
@@ -317,16 +333,19 @@ export function levelResources(
   }
 
   // Indeling: movable (mag schuiven) vs. gefixeerd (vastgepind) vs. ONVERPLAATSBAAR (voltooid ÓF in
-  // uitvoering — `isImmovableTask`, eindpoortronde W0/W1) vs. geen vraag op selectie. Zo'n taak is
-  // geen "vastgepind" (priority 1000, volgt nog wél voorgangers via PF) — ze is nog strenger: ze
-  // staat ONVOORWAARDELIJK op haar actuals/restwerk, ongeacht priority, en gaat dus NOOIT door
-  // `findSlot` OF het pinned-pad. Zie `fixedLoadIds` hieronder voor de boeking.
+  // uitvoering — `isImmovableTask`, eindpoortronde W0/W1) vs. BUITEN SCOPE (B1c-plan-2 taak 3) vs.
+  // geen vraag op selectie. Een out-of-scope taak is nóg strenger dan vastgepind: ze schuift niet,
+  // ze volgt geen voorgangers, ze boekt op haar eigen (BEHOUDEN) baselinepositie — vandaar vóór alle
+  // andere checks. Zo'n taak is geen "vastgepind" (priority 1000, volgt nog wél voorgangers via PF)
+  // — ze is nog strenger: ze staat ONVOORWAARDELIJK op haar actuals/restwerk, ongeacht priority, en
+  // gaat dus NOOIT door `findSlot` OF het pinned-pad. Zie `fixedLoadIds` hieronder voor de boeking.
   const hasDemand = (id: string) => demandByTask.has(id);
   const movableIds: string[] = [];
   const pinnedIds: string[] = [];
   const fixedLoadIds: string[] = [];
   for (const t of tasks) {
     if (!hasDemand(t.id)) continue;             // geen vraag op geselecteerde renewables → niet verschuiven
+    if (!inScope(t.id)) { fixedLoadIds.push(t.id); continue; } // buiten scope — vóór alle andere checks
     if (isImmovableTask(t)) { fixedLoadIds.push(t.id); continue; } // voltooid/in uitvoering — vóór de pin-check
     if (t.priority === 1000) pinnedIds.push(t.id); // vastgepind (§5.4)
     else movableIds.push(t.id);
@@ -409,12 +428,13 @@ export function levelResources(
   const placed = new Set<string>();
   for (const t of tasks) if (!active.has(t.id)) placed.add(t.id);
 
-  // ONVERPLAATSBAAR — voltooid ÓF in uitvoering (eindpoortronde W0/W1): vóór de eligibility-lus als
-  // VASTE LAST geboekt — op hun EIGEN (ongeschoven) baseline-earlyStart, nooit een levelingDelay.
-  // `placed` bevat ze al (hierboven, via de `!active.has`-lus); dit boekt alleen hun vraag zodat
-  // movable/vastgepinde taken die er straks langs moeten het conflict ECHT zien. Reden waarom dit
-  // NIET via het pinned-pad in de hoofdlus kan: `CPMSolver.forwardPass`'s VOLTOOID-tak (~regel 1420-
-  // 1456 in CPMSolver.ts) én haar IN-UITVOERING-tak (~regel 1458-1844, W1) planten deze taken allebei
+  // ONVERPLAATSBAAR — voltooid ÓF in uitvoering (eindpoortronde W0/W1) ÓF BUITEN SCOPE (B1c-plan-2
+  // taak 3): vóór de eligibility-lus als VASTE LAST geboekt — op hun EIGEN (ongeschoven, resp.
+  // BEHOUDEN) baseline-earlyStart, nooit een levelingDelay. `placed` bevat ze al (hierboven, via de
+  // `!active.has`-lus); dit boekt alleen hun vraag zodat movable/vastgepinde taken die er straks
+  // langs moeten het conflict ECHT zien. Reden waarom dit NIET via het pinned-pad in de hoofdlus kan
+  // (voor de onverplaatsbare taken): `CPMSolver.forwardPass`'s VOLTOOID-tak (~regel 1420-1456 in
+  // CPMSolver.ts) én haar IN-UITVOERING-tak (~regel 1458-1844, W1) planten deze taken allebei
   // onvoorwaardelijk op respectievelijk `actualStart`/`actualFinish` of `actualStart` + restwerk, en
   // NEGEREN `levelingDelay` volledig — een delay toekennen zou een stille no-op zijn (het conflict
   // herleeft na de volgende `runCPM`, `unresolved` zou dan ten onrechte leeg blijven terwijl er wél
@@ -423,6 +443,9 @@ export function levelResources(
   // MOVABLE/PINNED taken die er straks omheen moeten (of, bij een botsing tussen twee onverplaatsbare
   // taken onderling, blijft gewoon bestaan — dat is dan een ECHTE, gerapporteerde overallocatie, geen
   // leveler-taak om op te lossen).
+  // Voor een OUT-OF-SCOPE taak klopt de boekingspositie vanzelf: `baseEs` komt uit de baseline-solve
+  // op `workTasks`, en die draagt voor zo'n taak haar BEHOUDEN delay (de selectieve strip hierboven)
+  // — dus `baseEs(id)` is hier al haar VERSCHOVEN, genivelleerde positie, niet haar kale PF.
   for (const id of fixedLoadIds) {
     const startIso = baseEs(id);
     bookDemandAt(id, parseDate(startIso));
@@ -637,7 +660,13 @@ export function levelResources(
 
 /** Precedence-feasible start van `taskId`: herdraai de CPMSolver op de werkkopie (waarin de
  *  geplaatste voorgangers hun `levelingDelay` hebben en `taskId` niet) en lees de early start.
- *  Dat is per constructie de PF mét alle relatie-/lag-/constraint-logica. */
+ *  Dat is per constructie de PF mét alle relatie-/lag-/constraint-logica.
+ *
+ *  B1c-plan-2 taak 3 (spec-plicht, gevalideerd in `check-leveler-scope.ts` geval 2): `workTasks`
+ *  draagt voor OUT-OF-SCOPE taken hun BEHOUDEN `levelingDelay` (de selectieve strip in
+ *  `levelResources`), dus deze herdraaide solve past die delay via `shiftByLevelingDelay` toe en
+ *  propageert 'm langs relaties naar opvolgers — een opvolger van een out-of-scope taak volgt haar
+ *  VERSCHOVEN positie, niet haar ongenivelleerde. */
 function computePF(
   taskId: string,
   workTasks: Task[],
