@@ -16,20 +16,22 @@
         "overall": { "improved": 0, "regressed": 0, "unchanged": 13959 }
       },
       "rejected": false,
-      "exitCode": 0
+      "exitCode": 0,
+      "memoryModel": "one-manifest-entry-and-one-project-solve-clone-at-a-time"
     },
     "drop-p6-finish-milestone-boundary": {
       "aggregate": {
-        "es": { "improved": 3, "regressed": 0, "unchanged": 13928 },
-        "ef": { "improved": 3, "regressed": 2, "unchanged": 13932 },
-        "ls": { "improved": 1, "regressed": 690, "unchanged": 13131 },
-        "lf": { "improved": 1, "regressed": 704, "unchanged": 13108 },
-        "tf": { "improved": 1, "regressed": 629, "unchanged": 13047 },
-        "ff": { "improved": 0, "regressed": 1, "unchanged": 13321 },
-        "overall": { "improved": 3, "regressed": 705, "unchanged": 13251 }
+        "es": { "improved": 0, "regressed": 0, "unchanged": 13931 },
+        "ef": { "improved": 0, "regressed": 2, "unchanged": 13935 },
+        "ls": { "improved": 0, "regressed": 690, "unchanged": 13132 },
+        "lf": { "improved": 0, "regressed": 704, "unchanged": 13109 },
+        "tf": { "improved": 0, "regressed": 629, "unchanged": 13048 },
+        "ff": { "improved": 0, "regressed": 0, "unchanged": 13322 },
+        "overall": { "improved": 0, "regressed": 704, "unchanged": 13255 }
       },
       "rejected": true,
-      "exitCode": 1
+      "exitCode": 1,
+      "memoryModel": "one-manifest-entry-and-one-project-solve-clone-at-a-time"
     }
   }
 }

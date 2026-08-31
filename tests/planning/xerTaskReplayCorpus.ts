@@ -14,6 +14,8 @@ import {
   type XerTaskReplayCandidate,
 } from './xerTaskReplayProduct';
 
+export const XER_TASK_REPLAY_MEMORY_MODEL = 'one-manifest-entry-and-one-project-solve-clone-at-a-time' as const;
+
 export interface XerTaskReplayEntryResult {
   label: string;
   schemaFingerprint: string;
@@ -32,7 +34,7 @@ export interface XerTaskReplayCorpusSummary {
   aggregate: XerTaskReplayResult['aggregate'];
   rejected: boolean;
   maxRssBytes: number;
-  memoryModel: 'one-manifest-entry-and-one-project-solve-clone-at-a-time';
+  memoryModel: typeof XER_TASK_REPLAY_MEMORY_MODEL;
 }
 
 export interface XerTaskReplayCorpusOptions {
@@ -99,8 +101,9 @@ function validateInventory(labels: readonly string[], manifest: XerCorpusManifes
 }
 
 /**
- * Canonieke X12-selectie zonder alle corpusbytes tegelijk te bewaren. Pass 1 groepeert alleen
- * hashes; pass 2 scant uitsluitend de manifest-orakels en dedupliceert dezelfde schemafingerprint.
+ * Hergebruikt uitsluitend de bestaande canonieke X12-selectie zonder alle corpusbytes tegelijk te
+ * bewaren. Dit replayharnas voert geen eigen dedupcontract in: schemafingerprint en taskId-semantiek
+ * blijven ongewijzigd de bestaande X12-meetlat en daarmee een afzonderlijk eigenaarbesluit.
  */
 function selectedLabels(
   corpusRoot: string,
@@ -185,7 +188,7 @@ export function runXerTaskReplayCorpus(options: XerTaskReplayCorpusOptions): Xer
     aggregate,
     rejected: XER_FIDELITY_AXES.some((axis: XerFidelityAxis) => aggregate[axis].regressed > 0),
     maxRssBytes,
-    memoryModel: 'one-manifest-entry-and-one-project-solve-clone-at-a-time',
+    memoryModel: XER_TASK_REPLAY_MEMORY_MODEL,
   };
 }
 

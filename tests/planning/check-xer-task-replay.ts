@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { XerGroundTruth, XerGroundTruthTask } from './xerGroundTruth';
 import type { XerCorpusManifest, XerSolvedProject, XerSolvedTask } from './xerFidelity';
 import { scanXerGroundTruth } from './xerGroundTruth';
@@ -14,11 +13,15 @@ import {
   replayXerProductBeforeOracle,
   syntheticZeroRegressionCandidate,
 } from './xerTaskReplayProduct';
-import { corpusReplayExitCode, runXerTaskReplayCorpus } from './xerTaskReplayCorpus';
+import {
+  corpusReplayExitCode,
+  runXerTaskReplayCorpus,
+  XER_TASK_REPLAY_MEMORY_MODEL,
+} from './xerTaskReplayCorpus';
 
 const diffs: string[] = [];
 let checks = 0;
-const here = fileURLToPath(new URL('.', import.meta.url));
+const planningDirectory = join(process.cwd(), 'tests', 'planning');
 
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
@@ -33,8 +36,8 @@ if (!corpusRoot) {
 } else if (!existsSync(corpusRoot)) {
   diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
 } else {
-  const manifest = JSON.parse(readFileSync(join(here, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
-  const pin = JSON.parse(readFileSync(join(here, 'xer-task-replay-public-pin.json'), 'utf8')) as {
+  const manifest = JSON.parse(readFileSync(join(planningDirectory, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
+  const pin = JSON.parse(readFileSync(join(planningDirectory, 'xer-task-replay-public-pin.json'), 'utf8')) as {
     version: number;
     manifestEntries: number;
     selectedEntries: number;
@@ -44,6 +47,7 @@ if (!corpusRoot) {
       aggregate: ReturnType<typeof runXerTaskReplayCorpus>['aggregate'];
       rejected: boolean;
       exitCode: number;
+      memoryModel: typeof XER_TASK_REPLAY_MEMORY_MODEL;
     }>;
   };
   eq('task replay: openbare instrumentpin heeft schema 1', pin.version, 1);
@@ -57,6 +61,7 @@ if (!corpusRoot) {
       aggregate: summary.aggregate,
       rejected: summary.rejected,
       exitCode: corpusReplayExitCode(summary),
+      memoryModel: summary.memoryModel,
     }, {
       manifestEntries: pin.manifestEntries,
       selectedEntries: pin.selectedEntries,
@@ -87,6 +92,17 @@ const axes = (overrides: Partial<XerGroundTruthTask['axes']> = {}): XerGroundTru
   ff: 0,
   ...overrides,
 });
+
+eq(
+  'task replay: productcounterfactual start altijd vanaf een verse source/importclone',
+  dropFinishMilestoneBoundaryCandidate.replayFrom,
+  'source',
+);
+eq(
+  'task replay: geheugenmodel blijft structureel één manifestentry en één solveclone tegelijk',
+  XER_TASK_REPLAY_MEMORY_MODEL,
+  'one-manifest-entry-and-one-project-solve-clone-at-a-time',
+);
 
 function truth(projectId = 'P1', taskCode = 'A100'): XerGroundTruth {
   return {
@@ -133,6 +149,19 @@ function truth(projectId = 'P1', taskCode = 'A100'): XerGroundTruth {
   ].join('\n'));
   const normalBytes = fixture(false);
   const poisonedBytes = fixture(true);
+  const lifecycle: Array<{
+    projectId: string;
+    phase: 'baseline' | 'counterfactual';
+    inputOrigin: 'fresh-source-clone' | 'baseline-solved-clone';
+    activeSolveClones: number;
+  }> = [];
+  replayXerProductBeforeOracle(normalBytes, dropFinishMilestoneBoundaryCandidate, {
+    onLifecycleEvent: event => lifecycle.push(event),
+  });
+  eq('task replay: finish-boundary counterfactual blijft lifecycle-vers vanaf bronimport', lifecycle, [
+    { projectId: 'P', phase: 'baseline', inputOrigin: 'fresh-source-clone', activeSolveClones: 1 },
+    { projectId: 'P', phase: 'counterfactual', inputOrigin: 'fresh-source-clone', activeSolveClones: 1 },
+  ]);
   const normalProduct = replayXerProductBeforeOracle(normalBytes, dropFinishMilestoneBoundaryCandidate);
   const poisonedProduct = replayXerProductBeforeOracle(poisonedBytes, dropFinishMilestoneBoundaryCandidate);
   eq('task replay: raw oracle kan echte predicate en beide solverroutes niet beïnvloeden', {
@@ -283,6 +312,9 @@ const predicate: XerReplayPredicateLog[] = [{
   throws('task replay: dubbel project is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base, base], counterfactual: [cf], predicate,
   }), /dubbel baselineproject P1/);
+  throws('task replay: dubbel counterfactualproject is hard rood', () => evaluateXerTaskReplay({
+    oracle: truth(), baseline: [base], counterfactual: [cf, cf], predicate,
+  }), /dubbel counterfactualproject P1/);
   throws('task replay: ontbrekende taakcode is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base], counterfactual: [{ projectId: 'P1', tasks: [] }], predicate,
   }), /ontbrekende counterfactualtaak P1\/A100/);
@@ -293,6 +325,28 @@ const predicate: XerReplayPredicateLog[] = [{
   throws('task replay: dubbele taakcode is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [{ ...base, tasks: [...base.tasks, base.tasks[0]!] }], counterfactual: [cf], predicate,
   }), /dubbele baselinetaak P1\/A100/);
+  throws('task replay: verkeerde baseline sourceTaskId is hard rood bij gelijke projectId en taskCode', () => evaluateXerTaskReplay({
+    oracle: truth(),
+    baseline: [solved('P1', 'A100', { sourceTaskId: 'VERKEERD' })],
+    counterfactual: [cf],
+    predicate,
+  }), /baseline bron-taak-id voor P1\/A100 verwacht T1, kreeg VERKEERD/);
+  throws('task replay: verkeerde counterfactual sourceTaskId is hard rood bij gelijke projectId en taskCode', () => evaluateXerTaskReplay({
+    oracle: truth(),
+    baseline: [base],
+    counterfactual: [solved('P1', 'A100', { sourceTaskId: 'VERKEERD' })],
+    predicate,
+  }), /counterfactual bron-taak-id voor P1\/A100 verwacht T1, kreeg VERKEERD/);
+  throws('task replay: ontbrekende predicate-identiteit is hard rood', () => evaluateXerTaskReplay({
+    oracle: truth(), baseline: [base], counterfactual: [cf], predicate: [],
+  }), /ontbrekende predicate P1\/A100/);
+  throws('task replay: extra predicate-identiteit is hard rood', () => evaluateXerTaskReplay({
+    oracle: truth(), baseline: [base], counterfactual: [cf],
+    predicate: [...predicate, { projectId: 'P1', taskCode: 'A200', matched: false, source: {} }],
+  }), /extra predicate P1\/A200/);
+  throws('task replay: dubbele predicate-identiteit is hard rood', () => evaluateXerTaskReplay({
+    oracle: truth(), baseline: [base], counterfactual: [cf], predicate: [...predicate, ...predicate],
+  }), /dubbele predicate P1\/A100/);
 }
 
 if (diffs.length > 0) {

@@ -48,6 +48,18 @@ export interface XerProductReplayBeforeOracle {
   projectsSolvedSequentially: number;
 }
 
+export interface XerReplayLifecycleEvent {
+  projectId: string;
+  phase: 'baseline' | 'counterfactual';
+  inputOrigin: 'fresh-source-clone' | 'baseline-solved-clone';
+  activeSolveClones: number;
+}
+
+export interface XerReplayOptions {
+  /** Testinstrumentatie: één event binnen de levensduur van iedere actieve solveclone. */
+  onLifecycleEvent?: (event: XerReplayLifecycleEvent) => void;
+}
+
 function canonicalProductMinute(value: string | undefined): string | undefined {
   return value?.match(/^\d{4}-\d{2}-\d{2}$/) ? `${value}T00:00` : value;
 }
@@ -165,6 +177,7 @@ function addProject(target: Map<string, XerSolvedProject>, project: XerSolvedPro
 export function replayXerProductBeforeOracle(
   bytes: Uint8Array,
   candidate: XerTaskReplayCandidate,
+  options: XerReplayOptions = {},
 ): XerProductReplayBeforeOracle {
   const opened = readXER(bytes);
   const imports = isMultiDocumentImport(opened)
@@ -174,6 +187,26 @@ export function replayXerProductBeforeOracle(
   const counterfactual = new Map<string, XerSolvedProject>();
   const predicate: XerReplayPredicateLog[] = [];
   let projectsSolvedSequentially = 0;
+  let activeSolveClones = 0;
+
+  function solveOne(
+    imported: XerReplayMutableSolveInput,
+    phase: XerReplayLifecycleEvent['phase'],
+    inputOrigin: XerReplayLifecycleEvent['inputOrigin'],
+  ): XerSolvedProject {
+    activeSolveClones++;
+    try {
+      options.onLifecycleEvent?.({
+        projectId: imported.project.id,
+        phase,
+        inputOrigin,
+        activeSolveClones,
+      });
+      return solveImported(imported);
+    } finally {
+      activeSolveClones--;
+    }
+  }
 
   for (const imported of imports) {
     const decisions = sourceContexts(imported).map(context => ({
@@ -191,15 +224,15 @@ export function replayXerProductBeforeOracle(
     })));
 
     const replayInput = cloneSolveInput(imported);
-    addProject(baseline, solveImported(replayInput), 'baseline');
+    addProject(baseline, solveOne(replayInput, 'baseline', 'fresh-source-clone'), 'baseline');
     projectsSolvedSequentially++;
 
-    // De kandidaat kiest expliciet zijn replaybasis. Een regelintegratie gebruikt doorgaans de
-    // zojuist opgeloste documentstaat; de synthetische nulcandidate bewijst twee gelijke bronruns.
-    // De compacte baselineprojectie is al losgekoppeld; er leeft steeds één actieve solveclone.
+    const inputOrigin = candidate.replayFrom === 'source'
+      ? 'fresh-source-clone'
+      : 'baseline-solved-clone';
     if (candidate.replayFrom === 'source') Object.assign(replayInput, cloneSolveInput(imported));
     candidate.apply(replayInput, matchedTaskCodes);
-    addProject(counterfactual, solveImported(replayInput), 'counterfactual');
+    addProject(counterfactual, solveOne(replayInput, 'counterfactual', inputOrigin), 'counterfactual');
     projectsSolvedSequentially++;
   }
 
@@ -239,10 +272,10 @@ export const syntheticZeroRegressionCandidate: XerTaskReplayCandidate = {
   apply: () => undefined,
 };
 
-/** Bestaande onderzoeks-counterfactual: verwijder uitsluitend de XER finish-milestone-boundary. */
+/** Onderzoeks-counterfactual vanaf een verse XER-bronclone: verwijder alleen de finish-milestone-boundary. */
 export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
   id: 'drop-p6-finish-milestone-boundary',
-  replayFrom: 'baseline',
+  replayFrom: 'source',
   predicate: context => {
     const source = {
       p6Source: context.schedulingOptions?.p6Source ?? null,
