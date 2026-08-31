@@ -425,6 +425,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERCEILINGCHECK="$DIR/.leveler-ceiling.mjs"
   if bundle_check "$DIR/check-leveler-ceiling.ts" "$LEVELERCEILINGCHECK"; then node "$LEVELERCEILINGCHECK" || STATUS=1; fi
 
+  # B1c-plan-2 taak 5: naad-hygiëne — kalender-haalbaarheid los van capaciteit, de nul-guard in de
+  # conflictverzamelaar (spiegelt `fits`), en een eerlijke NO_WINDOW_IN_HORIZON-reden i.p.v. een
+  # verzonnen "onvoldoende capaciteit" wanneer de scan simpelweg leegloopt.
+  LEVELERSEAMCHECK="$DIR/.leveler-seam.mjs"
+  if bundle_check "$DIR/check-leveler-seam.ts" "$LEVELERSEAMCHECK"; then node "$LEVELERSEAMCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

@@ -75,15 +75,20 @@ export interface LevelingOptions {
 }
 
 /** Reden waarom een taak onopgelost bleef (A3, deze golf) — de nivelleer-dialoog kiest hierop de
- *  bijpassende uitleg. Uitgebreid in B1c-plan-2 taak 4 met een eerlijkere taxonomie: een
- *  onbereikbaar/te krap plafond is geen "onvoldoende capaciteit". */
+ *  bijpassende uitleg. Uitgebreid in B1c-plan-2 (taken 4/5) met een eerlijkere taxonomie: een
+ *  onbereikbaar/te krap plafond en een uitgeputte scanhorizon zijn geen "onvoldoende capaciteit". */
 export type LevelingReason =
   | 'CALENDAR_MISMATCH' | 'INSUFFICIENT_CAPACITY' | 'INTRINSIC_OVERRUN'
   /** Het uitloop-plafond laat te weinig ruimte: binnen `lateStart + plafond` is geen venster vrij. */
   | 'CEILING_TOO_TIGHT'
   /** Uitloop geven helpt hier niet: een deadline/backward-constraint duwt het venster vóór de
    *  precedence-feasible start — de taak kan zelfs zónder capaciteitsdruk niet binnen het plafond. */
-  | 'CEILING_UNREACHABLE';
+  | 'CEILING_UNREACHABLE'
+  /** De kandidaat-scan liep leeg vóórdat er een passend venster gevonden was. Sinds C1/C2 is
+   *  `scanLimit` een ONDERGRENS-argument (zie het blok bij `scanLimit`), dus dit is een reële
+   *  uitkomst en geen "onvoldoende capaciteit" — de motor weet simpelweg niet of er verderop nog
+   *  ruimte is. */
+  | 'NO_WINDOW_IN_HORIZON';
 
 /** Eén verschuiving voor de preview-tabel (A1): elke taak wiens start wijzigt t.o.v. het huidige
  *  schema — óók niet-geresourcete opvolgers die enkel via de forward pass meeschuiven. */
@@ -190,6 +195,15 @@ export function levelResources(
     const eng = engineByRes.get(resId);
     if (!r || !eng) return 0;
     return eng.isWorkDay(parseDate(iso)) ? maxUnitsOn(r, iso) : 0;
+  };
+  /** Werkt de resource op die dag volgens ZIJN kalender? Puur de kalender-uitlijning, ONGEACHT hoeveel
+   *  eenheden hij die dag te bieden heeft (B1c-plan-2 taak 5, spec §4: met een restprofiel is 0 de
+   *  normale waarde van een volle dag, en ook zonder restprofiel is `maxUnits: 0` een capaciteits- en
+   *  geen kalenderprobleem). `capacityOf` hierboven blijft de gecombineerde waarde — die is voor
+   *  `fits` precies goed. */
+  const isResWorkDay = (resId: string, iso: string): boolean => {
+    const eng = engineByRes.get(resId);
+    return !!eng && eng.isWorkDay(parseDate(iso));
   };
   // Maximaal beschikbare eenheden op een wérkdag van de resource (vlakke maxUnits of de hoogste
   // availabilityStep) — basis voor de intrinsieke-overvraag-detectie (A3).
@@ -432,8 +446,10 @@ export function levelResources(
   // De `+10`/`Math.max(…, 30)`-marge ving dit tot dusver in de praktijk op (geen enkele bestaande case
   // of nieuwe testcase raakt de grens), maar is bewust geen wiskundig bewijs — een pathologisch
   // scenario (veel korte ELAPSEDTIME-taken, elk met een spanne die net in een weekend valt) kan de
-  // grens in theorie nog raken. Vergroot de marge dan, i.p.v. de grens helemaal te laten vallen (de
-  // A3b-motivatie — een vaste 5000-dagen-scan was traag op grote projecten — blijft gelden).
+  // grens in theorie nog raken. Sinds B1c-etappe-2 (taak 5) is een uitputting een eigen, gerapporteerde
+  // uitkomst (`NO_WINDOW_IN_HORIZON`) in plaats van een verzonnen capaciteitsdiagnose; de marge
+  // vergroten blijft de reparatie wanneer een uitputting ONTERECHT optreedt (de A3b-motivatie — een
+  // vaste 5000-dagen-scan was traag op grote projecten — blijft gelden).
   const totalWork = tasks.reduce((sum, t) => sum + (t.isMilestone ? 0 : Math.max(0, t.time.scheduleDuration)), 0);
   const scanLimit = Math.max(totalWork + 10, 30);
 
@@ -627,6 +643,11 @@ export function levelResources(
 
     let calendarFeasibleSeen = false; // is er überhaupt een venster waar élke vraagdag óók een resource-werkdag is?
     let guard = 0;
+    // B1c-plan-2 taak 5 (naad-hygiëne): onderscheid WAAROM de scan zonder slot eindigt — via de
+    // venstergrens (`break` hieronder, een bewuste gebruikerskeuze) of doordat `scanLimit` simpelweg
+    // opraakte (een rekengrens, zie het blok bij `scanLimit`). `true` is de default: wordt hij nooit
+    // op `false` gezet, dan is de lus via `guard >= scanLimit` uitgestapt, dus een echte uitputting.
+    let horizonExhausted = true;
     while (guard++ < scanLimit) {
       const occ = occurrenceFor(task, cand);
       if (!calendarFeasibleSeen && calendarOk(byRes, occ)) calendarFeasibleSeen = true;
@@ -644,7 +665,7 @@ export function levelResources(
       // afketsen. `occ.length > 0` is de minimale, correcte voorwaarde: er moet gewoon IETS te boeken zijn.
       if (occ.length > 0 && fits(byRes, occ)) return { start: cand, unresolved: [] };
       const next = nextCandidateAfterFor(task, cand);
-      if (limit && next > limit) break; // volgende kandidaat valt buiten het venster — geen slot
+      if (limit && next > limit) { horizonExhausted = false; break; } // venstergrens (float/plafond) — geen slot
       cand = next;
     }
 
@@ -655,28 +676,35 @@ export function levelResources(
     const conflicts: string[] = [];
     for (const [resId, arr] of byRes) {
       for (let i = 0; i < arr.length && i < occ.length; i++) {
+        // B1c-plan-2 taak 5 (naad-hygiëne): zelfde nul-guard als `fits` hieronder — een dag zonder
+        // vraag (`arr[i] <= 0`) kan niet botsen, ook niet als een ANDERE (bv. vastgepinde) taak die
+        // dag toevallig overboekt. Vóór deze guard rapporteerde de verzamelaar zo'n dag alsnog als
+        // conflictdag van DEZE taak (fantoomconflict) — zie `check-leveler-seam.ts` geval 3.
+        if (arr[i] <= 0) continue;
         if (bookedOn(resId, occ[i]) + arr[i] > capacityOf(resId, occ[i]) + EPS) conflicts.push(occ[i]);
       }
     }
     return {
       start: snappedPf,
       unresolved: [...new Set(conflicts)].sort(),
-      reason: reasonFor(byRes, calendarFeasibleSeen, ceilingSet, ceilingUnreachable),
+      reason: reasonFor(byRes, calendarFeasibleSeen, ceilingSet, ceilingUnreachable, horizonExhausted),
     };
   }
 
-  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taak 4). Volgorde: intrinsiek (de
-   *  piekvraag overtreft de maximale capaciteit van de resource ongeacht plaatsing) →
+  /** Reden waarom er geen slot bestaat (A3, uitgebreid B1c-plan-2 taken 4/5). Volgorde: intrinsiek
+   *  (de piekvraag overtreft de maximale capaciteit van de resource ongeacht plaatsing) →
    *  CEILING_UNREACHABLE (een deadline/backward-constraint maakt elk plafond onbereikbaar — gaat
    *  vóór de kalender/capaciteit: het enige geval waarin de gebruiker iets anders moet doen dan
    *  plafond of capaciteit bijstellen) → kalender-mismatch (geen enkel venster waar alle vraagdagen
-   *  ook resource-werkdagen zijn) → CEILING_TOO_TIGHT (venster bekend en te krap) → anders
-   *  onvoldoende vrije capaciteit. */
+   *  ook resource-werkdagen zijn) → CEILING_TOO_TIGHT (venster bekend en te krap ⇒ concreter dan een
+   *  kale horizon-uitputting) → NO_WINDOW_IN_HORIZON (de scan liep leeg zonder gekend venster) →
+   *  anders onvoldoende vrije capaciteit. */
   function reasonFor(
     byRes: Map<string, number[]>,
     calendarFeasibleSeen: boolean,
     ceilingSet: boolean,
     ceilingUnreachable: boolean,
+    horizonExhausted: boolean,
   ): LevelingReason {
     for (const [resId, arr] of byRes) {
       const peak = arr.length > 0 ? Math.max(...arr) : 0;
@@ -685,17 +713,22 @@ export function levelResources(
     if (ceilingUnreachable) return 'CEILING_UNREACHABLE';
     if (!calendarFeasibleSeen) return 'CALENDAR_MISMATCH';
     if (ceilingSet) return 'CEILING_TOO_TIGHT';
+    if (horizonExhausted) return 'NO_WINDOW_IN_HORIZON';
     return 'INSUFFICIENT_CAPACITY';
   }
 
-  /** Kalender-haalbaar venster? Elke vraagdag (>0) valt op een resource-werkdag (capaciteit > 0),
-   *  ongeacht al geboekte belasting — puur de kalender-uitlijning (A3). */
+  /** Kalender-haalbaar venster? Elke vraagdag (>0) valt op een resource-WERKdag, ongeacht al
+   *  geboekte belasting én ongeacht hoeveel eenheden hij die dag te bieden heeft — puur de
+   *  kalender-uitlijning (A3, verscherpt B1c-plan-2 taak 5: vóór deze ronde toetste dit `capacityOf
+   *  <= 0`, wat een resource met `maxUnits: 0` (of, met een restprofiel, een geklemd nulprofiel) ten
+   *  onrechte als kalender-onhaalbaar bestempelde — dat is een capaciteitsprobleem, geen
+   *  kalenderprobleem; zie `check-leveler-seam.ts` geval 1). */
   function calendarOk(byRes: Map<string, number[]>, occ: string[]): boolean {
     for (const [resId, arr] of byRes) {
       for (let i = 0; i < arr.length; i++) {
         if (arr[i] <= 0) continue;
         if (i >= occ.length) return false;
-        if (capacityOf(resId, occ[i]) <= 0) return false;
+        if (!isResWorkDay(resId, occ[i])) return false;
       }
     }
     return true;
