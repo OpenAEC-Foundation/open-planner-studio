@@ -835,7 +835,14 @@ export function levelResources(
     // van het plafond, niet de start-`limit` hierboven) — zie het docblok daar.
     if (splitEligible(task)) {
       const scatterDays = scatterSlot(taskId, pf, finishWindowLimit(taskId));
-      if (scatterDays) return { start: parseDate(scatterDays[0]), unresolved: [], scatterDays };
+      // B1c-plan3 taak 1 (bevinding 12): een LEGE dagenset is geen plaatsing. `scatterSlot` geeft
+      // `[]` terug zodra `need === 0` (`chosen.length === need` is dan meteen waar), en `[]` is
+      // truthy — `parseDate(scatterDays[0])` maakte er dan een Invalid Date van, die als `start` de
+      // hele hoofdlus in reisde (delay-meting, boeking, shifts). Niets plaatsen hoort door te vallen
+      // naar het "geen slot"-vangnet hieronder.
+      if (scatterDays && scatterDays.length > 0) {
+        return { start: parseDate(scatterDays[0]), unresolved: [], scatterDays };
+      }
     }
 
     // Geen slot: blijf op de gesnapte PF, verzamel de conflictdagen (waar de vraag de restcapaciteit
@@ -984,11 +991,19 @@ export function levelResources(
     // een geselecteerde resource (`byRes` leeg) — `splitEligible` wordt normaliter pas bereikt nadat
     // `hasDemand` al vraag bevestigde, dus dit pad is defensief.
     const need = byRes.values().next().value?.length ?? Math.ceil(task.time.scheduleDuration);
+    // B1c-plan3 taak 1 (bevinding 11): zonder `finishLimit` (geen plafond, geen constrainToFloat) had
+    // deze lus alleen `HARD_SCAN_CAP` als rem — 200.000 kandidaatdagen mét een volledige `dayFits`
+    // per dag, terwijl de aaneengesloten scan er allang mee gestopt is. Zelfde tweetrapsgrens als
+    // `findSlot`: `scanLimit` is de gewone ondergrens (afgeleid van de eigen taakduren), en een
+    // grootboekhorizon mag hem verlengen omdat externe vaste last het eerste vrije venster voorbij
+    // die ondergrens kan duwen (L4). `HARD_SCAN_CAP` blijft uitsluitend de vangrail.
+    const horizonDate = ledger?.horizonIso ? parseDate(ledger.horizonIso) : null;
     const chosen: string[] = [];
     let cand = nextCandidateFor(task, pf);
     let guard = 0;
     while (chosen.length < need && guard++ < HARD_SCAN_CAP) {
       if (finishLimit && cand > finishLimit) return null;
+      if (guard > scanLimit && !(horizonDate && cand <= horizonDate)) return null;
       const iso = formatDate(cand);
       if (dayFits(byRes, chosen.length, iso)) chosen.push(iso);
       cand = nextCandidateAfterFor(task, cand);

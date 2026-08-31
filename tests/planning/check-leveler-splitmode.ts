@@ -15,6 +15,7 @@
 import { levelResources, type LevelingOptions } from '@/engine/scheduler/ResourceLeveler';
 import { enumerateTaskWorkDays } from '@/engine/scheduler/splitWalk';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseDate } from '@/utils/dateUtils';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
@@ -247,6 +248,115 @@ console.log('-- leveler-splitmode: importsplit blijft, leveling-gat komt erbij (
     r6.gaps['f6']?.filter(g => g.source === undefined).length === 1);
   ok('en er komt precies één NIEUW leveling-gat bij',
     r6.gaps['f6']?.filter(g => g.source === 'leveling').length === 1);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 1: scatter-randen (bevindingen 12, 11, 7 uit de eindkeuring van etappe 2).
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- B1c-plan3 taak 1: scatter-randen --');
+
+// ── Bevinding 12: `scatterSlot` mag nooit een LEGE dagenset als "geplaatst" teruggeven ────────────
+// Een taak met een FRACTIONELE duur strikt tussen 0 en 1 (bv. 0,5) levert bij `distributeUnits` een
+// LEGE vraagarray per resource (`durationDays <= 1 && durationDays !== 1` ⇒ `[]`), dus `need` (de
+// lengte van die array) wordt 0 — `scatterSlot` gaf dan `[]` terug, dat is truthy, en `findSlot` deed
+// `parseDate(scatterDays[0])` op `undefined` ⇒ een Invalid Date als starttijd.
+//
+// ONDERZOCHT (afwijking van het letterlijke voorschrift, zie ook het commitbericht): met de huidige
+// `fits()`/`occurrenceFor()`-implementatie is een lege vraagarray voor ELKE resource van de taak
+// tegelijk (de arraylengte hangt uitsluitend af van de taak-eigen duur, niet per resource) — dus
+// `fits()` slaagt DAARDOOR triviaal (de binnenlus over een lege array loopt nul keer), en
+// `occurrenceFor` levert voor zo'n fractionele duur altijd minstens één dag op (`consumeWorkDays`
+// rondt af naar boven). De aaneengesloten scan in `findSlot` plaatst zo'n taak dus altijd al op de
+// EERSTE kandidaat, ongeacht plafond/blokkers, en bereikt `scatterSlot` in de praktijk nooit — deze
+// case kan daarom niet "rood" draaien vóór de fix (geverifieerd met een side-by-side probe tegen
+// deze exacte fixture). De guard blijft niettemin correct en nuttig als vangnet: hij bewaakt precies
+// de invariant die het eigen commentaar in `ResourceLeveler.ts` beschrijft, en deze case pint die
+// invariant voor het geval een toekomstige wijziging aan `distributeUnits`/`occurrenceFor` de
+// symmetrie tussen vraaglengte en dagenlengte doorbreekt.
+{
+  const blk = blocker('x7', 'r-split7');
+  const taskZ = task('z7', '2026-06-01', '2026-06-01', 0.5, {
+    priority: 100, deadline: '2026-06-01',
+  });
+  const resource7 = res('r-split7', 1);
+  const assignments7 = [blk.a, assign('z7-r', 'z7', 'r-split7', 1)];
+  const rEmpty = levelResources(
+    [blk.t, taskZ], [], [resource7], assignments7, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+  );
+  ok('lege scatter levert nooit een Invalid Date als start',
+    !isNaN(parseDate(rEmpty.shifts['z7']?.newStart ?? '2026-06-01').getTime()));
+  eq('lege scatter schrijft geen gaten', rEmpty.gaps['z7'], undefined);
+}
+
+// ── Bevinding 11: zonder bindend venster stopt de scatter-scan op de HORIZON, niet op 200.000 ─────
+// `allowSplits: true`, GEEN `overrunCeilingDays`, GEEN `constrainToFloat`, en N onafhankelijke
+// taken die elk hun eigen resource hebben met `availabilitySteps` naar 0 vanaf de projectstart —
+// `scatterSlot` vindt dan nooit een dag. Vóór de fix liep elke taak afzonderlijk HARD_SCAN_CAP
+// (200.000) kandidaten af (gemeten: ~2,9s voor 20 taken); erna stopt elke scan op de
+// grootboekhorizon (hier: dezelfde `scanLimit`-ondergrens als de aaneengesloten scan, want er is
+// geen `poolLedger`) en meldt de eerlijke reden.
+{
+  const N = 20;
+  const tasksN: Task[] = [];
+  const resourcesN: Resource[] = [];
+  const assignsN: ResourceAssignment[] = [];
+  for (let i = 0; i < N; i++) {
+    tasksN.push(task(`nw${i}`, '2026-06-01', '2026-06-02', 2, { priority: 100 }));
+    resourcesN.push(res(`r-nw${i}`, 1, { availabilitySteps: [{ from: '2026-06-01', maxUnits: 0 }] }));
+    assignsN.push(assign(`nw${i}-a`, `nw${i}`, `r-nw${i}`, 1));
+  }
+  const t0 = Date.now();
+  const rNoWindow = levelResources(
+    tasksN, [], resourcesN, assignsN, PROJECT_CAL, [], stubCpmResult('2026-06-02'),
+    { constrainToFloat: false, allowSplits: true },
+  );
+  const elapsedMs = Date.now() - t0;
+  eq('geen eindeloze scatter-scan: eerlijke horizon-reden', rNoWindow.unresolvedReasons['nw0'], 'NO_WINDOW_IN_HORIZON');
+  // Prestatie is GEEN poort, maar de orde van grootte wél zichtbaar. Vóór de fix duurde dit geval
+  // (20 onafhankelijke onplaatsbare taken, elk een eigen HARD_SCAN_CAP-scan) ruim 2,9 seconden.
+  ok('en hij is niet meer traag', elapsedMs < 2000);
+}
+
+// ── Bevinding 7: fractionele uur-modus in de scatter (2,5 dag / 1200 minuten) ─────────────────────
+// Taak H: `durationUnit: 'hours'`, `durationMinutes: 1200` (20 werkuur), `scheduleDuration: 2.5` op
+// een 8u-kalender, `durationType: 'WORKTIME'`, `completion: 0`, prio 100. Resource R (cap 1) is
+// ma+wo bezet door een prio-900-taak (blokker met een importsplit die alleen dinsdag overslaat).
+// Met `allowSplits` landt H op di, do en vr: `distributeUnits` rondt 2,5 af naar DRIE curve-slots,
+// dus `need === 3` — niet 2 (`Math.floor`) en niet 2,5.
+//
+// AFWIJKING van het letterlijke voorschrift: het plan verwachtte "precies twee leveling-gaten (na
+// di en na do)"; met deze blokker (die alleen woensdag bezet) sluiten do en vr op elkaar aan (geen
+// kalenderdag ertussen), dus er ontstaat maar één leveling-gat (na di, wo overslaand). De kern van
+// de bevinding — drie curve-slots i.p.v. twee of 2,5 — blijft volledig gedekt door de exacte
+// dagenset-assertie hieronder.
+{
+  const blockerTask = task('blk7h', '2026-06-01', '2026-06-03', 2, {
+    priority: 900,
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }], // bezet ma+wo, di vrij
+  });
+  const blockerAssign = assign('blk7h-r', 'blk7h', 'r-split7h', 1);
+  const taskH = task('h7', '2026-06-01', '2026-06-02', 2.5, {
+    priority: 100, deadline: '2026-06-05',
+    time: {
+      durationType: 'WORKTIME', durationUnit: 'hours', scheduleDuration: 2.5, durationMinutes: 1200,
+      scheduleStart: '2026-06-01', scheduleFinish: '2026-06-02',
+      earlyStart: '2026-06-01', earlyFinish: '2026-06-02',
+      lateStart: '2026-06-01', lateFinish: '2026-06-02',
+      freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
+    },
+  });
+  const hAssign = assign('h7-r', 'h7', 'r-split7h', 1);
+  const resource7h = res('r-split7h', 1);
+  const rFrac = levelResources(
+    [blockerTask, taskH], [], [resource7h], [blockerAssign, hAssign], PROJECT_CAL, [], stubCpmResult('2026-06-03'),
+    { constrainToFloat: false, overrunCeilingDays: 2, allowSplits: true },
+  );
+  eq('fractionele uur-modus: drie curve-slots, dus drie werkdagen',
+    enumerateTaskWorkDays(rFrac.gaps['h7'], projEng, rFrac.shifts['h7']?.newStart ?? '2026-06-01', 3),
+    ['2026-06-02', '2026-06-04', '2026-06-05']);
+  ok('en precies één leveling-gat (na di, wo overslaand — zie de afwijking hierboven)',
+    rFrac.gaps['h7']?.filter(g => g.source === 'leveling').length === 1);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
