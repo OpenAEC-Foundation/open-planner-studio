@@ -250,6 +250,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERSUSPENDINVARIANTCHECK="$DIR/.xer-suspend-invariant.mjs"
   if bundle_check "$DIR/check-xer-suspend-invariant.ts" "$XERSUSPENDINVARIANTCHECK"; then node "$XERSUSPENDINVARIANTCHECK" || STATUS=1; fi
 
+  # X7 smalle solverfix: een geldige P6 suspend/resume-complete taak mag de bestaande
+  # completed-windowroute gebruiken; alle andere vormen blijven fail-closed.
+  XERCOMPLETEDSUSPENDCHECK="$DIR/.xer-completed-suspend-resume-window.mjs"
+  if bundle_check "$DIR/check-xer-completed-suspend-resume-window.ts" "$XERCOMPLETEDSUSPENDCHECK"; then node "$XERCOMPLETEDSUSPENDCHECK" || STATUS=1; fi
+
   # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
   XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
   if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi

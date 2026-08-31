@@ -1,6 +1,8 @@
 import type { SchedulingOptions } from '@/types/project';
 import type { Task } from '@/types/task';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { parseInstant } from '@/utils/dateUtils';
+import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
 export type P6CompletedWindowReason =
@@ -24,6 +26,29 @@ export interface P6CompletedWindowDecision {
   reason: P6CompletedWindowReason;
 }
 
+function mayUseSuspendResumeCompletedWindow(
+  task: Task,
+  dataDate: Date | null,
+  schedulingOptions: SchedulingOptions | undefined,
+): boolean {
+  if (task.p6SuspendResume !== true) return false;
+  if (task.time.completion < 1) return false;
+  if (task.p6ActivityType !== 'TT_Task') return false;
+  if (dataDate === null) return false;
+  if (schedulingOptions?.preserveActualDatesInBackwardPass !== true) return false;
+  if (!task.time.actualFinish) return false;
+  const actualFinishTime = parseInstant(task.time.actualFinish).getTime();
+  if (!Number.isFinite(actualFinishTime)) return false;
+  const targetFinishTime = parseInstant(task.time.scheduleFinish).getTime();
+  if (!Number.isFinite(targetFinishTime)) return false;
+  if (actualFinishTime < targetFinishTime) return false;
+  if (actualFinishTime > dataDate.getTime()) return false;
+  if (!hasValidP6SuspendResume(task)) return false;
+  if (!task.time.resume) return false;
+  const resumeTime = parseInstant(task.time.resume).getTime();
+  return Number.isFinite(resumeTime) && resumeTime <= actualFinishTime;
+}
+
 /**
  * Alleen een bewezen XER-bladactiviteit mag voor een voltooide taak de P6-statusdatum als
  * bronsemantiek gebruiken. Dit is bewust géén datumoverride en leest géén opgeslagen P6
@@ -32,8 +57,13 @@ export interface P6CompletedWindowDecision {
  * De onafhankelijke guards maken de representatie fail-closed na IFC, undo en extensie-
  * round-trips: project-, taak-, voortgangstype- en activiteitstypeprovenance moeten tegelijk
  * bestaan. De vastgelegde `CP_Drtn`/`DT_FixedDUR2`-vorm is de kleinste onafhankelijke bronvorm
- * waarvoor de corpusprobe de completed statusdatum-inversie bevestigt. Suspend/resume en
- * nulduurmijlpalen blijven expliciet buiten dit eerste causaliteitspakket.
+ * waarvoor de corpusprobe de completed statusdatum-route bevestigt. Een P6 suspend/resume-paar
+ * blijft standaard fail-closed en mag uitsluitend door deze poort wanneer de taak zelf al
+ * aantoonbaar voltooid is, haar actual-finish parseerbaar binnen het expliciete targetvenster en
+ * de projectstatusdatum valt (`target_end_date <= actualFinish <= dataDate`), de backward-actual-
+ * preserve-vlag aan staat, de resume niet ná de actual-finish valt en het interne stop/resume-paar
+ * geldig is. Actieve, halve, omgekeerde of stale suspend/resume-vormen houden dus expliciet de
+ * bestaande `hasSuspendResume`-reden. Nulduurmijlpalen blijven buiten dit eerste causaliteitspakket.
  *
  * Guardvolgorde is bewust vast en fail-closed: de eerste afwijzing is de ENIGE reden die we
  * rapporteren. Zo blijft de diagnose stabiel en deelt de boolean-wrapper exact dezelfde bron.
@@ -63,7 +93,9 @@ export function explainP6CompletedDataDateWindow(
   if (task.p6ActivityType !== 'TT_Task' && task.p6ActivityType !== 'TT_Rsrc') {
     return { eligible: false, reason: 'wrongActivityType' };
   }
-  if (task.p6SuspendResume === true) return { eligible: false, reason: 'hasSuspendResume' };
+  if (task.p6SuspendResume === true && !mayUseSuspendResumeCompletedWindow(task, dataDate, schedulingOptions)) {
+    return { eligible: false, reason: 'hasSuspendResume' };
+  }
   if (task.time.completion < 1) return { eligible: false, reason: 'notCompleted' };
   if (isZeroDurationMilestone(task)) return { eligible: false, reason: 'zeroDurationMilestone' };
   return { eligible: true, reason: 'eligible' };

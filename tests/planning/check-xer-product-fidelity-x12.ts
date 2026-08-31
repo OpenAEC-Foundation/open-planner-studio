@@ -1705,7 +1705,7 @@ async function productBaseline(
     p6SuspendResume: true,
     time: { ...oneTask.time, stop: '2026-01-06T08:00', resume: '2026-01-07T08:00' },
   });
-  eq('X12 fail-closed route weigert ontbrekende presence, LOE en suspend/resume', {
+  eq('X12 fail-closed route weigert ontbrekende presence, LOE en suspend/resume buiten de bewezen completed-bronrelatie', {
     noPresence: [noPresenceResult?.earlyStart, noPresenceResult?.earlyFinish],
     loe: [loeResult?.earlyStart, loeResult?.earlyFinish],
     suspended: [suspendedResult?.earlyStart, suspendedResult?.earlyFinish],
