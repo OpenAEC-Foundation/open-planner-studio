@@ -1,0 +1,223 @@
+import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
+import { readXER } from '@/services/xer/xerReader';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { replayXerProductBeforeOracle, syntheticZeroRegressionCandidate } from './xerTaskReplayProduct';
+import type { CpmBackwardFloatTrace, CpmProjectEndSource, CpmTaskBackwardFloatTrace } from '@/engine/scheduler/CPMSolver';
+
+const diffs: string[] = [];
+let checks = 0;
+
+function eq(label: string, got: unknown, want: unknown): void {
+  checks++;
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+  }
+}
+
+const earlyShiftCalendar = '(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|07:00|f|15:00)())))      (0||2()(        (0||0(s|07:00|f|15:00)())))      (0||3()(        (0||0(s|07:00|f|15:00)())))      (0||4()(        (0||0(s|07:00|f|15:00)())))      (0||5()(        (0||0(s|07:00|f|15:00)())))      (0||6()())      (0||7()())))    (0||Exceptions()())))';
+
+interface Variant {
+  id: string;
+  remainingStart: boolean;
+  useProjectEndDateForFloat: boolean;
+  finishMilestoneBoundary: boolean;
+  expected: {
+    projectEndSource: string;
+    completedLateStartSource: string;
+    milestoneFreeFloatSource: string;
+  };
+}
+
+function fixtureBytes(variant: Variant): Uint8Array {
+  return new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-17\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tVroege ploeg\tP1\tCA_Project\t8\t40\t${earlyShiftCalendar}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    `%R\tP1\tBackward float trace\tC1\t2026-08-17 07:00\t2026-08-03 07:00\t2026-08-20 15:00\t${variant.remainingStart ? 'Y' : 'N'}`,
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float',
+    `%R\tP1\t${variant.useProjectEndDateForFloat ? 'Y' : 'N'}`,
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tP\tP1\tC1\tPRED\tEchte voorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-03 07:00\t2026-08-03 15:00\t\t',
+    '%R\tC\tP1\tC1\tDUP\tVoltooide leaf\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t8\t0\t2026-08-04 07:00\t2026-08-04 15:00\t2026-08-04 07:00\t2026-08-04 15:00',
+    '%R\tO\tP1\tC1\tOPEN\tOpen opvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-08-05 07:00\t2026-08-05 15:00\t\t',
+    '%R\tM\tP1\tC1\tDUP\tFinish milestone\tTT_FinMile\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t0\t0\t2026-08-06 07:01\t2026-08-06 07:01\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR-PC\tC\tP\tP1\tP1\tPR_FS\t0',
+    '%R\tR-PO\tO\tP\tP1\tP1\tPR_FS\t0',
+    '%R\tR-OM\tM\tO\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ].join('\n'));
+}
+
+function importFixture(bytes: Uint8Array): ImportResult {
+  const opened = readXER(bytes);
+  if (isMultiDocumentImport(opened)) throw new Error('tracefixture moet precies één project openen');
+  return opened;
+}
+
+interface TraceProjection {
+  projectEndSource: CpmProjectEndSource | undefined;
+  taskIds: string[];
+  completed: CpmTaskBackwardFloatTrace | undefined;
+  milestone: CpmTaskBackwardFloatTrace | undefined;
+}
+
+function traceProjection(trace: CpmBackwardFloatTrace | undefined): TraceProjection {
+  return {
+    projectEndSource: trace?.projectEndSource,
+    taskIds: Object.keys(trace?.byTaskId ?? {}).sort(),
+    completed: trace?.byTaskId.C,
+    milestone: trace?.byTaskId.M,
+  };
+}
+
+function solveTraceVariant(variant: Variant): TraceProjection {
+  const imported = structuredClone(importFixture(fixtureBytes(variant)));
+  imported.project.schedulingOptions = {
+    ...imported.project.schedulingOptions,
+    p6FinishMilestoneBoundaryWindow: variant.finishMilestoneBoundary,
+  };
+  const result = solveProject({
+    tasks: imported.tasks,
+    sequences: imported.sequences,
+    calendar: imported.calendar,
+    calendars: imported.resourceCalendars ?? [],
+    dataDate: imported.project.statusDate,
+    progressMode: imported.project.progressMode,
+    schedulingOptions: imported.project.schedulingOptions,
+    projectStartDate: imported.project.startDate,
+    projectEndDate: imported.project.endDate,
+  });
+  if (result.error) throw new Error(result.error);
+  return traceProjection(result.backwardFloatTrace);
+}
+
+const variants: Variant[] = [
+  {
+    id: 'completed-window', remainingStart: true, useProjectEndDateForFloat: false,
+    finishMilestoneBoundary: true,
+    expected: {
+      projectEndSource: 'completedDisplayWindow',
+      completedLateStartSource: 'subRemainingDuration',
+      milestoneFreeFloatSource: 'projectEndFinishMilestoneBoundary',
+    },
+  },
+  {
+    id: 'remaining-start-uit', remainingStart: false, useProjectEndDateForFloat: false,
+    finishMilestoneBoundary: true,
+    expected: {
+      projectEndSource: 'maxEarlyFinish',
+      completedLateStartSource: 'subDuration',
+      milestoneFreeFloatSource: 'projectEndFinishMilestoneBoundary',
+    },
+  },
+  {
+    id: 'expliciet-projecteinde', remainingStart: true, useProjectEndDateForFloat: true,
+    finishMilestoneBoundary: true,
+    expected: {
+      projectEndSource: 'useProjectEndDateForFloat',
+      completedLateStartSource: 'subRemainingDuration',
+      milestoneFreeFloatSource: 'clampedZero',
+    },
+  },
+  {
+    id: 'finish-boundary-uit', remainingStart: true, useProjectEndDateForFloat: false,
+    finishMilestoneBoundary: false,
+    expected: {
+      projectEndSource: 'completedDisplayWindow',
+      completedLateStartSource: 'subRemainingDuration',
+      milestoneFreeFloatSource: 'derivedFromSuccessor',
+    },
+  },
+];
+
+{
+  const imported = importFixture(fixtureBytes(variants[0]!));
+  const completed = imported.tasks.find(task => task.id === 'C');
+  eq('backward-float-trace fixture activeert de completed-window-guard zonder oracledata', {
+    p6Source: imported.project.schedulingOptions?.p6Source,
+    remainingStart: imported.project.schedulingOptions?.p6UseRemainingStartForProgress,
+    completion: completed?.time.completion,
+    p6ProjectId: completed?.p6ProjectId,
+    p6TaskId: completed?.p6TaskId,
+    explicitTargetWindow: completed?.p6ExplicitTargetWindow,
+    completePctType: completed?.p6CompletePctType,
+    durationType: completed?.p6DurationType,
+  }, {
+    p6Source: 'XER',
+    remainingStart: true,
+    completion: 1,
+    p6ProjectId: 'P1',
+    p6TaskId: 'C',
+    explicitTargetWindow: true,
+    completePctType: 'CP_Drtn',
+    durationType: 'DT_FixedDUR2',
+  });
+}
+
+for (const variant of variants) {
+  const trace = solveTraceVariant(variant);
+  eq(`backward-float-trace ${variant.id}: beslisbronnen`, {
+    projectEndSource: trace.projectEndSource,
+    completedLateStartSource: (trace.completed as { lateStartSource?: string } | undefined)?.lateStartSource,
+    completedDisplayActualLate: (trace.completed as { displayActualLate?: boolean } | undefined)?.displayActualLate,
+    milestoneFreeFloatSource: (trace.milestone as { freeFloatSource?: string } | undefined)?.freeFloatSource,
+  }, {
+    projectEndSource: variant.expected.projectEndSource,
+    completedLateStartSource: variant.expected.completedLateStartSource,
+    completedDisplayActualLate: true,
+    milestoneFreeFloatSource: variant.expected.milestoneFreeFloatSource,
+  });
+  eq(`backward-float-trace ${variant.id}: task.id is de enige trace-identiteit`, {
+    taskIds: trace.taskIds,
+    hasTaskCodeKey: trace.taskIds.includes('DUP'),
+  }, {
+    taskIds: ['C', 'M', 'O', 'P'],
+    hasTaskCodeKey: false,
+  });
+}
+
+{
+  const baseline = variants[0]!;
+  const replay = replayXerProductBeforeOracle(fixtureBytes(baseline), syntheticZeroRegressionCandidate, {
+    includeBackwardFloatTrace: true,
+  });
+  const source = replay.predicate.find(log => log.sourceTaskId === 'C')?.source;
+  eq('backward-float-trace replay projecteert de solve-trace vóór oracle/classificatie', {
+    projectEndSource: source?.backwardFloatTraceProjectEndSource,
+    lateStartSource: source?.backwardFloatTraceLateStartSource,
+    displayActualLate: source?.backwardFloatTraceDisplayActualLate,
+  }, {
+    projectEndSource: 'completedDisplayWindow',
+    lateStartSource: 'subRemainingDuration',
+    displayActualLate: true,
+  });
+}
+
+{
+  const imported = structuredClone(importFixture(fixtureBytes(variants[0]!)));
+  imported.project.schedulingOptions = {
+    ...imported.project.schedulingOptions,
+    p6Source: undefined,
+  };
+  const result = solveProject({
+    tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
+    calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
+    progressMode: imported.project.progressMode, schedulingOptions: imported.project.schedulingOptions,
+    projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
+  });
+  eq('backward-float-trace faalt gesloten zonder XER-bronsignaal', result.backwardFloatTrace, undefined);
+}
+
+if (diffs.length > 0) {
+  console.error(`XER BACKWARD FLOAT TRACE RED: ${diffs.length}/${checks} checks rood`);
+  for (const diff of diffs) console.error(`XX ${diff}`);
+  process.exit(1);
+}
+console.log(`XER BACKWARD FLOAT TRACE GREEN: ${checks} checks groen`);

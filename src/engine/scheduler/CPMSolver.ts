@@ -21,6 +21,8 @@ import {
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
   criticalPath: string[];
+  /** Optionele, niet-persistente XER-diagnose van de backward/float-beslissingen. */
+  backwardFloatTrace?: CpmBackwardFloatTrace;
   /**
    * Optionele, niet-persistente XER-diagnose van de geplande-startvloer. Alleen gevuld voor
    * ingelezen P6-activiteiten waarvoor de bronoptie actief is en het volledige doelvenster
@@ -74,6 +76,36 @@ export interface CPMResult {
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
+}
+
+export type CpmProjectEndSource =
+  | 'maxEarlyFinish'
+  | 'completedDisplayWindow'
+  | 'useProjectEndDateForFloat';
+
+export type CpmLateFinishSource =
+  | 'projectEnd'
+  | 'successorConstraint';
+
+export type CpmLateStartSource =
+  | 'subDuration'
+  | 'subRemainingDuration';
+
+export type CpmFreeFloatSource =
+  | 'derivedFromSuccessor'
+  | 'projectEndFinishMilestoneBoundary'
+  | 'clampedZero';
+
+export interface CpmTaskBackwardFloatTrace {
+  lateFinishSource: CpmLateFinishSource;
+  lateStartSource: CpmLateStartSource;
+  freeFloatSource: CpmFreeFloatSource;
+  displayActualLate: boolean;
+}
+
+export interface CpmBackwardFloatTrace {
+  projectEndSource: CpmProjectEndSource;
+  byTaskId: Record<string, CpmTaskBackwardFloatTrace>;
 }
 
 export interface CPMPlannedFloorTrace {
@@ -265,6 +297,8 @@ export class CPMSolver {
   private cappedTaskIds: string[] = [];
   // Test-/replaydiagnose van de P6-planned-floor-beslissing. Nooit teruggeschreven naar Task/IFC.
   private plannedFloorTraceByTaskId: Record<string, CPMPlannedFloorTrace> = {};
+  // Test-/replaydiagnose van completed backward/float-bronnen. Alleen XER, nooit Task/IFC.
+  private backwardFloatTrace: CpmBackwardFloatTrace | undefined;
 
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
@@ -391,6 +425,20 @@ export class CPMSolver {
 
   private usesP6CompletedDataDateWindow(task: Task): boolean {
     return this.dataDate !== null && isP6CompletedDataDateCandidate(task, this.options.schedulingOptions);
+  }
+
+  private recordBackwardFloatTrace(
+    taskId: string,
+    update: Partial<CpmTaskBackwardFloatTrace>,
+  ): void {
+    if (!this.backwardFloatTrace) return;
+    const previous = this.backwardFloatTrace.byTaskId[taskId] ?? {
+      lateFinishSource: 'projectEnd',
+      lateStartSource: 'subDuration',
+      freeFloatSource: 'derivedFromSuccessor',
+      displayActualLate: false,
+    };
+    this.backwardFloatTrace.byTaskId[taskId] = { ...previous, ...update };
   }
 
   /** Smalle P6-XER-resultaatprojectie; de CalendarEngine-primitieven blijven formaatneutraal. */
@@ -1078,6 +1126,9 @@ export class CPMSolver {
     this.hammockNoFinishDriverIds = [];
     this.cappedTaskIds = [];
     this.plannedFloorTraceByTaskId = {};
+    this.backwardFloatTrace = this.options.schedulingOptions?.p6Source === 'XER'
+      ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
+      : undefined;
     this.dataDate = null; // wordt hieronder herzet; zo blijft hij ook over guard-returns heen nooit stale
     this.projectStartRaw = null; // idem — herzet vóór elke solve, nooit stale over guard-returns heen
 
@@ -1146,6 +1197,7 @@ export class CPMSolver {
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
       modeOf: (eng) => this.modeOf(eng),
+      backwardFloatTrace: this.backwardFloatTrace,
     });
     // Zachte WP7-waarschuwing: alleen bij een echt onwerkbaar venster het veld zetten, zodat een
     // normale solve byte-identiek blijft (veld afwezig ⇒ geen wijziging aan bestaande consumenten).
@@ -1156,6 +1208,12 @@ export class CPMSolver {
     if (this.cappedTaskIds.length > 0) result.cappedTaskIds = [...new Set(this.cappedTaskIds)];
     if (Object.keys(this.plannedFloorTraceByTaskId).length > 0) {
       result.plannedFloorTraceByTaskId = { ...this.plannedFloorTraceByTaskId };
+    }
+    if (this.backwardFloatTrace) {
+      result.backwardFloatTrace = {
+        projectEndSource: this.backwardFloatTrace.projectEndSource,
+        byTaskId: { ...this.backwardFloatTrace.byTaskId },
+      };
     }
     // T8-rooktest: idem voor relaties die een niet-bladtaak raakten en al bij de constructie
     // genegeerd zijn (zie de guard in de constructor) — byte-identiek default zolang dat niet gebeurt.
@@ -2851,17 +2909,23 @@ export class CPMSolver {
       const task = this.tasks.get(taskId);
       if (!early || !task) continue;
       let candidateEf = early.ef;
+      let projectEndSource: CpmProjectEndSource = 'maxEarlyFinish';
       if (this.usesP6CompletedDataDateWindow(task)) {
         const progressCal = this.progressCalendarFor(task);
         const projectedEs = this.snapOnOrAfter(progressCal, this.dataDate!);
         candidateEf = progressCal.prevWorkInstant(projectedEs);
+        projectEndSource = 'completedDisplayWindow';
+        if (this.backwardFloatTrace) this.backwardFloatTrace.projectEndSource = projectEndSource;
       }
-      if (candidateEf > projectEnd) projectEnd = candidateEf;
+      if (candidateEf > projectEnd) {
+        projectEnd = candidateEf;
+      }
     }
     if (this.options.schedulingOptions?.useProjectEndDateForFloat === true) {
       const configuredProjectEnd = parseInstant(this.options.projectEndDate ?? '');
       if (!isNaN(configuredProjectEnd.getTime())) {
         projectEnd = this.snapOnOrBefore(this.projectEngine, configuredProjectEnd);
+        if (this.backwardFloatTrace) this.backwardFloatTrace.projectEndSource = 'useProjectEndDateForFloat';
       }
     }
 
@@ -2878,6 +2942,11 @@ export class CPMSolver {
       // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
       if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1) {
         const ed = earlyDates.get(taskId)!;
+        this.recordBackwardFloatTrace(taskId, {
+          lateStartSource: this.p6XerOption(
+            this.options.schedulingOptions?.p6UseRemainingStartForProgress,
+          ) ? 'subRemainingDuration' : 'subDuration',
+        });
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
         continue;
       }
@@ -2946,6 +3015,7 @@ export class CPMSolver {
         && (this.predecessors.get(taskId)?.length ?? 0) > 0
         && task.milestoneKind === 'FINISH' && isZeroDurationMilestone(task)) {
         const ed = earlyDates.get(taskId)!;
+        this.recordBackwardFloatTrace(taskId, { lateFinishSource: 'projectEnd', lateStartSource: 'subDuration' });
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
         continue;
       }
@@ -2956,6 +3026,7 @@ export class CPMSolver {
       // voorganger ten onrechte speling/niet-kritiek kreeg.)
       const predCal = this.calendarFor(task);
       let lateFinish = projectEnd;
+      let lateFinishSource: CpmLateFinishSource = 'projectEnd';
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
         const succTask = this.tasks.get(seq.successorId);
@@ -2998,6 +3069,7 @@ export class CPMSolver {
         );
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;
+          lateFinishSource = 'successorConstraint';
         }
       }
 
@@ -3036,6 +3108,10 @@ export class CPMSolver {
         lateStart = predCal.nextWorkInstant(lateFinish);
       }
 
+      this.recordBackwardFloatTrace(taskId, {
+        lateFinishSource,
+        lateStartSource: useP6RemainingProgress ? 'subRemainingDuration' : 'subDuration',
+      });
       results.set(taskId, { ls: lateStart, lf: lateFinish });
     }
 

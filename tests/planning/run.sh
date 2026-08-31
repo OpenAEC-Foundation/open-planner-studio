@@ -345,6 +345,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # XER completed-backward/float-trace: corpusloze beslisbroninstrumentatie. Deze check
+  # leest geen oracle of classificatie en bewaakt uitsluitend de optionele CPMResult-trace.
+  XERBACKWARDFLOATTRACECHECK="$DIR/.xer-backward-float-trace.mjs"
+  if bundle_check "$DIR/check-xer-backward-float-trace.ts" "$XERBACKWARDFLOATTRACECHECK"; then
+    node "$XERBACKWARDFLOATTRACECHECK" || STATUS=1
+  fi
+
   # X4a oorspronkelijke bytes: CP1252 + beide UTF-16-BOM-vormen door web, Tauri, recents en de
   # dev-bridge; de MCP-route heeft dezelfde drie fixtures in tests/mcp/cases-doc-file.ts.
   XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"

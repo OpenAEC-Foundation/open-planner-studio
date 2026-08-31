@@ -1,7 +1,7 @@
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { solveProject } from '@/engine/scheduler/solveProject';
-import type { CPMPlannedFloorTrace } from '@/engine/scheduler/CPMSolver';
+import type { CpmProjectEndSource, CpmTaskBackwardFloatTrace, CPMPlannedFloorTrace } from '@/engine/scheduler/CPMSolver';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import type { WorkCalendar } from '@/types/calendar';
@@ -59,6 +59,8 @@ export interface XerReplayLifecycleEvent {
 export interface XerReplayOptions {
   /** Testinstrumentatie: één event binnen de levensduur van iedere actieve solveclone. */
   onLifecycleEvent?: (event: XerReplayLifecycleEvent) => void;
+  /** Projecteer de optionele CPM backward/float-trace in de replaydiagnose; standaard inert. */
+  includeBackwardFloatTrace?: boolean;
 }
 
 function canonicalProductMinute(value: string | undefined): string | undefined {
@@ -69,6 +71,8 @@ function canonicalProductMinute(value: string | undefined): string | undefined {
 interface XerReplaySolveResult {
   project: XerSolvedProject;
   plannedFloorTraceBySourceTaskId: Readonly<Record<string, CPMPlannedFloorTrace>>;
+  backwardFloatTraceProjectEndSource?: CpmProjectEndSource;
+  backwardFloatTraceBySourceTaskId: Readonly<Record<string, CpmTaskBackwardFloatTrace>>;
 }
 
 function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResult {
@@ -98,8 +102,15 @@ function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResu
       const sourceTask = sourceTaskById.get(taskId);
       return sourceTask?.id.trim() ? [[sourceTask.id, trace] as const] : [];
     }));
+  const backwardFloatTraceBySourceTaskId = Object.fromEntries(Object.entries(cpm.backwardFloatTrace?.byTaskId ?? {})
+    .flatMap(([taskId, trace]) => {
+      const sourceTask = sourceTaskById.get(taskId);
+      return sourceTask?.id.trim() ? [[sourceTask.id, trace] as const] : [];
+    }));
   return {
     plannedFloorTraceBySourceTaskId,
+    backwardFloatTraceProjectEndSource: cpm.backwardFloatTrace?.projectEndSource,
+    backwardFloatTraceBySourceTaskId,
     project: {
       projectId: imported.project.id,
       tasks: imported.tasks.filter(task => task.p6ActivityType !== undefined).map(task => {
@@ -245,21 +256,33 @@ export function replayXerProductBeforeOracle(
     for (const log of projectPredicate) {
       if (!log.sourceTaskId.trim()) continue;
       const trace = baselineSolve.plannedFloorTraceBySourceTaskId[log.sourceTaskId];
-      if (!trace) continue;
+      const backwardFloatTrace = options.includeBackwardFloatTrace
+        ? baselineSolve.backwardFloatTraceBySourceTaskId[log.sourceTaskId]
+        : undefined;
+      if (!trace && !backwardFloatTrace) continue;
       log.source = {
         ...log.source,
-        plannedFloorTracePreFloorEarlyStart: trace.preFloorEarlyStart,
-        plannedFloorTracePreFloorEarlyFinish: trace.preFloorEarlyFinish,
-        plannedFloorTraceTargetStart: trace.targetStart,
-        plannedFloorTraceTargetFinish: trace.targetFinish,
-        plannedFloorTracePlannedWindowIsLater: trace.plannedWindowIsLater,
-        plannedFloorTraceBoundarySource: trace.boundarySource,
-        ...(trace.boundarySequenceId
-          ? { plannedFloorTraceBoundarySequenceId: trace.boundarySequenceId }
-          : {}),
-        ...(trace.boundaryPredecessorTaskCode
-          ? { plannedFloorTraceBoundaryPredecessorTaskCode: trace.boundaryPredecessorTaskCode }
-          : {}),
+        ...(trace ? {
+          plannedFloorTracePreFloorEarlyStart: trace.preFloorEarlyStart,
+          plannedFloorTracePreFloorEarlyFinish: trace.preFloorEarlyFinish,
+          plannedFloorTraceTargetStart: trace.targetStart,
+          plannedFloorTraceTargetFinish: trace.targetFinish,
+          plannedFloorTracePlannedWindowIsLater: trace.plannedWindowIsLater,
+          plannedFloorTraceBoundarySource: trace.boundarySource,
+          ...(trace.boundarySequenceId
+            ? { plannedFloorTraceBoundarySequenceId: trace.boundarySequenceId }
+            : {}),
+          ...(trace.boundaryPredecessorTaskCode
+            ? { plannedFloorTraceBoundaryPredecessorTaskCode: trace.boundaryPredecessorTaskCode }
+            : {}),
+        } : {}),
+        ...(backwardFloatTrace ? {
+          backwardFloatTraceProjectEndSource: baselineSolve.backwardFloatTraceProjectEndSource,
+          backwardFloatTraceLateFinishSource: backwardFloatTrace.lateFinishSource,
+          backwardFloatTraceLateStartSource: backwardFloatTrace.lateStartSource,
+          backwardFloatTraceFreeFloatSource: backwardFloatTrace.freeFloatSource,
+          backwardFloatTraceDisplayActualLate: backwardFloatTrace.displayActualLate,
+        } : {}),
       };
     }
     addProject(baseline, baselineSolve.project, 'baseline');

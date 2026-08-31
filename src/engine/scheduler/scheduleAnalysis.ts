@@ -2,7 +2,7 @@ import type { Task, TaskConstraint } from '@/types/task';
 import type { SchedulingOptions } from '@/types/project';
 import type { Sequence } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
-import type { CPMResult, CPMTaskResult } from './CPMSolver';
+import type { CpmBackwardFloatTrace, CpmFreeFloatSource, CPMResult, CPMTaskResult } from './CPMSolver';
 import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
@@ -47,6 +47,8 @@ export interface ScheduleAnalysisInput {
   snapOnOrAfter: (eng: CalendarEngine, d: Date) => Date;
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
   modeOf: (eng: CalendarEngine) => DateMode;
+  /** Optionele XER-diagnose die de post-pass op haar eigen beslisplekken aanvult. */
+  backwardFloatTrace?: CpmBackwardFloatTrace;
 }
 
 /**
@@ -63,6 +65,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat, projectedWorkMinutesBetween,
     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
+    backwardFloatTrace,
   } = input;
 
   const taskResults = new Map<string, CPMTaskResult>();
@@ -192,6 +195,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // FS-finishdag-correctie); voor kalenderdag- en procent-lag volgt de juiste waarde
     // automatisch uit dezelfde bron als de planningsberekening zelf.
     let freeFloat = Infinity;
+    let freeFloatSource: CpmFreeFloatSource = 'derivedFromSuccessor';
     const succs = successors.get(taskId) || [];
     if (succs.length === 0) {
       // Eindtaak: vrije speling = totale-speling-equivalent (finish kan opschuiven tot
@@ -215,6 +219,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       && tasksWithPredecessor.has(taskId)
       && taskObj.milestoneKind === 'FINISH' && isZeroDurationMilestone(taskObj)) {
       freeFloat = signedFloat(early.ef, scheduleProjectEnd, cal, taskObj);
+      freeFloatSource = 'projectEndFinishMilestoneBoundary';
     }
     // P6's expliciete PROJECT-einddatum is voor een door het netwerk bereikte, open TT_FinMile
     // een late-pass-/TF-anker, geen echte opvolger. Zo'n eindmijlpaal kan wel totale float hebben,
@@ -224,7 +229,10 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // variant verslechterde 19 publieke taken, de zonder-predecessor-variant nog één).
     if (so?.useProjectEndDateForFloat === true && succs.length === 0
       && tasksWithPredecessor.has(taskId)
-      && taskObj.milestoneKind === 'FINISH' && isZeroDurationMilestone(taskObj)) freeFloat = 0;
+      && taskObj.milestoneKind === 'FINISH' && isZeroDurationMilestone(taskObj)) {
+      freeFloat = 0;
+      freeFloatSource = 'clampedZero';
+    }
 
     // Totale speling: getekend (fase 2.3 — negatieve float bij geschonden late-zijde-
     // constraints/deadlines), MSP-veilig als min van finish- en start-float (die kunnen
@@ -296,12 +304,16 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // hieronder wordt op actuals teruggezet.
     if (completed && so?.preserveActualDatesInBackwardPass === true) {
       freeFloat = 0;
+      freeFloatSource = 'clampedZero';
     }
     // P6/XER houdt vrije float op nul wanneer een late constraint de totale float negatief maakt.
     // De publieke P6-meetmassa bevat wel 63 negatieve TF-cellen maar geen negatieve FF-cel; case 05
     // bevestigt hetzelfde op een FNLT-eindtaak. Brongebonden, zodat de algemene getekende OPS-
     // semantiek zonder vlag ongewijzigd blijft.
-    if (so?.clampNegativeFreeFloat === true && freeFloat < 0) freeFloat = 0;
+    if (so?.clampNegativeFreeFloat === true && freeFloat < 0) {
+      freeFloat = 0;
+      freeFloatSource = 'clampedZero';
+    }
     // Kritiek-definitie (§4.6): hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
     // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
     // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).
@@ -361,6 +373,19 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // `formatDate` (byte-identiek), uur-taak ⇒ `YYYY-MM-DDTHH:mm`.
     const mode = completedDisplayWindow?.mode ?? modeOf(cal);
     const displayActualLate = completed && so?.preserveActualDatesInBackwardPass === true;
+    if (backwardFloatTrace) {
+      const prior = backwardFloatTrace.byTaskId[taskId] ?? {
+        lateFinishSource: 'projectEnd' as const,
+        lateStartSource: 'subDuration' as const,
+        freeFloatSource: 'derivedFromSuccessor' as const,
+        displayActualLate: false,
+      };
+      backwardFloatTrace.byTaskId[taskId] = {
+        ...prior,
+        freeFloatSource,
+        displayActualLate,
+      };
+    }
     taskResults.set(taskId, {
       earlyStart: formatInstant(completedDisplayWindow?.es ?? early.es, mode),
       earlyFinish: formatInstant(completedDisplayWindow?.ef ?? early.ef, mode),
