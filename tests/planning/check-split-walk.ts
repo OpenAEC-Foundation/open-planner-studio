@@ -8,7 +8,9 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
-import { computeSplitSegments, enumerateTaskWorkDays, splitDayPattern } from '@/engine/scheduler/splitWalk';
+import {
+  computeSplitSegments, enumerateTaskWorkDays, splitDayPattern, splitGapsFromWorkDayBlocks,
+} from '@/engine/scheduler/splitWalk';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { TaskSplitGap } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
@@ -47,6 +49,15 @@ const HOUR_CAL: WorkCalendar = {
   } },
 };
 const hourEng = new CalendarEngine(HOUR_CAL);
+
+// Zesdaagse kalender: ma-za, 8u/dag — zelfde vorm als `check-leveler-splits.ts`s `SIX_DAY_CAL`, hier
+// hergebruikt om `splitGapsFromWorkDayBlocks`s uitkomst op een AFWIJKENDE taakkalender te toetsen
+// (B1c-plan-2 taak 8, spec-testplicht "taakkalender ≠ projectkalender").
+const SIX_DAY_CAL: WorkCalendar = {
+  id: 'cal-six-day-split-walk', name: 'zesdaags', description: '', workDays: [1, 2, 3, 4, 5, 6],
+  workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+};
+const sixDayEng = new CalendarEngine(SIX_DAY_CAL);
 
 // Referentiegeval (zie moduleheader): na dag 1 een gat van 1 dag; het tweede gat ligt op
 // aspositie 1440 = 480 (dag 1 werk) + 480 (gat 1) + 480 (dag 2 werk).
@@ -232,6 +243,46 @@ console.log('-- split-walk: computeSplitSegments — overlap, taakeinde-klem, vi
   ok('geen enkel segment loopt achterstevoren (klem voorkomt end < start)',
     clampSegs.every(s => s.end.getTime() >= s.start.getTime()));
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// splitGapsFromWorkDayBlocks (B1c-plan-2 taak 8) — de as-conversie terug: werk/gat-blokken (hele
+// werkdagen) → `TaskSplitGap[]` op de H1-as. De EXACTE inverse van `splitDayPattern`.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- splitGapsFromWorkDayBlocks (de as-conversie terug) --');
+// Referentiegeval, spiegelt het `splitDayPattern`-geval bovenaan dit bestand:
+// blokken [{work:1,gap:1},{work:1,gap:1},{work:1,gap:0}] bij 480 min/dag ⇒ de H1-as-gaten
+// {480,480} en {1440,480}. Let op de CUMULATIE: 1440 = 480 werk + 480 gat + 480 werk.
+eq('blokken → H1-gaten', splitGapsFromWorkDayBlocks([{ work: 1, gap: 1 }, { work: 1, gap: 1 }, { work: 1, gap: 0 }], 480, 'leveling'),
+   [{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' },
+    { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' }]);
+eq('een slotblok zonder gat levert geen gat op', splitGapsFromWorkDayBlocks([{ work: 4, gap: 0 }], 480), []);
+eq('zonder source-argument blijft het veld weg',
+   splitGapsFromWorkDayBlocks([{ work: 1, gap: 1 }, { work: 1, gap: 0 }], 480), [{ afterMinutes: 480, gapMinutes: 480 }]);
+
+// ── ROUND-TRIP-INVARIANT: de conversie is de exacte inverse van `splitDayPattern` ────────────────
+// Voor elk van deze blokpatronen (en elke minutesPerDay uit de lijst) moet gelden:
+//   splitDayPattern(splitGapsFromWorkDayBlocks(b, mpd), mpd, Σwork) === b
+// Neem mpd-waarden die een NIET-GEHELE hoursPerDay dekken (spec-testplicht): 480 (8u), 450 (7,5u),
+// 390 (6,5u). Elke blokreeks eindigt op een blok met gap 0 — dat is de vorm die splitDayPattern
+// oplevert (zie de INVARIANT-alinea in zijn docblok).
+for (const mpd of [480, 450, 390]) {
+  for (const blocks of [
+    [{ work: 1, gap: 1 }, { work: 1, gap: 0 }],
+    [{ work: 2, gap: 3 }, { work: 1, gap: 1 }, { work: 2, gap: 0 }],
+    [{ work: 5, gap: 0 }],
+  ]) {
+    const total = blocks.reduce((s, b) => s + b.work, 0);
+    eq(`round-trip mpd=${mpd} ${JSON.stringify(blocks)}`,
+       splitDayPattern(splitGapsFromWorkDayBlocks(blocks, mpd), mpd, total), blocks);
+  }
+}
+
+// ── En de dagen die eruit rollen kloppen op een AFWIJKENDE taakkalender (spec-testplicht) ────────
+// Zesdaagse kalender (ma-za): 3 werkdagen met een gat van 1 werkdag na dag 1, vanaf vr 2026-06-05
+// ⇒ vr, (za = gat), ma, di.
+eq('gaten uit blokken, geënumereerd op de taakkalender',
+   enumerateTaskWorkDays(splitGapsFromWorkDayBlocks([{ work: 1, gap: 1 }, { work: 2, gap: 0 }], 480), sixDayEng, '2026-06-05', 3),
+   ['2026-06-05', '2026-06-08', '2026-06-09']);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

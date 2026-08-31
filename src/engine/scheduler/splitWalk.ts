@@ -192,6 +192,48 @@ export function splitDayPattern(
 }
 
 /**
+ * De EXACTE INVERSE van `splitDayPattern`: werk/gat-blokken in hele werkdagen → `TaskSplitGap[]` op
+ * de H1-as. Dit is de ene gedeelde conversieroutine waar spec §4 ("As- en eenheidconversie") om
+ * vraagt (B1c-plan-2 taak 8; KEUZE VAN DIT PLAN: naast `splitDayPattern` in dit bestand i.p.v. naast
+ * `splitTotalSpanMinutes` in `duration.ts` — dit bestand is sinds W0 al de eigenaar van de H1-as-
+ * wandeling en draagt de heen-richting, dus de terugweg hoort naast zijn eigen inverse). De verdeler
+ * kiest pauzedagen op de TAAKkalender (dus in hele werkdagen van díé kalender) en schrijft ze hiermee
+ * om naar de cumulatieve elapsedWork-as die `duration.ts`, `CPMSolver.ts` en de renderer lezen.
+ *
+ * De cumulatie is het hele punt: `afterMinutes` van gat n incorporeert alle voorgaande werk- ÉN
+ * gat-minuten (`axisPos += work + gap`). Wie hier alleen de werkminuten optelt produceert gaten die
+ * de CPM te vroeg laat vallen — de spiegelfout van de pre-H1-bug die W0 repareerde.
+ *
+ * Een blok met `gap === 0` levert geen gat op (het slotblok, en elk blok waar de aanroeper geen
+ * pauze wil). `source` wordt op elk geproduceerd gat gezet wanneer meegegeven — de verdeler geeft
+ * `'leveling'`, zodat "nivellering wissen" zijn eigen gaten later terugvindt (spec §4, "Herkomst",
+ * `clearLevelingGaps` in `taskDefaults.ts`).
+ *
+ * INVARIANT (getest in `check-split-walk.ts`):
+ *   `splitDayPattern(splitGapsFromWorkDayBlocks(b, mpd), mpd, Σb.work) === b`
+ * voor elk blokpatroon dat eindigt op een blok met `gap: 0`.
+ */
+export function splitGapsFromWorkDayBlocks(
+  blocks: Array<{ work: number; gap: number }>,
+  minutesPerDay: number,
+  source?: 'leveling',
+): TaskSplitGap[] {
+  const mpd = Math.max(1, minutesPerDay);
+  const gaps: TaskSplitGap[] = [];
+  let axisPos = 0;
+  for (const b of blocks) {
+    const work = Math.max(0, Math.round(b.work));
+    const gap = Math.max(0, Math.round(b.gap));
+    axisPos += work * mpd;
+    if (gap > 0) {
+      gaps.push(source ? { afterMinutes: axisPos, gapMinutes: gap * mpd, source } : { afterMinutes: axisPos, gapMinutes: gap * mpd });
+      axisPos += gap * mpd; // H1: het gat telt zichzelf mee voor de positie van het VOLGENDE gat
+    }
+  }
+  return gaps;
+}
+
+/**
  * De ISO-datums van elke werkdag die een gesplitste (of ongesplitste) DAG-modus-taak daadwerkelijk
  * werkt, gegeven de start en de duur in werkdagen — de gedeelde bron voor lastlezers
  * (`ResourceLoad`/`ResourceLeveler`) die willen weten OP WELKE dagen een taak boekt, zonder zelf
