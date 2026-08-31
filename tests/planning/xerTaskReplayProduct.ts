@@ -282,6 +282,12 @@ export function replayXerProductBeforeOracle(
           backwardFloatTraceLateStartSource: backwardFloatTrace.lateStartSource,
           backwardFloatTraceFreeFloatSource: backwardFloatTrace.freeFloatSource,
           backwardFloatTraceDisplayActualLate: backwardFloatTrace.displayActualLate,
+          backwardFloatTraceCompletedWindowEligible: backwardFloatTrace.completedWindow.eligible,
+          backwardFloatTraceCompletedWindowReason: backwardFloatTrace.completedWindow.reason,
+          backwardFloatTraceBackwardActualPinEligible: backwardFloatTrace.backwardActualPin.eligible,
+          backwardFloatTraceBackwardActualPinReason: backwardFloatTrace.backwardActualPin.reason,
+          backwardFloatTraceDisplayActualLateEligible: backwardFloatTrace.displayActualLateDecision.eligible,
+          backwardFloatTraceDisplayActualLateReason: backwardFloatTrace.displayActualLateDecision.reason,
         } : {}),
       };
     }

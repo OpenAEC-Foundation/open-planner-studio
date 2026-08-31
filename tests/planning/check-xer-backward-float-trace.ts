@@ -89,6 +89,18 @@ interface TraceProjection {
   milestone: CpmTaskBackwardFloatTrace | undefined;
 }
 
+interface GuardDecisionProjection {
+  eligible: boolean;
+  reason: string;
+}
+
+interface CompletedGuardTraceProjection {
+  displayActualLate: boolean | undefined;
+  completedWindow: GuardDecisionProjection | undefined;
+  backwardActualPin: GuardDecisionProjection | undefined;
+  displayActualLateDecision: GuardDecisionProjection | undefined;
+}
+
 function traceProjection(trace: CpmBackwardFloatTrace | undefined): TraceProjection {
   return {
     projectEndSource: trace?.projectEndSource,
@@ -117,6 +129,57 @@ function solveTraceVariant(variant: Variant): TraceProjection {
   });
   if (result.error) throw new Error(result.error);
   return traceProjection(result.backwardFloatTrace);
+}
+
+function completedGuardFixtureBytes(): Uint8Array {
+  return new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-17\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tVroege ploeg\tP1\tCA_Project\t8\t40\t${earlyShiftCalendar}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tCompleted guard trace\tC1\t2026-08-17 07:00\t2026-08-03 07:00\t2026-08-20 15:00\tY',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float',
+    '%R\tP1\tN',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tsuspend_date\tresume_date',
+    '%R\tC\tP1\tC1\tCOMP\tCompleted diag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t8\t0\t2026-08-04 07:00\t2026-08-04 15:00\t2026-08-04 07:00\t2026-08-04 15:00\t\t',
+    '%E',
+  ].join('\n'));
+}
+
+function solveCompletedGuardTrace(
+  mutate?: (imported: ImportResult) => void,
+): CompletedGuardTraceProjection {
+  const imported = structuredClone(importFixture(completedGuardFixtureBytes()));
+  mutate?.(imported);
+  const result = solveProject({
+    tasks: imported.tasks,
+    sequences: imported.sequences,
+    calendar: imported.calendar,
+    calendars: imported.resourceCalendars ?? [],
+    dataDate: imported.project.statusDate,
+    progressMode: imported.project.progressMode,
+    schedulingOptions: imported.project.schedulingOptions,
+    projectStartDate: imported.project.startDate,
+    projectEndDate: imported.project.endDate,
+  });
+  if (result.error) throw new Error(result.error);
+  const trace = result.backwardFloatTrace?.byTaskId.C as
+    | (CpmTaskBackwardFloatTrace & {
+      completedWindow?: GuardDecisionProjection;
+      backwardActualPin?: GuardDecisionProjection;
+      displayActualLateDecision?: GuardDecisionProjection;
+    })
+    | undefined;
+  return {
+    displayActualLate: trace?.displayActualLate,
+    completedWindow: trace?.completedWindow,
+    backwardActualPin: trace?.backwardActualPin,
+    displayActualLateDecision: trace?.displayActualLateDecision,
+  };
 }
 
 const variants: Variant[] = [
@@ -180,6 +243,105 @@ const variants: Variant[] = [
   },
 ];
 
+const completedGuardVariants: Array<{
+  id: string;
+  mutate?: (imported: ImportResult) => void;
+  expected: CompletedGuardTraceProjection;
+}> = [
+  {
+    id: 'active',
+    expected: {
+      displayActualLate: true,
+      completedWindow: { eligible: true, reason: 'eligible' },
+      backwardActualPin: { eligible: true, reason: 'eligible' },
+      displayActualLateDecision: { eligible: true, reason: 'eligible' },
+    },
+  },
+  {
+    id: 'ontbrekende-explicit-target-provenance',
+    mutate: imported => {
+      const task = imported.tasks.find(candidate => candidate.id === 'C');
+      if (!task) throw new Error('fixture mist taak C');
+      task.p6ExplicitTargetWindow = false;
+    },
+    expected: {
+      displayActualLate: true,
+      completedWindow: { eligible: false, reason: 'missingExplicitTargetWindow' },
+      backwardActualPin: { eligible: true, reason: 'eligible' },
+      displayActualLateDecision: { eligible: true, reason: 'eligible' },
+    },
+  },
+  {
+    id: 'suspend-resume',
+    mutate: imported => {
+      const task = imported.tasks.find(candidate => candidate.id === 'C');
+      if (!task) throw new Error('fixture mist taak C');
+      task.p6SuspendResume = true;
+    },
+    expected: {
+      displayActualLate: true,
+      completedWindow: { eligible: false, reason: 'hasSuspendResume' },
+      backwardActualPin: { eligible: true, reason: 'eligible' },
+      displayActualLateDecision: { eligible: true, reason: 'eligible' },
+    },
+  },
+  {
+    id: 'ontbrekende-actual-finish',
+    mutate: imported => {
+      const task = imported.tasks.find(candidate => candidate.id === 'C');
+      if (!task) throw new Error('fixture mist taak C');
+      task.time.actualFinish = '';
+    },
+    expected: {
+      displayActualLate: true,
+      completedWindow: { eligible: true, reason: 'eligible' },
+      backwardActualPin: { eligible: false, reason: 'missingActualFinish' },
+      displayActualLateDecision: { eligible: true, reason: 'eligible' },
+    },
+  },
+  {
+    id: 'niet-voltooid',
+    mutate: imported => {
+      const task = imported.tasks.find(candidate => candidate.id === 'C');
+      if (!task) throw new Error('fixture mist taak C');
+      task.time.completion = 0.5;
+    },
+    expected: {
+      displayActualLate: false,
+      completedWindow: { eligible: false, reason: 'notCompleted' },
+      backwardActualPin: { eligible: false, reason: 'notCompleted' },
+      displayActualLateDecision: { eligible: false, reason: 'notCompleted' },
+    },
+  },
+  {
+    id: 'preserve-uit',
+    mutate: imported => {
+      imported.project.schedulingOptions = {
+        ...imported.project.schedulingOptions,
+        preserveActualDatesInBackwardPass: false,
+      };
+    },
+    expected: {
+      displayActualLate: false,
+      completedWindow: { eligible: true, reason: 'eligible' },
+      backwardActualPin: { eligible: false, reason: 'preserveActualDatesOff' },
+      displayActualLateDecision: { eligible: false, reason: 'preserveActualDatesOff' },
+    },
+  },
+  {
+    id: 'data-date-afwezig',
+    mutate: imported => {
+      imported.project.statusDate = undefined;
+    },
+    expected: {
+      displayActualLate: false,
+      completedWindow: { eligible: true, reason: 'eligible' },
+      backwardActualPin: { eligible: false, reason: 'missingDataDate' },
+      displayActualLateDecision: { eligible: false, reason: 'missingDataDate' },
+    },
+  },
+];
+
 {
   const imported = importFixture(fixtureBytes(variants[0]!));
   const completed = imported.tasks.find(task => task.id === 'C');
@@ -234,6 +396,10 @@ for (const variant of variants) {
   });
 }
 
+for (const variant of completedGuardVariants) {
+  eq(`completed-guard-trace ${variant.id}: drie routes verklaren actief/inactief`, solveCompletedGuardTrace(variant.mutate), variant.expected);
+}
+
 {
   const baseline = variants[0]!;
   const replay = replayXerProductBeforeOracle(fixtureBytes(baseline), syntheticZeroRegressionCandidate, {
@@ -244,10 +410,22 @@ for (const variant of variants) {
     projectEndSource: source?.backwardFloatTraceProjectEndSource,
     lateStartSource: source?.backwardFloatTraceLateStartSource,
     displayActualLate: source?.backwardFloatTraceDisplayActualLate,
+    completedWindowEligible: source?.backwardFloatTraceCompletedWindowEligible,
+    completedWindowReason: source?.backwardFloatTraceCompletedWindowReason,
+    backwardActualPinEligible: source?.backwardFloatTraceBackwardActualPinEligible,
+    backwardActualPinReason: source?.backwardFloatTraceBackwardActualPinReason,
+    displayActualLateEligible: source?.backwardFloatTraceDisplayActualLateEligible,
+    displayActualLateReason: source?.backwardFloatTraceDisplayActualLateReason,
   }, {
     projectEndSource: 'completedDisplayWindow',
     lateStartSource: 'subRemainingDuration',
     displayActualLate: true,
+    completedWindowEligible: true,
+    completedWindowReason: 'eligible',
+    backwardActualPinEligible: true,
+    backwardActualPinReason: 'eligible',
+    displayActualLateEligible: true,
+    displayActualLateReason: 'eligible',
   });
 }
 

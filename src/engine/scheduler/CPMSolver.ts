@@ -13,7 +13,16 @@ import {
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
-import { usesP6CompletedDataDateWindow as isP6CompletedDataDateCandidate } from '@/utils/p6CompletedTargetWindow';
+import {
+  explainP6CompletedDataDateWindow,
+  type P6CompletedWindowDecision,
+  usesP6CompletedDataDateWindow as isP6CompletedDataDateCandidate,
+} from '@/utils/p6CompletedTargetWindow';
+import {
+  explainBackwardActualPinEligibility,
+  type CpmBackwardActualPinDecision,
+  type CpmDisplayActualLateDecision,
+} from './p6CompletedRouteTrace';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -101,6 +110,9 @@ export interface CpmTaskBackwardFloatTrace {
   lateStartSource: CpmLateStartSource;
   freeFloatSource: CpmFreeFloatSource;
   displayActualLate: boolean;
+  completedWindow: P6CompletedWindowDecision;
+  backwardActualPin: CpmBackwardActualPinDecision;
+  displayActualLateDecision: CpmDisplayActualLateDecision;
 }
 
 export interface CpmBackwardFloatTrace {
@@ -437,6 +449,9 @@ export class CPMSolver {
       lateStartSource: 'subDuration',
       freeFloatSource: 'derivedFromSuccessor',
       displayActualLate: false,
+      completedWindow: { eligible: false, reason: 'notXerSource' } as const,
+      backwardActualPin: { eligible: false, reason: 'missingDataDate' } as const,
+      displayActualLateDecision: { eligible: false, reason: 'missingDataDate' } as const,
     };
     this.backwardFloatTrace.byTaskId[taskId] = { ...previous, ...update };
   }
@@ -2939,11 +2954,18 @@ export class CPMSolver {
     for (const taskId of reversed) {
       const task = this.tasks.get(taskId)!;
       const succs = this.successors.get(taskId) || [];
+      const completedWindow = explainP6CompletedDataDateWindow(task, this.options.schedulingOptions);
+      const backwardActualPin = explainBackwardActualPinEligibility(
+        task,
+        this.dataDate,
+        this.options.schedulingOptions,
+      );
+      this.recordBackwardFloatTrace(taskId, { completedWindow, backwardActualPin });
 
       // Brongebonden XER-beleid: een voltooide activiteit houdt haar bestaande completed-pin aan
       // de late zijde. De smalle data-date-route verandert uitsluitend de forwarddatums; opgeslagen
       // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
-      if (preserveActualDates && task.time.actualFinish && task.time.completion >= 1) {
+      if (backwardActualPin.eligible) {
         const ed = earlyDates.get(taskId)!;
         this.recordBackwardFloatTrace(taskId, {
           lateStartSource: this.p6XerOption(

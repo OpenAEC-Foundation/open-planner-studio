@@ -7,7 +7,8 @@ import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
-import { usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindow, usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainDisplayActualLateEligibility } from './p6CompletedRouteTrace';
 
 /**
  * Invoer voor de resultaat-post-pass (`computeScheduleResults`). Puur data + een handvol
@@ -372,18 +373,23 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // Serialisatie (§2.4/§5): de MODUS van de eigen kalender is de enige discriminator — dag-taak ⇒
     // `formatDate` (byte-identiek), uur-taak ⇒ `YYYY-MM-DDTHH:mm`.
     const mode = completedDisplayWindow?.mode ?? modeOf(cal);
-    const displayActualLate = completed && so?.preserveActualDatesInBackwardPass === true;
+    const displayActualLateDecision = explainDisplayActualLateEligibility(taskObj, dataDate, so);
+    const displayActualLate = displayActualLateDecision.eligible;
     if (backwardFloatTrace) {
       const prior = backwardFloatTrace.byTaskId[taskId] ?? {
         lateFinishSource: 'projectEnd' as const,
         lateStartSource: 'subDuration' as const,
         freeFloatSource: 'derivedFromSuccessor' as const,
         displayActualLate: false,
+        completedWindow: explainP6CompletedDataDateWindow(taskObj, so),
+        backwardActualPin: { eligible: false, reason: 'missingDataDate' } as const,
+        displayActualLateDecision: { eligible: false, reason: 'missingDataDate' } as const,
       };
       backwardFloatTrace.byTaskId[taskId] = {
         ...prior,
         freeFloatSource,
         displayActualLate,
+        displayActualLateDecision,
       };
     }
     taskResults.set(taskId, {
