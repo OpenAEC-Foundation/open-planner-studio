@@ -12,6 +12,7 @@ import {
   dropFinishMilestoneBoundaryCandidate,
   replayXerProductBeforeOracle,
   syntheticZeroRegressionCandidate,
+  type XerTaskReplayCandidate,
 } from './xerTaskReplayProduct';
 import {
   corpusReplayExitCode,
@@ -200,12 +201,12 @@ function truth(projectId = 'P1', taskCode = 'A100'): XerGroundTruth {
   });
 }
 
-function tasksByCode(projects: XerSolvedProject[]): Map<string, XerSolvedTask> {
-  return new Map(projects.flatMap(project => project.tasks.map(task => [task.taskCode, task] as const)));
+function tasksBySourceId(projects: XerSolvedProject[]): Map<string, XerSolvedTask> {
+  return new Map(projects.flatMap(project => project.tasks.map(task => [task.sourceTaskId, task] as const)));
 }
 
-function predicateByCode(predicateLogs: readonly XerReplayPredicateLog[]): Map<string, XerReplayPredicateLog> {
-  return new Map(predicateLogs.map(log => [log.taskCode, log] as const));
+function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): Map<string, XerReplayPredicateLog> {
+  return new Map(predicateLogs.map(log => [log.sourceTaskId, log] as const));
 }
 
 {
@@ -238,28 +239,28 @@ function predicateByCode(predicateLogs: readonly XerReplayPredicateLog[]): Map<s
     '%E',
   ].join('\n'));
   const traceReplay = replayXerProductBeforeOracle(traceFixture, syntheticZeroRegressionCandidate);
-  const baselineByCode = tasksByCode(traceReplay.baseline);
-  const predicateLogs = predicateByCode(traceReplay.predicate);
+  const baselineBySourceId = tasksBySourceId(traceReplay.baseline);
+  const predicateLogs = predicateBySourceId(traceReplay.predicate);
   eq('task replay: planned-floor trace family projecteert baseline-uitkomsten en diagnosevelden via het replayharnas', {
     floorBinds: {
-      earlyStart: baselineByCode.get('FB-SUCC')?.earlyStart,
-      earlyFinish: baselineByCode.get('FB-SUCC')?.earlyFinish,
-      source: predicateLogs.get('FB-SUCC')?.source,
+      earlyStart: baselineBySourceId.get('FB-S')?.earlyStart,
+      earlyFinish: baselineBySourceId.get('FB-S')?.earlyFinish,
+      source: predicateLogs.get('FB-S')?.source,
     },
     exactOneDay: {
-      earlyStart: baselineByCode.get('OD-SUCC')?.earlyStart,
-      earlyFinish: baselineByCode.get('OD-SUCC')?.earlyFinish,
-      source: predicateLogs.get('OD-SUCC')?.source,
+      earlyStart: baselineBySourceId.get('OD-S')?.earlyStart,
+      earlyFinish: baselineBySourceId.get('OD-S')?.earlyFinish,
+      source: predicateLogs.get('OD-S')?.source,
     },
     finishNotLater: {
-      earlyStart: baselineByCode.get('FN-SUCC')?.earlyStart,
-      earlyFinish: baselineByCode.get('FN-SUCC')?.earlyFinish,
-      source: predicateLogs.get('FN-SUCC')?.source,
+      earlyStart: baselineBySourceId.get('FN-S')?.earlyStart,
+      earlyFinish: baselineBySourceId.get('FN-S')?.earlyFinish,
+      source: predicateLogs.get('FN-S')?.source,
     },
     predecessorBoundary: {
-      earlyStart: baselineByCode.get('BC-SUCC')?.earlyStart,
-      earlyFinish: baselineByCode.get('BC-SUCC')?.earlyFinish,
-      source: predicateLogs.get('BC-SUCC')?.source,
+      earlyStart: baselineBySourceId.get('BC-S')?.earlyStart,
+      earlyFinish: baselineBySourceId.get('BC-S')?.earlyFinish,
+      source: predicateLogs.get('BC-S')?.source,
     },
   }, {
     floorBinds: {
@@ -329,6 +330,225 @@ function predicateByCode(predicateLogs: readonly XerReplayPredicateLog[]): Map<s
   });
 }
 
+{
+  const duplicateTaskCodeFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tDuplicate task code trace\tC1\t2026-06-01 08:00\t2026-06-01 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tP-A\tP1\tC1\tPRED-A\tVoorganger A\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-01 08:00\t2026-06-01 17:00',
+    '%R\tS-A\tP1\tC1\tDUP\tOpvolger A\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-04 08:00\t2026-06-04 17:00',
+    '%R\tP-B\tP1\tC1\tPRED-B\tVoorganger B\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-01 08:00\t2026-06-01 17:00',
+    '%R\tS-B\tP1\tC1\tDUP\tOpvolger B\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-06-05 08:00\t2026-06-05 17:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR-A\tS-A\tP-A\tP1\tP1\tPR_FS\t0',
+    '%R\tR-B\tS-B\tP-B\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ].join('\n'));
+  const identityEchoCandidate: XerTaskReplayCandidate = {
+    id: 'duplicate-task-code-trace-identity-probe',
+    replayFrom: 'source',
+    predicate: context => ({
+      matched: false,
+      source: {
+        sourceTaskId: context.task.id,
+        sourceTargetStart: context.task.time.scheduleStart,
+        incomingSequenceId: context.incoming[0]?.id ?? null,
+      },
+    }),
+    apply: () => undefined,
+  };
+  const duplicateReplay = replayXerProductBeforeOracle(duplicateTaskCodeFixture, identityEchoCandidate);
+  const duplicateEvaluation = evaluateXerTaskReplay({
+    oracle: scanXerGroundTruth(duplicateTaskCodeFixture),
+    baseline: duplicateReplay.baseline,
+    counterfactual: duplicateReplay.counterfactual,
+    predicate: duplicateReplay.predicate,
+  });
+  const duplicateLogsBySourceId = new Map(duplicateReplay.predicate.map(log => [
+    String(log.source.sourceTaskId),
+    log,
+  ]));
+  const duplicateIdentityProjection = (sourceTaskId: string) => {
+    const source = duplicateLogsBySourceId.get(sourceTaskId)?.source;
+    return {
+      sourceTaskId: source?.sourceTaskId,
+      sourceTargetStart: source?.sourceTargetStart,
+      incomingSequenceId: source?.incomingSequenceId,
+      plannedFloorTraceTargetStart: source?.plannedFloorTraceTargetStart,
+      plannedFloorTraceBoundarySequenceId: source?.plannedFloorTraceBoundarySequenceId,
+      plannedFloorTraceBoundaryPredecessorTaskCode: source?.plannedFloorTraceBoundaryPredecessorTaskCode,
+    };
+  };
+  eq('task replay: task-id-projectie-mutationgate houdt dubbele taskCode-traces bij hun eigen taak', {
+    evaluatedTaskIds: duplicateEvaluation.tasks.map(task => task.taskId),
+    first: duplicateIdentityProjection('S-A'),
+    second: duplicateIdentityProjection('S-B'),
+  }, {
+    evaluatedTaskIds: ['P-A', 'S-A', 'P-B', 'S-B'],
+    first: {
+      sourceTaskId: 'S-A',
+      sourceTargetStart: '2026-06-04T08:00',
+      incomingSequenceId: 'R-A',
+      plannedFloorTraceTargetStart: '2026-06-04T08:00',
+      plannedFloorTraceBoundarySequenceId: 'R-A',
+      plannedFloorTraceBoundaryPredecessorTaskCode: 'PRED-A',
+    },
+    second: {
+      sourceTaskId: 'S-B',
+      sourceTargetStart: '2026-06-05T08:00',
+      incomingSequenceId: 'R-B',
+      plannedFloorTraceTargetStart: '2026-06-05T08:00',
+      plannedFloorTraceBoundarySequenceId: 'R-B',
+      plannedFloorTraceBoundaryPredecessorTaskCode: 'PRED-B',
+    },
+  });
+}
+
+{
+  const noExplicitTargetWindowFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-07-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tGeen expliciet targetvenster\tC1\t2026-07-01 08:00\t2026-07-01 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tP\tP1\tC1\tPRED\tVoorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t\t',
+    '%R\tS\tP1\tC1\tNO-PROVENANCE\tOpvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR\tS\tP\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ].join('\n'));
+  const noExplicitTargetWindowReplay = replayXerProductBeforeOracle(
+    noExplicitTargetWindowFixture,
+    syntheticZeroRegressionCandidate,
+  );
+  eq('task replay: geldige fallbackdatums zonder p6ExplicitTargetWindow leveren fail-closed geen trace',
+    predicateBySourceId(noExplicitTargetWindowReplay.predicate).get('S')?.source,
+    { p6Source: 'XER', activityType: 'TT_Task' });
+}
+
+{
+  const multipleEqualDriversFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-03\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tGelijke drivers\tC1\t2026-08-03 08:00\t2026-08-03 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tP1-A\tP1\tC1\tPRED-A\tVoorganger A\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-03 08:00\t2026-08-03 17:00',
+    '%R\tP1-B\tP1\tC1\tPRED-B\tVoorganger B\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-03 08:00\t2026-08-03 17:00',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-06 08:00\t2026-08-06 17:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR-A\tS\tP1-A\tP1\tP1\tPR_FS\t0',
+    '%R\tR-B\tS\tP1-B\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ].join('\n'));
+  const replay = replayXerProductBeforeOracle(multipleEqualDriversFixture, syntheticZeroRegressionCandidate);
+  eq('task replay: meerdere gelijke relatiedrivers leveren fail-closed geen willekeurige trace',
+    predicateBySourceId(replay.predicate).get('S')?.source,
+    { p6Source: 'XER', activityType: 'TT_Task' });
+}
+
+{
+  const projectStartBoundaryFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-03\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tProjectstartgrens\tC1\t2026-08-03 08:00\t2026-08-03 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tP\tP1\tC1\tPRED\tVroege voorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-03 08:00\t2026-08-03 17:00',
+    '%R\tS\tP1\tC1\tSUCC\tLatere opvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-10 08:00\t2026-08-10 17:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR\tS\tP\tP1\tP1\tPR_FS\t-16',
+    '%E',
+  ].join('\n'));
+  const replay = replayXerProductBeforeOracle(projectStartBoundaryFixture, syntheticZeroRegressionCandidate);
+  const projectStartSource = predicateBySourceId(replay.predicate).get('S')?.source;
+  eq('task replay: aantoonbare projectstartgrens krijgt trace zonder verzonnen relatiedriver',
+    {
+      p6Source: projectStartSource?.p6Source,
+      activityType: projectStartSource?.activityType,
+      plannedFloorTracePreFloorEarlyStart: projectStartSource?.plannedFloorTracePreFloorEarlyStart,
+      plannedFloorTracePreFloorEarlyFinish: projectStartSource?.plannedFloorTracePreFloorEarlyFinish,
+      plannedFloorTraceTargetStart: projectStartSource?.plannedFloorTraceTargetStart,
+      plannedFloorTraceTargetFinish: projectStartSource?.plannedFloorTraceTargetFinish,
+      plannedFloorTraceBoundarySource: projectStartSource?.plannedFloorTraceBoundarySource,
+    },
+    {
+      p6Source: 'XER',
+      activityType: 'TT_Task',
+      plannedFloorTracePreFloorEarlyStart: '2026-08-03T08:00',
+      plannedFloorTracePreFloorEarlyFinish: '2026-08-03T17:00',
+      plannedFloorTraceTargetStart: '2026-08-10T08:00',
+      plannedFloorTraceTargetFinish: '2026-08-10T17:00',
+      plannedFloorTraceBoundarySource: 'project-start',
+    });
+}
+
+{
+  const constraintOnlyFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-03\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tAlleen constraint\tC1\t2026-08-03 08:00\t2026-08-03 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tcstr_type\tcstr_date',
+    '%R\tS\tP1\tC1\tCONSTRAINT\tConstraintwortel\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-06 08:00\t2026-08-06 17:00\tCS_MSOB\t2026-08-05 08:00',
+    '%E',
+  ].join('\n'));
+  const replay = replayXerProductBeforeOracle(constraintOnlyFixture, syntheticZeroRegressionCandidate);
+  eq('task replay: constraint-only zonder netwerk- of projectstartdriver levert geen trace',
+    predicateBySourceId(replay.predicate).get('S')?.source,
+    { p6Source: 'XER', activityType: 'TT_Task' });
+}
+
+{
+  const invalidTargetFinishFixture = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-03\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandard 5x8\tP1\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tOngeldig targeteinde\tC1\t2026-08-03 08:00\t2026-08-03 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tP\tP1\tC1\tPRED\tVoorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-03 08:00\t2026-08-03 17:00',
+    '%R\tS\tP1\tC1\tINVALID\tOngeldige opvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\t8\t8\t2026-08-06 08:00\tniet-een-datum',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR\tS\tP\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ].join('\n'));
+  const replay = replayXerProductBeforeOracle(invalidTargetFinishFixture, syntheticZeroRegressionCandidate);
+  eq('task replay: ongeldig expliciet targeteinde levert fail-closed geen trace',
+    predicateBySourceId(replay.predicate).get('S')?.source,
+    { p6Source: 'XER', activityType: 'TT_Task' });
+}
+
 function solved(projectId = 'P1', taskCode = 'A100', overrides: Partial<XerSolvedTask> = {}): XerSolvedProject {
   return {
     projectId,
@@ -347,7 +567,8 @@ function solved(projectId = 'P1', taskCode = 'A100', overrides: Partial<XerSolve
 }
 
 const predicate: XerReplayPredicateLog[] = [{
-  projectId: 'P1', taskCode: 'A100', matched: true, source: { activityType: 'TT_FinMile' },
+  projectId: 'P1', sourceTaskId: 'T1', taskCode: 'A100', matched: true,
+  source: { activityType: 'TT_FinMile' },
 }];
 
 {
@@ -444,38 +665,44 @@ const predicate: XerReplayPredicateLog[] = [{
   throws('task replay: dubbel counterfactualproject is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base], counterfactual: [cf, cf], predicate,
   }), /dubbel counterfactualproject P1/);
-  throws('task replay: ontbrekende taakcode is hard rood', () => evaluateXerTaskReplay({
+  throws('task replay: ontbrekende counterfactual-taak-id is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base], counterfactual: [{ projectId: 'P1', tasks: [] }], predicate,
-  }), /ontbrekende counterfactualtaak P1\/A100/);
-  throws('task replay: extra taakcode is hard rood', () => evaluateXerTaskReplay({
+  }), /ontbrekende counterfactualtaak P1\/T1/);
+  throws('task replay: extra bron-taak-id is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [{ ...base, tasks: [...base.tasks, { ...base.tasks[0]!, sourceTaskId: 'T2', taskCode: 'A200' }] }],
     counterfactual: [cf], predicate,
-  }), /extra baselinetaak P1\/A200/);
-  throws('task replay: dubbele taakcode is hard rood', () => evaluateXerTaskReplay({
+  }), /extra baselinetaak P1\/T2/);
+  throws('task replay: dubbele bron-taak-id is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [{ ...base, tasks: [...base.tasks, base.tasks[0]!] }], counterfactual: [cf], predicate,
-  }), /dubbele baselinetaak P1\/A100/);
-  throws('task replay: verkeerde baseline sourceTaskId is hard rood bij gelijke projectId en taskCode', () => evaluateXerTaskReplay({
+  }), /dubbele baselinetaak-id P1\/T1/);
+  throws('task replay: verkeerde baseline sourceTaskId valt niet terug op gelijke taskCode', () => evaluateXerTaskReplay({
     oracle: truth(),
     baseline: [solved('P1', 'A100', { sourceTaskId: 'VERKEERD' })],
     counterfactual: [cf],
     predicate,
-  }), /baseline bron-taak-id voor P1\/A100 verwacht T1, kreeg VERKEERD/);
-  throws('task replay: verkeerde counterfactual sourceTaskId is hard rood bij gelijke projectId en taskCode', () => evaluateXerTaskReplay({
+  }), /ontbrekende baselinetaak P1\/T1/);
+  throws('task replay: verkeerde counterfactual sourceTaskId valt niet terug op gelijke taskCode', () => evaluateXerTaskReplay({
     oracle: truth(),
     baseline: [base],
     counterfactual: [solved('P1', 'A100', { sourceTaskId: 'VERKEERD' })],
     predicate,
-  }), /counterfactual bron-taak-id voor P1\/A100 verwacht T1, kreeg VERKEERD/);
+  }), /ontbrekende counterfactualtaak P1\/T1/);
   throws('task replay: ontbrekende predicate-identiteit is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base], counterfactual: [cf], predicate: [],
-  }), /ontbrekende predicate P1\/A100/);
+  }), /ontbrekende predicate P1\/T1/);
+  throws('task replay: lege predicate-bronidentiteit is hard rood zonder taskCode-fallback', () => evaluateXerTaskReplay({
+    oracle: truth(), baseline: [base], counterfactual: [cf],
+    predicate: [{ ...predicate[0]!, sourceTaskId: '' }],
+  }), /predicate mist project-id of bron-taak-id/);
   throws('task replay: extra predicate-identiteit is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base], counterfactual: [cf],
-    predicate: [...predicate, { projectId: 'P1', taskCode: 'A200', matched: false, source: {} }],
-  }), /extra predicate P1\/A200/);
+    predicate: [...predicate, {
+      projectId: 'P1', sourceTaskId: 'T2', taskCode: 'A200', matched: false, source: {},
+    }],
+  }), /extra predicate P1\/T2/);
   throws('task replay: dubbele predicate-identiteit is hard rood', () => evaluateXerTaskReplay({
     oracle: truth(), baseline: [base], counterfactual: [cf], predicate: [...predicate, ...predicate],
-  }), /dubbele predicate P1\/A100/);
+  }), /dubbele predicate P1\/T1/);
 }
 
 if (diffs.length > 0) {

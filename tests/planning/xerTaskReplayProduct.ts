@@ -33,7 +33,7 @@ export interface XerTaskReplayCandidate {
   replayFrom: 'baseline' | 'source';
   predicate(context: XerReplaySourceContext): XerReplayPredicateDecision;
   /** Test-only mutatie op een verse clone. Oraclewaarden zijn niet beschikbaar in deze API. */
-  apply(imported: XerReplayMutableSolveInput, matchedTaskCodes: ReadonlySet<string>): void;
+  apply(imported: XerReplayMutableSolveInput, matchedTaskIds: ReadonlySet<string>): void;
 }
 
 export type XerReplayMutableSolveInput = Pick<
@@ -68,7 +68,7 @@ function canonicalProductMinute(value: string | undefined): string | undefined {
 /** Eén solvegraph tegelijk; de projectie bewaart daarna alleen taakuitkomsten en replaytrace. */
 interface XerReplaySolveResult {
   project: XerSolvedProject;
-  plannedFloorTraceByTaskCode: Readonly<Record<string, CPMPlannedFloorTrace>>;
+  plannedFloorTraceBySourceTaskId: Readonly<Record<string, CPMPlannedFloorTrace>>;
 }
 
 function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResult {
@@ -93,13 +93,13 @@ function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResu
     new CalendarEngine(calendar).hoursPerDay * 60,
   ]));
   const sourceTaskById = new Map(imported.tasks.map(task => [task.id, task] as const));
-  const plannedFloorTraceByTaskCode = Object.fromEntries(Object.entries(cpm.plannedFloorTraceByTaskId ?? {})
+  const plannedFloorTraceBySourceTaskId = Object.fromEntries(Object.entries(cpm.plannedFloorTraceByTaskId ?? {})
     .flatMap(([taskId, trace]) => {
-      const taskCode = sourceTaskById.get(taskId)?.wbsCode;
-      return taskCode ? [[taskCode, trace] as const] : [];
+      const sourceTask = sourceTaskById.get(taskId);
+      return sourceTask?.id.trim() ? [[sourceTask.id, trace] as const] : [];
     }));
   return {
-    plannedFloorTraceByTaskCode,
+    plannedFloorTraceBySourceTaskId,
     project: {
       projectId: imported.project.id,
       tasks: imported.tasks.filter(task => task.p6ActivityType !== undefined).map(task => {
@@ -228,21 +228,23 @@ export function replayXerProductBeforeOracle(
       context,
       decision: candidate.predicate(context),
     }));
-    const matchedTaskCodes = new Set(decisions
+    const matchedTaskIds = new Set(decisions
       .filter(({ decision }) => decision.matched)
-      .map(({ context }) => context.task.wbsCode));
-    predicate.push(...decisions.map(({ context, decision }) => ({
+      .map(({ context }) => context.task.id));
+    const projectPredicate = decisions.map(({ context, decision }) => ({
       projectId: context.projectId,
+      sourceTaskId: context.task.id,
       taskCode: context.task.wbsCode,
       matched: decision.matched,
       source: decision.source,
-    })));
+    }));
+    predicate.push(...projectPredicate);
 
     const replayInput = cloneSolveInput(imported);
     const baselineSolve = solveOne(replayInput, 'baseline', 'fresh-source-clone');
-    for (const log of predicate) {
-      if (log.projectId !== imported.project.id) continue;
-      const trace = baselineSolve.plannedFloorTraceByTaskCode[log.taskCode];
+    for (const log of projectPredicate) {
+      if (!log.sourceTaskId.trim()) continue;
+      const trace = baselineSolve.plannedFloorTraceBySourceTaskId[log.sourceTaskId];
       if (!trace) continue;
       log.source = {
         ...log.source,
@@ -267,7 +269,7 @@ export function replayXerProductBeforeOracle(
       ? 'fresh-source-clone'
       : 'baseline-solved-clone';
     if (candidate.replayFrom === 'source') Object.assign(replayInput, cloneSolveInput(imported));
-    candidate.apply(replayInput, matchedTaskCodes);
+    candidate.apply(replayInput, matchedTaskIds);
     addProject(counterfactual, solveOne(replayInput, 'counterfactual', inputOrigin).project, 'counterfactual');
     projectsSolvedSequentially++;
   }
@@ -279,6 +281,7 @@ export function replayXerProductBeforeOracle(
       addProject(counterfactual, structuredClone(project), 'counterfactual');
       predicate.push(...project.tasks.map(task => ({
         projectId: project.projectId,
+        sourceTaskId: task.sourceTaskId,
         taskCode: task.taskCode,
         matched: false,
         source: { materializedBaseline: true },
@@ -331,8 +334,8 @@ export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
       source,
     };
   },
-  apply: (imported, matchedTaskCodes) => {
-    if (matchedTaskCodes.size === 0) return;
+  apply: (imported, matchedTaskIds) => {
+    if (matchedTaskIds.size === 0) return;
     const schedulingOptions = imported.project.schedulingOptions;
     if (!schedulingOptions || schedulingOptions.p6Source !== 'XER') return;
     imported.project.schedulingOptions = {

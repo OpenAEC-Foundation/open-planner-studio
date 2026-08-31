@@ -12,6 +12,7 @@ export interface XerReplayCounts {
 
 export interface XerReplayPredicateLog {
   projectId: string;
+  sourceTaskId: string;
   taskCode: string;
   matched: boolean;
   /** Uitsluitend geselecteerde bron-/provenancefeiten; nooit P6-orakelwaarden. */
@@ -104,9 +105,12 @@ function indexTasks(
 ): Map<string, XerSolvedTask> {
   const indexed = new Map<string, XerSolvedTask>();
   for (const task of tasks) {
+    if (!task.sourceTaskId.trim()) throw new Error(`task replay: lege ${kind}bron-taak-id in project ${projectId}`);
     if (!task.taskCode.trim()) throw new Error(`task replay: lege ${kind}taakcode in project ${projectId}`);
-    if (indexed.has(task.taskCode)) throw new Error(`task replay: dubbele ${kind}taak ${projectId}/${task.taskCode}`);
-    indexed.set(task.taskCode, task);
+    if (indexed.has(task.sourceTaskId)) {
+      throw new Error(`task replay: dubbele ${kind}taak-id ${projectId}/${task.sourceTaskId}`);
+    }
+    indexed.set(task.sourceTaskId, task);
   }
   return indexed;
 }
@@ -114,9 +118,12 @@ function indexTasks(
 function indexPredicates(predicate: readonly XerReplayPredicateLog[]): Map<string, XerReplayPredicateLog> {
   const indexed = new Map<string, XerReplayPredicateLog>();
   for (const log of predicate) {
-    const key = `${log.projectId}\u0000${log.taskCode}`;
-    if (!log.projectId.trim() || !log.taskCode.trim()) throw new Error('task replay: predicate mist project-id of taakcode');
-    if (indexed.has(key)) throw new Error(`task replay: dubbele predicate ${log.projectId}/${log.taskCode}`);
+    const key = `${log.projectId}\u0000${log.sourceTaskId}`;
+    if (!log.projectId.trim() || !log.sourceTaskId.trim()) {
+      throw new Error('task replay: predicate mist project-id of bron-taak-id');
+    }
+    if (!log.taskCode.trim()) throw new Error('task replay: predicate mist display-taakcode');
+    if (indexed.has(key)) throw new Error(`task replay: dubbele predicate ${log.projectId}/${log.sourceTaskId}`);
     indexed.set(key, log);
   }
   return indexed;
@@ -134,8 +141,9 @@ export function evaluateXerTaskReplay(input: EvaluateXerTaskReplayInput): XerTas
   const truthProjects = new Map<string, Map<string, (typeof input.oracle.tasks)[number]>>();
   for (const task of input.oracle.tasks) {
     const tasks = truthProjects.get(task.projectId) ?? new Map();
-    if (tasks.has(task.taskCode)) throw new Error(`task replay: dubbele orakeltaak ${task.projectId}/${task.taskCode}`);
-    tasks.set(task.taskCode, task);
+    if (!task.taskId.trim()) throw new Error(`task replay: lege orakel-taak-id in project ${task.projectId}`);
+    if (tasks.has(task.taskId)) throw new Error(`task replay: dubbele orakeltaak-id ${task.projectId}/${task.taskId}`);
+    tasks.set(task.taskId, task);
     truthProjects.set(task.projectId, tasks);
   }
   const baselineProjects = indexProjects('baseline', input.baseline);
@@ -162,29 +170,32 @@ export function evaluateXerTaskReplay(input: EvaluateXerTaskReplayInput): XerTas
   for (const [projectId, truthTasks] of truthProjects) {
     const baselineTasks = indexTasks('baseline', projectId, baselineProjects.get(projectId)!.tasks);
     const counterfactualTasks = indexTasks('counterfactual', projectId, counterfactualProjects.get(projectId)!.tasks);
-    for (const taskCode of truthTasks.keys()) {
-      if (!baselineTasks.has(taskCode)) throw new Error(`task replay: ontbrekende baselinetaak ${projectId}/${taskCode}`);
-      if (!counterfactualTasks.has(taskCode)) throw new Error(`task replay: ontbrekende counterfactualtaak ${projectId}/${taskCode}`);
+    for (const taskId of truthTasks.keys()) {
+      if (!baselineTasks.has(taskId)) throw new Error(`task replay: ontbrekende baselinetaak ${projectId}/${taskId}`);
+      if (!counterfactualTasks.has(taskId)) throw new Error(`task replay: ontbrekende counterfactualtaak ${projectId}/${taskId}`);
     }
-    for (const taskCode of baselineTasks.keys()) {
-      if (!truthTasks.has(taskCode)) throw new Error(`task replay: extra baselinetaak ${projectId}/${taskCode}`);
+    for (const taskId of baselineTasks.keys()) {
+      if (!truthTasks.has(taskId)) throw new Error(`task replay: extra baselinetaak ${projectId}/${taskId}`);
     }
-    for (const taskCode of counterfactualTasks.keys()) {
-      if (!truthTasks.has(taskCode)) throw new Error(`task replay: extra counterfactualtaak ${projectId}/${taskCode}`);
+    for (const taskId of counterfactualTasks.keys()) {
+      if (!truthTasks.has(taskId)) throw new Error(`task replay: extra counterfactualtaak ${projectId}/${taskId}`);
     }
 
-    for (const [taskCode, truthTask] of truthTasks) {
-      const baselineTask = baselineTasks.get(taskCode)!;
-      const counterfactualTask = counterfactualTasks.get(taskCode)!;
-      if (baselineTask.sourceTaskId !== truthTask.taskId) {
-        throw new Error(`task replay: baseline bron-taak-id voor ${projectId}/${taskCode} verwacht ${truthTask.taskId}, kreeg ${baselineTask.sourceTaskId}`);
+    for (const [taskId, truthTask] of truthTasks) {
+      const baselineTask = baselineTasks.get(taskId)!;
+      const counterfactualTask = counterfactualTasks.get(taskId)!;
+      if (baselineTask.taskCode !== truthTask.taskCode) {
+        throw new Error(`task replay: baseline display-taakcode voor ${projectId}/${taskId} verwacht ${truthTask.taskCode}, kreeg ${baselineTask.taskCode}`);
       }
-      if (counterfactualTask.sourceTaskId !== truthTask.taskId) {
-        throw new Error(`task replay: counterfactual bron-taak-id voor ${projectId}/${taskCode} verwacht ${truthTask.taskId}, kreeg ${counterfactualTask.sourceTaskId}`);
+      if (counterfactualTask.taskCode !== truthTask.taskCode) {
+        throw new Error(`task replay: counterfactual display-taakcode voor ${projectId}/${taskId} verwacht ${truthTask.taskCode}, kreeg ${counterfactualTask.taskCode}`);
       }
-      const predicateKey = `${projectId}\u0000${taskCode}`;
+      const predicateKey = `${projectId}\u0000${taskId}`;
       const predicate = predicates.get(predicateKey);
-      if (!predicate) throw new Error(`task replay: ontbrekende predicate ${projectId}/${taskCode}`);
+      if (!predicate) throw new Error(`task replay: ontbrekende predicate ${projectId}/${taskId}`);
+      if (predicate.taskCode !== truthTask.taskCode) {
+        throw new Error(`task replay: predicate display-taakcode voor ${projectId}/${taskId} verwacht ${truthTask.taskCode}, kreeg ${predicate.taskCode}`);
+      }
 
       const axes = Object.fromEntries(XER_FIDELITY_AXES.map(axis => {
         const oracle = truthTask.axes[axis];
@@ -201,13 +212,13 @@ export function evaluateXerTaskReplay(input: EvaluateXerTaskReplayInput): XerTas
           ? 'improved'
           : 'unchanged';
       if (measurable.length > 0) count(aggregate.overall, overall);
-      results.push({ projectId, taskId: truthTask.taskId, taskCode, predicate, axes, overall });
+      results.push({ projectId, taskId, taskCode: truthTask.taskCode, predicate, axes, overall });
       predicates.delete(predicateKey);
     }
   }
   if (predicates.size > 0) {
     const extra = predicates.values().next().value as XerReplayPredicateLog;
-    throw new Error(`task replay: extra predicate ${extra.projectId}/${extra.taskCode}`);
+    throw new Error(`task replay: extra predicate ${extra.projectId}/${extra.sourceTaskId}`);
   }
   return { tasks: results, predicate: [...input.predicate], aggregate };
 }

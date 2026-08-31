@@ -1534,6 +1534,7 @@ export class CPMSolver {
           if (
             this.options.schedulingOptions?.p6Source === 'XER'
             && task.p6ActivityType !== undefined
+            && task.p6ExplicitTargetWindow === true
             && !Number.isNaN(plannedFloor.getTime())
             && !Number.isNaN(plannedFinish.getTime())
             && !Number.isNaN(networkFinish.getTime())
