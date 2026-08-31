@@ -1169,6 +1169,10 @@ export function renderPrintReportWindow(
 export interface PrintPreviewPageInput {
   layout: TileLayout;
   pageIndex: number;
+  /** Exacte rasterbreedte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterWidth: number;
+  /** Exacte rasterhoogte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterHeight: number;
   /** Fysieke pixels per PDF-punt van de zichtbare pagina. */
   supersample: number;
 }
@@ -1189,7 +1193,7 @@ export function renderPrintPreviewPage(
   options: PrintOptions,
   input: PrintPreviewPageInput,
 ): void {
-  const { layout, pageIndex, supersample } = input;
+  const { layout, pageIndex, rasterWidth, rasterHeight, supersample } = input;
   const totalPages = layout.rows * layout.cols;
   if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) return;
   const row = layout.bodyRows[Math.floor(pageIndex / layout.cols)];
@@ -1197,8 +1201,8 @@ export function renderPrintPreviewPage(
   if (!row || !column) return;
 
   const pxPt = Math.max(1 / Math.max(layout.pageWidthPt, layout.pageHeightPt), supersample);
-  const pageWidth = Math.max(1, Math.round(layout.pageWidthPt * pxPt));
-  const pageHeight = Math.max(1, Math.round(layout.pageHeightPt * pxPt));
+  const pageWidth = Math.max(1, Math.round(rasterWidth));
+  const pageHeight = Math.max(1, Math.round(rasterHeight));
   canvas.width = pageWidth;
   canvas.height = pageHeight;
   const ctx = canvas.getContext('2d');

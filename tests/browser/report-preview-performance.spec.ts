@@ -6,6 +6,7 @@ type PreviewGeometry = {
   height: number;
   hasImage: boolean;
   naturalWidth: number;
+  naturalHeight: number;
   quality: string | null;
   generation: string | null;
 };
@@ -31,6 +32,7 @@ async function previewGeometry(page: Page): Promise<{
         height: element.getBoundingClientRect().height,
         hasImage: image !== null,
         naturalWidth: image?.naturalWidth ?? 0,
+        naturalHeight: image?.naturalHeight ?? 0,
         quality: image?.dataset.previewQuality ?? null,
         generation: image?.dataset.previewGeneration ?? null,
       };
@@ -263,21 +265,25 @@ test('drie previewkwaliteiten wijzigen alleen rasterdichtheid, nooit papierlayou
   await chooseQuality(page, /^(Standard|Standaard)( \(100%\))?$/);
   await expect(image).toHaveAttribute('data-preview-quality', 'standard', { timeout: 15_000 });
   const standard = await image.evaluate(element => (element as HTMLImageElement).naturalWidth);
+  const standardHeight = await image.evaluate(element => (element as HTMLImageElement).naturalHeight);
 
   await chooseQuality(page, /^(High|Hoog)( \(200%\))?$/);
   await expect(image).toHaveAttribute('data-preview-quality', 'high', { timeout: 15_000 });
   const high = await image.evaluate(element => (element as HTMLImageElement).naturalWidth);
+  const highHeight = await image.evaluate(element => (element as HTMLImageElement).naturalHeight);
 
   await chooseQuality(page, /^(Maximum|Maximaal)( \(300%\))?$/);
   await expect(image).toHaveAttribute('data-preview-quality', 'maximum', { timeout: 15_000 });
   const maximum = await image.evaluate(element => (element as HTMLImageElement).naturalWidth);
+  const maximumHeight = await image.evaluate(element => (element as HTMLImageElement).naturalHeight);
   const finalCssSize = await paper.evaluate(element => {
     const rect = element.getBoundingClientRect();
     return { width: rect.width, height: rect.height };
   });
 
-  expect(high).toBeGreaterThanOrEqual(standard * 1.45);
-  expect(maximum).toBeGreaterThanOrEqual(high * 1.3);
+  expect({ width: standard, height: standardHeight }).toEqual({ width: 900, height: 636 });
+  expect({ width: high, height: highHeight }).toEqual({ width: 1350, height: 954 });
+  expect({ width: maximum, height: maximumHeight }).toEqual({ width: 1800, height: 1272 });
   expect(finalCssSize.width).toBeCloseTo(cssSize.width, 0);
   expect(finalCssSize.height).toBeCloseTo(cssSize.height, 0);
   expect(await viewportOverflow(page)).toBeLessThanOrEqual(1);

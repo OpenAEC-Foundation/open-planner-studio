@@ -7,11 +7,10 @@ import { PAPER_PT, type Orientation, type PaperSize } from './tileLayout';
  */
 /**
  * Kwaliteit bepaalt een expliciet totaalbudget voor actieve pagina-afbeeldingen. De drie standen
- * lopen naar de fysieke schermdichtheid toe: Standaard is de snelle halve dichtheid, Hoog de
- * gebalanceerde driekwartdichtheid en Maximaal de native dichtheid. De oude 1x/2x/3x *boven op* de
- * DPR maakte Standaard al volledig native en liet de twee hogere standen dus naar exact dezelfde
- * schermpixels terugschalen. Boven native supersamplen kost hier veel geheugen zonder zichtbaar
- * extra schermdetail; de PDF-export heeft zijn eigen ongewijzigde hoge-res/vectorpad.
+ * lopen vanaf een leesbare basis omhoog: Standaard is native CSS×DPR, Hoog anderhalfmaal en
+ * Maximaal tweemaal die rasterdichtheid. Voor de vaste A3-landscape preview van 900 CSS-px zijn
+ * dat 900×636, 1350×954 en 1800×1272 rasterpixels bij DPR 1. De CSS-papiermaat verandert daarbij
+ * niet; de PDF-export behoudt zijn eigen ongewijzigde hoge-res/vectorpad.
  */
 export const PREVIEW_QUALITY_RASTER_BUDGETS = { 1: 6_000_000, 2: 12_000_000, 3: 18_000_000 } as const;
 export const PREVIEW_MAX_RASTER_PIXELS = PREVIEW_QUALITY_RASTER_BUDGETS[3];
@@ -20,12 +19,16 @@ export const PREVIEW_MAX_PAGE_PIXELS = 9_000_000;
 export const PREVIEW_MAX_PAGES = 30;
 export type PreviewQuality = 1 | 2 | 3;
 
-const PREVIEW_QUALITY_DENSITIES: Record<PreviewQuality, number> = { 1: 0.5, 2: 0.75, 3: 1 };
+const PREVIEW_QUALITY_DENSITIES: Record<PreviewQuality, number> = { 1: 1, 2: 1.5, 3: 2 };
 
 export interface PreviewRasterLimits {
   /** Aantal complete papiercanvassen dat de preview tegelijk mag vasthouden. */
   maxPages: number;
-  /** Pixels per PDF-punt voor zichtbare pagina's, begrensd door CSS-grootte × DPR en budget. */
+  /** Fysieke rasterbreedte van één zichtbare papierpagina. */
+  pageRasterWidth: number;
+  /** Fysieke rasterhoogte van één zichtbare papierpagina. */
+  pageRasterHeight: number;
+  /** Pixels per PDF-punt voor de tekengeometrie, afgeleid van de rasterbreedte. */
   pageSupersample: number;
 }
 
@@ -55,21 +58,26 @@ export function computePreviewRasterLimits(
   const pageWidth = orientation === 'landscape' ? paper.height : paper.width;
   const pageHeight = orientation === 'landscape' ? paper.width : paper.height;
   const density = PREVIEW_QUALITY_DENSITIES[qualityFactor];
-  const wantedSupersample = (Math.max(1, cssPageWidth) * dpr * density) / pageWidth;
-  const pagePixelArea = Math.max(1, pageWidth * pageHeight);
-  const wantedPagePixels = pagePixelArea * wantedSupersample * wantedSupersample;
+  // Rond eerst de leesbare basispagina af en schaal daarna beide rasterassen. Daardoor is de
+  // kwaliteitsladder stabiel in hele pixels: A3-landscape bij 900 CSS-px wordt 900×636,
+  // 1350×954 en 1800×1272, in plaats van door onafhankelijke afronding 1350×955/1800×1273.
+  const baseRasterWidth = Math.max(1, Math.round(Math.max(1, cssPageWidth) * dpr));
+  const baseRasterHeight = Math.max(1, Math.round(baseRasterWidth * pageHeight / pageWidth));
+  const wantedRasterWidth = Math.max(1, Math.round(baseRasterWidth * density));
+  const wantedRasterHeight = Math.max(1, Math.round(baseRasterHeight * density));
+  const wantedPagePixels = wantedRasterWidth * wantedRasterHeight;
   const pagePixelLimit = Math.min(PREVIEW_MAX_PAGE_PIXELS, budget / 2);
   // Alleen een extreem grote zichtbare pagina (bv. DPR 3 + A1 portret) wordt geklemd. Een lang
   // rapport heeft hier geen invloed meer op: dat is precies het verschil met de oude broncanvasroute.
-  const pageSupersample = Math.max(
-    1 / Math.max(pageWidth, pageHeight),
-    wantedSupersample * Math.min(1, Math.sqrt(pagePixelLimit / wantedPagePixels)),
-  );
-  const pixelsPerPage = Math.max(1, Math.ceil(pagePixelArea * pageSupersample * pageSupersample));
+  const budgetScale = Math.min(1, Math.sqrt(pagePixelLimit / wantedPagePixels));
+  const pageRasterWidth = Math.max(1, Math.round(wantedRasterWidth * budgetScale));
+  const pageRasterHeight = Math.max(1, Math.round(wantedRasterHeight * budgetScale));
+  const pageSupersample = Math.max(1 / Math.max(pageWidth, pageHeight), pageRasterWidth / pageWidth);
+  const pixelsPerPage = Math.max(1, pageRasterWidth * pageRasterHeight);
   const maxPages = Math.max(2, Math.min(
     PREVIEW_MAX_PAGES,
     Math.floor(budget / pixelsPerPage),
   ));
 
-  return { maxPages, pageSupersample };
+  return { maxPages, pageRasterWidth, pageRasterHeight, pageSupersample };
 }

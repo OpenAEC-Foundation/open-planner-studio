@@ -651,6 +651,8 @@ export function ReportPanel() {
           renderPrintPreviewPage(canvas, tasks, sequences, calendar, projectName, options, {
             layout,
             pageIndex: index,
+            rasterWidth: previewLimits.pageRasterWidth,
+            rasterHeight: previewLimits.pageRasterHeight,
             supersample: previewLimits.pageSupersample,
           });
           const blob = await canvasToPngBlob(canvas);

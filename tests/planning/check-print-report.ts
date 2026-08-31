@@ -390,21 +390,22 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 // De preview mag niet eerst een broncanvas en tientallen A1-pagina's zonder rasterbudget maken.
 // Dit is puur rekenwerk, dus de bescherming is toetsbaar zonder een browsercanvas te reserveren.
 {
-  // Alle kwaliteitsstanden houden exact dezelfde CSS-breedte. De dichtheden liggen bewust rond
-  // de fysieke schermresolutie: snel half-native, Hoog driekwart en Maximaal native.
+  // Alle kwaliteitsstanden houden exact dezelfde CSS-breedte. Voor het vaste A3-landscape
+  // voorbeeld is de onderste stand zelf al leesbaar: 900 × 636 rasterpixels. Hoog en Maximaal
+  // verhogen uitsluitend die rasterdichtheid naar 1350 × 954 en 1800 × 1272.
   const cssWidth = 900;
   const standard = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 1);
   const high = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 2);
   const maximum = computePreviewRasterLimits(1_200, 1_800, 'a3', 'landscape', cssWidth, 1, 3);
-  ok(high.pageSupersample >= standard.pageSupersample * 1.49
-    && maximum.pageSupersample >= high.pageSupersample * 1.32,
-    'Standaard/Hoog/Maximaal verhogen de paginaresolutie in zichtbare stappen');
-  ok(1_191 * standard.pageSupersample >= cssWidth * 0.5 - 1,
-    'Standaard gebruikt de snelle halve CSS×DPR-paginadichtheid');
-  ok(1_191 * high.pageSupersample >= cssWidth * 0.75 - 1,
-    'Hoog bereikt driekwart CSS×DPR-paginadichtheid bij normaal rapport');
-  ok(1_191 * maximum.pageSupersample >= cssWidth - 1,
-    'Maximaal bereikt native CSS×DPR-paginadichtheid bij normaal rapport');
+  const standardRaster = { width: standard.pageRasterWidth, height: standard.pageRasterHeight };
+  const highRaster = { width: high.pageRasterWidth, height: high.pageRasterHeight };
+  const maximumRaster = { width: maximum.pageRasterWidth, height: maximum.pageRasterHeight };
+  ok(standardRaster.width === 900 && standardRaster.height === 636,
+    `Standaard rastert A3-landscape op 900×636 (got ${standardRaster.width}×${standardRaster.height})`);
+  ok(highRaster.width === 1_350 && highRaster.height === 954,
+    `Hoog rastert A3-landscape op 1350×954 (got ${highRaster.width}×${highRaster.height})`);
+  ok(maximumRaster.width === 1_800 && maximumRaster.height === 1_272,
+    `Maximaal rastert A3-landscape op 1800×1272 (got ${maximumRaster.width}×${maximumRaster.height})`);
   ok(maximum.maxPages <= high.maxPages,
     'Maximaal houdt niet meer pagina’s tegelijk vast dan Hoog');
 }
