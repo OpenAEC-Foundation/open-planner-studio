@@ -31,6 +31,12 @@ test('update-highlights volgen de app-ready route en houden externe link open', 
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('pre')).toHaveCount(0);
   await expect(dialog.locator('article')).toHaveCount(5);
+  await expect(dialog.getByRole('button', { name: 'Read the guide' })).toHaveCount(1);
+  await expect(dialog.locator('article').nth(0).getByRole('button', { name: 'Read the guide' })).toHaveCount(1);
+  await expect(dialog.locator('article').nth(1).getByRole('button')).toHaveCount(0);
+  await expect(dialog.locator('article').nth(2).getByRole('button')).toHaveCount(0);
+  await expect(dialog.locator('article').nth(3).getByRole('button')).toHaveCount(0);
+  await expect(dialog.locator('article').nth(4).getByRole('button')).toHaveCount(0);
   await page.getByText('See full release notes').click({ noWaitAfter: true });
   await expect.poll(() => page.evaluate(() => window.openedReleaseUrls ?? [])).toEqual(['https://github.com/OpenAEC-Foundation/open-planner-studio/wiki/Changelog']);
   await expect(dialog).toBeVisible();

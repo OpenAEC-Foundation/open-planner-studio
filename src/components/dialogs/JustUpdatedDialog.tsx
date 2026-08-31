@@ -73,7 +73,7 @@ export function JustUpdatedDialog() {
     const Icon = ICONS[item.icon];
     return <article className={primary ? 'border border-border bg-surface-hover rounded-[12px] p-5 flex gap-4 items-start' : 'border border-border rounded-[10px] p-3 flex gap-3 items-start'}>
       <Icon aria-hidden="true" size={primary ? 30 : 18} className="text-accent shrink-0 mt-0.5" />
-      <div className="min-w-0 flex-1"><p className="text-[10px] tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-base font-semibold mt-1' : 'text-sm font-semibold'}>{item.title}</h2><p className="text-xs leading-5 text-text-secondary mt-1">{item.description}</p>{item.docsId && <button onClick={() => useAppStore.getState().openHelpArticle(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"><BookOpen size={13} />{t('updates.justUpdated.readGuide')}</button>}</div>
+      <div className="min-w-0 flex-1"><p className="text-[10px] tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-base font-semibold mt-1' : 'text-sm font-semibold'}>{item.title}</h2><p className="text-xs leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => useAppStore.getState().openHelpArticle(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"><BookOpen size={13} />{t('updates.justUpdated.readGuide')}</button>}</div>
     </article>;
   };
 
