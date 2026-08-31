@@ -2,9 +2,11 @@
 
 Datum: 2026-08-17 · Herzien: 2026-08-27 — twee hyperkritische reviewronden (NO-GO →
 GO-MITS, alle punten verwerkt) én rebase op main (472 commits, o.a. de .mpp-etappe en de
-store-runtime-verbouwing). Status: **ontwerp compleet** — alle beslispunten besloten
-(§11); volgende stap: implementatieplan. De speelbare prototypes staan als
-privé-artifacts: "Wie wijkt?" (rondes 1–3) en "Interface-lab" (vier tune-bedieningen).
+store-runtime-verbouwing). Herzien: 2026-08-31 — de lezing van "float eerst, uitschieter
+minimaal" bevestigd tijdens etappe 2 (§11.6). Status: **ontwerp compleet** — alle
+beslispunten besloten (§11); volgende stap: implementatieplan. De speelbare prototypes
+staan als privé-artifacts: "Wie wijkt?" (rondes 1–3) en "Interface-lab" (vier
+tune-bedieningen).
 
 ## 1. Doel en aanleiding
 
@@ -210,8 +212,10 @@ conflictregel; **beide gereedschapsstanden vanaf v1** (§2.1):
   solve). Per regel: float en het gecachete kostenlabel.
 - **Stap 2 · Verdeel automatisch** — het plaatsingsprotocol hierboven; eerst float benutten
   (kost geen einddatum), dan het restant zó dat de grootste einddatum-verschuiving minimaal
-  is, binnen de rangorde. Het voorstel is een **preview** — niets wordt geschreven vóór
-  "Toepassen".
+  is, binnen de rangorde. Deze lezing — de bestaande vroegste-venster-plaatsing van de motor,
+  géén apart optimalisatie-algoritme — is bevestigd (besluit eigenaar 2026-08-31, §11.6); een
+  slimmere zoekstap blijft een mogelijke latere uitbreiding, geen v1-werk. Het voorstel is een
+  **preview** — niets wordt geschreven vóór "Toepassen".
 - **Stap 3 · Tunen** — plafonds en pins per document via de fasestroken (§6). Plafond 0 =
   einddatum staat vast maar binnen de float mag de motor werken; plafonds zijn maxima, geen
   opdrachten. Toepassen is uitgeschakeld-met-reden zolang het tekort niet gedekt is.
@@ -375,3 +379,7 @@ Headless, in de bestaande suites:
    doorrekening worden geschreven en gepersisteerd, ook met "Automatisch berekenen" uit;
    één "alles terugdraaien" zet alles terug. Bewuste, opgeschreven grensverlegging op
    B1b §4.3b.
+6. ~~Is "float eerst, uitschieter minimaal" (§4 stap 2) een aparte optimalisatiepas?~~ —
+   **Nee: dat ís de bestaande vroegste-venster-plaatsing van de motor (§4), geen tweede
+   algoritme — besloten eigenaar 2026-08-31.** Een slimmere zoekstap blijft een mogelijke
+   latere uitbreiding, geen v1-werk.

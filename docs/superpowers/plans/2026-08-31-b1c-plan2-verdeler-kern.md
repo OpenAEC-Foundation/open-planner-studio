@@ -37,7 +37,11 @@ op de tekst "alles groen"; `tests/library/` print zijn faalregels bovendien **in
 - De naad-herziening in de nivelleerder: scope-behoud, plafond, kalender ≠ capaciteit, nul-guard in
   de conflictverzamelaar, scanhorizon, reden-taxonomie, injecteerbaar poolitem-grootboek.
 - De onderbreek-modus ("Onderbrekingen toestaan") als **plaatsingslogica** in de motor, inclusief het
-  herkomstveld op `TaskSplitGap` en zijn IFC-round-trip.
+  herkomstveld op `TaskSplitGap` en zijn IFC-round-trip. V1-grens sinds eigenaarsbesluit 2026-08-31:
+  WORKTIME + `completion === 0`, dag- ÉN uur-modus (eerder alleen dag-modus) — zie taak 9.
+- De M10-waarschuwing (eigenaarsbesluit 2026-08-31): een eenmalige, per document gemelde melding
+  wanneer nivelleren/wissen de `.mpp`-eigen sub-dag-nivelleervertraging overschrijft met hele
+  werkdagen — zie taak 1.
 - De verdeler-kern `computeDistribution` — het sequentiële plaatsingsprotocol, twee grootboeken,
   tekorten zonder cascade, pins, plafonds, #63-documenten.
 - Drie geparkeerde W0-keuringsbevindingen: **M10** (taak 1), **L3** (taak 2), **scanLimit-horizon**
@@ -66,6 +70,21 @@ alleen een ontbrekende toelichtingsregel — strikt beter dan de huidige situati
 horizon-uitputting als "onvoldoende capaciteit" wordt weggeschreven. Eén nieuwe sleutel toevoegen
 kost daarentegen **veertien** locale-bestanden (`npm run verify:i18n` eist volledigheid t.o.v. `nl`);
 die pass hoort bij het paneel, in één keer, in etappe 3.
+
+**Eén uitzondering (eigenaarsbesluit 2026-08-31): de M10-waarschuwing in taak 1.** Nivelleren/wissen
+overschrijft voortaan zichtbaar de `.mpp`-eigen sub-dag-precisie (`levelingDelayMinutes`/
+`levelingDelayElapsed`) met hele werkdagen — dat verlies moet gemeld worden, niet stil gebeuren.
+`notifyTimephasedLoss` (`src/state/timephasedLossNotice.ts`) dekt dit **niet**: zijn enige triggers
+(`clearTimephasedWindow`/`clearTimephasedDurationWalks` in `taskDefaults.ts`) raken uitsluitend
+`timephasedFinishFloor`/`timephasedStartAnchor`/`timephasedDurationWalks` — een ander datamodel
+(gecontoureerde uren-sturing) dan de nivelleervertraging, nul aanroepplekken raken
+`levelingDelayMinutes`. Zijn bestaande boodschap (`mppTimephasedSteeringLost`, "…de oorspronkelijke
+verdeling blijft in het bestand bewaard") is voor dit geval bovendien feitelijk onjuist: de
+sub-dag-precisie wordt hier niet bewaard, ze wordt overschreven. Daarom: hetzelfde K8a-kanaal en
+hetzelfde eenmalig-per-document-patroon, maar **wél één nieuwe sleutel** — zie taak 1, Step 2b. Dat
+is een bewuste, begrensde doorbreking van de regel hierboven: precies deze ene sleutel, veertien
+locales, uitgevoerd in taak 1 zelf (niet uitgesteld naar etappe 3, want de waarschuwing moet met de
+fix meekomen).
 
 ---
 
@@ -102,7 +121,10 @@ main-merge met taaktypen/duur-eenheden).
   handgebouwde `TaskTime`-fixture moet hem zetten (`durationUnit: 'days'` in de bestaande checks). De
   duur-eenheid bepaalt of `scheduleDuration` (werkdagen) of `durationMinutes` (werkminuten) de
   canonieke bron is. Alles in dit plan werkt **dag-granulair** (`splitDayPattern`,
-  `enumerateTaskWorkDays`, `maxUnitsOn` per ISO-dag); zie de v1-grens bij taak 9.
+  `enumerateTaskWorkDays`, `maxUnitsOn` per ISO-dag); zie de v1-grens bij taak 9 (verbreed
+  2026-08-31: ook uur-modus-taken komen in aanmerking voor leveling-gaten, mits WORKTIME en
+  `completion === 0` — de PAUZE zelf blijft altijd een hele werkdag, de gaten-machinerie zelf
+  wordt niet fijnkorreliger).
 - **De testrunners.** `tests/planning/run.sh` registreert een check met twee regels
   (`XCHECK="$DIR/.x.mjs"` + `if bundle_check "$DIR/check-x.ts" "$XCHECK"; then node "$XCHECK" || STATUS=1; fi`)
   — kopieer het blok rond `LEVELERSPLITSCHECK` (regel ~408). `tests/library/run.sh` is simpeler: één
@@ -128,10 +150,29 @@ wissen" wist niets zichtbaars, en de leveler-baseline is niet delay-vrij — dus
 en PF kloppen niet. Pre-existing, los van B1c, maar het raakt exact de code die de rest van dit plan
 verbouwt; daarom eerst.
 
+**Eigenaarsbesluit 2026-08-31: overschrijven mag, mét waarschuwing.** De fix hieronder blijft
+ongewijzigd — maar het overschrijven van `levelingDelayMinutes`/`levelingDelayElapsed` is zichtbaar
+gebruikersverlies (minuutprecisie uit MS Project wordt hele werkdagen) en moet gemeld worden, eenmalig
+per document, via het bestaande K8a-meldingenkanaal — géén native dialog, géén nieuwe ad-hoc toast.
+**Onderzocht:** `notifyTimephasedLoss` (`src/state/timephasedLossNotice.ts`) dekt dit **niet**. Zijn
+triggers (`clearTimephasedWindow`/`clearTimephasedDurationWalks`, `taskDefaults.ts`) raken uitsluitend
+`timephasedFinishFloor`/`timephasedStartAnchor`/`timephasedDurationWalks` — de gecontoureerde
+uren-sturing, een ander datamodel dan de nivelleervertraging; nul aanroepplekken raken
+`levelingDelayMinutes`/`levelingDelayElapsed`. Zijn bestaande boodschap (`mppTimephasedSteeringLost`:
+"De urenverdeling uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de oorspronkelijke
+verdeling blijft in het bestand bewaard.") is voor dit geval bovendien feitelijk **onjuist**: hier
+wordt de sub-dag-precisie niet bewaard, ze wordt overschreven. Dus: **hetzelfde kanaal, hetzelfde
+eenmalig-per-document-patroon — maar wél één nieuwe sleutel** (zie Step 2b), een bewuste, begrensde
+uitzondering op dit plan se "geen i18n"-regel (zie *Scope*).
+
 **Files:**
 - Modify: `src/state/slices/scheduleSlice.ts` (`applyLeveling`, `clearLeveling`)
 - Modify: `src/state/runtime/createMcpTransactions.ts` (`applyLeveling`, `clearLeveling`)
 - Modify: `src/engine/scheduler/ResourceLeveler.ts` (`workTasks`-strip)
+- Modify: `src/state/timephasedLossNotice.ts` (nieuwe claim-functie + `notifyLevelingDelayRounded`,
+  eigenaarsbesluit 2026-08-31)
+- Modify: `src/i18n/locales/{nl,en,fr,de,es,zh,it,pt,pl,tr,ar,ja,ko,fa}/common.json` (nieuwe sleutel
+  `notifications.levelingDelayRoundedToWorkdays`, CLDR-pluralcategorieën per locale)
 - Create: `tests/planning/check-leveling-delay-units.ts`
 - Modify: `tests/planning/run.sh` (registratie)
 
@@ -171,6 +212,18 @@ eq('applyLeveling wist de elapsed-vlag', tAfter.levelingDelayElapsed, undefined)
 eq('de CPM past de NIEUWE delay toe', tAfter.time.earlyStart, '<PF + 2 werkdagen>');
 // clearLeveling daarna ⇒ alle drie de velden weg en T staat weer op PF.
 eq('clearLeveling wist ook levelingDelayMinutes', tCleared.levelingDelayMinutes, undefined);
+
+// ── Deel 4 (melding, eigenaarsbesluit 2026-08-31): eenmalig per document, bij het EERSTE verlies ──
+// Zelfde store, ná de applyLeveling-aanroep van deel 3 (die wiste een echt gezette
+// levelingDelayMinutes op T ⇒ een reëel verlies).
+ok('eerste keer verlies ⇒ melding gepusht', notifications.some(n => n.messageKey === 'notifications.levelingDelayRoundedToWorkdays'));
+// Tweede applyLeveling/clearLeveling op HETZELFDE document (nieuw verlies op een andere taak) ⇒
+// GEEN tweede melding — spiegelt notifyTimephasedLoss se "eenmalig per document, deze sessie".
+ok('tweede verlies in hetzelfde document meldt NIET nogmaals',
+   notifications.filter(n => n.messageKey === 'notifications.levelingDelayRoundedToWorkdays').length === 1);
+// Een applyLeveling/clearLeveling-aanroep die NIETS met sub-dag-precisie wist (geen enkele taak
+// droeg levelingDelayMinutes/-Elapsed) is een no-op-aanroep ⇒ geen melding, ook niet de eerste keer.
+ok('geen melding als er niets te wissen viel', noLossNotifications.length === 0);
 ```
 
 Registreer de check in `tests/planning/run.sh` (kopieer het `LEVELERSPLITSCHECK`-blok, regel ~408) en
@@ -227,22 +280,95 @@ dat niet zo, stop en meld het: dan is de aanname onder deze taak verkeerd).
 `applyLeveling`/`clearLeveling` (de snapshot/recompute-vrije varianten) — met een
 verwijscommentaar naar de store-variant, zodat de twee niet uit elkaar kunnen lopen.
 
+- [ ] **Step 2b: De waarschuwing (eigenaarsbesluit 2026-08-31)**
+
+Nieuwe claim-functie naast `claimTimephasedLossNotice` in `src/state/timephasedLossNotice.ts` — zelfde
+sessie-only, permanent-per-document patroon, maar een **EIGEN** `Set`: een document kan onafhankelijk
+zowel urensturing als nivelleervertraging-precisie verliezen, dus de ene gate mag de andere niet
+onderdrukken.
+
+```ts
+const notifiedLevelingDelayDocIds = new Set<string>();
+
+/** Zelfde contract als `claimTimephasedLossNotice` hierboven, maar voor de sub-dag-nivelleer-
+ *  vertraging (M10, eigenaarsbesluit 2026-08-31) — apart geregistreerd, want de twee soorten
+ *  MSP-precisieverlies zijn onafhankelijk van elkaar en horen elk hun eigen eenmalige melding te
+ *  krijgen. */
+export function claimLevelingDelayRoundedNotice(docId: string): boolean {
+  if (notifiedLevelingDelayDocIds.has(docId)) return false;
+  notifiedLevelingDelayDocIds.add(docId);
+  return true;
+}
+```
+
+Spiegel `__resetTimephasedLossNoticeForTests`/`clearTimephasedLossNoticeForDoc` voor deze tweede set
+(zelfde motivatie: headless tests delen één Node-proces; `newProject()`s pristine-hergebruikpad mag de
+gate niet blijvend dichthouden) — breid de bestaande test-resetfunctie uit in plaats van een tweede
+losse functie te introduceren, zodat aanroepers er niet twee hoeven te onthouden.
+
+Nieuwe gedeelde aanroepfunctie, naast `notifyTimephasedLoss` (zelfde `count <= 0`-no-op-contract):
+
+```ts
+export function notifyLevelingDelayRounded(
+  notify: (n: NotifyInput) => void,
+  docId: string,
+  count: number,
+): void {
+  if (count <= 0) return;
+  if (!claimLevelingDelayRoundedNotice(docId)) return;
+  notify({
+    severity: 'info',
+    messageKey: 'notifications.levelingDelayRoundedToWorkdays',
+    params: { count },
+    dedupeKey: `leveling-delay-rounded-${docId}`,
+    helpArticleId: MPP_TIMEPHASED_HELP_ARTICLE_ID, // zelfde gids, sectie "Nivellering"
+  });
+}
+```
+
+Nieuwe sleutel — de ENE i18n-uitzondering van dit plan (zie *Scope*), veertien locales. NL-bron in
+`src/i18n/locales/nl/common.json`, `notifications`-sectie, naast `mppTimephasedSteeringLost`:
+
+```json
+"levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
+"levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
+```
+
+Vertaal naar de overige dertien locales met de juiste CLDR-pluralcategorieën per taal (`zh`/`ja`/`ko`
+geen `_one`; `pl` ook `_few`/`_many`; `es`/`fr`/`it`/`pt` ook `_many` — zie CLAUDE.md, i18n-paragraaf).
+
+Aanroepplekken — **alleen waar de wipe ECHT iets wist** (spiegel `clearTimephasedWindow`s
+"`true` alleen bij een echt verlies"-contract, niet blind bij elke aanroep):
+
+- `scheduleSlice.ts`, `applyLeveling`s reset-lus: tel per taak of `levelingDelayMinutes` of
+  `levelingDelayElapsed` vóór het wissen gezet was; na de lus, bij `roundedCount > 0`:
+  `notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount)`.
+- `scheduleSlice.ts`, `clearLeveling`: zelfde telling, zelfde aanroep.
+- `createMcpTransactions.ts`: exact dezelfde twee tellingen/aanroepen in zijn `applyLeveling`/
+  `clearLeveling` — met een verwijscommentaar naar de store-variant, zelfde afspraak als Step 2.
+
+**NIET** in `ResourceLeveler.ts`s `workTasks`-strip (Step 2 hierboven): die werkt op een KOPIE
+(`tasks.map(t => ({ ...t, … }))`), niet op de echte taak — er gaat daar niets zichtbaars verloren, dus
+niets te melden.
+
 - [ ] **Step 3: Draai de suites**
 
 ```bash
 bash tests/planning/run.sh 2>&1 | tail -5; echo "exit: $?"
 bash tests/mcp/run.sh 2>&1 | tail -5; echo "exit: $?"
+npm run verify:i18n; echo "exit: $?"
 ```
 
-Verwacht: exit 0, 0. **Let op de `.mpp`-getrouwheidspoort**: `tests/planning/check-mpp-fidelity.ts`
+Verwacht: exit 0, 0, 0 — de nieuwe sleutel moet in alle veertien locales staan, met de juiste
+CLDR-pluralcategorieën. **Let op de `.mpp`-getrouwheidspoort**: `tests/planning/check-mpp-fidelity.ts`
 leest en solvet, hij nivelleert niet — deze wijziging raakt hem niet. Wordt hij tóch rood, stop en
 meld het (dan draait er ergens een leveler in dat pad en is dat een bevinding op zich).
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/state/slices/scheduleSlice.ts src/state/runtime/createMcpTransactions.ts src/engine/scheduler/ResourceLeveler.ts tests/planning/check-leveling-delay-units.ts tests/planning/run.sh
-git commit -m "fix(scheduler): nivelleren wist ook de sub-dag-vertraging — geen stille no-op meer (M10)
+git add src/state/slices/scheduleSlice.ts src/state/runtime/createMcpTransactions.ts src/engine/scheduler/ResourceLeveler.ts src/state/timephasedLossNotice.ts src/i18n/locales/*/common.json tests/planning/check-leveling-delay-units.ts tests/planning/run.sh
+git commit -m "fix(scheduler): nivelleren wist ook de sub-dag-vertraging, met eenmalige waarschuwing (M10)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -1225,13 +1351,24 @@ Uit = alleen uitlopen; aan = de verdeler mag pauzedagen invoegen. Van de vier af
 "Herkomst" en "As- en eenheidconversie" af (taken 7 en 8); "Invalidatie" is etappe 3; **"In-progress"**
 is deze taak: *"In v1 voegt de verdeler alleen gaps toe aan niet-gestarte taken (`completion === 0`)."*
 
-**KEUZE VAN DIT PLAN (v1-grens, expliciet):** leveling-gaten worden alleen ingevoegd op taken met
-`durationType === 'WORKTIME'` **én** `durationUnit === 'days'` **én** `completion === 0`. Reden: de hele
-gaten-machinerie in `splitWalk.ts` is dag-granulair (`splitDayPattern` rondt minuten af op hele
-werkdagen), dus een uur-modus-taak zou een gat krijgen dat op zijn eigen as afrondt en dan niet meer
-exact terugleest; ELAPSEDTIME kent geen werkdagbegrip. Zulke taken wijken uitsluitend via uitloop —
-exact zoals ze dat vandaag doen. Dit is een **beperking van de plaatsingslogica, geen aanname over de
-invoer**: een geïmporteerde uur-modus-taak mét splits blijft gewoon werken.
+**KEUZE VAN DIT PLAN (v1-grens, verbreed — eigenaarsbesluit 2026-08-31):** leveling-gaten worden
+ingevoegd op taken met `durationType === 'WORKTIME'` **én** `completion === 0`, **ongeacht**
+`durationUnit` — dag- én uur-modus-taken komen dus in aanmerking. Dit plan legde die grens
+oorspronkelijk op dag-modus alleen; de eigenaar heeft dat op 2026-08-31 verbreed: *"pauzedagen-modus
+breder: óók uur-taken."* De reden voor de oorspronkelijke beperking (de gaten-machinerie in
+`splitWalk.ts` is dag-granulair; `splitDayPattern` rondt minuten af op hele werkdagen) blijft
+overeind, maar wordt nu de KERN van de v1-grens in plaats van een uitsluitingsgrond: **een pauzedag
+is en blijft altijd een hele werkdag**, ook op een uur-modus-taak — de taak zelf mag sub-dag-precisie
+dragen (`durationMinutes`, een deeldag werk binnen een werkdag), maar de door de verdeler ingevoegde
+*onderbreking* onderbreekt haar altijd een volledige werkdag, nooit een deel van een dag. Dat is
+precies wat de dag-granulaire gaten-machinerie al aankan zonder wijziging — zie de "LET OP"-alinea in
+Step 2 hieronder voor de ene plek waar dit wél een concrete aanpassing vergt (`scatterSlot`s `need`).
+ELAPSEDTIME blijft ALTIJD uitgesloten (geen werkdagbegrip, fysiek niet stil te zetten — 24/7-doorloop
+zoals uitharden) en `completion === 0` blijft ongewijzigd de grens voor gestarte taken (MSP's eigen
+formulering is *"splits in **remaining** work"*; een taak in uitvoering wijkt uitsluitend via
+uitloop, geen "splits het restwerk"-pad in v1). Dit blijft een **beperking van de plaatsingslogica,
+geen aanname over de invoer**: een geïmporteerde uur-modus-taak mét splits blijft gewoon werken,
+ongeacht `allowSplits`.
 
 **Files:**
 - Modify: `src/engine/scheduler/ResourceLeveler.ts`
@@ -1267,9 +1404,25 @@ ok('projectEndAfter houdt rekening met de opgerekte spanne van B', rOn.projectEn
 // gaten krijgen. Een taak met completion 1 ZONDER actualFinish is wél movable (rand van
 // isCompletedTask/isInProgressTask!) maar heeft completion > 0 ⇒ ook geen gaten.
 eq('completion > 0 ⇒ geen leveling-gaten, alleen uitloop', rOn.gaps['CDone'], undefined);
-// Een ELAPSEDTIME-taak en een uur-modus-taak evenmin:
+// Een ELAPSEDTIME-taak blijft ALTIJD geweigerd — geen werkdagbegrip, fysiek niet stil te zetten:
 eq('ELAPSEDTIME ⇒ geen leveling-gaten', rOn.gaps['E'], undefined);
-eq('uur-modus ⇒ geen leveling-gaten', rOn.gaps['H'], undefined);
+
+// ── Geval 3b: uur-modus-taken ZIJN split-eligible sinds eigenaarsbesluit 2026-08-31 ───────────────
+// Taak H (durationUnit 'hours', 16 werkuur = 2 werkdagen à 8u, prio 100, completion 0) wil ma, maar
+// resource R (cap 1) is ma+di al bezet door een prio-900-taak. Met allowSplits ontwijkt H de bezette
+// dagen — de PAUZE is een HELE werkdag, ook al is H's eigen duur in uren gemeten.
+ok('uur-modus krijgt precies één leveling-gat (een hele werkdag pauze)',
+   rOn.gaps['H']?.length === 1 && rOn.gaps['H'][0].source === 'leveling');
+// Sluitende as-controle (zelfde vorm als geval 1): de geschreven gaten reproduceren de ECHTE
+// geboekte werkdagen, en de totale duur (nog steeds 16 werkuur) klopt — een pauze rekt de SPANNE,
+// niet de vraag. Dit is de concrete plek waar `need` in `scatterSlot` NIET de rauwe (voor
+// uur-modus-taken fractionele) `task.time.scheduleDuration` mag gebruiken maar het aantal
+// curve-slots (zie Step 2, "LET OP — uur-modus").
+eq('uur-modus: gaten reproduceren de geboekte werkdagen',
+   enumerateTaskWorkDays(rOn.gaps['H'], projEng, '<H se nieuwe start>', 2), ['<dag1>', '<dag2>']);
+// De vraag zelf (H's `durationMinutes`, 960) is door `levelResources` NIET aangeraakt — de functie
+// muteert de invoertaak niet, ze retourneert alleen delays/gaps (zie de moduleheader). Een pauze
+// rekt dus per constructie de SPANNE, nooit de vraag; er is geen apart veld nodig om dat te pinnen.
 
 // ── Geval 4: bestaande importsplits blijven staan ───────────────────────────────────────────────
 // Taak F draagt een importsplit (zonder source). De leveler mag die NOOIT weggooien; komt er een
@@ -1289,10 +1442,12 @@ Registreer in `run.sh`, draai, verwacht rood.
    *  work*). `false`/afwezig ⇒ bestaand gedrag: een taak wijkt alleen als GEHEEL (uitloop). `true` ⇒
    *  de nivelleerder mag pauzedagen invoegen wanneer er geen aaneengesloten venster past.
    *
-   *  V1-GRENS (bewust, zie het plan bij taak 9): alleen taken met `durationType === 'WORKTIME'`,
-   *  `durationUnit === 'days'` en `completion === 0` komen ervoor in aanmerking. De gaten-machinerie
-   *  is dag-granulair, en MSP's eigen formulering is "splits in REMAINING work" — een gestarte taak
-   *  wijkt uitsluitend via uitloop. */
+   *  V1-GRENS (bewust, zie het plan bij taak 9 — verbreed 2026-08-31): taken met
+   *  `durationType === 'WORKTIME'` en `completion === 0` komen ervoor in aanmerking, ONGEACHT
+   *  `durationUnit` — dag- én uur-modus. Een ingevoegde pauze is en blijft ALTIJD een hele werkdag,
+   *  ook op een uur-modus-taak (de gaten-machinerie zelf blijft dag-granulair); alleen de SPANNE rekt,
+   *  nooit de vraag. ELAPSEDTIME blijft uitgesloten (geen werkdagbegrip), en MSP's eigen formulering
+   *  is "splits in REMAINING work" — een gestarte taak wijkt uitsluitend via uitloop. */
   allowSplits?: boolean;
 ```
 
@@ -1326,11 +1481,12 @@ De plaatsing zelf. In `findSlot`, ná de mislukte aaneengesloten scan en vóór 
 Concreet, als lokale helper naast `findSlot`:
 
 ```ts
-  /** Mag deze taak leveling-gaten krijgen? Zie de v1-grens bij `LevelingOptions.allowSplits`. */
+  /** Mag deze taak leveling-gaten krijgen? Zie de v1-grens bij `LevelingOptions.allowSplits`
+   *  (verbreed 2026-08-31: `durationUnit` speelt geen rol meer — dag- én uur-modus komen in
+   *  aanmerking, mits WORKTIME en niet-gestart). */
   function splitEligible(task: Task): boolean {
     return options.allowSplits === true
       && task.time.durationType === 'WORKTIME'
-      && task.time.durationUnit === 'days'
       && task.time.completion === 0;
   }
 
@@ -1340,7 +1496,17 @@ Concreet, als lokale helper naast `findSlot`:
   function scatterSlot(taskId: string, pf: Date, finishLimit: Date | null): string[] | null {
     const task = taskById.get(taskId)!;
     const byRes = demandByTask.get(taskId)!;
-    const need = task.time.scheduleDuration;
+    // LET OP — uur-modus (eigenaarsbesluit 2026-08-31, v1-grens verbreed): `task.time.scheduleDuration`
+    // is voor een uur-modus-taak GEEN geheel getal — `ResourceLoad.ts`'s eigen fixture-conventie
+    // (`check-adapters-hours.ts`: `scheduleDuration: minutes / 480`) laat dat expliciet zien, bv. 2,5
+    // voor een taak van 20 werkuur op een 8u-kalender. `distributeUnits` (ResourceLoad.ts) rondt dat
+    // AL af naar boven tot curve-SLOTS (de `for (let i = 0; i < durationDays; i++)`-lus loopt door tot
+    // de volgende hele dag — bv. 3 slots bij 2,5), dus `demandByTask`s array-lengte is altijd de juiste
+    // GEHELE werkdagen-telling, voor dag- én uur-modus. `need` moet daarom het AANTAL CURVE-SLOTS zijn,
+    // NOOIT de rauwe `scheduleDuration` rechtstreeks — anders stopt de scatter-lus (`chosen.length <
+    // need`) voortijdig bij een fractioneel plafond. Voor dag-modus is dit BYTE-IDENTIEK
+    // (`scheduleDuration` is daar al een geheel getal, dus `Math.ceil` verandert niets).
+    const need = byRes.values().next().value?.length ?? Math.ceil(task.time.scheduleDuration);
     const chosen: string[] = [];
     let cand = nextCandidateFor(task, pf);
     let guard = 0;
@@ -1427,7 +1593,7 @@ nooit en het gedrag is byte-identiek. `LevelingResult.gaps` is dan `{}`.
 
 ```bash
 git add src/engine/scheduler/ResourceLeveler.ts tests/planning/check-leveler-splitmode.ts tests/planning/run.sh
-git commit -m "feat(scheduler): onderbreek-modus — de nivelleerder mag pauzedagen invoegen (B1c)
+git commit -m "feat(scheduler): onderbreek-modus — de nivelleerder mag pauzedagen invoegen, ook op uur-modus-taken (B1c)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -1705,8 +1871,10 @@ Drie poorten die in dit plan bijzondere aandacht verdienen:
 - `verify:store-boundaries` — `distribute.ts` mag **nooit** `useAppStore` of `appStoreContext`
   importeren. Doet hij dat wel, dan is de kern niet puur en faalt deze poort terecht.
 - `verify:cycles` — `services/library` → `engine/scheduler` is de toegestane richting.
-- `verify:i18n` — dit plan voegt bewust géén sleutel toe (zie *Scope*); faalt deze poort, dan heeft
-  iemand tóch UI-tekst toegevoegd en hoort die in etappe 3.
+- `verify:i18n` — dit plan voegt precies één sleutel toe (`notifications.levelingDelayRoundedToWorkdays`,
+  taak 1, M10-waarschuwing — eigenaarsbesluit 2026-08-31) en bewust géén andere (zie *Scope*); faalt
+  deze poort op iets anders dan die ene sleutel, dan heeft iemand tóch UI-tekst toegevoegd en hoort
+  die in etappe 3.
 
 - [ ] **Step 2: Werk `docs/library.md` bij (alleen de kern, geen UI)**
 
@@ -1762,10 +1930,15 @@ commentaarregel — bijgesteld wordt.
 
 **Drie plekken waar dit plan concretiseert (en dat markeert):** de plaats van de as-conversie
 (taak 8, `splitWalk.ts` in plaats van `duration.ts`), de v1-grens van de onderbreek-modus (taak 9,
-alleen WORKTIME/dag/`completion === 0`), en de lezing van "float eerst, uitschieter minimaal"
-(taak 10: dat ís de vroegste-venster-plaatsing van de bestaande SGS, geen tweede algoritme).
+WORKTIME/`completion === 0` — sinds eigenaarsbesluit 2026-08-31 ook uur-modus, niet meer alleen
+dag-modus), en de lezing van "float eerst, uitschieter minimaal" (taak 10: dat ís de
+vroegste-venster-plaatsing van de bestaande SGS, geen tweede algoritme — bevestigd, eigenaarsbesluit
+2026-08-31).
 
 **Open aannames die de uitvoerder moet verifiëren** (staan óók in de betreffende stap): of er al een
 bestaande IFC-round-trip-batterij voor `splitGaps` is (taak 7 stap 1), welke constraint-vorm
-`lateStart` daadwerkelijk vóór de PF trekt (taak 4 geval 3), en of een bestaande leveling-/MCP-case op
-de oude `CALENDAR_MISMATCH`-conflatie leunt (taak 5 stap 3).
+`lateStart` daadwerkelijk vóór de PF trekt (taak 4 geval 3), of een bestaande leveling-/MCP-case op
+de oude `CALENDAR_MISMATCH`-conflatie leunt (taak 5 stap 3), en of `distributeUnits`s
+`Math.ceil(durationDays)`-afronding voor een fractionele uur-modus-`scheduleDuration` zich gedraagt
+zoals taak 9 aanneemt (`scatterSlot`s `need` via de curve-array-lengte in plaats van de rauwe
+`scheduleDuration`, eigenaarsbesluit 2026-08-31).
