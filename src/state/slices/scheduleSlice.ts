@@ -294,8 +294,12 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     set((s) => {
       // M10: het no-op-guard breidt uit naar `levelingDelayMinutes` — anders zou een taak die
       // UITSLUITEND sub-dag-precisie draagt (geen `levelingDelay`) hier stil overgeslagen worden.
+      // Fixronde B1c-plan-2-etappe-2 (bevinding 6): `levelingDelayElapsed` ontbrak hier terwijl de
+      // teller vlak eronder 'm wél meetelt — een taak met UITSLUITEND `levelingDelayElapsed` werd zo
+      // stil overgeslagen (geen snapshot, geen melding), ook al zou de lus 'm wél gewist hebben.
       if (!s.tasks.some((t) =>
-        t.levelingDelay !== undefined || t.levelingDelayMinutes !== undefined)) return; // niets te wissen, geen snapshot
+        t.levelingDelay !== undefined || t.levelingDelayMinutes !== undefined
+        || t.levelingDelayElapsed !== undefined)) return; // niets te wissen, geen snapshot
       runtime.beginUndoable(s);
       for (const task of s.tasks) {
         if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {

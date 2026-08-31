@@ -175,6 +175,25 @@ S().clearLeveling();
 eq('geen melding als er niets te wissen viel (ook niet de eerste keer voor dit document)',
   S().ui.notifications.filter(n => n.messageKey === notifKey).length, 0);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Deel 5 (fixronde B1c-plan-2-etappe-2, bevinding 6): een taak met UITSLUITEND `levelingDelayElapsed`
+// (geen `levelingDelay`, geen `levelingDelayMinutes`) werd door de no-op-guard van `clearLeveling`
+// (`scheduleSlice.ts`) ten onrechte als "niets te wissen" gezien — de guard toetste alleen de eerste
+// twee velden, terwijl de wislus (en de teller vlak eronder) `levelingDelayElapsed` al wél meenamen.
+// Gevolg vóór de fix: stille no-op — geen undo-snapshot, geen melding, het veld bleef gewoon staan.
+// ═══════════════════════════════════════════════════════════════════════════
+S().newProject();
+for (const n of [...S().ui.notifications]) S().dismissNotification(n.id);
+const idW = S().addTask({ name: 'W' });
+S().updateTask(idW, { levelingDelayElapsed: true }); // UITSLUITEND het elapsed-veld
+const undoDepthBeforeW = S().undoStack.length;
+S().clearLeveling();
+eq('clearLeveling wist levelingDelayElapsed ook als het het ENIGE sub-dag-veld is',
+  S().tasks.find(t => t.id === idW)!.levelingDelayElapsed, undefined);
+ok('clearLeveling pusht een undo-snapshot (geen stille no-op)', S().undoStack.length > undoDepthBeforeW);
+eq('en meldt het verlies (eerste keer voor dit document)',
+  S().ui.notifications.filter(n => n.messageKey === notifKey).length, 1);
+
 // ── Uitkomst ──────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveling-delay-units: alle checks groen (${checks})`);
