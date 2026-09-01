@@ -35,5 +35,6 @@ run_check check-ifc-hostile
 run_check check-i18n-plurals
 run_check check-occupancy
 run_check check-distribute
+run_check check-apply-distribution
 
 exit "$STATUS"

@@ -8,6 +8,14 @@ import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, 
 import { finishMutation, markScheduleStale } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
+import { runInScratchDocument } from '../runtime/scratchDocument';
+import type { DocumentPayload } from '../documentContract';
+import {
+  planDistributionWrites,
+  type DistributionApplyRecord,
+  type DistributionUndoReport,
+} from '@/services/library/applyDistribution';
+import type { DistributionProposal } from '@/services/library/distribute';
 
 export interface RecognitionCandidate {
   kind: 'resource' | 'calendar';
@@ -186,6 +194,22 @@ export interface LibrarySlice {
    *  (beginUndoable/finishMutation-patroon). No-op (geen undo-snapshot) op een onbekend id of een
    *  resource zonder stempel. */
   unlinkResourceFromLibrary: (resourceId: string) => void;
+
+  /** Toepassen (spec §5, B1c-plan3 taak 6). Schrijft het voorstel in élk deelnemend document — het
+   *  actieve via het gewone top-level-pad, de slapers via een headless scratch-instantie
+   *  (`runInScratchDocument`) — en geeft een record terug waarmee de "toegepast"-strook alles in
+   *  één keer kan terugdraaien. `null` ⇒ er is niets geschreven (geblokkeerd, tekort, of niets te
+   *  doen; zie `planDistributionWrites`). */
+  applyDistribution: (
+    proposal: DistributionProposal,
+    scopeTaskIdsByDoc: Record<string, string[]>,
+  ) => DistributionApplyRecord | null;
+
+  /** "Alles terugdraaien" (spec §5): draait per beschreven document precies de undo-stap terug die
+   *  `applyDistribution` daar heeft achtergelaten. Een document waarvan de undo-diepte intussen is
+   *  verschoven (de gebruiker werkte er zelf in verder) wordt overgeslagen — blind terugpoppen zou
+   *  daar de VERKEERDE stap ongedaan maken — en gemeld via `DistributionUndoReport.skippedDocIds`. */
+  undoDistribution: (record: DistributionApplyRecord) => DistributionUndoReport;
 }
 
 /**
@@ -1192,5 +1216,133 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     // Puur stempels weg: geen enkel bewaard VELD verandert (naam/type/tarief/eenheid/maxUnits/kalender-
     // INHOUD blijven exact wat ze waren), dus geen datumimpact en geen belasting-/rijenherberekening
     // nodig — anders dan updateResource/removeResource hierboven raakt dit geen CPM- of tabelinvoer.
+  },
+
+  applyDistribution: (proposal, scopeTaskIdsByDoc) => {
+    const plan = planDistributionWrites(proposal, scopeTaskIdsByDoc);
+    if (!plan.ok) return null;
+
+    const state = get();
+    const activeWrite = plan.writes.find((w) => w.docId === state.activeDocumentId);
+    const sleepingWrites = plan.writes.filter((w) => w.docId !== state.activeDocumentId);
+
+    // Fase 1 — BUITEN de producer: draai elke slapende write in zijn eigen, wegwerpbare scratch-
+    // instantie (`runInScratchDocument`). Zolang hier niets geschreven is naar `s.documents`, is de
+    // hele actie nog terug te trekken — precies de atomiciteitsgarantie van
+    // `recalculateStaleSleepingDocuments`, hier toegepast op een schrijfpad dat WEL undo-stappen
+    // achterlaat (dat is exact wat taak 5's scratch-instantie oplevert t.o.v. de kloon-route daar).
+    const sleepingResults: { docId: string; payload: DocumentPayload; undoDepthAfterApply: number }[] = [];
+    for (const w of sleepingWrites) {
+      const entry = state.documents.find((d) => d.id === w.docId);
+      if (!entry?.payload) continue; // tussentijds gesloten/geactiveerd — dit document doet niet meer mee.
+      const out = runInScratchDocument(entry.payload, (s) => {
+        s.applyLeveling(w.write, { scopeTaskIds: w.scopeTaskIds });
+      });
+      // Meldingen bubbelen ALTIJD op (spec §5, rand (b)) — ook bij een geslaagde run kan `applyLeveling`
+      // een M10-afrondingsmelding of (bij een onverwachte cyclus) een schedule-fout hebben gezet; niets
+      // daarvan mag in het onzichtbare kanaal van de scratch-context blijven hangen.
+      for (const n of out.notifications) get().notify(n);
+      if (!out.ok) {
+        // Er is nog NIETS gemuteerd (het actieve document komt pas hierna aan de beurt, en de
+        // eerdere scratch-runs schreven alleen naar hun eigen, weggegooide payload) — dus de hele
+        // actie stopt hier, zonder halve staat.
+        return null;
+      }
+      sleepingResults.push({
+        docId: w.docId, payload: out.payload, undoDepthAfterApply: out.payload.undoStack.length,
+      });
+    }
+
+    // Het actieve document (als het meedoet), via het GEWONE pad: `applyLeveling` pusht zelf zijn
+    // eigen snapshot en draait zelf `runCPM` — precies dezelfde actie als een gebruiker zou triggeren.
+    let activeUndoDepthAfterApply: number | null = null;
+    if (activeWrite) {
+      get().applyLeveling(activeWrite.write, { scopeTaskIds: activeWrite.scopeTaskIds });
+      activeUndoDepthAfterApply = get().undoStack.length;
+    }
+
+    // Fase 2 — ÉÉN producer: de nieuwe slaper-payloads terugschrijven. Sla een document over dat
+    // intussen gesloten of geactiveerd is (`entry.payload === null`), exact zoals
+    // `recalculateStaleSleepingDocuments` dat doet.
+    if (sleepingResults.length > 0) {
+      set((s) => {
+        for (const r of sleepingResults) {
+          const entry = s.documents.find((d) => d.id === r.docId);
+          if (!entry || entry.payload === null) continue;
+          entry.payload = r.payload;
+        }
+      });
+    }
+
+    // Bouw het record — alleen voor documenten die daadwerkelijk geschreven zijn (een tussentijds
+    // gesloten slaper werd hierboven al overgeslagen en staat dus niet in `sleepingResults`).
+    const docs: DistributionApplyRecord['docs'] = [];
+    if (activeWrite && activeUndoDepthAfterApply !== null) {
+      const docResult = proposal.docs.find((d) => d.docId === activeWrite.docId);
+      if (docResult) {
+        docs.push({ docId: activeWrite.docId, title: docResult.title, undoDepthAfterApply: activeUndoDepthAfterApply });
+      }
+    }
+    for (const r of sleepingResults) {
+      const docResult = proposal.docs.find((d) => d.docId === r.docId);
+      if (!docResult) continue;
+      docs.push({ docId: r.docId, title: docResult.title, undoDepthAfterApply: r.undoDepthAfterApply });
+    }
+    if (docs.length === 0) return null;
+
+    return { libraryItemId: proposal.libraryItemId, appliedAt: new Date().toISOString(), docs };
+  },
+
+  undoDistribution: (record) => {
+    const state = get();
+    const undoneDocIds: string[] = [];
+    const skippedDocIds: string[] = [];
+
+    const activeEntry = record.docs.find((d) => d.docId === state.activeDocumentId);
+    const sleepingEntries = record.docs.filter((d) => d.docId !== state.activeDocumentId);
+
+    // Fase 1 — BUITEN de producer: de slapers, elk in zijn eigen scratch-instantie, en ALLEEN als
+    // hun undo-diepte nog exact klopt met wat `applyDistribution` er heeft achtergelaten — heeft de
+    // gebruiker het document intussen zelf bewerkt, dan zou blind `undo()` de VERKEERDE stap
+    // terugdraaien. Zo'n document wordt overgeslagen en gemeld (`skippedDocIds`), niet blind gepopt.
+    const sleepingUndos: { docId: string; payload: DocumentPayload }[] = [];
+    for (const d of sleepingEntries) {
+      const entry = state.documents.find((x) => x.id === d.docId);
+      if (!entry?.payload || entry.payload.undoStack.length !== d.undoDepthAfterApply) {
+        skippedDocIds.push(d.docId);
+        continue;
+      }
+      const out = runInScratchDocument(entry.payload, (s) => { s.undo(); });
+      for (const n of out.notifications) get().notify(n);
+      if (!out.ok) {
+        skippedDocIds.push(d.docId);
+        continue;
+      }
+      sleepingUndos.push({ docId: d.docId, payload: out.payload });
+      undoneDocIds.push(d.docId);
+    }
+
+    // Het actieve document, via het gewone `undo()`-pad — dezelfde diepte-gate als de slapers.
+    if (activeEntry) {
+      if (state.undoStack.length === activeEntry.undoDepthAfterApply) {
+        get().undo();
+        undoneDocIds.push(activeEntry.docId);
+      } else {
+        skippedDocIds.push(activeEntry.docId);
+      }
+    }
+
+    // Fase 2 — ÉÉN producer.
+    if (sleepingUndos.length > 0) {
+      set((s) => {
+        for (const u of sleepingUndos) {
+          const entry = s.documents.find((x) => x.id === u.docId);
+          if (!entry || entry.payload === null) continue;
+          entry.payload = u.payload;
+        }
+      });
+    }
+
+    return { undoneDocIds, skippedDocIds };
   },
 });

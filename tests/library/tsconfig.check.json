@@ -22,6 +22,7 @@
     "check-ifc-hostile.ts",
     "check-i18n-plurals.ts",
     "check-occupancy.ts",
+    "check-apply-distribution.ts",
     "../../src/types/file-system-access.d.ts"
   ]
 }
