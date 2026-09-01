@@ -96,9 +96,25 @@ void _assertPickHasNoExtras;
  * van zijn producer ingetrokken, dus een gedeelde draft zou een snapshot opleveren die bij het
  * uitlezen gooit. Krijgt deze functie een draft, dan leest hij daarom via `originalAppState()` —
  * Immers `original()`, dus de basisstaat van die producer (zie `immerDraft.ts` voor waarom die
- * grens een eigen module heeft). Dat klopt precies zolang de aanroeper de vaste conventie aanhoudt:
- * *guards; snapshot; mutatie*. Alle vier de aanroepers doen dat (`beginUndoable`, `withTransaction`,
- * `undo`, `redo`); `runInMcpTransaction` geeft sowieso plain state door.
+ * grens een eigen module heeft).
+ *
+ * WIE GEEFT HIER EIGENLIJK EEN DRAFT DOOR? Van de acht aanroepers precies ÉÉN: `beginUndoable`
+ * (`runtime/storeRuntime.ts`), dat middenin een `set()`-producer de voor-staat vastlegt. Alleen
+ * dáár doet de conventie *guards; snapshot; mutatie* ertoe — hij snapshot vóór hij muteert, dus de
+ * basisstaat ís de bedoelde voor-staat. De overige zeven raken het `original()`-pad niet eens,
+ * want ze geven al plain state door:
+ *   - `snapshotOfCurrentState` (storeRuntime) normaliseert zelf al via `currentAppState()`;
+ *   - `withTransaction` (`runtime/createBatchTransactions`) en de MCP-transactie
+ *     (`runtime/createMcpTransactions`) lezen `store.getState()` buiten elke producer;
+ *   - undo/redo komen hier binnen via `materializeHistoryTarget` (`sessionHistory.ts`), op een
+ *     ondiepe `{...state}`-kopie;
+ *   - `gridTransaction.ts` roept drie keer aan: op zijn `Readonly<AppState>`-parameter, op het
+ *     `produce()`-resultaat en op `get()`.
+ *
+ * Wie hier een aanroeper bij zet die BINNEN een producer snapshot NÁ het muteren, breekt de
+ * conventie stil: de snapshot legt dan de na-staat vast en undo herstelt te weinig. Dat is geen
+ * crash maar stil dataverlies, dus het wordt bewaakt — `check-mutation-cost.ts` toetst het gedrag
+ * (25a/25b) en pint daarnaast de bron (27a–27c).
  */
 export function createSnapshot(s: AppState): Snapshot {
   const base = originalAppState(s) ?? s;

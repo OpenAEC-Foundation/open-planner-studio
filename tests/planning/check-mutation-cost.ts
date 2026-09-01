@@ -28,9 +28,11 @@
 //       in-place muteren buiten een producer kán niet — plus dat undo/redo nog precies herstelt.
 //
 // Draait via run.sh. Exit 0 = alles groen.
+import { produce } from 'immer';
 import { latestAppliedDocumentDataDelta } from '@/state/sessionHistory';
 import './domStub';
 import { useAppStore } from '@/state/appStore';
+import { createSnapshot, type Snapshot } from '@/state/snapshot';
 import { withTransaction } from '@/state/batchTransaction';
 
 const S = () => useAppStore.getState();
@@ -214,6 +216,35 @@ bevroren('19 bevroren na een bulk-transactie');
   eq('25 undo op 2.000 taken herstelt de naam', S().tasks.find(t => t.id === grote[1000])?.name, 'G1000');
 }
 
+// ── 4b. Gedrag: binnen een producer leest de snapshot de VOOR-staat ──────────
+// De bron-asserts 27a–27c hieronder pinnen dat `createSnapshot` via `original()` normaliseert en
+// niet via `current()`. Nodig, maar niet genoeg: dat is een tekstcontrole. Het verschil valt
+// vandaag namelijk nergens op — élke aanroeper houdt de conventie *guards; snapshot; mutatie* aan,
+// en dan leveren `original()` en `current()` hetzelfde op. Een sabotage naar `current()` liet dan
+// ook de hele rest van deze suite groen.
+//
+// Deze check maakt het verschil wél waarneembaar door de conventie BEWUST te schenden: eerst
+// muteren, daarna snapshotten. Leest de snapshot dan de na-staat, dan legt een undo-stap de
+// verkeerde voor-staat vast en herstelt undo te weinig — geen crash, maar stil dataverlies.
+{
+  S().newProject();
+  S().addTask({ name: 'A' });
+  const voorNaam = S().tasks[0].name;
+
+  let binnenProducer!: Snapshot;
+  const na = produce(S(), (draft) => {
+    draft.tasks[0].name = 'GEMUTEERD';
+    binnenProducer = createSnapshot(draft);
+  });
+
+  eq('25a createSnapshot leest binnen een producer de VOOR-staat', binnenProducer.tasks[0].name, voorNaam);
+  eq('25b en de producer muteerde wel degelijk', na.tasks[0].name, 'GEMUTEERD');
+  // Eis 9: er ontsnapt geen ingetrokken draft. Een gelekte draft is ná afloop van zijn producer
+  // ingetrokken en gooit bij het uitlezen — deze regel zou dan niet halen.
+  truthy('25c de snapshot blijft leesbaar ná afloop van de producer',
+    JSON.parse(JSON.stringify(binnenProducer.tasks)).length === na.tasks.length);
+}
+
 // ── 5. Bron-assert: de drie plekken waar dit vandaan komt ────────────────────
 // De checks hierboven meten gedrag. Deze meet de OORZAAK, zodat een terugval herkenbaar is in
 // plaats van alleen zichtbaar als een gevallen identiteitscheck.
@@ -262,10 +293,12 @@ bevroren('19 bevroren na een bulk-transactie');
 
     // (a) de snapshot kloont niet meer.
     eq('27 createSnapshot doet geen JSON-kloon', /JSON\.(parse|stringify)/.test(src.snapshot), false);
-    // 27a–c: de draftnormalisatie zelf is verhuisd naar `immerDraft.ts` — de enige plek waar
-    // app-state de Immer-typegrens oversteekt. De INVARIANT is ongewijzigd en wordt hier nu over de
-    // delegatie heen bewaakt: een snapshot leest de BASIS van de producer (`original()`), nooit de
-    // lopende draft en nooit `current()` (dat zou de mutatie meesnapshotten die undo moet herstellen).
+    // 27a–c pinnen de BRON van de draftnormalisatie, die in `immerDraft.ts` woont — de enige plek
+    // waar app-state de Immer-typegrens oversteekt. Het GEDRAG erachter (de snapshot leest de
+    // basis, niet de na-staat) staat in 25a/25b hierboven; deze drie regels leggen alleen vast
+    // langs welke weg dat gebeurt. 27c is daarbij een zwakke negatieve guard: `includes('current(')`
+    // matcht `currentAppState(` NIET, dus de refactor die hij lijkt te blokkeren wordt in de
+    // praktijk door 27a gevangen. Laat 'm staan als goedkope extra, maar reken hem niet mee.
     eq('27a createSnapshot normaliseert een draft via originalAppState()',
       src.snapshot.includes('originalAppState('), true);
     eq('27b originalAppState() leest de producerbasis via original()',
