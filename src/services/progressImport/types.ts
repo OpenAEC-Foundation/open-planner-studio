@@ -111,5 +111,9 @@ export const PROGRESS_IMPORT_LIMITS = {
 /** Kalibratiedrempels (A5.2 regel 3) — geëxporteerd zodat de test ze bij naam noemt. */
 export const MIN_CALIBRATION_HITS = 3;
 export const CALIBRATION_RATIO = 3;
-/** No-op-tolerantie op completion (A6). */
-export const PERCENT_EPSILON = 0.005;
+// PERCENT_EPSILON (no-op-tolerantie op completion, A6) is VERWIJDERD — fixronde na de
+// Opus-eindreview: een vaste float-epsilon is per constructie stuk (0.335 rondt af naar het door
+// onze eigen `writeCSV` geschreven "34"; `0.34 - 0.335` ligt net boven élke drempel die ook "45,5"
+// nog als echte wijziging moet doorlaten, E6). Vervangen door de vorm-bewuste
+// `isCompletionUnchanged` in `buildPlan.ts` (heel-procent ⇒ rond-vergelijking; decimaal ⇒
+// float-tolerante exacte gelijkheid) — geen losse drempelconstante meer nodig.
