@@ -22,17 +22,17 @@
   "deferredDefaults": [],
   "population": {
     "scanned": 93,
-    "oracleAxisFiles": 60,
-    "rawWithSchedOptions": 24,
-    "rawWithoutSchedOptions": 36,
-    "projectAddressableSchedOptions": 23,
-    "functionallyWithoutSchedOptions": 37,
-    "measured": 35,
+    "oracleAxisFiles": 58,
+    "rawWithSchedOptions": 23,
+    "rawWithoutSchedOptions": 35,
+    "projectAddressableSchedOptions": 22,
+    "functionallyWithoutSchedOptions": 36,
+    "measured": 34,
     "deferred": 2,
-    "readableFiles": 35,
-    "openedProjectsWithDefaults": 36,
-    "wiredProjectsWithDefaults": 36,
-    "concreteProjectsCompared": 84,
+    "readableFiles": 34,
+    "openedProjectsWithDefaults": 35,
+    "wiredProjectsWithDefaults": 35,
+    "concreteProjectsCompared": 70,
     "oracleNegativeFloatFiles": 5,
     "withoutSchedOptionsNegativeFloatFiles": 4,
     "rawNegativeFloatFiles": 6,
@@ -228,13 +228,13 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
-        19,
-        16,
-        16,
-        4,
-        0
+        6,
+        6,
+        28,
+        28,
+        23,
+        7,
+        5
       ],
       "xerDefaultsNegativeFloatTasks": 1,
       "defaults": {
@@ -474,13 +474,13 @@
       "oracleNegativeFloatTasks": 3,
       "houseNegativeFloatTasks": 4,
       "xerDefaultsMovement": [
-        0,
-        0,
-        6,
+        14,
+        16,
+        20,
+        20,
+        8,
         4,
-        4,
-        1,
-        0
+        2
       ],
       "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
@@ -598,7 +598,7 @@
       "houseNegativeFloatTasks": 2,
       "xerDefaultsMovement": [
         0,
-        0,
+        1,
         0,
         0,
         2,
@@ -837,144 +837,21 @@
       }
     },
     {
-      "id": "2a7732b5b99de2a5-1",
-      "state": "measured",
-      "tasks": 126,
-      "oracleNegativeFloatTasks": 0,
-      "houseNegativeFloatTasks": 44,
-      "xerDefaultsMovement": [
-        0,
-        0,
-        15,
-        12,
-        13,
-        10,
-        0
-      ],
-      "xerDefaultsNegativeFloatTasks": 37,
-      "defaults": {
-        "totalFloatFinish": {
-          "movement": [
-            0,
-            0,
-            0,
-            0,
-            2,
-            0,
-            0
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 44
-        },
-        "retainedLogic": {
-          "movement": [
-            67,
-            69,
-            1,
-            1,
-            68,
-            29,
-            0
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 44
-        },
-        "openEndedNotCritical": {
-          "movement": [
-            0,
-            0,
-            0,
-            0,
-            2,
-            2,
-            2
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 44
-        },
-        "predecessorLagCalendar": {
-          "movement": [
-            78,
-            78,
-            76,
-            76,
-            106,
-            28,
-            0
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 43
-        },
-        "expectedFinishDates": {
-          "movement": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 44
-        },
-        "preserveActualDates": {
-          "movement": [
-            0,
-            0,
-            15,
-            12,
-            13,
-            8,
-            0
-          ],
-          "chosenNegativeFloatTasks": 37,
-          "counterfactualNegativeFloatTasks": 44
-        },
-        "clampNegativeFreeFloat": {
-          "movement": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            4,
-            0
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 44
-        },
-        "projectCriticalDefinition": {
-          "movement": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          "chosenNegativeFloatTasks": 44,
-          "counterfactualNegativeFloatTasks": 44
-        }
-      }
-    },
-    {
       "id": "2c1dce175b9f0781-1",
       "state": "measured",
       "tasks": 6977,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 38,
       "xerDefaultsMovement": [
-        0,
-        0,
-        2666,
-        2618,
-        2618,
-        1785,
-        505
+        5638,
+        5486,
+        6955,
+        6957,
+        6363,
+        2433,
+        63
       ],
-      "xerDefaultsNegativeFloatTasks": 544,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "movement": [
@@ -982,7 +859,7 @@
             0,
             0,
             0,
-            331,
+            330,
             0,
             0
           ],
@@ -992,11 +869,11 @@
         "retainedLogic": {
           "movement": [
             3036,
-            3149,
+            3147,
             6977,
             6977,
             6971,
-            547,
+            545,
             31
           ],
           "chosenNegativeFloatTasks": 38,
@@ -1038,8 +915,8 @@
             0,
             0
           ],
-          "chosenNegativeFloatTasks": 11,
-          "counterfactualNegativeFloatTasks": 11
+          "chosenNegativeFloatTasks": 38,
+          "counterfactualNegativeFloatTasks": 38
         },
         "preserveActualDates": {
           "movement": [
@@ -1048,8 +925,8 @@
             2666,
             2618,
             2618,
-            1639,
-            505
+            1641,
+            501
           ],
           "chosenNegativeFloatTasks": 544,
           "counterfactualNegativeFloatTasks": 38
@@ -1061,7 +938,7 @@
             0,
             0,
             0,
-            621,
+            618,
             0
           ],
           "chosenNegativeFloatTasks": 38,
@@ -1343,14 +1220,14 @@
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
         0,
-        0,
-        0,
-        0,
-        0,
-        39,
-        0
+        8,
+        43,
+        41,
+        41,
+        42,
+        11
       ],
-      "xerDefaultsNegativeFloatTasks": 0,
+      "xerDefaultsNegativeFloatTasks": 19,
       "defaults": {
         "totalFloatFinish": {
           "movement": [
@@ -1368,11 +1245,11 @@
         "retainedLogic": {
           "movement": [
             0,
-            9,
             0,
             0,
-            9,
-            9,
+            0,
+            0,
+            0,
             0
           ],
           "chosenNegativeFloatTasks": 0,
@@ -1421,13 +1298,13 @@
           "movement": [
             0,
             0,
-            0,
-            0,
-            0,
-            30,
-            0
+            43,
+            41,
+            41,
+            31,
+            11
           ],
-          "chosenNegativeFloatTasks": 0,
+          "chosenNegativeFloatTasks": 11,
           "counterfactualNegativeFloatTasks": 0
         },
         "clampNegativeFreeFloat": {
@@ -1437,7 +1314,7 @@
             0,
             0,
             0,
-            39,
+            42,
             0
           ],
           "chosenNegativeFloatTasks": 0,
@@ -1507,9 +1384,9 @@
             0,
             0,
             0,
-            1,
-            1,
-            1
+            0,
+            0,
+            0
           ],
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
@@ -1660,8 +1537,8 @@
             0,
             0
           ],
-          "chosenNegativeFloatTasks": 0,
-          "counterfactualNegativeFloatTasks": 0
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
         },
         "preserveActualDates": {
           "movement": [
@@ -1711,10 +1588,10 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
-        0,
-        0,
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0
@@ -1835,14 +1712,14 @@
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
         0,
-        0,
-        0,
-        0,
-        0,
-        53,
-        0
+        13,
+        58,
+        56,
+        56,
+        57,
+        11
       ],
-      "xerDefaultsNegativeFloatTasks": 0,
+      "xerDefaultsNegativeFloatTasks": 24,
       "defaults": {
         "totalFloatFinish": {
           "movement": [
@@ -1860,11 +1737,11 @@
         "retainedLogic": {
           "movement": [
             0,
-            8,
             0,
             0,
-            8,
-            8,
+            0,
+            0,
+            0,
             0
           ],
           "chosenNegativeFloatTasks": 0,
@@ -1913,13 +1790,13 @@
           "movement": [
             0,
             0,
-            0,
-            0,
-            0,
-            45,
-            0
+            58,
+            56,
+            56,
+            46,
+            11
           ],
-          "chosenNegativeFloatTasks": 0,
+          "chosenNegativeFloatTasks": 11,
           "counterfactualNegativeFloatTasks": 0
         },
         "clampNegativeFreeFloat": {
@@ -1929,7 +1806,7 @@
             0,
             0,
             0,
-            53,
+            57,
             0
           ],
           "chosenNegativeFloatTasks": 0,
@@ -1957,8 +1834,8 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
+        2,
+        1,
         2,
         1,
         1,
@@ -2080,10 +1957,10 @@
       "oracleNegativeFloatTasks": 6,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
         3,
-        1,
+        2,
+        3,
+        2,
         1,
         2,
         0
@@ -2203,12 +2080,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
+        1,
+        1,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
+        1,
+        2,
         0
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -2326,12 +2203,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
+        1,
+        1,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
+        1,
+        2,
         0
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -2449,9 +2326,9 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
+        83,
         0,
-        0,
-        0,
+        82,
         0,
         0,
         0,
@@ -2572,10 +2449,10 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
+        1,
+        1,
+        8,
         7,
-        6,
         6,
         1,
         0
@@ -2860,9 +2737,9 @@
             0,
             0,
             0,
-            1,
-            1,
-            1
+            0,
+            0,
+            0
           ],
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
@@ -2941,10 +2818,10 @@
       "oracleNegativeFloatTasks": 6,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
         3,
-        1,
+        2,
+        3,
+        2,
         1,
         2,
         0
@@ -3310,8 +3187,8 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
+        2,
+        1,
         2,
         1,
         1,
@@ -3802,13 +3679,13 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
+        4,
+        4,
+        8,
+        8,
+        4,
+        2,
+        3
       ],
       "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
@@ -4048,12 +3925,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
+        1,
+        1,
         1,
         0,
-        0,
-        0,
+        1,
+        2,
         0
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -4171,12 +4048,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
       "xerDefaultsMovement": [
-        0,
-        0,
+        1,
+        1,
         1,
         0,
-        0,
-        0,
+        1,
+        2,
         0
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -4417,11 +4294,11 @@
       "counterfactual": false
     },
     "population": {
-      "oracleFiles": 60,
-      "readableFiles": 58,
+      "oracleFiles": 58,
+      "readableFiles": 56,
       "deferredFiles": 2,
-      "projects": 84,
-      "tasks": 18778,
+      "projects": 70,
+      "tasks": 18625,
       "sourceTasks": 163,
       "activeSourceTasks": 0,
       "sourceFiles": 2,
@@ -4475,59 +4352,547 @@
     "fidelity": {
       "chosen": {
         "es": {
-          "deviations": 7665,
-          "measurable": 18540
+          "deviations": 9202,
+          "measurable": 18524
         },
         "ef": {
-          "deviations": 7718,
-          "measurable": 18552
+          "deviations": 9121,
+          "measurable": 18536
         },
         "ls": {
-          "deviations": 8408,
-          "measurable": 18430
+          "deviations": 8356,
+          "measurable": 18406
         },
         "lf": {
-          "deviations": 8628,
-          "measurable": 18423
+          "deviations": 8557,
+          "measurable": 18397
         },
         "tf": {
-          "deviations": 10372,
+          "deviations": 10092,
           "measurable": 18296
         },
         "ff": {
-          "deviations": 3636,
+          "deviations": 3559,
           "measurable": 17915
         }
       },
       "counterfactual": {
         "es": {
-          "deviations": 7665,
-          "measurable": 18540
+          "deviations": 9202,
+          "measurable": 18524
         },
         "ef": {
-          "deviations": 7718,
-          "measurable": 18552
+          "deviations": 9121,
+          "measurable": 18536
         },
         "ls": {
-          "deviations": 8408,
-          "measurable": 18430
+          "deviations": 8356,
+          "measurable": 18406
         },
         "lf": {
-          "deviations": 8628,
-          "measurable": 18423
+          "deviations": 8557,
+          "measurable": 18397
         },
         "tf": {
-          "deviations": 10372,
+          "deviations": 10092,
           "measurable": 18296
         },
         "ff": {
-          "deviations": 3636,
+          "deviations": 3559,
           "measurable": 17915
         }
       }
     }
   },
-  "legacyMissingTypeDelta": [
+  "fidelity": {
+    "house": {
+      "es": {
+        "deviations": 6639,
+        "measurable": 7637
+      },
+      "ef": {
+        "deviations": 6510,
+        "measurable": 7649
+      },
+      "ls": {
+        "deviations": 7460,
+        "measurable": 7519
+      },
+      "lf": {
+        "deviations": 7427,
+        "measurable": 7510
+      },
+      "tf": {
+        "deviations": 6932,
+        "measurable": 7602
+      },
+      "ff": {
+        "deviations": 2352,
+        "measurable": 7221
+      }
+    },
+    "xerDefaults": {
+      "es": {
+        "deviations": 1062,
+        "measurable": 7637
+      },
+      "ef": {
+        "deviations": 1287,
+        "measurable": 7649
+      },
+      "ls": {
+        "deviations": 4791,
+        "measurable": 7519
+      },
+      "lf": {
+        "deviations": 4781,
+        "measurable": 7510
+      },
+      "tf": {
+        "deviations": 4592,
+        "measurable": 7602
+      },
+      "ff": {
+        "deviations": 502,
+        "measurable": 7221
+      }
+    },
+    "defaults": {
+      "totalFloatFinish": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6931,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        }
+      },
+      "retainedLogic": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 7020,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6922,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7475,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7444,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 7410,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2519,
+            "measurable": 7221
+          }
+        }
+      },
+      "openEndedNotCritical": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6913,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2350,
+            "measurable": 7221
+          }
+        }
+      },
+      "predecessorLagCalendar": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7459,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7425,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2353,
+            "measurable": 7221
+          }
+        }
+      },
+      "expectedFinishDates": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        }
+      },
+      "preserveActualDates": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7439,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7417,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6402,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 713,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        }
+      },
+      "clampNegativeFreeFloat": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 1763,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        }
+      },
+      "projectCriticalDefinition": {
+        "chosen": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        },
+        "counterfactual": {
+          "es": {
+            "deviations": 6639,
+            "measurable": 7637
+          },
+          "ef": {
+            "deviations": 6510,
+            "measurable": 7649
+          },
+          "ls": {
+            "deviations": 7460,
+            "measurable": 7519
+          },
+          "lf": {
+            "deviations": 7427,
+            "measurable": 7510
+          },
+          "tf": {
+            "deviations": 6932,
+            "measurable": 7602
+          },
+          "ff": {
+            "deviations": 2352,
+            "measurable": 7221
+          }
+        }
+      }
+    }
+  },
+  "legacyDurationTypeHistoricalDelta": [
     {
       "path": "files[8].houseNegativeFloatTasks",
       "before": 38,
@@ -5183,493 +5548,5 @@
       "before": 2341,
       "after": 2428
     }
-  ],
-  "fidelity": {
-    "house": {
-      "es": {
-        "deviations": 4552,
-        "measurable": 7649
-      },
-      "ef": {
-        "deviations": 4488,
-        "measurable": 7661
-      },
-      "ls": {
-        "deviations": 7485,
-        "measurable": 7539
-      },
-      "lf": {
-        "deviations": 7466,
-        "measurable": 7532
-      },
-      "tf": {
-        "deviations": 6932,
-        "measurable": 7602
-      },
-      "ff": {
-        "deviations": 2341,
-        "measurable": 7221
-      }
-    },
-    "xerDefaults": {
-      "es": {
-        "deviations": 4552,
-        "measurable": 7649
-      },
-      "ef": {
-        "deviations": 4488,
-        "measurable": 7661
-      },
-      "ls": {
-        "deviations": 5417,
-        "measurable": 7539
-      },
-      "lf": {
-        "deviations": 5450,
-        "measurable": 7532
-      },
-      "tf": {
-        "deviations": 6407,
-        "measurable": 7602
-      },
-      "ff": {
-        "deviations": 585,
-        "measurable": 7221
-      }
-    },
-    "defaults": {
-      "totalFloatFinish": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6931,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        }
-      },
-      "retainedLogic": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4994,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4959,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7501,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7481,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 7410,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2521,
-            "measurable": 7221
-          }
-        }
-      },
-      "openEndedNotCritical": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6913,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2339,
-            "measurable": 7221
-          }
-        }
-      },
-      "predecessorLagCalendar": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2342,
-            "measurable": 7221
-          }
-        }
-      },
-      "expectedFinishDates": {
-        "chosen": {
-          "es": {
-            "deviations": 5156,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 5144,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7505,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7482,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 7195,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2428,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 5156,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 5144,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7505,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7482,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 7195,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2428,
-            "measurable": 7221
-          }
-        }
-      },
-      "preserveActualDates": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 5417,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 5450,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6408,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 705,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        }
-      },
-      "clampNegativeFreeFloat": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 1749,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        }
-      },
-      "projectCriticalDefinition": {
-        "chosen": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        },
-        "counterfactual": {
-          "es": {
-            "deviations": 4552,
-            "measurable": 7649
-          },
-          "ef": {
-            "deviations": 4488,
-            "measurable": 7661
-          },
-          "ls": {
-            "deviations": 7485,
-            "measurable": 7539
-          },
-          "lf": {
-            "deviations": 7466,
-            "measurable": 7532
-          },
-          "tf": {
-            "deviations": 6932,
-            "measurable": 7602
-          },
-          "ff": {
-            "deviations": 2341,
-            "measurable": 7221
-          }
-        }
-      }
-    }
-  }
+  ]
 }

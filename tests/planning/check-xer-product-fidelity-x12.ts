@@ -1868,6 +1868,82 @@ async function productBaseline(
   });
 }
 
+// De openbare expected-finish-populatie heeft momenteel geen actieve drager. Deze vaste drie-taaks-
+// fixture houdt daarom de eigen X7-route mutatiegevoelig: een voltooide voorganger, een actieve
+// CP_Drtn-taak met afwijkende expected finish, en een zichtbare opvolger. Alleen de SCHEDOPTIONS-
+// vlag verschilt tussen uit en aan; opgeslagen P6-uitvoer blijft een scanner-orakel, geen invoer.
+{
+  const calendarData = fiveDayCalendarData('08:00', '17:00');
+  const packageBytes = (useExpectedFinish: boolean, mutateStoredOutput = false) => new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-01-06\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tX7 5x9\tCA_Base\t9\t45\t${calendarData}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tdef_duration_type',
+    '%R\tP\tExpected finish keten\tC1\t2026-01-06 08:00\t2026-01-05 08:00\tDT_FixedRate',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\tcomplete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\texpect_end_date\tearly_start_date\tearly_end_date\tlate_start_date\tlate_end_date\ttotal_float_hr_cnt\tfree_float_hr_cnt\tdriving_path_flag',
+    `%R\tA\tP\tC1\tA100\tVoltooide voorganger\tTT_Task\tDT_FixedDUR\tTK_Complete\tCP_Drtn\t100\t8\t0\t2026-01-05 08:00\t2026-01-05 17:00\t2026-01-05 08:00\t2026-01-05 17:00\t\t${mutateStoredOutput ? '2040-02-01 08:00' : '2026-01-05 08:00'}\t${mutateStoredOutput ? '2040-02-01 17:00' : '2026-01-05 17:00'}\t${mutateStoredOutput ? '2040-02-02 08:00' : '2026-01-05 08:00'}\t${mutateStoredOutput ? '2040-02-02 17:00' : '2026-01-05 17:00'}\t${mutateStoredOutput ? '999' : '0'}\t${mutateStoredOutput ? '888' : '0'}\t${mutateStoredOutput ? 'N' : 'Y'}`,
+    `%R\tB\tP\tC1\tB100\tActieve expected finish\tTT_Task\t\tTK_Active\tCP_Drtn\t50\t32\t16\t2026-01-05 08:00\t2026-01-08 17:00\t2026-01-05 08:00\t\t2026-01-12\t${mutateStoredOutput ? '2040-03-01 08:00' : '2026-01-06 08:00'}\t${mutateStoredOutput ? '2040-03-01 17:00' : '2026-01-07 17:00'}\t${mutateStoredOutput ? '2040-03-02 08:00' : '2026-01-06 08:00'}\t${mutateStoredOutput ? '2040-03-02 17:00' : '2026-01-07 17:00'}\t${mutateStoredOutput ? '777' : '0'}\t${mutateStoredOutput ? '666' : '0'}\t${mutateStoredOutput ? 'N' : 'Y'}`,
+    `%R\tC\tP\tC1\tC100\tOpvolger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t0\t8\t8\t2026-01-08 08:00\t2026-01-08 17:00\t\t\t\t${mutateStoredOutput ? '2040-04-01 08:00' : '2026-01-08 08:00'}\t${mutateStoredOutput ? '2040-04-01 17:00' : '2026-01-08 17:00'}\t${mutateStoredOutput ? '2040-04-02 08:00' : '2026-01-08 08:00'}\t${mutateStoredOutput ? '2040-04-02 17:00' : '2026-01-08 17:00'}\t${mutateStoredOutput ? '555' : '0'}\t${mutateStoredOutput ? '444' : '0'}\t${mutateStoredOutput ? 'N' : 'Y'}`,
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR-AB\tB\tA\tP\tP\tPR_FS\t0',
+    '%R\tR-BC\tC\tB\tP\tP\tPR_FS\t0',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_expect_end_flag',
+    `%R\tP\t${useExpectedFinish ? 'Y' : 'N'}`,
+    '%E',
+  ].join('\n'));
+  const off = readXER(packageBytes(false));
+  const on = readXER(packageBytes(true));
+  const mutated = readXER(packageBytes(true, true));
+  if (isMultiDocumentImport(off) || isMultiDocumentImport(on) || isMultiDocumentImport(mutated)) {
+    throw new Error('X12 expected-finishketen moet enkelproject zijn');
+  }
+  const axes = (input: ImportResult) => solveImported(input).tasks.map(task => [
+    task.sourceTaskId, task.taskCode, task.earlyStart, task.earlyFinish,
+    task.lateStart, task.lateFinish, task.totalFloatMinutes, task.freeFloatMinutes,
+  ]);
+  const sourceProjection = (input: ImportResult) => ({
+    expectedFinish: input.tasks.map(task => [task.p6TaskId, task.p6DurationType, task.p6ExpectedFinish]),
+    productInput: { project: input.project, calendar: input.calendar, tasks: input.tasks, sequences: input.sequences },
+  });
+  eq('X12 expected-finishketen heeft precies één actieve bronrij en behoudt de ontbrekende duration_type via projectdefault',
+    on.tasks.filter(task => task.p6ExpectedFinish !== undefined && task.status === 'STARTED'
+      && task.time.completion > 0 && task.time.completion < 1)
+      .map(task => [task.p6TaskId, task.p6DurationType, task.p6ExpectedFinish]),
+    [['B', 'DT_FixedRate', '2026-01-12']]);
+  eq('X12 expected-finishketen houdt stored P6-uitvoer buiten reader- en solverinput',
+    sourceProjection(mutated), sourceProjection(on));
+  eq('X12 expected-finishketen pinnt per bronrij alle zes productassen voor vlag uit en aan', {
+    off: axes(off), on: axes(on),
+  }, {
+    off: [
+      ['A', 'A100', '2026-01-05T08:00', '2026-01-05T17:00', '2026-01-05T08:00', '2026-01-05T17:00', 0, 0],
+      ['B', 'B100', '2026-01-05T08:00', '2026-01-07T15:00', '2026-01-05T08:00', '2026-01-07T15:00', 0, 0],
+      ['C', 'C100', '2026-01-07T15:00', '2026-01-08T14:00', '2026-01-07T15:00', '2026-01-08T14:00', 0, 0],
+    ],
+    on: [
+      ['A', 'A100', '2026-01-05T08:00', '2026-01-05T17:00', '2026-01-05T08:00', '2026-01-05T17:00', 0, 0],
+      ['B', 'B100', '2026-01-05T08:00', '2026-01-12T17:00', '2026-01-05T08:00', '2026-01-12T17:00', 0, 0],
+      ['C', 'C100', '2026-01-13T08:00', '2026-01-13T16:00', '2026-01-13T08:00', '2026-01-13T16:00', 0, 0],
+    ],
+  });
+  eq('X12 expected-finishketen laat alleen de expliciete vlag de actieve keten bewegen', {
+    activeSources: on.tasks.filter(task => task.p6ExpectedFinish !== undefined && task.status === 'STARTED').length,
+    movedTasks: axes(off).filter((task, index) => JSON.stringify(task) !== JSON.stringify(axes(on)[index])).map(task => task[0]),
+  }, { activeSources: 1, movedTasks: ['B', 'C'] });
+  eq('X12 expected-finishketen houdt stored P6-uitvoer buiten alle productassen', axes(mutated), axes(on));
+  const normalTruth = scanXerGroundTruth(packageBytes(true));
+  const mutatedTruth = scanXerGroundTruth(packageBytes(true, true));
+  eq('X12 expected-finishketen laat de onafhankelijke scannertruth wel op stored uitvoer reageren',
+    normalTruth.tasks.map(task => [task.taskId, task.axes, task.drivingPath])
+      .every((task, index) => JSON.stringify(task) !== JSON.stringify(
+        [mutatedTruth.tasks[index]?.taskId, mutatedTruth.tasks[index]?.axes, mutatedTruth.tasks[index]?.drivingPath])), true);
+}
+
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (REPORT !== undefined && !REPORT_MODES.has(REPORT)) {
   diffs.push(`onbekende OPS_XER_FIDELITY_REPORT-modus: ${REPORT}`);

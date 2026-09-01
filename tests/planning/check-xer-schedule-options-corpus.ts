@@ -170,8 +170,8 @@ interface BlastRadiusBaseline {
   corpusUnion: string[];
   files: MeasuredFile[];
   expectedFinishVariant: ExpectedFinishVariantBaseline;
-  /** Exact causaal delta-orakel voor het X7-contract "ontbrekend type blijft afwezig". */
-  legacyMissingTypeDelta?: BaselineValueDelta[];
+  /** Historisch X7-dossier; de levende duration-type-regel staat als corpusloze mutatiefixture in X12. */
+  legacyDurationTypeHistoricalDelta?: BaselineValueDelta[];
   fidelity: {
     house: XerFidelityCounters;
     xerDefaults: XerFidelityCounters;
@@ -201,19 +201,16 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(label);
 }
 
-function baselineValueDeltas(before: unknown, after: unknown, path = ''): BaselineValueDelta[] {
-  if (JSON.stringify(before) === JSON.stringify(after)) return [];
-  if (Array.isArray(before) && Array.isArray(after)) {
-    if (before.length !== after.length) return [{ path: `${path}.length`, before: before.length, after: after.length }];
-    return before.flatMap((value, index) => baselineValueDeltas(value, after[index], `${path}[${index}]`));
-  }
-  if (before && after && typeof before === 'object' && typeof after === 'object') {
-    const beforeObject = before as Record<string, unknown>;
-    const afterObject = after as Record<string, unknown>;
-    return [...new Set([...Object.keys(beforeObject), ...Object.keys(afterObject)])].flatMap(key =>
-      baselineValueDeltas(beforeObject[key], afterObject[key], path ? `${path}.${key}` : key));
-  }
-  return [{ path, before, after }];
+/** X12 wijzigde de onafhankelijke orakelvorm; productuitkomsten horen niet in deze projectie. */
+function x12OracleShape(baseline: Pick<BlastRadiusBaseline, 'population'>): unknown {
+  return baseline.population;
+}
+
+/** De latere completed/progress/LOE/data_date-aanpassingen bewaken alleen productprojecties. */
+function completedProgressLoeDataDateEffects(
+  baseline: Pick<BlastRadiusBaseline, 'files' | 'fidelity'>,
+): unknown {
+  return { files: baseline.files, fidelity: baseline.fidelity };
 }
 
 function listXerFilesRecursive(dir: string): string[] {
@@ -839,7 +836,7 @@ if (!existsSync(baselinePath)) {
   eq('baseline bevat alle defaults los van elkaar', committed.defaults, DEFAULT_KEYS);
   eq('geen geïmplementeerde XER-default staat nog als uitstel geregistreerd',
     committed.deferredDefaults, DEFERRED_DEFAULTS);
-  eq('baseline pint exact de 37 functioneel SCHEDOPTIONS-loze bestanden', committed.files.length, 37);
+  eq('baseline pint exact de 36 functioneel SCHEDOPTIONS-loze bestanden', committed.files.length, 36);
   eq('baseline bevat alleen hash-identiteiten',
     committed.files.every(file => /^[0-9a-f]{16}-\d+$/.test(file.id)), true);
   eq('iedere gemeten bestandregel pint iedere default als eigen gekozen/tegenvariant',
@@ -854,8 +851,9 @@ if (!existsSync(baselinePath)) {
     typeof committed.expectedFinishVariant === 'object'
     && Array.isArray(committed.expectedFinishVariant?.files)
     && committed.expectedFinishVariant?.movement.length === BLAST_AXES.length, true);
-  eq('ontbrekend-typepad heeft een exact before/after-delta-orakel',
-    Array.isArray(committed.legacyMissingTypeDelta) && committed.legacyMissingTypeDelta.length > 0, true);
+  eq('historisch ontbrekend-duration-type-dossier blijft als zodanig herkenbaar',
+    Array.isArray(committed.legacyDurationTypeHistoricalDelta)
+    && committed.legacyDurationTypeHistoricalDelta.length > 0, true);
 }
 
 const root = process.env.OPS_XER_CORPUS;
@@ -923,21 +921,10 @@ if (!root) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
     eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
       measured.expectedFinishVariant, committed.expectedFinishVariant);
-    const {
-      expectedFinishVariant: _measuredExpected,
-      legacyMissingTypeDelta: _measuredLegacyDelta,
-      ...measuredRest
-    } = measured;
-    const {
-      expectedFinishVariant: _committedExpected,
-      legacyMissingTypeDelta: committedLegacyDelta,
-      ...committedRest
-    } = committed;
-    void _measuredExpected;
-    void _measuredLegacyDelta;
-    void _committedExpected;
-    eq('ontbrekend-typepad beweegt exact de gepinde bestaande baselinecellen',
-      baselineValueDeltas(committedRest, measuredRest), committedLegacyDelta);
+    eq('X12-orakelvorm houdt uitsluitend de onafhankelijke corpuspopulatie exact vast',
+      x12OracleShape(measured), x12OracleShape(committed));
+    eq('completed/progress/LOE/data_date-effecten houden uitsluitend productprojecties exact vast',
+      completedProgressLoeDataDateEffects(measured), completedProgressLoeDataDateEffects(committed));
   }
 }
 
