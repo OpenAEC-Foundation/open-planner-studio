@@ -144,6 +144,14 @@ jobs:
         uses: snapcore/action-build@v1
         id: snapcraft
 
+      # Tauri sluit frontendDist in de executable in; een gewone lijst van de Snap-inhoud ziet de
+      # docs daarom niet als losse files. Controleer de échte Snap-binary tegen de public/docs-bron
+      # van exact deze checkout voordat hij als release-asset of Store-publicatie verdergaat.
+      - name: Verify embedded Help documentation in Snap
+        env:
+          SNAP: ${{ steps.snapcraft.outputs.snap }}
+        run: node scripts/verify-package-docs.mjs --snap "$SNAP"
+
       # Echte release (via workflow_run): snap als asset aan de release hangen.
       - name: Upload snap to GitHub release
         if: github.event_name == 'workflow_run'
