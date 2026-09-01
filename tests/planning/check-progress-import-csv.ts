@@ -124,6 +124,10 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     if (detection.order !== 'ambiguous') throw new Error(`verwachtte 'ambiguous', kreeg ${JSON.stringify(detection)}`);
     return detection.sample;
   }
+  function alternativesOf(detection: DateOrderDetection): [string, string] {
+    if (detection.order !== 'ambiguous') throw new Error(`verwachtte 'ambiguous', kreeg ${JSON.stringify(detection)}`);
+    return detection.sampleAlternatives;
+  }
   function evidenceOf(detection: DateOrderDetection): string {
     if (detection.order === 'ambiguous') throw new Error(`verwachtte bewijs, kreeg ambiguous: ${JSON.stringify(detection)}`);
     return detection.evidence;
@@ -141,11 +145,42 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   const hasMonth25: RawDateCell[] = [{ rowNumber: 2, field: 'actualStart', raw: '6-25-2026' }];
   eq('…en andersom mdy', det(hasMonth25).order, 'mdy');
 
-  const contradictory: RawDateCell[] = [
+  // Fixronde-bevinding 4b: `25-6-2026` stemt dmy (a=25>12), `6-25-2026` stemt mdy (b=25>12) — dat
+  // is tegenstrijdig bewijs, maar GEEN van beide cellen is zelf een eerlijk voorbeeld: onder de
+  // "verkeerde" lezing levert elke cel een ONGELDIGE datum op (maand 25 bestaat niet — vóór de fix
+  // rolde dat via `Date.UTC` stil door naar januari 2028, een onmogelijke "keuze"). Zonder een
+  // derde, wél eerlijke cel is er dus NIETS dubbelzinnigs te tónen — het bestand valt terug op
+  // `noAmbiguity` in plaats van de gebruiker een kapotte vraag voor te leggen.
+  const contradictoryNoGenuineCell: RawDateCell[] = [
     { rowNumber: 2, field: 'actualStart', raw: '25-6-2026' },
     { rowNumber: 3, field: 'actualFinish', raw: '6-25-2026' },
   ];
-  eq('tegenstrijdig bestand ⇒ ambiguous', det(contradictory).order, 'ambiguous');
+  eq('tegenstrijdig bewijs zonder eerlijk voorbeeld ⇒ toch geen vraag', det(contradictoryNoGenuineCell).order, 'dmy');
+  eq('…met bewijssoort noAmbiguity', evidenceOf(det(contradictoryNoGenuineCell)), 'noAmbiguity');
+
+  // Dezelfde tegenstrijdigheid, nu MET een derde cel die wél onder beide ordes een geldige,
+  // verschillende datum oplevert — dat blijft `ambiguous`, met die derde cel als sample.
+  const contradictoryWithGenuineCell: RawDateCell[] = [
+    { rowNumber: 2, field: 'actualStart', raw: '25-6-2026' },
+    { rowNumber: 3, field: 'actualFinish', raw: '6-25-2026' },
+    { rowNumber: 4, field: 'actualStart', raw: '9-6-2026' },
+  ];
+  eq('tegenstrijdig bewijs MET een eerlijk voorbeeld ⇒ ambiguous', det(contradictoryWithGenuineCell).order, 'ambiguous');
+  eq('…en de sample is de eerlijke cel, niet de kapotte', sampleOf(det(contradictoryWithGenuineCell)), '9-6-2026');
+  eq(
+    '…met de twee lezingen als ISO-datums (bevinding 5 — geen geformatteerde tekst meer)',
+    alternativesOf(det(contradictoryWithGenuineCell)),
+    ['2026-06-09', '2026-09-06'],
+  );
+
+  // Fixronde-bevinding 4a: dag === maand (`12-12-2026`) levert onder BEIDE lezingen dezelfde datum
+  // op — dat is geen dubbelzinnigheid, dus zo'n bestand hoort al bij regel 1 als `noAmbiguity` te
+  // eindigen, vóór er ook maar een vraag in beeld komt.
+  const equalDayMonthOnly: RawDateCell[] = [
+    { rowNumber: 2, field: 'actualStart', raw: '12-12-2026' },
+    { rowNumber: 3, field: 'actualFinish', raw: '5-5-2026' },
+  ];
+  eq('dag===maand is nooit dubbelzinnig', evidenceOf(det(equalDayMonthOnly)), 'noAmbiguity');
 
   // Ijkpuntkalibratie: alleen id-matches, alleen start/finish, alleen a≠b (A5.2 regel 3).
   const calibTask1 = taskWithDates('t-calib-1', '2026-06-09', '2026-06-09');
@@ -169,6 +204,11 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('…met bewijssoort calibration', evidenceOf(det(calib3, calib3Tasks)), 'calibration');
   eq('2 treffers is te weinig', det(calib2, calib2Tasks).order, 'ambiguous');
   eq('ambiguous draagt een echt voorbeeld', sampleOf(det(calib2, calib2Tasks)), '12-6-2026');
+  eq(
+    '…als ISO-datumparen, niet als geformatteerde tekst (bevinding 5)',
+    alternativesOf(det(calib2, calib2Tasks)),
+    ['2026-06-12', '2026-12-06'],
+  );
 
   // Gelijkspel: 3 cellen stemmen dmy, 3 andere stemmen mdy — geen van beide wint (CALIBRATION_RATIO).
   const tieDmy1 = taskWithDates('t-tie-dmy-1', '2026-06-09', '2026-06-09');
@@ -272,6 +312,55 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   const rows11 = parseProgressCsv('OPS Task ID;Name;Completion (%)\r\ntask-1;"Fase 1; deel ""A""";50').rawRows;
   ok('quotes en delimiters in namen overleven', rows11[0].name === 'Fase 1; deel "A"');
   eq('rowNumber telt de kopregel mee', rows11[0].rowNumber, 2);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Deel 7 — fixronde-bevinding 3: quote-bewuste recordsplitsing + bevinding 9: echte regelnummers
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+{
+  // (a) Round-trip met een taaknaam ÉN een omschrijving die allebei een letterlijke regeleinde
+  // dragen — `writeCSV` quote't zulke velden RFC4180-gewijs (Name staat vroeg in de rij, vóór
+  // Completion; Description staat helemaal achteraan, dus dit dekt "de scheuring zit vroeg" én
+  // "er zit ook verderop nog een quote-veld met een newline"). Vóór de fix verloor de ECHTE rij
+  // alles ná de scheuring (Completion incluis) en ontstond er een rommelrij.
+  const multilineTask = baseTask('task-multiline', '2026-06-01', 5);
+  multilineTask.name = 'Regel1\nRegel2';
+  multilineTask.description = 'Beschrijving1\nBeschrijving2';
+  multilineTask.time.completion = 0.4;
+  const multilineCsv = writeCSV({} as Project, {} as WorkCalendar, [multilineTask], [], [], []);
+  const multilineSheet = parseProgressCsv(multilineCsv);
+  eq('multiline naam/omschrijving scheurt de rij niet in tweeën', multilineSheet.rawRows.length, 1);
+  eq('…de naam blijft compleet (met de letterlijke regeleinde)', multilineSheet.rawRows[0]?.name, 'Regel1\nRegel2');
+  eq('…en de Completion-kolom overleeft (stond ná de multiline naam)', multilineSheet.rawRows[0]?.rawCompletion, '40');
+  eq('…en het echte task-id blijft aan deze ene rij gekoppeld', multilineSheet.rawRows[0]?.taskId, multilineTask.id);
+
+  // (b) Een aanhalingsteken dat nooit sluit maakt GEEN kolomgrens in het bestand nog betrouwbaar —
+  // het hele blad wordt geweigerd, nooit een halfgelezen resultaat.
+  const unterminated = parseProgressCsv('OPS Task ID;Name;Completion (%)\r\ntask-1;"Nooit gesloten;50');
+  eq('niet-gesloten aanhalingsteken weigert het HELE blad', unterminated.fileIssue, 'unreadable');
+  eq('…geen enkele halfgelezen rij', unterminated.rawRows.length, 0);
+  eq('…en geen halfgelezen detectiecellen', unterminated.detectionCells.length, 0);
+
+  // Bevinding 9: een lege regel telt mee in de regelnummering — vóór de fix kreeg de rij ná een
+  // lege regel het verkeerde (te lage) nummer, omdat lege regels vóór het nummeren werden weggefilterd.
+  const withBlankLine = parseProgressCsv('OPS Task ID;Completion (%)\r\na;10\r\n\r\nb;20');
+  eq('lege regel wordt overgeslagen als datarij', withBlankLine.rawRows.length, 2);
+  eq('eerste datarij op fysieke regel 2', withBlankLine.rawRows[0]?.rowNumber, 2);
+  eq('tweede datarij op regel 4 — de lege regel 3 telt mee', withBlankLine.rawRows[1]?.rowNumber, 4);
+
+  // En de twee bevindingen samen: een gequote meerregelig record beslaat zelf meerdere fysieke
+  // regels, dus de rij DAARNA moet daarmee rekenen — niet met "één record is één regel".
+  const multilineThenPlain = parseProgressCsv(
+    'OPS Task ID;Name;Completion (%)\r\ntask-1;"Regel1\nRegel2";40\r\ntask-2;Normaal;60',
+  );
+  eq('twee rijen, geen rommelrij erbij', multilineThenPlain.rawRows.length, 2);
+  eq('eerste (meerregelige) rij begint op regel 2', multilineThenPlain.rawRows[0]?.rowNumber, 2);
+  eq(
+    'tweede rij op regel 4 (regels 2+3 zijn door de eerste, meerregelige rij gebruikt)',
+    multilineThenPlain.rawRows[1]?.rowNumber,
+    4,
+  );
+  eq('…en draagt gewoon zijn eigen task-id', multilineThenPlain.rawRows[1]?.taskId, 'task-2');
 }
 
 if (diffs.length > 0) {

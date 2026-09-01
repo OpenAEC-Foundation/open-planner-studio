@@ -5,7 +5,6 @@
 // wat E5 ("datums worden altijd juist gelezen; stil raden is verboden") verbiedt.
 
 import type { Task } from '@/types/task';
-import { formatDisplayDate } from '@/utils/dateUtils';
 import {
   CALIBRATION_RATIO,
   MIN_CALIBRATION_HITS,
@@ -137,15 +136,35 @@ function extractNumericTriple(raw: string): NumericTriple | null {
   return { a: Number(m[1]), b: Number(m[2]), year: Number(m[3]) };
 }
 
+/** Bouwt de `ambiguous`-uitkomst uit een cel waarvan BEIDE lezingen al gevalideerd zijn (zie
+ *  `findGenuineAmbiguousSample`) — hier wordt niets meer gevalideerd, alleen samengesteld. */
 function formatAmbiguous(cell: RawDateCell, triple: NumericTriple): DateOrderDetection {
-  // dmy-lezing: dag=a, maand=b. mdy-lezing: maand=a, dag=b (A5.2/A5.3).
-  const dmyDate = new Date(Date.UTC(triple.year, triple.b - 1, triple.a));
-  const mdyDate = new Date(Date.UTC(triple.year, triple.a - 1, triple.b));
+  // dmy-lezing: dag=a, maand=b. mdy-lezing: maand=a, dag=b (A5.2/A5.3). ISO-strings, geen
+  // geformatteerde tekst (fixronde-bevinding 5) — baan C formatteert locale-bewust.
   return {
     order: 'ambiguous',
     sample: cell.raw,
-    sampleAlternatives: [formatDisplayDate(dmyDate), formatDisplayDate(mdyDate)],
+    sampleAlternatives: [buildIso(triple.year, triple.b, triple.a), buildIso(triple.year, triple.a, triple.b)],
   };
+}
+
+/**
+ * Fixronde-bevinding 4b: een cel is alleen een EERLIJK voorbeeld van dubbelzinnigheid als BEIDE
+ * lezingen bestaande, VERSCHILLENDE kalenderdatums opleveren — zonder `Date.UTC`-rollover (bv.
+ * `25-6-2026` levert als mdy-lezing maand 25, wat vroeger stil doorrolde naar januari 2028: een
+ * onmogelijke "keuze"). Cellen die maar onder één orde geldig zijn, horen niet als sample: die zijn
+ * al door de bereikregel (regel 2) afgehandeld, of zijn gewoon geen echte tweesprong.
+ * Bestaat er geen enkele zo'n cel, dan is het bestand niet dubbelzinnig — de aanroeper valt dan
+ * terug op `noAmbiguity` in plaats van de gebruiker een kapotte vraag te stellen.
+ */
+function findGenuineAmbiguousSample(
+  candidates: readonly { cell: RawDateCell; triple: NumericTriple }[],
+): { cell: RawDateCell; triple: NumericTriple } | undefined {
+  return candidates.find(({ triple }) =>
+    triple.a !== triple.b
+    && isValidCalendarDate(triple.year, triple.b, triple.a)  // dmy: dag=a, maand=b
+    && isValidCalendarDate(triple.year, triple.a, triple.b), // mdy: maand=a, dag=b
+  );
 }
 
 /**
@@ -159,10 +178,13 @@ export function detectDateOrder(
   cells: readonly RawDateCell[],
   tasks: readonly Task[],
 ): DateOrderDetection {
+  // Fixronde-bevinding 4a: een cel met a === b (bv. `12-12-2026`) levert onder ÉÉN van de twee
+  // ordes gelezen dezelfde datum op als onder de andere — die draagt dus GEEN dubbelzinnigheid en
+  // hoort al hier weggefilterd, niet pas bij de kalibratie (regel 3 deed dit al; nu consistent).
   const ambiguous: { cell: RawDateCell; triple: NumericTriple }[] = [];
   for (const cell of cells) {
     const triple = extractNumericTriple(cell.raw);
-    if (triple) ambiguous.push({ cell, triple });
+    if (triple && triple.a !== triple.b) ambiguous.push({ cell, triple });
   }
 
   // Regel 1: geen enkele niet-ISO datum om te interpreteren ⇒ de orde doet er niet toe.
@@ -185,23 +207,26 @@ export function detectDateOrder(
   if (votesDmy && votesMdy) {
     // Tegenstrijdig bewijs binnen hetzelfde bestand: geen enkele orde verklaart alles. Meteen
     // `ambiguous` — NIET doorgaan naar de ijkpuntregel (die zou één van de twee tegenstrijdige
-    // signalen negeren en zo alsnog stil een kant kiezen).
-    return formatAmbiguous(ambiguous[0].cell, ambiguous[0].triple);
+    // signalen negeren en zo alsnog stil een kant kiezen). De cellen die zelf stemden (a>12 of
+    // b>12) zijn per definitie maar onder ÉÉN orde geldig, dus GEEN eerlijk voorbeeld (bevinding
+    // 4b) — zoek een cel die dat wél is; bestaat die niet, dan is er geen tonbaar bewijs en valt
+    // dit terug op `noAmbiguity` in plaats van de gebruiker een onmogelijke keuze voor te leggen.
+    const genuine = findGenuineAmbiguousSample(ambiguous);
+    return genuine ? formatAmbiguous(genuine.cell, genuine.triple) : { order: 'dmy', evidence: 'noAmbiguity' };
   }
   if (votesDmy) return { order: 'dmy', evidence: 'outOfRange' };
   if (votesMdy) return { order: 'mdy', evidence: 'outOfRange' };
 
   // Regel 3: ijkpuntkalibratie. Alleen rijen met een HARDE id-treffer (WBS is te zwak bewijs voor
   // een bestandsbrede beslissing), alleen Start/Finish-cellen (die dienen uitsluitend als
-  // ijkpunt, A5.4), en alleen cellen die onder de twee ordes een VERSCHILLENDE datum opleveren
-  // (`12-12-2026` telt niet mee: a === b levert twee keer dezelfde lezing).
+  // ijkpunt, A5.4). `a === b` (`12-12-2026`, twee keer dezelfde lezing) zit al niet meer in
+  // `ambiguous` (regel 1 filtert dat nu vooraf, fixronde-bevinding 4a).
   const taskById = new Map(tasks.map(t => [t.id, t] as const));
   let dmyHits = 0;
   let mdyHits = 0;
   for (const { cell, triple } of ambiguous) {
     if (cell.taskId === undefined) continue;
     if (cell.field !== 'start' && cell.field !== 'finish') continue;
-    if (triple.a === triple.b) continue;
     const task = taskById.get(cell.taskId);
     if (!task) continue;
     const plannedIso = cell.field === 'start'
@@ -226,8 +251,11 @@ export function detectDateOrder(
     return { order: winner.order, evidence: 'calibration' };
   }
 
-  // Regel 4: onbeslisbaar ⇒ de dialoog vraagt het (A5.3). Nooit een stille default.
-  return formatAmbiguous(ambiguous[0].cell, ambiguous[0].triple);
+  // Regel 4: onbeslisbaar ⇒ de dialoog vraagt het (A5.3). Nooit een stille default. Net als bij
+  // regel 2 moet de sample zelf een eerlijk voorbeeld zijn (bevinding 4b); is er geen enkele
+  // geldige-onder-beide-lezingen cel, dan is er niets dubbelzinnigs om te tonen.
+  const genuine = findGenuineAmbiguousSample(ambiguous);
+  return genuine ? formatAmbiguous(genuine.cell, genuine.triple) : { order: 'dmy', evidence: 'noAmbiguity' };
 }
 
 /**

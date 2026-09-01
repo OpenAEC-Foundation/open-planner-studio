@@ -34,6 +34,61 @@ function detectDelimiter(content: string): string {
   return semicolons >= commas ? ';' : ',';
 }
 
+interface LogicalRecord {
+  readonly text: string;
+  /** 1-gebaseerd FYSIEK regelnummer waarop dit record begint (fixronde-bevinding 9: lege regels
+   *  tellen mee in de telling, en een gequote meerregelig record telt als de regel waarop het
+   *  BEGINT — niet als een positie in een al-gefilterde lijst). */
+  readonly startLine: number;
+}
+
+/**
+ * Splitst tekst in logische CSV-records, quote-bewust: een `\n` BINNEN een open aanhalingsteken
+ * hoort bij het veld en scheidt dus NOOIT een record. `writeCSV` quote't precies zo'n veld zodra
+ * het een letterlijke regeleinde draagt (bv. een taaknaam of omschrijving met Alt+Enter) — RFC4180.
+ *
+ * Fixronde-bevinding 3: vóór deze fix scheurde een simpele `split(/\r?\n/)` zo'n gequote veld
+ * middenin. De ECHTE rij verloor daardoor alles ná de scheuring (bv. de Completion-kolom, met
+ * `refused`/`noProgressColumns` tot gevolg) en het afgescheurde restant werd een losse rommelrij
+ * die als `unmatched` in de koppelsectie belandde — een import van onze EIGEN, geldige export kon
+ * zo alsnog rijen verminken. `"` toggelt hier een simpele inQuotes-vlag per teken; dat is
+ * bewijsbaar consistent met `parseCSVLine`s subtielere "verdubbeld-quote-is-géén-toggle"-regel,
+ * want een verdubbeld quote-paar (`""`) bestaat altijd uit twee ONMIDDELLIJK opeenvolgende tekens
+ * — nooit met een `\n` ertussen — dus twee toggles na elkaar (netto: geen wijziging) komt op
+ * exact hetzelfde staat-op-elk-moment neer als parseCSVLine's "sla het paar over, toggle niet".
+ *
+ * Blijft een aanhalingsteken aan het eind van de tekst open staan, dan is het bestand structureel
+ * onbetrouwbaar — GEEN kolomgrens erna is dan nog te vertrouwen. De aanroeper weigert dan het HELE
+ * blad (`fileIssue: 'unreadable'`), nooit een halfgelezen resultaat (bevinding 3b).
+ */
+function splitLogicalRecords(text: string): LogicalRecord[] | undefined {
+  const physicalLines = text.split('\n');
+  const records: LogicalRecord[] = [];
+  let inQuotes = false;
+  let currentText = '';
+  let currentStartLine = 1;
+
+  for (let i = 0; i < physicalLines.length; i++) {
+    const physicalLineNumber = i + 1;
+    const line = physicalLines[i];
+    if (!inQuotes) {
+      currentText = line;
+      currentStartLine = physicalLineNumber;
+    } else {
+      currentText += `\n${line}`;
+    }
+    for (let j = 0; j < line.length; j++) {
+      if (line[j] === '"') inQuotes = !inQuotes;
+    }
+    if (!inQuotes) {
+      records.push({ text: currentText, startLine: currentStartLine });
+    }
+  }
+
+  if (inQuotes) return undefined; // nooit gesloten — het hele blad is onbetrouwbaar.
+  return records;
+}
+
 function parseCSVLine(line: string, delimiter: string): string[] {
   const fields: string[] = [];
   let current = '';
@@ -137,15 +192,28 @@ export function parseProgressCsv(
     return { fileIssue: 'tooLarge', rawRows: [], detectionCells: [] };
   }
 
-  const clean = text.replace(/^﻿/, '');
+  // Regeleinde normaliseren VÓÓR de quote-bewuste splitsing: CRLF/lone-CR worden allemaal LF, dus
+  // `splitLogicalRecords` hoeft maar één scheidingsteken te kennen. Dit raakt geen betekenis — het
+  // enige wat telt is "zit deze regelovergang in een open aanhalingsteken of niet" (bevinding 3).
+  const clean = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const delimiter = detectDelimiter(clean);
-  const lines = clean.split(/\r?\n/).filter(line => line.trim().length > 0);
+  const records = splitLogicalRecords(clean);
+  if (records === undefined) {
+    // Bevinding 3b: een niet-gesloten aanhalingsteken maakt GEEN kolomgrens in het bestand nog
+    // betrouwbaar — weiger het complete blad, nooit een halfgelezen resultaat.
+    return { fileIssue: 'unreadable', rawRows: [], detectionCells: [] };
+  }
 
-  if (lines.length === 0) {
+  // Lege regels tellen niet als kop/datarij, maar hun regelnummer is al vastgelegd in de
+  // ONGEFILTERDE `records`-lijst — filteren ná het splitsen behoudt dus de echte regelnummers
+  // (fixronde-bevinding 9), i.p.v. ze te herberekenen op een positie in een al-gefilterde lijst.
+  const nonBlankRecords = records.filter(record => record.text.trim().length > 0);
+
+  if (nonBlankRecords.length === 0) {
     return { fileIssue: 'noKeyColumn', rawRows: [], detectionCells: [] };
   }
 
-  const headerFields = parseCSVLine(lines[0], delimiter);
+  const headerFields = parseCSVLine(nonBlankRecords[0].text, delimiter);
   const colMap = mapColumnIndex(headerFields);
 
   const hasKeyColumn = colMap.taskId !== undefined || colMap.wbs !== undefined;
@@ -159,20 +227,22 @@ export function parseProgressCsv(
     return { fileIssue: 'noProgressColumns', rawRows: [], detectionCells: [] };
   }
 
+  const dataRecords = nonBlankRecords.slice(1);
+
   // Rij-aantal getoetst vóórdat er ook maar één datarij geparsed wordt — een te groot blad wordt
   // geweigerd, nooit stil afgeknipt (hardening-checklist).
-  const dataLineCount = lines.length - 1;
-  if (dataLineCount > limits.maxRows) {
+  if (dataRecords.length > limits.maxRows) {
     return { fileIssue: 'tooManyRows', rawRows: [], detectionCells: [] };
   }
 
   const rawRows: RawProgressRow[] = [];
   const detectionCells: RawDateCell[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    // 1-gebaseerd, INCLUSIEF de kopregel: de eerste datarij is rijnummer 2 (contract, T1).
-    const rowNumber = i + 1;
-    const fields = parseCSVLine(lines[i], delimiter);
+  for (const record of dataRecords) {
+    // Het ECHTE fysieke regelnummer waarop dit record begint, inclusief overgeslagen lege regels
+    // en meegerekende vervolgregels van een gequote meerregelig veld (bevinding 3/9).
+    const rowNumber = record.startLine;
+    const fields = parseCSVLine(record.text, delimiter);
     const cell = (key: string): string | undefined => {
       const idx = colMap[key];
       return idx === undefined ? undefined : fields[idx];
