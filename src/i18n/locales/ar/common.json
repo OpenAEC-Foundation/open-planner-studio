@@ -120,6 +120,8 @@
     "themeDark": "داكن",
     "themeLight": "فاتح",
     "themeHighContrast": "تباين عالٍ",
+    "themeFollowSystem": "اتباع سمة النظام",
+    "themeSystemHint": "يتبع نظام الألوان الخاص بنظامك (حاليًا: {{theme}}).",
     "timeline": "الجدول الزمني / التكبير",
     "hourPlanningSection": "التخطيط بالساعات",
     "enableHourPlanning": "تفعيل التخطيط بالساعات",

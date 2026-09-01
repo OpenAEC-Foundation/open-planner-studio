@@ -100,6 +100,8 @@
     "themeDark": "Dunkel",
     "themeLight": "Hell",
     "themeHighContrast": "Hoher Kontrast",
+    "themeFollowSystem": "Systemdesign folgen",
+    "themeSystemHint": "Folgt dem Farbschema deines Systems (aktuell: {{theme}}).",
     "timeline": "Zeitachse / Zoom",
     "hourPlanningSection": "Stundenplanung",
     "enableHourPlanning": "Stundenplanung aktivieren",

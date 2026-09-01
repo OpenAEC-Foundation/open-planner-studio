@@ -12,6 +12,9 @@
       // (src/utils/settingsStore.ts): dezelfde sleutel (`ops-theme`), dezelfde 7→3-legacy-mapping,
       // dezelfde default 'dark'. `initTheme()` blijft de bron van waarheid en persisteert de
       // migratie daarna alsnog; App.tsx zet het attribuut opnieuw (idempotent).
+      // De 'system'-voorkeur wordt hier net zo opgelost als in `resolveUITheme`
+      // (src/utils/theme.ts): prefers-color-scheme → 'dark' of 'light'. Zonder dat zou juist de
+      // systeemvolger de flits terugkrijgen die dit script wegneemt.
       (function () {
         var theme = 'dark';
         try {
@@ -19,10 +22,18 @@
             'default': 'dark', 'light': 'light', 'dark': 'dark', 'blue': 'dark',
             'amber-navy': 'dark', 'warm-ember': 'dark',
             'highContrast': 'high-contrast', 'high-contrast': 'high-contrast',
+            'system': 'system',
           };
           var saved = localStorage.getItem('ops-theme');
           if (saved && Object.prototype.hasOwnProperty.call(map, saved)) theme = map[saved];
+          if (theme === 'system') {
+            var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            theme = dark ? 'dark' : 'light';
+          }
         } catch (_e) { /* localStorage geblokkeerd ⇒ default dark, net als initTheme() */ }
+        // Alleen bereikbaar als matchMedia ontbreekt of gooit; 'light' spiegelt exact wat
+        // `resolveUITheme('system', false)` in TS doet, zodat er ook dán geen flits ontstaat.
+        if (theme === 'system') theme = 'light';
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>

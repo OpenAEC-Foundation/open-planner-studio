@@ -1,6 +1,7 @@
 import type { UIState, AppSlice, NotifyInput } from './types';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
+import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 
@@ -83,6 +84,10 @@ export function createDefaultUI(): UIState {
     // Issue #61: synchroon uit localStorage, zodat de default nooit afwijkt van wat het
     // pre-paint-script in index.html al op <html> zette (headless valt peekTheme terug op 'dark').
     uiTheme: peekTheme(),
+    // Systeemkleurschema bij het bouwen van de store — synchroon, om dezelfde reden als hierboven:
+    // bij voorkeur 'system' moet de eerste React-commit meteen het juiste thema kiezen. De
+    // listener in App.tsx houdt het daarna bij.
+    systemPrefersDark: detectSystemPrefersDark(),
     // Issue #25.4: interface-lettertype — default = huidige stylesheet-defaults + 100% schaal
     // (bestaande gebruikers merken niets; App.tsx hydrateert bij opstart uit localStorage).
     uiFontFamily: 'default',

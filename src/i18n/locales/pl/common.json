@@ -110,6 +110,8 @@
     "themeDark": "Ciemny",
     "themeLight": "Jasny",
     "themeHighContrast": "Wysoki kontrast",
+    "themeFollowSystem": "Zgodnie z motywem systemu",
+    "themeSystemHint": "Zgodnie ze schematem kolorów systemu (teraz: {{theme}}).",
     "timeline": "Oś czasu / Powiększenie",
     "hourPlanningSection": "Planowanie godzinowe",
     "enableHourPlanning": "Włącz planowanie godzinowe",

@@ -95,6 +95,8 @@
     "themeDark": "深色",
     "themeLight": "浅色",
     "themeHighContrast": "高对比度",
+    "themeFollowSystem": "跟随系统主题",
+    "themeSystemHint": "跟随系统的配色方案（当前：{{theme}}）。",
     "timeline": "时间轴 / 缩放",
     "hourPlanningSection": "小时计划",
     "enableHourPlanning": "启用小时计划",

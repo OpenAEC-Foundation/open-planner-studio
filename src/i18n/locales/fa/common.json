@@ -100,6 +100,8 @@
     "themeDark": "تیره",
     "themeLight": "روشن",
     "themeHighContrast": "کنتراست بالا",
+    "themeFollowSystem": "پیروی از پوستهٔ سیستم",
+    "themeSystemHint": "از طرح رنگ سیستم شما پیروی می‌کند (اکنون: {{theme}}).",
     "timeline": "خط زمانی / بزرگنمایی",
     "hourPlanningSection": "برنامه‌ریزی ساعتی",
     "enableHourPlanning": "فعال‌سازی برنامه‌ریزی ساعتی",

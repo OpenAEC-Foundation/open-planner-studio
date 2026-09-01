@@ -105,6 +105,8 @@
     "themeDark": "Donker",
     "themeLight": "Licht",
     "themeHighContrast": "Hoog contrast",
+    "themeFollowSystem": "Volg systeemthema",
+    "themeSystemHint": "Volgt het kleurschema van je systeem (nu: {{theme}}).",
     "timeline": "Tijdlijn / Zoomen",
     "hourPlanningSection": "Urenplanning",
     "enableHourPlanning": "Urenplanning inschakelen",

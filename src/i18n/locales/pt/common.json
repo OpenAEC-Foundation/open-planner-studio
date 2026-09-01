@@ -105,6 +105,8 @@
     "themeDark": "Escuro",
     "themeLight": "Claro",
     "themeHighContrast": "Alto contraste",
+    "themeFollowSystem": "Seguir o tema do sistema",
+    "themeSystemHint": "Segue o esquema de cores do sistema (agora: {{theme}}).",
     "timeline": "Linha de tempo / Zoom",
     "hourPlanningSection": "Planeamento por horas",
     "enableHourPlanning": "Ativar planeamento por horas",

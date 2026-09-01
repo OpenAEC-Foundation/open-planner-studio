@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue } from '@/utils/noneLabel';
+import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
 import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
@@ -97,7 +98,8 @@ function AppContent() {
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
-  const uiTheme = useAppStore(s => s.ui.uiTheme);
+  // Voorkeur + systeemstand → het thema dat écht getekend wordt (zie `useResolvedUITheme`).
+  const resolvedTheme = useResolvedUITheme();
   const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
@@ -151,10 +153,14 @@ function AppContent() {
     useAppStore.getState().recomputeViewRows();
   }, [noneLabel]);
 
-  // Apply theme to document
+  // Systeemkleurschema volgen (thema 'Systeem'): één abonnement voor de hele app.
+  useSystemColorSchemeSync();
+
+  // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; het
+  // `data-theme`-attribuut kent geen 'system'-blok in globals.css.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', uiTheme);
-  }, [uiTheme]);
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+  }, [resolvedTheme]);
 
   // Lettertype-interface toepassen (issue #25.4): de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css

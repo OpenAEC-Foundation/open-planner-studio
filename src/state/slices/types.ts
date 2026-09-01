@@ -69,9 +69,21 @@ export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
-export type UITheme = 'dark' | 'light' | 'high-contrast';
+// 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
+// (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
+// `[data-theme="system"]`-blok in globals.css, en alles wat een thema toepast werkt met
+// `ResolvedUITheme`. 'high-contrast' blijft een expliciete keuze — het OS-kleurschema kent alleen
+// licht/donker.
+export type UITheme = 'system' | 'dark' | 'light' | 'high-contrast';
 
-export const UI_THEMES: { id: UITheme; label: string }[] = [
+/** Het thema zoals het daadwerkelijk getekend wordt — de voorkeur met 'system' al opgelost.
+ *  De volledige uitleg + `resolveUITheme` staan in `@/utils/theme`; dit alias staat hier zodat
+ *  `UI_THEMES` de systeemvoorkeur niet per ongeluk als kaart kan opnemen. */
+export type ResolvedUITheme = Exclude<UITheme, 'system'>;
+
+// Alleen de KIESBARE thema's. 'system' staat hier bewust NIET in: het is in de interface geen
+// vierde kaart maar een schakelaar onder deze drie, die ze uitgrijst zolang hij aanstaat.
+export const UI_THEMES: { id: ResolvedUITheme; label: string }[] = [
   { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light' },
   { id: 'high-contrast', label: 'High Contrast' },
@@ -244,6 +256,10 @@ export interface UIState {
    *  alleen in Tauri gezet, maar kan overal handmatig geopend worden via Instellingen. */
   justUpdated: { from: string | null; to: string } | null;
   uiTheme: UITheme;
+  /** Session — de actuele stand van `prefers-color-scheme: dark`, bijgehouden door de
+   *  matchMedia-listener in `App.tsx`. Wordt NIET gepersisteerd (het is omgevingsstand, geen
+   *  instelling) en is alleen betekenisvol samen met `uiTheme`: zie `resolveUITheme`. */
+  systemPrefersDark: boolean;
   uiFontFamily: UIFontFamily; // persisted — interface-lettertypefamilie (issue #25.4); 'default' = stylesheet-defaults
   uiFontScale: number;        // persisted — interface-lettertypegrootte als schaalpercentage (90|100|110|125, issue #25.4)
   enableQuarterHourZoom: boolean;

@@ -95,6 +95,8 @@
     "themeDark": "어두운 테마",
     "themeLight": "밝은 테마",
     "themeHighContrast": "고대비",
+    "themeFollowSystem": "시스템 테마 따르기",
+    "themeSystemHint": "시스템 색상 구성을 따릅니다(현재: {{theme}}).",
     "timeline": "타임라인 / 확대/축소",
     "hourPlanningSection": "시간 단위 계획",
     "enableHourPlanning": "시간 단위 계획 사용",

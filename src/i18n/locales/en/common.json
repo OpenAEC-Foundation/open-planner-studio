@@ -105,6 +105,8 @@
     "themeDark": "Dark",
     "themeLight": "Light",
     "themeHighContrast": "High Contrast",
+    "themeFollowSystem": "Follow system theme",
+    "themeSystemHint": "Follows your system colour scheme (currently: {{theme}}).",
     "timeline": "Timeline / Zoom",
     "hourPlanningSection": "Hour planning",
     "enableHourPlanning": "Enable hour planning",

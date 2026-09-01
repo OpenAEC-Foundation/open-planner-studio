@@ -100,6 +100,8 @@
     "themeDark": "Koyu",
     "themeLight": "Açık",
     "themeHighContrast": "Yüksek Kontrast",
+    "themeFollowSystem": "Sistem temasını izle",
+    "themeSystemHint": "Sisteminizin renk şemasını izler (şu anda: {{theme}}).",
     "timeline": "Zaman çizelgesi / Yakınlaştırma",
     "hourPlanningSection": "Saat planlaması",
     "enableHourPlanning": "Saat planlamasını etkinleştir",

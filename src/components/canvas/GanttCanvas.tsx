@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@/state/appStore';
+import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { useTranslation } from 'react-i18next';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
@@ -126,7 +127,9 @@ export function GanttCanvas({
   const expandTasks = useAppStore(s => s.expandTasks);
   const setZoom = useAppStore(s => s.setZoom);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
-  const uiTheme = useAppStore(s => s.ui.uiTheme);
+  // Het OPGELOSTE thema (voorkeur 'system' → dark/light): een canvas leest geen CSS, dus de
+  // renderers krijgen het hier expliciet mee — 'system' zou daar geen betekenis hebben.
+  const uiTheme = useResolvedUITheme();
   // Primitive invalidatiesleutel voor Canvas-2D: CSS-variabelen veranderen buiten de teken-
   // callbackidentiteit om, dus elke canvaslaag krijgt dit expliciete thema-contract mee.
   const canvasThemeRevision = uiTheme;

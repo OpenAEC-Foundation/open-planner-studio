@@ -95,6 +95,8 @@
     "themeDark": "ダーク",
     "themeLight": "ライト",
     "themeHighContrast": "ハイコントラスト",
+    "themeFollowSystem": "システムのテーマに従う",
+    "themeSystemHint": "システムの配色に従います（現在: {{theme}}）。",
     "timeline": "タイムライン／ズーム",
     "hourPlanningSection": "時間計画",
     "enableHourPlanning": "時間計画を有効にする",

@@ -626,6 +626,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   BARCOLORSETTINGSCHECK="$DIR/.bar-color-settings.mjs"
   if bundle_check "$DIR/check-bar-color-settings.ts" "$BARCOLORSETTINGSCHECK"; then node "$BARCOLORSETTINGSCHECK" || STATUS=1; fi
 
+  # Thema "Systeem": resolutie van de voorkeur naar dark/light, de matchMedia-detectie/-listener,
+  # de opslag (geen legacymigratie van 'system'), en de bronpoorten op het pre-paint-script in
+  # index.html + de [data-theme]-blokken in globals.css.
+  SYSTEMTHEMECHECK="$DIR/.system-theme.mjs"
+  if bundle_check "$DIR/check-system-theme.ts" "$SYSTEMTHEMECHECK"; then node "$SYSTEMTHEMECHECK" || STATUS=1; fi
+
   # Balkkleurcategorieën delen exact de Group-veldcatalogus; een verwijderd projectveld valt
   # tijdelijk terug op Taaktype zonder de globale keuze te overschrijven.
   BARCOLORFIELDCHECK="$DIR/.bar-color-field-options.mjs"

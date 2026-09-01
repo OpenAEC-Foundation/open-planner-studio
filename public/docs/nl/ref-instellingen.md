@@ -17,7 +17,7 @@ als **Algemeen**, **Taal** en **Tijdlijn / Zoomen**.
 
 **Weergave:**
 
-- **Thema** — **Donker**, **Licht** of **Hoog contrast**; klik op een kaartje om te wisselen.
+- **Thema** — **Donker**, **Licht** of **Hoog contrast**; klik op een kaartje om te wisselen. Daaronder staat **Volg systeemthema**: staat die aan, dan volgt de app het kleurschema van je besturingssysteem of browser en wisselt hij meteen mee wanneer dat omgaat, ook terwijl de app openstaat. De drie kaartjes zijn dan uitgegrijsd — je ziet alleen nog welk thema het systeem oplevert. Zet je de schakelaar weer uit, dan blijf je op precies dat thema staan. **Hoog contrast** kun je alleen zelf kiezen, want een systeem kent alleen licht en donker.
 - **Lettertype** — **Standaard**, **Systeem**, **Met schreef** of **Monospace**; overschrijft het lettertype van de interface. Web-apps volgen niet automatisch de systeemlettertype-instelling, dus dit en de volgende instelling zijn hoe je het zelf kiest.
 - **Tekengrootte** — 90%, 100%, 110% of 125%; schaalt de interface-tekst en -indeling.
 - **Documentwissel-stijl** — hoe je tussen geopende documenten wisselt: **Horizontale tabbladen**, **Verticale tabbladen** of **Pil**.
