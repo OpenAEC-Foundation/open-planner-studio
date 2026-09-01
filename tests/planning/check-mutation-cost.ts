@@ -242,6 +242,7 @@ bevroren('19 bevroren na een bulk-transactie');
 
   const paden = {
     snapshot: 'src/state/snapshot.ts',
+    immerDraft: 'src/state/immerDraft.ts',
     wbs: 'src/utils/wbs.ts',
     schedule: 'src/state/slices/scheduleSlice.ts',
     store: 'src/state/appStore.ts',
@@ -261,7 +262,15 @@ bevroren('19 bevroren na een bulk-transactie');
 
     // (a) de snapshot kloont niet meer.
     eq('27 createSnapshot doet geen JSON-kloon', /JSON\.(parse|stringify)/.test(src.snapshot), false);
-    eq('27a en normaliseert een draft via original()', src.snapshot.includes('original('), true);
+    // 27a–c: de draftnormalisatie zelf is verhuisd naar `immerDraft.ts` — de enige plek waar
+    // app-state de Immer-typegrens oversteekt. De INVARIANT is ongewijzigd en wordt hier nu over de
+    // delegatie heen bewaakt: een snapshot leest de BASIS van de producer (`original()`), nooit de
+    // lopende draft en nooit `current()` (dat zou de mutatie meesnapshotten die undo moet herstellen).
+    eq('27a createSnapshot normaliseert een draft via originalAppState()',
+      src.snapshot.includes('originalAppState('), true);
+    eq('27b originalAppState() leest de producerbasis via original()',
+      /export function originalAppState\b[\s\S]*?\boriginal\s*[<(]/.test(src.immerDraft), true);
+    eq('27c en snapshot.ts leest nooit current()', src.snapshot.includes('current('), false);
 
     // (b) de nummering leest plain en schrijft alleen verschillen.
     eq('28 wbs.ts leest de draft plain via current()', src.wbs.includes('current('), true);

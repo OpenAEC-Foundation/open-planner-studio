@@ -1,8 +1,8 @@
-import { isDraft, original } from 'immer';
 import type { WorkCalendar } from '@/types/calendar';
 import type { AppState } from './appStore';
 import type { DocumentPayload } from './documentContract';
 import { DOCUMENT_FIELDS } from './documentContract';
+import { originalAppState } from './immerDraft';
 import { syncProjectCalendar } from './syncProjectCalendar';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -94,13 +94,14 @@ void _assertPickHasNoExtras;
  *
  * DRAFT-NORMALISATIE. Delen mag alleen als de waarden PLAIN zijn: een Immer-draft wordt na afloop
  * van zijn producer ingetrokken, dus een gedeelde draft zou een snapshot opleveren die bij het
- * uitlezen gooit. Krijgt deze functie een draft, dan leest hij daarom via `original()` — de
- * basisstaat van die producer. Dat klopt precies zolang de aanroeper de vaste conventie aanhoudt:
+ * uitlezen gooit. Krijgt deze functie een draft, dan leest hij daarom via `originalAppState()` —
+ * Immers `original()`, dus de basisstaat van die producer (zie `immerDraft.ts` voor waarom die
+ * grens een eigen module heeft). Dat klopt precies zolang de aanroeper de vaste conventie aanhoudt:
  * *guards; snapshot; mutatie*. Alle vier de aanroepers doen dat (`beginUndoable`, `withTransaction`,
  * `undo`, `redo`); `runInMcpTransaction` geeft sowieso plain state door.
  */
 export function createSnapshot(s: AppState): Snapshot {
-  const base = (isDraft(s) ? (original(s) as AppState | undefined) : s) ?? s;
+  const base = originalAppState(s) ?? s;
   const snap = {} as Snapshot;
   for (const f of DOCUMENT_FIELDS) {
     if (f.snapshot === 'none') continue;
