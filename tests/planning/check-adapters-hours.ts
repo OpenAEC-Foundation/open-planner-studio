@@ -804,8 +804,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // levelingDelayMinutes, splits+timephased-venster, resume/stop) op MSPDI/P6, exact het H5-
 // ELAPSEDTIME-patroon hierboven: (a) contrast — geen enkele van de vier warns zonder de
 // bijbehorende data; (b) precies het juiste aantal wanneer de data er wél is. CSV kent geen warn
-// (vaste 15-koloms `headers`, zie csvWriter.ts; inclusief het expliciete OPS custom-type-id) — hier
-// bewezen: de header blijft ONGEWIJZIGD, ook met een taak die alle nieuwe velden draagt.
+// (vaste 16-koloms `headers`, zie csvWriter.ts; inclusief het expliciete OPS custom-type-id ÉN de
+// sinds issue #27 etappe 2 vooraan toegevoegde `OPS Task ID`) — hier bewezen: de header blijft
+// ONGEWIJZIGD, ook met een taak die alle nieuwe velden draagt.
 {
   // Lokale herhaling van de `withWarnings`-helper hierboven (blok-scoped `function`-declaratie in
   // het H5-blok, hier niet zichtbaar) — zelfde vorm, geen gedeelde toestand nodig.
@@ -879,11 +880,17 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(wP.some(w => w.includes('P6-export: 1 gesplitste taak/taken en 1 gecontoureerde toewijzing')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met resume/stop')), `Z14 P6 resume/stop-warn: kreeg [${wP.join(' | ')}]`);
 
-    // CSV: vaste 15 kolommen, geen warn — de rijke taak mag de kolomstructuur niet veranderen.
+    // CSV: vaste 16 kolommen, geen warn — de rijke taak mag de kolomstructuur niet veranderen.
     const { out: csvText, warns: wC } = withWarnings(() => writeCSV(projZ, H8, zTasks, [], [], zAssignments));
     assert(wC.length === 0, `Z14 CSV: geen enkele warn voor de nieuwe velden, kreeg [${wC.join(' | ')}]`);
     const header = csvText.replace(/^﻿/, '').split('\r\n')[0];
-    assert(header.split(';').length === 15, `Z14 CSV: header blijft 15 kolommen, kreeg ${header.split(';').length} (${header})`);
+    const ZWANTED_HEADER = [
+      'OPS Task ID', 'WBS', 'Name', 'Duration (days)', 'Start', 'Finish',
+      'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
+      'Actual Start', 'Actual Finish', 'Critical', 'Total Float', 'Description',
+    ].join(';');
+    assert(header.split(';').length === 16, `Z14 CSV: header blijft 16 kolommen, kreeg ${header.split(';').length} (${header})`);
+    assert(header === ZWANTED_HEADER, `Z14 CSV: header komt niet exact overeen (issue #27 etappe 2: OPS Task ID hoort vooraan), kreeg (${header})`);
     assert(header.includes('OPS Custom Task Type ID'), `Z14 CSV: stabiele custom-type-id-kolom ontbreekt (${header})`);
   }
 }

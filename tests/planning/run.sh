@@ -845,6 +845,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # TZ-onafhankelijkheid moet bewezen worden.
   RECDATES="$DIR/.check-recorded-dates.mjs"
   if bundle_check "$DIR/check-recorded-dates.ts" "$RECDATES"; then node "$RECDATES" || STATUS=1; fi
+
+  # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
+  # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
+  PICHECK="$DIR/.progress-import.mjs"
+  if bundle_check "$DIR/check-progress-import.ts" "$PICHECK"; then node "$PICHECK" || STATUS=1; fi
+  # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
+  PICSVCHECK="$DIR/.progress-import-csv.mjs"
+  if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
 fi
 
 if [ "$HARNESS_OK" -eq 1 ]; then
