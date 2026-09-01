@@ -19,6 +19,18 @@ export interface StoreRuntime {
   recordMcpTimephasedLoss(lease: McpTransactionLease, taskId: string): void;
   countMcpTimephasedLoss(lease: McpTransactionLease): number;
   exitMcpTransaction(lease: McpTransactionLease): void;
+  /**
+   * Monotone teller die bij ELKE undoable mutatie in deze context omhoog gaat — óók bij een
+   * gecoalesceerde mutatie, die bewust géén snapshot pusht (spec §6a). Bewust NIET hetzelfde als het
+   * interne `undoSeq`: dat volgnummer stuurt de coalesce-vergelijking en beweegt daarom juist niet
+   * tijdens een sleepreeks, en `undoStack.length` is onbruikbaar omdat `MAX_UNDO` van onderaf trimt.
+   *
+   * Afnemer: de voorstel-invalidatie van de B1c-verdeeldialoog. Die combineert deze teller met de
+   * REFERENTIES van de documentvelden waarop het voorstel gerekend heeft — de teller is de goedkope,
+   * grofmazige backstop; de referenties maken de bewaking sluitend (`runCPM` muteert datums zonder
+   * ooit langs `beginUndoable` te komen).
+   */
+  mutationSeq(): number;
 }
 
 interface ActiveMcpLease extends McpTransactionLease {
@@ -37,6 +49,9 @@ export function createStoreRuntime(): StoreRuntime {
   let undoSeq = 0;
   let batchDepth = 0;
   let activeMcpLease: ActiveMcpLease | null = null;
+  // B1c-plan3 taak 4 (spec §6a): monotone, per-context mutatieteller — zie het docblok bij
+  // `StoreRuntime.mutationSeq`.
+  let mutationSeq = 0;
 
   const requireActiveLease = (lease: McpTransactionLease): ActiveMcpLease => {
     if (activeMcpLease !== lease) {
@@ -50,6 +65,7 @@ export function createStoreRuntime(): StoreRuntime {
       state.undoStack.push(createSnapshot(base));
       if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
       undoSeq++;
+      mutationSeq++;
     },
 
     resetUndoCoalescing() {
@@ -94,6 +110,12 @@ export function createStoreRuntime(): StoreRuntime {
     },
 
     beginUndoable(state, opts) {
+      // B1c-plan3 taak 4: de bump staat als EERSTE regel — vóór de batch-/lease-guard én vóór de
+      // coalesce-tak. Een mutatie binnen een batch of MCP-transactie is nog steeds een mutatie, ook
+      // al neemt de omvattende transactie de snapshot; en een gecoalesceerde mutatie (géén nieuwe
+      // snapshot) is precies het geval waarvoor deze teller bestaat (zie het docblok hierboven).
+      mutationSeq++;
+
       // De omvattende batch of MCP-transactie heeft de ene snapshot al genomen.
       if (batchDepth > 0 || activeMcpLease) return;
 
@@ -112,6 +134,10 @@ export function createStoreRuntime(): StoreRuntime {
       runtime.pushUndoSnapshot(state);
       state.redoStack = [];
       coalesce = key ? { key, seq: undoSeq, docId: state.activeDocumentId } : null;
+    },
+
+    mutationSeq() {
+      return mutationSeq;
     },
   };
 

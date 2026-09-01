@@ -450,6 +450,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   APPLYLEVELINGSCOPECHECK="$DIR/.apply-leveling-scope.mjs"
   if bundle_check "$DIR/check-apply-leveling-scope.ts" "$APPLYLEVELINGSCOPECHECK"; then node "$APPLYLEVELINGSCOPECHECK" || STATUS=1; fi
 
+  # B1c-plan3 taak 4: de monotone mutatieteller op de store-runtime (beweegt óók binnen een
+  # coalesce-reeks, waar undoStack.length en het interne undo-volgnummer tekortschieten) plus de
+  # referentie-gebaseerde voorstel-vingerafdruk (`documentFingerprint`).
+  MUTATIONSEQCHECK="$DIR/.mutation-seq.mjs"
+  if bundle_check "$DIR/check-mutation-seq.ts" "$MUTATIONSEQCHECK"; then node "$MUTATIONSEQCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"
