@@ -215,6 +215,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERBASELINESCHEMACHECK="$DIR/.xer-fidelity-baseline-schema.mjs"
   if bundle_check "$DIR/check-xer-fidelity-baseline-schema.ts" "$XERBASELINESCHEMACHECK"; then node "$XERBASELINESCHEMACHECK" || STATUS=1; fi
 
+  # X12: corpusloze eindvangrail. Deze bewaakt uitsluitend de gereviewde openbare 93-entry
+  # inventaris, onafhankelijke 34-entry-orakelselectie en task-replay-kruiscontract. Hij importeert
+  # nooit reader/scanner/solver en draait daarom precies één keer vóór corpuschecks, niet in de
+  # tijdzonematrix. De product-v2-eindbaseline bestaat nog niet; de oude v1-tweepinsbaseline blijft
+  # expliciet een overgangsdossier en wordt hier niet als groen eindcontract voorgesteld.
+  XERCORPUSLESSFIDELITYGATE="$DIR/.xer-corpusless-fidelity-gate.mjs"
+  if bundle_check "$DIR/check-xer-corpusless-fidelity-gate.ts" "$XERCORPUSLESSFIDELITYGATE"; then
+    node "$XERCORPUSLESSFIDELITYGATE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
