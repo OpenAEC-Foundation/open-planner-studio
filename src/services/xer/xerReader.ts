@@ -617,7 +617,7 @@ function readXerProject(
     const explicitTargetFinish = sourceInstant(row.cells.target_end_date ?? '', hourMode);
     const hasExplicitTargetWindow = explicitTargetStart !== undefined && explicitTargetFinish !== undefined;
     let start = explicitTargetStart
-      ?? projectStatusDate(tables, projectRow, hourMode)
+      ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
       ?? '1970-01-01';
     let finish = explicitTargetFinish ?? start;
     // P6 XER kan een TT_FinMile op de eerste minuut ná een werkbandgrens serialiseren met gelijke

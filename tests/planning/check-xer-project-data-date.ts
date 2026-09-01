@@ -53,6 +53,7 @@ const cases = [
   { name: 'data-only leeg', fields: ['data_date'], values: { data_date: '' }, statusDate: undefined },
   { name: 'beide geldig gelijk', fields: ['last_recalc_date', 'data_date'], values: { last_recalc_date: '2026-01-05', data_date: '2026-01-05' }, statusDate: '2026-01-05' },
   { name: 'beide geldig verschillend', fields: ['last_recalc_date', 'data_date'], values: { last_recalc_date: '2026-01-10', data_date: '2026-01-05' }, statusDate: '2026-01-10' },
+  { name: 'beide last leeg data geldig', fields: ['last_recalc_date', 'data_date'], values: { last_recalc_date: '', data_date: '2026-01-05' }, statusDate: undefined },
   { name: 'beide last ongeldig data geldig', fields: ['last_recalc_date', 'data_date'], values: { last_recalc_date: 'geen-datum', data_date: '2026-01-05' }, statusDate: undefined },
   { name: 'beide kolommen afwezig', fields: [], values: {}, statusDate: undefined },
 ] as const;
@@ -91,6 +92,28 @@ eq('PROJECT-data-date legacy last-dialect: productvelden blijven byte/productvel
   calendarId: 'C1',
   task: [{ id: 'T1', scheduleStart: '2026-01-02', scheduleFinish: '2026-01-03' }],
 });
+
+// data_date is uitsluitend een compatibiliteitsbron voor project.statusDate. De reeds bestaande
+// TASK-terugval voor een ontbrekend targetvenster blijft exclusief op last_recalc_date gebaseerd.
+const dataOnlyMissingTargetWindow = read(bytes([
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tclndr_data',
+  '%R\tC1\tStandaard\t',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tdata_date',
+  '%R\tP1\tPROJECT.data_date-dialect\tC1\t2026-01-05',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_start_date\ttarget_end_date',
+  '%R\tT1\tP1\tA1\tOntbrekend targetvenster\t\t',
+  '%E',
+]));
+eq('PROJECT-data-date data-only zonder targetvenster: statusDate gebruikt data_date',
+  dataOnlyMissingTargetWindow.project.statusDate, '2026-01-05');
+eq('PROJECT-data-date data-only zonder targetvenster: scheduleStart houdt oude last-only-terugval',
+  dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleStart, '1970-01-01');
+eq('PROJECT-data-date data-only zonder targetvenster: scheduleFinish houdt oude last-only-terugval',
+  dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleFinish, '1970-01-01');
 
 if (diffs.length > 0) {
   console.error(`XX XER PROJECT.data_date (${checks} checks)`);
