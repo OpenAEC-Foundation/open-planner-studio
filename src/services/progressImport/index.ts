@@ -20,3 +20,9 @@ export {
   PERCENT_EPSILON,
   PROGRESS_IMPORT_LIMITS,
 } from './types';
+
+export type { ProgressMatchResult, ProgressRowMatch } from './matchRows';
+export { matchProgressRows } from './matchRows';
+
+export type { ProgressPlanDeps } from './buildPlan';
+export { buildProgressImportPlan } from './buildPlan';
