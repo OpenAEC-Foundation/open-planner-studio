@@ -121,6 +121,29 @@ interface BaselineValueDelta {
   after: unknown;
 }
 
+const CAUSAL_FIDELITY_AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
+type CausalFidelityAxis = typeof CAUSAL_FIDELITY_AXES[number];
+type CausalCounterField = 'deviations' | 'measurable';
+interface CausalCounterRow {
+  branch: 'house' | 'xerDefaults' | 'retainedLogic' | 'preserveActualDates';
+  variant?: 'chosen' | 'counterfactual';
+  axis: CausalFidelityAxis;
+  deviations: number;
+  measurable: number;
+}
+interface CausalProductEffects {
+  version: 1;
+  axes: readonly CausalFidelityAxis[];
+  loeDataDate: {
+    fields: readonly CausalCounterField[];
+    rows: CausalCounterRow[];
+  };
+  completedProgress: {
+    fields: readonly CausalCounterField[];
+    rows: CausalCounterRow[];
+  };
+}
+
 interface BlastRadiusBaseline {
   version: 8;
   axes: readonly BlastAxis[];
@@ -172,6 +195,7 @@ interface BlastRadiusBaseline {
   expectedFinishVariant: ExpectedFinishVariantBaseline;
   /** Historisch X7-dossier; de levende duration-type-regel staat als corpusloze mutatiefixture in X12. */
   legacyDurationTypeHistoricalDelta?: BaselineValueDelta[];
+  causalProductEffects?: CausalProductEffects;
   fidelity: {
     house: XerFidelityCounters;
     xerDefaults: XerFidelityCounters;
@@ -201,16 +225,101 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(label);
 }
 
-/** X12 wijzigde de onafhankelijke orakelvorm; productuitkomsten horen niet in deze projectie. */
-function x12OracleShape(baseline: Pick<BlastRadiusBaseline, 'population'>): unknown {
-  return baseline.population;
+function independentOraclePopulation(population: BlastRadiusBaseline['population']): unknown {
+  return {
+    scanned: population.scanned,
+    oracleAxisFiles: population.oracleAxisFiles,
+    rawWithSchedOptions: population.rawWithSchedOptions,
+    rawWithoutSchedOptions: population.rawWithoutSchedOptions,
+    projectAddressableSchedOptions: population.projectAddressableSchedOptions,
+    functionallyWithoutSchedOptions: population.functionallyWithoutSchedOptions,
+    oracleNegativeFloatFiles: population.oracleNegativeFloatFiles,
+    withoutSchedOptionsNegativeFloatFiles: population.withoutSchedOptionsNegativeFloatFiles,
+    rawNegativeFloatFiles: population.rawNegativeFloatFiles,
+    rawWithoutSchedOptionsNegativeFloatFiles: population.rawWithoutSchedOptionsNegativeFloatFiles,
+  };
 }
 
-/** De latere completed/progress/LOE/data_date-aanpassingen bewaken alleen productprojecties. */
-function completedProgressLoeDataDateEffects(
-  baseline: Pick<BlastRadiusBaseline, 'files' | 'fidelity'>,
-): unknown {
-  return { files: baseline.files, fidelity: baseline.fidelity };
+function productDerivedPopulation(population: BlastRadiusBaseline['population']): unknown {
+  return {
+    measured: population.measured,
+    deferred: population.deferred,
+    readableFiles: population.readableFiles,
+    openedProjectsWithDefaults: population.openedProjectsWithDefaults,
+    wiredProjectsWithDefaults: population.wiredProjectsWithDefaults,
+    concreteProjectsCompared: population.concreteProjectsCompared,
+  };
+}
+
+function causalCounterRow(
+  branch: CausalCounterRow['branch'],
+  variant: CausalCounterRow['variant'],
+  axis: CausalFidelityAxis,
+  counters: XerFidelityCounters,
+): CausalCounterRow {
+  return {
+    branch,
+    ...(variant === undefined ? {} : { variant }),
+    axis,
+    deviations: counters[axis].deviations,
+    measurable: counters[axis].measurable,
+  };
+}
+
+/** Alleen vooraf benoemde branches en tellervelden; geen volledige files-/fidelity-subboom. */
+function causalProductEffects(baseline: Pick<BlastRadiusBaseline, 'fidelity'>): CausalProductEffects {
+  return {
+    version: 1,
+    axes: CAUSAL_FIDELITY_AXES,
+    loeDataDate: {
+      fields: ['deviations', 'measurable'],
+      rows: (['house', 'xerDefaults'] as const).flatMap(branch =>
+        CAUSAL_FIDELITY_AXES.map(axis => causalCounterRow(
+          branch, undefined, axis, baseline.fidelity[branch],
+        ))),
+    },
+    completedProgress: {
+      fields: ['deviations', 'measurable'],
+      rows: (['retainedLogic', 'preserveActualDates'] as const).flatMap(branch =>
+        (['chosen', 'counterfactual'] as const).flatMap(variant =>
+          CAUSAL_FIDELITY_AXES.map(axis => causalCounterRow(
+            branch, variant, axis, baseline.fidelity.defaults[branch][variant],
+          )))),
+    },
+  };
+}
+
+function causalProductEffectsShape(snapshot: CausalProductEffects | undefined): unknown {
+  const loeRows = snapshot?.loeDataDate?.rows ?? [];
+  const completedRows = snapshot?.completedProgress?.rows ?? [];
+  const rowKey = (row: CausalCounterRow): string =>
+    JSON.stringify([row.branch, row.variant ?? null, row.axis]);
+  return {
+    topKeys: Object.keys(snapshot ?? {}).sort(),
+    causeKeys: {
+      loeDataDate: Object.keys(snapshot?.loeDataDate ?? {}).sort(),
+      completedProgress: Object.keys(snapshot?.completedProgress ?? {}).sort(),
+    },
+    axes: snapshot?.axes,
+    fields: {
+      loeDataDate: snapshot?.loeDataDate?.fields,
+      completedProgress: snapshot?.completedProgress?.fields,
+    },
+    rowCounts: { loeDataDate: loeRows.length, completedProgress: completedRows.length },
+    branches: {
+      loeDataDate: [...new Set(loeRows.map(row => row.branch))].sort(),
+      completedProgress: [...new Set(completedRows.map(row => row.branch))].sort(),
+    },
+    variants: [...new Set(completedRows.map(row => row.variant).filter(Boolean))].sort(),
+    axisSets: {
+      loeDataDate: [...new Set(loeRows.map(row => row.axis))].sort(),
+      completedProgress: [...new Set(completedRows.map(row => row.axis))].sort(),
+    },
+    uniqueRows: {
+      loeDataDate: new Set(loeRows.map(rowKey)).size,
+      completedProgress: new Set(completedRows.map(rowKey)).size,
+    },
+  };
 }
 
 function listXerFilesRecursive(dir: string): string[] {
@@ -863,7 +972,8 @@ if (!root) {
   diffs.push('OPS_XER_CORPUS bestaat niet');
 } else {
   const measured = measureCorpus(root);
-  eq('openbare populatie en negatieve-floatverdeling', measured.population, {
+  eq('onafhankelijke X12-orakelvorm pint alleen raw/scanner-populatie en negatieve-floatverdeling',
+    independentOraclePopulation(measured.population), {
     scanned: 93,
     // De rauwe X12-meetlat normaliseert completed taken niet meer naar actuals. Twee bestanden
     // die uitsluitend via die oude substitutie een as leken te dragen vallen daarom bewust uit
@@ -873,17 +983,20 @@ if (!root) {
     rawWithoutSchedOptions: 35,
     projectAddressableSchedOptions: 22,
     functionallyWithoutSchedOptions: 36,
-    measured: 34,
-    deferred: 2,
-    readableFiles: 34,
-    openedProjectsWithDefaults: 35,
-    wiredProjectsWithDefaults: 35,
-    concreteProjectsCompared: 70,
     oracleNegativeFloatFiles: 5,
     withoutSchedOptionsNegativeFloatFiles: 4,
     rawNegativeFloatFiles: 6,
     rawWithoutSchedOptionsNegativeFloatFiles: 5,
   });
+  eq('productafgeleide populatie pint alleen reader-, wiring- en projectvergelijkingstellers',
+    productDerivedPopulation(measured.population), {
+      measured: 34,
+      deferred: 2,
+      readableFiles: 34,
+      openedProjectsWithDefaults: 35,
+      wiredProjectsWithDefaults: 35,
+      concreteProjectsCompared: 70,
+    });
   eq('meerderheidsinstellingen worden uit alle 50 tabelrijen herleid', measured.schedOptionsRows, {
     rows: 50,
     floatFinish: 41,
@@ -921,10 +1034,35 @@ if (!root) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
     eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
       measured.expectedFinishVariant, committed.expectedFinishVariant);
-    eq('X12-orakelvorm houdt uitsluitend de onafhankelijke corpuspopulatie exact vast',
-      x12OracleShape(measured), x12OracleShape(committed));
-    eq('completed/progress/LOE/data_date-effecten houden uitsluitend productprojecties exact vast',
-      completedProgressLoeDataDateEffects(measured), completedProgressLoeDataDateEffects(committed));
+    eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
+      shape: causalProductEffectsShape(committed.causalProductEffects),
+      measured: causalProductEffects(measured),
+    }, {
+      shape: {
+        topKeys: ['axes', 'completedProgress', 'loeDataDate', 'version'],
+        causeKeys: {
+          loeDataDate: ['fields', 'rows'],
+          completedProgress: ['fields', 'rows'],
+        },
+        axes: CAUSAL_FIDELITY_AXES,
+        fields: {
+          loeDataDate: ['deviations', 'measurable'],
+          completedProgress: ['deviations', 'measurable'],
+        },
+        rowCounts: { loeDataDate: 12, completedProgress: 24 },
+        branches: {
+          loeDataDate: ['house', 'xerDefaults'],
+          completedProgress: ['preserveActualDates', 'retainedLogic'],
+        },
+        variants: ['chosen', 'counterfactual'],
+        axisSets: {
+          loeDataDate: [...CAUSAL_FIDELITY_AXES].sort(),
+          completedProgress: [...CAUSAL_FIDELITY_AXES].sort(),
+        },
+        uniqueRows: { loeDataDate: 12, completedProgress: 24 },
+      },
+      measured: committed.causalProductEffects,
+    });
   }
 }
 

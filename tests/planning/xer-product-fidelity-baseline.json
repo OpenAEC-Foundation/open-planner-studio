@@ -1,5 +1,55 @@
 {
   "version": 1,
+  "cellTransitions": {
+    "version": 1,
+    "files": {
+      "568c19375b4e0d674c75e6aea023c98772fb33e6896755f866e4641a56197300": {
+        "previouslyExact": [
+          ["1", "1000", "es"], ["1", "1000", "ef"], ["1", "1000", "tf"], ["1", "1000", "ff"],
+          ["1", "1010", "es"], ["1", "1010", "ls"], ["1", "1010", "ff"],
+          ["1", "1020", "es"], ["1", "1020", "ls"], ["1", "1020", "ff"],
+          ["1", "2000", "es"], ["1", "2000", "ls"], ["1", "2000", "tf"], ["1", "2000", "ff"],
+          ["1", "2010", "es"], ["1", "2010", "ls"], ["1", "2010", "tf"], ["1", "2010", "ff"],
+          ["1", "2020", "tf"], ["1", "2020", "ff"],
+          ["1", "3000", "tf"], ["1", "3000", "ff"],
+          ["1", "3010", "tf"], ["1", "3010", "ff"]
+        ],
+        "improvements": [
+          { "cell": ["1", "2020", "es"], "old": { "bucket": "diff", "value": "2026-05-08T12:00" }, "current": { "bucket": "exact", "value": "2026-05-11T08:00" } },
+          { "cell": ["1", "3000", "es"], "old": { "bucket": "diff", "value": "2026-05-14T12:00" }, "current": { "bucket": "exact", "value": "2026-05-15T08:00" } },
+          { "cell": ["1", "1010", "ef"], "old": { "bucket": "diff", "value": "2026-04-07T16:00" }, "current": { "bucket": "exact", "value": "2026-04-07T17:00" } },
+          { "cell": ["1", "1020", "ef"], "old": { "bucket": "diff", "value": "2026-04-14T16:00" }, "current": { "bucket": "exact", "value": "2026-04-14T17:00" } },
+          { "cell": ["1", "2000", "ef"], "old": { "bucket": "diff", "value": "2026-04-28T16:00" }, "current": { "bucket": "exact", "value": "2026-04-28T17:00" } },
+          { "cell": ["1", "2010", "ef"], "old": { "bucket": "diff", "value": "2026-05-08T12:00" }, "current": { "bucket": "exact", "value": "2026-05-08T17:00" } },
+          { "cell": ["1", "2020", "ef"], "old": { "bucket": "diff", "value": "2026-05-14T12:00" }, "current": { "bucket": "exact", "value": "2026-05-14T17:00" } },
+          { "cell": ["1", "3000", "ef"], "old": { "bucket": "diff", "value": "2026-05-18T12:00" }, "current": { "bucket": "exact", "value": "2026-05-18T17:00" } },
+          { "cell": ["1", "2020", "ls"], "old": { "bucket": "diff", "value": "2026-05-08T12:00" }, "current": { "bucket": "exact", "value": "2026-05-11T08:00" } },
+          { "cell": ["1", "3000", "ls"], "old": { "bucket": "diff", "value": "2026-05-14T12:00" }, "current": { "bucket": "exact", "value": "2026-05-15T08:00" } },
+          { "cell": ["1", "1010", "lf"], "old": { "bucket": "diff", "value": "2026-04-07T16:00" }, "current": { "bucket": "exact", "value": "2026-04-07T17:00" } },
+          { "cell": ["1", "1020", "lf"], "old": { "bucket": "diff", "value": "2026-04-14T16:00" }, "current": { "bucket": "exact", "value": "2026-04-14T17:00" } },
+          { "cell": ["1", "2000", "lf"], "old": { "bucket": "diff", "value": "2026-04-28T16:00" }, "current": { "bucket": "exact", "value": "2026-04-28T17:00" } },
+          { "cell": ["1", "2010", "lf"], "old": { "bucket": "diff", "value": "2026-05-08T12:00" }, "current": { "bucket": "exact", "value": "2026-05-08T17:00" } },
+          { "cell": ["1", "2020", "lf"], "old": { "bucket": "diff", "value": "2026-05-14T12:00" }, "current": { "bucket": "exact", "value": "2026-05-14T17:00" } },
+          { "cell": ["1", "3000", "lf"], "old": { "bucket": "diff", "value": "2026-05-18T12:00" }, "current": { "bucket": "exact", "value": "2026-05-18T17:00" } }
+        ]
+      },
+      "c872c9e704797d829205f3c5486e7c4cd5aec729143a63fbcf8b0ec8e8864a3c": {
+        "previouslyExact": [
+          ["1", "1000", "tf"], ["1", "1000", "ff"],
+          ["1", "1010", "ff"],
+          ["1", "1020", "ff"],
+          ["1", "1099", "es"],
+          ["1", "2010", "tf"], ["1", "2010", "ff"],
+          ["1", "2020", "tf"], ["1", "2020", "ff"],
+          ["1", "3000", "tf"], ["1", "3000", "ff"],
+          ["1", "3010", "tf"], ["1", "3010", "ff"]
+        ],
+        "improvements": [
+          { "cell": ["1", "1099", "ef"], "old": { "bucket": "diff", "value": "2026-04-16T16:00" }, "current": { "bucket": "exact", "value": "2026-04-16T17:00" } }
+        ]
+      }
+    }
+  },
   "files": {
     "crawl-xer/p6diff-baseline.xer": {
       "tasks": 8,

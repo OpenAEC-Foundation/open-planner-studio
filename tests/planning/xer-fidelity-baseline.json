@@ -103,19 +103,19 @@
       "counters": {
         "es": {
           "deviations": 0,
-          "measurable": 6977
+          "measurable": 6976
         },
         "ef": {
           "deviations": 0,
-          "measurable": 6977
+          "measurable": 6976
         },
         "ls": {
           "deviations": 0,
-          "measurable": 6977
+          "measurable": 6976
         },
         "lf": {
           "deviations": 0,
-          "measurable": 6977
+          "measurable": 6976
         },
         "tf": {
           "deviations": 0,
@@ -126,7 +126,7 @@
           "measurable": 6976
         }
       },
-      "schemaFingerprint": "c6a7ada359dc738c"
+      "schemaFingerprint": "2493349dd14f7fb3"
     },
     "146e4c8659bad066": {
       "label": "crawl-xer-extra/meridianiq/demo-sample.xer",
@@ -158,7 +158,7 @@
           "measurable": 30
         }
       },
-      "schemaFingerprint": "e6e701b2eb7cd2fd"
+      "schemaFingerprint": "789d55d2260a50b8"
     },
     "53f5cdbeb3fbd9c6": {
       "label": "crawl-xer-extra/meridianiq/sample_update2.xer",
@@ -190,7 +190,7 @@
           "measurable": 31
         }
       },
-      "schemaFingerprint": "edb0bca25b371266"
+      "schemaFingerprint": "e5ee686e1f756d6f"
     },
     "c872c9e704797d82": {
       "label": "crawl-xer-extra/p6difftool/sample-target.xer",
@@ -254,7 +254,7 @@
           "measurable": 20
         }
       },
-      "schemaFingerprint": "f81e7c7d61b45f91"
+      "schemaFingerprint": "6431acce233a860e"
     },
     "deabc76347eaef15": {
       "label": "crawl-xer-extra/schedulevisualiser/Sample_Project.xer",
@@ -327,19 +327,19 @@
       "counters": {
         "es": {
           "deviations": 0,
-          "measurable": 169
+          "measurable": 166
         },
         "ef": {
           "deviations": 0,
-          "measurable": 169
+          "measurable": 166
         },
         "ls": {
           "deviations": 0,
-          "measurable": 169
+          "measurable": 166
         },
         "lf": {
           "deviations": 0,
-          "measurable": 169
+          "measurable": 166
         },
         "tf": {
           "deviations": 0,
@@ -350,7 +350,7 @@
           "measurable": 152
         }
       },
-      "schemaFingerprint": "9415c811af9cd8cf"
+      "schemaFingerprint": "ec668c11ba3d5921"
     },
     "9590c4cdc4efa69a": {
       "label": "crawl-xer/gimmer-crag-mountain-refuge.xer",
@@ -414,7 +414,7 @@
           "measurable": 113
         }
       },
-      "schemaFingerprint": "380e546c56886af3"
+      "schemaFingerprint": "a81fedfd4aaa73d8"
     },
     "ad92ce52ba95b275": {
       "label": "crawl-xer/hb-intel_Project_Schedule.xer",
@@ -638,7 +638,7 @@
           "measurable": 1036
         }
       },
-      "schemaFingerprint": "2168c6d533f62f7b"
+      "schemaFingerprint": "c860b3291dba9ee1"
     },
     "55b7e4463dcd36ba": {
       "label": "crawl-xer/Sample_Construction_TEC.xer",
@@ -670,7 +670,7 @@
           "measurable": 51
         }
       },
-      "schemaFingerprint": "3f976da19fabf0b7"
+      "schemaFingerprint": "96a23d026fc67de2"
     },
     "1ba69d297ee9a5c6": {
       "label": "crawl-xer/stack_data_center_baseline.xer",
@@ -847,11 +847,11 @@
         },
         "ls": {
           "deviations": 0,
-          "measurable": 1
+          "measurable": 0
         },
         "lf": {
           "deviations": 0,
-          "measurable": 2
+          "measurable": 0
         },
         "tf": {
           "deviations": 0,
@@ -862,7 +862,7 @@
           "measurable": 0
         }
       },
-      "schemaFingerprint": "3b0d135d5ce02f18"
+      "schemaFingerprint": "8c46c34ac267acaa"
     },
     "1d7901d68cc7063b": {
       "label": "P6-Viewer/XER Files/sample.xer",
@@ -894,7 +894,7 @@
           "measurable": 11
         }
       },
-      "schemaFingerprint": "d14f605d6a854880"
+      "schemaFingerprint": "84d6d8bd748871eb"
     },
     "a2f3b2469e26f199": {
       "label": "P6-Viewer/XER Files/TERMINAL BUILDING-AIRPORT.xer",
@@ -975,11 +975,11 @@
         },
         "ls": {
           "deviations": 0,
-          "measurable": 2
+          "measurable": 0
         },
         "lf": {
           "deviations": 0,
-          "measurable": 2
+          "measurable": 0
         },
         "tf": {
           "deviations": 0,
@@ -990,7 +990,7 @@
           "measurable": 0
         }
       },
-      "schemaFingerprint": "cf7f7bf2470c4e6e"
+      "schemaFingerprint": "a1160804bdaed88e"
     },
     "ac4b9d677133c6ed": {
       "label": "ProjectLens/docs/demo/northstar-previous.xer",
@@ -1007,11 +1007,11 @@
         },
         "ls": {
           "deviations": 0,
-          "measurable": 1
+          "measurable": 0
         },
         "lf": {
           "deviations": 0,
-          "measurable": 1
+          "measurable": 0
         },
         "tf": {
           "deviations": 0,
@@ -1022,7 +1022,7 @@
           "measurable": 0
         }
       },
-      "schemaFingerprint": "b83f7fe67823738b"
+      "schemaFingerprint": "d48ece7ca76541f4"
     },
     "790b90fda837bad3": {
       "label": "ProjectLens/docs/demo/riverside-current.xer",
@@ -1039,11 +1039,11 @@
         },
         "ls": {
           "deviations": 0,
-          "measurable": 2
+          "measurable": 0
         },
         "lf": {
           "deviations": 0,
-          "measurable": 2
+          "measurable": 0
         },
         "tf": {
           "deviations": 0,
@@ -1054,7 +1054,7 @@
           "measurable": 0
         }
       },
-      "schemaFingerprint": "b8ea5c0682122f82"
+      "schemaFingerprint": "752e6b19354f9396"
     },
     "78325fb6445d22f5": {
       "label": "ProjectLens/docs/demo/riverside-previous.xer",
@@ -1071,11 +1071,11 @@
         },
         "ls": {
           "deviations": 0,
-          "measurable": 1
+          "measurable": 0
         },
         "lf": {
           "deviations": 0,
-          "measurable": 1
+          "measurable": 0
         },
         "tf": {
           "deviations": 0,
@@ -1086,7 +1086,7 @@
           "measurable": 0
         }
       },
-      "schemaFingerprint": "8cc9c1c456a80b52"
+      "schemaFingerprint": "54e563aaa3c0212e"
     }
   }
 }

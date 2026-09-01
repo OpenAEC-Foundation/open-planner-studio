@@ -40,10 +40,10 @@ const EXPECTED_BASELINE_KEYS = [
   'deabc76347eaef15', 'def489b2a803af9f',
 ] as const;
 const EXPECTED_MEASURABLE = {
-  es: 13_935, ef: 13_941, ls: 13_833, lf: 13_825, tf: 13_677, ff: 13_322,
+  es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322,
 } as const;
 const EXPECTED_MANIFEST_SHA256 = '6defbc4b4a71500565e5847750662060d9baca983952098dd1b334ac81d55786';
-const EXPECTED_BASELINE_SHA256 = 'e74960626b828b3187b11e2674783da34e7a4d8f470c1b97e40eb3ef48e7a6d2';
+const EXPECTED_BASELINE_SHA256 = 'a7075bd27c73cecae71403bc9b06e8ef53707b756049598c60f125dec0c28b29';
 
 const diffs: string[] = [];
 let checks = 0;

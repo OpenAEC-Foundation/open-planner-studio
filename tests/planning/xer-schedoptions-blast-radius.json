@@ -38,6 +38,56 @@
     "rawNegativeFloatFiles": 6,
     "rawWithoutSchedOptionsNegativeFloatFiles": 5
   },
+  "causalProductEffects": {
+    "version": 1,
+    "axes": ["es", "ef", "ls", "lf", "tf", "ff"],
+    "loeDataDate": {
+      "fields": ["deviations", "measurable"],
+      "rows": [
+        { "branch": "house", "axis": "es", "deviations": 6639, "measurable": 7637 },
+        { "branch": "house", "axis": "ef", "deviations": 6510, "measurable": 7649 },
+        { "branch": "house", "axis": "ls", "deviations": 7460, "measurable": 7519 },
+        { "branch": "house", "axis": "lf", "deviations": 7427, "measurable": 7510 },
+        { "branch": "house", "axis": "tf", "deviations": 6932, "measurable": 7602 },
+        { "branch": "house", "axis": "ff", "deviations": 2352, "measurable": 7221 },
+        { "branch": "xerDefaults", "axis": "es", "deviations": 1062, "measurable": 7637 },
+        { "branch": "xerDefaults", "axis": "ef", "deviations": 1287, "measurable": 7649 },
+        { "branch": "xerDefaults", "axis": "ls", "deviations": 4791, "measurable": 7519 },
+        { "branch": "xerDefaults", "axis": "lf", "deviations": 4781, "measurable": 7510 },
+        { "branch": "xerDefaults", "axis": "tf", "deviations": 4592, "measurable": 7602 },
+        { "branch": "xerDefaults", "axis": "ff", "deviations": 502, "measurable": 7221 }
+      ]
+    },
+    "completedProgress": {
+      "fields": ["deviations", "measurable"],
+      "rows": [
+        { "branch": "retainedLogic", "variant": "chosen", "axis": "es", "deviations": 6639, "measurable": 7637 },
+        { "branch": "retainedLogic", "variant": "chosen", "axis": "ef", "deviations": 6510, "measurable": 7649 },
+        { "branch": "retainedLogic", "variant": "chosen", "axis": "ls", "deviations": 7460, "measurable": 7519 },
+        { "branch": "retainedLogic", "variant": "chosen", "axis": "lf", "deviations": 7427, "measurable": 7510 },
+        { "branch": "retainedLogic", "variant": "chosen", "axis": "tf", "deviations": 6932, "measurable": 7602 },
+        { "branch": "retainedLogic", "variant": "chosen", "axis": "ff", "deviations": 2352, "measurable": 7221 },
+        { "branch": "retainedLogic", "variant": "counterfactual", "axis": "es", "deviations": 7020, "measurable": 7637 },
+        { "branch": "retainedLogic", "variant": "counterfactual", "axis": "ef", "deviations": 6922, "measurable": 7649 },
+        { "branch": "retainedLogic", "variant": "counterfactual", "axis": "ls", "deviations": 7475, "measurable": 7519 },
+        { "branch": "retainedLogic", "variant": "counterfactual", "axis": "lf", "deviations": 7444, "measurable": 7510 },
+        { "branch": "retainedLogic", "variant": "counterfactual", "axis": "tf", "deviations": 7410, "measurable": 7602 },
+        { "branch": "retainedLogic", "variant": "counterfactual", "axis": "ff", "deviations": 2519, "measurable": 7221 },
+        { "branch": "preserveActualDates", "variant": "chosen", "axis": "es", "deviations": 6639, "measurable": 7637 },
+        { "branch": "preserveActualDates", "variant": "chosen", "axis": "ef", "deviations": 6510, "measurable": 7649 },
+        { "branch": "preserveActualDates", "variant": "chosen", "axis": "ls", "deviations": 7439, "measurable": 7519 },
+        { "branch": "preserveActualDates", "variant": "chosen", "axis": "lf", "deviations": 7417, "measurable": 7510 },
+        { "branch": "preserveActualDates", "variant": "chosen", "axis": "tf", "deviations": 6402, "measurable": 7602 },
+        { "branch": "preserveActualDates", "variant": "chosen", "axis": "ff", "deviations": 713, "measurable": 7221 },
+        { "branch": "preserveActualDates", "variant": "counterfactual", "axis": "es", "deviations": 6639, "measurable": 7637 },
+        { "branch": "preserveActualDates", "variant": "counterfactual", "axis": "ef", "deviations": 6510, "measurable": 7649 },
+        { "branch": "preserveActualDates", "variant": "counterfactual", "axis": "ls", "deviations": 7460, "measurable": 7519 },
+        { "branch": "preserveActualDates", "variant": "counterfactual", "axis": "lf", "deviations": 7427, "measurable": 7510 },
+        { "branch": "preserveActualDates", "variant": "counterfactual", "axis": "tf", "deviations": 6932, "measurable": 7602 },
+        { "branch": "preserveActualDates", "variant": "counterfactual", "axis": "ff", "deviations": 2352, "measurable": 7221 }
+      ]
+    }
+  },
   "schedOptionsRows": {
     "rows": 50,
     "floatFinish": 41,

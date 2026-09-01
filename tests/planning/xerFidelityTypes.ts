@@ -16,7 +16,7 @@
  *
  * `Measurable` bestaat APART van `Deviations` omdat de orakeldekking scheef is (planreview M1,
  * her-check-meting): na herkomstselectie en beide deduplagen zijn ES/EF/LS/LF/TF/FF respectievelijk
- * 13.935/13.941/13.833/13.825/13.677/13.322 keer meetbaar — sommige bestanden dragen alleen float
+ * 13.931/13.937/13.822/13.813/13.677/13.322 keer meetbaar — sommige bestanden dragen alleen float
  * en geen datums, en andersom. Beide tellers worden gepind (X1): een lezer die stilletjes MINDER
  * gaat meten moet de suite even rood maken als een lezer die FOUT meet.
  */

@@ -10,7 +10,8 @@ import {
   xerSchemaFingerprint,
 } from './xerFidelity';
 import type { XerCorpusManifest, XerCorpusRole } from './xerFidelity';
-import { scanXerGroundTruth } from './xerGroundTruth';
+import { XER_FIDELITY_AXES, scanXerGroundTruth } from './xerGroundTruth';
+import type { XerDateFidelityAxis } from './xerGroundTruth';
 import type { XerFidelityBaseline } from './xerFidelityTypes';
 
 const diffs: string[] = [];
@@ -24,6 +25,39 @@ function eq(label: string, got: unknown, want: unknown): void {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
   }
 }
+
+interface ScannerTransitionTask {
+  projectId: string;
+  taskId: string;
+  oldActualDerived: Partial<Record<XerDateFidelityAxis, string>>;
+  currentStoredMissing: XerDateFidelityAxis[];
+}
+
+interface ScannerTransitionContract {
+  version: number;
+  causeCommit: string;
+  previousScannerCommit: string;
+  identityCoverageSha256: string;
+  scannerErrorsSha256: string;
+  missingStoredDateTransitions: Record<string, {
+    corpusOccurrences: number;
+    tasks: ScannerTransitionTask[];
+  }>;
+  oracleFingerprintTransitions: Record<string, { old: string; current: string }>;
+}
+
+const scannerTransitionRaw = readFileSync(
+  join(HERE, 'xer-fidelity-scanner-transition.json'),
+  'utf-8',
+);
+const scannerTransition = JSON.parse(scannerTransitionRaw) as ScannerTransitionContract;
+
+// Deze hash maakt de historische bronidentiteiten zelf onderdeel van de corpusloze poort. Een rij
+// verwijderen of door een andere taak/as vervangen kan daardoor niet groen blijven doordat de
+// runtimeprojectie alleen nog de verkleinde contractset zou doorlopen.
+eq('0 X12-scannerovergang pint exact hash/project/taak/as en oude bronwaarde',
+  createHash('sha256').update(scannerTransitionRaw).digest('hex'),
+  '81c12d9c3d011d4fcfeed45a51a351c4bb6b9832efb831a741bdc3b781abd545');
 
 const header = [
   'proj_id', 'task_id', 'task_code', 'task_name', 'status_code',
@@ -641,27 +675,131 @@ if (!corpusRoot) {
   const corpus = buildXerTargetBaseline(corpusFiles, manifest);
   eq('C0 corpusmanifest past exact op bytes, herkomstselectie en parserfouten', corpus.errors, []);
 
+  const scannedCorpus = corpusFiles
+    .map(file => ({
+      ...file,
+      fullHash: createHash('sha256').update(file.bytes).digest('hex'),
+      truth: scanXerGroundTruth(file.bytes),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const scansByHash = new Map<string, typeof scannedCorpus>();
+  for (const file of scannedCorpus) {
+    const group = scansByHash.get(file.fullHash) ?? [];
+    group.push(file);
+    scansByHash.set(file.fullHash, group);
+  }
+  const scannerIdentityCoverage = scannedCorpus.map(file => [
+    file.fullHash,
+    file.label,
+    [...file.truth.projects].sort(),
+    file.truth.tasks
+      .map(task => [
+        task.projectId,
+        task.taskId,
+        task.taskCode,
+        XER_FIDELITY_AXES.filter(axis => task.presentAxes[axis]),
+      ])
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+  ]);
+  const scannerErrorsBySource = scannedCorpus.map(file => [
+    file.fullHash,
+    file.label,
+    file.truth.errors,
+  ]);
+  eq('C0a scanner behoudt exact iedere bron-project/taak/code/as-identiteit',
+    createHash('sha256').update(JSON.stringify(scannerIdentityCoverage)).digest('hex'),
+    scannerTransition.identityCoverageSha256);
+  eq('C0b scannerfoutidentiteiten blijven exact gelijk aan de gereviewde overgang',
+    createHash('sha256').update(JSON.stringify(scannerErrorsBySource)).digest('hex'),
+    scannerTransition.scannerErrorsSha256);
+
+  const measuredMissingStoredDates = Object.fromEntries(
+    Object.entries(scannerTransition.missingStoredDateTransitions).map(([fullHash, expected]) => {
+      const group = scansByHash.get(fullHash) ?? [];
+      const truth = group[0]?.truth;
+      return [fullHash, {
+        corpusOccurrences: group.length,
+        tasks: expected.tasks.map(task => {
+          const measuredTask = truth?.tasks.find(candidate =>
+            candidate.projectId === task.projectId && candidate.taskId === task.taskId);
+          return {
+            projectId: task.projectId,
+            taskId: task.taskId,
+            taskFound: measuredTask !== undefined,
+            currentStoredMissing: Object.fromEntries(
+              task.currentStoredMissing.map(axis => [axis, measuredTask?.axes[axis] ?? null]),
+            ),
+          };
+        }),
+      }];
+    }),
+  );
+  const expectedMissingStoredDates = Object.fromEntries(
+    Object.entries(scannerTransition.missingStoredDateTransitions).map(([fullHash, expected]) => [
+      fullHash,
+      {
+        corpusOccurrences: expected.corpusOccurrences,
+        tasks: expected.tasks.map(task => ({
+          projectId: task.projectId,
+          taskId: task.taskId,
+          taskFound: true,
+          currentStoredMissing: Object.fromEntries(
+            task.currentStoredMissing.map(axis => [axis, null]),
+          ),
+        })),
+      },
+    ]),
+  );
+  eq('C0c completed-actuals worden alleen op de 79 benoemde broncellen niet meer als stored orakel geteld',
+    measuredMissingStoredDates, expectedMissingStoredDates);
+
   // Bindende ankers uit het goedgekeurde brief. Deze cijfers worden opnieuw uit de bytes gemeten;
   // de implementatie gebruikt ze nergens om taken of bestanden te selecteren.
   eq('C1 volledige crawl', corpus.stats.scannedFiles, 93);
   eq('C2 unieke bestanden na byte-dedup', corpus.stats.byteUniqueFiles, 84);
-  eq('C3 taken met vier effectieve datumassen', corpus.stats.fourDateTasks, 18_421);
+  eq('C3 taken met vier opgeslagen datumassen', corpus.stats.fourDateTasks, 18_397);
   eq('C4 taken met alle zes effectieve assen', corpus.stats.sixAxisTasks, 17_871);
   eq('C4a de eerder gemiste scheve dekking blijft volledig zichtbaar', {
     files: corpus.stats.partialOnlyByteUniqueFiles,
     cells: corpus.stats.partialOnlyAxisCells,
-  }, { files: 29, cells: 2_088 });
+  }, { files: 27, cells: 2_025 });
   eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 36);
-  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 18_194);
+  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 18_190);
   eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 34);
-  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 13_963);
+  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 13_959);
   eq('C8a twee inhoudsduplicaten na byte-dedup', corpus.stats.schemaDuplicateFiles, 2);
   eq('C8b geselecteerde meetbaarheid wordt per as uit de bytes herleid', corpus.stats.selectedMeasurable, {
-    es: 13_935, ef: 13_941, ls: 13_833, lf: 13_825, tf: 13_677, ff: 13_322,
+    es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322,
   });
 
   const baselinePath = join(HERE, 'xer-fidelity-baseline.json');
   const committed = JSON.parse(readFileSync(baselinePath, 'utf-8')) as XerFidelityBaseline;
+  const measuredFingerprintTransitions = Object.fromEntries(
+    Object.entries(scannerTransition.oracleFingerprintTransitions).map(([fullHash]) => {
+      const truth = scansByHash.get(fullHash)?.find(file =>
+        manifest.files[file.label]?.included && manifest.files[file.label]?.role === 'oracle')?.truth;
+      return [fullHash, truth ? xerSchemaFingerprint(truth) : null];
+    }),
+  );
+  const committedFingerprintTransitions = Object.fromEntries(
+    Object.entries(scannerTransition.oracleFingerprintTransitions).map(([fullHash]) => [
+      fullHash,
+      committed.files[fullHash.slice(0, 16)]?.schemaFingerprint ?? null,
+    ]),
+  );
+  const expectedFingerprintTransitions = Object.fromEntries(
+    Object.entries(scannerTransition.oracleFingerprintTransitions).map(([fullHash, transition]) => [
+      fullHash,
+      transition.current,
+    ]),
+  );
+  eq('C8c de 14 X12-fingerprintovergangen zijn per volledige bronhash exact verklaard', {
+    scanner: measuredFingerprintTransitions,
+    baseline: committedFingerprintTransitions,
+  }, {
+    scanner: expectedFingerprintTransitions,
+    baseline: expectedFingerprintTransitions,
+  });
   if (REPORT !== 'baseline') {
     eq('C9 committe baseline is exact de opnieuw gemeten per-bestandssom', committed, corpus.baseline);
     eq('C10 reason-verplichting op committe baseline', validateXerBaselinePins(committed), []);

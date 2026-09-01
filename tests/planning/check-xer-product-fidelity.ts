@@ -1,17 +1,29 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
 import { activeImportResult } from '@/services/importTypes';
-import { scanXerGroundTruth } from './xerGroundTruth';
-import { measureXerFidelity, type XerSolvedProject } from './xerFidelity';
+import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
+import { measureXerFidelity, type XerSolvedProject, type XerSolvedTask } from './xerFidelity';
 
 const diffs: string[] = [];
 let checks = 0;
 const here = fileURLToPath(new URL('.', import.meta.url));
 const baseline = JSON.parse(readFileSync(join(here, 'xer-product-fidelity-baseline.json'), 'utf8')) as {
   version: number;
+  cellTransitions: {
+    version: 1;
+    files: Record<string, {
+      previouslyExact: Array<[sourceProjectId: string, sourceTaskId: string, axis: XerFidelityAxis]>;
+      improvements: Array<{
+        cell: [sourceProjectId: string, sourceTaskId: string, axis: XerFidelityAxis];
+        old: { bucket: 'diff'; value: string | number };
+        current: { bucket: 'exact'; value: string | number };
+      }>;
+    }>;
+  };
   files: Record<string, {
     tasks: number;
     projects: number;
@@ -19,6 +31,18 @@ const baseline = JSON.parse(readFileSync(join(here, 'xer-product-fidelity-baseli
     reason: string;
   }>;
 };
+
+type CellValue = string | number;
+type CellBucket = 'exact' | 'diff' | 'missing';
+interface MeasuredCell {
+  fileSha256: string;
+  sourceProjectId: string;
+  sourceTaskId: string;
+  axis: XerFidelityAxis;
+  bucket: CellBucket;
+  value: CellValue | undefined;
+  oracle: CellValue;
+}
 
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
@@ -62,6 +86,29 @@ function solved(bytes: Uint8Array): XerSolvedProject {
   };
 }
 
+function solvedAxis(task: XerSolvedTask | undefined, axis: XerFidelityAxis): CellValue | undefined {
+  if (!task) return undefined;
+  switch (axis) {
+    case 'es': return task.earlyStart;
+    case 'ef': return task.earlyFinish;
+    case 'ls': return task.lateStart;
+    case 'lf': return task.lateFinish;
+    case 'tf': return task.totalFloatMinutes;
+    case 'ff': return task.freeFloatMinutes;
+  }
+}
+
+function cellKey(
+  fileSha256: string,
+  cell: readonly [sourceProjectId: string, sourceTaskId: string, axis: XerFidelityAxis],
+): string {
+  return JSON.stringify([fileSha256, ...cell]);
+}
+
+function sortedCells(cells: ReadonlyArray<readonly [string, string, XerFidelityAxis]>): string[] {
+  return cells.map(cell => JSON.stringify(cell)).sort();
+}
+
 const root = process.env.OPS_XER_CORPUS;
 if (!root) {
   console.log('OK  xer-product-fidelity: corpus niet aanwezig (OPS_XER_CORPUS) — twee productpins overgeslagen');
@@ -76,13 +123,34 @@ if (!root) {
     version: baseline.version,
     labels: Object.keys(baseline.files).sort(),
   }, { version: 1, labels: [...pins].sort() });
+  const measuredCells = new Map<string, MeasuredCell>();
+  const measuredHashes: string[] = [];
   for (const label of pins) {
     const bytes = readFileSync(join(root, label));
+    const fileSha256 = createHash('sha256').update(bytes).digest('hex');
+    measuredHashes.push(fileSha256);
     const truth = scanXerGroundTruth(bytes);
     const ours = solved(bytes);
+    const oursById = new Map(ours.tasks.map(task => [task.sourceTaskId, task]));
+    for (const task of truth.tasks) {
+      for (const axis of XER_FIDELITY_AXES) {
+        const oracle = task.axes[axis];
+        if (oracle === null) continue;
+        const value = solvedAxis(oursById.get(task.taskId), axis);
+        const cell: [string, string, XerFidelityAxis] = [task.projectId, task.taskId, axis];
+        measuredCells.set(cellKey(fileSha256, cell), {
+          fileSha256,
+          sourceProjectId: task.projectId,
+          sourceTaskId: task.taskId,
+          axis,
+          bucket: value === undefined ? 'missing' : value === oracle ? 'exact' : 'diff',
+          value,
+          oracle,
+        });
+      }
+    }
     const measurement = measureXerFidelity(truth, [ours]);
     if (process.env.OPS_XER_FIDELITY_REPORT === 'detail') {
-      const oursById = new Map(ours.tasks.map(task => [task.sourceTaskId, task]));
       console.log(`.   ${label}`);
       for (const task of truth.tasks) {
         const actual = oursById.get(task.taskId);
@@ -105,6 +173,66 @@ if (!root) {
     eq(`${label}: iedere niet-nul-nulmeting heeft een expliciete scopeverklaring`,
       expected.reason.trim().length > 0, true);
   }
+
+  const transitionFiles = Object.entries(baseline.cellTransitions.files).sort(([left], [right]) =>
+    left.localeCompare(right));
+  eq('celovergangscontract pint twee hash-orakels, 37 eerder exacte cellen en exact 16+1 verbeteringen', {
+    version: baseline.cellTransitions.version,
+    measuredHashes: measuredHashes.sort(),
+    fileHashes: transitionFiles.map(([fileSha256]) => fileSha256),
+    previouslyExact: transitionFiles.map(([, file]) => file.previouslyExact.length),
+    improvements: transitionFiles.map(([, file]) => file.improvements.length),
+    improvementAxes: transitionFiles.map(([, file]) =>
+      [...new Set(file.improvements.map(improvement => improvement.cell[2]))].sort()),
+    buckets: [...new Set(transitionFiles.flatMap(([, file]) => file.improvements.flatMap(improvement =>
+      [improvement.old.bucket, improvement.current.bucket])))].sort(),
+  }, {
+    version: 1,
+    measuredHashes: [
+      '568c19375b4e0d674c75e6aea023c98772fb33e6896755f866e4641a56197300',
+      'c872c9e704797d829205f3c5486e7c4cd5aec729143a63fbcf8b0ec8e8864a3c',
+    ],
+    fileHashes: [
+      '568c19375b4e0d674c75e6aea023c98772fb33e6896755f866e4641a56197300',
+      'c872c9e704797d829205f3c5486e7c4cd5aec729143a63fbcf8b0ec8e8864a3c',
+    ],
+    previouslyExact: [24, 13],
+    improvements: [16, 1],
+    improvementAxes: [['ef', 'es', 'lf', 'ls'], ['ef']],
+    buckets: ['diff', 'exact'],
+  });
+  const actualTransitions = transitionFiles.flatMap(([fileSha256, file]) => file.improvements.map(improvement => {
+    const measured = measuredCells.get(cellKey(fileSha256, improvement.cell));
+    return {
+      fileSha256,
+      cell: improvement.cell,
+      old: improvement.old,
+      current: measured === undefined ? undefined : { bucket: measured.bucket, value: measured.value },
+      oracle: measured?.oracle,
+    };
+  }));
+  const expectedTransitions = transitionFiles.flatMap(([fileSha256, file]) => file.improvements.map(improvement => ({
+    fileSha256,
+    cell: improvement.cell,
+    old: improvement.old,
+    current: improvement.current,
+    oracle: improvement.current.value,
+  })));
+  eq('celovergangscontract bindt iedere verbetering aan hash/project/task/as en oude/actuele waarde',
+    actualTransitions, expectedTransitions);
+  const exactSetResults = transitionFiles.map(([fileSha256, file]) => {
+    const actual = [...measuredCells.values()]
+      .filter(cell => cell.fileSha256 === fileSha256 && cell.bucket === 'exact')
+      .map(cell => [cell.sourceProjectId, cell.sourceTaskId, cell.axis] as const);
+    const expected = [
+      ...file.previouslyExact,
+      ...file.improvements.map(improvement => improvement.cell),
+    ];
+    return { fileSha256, actual: sortedCells(actual), expected: sortedCells(expected) };
+  });
+  eq('celovergangscontract laat geen eerder exacte cel verdwijnen en geen extra verbetering binnensluipen',
+    exactSetResults.map(result => ({ fileSha256: result.fileSha256, exact: result.actual })),
+    exactSetResults.map(result => ({ fileSha256: result.fileSha256, exact: result.expected })));
 
   // De vijf openbare bare-token-dragers bestaan uit twee X4b-meerprojectbestanden en precies
   // deze drie X4a-enkelprojectdragers. Dit is het echte-corpusdeel van het mutatiebewijs: de
