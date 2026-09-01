@@ -15,6 +15,10 @@ import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { buildTaskEditPlanEnvironment } from '../gridTransaction';
+import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
+import { buildProgressImportPlan } from '@/services/progressImport';
+import type { ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/services/progressImport';
 
 /**
  * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
@@ -97,6 +101,21 @@ export interface TaskSlice {
   updateExternalLink: (taskId: string, linkId: string, link: Omit<ExternalLink, 'id'>) => boolean;
   /** Verwijder een externe link van een taak (fase 2.9). Datum-beïnvloedend ⇒ scheduleStale. */
   removeExternalLink: (taskId: string, linkId: string) => void;
+  /** Issue #27 etappe 2 (T5): bouwt het voortgangsplan tegen de HUIDIGE taken. Muteert niets — de
+   *  `ProgressImportDialog` toont dit als preview en herbouwt het bij elke wijziging in de
+   *  handmatige koppelingen (A11: "herbouw, niet bijwerken"). Precedent voor een lezende actie:
+   *  `isLocalPoolNewer` (librarySlice). */
+  previewProgressImport: (
+    rows: readonly ProgressRow[],
+    overrides?: ProgressOverrides,
+  ) => ProgressImportPlan;
+  /** Herberekent hetzelfde plan tegen de LIVE taken en past het in ÉÉN undo-stap toe (A4/A8): drift
+   *  tussen preview en apply wordt opgelost door opnieuw te bouwen, nooit door het preview-plan te
+   *  hergebruiken. Nul toepassingen ⇒ nul undo-stappen (zoals `setActualStart` bij een weigering). */
+  applyProgressImport: (
+    rows: readonly ProgressRow[],
+    overrides?: ProgressOverrides,
+  ) => ProgressImportPlan;
 }
 
 function sameExternalLink(left: ExternalLink, right: ExternalLink): boolean {
@@ -1029,5 +1048,42 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     });
     get().recomputeViewRows();
     return accepted;
+  },
+
+  previewProgressImport: (rows, overrides) => {
+    const s = get();
+    return buildProgressImportPlan(
+      rows,
+      s.tasks,
+      { planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(s, task)) },
+      overrides,
+    );
+  },
+
+  // A4 (issue #27 etappe 2, T5): het plan wordt HIER, binnen dezelfde `set()`, opnieuw gebouwd
+  // tegen de LIVE taken — nooit het (mogelijk verouderde) preview-plan hergebruikt (A8, drift).
+  // Atomair: het hele plan staat vast vóórdat er iets geschreven wordt. Nul toepassingen ⇒ geen
+  // snapshot (net als een geweigerde `setActualStart`); één undo-stap voor het HELE blad, nooit één
+  // per rij.
+  applyProgressImport: (rows, overrides) => {
+    let plan!: ProgressImportPlan;
+    set((s) => {
+      plan = buildProgressImportPlan(
+        rows,
+        s.tasks,
+        { planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(s, task)) },
+        overrides,
+      );
+      if (plan.appliedCount === 0) return;
+      runtime.beginUndoable(s);
+      for (const row of plan.rows) {
+        if (row.outcome !== 'apply') continue;
+        const index = s.tasks.findIndex((t) => t.id === row.taskId);
+        if (index >= 0) s.tasks[index] = row.plannedTask!;
+      }
+      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
+    });
+    get().recomputeViewRows();
+    return plan;
   },
 });

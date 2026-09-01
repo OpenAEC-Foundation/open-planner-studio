@@ -310,6 +310,102 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   eq('finish vóór start wordt geweigerd', plan.rows[2].reason, 'actualFinishBeforeStart');
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Deel 4 — de store-acties (T5): previewProgressImport/applyProgressImport. Atomiciteit, één
+// undo-stap voor het HELE blad, drift-herberekening (A8) en overrides die de apply meemoeten (A11).
+// ════════════════════════════════════════════════════════════════════════════════════════════
+{
+  const S = () => useAppStore.getState();
+  S().newProject();
+  const idA = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-01-05', 5) });
+  const idB = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-01-05', 5) });
+  S().runCPM();
+  useAppStore.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; s.isDirty = false; });
+
+  const beforeA = { ...S().tasks.find((t) => t.id === idA)!.time };
+  const beforeB = { ...S().tasks.find((t) => t.id === idB)!.time };
+
+  const rows: ProgressRow[] = [
+    makeRow(2, { taskId: idA, completion: pct(0.4) }),
+    makeRow(3, { taskId: idB, completion: pct(0.5) }),
+    makeRow(4, { completion: pct(0.9) }), // geen taskId/wbsCode ⇒ unmatched ⇒ refused
+  ];
+
+  // ── Preview muteert niets en telt de wijzigingen. ──
+  const preview = S().previewProgressImport(rows);
+  eq('preview telt de wijzigingen', preview.appliedCount, 2);
+  const afterPreviewA = S().tasks.find((t) => t.id === idA)!;
+  eq('preview muteert niets', afterPreviewA.time.completion, beforeA.completion);
+
+  // ── Apply schrijft de geplande taak, zet status via de invarianten en markeert de planning
+  //    verouderd — in PRECIES één undo-stap voor het hele blad. ──
+  const historyLenBefore = S().historyEvents.length;
+  S().applyProgressImport(rows);
+  const t = S().tasks.find((x) => x.id === idA)!;
+  eq('apply schrijft de geplande taak', t.time.completion, 0.4);
+  eq('apply zet status via de invarianten', t.status, 'STARTED');
+  ok('apply markeert de planning verouderd', S().scheduleStale === true);
+  const historyLenAfter = S().historyEvents.length;
+  ok('apply pusht precies één undo-stap voor het hele blad', historyLenAfter === historyLenBefore + 1);
+
+  S().undo();
+  const t2 = S().tasks.find((x) => x.id === idA)!;
+  const t3 = S().tasks.find((x) => x.id === idB)!;
+  eq('één Ctrl+Z herstelt het hele blad', t2.time.completion, beforeA.completion);
+  eq('…en niet slechts één rij', t3.time.completion, beforeB.completion);
+
+  // ── Een blad zonder wijzigingen pusht geen undo-stap (net als een geweigerde setActualStart) —
+  //    en laat scheduleStale ONGEMOEID (de runtime-eigen snapshotvergelijking in `finishUndoable`
+  //    ontdubbelt de undo-stap toch al bij een écht ongewijzigde state; `scheduleStale` niet: die
+  //    wordt onvoorwaardelijk gezet door `finishMutation({stale:true})`, dus ALLEEN de vroege
+  //    `appliedCount === 0`-return in A4 voorkomt dat een no-op-blad de planning toch veroudert). ──
+  useAppStore.setState((s) => { s.scheduleStale = false; });
+  const historyLenBefore2 = S().historyEvents.length;
+  S().applyProgressImport([makeRow(2, { taskId: idA, completion: pct(beforeA.completion) })]);
+  eq('een blad zonder wijzigingen pusht geen undo-stap', S().historyEvents.length, historyLenBefore2);
+  ok('…en laat scheduleStale ongemoeid', S().scheduleStale === false);
+
+  // ── Een geweigerde rij raakt zijn taak niet aan. ──
+  const idG = S().addTask({ name: 'G', time: createDefaultTaskTime('2026-01-05', 5) });
+  S().runCPM();
+  S().applyProgressImport([makeRow(5, { taskId: idG, actualStart: badDate('rommel') })]);
+  const untouched = S().tasks.find((x) => x.id === idG)!;
+  ok('geweigerde rij raakt zijn taak niet aan', untouched.time.actualStart === undefined);
+
+  // ── Apply herberekent tegen de LIVE taken (A8) — niet het (mogelijk verouderde) preview-plan. ──
+  const idD = S().addTask({ name: 'D', time: createDefaultTaskTime('2026-01-05', 5) });
+  S().runCPM();
+  const rowD = makeRow(6, { taskId: idD, completion: pct(0.3) });
+  const previewD = S().previewProgressImport([rowD]);
+  eq('sanity: preview D zou toepassen', previewD.appliedCount, 1);
+  // Drift: D wordt tussen preview en apply een verzameltaak (bv. via een MCP-tool of een andere
+  // gebruiker) — de apply moet dát zien, niet het preview-plan van vóór de drift hergebruiken.
+  useAppStore.setState((s) => {
+    const index = s.tasks.findIndex((x) => x.id === idD);
+    s.tasks[index]!.childIds = ['fake-child-id'];
+  });
+  const applied = S().applyProgressImport([rowD]);
+  eq('apply herberekent tegen de live taken', applied.refusedCount, 1);
+
+  // ── Overrides moeten de apply meemaken, anders gaat de handmatige koppeling verloren (A11). ──
+  const idE = S().addTask({ name: 'E', time: createDefaultTaskTime('2026-01-05', 5) });
+  S().runCPM();
+  const rowE = makeRow(7, { completion: pct(0.6) }); // geen taskId/wbsCode ⇒ zonder override unmatched
+  const overridesE: ProgressOverrides = new Map([[7, idE]]);
+  const previewLinked = S().previewProgressImport([rowE], overridesE);
+  eq('preview met override koppelt de rij', previewLinked.appliedCount, 1);
+  S().applyProgressImport([rowE], overridesE);
+  const linkedTask = S().tasks.find((x) => x.id === idE)!;
+  eq('apply MET overrides schrijft die rij', linkedTask.time.completion, 0.6);
+
+  const idF = S().addTask({ name: 'F', time: createDefaultTaskTime('2026-01-05', 5) });
+  S().runCPM();
+  const rowF = makeRow(8, { completion: pct(0.6) }); // dezelfde rij, nu ZONDER override
+  S().applyProgressImport([rowF]);
+  const unlinkedTask = S().tasks.find((x) => x.id === idF)!;
+  eq('apply ZONDER overrides schrijft hem niet', unlinkedTask.time.completion, 0);
+}
+
 if (diffs.length > 0) {
   console.error(`FAIL progress-import: ${diffs.length}/${checks} afwijkingen`);
   for (const diff of diffs) console.error(`XX ${diff}`);
