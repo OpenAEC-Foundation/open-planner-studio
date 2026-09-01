@@ -9,7 +9,7 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { finishMutation, markScheduleStale } from '../transaction';
-import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
@@ -171,7 +171,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     }
 
     const cpm = get().cpmResult;
-    emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+    runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,
       criticalTasks: get().tasks.filter((t) => t.time.isCritical).length,

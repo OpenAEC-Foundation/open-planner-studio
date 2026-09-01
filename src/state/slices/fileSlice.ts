@@ -6,7 +6,7 @@ import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
-import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
@@ -223,7 +223,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           dedupeKey: 'mpp-split-leveled',
         });
       }
-      emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+      runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
         tasks: parsed.tasks.length,
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,

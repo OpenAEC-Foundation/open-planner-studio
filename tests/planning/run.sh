@@ -456,6 +456,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MUTATIONSEQCHECK="$DIR/.mutation-seq.mjs"
   if bundle_check "$DIR/check-mutation-seq.ts" "$MUTATIONSEQCHECK"; then node "$MUTATIONSEQCHECK" || STATUS=1; fi
 
+  # B1c-plan3 taak 5: de headless scratch-instantie (`runInScratchDocument`) — round-trip via het
+  # documentcontract, echte acties met echte undo-semantiek, de context-bewuste host-event-emitter
+  # die in de scratch-context zwijgt, meldingen die opbubbelen i.p.v. verdwijnen, en geen sporen in
+  # de app-globale store.
+  SCRATCHDOCCHECK="$DIR/.scratch-document.mjs"
+  if bundle_check "$DIR/check-scratch-document.ts" "$SCRATCHDOCCHECK"; then node "$SCRATCHDOCCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

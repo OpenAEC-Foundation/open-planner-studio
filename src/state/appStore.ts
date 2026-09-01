@@ -16,7 +16,7 @@ import { createDocumentSlice, type DocumentSlice } from './slices/documentSlice'
 import { createStructureSlice, type StructureSlice } from './slices/structureSlice';
 import { createBaselineSlice, type BaselineSlice } from './slices/baselineSlice';
 import { createLibrarySlice, type LibrarySlice } from './slices/librarySlice';
-import { createStoreRuntime, type StoreRuntime } from './runtime/storeRuntime';
+import { createStoreRuntime, type StoreRuntime, type StoreRuntimeOptions } from './runtime/storeRuntime';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -65,8 +65,8 @@ export interface AppStoreContext {
  * Zustandfactory (plugininstances, eventbus en SDK-windowbinding) blijven bewust app-global; de
  * gemounte productinterface en React-selectors binden die aan `appStoreContext` hieronder.
  */
-export function createAppStoreContext(): AppStoreContext {
-  const runtime = createStoreRuntime();
+export function createAppStoreContext(opts?: StoreRuntimeOptions): AppStoreContext {
+  const runtime = createStoreRuntime(opts);
   const store = create<AppState>()(
     immer((...a) => ({
       ...createProjectSlice(runtime)(...a),

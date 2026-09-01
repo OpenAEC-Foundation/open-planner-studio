@@ -10,7 +10,7 @@ import {
   type DocumentPayload,
   type RecoveryDocInput,
 } from '../documentContract';
-import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 
@@ -176,7 +176,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
     });
     get().recomputeViewRows();
-    emitExtensionEvent(HOST_EVENTS.projectNew);
+    runtime.emitHostEvent(HOST_EVENTS.projectNew);
     return newId;
   },
 
@@ -238,7 +238,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
     });
     get().recomputeViewRows();
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
       sequences: copy.sequences.length,
       resources: copy.resources.length,
@@ -284,7 +284,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     // actief document om te herberekenen). Bij activering hier onvoorwaardelijk herberekenen dicht
     // die hele klasse — niet alleen het pool-edit-geval, elke toekomstige dormant-mutatie ook.
     get().recomputeResourceLoad();
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
@@ -306,7 +306,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         resetDocumentScopedUI(s);
       });
       get().recomputeViewRows();
-      emitExtensionEvent(HOST_EVENTS.projectNew);
+      runtime.emitHostEvent(HOST_EVENTS.projectNew);
       return;
     }
 
@@ -342,7 +342,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     // Zie switchDocument hierboven: het net-geactiveerde buurdocument kan een verouderd
     // `resourceLoadResult` dragen (grens 3/4 ververste zijn payload terwijl het sliep).
     get().recomputeResourceLoad();
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
@@ -397,7 +397,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     // hydrate/capture-wissel + volledige CPM-run kosten en de opstart lineair vertragen bij veel
     // herstelde documenten, terwijl de uitkomst pas zichtbaar is als je erheen switcht.
     get().runCPM();
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: active.tasks.length,
       sequences: active.sequences.length,
       resources: active.resources.length,

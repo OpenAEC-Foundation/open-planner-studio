@@ -1,11 +1,19 @@
 import { createSnapshot } from '../snapshot';
 import type { AppState } from '../appStore';
+import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 
 /** Bovengrens op de undo-historie; blijft gedeeld beleid, niet gedeelde uitvoeringsstate. */
 export const MAX_UNDO = 100;
 
 export interface McpTransactionLease {
   readonly token: symbol;
+}
+
+export interface StoreRuntimeOptions {
+  /** `false` ⇒ deze context zendt GEEN host-events uit (spec §5, rand (a)). Gebruikt door de
+   *  scratch-instantie (`scratchDocument.ts`): extensies zijn app-globaal geregistreerd en zouden
+   *  anders cijfers krijgen van een document waar de gebruiker niet naar kijkt. Default `true`. */
+  emitHostEvents?: boolean;
 }
 
 export interface StoreRuntime {
@@ -31,6 +39,15 @@ export interface StoreRuntime {
    * ooit langs `beginUndoable` te komen).
    */
   mutationSeq(): number;
+  /**
+   * Zend een host-lifecycle-event uit namens DEZE context (B1c-plan3 taak 5, spec §5 rand (a)).
+   * Slices roepen dit aan in plaats van `emitExtensionEvent` rechtstreeks — de bus zelf blijft
+   * app-globaal (dat hoort zo: extensies zijn app-niveau), maar of een context er iets op zet is nu
+   * een eigenschap van die context. De scratch-instantie bouwt haar context met
+   * `emitHostEvents: false`, zodat een efemere run op een slapend document geen extensie-luisteraar
+   * bereikt.
+   */
+  emitHostEvent(event: HostEventName, data?: unknown): void;
 }
 
 interface ActiveMcpLease extends McpTransactionLease {
@@ -44,7 +61,7 @@ interface ActiveMcpLease extends McpTransactionLease {
  * of `DOCUMENT_FIELDS`. Ze mogen evenmin module-global zijn: dan kan een open batch in store B de
  * undo van store A onderdrukken. De closure houdt dezelfde semantiek lokaal per context.
  */
-export function createStoreRuntime(): StoreRuntime {
+export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
   let coalesce: { key: string; seq: number; docId: string } | null = null;
   let undoSeq = 0;
   let batchDepth = 0;
@@ -139,6 +156,8 @@ export function createStoreRuntime(): StoreRuntime {
     mutationSeq() {
       return mutationSeq;
     },
+
+    emitHostEvent: opts?.emitHostEvents === false ? () => {} : emitExtensionEvent,
   };
 
   return runtime;
