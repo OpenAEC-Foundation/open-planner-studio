@@ -236,6 +236,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERREADERCHECK="$DIR/.xer-reader.mjs"
   if bundle_check "$DIR/check-xer-reader.ts" "$XERREADERCHECK"; then node "$XERREADERCHECK" || STATUS=1; fi
 
+  # PROJECT-statusdatum: last_recalc_date blijft de exclusieve bestaande route; uitsluitend een
+  # data_date-only-%F-dialect mag de fail-closed fallback openen.
+  XERPROJECTDATACHECK="$DIR/.xer-project-data-date.mjs"
+  if bundle_check "$DIR/check-xer-project-data-date.ts" "$XERPROJECTDATACHECK"; then node "$XERPROJECTDATACHECK" || STATUS=1; fi
+
   # X7: P6-actuals/voortgang, suspend/resume-firewall en projectspecifiek verwacht einde.
   XERPROGRESSCHECK="$DIR/.xer-progress.mjs"
   if bundle_check "$DIR/check-xer-progress.ts" "$XERPROGRESSCHECK"; then node "$XERPROGRESSCHECK" || STATUS=1; fi

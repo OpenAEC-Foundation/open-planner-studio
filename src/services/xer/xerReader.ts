@@ -226,6 +226,21 @@ function sourceInstant(raw: string, hourMode: boolean): string | undefined {
   return formatInstant(parsed, hourMode ? 'hour' : 'day');
 }
 
+/**
+ * `last_recalc_date` is de canonieke XER-invoer voor de projectstatusdatum. Sommige compatibele
+ * PROJECT-dialecten bieden uitsluitend `data_date`; lees die cel alleen als de canonieke *kolom*
+ * ontbreekt. Een lege of ongeldige canonieke waarde is bewust geen reden om data_date te lezen.
+ */
+function projectStatusDate(tables: XerTables, projectRow: XerRow, hourMode: boolean): string | undefined {
+  const fields = tables.tables.get('PROJECT')?.fields ?? [];
+  const raw = fields.includes('last_recalc_date')
+    ? projectRow.cells.last_recalc_date ?? ''
+    : fields.includes('data_date')
+      ? projectRow.cells.data_date ?? ''
+      : '';
+  return sourceInstant(raw, hourMode);
+}
+
 function clockMinute(raw: string): number | undefined {
   const match = raw.trim().match(/^\d{4}-\d{2}-\d{2}[ T](\d{1,2}):(\d{2})/);
   if (!match) return undefined;
@@ -602,7 +617,7 @@ function readXerProject(
     const explicitTargetFinish = sourceInstant(row.cells.target_end_date ?? '', hourMode);
     const hasExplicitTargetWindow = explicitTargetStart !== undefined && explicitTargetFinish !== undefined;
     let start = explicitTargetStart
-      ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
+      ?? projectStatusDate(tables, projectRow, hourMode)
       ?? '1970-01-01';
     let finish = explicitTargetFinish ?? start;
     // P6 XER kan een TT_FinMile op de eerste minuut ná een werkbandgrens serialiseren met gelijke
@@ -776,7 +791,7 @@ function readXerProject(
   const projectEnd = schedulingOptions.useProjectEndDateForFloat && sourceProjectEnd
     ? sourceProjectEnd
     : taskDerivedProjectEnd;
-  const statusDate = sourceInstant(projectRow.cells.last_recalc_date ?? '', projectHourMode);
+  const statusDate = projectStatusDate(tables, projectRow, projectHourMode);
 
   const wbsRows = stableWbsRows(rawWbsRows, projectId);
   const wbsTasks: Task[] = wbsRows.map(row => {
