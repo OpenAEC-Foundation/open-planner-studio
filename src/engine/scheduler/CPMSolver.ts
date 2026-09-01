@@ -1375,16 +1375,24 @@ export class CPMSolver {
       );
       if (task.isHammock && !completedXerLoeActualFinish.eligible) {
         const relationalEarlyStart = this.hammockEarlyStart(task, preds, results, projectStart, cal);
+        // De duurmeting is een uurkalender-primitief en hoort pas ná de expliciete XER-bronpoort
+        // bereikbaar te zijn. Generieke hammocks en een onvolledige XER-dagkalender sluiten hier
+        // fail-closed via NaN; `explainOpenXerLoeTargetSpanEligibility` leest dat alleen nadat alle
+        // voorafgaande bron-/provenance-/taakpoorten zijn gepasseerd.
+        const targetWindowWorkMinutes = this.options.schedulingOptions?.p6Source === 'XER'
+          && cal.isHourMode
+          ? cal.workMinutesBetween(
+              parseInstant(task.time.scheduleStart),
+              parseInstant(task.time.scheduleFinish),
+            )
+          : Number.NaN;
         const openXerLoeTargetSpan = explainOpenXerLoeTargetSpanEligibility(
           task,
           this.options.schedulingOptions,
           preds,
           this.successors.get(taskId) || [],
           relationalEarlyStart,
-          cal.workMinutesBetween(
-            parseInstant(task.time.scheduleStart),
-            parseInstant(task.time.scheduleFinish),
-          ),
+          targetWindowWorkMinutes,
           cal.hoursPerDay * 60,
         );
         const es = openXerLoeTargetSpan.eligible

@@ -90,7 +90,10 @@ const calendar = new CalendarEngine(imported.calendar);
 eq('open XER LOE: targetvenster en bronduur gebruiken dezelfde positieve werkminuten', {
   durationMinutes: loe.time.durationMinutes,
   scheduleDuration: loe.time.scheduleDuration,
-  targetWindowMinutes: calendar.workMinutesBetween(new Date(loe.time.scheduleStart), new Date(loe.time.scheduleFinish)),
+  targetWindowMinutes: calendar.workMinutesBetween(
+    parseInstant(loe.time.scheduleStart),
+    parseInstant(loe.time.scheduleFinish),
+  ),
 }, { durationMinutes: 80 * 60, scheduleDuration: 10, targetWindowMinutes: 72 * 60 });
 eq('open XER LOE: de pure diagnose accepteert de positieve raw-vorm',
   explainOpenXerLoeTargetSpanEligibility(
