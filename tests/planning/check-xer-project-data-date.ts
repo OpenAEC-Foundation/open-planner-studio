@@ -1,5 +1,8 @@
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { explainCompletedXerLoeActualFinishEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { parseInstant } from '@/utils/dateUtils';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -114,6 +117,70 @@ eq('PROJECT-data-date data-only zonder targetvenster: scheduleStart houdt oude l
   dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleStart, '1970-01-01');
 eq('PROJECT-data-date data-only zonder targetvenster: scheduleFinish houdt oude last-only-terugval',
   dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleFinish, '1970-01-01');
+
+// End-to-end combinatie: PROJECT heeft uitsluitend data_date, terwijl de voltooide TT_LOE via
+// precies de bestaande, smalle actualFinish-route moet blijven lopen. De LOE-batterij bewaakt de
+// volledige fail-closed matrix; deze fixture verbindt haar bewezen vorm aan het nieuwe dialect.
+const dataDateOnlyCompletedLoe = read(bytes([
+  'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC1\tWerkweek\tP1\tCA_Project\t8\t40\t(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||2()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||3()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||4()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||5()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||6()())      (0||7()())))    (0||Exceptions()())))',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tdata_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+  '%R\tP1\tPROJECT.data_date completed LOE\tC1\t2026-06-30 17:00\t2026-01-05 08:00\t2026-06-30 17:00\tY',
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id\tsched_use_project_end_date_for_float',
+  '%R\tP1\tN',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tsuspend_date\tresume_date',
+  '%R\tP\tP1\tC1\tPRED\tSS voorganger\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t8\t8\t2026-01-05 08:00\t2026-01-05 17:00\t\t\t\t',
+  '%R\tL\tP1\tC1\tLOE\tLange voltooide LOE\tTT_LOE\tDT_FixedDrtn\tTK_Complete\tCP_Drtn\t352\t0\t2026-01-05 08:00\t2026-03-06 17:00\t2026-01-05 08:00\t2026-03-06 17:00\t\t',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR-SS\tL\tP\tP1\tP1\tPR_SS\t0',
+  '%E',
+]));
+const dataDateOnlyLoe = dataDateOnlyCompletedLoe.tasks.find(task => task.id === 'L');
+if (!dataDateOnlyLoe) throw new Error('PROJECT.data_date completed-LOE-fixture mist taak L');
+const dataDateOnlyIncoming = dataDateOnlyCompletedLoe.sequences.filter(sequence => sequence.successorId === dataDateOnlyLoe.id);
+const dataDateOnlyOutgoing = dataDateOnlyCompletedLoe.sequences.filter(sequence => sequence.predecessorId === dataDateOnlyLoe.id);
+eq('PROJECT-data-date completed LOE: uitsluitend data_date levert de statusdatum voor de bestaande route',
+  dataDateOnlyCompletedLoe.project.statusDate, '2026-06-30T17:00');
+eq('PROJECT-data-date completed LOE: TT_LOE blijft binnen de smalle actualFinish-route',
+  explainCompletedXerLoeActualFinishEligibility(
+    dataDateOnlyLoe,
+    dataDateOnlyCompletedLoe.project.statusDate ? parseInstant(dataDateOnlyCompletedLoe.project.statusDate) : null,
+    dataDateOnlyCompletedLoe.project.schedulingOptions,
+    dataDateOnlyIncoming,
+    dataDateOnlyOutgoing,
+  ), { eligible: true, reason: 'eligible' });
+const dataDateOnlyLoeSolve = solveProject({
+  tasks: dataDateOnlyCompletedLoe.tasks,
+  sequences: dataDateOnlyCompletedLoe.sequences,
+  calendar: dataDateOnlyCompletedLoe.calendar,
+  calendars: dataDateOnlyCompletedLoe.resourceCalendars ?? [],
+  dataDate: dataDateOnlyCompletedLoe.project.statusDate,
+  progressMode: dataDateOnlyCompletedLoe.project.progressMode,
+  schedulingOptions: dataDateOnlyCompletedLoe.project.schedulingOptions,
+  projectStartDate: dataDateOnlyCompletedLoe.project.startDate,
+  projectEndDate: dataDateOnlyCompletedLoe.project.endDate,
+});
+if (dataDateOnlyLoeSolve.error) throw new Error(dataDateOnlyLoeSolve.error);
+const dataDateOnlyLoeSolved = dataDateOnlyLoeSolve.tasks.get(dataDateOnlyLoe.id);
+if (!dataDateOnlyLoeSolved) throw new Error('PROJECT.data_date completed-LOE-solver mist taak L');
+eq('PROJECT-data-date completed LOE: bestaande actualFinish-uitkomst blijft exact behouden', {
+  es: dataDateOnlyLoeSolved.earlyStart,
+  ef: dataDateOnlyLoeSolved.earlyFinish,
+  ls: dataDateOnlyLoeSolved.lateStart,
+  lf: dataDateOnlyLoeSolved.lateFinish,
+  tf: dataDateOnlyLoeSolved.totalFloat,
+  ff: dataDateOnlyLoeSolved.freeFloat,
+}, {
+  es: '2026-01-05T08:00', ef: '2026-03-06T17:00',
+  ls: '2026-01-05T08:00', lf: '2026-03-06T17:00',
+  tf: 0, ff: 0,
+});
 
 if (diffs.length > 0) {
   console.error(`XX XER PROJECT.data_date (${checks} checks)`);
