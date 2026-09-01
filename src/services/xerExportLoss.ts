@@ -2,12 +2,13 @@ import type { ExportFormat } from './formatRegistry';
 
 export type XerLossyExportFormat = Exclude<ExportFormat, 'ifc'> | 'mpp';
 export type XerExportLossCategory =
-  | 'exact-source-bytes'
-  | 'unknown-tables-and-fields'
-  | 'typed-diagnostics'
-  | 'project-report'
+  | 'baselines'
+  | 'udfs'
+  | 'activity-codes'
+  | 'notes'
+  | 'raw-curves-and-assignment-quantities'
   | 'external-links'
-  | 'p6-provenance';
+  | 'schedule-options-and-provenance';
 
 export interface XerExportLossWarning {
   readonly code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE';
@@ -21,6 +22,40 @@ export interface XerExportLossInput {
   readonly hasSourceArchive: boolean;
   readonly hasImportMetadata: boolean;
 }
+
+/**
+ * Deze lijsten zijn bewust per doelformaat vastgelegd. De XER-import levert deze P6-gegevens
+ * wel aan OPS, maar geen van de drie adapters kan ze zonder verlies representeren.
+ */
+const XER_LOSS_CATEGORIES_BY_FORMAT: Readonly<Record<Exclude<ExportFormat, 'ifc'>, readonly XerExportLossCategory[]>> = {
+  csv: [
+    'baselines',
+    'udfs',
+    'activity-codes',
+    'notes',
+    'raw-curves-and-assignment-quantities',
+    'external-links',
+    'schedule-options-and-provenance',
+  ],
+  mspdi: [
+    'baselines',
+    'udfs',
+    'activity-codes',
+    'notes',
+    'raw-curves-and-assignment-quantities',
+    'external-links',
+    'schedule-options-and-provenance',
+  ],
+  p6: [
+    'baselines',
+    'udfs',
+    'activity-codes',
+    'notes',
+    'raw-curves-and-assignment-quantities',
+    'external-links',
+    'schedule-options-and-provenance',
+  ],
+};
 
 export function xerExportTargetVerdict(
   format: ExportFormat | 'mpp',
@@ -41,18 +76,12 @@ export function detectXerExportLoss(
 ): readonly XerExportLossWarning[] {
   if (format === 'ifc' || (!input.hasSourceArchive && !input.hasImportMetadata)) return [];
   const availability = format === 'mpp' ? 'unsupported' : 'supported-lossy';
-
-  const categories: XerExportLossCategory[] = [];
-  if (input.hasSourceArchive) {
-    categories.push('exact-source-bytes', 'unknown-tables-and-fields', 'typed-diagnostics');
-  }
-  if (input.hasImportMetadata) {
-    categories.push('project-report', 'external-links', 'p6-provenance');
-  }
   return [{
     code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE',
     format,
     availability,
-    categories,
+    categories: format === 'mpp'
+      ? []
+      : XER_LOSS_CATEGORIES_BY_FORMAT[format],
   }];
 }

@@ -36,6 +36,7 @@ const { useAppStore } = await import('@/state/appStore');
 const store = () => useAppStore.getState();
 store().newProject();
 store().setProject({ name: 'X9 export-loss', startDate: '2034-01-02' });
+const cleanCsvExport = await store().exportAs('csv');
 
 const view = createEmptyXerArchiveDocumentView('P-X9-LOSS');
 const readModel = createEmptyXerArchiveReadModel();
@@ -66,6 +67,24 @@ try {
   console.warn = originalWarn;
 }
 
+const expectedXerCategories = [
+  'baselines',
+  'udfs',
+  'activity-codes',
+  'notes',
+  'raw-curves-and-assignment-quantities',
+  'external-links',
+  'schedule-options-and-provenance',
+] as const;
+
+const cleanWarnings = cleanCsvExport.ok
+  && 'warnings' in cleanCsvExport
+  && Array.isArray(cleanCsvExport.warnings)
+  ? cleanCsvExport.warnings
+  : [];
+expect('een schoon project krijgt bij CSV-export geen valse XER-lossmelding',
+  cleanCsvExport.ok && cleanWarnings.length === 0);
+
 for (const [format, result] of results) {
   const warnings = result.ok && 'warnings' in result && Array.isArray(result.warnings)
     ? result.warnings
@@ -77,13 +96,11 @@ for (const [format, result] of results) {
       && warnings.length === 1
       && warnings[0]?.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE'
       && warnings[0]?.format === format
-      && warnings[0]?.categories.includes('exact-source-bytes')
-      && warnings[0]?.categories.includes('typed-diagnostics')
-      && warnings[0]?.categories.includes('project-report'));
+      && JSON.stringify(warnings[0]?.categories) === JSON.stringify(expectedXerCategories));
   }
 }
 expect('de X9-runtimegrens is niet langer console-only', warned.length === 0);
-expect('alle vier echte exportpaden schreven daadwerkelijk uitvoer', captures.length === 4 && captures.every(Boolean));
+expect('alle vijf echte exportpaden schreven daadwerkelijk uitvoer', captures.length === 5 && captures.every(Boolean));
 expect('MPP heeft geen misleidende exportadapter en een expliciet unsupported-verdict',
   !EXPORT_FORMATS.some(item => (item.format as string) === 'mpp')
   && xerExportTargetVerdict('mpp') === 'unsupported');
