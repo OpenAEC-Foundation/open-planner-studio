@@ -73,6 +73,12 @@ export function writeCSV(
   }
 
   const headers = [
+    // Issue #27 etappe 2 (E1/A1): stabiele taak-id, EERSTE kolom, in ELKE CSV-export — geen apart
+    // sjabloonformaat. Laat een rondgestuurd blad terugkoppelen naar de juiste taak (voortgangs-
+    // import). `readCSV` (csvReader.ts) kent deze kop bewust NIET — dat is een no-op door
+    // constructie (mapColumnIndex negeert onbekende koppen), niet iets om later "voor de
+    // volledigheid" alsnog te laten adopteren.
+    'OPS Task ID',
     'WBS', 'Name', 'Duration (days)', 'Start', 'Finish',
     'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
     // Actuals (fase 2.6, §9.3): achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
@@ -89,6 +95,7 @@ export function writeCSV(
     const completion = Math.round(task.time.completion * 100);
 
     const row = [
+      escapeCSV(task.id),
       escapeCSV(task.wbsCode),
       escapeCSV(task.name),
       task.time.scheduleDuration.toString(),
