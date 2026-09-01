@@ -5,6 +5,9 @@
 //   Deel 3 (T3) — buildProgressImportPlan met de ECHTE planner (planTaskCellEdits + de store).
 //   Deel 4 (T5) — de store-acties previewProgressImport/applyProgressImport (atomiciteit, undo,
 //                 drift-herberekening, overrides).
+//   Deel 5 — regressie na de Opus-eindreview (fixronde): precisiebewuste no-op-vergelijking op
+//            completion (`isCompletionUnchanged` in buildPlan.ts), via een ECHTE writeCSV→
+//            parseProgressCsv→finalizeProgressRows-round-trip, niet handgemaakte rijen.
 // Draait via run.sh (registratie: T11). Exit 0 = alles groen; de suite print "alles groen" ook bij
 // exit 1 wanneer het bundelen faalt — de exitcode is het enige geldige oordeel.
 
@@ -14,6 +17,9 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { useAppStore } from '@/state/appStore';
 import { buildTaskEditPlanEnvironment } from '@/state/gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
+import { writeCSV } from '@/services/csv/csvWriter';
+import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
+import { finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type { ProgressOverrides, ProgressRow } from '@/services/progressImport/types';
 import type { Task } from '@/types/task';
 import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
@@ -404,6 +410,60 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   S().applyProgressImport([rowF]);
   const unlinkedTask = S().tasks.find((x) => x.id === idF)!;
   eq('apply ZONDER overrides schrijft hem niet', unlinkedTask.time.completion, 0);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Deel 5 — regressie na de Opus-eindreview (fixronde, bevindingen 1+2). Een vaste float-epsilon
+// op completion is per constructie stuk: onze EIGEN `writeCSV` rondt af op hele procenten
+// (`Math.round(completion*100)`), dus 0.335 → "34" → teruggelezen 0.34, en
+// `0.34 - 0.335 = 0.005000000000000004` ligt net boven élke drempel die ook een echte decimale
+// wijziging (E6: "45,5" is betekenisvol) nog moet doorlaten. Dit deel gaat EXPRES via de ECHTE
+// schrijver/lezer/finalizer (geen handgemaakte `ProgressRow`s) — precies het pad dat de reviewer
+// gebruikte om de bug te reproduceren.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+{
+  const S = () => useAppStore.getState();
+  S().newProject();
+  const idH = S().addTask({ name: 'H', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.335 } });
+  const idI = S().addTask({ name: 'I', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.125 } });
+  const idJ = S().addTask({ name: 'J', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
+  S().runCPM();
+
+  const realDeps: ProgressPlanDeps = {
+    planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(S(), task)),
+  };
+
+  // ── Bevinding 1: een ONGEWIJZIGD blad — écht geschreven en teruggelezen, dus met de
+  //    hele-procenten-afronding van de export erin — mag NUL wijzigingen tonen. Geen enkele
+  //    changes-lijst mag een afgeleide `actualStart` dragen: dat zou betekenen dat een no-op-rij
+  //    tóch als `apply` door de invarianten heen liep. ──
+  const before = S();
+  const csv = writeCSV(
+    before.project, before.calendar, before.tasks, before.sequences,
+    before.resources, before.assignments, before.customTaskTypes,
+  );
+  const sheet = parseProgressCsv(csv);
+  const roundTripRows = finalizeProgressRows(sheet, 'dmy');
+  const roundTripPlan = buildProgressImportPlan(roundTripRows, S().tasks, realDeps);
+  eq('round-trip van de eigen export ⇒ nul wijzigingen', roundTripPlan.appliedCount, 0);
+  ok('…en dus ook geen enkele rij die als apply doorliep',
+    roundTripPlan.rows.every((row) => row.outcome !== 'apply'));
+  ok('…en NERGENS een afgeleide actualStart in de changes',
+    roundTripPlan.rows.every((row) => !row.changes.some((c) => c.field === 'actualStart')));
+  ok('sanity: H/I/J zaten echt in de round-trip', [idH, idI, idJ].every(
+    (id) => roundTripRows.some((row) => row.taskId === id),
+  ));
+
+  // ── Bevinding 2 (spiegelbeeld): een blad met een ECHTE decimale wijziging ("33,4" op een taak
+  //    van 33%) mag NIET stil in de "ongewijzigd"-teller verdwijnen — E6 belooft expliciet dat
+  //    "45,5" betekenisvolle invoer is. ──
+  const idK = S().addTask({ name: 'K', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
+  S().runCPM();
+  const planK = buildProgressImportPlan(
+    [makeRow(2, { taskId: idK, completion: pct(0.334) })], S().tasks, realDeps,
+  );
+  eq('een echte decimale wijziging verdwijnt niet stil', planK.appliedCount, 1);
+  eq('…en plant het exacte percentage', planK.rows[0].plannedTask!.time.completion, 0.334);
 }
 
 if (diffs.length > 0) {

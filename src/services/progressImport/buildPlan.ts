@@ -11,7 +11,6 @@ import type {
   ProgressRow,
   ProgressRowReason,
 } from './types';
-import { PERCENT_EPSILON } from './types';
 
 /** Injecteerbare naad: in productie `planTaskCellEdits` (via `taskSlice.ts`), in de test een stub. */
 export interface ProgressPlanDeps {
@@ -39,6 +38,35 @@ function isDateNoop(before: string | undefined, incomingIso: string): boolean {
 }
 
 /**
+ * Precisiebewuste no-op-vergelijking op completion (voortgangsimport-review, fixronde na de
+ * Opus-eindreview, bevindingen 1+2). Een vaste float-epsilon (het vorige `PERCENT_EPSILON`) is
+ * per constructie stuk: onze EIGEN `writeCSV` schrijft `Math.round(completion*100)`, dus 0.335
+ * rondt af naar "34"; teruggelezen is dat 0.34, en `0.34 - 0.335 = 0.005000000000000004` ligt
+ * NET boven elke vaste drempel die ook een echte wijziging als "45,5" (E6) nog moet doorlaten
+ * — verhoog je de drempel om bevinding 1 te dichten, dan verdwijnt bevinding 2 se wijziging
+ * juist stil in de "ongewijzigd"-teller.
+ *
+ * De vergelijking is daarom VORM-bewust in plaats van drempel-bewust:
+ *  - een binnenkomende waarde die zelf een HEEL procent is (`incoming*100` is een geheel getal,
+ *    op float-ruis na) — precies wat onze eigen export ALTIJD schrijft — is een no-op ⇔ ze naar
+ *    hetzelfde hele procent afrondt als de huidige waarde (`Math.round(before*100) ===
+ *    Math.round(incoming*100)`). Dat dekt bevinding 1: een ongewijzigd, afgerond teruggestuurd
+ *    blad blijft `noop`, ongeacht hoe dicht de afronding tegen de volgende procentgrens aanligt.
+ *  - een binnenkomende waarde MET decimalen (bv. "33,4" ⇒ 0.334) is alleen een no-op bij
+ *    (float-tolerante, ~1e-9) EXACTE gelijkheid met de huidige waarde. Dat dekt bevinding 2: E6
+ *    belooft dat `45,5` betekenisvolle invoer is, dus een decimale waarde die het huidige procent
+ *    verfijnt is altijd een echte wijziging, nooit stil `noop`.
+ */
+function isCompletionUnchanged(before: number, incoming: number): boolean {
+  const incomingHundredths = incoming * 100;
+  const isWholePercent = Math.abs(incomingHundredths - Math.round(incomingHundredths)) < 1e-9;
+  if (isWholePercent) {
+    return Math.round(before * 100) === Math.round(incomingHundredths);
+  }
+  return Math.abs(before - incoming) < 1e-9;
+}
+
+/**
  * Bouwt het voortgangsimportplan (issue #27 etappe 2, A3/A6/A11). Puur: geen store, geen I/O.
  * `previewProgressImport`/`applyProgressImport` (`taskSlice.ts`) roepen dit LETTERLIJK dezelfde
  * functie aan — de preview is advies, apply herberekent tegen de live taken (A8).
@@ -49,7 +77,7 @@ function isDateNoop(before: string | undefined, incomingIso: string): boolean {
  *   3. een onleesbaar veld ⇒ refused/unreadableDate resp. unreadableNumber
  *   4. verzameltaak (`childIds.length > 0`) ⇒ refused/summaryTask — `planTaskCellEdits` bewaakt dit
  *      zelf niet (alleen `mcpValidation` doet dat elders), dus dat hoort hier.
- *   5. no-op-filter (A6, `PERCENT_EPSILON` + datum-only-degradatie) — alleen ECHT veranderende
+ *   5. no-op-filter (A6, `isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
  *      velden worden een `CellEditIntent`; niets over ⇒ noop.
  *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`.
  *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst (before uit de
@@ -130,7 +158,7 @@ export function buildProgressImportPlan(
     // `actualAfterStatusDate` triggert nadat de statusdatum naar voren is gezet.
     const edits: CellEditIntent[] = [];
     if (row.completion?.kind === 'value') {
-      if (Math.abs(task.time.completion - row.completion.value) >= PERCENT_EPSILON) {
+      if (!isCompletionUnchanged(task.time.completion, row.completion.value)) {
         edits.push({
           kind: 'cell-edit', taskId, columnId: taskColumnId('task.time.completion'),
           route: 'task-progress', value: row.completion.value,
@@ -186,7 +214,7 @@ export function buildProgressImportPlan(
     // droeg; die afgeleide wijziging moet net zo goed in de preview staan (T3 Deel 3).
     const changes: ProgressFieldChange[] = [];
     const plannedTime = planned.value.task.time;
-    if (Math.abs(task.time.completion - plannedTime.completion) >= PERCENT_EPSILON) {
+    if (!isCompletionUnchanged(task.time.completion, plannedTime.completion)) {
       changes.push({ field: 'completion', before: task.time.completion, after: plannedTime.completion });
     }
     if (task.time.actualStart !== plannedTime.actualStart) {

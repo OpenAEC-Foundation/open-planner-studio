@@ -17,7 +17,6 @@ export type {
 export {
   CALIBRATION_RATIO,
   MIN_CALIBRATION_HITS,
-  PERCENT_EPSILON,
   PROGRESS_IMPORT_LIMITS,
 } from './types';
 
