@@ -19,6 +19,7 @@ import {
 } from '@/utils/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
+  explainCompletedXerLoeActualFinishEligibility,
   type CpmBackwardActualPinDecision,
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
@@ -1361,7 +1362,17 @@ export class CPMSolver {
       // FF/SF-voorganger-bounds (ondergrens ES). De AFGELEIDE duur (span ES→EF) wordt naar
       // `scheduleDuration` (+ `durationMinutes` op een uur-kalender) geschreven; eigen duur-invoer
       // wordt genegeerd. `isHammock` afwezig ⇒ deze tak draait niet (byte-identiek).
-      if (task.isHammock) {
+      // Gebruik hier bewust de rauwe XER-datadatum, vóór kalendersnap. De smalle guard vergelijkt
+      // haar met het opgeslagen actual-finish-instant; een naar de volgende werkband gesnapte datum
+      // zou een actualFinish ná P6's datadatum ten onrechte toelaten.
+      const completedXerLoeActualFinish = explainCompletedXerLoeActualFinishEligibility(
+        task,
+        this.options.dataDate ? parseInstant(this.options.dataDate) : null,
+        this.options.schedulingOptions,
+        preds,
+        this.successors.get(taskId) || [],
+      );
+      if (task.isHammock && !completedXerLoeActualFinish.eligible) {
         const es = this.hammockEarlyStart(task, preds, results, projectStart, cal);
         const { ef, hasFinishDriver } = this.hammockEarlyFinish(task, preds, results, es, cal);
         if (!hasFinishDriver) this.hammockNoFinishDriverIds.push(taskId);

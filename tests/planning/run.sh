@@ -260,6 +260,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCOMPLETEDCPPHYSCHECK="$DIR/.xer-completed-cp-phys-window.mjs"
   if bundle_check "$DIR/check-xer-completed-cp-phys-window.ts" "$XERCOMPLETEDCPPHYSCHECK"; then node "$XERCOMPLETEDCPPHYSCHECK" || STATUS=1; fi
 
+  # X7 smalle solverfix: uitsluitend de bewezen completed XER-LOE-vorm mag de hammock-forwardtak
+  # passeren en haar geregistreerde actualFinish als bestaande completed-route gebruiken.
+  XERCOMPLETEDLOECHECK="$DIR/.xer-completed-loe-actual-finish.mjs"
+  if bundle_check "$DIR/check-xer-completed-loe-actual-finish.ts" "$XERCOMPLETEDLOECHECK"; then node "$XERCOMPLETEDLOECHECK" || STATUS=1; fi
+
   # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
   XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
   if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi
