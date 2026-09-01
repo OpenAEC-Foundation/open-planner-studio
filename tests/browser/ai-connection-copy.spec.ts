@@ -6,7 +6,10 @@ const SYNTHETIC_PORT = 4319;
 const ENDPOINT = `http://localhost:${SYNTHETIC_PORT}/mcp`;
 const MASK = '••••••••••••••••';
 
-type CopyLogWindow = Window & { __opsA1Copied?: string[] };
+type CopyLogWindow = Window & {
+  __opsA1Copied?: string[];
+  __opsA1RejectNextCopy?: boolean;
+};
 
 function copyInSection(dialog: Locator, heading: RegExp) {
   return dialog.getByText(heading, { exact: true }).locator('..').getByRole('button', { name: /^(Copy|Kopiëren)$/ });
@@ -18,10 +21,16 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
     localStorage.setItem('ops-mcpPort', JSON.stringify(port));
 
     const copied: string[] = [];
+    Object.defineProperty(window, '__opsA1RejectNextCopy', { configurable: true, writable: true, value: false });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: {
         writeText: (value: string) => {
+          const testWindow = window as CopyLogWindow;
+          if (testWindow.__opsA1RejectNextCopy) {
+            testWindow.__opsA1RejectNextCopy = false;
+            return Promise.reject(new Error('synthetische klembordfout'));
+          }
           copied.push(value);
           return Promise.resolve();
         },
@@ -44,6 +53,9 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
 
   const tokenControl = page.locator('input[type="password"]').locator('..');
   await expect(tokenControl).toBeVisible();
+  await page.evaluate(() => { (window as CopyLogWindow).__opsA1RejectNextCopy = true; });
+  await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
+  await expect(tokenControl.locator('svg.lucide-check')).toHaveCount(0);
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
 
   await page.getByRole('button', { name: /^(Connect|Verbinden)$/ }).click();
