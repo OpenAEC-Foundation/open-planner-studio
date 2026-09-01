@@ -63,6 +63,7 @@ const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').th
 const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
 const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
 const PoolImportDialog = lazy(() => import('@/components/dialogs/PoolImportDialog').then(m => ({ default: m.PoolImportDialog })));
+const ProgressImportDialog = lazy(() => import('@/components/dialogs/ProgressImportDialog').then(m => ({ default: m.ProgressImportDialog })));
 const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDialog').then(m => ({ default: m.LibraryLinkDialog })));
 const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').then(m => ({ default: m.RecoveryDialog })));
 const WelcomeDialog = lazy(() => import('@/components/dialogs/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
@@ -340,6 +341,7 @@ function AppContent() {
         {showTourOverlay && <TourOverlay />}
         <UpdateDialog />
         <PoolImportDialog />
+        <ProgressImportDialog />
         <ExtensionConsentDialog />
         <LibraryLinkDialog />
         {recovery && (

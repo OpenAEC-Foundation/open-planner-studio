@@ -77,7 +77,11 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
     ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog ||
     // K-item 38: de toestemmingsvraag bij een extensie-installatie is net zo goed modaal — hij
     // wacht op een antwoord en er mag intussen niets aan de planning gebeuren.
-    ui.pendingExtensionConsent !== null
+    ui.pendingExtensionConsent !== null ||
+    // Issue #27/E4: handmatig koppelwerk in de voortgangsimportdialoog hangt aan taak-id's van
+    // ÉÉN document en leeft alleen in de dialoog — een documentwissel moet onmogelijk zijn zolang
+    // hij openstaat, niet: dat werk over de wissel heen bewaren.
+    ui.showProgressImportDialog
   );
 }
 
@@ -102,6 +106,12 @@ const documentSwitchShortcuts: ShortcutDef[] = Array.from({ length: 9 }, (_, i) 
     combo: { key: String(n), mod: true },
     category: 'nav',
     labelKey: 'shortcuts.nav.switchDocument',
+    // Issue #27/E4: een documentwissel is onmogelijk zolang er een blokkerende dialoog openstaat
+    // (vandaag onder meer de voortgangsimportdialoog — handmatig koppelwerk hangt aan taak-id's van
+    // dit ene document). Dit sluit tegelijk een bestaand gat: vóór deze guard wisselde Ctrl+1 gewoon
+    // van document terwijl bv. een TaskDialog openstond, waarna `resetDocumentScopedUI` die sloot —
+    // een modale dialoog hoort modaal te zijn, dus dat is een bewuste, gewenste opschoning.
+    when: () => !hasBlockingDialogOpen(),
     // Byte-identiek: het origineel riep altijd preventDefault() bij Ctrl+1..9 (ook zonder zóveel
     // open documenten) — de "bestaat dit document?"-guard zat in de actie zelf, niet ervóór.
     run: (store) => {
@@ -142,6 +152,12 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'o', mod: true },
     category: 'file',
     labelKey: 'menu:ribbon.open',
+    // Issue #27/E4: `openFile` opent doorgaans in een NIEUW document — dat is zelf een documentwissel
+    // en moet dus dicht zolang een blokkerende dialoog (bv. de voortgangsimportdialoog) openstaat.
+    // Zelfde guard als `documentSwitchShortcuts`. Let op: in PRODUCTIEBUILDS vangt de browser-
+    // sneltoets-voorpoort in `useKeyboardShortcuts.ts` Ctrl+O al vóór dit register af — díe tak heeft
+    // zijn EIGEN `!isAnyDialogOpen()`-guard nodig, deze `when` alleen dekt dev/test.
+    when: () => !hasBlockingDialogOpen(),
     run: COMMANDS.open.run,
   },
   {
