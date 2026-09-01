@@ -56,9 +56,12 @@ function mayUseSuspendResumeCompletedWindow(
  *
  * De onafhankelijke guards maken de representatie fail-closed na IFC, undo en extensie-
  * round-trips: project-, taak-, voortgangstype- en activiteitstypeprovenance moeten tegelijk
- * bestaan. De vastgelegde `CP_Drtn`/`DT_FixedDUR2`-vorm en de afzonderlijk bewezen
- * `CP_Phys`/`DT_FixedDUR2`/`TT_Task`-subvorm zijn de onafhankelijke bronvormen waarvoor de
- * corpusprobes de completed statusdatum-route bevestigen. Een P6 suspend/resume-paar
+ * bestaan. De vastgelegde `CP_Drtn`/`DT_FixedDUR2`-vorm is de enige bronvorm waarvoor de
+ * corpusprobes een bron-alleen, consistente completed statusdatum-route bevestigen. `CP_Phys`
+ * wordt wel volledig bewaard, maar blijft hier fail-closed: tien gelijkvormige corpusactiviteiten
+ * leverden acht P6-statuspunten en twee ontbrekende early/late-orakels op. Omdat de lezer de
+ * opgeslagen P6-uitkomst nooit als invoer mag gebruiken en er geen toegestane invoerveld-deler is,
+ * zou toelaten een semantische gok zijn. Een P6 suspend/resume-paar
  * blijft standaard fail-closed en mag uitsluitend door de bestaande CP_Drtn-poort wanneer de taak zelf al
  * aantoonbaar voltooid is, haar actual-finish parseerbaar binnen het expliciete targetvenster en
  * de projectstatusdatum valt (`target_end_date <= actualFinish <= dataDate`), de backward-actual-
@@ -103,9 +106,19 @@ export function explainP6CompletedDataDateWindow(
     && (isPhysicalCompletion || !mayUseSuspendResumeCompletedWindow(task, dataDate, schedulingOptions))) {
     return { eligible: false, reason: 'hasSuspendResume' };
   }
-  if (isPhysicalCompletion && !task.time.actualFinish) return { eligible: false, reason: 'notCompleted' };
   if (task.time.completion < 1) return { eligible: false, reason: 'notCompleted' };
   if (isZeroDurationMilestone(task)) return { eligible: false, reason: 'zeroDurationMilestone' };
+  if (isPhysicalCompletion) {
+    const actualFinish = task.time.actualFinish ? parseInstant(task.time.actualFinish) : null;
+    // CP_Phys heeft voor een toekomstige bewezen route een echt geregistreerd eindfeit nodig:
+    // leeg, syntactisch ongeldig en ná de P6-statusdatum zijn alle drie fail-closed. Deze check
+    // staat bewust vóór de definitieve CP_Phys-afwijzing zodat een latere route-opening haar
+    // grens niet stil kan omzeilen.
+    if (actualFinish === null || !Number.isFinite(actualFinish.getTime()) || actualFinish > dataDate) {
+      return { eligible: false, reason: 'notCompleted' };
+    }
+    return { eligible: false, reason: 'wrongCompletePctType' };
+  }
   return { eligible: true, reason: 'eligible' };
 }
 

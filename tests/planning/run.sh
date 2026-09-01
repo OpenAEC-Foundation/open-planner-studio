@@ -255,8 +255,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCOMPLETEDSUSPENDCHECK="$DIR/.xer-completed-suspend-resume-window.mjs"
   if bundle_check "$DIR/check-xer-completed-suspend-resume-window.ts" "$XERCOMPLETEDSUSPENDCHECK"; then node "$XERCOMPLETEDSUSPENDCHECK" || STATUS=1; fi
 
-  # X7 smalle CP_Phys-uitbreiding: alleen de bewezen completed XER-leafsubset mag dezelfde
-  # completed-windowroute gebruiken; de eigen fixture bewaakt de solverroute en fail-closed grenzen.
+  # X7 CP_Phys-grens: brondata blijft behouden, maar zonder bron-alleen discriminator opent
+  # CP_Phys géén completed-windowroute; de fixture bewaakt de fail-closed- en inversegrens.
   XERCOMPLETEDCPPHYSCHECK="$DIR/.xer-completed-cp-phys-window.mjs"
   if bundle_check "$DIR/check-xer-completed-cp-phys-window.ts" "$XERCOMPLETEDCPPHYSCHECK"; then node "$XERCOMPLETEDCPPHYSCHECK" || STATUS=1; fi
 
