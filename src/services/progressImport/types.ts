@@ -38,7 +38,12 @@ export interface ProgressSheet {
 export type DateOrder = 'dmy' | 'mdy';
 export type DateOrderDetection =
   | { order: DateOrder; evidence: 'noAmbiguity' | 'outOfRange' | 'calibration' }
-  | { order: 'ambiguous'; sample: string; sampleAlternatives: [string, string] };
+  /** `sample` is de rauwe celtekst uit het bestand. `sampleAlternatives` zijn de twee lezingen als
+   *  ISO-datumstrings (GEEN geformatteerde tekst — fixronde-bevinding 5): de dialoog (baan C)
+   *  formatteert ze zelf, locale-bewust, met `formatDisplayDate`. Beide lezingen zijn hier
+   *  gegarandeerd geldige, VERSCHILLENDE kalenderdatums (fixronde-bevinding 4b: nooit een
+   *  Date.UTC-rollover als "keuze" aanbieden). */
+  | { order: 'ambiguous'; sample: string; sampleAlternatives: [dmyIso: string, mdyIso: string] };
 
 /** Eén gefinaliseerde rij: waarden geparsed onder de vastgestelde datumvolgorde. */
 export interface ProgressRow {
