@@ -23,6 +23,7 @@ import {
   type CpmBackwardActualPinDecision,
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
+import { explainOpenXerLoeTargetSpanEligibility } from './p6OpenLoeTargetSpanTrace';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -1373,8 +1374,25 @@ export class CPMSolver {
         this.successors.get(taskId) || [],
       );
       if (task.isHammock && !completedXerLoeActualFinish.eligible) {
-        const es = this.hammockEarlyStart(task, preds, results, projectStart, cal);
-        const { ef, hasFinishDriver } = this.hammockEarlyFinish(task, preds, results, es, cal);
+        const relationalEarlyStart = this.hammockEarlyStart(task, preds, results, projectStart, cal);
+        const openXerLoeTargetSpan = explainOpenXerLoeTargetSpanEligibility(
+          task,
+          this.options.schedulingOptions,
+          preds,
+          this.successors.get(taskId) || [],
+          relationalEarlyStart,
+          cal.workMinutesBetween(
+            parseInstant(task.time.scheduleStart),
+            parseInstant(task.time.scheduleFinish),
+          ),
+          cal.hoursPerDay * 60,
+        );
+        const es = openXerLoeTargetSpan.eligible
+          ? parseInstant(task.time.scheduleStart)
+          : relationalEarlyStart;
+        const { ef, hasFinishDriver } = openXerLoeTargetSpan.eligible
+          ? { ef: parseInstant(task.time.scheduleFinish), hasFinishDriver: true }
+          : this.hammockEarlyFinish(task, preds, results, es, cal);
         if (!hasFinishDriver) this.hammockNoFinishDriverIds.push(taskId);
         // T8 (T10-reviewtoevoeging): een ELAPSEDTIME-hammock drukt zijn afgeleide span uit in KLOK-
         // tijd, niet in WERKtijd — `cal.workMinutesBetween`/`workDaysBetween` tellen alleen tijd

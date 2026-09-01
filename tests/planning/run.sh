@@ -270,6 +270,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCOMPLETEDLOECHECK="$DIR/.xer-completed-loe-actual-finish.mjs"
   if bundle_check "$DIR/check-xer-completed-loe-actual-finish.ts" "$XERCOMPLETEDLOECHECK"; then node "$XERCOMPLETEDLOECHECK" || STATUS=1; fi
 
+  # X12-residu Ashspace: uitsluitend de bewezen open XER TT_LOE-span met SS-in- en FF-uittopologie
+  # mag het expliciete targetvenster gebruiken; de corpusloze mutatiematrix houdt alle andere vormen dicht.
+  XEROPENLOETARGETSPANCHECK="$DIR/.xer-open-loe-target-span.mjs"
+  if bundle_check "$DIR/check-xer-open-loe-target-span.ts" "$XEROPENLOETARGETSPANCHECK"; then node "$XEROPENLOETARGETSPANCHECK" || STATUS=1; fi
+
   # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
   XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
   if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi
