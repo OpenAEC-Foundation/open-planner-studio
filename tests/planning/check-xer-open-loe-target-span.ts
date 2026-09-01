@@ -29,28 +29,34 @@ interface FixtureOptions {
   outgoingType?: string;
   outgoingLag?: string;
   includeOutgoing?: boolean;
+  dayMode?: boolean;
 }
 
 function fixtureBytes(options: FixtureOptions = {}): Uint8Array {
-  const targetStart = options.targetStart ?? '2026-01-05 08:00';
-  const targetEnd = options.targetEnd ?? '2026-01-16 17:00';
+  const dayMode = options.dayMode ?? false;
+  const targetStart = options.targetStart ?? (dayMode ? '2026-01-05' : '2026-01-05 08:00');
+  const targetEnd = options.targetEnd ?? (dayMode ? '2026-01-16' : '2026-01-16 17:00');
   const rawYear = options.rawYear ?? '2099';
   const outgoingType = options.outgoingType ?? 'PR_FF';
   const outgoingLag = options.outgoingLag ?? '0';
   const includeOutgoing = options.includeOutgoing ?? true;
+  const predecessorStart = dayMode ? '2026-01-05' : '2026-01-05 08:00';
+  const predecessorEnd = dayMode ? '2026-01-05' : '2026-01-05 17:00';
+  const successorStart = dayMode ? targetEnd : targetEnd.replace('17:00', '08:00');
+  const calendarData = dayMode ? '' : workWeek;
   return new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
     '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
-    `%R\tC1\tWerkweek\tP1\tCA_Project\t8\t40\t${workWeek}`,
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t8\t40\t${calendarData}`,
     '%T\tPROJECT',
     '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
     '%R\tP1\tOpen LOE targetspan\tC1\t2025-12-31 17:00\t2026-01-05 08:00\t2026-01-30 17:00',
     '%T\tTASK',
     '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tearly_start_date\tearly_end_date\tlate_start_date\tlate_end_date\ttotal_float_hr_cnt\tfree_float_hr_cnt\trestart_date\treend_date\tdriving_path_flag',
-    `%R\tP\tP1\tC1\tPRED\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t8\t8\t2026-01-05 08:00\t2026-01-05 17:00\t\t\t${rawYear}-01-01 00:00\t${rawYear}-01-01 17:00\t${rawYear}-01-01 00:00\t${rawYear}-01-01 17:00\t999\t888\t${rawYear}-01-01 00:00\t${rawYear}-01-01 17:00\tN`,
+    `%R\tP\tP1\tC1\tPRED\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t8\t8\t${predecessorStart}\t${predecessorEnd}\t\t\t${rawYear}-01-01 00:00\t${rawYear}-01-01 17:00\t${rawYear}-01-01 00:00\t${rawYear}-01-01 17:00\t999\t888\t${rawYear}-01-01 00:00\t${rawYear}-01-01 17:00\tN`,
     `%R\tL\tP1\tC1\tLOE\tOpen LOE\tTT_LOE\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t80\t80\t${targetStart}\t${targetEnd}\t\t\t${rawYear}-02-01 00:00\t${rawYear}-02-01 17:00\t${rawYear}-02-01 00:00\t${rawYear}-02-01 17:00\t777\t666\t${rawYear}-02-01 00:00\t${rawYear}-02-01 17:00\tY`,
-    `%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t8\t8\t${targetEnd.replace('17:00', '08:00')}\t${targetEnd}\t\t\t${rawYear}-03-01 00:00\t${rawYear}-03-01 17:00\t${rawYear}-03-01 00:00\t${rawYear}-03-01 17:00\t555\t444\t${rawYear}-03-01 00:00\t${rawYear}-03-01 17:00\tN`,
+    `%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t8\t8\t${successorStart}\t${targetEnd}\t\t\t${rawYear}-03-01 00:00\t${rawYear}-03-01 17:00\t${rawYear}-03-01 00:00\t${rawYear}-03-01 17:00\t555\t444\t${rawYear}-03-01 00:00\t${rawYear}-03-01 17:00\tN`,
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
     '%R\tR-SS\tL\tP\tP1\tP1\tPR_SS\t0',
@@ -173,6 +179,52 @@ const baseAxes = axes(importedFixture());
 const absurdRaw = importedFixture({ rawYear: '2088' });
 eq('open XER LOE: raw early/late/float/restart/reend/driving blijven meetlat en zijn productinert',
   axes(absurdRaw), baseAxes);
+
+// Permanente echte-reader-regressie: de Ashspace-vorm bewaart XER-provenance, TT_LOE en een
+// positief expliciet targetvenster, maar een XER-kalender zonder klokbanden blijft dagmodus. De
+// uur-native targetspanroute mag dan niet openen; de gewone hammocksemantiek blijft leidend.
+const dayModeImported = importedFixture({ dayMode: true });
+const dayModeLoe = task(dayModeImported);
+const dayModeCalendar = new CalendarEngine(dayModeImported.calendar);
+// De dagmodusprojectie draagt de bronduur in hele dagen; geef de expliciete XER-bronduur hier
+// bewust weer als minuten door aan de solveringang. Zo isoleren we de uurmodusguard zónder de
+// echte readXER-provenance, taakvorm of het gelezen doelvenster te vervangen.
+dayModeLoe.time.durationMinutes = 80 * 60;
+eq('open XER LOE dagmodus: echte reader bewaart provenance en expliciet doelvenster zonder workTime', {
+  source: dayModeImported.project.schedulingOptions?.p6Source,
+  activity: dayModeLoe.p6ActivityType,
+  targetWindow: dayModeLoe.p6ExplicitTargetWindow,
+  start: dayModeLoe.time.scheduleStart,
+  finish: dayModeLoe.time.scheduleFinish,
+  workTime: dayModeImported.calendar.workTime,
+  hourMode: dayModeCalendar.isHourMode,
+}, {
+  source: 'XER', activity: 'TT_LOE', targetWindow: true,
+  start: '2026-01-05', finish: '2026-01-16', workTime: undefined, hourMode: false,
+});
+eq('open XER LOE dagmodus: uur-native route sluit fail-closed',
+  explainOpenXerLoeTargetSpanEligibility(
+    dayModeLoe,
+    dayModeImported.project.schedulingOptions,
+    dayModeImported.sequences.filter(sequence => sequence.successorId === dayModeLoe.id),
+    dayModeImported.sequences.filter(sequence => sequence.predecessorId === dayModeLoe.id),
+    parseInstant(dayModeLoe.time.scheduleStart),
+    Number.NaN,
+    dayModeCalendar.hoursPerDay * 60,
+  ),
+  { eligible: false, reason: 'targetWindowDurationMismatch' },
+);
+let dayModeSolveError: string | undefined;
+let dayModeAxes: ReturnType<typeof axes> | undefined;
+try {
+  dayModeAxes = axes(dayModeImported);
+} catch (error) {
+  dayModeSolveError = error instanceof Error ? error.message : String(error);
+}
+eq('open XER LOE dagmodus: echte readXER-naar-solveProject-route gooit niet', dayModeSolveError, undefined);
+eq('open XER LOE dagmodus: generieke hammockroute bewaart alle zes solverassen', dayModeAxes, {
+  es: '2026-01-05', ef: '2026-01-05', ls: '2026-01-05', lf: '2026-01-05', tf: 0, ff: 0,
+});
 
 const changedTargetEnd = importedFixture({ targetEnd: '2026-01-19 17:00' });
 eq('open XER LOE: alleen target_end_date wijzigt kandidaat-EF en -LF', {
