@@ -48,7 +48,7 @@
     "@tauri-apps/plugin-updater": "^2.9.0",
     "bidi-js": "^1.0.3",
     "i18next": "^25.8.13",
-    "immer": "^11.1.4",
+    "immer": "11.1.4",
     "lucide-react": "^0.575.0",
     "modern-screenshot": "^4.7.0",
     "pdf-lib": "^1.17.1",
