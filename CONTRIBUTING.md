@@ -14,15 +14,19 @@ English are welcome and will be answered in English.
 git clone https://github.com/OpenAEC-Foundation/open-planner-studio.git
 cd open-planner-studio
 npm ci            # ci, not install — the lockfile is binding
-npm run dev       # browser build at http://localhost:3007
+npm run dev       # browser build — the dev-server prints which port it picked
 npm run tauri:dev # desktop build (Tauri 2, Rust toolchain required)
 ```
 
 Node 22 is what CI runs. For `tauri:dev`/`tauri:build` you additionally need a
 Rust toolchain and, on Linux, the system libraries listed in `ci.yml`.
 
-Running multiple worktrees at the same time is fine: `tauri:dev` picks its own
-port and its own auto-save files per worktree.
+There is no single fixed port: `npm run dev` assigns this worktree a **fixed**
+port in the 3007-3106 range (anchored to the worktree root, so it survives
+restarts) and stamps it in `.claude/launch.json`. Read the port from the
+dev-server's own output rather than assuming any particular number. Running
+multiple worktrees at the same time is fine for exactly that reason:
+`tauri:dev` follows the same per-worktree port and its own auto-save files.
 
 ## The gate
 
@@ -32,16 +36,18 @@ npm run verify
 
 That is literally the same command that CI, the release gate and the deploy gate
 run — one definition, in `package.json`. If it is green locally, it is green in
-CI. It covers:
+CI. Ten steps, run in this order:
 
 | component | what |
 |---|---|
 | `npm run typecheck` | `tsc --noEmit` over `src/` and over `scripts/`+`tests/` |
-| `npm run lint` | a minimal ESLint gate — only promise-handling and control-regex, **no style rules** |
-| `npm test` | the four behavior suites (planning, library, mcp, dev-server) |
+| `npm run lint` | a minimal ESLint gate — promise-handling, control-regex and the React-hooks rules, **no style rules** |
+| `npm test` | the five behavior suites (`planning`, `library`, `mcp`, `dev-server`, `browser`) |
 | `npm run verify:examples` | the example projects in `examples/` |
 | `npm run verify:docs` | the in-app documentation, 14 languages |
 | `npm run verify:i18n` | missing translation keys relative to `nl` |
+| `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext` |
+| `npm run verify:gantt-boundaries` | AST gate on the renderer/viewport/pointer/table boundaries |
 | `npm run verify:cycles` | circular imports within `src/` |
 | `npm run verify:audit` | `npm audit --audit-level=high` |
 
@@ -50,9 +56,9 @@ of [`CLAUDE.md`](CLAUDE.md). During work, `npm run test:planning` is usually
 enough; run `npm run verify` before you push.
 
 There is **no formatter, and no style rules** — the linter only catches what
-`tsc` cannot (floating/misused promises, control regex). `tsc` runs in `strict`
-mode with `noUnusedLocals`/`noUnusedParameters`, so dead code stands out on its
-own. Follow the style of the surrounding code.
+`tsc` cannot (floating/misused promises, control regex, the React-hooks rules).
+`tsc` runs in `strict` mode with `noUnusedLocals`/`noUnusedParameters`, so dead
+code stands out on its own. Follow the style of the surrounding code.
 
 ## Things that easily go wrong
 
@@ -98,7 +104,11 @@ is red first is the best description of the bug.
 - [`docs/extensions.md`](docs/extensions.md) — writing extensions.
 
 If your change affects the architecture or a command, update `CLAUDE.md` and
-`AGENTS.md` in the same PR.
+`AGENTS.md` in the same PR. `npm run verify:docs` mechanically enforces part
+of this for `AGENTS.md`/`README.md`/`CONTRIBUTING.md` — dangling `npm run`
+references, verify-chain step names and suite names must stay in sync with
+`package.json` — but it cannot check prose, so re-read what you touch rather
+than relying on the gate alone.
 
 ## Security
 

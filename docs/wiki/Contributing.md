@@ -32,7 +32,7 @@ whole app state back to IFC.
 # Install dependencies
 npm install
 
-# Start the browser dev server (http://localhost:3007)
+# Start the browser dev server — it prints which port it picked
 npm run dev
 
 # Build the production web bundle
@@ -44,6 +44,12 @@ npm run tauri:dev
 # Build desktop installers
 npm run tauri:build
 ```
+
+There is no single fixed port: `npm run dev` assigns each worktree its own **fixed** port in the
+3007-3106 range (anchored to the worktree root, so it survives restarts) and stamps it in
+`.claude/launch.json`. Read the port from the dev-server's own output rather than assuming any one
+port number — that lets multiple worktrees run `dev`/`tauri:dev` at the same time without clobbering
+each other's port.
 
 ## Tests
 
