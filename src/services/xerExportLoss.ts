@@ -1,14 +1,26 @@
 import type { ExportFormat } from './formatRegistry';
+import type { XerImportMetadata } from './importTypes';
+import type { XerSourceArchive } from './xerSourceArchive';
+import type { Project, SchedulingOptions } from '@/types/project';
+import type { Task } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
+import type { ResourceAssignment } from '@/types/resource';
+import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { Baseline } from '@/types/baseline';
 
 export type XerLossyExportFormat = Exclude<ExportFormat, 'ifc'> | 'mpp';
 export type XerExportLossCategory =
+  | 'exact-source-bytes'
+  | 'unknown-tables-and-fields'
+  | 'typed-diagnostics'
   | 'baselines'
   | 'udfs'
   | 'activity-codes'
   | 'notes'
   | 'raw-curves-and-assignment-quantities'
   | 'external-links'
-  | 'schedule-options-and-provenance';
+  | 'schedule-options-and-provenance'
+  | 'p6-relation-lag-degradation';
 
 export interface XerExportLossWarning {
   readonly code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE';
@@ -18,43 +30,56 @@ export interface XerExportLossWarning {
   readonly categories: readonly XerExportLossCategory[];
 }
 
+/** Alleen de velden die de verliesdetector werkelijk inspecteert; geen tweede AppState-contract. */
 export interface XerExportLossInput {
-  readonly hasSourceArchive: boolean;
-  readonly hasImportMetadata: boolean;
+  readonly sourceArchive: XerSourceArchive | null;
+  readonly importMetadata: XerImportMetadata | null;
+  readonly project: Pick<Project, 'progressMode' | 'schedulingOptions'>;
+  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks'>[];
+  readonly sequences: readonly Pick<Sequence, 'lagPercent' | 'lagUnit'>[];
+  readonly assignments: readonly Pick<ResourceAssignment, 'curve' | 'unitsPerDay'>[];
+  readonly activityCodeTypes: readonly ActivityCodeType[];
+  readonly customFieldDefs: readonly CustomFieldDef[];
+  readonly baselines: readonly Baseline[];
+  readonly activeBaselineId: string | null;
+}
+
+interface ExportCapabilities {
+  /** MSPDI schrijft uitsluitend de actieve OPS-baseline naar slot 0. */
+  readonly activeBaseline: boolean;
+  /** Writer projecteert de live units/curve; retained XER-bronwaarden blijven altijd apart verlies. */
+  readonly projectedAssignments: boolean;
+  readonly percentLag: boolean;
+  readonly elapsedLag: boolean;
+  readonly schedulingOptions: 'none' | 'critical-slack-limit';
 }
 
 /**
- * Deze lijsten zijn bewust per doelformaat vastgelegd. De XER-import levert deze P6-gegevens
- * wel aan OPS, maar geen van de drie adapters kan ze zonder verlies representeren.
+ * Gemeten tegen de drie writerimplementaties. Dit is een capabilitymatrix, geen vaste verlieslijst:
+ * een categorie ontstaat pas wanneer de bijbehorende retained/live data werkelijk aanwezig is.
  */
-const XER_LOSS_CATEGORIES_BY_FORMAT: Readonly<Record<Exclude<ExportFormat, 'ifc'>, readonly XerExportLossCategory[]>> = {
-  csv: [
-    'baselines',
-    'udfs',
-    'activity-codes',
-    'notes',
-    'raw-curves-and-assignment-quantities',
-    'external-links',
-    'schedule-options-and-provenance',
-  ],
-  mspdi: [
-    'baselines',
-    'udfs',
-    'activity-codes',
-    'notes',
-    'raw-curves-and-assignment-quantities',
-    'external-links',
-    'schedule-options-and-provenance',
-  ],
-  p6: [
-    'baselines',
-    'udfs',
-    'activity-codes',
-    'notes',
-    'raw-curves-and-assignment-quantities',
-    'external-links',
-    'schedule-options-and-provenance',
-  ],
+const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc'>, ExportCapabilities>> = {
+  csv: {
+    activeBaseline: false,
+    projectedAssignments: false,
+    percentLag: true,
+    elapsedLag: true,
+    schedulingOptions: 'none',
+  },
+  mspdi: {
+    activeBaseline: true,
+    projectedAssignments: true,
+    percentLag: true,
+    elapsedLag: true,
+    schedulingOptions: 'critical-slack-limit',
+  },
+  p6: {
+    activeBaseline: false,
+    projectedAssignments: true,
+    percentLag: false,
+    elapsedLag: false,
+    schedulingOptions: 'none',
+  },
 };
 
 export function xerExportTargetVerdict(
@@ -65,23 +90,157 @@ export function xerExportTargetVerdict(
   return 'supported-lossy';
 }
 
+const hasObjectValues = (value: object | undefined): boolean =>
+  value !== undefined && Object.values(value).some(item => item !== undefined && item !== '');
+
+function hasTypedDiagnostics(archive: XerSourceArchive | null, metadata: XerImportMetadata | null): boolean {
+  const file = archive?.diagnostics.file;
+  if (file && (
+    file.tableReport.issues.length > 0
+    || file.scheduleOptions.length > 0
+    || file.relationResolutionIssues.length > 0
+    || file.resourceCatalogIssues.length > 0
+    || file.metadataCatalogIssues.length > 0
+  )) return true;
+
+  if (archive && Object.values(archive.diagnostics.documentViews).some(view =>
+    view.tableReport.issues.length > 0
+    || view.calendarIssues.length > 0
+    || view.enumFallbacks.length > 0
+    || view.scheduleOptions.fallbacks.length > 0
+    || view.scheduleOptions.diagnostics.length > 0
+    || (view.resources?.issues.length ?? 0) > 0)) return true;
+
+  return Boolean(metadata && (
+    metadata.tableReport.issues.length > 0
+    || metadata.calendarIssues.length > 0
+    || metadata.enumFallbacks.length > 0
+    || metadata.scheduleOptions.fallbacks.length > 0
+    || metadata.scheduleOptions.diagnostics.length > 0
+    || (metadata.resources?.issues.length ?? 0) > 0
+    || (metadata.metadata?.catalog.issues.length ?? 0) > 0
+  ));
+}
+
+function hasUnknownTablesOrFields(archive: XerSourceArchive | null, metadata: XerImportMetadata | null): boolean {
+  return Boolean(
+    archive?.diagnostics.file.tableReport.unknownTables.some(table => table.rows > 0)
+    || Object.values(archive?.diagnostics.documentViews ?? {}).some(view =>
+      view.tableReport.unknownTables.some(table => table.rows > 0))
+    || metadata?.tableReport.unknownTables.some(table => table.rows > 0),
+  );
+}
+
+function hasBaselineLoss(capabilities: ExportCapabilities, input: XerExportLossInput): boolean {
+  if (input.baselines.length === 0) return false;
+  if (!capabilities.activeBaseline) return true;
+  const activeExists = input.activeBaselineId !== null
+    && input.baselines.some(baseline => baseline.id === input.activeBaselineId);
+  if (!activeExists) return true;
+  return input.baselines.some(baseline => baseline.id !== input.activeBaselineId);
+}
+
+function hasRetainedAssignmentDetails(metadata: XerImportMetadata | null): boolean {
+  return Boolean(metadata?.resources?.assignments.some(source =>
+    hasObjectValues(source.quantities)
+    || hasObjectValues(source.rawCurves)));
+}
+
+function hasAssignmentLoss(
+  format: Exclude<ExportFormat, 'ifc'>,
+  capabilities: ExportCapabilities,
+  input: XerExportLossInput,
+): boolean {
+  if (hasRetainedAssignmentDetails(input.importMetadata)) return true;
+  if (!capabilities.projectedAssignments && input.assignments.length > 0) return true;
+  // P6 kent geen LATE_PEAK en schrijft die aantoonbaar als Early Peak; de overige live curves
+  // en units worden door PlannedCurve/PlannedUnitsPerTime gedragen.
+  return format === 'p6' && input.assignments.some(assignment => assignment.curve === 'LATE_PEAK');
+}
+
+function isMspdiCriticalSlackLimit(options: SchedulingOptions): boolean {
+  const definition = options.criticalDefinition;
+  if (!definition
+    || definition.mode !== 'totalFloat'
+    || typeof definition.threshold !== 'number'
+    || !Number.isInteger(definition.threshold)
+    || definition.threshold < 0
+    || definition.thresholdHours !== undefined) return false;
+  return Object.entries(options).every(([key, value]) =>
+    value === undefined || key === 'criticalDefinition');
+}
+
+function hasScheduleProvenance(input: XerExportLossInput): boolean {
+  const metadata = input.importMetadata;
+  const archiveSource = input.sourceArchive?.readModel.scheduleOptionsSourceArchive;
+  return Boolean(
+    (archiveSource?.rows.length ?? 0) > 0
+    || (archiveSource?.unmatchedScheduleOptionsRowIndexes.length ?? 0) > 0
+    || (archiveSource?.diagnostics.length ?? 0) > 0
+    || (metadata?.scheduleOptions.sourceRows.length ?? 0) > 0
+    || (metadata?.scheduleOptions.sourceRowIndexes.length ?? 0) > 0
+    || (metadata?.scheduleOptions.fallbacks.length ?? 0) > 0
+    || (metadata?.scheduleOptions.diagnostics.length ?? 0) > 0
+    || (metadata && metadata.scheduleOptions.source === 'schedoptions')
+    || hasObjectValues(metadata?.scheduleOptions.retainedSource)
+  );
+}
+
+function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossInput): boolean {
+  if (hasScheduleProvenance(input) || input.project.progressMode !== undefined) return true;
+  const options = input.project.schedulingOptions;
+  if (!options || Object.values(options).every(value => value === undefined)) return false;
+  return capabilities.schedulingOptions === 'none' || !isMspdiCriticalSlackLimit(options);
+}
+
+function categoriesFor(
+  format: Exclude<ExportFormat, 'ifc'>,
+  input: XerExportLossInput,
+): XerExportLossCategory[] {
+  const capabilities = EXPORT_CAPABILITIES[format];
+  const categories: XerExportLossCategory[] = [];
+  if (input.sourceArchive && input.sourceArchive.byteLength > 0) categories.push('exact-source-bytes');
+  if (hasUnknownTablesOrFields(input.sourceArchive, input.importMetadata)) {
+    categories.push('unknown-tables-and-fields');
+  }
+  if (hasTypedDiagnostics(input.sourceArchive, input.importMetadata)) categories.push('typed-diagnostics');
+  if (hasBaselineLoss(capabilities, input)) categories.push('baselines');
+  if (input.customFieldDefs.length > 0
+    || input.tasks.some(task => hasObjectValues(task.customFields))) categories.push('udfs');
+  if (input.activityCodeTypes.length > 0
+    || input.tasks.some(task => hasObjectValues(task.activityCodes))) categories.push('activity-codes');
+  if (input.tasks.some(task => (task.notes?.length ?? 0) > 0)) categories.push('notes');
+  if (hasAssignmentLoss(format, capabilities, input)) {
+    categories.push('raw-curves-and-assignment-quantities');
+  }
+  if (input.tasks.some(task => (task.externalLinks?.length ?? 0) > 0)
+    || (input.importMetadata?.externalLinks.length ?? 0) > 0
+    || (input.importMetadata?.externalRelations.length ?? 0) > 0) categories.push('external-links');
+  if (hasScheduleLoss(capabilities, input)) categories.push('schedule-options-and-provenance');
+  if ((!capabilities.percentLag && input.sequences.some(sequence =>
+    typeof sequence.lagPercent === 'number' && Number.isFinite(sequence.lagPercent)))
+    || (!capabilities.elapsedLag && input.sequences.some(sequence => sequence.lagUnit === 'ELAPSEDTIME'))) {
+    categories.push('p6-relation-lag-degradation');
+  }
+  return categories;
+}
+
 /**
- * X9-dienstcontract voor verliesdetectie. Dit levert uitsluitend getypeerde feiten; X10 bepaalt
- * vertaling, dedupe, toast en Lees-meer-link. Daardoor is de exportlaag niet console-only en wordt
- * deze worktree tegelijk geen tweede UI-schrijver.
+ * X9-dienstcontract voor verliesdetectie. Dit levert uitsluitend getypeerde feiten in de bestaande
+ * exportAs-return-envelope; X10 bepaalt later vertaling, dedupe, toast en Lees-meer-link.
  */
 export function detectXerExportLoss(
   format: ExportFormat | 'mpp',
   input: XerExportLossInput,
 ): readonly XerExportLossWarning[] {
-  if (format === 'ifc' || (!input.hasSourceArchive && !input.hasImportMetadata)) return [];
-  const availability = format === 'mpp' ? 'unsupported' : 'supported-lossy';
+  if (format === 'ifc' || (!input.sourceArchive && !input.importMetadata)) return [];
+  const target = format === 'mpp' ? 'csv' : format;
+  const categories = categoriesFor(target, input);
+  if (categories.length === 0) return [];
   return [{
     code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE',
     format,
-    availability,
-    categories: format === 'mpp'
-      ? []
-      : XER_LOSS_CATEGORIES_BY_FORMAT[format],
+    availability: format === 'mpp' ? 'unsupported' : 'supported-lossy',
+    categories,
   }];
 }

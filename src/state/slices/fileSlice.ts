@@ -504,8 +504,16 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
 
       const state = get();
       const warnings = detectXerExportLoss(format, {
-        hasSourceArchive: state.xerSourceArchive !== null,
-        hasImportMetadata: state.xerImportMetadata !== null,
+        sourceArchive: state.xerSourceArchive,
+        importMetadata: state.xerImportMetadata,
+        project: state.project,
+        tasks: state.tasks,
+        sequences: state.sequences,
+        assignments: state.assignments,
+        activityCodeTypes: state.activityCodeTypes,
+        customFieldDefs: state.customFieldDefs,
+        baselines: state.baselines,
+        activeBaselineId: state.activeBaselineId,
       });
 
       let content: string;
