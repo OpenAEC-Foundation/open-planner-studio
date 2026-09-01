@@ -966,6 +966,7 @@
     "pickerTooMany": "Zbyt wiele zadań do wyświetlenia — zawęź wyszukiwanie.",
     "pickerTaken": "już powiązane z innym wierszem",
     "overrideDropped": "Powiązanie wiersza {{row}} wskazuje na zadanie, które już nie istnieje, i zostało zignorowane.",
+    "moreRows": "…i jeszcze {{more}}",
     "dateOrderTitle": "Najpierw dzień czy najpierw miesiąc?",
     "dateOrderQuestion": "„{{sample}}” — o którą datę chodzi?",
     "dateOrderOptionA": "{{date}}",

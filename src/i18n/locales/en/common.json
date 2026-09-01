@@ -957,6 +957,7 @@
     "pickerTooMany": "Too many tasks to show — refine your search.",
     "pickerTaken": "already linked to another row",
     "overrideDropped": "The link for row {{row}} points to a task that no longer exists and was ignored.",
+    "moreRows": "…and {{more}} more",
     "dateOrderTitle": "Day first or month first?",
     "dateOrderQuestion": "“{{sample}}” — which date is that?",
     "dateOrderOptionA": "{{date}}",

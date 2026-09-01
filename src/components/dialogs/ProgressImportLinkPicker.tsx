@@ -15,6 +15,11 @@ export interface ProgressImportLinkPickerProps {
   value: string | undefined;
   onChange: (taskId: string) => void;
   id?: string;
+  /** Fixronde bevinding 4: de taak die DEZE rij zelf al claimt — automatisch (WBS-terugval, nog geen
+   *  override) of via een bestaande override. Die mag in de kiezer van DEZE rij nooit `disabled` zijn,
+   *  ook al staat hij (terecht) in `takenTaskIds`: anders kan een gebruiker die op "Wijzigen" klikt
+   *  zijn eigen, reeds gematchte taak niet meer terugkiezen. */
+  currentTaskId?: string;
 }
 
 /**
@@ -23,7 +28,7 @@ export interface ProgressImportLinkPickerProps {
  * weigert de rij daarna zelf met `summaryTask`, en de gebruiker ziet zo waaróm dat gebeurt in plaats
  * van zich af te vragen waarom een taak nergens in de lijst staat.
  */
-export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange, id }: ProgressImportLinkPickerProps) {
+export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange, id, currentTaskId }: ProgressImportLinkPickerProps) {
   const { t } = useTranslation('common');
   const [filter, setFilter] = useState('');
 
@@ -37,15 +42,21 @@ export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange,
   const truncated = filtered.length > MAX_PICKER_OPTIONS;
   const limited = truncated ? filtered.slice(0, MAX_PICKER_OPTIONS) : filtered;
 
-  const options: SelectOption[] = limited.map(task => {
-    const label = `${task.wbsCode} — ${task.name}`;
-    const isTaken = takenTaskIds.has(task.id) && task.id !== value;
-    return {
-      value: task.id,
-      label: isTaken ? `${label} (${t('progressImport.pickerTaken')})` : label,
-      disabled: isTaken,
-    };
-  });
+  // Fixronde bevinding 1: bouwde eerder buiten een memo, op elke render van deze kiezer opnieuw.
+  const options: SelectOption[] = useMemo(
+    () => limited.map(task => {
+      const label = `${task.wbsCode} — ${task.name}`;
+      // Fixronde bevinding 4: `currentTaskId` (deze rij ZELF) is nooit "taken", ook al staat hij in
+      // `takenTaskIds` — anders is de eigen, al gematchte taak niet meer terug te kiezen na "Wijzigen".
+      const isTaken = takenTaskIds.has(task.id) && task.id !== value && task.id !== currentTaskId;
+      return {
+        value: task.id,
+        label: isTaken ? `${label} (${t('progressImport.pickerTaken')})` : label,
+        disabled: isTaken,
+      };
+    }),
+    [limited, takenTaskIds, value, currentTaskId, t],
+  );
 
   return (
     <div className="flex flex-col gap-1.5">

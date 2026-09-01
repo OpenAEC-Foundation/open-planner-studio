@@ -950,6 +950,7 @@
     "pickerTooMany": "Troppe attività da mostrare — restringi la ricerca.",
     "pickerTaken": "già collegata a un'altra riga",
     "overrideDropped": "Il collegamento della riga {{row}} punta a un'attività non più esistente ed è stato ignorato.",
+    "moreRows": "…e altri {{more}}",
     "dateOrderTitle": "Prima il giorno o prima il mese?",
     "dateOrderQuestion": "«{{sample}}» — che data è?",
     "dateOrderOptionA": "{{date}}",

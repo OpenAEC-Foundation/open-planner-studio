@@ -950,6 +950,7 @@
     "pickerTooMany": "Trop de tâches à afficher — affinez votre recherche.",
     "pickerTaken": "déjà lié à une autre ligne",
     "overrideDropped": "La liaison de la ligne {{row}} pointe vers une tâche qui n'existe plus et a été ignorée.",
+    "moreRows": "…et {{more}} de plus",
     "dateOrderTitle": "Jour d'abord ou mois d'abord ?",
     "dateOrderQuestion": "« {{sample}} » — de quelle date s'agit-il ?",
     "dateOrderOptionA": "{{date}}",

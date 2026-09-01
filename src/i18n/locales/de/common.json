@@ -934,6 +934,7 @@
     "pickerTooMany": "Zu viele Aufgaben zum Anzeigen — Suche eingrenzen.",
     "pickerTaken": "bereits mit einer anderen Zeile verknüpft",
     "overrideDropped": "Die Verknüpfung für Zeile {{row}} verweist auf eine nicht mehr existierende Aufgabe und wurde ignoriert.",
+    "moreRows": "…und {{more}} weitere",
     "dateOrderTitle": "Tag zuerst oder Monat zuerst?",
     "dateOrderQuestion": "„{{sample}}“ — welches Datum ist das?",
     "dateOrderOptionA": "{{date}}",

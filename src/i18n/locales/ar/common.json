@@ -998,6 +998,7 @@
     "pickerTooMany": "عدد المهام كبير جداً للعرض — ضيّق نطاق البحث.",
     "pickerTaken": "مرتبطة بالفعل بصف آخر",
     "overrideDropped": "يشير ربط الصف {{row}} إلى مهمة لم تعد موجودة، وتم تجاهله.",
+    "moreRows": "…و {{more}} أخرى",
     "dateOrderTitle": "اليوم أولاً أم الشهر أولاً؟",
     "dateOrderQuestion": "«{{sample}}» — أي تاريخ هذا؟",
     "dateOrderOptionA": "{{date}}",

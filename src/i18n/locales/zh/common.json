@@ -918,6 +918,7 @@
     "pickerTooMany": "任务太多无法显示——请缩小搜索范围。",
     "pickerTaken": "已关联到另一行",
     "overrideDropped": "第 {{row}} 行的关联指向一个已不存在的任务，已被忽略。",
+    "moreRows": "……还有 {{more}} 条",
     "dateOrderTitle": "日在前还是月在前？",
     "dateOrderQuestion": "“{{sample}}”——这是哪个日期？",
     "dateOrderOptionA": "{{date}}",

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -30,13 +30,33 @@ type Stage = 'pick' | 'dateOrder' | 'preview' | 'result';
  *  in plaats van via `any` door te lekken naar elk gebruik van `plan` verderop. */
 type ProgressImportPlanFn = (rows: readonly ProgressRow[], overrides?: ProgressOverrides) => ProgressImportPlan;
 
+/** Fixronde bevinding 1: een blad van een ANDER project maakt alle rijen unmatched — tot
+ *  `PROGRESS_IMPORT_LIMITS.maxRows` (50.000). Zonder grens rendert elke sectie evenveel DOM-knopen
+ *  (en "wacht op koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s), wat de dialoog
+ *  bevriest. Cap per sectie, met een tellerregel voor de rest — nieuwe sleutel `moreRows`. */
+const MAX_RENDERED_ROWS = 200;
+
+function capRows<T>(rows: readonly T[]): { shown: readonly T[]; hiddenCount: number } {
+  if (rows.length <= MAX_RENDERED_ROWS) return { shown: rows, hiddenCount: 0 };
+  return { shown: rows.slice(0, MAX_RENDERED_ROWS), hiddenCount: rows.length - MAX_RENDERED_ROWS };
+}
+
 /** Datumveld → weergavewaarde (A5.5): ALTIJD voluit via `formatDisplayDate`, nooit de rauwe ISO-string
- *  als enige weergave. Draagt de waarde een tijddeel, dan komt dat erachter. */
+ *  als enige weergave. Draagt de waarde een tijddeel, dan komt dat erachter. Ook gebruikt voor de
+ *  datumvolgorde-vraag (fixronde bevinding 2): `DateOrderDetection.sampleAlternatives` draagt twee
+ *  ISO-datums, geen kant-en-klare weergavetekst — die formatteren we hier locale-bewust. */
 function formatIsoForDisplay(iso: string, locale: string): string {
   const datePart = iso.slice(0, 10);
   const timePart = iso.length > 10 ? iso.slice(11, 16) : '';
   const dateLabel = formatDisplayDate(parseDate(datePart), locale);
   return timePart ? `${dateLabel} ${timePart}` : dateLabel;
+}
+
+/** Fixronde bevinding 6: hele procenten blijven "33%", maar een significant verschil (33,4% vs 33%)
+ *  mag niet tot dezelfde tekst afronden — één decimaal, met het decimaalteken van de locale
+ *  (`Intl.NumberFormat` laat een overbodige ",0"/".0" vanzelf weg via het `0`-minimum). */
+function formatPercent(value: number, locale: string): string {
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value * 100)}%`;
 }
 
 function formatChangeValue(
@@ -46,7 +66,7 @@ function formatChangeValue(
   emptyLabel: string,
 ): string {
   if (value === undefined) return emptyLabel;
-  if (field === 'completion') return `${Math.round((value as number) * 100)}%`;
+  if (field === 'completion') return formatPercent(value as number, locale);
   return formatIsoForDisplay(value as string, locale);
 }
 
@@ -90,9 +110,15 @@ export function ProgressImportDialog() {
   // bestaande koppeling nog niet wissen, alleen de kiezer tonen zodat een andere taak gekozen kan worden.
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
 
-  if (!open) return null;
-
-  const close = () => {
+  // Fixronde bevinding 7: de component blijft permanent gemount (net als PoolImportDialog), dus
+  // ALLEEN `close()` wiste voorheen deze state. `resetDocumentScopedUI` kan `showProgressImportDialog`
+  // echter ook buiten `close()` om op false zetten (het vangnet bij een documentwissel-route die we
+  // gemist zouden hebben — A12 maakt de normale routes al onmogelijk, maar het vangnet moet wél
+  // veilig zijn als hij ooit afgaat). Zonder deze reset zou een latere heropening — in een ANDER
+  // document — de oude preview van het vorige bestand tonen. Reset daarom op elke false→true-
+  // overgang, niet alleen op een expliciete klik op Annuleren/Sluiten.
+  useEffect(() => {
+    if (!open) return;
     setStage('pick');
     setFileIssue(null);
     setSheet(null);
@@ -101,26 +127,68 @@ export function ProgressImportDialog() {
     setOverrides(new Map());
     setEditingRows(new Set());
     setResult(null);
+  }, [open]);
+
+  // Fixronde bevinding 1: NIET meer in de render-body — dat riep `previewProgressImport` (tot 50.000
+  // rijen) bij ELKE render van deze component opnieuw aan, ook voor wijzigingen die het plan niet
+  // raken (bv. de tekst in een koppelkiezer typen elders). `previewProgressImport` leest de taken
+  // intern live uit de store, maar `tasks` hoort BEWUST niet in de deps: zolang deze dialoog openstaat
+  // is een documentwissel onmogelijk (A12) en loopt ook de MCP-bridge tegen dezelfde blokkade aan
+  // (`hasBlockingDialogOpen`), dus er is geen route waarlangs `s.tasks` kan veranderen terwijl dit
+  // gememoïseerde plan leeft.
+  const plan = useMemo(
+    () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides) : null),
+    [stage, rows, overrides, previewProgressImport],
+  );
+
+  const takenTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (plan) for (const row of plan.rows) if (row.taskId) ids.add(row.taskId);
+    return ids;
+  }, [plan]);
+
+  const needsLinkRows = useMemo(
+    () => (plan ? plan.rows.filter(r => r.reason === 'unmatched' || r.reason === 'ambiguousWbs') : []),
+    [plan],
+  );
+  const doubtfulRows = useMemo(() => (plan ? plan.rows.filter(r => r.needsConfirmation) : []), [plan]);
+  const generalRows = useMemo(
+    () => (plan
+      ? plan.rows.filter(r => r.outcome !== 'noop' && !r.needsConfirmation && r.reason !== 'unmatched' && r.reason !== 'ambiguousWbs')
+      : []),
+    [plan],
+  );
+
+  if (!open) return null;
+
+  const close = () => {
     setUI({ showProgressImportDialog: false });
   };
 
   const pick = async () => {
     setFileIssue(null);
-    const res = await openFileDialog([{ name: 'CSV', extensions: ['csv'] }]);
-    if (!res) return;
-    const parsed = parseProgressCsv(res.content);
-    if (parsed.fileIssue) {
-      setFileIssue(parsed.fileIssue);
-      return;
-    }
-    setSheet(parsed);
-    const det = detectDateOrder(parsed.detectionCells, tasks);
-    setDetection(det);
-    if (det.order === 'ambiguous') {
-      setStage('dateOrder');
-    } else {
-      setRows(finalizeProgressRows(parsed, det.order));
-      setStage('preview');
+    // Fixronde bevinding 5: geen rood pad — een throw uit `openFileDialog`/`parseProgressCsv` (bv.
+    // een geweigerde bestandspermissie, of onverwachte inhoud die de parser zelf niet als `fileIssue`
+    // afvangt) verdween voorheen als onafgehandelde promise-rejection, zonder enige melding.
+    try {
+      const res = await openFileDialog([{ name: 'CSV', extensions: ['csv'] }]);
+      if (!res) return;
+      const parsed = parseProgressCsv(res.content);
+      if (parsed.fileIssue) {
+        setFileIssue(parsed.fileIssue);
+        return;
+      }
+      setSheet(parsed);
+      const det = detectDateOrder(parsed.detectionCells, tasks);
+      setDetection(det);
+      if (det.order === 'ambiguous') {
+        setStage('dateOrder');
+      } else {
+        setRows(finalizeProgressRows(parsed, det.order));
+        setStage('preview');
+      }
+    } catch {
+      setFileIssue('unreadable');
     }
   };
 
@@ -165,18 +233,14 @@ export function ProgressImportDialog() {
     setStage('result');
   };
 
-  // A8/A11: herbouwd bij ELKE render tegen de huidige overrides — precedent `isLocalPoolNewer`
-  // (librarySlice), een pure lezende actie die de dialoog gewoon in de render-body aanroept.
-  const plan = stage === 'preview' && rows ? previewProgressImport(rows, overrides) : null;
-
-  const takenTaskIds = new Set<string>();
-  if (plan) for (const row of plan.rows) if (row.taskId) takenTaskIds.add(row.taskId);
-
-  const needsLinkRows = plan ? plan.rows.filter(r => r.reason === 'unmatched' || r.reason === 'ambiguousWbs') : [];
-  const doubtfulRows = plan ? plan.rows.filter(r => r.needsConfirmation) : [];
-  const generalRows = plan
-    ? plan.rows.filter(r => r.outcome !== 'noop' && !r.needsConfirmation && r.reason !== 'unmatched' && r.reason !== 'ambiguousWbs')
-    : [];
+  // Fixronde bevinding 1: per sectie hooguit `MAX_RENDERED_ROWS` DOM-rijen (en bij "wacht op
+  // koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s) — plain data-afleidingen, geen
+  // hooks nodig; `needsLinkRows`/`doubtfulRows`/`generalRows` zijn zelf al gememoïseerd hierboven.
+  const cappedNeedsLink = capRows(needsLinkRows);
+  const cappedDoubtful = capRows(doubtfulRows);
+  const cappedGeneral = capRows(generalRows);
+  const refusedResultRows = result ? result.rows.filter(r => r.outcome === 'refused') : [];
+  const cappedRefusedResult = capRows(refusedResultRows);
 
   const emptyLabel = t('progressImport.empty');
 
@@ -238,10 +302,10 @@ export function ProgressImportDialog() {
             <p>{t('progressImport.dateOrderQuestion', { sample: detection.sample })}</p>
             <div className="flex flex-col gap-2">
               <button onClick={() => chooseOrder('dmy')} className="btn btn--sm btn--secondary self-start">
-                {t('progressImport.dateOrderOptionA', { date: detection.sampleAlternatives[0] })}
+                {t('progressImport.dateOrderOptionA', { date: formatIsoForDisplay(detection.sampleAlternatives[0], i18n.language) })}
               </button>
               <button onClick={() => chooseOrder('mdy')} className="btn btn--sm btn--secondary self-start">
-                {t('progressImport.dateOrderOptionB', { date: detection.sampleAlternatives[1] })}
+                {t('progressImport.dateOrderOptionB', { date: formatIsoForDisplay(detection.sampleAlternatives[1], i18n.language) })}
               </button>
             </div>
           </div>
@@ -268,7 +332,7 @@ export function ProgressImportDialog() {
             {needsLinkRows.length > 0 && (
               <div className="flex flex-col gap-2">
                 <p className="font-medium">{t('progressImport.sectionNeedsLink')}</p>
-                {needsLinkRows.map(row => {
+                {cappedNeedsLink.shown.map(row => {
                   const sheetRow = findSheetRow(rows, row.rowNumber);
                   return (
                     <div key={row.rowNumber} className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5">
@@ -279,18 +343,22 @@ export function ProgressImportDialog() {
                         tasks={tasks}
                         takenTaskIds={takenTaskIds}
                         value={overrides.get(row.rowNumber)}
+                        currentTaskId={row.taskId}
                         onChange={taskId => setOverride(row.rowNumber, taskId)}
                       />
                     </div>
                   );
                 })}
+                {cappedNeedsLink.hiddenCount > 0 && (
+                  <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedNeedsLink.hiddenCount })}</span>
+                )}
               </div>
             )}
 
             {doubtfulRows.length > 0 && (
               <div className="flex flex-col gap-2">
                 <p className="font-medium">{t('progressImport.sectionDoubtful')}</p>
-                {doubtfulRows.map(row => (
+                {cappedDoubtful.shown.map(row => (
                   <div key={row.rowNumber} className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5">
                     <span className="text-text-secondary">#{row.rowNumber} — {row.taskLabel}</span>
                     {renderRowOutcome(row)}
@@ -313,17 +381,21 @@ export function ProgressImportDialog() {
                         tasks={tasks}
                         takenTaskIds={takenTaskIds}
                         value={overrides.get(row.rowNumber)}
+                        currentTaskId={row.taskId}
                         onChange={taskId => pickAndClosePicker(row.rowNumber, taskId)}
                       />
                     )}
                   </div>
                 ))}
+                {cappedDoubtful.hiddenCount > 0 && (
+                  <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedDoubtful.hiddenCount })}</span>
+                )}
               </div>
             )}
 
             {generalRows.length > 0 && (
               <div className="flex flex-col gap-2">
-                {generalRows.map(row => (
+                {cappedGeneral.shown.map(row => (
                   <div key={row.rowNumber} className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">#{row.rowNumber} — {row.taskLabel}</span>
@@ -336,6 +408,9 @@ export function ProgressImportDialog() {
                     {renderRowOutcome(row)}
                   </div>
                 ))}
+                {cappedGeneral.hiddenCount > 0 && (
+                  <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedGeneral.hiddenCount })}</span>
+                )}
               </div>
             )}
 
@@ -356,12 +431,15 @@ export function ProgressImportDialog() {
               <span>{t('progressImport.summaryNeedsLink', { needsLink: result.needsLinkCount })}</span>
               <span>{t('progressImport.summaryRefused', { refused: result.refusedCount })}</span>
             </div>
-            {result.rows.filter(r => r.outcome === 'refused').map(row => (
+            {cappedRefusedResult.shown.map(row => (
               <div key={row.rowNumber} className="flex flex-col gap-1 border border-border rounded-[10px] p-2.5">
                 <span className="text-text-secondary">#{row.rowNumber} — {row.taskLabel ?? ''}</span>
                 {row.reason && <span style={{ color: 'var(--error)' }}>{t(`progressImport.reason.${row.reason}`)}</span>}
               </div>
             ))}
+            {cappedRefusedResult.hiddenCount > 0 && (
+              <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedRefusedResult.hiddenCount })}</span>
+            )}
           </div>
         )}
       </div>

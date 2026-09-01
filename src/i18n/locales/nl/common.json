@@ -957,6 +957,7 @@
     "pickerTooMany": "Te veel taken om te tonen — verfijn je zoekterm.",
     "pickerTaken": "al gekoppeld aan een andere rij",
     "overrideDropped": "De koppeling voor rij {{row}} wijst naar een taak die niet meer bestaat en is genegeerd.",
+    "moreRows": "…en {{more}} meer",
     "dateOrderTitle": "Dag of maand eerst?",
     "dateOrderQuestion": "“{{sample}}” — welke datum is dat?",
     "dateOrderOptionA": "{{date}}",

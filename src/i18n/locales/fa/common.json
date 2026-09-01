@@ -934,6 +934,7 @@
     "pickerTooMany": "وظایف بیش از حد زیاد برای نمایش — جستجوی خود را محدودتر کنید.",
     "pickerTaken": "قبلاً به سطر دیگری پیوند خورده است",
     "overrideDropped": "پیوند سطر {{row}} به وظیفه‌ای اشاره دارد که دیگر وجود ندارد و نادیده گرفته شد.",
+    "moreRows": "…و {{more}} مورد دیگر",
     "dateOrderTitle": "روز اول یا ماه اول؟",
     "dateOrderQuestion": "«{{sample}}» — این چه تاریخی است؟",
     "dateOrderOptionA": "{{date}}",

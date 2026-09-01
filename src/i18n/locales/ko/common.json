@@ -918,6 +918,7 @@
     "pickerTooMany": "표시할 작업이 너무 많습니다 — 검색을 좁혀 주세요.",
     "pickerTaken": "이미 다른 행에 연결됨",
     "overrideDropped": "{{row}}행의 연결이 더 이상 존재하지 않는 작업을 가리켜 무시되었습니다.",
+    "moreRows": "…외 {{more}}건 더",
     "dateOrderTitle": "일이 먼저인가요, 월이 먼저인가요?",
     "dateOrderQuestion": "“{{sample}}” — 어떤 날짜인가요?",
     "dateOrderOptionA": "{{date}}",
