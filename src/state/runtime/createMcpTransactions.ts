@@ -365,6 +365,14 @@ function createMcpDraft(
           && clearTimephasedDurationWalks(s.tasks[idx]);
         // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
+        // B1c-plan3 taak 3 (spec §4, "Invalidatie"): dezelfde bewerking die de MSP-urensturing
+        // ongeldig maakt, maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat
+        // ligt dan op een verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en
+        // blijven staan; `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-
+        // afronding hierboven is dit geen verlies van gebruikersdata uit een importbestand maar het
+        // opruimen van app-eigen afgeleide nivelleeruitvoer op een as die de aanroeper zelf zojuist
+        // heeft verzet.
+        clearLevelingGaps(s.tasks[idx]);
       }
       s.isDirty = true;
     });
@@ -411,6 +419,9 @@ function createMcpDraft(
         const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
+        // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
+        // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
+        clearLevelingGaps(task);
       }
       s.isDirty = true;
     });
@@ -603,6 +614,9 @@ function createMcpDraft(
       const clearedWalks = clearTimephasedDurationWalks(task);
       // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
       if (clearedWindow || clearedWalks) recordTimephasedLoss(taskId);
+      // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
+      // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
+      clearLevelingGaps(task);
       s.isDirty = true;
     });
     return id;
@@ -671,11 +685,15 @@ function createMcpDraft(
         const clearedOldWindow = clearTimephasedWindow(oldTask);
         const clearedOldWalks = clearTimephasedDurationWalks(oldTask);
         if (clearedOldWindow || clearedOldWalks) recordTimephasedLoss(oldTaskId);
+        // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
+        clearLevelingGaps(oldTask);
       }
       const clearedNewWindow = clearTimephasedWindow(newTask);
       const clearedNewWalks = clearTimephasedDurationWalks(newTask);
       // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
       if (clearedNewWindow || clearedNewWalks) recordTimephasedLoss(newTaskId);
+      // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
+      clearLevelingGaps(newTask);
       s.isDirty = true;
     });
   },
@@ -705,6 +723,8 @@ function createMcpDraft(
         const clearedWalks = clearTimephasedDurationWalks(removedTask);
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(removedTask.id);
+        // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
+        clearLevelingGaps(removedTask);
       }
       s.isDirty = true;
     });

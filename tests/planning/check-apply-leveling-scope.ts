@@ -2,6 +2,10 @@
 // SCOPE en schrijft ook `splitGaps`; `clearLeveling` wist ook de leveling-gaten. Headless tegen de
 // ECHTE Zustand-store (zelfde `useAppStore.getState()`-patroon als `check-move-assignment.ts`).
 //
+// Deel 5 (onderaan) is B1c-plan3 taak 3: `clearLevelingGaps` bedraden op tijdbasis-bewerkingen
+// (spec §4, "Invalidatie") — zie de toelichting daar voor de gekozen dekking en een AFWIJKING op de
+// letterlijke "vier klassen" van de spec.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { levelResources, type LevelingOptions } from '@/engine/scheduler/ResourceLeveler';
@@ -177,6 +181,76 @@ console.log('-- apply-leveling-scope: deel 4 (motor), idempotente onderbreek-mod
   // out-of-scope taak zelf ongemoeid — de motor muteert de invoertaak nooit.
   eq('de taak buiten de scope behoudt haar eigen leveling-gat ongewijzigd',
     JSON.stringify(taskBuiten.splitGaps), JSON.stringify([priorGap]));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Deel 5 (B1c-plan3 taak 3): een tijdbasis-bewerking wist de LEVELING-gaten van díé taak (spec §4,
+// "Invalidatie") en laat IMPORTSPLITS staan.
+//
+// AFWIJKING van het letterlijke voorschrift: de spec noemt "voortgang" (completion/actualStart/
+// actualFinish) als vierde klasse, mét `setTaskProgress`/`setActualStart`/`setActualFinish` als
+// aanroepplekken te verwachten. De discoverable regel die het plan zelf voorschrijft
+// (`grep -rn "clearTimephasedWindow" src/`) wijst ECHTER geen van die drie functies aan — ze raken
+// `clearTimephasedWindow` helemaal niet aan (bevestigd door de bron te lezen: geen van de drie
+// noemt die functie). Een leveling-gat aan een voortgangsmutatie koppelen zou dus een NIEUW
+// triggerpunt zijn, niet het overnemen van een bestaand aanroeppatroon — buiten wat dit plan vraagt.
+// Deze case dekt daarom de drie klassen die WEL een echte `clearTimephasedWindow`-aanroepplek
+// hebben (duur, handmatige datums via `updateTask`, kalender via `setTaskCalendar`), plus de
+// "toewijzingen"-trigger die de code zelf als vierde klasse voert (`assignResource`, zie
+// `resourceSlice.ts`/`createMcpTransactions.ts`s eigen commentaar "toewijzingen is expliciet
+// onderdeel van de triggerset").
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- apply-leveling-scope: deel 5, tijdbasis-bewerkingen wissen leveling-gaten --');
+{
+  const importSplit5: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480 };
+  const levelingGap5: TaskSplitGap = { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' };
+  const seed = (name: string) => {
+    const id = S().addTask({ name });
+    S().applyLeveling({ delays: {}, gaps: { [id]: [importSplit5, levelingGap5] } });
+    return id;
+  };
+
+  // ── Duur wijzigen ──────────────────────────────────────────────────────────────────────────────
+  const idDur = seed('F-duur');
+  S().updateTask(idDur, { time: { ...S().tasks.find(t => t.id === idDur)!.time, scheduleDuration: 5 } });
+  const tDur = S().tasks.find(t => t.id === idDur);
+  eq('duur wijzigen wist het leveling-gat', tDur?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tDur?.splitGaps?.[0]?.source, undefined);
+
+  // ── Handmatige datums (scheduleStart/scheduleFinish, bv. een Gantt-sleep) ───────────────────────
+  const idDates = seed('G-datums');
+  S().updateTask(idDates, {
+    time: { ...S().tasks.find(t => t.id === idDates)!.time, scheduleStart: '2026-07-01', scheduleFinish: '2026-07-05' },
+  });
+  const tDates = S().tasks.find(t => t.id === idDates);
+  eq('handmatige datums wissen het leveling-gat', tDates?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tDates?.splitGaps?.[0]?.source, undefined);
+
+  // ── Kalender wijzigen ────────────────────────────────────────────────────────────────────────────
+  const idCal = seed('H-kalender');
+  S().setTaskCalendar(idCal, 'een-andere-kalender-id');
+  const tCal = S().tasks.find(t => t.id === idCal);
+  eq('kalender wijzigen wist het leveling-gat', tCal?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tCal?.splitGaps?.[0]?.source, undefined);
+
+  // ── Toewijzingen (assignResource) — de vierde klasse die de CODE zelf voert (zie de AFWIJKING
+  // hierboven), spiegelt "duur, datums, kalender, TOEWIJZINGEN" in resourceSlice.ts/
+  // createMcpTransactions.ts se eigen commentaar. ────────────────────────────────────────────────
+  const idAsgn = seed('I-toewijzing');
+  const resId5 = S().addResource({ name: 'Deel5-resource', type: 'LABOR', description: '', maxUnits: 1 });
+  S().assignResource(idAsgn, resId5, 1, 'UNIFORM');
+  const tAsgn = S().tasks.find(t => t.id === idAsgn);
+  eq('een toewijzing wist het leveling-gat', tAsgn?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tAsgn?.splitGaps?.[0]?.source, undefined);
+
+  // ── Een taak met UITSLUITEND importsplits blijft ongemoeid (contract van `clearLevelingGaps`:
+  // `false` ⇒ niets gemuteerd — hier getoetst via de array-identiteit vóór/ná). ────────────────────
+  const idOnlyImport = S().addTask({ name: 'J-alleen-importsplit' });
+  S().updateTask(idOnlyImport, { splitGaps: [importSplit5] });
+  S().updateTask(idOnlyImport, { time: { ...S().tasks.find(t => t.id === idOnlyImport)!.time, scheduleDuration: 3 } });
+  const tOnlyImport = S().tasks.find(t => t.id === idOnlyImport);
+  eq('een taak met alleen importsplits blijft ongemoeid', tOnlyImport?.splitGaps?.length, 1);
+  eq('en de importsplit is exact hetzelfde gebleven', tOnlyImport?.splitGaps?.[0]?.afterMinutes, 480);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
