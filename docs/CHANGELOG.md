@@ -6,6 +6,113 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.9.0 — 2026-09-01
+
+This is a substantial planning-workflow release: 287 commits since v2026.8.1 concentrate on a
+single, accessible task grid; explicit day and hour work; more capable reporting; safer extension
+handling; and reliable saving and resource leveling. The headline features are backed by browser,
+planning, library and MCP regression coverage rather than being isolated interface changes.
+
+### Added
+- **One virtual, accessible task grid now powers both the Gantt's task list and the full Table
+  view.** It virtualizes large task sets while keeping keyboard cell navigation, selection,
+  editing, pinning and row operations consistent between the two surfaces. The grid has a complete
+  column registry, a column chooser with recently used fields, and personal per-surface column and
+  scroll preferences.
+- **Spreadsheet-style task editing is now available in that grid.** Multi-cell TSV copy/paste is
+  planned and applied atomically, preserves supported values instead of flattening them to text,
+  repeats a pasted tile where appropriate, and skips read-only cells. Task assignments, scheduling
+  and progress fields can be edited from the same surface.
+- **Dependencies can be edited directly in a task-grid cell.** The relation editor supports the
+  relation details and linked-task navigation needed by the former dedicated Relationships surface;
+  it also preserves external relation tokens rather than turning them into unstable local links.
+- **Projects can define and use personal task types.** A type is reusable on the local installation
+  while its stable identity and readable name are stored with the project, so tasks remain
+  intelligible after IFC exchange or on another installation.
+- **Task duration has an explicit per-task unit: Days or Hours.** Mixed day/hour projects keep the
+  unit that the planner chose; an hour task consumes real working minutes in its effective calendar
+  instead of being silently converted to a day count. The same unit survives IFC, MSPDI and P6
+  round-trips; CSV remains day-based and does not claim to preserve it.
+- **Calendars can now express a configurable intra-day break from their simple shift pattern.** The
+  resulting working-time bands are used by hour scheduling, resource loading and leveling; users
+  can therefore model, for example, a lunch break without manually constructing every weekday band.
+- **The resource-leveling core gained controlled interruption and shared-capacity foundations.** It can
+  insert calendar-valid pauses into work (including hour-mode tasks), level a chosen task scope
+  while treating the rest as fixed load, apply per-task overrun ceilings, and take an external pool
+  ledger into account. A headless resource-library distributor can use that ledger to place
+  document inputs sequentially against their remaining shared capacity; this release does not yet
+  expose that cross-document distributor as a user-facing screen or write-back action.
+- **Gantt reports gained clearer planning controls.** Reports can use A2 paper, show a baseline
+  overlay, follow the current filtered/grouped view, display a status or progress line, colour
+  bars by task/category/resource/automatic mode, and optionally compress non-working days. The
+  compressed timeline also uses alternate week bands so adjacent weeks remain readable.
+- **Saved filter presets** are available from the filter workflow, and the resource panel can limit
+  its displayed resources to the current task selection.
+- **Document-bound AutoSave is now available next to Save.** Once a project has a known writable
+  IFC file, the user may enable periodic writes back to that file. It deliberately remains separate
+  from crash recovery: unsaved documents are never overwritten and recovery snapshots continue to
+  protect changed open documents.
+- **The interface can now follow the operating system or browser colour scheme.** A new opt-in
+  switch in Settings and the welcome dialog resolves the system preference to Light or Dark,
+  reacts live while the app is open, and keeps the resolved theme through the first paint so the
+  transition does not reintroduce a startup flash. High Contrast remains an explicit manual choice.
+
+### Changed
+- **The Table view is no longer a separate editor with different interaction rules.** It reuses the
+  Gantt task-grid core, and the old Relations tab was retired after relationship editing and
+  navigation reached parity in both grid surfaces.
+- **The Gantt is easier to navigate and reposition.** Arrow-key navigation now works in the Gantt
+  and histogram, bars can be moved vertically to another task row, the ribbon exposes Fit to
+  project, and hour-bar dragging follows calendar working bands rather than a purely elapsed-time
+  grid.
+- **The report preview was redesigned as a bounded, progressive page renderer.** It renders pages
+  locally at a selected quality, keeps a compact control strip and scroll position, and avoids
+  creating one unbounded set of data URLs for a large report.
+- **Undo/redo, document activation and grid preferences now use a session event model with
+  document-aware boundaries.** This keeps a document's history from being offered against another
+  open document while still allowing deliberate personal grid-preference changes to be undone.
+- **Extensions and their stored catalog data are now validated before they can become runnable.**
+  Invalid manifests, JavaScript, ZIP packages and corrupt IndexedDB records are classified and
+  shown in quarantine instead of being treated as installed extensions; repaired storage replaces
+  the matching quarantine entry atomically.
+- **The post-update experience is now driven by a local, versioned highlight catalog.** Its fixed
+  primary/secondary-card structure, localized copy and measured release statistics have explicit
+  verification, so an update can show curated product changes without depending on a live release
+  page.
+
+### Fixed
+- **Hour-mode scheduling and leveling now measure work on the task's real calendar.** Fixes cover
+  split tasks, calendar-aware delays and lags, effective hour bands, non-working gaps and the
+  distinction between calendar feasibility and capacity. Started and completed tasks are correctly
+  retained as fixed load instead of being shifted by leveling.
+- **The task grid received a focused usability and accessibility repair pass.** Tab, Shift+Tab and
+  Escape no longer trap keyboard users; AltGr and macOS Option can still start cell editing; the
+  active cell follows the selected task; dropdowns show their full choices; and selection/drop
+  indicators remain visible above cells.
+- **Grid geometry now remains usable at narrow sizes.** Column resizing and dragging cover the
+  intended interaction area, the chooser is constrained to the window, the last header is not
+  obscured by its add control, and the Gantt/table splitter reserves sensible column space.
+- **Report preview quality switches no longer race stale image work.** Pages are rasterized and
+  cached locally with per-page budgets, object URLs are replaced safely, and the preview remains
+  sharp without growing without bound on long reports.
+- **The MPP reader stops immediately when its monthly cursor cannot advance**, preventing a
+  stationary cursor from continuing through an invalid month traversal.
+- **Undo and snapshot handling now crosses Immer's draft boundary explicitly.** The shared helper
+  preserves the distinction between a producer's original state and its current draft, with a
+  behavioral regression test for the invariant. Immer is also pinned to the exact reviewed
+  version so local dependency updates cannot silently test different state semantics than CI.
+- **Collapsed ribbon groups retain readable labels**, and long tooltips wrap instead of escaping the
+  application window.
+
+### Documentation
+- Added English and Dutch in-app guides for personal task types, and updated the calendar/hour
+  planning guide to describe explicit units, safe conversion, working-time bands and breaks.
+- Updated the English and Dutch recovery guide to distinguish always-on crash recovery from the
+  opt-in writable-file AutoSave switch, including its browser permission boundary.
+- Expanded the report, resource/histogram, filter and shortcut guides to cover the new controls and
+  navigation. The release also adds regression documentation for the shared grid, Gantt interaction
+  boundaries, extension validation and release-highlight contract.
+
 ## v2026.8.1 — 2026-08-19
 
 A release built around one feature, taken all the way from a first read to full date-fidelity:
