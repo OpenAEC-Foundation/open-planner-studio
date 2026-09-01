@@ -899,5 +899,58 @@
     "declaredNone": "申告なし。",
     "cancel": "インストールしない",
     "confirm": "インストール"
+  },
+  "progressImport": {
+    "title": "シートから進捗を更新",
+    "chooseFile": "ファイルを選択…",
+    "intro": "返送されたCSVシートを選びます。アプリが読み込むのは完了率・実開始・実終了のみで、計画の他の部分は変わりません。",
+    "summaryApplied": "適用済み: {{applied}}",
+    "summaryNoop": "変更なし: {{noop}}",
+    "summaryNeedsLink": "紐付け待ち: {{needsLink}}",
+    "summaryRefused": "拒否: {{refused}}",
+    "sectionNeedsLink": "紐付け待ち",
+    "sectionDoubtful": "紐付けが不確実",
+    "confirmLink": "確定",
+    "changeLink": "変更",
+    "clearLink": "紐付けを解除",
+    "pickerPlaceholder": "タスクを選択…",
+    "pickerFilter": "WBSまたは名前で検索…",
+    "pickerTooMany": "表示できるタスクが多すぎます — 検索を絞り込んでください。",
+    "pickerTaken": "すでに他の行に紐付いています",
+    "overrideDropped": "行 {{row}} の紐付けは存在しないタスクを指していたため、無視されました。",
+    "dateOrderTitle": "日が先か、月が先か？",
+    "dateOrderQuestion": "「{{sample}}」— これはどちらの日付ですか？",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "日付の質問に戻る",
+    "confirm": "適用",
+    "close": "閉じる",
+    "resultTitle": "結果",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "このファイルは大きすぎて進捗シートとして読み込めません。",
+      "tooManyRows": "このファイルは行数が多すぎて進捗シートとして読み込めません。",
+      "noKeyColumn": "このファイルには行をタスクに紐付ける「OPS Task ID」列も「WBS」列もありません。",
+      "noProgressColumns": "このファイルには完了率・実開始・実終了のいずれの列もありません。",
+      "unreadable": "このファイルは進捗シートとして読み込めませんでした。"
+    },
+    "reason": {
+      "unmatched": "この行に対応するタスクが見つかりません。",
+      "ambiguousWbs": "このWBSコードは複数のタスクに存在します — 行を手動で紐付けてください。",
+      "duplicateRow": "このタスクはすでに別の行が確保しています。",
+      "summaryTask": "サマリータスクはシートから進捗を受け取れません。",
+      "unreadableDate": "日付を読み取れません。",
+      "unreadableNumber": "パーセンテージを読み取れません。",
+      "noProgressColumns": "この行には3つの進捗値のいずれも入力されていません。",
+      "actualAfterStatusDate": "実際の日付がステータス日より後です。",
+      "actualFinishBeforeStart": "実終了が実開始より前です。",
+      "conflictingProgressInputs": "入力された値が矛盾しています。",
+      "rejected": "プランナーに拒否されました。"
+    },
+    "field": {
+      "completion": "完了率",
+      "actualStart": "実開始",
+      "actualFinish": "実終了"
+    }
   }
 }

@@ -938,5 +938,58 @@
     "declaredNone": "Nothing declared.",
     "cancel": "Don't install",
     "confirm": "Install"
+  },
+  "progressImport": {
+    "title": "Update progress from a spreadsheet",
+    "chooseFile": "Choose file…",
+    "intro": "Pick a returned CSV sheet. The app only reads completion, actual start and actual finish — the rest of your plan stays unchanged.",
+    "summaryApplied": "Applied: {{applied}}",
+    "summaryNoop": "Unchanged: {{noop}}",
+    "summaryNeedsLink": "Waiting for a link: {{needsLink}}",
+    "summaryRefused": "Refused: {{refused}}",
+    "sectionNeedsLink": "Waiting for a link",
+    "sectionDoubtful": "Link is uncertain",
+    "confirmLink": "Confirm",
+    "changeLink": "Change",
+    "clearLink": "Clear link",
+    "pickerPlaceholder": "Choose a task…",
+    "pickerFilter": "Search by WBS or name…",
+    "pickerTooMany": "Too many tasks to show — refine your search.",
+    "pickerTaken": "already linked to another row",
+    "overrideDropped": "The link for row {{row}} points to a task that no longer exists and was ignored.",
+    "dateOrderTitle": "Day first or month first?",
+    "dateOrderQuestion": "“{{sample}}” — which date is that?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Back to the date question",
+    "confirm": "Apply",
+    "close": "Close",
+    "resultTitle": "Result",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "This file is too large to read as a progress sheet.",
+      "tooManyRows": "This file has too many rows to read as a progress sheet.",
+      "noKeyColumn": "This file has no “OPS Task ID” or “WBS” column to link rows to tasks.",
+      "noProgressColumns": "This file has none of the Completion, Actual Start or Actual Finish columns.",
+      "unreadable": "This file could not be read as a progress sheet."
+    },
+    "reason": {
+      "unmatched": "No task found for this row.",
+      "ambiguousWbs": "This WBS code occurs on multiple tasks — link the row by hand.",
+      "duplicateRow": "Another row already claimed this task.",
+      "summaryTask": "Summary tasks cannot receive progress from a sheet.",
+      "unreadableDate": "Unreadable date.",
+      "unreadableNumber": "Unreadable percentage.",
+      "noProgressColumns": "This row has none of the three progress values filled in.",
+      "actualAfterStatusDate": "The actual date is after the status date.",
+      "actualFinishBeforeStart": "Actual finish is before actual start.",
+      "conflictingProgressInputs": "The entered values contradict each other.",
+      "rejected": "Refused by the planner."
+    },
+    "field": {
+      "completion": "Completion",
+      "actualStart": "Actual start",
+      "actualFinish": "Actual finish"
+    }
   }
 }

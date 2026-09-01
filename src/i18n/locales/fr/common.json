@@ -931,5 +931,58 @@
     "declaredNone": "Rien de déclaré.",
     "cancel": "Ne pas installer",
     "confirm": "Installer"
+  },
+  "progressImport": {
+    "title": "Mettre à jour l'avancement depuis une feuille",
+    "chooseFile": "Choisir un fichier…",
+    "intro": "Choisissez une feuille CSV renvoyée. L'application ne lit que l'avancement, le début réel et la fin réelle — le reste de votre planning reste inchangé.",
+    "summaryApplied": "Appliqué : {{applied}}",
+    "summaryNoop": "Inchangé : {{noop}}",
+    "summaryNeedsLink": "En attente de liaison : {{needsLink}}",
+    "summaryRefused": "Refusé : {{refused}}",
+    "sectionNeedsLink": "En attente de liaison",
+    "sectionDoubtful": "Liaison incertaine",
+    "confirmLink": "Confirmer",
+    "changeLink": "Modifier",
+    "clearLink": "Effacer la liaison",
+    "pickerPlaceholder": "Choisir une tâche…",
+    "pickerFilter": "Rechercher par WBS ou nom…",
+    "pickerTooMany": "Trop de tâches à afficher — affinez votre recherche.",
+    "pickerTaken": "déjà lié à une autre ligne",
+    "overrideDropped": "La liaison de la ligne {{row}} pointe vers une tâche qui n'existe plus et a été ignorée.",
+    "dateOrderTitle": "Jour d'abord ou mois d'abord ?",
+    "dateOrderQuestion": "« {{sample}} » — de quelle date s'agit-il ?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Retour à la question de date",
+    "confirm": "Appliquer",
+    "close": "Fermer",
+    "resultTitle": "Résultat",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Ce fichier est trop volumineux pour être lu comme feuille d'avancement.",
+      "tooManyRows": "Ce fichier contient trop de lignes pour être lu comme feuille d'avancement.",
+      "noKeyColumn": "Ce fichier n'a pas de colonne « OPS Task ID » ni « WBS » pour lier les lignes aux tâches.",
+      "noProgressColumns": "Ce fichier n'a aucune des colonnes Avancement, Début réel ou Fin réelle.",
+      "unreadable": "Ce fichier n'a pas pu être lu comme feuille d'avancement."
+    },
+    "reason": {
+      "unmatched": "Aucune tâche trouvée pour cette ligne.",
+      "ambiguousWbs": "Ce code WBS apparaît sur plusieurs tâches — liez la ligne manuellement.",
+      "duplicateRow": "Une autre ligne a déjà revendiqué cette tâche.",
+      "summaryTask": "Les tâches récapitulatives ne peuvent pas recevoir d'avancement d'une feuille.",
+      "unreadableDate": "Date illisible.",
+      "unreadableNumber": "Pourcentage illisible.",
+      "noProgressColumns": "Cette ligne ne contient aucune des trois valeurs d'avancement.",
+      "actualAfterStatusDate": "La date réelle est postérieure à la date de statut.",
+      "actualFinishBeforeStart": "La fin réelle précède le début réel.",
+      "conflictingProgressInputs": "Les valeurs saisies se contredisent.",
+      "rejected": "Refusé par le planificateur."
+    },
+    "field": {
+      "completion": "Avancement",
+      "actualStart": "Début réel",
+      "actualFinish": "Fin réelle"
+    }
   }
 }

@@ -938,5 +938,58 @@
     "declaredNone": "Niets opgegeven.",
     "cancel": "Niet installeren",
     "confirm": "Installeren"
+  },
+  "progressImport": {
+    "title": "Voortgang bijwerken uit een blad",
+    "chooseFile": "Bestand kiezen…",
+    "intro": "Kies een teruggestuurd CSV-blad. De app leest alleen voltooiing, werkelijke start en werkelijk einde — de rest van je planning blijft ongewijzigd.",
+    "summaryApplied": "Toegepast: {{applied}}",
+    "summaryNoop": "Ongewijzigd: {{noop}}",
+    "summaryNeedsLink": "Wacht op koppeling: {{needsLink}}",
+    "summaryRefused": "Geweigerd: {{refused}}",
+    "sectionNeedsLink": "Wacht op koppeling",
+    "sectionDoubtful": "Koppeling betwijfeld",
+    "confirmLink": "Bevestigen",
+    "changeLink": "Wijzigen",
+    "clearLink": "Koppeling wissen",
+    "pickerPlaceholder": "Kies een taak…",
+    "pickerFilter": "Zoek op WBS of naam…",
+    "pickerTooMany": "Te veel taken om te tonen — verfijn je zoekterm.",
+    "pickerTaken": "al gekoppeld aan een andere rij",
+    "overrideDropped": "De koppeling voor rij {{row}} wijst naar een taak die niet meer bestaat en is genegeerd.",
+    "dateOrderTitle": "Dag of maand eerst?",
+    "dateOrderQuestion": "“{{sample}}” — welke datum is dat?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Terug naar de datumvraag",
+    "confirm": "Toepassen",
+    "close": "Sluiten",
+    "resultTitle": "Resultaat",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Dit bestand is te groot om als voortgangsblad te lezen.",
+      "tooManyRows": "Dit bestand heeft te veel rijen om als voortgangsblad te lezen.",
+      "noKeyColumn": "Dit bestand heeft geen kolom “OPS Task ID” of “WBS” om rijen aan taken te koppelen.",
+      "noProgressColumns": "Dit bestand heeft geen van de kolommen Voltooiing, Werkelijke start of Werkelijk einde.",
+      "unreadable": "Dit bestand kon niet als voortgangsblad worden gelezen."
+    },
+    "reason": {
+      "unmatched": "Geen taak gevonden voor deze rij.",
+      "ambiguousWbs": "Deze WBS-code komt bij meerdere taken voor — koppel de rij met de hand.",
+      "duplicateRow": "Een andere rij claimde deze taak al.",
+      "summaryTask": "Verzameltaken kunnen geen voortgang uit een blad krijgen.",
+      "unreadableDate": "Onleesbare datum.",
+      "unreadableNumber": "Onleesbaar percentage.",
+      "noProgressColumns": "Deze rij heeft geen van de drie voortgangswaarden ingevuld.",
+      "actualAfterStatusDate": "De werkelijke datum ligt na de peildatum.",
+      "actualFinishBeforeStart": "Werkelijk einde ligt vóór werkelijke start.",
+      "conflictingProgressInputs": "De ingevulde waarden spreken elkaar tegen.",
+      "rejected": "Geweigerd door de planner."
+    },
+    "field": {
+      "completion": "Voltooiing",
+      "actualStart": "Werkelijke start",
+      "actualFinish": "Werkelijk einde"
+    }
   }
 }

@@ -947,5 +947,58 @@
     "declaredNone": "Nic nie zadeklarowano.",
     "cancel": "Nie instaluj",
     "confirm": "Zainstaluj"
+  },
+  "progressImport": {
+    "title": "Aktualizuj postęp z arkusza",
+    "chooseFile": "Wybierz plik…",
+    "intro": "Wybierz zwrócony arkusz CSV. Aplikacja odczytuje tylko ukończenie, rzeczywisty start i rzeczywiste zakończenie — reszta harmonogramu pozostaje bez zmian.",
+    "summaryApplied": "Zastosowano: {{applied}}",
+    "summaryNoop": "Bez zmian: {{noop}}",
+    "summaryNeedsLink": "Czeka na powiązanie: {{needsLink}}",
+    "summaryRefused": "Odrzucono: {{refused}}",
+    "sectionNeedsLink": "Czeka na powiązanie",
+    "sectionDoubtful": "Powiązanie niepewne",
+    "confirmLink": "Potwierdź",
+    "changeLink": "Zmień",
+    "clearLink": "Usuń powiązanie",
+    "pickerPlaceholder": "Wybierz zadanie…",
+    "pickerFilter": "Szukaj po WBS lub nazwie…",
+    "pickerTooMany": "Zbyt wiele zadań do wyświetlenia — zawęź wyszukiwanie.",
+    "pickerTaken": "już powiązane z innym wierszem",
+    "overrideDropped": "Powiązanie wiersza {{row}} wskazuje na zadanie, które już nie istnieje, i zostało zignorowane.",
+    "dateOrderTitle": "Najpierw dzień czy najpierw miesiąc?",
+    "dateOrderQuestion": "„{{sample}}” — o którą datę chodzi?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Wróć do pytania o datę",
+    "confirm": "Zastosuj",
+    "close": "Zamknij",
+    "resultTitle": "Wynik",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Ten plik jest zbyt duży, aby odczytać go jako arkusz postępu.",
+      "tooManyRows": "Ten plik ma zbyt wiele wierszy, aby odczytać go jako arkusz postępu.",
+      "noKeyColumn": "Ten plik nie ma kolumny „OPS Task ID” ani „WBS” do powiązania wierszy z zadaniami.",
+      "noProgressColumns": "Ten plik nie ma żadnej z kolumn Ukończenie, Rzeczywisty start ani Rzeczywiste zakończenie.",
+      "unreadable": "Nie udało się odczytać tego pliku jako arkusza postępu."
+    },
+    "reason": {
+      "unmatched": "Nie znaleziono zadania dla tego wiersza.",
+      "ambiguousWbs": "Ten kod WBS występuje w wielu zadaniach — powiąż wiersz ręcznie.",
+      "duplicateRow": "Inny wiersz już zajął to zadanie.",
+      "summaryTask": "Zadania sumaryczne nie mogą otrzymywać postępu z arkusza.",
+      "unreadableDate": "Nieczytelna data.",
+      "unreadableNumber": "Nieczytelny procent.",
+      "noProgressColumns": "Ten wiersz nie ma wypełnionej żadnej z trzech wartości postępu.",
+      "actualAfterStatusDate": "Rzeczywista data przypada po dacie statusu.",
+      "actualFinishBeforeStart": "Rzeczywiste zakończenie przypada przed rzeczywistym startem.",
+      "conflictingProgressInputs": "Wprowadzone wartości są ze sobą sprzeczne.",
+      "rejected": "Odrzucone przez planistę."
+    },
+    "field": {
+      "completion": "Ukończenie",
+      "actualStart": "Rzeczywisty start",
+      "actualFinish": "Rzeczywiste zakończenie"
+    }
   }
 }
