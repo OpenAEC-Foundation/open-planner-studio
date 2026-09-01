@@ -86,6 +86,12 @@ const EXPECTED = {
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 const HEX_16 = /^[0-9a-f]{16}$/;
+const ALLOWED_STATIC_IMPORTS = new Set([
+  'node:crypto',
+  'node:fs',
+  'node:path',
+  'node:url',
+]);
 const diffs: string[] = [];
 let checks = 0;
 
@@ -341,6 +347,124 @@ function checkProblem(problems: string[], label: string, condition: boolean): vo
   if (!condition) issue(problems, label);
 }
 
+function stripExecutableNoise(source: string): string {
+  let result = '';
+  let state: 'code' | 'line-comment' | 'block-comment' | 'single-quote' | 'double-quote' | 'template' = 'code';
+  let escaped = false;
+
+  for (let index = 0; index < source.length; index++) {
+    const char = source[index]!;
+    const next = source[index + 1];
+
+    if (state === 'code') {
+      if (char === '/' && next === '/') {
+        result += '  ';
+        index++;
+        state = 'line-comment';
+        continue;
+      }
+      if (char === '/' && next === '*') {
+        result += '  ';
+        index++;
+        state = 'block-comment';
+        continue;
+      }
+      if (char === '\'') {
+        result += ' ';
+        state = 'single-quote';
+        escaped = false;
+        continue;
+      }
+      if (char === '"') {
+        result += ' ';
+        state = 'double-quote';
+        escaped = false;
+        continue;
+      }
+      if (char === '`') {
+        result += ' ';
+        state = 'template';
+        escaped = false;
+        continue;
+      }
+      result += char;
+      continue;
+    }
+
+    if (state === 'line-comment') {
+      result += char === '\n' ? '\n' : ' ';
+      if (char === '\n') state = 'code';
+      continue;
+    }
+
+    if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        result += '  ';
+        index++;
+        state = 'code';
+      } else {
+        result += char === '\n' ? '\n' : ' ';
+      }
+      continue;
+    }
+
+    if (state === 'single-quote') {
+      result += char === '\n' ? '\n' : ' ';
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '\'') state = 'code';
+      continue;
+    }
+
+    if (state === 'double-quote') {
+      result += char === '\n' ? '\n' : ' ';
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') state = 'code';
+      continue;
+    }
+
+    result += char === '\n' ? '\n' : ' ';
+    if (escaped) escaped = false;
+    else if (char === '\\') escaped = true;
+    else if (char === '`') state = 'code';
+  }
+
+  return result;
+}
+
+function validateOwnSource(raw: string): string[] {
+  const problems: string[] = [];
+  const importModules: string[] = [];
+  const lines = raw.split(/\r?\n/);
+
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('import ')) continue;
+
+    const match = trimmed.match(/^import\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"];?$/);
+    if (!match) {
+      issue(problems, `bron ${index + 1}: statische importregel is niet line-anchored of niet exact`);
+      continue;
+    }
+    importModules.push(match[1]!);
+  }
+
+  equal(problems, 'bron.statische-import-aantal', importModules.length, 4);
+  equal(problems, 'bron.statische-import-modules', [...new Set(importModules)].sort(), [...ALLOWED_STATIC_IMPORTS].sort());
+  for (const module of importModules) {
+    if (!ALLOWED_STATIC_IMPORTS.has(module)) {
+      issue(problems, `bron: verboden statische import ${module}`);
+    }
+  }
+
+  const executableScan = stripExecutableNoise(raw);
+  if (/\bimport\s*\(/.test(executableScan)) issue(problems, 'bron: dynamische import() is verboden');
+  if (/\brequire\s*\(/.test(executableScan)) issue(problems, 'bron: require() is verboden');
+
+  return problems;
+}
+
 function validateContract(manifestRaw: unknown, oracleRaw: unknown, replayRaw: unknown): string[] {
   const inventory = validateInventory(manifestRaw);
   if (!inventory.manifest) return inventory.problems;
@@ -359,6 +483,7 @@ const manifestRaw = readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')
 const oracleRaw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf8');
 const replayRaw = readFileSync(join(HERE, 'xer-task-replay-public-pin.json'), 'utf8');
 const productV1Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8');
+const sourceRaw = readFileSync(join(HERE, 'check-xer-corpusless-fidelity-gate.ts'), 'utf8');
 const manifest = JSON.parse(manifestRaw) as Manifest;
 const oracle = JSON.parse(oracleRaw) as OracleBaseline;
 const replay = JSON.parse(replayRaw) as ReplayPin;
@@ -368,6 +493,12 @@ const productV1 = JSON.parse(productV1Raw) as ProductV1;
 // de eerste groene toestand; de matrix hieronder bewijst vervolgens dat iedere bescherming bij
 // één gerichte in-memory wijziging rood wordt, zonder een tracked JSON-bestand aan te raken.
 {
+  const currentSourceProblems = validateOwnSource(sourceRaw);
+  checkEqual('bron huidige ongebundelde TS-bron is strikt corpusloos', currentSourceProblems, []);
+
+  const mutantSourceProblems = validateOwnSource(`${sourceRaw}\nimport { readXER } from '@/services/xer/xerReader';\n`);
+  checkEqual('bronmutant met readXER-import wordt afgewezen', mutantSourceProblems.length > 0, true);
+
   const problems = validateContract(manifest, oracle, replay);
   checkEqual(`A+B+D huidige statische contracten zijn consistent (${problems.join('; ')})`, problems, []);
   checkEqual('A raw manifestbytes zijn exact gepind', rawHash(manifestRaw), EXPECTED.manifestRawSha256);
