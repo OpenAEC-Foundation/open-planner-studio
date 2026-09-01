@@ -370,19 +370,19 @@ function stripExecutableNoise(source: string): string {
         continue;
       }
       if (char === '\'') {
-        result += ' ';
+        result += char;
         state = 'single-quote';
         escaped = false;
         continue;
       }
       if (char === '"') {
-        result += ' ';
+        result += char;
         state = 'double-quote';
         escaped = false;
         continue;
       }
       if (char === '`') {
-        result += ' ';
+        result += char;
         state = 'template';
         escaped = false;
         continue;
@@ -409,7 +409,7 @@ function stripExecutableNoise(source: string): string {
     }
 
     if (state === 'single-quote') {
-      result += char === '\n' ? '\n' : ' ';
+      result += char;
       if (escaped) escaped = false;
       else if (char === '\\') escaped = true;
       else if (char === '\'') state = 'code';
@@ -417,14 +417,14 @@ function stripExecutableNoise(source: string): string {
     }
 
     if (state === 'double-quote') {
-      result += char === '\n' ? '\n' : ' ';
+      result += char;
       if (escaped) escaped = false;
       else if (char === '\\') escaped = true;
       else if (char === '"') state = 'code';
       continue;
     }
 
-    result += char === '\n' ? '\n' : ' ';
+    result += char;
     if (escaped) escaped = false;
     else if (char === '\\') escaped = true;
     else if (char === '`') state = 'code';
@@ -432,6 +432,11 @@ function stripExecutableNoise(source: string): string {
 
   return result;
 }
+
+const DYNAMIC_IMPORT_RE = new RegExp(['\\b', 'import', '\\s*', '\\('].join(''));
+const DYNAMIC_REQUIRE_RE = new RegExp(['\\b', 'require', '\\s*', '\\('].join(''));
+const DYNAMIC_IMPORT_LABEL = ['import', '()'].join('');
+const DYNAMIC_REQUIRE_LABEL = ['require', '()'].join('');
 
 function validateOwnSource(raw: string): string[] {
   const problems: string[] = [];
@@ -459,8 +464,8 @@ function validateOwnSource(raw: string): string[] {
   }
 
   const executableScan = stripExecutableNoise(raw);
-  if (/\bimport\s*\(/.test(executableScan)) issue(problems, 'bron: dynamische import() is verboden');
-  if (/\brequire\s*\(/.test(executableScan)) issue(problems, 'bron: require() is verboden');
+  if (DYNAMIC_IMPORT_RE.test(executableScan)) issue(problems, `bron: dynamische ${DYNAMIC_IMPORT_LABEL} is verboden`);
+  if (DYNAMIC_REQUIRE_RE.test(executableScan)) issue(problems, `bron: ${DYNAMIC_REQUIRE_LABEL} is verboden`);
 
   return problems;
 }
@@ -498,6 +503,28 @@ const productV1 = JSON.parse(productV1Raw) as ProductV1;
 
   const mutantSourceProblems = validateOwnSource(`${sourceRaw}\nimport { readXER } from '@/services/xer/xerReader';\n`);
   checkEqual('bronmutant met readXER-import wordt afgewezen', mutantSourceProblems.length > 0, true);
+
+  const templateExpressionRequireSource = [
+    sourceRaw,
+    "const templateTrap = `probe ${" + ['requ', "ire('x')"].join('') + "} binnen een template-expressie`;",
+    '',
+  ].join('\n');
+  const templateExpressionRequireProblems = validateOwnSource(templateExpressionRequireSource);
+  checkEqual(
+    'bronmutant met require in template-expressie wordt afgewezen',
+    templateExpressionRequireProblems.length > 0,
+    true,
+  );
+
+  const multilineImportSource = [
+    sourceRaw,
+    'import {',
+    '  readXER',
+    "} from '@/services/xer/xerReader';",
+    '',
+  ].join('\n');
+  const multilineImportProblems = validateOwnSource(multilineImportSource);
+  checkEqual('bronmutant met multiline import wordt afgewezen', multilineImportProblems.length > 0, true);
 
   const problems = validateContract(manifest, oracle, replay);
   checkEqual(`A+B+D huidige statische contracten zijn consistent (${problems.join('; ')})`, problems, []);
