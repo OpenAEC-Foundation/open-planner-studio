@@ -931,5 +931,58 @@
     "declaredNone": "Nulla di dichiarato.",
     "cancel": "Non installare",
     "confirm": "Installa"
+  },
+  "progressImport": {
+    "title": "Aggiorna l'avanzamento da un foglio",
+    "chooseFile": "Scegli file…",
+    "intro": "Scegli un foglio CSV restituito. L'app legge solo completamento, inizio effettivo e fine effettiva — il resto della pianificazione resta invariato.",
+    "summaryApplied": "Applicato: {{applied}}",
+    "summaryNoop": "Invariato: {{noop}}",
+    "summaryNeedsLink": "In attesa di collegamento: {{needsLink}}",
+    "summaryRefused": "Rifiutato: {{refused}}",
+    "sectionNeedsLink": "In attesa di collegamento",
+    "sectionDoubtful": "Collegamento incerto",
+    "confirmLink": "Conferma",
+    "changeLink": "Modifica",
+    "clearLink": "Rimuovi collegamento",
+    "pickerPlaceholder": "Scegli un'attività…",
+    "pickerFilter": "Cerca per WBS o nome…",
+    "pickerTooMany": "Troppe attività da mostrare — restringi la ricerca.",
+    "pickerTaken": "già collegata a un'altra riga",
+    "overrideDropped": "Il collegamento della riga {{row}} punta a un'attività non più esistente ed è stato ignorato.",
+    "dateOrderTitle": "Prima il giorno o prima il mese?",
+    "dateOrderQuestion": "«{{sample}}» — che data è?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Torna alla domanda sulla data",
+    "confirm": "Applica",
+    "close": "Chiudi",
+    "resultTitle": "Risultato",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Questo file è troppo grande per essere letto come foglio di avanzamento.",
+      "tooManyRows": "Questo file ha troppe righe per essere letto come foglio di avanzamento.",
+      "noKeyColumn": "Questo file non ha una colonna «OPS Task ID» né «WBS» per collegare le righe alle attività.",
+      "noProgressColumns": "Questo file non ha nessuna delle colonne Completamento, Inizio effettivo o Fine effettiva.",
+      "unreadable": "Questo file non è stato possibile leggerlo come foglio di avanzamento."
+    },
+    "reason": {
+      "unmatched": "Nessuna attività trovata per questa riga.",
+      "ambiguousWbs": "Questo codice WBS compare in più attività — collega la riga manualmente.",
+      "duplicateRow": "Un'altra riga ha già rivendicato questa attività.",
+      "summaryTask": "Le attività di riepilogo non possono ricevere avanzamento da un foglio.",
+      "unreadableDate": "Data illeggibile.",
+      "unreadableNumber": "Percentuale illeggibile.",
+      "noProgressColumns": "Questa riga non ha nessuno dei tre valori di avanzamento compilato.",
+      "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
+      "actualFinishBeforeStart": "La fine effettiva precede l'inizio effettivo.",
+      "conflictingProgressInputs": "I valori inseriti si contraddicono.",
+      "rejected": "Rifiutato dal pianificatore."
+    },
+    "field": {
+      "completion": "Completamento",
+      "actualStart": "Inizio effettivo",
+      "actualFinish": "Fine effettiva"
+    }
   }
 }

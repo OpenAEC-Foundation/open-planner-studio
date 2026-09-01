@@ -151,6 +151,7 @@ export function createDefaultUI(): UIState {
     showPoolImportDialog: false,
     poolImportCompanyId: null,
     showLibraryLinkDialog: false,
+    showProgressImportDialog: false,
     libraryRefreshNotice: null,
     resourcesView: 'project',
     // Issue #48-1: ephemeral verzoek-vlag voor een concept-rij in het resource-paneel (zie UIState).

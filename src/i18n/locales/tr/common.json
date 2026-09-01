@@ -915,5 +915,58 @@
     "declaredNone": "Hiçbir şey belirtilmemiş.",
     "cancel": "Kurma",
     "confirm": "Kur"
+  },
+  "progressImport": {
+    "title": "Bir tablodan ilerlemeyi güncelle",
+    "chooseFile": "Dosya seç…",
+    "intro": "Geri gönderilen bir CSV tablosu seçin. Uygulama yalnızca tamamlanma, gerçek başlangıç ve gerçek bitişi okur — planınızın geri kalanı değişmez.",
+    "summaryApplied": "Uygulandı: {{applied}}",
+    "summaryNoop": "Değişmedi: {{noop}}",
+    "summaryNeedsLink": "Eşleştirme bekliyor: {{needsLink}}",
+    "summaryRefused": "Reddedildi: {{refused}}",
+    "sectionNeedsLink": "Eşleştirme bekliyor",
+    "sectionDoubtful": "Eşleştirme şüpheli",
+    "confirmLink": "Onayla",
+    "changeLink": "Değiştir",
+    "clearLink": "Eşleştirmeyi kaldır",
+    "pickerPlaceholder": "Bir görev seç…",
+    "pickerFilter": "WBS veya isme göre ara…",
+    "pickerTooMany": "Gösterilecek çok fazla görev var — aramanızı daraltın.",
+    "pickerTaken": "zaten başka bir satıra bağlı",
+    "overrideDropped": "{{row}} numaralı satırın eşleştirmesi artık var olmayan bir göreve işaret ediyor ve yok sayıldı.",
+    "dateOrderTitle": "Önce gün mü, önce ay mı?",
+    "dateOrderQuestion": "“{{sample}}” — bu hangi tarih?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Tarih sorusuna geri dön",
+    "confirm": "Uygula",
+    "close": "Kapat",
+    "resultTitle": "Sonuç",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Bu dosya ilerleme tablosu olarak okunamayacak kadar büyük.",
+      "tooManyRows": "Bu dosya ilerleme tablosu olarak okunamayacak kadar çok satıra sahip.",
+      "noKeyColumn": "Bu dosyada satırları görevlerle eşleştirecek “OPS Task ID” veya “WBS” sütunu yok.",
+      "noProgressColumns": "Bu dosyada Tamamlanma, Gerçek Başlangıç veya Gerçek Bitiş sütunlarından hiçbiri yok.",
+      "unreadable": "Bu dosya ilerleme tablosu olarak okunamadı."
+    },
+    "reason": {
+      "unmatched": "Bu satır için görev bulunamadı.",
+      "ambiguousWbs": "Bu WBS kodu birden fazla görevde geçiyor — satırı elle eşleştirin.",
+      "duplicateRow": "Bu görevi başka bir satır zaten aldı.",
+      "summaryTask": "Özet görevler bir tablodan ilerleme alamaz.",
+      "unreadableDate": "Okunamayan tarih.",
+      "unreadableNumber": "Okunamayan yüzde.",
+      "noProgressColumns": "Bu satırda üç ilerleme değerinden hiçbiri doldurulmamış.",
+      "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
+      "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
+      "conflictingProgressInputs": "Girilen değerler birbiriyle çelişiyor.",
+      "rejected": "Planlayıcı tarafından reddedildi."
+    },
+    "field": {
+      "completion": "Tamamlanma",
+      "actualStart": "Gerçek başlangıç",
+      "actualFinish": "Gerçek bitiş"
+    }
   }
 }

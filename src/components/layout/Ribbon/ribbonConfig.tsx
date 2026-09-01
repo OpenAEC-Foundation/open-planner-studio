@@ -11,6 +11,7 @@ import {
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
@@ -332,6 +333,18 @@ const moveProjectButton: RibbonButtonSpec = {
   },
 };
 
+/** E2 (issue #27 etappe 2): "Voortgang bijwerken uit een blad" — hetzelfde spec op Planning én Tabel
+ *  (één bron, twee callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`). Uitgeschakeld
+ *  zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
+const progressImportButton: RibbonButtonSpec = {
+  kind: 'button', id: 'progressImport', icon: <ClipboardCheck size={20} />, labelKey: 'menu:ribbon.progressImport',
+  use: () => {
+    const setUI = useAppStore(s => s.setUI);
+    const hasTasks = useAppStore(s => s.tasks.length > 0);
+    return { onClick: () => setUI({ showProgressImportDialog: true }), disabled: !hasTasks };
+  },
+};
+
 const planningTab: RibbonTabConfig = [
   { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton] },
   {
@@ -406,7 +419,10 @@ const planningTab: RibbonTabConfig = [
   },
   {
     id: 'baselines', labelKey: 'menu:ribbon.baselines',
-    items: [{ kind: 'component', id: 'baselinesProgress', Component: BaselinesProgressGroupContent }],
+    items: [
+      { kind: 'component', id: 'baselinesProgress', Component: BaselinesProgressGroupContent },
+      progressImportButton,
+    ],
   },
 ];
 
@@ -754,7 +770,7 @@ const instellingenTab: RibbonTabConfig = [
 ];
 
 /**
- * Tabel-tab: de Start-tab min de zoomknoppen.
+ * Tabel-tab: de Start-tab min de zoomknoppen, plus één tabel-eigen groep.
  *
  * Issue #49 bracht de Taken-groep hierheen; de vervolgvraag van de melder was "alles van Start
  * hoort ook op Tabel, behalve zoom". Dat klopt inhoudelijk: Bestand, Bewerken, Taken en Bereken
@@ -764,8 +780,11 @@ const instellingenTab: RibbonTabConfig = [
  * betekenis. Dezelfde redenering als bij de zes Gantt-schakelaars in `docs/TODO.md` — een knop
  * aanbieden in een weergave waar hij niets kan doen, is geen volledigheid maar een valstrik.
  *
- * Alle vier de groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
- * zodat een volgende knop op Start hier automatisch meekomt.
+ * De eerste vijf groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
+ * zodat een volgende knop op Start hier automatisch meekomt. **Uitzondering (E2, issue #27 etappe 2):**
+ * `progressImportButton` hangt hier in een EIGEN, tabel-only groep (`tableProgress`) — niet in de
+ * gedeelde `scheduleGroup`, want een knop dáár zou automatisch ook op Start verschijnen, en de
+ * voortgangsimport is bewust alleen op Backstage → Importeren, Planning en Tabel te vinden.
  */
 const tableTab: RibbonTabConfig = [
   fileGroup,
@@ -774,6 +793,7 @@ const tableTab: RibbonTabConfig = [
   scheduleGroup,
   traceGroup,
   tableColumnsGroup,
+  { id: 'tableProgress', labelKey: 'menu:ribbon.progressGroup', items: [progressImportButton] },
 ];
 
 const ifcTab: RibbonTabConfig = [

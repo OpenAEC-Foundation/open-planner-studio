@@ -931,5 +931,58 @@
     "declaredNone": "Nada declarado.",
     "cancel": "Não instalar",
     "confirm": "Instalar"
+  },
+  "progressImport": {
+    "title": "Atualizar o progresso a partir de uma planilha",
+    "chooseFile": "Escolher ficheiro…",
+    "intro": "Escolha uma planilha CSV devolvida. A aplicação só lê conclusão, início real e fim real — o resto do seu planeamento permanece inalterado.",
+    "summaryApplied": "Aplicado: {{applied}}",
+    "summaryNoop": "Inalterado: {{noop}}",
+    "summaryNeedsLink": "Aguardando ligação: {{needsLink}}",
+    "summaryRefused": "Recusado: {{refused}}",
+    "sectionNeedsLink": "Aguardando ligação",
+    "sectionDoubtful": "Ligação duvidosa",
+    "confirmLink": "Confirmar",
+    "changeLink": "Alterar",
+    "clearLink": "Remover ligação",
+    "pickerPlaceholder": "Escolher uma tarefa…",
+    "pickerFilter": "Procurar por WBS ou nome…",
+    "pickerTooMany": "Demasiadas tarefas para mostrar — refine a sua pesquisa.",
+    "pickerTaken": "já ligado a outra linha",
+    "overrideDropped": "A ligação da linha {{row}} aponta para uma tarefa que já não existe e foi ignorada.",
+    "dateOrderTitle": "Dia primeiro ou mês primeiro?",
+    "dateOrderQuestion": "«{{sample}}» — que data é essa?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Voltar à pergunta sobre a data",
+    "confirm": "Aplicar",
+    "close": "Fechar",
+    "resultTitle": "Resultado",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Este ficheiro é demasiado grande para ser lido como planilha de progresso.",
+      "tooManyRows": "Este ficheiro tem demasiadas linhas para ser lido como planilha de progresso.",
+      "noKeyColumn": "Este ficheiro não tem coluna «OPS Task ID» nem «WBS» para ligar linhas a tarefas.",
+      "noProgressColumns": "Este ficheiro não tem nenhuma das colunas Conclusão, Início real ou Fim real.",
+      "unreadable": "Não foi possível ler este ficheiro como planilha de progresso."
+    },
+    "reason": {
+      "unmatched": "Nenhuma tarefa encontrada para esta linha.",
+      "ambiguousWbs": "Este código WBS ocorre em várias tarefas — ligue a linha manualmente.",
+      "duplicateRow": "Outra linha já reivindicou esta tarefa.",
+      "summaryTask": "Tarefas de resumo não podem receber progresso de uma planilha.",
+      "unreadableDate": "Data ilegível.",
+      "unreadableNumber": "Percentagem ilegível.",
+      "noProgressColumns": "Esta linha não tem nenhum dos três valores de progresso preenchido.",
+      "actualAfterStatusDate": "A data real é posterior à data de estado.",
+      "actualFinishBeforeStart": "O fim real é anterior ao início real.",
+      "conflictingProgressInputs": "Os valores inseridos contradizem-se.",
+      "rejected": "Recusado pelo planeador."
+    },
+    "field": {
+      "completion": "Conclusão",
+      "actualStart": "Início real",
+      "actualFinish": "Fim real"
+    }
   }
 }

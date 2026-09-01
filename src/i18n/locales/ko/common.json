@@ -899,5 +899,58 @@
     "declaredNone": "신고된 항목 없음.",
     "cancel": "설치 안 함",
     "confirm": "설치"
+  },
+  "progressImport": {
+    "title": "시트에서 진행률 업데이트",
+    "chooseFile": "파일 선택…",
+    "intro": "반송된 CSV 시트를 선택하세요. 앱은 완료율, 실제 시작일, 실제 종료일만 읽습니다 — 나머지 일정은 변경되지 않습니다.",
+    "summaryApplied": "적용됨: {{applied}}",
+    "summaryNoop": "변경 없음: {{noop}}",
+    "summaryNeedsLink": "연결 대기 중: {{needsLink}}",
+    "summaryRefused": "거부됨: {{refused}}",
+    "sectionNeedsLink": "연결 대기 중",
+    "sectionDoubtful": "연결이 불확실함",
+    "confirmLink": "확인",
+    "changeLink": "변경",
+    "clearLink": "연결 해제",
+    "pickerPlaceholder": "작업 선택…",
+    "pickerFilter": "WBS 또는 이름으로 검색…",
+    "pickerTooMany": "표시할 작업이 너무 많습니다 — 검색을 좁혀 주세요.",
+    "pickerTaken": "이미 다른 행에 연결됨",
+    "overrideDropped": "{{row}}행의 연결이 더 이상 존재하지 않는 작업을 가리켜 무시되었습니다.",
+    "dateOrderTitle": "일이 먼저인가요, 월이 먼저인가요?",
+    "dateOrderQuestion": "“{{sample}}” — 어떤 날짜인가요?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "날짜 질문으로 돌아가기",
+    "confirm": "적용",
+    "close": "닫기",
+    "resultTitle": "결과",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "이 파일은 너무 커서 진행률 시트로 읽을 수 없습니다.",
+      "tooManyRows": "이 파일은 행이 너무 많아 진행률 시트로 읽을 수 없습니다.",
+      "noKeyColumn": "이 파일에는 행을 작업에 연결할 “OPS Task ID” 또는 “WBS” 열이 없습니다.",
+      "noProgressColumns": "이 파일에는 완료율, 실제 시작일, 실제 종료일 열이 하나도 없습니다.",
+      "unreadable": "이 파일을 진행률 시트로 읽을 수 없습니다."
+    },
+    "reason": {
+      "unmatched": "이 행에 해당하는 작업을 찾을 수 없습니다.",
+      "ambiguousWbs": "이 WBS 코드가 여러 작업에 나타납니다 — 행을 수동으로 연결하세요.",
+      "duplicateRow": "다른 행이 이미 이 작업을 선점했습니다.",
+      "summaryTask": "요약 작업은 시트에서 진행률을 받을 수 없습니다.",
+      "unreadableDate": "읽을 수 없는 날짜입니다.",
+      "unreadableNumber": "읽을 수 없는 백분율입니다.",
+      "noProgressColumns": "이 행에는 세 가지 진행률 값 중 어느 것도 입력되어 있지 않습니다.",
+      "actualAfterStatusDate": "실제 날짜가 기준일 이후입니다.",
+      "actualFinishBeforeStart": "실제 종료일이 실제 시작일보다 앞섭니다.",
+      "conflictingProgressInputs": "입력된 값들이 서로 모순됩니다.",
+      "rejected": "플래너가 거부했습니다."
+    },
+    "field": {
+      "completion": "완료율",
+      "actualStart": "실제 시작일",
+      "actualFinish": "실제 종료일"
+    }
   }
 }

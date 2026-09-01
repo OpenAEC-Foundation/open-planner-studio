@@ -915,5 +915,58 @@
     "declaredNone": "Nichts angegeben.",
     "cancel": "Nicht installieren",
     "confirm": "Installieren"
+  },
+  "progressImport": {
+    "title": "Fortschritt aus einer Tabelle aktualisieren",
+    "chooseFile": "Datei wählen…",
+    "intro": "Wählen Sie ein zurückgesandtes CSV-Blatt. Die App liest nur Fertigstellungsgrad, tatsächlichen Start und tatsächliches Ende — der Rest Ihrer Planung bleibt unverändert.",
+    "summaryApplied": "Angewendet: {{applied}}",
+    "summaryNoop": "Unverändert: {{noop}}",
+    "summaryNeedsLink": "Wartet auf Verknüpfung: {{needsLink}}",
+    "summaryRefused": "Abgelehnt: {{refused}}",
+    "sectionNeedsLink": "Wartet auf Verknüpfung",
+    "sectionDoubtful": "Verknüpfung unsicher",
+    "confirmLink": "Bestätigen",
+    "changeLink": "Ändern",
+    "clearLink": "Verknüpfung löschen",
+    "pickerPlaceholder": "Aufgabe wählen…",
+    "pickerFilter": "Suche nach WBS oder Name…",
+    "pickerTooMany": "Zu viele Aufgaben zum Anzeigen — Suche eingrenzen.",
+    "pickerTaken": "bereits mit einer anderen Zeile verknüpft",
+    "overrideDropped": "Die Verknüpfung für Zeile {{row}} verweist auf eine nicht mehr existierende Aufgabe und wurde ignoriert.",
+    "dateOrderTitle": "Tag zuerst oder Monat zuerst?",
+    "dateOrderQuestion": "„{{sample}}“ — welches Datum ist das?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Zurück zur Datumsfrage",
+    "confirm": "Übernehmen",
+    "close": "Schließen",
+    "resultTitle": "Ergebnis",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Diese Datei ist zu groß, um als Fortschrittsblatt gelesen zu werden.",
+      "tooManyRows": "Diese Datei hat zu viele Zeilen, um als Fortschrittsblatt gelesen zu werden.",
+      "noKeyColumn": "Diese Datei hat keine Spalte „OPS Task ID“ oder „WBS“, um Zeilen mit Aufgaben zu verknüpfen.",
+      "noProgressColumns": "Diese Datei hat keine der Spalten Fertigstellung, Tatsächlicher Start oder Tatsächliches Ende.",
+      "unreadable": "Diese Datei konnte nicht als Fortschrittsblatt gelesen werden."
+    },
+    "reason": {
+      "unmatched": "Keine Aufgabe für diese Zeile gefunden.",
+      "ambiguousWbs": "Dieser WBS-Code kommt bei mehreren Aufgaben vor — Zeile manuell verknüpfen.",
+      "duplicateRow": "Eine andere Zeile hat diese Aufgabe bereits beansprucht.",
+      "summaryTask": "Sammelaufgaben können keinen Fortschritt aus einem Blatt erhalten.",
+      "unreadableDate": "Unlesbares Datum.",
+      "unreadableNumber": "Unlesbarer Prozentwert.",
+      "noProgressColumns": "Diese Zeile hat keinen der drei Fortschrittswerte ausgefüllt.",
+      "actualAfterStatusDate": "Das tatsächliche Datum liegt nach dem Stichtag.",
+      "actualFinishBeforeStart": "Tatsächliches Ende liegt vor tatsächlichem Start.",
+      "conflictingProgressInputs": "Die eingegebenen Werte widersprechen sich.",
+      "rejected": "Vom Planer abgelehnt."
+    },
+    "field": {
+      "completion": "Fertigstellung",
+      "actualStart": "Tatsächlicher Start",
+      "actualFinish": "Tatsächliches Ende"
+    }
   }
 }

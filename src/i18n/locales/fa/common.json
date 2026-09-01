@@ -915,5 +915,58 @@
     "declaredNone": "چیزی اعلام نشده است.",
     "cancel": "نصب نشود",
     "confirm": "نصب"
+  },
+  "progressImport": {
+    "title": "به‌روزرسانی پیشرفت از یک صفحه‌گسترده",
+    "chooseFile": "انتخاب فایل…",
+    "intro": "یک برگه CSV بازگردانده‌شده را انتخاب کنید. برنامه فقط درصد تکمیل، شروع واقعی و پایان واقعی را می‌خواند — بقیه برنامه‌ریزی شما بدون تغییر می‌ماند.",
+    "summaryApplied": "اعمال‌شده: {{applied}}",
+    "summaryNoop": "بدون تغییر: {{noop}}",
+    "summaryNeedsLink": "در انتظار پیوند: {{needsLink}}",
+    "summaryRefused": "رد شده: {{refused}}",
+    "sectionNeedsLink": "در انتظار پیوند",
+    "sectionDoubtful": "پیوند نامطمئن",
+    "confirmLink": "تأیید",
+    "changeLink": "تغییر",
+    "clearLink": "حذف پیوند",
+    "pickerPlaceholder": "یک وظیفه انتخاب کنید…",
+    "pickerFilter": "جستجو بر اساس WBS یا نام…",
+    "pickerTooMany": "وظایف بیش از حد زیاد برای نمایش — جستجوی خود را محدودتر کنید.",
+    "pickerTaken": "قبلاً به سطر دیگری پیوند خورده است",
+    "overrideDropped": "پیوند سطر {{row}} به وظیفه‌ای اشاره دارد که دیگر وجود ندارد و نادیده گرفته شد.",
+    "dateOrderTitle": "روز اول یا ماه اول؟",
+    "dateOrderQuestion": "«{{sample}}» — این چه تاریخی است؟",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "بازگشت به پرسش تاریخ",
+    "confirm": "اعمال",
+    "close": "بستن",
+    "resultTitle": "نتیجه",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "این فایل برای خواندن به‌عنوان برگه پیشرفت خیلی بزرگ است.",
+      "tooManyRows": "این فایل سطرهای بیش از حد زیادی دارد تا به‌عنوان برگه پیشرفت خوانده شود.",
+      "noKeyColumn": "این فایل ستون «OPS Task ID» یا «WBS» برای پیوند سطرها به وظایف را ندارد.",
+      "noProgressColumns": "این فایل هیچ‌یک از ستون‌های تکمیل، شروع واقعی یا پایان واقعی را ندارد.",
+      "unreadable": "این فایل نتوانست به‌عنوان برگه پیشرفت خوانده شود."
+    },
+    "reason": {
+      "unmatched": "هیچ وظیفه‌ای برای این سطر پیدا نشد.",
+      "ambiguousWbs": "این کد WBS در چند وظیفه دیده می‌شود — سطر را به‌صورت دستی پیوند دهید.",
+      "duplicateRow": "سطر دیگری قبلاً این وظیفه را گرفته است.",
+      "summaryTask": "وظایف خلاصه نمی‌توانند پیشرفت را از یک برگه دریافت کنند.",
+      "unreadableDate": "تاریخ غیرقابل خواندن.",
+      "unreadableNumber": "درصد غیرقابل خواندن.",
+      "noProgressColumns": "این سطر هیچ‌یک از سه مقدار پیشرفت را پر نکرده است.",
+      "actualAfterStatusDate": "تاریخ واقعی بعد از تاریخ وضعیت است.",
+      "actualFinishBeforeStart": "پایان واقعی قبل از شروع واقعی است.",
+      "conflictingProgressInputs": "مقادیر واردشده با یکدیگر تناقض دارند.",
+      "rejected": "توسط برنامه‌ریز رد شد."
+    },
+    "field": {
+      "completion": "تکمیل",
+      "actualStart": "شروع واقعی",
+      "actualFinish": "پایان واقعی"
+    }
   }
 }

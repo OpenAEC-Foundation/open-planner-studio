@@ -931,5 +931,58 @@
     "declaredNone": "No declara nada.",
     "cancel": "No instalar",
     "confirm": "Instalar"
+  },
+  "progressImport": {
+    "title": "Actualizar avance desde una hoja",
+    "chooseFile": "Elegir archivo…",
+    "intro": "Elige una hoja CSV devuelta. La aplicación solo lee finalización, inicio real y fin real — el resto de tu planificación no cambia.",
+    "summaryApplied": "Aplicado: {{applied}}",
+    "summaryNoop": "Sin cambios: {{noop}}",
+    "summaryNeedsLink": "Esperando vínculo: {{needsLink}}",
+    "summaryRefused": "Rechazado: {{refused}}",
+    "sectionNeedsLink": "Esperando vínculo",
+    "sectionDoubtful": "Vínculo dudoso",
+    "confirmLink": "Confirmar",
+    "changeLink": "Cambiar",
+    "clearLink": "Quitar vínculo",
+    "pickerPlaceholder": "Elegir una tarea…",
+    "pickerFilter": "Buscar por WBS o nombre…",
+    "pickerTooMany": "Demasiadas tareas para mostrar — refina tu búsqueda.",
+    "pickerTaken": "ya vinculada a otra fila",
+    "overrideDropped": "El vínculo de la fila {{row}} apunta a una tarea que ya no existe y fue ignorado.",
+    "dateOrderTitle": "¿Día primero o mes primero?",
+    "dateOrderQuestion": "«{{sample}}» — ¿qué fecha es esa?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Volver a la pregunta de fecha",
+    "confirm": "Aplicar",
+    "close": "Cerrar",
+    "resultTitle": "Resultado",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Este archivo es demasiado grande para leerlo como hoja de avance.",
+      "tooManyRows": "Este archivo tiene demasiadas filas para leerlo como hoja de avance.",
+      "noKeyColumn": "Este archivo no tiene columna «OPS Task ID» ni «WBS» para vincular filas con tareas.",
+      "noProgressColumns": "Este archivo no tiene ninguna de las columnas Finalización, Inicio real o Fin real.",
+      "unreadable": "Este archivo no se pudo leer como hoja de avance."
+    },
+    "reason": {
+      "unmatched": "No se encontró ninguna tarea para esta fila.",
+      "ambiguousWbs": "Este código WBS aparece en varias tareas — vincula la fila manualmente.",
+      "duplicateRow": "Otra fila ya reclamó esta tarea.",
+      "summaryTask": "Las tareas resumen no pueden recibir avance de una hoja.",
+      "unreadableDate": "Fecha ilegible.",
+      "unreadableNumber": "Porcentaje ilegible.",
+      "noProgressColumns": "Esta fila no tiene ninguno de los tres valores de avance completado.",
+      "actualAfterStatusDate": "La fecha real es posterior a la fecha de estado.",
+      "actualFinishBeforeStart": "El fin real es anterior al inicio real.",
+      "conflictingProgressInputs": "Los valores introducidos se contradicen.",
+      "rejected": "Rechazado por el planificador."
+    },
+    "field": {
+      "completion": "Finalización",
+      "actualStart": "Inicio real",
+      "actualFinish": "Fin real"
+    }
   }
 }

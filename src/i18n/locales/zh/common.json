@@ -899,5 +899,58 @@
     "declaredNone": "未声明任何内容。",
     "cancel": "不安装",
     "confirm": "安装"
+  },
+  "progressImport": {
+    "title": "从表格更新进度",
+    "chooseFile": "选择文件…",
+    "intro": "选择一份返回的 CSV 表格。应用只读取完成度、实际开始和实际完成——你计划的其余部分保持不变。",
+    "summaryApplied": "已应用：{{applied}}",
+    "summaryNoop": "未变化：{{noop}}",
+    "summaryNeedsLink": "等待关联：{{needsLink}}",
+    "summaryRefused": "已拒绝：{{refused}}",
+    "sectionNeedsLink": "等待关联",
+    "sectionDoubtful": "关联存疑",
+    "confirmLink": "确认",
+    "changeLink": "更改",
+    "clearLink": "清除关联",
+    "pickerPlaceholder": "选择一个任务…",
+    "pickerFilter": "按 WBS 或名称搜索…",
+    "pickerTooMany": "任务太多无法显示——请缩小搜索范围。",
+    "pickerTaken": "已关联到另一行",
+    "overrideDropped": "第 {{row}} 行的关联指向一个已不存在的任务，已被忽略。",
+    "dateOrderTitle": "日在前还是月在前？",
+    "dateOrderQuestion": "“{{sample}}”——这是哪个日期？",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "返回日期问题",
+    "confirm": "应用",
+    "close": "关闭",
+    "resultTitle": "结果",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "此文件太大，无法作为进度表读取。",
+      "tooManyRows": "此文件行数太多，无法作为进度表读取。",
+      "noKeyColumn": "此文件没有“OPS Task ID”或“WBS”列，无法将行与任务关联。",
+      "noProgressColumns": "此文件没有完成度、实际开始或实际完成中的任何一列。",
+      "unreadable": "此文件无法作为进度表读取。"
+    },
+    "reason": {
+      "unmatched": "未找到此行对应的任务。",
+      "ambiguousWbs": "此 WBS 编码出现在多个任务上——请手动关联此行。",
+      "duplicateRow": "另一行已认领此任务。",
+      "summaryTask": "汇总任务不能从表格接收进度。",
+      "unreadableDate": "日期无法读取。",
+      "unreadableNumber": "百分比无法读取。",
+      "noProgressColumns": "此行未填写三个进度值中的任何一个。",
+      "actualAfterStatusDate": "实际日期晚于状态日期。",
+      "actualFinishBeforeStart": "实际完成早于实际开始。",
+      "conflictingProgressInputs": "填写的值互相矛盾。",
+      "rejected": "被计划引擎拒绝。"
+    },
+    "field": {
+      "completion": "完成度",
+      "actualStart": "实际开始",
+      "actualFinish": "实际完成"
+    }
   }
 }

@@ -351,6 +351,11 @@ export interface UIState {
    *  verwijderde Add/Update-dialogen. Data wordt live uit de store afgeleid (computeRecognition +
    *  classify*), dus er is geen transient payload nodig. */
   showLibraryLinkDialog: boolean;
+  /** session — issue #27 etappe 2: de voortgangsimportdialoog (bestand kiezen → evt. datumvolgorde-
+   *  vraag → verplichte preview met handmatige koppelkiezer → bevestigen). Documentgebonden: staat in
+   *  `hasBlockingDialogOpen`/`BLOCKING_UI_FLAGS` zodat een documentwissel onmogelijk is zolang hij open
+   *  staat (E4), en in `resetDocumentScopedUI` als vangnet dat in de praktijk nooit mag afgaan. */
+  showProgressImportDialog: boolean;
   /** session — aantal items dat de meest recente stille verversing (grens 1/2/3/4) heeft bijgewerkt,
    *  of `null` zonder openstaand signaal (Taak 18: het verversingssignaal in de UI). */
   libraryRefreshNotice: number | null;

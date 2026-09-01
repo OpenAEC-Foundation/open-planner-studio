@@ -979,5 +979,58 @@
     "declaredNone": "لا شيء مُصرّح به.",
     "cancel": "عدم التثبيت",
     "confirm": "تثبيت"
+  },
+  "progressImport": {
+    "title": "تحديث التقدّم من ورقة بيانات",
+    "chooseFile": "اختر ملفاً…",
+    "intro": "اختر ورقة CSV مُعادة. يقرأ التطبيق فقط نسبة الإنجاز والبداية الفعلية والنهاية الفعلية — تبقى بقية الخطة دون تغيير.",
+    "summaryApplied": "تم التطبيق: {{applied}}",
+    "summaryNoop": "دون تغيير: {{noop}}",
+    "summaryNeedsLink": "بانتظار الربط: {{needsLink}}",
+    "summaryRefused": "مرفوض: {{refused}}",
+    "sectionNeedsLink": "بانتظار الربط",
+    "sectionDoubtful": "الربط غير مؤكد",
+    "confirmLink": "تأكيد",
+    "changeLink": "تغيير",
+    "clearLink": "إزالة الربط",
+    "pickerPlaceholder": "اختر مهمة…",
+    "pickerFilter": "البحث حسب WBS أو الاسم…",
+    "pickerTooMany": "عدد المهام كبير جداً للعرض — ضيّق نطاق البحث.",
+    "pickerTaken": "مرتبطة بالفعل بصف آخر",
+    "overrideDropped": "يشير ربط الصف {{row}} إلى مهمة لم تعد موجودة، وتم تجاهله.",
+    "dateOrderTitle": "اليوم أولاً أم الشهر أولاً؟",
+    "dateOrderQuestion": "«{{sample}}» — أي تاريخ هذا؟",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "العودة إلى سؤال التاريخ",
+    "confirm": "تطبيق",
+    "close": "إغلاق",
+    "resultTitle": "النتيجة",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "هذا الملف كبير جداً ليُقرأ كورقة تقدّم.",
+      "tooManyRows": "يحتوي هذا الملف على صفوف كثيرة جداً ليُقرأ كورقة تقدّم.",
+      "noKeyColumn": "لا يحتوي هذا الملف على عمود «OPS Task ID» أو «WBS» لربط الصفوف بالمهام.",
+      "noProgressColumns": "لا يحتوي هذا الملف على أي من أعمدة الإنجاز أو البداية الفعلية أو النهاية الفعلية.",
+      "unreadable": "تعذّرت قراءة هذا الملف كورقة تقدّم."
+    },
+    "reason": {
+      "unmatched": "لم يُعثر على مهمة لهذا الصف.",
+      "ambiguousWbs": "يظهر رمز WBS هذا في عدة مهام — اربط الصف يدوياً.",
+      "duplicateRow": "صف آخر استحوذ على هذه المهمة بالفعل.",
+      "summaryTask": "لا يمكن للمهام التجميعية أن تتلقى تقدماً من ورقة بيانات.",
+      "unreadableDate": "تاريخ غير قابل للقراءة.",
+      "unreadableNumber": "نسبة مئوية غير قابلة للقراءة.",
+      "noProgressColumns": "لا يحتوي هذا الصف على أي من قيم التقدّم الثلاث.",
+      "actualAfterStatusDate": "التاريخ الفعلي بعد تاريخ الحالة.",
+      "actualFinishBeforeStart": "النهاية الفعلية قبل البداية الفعلية.",
+      "conflictingProgressInputs": "القيم المُدخلة متناقضة.",
+      "rejected": "مرفوض من قِبل المخطِّط."
+    },
+    "field": {
+      "completion": "الإنجاز",
+      "actualStart": "البداية الفعلية",
+      "actualFinish": "النهاية الفعلية"
+    }
   }
 }
