@@ -29,6 +29,8 @@ export interface XerTableReportMetadata {
     ignoredLines?: number;
   }>;
   unknownTables: Array<{ name: string; rows: number }>;
+  /** Additief sinds XER-exportverlies fixronde 2; afwezig in oudere ingebedde bronarchieven. */
+  unknownFields?: Array<{ table: string; name: string; rows: number }>;
 }
 
 export interface XerCalendarIssueMetadata {

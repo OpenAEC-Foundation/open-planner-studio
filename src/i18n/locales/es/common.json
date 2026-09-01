@@ -58,6 +58,7 @@
     "xerImportUnsupportedSemantics_one": "{{count}} ajuste de planificación P6 usó una alternativa segura.",
     "xerImportUnsupportedSemantics_many": "{{count}} ajustes de planificación P6 usaron alternativas seguras.",
     "xerImportUnsupportedSemantics_other": "{{count}} ajustes de planificación P6 usaron alternativas seguras.",
+    "xerExportLoss": "Al exportar a {{format}} se pierde información de origen XER.",
     "mppLegacy": "Este archivo .mpp usa un formato antiguo (Project 2007 o anterior). Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
     "mppEncrypted": "Este archivo .mpp está protegido con contraseña. Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
     "saveFailed": "No se pudo guardar",

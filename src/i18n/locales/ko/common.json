@@ -34,6 +34,7 @@
     "xerImportNumberIssues_other": "숫자 형식 문제: {{count}}",
     "xerImportEnumFallbacks_other": "열거형 대체: {{count}}",
     "xerImportUnsupportedSemantics_other": "안전한 대체를 사용한 P6 일정 설정: {{count}}",
+    "xerExportLoss": "{{format}} 형식으로 내보내면 XER 원본 정보가 손실됩니다.",
     "mppLegacy": "이 .mpp 파일은 이전 형식(Project 2007 이하)을 사용합니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "mppEncrypted": "이 .mpp 파일은 암호로 보호되어 있습니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "saveFailed": "저장하지 못했습니다",

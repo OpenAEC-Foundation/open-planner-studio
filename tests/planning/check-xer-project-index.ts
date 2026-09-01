@@ -32,7 +32,9 @@ const tables: XerTables = {
     ['PROJWBS', { name: 'PROJWBS', fields: [], rows: wbsRows }],
     ['TASKPRED', { name: 'TASKPRED', fields: [], rows: relationRows }],
   ]),
-  report: { encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [] },
+  report: {
+    encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [], unknownFields: [],
+  },
   numberFormat: { decimal: '.', group: null, source: 'default', currencyCode: 'EUR' },
 };
 const index = indexXerProjectRows(tables);

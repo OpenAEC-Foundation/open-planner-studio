@@ -51,7 +51,9 @@ function tables(projectRows: XerRow[], taskRows: XerRow[]): XerTables {
       ['PROJECT', table('PROJECT', projectRows)],
       ['TASK', table('TASK', taskRows)],
     ]),
-    report: { encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [] },
+    report: {
+      encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [], unknownFields: [],
+    },
     numberFormat: { decimal: '.', group: null, source: 'default', currencyCode: 'EUR' },
   };
 }

@@ -45,8 +45,8 @@ export interface XerExportLossInput {
 }
 
 interface ExportCapabilities {
-  /** MSPDI schrijft uitsluitend de actieve OPS-baseline naar slot 0. */
-  readonly activeBaseline: boolean;
+  /** MSPDI projecteert alleen actieve taakwaarden; geen writer round-tript het OPS-baselineobject. */
+  readonly baselineProjection: 'none' | 'active-task-values';
   /** Writer projecteert de live units/curve; retained XER-bronwaarden blijven altijd apart verlies. */
   readonly projectedAssignments: boolean;
   readonly percentLag: boolean;
@@ -60,21 +60,21 @@ interface ExportCapabilities {
  */
 const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc'>, ExportCapabilities>> = {
   csv: {
-    activeBaseline: false,
+    baselineProjection: 'none',
     projectedAssignments: false,
     percentLag: true,
     elapsedLag: true,
     schedulingOptions: 'none',
   },
   mspdi: {
-    activeBaseline: true,
+    baselineProjection: 'active-task-values',
     projectedAssignments: true,
     percentLag: true,
     elapsedLag: true,
     schedulingOptions: 'critical-slack-limit',
   },
   p6: {
-    activeBaseline: false,
+    baselineProjection: 'none',
     projectedAssignments: true,
     percentLag: false,
     elapsedLag: false,
@@ -125,19 +125,24 @@ function hasTypedDiagnostics(archive: XerSourceArchive | null, metadata: XerImpo
 function hasUnknownTablesOrFields(archive: XerSourceArchive | null, metadata: XerImportMetadata | null): boolean {
   return Boolean(
     archive?.diagnostics.file.tableReport.unknownTables.some(table => table.rows > 0)
+    || archive?.diagnostics.file.tableReport.unknownFields?.some(field => field.rows > 0)
     || Object.values(archive?.diagnostics.documentViews ?? {}).some(view =>
-      view.tableReport.unknownTables.some(table => table.rows > 0))
-    || metadata?.tableReport.unknownTables.some(table => table.rows > 0),
+      view.tableReport.unknownTables.some(table => table.rows > 0)
+      || view.tableReport.unknownFields?.some(field => field.rows > 0))
+    || metadata?.tableReport.unknownTables.some(table => table.rows > 0)
+    || metadata?.tableReport.unknownFields?.some(field => field.rows > 0),
   );
 }
 
 function hasBaselineLoss(capabilities: ExportCapabilities, input: XerExportLossInput): boolean {
   if (input.baselines.length === 0) return false;
-  if (!capabilities.activeBaseline) return true;
-  const activeExists = input.activeBaselineId !== null
-    && input.baselines.some(baseline => baseline.id === input.activeBaselineId);
-  if (!activeExists) return true;
-  return input.baselines.some(baseline => baseline.id !== input.activeBaselineId);
+  // Ook `active-task-values` is bewust lossy: MSPDI-slot 0 draagt Start/Finish/Duration per taak,
+  // maar niet id/sourceProjectId/name/createdAt/projectEnd/projectDuration of brontaakidentiteit.
+  switch (capabilities.baselineProjection) {
+    case 'none':
+    case 'active-task-values':
+      return true;
+  }
 }
 
 function hasRetainedAssignmentDetails(metadata: XerImportMetadata | null): boolean {

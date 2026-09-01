@@ -58,6 +58,7 @@
     "xerImportUnsupportedSemantics_one": "{{count}} impostazione di pianificazione P6 con fallback sicuro.",
     "xerImportUnsupportedSemantics_many": "{{count}} impostazioni di pianificazione P6 con fallback sicuro.",
     "xerImportUnsupportedSemantics_other": "{{count}} impostazioni di pianificazione P6 con fallback sicuro.",
+    "xerExportLoss": "L’esportazione in {{format}} perde informazioni di origine XER.",
     "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "mppEncrypted": "Questo file .mpp è protetto da password. Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "saveFailed": "Salvataggio non riuscito",

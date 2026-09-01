@@ -1076,6 +1076,51 @@ eq('29 komma-decimaalfout draagt het eerste concrete bewijs zonder brondata te l
   },
 });
 
+type UnknownFieldReport = {
+  unknownFields?: Array<{ table: string; name: string; rows: number }>;
+};
+function reportedUnknownFields(lines: readonly string[]) {
+  return (parseXerTables(utf8(lines)).report as UnknownFieldReport).unknownFields;
+}
+
+// Fixronde 2: de parser/readergrens moet onbekende velden in een bekende tabel gezaghebbend
+// inventariseren, maar uitsluitend als minstens één retained cel informatiewaarde draagt. De
+// bronrij zelf blijft hieronder apart gecontroleerd: detectie mag niets uit de cellen verwijderen.
+const unknownFieldWithValue = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tTASKNOTE',
+  '%F\tmystery_vendor_field',
+  '%R\tretained-value',
+  '%R\t',
+  '%E',
+]));
+eq('30 onbekend gevuld veld in bekende tabel wordt geteld zonder de bronrij te wijzigen', {
+  report: (unknownFieldWithValue.report as UnknownFieldReport).unknownFields,
+  rows: unknownFieldWithValue.tables.get('TASKNOTE')?.rows.map(row => row.cells),
+}, {
+  report: [{ table: 'TASKNOTE', name: 'mystery_vendor_field', rows: 1 }],
+  rows: [
+    { mystery_vendor_field: 'retained-value' },
+    { mystery_vendor_field: '' },
+  ],
+});
+eq('31 onbekend veld met uitsluitend lege waarden draagt geen verloren informatiewaarde',
+  reportedUnknownFields([
+    'ERMHDR\t23.12',
+    '%T\tTASKNOTE',
+    '%F\tmystery_vendor_field',
+    '%R\t',
+    '%R\t',
+    '%E',
+  ]), []);
+eq('32 bekende PROJECT-velden geven geen false positive', reportedUnknownFields([
+  'ERMHDR\t23.12',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tlast_recalc_date\tclndr_id',
+  '%R\tP1\tBekend\t2034-01-02 08:00\tC1',
+  '%E',
+]), []);
+
 if (diffs.length === 0) {
   console.log(`OK  xer-tables: ${checks} checks groen`);
 } else {

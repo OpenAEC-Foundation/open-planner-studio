@@ -46,6 +46,7 @@
     "xerImportEnumFallbacks_other": "{{count}} enum fallbacks.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6 scheduling setting used a safe fallback.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6 scheduling settings used safe fallbacks.",
+    "xerExportLoss": "Exporting to {{format}} loses XER source information.",
     "mppLegacy": "This .mpp file uses an older format (Project 2007 or earlier). In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "mppEncrypted": "This .mpp file is password-protected. In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "saveFailed": "Failed to save",

@@ -46,6 +46,7 @@
     "xerImportEnumFallbacks_other": "{{count}} بازگشت شمارشی.",
     "xerImportUnsupportedSemantics_one": "{{count}} تنظیم زمان‌بندی P6 از جایگزین امن استفاده کرد.",
     "xerImportUnsupportedSemantics_other": "{{count}} تنظیم زمان‌بندی P6 از جایگزین‌های امن استفاده کردند.",
+    "xerExportLoss": "خروجی به {{format}} باعث از دست رفتن اطلاعات منبع XER می‌شود.",
     "mppLegacy": "این فایل .mpp از قالبی قدیمی (Project 2007 یا قدیمی‌تر) استفاده می‌کند. آن را در MS Project به‌صورت XML صادر کنید (فایل ← ذخیره به‌عنوان ← XML) و آن فایل را باز کنید.",
     "mppEncrypted": "این فایل .mpp با رمز عبور محافظت شده است. آن را در MS Project به‌صورت XML صادر کنید (فایل ← ذخیره به‌عنوان ← XML) و آن فایل را باز کنید.",
     "saveFailed": "ذخیره‌سازی ناموفق بود",

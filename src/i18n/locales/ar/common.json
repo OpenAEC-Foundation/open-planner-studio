@@ -94,6 +94,7 @@
     "xerImportUnsupportedSemantics_few": "{{count}} إعدادات تخطيط P6 استخدمت بدائل آمنة.",
     "xerImportUnsupportedSemantics_many": "{{count}} إعداد تخطيط P6 استخدم بدائل آمنة.",
     "xerImportUnsupportedSemantics_other": "{{count}} إعداد تخطيط P6 استخدم بدائل آمنة.",
+    "xerExportLoss": "يؤدي التصدير إلى {{format}} إلى فقدان معلومات مصدر XER.",
     "mppLegacy": "يستخدم ملف .mpp هذا تنسيقًا قديمًا (Project 2007 أو أقدم). صدّره من MS Project بصيغة XML (ملف ← حفظ باسم ← XML) ثم افتح ذلك الملف.",
     "mppEncrypted": "ملف .mpp هذا محمي بكلمة مرور. صدّره من MS Project بصيغة XML (ملف ← حفظ باسم ← XML) ثم افتح ذلك الملف.",
     "saveFailed": "تعذّر الحفظ",

@@ -46,6 +46,7 @@
     "xerImportEnumFallbacks_other": "{{count}} enum-terugvallen.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-planningsinstelling met veilige terugval.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-planningsinstellingen met veilige terugval.",
+    "xerExportLoss": "Bij export naar {{format}} gaat XER-broninformatie verloren.",
     "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",

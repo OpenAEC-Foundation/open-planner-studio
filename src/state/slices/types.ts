@@ -202,6 +202,7 @@ export type NotificationMessageKey =
   | 'notifications.xerImportNumberIssues'
   | 'notifications.xerImportEnumFallbacks'
   | 'notifications.xerImportUnsupportedSemantics'
+  | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.mppTimephasedSteeringLost';

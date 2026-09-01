@@ -70,6 +70,7 @@
     "xerImportUnsupportedSemantics_few": "{{count}} ustawienia planowania P6 użyły bezpiecznych wartości zastępczych.",
     "xerImportUnsupportedSemantics_many": "{{count}} ustawień planowania P6 użyło bezpiecznych wartości zastępczych.",
     "xerImportUnsupportedSemantics_other": "{{count}} ustawienia planowania P6 użyły bezpiecznych wartości zastępczych.",
+    "xerExportLoss": "Eksport do {{format}} powoduje utratę informacji źródłowych XER.",
     "mppLegacy": "Ten plik .mpp używa starszego formatu (Project 2007 lub starszy). Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "mppEncrypted": "Ten plik .mpp jest zabezpieczony hasłem. Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "saveFailed": "Nie udało się zapisać",

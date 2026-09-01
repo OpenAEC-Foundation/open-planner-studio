@@ -34,6 +34,7 @@
     "xerImportNumberIssues_other": "数字格式问题：{{count}}",
     "xerImportEnumFallbacks_other": "枚举回退：{{count}}",
     "xerImportUnsupportedSemantics_other": "使用安全回退的 P6 排程设置：{{count}}",
+    "xerExportLoss": "导出为 {{format}} 会丢失 XER 源信息。",
     "mppLegacy": "此 .mpp 文件使用较旧的格式（Project 2007 或更早版本）。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "mppEncrypted": "此 .mpp 文件受密码保护。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "saveFailed": "保存失败",

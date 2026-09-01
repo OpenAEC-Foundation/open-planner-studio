@@ -34,6 +34,7 @@
     "xerImportNumberIssues_other": "数値形式の問題: {{count}}",
     "xerImportEnumFallbacks_other": "列挙値のフォールバック: {{count}}",
     "xerImportUnsupportedSemantics_other": "安全なフォールバックを使った P6 計画設定: {{count}}",
+    "xerExportLoss": "{{format}} へのエクスポートでは XER のソース情報が失われます。",
     "mppLegacy": "この .mpp ファイルは古い形式（Project 2007 以前）を使用しています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "mppEncrypted": "この .mpp ファイルはパスワードで保護されています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "saveFailed": "保存できませんでした",

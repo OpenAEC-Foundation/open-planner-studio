@@ -46,6 +46,7 @@
     "xerImportEnumFallbacks_other": "{{count}} Enum-Rückfälle.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-Planungseinstellung mit sicherem Rückfall.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-Planungseinstellungen mit sicherem Rückfall.",
+    "xerExportLoss": "Beim Export nach {{format}} gehen XER-Quellinformationen verloren.",
     "mppLegacy": "Diese .mpp-Datei verwendet ein altes Format (Project 2007 oder älter). Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "mppEncrypted": "Diese .mpp-Datei ist passwortgeschützt. Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "saveFailed": "Speichern fehlgeschlagen",

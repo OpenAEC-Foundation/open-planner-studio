@@ -558,8 +558,20 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       }
 
       const outcome = await saveFileDialog(`${projectFileBase(state.project.name)}.${ext}`, content, filters);
-      if (outcome) await pushRecent(outcome.ref, outcome.name);
+      // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
+      // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
+      if (!outcome) return { ok: true, warnings: [] };
+      await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
+      if (warnings.length > 0) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.xerExportLoss',
+          params: { format: format === 'mspdi' ? 'MSPDI' : format.toUpperCase() },
+          dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
+          helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+        });
+      }
       return { ok: true, warnings };
     },
 

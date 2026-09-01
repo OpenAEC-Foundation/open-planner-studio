@@ -207,7 +207,9 @@ export function createEmptyXerArchiveDiagnostics(): XerArchiveDiagnosticsV1 {
   return {
     schemaVersion: 1,
     file: {
-      tableReport: { encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [] },
+      tableReport: {
+        encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [], unknownFields: [],
+      },
       scheduleOptions: [],
       relationResolutionIssues: [],
       resourceCatalogIssues: [],
@@ -232,7 +234,9 @@ export function createEmptyXerArchiveDocumentView(sourceProjectId: string): XerA
   return {
     sourceProjectId,
     defaultCurrencyCode: '',
-    tableReport: { encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [] },
+    tableReport: {
+      encoding: 'utf-8', endMarkerSeen: true, issues: [], unknownTables: [], unknownFields: [],
+    },
     calendarIssues: [],
     enumFallbacks: [],
     scheduleOptions: {
@@ -609,7 +613,7 @@ function validateSourceRow(value: unknown, path: string): void {
 
 function validateTableReport(value: unknown, path: string): void {
   const report = objectOf(value, path);
-  exactKeys(report, ['encoding', 'endMarkerSeen', 'issues', 'unknownTables'], path);
+  exactKeys(report, ['encoding', 'endMarkerSeen', 'issues', 'unknownTables', 'unknownFields'], path);
   oneOf(report.encoding, ['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'], `${path}.encoding`);
   booleanOf(report.endMarkerSeen, `${path}.endMarkerSeen`);
   for (const [index, issueValue] of arrayOf(report.issues, `${path}.issues`).entries()) {
@@ -629,6 +633,16 @@ function validateTableReport(value: unknown, path: string): void {
     exactKeys(table, ['name', 'rows'], `${path}.unknownTables[${index}]`);
     stringOf(table.name, `${path}.unknownTables[${index}].name`, false);
     nonNegativeInteger(table.rows, `${path}.unknownTables[${index}].rows`);
+  }
+  if (report.unknownFields !== undefined) {
+    for (const [index, fieldValue] of arrayOf(report.unknownFields, `${path}.unknownFields`).entries()) {
+      const field = objectOf(fieldValue, `${path}.unknownFields[${index}]`);
+      exactKeys(field, ['table', 'name', 'rows'], `${path}.unknownFields[${index}]`);
+      stringOf(field.table, `${path}.unknownFields[${index}].table`, false);
+      // Een lege legacy-%F-kolomnaam is toegestaan; de bronrijvalidator bewaart die vorm ook.
+      stringOf(field.name, `${path}.unknownFields[${index}].name`);
+      nonNegativeInteger(field.rows, `${path}.unknownFields[${index}].rows`);
+    }
   }
 }
 

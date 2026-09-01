@@ -58,6 +58,7 @@
     "xerImportUnsupportedSemantics_one": "{{count}} paramètre de planification P6 a utilisé un repli sûr.",
     "xerImportUnsupportedSemantics_many": "{{count}} paramètres de planification P6 ont utilisé des replis sûrs.",
     "xerImportUnsupportedSemantics_other": "{{count}} paramètres de planification P6 ont utilisé des replis sûrs.",
+    "xerExportLoss": "L’export vers {{format}} entraîne la perte d’informations source XER.",
     "mppLegacy": "Ce fichier .mpp utilise un ancien format (Project 2007 ou antérieur). Exportez-le depuis MS Project au format XML (Fichier → Enregistrer sous → XML) et ouvrez ce fichier.",
     "mppEncrypted": "Ce fichier .mpp est protégé par un mot de passe. Exportez-le depuis MS Project au format XML (Fichier → Enregistrer sous → XML) et ouvrez ce fichier.",
     "saveFailed": "Échec de l'enregistrement",

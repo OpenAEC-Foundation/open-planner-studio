@@ -120,6 +120,7 @@ export interface XerImportReport {
   endMarkerSeen: boolean;
   issues: XerImportIssue[];
   unknownTables: Array<{ name: string; rows: number }>;
+  unknownFields: Array<{ table: string; name: string; rows: number }>;
 }
 
 export interface XerTables {
@@ -162,16 +163,120 @@ function decodeTextCell(table: string, field: string, raw: string): string {
   return P6_NOTE_FIELDS.has(`${table}.${field}`) ? decodeXerNoteText(unquoted) : unquoted;
 }
 
-// Tabelset waarvoor de latere X3-X8-lagen data nodig kunnen hebben. De selectie volgt voor begrip
-// MPXJ's `PrimaveraXERFileReader.READ_REQUIRED_TABLES`; de opslag- en rapportcode hieronder is eigen.
-const READ_TABLES = new Set([
-  'PROJECT', 'CALENDAR', 'RSRC', 'RSRCRATE', 'PROJWBS', 'TASK', 'TASKPRED', 'TASKRSRC',
-  'CURRTYPE', 'UDFTYPE', 'UDFVALUE', 'SCHEDOPTIONS', 'ACTVTYPE', 'ACTVCODE', 'TASKACTV',
-  'COSTTYPE', 'ACCOUNT', 'PROJCOST', 'MEMOTYPE', 'WBSMEMO', 'TASKNOTE', 'TASKMEMO', 'ROLES', 'ROLERATE',
-  'RSRCCURVDATA', 'TASKPROC', 'LOCATION', 'UMEASURE', 'SHIFT', 'SHIFTPER', 'RSRCROLE',
-  'PCATTYPE', 'PCATVAL', 'PROJPCAT', 'RCATTYPE', 'RCATVAL', 'RSRCRCAT', 'ROLECATTYPE',
-  'ROLECATVAL', 'ROLERCAT', 'ASGNMNTCATTYPE', 'ASGNMNTCATVAL', 'ASGNMNTACAT',
-]);
+/**
+ * Gezaghebbende parser/readergrens: per ingelezen tabel de kolommen waaraan OPS daadwerkelijk
+ * betekenis geeft. De tabelselectie wordt uit dezelfde inventaris afgeleid, zodat een tabel nooit
+ * wel geparseerd maar buiten de bekende-veldencontrole kan vallen. Een lege lijst is bewust: de
+ * tabelrijen worden retained voor brongetrouwheid, maar nog geen veld wordt door de live lezer
+ * geïnterpreteerd. Een gevuld onbekend veld is dan dus echte niet-gerepresenteerde informatie.
+ */
+export const XER_KNOWN_FIELDS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
+  PROJECT: [
+    'proj_id', 'sum_base_proj_id', 'clndr_id', 'proj_short_name', 'proj_name',
+    'last_recalc_date', 'data_date', 'plan_end_date', 'def_duration_type',
+    'critical_path_type', 'critical_drtn_hr_cnt', 'rem_target_link_flag',
+  ],
+  CALENDAR: [
+    'clndr_id', 'base_clndr_id', 'clndr_name', 'clndr_type', 'clndr_data',
+    'day_hr_cnt', 'week_hr_cnt', 'month_hr_cnt', 'year_hr_cnt',
+  ],
+  RSRC: [
+    'rsrc_id', 'parent_rsrc_id', 'role_id', 'clndr_id', 'unit_id', 'rsrc_name',
+    'rsrc_short_name', 'rsrc_notes', 'rsrc_type', 'def_qty_per_hr',
+  ],
+  RSRCRATE: [
+    'rsrc_rate_id', 'rsrc_id', 'start_date', 'max_qty_per_hr',
+    'cost_per_qty', 'cost_per_qty2', 'cost_per_qty3', 'cost_per_qty4', 'cost_per_qty5',
+  ],
+  PROJWBS: ['wbs_id', 'proj_id', 'parent_wbs_id', 'wbs_name', 'wbs_short_name', 'seq_num'],
+  TASK: [
+    'task_id', 'proj_id', 'task_code', 'task_name', 'task_notes', 'wbs_id', 'clndr_id',
+    'task_type', 'duration_type', 'status_code', 'complete_pct_type', 'complete_pct',
+    'phys_complete_pct', 'priority_type', 'target_start_date', 'target_end_date',
+    'target_drtn_hr_cnt', 'remain_drtn_hr_cnt', 'act_start_date', 'act_end_date',
+    'suspend_date', 'resume_date', 'expect_end_date', 'cstr_type', 'cstr_date',
+    'cstr_type2', 'cstr_date2',
+  ],
+  TASKPRED: [
+    'task_pred_id', 'proj_id', 'task_id', 'pred_proj_id', 'pred_task_id', 'pred_type',
+    'lag_hr_cnt',
+  ],
+  TASKRSRC: [
+    'taskrsrc_id', 'proj_id', 'task_id', 'rsrc_id', 'role_id', 'rsrc_type', 'curv_id',
+    'rate_type', 'cost_per_qty_source_type', 'remain_qty', 'target_qty', 'act_reg_qty',
+    'act_ot_qty', 'act_this_per_qty', 'remain_qty_per_hr', 'target_qty_per_hr',
+    'cost_per_qty', 'target_cost', 'remain_cost', 'act_reg_cost', 'act_ot_cost',
+    'act_this_per_cost', 'target_crv', 'remain_crv', 'actual_crv',
+  ],
+  CURRTYPE: [
+    'curr_short_name', 'decimal_symbol', 'decimal_symbol_type',
+    'digit_group_symbol', 'digit_group_symbol_type',
+  ],
+  UDFTYPE: [
+    'udf_type_id', 'table_name', 'logical_data_type', 'udf_type',
+    'udf_type_label', 'udf_type_name',
+  ],
+  UDFVALUE: ['udf_type_id', 'fk_id', 'task_id', 'proj_id', 'udf_text', 'udf_number', 'udf_date'],
+  SCHEDOPTIONS: [
+    'enable_multiple_longest_path_calc', 'key_activity_for_multiple_longest_paths',
+    'level_all_rsrc_flag', 'level_float_thrs_cnt', 'level_keep_sched_date_flag',
+    'level_outer_assign_flag', 'level_outer_assign_priority', 'level_over_alloc_pct',
+    'level_within_float_flag', 'levelprioritylist', 'limit_multiple_longest_path_calc',
+    'max_multiple_longest_path', 'proj_id', 'sched_calendar_on_relationship_lag',
+    'sched_float_type', 'sched_lag_early_start_flag', 'sched_open_critical_flag',
+    'sched_outer_depend_type', 'sched_progress_override', 'sched_retained_logic',
+    'sched_setplantoforecast', 'sched_use_expect_end_flag',
+    'sched_use_project_end_date_for_float', 'schedhash', 'schedoptions_id',
+    'use_total_float', 'use_total_float_multiple_longest_paths',
+  ],
+  ACTVTYPE: [
+    'actv_code_type_id', 'parent_actv_code_type_id', 'actv_code_type',
+    'actv_code_type_name', 'seq_num',
+  ],
+  ACTVCODE: [
+    'actv_code_id', 'actv_code_type_id', 'parent_actv_code_id',
+    'short_name', 'actv_code_name', 'seq_num',
+  ],
+  TASKACTV: ['task_id', 'proj_id', 'actv_code_type_id', 'actv_code_id'],
+  COSTTYPE: [],
+  ACCOUNT: [],
+  PROJCOST: [],
+  MEMOTYPE: ['memo_type_id'],
+  WBSMEMO: [],
+  TASKNOTE: ['task_id', 'proj_id', 'task_notes'],
+  TASKMEMO: ['memo_id', 'memo_type_id', 'task_id', 'proj_id', 'task_memo'],
+  ROLES: ['role_id', 'parent_role_id', 'role_name', 'role_short_name', 'role_descr'],
+  ROLERATE: [
+    'role_rate_id', 'role_id', 'start_date', 'max_qty_per_hr',
+    'cost_per_qty', 'cost_per_qty2', 'cost_per_qty3', 'cost_per_qty4', 'cost_per_qty5',
+  ],
+  RSRCCURVDATA: [
+    'curv_id', 'curv_name',
+    ...Array.from({ length: 21 }, (_, index) => `pct_usage_${index}`),
+  ],
+  TASKPROC: [],
+  LOCATION: [],
+  UMEASURE: ['unit_id', 'unit_abbrev', 'unit_name'],
+  SHIFT: [],
+  SHIFTPER: [],
+  RSRCROLE: [],
+  PCATTYPE: [],
+  PCATVAL: [],
+  PROJPCAT: [],
+  RCATTYPE: [],
+  RCATVAL: [],
+  RSRCRCAT: [],
+  ROLECATTYPE: [],
+  ROLECATVAL: [],
+  ROLERCAT: [],
+  ASGNMNTCATTYPE: [],
+  ASGNMNTCATVAL: [],
+  ASGNMNTACAT: [],
+};
+
+const READ_TABLES = new Set(Object.keys(XER_KNOWN_FIELDS_BY_TABLE));
+const KNOWN_FIELD_SETS = new Map(Object.entries(XER_KNOWN_FIELDS_BY_TABLE)
+  .map(([table, fields]) => [table, new Set(fields)] as const));
 
 function decodeBomPayload(
   bytes: Uint8Array,
@@ -452,6 +557,22 @@ function findProvableCommaDecimal(
   return null;
 }
 
+function collectUnknownFields(
+  tables: ReadonlyMap<string, XerTable>,
+): Array<{ table: string; name: string; rows: number }> {
+  const result: Array<{ table: string; name: string; rows: number }> = [];
+  for (const table of tables.values()) {
+    const known = KNOWN_FIELD_SETS.get(table.name) ?? new Set<string>();
+    for (const field of new Set(table.fields)) {
+      if (known.has(field)) continue;
+      const rows = table.rows.reduce((count, row) =>
+        count + ((row.cells[field]?.trim() ?? '') !== '' ? 1 : 0), 0);
+      if (rows > 0) result.push({ table: table.name, name: field, rows });
+    }
+  }
+  return result;
+}
+
 /** Sluit parseropbouw af zonder rij- of celkopieën; iedere latere lezer deelt dezelfde bronrij. */
 function freezeXerRows(tables: ReadonlyMap<string, XerTable>): void {
   for (const table of tables.values()) {
@@ -605,6 +726,7 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
     );
   }
 
+  const unknownFields = collectUnknownFields(immutableTables);
   freezeXerRows(immutableTables);
   return {
     header,
@@ -618,6 +740,7 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
         { code: 'XER_MISSING_END_MARKER', line: lines.length },
       ],
       unknownTables,
+      unknownFields,
     },
   };
 }
