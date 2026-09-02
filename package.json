@@ -14,6 +14,7 @@
     "test:library": "bash tests/library/run.sh",
     "test:mcp": "bash tests/mcp/run.sh",
     "test:dev-server": "node --test tests/dev-server/*.test.mjs && bash tests/dev-server/integration.sh",
+    "test:browser:x11": "node tests/browser/x11-xer-evidence.mjs",
     "verify": "npm run typecheck && npm run lint && npm test && npm run verify:examples && npm run verify:docs && npm run verify:i18n && npm run verify:cycles && npm run verify:audit",
     "preview": "vite preview",
     "tauri": "tauri",
