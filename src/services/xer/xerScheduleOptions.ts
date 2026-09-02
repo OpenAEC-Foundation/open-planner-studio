@@ -188,6 +188,19 @@ function retainedBooleanValue(
   return undefined;
 }
 
+function projectRemainingStartValue(
+  row: XerRow | undefined,
+  fallbacks: XerScheduleOptionFallback[],
+): boolean {
+  if (!row) return false;
+  const token = row.cells.rem_target_link_flag?.trim() ?? '';
+  if (!token) return false;
+  if (token.toUpperCase() === 'Y') return true;
+  if (token.toUpperCase() === 'N') return false;
+  reportFallback(fallbacks, row, 'rem_target_link_flag', token, 'false');
+  return false;
+}
+
 function progressModeValue(
   row: XerRow,
   fallbacks: XerScheduleOptionFallback[],
@@ -319,13 +332,15 @@ export function deriveXerScheduleOptions(
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
   const projectRow = index.projectRowsById.get(projectId)?.row;
+  const fallbacks: XerScheduleOptionFallback[] = [];
   // PROJECT.rem_target_link_flag is het documentgedragen P6-signaal dat remaining en target
   // gekoppeld blijven. Alleen dan beschrijven de XER Early/Late Start-assen bij een lopende taak
   // het resterende werkvenster; ontbrekend/N behoudt de historische Actual Start. De afleiding
   // gebruikt uitsluitend PROJECT-invoer en nooit early/late/float-orakelcellen.
-  defaults.schedulingOptions.p6UseRemainingStartForProgress =
-    projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y';
-  const fallbacks: XerScheduleOptionFallback[] = [];
+  defaults.schedulingOptions.p6UseRemainingStartForProgress = projectRemainingStartValue(
+    projectRow,
+    fallbacks,
+  );
   const sourceRowIndexes = [...(index.sourceRowIndexesByProject.get(projectId) ?? [])];
   const retainedRows = sourceRowIndexes.map(rowIndex => index.sourceArchive.rows[rowIndex]);
   const diagnostics = [...(index.diagnosticsByProject.get(projectId) ?? [])];

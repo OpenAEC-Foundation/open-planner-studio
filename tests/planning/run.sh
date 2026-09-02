@@ -422,6 +422,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERSCHEDOPTIONSWIRINGCHECK="$DIR/.xer-schedule-options-wiring.mjs"
   if bundle_check "$DIR/check-xer-schedule-options-wiring.ts" "$XERSCHEDOPTIONSWIRINGCHECK"; then node "$XERSCHEDOPTIONSWIRINGCHECK" || STATUS=1; fi
 
+  # Pakket B: corpusloze SCHEDOPTIONS-provenance, PROJECT-afleiding en fail-closed mutaties.
+  XERSCHEDOPTIONSPROVENANCECHECK="$DIR/.xer-schedule-option-provenance.mjs"
+  if bundle_check "$DIR/check-xer-schedule-option-provenance.ts" "$XERSCHEDOPTIONSPROVENANCECHECK"; then
+    node "$XERSCHEDOPTIONSPROVENANCECHECK" || STATUS=1
+  fi
+
   # X5 zware openbare corpuspin: 27-kolommenunion en de 36 actuele bestanden zonder SCHEDOPTIONS,
   # per default/per as en tegen de onafhankelijke X1-meetlat. Eén keer draaien, niet per tijdzone.
   XERSCHEDOPTIONSCORPUSCHECK="$DIR/.xer-schedule-options-corpus.mjs"

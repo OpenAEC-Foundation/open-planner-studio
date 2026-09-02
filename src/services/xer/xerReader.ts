@@ -790,8 +790,19 @@ function readXerProject(
   const {
     progressMode,
     schedulingOptions,
-    ...scheduleOptionsMetadata
   } = derivedSchedule;
+  // De solver krijgt alleen de finale opties; de documentmetadata krijgt uitsluitend de
+  // bestaande, archive/IFC-compatibele provenancevelden. Zo kan een later toegevoegd intern
+  // afleidingsveld niet per ongeluk als opgeslagen P6-invoer worden bewaard of meegestuurd.
+  const scheduleOptionsMetadata: XerImportMetadata['scheduleOptions'] = {
+    source: derivedSchedule.source,
+    retainedSource: derivedSchedule.retainedSource,
+    fallbacks: derivedSchedule.fallbacks,
+    diagnostics: derivedSchedule.diagnostics,
+    sourceArchive: derivedSchedule.sourceArchive,
+    sourceRowIndexes: derivedSchedule.sourceRowIndexes,
+    sourceRows: derivedSchedule.sourceRows,
+  };
   const starts = mappedActivities.map(task => task.time.scheduleStart).filter(Boolean).sort();
   const finishes = mappedActivities.map(task => task.time.scheduleFinish).filter(Boolean).sort();
   const projectStart = starts[0];
