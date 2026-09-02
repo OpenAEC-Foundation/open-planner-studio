@@ -12,6 +12,10 @@ import type {
   ExtResource,
   ExtAssignment,
   ExtImportResult,
+  ExtImportSourceCatalogPage,
+  ExtImportSourceCollection,
+  ExtImportSourceInfo,
+  ExtImportSourcePageOptions,
   ExtRibbonTab,
   ExtFontProvider,
 } from './extTypes';
@@ -171,6 +175,15 @@ export interface ExtensionApi {
     getSequences(): ExtSequence[];
     getResources(): ExtResource[];
     getAssignments(): ExtAssignment[];
+    /** Kleine read-only XER-bronsamenvatting; null voor een niet-XER-document. */
+    getImportSourceInfo(): ExtImportSourceInfo | null;
+    /** Eén verse kopie van een retained XER-bronchunk; null voor een niet-XER-document. */
+    getImportSourceChunk(index: number): Uint8Array | null;
+    /** Pagineerbare, gekopieerde retained XER-catalogusdata; null voor een niet-XER-document. */
+    getImportSourceCatalogPage(
+      collection: ExtImportSourceCollection,
+      options?: ExtImportSourcePageOptions,
+    ): ExtImportSourceCatalogPage | null;
     addTask(task: Partial<ExtTask> & { name: string }): string;
     updateTask(id: string, updates: Partial<ExtTask>): void;
     /** Retourneert het nieuwe relatie-id, of `null` wanneer de relatie geweigerd is. */

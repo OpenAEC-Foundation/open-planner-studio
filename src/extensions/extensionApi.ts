@@ -22,6 +22,7 @@ import {
   type ExtEventListener,
 } from '@/services/extensionEvents';
 import { applyPermissionGuards } from './permissions';
+import { getExtImportSourceCatalogPage, getExtImportSourceChunk, toExtImportSourceInfo } from './extImportSource';
 import {
   toExtProject,
   toExtCalendar,
@@ -119,6 +120,24 @@ export function createExtensionApi(
       getSequences: () => document.store.getState().sequences.map(toExtSequence),
       getResources: () => document.store.getState().resources.map(toExtResource),
       getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
+      getImportSourceInfo: () => {
+        const state = document.store.getState();
+        return state.xerSourceArchive
+          ? toExtImportSourceInfo(state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId)
+          : null;
+      },
+      getImportSourceChunk: (index) => {
+        const archive = document.store.getState().xerSourceArchive;
+        return archive ? getExtImportSourceChunk(archive, index) : null;
+      },
+      getImportSourceCatalogPage: (collection, options) => {
+        const state = document.store.getState();
+        return state.xerSourceArchive
+          ? getExtImportSourceCatalogPage(
+            state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
+          )
+          : null;
+      },
       addTask: (task) => {
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
         if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));

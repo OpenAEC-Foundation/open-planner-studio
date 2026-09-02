@@ -33,7 +33,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type {
   ExtProject, ExtCalendar, ExtTask, ExtTaskTime, ExtSequence, ExtResource, ExtAssignment,
-  ExtRibbonTab, ExtFontProvider,
+  ExtRibbonTab, ExtFontProvider, ExtImportSourceInfo,
 } from '@/extensions/extTypes';
 import type { ExtensionApi, ExtensionPermission } from '@/extensions/types';
 import {
@@ -56,6 +56,9 @@ import {
 } from '@/extensions/extMappers';
 import { getExtensionSdk } from '@/extensions/sdk';
 import { appStoreContext, useAppStore } from '@/state/appStore';
+import { readXER } from '@/services/xer/xerReader';
+import { isMultiDocumentImport } from '@/services/importTypes';
+import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -656,7 +659,222 @@ for (const [naam, ext, bron, sleutels] of [
   api._cleanup();
 }
 
-// ── 7. De contract-versiepoort (los van minAppVersion) ───────────────────────
+// ── 7. Read-only XER-bronroute ──────────────────────────────────────────────
+// Synthetische, privacyveilige fixture: twee generieke projecten en drie generieke taken. De test
+// gebruikt de echte XER-reader zodat de API bovenop precies dezelfde retained archive-grafiek werkt
+// als de gebruikersroute. Geen corpusnaam, bestandspad of privélabel komt in deze bron voor.
+{
+  const source = [
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tCAL-1\tWerkweek\tCA_Project\t8\t40\t',
+    '%R\tCAL-2\tWerkweek\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-1\tSynthese A\tCAL-1\t2026-09-01 08:00',
+    '%R\tP-2\tSynthese B\tCAL-2\t2026-09-02 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tT-1\tP-1\tCAL-1\tA-1\tTaak A\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-09-01 08:00\t2026-09-01 16:00',
+    '%R\tT-2\tP-2\tCAL-2\tB-1\tTaak B\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-09-02 08:00\t2026-09-02 16:00',
+    '%R\tT-3\tP-2\tCAL-2\tB-2\tTaak C\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t16\t16\t2026-09-03 08:00\t2026-09-04 16:00',
+    '%T\tACTVTYPE',
+    '%F\tactv_code_type_id\tactv_code_type\tseq_num',
+    '%R\tTYPE\tFase\t1',
+    '%T\tACTVCODE',
+    '%F\tactv_code_id\tactv_code_type_id\tshort_name\tseq_num',
+    '%R\tVALUE\tTYPE\tFase 1\t1',
+    '%T\tTASKACTV',
+    '%F\tproj_id\ttask_id\tactv_code_type_id\tactv_code_id',
+    '%R\tP-2\tT-2\tTYPE\tVALUE',
+    '%E',
+  ].join('\r\n');
+  const opened = readXER(new TextEncoder().encode(`\ufeff${source}`));
+  if (!isMultiDocumentImport(opened)) throw new Error('Bronfixture moet twee XER-documenten opleveren');
+
+  useAppStore.getState().newProject();
+  const api = createExtensionApi('xer-source-read-contract', [], undefined, appStoreContext, {
+    app: appStoreContext,
+    showNotification: () => {},
+  });
+  eq('37 een niet-XER-document geeft geen broninfo', api.data.getImportSourceInfo(), null);
+  eq('37a chunk- en catalogusroute geven zonder XER null', [
+    api.data.getImportSourceChunk(0), api.data.getImportSourceCatalogPage('taskSourceRows'),
+  ], [null, null]);
+  const applied = useAppStore.getState().applyOpenedImport(opened, {
+    filePath: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+  });
+  const p2DocumentId = applied.documentIds[1];
+  if (p2DocumentId) useAppStore.getState().switchDocument(p2DocumentId);
+  const archive = opened.results[0]?.xerSourceArchive;
+  if (!archive) throw new Error('Bronfixture mist het retained XER-archive');
+
+  const info = api.data.getImportSourceInfo();
+  const expectedReport = {
+    projectsSeen: 2, documentsOpened: 2, emptyProjectsSkipped: 0, baselineProjectsExcluded: 0,
+    baselinesMaterialized: 0, danglingBaselineReferences: 0, externalLinksPreserved: 0,
+    baselineExclusionReverted: false, baselineFallbackReasons: [],
+  };
+  eq('37 XER-bronsamenvatting is aanwezig op het actieve document', Boolean(info), true);
+  eq('38 XER-bronsamenvatting heeft exact de actieve selector en archive-identiteit', info && {
+    sourceFormat: info.sourceFormat,
+    sourceProjectId: info.sourceProjectId,
+    selector: info.selector,
+    archive: info.archive,
+    numberFormat: info.numberFormat,
+    importReport: info.importReport,
+  }, info && {
+    sourceFormat: 'primavera-p6-xer',
+    sourceProjectId: 'P-2',
+    selector: { kind: 'sourceProjectId', value: 'P-2' },
+    archive: {
+      schemaVersion: 1, byteLength: archive.byteLength, sha256: archive.sha256,
+      encoding: 'utf-8', bom: 'utf-8', newline: 'crlf', chunkSize: 196608, chunkCount: 1,
+    },
+    numberFormat: { decimal: '.', group: null, source: 'default', currencyCode: 'EUR' },
+    importReport: expectedReport,
+  });
+  eq('39 XER-samenvatting bevat diagnostics/schedule-options/catalogustellingen', info && {
+    diagnostics: info.diagnostics,
+    scheduleOptions: info.scheduleOptions,
+    catalogs: info.catalogs,
+  }, {
+    diagnostics: {
+      file: {
+        tableReport: { encoding: 'utf-8', endMarkerSeen: true, issueCount: 0, unknownTableCount: 0, unknownFieldCount: 0 },
+        scheduleOptionsDiagnosticCount: 0, relationResolutionIssueCount: 0,
+        resourceCatalogIssueCount: 0, metadataCatalogIssueCount: 0,
+      },
+      document: {
+        calendarIssueCount: 0, enumFallbackCount: 0, scheduleOptionsFallbackCount: 0,
+        scheduleOptionsDiagnosticCount: 0, externalRelationCount: 0, externalLinkCount: 0,
+        resourceAssignmentCount: 0, resourceIssueCount: 0,
+      },
+    },
+    scheduleOptions: {
+      source: 'xer-defaults', retainedSource: {}, fallbackCount: 0, diagnosticCount: 0,
+      sourceRowCount: 1, unmatchedSourceRowCount: 0,
+    },
+    catalogs: {
+      scheduleOptions: { sourceRows: 2, unmatchedRows: 0, diagnostics: 0 },
+      resources: {
+        resources: 0, identities: 0,
+        rows: { resources: 0, roles: 0, rates: 0, curves: 0, assignments: 0 }, issues: 0,
+      },
+      metadata: {
+        activityCodeTypes: 1, customFieldDefs: 0, taskProjections: 1,
+        currentProjectTaskProjections: 1, issues: 0,
+        issueCounts: Object.fromEntries(Object.keys(info?.catalogs.metadata.issueCounts ?? {}).map(key => [key, 0])),
+        sourceData: Object.fromEntries(Object.entries(info?.catalogs.metadata.sourceData ?? {}).map(([key, count]) => [key, key === 'ACTVTYPE' || key === 'ACTVCODE' || key === 'TASKACTV' ? 1 : count])),
+      },
+      taskSourceRows: { projectCount: 2, totalRows: 3, currentProjectRows: 2 },
+    },
+  });
+
+  const chunks: Uint8Array[] = [];
+  for (let index = 0; index < (info?.archive.chunkCount ?? 0); index += 1) {
+    const chunk = api.data.getImportSourceChunk(index);
+    if (chunk) chunks.push(chunk);
+  }
+  const reconstructed = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.byteLength, 0));
+  chunks.reduce((offset, chunk) => { reconstructed.set(chunk, offset); return offset + chunk.byteLength; }, 0);
+  eq('40 bronchunks reconstrueren exact de XER-bytes en digest', {
+    byteLength: reconstructed.byteLength, sha256: sha256Hex(reconstructed), bytes: [...reconstructed],
+  }, { byteLength: archive.byteLength, sha256: archive.sha256, bytes: [...decodeXerSourceArchive(archive)] });
+
+  let invalidIndex = false;
+  try { api.data.getImportSourceChunk(-1); } catch (error) { invalidIndex = error instanceof RangeError; }
+  let invalidFraction = false;
+  try { api.data.getImportSourceChunk(0.5); } catch (error) { invalidFraction = error instanceof RangeError; }
+  eq('41 ongeldige chunkindexen worden fail-closed gevalideerd', [invalidIndex, invalidFraction], [true, true]);
+
+  const firstPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: 0, limit: 1 });
+  const secondPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: 1, limit: 1 });
+  const cell = (row: { cells?: unknown } | undefined, key: string): unknown => {
+    const cells = row?.cells;
+    return cells && typeof cells === 'object' ? (cells as Record<string, unknown>)[key] : undefined;
+  };
+  eq('42 task-bronrijen zijn pagineerbaar en documentgebonden', {
+    first: firstPage && { offset: firstPage.offset, limit: firstPage.limit, total: firstPage.total, ids: firstPage.items.map(row => cell(row, 'task_id')) },
+    second: secondPage && { offset: secondPage.offset, limit: secondPage.limit, total: secondPage.total, ids: secondPage.items.map(row => cell(row, 'task_id')) },
+  }, {
+    first: { offset: 0, limit: 1, total: 2, ids: ['T-2'] },
+    second: { offset: 1, limit: 1, total: 2, ids: ['T-3'] },
+  });
+  const schedulePage = api.data.getImportSourceCatalogPage('scheduleOptionsSourceRows', { limit: 500 });
+  eq('43 schedule-options-pagina gebruikt alleen de actieve projectbronrij', schedulePage?.items.map(row => cell(row, 'proj_id')), ['P-2']);
+  const metadataPage = api.data.getImportSourceCatalogPage('metadataSourceActvtypeRows');
+  const activityTypePage = api.data.getImportSourceCatalogPage('metadataActivityCodeTypes');
+  eq('43b retained metadata-catalogi en bronrijen zijn gekopieerd pagineerbaar', {
+    raw: metadataPage && { total: metadataPage.total, id: cell(metadataPage.items[0], 'actv_code_type_id') },
+    normalized: activityTypePage && { total: activityTypePage.total, id: activityTypePage.items[0]?.id },
+  }, { raw: { total: 1, id: 'TYPE' }, normalized: { total: 1, id: 'TYPE' } });
+  eq('43a bronroute bevat geen generiek bron-writepad', Object.keys(api.data)
+    .filter(key => key.toLowerCase().includes('importsource')).sort(), [
+      'getImportSourceCatalogPage', 'getImportSourceChunk', 'getImportSourceInfo',
+    ]);
+
+  let invalidRange = false;
+  try { api.data.getImportSourceCatalogPage('taskSourceRows', { offset: -1 }); } catch (error) { invalidRange = error instanceof RangeError; }
+  let oversizedRange = false;
+  try { api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 501 }); } catch (error) { oversizedRange = error instanceof RangeError; }
+  let invalidCollection = false;
+  try { api.data.getImportSourceCatalogPage('onbekend' as never); } catch (error) { invalidCollection = error instanceof RangeError; }
+  eq('44 ongeldige catalogusvragen worden fail-closed gevalideerd', [invalidRange, oversizedRange, invalidCollection], [true, true, true]);
+
+  const beforeMutation = api.data.getImportSourceInfo() as ExtImportSourceInfo;
+  const mutableInfo = api.data.getImportSourceInfo() as unknown as { archive: { sha256: string }; catalogs: { taskSourceRows: { totalRows: number } } };
+  mutableInfo.archive.sha256 = 'veranderd';
+  mutableInfo.catalogs.taskSourceRows.totalRows = 999;
+  const mutablePage = api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 });
+  if (mutablePage?.items[0]?.cells) (mutablePage.items[0].cells as Record<string, unknown>).task_id = 'veranderd';
+  const mutableChunk = api.data.getImportSourceChunk(0);
+  if (mutableChunk) mutableChunk[0] ^= 0xff;
+  eq('45 info/page/chunk zijn verse kopieën zonder mutabele alias', {
+    info: api.data.getImportSourceInfo(),
+    taskId: cell(api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 })?.items[0], 'task_id'),
+    digest: api.data.getImportSourceInfo()?.archive.sha256,
+    chunkDigest: (() => { const chunk = api.data.getImportSourceChunk(0); return chunk ? sha256Hex(chunk) : null; })(),
+  }, {
+    info: beforeMutation,
+    taskId: 'T-2',
+    digest: archive.sha256,
+    chunkDigest: sha256Hex(decodeXerSourceArchive(archive).subarray(0, archive.byteLength)),
+  });
+
+  const visible = api.data.getTasks()[0];
+  eq('46 alle acht P6-taakvelden blijven zichtbaar via toExtTask', visible && [
+    visible.p6DurationType, visible.p6ActivityType, visible.p6ProjectId, visible.p6TaskId,
+    visible.p6ExplicitTargetWindow, visible.p6CompletePctType, visible.p6ExpectedFinish,
+    visible.p6SuspendResume,
+  ], ['DT_FixedDUR2', 'TT_Task', 'P-2', 'T-2', true, undefined, undefined, undefined]);
+
+  const hostileImportTask = { ...toExtTask(VOL_TASK), id: 'T-foreign', name: 'Generieke import' };
+  api.data.loadProject({
+    project: toExtProject(VOL_PROJECT), calendar: toExtCalendar(VOL_CALENDAR), tasks: [hostileImportTask],
+    sequences: [], resources: [], assignments: [],
+  });
+  eq('47 generieke loadProject activeert geen P6-provenance', [
+    useAppStore.getState().tasks[0]?.p6DurationType, useAppStore.getState().tasks[0]?.p6ActivityType,
+    useAppStore.getState().tasks[0]?.p6ProjectId, useAppStore.getState().tasks[0]?.p6TaskId,
+    useAppStore.getState().tasks[0]?.p6ExplicitTargetWindow, useAppStore.getState().tasks[0]?.p6CompletePctType,
+    useAppStore.getState().tasks[0]?.p6ExpectedFinish, useAppStore.getState().tasks[0]?.p6SuspendResume,
+  ], [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined]);
+
+  // loadProject is deliberately a normal generic load and must not erase/overwrite the XER source
+  // route through an implicit write API. The route is gone with the replaced document; a later
+  // document switch must still restore the retained source of the other XER document.
+  const xerDocumentId = applied.documentIds[0];
+  if (xerDocumentId) useAppStore.getState().switchDocument(xerDocumentId);
+  eq('48 documentwissel herstelt de XER-selector en bronroute', {
+    selector: api.data.getImportSourceInfo()?.sourceProjectId,
+    taskId: cell(api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 })?.items[0], 'task_id'),
+  }, { selector: 'P-1', taskId: 'T-1' });
+  api._cleanup();
+}
+
+// ── 8. De contract-versiepoort (los van minAppVersion) ───────────────────────
 // CalVer draagt geen breaking-change-signaal; `apiVersion` doet dat wel. De poort moet in BEIDE
 // richtingen dicht: een extensie voor een oudere major mist de brekende wijziging, een voor een
 // nieuwere rekent op iets dat er niet is.

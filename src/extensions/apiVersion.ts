@@ -22,7 +22,7 @@
  * versienummer, dus 1.0.0 betekent "de vorm zoals die op het moment van invoering was". Elke
  * volgende wijziging aan `extTypes.ts`/`types.ts` hoort hier een bump te krijgen.
  */
-export const EXTENSION_API_VERSION = '1.0.0';
+export const EXTENSION_API_VERSION = '1.1.0';
 
 export interface ApiCompatibility {
   ok: boolean;
