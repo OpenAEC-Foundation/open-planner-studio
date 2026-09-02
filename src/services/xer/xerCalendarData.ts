@@ -698,7 +698,11 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
         ? { workingExceptions: decoded.workingExceptions }
         : {}),
       ...(explicitDay === undefined && decoded.p6NonWorkPenaltyDates.length > 0
-        ? { p6Source: 'XER' as const, p6NonWorkPenaltyDates: decoded.p6NonWorkPenaltyDates }
+        ? {
+          p6Source: 'XER' as const,
+          p6NonWorkPenaltyDates: decoded.p6NonWorkPenaltyDates,
+          p6NonWorkPenaltyDatesState: 'VALID_VALUES' as const,
+        }
         : {}),
       calendarType: calendarType(rawCalendarType),
       rawCalendarType,

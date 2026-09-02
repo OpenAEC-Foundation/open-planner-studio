@@ -400,6 +400,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   IFCXERARCHIVECHECK="$DIR/.ifc-xer-archive-container.mjs"
   if bundle_check "$DIR/check-ifc-xer-archive-container.ts" "$IFCXERARCHIVECHECK"; then node "$IFCXERARCHIVECHECK" || STATUS=1; fi
 
+  # P0: corpusloze, onafhankelijke bronretentiepoort over import, edit/CPM, undo/redo,
+  # documentwissel/-kopie, recovery en IFC. De STEP-envelope wordt zonder product-reader gecheckt.
+  XERSOURCERETENTIONCHECK="$DIR/.xer-source-retention.mjs"
+  if bundle_check "$DIR/check-xer-source-retention.ts" "$XERSOURCERETENTIONCHECK"; then node "$XERSOURCERETENTIONCHECK" || STATUS=1; fi
+
   # X9-compactopslag: schema-2 bewaart alleen de gehashte bronbytes; diagnostics/readmodel
   # worden bij lezen opnieuw uit die zelfstandige bron afgeleid. Schema-1 blijft invoerbaar.
   XERARCHIVECOMPACTCHECK="$DIR/.xer-archive-compact.mjs"
