@@ -52,7 +52,7 @@ Some P6 concepts are already retained but do not yet have a fully equivalent sch
 - A P6 resource curve with 21 points is retained as source distribution. A recognisable shape can be mapped to the nearest built-in curve for the histogram, but the original 21-point shape is not yet recalculated after an edit.
 - The existing **P6 XML** reader and this XER reader do not yet cover the same full field set. XER can therefore contain data that P6 XML in the app does not yet read or write.
 
-These limits do not remove source data. When XER-specific source data is present, the export code returns a typed loss result for CSV, MS Project XML or Primavera P6 XML. The current interface does not yet show that result as a separate notification; saving as IFC retains the source data.
+These limits do not remove source data from the IFC project file. When XER-specific source data is present and you export to CSV, MS Project XML or Primavera P6 XML, that source information cannot fit completely in the target format. After a successful export, one informational notification appears with a link to this guide. If you cancel the export or saving fails, that notification does not appear. Exporting to IFC retains the XER source data; the other exports include only the data their own format supports. The original `.xer` file is not overwritten.
 
 ## Further reading
 

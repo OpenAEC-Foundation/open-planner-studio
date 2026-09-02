@@ -52,7 +52,7 @@ Een paar P6-begrippen zijn al opgeslagen, maar hebben nog geen volledig gelijkwa
 - Een P6-resourcecurve met 21 punten wordt als bronverdeling bewaard. Een herkenbare vorm kan voor het histogram naar de dichtstbijzijnde ingebouwde curve worden vertaald, maar de oorspronkelijke 21-puntsvorm wordt na een bewerking nog niet opnieuw berekend.
 - De bestaande **P6 XML**-lezer en deze XER-lezer hebben nog niet dezelfde volledige veldendekking. XER kan daarom gegevens bevatten die P6 XML in de app nog niet leest of schrijft.
 
-Deze grenzen verwijderen geen brongegevens. Als XER-specifieke brondata aanwezig is, levert de exportcode bij CSV, MS Project XML of Primavera P6 XML een getypeerd verliesresultaat. De huidige interface toont dat resultaat nog niet als afzonderlijke melding; opslaan als IFC bewaart de brondata.
+Deze grenzen verwijderen geen brongegevens uit het IFC-projectbestand. Als XER-specifieke brondata aanwezig is en je exporteert naar CSV, MS Project XML of Primavera P6 XML, past die broninformatie niet volledig in het doelformaat. Na een geslaagde export verschijnt daarom één informatieve melding met een link naar deze gids. Annuleer je de export of mislukt het opslaan, dan verschijnt die melding niet. De export naar IFC bewaart de XER-brondata; de andere exports nemen alleen de gegevens mee die hun eigen formaat ondersteunt. Het oorspronkelijke `.xer`-bestand wordt niet overschreven.
 
 ## Verder lezen
 
