@@ -31,14 +31,19 @@ OPS_PLAYWRIGHT_DIR="/pad/naar/node_modules/playwright-core" \
 npm run test:browser:x11
 ```
 
-Het harnas start zelf `npm run dev`, leest de werkelijk toegewezen URL en PID uit de launcher-
-output, controleert HTTP 200 en controleert `/proc/PID/cwd` tegen de worktree-root. De server
+Het harnas verwijdert geërfde `OPS_DEV_GUARDED` en `OPS_DEV_PORT`, start zelf `npm run dev` en
+leest de werkelijk toegewezen URL en PID uit de launcher-output. Het controleert dat de normale
+bewaakte launcherregel zichtbaar is, de URL de vaste gestempelde worktreepoort gebruikt, HTTP
+200 antwoordt en `/proc/PID/cwd` exact de worktree-root is. Een al actieve bewaker laat de run
+rood eindigen; omzeilen met geërfde guard- of poortvariabelen is niet toegestaan. De server
 wordt altijd gestopt nadat de browserrun klaar is of faalt.
 
 De init-scriptlaag verwijdert uitsluitend binnen de testcontext `showOpenFilePicker`, zodat de
 bestaande `input[type=file]`-terugval wordt gebruikt. De test vereist vervolgens een echte
-Playwright `filechooser`-event en gebruikt `chooser.setFiles(...)`. Directe pad-openhaken van de
-dev-bridge horen niet bij deze browserroute.
+Playwright `filechooser`-event en gebruikt `chooser.setFiles(...)`. Vóór de Open-klik worden alle
+`open`- en `import`-methoden van de dev-bridge structureel vervangen door blokkerende wrappers.
+Iedere directe of computed aanroep wordt geteld, gooit meteen een fout en maakt de run rood;
+na de import moet de teller nul zijn. De store wordt alleen gelezen voor state-inspectie.
 
 ## SMALL-A-asserties
 
@@ -57,10 +62,11 @@ Daarnaast moeten `window.alert`, `window.confirm` en `window.prompt` nul keer zi
 ## Evidence en beperking
 
 Elke geslaagde run schrijft buiten de repo naar een unieke submap onder
-`/tmp/xer-x11-evidence/`. Daarin staan metadata, de privacy-geredigeerde screenshot, de
-geobserveerde state en de dev-server-output. Canvas, documentnaam en tablabels worden in de
-screenshot gemaskeerd; bron-, project-, taak- en resourcenamen worden niet als screenshotbewijs
-gebruikt.
+`/tmp/xer-x11-evidence/`. Daarin staan metadata, de privacy-geredigeerde overzichtsscreenshot,
+een afzonderlijke elementopname van de zichtbare XER-toast, de geobserveerde state en de
+dev-server-output. De toastopname wordt vóór auto-dismiss gemaakt en accepteert alleen generieke
+importaantallen plus `Read more`; pad-, bestands-, project-, taak- en resourcenamen zijn er niet
+toegestaan. Canvas, documentnaam en tablabels worden in de overzichtsscreenshot gemaskeerd.
 
 Deze test bewijst de browser-dev-build met de `input[type=file]`-terugval. Hij bewijst niet de
 Chromium File System Access API, de native OS-bestandkiezer of Tauri `plugin-dialog`/`plugin-fs`.

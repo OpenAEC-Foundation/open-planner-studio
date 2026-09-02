@@ -66,7 +66,7 @@ async function preflight() {
 }
 
 async function waitForDevServer(child) {
-  let output = `[harness] SERVER_PID=${child.pid}\n`;
+  let output = `[harness] SERVER_PID=${child.pid}\n[harness] DEV_ENV OPS_DEV_GUARDED=absent OPS_DEV_PORT=absent\n`;
   let assignedUrl = null;
 
   const observe = (chunk) => {
@@ -102,15 +102,45 @@ async function waitForDevServer(child) {
     fail(`servercwd is ${procCwd}, verwacht exact ${REPO_ROOT}`);
   }
 
-  return { assignedUrl, pid: child.pid, procCwd, output };
+  const launchConfig = JSON.parse(await readFile(resolve(REPO_ROOT, '.claude/launch.json'), 'utf8'));
+  const recordedPort = launchConfig.opsDevPort;
+  const assignedPort = Number(new URL(assignedUrl).port);
+  const normalRoute = output.includes(
+    `▶ open-planner-studio dev — worktree "${REPO_ROOT.split('/').pop()}" → ${assignedUrl}`,
+  );
+  if (!normalRoute) {
+    fail(`serveroutput bewijst de normale bewaakte devroute niet. Output:\n${output}`);
+  }
+  if (!Number.isInteger(recordedPort) || assignedPort !== recordedPort) {
+    fail(`devpoort ${assignedPort} is niet de vaste worktreepoort ${recordedPort}`);
+  }
+
+  return {
+    assignedUrl,
+    pid: child.pid,
+    procCwd,
+    output,
+    guard: {
+      inheritedEnvRemoved: true,
+      normalRoute,
+      externallyForcedPort: false,
+      recordedPort,
+    },
+  };
 }
 
 async function startDevServer() {
   const npmCommand = process.env.OPS_NPM_PATH?.trim() || 'npm';
+  const childEnv = { ...process.env };
+  delete childEnv.OPS_DEV_GUARDED;
+  delete childEnv.OPS_DEV_PORT;
+  if ('OPS_DEV_GUARDED' in childEnv || 'OPS_DEV_PORT' in childEnv) {
+    fail('serverguard-env kon niet worden opgeschoond');
+  }
   const child = spawn(npmCommand, ['run', 'dev'], {
     cwd: REPO_ROOT,
     detached: true,
-    env: process.env,
+    env: childEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   try {
@@ -176,6 +206,59 @@ async function assertNoDirectPathOpen() {
   }
 }
 
+async function installDevBridgeOpenGate(page) {
+  return page.evaluate(() => {
+    const bridge = window.__OPS__;
+    if (!bridge) throw new Error('window.__OPS__ ontbreekt voor anti-sluiproute-gate');
+    const gate = { calls: [], wrapped: [] };
+    window.__OPS_X11_BRIDGE_GATE__ = gate;
+    const seen = new WeakSet();
+
+    const visit = (value, path) => {
+      if (!value || (typeof value !== 'object' && typeof value !== 'function') || seen.has(value)) return;
+      seen.add(value);
+      for (const key of Reflect.ownKeys(value)) {
+        if (typeof key !== 'string' || (path === 'devBridge' && (key === 'store' || key === 'log'))) continue;
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (!descriptor || !('value' in descriptor)) continue;
+        const memberPath = `${path}.${key}`;
+        const member = descriptor.value;
+        if (typeof member === 'function' && /open|import/i.test(key)) {
+          const blocked = function blockedDevBridgeOpen(...args) {
+            gate.calls.push({ method: memberPath, argc: args.length });
+            throw new Error(`X11 anti-sluiproute: ${memberPath} werd aangeroepen`);
+          };
+          Object.defineProperty(value, key, { ...descriptor, value: blocked });
+          gate.wrapped.push(memberPath);
+          continue;
+        }
+        visit(member, memberPath);
+      }
+    };
+
+    visit(bridge, 'devBridge');
+    if (gate.wrapped.length === 0) throw new Error('anti-sluiproute-gate vond geen devBridge-openmethoden');
+    return { wrapped: [...gate.wrapped] };
+  });
+}
+
+async function readDevBridgeOpenGate(page) {
+  return page.evaluate(() => ({
+    calls: [...(window.__OPS_X11_BRIDGE_GATE__?.calls ?? [])],
+    wrapped: [...(window.__OPS_X11_BRIDGE_GATE__?.wrapped ?? [])],
+  }));
+}
+
+function assertPrivacySafeToast(text, box) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  const expected = /^XER file opened: \d+ project documents?\. \d+ projects? found\.(?: \d+ enum fallbacks?\.)? Read more$/;
+  if (!expected.test(normalized)) fail(`toasttekst valt buiten privacyveilige allowlist: ${JSON.stringify(normalized)}`);
+  if (/[\\/]|\.xer\b/i.test(normalized)) fail(`toasttekst bevat een pad of bestandsnaam: ${JSON.stringify(normalized)}`);
+  if (!box || box.width < 180 || box.height < 40 || box.width > 1440 || box.height > 300) {
+    fail(`toastclip heeft ongeldige afmetingen: ${JSON.stringify(box)}`);
+  }
+}
+
 async function runBrowserSmallA(preflightResult, server, evidenceDir) {
   const { chromium } = loadPlaywrightCore();
   const browserEnv = { ...process.env };
@@ -213,6 +296,7 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
   try {
     await page.goto(server.assignedUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => Boolean(window.__OPS__) && typeof window.showOpenFilePicker === 'undefined');
+    const bridgeGateSetup = await installDevBridgeOpenGate(page);
 
     const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^Open$/ });
     if (await openButton.count() !== 1) fail(`zichtbare Engelse Open-knop niet uniek: ${await openButton.count()}`);
@@ -220,6 +304,14 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
     await openButton.click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(preflightResult.xerPath);
+
+    const toast = page.locator('.ops-toast').filter({ hasText: 'XER file opened' }).first();
+    await toast.waitFor({ state: 'visible', timeout: 30_000 });
+    const domText = await toast.innerText();
+    const toastBox = await toast.boundingBox();
+    assertPrivacySafeToast(domText, toastBox);
+    const toastScreenshotPath = resolve(evidenceDir, 'xer-toast.png');
+    await toast.screenshot({ path: toastScreenshotPath });
 
     try {
       await page.waitForFunction((messageKey) => {
@@ -240,11 +332,16 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
       fail(`${error instanceof Error ? error.message : String(error)}; observed=${JSON.stringify(observed)}`);
     }
 
-    const toast = page.locator('.ops-toast').filter({ hasText: 'XER file opened' });
-    await toast.first().waitFor({ state: 'visible', timeout: 5_000 });
-    const domText = await toast.first().innerText();
     const state = await readOpsState(page);
     assertSmallAState(state);
+
+    const bridgeGate = await readDevBridgeOpenGate(page);
+    if (bridgeGate.calls.length !== 0) {
+      fail(`anti-sluiproute-gate rood: ${JSON.stringify(bridgeGate.calls)}`);
+    }
+    if (bridgeGate.wrapped.length !== bridgeGateSetup.wrapped.length || bridgeGate.wrapped.length === 0) {
+      fail(`anti-sluiproute-gate verloor wrappers: ${JSON.stringify(bridgeGate)}`);
+    }
 
     const dialogCounts = await page.evaluate(() => ({ ...window.__OPS_X11_DIALOG_COUNTS__ }));
     if (dialogCounts.alert !== 0 || dialogCounts.confirm !== 0 || dialogCounts.prompt !== 0) {
@@ -262,7 +359,17 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
       ],
       maskColor: '#263238',
     });
-    return { state, domText, dialogCounts, screenshotPath, launchArgs, headless: false };
+    return {
+      state,
+      domText,
+      dialogCounts,
+      bridgeGate,
+      screenshotPath,
+      toastScreenshotPath,
+      toastBox,
+      launchArgs,
+      headless: false,
+    };
   } finally {
     await context.close();
     await browser.close();
@@ -298,11 +405,19 @@ async function main() {
       runId: evidenceDir.split('/').pop(),
       repository: REPO_ROOT,
       branch: 'codex/xer-x11-harness',
-      server: { url: serverHandle.server.assignedUrl, pid: serverHandle.server.pid, cwd: serverHandle.server.procCwd, httpStatus: 200 },
+      server: {
+        url: serverHandle.server.assignedUrl,
+        pid: serverHandle.server.pid,
+        cwd: serverHandle.server.procCwd,
+        httpStatus: 200,
+        guard: serverHandle.server.guard,
+      },
       browser: { executablePath: preflightResult.chromiumPath, headless: browserEvidence.headless, launchArgs: browserEvidence.launchArgs },
       dom: { text: browserEvidence.domText },
       nativeDialogs: browserEvidence.dialogCounts,
+      devBridgeOpenGate: browserEvidence.bridgeGate,
       screenshot: 'imported-redacted.png',
+      toastScreenshot: { file: 'xer-toast.png', box: browserEvidence.toastBox },
     }, null, 2)}\n`, 'utf8');
     console.log(`SMALL-A OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
   } finally {
