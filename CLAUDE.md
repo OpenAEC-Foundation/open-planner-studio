@@ -19,6 +19,7 @@ npm run test:planning     # los: CPM/kalender-regressiesuite (== bash tests/plan
 npm run test:library      # los: bibliotheek/IFC/i18n-checks
 npm run test:mcp          # los: MCP-tools
 npm run test:dev-server   # los: node:test-units + integratietest van de dev-serverpoort/-locks
+npm run test:browser:x11  # lokaal headed; vereist OPS_XER_CORPUS + desktopdisplay, vervangt de corpusloze CI-poort niet
 npm run verify:examples   # los: de gebundelde voorbeelden laden/rekenen door zoals verwacht
 npm run verify:docs       # los: in-app gidsen — nl+en hard vereist, overige 12 talen indien aanwezig
 npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-pluralcategorieën meegerekend)
