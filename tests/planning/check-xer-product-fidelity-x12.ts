@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import {
@@ -16,11 +17,16 @@ import type { WorkCalendar } from '@/types/calendar';
 import { usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
 import { buildXerTargetBaseline, type XerCorpusFile, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
-import { measureXerProductFidelity, type XerProductAxisCounts } from './xerProductFidelity';
+import {
+  measureXerProductFidelity,
+  type XerProductAxisCounts,
+  type XerProductMeasurement,
+  type XerProductProjectMeasurement,
+} from './xerProductFidelity';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
-const REPORT_MODES = new Set(['baseline', 'detail', 'summary']);
+const REPORT_MODES = new Set(['baseline', 'detail', 'summary', 'counterfactuals']);
 const diffs: string[] = [];
 let checks = 0;
 
@@ -29,13 +35,55 @@ interface ProductBaselineEntry {
   schemaFingerprint: string;
   projects: number;
   tasks: number;
+  identityCoverage: {
+    solvedTasks: number;
+    taskCodePresent: number;
+    taskCodeExact: number;
+  };
+  projectMeasurements: XerProductProjectMeasurement[];
   counters: Record<XerFidelityAxis, XerProductAxisCounts>;
   drivingPath: XerProductAxisCounts;
   identityErrors: string[];
   scannerErrors: string[];
   gatePassed: boolean;
 }
-interface ProductBaseline { version: 2; manifestSha256: string; files: Record<string, ProductBaselineEntry>; }
+interface ProductBaseline {
+  version: 2;
+  manifestSha256: string;
+  /** Geen acceptatiebaseline: de strict-nulpoort blijft aantoonbaar rood tot een eigenaarsbesluit. */
+  characterization: {
+    finalZeroGate: 'red';
+    accepted: false;
+    openCategories: readonly ['strict-six-axis-deviations', 'strict-sameday-deviations', 'driving-path-report-only'];
+  };
+  files: Record<string, ProductBaselineEntry>;
+}
+
+interface CounterfactualReport {
+  mode: 'historical-completed-late' | 'source-day-precision';
+  strictGateEligible: false;
+  counters: Record<XerFidelityAxis, XerProductAxisCounts>;
+  drivingPath: XerProductAxisCounts;
+  identityErrors: number;
+  scannerErrors: number;
+}
+
+/** De complete 34-entry/47-projectsnapshot is compact opgeslagen, maar wordt hier altijd volledig
+ * uitgepakt vóór vergelijking. Alleen v2 met zichtbare rode overgangsstatus is leesbaar. */
+function readProductBaseline(): ProductBaseline {
+  const raw = JSON.parse(readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8')) as Record<string, unknown>;
+  if (raw.encoding !== 'gzip-base64-json' || typeof raw.payloadGzipBase64 !== 'string'
+    || JSON.stringify(raw.reportModes) !== JSON.stringify([
+      'strict-minute-exact', 'historical-completed-late', 'source-day-precision',
+    ])) {
+    throw new Error('X12 productbaseline is geen v2 gzip-base64 karakteriseringssnapshot');
+  }
+  const payload = JSON.parse(gunzipSync(Buffer.from(raw.payloadGzipBase64, 'base64')).toString('utf8')) as ProductBaseline;
+  if (payload.version !== 2 || payload.characterization.finalZeroGate !== 'red' || payload.characterization.accepted !== false) {
+    throw new Error('X12 productbaseline claimt ten onrechte een geaccepteerde of groene eindpoort');
+  }
+  return payload;
+}
 
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
@@ -61,6 +109,15 @@ function fiveDayCalendarData(start: string, finish: string): string {
 }
 function totalDeviations(entry: ProductBaselineEntry): number {
   return XER_FIDELITY_AXES.reduce((total, axis) => total + entry.counters[axis].deviations, 0);
+}
+function copyCounts(counts: XerProductAxisCounts): XerProductAxisCounts { return { ...counts }; }
+function summarizeMeasurement(measurement: XerProductMeasurement): Omit<CounterfactualReport, 'mode' | 'strictGateEligible'> {
+  return {
+    counters: Object.fromEntries(XER_FIDELITY_AXES.map(axis => [axis, copyCounts(measurement.counters[axis])])) as Record<XerFidelityAxis, XerProductAxisCounts>,
+    drivingPath: copyCounts(measurement.drivingPath),
+    identityErrors: measurement.identityErrors.length,
+    scannerErrors: measurement.scannerErrors.length,
+  };
 }
 /** De solver bewaart dagmodus bewust compact; de X12-meetlat vergelijkt dezelfde P6-betekenis per minuut. */
 function canonicalProductMinute(value: string | undefined): string | undefined {
@@ -141,6 +198,109 @@ function solveProductProjects(imports: readonly ImportResult[]): XerSolvedProjec
   return [...byProjectId.values()];
 }
 
+/**
+ * Tegenfeit 1: voor alleen volledig voltooide bronactiviteiten met twee echte actuals worden
+ * LS/LF als historische actuals herleid. Dit is een diagnose-experiment, nooit een nieuwe
+ * waarheid of solverinvoer. Ontbreekt één bronfeit, dan blijft de strict-orakelcel onaangeraakt.
+ */
+function historicalCompletedLateTruth(
+  truth: ReturnType<typeof scanXerGroundTruth>,
+  imports: readonly ImportResult[],
+): ReturnType<typeof scanXerGroundTruth> {
+  const actuals = new Map<string, { lateStart: string; lateFinish: string }>();
+  for (const imported of imports) {
+    for (const task of imported.tasks) {
+      if (task.time.completion !== 1 || !task.time.actualStart || !task.time.actualFinish) continue;
+      const lateStart = canonicalProductMinute(task.time.actualStart);
+      const lateFinish = canonicalProductMinute(task.time.actualFinish);
+      if (!lateStart || !lateFinish) continue;
+      actuals.set(`${task.p6ProjectId ?? imported.project.id}\u0000${task.p6TaskId ?? task.id}`, { lateStart, lateFinish });
+    }
+  }
+  return {
+    ...truth,
+    tasks: truth.tasks.map(task => {
+      const actual = actuals.get(`${task.projectId}\u0000${task.taskId}`);
+      if (!actual) return task;
+      return { ...task, axes: { ...task.axes, ls: actual.lateStart, lf: actual.lateFinish } };
+    }),
+  };
+}
+
+/**
+ * Tegenfeit 2: alleen een aantoonbaar middernacht-orakel mag in deze rapportage een same-day
+ * datumafwijking herclassificeren. Strict blijft onveranderd minuutexact en gebruikt dit nooit.
+ */
+function sourceDayPrecisionReport(measurement: XerProductMeasurement): Omit<CounterfactualReport, 'mode' | 'strictGateEligible'> {
+  const report = summarizeMeasurement(measurement);
+  for (const delta of measurement.detail) {
+    if (delta.axis === 'drivingPath' || delta.bucket !== 'sameday' || typeof delta.truth !== 'string') continue;
+    if (!delta.truth.endsWith('T00:00')) continue;
+    const counts = report.counters[delta.axis];
+    counts.exact++;
+    counts.sameday--;
+    counts.deviations--;
+  }
+  return report;
+}
+
+function counterfactualReports(
+  strict: XerProductMeasurement,
+  truth: ReturnType<typeof scanXerGroundTruth>,
+  imports: readonly ImportResult[],
+  solved: readonly XerSolvedProject[],
+): CounterfactualReport[] {
+  const historical = measureXerProductFidelity(historicalCompletedLateTruth(truth, imports), solved);
+  return [
+    { mode: 'historical-completed-late', strictGateEligible: false, ...summarizeMeasurement(historical) },
+    { mode: 'source-day-precision', strictGateEligible: false, ...sourceDayPrecisionReport(strict) },
+  ];
+}
+
+// De drie modi zijn semantisch niet verwisselbaar: alleen strict is een poort, de twee andere
+// zijn expliciet gelabelde analyses met verschillende bronvoorwaarden.
+{
+  const truth = scanXerGroundTruth(new TextEncoder().encode([
+    '%T\tTASK',
+    '%F\tproj_id\ttask_id\ttask_code\tstatus_code\tearly_start_date\tearly_end_date\tlate_start_date\tlate_end_date\ttotal_float_hr_cnt\tfree_float_hr_cnt',
+    '%R\tP\t1\tA\tTK_Complete\t2026-01-01 00:00\t2026-01-01 17:00\t2026-01-01 08:00\t2026-01-01 17:00\t0\t0',
+    '%E',
+  ].join('\n')));
+  const solved: XerSolvedProject[] = [{ projectId: 'P', tasks: [{
+    sourceTaskId: '1', taskCode: 'A', earlyStart: '2026-01-01T08:00', earlyFinish: '2026-01-01T17:00',
+    lateStart: '2026-01-02T08:00', lateFinish: '2026-01-02T17:00', totalFloatMinutes: 0, freeFloatMinutes: 0,
+  }] }];
+  const strict = measureXerProductFidelity(truth, solved);
+  const reports = counterfactualReports(strict, truth, [{
+    project: { id: 'P' }, tasks: [{ id: '1', time: {
+      completion: 1, actualStart: '2026-01-02T08:00', actualFinish: '2026-01-02T17:00',
+    } }],
+  }] as unknown as ImportResult[], solved);
+  eq('X12 strict en beide tegenfeitelijke rapportmodi zijn gelabeld en niet poortgeschikt', {
+    strictGate: strict.gatePassed,
+    modes: reports.map(report => [report.mode, report.strictGateEligible]),
+    strict: { es: strict.counters.es.deviations, ls: strict.counters.ls.deviations, lf: strict.counters.lf.deviations },
+    historical: { es: reports[0]?.counters.es.deviations, ls: reports[0]?.counters.ls.deviations, lf: reports[0]?.counters.lf.deviations },
+    dayPrecision: { es: reports[1]?.counters.es.deviations, ls: reports[1]?.counters.ls.deviations },
+  }, {
+    strictGate: false,
+    modes: [['historical-completed-late', false], ['source-day-precision', false]],
+    strict: { es: 1, ls: 1, lf: 1 },
+    historical: { es: 1, ls: 0, lf: 0 },
+    dayPrecision: { es: 0, ls: 1 },
+  });
+  const nonMidnightTruth = {
+    ...truth,
+    tasks: truth.tasks.map(task => ({ ...task, axes: { ...task.axes, es: '2026-01-01T08:00' } })),
+  };
+  const nonMidnightSolved = solved.map(project => ({ ...project, tasks: project.tasks.map(task => ({
+    ...task, earlyStart: '2026-01-01T09:00',
+  })) }));
+  const nonMidnightStrict = measureXerProductFidelity(nonMidnightTruth, nonMidnightSolved);
+  eq('X12 dagprecisie accepteert nooit een bronas met niet-middernachttijd',
+    sourceDayPrecisionReport(nonMidnightStrict).counters.es.deviations, 1);
+}
+
 async function productBaseline(
   corpus: readonly XerCorpusFile[],
   manifest: XerCorpusManifest,
@@ -155,7 +315,8 @@ async function productBaseline(
     const opened = readXER(file.bytes);
     const imports = isMultiDocumentImport(opened) ? opened.taskProjects.map(document => document.result) : [opened];
     const solvedProjects = solveProductProjects(imports);
-    const result = measureXerProductFidelity(scanXerGroundTruth(file.bytes), solvedProjects);
+    const truth = scanXerGroundTruth(file.bytes);
+    const result = measureXerProductFidelity(truth, solvedProjects);
     if (REPORT === undefined && targetEntry.label === 'crawl-xer/p6diff-baseline.xer') {
       const publicTask = solvedProjects.flatMap(project => project.tasks)
         .find(task => task.sourceTaskId === '1010');
@@ -278,16 +439,38 @@ async function productBaseline(
       for (const item of result.detail) console.log(`.   ${item.projectId}/${item.taskCode} ${item.axis}: ${item.bucket}; p6=${JSON.stringify(item.truth)} ops=${JSON.stringify(item.ours)}`);
       for (const error of result.errors) console.log(`.   IDENTITEIT ${error}`);
     }
+    if (REPORT === 'counterfactuals') {
+      console.log(JSON.stringify({
+        label: targetEntry.label,
+        strict: { mode: 'strict-minute-exact', strictGateEligible: true, ...summarizeMeasurement(result) },
+        counterfactuals: counterfactualReports(result, truth, imports, solvedProjects),
+      }));
+    }
     files[targetEntry.label] = {
       sha256: hash(file.bytes), schemaFingerprint: targetEntry.schemaFingerprint ?? '',
       projects: result.truthProjects, tasks: result.truthTasks,
+      identityCoverage: {
+        solvedTasks: result.solvedTasks,
+        taskCodePresent: result.projects.reduce((sum, project) => sum + project.taskCodePresent, 0),
+        taskCodeExact: result.projects.reduce((sum, project) => sum + project.taskCodeExact, 0),
+      },
+      projectMeasurements: result.projects,
       counters: result.counters, drivingPath: result.drivingPath,
       identityErrors: result.identityErrors,
       scannerErrors: result.scannerErrors,
       gatePassed: result.gatePassed,
     };
   }
-  return { version: 2, manifestSha256: hash(readFileSync(join(HERE, 'xer-corpus-manifest.json'))), files };
+  return {
+    version: 2,
+    manifestSha256: hash(readFileSync(join(HERE, 'xer-corpus-manifest.json'))),
+    characterization: {
+      finalZeroGate: 'red',
+      accepted: false,
+      openCategories: ['strict-six-axis-deviations', 'strict-sameday-deviations', 'driving-path-report-only'],
+    },
+    files,
+  };
 }
 
 // Corpusloze RED-/GREEN-probe voor de vier expliciete productbakken.
@@ -1955,14 +2138,14 @@ else {
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
   const measured = await productBaseline(corpus, manifest);
   if (REPORT === 'baseline') console.log(JSON.stringify(measured, null, 2));
-  else if (REPORT === 'summary' || REPORT === 'detail') {
+  else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);
     const tasks = entries.reduce((total, [, entry]) => total + entry.tasks, 0);
     const projects = entries.reduce((total, [, entry]) => total + entry.projects, 0);
     const deviations = entries.reduce((total, [, entry]) => total + totalDeviations(entry), 0);
     const identityErrors = entries.reduce((total, [, entry]) => total + entry.identityErrors.length, 0);
     const scannerErrors = entries.reduce((total, [, entry]) => total + entry.scannerErrors.length, 0);
-    console.log(`MEASURE ONLY X12 productfidelity: ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
+    console.log(`MEASURE ONLY X12 productfidelity: STRICT minute-exact ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
   } else {
     const entries = Object.entries(measured.files);
     const allGatePassed = entries.every(([, entry]) => entry.gatePassed === true);
@@ -1979,8 +2162,7 @@ else {
     eq('X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul', totalSixAxisDeviations, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: identiteitsfouten zijn nul', identityErrors, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: scannerfouten zijn nul', scannerErrors, 0);
-    eq('X12 productbaseline is de verse volledige productmeting',
-      JSON.parse(readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8')) as unknown, measured);
+    eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
   }
 }
 if (diffs.length > 0) {
