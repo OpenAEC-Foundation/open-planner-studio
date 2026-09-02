@@ -110,11 +110,14 @@ auto-dismiss gemaakt en accepteert alleen generieke importaantallen, de exacte v
 encodingregel en `Read more`; pad-,
 bestands-, project-, taak- en resourcenamen zijn er niet toegestaan. Canvas, documentnaam,
 tablabels en mogelijk corpusdragende Help-inhoud worden in de overige screenshots gemaskeerd.
-De metadata bevat de live lokale Git-toplevel, branch, HEAD, `HEAD^` en beginstatus om het bewijs aan de
-juiste checkout te koppelen. Na browser-, server- en dependencycleanup moeten alle vier waarden
-exact gelijk zijn aan hun beginwaarde voordat een evidencebestand wordt geschreven. Daardoor kan
-de metadata lokale paden bevatten en is de volledige evidencemap uitsluitend bedoeld voor lokale
-opslag, niet voor publicatie of commit in de repo.
+De metadata maakt twee verschillende historische ankers expliciet. `git.base` is de vaste
+cumulatieve fase-2A-basis `790d6cd8266682fa9b7798a3d1f9e0a1a2498db9`; `git.commitParent` is de
+live directe `HEAD^` van de commit waarop de browserrun werkelijk draait. Daarnaast bevat zij de
+live lokale Git-toplevel, branch, HEAD en ruwe beginstatus om het bewijs aan de juiste checkout te
+koppelen. Na browser-, server- en dependencycleanup moeten alle zes waarden exact gelijk zijn aan
+hun beginwaarde voordat een evidencebestand wordt geschreven. Daardoor kan de metadata lokale
+paden bevatten en is de volledige evidencemap uitsluitend bedoeld voor lokale opslag, niet voor
+publicatie of commit in de repo.
 
 Deze test bewijst de browser-dev-build met de `input[type=file]`-terugval. Hij bewijst niet de
 Chromium File System Access API, de native OS-bestandkiezer of Tauri `plugin-dialog`/`plugin-fs`.

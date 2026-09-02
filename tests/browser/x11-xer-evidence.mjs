@@ -23,6 +23,7 @@ const DEFAULT_CORPUS_FILE = 'crawl-xer/p6diff-baseline.xer';
 const MULTI_DOCUMENT_CORPUS_FILE = 'crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer';
 const MULTI_DOCUMENT_SCENARIO = 'multidoc-help';
 const EVIDENCE_ROOT = '/tmp/xer-x11-evidence';
+const PHASE_2A_BASE = '790d6cd8266682fa9b7798a3d1f9e0a1a2498db9';
 
 function runId() {
   return `${new Date().toISOString().replace(/[^0-9TZ]/g, '')}-${process.pid}`;
@@ -53,16 +54,17 @@ function readGitEvidence() {
   const toplevel = gitOutput(['rev-parse', '--show-toplevel'], 'toplevel').trim();
   const branch = gitOutput(['branch', '--show-current'], 'branch').trim();
   const head = gitOutput(['rev-parse', 'HEAD'], 'HEAD').trim();
-  const parent = gitOutput(['rev-parse', 'HEAD^'], 'HEAD-parent').trim();
+  const base = gitOutput(['rev-parse', `${PHASE_2A_BASE}^{commit}`], 'fase-2A-basis').trim();
+  const commitParent = gitOutput(['rev-parse', 'HEAD^'], 'directe HEAD-parent').trim();
   const statusPorcelainV1 = gitOutput(['status', '--porcelain=v1'], 'status');
   if (toplevel !== REPO_ROOT) {
     fail(`git-toplevel-gate rood: ${toplevel}, verwacht exact ${REPO_ROOT}`);
   }
-  return { toplevel, branch, head, parent, statusPorcelainV1 };
+  return { toplevel, branch, head, base, commitParent, statusPorcelainV1 };
 }
 
 export function assertGitEvidenceUnchanged(before, after) {
-  const fields = ['toplevel', 'branch', 'head', 'statusPorcelainV1'];
+  const fields = ['toplevel', 'branch', 'head', 'base', 'commitParent', 'statusPorcelainV1'];
   const differences = fields.filter((field) => before[field] !== after[field]);
 
   if (differences.length > 0) {
@@ -76,7 +78,8 @@ export function assertGitEvidenceUnchanged(before, after) {
 export function assertMetadataGitIdentity(metadata, expected) {
   const observed = metadata.git;
   if (observed?.toplevel !== expected.toplevel || observed?.branch !== expected.branch ||
-      observed?.head !== expected.head || observed?.parent !== expected.parent ||
+      observed?.head !== expected.head || observed?.base !== expected.base ||
+      observed?.commitParent !== expected.commitParent ||
       observed?.statusPorcelainV1 !== expected.statusPorcelainV1) {
     fail(`metadata-git-identiteitsgate rood: observed=${JSON.stringify(observed)}; expected=${JSON.stringify(expected)}`);
   }
@@ -889,7 +892,8 @@ async function main() {
       toplevel: gitStart.toplevel,
       branch: gitStart.branch,
       head: gitStart.head,
-      parent: gitStart.parent,
+      base: gitStart.base,
+      commitParent: gitStart.commitParent,
       statusPorcelainV1: gitStart.statusPorcelainV1,
       statusUnchangedAfterCleanup: true,
     },

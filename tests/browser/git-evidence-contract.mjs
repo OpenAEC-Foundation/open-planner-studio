@@ -4,25 +4,41 @@ import {
   assertMetadataGitIdentity,
 } from './x11-xer-evidence.mjs';
 
-const expectedParent = '790d6cd8266682fa9b7798a3d1f9e0a1a2498db9';
+const expectedBase = '790d6cd8266682fa9b7798a3d1f9e0a1a2498db9';
+const expectedCommitParent = '00d82a43bc6e552d899c61dd0c3ae05f6e8f728a';
 
 const begin = Object.freeze({
   toplevel: '/tmp/ops-xer-x11-harness',
   branch: 'codex/xer-x11-harness',
-  head: '900358f2ed5c6b70b5bec0afeea0891fa8678715',
-  parent: expectedParent,
+  head: '58f498ec76188b4459747a3dd1c72cce6d4a0ec4',
+  base: expectedBase,
+  commitParent: expectedCommitParent,
   statusPorcelainV1: ' M known-dirty.txt\n?? known-untracked.txt\n',
 });
 
-assert.doesNotThrow(
-  () => assertGitEvidenceUnchanged(begin, { ...begin }),
-  'exact gelijke Git-identiteit inclusief raw dirty/untracked-status moet groen blijven',
-);
+const end = { ...begin };
+if (process.env.OPS_X11_GIT_MUTATION === 'base') {
+  end.base = '1111111111111111111111111111111111111111';
+}
+if (process.env.OPS_X11_GIT_MUTATION === 'commit-parent') {
+  end.commitParent = '2222222222222222222222222222222222222222';
+}
+
+if (process.env.OPS_X11_GIT_MUTATION) {
+  assertGitEvidenceUnchanged(begin, end);
+} else {
+  assert.doesNotThrow(
+    () => assertGitEvidenceUnchanged(begin, end),
+    'exact gelijke Git-identiteit inclusief raw dirty/untracked-status moet groen blijven',
+  );
+}
 
 const mutations = [
   ['toplevel', '/tmp/andere-worktree'],
   ['branch', 'andere-schone-branch'],
   ['head', '1111111111111111111111111111111111111111'],
+  ['base', '2222222222222222222222222222222222222222'],
+  ['commitParent', '3333333333333333333333333333333333333333'],
   ['statusPorcelainV1', `${begin.statusPorcelainV1}?? during-run.txt\n`],
 ];
 
@@ -39,9 +55,19 @@ for (const [field, value] of mutations) {
 }
 
 const metadata = { git: { ...begin } };
-if (process.env.OPS_X11_GIT_MUTATION === 'parent') {
-  metadata.git.parent = '1111111111111111111111111111111111111111';
-}
 assertMetadataGitIdentity(metadata, begin);
+for (const [field, value] of [
+  ['base', '1111111111111111111111111111111111111111'],
+  ['commitParent', '2222222222222222222222222222222222222222'],
+]) {
+  assert.throws(
+    () => assertMetadataGitIdentity({ git: { ...begin, [field]: value } }, begin),
+    /metadata-git-identiteitsgate rood/,
+    `${field}-verschil moet ook de metadata-identiteitsgate rood maken`,
+  );
+}
 
-console.log(`OK git-evidence-contract: vier eindpoorten en metadata-parent ${expectedParent} zijn exact gepind`);
+console.log(
+  `OK git-evidence-contract: Git-eindpoorten, fasebasis ${expectedBase} en directe commitparent ` +
+    `${expectedCommitParent} zijn exact gepind`,
+);
