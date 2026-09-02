@@ -148,7 +148,15 @@ function hasBaselineLoss(capabilities: ExportCapabilities, input: XerExportLossI
 function hasRetainedAssignmentDetails(metadata: XerImportMetadata | null): boolean {
   return Boolean(metadata?.resources?.assignments.some(source =>
     hasObjectValues(source.quantities)
-    || hasObjectValues(source.rawCurves)));
+    || hasObjectValues(source.rawCurves)
+    || hasObjectValues(source.costs)
+    || source.assignedRole !== undefined
+    // `curveSourceId` verwijst naar de retained 21-punts curve in de bestandsbrede catalogus.
+    // De doelwriters schrijven noch deze bronidentiteit noch de exacte curvepunten terug.
+    || Boolean(source.curveSourceId?.trim())
+    || Boolean(source.rateType?.trim())
+    || Boolean(source.costSourceType?.trim())
+    || Boolean(source.rawResourceType?.trim())));
 }
 
 function hasAssignmentLoss(

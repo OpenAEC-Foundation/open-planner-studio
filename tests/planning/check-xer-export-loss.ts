@@ -11,6 +11,12 @@ import type { XerImportMetadata } from '@/services/importTypes';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { xerExportTargetVerdict } from '@/services/xerExportLoss';
 import { parseXerTables } from '@/services/xer/xerTables';
+import type {
+  XerAssignmentCostsSource,
+  XerCurvePoints,
+  XerResourceCurveSource,
+  XerTaskResourceSource,
+} from '@/services/xer/xerResourceTypes';
 import { readFileSync } from 'node:fs';
 
 declare const process: { exit(code: number): never };
@@ -195,6 +201,56 @@ installXer(makeParsedXerFixture([
 expectCategories('onbekende tabel met een retained rij activeert zelfstandig de categorie',
   'csv', await store().exportAs('csv'), ['exact-source-bytes', 'unknown-tables-and-fields']);
 
+resetProject('Onbekende tabel met alleen lege rijen');
+installXer(makeParsedXerFixture([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tmystery_a\tmystery_b',
+  '%R\t\t',
+  '%R\t   \t',
+  '%E',
+].join('\r\n')));
+expectCategories('onbekende tabel met uitsluitend lege retained cellen geeft geen unknown-categorie',
+  'csv', await store().exportAs('csv'), ['exact-source-bytes']);
+
+resetProject('Onbekende tabel met retained continuation');
+installXer(makeParsedXerFixture([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R',
+  '\tcontinued-value',
+  '%E',
+].join('\r\n')));
+for (const format of ['csv', 'mspdi', 'p6'] as const) {
+  expectCategories(`${format}: onbekende tabel met inhoudelijke continuation activeert de unknown-categorie`,
+    format, await store().exportAs(format), ['exact-source-bytes', 'unknown-tables-and-fields']);
+}
+
+resetProject('Onbekende tabel met whitespace-continuation');
+installXer(makeParsedXerFixture([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R',
+  '\t   ',
+  '%E',
+].join('\r\n')));
+for (const format of ['csv', 'mspdi', 'p6'] as const) {
+  expectCategories(`${format}: onbekende tabel met alleen whitespace-continuation blijft unknown-vrij`,
+    format, await store().exportAs(format), ['exact-source-bytes']);
+}
+
+resetProject('Onbekende tabel zonder rijen');
+installXer(makeParsedXerFixture([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tmystery_a\tmystery_b',
+  '%E',
+].join('\r\n')));
+expectCategories('onbekende tabel zonder %R geeft geen unknown-categorie',
+  'csv', await store().exportAs('csv'), ['exact-source-bytes']);
+
 resetProject('Alleen onbekend veld');
 installXer(makeParsedXerFixture([
   'ERMHDR\t23.12',
@@ -321,6 +377,84 @@ installXer(retainedFixture, {
 const retainedOnly = await store().exportAs('p6');
 expectCategories('retained quantities met ondersteunde live curve activeren zelfstandig assignmentverlies',
   'p6', retainedOnly, ['raw-curves-and-assignment-quantities']);
+
+function baseRetainedAssignment(fixture: ReturnType<typeof makeXerFixture>): XerTaskResourceSource {
+  return {
+    rawRow: { line: 12, cells: {} },
+    sourceId: 'A-RETAINED', internalId: 'xer-assignment:A-RETAINED',
+    taskSourceId: 'T-RETAINED', projectSourceId: fixture.sourceProjectId,
+    line: 12,
+    entity: { kind: 'RESOURCE', sourceId: 'R-RETAINED', internalId: 'xer-resource:R-RETAINED' },
+    unitScale: 'DIRECT_FRACTION', quantities: {}, rawCurves: {}, costs: {},
+  };
+}
+
+function installRetainedAssignmentFixture(
+  name: string,
+  mutate: (source: XerTaskResourceSource) => void,
+  curves: readonly XerResourceCurveSource[] = [],
+) {
+  const fixture = installAssignmentFixture(name, 'BELL');
+  const source = baseRetainedAssignment(fixture);
+  mutate(source);
+  installXer(fixture, {
+    ...fixture.xer,
+    resources: {
+      catalog: {
+        ...fixture.archive.readModel.resourceCatalog,
+        rows: { ...fixture.archive.readModel.resourceCatalog.rows, curves },
+      },
+      assignments: [source],
+      issues: [],
+    },
+  });
+}
+
+const retainedCostFields = [
+  'perQuantity', 'target', 'remaining', 'actualRegular', 'actualOvertime', 'thisPeriod',
+] as const satisfies readonly (keyof XerAssignmentCostsSource)[];
+for (const field of retainedCostFields) {
+  installRetainedAssignmentFixture(`Alleen retained cost ${field}`, source => {
+    source.costs = { [field]: 0 };
+  });
+  for (const format of ['mspdi', 'p6'] as const) {
+    expectCategories(`${format}: retained TASKRSRC-kostveld ${field} activeert zelfstandig assignmentverlies`,
+      format, await store().exportAs(format), ['raw-curves-and-assignment-quantities']);
+  }
+}
+
+const retainedCurvePoints = [
+  '0', '2', '5', '9', '14', '20', '27', '35', '44', '54', '65',
+  '75', '83', '89', '93', '96', '98', '99', '100', '100', '100',
+] satisfies XerCurvePoints<string>;
+const retainedCurveSource: XerResourceCurveSource = {
+  rawRow: { line: 11, cells: { curv_id: 'CURVE-RETAINED', pct_usage_10: '65' } },
+  sourceId: 'CURVE-RETAINED', internalId: 'xer-curve:CURVE-RETAINED', line: 11,
+  name: 'Exacte retained broncurve', rawPoints: retainedCurvePoints,
+};
+installRetainedAssignmentFixture('Alleen retained broncurve', source => {
+  source.curveSourceId = retainedCurveSource.sourceId;
+}, [retainedCurveSource]);
+for (const format of ['mspdi', 'p6'] as const) {
+  expectCategories(`${format}: curveSourceId plus retained 21-punts broncurve activeert zelfstandig assignmentverlies`,
+    format, await store().exportAs(format), ['raw-curves-and-assignment-quantities']);
+}
+
+const retainedSourceMetadataCases = [
+  ['assignedRole', (source: XerTaskResourceSource) => {
+    source.assignedRole = { kind: 'ROLE', sourceId: 'ROLE-1', internalId: 'xer-role:ROLE-1' };
+  }],
+  ['rateType', (source: XerTaskResourceSource) => { source.rateType = 'RT_REGULAR'; }],
+  ['costSourceType', (source: XerTaskResourceSource) => { source.costSourceType = 'CST_RESOURCE'; }],
+  ['rawResourceType', (source: XerTaskResourceSource) => { source.rawResourceType = 'RT_LABOR'; }],
+] as const;
+for (const [field, mutate] of retainedSourceMetadataCases) {
+  installRetainedAssignmentFixture(`Alleen retained bronmetadata ${field}`, mutate);
+  for (const format of ['mspdi', 'p6'] as const) {
+    expectCategories(`${format}: retained bronmetadata ${field} activeert zelfstandig assignmentverlies`,
+      format, await store().exportAs(format), ['raw-curves-and-assignment-quantities']);
+  }
+}
 
 installAssignmentFixture('Ondersteunde P6-curve', 'BELL');
 const supportedCurve = await store().exportAs('p6');

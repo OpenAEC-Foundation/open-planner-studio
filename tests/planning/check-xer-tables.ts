@@ -214,6 +214,71 @@ eq('6 onbekende tabellen worden overgeslagen en geteld', {
   unknown: [{ name: 'SPECIAL_CHARS', rows: 2 }],
 });
 
+const unknownTableWithOnlyEmptyRows = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tEMPTY_VENDOR_TABLE',
+  '%F\tmystery_a\tmystery_b',
+  '%R\t\t',
+  '%R\t   \t',
+  '%E',
+]));
+eq('6a onbekende tabel telt uitsluitend rijen met minstens één niet-lege cel',
+  unknownTableWithOnlyEmptyRows.report.unknownTables,
+  [{ name: 'EMPTY_VENDOR_TABLE', rows: 0 }]);
+
+const unknownTableWithRetainedContinuation = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R',
+  '\tcontinued-value',
+  '%E',
+]));
+eq('6b onbekende tabel telt een lege rij zodra de continuation retained inhoud draagt',
+  unknownTableWithRetainedContinuation.report.unknownTables,
+  [{ name: 'VENDOR_TABLE', rows: 1 }]);
+
+const unknownTableWithWhitespaceContinuation = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R',
+  '\t   ',
+  '%E',
+]));
+eq('6c onbekende tabel telt een lege rij met uitsluitend whitespace-continuation niet',
+  unknownTableWithWhitespaceContinuation.report.unknownTables,
+  [{ name: 'VENDOR_TABLE', rows: 0 }]);
+
+const filledUnknownRowBytes = utf8([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R\tinitial-value',
+  '\tcontinued-value-1',
+  '\tcontinued-value-2',
+  '%E',
+]);
+const filledUnknownRowBytesBeforeParse = [...filledUnknownRowBytes];
+const unknownTableWithFilledRowAndContinuations = parseXerTables(filledUnknownRowBytes);
+eq('6d onbekende tabel telt een gevulde rij met meerdere continuations exact eenmaal en bewaart de bronbytes', {
+  unknownTables: unknownTableWithFilledRowAndContinuations.report.unknownTables,
+  sourceBytes: [...filledUnknownRowBytes],
+}, {
+  unknownTables: [{ name: 'VENDOR_TABLE', rows: 1 }],
+  sourceBytes: filledUnknownRowBytesBeforeParse,
+});
+
+const unknownTableWithoutRows = parseXerTables(utf8([
+  'ERMHDR\t23.12',
+  '%T\tEMPTY_VENDOR_TABLE',
+  '%F\tmystery_a\tmystery_b',
+  '%E',
+]));
+eq('6e onbekende tabel zonder datarijen blijft aanwezig met nul informatiedragende rijen',
+  unknownTableWithoutRows.report.unknownTables,
+  [{ name: 'EMPTY_VENDOR_TABLE', rows: 0 }]);
+
 // Breuk die dit vangt: de 8-byte DROID-signatuur als leeg maar geldig XER-project accepteren.
 eq('7 een ERMHDR-skelet zonder versie is een getypeerde bestandsfout',
   caughtXerError(() => parseXerTables(utf8(['ERMHDR'], '\r\n'))), {

@@ -605,7 +605,11 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
     );
   }
   let current: MutableXerTable | undefined;
-  let currentUnknown: { name: string; rows: number } | undefined;
+  let currentUnknown: {
+    report: { name: string; rows: number };
+    rowStarted: boolean;
+    rowCounted: boolean;
+  } | undefined;
   let endMarkerSeen = false;
 
   for (let index = 1; index < lines.length; index++) {
@@ -633,8 +637,9 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
         tables.set(name, current);
       } else {
         current = undefined;
-        currentUnknown = { name, rows: 0 };
-        unknownTables.push(currentUnknown);
+        const report = { name, rows: 0 };
+        currentUnknown = { report, rowStarted: false, rowCounted: false };
+        unknownTables.push(report);
       }
     } else if (marker === '%F' && current) {
       current.fields = values.slice(1).map(field => field.trim().toLowerCase());
@@ -662,6 +667,12 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
       });
     } else if (marker === '' && values.length > 1 && current) {
       issues.push({ code: 'XER_ORPHAN_CONTINUATION', line: index + 1, table: current.name });
+    } else if (marker === '' && currentUnknown?.rowStarted) {
+      const hasContent = values.slice(1).some(value => value.trim() !== '');
+      if (hasContent && !currentUnknown.rowCounted) {
+        currentUnknown.report.rows++;
+        currentUnknown.rowCounted = true;
+      }
     } else if (marker === '%R' && current && current.fields.length > 0) {
       const table = current;
       const rowValues = values.slice(1);
@@ -682,7 +693,12 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
     } else if (marker === '%R' && current) {
       issues.push({ code: 'XER_DATA_WITHOUT_FIELDS', line: index + 1, table: current.name });
     } else if (marker === '%R' && currentUnknown) {
-      currentUnknown.rows++;
+      // Een onbekende tabel is pas retained informatiewaarde als minstens één cel inhoud draagt.
+      // Een lege `%R` kan die inhoud nog op een opvolgende continuation-regel krijgen.
+      const hasContent = values.slice(1).some(value => value.trim() !== '');
+      currentUnknown.rowStarted = true;
+      currentUnknown.rowCounted = hasContent;
+      if (hasContent) currentUnknown.report.rows++;
     } else if (marker === '%E') {
       endMarkerSeen = true;
       const ignoredTail = lines.slice(index + 1);
