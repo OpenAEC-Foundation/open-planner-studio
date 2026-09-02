@@ -111,7 +111,11 @@ const ALLOWED_STATIC_IMPORTS = new Set([
 ]);
 const diffs: string[] = [];
 const mutationEvidence: string[] = [];
-let checks = 0;
+const EXPECTED_MUTANTS = 52;
+const EXPECTED_POSITIVE_CONTROLS = 5;
+const EXPECTED_TOTAL_CHECKS = EXPECTED_MUTANTS + EXPECTED_POSITIVE_CONTROLS;
+let mutationChecks = 0;
+let positiveChecks = 0;
 
 function stableHash(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -131,10 +135,19 @@ function equal(problems: string[], label: string, got: unknown, want: unknown): 
   }
 }
 
-function checkEqual(label: string, got: unknown, want: unknown): void {
-  checks++;
+function checkPositive(label: string, got: unknown, want: unknown): void {
+  positiveChecks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+  }
+}
+
+function checkMutationEqual(label: string, got: unknown, want: unknown, evidence: string): void {
+  mutationChecks++;
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
+  } else {
+    mutationEvidence.push(`${label}: ROOD — ${evidence}`);
   }
 }
 
@@ -559,16 +572,23 @@ function validateContract(manifestRaw: unknown, oracleRaw: unknown, replayRaw: u
 }
 
 function expectRejected(label: string, manifest: Manifest, oracle: OracleBaseline, replay: ReplayPin): void {
-  checks++;
+  mutationChecks++;
   const problems = validateContract(manifest, oracle, replay);
   if (problems.length === 0) diffs.push(`${label}: mutant werd ten onrechte geaccepteerd`);
   else mutationEvidence.push(`${label}: ROOD — ${problems[0]}`);
 }
 
 function expectProductRejected(label: string, envelope: string | ProductEnvelope, manifest: Manifest, oracle: OracleBaseline): void {
-  checks++;
+  mutationChecks++;
   const problems = validateProductV2(envelope, manifest, oracle);
   if (problems.length === 0) diffs.push(`${label}: product-v2-mutant werd ten onrechte geaccepteerd`);
+  else mutationEvidence.push(`${label}: ROOD — ${problems[0]}`);
+}
+
+function expectSourceRejected(label: string, raw: string): void {
+  mutationChecks++;
+  const problems = validateOwnSource(raw);
+  if (problems.length === 0) diffs.push(`${label}: bronmutant werd ten onrechte geaccepteerd`);
   else mutationEvidence.push(`${label}: ROOD — ${problems[0]}`);
 }
 
@@ -581,28 +601,106 @@ const manifest = JSON.parse(manifestRaw) as Manifest;
 const oracle = JSON.parse(oracleRaw) as OracleBaseline;
 const replay = JSON.parse(replayRaw) as ReplayPin;
 const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
+const decodedProductV2 = decodeProductPayload(productV2);
+const firstProductLabel = Object.keys(decodedProductV2.files)[0]!;
+const multiProjectLabel = Object.entries(decodedProductV2.files)
+  .find(([, entry]) => entry.projectMeasurements.length >= 2)?.[0];
+const algebraProjectLabel = Object.entries(decodedProductV2.files)
+  .find(([, entry]) => entry.projectMeasurements.some((project, index) => project.counters.es.exact > 0
+    && entry.projectMeasurements.some((candidate, candidateIndex) => candidateIndex !== index
+      && candidate.counters.es.diff > 0)))?.[0];
+if (!multiProjectLabel) throw new Error('product-v2-mutanten vereisen minstens een multi-projectentry');
+if (!algebraProjectLabel) throw new Error('product-v2-mutanten vereisen geschikte projecttellers');
+
+type NewMutationCase = {
+  id: 'M33' | 'M34' | 'M35' | 'M36' | 'M37';
+  label: string;
+  run: () => string[];
+};
+
+const newMutationCases: readonly NewMutationCase[] = [
+  {
+    id: 'M33',
+    label: 'M33 neutrale onbekende entrykey',
+    run: () => validateProductV2(withRawMutatedProduct(productV2, product => {
+      (product.files[firstProductLabel] as unknown as Record<string, unknown>).unknownEntryKey = true;
+    }), manifest, oracle),
+  },
+  {
+    id: 'M34',
+    label: 'M34 projectprojectie niet canoniek op project-ID gesorteerd',
+    run: () => validateProductV2(withRawMutatedProduct(productV2, product => {
+      const projects = product.files[multiProjectLabel]!.projectMeasurements;
+      [projects[0], projects[1]] = [projects[1]!, projects[0]!];
+    }), manifest, oracle),
+  },
+  {
+    id: 'M35',
+    label: 'M35 meetbaarheid boven projecttaaknoemer met intacte telleralgebra',
+    run: () => validateProductV2(withMutatedProduct(productV2, product => {
+      const entry = product.files[firstProductLabel]!;
+      const project = entry.projectMeasurements[0]!;
+      const projectCounts = project.counters.es;
+      const entryCounts = entry.counters.es;
+      const delta = project.truthTasks - projectCounts.measurable + 1;
+      projectCounts.missing += delta;
+      projectCounts.measurable += delta;
+      projectCounts.deviations += delta;
+      entryCounts.missing += delta;
+      entryCounts.measurable += delta;
+      entryCounts.deviations += delta;
+    }), manifest, oracle),
+  },
+  {
+    id: 'M36',
+    label: 'M36 entry-identiteitsnoemer wijkt af van projectsom',
+    run: () => validateProductV2(withMutatedProduct(productV2, product => {
+      product.files[firstProductLabel]!.identityCoverage.solvedTasks--;
+    }), manifest, oracle),
+  },
+  {
+    id: 'M37',
+    label: 'M37 dynamische import omzeilt de statische bronallowlist',
+    run: () => validateOwnSource([
+      sourceRaw,
+      `void ${['im', 'port'].join('')}('@/services/xer/xerReader');`,
+      '',
+    ].join('\n')),
+  },
+];
+
+const singleMutant = process.env.OPS_XER_SINGLE_MUTANT;
+if (singleMutant !== undefined) {
+  const mutation = newMutationCases.find(candidate => candidate.id === singleMutant);
+  if (!mutation) {
+    console.error(`XX onbekende afzonderlijke mutant ${JSON.stringify(singleMutant)}; verwacht M33..M37`);
+    process.exit(2);
+  }
+  const problems = mutation.run();
+  if (problems.length === 0) {
+    console.log(`XX MUTANT ${mutation.id} werd ten onrechte geaccepteerd: ${mutation.label}`);
+    process.exit(0);
+  }
+  console.error(`MUTANT ${mutation.id} ROOD: ${mutation.label} — ${problems[0]}`);
+  process.exit(1);
+}
 
 // De actuele contracten worden als drie afzonderlijke lagen gecontroleerd. Een lege foutlijst is
 // de eerste groene toestand; de matrix hieronder bewijst vervolgens dat iedere bescherming bij
 // één gerichte in-memory wijziging rood wordt, zonder een tracked JSON-bestand aan te raken.
 {
   const currentSourceProblems = validateOwnSource(sourceRaw);
-  checkEqual('bron huidige ongebundelde TS-bron is strikt corpusloos', currentSourceProblems, []);
+  checkPositive('bron huidige ongebundelde TS-bron is strikt corpusloos', currentSourceProblems, []);
 
-  const mutantSourceProblems = validateOwnSource(`${sourceRaw}\nimport { readXER } from '@/services/xer/xerReader';\n`);
-  checkEqual('bronmutant met readXER-import wordt afgewezen', mutantSourceProblems.length > 0, true);
+  expectSourceRejected('bronmutant met readXER-import wordt afgewezen',
+    `${sourceRaw}\nimport { readXER } from '@/services/xer/xerReader';\n`);
 
   const templateExpressionRequireSource = [
     sourceRaw,
     "const templateTrap = `probe ${" + ['requ', "ire('x')"].join('') + "} binnen een template-expressie`;",
     '',
   ].join('\n');
-  const templateExpressionRequireProblems = validateOwnSource(templateExpressionRequireSource);
-  checkEqual(
-    'bronmutant met require in template-expressie wordt afgewezen',
-    templateExpressionRequireProblems.length > 0,
-    true,
-  );
+  expectSourceRejected('bronmutant met require in template-expressie wordt afgewezen', templateExpressionRequireSource);
 
   const multilineImportSource = [
     sourceRaw,
@@ -611,15 +709,14 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
     "} from '@/services/xer/xerReader';",
     '',
   ].join('\n');
-  const multilineImportProblems = validateOwnSource(multilineImportSource);
-  checkEqual('bronmutant met multiline import wordt afgewezen', multilineImportProblems.length > 0, true);
+  expectSourceRejected('bronmutant met multiline import wordt afgewezen', multilineImportSource);
 
   const problems = validateContract(manifest, oracle, replay);
-  checkEqual(`A+B+D huidige statische contracten zijn consistent (${problems.join('; ')})`, problems, []);
-  checkEqual('A raw manifestbytes zijn exact gepind', rawHash(manifestRaw), EXPECTED.manifestRawSha256);
-  checkEqual('B raw oraclebaselinebytes zijn exact gepind', rawHash(oracleRaw), EXPECTED.baselineRawSha256);
+  checkPositive(`A+B+D huidige statische contracten zijn consistent (${problems.join('; ')})`, problems, []);
+  checkPositive('A raw manifestbytes zijn exact gepind', rawHash(manifestRaw), EXPECTED.manifestRawSha256);
+  checkPositive('B raw oraclebaselinebytes zijn exact gepind', rawHash(oracleRaw), EXPECTED.baselineRawSha256);
   const productProblems = validateProductV2(productV2Raw, manifest, oracle);
-  checkEqual(`C v2-karakteriseringssnapshot is volledig maar strict zichtbaar rood (${productProblems.join('; ')})`, productProblems, []);
+  checkPositive(`C v2-karakteriseringssnapshot is volledig maar strict zichtbaar rood (${productProblems.join('; ')})`, productProblems, []);
   console.log('INFO xer-corpusless-fidelity-gate: v2 productkarakterisering is volledig vastgepind; strict minute-exact eindnul blijft expliciet rood en ongeaccepteerd.');
 }
 
@@ -716,15 +813,6 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
   }
   expectRejected('M19 replay negatieve kandidaat zonder regressie', manifest, oracle, negativeWithoutRegression);
 
-  const firstProductLabel = Object.keys(decodeProductPayload(productV2).files)[0]!;
-  const multiProjectLabel = Object.entries(decodeProductPayload(productV2).files)
-    .find(([, entry]) => entry.projectMeasurements.length >= 2)?.[0];
-  const algebraProjectLabel = Object.entries(decodeProductPayload(productV2).files)
-    .find(([, entry]) => entry.projectMeasurements.some((project, index) => project.counters.es.exact > 0
-      && entry.projectMeasurements.some((candidate, candidateIndex) => candidateIndex !== index
-        && candidate.counters.es.diff > 0)))?.[0];
-  if (!multiProjectLabel) throw new Error('product-v2-mutanten vereisen minstens een multi-projectentry');
-  if (!algebraProjectLabel) throw new Error('product-v2-mutanten vereisen geschikte projecttellers');
   const v1AsFinal = clone(productV2);
   (v1AsFinal as { version: number }).version = 1;
   expectProductRejected('M20 v1-baseline kan niet stil als finale v2 gelden', v1AsFinal, manifest, oracle);
@@ -762,12 +850,11 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
       Object.assign(counts, { exact: counts.measurable, sameday: 0, diff: 0, missing: 0, deviations: 0 });
     }
   }
-  checkEqual('M26 gedragsmutant: drivingPath aan zesassige gate koppelen wordt rood', {
+  checkMutationEqual('M26 gedragsmutant: drivingPath aan zesassige gate koppelen wordt rood', {
     canonicalStrictGate: deriveStrictEntryGate(strictZeroDrivingRed),
     mutatedDrivingGate: deriveStrictEntryGate(strictZeroDrivingRed)
       && strictZeroDrivingRed.drivingPath.deviations === 0,
-  }, { canonicalStrictGate: true, mutatedDrivingGate: false });
-  mutationEvidence.push('M26 gedragsmutant drivingPath in zesassige gate: ROOD — canoniek true, mutant false');
+  }, { canonicalStrictGate: true, mutatedDrivingGate: false }, 'canonieke gate true, driving-mutant false');
 
   const routeInputs = {
     strictMinuteExact: 'STRICT-INVOER',
@@ -776,14 +863,13 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
   };
   const strictRoute = selectProductReportMode('strict-minute-exact', routeInputs);
   const swappedRoute = selectProductReportMode('historical-completed-late', routeInputs);
-  checkEqual('M27 gedragsmutant: strict werkelijk naar tegenfeitelijke invoer routeren wordt rood', {
+  checkMutationEqual('M27 gedragsmutant: strict werkelijk naar tegenfeitelijke invoer routeren wordt rood', {
     canonical: [strictRoute.report, strictRoute.strictGateEligible],
     mutated: [swappedRoute.report, swappedRoute.strictGateEligible],
   }, {
     canonical: ['STRICT-INVOER', true],
     mutated: ['HISTORISCH-TEGENFEIT', false],
-  });
-  mutationEvidence.push('M27 gedragsmutant strict naar historische invoer: ROOD — andere invoer en niet poortgeschikt');
+  }, 'strict gebruikt andere invoer en is als enige poortgeschikt');
   const swappedModes = clone(productV2);
   (swappedModes as unknown as { reportModes: string[] }).reportModes = [
     'historical-completed-late', 'strict-minute-exact', 'source-day-precision',
@@ -849,15 +935,36 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
     receiver.counters.es.exact++;
     receiver.counters.es.diff--;
   }), manifest, oracle);
+
+  for (const mutation of newMutationCases) {
+    const problems = mutation.run();
+    mutationChecks++;
+    if (problems.length === 0) diffs.push(`${mutation.label}: mutant werd ten onrechte geaccepteerd`);
+    else mutationEvidence.push(`${mutation.label}: ROOD — ${problems[0]}`);
+  }
+}
+
+const totalChecks = mutationChecks + positiveChecks;
+if (mutationChecks !== EXPECTED_MUTANTS) {
+  diffs.push(`mutantenteller: verwacht exact ${EXPECTED_MUTANTS}, kreeg ${mutationChecks}`);
+}
+if (positiveChecks !== EXPECTED_POSITIVE_CONTROLS) {
+  diffs.push(`positieve-controles-teller: verwacht exact ${EXPECTED_POSITIVE_CONTROLS}, kreeg ${positiveChecks}`);
+}
+if (totalChecks !== EXPECTED_TOTAL_CHECKS) {
+  diffs.push(`totale checkteller: verwacht exact ${EXPECTED_TOTAL_CHECKS}, kreeg ${totalChecks}`);
+}
+if (mutationEvidence.length !== mutationChecks) {
+  diffs.push(`mutatiebewijs: verwacht ${mutationChecks} rode bewijzen, kreeg ${mutationEvidence.length}`);
 }
 
 if (diffs.length === 0) {
   if (process.env.OPS_XER_MUTATION_REPORT === '1') {
     for (const evidence of mutationEvidence) console.log(`MUTANT ${evidence}`);
   }
-  console.log(`OK: xer-corpusless-fidelity-gate — ${checks} checks groen`);
+  console.log(`OK: xer-corpusless-fidelity-gate — ${mutationChecks} mutanten + ${positiveChecks} positieve controles = ${totalChecks} checks groen`);
 } else {
-  console.log(`XX xer-corpusless-fidelity-gate — ${diffs.length} van ${checks} checks rood:`);
+  console.log(`XX xer-corpusless-fidelity-gate — ${diffs.length} fouten bij ${mutationChecks} mutanten + ${positiveChecks} positieve controles:`);
   for (const diff of diffs) console.log(`   XX ${diff}`);
   process.exit(1);
 }
