@@ -11,6 +11,8 @@ import {
   readMultiDocumentOpsState,
   assertSmallAState,
   assertMultiDocumentEvidence,
+  assertMultiDocumentToastLines,
+  normalizeVisibleToastLines,
   XER_OPEN_MESSAGE_KEY,
 } from './helpers/ops-state.mjs';
 
@@ -51,11 +53,12 @@ function readGitEvidence() {
   const toplevel = gitOutput(['rev-parse', '--show-toplevel'], 'toplevel').trim();
   const branch = gitOutput(['branch', '--show-current'], 'branch').trim();
   const head = gitOutput(['rev-parse', 'HEAD'], 'HEAD').trim();
+  const parent = gitOutput(['rev-parse', 'HEAD^'], 'HEAD-parent').trim();
   const statusPorcelainV1 = gitOutput(['status', '--porcelain=v1'], 'status');
   if (toplevel !== REPO_ROOT) {
     fail(`git-toplevel-gate rood: ${toplevel}, verwacht exact ${REPO_ROOT}`);
   }
-  return { toplevel, branch, head, statusPorcelainV1 };
+  return { toplevel, branch, head, parent, statusPorcelainV1 };
 }
 
 export function assertGitEvidenceUnchanged(before, after) {
@@ -70,10 +73,11 @@ export function assertGitEvidenceUnchanged(before, after) {
   }
 }
 
-function assertMetadataGitIdentity(metadata, expected) {
+export function assertMetadataGitIdentity(metadata, expected) {
   const observed = metadata.git;
   if (observed?.toplevel !== expected.toplevel || observed?.branch !== expected.branch ||
-      observed?.head !== expected.head || observed?.statusPorcelainV1 !== expected.statusPorcelainV1) {
+      observed?.head !== expected.head || observed?.parent !== expected.parent ||
+      observed?.statusPorcelainV1 !== expected.statusPorcelainV1) {
     fail(`metadata-git-identiteitsgate rood: observed=${JSON.stringify(observed)}; expected=${JSON.stringify(expected)}`);
   }
 }
@@ -300,6 +304,7 @@ async function installDevBridgeOpenGate(page) {
           detailEntries[String(detailIndex)] = dataRecord([
             ['messageKey', typeof detail.messageKey === 'string' ? detail.messageKey : null],
             ['count', Number.isFinite(detail.params?.count) ? detail.params.count : null],
+            ['encoding', typeof detail.params?.encoding === 'string' ? detail.params.encoding : null],
           ]);
         }
         Object.freeze(detailEntries);
@@ -502,20 +507,7 @@ function assertPrivacySafeToast(text, box) {
 }
 
 function assertPrivacySafeMultiDocumentToast(text, box) {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  const required = [
-    'XER file opened: 12 project documents.',
-    '15 projects found.',
-    '3 empty projects skipped.',
-    '9 dangling baseline references ignored.',
-    'Read more',
-  ];
-  for (const fragment of required) {
-    if (!normalized.includes(fragment)) fail(`multi-documenttoast mist: ${fragment}`);
-  }
-  if (/[\\/]|\b[A-Za-z]:|\.xer\b/i.test(normalized)) {
-    fail('multi-documenttoast bevat een pad of bestandsnaam');
-  }
+  assertMultiDocumentToastLines(normalizeVisibleToastLines(text));
   if (!box || box.width < 180 || box.height < 80 || box.width > 1440 || box.height > 500) {
     fail(`multi-documenttoast heeft ongeldige afmetingen: ${JSON.stringify(box)}`);
   }
@@ -607,6 +599,7 @@ async function runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetu
   await page.waitForFunction(() => window.__OPS__?.store.getState()?.documents?.count === 12, null, { timeout: 30_000 });
   const openLatencyMs = performance.now() - openStarted;
   const toastText = await toast.innerText();
+  const toastLines = normalizeVisibleToastLines(toastText);
   const toastBox = await toast.boundingBox();
   assertPrivacySafeMultiDocumentToast(toastText, toastBox);
   const toastScreenshot = await toast.screenshot();
@@ -625,6 +618,13 @@ async function runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetu
   for (const [messageKey, count] of Object.entries(expectedDetails)) {
     if (detailCounts[messageKey] !== count) fail(`zichtbare toastdetail ${messageKey}=${detailCounts[messageKey]}, verwacht ${count}`);
   }
+  const encodingDetail = imported.notification.detailLines.find(
+    (line) => line.messageKey === 'notifications.xerImportEncoding',
+  );
+  const encoding = {
+    messageKey: encodingDetail?.messageKey ?? null,
+    value: encodingDetail?.encoding ?? null,
+  };
 
   const readMore = toast.locator('button.ops-toast-readmore');
   if (await readMore.count() !== 1) fail('zichtbare Read more-knop ontbreekt of is niet uniek');
@@ -694,7 +694,7 @@ async function runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetu
     ],
     maskColor: '#263238',
   });
-  const evidence = { report: imported.report, openLatencyMs, documents, switches, help };
+  const evidence = { report: imported.report, encoding, toastLines, openLatencyMs, documents, switches, help };
   assertMultiDocumentEvidence(evidence);
 
   const bridgeGate = await readDevBridgeOpenGate(page);
@@ -889,6 +889,7 @@ async function main() {
       toplevel: gitStart.toplevel,
       branch: gitStart.branch,
       head: gitStart.head,
+      parent: gitStart.parent,
       statusPorcelainV1: gitStart.statusPorcelainV1,
       statusUnchangedAfterCleanup: true,
     },

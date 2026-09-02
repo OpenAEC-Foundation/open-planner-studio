@@ -91,7 +91,10 @@ CPM-resultaat. Ctrl+1, Ctrl+5 en Ctrl+9 worden buiten invoervelden bediend; tabs
 een echte tabklik en ArrowRight-events. Iedere wissel correleert de actieve tab met het tabpanel en
 de read-only storeprojectie.
 
-De zichtbare toastdetails worden vóór auto-dismiss gelezen. De echte `Read more`-knop moet
+De zichtbare toastdetails worden vóór auto-dismiss gelezen. Voor dit openbare dossier moet de
+melding exact de veilige Engelse telregels en `Text encoding selected: windows-1252.` tonen;
+de gesloten allowlist weigert iedere extra regel, ook wanneer die geen pad of extensie bevat.
+De echte `Read more`-knop moet
 Backstage Help openen op het Engelse artikel `Opening Primavera P6 (.xer)`, inclusief de uitleg
 over meerdere documenten, lege projecten en baselines. De openlatency en alle twaalf
 switchlatencies worden als eindige meetwaarden vastgelegd; er geldt geen zelfverzonnen harde
@@ -103,10 +106,11 @@ Elke geslaagde run schrijft buiten de repo naar een unieke submap onder
 `/tmp/xer-x11-evidence/`. Daarin staan metadata, de privacy-geredigeerde overzichtsscreenshot,
 een afzonderlijke elementopname van de zichtbare XER-toast, de geobserveerde state en de
 dev-server-output. Fase 2A voegt een geredigeerde Help-screenshot toe. De toastopname wordt vóór
-auto-dismiss gemaakt en accepteert alleen generieke importaantallen plus `Read more`; pad-,
+auto-dismiss gemaakt en accepteert alleen generieke importaantallen, de exacte veilige
+encodingregel en `Read more`; pad-,
 bestands-, project-, taak- en resourcenamen zijn er niet toegestaan. Canvas, documentnaam,
 tablabels en mogelijk corpusdragende Help-inhoud worden in de overige screenshots gemaskeerd.
-De metadata bevat de live lokale Git-toplevel, branch, HEAD en beginstatus om het bewijs aan de
+De metadata bevat de live lokale Git-toplevel, branch, HEAD, `HEAD^` en beginstatus om het bewijs aan de
 juiste checkout te koppelen. Na browser-, server- en dependencycleanup moeten alle vier waarden
 exact gelijk zijn aan hun beginwaarde voordat een evidencebestand wordt geschreven. Daardoor kan
 de metadata lokale paden bevatten en is de volledige evidencemap uitsluitend bedoeld voor lokale

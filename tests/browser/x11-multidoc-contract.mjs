@@ -1,6 +1,8 @@
 import {
   assertMultiDocumentEvidence,
+  MULTI_DOCUMENT_EXPECTED_ENCODING,
   MULTI_DOCUMENT_EXPECTED_REPORT,
+  MULTI_DOCUMENT_EXPECTED_TOAST_LINES,
 } from './helpers/ops-state.mjs';
 
 const routes = new Map([
@@ -14,6 +16,8 @@ const routes = new Map([
 
 const evidence = {
   report: { ...MULTI_DOCUMENT_EXPECTED_REPORT },
+  encoding: { ...MULTI_DOCUMENT_EXPECTED_ENCODING },
+  toastLines: [...MULTI_DOCUMENT_EXPECTED_TOAST_LINES],
   openLatencyMs: 1,
   documents: Array.from({ length: 12 }, (_, index) => ({
     ordinal: index + 1,
@@ -55,6 +59,9 @@ if (mutation === 'duplicate-project-id') evidence.documents[1].projectIdentityHa
 if (mutation === 'empty-document') evidence.documents[6].taskCount = 0;
 if (mutation === 'shortcut') evidence.switches[4].observedOrdinal = 4;
 if (mutation === 'help-route') evidence.help.notificationHelpArticleId = 'verkeerd-artikel';
+if (mutation === 'encoding-missing') evidence.encoding.value = null;
+if (mutation === 'encoding-wrong') evidence.encoding.value = 'utf-8';
+if (mutation === 'toast-extra') evidence.toastLines.splice(-1, 0, 'Imported project Secret Alpha');
 
 assertMultiDocumentEvidence(evidence);
-console.log('OK x11-multidoc-contract: report, 12 documenten, navigatie, latenties en Help-route gepind');
+console.log('OK x11-multidoc-contract: report, encoding, gesloten toastallowlist, 12 documenten, navigatie, latenties en Help-route gepind');

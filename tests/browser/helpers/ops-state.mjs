@@ -83,6 +83,20 @@ export const MULTI_DOCUMENT_EXPECTED_REPORT = Object.freeze({
   danglingBaselineReferences: 9,
 });
 
+export const MULTI_DOCUMENT_EXPECTED_ENCODING = Object.freeze({
+  messageKey: 'notifications.xerImportEncoding',
+  value: 'windows-1252',
+});
+
+export const MULTI_DOCUMENT_EXPECTED_TOAST_LINES = Object.freeze([
+  'XER file opened: 12 project documents.',
+  '15 projects found.',
+  '3 empty projects skipped.',
+  '9 dangling baseline references ignored.',
+  'Text encoding selected: windows-1252.',
+  'Read more',
+]);
+
 const EXPECTED_SWITCH_ROUTES = new Map([
   [1, 'shortcut:Control+1'],
   [5, 'shortcut:Control+5'],
@@ -96,6 +110,33 @@ function finiteLatency(value) {
   return Number.isFinite(value) && value >= 0;
 }
 
+export function normalizeVisibleToastLines(text) {
+  return String(text)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/[^\S\r\n]+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+export function assertMultiDocumentToastLines(lines) {
+  const observed = Array.isArray(lines) ? lines : [];
+  const expected = MULTI_DOCUMENT_EXPECTED_TOAST_LINES;
+  if (observed.length !== expected.length) {
+    const extras = observed.filter((line) => !expected.includes(line));
+    throw new Error(
+      `X11 multi-documenttoast-allowlist rood: regels=${observed.length}, verwacht ${expected.length}` +
+        `${extras.length > 0 ? `; extra=${JSON.stringify(extras)}` : ''}`,
+    );
+  }
+  for (let index = 0; index < expected.length; index += 1) {
+    if (observed[index] !== expected[index]) {
+      throw new Error(
+        `X11 multi-documenttoast-allowlist rood: regel ${index + 1}=${JSON.stringify(observed[index])}, ` +
+          `verwacht ${JSON.stringify(expected[index])}`,
+      );
+    }
+  }
+}
+
 export function assertMultiDocumentEvidence(evidence) {
   const failures = [];
   for (const [field, expected] of Object.entries(MULTI_DOCUMENT_EXPECTED_REPORT)) {
@@ -103,6 +144,13 @@ export function assertMultiDocumentEvidence(evidence) {
       failures.push(`report.${field}=${evidence.report?.[field]}, verwacht ${expected}`);
     }
   }
+  if (evidence.encoding?.messageKey !== MULTI_DOCUMENT_EXPECTED_ENCODING.messageKey) {
+    failures.push(`encoding-messageKey=${evidence.encoding?.messageKey ?? 'ontbreekt'}, verwacht ${MULTI_DOCUMENT_EXPECTED_ENCODING.messageKey}`);
+  }
+  if (evidence.encoding?.value !== MULTI_DOCUMENT_EXPECTED_ENCODING.value) {
+    failures.push(`encoding=${evidence.encoding?.value ?? 'ontbreekt'}, verwacht ${MULTI_DOCUMENT_EXPECTED_ENCODING.value}`);
+  }
+  assertMultiDocumentToastLines(evidence.toastLines);
   if (!finiteLatency(evidence.openLatencyMs)) failures.push('openLatencyMs is niet eindig');
 
   const documents = Array.isArray(evidence.documents) ? evidence.documents : [];
