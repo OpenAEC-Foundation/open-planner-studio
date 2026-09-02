@@ -6,12 +6,20 @@ import process from 'node:process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { readOpsState, assertSmallAState, XER_OPEN_MESSAGE_KEY } from './helpers/ops-state.mjs';
+import {
+  readOpsState,
+  readMultiDocumentOpsState,
+  assertSmallAState,
+  assertMultiDocumentEvidence,
+  XER_OPEN_MESSAGE_KEY,
+} from './helpers/ops-state.mjs';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const DEFAULT_CHROMIUM = '/home/nozzit/.cache/ms-playwright/chromium-1237/chrome-linux64/chrome';
 const FALLBACK_CHROMIUM = '/usr/bin/google-chrome';
 const DEFAULT_CORPUS_FILE = 'crawl-xer/p6diff-baseline.xer';
+const MULTI_DOCUMENT_CORPUS_FILE = 'crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer';
+const MULTI_DOCUMENT_SCENARIO = 'multidoc-help';
 const EVIDENCE_ROOT = '/tmp/xer-x11-evidence';
 
 function runId() {
@@ -79,6 +87,11 @@ async function readableFile(path, label) {
 }
 
 async function preflight() {
+  const scenario = process.env.OPS_XER_X11_SCENARIO?.trim() || 'small-a';
+  if (!['small-a', MULTI_DOCUMENT_SCENARIO].includes(scenario)) {
+    fail(`onbekend OPS_XER_X11_SCENARIO: ${scenario}`);
+  }
+  const corpusFile = scenario === MULTI_DOCUMENT_SCENARIO ? MULTI_DOCUMENT_CORPUS_FILE : DEFAULT_CORPUS_FILE;
   const corpusRoot = process.env.OPS_XER_CORPUS?.trim();
   const display = process.env.DISPLAY?.trim();
   const waylandSocket = resolve(process.env.XDG_RUNTIME_DIR?.trim() || '/run/user/1000', process.env.WAYLAND_DISPLAY?.trim() || 'wayland-0');
@@ -94,7 +107,7 @@ async function preflight() {
   }
 
   if (!corpusRoot) fail('OPS_XER_CORPUS is verplicht voor een lokale X11-run');
-  await readableFile(resolve(corpusRoot, DEFAULT_CORPUS_FILE), 'XER-corpusbestand');
+  await readableFile(resolve(corpusRoot, corpusFile), 'XER-corpusbestand');
   if (!chromiumPath) fail('geen bruikbaar Chromium-executable gevonden');
   if (!display && !existsSync(waylandSocket)) {
     fail('geen bruikbaar desktopdisplay: DISPLAY is leeg en Wayland-socket ontbreekt');
@@ -102,7 +115,8 @@ async function preflight() {
 
   return {
     corpusRoot: resolve(corpusRoot),
-    xerPath: resolve(corpusRoot, DEFAULT_CORPUS_FILE),
+    xerPath: resolve(corpusRoot, corpusFile),
+    scenario,
     chromiumPath,
     display: display || null,
     waylandSocket: existsSync(waylandSocket) ? waylandSocket : null,
@@ -244,9 +258,10 @@ async function assertNoDirectPathOpen() {
   const forbidden = [
     ['open', 'From', 'Path'].join(''),
     ['open', 'From', 'Path', 'WithIO'].join(''),
+    ['open', 'Help', 'Article'].join(''),
   ];
   if (forbidden.some((token) => source.includes(token))) {
-    fail('statische guard: direct pad-openen is verboden in het X11-harnas');
+    fail('statische guard: directe pad- of Help-openactie is verboden in het X11-harnas');
   }
 }
 
@@ -263,22 +278,52 @@ async function installDevBridgeOpenGate(page) {
       for (const [key, value] of entries) record[key] = value;
       return Object.freeze(record);
     };
+    const hashScalar = (value) => {
+      if (typeof value !== 'string' || value.length === 0) return null;
+      let hash = 0x811c9dc5;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+      }
+      return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+    };
     const makeSnapshot = () => {
       const live = liveGetState();
       const notificationEntries = Object.create(null);
       const liveNotifications = Array.isArray(live.ui?.notifications) ? live.ui.notifications : [];
       for (let index = 0; index < liveNotifications.length; index += 1) {
         const item = liveNotifications[index];
+        const detailEntries = Object.create(null);
+        const liveDetails = Array.isArray(item.detailLines) ? item.detailLines : [];
+        for (let detailIndex = 0; detailIndex < liveDetails.length; detailIndex += 1) {
+          const detail = liveDetails[detailIndex];
+          detailEntries[String(detailIndex)] = dataRecord([
+            ['messageKey', typeof detail.messageKey === 'string' ? detail.messageKey : null],
+            ['count', Number.isFinite(detail.params?.count) ? detail.params.count : null],
+          ]);
+        }
+        Object.freeze(detailEntries);
         notificationEntries[String(index)] = dataRecord([
           ['severity', typeof item.severity === 'string' ? item.severity : null],
           ['messageKey', typeof item.messageKey === 'string' ? item.messageKey : null],
           ['helpArticleId', typeof item.helpArticleId === 'string' ? item.helpArticleId : null],
+          ['count', Number.isFinite(item.params?.count) ? item.params.count : null],
+          ['detailLines', detailEntries],
         ]);
       }
       Object.freeze(notificationEntries);
       const importedTaskCount = Array.isArray(live.tasks)
         ? live.tasks.filter((task) => task.isSummary !== true && (task.childIds?.length ?? 0) === 0).length
         : 0;
+      const rawReport = live.xerSourceArchive?.diagnostics?.file?.importReport;
+      const importReport = dataRecord([
+        ['projectsSeen', Number.isInteger(rawReport?.projectsSeen) ? rawReport.projectsSeen : null],
+        ['documentsOpened', Number.isInteger(rawReport?.documentsOpened) ? rawReport.documentsOpened : null],
+        ['emptyProjectsSkipped', Number.isInteger(rawReport?.emptyProjectsSkipped) ? rawReport.emptyProjectsSkipped : null],
+        ['baselineProjectsExcluded', Number.isInteger(rawReport?.baselineProjectsExcluded) ? rawReport.baselineProjectsExcluded : null],
+        ['baselinesMaterialized', Number.isInteger(rawReport?.baselinesMaterialized) ? rawReport.baselinesMaterialized : null],
+        ['danglingBaselineReferences', Number.isInteger(rawReport?.danglingBaselineReferences) ? rawReport.danglingBaselineReferences : null],
+      ]);
       return dataRecord([
         ['documents', dataRecord([['count', Array.isArray(live.documents) ? live.documents.length : 0]])],
         ['tasks', dataRecord([['importedCount', importedTaskCount]])],
@@ -286,7 +331,19 @@ async function installDevBridgeOpenGate(page) {
         ['cpmResult', Boolean(live.cpmResult)],
         ['xerSourceArchive', dataRecord([['present', Boolean(live.xerSourceArchive)]])],
         ['xerSourceProjectId', typeof live.xerSourceProjectId === 'string' ? live.xerSourceProjectId : null],
+        ['xerImportReport', importReport],
+        ['activeDocument', dataRecord([
+          ['documentHash', hashScalar(live.activeDocumentId)],
+          ['projectIdentityHash', hashScalar(live.xerSourceProjectId)],
+          ['taskCount', importedTaskCount],
+          ['sequenceCount', Array.isArray(live.sequences) ? live.sequences.length : 0],
+          ['cpmPresent', Boolean(live.cpmResult)],
+          ['sourceArchivePresent', Boolean(live.xerSourceArchive)],
+        ])],
         ['ui', dataRecord([
+          ['activeRibbonTab', typeof live.ui?.activeRibbonTab === 'string' ? live.ui.activeRibbonTab : null],
+          ['backstageSection', typeof live.ui?.backstageSection === 'string' ? live.ui.backstageSection : null],
+          ['pendingHelpArticleConsumed', live.ui?.pendingHelpArticleId === null],
           ['notifications', dataRecord([
             ['count', liveNotifications.length],
             ['entries', notificationEntries],
@@ -444,6 +501,223 @@ function assertPrivacySafeToast(text, box) {
   }
 }
 
+function assertPrivacySafeMultiDocumentToast(text, box) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  const required = [
+    'XER file opened: 12 project documents.',
+    '15 projects found.',
+    '3 empty projects skipped.',
+    '9 dangling baseline references ignored.',
+    'Read more',
+  ];
+  for (const fragment of required) {
+    if (!normalized.includes(fragment)) fail(`multi-documenttoast mist: ${fragment}`);
+  }
+  if (/[\\/]|\b[A-Za-z]:|\.xer\b/i.test(normalized)) {
+    fail('multi-documenttoast bevat een pad of bestandsnaam');
+  }
+  if (!box || box.width < 180 || box.height < 80 || box.width > 1440 || box.height > 500) {
+    fail(`multi-documenttoast heeft ongeldige afmetingen: ${JSON.stringify(box)}`);
+  }
+}
+
+async function openWithVisibleFileChooser(page, xerPath) {
+  const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^Open$/ });
+  if (await openButton.count() !== 1) fail(`zichtbare Engelse Open-knop niet uniek: ${await openButton.count()}`);
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await openButton.click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(xerPath);
+}
+
+async function readActiveTabCorrelation(page) {
+  return page.evaluate(() => {
+    const hashScalar = (value) => {
+      if (typeof value !== 'string' || value.length === 0) return null;
+      let hash = 0x811c9dc5;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+      }
+      return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+    };
+    const activeTab = document.querySelector('[role="tab"][aria-selected="true"]');
+    const panel = document.querySelector('[role="tabpanel"]');
+    const rect = activeTab?.getBoundingClientRect();
+    const tabViewport = activeTab?.closest('[data-ops-tabstrip-viewport]')?.getBoundingClientRect();
+    const activeElement = document.activeElement;
+    const inInput = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement ||
+      activeElement instanceof HTMLSelectElement || activeElement?.getAttribute('contenteditable') === 'true';
+    const state = window.__OPS__?.store.getState();
+    return {
+      observedOrdinal: Number(activeTab?.getAttribute('data-ops-tab-index')),
+      outsideInput: !inInput,
+      tabVisible: Boolean(
+        rect && tabViewport && rect.width > 0 && rect.height > 0 &&
+        rect.left >= tabViewport.left && rect.right <= tabViewport.right,
+      ),
+      tabpanelCorrelated: Boolean(
+        activeTab?.id && panel?.id && activeTab.getAttribute('aria-controls') === panel.id &&
+        panel.getAttribute('aria-labelledby') === activeTab.id,
+      ),
+      activeDocumentHashCorrelated: Boolean(
+        state?.activeDocument?.documentHash &&
+        state.activeDocument.documentHash === hashScalar(activeTab?.getAttribute('data-ops-tab')),
+      ),
+    };
+  });
+}
+
+async function waitForActiveOrdinal(page, ordinal) {
+  await page.waitForFunction((expected) => {
+    const active = document.querySelector('[role="tab"][aria-selected="true"]');
+    return Number(active?.getAttribute('data-ops-tab-index')) === expected;
+  }, ordinal, { timeout: 10_000 });
+}
+
+async function switchToOrdinal(page, ordinal, route) {
+  const started = performance.now();
+  if (route.startsWith('shortcut:')) {
+    await page.locator('[role="tab"][aria-selected="true"]').click();
+    const outsideInputBefore = await page.evaluate(() => {
+      const active = document.activeElement;
+      return !(active instanceof HTMLInputElement) && !(active instanceof HTMLTextAreaElement) &&
+        !(active instanceof HTMLSelectElement) && active?.getAttribute('contenteditable') !== 'true';
+    });
+    if (!outsideInputBefore) fail(`shortcut ${ordinal} startte in een invoerveld`);
+    await page.keyboard.press(route.slice('shortcut:'.length));
+  } else if (route === 'click') {
+    await page.locator(`[role="tab"][data-ops-tab-index="${ordinal}"]`).click();
+  } else if (route === 'keyboard:ArrowRight') {
+    await page.locator('[role="tab"][aria-selected="true"]').press('ArrowRight');
+  } else {
+    fail(`onbekende documentwisselroute: ${route}`);
+  }
+  await waitForActiveOrdinal(page, ordinal);
+  const latencyMs = performance.now() - started;
+  return { ...(await readActiveTabCorrelation(page)), latencyMs };
+}
+
+async function runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetup) {
+  const openStarted = performance.now();
+  await openWithVisibleFileChooser(page, preflightResult.xerPath);
+
+  const toast = page.locator('.ops-toast').filter({ hasText: 'XER file opened' }).first();
+  await toast.waitFor({ state: 'visible', timeout: 30_000 });
+  await page.waitForFunction(() => window.__OPS__?.store.getState()?.documents?.count === 12, null, { timeout: 30_000 });
+  const openLatencyMs = performance.now() - openStarted;
+  const toastText = await toast.innerText();
+  const toastBox = await toast.boundingBox();
+  assertPrivacySafeMultiDocumentToast(toastText, toastBox);
+  const toastScreenshot = await toast.screenshot();
+
+  const imported = await readMultiDocumentOpsState(page);
+  if (imported.documentCount !== 12) fail(`DOM/store import opende ${imported.documentCount} documenten, verwacht 12`);
+  if (imported.notification?.count !== 12 || imported.notification.helpArticleId !== 'gids-xer-import') {
+    fail(`XER-notificatieprojectie onjuist: ${JSON.stringify(imported.notification)}`);
+  }
+  const detailCounts = Object.fromEntries(imported.notification.detailLines.map((line) => [line.messageKey, line.count]));
+  const expectedDetails = {
+    'notifications.xerImportProjectsSeen': 15,
+    'notifications.xerImportEmptyProjectsSkipped': 3,
+    'notifications.xerImportDanglingBaselineReferences': 9,
+  };
+  for (const [messageKey, count] of Object.entries(expectedDetails)) {
+    if (detailCounts[messageKey] !== count) fail(`zichtbare toastdetail ${messageKey}=${detailCounts[messageKey]}, verwacht ${count}`);
+  }
+
+  const readMore = toast.locator('button.ops-toast-readmore');
+  if (await readMore.count() !== 1) fail('zichtbare Read more-knop ontbreekt of is niet uniek');
+  await readMore.click();
+  const activeHelpItem = page.locator('.help-toc-item.active');
+  const articleHeading = page.locator('.help-article-body h1');
+  await activeHelpItem.waitFor({ state: 'visible', timeout: 15_000 });
+  await articleHeading.waitFor({ state: 'visible', timeout: 15_000 });
+  const activeTocTitle = (await activeHelpItem.innerText()).trim();
+  const headingTitle = (await articleHeading.innerText()).trim();
+  const helpBodyText = await page.locator('.help-article-body').innerText();
+  const helpState = await readMultiDocumentOpsState(page);
+  const help = {
+    notificationHelpArticleId: imported.notification.helpArticleId,
+    activeTocTitle,
+    articleHeading: headingTitle,
+    activeRibbonTab: helpState.ui.activeRibbonTab,
+    backstageSection: helpState.ui.backstageSection,
+    pendingHelpArticleConsumed: helpState.ui.pendingHelpArticleConsumed,
+    hasMultiDocumentExplanation: helpBodyText.includes('several project documents'),
+    hasEmptyProjectExplanation: helpBodyText.includes('Empty projects do not create a pointless tab.'),
+    hasBaselineExplanation: helpBodyText.includes('A P6 baseline project is not opened as a separate schedulable document.'),
+  };
+  const helpScreenshot = await page.screenshot({
+    fullPage: false,
+    mask: [
+      page.locator('canvas'),
+      page.locator('.title-bar-file-name'),
+      page.locator('[role="tab"]'),
+      page.locator('.help-article-body'),
+    ],
+    maskColor: '#263238',
+  });
+
+  const homeTab = page.locator('button.ribbon-tab').filter({ hasText: /^Home$/ });
+  if (await homeTab.count() !== 1) fail('zichtbare Engelse Home-tab ontbreekt of is niet uniek');
+  await homeTab.click();
+  const tabs = page.locator('[role="tab"][data-ops-tab-index]');
+  await tabs.first().waitFor({ state: 'visible', timeout: 10_000 });
+  if (await tabs.count() !== 12) fail(`DOM-tabtelling=${await tabs.count()}, verwacht 12`);
+
+  const routeByOrdinal = new Map([
+    [1, 'shortcut:Control+1'],
+    [5, 'shortcut:Control+5'],
+    [9, 'shortcut:Control+9'],
+    [10, 'click'],
+    [11, 'keyboard:ArrowRight'],
+    [12, 'keyboard:ArrowRight'],
+  ]);
+  const documents = [];
+  const switches = [];
+  for (let ordinal = 1; ordinal <= 12; ordinal += 1) {
+    const route = routeByOrdinal.get(ordinal) ?? 'click';
+    const switched = await switchToOrdinal(page, ordinal, route);
+    const snapshot = await readMultiDocumentOpsState(page);
+    switches.push({ requestedOrdinal: ordinal, route, ...switched });
+    documents.push({ ordinal, ...snapshot.activeDocument });
+  }
+
+  const screenshot = await page.screenshot({
+    fullPage: false,
+    mask: [
+      page.locator('canvas'),
+      page.locator('.title-bar-file-name'),
+      page.locator('[role="tab"]'),
+      page.locator('.help-article-body'),
+    ],
+    maskColor: '#263238',
+  });
+  const evidence = { report: imported.report, openLatencyMs, documents, switches, help };
+  assertMultiDocumentEvidence(evidence);
+
+  const bridgeGate = await readDevBridgeOpenGate(page);
+  if (bridgeGate.calls.length !== 0) fail(`anti-sluiproute-gate rood: ${JSON.stringify(bridgeGate.calls)}`);
+  if (bridgeGate.wrapped.length !== bridgeGateSetup.wrapped.length || bridgeGate.wrapped.length === 0) {
+    fail(`anti-sluiproute-gate verloor wrappers: ${JSON.stringify(bridgeGate)}`);
+  }
+  const dialogCounts = await page.evaluate(() => ({ ...window.__OPS_X11_DIALOG_COUNTS__ }));
+  if (dialogCounts.alert !== 0 || dialogCounts.confirm !== 0 || dialogCounts.prompt !== 0) {
+    fail(`native-dialog-audit rood: ${JSON.stringify(dialogCounts)}`);
+  }
+  return {
+    state: evidence,
+    domText: null,
+    dialogCounts,
+    bridgeGate,
+    screenshot,
+    toastScreenshot,
+    helpScreenshot,
+    toastBox,
+  };
+}
+
 async function runBrowserSmallA(preflightResult, server) {
   const { chromium } = loadPlaywrightCore();
   const browserEnv = { ...process.env };
@@ -470,6 +744,8 @@ async function runBrowserSmallA(preflightResult, server) {
   await context.addInitScript(() => {
     delete window.showOpenFilePicker;
     localStorage.setItem('ops-locale', 'en');
+    localStorage.setItem('ops-docs-locale', 'en');
+    localStorage.setItem('ops-documentChromeStyle', 'tabs');
     localStorage.setItem('ops-welcomeSeen', 'true');
     const counts = { alert: 0, confirm: 0, prompt: 0 };
     window.__OPS_X11_DIALOG_COUNTS__ = counts;
@@ -483,12 +759,15 @@ async function runBrowserSmallA(preflightResult, server) {
     await page.waitForFunction(() => Boolean(window.__OPS__) && typeof window.showOpenFilePicker === 'undefined');
     const bridgeGateSetup = await installDevBridgeOpenGate(page);
 
-    const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^Open$/ });
-    if (await openButton.count() !== 1) fail(`zichtbare Engelse Open-knop niet uniek: ${await openButton.count()}`);
-    const fileChooserPromise = page.waitForEvent('filechooser');
-    await openButton.click();
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(preflightResult.xerPath);
+    if (preflightResult.scenario === MULTI_DOCUMENT_SCENARIO) {
+      return {
+        ...(await runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetup)),
+        launchArgs,
+        headless: false,
+      };
+    }
+
+    await openWithVisibleFileChooser(page, preflightResult.xerPath);
 
     const toast = page.locator('.ops-toast').filter({ hasText: 'XER file opened' }).first();
     await toast.waitFor({ state: 'visible', timeout: 30_000 });
@@ -605,6 +884,7 @@ async function main() {
 
   const metadata = {
     runId: evidenceDir.split('/').pop(),
+    scenario: preflightResult.scenario,
     git: {
       toplevel: gitStart.toplevel,
       branch: gitStart.branch,
@@ -620,20 +900,27 @@ async function main() {
       guard: serverHandle.server.guard,
     },
     browser: { executablePath: preflightResult.chromiumPath, headless: browserEvidence.headless, launchArgs: browserEvidence.launchArgs },
-    dom: { text: browserEvidence.domText },
+    dom: preflightResult.scenario === MULTI_DOCUMENT_SCENARIO
+      ? { tabCount: 12, helpTitle: browserEvidence.state.help.articleHeading }
+      : { text: browserEvidence.domText },
     nativeDialogs: browserEvidence.dialogCounts,
     devBridgeOpenGate: browserEvidence.bridgeGate,
     screenshot: 'imported-redacted.png',
     toastScreenshot: { file: 'xer-toast.png', box: browserEvidence.toastBox },
+    helpScreenshot: browserEvidence.helpScreenshot ? 'help-redacted.png' : null,
   };
   assertMetadataGitIdentity(metadata, gitStart);
   await mkdir(evidenceDir, { recursive: true });
   await writeFile(resolve(evidenceDir, 'imported-redacted.png'), browserEvidence.screenshot);
   await writeFile(resolve(evidenceDir, 'xer-toast.png'), browserEvidence.toastScreenshot);
+  if (browserEvidence.helpScreenshot) {
+    await writeFile(resolve(evidenceDir, 'help-redacted.png'), browserEvidence.helpScreenshot);
+  }
   await writeFile(resolve(evidenceDir, 'state.json'), `${JSON.stringify(browserEvidence.state, null, 2)}\n`, 'utf8');
   await writeFile(resolve(evidenceDir, 'server-output.txt'), serverHandle.server.output, 'utf8');
   await writeFile(resolve(evidenceDir, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
-  console.log(`SMALL-A OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
+  const label = preflightResult.scenario === MULTI_DOCUMENT_SCENARIO ? 'FASE-2A' : 'SMALL-A';
+  console.log(`${label} OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

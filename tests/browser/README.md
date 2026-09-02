@@ -1,15 +1,16 @@
 # X11/XWayland-browserharnas voor XER
 
-Dit harnas voert de fase-1-gebruikstest uit tegen de browser-dev-build van precies deze
-worktree. Het opent een echt zichtbaar Chromium-venster, kiest via de zichtbare Engelse knop
-`Open` een XER-bestand met de echte browser-filechooser en controleert daarna zowel de DOM als
-`window.__OPS__`.
+Dit harnas voert de fase-1-gebruikstest en de afgebakende fase-2A-proef voor multi-document +
+Help uit tegen de browser-dev-build van precies deze worktree. Het opent een echt zichtbaar
+Chromium-venster, kiest via de zichtbare Engelse knop `Open` een XER-bestand met de echte
+browser-filechooser en controleert daarna zowel de DOM als `window.__OPS__`.
 
 ## Voorwaarden
 
 - Node 22 en npm moeten beschikbaar zijn.
-- `OPS_XER_CORPUS` moet naar de corpusroot wijzen. De run gebruikt daaruit
-  `crawl-xer/p6diff-baseline.xer`.
+- `OPS_XER_CORPUS` moet naar de corpusroot wijzen. De standaardrun gebruikt daaruit
+  `crawl-xer/p6diff-baseline.xer`; fase 2A gebruikt
+  `crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer`.
 - `OPS_NODE_MODULES_DIR` kan naar een bestaande externe `node_modules` wijzen wanneer deze
   worktree geen eigen dependencies heeft. Het harnas maakt hoogstens tijdelijk een symlink en
   verwijdert die in de opruimroute.
@@ -31,14 +32,26 @@ OPS_PLAYWRIGHT_DIR="/pad/naar/node_modules/playwright-core" \
 npm run test:browser:x11
 ```
 
-De corpusloze eindintegriteitscontracttest is afzonderlijk uit te voeren met:
+Fase 2A gebruikt hetzelfde script en alle infrastructuurgates, met één expliciet scenario:
+
+```bash
+OPS_XER_X11_SCENARIO=multidoc-help \
+OPS_XER_CORPUS="/pad/naar/testdata-crawl" \
+OPS_NODE_MODULES_DIR="/pad/naar/node_modules" \
+OPS_PLAYWRIGHT_DIR="/pad/naar/node_modules/playwright-core" \
+npm run test:browser:x11
+```
+
+De corpusloze Git-eindintegriteits- en fase-2A-contracttests zijn afzonderlijk uit te voeren met:
 
 ```bash
 node tests/browser/git-evidence-contract.mjs
+node tests/browser/x11-multidoc-contract.mjs
 ```
 
-Deze doodt afzonderlijk een verschil in Git-toplevel, branch, HEAD en de ruwe
-`status --porcelain=v1`, zonder een checkout of de werkboom te wijzigen.
+De eerste doodt afzonderlijk een verschil in Git-toplevel, branch, HEAD en de ruwe
+`status --porcelain=v1`, zonder een checkout of de werkboom te wijzigen. De tweede pint het
+importreport, de twaalf veilige documentprojecties, de switchroutes, latenties en Help-route.
 
 Het harnas verwijdert geërfde `OPS_DEV_GUARDED` en `OPS_DEV_PORT`, start zelf `npm run dev` en
 leest de werkelijk toegewezen URL en PID uit de launcher-output. Het controleert dat de normale
@@ -68,14 +81,31 @@ De import moet opleveren:
 
 Daarnaast moeten `window.alert`, `window.confirm` en `window.prompt` nul keer zijn aangeroepen.
 
+## Fase-2A-asserties
+
+De multi-documentproef pint het echte XER-importreport op 15 gevonden projecten, 12 geopende
+documenten, 3 overgeslagen lege projecten, 0 uitgesloten baselineprojecten, 0 gematerialiseerde
+baselines en 9 dangling baselineverwijzingen. Alle twaalf zichtbare DOM-tabs moeten afzonderlijk
+activeren naar een niet-leeg document met een unieke gehashte P6-projectidentiteit, bronarchief en
+CPM-resultaat. Ctrl+1, Ctrl+5 en Ctrl+9 worden buiten invoervelden bediend; tabs 10–12 lopen via
+een echte tabklik en ArrowRight-events. Iedere wissel correleert de actieve tab met het tabpanel en
+de read-only storeprojectie.
+
+De zichtbare toastdetails worden vóór auto-dismiss gelezen. De echte `Read more`-knop moet
+Backstage Help openen op het Engelse artikel `Opening Primavera P6 (.xer)`, inclusief de uitleg
+over meerdere documenten, lege projecten en baselines. De openlatency en alle twaalf
+switchlatencies worden als eindige meetwaarden vastgelegd; er geldt geen zelfverzonnen harde
+performancegrens.
+
 ## Evidence en beperking
 
 Elke geslaagde run schrijft buiten de repo naar een unieke submap onder
 `/tmp/xer-x11-evidence/`. Daarin staan metadata, de privacy-geredigeerde overzichtsscreenshot,
 een afzonderlijke elementopname van de zichtbare XER-toast, de geobserveerde state en de
-dev-server-output. De toastopname wordt vóór auto-dismiss gemaakt en accepteert alleen generieke
-importaantallen plus `Read more`; pad-, bestands-, project-, taak- en resourcenamen zijn er niet
-toegestaan. Canvas, documentnaam en tablabels worden in de overzichtsscreenshot gemaskeerd.
+dev-server-output. Fase 2A voegt een geredigeerde Help-screenshot toe. De toastopname wordt vóór
+auto-dismiss gemaakt en accepteert alleen generieke importaantallen plus `Read more`; pad-,
+bestands-, project-, taak- en resourcenamen zijn er niet toegestaan. Canvas, documentnaam,
+tablabels en mogelijk corpusdragende Help-inhoud worden in de overige screenshots gemaskeerd.
 De metadata bevat de live lokale Git-toplevel, branch, HEAD en beginstatus om het bewijs aan de
 juiste checkout te koppelen. Na browser-, server- en dependencycleanup moeten alle vier waarden
 exact gelijk zijn aan hun beginwaarde voordat een evidencebestand wordt geschreven. Daardoor kan
@@ -84,4 +114,4 @@ opslag, niet voor publicatie of commit in de repo.
 
 Deze test bewijst de browser-dev-build met de `input[type=file]`-terugval. Hij bewijst niet de
 Chromium File System Access API, de native OS-bestandkiezer of Tauri `plugin-dialog`/`plugin-fs`.
-Die OS-specifieke routes vallen buiten fase 1.
+Die OS-specifieke routes vallen buiten fase 1 en deze fase-2A-stap.
