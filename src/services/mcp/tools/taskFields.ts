@@ -158,6 +158,10 @@ const REJECT_HINTS: Record<string, string> = {
   p6ActivityType: 'P6\'s eigen Activity Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
   p6ExplicitTargetWindow: 'de P6-XER-provenance voor een expliciet targetvenster is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
   p6SuspendResume: 'de P6-suspend/resume-herkomstvlag is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6ProjectId: 'P6\'s bronproject-id is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6TaskId: 'P6\'s bronactiviteit-id is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6CompletePctType: 'P6\'s Completion Percent Type is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6ExpectedFinish: 'P6\'s Expected Finish is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
 };
 
 /** Uitkomst van de veldvalidatie. */
