@@ -8,15 +8,16 @@
  *  B. de onafhankelijke, na byte- en schema-dedup geselecteerde 34 orakelentries;
  *  D. de openbare task-replay-pin die A en B kruist zonder een replay uit te voeren.
  *
- * Laag C, de toekomstige 34-entry product-v2-meting, bestaat bewust nog niet. De huidige
- * `xer-product-fidelity-baseline.json` is een v1-overgangsdossier met twee pins en redenen;
- * deze check benoemt dat expliciet maar promoveert of hernoemt hem niet. `readXER`, scanner,
+ * Laag C is een compacte maar volledig uitgepakte v2-karakteriseringssnapshot: hij bewaakt de
+ * 34 entries en 47 projecten, maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
+ * Daardoor kan corpusloze CI niet veinzen dat productfidelity nul is. `readXER`, scanner,
  * dedupbuilder, solveProject en de product-/replayadapter zijn hier daarom verboden imports.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
@@ -53,7 +54,44 @@ type ReplayPin = {
   tasks: number;
   candidates: Record<string, { aggregate: ReplayAggregate; rejected: boolean; exitCode: number }>;
 };
-type ProductV1 = { version: number; files: Record<string, { reason?: string }> };
+type ProductCounts = { exact: number; sameday: number; diff: number; missing: number; measurable: number; deviations: number };
+type ProductProject = {
+  projectId: string;
+  truthTasks: number;
+  solvedTasks: number;
+  taskCodePresent: number;
+  taskCodeExact: number;
+  counters: Record<Axis, ProductCounts>;
+  drivingPath: ProductCounts;
+  identityErrors: string[];
+};
+type ProductEntry = {
+  sha256: string;
+  schemaFingerprint: string;
+  projects: number;
+  tasks: number;
+  identityCoverage: { solvedTasks: number; taskCodePresent: number; taskCodeExact: number };
+  projectMeasurements: ProductProject[];
+  counters: Record<Axis, ProductCounts>;
+  drivingPath: ProductCounts;
+  identityErrors: string[];
+  scannerErrors: string[];
+  gatePassed: boolean;
+};
+type ProductV2 = {
+  version: number;
+  manifestSha256: string;
+  characterization: { finalZeroGate: string; accepted: boolean; openCategories: string[] };
+  files: Record<string, ProductEntry>;
+};
+type ProductEnvelope = {
+  version: number;
+  manifestSha256: string;
+  characterization: { finalZeroGate: string; accepted: boolean; openCategories: string[] };
+  reportModes: string[];
+  encoding: string;
+  payloadGzipBase64: string;
+};
 
 const EXPECTED = {
   manifestRawSha256: '6defbc4b4a71500565e5847750662060d9baca983952098dd1b334ac81d55786',
@@ -74,6 +112,14 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  productStrict: {
+    exact: { es: 12_680, ef: 12_437, ls: 8_807, lf: 8_769, tf: 8_912, ff: 12_499 },
+    sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
+    diff: { es: 1_155, ef: 1_403, ls: 4_886, lf: 4_951, tf: 4_765, ff: 823 },
+    missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
+    deviations: { es: 1_251, ef: 1_500, ls: 5_015, lf: 5_044, tf: 4_765, ff: 823 },
+    drivingPath: { exact: 13_186, sameday: 0, diff: 410, missing: 0, measurable: 13_596, deviations: 410 },
+  },
   roles: {
     oracle: 45,
     'engine-input': 14,
@@ -91,6 +137,7 @@ const ALLOWED_STATIC_IMPORTS = new Set([
   'node:fs',
   'node:path',
   'node:url',
+  'node:zlib',
 ]);
 const diffs: string[] = [];
 let checks = 0;
@@ -343,6 +390,139 @@ function validateReplay(raw: unknown, oracle: OracleBaseline): string[] {
   return problems;
 }
 
+function validProductCounts(value: unknown): value is ProductCounts {
+  const counts = asObject(value);
+  if (!counts) return false;
+  return ['exact', 'sameday', 'diff', 'missing', 'measurable', 'deviations']
+    .every(key => isNonNegativeInteger(counts[key]));
+}
+
+function addProductCounts(target: ProductCounts, source: ProductCounts): void {
+  target.exact += source.exact;
+  target.sameday += source.sameday;
+  target.diff += source.diff;
+  target.missing += source.missing;
+  target.measurable += source.measurable;
+  target.deviations += source.deviations;
+}
+
+function emptyProductCounts(): ProductCounts {
+  return { exact: 0, sameday: 0, diff: 0, missing: 0, measurable: 0, deviations: 0 };
+}
+
+function decodeProductPayload(envelope: ProductEnvelope): ProductV2 {
+  return JSON.parse(gunzipSync(Buffer.from(envelope.payloadGzipBase64, 'base64')).toString('utf8')) as ProductV2;
+}
+
+function withMutatedProduct(envelope: ProductEnvelope, mutate: (product: ProductV2) => void): ProductEnvelope {
+  const product = clone(decodeProductPayload(envelope));
+  mutate(product);
+  return { ...envelope, payloadGzipBase64: gzipSync(JSON.stringify(product)).toString('base64') };
+}
+
+/**
+ * Corpusloze laag C pakt de volledige v2-snapshot uit en valideert hem tegen de al gepinde
+ * manifest-/orakelselectie. Hij kan niet zélf productnul bewijzen, maar hij mag evenmin een
+ * overgangssnapshot als eindacceptatie presenteren.
+ */
+function validateProductV2(raw: unknown, manifest: Manifest, oracle: OracleBaseline): string[] {
+  const problems: string[] = [];
+  const envelope = raw as ProductEnvelope;
+  if (!asObject(raw) || envelope.version !== 2 || envelope.encoding !== 'gzip-base64-json'
+    || typeof envelope.payloadGzipBase64 !== 'string') {
+    return ['product-v2: ongeldige envelope of geen gzip-base64-payload'];
+  }
+  if (envelope.characterization?.finalZeroGate !== 'red' || envelope.characterization?.accepted !== false) {
+    issue(problems, 'product-v2: tijdelijke snapshot moet strict eindnulpoort zichtbaar rood en ongeaccepteerd houden');
+  }
+  if (JSON.stringify(envelope.characterization?.openCategories) !== JSON.stringify([
+    'strict-six-axis-deviations', 'strict-sameday-deviations', 'driving-path-report-only',
+  ])) issue(problems, 'product-v2: open categorieen zijn niet de expliciete strict-overgangscategorieen');
+  if (JSON.stringify(envelope.reportModes) !== JSON.stringify([
+    'strict-minute-exact', 'historical-completed-late', 'source-day-precision',
+  ])) issue(problems, 'product-v2: strict en de twee tegenfeitelijke rapportmodi zijn verwisseld of incompleet');
+  let product: ProductV2;
+  try {
+    product = decodeProductPayload(envelope);
+  } catch {
+    return [...problems, 'product-v2: gzip-payload is niet volledig decodeerbaar JSON'];
+  }
+  equal(problems, 'product-v2.payload-versie', product.version, 2);
+  equal(problems, 'product-v2.manifesthash', product.manifestSha256, rawHash(manifestRaw));
+  equal(problems, 'product-v2.envelope-payload-manifesthash', envelope.manifestSha256, product.manifestSha256);
+  equal(problems, 'product-v2.karakterisering', product.characterization, envelope.characterization);
+  if (JSON.stringify(product).includes('"reason"')) issue(problems, 'product-v2: reasons zijn verboden in de strict-karakteriseringssnapshot');
+
+  const oracleByLabel = new Map(Object.values(oracle.files).map(entry => [entry.label, entry]));
+  const labels = Object.keys(product.files).sort();
+  equal(problems, 'product-v2.entryset', labels, [...oracleByLabel.keys()].sort());
+  const totals = Object.fromEntries(AXES.map(axis => [axis, emptyProductCounts()])) as Record<Axis, ProductCounts>;
+  const driving = emptyProductCounts();
+  let projects = 0;
+  let tasks = 0;
+  for (const label of labels) {
+    const entry = product.files[label]!;
+    const manifestEntry = manifest.files[label];
+    const oracleEntry = oracleByLabel.get(label);
+    if (!manifestEntry || !oracleEntry) continue;
+    if (!HEX_64.test(entry.sha256)) issue(problems, `product-v2 ${label}: volledige SHA ontbreekt`);
+    equal(problems, `product-v2 ${label}: manifest-SHA`, entry.sha256, manifestEntry.sha256);
+    equal(problems, `product-v2 ${label}: schemafingerprint`, entry.schemaFingerprint, oracleEntry.schemaFingerprint);
+    if (entry.projects !== entry.projectMeasurements.length) issue(problems, `product-v2 ${label}: projectnoemer wijkt af van projectrecords`);
+    if (entry.tasks !== entry.projectMeasurements.reduce((sum, project) => sum + project.truthTasks, 0)) {
+      issue(problems, `product-v2 ${label}: taaknoemer wijkt af van projectrecords`);
+    }
+    if (entry.identityCoverage.solvedTasks !== entry.tasks
+      || entry.identityCoverage.taskCodePresent !== entry.tasks || entry.identityCoverage.taskCodeExact !== entry.tasks) {
+      issue(problems, `product-v2 ${label}: taskcode-identiteitsdekking is niet volledig`);
+    }
+    const projectCounters = Object.fromEntries(AXES.map(axis => [axis, emptyProductCounts()])) as Record<Axis, ProductCounts>;
+    const projectDriving = emptyProductCounts();
+    const projectIds = new Set<string>();
+    for (const project of entry.projectMeasurements) {
+      if (!project.projectId || projectIds.has(project.projectId)) issue(problems, `product-v2 ${label}: project-id ontbreekt of dupliceert`);
+      projectIds.add(project.projectId);
+      if (project.truthTasks !== project.solvedTasks || project.taskCodePresent !== project.truthTasks
+        || project.taskCodeExact !== project.truthTasks || project.identityErrors.length !== 0) {
+        issue(problems, `product-v2 ${label}/${project.projectId}: projectidentiteitsdekking is niet exact`);
+      }
+      for (const axis of AXES) {
+        if (!validProductCounts(project.counters[axis])) { issue(problems, `product-v2 ${label}/${project.projectId}.${axis}: ongeldige teller`); continue; }
+        addProductCounts(projectCounters[axis], project.counters[axis]);
+      }
+      if (!validProductCounts(project.drivingPath)) issue(problems, `product-v2 ${label}/${project.projectId}.driving: ongeldige teller`);
+      else addProductCounts(projectDriving, project.drivingPath);
+    }
+    for (const axis of AXES) {
+      if (!validProductCounts(entry.counters[axis])) issue(problems, `product-v2 ${label}.${axis}: ongeldige entryteller`);
+      else {
+        equal(problems, `product-v2 ${label}.${axis}: projectsom`, projectCounters[axis], entry.counters[axis]);
+        if (entry.counters[axis].exact + entry.counters[axis].sameday + entry.counters[axis].diff + entry.counters[axis].missing !== entry.counters[axis].measurable
+          || entry.counters[axis].sameday + entry.counters[axis].diff + entry.counters[axis].missing !== entry.counters[axis].deviations) {
+          issue(problems, `product-v2 ${label}.${axis}: telleralgebra is inconsistent`);
+        }
+        addProductCounts(totals[axis], entry.counters[axis]);
+      }
+    }
+    if (!validProductCounts(entry.drivingPath)) issue(problems, `product-v2 ${label}.driving: ongeldige entryteller`);
+    else { equal(problems, `product-v2 ${label}.driving: projectsom`, projectDriving, entry.drivingPath); addProductCounts(driving, entry.drivingPath); }
+    if (entry.identityErrors.length !== 0 || entry.scannerErrors.length !== 0) issue(problems, `product-v2 ${label}: identity/scanner moet nul zijn`);
+    projects += entry.projects;
+    tasks += entry.tasks;
+  }
+  equal(problems, 'product-v2.projecten', projects, EXPECTED.projects);
+  equal(problems, 'product-v2.taken', tasks, EXPECTED.tasks);
+  for (const axis of AXES) {
+    equal(problems, `product-v2 ${axis}.measurable`, totals[axis].measurable, EXPECTED.measurable[axis]);
+    for (const field of ['exact', 'sameday', 'diff', 'missing', 'deviations'] as const) {
+      equal(problems, `product-v2 ${axis}.${field}`, totals[axis][field], EXPECTED.productStrict[field][axis]);
+    }
+  }
+  equal(problems, 'product-v2.driving', driving, EXPECTED.productStrict.drivingPath);
+  if (AXES.every(axis => totals[axis].deviations === 0)) issue(problems, 'product-v2: karakterisering claimt onverwacht strict nul zonder eigenaarsbesluit');
+  return problems;
+}
+
 function checkProblem(problems: string[], label: string, condition: boolean): void {
   if (!condition) issue(problems, label);
 }
@@ -455,7 +635,7 @@ function validateOwnSource(raw: string): string[] {
     importModules.push(match[1]!);
   }
 
-  equal(problems, 'bron.statische-import-aantal', importModules.length, 4);
+  equal(problems, 'bron.statische-import-aantal', importModules.length, 5);
   equal(problems, 'bron.statische-import-modules', [...new Set(importModules)].sort(), [...ALLOWED_STATIC_IMPORTS].sort());
   for (const module of importModules) {
     if (!ALLOWED_STATIC_IMPORTS.has(module)) {
@@ -484,15 +664,21 @@ function expectRejected(label: string, manifest: Manifest, oracle: OracleBaselin
   if (problems.length === 0) diffs.push(`${label}: mutant werd ten onrechte geaccepteerd`);
 }
 
+function expectProductRejected(label: string, envelope: ProductEnvelope, manifest: Manifest, oracle: OracleBaseline): void {
+  checks++;
+  const problems = validateProductV2(envelope, manifest, oracle);
+  if (problems.length === 0) diffs.push(`${label}: product-v2-mutant werd ten onrechte geaccepteerd`);
+}
+
 const manifestRaw = readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8');
 const oracleRaw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf8');
 const replayRaw = readFileSync(join(HERE, 'xer-task-replay-public-pin.json'), 'utf8');
-const productV1Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8');
+const productV2Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8');
 const sourceRaw = readFileSync(join(HERE, 'check-xer-corpusless-fidelity-gate.ts'), 'utf8');
 const manifest = JSON.parse(manifestRaw) as Manifest;
 const oracle = JSON.parse(oracleRaw) as OracleBaseline;
 const replay = JSON.parse(replayRaw) as ReplayPin;
-const productV1 = JSON.parse(productV1Raw) as ProductV1;
+const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
 
 // De actuele contracten worden als drie afzonderlijke lagen gecontroleerd. Een lege foutlijst is
 // de eerste groene toestand; de matrix hieronder bewijst vervolgens dat iedere bescherming bij
@@ -530,12 +716,9 @@ const productV1 = JSON.parse(productV1Raw) as ProductV1;
   checkEqual(`A+B+D huidige statische contracten zijn consistent (${problems.join('; ')})`, problems, []);
   checkEqual('A raw manifestbytes zijn exact gepind', rawHash(manifestRaw), EXPECTED.manifestRawSha256);
   checkEqual('B raw oraclebaselinebytes zijn exact gepind', rawHash(oracleRaw), EXPECTED.baselineRawSha256);
-  checkEqual('C bestaat nog niet: productbaseline blijft expliciet v1-tweepinsdossier', {
-    version: productV1.version,
-    entries: Object.keys(productV1.files ?? {}).length,
-    reasons: Object.values(productV1.files ?? {}).every(entry => typeof entry.reason === 'string' && entry.reason.length > 0),
-  }, { version: 1, entries: 2, reasons: true });
-  console.log('INFO xer-corpusless-fidelity-gate: product-v2 ontbreekt bewust; v1-tweepinsbaseline is geen X12-eindcontract.');
+  const productProblems = validateProductV2(productV2, manifest, oracle);
+  checkEqual(`C v2-karakteriseringssnapshot is volledig maar strict zichtbaar rood (${productProblems.join('; ')})`, productProblems, []);
+  console.log('INFO xer-corpusless-fidelity-gate: v2 productkarakterisering is volledig vastgepind; strict minute-exact eindnul blijft expliciet rood en ongeaccepteerd.');
 }
 
 // In-memory mutantmatrix. Elke mutatie treft één contractuitspraak; niets op schijf verandert.
@@ -630,6 +813,40 @@ const productV1 = JSON.parse(productV1Raw) as ProductV1;
     negativeWithoutRegression.candidates['drop-p6-finish-milestone-boundary']!.aggregate[axis].regressed = 0;
   }
   expectRejected('M19 replay negatieve kandidaat zonder regressie', manifest, oracle, negativeWithoutRegression);
+
+  const firstProductLabel = Object.keys(decodeProductPayload(productV2).files)[0]!;
+  const v1AsFinal = clone(productV2);
+  v1AsFinal.version = 1;
+  expectProductRejected('M20 v1-baseline kan niet stil als finale v2 gelden', v1AsFinal, manifest, oracle);
+
+  expectProductRejected('M21 projectnoemer vergeten', withMutatedProduct(productV2, product => {
+    product.files[firstProductLabel]!.projects--;
+  }), manifest, oracle);
+
+  expectProductRejected('M22 een meetbare cel stil overslaan', withMutatedProduct(productV2, product => {
+    product.files[firstProductLabel]!.projectMeasurements[0]!.counters.es.measurable--;
+  }), manifest, oracle);
+
+  expectProductRejected('M23 entry-project-taskcode-identiteit drift', withMutatedProduct(productV2, product => {
+    product.files[firstProductLabel]!.projectMeasurements[0]!.taskCodeExact--;
+  }), manifest, oracle);
+
+  expectProductRejected('M24 productmanifesthash drift', withMutatedProduct(productV2, product => {
+    product.manifestSha256 = `0${product.manifestSha256.slice(1)}`;
+  }), manifest, oracle);
+
+  expectProductRejected('M25 productschemafingerprint drift', withMutatedProduct(productV2, product => {
+    const entry = product.files[firstProductLabel]!;
+    entry.schemaFingerprint = `${entry.schemaFingerprint.slice(0, -1)}${entry.schemaFingerprint.endsWith('0') ? '1' : '0'}`;
+  }), manifest, oracle);
+
+  const drivingAsGate = clone(productV2);
+  drivingAsGate.characterization.openCategories[2] = 'driving-path-zero-gate';
+  expectProductRejected('M26 drivingPath per ongeluk in nulpoort', drivingAsGate, manifest, oracle);
+
+  const swappedModes = clone(productV2);
+  [swappedModes.reportModes[0], swappedModes.reportModes[1]] = [swappedModes.reportModes[1]!, swappedModes.reportModes[0]!];
+  expectProductRejected('M27 strict en counterfactual verwisseld', swappedModes, manifest, oracle);
 }
 
 if (diffs.length === 0) {
