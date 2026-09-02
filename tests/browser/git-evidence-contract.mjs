@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   assertGitEvidenceUnchanged,
   assertMetadataGitIdentity,
+  metadataGitIdentity,
 } from './x11-xer-evidence.mjs';
 
 const expectedBase = '790d6cd8266682fa9b7798a3d1f9e0a1a2498db9';
@@ -54,14 +55,15 @@ for (const [field, value] of mutations) {
   );
 }
 
-const metadata = { git: { ...begin } };
+const metadata = { git: metadataGitIdentity(begin) };
 assertMetadataGitIdentity(metadata, begin);
 for (const [field, value] of [
   ['base', '1111111111111111111111111111111111111111'],
   ['commitParent', '2222222222222222222222222222222222222222'],
 ]) {
+  const mutated = { ...metadata.git, [field]: value };
   assert.throws(
-    () => assertMetadataGitIdentity({ git: { ...begin, [field]: value } }, begin),
+    () => assertMetadataGitIdentity({ git: mutated }, begin),
     /metadata-git-identiteitsgate rood/,
     `${field}-verschil moet ook de metadata-identiteitsgate rood maken`,
   );

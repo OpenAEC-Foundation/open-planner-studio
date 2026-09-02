@@ -42,16 +42,41 @@ OPS_PLAYWRIGHT_DIR="/pad/naar/node_modules/playwright-core" \
 npm run test:browser:x11
 ```
 
+Fase 2B heeft twee afzonderlijke headed scenario's:
+
+```bash
+OPS_XER_X11_SCENARIO=multidoc-recovery OPS_XER_CORPUS="/pad/naar/testdata-crawl" npm run test:browser:x11
+OPS_XER_X11_SCENARIO=large-resources OPS_XER_CORPUS="/pad/naar/testdata-crawl" npm run test:browser:x11
+```
+
+De eerste gebruikt opnieuw het openbare 15→12-dossier. Na één zichtbare gebruikerswijziging via
+Home → Task bewijst hij de echte browser-autosave: twaalf afzonderlijke IFC-records en één manifest
+in IndexedDB, een tweede manifestcommit ongeveer tien seconden na de eerste, en rollback van een
+expliciet afgebroken IndexedDB-transactie. Daarna herlaadt hij dezelfde tab, gebruikt uitsluitend de
+zichtbare normale Recovery-dialoog en herstelt alle twaalf documenten. De tweede opent
+`crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, volgt de werkelijk geleverde enkel-documentroute
+en bedient Resources en Histogram via zichtbare lintknoppen.
+
 De corpusloze Git-eindintegriteits- en fase-2A-contracttests zijn afzonderlijk uit te voeren met:
 
 ```bash
 node tests/browser/git-evidence-contract.mjs
 node tests/browser/x11-multidoc-contract.mjs
+node tests/browser/x11-phase2b-contract.mjs
+node tests/browser/x11-phase2b-privacy-contract.mjs
+node tests/browser/x11-phase2b-mutations.mjs
 ```
 
 De eerste doodt afzonderlijk een verschil in Git-toplevel, branch, HEAD en de ruwe
 `status --porcelain=v1`, zonder een checkout of de werkboom te wijzigen. De tweede pint het
 importreport, de twaalf veilige documentprojecties, de switchroutes, latenties en Help-route.
+Het fase-2B-contract pint recoverytelling, documentvolgorde/actief document,
+archive-digest/selectorbehoud, de grote taak-/assignment-/kalendertellingen, de zichtbare
+Resources-/Histogramroutes en gesloten privacyallowlists. Gerichte mutanten worden aangezet met
+`OPS_X11_PHASE2B_MUTATION=<naam>` en horen exitcode 1 te geven.
+De afzonderlijke privacytest weigert pathlike tekst in stdout, metadata, serversamenvatting en
+stateartefact via `OPS_X11_PHASE2B_PRIVACY_MUTATION=<naam>`. De vaste mutantendriver pint
+28 bestaande plus 4 vrije-tekstmutanten en vereist voor alle 32 semantisch exitcode 1.
 
 Het harnas verwijdert geërfde `OPS_DEV_GUARDED` en `OPS_DEV_PORT`, start zelf `npm run dev` en
 leest de werkelijk toegewezen URL en PID uit de launcher-output. Het controleert dat de normale
@@ -105,7 +130,8 @@ performancegrens.
 Elke geslaagde run schrijft buiten de repo naar een unieke submap onder
 `/tmp/xer-x11-evidence/`. Daarin staan metadata, de privacy-geredigeerde overzichtsscreenshot,
 een afzonderlijke elementopname van de zichtbare XER-toast, de geobserveerde state en de
-dev-server-output. Fase 2A voegt een geredigeerde Help-screenshot toe. De toastopname wordt vóór
+privacyveilige `server-summary.json`; ruwe dev-serveroutput wordt niet bewaard. Fase 2A voegt een
+geredigeerde Help-screenshot toe. De toastopname wordt vóór
 auto-dismiss gemaakt en accepteert alleen generieke importaantallen, de exacte veilige
 encodingregel en `Read more`; pad-,
 bestands-, project-, taak- en resourcenamen zijn er niet toegestaan. Canvas, documentnaam,
@@ -113,12 +139,32 @@ tablabels en mogelijk corpusdragende Help-inhoud worden in de overige screenshot
 De metadata maakt twee verschillende historische ankers expliciet. `git.base` is de vaste
 cumulatieve fase-2A-basis `790d6cd8266682fa9b7798a3d1f9e0a1a2498db9`; `git.commitParent` is de
 live directe `HEAD^` van de commit waarop de browserrun werkelijk draait. Daarnaast bevat zij de
-live lokale Git-toplevel, branch, HEAD en ruwe beginstatus om het bewijs aan de juiste checkout te
-koppelen. Na browser-, server- en dependencycleanup moeten alle zes waarden exact gelijk zijn aan
-hun beginwaarde voordat een evidencebestand wordt geschreven. Daardoor kan de metadata lokale
-paden bevatten en is de volledige evidencemap uitsluitend bedoeld voor lokale opslag, niet voor
-publicatie of commit in de repo.
+live HEAD en alleen SHA-256-fingerprints van worktree, branch en ruwe beginstatus. De rauwe waarden
+blijven uitsluitend intern voor de zesdelige Git-eindgate. Na browser-, server- en
+dependencycleanup moeten alle zes waarden exact gelijk zijn aan hun beginwaarde voordat een
+evidencebestand wordt geschreven. Metadata bevat geen absolute paden, URL's, executables,
+corpus-/bestandsnamen of ruwe serveroutput. Een succesvolle fase-2B-run schrijft op stdout alleen
+het opaque `x11-<uuid>`-evidence-id. Het ouderproces vangt de werkelijke stdout van het
+browser-childproces op en laat die door dezelfde gesloten privacygate lopen; `privacy-audit.json`
+moet daarvoor `capturedStdout: true` en voor stdout, metadata, server- en stateartefact expliciet
+`pathlikeDetected: false` vastleggen. Vóór die denylist controleert een afzonderlijke positieve
+stringveldengate per kanaal ieder tekstveld: alleen vastgelegde paden met een opaque UUID-,
+Git-/SHA-/FNV-hash- of vaste generieke enumwaarde zijn geldig. Onbekende stringvelden en vrije
+labels zijn standaard rood; `stringSchemaSafe` en `denylistSafe` moeten beide `true` zijn.
 
 Deze test bewijst de browser-dev-build met de `input[type=file]`-terugval. Hij bewijst niet de
 Chromium File System Access API, de native OS-bestandkiezer of Tauri `plugin-dialog`/`plugin-fs`.
 Die OS-specifieke routes vallen buiten fase 1 en deze fase-2A-stap.
+
+Fase 2B bewijst daarnaast alleen de browser-IndexedDB-route in de tijdelijke Playwright-context.
+De abortproef is een echte IndexedDB-transaction-abort en toont dat de voorafgaande consistente
+recordset byte-/digestgelijk blijft; zij simuleert geen procescrash midden in productcode, geen
+browser-OOM-kill en geen stroomuitval. Er wordt nadrukkelijk geen Tauri-`fsync`-, filesystem- of
+powerlossclaim gedaan. Alle evidence blijft uitsluitend lokaal onder `/tmp/xer-x11-evidence/` en
+hoort niet in Git of een publicatie.
+
+De grootbestandproef bindt renderbewijs structureel aan de primaire Gantt-canvas onder
+`data-testid="gantt-vscroll"`. Alleen geaggregeerde 64×64-samplekenmerken worden vastgelegd:
+afmetingen, niet-transparante samples, kleur-buckets, luminantiebereik en overgangstelling. Geen
+pixels of labels worden geëxporteerd. Voor de gecontroleerd-dirty same-tab recoveryreload geldt
+`beforeUnloadDialogs` exact 1; `alert`, `confirm` en `prompt` blijven elk exact 0.

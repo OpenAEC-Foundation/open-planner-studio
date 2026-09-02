@@ -6,11 +6,16 @@ import process from 'node:process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   readOpsState,
   readMultiDocumentOpsState,
+  readPhase2BDocumentState,
   assertSmallAState,
   assertMultiDocumentEvidence,
+  assertRecoveryEvidence,
+  assertLargeResourceEvidence,
+  assertPhase2BEvidencePrivacy,
   assertMultiDocumentToastLines,
   normalizeVisibleToastLines,
   XER_OPEN_MESSAGE_KEY,
@@ -22,11 +27,18 @@ const FALLBACK_CHROMIUM = '/usr/bin/google-chrome';
 const DEFAULT_CORPUS_FILE = 'crawl-xer/p6diff-baseline.xer';
 const MULTI_DOCUMENT_CORPUS_FILE = 'crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer';
 const MULTI_DOCUMENT_SCENARIO = 'multidoc-help';
+const RECOVERY_SCENARIO = 'multidoc-recovery';
+const LARGE_RESOURCE_SCENARIO = 'large-resources';
+const LARGE_RESOURCE_CORPUS_FILE = 'crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer';
 const EVIDENCE_ROOT = '/tmp/xer-x11-evidence';
 const PHASE_2A_BASE = '790d6cd8266682fa9b7798a3d1f9e0a1a2498db9';
 
 function runId() {
-  return `${new Date().toISOString().replace(/[^0-9TZ]/g, '')}-${process.pid}`;
+  return `x11-${randomUUID()}`;
+}
+
+function fingerprint(value) {
+  return `sha256-${createHash('sha256').update(String(value)).digest('hex')}`;
 }
 
 function isExplicitCiMode() {
@@ -77,12 +89,23 @@ export function assertGitEvidenceUnchanged(before, after) {
 
 export function assertMetadataGitIdentity(metadata, expected) {
   const observed = metadata.git;
-  if (observed?.toplevel !== expected.toplevel || observed?.branch !== expected.branch ||
-      observed?.head !== expected.head || observed?.base !== expected.base ||
-      observed?.commitParent !== expected.commitParent ||
-      observed?.statusPorcelainV1 !== expected.statusPorcelainV1) {
+  const sanitizedExpected = metadataGitIdentity(expected);
+  if (JSON.stringify(observed) !== JSON.stringify(sanitizedExpected)) {
     fail(`metadata-git-identiteitsgate rood: observed=${JSON.stringify(observed)}; expected=${JSON.stringify(expected)}`);
   }
+}
+
+export function metadataGitIdentity(evidence) {
+  return {
+    worktreeFingerprint: fingerprint(evidence.toplevel),
+    branchFingerprint: fingerprint(evidence.branch),
+    head: evidence.head,
+    base: evidence.base,
+    commitParent: evidence.commitParent,
+    statusFingerprint: fingerprint(evidence.statusPorcelainV1),
+    statusClean: evidence.statusPorcelainV1 === '',
+    integrityFieldsMatched: true,
+  };
 }
 
 async function readableFile(path, label) {
@@ -95,10 +118,14 @@ async function readableFile(path, label) {
 
 async function preflight() {
   const scenario = process.env.OPS_XER_X11_SCENARIO?.trim() || 'small-a';
-  if (!['small-a', MULTI_DOCUMENT_SCENARIO].includes(scenario)) {
+  if (!['small-a', MULTI_DOCUMENT_SCENARIO, RECOVERY_SCENARIO, LARGE_RESOURCE_SCENARIO].includes(scenario)) {
     fail(`onbekend OPS_XER_X11_SCENARIO: ${scenario}`);
   }
-  const corpusFile = scenario === MULTI_DOCUMENT_SCENARIO ? MULTI_DOCUMENT_CORPUS_FILE : DEFAULT_CORPUS_FILE;
+  const corpusFile = scenario === LARGE_RESOURCE_SCENARIO
+    ? LARGE_RESOURCE_CORPUS_FILE
+    : [MULTI_DOCUMENT_SCENARIO, RECOVERY_SCENARIO].includes(scenario)
+      ? MULTI_DOCUMENT_CORPUS_FILE
+      : DEFAULT_CORPUS_FILE;
   const corpusRoot = process.env.OPS_XER_CORPUS?.trim();
   const display = process.env.DISPLAY?.trim();
   const waylandSocket = resolve(process.env.XDG_RUNTIME_DIR?.trim() || '/run/user/1000', process.env.WAYLAND_DISPLAY?.trim() || 'wayland-0');
@@ -109,7 +136,7 @@ async function preflight() {
   ].find((candidate) => candidate && existsSync(candidate));
 
   if (isExplicitCiMode()) {
-    console.log('SKIP: expliciete CI-modus (OPS_XER_X11_CI=1)');
+    console.error('SKIP: expliciete CI-modus (OPS_XER_X11_CI=1)');
     return null;
   }
 
@@ -215,6 +242,20 @@ async function startDevServer() {
     await stopDevServer(child);
     throw error;
   }
+}
+
+function privacySafeServerSummary(server) {
+  return {
+    processObserved: Number.isInteger(server.pid) && server.pid > 0,
+    httpStatus: 200,
+    assignedPort: Number(new URL(server.assignedUrl).port),
+    cwdMatched: server.procCwd === REPO_ROOT,
+    normalGuardedRoute: server.guard.normalRoute === true,
+    inheritedGuardEnvRemoved: server.guard.inheritedEnvRemoved === true,
+    externallyForcedPort: server.guard.externallyForcedPort === true,
+    fixedPortMatched: Number(new URL(server.assignedUrl).port) === server.guard.recordedPort,
+    outputDigest: fingerprint(server.output),
+  };
 }
 
 async function ensureDependencies() {
@@ -324,6 +365,14 @@ async function installDevBridgeOpenGate(page) {
         ? live.tasks.filter((task) => task.isSummary !== true && (task.childIds?.length ?? 0) === 0).length
         : 0;
       const rawReport = live.xerSourceArchive?.diagnostics?.file?.importReport;
+      const documentOrderEntries = Object.create(null);
+      const liveDocuments = Array.isArray(live.documents) ? live.documents : [];
+      for (let index = 0; index < liveDocuments.length; index += 1) {
+        documentOrderEntries[String(index)] = hashScalar(liveDocuments[index]?.id);
+      }
+      Object.freeze(documentOrderEntries);
+      const sourceResourceCatalog = live.xerSourceArchive?.readModel?.resourceCatalog;
+      const sourceMetadataCatalog = live.xerSourceArchive?.readModel?.metadataCatalog;
       const importReport = dataRecord([
         ['projectsSeen', Number.isInteger(rawReport?.projectsSeen) ? rawReport.projectsSeen : null],
         ['documentsOpened', Number.isInteger(rawReport?.documentsOpened) ? rawReport.documentsOpened : null],
@@ -333,7 +382,11 @@ async function installDevBridgeOpenGate(page) {
         ['danglingBaselineReferences', Number.isInteger(rawReport?.danglingBaselineReferences) ? rawReport.danglingBaselineReferences : null],
       ]);
       return dataRecord([
-        ['documents', dataRecord([['count', Array.isArray(live.documents) ? live.documents.length : 0]])],
+        ['documents', dataRecord([
+          ['count', liveDocuments.length],
+          ['order', documentOrderEntries],
+          ['activeDocumentHash', hashScalar(live.activeDocumentId)],
+        ])],
         ['tasks', dataRecord([['importedCount', importedTaskCount]])],
         ['sequences', dataRecord([['count', Array.isArray(live.sequences) ? live.sequences.length : 0]])],
         ['cpmResult', Boolean(live.cpmResult)],
@@ -343,15 +396,30 @@ async function installDevBridgeOpenGate(page) {
         ['activeDocument', dataRecord([
           ['documentHash', hashScalar(live.activeDocumentId)],
           ['projectIdentityHash', hashScalar(live.xerSourceProjectId)],
+          ['selectorHash', hashScalar(live.xerSourceProjectId)],
+          ['selectorPresent', typeof live.xerSourceProjectId === 'string' && live.xerSourceProjectId.length > 0],
           ['taskCount', importedTaskCount],
           ['sequenceCount', Array.isArray(live.sequences) ? live.sequences.length : 0],
+          ['assignmentCount', Array.isArray(live.assignments) ? live.assignments.length : 0],
+          ['resourceCount', Array.isArray(live.resources) ? live.resources.length : 0],
+          ['calendarCount', Array.isArray(live.calendars) ? live.calendars.length : 0],
+          ['activityCodeTypeCount', Array.isArray(live.activityCodeTypes) ? live.activityCodeTypes.length : 0],
+          ['customFieldDefCount', Array.isArray(live.customFieldDefs) ? live.customFieldDefs.length : 0],
           ['cpmPresent', Boolean(live.cpmResult)],
           ['sourceArchivePresent', Boolean(live.xerSourceArchive)],
+          ['archiveDigest', typeof live.xerSourceArchive?.sha256 === 'string' ? live.xerSourceArchive.sha256 : null],
+          ['archiveByteLength', Number.isInteger(live.xerSourceArchive?.byteLength) ? live.xerSourceArchive.byteLength : null],
+          ['sourceResourceCatalogCount', Array.isArray(sourceResourceCatalog?.resources) ? sourceResourceCatalog.resources.length : 0],
+          ['sourceResourceRowCount', Array.isArray(sourceResourceCatalog?.rows?.resources) ? sourceResourceCatalog.rows.resources.length : 0],
+          ['sourceMetadataActivityCodeTypeCount', Array.isArray(sourceMetadataCatalog?.activityCodeTypes) ? sourceMetadataCatalog.activityCodeTypes.length : 0],
+          ['sourceMetadataCustomFieldDefCount', Array.isArray(sourceMetadataCatalog?.customFieldDefs) ? sourceMetadataCatalog.customFieldDefs.length : 0],
         ])],
         ['ui', dataRecord([
           ['activeRibbonTab', typeof live.ui?.activeRibbonTab === 'string' ? live.ui.activeRibbonTab : null],
           ['backstageSection', typeof live.ui?.backstageSection === 'string' ? live.ui.backstageSection : null],
           ['pendingHelpArticleConsumed', live.ui?.pendingHelpArticleId === null],
+          ['showResourcePanel', Boolean(live.ui?.showResourcePanel)],
+          ['showHistogram', Boolean(live.ui?.showHistogram)],
           ['notifications', dataRecord([
             ['count', liveNotifications.length],
             ['entries', notificationEntries],
@@ -721,6 +789,451 @@ async function runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetu
   };
 }
 
+async function readRecoveryDatabase(page) {
+  return page.evaluate(async () => {
+    const hashScalar = (value) => {
+      if (typeof value !== 'string') return null;
+      let hash = 0x811c9dc5;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+      }
+      return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+    };
+    const sessionId = sessionStorage.getItem('ops-recovery-session');
+    if (!sessionId) return null;
+    const db = await new Promise((resolvePromise, reject) => {
+      const request = indexedDB.open('ops-recovery');
+      request.onsuccess = () => resolvePromise(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const records = await new Promise((resolvePromise, reject) => {
+        const request = db.transaction('records', 'readonly').objectStore('records').getAll();
+        request.onsuccess = () => resolvePromise(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const ours = records.filter((record) => record.sessionId === sessionId);
+      const manifest = ours.find((record) => record.kind === 'manifest');
+      if (!manifest) return null;
+      const documents = (manifest.documents ?? []).map((document, index) => {
+        const record = ours.find((item) => item.kind === 'doc' && item.docId === document.id);
+        return {
+          ordinal: index + 1,
+          documentHash: hashScalar(document.id),
+          ifcDigest: record ? hashScalar(record.ifc) : null,
+          ifcByteLength: record ? new TextEncoder().encode(record.ifc).byteLength : 0,
+          addedAt: record?.addedAt ?? null,
+        };
+      });
+      const fingerprint = hashScalar(JSON.stringify(ours
+        .map((record) => ({
+          id: hashScalar(record.id), kind: record.kind, addedAt: record.addedAt,
+          active: record.kind === 'manifest' ? hashScalar(record.activeDocumentId) : null,
+          order: record.kind === 'manifest' ? (record.documents ?? []).map((item) => hashScalar(item.id)) : null,
+          ifc: record.kind === 'doc' ? hashScalar(record.ifc) : null,
+        }))
+        .sort((left, right) => String(left.id).localeCompare(String(right.id)))));
+      return {
+        sessionHash: hashScalar(sessionId),
+        addedAt: manifest.addedAt,
+        activeDocumentHash: hashScalar(manifest.activeDocumentId),
+        documentOrder: documents.map((document) => document.documentHash),
+        documents,
+        fingerprint,
+      };
+    } finally {
+      db.close();
+    }
+  });
+}
+
+async function waitForRecoveryDatabase(page, predicate, label, timeout = 60_000) {
+  const deadline = Date.now() + timeout;
+  let observed = null;
+  while (Date.now() < deadline) {
+    observed = await readRecoveryDatabase(page);
+    if (observed && predicate(observed)) return observed;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 200));
+  }
+  fail(`${label} niet binnen ${timeout}ms waargenomen; observed=${JSON.stringify(observed)}`);
+}
+
+async function abortIndexedDbTransaction(page) {
+  return page.evaluate(async () => {
+    const sessionId = sessionStorage.getItem('ops-recovery-session');
+    if (!sessionId) throw new Error('recovery-session ontbreekt voor abortproef');
+    const db = await new Promise((resolvePromise, reject) => {
+      const request = indexedDB.open('ops-recovery');
+      request.onsuccess = () => resolvePromise(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise((resolvePromise, reject) => {
+        const tx = db.transaction('records', 'readwrite');
+        // Een expliciete abort levert volgens IndexedDB ook een bubbling error-event op de
+        // request/transaction. Onderdruk alleen dat verwachte AbortError-pad; onabort is de gate.
+        tx.onerror = (event) => { event.preventDefault(); };
+        tx.oncomplete = () => reject(new Error('abortproef committeerde onverwacht'));
+        tx.onabort = () => resolvePromise(true);
+        const request = tx.objectStore('records').put({
+          id: `${sessionId}::phase2b-abort-probe`, kind: 'doc', sessionId,
+          docId: 'phase2b-abort-probe', ifc: 'NIET-COMMITTEREN', addedAt: Date.now(),
+        });
+        request.onerror = (event) => { event.preventDefault(); };
+        tx.abort();
+      });
+    } finally {
+      db.close();
+    }
+  });
+}
+
+async function collectDocumentSnapshots(page, { proveCpm = false } = {}) {
+  const tabs = page.locator('[role="tab"][data-ops-tab-index]');
+  const count = await tabs.count();
+  const documents = [];
+  for (let ordinal = 1; ordinal <= count; ordinal += 1) {
+    await tabs.nth(ordinal - 1).click();
+    await waitForActiveOrdinal(page, ordinal);
+    let snapshot = await readPhase2BDocumentState(page);
+    let cpmExecutedViaF5 = false;
+    if (proveCpm) {
+      await page.keyboard.press('F5');
+      await page.waitForFunction(() => window.__OPS__?.store.getState()?.activeDocument?.cpmPresent, null, { timeout: 30_000 });
+      snapshot = await readPhase2BDocumentState(page);
+      cpmExecutedViaF5 = true;
+    }
+    documents.push({
+      ordinal,
+      ...snapshot.activeDocument,
+      cpmExecutable: Boolean(snapshot.activeDocument.cpmPresent),
+      cpmExecutedViaF5,
+    });
+  }
+  return documents;
+}
+
+async function runBrowserRecovery(page, preflightResult, bridgeGateSetup) {
+  await openWithVisibleFileChooser(page, preflightResult.xerPath);
+  await page.waitForFunction(() => window.__OPS__?.store.getState()?.documents?.count === 12, null, { timeout: 45_000 });
+  const tabs = page.locator('[role="tab"][data-ops-tab-index]');
+  if (await tabs.count() !== 12) fail(`recovery-import leverde ${await tabs.count()} tabs, verwacht 12`);
+
+  // Een geopende bronimport is terecht schoon en maakt dus nog geen crashsnapshot. Maak via de
+  // gewone zichtbare productbediening één echte gebruikerswijziging; vanaf dat moment moet de
+  // browser-autosave alle twaalf open documenten veiligstellen.
+  const taskCountBeforeTrigger = (await readPhase2BDocumentState(page)).activeDocument.taskCount;
+  const homeTab = page.locator('button.ribbon-tab').filter({ hasText: /^Home$/ });
+  await homeTab.click();
+  const addTaskButton = page.locator('button.ribbon-btn').filter({ hasText: /^Task$/ });
+  if (await addTaskButton.count() !== 1) fail('zichtbare Engelse Task-knop voor autosavetrigger ontbreekt of is niet uniek');
+  await addTaskButton.click();
+  await page.waitForFunction((previous) => window.__OPS__?.store.getState()?.activeDocument?.taskCount === previous + 1, taskCountBeforeTrigger);
+  const autosaveTrigger = { route: 'visible:Home>Task', taskDelta: 1 };
+
+  const firstStored = await waitForRecoveryDatabase(
+    page,
+    (value) => value.documents.length === 12 && value.documents.every((document) => document.ifcByteLength > 0),
+    'eerste volledige recoveryset',
+  );
+  const currentOrdinal = Number(await page.locator('[role="tab"][aria-selected="true"]').getAttribute('data-ops-tab-index'));
+  const targetOrdinal = currentOrdinal === 2 ? 1 : 2;
+  await tabs.nth(targetOrdinal - 1).click();
+  await waitForActiveOrdinal(page, targetOrdinal);
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 750));
+  const beforeDue = await readRecoveryDatabase(page);
+  const secondStored = await waitForRecoveryDatabase(
+    page,
+    (value) => value.addedAt > firstStored.addedAt && value.activeDocumentHash !== firstStored.activeDocumentHash,
+    'door throttle uitgestelde manifestupdate',
+    20_000,
+  );
+  const throttle = {
+    firstAddedAt: firstStored.addedAt,
+    secondAddedAt: secondStored.addedAt,
+    intervalMs: secondStored.addedAt - firstStored.addedAt,
+    manifestUnchangedBeforeDue: beforeDue?.addedAt === firstStored.addedAt,
+  };
+
+  const liveBefore = await readPhase2BDocumentState(page);
+  const liveDocuments = await collectDocumentSnapshots(page);
+  await tabs.nth(targetOrdinal - 1).click();
+  await waitForActiveOrdinal(page, targetOrdinal);
+  const activeBeforeReload = await readPhase2BDocumentState(page);
+  const manifestForReload = await waitForRecoveryDatabase(
+    page,
+    (value) => value.activeDocumentHash === activeBeforeReload.activeDocumentHash,
+    'manifest met gekozen actief document',
+    20_000,
+  );
+  const initialDocuments = liveDocuments.map((document, index) => ({
+    ...document,
+    ifcDigest: manifestForReload.documents[index]?.ifcDigest ?? null,
+    ifcByteLength: manifestForReload.documents[index]?.ifcByteLength ?? 0,
+  }));
+
+  const beforeAbort = await readRecoveryDatabase(page);
+  const transactionAborted = await abortIndexedDbTransaction(page);
+  const afterAbort = await readRecoveryDatabase(page);
+  const abortedTransaction = {
+    transactionAborted,
+    beforeFingerprint: beforeAbort?.fingerprint ?? null,
+    afterFingerprint: afterAbort?.fingerprint ?? null,
+  };
+
+  const preReloadDialogs = await page.evaluate(() => ({ ...window.__OPS_X11_DIALOG_COUNTS__ }));
+  let beforeUnloadDialogs = 0;
+  const handleDialog = async (dialog) => {
+    if (dialog.type() === 'beforeunload') { beforeUnloadDialogs += 1; await dialog.accept(); return; }
+    await dialog.dismiss();
+  };
+  page.on('dialog', handleDialog);
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
+  await page.waitForFunction(() => Boolean(window.__OPS__) && typeof window.showOpenFilePicker === 'undefined');
+  const restoredBridgeSetup = await installDevBridgeOpenGate(page);
+  const recoveryDialog = page.locator('[role="dialog"]').filter({ hasText: 'Restore unsaved work' });
+  await recoveryDialog.waitFor({ state: 'visible', timeout: 60_000 });
+  const entryCount = await recoveryDialog.locator('li').count();
+  const privacyLines = [
+    (await recoveryDialog.locator('span').filter({ hasText: /^Restore unsaved work$/ }).innerText()).trim(),
+    (await recoveryDialog.locator('button').filter({ hasText: /^Don't restore$/ }).innerText()).trim(),
+    (await recoveryDialog.locator('button').filter({ hasText: /^Restore$/ }).innerText()).trim(),
+  ];
+  const recoveryScreenshot = await page.screenshot({
+    fullPage: false,
+    mask: [page.locator('canvas'), page.locator('.title-bar-file-name'), page.locator('[role="tab"]'), recoveryDialog.locator('li')],
+    maskColor: '#263238',
+  });
+  await recoveryDialog.locator('button').filter({ hasText: /^Restore$/ }).click();
+  await page.waitForFunction(() => window.__OPS__?.store.getState()?.documents?.count === 12, null, { timeout: 60_000 });
+  await page.locator('[role="tab"][data-ops-tab-index]').first().waitFor({ state: 'visible' });
+  const restoredDocuments = await collectDocumentSnapshots(page, { proveCpm: true });
+  await page.locator(`[role="tab"][data-ops-tab-index="${targetOrdinal}"]`).click();
+  await waitForActiveOrdinal(page, targetOrdinal);
+  const restoredState = await readPhase2BDocumentState(page);
+  const evidence = {
+    initial: {
+      documentCount: liveBefore.documentCount,
+      manifestDocumentCount: manifestForReload.documents.length,
+      activeDocumentHash: activeBeforeReload.activeDocumentHash,
+      manifestActiveDocumentHash: manifestForReload.activeDocumentHash,
+      documentOrder: activeBeforeReload.documentOrder,
+      manifestOrder: manifestForReload.documentOrder,
+      documents: initialDocuments,
+    },
+    throttle,
+    autosaveTrigger,
+    abortedTransaction,
+    recoveryUi: { visible: true, entryCount, restoredViaVisibleButton: true, beforeUnloadDialogs },
+    runtime: { nativeDialogs: null },
+    restored: {
+      documentCount: restoredState.documentCount,
+      activeDocumentHash: restoredState.activeDocumentHash,
+      documentOrder: restoredState.documentOrder,
+      documents: restoredDocuments,
+    },
+    privacy: { visibleLines: privacyLines },
+  };
+  const bridgeGate = await readDevBridgeOpenGate(page);
+  if (bridgeGate.calls.length !== 0 || restoredBridgeSetup.wrapped.length === 0 || bridgeGateSetup.wrapped.length === 0) {
+    fail(`recovery anti-sluiproute-gate rood: ${JSON.stringify(bridgeGate)}`);
+  }
+  const postReloadDialogs = await page.evaluate(() => ({ ...window.__OPS_X11_DIALOG_COUNTS__ }));
+  const dialogCounts = Object.fromEntries(Object.keys(postReloadDialogs).map((key) => [key, preReloadDialogs[key] + postReloadDialogs[key]]));
+  evidence.runtime.nativeDialogs = dialogCounts;
+  assertRecoveryEvidence(evidence);
+  if (Object.values(dialogCounts).some((count) => count !== 0)) fail(`recovery native-dialog-audit rood: ${JSON.stringify(dialogCounts)}`);
+  const screenshot = await page.screenshot({
+    fullPage: false,
+    mask: [page.locator('canvas'), page.locator('.title-bar-file-name'), page.locator('[role="tab"]')],
+    maskColor: '#263238',
+  });
+  page.off('dialog', handleDialog);
+  return { state: evidence, dialogCounts, bridgeGate, screenshot, recoveryScreenshot, toastScreenshot: null, toastBox: null };
+}
+
+async function readPrimaryGanttRenderEvidence(page) {
+  return page.evaluate(() => {
+    const anchor = document.querySelector('[data-testid="gantt-vscroll"]');
+    const root = anchor?.parentElement ?? null;
+    const primaryContainer = root?.firstElementChild ?? null;
+    const primaryCanvas = primaryContainer?.querySelector(':scope > canvas') ?? null;
+    const primaryScroll = primaryContainer?.querySelector(':scope > [data-testid="gantt-hscroll"]') ?? null;
+    const primaryCanvasBound = Boolean(
+      root && primaryContainer && primaryCanvas instanceof HTMLCanvasElement && primaryScroll &&
+      anchor?.parentElement === root && primaryContainer.parentElement === root,
+    );
+    if (!(primaryCanvas instanceof HTMLCanvasElement)) {
+      return {
+        rootAnchor: anchor ? 'gantt-vscroll' : null,
+        primaryCanvasBound,
+        width: 0,
+        height: 0,
+        sampleCount: 0,
+        nonTransparentSamples: 0,
+        uniqueColorBuckets: 0,
+        luminanceRange: 0,
+        transitionCount: 0,
+      };
+    }
+    const rect = primaryCanvas.getBoundingClientRect();
+    const sampleWidth = 64;
+    const sampleHeight = 64;
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = sampleWidth;
+    sampleCanvas.height = sampleHeight;
+    const sampleContext = sampleCanvas.getContext('2d', { willReadFrequently: true });
+    if (!sampleContext) throw new Error('Gantt-samplecontext ontbreekt');
+    sampleContext.drawImage(primaryCanvas, 0, 0, sampleWidth, sampleHeight);
+    const pixels = sampleContext.getImageData(0, 0, sampleWidth, sampleHeight).data;
+    const buckets = new Set();
+    let nonTransparentSamples = 0;
+    let minLuminance = 255;
+    let maxLuminance = 0;
+    let transitionCount = 0;
+    let previousBucket = null;
+    for (let index = 0; index < pixels.length; index += 4) {
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      const alpha = pixels[index + 3];
+      if (alpha > 0) nonTransparentSamples += 1;
+      const bucket = `${red >> 4}:${green >> 4}:${blue >> 4}:${alpha >> 4}`;
+      buckets.add(bucket);
+      if (previousBucket !== null && previousBucket !== bucket) transitionCount += 1;
+      previousBucket = bucket;
+      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+      minLuminance = Math.min(minLuminance, luminance);
+      maxLuminance = Math.max(maxLuminance, luminance);
+    }
+    return {
+      rootAnchor: anchor ? 'gantt-vscroll' : null,
+      primaryCanvasBound,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      sampleCount: sampleWidth * sampleHeight,
+      nonTransparentSamples,
+      uniqueColorBuckets: buckets.size,
+      luminanceRange: Number((maxLuminance - minLuminance).toFixed(3)),
+      transitionCount,
+    };
+  });
+}
+
+async function runBrowserLargeResources(page, preflightResult, bridgeGateSetup) {
+  const pageErrors = [];
+  let crashed = false;
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('crash', () => { crashed = true; });
+  const importStarted = performance.now();
+  await openWithVisibleFileChooser(page, preflightResult.xerPath);
+  await page.waitForFunction(() => {
+    const state = window.__OPS__?.store.getState();
+    return state?.documents?.count > 0 && state?.activeDocument?.taskCount > 0 && state?.activeDocument?.sourceArchivePresent;
+  }, null, { timeout: 180_000 });
+  const importMs = performance.now() - importStarted;
+  const tabs = page.locator('[role="tab"][data-ops-tab-index]');
+  const tabCount = await tabs.count();
+  let richOrdinal = 1;
+  let richSnapshot = null;
+  for (let ordinal = 1; ordinal <= tabCount; ordinal += 1) {
+    await tabs.nth(ordinal - 1).click();
+    await waitForActiveOrdinal(page, ordinal);
+    const candidate = await readPhase2BDocumentState(page);
+    if (!richSnapshot || candidate.activeDocument.assignmentCount > richSnapshot.activeDocument.assignmentCount) {
+      richSnapshot = candidate;
+      richOrdinal = ordinal;
+    }
+  }
+  if (!richSnapshot) fail('grootbestand leverde geen documentprojectie');
+  let tabActivationMs = 0;
+  if (tabCount > 1) {
+    const otherOrdinal = richOrdinal === 1 ? 2 : 1;
+    await tabs.nth(otherOrdinal - 1).click();
+    await waitForActiveOrdinal(page, otherOrdinal);
+    const switchStarted = performance.now();
+    await tabs.nth(richOrdinal - 1).click();
+    await waitForActiveOrdinal(page, richOrdinal);
+    tabActivationMs = performance.now() - switchStarted;
+  } else {
+    const switchStarted = performance.now();
+    await tabs.first().click();
+    await waitForActiveOrdinal(page, 1);
+    tabActivationMs = performance.now() - switchStarted;
+  }
+  richSnapshot = await readPhase2BDocumentState(page);
+  const ganttStarted = performance.now();
+  await page.locator('[data-testid="gantt-vscroll"]').waitFor({ state: 'visible', timeout: 60_000 });
+  await page.evaluate(() => new Promise((resolvePromise) => requestAnimationFrame(() => requestAnimationFrame(resolvePromise))));
+  const gantt = await readPrimaryGanttRenderEvidence(page);
+  const firstGanttMs = performance.now() - ganttStarted;
+
+  const resourcesTab = page.locator('button.ribbon-tab').filter({ hasText: /^Resources$/ });
+  await resourcesTab.click();
+  const resourcesStarted = performance.now();
+  const resourcesButton = page.locator('button.ribbon-btn').filter({ hasText: /^Resources$/ });
+  await resourcesButton.click();
+  await page.waitForFunction(() => window.__OPS__?.store.getState()?.ui?.showResourcePanel === true);
+  const resourcePanelTitle = page.locator('.ui-card-header').filter({ hasText: /^Resources$/ });
+  await resourcePanelTitle.waitFor({ state: 'visible', timeout: 30_000 });
+  const resourcePanelLabel = (await resourcePanelTitle.innerText()).trim();
+  const resourcesPanelMs = performance.now() - resourcesStarted;
+  const resourcesPanelVisible = (await readPhase2BDocumentState(page)).ui.showResourcePanel;
+  const closeResourcePanel = resourcePanelTitle.locator('xpath=..').locator('button[title="Close"]');
+  if (await closeResourcePanel.count() !== 1) fail('zichtbare sluitknop van Resources-paneel ontbreekt of is niet uniek');
+  await closeResourcePanel.click();
+  await page.waitForFunction(() => window.__OPS__?.store.getState()?.ui?.showResourcePanel === false);
+
+  await resourcesTab.click();
+  const histogramStarted = performance.now();
+  const histogramButton = page.locator('button.ribbon-btn').filter({ hasText: /^Histogram$/ });
+  await histogramButton.click();
+  await page.locator('[data-tour-anchor="histogram-strip"]').waitFor({ state: 'visible', timeout: 30_000 });
+  const histogramMs = performance.now() - histogramStarted;
+  const finalState = await readPhase2BDocumentState(page);
+  const active = finalState.activeDocument;
+  const dialogCounts = await page.evaluate(() => ({ ...window.__OPS_X11_DIALOG_COUNTS__ }));
+  const evidence = {
+    counts: { tasks: active.taskCount, assignments: active.assignmentCount, calendars: active.calendarCount },
+    sourceArchivePresent: active.sourceArchivePresent,
+    sourceArchiveDigest: active.archiveDigest,
+    selectorPresent: active.selectorPresent,
+    cpmPresent: active.cpmPresent,
+    catalogs: {
+      resources: active.sourceResourceCatalogCount,
+      sourceRows: active.sourceResourceRowCount,
+      activityCodeCatalogs: active.sourceMetadataActivityCodeTypeCount,
+      udfDefs: active.sourceMetadataCustomFieldDefCount,
+    },
+    gantt,
+    routes: {
+      firstGanttRendered: true,
+      resourcesPanelVisible,
+      histogramVisible: finalState.ui.showHistogram,
+      richDocumentOrdinal: richOrdinal,
+      documentCount: tabCount,
+    },
+    latencies: { importMs, firstGanttMs, tabActivationMs, resourcesPanelMs, histogramMs },
+    runtime: { crashed, pageErrors: pageErrors.length, nativeDialogs: dialogCounts },
+    privacy: { visibleLines: [resourcePanelLabel, (await histogramButton.innerText()).trim()] },
+  };
+  assertLargeResourceEvidence(evidence);
+  const bridgeGate = await readDevBridgeOpenGate(page);
+  if (bridgeGate.calls.length !== 0 || bridgeGate.wrapped.length !== bridgeGateSetup.wrapped.length) {
+    fail(`grootbestand anti-sluiproute-gate rood: ${JSON.stringify(bridgeGate)}`);
+  }
+  const screenshot = await page.screenshot({
+    fullPage: false,
+    mask: [
+      page.locator('canvas'), page.locator('.title-bar-file-name'), page.locator('[role="tab"]'),
+      page.locator('tbody'), page.locator('.ops-toast'),
+    ],
+    maskColor: '#263238',
+  });
+  return { state: evidence, dialogCounts, bridgeGate, screenshot, toastScreenshot: null, toastBox: null };
+}
+
 async function runBrowserSmallA(preflightResult, server) {
   const { chromium } = loadPlaywrightCore();
   const browserEnv = { ...process.env };
@@ -762,6 +1275,20 @@ async function runBrowserSmallA(preflightResult, server) {
     await page.waitForFunction(() => Boolean(window.__OPS__) && typeof window.showOpenFilePicker === 'undefined');
     const bridgeGateSetup = await installDevBridgeOpenGate(page);
 
+    if (preflightResult.scenario === RECOVERY_SCENARIO) {
+      return {
+        ...(await runBrowserRecovery(page, preflightResult, bridgeGateSetup)),
+        launchArgs,
+        headless: false,
+      };
+    }
+    if (preflightResult.scenario === LARGE_RESOURCE_SCENARIO) {
+      return {
+        ...(await runBrowserLargeResources(page, preflightResult, bridgeGateSetup)),
+        launchArgs,
+        headless: false,
+      };
+    }
     if (preflightResult.scenario === MULTI_DOCUMENT_SCENARIO) {
       return {
         ...(await runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetup)),
@@ -855,7 +1382,8 @@ async function main() {
   const preflightResult = await preflight();
   if (!preflightResult) return;
   await assertNoDirectPathOpen();
-  const evidenceDir = resolve(EVIDENCE_ROOT, runId());
+  const evidenceId = runId();
+  const evidenceDir = resolve(EVIDENCE_ROOT, evidenceId);
   const dependencies = await ensureDependencies();
   let serverHandle = null;
   let browserEvidence = null;
@@ -885,51 +1413,124 @@ async function main() {
   if (runError) throw runError;
   if (!serverHandle || !browserEvidence) fail('browser- of serverbewijs ontbreekt na de run');
 
+  const serverSummary = privacySafeServerSummary(serverHandle.server);
   const metadata = {
-    runId: evidenceDir.split('/').pop(),
+    runId: evidenceId,
     scenario: preflightResult.scenario,
-    git: {
-      toplevel: gitStart.toplevel,
-      branch: gitStart.branch,
-      head: gitStart.head,
-      base: gitStart.base,
-      commitParent: gitStart.commitParent,
-      statusPorcelainV1: gitStart.statusPorcelainV1,
-      statusUnchangedAfterCleanup: true,
+    git: metadataGitIdentity(gitStart),
+    server: serverSummary,
+    browser: {
+      headless: browserEvidence.headless,
+      visible: browserEvidence.headless === false,
+      executableVerified: true,
+      wayland: browserEvidence.launchArgs.includes('--ozone-platform=wayland'),
     },
-    server: {
-      url: serverHandle.server.assignedUrl,
-      pid: serverHandle.server.pid,
-      cwd: serverHandle.server.procCwd,
-      httpStatus: 200,
-      guard: serverHandle.server.guard,
-    },
-    browser: { executablePath: preflightResult.chromiumPath, headless: browserEvidence.headless, launchArgs: browserEvidence.launchArgs },
     dom: preflightResult.scenario === MULTI_DOCUMENT_SCENARIO
       ? { tabCount: 12, helpTitle: browserEvidence.state.help.articleHeading }
-      : { text: browserEvidence.domText },
+      : preflightResult.scenario === RECOVERY_SCENARIO
+        ? { tabCount: browserEvidence.state.restored.documentCount, recoveryUi: true }
+        : preflightResult.scenario === LARGE_RESOURCE_SCENARIO
+          ? { tabCount: browserEvidence.state.routes.documentCount, resourcesPanel: true, histogram: true }
+          : { text: browserEvidence.domText },
     nativeDialogs: browserEvidence.dialogCounts,
     devBridgeOpenGate: browserEvidence.bridgeGate,
-    screenshot: 'imported-redacted.png',
-    toastScreenshot: { file: 'xer-toast.png', box: browserEvidence.toastBox },
-    helpScreenshot: browserEvidence.helpScreenshot ? 'help-redacted.png' : null,
+    artifacts: {
+      redactedUiScreenshot: true,
+      redactedToastScreenshot: Boolean(browserEvidence.toastScreenshot),
+      redactedHelpScreenshot: Boolean(browserEvidence.helpScreenshot),
+      redactedRecoveryScreenshot: Boolean(browserEvidence.recoveryScreenshot),
+      stateProjection: true,
+      serverSummary: true,
+    },
+    cleanup: { serverStopped: true, temporaryDependencyLinkRemoved: true, gitIdentityUnchanged: true },
   };
   assertMetadataGitIdentity(metadata, gitStart);
+  const phase2BScenario = [RECOVERY_SCENARIO, LARGE_RESOURCE_SCENARIO].includes(preflightResult.scenario);
+  if (phase2BScenario) {
+    const privacyAudit = assertPhase2BEvidencePrivacy({
+      evidenceId,
+      stdout: evidenceId,
+      metadata,
+      serverSummary,
+      stateArtifact: browserEvidence.state,
+    });
+    metadata.privacyAudit = privacyAudit;
+    assertPhase2BEvidencePrivacy({
+      evidenceId,
+      stdout: evidenceId,
+      metadata,
+      serverSummary,
+      stateArtifact: browserEvidence.state,
+    });
+  }
   await mkdir(evidenceDir, { recursive: true });
   await writeFile(resolve(evidenceDir, 'imported-redacted.png'), browserEvidence.screenshot);
-  await writeFile(resolve(evidenceDir, 'xer-toast.png'), browserEvidence.toastScreenshot);
+  if (browserEvidence.toastScreenshot) {
+    await writeFile(resolve(evidenceDir, 'xer-toast.png'), browserEvidence.toastScreenshot);
+  }
   if (browserEvidence.helpScreenshot) {
     await writeFile(resolve(evidenceDir, 'help-redacted.png'), browserEvidence.helpScreenshot);
   }
+  if (browserEvidence.recoveryScreenshot) {
+    await writeFile(resolve(evidenceDir, 'recovery-redacted.png'), browserEvidence.recoveryScreenshot);
+  }
   await writeFile(resolve(evidenceDir, 'state.json'), `${JSON.stringify(browserEvidence.state, null, 2)}\n`, 'utf8');
-  await writeFile(resolve(evidenceDir, 'server-output.txt'), serverHandle.server.output, 'utf8');
+  await writeFile(resolve(evidenceDir, 'server-summary.json'), `${JSON.stringify(serverSummary, null, 2)}\n`, 'utf8');
+  if (metadata.privacyAudit) {
+    await writeFile(resolve(evidenceDir, 'privacy-audit.json'), `${JSON.stringify(metadata.privacyAudit, null, 2)}\n`, 'utf8');
+  }
   await writeFile(resolve(evidenceDir, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
-  const label = preflightResult.scenario === MULTI_DOCUMENT_SCENARIO ? 'FASE-2A' : 'SMALL-A';
-  console.log(`${label} OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
+  console.log(evidenceId);
+}
+
+async function runWithCapturedStdout() {
+  if (process.env.OPS_XER_X11_CAPTURED_CHILD === '1' || isExplicitCiMode()) {
+    await main();
+    return;
+  }
+  const scriptPath = fileURLToPath(import.meta.url);
+  const child = spawn(process.execPath, [scriptPath], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, OPS_XER_X11_CAPTURED_CHILD: '1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let capturedStdout = '';
+  child.stdout.on('data', (chunk) => { capturedStdout += chunk.toString(); });
+  child.stderr.on('data', (chunk) => { process.stderr.write(chunk); });
+  const exitCode = await new Promise((resolvePromise) => child.once('exit', (code) => resolvePromise(code ?? 1)));
+  if (exitCode !== 0) fail(`gecapteerde X11-childrun eindigde met exitcode ${exitCode}`);
+  const stdout = capturedStdout.trim();
+  if (!/^x11-[0-9a-f-]{36}$/i.test(stdout) || capturedStdout !== `${stdout}\n`) {
+    fail('stdout-privacygate rood: childstdout is niet exact één opaque evidence-id-regel');
+  }
+
+  const evidenceDir = resolve(EVIDENCE_ROOT, stdout);
+  const metadataPath = resolve(evidenceDir, 'metadata.json');
+  const privacyPath = resolve(evidenceDir, 'privacy-audit.json');
+  const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
+  if ([RECOVERY_SCENARIO, LARGE_RESOURCE_SCENARIO].includes(metadata.scenario)) {
+    const serverSummary = JSON.parse(await readFile(resolve(evidenceDir, 'server-summary.json'), 'utf8'));
+    const stateArtifact = JSON.parse(await readFile(resolve(evidenceDir, 'state.json'), 'utf8'));
+    const privacyAudit = {
+      ...assertPhase2BEvidencePrivacy({
+        evidenceId: stdout,
+        stdout,
+        metadata,
+        serverSummary,
+        stateArtifact,
+      }),
+      capturedStdout: true,
+    };
+    metadata.privacyAudit = privacyAudit;
+    assertPhase2BEvidencePrivacy({ evidenceId: stdout, stdout, metadata, serverSummary, stateArtifact });
+    await writeFile(privacyPath, `${JSON.stringify(privacyAudit, null, 2)}\n`, 'utf8');
+    await writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+  }
+  process.stdout.write(`${stdout}\n`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
+  runWithCapturedStdout().catch((error) => {
     console.error(`X11-harnas rood: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
   });
