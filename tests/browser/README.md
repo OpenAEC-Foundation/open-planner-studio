@@ -67,6 +67,9 @@ een afzonderlijke elementopname van de zichtbare XER-toast, de geobserveerde sta
 dev-server-output. De toastopname wordt vóór auto-dismiss gemaakt en accepteert alleen generieke
 importaantallen plus `Read more`; pad-, bestands-, project-, taak- en resourcenamen zijn er niet
 toegestaan. Canvas, documentnaam en tablabels worden in de overzichtsscreenshot gemaskeerd.
+De metadata bevat de live lokale Git-toplevel, branch, HEAD en beginstatus om het bewijs aan de
+juiste checkout te koppelen. Daardoor kan zij lokale paden bevatten en is de volledige
+evidencemap uitsluitend bedoeld voor lokale opslag, niet voor publicatie of commit in de repo.
 
 Deze test bewijst de browser-dev-build met de `input[type=file]`-terugval. Hij bewijst niet de
 Chromium File System Access API, de native OS-bestandkiezer of Tauri `plugin-dialog`/`plugin-fs`.

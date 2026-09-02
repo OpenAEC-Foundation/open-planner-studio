@@ -1,6 +1,6 @@
 import { access, lstat, mkdir, readFile, readlink, symlink, unlink, writeFile } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import process from 'node:process';
 import { existsSync } from 'node:fs';
@@ -24,6 +24,47 @@ function isExplicitCiMode() {
 
 function fail(message) {
   throw new Error(message);
+}
+
+function gitOutput(args, label) {
+  try {
+    return execFileSync('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    const stderr = typeof error?.stderr === 'string' ? error.stderr.trim() : '';
+    fail(`git-bewijs kon ${label} niet lezen${stderr ? `: ${stderr}` : ''}`);
+  }
+}
+
+function readGitEvidence() {
+  const toplevel = gitOutput(['rev-parse', '--show-toplevel'], 'toplevel').trim();
+  const branch = gitOutput(['branch', '--show-current'], 'branch').trim();
+  const head = gitOutput(['rev-parse', 'HEAD'], 'HEAD').trim();
+  const statusPorcelainV1 = gitOutput(['status', '--porcelain=v1'], 'status');
+  if (toplevel !== REPO_ROOT) {
+    fail(`git-toplevel-gate rood: ${toplevel}, verwacht exact ${REPO_ROOT}`);
+  }
+  return { toplevel, branch, head, statusPorcelainV1 };
+}
+
+function assertGitStatusUnchanged(before, after) {
+  if (before.statusPorcelainV1 !== after.statusPorcelainV1) {
+    fail(
+      `git-status-integriteitsgate rood: begin=${JSON.stringify(before.statusPorcelainV1)}; ` +
+      `eind=${JSON.stringify(after.statusPorcelainV1)}`,
+    );
+  }
+}
+
+function assertMetadataGitIdentity(metadata, expected) {
+  const observed = metadata.git;
+  if (observed?.toplevel !== expected.toplevel || observed?.branch !== expected.branch ||
+      observed?.head !== expected.head || observed?.statusPorcelainV1 !== expected.statusPorcelainV1) {
+    fail(`metadata-git-identiteitsgate rood: observed=${JSON.stringify(observed)}; expected=${JSON.stringify(expected)}`);
+  }
 }
 
 async function readableFile(path, label) {
@@ -528,6 +569,7 @@ async function stopDevServer(child) {
 }
 
 async function main() {
+  const gitStart = readGitEvidence();
   const preflightResult = await preflight();
   if (!preflightResult) return;
   await assertNoDirectPathOpen();
@@ -535,34 +577,61 @@ async function main() {
   await mkdir(evidenceDir, { recursive: true });
   const dependencies = await ensureDependencies();
   let serverHandle = null;
+  let browserEvidence = null;
+  let runError = null;
+  const cleanupErrors = [];
   try {
     serverHandle = await startDevServer();
-    const browserEvidence = await runBrowserSmallA(preflightResult, serverHandle.server, evidenceDir);
-    await writeFile(resolve(evidenceDir, 'state.json'), `${JSON.stringify(browserEvidence.state, null, 2)}\n`, 'utf8');
-    await writeFile(resolve(evidenceDir, 'server-output.txt'), serverHandle.server.output, 'utf8');
-    await writeFile(resolve(evidenceDir, 'metadata.json'), `${JSON.stringify({
-      runId: evidenceDir.split('/').pop(),
-      repository: REPO_ROOT,
-      branch: 'codex/xer-x11-harness',
-      server: {
-        url: serverHandle.server.assignedUrl,
-        pid: serverHandle.server.pid,
-        cwd: serverHandle.server.procCwd,
-        httpStatus: 200,
-        guard: serverHandle.server.guard,
-      },
-      browser: { executablePath: preflightResult.chromiumPath, headless: browserEvidence.headless, launchArgs: browserEvidence.launchArgs },
-      dom: { text: browserEvidence.domText },
-      nativeDialogs: browserEvidence.dialogCounts,
-      devBridgeOpenGate: browserEvidence.bridgeGate,
-      screenshot: 'imported-redacted.png',
-      toastScreenshot: { file: 'xer-toast.png', box: browserEvidence.toastBox },
-    }, null, 2)}\n`, 'utf8');
-    console.log(`SMALL-A OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
+    browserEvidence = await runBrowserSmallA(preflightResult, serverHandle.server, evidenceDir);
+  } catch (error) {
+    runError = error;
   } finally {
-    if (serverHandle) await stopDevServer(serverHandle.child);
-    await removeTemporaryDependencies(dependencies.linkPath);
+    try {
+      if (serverHandle) await stopDevServer(serverHandle.child);
+    } catch (error) {
+      cleanupErrors.push(`serverstop: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    try {
+      await removeTemporaryDependencies(dependencies.linkPath);
+    } catch (error) {
+      cleanupErrors.push(`dependencies: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
+
+  const gitEnd = readGitEvidence();
+  assertGitStatusUnchanged(gitStart, gitEnd);
+  if (cleanupErrors.length > 0) fail(`cleanup rood: ${cleanupErrors.join('; ')}`);
+  if (runError) throw runError;
+  if (!serverHandle || !browserEvidence) fail('browser- of serverbewijs ontbreekt na de run');
+
+  const metadata = {
+    runId: evidenceDir.split('/').pop(),
+    git: {
+      toplevel: gitStart.toplevel,
+      branch: gitStart.branch,
+      head: gitStart.head,
+      statusPorcelainV1: gitStart.statusPorcelainV1,
+      statusUnchangedAfterCleanup: true,
+    },
+    server: {
+      url: serverHandle.server.assignedUrl,
+      pid: serverHandle.server.pid,
+      cwd: serverHandle.server.procCwd,
+      httpStatus: 200,
+      guard: serverHandle.server.guard,
+    },
+    browser: { executablePath: preflightResult.chromiumPath, headless: browserEvidence.headless, launchArgs: browserEvidence.launchArgs },
+    dom: { text: browserEvidence.domText },
+    nativeDialogs: browserEvidence.dialogCounts,
+    devBridgeOpenGate: browserEvidence.bridgeGate,
+    screenshot: 'imported-redacted.png',
+    toastScreenshot: { file: 'xer-toast.png', box: browserEvidence.toastBox },
+  };
+  assertMetadataGitIdentity(metadata, gitStart);
+  await writeFile(resolve(evidenceDir, 'state.json'), `${JSON.stringify(browserEvidence.state, null, 2)}\n`, 'utf8');
+  await writeFile(resolve(evidenceDir, 'server-output.txt'), serverHandle.server.output, 'utf8');
+  await writeFile(resolve(evidenceDir, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+  console.log(`SMALL-A OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
 }
 
 main().catch((error) => {
