@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gunzipSync } from 'node:zlib';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import {
@@ -23,6 +22,14 @@ import {
   type XerProductMeasurement,
   type XerProductProjectMeasurement,
 } from './xerProductFidelity';
+import {
+  canonicalProductEnvelope,
+  sealProductBaseline,
+  selectProductReportMode,
+  validateProductBaselineV2,
+  type ProductBaselineV2,
+  type ProductEntryV2,
+} from './xerProductBaselineV2';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
@@ -30,34 +37,12 @@ const REPORT_MODES = new Set(['baseline', 'detail', 'summary', 'counterfactuals'
 const diffs: string[] = [];
 let checks = 0;
 
-interface ProductBaselineEntry {
-  sha256: string;
-  schemaFingerprint: string;
-  projects: number;
-  tasks: number;
-  identityCoverage: {
-    solvedTasks: number;
-    taskCodePresent: number;
-    taskCodeExact: number;
-  };
-  projectMeasurements: XerProductProjectMeasurement[];
-  counters: Record<XerFidelityAxis, XerProductAxisCounts>;
-  drivingPath: XerProductAxisCounts;
-  identityErrors: string[];
-  scannerErrors: string[];
-  gatePassed: boolean;
-}
-interface ProductBaseline {
-  version: 2;
-  manifestSha256: string;
-  /** Geen acceptatiebaseline: de strict-nulpoort blijft aantoonbaar rood tot een eigenaarsbesluit. */
-  characterization: {
-    finalZeroGate: 'red';
-    accepted: false;
-    openCategories: readonly ['strict-six-axis-deviations', 'strict-sameday-deviations', 'driving-path-report-only'];
-  };
-  files: Record<string, ProductBaselineEntry>;
-}
+type ProductBaselineEntry = ProductEntryV2;
+type ProductBaseline = ProductBaselineV2;
+type ProductBaselineEntryDraft = Omit<ProductEntryV2, 'projectMeasurements' | 'projectProjectionSha256'> & {
+  projectMeasurements: Array<XerProductProjectMeasurement & { projectionSha256?: string }>;
+  projectProjectionSha256?: string;
+};
 
 interface CounterfactualReport {
   mode: 'historical-completed-late' | 'source-day-precision';
@@ -71,18 +56,12 @@ interface CounterfactualReport {
 /** De complete 34-entry/47-projectsnapshot is compact opgeslagen, maar wordt hier altijd volledig
  * uitgepakt vóór vergelijking. Alleen v2 met zichtbare rode overgangsstatus is leesbaar. */
 function readProductBaseline(): ProductBaseline {
-  const raw = JSON.parse(readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8')) as Record<string, unknown>;
-  if (raw.encoding !== 'gzip-base64-json' || typeof raw.payloadGzipBase64 !== 'string'
-    || JSON.stringify(raw.reportModes) !== JSON.stringify([
-      'strict-minute-exact', 'historical-completed-late', 'source-day-precision',
-    ])) {
-    throw new Error('X12 productbaseline is geen v2 gzip-base64 karakteriseringssnapshot');
+  const raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8');
+  const validated = validateProductBaselineV2(raw);
+  if (!validated.payload || validated.problems.length > 0) {
+    throw new Error(`X12 productbaseline faalt gedeelde runtime-schemavalidatie: ${validated.problems.join('; ')}`);
   }
-  const payload = JSON.parse(gunzipSync(Buffer.from(raw.payloadGzipBase64, 'base64')).toString('utf8')) as ProductBaseline;
-  if (payload.version !== 2 || payload.characterization.finalZeroGate !== 'red' || payload.characterization.accepted !== false) {
-    throw new Error('X12 productbaseline claimt ten onrechte een geaccepteerde of groene eindpoort');
-  }
-  return payload;
+  return validated.payload;
 }
 
 function eq(label: string, got: unknown, want: unknown): void {
@@ -251,10 +230,15 @@ function counterfactualReports(
   solved: readonly XerSolvedProject[],
 ): CounterfactualReport[] {
   const historical = measureXerProductFidelity(historicalCompletedLateTruth(truth, imports), solved);
-  return [
-    { mode: 'historical-completed-late', strictGateEligible: false, ...summarizeMeasurement(historical) },
-    { mode: 'source-day-precision', strictGateEligible: false, ...sourceDayPrecisionReport(strict) },
-  ];
+  const inputs = {
+    strictMinuteExact: summarizeMeasurement(strict),
+    historicalCompletedLate: summarizeMeasurement(historical),
+    sourceDayPrecision: sourceDayPrecisionReport(strict),
+  };
+  return (['historical-completed-late', 'source-day-precision'] as const).map(mode => {
+    const selected = selectProductReportMode(mode, inputs);
+    return { mode, strictGateEligible: false, ...selected.report };
+  });
 }
 
 // De drie modi zijn semantisch niet verwisselbaar: alleen strict is een poort, de twee andere
@@ -308,7 +292,7 @@ async function productBaseline(
   const target = buildXerTargetBaseline(corpus, manifest);
   if (target.errors.length > 0) throw new Error(`X1-manifest/grondwaarheid faalt: ${target.errors.join('; ')}`);
   const byLabel = new Map(corpus.map(file => [file.label, file]));
-  const files: Record<string, ProductBaselineEntry> = {};
+  const files: Record<string, ProductBaselineEntryDraft> = {};
   for (const targetEntry of Object.values(target.baseline.files).sort((a, b) => a.label.localeCompare(b.label))) {
     const file = byLabel.get(targetEntry.label);
     if (!file) throw new Error(`geselecteerde X1-entry ontbreekt: ${targetEntry.label}`);
@@ -440,14 +424,21 @@ async function productBaseline(
       for (const error of result.errors) console.log(`.   IDENTITEIT ${error}`);
     }
     if (REPORT === 'counterfactuals') {
+      const reports = counterfactualReports(result, truth, imports, solvedProjects);
+      const strictReport = selectProductReportMode('strict-minute-exact', {
+        strictMinuteExact: summarizeMeasurement(result),
+        historicalCompletedLate: reports[0]!,
+        sourceDayPrecision: reports[1]!,
+      });
       console.log(JSON.stringify({
         label: targetEntry.label,
-        strict: { mode: 'strict-minute-exact', strictGateEligible: true, ...summarizeMeasurement(result) },
-        counterfactuals: counterfactualReports(result, truth, imports, solvedProjects),
+        strict: { mode: strictReport.mode, strictGateEligible: strictReport.strictGateEligible, ...strictReport.report },
+        counterfactuals: reports,
       }));
     }
-    files[targetEntry.label] = {
-      sha256: hash(file.bytes), schemaFingerprint: targetEntry.schemaFingerprint ?? '',
+    const fileSha256 = hash(file.bytes);
+    files[fileSha256] = {
+      sha256: fileSha256, schemaFingerprint: targetEntry.schemaFingerprint ?? '',
       projects: result.truthProjects, tasks: result.truthTasks,
       identityCoverage: {
         solvedTasks: result.solvedTasks,
@@ -461,7 +452,7 @@ async function productBaseline(
       gatePassed: result.gatePassed,
     };
   }
-  return {
+  return sealProductBaseline({
     version: 2,
     manifestSha256: hash(readFileSync(join(HERE, 'xer-corpus-manifest.json'))),
     characterization: {
@@ -470,7 +461,7 @@ async function productBaseline(
       openCategories: ['strict-six-axis-deviations', 'strict-sameday-deviations', 'driving-path-report-only'],
     },
     files,
-  };
+  });
 }
 
 // Corpusloze RED-/GREEN-probe voor de vier expliciete productbakken.
@@ -2137,7 +2128,7 @@ else {
   const corpus = listXerFiles(corpusRoot).map(path => ({ label: relative(corpusRoot, path).split('\\').join('/'), bytes: readFileSync(path) }));
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
   const measured = await productBaseline(corpus, manifest);
-  if (REPORT === 'baseline') console.log(JSON.stringify(measured, null, 2));
+  if (REPORT === 'baseline') process.stdout.write(canonicalProductEnvelope(measured));
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);
     const tasks = entries.reduce((total, [, entry]) => total + entry.tasks, 0);
@@ -2170,5 +2161,8 @@ if (diffs.length > 0) {
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-if (REPORT !== undefined) console.log(`MEASURE ONLY X12 productfidelity: meetcommando voltooid; ${checks} corpusloze checks groen`);
-else console.log(`X12 PRODUCTGATE GREEN: ${checks} checks groen`);
+if (REPORT !== undefined) {
+  if (REPORT !== 'baseline') {
+    console.log(`MEASURE ONLY X12 productfidelity: meetcommando voltooid; ${checks} corpusloze checks groen`);
+  }
+} else console.log(`X12 PRODUCTGATE GREEN: ${checks} checks groen`);

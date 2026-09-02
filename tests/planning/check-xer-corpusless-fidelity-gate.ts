@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
+import { PRODUCT_AXES, canonicalProductJson, createProductEnvelope, decodeProductEnvelopeUnchecked, deriveStrictEntryGate, productProjectionDigest, productSha256, sealProductBaseline, selectProductReportMode, validateProductBaselineV2, type ProductBaselineV2, type ProductCountsV2, type ProductEnvelopeV2, type ProductValidationPins } from './xerProductBaselineV2';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
@@ -54,44 +55,9 @@ type ReplayPin = {
   tasks: number;
   candidates: Record<string, { aggregate: ReplayAggregate; rejected: boolean; exitCode: number }>;
 };
-type ProductCounts = { exact: number; sameday: number; diff: number; missing: number; measurable: number; deviations: number };
-type ProductProject = {
-  projectId: string;
-  truthTasks: number;
-  solvedTasks: number;
-  taskCodePresent: number;
-  taskCodeExact: number;
-  counters: Record<Axis, ProductCounts>;
-  drivingPath: ProductCounts;
-  identityErrors: string[];
-};
-type ProductEntry = {
-  sha256: string;
-  schemaFingerprint: string;
-  projects: number;
-  tasks: number;
-  identityCoverage: { solvedTasks: number; taskCodePresent: number; taskCodeExact: number };
-  projectMeasurements: ProductProject[];
-  counters: Record<Axis, ProductCounts>;
-  drivingPath: ProductCounts;
-  identityErrors: string[];
-  scannerErrors: string[];
-  gatePassed: boolean;
-};
-type ProductV2 = {
-  version: number;
-  manifestSha256: string;
-  characterization: { finalZeroGate: string; accepted: boolean; openCategories: string[] };
-  files: Record<string, ProductEntry>;
-};
-type ProductEnvelope = {
-  version: number;
-  manifestSha256: string;
-  characterization: { finalZeroGate: string; accepted: boolean; openCategories: string[] };
-  reportModes: string[];
-  encoding: string;
-  payloadGzipBase64: string;
-};
+type ProductCounts = ProductCountsV2;
+type ProductV2 = ProductBaselineV2;
+type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
   manifestRawSha256: '6defbc4b4a71500565e5847750662060d9baca983952098dd1b334ac81d55786',
@@ -120,6 +86,9 @@ const EXPECTED = {
     deviations: { es: 1_251, ef: 1_500, ls: 5_015, lf: 5_044, tf: 4_765, ff: 823 },
     drivingPath: { exact: 13_186, sameday: 0, diff: 410, missing: 0, measurable: 13_596, deviations: 410 },
   },
+  productPayloadSha256: 'a97aa10c39687e33cabf23ff7a4f832556401192f4620a6cf643d97e49160783',
+  productPayloadGzipSha256: '99476b658c45a4e5fcaf42e1b94ffc827437d26a98dba2db51c6a0f9400c82bb',
+  productProjectProjectionSha256: 'ab8fef5851dd85d941e7f7f862c4ee62440e3bc2dd8f5299250053b81cfd5c7f',
   roles: {
     oracle: 45,
     'engine-input': 14,
@@ -138,8 +107,10 @@ const ALLOWED_STATIC_IMPORTS = new Set([
   'node:path',
   'node:url',
   'node:zlib',
+  './xerProductBaselineV2',
 ]);
 const diffs: string[] = [];
+const mutationEvidence: string[] = [];
 let checks = 0;
 
 function stableHash(value: unknown): string {
@@ -390,34 +361,56 @@ function validateReplay(raw: unknown, oracle: OracleBaseline): string[] {
   return problems;
 }
 
-function validProductCounts(value: unknown): value is ProductCounts {
-  const counts = asObject(value);
-  if (!counts) return false;
-  return ['exact', 'sameday', 'diff', 'missing', 'measurable', 'deviations']
-    .every(key => isNonNegativeInteger(counts[key]));
-}
-
-function addProductCounts(target: ProductCounts, source: ProductCounts): void {
-  target.exact += source.exact;
-  target.sameday += source.sameday;
-  target.diff += source.diff;
-  target.missing += source.missing;
-  target.measurable += source.measurable;
-  target.deviations += source.deviations;
-}
-
-function emptyProductCounts(): ProductCounts {
-  return { exact: 0, sameday: 0, diff: 0, missing: 0, measurable: 0, deviations: 0 };
-}
-
 function decodeProductPayload(envelope: ProductEnvelope): ProductV2 {
-  return JSON.parse(gunzipSync(Buffer.from(envelope.payloadGzipBase64, 'base64')).toString('utf8')) as ProductV2;
+  return decodeProductEnvelopeUnchecked(envelope);
 }
 
 function withMutatedProduct(envelope: ProductEnvelope, mutate: (product: ProductV2) => void): ProductEnvelope {
   const product = clone(decodeProductPayload(envelope));
   mutate(product);
-  return { ...envelope, payloadGzipBase64: gzipSync(JSON.stringify(product)).toString('base64') };
+  return createProductEnvelope(sealProductBaseline(product));
+}
+
+function withRawMutatedProduct(envelope: ProductEnvelope, mutate: (product: ProductV2) => void): ProductEnvelope {
+  const product = clone(decodeProductPayload(envelope));
+  mutate(product);
+  const payloadText = canonicalProductJson(product);
+  const compressed = gzipSync(Buffer.from(payloadText, 'utf8'), { level: 9 });
+  return {
+    ...envelope,
+    payloadSha256: productSha256(payloadText),
+    payloadGzipSha256: productSha256(compressed),
+    projectProjectionSha256: productProjectionDigest(product),
+    payloadGzipBase64: compressed.toString('base64'),
+  };
+}
+
+function productPins(manifest: Manifest, oracle: OracleBaseline): ProductValidationPins {
+  const fullHashes = [...byHash(manifest).keys()];
+  const entries = Object.fromEntries(Object.entries(oracle.files).map(([prefix, entry]) => {
+    const matches = fullHashes.filter(hashValue => hashValue.startsWith(prefix));
+    if (matches.length !== 1 || !entry.schemaFingerprint) throw new Error(`product-v2-pin ${prefix} is niet eenduidig`);
+    return [matches[0]!, { schemaFingerprint: entry.schemaFingerprint }];
+  }));
+  const counters = Object.fromEntries(AXES.map(axis => [axis, {
+    exact: EXPECTED.productStrict.exact[axis],
+    sameday: EXPECTED.productStrict.sameday[axis],
+    diff: EXPECTED.productStrict.diff[axis],
+    missing: EXPECTED.productStrict.missing[axis],
+    measurable: EXPECTED.measurable[axis],
+    deviations: EXPECTED.productStrict.deviations[axis],
+  }])) as Record<Axis, ProductCounts>;
+  return {
+    manifestSha256: rawHash(manifestRaw),
+    entries,
+    projects: EXPECTED.projects,
+    tasks: EXPECTED.tasks,
+    counters,
+    drivingPath: EXPECTED.productStrict.drivingPath,
+    payloadSha256: EXPECTED.productPayloadSha256,
+    payloadGzipSha256: EXPECTED.productPayloadGzipSha256,
+    projectProjectionSha256: EXPECTED.productProjectProjectionSha256,
+  };
 }
 
 /**
@@ -425,102 +418,9 @@ function withMutatedProduct(envelope: ProductEnvelope, mutate: (product: Product
  * manifest-/orakelselectie. Hij kan niet zélf productnul bewijzen, maar hij mag evenmin een
  * overgangssnapshot als eindacceptatie presenteren.
  */
-function validateProductV2(raw: unknown, manifest: Manifest, oracle: OracleBaseline): string[] {
-  const problems: string[] = [];
-  const envelope = raw as ProductEnvelope;
-  if (!asObject(raw) || envelope.version !== 2 || envelope.encoding !== 'gzip-base64-json'
-    || typeof envelope.payloadGzipBase64 !== 'string') {
-    return ['product-v2: ongeldige envelope of geen gzip-base64-payload'];
-  }
-  if (envelope.characterization?.finalZeroGate !== 'red' || envelope.characterization?.accepted !== false) {
-    issue(problems, 'product-v2: tijdelijke snapshot moet strict eindnulpoort zichtbaar rood en ongeaccepteerd houden');
-  }
-  if (JSON.stringify(envelope.characterization?.openCategories) !== JSON.stringify([
-    'strict-six-axis-deviations', 'strict-sameday-deviations', 'driving-path-report-only',
-  ])) issue(problems, 'product-v2: open categorieen zijn niet de expliciete strict-overgangscategorieen');
-  if (JSON.stringify(envelope.reportModes) !== JSON.stringify([
-    'strict-minute-exact', 'historical-completed-late', 'source-day-precision',
-  ])) issue(problems, 'product-v2: strict en de twee tegenfeitelijke rapportmodi zijn verwisseld of incompleet');
-  let product: ProductV2;
-  try {
-    product = decodeProductPayload(envelope);
-  } catch {
-    return [...problems, 'product-v2: gzip-payload is niet volledig decodeerbaar JSON'];
-  }
-  equal(problems, 'product-v2.payload-versie', product.version, 2);
-  equal(problems, 'product-v2.manifesthash', product.manifestSha256, rawHash(manifestRaw));
-  equal(problems, 'product-v2.envelope-payload-manifesthash', envelope.manifestSha256, product.manifestSha256);
-  equal(problems, 'product-v2.karakterisering', product.characterization, envelope.characterization);
-  if (JSON.stringify(product).includes('"reason"')) issue(problems, 'product-v2: reasons zijn verboden in de strict-karakteriseringssnapshot');
-
-  const oracleByLabel = new Map(Object.values(oracle.files).map(entry => [entry.label, entry]));
-  const labels = Object.keys(product.files).sort();
-  equal(problems, 'product-v2.entryset', labels, [...oracleByLabel.keys()].sort());
-  const totals = Object.fromEntries(AXES.map(axis => [axis, emptyProductCounts()])) as Record<Axis, ProductCounts>;
-  const driving = emptyProductCounts();
-  let projects = 0;
-  let tasks = 0;
-  for (const label of labels) {
-    const entry = product.files[label]!;
-    const manifestEntry = manifest.files[label];
-    const oracleEntry = oracleByLabel.get(label);
-    if (!manifestEntry || !oracleEntry) continue;
-    if (!HEX_64.test(entry.sha256)) issue(problems, `product-v2 ${label}: volledige SHA ontbreekt`);
-    equal(problems, `product-v2 ${label}: manifest-SHA`, entry.sha256, manifestEntry.sha256);
-    equal(problems, `product-v2 ${label}: schemafingerprint`, entry.schemaFingerprint, oracleEntry.schemaFingerprint);
-    if (entry.projects !== entry.projectMeasurements.length) issue(problems, `product-v2 ${label}: projectnoemer wijkt af van projectrecords`);
-    if (entry.tasks !== entry.projectMeasurements.reduce((sum, project) => sum + project.truthTasks, 0)) {
-      issue(problems, `product-v2 ${label}: taaknoemer wijkt af van projectrecords`);
-    }
-    if (entry.identityCoverage.solvedTasks !== entry.tasks
-      || entry.identityCoverage.taskCodePresent !== entry.tasks || entry.identityCoverage.taskCodeExact !== entry.tasks) {
-      issue(problems, `product-v2 ${label}: taskcode-identiteitsdekking is niet volledig`);
-    }
-    const projectCounters = Object.fromEntries(AXES.map(axis => [axis, emptyProductCounts()])) as Record<Axis, ProductCounts>;
-    const projectDriving = emptyProductCounts();
-    const projectIds = new Set<string>();
-    for (const project of entry.projectMeasurements) {
-      if (!project.projectId || projectIds.has(project.projectId)) issue(problems, `product-v2 ${label}: project-id ontbreekt of dupliceert`);
-      projectIds.add(project.projectId);
-      if (project.truthTasks !== project.solvedTasks || project.taskCodePresent !== project.truthTasks
-        || project.taskCodeExact !== project.truthTasks || project.identityErrors.length !== 0) {
-        issue(problems, `product-v2 ${label}/${project.projectId}: projectidentiteitsdekking is niet exact`);
-      }
-      for (const axis of AXES) {
-        if (!validProductCounts(project.counters[axis])) { issue(problems, `product-v2 ${label}/${project.projectId}.${axis}: ongeldige teller`); continue; }
-        addProductCounts(projectCounters[axis], project.counters[axis]);
-      }
-      if (!validProductCounts(project.drivingPath)) issue(problems, `product-v2 ${label}/${project.projectId}.driving: ongeldige teller`);
-      else addProductCounts(projectDriving, project.drivingPath);
-    }
-    for (const axis of AXES) {
-      if (!validProductCounts(entry.counters[axis])) issue(problems, `product-v2 ${label}.${axis}: ongeldige entryteller`);
-      else {
-        equal(problems, `product-v2 ${label}.${axis}: projectsom`, projectCounters[axis], entry.counters[axis]);
-        if (entry.counters[axis].exact + entry.counters[axis].sameday + entry.counters[axis].diff + entry.counters[axis].missing !== entry.counters[axis].measurable
-          || entry.counters[axis].sameday + entry.counters[axis].diff + entry.counters[axis].missing !== entry.counters[axis].deviations) {
-          issue(problems, `product-v2 ${label}.${axis}: telleralgebra is inconsistent`);
-        }
-        addProductCounts(totals[axis], entry.counters[axis]);
-      }
-    }
-    if (!validProductCounts(entry.drivingPath)) issue(problems, `product-v2 ${label}.driving: ongeldige entryteller`);
-    else { equal(problems, `product-v2 ${label}.driving: projectsom`, projectDriving, entry.drivingPath); addProductCounts(driving, entry.drivingPath); }
-    if (entry.identityErrors.length !== 0 || entry.scannerErrors.length !== 0) issue(problems, `product-v2 ${label}: identity/scanner moet nul zijn`);
-    projects += entry.projects;
-    tasks += entry.tasks;
-  }
-  equal(problems, 'product-v2.projecten', projects, EXPECTED.projects);
-  equal(problems, 'product-v2.taken', tasks, EXPECTED.tasks);
-  for (const axis of AXES) {
-    equal(problems, `product-v2 ${axis}.measurable`, totals[axis].measurable, EXPECTED.measurable[axis]);
-    for (const field of ['exact', 'sameday', 'diff', 'missing', 'deviations'] as const) {
-      equal(problems, `product-v2 ${axis}.${field}`, totals[axis][field], EXPECTED.productStrict[field][axis]);
-    }
-  }
-  equal(problems, 'product-v2.driving', driving, EXPECTED.productStrict.drivingPath);
-  if (AXES.every(axis => totals[axis].deviations === 0)) issue(problems, 'product-v2: karakterisering claimt onverwacht strict nul zonder eigenaarsbesluit');
-  return problems;
+function validateProductV2(raw: string | ProductEnvelope, manifest: Manifest, oracle: OracleBaseline): string[] {
+  const rawText = typeof raw === 'string' ? raw : canonicalProductJson(raw);
+  return validateProductBaselineV2(rawText, productPins(manifest, oracle)).problems;
 }
 
 function checkProblem(problems: string[], label: string, condition: boolean): void {
@@ -635,7 +535,7 @@ function validateOwnSource(raw: string): string[] {
     importModules.push(match[1]!);
   }
 
-  equal(problems, 'bron.statische-import-aantal', importModules.length, 5);
+  equal(problems, 'bron.statische-import-aantal', importModules.length, 6);
   equal(problems, 'bron.statische-import-modules', [...new Set(importModules)].sort(), [...ALLOWED_STATIC_IMPORTS].sort());
   for (const module of importModules) {
     if (!ALLOWED_STATIC_IMPORTS.has(module)) {
@@ -662,12 +562,14 @@ function expectRejected(label: string, manifest: Manifest, oracle: OracleBaselin
   checks++;
   const problems = validateContract(manifest, oracle, replay);
   if (problems.length === 0) diffs.push(`${label}: mutant werd ten onrechte geaccepteerd`);
+  else mutationEvidence.push(`${label}: ROOD — ${problems[0]}`);
 }
 
-function expectProductRejected(label: string, envelope: ProductEnvelope, manifest: Manifest, oracle: OracleBaseline): void {
+function expectProductRejected(label: string, envelope: string | ProductEnvelope, manifest: Manifest, oracle: OracleBaseline): void {
   checks++;
   const problems = validateProductV2(envelope, manifest, oracle);
   if (problems.length === 0) diffs.push(`${label}: product-v2-mutant werd ten onrechte geaccepteerd`);
+  else mutationEvidence.push(`${label}: ROOD — ${problems[0]}`);
 }
 
 const manifestRaw = readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8');
@@ -716,7 +618,7 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
   checkEqual(`A+B+D huidige statische contracten zijn consistent (${problems.join('; ')})`, problems, []);
   checkEqual('A raw manifestbytes zijn exact gepind', rawHash(manifestRaw), EXPECTED.manifestRawSha256);
   checkEqual('B raw oraclebaselinebytes zijn exact gepind', rawHash(oracleRaw), EXPECTED.baselineRawSha256);
-  const productProblems = validateProductV2(productV2, manifest, oracle);
+  const productProblems = validateProductV2(productV2Raw, manifest, oracle);
   checkEqual(`C v2-karakteriseringssnapshot is volledig maar strict zichtbaar rood (${productProblems.join('; ')})`, productProblems, []);
   console.log('INFO xer-corpusless-fidelity-gate: v2 productkarakterisering is volledig vastgepind; strict minute-exact eindnul blijft expliciet rood en ongeaccepteerd.');
 }
@@ -815,8 +717,16 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
   expectRejected('M19 replay negatieve kandidaat zonder regressie', manifest, oracle, negativeWithoutRegression);
 
   const firstProductLabel = Object.keys(decodeProductPayload(productV2).files)[0]!;
+  const multiProjectLabel = Object.entries(decodeProductPayload(productV2).files)
+    .find(([, entry]) => entry.projectMeasurements.length >= 2)?.[0];
+  const algebraProjectLabel = Object.entries(decodeProductPayload(productV2).files)
+    .find(([, entry]) => entry.projectMeasurements.some((project, index) => project.counters.es.exact > 0
+      && entry.projectMeasurements.some((candidate, candidateIndex) => candidateIndex !== index
+        && candidate.counters.es.diff > 0)))?.[0];
+  if (!multiProjectLabel) throw new Error('product-v2-mutanten vereisen minstens een multi-projectentry');
+  if (!algebraProjectLabel) throw new Error('product-v2-mutanten vereisen geschikte projecttellers');
   const v1AsFinal = clone(productV2);
-  v1AsFinal.version = 1;
+  (v1AsFinal as { version: number }).version = 1;
   expectProductRejected('M20 v1-baseline kan niet stil als finale v2 gelden', v1AsFinal, manifest, oracle);
 
   expectProductRejected('M21 projectnoemer vergeten', withMutatedProduct(productV2, product => {
@@ -840,16 +750,111 @@ const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
     entry.schemaFingerprint = `${entry.schemaFingerprint.slice(0, -1)}${entry.schemaFingerprint.endsWith('0') ? '1' : '0'}`;
   }), manifest, oracle);
 
-  const drivingAsGate = clone(productV2);
-  drivingAsGate.characterization.openCategories[2] = 'driving-path-zero-gate';
-  expectProductRejected('M26 drivingPath per ongeluk in nulpoort', drivingAsGate, manifest, oracle);
+  const drivingEntry = Object.values(decodeProductPayload(productV2).files)
+    .find(entry => entry.drivingPath.deviations > 0);
+  if (!drivingEntry) throw new Error('M26 vereist een entry met driving-path-afwijking');
+  const strictZeroDrivingRed = clone(drivingEntry);
+  for (const axis of PRODUCT_AXES) {
+    const entryCounts = strictZeroDrivingRed.counters[axis];
+    Object.assign(entryCounts, { exact: entryCounts.measurable, sameday: 0, diff: 0, missing: 0, deviations: 0 });
+    for (const project of strictZeroDrivingRed.projectMeasurements) {
+      const counts = project.counters[axis];
+      Object.assign(counts, { exact: counts.measurable, sameday: 0, diff: 0, missing: 0, deviations: 0 });
+    }
+  }
+  checkEqual('M26 gedragsmutant: drivingPath aan zesassige gate koppelen wordt rood', {
+    canonicalStrictGate: deriveStrictEntryGate(strictZeroDrivingRed),
+    mutatedDrivingGate: deriveStrictEntryGate(strictZeroDrivingRed)
+      && strictZeroDrivingRed.drivingPath.deviations === 0,
+  }, { canonicalStrictGate: true, mutatedDrivingGate: false });
+  mutationEvidence.push('M26 gedragsmutant drivingPath in zesassige gate: ROOD — canoniek true, mutant false');
 
+  const routeInputs = {
+    strictMinuteExact: 'STRICT-INVOER',
+    historicalCompletedLate: 'HISTORISCH-TEGENFEIT',
+    sourceDayPrecision: 'DAGPRECISIE-TEGENFEIT',
+  };
+  const strictRoute = selectProductReportMode('strict-minute-exact', routeInputs);
+  const swappedRoute = selectProductReportMode('historical-completed-late', routeInputs);
+  checkEqual('M27 gedragsmutant: strict werkelijk naar tegenfeitelijke invoer routeren wordt rood', {
+    canonical: [strictRoute.report, strictRoute.strictGateEligible],
+    mutated: [swappedRoute.report, swappedRoute.strictGateEligible],
+  }, {
+    canonical: ['STRICT-INVOER', true],
+    mutated: ['HISTORISCH-TEGENFEIT', false],
+  });
+  mutationEvidence.push('M27 gedragsmutant strict naar historische invoer: ROOD — andere invoer en niet poortgeschikt');
   const swappedModes = clone(productV2);
-  [swappedModes.reportModes[0], swappedModes.reportModes[1]] = [swappedModes.reportModes[1]!, swappedModes.reportModes[0]!];
-  expectProductRejected('M27 strict en counterfactual verwisseld', swappedModes, manifest, oracle);
+  (swappedModes as unknown as { reportModes: string[] }).reportModes = [
+    'historical-completed-late', 'strict-minute-exact', 'source-day-precision',
+  ];
+  expectProductRejected('M27b verwisselde runtime-modusvolgorde in envelope', swappedModes, manifest, oracle);
+
+  expectProductRejected('M28 onbekend priveveld in entry', withRawMutatedProduct(productV2, product => {
+    (product.files[firstProductLabel] as unknown as Record<string, unknown>).privateCustomerName = 'verboden';
+  }), manifest, oracle);
+
+  for (const forbiddenKey of ['taskName', 'taskCodes', ' reason Note ', 'acceptedDeviation'] as const) {
+    expectProductRejected(`M28 privacy/beslisveld ${JSON.stringify(forbiddenKey)}`, withRawMutatedProduct(productV2, product => {
+      (product.files[firstProductLabel] as unknown as Record<string, unknown>)[forbiddenKey] = 'verboden';
+    }), manifest, oracle);
+  }
+  expectProductRejected('M28 unknown envelopekey', Object.assign(clone(productV2), { unknownEnvelopeKey: true }), manifest, oracle);
+  expectProductRejected('M28 unknown payloadkey', withRawMutatedProduct(productV2, product => {
+    (product as unknown as Record<string, unknown>).unknownPayloadKey = true;
+  }), manifest, oracle);
+  expectProductRejected('M28 unknown projectkey', withRawMutatedProduct(productV2, product => {
+    (product.files[firstProductLabel]!.projectMeasurements[0] as unknown as Record<string, unknown>).unknownProjectKey = true;
+  }), manifest, oracle);
+  expectProductRejected('M28 unknown identityCoverage-key', withRawMutatedProduct(productV2, product => {
+    (product.files[firstProductLabel]!.identityCoverage as unknown as Record<string, unknown>).unknownIdentityKey = true;
+  }), manifest, oracle);
+  expectProductRejected('M28 unknown tellerkey', withRawMutatedProduct(productV2, product => {
+    (product.files[firstProductLabel]!.counters.es as unknown as Record<string, unknown>).unknownCountKey = 0;
+  }), manifest, oracle);
+
+  expectProductRejected('M29 projectprojecties tussen twee project-IDs migreren', withMutatedProduct(productV2, product => {
+    const projects = product.files[multiProjectLabel]!.projectMeasurements;
+    [projects[0]!.projectId, projects[1]!.projectId] = [projects[1]!.projectId, projects[0]!.projectId];
+  }), manifest, oracle);
+
+  const recompressedPayload = gunzipSync(Buffer.from(productV2.payloadGzipBase64, 'base64'));
+  expectProductRejected('M30 pure gziprecompressie', {
+    ...clone(productV2),
+    payloadGzipSha256: productSha256(gzipSync(recompressedPayload, { level: 1 })),
+    payloadGzipBase64: gzipSync(recompressedPayload, { level: 1 }).toString('base64'),
+  }, manifest, oracle);
+  const compactPayload = JSON.stringify(decodeProductPayload(productV2));
+  const compactCompressed = gzipSync(Buffer.from(compactPayload, 'utf8'), { level: 9 });
+  expectProductRejected('M30b compacte payloadserialisatie zonder finale newline', {
+    ...clone(productV2),
+    payloadSha256: productSha256(compactPayload),
+    payloadGzipSha256: productSha256(compactCompressed),
+    payloadGzipBase64: compactCompressed.toString('base64'),
+  }, manifest, oracle);
+  expectProductRejected('M30c compacte envelopeserialisatie zonder finale newline',
+    JSON.stringify(productV2), manifest, oracle);
+
+  expectProductRejected('M31 gatePassed flip', withMutatedProduct(productV2, product => {
+    product.files[firstProductLabel]!.gatePassed = !product.files[firstProductLabel]!.gatePassed;
+  }), manifest, oracle);
+
+  expectProductRejected('M32 projecttelleralgebra breken met behouden entrysom', withMutatedProduct(productV2, product => {
+    const projects = product.files[algebraProjectLabel]!.projectMeasurements;
+    const donor = projects.find(project => project.counters.es.exact > 0);
+    const receiver = projects.find(project => project !== donor && project.counters.es.diff > 0);
+    if (!donor || !receiver) throw new Error('M32 vereist twee geschikte projecttellers');
+    donor.counters.es.exact--;
+    donor.counters.es.diff++;
+    receiver.counters.es.exact++;
+    receiver.counters.es.diff--;
+  }), manifest, oracle);
 }
 
 if (diffs.length === 0) {
+  if (process.env.OPS_XER_MUTATION_REPORT === '1') {
+    for (const evidence of mutationEvidence) console.log(`MUTANT ${evidence}`);
+  }
   console.log(`OK: xer-corpusless-fidelity-gate — ${checks} checks groen`);
 } else {
   console.log(`XX xer-corpusless-fidelity-gate — ${diffs.length} van ${checks} checks rood:`);
