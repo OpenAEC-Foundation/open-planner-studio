@@ -380,6 +380,169 @@ export interface ExtFontProvider {
 
 // ── Importresultaat ──
 
+/** Maximaal aantal records dat één broncataloguspagina teruggeeft. */
+export const EXT_IMPORT_SOURCE_PAGE_SIZE_MAX = 500;
+
+export type ExtImportSourceCollection =
+  | 'scheduleOptionsSourceRows'
+  | 'resourceCatalogResources'
+  | 'resourceCatalogIdentities'
+  | 'resourceCatalogResourceRows'
+  | 'resourceCatalogRoleRows'
+  | 'resourceCatalogRateRows'
+  | 'resourceCatalogCurveRows'
+  | 'resourceCatalogAssignmentRows'
+  | 'resourceCatalogIssues'
+  | 'metadataActivityCodeTypes'
+  | 'metadataCustomFieldDefs'
+  | 'metadataTaskProjections'
+  | 'metadataIssues'
+  | 'metadataSourceActvtypeRows'
+  | 'metadataSourceActvcodeRows'
+  | 'metadataSourceTaskactvRows'
+  | 'metadataSourceUdfTypeRows'
+  | 'metadataSourceUdfValueRows'
+  | 'metadataSourceMemotypeRows'
+  | 'metadataSourceTasknoteRows'
+  | 'metadataSourceTaskmemoRows'
+  | 'metadataSourceTaskNotesRows'
+  | 'metadataSourceDeferredUdfValueRows'
+  | 'metadataSourceUnknownUdfTypeRows'
+  | 'taskSourceRows';
+
+/** Een record in een broncataloguspagina. De vorm is collection-specifiek en blijft een publieke
+ *  DTO: er zit geen intern store-object of class-instance achter. */
+export type ExtImportSourceRecord = Readonly<Record<string, unknown>>;
+
+export interface ExtImportSourcePageOptions {
+  /** Nulgebaseerde positie; default 0. */
+  offset?: number;
+  /** Aantal records; default 100, maximum `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX`. */
+  limit?: number;
+}
+
+export interface ExtImportSourceCatalogPage {
+  collection: ExtImportSourceCollection;
+  sourceProjectId: string;
+  offset: number;
+  limit: number;
+  total: number;
+  items: readonly ExtImportSourceRecord[];
+}
+
+export interface ExtImportSourceArchiveSummary {
+  schemaVersion: number;
+  byteLength: number;
+  sha256: string;
+  encoding: 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+  bom: 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';
+  newline: 'crlf' | 'lf' | 'cr' | 'mixed' | 'none';
+  chunkSize: number;
+  chunkCount: number;
+}
+
+export interface ExtImportSourceNumberFormat {
+  decimal: '.' | ',';
+  group: '.' | ',' | null;
+  source: 'currtype' | 'default';
+  currencyCode: string;
+}
+
+export interface ExtImportSourceReport {
+  projectsSeen: number;
+  documentsOpened: number;
+  emptyProjectsSkipped: number;
+  baselineProjectsExcluded: number;
+  baselinesMaterialized: number;
+  danglingBaselineReferences: number;
+  externalLinksPreserved: number;
+  baselineExclusionReverted: boolean;
+  baselineFallbackReasons: readonly ('self-reference' | 'cycle' | 'all-projects-baselines')[];
+}
+
+export interface ExtImportSourceDiagnosticsSummary {
+  file: {
+    tableReport: {
+      encoding: ExtImportSourceArchiveSummary['encoding'];
+      endMarkerSeen: boolean;
+      issueCount: number;
+      unknownTableCount: number;
+      unknownFieldCount: number;
+    };
+    scheduleOptionsDiagnosticCount: number;
+    relationResolutionIssueCount: number;
+    resourceCatalogIssueCount: number;
+    metadataCatalogIssueCount: number;
+  };
+  document: {
+    calendarIssueCount: number;
+    enumFallbackCount: number;
+    scheduleOptionsFallbackCount: number;
+    scheduleOptionsDiagnosticCount: number;
+    externalRelationCount: number;
+    externalLinkCount: number;
+    resourceAssignmentCount: number;
+    resourceIssueCount: number;
+  };
+}
+
+export interface ExtImportSourceScheduleOptionsSummary {
+  source: 'schedoptions' | 'xer-defaults';
+  retainedSource: Readonly<Record<string, boolean | undefined>>;
+  fallbackCount: number;
+  diagnosticCount: number;
+  sourceRowCount: number;
+  unmatchedSourceRowCount: number;
+}
+
+export interface ExtImportSourceCatalogCounts {
+  scheduleOptions: {
+    sourceRows: number;
+    unmatchedRows: number;
+    diagnostics: number;
+  };
+  resources: {
+    resources: number;
+    identities: number;
+    rows: {
+      resources: number;
+      roles: number;
+      rates: number;
+      curves: number;
+      assignments: number;
+    };
+    issues: number;
+  };
+  metadata: {
+    activityCodeTypes: number;
+    customFieldDefs: number;
+    taskProjections: number;
+    currentProjectTaskProjections: number;
+    issues: number;
+    issueCounts: Readonly<Record<string, number>>;
+    sourceData: Readonly<Record<string, number>>;
+  };
+  taskSourceRows: {
+    projectCount: number;
+    totalRows: number;
+    currentProjectRows: number;
+  };
+}
+
+/** Read-only XER-bronroute. Samenvatting en cataloguspagina's zijn verse DTO-kopieën; voor exact
+ * herstel gebruikt een extensie `getImportSourceChunk` met de digest uit `archive`. */
+export interface ExtImportSourceInfo {
+  sourceFormat: 'primavera-p6-xer';
+  sourceProjectId: string;
+  selector: { kind: 'sourceProjectId'; value: string };
+  archive: ExtImportSourceArchiveSummary;
+  numberFormat: ExtImportSourceNumberFormat;
+  diagnostics: ExtImportSourceDiagnosticsSummary;
+  importReport: ExtImportSourceReport;
+  scheduleOptions: ExtImportSourceScheduleOptionsSummary;
+  catalogs: ExtImportSourceCatalogCounts;
+}
+
 /**
  * Ext-facing importresultaat — wat een importer-handler oplevert en wat `api.data.loadProject`
  * verwacht. Alleen de kernvelden; de host mapt dit naar zijn interne (rijkere) `ImportResult`
