@@ -31,6 +31,15 @@ OPS_PLAYWRIGHT_DIR="/pad/naar/node_modules/playwright-core" \
 npm run test:browser:x11
 ```
 
+De corpusloze eindintegriteitscontracttest is afzonderlijk uit te voeren met:
+
+```bash
+node tests/browser/git-evidence-contract.mjs
+```
+
+Deze doodt afzonderlijk een verschil in Git-toplevel, branch, HEAD en de ruwe
+`status --porcelain=v1`, zonder een checkout of de werkboom te wijzigen.
+
 Het harnas verwijdert geërfde `OPS_DEV_GUARDED` en `OPS_DEV_PORT`, start zelf `npm run dev` en
 leest de werkelijk toegewezen URL en PID uit de launcher-output. Het controleert dat de normale
 bewaakte launcherregel zichtbaar is, de URL de vaste gestempelde worktreepoort gebruikt, HTTP
@@ -68,8 +77,10 @@ dev-server-output. De toastopname wordt vóór auto-dismiss gemaakt en accepteer
 importaantallen plus `Read more`; pad-, bestands-, project-, taak- en resourcenamen zijn er niet
 toegestaan. Canvas, documentnaam en tablabels worden in de overzichtsscreenshot gemaskeerd.
 De metadata bevat de live lokale Git-toplevel, branch, HEAD en beginstatus om het bewijs aan de
-juiste checkout te koppelen. Daardoor kan zij lokale paden bevatten en is de volledige
-evidencemap uitsluitend bedoeld voor lokale opslag, niet voor publicatie of commit in de repo.
+juiste checkout te koppelen. Na browser-, server- en dependencycleanup moeten alle vier waarden
+exact gelijk zijn aan hun beginwaarde voordat een evidencebestand wordt geschreven. Daardoor kan
+de metadata lokale paden bevatten en is de volledige evidencemap uitsluitend bedoeld voor lokale
+opslag, niet voor publicatie of commit in de repo.
 
 Deze test bewijst de browser-dev-build met de `input[type=file]`-terugval. Hij bewijst niet de
 Chromium File System Access API, de native OS-bestandkiezer of Tauri `plugin-dialog`/`plugin-fs`.

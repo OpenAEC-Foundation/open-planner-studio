@@ -50,11 +50,14 @@ function readGitEvidence() {
   return { toplevel, branch, head, statusPorcelainV1 };
 }
 
-function assertGitStatusUnchanged(before, after) {
-  if (before.statusPorcelainV1 !== after.statusPorcelainV1) {
+export function assertGitEvidenceUnchanged(before, after) {
+  const fields = ['toplevel', 'branch', 'head', 'statusPorcelainV1'];
+  const differences = fields.filter((field) => before[field] !== after[field]);
+
+  if (differences.length > 0) {
     fail(
-      `git-status-integriteitsgate rood: begin=${JSON.stringify(before.statusPorcelainV1)}; ` +
-      `eind=${JSON.stringify(after.statusPorcelainV1)}`,
+      `git-eindintegriteitsgate rood: verschil=${differences.join(',')}; ` +
+        `begin=${JSON.stringify(before)}; eind=${JSON.stringify(after)}`,
     );
   }
 }
@@ -441,7 +444,7 @@ function assertPrivacySafeToast(text, box) {
   }
 }
 
-async function runBrowserSmallA(preflightResult, server, evidenceDir) {
+async function runBrowserSmallA(preflightResult, server) {
   const { chromium } = loadPlaywrightCore();
   const browserEnv = { ...process.env };
   const launchArgs = [];
@@ -492,8 +495,7 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
     const domText = await toast.innerText();
     const toastBox = await toast.boundingBox();
     assertPrivacySafeToast(domText, toastBox);
-    const toastScreenshotPath = resolve(evidenceDir, 'xer-toast.png');
-    await toast.screenshot({ path: toastScreenshotPath });
+    const toastScreenshot = await toast.screenshot();
 
     try {
       await page.waitForFunction((messageKey) => {
@@ -528,9 +530,7 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
       fail(`native-dialog-audit rood: ${JSON.stringify(dialogCounts)}`);
     }
 
-    const screenshotPath = resolve(evidenceDir, 'imported-redacted.png');
-    await page.screenshot({
-      path: screenshotPath,
+    const screenshot = await page.screenshot({
       fullPage: false,
       mask: [
         page.locator('canvas'),
@@ -544,8 +544,8 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
       domText,
       dialogCounts,
       bridgeGate,
-      screenshotPath,
-      toastScreenshotPath,
+      screenshot,
+      toastScreenshot,
       toastBox,
       launchArgs,
       headless: false,
@@ -574,7 +574,6 @@ async function main() {
   if (!preflightResult) return;
   await assertNoDirectPathOpen();
   const evidenceDir = resolve(EVIDENCE_ROOT, runId());
-  await mkdir(evidenceDir, { recursive: true });
   const dependencies = await ensureDependencies();
   let serverHandle = null;
   let browserEvidence = null;
@@ -582,7 +581,7 @@ async function main() {
   const cleanupErrors = [];
   try {
     serverHandle = await startDevServer();
-    browserEvidence = await runBrowserSmallA(preflightResult, serverHandle.server, evidenceDir);
+    browserEvidence = await runBrowserSmallA(preflightResult, serverHandle.server);
   } catch (error) {
     runError = error;
   } finally {
@@ -599,7 +598,7 @@ async function main() {
   }
 
   const gitEnd = readGitEvidence();
-  assertGitStatusUnchanged(gitStart, gitEnd);
+  assertGitEvidenceUnchanged(gitStart, gitEnd);
   if (cleanupErrors.length > 0) fail(`cleanup rood: ${cleanupErrors.join('; ')}`);
   if (runError) throw runError;
   if (!serverHandle || !browserEvidence) fail('browser- of serverbewijs ontbreekt na de run');
@@ -628,13 +627,18 @@ async function main() {
     toastScreenshot: { file: 'xer-toast.png', box: browserEvidence.toastBox },
   };
   assertMetadataGitIdentity(metadata, gitStart);
+  await mkdir(evidenceDir, { recursive: true });
+  await writeFile(resolve(evidenceDir, 'imported-redacted.png'), browserEvidence.screenshot);
+  await writeFile(resolve(evidenceDir, 'xer-toast.png'), browserEvidence.toastScreenshot);
   await writeFile(resolve(evidenceDir, 'state.json'), `${JSON.stringify(browserEvidence.state, null, 2)}\n`, 'utf8');
   await writeFile(resolve(evidenceDir, 'server-output.txt'), serverHandle.server.output, 'utf8');
   await writeFile(resolve(evidenceDir, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
   console.log(`SMALL-A OK: zichtbare importasserties geslaagd; evidence=${evidenceDir}`);
 }
 
-main().catch((error) => {
-  console.error(`X11-harnas rood: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`X11-harnas rood: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  });
+}
