@@ -456,6 +456,9 @@ function getTask(s: AppState, args: GetTaskArgs) {
       wbs: wbsOf(taskById, seq.predecessorId),
       type: seqAbbrev(seq.type),
       lag: lagLabel(seq),
+      ...(seq.p6StartAtPredecessorFinishBoundary !== undefined
+        ? { p6StartAtPredecessorFinishBoundary: seq.p6StartAtPredecessorFinishBoundary }
+        : {}),
     }));
   const successors = s.sequences
     .filter((seq) => seq.predecessorId === task.id)
@@ -465,6 +468,9 @@ function getTask(s: AppState, args: GetTaskArgs) {
       wbs: wbsOf(taskById, seq.successorId),
       type: seqAbbrev(seq.type),
       lag: lagLabel(seq),
+      ...(seq.p6StartAtPredecessorFinishBoundary !== undefined
+        ? { p6StartAtPredecessorFinishBoundary: seq.p6StartAtPredecessorFinishBoundary }
+        : {}),
     }));
 
   // Effectieve kalender (§5): taak-kalender uit de bibliotheek, anders de projectkalender.
@@ -502,6 +508,14 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
     ...(task.effortDriven ? { effortDriven: true } : {}),
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
+    ...(task.p6DurationType !== undefined ? { p6DurationType: task.p6DurationType } : {}),
+    ...(task.p6ActivityType !== undefined ? { p6ActivityType: task.p6ActivityType } : {}),
+    ...(task.p6ProjectId !== undefined ? { p6ProjectId: task.p6ProjectId } : {}),
+    ...(task.p6TaskId !== undefined ? { p6TaskId: task.p6TaskId } : {}),
+    ...(task.p6ExplicitTargetWindow !== undefined ? { p6ExplicitTargetWindow: task.p6ExplicitTargetWindow } : {}),
+    ...(task.p6CompletePctType !== undefined ? { p6CompletePctType: task.p6CompletePctType } : {}),
+    ...(task.p6ExpectedFinish !== undefined ? { p6ExpectedFinish: task.p6ExpectedFinish } : {}),
+    ...(task.p6SuspendResume !== undefined ? { p6SuspendResume: task.p6SuspendResume } : {}),
     parentId: task.parentId,
     childIds: task.childIds,
     duration: nativeDuration(task),
@@ -1031,7 +1045,11 @@ export const readTools: McpToolDef[] = [
       'aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
       'READ-ONLY `splitGaps` (werkonderbrekingen), `levelingDelayMinutes`, `mspTaskType` (MSP Task ' +
       'Type: FIXED_UNITS/FIXED_DURATION/FIXED_WORK), `effortDriven` en `timephasedContours` (rauwe ' +
-      'contourperiodes — puur data, geen rekengedrag). Onbekend id ⇒ nette NOT_FOUND. ' +
+      'contourperiodes — puur data, geen rekengedrag). Bij XER/P6 zijn, indien aanwezig, ook de acht ' +
+      'read-only bronvelden `p6DurationType`, `p6ActivityType`, `p6ProjectId`, `p6TaskId`, ' +
+      '`p6ExplicitTargetWindow` (ook false), `p6CompletePctType`, `p6ExpectedFinish` en ' +
+      '`p6SuspendResume` zichtbaar. Relatie-objecten tonen daarnaast, indien aanwezig, ' +
+      '`p6StartAtPredecessorFinishBoundary`. Onbekend id ⇒ nette NOT_FOUND. ' +
       'NAAMDRIFT LEZEN↔SCHRIJVEN: `wbs` heet bij het schrijven `wbsCode`, en `calendar.effectiveId` ' +
       'heet daar `calendarId` (let op: `effectiveId` kan de PROJECTkalender zijn — dan staat er geen ' +
       'eigen `calendarId` op de taak, zie `calendar.isProjectDefault`). ' +
