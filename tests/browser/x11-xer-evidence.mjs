@@ -212,6 +212,102 @@ async function installDevBridgeOpenGate(page) {
     if (!bridge) throw new Error('window.__OPS__ ontbreekt voor anti-sluiproute-gate');
     const gate = { calls: [], wrapped: [] };
     window.__OPS_X11_BRIDGE_GATE__ = gate;
+
+    const liveGetState = bridge.store.getState.bind(bridge.store);
+    const dataRecord = (entries) => {
+      const record = Object.create(null);
+      for (const [key, value] of entries) record[key] = value;
+      return Object.freeze(record);
+    };
+    const makeSnapshot = () => {
+      const live = liveGetState();
+      const notificationEntries = Object.create(null);
+      const liveNotifications = Array.isArray(live.ui?.notifications) ? live.ui.notifications : [];
+      for (let index = 0; index < liveNotifications.length; index += 1) {
+        const item = liveNotifications[index];
+        notificationEntries[String(index)] = dataRecord([
+          ['severity', typeof item.severity === 'string' ? item.severity : null],
+          ['messageKey', typeof item.messageKey === 'string' ? item.messageKey : null],
+          ['helpArticleId', typeof item.helpArticleId === 'string' ? item.helpArticleId : null],
+        ]);
+      }
+      Object.freeze(notificationEntries);
+      const importedTaskCount = Array.isArray(live.tasks)
+        ? live.tasks.filter((task) => task.isSummary !== true && (task.childIds?.length ?? 0) === 0).length
+        : 0;
+      return dataRecord([
+        ['documents', dataRecord([['count', Array.isArray(live.documents) ? live.documents.length : 0]])],
+        ['tasks', dataRecord([['importedCount', importedTaskCount]])],
+        ['sequences', dataRecord([['count', Array.isArray(live.sequences) ? live.sequences.length : 0]])],
+        ['cpmResult', Boolean(live.cpmResult)],
+        ['xerSourceArchive', dataRecord([['present', Boolean(live.xerSourceArchive)]])],
+        ['xerSourceProjectId', typeof live.xerSourceProjectId === 'string' ? live.xerSourceProjectId : null],
+        ['ui', dataRecord([
+          ['notifications', dataRecord([
+            ['count', liveNotifications.length],
+            ['entries', notificationEntries],
+          ])],
+        ])],
+      ]);
+    };
+    const storeFacade = Object.create(null);
+    Object.defineProperty(storeFacade, 'getState', {
+      value: () => makeSnapshot(),
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+    Object.freeze(storeFacade);
+    Object.defineProperty(bridge, 'store', {
+      value: storeFacade,
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+
+    const inspectFunctions = (value, path, found, invalidObjects, seenObjects) => {
+      if (typeof value === 'function') {
+        found.push(path);
+        return;
+      }
+      if (!value || typeof value !== 'object' || seenObjects.has(value)) return;
+      seenObjects.add(value);
+      if (Array.isArray(value) || Object.getPrototypeOf(value) !== null) invalidObjects.push(path);
+      for (const key of Reflect.ownKeys(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (descriptor && 'value' in descriptor) {
+          inspectFunctions(descriptor.value, `${path}.${String(key)}`, found, invalidObjects, seenObjects);
+        }
+      }
+    };
+    const inspectStoreFacade = () => {
+      const snapshot = storeFacade.getState();
+      const secondSnapshot = storeFacade.getState();
+      const facadeFunctions = [];
+      const snapshotFunctions = [];
+      const invalidFacadeObjects = [];
+      const invalidSnapshotObjects = [];
+      inspectFunctions(storeFacade, 'devBridge.store', facadeFunctions, invalidFacadeObjects, new WeakSet());
+      inspectFunctions(snapshot, 'snapshot', snapshotFunctions, invalidSnapshotObjects, new WeakSet());
+      const result = {
+        frozen: Object.isFrozen(storeFacade),
+        freshSnapshots: snapshot !== secondSnapshot,
+        facadeFunctions,
+        snapshotFunctions,
+        invalidFacadeObjects,
+        invalidSnapshotObjects,
+        openFileAbsent: !Reflect.has(snapshot, 'openFile'),
+        applyOpenedImportAbsent: !Reflect.has(snapshot, 'applyOpenedImport'),
+      };
+      if (!result.frozen || !result.freshSnapshots ||
+          JSON.stringify(result.facadeFunctions) !== JSON.stringify(['devBridge.store.getState']) ||
+          result.snapshotFunctions.length !== 0 || result.invalidFacadeObjects.length !== 0 ||
+          result.invalidSnapshotObjects.length !== 0 || !result.openFileAbsent || !result.applyOpenedImportAbsent) {
+        throw new Error(`read-only-store-gate rood: ${JSON.stringify(result)}`);
+      }
+      return result;
+    };
+
     const seen = new WeakSet();
 
     const visit = (value, path) => {
@@ -238,15 +334,60 @@ async function installDevBridgeOpenGate(page) {
 
     visit(bridge, 'devBridge');
     if (gate.wrapped.length === 0) throw new Error('anti-sluiproute-gate vond geen devBridge-openmethoden');
-    return { wrapped: [...gate.wrapped] };
+    return { wrapped: [...gate.wrapped], storeFacade: inspectStoreFacade() };
   });
 }
 
 async function readDevBridgeOpenGate(page) {
-  return page.evaluate(() => ({
-    calls: [...(window.__OPS_X11_BRIDGE_GATE__?.calls ?? [])],
-    wrapped: [...(window.__OPS_X11_BRIDGE_GATE__?.wrapped ?? [])],
-  }));
+  return page.evaluate(() => {
+    const bridge = window.__OPS__;
+    if (!bridge) throw new Error('window.__OPS__ ontbreekt bij gate-readback');
+    const inspectFunctions = (value, path, found, invalidObjects, seenObjects) => {
+      if (typeof value === 'function') {
+        found.push(path);
+        return;
+      }
+      if (!value || typeof value !== 'object' || seenObjects.has(value)) return;
+      seenObjects.add(value);
+      if (Array.isArray(value) || Object.getPrototypeOf(value) !== null) invalidObjects.push(path);
+      for (const key of Reflect.ownKeys(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (descriptor && 'value' in descriptor) {
+          inspectFunctions(descriptor.value, `${path}.${String(key)}`, found, invalidObjects, seenObjects);
+        }
+      }
+    };
+    const snapshot = bridge.store.getState();
+    const secondSnapshot = bridge.store.getState();
+    const facadeFunctions = [];
+    const snapshotFunctions = [];
+    const invalidFacadeObjects = [];
+    const invalidSnapshotObjects = [];
+    inspectFunctions(bridge.store, 'devBridge.store', facadeFunctions, invalidFacadeObjects, new WeakSet());
+    inspectFunctions(snapshot, 'snapshot', snapshotFunctions, invalidSnapshotObjects, new WeakSet());
+    const storeFacade = {
+      frozen: Object.isFrozen(bridge.store),
+      freshSnapshots: snapshot !== secondSnapshot,
+      facadeFunctions,
+      snapshotFunctions,
+      invalidFacadeObjects,
+      invalidSnapshotObjects,
+      openFileAbsent: !Reflect.has(snapshot, 'openFile'),
+      applyOpenedImportAbsent: !Reflect.has(snapshot, 'applyOpenedImport'),
+    };
+    if (!storeFacade.frozen || !storeFacade.freshSnapshots ||
+        JSON.stringify(storeFacade.facadeFunctions) !== JSON.stringify(['devBridge.store.getState']) ||
+        storeFacade.snapshotFunctions.length !== 0 || storeFacade.invalidFacadeObjects.length !== 0 ||
+        storeFacade.invalidSnapshotObjects.length !== 0 || !storeFacade.openFileAbsent ||
+        !storeFacade.applyOpenedImportAbsent) {
+      throw new Error(`read-only-store-gate rood: ${JSON.stringify(storeFacade)}`);
+    }
+    return {
+      calls: [...(window.__OPS_X11_BRIDGE_GATE__?.calls ?? [])],
+      wrapped: [...(window.__OPS_X11_BRIDGE_GATE__?.wrapped ?? [])],
+      storeFacade,
+    };
+  });
 }
 
 function assertPrivacySafeToast(text, box) {
@@ -317,13 +458,11 @@ async function runBrowserSmallA(preflightResult, server, evidenceDir) {
       await page.waitForFunction((messageKey) => {
         const bridge = window.__OPS__;
         const state = bridge?.store.getState();
-        const notification = state?.ui.notifications.find((item) => item.messageKey === messageKey);
-        const importedTasks = state?.tasks?.filter((task) =>
-          task.isSummary !== true && (task.childIds?.length ?? 0) === 0,
-        );
+        const notifications = state?.ui?.notifications?.entries ?? {};
+        const notification = Object.values(notifications).find((item) => item.messageKey === messageKey);
         return Boolean(
-          state && state.documents?.length === 1 && importedTasks?.length === 8 &&
-          state.sequences?.length === 7 && state.cpmResult && state.xerSourceArchive &&
+          state && state.documents?.count === 1 && state.tasks?.importedCount === 8 &&
+          state.sequences?.count === 7 && state.cpmResult && state.xerSourceArchive?.present &&
           state.xerSourceProjectId && notification?.helpArticleId === 'gids-xer-import',
         );
       }, XER_OPEN_MESSAGE_KEY, { timeout: 30_000 });

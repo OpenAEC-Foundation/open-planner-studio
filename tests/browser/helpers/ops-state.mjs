@@ -5,24 +5,22 @@ export async function readOpsState(page) {
     const bridge = window.__OPS__;
     if (!bridge) throw new Error('window.__OPS__ ontbreekt');
     const state = bridge.store.getState();
-    const xerNotification = state.ui.notifications.find((item) => item.messageKey === xerMessageKey);
-    const importedTasks = Array.isArray(state.tasks)
-      ? state.tasks.filter((task) => task.isSummary !== true && (task.childIds?.length ?? 0) === 0)
-      : [];
+    const notifications = Object.values(state.ui.notifications.entries);
+    const xerNotification = notifications.find((item) => item.messageKey === xerMessageKey);
     return {
-      documents: Array.isArray(state.documents) ? state.documents.length : -1,
+      documents: state.documents.count,
       // De 4 WBS-samenvattingsrijen zijn afgeleide structuur; SMALL-A telt de 8 echte
       // geïmporteerde werk-/mijlpaaltaken die in de XER TASK-tabel staan.
-      tasks: importedTasks.length,
-      relations: Array.isArray(state.sequences) ? state.sequences.length : -1,
-      cpm: Boolean(state.cpmResult),
-      xerSourceArchive: Boolean(state.xerSourceArchive),
-      xerSourceProjectId: typeof state.xerSourceProjectId === 'string' ? state.xerSourceProjectId : null,
+      tasks: state.tasks.importedCount,
+      relations: state.sequences.count,
+      cpm: state.cpmResult,
+      xerSourceArchive: state.xerSourceArchive.present,
+      xerSourceProjectId: state.xerSourceProjectId,
       xerNotification: xerNotification ? {
         messageKey: xerNotification.messageKey,
         helpArticleId: xerNotification.helpArticleId ?? null,
       } : null,
-      notifications: state.ui.notifications.map((item) => ({
+      notifications: notifications.map((item) => ({
         severity: item.severity,
         messageKey: item.messageKey,
         helpArticleId: item.helpArticleId ?? null,
