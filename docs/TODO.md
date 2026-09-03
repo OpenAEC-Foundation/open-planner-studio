@@ -307,11 +307,12 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > Uit de Z20-eindronde: dingen die deze etappe bewust NIET meenam, met de reden erbij — zodat het
 > geen verrassing is als iemand er later tegenaan loopt.
 
-- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>`/`<TimephasedData>` lezen en schrijven.**
+- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>` lezen en schrijven.**
       Orkestratorbesluit O4 (2026-08-17): native schrijven zonder terugleeslezen zou een stille
       semantiek-omklap zijn (hetzelfde precedent als `ELAPSEDTIME`) — de MSPDI-export waarschuwt
-      daarom bewust in plaats van deze drie elementen te schrijven. Native lezen+schrijven is een
-      eigen, kleine vervolg-etappe.
+      daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
+      contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
+      `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
 - [ ] **Splitsen/handmatig plannen als bewerkfunctie (UI).** Deze etappe levert lezen, rekenen,
       tekenen en round-trip; slepen om te splitsen, split-handles in de Gantt en split ongedaan maken
       zijn een aparte etappe (plan §1.4/O2, orkestratorbesluit akkoord 2026-08-17).
@@ -330,6 +331,35 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       dan de opgeslagen klopt, is met het huidige harnas onverifieerbaar — bewerkgedrag-fidelity heeft
       nog geen meetlat. Wacht op de bewerken-zoals-MSP-meetlat uit de taaktypes-etappe
       (eigenaarsbesluit 2026-08-18: task type/effort-driven als aparte etappe, niet hier).
+
+### Contour-engine (2026-09) — geleverd en bewust laten liggen
+
+> Etappe "contour-engine" (`src/engine/contour/contourEngine.ts`, `src/services/contourIo.ts`,
+> `tests/planning/check-contour-engine.ts`): de dagverdeling van een toewijzing is nu DATA
+> (opgeslagen contour of exacte 21-punts-curve) met de `distributeUnits`-formule als terugval;
+> histogram/overallocatie/nivelleerder/bezetting lezen dezelfde `assignmentDayUnits`; een
+> duurwijziging herschaalt de contour proportioneel; MSPDI `<TimephasedData>` en P6
+> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie CLAUDE.md.
+
+- [x] **P6-export schreef de curveNAAM in `<PlannedCurve>` — een verkeerde lezing van het PMXML-schema**
+      (gevonden 2026-09-03 tegen MPXJ `XmlProjectReader`/`TimephasedHelper`: `PlannedCurve` is een
+      spreidingsstring `"werkuren:periodeuren;…"`, de curve zit in `ResourceCurveObjectId` →
+      `<ResourceCurve>`). Gecorrigeerd in `p6xmlWriter.ts`/`p6xmlReader.ts`; de lezer accepteert
+      de oude naamvorm nog als compat (een `<PlannedCurve>` zonder `:`).
+- [ ] **DOUBLE_PEAK/TURTLE als OPS-curve.** De engine kent de tabellen (MSPDI-codes 3/7, P6
+      "Double Peak"/"Trapezoidal"-achtig) en draagt ze exact als `curveValues`, maar het
+      `ResourceCurve`-enum is op acht plekken gedupliceerd (UI-dropdowns, MCP-schema, IFC-validator,
+      ext-contract, kolomregister) — bewust niet uitgebreid in deze etappe. De curvekeuze in de UI
+      toont zo'n toewijzing als "uniform" terwijl de load wél de exacte curve gebruikt.
+- [ ] **Contour bewerken in de UI.** Er is nog geen invoer om per dag uren te zetten of een
+      contour te wissen; de enige bronnen zijn `.mpp`/MSPDI/P6-import. Een "contour loslaten"-
+      actie (terug naar de formule) hoort bij die UI-etappe.
+- [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
+      FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
+      gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
+- [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
+      een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
+      benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
 
 ### Solver/presentatie — resterende punten (2026-07-20)
 

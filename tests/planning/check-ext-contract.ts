@@ -110,7 +110,7 @@ const EXT_RESOURCE_KEYS = keys<ExtResource>()([
 ] as const);
 
 const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
-  'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish',
+  'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
 ] as const);
 
 // ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
@@ -252,6 +252,7 @@ const VOL_RESOURCE = {
 const VOL_ASSIGNMENT = {
   id: 'a1', taskId: 't1', resourceId: 'r1', unitsPerDay: 0.5, curve: 'BELL',
   workWindowStart: '2026-06-01T08:00', workWindowFinish: '2026-06-10T17:00',
+  curveValues: [0, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
 } satisfies Required<ResourceAssignment>;
 
 // ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────

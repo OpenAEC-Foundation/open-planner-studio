@@ -347,6 +347,8 @@ const A1 = {
   // Z14: round-tript sinds OPS_Timephased — zie de KEEP-cel in ASSIGNMENT_CANON hieronder. Nog
   // ONGEVULD door de mpp-lezer (Z8, aparte taak); dit test alleen de opslag-/round-trip-laag.
   workWindowStart: '2026-07-06', workWindowFinish: '2026-07-08',
+  // Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI) reist in hetzelfde JSON-pset mee.
+  curveValues: [0, 1.3, 2.5, 3.8, 5.1, 7.6, 10.1, 7.6, 5.1, 3.8, 2.5, 2.5, 2.5, 3.8, 5.1, 7.6, 10.1, 7.6, 5.1, 3.8, 2.5],
 } satisfies Required<ResourceAssignment>;
 const assignments: ResourceAssignment[] = [
   A1,
@@ -602,6 +604,8 @@ const ASSIGNMENT_CANON = {
   // (ifcWriter.writeTimephasedMeta / ifcReader.extractAssignments) — echte KEEP-vergelijking.
   // Nog ONGEVULD door de mpp-lezer (Z8, aparte taak) — dit is puur de opslag-/round-trip-laag.
   workWindowStart: KEEP, workWindowFinish: KEEP,
+  // Contour-engine (2026-09): `curveValues` in hetzelfde `OPS_Timephased`-pset — echte KEEP.
+  curveValues: KEEP,
 } satisfies CanonSpec<ResourceAssignment>;
 
 const PROJECT_CANON = {

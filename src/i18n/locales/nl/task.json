@@ -354,7 +354,7 @@
     "longFreePeriodWarning": "Deze taak loopt over een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
     "longFreePeriodWarningNamed": "Deze taak loopt over {{name}} — een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
     "timephasedActive": "Volgt de urenverdeling uit MS Project",
-    "timephasedLost": "Urenverdeling uit MS Project niet meer toegepast na bewerking — oorspronkelijke verdeling blijft bewaard",
+    "timephasedLost": "Datumvenster uit MS Project niet meer toegepast na bewerking — de urenverdeling zelf blijft gelden en bewaard",
     "completion": "Voortgang (%)",
     "progress": {
       "actualStart": "Werkelijke start",

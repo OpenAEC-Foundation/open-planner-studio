@@ -1,4 +1,5 @@
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
+import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
@@ -155,6 +156,14 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
+  // Contour-engine (2026-09): `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
+  // het SCHRIJVENDE document; deze lezer regenereert resource-ids (`extractResources`), dus de
+  // verwijzing moet mee — via dezelfde deterministische GUID-hash (`ifcGuid(oudeId)` = de GlobalId
+  // die de writer voor die resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
+  // `extractStructure`, want dáár landen de `OPS_TimephasedContours`-psets op de taken. Een
+  // verwijzing die niet terug te vinden is (GUID-botsing met `#dup`-suffix, of een extern bestand)
+  // blijft ongewijzigd staan — de koppeling valt dan terug op de 1-op-1-regel van de engine.
+  remapContourResourceIds(tasks, resourceGuidMap);
   // Fase 3 (P11): OPS_Leveling wordt nu binnen extractStructure via de per-taak-registry gedispatcht
   // (samen met de andere zeven per-taak-psets) — geen losse extractLevelingMeta-aanroep meer.
 
@@ -1933,6 +1942,8 @@ interface AssignmentMeta {
 interface WindowMeta {
   workWindowStart?: string;
   workWindowFinish?: string;
+  /** Contour-engine (2026-09) — exacte 21-punts curve, zie `ResourceAssignment.curveValues`. */
+  curveValues?: number[];
 }
 
 /** Per-taak verzamelde OPS_Assignments-meta: nieuw formaat (`GUID#N`-propnamen) als
@@ -1995,11 +2006,13 @@ function extractAssignments(
         const m = key.match(/^(.+)#(\d+)$/);
         if (!m || !val || typeof val !== 'object') continue;
         const vv = val as Record<string, unknown>;
+        const curveValues = normalizeCurveValues(vv.curveValues);
         const meta: WindowMeta = {
           ...(typeof vv.workWindowStart === 'string' ? { workWindowStart: vv.workWindowStart } : {}),
           ...(typeof vv.workWindowFinish === 'string' ? { workWindowFinish: vv.workWindowFinish } : {}),
+          ...(curveValues ? { curveValues } : {}),
         };
-        if (meta.workWindowStart === undefined && meta.workWindowFinish === undefined) continue;
+        if (meta.workWindowStart === undefined && meta.workWindowFinish === undefined && meta.curveValues === undefined) continue;
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
       }
       indexed.sort((a, b) => a.index - b.index);
@@ -2094,11 +2107,24 @@ function extractAssignments(
         ...(meta?.curve && meta.curve !== 'UNIFORM' ? { curve: meta.curve } : {}),
         ...(window?.workWindowStart !== undefined ? { workWindowStart: window.workWindowStart } : {}),
         ...(window?.workWindowFinish !== undefined ? { workWindowFinish: window.workWindowFinish } : {}),
+        ...(window?.curveValues !== undefined ? { curveValues: window.curveValues } : {}),
       });
     }
   }
 
   return assignments;
+}
+
+/** Contour-engine (2026-09) — zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
+function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, string>): void {
+  for (const task of tasks) {
+    if (!task.timephasedContours) continue;
+    for (const contour of task.timephasedContours) {
+      if (contour.resourceId === undefined) continue;
+      const mapped = resourceGuidMap.get(ifcGuid(contour.resourceId));
+      if (mapped) contour.resourceId = mapped;
+    }
+  }
 }
 
 /**

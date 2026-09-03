@@ -283,6 +283,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
+  # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
+  CECHECK="$DIR/.check-contour-engine.mjs"
+  if bundle_check "$DIR/check-contour-engine.ts" "$CECHECK"; then node "$CECHECK" || STATUS=1; fi
 
   # Geavanceerde-CPM golf-0-checks (fase 2.9 — datamodel + plumbing default-inert, los van de CPM-cases).
   ACPMCHECK="$DIR/.advanced-cpm-check.mjs"

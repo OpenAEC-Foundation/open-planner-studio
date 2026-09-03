@@ -7,6 +7,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
 } from '@/utils/taskDefaults';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
@@ -355,8 +356,12 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const { time, ...rest } = updates;
+      const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Contour-engine (2026-09) — tweeling van taskSlice.ts's `updateTask`: herschaal de contour.
+      if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
@@ -393,6 +398,8 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
+      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       Object.assign(task, top);
       let timeTouched = false;
       if (timePatch) {
@@ -402,6 +409,8 @@ function createMcpDraft(
         if (timePatch.durationType !== undefined) { task.time.durationType = timePatch.durationType; timeTouched = true; }
         if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
       }
+      // Contour-engine (2026-09) — zelfde herschaling als `updateTaskFields` hierboven.
+      if (timeTouched) rescaleTaskContours(task, oldWorkMinutes, contourHpd);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
       // volledige `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.
@@ -625,6 +634,7 @@ function createMcpDraft(
       }
       if (Object.keys(patch).length === 0) return;
       Object.assign(s.assignments[idx], patch);
+      if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
       s.isDirty = true;
     });
   },

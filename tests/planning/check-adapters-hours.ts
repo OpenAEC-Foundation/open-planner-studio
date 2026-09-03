@@ -870,13 +870,15 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const { warns: wM } = withWarnings(() => writeMSPDI(projZ, H8, zTasks, [], [], zAssignments));
     assert(wM.some(w => w.includes('MSPDI-export: 1 handmatig geplande taak/taken')), `Z14 MSPDI manuallyScheduled-warn: kreeg [${wM.join(' | ')}]`);
     assert(wM.some(w => w.includes('MSPDI-export: 1 taak/taken met sub-dag-nivelleervertraging')), `Z14 MSPDI levelingDelayMinutes-warn: kreeg [${wM.join(' | ')}]`);
-    assert(wM.some(w => w.includes('MSPDI-export: 1 gesplitste taak/taken en 1 gecontoureerde toewijzing')), `Z14 MSPDI splits/timephased-warn: kreeg [${wM.join(' | ')}]`);
+    // Contour-engine (2026-09): contouren gaan native mee als <TimephasedData>; alleen een gesplitste
+    // taak ZONDER contourdata warnt nog (de rijke taak hier draagt splits maar geen contour).
+    assert(wM.some(w => w.includes('MSPDI-export: 1 gesplitste taak/taken zonder contourdata')), `Z14 MSPDI splits/timephased-warn: kreeg [${wM.join(' | ')}]`);
     assert(wM.some(w => w.includes('MSPDI-export: 1 taak/taken met resume/stop')), `Z14 MSPDI resume/stop-warn: kreeg [${wM.join(' | ')}]`);
 
     const { warns: wP } = withWarnings(() => writeP6XML(projZ, H8, zTasks, [], [], zAssignments, []));
     assert(wP.some(w => w.includes('P6-export: 1 handmatig geplande taak/taken')), `Z14 P6 manuallyScheduled-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met sub-dag-nivelleervertraging')), `Z14 P6 levelingDelayMinutes-warn: kreeg [${wP.join(' | ')}]`);
-    assert(wP.some(w => w.includes('P6-export: 1 gesplitste taak/taken en 1 gecontoureerde toewijzing')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
+    assert(wP.some(w => w.includes('P6-export: 1 gesplitste taak/taken zonder contourdata')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met resume/stop')), `Z14 P6 resume/stop-warn: kreeg [${wP.join(' | ')}]`);
 
     // CSV: vaste 15 kolommen, geen warn — de rijke taak mag de kolomstructuur niet veranderen.

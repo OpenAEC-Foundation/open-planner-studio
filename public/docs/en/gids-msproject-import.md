@@ -102,22 +102,34 @@ leveling.
 
 ### Contoured assignments
 
-If a resource assignment in MS Project got its own work window that deviates from a flat, even
-distribution (resource contouring, or a task spread out over a longer period than its duration
-alone would require), Open Planner Studio follows that window on opening: the dates come from MS
-Project's own stored answer, not from a plain duration calculation. What doesn't come along is the
-shape of that distribution itself — the rising or falling load per day within the window. Open
-Planner Studio doesn't yet have a contour calculation engine: a task's resource load is always
-spread evenly across its working days, even for an imported contoured task.
+If a resource assignment in MS Project got its own work distribution that deviates from a flat,
+even distribution (resource contouring: for example a rising load, half a person in the first week,
+or a task spread out over a longer period than its duration alone would require), Open Planner
+Studio reads that distribution in full. On opening, the dates follow MS Project's own stored
+answer, and the contour engine uses the day-by-day distribution it read as real data: the resource
+histogram, over-allocation detection, the leveler and the occupancy overview show and calculate
+with the assignment's actual hours per day — half a person on Monday stays half a person, neither
+rounded nor spread out evenly. A day without work inside the contour (an interruption) carries no
+load.
 
-If you then edit such a task yourself — its duration, dates, assignments, or calendar — Open
-Planner Studio lets go of the window captured at import: the task falls back to an ordinary,
-continuous duration calculation without the original contour shape. The first time this happens
-within an open document, an informative notification appears with a link to this section; later
-edits in the same document don't notify again. The task's properties panel now shows whether it's
-still actively steered by MS Project, or whether that steering was let go after an edit — with the
-same link. Neither touches the file itself: the originally read distribution always stays saved,
-even after saving; only the DERIVED steering the engine used is let go.
+If you then edit such a task yourself, the distribution travels along. When the duration changes,
+Open Planner Studio stretches or shrinks the contour proportionally to the new duration (the same
+rule MS Project applies to a contoured assignment); work already performed stays where it is and
+only the remaining part is rescaled. A task whose MS Project task type was *Fixed Work* keeps its
+total work and only changes its load per day. Moving the task in time, switching its calendar or
+changing an assignment doesn't touch the distribution. What an edit does let go of is the *date
+window* MS Project stored and Open Planner Studio read at import: from then on the task's finish
+comes from Open Planner Studio's own calculation (duration plus any interruptions) instead of MS
+Project's stored answer. The first time this happens within an open document, an informative
+notification appears with a link to this section; later edits in the same document don't notify
+again. The task's properties panel shows whether the date window is still actively steered by MS
+Project, or whether that steering was let go after an edit — with the same link. The originally
+read distribution always stays saved in the file, even after saving.
+
+The contour also travels outward: an export to MS Project XML writes the daily distribution as
+native `TimephasedData` (with the *Contoured* work contour), an export to Primavera P6 XML as a
+spread on the assignment; Open Planner Studio reads both formats back in as well. See the
+*Import and export* guide for the per-format details.
 
 ## Milestones: MS Project's own finish-boundary convention for finish milestones
 

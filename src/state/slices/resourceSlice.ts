@@ -166,6 +166,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (Object.keys(patch).length === 0) return;
       runtime.beginUndoable(s);
       Object.assign(s.assignments[idx], patch);
+      // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
+      // geïmporteerde 21-punts curve (`curveValues`, P6/MSPDI) — anders zou het histogram de oude
+      // P6-vorm blijven tonen terwijl de dropdown de nieuwe keuze laat zien.
+      if ('curve' in patch) delete s.assignments[idx].curveValues;
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
