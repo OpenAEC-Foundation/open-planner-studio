@@ -147,6 +147,8 @@ interface PreviewLayoutState {
 interface PreviewScrollAnchor {
   index: number;
   offset: number;
+  /** scrollTop op het moment van vastleggen; het herstel slaat over als die intussen veranderde. */
+  scrollTop: number;
 }
 
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -160,7 +162,7 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
   const pages = [...root.querySelectorAll<HTMLElement>('[data-preview-page]')];
-  if (pages.length === 0) return { index: 0, offset: 0 };
+  if (pages.length === 0) return { index: 0, offset: 0, scrollTop: root.scrollTop };
   const rootTop = root.getBoundingClientRect().top;
   const visible = pages
     .map(page => ({ page, rect: page.getBoundingClientRect() }))
@@ -170,10 +172,19 @@ function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
   return {
     index: Number(page.dataset.previewPage) || 0,
     offset: page.getBoundingClientRect().top - rootTop,
+    scrollTop: root.scrollTop,
   };
 }
 
+/** Herstelt het leesanker ná een layoutwissel — maar alleen als de gebruiker intussen niet zelf
+ * heeft gescrold. Het anker wordt vastgelegd in `renderPreview` (na de 100ms-debounce) en pas in
+ * de eerstvolgende animatieframe teruggezet; op een trage machine (CI-runner, zware rasterisatie)
+ * ligt daar een venster waarin een echte wielscroll landt. Zonder deze poort trok het herstel de
+ * viewport dan terug naar de positie van vóór die scroll (browsertest "stabiel scrollanker":
+ * scrollTop 0 direct ná een geslaagde scroll). Een gewijzigde scrollTop betekent dat de gebruiker
+ * al ergens anders leest; die positie wint. */
 function restorePreviewScrollAnchor(root: HTMLElement, anchor: PreviewScrollAnchor, totalPages: number): void {
+  if (root.scrollTop !== anchor.scrollTop) return;
   const index = Math.min(Math.max(0, anchor.index), Math.max(0, totalPages - 1));
   const page = root.querySelector<HTMLElement>(`[data-preview-page="${index}"]`);
   if (!page) return;
@@ -571,7 +582,7 @@ export function ReportPanel() {
       const layout = computeTileLayout(tileOptions);
       const total = layout.rows * layout.cols;
       const root = previewViewportRef.current;
-      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0 };
+      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTop: 0 };
       const visibleIndices = root
         ? [...root.querySelectorAll<HTMLElement>('[data-preview-page]')]
           .filter(page => {
