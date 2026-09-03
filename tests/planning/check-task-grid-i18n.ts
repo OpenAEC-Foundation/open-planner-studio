@@ -99,7 +99,29 @@ const COUNTED_TASK_GRID_KEYS = [...new Set(
   [...registrySource.matchAll(/labelForText\?\.\(\s*'([^']+)'\s*,\s*\{\s*count\s*:/g)]
     .map(match => match[1]),
 )].sort();
-const REQUIRED_KEYS = [...TASK_GRID_KEYS, ...COLUMN_KEYS];
+// Issue #89: een validatiecode zonder vertaling viel terug op een Nederlandse `defaultValue`, ook in
+// een Engelse interface. Elke code die de bron kan opleveren moet daarom in álle talen bestaan;
+// de lijst wordt hier uit de bron gelezen, zodat een nieuwe code zonder tekst de poort rood zet.
+const VALIDATION_SOURCE_FILES = [
+  ...fs.readdirSync(path.join(root, 'src/engine/taskGrid'))
+    .filter(name => name.endsWith('.ts'))
+    .map(name => `src/engine/taskGrid/${name}`),
+  'src/state/gridTransaction.ts',
+  'src/state/slices/taskGridSlice.ts',
+  ...fs.readdirSync(path.join(root, 'src/components/task-grid'))
+    .filter(name => name.endsWith('.tsx') || name.endsWith('.ts'))
+    .map(name => `src/components/task-grid/${name}`),
+];
+const VALIDATION_CODE_PATTERNS = [
+  /\b(?:failure|fail|error|localError|validationError)\((?:[^,()]+,\s*)?'([a-zA-Z]+)'/g,
+  /\bcode:\s*'([a-zA-Z]+)'/g,
+  /taskGrid\.validation\.([a-zA-Z]+)/g,
+];
+const VALIDATION_KEYS = [...new Set(VALIDATION_SOURCE_FILES.flatMap(file => {
+  const source = fs.readFileSync(path.join(root, file), 'utf8');
+  return VALIDATION_CODE_PATTERNS.flatMap(pattern => [...source.matchAll(pattern)].map(match => match[1]));
+}))].sort().map(code => `taskGrid.validation.${code}`);
+const REQUIRED_KEYS = [...new Set([...TASK_GRID_KEYS, ...COLUMN_KEYS, ...VALIDATION_KEYS])];
 const failures: string[] = [];
 let checks = 0;
 const ok = (label: string, condition: boolean): void => {
@@ -129,6 +151,11 @@ for (const key of REQUIRED_KEYS) {
   }
 }
 
+ok('De bronscan vindt de validatiecodes uit clipboard, editplan, transactie en editor',
+  ['taskGrid.validation.required', 'taskGrid.validation.pasteBounds', 'taskGrid.validation.tsvQuote',
+    'taskGrid.validation.documentChanged', 'taskGrid.validation.prepareRejected',
+    'taskGrid.validation.clearNotPossible', 'taskGrid.validation.relationSetConflict']
+    .every(key => VALIDATION_KEYS.includes(key)));
 ok('De checker vindt alle vier registryteksten die met count worden aangeroepen',
   COUNTED_TASK_GRID_KEYS.length === 4);
 for (const key of COUNTED_TASK_GRID_KEYS) {

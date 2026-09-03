@@ -51,11 +51,6 @@ export interface DataGridCoreProps {
     absoluteIndex: number,
     event: React.MouseEvent<HTMLDivElement>,
   ) => void;
-  onDataRowMouseMove?: (
-    row: DataGridDataRowModel,
-    event: React.MouseEvent<HTMLDivElement>,
-  ) => void;
-  onDataRowMouseLeave?: (row: DataGridDataRowModel) => void;
   onGroupContextMenu?: (
     row: Extract<DataGridRowModel, { kind: 'group' }>,
     event: React.MouseEvent<HTMLDivElement>,
@@ -177,8 +172,6 @@ export function DataGridCore({
   onCellDoubleClick,
   onCellContextMenu,
   onDataRowMouseDown,
-  onDataRowMouseMove,
-  onDataRowMouseLeave,
   onGroupContextMenu,
   onCopy,
   onPaste,
@@ -453,8 +446,6 @@ export function DataGridCore({
                 className={`task-grid-data-row${row.traceClass ? ` ${row.traceClass}` : ''}`}
                 style={{ height: rowHeight, minWidth: totalWidth, gridTemplateColumns: template, direction: 'ltr' }}
                 onMouseDown={event => onDataRowMouseDown?.(row, mounted.index, event)}
-                onMouseMove={event => onDataRowMouseMove?.(row, event)}
-                onMouseLeave={() => onDataRowMouseLeave?.(row)}
               >
                 {columns.map((column, columnIndex) => {
                   const cell = { rowKey: row.rowKey, columnId: column.id };

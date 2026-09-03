@@ -75,8 +75,13 @@
 
 /* Een editorpop-over is bewust breder/hoger dan zijn 28px-cel. De gewone celinhoud blijft
  * ellipsized, maar de actieve editor mag niet door die wrapper worden afgeknipt: anders zijn
- * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar. */
-.task-grid-cell-content:has(> .task-grid-editor-host) {
+ * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar.
+ * Issue #89: de contentspan is een flex-item van de cel en kromp zonder `flex: 1 1 auto` tot de
+ * intrinsieke breedte van het invoerveld (~20 tekens), zodat de naameditor maar een deel van de
+ * kolom vulde. De editor hoort de volle resterende kolombreedte te krijgen; de naameditor staat
+ * daarbij genest in de inspringrij (`.full-task-grid-name`), vandaar de afstammelingsselector. */
+.task-grid-cell-content:has(.task-grid-editor-host) {
+  flex: 1 1 auto;
   overflow: visible;
 }
 
@@ -366,21 +371,26 @@
   height: 100%;
 }
 
+/* Issue #89: de subtaak-plus staat ná de naam en wordt met `margin-inline-start: auto` tegen
+ * de rechter kolomrand gedrukt, zodat hij op elke samenvattende rij op dezelfde plek staat en
+ * de naamtekst links de hiërarchie kan laten zien. De lichte rand maakt hem als knop herkenbaar. */
 .gantt-task-grid-add-child {
   flex: none;
+  margin-inline-start: auto;
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--theme-border);
   border-radius: 3px;
   color: var(--theme-text-muted);
-  background: transparent;
+  background: var(--theme-surface-alt);
   line-height: 1;
 }
 
 .gantt-task-grid-add-child:hover,
 .gantt-task-grid-add-child:focus-visible {
   color: var(--theme-accent);
+  border-color: var(--theme-accent);
   background: var(--theme-hover);
   outline: none;
 }
@@ -397,13 +407,29 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  /* Issue #89: triehoekje (16px) + deze gap (4px) = één inspringeenheid van 20px, dezelfde
+   * TASK_NAME_INDENT_UNIT als in src/engine/taskGrid/nameIndent.ts. */
   gap: 4px;
+}
+
+/* De naameditor vult de rij vanaf de tekstpositie tot de rechter kolomrand. */
+.full-task-grid-name > .task-grid-editor-host {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* De algemene celpadding liet rechts van een taaknaam zeven ongebruikte pixels liggen: genoeg voor
  * nog een letter vóór de ellipsis. Links blijft de normale inspringruimte intact. */
 .task-grid-cell:has(.full-task-grid-name) {
   padding-inline-end: 1px;
+}
+
+/* Issue #89: de contentspan is een flex-item van de cel en kromp tot zijn inhoud, zodat de
+ * rechts uitgelijnde subtaak-plus (`margin-inline-start: auto`) nooit verder kwam dan het einde
+ * van de naamtekst. De naamcel laat zijn contentspan daarom de hele celbreedte vullen; de
+ * naamtekst zelf blijft via `.full-task-grid-name-label` krimpen en afknippen. */
+.task-grid-cell:has(.full-task-grid-name) > .task-grid-cell-content {
+  flex: 1 1 auto;
 }
 
 /* Vervolgmelding op observatie 3a/3b (probleem B): `.full-task-grid-name` is zelf een
@@ -420,6 +446,7 @@
  * ondanks het vaste-breedte triehoekje ernaast) plus `overflow:hidden`/`text-overflow:ellipsis` —
  * de clip zit nu op de plek waar de tekst zelf staat, niet alleen bij de voorouder. */
 .full-task-grid-name-label {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -517,8 +544,9 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
-  /* Eén bron voor de compacte "kolom toevoegen"-strook: uitsluitend het 16px brede icoon. */
-  --task-grid-chooser-strip: 16px;
+  /* Eén bron voor de "kolom toevoegen"-strook: een 20px-knop met 6px lucht aan weerszijden, zodat
+   * hij vrijstaat van de laatste kolominhoud én van de rand van het kader (issue #89). */
+  --task-grid-chooser-strip: 32px;
 }
 
 .task-grid-column-header[data-grid-dragging="true"] {
@@ -577,24 +605,24 @@
   z-index: calc(var(--z-sticky) + 1);
   inset-block-start: 0;
   inset-inline-end: 0;
-  width: var(--task-grid-chooser-strip, 34px);
+  width: var(--task-grid-chooser-strip, 32px);
   height: var(--task-grid-header-height);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-inline: 0;
+  padding-inline: 6px;
   background: var(--theme-surface-alt);
 }
 
 .task-grid-add-column {
-  width: 16px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
   padding: 0;
   color: var(--theme-text-muted);
   background: transparent;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 3px;
 }
 
@@ -602,6 +630,7 @@
 .task-grid-add-column:focus-visible,
 .task-grid-add-column[aria-expanded="true"] {
   color: var(--theme-text);
+  border-color: var(--theme-border);
   background: var(--theme-hover);
   outline: none;
 }

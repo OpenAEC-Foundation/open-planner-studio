@@ -49,6 +49,53 @@ function relationLabelParts(label: string): { reference: string; detail: string 
   return match ? { reference: match[1], detail: match[2] } : { reference: label, detail: '' };
 }
 
+/** Issue #89: de relatiedetails (type/lag, vrije speling, sturend, waarschuwingen) stonden als
+ * aparte native `title` op de chip en botsten met de taakkaart van de referentie. Ze staan nu als
+ * extra regels ONDER die kaart, zodat een link precies één tooltip heeft. */
+function RelationTooltipDetails({ item }: { item: RelationCellItem }) {
+  const { t } = useTranslation('task');
+  const { detail } = relationLabelParts(item.label);
+  const relationType = detail.slice(0, 2);
+  const lag = detail.slice(2).trim();
+  const warnings = [
+    ...item.warnings.map(warning => t(RELATION_WARNING_KEYS[warning] ?? warning, { defaultValue: warning })),
+    ...(item.stale ? [t('taskGrid.status.stale')] : []),
+  ];
+  return (
+    <>
+      {relationType && (
+        <div className="tooltip-row">
+          <span className="tooltip-label">{t('relations.type')}:</span>
+          <span className="tooltip-value">{relationType}</span>
+        </div>
+      )}
+      {lag && (
+        <div className="tooltip-row">
+          <span className="tooltip-label">{t('relations.lag')}:</span>
+          <span className="tooltip-value">{lag}</span>
+        </div>
+      )}
+      {item.freeFloat !== undefined && (
+        <div className="tooltip-row">
+          <span className="tooltip-label">{t('relations.freeFloat')}:</span>
+          <span className="tooltip-value">{item.freeFloat}d</span>
+        </div>
+      )}
+      {item.driving && (
+        <div className="tooltip-row">
+          <span className="tooltip-label">{t('relations.driving')}</span>
+        </div>
+      )}
+      {warnings.map(warning => (
+        <div key={warning} className="tooltip-row">
+          <span className="tooltip-label">{t('relations.warnings')}:</span>
+          <span className="tooltip-value">{warning}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
   const { t } = useTranslation('task');
   if (item.parsedToken.kind !== 'external') return null;
@@ -68,30 +115,26 @@ function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
 export interface RelationCellContentProps {
   items: readonly RelationCellItem[];
   onFocusTask: (taskId: string) => void;
-  onHoverStart?: () => void;
   onExternalContextMenu?: (item: RelationCellItem, event: MouseEvent<HTMLElement>) => void;
 }
 
-/** Compacte celweergave; alleen de taakreferentie is interactief, type en lag blijven gewone tekst. */
-export function RelationCellContent({ items, onFocusTask, onHoverStart, onExternalContextMenu }: RelationCellContentProps) {
+/** Compacte celweergave; alleen de taakreferentie is interactief, type en lag blijven gewone tekst.
+ * Tooltips (issue #89): boven de link staat uitsluitend de taakkaart van de referentie mét de
+ * relatiedetails; elders in de cel geldt de gewone celregel (volledige waarde alleen bij afknippen,
+ * zie GridCell). De link draagt daarom een lege `title`, wat de native celtooltip erboven onderdrukt. */
+export function RelationCellContent({ items, onFocusTask, onExternalContextMenu }: RelationCellContentProps) {
   const { t } = useTranslation('task');
   const [hover, setHover] = useState<RelationHover | null>(null);
   useEffect(() => setHover(null), [items]);
   return (
     <>
-      <span className="task-grid-relation-cell">
+      <span className="task-grid-relation-cell" data-grid-clip="true">
         {items.map((item, index) => {
           const parts = relationLabelParts(item.label);
-          const warningTitle = [
-            ...item.warnings.map(warning => t(RELATION_WARNING_KEYS[warning] ?? warning, { defaultValue: warning })),
-            ...(item.stale ? [t('taskGrid.status.stale')] : []),
-            ...(item.freeFloat !== undefined ? [`${t('relations.freeFloat')}: ${item.freeFloat}d`] : []),
-          ].join(' · ');
           return (
             <span
               key={item.key}
               className={`task-grid-relation-chip${item.driving ? ' task-grid-relation-chip--driving' : ''}${item.warnings.length ? ' task-grid-relation-chip--warning' : ''}`}
-              title={warningTitle || undefined}
               onContextMenu={event => {
                 if (item.kind !== 'external' || !onExternalContextMenu) return;
                 event.preventDefault();
@@ -104,12 +147,11 @@ export function RelationCellContent({ items, onFocusTask, onHoverStart, onExtern
               <button
                 type="button"
                 className="task-grid-relation-jump"
+                title=""
                 aria-label={item.kind === 'internal'
                   ? t('relations.jumpTask', { reference: parts.reference })
                   : t('relations.externalTask', { reference: parts.reference })}
                 onMouseMove={event => {
-                  event.stopPropagation();
-                  onHoverStart?.();
                   setHover({ x: event.clientX, y: event.clientY, item });
                 }}
                 onMouseLeave={() => setHover(null)}
@@ -137,6 +179,7 @@ export function RelationCellContent({ items, onFocusTask, onHoverStart, onExtern
           {hover.item.kind === 'internal' && hover.item.otherTask
             ? <TaskTooltipContent task={hover.item.otherTask} />
             : <ExternalRelationTooltipContent item={hover.item} />}
+          <RelationTooltipDetails item={hover.item} />
         </HoverTooltip>
       )}
     </>
