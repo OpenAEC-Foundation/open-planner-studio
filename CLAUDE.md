@@ -26,7 +26,7 @@ npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-plu
 npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
-npm run verify:audit      # los: npm audit --audit-level=high
+npm run verify:audit      # los: npm audit --audit-level=high — bewust NIET in `verify` (zie hieronder)
 npm run gen:examples      # Voorbeeldprojecten (public/examples) opnieuw genereren
 npm run publish:wiki      # GitHub-wiki genereren uit repo-bronnen (dry-run; `-- --push` publiceert)
 ```
@@ -54,7 +54,7 @@ maar mag de geteste gebruikershandeling niet vervangen.
 
 Draai de planningssuite na elke wijziging aan planningscode. **De suite print "alles groen" ook bij exit 1** wanneer het bundelen faalt — vertrouw op de **exitcode**, nooit op de tail. Een `grep` op faalregels is een handig extraatje maar **geen poort**: `grep '^XX'` werkt alleen voor `tests/planning/`. De bibliotheeksuite print zijn faalregels **ingesprongen** (`console.log(\`   XX ${msg}\`)` in `tests/library/check-*.ts`), dus `grep -c '^XX'` geeft daar 0 terwijl de suite rood staat — gemeten 2026-07-28. Gebruik `grep -c 'XX '` als je toch wilt tellen, en laat de exitcode altijd het oordeel vellen. `npm run verify` is de poort die CI, de release-gate en de deploy-gate alle drie draaien — dat is één definitie in `package.json`, dus wat je lokaal draait is letterlijk wat CI draait. Zie `tests/planning/README.md` voor het toevoegen van cases.
 
-CI (`.github/workflows/`): `ci.yml` draait `npm run verify` plus `tauri build --no-bundle` op Ubuntu/Windows/macOS; `live.yml` deployt de browserbuild (`dist/`) naar `open-planner-studio.open-aec.com` bij elke push naar `main` — de webbuild is een echte productie-deploy, geen dev-target — achter dezelfde `verify`-gate; `release.yml` bouwt installers op `v*`-tags achter diezelfde gate plus een controle dat de tag overeenkomt met de gebumpte versie, en `snap.yml` volgt daarna via `workflow_run` (zie *Auto-update & releases* hieronder). Een rode suite blokkeert dus zowel de deploy als de release; draai `npm run verify` lokaal vóór je pusht.
+CI (`.github/workflows/`): `ci.yml` draait `npm run verify` plus `tauri build --no-bundle` op Ubuntu/Windows/macOS; `live.yml` deployt de browserbuild (`dist/`) naar `open-planner-studio.open-aec.com` bij elke push naar `main` — de webbuild is een echte productie-deploy, geen dev-target — achter dezelfde `verify`-gate; `release.yml` bouwt installers op `v*`-tags achter diezelfde gate plus een controle dat de tag overeenkomt met de gebumpte versie, en `snap.yml` volgt daarna via `workflow_run` (zie *Auto-update & releases* hieronder). Een rode suite blokkeert dus zowel de deploy als de release; draai `npm run verify` lokaal vóór je pusht. `verify:audit` zit sinds 2026-09-03 bewust **niet** meer in die keten: een nieuw gepubliceerd advisory zette anders élke push en deploy rood, ook een die de dependency niet raakt (gemeten: de releasecommit van v2026.9.0 op `browserslist`). Dependabot security alerts staan aan op de repository en zijn het meldkanaal; een advisory wordt in een eigen commit opgelost, `npm run verify:audit` blijft daarvoor als los commando bestaan.
 
 Path alias: `@/` → `src/` (configured in both `vite.config.ts` and `tsconfig.json`). Use it consistently in imports.
 
