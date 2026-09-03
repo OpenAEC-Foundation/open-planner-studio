@@ -52,6 +52,40 @@ async function seedHourTask(page: import('@playwright/test').Page, start = '2026
   return id;
 }
 
+/** Wacht tot de primaire Gantt-laag ná een storemutatie werkelijk opnieuw is getekend.
+ * `barPoint` leest renderer-eigen geometrie uit de LAATSTE paint (`getTaskBarRect`); wie direct na
+ * `setUI`/`setScroll` meet, krijgt op een trage machine nog de balkpositie van de vorige as terug. */
+async function paintedAfter(page: import('@playwright/test').Page, mutate: () => Promise<void>): Promise<void> {
+  const before = await page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'));
+  await mutate();
+  await expect.poll(
+    () => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary')),
+    { message: 'de Gantt tekende niet opnieuw na de storemutatie' },
+  ).toBeGreaterThan(before);
+}
+
+/** Balkpunt dat over twee opeenvolgende peilingen (±100 ms) niet meer beweegt en waartussen geen
+ * nieuwe paint viel. Een aswissel kan méér dan één paint kosten (de viewport klemt zijn scroll
+ * pas in een vervolgframe); meten na de eerste paint gaf dan nog een tussenstand, waarna de
+ * mousedown naast de balk landde (cursor bleef `default`). */
+async function settledBarPoint(page: import('@playwright/test').Page, id: string): Promise<{ x: number; y: number }> {
+  let last: { x: number; y: number; paints: number } | null = null;
+  let stableReads = 0;
+  await expect.poll(async () => {
+    const now = await page.evaluate(taskId => ({
+      point: window.__OPS__!.gantt.taskBarPoint(taskId, 'body', 'primary'),
+      paints: window.__OPS__!.gantt.paintCount('primary'),
+    }), id);
+    if (!now.point) { stableReads = 0; last = null; return false; }
+    const unchanged = last !== null && last.paints === now.paints
+      && last.x === now.point.x && last.y === now.point.y;
+    stableReads = unchanged ? stableReads + 1 : 0;
+    last = { ...now.point, paints: now.paints };
+    return stableReads >= 2;
+  }, { message: `balkpositie van taak ${id} komt niet tot rust` }).toBe(true);
+  return { x: last!.x, y: last!.y };
+}
+
 async function hourState(page: import('@playwright/test').Page, id: string) {
   return page.evaluate((taskId) => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === taskId)!;
@@ -151,13 +185,18 @@ test('urentaak-rechterrand telt alleen werkuren en landt op de bandgrens vóór 
 
 test('urentaak volgt onder werkdagen-as de getekende maandag-vrijdag-naad', async ({ page, ops: _ops }) => {
   const id = await seedHourTask(page, '2026-09-11T07:00', '2026-09-11T16:00');
-  await page.evaluate(() => {
+  // De as wisselt hier van kalenderdagen naar werkdagen én de scroll verspringt. Onder de oude as
+  // (scroll 14200) en de nieuwe (scroll 10000) staat de balk toevallig op vrijwel dezelfde plek, dus
+  // een meting uit de nog niet ververste paint greep de balk nog wél — maar de sleep rekende dan
+  // met een `pointerStart` van de verkeerde as en landde weer op vrijdag (CI, 1 en 3 sep 2026).
+  // Wacht daarom expliciet op de paint die de compressie consumeert vóór er wordt gemeten.
+  await paintedAfter(page, () => page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
     state.setUI({ compressNonWorkdays: true });
     // Vrijdag 11 september ligt vanaf vrijdag 28 augustus precies tien zichtbare werkdagen verder.
     state.setScroll(10 * 1000, 0);
-  });
-  const point = await barPoint(page, id, 'body');
+  }));
+  const point = await settledBarPoint(page, id);
 
   await page.mouse.move(point.x, point.y);
   await page.mouse.down();

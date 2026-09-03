@@ -110,6 +110,8 @@
     "themeDark": "Ciemny",
     "themeLight": "Jasny",
     "themeHighContrast": "Wysoki kontrast",
+    "themeFollowSystem": "Zgodnie z motywem systemu",
+    "themeSystemHint": "Zgodnie ze schematem kolorów systemu (teraz: {{theme}}).",
     "timeline": "Oś czasu / Powiększenie",
     "hourPlanningSection": "Planowanie godzinowe",
     "enableHourPlanning": "Włącz planowanie godzinowe",
@@ -354,7 +356,33 @@
   "statusWarnings": {
     "missedDeadlines": "Przekroczone terminy: {{count}}",
     "violatedConstraints": "Naruszone ograniczenia: {{count}}",
-    "outOfSequence": "Relacje poza kolejnością: {{count}}"
+    "outOfSequence": "Relacje poza kolejnością: {{count}}",
+    "overallocated": "Przeciążone zasoby: {{count}}"
+  },
+  "warnings": {
+    "title": "Ostrzeżenia",
+    "close": "Zamknij ostrzeżenia",
+    "openPanel": "Otwórz panel ostrzeżeń (szczegóły i nawigacja)",
+    "summary": "Błędy: {{errors}}, ostrzeżenia: {{warnings}}",
+    "noSchedule": "Jeszcze nie obliczono — naciśnij Oblicz (F5), aby uruchomić kontrole.",
+    "stale": "Harmonogram nieaktualny — ta lista pochodzi z ostatniego obliczenia. Przelicz (F5).",
+    "empty": "Brak ostrzeżeń. Harmonogram przechodzi wszystkie kontrole.",
+    "goTo": "Przejdź do: {{target}}",
+    "kind": {
+      "scheduleError": "Nie udało się obliczyć harmonogramu: {{message}}",
+      "missedDeadline": "Przekroczono termin {{deadline}} — najwcześniejsze zakończenie {{finish}}",
+      "violatedConstraint": "Ograniczenie {{constraint}} jest nadpisywane przez logikę (ujemny zapas)",
+      "outOfSequence": "Poza kolejnością: postęp następnika przeczy relacji",
+      "truncatedLead": "Wyprzedzenie obcięte przez start projektu — relacja nie jest w pełni zachowana",
+      "droppedSequence": "Relacja zignorowana: brakuje poprzednika lub następnika albo nie jest zadaniem liściem",
+      "hammockNoFinishDriver": "Hamak bez sterownika końca (brak poprzednika FF/SF): czas trwania spada do zera",
+      "cappedTask": "Data zakończenia obcięta: kalendarz nie zostawia dla tego zadania żadnego roboczego okna",
+      "overallocation": "Przeciążenie przez {{count}} dni ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Projekt",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

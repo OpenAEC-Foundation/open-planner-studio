@@ -123,6 +123,17 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
 - **Working language is Dutch** for code comments, commit messages, and the
   canonical source translations. User-facing strings must go through `t(...)`
   (never hard-code) — 14 locales in `src/i18n/`; `ar` and `fa` are RTL.
+- **`immer` is pinned EXACTLY (`"11.1.4"`, no caret) — the only dependency of 37
+  that is.** Do not "restore consistency" by putting the `^` back. Immer sits
+  directly under undo/redo, snapshot sharing (`src/state/snapshot.ts` deliberately
+  shares references instead of cloning) and auto-freeze, so a silent minor bump
+  changes the semantics of the state layer. It also breaks the build: from
+  **11.1.8** onward `current`/`original` are typed `<T>(value: Draft<T>): T`
+  instead of `<T>(value: T)`, and `isDraft()` is not a type guard — see
+  `src/state/immerDraft.ts`. `npm ci` was always safe (all four workflows use it),
+  but `npm update` would move it: measured `change immer 11.1.4 => 11.1.18` with
+  the caret, nothing without. Bumping it is a deliberate, separately reviewed
+  change — read the changelog for draft/freeze/structural-sharing behaviour first.
 - Settings persist to **`localStorage` under `ops-`-prefixed keys**
   (`src/utils/settingsStore.ts`). `@tauri-apps/plugin-store` is a dependency
   but **unused** — do not reach for it for settings.

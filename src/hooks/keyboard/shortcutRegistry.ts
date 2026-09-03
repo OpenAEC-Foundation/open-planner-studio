@@ -427,6 +427,18 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'menu:ribbon.toggleHistogram',
     run: COMMANDS.toggleHistogram.run,
   },
+  {
+    // Waarschuwingenpaneel aan/uit (issue #53): spiegelt de lintknop 'warningsPanel' (Beeld →
+    // Panelen en Planning → Planning) via hetzelfde commando — één definitie, zoals
+    // `check-commands.ts` afdwingt. Ctrl+Shift+L ("lijst"): Ctrl+Shift+W sluit in Chrome het
+    // venster en Ctrl+Shift+M opent daar het profielmenu, allebei op browser-chrome-niveau en dus
+    // niet te onderscheppen in de web-build; L is nergens gereserveerd.
+    id: 'view.toggleWarningsPanel',
+    combo: { key: 'l', mod: true, shift: true },
+    category: 'view',
+    labelKey: 'menu:ribbon.warningsPanel',
+    run: COMMANDS.toggleWarningsPanel.run,
+  },
 
   // --- Navigatie ---
   {

@@ -6,6 +6,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { MiniMapRenderer } from '@/engine/renderer/MiniMapRenderer';
 import { useCanvasLayer } from './hooks/useCanvasLayer';
 
@@ -47,7 +48,7 @@ export function MiniMap({
   const setScroll = useAppStore(s => s.setScroll);
   // De renderer leest zijn kleuren op paint-moment uit CSS. Deze primitive maakt de CSS-
   // themawijziging een benoemde invalidatie in plaats van een schijnbaar ongebruikte dependency.
-  const themeRevision = useAppStore(s => s.ui.uiTheme);
+  const themeRevision = useResolvedUITheme();
 
   const scrollX = scrollXProp ?? storeScrollX;
   const zoom = zoomProp ?? storeZoom;

@@ -120,6 +120,8 @@
     "themeDark": "داكن",
     "themeLight": "فاتح",
     "themeHighContrast": "تباين عالٍ",
+    "themeFollowSystem": "اتباع سمة النظام",
+    "themeSystemHint": "يتبع نظام الألوان الخاص بنظامك (حاليًا: {{theme}}).",
     "timeline": "الجدول الزمني / التكبير",
     "hourPlanningSection": "التخطيط بالساعات",
     "enableHourPlanning": "تفعيل التخطيط بالساعات",
@@ -364,7 +366,33 @@
   "statusWarnings": {
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
     "violatedConstraints": "القيود المخالفة: {{count}}",
-    "outOfSequence": "العلاقات خارج التسلسل: {{count}}"
+    "outOfSequence": "العلاقات خارج التسلسل: {{count}}",
+    "overallocated": "الموارد المحمَّلة بشكل زائد: {{count}}"
+  },
+  "warnings": {
+    "title": "التحذيرات",
+    "close": "إغلاق التحذيرات",
+    "openPanel": "فتح لوحة التحذيرات (التفاصيل والتنقل)",
+    "summary": "الأخطاء: {{errors}}، التحذيرات: {{warnings}}",
+    "noSchedule": "لم يُحسب بعد — اضغط على حساب (F5) لتشغيل الفحوصات.",
+    "stale": "الجدول قديم — هذه القائمة من آخر عملية حساب. أعد الحساب (F5).",
+    "empty": "لا توجد تحذيرات. الجدول يجتاز جميع الفحوصات.",
+    "goTo": "الانتقال إلى: {{target}}",
+    "kind": {
+      "scheduleError": "تعذّر حساب الجدول: {{message}}",
+      "missedDeadline": "تم تجاوز الموعد النهائي {{deadline}} — أبكر انتهاء {{finish}}",
+      "violatedConstraint": "القيد {{constraint}} يتجاوزه المنطق (فائض سالب)",
+      "outOfSequence": "خارج التسلسل: تقدم اللاحق يناقض العلاقة",
+      "truncatedLead": "تم اقتطاع التقديم ببداية المشروع — العلاقة غير مطبَّقة بالكامل",
+      "droppedSequence": "تم تجاهل العلاقة: السابق أو اللاحق مفقود أو ليس مهمة ورقية",
+      "hammockNoFinishDriver": "مهمة أرجوحية بلا محرك انتهاء (لا سابق FF/SF): تعود مدتها إلى الصفر",
+      "cappedTask": "تم اقتطاع تاريخ الانتهاء: التقويم لا يترك أي نافذة عمل لهذه المهمة",
+      "overallocation": "تحميل زائد خلال {{count}} يوم ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "المشروع",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

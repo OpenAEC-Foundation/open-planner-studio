@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue } from '@/utils/noneLabel';
+import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
 import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
@@ -82,6 +83,7 @@ function AppContent() {
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showPropertiesPanel = useAppStore(s => s.ui.showPropertiesPanel);
+  const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
@@ -97,7 +99,8 @@ function AppContent() {
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
-  const uiTheme = useAppStore(s => s.ui.uiTheme);
+  // Voorkeur + systeemstand → het thema dat écht getekend wordt (zie `useResolvedUITheme`).
+  const resolvedTheme = useResolvedUITheme();
   const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
@@ -151,10 +154,14 @@ function AppContent() {
     useAppStore.getState().recomputeViewRows();
   }, [noneLabel]);
 
-  // Apply theme to document
+  // Systeemkleurschema volgen (thema 'Systeem'): één abonnement voor de hele app.
+  useSystemColorSchemeSync();
+
+  // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; het
+  // `data-theme`-attribuut kent geen 'system'-blok in globals.css.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', uiTheme);
-  }, [uiTheme]);
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+  }, [resolvedTheme]);
 
   // Lettertype-interface toepassen (issue #25.4): de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
@@ -203,7 +210,8 @@ function AppContent() {
   // Issue #46 (slot): de rechterkolom bestaat alleen zolang er minstens één railpaneel aan staat.
   // Zet de gebruiker ze allebei uit via hun lintknop, dan verdwijnt de kolom — inclusief de
   // ingeklapte strip, want er valt dan niets terug te halen.
-  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked);
+  // Issue #53: het Waarschuwingenpaneel is het derde railpaneel.
+  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked) || showWarningsPanel;
 
   // Presentation mode (fase 2.7, §9.2): één wrapper-conditie i.p.v. losse `&& !presentationMode`-
   // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/

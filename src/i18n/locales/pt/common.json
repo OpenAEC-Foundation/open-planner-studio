@@ -105,6 +105,8 @@
     "themeDark": "Escuro",
     "themeLight": "Claro",
     "themeHighContrast": "Alto contraste",
+    "themeFollowSystem": "Seguir o tema do sistema",
+    "themeSystemHint": "Segue o esquema de cores do sistema (agora: {{theme}}).",
     "timeline": "Linha de tempo / Zoom",
     "hourPlanningSection": "Planeamento por horas",
     "enableHourPlanning": "Ativar planeamento por horas",
@@ -349,7 +351,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} prazo(s) ultrapassado(s)",
     "violatedConstraints": "{{count}} restrição(ões) violada(s)",
-    "outOfSequence": "{{count}} relação(ões) fora de sequência"
+    "outOfSequence": "{{count}} relação(ões) fora de sequência",
+    "overallocated": "{{count}} recurso(s) sobrealocado(s)"
+  },
+  "warnings": {
+    "title": "Avisos",
+    "close": "Fechar avisos",
+    "openPanel": "Abrir o painel de avisos (detalhes e navegação)",
+    "summary": "{{errors}} erro(s), {{warnings}} aviso(s)",
+    "noSchedule": "Ainda não calculado — prima Calcular (F5) para executar as verificações.",
+    "stale": "Planeamento desatualizado — esta lista provém do último cálculo. Recalcule (F5).",
+    "empty": "Sem avisos. O planeamento passa em todas as verificações.",
+    "goTo": "Ir para: {{target}}",
+    "kind": {
+      "scheduleError": "Não foi possível calcular o planeamento: {{message}}",
+      "missedDeadline": "Prazo {{deadline}} ultrapassado — fim mais cedo {{finish}}",
+      "violatedConstraint": "A restrição {{constraint}} é ultrapassada pela lógica (folga negativa)",
+      "outOfSequence": "Fora de sequência: o progresso do sucessor contradiz a relação",
+      "truncatedLead": "Avanço truncado pelo início do projeto — a relação não é totalmente respeitada",
+      "droppedSequence": "Relação ignorada: o predecessor ou o sucessor está em falta ou não é uma tarefa folha",
+      "hammockNoFinishDriver": "Hammock sem condutor de fim (sem predecessor FF/SF): a duração volta a zero",
+      "cappedTask": "Data de fim limitada: o calendário não deixa nenhuma janela útil para esta tarefa",
+      "overallocation": "Sobrealocado durante {{count}} dia(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Projeto",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

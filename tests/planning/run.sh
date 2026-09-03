@@ -424,6 +424,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"
   if bundle_check "$DIR/check-full-task-grid-surface.ts" "$TGFULLSURFACECHECK"; then node "$TGFULLSURFACECHECK" || STATUS=1; fi
+  # Issue #89: naaminspringing, één tooltip per cel, plusknop met lucht, naameditor op volle breedte.
+  TGPRESENTATIONCHECK="$DIR/.task-grid-presentation.mjs"
+  if bundle_check "$DIR/check-task-grid-presentation.ts" "$TGPRESENTATIONCHECK"; then node "$TGPRESENTATIONCHECK" || STATUS=1; fi
   TGKEYROUTECHECK="$DIR/.task-grid-keyboard-event-routing.mjs"
   if bundle_check "$DIR/check-keyboard-event-routing.ts" "$TGKEYROUTECHECK"; then node "$TGKEYROUTECHECK" || STATUS=1; fi
   EXTLDIALOGCHECK="$DIR/.external-link-dialog.mjs"
@@ -480,6 +483,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # zoomen.
   FOCUSCHECK="$DIR/.focus-task.mjs"
   if bundle_check "$DIR/check-focus-task.ts" "$FOCUSCHECK"; then node "$FOCUSCHECK" || STATUS=1; fi
+
+  # Issue #53 (Waarschuwingenpaneel): de pure verzamelaar over cpmResult/resourceLoadResult, de
+  # solver-uitbreiding `cycleTaskIds`, de navigatie naar taak/relatie/resource/cyclus op een echte
+  # store, en de setUI-invarianten voor het derde railpaneel.
+  WARNCHECK="$DIR/.schedule-warnings.mjs"
+  if bundle_check "$DIR/check-schedule-warnings.ts" "$WARNCHECK"; then node "$WARNCHECK" || STATUS=1; fi
 
   # Tabel-overhaul Task 1: stabiele rowKeys voor boom-, groeps- en dubbele resource-occurrences,
   # occurrence-range met unieke domeinselectie en cursorherstel als filter/collapse een rij wist.
@@ -716,6 +725,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # round-trip door de echte settingsStore/localStorage-route.
   BARCOLORSETTINGSCHECK="$DIR/.bar-color-settings.mjs"
   if bundle_check "$DIR/check-bar-color-settings.ts" "$BARCOLORSETTINGSCHECK"; then node "$BARCOLORSETTINGSCHECK" || STATUS=1; fi
+
+  # Thema "Systeem": resolutie van de voorkeur naar dark/light, de matchMedia-detectie/-listener,
+  # de opslag (geen legacymigratie van 'system'), en de bronpoorten op het pre-paint-script in
+  # index.html + de [data-theme]-blokken in globals.css.
+  SYSTEMTHEMECHECK="$DIR/.system-theme.mjs"
+  if bundle_check "$DIR/check-system-theme.ts" "$SYSTEMTHEMECHECK"; then node "$SYSTEMTHEMECHECK" || STATUS=1; fi
 
   # Balkkleurcategorieën delen exact de Group-veldcatalogus; een verwijderd projectveld valt
   # tijdelijk terug op Taaktype zonder de globale keuze te overschrijven.

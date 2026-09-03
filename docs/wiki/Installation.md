@@ -7,8 +7,8 @@ browser — no installation required.
 
 Open **<https://open-planner-studio.open-aec.com>** in any modern browser. The web version is a full
 build: it opens and saves IFC files (via the File System Access API on Chromium-based browsers, with a
-download fallback elsewhere) and keeps an auto-save recovery copy. The only desktop-only feature is the
-in-app updater.
+download fallback elsewhere) and keeps an auto-save recovery copy. The in-app updater and the optional
+AI-assistant bridge are desktop-only.
 
 ## Desktop downloads
 

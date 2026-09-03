@@ -17,7 +17,7 @@ the settings themselves and what they do are identical either way; this article 
 
 **Appearance:**
 
-- **Theme** — **Dark**, **Light** or **High Contrast**; click a card to switch.
+- **Theme** — **Dark**, **Light** or **High Contrast**; click a card to switch. Below them sits **Follow system theme**: with it on, the app follows your operating system's or browser's colour scheme and switches along the moment that changes, even while the app is open. The three cards are greyed out then — they only show you which theme the system currently yields. Switch it back off and you stay on exactly that theme. **High Contrast** is yours to pick, since a system only knows light and dark.
 - **Font** — **Default**, **System**, **Serif** or **Monospace**; overrides the interface's typeface. Web apps don't automatically follow your system font setting, so this and the next option are how you pick it yourself.
 - **Text size** — 90%, 100%, 110% or 125%; scales the interface text and layout.
 - **Document switch style** — how you switch between open documents: **Horizontal tabs**, **Vertical tabs** or **Pill**.

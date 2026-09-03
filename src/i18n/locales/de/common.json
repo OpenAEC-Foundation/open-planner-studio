@@ -100,6 +100,8 @@
     "themeDark": "Dunkel",
     "themeLight": "Hell",
     "themeHighContrast": "Hoher Kontrast",
+    "themeFollowSystem": "Systemdesign folgen",
+    "themeSystemHint": "Folgt dem Farbschema deines Systems (aktuell: {{theme}}).",
     "timeline": "Zeitachse / Zoom",
     "hourPlanningSection": "Stundenplanung",
     "enableHourPlanning": "Stundenplanung aktivieren",
@@ -344,7 +346,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} Stichtag(e) überschritten",
     "violatedConstraints": "{{count}} Einschränkung(en) verletzt",
-    "outOfSequence": "{{count}} Beziehung(en) außerhalb der Reihenfolge"
+    "outOfSequence": "{{count}} Beziehung(en) außerhalb der Reihenfolge",
+    "overallocated": "{{count}} Ressource(n) überlastet"
+  },
+  "warnings": {
+    "title": "Warnungen",
+    "close": "Warnungen schließen",
+    "openPanel": "Warnungsbereich öffnen (Details und Navigation)",
+    "summary": "{{errors}} Fehler, {{warnings}} Warnung(en)",
+    "noSchedule": "Noch nicht berechnet — Berechnen (F5) drücken, um die Prüfungen auszuführen.",
+    "stale": "Terminplan veraltet — diese Liste stammt aus der letzten Berechnung. Neu berechnen (F5).",
+    "empty": "Keine Warnungen. Der Terminplan besteht alle Prüfungen.",
+    "goTo": "Gehe zu: {{target}}",
+    "kind": {
+      "scheduleError": "Der Terminplan konnte nicht berechnet werden: {{message}}",
+      "missedDeadline": "Stichtag {{deadline}} überschritten — frühestes Ende {{finish}}",
+      "violatedConstraint": "Einschränkung {{constraint}} wird durch die Logik überschritten (negativer Puffer)",
+      "outOfSequence": "Out of sequence: der Fortschritt des Nachfolgers widerspricht der Beziehung",
+      "truncatedLead": "Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten",
+      "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
+      "hammockNoFinishDriver": "Hammock ohne Ende-Treiber (kein EE/AE-Vorgänger): die Dauer fällt auf null zurück",
+      "cappedTask": "Enddatum gekappt: der Kalender lässt kein arbeitsfähiges Fenster für diesen Vorgang",
+      "overallocation": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Projekt",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

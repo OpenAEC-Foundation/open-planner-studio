@@ -43,7 +43,10 @@ export interface DataGridCellModel {
   readOnly: boolean;
   stale?: boolean;
   statusText?: string;
+  /** Volledige celwaarde; alleen als native title getoond wanneer de cel afknipt. */
   title?: string;
+  /** Kolomeigen uitleg; altijd als native title getoond. */
+  tooltip?: string;
   error?: DataGridError;
 }
 

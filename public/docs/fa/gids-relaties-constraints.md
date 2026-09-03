@@ -97,3 +97,4 @@ MSO و MFO می‌توانند اضافه‌بر آن، از طریق چک‌ب�
 - تعارض مهلت را در عمل ببینید: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - ساختار هنوز آماده نیست؟ ابتدا [برنامه‌ریزی و WBS](docs://gids-plannen-wbs) را بخوانید.
 - برای تقویم‌ها و ساعات کاری که بر مدت وظیفه اثر می‌گذارند: راهنمای [تقویم‌ها و برنامه‌ریزی ساعتی](docs://gids-kalenders-uren).
+- همهٔ مهلت‌های ازدست‌رفته و محدودیت‌های نقض‌شده در یک جا، با پرش به کار: [پنل هشدارها](docs://ref-waarschuwingen).

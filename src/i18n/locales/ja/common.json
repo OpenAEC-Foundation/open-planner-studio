@@ -95,6 +95,8 @@
     "themeDark": "ダーク",
     "themeLight": "ライト",
     "themeHighContrast": "ハイコントラスト",
+    "themeFollowSystem": "システムのテーマに従う",
+    "themeSystemHint": "システムの配色に従います（現在: {{theme}}）。",
     "timeline": "タイムライン／ズーム",
     "hourPlanningSection": "時間計画",
     "enableHourPlanning": "時間計画を有効にする",
@@ -339,7 +341,33 @@
   "statusWarnings": {
     "missedDeadlines": "期限超過: {{count}} 件",
     "violatedConstraints": "制約違反: {{count}} 件",
-    "outOfSequence": "順序違反の関係: {{count}} 件"
+    "outOfSequence": "順序違反の関係: {{count}} 件",
+    "overallocated": "{{count}} 件のリソースが過剰割り当て"
+  },
+  "warnings": {
+    "title": "警告",
+    "close": "警告を閉じる",
+    "openPanel": "警告パネルを開く（詳細とナビゲーション）",
+    "summary": "エラー {{errors}} 件、警告 {{warnings}} 件",
+    "noSchedule": "まだ計算されていません — 計算 (F5) を押してチェックを実行してください。",
+    "stale": "スケジュールが古くなっています — この一覧は前回の計算結果です。再計算 (F5) してください。",
+    "empty": "警告はありません。スケジュールはすべてのチェックに合格しています。",
+    "goTo": "移動: {{target}}",
+    "kind": {
+      "scheduleError": "スケジュールを計算できませんでした: {{message}}",
+      "missedDeadline": "期限 {{deadline}} を超過 — 最早終了 {{finish}}",
+      "violatedConstraint": "制約 {{constraint}} がロジックによって上書きされています（負のフロート）",
+      "outOfSequence": "順序違反: 後続タスクの進捗が関係と矛盾しています",
+      "truncatedLead": "リードがプロジェクト開始で切り詰められました — 関係が完全には守られていません",
+      "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
+      "hammockNoFinishDriver": "終了ドライバーのないハンモック（FF/SF の先行なし）: 期間はゼロになります",
+      "cappedTask": "終了日が打ち切られました: カレンダーにこのタスクの作業可能な期間がありません",
+      "overallocation": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）"
+    },
+    "target": {
+      "project": "プロジェクト",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

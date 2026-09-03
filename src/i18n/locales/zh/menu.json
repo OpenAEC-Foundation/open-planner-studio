@@ -140,6 +140,7 @@
     "assignResource": "分配",
     "histogram": "直方图",
     "toggleHistogram": "直方图",
+    "warningsPanel": "警告",
     "prevResource": "上一个",
     "nextResource": "下一个",
     "leveling": "资源平衡",

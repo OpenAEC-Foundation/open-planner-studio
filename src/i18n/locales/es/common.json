@@ -105,6 +105,8 @@
     "themeDark": "Oscuro",
     "themeLight": "Claro",
     "themeHighContrast": "Alto contraste",
+    "themeFollowSystem": "Seguir el tema del sistema",
+    "themeSystemHint": "Sigue el esquema de color de tu sistema (ahora: {{theme}}).",
     "timeline": "Línea de tiempo / Zoom",
     "hourPlanningSection": "Planificación por horas",
     "enableHourPlanning": "Activar planificación por horas",
@@ -349,7 +351,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} fecha(s) límite superada(s)",
     "violatedConstraints": "{{count}} restricción(es) incumplida(s)",
-    "outOfSequence": "{{count}} relación(es) fuera de secuencia"
+    "outOfSequence": "{{count}} relación(es) fuera de secuencia",
+    "overallocated": "{{count}} recurso(s) sobreasignado(s)"
+  },
+  "warnings": {
+    "title": "Advertencias",
+    "close": "Cerrar advertencias",
+    "openPanel": "Abrir el panel de advertencias (detalles y navegación)",
+    "summary": "{{errors}} error(es), {{warnings}} advertencia(s)",
+    "noSchedule": "Aún no calculado — pulse Calcular (F5) para ejecutar las comprobaciones.",
+    "stale": "Programación desactualizada — esta lista proviene del último cálculo. Recalcule (F5).",
+    "empty": "Sin advertencias. La programación supera todas las comprobaciones.",
+    "goTo": "Ir a: {{target}}",
+    "kind": {
+      "scheduleError": "No se pudo calcular la programación: {{message}}",
+      "missedDeadline": "Fecha límite {{deadline}} incumplida — fin más temprano {{finish}}",
+      "violatedConstraint": "La restricción {{constraint}} es sobrepasada por la lógica (holgura negativa)",
+      "outOfSequence": "Fuera de secuencia: el progreso del sucesor contradice la relación",
+      "truncatedLead": "Adelanto truncado por el inicio del proyecto — la relación no se respeta por completo",
+      "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
+      "hammockNoFinishDriver": "Hamaca sin impulsor de fin (sin predecesor FF/SF): su duración vuelve a cero",
+      "cappedTask": "Fecha de fin limitada: el calendario no deja ninguna ventana laborable para esta tarea",
+      "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Proyecto",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

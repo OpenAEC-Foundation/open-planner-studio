@@ -53,14 +53,16 @@ each other's port.
 
 ## Tests
 
-`tsc` (run via `npm run build`) is the main static check — TypeScript is in strict mode. The
-behavioural suite covers CPM and calendar scheduling:
+`npm run verify` is the repository gate: it combines strict type checks, linting, all behavioural
+suites (including browser flows), examples, documentation, i18n, dependency-cycle and audit checks.
+Run it before submitting a change:
 
 ```bash
-bash tests/planning/run.sh
+npm run verify
 ```
 
-Run it after changing scheduling code.
+Use `npm test` to run only the five behavioural suites. For a focused scheduling change, run
+`npm run test:planning`; it covers CPM and calendar scheduling.
 
 ## Project layout
 

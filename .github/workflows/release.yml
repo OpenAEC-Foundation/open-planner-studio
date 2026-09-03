@@ -45,6 +45,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          # De release-highlightsverifier vergelijkt de huidige tag met de
+          # vorige stabiele tag en heeft daarom tags plus volledige historie nodig.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5

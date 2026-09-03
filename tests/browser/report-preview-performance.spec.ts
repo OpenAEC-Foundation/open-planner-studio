@@ -106,6 +106,12 @@ test('De Vaart-preview houdt vaste pagina-geometrie en een stabiel scrollanker',
   if (!bounds) throw new Error('previewviewport heeft geen afmetingen');
   await page.mouse.move(bounds.x + bounds.width - 20, bounds.y + bounds.height - 20);
   await page.mouse.wheel(0, initial.pages[0].height + 40);
+  // Playwright wacht na mouse.wheel niet tot Chromium de asynchrone scroll heeft verwerkt. Wacht
+  // daarom op de gebruikershandeling zelf; alleen op de zichtbare images pollen kan direct waar
+  // zijn terwijl de viewport nog op scrollTop 0 staat.
+  await expect.poll(async () => (await previewGeometry(page)).scrollTop, {
+    timeout: 5_000,
+  }).toBeGreaterThan(initial.pages[0].height * 0.75);
   await expect.poll(async () => (await previewGeometry(page)).visible.every(pageInfo => pageInfo.hasImage), {
     timeout: 15_000,
   }).toBe(true);

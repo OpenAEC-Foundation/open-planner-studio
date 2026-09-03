@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TaskGrid } from './TaskGrid';
@@ -13,14 +14,14 @@ import type { TaskGridLabels } from './TaskGrid';
 import { TaskCellEditor } from './TaskCellEditor';
 import { RelationCellContent } from './RelationCellEditor';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
-import { HoverTooltip } from '@/components/canvas/HoverTooltip';
-import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { contextMenuBulk, contextMenuOutlineScope } from '@/components/canvas/contextMenuScope';
 import { buildTrace } from '@/engine/taskGrid/trace';
 import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
+import { taskNameIndent } from '@/engine/taskGrid/nameIndent';
+import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
 import {
   computeTaskGridAutoFitWidth,
@@ -61,13 +62,6 @@ interface EditingCell {
   documentId: string;
   cell: GridCellAddress;
   replacement?: string;
-}
-
-interface HoverState {
-  documentId: string;
-  task: Task;
-  x: number;
-  y: number;
 }
 
 interface GridContextMenuState {
@@ -117,6 +111,9 @@ function useElementSize() {
 function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
   return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
 }
+
+/** Breedte die de subtaak-plus (Gantt-takenlijst) in de naamkolom inneemt: 18px knop + 4px gap. */
+const SUMMARY_ADD_BUTTON_WIDTH = 22;
 
 function categoryFallback(category: TaskColumnCategory): string {
   return ({
@@ -276,7 +273,6 @@ export function TaskGridSurface({
   const [selection, setSelection] = useState<GridSelectionState>(createEmptyGridSelection);
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [surfaceError, setSurfaceError] = useState<string | null>(null);
-  const [hover, setHover] = useState<HoverState | null>(null);
   const [contextMenu, setContextMenu] = useState<GridContextMenuState | null>(null);
   const [externalRelationMenu, setExternalRelationMenu] = useState<ExternalRelationMenuState | null>(null);
   const [externalRelationDialog, setExternalRelationDialog] = useState<ExternalRelationDialogState | null>(null);
@@ -312,7 +308,6 @@ export function TaskGridSurface({
     setSelection(createEmptyGridSelection());
     setEditing(null);
     setSurfaceError(null);
-    setHover(null);
     setContextMenu(null);
     setExternalRelationMenu(null);
     setExternalRelationDialog(null);
@@ -505,6 +500,20 @@ export function TaskGridSurface({
     setSurfaceError(null);
   }, [activeDocumentId, adapter, calculatedReadOnlyFallback]);
 
+  // Issue #89: elke validatiecode heeft een vertaling in `taskGrid.validation.*`; ontbreekt hij
+  // toch (nieuwe code zonder tekst), dan valt de melding terug op een VERTAALDE algemene tekst in
+  // plaats van op een Nederlandse `defaultValue` — de gebruiker zag anders Nederlands in een
+  // Engelse interface. `check-task-grid-i18n.ts` bewaakt dat elke code in de bron een tekst heeft.
+  const validationMessage = useCallback((
+    error: { messageKey: string } | undefined,
+    fallbackKey: 'taskGrid.validation.clearNotPossible' | 'taskGrid.validation.clearFailed'
+      | 'taskGrid.validation.pasteNotPossible' | 'taskGrid.validation.pasteFailed'
+      | 'taskGrid.validation.invalid',
+  ): string => {
+    const fallback = tTask(fallbackKey);
+    return error ? tTask(error.messageKey, { defaultValue: fallback }) : fallback;
+  }, [tTask]);
+
   const clipboardEnvironment = useCallback((): TaskGridClipboardEnvironment => ({
     selection,
     rowIndex,
@@ -545,16 +554,12 @@ export function TaskGridSurface({
       if (!finishEditing()) return;
       const planned = planTaskGridClear(clipboardEnvironment());
       if (!planned.ok) {
-        setSurfaceError(tTask(planned.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', {
-          defaultValue: 'Wissen is voor deze selectie niet mogelijk.',
-        }));
+        setSurfaceError(validationMessage(planned.errors[0], 'taskGrid.validation.clearNotPossible'));
         return;
       }
       const result = runGridMutation([planned.value]);
       if (!result.ok) {
-        setSurfaceError(tTask(result.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', {
-          defaultValue: 'Wissen is mislukt.',
-        }));
+        setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.clearFailed'));
       }
       return;
     }
@@ -576,9 +581,9 @@ export function TaskGridSurface({
       setSelection(updateGridSelection(createEmptyGridSelection(), cell, createTaskGridRowIndex(useAppStore.getState().viewRows), visibleColumnIds, 'replace'));
       setEditing({ documentId: activeDocumentId, cell, replacement: '' });
     }
-  }, [activeDocumentId, adapter.rowMetaByKey, applySelection, calculatedReadOnlyFallback, clipboardEnvironment, finishEditing, onPlainTaskClick, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, tasksById, visibleColumnIds]);
+  }, [activeDocumentId, adapter.rowMetaByKey, applySelection, calculatedReadOnlyFallback, clipboardEnvironment, finishEditing, onPlainTaskClick, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, tasksById, validationMessage, visibleColumnIds]);
 
-  const { startRowDrag, dragState, active: rowDragActive } = useTableRowDrag({
+  const { startRowDrag, dragState } = useTableRowDrag({
     rows: viewRows,
     tasksById,
     moveTaskTo,
@@ -629,6 +634,14 @@ export function TaskGridSurface({
     },
   }), [tTask]);
 
+  // Boom of gegroepeerd bepaalt hoe de naamkolom inspringt (zie nameIndent.ts) — voor de cel én
+  // voor de auto-fit-meting, die anders de inspringing en de subtaak-plus niet meetelt.
+  const nameIndentMode = isTreeMode(view) ? 'tree' : 'grouped';
+  const nameLeadingWidth = useCallback((depth: number, task: Task): number => (
+    taskNameIndent(depth, task.childIds.length > 0, nameIndentMode)
+      + (showSummaryAdd && task.childIds.length > 0 ? SUMMARY_ADD_BUTTON_WIDTH : 0)
+  ), [nameIndentMode, showSummaryAdd]);
+
   const computeAutoFitWidth = useCallback(async (columnId: TaskColumnId): Promise<number | null> => {
     const descriptor = adapter.descriptorsById.get(columnId);
     const option = adapter.availableColumns.find(column => column.id === columnId);
@@ -648,6 +661,7 @@ export function TaskGridSurface({
         return {
           rowKey: row.rowKey,
           text: visibleText,
+          leadingWidth: columnId === 'task.name' ? nameLeadingWidth(row.depth, row.task) : 0,
           valueVersion: taskGridAutoFitValueVersion(
             value,
             visibleText,
@@ -659,17 +673,63 @@ export function TaskGridSurface({
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [activeDocumentId, adapter, containerRef, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
     if (!base) return { text: '', readOnly: true };
     const cell = { rowKey: row.rowKey, columnId: column.id };
+    const meta = adapter.rowMetaByKey.get(row.rowKey);
+    const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
+    const isName = column.id === 'task.name';
+    // Issue #89: de naamrij draagt de hiërarchie. Elke rij reserveert één inspringeenheid voor het
+    // triehoekje (`taskNameIndent`), zodat een blad zijn naam op dezelfde kolom begint als een
+    // samenvattende taak op hetzelfde niveau; de subtaak-plus staat rechts uitgelijnd, achter de
+    // tekst. Dezelfde rij omhult ook de naameditor, zodat die de inspringing respecteert en de
+    // resterende kolombreedte volledig benut.
+    const renderNameRow = (summary: Task, body: ReactNode, editingName: boolean): ReactNode => {
+      const hasDisclosure = summary.childIds.length > 0;
+      return (
+        <span
+          className="full-task-grid-name"
+          data-grid-name-depth={row.depth}
+          style={{ paddingInlineStart: taskNameIndent(row.depth, hasDisclosure, nameIndentMode) }}
+        >
+          {hasDisclosure && (
+            <button
+              type="button"
+              className="full-task-grid-disclosure"
+              aria-label={tTask('table.toggleSummary', { defaultValue: 'Samenvatting in- of uitklappen' })}
+              aria-expanded={!collapsedTaskIds.includes(summary.id)}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => { event.stopPropagation(); toggleCollapse(summary.id); }}
+            >
+              {collapsedTaskIds.includes(summary.id) ? '▸' : '▾'}
+            </button>
+          )}
+          {body}
+          {hasDisclosure && showSummaryAdd && !editingName && (
+            <button
+              type="button"
+              className="gantt-task-grid-add-child"
+              aria-label={`${tTask('defaultTask', { defaultValue: 'Nieuwe taak' })}: ${summary.name}`}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => {
+                event.stopPropagation();
+                addTask({
+                  name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
+                  parentId: summary.id,
+                });
+              }}
+            >
+              +
+            </button>
+          )}
+        </span>
+      );
+    };
     if (editing?.documentId === activeDocumentId && sameCell(editing.cell, cell)) {
-      return {
-        text: base.text,
-        readOnly: false,
-        content: (
+      const editor = (
           <TaskCellEditor
             key={`${cell.rowKey}\u0000${cell.columnId}`}
             adapter={adapter}
@@ -679,7 +739,7 @@ export function TaskGridSurface({
             initialText={editing.replacement}
             previousCell={editorNeighbour(cell, rowIndex.taskRows, -1)}
             nextCell={editorNeighbour(cell, rowIndex.taskRows, 1)}
-            messageForError={messageKey => tTask(messageKey, { defaultValue: 'De ingevoerde waarde is niet geldig.' })}
+            messageForError={messageKey => validationMessage({ messageKey }, 'taskGrid.validation.invalid')}
             labelForOption={(labelKey, value) => labelKey.startsWith('resource.curve.')
               ? tCommon(labelKey, { defaultValue: value })
               : tTask(labelKey, { defaultValue: value })}
@@ -699,12 +759,13 @@ export function TaskGridSurface({
               });
             }}
           />
-        ),
+      );
+      return {
+        text: base.text,
+        readOnly: false,
+        content: isName && task ? renderNameRow(task, editor, true) : editor,
       };
     }
-    const meta = adapter.rowMetaByKey.get(row.rowKey);
-    const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
-    const isName = column.id === 'task.name';
     const relationDirection = column.id === 'relation.predecessors'
       ? 'predecessor'
       : column.id === 'relation.successors' ? 'successor' : null;
@@ -725,11 +786,11 @@ export function TaskGridSurface({
         key => tTask(key, { defaultValue: key }),
       ),
       title: base.title,
+      tooltip: base.tooltip,
       content: relationDirection && task && relationItems.length > 0 ? (
         <RelationCellContent
           items={relationItems}
           onFocusTask={focusOnTask}
-          onHoverStart={() => setHover(null)}
           onExternalContextMenu={(item, event) => {
             const external = item.parsedToken.kind === 'external' ? item.parsedToken.external : null;
             if (!external) return;
@@ -745,51 +806,13 @@ export function TaskGridSurface({
             });
           }}
         />
-      ) : isName && task ? (
-        <span className="full-task-grid-name" style={{ paddingInlineStart: row.depth * 14 }}>
-          {task.childIds.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="full-task-grid-disclosure"
-                aria-label={tTask('table.toggleSummary', { defaultValue: 'Samenvatting in- of uitklappen' })}
-                aria-expanded={!collapsedTaskIds.includes(task.id)}
-                onPointerDown={event => event.stopPropagation()}
-                onClick={event => { event.stopPropagation(); toggleCollapse(task.id); }}
-              >
-                {collapsedTaskIds.includes(task.id) ? '▸' : '▾'}
-              </button>
-              {showSummaryAdd && (
-                <button
-                  type="button"
-                  className="gantt-task-grid-add-child"
-                  aria-label={`${tTask('defaultTask', { defaultValue: 'Nieuwe taak' })}: ${task.name}`}
-                  onPointerDown={event => event.stopPropagation()}
-                  onClick={event => {
-                    event.stopPropagation();
-                    addTask({
-                      name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
-                      parentId: task.id,
-                    });
-                  }}
-                >
-                  +
-                </button>
-              )}
-            </>
-          )}
-          {/* Vervolgmelding op observatie 3a/3b (probleem B): deze span draagt de daadwerkelijke
-           * tekst en had zelf geen clip — text-overflow:ellipsis op de VOOROUDER
-           * (.task-grid-cell-content) kan niet over deze geneste inline-flex-grens heen rekenen
-           * (.full-task-grid-name, voor het in-/uitklaptriehoekje + tekst samen), dus de ellipsis
-           * werd nooit getoond en de clip leunde uitsluitend op de overflow:hidden van die
-           * vooroudercontainer — geen eigen begrenzing op dít element. Zie
-           * .full-task-grid-name-label in globals.css voor de eigen overflow/ellipsis/min-width. */}
-          <span className="full-task-grid-name-label">{base.text}</span>
-        </span>
+      ) : isName && task ? renderNameRow(
+        task,
+        <span className="full-task-grid-name-label" {...{ [GRID_CLIP_ATTRIBUTE]: 'true' }}>{base.text}</span>,
+        false,
       ) : undefined,
     };
-  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, nameIndentMode, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));
@@ -856,7 +879,6 @@ export function TaskGridSurface({
         onCellContextMenu={(cell, event) => {
           event.preventDefault();
           if (!finishEditing()) return;
-          setHover(null);
           const meta = adapter.rowMetaByKey.get(cell.rowKey);
           if (meta?.kind !== 'task') return;
           const task = tasksById.get(meta.taskId);
@@ -880,7 +902,6 @@ export function TaskGridSurface({
         onGroupContextMenu={(row, event) => {
           event.preventDefault();
           if (!finishEditing()) return;
-          setHover(null);
           const source = viewRows.find(candidate => candidate.rowKey === row.rowKey);
           if (source?.kind !== 'group') return;
           setContextMenu({
@@ -903,12 +924,12 @@ export function TaskGridSurface({
             event.clipboardData.getData('text/plain'), clipboardEnvironment(), { skipReadOnlyCells: true },
           );
           if (!planned.ok) {
-            setSurfaceError(tTask(planned.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', { defaultValue: 'Plakken is voor deze selectie niet mogelijk.' }));
+            setSurfaceError(validationMessage(planned.errors[0], 'taskGrid.validation.pasteNotPossible'));
             return;
           }
           event.preventDefault();
           const result = runGridMutation([planned.value]);
-          if (!result.ok) setSurfaceError(tTask(result.errors[0]?.messageKey ?? 'taskGrid.validation.invalid', { defaultValue: 'Plakken is mislukt.' }));
+          if (!result.ok) setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.pasteFailed'));
         }}
         onDataRowMouseDown={(row, _absoluteIndex, event) => {
           if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey
@@ -917,13 +938,6 @@ export function TaskGridSurface({
           if (meta?.kind !== 'task') return;
           startRowDrag({ taskId: meta.taskId, startClientX: event.clientX, startClientY: event.clientY });
         }}
-        onDataRowMouseMove={(row, event) => {
-          if (rowDragActive || contextMenu) { setHover(null); return; }
-          const meta = adapter.rowMetaByKey.get(row.rowKey);
-          const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
-          if (task) setHover({ documentId: activeDocumentId, task, x: event.clientX, y: event.clientY });
-        }}
-        onDataRowMouseLeave={() => setHover(null)}
         onCommitColumns={(label, columns) => commitTaskGridColumns(surfaceId, label, columns)}
         onRecordRecentColumn={recordRecentTaskColumn}
         beforeColumnAction={finishEditing}
@@ -934,11 +948,6 @@ export function TaskGridSurface({
           : undefined}
       />
       {surfaceError && <div className="full-task-grid-error" role="alert">{surfaceError}</div>}
-      {hover?.documentId === activeDocumentId && !editing && (
-        <HoverTooltip left={hover.x + 16} top={hover.y - 10}>
-          <TaskTooltipContent task={hover.task} />
-        </HoverTooltip>
-      )}
       {externalRelationMenu?.documentId === activeDocumentId && (
         <div
           ref={externalRelationMenuRef}

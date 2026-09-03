@@ -105,6 +105,8 @@
     "themeDark": "Dark",
     "themeLight": "Light",
     "themeHighContrast": "High Contrast",
+    "themeFollowSystem": "Follow system theme",
+    "themeSystemHint": "Follows your system colour scheme (currently: {{theme}}).",
     "timeline": "Timeline / Zoom",
     "hourPlanningSection": "Hour planning",
     "enableHourPlanning": "Enable hour planning",
@@ -361,7 +363,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) missed",
     "violatedConstraints": "{{count}} constraint(s) violated",
-    "outOfSequence": "{{count}} out-of-sequence relation(s)"
+    "outOfSequence": "{{count}} out-of-sequence relation(s)",
+    "overallocated": "{{count}} resource(s) overallocated"
+  },
+  "warnings": {
+    "title": "Warnings",
+    "close": "Close warnings",
+    "openPanel": "Open the Warnings panel (details and navigation)",
+    "summary": "{{errors}} error(s), {{warnings}} warning(s)",
+    "noSchedule": "Not calculated yet — press Calculate (F5) to run the checks.",
+    "stale": "Schedule is stale — this list comes from the last calculation. Recalculate (F5).",
+    "empty": "No warnings. The schedule passes all checks.",
+    "goTo": "Go to: {{target}}",
+    "kind": {
+      "scheduleError": "The schedule could not be calculated: {{message}}",
+      "missedDeadline": "Deadline {{deadline}} missed — early finish {{finish}}",
+      "violatedConstraint": "Constraint {{constraint}} is overridden by the logic (negative float)",
+      "outOfSequence": "Out of sequence: the successor's progress contradicts the relation",
+      "truncatedLead": "Lead truncated by the project start — the relation is not fully honoured",
+      "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
+      "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
+      "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
+      "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Project",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

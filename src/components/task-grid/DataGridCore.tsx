@@ -10,6 +10,7 @@ import {
 import { computeVirtualWindow, minimalScrollTopForRow } from '@/engine/taskGrid/virtualization';
 import { resolveTaskGridCommand, type TaskGridCommand } from '@/engine/taskGrid/navigation';
 import { shouldRequestTaskGridCellFocus } from '@/engine/taskGrid/editLifecycle';
+import { GROUPED_NAME_INDENT_UNIT } from '@/engine/taskGrid/nameIndent';
 import { DataGridHeader, computePinnedColumnLayout, type DataGridHeaderProps } from './DataGridHeader';
 import { GridCell } from './GridCell';
 import {
@@ -51,11 +52,6 @@ export interface DataGridCoreProps {
     absoluteIndex: number,
     event: React.MouseEvent<HTMLDivElement>,
   ) => void;
-  onDataRowMouseMove?: (
-    row: DataGridDataRowModel,
-    event: React.MouseEvent<HTMLDivElement>,
-  ) => void;
-  onDataRowMouseLeave?: (row: DataGridDataRowModel) => void;
   onGroupContextMenu?: (
     row: Extract<DataGridRowModel, { kind: 'group' }>,
     event: React.MouseEvent<HTMLDivElement>,
@@ -177,8 +173,6 @@ export function DataGridCore({
   onCellDoubleClick,
   onCellContextMenu,
   onDataRowMouseDown,
-  onDataRowMouseMove,
-  onDataRowMouseLeave,
   onGroupContextMenu,
   onCopy,
   onPaste,
@@ -419,7 +413,7 @@ export function DataGridCore({
                       dir={textDirection}
                       data-grid-group-cell="true"
                       className="task-grid-group-cell"
-                      style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * 14 }}
+                      style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * GROUPED_NAME_INDENT_UNIT }}
                     >
                       <button
                         type="button"
@@ -453,8 +447,6 @@ export function DataGridCore({
                 className={`task-grid-data-row${row.traceClass ? ` ${row.traceClass}` : ''}`}
                 style={{ height: rowHeight, minWidth: totalWidth, gridTemplateColumns: template, direction: 'ltr' }}
                 onMouseDown={event => onDataRowMouseDown?.(row, mounted.index, event)}
-                onMouseMove={event => onDataRowMouseMove?.(row, event)}
-                onMouseLeave={() => onDataRowMouseLeave?.(row)}
               >
                 {columns.map((column, columnIndex) => {
                   const cell = { rowKey: row.rowKey, columnId: column.id };

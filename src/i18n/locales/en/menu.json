@@ -140,6 +140,7 @@
     "assignResource": "Assign",
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
+    "warningsPanel": "Warnings",
     "prevResource": "Previous",
     "nextResource": "Next",
     "leveling": "Leveling",
