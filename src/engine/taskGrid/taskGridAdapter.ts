@@ -71,7 +71,10 @@ export interface TaskGridAdapterCell {
   readOnly: boolean;
   stale?: boolean;
   statusText?: string;
+  /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt (issue #89). */
   title?: string;
+  /** Kolomeigen uitleg die altijd als tooltip verschijnt, ongeacht afknippen. */
+  tooltip?: string;
 }
 
 export interface TaskGridAdapterEventTarget {
@@ -378,7 +381,8 @@ export function createTaskGridAdapter(
         && typeof value === 'string'
         ? copyGridEditorValue(descriptor, task, context, domain.dateNotation)
         : descriptor.format(value, task, context));
-    const title = descriptor.tooltip?.(value, task, context)
+    const tooltip = descriptor.tooltip?.(value, task, context) ?? undefined;
+    const title = tooltip
       ?? ((descriptor.valueKind === 'date' || descriptor.valueKind === 'datetime') && typeof value === 'string'
         ? value
         : descriptor.valueKind === 'technical' ? descriptor.copy(task, context) : text);
@@ -402,6 +406,7 @@ export function createTaskGridAdapter(
       stale: stale || undefined,
       statusText: stale ? 'taskGrid.status.stale' : undefined,
       title: title && title !== '—' ? title : undefined,
+      tooltip: tooltip || undefined,
     };
   }
 

@@ -48,8 +48,20 @@ export function TooltipHost() {
       }
       return null;
     };
-    const onOver = (e: MouseEvent) => {
+    // Een `title` die pas bij binnenkomst van de muis wordt gezet (de taakgrid meet dan pas of een
+    // cel afknipt, issue #89) bestaat nog niet op het moment dat deze capture-listener loopt: React
+    // verwerkt zijn mouseenter-state ná ons. Kijk daarom bij een leeg resultaat één keer opnieuw
+    // zodra die update is doorgevoerd; blijft het leeg, dan is er gewoon niets te tonen.
+    let retryTarget: EventTarget | null = null;
+    const onOver = (e: MouseEvent, retried = false) => {
       const el = titledAncestor(e.target);
+      if (!el && !retried) {
+        retryTarget = e.target;
+        setTimeout(() => {
+          if (retryTarget === e.target) onOver(e, true);
+        }, 0);
+        return;
+      }
       if (!el || el === activeEl.current) return;
       dismiss();
       const text = el.getAttribute('title');
@@ -69,13 +81,14 @@ export function TooltipHost() {
       dismiss();
     };
 
-    document.addEventListener('mouseover', onOver, true);
+    const onOverEvent = (e: MouseEvent) => { retryTarget = null; onOver(e); };
+    document.addEventListener('mouseover', onOverEvent, true);
     document.addEventListener('mouseout', onOut, true);
     document.addEventListener('mousedown', dismiss, true);
     window.addEventListener('scroll', dismiss, true);
     window.addEventListener('blur', dismiss);
     return () => {
-      document.removeEventListener('mouseover', onOver, true);
+      document.removeEventListener('mouseover', onOverEvent, true);
       document.removeEventListener('mouseout', onOut, true);
       document.removeEventListener('mousedown', dismiss, true);
       window.removeEventListener('scroll', dismiss, true);

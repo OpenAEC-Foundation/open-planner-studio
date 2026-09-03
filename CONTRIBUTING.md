@@ -43,7 +43,11 @@ CI. It covers:
 | `npm run verify:docs` | the in-app documentation, 14 languages |
 | `npm run verify:i18n` | missing translation keys relative to `nl` |
 | `npm run verify:cycles` | circular imports within `src/` |
-| `npm run verify:audit` | `npm audit --audit-level=high` |
+
+`npm run verify:audit` (`npm audit --audit-level=high`) exists as a separate command but is
+deliberately **not** part of `verify`: a newly published advisory would otherwise turn every push
+and deploy red regardless of the change. Dependabot security alerts are enabled on the repository
+and are the notification channel for new advisories; fix them in their own commit.
 
 Running individual components is also possible — see the command list at the top
 of [`CLAUDE.md`](CLAUDE.md). During work, `npm run test:planning` is usually

@@ -333,6 +333,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"
   if bundle_check "$DIR/check-full-task-grid-surface.ts" "$TGFULLSURFACECHECK"; then node "$TGFULLSURFACECHECK" || STATUS=1; fi
+  # Issue #89: naaminspringing, één tooltip per cel, plusknop met lucht, naameditor op volle breedte.
+  TGPRESENTATIONCHECK="$DIR/.task-grid-presentation.mjs"
+  if bundle_check "$DIR/check-task-grid-presentation.ts" "$TGPRESENTATIONCHECK"; then node "$TGPRESENTATIONCHECK" || STATUS=1; fi
   TGKEYROUTECHECK="$DIR/.task-grid-keyboard-event-routing.mjs"
   if bundle_check "$DIR/check-keyboard-event-routing.ts" "$TGKEYROUTECHECK"; then node "$TGKEYROUTECHECK" || STATUS=1; fi
   EXTLDIALOGCHECK="$DIR/.external-link-dialog.mjs"
