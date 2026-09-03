@@ -346,7 +346,33 @@
   "statusWarnings": {
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
     "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}",
-    "outOfSequence": "روابط خارج از توالی: {{count}}"
+    "outOfSequence": "روابط خارج از توالی: {{count}}",
+    "overallocated": "منابع بیش‌تخصیص‌یافته: {{count}}"
+  },
+  "warnings": {
+    "title": "هشدارها",
+    "close": "بستن هشدارها",
+    "openPanel": "باز کردن پنل هشدارها (جزئیات و ناوبری)",
+    "summary": "خطاها: {{errors}}، هشدارها: {{warnings}}",
+    "noSchedule": "هنوز محاسبه نشده — برای اجرای بررسی‌ها، محاسبه (F5) را بزنید.",
+    "stale": "زمان‌بندی قدیمی است — این فهرست از آخرین محاسبه است. دوباره محاسبه کنید (F5).",
+    "empty": "هشداری وجود ندارد. زمان‌بندی همهٔ بررسی‌ها را می‌گذراند.",
+    "goTo": "رفتن به: {{target}}",
+    "kind": {
+      "scheduleError": "زمان‌بندی محاسبه نشد: {{message}}",
+      "missedDeadline": "مهلت {{deadline}} از دست رفته — زودترین پایان {{finish}}",
+      "violatedConstraint": "محدودیت {{constraint}} توسط منطق نقض می‌شود (شناوری منفی)",
+      "outOfSequence": "خارج از توالی: پیشرفت پسین با رابطه در تناقض است",
+      "truncatedLead": "پیش‌افت با شروع پروژه بریده شد — رابطه به‌طور کامل رعایت نمی‌شود",
+      "droppedSequence": "رابطه نادیده گرفته شد: پیشین یا پسین یک کار برگ نیست",
+      "hammockNoFinishDriver": "کار بانوجی بدون محرک پایان (بدون پیشین FF/SF): مدت آن به صفر برمی‌گردد",
+      "cappedTask": "تاریخ پایان محدود شد: تقویم هیچ بازهٔ کاری برای این کار باقی نمی‌گذارد",
+      "overallocation": "بیش‌تخصیص در {{count}} روز ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "پروژه",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

@@ -121,3 +121,4 @@ Rule of thumb: use a **deadline** for a target date you want to monitor without 
 - See the deadline conflict in practice: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Structure not in place yet? Read [Planning & WBS](docs://gids-plannen-wbs) first.
 - For calendars and working times that affect task duration: the guide [Calendars & hour planning](docs://gids-kalenders-uren).
+- Every missed deadline and violated constraint in one place, with a jump to the task: the [Warnings panel](docs://ref-waarschuwingen).

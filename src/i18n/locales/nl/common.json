@@ -363,7 +363,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden",
-    "outOfSequence": "{{count}} out-of-sequence-relatie(s)"
+    "outOfSequence": "{{count}} out-of-sequence-relatie(s)",
+    "overallocated": "{{count}} resource(s) overbezet"
+  },
+  "warnings": {
+    "title": "Waarschuwingen",
+    "close": "Waarschuwingen sluiten",
+    "openPanel": "Waarschuwingenpaneel openen (details en navigatie)",
+    "summary": "{{errors}} fout(en), {{warnings}} waarschuwing(en)",
+    "noSchedule": "Nog niet berekend — druk op Bereken (F5) om de controles uit te voeren.",
+    "stale": "Planning verouderd — deze lijst komt van de laatste berekening. Herbereken (F5).",
+    "empty": "Geen waarschuwingen. De planning voldoet aan alle controles.",
+    "goTo": "Ga naar: {{target}}",
+    "kind": {
+      "scheduleError": "Planning kon niet worden berekend: {{message}}",
+      "missedDeadline": "Deadline {{deadline}} overschreden — vroegste einde {{finish}}",
+      "violatedConstraint": "Constraint {{constraint}} wordt door de logica overschreden (negatieve speling)",
+      "outOfSequence": "Out-of-sequence: de voortgang van de opvolger spreekt de relatie tegen",
+      "truncatedLead": "Lead afgekapt door de projectstart — de relatie is niet volledig benut",
+      "droppedSequence": "Relatie genegeerd: voorganger of opvolger is geen bladtaak",
+      "hammockNoFinishDriver": "Hammock zonder eind-driver (geen FF/SF-voorganger): de duur valt terug op nul",
+      "cappedTask": "Einddatum afgekapt: de kalender maakt het taakvenster onwerkbaar",
+      "overallocation": "Overbezet op {{count}} dag(en) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Project",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

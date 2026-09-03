@@ -155,6 +155,9 @@ export const SETTINGS: SettingDescriptor[] = [
   // openstaan. Alleen de AFMETING is een voorkeur; de inklaptoestand per sectie is sessiewerk en
   // staat hier daarom bewust NIET — net zoals `rightPanelCollapsed` er niet staat.
   setting({ key: 'railPropertiesHeight', field: 'railPropertiesHeight', parse: parseClampedInt(RAIL_SECTION_MIN_HEIGHT, RAIL_SECTION_MAX_HEIGHT) }),
+  // Issue #53: idem voor het Waarschuwingenpaneel onderin de rail — alleen de hoogte is een
+  // voorkeur, `showWarningsPanel` zelf is sessiewerk.
+  setting({ key: 'railWarningsHeight', field: 'railWarningsHeight', parse: parseClampedInt(RAIL_SECTION_MIN_HEIGHT, RAIL_SECTION_MAX_HEIGHT) }),
 
   // Histogramstrook (view-state) — zichtbaarheid + geklemde hoogte
   setting({ key: 'showHistogram', field: 'showHistogram', parse: parseBoolean }),

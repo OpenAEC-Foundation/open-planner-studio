@@ -121,3 +121,4 @@ Vuistregel: gebruik een **deadline** voor een streefdatum die je wilt bewaken zo
 - Zie het deadline-conflict in de praktijk: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Structuur nog niet op orde? Lees eerst de gids [Plannen & WBS](docs://gids-plannen-wbs).
 - Voor kalenders en werktijden die de duur van taken beïnvloeden: de gids [Kalenders & uren-planning](docs://gids-kalenders-uren).
+- Alle overschreden deadlines en constraints op één plek, met een sprong naar de taak: het [Waarschuwingenpaneel](docs://ref-waarschuwingen).

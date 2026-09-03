@@ -351,7 +351,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} échéance(s) dépassée(s)",
     "violatedConstraints": "{{count}} contrainte(s) non respectée(s)",
-    "outOfSequence": "{{count}} relation(s) hors séquence"
+    "outOfSequence": "{{count}} relation(s) hors séquence",
+    "overallocated": "{{count}} ressource(s) en surallocation"
+  },
+  "warnings": {
+    "title": "Avertissements",
+    "close": "Fermer les avertissements",
+    "openPanel": "Ouvrir le panneau Avertissements (détails et navigation)",
+    "summary": "{{errors}} erreur(s), {{warnings}} avertissement(s)",
+    "noSchedule": "Pas encore calculé — appuyez sur Calculer (F5) pour exécuter les contrôles.",
+    "stale": "Planning obsolète — cette liste provient du dernier calcul. Recalculez (F5).",
+    "empty": "Aucun avertissement. Le planning passe tous les contrôles.",
+    "goTo": "Aller à : {{target}}",
+    "kind": {
+      "scheduleError": "Le planning n'a pas pu être calculé : {{message}}",
+      "missedDeadline": "Échéance {{deadline}} dépassée — fin au plus tôt {{finish}}",
+      "violatedConstraint": "La contrainte {{constraint}} est outrepassée par la logique (marge négative)",
+      "outOfSequence": "Hors séquence : l'avancement du successeur contredit la relation",
+      "truncatedLead": "Avance tronquée par le début du projet — la relation n'est pas pleinement respectée",
+      "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur n'est pas une tâche feuille",
+      "hammockNoFinishDriver": "Hamac sans pilote de fin (aucun prédécesseur FF/DF) : sa durée retombe à zéro",
+      "cappedTask": "Date de fin plafonnée : le calendrier ne laisse aucune fenêtre ouvrable pour cette tâche",
+      "overallocation": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Projet",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

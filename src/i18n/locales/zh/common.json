@@ -341,7 +341,33 @@
   "statusWarnings": {
     "missedDeadlines": "已超过 {{count}} 个期限",
     "violatedConstraints": "{{count}} 个限制被违反",
-    "outOfSequence": "{{count}} 个乱序关系"
+    "outOfSequence": "{{count}} 个乱序关系",
+    "overallocated": "{{count}} 个资源过度分配"
+  },
+  "warnings": {
+    "title": "警告",
+    "close": "关闭警告",
+    "openPanel": "打开警告面板（详情与导航）",
+    "summary": "{{errors}} 个错误，{{warnings}} 个警告",
+    "noSchedule": "尚未计算 — 按“计算”(F5) 运行检查。",
+    "stale": "计划已过期 — 此列表来自上次计算。请重新计算 (F5)。",
+    "empty": "没有警告。计划通过了所有检查。",
+    "goTo": "转到：{{target}}",
+    "kind": {
+      "scheduleError": "无法计算计划：{{message}}",
+      "missedDeadline": "已错过截止日期 {{deadline}} — 最早完成 {{finish}}",
+      "violatedConstraint": "限制 {{constraint}} 被逻辑覆盖（负浮时）",
+      "outOfSequence": "顺序错误：后续任务的进度与关系矛盾",
+      "truncatedLead": "提前量被项目开始截断 — 关系未被完全遵守",
+      "droppedSequence": "关系被忽略：前置或后续任务不是叶任务",
+      "hammockNoFinishDriver": "吊床任务没有完成驱动（无 FF/SF 前置任务）：其工期回落为零",
+      "cappedTask": "完成日期被截断：日历没有为此任务留下可工作的窗口",
+      "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）"
+    },
+    "target": {
+      "project": "项目",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

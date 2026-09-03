@@ -83,6 +83,7 @@ function AppContent() {
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showPropertiesPanel = useAppStore(s => s.ui.showPropertiesPanel);
+  const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
@@ -209,7 +210,8 @@ function AppContent() {
   // Issue #46 (slot): de rechterkolom bestaat alleen zolang er minstens één railpaneel aan staat.
   // Zet de gebruiker ze allebei uit via hun lintknop, dan verdwijnt de kolom — inclusief de
   // ingeklapte strip, want er valt dan niets terug te halen.
-  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked);
+  // Issue #53: het Waarschuwingenpaneel is het derde railpaneel.
+  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked) || showWarningsPanel;
 
   // Presentation mode (fase 2.7, §9.2): één wrapper-conditie i.p.v. losse `&& !presentationMode`-
   // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/

@@ -306,6 +306,17 @@ export interface UIState {
    *  hoogte) — het onthoudt enkel de laatst gesleepte verdeling. Geklemd bij het laden
    *  (`settingsRegistry`) én live tijdens het slepen. */
   railPropertiesHeight: number;
+  /** session — issue #53: het Waarschuwingenpaneel (alle actieve waarschuwingen en rule-check-
+   *  fouten uit `cpmResult`/`resourceLoadResult`, klik = navigeren) staat onderin de rechter-rail,
+   *  ónder de stapel Eigenschappen/Resourcedock. Zelfde model als `showPropertiesPanel`: één
+   *  aan/uit-vlag, geen samengevouwen tussentoestand; aanzetten klapt de rail uit (`setUI`-
+   *  invariant 1b). Default uit — de statusbalk blijft de compacte ingang. */
+  showWarningsPanel: boolean;
+  /** Persisted — issue #53: hoogte in px van het Waarschuwingenpaneel (kopbalk inbegrepen) wanneer
+   *  er óók een ander railpaneel aan staat; staat alleen dit paneel aan, dan vult het de rail en is
+   *  dit veld niet van kracht. Geklemd bij het laden (`settingsRegistry`) én live tijdens het slepen
+   *  — het spiegelbeeld van `railPropertiesHeight`. */
+  railWarningsHeight: number;
   showHistogram: boolean;                   // persisted — histogramstrook onder de Gantt zichtbaar (fase 2.5)
   histogramHeight: number;                  // persisted — hoogte van de histogramstrook in px (fase 2.5)
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open (fase 2.5)

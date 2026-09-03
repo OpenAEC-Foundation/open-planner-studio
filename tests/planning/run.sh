@@ -393,6 +393,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   FOCUSCHECK="$DIR/.focus-task.mjs"
   if bundle_check "$DIR/check-focus-task.ts" "$FOCUSCHECK"; then node "$FOCUSCHECK" || STATUS=1; fi
 
+  # Issue #53 (Waarschuwingenpaneel): de pure verzamelaar over cpmResult/resourceLoadResult, de
+  # solver-uitbreiding `cycleTaskIds`, de navigatie naar taak/relatie/resource/cyclus op een echte
+  # store, en de setUI-invarianten voor het derde railpaneel.
+  WARNCHECK="$DIR/.schedule-warnings.mjs"
+  if bundle_check "$DIR/check-schedule-warnings.ts" "$WARNCHECK"; then node "$WARNCHECK" || STATUS=1; fi
+
   # Tabel-overhaul Task 1: stabiele rowKeys voor boom-, groeps- en dubbele resource-occurrences,
   # occurrence-range met unieke domeinselectie en cursorherstel als filter/collapse een rij wist.
   VRKCHECK="$DIR/.view-row-key.mjs"

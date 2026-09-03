@@ -341,7 +341,33 @@
   "statusWarnings": {
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건",
-    "outOfSequence": "순서 위반 관계: {{count}}건"
+    "outOfSequence": "순서 위반 관계: {{count}}건",
+    "overallocated": "리소스 {{count}}개 과다 할당"
+  },
+  "warnings": {
+    "title": "경고",
+    "close": "경고 닫기",
+    "openPanel": "경고 패널 열기(세부 정보 및 탐색)",
+    "summary": "오류 {{errors}}개, 경고 {{warnings}}개",
+    "noSchedule": "아직 계산되지 않았습니다 — 계산(F5)을 눌러 검사를 실행하세요.",
+    "stale": "일정이 오래되었습니다 — 이 목록은 마지막 계산 결과입니다. 다시 계산(F5)하세요.",
+    "empty": "경고가 없습니다. 일정이 모든 검사를 통과했습니다.",
+    "goTo": "이동: {{target}}",
+    "kind": {
+      "scheduleError": "일정을 계산할 수 없습니다: {{message}}",
+      "missedDeadline": "기한 {{deadline}} 초과 — 최조 완료 {{finish}}",
+      "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
+      "outOfSequence": "순서 위반: 후행 작업의 진행이 관계와 모순됩니다",
+      "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
+      "droppedSequence": "관계 무시됨: 선행 또는 후행 작업이 리프 작업이 아닙니다",
+      "hammockNoFinishDriver": "완료 드라이버가 없는 해먹(FF/SF 선행 없음): 기간이 0으로 돌아갑니다",
+      "cappedTask": "완료일이 제한됨: 달력에 이 작업의 작업 가능한 기간이 없습니다",
+      "overallocation": "{{count}}일 동안 과다 할당({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "프로젝트",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
