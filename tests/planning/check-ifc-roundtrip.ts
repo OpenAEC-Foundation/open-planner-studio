@@ -1,3 +1,5 @@
+// Toelichting bij dit contract (stappen, routes, "waar het echt staat"): docs/ifc-round-trip.md.
+//
 // IFC-ROUND-TRIP-CONTRACT (fase 3, eerste helft van P11 uit docs/superpowers/modulariteit-audit.md,
 // bevinding A2/F2). IFC 4.3 is het NATIVE bestandsformaat: opslaan = writeIFC, laden = readIFC. Het
 // impliciete contract "alle domeindata moet door de IFC-laag round-trippen" had géén test — twee

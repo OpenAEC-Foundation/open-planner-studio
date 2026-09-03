@@ -7,12 +7,32 @@ mijlpalen, kalender). Ze draaien tegen de **échte** store + rekenmotor (`src/st
 ## Draaien
 
 ```bash
-bash tests/planning/run.sh            # alle batterijen
-bash tests/planning/run.sh cases-relations.json
+bash tests/planning/run.sh            # alle batterijen + alle check-*.ts + de tijdzone-matrix
+bash tests/planning/run.sh cases-relations.json                    # één CPM-batterij
+bash tests/planning/run.sh check-document-contract.ts              # één losse check
+bash tests/planning/run.sh cases-relations.json check-document-contract.ts   # door elkaar
 ```
 
 Exit 0 = alles groen, exit 1 = afwijking (toont per geval het verschil verwacht↔actueel).
 `run.sh` bundelt `harness.ts` met esbuild (komt met Vite mee) en draait het op Node — geen extra deps.
+
+### Gerichte runs
+
+Zodra je één of meer bestandsnamen meegeeft — `cases-*.json` en/of `check-*.ts`, door elkaar — draait
+`run.sh` **uitsluitend** die batterijen/checks. Een gerichte run slaat daarmee stilzwijgend de rest
+van de losse `check-*.ts`-regressiebatterijen (zie hieronder) én de tijdzone-matrix onderaan het
+script over — dat gebeurde altijd al zodra je een argument meegaf, ook toen alleen `cases-*.json`
+mogelijk was. Sinds deze paragraaf print `run.sh` daarom aan het eind van een gerichte run een
+zichtbare waarschuwing met het aantal overgeslagen checks, dynamisch geteld uit het script zelf —
+er staat bewust geen getal in deze README, want dat veroudert bij elke nieuwe of verwijderde check;
+laat `bash tests/planning/run.sh <iets ongeldigs>` of een gerichte run het actuele aantal tonen.
+Een `check-*.ts` dat op schijf staat maar door geen enkele `bundle_check`-regel wordt aangeroepen telt
+niet mee als "aangesloten": `run.sh` bewaakt dat zelf met een check-scriptinventaris (zelfde model als
+de `EXPECTED_BATTERIES`-inventaris voor `cases-*.json` bovenin `run.sh`) en faalt rood als een bestand
+noch aangesloten noch expliciet op de allowlist staat.
+Vertrouw pas op een gerichte run voor snel itereren; draai vóór een commit/PR altijd `run.sh` zonder
+argumenten. Een onbekende bestandsnaam (geen bestaand `cases-*.json`/`check-*.ts` in deze map) geeft
+een `XX`-foutregel en exitcode ≠ 0, zonder de rest van de gevraagde bestanden te blokkeren.
 
 ## Hoe het werkt (en waarom zo)
 
@@ -43,7 +63,8 @@ ná de finish, lag in werkdagen, lead = negatieve lag, FF = finishes uitlijnen, 
 | `cases-resource-load.json` | resources/toewijzingen/curves/kalenders/availabilitySteps → `resourceLoadResult` (belasting/capaciteit/overallocatie, fase 2.5) |
 | `cases-move-project.json` | "Project verplaatsen" (pakket D1): verschuiving vooruit/terug, shift-dan-snap, kalender die NIET meeschuift (jaargrens/bouwvak), constraints/deadlines/harde pins/externe ankers/actuals die wél meeschuiven, uur-modus, undo, Δ=0-no-op |
 
-De losse check-batterijen (geen JSON-cases, eigen scripts die `run.sh` bij een volledige run meestart)
+De losse check-batterijen (geen JSON-cases, eigen scripts die `run.sh` bij een volledige run meestart,
+en die je sinds de paragraaf *Gerichte runs* hierboven ook los met hun bestandsnaam kunt aanroepen)
 staan bovenin `run.sh`. Nieuw in pakket D1: `check-move-project.ts` — de veld-voor-veld shift-verdicten
 uit de veld-inventarisatie, de feestdagendekking (R7), de preview-zuiverheid en de Δ=0/ongeldige-datum-
 guards; alles wat de JSON-batterij niet kan zien omdat het niet via de solver loopt.

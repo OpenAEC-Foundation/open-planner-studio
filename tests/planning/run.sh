@@ -101,9 +101,90 @@ check_batteries () {
 }
 check_batteries
 
+# ── Check-scriptinventaris ──────────────────────────────────────────────────────────────────
+# Een `check-*.ts`-bestand dat op schijf staat maar door GEEN ENKELE `if bundle_check
+# "$DIR/check-..."`-regel wordt aangeroepen, draait in een volledige run stilzwijgend niet mee —
+# geen foutmelding, gewoon een lager totaal (zo werd `check-tauri-refresh-evidence.ts` wees:
+# bestond, typechecte mee via tsconfig.check.json, maar was door geen `bundle_check`-regel
+# aangesloten — gevonden 2026-09, inmiddels bedraad). Iedere `check-*.ts` moet daarom OFWEL
+# aangeroepen worden, OFWEL expliciet met reden op CHECK_SCRIPT_ALLOWLIST staan — naar het model
+# van EXPECTED_BATTERIES/check_batteries hierboven, maar dan voor de losse check-scripts i.p.v.
+# de cases-*.json-batterijen.
+CHECK_SCRIPT_ALLOWLIST=(
+  # (voorlopig leeg — elke check-*.ts hoort via een `if bundle_check ...`-regel aangesloten te
+  # zijn. Een bewust handmatige/rode check hoort hier met een regel die uitlegt waarom, plus een
+  # verwijzing naar de bijbehorende docs/TODO.md-notitie.)
+)
+
+check_check_scripts () {
+  local f base missing=() allow
+  local -A wired=() allowed=()
+  for base in $(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
+      | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true); do
+    wired[$base]=1
+  done
+  for allow in "${CHECK_SCRIPT_ALLOWLIST[@]:-}"; do
+    [ -n "$allow" ] && allowed[$allow]=1
+  done
+  for f in "$DIR"/check-*.ts; do
+    base="$(basename "$f")"
+    if [ -z "${wired[$base]:-}" ] && [ -z "${allowed[$base]:-}" ]; then
+      missing+=("$base")
+    fi
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "XX  check-scriptinventaris: ${#missing[@]} bestand(en) niet aangeroepen en niet op de allowlist: ${missing[*]}"
+    echo "    (nieuwe/vergeten check-*.ts? bedraad 'm met 'if bundle_check ...; then ...; fi', of zet 'm"
+    echo "    met een reden op CHECK_SCRIPT_ALLOWLIST bovenin dit script — nooit stilzwijgend een rode check bedraden)"
+    STATUS=1
+  else
+    echo "OK  check-scriptinventaris: alle check-*.ts-bestanden aangesloten of op de allowlist"
+  fi
+}
+check_check_scripts
+
+# ── Argumentafhandeling (gerichte run) ─────────────────────────────────────────────────────
+# Twee argumentvormen, door elkaar toegestaan: `cases-<naam>.json` (één CPM-batterij, gaat naar
+# de harness zoals voorheen) en `check-<naam>.ts` (één losse check-batterij — voorheen alleen via
+# een volledige run bereikbaar). Onbekende namen worden verzameld en maken de run rood, maar
+# blokkeren de rest niet: zelfde STATUS-accumulatie-filosofie als `bundle_check` hierboven — je
+# ziet zo in één keer het hele beeld i.p.v. bij de eerste typefout af te breken.
+# Beide vormen worden gededupliceerd: hetzelfde argument twee keer meegeven bundelt/draait het
+# niet twee keer, en telt bij de "GERICHTE RUN"-samenvatting onderaan ook maar één keer mee als
+# "wél gedraaid" (voorheen liet `check-x.ts check-x.ts` de skip-teller er één te veel uitzien).
+CHECK_NAMES=()
 if [ "$#" -gt 0 ]; then
-  FILES=()
-  for f in "$@"; do FILES+=("$DIR/$f"); done
+  CASE_FILES=()
+  UNKNOWN_ARGS=()
+  declare -A SEEN_CASE_FILES=() SEEN_CHECK_NAMES=()
+  for f in "$@"; do
+    case "$f" in
+      cases-*.json)
+        if [ ! -f "$DIR/$f" ]; then
+          UNKNOWN_ARGS+=("$f")
+        elif [ -z "${SEEN_CASE_FILES[$f]:-}" ]; then
+          CASE_FILES+=("$DIR/$f")
+          SEEN_CASE_FILES[$f]=1
+        fi
+        ;;
+      check-*.ts)
+        if [ ! -f "$DIR/$f" ]; then
+          UNKNOWN_ARGS+=("$f")
+        elif [ -z "${SEEN_CHECK_NAMES[$f]:-}" ]; then
+          CHECK_NAMES+=("$f")
+          SEEN_CHECK_NAMES[$f]=1
+        fi
+        ;;
+      *)
+        UNKNOWN_ARGS+=("$f")
+        ;;
+    esac
+  done
+  for u in "${UNKNOWN_ARGS[@]}"; do
+    echo "XX  onbekend argument: $u (verwacht cases-<naam>.json of check-<naam>.ts, bestaand in $DIR)"
+    STATUS=1
+  done
+  FILES=("${CASE_FILES[@]}")
   RUN_HOLIDAYS=0
 else
   FILES=("$DIR"/cases-*.json)
@@ -250,6 +331,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
+
+  # Tauri-verversing van externe relaties (tabel-overhaul, eindreview-bewijs): gehashte before/
+  # after/source-IFC's uit de ECHTE desktop-app (docs/superpowers/evidence/tabel-overhaul-*.md)
+  # tonen dat de lintactie "Alle externe relaties vernieuwen" het verouderde anker/sourceMissing/
+  # identiteit herstelt via OPS_TaskIdentity/InternalProjectId/GlobalId-terugvallen. Was tot 2026-09
+  # een wees (bestond, typechecte mee via tsconfig.check.json, maar door geen `bundle_check`-regel
+  # aangeroepen — zie de check-scriptinventaris bovenin dit script); groen in isolatie bevonden,
+  # dus hier alsnog aangesloten in plaats van op de allowlist gezet.
+  TAURIREFRESHCHECK="$DIR/.tauri-refresh-evidence.mjs"
+  if bundle_check "$DIR/check-tauri-refresh-evidence.ts" "$TAURIREFRESHCHECK"; then node "$TAURIREFRESHCHECK" || STATUS=1; fi
 
   # Documentcontract-checks (audit P10, F1/F3 — key-gedreven capture/hydrate/reset, Snapshot-subset,
   # B3-regressie, recovery-round-trip; headless tegen de echte store, los van de CPM-cases).
@@ -862,8 +953,35 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-recorded-dates.ts" "$RECDATES"; then node "$RECDATES" || STATUS=1; fi
 fi
 
+# ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────
+# Zelfde `bundle_check`-mechanisme als hierboven, maar dan alleen voor de expliciet gevraagde
+# bestanden — dus geen esbuild-kosten voor de overige check-batterijen. Twee checks forceren in
+# de volledige run bewust OPS_RELAX_PERF=0 (zware, tijdzone-onafhankelijke performance-poorten);
+# dat gedrag wordt hier gespiegeld zodat een gerichte aanroep niet stilzwijgend een relaxte
+# omgevingsvariabele van de aanroepende shell overneemt.
+if [ "${#CHECK_NAMES[@]}" -gt 0 ]; then
+  for name in "${CHECK_NAMES[@]}"; do
+    base="${name%.ts}"
+    out="$DIR/.$base.mjs"
+    if bundle_check "$DIR/$name" "$out"; then
+      case "$base" in
+        check-task-grid-performance|check-task-grid-paste-performance)
+          OPS_RELAX_PERF=0 node "$out" || STATUS=1
+          ;;
+        *)
+          node "$out" || STATUS=1
+          ;;
+      esac
+    fi
+  done
+fi
+
 if [ "$HARNESS_OK" -eq 1 ]; then
-  node "$OUT" "${FILES[@]}" || STATUS=1
+  # Bij een gerichte run met uitsluitend check-*.ts-argumenten is FILES leeg; de harness dan
+  # toch aanroepen zou alleen een verwarrende "TOTAAL: 0/0" opleveren.
+  if [ "${#FILES[@]}" -gt 0 ]; then
+    node "$OUT" "${FILES[@]}" || STATUS=1
+  fi
 else
   echo "XX  cases overgeslagen: de harness kon niet gebundeld worden (zie de fout hierboven)"
 fi
@@ -910,6 +1028,48 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
       STATUS=1
     fi
   done
+fi
+
+# ── Waarschuwing bij een gerichte run ───────────────────────────────────────────────────────
+# RUN_HOLIDAYS is exact 0 wanneer er argumenten meegegeven zijn (zie de argumentafhandeling
+# hierboven). Het aantal overgeslagen check-batterijen wordt dynamisch geteld door dit script
+# zelf te lezen — geen los bijgehouden getal dat kan verouderen zodra er een check bij komt of
+# verdwijnt. De regel-vorm (`if bundle_check "$DIR/check-...`) filtert het documentatievoorbeeld
+# in het commentaar boven `bundle_check` eruit: die staat op een `#`-regel.
+#
+# Twee dingen die hier bewust anders zijn dan de eerste versie van deze paragraaf:
+#  1. `"${BASH_SOURCE[0]}"` i.p.v. het hardgecodeerde `"$DIR/run.sh"`, en de hele grep-pijplijn
+#     eindigt op `|| true`. Onder `set -euo pipefail` faalt een `VAR=$(pijplijn)`-toewijzing zodra
+#     één stap in de pijplijn niets vindt (bijv. na een naamswijziging van deze regelvorm) — de
+#     assignment krijgt dan exitcode 1, en `set -e` doodt het script VOORDAT de banner of
+#     `exit "$STATUS"` bereikt wordt: een groene gerichte run eindigt dan als stille exitcode 1.
+#     `|| true` maakt lege uitvoer (dus `wc -l` = 0) het ergste geval, nooit een crash.
+#  2. De telling gaat via WIRED_CHECK_NAMES (de daadwerkelijke namen, niet alleen een aantal) en
+#     REQUESTED_CHECK_NAMES (een SET, geen array) i.p.v. `TOTAL - ${#CHECK_NAMES[@]}`. Dat oude
+#     verschil loog in twee gevallen: een dubbel opgegeven check (`check-x.ts check-x.ts`) trok
+#     twee van het totaal af terwijl er maar één overgeslagen werd, en een check-bestand dat wel
+#     op schijf staat maar niet via een `bundle_check`-regel is aangesloten (een wees, zie de
+#     check-scriptinventaris hierboven) telde toch mee als "gedraaid" zodra je 'm als argument gaf.
+if [ "$RUN_HOLIDAYS" -eq 0 ]; then
+  mapfile -t WIRED_CHECK_NAMES < <(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
+    | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true)
+  TOTAL_CHECK_SCRIPTS="${#WIRED_CHECK_NAMES[@]}"
+  declare -A REQUESTED_CHECK_NAMES=()
+  for n in "${CHECK_NAMES[@]}"; do REQUESTED_CHECK_NAMES[$n]=1; done
+  SKIPPED_CHECK_COUNT=0
+  for n in "${WIRED_CHECK_NAMES[@]}"; do
+    if [ -z "${REQUESTED_CHECK_NAMES[$n]:-}" ]; then
+      SKIPPED_CHECK_COUNT=$((SKIPPED_CHECK_COUNT + 1))
+    fi
+  done
+  echo ""
+  echo "############################################################################"
+  echo "##  GERICHTE RUN — dit is niet de volledige poort."
+  echo "##  $SKIPPED_CHECK_COUNT van de $TOTAL_CHECK_SCRIPTS check-*.ts-regressiebatterijen zijn"
+  echo "##  overgeslagen, plus de tijdzone-matrix onderaan dit script."
+  echo "##  Draai 'bash tests/planning/run.sh' zonder argumenten voor de volledige poort"
+  echo "##  vóór je op dit resultaat vertrouwt (bijv. vóór een commit of PR)."
+  echo "############################################################################"
 fi
 
 exit "$STATUS"
