@@ -369,7 +369,7 @@
       "violatedConstraint": "Il vincolo {{constraint}} è superato dalla logica (margine negativo)",
       "outOfSequence": "Fuori sequenza: l'avanzamento del successore contraddice la relazione",
       "truncatedLead": "Anticipo troncato dall'inizio del progetto — la relazione non è rispettata del tutto",
-      "droppedSequence": "Relazione ignorata: predecessore o successore non è un'attività foglia",
+      "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
       "hammockNoFinishDriver": "Hammock senza driver di fine (nessun predecessore FF/SF): la durata torna a zero",
       "cappedTask": "Data di fine limitata: il calendario non lascia alcuna finestra lavorativa per questa attività",
       "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})"

@@ -359,7 +359,7 @@
       "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
       "outOfSequence": "순서 위반: 후행 작업의 진행이 관계와 모순됩니다",
       "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
-      "droppedSequence": "관계 무시됨: 선행 또는 후행 작업이 리프 작업이 아닙니다",
+      "droppedSequence": "관계 무시됨: 선행 또는 후행 작업이 없거나 리프 작업이 아닙니다",
       "hammockNoFinishDriver": "완료 드라이버가 없는 해먹(FF/SF 선행 없음): 기간이 0으로 돌아갑니다",
       "cappedTask": "완료일이 제한됨: 달력에 이 작업의 작업 가능한 기간이 없습니다",
       "overallocation": "{{count}}일 동안 과다 할당({{first}} – {{last}})"

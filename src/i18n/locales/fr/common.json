@@ -369,7 +369,7 @@
       "violatedConstraint": "La contrainte {{constraint}} est outrepassée par la logique (marge négative)",
       "outOfSequence": "Hors séquence : l'avancement du successeur contredit la relation",
       "truncatedLead": "Avance tronquée par le début du projet — la relation n'est pas pleinement respectée",
-      "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur n'est pas une tâche feuille",
+      "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur est absent ou n'est pas une tâche feuille",
       "hammockNoFinishDriver": "Hamac sans pilote de fin (aucun prédécesseur FF/DF) : sa durée retombe à zéro",
       "cappedTask": "Date de fin plafonnée : le calendrier ne laisse aucune fenêtre ouvrable pour cette tâche",
       "overallocation": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}})"

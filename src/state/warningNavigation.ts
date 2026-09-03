@@ -40,6 +40,9 @@ export function revealScheduleWarning(store: AppState, warning: ScheduleWarning)
       const hasPred = store.tasks.some(t => t.id === target.predecessorId);
       if (hasSucc) store.focusOnTask(target.successorId);
       else if (hasPred) store.focusOnTask(target.predecessorId);
+      // `focusOnTask` klapt alleen de oudersketen van zijn eigen doel uit; de andere kant van de
+      // relatie moet óók zichtbaar zijn, anders is hij wel geselecteerd maar verborgen.
+      if (hasSucc && hasPred) store.expandAncestorsOf(target.predecessorId);
       const ids = [target.predecessorId, target.successorId].filter(id => store.tasks.some(t => t.id === id));
       if (ids.length > 1) store.selectTasks(ids, false, hasSucc ? target.successorId : ids[0]);
       return;
@@ -52,9 +55,15 @@ export function revealScheduleWarning(store: AppState, warning: ScheduleWarning)
       if (ids.length > 0) store.selectTasks(ids, false, ids[0]);
       else store.deselectAll();
       store.setHistogramResource(target.resourceId);
-      if (!store.ui.showHistogram) {
-        store.setUI({ showHistogram: true });
-        void saveShowHistogram(true);
+      // De histogramstrook leeft in de GanttCanvas; op de Tabel-/IFC-/Rapport-werkruimte is die
+      // niet gemount en zou "histogram aan" onzichtbaar blijven. Spring dan naar de Resources-tab
+      // (Gantt + histogramknoppen) — de taak-/relatiesprongen laten het tabblad juist met rust,
+      // want de tabelselectie is daar wél het zichtbare effect.
+      const tab = store.ui.activeRibbonTab;
+      const ganttHidden = tab === 'table' || tab === 'ifc' || tab === 'report';
+      if (!store.ui.showHistogram || ganttHidden) {
+        store.setUI({ showHistogram: true, ...(ganttHidden ? { activeRibbonTab: 'resources' as const } : {}) });
+        if (!store.ui.showHistogram) void saveShowHistogram(true);
       }
       return;
     }

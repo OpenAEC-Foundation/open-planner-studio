@@ -374,7 +374,7 @@
       "violatedConstraint": "Ograniczenie {{constraint}} jest nadpisywane przez logikę (ujemny zapas)",
       "outOfSequence": "Poza kolejnością: postęp następnika przeczy relacji",
       "truncatedLead": "Wyprzedzenie obcięte przez start projektu — relacja nie jest w pełni zachowana",
-      "droppedSequence": "Relacja zignorowana: poprzednik lub następnik nie jest zadaniem liściem",
+      "droppedSequence": "Relacja zignorowana: brakuje poprzednika lub następnika albo nie jest zadaniem liściem",
       "hammockNoFinishDriver": "Hamak bez sterownika końca (brak poprzednika FF/SF): czas trwania spada do zera",
       "cappedTask": "Data zakończenia obcięta: kalendarz nie zostawia dla tego zadania żadnego roboczego okna",
       "overallocation": "Przeciążenie przez {{count}} dni ({{first}} – {{last}})"

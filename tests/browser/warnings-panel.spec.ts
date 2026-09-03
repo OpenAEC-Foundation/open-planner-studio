@@ -45,7 +45,7 @@ test('statusbalkteller opent het waarschuwingenpaneel en een rij springt naar de
   await expect(panel.locator('[data-ops-warnings-stale]')).toBeVisible();
 
   // Sluiten via de kopbalk: paneel weg, rail blijft (Eigenschappen staat nog aan).
-  await page.locator('[data-ops-rail-panel="warnings"]').getByTitle(/Waarschuwingen sluiten|Close warnings/).click();
+  await page.locator('[data-ops-warnings-close]').click();
   await expect(page.locator('[data-ops-warnings-panel]')).toHaveCount(0);
   await expect(page.locator('[data-ops-rail]')).toBeVisible();
 });

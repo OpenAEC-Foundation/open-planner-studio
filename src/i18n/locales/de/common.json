@@ -364,7 +364,7 @@
       "violatedConstraint": "Einschränkung {{constraint}} wird durch die Logik überschritten (negativer Puffer)",
       "outOfSequence": "Out of sequence: der Fortschritt des Nachfolgers widerspricht der Beziehung",
       "truncatedLead": "Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten",
-      "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger ist kein Blattvorgang",
+      "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
       "hammockNoFinishDriver": "Hammock ohne Ende-Treiber (kein EE/AE-Vorgänger): die Dauer fällt auf null zurück",
       "cappedTask": "Enddatum gekappt: der Kalender lässt kein arbeitsfähiges Fenster für diesen Vorgang",
       "overallocation": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}})"

@@ -196,6 +196,11 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
   return out;
 }
 
+/** Heeft deze rij een navigeerbaar doel? Alleen een projectfout zónder cyclus-taken heeft dat niet. */
+export function hasScheduleWarningTarget(w: ScheduleWarning): boolean {
+  return w.target.type !== 'project' || w.target.taskIds.length > 0;
+}
+
 export interface ScheduleWarningSummary {
   errors: number;
   warnings: number;

@@ -6,9 +6,10 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import { formatLagShort } from '@/utils/lagFormat';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import {
-  collectScheduleWarnings, summarizeScheduleWarnings,
+  collectScheduleWarnings, summarizeScheduleWarnings, hasScheduleWarningTarget,
   type ScheduleWarning, type ScheduleWarningFacts,
 } from '@/engine/scheduler/scheduleWarnings';
+import type { Sequence } from '@/types/sequence';
 import { revealScheduleWarning } from '@/state/warningNavigation';
 import type { Task } from '@/types/task';
 
@@ -50,6 +51,11 @@ export function WarningsPanel() {
     for (const task of tasks) m.set(task.id, task);
     return m;
   }, [tasks]);
+  const seqById = useMemo(() => {
+    const m = new Map<string, Sequence>();
+    for (const seq of sequences) m.set(seq.id, seq);
+    return m;
+  }, [sequences]);
   const resourceNameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of resources) m.set(r.id, r.name || r.id);
@@ -90,7 +96,7 @@ export function WarningsPanel() {
     switch (tg.type) {
       case 'task': return taskLabel(tg.taskId);
       case 'sequence': {
-        const seq = sequences.find(s => s.id === tg.sequenceId);
+        const seq = seqById.get(tg.sequenceId);
         const type = seq ? (SEQUENCE_TYPE_OPTIONS.find(o => o.value === seq.type)?.label ?? seq.type) : '';
         const lag = seq ? formatLagShort(seq) : '';
         const relation = t('warnings.target.relation', {
@@ -154,24 +160,43 @@ export function WarningsPanel() {
           {warnings.map(w => {
             const current = isCurrent(w);
             const error = w.severity === 'error';
+            const label = targetLabel(w);
+            const navigable = hasScheduleWarningTarget(w);
+            const body = (
+              <>
+                {error
+                  ? <OctagonAlert size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
+                  : <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-warning-text)' }} />}
+                <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <span className="text-text-primary font-medium truncate">{label}</span>
+                  <span className="text-text-secondary whitespace-normal break-words">{describe(w)}</span>
+                </span>
+              </>
+            );
             return (
               <li key={w.id} className="border-b border-border">
-                <button
-                  onClick={() => onReveal(w)}
-                  aria-current={current ? 'true' : undefined}
-                  className={`w-full text-left flex items-start gap-2 px-3 py-1.5 hover:bg-surface-hover${current ? ' bg-surface-hover' : ''}`}
-                  title={t('warnings.goTo', { target: targetLabel(w) })}
-                  data-ops-warning-id={w.id}
-                  data-ops-warning-kind={w.kind}
-                >
-                  {error
-                    ? <OctagonAlert size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
-                    : <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-warning-text)' }} />}
-                  <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <span className="text-text-primary font-medium truncate">{targetLabel(w)}</span>
-                    <span className="text-text-secondary whitespace-normal break-words">{describe(w)}</span>
-                  </span>
-                </button>
+                {navigable ? (
+                  <button
+                    onClick={() => onReveal(w)}
+                    aria-current={current ? 'true' : undefined}
+                    className={`w-full text-left flex items-start gap-2 px-3 py-1.5 hover:bg-surface-hover${current ? ' bg-surface-hover' : ''}`}
+                    title={t('warnings.goTo', { target: label })}
+                    data-ops-warning-id={w.id}
+                    data-ops-warning-kind={w.kind}
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  // Een solverfout zonder doel (kalender zonder werkdagen, ongeldige datum): niets om
+                  // naartoe te springen, dus ook geen knop die dat belooft.
+                  <div
+                    className="w-full text-left flex items-start gap-2 px-3 py-1.5"
+                    data-ops-warning-id={w.id}
+                    data-ops-warning-kind={w.kind}
+                  >
+                    {body}
+                  </div>
+                )}
               </li>
             );
           })}

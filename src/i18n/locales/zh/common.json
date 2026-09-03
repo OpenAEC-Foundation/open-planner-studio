@@ -359,7 +359,7 @@
       "violatedConstraint": "限制 {{constraint}} 被逻辑覆盖（负浮时）",
       "outOfSequence": "顺序错误：后续任务的进度与关系矛盾",
       "truncatedLead": "提前量被项目开始截断 — 关系未被完全遵守",
-      "droppedSequence": "关系被忽略：前置或后续任务不是叶任务",
+      "droppedSequence": "关系被忽略：前置或后续任务缺失或不是叶任务",
       "hammockNoFinishDriver": "吊床任务没有完成驱动（无 FF/SF 前置任务）：其工期回落为零",
       "cappedTask": "完成日期被截断：日历没有为此任务留下可工作的窗口",
       "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）"

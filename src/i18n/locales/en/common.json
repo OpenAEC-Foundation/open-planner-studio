@@ -381,7 +381,7 @@
       "violatedConstraint": "Constraint {{constraint}} is overridden by the logic (negative float)",
       "outOfSequence": "Out of sequence: the successor's progress contradicts the relation",
       "truncatedLead": "Lead truncated by the project start — the relation is not fully honoured",
-      "droppedSequence": "Relation ignored: predecessor or successor is not a leaf task",
+      "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
       "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
       "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
       "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})"

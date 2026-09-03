@@ -364,7 +364,7 @@
       "violatedConstraint": "{{constraint}} kısıtlaması mantık tarafından aşılıyor (negatif bolluk)",
       "outOfSequence": "Sıra dışı: ardılın ilerlemesi ilişkiyle çelişiyor",
       "truncatedLead": "Öncelik proje başlangıcıyla kesildi — ilişki tam olarak uygulanmıyor",
-      "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl yaprak görev değil",
+      "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
       "hammockNoFinishDriver": "Bitiş sürücüsü olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
       "cappedTask": "Bitiş tarihi sınırlandı: takvim bu görev için çalışılabilir bir pencere bırakmıyor",
       "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})"

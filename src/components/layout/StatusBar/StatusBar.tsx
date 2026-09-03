@@ -21,6 +21,7 @@ export function StatusBar() {
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiServerStatus = useAppStore(s => s.ui.aiServerStatus);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
   const setUI = useAppStore(s => s.setUI);
   const dd = useDisplayDate();
 
@@ -31,7 +32,12 @@ export function StatusBar() {
   const overallocatedCount = resourceLoadResult
     ? Object.values(resourceLoadResult.overallocatedDays).filter(days => days.length > 0).length
     : 0;
-  const openWarnings = () => setUI({ showWarningsPanel: true });
+  // Op de IFC- en Rapport-werkruimte bestaat de rail niet (App.tsx rendert 'm daar niet), dus
+  // alleen de vlag zetten zou een dode klik zijn; spring dan mee naar de Gantt-werkruimte.
+  const openWarnings = () => setUI({
+    showWarningsPanel: true,
+    ...(activeRibbonTab === 'ifc' || activeRibbonTab === 'report' ? { activeRibbonTab: 'start' as const } : {}),
+  });
   const warningButton = (key: string, label: string) => (
     <button
       key={key}

@@ -81,6 +81,8 @@ export function RightRail() {
   const bothOn = showPropertiesPanel && dockOn;
   /** Staat er iets in de stapel bóven het waarschuwingenpaneel? */
   const stackOn = showPropertiesPanel || dockOn;
+  /** Aantal panelen in die stapel — bepaalt de ondergrens die de waarschuwingssectie moet laten. */
+  const stackCount = (showPropertiesPanel ? 1 : 0) + (dockOn ? 1 : 0);
 
   /** Container waarbinnen de twee panelen gestapeld staan — de referentie voor de sleepklem. */
   const stackRef = useRef<HTMLDivElement>(null);
@@ -119,7 +121,8 @@ export function RightRail() {
     min: RAIL_SECTION_MIN_HEIGHT,
     max: () => {
       const h = bodyRef.current?.getBoundingClientRect().height ?? 0;
-      return Math.max(RAIL_SECTION_MIN_HEIGHT, Math.round(h - RAIL_SECTION_MIN_HEIGHT));
+      // Elk paneel in de stapel houdt zijn eigen ondergrens (hyperkritische review #53).
+      return Math.max(RAIL_SECTION_MIN_HEIGHT, Math.round(h - RAIL_SECTION_MIN_HEIGHT * Math.max(1, stackCount)));
     },
     computeSize: e => {
       const bottom = bodyRef.current?.getBoundingClientRect().bottom ?? 0;
@@ -178,7 +181,11 @@ export function RightRail() {
 
       <div ref={bodyRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
       {stackOn && (
-      <div ref={stackRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+      // `minHeight` = één kopbalk per paneel in de stapel: met de waarschuwingssectie eronder
+      // (vaste hoogte) zou een lage rail anders de hele stapel tot 0 px knijpen — de flex-basis van
+      // deze wrapper is 0, dus zonder klem absorbeert hij álle negatieve ruimte (zie de meting in
+      // `RailPanel` hieronder; die klem zit één niveau te diep om dit te vangen).
+      <div ref={stackRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: showWarningsPanel ? `${stackCount * 2}rem` : 0 }}>
         {showPropertiesPanel && (
           <RailPanel
             id="properties"
@@ -278,6 +285,7 @@ export function RightRail() {
                 onClick={() => setUI({ showWarningsPanel: false })}
                 title={t('warnings.close')}
                 className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                data-ops-warnings-close
               >
                 <X size={14} />
               </button>

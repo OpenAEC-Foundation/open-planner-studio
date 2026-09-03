@@ -5,7 +5,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
-import { collectScheduleWarnings, summarizeScheduleWarnings } from '@/engine/scheduler/scheduleWarnings';
+import { collectScheduleWarnings, summarizeScheduleWarnings, hasScheduleWarningTarget } from '@/engine/scheduler/scheduleWarnings';
 import { revealScheduleWarning } from '@/state/warningNavigation';
 import { COMMANDS } from '@/state/commands';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -106,12 +106,46 @@ S().runCPM();
   eq('23 relatie: focus op de opvolger', S().view.pendingFocusTaskId, b);
   S().clearPendingFocusTask();
 
+  // Relatie-doel uit de ECHTE solver: een lead die de opvolger vóór de projectstart wil trekken
+  // wordt afgekapt (`truncatedLeadSequenceIds`) en moet via de fold als originele id terugkomen.
+  const e = S().addTask({ name: 'E Leadproef' });
+  setTime(e, { scheduleStart: '2026-09-07', scheduleDuration: 5 });
+  const seqAE = S().addSequence({ predecessorId: a, successorId: e, type: 'FINISH_START', lagDays: -30 })!;
+  S().runCPM();
+  const wLead = collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources,
+    cpmResult: S().cpmResult, resourceLoadResult: S().resourceLoadResult,
+  });
+  const lead = wLead.find(x => x.kind === 'truncatedLead');
+  eq('23a solver levert een afgekapte lead op A→E als relatierij',
+    lead?.target, { type: 'sequence', sequenceId: seqAE, predecessorId: a, successorId: e });
+  S().deselectAll();
+  if (lead) revealScheduleWarning(S(), lead);
+  eq('23b relatie uit de solver navigeert naar A+E met E actief',
+    [[...S().selectedTaskIds].sort(), S().activeTaskId, S().view.pendingFocusTaskId], [[a, e].sort(), e, e]);
+  S().clearPendingFocusTask();
+  S().removeSequence(seqAE);
+  S().deleteTask(e);
+  S().runCPM();
+
   eq('24 histogram staat vooraf uit', S().ui.showHistogram, false);
   revealScheduleWarning(S(), w.find(x => x.kind === 'overallocation')!);
   eq('25 resource: histogramstrook aan en op de resource gezet',
     [S().ui.showHistogram, S().view.histogramResourceId], [true, r]);
   eq('26 resource: de toegewezen taken (de veroorzakers) geselecteerd', [...S().selectedTaskIds].sort(), [a, d].sort());
   eq('27 resource: geen focus-sprong (kan om veel taken gaan)', S().view.pendingFocusTaskId ?? null, null);
+  eq('27a resource: op een Gantt-tab blijft het tabblad met rust', S().ui.activeRibbonTab, 'start');
+
+  // Op de Tabel-werkruimte is de histogramstrook onzichtbaar: dan wisselt de resource-sprong naar
+  // de Resources-tab (Gantt + histogram), de taak-sprong niet.
+  S().setUI({ activeRibbonTab: 'table' });
+  revealScheduleWarning(S(), w.find(x => x.kind === 'overallocation')!);
+  eq('28 resource op Tabel-tab: naar de Resources-tab', S().ui.activeRibbonTab, 'resources');
+  S().setUI({ activeRibbonTab: 'table' });
+  revealScheduleWarning(S(), w.find(x => x.kind === 'missedDeadline')!);
+  eq('29 taak op Tabel-tab: tabblad blijft Tabel (selectie is daar zichtbaar)', S().ui.activeRibbonTab, 'table');
+  S().clearPendingFocusTask();
+  S().setUI({ activeRibbonTab: 'start' });
 }
 
 // ── 3) Verwijderde doelen vallen weg; niets pusht een undo-stap ──────────────
@@ -159,6 +193,16 @@ S().runCPM();
   eq('44 cyclus: hele loop geselecteerd, eerste actief',
     [[...S().selectedTaskIds].sort(), S().activeTaskId === ids[0]], [[a, b, c].sort(), true]);
   S().clearPendingFocusTask();
+  eq('45 cyclusrij heeft een doel', hasScheduleWarningTarget(w[0]), true);
+  // Solverfout zónder cyclus (geen taak-ids): geen doel, en navigeren is een no-op.
+  const noTarget = collectScheduleWarnings({
+    tasks: s.tasks, sequences: s.sequences, resources: s.resources,
+    cpmResult: { ...s.cpmResult!, cycleTaskIds: undefined }, resourceLoadResult: null,
+  })[0];
+  eq('46 fout zonder taken heeft geen doel', hasScheduleWarningTarget(noTarget), false);
+  const selBefore = [...S().selectedTaskIds];
+  revealScheduleWarning(S(), noTarget);
+  eq('47 navigeren zonder doel raakt niets aan', [S().selectedTaskIds, S().view.pendingFocusTaskId ?? null], [selBefore, null]);
 }
 
 // ── 5) UI-invarianten van het derde railpaneel ───────────────────────────────

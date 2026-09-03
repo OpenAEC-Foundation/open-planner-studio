@@ -369,7 +369,7 @@
       "violatedConstraint": "La restricción {{constraint}} es sobrepasada por la lógica (holgura negativa)",
       "outOfSequence": "Fuera de secuencia: el progreso del sucesor contradice la relación",
       "truncatedLead": "Adelanto truncado por el inicio del proyecto — la relación no se respeta por completo",
-      "droppedSequence": "Relación ignorada: el predecesor o el sucesor no es una tarea hoja",
+      "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
       "hammockNoFinishDriver": "Hamaca sin impulsor de fin (sin predecesor FF/SF): su duración vuelve a cero",
       "cappedTask": "Fecha de fin limitada: el calendario no deja ninguna ventana laborable para esta tarea",
       "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})"

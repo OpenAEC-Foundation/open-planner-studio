@@ -359,7 +359,7 @@
       "violatedConstraint": "制約 {{constraint}} がロジックによって上書きされています（負のフロート）",
       "outOfSequence": "順序違反: 後続タスクの進捗が関係と矛盾しています",
       "truncatedLead": "リードがプロジェクト開始で切り詰められました — 関係が完全には守られていません",
-      "droppedSequence": "関係を無視: 先行または後続がリーフタスクではありません",
+      "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
       "hammockNoFinishDriver": "終了ドライバーのないハンモック（FF/SF の先行なし）: 期間はゼロになります",
       "cappedTask": "終了日が打ち切られました: カレンダーにこのタスクの作業可能な期間がありません",
       "overallocation": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）"
