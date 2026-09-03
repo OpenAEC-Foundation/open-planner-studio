@@ -134,7 +134,14 @@
       "clearNotPossible": "No es posible borrar esta selección.",
       "clearFailed": "El borrado ha fallado.",
       "pasteNotPossible": "No es posible pegar en esta selección.",
-      "pasteFailed": "El pegado ha fallado."
+      "pasteFailed": "El pegado ha fallado.",
+      "duplicate": "Esta relación ya existe.",
+      "duplicateRelationId": "Este ID de relación aparece varias veces.",
+      "relationIdWrongCell": "Este ID de relación pertenece a otra celda.",
+      "unknownTask": "La tarea referenciada no existe.",
+      "unrepresentableSummaryRelation": "Una relación con una tarea de resumen no se puede editar aquí.",
+      "self": "Una tarea no puede depender de sí misma.",
+      "ancestor": "Una tarea no puede tener una relación con su propia tarea de resumen."
     },
     "controls": {
       "collapse": "Contraer", "expand": "Expandir", "resize": "Cambiar ancho", "resizeTaskGrid": "Cambiar el tamaño de la cuadrícula de tareas", "remove": "Quitar", "pin": "Fijar",

@@ -134,7 +134,14 @@
       "clearNotPossible": "Löschen ist für diese Auswahl nicht möglich.",
       "clearFailed": "Löschen ist fehlgeschlagen.",
       "pasteNotPossible": "Einfügen ist für diese Auswahl nicht möglich.",
-      "pasteFailed": "Einfügen ist fehlgeschlagen."
+      "pasteFailed": "Einfügen ist fehlgeschlagen.",
+      "duplicate": "Diese Beziehung existiert bereits.",
+      "duplicateRelationId": "Diese Beziehungs-ID kommt mehrfach vor.",
+      "relationIdWrongCell": "Diese Beziehungs-ID gehört zu einer anderen Zelle.",
+      "unknownTask": "Der referenzierte Vorgang existiert nicht.",
+      "unrepresentableSummaryRelation": "Eine Beziehung mit einem Sammelvorgang kann hier nicht bearbeitet werden.",
+      "self": "Ein Vorgang kann nicht von sich selbst abhängen.",
+      "ancestor": "Ein Vorgang kann keine Beziehung zu seinem eigenen Sammelvorgang haben."
     },
     "controls": {
       "collapse": "Einklappen", "expand": "Ausklappen", "resize": "Breite ändern", "resizeTaskGrid": "Aufgabenraster skalieren", "remove": "Entfernen", "pin": "Anheften",

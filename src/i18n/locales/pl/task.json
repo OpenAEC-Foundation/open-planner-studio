@@ -121,7 +121,14 @@
       "clearNotPossible": "Czyszczenie nie jest możliwe dla tego zaznaczenia.",
       "clearFailed": "Czyszczenie nie powiodło się.",
       "pasteNotPossible": "Wklejanie nie jest możliwe dla tego zaznaczenia.",
-      "pasteFailed": "Wklejanie nie powiodło się."
+      "pasteFailed": "Wklejanie nie powiodło się.",
+      "duplicate": "Ta relacja już istnieje.",
+      "duplicateRelationId": "Ten identyfikator relacji występuje więcej niż raz.",
+      "relationIdWrongCell": "Ten identyfikator relacji należy do innej komórki.",
+      "unknownTask": "Zadanie, do którego się odwołano, nie istnieje.",
+      "unrepresentableSummaryRelation": "Relacji z zadaniem sumarycznym nie można tutaj edytować.",
+      "self": "Zadanie nie może zależeć od samego siebie.",
+      "ancestor": "Zadanie nie może mieć relacji z własnym zadaniem sumarycznym."
     },
     "controls": {
       "collapse": "Zwiń", "expand": "Rozwiń", "resize": "Zmień szerokość", "resizeTaskGrid": "Zmień rozmiar siatki zadań", "remove": "Usuń", "pin": "Przypnij",

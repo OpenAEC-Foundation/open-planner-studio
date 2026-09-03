@@ -377,13 +377,15 @@
 .gantt-task-grid-add-child {
   flex: none;
   margin-inline-start: auto;
+  /* Vrij van de kolomrand (issue #89, punt 4 vroeg juist om lucht rond zo'n knop). */
+  margin-inline-end: 6px;
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 1px solid var(--theme-border);
+  border: 1px solid var(--theme-border-light);
   border-radius: 3px;
   color: var(--theme-text-muted);
-  background: var(--theme-surface-alt);
+  background: transparent;
   line-height: 1;
 }
 
@@ -946,13 +948,19 @@
   color: var(--theme-text);
 }
 
+.task-grid-relation-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 2px;
+}
+
 .task-grid-relation-chip--driving .task-grid-relation-detail,
-.task-grid-relation-chip--driving > svg {
+.task-grid-relation-chip--driving .task-grid-relation-icon > svg {
   color: var(--theme-accent);
   font-weight: 700;
 }
 
-.task-grid-relation-chip--warning > svg {
+.task-grid-relation-chip--warning .task-grid-relation-icon > svg {
   color: var(--warning, #d97706);
 }
 

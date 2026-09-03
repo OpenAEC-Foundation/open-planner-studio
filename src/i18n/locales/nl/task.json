@@ -200,7 +200,14 @@
       "clearNotPossible": "Wissen is voor deze selectie niet mogelijk.",
       "clearFailed": "Wissen is mislukt.",
       "pasteNotPossible": "Plakken is voor deze selectie niet mogelijk.",
-      "pasteFailed": "Plakken is mislukt."
+      "pasteFailed": "Plakken is mislukt.",
+      "duplicate": "Deze relatie bestaat al.",
+      "duplicateRelationId": "Dit relatie-ID komt meerdere keren voor.",
+      "relationIdWrongCell": "Dit relatie-ID hoort bij een andere cel.",
+      "unknownTask": "De verwezen taak bestaat niet.",
+      "unrepresentableSummaryRelation": "Een relatie met een samenvattende taak kan hier niet worden bewerkt.",
+      "self": "Een taak kan niet van zichzelf afhangen.",
+      "ancestor": "Een taak kan geen relatie hebben met zijn eigen samenvattende taak."
     },
     "controls": {
       "collapse": "Inklappen",

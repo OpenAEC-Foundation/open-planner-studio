@@ -12,6 +12,7 @@ import {
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import {
@@ -52,15 +53,20 @@ function relationLabelParts(label: string): { reference: string; detail: string 
 /** Issue #89: de relatiedetails (type/lag, vrije speling, sturend, waarschuwingen) stonden als
  * aparte native `title` op de chip en botsten met de taakkaart van de referentie. Ze staan nu als
  * extra regels ONDER die kaart, zodat een link precies één tooltip heeft. */
+/** Vertaalde waarschuwingsteksten van een relatie-item, inclusief de stale-markering. */
+function relationWarningTexts(item: RelationCellItem, t: TFunction<'task'>): string[] {
+  return [
+    ...item.warnings.map(warning => t(RELATION_WARNING_KEYS[warning] ?? warning, { defaultValue: warning })),
+    ...(item.stale ? [t('taskGrid.status.stale')] : []),
+  ];
+}
+
 function RelationTooltipDetails({ item }: { item: RelationCellItem }) {
   const { t } = useTranslation('task');
   const { detail } = relationLabelParts(item.label);
   const relationType = detail.slice(0, 2);
   const lag = detail.slice(2).trim();
-  const warnings = [
-    ...item.warnings.map(warning => t(RELATION_WARNING_KEYS[warning] ?? warning, { defaultValue: warning })),
-    ...(item.stale ? [t('taskGrid.status.stale')] : []),
-  ];
+  const warnings = relationWarningTexts(item, t);
   return (
     <>
       {relationType && (
@@ -168,8 +174,19 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                 {parts.reference}
               </button>
               {parts.detail && <span className="task-grid-relation-detail"> {parts.detail}</span>}
-              {item.driving && <Zap size={10} aria-label={t('relations.driving')} />}
-              {item.warnings.length > 0 && <AlertTriangle size={10} aria-label={t('relations.warnings')} />}
+              {/* De iconen staan buiten de link en dus buiten de hoverkaart; ze houden hun eigen
+                * native title zodat "sturend" en de concrete waarschuwing met de muis leesbaar
+                * blijven — de gewone celtooltip wordt eronder onderdrukt (dichtstbijzijnde title wint). */}
+              {item.driving && (
+                <span className="task-grid-relation-icon" title={t('relations.driving')}>
+                  <Zap size={10} aria-label={t('relations.driving')} />
+                </span>
+              )}
+              {item.warnings.length > 0 && (
+                <span className="task-grid-relation-icon" title={relationWarningTexts(item, t).join(' · ')}>
+                  <AlertTriangle size={10} aria-label={t('relations.warnings')} />
+                </span>
+              )}
             </span>
           );
         })}

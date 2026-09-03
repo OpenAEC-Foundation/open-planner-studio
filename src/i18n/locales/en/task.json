@@ -200,7 +200,14 @@
       "clearNotPossible": "Clearing is not possible for this selection.",
       "clearFailed": "Clearing failed.",
       "pasteNotPossible": "Pasting is not possible for this selection.",
-      "pasteFailed": "Pasting failed."
+      "pasteFailed": "Pasting failed.",
+      "duplicate": "This relationship already exists.",
+      "duplicateRelationId": "This relationship ID occurs more than once.",
+      "relationIdWrongCell": "This relationship ID belongs to a different cell.",
+      "unknownTask": "The referenced task does not exist.",
+      "unrepresentableSummaryRelation": "A relationship with a summary task cannot be edited here.",
+      "self": "A task cannot depend on itself.",
+      "ancestor": "A task cannot have a relationship with its own summary task."
     },
     "controls": {
       "collapse": "Collapse",

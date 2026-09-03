@@ -121,7 +121,14 @@
       "clearNotPossible": "이 선택 영역은 지울 수 없습니다.",
       "clearFailed": "지우기에 실패했습니다.",
       "pasteNotPossible": "이 선택 영역에는 붙여넣을 수 없습니다.",
-      "pasteFailed": "붙여넣기에 실패했습니다."
+      "pasteFailed": "붙여넣기에 실패했습니다.",
+      "duplicate": "이 관계는 이미 존재합니다.",
+      "duplicateRelationId": "이 관계 ID가 여러 번 나타납니다.",
+      "relationIdWrongCell": "이 관계 ID는 다른 셀에 속합니다.",
+      "unknownTask": "참조된 작업이 존재하지 않습니다.",
+      "unrepresentableSummaryRelation": "요약 작업과의 관계는 여기서 편집할 수 없습니다.",
+      "self": "작업은 자기 자신에 의존할 수 없습니다.",
+      "ancestor": "작업은 자신의 요약 작업과 관계를 가질 수 없습니다."
     },
     "controls": {
       "collapse": "접기", "expand": "펼치기", "resize": "너비 변경", "resizeTaskGrid": "작업 그리드 크기 조정", "remove": "제거", "pin": "고정",

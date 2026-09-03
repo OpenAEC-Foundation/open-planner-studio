@@ -121,7 +121,14 @@
       "clearNotPossible": "この選択範囲はクリアできません。",
       "clearFailed": "クリアに失敗しました。",
       "pasteNotPossible": "この選択範囲には貼り付けできません。",
-      "pasteFailed": "貼り付けに失敗しました。"
+      "pasteFailed": "貼り付けに失敗しました。",
+      "duplicate": "この関係はすでに存在します。",
+      "duplicateRelationId": "この関係IDが複数回出現しています。",
+      "relationIdWrongCell": "この関係IDは別のセルのものです。",
+      "unknownTask": "参照先のタスクは存在しません。",
+      "unrepresentableSummaryRelation": "サマリータスクとの関係はここでは編集できません。",
+      "self": "タスクは自分自身に依存できません。",
+      "ancestor": "タスクは自身のサマリータスクと関係を持てません。"
     },
     "controls": {
       "collapse": "折りたたむ", "expand": "展開", "resize": "幅を変更", "resizeTaskGrid": "タスクグリッドのサイズを変更", "remove": "削除", "pin": "固定",

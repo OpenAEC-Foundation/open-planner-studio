@@ -121,7 +121,14 @@
       "clearNotPossible": "La cancellazione non è possibile per questa selezione.",
       "clearFailed": "Cancellazione non riuscita.",
       "pasteNotPossible": "Incollare non è possibile per questa selezione.",
-      "pasteFailed": "Incolla non riuscito."
+      "pasteFailed": "Incolla non riuscito.",
+      "duplicate": "Questa relazione esiste già.",
+      "duplicateRelationId": "Questo ID di relazione compare più volte.",
+      "relationIdWrongCell": "Questo ID di relazione appartiene a un'altra cella.",
+      "unknownTask": "L'attività a cui si fa riferimento non esiste.",
+      "unrepresentableSummaryRelation": "Una relazione con un'attività di riepilogo non può essere modificata qui.",
+      "self": "Un'attività non può dipendere da se stessa.",
+      "ancestor": "Un'attività non può avere una relazione con la propria attività di riepilogo."
     },
     "controls": {
       "collapse": "Comprimi", "expand": "Espandi", "resize": "Modifica larghezza", "resizeTaskGrid": "Ridimensiona la griglia delle attività", "remove": "Rimuovi", "pin": "Blocca",

@@ -121,7 +121,14 @@
       "clearNotPossible": "Bu seçim için temizleme mümkün değil.",
       "clearFailed": "Temizleme başarısız oldu.",
       "pasteNotPossible": "Bu seçim için yapıştırma mümkün değil.",
-      "pasteFailed": "Yapıştırma başarısız oldu."
+      "pasteFailed": "Yapıştırma başarısız oldu.",
+      "duplicate": "Bu ilişki zaten var.",
+      "duplicateRelationId": "Bu ilişki kimliği birden çok kez geçiyor.",
+      "relationIdWrongCell": "Bu ilişki kimliği başka bir hücreye ait.",
+      "unknownTask": "Başvurulan görev mevcut değil.",
+      "unrepresentableSummaryRelation": "Özet görevle olan bir ilişki burada düzenlenemez.",
+      "self": "Bir görev kendisine bağımlı olamaz.",
+      "ancestor": "Bir görev kendi özet göreviyle ilişki kuramaz."
     },
     "controls": {
       "collapse": "Daralt", "expand": "Genişlet", "resize": "Genişliği değiştir", "resizeTaskGrid": "Görev ızgarasını yeniden boyutlandır", "remove": "Kaldır", "pin": "Sabitle",

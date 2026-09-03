@@ -121,7 +121,14 @@
       "clearNotPossible": "Não é possível limpar esta seleção.",
       "clearFailed": "A limpeza falhou.",
       "pasteNotPossible": "Não é possível colar nesta seleção.",
-      "pasteFailed": "A colagem falhou."
+      "pasteFailed": "A colagem falhou.",
+      "duplicate": "Esta relação já existe.",
+      "duplicateRelationId": "Este ID de relação ocorre mais do que uma vez.",
+      "relationIdWrongCell": "Este ID de relação pertence a outra célula.",
+      "unknownTask": "A tarefa referenciada não existe.",
+      "unrepresentableSummaryRelation": "Uma relação com uma tarefa de resumo não pode ser editada aqui.",
+      "self": "Uma tarefa não pode depender de si própria.",
+      "ancestor": "Uma tarefa não pode ter uma relação com a sua própria tarefa de resumo."
     },
     "controls": {
       "collapse": "Recolher", "expand": "Expandir", "resize": "Alterar largura", "resizeTaskGrid": "Redimensionar a grelha de tarefas", "remove": "Remover", "pin": "Fixar",

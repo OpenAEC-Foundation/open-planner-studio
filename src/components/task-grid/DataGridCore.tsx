@@ -10,6 +10,7 @@ import {
 import { computeVirtualWindow, minimalScrollTopForRow } from '@/engine/taskGrid/virtualization';
 import { resolveTaskGridCommand, type TaskGridCommand } from '@/engine/taskGrid/navigation';
 import { shouldRequestTaskGridCellFocus } from '@/engine/taskGrid/editLifecycle';
+import { GROUPED_NAME_INDENT_UNIT } from '@/engine/taskGrid/nameIndent';
 import { DataGridHeader, computePinnedColumnLayout, type DataGridHeaderProps } from './DataGridHeader';
 import { GridCell } from './GridCell';
 import {
@@ -412,7 +413,7 @@ export function DataGridCore({
                       dir={textDirection}
                       data-grid-group-cell="true"
                       className="task-grid-group-cell"
-                      style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * 14 }}
+                      style={{ width: totalWidth, height: rowHeight, paddingInlineStart: 8 + row.depth * GROUPED_NAME_INDENT_UNIT }}
                     >
                       <button
                         type="button"

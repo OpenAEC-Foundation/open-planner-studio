@@ -190,7 +190,14 @@
       "clearNotPossible": "المسح غير ممكن لهذا التحديد.",
       "clearFailed": "فشل المسح.",
       "pasteNotPossible": "اللصق غير ممكن لهذا التحديد.",
-      "pasteFailed": "فشل اللصق."
+      "pasteFailed": "فشل اللصق.",
+      "duplicate": "هذه العلاقة موجودة بالفعل.",
+      "duplicateRelationId": "معرّف العلاقة هذا يتكرر أكثر من مرة.",
+      "relationIdWrongCell": "معرّف العلاقة هذا يخص خلية أخرى.",
+      "unknownTask": "المهمة المشار إليها غير موجودة.",
+      "unrepresentableSummaryRelation": "لا يمكن تعديل علاقة مع مهمة موجزة هنا.",
+      "self": "لا يمكن أن تعتمد المهمة على نفسها.",
+      "ancestor": "لا يمكن أن تكون للمهمة علاقة مع مهمتها الموجزة."
     },
     "controls": {
       "collapse": "طي", "expand": "توسيع", "resize": "تغيير العرض", "resizeTaskGrid": "تغيير حجم شبكة المهام", "remove": "إزالة", "pin": "تثبيت",

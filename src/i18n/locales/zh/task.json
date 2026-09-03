@@ -121,7 +121,14 @@
       "clearNotPossible": "无法清除此选区。",
       "clearFailed": "清除失败。",
       "pasteNotPossible": "无法粘贴到此选区。",
-      "pasteFailed": "粘贴失败。"
+      "pasteFailed": "粘贴失败。",
+      "duplicate": "此关系已存在。",
+      "duplicateRelationId": "此关系 ID 出现多次。",
+      "relationIdWrongCell": "此关系 ID 属于另一个单元格。",
+      "unknownTask": "引用的任务不存在。",
+      "unrepresentableSummaryRelation": "与摘要任务的关系无法在此编辑。",
+      "self": "任务不能依赖自身。",
+      "ancestor": "任务不能与其自身的摘要任务建立关系。"
     },
     "controls": {
       "collapse": "折叠", "expand": "展开", "resize": "更改宽度", "resizeTaskGrid": "调整任务网格大小", "remove": "移除", "pin": "固定",

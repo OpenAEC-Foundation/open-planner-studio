@@ -4,9 +4,8 @@
 // kolombreedte. Pure functies worden direct getoetst; de DOM-/CSS-afspraken via de bron.
 import fs from 'node:fs';
 import path from 'node:path';
-import { TASK_NAME_INDENT_UNIT, taskNameIndent, taskNameTextOffset } from '@/engine/taskGrid/nameIndent';
-import { isClippedBoxTruncated, resolveGridCellTitle } from '@/engine/taskGrid/cellTitle';
-import { isGridCellTruncated } from '@/components/task-grid/GridCell';
+import { GROUPED_NAME_INDENT_UNIT, TASK_NAME_INDENT_UNIT, taskNameIndent } from '@/engine/taskGrid/nameIndent';
+import { isClippedBoxTruncated, isGridCellTruncated, resolveGridCellTitle } from '@/engine/taskGrid/cellTitle';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -25,18 +24,22 @@ const read = (relative: string) => fs.readFileSync(path.join(process.cwd(), rela
 // ── Inspringing ──────────────────────────────────────────────────────────────────────────────
 // Het triehoekje van een subtaak staat waar de naam van zijn ouder begint; een blad zonder
 // triehoekje begint zijn naam op dezelfde kolom als een samenvatting op hetzelfde niveau.
-eq('Samenvatting op niveau 0 begint bij 0 (triehoekje) en tekst bij één eenheid',
-  [taskNameIndent(0, true), taskNameTextOffset(0)], [0, TASK_NAME_INDENT_UNIT]);
-eq('Blad op niveau 0 laat het triehoekje-slot leeg en begint zijn tekst op dezelfde kolom',
-  [taskNameIndent(0, false), taskNameTextOffset(0)], [TASK_NAME_INDENT_UNIT, TASK_NAME_INDENT_UNIT]);
+const unit = TASK_NAME_INDENT_UNIT;
+eq('Samenvatting op niveau 0 begint bij 0 (triehoekje), een blad laat het slot leeg',
+  [taskNameIndent(0, true), taskNameIndent(0, false)], [0, unit]);
 eq('Triehoekje van niveau 1 staat op de tekstkolom van niveau 0',
-  taskNameIndent(1, true), taskNameTextOffset(0));
+  taskNameIndent(1, true), taskNameIndent(0, false));
 eq('Tekst van niveau 1 staat één eenheid voorbij zijn triehoekje, voor blad en samenvatting gelijk',
-  [taskNameIndent(1, false), taskNameIndent(1, true) + TASK_NAME_INDENT_UNIT, taskNameTextOffset(1)],
-  [2 * TASK_NAME_INDENT_UNIT, 2 * TASK_NAME_INDENT_UNIT, 2 * TASK_NAME_INDENT_UNIT]);
+  [taskNameIndent(1, false), taskNameIndent(1, true) + unit], [2 * unit, 2 * unit]);
 eq('Het patroon loopt door op diepere niveaus',
-  [taskNameIndent(3, true), taskNameIndent(3, false)], [3 * TASK_NAME_INDENT_UNIT, 4 * TASK_NAME_INDENT_UNIT]);
-eq('Negatieve of gebroken diepte klemt op niveau 0', [taskNameIndent(-2, false), taskNameIndent(1.7, true)], [TASK_NAME_INDENT_UNIT, TASK_NAME_INDENT_UNIT]);
+  [taskNameIndent(3, true), taskNameIndent(3, false)], [3 * unit, 4 * unit]);
+eq('Negatieve of gebroken diepte klemt op niveau 0', [taskNameIndent(-2, false), taskNameIndent(1.7, true)], [unit, unit]);
+// Gegroepeerd: geen boom, dus geen triehoekje-slot; de naam volgt de stap van de groepskop.
+eq('Gegroepeerde rijen reserveren geen triehoekje-slot en volgen de groepskopstap',
+  [taskNameIndent(0, false, 'grouped'), taskNameIndent(1, false, 'grouped'), taskNameIndent(2, false, 'grouped')],
+  [0, GROUPED_NAME_INDENT_UNIT, 2 * GROUPED_NAME_INDENT_UNIT]);
+ok('De groepskop in DataGridCore deelt die stap',
+  /8 \+ row\.depth \* GROUPED_NAME_INDENT_UNIT/.test(read('src/components/task-grid/DataGridCore.tsx')));
 
 const styles = read('src/styles/globals.css');
 const cssRule = (pattern: RegExp): string => pattern.exec(styles)?.[1] ?? '';
@@ -48,26 +51,32 @@ eq('De inspringeenheid is exact triehoekje plus flex-gap uit globals.css',
   disclosureWidth + nameGap, TASK_NAME_INDENT_UNIT);
 
 const fullGrid = read('src/components/task-grid/FullTaskGrid.tsx');
-ok('De naamrij springt in via taskNameIndent en niet via een losse diepte-vermenigvuldiging',
-  /paddingInlineStart:\s*taskNameIndent\(row\.depth,\s*hasDisclosure\)/.test(fullGrid)
+ok('De naamrij springt in via taskNameIndent (boom óf gegroepeerd) en niet via een losse diepte-vermenigvuldiging',
+  /taskNameIndent\(row\.depth,\s*hasDisclosure,\s*nameIndentMode\)/.test(fullGrid)
     && !/row\.depth\s*\*\s*14/.test(fullGrid));
-ok('De subtaak-plus staat ná de naamtekst en wordt rechts uitgelijnd',
-  /\{body\}[\s\S]*?className="gantt-task-grid-add-child"/.test(fullGrid)
-    && cssRule(/\.gantt-task-grid-add-child\s*\{([^}]*)\}/).includes('margin-inline-start: auto'));
-ok('De naameditor staat binnen dezelfde inspringrij als de naamtekst',
-  /renderNameRow\(task,\s*editor,\s*true\)/.test(fullGrid)
+ok('De subtaak-plus wordt rechts uitgelijnd en staat vrij van de kolomrand',
+  cssRule(/\.gantt-task-grid-add-child\s*\{([^}]*)\}/).includes('margin-inline-start: auto')
+    && /margin-inline-end:\s*[4-9]px/.test(cssRule(/\.gantt-task-grid-add-child\s*\{([^}]*)\}/)));
+ok('Auto-fit van de naamkolom telt inspringing en plus mee',
+  /leadingWidth:\s*columnId === 'task\.name'/.test(fullGrid)
+    && /row\.leadingWidth/.test(read('src/engine/taskGrid/preferences.ts')));
+ok('Editorinhoud vult de resterende kolombreedte, ook genest in de naamrij',
+  /\.task-grid-cell-content:has\(\.task-grid-editor-host\)\s*\{[^}]*flex:\s*1 1 auto/.test(styles)
     && /\.full-task-grid-name\s*>\s*\.task-grid-editor-host\s*\{[^}]*flex:\s*1 1 auto/.test(styles));
-ok('De celinhoud met een editor vult de resterende kolombreedte',
-  /\.task-grid-cell-content:has\(\.task-grid-editor-host\)\s*\{[^}]*flex:\s*1 1 auto/.test(styles));
 
 // ── Tooltips ────────────────────────────────────────────────────────────────────────────────
 eq('Kolomuitleg wint altijd, ook zonder afknippen',
-  resolveGridCellTitle({ tooltip: 'Geen baseline', title: '—', truncated: false }), 'Geen baseline');
-eq('Volledige waarde alleen wanneer de cel afknipt',
+  resolveGridCellTitle({ tooltip: 'Geen baseline', title: '—', text: '—', truncated: false }), 'Geen baseline');
+eq('Een waarde die de zichtbare tekst herhaalt is alleen een tooltip wanneer de cel afknipt',
   [
-    resolveGridCellTitle({ title: 'Beton storten fundering', truncated: false }),
-    resolveGridCellTitle({ title: 'Beton storten fundering', truncated: true }),
+    resolveGridCellTitle({ title: 'Beton storten fundering', text: 'Beton storten fundering', truncated: false }),
+    resolveGridCellTitle({ title: 'Beton storten fundering', text: 'Beton storten fundering', truncated: true }),
   ], [undefined, 'Beton storten fundering']);
+eq('Een waarde die méér zegt dan de weergave (ISO-instant, technische JSON) blijft altijd zichtbaar',
+  [
+    resolveGridCellTitle({ title: '2026-01-01T08:30:45.123Z', text: '01-01-2026 08:30', truncated: false }),
+    resolveGridCellTitle({ title: '["r-1","r-2"]', text: '2', truncated: false }),
+  ], ['2026-01-01T08:30:45.123Z', '["r-1","r-2"]']);
 eq('Zonder enige bron geen tooltip', resolveGridCellTitle({ truncated: true }), undefined);
 eq('Afknippen is meer inhoud dan zichtbaar', [
   isClippedBoxTruncated({ scrollWidth: 120, clientWidth: 80 }),
@@ -82,15 +91,13 @@ eq('Een cel is afgeknipt zodra één van zijn clipboxen afknipt (bv. het geneste
 const gridCell = read('src/components/task-grid/GridCell.tsx');
 ok('GridCell zet de native title niet meer onvoorwaardelijk op de volledige celwaarde',
   !/title=\{model\.title\}/.test(gridCell)
-    && /resolveGridCellTitle\(\{\s*tooltip:\s*model\.tooltip,\s*title:\s*model\.title,\s*truncated\s*\}\)/.test(gridCell)
+    && /resolveGridCellTitle\(\{/.test(gridCell)
     && /onMouseEnter=\{measureTruncation\}/.test(gridCell));
-ok('De contentspan en het naamlabel dragen het clipattribuut waarop de meting steunt',
-  /className="task-grid-cell-content"\s+data-grid-clip="true"/.test(gridCell)
-    && /className="full-task-grid-name-label"\s+data-grid-clip="true"/.test(fullGrid));
-ok('De taakkaart volgt niet meer de muis over gewone datarijen',
-  !/onDataRowMouseMove/.test(fullGrid)
-    && !/HoverTooltip/.test(fullGrid)
-    && !/onDataRowMouseMove/.test(read('src/components/task-grid/DataGridCore.tsx')));
+ok('De contentspan en het naamlabel dragen het clipattribuut waarop de meting steunt, via de gedeelde constante',
+  /\[GRID_CLIP_ATTRIBUTE\]:\s*'true'/.test(gridCell)
+    && /full-task-grid-name-label"\s+\{\.\.\.\{\s*\[GRID_CLIP_ATTRIBUTE\]:\s*'true'/.test(fullGrid));
+ok('Geen rij-hover meer in de gridkern (de taakkaart volgt de muis niet over datarijen)',
+  !/onDataRowMouseMove/.test(read('src/components/task-grid/DataGridCore.tsx')));
 
 const relationCell = read('src/components/task-grid/RelationCellEditor.tsx');
 const relationChip = /className=\{`task-grid-relation-chip[\s\S]*?<button/.exec(relationCell)?.[0] ?? '';
@@ -98,6 +105,9 @@ ok('De relatiechip heeft geen eigen native title meer; de details staan in de ho
   relationChip !== '' && !/\btitle=/.test(relationChip)
     && /function RelationTooltipDetails/.test(relationCell)
     && /<RelationTooltipDetails item=\{hover\.item\} \/>/.test(relationCell));
+ok('De sturend- en waarschuwingsiconen houden hun eigen tekst als native title',
+  /className="task-grid-relation-icon" title=\{t\('relations\.driving'\)\}/.test(relationCell)
+    && /className="task-grid-relation-icon" title=\{relationWarningTexts\(item, t\)\.join/.test(relationCell));
 ok('De relatielink onderdrukt de celtooltip erboven met een lege title',
   /className="task-grid-relation-jump"\s+title=""/.test(relationCell));
 ok('De relatiecel meet afknippen op zijn eigen clipbox',

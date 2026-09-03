@@ -237,6 +237,8 @@ export interface TaskGridAutoFitRow {
   rowKey: string;
   valueVersion: string | number;
   text: string;
+  /** Vaste ruimte vóór de tekst die de kolom óók moet bieden (naamkolom: inspringing + triehoekje + plus). */
+  leadingWidth?: number;
 }
 
 export interface ComputeTaskGridAutoFitWidthInput {
@@ -287,7 +289,7 @@ export async function computeTaskGridAutoFitWidth(
         width = input.measureText(row.text);
         input.cache.set(key, width);
       }
-      widest = Math.max(widest, width);
+      widest = Math.max(widest, width + Math.max(0, row.leadingWidth ?? 0));
     }
     if (end < input.rows.length) await yieldToMain();
   }

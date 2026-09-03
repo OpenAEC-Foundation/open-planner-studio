@@ -85,7 +85,11 @@ test('gantt: de subtaak-plus staat rechts in de naamkolom, achter de tekst', asy
   const plusBox = (await plus.boundingBox())!;
   const labelBox = (await cell.locator('.full-task-grid-name-label').boundingBox())!;
   expect(plusBox.x).toBeGreaterThan(labelBox.x + labelBox.width);
-  expect(cellBox.x + cellBox.width - (plusBox.x + plusBox.width)).toBeLessThanOrEqual(4);
+  // Rechts uitgelijnd, maar met lucht tot de kolomrand (punt 4 van het issue ging juist over een
+  // plus die tegen de rand aan stond).
+  const gapToEdge = cellBox.x + cellBox.width - (plusBox.x + plusBox.width);
+  expect(gapToEdge).toBeGreaterThanOrEqual(5);
+  expect(gapToEdge).toBeLessThanOrEqual(12);
 });
 
 test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde alleen bij afknippen', async ({ page, ops: _ops }) => {
@@ -108,18 +112,34 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   }, { from: longId, to: shortId });
   await openTable(page);
   const tooltip = page.locator('.gantt-tooltip');
+  // De app toont elk `title`-attribuut via zijn eigen TooltipHost-bubbel (na 400 ms) en neemt het
+  // attribuut tijdens de hover weg; de zichtbare bubbel is dus wat de gebruiker ziet.
+  const bubble = page.locator('.ops-tooltip');
 
-  // Een gewone, volledig zichtbare cel: geen taakkaart en geen title.
+  // Een gewone, volledig zichtbare cel: geen taakkaart en geen bubbel.
   const shortName = taskCell(page, shortId, 'task.name');
   await shortName.hover();
   await page.mouse.move((await shortName.boundingBox())!.x + 10, (await shortName.boundingBox())!.y + 5);
+  await page.waitForTimeout(700);
   await expect(tooltip).toHaveCount(0);
+  await expect(bubble).toHaveCount(0);
   await expect(shortName).not.toHaveAttribute('title', /.+/);
 
-  // Een afgeknipte naam: de volledige waarde als title, nog steeds geen taakkaart.
+  // Een datumcel toont de canonieke waarde achter de persoonlijke notatie: die zegt méér dan de
+  // zichtbare tekst en blijft dus altijd bereikbaar, zonder taakkaart ernaast. (Met de
+  // jaar-maand-dag-notatie zou weergave en waarde samenvallen en verdwijnt de tooltip terecht.)
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ dateNotation: 'dmy' }));
+  const startCell = taskCell(page, shortId, 'task.time.scheduleStart');
+  await expect(startCell).toHaveText('07-09-2026');
+  await startCell.hover();
+  await expect(bubble).toHaveText('2026-09-07');
+  await expect(tooltip).toHaveCount(0);
+
+  // Een afgeknipte naam: de volledige waarde als bubbel, nog steeds geen taakkaart. De meting
+  // gebeurt pas bij binnenkomst van de muis; de host kijkt daarom één keer opnieuw.
   const longNameCell = taskCell(page, longId, 'task.name');
   await longNameCell.hover();
-  await expect(longNameCell).toHaveAttribute('title', longName);
+  await expect(bubble).toHaveText(longName);
   await expect(tooltip).toHaveCount(0);
 
   // De relatiecel: boven de link precies één zwevende kaart (van de andere taak, mét
@@ -131,6 +151,8 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   await expect(tooltip).toHaveCount(1);
   await expect(tooltip.locator('.tooltip-title')).toHaveText(longName);
   await expect(tooltip).toContainText('FS');
+  await page.waitForTimeout(700);
+  await expect(bubble).toHaveCount(0);
   expect(await link.getAttribute('title')).toBe('');
   await expect(relationCell.locator('.task-grid-relation-chip')).not.toHaveAttribute('title', /.+/);
 });

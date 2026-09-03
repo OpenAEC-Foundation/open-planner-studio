@@ -21,6 +21,7 @@ import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { taskNameIndent } from '@/engine/taskGrid/nameIndent';
+import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
 import {
   computeTaskGridAutoFitWidth,
@@ -110,6 +111,9 @@ function useElementSize() {
 function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
   return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
 }
+
+/** Breedte die de subtaak-plus (Gantt-takenlijst) in de naamkolom inneemt: 18px knop + 4px gap. */
+const SUMMARY_ADD_BUTTON_WIDTH = 22;
 
 function categoryFallback(category: TaskColumnCategory): string {
   return ({
@@ -630,6 +634,14 @@ export function TaskGridSurface({
     },
   }), [tTask]);
 
+  // Boom of gegroepeerd bepaalt hoe de naamkolom inspringt (zie nameIndent.ts) — voor de cel én
+  // voor de auto-fit-meting, die anders de inspringing en de subtaak-plus niet meetelt.
+  const nameIndentMode = isTreeMode(view) ? 'tree' : 'grouped';
+  const nameLeadingWidth = useCallback((depth: number, task: Task): number => (
+    taskNameIndent(depth, task.childIds.length > 0, nameIndentMode)
+      + (showSummaryAdd && task.childIds.length > 0 ? SUMMARY_ADD_BUTTON_WIDTH : 0)
+  ), [nameIndentMode, showSummaryAdd]);
+
   const computeAutoFitWidth = useCallback(async (columnId: TaskColumnId): Promise<number | null> => {
     const descriptor = adapter.descriptorsById.get(columnId);
     const option = adapter.availableColumns.find(column => column.id === columnId);
@@ -649,6 +661,7 @@ export function TaskGridSurface({
         return {
           rowKey: row.rowKey,
           text: visibleText,
+          leadingWidth: columnId === 'task.name' ? nameLeadingWidth(row.depth, row.task) : 0,
           valueVersion: taskGridAutoFitValueVersion(
             value,
             visibleText,
@@ -660,7 +673,7 @@ export function TaskGridSurface({
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [activeDocumentId, adapter, containerRef, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
@@ -680,7 +693,7 @@ export function TaskGridSurface({
         <span
           className="full-task-grid-name"
           data-grid-name-depth={row.depth}
-          style={{ paddingInlineStart: taskNameIndent(row.depth, hasDisclosure) }}
+          style={{ paddingInlineStart: taskNameIndent(row.depth, hasDisclosure, nameIndentMode) }}
         >
           {hasDisclosure && (
             <button
@@ -795,11 +808,11 @@ export function TaskGridSurface({
         />
       ) : isName && task ? renderNameRow(
         task,
-        <span className="full-task-grid-name-label" data-grid-clip="true">{base.text}</span>,
+        <span className="full-task-grid-name-label" {...{ [GRID_CLIP_ATTRIBUTE]: 'true' }}>{base.text}</span>,
         false,
       ) : undefined,
     };
-  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, nameIndentMode, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));

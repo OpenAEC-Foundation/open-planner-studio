@@ -102,6 +102,10 @@ const COUNTED_TASK_GRID_KEYS = [...new Set(
 // Issue #89: een validatiecode zonder vertaling viel terug op een Nederlandse `defaultValue`, ook in
 // een Engelse interface. Elke code die de bron kan opleveren moet daarom in álle talen bestaan;
 // de lijst wordt hier uit de bron gelezen, zodat een nieuwe code zonder tekst de poort rood zet.
+// De scan kent de helperfuncties die `taskGrid.validation.<code>` bouwen bij naam; een NIEUWE
+// helper met dat sjabloon die hier niet in staat, zet de poort eveneens rood (zie hieronder), zodat
+// het gat dat de eerste versie van deze scan had (tokenError/globalError in relationPlan.ts) niet
+// stil terug kan komen.
 const VALIDATION_SOURCE_FILES = [
   ...fs.readdirSync(path.join(root, 'src/engine/taskGrid'))
     .filter(name => name.endsWith('.ts'))
@@ -112,15 +116,41 @@ const VALIDATION_SOURCE_FILES = [
     .filter(name => name.endsWith('.tsx') || name.endsWith('.ts'))
     .map(name => `src/components/task-grid/${name}`),
 ];
+const VALIDATION_HELPERS = ['failure', 'fail', 'error', 'localError', 'validationError', 'tokenError', 'globalError'];
+const helperAlternation = VALIDATION_HELPERS.join('|');
 const VALIDATION_CODE_PATTERNS = [
-  /\b(?:failure|fail|error|localError|validationError)\((?:[^,()]+,\s*)?'([a-zA-Z]+)'/g,
+  // helper('code', …) en helper(iets, 'code', …)
+  new RegExp(`\\b(?:${helperAlternation})\\((?:[^,()]+,\\s*)?'([a-zA-Z]+)'`, 'g'),
+  // helper(voorwaarde ? 'a' : 'b', …) — beide takken
+  // (de voorwaarde mag haakjes bevatten, zoals `slice.text.includes('/')`)
+  // — maar geen komma: dan is het ternair niet het eerste argument)
+  new RegExp(`\\b(?:${helperAlternation})\\([^,?]{0,160}?\\?\\s*'([a-zA-Z]+)'\\s*:\\s*'([a-zA-Z]+)'`, 'g'),
   /\bcode:\s*'([a-zA-Z]+)'/g,
   /taskGrid\.validation\.([a-zA-Z]+)/g,
 ];
-const VALIDATION_KEYS = [...new Set(VALIDATION_SOURCE_FILES.flatMap(file => {
-  const source = fs.readFileSync(path.join(root, file), 'utf8');
-  return VALIDATION_CODE_PATTERNS.flatMap(pattern => [...source.matchAll(pattern)].map(match => match[1]));
-}))].sort().map(code => `taskGrid.validation.${code}`);
+const validationSources = new Map(VALIDATION_SOURCE_FILES.map(file => (
+  [file, fs.readFileSync(path.join(root, file), 'utf8')] as const
+)));
+// relationPlan.ts geeft `relationStructureVerdict`-redenen door als code ('unknown-task' wordt
+// 'unknownTask'); die literals staan in de scheduler, buiten de gescande mappen.
+const relationRules = fs.readFileSync(path.join(root, 'src/engine/scheduler/relationRules.ts'), 'utf8');
+const STRUCTURE_REASONS = [...new Set([...relationRules.matchAll(/reason:\s*'([a-z-]+)'/g)].map(match => match[1]))];
+const structureCodes = STRUCTURE_REASONS.map(reason => reason === 'unknown-task' ? 'unknownTask' : reason);
+const VALIDATION_KEYS = [...new Set([
+  ...[...validationSources.values()].flatMap(source => VALIDATION_CODE_PATTERNS.flatMap(pattern => (
+    [...source.matchAll(pattern)].flatMap(match => match.slice(1).filter((code): code is string => Boolean(code)))
+  ))),
+  ...structureCodes,
+])].sort().map(code => `taskGrid.validation.${code}`);
+// Elke functie die zelf `taskGrid.validation.${…}` bouwt moet in VALIDATION_HELPERS staan, anders
+// ziet de scan haar aanroepen niet.
+const UNSCANNED_HELPERS = [...validationSources.entries()].flatMap(([file, source]) => (
+  [...source.matchAll(/function (\w+)\([^)]*\)[^{]*\{[\s\S]*?\n\}/g)]
+    .filter(match => match[0].includes('taskGrid.validation.${'))
+    .map(match => match[1])
+    .filter(name => !VALIDATION_HELPERS.includes(name))
+    .map(name => `${file}: ${name}`)
+));
 const REQUIRED_KEYS = [...new Set([...TASK_GRID_KEYS, ...COLUMN_KEYS, ...VALIDATION_KEYS])];
 const failures: string[] = [];
 let checks = 0;
@@ -151,11 +181,18 @@ for (const key of REQUIRED_KEYS) {
   }
 }
 
-ok('De bronscan vindt de validatiecodes uit clipboard, editplan, transactie en editor',
+ok('De bronscan vindt de validatiecodes uit clipboard, editplan, transactie, editor en relatieplan',
   ['taskGrid.validation.required', 'taskGrid.validation.pasteBounds', 'taskGrid.validation.tsvQuote',
     'taskGrid.validation.documentChanged', 'taskGrid.validation.prepareRejected',
-    'taskGrid.validation.clearNotPossible', 'taskGrid.validation.relationSetConflict']
+    'taskGrid.validation.clearNotPossible', 'taskGrid.validation.relationSetConflict',
+    // via tokenError/globalError, een ternair eerste argument en de structuurredenen
+    'taskGrid.validation.duplicateRelationId', 'taskGrid.validation.cycle',
+    'taskGrid.validation.externalRelationRequiresDialog', 'taskGrid.validation.relationToken',
+    'taskGrid.validation.unknownTask', 'taskGrid.validation.self', 'taskGrid.validation.ancestor']
     .every(key => VALIDATION_KEYS.includes(key)));
+ok(`Elke helper die taskGrid.validation.<code> bouwt staat in de scanlijst (ontbreekt: ${UNSCANNED_HELPERS.join(', ') || 'geen'})`,
+  UNSCANNED_HELPERS.length === 0);
+ok('De structuurredenen van relationRules.ts zijn gevonden', STRUCTURE_REASONS.length >= 3);
 ok('De checker vindt alle vier registryteksten die met count worden aangeroepen',
   COUNTED_TASK_GRID_KEYS.length === 4);
 for (const key of COUNTED_TASK_GRID_KEYS) {
