@@ -147,6 +147,12 @@ export async function saveRailPropertiesHeight(value: number): Promise<void> {
   await setSetting('railPropertiesHeight', Math.round(value));
 }
 
+// Issue #53: hoogte van het Waarschuwingenpaneel onderin de rail (ui.railWarningsHeight) — zelfde
+// categorie en klemmen als de Eigenschappen-sectie hierboven.
+export async function saveRailWarningsHeight(value: number): Promise<void> {
+  await setSetting('railWarningsHeight', Math.round(value));
+}
+
 export async function saveRibbonCompact(value: boolean): Promise<void> {
   await setSetting('ribbonCompact', value);
 }

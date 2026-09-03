@@ -351,7 +351,33 @@
   "statusWarnings": {
     "missedDeadlines": "Scadenze superate: {{count}}",
     "violatedConstraints": "Vincoli violati: {{count}}",
-    "outOfSequence": "Relazioni fuori sequenza: {{count}}"
+    "outOfSequence": "Relazioni fuori sequenza: {{count}}",
+    "overallocated": "{{count}} risorsa/e sovrassegnata/e"
+  },
+  "warnings": {
+    "title": "Avvisi",
+    "close": "Chiudi avvisi",
+    "openPanel": "Apri il pannello Avvisi (dettagli e navigazione)",
+    "summary": "{{errors}} errore/i, {{warnings}} avviso/i",
+    "noSchedule": "Non ancora calcolato — premi Calcola (F5) per eseguire i controlli.",
+    "stale": "Pianificazione obsoleta — questo elenco proviene dall'ultimo calcolo. Ricalcola (F5).",
+    "empty": "Nessun avviso. La pianificazione supera tutti i controlli.",
+    "goTo": "Vai a: {{target}}",
+    "kind": {
+      "scheduleError": "Impossibile calcolare la pianificazione: {{message}}",
+      "missedDeadline": "Scadenza {{deadline}} superata — fine minima {{finish}}",
+      "violatedConstraint": "Il vincolo {{constraint}} è superato dalla logica (margine negativo)",
+      "outOfSequence": "Fuori sequenza: l'avanzamento del successore contraddice la relazione",
+      "truncatedLead": "Anticipo troncato dall'inizio del progetto — la relazione non è rispettata del tutto",
+      "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
+      "hammockNoFinishDriver": "Hammock senza driver di fine (nessun predecessore FF/SF): la durata torna a zero",
+      "cappedTask": "Data di fine limitata: il calendario non lascia alcuna finestra lavorativa per questa attività",
+      "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Progetto",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

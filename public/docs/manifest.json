@@ -621,6 +621,27 @@
         "fa": "مرجع میان‌برهای صفحه‌کلید"
       },
       "layer": "referentie"
+    },
+    {
+      "id": "ref-waarschuwingen",
+      "title": {
+        "nl": "Waarschuwingenpaneel",
+        "en": "Warnings panel",
+        "de": "Warnungsbereich",
+        "fr": "Panneau des avertissements",
+        "es": "Panel de advertencias",
+        "zh": "警告面板",
+        "it": "Pannello avvisi",
+        "pt": "Painel de avisos",
+        "pl": "Panel ostrzeżeń",
+        "tr": "Uyarılar paneli",
+        "ar": "لوحة التحذيرات",
+        "ja": "警告パネル",
+        "ko": "경고 패널",
+        "fa": "پنل هشدارها"
+      },
+      "layer": "referentie",
+      "cluster": "relaties-constraints"
     }
   ]
 }

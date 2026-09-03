@@ -346,7 +346,33 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} son tarih aşıldı",
     "violatedConstraints": "{{count}} kısıtlama ihlal edildi",
-    "outOfSequence": "{{count}} sıra dışı ilişki"
+    "outOfSequence": "{{count}} sıra dışı ilişki",
+    "overallocated": "{{count}} kaynak aşırı atanmış"
+  },
+  "warnings": {
+    "title": "Uyarılar",
+    "close": "Uyarıları kapat",
+    "openPanel": "Uyarılar panelini aç (ayrıntılar ve gezinme)",
+    "summary": "{{errors}} hata, {{warnings}} uyarı",
+    "noSchedule": "Henüz hesaplanmadı — kontrolleri çalıştırmak için Hesapla (F5) tuşuna basın.",
+    "stale": "Program güncel değil — bu liste son hesaplamadan geliyor. Yeniden hesaplayın (F5).",
+    "empty": "Uyarı yok. Program tüm kontrolleri geçiyor.",
+    "goTo": "Git: {{target}}",
+    "kind": {
+      "scheduleError": "Program hesaplanamadı: {{message}}",
+      "missedDeadline": "Son tarih {{deadline}} kaçırıldı — en erken bitiş {{finish}}",
+      "violatedConstraint": "{{constraint}} kısıtlaması mantık tarafından aşılıyor (negatif bolluk)",
+      "outOfSequence": "Sıra dışı: ardılın ilerlemesi ilişkiyle çelişiyor",
+      "truncatedLead": "Öncelik proje başlangıcıyla kesildi — ilişki tam olarak uygulanmıyor",
+      "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
+      "hammockNoFinishDriver": "Bitiş sürücüsü olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
+      "cappedTask": "Bitiş tarihi sınırlandı: takvim bu görev için çalışılabilir bir pencere bırakmıyor",
+      "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Proje",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {

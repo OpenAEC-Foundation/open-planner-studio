@@ -97,3 +97,4 @@ MSO와 MFO는 이 두 유형에만 나타나는 **필수(고정 로직)** 체크
 - 기한 충돌을 실제로 확인하세요: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - 아직 구조가 갖춰지지 않았나요? 먼저 [계획 및 WBS](docs://gids-plannen-wbs)를 읽어보세요.
 - 작업 기간에 영향을 주는 달력과 근무 시간에 대해서는: 가이드 [달력 및 시간 단위 계획](docs://gids-kalenders-uren).
+- 놓친 기한과 위반된 제약 조건을 한곳에서 확인하고 작업으로 이동: [경고 패널](docs://ref-waarschuwingen).

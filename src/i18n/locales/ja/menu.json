@@ -140,6 +140,7 @@
     "assignResource": "割り当てる",
     "histogram": "ヒストグラム",
     "toggleHistogram": "ヒストグラム",
+    "warningsPanel": "警告",
     "prevResource": "前へ",
     "nextResource": "次へ",
     "leveling": "山崩し",

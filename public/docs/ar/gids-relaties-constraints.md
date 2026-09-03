@@ -97,3 +97,4 @@
 - شاهد تعارض الموعد النهائي عمليًا: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - البنية ليست جاهزة بعد؟ اقرأ [التخطيط وWBS](docs://gids-plannen-wbs) أولًا.
 - للتقاويم وأوقات العمل التي تؤثر على مدة المهمة: دليل [التقاويم والتخطيط بالساعات](docs://gids-kalenders-uren).
+- كل المواعيد النهائية المتجاوزة والقيود المخالفة في مكان واحد، مع الانتقال إلى المهمة: [لوحة التحذيرات](docs://ref-waarschuwingen).

@@ -97,3 +97,4 @@ MSO と MFO は、この2種類にのみ表示される **必須（ピン留め�
 - 期限の衝突の実例を見る： [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc)。
 - まだ構造ができていませんか？ 先に [計画と WBS](docs://gids-plannen-wbs) を読んでください。
 - タスクの期間に影響するカレンダーと稼働時間については、ガイド [カレンダーと時間計画](docs://gids-kalenders-uren) を参照してください。
+- 超過した期限と違反した制約をひとつの場所で確認し、タスクへジャンプ: [警告パネル](docs://ref-waarschuwingen)。

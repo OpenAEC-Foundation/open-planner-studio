@@ -97,3 +97,4 @@ Faustregel: Verwenden Sie einen **Stichtag** für ein Zieldatum, das Sie überwa
 - Sehen Sie den Stichtag-Konflikt in der Praxis: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Struktur noch nicht vorhanden? Lesen Sie zuerst [Planung & WBS](docs://gids-plannen-wbs).
 - Für Kalender und Arbeitszeiten, die die Aufgabendauer beeinflussen: die Anleitung [Kalender & Stundenplanung](docs://gids-kalenders-uren).
+- Jede überschrittene Frist und jede verletzte Einschränkung an einem Ort, mit Sprung zum Vorgang: der [Warnungsbereich](docs://ref-waarschuwingen).

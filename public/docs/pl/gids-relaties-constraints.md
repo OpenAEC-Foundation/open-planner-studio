@@ -97,3 +97,4 @@ Zasada praktyczna: użyj **terminu ostatecznego** dla docelowej daty, którą ch
 - Zobacz konflikt terminu ostatecznego w praktyce: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Struktura jeszcze nie gotowa? Przeczytaj najpierw [Planowanie i WBS](docs://gids-plannen-wbs).
 - Dla kalendarzy i czasów pracy, które wpływają na czas trwania zadań: przewodnik [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren).
+- Wszystkie przekroczone terminy i naruszone ograniczenia w jednym miejscu, ze skokiem do zadania: [Panel ostrzeżeń](docs://ref-waarschuwingen).

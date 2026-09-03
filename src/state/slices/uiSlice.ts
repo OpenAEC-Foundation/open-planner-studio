@@ -120,6 +120,8 @@ export function createDefaultUI(): UIState {
     // aan staan.
     showPropertiesPanel: true,
     railPropertiesHeight: 240,
+    showWarningsPanel: false,
+    railWarningsHeight: 220,
     showHistogram: false,
     histogramHeight: 160,
     showLevelingDialog: false,
@@ -232,7 +234,9 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       // `updates.rightPanelCollapsed === undefined` laat een expliciete patch altijd winnen.
       const turnsDockOn = (updates.showResourcePanel === true || updates.resourcePanelDocked === true) && dockIsPresent;
       const turnsPropertiesOn = updates.showPropertiesPanel === true;
-      if ((turnsDockOn || turnsPropertiesOn) && updates.rightPanelCollapsed === undefined) {
+      // Issue #53: het Waarschuwingenpaneel is het derde railpaneel en volgt dezelfde regel.
+      const turnsWarningsOn = updates.showWarningsPanel === true;
+      if ((turnsDockOn || turnsPropertiesOn || turnsWarningsOn) && updates.rightPanelCollapsed === undefined) {
         (updates as Partial<UIState>).rightPanelCollapsed = false;
       }
       // (2) Andersom: wie de rail expliciet UITklapt terwijl het volledige resource-paneel de
@@ -255,7 +259,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         const dockFinal = (updates.showResourcePanel ?? s.ui.showResourcePanel)
           && (updates.resourcePanelDocked ?? s.ui.resourcePanelDocked);
         const propsFinal = updates.showPropertiesPanel ?? s.ui.showPropertiesPanel;
-        if (!dockFinal && !propsFinal) {
+        const warningsFinal = updates.showWarningsPanel ?? s.ui.showWarningsPanel;
+        if (!dockFinal && !propsFinal && !warningsFinal) {
           (updates as Partial<UIState>).showPropertiesPanel = true;
         }
       }

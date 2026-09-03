@@ -5,11 +5,13 @@ import { useAppStore } from '@/state/appStore';
 import { useSplitter } from '@/hooks/useSplitter';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
+import { WarningsPanel } from '@/components/panels/WarningsPanel';
 import {
   RIGHT_PANEL_MIN_WIDTH,
   RAIL_SECTION_MIN_HEIGHT,
   saveRightPanelWidth,
   saveRailPropertiesHeight,
+  saveRailWarningsHeight,
 } from '@/utils/settingsStore';
 
 const DebugTerminal = lazy(() => import('@/components/panels/DebugTerminal').then(m => ({ default: m.DebugTerminal })));
@@ -47,6 +49,14 @@ const AIActivityPanel = lazy(() => import('@/components/panels/AIActivityPanel')
  * `rightPanelCollapsed` is bewust iets anders en blijft bestaan: dat verbergt de hele kolom
  * tijdelijk — de Gantt krijgt de breedte — zónder de paneelkeuze te vergeten. Vandaar de knop
  * rechts in de bovenste kopbalk en de smalle strip die 'm terughaalt.
+ *
+ * ── Issue #53: het Waarschuwingenpaneel, ónder de stapel ───────────────────────────────────
+ * Het derde railpaneel (`showWarningsPanel`) raakt het tweepanelenmodel hierboven niet aan: het
+ * staat als aparte sectie ONDER de stapel, met een eigen sleepgrens erboven (`railWarningsHeight`,
+ * het spiegelbeeld van `railPropertiesHeight`). Staat er nog een ander paneel aan, dan heeft de
+ * waarschuwingensectie een vaste hoogte en verdeelt de stapel erboven de rest volgens het bestaande
+ * model; staat alleen dit paneel aan, dan vult het de hele rail. Zelfde aan/uit-mechaniek
+ * (lintknop Beeld → Panelen, statusbalk, ✕ in de kopbalk), zelfde `setUI`-invarianten.
  */
 export function RightRail() {
   const { t } = useTranslation('common');
@@ -58,6 +68,8 @@ export function RightRail() {
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const propsHeight = useAppStore(s => s.ui.railPropertiesHeight);
+  const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
+  const warningsHeight = useAppStore(s => s.ui.railWarningsHeight);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
   const aiMode = useAppStore(s => s.ui.aiMode);
@@ -67,9 +79,15 @@ export function RightRail() {
    *  vervangt de hele werkruimte en komt hier niet langs — App.tsx rendert deze rail dan niet.) */
   const dockOn = showResourcePanel && resourcePanelDocked;
   const bothOn = showPropertiesPanel && dockOn;
+  /** Staat er iets in de stapel bóven het waarschuwingenpaneel? */
+  const stackOn = showPropertiesPanel || dockOn;
+  /** Aantal panelen in die stapel — bepaalt de ondergrens die de waarschuwingssectie moet laten. */
+  const stackCount = (showPropertiesPanel ? 1 : 0) + (dockOn ? 1 : 0);
 
   /** Container waarbinnen de twee panelen gestapeld staan — de referentie voor de sleepklem. */
   const stackRef = useRef<HTMLDivElement>(null);
+  /** Stapel + waarschuwingensectie samen — de referentie voor de sleepklem van issue #53. */
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   // Breedte slepen (ongewijzigd t.o.v. de oude rail): één splitter, één `rightPanelWidth`.
   const widthSplitter = useSplitter({
@@ -97,6 +115,23 @@ export function RightRail() {
     onCommit: () => { void saveRailPropertiesHeight(useAppStore.getState().ui.railPropertiesHeight); },
   });
 
+  // Issue #53: de grens tussen de stapel en het waarschuwingenpaneel. Gemeten vanaf de ONDERkant
+  // (het paneel groeit omhoog), met dezelfde ondergrens per paneel als de stapelgrens hierboven.
+  const warningsSplitter = useSplitter({
+    min: RAIL_SECTION_MIN_HEIGHT,
+    max: () => {
+      const h = bodyRef.current?.getBoundingClientRect().height ?? 0;
+      // Elk paneel in de stapel houdt zijn eigen ondergrens (hyperkritische review #53).
+      return Math.max(RAIL_SECTION_MIN_HEIGHT, Math.round(h - RAIL_SECTION_MIN_HEIGHT * Math.max(1, stackCount)));
+    },
+    computeSize: e => {
+      const bottom = bodyRef.current?.getBoundingClientRect().bottom ?? 0;
+      return Math.round(bottom - e.clientY);
+    },
+    onResize: h => useAppStore.getState().setUI({ railWarningsHeight: h }),
+    onCommit: () => { void saveRailWarningsHeight(useAppStore.getState().ui.railWarningsHeight); },
+  });
+
   // ── Ingeklapte rail: de verticale strip ────────────────────────────────────────────────────
   // Eén knop, één label, één actie: de kolom terughalen zoals je 'm achterliet. Er valt niets meer
   // te kiezen — de panelen die aan staan komen allemaal terug — dus een label per paneel zou een
@@ -104,9 +139,10 @@ export function RightRail() {
   // paneel als er één aan staat, en anders het verzamelwoord "Panelen" (`menu:ribbon.panels`,
   // dezelfde term als de lintgroep waar de schakelaars staan).
   if (rightPanelCollapsed) {
-    const label = bothOn
+    const onCount = [showPropertiesPanel, dockOn, showWarningsPanel].filter(Boolean).length;
+    const label = onCount > 1
       ? tMenu('ribbon.panels')
-      : dockOn ? t('resource.compact.title') : t('properties');
+      : dockOn ? t('resource.compact.title') : showWarningsPanel ? t('warnings.title') : t('properties');
     return (
       <button
         onClick={() => setUI({ rightPanelCollapsed: false })}
@@ -143,7 +179,13 @@ export function RightRail() {
         data-ops-right-panel-resize
       />
 
-      <div ref={stackRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+      <div ref={bodyRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
+      {stackOn && (
+      // `minHeight` = één kopbalk per paneel in de stapel: met de waarschuwingssectie eronder
+      // (vaste hoogte) zou een lage rail anders de hele stapel tot 0 px knijpen — de flex-basis van
+      // deze wrapper is 0, dus zonder klem absorbeert hij álle negatieve ruimte (zie de meting in
+      // `RailPanel` hieronder; die klem zit één niveau te diep om dit te vangen).
+      <div ref={stackRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: showWarningsPanel ? `${stackCount * 2}rem` : 0 }}>
         {showPropertiesPanel && (
           <RailPanel
             id="properties"
@@ -212,6 +254,44 @@ export function RightRail() {
             }
           >
             <ResourcePanelCompact />
+          </RailPanel>
+        )}
+      </div>
+      )}
+
+        {stackOn && showWarningsPanel && (
+          // Issue #53: grijpzone tussen de stapel en het waarschuwingenpaneel — zelfde vorm als de
+          // stapelgrens hierboven (geen eigen balk, alleen een cursor).
+          <div
+            onMouseDown={e => { e.preventDefault(); warningsSplitter.start(); }}
+            style={{ height: 0, position: 'relative', zIndex: 10, flexShrink: 0 }}
+          >
+            <div style={{ position: 'absolute', insetInline: 0, top: -4, height: 8, cursor: 'row-resize' }} data-ops-rail-warnings-resize />
+          </div>
+        )}
+
+        {showWarningsPanel && (
+          <RailPanel
+            id="warnings"
+            title={t('warnings.title')}
+            withTopBorder={stackOn}
+            fixedHeight={stackOn ? warningsHeight : undefined}
+            grow={!stackOn}
+            // Staat er niets boven, dan is dit de bovenste kopbalk en hoort de rail-knop hier.
+            onCollapseRail={stackOn ? undefined : () => setUI({ rightPanelCollapsed: true })}
+            collapseRailTitle={t('sidebar.collapseRail')}
+            actions={
+              <button
+                onClick={() => setUI({ showWarningsPanel: false })}
+                title={t('warnings.close')}
+                className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                data-ops-warnings-close
+              >
+                <X size={14} />
+              </button>
+            }
+          >
+            <WarningsPanel />
           </RailPanel>
         )}
       </div>
