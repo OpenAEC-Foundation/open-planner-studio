@@ -17,6 +17,9 @@
   "showLegend": "وسيلة الإيضاح",
   "showTaskNames": "أسماء المهام على الأشرطة",
   "showCompletion": "إظهار نسبة الإنجاز",
+  "truncateTaskNames": "اقتطاع أسماء المهام",
+  "taskNameColumnWidthLabel": "عمود الاسم:",
+  "taskNameColumnWidthHint": "يتكيف عمود الاسم مع أطول اسم مهمة",
   "showBaselineOverlay": "إظهار تراكب خط الأساس",
   "autoFit": "ملاءمة تلقائية للورق",
   "zoom": "تكبير:",
@@ -64,7 +67,6 @@
     "categoriesMore_other": "… و{{count}} فئة إضافية"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "اسم المهمة",
     "start": "البداية",

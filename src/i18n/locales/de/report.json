@@ -17,6 +17,9 @@
   "showLegend": "Legende",
   "showTaskNames": "Aufgabennamen auf Balken",
   "showCompletion": "Fertigstellung anzeigen",
+  "truncateTaskNames": "Aufgabennamen kürzen",
+  "taskNameColumnWidthLabel": "Namensspalte:",
+  "taskNameColumnWidthHint": "Die Namensspalte passt sich dem längsten Aufgabennamen an",
   "showBaselineOverlay": "Baseline-Overlay anzeigen",
   "autoFit": "Automatisch an Papier anpassen",
   "zoom": "Zoom:",
@@ -52,7 +55,6 @@
     "categoriesMore_other": "… und {{count}} weitere Kategorien"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Aufgabenname",
     "start": "Anfang",

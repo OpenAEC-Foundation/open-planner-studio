@@ -17,6 +17,9 @@
   "showLegend": "凡例",
   "showTaskNames": "バー上のタスク名",
   "showCompletion": "進捗を表示",
+  "truncateTaskNames": "タスク名を省略する",
+  "taskNameColumnWidthLabel": "名前列：",
+  "taskNameColumnWidthHint": "名前列は最も長いタスク名に合わせて調整されます",
   "showBaselineOverlay": "ベースライン オーバーレイを表示",
   "autoFit": "用紙に自動調整",
   "zoom": "ズーム：",
@@ -49,7 +52,6 @@
     "categoriesMore_other": "… 他{{count}}カテゴリ"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "タスク名",
     "start": "開始",

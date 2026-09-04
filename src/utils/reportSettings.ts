@@ -22,7 +22,7 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
-import { REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 
 /** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
 const STORAGE_KEY = 'reportSettings';
@@ -44,6 +44,11 @@ export interface ReportSettings {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /** Taaknamen in de tabel afkappen op `taskNameColumnWidth` (aan), of de kolom aan de langste
+   *  naam laten aanpassen (uit). */
+  truncateTaskNames: boolean;
+  /** Breedte van de naamkolom (ongeschaalde px) wanneer `truncateTaskNames` aanstaat. */
+  taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
   customZoom: number;
@@ -74,6 +79,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   showLegend: true,
   showTaskNames: true,
   showCompletion: true,
+  truncateTaskNames: true,
+  taskNameColumnWidth: NAME_COLUMN_WIDTH_DEFAULT,
   showBaselineOverlay: false,
   autoFit: true,
   customZoom: 22,
@@ -149,6 +156,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     showLegend: parseBoolean(s.showLegend) ?? d.showLegend,
     showTaskNames: parseBoolean(s.showTaskNames) ?? d.showTaskNames,
     showCompletion: parseBoolean(s.showCompletion) ?? d.showCompletion,
+    truncateTaskNames: parseBoolean(s.truncateTaskNames) ?? d.truncateTaskNames,
+    taskNameColumnWidth: parseClampedInt(s.taskNameColumnWidth, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_WIDTH_MAX) ?? d.taskNameColumnWidth,
     showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,
     autoFit: parseBoolean(s.autoFit) ?? d.autoFit,
     customZoom: parseClampedInt(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,

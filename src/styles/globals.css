@@ -414,6 +414,33 @@
   gap: 4px;
 }
 
+/* Discussion #97: samenvattingen (containertaken) en mijlpalen zijn nu alleen via inspringing te
+ * onderscheiden van een gewone taak. `data-grid-task-kind` (gezet in FullTaskGrid.tsx, weggelaten
+ * tijdens naam-editing) stuurt hier vet + een subtiele achtergrondtint voor samenvattingen, en
+ * vet + de mijlpaalkleur voor mijlpalen — bewust dezelfde kleurfamilie als de Gantt-balk
+ * (`--color-task-milestone`), niet de rode mockupkleur uit de discussion. De tint zit op de hele
+ * naamrij (niet alleen de tekst), zodat hij als rijvlak leesbaar is; de selectiekleur van de rij
+ * (`.task-grid-data-row[data-grid-row-selected="true"]`) wint hier altijd van, dus geen eigen
+ * z-index-gedoe nodig — de tint zit hieronder in de laagvolgorde. */
+.full-task-grid-name[data-grid-task-kind="summary"] {
+  background: var(--theme-grid-summary-bg);
+}
+
+.full-task-grid-name[data-grid-task-kind="summary"] .full-task-grid-name-label {
+  font-weight: 600;
+}
+
+.full-task-grid-name[data-grid-task-kind="milestone"] .full-task-grid-name-label {
+  font-weight: 600;
+  color: var(--theme-grid-milestone-text);
+}
+
+/* Geselecteerde rij wint van de samenvattingstint (leesbaarheid op de selectiekleur staat voorop);
+ * de vette/gekleurde tekst blijft intact — alleen de achtergrond van de naamrij vervalt. */
+.task-grid-data-row[data-grid-row-selected="true"] .full-task-grid-name[data-grid-task-kind="summary"] {
+  background: transparent;
+}
+
 /* De naameditor vult de rij vanaf de tekstpositie tot de rechter kolomrand. */
 .full-task-grid-name > .task-grid-editor-host {
   flex: 1 1 auto;
@@ -1240,6 +1267,12 @@ button.task-grid-relation-reference {
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
      aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
   --theme-grid-week-band: rgba(255, 255, 255, 0.028);
+  /* Discussion #97: subtiele achtergrondtint voor samenvattingsrijen in het taakraster (naamkolom)
+     — dezelfde alpha-aanpak als de weekendarcering hierboven, zodat het geen eigen kleurfamilie
+     introduceert. Mijlpalen krijgen géén tint, alleen vette tekst in een lichtere paarstint
+     (beter leesbaar op donkere kaarten dan --color-task-milestone zelf). */
+  --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
+  --theme-grid-milestone-text: #A78BFA;
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1264,58 +1297,81 @@ button.task-grid-relation-reference {
 }
 
 /* Light theme — OpenAEC light variant
-   Blueprint White (#FAFAF9) bg, Concrete (#F5F5F4) surfaces, Deep Forge (#36363E) text,
-   Amber accent (zelfde als dark — accent kleuren wisselen niet tussen modes). */
+   Blueprint White-kaarten op een neutraal-grijze werkruimte, Deep Forge-tekst, Amber accent
+   (zelfde als dark — accent kleuren wisselen niet tussen modes).
+
+   Herontwerp 2026-09: het vorige light-palet was een KOELE blauwgrijze schaal (#DCE2EB /
+   #C7CFDB / #333845) die niets deelde met het merk-grijs (Deep Forge #36363E, Scaffold Gray
+   #A1A1AA en het charcoal van dark zijn allemaal neutrale zinc-tinten). Koel staalblauw naast
+   het amber accent oogde als een complementair kleurconflict, harde witte vlakken (#FFFFFF voor
+   kaart, input, dropdown én ribbon) gaven geen lagenwerking, en de weekendarcering (#E6EBF2 op
+   wit, 1.20:1) tekende zware strepen waar dark met 0.035 wit (≈1.11:1) volstaat. Het palet
+   hieronder is één NEUTRALE grijsschaal — bewust niet warm getint (een stone-variant is
+   geprobeerd en afgekeurd: "alsof er koffie overheen is gegooid") — met dezelfde drie-laagse
+   opbouw als dark: werkruimte < ingedrukte chrome (tabstrip) < kaart/ribbon-inhoud < zwevend
+   (popover/input). */
 [data-theme="light"] {
-  /* Koele neutralen + Soft Depth. --theme-bg is de getinte werkruimte (achter de
-     kaarten); --theme-surface (#FFFFFF) zijn de zwevende kaarten/chrome. */
-  /* Tint dieper + surfaces/randen opgevoerd zodat witte kaarten "zweven" en
-     niet versmelten tot één witte massa. */
-  --theme-bg: #DCE2EB;
-  --theme-surface: #FFFFFF;
-  --theme-surface-alt: #EAEEF4;
+  /* Lagen: --theme-bg is de getinte werkruimte (achter de kaarten); --theme-surface zijn de
+     kaarten/chrome (bewust géén #FFFFFF — dat blijft over voor wat er bovenop zweeft: inputs,
+     dropdowns, dialogen via --theme-surface-elevated). */
+  --theme-bg: #E5E5E8;
+  --theme-surface: #FAFAFA;
+  --theme-surface-alt: #F1F1F3;
   --theme-surface-elevated: #FFFFFF;
-  /* Contrast-optie A: zichtbare kaart-/scheidingsrand (opgevoerd) … */
-  --theme-border: #C7CFDB;
-  --theme-border-light: #D2D9E4;
-  /* … en een stevigere control-rand (#8C94A2 ≈ 3:1 op wit, WCAG 1.4.11 AA) voor
-     inputs/selects/knoppen, zodat de zachte look toegankelijk blijft. */
-  --theme-control-border: #8C94A2;
-  /* Construction Amber (gelijk aan dark + prototype) — levendiger dan amber-700,
-     zodat de oranje knoppen niet "donkerder" ogen in light. Wit op amber ~3.3:1
-     (voldoet aan 3:1 voor UI-componenten/grote tekst; amber-700 was strikt 4.5:1). */
+  /* Zachte kaart-/scheidingsranden in dezelfde schaal (1.42:1 op de kaart — een rand hoeft
+     geen contrastnorm te halen; de hiërarchie komt uit tint + schaduw) … */
+  --theme-border: #D4D4D8;
+  --theme-border-light: #E4E4E7;
+  /* … en een stevigere control-rand voor inputs/selects/knoppen: #88888F ≈ 3.4:1 op de kaart,
+     3.5:1 op wit en 3.1:1 op surface-alt (WCAG 1.4.11 AA voor UI-componenten). */
+  --theme-control-border: #88888F;
+  /* Construction Amber (gelijk aan dark). Wit op amber ~3.2:1 (3:1 voor UI-componenten/grote
+     tekst). Hover blijft in de amber-familie (amber-700, wit-op 5.0:1) i.p.v. naar rood-oranje
+     te kantelen zoals het vorige #C2410C. */
   --theme-accent: #D97706;
-  --theme-accent-hover: #C2410C;
+  --theme-accent-hover: #B45309;
   --theme-accent-on: #ffffff;
-  --theme-text: #333845;
-  --theme-text-dim: #5B6472;
-  --theme-text-muted: #6B7280; /* labels — AA ~4.6:1 op light surfaces */
-  --theme-hover: rgba(99, 110, 130, 0.10);
+  /* Tekst: Deep Forge-tint, iets dieper voor lopende tekst (13.7:1 op de kaart). dim 6.9:1,
+     muted 5.1:1 op de kaart en 4.8:1 op surface-alt (labels — AA). */
+  --theme-text: #2A2A31;
+  --theme-text-dim: #57575F;
+  --theme-text-muted: #6A6A73;
+  /* Hover/arcering als alpha van Deep Forge, zodat ze op élke laag dezelfde tint houden. */
+  --theme-hover: rgba(54, 54, 62, 0.07);
   --theme-active: #D97706;
-  --theme-active-border: #C2410C;
-  --theme-warning-text: #946200;
-  --theme-grid-weekend: #E6EBF2;
+  --theme-active-border: #B45309;
+  --theme-warning-text: #8A5A00; /* 5.7:1 op de kaart, 5.3:1 op surface-alt */
+  /* Weekendarcering als alpha (≈1.09:1 op de kaart) — pariteit met dark (0.035 wit ≈ 1.11:1),
+     zodat de tijdlijn geen strepenpatroon meer is. */
+  --theme-grid-weekend: rgba(54, 54, 62, 0.05);
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): subtieler dan de weekend-
      arcering, want hij bedekt hele weken i.p.v. losse dagkolommen. */
-  --theme-grid-week-band: #EFF3F8;
+  --theme-grid-week-band: rgba(54, 54, 62, 0.03);
+  /* Discussion #97: zelfde neutrale-grijsschaal-aanpak als de rest van dit lichte thema — een
+     alpha-tint van Deep Forge, geen eigen kleur. Mijlpaaltekst gaat iets dieper dan
+     --color-task-milestone (#7C3AED) voor voldoende contrast op de kaart (AA). */
+  --theme-grid-summary-bg: rgba(54, 54, 62, 0.06);
+  --theme-grid-milestone-text: #6D28D9;
   --theme-bar-float: #059669;
-  --theme-critical-text: #D12020;
+  --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
-  --theme-scrollbar-track: #DCE2EB;
-  --theme-scrollbar-thumb: #B6BFCD;
-  /* Effen vlakken i.p.v. gradients ("geen rare gradients"); titelbalk licht. */
-  --theme-ribbon-bg: #FFFFFF;
-  --theme-ribbon-tab-bg: #F6F8FB;
-  --theme-ribbon-content-bg: #FFFFFF;
+  --theme-scrollbar-track: #E5E5E8;
+  --theme-scrollbar-thumb: #BDBDC4;
+  /* Effen vlakken i.p.v. gradients ("geen rare gradients"). Zelfde opbouw als dark: titelbalk
+     en ribbon-container één tint, de tabstrip ingedrukt (donkerder), de ribbon-inhoud als
+     kaart erbovenop. */
+  --theme-ribbon-bg: #F4F4F5;
+  --theme-ribbon-tab-bg: #E9E9EC;
+  --theme-ribbon-content-bg: #FAFAFA;
   --theme-file-tab-bg: #D97706;
-  --theme-file-tab-hover: #C2410C;
-  --theme-titlebar-bg: #FFFFFF;
-  --theme-titlebar-btn-hover: rgba(99, 110, 130, 0.10);
-  --theme-titlebar-btn-active: rgba(99, 110, 130, 0.16);
-  /* Soft Depth — schaduw-tokens. */
-  --shadow-card: 0 1px 2px rgba(40, 48, 64, 0.06), 0 6px 18px rgba(40, 48, 64, 0.08);
-  --shadow-pop: 0 8px 28px rgba(40, 48, 64, 0.18);
+  --theme-file-tab-hover: #B45309;
+  --theme-titlebar-bg: #F4F4F5;
+  --theme-titlebar-btn-hover: rgba(54, 54, 62, 0.08);
+  --theme-titlebar-btn-active: rgba(54, 54, 62, 0.14);
+  /* Soft Depth — schaduw-tokens, neutraal (zinc-900) i.p.v. blauwgrijs. */
+  --shadow-card: 0 1px 2px rgba(24, 24, 27, 0.06), 0 6px 18px rgba(24, 24, 27, 0.10);
+  --shadow-pop: 0 8px 28px rgba(24, 24, 27, 0.20);
   --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
   color-scheme: light;
@@ -1348,6 +1404,12 @@ button.task-grid-relation-reference {
      weekend-band maar nog zichtbaar op #0a0a0a (de band moet als vlak leesbaar blijven,
      niet als per-dag-arcering concurreren). */
   --theme-grid-week-band: #141414;
+  /* Discussion #97: het paars van --color-task-milestone haalt op zwart geen AAA-contrast, dus
+     high contrast krijgt een eigen, helderdere mijlpaaltint (>=7:1 op #0a0a0a) — zichtbaar
+     onderscheiden van het accentgeel. De samenvattingstint volgt de bestaande vlakke-kleur-aanpak
+     van dit thema (geen alpha, expliciete tint zoals --theme-grid-weekend hierboven). */
+  --theme-grid-summary-bg: #1c1c1c;
+  --theme-grid-milestone-text: #D9A6FF;
   /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
@@ -1801,7 +1863,7 @@ html, body, #root {
   color: var(--theme-accent-on);
 }
 .btn--primary:hover:not(:disabled) {
-  /* theme-aware hover: light = #9A3412 (white text 7.3:1), dark = #EA580C
+  /* theme-aware hover: light = #B45309 (white text 5.0:1), dark = #EA580C
      (unchanged from --signal-orange). Avoids the 3.56:1 fail white-on-#EA580C
      gave in light mode. */
   background: var(--theme-accent-hover);

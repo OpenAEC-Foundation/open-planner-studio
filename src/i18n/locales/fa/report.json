@@ -17,6 +17,9 @@
   "showLegend": "راهنما",
   "showTaskNames": "نام وظایف روی نوارها",
   "showCompletion": "نمایش پیشرفت",
+  "truncateTaskNames": "کوتاه‌سازی نام وظایف",
+  "taskNameColumnWidthLabel": "ستون نام:",
+  "taskNameColumnWidthHint": "ستون نام با بلندترین نام وظیفه تنظیم می‌شود",
   "showBaselineOverlay": "نمایش هم‌پوشانی خط مبنا",
   "autoFit": "تنظیم خودکار روی کاغذ",
   "zoom": "بزرگنمایی:",
@@ -53,7 +56,6 @@
     "categoriesMore_other": "… و {{count}} دسته دیگر"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "نام وظیفه",
     "start": "شروع",

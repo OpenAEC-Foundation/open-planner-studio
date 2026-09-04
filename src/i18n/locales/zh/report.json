@@ -17,6 +17,9 @@
   "showLegend": "图例",
   "showTaskNames": "在任务条上显示名称",
   "showCompletion": "显示完成度",
+  "truncateTaskNames": "截断任务名称",
+  "taskNameColumnWidthLabel": "名称列：",
+  "taskNameColumnWidthHint": "名称列会自动适应最长的任务名称",
   "showBaselineOverlay": "显示基线叠加层",
   "autoFit": "自动适配纸张",
   "zoom": "缩放：",
@@ -49,7 +52,6 @@
     "categoriesMore_other": "… 还有 {{count}} 个类别"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "任务名称",
     "start": "开始",
