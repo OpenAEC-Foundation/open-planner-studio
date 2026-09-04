@@ -687,6 +687,16 @@ voor slapers, en voor het actieve document een monotone mutatieteller die de sto
 (nieuw, klein — het interne undo-volgnummer zit in een closure en `undoStack.length` is onbruikbaar
 door `MAX_UNDO`-trimming)."*
 
+> **Aangepast na merge met main (sessiehistorie, 2026-09-04).** `undoStack`/`redoStack` per document
+> bestaan niet meer; undo/redo is één app-globale sessiechronologie (`AppState.historyEvents`,
+> `src/state/sessionHistory.ts`). De teller blijft even nodig en om dezelfde reden: een
+> gecoalesceerde reeks schrijft alleen het `after` van een BESTAAND event bij, dus `historyEvents`
+> beweegt dan niet, en `pruneSessionHistory` trimt van onderaf op
+> `MAX_SESSION_HISTORY_EVENTS_PER_SCOPE`. De bump staat nu als eerste regel van main's
+> `beginUndoable` (vóór de batch-/lease-guard én vóór de pending/nesting-tak); `pushUndoSnapshot`
+> is verdwenen. De testfragmenten hieronder zijn in `check-mutation-seq.ts` omgezet naar
+> `beginUndoable`/`finishUndoable` + `historyEvents`.
+
 **KEUZE VAN DIT PLAN — de teller alléén is niet genoeg.** In de huidige runtime bumpt `undoSeq`
 uitsluitend in `pushUndoSnapshot`, en `beginUndoable` slaat die aanroep over zodra een
 **coalesce-reeks** loopt (een Gantt-sleep, een reeks tikken in een invoerveld). Een hele sleep zou de
@@ -845,7 +855,12 @@ for (const f of DOCUMENT_FIELDS) eq(`round-trip: ${f.key}`, /* out[f.key] */, /*
 // ── Geval 2: de echte acties draaien, met echte undo-semantiek ───────────────────────────────────
 // applyLeveling in de scratch-context ⇒ delays geschreven, ÉÉN undo-stap op de EIGEN stack, en
 // `runCPM` heeft gedraaid (cpmResult vers, scheduleStale false).
-eq('één undo-stap op de eigen stack', out.undoStack.length, before.undoStack.length + 1);
+// AANGEPAST NA MERGE MET MAIN (2026-09-04): de scratch-context heeft geen eigen undo-STACK meer om
+// op te tellen — zijn `historyEvents` worden mét de context weggegooid (zie de noot bij taak 6). Wat
+// blijft is dat de ECHTE actie draait: `check-scratch-document.ts` toetst nu de geschreven delay,
+// `isDirty`, de verse `cpmResult` en de doorgerekende datums, plus dat een payload per constructie
+// geen sessiehistorie kan dragen.
+eq('doorgerekend + geschreven', out.payload.tasks.find(t => t.id === 'B')!.levelingDelay, 2);
 eq('doorgerekend', out.scheduleStale, false);
 ok('nieuwe datums geschreven', out.tasks.find(t => t.id === 'B')!.time.earlyStart !== beforeStart);
 
@@ -912,8 +927,13 @@ ongewijzigd.
  * Waarom niet gewoon de payload spreaden zoals `recalculateStaleSleepingDocuments` doet: die route
  * omzeilt `beginUndoable` en moet `MAX_UNDO`-trimming en coalescing zelf naborgen. Hier draaien de
  * ECHTE acties op een echte context, dus het documentcontract, de undo-semantiek en de
- * transactie-runtime gelden vanzelf — en dat is precies wat "alles terugdraaien" (taak 6) nodig
- * heeft: een échte undo-stap op de eigen stack van dat document.
+ * transactie-runtime gelden vanzelf.
+ *
+ * (AANGEPAST NA MERGE MET MAIN, 2026-09-04: hier stond "en dat is precies wat 'alles terugdraaien'
+ * (taak 6) nodig heeft: een échte undo-stap op de eigen stack van dat document". Dat klopt niet
+ * meer — de sessiehistorie is app-globaal en die van een scratch-context wordt weggegooid. De
+ * scratch-instantie blijft nuttig omdat hij de ECHTE acties draait; het history-event registreert
+ * de aanroeper zelf, zie taak 6.)
  *
  * Twee singleton-randen staan dicht (spec §5):
  *  (a) host-events — de context wordt met `emitHostEvents: false` gebouwd, zodat extensies geen
@@ -999,6 +1019,33 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 document, met per document een échte undo-stap, en de "toegepast"-strook kan alles in één keer
 terugdraaien.
 
+> **Aangepast na merge met main (sessiehistorie, 2026-09-04).** Wat de spec vraagt verandert niet
+> ("per document een gewone undo-stap; 'alles terugdraaien' draait de undo-stap van elk beschreven
+> document terug"), maar het mechanisme wel — er is geen `undoStack` per document meer.
+>
+> - `DistributionApplyRecord.docs[]` draagt in plaats van `undoDepthAfterApply` het
+>   **`historyEventId`** (+ `historySequence`) van het event dat het toepassen voor dát document
+>   achterliet. Een diepte is geen identiteit meer: de chronologie is app-globaal, dus een
+>   bewerking in een ánder document verschuift 'm ook, en `pruneSessionHistory` trimt van onderaf.
+> - Voor een SLAPEND document registreert `applyDistribution` dat event zelf, in dezelfde producer
+>   waarin het de payload terugschrijft: `recordSessionHistoryDeltas(s, 'Verdeling toepassen',
+>   [{ kind: 'document-data', documentId, before: snapshotOfPayload(oudePayload),
+>   after: snapshotOfPayload(nieuwePayload) }])`. `snapshotOfPayload` (nieuw in
+>   `src/state/snapshot.ts`) is de payload-tegenhanger van `createSnapshot`: key-gedreven over
+>   `DOCUMENT_FIELDS`, dezelfde rolregel, alles per referentie.
+> - Voor het ACTIEVE document blijft `get().applyLeveling(write, { scopeTaskIds })` het pad; het
+>   event wordt daarna teruggezocht als het jongste toegepaste `document-data`-event voor dat
+>   document met `sequence >= nextHistorySequence-van-vóór-de-aanroep`. Dat `applyLeveling` →
+>   `runCPM` het `after` van datzelfde event ververst (`refreshLatestDocumentDataHistoryAfter`) is
+>   gewenst: de doorgerekende datums horen in dezelfde ene undo-stap.
+> - `undoDistribution` poort per document op: het event bestaat, staat op `applied`, en is het event
+>   dat `selectUndoHistoryEvent(historyEvents, docId)` NU zou kiezen. Anders `skippedDocIds`. Het
+>   actieve document gaat via `get().undo()`; een slaper krijgt de `before`-snapshot over zijn
+>   payload gespreid (`isDirty: true`, `resourceLoadResult: null`) en zijn event op `undone`, zodat
+>   redo daarna gewoon via `redo()` loopt zodra je dat document activeert.
+> - Een GESLOTEN document valt vanzelf in `skippedDocIds`: `removeSessionHistoryForDocument` heeft
+>   zijn events dan al opgeruimd.
+
 **Plaatsing:** op `librarySlice` (die is app-globaal, net als de verdeler zelf, en importeert al
 `services/library`). Er komt **geen** nieuw top-level state-veld bij: het toegepast-record woont in
 `ui` (taak 8). Zo blijven de contract-asserties in `documentContract.ts` ongewijzigd.
@@ -1043,8 +1090,11 @@ eq('out-of-scope delay overleeft Toepassen', sleepingPayload.tasks.find(t => t.i
 eq('splitGaps geschreven met herkomst', gapTask.splitGaps?.some(g => g.source === 'leveling'), true);
 
 // ── Geval 6: per document ÉÉN undo-stap, en gewone Ctrl+Z werkt ─────────────────────────────────
-eq('actief: één stap erbij', store.undoStack.length, activeDepthBefore + 1);
-eq('slapend: één stap erbij', sleepingPayload.undoStack.length, sleepDepthBefore + 1);
+// Sessiehistorie (2026-09-04): geen stack-lengtes meer maar event-tellingen — `historyDepthsFor
+// ActiveScope(...).undoDepth` voor het actieve document, en een filter op `document-data`-deltas
+// voor de slaper (diens events liggen buiten de actieve scope).
+eq('actief: één stap erbij', historyDepthsForActiveScope(store).undoDepth, activeDepthBefore + 1);
+eq('slapend: één history-event erbij', eventsFor(sleepDocId, 'applied'), sleepEventsBefore + 1);
 // Activeer het slapende document en druk gewoon undo: dat draait ALLEEN dat document terug.
 ok('per-document-undo herstelt dat ene document', /* … */ true);
 
@@ -1125,12 +1175,15 @@ export interface DistributionApplyRecord {
   docs: Array<{
     docId: string;
     title: string;
-    /** `undoStack.length` NÁ het toepassen. "Alles terugdraaien" pakt alleen een document waarvan de
-     *  stack nog op precies deze diepte staat — heeft de gebruiker er intussen zelf in gewerkt, dan
-     *  zou blind terugpoppen de VERKEERDE stap ongedaan maken. Dan slaan we dat document over en
-     *  melden we het (`DistributionUndoReport.skippedDocIds`). In de praktijk zeldzaam: §6a laat het
-     *  voorstel al vervallen zodra een betrokken document muteert, en de strook verdwijnt daarmee. */
-    undoDepthAfterApply: number;
+    /** AANGEPAST NA MERGE MET MAIN (2026-09-04): was `undoDepthAfterApply: number`. Nu het
+     *  history-event zelf. "Alles terugdraaien" pakt alleen een document waarvan dit event er nog
+     *  is, nog op `applied` staat, én nog het event is dat een gewone Ctrl+Z voor dat document zou
+     *  kiezen — heeft de gebruiker er intussen zelf in gewerkt, dan zou terugdraaien de VERKEERDE
+     *  stap ongedaan maken. Dan slaan we dat document over en melden we het
+     *  (`DistributionUndoReport.skippedDocIds`). In de praktijk zeldzaam: §6a laat het voorstel al
+     *  vervallen zodra een betrokken document muteert, en de strook verdwijnt daarmee. */
+    historyEventId: string;
+    historySequence: number;
   }>;
 }
 export interface DistributionUndoReport { undoneDocIds: string[]; skippedDocIds: string[] }
@@ -1150,11 +1203,19 @@ atomiciteitsgarantie, gespiegeld aan `recalculateStaleSleepingDocuments`):
 4. **Fase 2 — één producer:** de nieuwe slaper-payloads in `s.documents[i].payload` zetten.
    Sla een document over dat intussen gesloten of geactiveerd is (`entry.payload === null`), exact
    zoals `recalculateStaleSleepingDocuments` dat doet.
-5. Bouw en retourneer het record (met `undoStack.length` per document ná het schrijven).
+5. Bouw en retourneer het record (met het `historyEventId` per document — 2026-09-04: was
+   `undoStack.length` ná het schrijven).
 
-`undoDistribution`: per document uit het record — het actieve via `get().undo()`, een slaper via
-`runInScratchDocument(payload, s => s.undo())` — maar **alleen** wanneer de undo-diepte nog klopt.
-Verzamel `undoneDocIds`/`skippedDocIds`. Ook hier: eerst alle scratch-runs, dan één producer.
+Roep vóór stap 2 `runtime.resetUndoCoalescing()` aan: een lopende coalesce-reeks (Gantt-sleep,
+tikken in een invoerveld) zou anders het `after` van dát oudere event bijschrijven in plaats van een
+eigen event op te leveren — en dan is er geen event om in het record te zetten.
+
+`undoDistribution`: per document uit het record — het actieve via `get().undo()`, een slaper door de
+`before`-snapshot van zijn event over de payload te spreiden en dat event op `undone` te zetten —
+maar **alleen** wanneer de poort hierboven slaagt. Verzamel `undoneDocIds`/`skippedDocIds`. Ook hier:
+eerst alles puur bepalen, dan één producer. (2026-09-04: was "een slaper via
+`runInScratchDocument(payload, s => s.undo())` … wanneer de undo-diepte nog klopt". Een scratch-undo
+kan niet meer: de undo-historie van een slaper leeft in de ECHTE store, niet in zijn payload.)
 
 - [ ] **Step 4: Draai**
 
@@ -2083,8 +2144,9 @@ stilzwijgend laten staan als dode sleutel.
 ```ts
   // B1c (spec §6a): de verdeeldialoog kijkt naar een MOMENTOPNAME van meerdere documenten. Een
   // documentwissel of een gesloten document maakt zijn tune-state (rangorde/pins/plafonds op docId)
-  // en zijn toegepast-record onbetrouwbaar: het record verwijst naar undo-diepten van documenten die
-  // er misschien niet meer zijn. BESLUIT EIGENAAR 2026-08-31: dat betekent hier dat de DIALOOG SLUIT
+  // en zijn toegepast-record onbetrouwbaar: het record verwijst naar history-events van documenten
+  // die er misschien niet meer zijn (2026-09-04, aangepast na merge met main: was "undo-diepten" —
+  // zie de noot bij taak 6; sluiten ruimt die events bovendien op). BESLUIT EIGENAAR 2026-08-31: dat betekent hier dat de DIALOOG SLUIT
   // (niet dat hij openblijft met een vervallen voorstel — dat was de vraag in de vorige versie van dit
   // plan, tégen de toen nog gekozen drill-down; met een losse dialoog is sluiten het enige zinnige
   // gevolg, want er is geen "eronder" om op terug te vallen zoals bij een drill-down). Het
