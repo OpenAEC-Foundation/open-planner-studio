@@ -17,6 +17,9 @@
   "showLegend": "Gösterge",
   "showTaskNames": "Çubuklarda görev adları",
   "showCompletion": "Tamamlanmayı göster",
+  "truncateTaskNames": "Görev adlarını kısalt",
+  "taskNameColumnWidthLabel": "Ad sütunu:",
+  "taskNameColumnWidthHint": "Ad sütunu en uzun görev adına göre ayarlanır",
   "showBaselineOverlay": "Temel çizgi katmanını göster",
   "autoFit": "Kağıda otomatik sığdır",
   "zoom": "Yakınlaştırma:",
@@ -52,7 +55,6 @@
     "categoriesMore_other": "… ve {{count}} kategori daha"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Görev adı",
     "start": "Başlangıç",

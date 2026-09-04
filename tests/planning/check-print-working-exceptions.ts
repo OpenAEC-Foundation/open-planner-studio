@@ -69,7 +69,7 @@ const options: PrintOptions = {
   showLegend: false, showTaskNames: true, showCompletion: false,
   autoFit: true, customZoom: 1, paperSize: 'A4', orientation: 'landscape',
   companyName: '', labels: {
-    noTasks: '-', printed: '-', legend: {} as any, tableHeaders: { rowNum: '#' } as any,
+    noTasks: '-', printed: '-', legend: {} as any, tableHeaders: {} as any,
     page: '-', of: '-', today: '-',
   }, locale: 'nl', reportFontScale: 100,
 } as PrintOptions;

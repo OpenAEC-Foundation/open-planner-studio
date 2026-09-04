@@ -17,6 +17,9 @@
   "showLegend": "Legenda",
   "showTaskNames": "Taaknamen op staafjes",
   "showCompletion": "Voltooiing tonen",
+  "truncateTaskNames": "Taaknamen afkappen",
+  "taskNameColumnWidthLabel": "Naamkolom:",
+  "taskNameColumnWidthHint": "De naamkolom past zich aan de langste taaknaam aan",
   "showBaselineOverlay": "Baseline-overlay tonen",
   "autoFit": "Auto-fit op papier",
   "zoom": "Zoomen:",
@@ -52,7 +55,6 @@
     "categoriesMore_other": "… en nog {{count}} categorieën"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Taaknaam",
     "start": "Start",

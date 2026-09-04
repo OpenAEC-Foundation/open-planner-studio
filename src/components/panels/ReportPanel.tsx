@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { measurePrintReport, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { buildPrintRows, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
@@ -253,6 +253,13 @@ export function ReportPanel() {
   const [showLegend, setShowLegend] = useState(DEFAULT_REPORT_SETTINGS.showLegend);
   const [showTaskNames, setShowTaskNames] = useState(DEFAULT_REPORT_SETTINGS.showTaskNames);
   const [showCompletion, setShowCompletion] = useState(DEFAULT_REPORT_SETTINGS.showCompletion);
+  // Naamkolom in de taaktabel: afkappen op een instelbare breedte (slider), of de kolom aan de
+  // langste naam laten aanpassen. In dat laatste geval meet het paneel zelf (zie het effect
+  // verderop) en krijgt de printlaag alleen het resulterende getal — één getal voor preview,
+  // raster- en vector-export, zodat die drie nooit een verschillende tabel tekenen.
+  const [truncateTaskNames, setTruncateTaskNames] = useState(DEFAULT_REPORT_SETTINGS.truncateTaskNames);
+  const [taskNameColumnWidth, setTaskNameColumnWidth] = useState(DEFAULT_REPORT_SETTINGS.taskNameColumnWidth);
+  const [autoNameColumnWidth, setAutoNameColumnWidth] = useState<number | undefined>(undefined);
   const [showBaselineOverlay, setShowBaselineOverlay] = useState(DEFAULT_REPORT_SETTINGS.showBaselineOverlay);
   const [autoFit, setAutoFit] = useState(DEFAULT_REPORT_SETTINGS.autoFit);
   const [customZoom, setCustomZoom] = useState(DEFAULT_REPORT_SETTINGS.customZoom);
@@ -353,6 +360,8 @@ export function ReportPanel() {
       setShowLegend(s.showLegend);
       setShowTaskNames(s.showTaskNames);
       setShowCompletion(s.showCompletion);
+      setTruncateTaskNames(s.truncateTaskNames);
+      setTaskNameColumnWidth(s.taskNameColumnWidth);
       setShowBaselineOverlay(s.showBaselineOverlay);
       setAutoFit(s.autoFit);
       setCustomZoom(s.customZoom);
@@ -396,12 +405,32 @@ export function ReportPanel() {
     // best-effort — mislukt het, dan blijft de instelling gewoon binnen deze sessie werken.
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
-      showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
-      repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
+      paperSize, orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
-      showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
-      reportFontScale, statusLine, followView, previewQuality]);
+      showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
+      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality]);
+
+  // Afkappen uit ⇒ meet de langste naam op dezelfde rijen die het rapport tekent, op het geladen
+  // Inter-font (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
+  // De meting gebeurt hier en niet in de printlaag: `measurePrintReport` (paginering) heeft geen
+  // canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster-/vector-render.
+  useEffect(() => {
+    if (truncateTaskNames) return;
+    let cancelled = false;
+    void ensureInterLoaded().then(() => {
+      if (cancelled) return;
+      const ctx = document.createElement('canvas').getContext('2d');
+      if (!ctx) { setAutoNameColumnWidth(NAME_COLUMN_WIDTH_DEFAULT); return; }
+      const rows = buildPrintRows(tasks, followView ? viewRows : undefined);
+      setAutoNameColumnWidth(measureTaskNameColumnWidth(rows, (text, bold) => {
+        ctx.font = nameCellFont(bold);
+        return ctx.measureText(text).width;
+      }));
+    });
+    return () => { cancelled = true; };
+  }, [truncateTaskNames, tasks, viewRows, followView]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -442,10 +471,14 @@ export function ReportPanel() {
   const locale = i18n.language;
   // Eén waardeobject is de contractgrens tussen UI, preview en export. Daardoor kan geen van beide
   // renderpaden per ongeluk een losse oude optie of vertaalde kop uit een eerdere render vasthouden.
+  // Tot de meting klaar is (afkappen net uitgezet) houdt de preview de sliderbreedte; de meting
+  // vervangt die één render later. Bewust geen "leeg" tussenframe.
+  const effectiveNameColumnWidth = truncateTaskNames ? taskNameColumnWidth : (autoNameColumnWidth ?? taskNameColumnWidth);
   const options = useMemo<PrintOptions>(() => ({
     showCritical, showFloat, showDeps, showWeekends, showLegend,
     showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
+    taskNameColumnWidth: effectiveNameColumnWidth,
     labels: {
       noTasks: t('noTasks'),
       printed: t('printed'),
@@ -461,7 +494,6 @@ export function ReportPanel() {
         relationStyle: t('legend.relationStyle'),
       },
       tableHeaders: {
-        rowNum: '#',
         wbs: t('tableHeaders.wbs'),
         taskName: t('tableHeaders.taskName'),
         start: t('tableHeaders.start'),
@@ -512,7 +544,7 @@ export function ReportPanel() {
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
     },
   }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
-    autoFit, customZoom, paperSize, orientation, companyName, t, locale, project.startDate,
+    autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
@@ -1248,6 +1280,29 @@ export function ReportPanel() {
               <input type="checkbox" checked={showCompletion} onChange={e => setShowCompletion(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showCompletion', { defaultValue: 'Voltooiing tonen' })}</span>
             </label>
+            {/* Naamkolom: afkappen op een instelbare breedte, of meegroeien met de langste naam. */}
+            <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-truncate-names type="checkbox" checked={truncateTaskNames} onChange={e => setTruncateTaskNames(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{t('truncateTaskNames')}</span>
+            </label>
+            {truncateTaskNames ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <label className="text-text-secondary w-20 flex-shrink-0">{t('taskNameColumnWidthLabel')}</label>
+                <input
+                  data-ops-report-name-column-width
+                  type="range"
+                  min={NAME_COLUMN_WIDTH_MIN}
+                  max={NAME_COLUMN_WIDTH_MAX}
+                  value={taskNameColumnWidth}
+                  onChange={e => setTaskNameColumnWidth(Number(e.target.value))}
+                  aria-label={t('taskNameColumnWidthLabel')}
+                  className="flex-1 min-w-0"
+                />
+                <span className="w-8 flex-shrink-0 text-right">{taskNameColumnWidth}</span>
+              </div>
+            ) : (
+              <span className="text-text-secondary">{t('taskNameColumnWidthHint')}</span>
+            )}
             <label className="flex items-center gap-2 min-w-0">
               <input data-ops-report-baseline-overlay type="checkbox" checked={showBaselineOverlay} onChange={e => setShowBaselineOverlay(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showBaselineOverlay')}</span>
