@@ -17,7 +17,10 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
       y: number,
       maxWidth?: number,
     ) {
-      drawnText.push(String(text));
+      // Alleen de (losse) rapportcanvassen tellen: de Gantt-canvassen (`data-testid="gantt-*"`)
+      // kunnen ná het installeren van deze haak nog één keer painten en tekenen dan de volledige
+      // taaknaam op de balk — dat is geen rapporttekst (gezien als race op een trage CI-runner).
+      if (!(this.canvas?.dataset.testid ?? '').startsWith('gantt-')) drawnText.push(String(text));
       if (maxWidth === undefined) original.call(this, text, x, y);
       else original.call(this, text, x, y, maxWidth);
     };
@@ -86,7 +89,8 @@ test('report options: taaknamen afkappen en de naamkolom-slider sturen de tabel'
     const original = CanvasRenderingContext2D.prototype.fillText;
     const drawnText: string[] = [];
     CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
-      drawnText.push(String(text));
+      // Zie de eerste test: Gantt-paints ná het installeren van de haak horen niet bij het rapport.
+      if (!(this.canvas?.dataset.testid ?? '').startsWith('gantt-')) drawnText.push(String(text));
       if (maxWidth === undefined) original.call(this, text, x, y);
       else original.call(this, text, x, y, maxWidth);
     };
