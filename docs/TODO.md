@@ -652,19 +652,6 @@ deel 4. In volgorde van hoe hard het split-view blokkeert:
       *Eerst beslissen:* moet de afdruk meeschalen met de zoom zoals het scherm, of blijft de vaste
       maand/week/dag-strook de bedoeling? Pas daarna bouwen.
 
-### Klein — fit en contentbreedte zijn het oneens over een taak zonder finish (2026-08-17)
-- [ ] **`computeFitToProject` valt op de finish-keten terug op de start (`|| s`),
-      `computeContentSpanDays` niet.** `ganttViewport.ts` doet
-      `earlyFinish || scheduleFinish || lateFinish || s`; `ganttRenderOptions.ts` doet dezelfde
-      keten zonder die laatste terugval. Een taak met alleen een start telt dus wél mee voor de
-      Ctrl+0-fit maar niet voor de contentbreedte, en kan daardoor buiten `maxScrollX` vallen
-      terwijl de fit er wél naartoe zoomt. De codedivergentie is zeker; de bereikbaarheid niet —
-      `createDefaultTaskTime` zet altijd een `scheduleFinish`, dus je hebt een corrupte import of
-      een externe adapter nodig. *Eerst uitzoeken:* wat de IFC-lezer en de CSV/MSPDI/P6-importers
-      kunnen opleveren; pas daarna beslissen welke van de twee ketens de juiste is. Niet ontstaan
-      door K-item 33 — dat item legde het alleen bloot. Er staat een toelichtende regel bij beide
-      functies zodat het verschil niet als slordigheid leest.
-
 ### Klein — de indirecte route naar een spookrelatie is volledig stil (2026-08-14)
 - [ ] **Structuurmutaties kunnen een bladtaak-met-relaties tot verzameltaak maken zonder enig
       signaal.** De mijlpaal-relaties-tak (`docs/superpowers/specs/2026-08-14-mijlpaal-relaties-
