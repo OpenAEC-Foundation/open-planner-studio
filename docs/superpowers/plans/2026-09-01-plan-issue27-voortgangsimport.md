@@ -451,6 +451,9 @@ const progressImportButton: RibbonButtonSpec = {
 knop in `scheduleGroup` zou óók op Start verschijnen — buiten E2. Dit is een bewuste afwijking van het
 "alleen gedeelde constanten"-commentaar boven `tableTab`; **werk dat commentaar bij**, anders liegt het.
 
+**Afwijking 2026-09-04 (gebruikstest):** op Planning een eigen groep i.p.v. de `baselines`-groep — een
+losse knop naast een component rendert zonder label.
+
 `disabled` bij een leeg document: een voortgangsblad zonder taken kan niets koppelen — dezelfde lijn
 als `moveProjectButton`.
 

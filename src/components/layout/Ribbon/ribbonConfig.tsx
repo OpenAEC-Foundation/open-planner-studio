@@ -345,6 +345,18 @@ const progressImportButton: RibbonButtonSpec = {
   },
 };
 
+/** Afwijking 2026-09-04 (gebruikstest): `progressImportButton` in zijn EIGEN groep, gedeeld door
+ *  Planning en Tabel — niet als losse knop náást een `kind: 'component'`-item (dat werkte op
+ *  Planning eerst zo in de `baselines`-groep naast `BaselinesProgressGroupContent`). Een `RibbonButtonSpec`
+ *  rendert zijn label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een
+ *  component gemengd render je hem als kaal icoontje zonder label of knopvormgeving (bevestigd met
+ *  screenshot). Vandaar een eigen groep op beide tabs i.p.v. het item in een bestaande groep te hangen.
+ *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
+ *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd. */
+const progressGroup: RibbonGroupSpec = {
+  id: 'progress', labelKey: 'menu:ribbon.progressGroup', items: [progressImportButton],
+};
+
 const planningTab: RibbonTabConfig = [
   { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton] },
   {
@@ -419,11 +431,9 @@ const planningTab: RibbonTabConfig = [
   },
   {
     id: 'baselines', labelKey: 'menu:ribbon.baselines',
-    items: [
-      { kind: 'component', id: 'baselinesProgress', Component: BaselinesProgressGroupContent },
-      progressImportButton,
-    ],
+    items: [{ kind: 'component', id: 'baselinesProgress', Component: BaselinesProgressGroupContent }],
   },
+  progressGroup,
 ];
 
 /**
@@ -782,7 +792,7 @@ const instellingenTab: RibbonTabConfig = [
  *
  * De eerste vijf groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
  * zodat een volgende knop op Start hier automatisch meekomt. **Uitzondering (E2, issue #27 etappe 2):**
- * `progressImportButton` hangt hier in een EIGEN, tabel-only groep (`tableProgress`) — niet in de
+ * `progressGroup` (gedeeld met Planning, zie daar) hangt hier ACHTERAAN als eigen groep — niet in de
  * gedeelde `scheduleGroup`, want een knop dáár zou automatisch ook op Start verschijnen, en de
  * voortgangsimport is bewust alleen op Backstage → Importeren, Planning en Tabel te vinden.
  */
@@ -793,7 +803,7 @@ const tableTab: RibbonTabConfig = [
   scheduleGroup,
   traceGroup,
   tableColumnsGroup,
-  { id: 'tableProgress', labelKey: 'menu:ribbon.progressGroup', items: [progressImportButton] },
+  progressGroup,
 ];
 
 const ifcTab: RibbonTabConfig = [
