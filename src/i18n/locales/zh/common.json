@@ -20,6 +20,7 @@
     "relationDuplicate": "该关系已存在",
     "relationAncestorEndpoint": "不允许在任务与其自身的（上级）汇总任务之间建立关系。",
     "summaryRelationsDropped": "{{total}} 个关系未能计入计算。请检查前置任务和后续任务列。",
+    "relationsSkippedOnInsert_other": "有 {{count}} 个关系未创建：链接无效（例如任务链接到其自身的（祖）父级摘要任务，或重复关系）。",
     "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",
     "projectStartAnchorsClamped_other": "项目开始日期已更改：{{count}} 个没有前置任务或限制的任务起点已移至新的开始日期。",
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",

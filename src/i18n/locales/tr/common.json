@@ -20,6 +20,8 @@
     "relationDuplicate": "Bu ilişki zaten var",
     "relationAncestorEndpoint": "Bir görev ile kendi üst özet görevi arasında ilişki kurulmasına izin verilmez.",
     "summaryRelationsDropped": "{{total}} ilişki hesaplamaya dahil edilemedi. Öncüller ve Ardıllar sütunlarını kontrol edin.",
+    "relationsSkippedOnInsert_one": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
+    "relationsSkippedOnInsert_other": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
     "mppSourceScheduleNotes_one": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "mppSourceScheduleNotes_other": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "projectStartAnchorsClamped_one": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",

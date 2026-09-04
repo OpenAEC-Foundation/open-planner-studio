@@ -12,6 +12,7 @@ import {
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
+import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -901,6 +902,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   insertWbsTemplate: (template, parentId) => {
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
+    let skippedRelations = 0;
     set((s) => {
       runtime.beginUndoable(s);
 
@@ -933,13 +935,20 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const parent = s.tasks.find(t => t.id === parentId);
         if (parent) parent.childIds.push(newRootId);
       }
+      // `relationVerdict.ts` is de bron van de regel, niet alleen de reguliere add-route
+      // (`addSequence`): een sjabloon is app-niveau data uit `localStorage` (zie
+      // `utils/wbsTemplates.ts`) en kan dus, net als een tak uit het klembord, relaties
+      // dragen die nooit via die route zijn aangemaakt. De lookup wijst al naar `s.tasks`
+      // MÉT de zojuist ingevoegde taken (nieuwe ids, ouderrelaties uit de lus hierboven).
+      const lookup = (tid: string) => s.tasks.find(t2 => t2.id === tid);
       for (const q of template.sequences) {
-        s.sequences.push({
+        const candidate = {
           ...q,
-          id: generateId('seq'),
           predecessorId: idMap.get(q.predecessorId)!,
           successorId: idMap.get(q.successorId)!,
-        });
+        };
+        if (!relationVerdict(lookup, s.sequences, candidate).ok) { skippedRelations++; continue; }
+        s.sequences.push({ ...candidate, id: generateId('seq') });
       }
 
       // WBS-codes: auto ⇒ hele boom; anders alleen de ingevoegde tak afleiden.
@@ -961,6 +970,16 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    if (skippedRelations > 0) {
+      // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet
+      // (zelfde precedent als `setProject` in projectSlice.ts).
+      get().notify({
+        severity: 'info',
+        messageKey: 'notifications.relationsSkippedOnInsert',
+        params: { count: skippedRelations },
+        dedupeKey: 'relations-skipped-on-insert-template',
+      });
+    }
     return newRootId;
   },
 

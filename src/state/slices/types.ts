@@ -188,6 +188,7 @@ export type NotificationMessageKey =
   | 'notifications.relationDuplicate'
   | 'notifications.relationAncestorEndpoint'
   | 'notifications.summaryRelationsDropped'
+  | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.mppSourceScheduleNotes'
