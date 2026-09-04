@@ -21,6 +21,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { formatDate, parseDate } from '@/utils/dateUtils';
+import { formatGridDate, parseGridDate } from '@/engine/taskGrid/editors';
 
 /** De implementatie van vóór de herschrijving, letterlijk. Dit is het orakel. */
 function oudFormatDate(d: Date): string {
@@ -117,6 +118,20 @@ for (const t of [Date.UTC(-1, 0, 1), Date.UTC(-12345, 5, 5), 253402300800000, 8.
   // staat hier zodat een toekomstige "verbetering" van parseDate niet stil door deze test glipt.
   eq('6b een niet-bestaande datum rolt door (bestaand gedrag)', formatDate(parseDate('2026-02-29')), '2026-03-01');
 }
+
+// ── 7. Persoonlijke gridnotatie blijft een verliesloze rand rond ISO ─────────
+// Deze parser wordt door losse edits én TSV-paste gedeeld. Hij mag de historische, permissieve
+// parseDate dus niet aanroepen: 31 februari moet hier een zichtbare invoerfout blijven.
+eq('7 dmy-gridinvoer naar ISO', parseGridDate('31-12-2026', 'dmy'), '2026-12-31');
+eq('7a mdy-gridinvoer naar ISO', parseGridDate('12/31/2026', 'mdy'), '2026-12-31');
+eq('7b ymd-gridinvoer naar ISO', parseGridDate('2026.12.31', 'ymd'), '2026-12-31');
+eq('7c ISO blijft in iedere persoonlijke notatie geldig', parseGridDate('2024-02-29', 'mdy'), '2024-02-29');
+eq('7d twee-cijferig jaar gebruikt de afgesproken 20xx-grens', parseGridDate('31-12-26', 'dmy'), '2026-12-31');
+eq('7e niet-bestaande datum wordt niet doorgeschoven', parseGridDate('31-02-2026', 'dmy'), null);
+eq('7f niet-schrikkeljaar wordt geweigerd', parseGridDate('02/29/2026', 'mdy'), null);
+eq('7g ISO formatteert terug naar persoonlijke mdy-notatie', formatGridDate('2026-12-31', 'mdy'), '12-31-2026');
+eq('7h persoonlijke dmy-roundtrip bewaart dezelfde ISO-dag',
+  parseGridDate(formatGridDate('2024-02-29', 'dmy'), 'dmy'), '2024-02-29');
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

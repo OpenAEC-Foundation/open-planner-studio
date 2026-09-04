@@ -37,6 +37,9 @@ export function useRecoveryRestore(): RecoveryRestore {
   // De reader heeft zelf geen `t(...)`; het label voor een snapshot zónder IFCPROJECT gaat mee.
   // (Snapshots zijn door OPS zelf geschreven en hebben er altijd een — dit is een vangnet.)
   const { t } = useTranslation('common');
+  // Recovery is een opstartbewerking, geen taalreactieve weergave. De vertaler van die ene sessie
+  // blijft daarom stabiel wanneer de gebruiker tijdens of na de check van taal wisselt.
+  const startupTRef = useRef(t);
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   // Gezet op exact dezelfde momenten als `autoSaveEnabled.current = true` (dezelfde
   // `finish()`-closure).
@@ -66,7 +69,9 @@ export function useRecoveryRestore(): RecoveryRestore {
         let failed = 0;
         for (const d of loaded.docs) {
           try {
-            const parsed = await readIFCWithXerReconstruction(d.ifc, buildImportLabels(t));
+            const parsed = await readIFCWithXerReconstruction(
+              d.ifc, buildImportLabels(startupTRef.current),
+            );
             // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` (bevinding
             // K3) — deze hook houdt bewust geen veldkennis.
             restored.push(recoveryInputFromParsed(parsed, {
@@ -121,11 +126,6 @@ export function useRecoveryRestore(): RecoveryRestore {
               try {
                 if (restored.length > 0) {
                   useAppStore.getState().restoreDocuments(restored, loaded.activeDocumentId);
-                  // Grens 4 (spec §3.4, plan-eis 6): crash-herstel telt als grens 1 — draai voor het
-                  // actieve, herstelde document dezelfde openings-check (behind stil verversen,
-                  // deviated markeren/vragen). Slapende herstelde documenten krijgen hun check bij
-                  // activering (grens 2).
-                  useAppStore.getState().runOpenBoundary();
                 }
                 // Dialoog meteen weg zodra het herstel zelf klaar is — de opruimactie eronder is
                 // bestands-I/O en mag de gebruiker niet laten wachten.

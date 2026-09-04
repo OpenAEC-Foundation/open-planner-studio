@@ -27,6 +27,10 @@ Oben in jeder Gruppe wählen Sie, wie sich ihre Regeln verbinden:
 
 Das Papierkorb-Symbol hinter einer Regel entfernt diese Regel; das Kreuz oben rechts an einer verschachtelten Gruppe entfernt die ganze Gruppe.
 
+## Filter speichern und wiederverwenden
+
+Geben Sie oben im Filterfenster einen **Namen** ein und klicken Sie auf **Speichern**, um die aktuellen Regeln als Filtervorlage zu behalten. Gespeicherte Filter stehen auf diesem Gerät in jedem Projekt zur Verfügung; sie ersetzen nur den Filter, nie Spalten, Gruppierung, Sortierung oder Zeitskala. Wählen Sie einen gespeicherten Filter aus derselben Liste, um ihn sofort anzuwenden, oder löschen Sie die gewählte Vorlage mit dem Papierkorb.
+
 ## Anwenden, Abbrechen und Löschen
 
 - **Anwenden** aktiviert den Filter und schließt das Fenster. Ein Filter ohne Regeln gilt als „kein Filter".

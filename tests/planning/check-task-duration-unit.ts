@@ -1,0 +1,300 @@
+import './domStub';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { durationDaysOf, durationMinutesOf } from '@/engine/scheduler/duration';
+import { createDefaultTaskTime, mergeTaskTime } from '@/utils/taskDefaults';
+import { formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { createAppStoreContext } from '@/state/appStore';
+import { loadAllSettings } from '@/utils/settingsRegistry';
+import { saveAllowMixedDayHour } from '@/utils/settingsStore';
+import {
+  formatTaskDurationInput,
+  parseTaskDurationInput,
+  proposeTaskDurationConversion,
+} from '@/utils/taskDurationInput';
+import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
+import type { Project } from '@/types/project';
+import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
+import type { Task } from '@/types/task';
+
+const failures: string[] = [];
+let checks = 0;
+
+function eq(label: string, got: unknown, expected: unknown): void {
+  checks++;
+  if (got !== expected) failures.push(`${label}: verwacht ${JSON.stringify(expected)}, kreeg ${JSON.stringify(got)}`);
+}
+
+function deepEq(label: string, got: unknown, expected: unknown): void {
+  eq(label, JSON.stringify(got), JSON.stringify(expected));
+}
+
+const weekdays = (bands: { start: number; end: number }[]): WorkTimeBands => ({
+  byWeekday: { 1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: [], 7: [] },
+});
+
+function calendar(id: string, hours: number, end: number, holidays: WorkCalendar['holidays'] = []): WorkCalendar {
+  return {
+    id,
+    name: id,
+    description: id,
+    workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8,
+    workEndHour: end / 60,
+    hoursPerDay: hours,
+    holidays,
+    workTime: weekdays([{ start: 480, end }]),
+  };
+}
+
+function task(unit: 'days' | 'hours', amount: number): Task {
+  const time = createDefaultTaskTime('2026-07-06', unit === 'days' ? amount : 0);
+  return {
+    id: `task-${unit}`,
+    name: unit,
+    description: '',
+    wbsCode: '',
+    taskType: 'CONSTRUCTION',
+    status: 'NOT_STARTED',
+    isMilestone: false,
+    priority: 500,
+    parentId: null,
+    childIds: [],
+    resourceIds: [],
+    time: {
+      ...time,
+      durationUnit: unit,
+      scheduleDuration: unit === 'days' ? amount : 0,
+      ...(unit === 'hours' ? { durationMinutes: amount * 60 } : {}),
+    },
+  } as Task;
+}
+
+function unitOf(time: Task['time']): string | undefined {
+  return (time as Task['time'] & { durationUnit?: string }).durationUnit;
+}
+
+const h8 = calendar('H8', 8, 960);
+const h10 = calendar('H10', 10, 1080);
+const scalarH8: WorkCalendar = {
+  ...h8, id: 'Scalar-H8', workStartHour: 7, workEndHour: 16, hoursPerDay: 8, workTime: undefined,
+};
+const day2 = task('days', 2);
+const hour12 = task('hours', 12);
+const zeroDay = task('days', 0);
+const zeroHour = task('hours', 0);
+
+// De taakeenheid, niet de kalender, kiest de bron van waarheid.
+eq('dagtaak op uurkalender houdt twee dagen', durationDaysOf(day2, new CalendarEngine(h8)), 2);
+eq('dagtaak op 8-uurskalender omvat 16 uur', durationMinutesOf(day2, new CalendarEngine(h8)), 960);
+eq('dagtaak op 10-uurskalender omvat 20 uur', durationMinutesOf(day2, new CalendarEngine(h10)), 1200);
+eq('urentaak op 8-uurskalender blijft 720 minuten', durationMinutesOf(hour12, new CalendarEngine(h8)), 720);
+eq('urentaak op 10-uurskalender blijft 720 minuten', durationMinutesOf(hour12, new CalendarEngine(h10)), 720);
+eq('urentaak is op H8 1,5 werkdag', durationDaysOf(hour12, new CalendarEngine(h8)), 1.5);
+eq('urentaak is op H10 1,2 werkdag', durationDaysOf(hour12, new CalendarEngine(h10)), 1.2);
+
+function finishOn(t: Task, cal: WorkCalendar): string {
+  const copy = { ...t, time: { ...t.time } };
+  solveProject({ tasks: [copy], sequences: [], calendar: cal, calendars: [], projectStartDate: '2026-07-06' });
+  return copy.time.earlyFinish;
+}
+
+function solveError(t: Task, cal: WorkCalendar): string | undefined {
+  const copy = { ...t, time: { ...t.time } };
+  return solveProject({ tasks: [copy], sequences: [], calendar: cal, calendars: [], projectStartDate: '2026-07-06' }).error;
+}
+
+eq('2d eindigt op H8 na twee volledige werkdagen', finishOn(day2, h8), '2026-07-07T16:00');
+eq('2d eindigt op H10 na twee volledige werkdagen', finishOn(day2, h10), '2026-07-07T18:00');
+eq('12h verdeelt op H8 als 8+4 uur', finishOn(hour12, h8), '2026-07-07T12:00');
+eq('12h verdeelt op H10 als 10+2 uur', finishOn(hour12, h10), '2026-07-07T10:00');
+eq('12h op scalaire 07-16/8u-kalender plant over de middagpauze', finishOn(hour12, scalarH8), '2026-07-07T11:00');
+eq('0d zonder mijlpaalvlag blijft een nulpunt op de start', finishOn(zeroDay, h8), '2026-07-06T08:00');
+eq('0h zonder mijlpaalvlag blijft een nulpunt op de start', finishOn(zeroHour, h8), '2026-07-06T08:00');
+const missingHourSource = task('hours', 1);
+delete missingHourSource.time.durationMinutes;
+eq('urentaak zonder minutenbron wordt niet stil als nul gepland', solveError(missingHourSource, h8), 'Ongeldige urenduur voor taak "hours"');
+eq('negatieve urenduur wordt voor mutatie geweigerd', solveError(task('hours', -1), h8), 'Ongeldige urenduur voor taak "hours"');
+eq('negatieve dagduur wordt voor mutatie geweigerd', solveError(task('days', -1), h8), 'Ongeldige dagduur voor taak "days"');
+
+const progressingDay = {
+  ...day2,
+  id: 'progressing-day',
+  time: {
+    ...day2.time,
+    completion: 0.5,
+    actualStart: '2026-07-06T08:00',
+    remainingTime: 1,
+    // Een oude/importspecifieke minuutwaarde mag de dagidentiteit niet overnemen.
+    remainingMinutes: 60,
+  },
+};
+eq('dagtaakvoortgang op uurkalender blijft in hele werkdagen rekenen', finishOn(progressingDay, h8), '2026-07-06T16:00');
+
+// Kalenderwissel verandert nooit de opgeslagen identiteit of hoeveelheid.
+eq('kalenderwissel bewaart dag-unit', unitOf(day2.time), 'days');
+eq('kalenderwissel bewaart dag-aantal', day2.time.scheduleDuration, 2);
+eq('kalenderwissel bewaart uur-unit', unitOf(hour12.time), 'hours');
+eq('kalenderwissel bewaart minuten', hour12.time.durationMinutes, 720);
+
+// Een gedeeltelijke werkdag is één dag voor een dagtaak, maar slechts haar werkminuten voor uren.
+const partial = calendar('Partial', 4, 720);
+eq('gedeeltelijke dag telt als één dag', durationDaysOf(task('days', 1), new CalendarEngine(partial)), 1);
+eq('gedeeltelijke dag levert vier uur capaciteit', durationMinutesOf(task('days', 1), new CalendarEngine(partial)), 240);
+eq('dagtaak gebruikt de hele gedeeltelijke werkdag', finishOn(task('days', 1), partial), '2026-07-06T12:00');
+eq('urentaak telt alleen concrete gedeeltelijke uren', finishOn(task('hours', 6), partial), '2026-07-07T10:00');
+
+// Feestdagen veranderen de plaatsing, niet de duur-identiteit.
+const holiday = calendar('Holiday', 8, 960, [{ name: 'Feestdag', startDate: '2026-07-07', endDate: '2026-07-07' }]);
+eq('twee werkdagen slaan feestdag over', holiday.id && new CalendarEngine(holiday).addWorkDays(new Date('2026-07-06T08:00:00Z'), 2).toISOString(), '2026-07-08T08:00:00.000Z');
+eq('feestdag verandert dag-unit niet', unitOf(day2.time), 'days');
+eq('dagtaakplanning slaat feestdag over', finishOn(day2, holiday), '2026-07-08T16:00');
+
+// Legacy-migratie is deterministisch en blijft daarna expliciet.
+const legacyDays = createDefaultTaskTime('2026-07-06', 2) as Task['time'];
+const legacyHours = { ...createDefaultTaskTime('2026-07-06', 0), durationMinutes: 725 } as Task['time'];
+delete (legacyDays as unknown as { durationUnit?: string }).durationUnit;
+delete (legacyHours as unknown as { durationUnit?: string }).durationUnit;
+eq('legacy zonder minuten migreert naar dagen', unitOf(mergeTaskTime(legacyDays, {})), 'days');
+eq('legacy met minuutprecisie migreert naar uren', unitOf(mergeTaskTime(legacyHours, {})), 'hours');
+eq('legacy minuutprecisie wordt niet afgerond', mergeTaskTime(legacyHours, {}).durationMinutes, 725);
+const hourBase = { ...createDefaultTaskTime('2026-07-06', 0, 'hours'), durationMinutes: 240 };
+eq('los wissen kan de native minutenbron van een urentaak niet verwijderen', mergeTaskTime(hourBase, { durationMinutes: undefined }).durationMinutes, 240);
+eq('atomair wisselen naar dagen wist de oude minutenbron wel', mergeTaskTime(hourBase, { durationUnit: 'days', scheduleDuration: 2, durationMinutes: undefined }).durationMinutes, undefined);
+
+// Compacte weergave houdt de native uuridentiteit zichtbaar.
+eq('auto toont dagtaak in dagen', formatTaskDurationDisplay(day2, h8, 'auto', true), '2d');
+eq('auto toont 12 uur als uren', formatTaskDurationDisplay(hour12, h8, 'auto', true), '12h');
+eq('auto toont ook een exact volle urentaak in haar gekozen eenheid', formatTaskDurationDisplay(task('hours', 16), h8, 'auto', true), '16h');
+eq('pure helper respecteert urenbron ook na kalenderwissel', taskDurationMinutes(hour12, h10), 720);
+eq('geforceerde dagenweergave houdt uurbron herkenbaar', formatTaskDurationDisplay(hour12, h8, 'days', true), '1.5d(12h)');
+eq('geforceerde urenweergave houdt dagbron herkenbaar', formatTaskDurationDisplay(day2, h8, 'hours', true), '16h(2d)');
+
+// Dialoog en paneel delen deze ene parser/conversielaag.
+deepEq('suffix d kiest dagen', parseTaskDurationInput('2d', 'hours'), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+deepEq('voluit days kiest dagen', parseTaskDurationInput('4 days', 'hours'), { unit: 'days', scheduleDuration: 4, explicitUnit: true });
+deepEq('suffix h kiest uren', parseTaskDurationInput('12h', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
+deepEq('voluit hours kiest uren', parseTaskDurationInput('12 hours', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
+deepEq('Nederlandse u blijft invoeralias', parseTaskDurationInput('12u', 'days'), { unit: 'hours', durationMinutes: 720, explicitUnit: true });
+eq('negatieve dagen worden geweigerd', parseTaskDurationInput('-2d', 'days'), null);
+eq('negatieve uren worden geweigerd', parseTaskDurationInput('-2h', 'hours'), null);
+eq('onveilig groot daggetal wordt geweigerd', parseTaskDurationInput('999999999999999999999d', 'days'), null);
+eq('onveilig groot uurgetal wordt geweigerd', parseTaskDurationInput('999999999999999999999h', 'hours'), null);
+eq('invoerweergave bevat geen uur-suffix naast de afzonderlijke unitkiezer', formatTaskDurationInput(hour12), '12');
+eq('bestaande minuutprecisie blijft als numerieke uren zichtbaar', formatTaskDurationInput({ ...hour12, time: { ...hour12.time, durationMinutes: 725 } }), '12.083333');
+
+// De gemengde-planningpoort is app-breed en mag de taakeenheid nooit als neveneffect wijzigen.
+localStorage.removeItem('ops-allowMixedDayHour');
+eq('ontbrekende gemengde-voorkeur laat de store-default intact', (await loadAllSettings()).allowMixedDayHour, undefined);
+await saveAllowMixedDayHour(false);
+eq('gemengde-voorkeur bewaart de bestaande ops-sleutel', localStorage.getItem('ops-allowMixedDayHour'), 'false');
+eq('gemengde-voorkeur hydrateert declaratief', (await loadAllSettings()).allowMixedDayHour, false);
+deepEq('scalaire 07-16/8u-bandresolver materialiseert de middagpauze', effectiveWorkTimeBands(scalarH8)?.byWeekday[1], [
+  { start: 420, end: 720 }, { start: 780, end: 960 },
+]);
+eq('scalaire kalender levert effectieve werkblokken', hasConcreteWorkBlocks(scalarH8), true);
+deepEq('2d op scalaire 07-16/8u-kalender krijgt exact 16h als voorstel',
+  proposeTaskDurationConversion(day2, 'hours', scalarH8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+const scalarBeforeSolve = JSON.stringify(scalarH8);
+const hourOnScalar = { ...hour12, time: { ...hour12.time } };
+const hourOnScalarResult = solveProject({
+  tasks: [hourOnScalar], sequences: [], calendar: scalarH8, calendars: [],
+  projectStartDate: '2026-07-06',
+});
+eq('bestaande urentaak op scalaire kalender plant zonder waarschuwing', hourOnScalarResult.error, undefined);
+eq('scalar-oplossing muteert de opgeslagen kalender niet', JSON.stringify(scalarH8), scalarBeforeSolve);
+eq('scalar-oplossing bewaart uur-unit', hourOnScalar.time.durationUnit, 'hours');
+eq('scalar-oplossing bewaart exacte minuten', hourOnScalar.time.durationMinutes, 720);
+const invalidScalar = { ...scalarH8, id: 'invalid-scalar', workDays: [] };
+eq('lege scalaire kalender heeft geen effectieve werkblokken', hasConcreteWorkBlocks(invalidScalar), false);
+eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar), null);
+eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Kalender heeft geen werkdagen ingesteld');
+deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
+eq('12h wordt niet stil naar 1,5d afgerond', proposeTaskDurationConversion(hour12, 'days', h8), null);
+deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+
+// Storecontract: projectdefault, normale mutatie, undo/redo, clipboard en documentwissel.
+const context = createAppStoreContext();
+const store = context.store;
+store.getState().setUI({ enableHourPlanning: true });
+store.getState().setCalendar(h8);
+store.getState().setProject({ defaultTaskDurationUnit: 'hours' });
+const storeTaskId = store.getState().addTask({ name: 'Nieuwe urentaak' });
+eq('projectdefault maakt nieuwe handmatige taak uren', store.getState().tasks[0]?.time.durationUnit, 'hours');
+eq('standaardhoeveelheid wordt als vijf uur opgeslagen', store.getState().tasks[0]?.time.durationMinutes, 300);
+eq('vijf uur krijgt op H8 een coherent dagequivalent', store.getState().tasks[0]?.time.scheduleDuration, 0.625);
+const noBandsContext = createAppStoreContext();
+noBandsContext.store.getState().setUI({ enableHourPlanning: true });
+noBandsContext.store.getState().setProject({ defaultTaskDurationUnit: 'hours' });
+noBandsContext.store.getState().addTask({ name: 'Veilige dagtaak zonder werkblokken' });
+eq('urenprojectdefault maakt op de geldige scalaire standaardkalender een urentaak',
+  noBandsContext.store.getState().tasks[0]?.time.durationUnit, 'hours');
+const beforeUnitChange = store.getState().tasks[0]!;
+store.getState().updateTask(storeTaskId, {
+  time: { ...beforeUnitChange.time, durationUnit: 'days', scheduleDuration: 2, durationMinutes: undefined },
+});
+eq('normale mutatie kan expliciet naar dagen', store.getState().tasks[0]?.time.durationUnit, 'days');
+store.getState().undo();
+eq('undo herstelt uur-unit', store.getState().tasks[0]?.time.durationUnit, 'hours');
+eq('undo herstelt exacte minuten', store.getState().tasks[0]?.time.durationMinutes, 300);
+store.getState().redo();
+eq('redo herstelt dag-unit', store.getState().tasks[0]?.time.durationUnit, 'days');
+store.getState().undo();
+store.getState().copyTasks([storeTaskId]);
+store.getState().pasteTasks();
+eq('clipboardkopie bewaart uur-unit', store.getState().tasks[1]?.time.durationUnit, 'hours');
+eq('clipboardkopie bewaart minuten', store.getState().tasks[1]?.time.durationMinutes, 300);
+const sourceDocumentId = store.getState().activeDocumentId;
+const secondDocumentId = store.getState().newDocument();
+eq('nieuw document erft projectdefault niet stil', store.getState().project.defaultTaskDurationUnit, 'days');
+store.getState().switchDocument(sourceDocumentId);
+eq('documentwissel herstelt uur-unit', store.getState().tasks[0]?.time.durationUnit, 'hours');
+eq('documentwissel herstelt minuten', store.getState().tasks[0]?.time.durationMinutes, 300);
+eq('recovery-payload houdt uur-unit', store.getState().getOpenDocumentPayloads().find((d) => d.id === sourceDocumentId)?.payload.tasks[0]?.time.durationUnit, 'hours');
+eq('tweede document blijft geopend', store.getState().documents.some((d) => d.id === secondDocumentId), true);
+
+const project: Project = {
+  id: 'project-duration-unit', name: 'Duur', description: '', startDate: '2026-07-06', endDate: '',
+  calendarId: h8.id, createdAt: '2026-07-01T00:00:00Z', modifiedAt: '2026-07-01T00:00:00Z',
+  author: '', company: '', defaultTaskDurationUnit: 'hours',
+};
+const ifc = writeIFC({
+  project,
+  calendar: h8,
+  tasks: [day2, hour12],
+  sequences: [],
+  resources: [],
+  assignments: [],
+});
+eq('IFC schrijft dagtaak als P-duur zonder tijdcomponent', /IFCTASKTIME\([^\n]*'P0Y0M2D'/.test(ifc), true);
+eq('IFC schrijft urentaak als PT-duur', /IFCTASKTIME\([^\n]*'PT12H0M0S'/.test(ifc), true);
+const reloaded = readIFC(ifc);
+const reloadedDay = reloaded.tasks.find((candidate) => candidate.name === 'days')!;
+const reloadedHour = reloaded.tasks.find((candidate) => candidate.name === 'hours')!;
+eq('IFC roundtrip bewaart dag-unit', reloadedDay.time.durationUnit, 'days');
+eq('IFC roundtrip bewaart dagaantal', reloadedDay.time.scheduleDuration, 2);
+eq('IFC roundtrip maakt geen concurrerende minutenbron op dagtaak', reloadedDay.time.durationMinutes, undefined);
+eq('IFC roundtrip bewaart uur-unit', reloadedHour.time.durationUnit, 'hours');
+eq('IFC roundtrip bewaart minuten exact', reloadedHour.time.durationMinutes, 720);
+eq('IFC roundtrip bewaart projectstandaard', reloaded.project.defaultTaskDurationUnit, 'hours');
+
+const scalarIfc = writeIFC({
+  project: { ...project, calendarId: scalarH8.id }, calendar: scalarH8, tasks: [day2, hour12], sequences: [], resources: [], assignments: [],
+});
+eq('IFC exporteert de scalaire middagpauze wanneer een urentaak die kalender gebruikt',
+  scalarIfc.includes("IFCTIMEPERIOD('07:00:00','12:00:00')") && scalarIfc.includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
+eq('IFC-export muteert de scalaire kalender niet', scalarH8.workTime, undefined);
+const scalarReloadedHour = readIFC(scalarIfc).tasks.find((candidate) => candidate.name === 'hours')!;
+eq('IFC-roundtrip bewaart urentaak op scalaire kalender', scalarReloadedHour.time.durationMinutes, 720);
+
+if (failures.length > 0) {
+  for (const failure of failures) console.log(`XX  ${failure}`);
+  console.log(`\n${failures.length}/${checks} T1-duureenheidchecks mislukt.`);
+  process.exit(1);
+}
+
+console.log(`OK  T1-duureenheid: ${checks} checks groen.`);

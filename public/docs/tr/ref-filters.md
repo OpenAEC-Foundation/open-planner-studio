@@ -27,6 +27,10 @@ Her grubun üstünde, kurallarının nasıl birleştiğini seçersiniz:
 
 Bir kuralın arkasındaki çöp kutusu simgesi o kuralı kaldırır; iç içe bir grubun sağ üstündeki çarpı tüm grubu kaldırır.
 
+## Filtreleri kaydetme ve yeniden kullanma
+
+Filtre penceresinin üstünde bir **Ad** girin ve geçerli kuralları ön ayar olarak saklamak için **Kaydet**'e tıklayın. Kaydedilmiş filtreler bu cihazdaki her projede kullanılabilir; yalnızca filtreyi değiştirir, sütunları, gruplamayı, sıralamayı veya zaman ölçeğini değiştirmez. Aynı listeden kaydedilmiş bir filtreyi seçerek hemen uygulayın ya da seçili ön ayarı çöp kutusuyla silin.
+
 ## Uygula, iptal et ve temizle
 
 - **Uygula** filtreyi etkinleştirir ve pencereyi kapatır. Kuralı olmayan bir filtre "filtre yok" sayılır.

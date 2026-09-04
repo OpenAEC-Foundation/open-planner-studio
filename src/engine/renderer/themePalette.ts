@@ -25,6 +25,13 @@ function cssVarReader(): (name: string, fallback: string) => string {
 }
 
 // ── Merk-hex: de vaste, niet-thema-gebonden kleuren, één keer gedefinieerd. ──
+export const GANTT_TRACE_COLORS = {
+  predecessor: '#F59E0B',        // path tracing: voorganger (goud)
+  predecessorDriving: '#D97706', // path tracing: driving voorganger (donkerder goud)
+  successor: '#A78BFA',          // path tracing: opvolger (paars)
+  successorDriving: '#7C3AED',   // path tracing: driving opvolger (donkerder paars)
+} as const;
+
 const BRAND = {
   critical: '#DC2626',          // kritiek (rood)
   criticalLight: '#991B1B',     // voortgangsvulling kritiek
@@ -40,10 +47,10 @@ const BRAND = {
   constraintEarly: '#3B82F6',   // vroege-zijde constraint (SNET/FNET): blauw
   constraintLate: '#8B5CF6',    // late-zijde/pinnende constraint (SNLT/FNLT/MSO/MFO): violet
   deadlineOk: '#10B981',        // deadline-marker (groen; rood bij overschrijding)
-  tracePred: '#F59E0B',         // path tracing: voorganger (goud)
-  tracePredDriving: '#D97706',  // path tracing: driving voorganger (donkerder goud)
-  traceSucc: '#A78BFA',         // path tracing: opvolger (paars)
-  traceSuccDriving: '#7C3AED',  // path tracing: driving opvolger (donkerder paars)
+  tracePred: GANTT_TRACE_COLORS.predecessor,
+  tracePredDriving: GANTT_TRACE_COLORS.predecessorDriving,
+  traceSucc: GANTT_TRACE_COLORS.successor,
+  traceSuccDriving: GANTT_TRACE_COLORS.successorDriving,
 };
 
 // Optionele tint per float-pad (fase 2.9 §5.4): pad 1 = kritiek (rood, elders), paden ≥2 elk een
@@ -58,6 +65,13 @@ export interface GanttPalette {
   surface: string;
   grid: string;
   gridWeekend: string;
+  /** Om-en-om weekband in de GECOMPRIMEERDE modus (issue #21 punt 2): de achtergrondtint van de
+   *  dagkolommen van oneven ISO-weken. Onder compressie bestaan weekendkolommen niet meer, dus de
+   *  weekendarcering — de enige visuele weekscheiding — vervalt daar; deze band neemt die rol
+   *  over. Aparte var (géén hergebruik van `gridWeekend`): de band bedekt hele weken (5+ kolommen
+   *  aaneen) i.p.v. losse dagen en moet dus per thema onafhankelijk subtieler afgesteld kunnen
+   *  worden. */
+  gridWeekBand: string;
   border: string;
   text: string;
   textSecondary: string;
@@ -105,6 +119,7 @@ export function readGanttPalette(): GanttPalette {
     surface: v('--theme-surface-alt', '#F6F8FB'),
     grid: v('--theme-border-light', '#EDF0F5'),
     gridWeekend: v('--theme-grid-weekend', '#EFF2F7'),
+    gridWeekBand: v('--theme-grid-week-band', '#F1F4F9'),
     border: v('--theme-border', '#E2E7EE'),
     text: v('--theme-text', '#333845'),
     textSecondary: v('--theme-text-dim', '#5B6472'),
@@ -206,6 +221,10 @@ export const PRINT_PALETTE = {
   surface: '#f8f9fa',
   grid: '#e5e7eb',
   gridWeekend: '#f0f1f3',
+  // Weekbanden horen alleen op de gecomprimeerde werkdagen-as: daar bestaan geen weekendkolommen
+  // meer om de weekgrens te lezen. Lichter dan `gridWeekend`, omdat een heel weekvlak rustiger
+  // moet blijven dan twee losse vrije dagen (issue #21 punt 2).
+  gridWeekBand: '#f1f4f9',
   gridHoliday: '#fef3c7',
   border: '#d1d5db',
   borderDark: '#9ca3af',
@@ -213,9 +232,14 @@ export const PRINT_PALETTE = {
   textSecondary: '#6b7280',
   critical: BRAND.critical,   // '#DC2626'
   criticalDark: '#991b1b',
+  // Bijna-kritiek (#21 kleurmodi): de print tekende bijna-kritiek nooit zelf (critical/normal
+  // waren de enige balkkleuren); de 'critical'-kleurmodus deelt die keuze nu met barColors.
+  nearCritical: BRAND.nearCritical, // '#F59E0B'
   normal: BRAND.normal,       // '#2563EB'
   normalDark: '#1d4ed8',
   milestone: BRAND.milestone, // '#7C3AED'
+  baseline: BRAND.baseline,   // '#6B7280'
+  uncategorized: BRAND.ghost, // '#94A3B8' — ontbrekende categoriewaarde
   float: '#10B981',
   dependency: '#9CA3AF',
   today: '#F59E0B',

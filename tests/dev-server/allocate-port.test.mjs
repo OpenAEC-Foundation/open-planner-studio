@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { allocatePort, MIN_PORT, MAX_PORT, stampLaunchJson } from '../../scripts/dev-port.mjs';
+import {
+  allocateNamedPort,
+  allocatePort,
+  MIN_PORT,
+  MAX_PORT,
+  stampLaunchJson,
+} from '../../scripts/dev-port.mjs';
 
 function wt(name) {
   const root = join(mkdtempSync(join(tmpdir(), 'ops-alloc-')), name);
@@ -72,6 +78,45 @@ test('behoudt een bestaande preview-configuratie bij het stempelen', async () =>
   const prev = json.configurations.find((c) => c.name === 'preview');
   assert.ok(prev);
   assert.equal(prev.port, 4173);
+  rmSync(join(root, '..'), { recursive: true, force: true });
+});
+
+test('twee worktrees krijgen verschillende poorten binnen de browserlane', async () => {
+  const first = wt('browser-a');
+  const second = wt('browser-b');
+  const d = deps({ paths: [first, second] });
+
+  assert.equal(await allocateNamedPort(first, 'browser', d), 3107);
+  assert.equal(await allocateNamedPort(second, 'browser', d), 3108);
+
+  const firstJson = JSON.parse(readFileSync(join(first, '.claude', 'launch.json'), 'utf8'));
+  const secondJson = JSON.parse(readFileSync(join(second, '.claude', 'launch.json'), 'utf8'));
+  assert.equal(firstJson.opsBrowserTestPort, 3107);
+  assert.equal(secondJson.opsBrowserTestPort, 3108);
+  rmSync(join(first, '..'), { recursive: true, force: true });
+  rmSync(join(second, '..'), { recursive: true, force: true });
+});
+
+test('browserstempel laat bestaande devmarker en devconfiguratie inhoudelijk intact', async () => {
+  const root = wt('lanes');
+  const devConfiguration = {
+    name: 'dev',
+    runtimeExecutable: 'npm',
+    runtimeArgs: ['run', 'dev', '--', '--host'],
+    port: 3042,
+    extra: { behouden: true },
+  };
+  writeFileSync(join(root, '.claude', 'launch.json'), JSON.stringify({
+    version: '0.0.1',
+    opsDevPort: 3042,
+    configurations: [devConfiguration],
+  }));
+
+  assert.equal(await allocateNamedPort(root, 'browser', deps({ paths: [root] })), 3107);
+  const json = JSON.parse(readFileSync(join(root, '.claude', 'launch.json'), 'utf8'));
+  assert.equal(json.opsDevPort, 3042);
+  assert.deepEqual(json.configurations[0], devConfiguration);
+  assert.equal(json.opsBrowserTestPort, 3107);
   rmSync(join(root, '..'), { recursive: true, force: true });
 });
 

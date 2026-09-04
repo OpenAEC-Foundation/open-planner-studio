@@ -128,7 +128,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [boxSelectState, selectTasks, deselectAll]);
+  }, [boxSelectState, canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef]);
 
   return {
     boxSelectCandidate,

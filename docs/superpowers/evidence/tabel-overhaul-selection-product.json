@@ -1,0 +1,761 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-27T13:13:37.585Z",
+  "label": "tabel-overhaul-restpost-definitief-3000",
+  "revision": "working-tree",
+  "appUrl": "http://127.0.0.1:3018/",
+  "fixture": {
+    "path": "/tmp/open-planner-table-overhaul-3000.ifc",
+    "bytes": 2136647,
+    "expectedTasks": 3000
+  },
+  "environment": {
+    "node": "v22.23.2",
+    "chrome": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "platform": "linux",
+    "arch": "x64",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i7-1260P",
+    "logicalCpuCount": 16
+  },
+  "protocol": {
+    "operation": "klik linttab Tabel vanuit Start na laden van hetzelfde 3000-taken-IFC",
+    "warmups": 2,
+    "runs": 9,
+    "statistic": "median",
+    "readiness": "actieve tabelstate plus twee animation frames"
+  },
+  "selectionProtocol": {
+    "operation": "echte CDP-muisklik op afwisselend twee zichtbare, alleen-lezen WBS-cellen",
+    "warmups": 2,
+    "runs": 9,
+    "statistic": "median",
+    "readiness": "pointerdown tot en met twee animation frames, met actieve taak en celtoestand gecontroleerd"
+  },
+  "floorProtocol": {
+    "operation": "dezelfde meetklok voor een herhaalde klik op de actieve cel en een neutrale klik op statustekst",
+    "warmups": 2,
+    "runs": 9,
+    "statistic": "median",
+    "readiness": "twee animation frames, met ongewijzigde taakselectie gecontroleerd"
+  },
+  "gridOnlyProtocol": {
+    "operation": "dezelfde taakselectie na sluiten van de eigenschappenrail",
+    "warmups": 2,
+    "runs": 9,
+    "statistic": "median",
+    "readiness": "nul canvas-elementen en nul eigenschappenpanelen plus twee animation frames"
+  },
+  "load": {
+    "milliseconds": 424.79999999701977,
+    "tasks": 3000,
+    "sequences": 2999
+  },
+  "samples": [
+    {
+      "wallMs": 125.8,
+      "scriptMs": 95.782,
+      "layoutMs": 4.843,
+      "styleMs": 3.866,
+      "taskMs": 126.672,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 72.7,
+      "scriptMs": 58.993,
+      "layoutMs": 3.559,
+      "styleMs": 4.544,
+      "taskMs": 78.683,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 73.4,
+      "scriptMs": 44.546,
+      "layoutMs": 5.818,
+      "styleMs": 3.679,
+      "taskMs": 66.921,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 58,
+      "scriptMs": 44.069,
+      "layoutMs": 4.516,
+      "styleMs": 3.809,
+      "taskMs": 65.359,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 57.3,
+      "scriptMs": 42.942,
+      "layoutMs": 4.651,
+      "styleMs": 4.067,
+      "taskMs": 71.698,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 127.6,
+      "scriptMs": 97.489,
+      "layoutMs": 7.507,
+      "styleMs": 5.48,
+      "taskMs": 127.882,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 107.4,
+      "scriptMs": 92.82,
+      "layoutMs": 3.839,
+      "styleMs": 3.607,
+      "taskMs": 114.073,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 79.2,
+      "scriptMs": 62.779,
+      "layoutMs": 4.499,
+      "styleMs": 3.566,
+      "taskMs": 85.386,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 62.3,
+      "scriptMs": 43.004,
+      "layoutMs": 6.904,
+      "styleMs": 5.528,
+      "taskMs": 73.657,
+      "elements": 925,
+      "ariaRowCount": "3001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    }
+  ],
+  "medians": {
+    "wallMs": 73.4,
+    "scriptMs": 58.993,
+    "layoutMs": 4.651,
+    "styleMs": 3.866,
+    "taskMs": 78.683,
+    "elements": 925
+  },
+  "selectionSamples": [
+    {
+      "wallMs": 132,
+      "scriptMs": 106.338,
+      "layoutMs": 0.921,
+      "styleMs": 1.092,
+      "taskMs": 114.118,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-0"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 65.5,
+      "scriptMs": 45.865,
+      "layoutMs": 0.778,
+      "styleMs": 0.927,
+      "taskMs": 54.656,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-199"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 65.4,
+      "scriptMs": 44.336,
+      "layoutMs": 0.809,
+      "styleMs": 0.923,
+      "taskMs": 51.552,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-0"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 65.2,
+      "scriptMs": 43.951,
+      "layoutMs": 0.869,
+      "styleMs": 0.937,
+      "taskMs": 52.602,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-199"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 65,
+      "scriptMs": 41.867,
+      "layoutMs": 0.828,
+      "styleMs": 0.909,
+      "taskMs": 48.959,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-0"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 65.4,
+      "scriptMs": 41.235,
+      "layoutMs": 0.82,
+      "styleMs": 0.923,
+      "taskMs": 50.206,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-199"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 65.3,
+      "scriptMs": 46.56,
+      "layoutMs": 0.741,
+      "styleMs": 0.902,
+      "taskMs": 54.336,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-0"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 165.4,
+      "scriptMs": 128.664,
+      "layoutMs": 0.852,
+      "styleMs": 1.004,
+      "taskMs": 136.42,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-199"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    },
+    {
+      "wallMs": 64.3,
+      "scriptMs": 45.117,
+      "layoutMs": 0.851,
+      "styleMs": 1.018,
+      "taskMs": 52.469,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode",
+      "selectedTaskIds": [
+        "bm-leaf-0"
+      ],
+      "ariaSelected": "true",
+      "activeCell": "true"
+    }
+  ],
+  "selectionMedians": {
+    "wallMs": 65.4,
+    "scriptMs": 45.117,
+    "layoutMs": 0.828,
+    "styleMs": 0.927,
+    "taskMs": 52.602
+  },
+  "sameCellFloorSamples": [
+    {
+      "wallMs": 30.3,
+      "scriptMs": 24.981,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 27.313,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 31.2,
+      "scriptMs": 23.539,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 24.803,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 30.3,
+      "scriptMs": 18.434,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 19.5,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 30.5,
+      "scriptMs": 18.556,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 19.646,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 31.3,
+      "scriptMs": 18.698,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 19.822,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 31.3,
+      "scriptMs": 18.682,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 21.06,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 31.2,
+      "scriptMs": 17.347,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 18.371,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 30.3,
+      "scriptMs": 22.366,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 24.156,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 30.7,
+      "scriptMs": 17.968,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 19.352,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    }
+  ],
+  "sameCellFloorMedians": {
+    "wallMs": 30.7,
+    "scriptMs": 18.682,
+    "layoutMs": 0,
+    "styleMs": 0,
+    "taskMs": 19.822
+  },
+  "neutralFloorSamples": [
+    {
+      "wallMs": 30.1,
+      "scriptMs": 0.135,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.801
+    },
+    {
+      "wallMs": 29.7,
+      "scriptMs": 0.133,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.947
+    },
+    {
+      "wallMs": 30.5,
+      "scriptMs": 0.088,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.692
+    },
+    {
+      "wallMs": 29.8,
+      "scriptMs": 0.125,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.88
+    },
+    {
+      "wallMs": 30.4,
+      "scriptMs": 0.102,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.59
+    },
+    {
+      "wallMs": 30.1,
+      "scriptMs": 0.088,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.331
+    },
+    {
+      "wallMs": 30.5,
+      "scriptMs": 0.109,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 3.163
+    },
+    {
+      "wallMs": 30.2,
+      "scriptMs": 0.132,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 2.652
+    },
+    {
+      "wallMs": 30.6,
+      "scriptMs": 0.136,
+      "layoutMs": 0,
+      "styleMs": 0,
+      "taskMs": 1.796
+    }
+  ],
+  "neutralFloorMedians": {
+    "wallMs": 30.2,
+    "scriptMs": 0.125,
+    "layoutMs": 0,
+    "styleMs": 0,
+    "taskMs": 1.801
+  },
+  "selectionCpuProfile": {
+    "target": {
+      "x": 43,
+      "y": 376,
+      "key": "bm-leaf-199\u0000task.wbsCode",
+      "taskId": "bm-leaf-199"
+    },
+    "timing": {
+      "wallMs": 177.9,
+      "scriptMs": 154.044,
+      "layoutMs": 0.777,
+      "styleMs": 0.832,
+      "taskMs": 355.559
+    },
+    "canvasCount": 0,
+    "sampledMs": 365.241,
+    "categoriesMs": {
+      "browser-and-other": 219.038,
+      "react-runtime": 120.647,
+      "idle": 15.727,
+      "task-grid": 4.649,
+      "other-app": 3.145,
+      "properties-and-panels": 1.723,
+      "gantt-renderer-source": 0.312
+    },
+    "topSelfFrames": [
+      {
+        "functionName": "(program)",
+        "url": "",
+        "lineNumber": -1,
+        "selfMs": 193.004
+      },
+      {
+        "functionName": "exports.jsxDEV",
+        "url": "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5ab0687b",
+        "lineNumber": 238,
+        "selfMs": 78.057
+      },
+      {
+        "functionName": "(idle)",
+        "url": "",
+        "lineNumber": -1,
+        "selfMs": 15.727
+      },
+      {
+        "functionName": "jsxDEVImpl",
+        "url": "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5ab0687b",
+        "lineNumber": 167,
+        "selfMs": 7.97
+      },
+      {
+        "functionName": "run",
+        "url": "",
+        "lineNumber": -1,
+        "selfMs": 7.747
+      },
+      {
+        "functionName": "addObjectDiffToProperties",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 3080,
+        "selfMs": 4.326
+      },
+      {
+        "functionName": "updateProperties",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 14785,
+        "selfMs": 3.929
+      },
+      {
+        "functionName": "exports.createElement",
+        "url": "/node_modules/.vite/deps/chunk-WQJP7KRX.js?v=5ab0687b",
+        "lineNumber": 760,
+        "selfMs": 3.553
+      },
+      {
+        "functionName": "validateProperty",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 2344,
+        "selfMs": 2.907
+      },
+      {
+        "functionName": "StatusBar",
+        "url": "/src/components/layout/StatusBar/StatusBar.tsx",
+        "lineNumber": 8,
+        "selfMs": 2.825
+      },
+      {
+        "functionName": "validateProperties$2",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 2327,
+        "selfMs": 2.538
+      },
+      {
+        "functionName": "(garbage collector)",
+        "url": "",
+        "lineNumber": -1,
+        "selfMs": 1.741
+      },
+      {
+        "functionName": "getBoundingClientRect",
+        "url": "",
+        "lineNumber": -1,
+        "selfMs": 1.572
+      },
+      {
+        "functionName": "(anonymous)",
+        "url": "/src/components/task-grid/GridCell.tsx",
+        "lineNumber": 21,
+        "selfMs": 1.461
+      },
+      {
+        "functionName": "createTask",
+        "url": "",
+        "lineNumber": -1,
+        "selfMs": 1.446
+      },
+      {
+        "functionName": "commitUpdate",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 15886,
+        "selfMs": 1.374
+      },
+      {
+        "functionName": "extendTranslation",
+        "url": "/node_modules/.vite/deps/chunk-YXQ6G3JX.js?v=5ab0687b",
+        "lineNumber": 701,
+        "selfMs": 1.236
+      },
+      {
+        "functionName": "logComponentRender",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 3166,
+        "selfMs": 1.221
+      },
+      {
+        "functionName": "commitMutationEffectsOnFiber",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 10397,
+        "selfMs": 1.163
+      },
+      {
+        "functionName": "beginWork",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 8415,
+        "selfMs": 1.011
+      },
+      {
+        "functionName": "runWithFiberInDEV",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 992,
+        "selfMs": 0.922
+      },
+      {
+        "functionName": "recordEffectDuration",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 4364,
+        "selfMs": 0.884
+      },
+      {
+        "functionName": "resolve",
+        "url": "/node_modules/.vite/deps/chunk-YXQ6G3JX.js?v=5ab0687b",
+        "lineNumber": 759,
+        "selfMs": 0.849
+      },
+      {
+        "functionName": "extractFromKey",
+        "url": "/node_modules/.vite/deps/chunk-YXQ6G3JX.js?v=5ab0687b",
+        "lineNumber": 479,
+        "selfMs": 0.823
+      },
+      {
+        "functionName": "createTaskGridAdapter",
+        "url": "/src/engine/taskGrid/taskGridAdapter.ts",
+        "lineNumber": 86,
+        "selfMs": 0.794
+      },
+      {
+        "functionName": "updateSlot",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 4789,
+        "selfMs": 0.779
+      },
+      {
+        "functionName": "shouldSetTextContent",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 15846,
+        "selfMs": 0.654
+      },
+      {
+        "functionName": "renderWithHooks",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 5637,
+        "selfMs": 0.642
+      },
+      {
+        "functionName": "getTaskName",
+        "url": "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5ab0687b",
+        "lineNumber": 80,
+        "selfMs": 0.638
+      },
+      {
+        "functionName": "recursivelyTraverseMutationEffects",
+        "url": "/node_modules/.vite/deps/react-dom_client.js?v=5ab0687b",
+        "lineNumber": 10348,
+        "selfMs": 0.629
+      }
+    ]
+  },
+  "tableSurface": {
+    "canvasCount": 0,
+    "propertiesPanelCount": 0
+  },
+  "gridOnlySelectionSamples": [
+    {
+      "wallMs": 47.9,
+      "scriptMs": 33.83,
+      "layoutMs": 0.13,
+      "styleMs": 0.425,
+      "taskMs": 38.352,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 48,
+      "scriptMs": 33.591,
+      "layoutMs": 0.12,
+      "styleMs": 0.368,
+      "taskMs": 39.165,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 65.3,
+      "scriptMs": 46.203,
+      "layoutMs": 0.111,
+      "styleMs": 0.357,
+      "taskMs": 50.292,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 131.5,
+      "scriptMs": 106.678,
+      "layoutMs": 0.112,
+      "styleMs": 0.363,
+      "taskMs": 110.997,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 81.6,
+      "scriptMs": 52.922,
+      "layoutMs": 0.117,
+      "styleMs": 0.391,
+      "taskMs": 57.286,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 65.2,
+      "scriptMs": 39.619,
+      "layoutMs": 0.119,
+      "styleMs": 0.428,
+      "taskMs": 44.764,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 48.5,
+      "scriptMs": 34.413,
+      "layoutMs": 0.129,
+      "styleMs": 0.369,
+      "taskMs": 39.911,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 48.4,
+      "scriptMs": 34.343,
+      "layoutMs": 0.104,
+      "styleMs": 0.318,
+      "taskMs": 38.297,
+      "taskId": "bm-leaf-0",
+      "key": "bm-leaf-0\u0000task.wbsCode"
+    },
+    {
+      "wallMs": 48.2,
+      "scriptMs": 33.353,
+      "layoutMs": 0.105,
+      "styleMs": 0.348,
+      "taskMs": 38.766,
+      "taskId": "bm-leaf-199",
+      "key": "bm-leaf-199\u0000task.wbsCode"
+    }
+  ],
+  "gridOnlySelectionMedians": {
+    "wallMs": 48.5,
+    "scriptMs": 34.413,
+    "layoutMs": 0.117,
+    "styleMs": 0.368,
+    "taskMs": 39.911
+  }
+}

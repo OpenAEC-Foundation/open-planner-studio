@@ -15,6 +15,8 @@ import type { OccupancyDocInput, OccupancyEphemeralSolve } from '@/services/libr
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import { useAppStore } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { resolveLibrarySliceCache } from '@/components/panels/ResourceOccupancyView';
 import { createDefaultProject } from '@/state/defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { DocumentPayload, RecoveryDocInput } from '@/state/documentContract';
@@ -61,7 +63,7 @@ function task(id: string, earlyStart: string, earlyFinish: string, durationDays:
     id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: durationDays,
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: durationDays,
       scheduleStart: earlyStart, scheduleFinish: earlyFinish,
       earlyStart, earlyFinish, lateStart: earlyStart, lateFinish: earlyFinish,
       freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
@@ -646,9 +648,10 @@ let afterPayload: DocumentPayload | null = null;
 
   const before = sleeping(parkedId);
   assert(before !== null && before.scheduleStale === true, 'case 17 setup: de geparkeerde payload is stale');
-  const undoBefore = JSON.stringify(before?.undoStack);
+  const historyBefore = JSON.stringify(S().historyEvents.filter(event =>
+    event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId)));
   const dirtyBefore = before?.isDirty;
-  assert((before?.undoStack.length ?? 0) > 0, 'case 17 setup: de geparkeerde payload draagt een undo-historie');
+  assert(JSON.parse(historyBefore).length > 0, 'case 17 setup: de sessie draagt historie voor het geparkeerde document');
   const startBefore = before?.tasks.map(t => t.time.earlyStart) ?? [];
   assert(
     startBefore.length === 2 && startBefore[0] === startBefore[1],
@@ -673,8 +676,9 @@ let afterPayload: DocumentPayload | null = null;
     `case 17: de FS-relatie is écht doorgerekend (A2 start ná A1 klaar; kreeg ${a1?.time.earlyFinish} → ${a2?.time.earlyStart})`,
   );
   // Semantiek spiegelt runCPM: geen undo-snapshot, isDirty ongemoeid.
-  assert(JSON.stringify(afterPayload?.undoStack) === undoBefore, 'case 17: de undo-stack van de payload is ongewijzigd');
-  assert(afterPayload?.redoStack.length === 0, 'case 17: de redo-stack blijft leeg (geen bewerking)');
+  assert(JSON.stringify(S().historyEvents.filter(event =>
+    event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId))) === historyBefore,
+  'case 17: de sessiehistorie van het slapende document is ongewijzigd');
   assert(afterPayload?.isDirty === dirtyBefore, 'case 17: isDirty is ongemoeid');
 }
 
@@ -732,7 +736,96 @@ let afterPayload: DocumentPayload | null = null;
   const o1 = okAfter?.tasks.find(t => t.id === 'o1');
   const o2 = okAfter?.tasks.find(t => t.id === 'o2');
   assert(!!o1 && !!o2 && o2.time.earlyStart > o1.time.earlyFinish, 'case 20: de relatie is doorgerekend (o2 ná o1)');
-  assert(okAfter?.undoStack.length === 0 && okAfter?.isDirty === false, 'case 20: geen undo-snapshot, isDirty ongemoeid');
+  assert(S().historyEvents.every(event => !event.deltas.some(delta =>
+    delta.kind !== 'grid-preference' && delta.documentId === 'doc-gezond')) && okAfter?.isDirty === false,
+  'case 20: geen history-event, isDirty ongemoeid');
+}
+
+// ── Case 21: de viewslicecache isoleert company en pool expliciet ──────────────────────────
+// Dezelfde payload-referentie wordt bewust in drie contexten aangeboden. Een cache die alleen op
+// payload is gesleuteld zou bij de company- of poolwissel de eerste snit hergebruiken en daarmee
+// boekingen uit de vorige bibliotheek tonen.
+{
+  const base = capturePayload(S());
+  const sharedPayload: DocumentPayload = {
+    ...base,
+    project: { ...base.project, companyId: 'c1', companyName: 'Bibliotheek 1' },
+    resources: [
+      stamped('project-c1', 'lib-c1', 'c1'),
+      stamped('project-c2', 'lib-c2', 'c2'),
+    ],
+    tasks: [task('cache-task-c1', '2026-08-03', '2026-08-05', 3), task('cache-task-c2', '2026-08-03', '2026-08-05', 3)],
+    assignments: [
+      assign('cache-a-c1', 'cache-task-c1', 'project-c1', 1),
+      assign('cache-a-c2', 'cache-task-c2', 'project-c2', 1),
+    ],
+  };
+  const c1Pool = pool([poolRes('lib-c1', 'Kraan C1', 2)]);
+  const c2Pool: CompanyPool = {
+    ...pool([poolRes('lib-c2', 'Kraan C2', 2)]),
+    companyId: 'c2',
+    companyName: 'Bibliotheek 2',
+  };
+
+  const first = resolveLibrarySliceCache(undefined, sharedPayload, 'c1', c1Pool);
+  const same = resolveLibrarySliceCache(first.cache, sharedPayload, 'c1', c1Pool);
+  assert(same.cache === first.cache && same.slice === first.slice,
+    'case 21: dezelfde company/pool/payload-combinatie hergebruikt de bestaande snit');
+  assert(first.slice.resources.map(r => r.id).join(',') === 'project-c1',
+    'case 21 setup: de eerste snit bevat uitsluitend de c1-resource');
+
+  const switchedCompany = resolveLibrarySliceCache(first.cache, sharedPayload, 'c2', c2Pool);
+  assert(switchedCompany.cache !== first.cache,
+    'case 21: een companywissel maakt een nieuw expliciet cacherecord');
+  assert(switchedCompany.slice.resources.map(r => r.id).join(',') === 'project-c2',
+    'case 21: de companywissel gebruikt niet de c1-snit uit de vorige context');
+
+  const changedPool: CompanyPool = {
+    ...c1Pool,
+    poolVersion: c1Pool.poolVersion + 1,
+    resources: [poolRes('lib-anders', 'Andere kraan', 2)],
+  };
+  const switchedPool = resolveLibrarySliceCache(first.cache, sharedPayload, 'c1', changedPool);
+  assert(switchedPool.cache !== first.cache && switchedPool.slice.resources.length === 0,
+    'case 21: een nieuwe poolreferentie kan geen slice uit de vorige pool hergebruiken');
+}
+
+// ── Case 22 (B1c-W0.1): splitGaps — dailyLoad bevat de pauzedagen NIET, de werkdagen wél ─────────
+// Zelfde referentiegaten als `check-split-walk.ts`/`check-resource-load-splits.ts`: taak van 3
+// werkdagen met twee gaten van 1 werkdag na resp. dag 1 en aspositie 1440 ⇒ de taak werkt op de
+// 1e/3e/5e kalenderdag van de spanne, niet op de 2e/4e (pauzedagen). Dit dekt dat de bezettingskern
+// (via `computeResourceLoad`) de W0.1-fix meekrijgt, niet alleen de directe aanroepers.
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+  const splitTask: Task = {
+    ...task('d1-t1', '2026-08-03', '2026-08-07', 3),
+    splitGaps: [
+      { afterMinutes: 480, gapMinutes: 480 },
+      { afterMinutes: 1440, gapMinutes: 480 },
+    ],
+  };
+  const d1 = doc('d1', {
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [splitTask],
+    assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 1)],
+  });
+  const { rows } = computeLibraryOccupancy('c1', p, [d1]);
+  const booking = rows[0]?.docs[0];
+
+  assert(rows.length === 1 && booking !== undefined, 'case 22: de gesplitste taak levert een rij en een booking op');
+  assert(
+    booking !== undefined &&
+      Object.keys(booking.dailyLoad).sort().join(',') === ['2026-08-03', '2026-08-05', '2026-08-07'].join(','),
+    `case 22: dailyLoad bevat alleen de werkdagen 08-03/08-05/08-07 (kreeg ${JSON.stringify(Object.keys(booking?.dailyLoad ?? {}).sort())})`,
+  );
+  assert(
+    booking !== undefined && booking.dailyLoad['2026-08-04'] === undefined && booking.dailyLoad['2026-08-06'] === undefined,
+    'case 22: de pauzedagen 08-04/08-06 dragen géén last',
+  );
+  assert(
+    booking !== undefined && booking.dailyLoad['2026-08-03'] === 1 && booking.dailyLoad['2026-08-05'] === 1 && booking.dailyLoad['2026-08-07'] === 1,
+    'case 22: elke werkdag draagt de volle 1 eenheid (UNIFORM-curve)',
+  );
 }
 
 console.log(`occupancy: ${checks - fails}/${checks} groen`);

@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Enregistrement automatique", "noFile": "Enregistrez d’abord ce projet pour utiliser l’enregistrement automatique.", "onHint": "L’enregistrement automatique est actif : les modifications sont écrites dans ce fichier.", "offHint": "L’enregistrement automatique est désactivé. La récupération reste active." },
   "notifications": {
     "dismiss": "Fermer la notification",
     "openFailed": "Échec de l'ouverture du fichier",
@@ -72,7 +73,7 @@
     "relationCreated": "Relation créée : {{predecessor}} → {{successor}}",
     "relationDuplicate": "Cette relation existe déjà",
     "relationAncestorEndpoint": "Une relation entre une tâche et sa propre tâche récapitulative parente (ou ancêtre) n'est pas autorisée.",
-    "summaryRelationsDropped": "{{total}} relation(s) n'ont pas pu être prises en compte — voir le panneau Relations pour savoir lesquelles.",
+    "summaryRelationsDropped": "{{total}} relation(s) n'ont pas pu être prises en compte. Vérifiez les colonnes Prédécesseurs et Successeurs.",
     "mppSourceScheduleNotes_one": "Ce fichier MS Project contient {{count}} tâche à la planification fractionnée, lissée ou pilotée par les ressources. Elle est importée et affichée telle quelle.",
     "mppSourceScheduleNotes_many": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
     "mppSourceScheduleNotes_other": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
@@ -82,7 +83,14 @@
     "mppTimephasedSteeringLost_one": "La répartition horaire de MS Project ne pilote plus {{count}} tâche après cette modification ; la répartition d'origine reste conservée dans le fichier.",
     "mppTimephasedSteeringLost_many": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
     "mppTimephasedSteeringLost_other": "La répartition horaire de MS Project ne pilote plus {{count}} tâches après cette modification ; la répartition d'origine reste conservée dans le fichier.",
-    "readMore": "En savoir plus"
+    "readMore": "En savoir plus",
+    "pasteSkippedReadOnly_one": "{{count}} cellule ignorée : elle est en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
+    "pasteSkippedReadOnly_many": "{{count}} cellules ignorées : elles sont en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
+    "pasteSkippedReadOnly_other": "{{count}} cellules ignorées : elles sont en lecture seule (par exemple un code WBS numéroté automatiquement ou une colonne calculée).",
+    "librarySaveFailed": "La bibliothèque n'a pas pu être enregistrée",
+    "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
+    "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières."
   },
   "yes": "Oui",
   "no": "Non",
@@ -151,11 +159,15 @@
     "themeDark": "Sombre",
     "themeLight": "Clair",
     "themeHighContrast": "Contraste élevé",
+    "themeFollowSystem": "Suivre le thème du système",
+    "themeSystemHint": "Suit le schéma de couleurs de votre système (actuellement : {{theme}}).",
     "timeline": "Chronologie / Zoom",
     "hourPlanningSection": "Planification horaire",
     "enableHourPlanning": "Activer la planification horaire",
     "enableHourPlanningHint": "Active la planification heure/minute : une échelle de temps en heures, des équipes avec des plages horaires de travail et des barres de tâche précises à l'heure près. Désactivé ⇒ l'application reste entièrement en granularité journalière, comme auparavant.",
     "allowMixedDayHour": "Autoriser la planification mixte jour/heure",
+    "defaultTaskDurationUnit": "Unité par défaut des nouvelles tâches",
+    "defaultTaskDurationUnitHint": "Détermine si les nouvelles tâches commencent en jours ouvrés ou en heures de travail. Les tâches existantes ne changent pas.",
     "durationDisplay": "Affichage de la durée",
     "durationDisplayAuto": "Automatique (unité propre à chaque tâche)",
     "durationDisplayDays": "Toujours en jours",
@@ -310,6 +322,9 @@
     "openBadge": "{{count}} ouverts",
     "switchHint": "⌘1–9 pour changer",
     "openProject": "Ouvrir le projet",
+    "newOrOpenTitle": "Démarrer un projet",
+    "newProject": "Nouveau projet",
+    "openExistingProject": "Ouvrir un projet existant",
     "allProjects": "Tous les projets",
     "active": "Actif",
     "tasksWord": "tâches",
@@ -384,13 +399,39 @@
       "sameSize": "Même taille que la version précédente",
       "daysSincePrevious": "Depuis la version précédente : {{count}} jours",
       "currentOnly": "Vous utilisez maintenant la version {{version}}",
-      "whatsNewButton": "Nouveautés"
+      "whatsNewButton": "Nouveautés", "newVersion": "Nouvelle version", "readGuide": "Lire le guide", "fullNotes": "Voir les notes de version", "openFailed": "Les notes de version n’ont pas pu être ouvertes.", "inNumbers": "Cette mise à jour en chiffres", "days": "jours depuis la version précédente", "commits": "commits depuis la version précédente", "codeLines": "lignes de code ajoutées", "codeLinesHint": "Lignes ajoutées dans l’application, Rust, scripts et tests.", "smallerLabel": "paquet plus petit", "largerLabel": "paquet plus grand", "acknowledge": "Compris"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} échéance(s) dépassée(s)",
     "violatedConstraints": "{{count}} contrainte(s) non respectée(s)",
-    "outOfSequence": "{{count}} relation(s) hors séquence"
+    "outOfSequence": "{{count}} relation(s) hors séquence",
+    "overallocated": "{{count}} ressource(s) en surallocation"
+  },
+  "warnings": {
+    "title": "Avertissements",
+    "close": "Fermer les avertissements",
+    "openPanel": "Ouvrir le panneau Avertissements (détails et navigation)",
+    "summary": "{{errors}} erreur(s), {{warnings}} avertissement(s)",
+    "noSchedule": "Pas encore calculé — appuyez sur Calculer (F5) pour exécuter les contrôles.",
+    "stale": "Planning obsolète — cette liste provient du dernier calcul. Recalculez (F5).",
+    "empty": "Aucun avertissement. Le planning passe tous les contrôles.",
+    "goTo": "Aller à : {{target}}",
+    "kind": {
+      "scheduleError": "Le planning n'a pas pu être calculé : {{message}}",
+      "missedDeadline": "Échéance {{deadline}} dépassée — fin au plus tôt {{finish}}",
+      "violatedConstraint": "La contrainte {{constraint}} est outrepassée par la logique (marge négative)",
+      "outOfSequence": "Hors séquence : l'avancement du successeur contredit la relation",
+      "truncatedLead": "Avance tronquée par le début du projet — la relation n'est pas pleinement respectée",
+      "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur est absent ou n'est pas une tâche feuille",
+      "hammockNoFinishDriver": "Hamac sans pilote de fin (aucun prédécesseur FF/DF) : sa durée retombe à zéro",
+      "cappedTask": "Date de fin plafonnée : le calendrier ne laisse aucune fenêtre ouvrable pour cette tâche",
+      "overallocation": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Projet",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -606,7 +647,8 @@
       "capacity": "Capacité",
       "documents": "Documents",
       "selectHint": "Sélectionnez une ressource pour voir l'histogramme."
-    }
+    },
+    "color": "Couleur"
   },
   "calendar": {
     "library": {
@@ -657,6 +699,18 @@
       "threeShift": "3 équipes",
       "night": "Équipe de nuit",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Saisissez une heure de pause valide au format HH:MM.",
+      "invalidWorkStart": "Saisissez une heure de début valide au format HH:MM.",
+      "invalidWorkEnd": "Saisissez une heure de fin valide au format HH:MM.",
+      "invalidWorkTimeOrder": "L’heure de début doit précéder l’heure de fin.",
+      "increaseTime": "Augmenter l’heure de 15 minutes",
+      "decreaseTime": "Réduire l’heure de 15 minutes",
+      "increaseBreakDuration": "Augmenter la durée de pause de 15 minutes",
+      "decreaseBreakDuration": "Réduire la durée de pause de 15 minutes",
+      "start": "Début de la pause", "duration": "Durée de la pause (minutes)", "hint": "Les plages de travail sont déduites automatiquement. Une durée de 0 supprime la pause.",
+      "errors": { "invalidDuration": "La durée doit être un nombre entier de minutes supérieur ou égal à 0.", "outsideWorkingDay": "La pause doit être entièrement comprise dans la journée de travail.", "consumesWorkingDay": "La pause ne peut pas couvrir toute la journée de travail." }
     },
     "worktime": {
       "section": "Horaires de travail",
@@ -742,7 +796,7 @@
       "none": "(aucun)"
     },
     "presentation": {
-      "hint": "Appuyez sur F11 pour quitter le mode présentation"
+      "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."
     },
     "splitView": {
       "primary": "Principal",
@@ -774,6 +828,8 @@
   "duration": {
     "suffixDay": "j",
     "suffixHour": "h",
+    "days": "Jours",
+    "hours": "Heures",
     "suffixMinute": "min"
   },
   "shortcuts": {
@@ -784,7 +840,8 @@
       "edit": "Édition",
       "structure": "Structure",
       "view": "Affichage",
-      "nav": "Navigation"
+      "nav": "Navigation",
+      "grid": "Tableau"
     },
     "view": {
       "exitFullscreen": "Quitter la présentation",
@@ -804,6 +861,12 @@
       "switchDocument": "Changer de document",
       "scrollToToday": "Aller à aujourd'hui",
       "help": "Ouvrir l'aide"
+    },
+    "grid": {
+      "navigate": "Cellule suivante/précédente",
+      "edit": "Modifier la cellule",
+      "typeToReplace": "Taper remplace le contenu de la cellule",
+      "clearCell": "Effacer le contenu de la cellule"
     }
   },
   "welcome": {

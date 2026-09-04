@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-26T20:50:09.925Z",
+  "label": "final",
+  "revision": "77ceabec9bb36a5ab089db68e797adca2f9c22b9+worktree-f3a1b34b",
+  "appUrl": "http://127.0.0.1:3008/",
+  "fixture": {
+    "path": "/tmp/open-planner-table-overhaul-10000.ifc",
+    "bytes": 6701772,
+    "expectedTasks": 10000
+  },
+  "environment": {
+    "node": "v24.15.0",
+    "chrome": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "platform": "linux",
+    "arch": "x64",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i7-1260P",
+    "logicalCpuCount": 16
+  },
+  "protocol": {
+    "operation": "klik linttab Tabel vanuit Start na laden van hetzelfde 10.000-taken-IFC",
+    "warmups": 2,
+    "runs": 9,
+    "statistic": "median",
+    "readiness": "actieve tabelstate plus twee animation frames"
+  },
+  "load": {
+    "milliseconds": 800.1000000014901,
+    "tasks": 10000,
+    "sequences": 11700
+  },
+  "samples": [
+    {
+      "wallMs": 88,
+      "scriptMs": 78.788,
+      "layoutMs": 3.722,
+      "styleMs": 3.261,
+      "taskMs": 98.307,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 106.7,
+      "scriptMs": 96.986,
+      "layoutMs": 3.344,
+      "styleMs": 3.664,
+      "taskMs": 112.484,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 113,
+      "scriptMs": 93.274,
+      "layoutMs": 3.454,
+      "styleMs": 3.002,
+      "taskMs": 112.415,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 84.6,
+      "scriptMs": 77.476,
+      "layoutMs": 3.002,
+      "styleMs": 2.879,
+      "taskMs": 97.457,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 69.2,
+      "scriptMs": 57.034,
+      "layoutMs": 2.909,
+      "styleMs": 2.582,
+      "taskMs": 70.812,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 71.1,
+      "scriptMs": 57.077,
+      "layoutMs": 2.949,
+      "styleMs": 2.514,
+      "taskMs": 70.635,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 111.9,
+      "scriptMs": 95.764,
+      "layoutMs": 2.931,
+      "styleMs": 2.555,
+      "taskMs": 112.185,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 120.2,
+      "scriptMs": 101.957,
+      "layoutMs": 3.138,
+      "styleMs": 2.7,
+      "taskMs": 116.597,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    },
+    {
+      "wallMs": 75.3,
+      "scriptMs": 59.02,
+      "layoutMs": 3.339,
+      "styleMs": 2.887,
+      "taskMs": 77.484,
+      "elements": 926,
+      "ariaRowCount": "10001",
+      "mountedGridRows": 26,
+      "mountedGridCells": 234
+    }
+  ],
+  "medians": {
+    "wallMs": 88,
+    "scriptMs": 78.788,
+    "layoutMs": 3.138,
+    "styleMs": 2.879,
+    "taskMs": 98.307,
+    "elements": 926
+  }
+}

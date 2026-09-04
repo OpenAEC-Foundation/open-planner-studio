@@ -9,8 +9,16 @@ import type {
   DateNotation,
   DurationDisplay,
   BarSplitMode,
+  FilterNode,
+  SavedFilter,
   UIFontFamily,
 } from '@/state/slices/types';
+import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
+import {
+  legacyLayoutColumnsToTaskGridPreferences,
+  normalizePersistedTaskGridPreferences,
+  normalizeTaskGridColumnPreferences,
+} from '@/engine/taskGrid/preferences';
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const raw = localStorage.getItem(`ops-${key}`);
@@ -37,7 +45,9 @@ export async function saveTheme(theme: UITheme): Promise<void> {
   localStorage.setItem('ops-theme', theme);
 }
 
-// Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment)
+// Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment), plus de latere
+// 'system'-voorkeur (volg het OS-kleurschema) die geen migratie nodig heeft maar wél in deze map
+// moet staan — een onbekende sleutel valt hieronder terug op 'dark'.
 // 'default' was de warme bruine + amber dark theme; nu de canonical 'dark'
 // 'light' blijft 'light' (light kleuren krijgen OpenAEC token-update in globals.css)
 // 'highContrast' wordt 'high-contrast' (consistente naamgeving)
@@ -51,6 +61,7 @@ const THEME_MIGRATION: Record<string, UITheme> = {
   'warm-ember': 'dark',
   'highContrast': 'high-contrast',
   'high-contrast': 'high-contrast',
+  'system': 'system',
 };
 
 export async function initTheme(): Promise<UITheme> {
@@ -136,6 +147,12 @@ export async function saveRailPropertiesHeight(value: number): Promise<void> {
   await setSetting('railPropertiesHeight', Math.round(value));
 }
 
+// Issue #53: hoogte van het Waarschuwingenpaneel onderin de rail (ui.railWarningsHeight) — zelfde
+// categorie en klemmen als de Eigenschappen-sectie hierboven.
+export async function saveRailWarningsHeight(value: number): Promise<void> {
+  await setSetting('railWarningsHeight', Math.round(value));
+}
+
 export async function saveRibbonCompact(value: boolean): Promise<void> {
   await setSetting('ribbonCompact', value);
 }
@@ -167,6 +184,10 @@ export async function saveShowStatusDateLine(value: boolean): Promise<void> {
   await setSetting('showStatusDateLine', value);
 }
 
+export async function saveShowResourceAccent(value: boolean): Promise<void> {
+  await setSetting('showResourceAccent', value);
+}
+
 // Mini-map (fase 2.7, §11.3): app-globale zichtbaarheid, view-state zoals showHistogram —
 // persist via dezelfde ops-prefix (`ops-showMiniMap`), buiten de 3-plekken-regel.
 export async function saveShowMiniMap(value: boolean): Promise<void> {
@@ -177,32 +198,161 @@ export async function saveDocumentChromeStyle(value: DocumentChromeStyle): Promi
   await setSetting('documentChromeStyle', value);
 }
 
+export type TaskGridPreferencesLoadResult =
+  | { status: 'missing' }
+  | { status: 'invalid' }
+  | { status: 'valid'; value: PersistedTaskGridPreferencesV1 };
+
+/** Eén versieerbare gebruikerssleutel voor beide surfaces en de gedeelde MRU. De status blijft
+ *  expliciet: alleen `missing` mag door bootstrap als eenmalige migratie worden opgeslagen;
+ *  `invalid` blijft rauw staan zodat corrupte data niet stil als geldig wordt overschreven. */
+export async function loadTaskGridPreferences(
+  defaults: PersistedTaskGridPreferencesV1,
+): Promise<TaskGridPreferencesLoadResult> {
+  const raw = localStorage.getItem('ops-taskGridPreferences');
+  if (raw === null) return { status: 'missing' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { status: 'invalid' };
+  }
+  const value = normalizePersistedTaskGridPreferences(parsed, defaults);
+  return value ? { status: 'valid', value } : { status: 'invalid' };
+}
+
+export async function saveTaskGridPreferences(
+  preferences: PersistedTaskGridPreferencesV1,
+): Promise<void> {
+  await setSetting('taskGridPreferences', preferences);
+}
+
 // Layouts (fase 2.7, §8.2): app-globaal in localStorage, géén Tauri-store. Parse-guard: corrupte JSON
 // of een item zonder de juiste shape → weggelaten (nooit een crash op een handmatig geprutste
 // localStorage-waarde). `ops-lastLayoutId` moet naar een BESTAANDE layout wijzen, anders `null` —
 // die check gebeurt hier niet (de aanroeper kent de actuele lijst pas na `loadLayouts()`).
-function isValidLayout(v: unknown): v is Layout {
-  if (!v || typeof v !== 'object') return false;
+const TASK_GRID_LAYOUTS_VERSION = 1;
+
+interface PersistedTaskGridLayoutsV1 {
+  version: 1;
+  layouts: Layout[];
+}
+
+interface LegacyColumnConfigLike {
+  field: Record<string, unknown>;
+  visible: boolean;
+  width: number;
+}
+
+function baseLayout(v: unknown): Record<string, unknown> | null {
+  if (!v || typeof v !== 'object') return null;
   const l = v as Record<string, unknown>;
   return (
     typeof l.id === 'string' &&
     typeof l.name === 'string' &&
-    Array.isArray(l.columns) &&
     Array.isArray(l.group) &&
     Array.isArray(l.sort) &&
     (l.filter === null || typeof l.filter === 'object') &&
     typeof l.timeScale === 'string'
-  );
+  ) ? l : null;
+}
+
+function isLegacyColumnConfig(value: unknown): value is LegacyColumnConfigLike {
+  if (!value || typeof value !== 'object') return false;
+  const column = value as Record<string, unknown>;
+  if (typeof column.visible !== 'boolean'
+    || typeof column.width !== 'number'
+    || !Number.isFinite(column.width)
+    || !column.field
+    || typeof column.field !== 'object') return false;
+  const field = column.field as Record<string, unknown>;
+  return typeof field.src === 'string' && field.src.length > 0;
+}
+
+function normalizeLayout(v: unknown): Layout | null {
+  const l = baseLayout(v);
+  if (!l || !Array.isArray(l.columns)) return null;
+  const currentColumns = normalizeTaskGridColumnPreferences(l.columns);
+  const legacyColumns = currentColumns === null && l.columns.every(isLegacyColumnConfig)
+    ? legacyLayoutColumnsToTaskGridPreferences(l.columns)
+    : null;
+  const columns = currentColumns ?? legacyColumns;
+  if (columns === null) return null;
+  return {
+    id: l.id as string,
+    name: l.name as string,
+    columns,
+    group: l.group as Layout['group'],
+    sort: l.sort as Layout['sort'],
+    filter: l.filter as Layout['filter'],
+    timeScale: l.timeScale as Layout['timeScale'],
+  };
+}
+
+function normalizeLayouts(raw: unknown): Layout[] | null {
+  if (!Array.isArray(raw)) return null;
+  // Eén kapotte legacy-layout mag zijn geldige buren niet verbergen. Dit bewaart het oude
+  // item-voor-item parsegedrag, terwijl iedere overlevende layout wel volledig wordt genormaliseerd.
+  return raw.map(normalizeLayout).filter((layout): layout is Layout => layout !== null);
 }
 
 export async function loadLayouts(): Promise<Layout[]> {
-  const raw = await getSetting<unknown>('layouts');
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(isValidLayout);
+  const current = await getSetting<unknown>('taskGridLayouts');
+  if (current && typeof current === 'object') {
+    const wrapper = current as Record<string, unknown>;
+    if (wrapper.version === TASK_GRID_LAYOUTS_VERSION) {
+      const normalized = normalizeLayouts(wrapper.layouts);
+      if (normalized) return normalized;
+    }
+  }
+  // Lazy legacy-read: de oude sleutel blijft byte-identiek staan totdat de gebruiker expliciet
+  // opslaat/bijwerkt. Dynamische refs worden hier opaque, zonder actief project te raden.
+  const legacy = await getSetting<unknown>('layouts');
+  return normalizeLayouts(legacy) ?? [];
 }
 
 export async function saveLayouts(layouts: Layout[]): Promise<void> {
-  await setSetting('layouts', layouts);
+  const normalized = normalizeLayouts(layouts);
+  if (!normalized) return;
+  const payload: PersistedTaskGridLayoutsV1 = { version: 1, layouts: normalized };
+  await setSetting('taskGridLayouts', payload);
+}
+
+// Opgeslagen filters (issue #85): net als layouts app-breed op dit apparaat, maar bewust alleen
+// de filterboom. Daardoor blijft de rest van de actuele weergave onaangetast bij snel wisselen.
+const FILTER_OPERATORS = new Set(['eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'contains', 'startsWith', 'between', 'isEmpty', 'in']);
+
+function isFilterNode(value: unknown): value is FilterNode {
+  if (!value || typeof value !== 'object') return false;
+  const node = value as Record<string, unknown>;
+  if (node.kind === 'group') {
+    return (node.op === 'AND' || node.op === 'OR') && Array.isArray(node.children) && node.children.every(isFilterNode);
+  }
+  if (node.kind !== 'rule' || !FILTER_OPERATORS.has(node.operator as string)) return false;
+  const field = node.field;
+  if (!field || typeof field !== 'object') return false;
+  const ref = field as Record<string, unknown>;
+  return (ref.src === 'builtin' && typeof ref.key === 'string') ||
+    (ref.src === 'activityCode' && typeof ref.typeId === 'string') ||
+    (ref.src === 'customField' && typeof ref.defId === 'string') ||
+    ref.src === 'resource';
+}
+
+function isValidSavedFilter(value: unknown): value is SavedFilter {
+  if (!value || typeof value !== 'object') return false;
+  const filter = value as Record<string, unknown>;
+  return typeof filter.id === 'string' && filter.id.length > 0 &&
+    typeof filter.name === 'string' && filter.name.trim().length > 0 &&
+    isFilterNode(filter.filter);
+}
+
+export async function loadSavedFilters(): Promise<SavedFilter[]> {
+  const raw = await getSetting<unknown>('savedFilters');
+  return Array.isArray(raw) ? raw.filter(isValidSavedFilter) : [];
+}
+
+export async function saveSavedFilters(filters: SavedFilter[]): Promise<void> {
+  await setSetting('savedFilters', filters);
 }
 
 // Automatisch berekenen (fase 2.7 vervolg): app-instelling, dus WEL onder de 3-plekken-regel
@@ -258,6 +408,7 @@ export async function saveEnableHourPlanning(value: boolean): Promise<void> {
   await setSetting('enableHourPlanning', value);
 }
 
+/** App-brede UI-poort: de bestaande `ops-allowMixedDayHour`-sleutel blijft ongewijzigd leesbaar. */
 export async function saveAllowMixedDayHour(value: boolean): Promise<void> {
   await setSetting('allowMixedDayHour', value);
 }

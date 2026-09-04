@@ -56,7 +56,7 @@
 }
 
 .ext-install-btn:hover { background: var(--theme-hover); border-color: var(--theme-accent); }
-.ext-install-btn:disabled { opacity: 0.5; cursor: default; }
+.ext-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ext-search {
   padding: 6px 10px;
@@ -91,6 +91,7 @@
 }
 
 .ext-card-error { border-color: #dc2626; }
+.ext-card-quarantined { border-color: #d97706; }
 
 .ext-card-icon {
   flex-shrink: 0;
@@ -103,6 +104,7 @@
 }
 
 .ext-card-icon svg { width: 24px; height: 24px; }
+.ext-card-quarantine-icon { color: #d97706; }
 
 .ext-card-body { flex: 1; min-width: 0; }
 
@@ -146,7 +148,7 @@
   padding: 0;
   cursor: pointer;
 }
-.ext-toggle:disabled { opacity: 0.5; cursor: default; }
+.ext-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ext-toggle-track {
   width: 34px;
@@ -196,6 +198,22 @@
   font-weight: 600;
   color: var(--theme-accent);
   text-transform: uppercase;
+}
+
+.ext-quarantine-badge {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  color: #d97706;
+  text-transform: uppercase;
+}
+
+.ext-catalog-warning {
+  padding: 8px 10px;
+  border: 1px solid #d97706;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, #d97706 10%, transparent);
+  color: var(--theme-text);
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .ext-empty {

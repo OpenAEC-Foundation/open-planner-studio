@@ -1,7 +1,7 @@
 import type { Project } from '@/types/project';
 import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 import { generateId } from '@/utils/id';
 import {
   capturePayload,
@@ -12,7 +12,6 @@ import {
   type RecoveryDocInput,
 } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import { resetUndoCoalescing } from '../transaction';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
@@ -21,6 +20,18 @@ import {
   XerSourceArchiveValidationError,
   type XerSourceArchive,
 } from '@/services/xerSourceArchive';
+import {
+  invalidateUndoneHistoryForScopes,
+  removeSessionHistoryForDocumentFromState,
+  replaceSessionHistoryState,
+  type HistoryScopeKey,
+} from '../sessionHistory';
+import {
+  materializeLibraryBoundary,
+  prepareLoadedPayload,
+  type DocumentActivationMaterialization,
+} from '../documentActivation';
+import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -64,10 +75,23 @@ export interface DocumentEntry {
 function resetDocumentScopedUI(s: AppState): void {
   s.ui.showTaskDialog = false;
   s.ui.editingTaskId = null;
-  // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: `runOpenBoundary` zet deze
+  // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: de activatiegrens zet deze
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
+}
+
+function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {
+  hydratePayload(s, activation.payload);
+  s.viewRows = [...activation.viewRows];
+  s.resourceLoadResult = activation.resourceLoadResult;
+  s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+  s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+}
+
+function invalidateActivationRedo(s: AppState, documentId: string): void {
+  const scope: HistoryScopeKey = `document:${documentId}`;
+  s.historyEvents = invalidateUndoneHistoryForScopes(s.historyEvents, new Set([scope]));
 }
 
 /** Lichtgewicht weergave voor consumenten (bv. een toekomstige FileTabBar). */
@@ -89,7 +113,8 @@ export interface DocumentSlice {
   newDocument: () => string;
   /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
    *  kopie krijgt genulde `filePath`/`fileHandle` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty = true`, verse lege undo/redo-stacks en lege selectie, en álle muteerbare payload-velden
+   *  `isDirty = true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
+   *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
    *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
    *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
   duplicateDocument: (name?: string) => string;
@@ -117,6 +142,10 @@ export interface DocumentSlice {
    *  doorrekening is afgeleide data, geen bewerking). Het ACTIEVE document valt hier bewust buiten
    *  — dat heeft zijn eigen pad (`useAutoCalcCPM` → `runCPM`, ~100 ms). */
   recalculateStaleSleepingDocuments: () => number;
+  /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
+  setAutoSaveToFile: (enabled: boolean) => void;
+  /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
+  markAutoSaveVersionSaved: (id: string, source: IFCSaveSource) => void;
 }
 
 /**
@@ -262,24 +291,27 @@ function openProjectNames(s: AppState): string[] {
 
 const INITIAL_DOC_ID = generateId('doc');
 
-export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
+export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => (set, get) => ({
   documents: [{ id: INITIAL_DOC_ID, payload: null }],
   activeDocumentId: INITIAL_DOC_ID,
 
   newDocument: () => {
-    const outgoing = capturePayload(get());
+    const state = get();
+    const outgoing = capturePayload(state);
     const newId = generateId('doc');
+    const activation = materializeLibraryBoundary({
+      payload: freshPayload(), companies: state.companies, pools: state.pools, mode: 'silent-switch',
+    });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = castDraft(outgoing);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
-      hydratePayload(s, freshPayload());
-      // Een vers leeg document draait GEEN runOpenBoundary (er is niets aan gekoppeld), dus zonder
+      // Een vers leeg document heeft geen open-boundary (er is niets aan gekoppeld), dus zonder
       // deze reset blijft de ui-toestand van het vorige document hangen.
       resetDocumentScopedUI(s);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
     emitExtensionEvent(HOST_EVENTS.projectNew);
     return newId;
   },
@@ -287,7 +319,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
   duplicateDocument: (name) => {
     // Een documentwissel breekt een lopende coalesce-reeks af (zie switchDocument): de kopie mag niet
     // stilzwijgend verdergaan op de undo-stap van de bron.
-    resetUndoCoalescing();
+    runtime.resetUndoCoalescing();
     const source = get();
     // `outgoing` = de bron per referentie (wordt zo in de registry geparkeerd — identiek aan wat
     // newDocument/switchDocument doen). `src` lezen we ook als de bron van de kloon.
@@ -301,7 +333,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const newId = generateId('doc');
 
     // Bouw de kopie-payload EXPLICIET — geen stilzwijgende afhankelijkheid van Immer-copy-on-write.
-    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie/undo/redo starten vers;
+    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie start vers;
     // filePath/fileHandle genuld; cpmResult/resourceLoadResult ('ref') mogen per referentie mee.
     const copy: DocumentPayload = {
       project: { ...deepClone(src.project), name: copyName },
@@ -313,6 +345,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       calendars: deepClone(src.calendars),
       activityCodeTypes: deepClone(src.activityCodeTypes),
       customFieldDefs: deepClone(src.customFieldDefs),
+      customTaskTypes: deepClone(src.customTaskTypes),
       baselines: deepClone(src.baselines),
       activeBaselineId: src.activeBaselineId,
       cpmResult: src.cpmResult,
@@ -323,12 +356,12 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       recordedDates: src.recordedDates,
       datesAsRecorded: src.datesAsRecorded,
       selectedTaskIds: [],
+      activeTaskId: null,
       view: deepClone(src.view),
       collapsedTaskIds: deepClone(src.collapsedTaskIds),
-      undoStack: [],
-      redoStack: [],
       filePath: null,
       fileHandle: null,
+      autoSaveToFile: false,
       isDirty: true,
       xerImportMetadata: src.xerImportMetadata
         ? cloneXerImportMetadata(src.xerImportMetadata, src.xerSourceArchive)
@@ -338,16 +371,18 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
     };
+    const activation = materializeLibraryBoundary({
+      payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',
+    });
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = castDraft(src); // bron parkeren (per referentie, net als newDocument/switchDocument)
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
-      hydratePayload(s, copy);
       resetDocumentScopedUI(s);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
       sequences: copy.sequences.length,
@@ -361,39 +396,24 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     if (id === state.activeDocumentId) return;
     // Een documentwissel breekt een lopende coalesce-reeks af (pakket H): terugswitchen mag niet
     // stilzwijgend verdergaan op de undo-stap van vóór de wissel.
-    resetUndoCoalescing();
+    runtime.resetUndoCoalescing();
     const target = state.documents.find((d) => d.id === id);
     if (!target || !target.payload) return;
     const outgoing = capturePayload(state);
     const incoming = target.payload;
+    const activation = materializeLibraryBoundary({
+      payload: incoming, companies: state.companies, pools: state.pools, mode: 'silent-switch',
+    });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = castDraft(outgoing);
-      hydratePayload(s, incoming);
       const inc = s.documents.find((d) => d.id === id);
       if (inc) inc.payload = null;
       s.activeDocumentId = id;
       resetDocumentScopedUI(s);
+      if (activation.invalidateRedoScope) invalidateActivationRedo(s, id);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
-    // Grens 2 (spec §3.2): activeren ververst STIL — behind-only (deviated blijft gemarkeerd, spec §3),
-    // zelfhelend als de pool schoof terwijl het document sliep. Geen dialoog bij documentwissel
-    // (alleen bij openen/herstel). Gebruikt de primitief uit Taak 5.
-    // NB (critreview taak 10, verplicht): showLibraryLinkDialog/libraryRefreshNotice zijn app-globaal
-    // en worden door runOpenBoundary alleen AANgezet — zonder expliciete reset hier zou taak 14's
-    // dialoog stale data van het VORIGE document tonen. Het net-geactiveerde document bepaalt de
-    // nieuwe toestand: dialoog blijft altijd dicht (grens 2 is stil, geen vraag), en het signaal
-    // reflecteert alleen déze verversing (of null als er niets ververst is) — nooit een oud getal.
-    {
-      const cid = get().project.companyId;
-      const refreshed = cid ? get().refreshBehindItems(cid) : 0;
-      get().setUI({ showLibraryLinkDialog: false, libraryRefreshNotice: refreshed > 0 ? refreshed : null });
-    }
-    // Grens 3/4 (plan-eis 1) kan resources/kalenders van een SLAPENDE payload hebben ververst
-    // terwijl het `resourceLoadResult` van dat document nog de oude waarden droeg (er was toen geen
-    // actief document om te herberekenen). Bij activering hier onvoorwaardelijk herberekenen dicht
-    // die hele klasse — niet alleen het pool-edit-geval, elke toekomstige dormant-mutatie ook.
-    get().recomputeResourceLoad();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -408,14 +428,17 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     // Laatste document sluiten → reset naar één vers, leeg document.
     if (state.documents.length === 1) {
       const newId = generateId('doc');
+      const activation = materializeLibraryBoundary({
+        payload: freshPayload(), companies: state.companies, pools: state.pools, mode: 'silent-switch',
+      });
       set((s) => {
+        removeSessionHistoryForDocumentFromState(s, id);
         s.documents = [{ id: newId, payload: null }];
         s.activeDocumentId = newId;
-        hydratePayload(s, freshPayload());
         // Zie newDocument(): deze tak levert net zo'n vers, ongekoppeld document op.
         resetDocumentScopedUI(s);
+        publishActivation(s, activation);
       });
-      get().recomputeViewRows();
       emitExtensionEvent(HOST_EVENTS.projectNew);
       return;
     }
@@ -423,6 +446,7 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     // Inactief document: gewoon verwijderen.
     if (id !== state.activeDocumentId) {
       set((s) => {
+        removeSessionHistoryForDocumentFromState(s, id);
         s.documents = s.documents.filter((d) => d.id !== id);
       });
       return;
@@ -432,26 +456,19 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     const idx = state.documents.findIndex((d) => d.id === id);
     const neighbor = state.documents[idx + 1] ?? state.documents[idx - 1];
     const incoming = neighbor.payload!;
+    const activation = materializeLibraryBoundary({
+      payload: incoming, companies: state.companies, pools: state.pools, mode: 'silent-switch',
+    });
     set((s) => {
-      hydratePayload(s, incoming);
+      removeSessionHistoryForDocumentFromState(s, id);
       s.documents = s.documents.filter((d) => d.id !== id);
       const n = s.documents.find((d) => d.id === neighbor.id);
       if (n) n.payload = null;
       s.activeDocumentId = neighbor.id;
       resetDocumentScopedUI(s);
+      if (activation.invalidateRedoScope) invalidateActivationRedo(s, neighbor.id);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
-    // Grens 2 (spec §3.2) + NB (critreview taak 10): zie switchDocument hierboven — zelfde stille
-    // behind-only-verversing én dezelfde deterministische reset van showLibraryLinkDialog/
-    // libraryRefreshNotice, want ook hier wordt een ander document actief.
-    {
-      const cid = get().project.companyId;
-      const refreshed = cid ? get().refreshBehindItems(cid) : 0;
-      get().setUI({ showLibraryLinkDialog: false, libraryRefreshNotice: refreshed > 0 ? refreshed : null });
-    }
-    // Zie switchDocument hierboven: het net-geactiveerde buurdocument kan een verouderd
-    // `resourceLoadResult` dragen (grens 3/4 ververste zijn payload terwijl het sliep).
-    get().recomputeResourceLoad();
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -483,31 +500,64 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
     }));
   },
 
+  setAutoSaveToFile: (enabled) => {
+    set((s) => { s.autoSaveToFile = enabled; });
+  },
+
+  markAutoSaveVersionSaved: (id, source) => {
+    const state = get();
+    if (id === state.activeDocumentId) {
+      if (sameIFCSource(source, state)) set((s) => { s.isDirty = false; });
+      return;
+    }
+    const sleeping = state.documents.find((d) => d.id === id)?.payload;
+    if (!sleeping || !sameIFCSource(source, sleeping)) return;
+    set((s) => {
+      const target = s.documents.find((d) => d.id === id)?.payload;
+      // De bronvergelijking gebeurde vóór de producer tegen de plain payload. Binnen Immer zou
+      // `target` een proxy zijn en dus nooit referentie-gelijk kunnen zijn met `source`.
+      if (target) target.isDirty = false;
+    });
+  },
+
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return;
+    // Herstel leest per document een zelfstandig IFC; identieke gevalideerde XER-bronarchieven
+    // worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden.
     const sharedDocs = shareRecoveredXerArchives(docs);
+    const state = get();
     const active = sharedDocs.find((d) => d.id === activeId) ?? sharedDocs[0];
+    const prepared = prepareLoadedPayload(payloadFromInput(active), { recompute: true });
+    const activation = materializeLibraryBoundary({
+      payload: prepared, companies: state.companies, pools: state.pools, mode: 'open-boundary',
+    });
     set((s) => {
+      replaceSessionHistoryState(s, [], 1);
       s.documents = castDraft(sharedDocs.map((d) => ({
         id: d.id,
         payload: d.id === active.id ? null : payloadFromInput(d),
       })));
       s.activeDocumentId = active.id;
-      hydratePayload(s, payloadFromInput(active));
       resetDocumentScopedUI(s);
+      if (activation.invalidateRedoScope) invalidateActivationRedo(s, active.id);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
-    // Doorrekenen na herstel, net als élk ander laadpad (openFile/openRecentFile/
-    // openExampleFromString gaan via applyLoadedProject met `recompute: true`). Dit was tot nu toe
-    // het énige laadpad zónder runCPM; sinds de writer de afgeleide `OPS_Analysis`-pset niet meer
-    // schrijft (interferingFloat/isNearCritical/floatPath) zou de bijna-kritiek-kleuring, de
-    // float-path-tint en het InterferingFloat-veld hier anders leeg blijven tot de gebruiker F5
-    // drukt. Alleen het ACTIEVE document: de herstelde inactieve documenten krijgen via
-    // `payloadFromInput` sowieso een verse (lege) `cpmResult` — dat was al zo — en runCPM werkt
-    // uitsluitend op de top-level (actieve) state, dus alles doorrekenen zou per document een
-    // hydrate/capture-wissel + volledige CPM-run kosten en de opstart lineair vertragen bij veel
-    // herstelde documenten, terwijl de uitkomst pas zichtbaar is als je erheen switcht.
-    get().runCPM();
+    // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
+    // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
+    const cpm = activation.payload.cpmResult;
+    if (cpm?.error) {
+      get().notify({
+        severity: 'error',
+        messageKey: 'notifications.scheduleFailed',
+        detail: cpm.error,
+        dedupeKey: 'cpm-error',
+      });
+    }
+    emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+      hasError: !!cpm?.error,
+      error: cpm?.error ?? null,
+      criticalTasks: activation.payload.tasks.filter(task => task.time.isCritical).length,
+    });
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
       tasks: active.tasks.length,
       sequences: active.sequences.length,
@@ -551,14 +601,15 @@ export const createDocumentSlice: AppSlice<DocumentSlice> = (set, get) => ({
         // mee, alleen de vier doorrekenvelden worden vervangen. `resourceLoadResult: null` omdat
         // `switchDocument` bij activering tóch onvoorwaardelijk `recomputeResourceLoad()` draait —
         // een hier berekende belasting zou dubbel werk zijn dat alleen kan verouderen.
-        // `undoStack`/`redoStack`/`isDirty` blijven letterlijk staan: geen bewerking, geen snapshot.
+        // `isDirty` blijft letterlijk staan. De app-globale sessiehistorie wordt hier niet geraakt:
+        // dit is geen gebruikersbewerking maar alleen een afleiding voor een slapend document.
         //
         // `datesAsRecorded`/`recordedDates` MOETEN hier mee gewist worden (issue #63): de spread
         // draagt ze anders ongewijzigd mee, waarna dit document belooft "dit zijn de datums zoals
         // opgeslagen" terwijl de zojuist berekende datums op het scherm staan zodra je het
         // activeert — precies de mengvorm die de modus moet voorkomen. Dat er geen undo-stap
         // tegenover staat is hier consistent: deze functie herschrijft `tasks`/`cpmResult` óók
-        // zonder snapshot, en de undo-stack van het slapende document blijft als geheel bij zijn
+        // zonder history-event; bestaande events voor het slapende document blijven bij hun
         // eigen, oudere toestand horen.
         //
         // BACKSTOP, geen dagelijks pad: `markScheduleStale` (transaction.ts) houdt `scheduleStale`

@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "ذخیره خودکار", "noFile": "برای استفاده از ذخیره خودکار ابتدا این پروژه را ذخیره کنید.", "onHint": "ذخیره خودکار روشن است: تغییرات در این فایل نوشته می‌شوند.", "offHint": "ذخیره خودکار خاموش است. بازیابی خرابی فعال می‌ماند." },
   "notifications": {
     "dismiss": "بستن اعلان",
     "openFailed": "باز کردن فایل ناموفق بود",
@@ -60,14 +61,19 @@
     "relationCreated": "رابطه ایجاد شد: از {{predecessor}} به {{successor}}",
     "relationDuplicate": "این رابطه از قبل وجود دارد",
     "relationAncestorEndpoint": "رابطه بین یک وظیفه و وظیفه خلاصه نیای (والد) خودش مجاز نیست.",
-    "summaryRelationsDropped": "{{total}} رابطه نتوانست در محاسبه لحاظ شود — برای مشاهده اینکه کدام‌ها، پنل روابط را بررسی کنید.",
+    "summaryRelationsDropped": "{{total}} رابطه در محاسبه لحاظ نشد. ستون‌های پیش‌نیازها و پس‌نیازها را بررسی کنید.",
     "mppSourceScheduleNotes_one": "این فایل MS Project شامل {{count}} وظیفه با زمان‌بندی شکسته‌شده، تراز‌شده یا منابع‌محور است. به همین صورت وارد و نمایش داده می‌شود.",
     "mppSourceScheduleNotes_other": "این فایل MS Project شامل {{count}} وظیفه با زمان‌بندی شکسته‌شده، تراز‌شده یا منابع‌محور است. به همین صورت وارد و نمایش داده می‌شوند.",
     "projectStartAnchorsClamped_one": "شروع پروژه جابه‌جا شد: {{count}} لنگر وظیفه بدون پیش‌نیاز یا محدودیت به تاریخ شروع جدید منتقل شد.",
     "projectStartAnchorsClamped_other": "شروع پروژه جابه‌جا شد: {{count}} لنگر وظیفه بدون پیش‌نیاز یا محدودیت به تاریخ شروع جدید منتقل شدند.",
     "mppTimephasedSteeringLost_one": "توزیع ساعات MS Project پس از این ویرایش دیگر {{count}} وظیفه را هدایت نمی‌کند؛ توزیع اصلی در فایل نگه داشته می‌شود.",
     "mppTimephasedSteeringLost_other": "توزیع ساعات MS Project پس از این ویرایش دیگر {{count}} وظیفه را هدایت نمی‌کند؛ توزیع اصلی در فایل نگه داشته می‌شود.",
-    "readMore": "بیشتر بخوانید"
+    "readMore": "بیشتر بخوانید",
+    "pasteSkippedReadOnly_one": "{{count}} سلول رد شد: فقط‌خواندنی است (مثلاً کد WBS شماره‌گذاری‌شده خودکار یا یک ستون محاسبه‌شده).",
+    "pasteSkippedReadOnly_other": "{{count}} سلول رد شد: فقط‌خواندنی هستند (مثلاً کد WBS شماره‌گذاری‌شده خودکار یا یک ستون محاسبه‌شده).",
+    "librarySaveFailed": "ذخیره‌سازی کتابخانه ناموفق بود",
+    "levelingDelayRoundedToWorkdays_one": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
+    "levelingDelayRoundedToWorkdays_other": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند."
   },
   "yes": "بله",
   "no": "خیر",
@@ -136,11 +142,15 @@
     "themeDark": "تیره",
     "themeLight": "روشن",
     "themeHighContrast": "کنتراست بالا",
+    "themeFollowSystem": "پیروی از پوستهٔ سیستم",
+    "themeSystemHint": "از طرح رنگ سیستم شما پیروی می‌کند (اکنون: {{theme}}).",
     "timeline": "خط زمانی / بزرگنمایی",
     "hourPlanningSection": "برنامه‌ریزی ساعتی",
     "enableHourPlanning": "فعال‌سازی برنامه‌ریزی ساعتی",
     "enableHourPlanningHint": "زمان‌بندی ساعت/دقیقه را فعال می‌کند: یک مقیاس زمانی ساعتی، شیفت‌های دارای بازه‌های ساعت کاری و نوارهای وظیفه با دقت ساعتی. خاموش ⇐ برنامه مانند قبل کاملاً بر پایه روز باقی می‌ماند.",
     "allowMixedDayHour": "اجازه دادن به برنامه‌ریزی ترکیبی روز/ساعت",
+    "defaultTaskDurationUnit": "واحد پیش‌فرض وظایف جدید",
+    "defaultTaskDurationUnitHint": "مشخص می‌کند وظایف جدید با روز کاری یا ساعت کاری شروع شوند. وظایف موجود تغییر نمی‌کنند.",
     "durationDisplay": "نمایش مدت",
     "durationDisplayAuto": "خودکار (واحد اختصاصی هر وظیفه)",
     "durationDisplayDays": "همیشه روز",
@@ -295,6 +305,9 @@
     "openBadge": "{{count}} باز",
     "switchHint": "⌘1–9 برای جابجایی",
     "openProject": "باز کردن پروژه",
+    "newOrOpenTitle": "شروع پروژه",
+    "newProject": "پروژه جدید",
+    "openExistingProject": "باز کردن پروژه موجود",
     "allProjects": "همه پروژه‌ها",
     "active": "فعال",
     "tasksWord": "وظایف",
@@ -369,13 +382,39 @@
       "sameSize": "هم‌اندازهٔ نسخهٔ قبلی",
       "daysSincePrevious": "از انتشار قبلی: {{count}} روز",
       "currentOnly": "اکنون از نسخهٔ {{version}} استفاده می‌کنید",
-      "whatsNewButton": "تازه‌ها"
+      "whatsNewButton": "تازه‌ها", "newVersion": "نسخه جدید", "readGuide": "راهنما را بخوانید", "fullNotes": "یادداشت‌های کامل انتشار", "openFailed": "یادداشت‌های انتشار باز نشدند.", "inNumbers": "این به‌روزرسانی در اعداد", "days": "روز از انتشار قبلی", "commits": "کامیت از انتشار قبلی", "codeLines": "خط کد افزوده", "codeLinesHint": "خطوط افزوده در برنامه، Rust، اسکریپت‌ها و آزمون‌ها.", "smallerLabel": "بسته کوچک‌تر", "largerLabel": "بسته بزرگ‌تر", "acknowledge": "متوجه شدم"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
     "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}",
-    "outOfSequence": "روابط خارج از توالی: {{count}}"
+    "outOfSequence": "روابط خارج از توالی: {{count}}",
+    "overallocated": "منابع بیش‌تخصیص‌یافته: {{count}}"
+  },
+  "warnings": {
+    "title": "هشدارها",
+    "close": "بستن هشدارها",
+    "openPanel": "باز کردن پنل هشدارها (جزئیات و ناوبری)",
+    "summary": "خطاها: {{errors}}، هشدارها: {{warnings}}",
+    "noSchedule": "هنوز محاسبه نشده — برای اجرای بررسی‌ها، محاسبه (F5) را بزنید.",
+    "stale": "زمان‌بندی قدیمی است — این فهرست از آخرین محاسبه است. دوباره محاسبه کنید (F5).",
+    "empty": "هشداری وجود ندارد. زمان‌بندی همهٔ بررسی‌ها را می‌گذراند.",
+    "goTo": "رفتن به: {{target}}",
+    "kind": {
+      "scheduleError": "زمان‌بندی محاسبه نشد: {{message}}",
+      "missedDeadline": "مهلت {{deadline}} از دست رفته — زودترین پایان {{finish}}",
+      "violatedConstraint": "محدودیت {{constraint}} توسط منطق نقض می‌شود (شناوری منفی)",
+      "outOfSequence": "خارج از توالی: پیشرفت پسین با رابطه در تناقض است",
+      "truncatedLead": "پیش‌افت با شروع پروژه بریده شد — رابطه به‌طور کامل رعایت نمی‌شود",
+      "droppedSequence": "رابطه نادیده گرفته شد: پیشین یا پسین وجود ندارد یا کار برگ نیست",
+      "hammockNoFinishDriver": "کار بانوجی بدون محرک پایان (بدون پیشین FF/SF): مدت آن به صفر برمی‌گردد",
+      "cappedTask": "تاریخ پایان محدود شد: تقویم هیچ بازهٔ کاری برای این کار باقی نمی‌گذارد",
+      "overallocation": "بیش‌تخصیص در {{count}} روز ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "پروژه",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -586,7 +625,8 @@
       "capacity": "ظرفیت",
       "documents": "اسناد",
       "selectHint": "برای دیدن هیستوگرام یک منبع را انتخاب کنید."
-    }
+    },
+    "color": "رنگ"
   },
   "calendar": {
     "library": {
@@ -637,6 +677,18 @@
       "threeShift": "سه شیفت",
       "night": "شیفت شب",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "یک زمان استراحت معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkStart": "یک زمان شروع معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkEnd": "یک زمان پایان معتبر با قالب HH:MM وارد کنید.",
+      "invalidWorkTimeOrder": "زمان شروع باید پیش از زمان پایان باشد.",
+      "increaseTime": "افزایش زمان به اندازه ۱۵ دقیقه",
+      "decreaseTime": "کاهش زمان به اندازه ۱۵ دقیقه",
+      "increaseBreakDuration": "افزایش مدت استراحت به اندازه ۱۵ دقیقه",
+      "decreaseBreakDuration": "کاهش مدت استراحت به اندازه ۱۵ دقیقه",
+      "start": "شروع استراحت", "duration": "مدت استراحت (دقیقه)", "hint": "بازه های کاری خودکار استخراج می شوند. مدت ۰ یعنی روز کاری پیوسته.",
+      "errors": { "invalidDuration": "مدت استراحت باید تعداد صحیح دقیقه و حداقل ۰ باشد.", "outsideWorkingDay": "استراحت باید کاملا در روز کاری تنظیم شده باشد.", "consumesWorkingDay": "استراحت نمی تواند کل روز کاری را بگیرد." }
     },
     "worktime": {
       "section": "ساعات کاری",
@@ -722,7 +774,7 @@
       "none": "(هیچ‌کدام)"
     },
     "presentation": {
-      "hint": "برای خروج از حالت ارائه، F11 را فشار دهید"
+      "hint": "برای خروج از تمام‌صفحه، Esc یا F11 را فشار دهید."
     },
     "splitView": {
       "primary": "اصلی",
@@ -752,7 +804,9 @@
   },
   "duration": {
     "suffixDay": "ر",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "روز",
+    "hours": "ساعت",
     "suffixMinute": "د"
   },
   "shortcuts": {
@@ -763,7 +817,8 @@
       "edit": "ویرایش",
       "structure": "ساختار",
       "view": "نما",
-      "nav": "پیمایش"
+      "nav": "پیمایش",
+      "grid": "جدول"
     },
     "view": {
       "exitFullscreen": "خروج از حالت ارائه",
@@ -783,6 +838,12 @@
       "switchDocument": "تعویض سند",
       "scrollToToday": "رفتن به امروز",
       "help": "باز کردن راهنما"
+    },
+    "grid": {
+      "navigate": "سلول بعدی/قبلی",
+      "edit": "ویرایش سلول",
+      "typeToReplace": "تایپ کردن محتوای سلول را جایگزین می‌کند",
+      "clearCell": "پاک کردن محتوای سلول"
     }
   },
   "welcome": {

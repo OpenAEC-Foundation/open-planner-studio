@@ -1,6 +1,6 @@
 import { useAppStore } from '@/state/appStore';
 import { relationVerdict, type RelationRejection } from '@/state/relationRules';
-import type { SequenceType } from '@/types/sequence';
+import type { Sequence, SequenceType } from '@/types/sequence';
 import type { NotificationMessageKey } from '@/state/slices/types';
 
 /** Namen in een melding blijven leesbaar: langere taaknamen worden afgekapt. */
@@ -42,9 +42,18 @@ export function createRelationWithFeedback(
   successorId: string,
   type: SequenceType = 'FINISH_START',
 ): string | null {
+  return createRelationDraftWithFeedback({ predecessorId, successorId, type, lagDays: 0 });
+}
+
+/**
+ * Zelfde validatie en terugkoppeling als {@link createRelationWithFeedback}, maar voor een relatie
+ * die de Gantt-popover eerst lokaal heeft samengesteld. Daardoor wordt type én lag als één
+ * undoable projectmutatie vastgelegd en kan Escape de conceptrelatie weggooien zonder herstelwerk.
+ */
+export function createRelationDraftWithFeedback(relation: Omit<Sequence, 'id'>): string | null {
   const st = useAppStore.getState();
   const lookup = (id: string) => st.tasks.find((t) => t.id === id);
-  const verdict = relationVerdict(lookup, st.sequences, { predecessorId, successorId, type });
+  const verdict = relationVerdict(lookup, st.sequences, relation);
   if (!verdict.ok) {
     st.notify({
       severity: 'info',
@@ -55,15 +64,15 @@ export function createRelationWithFeedback(
     return null;
   }
 
-  const id = st.addSequence({ predecessorId, successorId, type, lagDays: 0 });
+  const id = st.addSequence(relation);
   if (id === null) return null; // de slice weigerde alsnog: geen succesmelding over een relatie die er niet is.
   const after = useAppStore.getState();
   after.notify({
     severity: 'info',
     messageKey: 'notifications.relationCreated',
     params: {
-      predecessor: shortName(after.tasks.find((t) => t.id === predecessorId)?.name),
-      successor: shortName(after.tasks.find((t) => t.id === successorId)?.name),
+      predecessor: shortName(after.tasks.find((t) => t.id === relation.predecessorId)?.name),
+      successor: shortName(after.tasks.find((t) => t.id === relation.successorId)?.name),
     },
   });
   return id;

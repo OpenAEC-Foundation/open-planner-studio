@@ -111,17 +111,17 @@ const hourMilestone: Task = {
 } as Task;
 
 const rows: ViewRow[] = [
-  { kind: 'task', task: healthy, depth: 0, dimmed: false },
-  { kind: 'task', task: datelessLeaf, depth: 0, dimmed: false },
-  { kind: 'task', task: datelessLeafEmpty, depth: 0, dimmed: false },
-  { kind: 'task', task: datelessSummary, depth: 0, dimmed: false },
-  { kind: 'task', task: datelessMilestone, depth: 0, dimmed: false },
-  { kind: 'task', task: datedMilestone, depth: 0, dimmed: false },
-  { kind: 'task', task: datedSummary, depth: 0, dimmed: false },
-  { kind: 'task', task: hourMilestone, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: healthy.id, task: healthy, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: datelessLeaf.id, task: datelessLeaf, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: datelessLeafEmpty.id, task: datelessLeafEmpty, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: datelessSummary.id, task: datelessSummary, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: datelessMilestone.id, task: datelessMilestone, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: datedMilestone.id, task: datedMilestone, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: datedSummary.id, task: datedSummary, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: hourMilestone.id, task: hourMilestone, depth: 0, dimmed: false },
 ];
 
-const W = 1200, H = 600, TTW = 300, ROWH = 28, HDRH = 60;
+const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
 const st = S();
 const view = { ...st.view, scrollX: 0, scrollY: 0 };
 
@@ -132,14 +132,12 @@ const renderer = new GanttRenderer(ctx, {
   calendar: st.calendar,
   view,
   selectedTaskIds: [],
-  collapsedTaskIds: [],
   // statusDate + voortgangslijn AAN: drawProgressLine loopt óók door barGeometry en moet de
   // datumloze rijen zonder crash passeren.
   statusDate: view.viewStartDate,
   showProgressLine: true,
   canvasWidth: W,
   canvasHeight: H,
-  taskTableWidth: TTW,
   rowHeight: ROWH,
   headerHeight: HDRH,
 });

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { parsePersonalDate } from '@/utils/displayDate';
 import type { DateNotation } from '@/state/slices/types';
 
 /**
@@ -20,36 +21,7 @@ import type { DateNotation } from '@/state/slices/types';
  * uitbreiding kan hierlangs (bv. een aparte `parseFlexibleDateTime`) zonder deze parser te breken.
  */
 export function parseFlexibleDate(raw: string): string | null {
-  const s = raw.trim();
-  if (!s) return null;
-
-  let year: number, month: number, day: number;
-  // ISO / jaar-eerst: alleen wanneer de eerste groep 4 cijfers heeft.
-  const iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-  if (iso) {
-    year = +iso[1]; month = +iso[2]; day = +iso[3];
-  } else {
-    // Dag-maand-jaar (dominante NL-volgorde).
-    const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
-    if (!dmy) return null;
-    day = +dmy[1]; month = +dmy[2]; year = +dmy[3];
-    if (dmy[3].length === 2) year += 2000;
-  }
-
-  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1 || year > 9999) return null;
-  // Verwerp niet-bestaande datums (31 feb, 30 feb, …) via een UTC-round-trip.
-  const dt = new Date(Date.UTC(year, month - 1, day));
-  if (
-    dt.getUTCFullYear() !== year ||
-    dt.getUTCMonth() !== month - 1 ||
-    dt.getUTCDate() !== day
-  ) {
-    return null;
-  }
-  const yyyy = String(year).padStart(4, '0');
-  const mm = String(month).padStart(2, '0');
-  const dd = String(day).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return parsePersonalDate(raw, 'dmy');
 }
 
 // ── Segment-model ────────────────────────────────────────────────────────────

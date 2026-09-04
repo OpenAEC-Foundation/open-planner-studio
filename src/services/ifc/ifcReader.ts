@@ -1,4 +1,5 @@
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
@@ -126,6 +127,13 @@ export function readIFC(
     entityMap.set(e.id, e);
   }
 
+  // Taakidentiteit moet vóór `extractTasks` bekend zijn. Externe links bewaren het taak-id van een
+  // geparseerde bron; een nieuw willekeurig id bij iedere parse maakte een echte Tauri-refresh van
+  // hetzelfde IFC-bestand daardoor altijd `sourceMissing`. Nieuwe OPS-bestanden dragen het
+  // oorspronkelijke id in OPS_TaskIdentity; oudere/andere IFC-bestanden vallen stabiel terug op
+  // hun IFCTASK.GlobalId.
+  const taskIdentityByStepId = extractTaskIdentityByStepId(entities, entityMap);
+
   // Extract project
   const project = extractProject(entities, entityMap, labels);
   const xerSourceArchive = extractXerSourceArchive(entities, entityMap, options.reconstructXerArchive);
@@ -135,7 +143,9 @@ export function readIFC(
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
-  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(entities, entityMap, baselineTaskStepIds);
+  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
+  );
   const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
@@ -171,6 +181,7 @@ export function readIFC(
     entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded,
   );
   for (const task of tasks) reconcileP6SuspendResume(task);
+  const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   // Z14b (Z8-nataak, F1-fixronde) — LAAG-4-kalenderwandelingen, eigen pset (zie de functie se
   // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
@@ -208,7 +219,7 @@ export function readIFC(
 
   return {
     project, calendar, tasks, sequences, resources, assignments,
-    activityCodeTypes, customFieldDefs, resourceCalendars,
+    activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars,
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
     recordedFields,
@@ -841,6 +852,7 @@ function extractProject(
 ): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
+  const projectGlobalId = proj ? ifcSlotText(proj.args[0]) : '';
 
   // Auteur/organisatie uit de owner-history-keten (IFCOWNERHISTORY → IFCPERSONANDORGANIZATION →
   // IFCPERSON.FamilyName / IFCORGANIZATION.Name; spiegel van wat de writer schrijft). Via de keten
@@ -861,7 +873,9 @@ function extractProject(
   }
 
   return {
-    id: generateId('proj'),
+    id: projectGlobalId
+      ? `proj-ifc-${projectGlobalId}`
+      : `proj-ifc-step-${proj?.id ?? wp?.id ?? 'missing'}`,
     // Twee verschillende gevallen, bewust verschillend afgehandeld:
     //
     //  1. Er ís een IFCPROJECT. Dan telt zijn naamslot — óók als die leeg is. `ifcSlotText`, niet
@@ -946,7 +960,8 @@ function applyHourModeIFC(
     promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
   }
 
-  // 3. Herinterpreteer de taken op een uur-kalender: minuut-precieze duur + echte tijden.
+  // 3. Herstel de echte tijden op taken met een uurkalender. De ISO-duurvorm die parseTaskTime al
+  //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
   for (const t of tasks) {
     const effCal = effCalOf(t);
     if (!effCal.workTime) continue;
@@ -954,9 +969,14 @@ function applyHourModeIFC(
     if (!e) continue;
     const hpd = effCal.hoursPerDay;
     const durMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || ''));
-    const minutes = durMin != null ? durMin : Math.round(t.time.scheduleDuration * hpd * 60);
-    t.time.durationMinutes = minutes;
-    if (hpd > 0) t.time.scheduleDuration = minutes / (hpd * 60);
+    if (t.time.durationUnit === 'hours') {
+      const minutes = durMin != null ? durMin : (t.time.durationMinutes ?? 0);
+      t.time.durationMinutes = minutes;
+      // Compatibiliteitsafgeleide voor bestaande analyse/exportcode; nooit invoerbron.
+      if (hpd > 0) t.time.scheduleDuration = minutes / (hpd * 60);
+    } else {
+      t.time.durationMinutes = undefined;
+    }
     const toHour = (raw: string | undefined): string | undefined => {
       const q = stripQuotes(raw || '');
       return q && q !== '$' ? formatInstant(parseInstant(q), 'hour') : undefined;
@@ -994,10 +1014,66 @@ function recordedSlotsOf(e: StepEntity): RecordedFieldKey[] {
   return out;
 }
 
+/**
+ * STEP-id van IFCTASK → door OPS opgeslagen intern taak-id.
+ *
+ * Dit is opzettelijk een kleine pre-pass naast de algemene per-taak-psetdispatch: die algemene
+ * dispatch krijgt pas bestaande Task-objecten. Identiteit bepaalt juist met welk id die objecten,
+ * sequence-maps en recordedFields vanaf het begin worden gemaakt.
+ */
+function extractTaskIdentityByStepId(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET'
+      || stripQuotes(pset.args[2] || '') !== PSET.TaskIdentity) continue;
+    let internalId: string | undefined;
+    for (const propRef of parseRefs(pset.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE'
+        || stripQuotes(prop.args[0] || '') !== 'InternalTaskId') continue;
+      const value = parseTypedValue(prop.args[2] || '');
+      if (isValidPersistedIfcId(value)) internalId = value;
+    }
+    if (!internalId) continue;
+    for (const objectRef of parseRefs(rel.args[4] || '')) {
+      if (entityMap.get(objectRef)?.type === 'IFCTASK') out.set(objectRef, internalId);
+    }
+  }
+  return out;
+}
+
+function isValidPersistedIfcId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 256
+    && !Array.from(value).some(character => {
+      const code = character.codePointAt(0) ?? 0;
+      return code <= 31 || code === 127;
+    });
+}
+
+function stableIfcTaskId(
+  taskEntity: StepEntity,
+  persistedIds: Map<string, string>,
+  usedIds: Set<string>,
+): string {
+  const globalId = ifcSlotText(taskEntity.args[TASK_SLOT.globalId]);
+  const base = persistedIds.get(taskEntity.id)
+    ?? (globalId ? `task-ifc-${globalId}` : `task-ifc-step-${taskEntity.id}`);
+  let id = base;
+  for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
+  usedIds.add(id);
+  return id;
+}
+
 function extractTasks(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
+  persistedIds: Map<string, string> = new Map(),
 ): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>; recordedFields: Record<string, RecordedFieldKey[]> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
@@ -1009,9 +1085,10 @@ function extractTasks(
   // bestand echt vulde. Een taak ZONDER IfcTaskTime krijgt een lege lijst (niet: ontbrekend) —
   // "geen enkel slot gevuld" is een uitspraak, "onbekend" niet.
   const recordedFields: Record<string, RecordedFieldKey[]> = {};
+  const usedIds = new Set<string>();
 
   for (const te of taskEntities) {
-    const id = generateId('task');
+    const id = stableIfcTaskId(te, persistedIds, usedIds);
     taskStepIdMap.set(te.id, id);
 
     // Twee IFCTASK-lay-outs (L1-fix, zie writeTask): spec-conform IFC 4.3 telt 13 args
@@ -1057,6 +1134,7 @@ function extractTasks(
       description: ifcSlotText(te.args[TASK_SLOT.description]),
       wbsCode: ifcSlotText(te.args[TASK_SLOT.identification]),
       taskType: te.args[predefinedTypeIdx] ? parseTaskType(te.args[predefinedTypeIdx]) : 'CONSTRUCTION',
+      customTaskTypeId: undefined,
       status: 'NOT_STARTED',
       isMilestone,
       priority,
@@ -1068,6 +1146,59 @@ function extractTasks(
   }
 
   return { tasks, taskStepIdMap, taskTimeEntities, recordedFields };
+}
+
+/** Lees de OPS-catalogus defensief. Zonder metadata blijft een extern/oud USERDEFINED-bestand
+ * gewoon USERDEFINED; ObjectType wordt daarbij niet als id geraden. */
+function extractTaskTypeMeta(
+  entities: StepEntity[], entityMap: Map<string, StepEntity>, tasks: Task[], taskStepIdMap: Map<string, string>,
+): CustomTaskType[] {
+  let raw: unknown;
+  for (const pset of entities) {
+    if (pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.TaskTypes) continue;
+    for (const ref of parseRefs(pset.args[4] || '')) {
+      const prop = entityMap.get(ref);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE' || stripQuotes(prop.args[0] || '') !== 'TaskTypes') continue;
+      raw = parseTypedValue(prop.args[2] || '');
+    }
+  }
+  if (typeof raw !== 'string') return [];
+  try {
+    const parsed = JSON.parse(raw) as { definitions?: unknown; taskTypeIds?: unknown };
+    const definitions: CustomTaskType[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    if (Array.isArray(parsed.definitions)) {
+      for (const rawDefinition of parsed.definitions) {
+        if (!rawDefinition || typeof rawDefinition !== 'object'
+          || typeof (rawDefinition as CustomTaskType).id !== 'string'
+          || typeof (rawDefinition as CustomTaskType).name !== 'string') continue;
+        const definition = {
+          id: (rawDefinition as CustomTaskType).id.trim(),
+          name: (rawDefinition as CustomTaskType).name.trim(),
+        };
+        const nameKey = definition.name.toLocaleLowerCase();
+        if (!definition.id || !definition.name || seenIds.has(definition.id) || seenNames.has(nameKey)) continue;
+        seenIds.add(definition.id);
+        seenNames.add(nameKey);
+        definitions.push(definition);
+      }
+    }
+    if (!parsed.taskTypeIds || typeof parsed.taskTypeIds !== 'object') return definitions;
+    const byStep = new Map<string, string>(taskStepIdMap);
+    const byTaskId = new Map(tasks.map(t => [t.id, t]));
+    for (const [stepId, entity] of entityMap) {
+      if (entity.type !== 'IFCTASK') continue;
+      const taskId = byStep.get(stepId);
+      const typeId = (parsed.taskTypeIds as Record<string, unknown>)[stripQuotes(entity.args[0] || '')];
+      const task = taskId ? byTaskId.get(taskId) : undefined;
+      if (task && typeof typeId === 'string' && typeId.trim()) {
+        task.taskType = 'USERDEFINED';
+        task.customTaskTypeId = typeId.trim();
+      }
+    }
+    return definitions;
+  } catch { return []; }
 }
 
 /** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,
@@ -1101,6 +1232,13 @@ function parseTaskTime(e: StepEntity): TaskTime {
   const time = {} as TaskTime;
   for (let i = 0; i < IFC_TASKTIME_SLOTS.length; i++) {
     IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], TASKTIME_READ_HELPERS);
+  }
+  const rawDuration = stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || '');
+  const hasTimeComponent = /^-?P[^T]*T/i.test(rawDuration);
+  time.durationUnit = hasTimeComponent ? 'hours' : 'days';
+  if (hasTimeComponent) {
+    const minutes = isoDurationToMinutes(rawDuration);
+    if (minutes != null) time.durationMinutes = minutes;
   }
   return time;
 }
@@ -1396,8 +1534,12 @@ function extractStructure(
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
         const v = parseTypedValue(prop.args[2] || '');
-        if (name === 'wbsAutoNumber') {
+        if (name === 'InternalProjectId') {
+          if (isValidPersistedIfcId(v)) project.id = v;
+        } else if (name === 'wbsAutoNumber') {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
+        } else if (name === 'DefaultTaskDurationUnit') {
+          if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
         } else if (name === 'StatusDate') {
           // Fase 2.6 (§8.2): P6 data date → project.statusDate.
           if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);
@@ -1562,6 +1704,10 @@ function extractResourceMeta(
           res.costPerHour = value;
         } else if (name === 'UnitOfMeasure' && typeof value === 'string') {
           res.unitOfMeasure = value;
+        } else if (name === 'Color' && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
+          // #21: weergavekleur — alleen een geldige #rrggbb-hex accepteren (hostiele/mistorde
+          // invoer valt stil terug op "geen kleur" i.p.v. rommel in de kleurmodi te krijgen).
+          res.color = value;
         } else if (name === 'AvailabilitySteps' && typeof value === 'string') {
           const steps: AvailabilityStep[] = value
             .split(';')
@@ -1763,6 +1909,54 @@ function extractCalendarHoursPerDay(
   return undefined;
 }
 
+/** Leest het optionele eenvoudige scalar-pauzepatroon uit `OPS_Calendar`. */
+function extractCalendarSimpleBreak(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> {
+  const result: Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> = {};
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+    for (const prop of props) {
+      const value = parseTypedValue(prop.args[2] || '');
+      if (typeof value !== 'number' || !Number.isInteger(value)) continue;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakStart') result.simpleBreakStartMinute = value;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakDuration') result.simpleBreakDurationMinutes = value;
+    }
+  }
+  return result;
+}
+
+/** OPS-eigen aanvulling op IFC's ambigue standaardwerkweek: bewaart dat een kalender met precies
+ * één gewone band toch uur-modus was. Zonder de markering blijft de conservatieve externe fallback
+ * dag-modus; alleen bestanden die OPS zelf schreef krijgen dit expliciete vertrouwen. */
+function extractCalendarHourMode(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): boolean {
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    for (const propRef of parseRefs(pset.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'IsHourCalendar') continue;
+      if (parseTypedValue(prop.args[2] || '') === true) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * T5-HERZIENING (2026-08-15, spec-reviewbevinding: zie het plandocument §T5) — het STEP-id-signaal
  * dat een `IFCWORKTIME` in `ExceptionTimes` een WERKENDE UITZONDERING is, i.p.v. een feestdag.
@@ -1878,6 +2072,7 @@ function buildCalendarFromEntity(
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
   calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
@@ -2028,6 +2223,9 @@ function buildCalendarFromEntity(
   // (`deriveHoursPerDay`), dus deze override raakt alleen dag-kalenders — precies de bedoeling.
   const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
+  if (extractCalendarHourMode(cal.id, entities, entityMap)) {
+    promoteHourCalendar(calendar, getCalendarBands(calendar), true, true);
+  }
 
   return calendar;
 }

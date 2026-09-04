@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Sequence } from '@/types/sequence';
 import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
+
+/** Alleen deze vier velden bepalen de zichtbare lagtekst; type- of eindpuntupdates doen dat niet. */
+function lagSignature(seq: Sequence): string {
+  return [seq.lagDays, seq.lagUnit ?? '', seq.lagPercent ?? '', seq.lagMinutes ?? ''].join('|');
+}
 
 /**
  * Klein lag-invoerveld met MSP-notatie (2d / 3ed / 2u / 50% / -25e%); commit op blur/Enter,
@@ -9,16 +14,21 @@ import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
  * patroon als andere gevalideerde velden in dit paneel). Gedeeld door het eigenschappen-paneel
  * en de relatietabel.
  */
-export function SequenceLagInput({ seq, title, className, onCommit }: {
+export function SequenceLagInput({ seq, title, className, onCommit, onDraftChange }: {
   seq: Sequence;
   title: string;
   className?: string;
   onCommit: (patch: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>) => void;
+  /** Optioneel voor lokale concepten: houd een geldige invoer actueel vóór de blur-commit. */
+  onDraftChange?: (patch: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>) => void;
 }) {
   const [val, setVal] = useState(formatLagShort(seq));
+  const signature = lagSignature(seq);
+  const formattedLagRef = useRef(formatLagShort(seq));
+  formattedLagRef.current = formatLagShort(seq);
   useEffect(() => {
-    setVal(formatLagShort(seq));
-  }, [seq.lagDays, seq.lagUnit, seq.lagPercent, seq.lagMinutes]);
+    setVal(formattedLagRef.current);
+  }, [signature]);
   // Live-afgeleid (zoals `UnitsInput`): rood ZODRA de huidige tekst niet parseerbaar is — dus al
   // tíjdens het typen, niet pas na een stille terugval bij blur (F1-bevinding: het veld sprong
   // eerder terug zonder ENIGE indicatie dat de invoer geweigerd was).
@@ -40,7 +50,12 @@ export function SequenceLagInput({ seq, title, className, onCommit }: {
       title={title}
       aria-invalid={invalid || undefined}
       placeholder="0d"
-      onChange={e => setVal(e.target.value)}
+      onChange={e => {
+        const next = e.target.value;
+        setVal(next);
+        const parsed = parseLagInput(next);
+        if (parsed) onDraftChange?.(parsed);
+      }}
       onBlur={commit}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       onClick={e => e.stopPropagation()}

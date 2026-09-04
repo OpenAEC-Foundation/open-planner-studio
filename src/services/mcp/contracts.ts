@@ -1,6 +1,9 @@
 // Contracten voor de MCP-bridge (fase 1) — BEVROREN na fase 0.
 // Normatief: docs/superpowers/specs/2026-07-24-mcp-bridge-design.md (v2.4).
 
+import type { AppStoreContext } from '@/state/appStore';
+import type { McpTransactions } from '@/state/runtime/createMcpTransactions';
+
 /** Envelop op elke tool-respons (spec §Sessie-semantiek). */
 export interface McpEnvelope {
   activeDocumentId: string;
@@ -54,11 +57,22 @@ export type McpToolResult = McpToolOk | McpToolErr;
 /**
  * Backup-hook (implementatie volgt in de UI-baan; hier alleen het type zodat
  * tool-banen tegen een stub kunnen bouwen). Draait op de dispatch-grens,
- * vóór runInMcpTransaction. Resolve = backup-pad, of null (geen backup nodig).
+ * vóór de contextgebonden MCP-transactie. Resolve = backup-pad, of null (geen backup nodig).
  */
 export type EnsureBackupFn = (docId: string, kind: McpToolDef['kind']) => Promise<string | null>;
+export type MarkDuplicateBornFn = (docId: string) => void;
+
+/** Eén ondeelbare backupbinding: beide functies moeten dezelfde contextservice bezitten. */
+export interface McpBackupBinding {
+  ensureBackup: EnsureBackupFn;
+  markDuplicateBorn: MarkDuplicateBornFn;
+}
 
 export interface McpContext {
+  /** Store, runtime en app-host waarop dit request is gebonden. */
+  app: AppStoreContext;
+  /** Transacties en drafts die uitsluitend bij `app` horen. */
+  transactions: McpTransactions;
   /** Drift-anker: verwacht actief document-id (null vóór de eerste document-binding). */
   expectedDocId: string | null;
   /** tempId→realId-map; de batch-executor bezit en vult deze. */
@@ -67,6 +81,8 @@ export interface McpContext {
   paused: boolean;
   readOnly: boolean;
   ensureBackup: EnsureBackupFn;
+  /** Registreert een duplicaat bij exact dezelfde service als `ensureBackup`. */
+  markDuplicateBorn: MarkDuplicateBornFn;
 }
 
 export interface McpToolAnnotations {

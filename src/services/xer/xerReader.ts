@@ -694,7 +694,14 @@ function readXerProject(
     const durationMinutes = plannedWindowRepairsFractionalDay
       ? plannedWindowMinutes
       : sourceDurationMinutes;
-    const time = createDefaultTaskTime(start, durationMinutes / (hoursPerDay * 60));
+    // Main's duurmodel is TAAKgestuurd, niet kalendergestuurd: `taskDurationUnit` leest
+    // `time.durationUnit` en valt alleen bij ONTBREKEND veld terug op `durationMinutes`.
+    // `createDefaultTaskTime` zet standaard 'days', dus zonder deze expliciete eenheid zou
+    // een uur-native XER-taak door de dag-tak van CPMSolver lopen en op de werkdaggrens
+    // eindigen (gemeten: 16:00 i.p.v. 10:00). Zelfde patroon als mppReader/p6xmlReader.
+    const time = createDefaultTaskTime(
+      start, durationMinutes / (hoursPerDay * 60), hourMode ? 'hours' : 'days',
+    );
     time.scheduleFinish = finish;
     time.earlyStart = start;
     time.earlyFinish = finish;

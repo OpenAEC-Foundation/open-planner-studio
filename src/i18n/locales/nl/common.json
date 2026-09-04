@@ -2,6 +2,12 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": {
+    "label": "Automatisch opslaan",
+    "noFile": "Sla dit project eerst op om automatisch opslaan te gebruiken.",
+    "onHint": "Automatisch opslaan staat aan: wijzigingen worden naar dit bestand geschreven.",
+    "offHint": "Automatisch opslaan staat uit. Crashherstel blijft altijd actief."
+  },
   "notifications": {
     "dismiss": "Melding sluiten",
     "openFailed": "Bestand openen mislukt",
@@ -60,14 +66,19 @@
     "relationCreated": "Relatie aangemaakt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Deze relatie bestaat al",
     "relationAncestorEndpoint": "Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.",
-    "summaryRelationsDropped": "{{total}} relatie(s) konden niet worden meegerekend — zie het Relaties-paneel voor welke.",
+    "summaryRelationsDropped": "{{total}} relatie(s) konden niet worden meegerekend. Controleer de voorganger- en opvolgerkolommen.",
     "mppSourceScheduleNotes_one": "Dit MS Project-bestand bevat {{count}} taak met een onderbroken, genivelleerde of resource-gedreven planning. Die wordt als zodanig ingelezen en getoond.",
     "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
     "projectStartAnchorsClamped_one": "Projectstart verzet: {{count}} taakanker zonder voorganger of constraint is meegeschoven naar de nieuwe startdatum.",
     "projectStartAnchorsClamped_other": "Projectstart verzet: {{count}} taakankers zonder voorganger of constraint zijn meegeschoven naar de nieuwe startdatum.",
     "mppTimephasedSteeringLost_one": "De urenverdeling uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
     "mppTimephasedSteeringLost_other": "De urenverdeling uit MS Project stuurt {{count}} taken niet meer na deze bewerking; de oorspronkelijke verdeling blijft in het bestand bewaard.",
-    "readMore": "Lees meer"
+    "readMore": "Lees meer",
+    "pasteSkippedReadOnly_one": "{{count}} cel overgeslagen: hij is read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
+    "pasteSkippedReadOnly_other": "{{count}} cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
+    "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
+    "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
+    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
   },
   "yes": "Ja",
   "no": "Nee",
@@ -136,11 +147,15 @@
     "themeDark": "Donker",
     "themeLight": "Licht",
     "themeHighContrast": "Hoog contrast",
+    "themeFollowSystem": "Volg systeemthema",
+    "themeSystemHint": "Volgt het kleurschema van je systeem (nu: {{theme}}).",
     "timeline": "Tijdlijn / Zoomen",
     "hourPlanningSection": "Urenplanning",
     "enableHourPlanning": "Urenplanning inschakelen",
     "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
     "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
+    "defaultTaskDurationUnit": "Standaardeenheid voor nieuwe taken",
+    "defaultTaskDurationUnitHint": "Bepaalt of nieuwe taken standaard in werkdagen of werkuren beginnen. Bestaande taken veranderen niet.",
     "durationDisplay": "Duurweergave",
     "durationDisplayAuto": "Automatisch (eigen eenheid per taak)",
     "durationDisplayDays": "Altijd dagen",
@@ -295,6 +310,9 @@
     "openBadge": "{{count}} open",
     "switchHint": "⌘1–9 om te wisselen",
     "openProject": "Project openen",
+    "newOrOpenTitle": "Project starten",
+    "newProject": "Nieuw project",
+    "openExistingProject": "Bestaand project openen",
     "allProjects": "Alle projecten",
     "active": "Actief",
     "tasksWord": "taken",
@@ -369,13 +387,51 @@
       "sameSize": "Even groot als de vorige versie",
       "daysSincePrevious": "Sinds de vorige release: {{count}} dagen",
       "currentOnly": "Je draait nu versie {{version}}",
-      "whatsNewButton": "Wat is er nieuw"
+      "whatsNewButton": "Wat is er nieuw",
+      "newVersion": "Nieuwe versie",
+      "readGuide": "Lees de gids",
+      "fullNotes": "Volledige release notes",
+      "openFailed": "De release notes konden niet worden geopend.",
+      "inNumbers": "Deze update in cijfers",
+      "days": "dagen sinds vorige release",
+      "commits": "commits sinds vorige release",
+      "codeLines": "toegevoegde regels code",
+      "codeLinesHint": "Bruto toegevoegde regels in appcode, Rust, scripts en tests; documentatie, vertalingen, lockbestanden en gegenereerde bestanden tellen niet mee.",
+      "smallerLabel": "kleiner pakket",
+      "largerLabel": "groter pakket",
+      "acknowledge": "Begrepen"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden",
-    "outOfSequence": "{{count}} out-of-sequence-relatie(s)"
+    "outOfSequence": "{{count}} out-of-sequence-relatie(s)",
+    "overallocated": "{{count}} resource(s) overbezet"
+  },
+  "warnings": {
+    "title": "Waarschuwingen",
+    "close": "Waarschuwingen sluiten",
+    "openPanel": "Waarschuwingenpaneel openen (details en navigatie)",
+    "summary": "{{errors}} fout(en), {{warnings}} waarschuwing(en)",
+    "noSchedule": "Nog niet berekend — druk op Bereken (F5) om de controles uit te voeren.",
+    "stale": "Planning verouderd — deze lijst komt van de laatste berekening. Herbereken (F5).",
+    "empty": "Geen waarschuwingen. De planning voldoet aan alle controles.",
+    "goTo": "Ga naar: {{target}}",
+    "kind": {
+      "scheduleError": "Planning kon niet worden berekend: {{message}}",
+      "missedDeadline": "Deadline {{deadline}} overschreden — vroegste einde {{finish}}",
+      "violatedConstraint": "Constraint {{constraint}} wordt door de logica overschreden (negatieve speling)",
+      "outOfSequence": "Out-of-sequence: de voortgang van de opvolger spreekt de relatie tegen",
+      "truncatedLead": "Lead afgekapt door de projectstart — de relatie is niet volledig benut",
+      "droppedSequence": "Relatie genegeerd: voorganger of opvolger ontbreekt of is geen bladtaak",
+      "hammockNoFinishDriver": "Hammock zonder eind-driver (geen FF/SF-voorganger): de duur valt terug op nul",
+      "cappedTask": "Einddatum afgekapt: de kalender maakt het taakvenster onwerkbaar",
+      "overallocation": "Overbezet op {{count}} dag(en) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Project",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -586,7 +642,8 @@
       "capacity": "Capaciteit",
       "documents": "Documenten",
       "selectHint": "Selecteer een resource om het histogram te zien."
-    }
+    },
+    "color": "Kleur"
   },
   "calendar": {
     "library": {
@@ -637,6 +694,24 @@
       "threeShift": "3 ploegen",
       "night": "Nachtploeg",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Vul een geldige pauzetijd in als UU:MM.",
+      "invalidWorkStart": "Vul een geldige begintijd in als UU:MM.",
+      "invalidWorkEnd": "Vul een geldige eindtijd in als UU:MM.",
+      "invalidWorkTimeOrder": "De begintijd moet vóór de eindtijd liggen.",
+      "increaseTime": "Verhoog tijd met 15 minuten",
+      "decreaseTime": "Verlaag tijd met 15 minuten",
+      "increaseBreakDuration": "Verhoog pauzeduur met 15 minuten",
+      "decreaseBreakDuration": "Verlaag pauzeduur met 15 minuten",
+      "start": "Pauze begint",
+      "duration": "Pauzeduur (minuten)",
+      "hint": "Stel een pauzebegin en -duur in; de netto uren en werktijdblokken worden automatisch afgeleid. Zet de duur op 0 voor een doorlopende werkdag.",
+      "errors": {
+        "invalidDuration": "De pauzeduur moet een heel aantal minuten van 0 of meer zijn.",
+        "outsideWorkingDay": "De pauze moet volledig binnen de ingestelde werkdag vallen.",
+        "consumesWorkingDay": "De pauze mag niet de volledige werkdag beslaan."
+      }
     },
     "worktime": {
       "section": "Werktijden",
@@ -722,7 +797,7 @@
       "none": "(geen)"
     },
     "presentation": {
-      "hint": "Druk op F11 om de presentatiemodus te sluiten"
+      "hint": "Druk op Esc of F11 om volledig scherm te verlaten."
     },
     "splitView": {
       "primary": "Primair",
@@ -752,7 +827,9 @@
   },
   "duration": {
     "suffixDay": "d",
-    "suffixHour": "u",
+    "suffixHour": "h",
+    "days": "Dagen",
+    "hours": "Uren",
     "suffixMinute": "m"
   },
   "shortcuts": {
@@ -763,7 +840,8 @@
       "edit": "Bewerken",
       "structure": "Structuur",
       "view": "Weergave",
-      "nav": "Navigatie"
+      "nav": "Navigatie",
+      "grid": "Tabel"
     },
     "view": {
       "exitFullscreen": "Presentatie verlaten",
@@ -783,6 +861,12 @@
       "switchDocument": "Wissel van document",
       "scrollToToday": "Spring naar vandaag",
       "help": "Help openen"
+    },
+    "grid": {
+      "navigate": "Volgende/vorige cel",
+      "edit": "Cel bewerken",
+      "typeToReplace": "Typen vervangt de celinhoud",
+      "clearCell": "Celinhoud wissen"
     }
   },
   "welcome": {

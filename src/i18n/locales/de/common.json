@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Automatisch speichern", "noFile": "Speichern Sie dieses Projekt zuerst, um AutoSave zu verwenden.", "onHint": "AutoSave ist aktiv: Änderungen werden in diese Datei geschrieben.", "offHint": "AutoSave ist aus. Die Wiederherstellung bleibt aktiv." },
   "notifications": {
     "dismiss": "Benachrichtigung schließen",
     "openFailed": "Datei konnte nicht geöffnet werden",
@@ -60,14 +61,19 @@
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
-    "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden — siehe das Beziehungen-Panel für Details.",
+    "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
     "mppSourceScheduleNotes_one": "Diese MS-Project-Datei enthält {{count}} Vorgang mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Er wird so eingelesen und angezeigt.",
     "mppSourceScheduleNotes_other": "Diese MS-Project-Datei enthält {{count}} Vorgänge mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Sie werden so eingelesen und angezeigt.",
     "projectStartAnchorsClamped_one": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurde auf das neue Startdatum verschoben.",
     "projectStartAnchorsClamped_other": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurden auf das neue Startdatum verschoben.",
     "mppTimephasedSteeringLost_one": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgang nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
     "mppTimephasedSteeringLost_other": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgänge nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
-    "readMore": "Mehr erfahren"
+    "readMore": "Mehr erfahren",
+    "pasteSkippedReadOnly_one": "{{count}} Zelle übersprungen: Sie ist schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
+    "pasteSkippedReadOnly_other": "{{count}} Zellen übersprungen: Sie sind schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
+    "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
+    "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
+    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage."
   },
   "yes": "Ja",
   "no": "Nein",
@@ -136,11 +142,15 @@
     "themeDark": "Dunkel",
     "themeLight": "Hell",
     "themeHighContrast": "Hoher Kontrast",
+    "themeFollowSystem": "Systemdesign folgen",
+    "themeSystemHint": "Folgt dem Farbschema deines Systems (aktuell: {{theme}}).",
     "timeline": "Zeitachse / Zoom",
     "hourPlanningSection": "Stundenplanung",
     "enableHourPlanning": "Stundenplanung aktivieren",
     "enableHourPlanningHint": "Aktiviert Stunden-/Minuten-Scheduling: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt wie bisher vollständig tagesgenau.",
     "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
+    "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
+    "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
     "durationDisplay": "Daueranzeige",
     "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
     "durationDisplayDays": "Immer Tage",
@@ -295,6 +305,9 @@
     "openBadge": "{{count}} offen",
     "switchHint": "⌘1–9 zum Wechseln",
     "openProject": "Projekt öffnen",
+    "newOrOpenTitle": "Projekt starten",
+    "newProject": "Neues Projekt",
+    "openExistingProject": "Bestehendes Projekt öffnen",
     "allProjects": "Alle Projekte",
     "active": "Aktiv",
     "tasksWord": "Aufgaben",
@@ -369,13 +382,39 @@
       "sameSize": "Gleich groß wie die vorige Version",
       "daysSincePrevious": "Seit dem vorigen Release: {{count}} Tage",
       "currentOnly": "Du verwendest jetzt Version {{version}}",
-      "whatsNewButton": "Neuerungen"
+      "whatsNewButton": "Neuerungen", "newVersion": "Neue Version", "readGuide": "Anleitung lesen", "fullNotes": "Vollständige Versionshinweise", "openFailed": "Die Versionshinweise konnten nicht geöffnet werden.", "inNumbers": "Dieses Update in Zahlen", "days": "Tage seit der letzten Version", "commits": "Commits seit der letzten Version", "codeLines": "hinzugefügte Codezeilen", "codeLinesHint": "Brutto hinzugefügte Zeilen in Anwendung, Rust, Skripten und Tests.", "smallerLabel": "kleineres Paket", "largerLabel": "größeres Paket", "acknowledge": "Verstanden"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} Stichtag(e) überschritten",
     "violatedConstraints": "{{count}} Einschränkung(en) verletzt",
-    "outOfSequence": "{{count}} Beziehung(en) außerhalb der Reihenfolge"
+    "outOfSequence": "{{count}} Beziehung(en) außerhalb der Reihenfolge",
+    "overallocated": "{{count}} Ressource(n) überlastet"
+  },
+  "warnings": {
+    "title": "Warnungen",
+    "close": "Warnungen schließen",
+    "openPanel": "Warnungsbereich öffnen (Details und Navigation)",
+    "summary": "{{errors}} Fehler, {{warnings}} Warnung(en)",
+    "noSchedule": "Noch nicht berechnet — Berechnen (F5) drücken, um die Prüfungen auszuführen.",
+    "stale": "Terminplan veraltet — diese Liste stammt aus der letzten Berechnung. Neu berechnen (F5).",
+    "empty": "Keine Warnungen. Der Terminplan besteht alle Prüfungen.",
+    "goTo": "Gehe zu: {{target}}",
+    "kind": {
+      "scheduleError": "Der Terminplan konnte nicht berechnet werden: {{message}}",
+      "missedDeadline": "Stichtag {{deadline}} überschritten — frühestes Ende {{finish}}",
+      "violatedConstraint": "Einschränkung {{constraint}} wird durch die Logik überschritten (negativer Puffer)",
+      "outOfSequence": "Out of sequence: der Fortschritt des Nachfolgers widerspricht der Beziehung",
+      "truncatedLead": "Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten",
+      "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
+      "hammockNoFinishDriver": "Hammock ohne Ende-Treiber (kein EE/AE-Vorgänger): die Dauer fällt auf null zurück",
+      "cappedTask": "Enddatum gekappt: der Kalender lässt kein arbeitsfähiges Fenster für diesen Vorgang",
+      "overallocation": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Projekt",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -586,7 +625,8 @@
       "capacity": "Kapazität",
       "documents": "Dokumente",
       "selectHint": "Wählen Sie eine Ressource aus, um das Histogramm zu sehen."
-    }
+    },
+    "color": "Farbe"
   },
   "calendar": {
     "library": {
@@ -637,6 +677,18 @@
       "threeShift": "3 Schichten",
       "night": "Nachtschicht",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Geben Sie eine gültige Pausenzeit als HH:MM ein.",
+      "invalidWorkStart": "Geben Sie eine gültige Startzeit als HH:MM ein.",
+      "invalidWorkEnd": "Geben Sie eine gültige Endzeit als HH:MM ein.",
+      "invalidWorkTimeOrder": "Die Startzeit muss vor der Endzeit liegen.",
+      "increaseTime": "Zeit um 15 Minuten erhöhen",
+      "decreaseTime": "Zeit um 15 Minuten verringern",
+      "increaseBreakDuration": "Pausendauer um 15 Minuten erhöhen",
+      "decreaseBreakDuration": "Pausendauer um 15 Minuten verringern",
+      "start": "Pausenbeginn", "duration": "Pausendauer (Minuten)", "hint": "Arbeitszeitbänder werden automatisch abgeleitet. Dauer 0 bedeutet einen durchgehenden Arbeitstag.",
+      "errors": { "invalidDuration": "Die Pausendauer muss eine ganze Minutenanzahl ab 0 sein.", "outsideWorkingDay": "Die Pause muss vollständig innerhalb des Arbeitstags liegen.", "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen." }
     },
     "worktime": {
       "section": "Arbeitszeiten",
@@ -722,7 +774,7 @@
       "none": "(keins)"
     },
     "presentation": {
-      "hint": "F11 drücken, um den Präsentationsmodus zu beenden"
+      "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."
     },
     "splitView": {
       "primary": "Primär",
@@ -752,7 +804,9 @@
   },
   "duration": {
     "suffixDay": "T",
-    "suffixHour": "Std",
+    "suffixHour": "h",
+    "days": "Tage",
+    "hours": "Stunden",
     "suffixMinute": "Min"
   },
   "shortcuts": {
@@ -763,7 +817,8 @@
       "edit": "Bearbeiten",
       "structure": "Struktur",
       "view": "Ansicht",
-      "nav": "Navigation"
+      "nav": "Navigation",
+      "grid": "Tabelle"
     },
     "view": {
       "exitFullscreen": "Präsentation verlassen",
@@ -783,6 +838,12 @@
       "switchDocument": "Dokument wechseln",
       "scrollToToday": "Zu heute springen",
       "help": "Hilfe öffnen"
+    },
+    "grid": {
+      "navigate": "Nächste/vorherige Zelle",
+      "edit": "Zelle bearbeiten",
+      "typeToReplace": "Tippen ersetzt den Zellinhalt",
+      "clearCell": "Zellinhalt löschen"
     }
   },
   "welcome": {

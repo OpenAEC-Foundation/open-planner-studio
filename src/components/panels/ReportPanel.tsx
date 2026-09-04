@@ -1,18 +1,27 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { renderPrintCanvas, renderReport, REPORT_FONT_SCALES, PrintOptions } from '@/services/print/printPreview';
+import { measurePrintReport, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
-import { paginateCanvasToPdfBytes, paginateCanvasToTiles } from '@/services/print/paginate';
+import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
+import { computeTileLayout } from '@/services/print/tileLayout';
 import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
+import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import {
+  barColorFieldOptions,
+  effectiveBarColorControl,
+} from '@/components/viewControls/barColorFieldOptions';
+import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useSplitter } from '@/hooks/useSplitter';
 import { isTauri } from '@/utils/platform';
 import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
@@ -20,6 +29,7 @@ import type { VarianceRow } from '@/engine/variance';
 import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { buildBaselineOverlay } from '@/types/baseline';
 
 /** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
  * bouwt de kolomspec buiten React-render-tijd op in `handleExportPDF`). */
@@ -102,27 +112,91 @@ function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTable
   ];
 }
 
-/** Render-schaal voor de gepagineerde preview (goedkoper dan de export; wordt toch verkleind getoond). */
-const PREVIEW_RENDER_SCALE = 2;
-/** Maximaal aantal papiervellen dat de preview toont (rest verwijst naar de export). */
-const PREVIEW_MAX_PAGES = 30;
-
 /** Instellingenkolom (issue #38 punt 3): startbreedte (oude vaste `w-64`) + sleepgrenzen. Geen
  *  eigen max-constante — de bovengrens is 50% van de kaartbreedte, dus dynamisch (zie `useSplitter`
  *  hieronder), net als de rechterpaneel-breedte in App.tsx. */
 const SETTINGS_PANEL_DEFAULT_WIDTH = 256;
 const SETTINGS_PANEL_MIN_WIDTH = 200;
+const PREVIEW_FIT_WIDTH_PX = 900;
+const PREVIEW_QUALITY_FACTORS: Record<'100' | '200' | '300', 1 | 2 | 3> = { '100': 1, '200': 2, '300': 3 };
 
-/** Eén papiervel in de preview: PNG-dataURL + echte puntmaat (voor de beeldverhouding). */
+type PreviewQualityName = 'standard' | 'high' | 'maximum';
+const PREVIEW_QUALITY_NAMES: Record<'100' | '200' | '300', PreviewQualityName> = {
+  '100': 'standard',
+  '200': 'high',
+  '300': 'maximum',
+};
+
+/** Eén gedecodeerd papiervel in de preview; de gedeelde layout bezit de vaste papierverhouding. */
 interface PreviewPage {
-  dataUrl: string;
+  objectUrl: string;
+  generation: number;
+  quality: PreviewQualityName;
+}
+
+interface PreviewJob {
+  renderPage: (index: number, priority?: boolean) => void;
+  release: () => void;
+}
+
+interface PreviewLayoutState {
+  totalPages: number;
   wPt: number;
   hPt: number;
+}
+
+interface PreviewScrollAnchor {
+  index: number;
+  offset: number;
+  /** scrollTop op het moment van vastleggen; het herstel slaat over als die intussen veranderde. */
+  scrollTop: number;
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (blob) resolve(blob);
+      else reject(new Error('Rapportpreview kon niet naar PNG worden omgezet'));
+    }, 'image/png');
+  });
+}
+
+function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
+  const pages = [...root.querySelectorAll<HTMLElement>('[data-preview-page]')];
+  if (pages.length === 0) return { index: 0, offset: 0, scrollTop: root.scrollTop };
+  const rootTop = root.getBoundingClientRect().top;
+  const visible = pages
+    .map(page => ({ page, rect: page.getBoundingClientRect() }))
+    .filter(({ rect }) => rect.bottom > rootTop)
+    .sort((a, b) => Math.abs(a.rect.top - rootTop) - Math.abs(b.rect.top - rootTop))[0];
+  const page = visible?.page ?? pages[0];
+  return {
+    index: Number(page.dataset.previewPage) || 0,
+    offset: page.getBoundingClientRect().top - rootTop,
+    scrollTop: root.scrollTop,
+  };
+}
+
+/** Herstelt het leesanker ná een layoutwissel — maar alleen als de gebruiker intussen niet zelf
+ * heeft gescrold. Het anker wordt vastgelegd in `renderPreview` (na de 100ms-debounce) en pas in
+ * de eerstvolgende animatieframe teruggezet; op een trage machine (CI-runner, zware rasterisatie)
+ * ligt daar een venster waarin een echte wielscroll landt. Zonder deze poort trok het herstel de
+ * viewport dan terug naar de positie van vóór die scroll (browsertest "stabiel scrollanker":
+ * scrollTop 0 direct ná een geslaagde scroll). Een gewijzigde scrollTop betekent dat de gebruiker
+ * al ergens anders leest; die positie wint. */
+function restorePreviewScrollAnchor(root: HTMLElement, anchor: PreviewScrollAnchor, totalPages: number): void {
+  if (root.scrollTop !== anchor.scrollTop) return;
+  const index = Math.min(Math.max(0, anchor.index), Math.max(0, totalPages - 1));
+  const page = root.querySelector<HTMLElement>(`[data-preview-page="${index}"]`);
+  if (!page) return;
+  const rootTop = root.getBoundingClientRect().top;
+  root.scrollTop += page.getBoundingClientRect().top - rootTop - anchor.offset;
 }
 
 export function ReportPanel() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
+  const { t: tTask } = useTranslation('task');
   const dd = useDisplayDate();
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -142,6 +216,32 @@ export function ReportPanel() {
   // (doorgetrokken = bepalend, gestreept = niet-bepalend). Die informatie zit alleen in `cpmResult`,
   // dus een echte subscription — anders ververst de preview niet na een F5/Bereken.
   const cpmResult = useAppStore(s => s.cpmResult);
+  // #21/#54 — bronnen voor de nieuwe exportopties: resources/toewijzingen (kleurmodi), de
+  // schermweergave-rijen (volg weergave) en de statusdatum (statuslijn). Echte subscriptions
+  // (geen getState): de live preview moet op al deze wijzigingen her-renderen.
+  const viewRows = useAppStore(s => s.viewRows);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const baselines = useAppStore(s => s.baselines);
+  const activeBaselineId = useAppStore(s => s.activeBaselineId);
+  const barColorSelection = useAppStore(s => s.ui.barColorSelection);
+  const setUI = useAppStore(s => s.setUI);
+  const fieldCtx = useFieldCatalogCtx();
+  const barColorFields = barColorFieldOptions(fieldCtx);
+  const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
+  // `useTaskTypeLabels` bouwt per render een nieuw object. De inhoudssignatuur maakt voor het
+  // rapport een stabiele kopie: een preview-state-update mag `options` niet opnieuw maken, maar
+  // een echte taalwissel moet de labels wel vervangen.
+  const taskTypeLabelsSignature = JSON.stringify(fieldCtx.taskTypeLabels);
+  const reportTaskTypeLabels = useMemo<Record<string, string>>(
+    () => JSON.parse(taskTypeLabelsSignature) as Record<string, string>,
+    [taskTypeLabelsSignature],
+  );
+  const statusDate = project.statusDate;
+  const baselineOverlay = useMemo(
+    () => buildBaselineOverlay(baselines, activeBaselineId),
+    [baselines, activeBaselineId],
+  );
 
   // De rapportopties starten op de gedeelde defaults uit `reportSettings.ts` en worden vlak na de
   // eerste render overschreven door de opgeslagen voorkeuren (zie het hydratatie-effect verderop).
@@ -150,12 +250,14 @@ export function ReportPanel() {
   const [showFloat, setShowFloat] = useState(DEFAULT_REPORT_SETTINGS.showFloat);
   const [showDeps, setShowDeps] = useState(DEFAULT_REPORT_SETTINGS.showDeps);
   const [showWeekends, setShowWeekends] = useState(DEFAULT_REPORT_SETTINGS.showWeekends);
+  const [reportCompressNonWorkdays, setReportCompressNonWorkdays] = useState(DEFAULT_REPORT_SETTINGS.compressNonWorkdays);
   const [showLegend, setShowLegend] = useState(DEFAULT_REPORT_SETTINGS.showLegend);
   const [showTaskNames, setShowTaskNames] = useState(DEFAULT_REPORT_SETTINGS.showTaskNames);
   const [showCompletion, setShowCompletion] = useState(DEFAULT_REPORT_SETTINGS.showCompletion);
+  const [showBaselineOverlay, setShowBaselineOverlay] = useState(DEFAULT_REPORT_SETTINGS.showBaselineOverlay);
   const [autoFit, setAutoFit] = useState(DEFAULT_REPORT_SETTINGS.autoFit);
   const [customZoom, setCustomZoom] = useState(DEFAULT_REPORT_SETTINGS.customZoom);
-  const [paperSize, setPaperSize] = useState<'A3' | 'A4' | 'A1'>(DEFAULT_REPORT_SETTINGS.paperSize);
+  const [paperSize, setPaperSize] = useState<'A4' | 'A3' | 'A2' | 'A1'>(DEFAULT_REPORT_SETTINGS.paperSize);
   // K7: reden waarom de laatste export-poging is afgebroken (vandaag alleen een CPM-cyclus).
   // Tussenstand — bevinding K8 (prioriteitsitem 18) trekt dit samen tot één toast in uiSlice.
   const [exportError, setExportError] = useState<string | null>(null);
@@ -187,6 +289,13 @@ export function ReportPanel() {
   // die stuurt de app-chrome aan, deze alleen het papier. Werkt relatief (tekst/tabel groeien, de
   // tijdlijn-zoom niet) — zie de afleiding bij `ReportMetrics` in printPreview.ts.
   const [reportFontScale, setReportFontScale] = useState(DEFAULT_REPORT_SETTINGS.reportFontScale);
+  // #54 — statuslijn in de export: letterlijk drie opties (geen / statusdatumlijn / voortgangslijn).
+  const [statusLine, setStatusLine] = useState(DEFAULT_REPORT_SETTINGS.statusLine);
+  // #54 — volg weergave: export tekent exact de viewRows van het scherm (WYSIWYG).
+  const [followView, setFollowView] = useState(DEFAULT_REPORT_SETTINGS.followView);
+  // Alleen de rasterkwaliteit. Deze waarde gaat bewust NIET in PrintOptions: PDF en paginering
+  // mogen nooit veranderen door hoe scherp iemand de preview op zijn scherm leest.
+  const [previewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
 
   // Instellingenkolom horizontaal sleepbaar (issue #38 punt 3) — vaste `w-64` bood geen enkel
   // handvat en de rechterkolom (live preview) kreeg dus nooit ruimte terug. Zelfde generieke
@@ -222,6 +331,11 @@ export function ReportPanel() {
   // Een ref (geen state) volstaat: de vlag hoeft geen re-render te veroorzaken, en het save-effect
   // wordt toch al opnieuw uitgevoerd door de state-updates van de hydratatie zelf.
   const hydratedRef = useRef(false);
+  // De preview is veel duurder dan het kleine settings-object. Wacht daarom met de
+  // eerste rastertaak tot alle opgeslagen opties in één React-batch zijn toegepast.
+  // Anders kan een opgeslagen instelling een korte reeks tussenstaten produceren
+  // die elk al pagina 0 (en soms 1) renderen voordat de laatste toestand wint.
+  const [reportSettingsHydrated, setReportSettingsHydrated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,9 +350,11 @@ export function ReportPanel() {
       setShowFloat(s.showFloat);
       setShowDeps(s.showDeps);
       setShowWeekends(s.showWeekends);
+      setReportCompressNonWorkdays(s.compressNonWorkdays);
       setShowLegend(s.showLegend);
       setShowTaskNames(s.showTaskNames);
       setShowCompletion(s.showCompletion);
+      setShowBaselineOverlay(s.showBaselineOverlay);
       setAutoFit(s.autoFit);
       setCustomZoom(s.customZoom);
       setPaperSize(s.paperSize);
@@ -246,7 +362,11 @@ export function ReportPanel() {
       setRepeatHeader(s.repeatHeader);
       setTimelineColumns(s.timelineColumns);
       setReportFontScale(s.reportFontScale);
+      setStatusLine(s.statusLine);
+      setFollowView(s.followView);
+      setPreviewQuality(s.previewQuality);
       hydratedRef.current = true;
+      setReportSettingsHydrated(true);
     }, () => {
       // Lezen kan falen (localStorage geblokkeerd of gepartitioneerd, quota-gedoe). Zonder deze
       // handler blijft `hydratedRef` dan voor ALTIJD false en slaat het save-effect de rest van de
@@ -261,6 +381,7 @@ export function ReportPanel() {
       // voorkeuren. Precies het dataverlies dat deze guard moet voorkomen.
       if (cancelled) return;
       hydratedRef.current = true;
+      setReportSettingsHydrated(true);
     });
     return () => { cancelled = true; };
   }, []);
@@ -275,58 +396,88 @@ export function ReportPanel() {
     // zonder vangnet levert elke verstelde optie een onafgevangen rejection op. Opslaan is
     // best-effort — mislukt het, dan blijft de instelling gewoon binnen deze sessie werken.
     void saveReportSettings({
-      reportType, showCritical, showFloat, showDeps, showWeekends, showLegend,
-      showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation,
-      repeatHeader, timelineColumns, reportFontScale,
+      reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
+      showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
+      repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
     }).catch(() => {});
-  }, [reportType, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames,
-      showCompletion, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
-      reportFontScale]);
+  }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
+      showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
+      reportFontScale, statusLine, followView, previewQuality]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
 
   // Gepagineerde Gantt-preview: dezelfde tegels als de PDF-export (gedeelde pagineer-engine).
-  const [previewPages, setPreviewPages] = useState<PreviewPage[]>([]);
-  const [previewTotalPages, setPreviewTotalPages] = useState(0);
+  const [previewPages, setPreviewPages] = useState<Map<number, PreviewPage>>(() => new Map());
+  const previewPagesRef = useRef<Map<number, PreviewPage>>(new Map());
+  const [previewLayout, setPreviewLayout] = useState<PreviewLayoutState>({ totalPages: 0, wPt: 1, hPt: 1.414 });
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const previewJobRef = useRef<PreviewJob | null>(null);
+  const previewGenerationRef = useRef(0);
+  const [previewWidth, setPreviewWidth] = useState(0);
+  const previewCssWidth = Math.min(PREVIEW_FIT_WIDTH_PX, Math.max(1, previewWidth || PREVIEW_FIT_WIDTH_PX));
+
+  const replacePreviewPages = useCallback((next: Map<number, PreviewPage>) => {
+    previewPagesRef.current = next;
+    setPreviewPages(next);
+  }, []);
+
+  useEffect(() => () => {
+    previewJobRef.current?.release();
+    for (const page of previewPagesRef.current.values()) URL.revokeObjectURL(page.objectUrl);
+    previewPagesRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    const node = previewViewportRef.current;
+    if (!node) return;
+    let last = 0;
+    const observer = new ResizeObserver(entries => {
+      const width = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (width > 0 && width !== last) { last = width; setPreviewWidth(width); }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const locale = i18n.language;
-  const localizedMonths = getLocalizedMonths(locale);
-  const localizedMonthsShort = getLocalizedMonthsShort(locale);
-
-  const labels = {
-    noTasks: t('noTasks'),
-    printed: t('printed'),
-    legend: {
-      criticalPath: t('legend.criticalPath'),
-      normal: t('legend.normal'),
-      milestone: t('legend.milestone'),
-      summary: t('legend.summary'),
-      float: t('showFloat'),
-      completion: t('showCompletion', { defaultValue: 'Completion' }),
-      relationStyle: t('legend.relationStyle'),
-    },
-    tableHeaders: {
-      rowNum: '#',
-      wbs: t('tableHeaders.wbs'),
-      taskName: t('tableHeaders.taskName'),
-      start: t('tableHeaders.start'),
-      end: t('tableHeaders.end'),
-      duration: t('tableHeaders.duration'),
-      completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
-    },
-    page: t('page', { defaultValue: 'Pagina' }),
-    of: t('of', { defaultValue: 'van' }),
-    today: t('today', { defaultValue: 'Vandaag' }),
-  };
-
-  const options: PrintOptions = {
+  // Eén waardeobject is de contractgrens tussen UI, preview en export. Daardoor kan geen van beide
+  // renderpaden per ongeluk een losse oude optie of vertaalde kop uit een eerdere render vasthouden.
+  const options = useMemo<PrintOptions>(() => ({
     showCritical, showFloat, showDeps, showWeekends, showLegend,
-    showTaskNames, showCompletion, autoFit, customZoom,
+    showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
-    labels,
-    localizedMonths,
-    localizedMonthsShort,
+    labels: {
+      noTasks: t('noTasks'),
+      printed: t('printed'),
+      legend: {
+        criticalPath: t('legend.criticalPath'),
+        normal: t('legend.normal'),
+        nearCritical: tTask('table.isNearCritical'),
+        baseline: t('legend.baseline'),
+        milestone: t('legend.milestone'),
+        summary: t('legend.summary'),
+        float: t('showFloat'),
+        completion: t('showCompletion', { defaultValue: 'Completion' }),
+        relationStyle: t('legend.relationStyle'),
+      },
+      tableHeaders: {
+        rowNum: '#',
+        wbs: t('tableHeaders.wbs'),
+        taskName: t('tableHeaders.taskName'),
+        start: t('tableHeaders.start'),
+        end: t('tableHeaders.end'),
+        duration: t('tableHeaders.duration'),
+        completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
+      },
+      page: t('page', { defaultValue: 'Pagina' }),
+      of: t('of', { defaultValue: 'van' }),
+      today: t('today', { defaultValue: 'Vandaag' }),
+      statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
+      progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
+    },
+    localizedMonths: getLocalizedMonths(locale),
+    localizedMonthsShort: getLocalizedMonthsShort(locale),
     locale,
     projectStartDate: project.startDate,
     projectEndDate: project.endDate,
@@ -336,6 +487,7 @@ export function ReportPanel() {
     // rapport altijd ISO-weeknummers op maandag af, ook als de gebruiker "week begint op zondag"
     // had staan — hetzelfde project, twee antwoorden.
     weekStartDay,
+    compressNonWorkdays: reportCompressNonWorkdays,
     timelineColumns,
     reportFontScale,
     // Issue #56 — welke relaties BEPALEND (driving) zijn is een `CPMResult`-veld dat bewust niet
@@ -343,61 +495,264 @@ export function ReportPanel() {
     // Bij een cyclus (`cpmResult.error`) of vóór de eerste berekening blijft het `undefined`, en
     // tekent het rapport alles neutraal doorgetrokken — dezelfde eerlijke terugval als het scherm.
     drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
-  };
+    // #21/#54 — gedeelde balkkleurkeuze, statuslijn en volg-weergave. `rows` alléén bij followView: zonder
+    // die optie tekent de export de volledige boom (oud gedrag, geen verrassingen).
+    barColorSelection,
+    activityCodeTypes: fieldCtx.activityCodeTypes,
+    customFieldDefs: fieldCtx.customFieldDefs,
+    taskTypeLabels: reportTaskTypeLabels,
+    barColorNoneLabel: tTask('structure.none'),
+    statusLine,
+    statusDate,
+    resources,
+    assignments,
+    baselineOverlay,
+    rows: followView ? viewRows : undefined,
+    barColorsLegendLabels: {
+      criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
+      categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
+    },
+  }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
+    autoFit, customZoom, paperSize, orientation, companyName, t, locale, project.startDate,
+    project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
+    cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
+    reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
+    assignments, baselineOverlay, followView, viewRows]);
+  // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
+  // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
+  // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
+  const previewOptionsSignature = useMemo(() => JSON.stringify(options), [options]);
 
-  // Bereken de Gantt-preview als gepagineerde papiervellen — via dezelfde pagineer-engine als de
-  // PDF-export (paginateCanvasToTiles), zodat de preview WYSIWYG-identiek is aan de export.
+  // Eén generatie beheert één layout + één begrensde renderqueue. Een optiewijziging annuleert het
+  // nog niet begonnen werk van de vorige generatie, maar laat de bestaande pagina-afbeeldingen
+  // staan tot hun vervanger gereed is. Daardoor is er geen wit tussenframe.
   useEffect(() => {
-    if (reportType !== 'gantt') {
-      setPreviewPages([]);
-      setPreviewTotalPages(0);
-      return;
-    }
+    if (!reportSettingsHydrated) return;
+    const generation = ++previewGenerationRef.current;
+    const qualityName = PREVIEW_QUALITY_NAMES[previewQuality];
+    let debounceTimer: number | undefined;
+    let queueTimer: number | undefined;
     let cancelled = false;
+    let processing = false;
+    const queue: number[] = [];
+    const queued = new Set<number>();
+    const rendered = new Set<number>();
+
+    const release = () => {
+      cancelled = true;
+      if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+      if (queueTimer !== undefined) window.clearTimeout(queueTimer);
+      debounceTimer = undefined;
+      queueTimer = undefined;
+      queue.length = 0;
+      queued.clear();
+      if (previewJobRef.current?.release === release) previewJobRef.current = null;
+    };
+
+    if (reportType !== 'gantt') {
+      for (const page of previewPagesRef.current.values()) URL.revokeObjectURL(page.objectUrl);
+      replacePreviewPages(new Map());
+      setPreviewLayout(previous => ({ ...previous, totalPages: 0 }));
+      return release;
+    }
+
     const renderPreview = () => {
       if (cancelled) return;
-      const offscreen = document.createElement('canvas');
-      // Eerste render (schaal 1) → logische maten + naam-kolombreedte + kop-hoogte; tweede render → preview-raster.
-      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = renderPrintCanvas(
-        offscreen, tasks, sequences, calendar, projectName, options, 1,
+      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = measurePrintReport(
+        tasks, sequences, calendar, projectName, options,
       );
-      renderPrintCanvas(offscreen, tasks, sequences, calendar, projectName, options, PREVIEW_RENDER_SCALE);
-      const tiles = paginateCanvasToTiles(offscreen, {
-        paperSize: paperSize.toLowerCase() as 'a4' | 'a3' | 'a1',
-        orientation,
-        mode: autoFit ? 'fit-width' : 'actual',
+      const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
+      const cssPageWidth = previewCssWidth;
+      const previewLimits = computePreviewRasterLimits(
+        logicalWidth, logicalHeight, lowerPaper, options.orientation, cssPageWidth, window.devicePixelRatio,
+        PREVIEW_QUALITY_FACTORS[previewQuality],
+      );
+      const tileOptions = {
+        paperSize: lowerPaper,
+        orientation: options.orientation,
+        mode: options.autoFit ? 'fit-width' as const : 'actual' as const,
         logicalWidth,
         logicalHeight,
         frozenColumnWidthPx: tableWidth,
         // Kop herhalen per pagina (issue #25 punt 1): de hoogte komt uit de render zelf; 0 = niet
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
-        timelineColumns,
-        supersample: 1, // preview: goedkoper; wordt toch verkleind weergegeven
-        // De limiet hoort HIER, niet pas bij het uitsnijden hieronder: de pagineerder maakt per
-        // pagina een volledig papier-canvas aan (A3 ≈ 4 MB RGBA), dus een rooster van 20×8 zou
-        // ~640 MB rasteren waarvan we er 30 tonen — bij elke optiewijziging opnieuw. Met `maxPages`
-        // worden de overige pagina's nooit getekend; `rows`/`cols` blijven het volledige rooster.
-        maxPages: PREVIEW_MAX_PAGES,
-      });
-      // Goedkope dubbele bodem: mocht de pagineer-limiet ooit wegvallen, dan toont de preview nog
-      // steeds niet meer dan PREVIEW_MAX_PAGES vellen. Het echte werk zit in `maxPages` hierboven.
-      const shown = tiles.pages.slice(0, PREVIEW_MAX_PAGES);
-      setPreviewPages(shown.map(page => ({
-        dataUrl: page.toDataURL('image/png'),
-        wPt: tiles.pageWidthPt,
-        hPt: tiles.pageHeightPt,
-      })));
-      // Het VOLLEDIGE paginatotaal (dus niet `tiles.pages.length` — dat is met `maxPages` bewust
-      // afgekapt): de gebruiker moet "5 van 160" kunnen zien, ook al rasteren we er maar 30.
-      setPreviewTotalPages(tiles.rows * tiles.cols);
+        timelineColumns: options.timelineColumns,
+        supersample: previewLimits.pageSupersample,
+      };
+      const layout = computeTileLayout(tileOptions);
+      const total = layout.rows * layout.cols;
+      const root = previewViewportRef.current;
+      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTop: 0 };
+      const visibleIndices = root
+        ? [...root.querySelectorAll<HTMLElement>('[data-preview-page]')]
+          .filter(page => {
+            const pageRect = page.getBoundingClientRect();
+            const rootRect = root.getBoundingClientRect();
+            return pageRect.bottom > rootRect.top && pageRect.top < rootRect.bottom;
+          })
+          .map(page => Number(page.dataset.previewPage))
+          .filter(Number.isInteger)
+        : [anchor.index];
+
+      // De geometrie komt uit TileLayout en is dus bekend vóór er ook maar één PNG bestaat. Alle
+      // placeholders reserveren vanaf de eerste paint exact dezelfde liggende/staande papiermaat.
+      setPreviewLayout({ totalPages: total, wPt: layout.pageWidthPt, hPt: layout.pageHeightPt });
+      if (root) {
+        window.requestAnimationFrame(() => {
+          if (!cancelled) restorePreviewScrollAnchor(root, anchor, total);
+        });
+      }
+
+      const scheduleNext = () => {
+        if (cancelled || processing || queue.length === 0 || queueTimer !== undefined) return;
+        queueTimer = window.setTimeout(() => {
+          queueTimer = undefined;
+          void processNext();
+        }, 0);
+      };
+
+      const pruneCache = (pages: Map<number, PreviewPage>, focus: number): Map<number, PreviewPage> => {
+        const next = new Map(pages);
+        for (const [index, page] of next) {
+          if (index < total) continue;
+          URL.revokeObjectURL(page.objectUrl);
+          next.delete(index);
+        }
+        while (next.size > previewLimits.maxPages) {
+          const activeRoot = previewViewportRef.current;
+          const activeRootRect = activeRoot?.getBoundingClientRect();
+          const visible = new Set(activeRoot && activeRootRect
+            ? [...activeRoot.querySelectorAll<HTMLElement>('[data-preview-page]')]
+              .filter(page => {
+                const rect = page.getBoundingClientRect();
+                return rect.bottom > activeRootRect.top && rect.top < activeRootRect.bottom;
+              })
+              .map(page => Number(page.dataset.previewPage))
+              .filter(Number.isInteger)
+            : []);
+          // Prefetches buiten beeld mogen nooit een pagina wegdrukken die de gebruiker nu leest.
+          // Als de viewport zelf meer pagina's snijdt dan het budget aankan, blijft de net gevulde
+          // focuspagina staan en valt de verst verwijderde buur terug op zijn vaste placeholder.
+          const offscreen = [...next.keys()].filter(index => !visible.has(index));
+          const candidates = offscreen.length > 0
+            ? offscreen
+            : [...next.keys()].filter(index => index !== focus);
+          const anchorIndex = activeRoot ? capturePreviewScrollAnchor(activeRoot).index : focus;
+          const victim = candidates
+            .sort((a, b) => Math.abs(b - anchorIndex) - Math.abs(a - anchorIndex))[0];
+          if (victim === undefined) break;
+          const page = next.get(victim);
+          if (page) URL.revokeObjectURL(page.objectUrl);
+          next.delete(victim);
+          rendered.delete(victim);
+        }
+        return next;
+      };
+
+      const processNext = async () => {
+        if (cancelled || generation !== previewGenerationRef.current || processing) return;
+        const index = queue.shift();
+        if (index === undefined) return;
+        queued.delete(index);
+        if (rendered.has(index)) { scheduleNext(); return; }
+        processing = true;
+        const canvas = document.createElement('canvas');
+        let pendingObjectUrl: string | undefined;
+        try {
+          renderPrintPreviewPage(canvas, tasks, sequences, calendar, projectName, options, {
+            layout,
+            pageIndex: index,
+            rasterWidth: previewLimits.pageRasterWidth,
+            rasterHeight: previewLimits.pageRasterHeight,
+            supersample: previewLimits.pageSupersample,
+          });
+          const blob = await canvasToPngBlob(canvas);
+          if (cancelled || generation !== previewGenerationRef.current) return;
+          const objectUrl = URL.createObjectURL(blob);
+          pendingObjectUrl = objectUrl;
+          if (cancelled || generation !== previewGenerationRef.current) {
+            return;
+          }
+          // Decodeer vóór de React-swap. Alleen `naturalWidth > 0` zegt nog niet dat de browser het
+          // beeld al kan painten; zonder deze stap was bij kwaliteitswissels kort een zwart/wit frame
+          // zichtbaar terwijl dezelfde Blob alsnog werd gedecodeerd.
+          const decoded = new Image();
+          decoded.src = objectUrl;
+          await decoded.decode();
+          if (cancelled || generation !== previewGenerationRef.current) return;
+          rendered.add(index);
+          const next = new Map(previewPagesRef.current);
+          const previous = next.get(index);
+          next.set(index, {
+            objectUrl,
+            generation,
+            quality: qualityName,
+          });
+          replacePreviewPages(pruneCache(next, index));
+          if (previous) {
+            // Laat React eerst het reeds gedecodeerde nieuwe beeld plaatsen; daarna kan de oude URL
+            // weg zonder dat een paint tussen beide bronnen een lege pagina ziet.
+            window.requestAnimationFrame(() => URL.revokeObjectURL(previous.objectUrl));
+          }
+          pendingObjectUrl = undefined;
+        } catch (error) {
+          if (!cancelled) console.warn('Rapportpreviewpagina kon niet worden gerasterd', error);
+        } finally {
+          if (pendingObjectUrl) URL.revokeObjectURL(pendingObjectUrl);
+          canvas.width = 0;
+          canvas.height = 0;
+          processing = false;
+          scheduleNext();
+        }
+      };
+
+      const renderPage = (index: number, priority = false) => {
+        if (cancelled || generation !== previewGenerationRef.current
+          || !Number.isInteger(index) || index < 0 || index >= total
+          || rendered.has(index) || queued.has(index)) return;
+        queued.add(index);
+        if (priority) queue.unshift(index);
+        else queue.push(index);
+        scheduleNext();
+      };
+
+      previewJobRef.current = { renderPage, release };
+      // De pagina die de gebruiker al las wint altijd. Een nabijpagina volgt pas in een volgende
+      // eventlooptik, zodat openen of een optieserie nooit meerdere zware renders synchroon stapelt.
+      for (const index of visibleIndices) renderPage(index, true);
+      renderPage(anchor.index, true);
+      if (anchor.index + 1 < total) renderPage(anchor.index + 1);
     };
     // Wacht op het gevendorde Inter-font (family 'InterPDF') vóór de eerste render, zodat
     // measureText/afkapping deterministisch is (§5.2). ensureInterLoaded is idempotent; de
     // cancelled-guard voorkomt dat een verouderde async-render na deps-wijziging/unmount nog toepast.
-    void ensureInterLoaded().then(renderPreview);
-    return () => { cancelled = true; };
-  }, [reportType, tasks, sequences, calendar, projectName, showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, autoFit, customZoom, paperSize, orientation, companyName, locale, dateNotation, repeatHeader, timelineColumns, reportFontScale, cpmResult]);
+    void ensureInterLoaded().then(() => {
+      if (!cancelled) debounceTimer = window.setTimeout(renderPreview, 100);
+    });
+    return release;
+    // `options` bevat onder meer catalogusobjecten die ondanks gelijke inhoud per render een nieuwe
+    // identiteit kunnen krijgen. De inhoudssignatuur hierboven is bewust de effectgrens; `options`
+    // toevoegen zou iedere preview-state-update opnieuw laten rasteren.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportSettingsHydrated, reportType, tasks, sequences, calendar, projectName, previewOptionsSignature,
+    repeatHeader, previewCssWidth, previewQuality, replacePreviewPages]);
+
+  // Eén stabiele observer per layout. Een nieuwe afbeelding verandert zijn dependencies niet en kan
+  // dus geen observer-rebuild/ping-pong veroorzaken. De queue dedupliceert callbacks.
+  useEffect(() => {
+    const root = previewViewportRef.current;
+    if (!root || reportType !== 'gantt' || previewLayout.totalPages === 0) return;
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const index = Number((entry.target as HTMLElement).dataset.previewPage);
+        if (Number.isInteger(index)) previewJobRef.current?.renderPage(index, true);
+      }
+    }, { root, rootMargin: '700px 0px' });
+    root.querySelectorAll<HTMLElement>('[data-preview-page]').forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [reportType, previewLayout.totalPages, previewLayout.wPt, previewLayout.hPt]);
 
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
@@ -443,7 +798,7 @@ export function ReportPanel() {
     }
     setExportError(null);
 
-    const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a1';
+    const lowerPaper = paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
     // Basisrichting van de export-taal: stuurt de bidi in het complexe RTL-tekst-pad van de vector-export.
     const exportBaseDir: 'ltr' | 'rtl' =
       RTL_LOCALES.includes((options.locale ?? '') as Locale) ? 'rtl' : 'ltr';
@@ -594,7 +949,8 @@ export function ReportPanel() {
     }
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
-  }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation, autoFit, writePdf, t, dd, milestoneRows, varianceResult]);
+  }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
+    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && isLeafTask(t)).length;
   const leafCount = tasks.filter(isLeafTask).length;
@@ -719,10 +1075,11 @@ export function ReportPanel() {
                 className="flex-1 min-w-0"
                 aria-label={t('paper')}
                 value={paperSize}
-                onChange={v => setPaperSize(v as 'A3' | 'A4' | 'A1')}
+                onChange={v => setPaperSize(v as 'A4' | 'A3' | 'A2' | 'A1')}
                 options={[
                   { value: 'A4', label: 'A4' },
                   { value: 'A3', label: 'A3' },
+                  { value: 'A2', label: 'A2' },
                   { value: 'A1', label: 'A1' },
                 ]}
               />
@@ -754,6 +1111,87 @@ export function ReportPanel() {
               />
             </div>
 
+            {/* Eén app-globale balkkleurkeuze voor View en Report. De veldlijst is exact Group. */}
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-text-secondary w-20 flex-shrink-0">{t('barColorModeLabel')}</label>
+              <Select
+                className="flex-1 min-w-0"
+                aria-label={t('barColorModeLabel')}
+                value={barColorSelection.mode}
+                onChange={value => {
+                  if (value === 'critical' || value === 'auto') {
+                    const next = { mode: value } as const;
+                    setUI({ barColorSelection: next });
+                    void saveBarColorSelection(next);
+                    return;
+                  }
+                  const field = barColorControl.effective.mode === 'category'
+                    ? barColorControl.effective.field
+                    : barColorFields[0]?.field;
+                  if (!field) return;
+                  const next = { mode: 'category', field } as const;
+                  setUI({ barColorSelection: next });
+                  void saveBarColorSelection(next);
+                }}
+                options={[
+                  { value: 'critical', label: t('barColorMode_critical') },
+                  { value: 'auto', label: t('barColorMode_auto') },
+                  { value: 'category', label: t('barColorMode_category') },
+                ]}
+              />
+            </div>
+            {barColorSelection.mode === 'category' && barColorControl.effective.mode === 'category' && (
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-20 flex-shrink-0" aria-hidden="true" />
+                <Select
+                  className="flex-1 min-w-0"
+                  aria-label={t('barColorFieldLabel')}
+                  value={encodeFieldRef(barColorControl.effective.field)}
+                  onChange={value => {
+                    const next = { mode: 'category', field: decodeFieldRef(value) } as const;
+                    setUI({ barColorSelection: next });
+                    void saveBarColorSelection(next);
+                  }}
+                  options={barColorFields.map(option => ({
+                    value: encodeFieldRef(option.field),
+                    label: option.label,
+                  }))}
+                />
+              </div>
+            )}
+            {barColorControl.missingField && (
+              <p className="text-[10px] text-text-muted pl-[88px]" role="status">
+                {t('barColorMissingField')}
+              </p>
+            )}
+
+            {/* Statuslijn (issue #54 punt 1): letterlijk drie opties. Zonder statusdatum in het
+                project tekent geen van beide iets — de hint maakt dat zichtbaar i.p.v. stil. */}
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-text-secondary w-20 flex-shrink-0">{t('statusLineLabel')}</label>
+              <Select
+                className="flex-1 min-w-0"
+                aria-label={t('statusLineLabel')}
+                value={statusLine}
+                onChange={v => setStatusLine(v as typeof statusLine)}
+                options={[
+                  { value: 'none', label: t('statusLine_none') },
+                  { value: 'statusDate', label: t('statusLine_statusDate') },
+                  { value: 'progress', label: t('statusLine_progress') },
+                ]}
+              />
+            </div>
+            {statusLine !== 'none' && !statusDate && (
+              <p className="text-[11px] text-amber-600 mt-0.5">{t('statusLineHint')}</p>
+            )}
+
+            {/* Volg weergave (issue #54 punt 2): export = wat het scherm toont (filter, groepering,
+                sortering, inklapstatus). Uit (default) = de volledige takenboom, zoals altijd. */}
+            <label className="flex items-center gap-2 mt-1 min-w-0">
+              <input type="checkbox" checked={followView} onChange={e => setFollowView(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{t('followView')}</span>
+            </label>
+
             {/* Auto-fit checkbox */}
             <label className="flex items-center gap-2 mt-1 min-w-0">
               <input type="checkbox" checked={autoFit} onChange={e => setAutoFit(e.target.checked)} className="accent-accent flex-shrink-0" />
@@ -766,8 +1204,8 @@ export function ReportPanel() {
                 <label className="text-text-secondary w-20 flex-shrink-0">{t('zoom', { defaultValue: 'Zoom:' })}</label>
                 <input
                   type="range"
-                  min={5}
-                  max={40}
+                  min={REPORT_MIN_ZOOM}
+                  max={REPORT_MAX_ZOOM}
                   value={customZoom}
                   onChange={e => setCustomZoom(Number(e.target.value))}
                   className="flex-1 min-w-0"
@@ -812,6 +1250,10 @@ export function ReportPanel() {
               <span className="min-w-0">{t('showCompletion', { defaultValue: 'Voltooiing tonen' })}</span>
             </label>
             <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-baseline-overlay type="checkbox" checked={showBaselineOverlay} onChange={e => setShowBaselineOverlay(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{t('showBaselineOverlay')}</span>
+            </label>
+            <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showCritical} onChange={e => setShowCritical(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showCriticalPath')}</span>
             </label>
@@ -822,6 +1264,10 @@ export function ReportPanel() {
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showDependencies')}</span>
+            </label>
+            <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-compress-workdays type="checkbox" checked={reportCompressNonWorkdays} onChange={e => setReportCompressNonWorkdays(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{tCommon('settings.compressNonWorkdays')}</span>
             </label>
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} className="accent-accent flex-shrink-0" />
@@ -853,50 +1299,93 @@ export function ReportPanel() {
       </div>
 
       {/* Right: Live preview */}
-      <div className="flex-1 overflow-auto p-4" style={{ background: 'var(--theme-bg)' }}>
+      <div data-tour-anchor="report-panel" className="flex-1 min-w-0 min-h-0" style={{ background: 'var(--theme-bg)' }}>
         {reportType === 'gantt' ? (
-          <div className="flex flex-col items-center gap-4">
-            {previewPages.map((page, i) => (
-              <div
-                key={i}
-                className="bg-white"
-                style={{
-                  width: 'min(100%, 900px)',
-                  aspectRatio: `${page.wPt} / ${page.hPt}`,
-                  borderRadius: 'var(--radius-md)',
-                  boxShadow: 'var(--shadow-card)',
-                  overflow: 'hidden',
-                }}
-              >
-                <img src={page.dataUrl} alt="" style={{ display: 'block', width: '100%', height: '100%' }} />
+          <div className="flex h-full min-h-0 flex-col">
+            <div
+              className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-xs"
+              style={{ background: 'var(--theme-bg)' }}
+              data-preview-zoom-control
+            >
+              <label htmlFor="report-preview-quality" className="text-text-secondary">{t('previewQuality.label')}</label>
+              <Select
+                id="report-preview-quality"
+                className="min-w-40"
+                aria-label={t('previewQuality.label')}
+                value={previewQuality}
+                onChange={value => setPreviewQuality(value as '100' | '200' | '300')}
+                options={[
+                  { value: '100', label: t('previewQuality.standard') },
+                  { value: '200', label: t('previewQuality.high') },
+                  { value: '300', label: t('previewQuality.maximum') },
+                ]}
+              />
+            </div>
+            <div ref={previewViewportRef} data-report-preview-viewport className="flex-1 min-h-0 overflow-auto p-4">
+              <div className="flex flex-col items-center gap-4">
+                {Array.from({ length: previewLayout.totalPages }, (_, i) => {
+                  const page = previewPages.get(i);
+                  return (
+                  <div
+                    key={i}
+                    data-preview-page={i}
+                    className="bg-white"
+                    style={{
+                      width: `min(100%, ${PREVIEW_FIT_WIDTH_PX}px)`,
+                      aspectRatio: `${previewLayout.wPt} / ${previewLayout.hPt}`,
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: 'var(--shadow-card)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {page && (
+                      <img
+                        src={page.objectUrl}
+                        alt=""
+                        data-preview-generation={page.generation}
+                        data-preview-quality={page.quality}
+                        decoding="async"
+                        style={{ display: 'block', width: '100%', height: '100%' }}
+                      />
+                    )}
+                  </div>
+                  );
+                })}
+                <div
+                  className="flex h-8 shrink-0 items-center justify-center text-center text-xs text-text-secondary"
+                  data-preview-cache-status
+                >
+                  {/* `count` (geen eigen `n`) zodat i18next echt pluraliseert: de sleutel bestaat nu
+                      in alle 14 locales met de juiste CLDR-categorieën, dus de hardgecodeerde
+                      Nederlandse `defaultValue` — die iedereen ongeacht taal te zien kreeg — is weg. */}
+                  {previewLayout.totalPages > previewPages.size
+                    ? t('previewPageLimit', { count: previewLayout.totalPages - previewPages.size })
+                    : null}
+                </div>
               </div>
-            ))}
-            {previewTotalPages > previewPages.length && (
-              <div className="text-xs text-text-secondary text-center py-2">
-                {/* `count` (geen eigen `n`) zodat i18next echt pluraliseert: de sleutel bestaat nu
-                    in alle 14 locales met de juiste CLDR-categorieën, dus de hardgecodeerde
-                    Nederlandse `defaultValue` — die iedereen ongeacht taal te zien kreeg — is weg. */}
-                {t('previewPageLimit', { count: previewTotalPages - previewPages.length })}
-              </div>
-            )}
+            </div>
           </div>
         ) : reportType === 'milestones' ? (
-          <div
-            ref={milestoneRef}
-            className="bg-surface p-4"
-            style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
-          >
-            <h3 className="ui-card-header !text-xs mb-3">{t('milestoneReport.title')}</h3>
-            <MilestoneReport />
+          <div className="h-full overflow-auto p-4">
+            <div
+              ref={milestoneRef}
+              className="bg-surface p-4"
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
+            >
+              <h3 className="ui-card-header !text-xs mb-3">{t('milestoneReport.title')}</h3>
+              <MilestoneReport />
+            </div>
           </div>
         ) : (
-          <div
-            ref={varianceRef}
-            className="bg-surface p-4"
-            style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100 }}
-          >
-            <h3 className="ui-card-header !text-xs mb-3">{t('variance.title')}</h3>
-            <VarianceReport />
+          <div className="h-full overflow-auto p-4">
+            <div
+              ref={varianceRef}
+              className="bg-surface p-4"
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100 }}
+            >
+              <h3 className="ui-card-header !text-xs mb-3">{t('variance.title')}</h3>
+              <VarianceReport />
+            </div>
           </div>
         )}
       </div>

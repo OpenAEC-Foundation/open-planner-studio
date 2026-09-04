@@ -14,7 +14,7 @@
 
 import type { EnsureBackupFn, McpToolDef } from './contracts';
 import { isTauri } from '@/utils/platform';
-import { useAppStore } from '@/state/appStore';
+import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { DEFAULT_PROJECT_FILE_BASE } from '@/utils/documents';
@@ -169,27 +169,47 @@ async function realFs(): Promise<BackupFs> {
   };
 }
 
-function realDeps(): BackupDeps {
+function realDeps(app: AppStoreContext): BackupDeps {
   return {
     getFs: realFs,
     getDoc: (docId) => {
-      const state = useAppStore.getState();
+      const state = app.store.getState();
       const found = state.getOpenDocumentPayloads().find((d) => d.id === docId);
       if (!found) return null;
       return { ifc: writeIFC(buildWriteIFCInput(found.payload)), projectName: found.payload.project.name };
     },
     autoBackupEnabled: () => import('@/utils/settingsStore').then((m) => m.loadAiAutoBackup()),
     now: () => Date.now(),
-    activeDocId: () => useAppStore.getState().activeDocumentId,
+    activeDocId: () => app.store.getState().activeDocumentId,
   };
 }
 
-// --- Singleton + publieke Tauri-gated wrappers ---------------------------------------------------
+/**
+ * Bouw een backupservice rond precies één storecontext. De optionele overrides zijn de testnaad
+ * voor fs, klok en toggle; `getDoc` en `activeDocId` blijven standaard uitsluitend uit `app` komen.
+ * Zonder overrides hergebruiken we per context één instantie, zodat de eenmalig-per-sessie-tellers
+ * niet bij elk nieuw MCP-request opnieuw beginnen.
+ */
+const appServices = new WeakMap<AppStoreContext, BackupService>();
+export type AppBackupOverrides = Partial<
+  Pick<BackupDeps, 'getFs' | 'autoBackupEnabled' | 'now'>
+>;
+export function createAppBackupService(
+  app: AppStoreContext,
+  overrides?: AppBackupOverrides,
+): BackupService {
+  if (overrides) return createBackupService({ ...realDeps(app), ...overrides });
+  const existing = appServices.get(app);
+  if (existing) return existing;
+  const created = createBackupService(realDeps(app));
+  appServices.set(app, created);
+  return created;
+}
 
-let realService: BackupService | null = null;
+// --- Appwrapper + publieke Tauri-gated wrappers --------------------------------------------------
+
 function service(): BackupService {
-  if (!realService) realService = createBackupService(realDeps());
-  return realService;
+  return createAppBackupService(appStoreContext);
 }
 
 let warnedWeb = false;

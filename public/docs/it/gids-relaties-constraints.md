@@ -97,3 +97,4 @@ Regola pratica: usa una **scadenza** per una data obiettivo che vuoi monitorare 
 - Vedi il conflitto di scadenza in pratica: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Struttura non ancora a posto? Leggi prima [Pianificazione e WBS](docs://gids-plannen-wbs).
 - Per calendari e orari di lavoro che influiscono sulla durata delle attività: la guida [Calendari e pianificazione oraria](docs://gids-kalenders-uren).
+- Tutte le scadenze superate e i vincoli violati in un unico posto, con salto all'attività: il [Pannello avvisi](docs://ref-waarschuwingen).

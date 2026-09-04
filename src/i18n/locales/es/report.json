@@ -17,8 +17,10 @@
   "showLegend": "Leyenda",
   "showTaskNames": "Nombres de tarea en las barras",
   "showCompletion": "Mostrar avance",
+  "showBaselineOverlay": "Mostrar superposición de línea base",
   "autoFit": "Ajuste automático al papel",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Calidad de vista previa", "standard": "Estándar", "high": "Alta", "maximum": "Máxima" },
   "repeatHeader": "Repetir encabezado en cada página",
   "reportFontScaleLabel": "Tamaño de letra:",
   "timelineColumnsLabel": "Cronograma en:",
@@ -42,11 +44,15 @@
   "legend": {
     "criticalPath": "Ruta crítica",
     "normal": "Normal",
+    "baseline": "Línea base",
     "milestone": "Hito",
     "summary": "Resumen",
     "float": "Holgura",
     "completion": "Avance",
-    "relationStyle": "Determinante / no determinante"
+    "relationStyle": "Determinante / no determinante",
+    "categoriesMore_one": "… y {{count}} categoría más",
+    "categoriesMore_many": "… y {{count}} categorías más",
+    "categoriesMore_other": "… y {{count}} categorías más"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -104,5 +110,19 @@
     "total": "Hitos",
     "mandatoryCount": "Obligatorios",
     "lateCount": "Retrasados"
-  }
+  },
+  "barColorModeLabel": "Colores de barras:",
+  "barColorMode_critical": "Ruta crítica",
+  "barColorMode_auto": "Por tarea — automático",
+  "barColorMode_category": "Por categoría",
+  "barColorFieldLabel": "Campo de categoría",
+  "barColorMissingField": "Este campo no existe en este proyecto. Se usa temporalmente el tipo de tarea.",
+  "statusLineLabel": "Línea de estado:",
+  "statusLine_none": "Ninguna",
+  "statusLine_statusDate": "Línea de fecha de estado",
+  "statusLine_progress": "Línea de progreso",
+  "statusLineHint": "Establezca primero una fecha de estado",
+  "followView": "Seguir la vista (filtro, agrupación, orden)",
+  "statusDateLabel": "Fecha de estado",
+  "progressDateLabel": "Fecha de progreso"
 }

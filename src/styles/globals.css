@@ -1,5 +1,1101 @@
 @import "tailwindcss";
 
+/* De gedeelde taakgrid is een dicht planninginstrument: één DOM-boom, vaste rijhoogte en één
+   scherpe actieve-celrand. Alle kleurkeuzes blijven via de bestaande thematokens lopen. */
+.task-grid-core {
+  position: relative;
+  overflow: auto;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font-family: var(--font-body);
+  font-size: 11px;
+  outline: none;
+}
+
+.task-grid-header-row,
+.task-grid-data-row {
+  display: grid;
+}
+
+/* De vaste plusknop staat buiten de scrollende kolommen. Geef de header en body daarom een echte
+ * afsluitende strook; padding op de scrollcontainer zelf schoof uitsluitend het maximale
+ * scrollbereik op en liet de knop bij scrollLeft=0 alsnog bovenop de laatste kolomtitel liggen. */
+.task-grid-header-row,
+.task-grid-body {
+  box-sizing: content-box;
+  padding-inline-end: var(--task-grid-chooser-strip, 16px);
+}
+
+/* De gridheader is sticky binnen dezelfde scroller als de gevirtualiseerde rijen. Laat de verticale
+ * scrollbaan pas onder die header beginnen, zodat duim en track nooit door de kolomkop lopen. */
+.task-grid-core::-webkit-scrollbar-track:vertical {
+  margin-block-start: var(--task-grid-header-height);
+}
+
+.task-grid-header-row {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--theme-surface-alt);
+  box-shadow: inset 0 -1px 0 var(--theme-border);
+}
+
+.task-grid-column-header,
+.task-grid-cell {
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border-inline-end: 1px solid var(--theme-border-light);
+  border-bottom: 1px solid var(--theme-border-light);
+  background: var(--theme-surface);
+}
+
+.task-grid-column-header {
+  padding-inline: 8px 10px;
+  overflow: visible;
+  background: var(--theme-surface-alt);
+  color: var(--theme-text-muted);
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.task-grid-column-label,
+.task-grid-cell-content,
+.task-grid-group-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Een editorpop-over is bewust breder/hoger dan zijn 28px-cel. De gewone celinhoud blijft
+ * ellipsized, maar de actieve editor mag niet door die wrapper worden afgeknipt: anders zijn
+ * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar.
+ * Issue #89: de contentspan is een flex-item van de cel en kromp zonder `flex: 1 1 auto` tot de
+ * intrinsieke breedte van het invoerveld (~20 tekens), zodat de naameditor maar een deel van de
+ * kolom vulde. De editor hoort de volle resterende kolombreedte te krijgen; de naameditor staat
+ * daarbij genest in de inspringrij (`.full-task-grid-name`), vandaar de afstammelingsselector. */
+.task-grid-cell-content:has(.task-grid-editor-host) {
+  flex: 1 1 auto;
+  overflow: visible;
+}
+
+.task-grid-cell {
+  position: relative;
+  padding-inline: 7px;
+  outline: none;
+}
+
+.task-grid-cell[data-grid-selected="true"] {
+  background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-surface));
+  box-shadow: inset 0 -1px 0 var(--theme-accent);
+}
+
+.task-grid-cell[data-grid-active="true"] {
+  z-index: 4 !important;
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+
+.task-grid-cell[data-grid-readonly="true"]::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-end: 3px;
+  width: 4px;
+  height: 4px;
+  border-block-start: 1px solid var(--theme-text-muted);
+  border-inline-end: 1px solid var(--theme-text-muted);
+}
+
+.task-grid-cell[data-grid-stale="true"] .task-grid-cell-content {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.task-grid-cell[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 2px var(--error);
+}
+
+.task-grid-data-row[data-grid-dimmed="true"] .task-grid-cell-content {
+  opacity: 0.58;
+}
+
+/* Browserreview, observatie 4: de rij-indicators (selectiebalk, drop-zone tijdens rijsleep) waren
+ * tot nu toe een `box-shadow: inset` op de RIJ zelf — maar een box-shadow van een element schildert
+ * ALTIJD vóór zijn eigen kinderen (de schilderorde is achtergrond/rand/box-shadow, dan pas
+ * children), en elke `.task-grid-cell` heeft een eigen ONdoorzichtige achtergrond. Onder elke kolom
+ * met inhoud (dus praktisch de hele tabelbreedte) werd de balk/lijn daardoor volledig overschilderd
+ * door de cellen erboven — zichtbaar bleef alleen het smalle restje rijbreedte VOORBIJ de laatste
+ * kolom. Twee bijna-onzichtbare lijnen die daar toevallig samenvallen (bv. "after" van rij N en
+ * "before" van rij N+1, beide maar 2px uit elkaar) konden zo als "twee oranje lijnen" ogen, en de
+ * selectiebalk op de gesleepte rij zelf was al net zo onzichtbaar.
+ *
+ * Fix: de indicator is nu een `::before`-pseudo-element, `position:absolute` op de rij (die
+ * daarvoor `position:relative` krijgt) met `z-index` boven de hoogste celwaarde (actieve cel = 4
+ * `!important`) — een pseudo-element ligt zo als een eigen laag BOVEN alle cellen, ongeacht wat
+ * daaronder staat. `pointer-events:none` houdt 'm buiten alle hit-testing (klikken/slepen blijven
+ * op de cellen zelf werken). */
+.task-grid-data-row {
+  position: relative;
+}
+
+.task-grid-data-row[data-grid-row-selected="true"] .task-grid-cell {
+  background: color-mix(in srgb, var(--theme-accent) 7%, var(--theme-surface));
+}
+
+.task-grid-data-row[data-grid-dragging="true"] {
+  opacity: 0.56;
+}
+
+.task-grid-data-row[data-grid-row-selected="true"]::before,
+.task-grid-data-row[data-grid-drop-zone]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.task-grid-data-row[data-grid-row-selected="true"]::before {
+  box-shadow: inset 3px 0 0 var(--theme-accent);
+}
+
+.task-grid-data-row[data-grid-drop-zone="before"]::before {
+  box-shadow: inset 0 2px 0 var(--theme-accent);
+}
+
+.task-grid-data-row[data-grid-drop-zone="after"]::before {
+  box-shadow: inset 0 -2px 0 var(--theme-accent);
+}
+
+.task-grid-data-row[data-grid-drop-zone="nest"]::before {
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+
+.task-grid-data-row.task-grid-trace-dimmed .task-grid-cell-content {
+  opacity: 0.25;
+}
+
+.task-grid-data-row.task-grid-trace-focus {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
+
+.task-grid-data-row.task-grid-trace-predecessor,
+.task-grid-data-row.task-grid-trace-predecessor-driving {
+  border-inline-start: 3px solid var(--trace-predecessor, #7c3aed);
+}
+
+.task-grid-data-row.task-grid-trace-successor,
+.task-grid-data-row.task-grid-trace-successor-driving {
+  border-inline-start: 3px dashed var(--trace-successor, #0284c7);
+}
+
+.task-grid-data-row.task-grid-trace-predecessor-driving,
+.task-grid-data-row.task-grid-trace-successor-driving {
+  border-inline-start-width: 5px;
+  font-weight: 600;
+}
+
+@media (forced-colors: active) {
+  .task-grid-data-row.task-grid-trace-dimmed .task-grid-cell-content {
+    opacity: 1;
+    text-decoration: line-through;
+    text-decoration-style: dotted;
+  }
+
+  .task-grid-data-row.task-grid-trace-dimmed {
+    border-inline-start: 2px dotted GrayText;
+  }
+
+  .task-grid-data-row.task-grid-trace-focus {
+    outline-color: Highlight;
+  }
+
+  .task-grid-data-row.task-grid-trace-predecessor,
+  .task-grid-data-row.task-grid-trace-predecessor-driving {
+    border-inline-start-color: Highlight;
+    border-inline-start-style: solid;
+  }
+
+  .task-grid-data-row.task-grid-trace-successor,
+  .task-grid-data-row.task-grid-trace-successor-driving {
+    border-inline-start-color: Highlight;
+    border-inline-start-style: dashed;
+  }
+
+  .task-grid-cell[data-grid-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: inset 0 -2px 0 HighlightText;
+  }
+
+  .task-grid-cell[data-grid-active="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .task-grid-cell[data-grid-readonly="true"]::after {
+    border-color: GrayText;
+    border-style: dotted;
+  }
+
+  .task-grid-cell[data-grid-stale="true"] .task-grid-cell-content {
+    text-decoration: underline dotted;
+  }
+
+  .task-grid-cell[aria-invalid="true"] {
+    outline: 3px double Mark;
+    outline-offset: -3px;
+  }
+
+  .task-grid-relation-chip--driving {
+    font-weight: 700;
+    text-decoration: underline double;
+  }
+
+  .task-grid-relation-chip--warning {
+    text-decoration: underline wavy;
+  }
+}
+
+.task-grid-group-row,
+.task-grid-group-cell {
+  box-sizing: border-box;
+  background: var(--theme-surface-alt);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.full-task-grid {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.full-task-grid > .task-grid-shell {
+  width: 100%;
+  height: 100%;
+}
+
+.gantt-workspace {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gantt-workspace-grid,
+.gantt-workspace-timeline {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gantt-workspace-grid {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.gantt-workspace-timeline {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.gantt-workspace-histogram {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.gantt-workspace-minimap {
+  display: flex;
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
+}
+
+.gantt-workspace-splitter {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
+  justify-self: end;
+  position: relative;
+  /* De volledige 5px-grijpzone ligt aan de Gantt-kant. Gecentreerd op de paneelgrens bedekte deze
+   * anders 2,5px van de 8px brede verticale tabelscrollbar. */
+  transform: translateX(100%);
+  z-index: 6;
+  width: 5px;
+  min-width: 5px;
+  padding: 0;
+  border: 0;
+  border-inline-start: 1px solid var(--theme-border);
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.gantt-workspace-splitter:hover,
+.gantt-workspace-splitter[data-resizing="true"],
+.gantt-workspace-splitter:focus-visible {
+  background: transparent;
+  outline: none;
+}
+
+.gantt-task-grid {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gantt-task-grid > .task-grid-shell {
+  width: 100%;
+  height: 100%;
+}
+
+/* Issue #89: de subtaak-plus staat ná de naam en wordt met `margin-inline-start: auto` tegen
+ * de rechter kolomrand gedrukt, zodat hij op elke samenvattende rij op dezelfde plek staat en
+ * de naamtekst links de hiërarchie kan laten zien. De lichte rand maakt hem als knop herkenbaar. */
+.gantt-task-grid-add-child {
+  flex: none;
+  margin-inline-start: auto;
+  /* Vrij van de kolomrand (issue #89, punt 4 vroeg juist om lucht rond zo'n knop). */
+  margin-inline-end: 6px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--theme-border-light);
+  border-radius: 3px;
+  color: var(--theme-text-muted);
+  background: transparent;
+  line-height: 1;
+}
+
+.gantt-task-grid-add-child:hover,
+.gantt-task-grid-add-child:focus-visible {
+  color: var(--theme-accent);
+  border-color: var(--theme-accent);
+  background: var(--theme-hover);
+  outline: none;
+}
+
+/* Vervolgmelding op observatie 3a/3b (probleem B): was `display: inline-flex` — een INLINE box
+ * sizet zich (shrink-to-fit) naar zijn EIGEN inhoud (triehoekje + tekst), niet naar de beschikbare
+ * breedte van zijn ouder (`.task-grid-cell-content`, block, dus geen flex-context die deze rij zou
+ * dwingen te krimpen). `min-width:0`/`overflow:hidden` op deze laag of de tekst-span erin doen dan
+ * NIETS — die eigenschappen laten iets krimpen ALS iets anders het beperkt, maar niets deed dat
+ * hier. `display: flex` (blokniveau) vult i.p.v. dat de beschikbare breedte van de ouder, wat de
+ * tekst-span (`.full-task-grid-name-label`, `min-width:0`) een ECHTE beperking geeft om binnen te
+ * krimpen — pas dan werken overflow:hidden/text-overflow:ellipsis daarop zoals bedoeld. */
+.full-task-grid-name {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  /* Issue #89: triehoekje (16px) + deze gap (4px) = één inspringeenheid van 20px, dezelfde
+   * TASK_NAME_INDENT_UNIT als in src/engine/taskGrid/nameIndent.ts. */
+  gap: 4px;
+}
+
+/* De naameditor vult de rij vanaf de tekstpositie tot de rechter kolomrand. */
+.full-task-grid-name > .task-grid-editor-host {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* De algemene celpadding liet rechts van een taaknaam zeven ongebruikte pixels liggen: genoeg voor
+ * nog een letter vóór de ellipsis. Links blijft de normale inspringruimte intact. */
+.task-grid-cell:has(.full-task-grid-name) {
+  padding-inline-end: 1px;
+}
+
+/* Issue #89: de contentspan is een flex-item van de cel en kromp tot zijn inhoud, zodat de
+ * rechts uitgelijnde subtaak-plus (`margin-inline-start: auto`) nooit verder kwam dan het einde
+ * van de naamtekst. De naamcel laat zijn contentspan daarom de hele celbreedte vullen; de
+ * naamtekst zelf blijft via `.full-task-grid-name-label` krimpen en afknippen. */
+.task-grid-cell:has(.full-task-grid-name) > .task-grid-cell-content {
+  flex: 1 1 auto;
+}
+
+/* Vervolgmelding op observatie 3a/3b (probleem B): `.full-task-grid-name` is zelf een
+ * `inline-flex`-rij (in-/uitklaptriehoekje + evt. "+"-knop + de tekst) zonder eigen
+ * overflow/text-overflow — `text-overflow: ellipsis` op de vooroudercontainer
+ * (`.task-grid-cell-content`) kan de afknipplek niet correct berekenen zodra de tekst genest zit
+ * in een EIGEN flex-container in plaats van een rechtstreeks tekstkind: de ellips ("…") werd
+ * daardoor nooit getoond, en de daadwerkelijke afknip leunde uitsluitend op de
+ * `overflow: hidden` van die voorouder — geen eigen begrenzing op déze laag. Bij smalle kolommen
+ * bleef de layout-doos van `.full-task-grid-name` daardoor BREDER dan zijn eigen ouder (gemeten:
+ * tot 30px breder dan `.task-grid-cell-content`), puur toevallig nog steeds geklemd door die
+ * voorouder — een aanname die breekt zodra iets in die keten verandert. Deze klasse geeft de
+ * TEKST zelf (niet de rij eromheen) zijn eigen `min-width:0` (kan binnen de flex-rij krimpen,
+ * ondanks het vaste-breedte triehoekje ernaast) plus `overflow:hidden`/`text-overflow:ellipsis` —
+ * de clip zit nu op de plek waar de tekst zelf staat, niet alleen bij de voorouder. */
+.full-task-grid-name-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.full-task-grid-disclosure {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  color: var(--theme-text-muted);
+  background: transparent;
+  line-height: 1;
+}
+
+.full-task-grid-error {
+  position: absolute;
+  inset-inline: 8px;
+  inset-block-end: 8px;
+  z-index: 8;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--error) 55%, var(--theme-border));
+  border-radius: 6px;
+  color: var(--error);
+  background: var(--theme-surface);
+  box-shadow: var(--shadow-pop);
+  font-size: 12px;
+}
+
+.task-grid-group-cell {
+  display: flex;
+  align-items: center;
+}
+
+.task-grid-group-toggle {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 0 8px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+}
+
+.task-grid-group-toggle:focus-visible,
+.task-grid-resize-handle:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
+
+.task-grid-group-count {
+  flex: none;
+  color: var(--theme-text-muted);
+  font-family: var(--font-code);
+  font-size: 10px;
+}
+
+/* Browserreview, observatie 7 (grijpzone-kant): was `inset-inline-end: -4px; width: 8px` — een
+ * band van 4px aan WEERSZIJDEN van de kolomgrens. `beginResize`'s `onPointerDown` roept
+ * `event.preventDefault()` aan, wat de NATIEVE HTML5-slepginitiatie onderdrukt (preventDefault op
+ * pointerdown/mousedown is precies het mechanisme waarmee je dragstart voorkomt) — een poging om
+ * een kolom te HERORDENEN door 'm net bij de rand vast te pakken (een natuurlijke plek om te
+ * grijpen) landde zo op de resize-greep i.p.v. de herordenbare kopruimte, en startte dan een resize
+ * (of niets) in plaats van een sleep. Bij een kolom van de minimumbreedte (40px) at 8px band 20% van
+ * de breedte in beslag — en ELKE kolom draagt ook nog eens 2px overhang van de greep van zijn linker
+ * buur. Smaller gemaakt (4px totaal i.p.v. 8px) zodat er meer ruimte overblijft voor herordenen; de
+ * greep blijft een gangbare resize-hitbox (vergelijkbaar met Excel/Sheets, die ook een paar pixels
+ * breed zijn, geen 8).
+ */
+.task-grid-resize-handle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -2px;
+  z-index: 2;
+  width: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.task-grid-resize-handle:hover {
+  background: color-mix(in srgb, var(--theme-accent) 38%, transparent);
+}
+
+.task-grid-shell {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  /* Eén bron voor de "kolom toevoegen"-strook: een 20px-knop met 6px lucht aan weerszijden, zodat
+   * hij vrijstaat van de laatste kolominhoud én van de rand van het kader (issue #89). */
+  --task-grid-chooser-strip: 32px;
+}
+
+.task-grid-column-header[data-grid-dragging="true"] {
+  opacity: 0.5;
+}
+
+.task-grid-column-header[data-grid-drop-before="true"]::before,
+.task-grid-column-header[data-grid-drop-after="true"]::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset-block: 0;
+  width: 2px;
+  background: var(--theme-accent);
+}
+
+.task-grid-column-header[data-grid-drop-before="true"]::before {
+  inset-inline-start: -1px;
+}
+
+.task-grid-column-header[data-grid-drop-after="true"]::after {
+  inset-inline-end: -1px;
+}
+
+.task-grid-remove-column {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 7px;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--theme-text-muted);
+  background: var(--theme-surface-alt);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.task-grid-column-header:hover .task-grid-remove-column,
+.task-grid-column-header:focus-within .task-grid-remove-column {
+  opacity: 1;
+}
+
+.task-grid-remove-column:hover,
+.task-grid-remove-column:focus-visible {
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+  outline: none;
+}
+
+.task-grid-column-chooser-anchor {
+  position: absolute;
+  z-index: calc(var(--z-sticky) + 1);
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  width: var(--task-grid-chooser-strip, 32px);
+  height: var(--task-grid-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 6px;
+  background: var(--theme-surface-alt);
+}
+
+.task-grid-add-column {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--theme-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+.task-grid-add-column:hover,
+.task-grid-add-column:focus-visible,
+.task-grid-add-column[aria-expanded="true"] {
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+  background: var(--theme-hover);
+  outline: none;
+}
+
+.task-grid-no-columns {
+  position: absolute;
+  inset-block-start: var(--task-grid-header-height);
+  inset-inline: 0;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  padding-inline: 10px 40px;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.task-grid-column-chooser {
+  z-index: var(--z-contextmenu);
+  width: min(310px, calc(100vw - 16px));
+  overflow-y: auto;
+  padding: 7px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+.task-grid-column-chooser-title {
+  padding: 3px 5px 7px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-grid-column-chooser-section-label {
+  padding: 7px 5px 3px;
+  color: var(--theme-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-grid-column-chooser-list {
+  display: grid;
+}
+
+.task-grid-column-chooser-item,
+.task-grid-column-chooser-category {
+  width: 100%;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  font: inherit;
+  text-align: start;
+}
+
+.task-grid-column-chooser-item:hover:not(:disabled),
+.task-grid-column-chooser-item:focus-visible,
+.task-grid-column-chooser-category:hover,
+.task-grid-column-chooser-category:focus-visible {
+  background: var(--theme-hover);
+  outline: none;
+}
+
+.task-grid-column-chooser-item:disabled {
+  color: var(--theme-text-muted);
+  cursor: default;
+}
+
+.task-grid-column-chooser-check {
+  width: 13px;
+  flex: none;
+}
+
+.task-grid-column-chooser-search {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 2px;
+  padding-inline: 7px;
+  color: var(--theme-text-muted);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+}
+
+.task-grid-column-chooser-search:focus-within {
+  border-color: var(--theme-accent);
+}
+
+.task-grid-column-chooser-search input {
+  min-width: 0;
+  flex: 1;
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+  font: inherit;
+}
+
+.task-grid-column-chooser-categories {
+  margin-block-start: 5px;
+  padding-block-start: 4px;
+  border-block-start: 1px solid var(--theme-border-light);
+}
+
+.task-grid-column-chooser-category {
+  font-weight: 600;
+}
+
+.task-grid-column-chooser-category-count {
+  margin-inline-start: auto;
+  color: var(--theme-text-muted);
+  font-family: var(--font-code);
+  font-size: 10px;
+}
+
+.task-grid-column-chooser-category svg[data-expanded="true"] {
+  transform: rotate(180deg);
+}
+
+.task-grid-column-chooser-empty {
+  padding: 6px 7px;
+  color: var(--theme-text-muted);
+}
+
+.task-grid-editor-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.task-grid-editor-input {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding-inline: 5px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-accent);
+  font: inherit;
+}
+
+.task-grid-date-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+}
+
+.task-grid-date-editor .task-grid-editor-input {
+  border-inline-end: 0;
+}
+
+.task-grid-date-picker {
+  width: 2.25rem;
+  min-width: 0;
+  height: 100%;
+  padding: 0 2px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-accent);
+  font: inherit;
+}
+
+.task-grid-assignment-editor {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  gap: 5px;
+  width: max(100%, 420px);
+  max-width: min(560px, 80vw);
+  padding: 6px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-accent);
+  box-shadow: var(--shadow-pop);
+}
+
+.task-grid-assignment-tokens {
+  display: grid;
+  gap: 4px;
+}
+
+.task-grid-assignment-token {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 76px 132px 26px;
+  gap: 4px;
+  align-items: center;
+}
+
+.task-grid-assignment-resource {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-grid-assignment-token input,
+.task-grid-assignment-token select,
+.task-grid-assignment-editor > input,
+.task-grid-assignment-token button,
+.task-grid-assignment-options button {
+  min-width: 0;
+  height: 26px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.task-grid-assignment-token input,
+.task-grid-assignment-editor > input {
+  padding-inline: 5px;
+}
+
+.task-grid-assignment-token button,
+.task-grid-assignment-options button {
+  cursor: pointer;
+}
+
+.task-grid-assignment-token button:hover,
+.task-grid-assignment-options button:hover {
+  background: var(--theme-hover);
+}
+
+.task-grid-assignment-options {
+  display: grid;
+  max-height: 180px;
+  overflow: auto;
+  border-block-start: 1px solid var(--theme-border-light);
+}
+
+.task-grid-assignment-options button {
+  padding-inline: 6px;
+  text-align: start;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Browserreview, observatie 6 (tweede plek met dezelfde afwijking): dit paneel portaalt naar
+ * document.body (RelationCellEditor.tsx) zonder eigen `font-size` — zonder deze regel erven al zijn
+ * kinderen (chips, tokens, invoervelden — geen van allen zet zelf een font-size) html/body's volle
+ * `calc(13px * --ui-font-scale)` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
+ * (dezelfde soort portal-popup) had dit al goed; hier hetzelfde patroon toegepast. */
+.task-grid-relation-editor {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: grid;
+  gap: 5px;
+  max-width: min(680px, 85vw);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 6px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-accent);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+.task-grid-relation-editor-anchor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.task-grid-relation-cell {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-grid-relation-chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.task-grid-relation-jump {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--theme-accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.task-grid-relation-detail {
+  color: var(--theme-text);
+}
+
+.task-grid-relation-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 2px;
+}
+
+.task-grid-relation-chip--driving .task-grid-relation-detail,
+.task-grid-relation-chip--driving .task-grid-relation-icon > svg {
+  color: var(--theme-accent);
+  font-weight: 700;
+}
+
+.task-grid-relation-chip--warning .task-grid-relation-icon > svg {
+  color: var(--warning, #d97706);
+}
+
+.task-grid-relation-separator {
+  color: var(--theme-text-muted);
+}
+
+.task-grid-relation-tokens,
+.task-grid-relation-options {
+  display: grid;
+  gap: 4px;
+}
+
+.task-grid-relation-token {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 64px 86px 26px;
+  gap: 4px;
+  align-items: center;
+}
+
+.task-grid-relation-reference {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.task-grid-relation-reference {
+  padding: 0;
+  color: var(--theme-accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.task-grid-relation-token input,
+.task-grid-relation-token select,
+.task-grid-relation-token > button:not(.task-grid-relation-reference),
+.task-grid-relation-add input,
+.task-grid-relation-add button,
+.task-grid-relation-options button {
+  min-width: 0;
+  height: 26px;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.task-grid-relation-token input,
+.task-grid-relation-add input {
+  padding-inline: 5px;
+}
+
+.task-grid-relation-add {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 4px;
+}
+
+.task-grid-relation-add button,
+.task-grid-relation-token > button:not(.task-grid-relation-reference),
+.task-grid-relation-options button {
+  cursor: pointer;
+}
+
+.task-grid-relation-options {
+  max-height: 180px;
+  overflow: auto;
+  border-block-start: 1px solid var(--theme-border-light);
+}
+
+.task-grid-relation-options button {
+  padding-inline: 6px;
+  text-align: start;
+  border: 0;
+  border-radius: 0;
+}
+
+.task-grid-relation-add button:hover,
+.task-grid-relation-token > button:hover,
+.task-grid-relation-options button:hover {
+  background: var(--theme-hover);
+}
+
+.task-grid-relation-context {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: grid;
+  min-width: 190px;
+  padding-block: 4px;
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--theme-border);
+  border-radius: 5px;
+  box-shadow: var(--shadow-pop);
+}
+
+.task-grid-relation-context button {
+  padding: 6px 10px;
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}
+
+.task-grid-relation-context button:hover {
+  background: var(--theme-hover);
+}
+
+.task-grid-relation-context .task-grid-relation-context-danger {
+  color: var(--error);
+}
+
+.task-grid-editor-error {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  max-width: 320px;
+  padding: 5px 7px;
+  color: var(--theme-text);
+  background: var(--theme-surface-elevated);
+  border: 1px solid var(--error);
+  box-shadow: var(--shadow-pop);
+  font-size: 11px;
+  white-space: normal;
+}
+
 /* ============================================================================
    OpenAEC Foundation — Design Tokens
    Source: OpenAEC-style-book/brandbook/DESIGN-SYSTEM.md §2 + LAYOUTS.md §0/§4.1
@@ -141,6 +1237,9 @@
   --theme-active-border: #EA580C;
   --theme-warning-text: #F59E0B;
   --theme-grid-weekend: rgba(255, 255, 255, 0.035);
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
+     aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
+  --theme-grid-week-band: rgba(255, 255, 255, 0.028);
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -165,55 +1264,76 @@
 }
 
 /* Light theme — OpenAEC light variant
-   Blueprint White (#FAFAF9) bg, Concrete (#F5F5F4) surfaces, Deep Forge (#36363E) text,
-   Amber accent (zelfde als dark — accent kleuren wisselen niet tussen modes). */
+   Blueprint White-kaarten op een neutraal-grijze werkruimte, Deep Forge-tekst, Amber accent
+   (zelfde als dark — accent kleuren wisselen niet tussen modes).
+
+   Herontwerp 2026-09: het vorige light-palet was een KOELE blauwgrijze schaal (#DCE2EB /
+   #C7CFDB / #333845) die niets deelde met het merk-grijs (Deep Forge #36363E, Scaffold Gray
+   #A1A1AA en het charcoal van dark zijn allemaal neutrale zinc-tinten). Koel staalblauw naast
+   het amber accent oogde als een complementair kleurconflict, harde witte vlakken (#FFFFFF voor
+   kaart, input, dropdown én ribbon) gaven geen lagenwerking, en de weekendarcering (#E6EBF2 op
+   wit, 1.20:1) tekende zware strepen waar dark met 0.035 wit (≈1.11:1) volstaat. Het palet
+   hieronder is één NEUTRALE grijsschaal — bewust niet warm getint (een stone-variant is
+   geprobeerd en afgekeurd: "alsof er koffie overheen is gegooid") — met dezelfde drie-laagse
+   opbouw als dark: werkruimte < ingedrukte chrome (tabstrip) < kaart/ribbon-inhoud < zwevend
+   (popover/input). */
 [data-theme="light"] {
-  /* Koele neutralen + Soft Depth. --theme-bg is de getinte werkruimte (achter de
-     kaarten); --theme-surface (#FFFFFF) zijn de zwevende kaarten/chrome. */
-  /* Tint dieper + surfaces/randen opgevoerd zodat witte kaarten "zweven" en
-     niet versmelten tot één witte massa. */
-  --theme-bg: #DCE2EB;
-  --theme-surface: #FFFFFF;
-  --theme-surface-alt: #EAEEF4;
+  /* Lagen: --theme-bg is de getinte werkruimte (achter de kaarten); --theme-surface zijn de
+     kaarten/chrome (bewust géén #FFFFFF — dat blijft over voor wat er bovenop zweeft: inputs,
+     dropdowns, dialogen via --theme-surface-elevated). */
+  --theme-bg: #E5E5E8;
+  --theme-surface: #FAFAFA;
+  --theme-surface-alt: #F1F1F3;
   --theme-surface-elevated: #FFFFFF;
-  /* Contrast-optie A: zichtbare kaart-/scheidingsrand (opgevoerd) … */
-  --theme-border: #C7CFDB;
-  --theme-border-light: #D2D9E4;
-  /* … en een stevigere control-rand (#8C94A2 ≈ 3:1 op wit, WCAG 1.4.11 AA) voor
-     inputs/selects/knoppen, zodat de zachte look toegankelijk blijft. */
-  --theme-control-border: #8C94A2;
-  /* Construction Amber (gelijk aan dark + prototype) — levendiger dan amber-700,
-     zodat de oranje knoppen niet "donkerder" ogen in light. Wit op amber ~3.3:1
-     (voldoet aan 3:1 voor UI-componenten/grote tekst; amber-700 was strikt 4.5:1). */
+  /* Zachte kaart-/scheidingsranden in dezelfde schaal (1.42:1 op de kaart — een rand hoeft
+     geen contrastnorm te halen; de hiërarchie komt uit tint + schaduw) … */
+  --theme-border: #D4D4D8;
+  --theme-border-light: #E4E4E7;
+  /* … en een stevigere control-rand voor inputs/selects/knoppen: #88888F ≈ 3.4:1 op de kaart,
+     3.5:1 op wit en 3.1:1 op surface-alt (WCAG 1.4.11 AA voor UI-componenten). */
+  --theme-control-border: #88888F;
+  /* Construction Amber (gelijk aan dark). Wit op amber ~3.2:1 (3:1 voor UI-componenten/grote
+     tekst). Hover blijft in de amber-familie (amber-700, wit-op 5.0:1) i.p.v. naar rood-oranje
+     te kantelen zoals het vorige #C2410C. */
   --theme-accent: #D97706;
-  --theme-accent-hover: #C2410C;
+  --theme-accent-hover: #B45309;
   --theme-accent-on: #ffffff;
-  --theme-text: #333845;
-  --theme-text-dim: #5B6472;
-  --theme-text-muted: #6B7280; /* labels — AA ~4.6:1 op light surfaces */
-  --theme-hover: rgba(99, 110, 130, 0.10);
+  /* Tekst: Deep Forge-tint, iets dieper voor lopende tekst (13.7:1 op de kaart). dim 6.9:1,
+     muted 5.1:1 op de kaart en 4.8:1 op surface-alt (labels — AA). */
+  --theme-text: #2A2A31;
+  --theme-text-dim: #57575F;
+  --theme-text-muted: #6A6A73;
+  /* Hover/arcering als alpha van Deep Forge, zodat ze op élke laag dezelfde tint houden. */
+  --theme-hover: rgba(54, 54, 62, 0.07);
   --theme-active: #D97706;
-  --theme-active-border: #C2410C;
-  --theme-warning-text: #946200;
-  --theme-grid-weekend: #E6EBF2;
+  --theme-active-border: #B45309;
+  --theme-warning-text: #8A5A00; /* 5.7:1 op de kaart, 5.3:1 op surface-alt */
+  /* Weekendarcering als alpha (≈1.09:1 op de kaart) — pariteit met dark (0.035 wit ≈ 1.11:1),
+     zodat de tijdlijn geen strepenpatroon meer is. */
+  --theme-grid-weekend: rgba(54, 54, 62, 0.05);
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): subtieler dan de weekend-
+     arcering, want hij bedekt hele weken i.p.v. losse dagkolommen. */
+  --theme-grid-week-band: rgba(54, 54, 62, 0.03);
   --theme-bar-float: #059669;
-  --theme-critical-text: #D12020;
+  --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
-  --theme-scrollbar-track: #DCE2EB;
-  --theme-scrollbar-thumb: #B6BFCD;
-  /* Effen vlakken i.p.v. gradients ("geen rare gradients"); titelbalk licht. */
-  --theme-ribbon-bg: #FFFFFF;
-  --theme-ribbon-tab-bg: #F6F8FB;
-  --theme-ribbon-content-bg: #FFFFFF;
+  --theme-scrollbar-track: #E5E5E8;
+  --theme-scrollbar-thumb: #BDBDC4;
+  /* Effen vlakken i.p.v. gradients ("geen rare gradients"). Zelfde opbouw als dark: titelbalk
+     en ribbon-container één tint, de tabstrip ingedrukt (donkerder), de ribbon-inhoud als
+     kaart erbovenop. */
+  --theme-ribbon-bg: #F4F4F5;
+  --theme-ribbon-tab-bg: #E9E9EC;
+  --theme-ribbon-content-bg: #FAFAFA;
   --theme-file-tab-bg: #D97706;
-  --theme-file-tab-hover: #C2410C;
-  --theme-titlebar-bg: #FFFFFF;
-  --theme-titlebar-btn-hover: rgba(99, 110, 130, 0.10);
-  --theme-titlebar-btn-active: rgba(99, 110, 130, 0.16);
-  /* Soft Depth — schaduw-tokens. */
-  --shadow-card: 0 1px 2px rgba(40, 48, 64, 0.06), 0 6px 18px rgba(40, 48, 64, 0.08);
-  --shadow-pop: 0 8px 28px rgba(40, 48, 64, 0.18);
+  --theme-file-tab-hover: #B45309;
+  --theme-titlebar-bg: #F4F4F5;
+  --theme-titlebar-btn-hover: rgba(54, 54, 62, 0.08);
+  --theme-titlebar-btn-active: rgba(54, 54, 62, 0.14);
+  /* Soft Depth — schaduw-tokens, neutraal (zinc-900) i.p.v. blauwgrijs. */
+  --shadow-card: 0 1px 2px rgba(24, 24, 27, 0.06), 0 6px 18px rgba(24, 24, 27, 0.10);
+  --shadow-pop: 0 8px 28px rgba(24, 24, 27, 0.20);
   --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
   color-scheme: light;
@@ -242,6 +1362,10 @@
      (1.23:1 vs #000, 1.16:1 vs #0a0a0a) — was onzichtbaar toen hij uit
      input-bg #000000 (= bg) werd getekend. */
   --theme-grid-weekend: #1c1c1c;
+  /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): iets zwakker dan de
+     weekend-band maar nog zichtbaar op #0a0a0a (de band moet als vlak leesbaar blijven,
+     niet als per-dag-arcering concurreren). */
+  --theme-grid-week-band: #141414;
   /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
@@ -459,6 +1583,102 @@ html, body, #root {
   font-weight: 600;
 }
 
+/* Deze tooltip hoort bij een gewone HTML-bediening (niet bij tijdelijke canvas-hover). Daardoor
+   mag de portal ook voor hit-testing boven de Gantt liggen; de knop sluit hem zelf bij mouseleave. */
+.duration-unit-tooltip {
+  pointer-events: auto;
+}
+
+/* Issue #65: alleen de WBS-kolom veert mee; de overige kolommen blijven over alle regels gelijk.
+   De container-query is gekoppeld aan de echte paneelinhoud (niet het viewport): op de minimale
+   railbreedte krijgt WBS een eigen regel, terwijl de vier bedieningselementen eronder uitlijnen. */
+.dependency-list {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dependency-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0.75rem 4rem 3.5rem 1rem;
+  grid-template-areas: "wbs driving type lag remove";
+  column-gap: 0.25rem;
+  align-items: center;
+}
+
+.dependency-wbs-cell,
+.dependency-wbs-link { grid-area: wbs; }
+.dependency-driving-slot { grid-area: driving; }
+.dependency-type-field { grid-area: type; }
+.dependency-lag-field { grid-area: lag; }
+.dependency-remove-button { grid-area: remove; }
+
+@container (max-width: 14rem) {
+  .dependency-row {
+    grid-template-areas:
+      "wbs wbs wbs wbs wbs"
+      ". driving type lag remove";
+    row-gap: 0.25rem;
+  }
+}
+
+/* Het WBS-nummer is navigatie, geen kaal tekstlabel. De semantische tracekleur blijft als vaste
+   rolmarkering zichtbaar; de tekst en focusring gebruiken de contrastrijke themakleur. De rol staat
+   daarnaast uitgeschreven in de toegankelijke knopnaam, zodat kleur niet de enige informatiedrager
+   is. Onderstreping, handcursor en hovervlak maken de klikbaarheid ook zonder kleur herkenbaar. */
+.dependency-wbs-link {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  color: var(--theme-text);
+  text-align: start;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: background-color 120ms ease, text-decoration-thickness 120ms ease;
+}
+
+.dependency-wbs-link::before {
+  content: '';
+  display: inline-block;
+  box-sizing: border-box;
+  width: 6px;
+  height: 10px;
+  margin-inline-end: 4px;
+  vertical-align: -1px;
+  background: var(--dependency-role-color);
+  border: 1px solid var(--theme-text);
+}
+
+.dependency-wbs-link[data-dependency-role="predecessor"]::before {
+  border-radius: 999px;
+}
+
+.dependency-wbs-link[data-dependency-role="successor"]::before {
+  border-radius: 1px;
+}
+
+.dependency-wbs-link:hover {
+  background: var(--theme-hover);
+  text-decoration-thickness: 2px;
+}
+
+.dependency-wbs-link:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
+  background: var(--theme-hover);
+}
+
+.dependency-driving-slot {
+  display: flex;
+  width: 0.75rem;
+  height: 0.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Toast notification — gecentraliseerde gebruikersmeldingen (bevinding K8). De stapel-container
    positioneert; de losse melding verzorgt alleen inhoud + klik. De naam is ops-toast (was
    gantt-toast): de meldingen komen ook uit Backstage/tabel/rapport, waar geen canvas is. */
@@ -559,6 +1779,19 @@ html, body, #root {
    ============================================================================ */
 
 /* Buttons (DESIGN-SYSTEM.md §3.1) */
+/* Echte bedieningselementen moeten ook buiten de gedeelde `.btn`-klasse direct als zodanig
+   herkenbaar zijn. `:where()` houdt de specificiteit op nul: invoer-, sleep- en resizecursors
+   die een component bewust specifieker instelt, blijven dus ongewijzigd leidend. */
+:where(button:not(:disabled):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"])) {
+  cursor: pointer;
+}
+
+/* Een semantisch uitgeschakelde custom control gebruikt soms aria-disabled in plaats van het
+   native attribuut; beide varianten krijgen dezelfde niet-klikbare aanwijzing. */
+:where(button:disabled, button[aria-disabled="true"], [role="button"][aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -586,7 +1819,7 @@ html, body, #root {
   color: var(--theme-accent-on);
 }
 .btn--primary:hover:not(:disabled) {
-  /* theme-aware hover: light = #9A3412 (white text 7.3:1), dark = #EA580C
+  /* theme-aware hover: light = #B45309 (white text 5.0:1), dark = #EA580C
      (unchanged from --signal-orange). Avoids the 3.56:1 fail white-on-#EA580C
      gave in light mode. */
   background: var(--theme-accent-hover);

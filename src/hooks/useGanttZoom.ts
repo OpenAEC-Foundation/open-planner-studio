@@ -1,45 +1,53 @@
-import { useEffect, useRef } from 'react';
-import { useAppStore } from '@/state/appStore';
-import { getGanttScrollBounds } from '@/utils/ganttViewport';
+import { useCallback, useEffect, useRef } from 'react';
+import { computeTimelineZoom, getGanttScrollBounds } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
+import type { ModifierMap, PositionDivision, ScrollMode } from '@/state/slices/types';
+import type { ViewState } from '@/types/view';
 
 interface UseGanttZoomOpts {
   containerRef: React.RefObject<HTMLDivElement | null>;
-  taskTableWidth: number;
+  view: ViewState;
+  enableQuarterHourZoom: boolean;
+  enableHourPlanning: boolean;
+  scrollMode: ScrollMode;
+  positionDivision: PositionDivision;
+  modifierMap: ModifierMap;
+  setZoom: (zoom: number) => void;
+  setScroll: (x: number, y: number) => void;
 }
 
 const ZOOM_FACTOR_PER_TICK = 1.1;
 
-export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts) {
-  const view = useAppStore(s => s.view);
-  const setZoom = useAppStore(s => s.setZoom);
-  const setScroll = useAppStore(s => s.setScroll);
-  const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
-  const scrollMode = useAppStore(s => s.ui.scrollMode);
-  const positionDivision = useAppStore(s => s.ui.positionDivision);
-  const modifierMap = useAppStore(s => s.ui.modifierMap);
-
+export function useGanttZoom({
+  containerRef,
+  view,
+  enableQuarterHourZoom,
+  enableHourPlanning,
+  scrollMode,
+  positionDivision,
+  modifierMap,
+  setZoom,
+  setScroll,
+}: UseGanttZoomOpts) {
   // Latest values in a ref so the wheel handler doesn't re-attach every render
-  const latest = useRef({ view, enableQuarterHourZoom, scrollMode, positionDivision, modifierMap });
-  latest.current = { view, enableQuarterHourZoom, scrollMode, positionDivision, modifierMap };
+  const latest = useRef({ view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap });
+  latest.current = { view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap };
 
   // Cursor-anchored zoom step. anchorX is canvas-X (pixels from canvas left edge).
-  const zoomAt = (newZoom: number, anchorX: number) => {
-    const { view: v, enableQuarterHourZoom: enableQH } = latest.current;
-    const max = enableQH ? 1000 : 400;
-    const clamped = Math.max(0.5, Math.min(max, newZoom));
-    if (clamped === v.zoom) return;
-
-    // Date under the cursor at current zoom (in fractional days from viewStart)
-    const localX = anchorX - taskTableWidth + v.scrollX;
-    const daysUnderCursor = localX / v.zoom;
-
-    // New scrollX so the same fractional day stays under the cursor
-    const newScrollX = Math.max(0, daysUnderCursor * clamped - (anchorX - taskTableWidth));
-
-    setZoom(clamped);
-    setScroll(newScrollX, v.scrollY);
-  };
+  const zoomAt = useCallback((newZoom: number, anchorX: number) => {
+    const { view: v, enableQuarterHourZoom: enableQH, enableHourPlanning: enableHours } = latest.current;
+    const next = computeTimelineZoom(
+      v.zoom,
+      newZoom,
+      v.scrollX,
+      anchorX,
+      maxGanttZoom(enableQH, enableHours),
+    );
+    if (next.zoom === v.zoom) return;
+    setZoom(next.zoom);
+    setScroll(next.scrollX, v.scrollY);
+  }, [setZoom, setScroll]);
 
   // Wheel handler
   useEffect(() => {
@@ -104,7 +112,7 @@ export function useGanttZoom({ containerRef, taskTableWidth }: UseGanttZoomOpts)
     return () => {
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [containerRef, taskTableWidth, setZoom, setScroll]);
+  }, [containerRef, setScroll, zoomAt]);
 
   return { zoomAt };
 }

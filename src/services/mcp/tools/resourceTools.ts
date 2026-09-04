@@ -31,7 +31,7 @@
 //   4. `enrichOk` — de respons-`data` wordt ná de transactie uit de VERSE store opgebouwd;
 //   5. nooit `ok` zonder effect: een update zonder velden, een onbekend id en een onbekende sleutel
 //      worden geweigerd met een boodschap die de sleutel én het alternatief noemt.
-import type { McpToolOk } from '../contracts';
+import type { McpContext, McpToolOk } from '../contracts';
 import {
   guardNonTransactional,
   runMutateTool,
@@ -42,8 +42,7 @@ import {
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
 import { enrichOk, okDirect, projectEndInfo } from './helpers';
-import { useAppStore } from '@/state/appStore';
-import { draft } from '@/state/mcpTransaction';
+import type { AppState } from '@/state/appStore';
 import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
@@ -52,7 +51,7 @@ import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
 type Rejection = { id: string; reason: string };
-type StoreState = ReturnType<typeof useAppStore.getState>;
+type StoreState = AppState;
 
 /** Het volledige `ResourceType`-domein (types/resource.ts). Hoofdlettergevoelig, net als elders. */
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
@@ -484,8 +483,8 @@ function buildNewResource(fields: FieldPatch): Omit<Resource, 'id'> {
 }
 
 /** Synchrone, transactie-vrije kern van `manage_resources` (zie de batchStep-noot in taskTools.ts). */
-function manageResourcesCore(actions: ResourceAction[]): MutationOutcome {
-  const { plans, rejections } = classifyResources(useAppStore.getState(), actions);
+function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): MutationOutcome {
+  const { plans, rejections } = classifyResources(ctx.app.store.getState(), actions);
 
   const created: Record<string, string> = {}; // tempId → echt id (batch-contract, batchTool.ts)
   const createdRows: Record<string, unknown>[] = [];
@@ -494,7 +493,7 @@ function manageResourcesCore(actions: ResourceAction[]): MutationOutcome {
   /** tempId → echt id, voor `parentId`-verwijzingen binnen dezelfde call. */
   const tempToReal = new Map<string, string>();
 
-  const asgBefore = useAppStore.getState().assignments.length;
+  const asgBefore = ctx.app.store.getState().assignments.length;
 
   for (const plan of plans) {
     if (plan.mode === 'create') {
@@ -503,7 +502,7 @@ function manageResourcesCore(actions: ResourceAction[]): MutationOutcome {
       if (typeof fields.parentId === 'string' && tempToReal.has(fields.parentId)) {
         fields.parentId = tempToReal.get(fields.parentId)!;
       }
-      const id = draft.addResource(buildNewResource(fields));
+      const id = ctx.transactions.draft.addResource(buildNewResource(fields));
       if (plan.tempId) { created[plan.tempId] = id; tempToReal.set(plan.tempId, id); }
       createdRows.push({ id, ...(plan.tempId ? { tempId: plan.tempId } : {}), name: fields.name as string });
       continue;
@@ -514,19 +513,19 @@ function manageResourcesCore(actions: ResourceAction[]): MutationOutcome {
       if (typeof fields.parentId === 'string' && tempToReal.has(fields.parentId)) {
         fields.parentId = tempToReal.get(fields.parentId)!;
       }
-      draft.updateResource(plan.id, fields as unknown as Partial<Resource>);
+      ctx.transactions.draft.updateResource(plan.id, fields as unknown as Partial<Resource>);
       updatedRows.push({ id: plan.id, changedFields: Object.keys(fields) });
       continue;
     }
 
     // delete — het VOLLEDIGE voor/na-verschil komt uit het draft-primitief zelf.
-    const before = useAppStore.getState().resources.find((r) => r.id === plan.id);
+    const before = ctx.app.store.getState().resources.find((r) => r.id === plan.id);
     if (!before) {
       // Kan alleen bij een defect in de classificatie — harde stapfout i.p.v. stil doorgaan.
       throw new McpStepError('NOT_FOUND', `resource '${plan.id}' bestaat niet (na classificatie)`);
     }
     const name = before.name;
-    const diff = draft.removeResource(plan.id);
+    const diff = ctx.transactions.draft.removeResource(plan.id);
     deletedRows.push({
       id: plan.id,
       name,
@@ -537,7 +536,7 @@ function manageResourcesCore(actions: ResourceAction[]): MutationOutcome {
     });
   }
 
-  const removedAssignmentCount = asgBefore - useAppStore.getState().assignments.length;
+  const removedAssignmentCount = asgBefore - ctx.app.store.getState().assignments.length;
 
   return {
     data: {
@@ -669,10 +668,10 @@ const manageResources: BatchStepTool = {
   },
   // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
   // dus overbodig binnen een batch (die bezit de transactie al).
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseManageResources(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return manageResourcesCore(parsed);
+    return manageResourcesCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseManageResources(args);
@@ -682,15 +681,16 @@ const manageResources: BatchStepTool = {
     // Lege-batch-snelpad: statisch nul uitvoerbare items ⇒ direct Ok mét de weigeringen, zónder
     // transactie/backup/snapshot/redo-wipe.
     {
-      const pre = classifyResources(useAppStore.getState(), actions);
+      const state = ctx.app.store.getState();
+      const pre = classifyResources(state, actions);
       if (pre.plans.length === 0) {
         const g = guardNonTransactional(ctx);
         if (g) return g;
-        return okDirect(ctx, { ...EMPTY_DATA, warnings: [], projectEnd: projectEndInfo().projectEnd }, pre.rejections);
+        return okDirect(ctx, { ...EMPTY_DATA, warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
 
-    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => manageResourcesCore(actions));
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => manageResourcesCore(ctx, actions));
 
     return enrichOk(res, () => {
       const data = (res as McpToolOk).data as {
@@ -720,13 +720,14 @@ const manageResources: BatchStepTool = {
       const capacityTouched =
         totalRemoved > 0 ||
         data.updated.some((u) => u.changedFields.some((f) => f === 'maxUnits' || f === 'availabilitySteps' || f === 'calendarId'));
-      if (capacityTouched && useAppStore.getState().tasks.some((t) => t.levelingDelay !== undefined)) {
+      const state = ctx.app.store.getState();
+      if (capacityTouched && state.tasks.some((t) => t.levelingDelay !== undefined)) {
         warnings.push(
           'Er staat een TOEGEPASTE nivellering op deze planning; die is berekend op de OUDE capaciteit en ' +
           'is nu verouderd. Draai planner_level_resources opnieuw of wis hem met planner_clear_leveling.',
         );
       }
-      const { projectEnd, cappedTaskIds } = projectEndInfo();
+      const { projectEnd, cappedTaskIds } = projectEndInfo(state);
       return {
         ...((res as McpToolOk).data as object),
         warnings,

@@ -277,7 +277,7 @@ export function shiftIso(iso: string, deltaDays: number): string {
 
 Dat is de enige juiste vorm-discriminator: `project.statusDate` mag een datetime zijn óók als de
 projectkalender een dag-kalender is (`types/project.ts:47`), en een gemengd dag/uur-document
-(`ui.allowMixedDayHour`) heeft per taak een andere vorm. Afleiden uit de effectieve kalender zou
+heeft per taak een andere vorm. Afleiden uit de effectieve kalender zou
 in gemengde documenten fout gaan; afleiden uit de string is per definitie correct.
 
 **Δ is altijd een geheel aantal kalenderdagen**, ook in uur-modus: de gebruiker kiest een nieuwe

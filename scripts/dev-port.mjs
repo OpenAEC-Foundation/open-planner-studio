@@ -5,27 +5,46 @@ import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { withAllocLock } from './dev-lock.mjs';
 
-export const MIN_PORT = 3007;
-export const MAX_PORT = 3106;
+export const PORT_LANES = Object.freeze({
+  dev: Object.freeze({ min: 3007, max: 3106, marker: 'opsDevPort' }),
+  browser: Object.freeze({ min: 3107, max: 3206, marker: 'opsBrowserTestPort' }),
+});
+
+export const MIN_PORT = PORT_LANES.dev.min;
+export const MAX_PORT = PORT_LANES.dev.max;
+
+function portLane(lane) {
+  const config = PORT_LANES[lane];
+  if (!config) {
+    throw new Error(`Onbekende poortlane "${lane}"; verwacht ${Object.keys(PORT_LANES).join(' of ')}`);
+  }
+  return config;
+}
 
 /**
  * Laagste poort in [MIN_PORT, MAX_PORT] die noch geclaimd noch gebonden is.
  * Puur: `claimed` is een Set<number>, `isBound` een predicaat (port) => boolean.
  */
-export function chooseFreePort(claimed, isBound) {
-  for (let port = MIN_PORT; port <= MAX_PORT; port++) {
+export function chooseFreePortFor(lane, claimed, isBound) {
+  const { min, max } = portLane(lane);
+  for (let port = min; port <= max; port++) {
     if (!claimed.has(port) && !isBound(port)) return port;
   }
-  throw new Error(`Geen vrije dev-poort in ${MIN_PORT}-${MAX_PORT}`);
+  throw new Error(`Geen vrije ${lane}-poort in ${min}-${max}`);
+}
+
+export function chooseFreePort(claimed, isBound) {
+  return chooseFreePortFor('dev', claimed, isBound);
 }
 
 /** De opsDevPort-markering uit <root>/.claude/launch.json, of null. Gooit nooit. */
-export function readRecordedPort(root, readFile = readFileSync) {
+export function readRecordedPort(root, lane = 'dev', readFile = readFileSync) {
   if (!root) return null;
+  const { min, max, marker } = portLane(lane);
   try {
     const json = JSON.parse(readFile(join(root, '.claude', 'launch.json'), 'utf8'));
-    const p = json?.opsDevPort;
-    return Number.isInteger(p) && p >= MIN_PORT && p <= MAX_PORT ? p : null;
+    const p = json?.[marker];
+    return Number.isInteger(p) && p >= min && p <= max ? p : null;
   } catch {
     return null;
   }
@@ -67,22 +86,32 @@ function defaultLaunchJson() {
   };
 }
 
-/** Schrijf opsDevPort (bron van waarheid) + configurations[dev].port (voor preview_start), atomair. */
-export function stampLaunchJson(root, port) {
+/** Schrijf de marker van één lane atomair; alleen dev stuurt configurations[dev].port. */
+export function stampRecordedPort(root, lane, port) {
+  const { min, max, marker } = portLane(lane);
+  if (!Number.isInteger(port) || port < min || port > max) {
+    throw new Error(`Ongeldige ${lane}-poort ${port}; verwacht ${min}-${max}`);
+  }
   const file = join(root, '.claude', 'launch.json');
   let json;
   try { json = JSON.parse(readFileSync(file, 'utf8')); }
   catch { json = defaultLaunchJson(); }
   if (!json || typeof json !== 'object' || Array.isArray(json)) json = defaultLaunchJson();
-  json.opsDevPort = port;
-  json.configurations = Array.isArray(json.configurations) ? json.configurations : [];
-  const dev = json.configurations.find((c) => c && c.name === 'dev');
-  if (dev) dev.port = port;
-  else json.configurations.unshift({ name: 'dev', runtimeExecutable: 'npm', runtimeArgs: ['run', 'dev'], port });
+  json[marker] = port;
+  if (lane === 'dev') {
+    json.configurations = Array.isArray(json.configurations) ? json.configurations : [];
+    const dev = json.configurations.find((c) => c && c.name === 'dev');
+    if (dev) dev.port = port;
+    else json.configurations.unshift({ name: 'dev', runtimeExecutable: 'npm', runtimeArgs: ['run', 'dev'], port });
+  }
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.tmp-${process.pid}`;
   writeFileSync(tmp, `${JSON.stringify(json, null, 2)}\n`);
   renameSync(tmp, file);
+}
+
+export function stampLaunchJson(root, port) {
+  return stampRecordedPort(root, 'dev', port);
 }
 
 /** Pad naar zijn symlink-vrije vorm, of ongewijzigd als dat niet kan (weg/geen rechten). */
@@ -124,12 +153,13 @@ function listWorktreePaths(root) {
  *
  * deps injecteerbaar voor tests: { recorded, listPaths, portFree, stamp, lock }.
  */
-export async function allocatePort(root, deps = {}) {
+export async function allocateNamedPort(root, lane, deps = {}) {
+  const { min, max } = portLane(lane);
   const {
-    recorded = readRecordedPort,
+    recorded = (path) => readRecordedPort(path, lane),
     listPaths = listWorktreePaths,
     portFree = isPortFree,
-    stamp = stampLaunchJson,
+    stamp = (path, port) => stampRecordedPort(path, lane, port),
     lock = withAllocLock,
   } = deps;
 
@@ -153,15 +183,15 @@ export async function allocatePort(root, deps = {}) {
     if (mine != null && !claimed.has(mine)) return mine;
 
     const bound = new Set();
-    for (let p = MIN_PORT; p <= MAX_PORT; p++) {
+    for (let p = min; p <= max; p++) {
       if (!claimed.has(p) && !(await portFree(p))) bound.add(p);
     }
     let port;
     try {
-      port = chooseFreePort(claimed, (p) => bound.has(p));
+      port = chooseFreePortFor(lane, claimed, (p) => bound.has(p));
     } catch {
       throw new Error(
-        `Geen vrije dev-poort in ${MIN_PORT}-${MAX_PORT} voor worktree "${worktreeSlug(root)}"`
+        `Geen vrije ${lane}-poort in ${min}-${max} voor worktree "${worktreeSlug(root)}"`
         + ` — ${claimed.size} poort(en) geclaimd door andere worktrees, ${bound.size} in gebruik.`
         + ' Sluit een dev-server af of verruim het bereik in scripts/dev-port.mjs.',
       );
@@ -169,4 +199,8 @@ export async function allocatePort(root, deps = {}) {
     stamp(root, port);
     return port;
   });
+}
+
+export function allocatePort(root, deps = {}) {
+  return allocateNamedPort(root, 'dev', deps);
 }

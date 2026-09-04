@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "自動保存", "noFile": "自動保存を使うには、先にこのプロジェクトを保存してください。", "onHint": "自動保存はオンです。変更はこのファイルに書き込まれます。", "offHint": "自動保存はオフです。クラッシュ復元は常に有効です。" },
   "notifications": {
     "dismiss": "通知を閉じる",
     "openFailed": "ファイルを開けませんでした",
@@ -48,11 +49,14 @@
     "relationCreated": "関係を作成しました: {{predecessor}} → {{successor}}",
     "relationDuplicate": "この関係はすでに存在します",
     "relationAncestorEndpoint": "タスクとその自身の(祖先)サマリータスクとの間の関係は許可されません。",
-    "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした — 詳細は関係パネルをご確認ください。",
+    "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
-    "readMore": "詳細を見る"
+    "readMore": "詳細を見る",
+    "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
+    "librarySaveFailed": "ライブラリを保存できませんでした",
+    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
   },
   "yes": "はい",
   "no": "いいえ",
@@ -121,11 +125,15 @@
     "themeDark": "ダーク",
     "themeLight": "ライト",
     "themeHighContrast": "ハイコントラスト",
+    "themeFollowSystem": "システムのテーマに従う",
+    "themeSystemHint": "システムの配色に従います（現在: {{theme}}）。",
     "timeline": "タイムライン／ズーム",
     "hourPlanningSection": "時間計画",
     "enableHourPlanning": "時間計画を有効にする",
     "enableHourPlanningHint": "時間・分単位のスケジューリングを有効にします：時間の時間軸、稼働時間帯を持つシフト、時間単位で正確なタスクバー。オフの場合 ⇒ アプリは従来どおり完全に日単位のままです。",
     "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
+    "defaultTaskDurationUnit": "新しいタスクの既定単位",
+    "defaultTaskDurationUnitHint": "新しいタスクを稼働日または作業時間のどちらで開始するかを決めます。既存のタスクは変わりません。",
     "durationDisplay": "期間の表示",
     "durationDisplayAuto": "自動（タスクごとの単位）",
     "durationDisplayDays": "常に日",
@@ -280,6 +288,9 @@
     "openBadge": "{{count}} 件開いています",
     "switchHint": "⌘1–9 で切り替え",
     "openProject": "プロジェクトを開く",
+    "newOrOpenTitle": "プロジェクトを開始",
+    "newProject": "新しいプロジェクト",
+    "openExistingProject": "既存のプロジェクトを開く",
     "allProjects": "すべてのプロジェクト",
     "active": "アクティブ",
     "tasksWord": "タスク",
@@ -354,13 +365,39 @@
       "sameSize": "前のバージョンと同じサイズ",
       "daysSincePrevious": "前回のリリースから：{{count}} 日",
       "currentOnly": "現在バージョン {{version}} を使用しています",
-      "whatsNewButton": "更新内容"
+      "whatsNewButton": "更新内容", "newVersion": "新しいバージョン", "readGuide": "ガイドを読む", "fullNotes": "完全なリリースノートを見る", "openFailed": "リリースノートを開けませんでした。", "inNumbers": "この更新の数字", "days": "前回リリースからの日数", "commits": "前回リリース以降のコミット", "codeLines": "追加コード行", "codeLinesHint": "アプリ、Rust、スクリプト、テストの追加行。", "smallerLabel": "小さいパッケージ", "largerLabel": "大きいパッケージ", "acknowledge": "了解"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "期限超過: {{count}} 件",
     "violatedConstraints": "制約違反: {{count}} 件",
-    "outOfSequence": "順序違反の関係: {{count}} 件"
+    "outOfSequence": "順序違反の関係: {{count}} 件",
+    "overallocated": "{{count}} 件のリソースが過剰割り当て"
+  },
+  "warnings": {
+    "title": "警告",
+    "close": "警告を閉じる",
+    "openPanel": "警告パネルを開く（詳細とナビゲーション）",
+    "summary": "エラー {{errors}} 件、警告 {{warnings}} 件",
+    "noSchedule": "まだ計算されていません — 計算 (F5) を押してチェックを実行してください。",
+    "stale": "スケジュールが古くなっています — この一覧は前回の計算結果です。再計算 (F5) してください。",
+    "empty": "警告はありません。スケジュールはすべてのチェックに合格しています。",
+    "goTo": "移動: {{target}}",
+    "kind": {
+      "scheduleError": "スケジュールを計算できませんでした: {{message}}",
+      "missedDeadline": "期限 {{deadline}} を超過 — 最早終了 {{finish}}",
+      "violatedConstraint": "制約 {{constraint}} がロジックによって上書きされています（負のフロート）",
+      "outOfSequence": "順序違反: 後続タスクの進捗が関係と矛盾しています",
+      "truncatedLead": "リードがプロジェクト開始で切り詰められました — 関係が完全には守られていません",
+      "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
+      "hammockNoFinishDriver": "終了ドライバーのないハンモック（FF/SF の先行なし）: 期間はゼロになります",
+      "cappedTask": "終了日が打ち切られました: カレンダーにこのタスクの作業可能な期間がありません",
+      "overallocation": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）"
+    },
+    "target": {
+      "project": "プロジェクト",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -566,7 +603,8 @@
       "capacity": "キャパシティ",
       "documents": "ドキュメント",
       "selectHint": "ヒストグラムを表示するにはリソースを選択してください。"
-    }
+    },
+    "color": "色"
   },
   "calendar": {
     "library": {
@@ -617,6 +655,18 @@
       "threeShift": "3交代",
       "night": "夜勤",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "有効な休憩開始時刻を HH:MM で入力してください。",
+      "invalidWorkStart": "有効な開始時刻を HH:MM 形式で入力してください。",
+      "invalidWorkEnd": "有効な終了時刻を HH:MM 形式で入力してください。",
+      "invalidWorkTimeOrder": "開始時刻は終了時刻より前である必要があります。",
+      "increaseTime": "時刻を15分進める",
+      "decreaseTime": "時刻を15分戻す",
+      "increaseBreakDuration": "休憩時間を15分増やす",
+      "decreaseBreakDuration": "休憩時間を15分減らす",
+      "start": "休憩開始", "duration": "休憩時間（分）", "hint": "勤務時間帯は自動的に導出されます。0 分は連続勤務日です。",
+      "errors": { "invalidDuration": "休憩時間は 0 以上の整数分でなければなりません。", "outsideWorkingDay": "休憩は設定した勤務日の範囲内でなければなりません。", "consumesWorkingDay": "休憩が勤務日全体を占めることはできません。" }
     },
     "worktime": {
       "section": "稼働時間",
@@ -702,7 +752,7 @@
       "none": "(なし)"
     },
     "presentation": {
-      "hint": "F11キーを押すとプレゼンテーションモードを終了します"
+      "hint": "Esc または F11 を押して全画面表示を終了します。"
     },
     "splitView": {
       "primary": "プライマリ",
@@ -731,7 +781,9 @@
   },
   "duration": {
     "suffixDay": "日",
-    "suffixHour": "時",
+    "suffixHour": "h",
+    "days": "日",
+    "hours": "時間",
     "suffixMinute": "分"
   },
   "shortcuts": {
@@ -742,7 +794,8 @@
       "edit": "編集",
       "structure": "構造",
       "view": "表示",
-      "nav": "ナビゲーション"
+      "nav": "ナビゲーション",
+      "grid": "テーブル"
     },
     "view": {
       "exitFullscreen": "プレゼンテーションを終了",
@@ -762,6 +815,12 @@
       "switchDocument": "ドキュメントを切り替え",
       "scrollToToday": "今日にジャンプ",
       "help": "ヘルプを開く"
+    },
+    "grid": {
+      "navigate": "次/前のセル",
+      "edit": "セルを編集",
+      "typeToReplace": "入力するとセルの内容が置き換わります",
+      "clearCell": "セルの内容を消去"
     }
   },
   "welcome": {

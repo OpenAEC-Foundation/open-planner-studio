@@ -36,7 +36,7 @@
 
 ## Zaman çizelgesi / Yakınlaştırma sekmesi
 
-- **Saat planlaması** — **Saat planlamasını etkinleştir**, saat/dakika zamanlamasını açar: bir saat zaman ölçeği, çalışma-saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama tamamen gün bazlı kalır. Anahtar açıkken, **Karma gün/saat planlamasına izin ver** görünür (bir projede gün ve saat görevleri). Anahtar kapalıyken saat planlaması içeren bir dosya açarsanız, üstte bir çubuk **Saat planlamasını etkinleştir**'i sunar. Bkz. [Takvimler & saat planlaması](docs://gids-kalenders-uren).
+- **Saat planlaması** — **Saat planlamasını etkinleştir**, saat ölçeğini ve çalışma saati bantlarını açar. Kapalıyken yeni görevler günle başlar, mevcut saat görevleri kesin değerini korur. Açıkken gün ve saat görevleri birlikte bulunabilir. Bkz. [Takvimler & saat planlaması](docs://gids-kalenders-uren).
 - **Süre gösterimi** — **Otomatik (göreve özgü birim)**, **Her zaman gün** veya **Her zaman saat**.
 - **Kesintilerde görev çubukları** — **Asla bölme**, **Seçildiğinde böl** veya **Her zaman böl**: bir çubuğun çalışılmayan günler etrafında görsel olarak bölünüp bölünmediği.
 - **Zaman ekseni** — **Yalnızca iş günlerini göster**, zaman çizelgesini sıkıştırır: proje takvimindeki hafta sonları ve tatiller atlanır, böylece aralarındaki takvim nasıl görünürse görünsün 5 iş günlük bir görev tam olarak 5 sütun genişliğindedir.

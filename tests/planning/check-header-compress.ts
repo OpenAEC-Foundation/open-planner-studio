@@ -83,10 +83,16 @@ const [ta] = S().tasks;
 S().updateTask(ta.id, { time: { ...S().tasks[0].time, scheduleStart: '2026-01-01', scheduleDuration: 500 } });
 S().runCPM();
 
-const W = 1200, H = 600, TTW = 300, HEADER_H = 44;
+const W = 1200, H = 600, TTW = 0, HEADER_H = 44;
 const VIEW_START = '2026-11-15'; // vóór het Kerst/Nieuwjaar-blok, zodat het in het venster valt
 
-function renderHeaderOps(zoom: number, scrollX: number, compress: boolean): TextOp[] {
+function renderHeaderOps(
+  zoom: number,
+  scrollX: number,
+  compress: boolean,
+  enableHourPlanning = false,
+  enableQuarterHourZoom = false,
+): TextOp[] {
   const { ctx, ops } = makeCtx();
   const st = S();
   new GanttRenderer(ctx, {
@@ -95,16 +101,28 @@ function renderHeaderOps(zoom: number, scrollX: number, compress: boolean): Text
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0, viewStartDate: VIEW_START },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: 28,
     headerHeight: HEADER_H,
     compressNonWorkdays: compress,
     weekStartDay: 'monday',
+    enableHourPlanning,
+    enableQuarterHourZoom,
   }).render();
   return ops.filter((o) => o.y < HEADER_H);
+}
+
+// G1: de uren- en kwartierkeuze bestond in de instellingen, maar de schermheader gaf
+// `false` hardcoded door aan `pickTiers`. Daardoor kon geen enkel zoomniveau ooit tijdlabels
+// onder een dag tonen. Op de fijnste kwartierstand moeten de beide concrete labels zichtbaar zijn.
+{
+  const ops = renderHeaderOps(4000, 0, false, true, true);
+  const labels = new Set(ops.map(op => op.text));
+  checks++;
+  if (!labels.has('00:00')) diffs.push('uurheader ontbreekt: 00:00 is niet zichtbaar op de uur-/kwartierstand');
+  checks++;
+  if (!labels.has('00:15')) diffs.push('kwartierheader ontbreekt: 00:15 is niet zichtbaar op de fijnste kwartierstand');
 }
 
 // ── 1. Compressie AAN: geen stapeling binnen een rij + volle canvas-dekking van de dag-rij ──
@@ -175,7 +193,7 @@ for (const zoom of ZOOMS) {
 const ORIGIN = new Date(VIEW_START + 'T00:00:00.000Z');
 for (const zoom of ZOOMS) {
   for (const scrollX of SCROLLS) {
-    const axis = buildCalendarAxis({ origin: ORIGIN, taskTableWidth: TTW, zoom, scrollX });
+    const axis = buildCalendarAxis({ origin: ORIGIN, chartOriginX: TTW, zoom, scrollX });
     checks++;
     if (axis.dayIndexOf(ORIGIN) !== 0) {
       diffs.push(`CalendarAxis.dayIndexOf(origin) !== 0 bij z=${zoom} sx=${scrollX}: kreeg ${axis.dayIndexOf(ORIGIN)}`);

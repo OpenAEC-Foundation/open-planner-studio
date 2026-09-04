@@ -3,17 +3,18 @@ import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import {
-  Diamond, ZoomIn, ZoomOut, Trash2, Eye,
+  Diamond, Link, ZoomIn, ZoomOut, Trash2, Eye,
   History, Download, Puzzle,
   LayoutTemplate, UserPlus, Flag, GitCompareArrows, CalendarClock, X,
-  Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal,
+  Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Palette,
   Map as MapIcon, AlertTriangle, Save, RefreshCw, Settings2,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId,
+  saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId, loadSavedFilters,
 } from '@/utils/settingsStore';
+import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
@@ -21,20 +22,28 @@ import { supportsHandles } from '@/services/fileAccess';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type TimeScale } from '@/state/slices/types';
+import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type SavedFilter, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { groupFieldList, fullFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import {
+  barColorFieldOptions,
+  effectiveBarColorControl,
+} from '@/components/viewControls/barColorFieldOptions';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
+import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
+  RibbonInlineSelect,
   encodeFieldRef, decodeFieldRef,
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
+import { createRelationWithFeedback } from '@/state/relationActions';
+import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 
 /**
  * Ribbon-widgets (audit P18): de "component-escape-hatch" uit de config-registry — de
@@ -222,6 +231,152 @@ export function MilestoneDropdown() {
         </button>
       ))}
     </Popover>
+  );
+}
+
+export interface RelationActionAvailability {
+  linkSelected: boolean;
+  addExternal: boolean;
+  refreshExternal: boolean;
+}
+
+/** Pure beschikbaarheidsregels achter de vier vaste dropdownacties. */
+export function relationActionAvailability(
+  selectedTaskCount: number,
+  externalRelationCount: number,
+): RelationActionAvailability {
+  return {
+    linkSelected: selectedTaskCount === 2,
+    addExternal: selectedTaskCount === 1,
+    refreshExternal: externalRelationCount > 0,
+  };
+}
+
+/**
+ * Relatie is bewust een keuzemenu met vier vaste betekenissen. De selectie bepaalt alleen of een
+ * actie beschikbaar is; de hoofdknop verandert nooit meer stil van gedrag.
+ */
+export function RelationDropdown() {
+  const { t: tMenu } = useTranslation('menu');
+  const { t: tTask } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
+  const [open, setOpen] = useState(false);
+  const [externalTaskId, setExternalTaskId] = useState<string | null>(null);
+  const [refreshStatus, setRefreshStatus] = useState('');
+  const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
+  const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
+  const externalRelationCount = useAppStore(s => s.tasks.reduce(
+    (count, task) => count + (task.externalLinks?.length ?? 0),
+    0,
+  ));
+  const setUI = useAppStore(s => s.setUI);
+  const refreshAllExternalAnchors = useAppStore(s => s.refreshAllExternalAnchors);
+  const availability = relationActionAvailability(selectedTaskIds.length, externalRelationCount);
+
+  const items: Array<{
+    key: 'draw' | 'linkSelected' | 'addExternal' | 'refreshExternal';
+    label: string;
+    disabled: boolean;
+    title: string;
+    active?: boolean;
+    onClick: () => void;
+  }> = [
+    {
+      key: 'draw',
+      label: tMenu('ribbon.relationDraw'),
+      disabled: false,
+      active: dependencyMode,
+      title: tMenu(dependencyMode ? 'ribbon.relationDrawOffHint' : 'ribbon.relationDrawOnHint'),
+      onClick: () => {
+        setUI({ showDependencyMode: !dependencyMode });
+        setOpen(false);
+      },
+    },
+    {
+      key: 'linkSelected',
+      label: tMenu('ribbon.relationLinkSelected'),
+      disabled: !availability.linkSelected,
+      title: availability.linkSelected
+        ? tMenu('ribbon.relationLinkSelectedHint')
+        : tMenu('ribbon.relationSelectExactlyTwo'),
+      onClick: () => {
+        createRelationWithFeedback(selectedTaskIds[0], selectedTaskIds[1], 'FINISH_START');
+        setOpen(false);
+      },
+    },
+    {
+      key: 'addExternal',
+      label: tMenu('ribbon.relationAddExternal'),
+      disabled: !availability.addExternal,
+      title: availability.addExternal
+        ? tMenu('ribbon.relationAddExternalHint')
+        : tMenu('ribbon.relationSelectOne'),
+      onClick: () => {
+        setExternalTaskId(selectedTaskIds[0]);
+        setOpen(false);
+      },
+    },
+    {
+      key: 'refreshExternal',
+      label: tMenu('ribbon.relationRefreshExternal'),
+      disabled: !availability.refreshExternal,
+      title: availability.refreshExternal
+        ? tTask('externalLinks.refreshAllHint')
+        : tMenu('ribbon.relationNoExternal'),
+      onClick: () => {
+        void (async () => {
+          const result = await refreshAllExternalAnchors(buildImportLabels(tCommon));
+          setRefreshStatus(result.sources === 0
+            ? tTask('externalLinks.noSourcesToast')
+            : tTask('externalLinks.refreshedToast', { refreshed: result.refreshed, missing: result.missing }));
+        })();
+      },
+    },
+  ];
+
+  return (
+    <>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        panelStyle={{ zIndex: 1000, minWidth: 260, padding: '4px 0' }}
+        trigger={
+          <button
+            className={`ribbon-btn${dependencyMode ? ' active' : ''}`}
+            onClick={() => setOpen(current => !current)}
+            title={tMenu('ribbon.relation')}
+            aria-label={tMenu('ribbon.relation')}
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            <span className="ribbon-btn-icon"><Link size={20} /></span>
+            <span className="ribbon-btn-label">{tMenu('ribbon.relation')} ▾</span>
+          </button>
+        }
+      >
+        <div role="menu" aria-label={tMenu('ribbon.relation')}>
+          {items.map(item => (
+            <button
+              key={item.key}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              aria-disabled={item.disabled || undefined}
+              title={item.title}
+              className="ribbon-relation-menu-item"
+              onClick={item.disabled ? undefined : item.onClick}
+            >
+              <span className="ribbon-relation-menu-mark" aria-hidden="true">{item.active ? '✓' : ''}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+          {refreshStatus && <div className="ribbon-relation-menu-status" role="status">{refreshStatus}</div>}
+        </div>
+      </Popover>
+      {externalTaskId && (
+        <ExternalLinkDialog taskId={externalTaskId} onClose={() => setExternalTaskId(null)} />
+      )}
+    </>
   );
 }
 
@@ -546,6 +701,86 @@ export function ResourceAssignDropdown() {
  * eiste de richting-select 100% van de rij en hield het veld-dropdown (`flex-1`, dus
  * flex-basis 0) ~12px over: een sliver zonder leesbare tekst. Zelfde valkuil als issue #46.
  */
+/**
+ * Eén app-globale bediening voor scherm én rapport. Categorievelden komen rechtstreeks uit Group;
+ * een projectgebonden veld dat hier ontbreekt blijft bewaard maar gebruikt tijdelijk Taaktype.
+ */
+export function ScreenColorsPopoverButton() {
+  const { t: tMenu } = useTranslation('menu');
+  const selection = useAppStore(s => s.ui.barColorSelection);
+  const setUI = useAppStore(s => s.setUI);
+  const ctx = useFieldCatalogCtx();
+  const fields = barColorFieldOptions(ctx);
+  const control = effectiveBarColorControl(selection, ctx);
+  const [open, setOpen] = useState(false);
+
+  const updateSelection = (next: typeof selection) => {
+    setUI({ barColorSelection: next });
+    void saveBarColorSelection(next);
+  };
+  const selectMode = (mode: 'critical' | 'auto' | 'category') => {
+    if (mode === 'critical' || mode === 'auto') {
+      updateSelection({ mode });
+      setOpen(false);
+      return;
+    }
+    const effectiveField = control.effective.mode === 'category'
+      ? control.effective.field
+      : fields[0]?.field;
+    if (effectiveField) updateSelection({ mode: 'category', field: effectiveField });
+  };
+  const effectiveFieldValue = control.effective.mode === 'category'
+    ? encodeFieldRef(control.effective.field)
+    : (fields[0] ? encodeFieldRef(fields[0].field) : '');
+
+  return (
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{
+        marginTop: 2, zIndex: 9999, minWidth: 230, padding: 8,
+        display: 'flex', flexDirection: 'column', gap: 4,
+      }}
+      trigger={
+        <button
+          className={`ribbon-btn small${selection.mode !== 'critical' ? ' active' : ''}`}
+          title={tMenu('ribbon.screenColors')}
+          aria-label={tMenu('ribbon.screenColors')}
+          onClick={() => setOpen(o => !o)}
+        >
+          <span className="ribbon-btn-icon"><Palette size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.screenColors')}</span>
+        </button>
+      }
+    >
+      <span className="ribbon-info" style={{ fontWeight: 600 }}>{tMenu('ribbon.screenColors')}</span>
+      {(['critical', 'auto', 'category'] as const).map(mode => (
+        <button
+          key={mode}
+          className={`ribbon-btn small w-full justify-start${selection.mode === mode ? ' active' : ''}`}
+          onClick={() => selectMode(mode)}
+        >
+          <span className="ribbon-btn-label">{tMenu(`ribbon.screenColors_${mode}`)}</span>
+        </button>
+      ))}
+      {selection.mode === 'category' && fields.length > 0 && (
+        <RibbonInlineSelect
+          value={effectiveFieldValue}
+          options={fields.map(option => ({ value: encodeFieldRef(option.field), label: option.label }))}
+          onChange={value => updateSelection({ mode: 'category', field: decodeFieldRef(value) })}
+          ariaLabel={tMenu('ribbon.screenColors_category')}
+        />
+      )}
+      {control.missingField && (
+        <span className="ribbon-info" role="status">
+          {tMenu('ribbon.screenColorsMissingField')}
+        </span>
+      )}
+      <span className="ribbon-info">{tMenu('ribbon.screenColorsHint')}</span>
+    </Popover>
+  );
+}
+
 export function GroupPopoverButton() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -717,8 +952,8 @@ export function LayoutGroupContent() {
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const applyLayout = useAppStore(s => s.applyLayout);
   const view = useAppStore(s => s.view);
-  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
-  const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
+  const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
 
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
@@ -753,7 +988,7 @@ export function LayoutGroupContent() {
   const update = () => {
     if (!activeLayout) return;
     const next = layouts.map(l => (l.id === activeLayout.id
-      ? snapshotLayout(view, activityCodeTypes, customFieldDefs, l.name, l.id)
+      ? snapshotLayout(view, columns, l.name, l.id)
       : l));
     setLayouts(next);
     void saveLayouts(next);
@@ -879,13 +1114,23 @@ export function TimeScaleGroupContent() {
   const zoom = useAppStore(s => s.view.zoom);
   const setZoom = useAppStore(s => s.setZoom);
   const setTimeScale = useAppStore(s => s.setTimeScale);
+  const requestFitToProject = useAppStore(s => s.requestFitToProject);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
-  const zoomButtons = (
+  const zoomInOutButtons = (
     <>
-      <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
-      <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
-      <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} onClick={() => setZoom(DEFAULT_ZOOM)} />
+      <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
+      <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
+    </>
+  );
+  const resetFitButtons = (
+    <>
+      <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
+      {/* Issue #78: "Passend op project" was alleen bereikbaar via het canvas-contextmenu, dat
+          verdwijnt zodra de takentabel volledig gevuld is. `requestFitToProject` is dezelfde
+          pendingFit-route als na het openen van een bestand (issue #16) — GanttCanvas kent de
+          viewport-breedte en voert de echte berekening uit. */}
+      <RibbonSmallButton icon={<Maximize2 size={14} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
     </>
   );
   const dropdown = (
@@ -909,7 +1154,8 @@ export function TimeScaleGroupContent() {
   if (compact) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        {zoomButtons}
+        {zoomInOutButtons}
+        {resetFitButtons}
         <div style={{ minWidth: 96 }}>{dropdown}</div>
       </div>
     );
@@ -917,7 +1163,10 @@ export function TimeScaleGroupContent() {
 
   return (
     <div style={{ display: 'flex', gap: 6 }}>
-      <RibbonButtonStack>{zoomButtons}</RibbonButtonStack>
+      <div className="ribbon-time-scale-controls">
+        <RibbonButtonStack>{zoomInOutButtons}</RibbonButtonStack>
+        <RibbonButtonStack>{resetFitButtons}</RibbonButtonStack>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
         {dropdown}
         <span className="ribbon-info">{tMenu('ribbon.zoomLevel', { level: Math.round(zoom) })}</span>
@@ -929,14 +1178,8 @@ export function TimeScaleGroupContent() {
 /**
  * Kolommen-knop — gedeelde binding voor de Beeld-tab (kleine knop) en de Tabel-tab (grote knop).
  *
- * De dialoog schrijft naar `view.columns`, en dat leest **alleen** `TableEditor`. De takenlijst
- * naast de Gantt tekent drie vaste kolommen (WBS, naam, duur) in `GanttRenderer` en trekt zich er
- * niets van aan. `TableEditor` is bovendien alleen gemount op de Tabel-tab (`App.tsx`), dus wie de
- * knop vanaf de Beeld-tab gebruikt ziet per definitie niets veranderen. Dat verraste de melder.
- *
- * Zelfde aanpak als de dynamische tooltips uit issue #40/#49 (`ribbon.relationHint*`,
- * `ribbon.taskHint*`): de tooltip zegt vooraf wáár het effect landt, in plaats van achteraf uit te
- * leggen wat er niet gebeurde.
+ * De Tabel-surface bezit de ene gedeelde `ColumnChooser`. Vanaf Beeld schakelt deze binding daarom
+ * eerst naar Tabel en opent vervolgens diezelfde kiezer; er bestaat geen tweede kolomdefinitie meer.
  */
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
@@ -945,7 +1188,7 @@ export function useColumnsButtonBinding() {
   const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table' && !s.ui.showResourcePanel);
   return {
     title: tMenu(tableVisible ? 'ribbon.columnsHintTable' : 'ribbon.columnsHintGoToTable'),
-    onClick: () => setUI({ showColumnsDialog: true }),
+    onClick: () => setUI({ activeRibbonTab: 'table', showColumnsDialog: true }),
   };
 }
 
@@ -954,16 +1197,81 @@ export function useColumnsButtonBinding() {
  * sorteer-popovers. Narrow "small"-knoppen zodat de groep smal blijft en in compacte modus
  * niet overlapt.
  */
-export function DisplayGroupContent() {
+function SavedFilterDropdown() {
   const { t: tMenu } = useTranslation('menu');
+  const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const filter = useAppStore(s => s.view.filter);
+  const setFilter = useAppStore(s => s.setFilter);
+  const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
+  const [open, setOpen] = useState(false);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+
+  const reload = useCallback(() => { void loadSavedFilters().then(setSavedFilters); }, []);
+  useEffect(() => { reload(); }, [reload]);
+  const previousDialogOpen = useRef(showFilterDialog);
+  useEffect(() => {
+    if (previousDialogOpen.current && !showFilterDialog) reload();
+    previousDialogOpen.current = showFilterDialog;
+  }, [showFilterDialog, reload]);
+
+  const openFilterControls = () => {
+    // Lees bij de klik opnieuw: bij het openen van de app kan de asynchrone initiële laadactie
+    // nog lopen. Daardoor wordt een bestaande preset nooit ten onrechte als een lege lijst gezien.
+    void loadSavedFilters().then(filters => {
+      setSavedFilters(filters);
+      if (filters.length === 0) {
+        setUI({ showFilterDialog: true });
+        setOpen(false);
+        return;
+      }
+      setOpen(value => !value);
+    });
+  };
+
+  return (
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      panelStyle={{ marginTop: 2, zIndex: 9999, minWidth: 190, padding: 4, display: 'flex', flexDirection: 'column', gap: 2 }}
+      trigger={
+        <button
+          className={`ribbon-btn small${filter !== null ? ' active' : ''}`}
+          onClick={openFilterControls}
+          title={tMenu('ribbon.filter')}
+          aria-label={tMenu('ribbon.filter')}
+        >
+          <span className="ribbon-btn-icon"><Filter size={14} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.filter')} ▾</span>
+        </button>
+      }
+    >
+      <button className="ribbon-btn small" style={{ width: '100%' }} onClick={() => { setUI({ showFilterDialog: true }); setOpen(false); }}>
+        <span className="ribbon-btn-icon"><Filter size={14} /></span>
+        <span className="ribbon-btn-label">{tMenu('ribbon.filter')}</span>
+      </button>
+      {filter !== null && (
+        <button className="ribbon-btn small" style={{ width: '100%' }} onClick={() => { setFilter(null); setOpen(false); }}>
+          <span className="ribbon-btn-label">{tCommon('view.filter.clear')}</span>
+        </button>
+      )}
+      {savedFilters.map(saved => (
+        <button key={saved.id} className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setFilter(structuredClone(saved.filter)); setOpen(false); }}>
+          <span className="ribbon-btn-label">{saved.name}</span>
+        </button>
+      ))}
+    </Popover>
+  );
+}
+
+export function DisplayGroupContent() {
+  const { t: tMenu } = useTranslation('menu');
   const columns = useColumnsButtonBinding();
 
   return (
     <div className="ribbon-display-grid icons">
       <RibbonSmallButton icon={<Columns3 size={14} />} label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
-      <RibbonSmallButton icon={<Filter size={14} />} label={tMenu('ribbon.filter')} title={tMenu('ribbon.filter')} onClick={() => setUI({ showFilterDialog: true })} active={filter !== null} />
+      <SavedFilterDropdown />
       <GroupPopoverButton />
       <SortPopoverButton />
     </div>

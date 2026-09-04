@@ -17,8 +17,10 @@
   "showLegend": "Legende",
   "showTaskNames": "Aufgabennamen auf Balken",
   "showCompletion": "Fertigstellung anzeigen",
+  "showBaselineOverlay": "Baseline-Overlay anzeigen",
   "autoFit": "Automatisch an Papier anpassen",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Vorschauqualität", "standard": "Standard", "high": "Hoch", "maximum": "Maximal" },
   "repeatHeader": "Kopfzeile auf jeder Seite wiederholen",
   "reportFontScaleLabel": "Schriftgröße:",
   "timelineColumnsLabel": "Zeitleiste über:",
@@ -40,11 +42,14 @@
   "legend": {
     "criticalPath": "Kritischer Pfad",
     "normal": "Normal",
+    "baseline": "Baseline",
     "milestone": "Meilenstein",
     "summary": "Zusammenfassung",
     "float": "Puffer",
     "completion": "Fertigstellung",
-    "relationStyle": "Maßgebend / nicht maßgebend"
+    "relationStyle": "Maßgebend / nicht maßgebend",
+    "categoriesMore_one": "… und {{count}} weitere Kategorie",
+    "categoriesMore_other": "… und {{count}} weitere Kategorien"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -102,5 +107,19 @@
     "total": "Meilensteine",
     "mandatoryCount": "Verbindlich",
     "lateCount": "Verspätet"
-  }
+  },
+  "barColorModeLabel": "Balkenfarben:",
+  "barColorMode_critical": "Kritischer Pfad",
+  "barColorMode_auto": "Pro Aufgabe — automatisch",
+  "barColorMode_category": "Nach Kategorie",
+  "barColorFieldLabel": "Kategoriefeld",
+  "barColorMissingField": "Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird der Aufgabentyp verwendet.",
+  "statusLineLabel": "Statuslinie:",
+  "statusLine_none": "Keine",
+  "statusLine_statusDate": "Statusdatumslinie",
+  "statusLine_progress": "Fortschrittslinie",
+  "statusLineHint": "Legen Sie zuerst ein Statusdatum fest",
+  "followView": "Ansicht folgen (Filter, Gruppierung, Sortierung)",
+  "statusDateLabel": "Statusdatum",
+  "progressDateLabel": "Fortschrittsdatum"
 }

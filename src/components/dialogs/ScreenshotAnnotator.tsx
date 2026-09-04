@@ -161,6 +161,8 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const currentShape = useRef<Shape | null>(null);
+  const shapesRef = useRef(shapes);
+  shapesRef.current = shapes;
 
   // Thumbnail: bijgewerkt na sluiten van de editor
   const [thumbnailUrl, setThumbnailUrl] = useState<string>(screenshotDataUrl);
@@ -181,11 +183,9 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
       canvas.width = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
-      if (ctx) redrawAll(ctx, shapes);
+      if (ctx) redrawAll(ctx, shapesRef.current);
     };
     img.src = screenshotDataUrl;
-    // shapes bewust niet in dep: canvas mag alleen herschalen bij openen
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorOpen, screenshotDataUrl]);
 
   // Hertekenen bij shapes-wijziging

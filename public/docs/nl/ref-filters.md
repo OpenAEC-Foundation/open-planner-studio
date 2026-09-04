@@ -4,7 +4,7 @@ Het venster **Filteren** bepaalt welke taken zichtbaar zijn — in de Gantt én 
 
 ## Openen
 
-**Beeld** → lintgroep **Weergave** → **Filteren…**. De knop licht op zolang er een filter actief is. **Esc**, het kruisje of een klik buiten het venster sluit zonder toe te passen.
+**Beeld** → lintgroep **Weergave** → **Filteren…**. De knop licht op zolang er een filter actief is. Zijn er nog geen opgeslagen filters, dan opent de knop direct het filtervenster. Anders opent de pijl op de knop je opgeslagen filters; een keuze past het filter direct toe en **Wissen** zet het actieve filter uit. **Esc**, het kruisje of een klik buiten het venster sluit zonder toe te passen.
 
 ## Groepen: alles of iets
 
@@ -26,6 +26,10 @@ Bovenaan elke groep kies je hoe de regels eronder samenwerken:
 - **Waarde** — het invoervak volgt het veldtype (tekstvak, getal, datum of keuzelijst); bij **is leeg** is er geen waarde-invoer.
 
 De prullenbak achter een regel verwijdert die regel; het kruisje rechtsboven in een geneste groep verwijdert de hele groep.
+
+## Filters opslaan en hergebruiken
+
+Vul bovenaan het filtervenster een **Naam** in en klik op **Opslaan** om de huidige regels als filterpreset te bewaren. Opgeslagen filters zijn op dit apparaat in elk project beschikbaar; ze vervangen alleen het filter en raken nooit je kolommen, groepering, sortering of tijdschaal. Kies een opgeslagen filter uit dezelfde lijst om het direct toe te passen, of verwijder de gekozen preset met de prullenbak.
 
 ## Toepassen, annuleren en wissen
 

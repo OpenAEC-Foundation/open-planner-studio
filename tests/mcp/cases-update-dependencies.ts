@@ -20,7 +20,7 @@
 //      onderliggende bladtaken, MS Project-semantiek) — alleen een relatie tussen een taak en zijn
 //      EIGEN (voor)ouder-samenvatting wordt nog geweigerd (`relationRules.ts`, `isAncestorRelation`).
 //      Mijlpalen blijven expliciet toegestaan als voorganger/opvolger.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import { createSnapshot } from '@/state/snapshot';
@@ -39,15 +39,11 @@ store.getState().undo();
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────────────
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...over,
-  };
+  });
 }
 
 async function call(name: string, args: unknown, ctx: McpContext = makeCtx()): Promise<McpToolResult> {
@@ -280,15 +276,15 @@ test('nul uitvoerbare items ⇒ GEEN transactie (undo-stack en redo-stack onaang
   const { s1 } = threeChain();
   store.getState().addTask({ name: 'undo-voer' });
   store.getState().undo(); // vult de redo-stack
-  const undoBefore = store.getState().undoStack.length;
-  const redoBefore = store.getState().redoStack.length;
+  const undoBefore = store.getState().historyEvents.filter(event => event.state === 'applied').length;
+  const redoBefore = store.getState().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoBefore > 0, 'de redo-stack is gevuld (voorwaarde van deze test)');
   const res = await call('planner_update_dependencies', {
     updates: [{ seqId: 'nope', type: 'SS' }, { seqId: s1, type: 'FS' }],
   });
   assertEq(okData(res).updated, [], 'niets gewijzigd');
-  assertEq(store.getState().undoStack.length, undoBefore, 'geen spurious undo-snapshot');
-  assertEq(store.getState().redoStack.length, redoBefore, 'de redo-stack van de gebruiker is intact');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen spurious undo-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoBefore, 'de redo-stack van de gebruiker is intact');
 });
 
 // =================================================================================================
@@ -479,9 +475,9 @@ test('batch: een onbekend VELD blijft ook binnen een stap een zachte weigering d
 test('één call = één undo-stap; undo herstelt de oude relatie exact', async () => {
   const { s1 } = threeChain();
   store.getState().runCPM();
-  const undoBefore = store.getState().undoStack.length;
+  const undoBefore = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   await call('planner_update_dependencies', { updates: [{ seqId: s1, type: 'SS', lag: '+3d' }] });
-  assertEq(store.getState().undoStack.length, undoBefore + 1, 'precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoBefore + 1, 'precies één undo-stap');
   store.getState().undo();
   assertEq(seqById(s1).type, 'FINISH_START', 'undo herstelt het type');
   assertEq(seqById(s1).lagDays, 0, 'undo herstelt de lag');

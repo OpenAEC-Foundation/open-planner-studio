@@ -16,7 +16,9 @@ import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
 import { resolveDropTarget, type DropTarget } from '@/engine/view/dropTarget';
+import { shouldPromoteToRowDrag } from '@/engine/taskGrid/rowDragIntent';
 import { ROW_DRAG_THRESHOLD } from '@/components/canvas/hooks/constants';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 /** Nog ONDER de drempel: alleen onthouden vanaf waar we meten. Blijft de sleep onder de drempel
  *  tot mouseup, dan gebeurt er niets en volgt de gewone klik/selectie. */
@@ -37,7 +39,7 @@ export interface TableRowDragState {
 
 export interface UseTableRowDragOptions {
   /** De VOLLEDIGE `viewRows` (inclusief groepsrijen) — `resolveDropTarget` indexeert hierin. */
-  rows: ViewRow[];
+  rows: readonly ViewRow[];
   tasksById: Map<string, Task>;
   moveTaskTo: (id: string, target: DropTarget) => void;
   /** Issue #26 (vervolgmelding): de huidige selectie. Sleep je een rij die daar deel van uitmaakt
@@ -58,6 +60,20 @@ export interface UseTableRowDragOptions {
 export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, moveTasksTo, enabled, onBlocked, justDraggedRef }: UseTableRowDragOptions) {
   const [candidate, setCandidate] = useState<TableRowDragCandidate | null>(null);
   const [dragState, setDragState] = useState<TableRowDragState | null>(null);
+  const optionsRef = useLatestRef({
+    rows,
+    tasksById,
+    moveTaskTo,
+    selectedTaskIds,
+    moveTasksTo,
+    enabled,
+    onBlocked,
+    justDraggedRef,
+  });
+  const candidateRef = useLatestRef(candidate);
+  const dragStateRef = useLatestRef(dragState);
+  const candidateActive = candidate !== null;
+  const dragActive = dragState !== null;
   // Buiten de effecten gehouden (zie `armJustDraggedClear`) zodat de opruimer óók bij UNMOUNT
   // bereikbaar is en niet meelift op de cleanup van de sleep-effect (die loopt al bij elke
   // dragState-wijziging, dus óók direct ná de drop — dan mogen de listeners juist blijven staan).
@@ -65,11 +81,12 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
   /** Meet de rij onder de cursor via het DOM en vertaalt hem naar rijindex + zone + droptarget.
    *  Geen rij-element onder de cursor (of een groepsrij, die het attribuut niet draagt) ⇒ null. */
-  const computeHover = (
+  const computeHover = useCallback((
     clientX: number,
     clientY: number,
     draggedTaskId: string,
   ): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
+    const current = optionsRef.current;
     const el = document.elementFromPoint(clientX, clientY)?.closest('[data-ops-row-index]');
     if (!el) return null;
     const rowIndex = Number(el.getAttribute('data-ops-row-index'));
@@ -81,7 +98,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     let zone: 'before' | 'after' | 'nest' = frac < 0.25 ? 'before' : frac > 0.75 ? 'after' : 'nest';
     // draggedTaskId gaat mee zodat de resolver compenseert voor de remove-dan-insert-verschuiving
     // bij herordenen binnen dezelfde ouder.
-    let target = resolveDropTarget(rows, rowIndex, zone, tasksById, draggedTaskId);
+    let target = resolveDropTarget(current.rows, rowIndex, zone, current.tasksById, draggedTaskId);
     // Nestelen kan alleen op een summary; op een gewone taak gaf de middelste 50% van de rij dus
     // GEEN doel, waardoor de indicator over de halve rijhoogte wegviel en de oranje balk in twee
     // stappen leek te springen. Val in dat geval terug op de dichtstbijzijnde rand-zone, en geef
@@ -89,32 +106,39 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     // iets anders tonen dan waar de taak landt. `resolveDropTarget` blijft de enige autoriteit.
     if (zone === 'nest' && target === null) {
       zone = frac < 0.5 ? 'before' : 'after';
-      target = resolveDropTarget(rows, rowIndex, zone, tasksById, draggedTaskId);
+      target = resolveDropTarget(current.rows, rowIndex, zone, current.tasksById, draggedTaskId);
     }
     return { rowIndex, zone, target };
-  };
+  }, [optionsRef]);
 
-  // Kandidaatfase: pas bij |dy| >= drempel promoveren tot een echte sleep — verticaal gebaar, dus
-  // |dy| en geen hypot, exact zoals `useRowDrag`.
+  // Kandidaatfase: pas bij |dy| >= drempel ÉN een overwegend verticale beweging promoveren tot een
+  // echte sleep. De canvas-kant mag zuiver op |dy| gaan (mousedown begint daar in de rijgutter, niet
+  // op selecteerbare tekst); hier begint mousedown middenin een celwaarde, dus zonder de
+  // asintentie-check van `shouldPromoteToRowDrag` promoveerde een horizontale tekstselectie met wat
+  // verticale muisruis onterecht tot een rijsleep (browserreview, observatie 2).
   useEffect(() => {
-    if (!candidate) return;
+    if (!candidateActive) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dy = e.clientY - candidate.startClientY;
-      if (Math.abs(dy) < ROW_DRAG_THRESHOLD) return;
+      const currentCandidate = candidateRef.current;
+      if (!currentCandidate) return;
+      const dy = e.clientY - currentCandidate.startClientY;
+      const dx = e.clientX - currentCandidate.startClientX;
+      if (!shouldPromoteToRowDrag(dx, dy, ROW_DRAG_THRESHOLD)) return;
       setCandidate(null);
       // Vangnet bij het promoveren tot een echte sleep: is er tóch al een tekstselectie over de
       // rijen ontstaan (de `user-select: none` op de rijen komt pas na de render van de
       // kandidaatfase), wis die dan — anders sleep je met een half blauwgeverfde tabel.
       document.getSelection()?.removeAllRanges();
-      if (!enabled) {
+      const currentOptions = optionsRef.current;
+      if (!currentOptions.enabled) {
         // Buiten pure boommodus is de structuur op slot: uitleggen en verder niets doen.
-        onBlocked?.();
+        currentOptions.onBlocked?.();
         return;
       }
-      const hover = computeHover(e.clientX, e.clientY, candidate.taskId);
+      const hover = computeHover(e.clientX, e.clientY, currentCandidate.taskId);
       setDragState({
-        taskId: candidate.taskId,
+        taskId: currentCandidate.taskId,
         hoverRowIndex: hover?.rowIndex ?? null,
         hoverZone: hover?.zone ?? null,
         dropTarget: hover?.target ?? null,
@@ -129,8 +153,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidate, enabled]);
+  }, [candidateActive, candidateRef, optionsRef, computeHover]);
 
   // Opruimen van de "net-gesleept"-vlag. Zelfde idee als in `useRowDrag`, maar met een EXTRA
   // vangnet dat het canvas niet nodig heeft: het canvas is één blijvend element, dus daar volgt
@@ -143,7 +166,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   // sleep-afsluitende klik wél onderdrukt wordt.
   const armJustDraggedClear = useCallback((): void => {
     const clear = () => {
-      justDraggedRef.current = false;
+      optionsRef.current.justDraggedRef.current = false;
       window.removeEventListener('click', clear);
       window.removeEventListener('mousedown', clear);
       justDraggedClearRef.current = null;
@@ -151,7 +174,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     justDraggedClearRef.current = clear;
     window.addEventListener('click', clear);
     window.addEventListener('mousedown', clear);
-  }, [justDraggedRef]);
+  }, [optionsRef]);
 
   // Deze twee listeners ruimen zichzelf op bij de eerstvolgende muisactie, maar bij een unmount
   // vlak ná een drop komt die actie nooit — daarom hier expliciet. Bewust een APART effect met een
@@ -167,10 +190,12 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   // Gepromoveerde fase: doelrij+zone continu herberekenen (GEEN mutatie) zodat de indicator het
   // actuele doel toont. mouseup is de enige plek waar `moveTaskTo` wordt aangeroepen.
   useEffect(() => {
-    if (!dragState) return;
+    if (!dragActive) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const hover = computeHover(e.clientX, e.clientY, dragState.taskId);
+      const current = dragStateRef.current;
+      if (!current) return;
+      const hover = computeHover(e.clientX, e.clientY, current.taskId);
       setDragState(prev => prev ? {
         ...prev,
         hoverRowIndex: hover?.rowIndex ?? null,
@@ -180,15 +205,18 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     };
 
     const handleMouseUp = () => {
-      if (dragState.dropTarget) {
+      const current = dragStateRef.current;
+      const options = optionsRef.current;
+      if (current?.dropTarget) {
         // Onderdeel van een meervoudige selectie ⇒ de hele groep mee (issue #26-vervolgmelding);
         // anders exact het oude pad. `moveTasksTo` doet de groep in één undo-stap.
-        const groepssleep = selectedTaskIds.length > 1 && selectedTaskIds.includes(dragState.taskId);
-        if (groepssleep) moveTasksTo(selectedTaskIds, dragState.dropTarget);
-        else moveTaskTo(dragState.taskId, dragState.dropTarget);
+        const groepssleep = options.selectedTaskIds.length > 1
+          && options.selectedTaskIds.includes(current.taskId);
+        if (groepssleep) options.moveTasksTo(options.selectedTaskIds, current.dropTarget);
+        else options.moveTaskTo(current.taskId, current.dropTarget);
       }
       // Geen geldig doel ⇒ stille no-op; de store-actie guardt cykels zelf ook nog eens.
-      justDraggedRef.current = true;
+      options.justDraggedRef.current = true;
       armJustDraggedClear();
       setDragState(null);
     };
@@ -198,7 +226,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();
-      justDraggedRef.current = true;
+      optionsRef.current.justDraggedRef.current = true;
       armJustDraggedClear();
       setDragState(null);
     };
@@ -211,8 +239,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragState, moveTaskTo, moveTasksTo, selectedTaskIds, justDraggedRef, armJustDraggedClear]);
+  }, [dragActive, dragStateRef, optionsRef, computeHover, armJustDraggedClear]);
 
   return {
     startRowDrag: setCandidate,

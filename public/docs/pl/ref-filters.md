@@ -27,6 +27,10 @@ Na górze każdej grupy wybierasz, jak łączą się jej reguły:
 
 Ikona kosza za regułą usuwa tę regułę; krzyżyk w prawym górnym rogu zagnieżdżonej grupy usuwa całą grupę.
 
+## Zapisywanie i ponowne używanie filtrów
+
+U góry okna filtra wpisz **Nazwę** i kliknij **Zapisz**, aby zachować bieżące reguły jako ustawienie filtra. Zapisane filtry są dostępne na tym urządzeniu we wszystkich projektach; zastępują tylko filtr, nigdy kolumny, grupowanie, sortowanie ani skalę czasu. Wybierz zapisany filtr z tej samej listy, aby zastosować go od razu, albo usuń wybrane ustawienie ikoną kosza.
+
 ## Zastosuj, anuluj i wyczyść
 
 - **Zastosuj** aktywuje filtr i zamyka okno. Filtr bez reguł liczy się jako „brak filtra".

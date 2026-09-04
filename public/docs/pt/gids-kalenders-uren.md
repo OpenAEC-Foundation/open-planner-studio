@@ -47,7 +47,7 @@ Veja um calendário de recurso de 4 dias na prática: os instaladores em [Nieuwb
 
 Por predefinição, o Open Planner Studio trabalha inteiramente à **granularidade do dia** — toda a tarefa tem uma duração em dias (úteis) inteiros. Para tarefas que prefere planear à hora (pense numa betonagem que começa às 7:00 e tem de estar concluída às 14:00, bem antes de o tempo mudar), há o **Planeamento por horas** opcional.
 
-Ative o interruptor principal através de **Definições → Linha de tempo / Zoom → Ativar planeamento por horas**. Isto adiciona uma escala temporal horária, turnos com faixas de horário de trabalho, e barras de tarefa com precisão à hora; com o interruptor desligado, a aplicação funciona inteiramente como antes, à granularidade do dia. Há também uma opção **Permitir planeamento misto de dias/horas**, que ativa se quiser combinar tarefas baseadas em dias e baseadas em horas no mesmo projeto (veja abaixo).
+Ative o interruptor principal através de **Definições → Linha de tempo / Zoom → Ativar planeamento por horas**. Isto adiciona uma escala horária, faixas de trabalho e barras precisas; com o interruptor desligado, as novas tarefas começam em dias e os valores horários existentes ficam preservados.
 
 ## Faixas de horário de trabalho e turnos
 
@@ -71,7 +71,7 @@ Com o planeamento por horas ativado e uma tarefa num **calendário horário** (u
 
 ## Misturar tarefas baseadas em dias e em horas
 
-Um projeto não tem de decorrer inteiramente por horas para beneficiar do planeamento por horas: com **Permitir planeamento misto de dias/horas** assinalado, as tarefas baseadas em dias (no calendário normal do projeto) e as tarefas baseadas em horas (num calendário horário) podem coexistir e relacionar-se entre si no mesmo cronograma. Nesse caso, a tabela de tarefas mostra a duração de cada tarefa na sua própria unidade — uma tarefa de dias em dias, uma tarefa de horas em horas — e avisa no fundo da tabela quando tarefas com horas/dia diferentes decorrem lado a lado, para que se mantenha claro quais comparações são diretas e quais não são.
+Um projeto não tem de decorrer inteiramente por horas: com o planeamento por horas ativo, tarefas de dias e de horas podem coexistir e relacionar-se. A unidade pertence à tarefa e não é deduzida do calendário.
 
 ## Continue a ler
 

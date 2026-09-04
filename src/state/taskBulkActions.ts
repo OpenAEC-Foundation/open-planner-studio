@@ -1,5 +1,5 @@
-import { useAppStore } from '@/state/appStore';
-import { withTransaction } from '@/state/batchTransaction';
+import { appStoreContext, type AppState, type AppStoreContext } from '@/state/appStore';
+import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 
 /**
  * Bulk-acties over een lijst taak-ids als ÉÉN ongedaan-maakbare stap (issue #45, en de
@@ -8,42 +8,56 @@ import { withTransaction } from '@/state/batchTransaction';
  * Bewust in `src/state/` en niet in de component-boom (naar het model van `relationActions.ts` en
  * `taskInsertActions.ts`): het contextmenu (`components/canvas/contextMenuScope.ts`), de lintknop
  * Verwijderen (`ribbonConfig.tsx`) én de Delete/Backspace-sneltoetsen (`shortcutRegistry.ts`)
- * draaien zo letterlijk dezelfde functie — en de headless regressiebatterij
- * (`tests/planning/check-context-menu-scope.ts`) ook.
+ * draaien zo letterlijk dezelfde app-adapter. De kernfactory blijft tegelijk bruikbaar voor een
+ * expliciete documentcontext zonder diens undo-metadata met de app-singleton te vermengen.
  */
 
-/**
- * Voer een per-taak-mutator uit over de hele lijst als ÉÉN ongedaan-maakbare stap.
- *
- * Waarom dit moet (issue #45). `updateTask`, `setTaskCalendar`, `setTaskProgress` en `deleteTask`
- * zijn per-taak-acties die elk zelf `beginUndoable` aanroepen. Naïef in een lus zou één handeling
- * dus N undo-stappen kosten, terwijl de gebruiker één handeling deed en die met één Ctrl+Z terug
- * verwacht. `withTransaction` neemt de snapshot één keer vooraf en onderdrukt die van de mutators.
- *
- * Bij een lijst van één taak wordt de mutator RECHTSTREEKS aangeroepen, zonder transactie.
- * Dat is geen optimalisatie maar gedragsbehoud: `withTransaction` pusht zijn snapshot
- * onvoorwaardelijk, terwijl de mutators een no-op-guard hebben die juist géén undo-stap achterlaat
- * (`setTaskCalendar` op een taak die die kalender al heeft). De enkelvoudige route blijft daarmee
- * exact het gedrag van vóór deze fix.
- */
-export function applyToTaskIds(ids: readonly string[], run: (id: string) => void): void {
-  if (ids.length === 0) return;
-  if (ids.length === 1) { run(ids[0]); return; }
-  withTransaction(() => { for (const id of ids) run(id); });
+export interface TaskBulkActions {
+  applyToTaskIds(
+    ids: readonly string[],
+    run: (state: AppState, id: string) => void,
+  ): void;
+  deleteTasksBulk(ids: readonly string[]): void;
 }
 
-/**
- * Verwijder een lijst taken als ÉÉN undo-stap — de gedeelde route achter het contextmenu-item
- * Verwijderen, de lintknop Verwijderen en Delete/Backspace. Vóór deze gelijktrekking lusten de
- * lintknop en de sneltoetsen kaal `deleteTask` per id: vijf taken wissen kostte daar vijf
- * Ctrl+Z's, terwijl het contextmenu het sinds issue #45 al als één transactie deed.
- *
- * `deleteTask` verwijdert de hele subboom plus de bijbehorende relaties/toewijzingen. Zit een
- * ouder én haar kind in de lijst, dan is de tweede aanroep een stille no-op — de lijst wordt
- * vooraf vastgelegd (kopie), dus de lus loopt niet mis op ids die er niet meer zijn, óók niet
- * wanneer de aanroeper `selectedTaskIds` doorgeeft en `deleteTask` de selectie muteert.
- */
-export function deleteTasksBulk(ids: readonly string[]): void {
-  const frozen = [...ids];
-  applyToTaskIds(frozen, (id) => useAppStore.getState().deleteTask(id));
+/** Bind taakbulkmutaties en hun batchruntime aan precies één storecontext. */
+export function createTaskBulkActions(context: AppStoreContext): TaskBulkActions {
+  const batch = createBatchTransactions(context);
+
+  /**
+   * Voer een per-taak-mutator uit over de hele lijst als ÉÉN ongedaan-maakbare stap.
+   *
+   * `run` ontvangt de actuele state van de gebonden context. Daarmee hoeft de callback geen store
+   * te importeren en kan de factory niet stil de suppressie-/undometadata van een andere context
+   * kiezen. Bij één taak wordt de mutator rechtstreeks aangeroepen: de onderliggende actie bewaart
+   * dan haar bestaande no-op-guard en maakt geen lege undo-stap.
+   */
+  function applyToTaskIds(
+    ids: readonly string[],
+    run: (state: AppState, id: string) => void,
+  ): void {
+    if (ids.length === 0) return;
+    const apply = (id: string) => run(context.store.getState(), id);
+    if (ids.length === 1) {
+      apply(ids[0]);
+      return;
+    }
+    batch.withTransaction(() => {
+      for (const id of ids) apply(id);
+    });
+  }
+
+  /**
+   * Verwijder een lijst taken als één undo-stap. `deleteTask` verwijdert ook de hele subboom en
+   * bijbehorende relaties/toewijzingen. De vaste id-kopie voorkomt dat selectiemutaties de lus
+   * tijdens de handeling veranderen; een kind dat al met zijn ouder verdween is daarna een no-op.
+   */
+  function deleteTasksBulk(ids: readonly string[]): void {
+    context.store.getState().deleteTasksBulk([...ids]);
+  }
+
+  return { applyToTaskIds, deleteTasksBulk };
 }
+
+/** Expliciete compatibiliteitsadapter voor de ene gemounte productinterface. */
+export const appTaskBulkActions = createTaskBulkActions(appStoreContext);

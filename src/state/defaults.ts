@@ -41,6 +41,7 @@ export function createDefaultProject(): Project {
     modifiedAt: new Date().toISOString(),
     author: '',
     company: '',
+    defaultTaskDurationUnit: 'days',
     // Nieuwe projecten nummeren de WBS automatisch; geladen bestanden zonder
     // vlag blijven op vrije tekst (zie Project.wbsAutoNumber).
     wbsAutoNumber: true,

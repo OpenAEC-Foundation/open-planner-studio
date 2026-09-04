@@ -1,17 +1,23 @@
 /* Non-native tooltip-bubbeltje (portal naar document.body). Thema-bewust via dezelfde tokens als
    de Popover-panelen, zodat het in light/dark meekleurt. `position: fixed` want het leeft los van
    de ribbon-strook (die clipt via overflow). De horizontale positie (`left`) wordt in JS geklemd;
-   translateX(-50%) centreert het onder de trigger. */
+   translateX(-50%) centreert het onder de trigger.
+   Issue #75: `white-space: nowrap` naast een `max-width` liet lange tooltip-tekst gewoon
+   doorlopen — precies de bug die issue #58 al voor `.gantt-tooltip` fixte (zie globals.css). Zelfde
+   oplossing: WRAPPEN i.p.v. afkappen, `width: max-content` zodat de doos niet krimpt tot de ruimte
+   rechts van `left`, en `overflow-wrap: anywhere` breekt ook tekst zonder spaties (bv. een code). */
 .ops-tooltip {
   position: fixed;
   transform: translateX(-50%);
   z-index: 10000;
   pointer-events: none;
-  max-width: 260px;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 24px));
   padding: 4px 8px;
   font-size: 11px;
   line-height: 1.3;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: var(--theme-text);
   background: var(--theme-dropdown-bg);
   border: 1px solid var(--theme-border);

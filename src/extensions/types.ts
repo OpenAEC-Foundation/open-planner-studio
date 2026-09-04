@@ -75,14 +75,47 @@ export interface ExtensionManifest {
   icon?: string;             // inline SVG-string of emoji
 }
 
-// ── Geïnstalleerde extensie (runtime-record in de store) ──
+export type ParseResult<T> =
+  | { ok: true; value: T; warnings: string[] }
+  | { ok: false; error: string };
 
-export interface InstalledExtension {
+export interface CatalogIssue {
+  index: number;
+  idHint?: string;
+  error: string;
+}
+
+// ── Gevalideerde extensies en onuitvoerbare opslagrecords ──
+
+export interface ReadyExtension {
+  kind: 'ready';
   id: string;
   manifest: ExtensionManifest;
   status: ExtensionStatus;
   error?: string;
 }
+
+/** Gevalideerde, in geheugen genormaliseerde vorm van één IndexedDB-record. */
+export interface ReadyStoredExtension {
+  id: string;
+  manifest: ExtensionManifest;
+  mainCode: string;
+  enabled: boolean;
+  assets?: Record<string, Uint8Array>;
+  legacyWarnings: string[];
+  storageKey: IDBValidKey;
+}
+
+export interface QuarantinedExtension {
+  kind: 'quarantined';
+  quarantineId: string;
+  storageKey: IDBValidKey;
+  displayName: string;
+  reason: string;
+  status: 'quarantined';
+}
+
+export type ExtensionRecord = ReadyExtension | QuarantinedExtension;
 
 // ── Plugin-interface (wat main.js exporteert) ──
 
@@ -120,13 +153,14 @@ export interface RibbonButtonRegistration {
 export interface ExtensionApi {
   readonly extensionId: string;
 
-  /** Registratie van import-formaten (verschijnen in Backstage → Importeren). */
+  /** Appbrede registratie van import-formaten (verschijnen in Backstage → Importeren). */
   importers: {
     register(def: ImporterDefinition): void;
     unregister(id: string): void;
   };
 
-  /** Lees-/schrijftoegang tot de planningsdata. `get*` levert VERSE, MUTEERBARE kopieën (Ext*-DTO's,
+  /** Lees-/schrijftoegang tot de expliciet door de host gebonden documentcontext. `get*` levert
+   *  VERSE, MUTEERBARE kopieën (Ext*-DTO's,
    *  géén bevroren store-objecten): muteren van het resultaat raakt de store NIET — schrijf via
    *  addTask/updateTask/addSequence. Mutaties lopen via store-acties (die zelf undo-snapshots pushen);
    *  na bulk-wijzigingen zelf recalculate() aanroepen. */
@@ -170,7 +204,7 @@ export interface ExtensionApi {
     emit(event: string, data?: unknown): void;
   };
 
-  /** UI-registratie. */
+  /** Appbrede UI-registratie; deze volgt de hostbinding, niet de documentcontext. */
   ui: {
     addRibbonButton(reg: RibbonButtonRegistration): void;
     showNotification(message: string, type?: 'info' | 'warning' | 'error'): void;

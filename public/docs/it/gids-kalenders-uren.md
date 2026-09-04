@@ -47,7 +47,7 @@ Vedi un calendario risorsa a 4 giorni in pratica: gli installatori in [Nieuwbouw
 
 Per impostazione predefinita, Open Planner Studio lavora interamente a **granularità giornaliera** — ogni attività ha una durata in giorni (lavorativi) interi. Per le attività che preferisci pianificare all'ora (pensa a un getto che inizia alle 7:00 e deve essere terminato entro le 14:00, ben prima che il tempo cambi), c'è la **Pianificazione oraria** opzionale.
 
-Attiva l'interruttore principale tramite **Impostazioni → Sequenza temporale / Zoom → Attiva pianificazione oraria**. Questo aggiunge una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora; con l'interruttore disattivato, l'app funziona interamente come prima, a granularità giornaliera. C'è anche un'opzione **Consenti pianificazione mista giorno/ora**, che attivi se vuoi combinare attività basate sui giorni e sulle ore nello stesso progetto (vedi sotto).
+Attiva l'interruttore principale tramite **Impostazioni → Sequenza temporale / Zoom → Attiva pianificazione oraria**. Questo aggiunge una scala oraria, fasce di lavoro e barre precise; con l'interruttore disattivato, le nuove attività iniziano in giorni e i valori orari esistenti restano conservati.
 
 ## Fasce orarie di lavoro e turni
 
@@ -71,7 +71,7 @@ Questo è esattamente come vengono pianificate in pratica le attività di getto:
 
 ## Mescolare attività basate sui giorni e sulle ore
 
-Un progetto non deve funzionare interamente a ore per beneficiare della pianificazione oraria: con **Consenti pianificazione mista giorno/ora** selezionato, le attività basate sui giorni (sul normale calendario di progetto) e le attività basate sulle ore (su un calendario orario) possono coesistere e relazionarsi tra loro nella stessa pianificazione. In questo caso la tabella delle attività mostra la durata di ogni attività nella propria unità — un'attività a giorni in giorni, un'attività a ore in ore — e avvisa in fondo alla tabella quando attività con ore/giorno diverse procedono affiancate, così resta chiaro quali confronti sono omogenei e quali no.
+Un progetto non deve funzionare interamente a ore: con la pianificazione oraria attiva, attività a giorni e a ore possono coesistere e relazionarsi. L'unità appartiene all'attività e non viene dedotta dal calendario.
 
 ## Continua a leggere
 

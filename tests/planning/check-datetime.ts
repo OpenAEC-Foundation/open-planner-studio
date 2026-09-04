@@ -3,12 +3,13 @@
 //  - parseInstant/formatInstant round-trips (dag-modus strip, uur-modus behoud, T00:00);
 //  - parseDuration-matrix (hele eenheden geldig; decimalen/rest/leeg/negatief afgewezen);
 //  - formatDuration (dagen/uren/auto);
-//  - durationMinutesOf/durationDaysOf-invariant (uur-kalender vs dag-kalender, Bevinding 2).
+//  - durationMinutesOf/durationDaysOf-invariant (expliciete taakeenheid, kalender alleen als factor).
 //
 // Draait via run.sh (esbuild-bundel, zoals check-holidays.ts). Exit 0 = alles groen.
 import { parseInstant, formatInstant, parseDate } from '@/utils/dateUtils';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { durationMinutesOf, durationDaysOf } from '@/engine/scheduler/duration';
+import { formatGridDateTime, parseGridDateTime } from '@/engine/taskGrid/editors';
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
@@ -18,7 +19,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
 
 // Minimale taak: de helpers lezen alleen task.time.scheduleDuration + durationMinutes.
 function task(scheduleDuration: number, durationMinutes?: number): Task {
-  return { time: { scheduleDuration, durationMinutes } } as unknown as Task;
+  return { time: { durationUnit: durationMinutes == null ? 'days' : 'hours', scheduleDuration, durationMinutes } } as unknown as Task;
 }
 const HOUR8 = { isHourMode: true, hoursPerDay: 8 };
 const DAY8 = { isHourMode: false, hoursPerDay: 8 };
@@ -70,13 +71,13 @@ eq('28 "2.5" ⇒ null (decimaal naakt)', parseDuration('2.5', 8), null);
 
 // ── 4) formatDuration ────────────────────────────────────────────────────────
 eq('29 fmt 1440 @H8 auto ⇒ "3d"', formatDuration(1440, 8, 'auto'), '3d');
-eq('30 fmt 1200 @H8 hours ⇒ "20u"', formatDuration(1200, 8, 'hours'), '20u');
-eq('31 fmt 1200 @H8 auto ⇒ "20u"', formatDuration(1200, 8, 'auto'), '20u');
-eq('32 fmt 90 @H8 hours ⇒ "1u 30m"', formatDuration(90, 8, 'hours'), '1u 30m');
+eq('30 fmt 1200 @H8 hours ⇒ "20h"', formatDuration(1200, 8, 'hours'), '20h');
+eq('31 fmt 1200 @H8 auto ⇒ "20h"', formatDuration(1200, 8, 'auto'), '20h');
+eq('32 fmt 90 @H8 hours ⇒ "1h 30m"', formatDuration(90, 8, 'hours'), '1h 30m');
 eq('33 fmt 45 @H8 hours ⇒ "45m"', formatDuration(45, 8, 'hours'), '45m');
 eq('34 fmt 480 @H10 days ⇒ "0.8d"', formatDuration(480, 10, 'days'), '0.8d');
 eq('35 fmt 480 @H8 days ⇒ "1d"', formatDuration(480, 8, 'days'), '1d');
-eq('36 fmt 240 @H8 auto ⇒ "4u"', formatDuration(240, 8, 'auto'), '4u');
+eq('36 fmt 240 @H8 auto ⇒ "4h"', formatDuration(240, 8, 'auto'), '4h');
 
 // ── 5) durationMinutesOf / durationDaysOf — invariant (Bevinding 2) ──────────
 // A: scheduleDuration=2 werkdagen, durationMinutes=1200 (=20u=2.5d op H8).
@@ -87,16 +88,16 @@ const B = task(3);
 const C = task(1, 600);
 
 eq('37 durMin A @uur ⇒ durationMinutes', durationMinutesOf(A, HOUR8), 1200);
-eq('38 durMin A @dag ⇒ 2*8*60 (dm genegeerd)', durationMinutesOf(A, DAY8), 960);
+eq('38 durMin A @dag ⇒ taakunit blijft 1200 minuten', durationMinutesOf(A, DAY8), 1200);
 eq('39 durMin B @uur (geen dm) ⇒ 3*8*60', durationMinutesOf(B, HOUR8), 1440);
 eq('40 durMin B @dag ⇒ 3*8*60', durationMinutesOf(B, DAY8), 1440);
 
 eq('41 durDagen A @uur ⇒ 1200/480 = 2.5', durationDaysOf(A, HOUR8), 2.5);
-eq('42 durDagen A @dag ⇒ scheduleDuration 2 (dm genegeerd)', durationDaysOf(A, DAY8), 2);
+eq('42 durDagen A @dag ⇒ 1200/480 = 2.5 (taakunit blijft uren)', durationDaysOf(A, DAY8), 2.5);
 eq('43 durDagen B @uur (geen dm) ⇒ 3', durationDaysOf(B, HOUR8), 3);
 eq('44 durDagen B @dag ⇒ 3', durationDaysOf(B, DAY8), 3);
-// KERN-INVARIANT: op een dag-kalender nooit een fractionele dag (geen 2.5 in addWorkDays).
-eq('45 durDagen A @dag is integer (geen fractie)', Number.isInteger(durationDaysOf(A, DAY8)), true);
+// KERN-INVARIANT: de kalender kiest de taakeenheid niet; ook op een dagkalender blijft A uren.
+eq('45 durDagen A @dag behoudt uuridentiteit', durationDaysOf(A, DAY8), 2.5);
 // Andere hoursPerDay: 600 min op H10 = precies 1 dag.
 eq('46 durDagen C @H10-uur ⇒ 600/600 = 1', durationDaysOf(C, HOUR10), 1);
 eq('47 durMin C @H10-uur ⇒ durationMinutes 600', durationMinutesOf(C, HOUR10), 600);
@@ -113,10 +114,23 @@ eq('51 sync H10: "20u" ≡ "2d 0u" (2d 0u split)', parseDuration('20u', 10), par
 eq('52 sync rev H8: ⌊20/8⌋d + (20 mod 8)u ≡ 20u', parseDuration(`${Math.floor(20 / 8)}d ${20 % 8}u`, 8), parseDuration('20u', 8));
 eq('53 sync rev H10: ⌊20/10⌋d + (20 mod 10)u ≡ 20u', parseDuration(`${Math.floor(20 / 10)}d ${20 % 10}u`, 10), parseDuration('20u', 10));
 eq('54 sync fmt: 1200m @H10 auto ⇒ "2d"', formatDuration(1200, 10, 'auto'), '2d');
-eq('55 sync fmt: 1200m @H8 hours ⇒ "20u"', formatDuration(1200, 8, 'hours'), '20u');
+eq('55 sync fmt: 1200m @H8 hours ⇒ "20h"', formatDuration(1200, 8, 'hours'), '20h');
+
+// ── 7) Persoonlijke grid-datumtijd ↔ interne ISO-minuut ──────────────────────
+eq('56 grid datetime dmy → ISO-minuut', parseGridDateTime('31-12-2026 08:45', 'dmy'), '2026-12-31T08:45');
+eq('57 grid datetime mdy → ISO-minuut', parseGridDateTime('12/31/2026 8:05', 'mdy'), '2026-12-31T08:05');
+eq('58 grid datetime ymd met T → ISO-minuut', parseGridDateTime('2026.12.31T23:59', 'ymd'), '2026-12-31T23:59');
+eq('59 date-only blijft toegestaan in datetimekolom', parseGridDateTime('31-12-2026', 'dmy'), '2026-12-31');
+eq('60 uur 24 wordt geweigerd', parseGridDateTime('31-12-2026 24:00', 'dmy'), null);
+eq('61 minuut 60 wordt geweigerd', parseGridDateTime('31-12-2026 08:60', 'dmy'), null);
+eq('62 seconden worden niet stil afgekapt door de gridparser', parseGridDateTime('31-12-2026 08:45:30', 'dmy'), null);
+eq('63 niet-bestaande grid-datumtijd wordt geweigerd', parseGridDateTime('31-02-2026 08:45', 'dmy'), null);
+eq('64 ISO-minuut formatteert naar dmy', formatGridDateTime('2026-12-31T08:45', 'dmy'), '31-12-2026 08:45');
+eq('65 datetime dmy roundtrip bewaart ISO-minuut',
+  parseGridDateTime(formatGridDateTime('2024-02-29T00:05', 'dmy'), 'dmy'), '2024-02-29T00:05');
 
 if (diffs.length === 0) {
-  console.log('OK  datetime-check: alle checks groen (55)');
+  console.log('OK  datetime-check: alle checks groen (65)');
   process.exit(0);
 } else {
   console.log(`XX  datetime-check: ${diffs.length} afwijking(en)`);

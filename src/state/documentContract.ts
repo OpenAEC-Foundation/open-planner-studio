@@ -4,6 +4,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { CustomTaskType } from '@/types/taskType';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
@@ -11,13 +12,13 @@ import type { Baseline } from '@/types/baseline';
 import type { ImportResult } from '@/services/importTypes';
 import type { XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
-import type { ViewState } from './slices/types';
-import type { Snapshot } from './snapshot';
+import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultView } from './defaults';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from './syncProjectCalendar';
+import { normalizeTaskDurationUnits } from '@/utils/taskDefaults';
 
 /**
  * HET DOCUMENTCONTRACT — één canonieke bron voor de per-document-state (audit P10, F1/F3).
@@ -53,7 +54,10 @@ export interface DocumentPayload {
   calendars: WorkCalendar[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
+  customTaskTypes: CustomTaskType[];
   selectedTaskIds: string[];
+  /** Actieve taak voor het enkelvoudige eigenschappenpaneel; los van de meervoudige taakset. */
+  activeTaskId: string | null;
   cpmResult: CPMResult | null;
   /** Afgeleide belasting per document (A5): anders toont het histogram na een tabwissel dat van het
    *  vórige document. */
@@ -70,11 +74,11 @@ export interface DocumentPayload {
   view: ViewState;
   /** Woont in `s.ui` maar wordt per-document geswapt (zie descriptor-uitzondering). */
   collapsedTaskIds: string[];
-  undoStack: Snapshot[];
-  redoStack: Snapshot[];
   filePath: string | null;
   /** Web-opslaan-doel (browser-bestandstoegang). ALLEEN het FSA-opslaan-doel — nooit identiteit/titel (die blijft filePath: echt pad in Tauri, bestandsnaam in web). null in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
+  /** Persoonlijke sessiekeuze: echte bestands-AutoSave, geen IFC-data en geen crashherstel. */
+  autoSaveToFile: boolean;
   isDirty: boolean;
   /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren.
    *  X9 archiveert deze selectorgebonden provenance via IFC-diagnostics; X4b bewaart haar al
@@ -87,7 +91,7 @@ export interface DocumentPayload {
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
- *  Alleen de IFC-round-trip-velden + identiteit; view/undo/cpm worden vers
+ *  Alleen de IFC-round-trip-velden + identiteit; view/history/cpm worden vers
  *  opgebouwd (zijn niet kritiek na een crash).
  *
  *  AFGELEID van `ImportResult` (bevinding K3), niet meer met de hand opgesomd. De twee lijsten
@@ -175,7 +179,7 @@ export function normalizeView(v: ViewState): ViewState {
     : legacyGroupBy
       ? [{ field: { src: 'activityCode' as const, typeId: legacyGroupBy }, dir: 'asc' as const }]
       : [];
-  const out: ViewState & { groupBy?: string } = {
+  const out: ViewState & { groupBy?: string; columns?: unknown } = {
     ...v,
     filter: v.filter ?? null,
     group,
@@ -183,6 +187,7 @@ export function normalizeView(v: ViewState): ViewState {
     collapsedGroupKeys: v.collapsedGroupKeys ?? [],
   };
   delete out.groupBy; // gemigreerd — niet opnieuw laten meereizen in payloads
+  delete out.columns; // taakgridkolommen zijn vanaf Task 3 uitsluitend app-globale voorkeuren
   return out;
 }
 
@@ -196,7 +201,10 @@ export const DOCUMENT_FIELDS = [
   // restore alsnog uit `calendars`, maar zonder eigen snapshot-waarde zou de undo-orphan-fallback
   // (`promoteProjectCalendarToLibrary`) de NIEUWE cache promoveren i.p.v. de oude.
   field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'data' }),
-  field({ key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data' }),
+  field({
+    key: 'tasks', get: (s) => s.tasks, set: (s, v) => { s.tasks = v; }, fresh: () => [], snapshot: 'data',
+    fromPayload: (p) => normalizeTaskDurationUnits(p.tasks ?? []),
+  }),
   field({ key: 'sequences', get: (s) => s.sequences, set: (s, v) => { s.sequences = v; }, fresh: () => [], snapshot: 'data' }),
   field({ key: 'resources', get: (s) => s.resources, set: (s, v) => { s.resources = v; }, fresh: () => [], snapshot: 'data' }),
   field({ key: 'assignments', get: (s) => s.assignments, set: (s, v) => { s.assignments = v; }, fresh: () => [], snapshot: 'data' }),
@@ -207,9 +215,13 @@ export const DOCUMENT_FIELDS = [
   }),
   field({ key: 'activityCodeTypes', get: (s) => s.activityCodeTypes, set: (s, v) => { s.activityCodeTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.activityCodeTypes ?? [] }),
   field({ key: 'customFieldDefs', get: (s) => s.customFieldDefs, set: (s, v) => { s.customFieldDefs = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customFieldDefs ?? [] }),
+  field({ key: 'customTaskTypes', get: (s) => s.customTaskTypes, set: (s, v) => { s.customTaskTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.customTaskTypes ?? [] }),
   field({ key: 'selectedTaskIds', get: (s) => s.selectedTaskIds, set: (s, v) => { s.selectedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
+  field({ key: 'activeTaskId', get: (s) => s.activeTaskId, set: (s, v) => { s.activeTaskId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.activeTaskId ?? null }),
   field({ key: 'cpmResult', get: (s) => s.cpmResult, set: (s, v) => { s.cpmResult = v; }, fresh: () => null, snapshot: 'derived' }),
-  field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.resourceLoadResult ?? null }),
+  // Afleidbare cache: blijft per document opgeslagen voor slapende tabs, maar hoort niet in undo.
+  // Historymaterialisatie berekent hem vóór publicatie opnieuw uit het herstelde target.
+  field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.resourceLoadResult ?? null }),
   field({ key: 'scheduleStale', get: (s) => s.scheduleStale, set: (s, v) => { s.scheduleStale = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.scheduleStale ?? false }),
   // "Datums zoals opgeslagen" (issue #63). `snapshot: 'derived'` net als cpmResult/scheduleStale:
   // beide worden altijd als geheel vervangen, nooit in-place gemuteerd. Dat is precies wat Ctrl+Z
@@ -222,10 +234,10 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'view', get: (s) => s.view, set: (s, v) => { s.view = v; }, fresh: createDefaultView, snapshot: 'none', fromPayload: (p) => normalizeView(p.view) }),
   // Uitzondering: collapsedTaskIds woont in `s.ui` (wordt wél per-document geswapt).
   field({ key: 'collapsedTaskIds', get: (s) => s.ui.collapsedTaskIds, set: (s, v) => { s.ui.collapsedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
-  field({ key: 'undoStack', get: (s) => s.undoStack, set: (s, v) => { s.undoStack = v; }, fresh: () => [], snapshot: 'none' }),
-  field({ key: 'redoStack', get: (s) => s.redoStack, set: (s, v) => { s.redoStack = v; }, fresh: () => [], snapshot: 'none' }),
   field({ key: 'filePath', get: (s) => s.filePath, set: (s, v) => { s.filePath = v; }, fresh: () => null, snapshot: 'none' }),
   field({ key: 'fileHandle', get: (s) => s.fileHandle, set: (s, v) => { s.fileHandle = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.fileHandle ?? null }),
+  // Runtime-only: rijdt mee tussen open tabbladen, maar nooit door IFC of recoverymetadata.
+  field({ key: 'autoSaveToFile', get: (s) => s.autoSaveToFile, set: (s, v) => { s.autoSaveToFile = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.autoSaveToFile ?? false }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
@@ -270,11 +282,15 @@ type AppGlobalKey =
   | 'recentFiles'
   // Multi-document-boekhouding zelf — dit ís de laag die de rest swapt.
   | 'documents' | 'activeDocumentId'
+  // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
+  | 'historyEvents' | 'nextHistorySequence'
   // Extensies: app-niveau data, geen projectdata (zie CLAUDE.md, *Extensiesysteem*).
-  | 'installedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
-  | 'catalogEntries' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
+  | 'installedExtensions' | 'quarantinedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
+  | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
   // Resourcebibliotheek: app-globaal, net als extensies (zie CLAUDE.md, *Resourcebibliotheken*).
-  | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded';
+  | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
+  // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen.
+  | 'taskGridSurfaces' | 'recentTaskColumns';
 
 /**
  * Categorie 3 — afgeleid: geen bron van waarheid, wordt herberekend uit velden die wél in het
@@ -289,6 +305,20 @@ const _assertNoUnclassifiedState: Unclassified extends never ? true : [
   Unclassified,
 ] = true;
 void _assertNoUnclassifiedState;
+
+// Mutatiebewijs voor de richting van de assert: voeg denkbeeldig één ongeclassificeerd bronveld
+// aan AppState toe en bewijs dat precies die key door dezelfde typeformule wordt gevangen. Dit is
+// bewust een compileerbare fixture; voeg de fixturekey tijdelijk echt aan een slice toe om de rode
+// compilertekst van de gewone AppState-assert te zien.
+type TaskGridContractMutationFixture = AppState & { __taskGridContractMutationFixture: string };
+type FixtureUnclassified = Exclude<
+  StateDataKey<TaskGridContractMutationFixture>,
+  keyof DocumentPayload | AppGlobalKey | DerivedKey
+>;
+const _assertMutationFixtureIsCaught: FixtureUnclassified extends '__taskGridContractMutationFixture'
+  ? true
+  : ['Mutatiefixture werd niet als ongeclassificeerd stateveld gevangen:', FixtureUnclassified] = true;
+void _assertMutationFixtureIsCaught;
 
 // En andersom: een classificatie die naar een verdwenen veld wijst is dode ballast die de check
 // stilletjes zwakker maakt. Hernoem of verwijder je een veld, dan valt deze regel om.
@@ -322,6 +352,11 @@ export function capturePayload(s: AppState): DocumentPayload {
  *  lijst bepaalt welke velden gezet worden — capture en hydrate kunnen niet meer divergeren. */
 export function hydratePayload(s: AppState, p: DocumentPayload): void {
   const raw = p as unknown as Record<string, unknown>;
+  // Vang de oude actieve documentkolommen vóór `normalizeView` ze uit het documentcontract
+  // verwijdert. De TaskGridSlice bewaart deze bron tijdelijk per store-instantie, buiten AppState;
+  // bootstrap gebruikt hem alleen wanneer de nieuwe gebruikerssleutel werkelijk ontbreekt.
+  s.stageLegacyTaskGridColumns(p.project.id,
+    (p.view as ViewState & { columns?: ColumnConfig[] }).columns);
   for (const f of DOCUMENT_FIELDS) {
     writeField(f, s, f.fromPayload ? f.fromPayload(p) : raw[f.key]);
   }
@@ -338,7 +373,7 @@ export function freshPayload(): DocumentPayload {
   return out as unknown as DocumentPayload;
 }
 
-/** Verse payload uit herstelde recovery-projectdata (view/undo/cpm worden vers opgebouwd).
+/** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
  *
  *  Delegeert naar `payloadFromImport` (bevinding K3): een `RecoveryDocInput` ÍS een `ImportResult`
  *  + identiteit, dus de veldmapping is exact dezelfde — inclusief de `resourceCalendars`→
@@ -360,7 +395,7 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
 }
 
 /** Verse payload uit een ingelezen project (IFC/CSV/MSPDI/P6). Alleen de IFC-round-trip-velden
- *  worden overgenomen; selectie/cpm/undo/scheduleStale starten vers. `view`/`collapsedTaskIds`
+ *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
  *  vult de aanroeper (`applyLoadedProject` behoudt die van het huidige document — load-semantiek). */
 export function payloadFromImport(parsed: ImportResult, filePath: string | null): DocumentPayload {
   return {
@@ -374,6 +409,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     calendars: parsed.resourceCalendars ?? [],
     activityCodeTypes: parsed.activityCodeTypes ?? [],
     customFieldDefs: parsed.customFieldDefs ?? [],
+    customTaskTypes: parsed.customTaskTypes ?? [],
     baselines: parsed.baselines ?? [],
     activeBaselineId: parsed.activeBaselineId ?? null,
     xerImportMetadata: parsed.xer ?? null,

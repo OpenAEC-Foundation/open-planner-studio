@@ -3,7 +3,7 @@ import {
   openFileDialogTauri, saveFileDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
 } from './tauriBackend';
 import {
-  openFileDialogWeb, saveFileDialogWeb, saveToRefWeb, readFromRefWeb, readBytesFromRefWeb,
+  openFileDialogWeb, saveFileDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
 } from './webBackend';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
@@ -66,6 +66,16 @@ export function saveFileDialog(defaultName: string, content: string, filters: Fi
  *  permissie) → de aanroeper valt terug op `saveFileDialog`. */
 export function saveToRef(ref: FileRef, content: string): Promise<boolean> {
   return isTauri() ? saveToRefTauri(ref, content) : saveToRefWeb(ref, content);
+}
+
+/** Stille precheck voor timerwerk: browser-FSA mag hier nooit permissie vragen. */
+export function canWriteToRefWithoutPrompt(ref: FileRef): Promise<boolean> {
+  return isTauri() ? Promise.resolve(ref.kind === 'path') : canWriteToRefWithoutPromptWeb(ref);
+}
+
+/** Schrijf naar een bestaand doel zonder dialoog, download-terugval of permissieprompt. */
+export function saveToRefWithoutPrompt(ref: FileRef, content: string): Promise<boolean> {
+  return isTauri() ? saveToRefTauri(ref, content) : saveToRefWithoutPromptWeb(ref, content);
 }
 
 /** Inhoud van een bewaarde ref herlezen (recents heropenen). `null` bij fout/geweigerd. */

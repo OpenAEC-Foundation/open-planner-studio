@@ -36,8 +36,7 @@ Lista kontrolna dla każdego zadania: każdy wiersz ma **pole wyboru gotowe**, p
 ## Czas
 
 - **Data rozpoczęcia** — pokazuje obliczony wczesny początek; ręczna zmiana zakotwicza nową datę jako planowany początek.
-- **Czas trwania (dni robocze)** — pełne dni robocze; wyłączone dla kamienia milowego.
-- Przy **włączonym planowaniu godzinowym** i kalendarzu godzinowym na zadaniu pojawiają się trzy zsynchronizowane pola: **Dni**, **Godziny** i **Suma godzin** (tylko liczby całkowite). Bez kalendarza godzinowego pokazuje się podpowiedź: „Wprowadzanie w godzinach wymaga kalendarza godzinowego (godzin pracy)." Zobacz [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren).
+- Okno dialogowe i panel właściwości używają tej samej kontrolki **Czas trwania [wartość] [Dni | Godziny]**. Wpisz `2d`, `12h` lub alias `12u`. Godziny wymagają konkretnych pasm czasu pracy; bez nich zadanie się nie zmienia. Zobacz [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren).
 
 ## Hammock (czas trwania pochodny)
 

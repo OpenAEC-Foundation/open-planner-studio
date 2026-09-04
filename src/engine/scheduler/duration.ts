@@ -1,5 +1,11 @@
 import type { Task, TaskSplitGap } from '@/types/task';
 
+/** Expliciete eenheid met deterministische leesmigratie voor oudere runtime-data. */
+export function taskDurationUnit(task: Task): 'days' | 'hours' {
+  const legacy = task.time as Task['time'] & { durationUnit?: 'days' | 'hours' };
+  return legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+}
+
 /**
  * Gedeelde duur-resolutie-helpers (fase 2.8b, ontwerpdoc §3.1).
  *
@@ -49,32 +55,26 @@ export interface DurationCalendar {
 }
 
 /**
- * Duur van een taak in integer MINUTEN, in de effectieve kalender.
+ * Duur van een taak in MINUTEN, in de effectieve kalender.
  *
- * - Uur-kalender: `durationMinutes` is bron van waarheid indien aanwezig; anders (naakt getal =
- *   werkdagen, Bevinding 10) afgeleid als `scheduleDuration × hoursPerDay × 60`.
- * - Dag-kalender: er bestaat geen sub-dag-duur; de synthetische dag = `hoursPerDay × 60` min
- *   (§2.3, voor gemengde projecten), dus `scheduleDuration × hoursPerDay × 60`.
+ * - Urentaak: `durationMinutes` is altijd de bron van waarheid, los van de kalenderidentiteit.
+ * - Dagtaak: `scheduleDuration × hoursPerDay × 60`; dit is alleen een kalenderafhankelijk
+ *   equivalent voor analyse/weergave en verandert de opgeslagen dagaantallen nooit.
  */
 export function durationMinutesOf(task: Task, effCal: DurationCalendar): number {
-  if (effCal.isHourMode) {
-    const dm = task.time.durationMinutes;
-    if (dm != null) return dm;
-  }
+  if (taskDurationUnit(task) === 'hours') return task.time.durationMinutes ?? 0;
   return task.time.scheduleDuration * effCal.hoursPerDay * 60;
 }
 
 /**
- * Duur van een taak in eigen-kalender-WERKDAGEN (mogelijk fractioneel in uur-modus).
+ * Duur van een taak in eigen-kalender-WERKDAGEN (mogelijk fractioneel voor een urentaak).
  *
- * INVARIANT (Bevinding 2, §3.1): `durationMinutes` wordt UITSLUITEND op een uur-kalender
- * gehonoreerd. Op een dag-kalender — of op een uur-kalender zónder `durationMinutes` — valt de
- * helper ALTIJD terug op `scheduleDuration`; er belandt dus nooit een fractionele dag
- * (`durationMinutes / (hpd×60)`) in de integer-dag-lus `addWorkDays`.
+ * Dit equivalent mag nooit worden gebruikt om een urentaak op een bandloze kalender alsnog als
+ * dagen te plannen; `CPMSolver.solve` blokkeert dat expliciet. De native bron blijft minuten.
  */
 export function durationDaysOf(task: Task, effCal: DurationCalendar): number {
-  if (effCal.isHourMode && task.time.durationMinutes != null) {
-    return task.time.durationMinutes / (effCal.hoursPerDay * 60);
+  if (taskDurationUnit(task) === 'hours') {
+    return (task.time.durationMinutes ?? 0) / (effCal.hoursPerDay * 60);
   }
   return task.time.scheduleDuration;
 }
@@ -111,19 +111,17 @@ function clampElapsedMinutes(minutes: number): number {
 /**
  * Duur van een ELAPSEDTIME-taak in KLOK-minuten (24/7).
  *
- * - Uur-kalender: `durationMinutes` is al klok-tijd-neutraal (T10-scoping in `mppReader.ts`: dat
+ * - Urentaak: `durationMinutes` is al klok-tijd-neutraal (T10-scoping in `mppReader.ts`: dat
  *   veld is `raw.durationRaw / 10` ONGEACHT WORKTIME/ELAPSEDTIME — "een minuut is een minuut") —
  *   direct bruikbaar, geen omrekening nodig.
- * - Dag-kalender (of uur-kalender zónder `durationMinutes`, bv. een via MCP gezette taak):
+ * - Dagtaak:
  *   `scheduleDuration` is voor ELAPSEDTIME het aantal KALENDERdagen (`mppReader.ts` zet dit al zo:
  *   `raw.durationRaw / (24 × 60 × 10)`) × 24 × 60 — de VASTE klokdag, NOOIT `hoursPerDay` (dat zou
  *   de T10-dubbele-deling-valkuil zijn, hier toegepast op duur i.p.v. op de leeskant).
  */
 export function elapsedMinutesOf(task: Task, effCal: DurationCalendar): number {
-  if (effCal.isHourMode) {
-    const dm = task.time.durationMinutes;
-    if (dm != null) return dm;
-  }
+  void effCal;
+  if (taskDurationUnit(task) === 'hours') return task.time.durationMinutes ?? 0;
   return task.time.scheduleDuration * 24 * 60;
 }
 

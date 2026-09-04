@@ -1,7 +1,7 @@
 // SYNC-2 — de INTEGRATIEdraden tussen de tool-banen. Elke baan testte zijn eigen module; dit bestand
 // test uitsluitend wat pas ontstaat als ze samen in één binary zitten:
 //
-//   A. de T16-backup-naad is écht gekoppeld (`documentToolDeps.markDuplicateBorn` ≠ de no-op default);
+//   A. het T16-backupcontract slaat duplicate-born documenten aantoonbaar over;
 //   B. elke batchbare mutatietool draagt een synchrone `batchStep`-kern, en een draaiboek met
 //      add_tasks → add_dependencies → update_calendar → update_project loopt end-to-end (spec-usecase 1);
 //   C. de registratie draait op een PRODUCTIEpad, niet alleen in tests;
@@ -16,11 +16,10 @@ const backing = new Map<string, string>();
   removeItem: (k: string) => { backing.delete(k); },
 };
 
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool, getTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
-import { documentToolDeps } from '@/services/mcp/tools/documentTools';
-import { createBackupService, markDuplicateBorn } from '@/services/mcp/backup';
+import { createBackupService } from '@/services/mcp/backup';
 // Het IMPORTEREN van server.ts draait `initMcpRuntime()` — precies het productiepad dat draad A en C
 // leggen. Niets uit deze import wordt hier aangeroepen; de side-effect ÍS wat we testen.
 import { initMcpRuntime } from '@/services/mcp/server';
@@ -29,15 +28,10 @@ import type { BatchStepTool } from '@/services/mcp/tools/batchTool';
 
 const S = () => useAppStore.getState();
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 // =================================================================================================
@@ -146,20 +140,10 @@ test('initMcpRuntime is idempotent en herstelt een afgeknotte registratie', asyn
 });
 
 // =================================================================================================
-// A. De T16-backup-naad is gekoppeld
+// A. Het T16-backupcontract werkt gedragsmatig
 // =================================================================================================
 
-test('documentToolDeps.markDuplicateBorn is de ECHTE backup-functie, niet de no-op default', async () => {
-  // IDENTITEITScheck, geen arity-check: de vorige versie leunde op `.length === 1`, en die zou vals
-  // groen worden zodra iemand de no-op default een (ongebruikte) parameter geeft. Dit vergelijkt de
-  // naad met de daadwerkelijk geëxporteerde functie uit backup.ts — dat kan niet per ongeluk kloppen.
-  assert(
-    documentToolDeps.markDuplicateBorn === markDuplicateBorn,
-    'de naad wijst niet naar backup.markDuplicateBorn — initMcpRuntime() is niet gedraaid',
-  );
-});
-
-test('de naad werkt gedragsmatig: een duplicate-born document slaat de auto-backup over', async () => {
+test('een duplicate-born document slaat de auto-backup over', async () => {
   // Bewijst het EFFECT waar de naad voor bestaat, op een eigen service-instantie (de echte
   // module-singleton schrijft naar de Tauri-fs, die hier niet bestaat).
   let writes = 0;
@@ -282,7 +266,7 @@ test('spec-usecase 1: bestek → planning in ÉÉN batch (tasks + relaties + kal
   assertEq(S().sequences[0].predecessorId, fundering.id, 'de tempId van de voorganger is opgelost');
   assertEq(S().sequences[0].successorId, ruwbouw.id, 'de tempId van de opvolger is opgelost');
   // Eén batch = één undo-stap (WP0-invariant).
-  assert(S().undoStack.length >= 1, 'de batch pushte een undo-snapshot');
+  assert(S().historyEvents.filter(event => event.state === 'applied').length >= 1, 'de batch pushte een undo-snapshot');
 });
 
 test('de OVERIGE batchStep-kernen draaien echt als stap (niet alleen aanwezig)', async () => {

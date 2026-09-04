@@ -15,6 +15,16 @@ export interface BaselineTask {
   milestoneKind?: MilestoneKind;
 }
 
+/** De compacte tekeninvoer voor de actieve baseline. Zowel Gantt als rapport gebruiken deze
+ * afleiding, zodat ze per taak altijd exact dezelfde opgeslagen datums tonen. */
+export interface BaselineOverlayEntry {
+  start: string;
+  finish: string;
+  isMilestone: boolean;
+}
+
+export type BaselineOverlay = Map<string, BaselineOverlayEntry>;
+
 /** Een P6-stijl baseline: onbeperkt aantal; precies één is "actief" (activeBaselineId in de slice). */
 export interface Baseline {
   id: string;
@@ -25,4 +35,19 @@ export interface Baseline {
   tasks: BaselineTask[];   // keyed op taskId
   projectEnd: string;      // ISO — projecteinde t.t.v. de snapshot (voor de variance-samenvatting)
   projectDuration: number; // werkdagen
+}
+
+/** Bouw de taak-id-index van de actieve baseline; geen actieve of onbekende baseline = geen overlay. */
+export function buildBaselineOverlay(
+  baselines: Baseline[],
+  activeBaselineId: string | null | undefined,
+): BaselineOverlay | undefined {
+  if (!activeBaselineId) return undefined;
+  const active = baselines.find(b => b.id === activeBaselineId);
+  if (!active) return undefined;
+  const map: BaselineOverlay = new Map();
+  for (const task of active.tasks) {
+    map.set(task.taskId, { start: task.start, finish: task.finish, isMilestone: task.isMilestone });
+  }
+  return map;
 }

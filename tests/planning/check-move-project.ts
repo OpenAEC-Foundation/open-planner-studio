@@ -235,7 +235,7 @@ const snapshotBefore = JSON.stringify({
   project: S().project, tasks: S().tasks, resources: S().resources,
   calendar: S().calendar, calendars: S().calendars, baselines: S().baselines,
   cpmResult: { end: S().cpmResult?.projectEnd, dur: S().cpmResult?.projectDuration },
-  undoLen: S().undoStack.length, dirty: S().isDirty,
+  undoLen: S().historyEvents.filter(event => event.state === 'applied').length, dirty: S().isDirty,
 });
 const prev = S().previewMoveProject('2026-06-22');
 eq('90 preview: state volledig ONGEWIJZIGD (droogrun muteert niets)',
@@ -243,7 +243,7 @@ eq('90 preview: state volledig ONGEWIJZIGD (droogrun muteert niets)',
     project: S().project, tasks: S().tasks, resources: S().resources,
     calendar: S().calendar, calendars: S().calendars, baselines: S().baselines,
     cpmResult: { end: S().cpmResult?.projectEnd, dur: S().cpmResult?.projectDuration },
-    undoLen: S().undoStack.length, dirty: S().isDirty,
+    undoLen: S().historyEvents.filter(event => event.state === 'applied').length, dirty: S().isDirty,
   }),
   snapshotBefore);
 eq('91 preview.deltaDays', prev.deltaDays, 21);
@@ -256,13 +256,13 @@ eq('96 preview.impact.availabilityStepCount', prev.impact.availabilityStepCount,
 eq('97 preview: geen solver-fout', prev.error, undefined);
 
 // --- Commit: guards R8/R9 ---
-const undoLenBefore = S().undoStack.length;
+const undoLenBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 const noop = S().moveProject('2026-06-01');
 eq('100 R8 delta=0 => moved:false', noop.moved, false);
-eq('101 R8 delta=0 => GEEN undo-stap gepusht', S().undoStack.length, undoLenBefore);
+eq('101 R8 delta=0 => GEEN undo-stap gepusht', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore);
 const bad = S().moveProject('geen-datum');
 eq('102 R9 ongeldige datum => moved:false', bad.moved, false);
-eq('103 R9 ongeldige datum => GEEN undo-stap gepusht', S().undoStack.length, undoLenBefore);
+eq('103 R9 ongeldige datum => GEEN undo-stap gepusht', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore);
 eq('104 R9 ongeldige datum => project.startDate ongewijzigd', S().project.startDate, '2026-06-01');
 
 // --- Commit: de echte verschuiving ---

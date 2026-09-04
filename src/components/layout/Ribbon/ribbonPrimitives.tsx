@@ -81,6 +81,31 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
   );
 }
 
+/**
+ * Compacte native keuzelijst voor een bediening die al ín een Popover staat. Een tweede
+ * geportalde RibbonDropdown is daar niet veilig: de buitenste click-outside-handler ziet een klik
+ * in dat tweede portaal als buitenklik en kan de opties vóór hun click-handler ontkoppelen.
+ */
+export function RibbonInlineSelect<T extends string>({ value, options, onChange, ariaLabel }: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <select
+      value={value}
+      aria-label={ariaLabel}
+      onChange={event => onChange(event.currentTarget.value as T)}
+      className="input !text-[11px] !px-1.5 !py-1 w-full"
+    >
+      {options.map(option => (
+        <option key={option.value} value={option.value}>{option.label}</option>
+      ))}
+    </select>
+  );
+}
+
 export function RibbonButton({ icon, label, onClick, active, disabled, primary, danger, title }: {
   icon: React.ReactNode;
   label: string;

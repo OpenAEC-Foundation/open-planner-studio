@@ -7,6 +7,7 @@ import { loadLayouts, saveLayouts, saveLastLayoutId } from '@/utils/settingsStor
 import type { Layout } from '@/state/slices/types';
 import { Dialog } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
+import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 
 /**
  * Layouts-dialoog (fase 2.7, §8): combineert "Opslaan als…" en "Beheren…" in één lijst-dialoog
@@ -18,8 +19,8 @@ export function LayoutsDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const view = useAppStore(s => s.view);
-  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
-  const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
+  const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
   const applyLayout = useAppStore(s => s.applyLayout);
 
   const close = () => setUI({ showLayoutsDialog: false });
@@ -45,7 +46,7 @@ export function LayoutsDialog() {
 
   const saveNew = () => {
     const name = newName.trim() || t('view.layout.name');
-    const layout = snapshotLayout(view, activityCodeTypes, customFieldDefs, name);
+    const layout = snapshotLayout(view, columns, name);
     persist([...layouts, layout]);
     void saveLastLayoutId(layout.id);
     setNewName('');
@@ -69,7 +70,7 @@ export function LayoutsDialog() {
   const update = (id: string) => {
     const current = layouts.find(l => l.id === id);
     if (!current) return;
-    persist(layouts.map(l => (l.id === id ? snapshotLayout(view, activityCodeTypes, customFieldDefs, l.name, l.id) : l)));
+    persist(layouts.map(l => (l.id === id ? snapshotLayout(view, columns, l.name, l.id) : l)));
   };
 
   const apply = (layout: Layout) => {

@@ -16,6 +16,19 @@ test('leest opsDevPort als geldig getal in bereik', () => {
   assert.equal(readRecordedPort(root), 3042);
   rmSync(root, { recursive: true, force: true });
 });
+test('browserlane leest uitsluitend opsBrowserTestPort binnen zijn eigen bereik', () => {
+  const root = fixture(JSON.stringify({
+    opsDevPort: 3042,
+    opsBrowserTestPort: 3142,
+  }));
+  assert.equal(readRecordedPort(root, 'browser'), 3142);
+  rmSync(root, { recursive: true, force: true });
+});
+test('browserlane gebruikt de devmarker niet als terugval', () => {
+  const root = fixture(JSON.stringify({ opsDevPort: 3042 }));
+  assert.equal(readRecordedPort(root, 'browser'), null);
+  rmSync(root, { recursive: true, force: true });
+});
 test('negeert het configurations[].port-veld (template-3007) zonder opsDevPort', () => {
   const root = fixture(JSON.stringify({ configurations: [{ name: 'dev', port: 3007 }] }));
   assert.equal(readRecordedPort(root), null);

@@ -4,9 +4,8 @@
 // structureel onmogelijk is.
 
 import type { Task } from '@/types/task';
-import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type {
-  ColumnConfig, FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
+  FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
 } from '@/state/slices/types';
 import { evaluate, resolveField, resourceNames, type FieldValue, type ViewContext } from './filterEval';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -14,9 +13,10 @@ import { isLeafTask } from '@/utils/taskHierarchy';
 export type { ViewContext } from './filterEval';
 
 export type ViewRow =
-  | { kind: 'task'; task: Task; depth: number; dimmed: boolean }
+  | { kind: 'task'; rowKey: string; task: Task; depth: number; dimmed: boolean }
   | {
       kind: 'group';
+      rowKey: string;
       key: string;
       label: string;
       count: number;
@@ -41,6 +41,11 @@ export function encodeBandKey(rawKeys: string[]): string {
   return JSON.stringify(rawKeys);
 }
 
+/** Stabiele occurrence-key voor een taak in een gegroepeerd rauw bandpad. */
+export function encodeGroupedTaskRowKey(groupPath: readonly string[], taskId: string): string {
+  return JSON.stringify({ kind: 'task', groupPath, taskId });
+}
+
 /**
  * Pure boommodus (§4.5): structuur-mutaties (indent/outdent/row-move) zijn alleen dan zinvol.
  * Eén gedeelde selector zodat tabel, Gantt én ribbon dezelfde regel afdwingen.
@@ -51,31 +56,6 @@ export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): 
     (view.group?.length ?? 0) === 0 &&
     (view.sort?.length ?? 0) === 0
   );
-}
-
-/** Reproduceert exact de huidige kolommenset + breedtes (§5.2). undefined view.columns ⇒ dit. */
-export function defaultColumns(
-  activityCodeTypes: ActivityCodeType[],
-  customFieldDefs: CustomFieldDef[],
-): ColumnConfig[] {
-  return [
-    { field: { src: 'builtin', key: 'wbsCode' }, visible: true, width: 60 },
-    { field: { src: 'builtin', key: 'name' }, visible: true, width: 240 },
-    { field: { src: 'builtin', key: 'duration' }, visible: true, width: 60 },
-    { field: { src: 'builtin', key: 'start' }, visible: true, width: 100 },
-    { field: { src: 'builtin', key: 'finish' }, visible: true, width: 100 },
-    { field: { src: 'builtin', key: 'taskType' }, visible: true, width: 80 },
-    { field: { src: 'builtin', key: 'isCritical' }, visible: true, width: 50 },
-    { field: { src: 'builtin', key: 'totalFloat' }, visible: true, width: 50 },
-    { field: { src: 'builtin', key: 'completion' }, visible: true, width: 60 },
-    ...activityCodeTypes.map(t => ({
-      field: { src: 'activityCode' as const, typeId: t.id }, visible: true, width: 90,
-    })),
-    ...customFieldDefs.map(d => ({
-      field: { src: 'customField' as const, defId: d.id }, visible: true, width: 90,
-    })),
-    { field: { src: 'resource' as const }, visible: false, width: 140 },
-  ];
 }
 
 // --- Vergelijken (sort + bandvolgorde) ---
@@ -210,7 +190,13 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     const walk = (leaves: Task[], levelIndex: number, path: string[]) => {
       if (levelIndex >= group.length) {
         for (const leaf of sortTasks(leaves, sort, ctx)) {
-          rows.push({ kind: 'task', task: leaf, depth: group.length, dimmed: false });
+          rows.push({
+            kind: 'task',
+            rowKey: encodeGroupedTaskRowKey(path, leaf.id),
+            task: leaf,
+            depth: group.length,
+            dimmed: false,
+          });
         }
         return;
       }
@@ -218,7 +204,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
         const key = encodeBandKey([...path, band.rawKey]);
         const collapsed = collapsedGroupKeys.has(key);
         rows.push({
-          kind: 'group', key, label: band.label, count: band.leaves.length,
+          kind: 'group', rowKey: key, key, label: band.label, count: band.leaves.length,
           depth: levelIndex, levelIndex, collapsed,
         });
         if (!collapsed) walk(band.leaves, levelIndex + 1, [...path, band.rawKey]);
@@ -237,7 +223,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     if (seen.has(task.id)) return;
     seen.add(task.id);
     if (!hidden && visible.has(task.id)) {
-      rows.push({ kind: 'task', task, depth, dimmed: dimmed.get(task.id) ?? false });
+      rows.push({ kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id) ?? false });
     }
     const hideChildren = hidden || collapsedTaskIds.has(task.id);
     const kids = task.childIds.map(id => byId.get(id)).filter((t): t is Task => !!t);
@@ -248,7 +234,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   // Wees-vangnet (§4.2): taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {
-      rows.push({ kind: 'task', task: t, depth: 0, dimmed: dimmed.get(t.id) ?? false });
+      rows.push({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: dimmed.get(t.id) ?? false });
     }
   }
   return rows;
@@ -284,4 +270,76 @@ export function firstRowIndexByTask(rows: ViewRow[]): Map<string, number> {
     if (row.kind === 'task' && !map.has(row.task.id)) map.set(row.task.id, i);
   });
   return map;
+}
+
+export type TaskViewRow = Extract<ViewRow, { kind: 'task' }>;
+
+/** Het deterministische eerste zichtbare voorkomen van een domeintaak. */
+export function firstTaskOccurrence(
+  rows: readonly ViewRow[],
+  taskId: string,
+): { rowKey: string; rowIndex: number; row: TaskViewRow } | null {
+  const rowIndex = rows.findIndex(row => row.kind === 'task' && row.task.id === taskId);
+  if (rowIndex < 0) return null;
+  const row = rows[rowIndex] as TaskViewRow;
+  return { rowKey: row.rowKey, rowIndex, row };
+}
+
+/** Alle taakoccurrences tussen twee zichtbare rowKeys; groepsrijen blijven alleen afstand dragen. */
+export function taskRowsInRange(
+  rows: readonly ViewRow[],
+  fromRowKey: string,
+  toRowKey: string,
+): TaskViewRow[] {
+  const fromIndex = rows.findIndex(row => row.rowKey === fromRowKey);
+  const toIndex = rows.findIndex(row => row.rowKey === toRowKey);
+  if (fromIndex < 0 || toIndex < 0) return [];
+  const start = Math.min(fromIndex, toIndex);
+  const end = Math.max(fromIndex, toIndex);
+  return rows.slice(start, end + 1).filter((row): row is TaskViewRow => row.kind === 'task');
+}
+
+/** Geordende domeinselectie uit occurrences; een taak-id komt hoogstens één keer terug. */
+export function uniqueTaskIds(rows: readonly ViewRow[]): string[] {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    if (row.kind === 'task') ids.add(row.task.id);
+  }
+  return [...ids];
+}
+
+/**
+ * Minimale headless rijcursorreconciliatie voor Task 7. De aanroeper bewaart de absolute rijindex
+ * van de actieve occurrence. Blijft de rowKey bestaan, dan wint die; anders wint de taakrij met de
+ * kleinste absolute indexafstand (bij gelijke afstand de eerdere rij). Zonder taakrij is er geen
+ * geldige cel meer en wordt de cursor leeg.
+ */
+export interface TaskRowCursor {
+  rowKey: string;
+  rowIndex: number;
+  taskId: string;
+}
+
+export function normalizeTaskRowCursor(
+  rows: readonly ViewRow[],
+  cursor: TaskRowCursor | null,
+): TaskRowCursor | null {
+  if (cursor === null) return null;
+  const exactIndex = rows.findIndex(row => row.kind === 'task' && row.rowKey === cursor.rowKey);
+  if (exactIndex >= 0) {
+    const row = rows[exactIndex] as TaskViewRow;
+    return { rowKey: row.rowKey, rowIndex: exactIndex, taskId: row.task.id };
+  }
+
+  let nearest: TaskRowCursor | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  rows.forEach((row, rowIndex) => {
+    if (row.kind !== 'task') return;
+    const distance = Math.abs(rowIndex - cursor.rowIndex);
+    if (distance < nearestDistance) {
+      nearest = { rowKey: row.rowKey, rowIndex, taskId: row.task.id };
+      nearestDistance = distance;
+    }
+  });
+  return nearest;
 }

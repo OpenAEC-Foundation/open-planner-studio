@@ -1,6 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseFreePort, MIN_PORT, MAX_PORT } from '../../scripts/dev-port.mjs';
+import {
+  chooseFreePort,
+  chooseFreePortFor,
+  PORT_LANES,
+  MIN_PORT,
+  MAX_PORT,
+} from '../../scripts/dev-port.mjs';
+
+test('browserlane start op 3107 en blijft los van het devbereik', () => {
+  assert.deepEqual(PORT_LANES.browser, {
+    min: 3107,
+    max: 3206,
+    marker: 'opsBrowserTestPort',
+  });
+  assert.equal(chooseFreePortFor('browser', new Set(), () => false), 3107);
+});
 
 test('kiest MIN_PORT als niets geclaimd of gebonden is', () => {
   assert.equal(chooseFreePort(new Set(), () => false), MIN_PORT);

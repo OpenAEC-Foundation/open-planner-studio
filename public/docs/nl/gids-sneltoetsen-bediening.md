@@ -11,6 +11,7 @@ zijn om apart te snappen.
 - Wat elk van de vier contextmenu's in de Gantt-weergave bevat.
 - Hoe slepen werkt: een balk verplaatsen versus een relatie leggen.
 - Wanneer een sleepbeweging op leeg canvas pant en wanneer hij box-selecteert.
+- Met de pijltjestoetsen door zichtbare taken of histogramresources lopen.
 - Zoomen, documenttabs en presentatiemodus.
 - Hoe je de rondleiding opnieuw start.
 
@@ -57,6 +58,17 @@ Klik op een balk om alleen die taak te selecteren. **Ctrl/⌘+klik** op een balk
 aan of haalt hem uit de huidige selectie, in plaats van die te vervangen — zo bouw je balk voor balk
 een meervoudige selectie op, handig vlak voordat je op de knop **Relatie** klikt met precies twee
 taken geselecteerd, of voordat je een hele selectie taken in één keer versleept in de takentabel.
+
+Klik eerst in de **taaklijst** of op een **Gantt-balk**. Daarna kiest **↑** de vorige zichtbare taak
+en **↓** de volgende zichtbare taak. De selectie, het eigenschappenpaneel en de balkmarkering
+volgen direct mee. Ingeklapte, weggefilterde of buiten de huidige sortering vallende taken worden
+niet bezocht: je doorloopt precies de lijst die op dat moment zichtbaar is.
+
+Klik in de **resourcekiezer** links in het histogram om dat oppervlak actief te maken. Daar lopen
+**↑** en **↓** door dezelfde lijst: eerst **Alle resources**, daarna iedere projectresource. Zo kun
+je de belasting van resources snel vergelijken zonder telkens een naam aan te klikken. Aan het begin
+of einde blijft de huidige selectie staan. Pijltjes met Ctrl, Alt, Shift of ⌘ behouden hun bestaande
+functie elders in de app.
 
 ## Pannen versus box-selectie
 

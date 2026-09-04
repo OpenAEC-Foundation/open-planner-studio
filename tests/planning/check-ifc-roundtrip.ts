@@ -1,3 +1,5 @@
+// Toelichting bij dit contract (stappen, routes, "waar het echt staat"): docs/ifc-round-trip.md.
+//
 // IFC-ROUND-TRIP-CONTRACT (fase 3, eerste helft van P11 uit docs/superpowers/modulariteit-audit.md,
 // bevinding A2/F2). IFC 4.3 is het NATIVE bestandsformaat: opslaan = writeIFC, laden = readIFC. Het
 // impliciete contract "alle domeindata moet door de IFC-laag round-trippen" had géén test — twee
@@ -22,8 +24,9 @@
 //           `canon` voor de meting.
 //      Beide leunen op tests/planning/tsconfig.check.json, want de hoofd-tsconfig sluit tests/ uit.
 //   3. writeIFC(fixture) → readIFC → diepe, veld-voor-veld-vergelijking van de HELE ImportResult.
-//      Gegenereerde ids (task/resource/sequence/kalender regenereren bij inlezen) worden
-//      genormaliseerd via NATUURLIJKE SLEUTELS (wbsCode/naam) i.p.v. letterlijk vergeleken; alle
+//      Gegenereerde ids (project/resource/sequence/kalender regenereren bij inlezen) worden
+//      genormaliseerd via NATUURLIJKE SLEUTELS (wbsCode/naam) i.p.v. letterlijk vergeleken; taak-id's
+//      hebben daarnaast een expliciet stabiliteitscontract voor externe bronverversing; alle
 //      kruisverwijzingen (parentId/childIds/pred/succ/calendarId/taskId/resourceId/activityCodes)
 //      worden naar die sleutels herschreven. Datum-normalisaties (het 07:00-anker) round-trippen
 //      naar dag-datums en zijn in de fixture al in dag-vorm gekozen.
@@ -43,8 +46,8 @@
 // (enige bron van waarheid, geen dubbele opslag); de drie analyse-velden via OPS_Analysis. Wat
 // bewust NIET round-trippt:
 //   (b) resource.availability — @deprecated migratie-alleen veld; writer schrijft 'm bewust niet.
-//   (b) task.time.durationMinutes / remainingMinutes — UUR-modus-velden; niet van toepassing in dag-modus
-//                             (deze fixture is dag-modus). hun uur-round-trip is gedekt door
+//   (b) task.time.durationMinutes / remainingMinutes — voor de uurtaak TM geldt de minutenbron
+//                             als invoer; de reguliere uur-round-trip is daarnaast gedekt door
 //                             tests/planning/check-adapters-hours.ts.
 //   (b) resourceCalendars: de projectkalender-entry wordt bewust NIET in de bibliotheek gedupliceerd
 //                             (writer filtert 'm eruit; reader geeft de bibliotheek zonder projectkalender).
@@ -54,7 +57,7 @@
 //   vergelijking het verschil ook echt kan zien. IFCWORKPLAN.StartTime/FinishTime blijft de
 //   AFGELEIDE plan-omvang dragen. Zie blok (4) onderaan voor leeg-geval en legacy-terugval.
 //   Overige bewuste (b)-normalisaties die de fixture al in genormaliseerde vorm kiest (dus GEEN
-//   afwijking geven): ids regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
+//   afwijking geven): niet-taak-id's regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
 //   ASAP-constraint niet geschreven, shift FIRST→undefined,
 //   lagUnit WORKTIME→undefined, curve UNIFORM→undefined, progressMode RETAINED_LOGIC→undefined,
 //   dag-duren integer, priority 500 niet geschreven.
@@ -141,7 +144,7 @@ const projCal = {
   p6NonWorkPenaltyDatesState: 'VALID_VALUES',
   generation: PROJ_GEN, shift: 'SECOND',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-projcal', poolVersion: 4 },
-} satisfies Omit<Required<WorkCalendar>, 'workTime'>;
+} satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 const libCal = {
   id: 'libcal', name: 'Sublokatie kalender', description: 'Ma-za 07-15',
   workDays: [1, 2, 3, 4, 5, 6], workStartHour: 7, workEndHour: 15, hoursPerDay: 8,
@@ -155,7 +158,7 @@ const libCal = {
   p6NonWorkPenaltyDatesState: 'VALID_EMPTY',
   generation: LIB_GEN, shift: 'THIRD',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-libcal', poolVersion: 4 },
-} satisfies Omit<Required<WorkCalendar>, 'workTime'>;
+} satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 
 // Type-only VOLLEDIGHEIDSGETUIGE voor WorkCalendar: `workTime` aanwezig ⇒ UUR-kalender, wat de
 // dag-modus-round-trip zou ontsporen (durationMinutes/echte tijden). De veld-volledigheid van
@@ -165,6 +168,7 @@ const libCal = {
 const _CALENDAR_FIELD_WITNESS = {
   id: 'w', name: 'w', description: 'w', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30,
   workingExceptions: [{ name: 'w', startDate: '2026-01-01', endDate: '2026-01-01', bands: [{ start: 0, end: 60 }] }],
   p6Source: 'XER',
   p6NonWorkPenaltyDates: [],
@@ -207,7 +211,7 @@ const customFieldDefs = [
 // alleen voor milestones geschreven worden; scheduleDuration is dan per definitie 0. TX/TY: gewone
 // leaf-taken (duur>0, relaties, assignments).
 const plainTime = (start: string, finish: string, dur: number): TaskTime => ({
-  durationType: 'WORKTIME', scheduleDuration: dur,
+  durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: dur,
   scheduleStart: start, scheduleFinish: finish,
   earlyStart: start, earlyFinish: finish, lateStart: start, lateFinish: finish,
   freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
@@ -223,6 +227,7 @@ const TP: Task = {
 const TM = {
   id: 't-m', name: 'Oplevering', description: 'Contractuele opleverdatum', wbsCode: '1.1',
   taskType: 'INSTALLATION', status: 'COMPLETED', isMilestone: true, milestoneKind: 'FINISH',
+  customTaskTypeId: '',
   mandatory: true, priority: 700, levelingDelay: 3,
   // Z14: de vier Z0-typecontractvelden round-trippen nu écht via ifcPsets.ts (zie TASK_CANON
   // hieronder). `levelingDelayElapsed` staat hier BEWUST op `true` (niet `false`): de writer
@@ -230,7 +235,14 @@ const TM = {
   // bestaande bestanden) — `false` zou dus stil normaliseren naar `undefined` terug en deze cel
   // niets bewijzen (dezelfde valkuil als `shift: 'FIRST'`/ASAP-constraint hierboven in het bestand).
   levelingDelayMinutes: 45, levelingDelayElapsed: true,
-  splitGaps: [{ afterMinutes: 120, gapMinutes: 60 } satisfies TaskSplitGap],
+  // B1c-plan-2 taak 7: het herkomstveld op een werkonderbreking. Twee gaten in ÉÉN taak — het
+  // eerste (bestaand fixture-gegeven) zonder `source` (importsplit — byte-identiek gedrag), het
+  // tweede MET `source: 'leveling'` (een door de verdeler ingevoegde pauzedag) — zodat de gewone
+  // whole-fixture round-trip hierboven BEIDE vormen in één keer bewijst.
+  splitGaps: [
+    { afterMinutes: 120, gapMinutes: 60 } satisfies TaskSplitGap,
+    { afterMinutes: 480, gapMinutes: 480, source: 'leveling' } satisfies TaskSplitGap,
+  ],
   manuallyScheduled: true,
   // Z14b: het Z8-venster round-trippt nu écht via `OPS_TimephasedWindow` (zie TASK_CANON hieronder
   // — echte KEEP-vergelijking i.p.v. de vroegere skip-cellen).
@@ -286,13 +298,13 @@ const TM = {
   calendarId: 'libcal',
   notes: [{ id: 'n1', text: 'Keuring', done: true }, { id: 'n2', text: 'Sleuteloverdracht', done: false }],
   time: {
-    durationType: 'WORKTIME', scheduleDuration: 0,
+    durationType: 'WORKTIME', durationUnit: 'hours', scheduleDuration: 1,
     durationMinutes: 480,           // (b) uur-modus-gap
-    scheduleStart: '2026-07-24', scheduleFinish: '2026-07-24',
-    earlyStart: '2026-07-24', earlyFinish: '2026-07-24', lateStart: '2026-07-24', lateFinish: '2026-07-24',
+    scheduleStart: '2026-07-24T00:00', scheduleFinish: '2026-07-24T00:00',
+    earlyStart: '2026-07-24T00:00', earlyFinish: '2026-07-24T00:00', lateStart: '2026-07-24T00:00', lateFinish: '2026-07-24T00:00',
     freeFloat: 2, totalFloat: 3, isCritical: true,
     interferingFloat: 1.5, isNearCritical: true, floatPath: 1, // (a) analyse-gaps
-    actualStart: '2026-07-24', actualFinish: '2026-07-24', actualDuration: 0,
+    actualStart: '2026-07-24T00:00', actualFinish: '2026-07-24T00:00', actualDuration: 0,
     remainingTime: 0, remainingMinutes: 0, // remainingMinutes: (b) uur-modus-gap
     completion: 1,
     resume: '2026-07-24', stop: '2026-07-24', // Z14: round-tript sinds OPS_Resume, zie TIME_CANON
@@ -338,7 +350,7 @@ const RMember = {
   costPerHour: 42.5, availability: 0.9, // availability: (b) deprecated gap
   maxUnits: 3, calendarId: 'libcal',
   availabilitySteps: [{ from: '2026-07-06', maxUnits: 3 }, { from: '2026-07-20', maxUnits: 2 }],
-  unitOfMeasure: 'uur', parentId: 'r-crew',
+  unitOfMeasure: 'uur', parentId: 'r-crew', color: '#0EA5E9',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-res1', poolVersion: 4 },
 } satisfies Required<Resource>;
 const REquip: Resource = { id: 'r-eq', name: 'Torenkraan', type: 'EQUIPMENT', description: 'Liebherr 200', maxUnits: 2 };
@@ -390,6 +402,7 @@ const project = {
   createdAt: '2026-01-01T00:00:00.000Z', modifiedAt: '2026-06-01T00:00:00.000Z', // (a) gaps
   author: 'Ir. Testz', company: 'Bouw BV',                                       // (a) gaps
   wbsAutoNumber: true, statusDate: '2026-07-25', progressMode: 'PROGRESS_OVERRIDE',
+  defaultTaskDurationUnit: 'days',
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   schedulingOptions: SCHED_OPTS,
 } satisfies Required<Project> & { schedulingOptions: Required<SchedulingOptions> };
@@ -496,6 +509,8 @@ const CALENDAR_CANON = {
   name: KEEP, description: KEEP,
   workDays: { get: (c: WorkCalendar) => [...c.workDays] },
   workStartHour: KEEP, workEndHour: KEEP, hoursPerDay: KEEP,
+  simpleBreakStartMinute: { skip: 'optioneel scalar-pauzepatroon; gedekt door check-calendar-breaks.ts' },
+  simpleBreakDurationMinutes: { skip: 'optioneel scalar-pauzepatroon; gedekt door check-calendar-breaks.ts' },
   holidays: {
     get: (c: WorkCalendar, k: Keys) => [...c.holidays]
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -516,8 +531,8 @@ const CALENDAR_CANON = {
 } satisfies CanonSpec<WorkCalendar>;
 
 const TIME_CANON = {
-  durationType: KEEP, scheduleDuration: KEEP,
-  durationMinutes: { skip: '(b) UUR-modus-veld, n.v.t. in dag-modus; gedekt door check-adapters-hours.ts' },
+  durationType: KEEP, durationUnit: KEEP, scheduleDuration: KEEP,
+  durationMinutes: KEEP,
   scheduleStart: KEEP, scheduleFinish: KEEP,
   earlyStart: KEEP, earlyFinish: KEEP, lateStart: KEEP, lateFinish: KEEP,
   freeFloat: KEEP, totalFloat: KEEP, isCritical: KEEP,
@@ -529,7 +544,7 @@ const TIME_CANON = {
   isNearCritical: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
   floatPath: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
   actualStart: KEEP, actualFinish: KEEP, actualDuration: KEEP, remainingTime: KEEP,
-  remainingMinutes: { skip: '(b) UUR-modus-veld, n.v.t. in dag-modus (zie durationMinutes)' },
+  remainingMinutes: KEEP,
   completion: KEEP,
   // Z14 (Z12-herwerk-signaal): resume/stop round-trippen sinds Z14 via het `OPS_Resume`-pset
   // (ifcPsets.ts) — echte KEEP-vergelijking i.p.v. de vroegere skip-cel. MSPDI/P6-export blijven
@@ -540,7 +555,9 @@ const TIME_CANON = {
 
 const TASK_CANON = {
   id: { skip: 'regenereert bij inlezen; wbsCode is de natuurlijke sleutel (Keys.task)' },
-  name: KEEP, description: KEEP, wbsCode: KEEP, taskType: KEEP, status: KEEP,
+  name: KEEP, description: KEEP, wbsCode: KEEP, taskType: KEEP,
+  customTaskTypeId: { skip: 'lege optionele fixturewaarde normaliseert naar undefined; echte custom-id wordt gedekt door check-custom-task-types.ts' },
+  status: KEEP,
   isMilestone: KEEP, milestoneKind: KEEP, mandatory: KEEP, priority: KEEP, levelingDelay: KEEP,
   // Z14: de vier Z0-typecontractvelden round-trippen nu écht (ifcPsets.ts: `OPS_Leveling`
   // uitgebreid met LevelingDelayMinutes/-Elapsed, `OPS_TaskSplits` en `OPS_ManualScheduling` nieuw)
@@ -618,6 +635,7 @@ const RESOURCE_CANON = {
   calendarId: { as: 'calendar', get: (r: Resource, k: Keys) => k.cal(r.calendarId) },
   availabilitySteps: KEEP, unitOfMeasure: KEEP,
   parentId: { as: 'parent', get: (r: Resource, k: Keys) => (r.parentId ? k.res(r.parentId) : undefined) },
+  color: KEEP,           // #21: weergavekleur round-trippt via de OPS_Resource-pset (IFCTEXT Color)
   libraryOrigin: KEEP,   // B1.1: herkomststempel round-trippt via OPS_LibraryOrigin
 } satisfies CanonSpec<Resource>;
 
@@ -640,6 +658,7 @@ const PROJECT_CANON = {
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
   wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP, schedulingOptions: KEEP,
+  defaultTaskDurationUnit: KEEP,
   // B1.1: bedrijfsbinding round-trippt via OPS_CompanyBinding.
   companyId: KEEP, companyName: KEEP,
 } satisfies CanonSpec<Project>;
@@ -755,7 +774,8 @@ function collectDiffs(path: string, a: unknown, b: unknown, out: string[]): void
 // (1) Round-trip + veld-voor-veld. `expected` = de fixture met de bewuste (b)-normalisaties die het
 //     canon-model niet al dekt: de projectkalender-entry uit de bibliotheek filteren (writer dedupt).
 const expectedInput: ImportResult = { ...fixture, resourceCalendars: (fixture.resourceCalendars ?? []).filter(c => c.id !== fixture.project.calendarId) };
-const rt1 = readIFC(writeIFC(fixture));
+const firstIfc = writeIFC(fixture);
+const rt1 = readIFC(firstIfc);
 const rt2 = readIFC(writeIFC(rt1));
 
 const hasP6BoundarySequence = (input: ImportResult) =>
@@ -881,6 +901,23 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     '(1b) een door OPS zelf geschreven bestand moet ALLE negen slots (7 rekenslots + 2 invoerslots) als aanwezig melden');
 }
 
+// (1c) Externe relaties bewaren het taak-id uit een geparseerd bronbestand. Daarom moet hetzelfde
+// fysieke IFC-bestand bij iedere parse dezelfde taak-id's leveren, en moeten die id's ook na
+// openen→opnieuw opslaan stabiel blijven. Alleen canonieke inhoud vergelijken (de oudere test)
+// merkt deze breuk niet: WBS/naam blijven gelijk terwijl refreshExternalAnchors de taak mist.
+{
+  const sameFileAgain = readIFC(firstIfc);
+  const idsByWbs = (r: ImportResult) => Object.fromEntries(r.tasks.map(task => [task.wbsCode, task.id]));
+  assert(JSON.stringify(idsByWbs(rt1)) === JSON.stringify(idsByWbs(sameFileAgain)),
+    '(1c) twee parses van hetzelfde IFC-bestand moeten dezelfde taak-id per WBS leveren');
+  assert(JSON.stringify(idsByWbs(rt1)) === JSON.stringify(idsByWbs(rt2)),
+    '(1c) openen en opnieuw opslaan mag taak-id\'s voor externe bronverversing niet veranderen');
+  assert(rt1.project.id === sameFileAgain.project.id,
+    '(1c) twee parses van hetzelfde IFC-bestand moeten hetzelfde project-id leveren');
+  assert(rt1.project.id === rt2.project.id,
+    '(1c) openen en opnieuw opslaan mag het project-id voor externe bronverversing niet veranderen');
+}
+
 // (2) Idempotentie: tweede round-trip byte-stabiel t.o.v. de eerste (normalisatie is stabiel).
 {
   const diffs: string[] = [];
@@ -909,8 +946,9 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(tmOut.time.interferingFloat === undefined && def(TM.time.interferingFloat), '(a) time.interferingFloat — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.isNearCritical === undefined && def(TM.time.isNearCritical), '(a) time.isNearCritical — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.floatPath === undefined && def(TM.time.floatPath), '(a) time.floatPath — afgeleid, OPS_Analysis niet meer geschreven');
-  assert(tmOut.time.durationMinutes === undefined && def(TM.time.durationMinutes), '(b) time.durationMinutes n.v.t. in dag-modus');
-  assert(tmOut.time.remainingMinutes === undefined && def(TM.time.remainingMinutes), '(b) time.remainingMinutes n.v.t. in dag-modus');
+  assert(tmOut.time.durationUnit === 'hours' && tmOut.time.durationMinutes === 480,
+    '(b) time.durationUnit/durationMinutes blijven native uren met exacte minuten');
+  assert(tmOut.time.remainingMinutes === 0, '(b) time.remainingMinutes blijft exact nul in uur-modus');
   assert(rMem.availability === undefined && def(RMember.availability), '(b) resource.availability (deprecated) niet geschreven');
   void txOut;
 }
@@ -1005,8 +1043,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(!!origGuid, 'kon het eerste GlobalId in de TaskGuids-map niet uitlezen');
   const tampered = ifc.replace(mapLine, mapLine.replace(origGuid!, otherGuid));
   const rtTampered = readIFC(tampered);
-  // NB: `readIFC` genereert per leesbeurt NIEUWE taak-id's, dus vergelijken met een id uit een
-  //     eerdere leesbeurt kan niet — we identificeren de doeltaak op naam binnen dezelfde beurt.
+  // Identificeer de doeltaak op naam binnen dezelfde beurt; de gemanipuleerde map hoort die taak
+  // nog steeds als baseline-doel aan te wijzen, onafhankelijk van het stabiliteitscontract erboven.
   const otherInTampered = rtTampered.tasks.find(t => t.name === other.name)!;
   assert(rtTampered.baselines![0].tasks.some(bt => bt.taskId === otherInTampered.id),
     'de reader moet de expliciete TaskGuids-map volgen, niet de hash herberekenen (B8-ontkoppeling)');
@@ -1274,13 +1312,16 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
-  const { draft } = await import('@/state/mcpTransaction');
+  const { draft, runInMcpTransaction } = await import('@/state/mcpTransaction');
   const S = () => useAppStore.getState();
   S().newProject();
-  draft.addTask({
-    name: 'T14b-bron-mcp',
-    time: { scheduleStart: '2026-08-11', scheduleDuration: 2, durationType: 'WORKTIME' } as TaskTime,
+  const tx = runInMcpTransaction(() => {
+    draft.addTask({
+      name: 'T14b-bron-mcp',
+      time: { scheduleStart: '2026-08-11', scheduleDuration: 2, durationType: 'WORKTIME' } as TaskTime,
+    });
   });
+  assert(tx.ok, `(8b) draft.addTask hoort binnen zijn MCP-transactie te slagen`);
 
   let threw: unknown;
   let ifcOut = '';
@@ -1472,21 +1513,25 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
-  const { draft } = await import('@/state/mcpTransaction');
+  const { draft, runInMcpTransaction } = await import('@/state/mcpTransaction');
   const S = () => useAppStore.getState();
   S().newProject();
-  const id = draft.addTask({ name: 'T14b-update-mcp' });
-  const full = S().tasks.find(t => t.id === id)!.time;
-  draft.updateTaskFields(id, { time: { ...full, completion: 0.4 } });
+  let id = '';
+  const tx = runInMcpTransaction(() => {
+    id = draft.addTask({ name: 'T14b-update-mcp' });
+    const full = S().tasks.find(t => t.id === id)!.time;
+    draft.updateTaskFields(id, { time: { ...full, completion: 0.4 } });
 
-  // `completion` hier bewust als EXPLICIETE `undefined`-sleutel (niet gewoon weggelaten): dat is
-  // precies het residuele gat dat een kale `Object.assign(task.time, partial)` niet dekte — een
-  // ONTBREKENDE sleutel liet `Object.assign` de bestaande waarde met rust, maar een AANWEZIGE sleutel
-  // met waarde `undefined` (zoals een ongetypeerde aanroeper kan opsturen) werd alsnog gekopieerd en
-  // wiste zo de bestaande completion. `mergeTaskTime`s `??` behandelt beide gevallen gelijk.
-  draft.updateTaskFields(id, {
-    time: { scheduleStart: '2026-09-02', scheduleDuration: 3, durationType: 'WORKTIME', completion: undefined } as unknown as TaskTime,
+    // `completion` hier bewust als EXPLICIETE `undefined`-sleutel (niet gewoon weggelaten): dat is
+    // precies het residuele gat dat een kale `Object.assign(task.time, partial)` niet dekte — een
+    // ONTBREKENDE sleutel liet `Object.assign` de bestaande waarde met rust, maar een AANWEZIGE sleutel
+    // met waarde `undefined` (zoals een ongetypeerde aanroeper kan opsturen) werd alsnog gekopieerd en
+    // wiste zo de bestaande completion. `mergeTaskTime`s `??` behandelt beide gevallen gelijk.
+    draft.updateTaskFields(id, {
+      time: { scheduleStart: '2026-09-02', scheduleDuration: 3, durationType: 'WORKTIME', completion: undefined } as unknown as TaskTime,
+    });
   });
+  assert(tx.ok, `(9b) beide draftupdates horen binnen hun MCP-transactie te slagen`);
 
   const afterPartial = S().tasks.find(t => t.id === id)!.time;
   assert(afterPartial.completion === 0.4, `(9b) draft.updateTaskFields mag completion niet wissen bij een partiële time-update — kreeg ${afterPartial.completion}`);
@@ -1575,9 +1620,10 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 //      `actualFinish`/`remainingTime`/`remainingMinutes`. `mergeTaskTime` gebruikt voor die 9 velden
 //      nu de SLEUTEL-AANWEZIGHEID-conventie (`'veld' in partial ? partial.veld : base.veld`) i.p.v.
 //      een waarde-check — dat is de enige vorm die "bewust gewist" (sleutel aanwezig, `undefined`)
-//      kan onderscheiden van "nooit genoemd" (sleutel afwezig). `TaskDialog.tsx` is aangepast van
-//      `delete time.durationMinutes` naar `time.durationMinutes = undefined`, want een `delete` laat
-//      de sleutel weer verdwijnen vóórdat de merge 'm ziet.
+//      kan onderscheiden van "nooit genoemd" (sleutel afwezig). De dagmodus in `TaskDialog.tsx`
+//      gebruikt daarom `time.durationMinutes = undefined`; de mijlpaalroute levert dezelfde
+//      expliciet aanwezige undefined-sleutel via de gedeelde `taskMilestoneTransition`, want een
+//      `delete` laat de sleutel weer verdwijnen vóórdat de merge 'm ziet.
 //        (10a) `mergeTaskTime` in isolatie — alle 9 optionele velden, beide scenario's.
 //        (10b) het reviewer-scenario op alle drie de update-paden (taskSlice/draft/api.data).
 //        (10c) de clear-conventie op store-niveau (TaskDialog-stijl payload).
@@ -1594,6 +1640,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const { mergeTaskTime, createDefaultTaskTime } = await import('@/utils/taskDefaults');
   const base: TaskTime = {
     ...createDefaultTaskTime('2026-08-01', 5),
+    durationUnit: 'hours',
     completion: 0.4,
     durationMinutes: 240,
     interferingFloat: 1.5,
@@ -1618,9 +1665,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(notMentioned.remainingTime === 1, `(10a) ontbrekende sleutel moet remainingTime behouden — kreeg ${notMentioned.remainingTime}`);
   assert(notMentioned.remainingMinutes === 60, `(10a) ontbrekende sleutel moet remainingMinutes behouden — kreeg ${notMentioned.remainingMinutes}`);
 
-  // Scenario 2: partial noemt ALLE 9 optionele velden EXPLICIET als `undefined` (bewuste clear) ⇒ allemaal gewist.
+  // Scenario 2: partial noemt alle optionele velden expliciet als `undefined`. De urenduurbron mag
+  // alleen atomair met een eenheidswissel worden gewist; daarom schakelt dit scenario naar dagen.
   const explicitlyCleared = mergeTaskTime(base, {
     scheduleStart: '2026-08-10',
+    durationUnit: 'days',
     durationMinutes: undefined,
     interferingFloat: undefined,
     isNearCritical: undefined,
@@ -1662,6 +1711,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     S().updateTask(id, {
       time: {
         ...full,
+        durationUnit: 'hours',
         completion: 0.4,
         durationMinutes: 240,
         actualStart: '2026-08-01',
@@ -1692,16 +1742,38 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 
   // Pad 1: taskSlice.updateTask rechtstreeks.
   S().newProject();
+  // De fixture zet hieronder bewust een urentaak op. Sinds T1 mag zo'n taak niet meer stil via de
+  // dagfallback worden opgelost; geef dit isolatiescenario daarom de concrete werkblokken die een
+  // geldige urentaak ook in productie nodig heeft.
+  const baseCalendar = S().calendar;
+  S().setCalendar({
+    ...baseCalendar,
+    workTime: {
+      byWeekday: {
+        1: [{ start: 420, end: 960 }],
+        2: [{ start: 420, end: 960 }],
+        3: [{ start: 420, end: 960 }],
+        4: [{ start: 420, end: 960 }],
+        5: [{ start: 420, end: 960 }],
+        6: [],
+        7: [],
+      },
+    },
+  });
   const id1 = S().addTask({ name: 'T14b-10b-taskslice' });
   setFullProgress(id1);
   S().updateTask(id1, { time: { scheduleStart: '2026-09-10', scheduleDuration: 4, durationType: 'WORKTIME' } as TaskTime });
   assertPreserved('(10b/taskSlice)', id1);
 
   // Pad 2: mcpTransaction.draft.updateTaskFields.
-  const { draft } = await import('@/state/mcpTransaction');
-  const id2 = draft.addTask({ name: 'T14b-10b-mcp' });
-  setFullProgress(id2);
-  draft.updateTaskFields(id2, { time: { scheduleStart: '2026-09-11', scheduleDuration: 3, durationType: 'WORKTIME' } as TaskTime });
+  const { draft, runInMcpTransaction } = await import('@/state/mcpTransaction');
+  let id2 = '';
+  const tx = runInMcpTransaction(() => {
+    id2 = draft.addTask({ name: 'T14b-10b-mcp' });
+    setFullProgress(id2);
+    draft.updateTaskFields(id2, { time: { scheduleStart: '2026-09-11', scheduleDuration: 3, durationType: 'WORKTIME' } as TaskTime });
+  });
+  assert(tx.ok, '(10b/draft.updateTaskFields) hoort binnen zijn MCP-transactie te slagen');
   assertPreserved('(10b/draft.updateTaskFields)', id2);
 
   // Pad 3: het volledige api.data.updateTask-pad (fromExtTaskUpdates + store-updateTask).
@@ -1732,13 +1804,13 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   S().newProject();
   const id = S().addTask({ name: 'T14b-10c-clear' });
   const full = S().tasks.find(t => t.id === id)!.time;
-  S().updateTask(id, { time: { ...full, durationMinutes: 240 } });
+  S().updateTask(id, { time: { ...full, durationUnit: 'hours', durationMinutes: 240 } });
   assert(S().tasks.find(t => t.id === id)!.time.durationMinutes === 240, '(10c) opzet: durationMinutes moet eerst gezet zijn');
 
-  // Exact het TaskDialog-patroon: spread de bestaande tijd, zet de te wissen sleutel EXPLICIET op
-  // `undefined` (geen `delete`).
+  // Exact het TaskDialog-mijlpaalpatroon: spread de bestaande tijd, schakel atomair naar dagen en
+  // zet de niet-meer-geldige minutenbron expliciet op `undefined` (geen `delete`).
   const current = S().tasks.find(t => t.id === id)!.time;
-  const cleared = { ...current, durationMinutes: undefined };
+  const cleared = { ...current, durationUnit: 'days' as const, scheduleDuration: 0, durationMinutes: undefined };
   S().updateTask(id, { time: cleared });
 
   assert(S().tasks.find(t => t.id === id)!.time.durationMinutes === undefined,
@@ -1750,21 +1822,32 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   // mutatiebewijs op TaskDialog.tsx's eigen bronregels.
 }
 
-// (10d) TaskDialog.tsx-bronguard: geen `delete time.durationMinutes` meer, wél de twee `=
-//       undefined`-toewijzingen (mijlpaal-tak + dag-modus-tak). Dit repo heeft geen React-
-//       rendertest-harnas, dus dit is een bewuste, lichte bronvorm-check i.p.v. een component-test.
+// (10d) Gedeelde UI-bronguard: de dialoog delegeert duurmutaties aan TaskDurationField; die wist
+//       dagmodus expliciet. De mijlpaalroute gebruikt de gedeelde transitie die dezelfde aanwezige
+//       undefined-sleutel levert. Dit repo heeft geen React-rendertest-harnas, dus dit is een
+//       bewuste, lichte bronvorm-check naast de gedragschecks voor de gedeelde helpers.
 {
   const taskDialogPath = join(HERE, '..', '..', 'src', 'components', 'dialogs', 'TaskDialog.tsx');
   const src = readFileSync(taskDialogPath, 'utf8');
+  const taskDurationFieldPath = join(HERE, '..', '..', 'src', 'components', 'task-sections', 'TaskDurationField.tsx');
+  const taskDurationFieldSource = readFileSync(taskDurationFieldPath, 'utf8');
+  const milestoneTransitionPath = join(HERE, '..', '..', 'src', 'engine', 'taskMilestoneTransition.ts');
+  const milestoneTransitionSource = readFileSync(milestoneTransitionPath, 'utf8');
   assert(!src.includes('delete time.durationMinutes'),
     '(10d) TaskDialog.tsx mag geen `delete time.durationMinutes` meer bevatten (zou de merge-sleutel weer laten verdwijnen)');
-  const assignCount = (src.match(/time\.durationMinutes = undefined;/g) ?? []).length;
-  assert(assignCount === 2,
-    `(10d) TaskDialog.tsx moet precies 2× \`time.durationMinutes = undefined;\` bevatten (mijlpaal-tak + dag-modus-tak) — kreeg ${assignCount}`);
+  assert(src.includes('<TaskDurationField'),
+    '(10d) TaskDialog.tsx moet duurmutaties aan het gedeelde TaskDurationField delegeren');
+  const assignCount = (taskDurationFieldSource.match(/time\.durationMinutes = undefined;/g) ?? []).length;
+  assert(assignCount === 1,
+    `(10d) TaskDurationField.tsx moet de dagmodus precies 1× met \`time.durationMinutes = undefined;\` wissen — kreeg ${assignCount}`);
+  assert(src.includes('taskMilestoneTransition(editingTask, draft.isMilestone)'),
+    '(10d) TaskDialog.tsx moet de gedeelde mijlpaaltransitie gebruiken');
+  assert(/durationMinutes:\s*undefined/.test(milestoneTransitionSource),
+    '(10d) de gedeelde mijlpaaltransitie moet durationMinutes met een aanwezige undefined-sleutel wissen');
 
-  // Mutatiebewijs (uitgevoerd): één van de twee `time.durationMinutes = undefined;`-regels in
-  // TaskDialog.tsx tijdelijk teruggezet naar `delete time.durationMinutes;` maakte BEIDE asserties
-  // hierboven ROOD (de `delete`-check ziet 'm weer, de telling zakt naar 1).
+  // De gedragsmatrix in check-task-grid-editors.ts bewijst daarnaast aan/uit/no-op en behoud van
+  // geïmporteerde mijlpalen-met-duur; de browsertest dekt de gedeelde duurinvoer en deze broncheck
+  // bewaakt aanvullend dat de dialoog ook voor mijlpalen dezelfde domeintransitie gebruikt.
 }
 
 // (10e) mspdiWriter.ts-vangnet: een kunstmatig-kapotte `time.completion` mag geen "NaN" in de
@@ -2029,6 +2112,67 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const leegSlot = readIFC(extern("#5=IFCWORKPLAN('gW',$,'Plan',$,$,$,$,$,$,$,$,$,$,$,.PLANNED.);"));
   assert(leegSlot.project.startDate === '2026-03-02',
     `(16c) een leeg IFCWORKPLAN-StartTime-slot telt als afwezig (geen "vandaag") — kreeg ${JSON.stringify(leegSlot.project.startDate)}`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (17) B1c-plan-2 taak 7: `TaskSplitGap.source` (spec §4, "Herkomst"). Het round-trip-bewijs voor
+//      een BEKENDE `source`-waarde (`'leveling'`) en een AFWEZIGE `source` zit al in de whole-
+//      fixture-vergelijking hierboven (TM se `splitGaps`, twee gaten). Hier de twee gevallen die dat
+//      niet dekt: vijandige invoer (een onbekende `source`-string) en de pure `clearLevelingGaps`-
+//      helper (die niets met IFC te maken heeft, maar leunt op hetzelfde `TaskSplitGap`-contract).
+{
+  // (17a) Vijandige invoer: een gat met `source: "iets-anders"` in het IFC verliest ALLEEN het
+  // source-veld — het gat zelf blijft staan (conservatief, zelfde lat als blok (13)'s corrupte-
+  // JSON-tak). Patch de FIRST 'Splits'-property (TM se, zie blok (13)) naar een JSON-array met een
+  // niet-bestaande source-waarde.
+  const ifc17 = writeIFC(fixture);
+  const lines17 = ifc17.split('\n');
+  const splitsIdx17 = lines17.findIndex(l => l.includes("IFCPROPERTYSINGLEVALUE('Splits',"));
+  assert(splitsIdx17 >= 0, '(17a) kon de Splits-property niet vinden');
+  // JSON.stringify van dit object bevat geen enkele quote (dubbele-quotes-JSON binnen een STEP-
+  // string), dus geen escaping nodig — anders dan `ifcStr` (die enkele quotes verdubbelt, `''`).
+  const hostileGaps = JSON.stringify([{ afterMinutes: 120, gapMinutes: 60, source: 'iets-anders' }]);
+  assert(!hostileGaps.includes("'"), '(17a) vooronderstelling: de JSON bevat geen quotes om te escapen');
+  const hostileLine = lines17[splitsIdx17].replace(/IFCTEXT\('[^']*'\)/, `IFCTEXT('${hostileGaps}')`);
+  assert(hostileLine !== lines17[splitsIdx17], '(17a) kon de Splits-waarde niet patchen');
+  lines17[splitsIdx17] = hostileLine;
+
+  const rt17 = readIFC(lines17.join('\n'));
+  const tm17 = rt17.tasks.find(t => t.wbsCode === '1.1'); // TM
+  assert(!!tm17?.splitGaps && tm17.splitGaps.length === 1,
+    `(17a) het gat zelf blijft staan ondanks de onbekende source — kreeg ${JSON.stringify(tm17?.splitGaps)}`);
+  assert(tm17?.splitGaps?.[0].source === undefined,
+    `(17a) een onbekende source-waarde wordt WEGGELATEN (gesloten verzameling) — kreeg ${JSON.stringify(tm17?.splitGaps?.[0].source)}`);
+  assert(tm17?.splitGaps?.[0].afterMinutes === 120 && tm17?.splitGaps?.[0].gapMinutes === 60,
+    `(17a) afterMinutes/gapMinutes blijven ongemoeid — kreeg ${JSON.stringify(tm17?.splitGaps?.[0])}`);
+
+  // (17b) `clearLevelingGaps` (taskDefaults.ts): wist uitsluitend gaten met source 'leveling', laat
+  // importsplits staan, en geeft `true` terug precies wanneer er iets gewist is (zelfde contract als
+  // `clearTimephasedWindow` in dat bestand).
+  const { clearLevelingGaps } = await import('@/utils/taskDefaults');
+  const gapImport: TaskSplitGap = { afterMinutes: 120, gapMinutes: 60 };
+  const gapLeveling: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480, source: 'leveling' };
+
+  const taskBoth: Task = { ...TX, splitGaps: [gapImport, gapLeveling] };
+  const clearedBoth = clearLevelingGaps(taskBoth);
+  assert(clearedBoth === true, '(17b) clearLevelingGaps geeft true terug als er iets gewist is');
+  assert(JSON.stringify(taskBoth.splitGaps) === JSON.stringify([gapImport]),
+    `(17b) alleen het leveling-gat is gewist, het importsplit blijft — kreeg ${JSON.stringify(taskBoth.splitGaps)}`);
+
+  const taskOnlyLeveling: Task = { ...TX, splitGaps: [gapLeveling] };
+  const clearedOnlyLeveling = clearLevelingGaps(taskOnlyLeveling);
+  assert(clearedOnlyLeveling === true, '(17b) clearLevelingGaps geeft true terug (enige gat was leveling)');
+  assert(taskOnlyLeveling.splitGaps === undefined,
+    `(17b) leeg resultaat ⇒ splitGaps wordt undefined, niet een lege array (golden rule) — kreeg ${JSON.stringify(taskOnlyLeveling.splitGaps)}`);
+
+  const taskOnlyImport: Task = { ...TX, splitGaps: [gapImport] };
+  const clearedOnlyImport = clearLevelingGaps(taskOnlyImport);
+  assert(clearedOnlyImport === false, '(17b) clearLevelingGaps geeft false terug als er niets te wissen viel');
+  assert(JSON.stringify(taskOnlyImport.splitGaps) === JSON.stringify([gapImport]),
+    '(17b) importsplit blijft ongemoeid bij een no-op-aanroep');
+
+  const taskNoGaps: Task = { ...TX, splitGaps: undefined };
+  assert(clearLevelingGaps(taskNoGaps) === false, '(17b) geen splitGaps ⇒ no-op, false');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

@@ -82,7 +82,7 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; ops: Op[] } {
 
 const CANVAS_W = 900;
 const CANVAS_H = 300;
-const TABLE_W = 300;
+const TABLE_W = 0;
 const ROW_H = 28;
 const HEADER_H = 50;
 
@@ -94,10 +94,8 @@ function baseOpts(rows: ViewRow[], zoom: number, scrollX: number, extra: Partial
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0, viewStartDate: '2026-08-01' },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: CANVAS_W,
     canvasHeight: CANVAS_H,
-    taskTableWidth: TABLE_W,
     rowHeight: ROW_H,
     headerHeight: HEADER_H,
     ...extra,
@@ -163,7 +161,7 @@ setDates(wide.id, '2026-08-03', '2026-08-14', 10);
 setDates(narrow.id, '2026-08-03', '2026-08-03', 1);
 
 const rowsOf = (...ids: string[]): ViewRow[] =>
-  ids.map((id) => ({ kind: 'task', task: S().tasks.find((t) => t.id === id)!, depth: 0, dimmed: false }) as ViewRow);
+  ids.map((id) => ({ kind: 'task', rowKey: id, task: S().tasks.find((t) => t.id === id)!, depth: 0, dimmed: false }) as ViewRow);
 
 // Kalender-as (geen compressie): x = TABLE_W + dagen-sinds-2026-08-01 × zoom − scrollX.
 const MS = 86400000;
@@ -267,7 +265,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
     time: {
       ...t.time, scheduleStart: '2026-08-03T08:00', scheduleFinish: '2026-08-03T17:00',
       earlyStart: '2026-08-03T08:00', earlyFinish: '2026-08-03T17:00',
-      scheduleDuration: 1, durationMinutes: 300,
+      durationUnit: 'hours', scheduleDuration: 1, durationMinutes: 300,
     },
   });
   const effectiveCalById = new Map<string, WorkCalendar>([[hourTask.id, hourCal]]);
@@ -275,7 +273,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
   for (const enableHourPlanning of [false, true]) {
     const opts = baseOpts(rowsOf(hourTask.id), 300, 0, { effectiveCalById, enableHourPlanning });
     const b = badge(opts, { taskId: hourTask.id, edge: 'right' }, `uurtaak(hp=${enableHourPlanning})`);
-    eq(`uurtaak(hp=${enableHourPlanning}): label in uren`, b.text.text, '5u');
+    eq(`uurtaak(hp=${enableHourPlanning}): label in uren`, b.text.text, '5h');
   }
 }
 

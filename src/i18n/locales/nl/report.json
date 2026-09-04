@@ -17,8 +17,10 @@
   "showLegend": "Legenda",
   "showTaskNames": "Taaknamen op staafjes",
   "showCompletion": "Voltooiing tonen",
+  "showBaselineOverlay": "Baseline-overlay tonen",
   "autoFit": "Auto-fit op papier",
   "zoom": "Zoomen:",
+  "previewQuality": { "label": "Previewkwaliteit", "standard": "Standaard", "high": "Hoog", "maximum": "Maximaal" },
   "repeatHeader": "Kop op elke pagina herhalen",
   "reportFontScaleLabel": "Lettergrootte:",
   "timelineColumnsLabel": "Tijdlijn over:",
@@ -40,11 +42,14 @@
   "legend": {
     "criticalPath": "Kritiek pad",
     "normal": "Normaal",
+    "baseline": "Baseline",
     "milestone": "Mijlpaal",
     "summary": "Samenvatting",
     "float": "Speling",
     "completion": "Voltooiing",
-    "relationStyle": "Bepalend / niet-bepalend"
+    "relationStyle": "Bepalend / niet-bepalend",
+    "categoriesMore_one": "… en {{count}} categorie meer",
+    "categoriesMore_other": "… en nog {{count}} categorieën"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -102,5 +107,19 @@
     "total": "Mijlpalen",
     "mandatoryCount": "Verplicht",
     "lateCount": "Te laat"
-  }
+  },
+  "barColorModeLabel": "Balkkleuren:",
+  "barColorMode_critical": "Kritiek pad",
+  "barColorMode_auto": "Per taak — automatisch",
+  "barColorMode_category": "Op categorie",
+  "barColorFieldLabel": "Categorieveld",
+  "barColorMissingField": "Dit veld bestaat niet in dit project. Taaktype wordt tijdelijk gebruikt.",
+  "statusLineLabel": "Statuslijn:",
+  "statusLine_none": "Geen",
+  "statusLine_statusDate": "Statusdatumlijn",
+  "statusLine_progress": "Voortgangslijn",
+  "statusLineHint": "Stel eerst een statusdatum in",
+  "followView": "Volg weergave (filter, groepering, sortering)",
+  "statusDateLabel": "Statusdatum",
+  "progressDateLabel": "Voortgangsdatum"
 }

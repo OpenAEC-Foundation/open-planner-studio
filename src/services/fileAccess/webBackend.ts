@@ -219,6 +219,30 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
   }
 }
 
+/** Promptvrije browser-precheck voor de daadwerkelijke AutoSave-timer. */
+export async function canWriteToRefWithoutPromptWeb(ref: FileRef): Promise<boolean> {
+  if (ref.kind !== 'handle' || platformRefusesWrites) return false;
+  try {
+    return (await ref.handle.queryPermission?.({ mode: 'readwrite' })) === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+/** Timerpad: geen `requestPermission`, geen picker en geen download-terugval. */
+export async function saveToRefWithoutPromptWeb(ref: FileRef, content: string): Promise<boolean> {
+  if (!await canWriteToRefWithoutPromptWeb(ref) || ref.kind !== 'handle') return false;
+  try {
+    const writable = await ref.handle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return true;
+  } catch (err) {
+    if (isPlatformRefusal(err)) platformRefusesWrites = true;
+    return false;
+  }
+}
+
 /**
  * Gedeelde permissie-dans voor een leesactie op een handle (T11, T2-kwaliteitsreview-agenda
  * stap 0 b): `readFromRefWeb`/`readBytesFromRefWeb` waren tot deze refactor twee bijna-identieke

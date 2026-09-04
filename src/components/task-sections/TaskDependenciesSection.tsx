@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
@@ -6,6 +6,7 @@ import { Task } from '@/types/task';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
+import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { Trash2, Zap } from 'lucide-react';
 
 interface HoverState { x: number; y: number; task: Task; }
@@ -54,23 +55,28 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
       <span className="ui-card-header !text-xs">{t('properties.dependencies')}</span>
-      {taskSequences.map(seq => {
+      <div className="dependency-list">
+        {taskSequences.map(seq => {
         const other = seq.predecessorId === taskId
           ? tasks.find(t => t.id === seq.successorId)
           : tasks.find(t => t.id === seq.predecessorId);
+        const role = seq.predecessorId === taskId ? 'successor' : 'predecessor';
         const isDriving = !!cpmResult && !cpmResult.error
           && cpmResult.drivingSequenceIds.includes(seq.id);
         return (
-          <div key={seq.id} className="flex items-center gap-1 text-[10px]">
+          <div
+            key={seq.id}
+            className="dependency-row text-[10px]"
+          >
             {!interactive ? (
-              <span className="flex-1 truncate">{other?.name || '?'}</span>
+              <span className="dependency-wbs-cell min-w-0 truncate">{other?.name || '?'}</span>
             ) : other ? (
               <button
                 type="button"
-                className="shrink-0 max-w-[45%] truncate"
-                style={{ color: 'var(--theme-accent)' }}
-                title={other.name}
-                aria-label={t('properties.jumpToTask', { wbs: other.wbsCode || other.name })}
+                className="dependency-wbs-link min-w-0 truncate"
+                style={{ '--dependency-role-color': GANTT_TRACE_COLORS[role] } as CSSProperties}
+                data-dependency-role={role}
+                aria-label={`${t(`relations.${role}`)}: ${t('properties.jumpToTask', { wbs: other.wbsCode || other.name })}`}
                 onMouseMove={e => setHover({ x: e.clientX, y: e.clientY, task: other })}
                 onMouseLeave={() => setHover(null)}
                 onFocus={e => {
@@ -83,17 +89,19 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                 {other.wbsCode || other.name}
               </button>
             ) : (
-              <span className="flex-1 truncate">?</span>
+              <span className="dependency-wbs-cell min-w-0 truncate">?</span>
             )}
-            {isDriving && (
-              <span title={t('properties.driving')} style={{ color: 'var(--theme-accent)' }}>
-                <Zap size={10} />
-              </span>
-            )}
+            <span className="dependency-driving-slot">
+              {isDriving && (
+                <span title={t('properties.driving')} style={{ color: 'var(--theme-accent)' }}>
+                  <Zap size={10} />
+                </span>
+              )}
+            </span>
             <select
               value={seq.type}
               onChange={e => updateSequence(seq.id, { type: e.target.value as SequenceType })}
-              className="input !text-[10px] !px-1 !py-0.5"
+              className="dependency-type-field input !w-full !text-[10px] !px-1 !py-0.5"
             >
               {SEQUENCE_TYPE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -102,17 +110,20 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
             <SequenceLagInput
               seq={seq}
               title={t('properties.lag')}
+              className="dependency-lag-field input !w-full !text-[10px] !px-1 !py-0.5 text-right"
               onCommit={patch => updateSequence(seq.id, patch)}
             />
             <button
               onClick={() => removeSequence(seq.id)}
+              className="dependency-remove-button justify-self-center"
               style={{ color: 'var(--error)' }}
             >
               <Trash2 size={10} />
             </button>
           </div>
         );
-      })}
+        })}
+      </div>
       {hover && (
         <HoverTooltip left={hover.x + 16} top={hover.y - 10}>
           <TaskTooltipContent task={hover.task} />

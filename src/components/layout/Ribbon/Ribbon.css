@@ -28,7 +28,7 @@
   font-weight: 500;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: all 0.15s ease;
-  cursor: default;
+  cursor: pointer;
   position: relative;
 }
 
@@ -121,6 +121,15 @@
   justify-content: flex-start;
 }
 
+/* Issue #78: vier kleine knoppen in één verticale stapel waren hoger dan de
+   inhoudsruimte van de groep en kwamen tegen het groepsbijschrift. Twee eigen
+   stapels houden Zoom +/- en Herstellen/Passend op project in een 2×2-grid. */
+.ribbon-time-scale-controls {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+}
+
 /* Ribbon Buttons - Default (Large) */
 .ribbon-btn {
   display: flex;
@@ -131,7 +140,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
   min-width: 54px;
   gap: 4px;
@@ -305,7 +314,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--theme-text-dim);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 .ribbon-collapse-toggle:hover {
@@ -435,6 +444,40 @@
    en zouden de breedte anders op 70px vastpinnen. */
 .ribbon-display-grid .ribbon-btn.small[data-ribbon-mini] { width: auto; min-width: 0; }
 
+/* Volledig automatisch ingeklapte groep: zet de naam van de groep (bijvoorbeeld
+   "Baselines & progress") naast het mini-knoppenblok als één leesbaar gedraaid label. Als de tekst
+   niet in de beschikbare hoogte past, maakt normale witruimte een volgende verticale kolom. De
+   toestand wordt door Ribbon.tsx alleen gezet wanneer alle ribbon-knoppen in deze groep mini zijn;
+   gedeeltelijk ingeklapte groepen houden hun gewone label onder de knoppen. */
+.ribbon-group[data-ribbon-fully-mini] {
+  flex-direction: row;
+  align-items: stretch;
+}
+.ribbon-group[data-ribbon-fully-mini] .ribbon-group-content {
+  flex: 0 0 auto;
+}
+.ribbon-group[data-ribbon-fully-mini] .ribbon-group-label {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 16px;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: calc(8px * var(--ui-font-scale, 1));
+  letter-spacing: 0.06em;
+}
+
 /* File tab (backstage trigger) — altijd amber, opvallend links */
 .ribbon-tab--file {
   background: var(--theme-file-tab-bg);
@@ -461,7 +504,7 @@
 }
 
 .ribbon-btn.primary:hover {
-  /* theme-aware hover (zie .btn--primary:hover): light #9A3412 ⇒ wit-op 7.3:1 */
+  /* theme-aware hover (zie .btn--primary:hover): light #B45309 ⇒ wit-op 5.0:1 */
   background: var(--theme-accent-hover);
   border-color: var(--theme-accent-hover);
 }
@@ -475,6 +518,55 @@
 .ribbon-btn.danger:hover .ribbon-btn-icon,
 .ribbon-btn.danger:hover .ribbon-btn-label {
   color: #ffffff;
+}
+
+.ribbon-relation-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--theme-text);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ribbon-relation-menu-item:hover:not(:disabled),
+.ribbon-relation-menu-item:focus-visible {
+  background: var(--theme-hover);
+}
+
+.ribbon-relation-menu-item:disabled {
+  color: var(--theme-text-dim);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.ribbon-relation-menu-mark {
+  width: 14px;
+  flex: 0 0 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ribbon-relation-menu-status {
+  max-width: 300px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--theme-border-light);
+  color: var(--theme-text-dim);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  white-space: normal;
+}
+
+@media (forced-colors: active) {
+  .ribbon-relation-menu-item:disabled {
+    border-inline-start: 2px dashed GrayText;
+    opacity: 1;
+  }
 }
 
 .ribbon-info {

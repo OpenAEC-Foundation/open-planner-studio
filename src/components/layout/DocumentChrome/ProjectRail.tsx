@@ -10,7 +10,7 @@ interface HoverState { card: DocumentCard; top: number; }
 export function ProjectRail() {
   const { t } = useTranslation('common');
   const cards = useDocumentCards();
-  const { switchTo, openProject, openOverview } = useDocumentActions();
+  const { switchTo, chooseNewOrOpenProject, openOverview } = useDocumentActions();
   const [hover, setHover] = useState<HoverState | null>(null);
 
   return (
@@ -35,7 +35,7 @@ export function ProjectRail() {
         </div>
       ))}
 
-      <button className="ops-rail-add" title={t('documents.openProject')} onClick={openProject}>
+      <button className="ops-rail-add" title={t('documents.newOrOpenTitle')} onClick={chooseNewOrOpenProject}>
         <Plus size={16} />
       </button>
 

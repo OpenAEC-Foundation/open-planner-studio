@@ -18,82 +18,35 @@
 // memo-grens kan een renderlus opleveren. Die faalmodus ziet geen enkele headless test. Door alleen
 // de INHOUD te verplaatsen is de hook-graaf per constructie ongewijzigd.
 import type { Task } from '@/types/task';
-import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
-import type { Baseline } from '@/types/baseline';
+import { buildBaselineOverlay, type BaselineOverlay } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
-import type { TraceMode } from '@/state/slices/types';
-import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, parseDate } from '@/utils/dateUtils';
 
 /** Overlay-datums uit de actieve baseline, keyed op Task.id. */
-export type BaselineOverlay = NonNullable<GanttRenderOptions['baselineOverlay']>;
-/** Path-tracing-bundel zoals de renderer hem verwacht. */
-export type GanttTrace = NonNullable<GanttRenderOptions['trace']>;
-
-/**
- * Overlay-map uit de actieve baseline. `undefined` (geen actieve baseline, of een id dat niet meer
- * bestaat) betekent voor de renderer: teken geen baseline-schaduwen.
- */
-export function buildBaselineOverlay(
-  baselines: Baseline[],
-  activeBaselineId: string | null | undefined,
-): BaselineOverlay | undefined {
-  if (!activeBaselineId) return undefined;
-  const active = baselines.find(b => b.id === activeBaselineId);
-  if (!active) return undefined;
-  const map: BaselineOverlay = new Map();
-  for (const bt of active.tasks) {
-    map.set(bt.taskId, { start: bt.start, finish: bt.finish, isMilestone: bt.isMilestone });
-  }
-  return map;
-}
-
-/**
- * Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
- * driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
- */
-export function buildTrace(
-  traceMode: TraceMode,
-  selectedTaskIds: string[],
-  sequences: Sequence[],
-  cpmResult: CPMResult | null | undefined,
-): GanttTrace | undefined {
-  if (traceMode === 'off' || selectedTaskIds.length === 0) return undefined;
-  const focusId = selectedTaskIds[0];
-  const drivingIds = cpmResult && !cpmResult.error
-    ? new Set(cpmResult.drivingSequenceIds)
-    : undefined;
-  const tr = traceFrom(focusId, sequences, drivingIds);
-  return {
-    focusId,
-    predecessors: traceMode !== 'successors' ? [...tr.predecessors] : [],
-    drivingPredecessors: traceMode !== 'successors' ? [...tr.drivingPredecessors] : [],
-    successors: traceMode !== 'predecessors' ? [...tr.successors] : [],
-    drivenSuccessors: traceMode !== 'predecessors' ? [...tr.drivenSuccessors] : [],
-  };
-}
+export { buildBaselineOverlay };
+export type { BaselineOverlay };
 
 export interface SharedAxisInput {
   calendar: WorkCalendar;
   compressNonWorkdays: boolean;
   /** ISO-datum van de EFFECTIEVE oorsprong (`computeEffectiveViewStart`), niet `view.viewStartDate`. */
   viewStartDate: string;
-  taskTableWidth: number;
+  chartOriginX: number;
   zoom: number;
   scrollX: number;
 }
 
 /**
  * Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): ÉÉN gedeelde `GanttAxis`-instantie voor de
- * primaire Gantt-pane ÉN de Histogram (zelfde `taskTableWidth`/`effectiveView`, dus zelfde
+ * primaire Gantt-pane ÉN de Histogram (zelfde `chartOriginX`/`effectiveView`, dus zelfde
  * kolomindeling) — anders schuiven de resource-staafjes onder de verkeerde kolommen zodra de as
  * gecomprimeerd is.
  *
@@ -107,14 +60,14 @@ export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
     calendar: engine,
     compressNonWorkdays: input.compressNonWorkdays,
     origin: parseDate(input.viewStartDate),
-    taskTableWidth: input.taskTableWidth,
+    chartOriginX: input.chartOriginX,
     zoom: input.zoom,
     scrollX: input.scrollX,
   });
 }
 
 /**
- * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom/taskTableWidth, zodat
+ * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom, zodat
  * dezelfde span ook voor het secundaire split-view-venster (eigen zoom, geen taaktabel) gebruikt
  * kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
  */
@@ -123,8 +76,9 @@ export function computeContentSpanDays(
   effectiveViewStart: string,
   compressNonWorkdays: boolean,
   axis: GanttAxis,
+  navigationEndDates: string[] = [],
 ): number | null {
-  if (tasks.length === 0) return null;
+  if (tasks.length === 0 && navigationEndDates.length === 0) return null;
   let maxDays = 365;
   for (const task of tasks) {
     const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
@@ -138,18 +92,25 @@ export function computeContentSpanDays(
       if (days > maxDays) maxDays = days;
     }
   }
+  for (const end of navigationEndDates) {
+    const parsed = parseDate(end);
+    if (Number.isNaN(parsed.getTime())) continue;
+    const days = compressNonWorkdays
+      ? axis.daySpan(parseDate(effectiveViewStart), parsed)
+      : diffDays(effectiveViewStart, end);
+    if (days > maxDays) maxDays = days;
+  }
   return maxDays;
 }
 
-/** Contentbreedte (px) van een tijdvenster met de gegeven zoom en tabelbreedte. */
+/** Contentbreedte (px) van een tijdlijnvenster met de gegeven zoom. */
 export function computeContentWidth(
   contentSpanDays: number | null,
   zoom: number,
-  tableWidth: number,
 ): number {
   return contentSpanDays === null
     ? 2000
-    : Math.max(2000, (contentSpanDays * 1.2) * zoom + tableWidth);
+    : Math.max(2000, (contentSpanDays * 1.2) * zoom);
 }
 
 /**
@@ -242,6 +203,16 @@ export type GanttRenderOptionsInput =
     /** Rauw resultaat; de driving/violated/missed-lijsten worden hier één keer uitgepakt. */
     cpmResult: CPMResult | null | undefined;
   };
+
+/**
+ * Rendererinvoer die vóór een canvaspaint kan worden samengesteld. De host meet breedte en hoogte
+ * pas in `useCanvasLayer` en vult precies die twee velden daar aan; alle inhoudelijke opties blijven
+ * verplicht en worden nog steeds door dezelfde bouwer gevalideerd.
+ */
+export type GanttRenderOptionsSourceInput = Omit<
+  GanttRenderOptionsInput,
+  'canvasWidth' | 'canvasHeight'
+>;
 
 /**
  * Zet de invoer om in het `GanttRenderOptions`-object dat `GanttRenderer` verwacht. Puur — geen

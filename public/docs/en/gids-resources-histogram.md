@@ -79,6 +79,8 @@ To the left of the bars, above the task-table column, sits the **resource picker
 
 Click an overloaded bar and a tooltip shows how many tasks contribute to the load that day, with the first few task names — handy for quickly seeing which combination of tasks causes the overallocation without checking every assignment by hand.
 
+When you select one or more tasks in the Gantt, this temporarily becomes a task context: the resource picker, histogram bars and tooltip use assignments from that selection only. In the same situation, the docked resource panel shows only the matching resources. With Ctrl/Cmd or Shift selection, this is the union of resources from all selected tasks. Clear the selection to restore the full resource list and histogram; a histogram resource you chose manually remains your preference.
+
 If you see "Recalculate (F5) to show the load" instead of bars, the schedule hasn't been (re)calculated since the last change — the histogram, like the critical path, is a snapshot you refresh yourself.
 
 ## The docked resource panel

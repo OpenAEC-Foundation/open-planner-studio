@@ -45,6 +45,17 @@ In the project view you'll encounter three kinds of rows:
 2. **Project-only** — no badge, fully editable. Even a linked project can have these rows: useful for one-off items that don't belong in the shared library, such as a rented crane or a subcontractor hired for this single job.
 3. **Orphaned** — the library original is gone; the row is marked **no longer in the library**. The copy itself keeps working fine — you can unlink it or delete it.
 
+Every row starts with a small color swatch: the **resource color**. New resources automatically get
+a free color from a fixed palette, and you can always pick your own here. The color is purely
+presentational — it colors the bars in the report export (**Report → Bar colors → By category →
+Resource**) and
+on screen, but it never counts as a deviation between library and project. On screen you have two
+levels: **View → Bar colors → By category → Resource** colors the whole bar (segmented according to
+each party's assignment, with the critical path as a red outline), and the separate **Resource
+accent** toggle (View → Baselines & progress) adds a thin stripe in the resource color under the
+bar. That accent is independent of the selected bar coloring, so it can also be combined with Task
+type, Discipline or automatic per-task colors.
+
 ## What follows the library — and what doesn't
 
 This is the part worth remembering: some fields are a company-wide agreement and follow the library, others are this project's own commitment and you set them freely, without that ever counting as a deviation.

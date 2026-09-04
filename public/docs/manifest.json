@@ -66,8 +66,8 @@
     {
       "id": "gids-kalenders-uren",
       "title": {
-        "nl": "Kalenders & uren-planning",
-        "en": "Calendars & hour planning",
+        "nl": "Kalenders, werkdagen & werkuren",
+        "en": "Calendars, working days & working hours",
         "de": "Kalender & Stundenplanung",
         "fr": "Calendriers & planification horaire",
         "es": "Calendarios y planificación por horas",
@@ -604,6 +604,26 @@
       "layer": "referentie"
     },
     {
+      "id": "gids-taaktypen",
+      "title": {
+        "nl": "Taaktypen",
+        "en": "Task types",
+        "de": "Task types",
+        "fr": "Task types",
+        "es": "Task types",
+        "zh": "Task types",
+        "it": "Task types",
+        "pt": "Task types",
+        "pl": "Task types",
+        "tr": "Task types",
+        "ar": "Task types",
+        "ja": "Task types",
+        "ko": "Task types",
+        "fa": "Task types"
+      },
+      "layer": "gidsen"
+    },
+    {
       "id": "ref-sneltoetsen",
       "title": {
         "nl": "Sneltoetsenoverzicht",
@@ -622,6 +642,27 @@
         "fa": "مرجع میان‌برهای صفحه‌کلید"
       },
       "layer": "referentie"
+    },
+    {
+      "id": "ref-waarschuwingen",
+      "title": {
+        "nl": "Waarschuwingenpaneel",
+        "en": "Warnings panel",
+        "de": "Warnungsbereich",
+        "fr": "Panneau des avertissements",
+        "es": "Panel de advertencias",
+        "zh": "警告面板",
+        "it": "Pannello avvisi",
+        "pt": "Painel de avisos",
+        "pl": "Panel ostrzeżeń",
+        "tr": "Uyarılar paneli",
+        "ar": "لوحة التحذيرات",
+        "ja": "警告パネル",
+        "ko": "경고 패널",
+        "fa": "پنل هشدارها"
+      },
+      "layer": "referentie",
+      "cluster": "relaties-constraints"
     }
   ]
 }

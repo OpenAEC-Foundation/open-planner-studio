@@ -3,6 +3,7 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
+import type { CustomTaskType } from '@/types/taskType';
 
 const DELIMITER = ';';
 const BOM = '\uFEFF';
@@ -41,6 +42,7 @@ export function writeCSV(
   sequences: Sequence[],
   _resources: Resource[],
   _assignments: ResourceAssignment[],
+  customTaskTypes: readonly CustomTaskType[] = [],
 ): string {
   // H5 (eindreview T16c): de "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de
   // relatie-lag hierboven, die "ed"/"e%" al schrijft) — een taak met ELAPSEDTIME-duur (T8, 24/7-
@@ -72,7 +74,7 @@ export function writeCSV(
 
   const headers = [
     'WBS', 'Name', 'Duration (days)', 'Start', 'Finish',
-    'Predecessors', 'Task Type', 'Status', 'Completion (%)',
+    'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
     // Actuals (fase 2.6, §9.3): achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
     // een taak zonder actuals levert lege cellen. Geen baselines/statusdatum in CSV (bewust).
     'Actual Start', 'Actual Finish',
@@ -93,7 +95,8 @@ export function writeCSV(
       task.time.earlyStart || task.time.scheduleStart,
       task.time.earlyFinish || task.time.scheduleFinish,
       escapeCSV(predecessors),
-      task.taskType,
+      task.customTaskTypeId ? (customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name ?? 'USERDEFINED') : task.taskType,
+      task.customTaskTypeId ?? '',
       task.status,
       completion.toString(),
       task.time.actualStart || '',

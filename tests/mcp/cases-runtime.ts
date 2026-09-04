@@ -8,7 +8,7 @@
 //     bindExpectedDoc verzet het;
 //   - AI-backup: pad ⇒ backupCreated precies één keer; reject ⇒ BACKUP_FAILED vóór enige mutatie;
 //   - transactie-fout ⇒ nette code (CYCLE bij kring, VALIDATION anders).
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import {
   buildEnvelope, runReadTool, runMutateTool, bindExpectedDoc,
   guardNonTransactional, toolError, McpStepError,
@@ -29,15 +29,10 @@ store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
 /** Verse ctx met overschrijfbare velden (spiegelt buildMcpContext, maar volledig in de hand). */
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 /** Alle door de tests gezette runtime-vlaggen weer op de rustwaarde. */
@@ -57,7 +52,7 @@ const addTaskOutcome = (): MutationOutcome => ({ data: draft.addTask({ name: 'vi
 // =================================================================================================
 test('buildEnvelope: alle contractvelden aanwezig en kloppend, geen backupCreated', () => {
   resetFlags();
-  const env = buildEnvelope();
+  const env = buildEnvelope(makeCtx());
   const active = store.getState().getOpenDocuments().find((d) => d.isActive)!;
   assertEq(env.activeDocumentId, store.getState().activeDocumentId, 'activeDocumentId hoort het actieve doc-id te zijn');
   assertEq(env.documentTitle, mcpDocumentTitle(active), 'documentTitle hoort via de bestaande titel-afleiding te komen');
@@ -77,9 +72,9 @@ test('buildEnvelope: naamloos document ⇒ Engelse terugvaltitel i.p.v. een lege
   store.setState((s) => { s.project = { ...s.project, name: '' }; s.filePath = null; s.fileHandle = null; });
   const active = store.getState().getOpenDocuments().find((d) => d.isActive)!;
   assertEq(active.title, '', 'de STORE hoort naamloos als lege titel te blijven leveren');
-  assertEq(buildEnvelope().documentTitle, MCP_UNTITLED_TITLE, 'de envelop hoort de terugvaltitel te dragen');
+  assertEq(buildEnvelope(makeCtx()).documentTitle, MCP_UNTITLED_TITLE, 'de envelop hoort de terugvaltitel te dragen');
   store.setState((s) => { s.project = { ...s.project, name: 'Kade 7' }; });
-  assertEq(buildEnvelope().documentTitle, 'Kade 7', 'met een naam hoort de echte projectnaam te komen');
+  assertEq(buildEnvelope(makeCtx()).documentTitle, 'Kade 7', 'met een naam hoort de echte projectnaam te komen');
   store.setState((s) => { s.project = { ...s.project, name: before }; });
 });
 

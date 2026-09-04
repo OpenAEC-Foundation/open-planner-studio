@@ -17,8 +17,10 @@
   "showLegend": "Legenda",
   "showTaskNames": "Nazwy zadań na paskach",
   "showCompletion": "Pokaż postęp",
+  "showBaselineOverlay": "Pokaż nakładkę planu bazowego",
   "autoFit": "Dopasuj do papieru",
   "zoom": "Powiększenie:",
+  "previewQuality": { "label": "Jakość podglądu", "standard": "Standardowa", "high": "Wysoka", "maximum": "Maksymalna" },
   "repeatHeader": "Powtarzaj nagłówek na każdej stronie",
   "reportFontScaleLabel": "Rozmiar czcionki:",
   "timelineColumnsLabel": "Oś czasu na:",
@@ -44,11 +46,16 @@
   "legend": {
     "criticalPath": "Ścieżka krytyczna",
     "normal": "Normalne",
+    "baseline": "Plan bazowy",
     "milestone": "Kamień milowy",
     "summary": "Podsumowanie",
     "float": "Zapas",
     "completion": "Postęp",
-    "relationStyle": "Wiodąca / niewiodąca"
+    "relationStyle": "Wiodąca / niewiodąca",
+    "categoriesMore_one": "… i {{count}} kategoria więcej",
+    "categoriesMore_few": "… i {{count}} kategorie więcej",
+    "categoriesMore_many": "… i {{count}} kategorii więcej",
+    "categoriesMore_other": "… i {{count}} kategorii więcej"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -106,5 +113,19 @@
     "total": "Punkty kontrolne",
     "mandatoryCount": "Obowiązkowe",
     "lateCount": "Opóźnione"
-  }
+  },
+  "barColorModeLabel": "Kolory słupków:",
+  "barColorMode_critical": "Ścieżka krytyczna",
+  "barColorMode_auto": "Na zadanie — automatycznie",
+  "barColorMode_category": "Według kategorii",
+  "barColorFieldLabel": "Pole kategorii",
+  "barColorMissingField": "To pole nie istnieje w tym projekcie. Tymczasowo używany jest typ zadania.",
+  "statusLineLabel": "Linia statusu:",
+  "statusLine_none": "Brak",
+  "statusLine_statusDate": "Linia daty statusu",
+  "statusLine_progress": "Linia postępu",
+  "statusLineHint": "Najpierw ustaw datę statusu",
+  "followView": "Podążaj za widokiem (filtr, grupowanie, sortowanie)",
+  "statusDateLabel": "Data statusu",
+  "progressDateLabel": "Data postępu"
 }

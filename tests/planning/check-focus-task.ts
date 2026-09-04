@@ -17,6 +17,8 @@ import {
   setGanttScrollBounds, clampGanttScroll,
   FOCUS_TASK_MIN_ZOOM, FOCUS_TASK_MAX_ZOOM,
 } from '@/utils/ganttViewport';
+import fs from 'node:fs';
+import path from 'node:path';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -32,6 +34,18 @@ const close = (label: string, got: number, want: number, eps = 0.001) => {
     diffs.push(`${label}: verwacht ≈${want}, kreeg ${got}`);
   }
 };
+
+const relationCellSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/components/task-grid/RelationCellEditor.tsx'), 'utf8',
+);
+const fullGridSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/components/task-grid/FullTaskGrid.tsx'), 'utf8',
+);
+eq('00 relatiecel hergebruikt exact HoverTooltip en TaskTooltipContent van issue 65',
+  /<HoverTooltip/.test(relationCellSource) && /<TaskTooltipContent/.test(relationCellSource), true);
+eq('00b beide taskgrids bedraden lokale relaties naar dezelfde focusOnTask-actie',
+  /onFocusTask=\{focusOnTask\}/.test(fullGridSource)
+    && /onFocusTask\(item\.otherTaskId\)/.test(relationCellSource), true);
 
 // ── 1) Horizontaal: een taak van "normale" duur landt tussen de grenzen. ─────
 {
@@ -61,6 +75,13 @@ const close = (label: string, got: number, want: number, eps = 0.001) => {
 {
   const { scrollX } = computeFocusTaskHorizontal(5, 1, 100);
   eq('05 scrollX klemt op 0', scrollX, 0);
+}
+
+// De invoer is de GEMETEN timelinebreedte. Een oude tweede aftrek van 300px zou hier zoom 13.9
+// geven; de correcte 995px (1000 minus uitsluitend de 5px splitter) levert 19.9.
+{
+  const splitPane = computeFocusTaskHorizontal(10, 100, 995);
+  close('05b focus gebruikt de volledige gemeten timelinebreedte', splitPane.zoom, 19.9);
 }
 
 // ── 4) Verticaal: rij wordt gecentreerd in de zichtbare hoogte. ─────────────

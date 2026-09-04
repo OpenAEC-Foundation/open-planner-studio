@@ -6,19 +6,39 @@
 // het taken aanmaakt. Die regel stond eerder verspreid in commentaar tussen 1100 regels
 // taakmutaties; hier is hij de reden dat het bestand bestaat.
 //
-// Documentcontract: `selectedTaskIds` is PER DOCUMENT (het reist mee bij een documentwissel,
+// Documentcontract: `selectedTaskIds` en `activeTaskId` zijn PER DOCUMENT (ze reizen mee bij een documentwissel,
 // `snapshot: 'none'` — je selectie hoort niet in een undo-stap), `taskClipboard` is APP-GLOBAAL,
 // zodat kopiëren en plakken tussen documenten werkt. Beide velden blijven op het top-level van
 // `AppState` staan, dus `documentContract.ts` verandert niet mee: die leest `s.selectedTaskIds`,
 // niet `s.selection.selectedTaskIds`.
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { collectSubtreeIds } from '@/state/taskTree';
-import { beginUndoable, finishMutation } from '@/state/transaction';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { generateId } from '@/utils/id';
+import {
+  normalizeTaskRowCursor,
+  uniqueTaskIds,
+  type TaskRowCursor,
+  type ViewRow,
+} from '@/engine/view/visibleRows';
+
+/**
+ * Productiegrens tussen een occurrence-cursor en de domeinselectie. Alleen wanneer reconciliatie
+ * werkelijk op een andere taak uitkomt, wordt de enkelvoudige taakselectie meegeschoven. Een
+ * identieke occurrence met alleen een nieuwe absolute rijindex laat de selectie ongemoeid.
+ */
+export function reconcileTaskCursorSelection(
+  rows: readonly ViewRow[],
+  cursor: TaskRowCursor | null,
+  selectTask: (taskId: string) => void,
+): TaskRowCursor | null {
+  const next = normalizeTaskRowCursor(rows, cursor);
+  if (cursor !== null && next !== null && next.taskId !== cursor.taskId) selectTask(next.taskId);
+  return next;
+}
 
 export interface TaskClipboard {
   tasks: Task[];
@@ -28,6 +48,9 @@ export interface TaskClipboard {
 
 export interface SelectionSlice {
   selectedTaskIds: string[];
+  /** Taak van de actieve cel/klik. Kan bewust buiten de meervoudige selectie vallen wanneer de
+   * gebruiker die taak met Ctrl/Cmd uit de set togglet; het eigenschappenpaneel blijft hem volgen. */
+  activeTaskId: string | null;
   taskClipboard: TaskClipboard | null;
 
   /** Selecteer één taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) breidt uit vanaf de laatst
@@ -41,7 +64,7 @@ export interface SelectionSlice {
   selectAllTasks: () => void;
   /** Golf 4 (fase 2.10, box-selection): zet de selectie op precies `ids` (vervangen), of voeg ze
    *  toe aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). Geen undo. */
-  selectTasks: (ids: string[], additive: boolean) => void;
+  selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null) => void;
 
   /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord. */
   copyTasks: (ids?: string[]) => void;
@@ -50,12 +73,14 @@ export interface SelectionSlice {
   pasteTasks: () => string[];
 }
 
-export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
+export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) => (set, get) => ({
   selectedTaskIds: [],
+  activeTaskId: null,
   taskClipboard: null,
 
   selectTask: (id, multi = false, range = false) =>
     set((s) => {
+      s.activeTaskId = id;
       if (range && s.selectedTaskIds.length > 0) {
         // Shift+click: select range from last selected to clicked task
         const lastSelected = s.selectedTaskIds[s.selectedTaskIds.length - 1];
@@ -93,29 +118,48 @@ export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
         const start = Math.min(fromIdx, toIdx);
         const end = Math.max(fromIdx, toIdx);
         s.selectedTaskIds = flatIds.slice(start, end + 1);
+        s.activeTaskId = toId;
       }
     }),
 
   deselectAll: () =>
     set((s) => {
       s.selectedTaskIds = [];
+      s.activeTaskId = null;
     }),
 
   selectAllTasks: () =>
     set((s) => {
-      s.selectedTaskIds = s.viewRows
-        .filter((row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task')
-        .map((row) => row.task.id);
+      s.selectedTaskIds = uniqueTaskIds(s.viewRows);
+      if (!s.activeTaskId || !s.selectedTaskIds.includes(s.activeTaskId)) {
+        s.activeTaskId = s.selectedTaskIds[0] ?? null;
+      }
     }),
 
-  selectTasks: (ids, additive) =>
+  selectTasks: (ids, additive, activeTaskId) =>
     set((s) => {
+      const uniqueIds = [...new Set(ids)];
       if (!additive) {
-        s.selectedTaskIds = [...ids];
+        const nextActiveTaskId = activeTaskId === undefined ? (uniqueIds[0] ?? null) : activeTaskId;
+        const unchanged = s.activeTaskId === nextActiveTaskId
+          && s.selectedTaskIds.length === uniqueIds.length
+          && s.selectedTaskIds.every((id, index) => id === uniqueIds[index]);
+        if (unchanged) return;
+        s.selectedTaskIds = uniqueIds;
+        s.activeTaskId = nextActiveTaskId;
         return;
       }
-      const merged = new Set([...s.selectedTaskIds, ...ids]);
-      s.selectedTaskIds = Array.from(merged);
+      const merged = new Set([...s.selectedTaskIds, ...uniqueIds]);
+      const nextSelectedTaskIds = Array.from(merged);
+      const nextActiveTaskId = activeTaskId !== undefined
+        ? activeTaskId
+        : uniqueIds.length > 0 ? uniqueIds[uniqueIds.length - 1] : s.activeTaskId;
+      const unchanged = s.activeTaskId === nextActiveTaskId
+        && s.selectedTaskIds.length === nextSelectedTaskIds.length
+        && s.selectedTaskIds.every((id, index) => id === nextSelectedTaskIds[index]);
+      if (unchanged) return;
+      s.selectedTaskIds = nextSelectedTaskIds;
+      s.activeTaskId = nextActiveTaskId;
     }),
 
   copyTasks: (ids) =>
@@ -145,7 +189,7 @@ export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
       const clip = s.taskClipboard;
       if (!clip || clip.tasks.length === 0) return;
 
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       const copiedIds = new Set(clip.tasks.map(t => t.id));
       const resourceExists = new Set(s.resources.map(r => r.id));
@@ -219,7 +263,8 @@ export const createSelectionSlice: AppSlice<SelectionSlice> = (set, get) => ({
       }
 
       s.selectedTaskIds = newRootIds;
-      finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
+      s.activeTaskId = newRootIds[0] ?? null;
+      runtime.finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
     return newRootIds;

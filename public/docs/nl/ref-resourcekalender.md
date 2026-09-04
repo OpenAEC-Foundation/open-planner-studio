@@ -15,7 +15,7 @@ Het venster **Resourcekalender** bewerkt de eigen kalender van één resource �
 
 ## Velden
 
-Zie de [kalenderdialoog](docs://ref-kalenderdialoog) voor de volledige veldbeschrijving: **Naam**, **Werkdagen** (met de presets Ma–vr en Continu (24/7)), **Begin (uur)** / **Einde (uur)** / **Uren per dag**, de sectie **Werktijden** (met Urenplanning aan), **Feestdagen genereren…** en de lijst **Feestdagen**.
+Zie de [kalenderdialoog](docs://ref-kalenderdialoog) voor de volledige veldbeschrijving: **Naam**, **Werkdagen** (met de presets Ma–vr en Continu (24/7)), **Begin** / **Einde** in 24-uurs HH:MM, niet-bewerkbare **Netto-uren per dag**, **Pauze begint** / **Pauzeduur**, de sectie **Werktijden** (met Urenplanning aan), **Feestdagen genereren…** en de lijst **Feestdagen**.
 
 ## Verder lezen
 

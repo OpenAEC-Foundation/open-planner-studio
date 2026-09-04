@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
-import { UITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES } from '@/state/slices/types';
+import { UITheme, ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES } from '@/state/slices/types';
 import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -14,7 +15,7 @@ import './SettingsPanelContent.css';
 type SettingsTab = 'appearance' | 'language' | 'timeline' | 'application';
 
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
-const THEME_SWATCHES: Record<UITheme, string[]> = {
+const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
   'dark':          ['#2A2A32', '#36363E', '#D97706', '#FAFAF9'],
   'light':         ['#FAFAF9', '#F5F5F4', '#D97706', '#36363E'],
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
@@ -25,7 +26,7 @@ const THEME_LABEL_KEYS = {
   'dark':          'settings.themeDark',
   'light':         'settings.themeLight',
   'high-contrast': 'settings.themeHighContrast',
-} as const;
+} as const satisfies Record<ResolvedUITheme, string>;
 
 // i18n-sleutels voor de lettertype-familie-opties (issue #25.4) — zelfde patroon als THEME_LABEL_KEYS.
 // `as const satisfies` i.p.v. een `Record<UIFontFamily, string>`-annotatie: die annotatie zou de
@@ -48,6 +49,10 @@ export function SettingsPanelContent() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
+  // Zolang de systeemschakelaar aanstaat is er geen eigen keuze om te tonen: de kaarten staan uit
+  // en de kaart die het systeem oplevert is de gemarkeerde.
+  const resolvedTheme = useResolvedUITheme();
+  const followSystem = currentTheme === 'system';
   const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const enableQuarterHourZoom = useAppStore(s => s.ui.enableQuarterHourZoom);
@@ -88,6 +93,10 @@ export function SettingsPanelContent() {
     setUI({ uiTheme: theme });
     void saveTheme(theme);
   };
+
+  // Uitzetten landt op het thema dat op dát moment op het scherm staat, niet op een vaste waarde:
+  // zo springt er niets bij het omzetten en kies je daarna verder vanaf wat je ziet.
+  const applyFollowSystem = (checked: boolean) => applyTheme(checked ? 'system' : resolvedTheme);
 
   const applyLocale = (locale: Locale) => {
     void setLocale(locale);
@@ -192,8 +201,10 @@ export function SettingsPanelContent() {
                   <button
                     key={id}
                     type="button"
-                    className={`settings-theme-card ${currentTheme === id ? 'active' : ''}`}
-                    aria-pressed={currentTheme === id}
+                    className={`settings-theme-card ${(followSystem ? resolvedTheme : currentTheme) === id ? 'active' : ''}`}
+                    data-ops-theme-card={id}
+                    aria-pressed={(followSystem ? resolvedTheme : currentTheme) === id}
+                    disabled={followSystem}
                     onClick={() => applyTheme(id)}
                   >
                     <h4>{t(THEME_LABEL_KEYS[id])}</h4>
@@ -205,6 +216,20 @@ export function SettingsPanelContent() {
                   </button>
                 ))}
               </div>
+              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  data-ops-follow-system-theme
+                  checked={followSystem}
+                  onChange={e => applyFollowSystem(e.target.checked)}
+                />
+                <span>{t('settings.themeFollowSystem')}</span>
+              </label>
+              {followSystem && (
+                <p className="scrollzoom-hint">
+                  {t('settings.themeSystemHint', { theme: t(THEME_LABEL_KEYS[resolvedTheme]) })}
+                </p>
+              )}
             </div>
 
             {/* Lettertype interface (issue #25.4): familie + grootte. Web-apps volgen — anders dan

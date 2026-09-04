@@ -40,16 +40,42 @@ Scheiding: **Rust weet niets van MCP** (forwardt HTTP-bodies, bewaakt token + lo
 
 - **`src-tauri/src/mcp_bridge.rs`** (~150-200 regels): tiny HTTP-server op 127.0.0.1, alleen actief na opt-in. Checkt Bearer-token, stuurt request-body als Tauri-event naar de webview, wacht met timeout op antwoord. Requests strikt één-voor-één; timeout ruim genoeg voor grote batches (te verifiëren bij implementatie).
 - **`src/services/mcp/`** (nieuw, TS): `dispatcher.ts` (minimale streamable-HTTP-MCP-afhandeling, geen SDK-dependency), `tools/` (tooldefinities: JSON-schema + handler), `server.ts` (levenscyclus + status voor de UI), `activityLog.ts` (ring-buffer voor het activiteitenpaneel).
-- **Store-uitbreidingen**: werkpakketten hieronder.
+- **Storecontext en -uitbreidingen**: `AppStoreContext` bundelt één Zustandstore met zijn eigen
+  `StoreRuntime`; werkpakketten hieronder.
 - **UI**: hoofdstuk "UI: AI-modus" hieronder.
+
+### Storeownership
+
+De gemounte productinterface blijft één app-singleton gebruiken. React-selectors lezen atomisch via
+`useAppStore(selector)`; app-lifecycleregistries zoals extensie-instanties, eventbus en SDK-
+windowbinding mogen app-globaal blijven. De uitvoeringskern is wel contextgebonden:
+`createAppStoreContext()` levert `{ store, runtime }`, en batch-, MCP- en extensie-`data.*`-paden
+krijgen die documentcontext expliciet. Extensie-ribbonbuttons, importers, cleanup en notificaties
+lopen afzonderlijk via een geïnjecteerde app-hostbinding. De oude publieke modules
+`batchTransaction.ts` en `mcpTransaction.ts` zijn alleen compatibiliteitsadapters die de
+app-singleton binden; domeinlogica woont in de contextfactories.
+
+Iedere `StoreRuntime` bezit uitsluitend de undo-coalescing, batchdiepte, actieve MCP-lease en
+timephased-verliestelling van zijn eigen store. Een MCP-lease wordt vóór snapshot of mutatie
+verkregen en in een eigen `try/finally` vrijgegeven. Daardoor delen ook twee transactionfactories of
+twee requestcontexts voor dezelfde store één reentrancyguard, terwijl een transactie in context A
+synchroon binnen context B mag draaien. MCP-rollback herstelt alleen de eigen context volledig;
+batchthrows behouden het bestaande contract waarin gedeeltelijke batchmutaties blijven staan en
+precies één undoable handeling vormen.
 
 ## Werkpakket 0 — het transactieprimitief (fundament van bulk én batch)
 
 Elke bestaande store-mutator roept zelf `beginUndoable` aan en veel roepen zelf `runCPM`/`recomputeViewRows`/`recomputeResourceLoad` aan (o.a. `applyLeveling`, `moveProject`, de assignment- en kalenderacties). "Eén bulk/batch = één undo-stap, één herberekening" is daarmee onhaalbaar zonder nieuw mechanisme. Gekozen ontwerp:
 
-- **`runInMcpTransaction(fn)`** in `src/state/transaction.ts`: zet een module-vlag die `beginUndoable` onderdrukt; de transactie neemt zelf éxact één snapshot vooraf. Binnen de transactie draaien mutaties als **draft-primitieven** — varianten van de store-logica die géén eigen snapshot en géén eigen recompute doen. Aan het eind: één `runCPM`, één `recomputeViewRows`, één `recomputeResourceLoad`.
+- **`createMcpTransactions(context).run(fn)`** in `src/state/runtime/createMcpTransactions.ts`:
+  verkrijgt de MCP-lease uit `context.runtime`, neemt zelf éxact één snapshot vooraf en onderdrukt
+  alleen mutators van diezelfde context. Binnen de transactie draaien mutaties als
+  **draft-primitieven** — varianten van de storelogica die géén eigen snapshot en géén eigen
+  recompute doen. Aan het eind: één `runCPM`, één `recomputeViewRows`, één
+  `recomputeResourceLoad`. `runInMcpTransaction(fn)` blijft uitsluitend als appgebonden
+  compatibiliteitswrapper bestaan.
 - **Draft-primitieven vereist voor het hele batch-oppervlak**, niet alleen taken/relaties: taken (`addTasks`/`updateTasks`/`deleteTasks`/`moveTask`), relaties (`addSequences`/`removeSequences`), kalenders, assignments, leveling, project (`setProject`/`moveProject`). Tools die geen draft-variant hebben, zijn van `batch` uitgesloten (zie batch-sectie).
-- **Rollback-pad, expliciet:** mutaties en `runCPM` leven in aparte producers (genest `set()` kan niet in Immer). Bij een falende stap óf `cpmResult.error` ná de eindherberekening: `restoreSnapshot` van de vooraf genomen snapshot + `resetUndoCoalescing()`. De snapshot omvat ook `baselines`/kalenders én `cpmResult`, dus de rollback is compleet (geen achterblijvende error-banner). Ook een **geslaagde** transactie eindigt met `resetUndoCoalescing()` — de handmatige snapshot-push wijzigt de stackdiepte zonder de coalesce-marker te raken, en een latere keyed user-edit mag daar niet tegenaan coalescen.
+- **Rollback-pad, expliciet:** mutaties en `runCPM` leven in aparte producers (genest `set()` kan niet in Immer). Bij een falende stap óf `cpmResult.error` ná de eindherberekening: herstel van de vooraf vastgelegde documenttoestand, undo-/redo-stacks en transactielokale appstate, gevolgd door `context.runtime.resetUndoCoalescing()`. De rollback raakt geen andere context. Ook een **geslaagde** transactie reset de coalescing van uitsluitend de eigen runtime — de handmatige snapshot-push wijzigt de stackdiepte zonder de coalesce-marker te raken, en een latere keyed user-edit mag daar niet tegenaan coalescen.
 - **Vastgelegde invarianten:** (a) `runCPM` pusht nooit een undo-snapshot (bestaand gedrag; wordt nu een gedocumenteerde invariant — de batch-atomiciteit rust erop); (b) een batch draait volledig **synchroon** (geen `await` tussen stappen) — daardoor kan de user fysiek niet mid-batch van tabblad wisselen en volstaat één drift-/dialoog-check bij batch-start.
 - **Te exporteren bouwstenen:** `applyProgressInvariants` (nu module-privaat in taskSlice) en `hasBlockingDialogOpen` (nu module-privaat in shortcutRegistry) verhuizen naar exporteerbare plekken; de MCP-laag dupliceert geen dialoog-flag-lijsten.
 

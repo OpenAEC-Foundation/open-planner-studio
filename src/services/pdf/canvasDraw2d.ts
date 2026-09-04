@@ -1,5 +1,18 @@
 import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
 
+/** Eén geclipt venster van het logische rapport op een bestaand pagina-canvas. */
+export interface CanvasDrawWindow {
+  /** Linkerbovenhoek van het logische bronvenster. */
+  sourceX: number;
+  sourceY: number;
+  /** Grootte van het bronvenster in logische px. */
+  sourceWidth: number;
+  sourceHeight: number;
+  /** Linkerbovenhoek van dit venster in fysieke doelpixels. */
+  destinationX: number;
+  destinationY: number;
+}
+
 /**
  * Canvas-backend voor `Draw2D` (preview/raster). Wrapt een `CanvasRenderingContext2D` en forwardt
  * elke primitief 1:1. De constructor neemt de high-DPI-canvas-setup over die voorheen los in
@@ -8,6 +21,7 @@ import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
  */
 export class CanvasDraw2D implements Draw2D {
   private ctx: CanvasRenderingContext2D;
+  private restoreContext = false;
 
   /**
    * @param canvas       het doel-canvas (wordt van maat voorzien)
@@ -15,17 +29,57 @@ export class CanvasDraw2D implements Draw2D {
    * @param logicalH     logische hoogte in CSS-px
    * @param renderScale  raster-vs-logisch-multiplier (`canvas.width = logicalW * renderScale`)
    */
-  constructor(canvas: HTMLCanvasElement, logicalW: number, logicalH: number, renderScale: number) {
-    canvas.width = logicalW * renderScale;
-    canvas.height = logicalH * renderScale;
-    canvas.style.width = logicalW + 'px';
-    canvas.style.height = logicalH + 'px';
+  constructor(
+    canvas: HTMLCanvasElement,
+    logicalW: number,
+    logicalH: number,
+    renderScale: number,
+    window?: CanvasDrawWindow,
+  ) {
+    if (!window) {
+      canvas.width = logicalW * renderScale;
+      canvas.height = logicalH * renderScale;
+      canvas.style.width = logicalW + 'px';
+      canvas.style.height = logicalH + 'px';
+    }
     const ctx = canvas.getContext('2d')!;
-    ctx.scale(renderScale, renderScale);
+    if (window) {
+      // Elke aanroep van de rapporttekenaar blijft volledige logische coördinaten gebruiken,
+      // maar de canvas bewaart uitsluitend dit ene bronvenster. De fysieke clip voorkomt dat een
+      // brede achtergrond of lijn uit een venster de herhaalde naamkolom ernaast overschrijft.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(
+        window.destinationX,
+        window.destinationY,
+        window.sourceWidth * renderScale,
+        window.sourceHeight * renderScale,
+      );
+      ctx.clip();
+      ctx.setTransform(
+        renderScale,
+        0,
+        0,
+        renderScale,
+        window.destinationX - window.sourceX * renderScale,
+        window.destinationY - window.sourceY * renderScale,
+      );
+      this.restoreContext = true;
+    } else {
+      ctx.scale(renderScale, renderScale);
+    }
     // Fase-0-learning: schakel kerning uit zodat canvas-`measureText`/rendering pixel-WYSIWYG is
     // t.o.v. de latere pdf-lib-vector-export, die advances telt zónder kerning (§7-fase-0, learning 1).
     ctx.fontKerning = 'none';
     this.ctx = ctx;
+  }
+
+  /** Sluit een geclipt venster af zonder het gedeelde pagina-canvas te wissen. */
+  dispose(): void {
+    if (this.restoreContext) {
+      this.ctx.restore();
+      this.restoreContext = false;
+    }
   }
 
   // ---- stijl: forward 1:1 naar de context ----

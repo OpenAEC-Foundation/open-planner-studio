@@ -887,8 +887,8 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > **2.8b** = uren-/minuten-based scheduling + de uur-tijdschaal, als apart ontworpen
 > vervolgfase (raakt solver, alle adapters, renderer én IFC — te groot om mee te liften).
 
-> §2.8b: hoofdschakelaar Urenplanning (instelling, default uit) + gemengde dag/uur-planning
-> toestaan; werktijd-banden per weekdag (meerdere banden, nachtploeg over middernacht) met
+> §2.8b: hoofdschakelaar Urenplanning (instelling, default uit) + per-taak dag/uur-eenheid;
+> werktijd-banden per weekdag (meerdere banden, nachtploeg over middernacht) met
 > dag/2-ploegen/3-ploegen/nacht/24-7-presets en een banden-editor (opslaan als preset,
 > per-weekdag instellen, kopiëren naar alle werkdagen); uur-tijdschaal in de Gantt (bestaande
 > `timelineTiers` geactiveerd); drie duurweergave-modi (automatisch/altijd dagen/altijd uren)

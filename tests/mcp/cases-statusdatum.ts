@@ -11,7 +11,7 @@
 //   drie werkdagen eerder lag dan de eigen actual, zonder één woord uitleg. De terugsnap zelf is het
 //   gevolg van de werkdag-invariant van de solver; het stilzwijgen was de bug. `get_task` meldt het
 //   verschil nu expliciet.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import type { WorkCalendar } from '@/types/calendar';
@@ -20,13 +20,9 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 const S = () => useAppStore.getState();
 
 function makeCtx(): McpContext {
-  return {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: S().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  });
 }
 
 function def(name: string) {

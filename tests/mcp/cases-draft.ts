@@ -6,6 +6,10 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { __resetTimephasedLossNoticeForTests } from '@/state/timephasedLossNotice';
 
 const store = useAppStore;
 
@@ -19,7 +23,7 @@ store.getState().undo();
 // --- 1) addTask -----------------------------------------------------------------------------------
 test('draft.addTask binnen transactie ⇒ undoStack +1, parent.childIds gevuld, correcte parentId', () => {
   const parentId = store.getState().addTask({ name: 'ouder' });
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   let childId = '';
   const res = runInMcpTransaction(() => {
@@ -27,7 +31,7 @@ test('draft.addTask binnen transactie ⇒ undoStack +1, parent.childIds gevuld, 
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'undoStack moet met exact 1 groeien (één transactie-snapshot)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'undoStack moet met exact 1 groeien (één transactie-snapshot)');
   const parent = store.getState().tasks.find((t) => t.id === parentId);
   assert(!!parent && parent.childIds.includes(childId), 'parent.childIds hoort de nieuwe taak te bevatten');
   const child = store.getState().tasks.find((t) => t.id === childId);
@@ -36,7 +40,7 @@ test('draft.addTask binnen transactie ⇒ undoStack +1, parent.childIds gevuld, 
 
 test('draft.addTask onbekende parentId ⇒ transactie faalt schoon (geen halve mutatie)', () => {
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeLen = store.getState().undoStack.length;
+  const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     draft.addTask({ name: 'wees', parentId: 'bestaat-niet' });
@@ -45,7 +49,7 @@ test('draft.addTask onbekende parentId ⇒ transactie faalt schoon (geen halve m
   assert(!res.ok, 'transactie hoort te falen op de onbekende parentId');
   assert(!res.ok && res.error.toLowerCase().includes('parent'), 'foutmelding hoort de onbekende parent te noemen');
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'store-inhoud onaangeroerd na de schone rollback');
-  assertEq(store.getState().undoStack.length, beforeLen, 'undoStack onaangeroerd na rollback');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack onaangeroerd na rollback');
   assert(!store.getState().tasks.some((t) => t.name === 'wees'), 'de weestaak mag niet zijn aangemaakt');
 });
 
@@ -140,14 +144,14 @@ test('draft.addSequence dedupt op (pred, succ, type)', () => {
 // --- 3) updateTaskFields --------------------------------------------------------------------------
 test('draft.updateTaskFields voert een kale veld-merge uit', () => {
   const id = store.getState().addTask({ name: 'merge-oud' });
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     draft.updateTaskFields(id, { name: 'merge-nieuw', description: 'beschrijving' });
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'één transactie-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot');
   const t = store.getState().tasks.find((x) => x.id === id);
   assertEq(t?.name, 'merge-nieuw', 'naam hoort gemerged te zijn');
   assertEq(t?.description, 'beschrijving', 'beschrijving hoort gemerged te zijn');
@@ -162,13 +166,13 @@ test('draft.deleteTask ruimt relaties, assignments en parent.childIds op', () =>
   const resId = store.getState().addResource({ name: 'del-res', type: 'LABOR', description: '', maxUnits: 1 });
   store.getState().assignResource(childId, resId, 1);
 
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const res = runInMcpTransaction(() => {
     draft.deleteTask(childId);
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'één transactie-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot');
   assert(!store.getState().tasks.some((t) => t.id === childId), 'de taak hoort verwijderd te zijn');
   const parent = store.getState().tasks.find((t) => t.id === parentId);
   assert(!!parent && !parent.childIds.includes(childId), 'parent.childIds hoort de verwijzing kwijt te zijn');
@@ -254,17 +258,17 @@ test('draft.applyLeveling zet delays; de eind-runCPM verwerkt ze precies één k
   store.getState().runCPM();
   const baseStart = store.getState().tasks.find((t) => t.id === id)!.time.earlyStart;
 
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const res = runInMcpTransaction(() => {
     draft.applyLeveling({
       delays: { [id]: 3 },
       unresolved: {}, unresolvedReasons: {}, shifts: {},
-      projectEndBefore: '', projectEndAfter: '',
+      projectEndBefore: '', projectEndAfter: '', gaps: {},
     });
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'één transactie-snapshot (geen dubbele undo-stap)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot (geen dubbele undo-stap)');
   const t = store.getState().tasks.find((x) => x.id === id);
   assertEq(t?.levelingDelay, 3, 'levelingDelay hoort gezet te zijn');
   assert(!store.getState().cpmResult?.error, 'cpmResult hoort geldig (geen error) te zijn na de eind-runCPM');
@@ -277,6 +281,75 @@ test('draft.applyLeveling zet delays; de eind-runCPM verwerkt ze precies één k
   const t2 = store.getState().tasks.find((x) => x.id === id);
   assertEq(t2?.levelingDelay, undefined, 'levelingDelay hoort gewist te zijn');
   assertEq(t2?.time.earlyStart, baseStart, 'earlyStart hoort terug op de baseline te staan');
+});
+
+// --- Contextfactory: draft hoort bij precies één actieve run --------------------------------------
+test('contextdraft buiten zijn eigen actieve run faalt vóór mutatie', () => {
+  const context = createAppStoreContext();
+  const tx = createMcpTransactions(context);
+  const voor = JSON.stringify(capturePayload(context.store.getState()));
+  let fout = '';
+
+  try {
+    tx.draft.addTask({ name: 'mag-niet-buiten-run' });
+  } catch (error) {
+    fout = error instanceof Error ? error.message : String(error);
+  }
+
+  assert(/actieve|transactie|run/i.test(fout), 'draft buiten run hoort een herkenbare fout te gooien');
+  assertEq(JSON.stringify(capturePayload(context.store.getState())), voor,
+    'de weigering hoort vóór iedere statemutatie plaats te vinden');
+});
+
+test('draft van factory B schrijft uitsluitend in documentcontext B', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const result = txB.run(() => txB.draft.addTask({ name: 'draft-context-B' }));
+
+  assert(result.ok, 'de B-draft hoort binnen zijn eigen run te slagen');
+  assert(B.store.getState().tasks.some((task) => task.name === 'draft-context-B'),
+    'de taak hoort in B te staan');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
+    'de B-draft mag A niet wijzigen');
+});
+
+test('timephased-verliesteller en melding horen uitsluitend bij de actieve B-lease', () => {
+  __resetTimephasedLossNoticeForTests();
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  const aId = A.store.getState().addTask({ name: 'timephased-A' });
+  const bId = B.store.getState().addTask({ name: 'timephased-B' });
+  const windowFields = {
+    timephasedFinishFloor: '2026-08-10T17:00',
+    timephasedStartAnchor: '2026-08-03T08:00',
+    timephasedContours: [{
+      resourceUid: 7,
+      periods: [{ afterMinutes: 0, minutes: 120, workMinutes: 120, kind: 'actual' as const }],
+    }],
+  };
+  A.store.getState().updateTask(aId, windowFields);
+  B.store.getState().updateTask(bId, windowFields);
+  A.store.setState((state) => { state.ui.notifications = []; });
+  B.store.setState((state) => { state.ui.notifications = []; });
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const txB = createMcpTransactions(B);
+  const bTask = B.store.getState().tasks.find((task) => task.id === bId)!;
+
+  const result = txB.run(() => {
+    txB.draft.updateTaskFields(bId, {
+      time: { ...bTask.time, scheduleDuration: bTask.time.scheduleDuration + 1 },
+    });
+  });
+
+  assert(result.ok && result.timephasedGuidanceLost === 1,
+    'de actieve B-lease hoort precies één verloren taak te tellen');
+  assertEq(B.store.getState().ui.notifications.length, 1, 'B hoort precies één verliesmelding te krijgen');
+  assertEq(B.store.getState().ui.notifications[0]?.params?.count, 1, 'de B-melding hoort teller 1 te dragen');
+  assertEq(A.store.getState().ui.notifications.length, 0, 'A mag geen verliesmelding krijgen');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
+    'timephased verlies in B mag document A niet wijzigen');
 });
 
 // --- 9) Z14b — edit-time-invalidatie van het GELEZEN Z8-venster (eigenaarsprincipe 2026-08-18) ----
@@ -458,12 +531,12 @@ test('draft.patchTaskFields: een timePatch-duur wist OOK timephasedDurationWalks
 
 // --- 8) setProject --------------------------------------------------------------------------------
 test('draft.setProject wijzigt projectvelden binnen één transactie', () => {
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const res = runInMcpTransaction(() => {
     draft.setProject({ name: 'Hernoemd project', author: 'MCP' });
   });
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'één transactie-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot');
   assertEq(store.getState().project.name, 'Hernoemd project', 'projectnaam hoort bijgewerkt te zijn');
   assertEq(store.getState().project.author, 'MCP', 'auteur hoort bijgewerkt te zijn');
 });

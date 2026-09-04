@@ -19,7 +19,8 @@
  *   1. VERTICAAL — de body wordt over `rows` pagina's verdeeld. Is `repeatHeaderHeightPx` gezet, dan
  *      wordt de bronstrook `y ∈ [0, repeatHeaderHeightPx)` (project-/tijdschaalkop) op ELKE
  *      verticale tegel bovenaan de pagina herhaald en begint de body daaronder (issue #25 punt 1).
- *   2. HORIZONTAAL in `'actual'`-modus — 1 pt = 1 px, dus zoveel kolommen als de bron breed is.
+ *   2. HORIZONTAAL in `'actual'`-modus — vaste CSS→papierverhouding (0,75 pt per CSS-px), dus
+ *      zoveel kolommen als de bron breed is zonder de tabel groter te drukken dan in auto-fit.
  *   3. HORIZONTAAL in `'fit-width'`-modus — normaal 1 kolom (alles op één paginabreedte geperst),
  *      maar met `timelineColumns: N` wordt de tijdlijn bewust over N paginabreedtes uitgesmeerd
  *      (issue #25 punt 5) zodat hij leesbaar blijft.
@@ -33,7 +34,7 @@
  * module gedragsneutraal voor aanroepers die niets meegeven.
  */
 
-export type PaperSize = 'a4' | 'a3' | 'a1';
+export type PaperSize = 'a4' | 'a3' | 'a2' | 'a1';
 export type Orientation = 'portrait' | 'landscape';
 export type PaginateMode = 'fit-width' | 'actual';
 
@@ -41,8 +42,39 @@ export type PaginateMode = 'fit-width' | 'actual';
 export const PAPER_PT: Record<PaperSize, { width: number; height: number }> = {
   a4: { width: 595.28, height: 841.89 },
   a3: { width: 841.89, height: 1190.55 },
+  a2: { width: 1190.55, height: 1683.78 },
   a1: { width: 1683.78, height: 2383.94 },
 };
+
+/** Standaard witruimte rond een rapportpagina, in PDF-punten. */
+export const DEFAULT_MARGIN_PT = 24;
+
+/** Eén logische CSS-pixel meet 0,75 PDF-punt (96 CSS-px per inch versus 72 pt per inch). */
+export const LOGICAL_PX_TO_PT = 72 / 96;
+
+/** De bruikbare horizontale ruimte van één rapportpagina, in PDF-punten. */
+export function printableWidthPt(
+  paperSize: PaperSize,
+  orientation: Orientation,
+  marginPt = DEFAULT_MARGIN_PT,
+): number {
+  const paper = PAPER_PT[paperSize];
+  const pageWidthPt = orientation === 'landscape' ? paper.height : paper.width;
+  return Math.max(0, pageWidthPt - 2 * marginPt);
+}
+
+/**
+ * De bruikbare horizontale ruimte van één rapportpagina, omgerekend naar logische render-pixels.
+ * De rapport-renderer gebruikt dit om de tijdlijn te comprimeren zonder de tabeltekst alsnog via
+ * de pagineerder mee te schalen (issue #74).
+ */
+export function printableWidthLogicalPx(
+  paperSize: PaperSize,
+  orientation: Orientation,
+  marginPt = DEFAULT_MARGIN_PT,
+): number {
+  return printableWidthPt(paperSize, orientation, marginPt) / LOGICAL_PX_TO_PT;
+}
 
 /** Ruimte onderaan (punten) gereserveerd voor het paginanummer in de marge. */
 export const FOOTER_PT = 14;
@@ -153,7 +185,7 @@ export interface TileLayout {
  * @see TileLayoutInput voor de defaults die het historische gedrag reproduceren.
  */
 export function computeTileLayout(input: TileLayoutInput): TileLayout {
-  const marginPt = input.marginPt ?? 24;
+  const marginPt = input.marginPt ?? DEFAULT_MARGIN_PT;
   const frozenRequestedPx = Math.max(0, input.frozenColumnWidthPx ?? 0);
 
   const base = PAPER_PT[input.paperSize];
@@ -187,7 +219,7 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
 
   // ---- Horizontale schaal + kolom-aantal --------------------------------------------------------
   //
-  // 'actual': 1 pt = 1 px, zoveel kolommen als nodig (hieronder afgeleid).
+  // 'actual': vaste CSS→papierverhouding, zoveel kolommen als nodig (hieronder afgeleid).
   // 'fit-width' met N kolommen: de bron wordt over N paginabreedtes uitgesmeerd. Er wordt dan in
   //   totaal `cw + (N-1)*frozenPx` bron-px getekend (de bevroren naam-strip komt N-1 keer extra
   //   terug) op `N * printW` punten, dus scale = N*printW / (cw + (N-1)*frozenPx). Bij N = 1 valt dit
@@ -200,7 +232,9 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
     const virtualWidth = cw + (timelineCols - 1) * frozenRequestedPx;
     scale = virtualWidth > 0 ? (printW * timelineCols) / virtualWidth : 1;
   } else {
-    scale = 1.0;
+    // De bronmaten zijn CSS-pixels, geen PDF-punten. De handmatige tijdzoom verandert alleen de
+    // tijdas; de fysieke tabelmaat moet gelijk blijven aan de Auto-fit-preview.
+    scale = LOGICAL_PX_TO_PT;
   }
 
   // De bevroren strip wordt herhaald zodra er meer dan één kolom is — dat was vroeger alleen in

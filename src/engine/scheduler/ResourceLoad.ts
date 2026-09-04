@@ -10,7 +10,9 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
+import { enumerateTaskWorkDays } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
  *  tussen punten; niet genormaliseerd (distributeUnits normaliseert zelf via Σraw). */
@@ -116,17 +118,103 @@ export interface ResourceLoadResult {
   overallocatedDays: Record<string, string[]>;
 }
 
+/** Kalender-engine voor de TAAKkalender van `task` — spiegelt `CPMSolver.calendarFor`
+ *  (`resolveCalendar(task.calendarId, registry, projectCalendar)`) exact: dezelfde bron
+ *  (`task.calendarId`) en dezelfde fallback (geen/onbekende id ⇒ projectkalender), dat is dus
+ *  óók de engine waarmee de CPM de duur en de splits van de taak rekent. Gecachet per calendarId
+ *  (`cache`, per aanroep van `computeResourceLoad`/`computeHistogramReport` een verse Map) zodat
+ *  taken op dezelfde kalender geen nieuwe `CalendarEngine` per taak bouwen. Gedeeld door beide
+ *  mappings hieronder — één definitie, geen tweede die stil kan afdrijven (B1c-W0.1). */
+function engineForTask(
+  task: Task,
+  cache: Map<string, CalendarEngine>,
+  projectEngine: CalendarEngine,
+  calendarRegistry: WorkCalendar[],
+  projectCalendar: WorkCalendar,
+): CalendarEngine {
+  const key = task.calendarId ?? '';
+  let eng = cache.get(key);
+  if (!eng) {
+    eng = key === ''
+      ? projectEngine
+      : new CalendarEngine(calendarForEngine(
+        resolveCalendar(task.calendarId, calendarRegistry, projectCalendar),
+      ));
+    cache.set(key, eng);
+  }
+  return eng;
+}
+
 /**
  * Berekent dag-granulaire belasting/capaciteit/overallocatie over alle resources+toewijzingen.
- * Logica (resources-ontwerp §4.2):
+ * Logica (resources-ontwerp §4.2, dag-mapping herzien in B1c-W0.1):
  *  1. Filter assignments op leaf-taken zonder milestone (defensieve dubbele bewaking t.o.v.
  *     de assignResource-enforcement — mocht een oud bestand toch een ongeldige assignment
  *     bevatten).
  *  2-3. Per assignment: verdeel de eenheden over de curve en accumuleer per resource per dag,
- *     gemapt op de werkdagen tussen earlyStart/earlyFinish volgens de PROJECTKALENDER (de
- *     CPM-datums — resource-kalenders sturen de CPM-datums niet aan).
+ *     gemapt op de ECHTE werkdagen van de taak vanaf `earlyStart` (`enumerateTaskWorkDays`,
+ *     `splitWalk.ts`) — de kalender van de TAAK (`engineForTask`, dezelfde engine als de CPM-duur/
+ *     -splits), met `splitGaps`-pauzedagen overgeslagen. Vóór B1c-W0.1 werd hier onvoorwaardelijk
+ *     de projectkalender gebruikt en werden pauzedagen niet overgeslagen — beide zijn bewust
+ *     gerepareerd gedrag, zie `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
+ *     §W0. `enumerateTaskWorkDays` is dag-granulair: een gat dat in uur-modus is opgegeven wordt op
+ *     hele werkdagen afgerond (bestaand gedrag van `splitDayPattern`, zie `splitWalk.ts`).
+ *
+ *     BESLUIT — earlyFinish wordt genegeerd (behalve ELAPSEDTIME, zie hieronder): de mapping loopt
+ *     exact `scheduleDuration` werkdagen vanaf `earlyStart`, ongeacht wat `earlyFinish` zegt. Dat is
+ *     bewust: bij een STALE taak (opgeslagen datums achterhaald t.o.v. de invoer, bv. het
+ *     bezettingsoverzicht vóór een efemere doorrekening) lopen `scheduleDuration` en
+ *     `earlyStart..earlyFinish` per definitie uiteen. Zou de mapping op `earlyFinish` klemmen, dan
+ *     kapt ze de verdeling af op min(dagen, werkdagen-in-de-verouderde-spanne) — een uitkomst die
+ *     noch de oude, noch de nieuwe planning is. Door gewoon `scheduleDuration` dagen vanaf
+ *     `earlyStart` te lopen, blijft het TOTAAL van de curve altijd behouden (nooit stil een deel
+ *     laten verdwijnen) — dat behouden totaal is de dragende garantie, niet een precieze dagindeling:
+ *     bij stale data is `earlyStart` het oude anker maar kan `scheduleDuration` al de nieuwe invoer
+ *     weerspiegelen (een bewerking die de duur wijzigt zonder meteen te herrekenen), dus de uitkomst
+ *     is dan een HYBRIDE van oud en nieuw, geen zuivere "oude planning" — zie ook
+ *     `docs/superpowers/specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md`
+ *     §W0. `enumerateTaskWorkDays` zelf kent hoe dan ook geen eindgrens (in tegenstelling tot
+ *     `computeSplitSegments` in `splitWalk.ts`, dat een renderer-balk wél op `taskEnd` klemt — een
+ *     balk MOET binnen zijn eigen grenzen tekenen; een lastlezer mag, en moet hier bewust, verder
+ *     lopen dan een verouderde `earlyFinish`).
+ *
+ *     UITZONDERING — ELAPSEDTIME: voor zo'n taak is `scheduleDuration` KALENDERdagen, niet
+ *     werkdagen (`duration.ts`'s `elapsedMinutesOf`-docblok) — `enumerateTaskWorkDays` zou dat getal
+ *     als werkdagen-telling lezen en voorbij `earlyFinish` doorlopen (bv. duur 10 over een spanne
+ *     met een weekend erin). Voor ELAPSEDTIME-taken gebruikt de mapping daarom een DERDE variant —
+ *     geen restauratie van het pre-W0.1-gedrag: `enumerateWorkDays(taskEngine, earlyStart,
+ *     earlyFinish)` loopt weliswaar (net als vóór W0.1) over de spanne in plaats van een
+ *     dagenteling, maar op `taskEngine` — dezelfde `engineForTask`-taakkalender als de andere twee
+ *     takken hierboven, niet onvoorwaardelijk de projectkalender. De taakkalender-lijn van deze fix
+ *     geldt dus ook hier; alleen het "loop tot `earlyFinish`, niet `scheduleDuration` werkdagen
+ *     verder"-gedrag is bewust ongewijzigd t.o.v. vóór W0.1. `splitGaps` wordt in deze tak niet
+ *     toegepast — een BEWUSTE, begrensde beperking, geen aanname over de invoer: de `.mpp`-lezer
+ *     poort `splitGaps` niet op `durationType`, dus een ELAPSEDTIME-taak mét gaten is mogelijk (al
+ *     zeldzaam) en boekt in dat geval gewoon door op wat voor een WORKTIME-taak een pauzedag zou
+ *     zijn. De bestaande min-klem in de accumulatielus (`i < days.length && i < workDayIsos.length`)
+ *     zorgt dat een curve die méér dagen telt dan er werkdagen in de spanne zitten, gewoon aan het
+ *     eind afkapt.
+ *
+ *     TWEEDE UITZONDERING — VOLTOOID (`completion >= 1 && actualFinish`, eindpoortronde W0): dezelfde
+ *     `enumerateWorkDays(taskEngine, earlyStart, earlyFinish)`-vorm als de ELAPSEDTIME-tak, om een
+ *     andere reden. Het BESLUIT hierboven ("earlyFinish wordt genegeerd") rust op de aanname dat
+ *     `earlyFinish` STALE kan zijn t.o.v. `scheduleDuration` — maar voor een VOLTOOIDE taak is
+ *     `earlyFinish` niet stale, hij is GEZAGHEBBEND: `CPMSolver.forwardPass`'s VOLTOOID-tak heeft hem
+ *     zojuist onvoorwaardelijk uit `actualStart`/`actualFinish` afgeleid (§ "VOLTOOID: volledig gepind
+ *     op actuals" aldaar), niet uit `scheduleDuration`. De stale-data-rechtvaardiging geldt hier dus
+ *     niet, en `scheduleDuration` werkdagen vanaf `earlyStart` doorlopen kan een reëel voltooide taak
+ *     over een feestdagenblok heen laten doorschieten — precies het scenario van de showcase
+ *     "rijwoningen-de-akkers" (Roof structure — House 1: completion=1, CPM-earlyFinish 05-04 via
+ *     `snapOnOrBefore`, maar `scheduleDuration`=5 werkdagen vanaf `earlyStart` 04-29 landt via het
+ *     05-05/05-06-feestdagenblok op 05-07 — House 2's eigen startdag, een fantoomoverallocatie).
+ *     Splits/gaten worden ook hier niet toegepast (zelfde begrensde beperking als de ELAPSEDTIME-tak):
+ *     een voltooide taak se echte verloop staat al vast in de actuals, niet in `splitGaps`.
  *  4. Capaciteit per resource per dag: maxUnits (met availabilitySteps) op werkdagen van de
  *     resource-kalender (of de projectkalender als geen calendarId gezet is), 0 op niet-werkdagen.
+ *     Dit is de RESOURCE-kalender, niet per se de taakkalender: werkt een taak (op haar eigen
+ *     kalender) op een dag die de resource-kalender niet als werkdag kent, dan is capaciteit daar 0
+ *     en telt de dag automatisch mee in `overallocatedDays` — bewust: de resource kán daar simpelweg
+ *     niet werken, dus is dat een echt (en niet een vals-positief) conflict.
  *  5. Materiaal telt gewoon mee voor overallocatie (leveler slaat het straks over, deze functie
  *     niet — expliciete beslissing, zie §4.2 punt 5).
  *  6. overallocatedDays = dagen waar load > capacity.
@@ -143,7 +231,11 @@ export function computeResourceLoad(
   const overallocatedDays: Record<string, string[]> = {};
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  const projectEngine = new CalendarEngine(projectCalendar);
+  const projectEngine = new CalendarEngine(calendarForEngine(projectCalendar));
+  // W0: de dag-mapping volgt de TAAKkalender (dezelfde engine waarmee de CPM duur en splits
+  // rekent — zie `engineForTask` hierboven), niet onvoorwaardelijk de projectkalender. Cache per
+  // calendarId, één Map per aanroep van deze functie.
+  const taskEngineCache = new Map<string, CalendarEngine>();
 
   // 1. Leaf-only, geen mijlpalen (dubbele bewaking t.o.v. resourceSlice.assignResource, §2.4).
   const validAssignments = assignments.filter(a => {
@@ -158,7 +250,15 @@ export function computeResourceLoad(
     const days = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
     if (days.length === 0) continue;
 
-    const workDayIsos = enumerateWorkDays(projectEngine, task.time.earlyStart, task.time.earlyFinish);
+    const taskEngine = engineForTask(task, taskEngineCache, projectEngine, resourceCalendars, projectCalendar);
+    // ELAPSEDTIME: scheduleDuration is KALENDERdagen, niet werkdagen (zie het docblok hierboven) —
+    // de oude, op earlyFinish geklemde mapping blijft hier gelden i.p.v. enumerateTaskWorkDays, die
+    // het getal als een werkdagen-telling zou lezen en voorbij earlyFinish zou doorlopen.
+    // VOLTOOID (eindpoortronde W0): earlyFinish is voor zo'n taak GEZAGHEBBEND, niet stale (zie het
+    // docblok hierboven) — dezelfde op-earlyFinish-geklemde vorm, andere reden.
+    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
+      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
+      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
@@ -173,7 +273,9 @@ export function computeResourceLoad(
     const bucket = load[resource.id];
     if (!bucket) continue;
 
-    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar));
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, resourceCalendars, projectCalendar),
+    ));
 
     capacity[resource.id] = {};
     for (const iso of Object.keys(bucket)) {
@@ -194,6 +296,25 @@ export function computeResourceLoad(
   }
 
   return { load, capacity, overallocatedDays };
+}
+
+/**
+ * Eén gedeelde betrouwbaarheidspoort voor afgeleide belasting. Een CPM-fout betekent dat de
+ * taakdatums niet als geldige planning mogen worden behandeld; callers publiceren dan `null`.
+ * Een nog niet berekende planning (`cpmResult === null`) behoudt het bestaande gedrag en leidt de
+ * belasting af uit de aanwezige taakdatums.
+ */
+export function computeReliableResourceLoad(
+  cpmResult: CPMResult | null,
+  resources: Resource[],
+  assignments: ResourceAssignment[],
+  tasks: Task[],
+  projectCalendar: WorkCalendar,
+  resourceCalendars: WorkCalendar[],
+): ResourceLoadResult | null {
+  return cpmResult?.error
+    ? null
+    : computeResourceLoad(resources, assignments, tasks, projectCalendar, resourceCalendars);
 }
 
 /** Vlakke `maxUnits`, tenzij `availabilitySteps` een latere stap ≤ `iso` heeft — dan geldt de
@@ -279,7 +400,10 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const { tasks, assignments, resources, calendar, calendars, resourceIds, from, to, bucket } = input;
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
-  const projectEngine = new CalendarEngine(calendar);
+  const projectEngine = new CalendarEngine(calendarForEngine(calendar));
+  // W0: zelfde taakkalender-mapping als computeResourceLoad (zie `engineForTask` hierboven) — één
+  // definitie, gecachet per calendarId voor deze aanroep.
+  const taskEngineCache = new Map<string, CalendarEngine>();
 
   // 1. Per-assignment dag-verdeling — dezelfde filter/mapping als computeResourceLoad (leaf, geen
   //    milestone), zodat de veroorzaker-bijdragen exact optellen tot de per-resource-dagbelasting.
@@ -293,9 +417,15 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   for (const a of assignments) {
     const task = taskById.get(a.taskId);
     if (!task || task.isMilestone || isSummaryTask(task)) continue;
-    const dist = distributeUnits(a.unitsPerDay, task.time.scheduleDuration, a.curve ?? 'UNIFORM');
+    const durationDays = task.time.scheduleDuration;
+    const dist = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
     if (dist.length === 0) continue;
-    const workDayIsos = enumerateWorkDays(projectEngine, task.time.earlyStart, task.time.earlyFinish);
+    const taskEngine = engineForTask(task, taskEngineCache, projectEngine, calendars, calendar);
+    // ELAPSEDTIME/VOLTOOID: zelfde twee uitzonderingen als computeResourceLoad hierboven — zie het
+    // docblok daar.
+    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
+      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
+      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
     const daily = new Map<string, number>();
     for (let i = 0; i < dist.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];
@@ -358,7 +488,9 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   const report: HistogramReport = { resources: [] };
   for (const resource of reported) {
     const dailyLoad = loadByResource.get(resource.id) ?? new Map<string, number>();
-    const engine = new CalendarEngine(resolveCalendar(resource.calendarId, calendars, calendar));
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, calendars, calendar),
+    ));
 
     // Dag-granulaire overbelaste dagen: load > capaciteit (resource-kalender), over de belaste dagen.
     const overDays = new Set<string>();

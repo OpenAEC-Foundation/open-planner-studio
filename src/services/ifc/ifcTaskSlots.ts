@@ -256,6 +256,7 @@ export interface TaskWriteCtx {
   ownerHistId: number;
   guidArg: string;
   taskTimeId: number;
+  customTaskTypeLabel?: string;
 }
 
 export interface TaskSlot {
@@ -276,7 +277,9 @@ export const IFC_TASK_SLOTS: TaskSlot[] = [
   { key: 'ownerHistory', write: (w) => `#${w.ownerHistId}` },
   { key: 'name', write: (w) => ifcStr(w.task.name) },
   { key: 'description', write: (w) => ifcStr(w.task.description) },
-  { key: 'objectType', write: () => '$' },
+  // IFC eist USERDEFINED voor een niet-standaard classificatie. ObjectType geeft andere IFC-tools
+  // een leesbaar label; de stabiele id reist aanvullend mee in OPS_TaskTypes.
+  { key: 'objectType', write: (w) => w.task.taskType === 'USERDEFINED' && w.task.customTaskTypeId ? ifcStr(w.customTaskTypeLabel ?? 'USERDEFINED') : '$' },
   { key: 'identification', write: (w) => ifcStr(w.task.wbsCode) },
   { key: 'longDescription', write: () => '$' },
   { key: 'status', write: () => '$' },
@@ -284,7 +287,7 @@ export const IFC_TASK_SLOTS: TaskSlot[] = [
   { key: 'isMilestone', write: (w) => ifcBool(w.task.isMilestone) },
   { key: 'priority', write: (w) => (w.task.priority !== DEFAULT_PRIORITY ? String(Math.round(w.task.priority)) : '$') },
   { key: 'taskTime', write: (w) => `#${w.taskTimeId}` },
-  { key: 'predefinedType', write: (w) => `.${w.task.taskType}.` },
+  { key: 'predefinedType', write: (w) => `.${w.task.customTaskTypeId ? 'USERDEFINED' : w.task.taskType}.` },
 ];
 
 // ── Afgeleide naam→index-maps (single-source: de array-positie boven is de index) ─────────────────

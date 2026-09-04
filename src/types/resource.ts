@@ -31,6 +31,10 @@ export interface Resource {
   /** Ploeg-lidmaatschap: verwijst naar een CREW-resource. Puur groepering/weergave — GEEN
    *  automatische rollup van capaciteit/belasting (P6-gedrag). */
   parentId?: string;
+  /** Weergavekleur (hex `#rrggbb`) voor de resource-kleurmodi in de rapportexport (#21). Puur
+   *  presentatie: zit bewust NIET in RESOURCE_DIFF_FIELDS — een andere kleur is nooit een
+   *  bibliotheekafwijking — en heeft géén invloed op planning/berekening. */
+  color?: string;
   /** OPTIONEEL — herkomststempel wanneer deze resource een kopie uit een bedrijfsbibliotheek is
    *  (spec B1, §2). Afwezig ⇒ handmatig aangemaakte resource. */
   libraryOrigin?: LibraryOrigin;

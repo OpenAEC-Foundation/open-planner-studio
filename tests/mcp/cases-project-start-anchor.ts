@@ -6,7 +6,7 @@
 // `clampProjectStartAnchors` (`engine/scheduler/projectStartAnchorClamp.ts`) aan. Deze batterij
 // bewaakt dat vanaf de MCP-kant: de klem zelf, het gerapporteerde aantal, en de twee L-bevindingen
 // (ASAP-dateless-constraint blokkeert niet, L1; een hammock-wortel telt niet mee, L2).
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -15,13 +15,9 @@ import type { WorkCalendar } from '@/types/calendar';
 const S = () => useAppStore.getState();
 
 function makeCtx(): McpContext {
-  return {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: S().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  });
 }
 
 function def(name: string) {

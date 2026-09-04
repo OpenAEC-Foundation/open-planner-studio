@@ -18,8 +18,14 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
-import { verifyCatalogDownload, sha256Hex } from '@/extensions/extensionService';
+import {
+  installFromZipBlob,
+  parseZipEntries,
+  sha256Hex,
+  verifyCatalogDownload,
+} from '@/extensions/extensionService';
 import { executeExtensionCode } from '@/extensions/extensionLoader';
+import { resetConsentAsker, setConsentAsker } from '@/extensions/consent';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -31,6 +37,60 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 
 const bytes = (s: string) => new TextEncoder().encode(s);
+
+interface StoredZipFixtureEntry {
+  name: string;
+  data?: Uint8Array;
+  declaredUncompressedSize?: number;
+}
+
+/** Kleine local-header-only ZIP-fixture; voldoende voor de echte fallbackparser. */
+const storedZip = (entries: StoredZipFixtureEntry[]): Blob => {
+  const chunks: Uint8Array[] = [];
+  for (const entry of entries) {
+    const name = bytes(entry.name);
+    const data = entry.data ?? bytes('x');
+    const chunk = new Uint8Array(30 + name.length + data.length);
+    const view = new DataView(chunk.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true);
+    view.setUint32(14, 0, true);
+    view.setUint32(18, data.length, true);
+    view.setUint32(22, entry.declaredUncompressedSize ?? data.length, true);
+    view.setUint16(26, name.length, true);
+    view.setUint16(28, 0, true);
+    chunk.set(name, 30);
+    chunk.set(data, 30 + name.length);
+    chunks.push(chunk);
+  }
+  return new Blob(chunks as unknown as BlobPart[]);
+};
+
+const expectZipReject = async (label: string, entries: StoredZipFixtureEntry[]) => {
+  let reason = '';
+  try {
+    await parseZipEntries(await storedZip(entries).arrayBuffer());
+  } catch (error) {
+    reason = error instanceof Error ? error.message : String(error);
+  }
+  eq(`${label}: ZIP wordt geweigerd`, reason.length > 0, true);
+};
+
+const manifestJson = (patch: Record<string, unknown> = {}) => bytes(JSON.stringify({
+  id: 'zip-demo',
+  name: 'ZIP Demo',
+  version: '1.2.3',
+  apiVersion: '1.0',
+  minAppVersion: '2026.8.1',
+  author: 'OpenAEC',
+  description: '',
+  category: 'Utility',
+  main: 'main.js',
+  permissions: ['events'],
+  ...patch,
+}));
 
 // ── 1. sha256Hex tegen bekende vectoren ─────────────────────────────────────
 // Zelf-gerolde hex-codering is precies het soort ding dat er goed uitziet en één padStart mist.
@@ -148,6 +208,104 @@ for (const rommel of ['abc', juist.slice(0, 63), `${juist}0`, `${juist.slice(0, 
   g.__TAURI_INTERNALS__ = bewaard.t;
   g.__TAURI__ = bewaard.t2;
   g.__OPS__ = bewaard.o;
+}
+
+// ── 4. ZIP-namen, selectie en payloadlimieten ──────────────────────────────
+{
+  const parsed = await parseZipEntries(await storedZip([
+    { name: 'pakket/manifest.json', data: manifestJson() },
+    { name: 'pakket/main.js', data: bytes('module.exports = { onLoad() {} };') },
+    { name: 'pakket/assets/font.bin', data: bytes('font') },
+  ]).arrayBuffer());
+  eq('16 precies één gemeenschappelijke topmap wordt gestript',
+    parsed.map((entry) => entry.name), ['manifest.json', 'main.js', 'assets/font.bin']);
+}
+
+for (const unsafeName of [
+  '../main.js',
+  '/main.js',
+  'dir\\main.js',
+  'nul\0main.js',
+  'dir//main.js',
+  './main.js',
+  'dir/../main.js',
+]) {
+  await expectZipReject(`17 onveilige entrynaam ${JSON.stringify(unsafeName)}`, [
+    { name: unsafeName },
+  ]);
+}
+
+await expectZipReject('18 dubbele genormaliseerde naam', [
+  { name: 'pakket/main.js', data: bytes('een') },
+  { name: 'pakket/main.js', data: bytes('twee') },
+]);
+await expectZipReject('18a twee manifest.json-bestanden', [
+  { name: 'manifest.json', data: manifestJson() },
+  { name: 'manifest.json', data: manifestJson({ id: 'ander' }) },
+]);
+await expectZipReject('19 entry boven 24 MiB', [
+  { name: 'asset.bin', declaredUncompressedSize: 24 * 1024 * 1024 + 1 },
+]);
+await expectZipReject('19a totaal boven 48 MiB', [
+  { name: 'a.bin', declaredUncompressedSize: 17 * 1024 * 1024 },
+  { name: 'b.bin', declaredUncompressedSize: 17 * 1024 * 1024 },
+  { name: 'c.bin', declaredUncompressedSize: 17 * 1024 * 1024 },
+]);
+
+// ── 5. Hoofdbestand en catalogusidentiteit worden vóór consent gecontroleerd ────────────────
+{
+  const globals = globalThis as unknown as Record<string, unknown>;
+  const hadWindow = Object.prototype.hasOwnProperty.call(globals, 'window');
+  const previousWindow = globals.window;
+  globals.window = {};
+  let consentCalls = 0;
+  setConsentAsker(() => {
+    consentCalls++;
+    return Promise.resolve(false);
+  });
+
+  const nestedOnly = storedZip([
+    { name: 'manifest.json', data: manifestJson() },
+    { name: 'nested/main.js', data: bytes('module.exports = { onLoad() {} };') },
+  ]);
+  eq('20 een main die alleen via endsWith matcht wordt geweigerd',
+    await installFromZipBlob(nestedOnly), 'failed');
+  eq('20a endsWith-mismatch bereikt consent niet', consentCalls, 0);
+
+  const valid = storedZip([
+    { name: 'manifest.json', data: manifestJson() },
+    { name: 'main.js', data: bytes('module.exports = { onLoad() {} };') },
+  ]);
+  eq('21 catalogus-idmismatch wordt geweigerd',
+    await installFromZipBlob(valid, { id: 'andere-id', version: '1.2.3' }), 'failed');
+  eq('21a idmismatch bereikt consent niet', consentCalls, 0);
+  eq('22 catalogus-versiemismatch wordt geweigerd',
+    await installFromZipBlob(valid, { id: 'zip-demo', version: '9.9.9' }), 'failed');
+  eq('22a versiemismatch bereikt consent niet', consentCalls, 0);
+
+  eq('23 exacte identiteit en exact mainpad bereiken de bestaande consentpoort',
+    await installFromZipBlob(valid, { id: 'zip-demo', version: '1.2.3' }), 'declined');
+  eq('23a geldige ZIP vraagt precies eenmaal consent', consentCalls, 1);
+
+  const invalidManifest = storedZip([
+    { name: 'manifest.json', data: bytes('{ "id": }') },
+    { name: 'main.js', data: bytes('module.exports = { onLoad() {} };') },
+  ]);
+  eq('24 ongeldige manifest-JSON wordt geweigerd',
+    await installFromZipBlob(invalidManifest), 'failed');
+  eq('24a ongeldige JSON bereikt consent niet', consentCalls, 1);
+
+  const invalidField = storedZip([
+    { name: 'manifest.json', data: manifestJson({ id: 'Niet-Geldig' }) },
+    { name: 'main.js', data: bytes('module.exports = { onLoad() {} };') },
+  ]);
+  eq('25 ongeldig manifestveld wordt geweigerd',
+    await installFromZipBlob(invalidField), 'failed');
+  eq('25a ongeldig manifestveld bereikt consent niet', consentCalls, 1);
+
+  resetConsentAsker();
+  if (hadWindow) globals.window = previousWindow;
+  else delete globals.window;
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

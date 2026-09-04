@@ -28,10 +28,9 @@
 // en daarom `ensureFreshSchedule()` nodig heeft) raken deze vier tools alleen metadata: welke
 // baseline bestaat, hoe hij heet en welke actief is. Een stale planning maakt die antwoorden niet
 // onjuist, dus er wordt hier bewust niet herrekend.
-import { useAppStore } from '@/state/appStore';
 import type { AppState } from '@/state/appStore';
 import type { Baseline } from '@/types/baseline';
-import type { McpToolDef } from '../contracts';
+import type { McpContext, McpToolDef } from '../contracts';
 import type { BatchStepTool } from './batchTool';
 import { okDirect } from './helpers';
 import {
@@ -196,13 +195,13 @@ function activatePlan(s: AppState, p: ActivateArgs): { error: string } | { chang
   };
 }
 
-function activateCore(p: ActivateArgs): MutationOutcome {
-  const s = useAppStore.getState();
+function activateCore(ctx: McpContext, p: ActivateArgs): MutationOutcome {
+  const s = ctx.app.store.getState();
   const plan = activatePlan(s, p);
   if ('error' in plan) throw new McpStepError('VALIDATION', plan.error);
   // Ook binnen een batch: geen wijziging ⇒ geen store-aanroep (setActiveBaseline is dan zelf al een
   // no-op, maar we melden het expliciet i.p.v. te doen alsof er iets gebeurde).
-  if (plan.changed) useAppStore.getState().setActiveBaseline(p.baselineId);
+  if (plan.changed) ctx.app.store.getState().setActiveBaseline(p.baselineId);
   return { data: plan.data };
 }
 
@@ -229,10 +228,10 @@ const activateBaseline: BatchStepTool = {
     required: ['baselineId'],
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseActivate(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return activateCore(parsed);
+    return activateCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseActivate(args);
@@ -241,13 +240,13 @@ const activateBaseline: BatchStepTool = {
     const g = guardNonTransactional(ctx);
     if (g) return g;
 
-    const plan = activatePlan(useAppStore.getState(), parsed);
+    const plan = activatePlan(ctx.app.store.getState(), parsed);
     if ('error' in plan) return toolError(ctx, 'VALIDATION', plan.error);
     // No-op-snelpad (zelfde patroon als move_project met Δ=0): geen transactie, dus geen
     // undo-snapshot en geen gewiste redo-stack voor een AI-call die niets veranderde.
     if (!plan.changed) return okDirect(ctx, plan.data, []);
 
-    return await runMutateTool(ctx, 'mutate', (): MutationOutcome => activateCore(parsed));
+    return await runMutateTool(ctx, 'mutate', (): MutationOutcome => activateCore(ctx, parsed));
   },
 };
 
@@ -295,10 +294,10 @@ function renamePlan(s: AppState, p: RenameArgs): { error: string } | { changed: 
   };
 }
 
-function renameCore(p: RenameArgs): MutationOutcome {
-  const plan = renamePlan(useAppStore.getState(), p);
+function renameCore(ctx: McpContext, p: RenameArgs): MutationOutcome {
+  const plan = renamePlan(ctx.app.store.getState(), p);
   if ('error' in plan) throw new McpStepError('VALIDATION', plan.error);
-  if (plan.changed) useAppStore.getState().renameBaseline(p.baselineId, p.name);
+  if (plan.changed) ctx.app.store.getState().renameBaseline(p.baselineId, p.name);
   return { data: plan.data };
 }
 
@@ -321,10 +320,10 @@ const renameBaseline: BatchStepTool = {
     required: ['baselineId', 'name'],
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseRename(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return renameCore(parsed);
+    return renameCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseRename(args);
@@ -333,11 +332,11 @@ const renameBaseline: BatchStepTool = {
     const g = guardNonTransactional(ctx);
     if (g) return g;
 
-    const plan = renamePlan(useAppStore.getState(), parsed);
+    const plan = renamePlan(ctx.app.store.getState(), parsed);
     if ('error' in plan) return toolError(ctx, 'VALIDATION', plan.error);
     if (!plan.changed) return okDirect(ctx, plan.data, []);
 
-    return await runMutateTool(ctx, 'mutate', (): MutationOutcome => renameCore(parsed));
+    return await runMutateTool(ctx, 'mutate', (): MutationOutcome => renameCore(ctx, parsed));
   },
 };
 
@@ -371,8 +370,8 @@ function parseDelete(args: unknown): DeleteArgs | string {
   return { baselineId: a.baselineId };
 }
 
-function deleteCore(p: DeleteArgs): MutationOutcome {
-  const before = useAppStore.getState();
+function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
+  const before = ctx.app.store.getState();
   const target = findBaseline(before, p.baselineId);
   if (!target) {
     throw new McpStepError(
@@ -383,11 +382,11 @@ function deleteCore(p: DeleteArgs): MutationOutcome {
   const wasActive = before.activeBaselineId === p.baselineId;
   const previousActiveBaselineId = before.activeBaselineId;
 
-  useAppStore.getState().deleteBaseline(p.baselineId);
+  ctx.app.store.getState().deleteBaseline(p.baselineId);
 
   // NA-staat vers uit de store lezen: de terugval-regel woont in de slice, dus we RAPPORTEREN wat er
   // gebeurd is in plaats van hem hier na te rekenen (twee waarheden zouden gaan divergeren).
-  const after = useAppStore.getState();
+  const after = ctx.app.store.getState();
   if (findBaseline(after, p.baselineId)) {
     throw new McpStepError('INTERNAL', `baseline '${p.baselineId}' staat er na het verwijderen nog steeds`);
   }
@@ -442,16 +441,16 @@ const deleteBaseline: BatchStepTool = {
     required: ['baselineId'],
     additionalProperties: false,
   },
-  batchStep(args) {
+  batchStep(args, ctx) {
     const parsed = parseDelete(args);
     if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return deleteCore(parsed);
+    return deleteCore(ctx, parsed);
   },
   async handler(args, ctx) {
     const parsed = parseDelete(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     // Geen no-op-snelpad: een bekend id verwijdert altijd iets, een onbekend id is een fout.
-    return await runMutateTool(ctx, 'mutate', (): MutationOutcome => deleteCore(parsed));
+    return await runMutateTool(ctx, 'mutate', (): MutationOutcome => deleteCore(ctx, parsed));
   },
 };
 

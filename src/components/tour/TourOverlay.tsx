@@ -89,7 +89,7 @@ export function TourOverlay() {
   const stepIndex = useAppStore(s => s.ui.tourStepIndex);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const directionRef = useRef<'forward' | 'backward'>('forward');
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardNode, setCardNode] = useState<HTMLDivElement | null>(null);
   // Werkelijke kaartafmetingen (fix-golf, QA-item 2 — zie `computeCardPosition` hierboven voor de
   // root-cause). De breedte staat vast op CARD_WIDTH; de hoogte is contentafhankelijk (varieert per
   // stap én per taal/RTL) en wordt dus na elke render echt gemeten i.p.v. geraden.
@@ -129,8 +129,7 @@ export function TourOverlay() {
         showPropertiesPanel: ui.showPropertiesPanel,
       },
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setUI]);
 
   // Opruiming (spec §6, fix-golf item 6): elke sluitroute (Overslaan/Sluiten/Escape/auto-skip)
   // zet de door de tour aangeraakte UI-velden terug naar de stand van vóór tour-start (het
@@ -180,8 +179,7 @@ export function TourOverlay() {
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIndex]);
+  }, [step, stepIndex, finish, goTo]);
 
   // Herpositioneren bij window-resize (bv. presentatie-fullscreen togglen tijdens de tour), plus
   // de expliciete viewport-tracking hierboven (dekt ook resizes die het anker zelf niet raken).
@@ -196,17 +194,22 @@ export function TourOverlay() {
     return () => window.removeEventListener('resize', reposition);
   }, [step]);
 
-  // Kaart-hoogte écht meten na elke render (i.p.v. gokken) — dit is wat de root-cause-fix
-  // mogelijk maakt: `computeCardPosition` kan pas correct klemmen als het de werkelijke hoogte
-  // kent. Geen oneindige lus: de vergelijking hieronder zorgt dat `setCardSize` alleen vuurt als
-  // de gemeten afmeting daadwerkelijk verandert (nieuwe stap/taal ⇒ andere content ⇒ andere
-  // hoogte), dus het convergeert na hoogstens één extra render per stap.
+  // Meet één keer direct en blijf daarna uitsluitend op echte afmetingswijzigingen reageren.
+  // Taal- en stapinhoud kunnen de kaarthoogte wijzigen zonder dat een window-resize plaatsvindt;
+  // ResizeObserver is precies de eigenaarsgrens daarvoor en wordt bij unmount netjes losgekoppeld.
   useLayoutEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    setCardSize(prev => (prev.width === width && prev.height === height ? prev : { width, height }));
-  });
+    if (!cardNode) return;
+    const measure = () => {
+      const { width, height } = cardNode.getBoundingClientRect();
+      setCardSize(prev => (
+        prev.width === width && prev.height === height ? prev : { width, height }
+      ));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(cardNode);
+    return () => observer.disconnect();
+  }, [cardNode]);
 
   if (!step || !rect) return null;
 
@@ -262,7 +265,7 @@ export function TourOverlay() {
           een geldige, volledig-zichtbare plek, dus geen aparte `placeBelow`-tak/`bottom`-CSS meer
           nodig zoals in de oude (bugfixte) versie. */}
       <div
-        ref={cardRef}
+        ref={setCardNode}
         data-ops-tour-card
         className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] flex flex-col gap-3 p-4 text-sm"
         style={{

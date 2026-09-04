@@ -112,11 +112,11 @@ function labelsOf(loc: string): NonNullable<PrintOptions['labels']> {
     noTasks: j.noTasks, printed: j.printed,
     legend: j.legend,
     tableHeaders: { rowNum: '#', ...j.tableHeaders },
-    page: j.page, of: j.of, today: j.today,
+    page: j.page, of: j.of, today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
   };
 }
 
-function optionsFor(loc: string, paper: 'A4' | 'A3' | 'A1', scale: number): PrintOptions {
+function optionsFor(loc: string, paper: 'A4' | 'A3' | 'A2' | 'A1', scale: number): PrintOptions {
   return {
     showCritical: true, showFloat: false, showDeps: false, showWeekends: true,
     showLegend: true, showTaskNames: true, showCompletion: false,
@@ -129,7 +129,7 @@ function optionsFor(loc: string, paper: 'A4' | 'A3' | 'A1', scale: number): Prin
 console.log('-- vandaag-label: zichtbaarheid, botsing en begrenzing --');
 
 for (const loc of Object.keys(LOCALES)) {
-  for (const paper of ['A4', 'A3', 'A1'] as const) {
+  for (const paper of ['A4', 'A3', 'A2', 'A1'] as const) {
     for (const scale of [90, 100, 125]) {
       // Korte spanne ⇒ hoge zoom ⇒ de dagcijfers wórden getekend; dat is het botsingsgeval.
       const { texts, rects, dims } = record([task('t1', -3, 3)], calendar, optionsFor(loc, paper, scale));
@@ -171,7 +171,7 @@ for (const loc of Object.keys(LOCALES)) {
     }
   }
 }
-console.log(`   ${Object.keys(LOCALES).length} talen × 3 papierformaten × 3 lettergroottes gecontroleerd`);
+console.log(`   ${Object.keys(LOCALES).length} talen × 4 papierformaten × 3 lettergroottes gecontroleerd`);
 
 // ── 2. Klemmen aan de randen: vandaag ver links resp. ver rechts van het venster ────────────────
 console.log('-- vandaag-label: klemmen aan de chartranden --');

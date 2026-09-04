@@ -55,7 +55,7 @@ What a hammock does do: it shows, as a kind of overarching bar, the full span of
 
 ## External links between projects
 
-Large projects sometimes consist of several separately managed sub-schedules — for example your own master schedule and a site works package another contractor manages. An **external link** (the **External (cross-project) link** window, opened via the button on the **Relations** tab) records a relation to a task in such another file, without having to open that file as a document.
+Large projects sometimes consist of several separately managed sub-schedules — for example your own master schedule and a site works package another contractor manages. An **external link** records a relation to a task in such another file without opening that file as a document. Select one task and choose **Relation → Add external relation** on the **Start**, **Planning**, or **Table** ribbon tab to open the **External (cross-project) link** window.
 
 You pick a **Source file** from your recent files (that's read in read-only, never opened as a document) or fill in **Manual** with a project id, task id and anchor date if you don't have the source file at hand. Then you choose **Direction** (predecessor or successor), **Relationship type** (FS/SS/FF/SF) and a **Lag**. The **Anchor date** — the source task's date at the moment you linked it — is frozen in your own file; that date doesn't automatically follow if the source project changes.
 
@@ -65,7 +65,7 @@ The large showcase deliberately demonstrates exactly that last path: the task "B
 
 ## Tracing a path
 
-Want to see exactly which tasks affect a given task upstream and downstream? Right-click the task and choose **Trace path** (or **Stop tracing** to turn it off again) — that highlights the entire chain of predecessors and successors in one go. For more targeted work, the ribbon (**Planning** or **Relations** tab, **Path tracing** ribbon group) has a separate pair of buttons **Predecessors**/**Successors**: both off shows nothing, one on shows that one direction, both on is the same as the context-menu command. The trace also distinguishes between all logically connected tasks and the tasks that are actually **driving** the date (the same "Driving" relation shown in the relations table) — so you see not just what's connected, but what's actually steering.
+Want to see exactly which tasks affect a given task upstream and downstream? Right-click the task and choose **Trace path** (or **Stop tracing** to turn it off again) — that highlights the entire chain of predecessors and successors in one go. For more targeted work, the ribbon (**Planning** or **Table** tab, **Path tracing** ribbon group) has a separate pair of buttons **Predecessors**/**Successors**: both off shows nothing, one on shows that one direction, both on is the same as the context-menu command. The trace also distinguishes between all logically connected tasks and the tasks that are actually **driving** the date (the same driving marker shown in the predecessor/successor cells) — so you see not just what's connected, but what's actually steering.
 
 ## Calculation settings
 

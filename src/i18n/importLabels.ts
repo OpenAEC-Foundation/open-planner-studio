@@ -22,7 +22,6 @@ import type { ImportLabels } from '@/services/importTypes';
  * `t` een aanroeper meegeeft. `any` is hier de gebruikelijke overloop-uitweg (geen `strict`-
  * schending: expliciete `any`, geen impliciete).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ImportLabelT = (key: any) => string;
 
 /** Bouwt `ImportLabels` uit de `project.imported`/`project.unassignedResource`-sleutels van de

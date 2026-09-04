@@ -17,8 +17,10 @@
   "showLegend": "Legenda",
   "showTaskNames": "Nomi attività sulle barre",
   "showCompletion": "Mostra avanzamento",
+  "showBaselineOverlay": "Mostra sovrapposizione baseline",
   "autoFit": "Adatta automaticamente alla pagina",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Qualità anteprima", "standard": "Standard", "high": "Alta", "maximum": "Massima" },
   "repeatHeader": "Ripeti intestazione su ogni pagina",
   "reportFontScaleLabel": "Dimensione carattere:",
   "timelineColumnsLabel": "Cronologia su:",
@@ -42,11 +44,15 @@
   "legend": {
     "criticalPath": "Percorso critico",
     "normal": "Normale",
+    "baseline": "Baseline",
     "milestone": "Traguardo",
     "summary": "Riepilogo",
     "float": "Margine",
     "completion": "Avanzamento",
-    "relationStyle": "Determinante / non determinante"
+    "relationStyle": "Determinante / non determinante",
+    "categoriesMore_one": "… e {{count}} altra categoria",
+    "categoriesMore_many": "… e {{count}} altre categorie",
+    "categoriesMore_other": "… e {{count}} altre categorie"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -104,5 +110,19 @@
     "total": "Attività cardine",
     "mandatoryCount": "Obbligatorie",
     "lateCount": "In ritardo"
-  }
+  },
+  "barColorModeLabel": "Colori barre:",
+  "barColorMode_critical": "Percorso critico",
+  "barColorMode_auto": "Per attività — automatico",
+  "barColorMode_category": "Per categoria",
+  "barColorFieldLabel": "Campo categoria",
+  "barColorMissingField": "Questo campo non esiste nel progetto. Viene usato temporaneamente il tipo di attività.",
+  "statusLineLabel": "Linea di stato:",
+  "statusLine_none": "Nessuna",
+  "statusLine_statusDate": "Linea data di stato",
+  "statusLine_progress": "Linea di avanzamento",
+  "statusLineHint": "Imposta prima una data di stato",
+  "followView": "Segui vista (filtro, raggruppamento, ordine)",
+  "statusDateLabel": "Data di stato",
+  "progressDateLabel": "Data di avanzamento"
 }

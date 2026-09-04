@@ -12,7 +12,7 @@
 //   H1  de leeskant geeft `FS`/`SS`/`FF`/`SF`; de schrijfkant eiste FINISH_START.
 //   H2  de leeskant geeft lag als string (`"+2d"`, `"+50%"`); de schrijfkant eiste een number.
 //   L3  move_task gooide een niet-numerieke `position` stil weg.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 
@@ -23,13 +23,9 @@ function reset(): void {
 }
 
 function makeCtx(): McpContext {
-  return {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  });
 }
 
 async function call(name: string, args: unknown): Promise<McpToolResult> {
@@ -227,7 +223,7 @@ test('H1: een écht onbekend type blijft geweigerd, mét de geldige verzameling 
 test('K5: undo op een LEGE stack ⇒ ok maar `undone: false` + reden', async () => {
   reset();
   // newProject zet een verse store neer; leeg de stacks expliciet zodat de precondities hard staan.
-  store.setState((s) => { s.undoStack = []; s.redoStack = []; });
+  store.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; });
   const res = await call('planner_undo', {});
   const data = okData(res);
   assertEq(data.undone, false, 'niets teruggedraaid');
@@ -237,7 +233,7 @@ test('K5: undo op een LEGE stack ⇒ ok maar `undone: false` + reden', async () 
 
 test('K5: redo op een LEGE stack ⇒ ok maar `redone: false`', async () => {
   reset();
-  store.setState((s) => { s.undoStack = []; s.redoStack = []; });
+  store.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; });
   const data = okData(await call('planner_redo', {}));
   assertEq(data.redone, false, 'niets opnieuw uitgevoerd');
   assertEq(data.redoDepth, 0, 'redoDepth 0');
@@ -245,7 +241,7 @@ test('K5: redo op een LEGE stack ⇒ ok maar `redone: false`', async () => {
 
 test('K5: drie undo\'s op één mutatie ⇒ true, false, false (was: 3× identiek ok)', async () => {
   reset();
-  store.setState((s) => { s.undoStack = []; s.redoStack = []; });
+  store.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; });
   await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-u', name: 'undo-doel' }] });
   assertEq(store.getState().tasks.length, 1, 'één taak aangemaakt');
 
@@ -258,7 +254,7 @@ test('K5: drie undo\'s op één mutatie ⇒ true, false, false (was: 3× identie
 
 test('K5: undo rapporteert de resterende stackdiepte van BEIDE stacks', async () => {
   reset();
-  store.setState((s) => { s.undoStack = []; s.redoStack = []; });
+  store.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; });
   await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-d1', name: 'd1' }] });
   await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-d2', name: 'd2' }] });
   const data = okData(await call('planner_undo', {}));

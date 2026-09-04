@@ -21,12 +21,10 @@
 // spraken uitsluitend van "werkdagen" zonder dat onderscheid — zie `duration.ts`'s
 // `elapsedMinutesOf` voor de bron van waarheid). `TaskTime.durationMinutes`
 // (uur-modus, fase 2.8b) is via de bridge NIET zetbaar; wél wordt hij bij elke duur-wijziging
-// GEWIST — precies zoals de dag-tak van `TaskDialog.handleSave` (`time.scheduleDuration = durDays;
-// delete time.durationMinutes`). Dat is geen detail maar een correctheidseis: op een uur-kalender is
-// `durationMinutes` de BRON VAN WAARHEID (`durationDaysOf`), dus een achtergebleven minutenwaarde
-// zou de zojuist gezette dag-duur stil overrulen — exact de no-op-klasse die dit bestand uitroeit.
-// Netto is er geen semantisch verschil met "meeherleiden": ná het wissen leidt de engine
-// `scheduleDuration × hoursPerDay × 60` af, oftewel dezelfde duur.
+// GEWIST — precies zoals de dag-tak van de gedeelde duurbediening (`time.scheduleDuration = durDays;
+// time.durationMinutes = undefined`). Dat is geen detail maar de éne-bron-invariant: deze bridge
+// zet expliciet `durationUnit: 'days'`, waarna uitsluitend `scheduleDuration` invoerbron mag zijn.
+// Een achtergebleven minutenwaarde zou een tweede, concurrerende bron vormen.
 
 import type {
   ConstraintType,
@@ -37,12 +35,16 @@ import type {
   TaskType,
 } from '@/types/task';
 import { TASK_TYPES } from '@/types/task';
+import type { CustomTaskType } from '@/types/taskType';
 
 // --- Patch-vorm ----------------------------------------------------------------------------------
 
 /** Veld-voor-veld-patch op `task.time`. NOOIT een hele `TaskTime` — alleen losse sleutels. */
 export interface TaskTimePatch {
   scheduleDuration?: number;
+  durationUnit?: 'days' | 'hours';
+  /** Exacte minutenbron wanneer `durationUnit === 'hours'`. */
+  durationMinutes?: number;
   durationType?: DurationType;
   /** true ⇒ `durationMinutes` VERWIJDEREN (dag-modus-schrijfregel, zie de kop). */
   clearDurationMinutes?: boolean;
@@ -52,6 +54,7 @@ export interface TaskTimePatch {
 export interface TaskFieldPatch {
   top: Partial<Task>;
   time?: TaskTimePatch;
+  customTaskType?: CustomTaskType;
 }
 
 /** Wat de validator over de DOELTAAK moet weten (bij aanmaak: een verse, lege taak). */
@@ -64,6 +67,9 @@ export interface TaskFieldContext {
   hasAssignments: boolean;
   /** Bestaat deze kalender-id in de bibliotheek? */
   calendarExists: (id: string) => boolean;
+  customTaskTypes: readonly CustomTaskType[];
+  /** Effectieve kalender na een eventueel gelijktijdig `calendarId`-veld. */
+  durationCalendar: (calendarId: string | null | undefined) => { hoursPerDay: number; hasWorkBlocks: boolean };
 }
 
 const DURATION_TYPES: DurationType[] = ['WORKTIME', 'ELAPSEDTIME'];
@@ -100,8 +106,10 @@ export const TASK_FIELD_NAMES = [
   'name',
   'description',
   'duration',
+  'durationUnit',
   'durationType',
   'taskType',
+  'customTaskType',
   'isMilestone',
   'milestoneKind',
   'mandatory',
@@ -115,7 +123,7 @@ export const TASK_FIELD_NAMES = [
 const REJECT_HINTS: Record<string, string> = {
   time: 'zet de duur met `duration` (hele dagen — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME) en het duurtype met `durationType` — de `time`-tak zelf is niet zetbaar (dat zou CPM-datums, floats en actuals wissen)',
   scheduleDuration: 'gebruik `duration` (hele dagen — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME)',
-  durationMinutes: 'sub-dag-duur (uren) is via de bridge niet zetbaar; `duration` is in hele dagen (werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME)',
+  durationMinutes: 'gebruik `duration` met `durationUnit: "hours"`; de bridge berekent en bewaart de exacte minutenbron zelf',
   status: 'gebruik `progress` (voortgangspad), niet `fields.status`',
   completion: 'gebruik `progress.completion` (0–100)',
   actualStart: 'gebruik `progress.actualStart`',
@@ -231,6 +239,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
 
   const top: Partial<Task> = {};
   const time: TaskTimePatch = {};
+  let customTaskType: CustomTaskType | undefined;
 
   // Effectieve mijlpaal-status: wat er ná deze patch geldt (de duur-0-invariant hangt daaraan).
   const effMilestone = 'isMilestone' in raw ? raw.isMilestone === true : ctx.currentIsMilestone;
@@ -246,13 +255,33 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   if ('duration' in raw) {
     const d = raw.duration;
     if (typeof d !== 'number' || !Number.isFinite(d) || d < 0) {
-      return { ok: false, reason: '`duration` moet een eindig getal ≥ 0 zijn (hele dagen — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME)' };
+      return { ok: false, reason: '`duration` moet een eindig getal ≥ 0 zijn in de eenheid van `durationUnit`' };
     }
     if (effMilestone && d > 0) {
       return { ok: false, reason: `een mijlpaal heeft per definitie duur 0; \`duration\`=${d} is niet toegestaan` };
     }
-    time.scheduleDuration = d;
-    time.clearDurationMinutes = true;
+    const unit = raw.durationUnit ?? 'days';
+    if (unit !== 'days' && unit !== 'hours') {
+      return { ok: false, reason: '`durationUnit` moet `days` of `hours` zijn' };
+    }
+    if (unit === 'hours') {
+      const cal = ctx.durationCalendar(
+        typeof raw.calendarId === 'string' || raw.calendarId === null ? raw.calendarId : undefined,
+      );
+      if (!cal.hasWorkBlocks) {
+        return { ok: false, reason: 'een urentaak vereist een taakkalender met concrete werkblokken' };
+      }
+      const minutes = Math.round(d * 60);
+      time.durationUnit = 'hours';
+      time.durationMinutes = minutes;
+      time.scheduleDuration = cal.hoursPerDay > 0 ? minutes / (cal.hoursPerDay * 60) : 0;
+    } else {
+      time.scheduleDuration = d;
+      time.durationUnit = 'days';
+      time.clearDurationMinutes = true;
+    }
+  } else if ('durationUnit' in raw) {
+    return { ok: false, reason: '`durationUnit` moet samen met `duration` worden opgegeven; de bridge herinterpreteert geen bestaand getal' };
   }
   if ('durationType' in raw) {
     if (typeof raw.durationType !== 'string' || !(DURATION_TYPES as string[]).includes(raw.durationType)) {
@@ -265,6 +294,30 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       return { ok: false, reason: `\`taskType\` moet één van ${TASK_TYPES.join(' | ')} zijn` };
     }
     top.taskType = raw.taskType as TaskType;
+    if (raw.taskType !== 'USERDEFINED') top.customTaskTypeId = undefined;
+  }
+  if ('customTaskType' in raw) {
+    const value = raw.customTaskType;
+    if (!isPlainObject(value) || typeof value.id !== 'string' || typeof value.name !== 'string'
+      || value.id.trim() === '' || value.name.trim() === '') {
+      return { ok: false, reason: '`customTaskType` moet { id, name } met niet-lege strings zijn' };
+    }
+    if ('taskType' in raw && raw.taskType !== 'USERDEFINED') {
+      return { ok: false, reason: '`customTaskType` vereist taskType USERDEFINED (of laat taskType weg)' };
+    }
+    const candidate = { id: value.id.trim(), name: value.name.trim() };
+    const existing = ctx.customTaskTypes.find(type => type.id === candidate.id);
+    if (existing && existing.name !== candidate.name) {
+      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${existing.name}'` };
+    }
+    const sameName = ctx.customTaskTypes.find(type => type.id !== candidate.id
+      && type.name.localeCompare(candidate.name, undefined, { sensitivity: 'accent' }) === 0);
+    if (sameName) {
+      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameName.id}'` };
+    }
+    customTaskType = candidate;
+    top.taskType = 'USERDEFINED';
+    top.customTaskTypeId = candidate.id;
   }
   if ('isMilestone' in raw) {
     if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` moet een boolean zijn' };
@@ -273,6 +326,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       if (ctx.hasAssignments) return { ok: false, reason: 'een taak met resource-toewijzingen kan geen mijlpaal worden; verwijder eerst de toewijzingen' };
       // Mijlpaal ⇒ duur 0 (en géén achtergebleven minutenduur), spiegelt TaskDialog/TaskMilestoneFields.
       time.scheduleDuration = 0;
+      time.durationUnit = 'days';
       time.clearDurationMinutes = true;
     }
     top.isMilestone = raw.isMilestone;
@@ -316,7 +370,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   }
 
   const hasTime = Object.keys(time).length > 0;
-  return { ok: true, patch: { top, ...(hasTime ? { time } : {}) } };
+  return { ok: true, patch: { top, ...(hasTime ? { time } : {}), ...(customTaskType ? { customTaskType } : {}) } };
 }
 
 // --- Voortgangs-allowlist (`update_tasks.progress`) ----------------------------------------------
@@ -422,12 +476,22 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     type: 'number',
     minimum: 0,
     description:
-      'Duur in HELE WERKDAGEN (mapt op time.scheduleDuration). Mijlpaal ⇒ moet 0 zijn. Sub-dag-duur ' +
-      '(uren/minuten) is via de bridge niet zetbaar: een duur-wijziging wist een eventuele minutenduur, ' +
-      'net als het dagen-veld in de app.',
+      'Native taakduur in de eenheid van `durationUnit` (standaard days voor achterwaartse ' +
+      'compatibiliteit). Mijlpaal ⇒ moet 0 zijn.',
+  },
+  durationUnit: {
+    type: 'string',
+    enum: ['days', 'hours'],
+    description: 'Blijvende taakeenheid. Altijd samen met `duration` opgeven; hours vereist concrete werkblokken.',
   },
   durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = werkdagen (default), ELAPSEDTIME = doorlooptijd.' },
   taskType: { type: 'string', enum: TASK_TYPES },
+  customTaskType: {
+    type: 'object',
+    description: 'OPS-customtype met stabiele id en projectsnapshot-naam; zet taskType op USERDEFINED. Een bestaand id kan niet van naam veranderen.',
+    properties: { id: { type: 'string' }, name: { type: 'string' } },
+    required: ['id', 'name'], additionalProperties: false,
+  },
   isMilestone: {
     type: 'boolean',
     description:
@@ -455,8 +519,8 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
 /** Eén regel voor in tool-beschrijvingen: welke velden er zijn en dat de rest hard weigert. */
 export const TASK_FIELDS_DOC =
   `Toegestane velden: ${TASK_FIELD_NAMES.join(', ')}. Elke andere sleutel wordt GEWEIGERD met een ` +
-  'reden (nooit stil genegeerd) en laat het hele item ongewijzigd. `duration` is in hele dagen ' +
-  '(werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME) en mapt op de interne ' +
-  '`time.scheduleDuration`; de `time`-tak zelf, `status`, `parentId` en ' +
+  'reden (nooit stil genegeerd) en laat het hele item ongewijzigd. `duration` volgt ' +
+  '`durationUnit` (`days` of `hours`; zonder eenheid blijft de achterwaarts compatibele dagregel). ' +
+  'Geef beide samen om de eenheid bewust te wijzigen; de `time`-tak zelf, `status`, `parentId` en ' +
   '`resourceIds` zijn hier bewust niet zetbaar (gebruik `progress`, planner_move_task resp. ' +
   'planner_manage_assignments).';

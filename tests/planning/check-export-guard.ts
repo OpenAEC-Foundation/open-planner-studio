@@ -2,10 +2,9 @@
 //
 // Waarom deze batterij bestaat: exports schrijven `task.time.earlyStart` — de CPM-uitvoer — naar
 // derden die datums contractueel lezen. `autoCalcCPM` staat standaard UIT, dus zonder guard ging
-// een verouderde planning het bestand in. De subtiele helft is de cyclus: `runCPM` zet
-// `scheduleStale` op zijn EERSTE regel op false en breekt daarna af op `result.error`, dus na een
-// cyclus is de vlag schoon terwijl `task.time` nog de oude waarden draagt. Een guard die alleen
-// op `scheduleStale` kijkt exporteert dan stilzwijgend verkeerde datums.
+// een verouderde planning het bestand in. Bij een cyclus houdt `runCPM` de planning nu expliciet
+// verouderd: `task.time` bevat immers nog de oude waarden. De foutcontrole blijft daarnaast een
+// noodzakelijke tweede vangrail voor een directe, duidelijke exportfout.
 //
 // `exportAs` breekt bij een cyclus af VÓÓR de eerste await (en dus vóór `saveFileDialog`), zodat
 // dit pad headless te draaien is zonder bestandsdialoog.
@@ -62,9 +61,8 @@ S().addSequence({ predecessorId: c1, successorId: c2, type: 'FINISH_START', lagD
 S().addSequence({ predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
 S().runCPM();
 truthy('6 opzet: de solver meldt een cyclus', !!S().cpmResult?.error);
-// Dit is de kern: na de cyclus is scheduleStale SCHOON, dus een guard op alleen die vlag
-// zou hier gewoon doorlopen.
-eq('7 scheduleStale is na de cyclus false (waarom de tweede check nodig is)', S().scheduleStale, false);
+// De mislukte solve houdt de planning verouderd: geen oude datums als actuele uitkomst tonen.
+eq('7 scheduleStale blijft na de cyclus true', S().scheduleStale, true);
 
 // Bewust met try/catch: ZONDER de guard loopt `exportAs` door naar `saveFileDialog`, en die
 // klapt headless op `window is not defined`. Dat is precies de regressie die we willen zien —

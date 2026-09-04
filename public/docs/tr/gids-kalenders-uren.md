@@ -47,7 +47,7 @@ Pratikte 4 günlük bir kaynak takvimini görün: [Nieuwbouw 6 Rijwoningen De Ak
 
 Varsayılan olarak, Open Planner Studio tamamen **gün ayrıntı düzeyinde** çalışır — her görevin tam (iş) gün cinsinden bir süresi vardır. Saat cinsinden planlamayı tercih ettiğiniz görevler için (7:00'de başlayan ve hava dönmeden çok önce 14:00'e kadar bitmesi gereken bir döküm düşünün), isteğe bağlı **Saat planlaması** vardır.
 
-Ana anahtarı **Ayarlar → Zaman çizelgesi / Yakınlaştırma → Saat planlamasını etkinleştir** üzerinden açın. Bu, bir saat zaman ölçeği, çalışma-saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları ekler; anahtar kapalıyken, uygulama tamamen önceki gibi, gün ayrıntı düzeyinde çalışır. Aynı projede hem gün bazlı hem de saat bazlı görevleri birleştirmek istiyorsanız açacağınız bir **Karma gün/saat planlamasına izin ver** seçeneği de vardır (aşağıya bakın).
+Ana anahtarı **Ayarlar → Zaman çizelgesi / Yakınlaştırma → Saat planlamasını etkinleştir** üzerinden açın. Bu, saat ölçeğini ve çalışma saati bantlarını ekler; anahtar kapalıyken yeni görevler günle başlar ve mevcut saat değerleri korunur.
 
 ## Çalışma-saati bantları ve vardiyalar
 
@@ -71,7 +71,7 @@ Pratikte döküm görevleri tam olarak böyle planlanır: 6 saat gibi bir sürey
 
 ## Gün bazlı ve saat bazlı görevleri karıştırma
 
-Saat planlamasından yararlanmak için bir projenin tamamen saat üzerinde çalışması gerekmez: **Karma gün/saat planlamasına izin ver** işaretliyken, gün bazlı görevler (normal proje takviminde) ve saat bazlı görevler (bir saat takviminde) aynı planda bir arada var olabilir ve birbiriyle ilişkilendirilebilir. Bu durumda görev tablosu her görevin süresini kendi biriminde gösterir — bir gün görevini gün cinsinden, bir saat görevini saat cinsinden — ve farklı saat/gün oranına sahip görevler yan yana çalıştığında tablonun altında uyarır, böylece hangi karşılaştırmaların elma-elma ve hangilerinin öyle olmadığı net kalır.
+Bir projenin tamamen saat üzerinde çalışması gerekmez: saat planlaması açıkken gün ve saat görevleri aynı planda birlikte bulunabilir ve ilişkilendirilebilir. Birim göreve aittir ve takvimden türetilmez.
 
 ## Okumaya devam edin
 

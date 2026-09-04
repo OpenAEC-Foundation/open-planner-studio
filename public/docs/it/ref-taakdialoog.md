@@ -36,8 +36,7 @@ Una checklist per attività: ogni riga ha una **casella di spunta fatto**, una c
 ## Tempo
 
 - **Data di inizio** — mostra l'inizio anticipato calcolato; una modifica manuale ancora la nuova data come inizio pianificato.
-- **Durata (giorni lavorativi)** — giorni lavorativi interi; disabilitata per un traguardo.
-- Con la **pianificazione oraria attivata** e un calendario orario sull'attività, compaiono tre caselle sincronizzate: **Giorni**, **Ore** e **Ore totali** (solo numeri interi). Senza un calendario orario compare un suggerimento: "L'inserimento in ore richiede un calendario orario (orari di lavoro)." Vedi [Calendari e pianificazione oraria](docs://gids-kalenders-uren).
+- La finestra e il pannello proprietà usano lo stesso controllo **Durata [valore] [Giorni | Ore]**. Digita `2d`, `12h` o l'alias `12u`. Le ore richiedono fasce di lavoro concrete; senza di esse l'attività non cambia. Vedi [Calendari e pianificazione oraria](docs://gids-kalenders-uren).
 
 ## Hammock (durata derivata)
 

@@ -1,7 +1,9 @@
 import type {
-  InstalledExtension,
+  ReadyExtension,
+  QuarantinedExtension,
   ExtensionStatus,
   CatalogEntry,
+  CatalogIssue,
   RibbonButtonRegistration,
   ImporterDefinition,
 } from '@/extensions/types';
@@ -28,18 +30,23 @@ export interface ExtensionImporter extends ImporterDefinition {
 
 export interface ExtensionSlice {
   // State
-  installedExtensions: Record<string, InstalledExtension>;
+  installedExtensions: Record<string, ReadyExtension>;
+  quarantinedExtensions: Record<string, QuarantinedExtension>;
   extensionRibbonButtons: ExtensionRibbonButton[];
   extensionImporters: ExtensionImporter[];
   catalogEntries: CatalogEntry[];
+  catalogIssues: CatalogIssue[];
   catalogLoading: boolean;
   catalogError: string | null;
   catalogLastFetched: number | null;
 
   // Extensie-CRUD
-  registerExtension: (ext: InstalledExtension) => void;
+  registerReadyExtension: (ext: ReadyExtension) => void;
+  registerQuarantinedExtension: (ext: QuarantinedExtension) => void;
+  removeQuarantinedExtension: (quarantineId: string) => void;
   unregisterExtension: (id: string) => void;
   setExtensionStatus: (id: string, status: ExtensionStatus, error?: string) => void;
+  setExtensionPersistenceError: (id: string, error: string) => void;
 
   // Ribbon-knoppen
   addExtensionRibbonButton: (btn: ExtensionRibbonButton) => void;
@@ -53,23 +60,43 @@ export interface ExtensionSlice {
   removeAllExtensionUI: (extensionId: string) => void;
 
   // Catalogus
-  setCatalog: (entries: CatalogEntry[], fetchedAt: number) => void;
+  setCatalog: (entries: CatalogEntry[], issues: CatalogIssue[], fetchedAt: number) => void;
   setCatalogLoading: (loading: boolean) => void;
   setCatalogError: (error: string | null) => void;
 }
 
 export const createExtensionSlice: AppSlice<ExtensionSlice> = (set) => ({
   installedExtensions: {},
+  quarantinedExtensions: {},
   extensionRibbonButtons: [],
   extensionImporters: [],
   catalogEntries: [],
+  catalogIssues: [],
   catalogLoading: false,
   catalogError: null,
   catalogLastFetched: null,
 
-  registerExtension: (ext) =>
+  registerReadyExtension: (ext) =>
     set((s) => {
       s.installedExtensions[ext.id] = ext;
+      // Een valide opgeslagen extensie heeft door `parseStoredExtension` altijd exact dezelfde
+      // string als record-id, manifest-id en IndexedDB-sleutel. Ready en quarantaine zijn voor die
+      // ene fysieke sleutel wederzijds uitsluitend: laat een oude quarantainekaart staan en haar
+      // verwijderactie wist na reparatie juist het nieuwe geldige record. Doe beide wijzigingen in
+      // één store-update, zodat de UI nooit een tussenstaat met twee kaarten kan observeren.
+      for (const [quarantineId, quarantined] of Object.entries(s.quarantinedExtensions)) {
+        if (quarantined.storageKey === ext.id) delete s.quarantinedExtensions[quarantineId];
+      }
+    }),
+
+  registerQuarantinedExtension: (ext) =>
+    set((s) => {
+      s.quarantinedExtensions[ext.quarantineId] = ext;
+    }),
+
+  removeQuarantinedExtension: (quarantineId) =>
+    set((s) => {
+      delete s.quarantinedExtensions[quarantineId];
     }),
 
   unregisterExtension: (id) =>
@@ -91,6 +118,12 @@ export const createExtensionSlice: AppSlice<ExtensionSlice> = (set) => ({
         ext.status = status;
         ext.error = error;
       }
+    }),
+
+  setExtensionPersistenceError: (id, error) =>
+    set((s) => {
+      const ext = s.installedExtensions[id];
+      if (ext) ext.error = error;
     }),
 
   addExtensionRibbonButton: (btn) =>
@@ -133,9 +166,10 @@ export const createExtensionSlice: AppSlice<ExtensionSlice> = (set) => ({
       );
     }),
 
-  setCatalog: (entries, fetchedAt) =>
+  setCatalog: (entries, issues, fetchedAt) =>
     set((s) => {
       s.catalogEntries = entries;
+      s.catalogIssues = issues;
       s.catalogLastFetched = fetchedAt;
       s.catalogError = null;
     }),

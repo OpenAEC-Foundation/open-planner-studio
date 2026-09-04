@@ -102,7 +102,7 @@ const SCROLL_X = 0;
 const axis = buildWorkdayAxis({
   calendar: engine,
   origin: MON06,
-  taskTableWidth: TABLE_WIDTH,
+  chartOriginX: TABLE_WIDTH,
   zoom: ZOOM,
   scrollX: SCROLL_X,
   initialPaddingDays: 5, // klein venster — dwingt lazy-groei af voor de verre queries hieronder
@@ -178,7 +178,7 @@ close('xToDate∘dateToX(do09 12:00) inverteert', axis.xToDate(xAtNoon).getTime(
 
 // ═══ 6. Gedrag vóór de origin/epoch (§9.3/§9.5) ═══════════════════════════════════════════════
 {
-  const axis6 = buildWorkdayAxis({ calendar: engine, origin: MON06, taskTableWidth: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X, initialPaddingDays: 5 });
+  const axis6 = buildWorkdayAxis({ calendar: engine, origin: MON06, chartOriginX: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X, initialPaddingDays: 5 });
   // Een datum ruim vóór `origin` blijft consistent met de referentie-oracle (kleinere, nog steeds
   // correcte epoch-relatieve index — geen speciaal geval nodig, alleen ver "naar links" op de as).
   const beforeOrigin = d('2026-06-01'); // ma06 juli minus ~5 weken
@@ -196,7 +196,7 @@ close('xToDate∘dateToX(do09 12:00) inverteert', axis.xToDate(xAtNoon).getTime(
 
 // ═══ 7. Lazy-groei: query ver voorbij het initiële venster (±5 dagen) ═════════════════════════
 {
-  const axis7 = buildWorkdayAxis({ calendar: engine, origin: MON06, taskTableWidth: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X, initialPaddingDays: 5 });
+  const axis7 = buildWorkdayAxis({ calendar: engine, origin: MON06, chartOriginX: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X, initialPaddingDays: 5 });
   // De "Bouwvak"-feestdag (2027-08-02..08) ligt ~13 maanden na `origin` — ver buiten het initiële
   // venster, dwingt dus `ensureContainsDay`/`dayAtWorkdayIndex` te groeien (GROWTH_CHUNK_DAYS=400).
   const bouwvakStart = d('2027-08-02');
@@ -223,7 +223,7 @@ close('xToDate∘dateToX(do09 12:00) inverteert', axis.xToDate(xAtNoon).getTime(
 //        Dagindex ~150.000 (≈ jaar 2380, ~356 jaar ná origin) blaast het 50k-vensterplafond ruim
 //        op, terwijl de TOTALE epoch→doel-afstand (~150.640 dagen) ruim onder de 200k-cap blijft.
 {
-  const axis8 = buildWorkdayAxis({ calendar: engine, origin: MON06, taskTableWidth: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X, initialPaddingDays: 5 });
+  const axis8 = buildWorkdayAxis({ calendar: engine, origin: MON06, chartOriginX: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X, initialPaddingDays: 5 });
   const farDayIdx = 150_000;
   const farDate = new Date(farDayIdx * MS_PER_DAY);
   eq('groei-plafond: dayIndexOf(ver-weg) == refIndex', axis8.dayIndexOf(farDate), refWorkdayIndexOfDay(farDayIdx));
@@ -238,7 +238,7 @@ close('xToDate∘dateToX(do09 12:00) inverteert', axis.xToDate(xAtNoon).getTime(
   const emptyEngine = new CalendarEngine(emptyCal);
   let threw = false;
   try {
-    buildWorkdayAxis({ calendar: emptyEngine, origin: MON06, taskTableWidth: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X });
+    buildWorkdayAxis({ calendar: emptyEngine, origin: MON06, chartOriginX: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X });
   } catch {
     threw = true;
   }
@@ -247,7 +247,7 @@ close('xToDate∘dateToX(do09 12:00) inverteert', axis.xToDate(xAtNoon).getTime(
 
 // ═══ 10. CalendarAxis-tegenhanger: byte-identiek aan de bestaande fase-0-`dateToX` ═════════════
 {
-  const calAxis = buildCalendarAxis({ origin: MON06, taskTableWidth: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X });
+  const calAxis = buildCalendarAxis({ origin: MON06, chartOriginX: TABLE_WIDTH, zoom: ZOOM, scrollX: SCROLL_X });
   for (const [label, date] of [['ma06', MON06], ['do09', THU09], ['ma13', MON13]] as [string, Date][]) {
     eq(`CalendarAxis.dateToX(${label}) == oude dateToX`, calAxis.dateToX(date), calendarDateToX(date, MON06, TABLE_WIDTH, ZOOM, SCROLL_X));
   }

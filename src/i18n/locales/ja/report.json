@@ -17,8 +17,10 @@
   "showLegend": "凡例",
   "showTaskNames": "バー上のタスク名",
   "showCompletion": "進捗を表示",
+  "showBaselineOverlay": "ベースライン オーバーレイを表示",
   "autoFit": "用紙に自動調整",
   "zoom": "ズーム：",
+  "previewQuality": { "label": "プレビュー品質", "standard": "標準", "high": "高", "maximum": "最大" },
   "repeatHeader": "各ページにヘッダーを繰り返す",
   "reportFontScaleLabel": "文字サイズ：",
   "timelineColumnsLabel": "タイムライン：",
@@ -38,11 +40,13 @@
   "legend": {
     "criticalPath": "クリティカルパス",
     "normal": "通常",
+    "baseline": "ベースライン",
     "milestone": "マイルストーン",
     "summary": "サマリー",
     "float": "フロート",
     "completion": "進捗",
-    "relationStyle": "駆動 / 非駆動"
+    "relationStyle": "駆動 / 非駆動",
+    "categoriesMore_other": "… 他{{count}}カテゴリ"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -100,5 +104,19 @@
     "total": "マイルストーン",
     "mandatoryCount": "必須",
     "lateCount": "遅延"
-  }
+  },
+  "barColorModeLabel": "バーの色：",
+  "barColorMode_critical": "クリティカルパス",
+  "barColorMode_auto": "タスクごと — 自動",
+  "barColorMode_category": "カテゴリ別",
+  "barColorFieldLabel": "カテゴリフィールド",
+  "barColorMissingField": "このフィールドはこのプロジェクトにありません。一時的にタスクタイプを使用します。",
+  "statusLineLabel": "ステータス線:",
+  "statusLine_none": "なし",
+  "statusLine_statusDate": "ステータス日付線",
+  "statusLine_progress": "進捗線",
+  "statusLineHint": "先にステータス日付を設定してください",
+  "followView": "ビューに追従（フィルター・グループ化・並べ替え）",
+  "statusDateLabel": "ステータス日付",
+  "progressDateLabel": "進捗日"
 }

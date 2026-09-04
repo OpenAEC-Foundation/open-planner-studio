@@ -30,11 +30,11 @@ export function TaskCpmResultSection({ taskId }: { taskId: string }) {
         <span className="text-text-secondary">{t('properties.totalFloat')}</span>
         <span>{task.time.totalFloat} {tCommon('daysLong')}</span>
         <span className="text-text-secondary">{t('properties.freeFloat')}</span>
-        <span>{task.time.freeFloat} {tCommon('daysLong')}</span>
+        <span>{Math.round(task.time.freeFloat)} {tCommon('daysLong')}</span>
         {task.time.interferingFloat !== undefined && (
           <>
             <span className="text-text-secondary">{t('properties.interferingFloat')}</span>
-            <span>{task.time.interferingFloat} {tCommon('daysLong')}</span>
+            <span>{Math.round(task.time.interferingFloat)} {tCommon('daysLong')}</span>
           </>
         )}
         <span className="text-text-secondary">{t('properties.criticalPath')}</span>

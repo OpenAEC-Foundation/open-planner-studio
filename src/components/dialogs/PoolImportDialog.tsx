@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -55,6 +55,8 @@ export function PoolImportDialog() {
   const [action, setAction] = useState<'add' | 'replace'>('replace');
   const [imported, setImported] = useState<CompanyPool | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const openDefaultsRef = useRef({ companies, defaultCompanyId, poolImportCompanyId });
+  openDefaultsRef.current = { companies, defaultCompanyId, poolImportCompanyId };
 
   // Clamp bij openen naar het GEOPENDE bedrijf (fix B1: `poolImportCompanyId`, gezet door de opener
   // in Backstage) — anders het standaardbedrijf, anders het eerste geldige bedrijf. Voorkomt zowel
@@ -65,12 +67,16 @@ export function PoolImportDialog() {
   // gekozen is (issue #19).
   useEffect(() => {
     if (!open) return;
-    const preferred = (poolImportCompanyId && companies.some(c => c.id === poolImportCompanyId))
-      ? poolImportCompanyId
-      : defaultCompanyId;
-    const valid = companies.some(c => c.id === preferred) ? preferred : companies[0]?.id;
+    const { companies: currentCompanies, defaultCompanyId: currentDefaultCompanyId,
+      poolImportCompanyId: currentPoolImportCompanyId } = openDefaultsRef.current;
+    const preferred = currentPoolImportCompanyId
+      && currentCompanies.some(c => c.id === currentPoolImportCompanyId)
+      ? currentPoolImportCompanyId
+      : currentDefaultCompanyId;
+    const valid = currentCompanies.some(c => c.id === preferred)
+      ? preferred
+      : currentCompanies[0]?.id;
     if (valid) setCompanyId(valid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
@@ -127,16 +133,6 @@ export function PoolImportDialog() {
       }
     }
     close();
-    // Pool-import is een EXTERNE wijziging (spec §3): draai grens 1 voor het actieve document i.p.v.
-    // de stille grens 3 — de gebruiker houdt regie wanneer een import open projecten herschrijft.
-    // Critreview F3: dit is GEEN algemene no-op bij "toevoegen" — hangt het ACTIEVE project al aan
-    // het companyId uit het zojuist geïmporteerde bestand (exact het deel-scenario: een meegestuurd
-    // project met stempels naar dat companyId), dan doet deze aanroep wél echt werk: 'behind'-items
-    // worden stil ververst naar de nieuwe pool (geen undo-stap, geen isDirty, redoStack gewist) en bij
-    // ≥1 'deviated'-item opent het koppel-/afwijkingenscherm. Alleen als het actieve project aan een
-    // ANDER bedrijf hangt (of ongebonden is) — de meest voorkomende situatie ná "toevoegen", want de
-    // nieuwe bibliotheek is per definitie nooit al gekoppeld — is dit een no-op.
-    useAppStore.getState().runOpenBoundary();
   };
 
   return (

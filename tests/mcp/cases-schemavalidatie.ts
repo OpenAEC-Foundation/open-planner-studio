@@ -10,7 +10,7 @@
 // de dispatcher zit en een VALIDATION-tool-fout oplevert vóór enige mutatie, en (c) dat geen enkel
 // van de schema's een trefwoord gebruikt dat de validator niet kent (anders belooft `tools/list`
 // opnieuw iets dat runtime niet waargemaakt wordt).
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { validateToolArgs, unsupportedKeywords } from '@/services/mcp/schemaValidate';
 import { getTools, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -19,13 +19,9 @@ import type { McpContext } from '@/services/mcp/contracts';
 const store = useAppStore;
 
 function makeCtx(): McpContext {
-  return {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  });
 }
 
 /** Roep een tool aan via de ECHTE JSON-RPC-weg en geef het uitgepakte tool-resultaat terug. */

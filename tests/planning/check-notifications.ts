@@ -23,6 +23,9 @@ import { createRelationWithFeedback } from '@/state/relationActions';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/timephasedLossNotice';
+import { commitPreparedGridMutation, prepareGridMutation } from '@/state/gridTransaction';
+import type { CellEditIntent } from '@/types/taskGrid';
+import type { PreparedGridMutation } from '@/state/gridTransaction';
 import type { Sequence } from '@/types/sequence';
 import type { ImportResult, MultiDocumentImport, XerImportMetadata, XerImportReport } from '@/services/importTypes';
 import { notificationDetailText } from '@/utils/notificationDetail';
@@ -320,8 +323,9 @@ const lTasks = S().tasks;
 clearAll();
 // `loadState` is de in-place-load-route (geen open-pad) en loopt, net als de drie open-paden,
 // door `applyLoadedProject` — de gedeelde implementatie die de melding pusht (fileSlice.ts).
-// `loadState` draait BEWUST geen `runCPM` (`recompute: false`), dus deze melding mag niet op
-// `cpmResult` leunen — zie de toelichting bij `expandSummaryRelations` in fileSlice.ts.
+// De melding mag niet op een later live `runCPM`-moment leunen: `loadState` bereidt de solve nu op
+// de geïsoleerde payload voor en publiceert alles samen. De pure expansie blijft de bron voor deze
+// importwaarschuwing.
 S().loadState({
   project: lProject,
   calendar: createDefaultCalendar(),
@@ -656,6 +660,35 @@ S().openHelpArticle(N()[0]?.helpArticleId ?? '');
 eq('119 Lees meer opent Backstage', S().ui.activeRibbonTab, 'file');
 eq('120 Lees meer kiest Help', S().ui.backstageSection, 'help');
 eq('121 Lees meer draagt het XER-artikel naar HelpPanel over', S().ui.pendingHelpArticleId, 'gids-xer-import');
+
+// ── 11. Een voorbereide gridmelding wordt pas na de atomaire datacommit getoond ───────────────
+clearAll();
+S().newProject();
+const gridTask = S().addTask({ name: 'Grid voor' });
+useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; });
+const gridIntent: CellEditIntent = {
+  kind: 'cell-edit', taskId: gridTask, columnId: 'task.name' as CellEditIntent['columnId'],
+  route: 'task-field', value: 'Grid na',
+};
+const gridPrepared = prepareGridMutation(S(), [gridIntent]);
+const gridStates: Array<{ name: string | undefined; history: number; notifications: number }> = [];
+const unsubscribeGrid = useAppStore.subscribe(state => gridStates.push({
+  name: state.tasks[0]?.name,
+  history: state.historyEvents.length,
+  notifications: state.ui.notifications.length,
+}));
+const gridWithNotification: PreparedGridMutation | null = gridPrepared.ok ? {
+  ...gridPrepared.value,
+  notifications: [{ severity: 'info', messageKey: 'notifications.relationCreated' }],
+} : null;
+const gridCommit = gridWithNotification ? commitPreparedGridMutation(gridWithNotification) : null;
+unsubscribeGrid();
+eq('122 voorbereide gridcommit met melding slaagt', gridCommit?.ok, true);
+eq('123 eerste gridpublicatie bevat data en history zonder melding', gridStates[0], {
+  name: 'Grid na', history: 1, notifications: 0,
+});
+eq('124 gridmelding volgt in een aparte publicatie', gridStates.map(state => state.notifications), [0, 1]);
+eq('125 uitgestelde gridmelding gebruikt het normale app-globale kanaal', N()[0]?.messageKey, 'notifications.relationCreated');
 
 // ── Uitkomst ────────────────────────────────────────────────────────────────
 if (diffs.length) {

@@ -97,3 +97,4 @@ Regla general: use una **fecha límite** para una fecha objetivo que quiera supe
 - Vea el conflicto de fecha límite en la práctica: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - ¿La estructura todavía no está lista? Lea antes [Planificación y WBS](docs://gids-plannen-wbs).
 - Para calendarios y horarios laborales que afectan a la duración de las tareas: la guía [Calendarios y planificación por horas](docs://gids-kalenders-uren).
+- Todas las fechas límite incumplidas y restricciones violadas en un solo lugar, con salto a la tarea: el [Panel de advertencias](docs://ref-waarschuwingen).

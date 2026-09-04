@@ -36,8 +36,7 @@ Uma lista de verificação por tarefa: cada linha tem uma **caixa de verificaç�
 ## Tempo
 
 - **Data de início** — mostra o início mais cedo calculado; uma alteração manual fixa a nova data como o início planeado.
-- **Duração (dias úteis)** — dias úteis inteiros; desativado para um marco.
-- Com o **planeamento por horas ativado** e um calendário horário na tarefa, aparecem três caixas sincronizadas: **Dias**, **Horas** e **Total de horas** (apenas números inteiros). Sem um calendário horário aparece uma dica: "A introdução em horas requer um calendário horário (horários de trabalho)." Veja [Calendários & planeamento por horas](docs://gids-kalenders-uren).
+- O diálogo e o painel de propriedades usam o mesmo controlo **Duração [valor] [Dias | Horas]**. Introduza `2d`, `12h` ou o alias `12u`. As horas exigem faixas de trabalho concretas; sem elas a tarefa não muda. Veja [Calendários & planeamento por horas](docs://gids-kalenders-uren).
 
 ## Hammock (duração derivada)
 

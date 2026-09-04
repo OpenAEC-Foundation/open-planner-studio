@@ -5,10 +5,75 @@ import { X, Link2, FileDown } from 'lucide-react';
 import { Dialog } from '@/components/common/Dialog';
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide } from '@/engine/externalLinks';
+import { formatExternalLagShort, parseExternalLagInput } from '@/engine/taskGrid/relationFormat';
+import { effectiveCalendarOf } from '@/utils/taskDuration';
+import { isHourCalendar } from '@/services/subdayIo';
 import { buildImportLabels } from '@/i18n/importLabels';
 
 type Direction = ExternalLink['direction'];
 type RelType = ExternalLink['relType'];
+
+/** Waarde voor native date/datetime-local zonder een bestaande canonieke ankerwaarde te muteren. */
+export function externalAnchorInputValue(value: string, hourMode: boolean): string {
+  if (!value) return '';
+  if (!hourMode) return value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`;
+  const minute = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/.exec(value);
+  return minute?.[1] ?? value;
+}
+
+/** Een open dialoog mag nooit naar een ander document schrijven, ook niet als beide documenten
+ * toevallig dezelfde taak-id bevatten. */
+export function externalLinkDialogDocumentIsCurrent(
+  openedDocumentId: string,
+  currentDocumentId: string,
+): boolean {
+  return openedDocumentId === currentDocumentId;
+}
+
+export interface ManualExternalLinkSubmission {
+  existing?: ExternalLink;
+  direction: Direction;
+  relType: RelType;
+  lag: Pick<ExternalLink, 'lagDays' | 'lagMinutes'>;
+  projectId: string;
+  taskId: string;
+  taskName: string;
+  anchor: string;
+  anchorTouched: boolean;
+}
+
+/** Bouwt de handmatige submitwaarde zonder oude bronvelden stil door een nieuwe identiteit te mengen. */
+export function buildManualExternalLinkSubmission({
+  existing, direction, relType, lag, projectId, taskId, taskName, anchor, anchorTouched,
+}: ManualExternalLinkSubmission): Omit<ExternalLink, 'id'> {
+  const normalizedProjectId = projectId.trim();
+  const normalizedTaskId = taskId.trim();
+  const normalizedTaskName = taskName.trim();
+  const sameIdentity = existing?.sourceRef.projectId === normalizedProjectId
+    && existing.sourceRef.taskId === normalizedTaskId;
+  const sourceRef: ExternalLink['sourceRef'] = sameIdentity && existing
+    ? {
+        projectId: normalizedProjectId,
+        ...(existing.sourceRef.projectName ? { projectName: existing.sourceRef.projectName } : {}),
+        taskId: normalizedTaskId,
+        ...(normalizedTaskName ? { taskName: normalizedTaskName } : {}),
+        ...(existing.sourceRef.filePath ? { filePath: existing.sourceRef.filePath } : {}),
+      }
+    : {
+        projectId: normalizedProjectId,
+        taskId: normalizedTaskId,
+        ...(normalizedTaskName ? { taskName: normalizedTaskName } : {}),
+      };
+  return {
+    direction, relType, ...lag,
+    anchorDate: existing && !anchorTouched
+      ? (sameIdentity ? existing.anchorDate : '')
+      : anchor,
+    sourceRef,
+    sourceMissing: sameIdentity && existing ? existing.sourceMissing : true,
+  };
+}
 
 /**
  * Externe (cross-project) koppeling toevoegen (fase 2.9, §5.5). Twee routes in één dialoog:
@@ -18,12 +83,23 @@ type RelType = ExternalLink['relType'];
  *  2. HANDMATIG (fallback): plak project-id/taak-id + een ankerdatum — werkt ook zonder bronbestand
  *     (en in de web-build waar bestand-lezen niet kan).
  */
-export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClose: () => void }) {
+export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string; linkId?: string; onClose: () => void }) {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const recentFiles = useAppStore((s) => s.recentFiles);
+  const activeDocumentId = useAppStore((s) => s.activeDocumentId);
+  const openedDocumentId = useRef(activeDocumentId).current;
+  const tasks = useAppStore((s) => s.tasks);
+  const calendar = useAppStore((s) => s.calendar);
+  const calendars = useAppStore((s) => s.calendars);
+  const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
   const parseExternalSource = useAppStore((s) => s.parseExternalSource);
   const addExternalLink = useAppStore((s) => s.addExternalLink);
+  const updateExternalLink = useAppStore((s) => s.updateExternalLink);
+  const existing = tasks.find(task => task.id === taskId)?.externalLinks?.find(link => link.id === linkId);
+  const ownerTask = tasks.find(task => task.id === taskId);
+  const ownerHourMode = enableHourPlanning && !!ownerTask
+    && isHourCalendar(effectiveCalendarOf(ownerTask, calendar, calendars));
 
   // Alleen pad-refs zijn read-only te parsen (parseExternalSource is Tauri-only).
   const recent = useMemo(
@@ -31,40 +107,63 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
     [recentFiles],
   );
 
-  const [direction, setDirection] = useState<Direction>('predecessor');
-  const [relType, setRelType] = useState<RelType>('FS');
-  const [lag, setLag] = useState<string>('0');
-  const [manual, setManual] = useState<boolean>(true);
+  const [direction, setDirection] = useState<Direction>(existing?.direction ?? 'predecessor');
+  const [relType, setRelType] = useState<RelType>(existing?.relType ?? 'FS');
+  const [lag, setLag] = useState<string>(existing ? formatExternalLagShort(existing) : '0d');
+  const existingRecentPath = existing?.sourceRef.filePath
+    && recent.some(file => file.path === existing.sourceRef.filePath);
+  const [manual, setManual] = useState<boolean>(() => !existingRecentPath);
   const modeInited = useRef(false);
   useEffect(() => {
     if (modeInited.current) return;
+    if (existing) { modeInited.current = true; return; }
     if (recent.length > 0) { setManual(false); modeInited.current = true; }
-  }, [recent.length]);
+  }, [existing, recent.length]);
 
   // Bron-route
-  const [sourceFile, setSourceFile] = useState<string>('');
+  const [sourceFile, setSourceFile] = useState<string>(existing?.sourceRef.filePath ?? '');
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<{ projectId: string; projectName: string; filePath: string; tasks: Task[] } | null>(null);
   const [sourceTaskId, setSourceTaskId] = useState<string>('');
 
+  useEffect(() => {
+    if (!externalLinkDialogDocumentIsCurrent(openedDocumentId, activeDocumentId)) onClose();
+  }, [activeDocumentId, onClose, openedDocumentId]);
+
   // Handmatige fallback
-  const [manualProjectId, setManualProjectId] = useState<string>('');
-  const [manualTaskId, setManualTaskId] = useState<string>('');
-  const [manualTaskName, setManualTaskName] = useState<string>('');
-  const [manualAnchor, setManualAnchor] = useState<string>('');
+  const [manualProjectId, setManualProjectId] = useState<string>(existing?.sourceRef.projectId ?? '');
+  const [manualTaskId, setManualTaskId] = useState<string>(existing?.sourceRef.taskId ?? '');
+  const [manualTaskName, setManualTaskName] = useState<string>(existing?.sourceRef.taskName ?? '');
+  const [manualAnchor, setManualAnchor] = useState<string>(() => externalAnchorInputValue(
+    existing?.anchorDate ?? '', ownerHourMode,
+  ));
+  const [manualAnchorTouched, setManualAnchorTouched] = useState(false);
+  const updateManualAnchor = (value: string) => {
+    setManualAnchor(value);
+    setManualAnchorTouched(true);
+  };
+  useEffect(() => {
+    if (manualAnchorTouched) return;
+    setManualAnchor(current => externalAnchorInputValue(existing?.anchorDate ?? current, ownerHourMode));
+  }, [existing?.anchorDate, manualAnchorTouched, ownerHourMode]);
 
   useEffect(() => {
     let cancelled = false;
     if (manual || !sourceFile) { setSource(null); setSourceTaskId(''); return; }
     setLoading(true);
     void parseExternalSource(sourceFile, buildImportLabels(tCommon)).then((res) => {
-      if (cancelled) return;
+      if (cancelled || !externalLinkDialogDocumentIsCurrent(
+        openedDocumentId,
+        useAppStore.getState().activeDocumentId,
+      )) return;
       setSource(res);
-      setSourceTaskId(res?.tasks[0]?.id ?? '');
+      setSourceTaskId(res?.tasks.some(task => task.id === existing?.sourceRef.taskId)
+        ? existing!.sourceRef.taskId
+        : res?.tasks[0]?.id ?? '');
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [manual, sourceFile, parseExternalSource, tCommon]);
+  }, [existing, manual, openedDocumentId, parseExternalSource, sourceFile, tCommon]);
 
   const srcTask = source?.tasks.find((x) => x.id === sourceTaskId) ?? null;
   const anchorPreview = srcTask
@@ -73,25 +172,36 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
         : srcTask.time.earlyStart || srcTask.time.scheduleStart)
     : manualAnchor;
 
-  const canAdd = manual
+  const parsedLag = parseExternalLagInput(lag);
+  const originalSide = existing ? externalSourceSide(existing.direction, existing.relType) : null;
+  const sideChanged = originalSide !== null && originalSide !== externalSourceSide(direction, relType);
+  const manualIdentityChanged = !!existing
+    && (existing.sourceRef.projectId !== manualProjectId.trim()
+      || existing.sourceRef.taskId !== manualTaskId.trim());
+  const canAdd = !!ownerTask && (!linkId || !!existing) && parsedLag !== null && (manual
     ? manualProjectId.trim() !== '' && manualTaskId.trim() !== '' && manualAnchor.trim() !== ''
-    : !!srcTask;
+      && ((!sideChanged && !manualIdentityChanged) || manualAnchorTouched)
+    : !!srcTask);
+  const hourMode = ownerHourMode;
 
   const submit = () => {
+    if (!externalLinkDialogDocumentIsCurrent(
+      openedDocumentId,
+      useAppStore.getState().activeDocumentId,
+    )) {
+      onClose();
+      return;
+    }
     if (!canAdd) return;
-    const lagDays = Number.isFinite(Number(lag)) ? Number(lag) : 0;
+    if (!parsedLag) return;
     const link: Omit<ExternalLink, 'id'> = manual
-      ? {
-          direction, relType, lagDays, anchorDate: manualAnchor,
-          sourceRef: {
-            projectId: manualProjectId.trim(),
-            taskId: manualTaskId.trim(),
-            ...(manualTaskName.trim() ? { taskName: manualTaskName.trim() } : {}),
-          },
-          sourceMissing: true, // handmatig: bron niet (aantoonbaar) geladen ⇒ verouderd tot verversen
-        }
+      ? buildManualExternalLinkSubmission({
+          existing, direction, relType, lag: parsedLag,
+          projectId: manualProjectId, taskId: manualTaskId, taskName: manualTaskName,
+          anchor: manualAnchor, anchorTouched: manualAnchorTouched,
+        })
       : {
-          direction, relType, lagDays, anchorDate: anchorPreview,
+          direction, relType, ...parsedLag, anchorDate: anchorPreview,
           sourceRef: {
             projectId: source!.projectId,
             projectName: source!.projectName,
@@ -101,14 +211,17 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
           },
           sourceMissing: false,
         };
-    addExternalLink(taskId, link);
+    if (linkId) {
+      if (!existing || !updateExternalLink(taskId, linkId, link)) return;
+    } else addExternalLink(taskId, link);
     onClose();
   };
 
   return (
-    // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
     <Dialog
       onBackdropClick={onClose}
+      onCancel={onClose}
+      onConfirm={submit}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-testid': 'external-link-dialog' }}
     >
@@ -172,7 +285,21 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-text-muted">{t('externalLinks.anchorDate')}</span>
-                <input className="input" type="date" value={manualAnchor} onChange={(e) => setManualAnchor(e.target.value)} />
+                <input
+                  className="input"
+                  type={hourMode ? 'datetime-local' : 'date'}
+                  value={manualAnchor}
+                  // Native datevelden in sommige webviews publiceren hun afgeronde ISO-waarde via
+                  // `input` en pas later (of niet) via `change`. Beide routes zijn idempotent en
+                  // houden dezelfde gecontroleerde React-state bij.
+                  onInput={(e) => updateManualAnchor(e.currentTarget.value)}
+                  onChange={(e) => updateManualAnchor(e.currentTarget.value)}
+                />
+                {sideChanged && !manualAnchorTouched && (
+                  <span className="text-[10px]" style={{ color: 'var(--warning, #d97706)' }}>
+                    {t('externalLinks.chooseNewAnchorAfterSideChange')}
+                  </span>
+                )}
               </label>
             </>
           )}
@@ -195,7 +322,7 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
           </div>
           <label className="flex flex-col gap-1">
             <span className="text-text-muted">{t('externalLinks.lag')}</span>
-            <input className="input !w-24" type="number" value={lag} onChange={(e) => setLag(e.target.value)} />
+            <input className="input !w-24" type="text" value={lag} onChange={(e) => setLag(e.target.value)} placeholder={t('externalLinks.lagPlaceholder')} />
           </label>
 
           {anchorPreview && !manual && (
@@ -208,7 +335,7 @@ export function ExternalLinkDialog({ taskId, onClose }: { taskId: string; onClos
           <button className="btn btn--sm" onClick={onClose}>{t('externalLinks.cancel')}</button>
           <button className="btn btn--sm btn--primary" onClick={submit} disabled={!canAdd} data-testid="external-link-add"
             style={!canAdd ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
-            {t('externalLinks.add')}
+            {existing ? tCommon('save', { defaultValue: 'Opslaan' }) : t('externalLinks.add')}
           </button>
         </div>
     </Dialog>

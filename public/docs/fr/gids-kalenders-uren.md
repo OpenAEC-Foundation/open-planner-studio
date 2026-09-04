@@ -47,7 +47,7 @@ Voyez un calendrier de ressource à 4 jours en pratique : les installateurs dans
 
 Par défaut, Open Planner Studio fonctionne entièrement en **granularité journalière** — chaque tâche a une durée en jours (ouvrés) entiers. Pour les tâches que vous préférez planifier à l'heure (pensez à un coulage qui démarre à 7h00 et doit être terminé à 14h00, bien avant que le temps ne se dégrade), il existe la **Planification horaire** optionnelle.
 
-Activez l'interrupteur principal via **Paramètres → Chronologie / Zoom → Activer la planification horaire**. Cela ajoute une échelle de temps en heures, des équipes avec des plages horaires de travail, et des barres de tâche précises à l'heure près ; l'interrupteur désactivé, l'application fonctionne entièrement comme avant, en granularité journalière. Il existe également une option **Autoriser la planification mixte jour/heure**, que vous activez si vous voulez combiner des tâches en jours et des tâches en heures dans le même projet (voir ci-dessous).
+Activez l'interrupteur principal via **Paramètres → Chronologie / Zoom → Activer la planification horaire**. Cela ajoute une échelle en heures, des plages de travail et des barres précises ; lorsqu'il est désactivé, les nouvelles tâches commencent en jours et les valeurs horaires existantes restent conservées.
 
 ## Plages horaires de travail et équipes
 
@@ -71,7 +71,7 @@ C'est exactement ainsi que les tâches de coulage sont planifiées en pratique :
 
 ## Mélanger tâches en jours et tâches en heures
 
-Un projet n'a pas besoin de fonctionner entièrement à l'heure pour bénéficier de la planification horaire : avec **Autoriser la planification mixte jour/heure** cochée, les tâches en jours (sur le calendrier normal du projet) et les tâches en heures (sur un calendrier horaire) peuvent coexister et se relier entre elles dans le même planning. Dans ce cas, le tableau des tâches affiche la durée de chaque tâche dans sa propre unité — une tâche en jours en jours, une tâche en heures en heures — et avertit en bas du tableau lorsque des tâches avec des heures/jour différentes s'exécutent côte à côte, afin qu'il reste clair quelles comparaisons sont valables et lesquelles ne le sont pas.
+Un projet n'a pas besoin de fonctionner entièrement à l'heure : lorsque la planification horaire est activée, les tâches en jours et en heures peuvent coexister et se relier. L'unité appartient à la tâche et n'est pas déduite de son calendrier.
 
 ## Poursuivre la lecture
 

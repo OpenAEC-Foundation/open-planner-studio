@@ -10,7 +10,7 @@
 // weigering; undo maakt de laatste tool-mutatie in ÉÉN stap ongedaan; run_cpm ververst stale;
 // registry-registratie via registerToolModules + tools/list-vorm via de dispatcher; plus de guards
 // (paused/readOnly/drift) en de backup-hook.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
@@ -33,15 +33,11 @@ function reset(): void {
 
 /** Een schone context met een no-op backup die geen backup nodig acht (null). expectedDocId gebonden
  *  aan het huidige actieve document (geen drift). */
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...overrides,
-  };
+  });
 }
 
 function tool(name: string) {
@@ -392,8 +388,8 @@ test('delete_tasks all-unknown ⇒ Ok + weigeringen, GEEN snapshot en redo-stack
   // Seed de redo-stack: een mutatie + undo laat een redo-entry achter (die een AI-no-op niet mag wissen).
   store.getState().addTask({ name: 'seed' });
   store.getState().undo();
-  const undoLen = store.getState().undoStack.length;
-  const redoLen = store.getState().redoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
+  const redoLen = store.getState().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoLen >= 1, 'de redo-stack is geseed (>=1 entry)');
 
   const ctx = makeCtx();
@@ -401,8 +397,8 @@ test('delete_tasks all-unknown ⇒ Ok + weigeringen, GEEN snapshot en redo-stack
   assert(res.ok, 'all-unknown delete slaagt als no-op met weigeringen');
   assertEq((res as McpToolOk).itemRejections!.length, 2, 'beide onbekende id\'s geweigerd');
   assertEq(((res as McpToolOk).data as any).deleted, [], 'niets verwijderd');
-  assertEq(store.getState().undoStack.length, undoLen, 'GEEN nieuwe undo-snapshot gepusht');
-  assertEq(store.getState().redoStack.length, redoLen, 'redo-stack ONGEMOEID (geen AI-no-op-wipe)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'GEEN nieuwe undo-snapshot gepusht');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoLen, 'redo-stack ONGEMOEID (geen AI-no-op-wipe)');
 });
 
 test('add_dependencies: kring via TWEE nieuwe relaties in één call ⇒ CYCLE + volledige rollback', async () => {
@@ -423,7 +419,7 @@ test('add_tasks: dubbele tempId ⇒ harde VALIDATION op toolniveau, store byte-i
   reset();
   store.getState().addTask({ name: 'bestaand' });
   const before = JSON.stringify(createSnapshot(store.getState()));
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const ctx = makeCtx();
   const res = await call('planner_add_tasks', { tasks: [
     { tempId: 'DUP', name: 'x' },
@@ -431,7 +427,45 @@ test('add_tasks: dubbele tempId ⇒ harde VALIDATION op toolniveau, store byte-i
   ] }, ctx);
   assert(!res.ok && res.code === 'VALIDATION', 'dubbele tempId ⇒ VALIDATION');
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'store byte-identiek');
-  assertEq(store.getState().undoStack.length, undoLen, 'geen undo-snapshot (pre-transactie afgevangen)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'geen undo-snapshot (pre-transactie afgevangen)');
+});
+
+test('custom task type: MCP materialiseert id+naam atomisch en behoudt builtin-enumcontract', async () => {
+  reset();
+  const ctx = makeCtx();
+  const custom = { id: 'ops-type-gevel', name: 'Gevelinspectie' };
+  const res = await call('planner_add_tasks', { tasks: [
+    { tempId: 'CUSTOM', name: 'Inspectie', taskType: 'USERDEFINED', customTaskType: custom },
+  ] }, ctx);
+  const data = okData(res);
+  const id = data.created.CUSTOM as string;
+  assertEq(taskById(id)?.taskType, 'USERDEFINED', 'custom type gebruikt expliciet USERDEFINED, nooit CONSTRUCTION');
+  assertEq(taskById(id)?.customTaskTypeId, custom.id, 'taak bewaart de stabiele custom-id');
+  assertEq(store.getState().customTaskTypes, [custom], 'projectsnapshot bevat id plus naam');
+
+  const conflict = await call('planner_update_tasks', { updates: [{ id, fields: {
+    customTaskType: { id: custom.id, name: 'Andere naam' },
+  } }] }, ctx);
+  assert(conflict.ok && conflict.itemRejections?.length === 1, 'zelfde id met andere snapshotnaam wordt zacht geweigerd');
+  assertEq(taskById(id)?.customTaskTypeId, custom.id, 'conflict beschadigt bestaande taak niet');
+
+  const nameConflict = await call('planner_add_tasks', { tasks: [{
+    tempId: 'CUSTOM_NAME_CONFLICT', name: 'Andere inspectie',
+    customTaskType: { id: 'ops-type-anders', name: 'gevelinspectie' },
+  }] }, ctx);
+  assert(!nameConflict.ok && nameConflict.code === 'VALIDATION', 'zelfde naam met andere id wordt case-insensitive geweigerd');
+  assertEq(store.getState().tasks.some(task => task.name === 'Andere inspectie'), false, 'naamconflict maakt geen halve taak');
+
+  const builtin = await call('planner_update_tasks', { updates: [{ id, fields: { taskType: 'CONSTRUCTION' } }] }, ctx);
+  assert(builtin.ok, 'expliciete builtin-update blijft toegestaan');
+  assertEq(taskById(id)?.taskType, 'CONSTRUCTION', 'builtin-enum blijft ongewijzigd bruikbaar');
+  assertEq(taskById(id)?.customTaskTypeId, undefined, 'builtin-update wist de custom-toewijzing');
+
+  const opvolger = { id: 'ops-type-keuring', name: 'Keuring' };
+  const customUpdate = await call('planner_update_tasks', { updates: [{ id, fields: { customTaskType: opvolger } }] }, ctx);
+  assert(customUpdate.ok, 'update kan een nieuw custom type materialiseren');
+  assertEq(taskById(id)?.customTaskTypeId, opvolger.id, 'update bewaart de nieuwe stabiele id');
+  assertEq(store.getState().customTaskTypes, [custom, opvolger], 'update voegt de nieuwe projectsnapshot toe zonder de oude te herschrijven');
 });
 
 await run();

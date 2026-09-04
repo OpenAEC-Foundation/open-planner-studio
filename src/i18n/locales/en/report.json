@@ -17,8 +17,10 @@
   "showLegend": "Legend",
   "showTaskNames": "Task names on bars",
   "showCompletion": "Show completion",
+  "showBaselineOverlay": "Show baseline overlay",
   "autoFit": "Auto-fit to paper",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Preview quality", "standard": "Standard", "high": "High", "maximum": "Maximum" },
   "repeatHeader": "Repeat header on each page",
   "reportFontScaleLabel": "Font size:",
   "timelineColumnsLabel": "Timeline over:",
@@ -40,11 +42,14 @@
   "legend": {
     "criticalPath": "Critical path",
     "normal": "Normal",
+    "baseline": "Baseline",
     "milestone": "Milestone",
     "summary": "Summary",
     "float": "Float",
     "completion": "Completion",
-    "relationStyle": "Driving / non-driving"
+    "relationStyle": "Driving / non-driving",
+    "categoriesMore_one": "… and {{count}} more category",
+    "categoriesMore_other": "… and {{count}} more categories"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -102,5 +107,19 @@
     "total": "Milestones",
     "mandatoryCount": "Mandatory",
     "lateCount": "Late"
-  }
+  },
+  "barColorModeLabel": "Bar colors:",
+  "barColorMode_critical": "Critical path",
+  "barColorMode_auto": "Per task — automatic",
+  "barColorMode_category": "By category",
+  "barColorFieldLabel": "Category field",
+  "barColorMissingField": "This field does not exist in this project. Task type is used temporarily.",
+  "statusLineLabel": "Status line:",
+  "statusLine_none": "None",
+  "statusLine_statusDate": "Status date line",
+  "statusLine_progress": "Progress line",
+  "statusLineHint": "Set a status date first",
+  "followView": "Follow view (filter, grouping, sort)",
+  "statusDateLabel": "Status date",
+  "progressDateLabel": "Progress date"
 }

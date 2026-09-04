@@ -36,8 +36,7 @@ Une liste de contrôle par tâche : chaque ligne a une **case à cocher terminé
 ## Temps
 
 - **Date de début** — affiche le début au plus tôt calculé ; une modification manuelle ancre la nouvelle date comme le début planifié.
-- **Durée (jours ouvrés)** — jours ouvrés entiers ; désactivé pour un jalon.
-- Avec la **planification horaire activée** et un calendrier horaire sur la tâche, trois champs synchronisés apparaissent : **Jours**, **Heures** et **Heures totales** (nombres entiers uniquement). Sans calendrier horaire, une indication s'affiche : « La saisie en heures nécessite un calendrier horaire (horaires de travail). » Voir [Calendriers & planification horaire](docs://gids-kalenders-uren).
+- La boîte de dialogue et le panneau de propriétés utilisent la même commande **Durée [valeur] [Jours | Heures]**. Saisissez `2d`, `12h` ou l'alias `12u`. Les heures exigent des plages de travail concrètes ; sans elles la tâche reste inchangée. Voir [Calendriers & planification horaire](docs://gids-kalenders-uren).
 
 ## Hammock (durée dérivée)
 

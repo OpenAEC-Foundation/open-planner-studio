@@ -29,7 +29,6 @@ export interface GhRelease {
 
 /** Resultaat dat de dialoog toont. Elk veld kan `null` zijn als de brondata ontbrak. */
 export interface ReleaseComparison {
-  currentBody: string;
   daysBetween: number | null;
   sizeDeltaBytes: number | null;
   currentSizeBytes: number | null;
@@ -148,7 +147,6 @@ export function computeComparison(
   const dayCount = previous ? daysBetween(previous.published_at, current.published_at) : null;
 
   return {
-    currentBody: current.body ?? '',
     daysBetween: dayCount,
     sizeDeltaBytes,
     currentSizeBytes,

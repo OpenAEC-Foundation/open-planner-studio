@@ -26,10 +26,11 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import {
-  buildBaselineOverlay, buildTrace, buildSharedAxis,
+  buildBaselineOverlay, buildSharedAxis,
   computeContentSpanDays, computeContentWidth, buildHistogramPicker, buildHistogramSeries,
   buildGanttRenderOptions, type GanttRenderOptionsInput,
 } from '@/components/canvas/ganttRenderOptions';
+import { buildTrace } from '@/engine/taskGrid/trace';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -258,12 +259,12 @@ eq('02 effectiveViewStart: leeg takenlijst valt terug op viewStartDate − marge
   computeEffectiveViewStart([], '2027-03-01'), oldEffectiveViewStart([], '2027-03-01'));
 
 // 3 — sharedAxis + contentSpanDays. Twee assen (compressie aan/uit) × drie viewports. De viewports
-// met scrollX ≠ 0 en taskTableWidth ≠ 0 zitten er omdat een as die die twee negeert anders
+// met scrollX ≠ 0 en chartOriginX ≠ 0 zitten er omdat een as die die twee negeert anders
 // onopgemerkt bleef: met alles op 0 is `dateToX` er ongevoelig voor (negatieve controle gemeten).
 const VIEWPORTS = [
-  { taskTableWidth: 300, zoom: 30, scrollX: 0 },
-  { taskTableWidth: 300, zoom: 30, scrollX: 1750 },
-  { taskTableWidth: 0, zoom: 7.5, scrollX: 420 },
+  { chartOriginX: 300, zoom: 30, scrollX: 0 },
+  { chartOriginX: 300, zoom: 30, scrollX: 1750 },
+  { chartOriginX: 0, zoom: 7.5, scrollX: 420 },
 ];
 for (const compress of [false, true]) {
   const evs = computeEffectiveViewStart(tasks, '2027-03-01');
@@ -301,14 +302,14 @@ for (const compress of [false, true]) {
     365);
 }
 eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027-03-01', false, buildSharedAxis({
-  calendar, compressNonWorkdays: false, viewStartDate: '2027-03-01', taskTableWidth: 0, zoom: 30, scrollX: 0,
+  calendar, compressNonWorkdays: false, viewStartDate: '2027-03-01', chartOriginX: 0, zoom: 30, scrollX: 0,
 })), null);
 
 // 7 — contentWidthFor: de bodem van 2000px en de lineaire tak.
-eq('07 computeContentWidth: leeg project ⇒ vaste 2000px', computeContentWidth(null, 30, 300), 2000);
-eq('08 computeContentWidth: korte span blijft op de 2000px-bodem', computeContentWidth(10, 30, 300), 2000);
-eq('09 computeContentWidth: lange span schaalt met zoom en tabelbreedte',
-  computeContentWidth(500, 30, 300), Math.max(2000, (500 * 1.2) * 30 + 300));
+eq('07 computeContentWidth: leeg project ⇒ vaste 2000px', computeContentWidth(null, 30), 2000);
+eq('08 computeContentWidth: korte span blijft op de 2000px-bodem', computeContentWidth(10, 30), 2000);
+eq('09 computeContentWidth: lange span schaalt uitsluitend met zoom',
+  computeContentWidth(500, 30), Math.max(2000, (500 * 1.2) * 30));
 
 // 10 — trace, over alle vier de standen. De focus is `idB`, die zowel een VOORGANGER (idA) als een
 // OPVOLGER (idC) heeft. Dat tweede is niet cosmetisch: met alleen een voorganger zijn
@@ -401,7 +402,7 @@ eqDeep('19d histogramSeries: MATERIAL telt niet mee in de som over alle resource
 // ════════════════════════════════════════════════════════════════════════════
 
 const axis = buildSharedAxis({
-  calendar, compressNonWorkdays: false, viewStartDate: '2027-02-25', taskTableWidth: 300, zoom: 30, scrollX: 0,
+  calendar, compressNonWorkdays: false, viewStartDate: '2027-02-25', chartOriginX: 300, zoom: 30, scrollX: 0,
 });
 // De echte CPM-uitkomst heeft hier lege `violatedConstraintTaskIds` én `missedDeadlineTaskIds`, en
 // dan is `[]` vs `[]` geen vergelijking: je kunt de twee velden in de bouwer verwisselen en de
@@ -418,8 +419,8 @@ const cpmDistinct = {
 // (1) Geen enkele waarde mag samenvallen met de default die de renderer zelf hanteert wanneer het
 // veld ontbreekt. Anders is de passthrough-check `x` vs `x` en overleeft een
 // bouwer die het veld hardcodeert. Dat gold eerder voor weekStartDay ('monday'), barSplitMode
-// ('selection'), showProgressLine/enableQuarterHourZoom/highContrast (false), collapsedTaskIds
-// ([]) en fontScale (1) — zeven vacuüme checks, alle gemeten met een negatieve controle.
+// ('selection'), showProgressLine/enableQuarterHourZoom/highContrast (false) en fontScale (1) —
+// zes vacuüme checks, alle gemeten met een negatieve controle.
 //
 // (2) De booleans mogen ook niet allemaal DEZELFDE waarde hebben. Stonden ze alle zes op `true`,
 // dan zijn ze onderling niet te onderscheiden en overleeft een kruisbedrading
@@ -429,24 +430,32 @@ const baseInput: GanttRenderOptionsInput = {
   rows: S().viewRows,
   sequences,
   calendar,
+  resources,
+  assignments: S().assignments,
   view: { ...S().view, viewStartDate: '2027-02-25' },
   selectedTaskIds: [idB],
-  collapsedTaskIds: [idA],
   cpmResult: cpmDistinct,
   statusDate: '2027-04-01',
   showStatusDateLine: false,
   showProgressLine: true,
+  showResourceAccent: true,
+  barColorSelection: { mode: 'category', field: { src: 'activityCode', typeId: 'discipline' } },
+  activityCodeTypes: [{
+    id: 'discipline', name: 'Discipline',
+    values: [{ id: 'elektra', code: 'E', description: 'Elektra', color: '#11AA55' }],
+  }],
+  customFieldDefs: [{ id: 'zone', name: 'Zone', type: 'text' }],
+  taskTypeLabels: { CONSTRUCTION: 'Constructie', INSTALLATION: 'Installatie' },
+  barColorNoneLabel: '(geen-test)',
   showBaselineOverlay: true,
   baselineOverlay: buildBaselineOverlay(baselines, 'bl1'),
   trace: buildTrace('both', [idB], sequences, cpmDistinct),
   canvasWidth: 1200,
   canvasHeight: 800,
-  taskTableWidth: 300,
   rowHeight: 28,
   headerHeight: 50,
   localizedMonths: ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
   localizedWeekdays: ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'],
-  columnHeaders: { wbs: 'WBS', taskName: 'Taak', duration: 'Duur' },
   weekStartDay: 'sunday',
   enableQuarterHourZoom: true,
   effectiveCalById: new Map(),
@@ -457,6 +466,7 @@ const baseInput: GanttRenderOptionsInput = {
   externalStaleLabel: 'verouderd (NL-test)',
   durationDrag: { taskId: idA, edge: 'right' },
   highContrast: false,
+  darkTheme: true,
   // NIET `undefined`: met undefined is `palette: input.palette` niet te onderscheiden van
   // `palette: undefined` en overleeft een bouwer die het veld laat vallen (gemeten). De waarde
   // wordt hier alleen doorgegeven, nooit getekend, dus een herkenbare stand-in volstaat.
@@ -491,23 +501,28 @@ const passthrough: [string, unknown, unknown][] = [
   ['rows', optsOk.rows, baseInput.rows],
   ['sequences', optsOk.sequences, baseInput.sequences],
   ['calendar', optsOk.calendar, baseInput.calendar],
+  ['resources', optsOk.resources, baseInput.resources],
+  ['assignments', optsOk.assignments, baseInput.assignments],
   ['view', optsOk.view, baseInput.view],
   ['selectedTaskIds', optsOk.selectedTaskIds, baseInput.selectedTaskIds],
-  ['collapsedTaskIds', optsOk.collapsedTaskIds, baseInput.collapsedTaskIds],
   ['statusDate', optsOk.statusDate, baseInput.statusDate],
   ['showStatusDateLine', optsOk.showStatusDateLine, baseInput.showStatusDateLine],
   ['showProgressLine', optsOk.showProgressLine, baseInput.showProgressLine],
+  ['showResourceAccent', optsOk.showResourceAccent, baseInput.showResourceAccent],
+  ['barColorSelection', optsOk.barColorSelection, baseInput.barColorSelection],
+  ['activityCodeTypes', optsOk.activityCodeTypes, baseInput.activityCodeTypes],
+  ['customFieldDefs', optsOk.customFieldDefs, baseInput.customFieldDefs],
+  ['taskTypeLabels', optsOk.taskTypeLabels, baseInput.taskTypeLabels],
+  ['barColorNoneLabel', optsOk.barColorNoneLabel, baseInput.barColorNoneLabel],
   ['showBaselineOverlay', optsOk.showBaselineOverlay, baseInput.showBaselineOverlay],
   ['baselineOverlay', optsOk.baselineOverlay, baseInput.baselineOverlay],
   ['trace', optsOk.trace, baseInput.trace],
   ['canvasWidth', optsOk.canvasWidth, baseInput.canvasWidth],
   ['canvasHeight', optsOk.canvasHeight, baseInput.canvasHeight],
-  ['taskTableWidth', optsOk.taskTableWidth, baseInput.taskTableWidth],
   ['rowHeight', optsOk.rowHeight, baseInput.rowHeight],
   ['headerHeight', optsOk.headerHeight, baseInput.headerHeight],
   ['localizedMonths', optsOk.localizedMonths, baseInput.localizedMonths],
   ['localizedWeekdays', optsOk.localizedWeekdays, baseInput.localizedWeekdays],
-  ['columnHeaders', optsOk.columnHeaders, baseInput.columnHeaders],
   ['weekStartDay', optsOk.weekStartDay, baseInput.weekStartDay],
   ['enableQuarterHourZoom', optsOk.enableQuarterHourZoom, baseInput.enableQuarterHourZoom],
   ['effectiveCalById', optsOk.effectiveCalById, baseInput.effectiveCalById],
@@ -518,6 +533,7 @@ const passthrough: [string, unknown, unknown][] = [
   ['externalStaleLabel', optsOk.externalStaleLabel, baseInput.externalStaleLabel],
   ['durationDrag', optsOk.durationDrag, baseInput.durationDrag],
   ['highContrast', optsOk.highContrast, baseInput.highContrast],
+  ['darkTheme', optsOk.darkTheme, baseInput.darkTheme],
   ['palette', optsOk.palette, baseInput.palette],
   ['compressNonWorkdays', optsOk.compressNonWorkdays, baseInput.compressNonWorkdays],
   ['fontFamily', optsOk.fontFamily, baseInput.fontFamily],
@@ -536,7 +552,6 @@ if (optsOk.axis !== axis) diffs.push('30 axis: renderer krijgt niet dezelfde as-
 const optsSecondary = buildGanttRenderOptions({
   ...baseInput,
   view: { ...baseInput.view, zoom: 12, scrollX: 400 },
-  taskTableWidth: 0,
   enableHourPlanning: undefined,
   durationDisplay: undefined,
   durationSuffixes: undefined,
@@ -545,7 +560,6 @@ const optsSecondary = buildGanttRenderOptions({
   axis: undefined,
 });
 eq('31 secundair: geen eigen as (renderer bouwt hem zelf uit view+compressNonWorkdays)', optsSecondary.axis, undefined);
-eq('32 secundair: geen taaktabel', optsSecondary.taskTableWidth, 0);
 eq('33 secundair: geen sleep-pilletje', optsSecondary.durationDrag, undefined);
 eq('34 secundair: eigen zoom', optsSecondary.view.zoom, 12);
 eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
@@ -558,7 +572,7 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
 // per constructie niet te zien. Veertien regels die het totaal opbliezen en niets bewaakten.
 
 // ════════════════════════════════════════════════════════════════════════════
-// DEEL 3 — Bron-assert op `GanttCanvas.tsx`.
+// DEEL 3 — Bron-assert op `GanttCanvas.tsx` en zijn rendererhost.
 //
 // Grens van deze batterij, expliciet: alles hierboven toetst de FUNCTIES, niet de BEDRADING. Er is
 // geen jsdom/testing-library in dit project, dus het component is niet headless te renderen — een
@@ -578,12 +592,16 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
   let root = dirname(fileURLToPath(import.meta.url));
   while (!existsSync(join(root, 'package.json')) && dirname(root) !== root) root = dirname(root);
   const canvasPath = join(root, 'src/components/canvas/GanttCanvas.tsx');
+  const hostPath = join(root, 'src/components/canvas/hooks/useGanttRendererHost.ts');
+  const coordinatorPath = join(root, 'src/components/canvas/hooks/useGanttViewportCoordinator.ts');
+  const histogramInteractionPath = join(root, 'src/components/canvas/hooks/useGanttHistogramInteraction.ts');
   const viewportPath = join(root, 'src/utils/ganttViewport.ts');
   // Zonder deze guard eindigt een bundel die BUITEN de repo landt in een ongevangen ENOENT uit
   // readFileSync — een crash in plaats van een faalregel, precies wat de walk hierboven wil
   // vermijden. Zelf gereproduceerd.
   checks++;
-  if (!existsSync(canvasPath) || !existsSync(viewportPath)) {
+  if (!existsSync(canvasPath) || !existsSync(hostPath) || !existsSync(coordinatorPath)
+    || !existsSync(histogramInteractionPath) || !existsSync(viewportPath)) {
     diffs.push(`36 bron-assert overgeslagen: repo-root niet gevonden vanaf ${dirname(fileURLToPath(import.meta.url))}`);
   } else {
   const raw = readFileSync(canvasPath, 'utf8');
@@ -623,6 +641,9 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     return out;
   };
   const src = stripComments(raw);
+  const hostSrc = stripComments(readFileSync(hostPath, 'utf8'));
+  const coordinatorSrc = stripComments(readFileSync(coordinatorPath, 'utf8'));
+  const histogramInteractionSrc = stripComments(readFileSync(histogramInteractionPath, 'utf8'));
   // De stripper zelf toetsen op SYNTHETISCHE invoer, niet op het bestand. Een eerdere versie
   // beweerde "laat strings met // intact" en controleerde toen `src.includes('useCanvasLayer')` —
   // een kale identifier, geen string, en `GanttCanvas.tsx` bevat helemaal geen string met `//`.
@@ -639,18 +660,29 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     stripComments("return <p>Don't</p>; // BLIJFT STAAN"), "return <p>Don't</p>; // BLIJFT STAAN");
   // En op het echte bestand: commentaar eruit, code erin.
   eq('36f stripComments haalt commentaar uit het echte bestand', src.includes('K-item 33: de pure afleidingen'), false);
-  eq('36g stripComments laat de code van het echte bestand staan', src.includes('export function GanttCanvas()'), true);
+  eq('36g stripComments laat de code van het echte bestand staan', src.includes('export function GanttCanvas('), true);
 
-  // Beide teken-paden (primair + split-view-secundair) lopen via de gedeelde bouwer. Het KOPPEL
-  // van deze twee tellingen is de eigenlijke bewering: elke renderer die het component bouwt, moet
-  // zijn opties van de bouwer krijgen. Alleen `buildGanttRenderOptions` tellen is te zwak — dan
-  // overleeft een derde `new GanttRenderer(ctx, handgemaaktObject)` (gemeten: die sabotage bleef
-  // groen toen assert 38 nog alleen de inline-literalvorm herkende).
-  eq('37 GanttCanvas instantieert precies twee GanttRenderers (primair + secundair)',
-    (src.match(/new GanttRenderer\(/g) ?? []).length, 2);
-  eq('38 GanttCanvas roept buildGanttRenderOptions even vaak aan als het renderers maakt',
-    (src.match(/buildGanttRenderOptions\(/g) ?? []).length,
-    (src.match(/new GanttRenderer\(/g) ?? []).length);
+  // De shell levert alleen getypeerde bronopties; de host bezit één gedeelde constructieroute voor
+  // primary en secondary. Het KOPPEL van builder- en constructortelling bewaakt dat een pane niet
+  // alsnog met een handgemaakt optieobject naast `buildGanttRenderOptions` ontstaat.
+  eq('37 GanttCanvas instantieert geen renderer meer',
+    (src.match(/new (?:GanttRenderer|HistogramRenderer)\(/g) ?? []).length, 0);
+  eq('38 rendererhost heeft één gedeelde Gantt-constructorroute',
+    (hostSrc.match(/new GanttRenderer\(/g) ?? []).length, 1);
+  eq('38a rendererhost bouwt elke Gantt-optie via de gedeelde bouwer',
+    (hostSrc.match(/buildGanttRenderOptions\(/g) ?? []).length,
+    (hostSrc.match(/new GanttRenderer\(/g) ?? []).length);
+  eq('38b rendererhost bezit de enige histogramconstructor',
+    (hostSrc.match(/new HistogramRenderer\(/g) ?? []).length, 1);
+  eq('38c GanttCanvas bevat geen histogramhittest of bijdragefilter meer', [
+    'pickerAt', 'dayAt', 'contributingTaskNames', 'setHistoTooltip',
+  ].filter(name => src.includes(name)), []);
+  eq('38d histograminteractie gebruikt uitsluitend rendererhittests', [
+    'pickerAt', 'dayAt',
+  ].filter(name => histogramInteractionSrc.includes(name)), ['pickerAt', 'dayAt']);
+  eq('38e histograminteractie dupliceert geen as- of seriesafleiding', [
+    'dateToX', 'buildHistogramPicker', 'buildHistogramSeries', 'useAppStore',
+  ].filter(name => histogramInteractionSrc.includes(name)), []);
 
   // De origin-lus stond drie keer in de codebase: de render-memo, `revealTaskIfOffscreen` en
   // `computeScrollToDate`. Alleen `GanttCanvas.tsx` scannen ving die derde per constructie niet —
@@ -678,11 +710,22 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
   // niet allebei waar zijn.
   eq('39 de start-veldketen staat in geen enkel bestand buiten ganttViewport.ts',
     hits, ['src/utils/ganttViewport.ts']);
-  // Issue #65 voegde een DERDE plek toe: het "spring naar taak"-effect (pendingFocusTaskId) rekent
-  // met dezelfde effectieve oorsprong als de render-memo en `revealTaskIfOffscreen`, om exact
-  // dezelfde reden — anders zou de gesprongen positie niet 1-op-1 kloppen met wat er getekend wordt.
-  eq('40 GanttCanvas gebruikt computeEffectiveViewStart op drie plekken (memo + reveal + spring-naar-taak)',
-    (src.match(/computeEffectiveViewStart\(/g) ?? []).length, 3);
+  eq('40 GanttCanvas orkestreert geen viewportformules meer', [
+    'computeEffectiveViewStart',
+    'computeGanttScrollBounds',
+    'setGanttScrollBounds',
+    'computeFitToProject',
+    'computeFocusTaskHorizontal',
+    'resolveWheelFunction',
+  ].filter(name => new RegExp(`${name}\\(`).test(src)), []);
+  eq('40a viewportcoördinator bezit de effectieve oorsprong',
+    (coordinatorSrc.match(/computeEffectiveViewStart\(/g) ?? []).length, 1);
+  eq('40b viewportcoördinator bezit fit, focus, bounds en wheel',
+    ['computeFitToProject', 'computeFocusTaskHorizontal', 'computeGanttScrollBounds',
+      'setGanttScrollBounds', 'resolveWheelFunction']
+      .filter(name => new RegExp(`${name}\\(`).test(coordinatorSrc)),
+    ['computeFitToProject', 'computeFocusTaskHorizontal', 'computeGanttScrollBounds',
+      'setGanttScrollBounds', 'resolveWheelFunction']);
 
   // En de gedeelde functie moet daadwerkelijk gedeeld zijn: `computeScrollToDate` had een eigen
   // kopie, alleen door een commentaarregel aan de render-memo gekoppeld.
@@ -699,6 +742,11 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     (src.match(/externalStaleLabel:\s*tTask\(/g) ?? []).length, 2);
   eq('43 geen pane laat externalStaleLabel leeg',
     /externalStaleLabel:\s*undefined/.test(src), false);
+  eq('44 histogramas gebruikt pickerWidth als eigen chartOriginX',
+    /const histogramAxis[\s\S]{0,500}chartOriginX:\s*input\.histogramPickerWidth/.test(coordinatorSrc), true);
+  eq('45 HistogramRenderer krijgt pickerWidth en de primaire histogramas samen',
+    /const histogramRenderInput[\s\S]{0,500}pickerWidth:\s*histogramPickerWidth[\s\S]{0,500}axis:\s*histogramAxis/.test(src)
+      && /new HistogramRenderer[\s\S]{0,200}\.\.\.input\.histogram/.test(hostSrc), true);
   }
 }
 

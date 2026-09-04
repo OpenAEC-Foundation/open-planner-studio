@@ -22,6 +22,8 @@ const VIEWPORT_MARGIN = 8;
 /** Horizontale afstand tussen cursor en tooltip: de offset die de aanroeper in `left` verwerkt.
  *  Alleen gebruikt om bij het spiegelen dezelfde ruimte aan de andere kant te laten. */
 const CURSOR_GAP = 16;
+/** Afstand tussen een bediening en de daaraan verankerde tooltip. */
+const ANCHOR_GAP = 8;
 
 /** Klem `v` in [lo, hi]; is dat interval leeg (doos past niet), dan wint `lo`. */
 function clampInto(v: number, lo: number, hi: number): number {
@@ -34,9 +36,17 @@ interface HoverTooltipProps {
   left: number;
   top: number;
   children: ReactNode;
+  /** De standaard volgt de muis; een bediening kan de tooltip liever vóór haar linkerrand tonen. */
+  placement?: 'cursor' | 'before-anchor';
+  /** Breedte van het anker, nodig voor de uitwijk naar de andere kant als links geen ruimte is. */
+  anchorWidth?: number;
+  /** Een bedieningstooltip mag zijn eigen zichtbare laag voor hit-testing gebruiken. */
+  className?: string;
+  /** Optioneel id voor aria-describedby op een verankerde bediening. */
+  id?: string;
 }
 
-export function HoverTooltip({ left, top, children }: HoverTooltipProps) {
+export function HoverTooltip({ left, top, children, placement = 'cursor', anchorWidth = 0, className, id }: HoverTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   // Bewust ZONDER dependency-array: de doos verandert ook van formaat door inhoud die niet in
@@ -48,9 +58,16 @@ export function HoverTooltip({ left, top, children }: HoverTooltipProps) {
     el.style.transform = '';
     const r = el.getBoundingClientRect();
 
-    // Horizontaal: past de rechterkant niet, dan naar de linkerzijde van de cursor spiegelen.
-    const flipped = -(r.width + CURSOR_GAP * 2);
-    const wanted = r.right > window.innerWidth - VIEWPORT_MARGIN ? flipped : 0;
+    // Horizontaal: een ankerbediening krijgt normaal de tooltip links ervan. Is die zijde te
+    // krap (zoals een rechterrail in RTL), dan wijkt hij naar rechts uit. Cursor-tooltips houden
+    // hun bestaande spiegelgedrag aan de rechtervensterrand.
+    const wanted = placement === 'before-anchor'
+      ? r.left - r.width - ANCHOR_GAP >= VIEWPORT_MARGIN
+        ? -(r.width + ANCHOR_GAP)
+        : anchorWidth + ANCHOR_GAP
+      : r.right > window.innerWidth - VIEWPORT_MARGIN
+        ? -(r.width + CURSOR_GAP * 2)
+        : 0;
     const dx = clampInto(wanted, VIEWPORT_MARGIN - r.left, window.innerWidth - VIEWPORT_MARGIN - r.right);
 
     // Verticaal: gewoon omhoog schuiven tot hij past.
@@ -60,7 +77,7 @@ export function HoverTooltip({ left, top, children }: HoverTooltipProps) {
   });
 
   return createPortal(
-    <div ref={ref} className="gantt-tooltip" style={{ left, top }}>
+    <div ref={ref} id={id} className={`gantt-tooltip${className ? ` ${className}` : ''}`} role="tooltip" style={{ left, top }}>
       {children}
     </div>,
     document.body,

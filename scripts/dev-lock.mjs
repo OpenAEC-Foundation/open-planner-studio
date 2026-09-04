@@ -105,20 +105,28 @@ export async function withAllocLock(root, fn) {
   finally { release(); }
 }
 
-/** Per-worktree runtime-slot voor proces-leven. No-op onder OPS_DEV_GUARDED. */
-export function acquireGuardLock(root, port) {
+/** Per-worktree en per-lane runtime-slot voor proces-leven. */
+export function acquireNamedGuardLock(root, port, lane) {
+  if (!/^[a-z][a-z0-9-]{0,31}$/.test(lane)) {
+    throw new Error(`Ongeldige guard-lane identifier "${lane}"`);
+  }
   if (process.env.OPS_DEV_GUARDED) return () => {};
   const key = createHash('sha1').update(root).digest('hex').slice(0, 16);
-  const lockPath = join(tmpdir(), `ops-dev-guard-${key}.lock`);
+  const lockPath = join(tmpdir(), `ops-${lane}-guard-${key}.lock`);
   try {
     return acquireLock(lockPath, {
       allowAgeSteal: true, ageMs: 24 * 3600 * 1000,
-      timeoutMs: 0, extra: { port, root },
+      timeoutMs: 0, extra: { port, root, lane },
     });
   } catch {
     const h = readHolder(lockPath);
     throw new Error(
-      `dev server voor "${basename(root)}" draait al (PID ${h?.pid ?? '?'}, poort ${h?.port ?? '?'}) — tweede bewaker geweigerd`,
+      `${lane} server voor "${basename(root)}" draait al (PID ${h?.pid ?? '?'}, poort ${h?.port ?? '?'}) — tweede bewaker geweigerd`,
     );
   }
+}
+
+/** Compatibiliteitswrapper voor de bestaande devlaunchers. */
+export function acquireGuardLock(root, port) {
+  return acquireNamedGuardLock(root, port, 'dev');
 }

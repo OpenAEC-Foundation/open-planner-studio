@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Task, MilestoneKind } from '@/types/task';
 import { Field } from './shared';
+import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 
 /**
  * Mijlpaal-checkbox + mijlpaal-soort (2.4) + verplicht-vlag (2.4) — sectie 3 uit
@@ -19,16 +20,7 @@ export function TaskMilestoneFields({ task, onChange }: {
           <input
             type="checkbox"
             checked={task.isMilestone}
-            onChange={e => {
-              // Mijlpaal = duur 0 (paritair met TaskDialog); uitvinken geeft de
-              // standaardduur terug zodat de balk niet onzichtbaar blijft.
-              const on = e.target.checked;
-              onChange({
-                isMilestone: on,
-                ...(on ? {} : { milestoneKind: undefined, mandatory: undefined }),
-                time: { ...task.time, scheduleDuration: on ? 0 : (task.time.scheduleDuration || 5) },
-              });
-            }}
+            onChange={e => onChange(taskMilestoneTransition(task, e.target.checked))}
             className="accent-accent"
           />
           {t('properties.milestone')}

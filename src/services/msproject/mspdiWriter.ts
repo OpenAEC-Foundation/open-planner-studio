@@ -2,13 +2,28 @@ import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
+import type { CustomTaskType } from '@/types/taskType';
 import { projectFileBase } from '@/utils/documents';
 import {
-  effectiveCalendarByTask, isHourCalendar, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
+
+/**
+ * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
+ * rekenidentiteit: DurationFormat is alleen de MS Project-weergave-eenheid. Daarom gebruikt OPS
+ * één namespaced custom task field als expliciete round-tripmarker. Text30 is bewust gekozen als
+ * transportveld; de reader accepteert de waarde uitsluitend wanneer de projectdefinitie exact deze
+ * OPS-naam draagt, zodat een vreemd bestand dat Text30 zelf gebruikt nooit per ongeluk matcht.
+ */
+export const OPS_DURATION_UNIT_FIELD_ID = '188743760';
+export const OPS_DURATION_UNIT_FIELD_NAME = 'OPS_TaskDurationUnit';
+
+const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
+const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
@@ -125,6 +140,7 @@ function writeCalendarBlock(
   cal: WorkCalendar,
   uid: number,
   isBaseCalendar: boolean,
+  includeEffectiveScalarBands = false,
 ): void {
   lines.push(`${indent(2)}<Calendar>`);
   lines.push(`${indent(3)}<UID>${uid}</UID>`);
@@ -138,7 +154,8 @@ function writeCalendarBlock(
 
     // Fase 2.8b (§7.3): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkingTime>-blokken;
     // een wrap-band emitteert het eind als tijd-van-de-dag (`end % 1440`).
-    const hourBands = cal.workTime ? (cal.workTime.byWeekday[day as 1] ?? []) : null;
+    const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+    const hourBands = workTime ? (workTime.byWeekday[day as 1] ?? []) : null;
     const dayWorking = hourBands ? hourBands.length > 0 : isWorkDay;
     lines.push(`${indent(4)}<WeekDay>`);
     lines.push(`${indent(5)}<DayType>${mspDay}</DayType>`);
@@ -181,7 +198,7 @@ function writeCalendarBlock(
       lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
       lines.push(`${indent(5)}<TimePeriod>`);
       lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(h.startDate)}</FromDate>`);
-      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(h.endDate)}</ToDate>`);
+      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(holidayEndDate(h))}</ToDate>`);
       lines.push(`${indent(5)}</TimePeriod>`);
       lines.push(`${indent(5)}<Name>${escapeXML(h.name)}</Name>`);
       lines.push(`${indent(5)}<Type>1</Type>`);
@@ -226,6 +243,7 @@ export function writeMSPDI(
   resourceCalendars: WorkCalendar[] = [],
   baselines: Baseline[] = [],
   activeBaselineId: string | null = null,
+  customTaskTypes: readonly CustomTaskType[] = [],
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -260,22 +278,6 @@ export function writeMSPDI(
   const noteCount = tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0);
   if (noteCount > 0) {
     console.warn(`MSPDI-export: ${noteCount} taak-aantekening(en) weggelaten — MSPDI's native <Notes>-element is bewust niet gebruikt (lossy voor de checklist-vorm, §6).`);
-  }
-
-  // H5 (eindreview T16c): een taak met ELAPSEDTIME-duur (T8, 24/7-klokrekenen — bv. uit een `.mpp`-
-  // import) draagt hier BEWUST géén native `<DurationFormat>`-elapsed-code (4/6/8/10/12, dezelfde
-  // set als `ELAPSED_DURATION_FORMATS` voor lag in `mspdiReader.ts`): de LEZER kent diezelfde
-  // task-level `<DurationFormat>` nog niet — die parseert alleen `<Duration>` (de kale ISO-8601-
-  // string, géén eenheids-/format-info) en zet `durationType` nooit op basis daarvan. Native
-  // schrijven zónder dat de lezer het terugleest zou een `.mpp → MSPDI-export → herimport`-cyclus
-  // de 24/7-semantiek stil laten omklappen naar WERKtijd-duur (fout, niet alleen verlies) — erger
-  // dan het huidige gedrag (waar dezelfde omklap al gebeurt, maar zonder de suggestie dat het
-  // "native round-trippt"). Vandaar de conservatieve keuze: weggelaten-met-warn, exact hetzelfde
-  // patroon als `resumeFromActualElapsed` hierboven, tot de lezer ook task-level `<DurationFormat>`
-  // begrijpt (eigen vervolgtaak).
-  const elapsedTaskCount = tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length;
-  if (elapsedTaskCount > 0) {
-    console.warn(`MSPDI-export: ${elapsedTaskCount} taak/taken met ELAPSEDTIME-duur (24/7-klokrekenen) geëxporteerd als gewone werktijd-duur — MSPDI-lezer kent task-level <DurationFormat> nog niet (§6).`);
   }
 
   // Z14 (etappe "nul afwijkingen"): MSPDI kent native <Manual>, <LevelingDelay>/<LevelingDelayFormat>
@@ -344,6 +346,16 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<MinutesPerWeek>${calendar.hoursPerDay * calendar.workDays.length * 60}</MinutesPerWeek>`);
   lines.push(`${indent(1)}<DaysPerMonth>20</DaysPerMonth>`);
 
+  // Expliciete OPS-taakeenheid voor een verliesvrije eigen MSPDI-round-trip. Buitenlandse/legacy-
+  // bestanden zonder deze definitie blijven aan de leeskant exact de oude kalenderregel volgen.
+  lines.push(`${indent(1)}<ExtendedAttributes>`);
+  lines.push(`${indent(2)}<ExtendedAttribute>`);
+  lines.push(`${indent(3)}<FieldID>${OPS_DURATION_UNIT_FIELD_ID}</FieldID>`);
+  lines.push(`${indent(3)}<FieldName>${OPS_DURATION_UNIT_FIELD_NAME}</FieldName>`);
+  lines.push(`${indent(3)}<Alias>${OPS_DURATION_UNIT_FIELD_NAME}</Alias>`);
+  lines.push(`${indent(2)}</ExtendedAttribute>`);
+  lines.push(`${indent(1)}</ExtendedAttributes>`);
+
   // Scheduling-options (fase 2.9, §6): alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt
   // een triviale kritiek-drempel (`criticalDefinition.mode==='totalFloat'` met een niet-negatieve
   // integer-drempel); al het overige (longest-path, fractionele/uur-drempel, lag-kalender, float-paths,
@@ -393,11 +405,15 @@ export function writeMSPDI(
 
   // Fase 2.8b (§7.3): effectieve kalender per taak → uur- vs dag-modus.
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = taskDurationUnitForIo(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
 
   lines.push(`${indent(1)}<Calendars>`);
-  writeCalendarBlock(lines, indent, calendar, 1, true);
+  writeCalendarBlock(lines, indent, calendar, 1, true, hourTaskCalendarIds.has(calendar.id));
   for (const cal of libraryCalendars) {
-    writeCalendarBlock(lines, indent, cal, calUidMap.get(cal.id)!, false);
+    writeCalendarBlock(lines, indent, cal, calUidMap.get(cal.id)!, false, hourTaskCalendarIds.has(cal.id));
   }
   lines.push(`${indent(1)}</Calendars>`);
 
@@ -429,17 +445,21 @@ export function writeMSPDI(
     // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ het
     // bestaande `PT{dagen×hpd}H0M0S`-pad (byte-identiek).
     const effCal = effCalByTask.get(task.id);
-    const isHour = isHourCalendar(effCal);
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
-    const durationTag = isHour
+    const isHourTask = taskDurationUnitForIo(task) === 'hours';
+    const durationTag = isHourTask
       ? minutesToIsoDuration(taskMinutesForWrite(task, effHpd))
       : durationToISO8601(task.time.scheduleDuration, calendar.hoursPerDay);
+    const durationFormat = isHourTask
+      ? (task.time.durationType === 'ELAPSEDTIME' ? 6 : 5)
+      : (task.time.durationType === 'ELAPSEDTIME' ? 8 : 7);
 
     lines.push(`${indent(2)}<Task>`);
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
     lines.push(`${indent(3)}<Name>${escapeXML(task.name)}</Name>`);
     lines.push(`${indent(3)}<Duration>${durationTag}</Duration>`);
+    lines.push(`${indent(3)}<DurationFormat>${durationFormat}</DurationFormat>`);
     lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
     lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
@@ -458,13 +478,20 @@ export function writeMSPDI(
     if (task.time.actualFinish) {
       lines.push(`${indent(3)}<ActualFinish>${formatMSPDateTime(task.time.actualFinish)}</ActualFinish>`);
     }
-    if (isHour && task.time.remainingMinutes != null) {
+    if (isHourTask && task.time.remainingMinutes != null) {
       lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(task.time.remainingMinutes)}</RemainingDuration>`);
     } else if (task.time.remainingTime != null) {
       lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
+    if (task.customTaskTypeId) {
+      const type = customTaskTypes.find(candidate => candidate.id === task.customTaskTypeId);
+      // MSPDI vrije tekst-uitbreiding: vreemde clients negeren dit; OPS leest hem terug zonder
+      // de native MSP Task Type (resource-inspanning) te misbruiken.
+      const value = JSON.stringify({ ops: OPS_CUSTOM_TASK_TYPE_MARKER, id: task.customTaskTypeId, ...(type ? { name: type.name } : {}) });
+      lines.push(`${indent(3)}<ExtendedAttribute><FieldID>${OPS_CUSTOM_TASK_TYPE_FIELD_ID}</FieldID><Value>${escapeXML(value)}</Value></ExtendedAttribute>`);
+    }
     // Datum-constraint (fase 2.9, §6): primair als MSPDI ConstraintType/ConstraintDate. ASAP ⇒ niets
     // (golden rule). Secundair is niet uitdrukbaar (één element, gewaarschuwd hierboven). Soft MSO/MFO
     // degradeert naar SNET/FNET (soft↔hard-val, gewaarschuwd hierboven).
@@ -489,6 +516,10 @@ export function writeMSPDI(
     // patroon als de resource-CalendarUID hieronder).
     const taskCalUid = (task.calendarId && calUidMap.get(task.calendarId)) || 1;
     lines.push(`${indent(3)}<CalendarUID>${taskCalUid}</CalendarUID>`);
+    lines.push(`${indent(3)}<ExtendedAttribute>`);
+    lines.push(`${indent(4)}<FieldID>${OPS_DURATION_UNIT_FIELD_ID}</FieldID>`);
+    lines.push(`${indent(4)}<Value>${isHourTask ? 'hours' : 'days'}</Value>`);
+    lines.push(`${indent(3)}</ExtendedAttribute>`);
     if (task.description) {
       lines.push(`${indent(3)}<Notes>${escapeXML(task.description)}</Notes>`);
     }

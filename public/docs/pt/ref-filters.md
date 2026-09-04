@@ -27,6 +27,10 @@ No topo de cada grupo escolhe como as suas regras se combinam:
 
 O ícone de caixote do lixo atrás de uma regra remove essa regra; a cruz no canto superior direito de um grupo aninhado remove o grupo inteiro.
 
+## Guardar e reutilizar filtros
+
+No topo da janela Filtro, introduza um **Nome** e clique em **Guardar** para manter as regras atuais como uma predefinição. Os filtros guardados ficam disponíveis neste dispositivo em todos os projetos; substituem apenas o filtro, nunca as colunas, o agrupamento, a ordenação ou a escala temporal. Escolha um filtro guardado na mesma lista para o aplicar de imediato, ou elimine a predefinição selecionada com o caixote do lixo.
+
 ## Aplicar, cancelar e limpar
 
 - **Aplicar** ativa o filtro e fecha a janela. Um filtro sem regras conta como "sem filtro".

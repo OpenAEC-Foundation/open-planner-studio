@@ -1,14 +1,14 @@
 // Gantt-cull-regressie: de SPELING-BAND mag niet verdwijnen zolang hij zichtbaar is.
 //
 // Bug (gerapporteerd, gereproduceerd): `drawTaskBar` cullde op de extent van de BALK
-// (`x2 < taskTableWidth`), terwijl de speling-band ná de balk doorloopt tot `x2 + floatWidth`.
+// (`x2 < 0`), terwijl de speling-band ná de balk doorloopt tot `x2 + floatWidth`.
 // Zodra de balk links buiten beeld schoof verdween daardoor ook een band die nog honderden
 // pixels in beeld stond.
 //
 // Deze batterij draait de ECHTE GanttRenderer met een opnemende 2D-context-stub en toetst per
 // horizontale scrollpositie de invariant:
 //
-//     band getekend  ⟺  rechterrand van de band ligt nog op/voorbij taskTableWidth
+//     band getekend  ⟺  rechterrand van de band ligt nog op/voorbij de lokale oorsprong 0
 //
 // De verwachte bandpositie wordt zelf-gekalibreerd op scrollX=0 (bandpositie schuift 1:1 met
 // scrollX), dus de test blijft kloppen als zoom/kalender/lay-out veranderen.
@@ -86,7 +86,7 @@ checks++;
 if (floatTask.time.isCritical) diffs.push('opzet: speling-taak is kritiek — scenario ongeldig');
 
 // ── Renderen per scrollX ─────────────────────────────────────────────────────
-const W = 1200, H = 600, TTW = 300;
+const W = 1200, H = 600, TTW = 0;
 function bandAt(scrollX: number): { x: number; right: number } | null {
   const { ctx, rects } = makeCtx();
   const st = S();
@@ -96,10 +96,8 @@ function bandAt(scrollX: number): { x: number; right: number } | null {
     calendar: st.calendar,
     view: { ...st.view, scrollX, scrollY: 0 },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: 28,
     headerHeight: 60,
   }).render();

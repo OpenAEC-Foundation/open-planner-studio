@@ -3,13 +3,15 @@
  * ZIP-parsing gebeurt met een minimale eigen parser op basis van
  * DecompressionStream — geen JSZip-dependency (zelfde aanpak als Open Calc Studio).
  */
-import type { ExtensionManifest, InstalledExtension, CatalogEntry, ExtensionCatalog } from './types';
+import type { ExtensionManifest, ReadyExtension, CatalogEntry } from './types';
+import { manifestFromJavaScript, parseCatalog, parseExtensionManifest } from './validation';
 import {
   saveExtensionToDb,
-  removeExtensionFromDb,
   enableExtension,
   disableExtension,
   getActivePlugins,
+  indexedDbExtensionStorage,
+  type ExtensionStorage,
 } from './extensionLoader';
 import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
@@ -36,8 +38,21 @@ export async function fetchCatalog(): Promise<void> {
     // niet stale wordt geserveerd (de store-cache hierboven beperkt de frequentie al).
     const res = await fetch(CATALOG_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const catalog: ExtensionCatalog = await res.json();
-    store.setCatalog(catalog.extensions || [], now);
+    const parsed = parseCatalog(await res.json());
+    if (!parsed.ok) throw new Error(parsed.error);
+    store.setCatalog(parsed.value.catalog.extensions, parsed.value.issues, now);
+    if (parsed.value.issues.length > 0) {
+      const details = parsed.value.issues.slice(0, 5)
+        .map((issue) => `#${issue.index}: ${issue.error}`)
+        .join('; ');
+      const remaining = parsed.value.issues.length - 5;
+      appLog.emit(
+        'warn',
+        'Extensies',
+        `${parsed.value.issues.length} ongeldige catalogusentry(s) overgeslagen: ${details}`
+          + (remaining > 0 ? `; en ${remaining} meer` : ''),
+      );
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Catalogus ophalen mislukt';
     useAppStore.getState().setCatalogError(message);
@@ -131,10 +146,14 @@ export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOu
         `Catalogusentry "${entry.id}" heeft geen sha256; de download is niet geverifieerd.`);
     }
 
-    return await installFromZipBlob(new Blob([bytes as unknown as BlobPart]), entry.id, {
-      source: 'catalog',
-      verification: oordeel.unverified ? 'unverified' : 'checksum',
-    });
+    return await installFromZipBlob(
+      new Blob([bytes as unknown as BlobPart]),
+      { id: entry.id, version: entry.version },
+      {
+        source: 'catalog',
+        verification: oordeel.unverified ? 'unverified' : 'checksum',
+      },
+    );
   } catch (err) {
     console.error('[Extensies] Installeren vanuit catalogus mislukt:', err);
     appLog.emit('error', 'Extensies', err instanceof Error ? err.message : String(err));
@@ -231,7 +250,9 @@ export async function installFromJsFile(): Promise<InstallOutcome> {
 
       try {
         const mainCode = await file.text();
-        const manifest = extractManifestFromCode(mainCode, file.name);
+        const parsed = manifestFromJavaScript(mainCode, file.name);
+        if (!parsed.ok) throw new Error(parsed.error);
+        const manifest = parsed.value;
 
         // Vertrouwensvraag vóór élke schrijfactie — zie gateConsent.
         if (!await gateConsent(manifest, manifest.id, { source: 'js', verification: 'local' })) {
@@ -247,12 +268,13 @@ export async function installFromJsFile(): Promise<InstallOutcome> {
           enabled: true,
         });
 
-        const installed: InstalledExtension = {
+        const installed: ReadyExtension = {
+          kind: 'ready',
           id: manifest.id,
           manifest,
           status: 'disabled',
         };
-        useAppStore.getState().registerExtension(installed);
+        useAppStore.getState().registerReadyExtension(installed);
         await enableExtension(manifest.id);
 
         input.remove();
@@ -267,42 +289,17 @@ export async function installFromJsFile(): Promise<InstallOutcome> {
   });
 }
 
-function extractManifestFromCode(code: string, fileName: string): ExtensionManifest {
-  // Zoek een @manifest-JSON-blok in het commentaar
-  // Beperking: de non-greedy match stopt bij de eerste '}', dus het manifest
-  // moet een plat JSON-object zijn (geen geneste objecten; arrays van strings zijn OK).
-  const match = code.match(/@manifest\s*(\{[\s\S]*?\})\s*\*/);
-  if (match) {
-    try {
-      return JSON.parse(match[1]);
-    } catch { /* val terug op gegenereerd manifest */ }
-  }
-
-  const id = fileName.replace(/\.js$/, '').replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-  return {
-    id,
-    name: fileName.replace(/\.js$/, ''),
-    version: '1.0.0',
-    // Bewust GEEN apiVersion: een los .js-bestand zonder manifest weten we niets van, en een
-    // gegokte waarde zou de contract-poort in extensionLoader een garantie laten uitspreken die
-    // niemand gegeven heeft. Afwezig ⇒ legacy-pad (laden mag, met een warn).
-    minAppVersion: '0.0.0',
-    author: 'Onbekend',
-    description: `Extensie geladen uit ${fileName}`,
-    category: 'Other',
-    main: 'main.js',
-    // 'commands' bestaat niet meer (audit P16); een los .js-bestand zonder @manifest krijgt
-    // standaard alleen 'events' (de rest declareert de auteur expliciet in een @manifest-blok).
-    permissions: ['events'],
-  };
-}
-
 // ── ZIP-afhandeling ──
 
-/** Per-asset-limiet (24 MB) — ruim genoeg voor een gesubset CJK-glyf-font, klein genoeg voor IndexedDB. */
-const MAX_ASSET_BYTES = 24 * 1024 * 1024;
-/** Totale asset-limiet per extensie (48 MB) — meerdere gewichten/fonts mogen, maar niet onbegrensd. */
-const MAX_TOTAL_ASSET_BYTES = 48 * 1024 * 1024;
+/** Per uitgepakte ZIP-entry maximaal 24 MiB. */
+const MAX_ZIP_ENTRY_BYTES = 24 * 1024 * 1024;
+/** Totale uitgepakte ZIP-payload maximaal 48 MiB. */
+const MAX_ZIP_TOTAL_BYTES = 48 * 1024 * 1024;
+
+export interface ExpectedExtensionIdentity {
+  id: string;
+  version: string;
+}
 
 /**
  * Installeer een extensie uit een ZIP-`Blob` via het volledige install-pad (parse → assets bewaren →
@@ -311,77 +308,83 @@ const MAX_TOTAL_ASSET_BYTES = 48 * 1024 * 1024;
  */
 export async function installFromZipBlob(
   blob: Blob,
-  overrideId?: string,
+  expected?: ExpectedExtensionIdentity,
   opts: InstallOptions = {},
 ): Promise<InstallOutcome> {
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const files = await parseZipEntries(arrayBuffer);
 
-    const manifestEntry = files.find((f) => f.name.endsWith('manifest.json'));
-    if (!manifestEntry) throw new Error('Geen manifest.json gevonden in ZIP');
+    const manifestEntries = files.filter((file) => file.name === 'manifest.json');
+    if (manifestEntries.length !== 1) {
+      throw new Error(
+        manifestEntries.length === 0
+          ? 'Geen manifest.json gevonden in ZIP'
+          : 'Meer dan één manifest.json gevonden in ZIP',
+      );
+    }
+    const manifestEntry = manifestEntries[0];
 
-    const manifest: ExtensionManifest = JSON.parse(new TextDecoder().decode(manifestEntry.data));
+    let rawManifest: unknown;
+    try {
+      rawManifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(manifestEntry.data));
+    } catch (error) {
+      throw new Error(`manifest.json bevat ongeldige JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const parsedManifest = parseExtensionManifest(rawManifest, 'fresh');
+    if (!parsedManifest.ok) throw new Error(parsedManifest.error);
+    const manifest = parsedManifest.value;
 
-    const mainPath = manifest.main || 'main.js';
-    const mainEntry = files.find(
-      (f) => f.name.endsWith(mainPath) || f.name.endsWith('/' + mainPath)
-    );
-    if (!mainEntry) throw new Error(`Hoofdbestand "${mainPath}" niet gevonden in ZIP`);
+    const mainEntry = files.find((file) => file.name === manifest.main);
+    if (!mainEntry) throw new Error(`Hoofdbestand "${manifest.main}" niet gevonden in ZIP`);
 
-    const mainCode = new TextDecoder().decode(mainEntry.data);
-    const id = overrideId || manifest.id;
+    const mainCode = new TextDecoder('utf-8', { fatal: true }).decode(mainEntry.data);
+
+    if (expected && (manifest.id !== expected.id || manifest.version !== expected.version)) {
+      throw new Error(
+        `Catalogusidentiteit ${expected.id}@${expected.version} komt niet overeen met `
+          + `manifest ${manifest.id}@${manifest.version}`,
+      );
+    }
 
     // Overige ZIP-entries (niet main/manifest) bewaren als binaire assets, op naam → bytes. Zo kan
     // een extensie z'n eigen font-bytes leveren via `api.assets.get(...)`. Grootte begrensd (font-
-    // assets zijn MB's, maar IndexedDB mag niet volgestampt worden): per bestand ≤ MAX_ASSET_BYTES,
-    // totaal ≤ MAX_TOTAL_ASSET_BYTES; te grote entries worden overgeslagen met een waarschuwing.
-    const assets: Record<string, Uint8Array> = {};
-    let assetTotal = 0;
+    // assets zijn MB's, maar IndexedDB mag niet volgestampt worden). De parser heeft iedere entry
+    // en het totaal al begrensd; hier is alleen nog de expliciete selectie nodig.
+    // Null-prototype: een geldige bestandsnaam als "__proto__" mag de assetmap niet muteren.
+    const assets: Record<string, Uint8Array> = Object.create(null);
     for (const f of files) {
       if (f === manifestEntry || f === mainEntry) continue;
-      if (f.data.length > MAX_ASSET_BYTES) {
-        console.warn(
-          `[Extensies] Asset "${f.name}" (${f.data.length} bytes) overschrijdt de limiet van ${MAX_ASSET_BYTES} bytes en wordt overgeslagen`,
-        );
-        continue;
-      }
-      if (assetTotal + f.data.length > MAX_TOTAL_ASSET_BYTES) {
-        console.warn(
-          `[Extensies] Assets samen overschrijden ${MAX_TOTAL_ASSET_BYTES} bytes; "${f.name}" en verdere assets worden overgeslagen`,
-        );
-        break;
-      }
       assets[f.name] = f.data;
-      assetTotal += f.data.length;
     }
     const hasAssets = Object.keys(assets).length > 0;
 
     // Vertrouwensvraag — VÓÓR de eerste schrijfactie, en dus ook vóór het deactiveren van een
     // eventuele vorige versie: een weigering mag niets achterlaten en niets kapotmaken.
-    if (!await gateConsent({ ...manifest, id }, id, opts)) return 'declined';
+    if (!await gateConsent(manifest, manifest.id, opts)) return 'declined';
 
     // Al geïnstalleerd? Eerst deactiveren.
-    if (getActivePlugins().has(id)) {
-      await disableExtension(id);
+    if (getActivePlugins().has(manifest.id)) {
+      await disableExtension(manifest.id);
     }
 
     await saveExtensionToDb({
-      id,
-      manifest: { ...manifest, id },
+      id: manifest.id,
+      manifest,
       mainCode,
       enabled: true,
       // Backward-compat: alleen een `assets`-veld schrijven als er echt assets zijn.
       ...(hasAssets ? { assets } : {}),
     });
 
-    const installed: InstalledExtension = {
-      id,
-      manifest: { ...manifest, id },
+    const installed: ReadyExtension = {
+      kind: 'ready',
+      id: manifest.id,
+      manifest,
       status: 'disabled',
     };
-    useAppStore.getState().registerExtension(installed);
-    await enableExtension(id);
+    useAppStore.getState().registerReadyExtension(installed);
+    await enableExtension(manifest.id);
 
     return 'installed';
   } catch (err) {
@@ -392,10 +395,12 @@ export async function installFromZipBlob(
 
 // ── Minimale ZIP-parser (stored + deflate) ──
 
-interface ZipEntry {
+export interface ZipEntry {
   name: string;
   data: Uint8Array;
 }
+
+class ZipValidationError extends Error {}
 
 const SIG_LOCAL = 0x04034b50;       // local file header
 const SIG_CENTRAL = 0x02014b50;     // central directory file header
@@ -433,9 +438,44 @@ async function decompressEntry(method: number, compressed: Uint8Array<ArrayBuffe
   throw new Error(`Niet-ondersteunde compressiemethode: ${method}`);
 }
 
-/** Strip de gemeenschappelijke topmap-prefix (bv. "my-ext/manifest.json" → "manifest.json"). */
-function stripTopDir(name: string): string {
-  return name.replace(/^[^/]+\//, '');
+function assertSafeZipEntryName(name: string): void {
+  if (name.length === 0 || name.startsWith('/') || name.includes('\\') || name.includes('\0')) {
+    throw new ZipValidationError(`Onveilige ZIP-entrynaam: ${JSON.stringify(name)}`);
+  }
+  const path = name.endsWith('/') ? name.slice(0, -1) : name;
+  const segments = path.split('/');
+  if (path.length === 0 || segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new ZipValidationError(`Onveilige ZIP-entrynaam: ${JSON.stringify(name)}`);
+  }
+}
+
+function addZipPayloadSize(current: number, size: number, name: string): number {
+  if (size > MAX_ZIP_ENTRY_BYTES) {
+    throw new ZipValidationError(
+      `ZIP-entry "${name}" overschrijdt de limiet van ${MAX_ZIP_ENTRY_BYTES} bytes`,
+    );
+  }
+  const next = current + size;
+  if (next > MAX_ZIP_TOTAL_BYTES) {
+    throw new ZipValidationError(`ZIP-payload overschrijdt de limiet van ${MAX_ZIP_TOTAL_BYTES} bytes`);
+  }
+  return next;
+}
+
+/** Strip uitsluitend één topmap wanneer iedere bestandsentry exact diezelfde topmap deelt. */
+function normalizeZipEntries(entries: ZipEntry[]): ZipEntry[] {
+  const parts = entries.map((entry) => entry.name.split('/'));
+  const sharedTopDir = parts.length > 0
+    && parts.every((segments) => segments.length > 1 && segments[0] === parts[0][0]);
+  const seen = new Set<string>();
+
+  return entries.map((entry, index) => {
+    const name = sharedTopDir ? parts[index].slice(1).join('/') : entry.name;
+    assertSafeZipEntryName(name);
+    if (seen.has(name)) throw new ZipValidationError(`Dubbele ZIP-entrynaam na normalisatie: "${name}"`);
+    seen.add(name);
+    return { name, data: entry.data };
+  });
 }
 
 /**
@@ -443,14 +483,16 @@ function stripTopDir(name: string): string {
  * data-descriptor-overshoot-probleem op); valt terug op een local-header-scan als de
  * EOCD ontbreekt of de central-directory-lezing faalt.
  */
-async function parseZipEntries(buffer: ArrayBuffer): Promise<ZipEntry[]> {
+export async function parseZipEntries(buffer: ArrayBuffer): Promise<ZipEntry[]> {
+  let viaCentral: ZipEntry[] | null = null;
   try {
-    const viaCentral = await parseViaCentralDirectory(buffer);
-    if (viaCentral) return viaCentral;
+    viaCentral = await parseViaCentralDirectory(buffer);
   } catch (err) {
+    if (err instanceof ZipValidationError) throw err;
     console.warn('[Extensies] Central-directory-lezing faalde, val terug op local-scan:', err);
   }
-  return parseViaLocalHeaders(buffer);
+  const entries = viaCentral ?? await parseViaLocalHeaders(buffer);
+  return normalizeZipEntries(entries);
 }
 
 /** Zoek de End Of Central Directory-record (scan achterwaarts; comment is meestal leeg). */
@@ -471,11 +513,14 @@ async function parseViaCentralDirectory(buffer: ArrayBuffer): Promise<ZipEntry[]
   let cd = view.getUint32(eocd + 16, true); // offset van central directory
 
   const entries: ZipEntry[] = [];
+  let declaredTotal = 0;
+  let actualTotal = 0;
   for (let i = 0; i < total; i++) {
     if (cd + 4 > buffer.byteLength || view.getUint32(cd, true) !== SIG_CENTRAL) break;
 
     const method = view.getUint16(cd + 10, true);
     const compSize = view.getUint32(cd + 20, true);
+    const uncompressedSize = view.getUint32(cd + 24, true);
     const nameLen = view.getUint16(cd + 28, true);
     const extraLen = view.getUint16(cd + 30, true);
     const commentLen = view.getUint16(cd + 32, true);
@@ -484,7 +529,10 @@ async function parseViaCentralDirectory(buffer: ArrayBuffer): Promise<ZipEntry[]
     const name = new TextDecoder().decode(new Uint8Array(buffer, cd + 46, nameLen));
     cd += 46 + nameLen + extraLen + commentLen;
 
+    assertSafeZipEntryName(name);
+
     if (name.endsWith('/')) continue; // map
+    declaredTotal = addZipPayloadSize(declaredTotal, uncompressedSize, name);
 
     // Lees het local file header om de exacte datastart te vinden (extra-veld kan afwijken).
     if (view.getUint32(localOffset, true) !== SIG_LOCAL) continue;
@@ -494,9 +542,8 @@ async function parseViaCentralDirectory(buffer: ArrayBuffer): Promise<ZipEntry[]
 
     const compressed = new Uint8Array(buffer, dataStart, compSize);
     const data = await decompressEntry(method, compressed);
-
-    const cleanName = stripTopDir(name);
-    if (cleanName) entries.push({ name: cleanName, data });
+    actualTotal = addZipPayloadSize(actualTotal, data.length, name);
+    entries.push({ name, data });
   }
 
   return entries;
@@ -507,6 +554,8 @@ async function parseViaLocalHeaders(buffer: ArrayBuffer): Promise<ZipEntry[]> {
   const view = new DataView(buffer);
   const entries: ZipEntry[] = [];
   let offset = 0;
+  let declaredTotal = 0;
+  let actualTotal = 0;
 
   while (offset + 4 <= buffer.byteLength) {
     const sig = view.getUint32(offset, true);
@@ -515,10 +564,13 @@ async function parseViaLocalHeaders(buffer: ArrayBuffer): Promise<ZipEntry[]> {
     const flags = view.getUint16(offset + 6, true);
     const method = view.getUint16(offset + 8, true);
     let compSize = view.getUint32(offset + 18, true);
+    const uncompressedSize = view.getUint32(offset + 22, true);
     const nameLen = view.getUint16(offset + 26, true);
     const extraLen = view.getUint16(offset + 28, true);
     const name = new TextDecoder().decode(new Uint8Array(buffer, offset + 30, nameLen));
     const dataOffset = offset + 30 + nameLen + extraLen;
+
+    assertSafeZipEntryName(name);
 
     // Bit 3 (0x08): grootte staat in een data descriptor ná de data. dataDescLen = het
     // aantal bytes vanaf de data tot (en met) de descriptor; compSize = data ervóór.
@@ -530,10 +582,13 @@ async function parseViaLocalHeaders(buffer: ArrayBuffer): Promise<ZipEntry[]> {
     }
 
     if (!name.endsWith('/')) {
+      if (uncompressedSize > 0) {
+        declaredTotal = addZipPayloadSize(declaredTotal, uncompressedSize, name);
+      }
       const compressed = new Uint8Array(buffer, dataOffset, compSize);
       const data = await decompressEntry(method, compressed);
-      const cleanName = stripTopDir(name);
-      if (cleanName) entries.push({ name: cleanName, data });
+      actualTotal = addZipPayloadSize(actualTotal, data.length, name);
+      entries.push({ name, data });
     }
 
     offset = dataOffset + compSize + dataDescLen;
@@ -568,12 +623,15 @@ function scanDataDescriptor(
 
 // ── Extensie verwijderen ──
 
-export async function removeExtension(id: string): Promise<void> {
+export async function removeExtension(
+  id: string,
+  storage: ExtensionStorage = indexedDbExtensionStorage,
+): Promise<void> {
   if (getActivePlugins().has(id)) {
-    await disableExtension(id);
+    await disableExtension(id, storage);
   }
 
-  await removeExtensionFromDb(id);
+  await storage.remove(id);
   useAppStore.getState().unregisterExtension(id);
 
   // Instellingen van deze extensie opruimen
@@ -584,4 +642,17 @@ export async function removeExtension(id: string): Promise<void> {
     if (key?.startsWith(prefix)) keysToRemove.push(key);
   }
   keysToRemove.forEach((k) => localStorage.removeItem(k));
+}
+
+/** Verwijder een onuitvoerbaar opslagrecord via zijn bewaarde IndexedDB-sleutel. */
+export async function removeQuarantinedExtension(
+  quarantineId: string,
+  storage: ExtensionStorage = indexedDbExtensionStorage,
+): Promise<void> {
+  const store = useAppStore.getState();
+  const quarantined = store.quarantinedExtensions[quarantineId];
+  if (!quarantined) return;
+
+  await storage.remove(quarantined.storageKey);
+  useAppStore.getState().removeQuarantinedExtension(quarantineId);
 }

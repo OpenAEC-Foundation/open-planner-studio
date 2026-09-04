@@ -1,4 +1,4 @@
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 
@@ -149,7 +149,7 @@ function analyzeHolidayOverlap(
 
   for (const holiday of calendar.holidays) {
     const hStart = parseDate(holiday.startDate);
-    const hEnd = parseDate(holiday.endDate);
+    const hEnd = parseDate(holidayEndDate(holiday));
     const overlapStart = hStart.getTime() > periodStart.getTime() ? hStart : periodStart;
     const overlapEnd = hEnd.getTime() < periodEnd.getTime() ? hEnd : periodEnd;
     if (overlapEnd.getTime() < overlapStart.getTime()) continue; // geen overlap

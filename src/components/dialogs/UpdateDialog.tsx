@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Download, RefreshCw, AlertTriangle, CheckCircle2, RotateCw, Copy, Check, ExternalLink, PackageOpen } from 'lucide-react';
@@ -75,19 +75,18 @@ export function UpdateDialog() {
   }, [showUpdateDialog]);
 
   // Bij openen: meteen (niet-stil) controleren op updates.
-  const runCheck = () => {
+  const runCheck = useCallback(() => {
     setBusy(true);
     setStatus({ kind: 'upToDate' }); // tussentijds — UI toont "controleren…" via busy
     checkForUpdates(false, setStatus)
       .catch(() => { /* fout komt via onStatus binnen */ })
       .finally(() => setBusy(false));
-  };
+  }, []);
 
   useEffect(() => {
     if (!showUpdateDialog) return;
     runCheck();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showUpdateDialog]);
+  }, [showUpdateDialog, runCheck]);
 
   const handleInstall = () => {
     setBusy(true);

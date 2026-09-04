@@ -96,8 +96,11 @@ jobs:
       - name: Install frontend dependencies (npm ci)
         run: npm ci
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps --only-shell chromium
+
       # `npm run verify` = typecheck (src én scripts/tests, bevinding K10b) +
-      # alle vier de testsuites + verify:examples + verify:docs. Bewust ÉÉN
+      # alle vijf de testsuites + verify:examples + verify:docs. Bewust ÉÉN
       # commando in plaats van de losse stappen die hier stonden: dezelfde
       # regel staat in de gate van release.yml en live.yml, en die drie liepen
       # anders uit elkaar zodra er een suite bijkomt. Wat er precies in zit
@@ -105,3 +108,14 @@ jobs:
       # elke suite print zijn eigen kop en telling.
       - name: Verify (typecheck, testsuites, examples, docs)
         run: npm run verify
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ci-${{ github.job }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

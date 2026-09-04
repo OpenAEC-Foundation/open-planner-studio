@@ -39,7 +39,7 @@ articolo le raggruppa come **Generale**, **Lingua** e **Sequenza temporale / Zoo
 
 ## Scheda Sequenza temporale / Zoom
 
-- **Pianificazione oraria** — **Attiva pianificazione oraria** attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni. Con l'interruttore attivo, compare **Consenti pianificazione mista giorno/ora** (attività a giorni e a ore in un unico progetto). Se apri un file che contiene pianificazione oraria mentre l'interruttore è disattivato, una barra in alto offre **Attiva pianificazione oraria**. Vedi [Calendari e pianificazione oraria](docs://gids-kalenders-uren).
+- **Pianificazione oraria** — **Attiva pianificazione oraria** abilita la scala oraria e le fasce di lavoro. Quando è disattivata, le nuove attività iniziano in giorni e quelle a ore esistenti restano esatte. Quando è attiva, attività a giorni e a ore possono coesistere. Vedi [Calendari e pianificazione oraria](docs://gids-kalenders-uren).
 - **Visualizzazione della durata** — **Automatica (unità propria per attività)**, **Sempre giorni** o **Sempre ore**.
 - **Barre attività alle interruzioni** — **Non dividere mai**, **Dividi alla selezione** o **Dividi sempre**: se una barra si divide visivamente attorno ai giorni non lavorativi.
 - **Asse della sequenza temporale** — **Mostra solo i giorni lavorativi** comprime la sequenza temporale: i fine settimana e i giorni festivi del calendario di progetto vengono saltati, così un'attività di 5 giorni lavorativi è larga esattamente 5 colonne, qualunque sia l'aspetto del calendario nel mezzo.
