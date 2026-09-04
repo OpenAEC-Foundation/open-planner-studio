@@ -379,18 +379,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       doorgeschoven, dit is puur zichtbaarheid, geen correctheidsgat.
 
 ### Klein
-- [ ] **Raster-terugval van de rapport-export heeft geen paginalimiet.** Gemeten 2026-07-27 tijdens
-      issue #25: de PREVIEW is inmiddels afgedekt (`maxPages` in `paginateCanvasToTiles`, 30 vellen),
-      maar `exportRaster()` in `ReportPanel.tsx` niet — en dat mag ook niet zomaar, want een export
-      moet compleet zijn. Daar bestaan dus álle `rows * cols` pagina-canvassen tegelijk vóór de
-      omzetting naar JPEG, op `SUPERSAMPLE = 2`. Een A3-vel is daarmee ~2382×1684×4 ≈ 16 MB; het
-      gemeten scenario van 300 taken met `timelineColumns: 8` (20 rijen × 8 kolommen = 160 pagina's)
-      komt op ~2,5 GB. Let op wanneer dit toeslaat: raster is de `catch`-terugval van de vector-tak,
-      dus precies op het moment dat de vector-export net gefaald is. `MAX_TIMELINE_COLUMNS = 32`
-      begrenst het wel, maar staat nog steeds honderden pagina's toe. Pre-existing gedrag, geen
-      regressie van #25 — dat werk maakte het pad alleen makkelijker bereikbaar (één dropdown i.p.v.
-      een handmatige zoominstelling). Fix-richting: pagina's streamend omzetten naar JPEG en het
-      canvas per pagina vrijgeven i.p.v. ze allemaal vast te houden, of één pagina-canvas hergebruiken.
 - [ ] **Taakdatumvelden pushen 3 undo-stappen per ingetypte datum.** `DateTextInput` commit live bij
       elke toetsaanslag en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
       levert commits op voor 2020-06-01, 0203-06-01 en 2030-06-01 — elk met een volledige snapshot.

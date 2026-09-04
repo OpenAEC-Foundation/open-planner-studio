@@ -752,6 +752,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   PRTEXPCHECK="$DIR/.print-report.mjs"
   if bundle_check "$DIR/check-print-report.ts" "$PRTEXPCHECK"; then node "$PRTEXPCHECK" || STATUS=1; fi
 
+  # Rasterexport-streaming: exportRaster() mag geen paginalimiet hebben (een export moet compleet
+  # zijn), dus de begrenzing moet uit het geheugengedrag komen — één pagina-canvas tegelijk, meteen
+  # naar JPEG en weer vrijgegeven, in plaats van alle rows*cols canvassen tegelijk vasthouden.
+  PRTSTREAMCHECK="$DIR/.print-raster-export-streaming.mjs"
+  if bundle_check "$DIR/check-print-raster-export-streaming.ts" "$PRTSTREAMCHECK"; then node "$PRTSTREAMCHECK" || STATUS=1; fi
+
   # Issue #21 punt 2 — wanneer alleen werkdagen tonen aan staat, gebruikt het rapport dezelfde
   # gecomprimeerde as als de scherm-Gantt en vervangt het verdwenen weekendarcering door weekbanden.
   PRTCOMPRESSCHECK="$DIR/.print-compress-week-banding.mjs"
