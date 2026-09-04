@@ -364,7 +364,9 @@
       "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
       "hammockNoFinishDriver": "終了ドライバーのないハンモック（FF/SF の先行なし）: 期間はゼロになります",
       "cappedTask": "終了日が打ち切られました: カレンダーにこのタスクの作業可能な期間がありません",
-      "overallocation": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）"
+      "overallocation": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）",
+      "overallocationNonWorkingDay": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）— このリソースはカレンダー上この日(々)は稼働しません",
+      "overallocationMixed": "{{count}} 日間過剰割り当て（{{first}} – {{last}}）、うち {{nonWorking}} 日はリソースがカレンダー上稼働しない日です"
     },
     "target": {
       "project": "プロジェクト",
@@ -520,6 +522,7 @@
     "histogram": {
       "allResources": "すべてのリソース",
       "overallocatedTooltip": "{{date}} に {{count}} 件のタスクが関与",
+      "overallocatedNonWorkingDay": "カレンダー「{{calendar}}」によりこの日は稼働しません",
       "noData": "再計算 (F5) して負荷を表示",
       "noResources": "リソースがまだありません",
       "units": "単位",

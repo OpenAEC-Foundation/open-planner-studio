@@ -19,6 +19,12 @@ interface GanttHistogramInteractionInput {
   selectedResourceId?: string;
   selectResource: (resourceId?: string) => void;
   formatContributionLabel: (count: number, isoDate: string) => string;
+  /** R1: extra tooltipregel als deze dag voor `selectedResourceId` overbezet is met reden
+   *  `non-working-day` (de resourcekalender kent die dag geen werkdag). `null` als niet van
+   *  toepassing. Alleen aangeroepen met een gekozen resource — bij "alle resources" kan een dag
+   *  meerdere resources met eventueel verschillende redenen optellen, dus daar blijft de tooltip
+   *  ongewijzigd. */
+  describeNonWorkingDay?: (resourceId: string, isoDate: string) => string | null;
 }
 
 interface GanttHistogramInteraction {
@@ -44,6 +50,7 @@ export function useGanttHistogramInteraction(
     selectedResourceId,
     selectResource,
     formatContributionLabel,
+    describeNonWorkingDay,
   } = input;
   const [tooltip, setTooltip] = useState<GanttHistogramTooltip | null>(null);
 
@@ -93,12 +100,14 @@ export function useGanttHistogramInteraction(
       return;
     }
     const names = contributingTaskNames(isoDate);
-    setTooltip({
-      x: event.clientX,
-      y: event.clientY,
-      lines: [formatContributionLabel(names.length, isoDate), ...names.slice(0, 8)],
-    });
-  }, [canvasRef, rendererRef, selectResource, formatContributionLabel, contributingTaskNames, clearTooltip]);
+    const lines = [formatContributionLabel(names.length, isoDate), ...names.slice(0, 8)];
+    const reasonLine = selectedResourceId ? describeNonWorkingDay?.(selectedResourceId, isoDate) : null;
+    if (reasonLine) lines.push(reasonLine);
+    setTooltip({ x: event.clientX, y: event.clientY, lines });
+  }, [
+    canvasRef, rendererRef, selectResource, formatContributionLabel, contributingTaskNames,
+    clearTooltip, selectedResourceId, describeNonWorkingDay,
+  ]);
 
   /**
    * De resourcelijst is getekend op het canvas, dus heeft geen DOM-listbox die de pijltjes al

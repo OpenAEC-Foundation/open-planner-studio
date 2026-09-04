@@ -85,6 +85,8 @@ A contour changes only the hours per day of this one assignment. Task dates, dur
 
 A resource can sit on the **Project calendar** (default) or on its own calendar — for example for a subcontractor who's only available four days a week. Set this via the **Calendar** column in the resource panel, or the **Calendar** field on the resource itself. A resource calendar never touches a task's CPM dates (those keep running on the task/project calendar) — it only affects **load** and **leveling**: if a resource doesn't work a day the task needs, that counts as a shortfall in the histogram, and the leveler warns that shifting won't fix that calendar mismatch. See the guide [Calendars & hour planning](docs://gids-kalenders-uren) for the full explanation of calendars.
 
+If a bar is red on a day the task itself keeps running normally, check the resource calendar: if that day isn't a working day there, capacity is 0 and any assignment at all immediately counts as overallocation — even though the task calendar keeps running that day. The tooltip on such a bar (see below) says so explicitly, naming the resource calendar, and the warnings panel counts those days separately from "ordinary" overallocation (assignment exceeding capacity). The fix there isn't leveling but removing the calendar mismatch itself — choose a different resource calendar, or accept that the resource simply isn't available that day.
+
 ## Reading the histogram
 
 Turn the histogram on via the **Histogram** ribbon group on the **Resources** tab (the **Histogram** button). A strip appears under the Gantt on the same time axis: bars per day, with the part above the capacity line shown in red.

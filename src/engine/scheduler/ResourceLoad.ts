@@ -206,6 +206,13 @@ export interface DailyLoad {
   [isoDate: string]: number;
 }
 
+/**
+ * Reden van een overbezette dag (R1, issue-vervolg op §4.2 punt 4). `non-working-day`: de
+ * resourcekalender kent deze dag geen werkdag (capaciteit 0, ongeacht de vraag). `over-capacity`:
+ * de resource werkt deze dag wél, maar de gevraagde inzet overschrijdt zijn capaciteit (>0).
+ */
+export type OverallocationReason = 'non-working-day' | 'over-capacity';
+
 export interface ResourceLoadResult {
   /** resourceId → per-dag-belasting (som over alle assignments van deze resource op deze dag). */
   load: Record<string, DailyLoad>;
@@ -213,6 +220,8 @@ export interface ResourceLoadResult {
   capacity: Record<string, DailyLoad>;
   /** resourceId → ISO-datums waar load > capacity. */
   overallocatedDays: Record<string, string[]>;
+  /** resourceId → ISO-datum → reden, uitsluitend voor de datums in `overallocatedDays`. */
+  overallocatedReasons: Record<string, Record<string, OverallocationReason>>;
 }
 
 /** Kalender-engine voor de TAAKkalender van `task` — spiegelt `CPMSolver.calendarFor`
@@ -314,7 +323,11 @@ function engineForTask(
  *     niet werken, dus is dat een echt (en niet een vals-positief) conflict.
  *  5. Materiaal telt gewoon mee voor overallocatie (leveler slaat het straks over, deze functie
  *     niet — expliciete beslissing, zie §4.2 punt 5).
- *  6. overallocatedDays = dagen waar load > capacity.
+ *  6. overallocatedDays = dagen waar load > capacity, met per dag de reden in `overallocatedReasons`
+ *     (R1): `non-working-day` als de resourcekalender die dag geen werkdag is (punt 4 hierboven —
+ *     de dag telt sowieso mee, maar de gebruiker ziet nu ook WAAROM), anders `over-capacity`. De
+ *     reden komt uit dezelfde `isWorkDay`-vraag als de capaciteitsberekening in punt 4, dus geen
+ *     tweede, potentieel afdrijvende definitie van "werkdag".
  */
 export function computeResourceLoad(
   resources: Resource[],
@@ -326,6 +339,12 @@ export function computeResourceLoad(
   const load: Record<string, DailyLoad> = {};
   const capacity: Record<string, DailyLoad> = {};
   const overallocatedDays: Record<string, string[]> = {};
+  const overallocatedReasons: Record<string, Record<string, OverallocationReason>> = {};
+  // resourceId → ISO-datum → is dit een werkdag van de RESOURCE-kalender? Bijgehouden naast
+  // `capacity` (punt 4) zodat de redenbepaling (punt 6) niet op `capacity === 0` hoeft te gokken —
+  // een 0-stap in `availabilitySteps` op een echte werkdag is ook capaciteit 0, maar géén
+  // `non-working-day`.
+  const isResourceWorkDay: Record<string, Record<string, boolean>> = {};
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const projectEngine = new CalendarEngine(calendarForEngine(projectCalendar));
@@ -369,24 +388,36 @@ export function computeResourceLoad(
     ));
 
     capacity[resource.id] = {};
+    isResourceWorkDay[resource.id] = {};
     for (const iso of Object.keys(bucket)) {
       const date = parseDate(iso);
-      capacity[resource.id][iso] = engine.isWorkDay(date) ? maxUnitsOn(resource, iso) : 0;
+      const workDay = engine.isWorkDay(date);
+      capacity[resource.id][iso] = workDay ? maxUnitsOn(resource, iso) : 0;
+      isResourceWorkDay[resource.id][iso] = workDay;
     }
   }
 
-  // 6. Overallocatie: load > capacity (materiaal telt gewoon mee, zie §4.2 punt 5).
+  // 6. Overallocatie: load > capacity (materiaal telt gewoon mee, zie §4.2 punt 5), met per dag de
+  //    reden — zie het docblok hierboven.
   for (const resId of Object.keys(load)) {
     const bucket = load[resId];
     const cap = capacity[resId] ?? {};
+    const workDays = isResourceWorkDay[resId] ?? {};
     const flagged: string[] = [];
+    const reasons: Record<string, OverallocationReason> = {};
     for (const iso of Object.keys(bucket)) {
-      if (bucket[iso] > (cap[iso] ?? 0)) flagged.push(iso);
+      if (bucket[iso] > (cap[iso] ?? 0)) {
+        flagged.push(iso);
+        reasons[iso] = workDays[iso] ? 'over-capacity' : 'non-working-day';
+      }
     }
-    if (flagged.length > 0) overallocatedDays[resId] = flagged.sort();
+    if (flagged.length > 0) {
+      overallocatedDays[resId] = flagged.sort();
+      overallocatedReasons[resId] = reasons;
+    }
   }
 
-  return { load, capacity, overallocatedDays };
+  return { load, capacity, overallocatedDays, overallocatedReasons };
 }
 
 /**

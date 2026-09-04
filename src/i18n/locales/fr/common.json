@@ -378,7 +378,9 @@
       "droppedSequence": "Relation ignorée : le prédécesseur ou le successeur est absent ou n'est pas une tâche feuille",
       "hammockNoFinishDriver": "Hamac sans pilote de fin (aucun prédécesseur FF/DF) : sa durée retombe à zéro",
       "cappedTask": "Date de fin plafonnée : le calendrier ne laisse aucune fenêtre ouvrable pour cette tâche",
-      "overallocation": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}})"
+      "overallocation": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}}) — la ressource ne travaille pas ce(s) jour(s) selon son calendrier",
+      "overallocationMixed": "Surallocation sur {{count}} jour(s) ({{first}} – {{last}}), dont {{nonWorking}} jour(s) où la ressource ne travaille pas selon son calendrier"
     },
     "target": {
       "project": "Projet",
@@ -538,6 +540,7 @@
     "histogram": {
       "allResources": "Toutes les ressources",
       "overallocatedTooltip": "{{count}} tâches contribuent le {{date}}",
+      "overallocatedNonWorkingDay": "Ne travaille pas ce jour selon le calendrier « {{calendar}} »",
       "noData": "Recalculer (F5) pour afficher la charge",
       "noResources": "Aucune ressource pour l’instant",
       "units": "unités",

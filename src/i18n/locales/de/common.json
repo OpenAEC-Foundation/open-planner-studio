@@ -371,7 +371,9 @@
       "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
       "hammockNoFinishDriver": "Hammock ohne Ende-Treiber (kein EE/AE-Vorgänger): die Dauer fällt auf null zurück",
       "cappedTask": "Enddatum gekappt: der Kalender lässt kein arbeitsfähiges Fenster für diesen Vorgang",
-      "overallocation": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}})"
+      "overallocation": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}}) — die Ressource arbeitet an diesem/diesen Tag(en) laut Kalender nicht",
+      "overallocationMixed": "Überlastet an {{count}} Tag(en) ({{first}} – {{last}}), davon {{nonWorking}} Tag(e), an denen die Ressource laut Kalender nicht arbeitet"
     },
     "target": {
       "project": "Projekt",
@@ -529,6 +531,7 @@
     "histogram": {
       "allResources": "Alle Ressourcen",
       "overallocatedTooltip": "{{count}} Aufgaben tragen bei am {{date}}",
+      "overallocatedNonWorkingDay": "Arbeitet an diesem Tag laut Kalender „{{calendar}}“ nicht",
       "noData": "Neu berechnen (F5), um die Auslastung anzuzeigen",
       "noResources": "Noch keine Ressourcen",
       "units": "Einheiten",

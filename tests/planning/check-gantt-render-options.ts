@@ -409,6 +409,7 @@ const load: ResourceLoadResult = {
     r3: { '2027-03-01': 999 },
   },
   overallocatedDays: { r1: ['2027-03-01', '2027-03-05'], r2: [], r3: [], r4: [] },
+  overallocatedReasons: {},
 };
 // Losse fixture waarin ALLEEN materiaal overbelast is. Nodig omdat `anyRenewableOver` in de fixture
 // hierboven sowieso true is (r1 is overbelast): de MATERIAL-uitsluiting in `buildHistogramPicker`
@@ -417,6 +418,7 @@ const materialOnlyOver: ResourceLoadResult = {
   load: { r3: { '2027-03-01': 1500 } },
   capacity: { r3: { '2027-03-01': 999 } },
   overallocatedDays: { r1: [], r2: [], r3: ['2027-03-01'], r4: [] },
+  overallocatedReasons: {},
 };
 for (const [i, sel] of [undefined, 'r1', 'r3', 'onbekend'].entries()) {
   eqDeep(`16.${i} histogramSeries identiek aan het orakel (selectie=${sel ?? 'alle'})`,

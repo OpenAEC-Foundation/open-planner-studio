@@ -371,7 +371,9 @@
       "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
       "hammockNoFinishDriver": "Bitiş sürücüsü olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
       "cappedTask": "Bitiş tarihi sınırlandı: takvim bu görev için çalışılabilir bir pencere bırakmıyor",
-      "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})"
+      "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "{{count}} gün aşırı atanmış ({{first}} – {{last}}) — kaynak bu gün(ler)de takvimine göre çalışmıyor",
+      "overallocationMixed": "{{count}} gün aşırı atanmış ({{first}} – {{last}}), bunlardan {{nonWorking}} günde kaynak takvimine göre çalışmıyor"
     },
     "target": {
       "project": "Proje",
@@ -529,6 +531,7 @@
     "histogram": {
       "allResources": "Tüm kaynaklar",
       "overallocatedTooltip": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
+      "overallocatedNonWorkingDay": "Bu gün \"{{calendar}}\" takvimine göre çalışmıyor",
       "noData": "Yükü göstermek için yeniden hesaplayın (F5)",
       "noResources": "Henüz kaynak yok",
       "units": "birim",

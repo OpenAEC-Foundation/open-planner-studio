@@ -385,7 +385,9 @@
       "droppedSequence": "Relacja zignorowana: brakuje poprzednika lub następnika albo nie jest zadaniem liściem",
       "hammockNoFinishDriver": "Hamak bez sterownika końca (brak poprzednika FF/SF): czas trwania spada do zera",
       "cappedTask": "Data zakończenia obcięta: kalendarz nie zostawia dla tego zadania żadnego roboczego okna",
-      "overallocation": "Przeciążenie przez {{count}} dni ({{first}} – {{last}})"
+      "overallocation": "Przeciążenie przez {{count}} dni ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Przeciążenie przez {{count}} dni ({{first}} – {{last}}) — zasób nie pracuje w te dni według swojego kalendarza",
+      "overallocationMixed": "Przeciążenie przez {{count}} dni ({{first}} – {{last}}), z czego {{nonWorking}} dni to dni, w które zasób nie pracuje według swojego kalendarza"
     },
     "target": {
       "project": "Projekt",
@@ -547,6 +549,7 @@
     "histogram": {
       "allResources": "Wszystkie zasoby",
       "overallocatedTooltip": "{{count}} zadań ma udział w dniu {{date}}",
+      "overallocatedNonWorkingDay": "Nie pracuje w tym dniu według kalendarza „{{calendar}}”",
       "noData": "Przelicz (F5), aby pokazać obciążenie",
       "noResources": "Brak zasobów",
       "units": "jednostki",

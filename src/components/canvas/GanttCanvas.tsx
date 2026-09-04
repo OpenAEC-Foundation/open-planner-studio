@@ -13,6 +13,7 @@ import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { resolveUIFontStack } from '@/utils/uiFont';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MiniMap } from './MiniMap';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
@@ -301,6 +302,16 @@ export function GanttCanvas({
     }),
     [tCommon],
   );
+  // R1: reden achter een overbezette dag zichtbaar maken in de bestaande tooltip — géén nieuwe
+  // UI-laag. `non-working-day` (resourcekalender kent die dag geen werkdag) krijgt de kalendernaam
+  // erbij; `over-capacity` laat de tooltip ongewijzigd (de bestaande taaklijst zegt daar al genoeg).
+  const describeHistogramNonWorkingDay = useCallback((resourceId: string, isoDate: string): string | null => {
+    const reason = scopedResourceLoadResult?.overallocatedReasons[resourceId]?.[isoDate];
+    if (reason !== 'non-working-day') return null;
+    const resource = scopedTaskResources.resources.find(r => r.id === resourceId);
+    const resourceCalendar = resolveCalendar(resource?.calendarId, calendars, calendar);
+    return tCommon('resource.histogram.overallocatedNonWorkingDay', { calendar: resourceCalendar.name });
+  }, [scopedResourceLoadResult, scopedTaskResources, calendars, calendar, tCommon]);
   const histogramInteraction = useGanttHistogramInteraction({
     canvasRef: histogramCanvasRef,
     rendererRef: histogramRendererRef,
@@ -310,6 +321,7 @@ export function GanttCanvas({
     selectedResourceId: effectiveHistogramResourceId,
     selectResource: setHistogramResource,
     formatContributionLabel: formatHistogramContributionLabel,
+    describeNonWorkingDay: describeHistogramNonWorkingDay,
   });
 
   const defaultTaskName = tTask('defaultTask');

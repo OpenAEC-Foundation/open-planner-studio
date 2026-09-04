@@ -371,7 +371,9 @@
       "droppedSequence": "رابطه نادیده گرفته شد: پیشین یا پسین وجود ندارد یا کار برگ نیست",
       "hammockNoFinishDriver": "کار بانوجی بدون محرک پایان (بدون پیشین FF/SF): مدت آن به صفر برمی‌گردد",
       "cappedTask": "تاریخ پایان محدود شد: تقویم هیچ بازهٔ کاری برای این کار باقی نمی‌گذارد",
-      "overallocation": "بیش‌تخصیص در {{count}} روز ({{first}} – {{last}})"
+      "overallocation": "بیش‌تخصیص در {{count}} روز ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "بیش‌تخصیص در {{count}} روز ({{first}} – {{last}}) — منبع طبق تقویم خود در این روز(ها) کار نمی‌کند",
+      "overallocationMixed": "بیش‌تخصیص در {{count}} روز ({{first}} – {{last}})، که {{nonWorking}} روز آن روزهایی است که منبع طبق تقویم خود کار نمی‌کند"
     },
     "target": {
       "project": "پروژه",
@@ -529,6 +531,7 @@
     "histogram": {
       "allResources": "همه منابع",
       "overallocatedTooltip": "{{count}} وظیفه در {{date}} مشارکت دارند",
+      "overallocatedNonWorkingDay": "طبق تقویم «{{calendar}}» در این روز کار نمی‌کند",
       "noData": "برای نمایش بار کاری، دوباره محاسبه کنید (F5)",
       "noResources": "هنوز منبعی وجود ندارد",
       "units": "واحد",

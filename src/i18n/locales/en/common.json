@@ -388,7 +388,9 @@
       "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
       "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
       "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
-      "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})"
+      "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Overallocated on {{count}} day(s) ({{first}} – {{last}}) — the resource does not work these day(s) per its calendar",
+      "overallocationMixed": "Overallocated on {{count}} day(s) ({{first}} – {{last}}), of which {{nonWorking}} day(s) the resource does not work per its calendar"
     },
     "target": {
       "project": "Project",
@@ -546,6 +548,7 @@
     "histogram": {
       "allResources": "All resources",
       "overallocatedTooltip": "{{count}} tasks contribute on {{date}}",
+      "overallocatedNonWorkingDay": "Does not work this day per calendar \"{{calendar}}\"",
       "noData": "Recalculate (F5) to show the load",
       "noResources": "No resources yet",
       "units": "units",

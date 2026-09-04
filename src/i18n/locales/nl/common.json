@@ -388,7 +388,9 @@
       "droppedSequence": "Relatie genegeerd: voorganger of opvolger ontbreekt of is geen bladtaak",
       "hammockNoFinishDriver": "Hammock zonder eind-driver (geen FF/SF-voorganger): de duur valt terug op nul",
       "cappedTask": "Einddatum afgekapt: de kalender maakt het taakvenster onwerkbaar",
-      "overallocation": "Overbezet op {{count}} dag(en) ({{first}} – {{last}})"
+      "overallocation": "Overbezet op {{count}} dag(en) ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Overbezet op {{count}} dag(en) ({{first}} – {{last}}) — de resource werkt deze dag(en) niet volgens zijn kalender",
+      "overallocationMixed": "Overbezet op {{count}} dag(en) ({{first}} – {{last}}), waarvan {{nonWorking}} dag(en) waarop de resource niet werkt volgens zijn kalender"
     },
     "target": {
       "project": "Project",
@@ -546,6 +548,7 @@
     "histogram": {
       "allResources": "Alle resources",
       "overallocatedTooltip": "{{count}} taken dragen bij op {{date}}",
+      "overallocatedNonWorkingDay": "Werkt volgens kalender \"{{calendar}}\" niet op deze dag",
       "noData": "Herbereken (F5) om de belasting te tonen",
       "noResources": "Nog geen resources",
       "units": "eenheden",
