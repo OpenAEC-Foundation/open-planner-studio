@@ -16,7 +16,7 @@
 // `cpmResult` altijd gevuld (de reconstructie uit het bestand). "Modus aan én verouderd" is dus
 // onbereikbaar — vastgelegd in tests/planning/check-recorded-dates.ts (10.B/10.C). Dat is precies
 // wat `readOnlyHint: true` op `get_resource_histogram` overeind houdt.
-import { useAppStore } from '@/state/appStore';
+import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 
 /** Uitkomst van `ensureFreshSchedule`. */
 export interface FreshResult {
@@ -48,13 +48,13 @@ export interface FreshResult {
  * Pusht geen undo-snapshot: de ene uitzondering op de runCPM-invariant (het verlaten van "datums
  * zoals opgeslagen") is via deze helper onbereikbaar — zie de kop hierboven.
  */
-export function ensureFreshSchedule(): FreshResult {
-  const state = useAppStore.getState();
+export function ensureFreshSchedule(app: AppStoreContext = appStoreContext): FreshResult {
+  const state = app.store.getState();
   if (!state.scheduleStale && state.cpmResult) {
     return { recomputed: false };
   }
   state.runCPM();
   // Verse referentie ná de recompute ophalen — runCPM heeft een nieuwe cpmResult gezet.
-  const error = useAppStore.getState().cpmResult?.error;
+  const error = app.store.getState().cpmResult?.error;
   return error ? { recomputed: true, error } : { recomputed: true };
 }

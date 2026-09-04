@@ -7,6 +7,9 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
 import { deriveWbsCodes, flattenOrder } from '@/utils/wbs';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
 
 const store = useAppStore;
 
@@ -17,7 +20,7 @@ store.getState().undo();
 
 // --- 1) Geneste 3-niveau-WBS in één call, tempId-parents in husselvolgorde --------------------------
 test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle tempIds', () => {
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   let map = new Map<string, string>();
   const res = runInMcpTransaction(() => {
@@ -30,7 +33,7 @@ test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle 
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'één transactie-snapshot (bulk = één undo-stap)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot (bulk = één undo-stap)');
   assertEq(map.size, 3, 'de map hoort álle drie de tempIds te bevatten');
 
   const idA = map.get('a')!;
@@ -52,7 +55,7 @@ test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle 
 // --- 2) Onbekende parentId ⇒ throw VÓÓR mutatie, byte-identieke rollback ----------------------------
 test('draft.addTasks onbekende parentId ⇒ transactie faalt schoon (store byte-identiek)', () => {
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeLen = store.getState().undoStack.length;
+  const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     draft.addTasks([
@@ -64,7 +67,7 @@ test('draft.addTasks onbekende parentId ⇒ transactie faalt schoon (store byte-
   assert(!res.ok, 'transactie hoort te falen op de onbekende parentId');
   assert(!res.ok && res.error.includes('bestaat-niet-en-geen-tempid'), 'de foutmelding hoort de boosdoener te noemen');
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'store-inhoud onaangeroerd (nul taken aangemaakt)');
-  assertEq(store.getState().undoStack.length, beforeLen, 'undoStack onaangeroerd na rollback');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack onaangeroerd na rollback');
   assert(!store.getState().tasks.some((t) => t.name === 'goed'), 'ook de geldige taak mag NIET zijn aangemaakt (pre-check vóór aanmaak)');
 });
 
@@ -185,7 +188,7 @@ test('draft.addTasks mijlpaal met expliciete duur > 0 ⇒ transactie faalt schoo
         name: 'foute-mijlpaal',
         isMilestone: true,
         time: {
-          durationType: 'WORKTIME', scheduleDuration: 3, scheduleStart: '2026-01-01', scheduleFinish: '2026-01-06',
+          durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 3, scheduleStart: '2026-01-01', scheduleFinish: '2026-01-06',
           earlyStart: '2026-01-01', earlyFinish: '2026-01-06', lateStart: '2026-01-01', lateFinish: '2026-01-06',
           freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
         },
@@ -226,6 +229,25 @@ test('draft.addTasks: taskType erft door de keten van tempId-ouder naar kind naa
   assertEq(store.getState().tasks.find((t) => t.id === idA)?.taskType, 'LOGISTIC', 'niveau1 behoudt zijn expliciete taskType');
   assertEq(store.getState().tasks.find((t) => t.id === idB)?.taskType, 'LOGISTIC', 'niveau2 zonder eigen taskType erft van de net-aangemaakte tempId-ouder (a)');
   assertEq(store.getState().tasks.find((t) => t.id === idC)?.taskType, 'DEMOLITION', 'niveau3 met een expliciete taskType wint van zijn ouder (b)');
+});
+
+test('contextgebonden addTasks bouwt de bulk alleen in B en retourneert B-id’s', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+
+  const result = txB.run(() => txB.draft.addTasks([
+    { tempId: 'ouder', name: 'bulk-ouder-B' },
+    { tempId: 'kind', name: 'bulk-kind-B', parentId: 'ouder' },
+  ]));
+
+  assert(result.ok, 'de contextgebonden bulk hoort te slagen');
+  assert(result.ok && result.value.size === 2, 'de generieke returnwaarde hoort beide B-id’s te bevatten');
+  const ouder = result.ok ? B.store.getState().tasks.find((task) => task.id === result.value.get('ouder')) : undefined;
+  const kind = result.ok ? B.store.getState().tasks.find((task) => task.id === result.value.get('kind')) : undefined;
+  assert(!!ouder && !!kind && kind.parentId === ouder.id, 'de geretourneerde ids horen de boom in B aan te wijzen');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor, 'de B-bulk mag A niet wijzigen');
 });
 
 await run();

@@ -15,7 +15,7 @@ export function ProjectOverview() {
   const { t } = useTranslation('common');
   const open = useAppStore((s) => s.ui.showProjectOverview);
   const cards = useDocumentCards();
-  const { switchTo, closeWithGuard, openProject, closeOverview } = useDocumentActions();
+  const { switchTo, closeWithGuard, chooseNewOrOpenProject, closeOverview } = useDocumentActions();
   const closeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousDocumentIds = useRef(cards.map(card => card.id));
   const wasOpen = useRef(false);
@@ -78,8 +78,8 @@ export function ProjectOverview() {
             </span>
           </div>
           <button
-            onClick={() => { openProject(); closeOverview(); }}
-            title={t('documents.openProject')}
+            onClick={() => { chooseNewOrOpenProject(); closeOverview(); }}
+            title={t('documents.newOrOpenTitle')}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: 'var(--theme-accent)', color: 'var(--theme-accent-on)',
@@ -87,7 +87,7 @@ export function ProjectOverview() {
               fontSize: 'calc(12px * var(--ui-font-scale, 1))', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            <Plus size={14} />{t('documents.openProject')}
+            <Plus size={14} />{t('documents.newOrOpenTitle')}
           </button>
         </div>
 

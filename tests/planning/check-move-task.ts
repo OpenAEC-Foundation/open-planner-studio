@@ -56,7 +56,7 @@ eq('10 A→B: B.childIds krijgt het kind', task(idB)?.childIds.includes(idChild)
 // ── 3) Cyklische move geweigerd: summary onder zijn eigen kind hangen. ──
 const idOuter = S().addTask({ name: 'Outer' });
 const idInner = S().addTask({ name: 'Inner', parentId: idOuter });
-const undoLenBefore = S().undoStack.length;
+const undoLenBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 const outerSnapshotBefore = JSON.stringify(task(idOuter));
 const innerSnapshotBefore = JSON.stringify(task(idInner));
 
@@ -67,7 +67,7 @@ eq('12 cykel: Inner.parentId ongewijzigd (Outer)', task(idInner)?.parentId, idOu
 eq('13 cykel: Outer.childIds ongewijzigd', task(idOuter)?.childIds.includes(idInner), true);
 eq('14 cykel: geen halftoegepaste state (Outer-object byte-identiek)', JSON.stringify(task(idOuter)), outerSnapshotBefore);
 eq('15 cykel: geen halftoegepaste state (Inner-object byte-identiek)', JSON.stringify(task(idInner)), innerSnapshotBefore);
-eq('16 cykel: geen undo-snapshot gepusht (geweigerde move is een no-op)', S().undoStack.length, undoLenBefore);
+eq('16 cykel: geen undo-snapshot gepusht (geweigerde move is een no-op)', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore);
 
 // ── 3b) Cyklische move geweigerd: taak onder zichzelf hangen (newParentId === id). ──
 const idSelf = S().addTask({ name: 'SelfMove' });
@@ -140,6 +140,12 @@ eq('31 addTask met ouder: expliciete taskType op het kind wint van de ouder', ta
 
 const idRootZonderType = S().addTask({ name: 'RootZonderType' });
 eq('32 addTask zonder ouder: root valt terug op de bouwmodus-default (CONSTRUCTION)', task(idRootZonderType)?.taskType, 'CONSTRUCTION');
+
+const idOuderCustom = S().addTask({ name: 'OuderCustom', taskType: 'USERDEFINED', customTaskTypeId: 'ops-engineering' });
+const idKindCustomErft = S().addTask({ name: 'KindCustomErft', parentId: idOuderCustom });
+eq('33 addTask erft de stabiele custom-type-id samen met USERDEFINED', task(idKindCustomErft)?.customTaskTypeId, 'ops-engineering');
+const idKindBuiltinWint = S().addTask({ name: 'KindBuiltinWint', parentId: idOuderCustom, taskType: 'CONSTRUCTION' });
+eq('34 expliciete builtin op kind wist de custom-type-id van de ouder', task(idKindBuiltinWint)?.customTaskTypeId, undefined);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

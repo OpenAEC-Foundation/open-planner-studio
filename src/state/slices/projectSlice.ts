@@ -6,6 +6,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { diffDays } from '@/utils/dateUtils';
@@ -18,18 +19,19 @@ import {
   shiftProjectDates, shiftResource, shiftBaseline,
   type MoveProjectOptions, type MoveImpact, type HolidayGapCalendar,
 } from '@/engine/moveProject';
-import { beginUndoable, finishMutation } from '../transaction';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
-import type { AppSlice } from './types';
+import type { AppSliceFactory } from './types';
+import { deriveHoursPerDay } from '@/services/subdayIo';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import type { XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
+import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 export { createDefaultProject };
 
 /** Opties voor de nieuw-project-wizard. */
@@ -42,6 +44,7 @@ export interface NewProjectOptions {
   endDate?: string;
   calendar: WorkCalendar;
   phaseNames: string[];
+  defaultTaskDurationUnit?: 'days' | 'hours';
 }
 
 /** Uitkomst van een `moveProject`-commit. */
@@ -82,6 +85,8 @@ export interface ProjectSlice {
   /** Web-opslaan-doel (spec §4). ALLEEN het FSA-opslaan-doel — nooit voor identiteit/titel;
    *  die blijven bij `filePath` (echt pad in Tauri, bestandsnaam in web). `null` in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
+  /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
+  autoSaveToFile: boolean;
   /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
@@ -134,9 +139,10 @@ export interface ProjectSlice {
     resourceCalendars?: WorkCalendar[];
     activityCodeTypes?: ActivityCodeType[];
     customFieldDefs?: CustomFieldDef[];
+    customTaskTypes?: CustomTaskType[];
     baselines?: Baseline[];
     activeBaselineId?: string | null;
-  }) => void;
+  }, opts?: { viewStartDate?: string }) => void;
 }
 
 /**
@@ -164,12 +170,13 @@ function projectChanges(current: Project, updates: Partial<Project>): boolean {
 }
 
 
-export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
+export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (set, get) => ({
   project: createDefaultProject(),
   calendar: createDefaultCalendar(),
   isDirty: false,
   filePath: null,
   fileHandle: null,
+  autoSaveToFile: false,
   xerImportMetadata: null,
   xerSourceArchive: null,
   xerSourceProjectId: null,
@@ -185,7 +192,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // No-op-guard vóór de snapshot (pakket H): een opslag met identieke waarden verandert niets —
       // geen undo-stap, geen `modifiedAt`-bump, geen isDirty.
       if (!projectChanges(s.project, updates)) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       const prevStartDate = s.project.startDate;
       Object.assign(s.project, updates);
       s.project.modifiedAt = new Date().toISOString();
@@ -213,7 +220,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
         });
       }
       // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
-      finishMutation(s, { stale: 'startDate' in updates });
+      runtime.finishMutation(s, { stale: 'startDate' in updates });
     });
     if (clampedAnchors > 0) {
       // H3c: ná een DAADWERKELIJKE klem meteen herberekenen — anders is de melding ("meegeschoven")
@@ -234,10 +241,10 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
   setWbsAutoNumber: (on) =>
     set((s) => {
       if (!!s.project.wbsAutoNumber === on) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.project.wbsAutoNumber = on;
       if (on) applyWbsNumbering(s.tasks);
-      finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
+      runtime.finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
     }),
 
   setCalendar: (calendar) =>
@@ -247,19 +254,19 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // No-op-guard vóór de snapshot (pakket H): identieke kalender (cache én bibliotheek-entry) ⇒
       // niets te doen. Anders zou een dialoog-commit zonder wijziging een lege undo-stap pushen.
       if (sameValue(s.calendar, calendar) && (idx < 0 || sameValue(s.calendars[idx], calendar))) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.calendar = calendar;
       if (idx >= 0) s.calendars[idx] = calendar;
-      finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
   setProjectCalendar: (id) =>
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.project.calendarId = id;
-      finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
+      runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
       syncProjectCalendar(s); // §9.1: cache gelijkzetten.
     }),
 
@@ -275,20 +282,20 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // Coalescing (pakket H): het statusdatumveld in het lint is een `DateTextInput` die LIVE per
       // toetsaanslag committeert — één ingetypte datum levert meerdere geldige commits op (zie
       // `beginUndoable`). Zonder key zouden dat evenzoveel undo-stappen met onzin-tussenwaarden zijn.
-      beginUndoable(s, { coalesceKey: 'project.statusDate' });
+      runtime.beginUndoable(s, { coalesceKey: 'project.statusDate' });
       if (next) s.project.statusDate = next;
       else delete s.project.statusDate;
       s.project.modifiedAt = new Date().toISOString();
-      finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
     }),
 
   setProgressMode: (mode) =>
     set((s) => {
       if (s.project.progressMode === mode) return; // no-op-guard vóór de snapshot (pakket H)
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.project.progressMode = mode;
       s.project.modifiedAt = new Date().toISOString();
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     }),
 
   moveProject: (newStartDate, opts) => {
@@ -297,7 +304,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       const delta = computeMoveDelta(s.project.startDate, newStartDate);
       // R8/R9 — guard vóór `beginUndoable`, zodat een no-op de undo-stack niet vervuilt.
       if (!Number.isFinite(delta) || delta === 0) return;
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       s.project = shiftProjectDates(s.project, delta);
       // Exact de gekozen datum, niet via Δ: voorkomt drift als `project.startDate` een datetime was.
       s.project.startDate = newStartDate;
@@ -322,7 +329,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       // gebruiker nooit gezien heeft. Nu verlaat de modus in dezelfde producer die de snapshot al
       // nam ⇒ één undo-stap. De vlag zelf is een non-issue: de `runCPM` hieronder wist hem meteen
       // weer (het is de eerste regel van die actie), dus de "verouderd"-hint knippert niet.
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
       out = { moved: true, deltaDays: delta, taskCount: s.tasks.length };
     });
     if (out.moved) {
@@ -441,6 +448,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     // nieuw per-document veld wordt hier automatisch mee-gereset (geen stille lek van het vorige
     // project). hydratePayload promoveert + synct de projectkalender (§4.3/§9.1).
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       hydratePayload(s, freshPayload());
       // Zelfde reset als newDocument()/closeDocument() in documentSlice.ts (critreview taak 12):
       // showLibraryLinkDialog/libraryRefreshNotice zijn APP-globaal en worden door hydratePayload
@@ -469,6 +477,7 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
     if (!pristine) get().newDocument();
 
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       const proj = createDefaultProject();
       proj.name = opts.name.trim() || proj.name;
       proj.description = opts.description ?? '';
@@ -477,28 +486,40 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       proj.startDate = opts.startDate || proj.startDate;
       proj.endDate = opts.endDate ?? '';
       proj.calendarId = opts.calendar.id;
+      proj.defaultTaskDurationUnit = opts.defaultTaskDurationUnit ?? 'days';
 
       // Reset-pad (audit P10): start van een verse payload en override alleen de wizard-velden.
       // hydratePayload vult §4.4 de bibliotheek met de wizard-kalender (promote) en synct de cache.
       const payload = freshPayload();
       payload.project = proj;
       payload.calendar = opts.calendar;
-      payload.tasks = opts.phaseNames.map((name, i) => ({
-        id: generateId('task'),
-        name,
-        description: '',
-        wbsCode: String(i + 1),
-        // Bouwmodus (2026-07-13): wizard-fasen krijgen in bouw-agnostische modus een neutraal
-        // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
-        taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
-        status: 'NOT_STARTED',
-        isMilestone: false,
-        priority: 500,
-        parentId: null,
-        childIds: [],
-        time: createDefaultTaskTime(proj.startDate, 5),
-        resourceIds: [],
-      }));
+      const phaseHoursPerDay = opts.calendar.workTime
+        ? deriveHoursPerDay(opts.calendar.workTime, opts.calendar.hoursPerDay)
+        : opts.calendar.hoursPerDay;
+      payload.tasks = opts.phaseNames.map((name, i) => {
+        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit);
+        if (time.durationUnit === 'hours') {
+          time.scheduleDuration = phaseHoursPerDay > 0
+            ? (time.durationMinutes ?? 0) / (phaseHoursPerDay * 60)
+            : 0;
+        }
+        return {
+          id: generateId('task'),
+          name,
+          description: '',
+          wbsCode: String(i + 1),
+          // Bouwmodus (2026-07-13): wizard-fasen krijgen in bouw-agnostische modus een neutraal
+          // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
+          taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
+          status: 'NOT_STARTED' as const,
+          isMilestone: false,
+          priority: 500,
+          parentId: null,
+          childIds: [],
+          time,
+          resourceIds: [],
+        };
+      });
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
       payload.isDirty = opts.phaseNames.length > 0;
       hydratePayload(s, payload);
@@ -522,14 +543,15 @@ export const createProjectSlice: AppSlice<ProjectSlice> = (set, get) => ({
       s.filePath = path;
     }),
 
-  loadState: (loaded) => {
+  loadState: (loaded, opts) => {
     // Dunne wrapper over de gedeelde load-implementatie (audit P5/F6): `applyLoadedProject` in
-    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad, GEEN runCPM/fit,
-    // `filePath` ongemoeid (opt weggelaten). De externe callers blijven ongewijzigd.
+    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad/fit, `filePath`
+    // ongemoeid (opt weggelaten). De berekening gebeurt vóór dezelfde ene publicatie.
     get().applyLoadedProject(loaded, {
-      recompute: false,
+      recompute: true,
       fit: false,
       hourDataNotice: false,
+      viewStartDate: opts?.viewStartDate,
     });
   },
 });

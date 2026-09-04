@@ -16,7 +16,7 @@ import './DocumentChrome.css';
 export function DocumentTabBar() {
   const { t, i18n } = useTranslation('common');
   const cards = useDocumentCards();
-  const { switchTo, closeWithGuard, openProject, openOverview } = useDocumentActions();
+  const { switchTo, closeWithGuard, chooseNewOrOpenProject, openOverview } = useDocumentActions();
   const projectOverviewOpen = useAppStore((state) => state.ui.showProjectOverview);
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousDocumentIds = useRef(cards.map(card => card.id));
@@ -76,8 +76,8 @@ export function DocumentTabBar() {
 
       <button
         className="ops-iconbtn ops-tabstrip-add"
-        title={t('documents.openProject')}
-        onClick={openProject}
+        title={t('documents.newOrOpenTitle')}
+        onClick={chooseNewOrOpenProject}
       >
         <Plus size={15} />
       </button>

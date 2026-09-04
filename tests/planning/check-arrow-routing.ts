@@ -133,7 +133,7 @@ ok('opzet: 10 taken', S().tasks.length === 10, `kreeg ${S().tasks.length}`);
 ok('opzet: 8 relaties', S().sequences.length === 8, `kreeg ${S().sequences.length}`);
 
 // ── Renderen + toetsen, over meerdere zoomniveaus en scrollposities ─────────
-const W = 1400, H = 500, TTW = 260, ROW = 28;
+const W = 1400, H = 500, ROW = 28;
 
 function render(zoom: number, scrollX: number): { bars: Rect[]; arrows: Poly[] } {
   const { ctx, bars, arrows } = makeCtx();
@@ -144,10 +144,8 @@ function render(zoom: number, scrollX: number): { bars: Rect[]; arrows: Poly[] }
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0 },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: ROW,
     headerHeight: 50,
     palette,

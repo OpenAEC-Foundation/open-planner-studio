@@ -12,9 +12,8 @@ import type {
   RibbonButtonRegistration,
 } from './types';
 import type { ExtImportResult, ExtFontProvider } from './extTypes';
-import { useAppStore } from '@/state/appStore';
-import { withTransaction } from '@/state/batchTransaction';
-import { appLog } from '@/services/debug/appLog';
+import type { AppStoreContext } from '@/state/appStore';
+import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import { registerCjkFontProvider } from '@/services/pdf/fontRegistry';
 import {
   subscribeExtensionEvent,
@@ -41,12 +40,52 @@ import {
 // Re-export zodat bestaande importers (index.ts) ongewijzigd blijven werken.
 export { emitExtensionEvent };
 
+/** Appbrede binding voor extensie-UI en meldingen; documentdata loopt hier bewust niet doorheen. */
+export interface ExtensionHostBinding {
+  app: AppStoreContext;
+  showNotification(
+    extensionId: string,
+    message: string,
+    type: 'info' | 'warning' | 'error',
+  ): void;
+}
+
 export function createExtensionApi(
   extensionId: string,
   permissions: ExtensionPermission[],
-  assets?: Record<string, Uint8Array>,
+  assets: Record<string, Uint8Array> | undefined,
+  document: AppStoreContext,
+  host: ExtensionHostBinding,
 ): ExtensionApi {
   const cleanupFns: (() => void)[] = [];
+  const batch = createBatchTransactions(document);
+
+  const customTaskTypeToMaterialize = (
+    type: { id: string; name?: string } | undefined,
+  ): { id: string; name: string } | undefined => {
+    if (!type) return undefined;
+    const id = type.id.trim();
+    if (!id) throw new Error(`Extensie "${extensionId}": customTaskType.id mag niet leeg zijn`);
+    const state = document.store.getState();
+    const existing = state.customTaskTypes.find(candidate => candidate.id === id);
+    const name = type.name?.trim();
+    if (existing) {
+      if (name && existing.name !== name) {
+        throw new Error(`Extensie "${extensionId}": customTaskType-id '${id}' heeft al projectsnapshot '${existing.name}'`);
+      }
+      return undefined;
+    }
+    if (!name) {
+      throw new Error(`Extensie "${extensionId}": onbekend customTaskType-id '${id}' vereist ook een naam`);
+    }
+    const sameName = state.customTaskTypes.find(candidate => candidate.name.localeCompare(
+      name, undefined, { sensitivity: 'accent' },
+    ) === 0);
+    if (sameName) {
+      throw new Error(`Extensie "${extensionId}": customTaskType-naam '${name}' bestaat al met id '${sameName.id}'`);
+    }
+    return { id, name };
+  };
 
   const settingsPrefix = `ops-ext:${extensionId}:`;
 
@@ -55,13 +94,13 @@ export function createExtensionApi(
 
     importers: {
       register(def: ImporterDefinition) {
-        useAppStore.getState().addExtensionImporter({ ...def, extensionId });
+        host.app.store.getState().addExtensionImporter({ ...def, extensionId });
         cleanupFns.push(() => {
-          useAppStore.getState().removeExtensionImporter(extensionId, def.id);
+          host.app.store.getState().removeExtensionImporter(extensionId, def.id);
         });
       },
       unregister(id: string) {
-        useAppStore.getState().removeExtensionImporter(extensionId, id);
+        host.app.store.getState().removeExtensionImporter(extensionId, id);
       },
     },
 
@@ -69,25 +108,53 @@ export function createExtensionApi(
      *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
      *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
-      getProject: () => toExtProject(useAppStore.getState().project),
-      getCalendar: () => toExtCalendar(useAppStore.getState().calendar),
-      getTasks: () => useAppStore.getState().tasks.map(toExtTask),
-      getSequences: () => useAppStore.getState().sequences.map(toExtSequence),
-      getResources: () => useAppStore.getState().resources.map(toExtResource),
-      getAssignments: () => useAppStore.getState().assignments.map(toExtAssignment),
-      addTask: (task) => useAppStore.getState().addTask(fromExtTaskInput(task)),
-      updateTask: (id, updates) =>
-        useAppStore.getState().updateTask(id, fromExtTaskUpdates(updates)),
-      addSequence: (seq) => useAppStore.getState().addSequence(fromExtSequenceInput(seq)),
+      getProject: () => toExtProject(document.store.getState().project),
+      getCalendar: () => toExtCalendar(document.store.getState().calendar),
+      getTasks: () => {
+        const state = document.store.getState();
+        return state.tasks.map(task => toExtTask(task, task.customTaskTypeId
+          ? state.customTaskTypes.find(type => type.id === task.customTaskTypeId)
+          : undefined));
+      },
+      getSequences: () => document.store.getState().sequences.map(toExtSequence),
+      getResources: () => document.store.getState().resources.map(toExtResource),
+      getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
+      addTask: (task) => {
+        const materialize = customTaskTypeToMaterialize(task.customTaskType);
+        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
+        // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
+        return batch.withTransaction(() => {
+          document.store.getState().ensureProjectTaskType(materialize);
+          return document.store.getState().addTask(fromExtTaskInput(task));
+        });
+      },
+      updateTask: (id, updates) => {
+        // Bestaand API-gedrag voor een onbekend taak-id is een stille no-op; materialiseer in dat
+        // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
+        if (!document.store.getState().tasks.some(task => task.id === id)) {
+          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          return;
+        }
+        const materialize = customTaskTypeToMaterialize(updates.customTaskType);
+        if (!materialize) {
+          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          return;
+        }
+        batch.withTransaction(() => {
+          document.store.getState().ensureProjectTaskType(materialize);
+          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+        });
+      },
+      addSequence: (seq) => document.store.getState().addSequence(fromExtSequenceInput(seq)),
       loadProject: (result: ExtImportResult) => {
-        const store = useAppStore.getState();
+        const store = document.store.getState();
         store.loadState(fromExtImportResult(result));
         store.runCPM();
       },
-      recalculate: () => useAppStore.getState().runCPM(),
+      recalculate: () => document.store.getState().runCPM(),
       // K-item 32: één snapshot voor de hele reeks i.p.v. één per mutatie — lineair in plaats van
       // kwadratisch, en één undo-stap voor wat de gebruiker als één handeling ziet.
-      batch: <T,>(fn: () => T): T => withTransaction(fn),
+      batch: <T,>(fn: () => T): T => batch.withTransaction(fn),
     },
 
     events: {
@@ -107,21 +174,17 @@ export function createExtensionApi(
     ui: {
       addRibbonButton(reg: RibbonButtonRegistration) {
         // Grensvertaling: ext-facing tabblad-id → intern tabblad-id (zie extMappers).
-        useAppStore.getState().addExtensionRibbonButton({
+        host.app.store.getState().addExtensionRibbonButton({
           ...reg,
           tab: fromExtRibbonTab(reg.tab),
           extensionId,
         });
         cleanupFns.push(() => {
-          useAppStore.getState().removeExtensionRibbonButton(extensionId, reg.label);
+          host.app.store.getState().removeExtensionRibbonButton(extensionId, reg.label);
         });
       },
       showNotification(message: string, type: 'info' | 'warning' | 'error' = 'info') {
-        // Zichtbaar in de debug-terminal via de app-log-bus.
-        // LogLevel: 'log' | 'info' | 'warn' | 'error' | 'event'
-        // 'warning' is geen geldige LogLevel; map naar 'warn'.
-        const level = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'info';
-        appLog.emit(level, `ext:${extensionId}`, message);
+        host.showNotification(extensionId, message, type);
       },
     },
 
@@ -177,7 +240,7 @@ export function createExtensionApi(
     _cleanup() {
       cleanupFns.forEach((fn) => fn());
       cleanupFns.length = 0;
-      useAppStore.getState().removeAllExtensionUI(extensionId);
+      host.app.store.getState().removeAllExtensionUI(extensionId);
     },
   };
 

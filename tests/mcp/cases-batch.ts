@@ -17,7 +17,7 @@
 //     batch-kern) worden vóór enige mutatie geweigerd;
 //   - max 100 stappen; één backup-trigger met kind 'batch';
 //   - de stappenloop is volledig SYNCHROON (statische assert op de eigen broncode).
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { readTools } from '@/services/mcp/tools/readTools';
 import {
@@ -43,15 +43,11 @@ store.getState().undo();
 interface BackupCall { docId: string; kind: McpToolDef['kind'] }
 let backupCalls: BackupCall[] = [];
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ensureBackup: async (docId, kind) => { backupCalls.push({ docId, kind }); return null; },
     ...over,
-  };
+  });
 }
 
 // ── Stub-tools ───────────────────────────────────────────────────────────────────────────────────
@@ -173,7 +169,7 @@ const batchDef = batchTools[0];
 interface Step { tool: string; args?: unknown }
 
 /** Draai `planner_batch` met een verse ctx en geef het resultaat terug. */
-async function runBatch(steps: Step[], over: Partial<McpContext> = {}): Promise<McpToolResult> {
+async function runBatch(steps: Step[], over: McpContextOverrides = {}): Promise<McpToolResult> {
   return batchDef.handler({ steps }, makeCtx(over));
 }
 
@@ -193,7 +189,7 @@ const taskCount = () => store.getState().tasks.length;
 test('batch: 3 heterogene stappen ⇒ precies één undo-snapshot, één undo maakt alles ongedaan', async () => {
   backupCalls = [];
   const beforeTasks = taskCount();
-  const beforeUndo = store.getState().undoStack.length;
+  const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await runBatch([
     { tool: 'planner_stub_add_tasks', args: { tasks: [{ tempId: 'tmp-a1', name: 'batch-A' }, { tempId: 'tmp-a2', name: 'batch-B' }] } },
@@ -203,7 +199,7 @@ test('batch: 3 heterogene stappen ⇒ precies één undo-snapshot, één undo ma
 
   assert(res.ok, `de batch hoort te slagen, kreeg: ${res.ok ? '' : res.error}`);
   assertEq(taskCount(), beforeTasks + 2, 'beide taken horen aangemaakt te zijn');
-  assertEq(store.getState().undoStack.length, beforeUndo + 1, 'de hele batch hoort ÉÉN undo-snapshot te pushen');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo + 1, 'de hele batch hoort ÉÉN undo-snapshot te pushen');
 
   store.getState().undo();
   assertEq(taskCount(), beforeTasks, 'één undo hoort de complete batch ongedaan te maken');
@@ -246,7 +242,7 @@ test('batch: onbekende tool ⇒ volledige rollback + rapport uitgevoerd/gefaald/
   backupCalls = [];
   store.getState().runCPM();
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeUndo = store.getState().undoStack.length;
+  const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await runBatch([
     { tool: 'planner_stub_add_tasks', args: { tasks: [{ tempId: 'tmp-x1', name: 'wordt-teruggerold' }] } },
@@ -261,7 +257,7 @@ test('batch: onbekende tool ⇒ volledige rollback + rapport uitgevoerd/gefaald/
   assert(res.error.includes('gefaald'), 'het rapport hoort de gefaalde stap te melden');
   assert(res.error.includes('niet bereikt'), 'het rapport hoort de niet-bereikte stap te melden');
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'de store hoort byte-identiek teruggerold te zijn');
-  assertEq(store.getState().undoStack.length, beforeUndo, 'een teruggerolde batch mag geen undo-stap achterlaten');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, 'een teruggerolde batch mag geen undo-stap achterlaten');
 });
 
 // =================================================================================================
@@ -314,7 +310,7 @@ test('batch: per-item-weigering in stap 2 ⇒ batch slaagt, weigering prominent 
 // =================================================================================================
 test('batch: 101 stappen ⇒ VALIDATION, geen undo-snapshot en geen backup-trigger', async () => {
   backupCalls = [];
-  const beforeUndo = store.getState().undoStack.length;
+  const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const steps: Step[] = [];
   for (let i = 0; i <= MAX_BATCH_STEPS; i++) steps.push({ tool: 'planner_stub_record', args: { i } });
 
@@ -325,7 +321,7 @@ test('batch: 101 stappen ⇒ VALIDATION, geen undo-snapshot en geen backup-trigg
     assertEq(res.code, 'VALIDATION', 'code hoort VALIDATION te zijn');
     assert(res.error.includes('100'), 'de fout hoort de limiet te noemen');
   }
-  assertEq(store.getState().undoStack.length, beforeUndo, 'een geweigerde batch mag geen undo-snapshot pushen');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, 'een geweigerde batch mag geen undo-snapshot pushen');
   assertEq(backupCalls.length, 0, 'een geweigerde batch mag geen backup triggeren');
 });
 
@@ -342,7 +338,7 @@ test('batch: uitgesloten tools (batch, undo, document, save_baseline) worden gew
   for (const c of cases) {
     backupCalls = [];
     const beforeTasks = taskCount();
-    const beforeUndo = store.getState().undoStack.length;
+    const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
     const res = await runBatch([
       { tool: 'planner_stub_add_tasks', args: { tasks: [{ tempId: 'tmp-q1', name: 'mag-niet-ontstaan' }] } },
       { tool: c.tool, args: {} },
@@ -353,7 +349,7 @@ test('batch: uitgesloten tools (batch, undo, document, save_baseline) worden gew
       assert(res.error.includes(c.tool), `${c.waarom}: de fout hoort de toolnaam te noemen, kreeg: ${res.error}`);
     }
     assertEq(taskCount(), beforeTasks, `${c.waarom}: er mag niets uitgevoerd zijn`);
-    assertEq(store.getState().undoStack.length, beforeUndo, `${c.waarom}: geen undo-snapshot`);
+    assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, `${c.waarom}: geen undo-snapshot`);
     assertEq(backupCalls.length, 0, `${c.waarom}: geen backup-trigger`);
   }
 });
@@ -459,7 +455,7 @@ test('batch: precies één backup-trigger voor de hele batch, met kind batch', a
 // =================================================================================================
 test('batch: ongeldige steps-args ⇒ VALIDATION zonder enige mutatie', async () => {
   backupCalls = [];
-  const beforeUndo = store.getState().undoStack.length;
+  const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const ctx = makeCtx();
 
   const geenArray = await batchDef.handler({ steps: 'nope' }, ctx);
@@ -471,7 +467,7 @@ test('batch: ongeldige steps-args ⇒ VALIDATION zonder enige mutatie', async ()
   const geenTool = await batchDef.handler({ steps: [{ args: {} }] }, ctx);
   assert(!geenTool.ok && geenTool.code === 'VALIDATION', 'een stap zonder string-`tool` hoort VALIDATION te geven');
 
-  assertEq(store.getState().undoStack.length, beforeUndo, 'geen van de weigeringen mag een undo-snapshot pushen');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, 'geen van de weigeringen mag een undo-snapshot pushen');
   assertEq(backupCalls.length, 0, 'geen van de weigeringen mag een backup triggeren');
 });
 

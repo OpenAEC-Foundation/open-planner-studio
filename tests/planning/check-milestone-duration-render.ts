@@ -95,28 +95,26 @@ const realMs: Task = {
 } as Task;
 
 const rows: ViewRow[] = [
-  { kind: 'task', task: base, depth: 0, dimmed: false },
-  { kind: 'task', task: msWithDuration, depth: 0, dimmed: false },
-  { kind: 'task', task: realMs, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: base.id, task: base, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: msWithDuration.id, task: msWithDuration, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: realMs.id, task: realMs, depth: 0, dimmed: false },
 ];
 
-const W = 1200, H = 600, TTW = 300, ROWH = 28, HDRH = 60;
+const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
 const st = S();
 const view = { ...st.view, scrollX: 0, scrollY: 0 };
 
-const { ctx, roundRects, texts } = makeCtx();
+const { ctx, roundRects } = makeCtx();
 const renderer = new GanttRenderer(ctx, {
   rows,
   sequences: [],
   calendar: st.calendar,
   view,
   selectedTaskIds: [],
-  collapsedTaskIds: [],
   statusDate: view.viewStartDate,
   showProgressLine: false,
   canvasWidth: W,
   canvasHeight: H,
-  taskTableWidth: TTW,
   rowHeight: ROWH,
   headerHeight: HDRH,
 });
@@ -141,13 +139,7 @@ if (renderError === null) {
   const realMsBars = roundRects.filter(r => inRow(r, 2));
   ok('echte mijlpaal (rij 2): GEEN balk-roundRect (blijft een ruit)', realMsBars.length === 0);
 
-  // 3. durationText: mijlpaal-met-duur toont "5d", niet "0d"; echte mijlpaal blijft "0d".
-  const msWithDurationText = texts.find(t => t.text === '5d' && inRow({ y: t.y - ROWH / 2 }, 1));
-  ok(`mijlpaal-met-duur: duurtekst "5d" getekend (kreeg: ${texts.filter(t => inRow({ y: t.y - ROWH / 2 }, 1)).map(t => t.text).join(',')})`, !!msWithDurationText);
-  const realMsText = texts.find(t => t.text === '0d' && inRow({ y: t.y - ROWH / 2 }, 2));
-  ok(`echte mijlpaal: duurtekst blijft "0d" (kreeg: ${texts.filter(t => inRow({ y: t.y - ROWH / 2 }, 2)).map(t => t.text).join(',')})`, !!realMsText);
-
-  // 4. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
+  // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
   //    mijlpaal blijft geweigerd (geen visuele breedte om aan te slepen).
   const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
   const hitWithDuration = renderer.getTaskBarBounds(TTW + 20, rowMidY(1));

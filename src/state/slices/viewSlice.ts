@@ -2,39 +2,43 @@
 // import-cyclus met documentContract/snapshot te breken. Hier doorgegeven voor bestaande importers.
 import { createDefaultView } from '../defaults';
 export { createDefaultView };
-import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 import { getGanttChartWidth, clampGanttScroll } from '@/utils/ganttViewport';
-import { getNoneLabelValue } from '@/utils/noneLabel';
 import {
-  allBandKeys, computeViewRows, defaultColumns,
-  type ViewRow, type ViewContext, type ViewRowOpts,
+  allBandKeys, firstTaskOccurrence, type ViewRow,
 } from '@/engine/view/visibleRows';
-import type { AppState } from '../appStore';
 import type {
-  ViewState, TimeScale, AppSlice, ColumnConfig, FilterNode, GroupLevel, SortLevel,
+  ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
   SplitViewState, Layout,
 } from './types';
+import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
+import {
+  captureViewLayoutHistoryState,
+  type SessionHistoryDelta,
+} from '../sessionHistory';
+import { deriveViewRows, viewRowInputs } from '../viewRows';
+export { deriveViewRows } from '../viewRows';
 
-/** De invoer van de rijen-pijplijn op één plek: zo kunnen `recomputeViewRows` en de
- *  "alle banden"-acties niet uit elkaar lopen over welke weergave-instellingen gelden. */
-function rowInputs(s: AppState): { opts: ViewRowOpts; ctx: ViewContext } {
-  return {
-    opts: {
-      filter: s.view.filter ?? null,
-      group: s.view.group ?? [],
-      sort: s.view.sort ?? [],
-      collapsedTaskIds: new Set(s.ui.collapsedTaskIds),
-      collapsedGroupKeys: new Set(s.view.collapsedGroupKeys ?? []),
-    },
-    ctx: {
-      activityCodeTypes: s.activityCodeTypes,
-      customFieldDefs: s.customFieldDefs,
-      resources: s.resources,
-      assignments: s.assignments,
-      // Vertaalde "(geen)"-label, door de consument (App) gezet — engine blijft i18n-vrij (§4.1).
-      noneLabel: getNoneLabelValue(),
-    },
-  };
+/**
+ * Occurrence-expliciete helft van `focusOnTask`: de storeactie hieronder bewaart bewust alleen het
+ * domeindoel `taskId`; de visuele consument resolveert dat doel pas tegen de actuele `viewRows`.
+ * Bij dubbele resource-occurrences wint deterministisch de eerste zichtbare rij en wordt die keuze
+ * vanaf hier uitsluitend als `rowKey`/absolute rijindex doorgegeven.
+ */
+export interface FocusTaskOccurrence {
+  taskId: string;
+  rowKey: string;
+  rowIndex: number;
+}
+
+export function resolveFirstVisibleFocusOccurrence(
+  rows: readonly ViewRow[],
+  taskId: string,
+): FocusTaskOccurrence | null {
+  const occurrence = firstTaskOccurrence(rows, taskId);
+  return occurrence === null
+    ? null
+    : { taskId, rowKey: occurrence.rowKey, rowIndex: occurrence.rowIndex };
 }
 
 export interface ViewSlice {
@@ -46,11 +50,12 @@ export interface ViewSlice {
   setTimeScale: (scale: TimeScale) => void;
   setScroll: (x: number, y: number) => void;
   setViewStartDate: (date: string) => void;
-  /** Vraag ná het openen/laden van een document een fit-to-project aan (issue #16): het HELE project
-   *  moet in beeld komen (zoals Ctrl+0), niet alleen het begin. Zet enkel het `pendingFit`-signaal;
-   *  de GanttCanvas voert de eigenlijke fit uit (die kent de viewport-breedte) en wist het signaal.
-   *  Alleen aan te roepen vanaf laadpaden (openFile/openRecentFile/voorbeeld) — NIET bij undo/redo of
-   *  herberekeningen. Een leeg project blijft "vandaag" (de canvas slaat de fit dan over). */
+  /** Vraag een fit-to-project aan (issue #16): het HELE project moet in beeld komen (zoals Ctrl+0),
+   *  niet alleen het begin. Zet enkel het `pendingFit`-signaal; de GanttCanvas voert de eigenlijke
+   *  fit uit (die kent de viewport-breedte) en wist het signaal. Twee soorten aanroepers: laadpaden
+   *  (openFile/openRecentFile/voorbeeld) en een expliciete gebruikersactie (Ctrl+0, canvas-
+   *  contextmenu, ribbon-knop Beeld → Tijdschaal, issue #78) — NIET bij undo/redo of herberekeningen.
+   *  Een leeg project blijft "vandaag" (de canvas slaat de fit dan over). */
   requestFitToProject: () => void;
   /** Wis het `pendingFit`-signaal (door de GanttCanvas aangeroepen nadat de fit is uitgevoerd). */
   clearPendingFit: () => void;
@@ -59,7 +64,7 @@ export interface ViewSlice {
    *  GanttCanvas kent de canvas-afmetingen en de bijgewerkte `viewRows` (ná het uitklappen) en
    *  voert daar de echte zoom-/scrollberekening uit (`computeFocusTaskHorizontal`/
    *  `computeFocusTaskScrollY` in `ganttViewport.ts`). */
-  focusOnTask: (taskId: string) => void;
+  focusOnTask: (taskId: string, opts?: { preserveZoom?: boolean }) => void;
   /** Wis het `pendingFocusTaskId`-signaal (door GanttCanvas aangeroepen nadat de sprong is
    *  uitgevoerd). */
   clearPendingFocusTask: () => void;
@@ -68,7 +73,6 @@ export interface ViewSlice {
   /** Split view (§10): twee tijdvensters binnen één document; undefined = uit. */
   setSplitView: (splitView: SplitViewState | undefined) => void;
   // --- Fase 2.7 view-mutaties (§4.3) ---
-  setColumns: (columns: ColumnConfig[] | undefined) => void;
   setFilter: (filter: FilterNode | null) => void;
   setGroup: (group: GroupLevel[]) => void;
   setSort: (sort: SortLevel[]) => void;
@@ -94,7 +98,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
 
   setZoom: (zoom) =>
     set((s) => {
-      const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
       s.view.zoom = Math.max(0.5, Math.min(max, zoom));
     }),
 
@@ -106,7 +110,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   setTimeScale: (scale) => {
     const s = get();
     const oldZoom = s.view.zoom;
-    const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+    const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
     const newZoom = Math.max(0.5, Math.min(max, TIMESCALE_ZOOM[scale]));
     const chartW = getGanttChartWidth();
     if (chartW !== null && newZoom !== oldZoom) {
@@ -154,17 +158,21 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       s.view.pendingFit = false;
     }),
 
-  focusOnTask: (taskId) => {
+  focusOnTask: (taskId, opts) => {
+    // Alleen het domeindoel reist door de store. Een rowKey is view-afgeleid en wordt door
+    // resolveFirstVisibleFocusOccurrence pas tegen de actuele zichtbare occurrences gekozen.
     get().expandAncestorsOf(taskId);
     get().selectTask(taskId);
     set((s) => {
       s.view.pendingFocusTaskId = taskId;
+      s.view.pendingFocusTaskPreserveZoom = opts?.preserveZoom;
     });
   },
 
   clearPendingFocusTask: () =>
     set((s) => {
       s.view.pendingFocusTaskId = undefined;
+      s.view.pendingFocusTaskPreserveZoom = undefined;
     }),
 
   setHistogramResource: (resourceId) =>
@@ -176,11 +184,6 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
     set((s) => {
       s.view.splitView = splitView;
     }),
-
-  setColumns: (columns) => {
-    set((s) => { s.view.columns = columns; });
-    get().recomputeViewRows();
-  },
 
   setFilter: (filter) => {
     set((s) => { s.view.filter = filter; });
@@ -213,7 +216,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   collapseAllGroups: () => {
     const s = get();
     if ((s.view.group?.length ?? 0) === 0) return; // geen groepering ⇒ geen banden
-    const { opts, ctx } = rowInputs(s);
+    const { opts, ctx } = viewRowInputs(s);
     const keys = allBandKeys(s.tasks, opts, ctx);
     // Vervangen, niet aanvullen: `keys` is per definitie de complete set, en zo verdwijnen meteen
     // sleutels van banden die na een data-/groepeerwijziging niet meer bestaan.
@@ -228,22 +231,40 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
 
   recomputeViewRows: () => {
     const s = get();
-    const { opts, ctx } = rowInputs(s);
-    const rows = computeViewRows(s.tasks, opts, ctx);
+    const rows = deriveViewRows(s);
     set((st) => { st.viewRows = rows; });
   },
 
   applyLayout: (layout) => {
+    const beforeState = get();
+    const documentId = beforeState.activeDocumentId;
+    const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
+    const viewBefore = captureViewLayoutHistoryState(beforeState.view);
+    const gridBefore = {
+      columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: beforeState.taskGridSurfaces[surface].scrollX,
+    };
     set((s) => {
-      s.view.columns = layout.columns;
       s.view.group = layout.group;
       s.view.sort = layout.sort;
       s.view.filter = layout.filter;
     });
+    get().applyTaskGridLayoutColumns(layout.columns);
     get().setTimeScale(layout.timeScale);
     get().recomputeViewRows();
+    const afterState = get();
+    const viewAfter = captureViewLayoutHistoryState(afterState.view);
+    const gridAfter = {
+      columns: afterState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: afterState.taskGridSurfaces[surface].scrollX,
+    };
+    const deltas: SessionHistoryDelta[] = [];
+    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
+      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
+    }
+    if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
+      deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
+    }
+    if (deltas.length > 0) afterState.recordSessionHistoryEvent(`Layout ${layout.name} toepassen`, deltas);
   },
 });
-
-// Re-export voor consumenten (golf 2) die de default-kolommen los nodig hebben.
-export { defaultColumns };

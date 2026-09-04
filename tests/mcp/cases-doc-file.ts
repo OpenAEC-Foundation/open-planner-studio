@@ -4,11 +4,10 @@
 // Draait headless tegen de ECHTE Zustand-store. De fs/Tauri-rand is GEFAKED via de geëxporteerde
 // dependency-naad `fileToolDeps.getFs` (in-memory bestandsmap) — er wordt in deze suite dus nooit
 // een echt bestand geschreven en `isTauri()` (die `window` leest) wordt nooit aangeraakt.
-// De T16-hook `markDuplicateBorn` loopt via `documentToolDeps` en wordt hier bespioneerd.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+// De T16-hook `markDuplicateBorn` loopt via de requestcontext en wordt hier bespioneerd.
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
-import { documentToolDeps } from '@/services/mcp/tools/documentTools';
 import { fileToolDeps, type McpFileFs } from '@/services/mcp/tools/fileTools';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -25,15 +24,10 @@ import { buildNestedCfb, encodeCompObjFileFormat, encodePropsEntries, encodeProp
 
 const S = () => useAppStore.getState();
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 /** Roep een geregistreerde tool aan (sync of async) en geef het rauwe resultaat terug. */
@@ -418,22 +412,19 @@ test('duplicate_document: kopie actief, markDuplicateBorn aangeroepen, anker ver
   const sourceId = S().activeDocumentId;
 
   const born: string[] = [];
-  const origMark = documentToolDeps.markDuplicateBorn;
-  documentToolDeps.markDuplicateBorn = (id) => { born.push(id); };
-  try {
-    const ctx = makeCtx({ expectedDocId: sourceId });
-    const data = await callOk('planner_duplicate_document', {}, ctx);
-    assert(data.documentId !== sourceId, 'de kopie heeft een eigen document-id');
-    assertEq(S().activeDocumentId, data.documentId, 'de kopie is actief');
-    assertEq(ctx.expectedDocId, data.documentId, 'het drift-anker is meeverzet naar de kopie');
-    assertEq(born, [data.documentId], 'markDuplicateBorn is aangeroepen met het NIEUWE doc-id (T16-contract)');
-    assertEq(S().filePath, null, 'de kopie heeft geen bronbestand (anders overschrijft Ctrl+S de bron)');
-    assertEq(S().tasks.length, taskCount, 'de kopie draagt dezelfde taken');
-    assertEq(S().project.name, 'Basis (variant 2)', 'variant-naamnummering');
-    assertEq(data.title, 'Basis (variant 2)', 'de respons meldt de nieuwe titel');
-  } finally {
-    documentToolDeps.markDuplicateBorn = origMark;
-  }
+  const ctx = makeCtx({
+    expectedDocId: sourceId,
+    markDuplicateBorn: (id) => { born.push(id); },
+  });
+  const data = await callOk('planner_duplicate_document', {}, ctx);
+  assert(data.documentId !== sourceId, 'de kopie heeft een eigen document-id');
+  assertEq(S().activeDocumentId, data.documentId, 'de kopie is actief');
+  assertEq(ctx.expectedDocId, data.documentId, 'het drift-anker is meeverzet naar de kopie');
+  assertEq(born, [data.documentId], 'markDuplicateBorn is aangeroepen met het NIEUWE doc-id (T16-contract)');
+  assertEq(S().filePath, null, 'de kopie heeft geen bronbestand (anders overschrijft Ctrl+S de bron)');
+  assertEq(S().tasks.length, taskCount, 'de kopie draagt dezelfde taken');
+  assertEq(S().project.name, 'Basis (variant 2)', 'variant-naamnummering');
+  assertEq(data.title, 'Basis (variant 2)', 'de respons meldt de nieuwe titel');
 });
 
 test('duplicate_document: eigen naam via {name} en drift-fail wanneer de user van tabblad wisselde', async () => {

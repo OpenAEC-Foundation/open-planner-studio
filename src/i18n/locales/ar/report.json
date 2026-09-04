@@ -17,8 +17,10 @@
   "showLegend": "وسيلة الإيضاح",
   "showTaskNames": "أسماء المهام على الأشرطة",
   "showCompletion": "إظهار نسبة الإنجاز",
+  "showBaselineOverlay": "إظهار تراكب خط الأساس",
   "autoFit": "ملاءمة تلقائية للورق",
   "zoom": "تكبير:",
+  "previewQuality": { "label": "جودة المعاينة", "standard": "قياسي", "high": "عالية", "maximum": "قصوى" },
   "repeatHeader": "تكرار الرأس في كل صفحة",
   "reportFontScaleLabel": "حجم الخط:",
   "timelineColumnsLabel": "الجدول الزمني عبر:",
@@ -48,11 +50,18 @@
   "legend": {
     "criticalPath": "المسار الحرج",
     "normal": "عادي",
+    "baseline": "خط الأساس",
     "milestone": "معلم",
     "summary": "ملخص",
     "float": "الفائض",
     "completion": "الإنجاز",
-    "relationStyle": "حاكمة / غير حاكمة"
+    "relationStyle": "حاكمة / غير حاكمة",
+    "categoriesMore_zero": "… و{{count}} فئة إضافية",
+    "categoriesMore_one": "… وفئة إضافية واحدة",
+    "categoriesMore_two": "… وفئتان إضافيتان",
+    "categoriesMore_few": "… و{{count}} فئات إضافية",
+    "categoriesMore_many": "… و{{count}} فئة إضافية",
+    "categoriesMore_other": "… و{{count}} فئة إضافية"
   },
   "tableHeaders": {
     "rowNum": "#",
@@ -110,5 +119,19 @@
     "total": "المعالم",
     "mandatoryCount": "إلزامية",
     "lateCount": "متأخرة"
-  }
+  },
+  "barColorModeLabel": "ألوان الأعمدة:",
+  "barColorMode_critical": "المسار الحرج",
+  "barColorMode_auto": "لكل مهمة — تلقائي",
+  "barColorMode_category": "حسب الفئة",
+  "barColorFieldLabel": "حقل الفئة",
+  "barColorMissingField": "هذا الحقل غير موجود في هذا المشروع. يُستخدم نوع المهمة مؤقتًا.",
+  "statusLineLabel": "خط الحالة:",
+  "statusLine_none": "بدون",
+  "statusLine_statusDate": "خط تاريخ الحالة",
+  "statusLine_progress": "خط التقدم",
+  "statusLineHint": "عيّن أولاً تاريخ حالة",
+  "followView": "متابعة العرض (تصفية، تجميع، فرز)",
+  "statusDateLabel": "تاريخ الحالة",
+  "progressDateLabel": "تاريخ التقدم"
 }

@@ -1,7 +1,7 @@
 // Histogram-renderer (fase 2.5, §6.4). Tekent één resource-belastingsstrook onder de Gantt met
-// EXACT dezelfde X-as als GanttRenderer.dateToX (taskTableWidth + daysFromStart*zoom - scrollX),
+// dezelfde primaire tijdsinstellingen als GanttRenderer (pickerWidth + dagen*zoom - scrollX),
 // zodat de dagkolommen 1-op-1 boven de taakbalken staan. Eigen verticale schaal (eenheden i.p.v.
-// rijen). Links van taskTableWidth: een resourcekiezer-lijst; rechts: staafjes per dag met het
+// rijen). Links van pickerWidth: een resourcekiezer-lijst; rechts: staafjes per dag met het
 // deel boven de capaciteitslijn in rood (P6-patroon). Thema-bewust via CSS-variabelen.
 import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
@@ -31,7 +31,8 @@ export interface HistogramRenderOptions {
   view: ViewState;               // effectiveView (zelfde origin als de Gantt)
   canvasWidth: number;
   canvasHeight: number;
-  taskTableWidth: number;
+  /** Breedte van uitsluitend de resourcekiezer; tevens de lokale oorsprong van de tijdplot. */
+  pickerWidth: number;
   labels: { unitsSuffix: string };
   emptyHint?: string;            // getoond wanneer er geen (herberekende) data is
   /** Geïnjecteerd histogram-palet (audit C5/P17). Afwezig ⇒ zelf gelezen via
@@ -70,6 +71,8 @@ export class HistogramRenderer {
   private colors: HistogramPalette;
   private viewStart: Date;
   private fontScale: number;
+  /** Lokale oorsprong van de tijdplot, één keer afgeleid van de semantische kiezerbreedte. */
+  private chartOriginX: number;
   /** Kiezerrij-hoogte, geschaald met `fontScale` (issue #60-nazit) — één instance-waarde voor
    *  tekenen én hit-test, zodat die twee nooit uit elkaar kunnen lopen. */
   private rowH: number;
@@ -80,6 +83,7 @@ export class HistogramRenderer {
     this.colors = opts.palette ?? readHistogramPalette();
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.fontScale = opts.fontScale ?? 1;
+    this.chartOriginX = opts.pickerWidth;
     this.rowH = Math.round(ROW_H * this.fontScale);
   }
 
@@ -97,21 +101,21 @@ export class HistogramRenderer {
    *  taakbalken staan zowel bij de kalender- als de werkdagen-as. */
   private dateToX(date: Date): number {
     if (this.opts.axis) return this.opts.axis.dateToX(date);
-    return axisDateToX(date, this.viewStart, this.opts.taskTableWidth, this.opts.view.zoom, this.opts.view.scrollX);
+    return axisDateToX(date, this.viewStart, this.chartOriginX, this.opts.view.zoom, this.opts.view.scrollX);
   }
 
   /** Inverse: kolom-iso onder een X-positie in de plotzone. Gaat via `opts.axis.xToDate` zodra die
    *  gedeelde as gecomprimeerd is (§10.1) — anders (as afwezig) het oude kalenderdag-pad. */
   dateAtX(x: number): string {
     if (this.opts.axis) return formatDate(this.opts.axis.xToDate(x));
-    const daysFromStart = (x - this.opts.taskTableWidth + this.opts.view.scrollX) / this.opts.view.zoom;
+    const daysFromStart = (x - this.chartOriginX + this.opts.view.scrollX) / this.opts.view.zoom;
     const d = addCalendarDays(this.viewStart, Math.floor(daysFromStart));
     return formatDate(d);
   }
 
   /** Hit-test op de kiezerzone: geeft { id } terug (id undefined = "alle resources"), of null. */
   pickerAt(x: number, y: number): { id?: string } | null {
-    if (x >= this.opts.taskTableWidth) return null;
+    if (x >= this.opts.pickerWidth) return null;
     const idx = Math.floor((y - TOP_PAD) / this.rowH);
     if (idx < 0 || idx >= this.opts.picker.length) return null;
     return { id: this.opts.picker[idx].id };
@@ -119,13 +123,14 @@ export class HistogramRenderer {
 
   /** Hit-test op een dagkolom in de plotzone: geeft de iso-datum terug als daar belasting is. */
   dayAt(x: number, y: number): string | null {
-    if (x < this.opts.taskTableWidth || y < 0 || y > this.opts.canvasHeight) return null;
+    if (x < this.chartOriginX || y < 0 || y > this.opts.canvasHeight) return null;
     const iso = this.dateAtX(x);
     return this.opts.series.load[iso] !== undefined ? iso : null;
   }
 
   render(): void {
-    const { canvasWidth, canvasHeight, taskTableWidth } = this.opts;
+    const { canvasWidth, canvasHeight } = this.opts;
+    const chartOriginX = this.chartOriginX;
     const ctx = this.ctx;
     const c = this.colors;
 
@@ -146,7 +151,7 @@ export class HistogramRenderer {
     // Plotzone rechts van de tabel
     ctx.save();
     ctx.beginPath();
-    ctx.rect(taskTableWidth, 0, canvasWidth - taskTableWidth, canvasHeight);
+    ctx.rect(chartOriginX, 0, canvasWidth - chartOriginX, canvasHeight);
     ctx.clip();
 
     if (this.opts.emptyHint) {
@@ -154,7 +159,7 @@ export class HistogramRenderer {
       ctx.font = this.font(11);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this.opts.emptyHint, (taskTableWidth + canvasWidth) / 2, canvasHeight / 2);
+      ctx.fillText(this.opts.emptyHint, (chartOriginX + canvasWidth) / 2, canvasHeight / 2);
       ctx.restore();
       return;
     }
@@ -165,18 +170,18 @@ export class HistogramRenderer {
     // Scheidingslijn tussen kiezer en plot
     ctx.strokeStyle = c.border;
     ctx.beginPath();
-    ctx.moveTo(taskTableWidth + 0.5, 0);
-    ctx.lineTo(taskTableWidth + 0.5, canvasHeight);
+    ctx.moveTo(chartOriginX + 0.5, 0);
+    ctx.lineTo(chartOriginX + 0.5, canvasHeight);
     ctx.stroke();
   }
 
   private drawPicker(): void {
     const ctx = this.ctx;
     const c = this.colors;
-    const { taskTableWidth } = this.opts;
+    const { pickerWidth } = this.opts;
 
     ctx.fillStyle = c.surfaceAlt;
-    ctx.fillRect(0, 0, taskTableWidth, this.opts.canvasHeight);
+    ctx.fillRect(0, 0, pickerWidth, this.opts.canvasHeight);
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -188,7 +193,7 @@ export class HistogramRenderer {
       const selected = item.id === this.opts.selectedResourceId;
       if (selected) {
         ctx.fillStyle = c.active;
-        ctx.fillRect(0, y, taskTableWidth, this.rowH);
+        ctx.fillRect(0, y, pickerWidth, this.rowH);
       }
       // Rood badge bij overallocatie
       if (item.overallocated) {
@@ -199,7 +204,7 @@ export class HistogramRenderer {
       }
       ctx.fillStyle = selected ? c.text : c.textDim;
       const textX = LEFT_PAD + 12;
-      const maxW = taskTableWidth - textX - 4;
+      const maxW = pickerWidth - textX - 4;
       ctx.fillText(this.truncate(item.label, maxW), textX, y + this.rowH / 2);
     });
   }
@@ -230,7 +235,7 @@ export class HistogramRenderer {
     let yMaxData = 1;
     for (const iso of isos) {
       const x = this.dateToX(parseDate(iso));
-      if (x + dayW < this.opts.taskTableWidth || x > this.opts.canvasWidth) continue;
+      if (x + dayW < this.chartOriginX || x > this.opts.canvasWidth) continue;
       yMaxData = Math.max(yMaxData, series.load[iso] ?? 0, series.capacity[iso] ?? 0);
     }
     const yMax = yMaxData * 1.05;
@@ -243,7 +248,7 @@ export class HistogramRenderer {
     ctx.strokeStyle = c.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(this.opts.taskTableWidth, plotBottom + 0.5);
+    ctx.moveTo(this.chartOriginX, plotBottom + 0.5);
     ctx.lineTo(this.opts.canvasWidth, plotBottom + 0.5);
     ctx.stroke();
 
@@ -252,7 +257,7 @@ export class HistogramRenderer {
       const capVal = series.capacity[iso] ?? 0;
       if (loadVal <= 0 && capVal <= 0) continue;
       const x = this.dateToX(parseDate(iso));
-      if (x + dayW < this.opts.taskTableWidth || x > this.opts.canvasWidth) continue;
+      if (x + dayW < this.chartOriginX || x > this.opts.canvasWidth) continue;
 
       const capY = unitToY(capVal);
 
@@ -289,7 +294,7 @@ export class HistogramRenderer {
     ctx.font = this.font(9);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${this.formatUnits(yMaxData)} ${this.opts.labels.unitsSuffix}`, this.opts.taskTableWidth + 4, 2);
+    ctx.fillText(`${this.formatUnits(yMaxData)} ${this.opts.labels.unitsSuffix}`, this.chartOriginX + 4, 2);
   }
 
   private formatUnits(n: number): string {

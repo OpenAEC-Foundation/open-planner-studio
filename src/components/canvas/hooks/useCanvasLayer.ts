@@ -1,5 +1,10 @@
 import { RefObject, useCallback, useEffect } from 'react';
 
+/** Lokale timelinegrens: de linker pixel is 0, de eerste pixel buiten beeld is exact `width`. */
+export function isTimelineCanvasX(x: number, width: number): boolean {
+  return x >= 0 && x < width;
+}
+
 // De 3× identieke dpr/resize/render-loop-boilerplate uit GanttCanvas (audit P20/B1): drie
 // canvas-lagen (primaire Gantt, secundair split-pane, histogram) deden elk exact dezelfde
 // dance — dpr-schaling, canvas-pixel/CSS-maat synchroniseren, een teken-callback, plus een
@@ -8,18 +13,18 @@ import { RefObject, useCallback, useEffect } from 'react';
 // De consument levert alleen een gememoiseerde `draw(ctx, width, height)` (de CSS-maten, ná
 // dpr-schaling — teken dus in CSS-pixels, net als voorheen). De hook bezit:
 //   - de dpr-schaling + canvas.width/height/style-synchronisatie;
-//   - de requestAnimationFrame-render zodra `draw` (of een `extraDeps`-trigger) verandert;
+//   - de requestAnimationFrame-render zodra `draw` (of een expliciete primitive revision) verandert;
 //   - de ResizeObserver op de container die opnieuw tekent bij een maat-wijziging.
 //
-// `enabled` gate't alles (secundair pane / histogram staan conditioneel aan). `extraDeps` zijn
-// extra herteken-triggers die 1-op-1 de oorspronkelijke expliciete effect-deps bewaren (het
-// histogram hertekende óók op `histogramHeight`, ook al leest de teken-callback dat niet direct).
+// `enabled` gate't alles (secundair pane / histogram staan conditioneel aan). `renderRevision` is
+// bewust één primitive: de consumer benoemt zo zijn niet-door-`draw` gelezen invalidatie zonder
+// een verborgen spread-dependency of een lintonderdrukking in deze generieke hook.
 export interface UseCanvasLayerOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   containerRef: RefObject<HTMLElement | null>;
   draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
   enabled?: boolean;
-  extraDeps?: unknown[];
+  renderRevision?: string | number;
 }
 
 export function useCanvasLayer({
@@ -27,7 +32,7 @@ export function useCanvasLayer({
   containerRef,
   draw,
   enabled = true,
-  extraDeps = [],
+  renderRevision,
 }: UseCanvasLayerOptions): () => void {
   const paint = useCallback(() => {
     if (!enabled) return;
@@ -54,9 +59,7 @@ export function useCanvasLayer({
     if (!enabled) return;
     const frame = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(frame);
-    // extraDeps: honoreert de originele expliciete herteken-triggers (bv. histogramHeight).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paint, enabled, ...extraDeps]);
+  }, [paint, enabled, renderRevision]);
 
   // ResizeObserver op de container (was: één observer-effect per laag).
   useEffect(() => {

@@ -8,6 +8,9 @@
 //
 // Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { Task, TaskConstraint, ExternalLink } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -25,6 +28,7 @@ import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 
 const diffs: string[] = [];
 let checks = 0;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const eq = (label: string, got: unknown, want: unknown) => {
   checks++;
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
@@ -83,6 +87,16 @@ eq('05 fieldKind freeFloat = number', fieldKind(bk('freeFloat'), dummyCtx), 'num
 eq('06 fieldKind interferingFloat = number', fieldKind(bk('interferingFloat'), dummyCtx), 'number');
 eq('07 fieldKind isNearCritical = boolean', fieldKind(bk('isNearCritical'), dummyCtx), 'boolean');
 eq('08 fieldKind floatPath = number', fieldKind(bk('floatPath'), dummyCtx), 'number');
+
+// ── 1b) Issue #80: CPM-resultaten zijn hele weergegeven dagen ─────────────────────────────────
+// Het paneel heeft geen React-rendertestharnas. Deze lichte bronguard fixeert daarom de concrete
+// gebruikersweergave: vrije en interfererende speling mogen geen rekenartefacten met lange
+// decimalen tonen (zoals 2.2916666666666665), maar worden op de dichtstbijzijnde dag afgerond.
+const cpmResultSection = readFileSync(join(ROOT, 'src/components/task-sections/TaskCpmResultSection.tsx'), 'utf8');
+eq('08a CPM-paneel rondt vrije speling af op hele dagen',
+  /\{Math\.round\(task\.time\.freeFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
+eq('08b CPM-paneel rondt interfererende speling af op hele dagen',
+  /\{Math\.round\(task\.time\.interferingFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
 
 // ── 2) CPMResult-vormcontract: criticalPaths ALTIJD [criticalPath] (§3.5/§4.6) ─
 eq('09 criticalPaths lengte precies 1 (floatPaths uit)', rA.criticalPaths.length, 1);
@@ -324,7 +338,7 @@ const H8: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkH(id: string, mins: number, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, mins / 480, extra);           // scheduleStart 2026-06-01 (ongebruikt) → anker in H8
-  t.time = createDefaultTaskTime('2026-07-06', mins / 480);
+  t.time = createDefaultTaskTime('2026-07-06', mins / 480, 'hours');
   t.time.durationMinutes = mins;
   return t;
 }
@@ -484,6 +498,62 @@ const byPath: Task = mkTask('L3', 3, {
 const rPath = refreshExternalAnchors([byPath], source);
 eq('155 filePath-fallback: gematcht ⇒ anker uit bron', rPath.tasks[0].externalLinks![0].anchorDate, SRC_ES);
 eq('156 filePath-fallback: projectId gecanonicaliseerd naar bron', rPath.tasks[0].externalLinks![0].sourceRef.projectId, 'SRC');
+
+// Exact dezelfde gedeelde lexicale identiteit als de clipboard-key: Windows-separators en alle
+// ASCII-caseverschillen matchen, ook als de legacy projectId fout is. Een relatief legacypad mag
+// daarentegen nooit toevallig matchen, zelfs niet wanneer beide rauwe strings gelijk zijn.
+const windowsSource: ExternalSourceDoc = {
+  ...source, projectId: 'SRC-WIN', filePath: 'C:/PROJECTEN/BRON.ifc',
+};
+const byWindowsPath: Task = mkTask('L4', 3, {
+  externalLinks: [extLink('fp-win', 'predecessor', 'SS', {
+    projectId: 'OUD-EN-FOUT', taskId: 'X', filePath: 'c:\\projecten\\.\\bron.IFC',
+  }, '2000-01-01', true)],
+});
+const rWindowsPath = refreshExternalAnchors([byWindowsPath], windowsSource);
+eq('156a genormaliseerde Windows-fallback matcht ondanks fout projectId',
+  rWindowsPath.tasks[0].externalLinks![0].anchorDate, SRC_ES);
+eq('156b genormaliseerde Windows-fallback canonicaliseert projectId',
+  rWindowsPath.tasks[0].externalLinks![0].sourceRef.projectId, 'SRC-WIN');
+const relativeSource: ExternalSourceDoc = { ...source, projectId: 'SRC-REL', filePath: 'relatief.ifc' };
+const relativeLegacy: Task = mkTask('L5', 3, {
+  externalLinks: [extLink('fp-rel', 'predecessor', 'SS', {
+    projectId: 'ANDERS', taskId: 'X', filePath: 'relatief.ifc',
+  }, '2000-01-01', true)],
+});
+const rRelative = refreshExternalAnchors([relativeLegacy], relativeSource);
+eq('156c ongeldig relatief legacypad matcht niet', rRelative.changed, false);
+
+// Twee bestanden kunnen door openen/opslaan-als dezelfde persistente project-id dragen. De gewone
+// enkelbronverversing blijft project-id-primair (een verplaatst bestand moet blijven werken), maar
+// de bulkroute moet twee gelijktijdig gelezen bronnen met diezelfde id op pad kunnen scheiden.
+const duplicateProjectTask: Task = mkTask('L6', 3, {
+  externalLinks: [
+    extLink('same-id-a', 'predecessor', 'FS', {
+      projectId: 'DUPLICATE-PROJECT', taskId: 'X', filePath: '/tmp/kopie-a.ifc',
+    }, '2001-01-01', false),
+    extLink('same-id-b', 'predecessor', 'FS', {
+      projectId: 'DUPLICATE-PROJECT', taskId: 'X', filePath: '/tmp/kopie-b.ifc',
+    }, '2002-02-02', false),
+  ],
+});
+const duplicateSourceA: ExternalSourceDoc = {
+  projectId: 'DUPLICATE-PROJECT', filePath: '/tmp/kopie-a.ifc', projectName: 'Kopie A',
+  tasks: [srcTask('X', '2026-08-03', '2026-08-05')],
+};
+const duplicateSourceB: ExternalSourceDoc = {
+  projectId: 'DUPLICATE-PROJECT', filePath: '/tmp/kopie-b.ifc', projectName: 'Kopie B',
+  tasks: [srcTask('X', '2026-09-07', '2026-09-11')],
+};
+const duplicateAfterA = refreshExternalAnchors([duplicateProjectTask], duplicateSourceA, 'file-path');
+const duplicateAfterB = refreshExternalAnchors(duplicateAfterA.tasks, duplicateSourceB, 'file-path');
+const duplicateLinks = new Map(duplicateAfterB.tasks[0].externalLinks!.map(link => [link.id, link]));
+eq('156d gelijke project-id: pad A krijgt alleen anker A',
+  duplicateLinks.get('same-id-a')!.anchorDate, '2026-08-05');
+eq('156e gelijke project-id: pad B krijgt alleen anker B',
+  duplicateLinks.get('same-id-b')!.anchorDate, '2026-09-11');
+eq('156f gelijke project-id: bron A ververst exact één link', duplicateAfterA.refreshed, 1);
+eq('156g gelijke project-id: bron B ververst exact één link', duplicateAfterB.refreshed, 1);
 
 // Byte-stabiliteit: een reeds-actueel document geeft dezelfde referentie terug (changed=false).
 const already = refreshExternalAnchors(rPath.tasks, source);
@@ -796,7 +866,7 @@ const RCAL: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkProg(id: string, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, 1, extra);
-  t.time = createDefaultTaskTime('2026-07-06', 1); // 2026-07-06 = ma
+  t.time = createDefaultTaskTime('2026-07-06', 1, 'hours'); // 2026-07-06 = ma
   t.time.durationMinutes = 480;
   t.time.completion = 0.5;
   t.time.actualStart = '2026-07-06T08:00';

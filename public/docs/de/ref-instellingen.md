@@ -36,7 +36,7 @@ Alle drei zeigen exakt dieselben Einstellungen. Je nach Version sind sie über d
 
 ## Registerkarte Zeitachse / Zoom
 
-- **Stundenplanung** — **Stundenplanung aktivieren** schaltet Stunden-/Minuten-Terminplanung ein: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt vollständig tagesgenau. Mit eingeschaltetem Schalter erscheint **Gemischte Tages-/Stundenplanung zulassen** (Tages- und Stundenaufgaben in einem Projekt). Öffnen Sie eine Datei, die Stundenplanung enthält, während der Schalter aus ist, bietet eine Leiste oben **Stundenplanung aktivieren** an. Siehe [Kalender & Stundenplanung](docs://gids-kalenders-uren).
+- **Stundenplanung** — **Stundenplanung aktivieren** schaltet Stunden-/Minuten-Terminplanung ein: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus beginnen neue Vorgänge in Tagen; vorhandene Stundenvorgänge bleiben exakt erhalten. Bei eingeschaltetem Schalter können Tages- und Stundenvorgänge gemeinsam bestehen. Siehe [Kalender & Stundenplanung](docs://gids-kalenders-uren).
 - **Daueranzeige** — **Automatisch (eigene Einheit je Vorgang)**, **Immer Tage** oder **Immer Stunden**.
 - **Vorgangsbalken bei Unterbrechungen** — **Nie aufteilen**, **Bei Auswahl aufteilen** oder **Immer aufteilen**: ob ein Balken visuell um freie Tage herum aufteilt.
 - **Zeitachse** — **Nur Arbeitstage anzeigen** komprimiert die Zeitachse: Wochenenden und Feiertage aus dem Projektkalender werden übersprungen, sodass eine 5-Arbeitstage-Aufgabe exakt 5 Spalten breit ist, egal wie der Kalender dazwischen aussieht.

@@ -11,7 +11,9 @@ export function StatusBar() {
   const { t: tCommon } = useTranslation('common');
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
+  const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
   const scheduleStale = useAppStore(s => s.scheduleStale);
+  const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const view = useAppStore(s => s.view);
   const isDirty = useAppStore(s => s.isDirty);
@@ -20,12 +22,35 @@ export function StatusBar() {
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiServerStatus = useAppStore(s => s.ui.aiServerStatus);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
   const setUI = useAppStore(s => s.setUI);
   const dd = useDisplayDate();
 
   const leafTasks = tasks.filter(isLeafTask);
   const milestones = tasks.filter(t => t.isMilestone);
   const criticalCount = cpmResult?.criticalPath.length || 0;
+  // Issue #53: elke teller is een ingang naar het Waarschuwingenpaneel met de details.
+  const overallocatedCount = resourceLoadResult
+    ? Object.values(resourceLoadResult.overallocatedDays).filter(days => days.length > 0).length
+    : 0;
+  // Op de IFC- en Rapport-werkruimte bestaat de rail niet (App.tsx rendert 'm daar niet), dus
+  // alleen de vlag zetten zou een dode klik zijn; spring dan mee naar de Gantt-werkruimte.
+  const openWarnings = () => setUI({
+    showWarningsPanel: true,
+    ...(activeRibbonTab === 'ifc' || activeRibbonTab === 'report' ? { activeRibbonTab: 'start' as const } : {}),
+  });
+  const warningButton = (key: string, label: string) => (
+    <button
+      key={key}
+      onClick={openWarnings}
+      title={tCommon('warnings.openPanel')}
+      className="px-1 rounded hover:bg-surface-hover"
+      style={{ color: 'var(--theme-warning-text)' }}
+      data-ops-status-warning={key}
+    >
+      ⚠ {label}
+    </button>
+  );
 
   return (
     <div
@@ -40,27 +65,27 @@ export function StatusBar() {
           {/* Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen
               kale "Einde:"-label zonder waarde. */}
           {cpmResult.projectEnd && <span>{t('status.end')} {dd.date(cpmResult.projectEnd)}</span>}
-          {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && (
-            <span style={{ color: 'var(--theme-warning-text)' }}>
-              ⚠ {tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length })}
-            </span>
+          {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && warningButton(
+            'missedDeadlines',
+            tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length }),
           )}
-          {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && (
-            <span style={{ color: 'var(--theme-warning-text)' }}>
-              ⚠ {tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length })}
-            </span>
+          {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && warningButton(
+            'violatedConstraints',
+            tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length }),
           )}
-          {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && (
-            <span
-              style={{ color: 'var(--theme-warning-text)' }}
-              title={tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length })}
-            >
-              ⚠ {tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length })}
-            </span>
+          {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && warningButton(
+            'outOfSequence',
+            tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length }),
+          )}
+          {overallocatedCount > 0 && warningButton(
+            'overallocated',
+            tCommon('statusWarnings.overallocated', { count: overallocatedCount }),
           )}
         </>
       )}
-      {scheduleStale && (
+      {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
+          Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
+      {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
         <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
           ⚠ {t('status.scheduleStale')}
         </span>

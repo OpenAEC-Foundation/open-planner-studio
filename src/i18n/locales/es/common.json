@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Guardado automático", "noFile": "Guarde primero este proyecto para usar el guardado automático.", "onHint": "El guardado automático está activo: los cambios se escriben en este archivo.", "offHint": "El guardado automático está desactivado. La recuperación sigue activa." },
   "notifications": {
     "dismiss": "Cerrar notificación",
     "openFailed": "No se pudo abrir el archivo",
@@ -72,7 +73,7 @@
     "relationCreated": "Relación creada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Esa relación ya existe",
     "relationAncestorEndpoint": "No se permite una relación entre una tarea y su propia tarea de resumen antecesora.",
-    "summaryRelationsDropped": "{{total}} relación(es) no se pudieron incluir en el cálculo — consulte el panel de relaciones para ver cuáles.",
+    "summaryRelationsDropped": "{{total}} relación(es) no se pudieron incluir en el cálculo. Revise las columnas Predecesores y Sucesores.",
     "mppSourceScheduleNotes_one": "Este archivo de MS Project contiene {{count}} tarea con una planificación dividida, nivelada o determinada por recursos. Se importa y se muestra tal cual.",
     "mppSourceScheduleNotes_many": "Este archivo de MS Project contiene {{count}} tareas con una planificación dividida, nivelada o determinada por recursos. Se importan y se muestran tal cual.",
     "mppSourceScheduleNotes_other": "Este archivo de MS Project contiene {{count}} tareas con una planificación dividida, nivelada o determinada por recursos. Se importan y se muestran tal cual.",
@@ -82,7 +83,14 @@
     "mppTimephasedSteeringLost_one": "La distribución de horas de MS Project ya no controla {{count}} tarea después de esta edición; la distribución original se conserva en el archivo.",
     "mppTimephasedSteeringLost_many": "La distribución de horas de MS Project ya no controla {{count}} tareas después de esta edición; la distribución original se conserva en el archivo.",
     "mppTimephasedSteeringLost_other": "La distribución de horas de MS Project ya no controla {{count}} tareas después de esta edición; la distribución original se conserva en el archivo.",
-    "readMore": "Leer más"
+    "readMore": "Leer más",
+    "pasteSkippedReadOnly_one": "Se omitió {{count}} celda: es de solo lectura (por ejemplo, un código WBS numerado automáticamente o una columna calculada).",
+    "pasteSkippedReadOnly_many": "Se omitieron {{count}} celdas: son de solo lectura (por ejemplo, un código WBS numerado automáticamente o una columna calculada).",
+    "pasteSkippedReadOnly_other": "Se omitieron {{count}} celdas: son de solo lectura (por ejemplo, un código WBS numerado automáticamente o una columna calculada).",
+    "librarySaveFailed": "No se pudo guardar la biblioteca",
+    "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
+    "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
   },
   "yes": "Sí",
   "no": "No",
@@ -151,11 +159,15 @@
     "themeDark": "Oscuro",
     "themeLight": "Claro",
     "themeHighContrast": "Alto contraste",
+    "themeFollowSystem": "Seguir el tema del sistema",
+    "themeSystemHint": "Sigue el esquema de color de tu sistema (ahora: {{theme}}).",
     "timeline": "Línea de tiempo / Zoom",
     "hourPlanningSection": "Planificación por horas",
     "enableHourPlanning": "Activar planificación por horas",
     "enableHourPlanningHint": "Activa la programación por horas/minutos: una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora. Desactivado ⇒ la aplicación sigue siendo totalmente granular por días, como antes.",
     "allowMixedDayHour": "Permitir planificación mixta de días/horas",
+    "defaultTaskDurationUnit": "Unidad predeterminada para tareas nuevas",
+    "defaultTaskDurationUnitHint": "Determina si las tareas nuevas comienzan en días laborables u horas de trabajo. Las tareas existentes no cambian.",
     "durationDisplay": "Visualización de la duración",
     "durationDisplayAuto": "Automática (unidad propia por tarea)",
     "durationDisplayDays": "Siempre días",
@@ -310,6 +322,9 @@
     "openBadge": "{{count}} abiertos",
     "switchHint": "⌘1–9 para cambiar",
     "openProject": "Abrir proyecto",
+    "newOrOpenTitle": "Iniciar un proyecto",
+    "newProject": "Nuevo proyecto",
+    "openExistingProject": "Abrir proyecto existente",
     "allProjects": "Todos los proyectos",
     "active": "Activo",
     "tasksWord": "tareas",
@@ -384,13 +399,39 @@
       "sameSize": "Del mismo tamaño que la versión anterior",
       "daysSincePrevious": "Desde la versión anterior: {{count}} días",
       "currentOnly": "Ahora estás usando la versión {{version}}",
-      "whatsNewButton": "Novedades"
+      "whatsNewButton": "Novedades", "newVersion": "Nueva versión", "readGuide": "Leer la guía", "fullNotes": "Ver notas de versión completas", "openFailed": "No se pudieron abrir las notas de versión.", "inNumbers": "Esta actualización en cifras", "days": "días desde la versión anterior", "commits": "commits desde la versión anterior", "codeLines": "líneas de código añadidas", "codeLinesHint": "Líneas añadidas en aplicación, Rust, scripts y pruebas.", "smallerLabel": "paquete más pequeño", "largerLabel": "paquete más grande", "acknowledge": "Entendido"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} fecha(s) límite superada(s)",
     "violatedConstraints": "{{count}} restricción(es) incumplida(s)",
-    "outOfSequence": "{{count}} relación(es) fuera de secuencia"
+    "outOfSequence": "{{count}} relación(es) fuera de secuencia",
+    "overallocated": "{{count}} recurso(s) sobreasignado(s)"
+  },
+  "warnings": {
+    "title": "Advertencias",
+    "close": "Cerrar advertencias",
+    "openPanel": "Abrir el panel de advertencias (detalles y navegación)",
+    "summary": "{{errors}} error(es), {{warnings}} advertencia(s)",
+    "noSchedule": "Aún no calculado — pulse Calcular (F5) para ejecutar las comprobaciones.",
+    "stale": "Programación desactualizada — esta lista proviene del último cálculo. Recalcule (F5).",
+    "empty": "Sin advertencias. La programación supera todas las comprobaciones.",
+    "goTo": "Ir a: {{target}}",
+    "kind": {
+      "scheduleError": "No se pudo calcular la programación: {{message}}",
+      "missedDeadline": "Fecha límite {{deadline}} incumplida — fin más temprano {{finish}}",
+      "violatedConstraint": "La restricción {{constraint}} es sobrepasada por la lógica (holgura negativa)",
+      "outOfSequence": "Fuera de secuencia: el progreso del sucesor contradice la relación",
+      "truncatedLead": "Adelanto truncado por el inicio del proyecto — la relación no se respeta por completo",
+      "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
+      "hammockNoFinishDriver": "Hamaca sin impulsor de fin (sin predecesor FF/SF): su duración vuelve a cero",
+      "cappedTask": "Fecha de fin limitada: el calendario no deja ninguna ventana laborable para esta tarea",
+      "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Proyecto",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -606,7 +647,8 @@
       "capacity": "Capacidad",
       "documents": "Documentos",
       "selectHint": "Selecciona un recurso para ver el histograma."
-    }
+    },
+    "color": "Color"
   },
   "calendar": {
     "library": {
@@ -657,6 +699,18 @@
       "threeShift": "3 turnos",
       "night": "Turno de noche",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Introduzca una hora de pausa válida como HH:MM.",
+      "invalidWorkStart": "Introduzca una hora de inicio válida en formato HH:MM.",
+      "invalidWorkEnd": "Introduzca una hora de finalización válida en formato HH:MM.",
+      "invalidWorkTimeOrder": "La hora de inicio debe ser anterior a la hora de finalización.",
+      "increaseTime": "Aumentar la hora 15 minutos",
+      "decreaseTime": "Reducir la hora 15 minutos",
+      "increaseBreakDuration": "Aumentar la duración de la pausa 15 minutos",
+      "decreaseBreakDuration": "Reducir la duración de la pausa 15 minutos",
+      "start": "Inicio de la pausa", "duration": "Duración de la pausa (minutos)", "hint": "Las franjas de trabajo se calculan automáticamente. Duración 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La duración debe ser un número entero de minutos igual o mayor que 0.", "outsideWorkingDay": "La pausa debe estar completamente dentro de la jornada laboral.", "consumesWorkingDay": "La pausa no puede ocupar toda la jornada laboral." }
     },
     "worktime": {
       "section": "Horarios de trabajo",
@@ -742,7 +796,7 @@
       "none": "(ninguno)"
     },
     "presentation": {
-      "hint": "Pulse F11 para salir del modo presentación"
+      "hint": "Pulse Esc o F11 para salir de pantalla completa."
     },
     "splitView": {
       "primary": "Principal",
@@ -774,6 +828,8 @@
   "duration": {
     "suffixDay": "d",
     "suffixHour": "h",
+    "days": "Días",
+    "hours": "Horas",
     "suffixMinute": "m"
   },
   "shortcuts": {
@@ -784,7 +840,8 @@
       "edit": "Editar",
       "structure": "Estructura",
       "view": "Vista",
-      "nav": "Navegación"
+      "nav": "Navegación",
+      "grid": "Tabla"
     },
     "view": {
       "exitFullscreen": "Salir de presentación",
@@ -804,6 +861,12 @@
       "switchDocument": "Cambiar de documento",
       "scrollToToday": "Ir a hoy",
       "help": "Abrir ayuda"
+    },
+    "grid": {
+      "navigate": "Celda siguiente/anterior",
+      "edit": "Editar celda",
+      "typeToReplace": "Escribir reemplaza el contenido de la celda",
+      "clearCell": "Borrar contenido de la celda"
     }
   },
   "welcome": {

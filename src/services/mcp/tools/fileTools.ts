@@ -29,7 +29,6 @@
 // echte implementatie importeert `@tauri-apps/*` DYNAMISCH binnen een `isTauri()`-tak (anders breekt
 // de web-build), de headless tests spuiten een in-memory fs in.
 
-import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
@@ -254,7 +253,7 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'INTERNAL', `Kon het doelpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      const state = useAppStore.getState();
+      const state = ctx.app.store.getState();
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen.
       const content = writeIFC(buildWriteIFCInput(state));
@@ -265,7 +264,7 @@ export const fileTools: McpToolDef[] = [
       }
       return {
         ok: true,
-        envelope: buildEnvelope(),
+        envelope: buildEnvelope(ctx),
         data: {
           path,
           // Aantal TEKENS van het IFC-document (geen bytes: UTF-8 is multi-byte voor niet-ASCII
@@ -369,7 +368,8 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', `'${path}' kon niet worden gelezen als planning: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // Exact het bestaande laadpatroon (fileSlice.openFile), inclusief X4b's meervoudige XER-vorm.
+      // Exact het bestaande laadpatroon (fileSlice.openFile), inclusief X4b's meervoudige XER-vorm:
+      // `applyOpenedImport` hergebruikt zelf een pristine tabblad en opent anders nieuwe documenten.
       const format = formatOf(path, content);
       // OPSLAGDOEL alleen bij een formaat dat `canBeSaveTarget` draagt (T11 — vóór deze fix: `format
       // === 'IFC' && !isBinary`, twee losse classificaties die uit elkaar konden lopen). Opslaan
@@ -380,7 +380,7 @@ export const fileTools: McpToolDef[] = [
       // wat je wilt. `formatOf` blijft puur het AI-facing label (`format` hieronder, voor de respons
       // en de notices) — de opslagdoel-beslissing leest voortaan uitsluitend `readFormat.
       // canBeSaveTarget`, dezelfde registry-vlag als `fileSlice.ts`.
-      const opened = useAppStore.getState().applyOpenedImport(parsed, {
+      const opened = ctx.app.store.getState().applyOpenedImport(parsed, {
         filePath: readFormat.canBeSaveTarget ? path : null,
         fileHandle: null,
         recompute: true,
@@ -391,7 +391,7 @@ export const fileTools: McpToolDef[] = [
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
 
-      const after = useAppStore.getState();
+      const after = ctx.app.store.getState();
       const payloadById = new Map(after.getOpenDocumentPayloads().map(document => [
         document.id,
         document.payload,
@@ -428,7 +428,7 @@ export const fileTools: McpToolDef[] = [
       }
       return {
         ok: true,
-        envelope: buildEnvelope(),
+        envelope: buildEnvelope(ctx),
         data: {
           documentId: after.activeDocumentId,
           documentsOpened: documents.length,

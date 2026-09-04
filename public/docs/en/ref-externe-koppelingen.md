@@ -25,12 +25,11 @@ An external link does not calculate live against the source project. When you ad
 
 ## Management, refreshing and missing sources
 
-Existing links are listed in the Relations panel under **External links**:
+Existing links are shown as tokens in the task grid's **Predecessors** and **Successors** columns:
 
 - Per link: the source task, the type, the anchor, and an **outdated** badge once the source could not be loaded (anymore) — with the explanation "source not loaded — re-import to refresh".
-- **Refresh this link** — re-reads this one link's source file and updates the anchor.
-- **Refresh external anchors** — re-reads every referenced source file and updates all anchors plus the outdated status. Afterwards a status line reports how many anchors were refreshed and how many stayed outdated.
-- **Remove** — deletes the link.
+- Right-click a token for **Edit external relation**, **Refresh source**, or **Delete relation**.
+- **Relation → Refresh all external relations** in the ribbon re-reads all available source files and updates their anchors.
 - Refreshing reads files and therefore only works in the desktop app; the browser version reports "Reading source files is desktop-only; use the manual fallback."
 
 ## Further reading

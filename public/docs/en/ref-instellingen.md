@@ -17,7 +17,7 @@ the settings themselves and what they do are identical either way; this article 
 
 **Appearance:**
 
-- **Theme** — **Dark**, **Light** or **High Contrast**; click a card to switch.
+- **Theme** — **Dark**, **Light** or **High Contrast**; click a card to switch. Below them sits **Follow system theme**: with it on, the app follows your operating system's or browser's colour scheme and switches along the moment that changes, even while the app is open. The three cards are greyed out then — they only show you which theme the system currently yields. Switch it back off and you stay on exactly that theme. **High Contrast** is yours to pick, since a system only knows light and dark.
 - **Font** — **Default**, **System**, **Serif** or **Monospace**; overrides the interface's typeface. Web apps don't automatically follow your system font setting, so this and the next option are how you pick it yourself.
 - **Text size** — 90%, 100%, 110% or 125%; scales the interface text and layout.
 - **Document switch style** — how you switch between open documents: **Horizontal tabs**, **Vertical tabs** or **Pill**.
@@ -39,7 +39,7 @@ the settings themselves and what they do are identical either way; this article 
 
 ## Timeline / Zoom tab
 
-- **Hour planning** — **Enable hour planning** turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular. With the switch on, **Allow mixed day/hour planning** appears (day and hour tasks in one project). If you open a file that contains hour planning while the switch is off, a bar at the top offers **Enable hour planning**. See [Calendars & hour planning](docs://gids-kalenders-uren).
+- **Hour planning** — **Enable hour planning** turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular. When it is on, **Allow mixed day/hour planning** appears; only when that is also on can you choose a unit per task. Existing hour tasks are never converted. See [Calendars & hour planning](docs://gids-kalenders-uren).
 - **Duration display** — **Automatic (native unit per task)**, **Always days** or **Always hours**.
 - **Task bars at interruptions** — **Never split**, **Split when selected** or **Always split**: whether a bar visually splits around non-working days.
 - **Timeline axis** — **Show only working days** compresses the timeline: weekends and holidays from the project calendar are skipped, so a 5-workday task is exactly 5 columns wide, whatever the calendar between them looks like.

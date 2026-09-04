@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Otomatik kaydet", "noFile": "Otomatik kaydetmeyi kullanmak için önce bu projeyi kaydedin.", "onHint": "Otomatik kaydet açık: değişiklikler bu dosyaya yazılır.", "offHint": "Otomatik kaydet kapalı. Çökme kurtarma etkin kalır." },
   "notifications": {
     "dismiss": "Bildirimi kapat",
     "openFailed": "Dosya açılamadı",
@@ -60,14 +61,19 @@
     "relationCreated": "İlişki oluşturuldu: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Bu ilişki zaten var",
     "relationAncestorEndpoint": "Bir görev ile kendi üst özet görevi arasında ilişki kurulmasına izin verilmez.",
-    "summaryRelationsDropped": "{{total}} ilişki hesaplamaya dahil edilemedi — hangileri olduğunu görmek için İlişkiler panelini kontrol edin.",
+    "summaryRelationsDropped": "{{total}} ilişki hesaplamaya dahil edilemedi. Öncüller ve Ardıllar sütunlarını kontrol edin.",
     "mppSourceScheduleNotes_one": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "mppSourceScheduleNotes_other": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "projectStartAnchorsClamped_one": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "projectStartAnchorsClamped_other": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "mppTimephasedSteeringLost_one": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
     "mppTimephasedSteeringLost_other": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
-    "readMore": "Daha fazla bilgi"
+    "readMore": "Daha fazla bilgi",
+    "pasteSkippedReadOnly_one": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
+    "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
+    "librarySaveFailed": "Kitaplık kaydedilemedi",
+    "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
+    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar."
   },
   "yes": "Evet",
   "no": "Hayır",
@@ -136,11 +142,15 @@
     "themeDark": "Koyu",
     "themeLight": "Açık",
     "themeHighContrast": "Yüksek Kontrast",
+    "themeFollowSystem": "Sistem temasını izle",
+    "themeSystemHint": "Sisteminizin renk şemasını izler (şu anda: {{theme}}).",
     "timeline": "Zaman çizelgesi / Yakınlaştırma",
     "hourPlanningSection": "Saat planlaması",
     "enableHourPlanning": "Saat planlamasını etkinleştir",
     "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
+    "defaultTaskDurationUnit": "Yeni görevler için varsayılan birim",
+    "defaultTaskDurationUnitHint": "Yeni görevlerin iş günüyle mi çalışma saatiyle mi başlayacağını belirler. Mevcut görevler değişmez.",
     "durationDisplay": "Süre gösterimi",
     "durationDisplayAuto": "Otomatik (göreve özgü birim)",
     "durationDisplayDays": "Her zaman gün",
@@ -295,6 +305,9 @@
     "openBadge": "{{count}} açık",
     "switchHint": "Geçiş için ⌘1–9",
     "openProject": "Proje aç",
+    "newOrOpenTitle": "Proje başlat",
+    "newProject": "Yeni proje",
+    "openExistingProject": "Mevcut projeyi aç",
     "allProjects": "Tüm projeler",
     "active": "Etkin",
     "tasksWord": "görev",
@@ -369,13 +382,39 @@
       "sameSize": "Önceki sürümle aynı boyutta",
       "daysSincePrevious": "Önceki sürümden bu yana: {{count}} gün",
       "currentOnly": "Şu anda {{version}} sürümünü kullanıyorsunuz",
-      "whatsNewButton": "Yenilikler"
+      "whatsNewButton": "Yenilikler", "newVersion": "Yeni sürüm", "readGuide": "Kılavuzu oku", "fullNotes": "Tüm sürüm notlarını gör", "openFailed": "Sürüm notları açılamadı.", "inNumbers": "Bu güncelleme sayılarla", "days": "önceki sürümden beri gün", "commits": "önceki sürümden beri commit", "codeLines": "eklenen kod satırı", "codeLinesHint": "Uygulama, Rust, betikler ve testlerdeki eklenen satırlar.", "smallerLabel": "daha küçük paket", "largerLabel": "daha büyük paket", "acknowledge": "Anladım"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} son tarih aşıldı",
     "violatedConstraints": "{{count}} kısıtlama ihlal edildi",
-    "outOfSequence": "{{count}} sıra dışı ilişki"
+    "outOfSequence": "{{count}} sıra dışı ilişki",
+    "overallocated": "{{count}} kaynak aşırı atanmış"
+  },
+  "warnings": {
+    "title": "Uyarılar",
+    "close": "Uyarıları kapat",
+    "openPanel": "Uyarılar panelini aç (ayrıntılar ve gezinme)",
+    "summary": "{{errors}} hata, {{warnings}} uyarı",
+    "noSchedule": "Henüz hesaplanmadı — kontrolleri çalıştırmak için Hesapla (F5) tuşuna basın.",
+    "stale": "Program güncel değil — bu liste son hesaplamadan geliyor. Yeniden hesaplayın (F5).",
+    "empty": "Uyarı yok. Program tüm kontrolleri geçiyor.",
+    "goTo": "Git: {{target}}",
+    "kind": {
+      "scheduleError": "Program hesaplanamadı: {{message}}",
+      "missedDeadline": "Son tarih {{deadline}} kaçırıldı — en erken bitiş {{finish}}",
+      "violatedConstraint": "{{constraint}} kısıtlaması mantık tarafından aşılıyor (negatif bolluk)",
+      "outOfSequence": "Sıra dışı: ardılın ilerlemesi ilişkiyle çelişiyor",
+      "truncatedLead": "Öncelik proje başlangıcıyla kesildi — ilişki tam olarak uygulanmıyor",
+      "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
+      "hammockNoFinishDriver": "Bitiş sürücüsü olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
+      "cappedTask": "Bitiş tarihi sınırlandı: takvim bu görev için çalışılabilir bir pencere bırakmıyor",
+      "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Proje",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -586,7 +625,8 @@
       "capacity": "Kapasite",
       "documents": "Belgeler",
       "selectHint": "Histogramı görmek için bir kaynak seçin."
-    }
+    },
+    "color": "Renk"
   },
   "calendar": {
     "library": {
@@ -637,6 +677,18 @@
       "threeShift": "3 vardiya",
       "night": "Gece vardiyası",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "HH:MM biçiminde geçerli bir mola saati girin.",
+      "invalidWorkStart": "HH:MM biçiminde geçerli bir başlangıç saati girin.",
+      "invalidWorkEnd": "HH:MM biçiminde geçerli bir bitiş saati girin.",
+      "invalidWorkTimeOrder": "Başlangıç saati bitiş saatinden önce olmalıdır.",
+      "increaseTime": "Saati 15 dakika artır",
+      "decreaseTime": "Saati 15 dakika azalt",
+      "increaseBreakDuration": "Mola süresini 15 dakika artır",
+      "decreaseBreakDuration": "Mola süresini 15 dakika azalt",
+      "start": "Mola başlangıcı", "duration": "Mola süresi (dakika)", "hint": "Çalışma aralıkları otomatik türetilir. 0 süre molayı kaldırır.",
+      "errors": { "invalidDuration": "Süre 0 veya daha büyük tam dakika olmalıdır.", "outsideWorkingDay": "Mola çalışma günü içinde olmalıdır.", "consumesWorkingDay": "Mola tüm çalışma gününü kaplayamaz." }
     },
     "worktime": {
       "section": "Çalışma saatleri",
@@ -722,7 +774,7 @@
       "none": "(yok)"
     },
     "presentation": {
-      "hint": "Sunum modundan çıkmak için F11'e basın"
+      "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."
     },
     "splitView": {
       "primary": "Birincil",
@@ -752,7 +804,9 @@
   },
   "duration": {
     "suffixDay": "g",
-    "suffixHour": "s",
+    "suffixHour": "h",
+    "days": "Gün",
+    "hours": "Saat",
     "suffixMinute": "dk"
   },
   "shortcuts": {
@@ -763,7 +817,8 @@
       "edit": "Düzenle",
       "structure": "Yapı",
       "view": "Görünüm",
-      "nav": "Gezinme"
+      "nav": "Gezinme",
+      "grid": "Tablo"
     },
     "view": {
       "exitFullscreen": "Sunumdan çık",
@@ -783,6 +838,12 @@
       "switchDocument": "Belge değiştir",
       "scrollToToday": "Bugüne git",
       "help": "Yardımı aç"
+    },
+    "grid": {
+      "navigate": "Sonraki/önceki hücre",
+      "edit": "Hücreyi düzenle",
+      "typeToReplace": "Yazmak hücre içeriğinin yerini alır",
+      "clearCell": "Hücre içeriğini temizle"
     }
   },
   "welcome": {

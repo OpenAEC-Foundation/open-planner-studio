@@ -32,6 +32,7 @@ export {
   type DownloadVerdict,
   type InstallOutcome,
   type InstallOptions,
+  type ExpectedExtensionIdentity,
 } from './extensionService';
 export {
   askExtensionConsent,

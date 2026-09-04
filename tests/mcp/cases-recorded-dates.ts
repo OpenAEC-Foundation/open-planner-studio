@@ -12,6 +12,9 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { externIfc } from '../fixtures/recordedDatesIfc';
+import { createAppStoreContext } from '@/state/appStore';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 const S = () => store.getState();
@@ -38,12 +41,12 @@ test('MCP-transactie in de modus: één undo-stap, niet twee (K1)', () => {
   assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
   assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16',
     'voorwaarde: b hoort de OPGESLAGEN datum te tonen');
-  const before = S().undoStack.length;
+  const before = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => { draft.addTask({ name: 'via AI' }); });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(S().undoStack.length, before + 1, 'één transactie-snapshot (bulk = één undo-stap), óók in de modus');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot (bulk = één undo-stap), óók in de modus');
   assertEq(S().datesAsRecorded, false, 'de eindherberekening hoort de modus te verlaten');
   assertEq(S().recordedDates, null, 'de vastlegging hoort gewist te zijn');
   assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-09',
@@ -53,7 +56,7 @@ test('MCP-transactie in de modus: één undo-stap, niet twee (K1)', () => {
 // --- 2) Claim (a): die ene undo-stap herstelt modus én datums in één keer --------------------------
 test('MCP-transactie in de modus: één undo herstelt modus, datums én de nieuwe taak (claim a)', () => {
   const { bId } = enterMode('m2');
-  const before = S().undoStack.length;
+  const before = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => { draft.addTask({ name: 'via AI 2' }); });
   assert(res.ok, 'transactie hoort te slagen');
@@ -61,7 +64,7 @@ test('MCP-transactie in de modus: één undo herstelt modus, datums én de nieuw
 
   S().undo();
 
-  assertEq(S().undoStack.length, before, 'de undo-stack hoort terug op zijn oude diepte te staan');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before, 'de undo-stack hoort terug op zijn oude diepte te staan');
   assertEq(S().datesAsRecorded, true, 'undo hoort de modus te herstellen');
   assert(S().recordedDates !== null, 'undo hoort de vastlegging te herstellen');
   assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16',
@@ -73,7 +76,7 @@ test('MCP-transactie in de modus: één undo herstelt modus, datums én de nieuw
 // --- 3) K2: een geweigerde transactie in de modus laat GEEN fantoom-undo-stap achter ---------------
 test('MCP-transactie met kringverwijzing in de modus: rollback laat de stacks onaangeroerd (K2)', () => {
   const { aId, bId } = enterMode('m3');
-  const before = S().undoStack.length;
+  const before = S().historyEvents.filter(event => event.state === 'applied').length;
   const beforeStart = S().tasks.find((t) => t.id === bId)!.time.earlyStart;
 
   // a → b bestaat al in de fixture; b → a maakt er een kring van. Die fout komt pas uit de
@@ -83,7 +86,7 @@ test('MCP-transactie met kringverwijzing in de modus: rollback laat de stacks on
   });
 
   assert(!res.ok, 'een kringverwijzing hoort de transactie te laten falen');
-  assertEq(S().undoStack.length, before, 'undoStack onaangeroerd na rollback — geen fantoom-undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before, 'undoStack onaangeroerd na rollback — geen fantoom-undo-stap');
   assertEq(S().datesAsRecorded, true, 'de rollback hoort de modus terug te zetten');
   assert(S().recordedDates !== null, 'de rollback hoort de vastlegging terug te zetten');
   assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, beforeStart,
@@ -94,12 +97,36 @@ test('MCP-transactie met kringverwijzing in de modus: rollback laat de stacks on
 test('MCP-transactie buiten de modus: onveranderd één undo-stap', () => {
   S().newProject();
   assertEq(S().datesAsRecorded, false, 'voorwaarde: de modus hoort uit te staan');
-  const before = S().undoStack.length;
+  const before = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => { draft.addTask({ name: 'gewoon' }); });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(S().undoStack.length, before + 1, 'onveranderd: één undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'onveranderd: één undo-stap');
+});
+
+test('contextfactory B verlaat recorded-dates met één B-undo en laat A buiten beeld', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  B.store.getState().applyLoadedProject(readIFC(externIfc('factory-B')), { filePath: null, recompute: true });
+  B.store.getState().showRecordedDates();
+  const bId = B.store.getState().tasks.find((task) => task.wbsCode === '1.2')!.id;
+  const aTakenVoor = A.store.getState().tasks.length;
+  const aUndoVoor = historyDepthsForActiveScope(A.store.getState()).undoDepth;
+  const bUndoVoor = historyDepthsForActiveScope(B.store.getState()).undoDepth;
+  const txB = createMcpTransactions(B);
+
+  const result = txB.run(() => txB.draft.addTask({ name: 'factory-B-in-recorded-mode' }));
+
+  assert(result.ok, 'de contextgebonden transactie hoort in recorded-dates-modus te slagen');
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
+    'modus verlaten plus B-mutatie hoort samen precies één B-undo te zijn');
+  assertEq(B.store.getState().datesAsRecorded, false, 'alleen B hoort zijn recorded-dates-modus te verlaten');
+  assertEq(B.store.getState().tasks.find((task) => task.id === bId)!.time.earlyStart, '2026-03-09',
+    'B hoort op zijn herberekende datum te staan');
+  assertEq(A.store.getState().tasks.length, aTakenVoor, 'A-taken horen onaangeroerd te blijven');
+  assertEq(historyDepthsForActiveScope(A.store.getState()).undoDepth, aUndoVoor,
+    'A-undo hoort onaangeroerd te blijven');
 });
 
 await run();

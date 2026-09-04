@@ -4,6 +4,7 @@
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import type { Baseline } from '@/types/baseline';
 import { displayDocumentTitle } from '@/utils/documents';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 /**
  * Zet de store terug op ÉÉN vers, actief document met een bekende projectnaam, een paar taken en
@@ -33,8 +34,8 @@ function seedSource(name: string, taskNames: string[] = ['Alpha', 'Beta']): stri
     s.activeBaselineId = 'bl1';
     s.selectedTaskIds = [ids[0]];
     s.isDirty = false;
-    s.undoStack = [];
-    s.redoStack = [];
+    s.historyEvents = [];
+    s.nextHistorySequence = 1;
   });
   return ids;
 }
@@ -109,19 +110,19 @@ test('5 — verse lege undo-stack; undo in de kopie raakt de bron niet', () => {
   seedSource('Project X', ['Alpha']);
   const newId = useAppStore.getState().duplicateDocument();
   const s = useAppStore.getState();
-  assertEq(s.undoStack.length, 0, 'kopie undoStack is leeg');
-  assertEq(s.redoStack.length, 0, 'kopie redoStack is leeg');
+  assertEq(historyDepthsForActiveScope(s), { undoDepth: 0, redoDepth: 0 }, 'kopiegeschiedenis is leeg');
 
   const cid = s.tasks[0].id;
   useAppStore.getState().updateTask(cid, { name: 'K1' });
-  assert(useAppStore.getState().undoStack.length >= 1, 'mutatie in de kopie pushte een undo-snapshot');
+  assert(historyDepthsForActiveScope(useAppStore.getState()).undoDepth >= 1,
+    'mutatie in de kopie maakte een history-event');
   useAppStore.getState().undo();
   const s2 = useAppStore.getState();
   assertEq(s2.tasks[0].name, 'Alpha', 'undo herstelde de kopie-taaknaam');
 
   const src = sourceEntry(newId).payload!;
   assertEq(src.tasks[0].name, 'Alpha', 'bron ongemoeid door undo in de kopie');
-  assertEq(src.undoStack.length, 0, 'bron undoStack ongemoeid');
+  assert(!('historyEvents' in src), 'bronpayload draagt geen sessiehistorie');
 });
 
 test('6 — variantnummering (2, dan 3) en expliciete naam wint', () => {

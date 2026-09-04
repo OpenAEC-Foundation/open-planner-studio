@@ -16,8 +16,11 @@ const PUB_DIR = join(ROOT, 'public', 'examples');
 /** Download-budget voor de publieke voorbeeldselectie (deze bestanden gaan mee in de webdeploy).
  *  Was 600 kB; opgehoogd naar 700 kB toen drie van de publieke basisvoorbeelden (05/10/15) een
  *  resourceset kregen. Gemeten op dat moment: 585 kB zónder die resourcesets, 615 kB mét — de
- *  oude grens zat er dus al bijna tegenaan. Dit blijft een bloat-vangnet, geen streefwaarde. */
-const PUBLIC_BUDGET_KB = 700;
+ *  oude grens zat er dus al bijna tegenaan. Opgehoogd naar 850 kB op 2026-09-03: de writer schrijft
+ *  sinds eind augustus per taak `OPS_TaskIdentity` (padstabiele externe relatietokens) en per
+ *  kalender/resource `HoursPerDay`/`Color`, waardoor de selectie van 673 naar 807 KiB groeide en
+ *  een regeneratie op de 700-grens stukliep. Dit blijft een bloat-vangnet, geen streefwaarde. */
+const PUBLIC_BUDGET_KB = 850;
 
 function main() {
   if (!existsSync(EX_DIR)) mkdirSync(EX_DIR, { recursive: true });

@@ -6,13 +6,32 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
+import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
 // `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
 import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
-import { dateToX as axisDateToX } from '@/engine/renderer/timeAxis';
+import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { snapToChoice } from '@/utils/numberChoice';
-import { isSummaryTask } from '@/utils/taskHierarchy';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+// Balkkleurmodi (#21 punt 1-nieuw): pure adviesmodule — de printlaag vertaalt alleen naar
+// fill/segmenten/outline-aanroepen en houdt zelf geen kleurlogica.
+import {
+  barCategoryDisplayColor,
+  computeBarColors,
+  type BarFill,
+  type BarPalette,
+} from '@/services/print/barColors';
+import {
+  effectiveBarColorSelection,
+  visibleBarColorCategories,
+  type BarColorContext,
+} from '@/services/print/barColorCategories';
+import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
+import type { BarColorSelection } from '@/types/barColor';
+import type { ViewRow } from '@/engine/view/visibleRows';
+import type { BaselineOverlay } from '@/types/baseline';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -25,6 +44,19 @@ const FOOTER_HEIGHT = 50;
 // en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
 // FontFace nog niet geladen is (§5.1/K2 ontwerpdoc). De swap reflowt bewust bestaande exports.
 const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+/**
+ * De raster- en vectorpaden delen deze tekenroutine. Op een zeer lange, in auto-fit gecomprimeerde
+ * planning zijn individuele daglijnen en weekendvakken kleiner dan één pixel en dus onzichtbaar;
+ * ze toch één voor één tekenen houdt de UI-thread minutenlang bezig. Deze grenzen bewaren de
+ * relevante maand/weekstructuur maar maken de kosten lineair begrensd.
+ */
+const MAX_DAILY_GRID_STEPS = 5_000;
+const MAX_DAILY_WEEKEND_STEPS = 5_000;
+
+/** Handmatige rapportzoom in logische pixels per dag. Eén pixel is de kleinste bruikbare stand. */
+export const REPORT_MIN_ZOOM = 1;
+export const REPORT_MAX_ZOOM = 40;
 
 // Relatielijn-stub: de horizontale afstand die een relatielijn eerst rechtdoor loopt vóórdat hij
 // verticaal afknikt (en spiegelbeeldig links van de opvolger bij de "omheen"-route). Dit is de
@@ -154,16 +186,6 @@ function makeMetrics(reportFontScale: number | undefined): ReportMetrics {
   };
 }
 
-/** Paper sizes at 96 DPI (landscape) */
-const PAPER_SIZES: Record<string, { w: number; h: number }> = {
-  'A4-landscape': { w: 1123, h: 794 },
-  'A4-portrait': { w: 794, h: 1123 },
-  'A3-landscape': { w: 1587, h: 1123 },
-  'A3-portrait': { w: 1123, h: 1587 },
-  'A1-landscape': { w: 3179, h: 2245 },
-  'A1-portrait': { w: 2245, h: 3179 },
-};
-
 export interface PrintOptions {
   showCritical: boolean;
   showFloat: boolean;
@@ -172,16 +194,20 @@ export interface PrintOptions {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /** Dezelfde tijdas-instelling als de scherm-Gantt: niet-werkdagen krijgen geen rapportkolom. */
+  compressNonWorkdays?: boolean;
+  /** De actieve baseline als grijze onderbalk, gelijk aan de hoofd-Gantt (#81). */
+  showBaselineOverlay?: boolean;
   autoFit: boolean;
   customZoom: number;
-  paperSize: 'A4' | 'A3' | 'A1';
+  paperSize: 'A4' | 'A3' | 'A2' | 'A1';
   orientation: 'landscape' | 'portrait';
   companyName: string;
   labels?: {
     noTasks: string;
     printed: string;
     legend: {
-      criticalPath: string; normal: string; milestone: string; summary: string; float: string; completion: string;
+      criticalPath: string; normal: string; nearCritical?: string; baseline?: string; milestone: string; summary: string; float: string; completion: string;
       /** Eén regel die de LIJNSTIJL van de relaties verklaart: doorgetrokken = bepalend (driving),
        *  gestreept = niet-bepalend. Verschijnt alleen als er relaties getekend worden én de
        *  bindend-informatie beschikbaar is (zie {@link PrintOptions.drivingSequenceIds}). */
@@ -192,6 +218,10 @@ export interface PrintOptions {
     of: string;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
+    /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
+    statusDate: string;
+    /** Eigen label voor de voortgangslijn; dezelfde datum krijgt daarmee geen onjuiste statusnaam. */
+    progressDate?: string;
   };
   localizedMonths?: string[];
   localizedMonthsShort?: string[];
@@ -237,6 +267,34 @@ export interface PrintOptions {
    * bron is de aanroeper die de store leest ({@link ReportPanel}).
    */
   drivingSequenceIds?: string[];
+  /** Eén app-globale kleurkeuze voor zowel scherm als rapport. */
+  barColorSelection?: BarColorSelection;
+  /** Projectcontext voor exact dezelfde categorievelden als onder Group. */
+  activityCodeTypes?: ActivityCodeType[];
+  customFieldDefs?: CustomFieldDef[];
+  taskTypeLabels?: Record<string, string>;
+  barColorNoneLabel?: string;
+  /** Statuslijn in de export (#54): 'none' (default) | 'statusDate' (stippellijn) | 'progress' (zigzag). */
+  statusLine?: 'none' | 'statusDate' | 'progress';
+  /** Statusdatum (ISO) — bron voor beide lijnvarianten; ontbreekt ⇒ geen van beide tekent iets. */
+  statusDate?: string;
+  /** Resources + toewijzingen voor de resource-kleurmodi; de printlaag leeft buiten de store. */
+  resources?: Resource[];
+  assignments?: ResourceAssignment[];
+  /** Afleiding uit de actieve baseline; dezelfde taak-id-index als de hoofd-Gantt. */
+  baselineOverlay?: BaselineOverlay;
+  /**
+   * WYSIWYG-rijen (#54): gegeven ⇒ de export tekent precies deze rijen (filter, groepering,
+   * sortering én inklapstatus van het scherm) i.p.v. de volledige takenboom. Groepsband-rijen
+   * (`kind: 'group'`) tekenen als samenvattings-strook. Bewust een afgeleide, geen configuratie:
+   * de printlaag bouwt géén eigen view-pijplijn (één bron van waarheid: `computeViewRows`).
+   */
+  rows?: ViewRow[];
+  /** Legendalabels voor de kleurmodi (reeds vertaald door de aanroeper — print heeft geen `t()`). */
+  barColorsLegendLabels?: {
+    criticalOutline: string;
+    categoriesMore?: (n: number) => string;
+  };
 }
 
 interface PrintTask extends Task {
@@ -420,29 +478,52 @@ export function renderReport(
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
   const m = makeMetrics(options.reportFontScale);
 
-  // Flatten and compute depth
-  const flatTasks: PrintTask[] = [];
+  // Rijen-bron (#54 volg-weergave): gegeven `options.rows` tekent het rapport precies die rijen —
+  // filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders: de volledige
+  // takenboom (oud gedrag, self-flatten). Beide vormen normaliseren hier naar één rij-type:
+  // taakrijen mét diepte plus (nieuw) groepsband-rijen die als samenvattings-strook tekenen.
+  interface PrintRow {
+    kind: 'task' | 'group';
+    task?: Task;
+    depth: number;
+    label?: string;   // groepsband-label
+    count?: number;   // groepsband-aantal bladrijen
+  }
+  const printRows: PrintRow[] = [];
   const depthMap = new Map<string, number>();
-
-  const addRecursive = (task: Task, depth: number) => {
-    depthMap.set(task.id, depth);
-    flatTasks.push(task);
-    const children = tasks.filter(t => t.parentId === task.id);
-    for (const child of children) {
-      addRecursive(child, depth + 1);
+  if (options.rows) {
+    for (const row of options.rows) {
+      if (row.kind === 'task') {
+        depthMap.set(row.task.id, row.depth);
+        printRows.push({ kind: 'task', task: row.task, depth: row.depth });
+      } else {
+        printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
+      }
     }
-  };
+  } else {
+    const addRecursive = (task: Task, depth: number) => {
+      depthMap.set(task.id, depth);
+      printRows.push({ kind: 'task', task, depth });
+      const children = tasks.filter(t => t.parentId === task.id);
+      for (const child of children) {
+        addRecursive(child, depth + 1);
+      }
+    };
 
-  const roots = tasks.filter(t => !t.parentId);
-  for (const root of roots) {
-    addRecursive(root, 0);
-  }
-  for (const task of tasks) {
-    if (!flatTasks.find(t => t.id === task.id)) {
-      depthMap.set(task.id, 0);
-      flatTasks.push(task);
+    const roots = tasks.filter(t => !t.parentId);
+    for (const root of roots) {
+      addRecursive(root, 0);
+    }
+    for (const task of tasks) {
+      if (!printRows.find(r => r.kind === 'task' && r.task!.id === task.id)) {
+        depthMap.set(task.id, 0);
+        printRows.push({ kind: 'task', task, depth: 0 });
+      }
     }
   }
+  const flatTasks: PrintTask[] = printRows
+    .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
+    .map(r => ({ ...r.task, _depth: r.depth }));
 
   if (flatTasks.length === 0) {
     const d2d = makeDraw2D(600, 200);
@@ -477,64 +558,71 @@ export function renderReport(
   minDate = addCalendarDays(minDate, -7);
   maxDate = addCalendarDays(maxDate, 14);
 
-  const totalDays = diffCalendarDays(minDate, maxDate);
+  const calendarDays = diffCalendarDays(minDate, maxDate);
+
+  // Het rapport heeft eigen tekenlogica, maar géén eigen datum-as: dezelfde resolver als de
+  // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
+  // werkdag valt gecontroleerd terug op de gewone kalender-as).
+  const calEngine = new CalendarEngine(calendar);
+  const compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  const measureAxis = resolveGanttAxis({
+    calendar: calEngine, compressNonWorkdays: compressed,
+    origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
+  });
+  const timelineDays = compressed
+    ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
+    : calendarDays;
 
   // Calculate zoom: auto-fit or custom
-  const paperKey = `${options.paperSize}-${options.orientation}`;
-  const paper = PAPER_SIZES[paperKey] || PAPER_SIZES['A3-landscape'];
-  const margins = 20; // left + right margins in px
   // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden (issue #25 punt 5).
   const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
   // Beschikbare chart-breedte over N papierbreedtes.
   //
-  // AFLEIDING — de pagineerder tekent bij N fit-width-kolommen in totaal `canvasWidth +
-  // (N-1)·tableWidth` bron-px (de naam-kolom wordt op elke volgende pagina herhaald) op N
-  // paginabreedtes. Wil je dat die "virtuele" breedte precies N pagina's vult op ~1:1-schaal, dan:
-  //     tableWidth + chartWidth + (N-1)·tableWidth = N·(paper.w - margins)
-  //  ⇒  chartWidth = N·(paper.w - margins) - N·tableWidth = N·(paper.w - tableWidth - margins)
-  // De N herhalingen van de naam-kolom zijn dus AL verrekend doordat we `tableWidth` binnen de
-  // factor N aftrekken; er nog eens `tableWidth·(N-1)` bij optellen zou ze dubbel tellen en de
-  // tijdlijn juist te breed (en dus na schaling te klein) maken. Bij N = 1 is dit exact de oude waarde.
-  // `m.tableWidth` is de GESCHAALDE tabelbreedte: bij een grotere rapport-letter neemt de tabel meer
-  // papier in en houdt de tijdlijn navenant minder over — precies de bedoelde ruil.
-  const availableChartWidth = (paper.w - m.tableWidth - margins) * timelineColumns;
+  //
+  // #74 — `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
+  // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
+  // zet. Daardoor geldt voor N kolommen:
+  //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
+  //  ⇒  chartWidth = N·(printableWidth - tableWidth)
+  // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
+  // meer of minder pixels per dag. De oude ondergrens van 5 px/dag maakte een meerjarenplanning
+  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleinde.
+  const printableWidth = printableWidthLogicalPx(
+    options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1',
+    options.orientation,
+  );
+  const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
 
   let zoom: number;
-  if (options.autoFit && totalDays > 0) {
-    zoom = availableChartWidth / totalDays;
-    // De klem blijft ONGESCHAALD: de tijdlijn-zoom (px per dag) is precies de maat die NIET meeschaalt,
-    // anders zou het rapport uniform schalen en op papier niets veranderen (zie {@link ReportMetrics}).
-    zoom = Math.max(5, Math.min(40, zoom));
+  if (options.autoFit && timelineDays > 0) {
+    zoom = availableChartWidth / timelineDays;
   } else {
     zoom = options.customZoom || 22;
   }
 
-  const chartWidth = totalDays * zoom;
+  const chartWidth = timelineDays * zoom;
   const canvasWidth = m.tableWidth + chartWidth;
-  const canvasHeight = m.totalHeaderHeight + flatTasks.length * m.rowHeight + m.footerHeight;
-
-  // T13 (§T2-afwijking, LAAG-7-afnemer): vóór deze taak bouwde deze functie een EIGEN holidaySet
-  // en gebruikte ze `dow === 6 || dow === 7` als hardcoded weekend-check — beide genegeerd
-  // `calendar.workingExceptions` volledig, dus een werkende zaterdag/uitzondering printte gewoon
-  // als vrij. Eén `CalendarEngine`-instantie (dezelfde bron van waarheid als de solver/renderer)
-  // vervangt beide: `isWorkDay` kent de volledige precedentie (workingExceptions > holidays >
-  // workDays), en `isHoliday` blijft apart om holiday- en weekend-shading visueel te onderscheiden
-  // (rood vs. grijs, ongewijzigd t.o.v. vóór deze taak). Byte-identiek zonder workingExceptions:
-  // `isWorkDay`/`isHoliday` herberekenen exact dezelfde holidaySet/workDays-uitkomst als de oude
-  // ad-hoc logica hierboven.
-  const calEngine = new CalendarEngine(calendar);
+  // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
+  const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
 
   // Verkrijg de Draw2D-backend zodra de logische afmetingen bekend zijn (canvas-backend neemt de
   // dpr-scale + maat-setup over; vector-backend werkt 1:1 in logische px).
   const d2d = makeDraw2D(canvasWidth, canvasHeight);
 
-  // Helper: date to X. Gedeeld met GanttRenderer/HistogramRenderer via `timeAxis.dateToX`
-  // (issue #21 punt 5, fase 0-consolidatie); print heeft geen scrollX ⇒ `scrollX=0`. `minDate`/
-  // `date` komen hier altijd uit `parseDate` (middernacht UTC), dus de fractionele
-  // `daysFromStart`-berekening in `axisDateToX` is voor print altijd een geheel getal — identiek
-  // aan de vroegere `diffCalendarDays(minDate, date) * zoom` (die intern ook afrondt, maar op een
-  // al-geheel verschil is dat een no-op).
-  const dateToX = (date: Date) => axisDateToX(date, minDate, m.tableWidth, zoom, 0);
+  // Eén gedeelde as voor álle rapportgeometrie (balken, pijlen, status-/vandaaglijnen én raster).
+  // Daarmee kan een PDF nooit andere werkdagen overslaan dan de scherm-Gantt of raster-preview.
+  const axis = resolveGanttAxis({
+    calendar: calEngine, compressNonWorkdays: compressed,
+    origin: minDate, chartOriginX: m.tableWidth, zoom, scrollX: 0,
+  });
+  const dateToX = (date: Date) => axis.dateToX(date);
+  const firstTimelineIndex = Math.ceil(axis.dayIndexOf(minDate));
+  const timelineDates = Array.from(
+    { length: timelineDays },
+    (_, index) => compressed
+      ? axis.dateAtIndex(firstTimelineIndex + index)
+      : addCalendarDays(minDate, index),
+  );
   const chartTop = m.totalHeaderHeight;
   const chartBottom = canvasHeight - m.footerHeight;
   const rowToY = (i: number) => m.totalHeaderHeight + i * m.rowHeight;
@@ -552,11 +640,18 @@ export function renderReport(
 
   // ---- GANTT CHART AREA ----
 
-  // Grid background - weekend/holiday shading. T13: via CalendarEngine (zie de moduleuitleg
-  // hierboven bij `calEngine`) — een werkende uitzondering (bv. een ingeroosterde zaterdag) is
-  // hierdoor géén van beide meer en print dus ongeschaduwd, zoals elke gewone werkdag.
-  if (options.showWeekends) {
-    for (let i = 0; i < totalDays; i++) {
+  // Op de gecomprimeerde as vervangen weekbanden de niet-bestaande weekendkolommen als visueel
+  // weekritme. Op de gewone kalender-as blijft de bestaande weekend-/feestdagarcering bytegelijk.
+  if (compressed) {
+    const weekStartDay = options.weekStartDay ?? 'monday';
+    for (const date of timelineDates) {
+      if (getWeekNumberFor(date, weekStartDay) % 2 === 1) {
+        d2d.fillStyle = PRINT_COLORS.gridWeekBand;
+        d2d.fillRect(dateToX(date), chartTop, zoom, chartBottom - chartTop);
+      }
+    }
+  } else if (options.showWeekends && calendarDays <= MAX_DAILY_WEEKEND_STEPS && zoom >= 0.5) {
+    for (let i = 0; i < calendarDays; i++) {
       const date = addCalendarDays(minDate, i);
       const x = dateToX(date);
       const dateStr = formatDate(date);
@@ -575,7 +670,7 @@ export function renderReport(
   }
 
   // Alternating row backgrounds in chart area
-  for (let i = 0; i < flatTasks.length; i++) {
+  for (let i = 0; i < printRows.length; i++) {
     if (i % 2 === 0) {
       d2d.fillStyle = 'rgba(249, 250, 251, 0.3)';
       d2d.fillRect(m.tableWidth, rowToY(i), chartWidth, m.rowHeight);
@@ -583,15 +678,28 @@ export function renderReport(
   }
 
   // Vertical grid lines
-  for (let i = 0; i < totalDays; i++) {
-    const date = addCalendarDays(minDate, i);
+  // Minder dan één pixel per dag levert geen leesbare dagrastering op. Beperk bovendien de
+  // tekening tot 5.000 lijnen: een project met een foutieve of uitzonderlijk grote datumsprong
+  // mag nooit de UI-thread monopoliseren terwijl de lijn toch niet van de volgende te
+  // onderscheiden is.
+  const gridStep = Math.max(
+    1,
+    Math.ceil(timelineDates.length / MAX_DAILY_GRID_STEPS),
+    Math.ceil(1 / Math.max(zoom, 0.000_001)),
+  );
+  for (let i = 0; i < timelineDates.length; i += gridStep) {
+    const date = timelineDates[i];
     const x = dateToX(date);
     const dow = isoDayOfWeek(date);
 
     d2d.strokeStyle = PRINT_COLORS.grid;
     // K-item 39: de zwaardere weeklijn valt op de INGESTELDE eerste dag van de week, net als op het
     // scherm (`GanttRenderer`: `dayOfWeek === (weekStartDay === 'sunday' ? 7 : 1)`).
-    d2d.lineWidth = dow === (options.weekStartDay === 'sunday' ? 7 : 1) ? 0.8 : 0.2;
+    const weekStartDay = options.weekStartDay ?? 'monday';
+    const startsWeek = compressed
+      ? i === 0 || getWeekNumberFor(date, weekStartDay) !== getWeekNumberFor(timelineDates[i - 1], weekStartDay)
+      : dow === (weekStartDay === 'sunday' ? 7 : 1);
+    d2d.lineWidth = startsWeek ? 0.8 : 0.2;
     d2d.beginPath();
     d2d.moveTo(x, chartTop);
     d2d.lineTo(x, chartBottom);
@@ -599,7 +707,7 @@ export function renderReport(
   }
 
   // Horizontal grid lines in chart area
-  for (let i = 0; i <= flatTasks.length; i++) {
+  for (let i = 0; i <= printRows.length; i++) {
     const y = rowToY(i);
     d2d.strokeStyle = PRINT_COLORS.grid;
     d2d.lineWidth = 0.3;
@@ -632,6 +740,62 @@ export function renderReport(
     d2d.setLineDash([]);
   }
 
+  // Statuslijn (#54): 'statusDate' = verticale stippellijn op project.statusDate; 'progress' =
+  // voortgangszigzag (zelfde definitie als GanttRenderer.drawProgressLine: leaf-rijen stulpen uit
+  // naar de voortgangspositie, summary/mijlpaal/band-rijen volgen de lijn recht). Beide alléén bij
+  // een gezette statusDate; buiten het chart-gebied tekent niets (zelfde visible-regel als today).
+  // Zelfde dash-patroon en kleur als de today-lijn: op papier is dit "dezelfde soort referentielijn".
+  let statusLineX: number | null = null;
+  let drawStatusReferenceLine: (() => void) | null = null;
+  if (options.statusDate && options.statusLine && options.statusLine !== 'none') {
+    const statusDay = parseDate(options.statusDate);
+    statusLineX = dateToX(statusDay);
+    if (statusLineX > m.tableWidth && statusLineX < canvasWidth) {
+      drawStatusReferenceLine = () => {
+        d2d.strokeStyle = PRINT_COLORS.today;
+        d2d.lineWidth = 1.5;
+        d2d.setLineDash([5, 3]);
+        d2d.beginPath();
+        if (options.statusLine === 'statusDate') {
+          d2d.moveTo(statusLineX!, chartTop);
+          d2d.lineTo(statusLineX!, chartBottom);
+        } else {
+          // progress: spine + per leaf-rij een zigzag naar de voortgangspositie (MSP-stijl). De
+          // dagniveau-vergelijking t.o.v. de statusdatum (niet het uur) houdt "op de statusdatum"
+          // stabiel — gespiegeld aan GanttRenderer.drawProgressLine.
+          d2d.moveTo(statusLineX!, chartTop);
+          for (let i = 0; i < printRows.length; i++) {
+            const rowTop = rowToY(i);
+            const rowBottom = rowTop + m.rowHeight;
+            const rowMid = rowTop + m.rowHeight / 2;
+            let px = statusLineX!;
+            const row = printRows[i];
+            if (row.kind === 'task' && row.task && !row.task.isMilestone && isLeafTask(row.task)) {
+              const s = parseDate(row.task.time.earlyStart || row.task.time.scheduleStart);
+              const f = parseDate(row.task.time.earlyFinish || row.task.time.scheduleFinish);
+              const bx1 = dateToX(s);
+              const bx2 = dateToX(f) + zoom;
+              const c = Math.max(0, Math.min(1, row.task.time.completion || 0));
+              const finishDay = Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate());
+              const startDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
+              const statusUtc = Date.UTC(statusDay.getUTCFullYear(), statusDay.getUTCMonth(), statusDay.getUTCDate());
+              const fullyDone = c >= 1 && finishDay <= statusUtc;
+              const notStarted = c === 0 && startDay >= statusUtc;
+              if (!fullyDone && !notStarted) px = bx1 + (bx2 - bx1) * c;
+            }
+            d2d.lineTo(statusLineX!, rowTop);
+            d2d.lineTo(px, rowMid);
+            d2d.lineTo(statusLineX!, rowBottom);
+          }
+        }
+        d2d.stroke();
+        d2d.setLineDash([]);
+      };
+    } else {
+      statusLineX = null;
+    }
+  }
+
   // Task bars
   const barHeight = m.rowHeight * 0.55;
   const barOffset = (m.rowHeight - barHeight) / 2;
@@ -652,9 +816,51 @@ export function renderReport(
   }
   const barLabelJobs: BarLabelJob[] = [];
 
-  for (let i = 0; i < flatTasks.length; i++) {
-    const task = flatTasks[i];
+  // Kleurmodi-context (#21): resources + toewijzingen komen binnen via options; de printlaag
+  // houdt zelf geen state. Eén palet-object voor alle balken van deze render.
+  const resources = options.resources ?? [];
+  const assignments = options.assignments ?? [];
+  const pal: BarPalette = {
+    critical: PRINT_COLORS.critical, normal: PRINT_COLORS.normal,
+    nearCritical: PRINT_COLORS.nearCritical, milestone: PRINT_COLORS.milestone,
+    uncategorized: PRINT_COLORS.uncategorized,
+  };
+  const colorContext: BarColorContext = {
+    activityCodeTypes: options.activityCodeTypes ?? [],
+    customFieldDefs: options.customFieldDefs ?? [],
+    resources,
+    assignments,
+    taskTypeLabels: options.taskTypeLabels,
+    noneLabel: options.barColorNoneLabel ?? '(geen)',
+  };
+  const colorAdvice = (task: Task, width?: number): BarFill => computeBarColors(
+    task,
+    options.barColorSelection ?? { mode: 'critical' },
+    colorContext,
+    pal,
+    width,
+  );
+
+  for (let i = 0; i < printRows.length; i++) {
+    const row = printRows[i];
     const y = rowToY(i) + barOffset;
+
+    if (row.kind === 'group') {
+      // Groepsband (#54 volg-weergave): lichte strook over de chart-rij + vet label. Een band is
+      // géén taak — geen datums, geen mijlpaal, geen dependencies; hij structureert de gegroepeerde
+      // rijen eronder. In de tabelzone tekent drawTaskTable hetzelfde label mee (zelfde bron).
+      d2d.fillStyle = PRINT_COLORS.gridWeekend;
+      d2d.fillRect(m.tableWidth, rowToY(i), canvasWidth - m.tableWidth, m.rowHeight);
+      if (options.showTaskNames) {
+        barLabelJobs.push({
+          name: `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`,
+          barRightX: m.tableWidth + m.s(4), barLeftX: m.tableWidth + m.s(4),
+          y: rowToY(i) + m.rowHeight / 2 + m.s(3), bold: true,
+        });
+      }
+      continue;
+    }
+    const task = row.task!;
 
     if (task.isMilestone) {
       // Milestone diamond
@@ -663,7 +869,13 @@ export function renderReport(
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
 
-      d2d.fillStyle = PRINT_COLORS.milestone;
+      const advies = colorAdvice(task);
+      d2d.fillStyle = advies.kind === 'solid' ? advies.fill : advies.segments[0].color;
+      if (advies.outline) {
+        // Rode rand om een kritieke mijlpaal in de niet-critical-modi: de ruit omtrekken.
+        d2d.strokeStyle = advies.outline;
+        d2d.lineWidth = 1;
+      }
       d2d.beginPath();
       d2d.moveTo(x, cy - size);
       d2d.lineTo(x + size, cy);
@@ -671,6 +883,7 @@ export function renderReport(
       d2d.lineTo(x - size, cy);
       d2d.closePath();
       d2d.fill();
+      if (advies.outline) d2d.stroke();
 
       // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
@@ -716,34 +929,22 @@ export function renderReport(
       const x1 = dateToX(start);
       const x2 = dateToX(end) + zoom;
       const width = Math.max(x2 - x1, 3);
-      const isCritical = task.time.isCritical && options.showCritical;
-      const color = isCritical ? PRINT_COLORS.critical : PRINT_COLORS.normal;
 
-      // Z15 (O5-besluit, plan-§10): een ECHTE split (`Task.splitGaps`) tekent ALTIJD gesplitst —
-      // geen weergave-instelling betrokken hier (printPreview kent `barSplitMode`/kalender-necking
-      // sowieso niet, dat is puur een GanttRenderer-ding). `computeSplitSegments` (gedeeld met
-      // GanttRenderer, `splitBarGeometry.ts`) wandelt met `calEngine`; printPreview kent geen
-      // uur-modus (zie de moduleuitleg bij het `parseDate`-gebruik hierboven — alle datums hier
-      // komen uit `parseDate`, nooit `parseInstant`), dus `hourMode=false` altijd.
+      // Kleurmodi (#21) en onderbroken balken (Z15) zijn onafhankelijke dimensies: dezelfde
+      // kleurverhouding komt terug in elk werkblok van één taak.
+      const advies = colorAdvice(task, width);
+      const baseColor = advies.kind === 'segments' ? advies.segments[0].color : advies.fill;
       const segments = task.splitGaps && task.splitGaps.length > 0
         ? computeSplitSegments(task.splitGaps, start, end, false, calEngine)
         : [{ start, end }];
-      // Eerste/laatste grens hergebruikt de AL BEKENDE volle-extent `x1`/`x2` (dragen de "+zoom voor
-      // de inclusieve laatste dag"-correctie al); tussengrenzen zijn EXCLUSIEF (zie
-      // `computeSplitSegments`), dus zuiver `dateToX(...)` — zelfde redenering als GanttRenderer.
       const segs = segments.map((s, i) => ({
         x1: i === 0 ? x1 : dateToX(s.start),
         x2: i === segments.length - 1 ? x2 : dateToX(s.end),
       }));
       const split = segs.length > 1;
 
-      // Necking-connector door de gaten (dunne lijn op halve hoogte) — puur weergave, zelfde
-      // conventie als GanttRenderer's necking-connector. Draw2D kent geen `globalAlpha`
-      // (canvas-only), dus de "halftransparant"-indruk komt hier uit een hex-alpha-suffix op de
-      // kleur (`+'80'`, zelfde patroon als de float-indicator hierboven met `+'40'`), niet uit een
-      // stateful alpha-property.
       if (split) {
-        d2d.strokeStyle = color + '80';
+        d2d.strokeStyle = baseColor + '80';
         d2d.lineWidth = 1;
         d2d.beginPath();
         d2d.moveTo(segs[0].x2, y + barHeight / 2);
@@ -751,21 +952,35 @@ export function renderReport(
         d2d.stroke();
       }
 
-      // Main bar with rounded corners — per segment (één segment ⇒ ongesplitst, ongewijzigd gedrag).
       for (const s of segs) {
         const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
-        d2d.fillStyle = color;
-        d2d.beginPath();
-        d2d.roundRect(s.x1, y, sw, barHeight, 3);
-        d2d.fill();
+        if (advies.kind === 'segments') {
+          let sx = s.x1;
+          advies.segments.forEach((seg, si) => {
+            const isLast = si === advies.segments.length - 1;
+            const w = isLast ? s.x1 + sw - sx : Math.round(sw * seg.weight);
+            d2d.fillStyle = seg.color;
+            d2d.roundRect(sx, y, w, barHeight, si === 0 ? 3 : 0);
+            d2d.fill();
+            sx += w;
+          });
+        } else {
+          d2d.fillStyle = advies.fill;
+          d2d.roundRect(s.x1, y, sw, barHeight, 3);
+          d2d.fill();
+        }
+        if (advies.outline) {
+          d2d.strokeStyle = advies.outline;
+          d2d.lineWidth = 1;
+          d2d.roundRect(s.x1, y, sw, barHeight, 3);
+          d2d.stroke();
+        }
       }
 
-      // Completion overlay (darker shade) — GLOBALE voortgangsgrens (`progressEnd`, over de volle
-      // `[x1,x2]`-breedte berekend, ná de eventuele split), niet per segment opnieuw: zelfde
-      // continuïteitsregel als GanttRenderer.drawTaskBar (Z15-acceptatiepunt 4).
+      // Eén globale voortgangsgrens over de volle taakduur, maar nooit kleur over de tijdgaten.
       if (options.showCompletion && task.time.completion > 0) {
         const progressEnd = x1 + width * task.time.completion;
-        d2d.fillStyle = isCritical ? PRINT_COLORS.criticalDark : PRINT_COLORS.normalDark;
+        d2d.fillStyle = 'rgba(0, 0, 0, 0.25)';
         for (const s of segs) {
           const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
           if (progressEnd > s.x1) {
@@ -794,6 +1009,34 @@ export function renderReport(
         barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
       }
     }
+
+    // Issue #81: dezelfde grijze baseline-onderbalk (of mijlpaalruit) als in de hoofd-Gantt.
+    // Hij ligt boven de huidige balk maar vóór relaties/labels, zodat beide uitvoerpaden dezelfde
+    // leesbare laagvolgorde hebben. Samenvattingstaken krijgen alleen iets als de actieve baseline
+    // daar expliciet een entry voor bevat.
+    const baseline = options.showBaselineOverlay ? options.baselineOverlay?.get(task.id) : undefined;
+    if (baseline) {
+      const baseHeight = Math.max(2, barHeight * 0.28);
+      const baseY = y + barHeight + 1;
+      d2d.fillStyle = PRINT_COLORS.baseline;
+      if (baseline.isMilestone) {
+        const x = dateToX(parseDate(baseline.start)) + zoom / 2;
+        const cy = baseY + baseHeight / 2;
+        d2d.beginPath();
+        d2d.moveTo(x, cy - baseHeight);
+        d2d.lineTo(x + baseHeight, cy);
+        d2d.lineTo(x, cy + baseHeight);
+        d2d.lineTo(x - baseHeight, cy);
+        d2d.closePath();
+        d2d.fill();
+      } else {
+        const x1 = dateToX(parseDate(baseline.start));
+        const x2 = dateToX(parseDate(baseline.finish)) + zoom;
+        d2d.beginPath();
+        d2d.roundRect(x1, baseY, Math.max(x2 - x1, 2), baseHeight, 1);
+        d2d.fill();
+      }
+    }
   }
 
   // ---- TEKENVOLGORDE IN HET CHART-GEBIED: staven → relatiepijlen → taaklabels ----
@@ -814,21 +1057,37 @@ export function renderReport(
   // en brengt die in lijn met wat de export altijd al deed — wat precies de bedoeling is, want die
   // twee horen WYSIWYG te zijn.
   if (options.showDeps) {
-    drawDependencies(d2d, m, flatTasks, sequences, dateToX, rowToY, zoom, options);
+    // #54 volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
+    // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
+    // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus (= alle taken
+    // zichtbaar) is dit exact het oude findIndex-gedrag.
+    const rowIndexOf = new Map<string, number>();
+    const tasksById = new Map<string, Task>();
+    printRows.forEach((r, idx) => {
+      if (r.kind === 'task' && r.task) { rowIndexOf.set(r.task.id, idx); tasksById.set(r.task.id, r.task); }
+    });
+    drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf);
   }
 
   for (const job of barLabelJobs) {
     drawBarLabel(d2d, m, job.name, job.barRightX, job.barLeftX, job.y, canvasWidth, PRINT_COLORS.text, 9, job.bold);
   }
 
+  // De referentielijn is bewust de laatste chart-laag: staven, relatiepijlen en taaklabels mogen
+  // hem nergens bedekken. De kop en taaklijst die hierna volgen vallen buiten dit chart-gebied.
+  drawStatusReferenceLine?.();
+
   // ---- TIMELINE HEADER ----
-  drawTimelineHeader(d2d, m, canvasWidth, minDate, totalDays, zoom, dateToX, options, todayVisible ? todayX : null);
+  drawTimelineHeader(
+    d2d, m, canvasWidth, minDate, calendarDays, timelineDates, compressed, zoom, dateToX, options,
+    todayVisible ? todayX : null, statusLineX,
+  );
 
   // ---- TASK TABLE ----
-  drawTaskTable(d2d, m, flatTasks, depthMap, canvasHeight, cols, options);
+  drawTaskTable(d2d, m, printRows, canvasHeight, cols, options);
 
   // ---- FOOTER ----
-  drawFooter(d2d, m, canvasWidth, canvasHeight, projectName, options);
+  drawFooter(d2d, m, canvasWidth, canvasHeight, projectName, options, printRows);
 
   // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
   // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
@@ -861,6 +1120,177 @@ export function renderPrintCanvas(
     (w, h) => new CanvasDraw2D(canvas, w, h, dpr),
     tasks, sequences, calendar, projectName, options,
   );
+}
+
+/** Eén logische bronuitsnede die direct in een fysiek pagina-venster wordt getekend. */
+export interface PrintReportWindow {
+  sourceX: number;
+  sourceY: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  destinationX: number;
+  destinationY: number;
+  /** Doelpixels per logische rapportpixel. */
+  rasterScale: number;
+}
+
+/**
+ * Teken één begrensd logisch rapportvenster direct naar een bestaand pagina-canvas.
+ *
+ * Dit is uitsluitend voor de live preview: de volledige rapportlay-out wordt nog steeds door
+ * {@link renderReport} berekend en {@link TileLayout} blijft de bron van waarheid voor vensters,
+ * marges en kopherhaling. Anders dan de oude route ontstaat er alleen geen tijdelijk canvas voor
+ * alle rapportpagina's samen. Export blijft via {@link renderPrintCanvas} en de bestaande
+ * pagineerder lopen.
+ */
+export function renderPrintReportWindow(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  window: PrintReportWindow,
+): RenderReportResult {
+  let draw: CanvasDraw2D | undefined;
+  try {
+    return renderReport(
+      (logicalW, logicalH) => {
+        draw = new CanvasDraw2D(canvas, logicalW, logicalH, window.rasterScale, window);
+        return draw;
+      },
+      tasks, sequences, calendar, projectName, options,
+    );
+  } finally {
+    draw?.dispose();
+  }
+}
+
+/** Invoer voor één direct gerasterde live-previewpagina. */
+export interface PrintPreviewPageInput {
+  layout: TileLayout;
+  pageIndex: number;
+  /** Exacte rasterbreedte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterWidth: number;
+  /** Exacte rasterhoogte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterHeight: number;
+  /** Fysieke pixels per PDF-punt van de zichtbare pagina. */
+  supersample: number;
+}
+
+/**
+ * Raster één zichtbare rapportpagina rechtstreeks vanuit de gedeelde logische renderer.
+ *
+ * De kop- en bodyvensters zijn bewust dezelfde uit {@link TileLayout} als de exportpagineerder.
+ * Daardoor blijven pagina-aantal, volgorde, herhaalde kop en bevroren kolommen exact gelijk,
+ * terwijl een lange planning nooit eerst een volledig hoog-res broncanvas hoeft op te bouwen.
+ */
+export function renderPrintPreviewPage(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  input: PrintPreviewPageInput,
+): void {
+  const { layout, pageIndex, rasterWidth, rasterHeight, supersample } = input;
+  const totalPages = layout.rows * layout.cols;
+  if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) return;
+  const row = layout.bodyRows[Math.floor(pageIndex / layout.cols)];
+  const column = layout.columns[pageIndex % layout.cols];
+  if (!row || !column) return;
+
+  const pxPt = Math.max(1 / Math.max(layout.pageWidthPt, layout.pageHeightPt), supersample);
+  const pageWidth = Math.max(1, Math.round(rasterWidth));
+  const pageHeight = Math.max(1, Math.round(rasterHeight));
+  canvas.width = pageWidth;
+  canvas.height = pageHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('renderPrintPreviewPage: kon 2D-context niet verkrijgen');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pageWidth, pageHeight);
+
+  const rasterScale = layout.scale * pxPt;
+  const renderWindow = (sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number, destinationX: number, destinationY: number) => {
+    if (sourceWidth <= 0 || sourceHeight <= 0) return;
+    renderPrintReportWindow(canvas, tasks, sequences, calendar, projectName, options, {
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      destinationX,
+      destinationY,
+      rasterScale,
+    });
+  };
+
+  for (const win of column.xWindows) {
+    const destinationX = win.pageX * pxPt;
+    if (layout.repeatHeaderPx > 0) {
+      renderWindow(
+        win.srcX,
+        0,
+        win.srcW,
+        layout.repeatHeaderPx,
+        destinationX,
+        layout.marginPt * pxPt,
+      );
+    }
+    renderWindow(
+      win.srcX,
+      row.srcY,
+      win.srcW,
+      row.srcH,
+      destinationX,
+      layout.bodyTopPt * pxPt,
+    );
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#999999';
+  ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${pageIndex + 1} / ${totalPages}`, (layout.pageWidthPt - layout.marginPt) * pxPt,
+    (layout.pageHeightPt - layout.marginPt * 0.5) * pxPt);
+}
+
+/**
+ * Meet een rapport zonder een HTML-canvas of GPU-/systeembuffer te reserveren. De preview gebruikt
+ * dit vóór zijn echte rasterrender om zijn geheugenbudget te bepalen. Tekstbreedtes hoeven hier
+ * niet pixelprecies te zijn: de teruggegeven afmetingen bestaan uitsluitend uit de vaste tabel-,
+ * kop- en rijmaten; de echte render meet daarna met het geladen font.
+ */
+export function measurePrintReport(
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+): RenderReportResult {
+  let font = '10px sans-serif';
+  let fillStyle = '';
+  let strokeStyle = '';
+  let lineWidth = 1;
+  let textAlign: import('@/services/pdf/draw2d').TextAlign = 'left';
+  let textBaseline: import('@/services/pdf/draw2d').TextBaseline = 'alphabetic';
+  const d2d: Draw2D = {
+    get font() { return font; }, set font(value) { font = value; },
+    get fillStyle() { return fillStyle; }, set fillStyle(value) { fillStyle = value; },
+    get strokeStyle() { return strokeStyle; }, set strokeStyle(value) { strokeStyle = value; },
+    get lineWidth() { return lineWidth; }, set lineWidth(value) { lineWidth = value; },
+    get textAlign() { return textAlign; }, set textAlign(value) { textAlign = value; },
+    get textBaseline() { return textBaseline; }, set textBaseline(value) { textBaseline = value; },
+    setLineDash() {},
+    fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {}, stroke() {}, roundRect() {},
+    fillText() {},
+    measureText(text) {
+      const size = Number.parseFloat(font) || 10;
+      return { width: text.length * size * 0.55 };
+    },
+  };
+  return renderReport(() => d2d, tasks, sequences, calendar, projectName, options);
 }
 
 
@@ -987,6 +1417,26 @@ function reserveTodayLabel(
 }
 
 /**
+ * Reserveer een kopstrook-label op een willekeurige verticale lijn (#54 statusdatum) — gegeneraliseerd
+ * broertje van {@link reserveTodayLabel}: zelfde letter/band/klemp-regels, andere tekst + x.
+ */
+function reserveHeaderLineLabel(
+  d2d: Draw2D,
+  m: ReportMetrics,
+  canvasWidth: number,
+  lineX: number,
+  text: string,
+): TodayLabelBox | null {
+  d2d.font = m.font(7, true);
+  const half = d2d.measureText(text).width / 2 + m.s(3);
+  const min = m.tableWidth + half;
+  const max = canvasWidth - half;
+  if (max < min) return null;
+  const cx = Math.min(Math.max(lineX, min), max);
+  return { text, cx, left: cx - half, right: cx + half };
+}
+
+/**
  * Draw the timeline header with month/week/day rows.
  *
  * @param todayX  x van de vandaag-lijn, of `null` als die buiten het chartgebied valt. Het
@@ -997,11 +1447,14 @@ function drawTimelineHeader(
   m: ReportMetrics,
   canvasWidth: number,
   minDate: Date,
-  totalDays: number,
+  calendarDays: number,
+  timelineDates: Date[],
+  compressed: boolean,
   zoom: number,
   dateToX: (d: Date) => number,
   options: PrintOptions,
   todayX: number | null,
+  statusLineX: number | null = null,
 ) {
   const top = m.projectHeaderHeight;
   const h = m.timelineHeaderHeight;
@@ -1019,6 +1472,14 @@ function drawTimelineHeader(
   // bovendien hetzelfde idioom dat de maand-/weeklabels hieronder al hanteren (klacht 7): liever
   // een gat dan tekst over tekst.
   const todayLabel = reserveTodayLabel(d2d, m, canvasWidth, options, todayX);
+  // Statusdatum-label (#54): zelfde idioom als het vandaag-label, op de statusdatum-lijn. Alleen
+  // bij een zichtbare statuslijn; de reservering maakt dagcijfers vrij die eronder vallen.
+  const statusLabel = statusLineX === null
+    ? null
+    : reserveHeaderLineLabel(d2d, m, canvasWidth, statusLineX,
+      options.statusLine === 'progress'
+        ? options.labels?.progressDate ?? 'Voortgangsdatum'
+        : options.labels?.statusDate ?? 'Statusdatum');
 
   // Background
   d2d.fillStyle = PRINT_COLORS.headerBg;
@@ -1047,77 +1508,93 @@ function drawTimelineHeader(
   const wsd = options.weekStartDay ?? 'monday';
   const weekStartDow = wsd === 'sunday' ? 7 : 1;
 
-  let lastMonth = -1;
-  let lastWeek = -1;
   // Rechterrand (x) van het laatst getekende maand-/weeklabel, om overlap te vermijden (klacht 7).
   let lastMonthLabelRight = -Infinity;
   let lastWeekLabelRight = -Infinity;
+  const endExclusive = addCalendarDays(minDate, calendarDays);
 
-  for (let i = 0; i < totalDays; i++) {
-    const date = addCalendarDays(minDate, i);
+  // Maand- en weekkoppen hoeven niet eerst alle tussenliggende dagen te bezoeken. Bij een
+  // meerjarenproject kan de dagzoom kleiner dan één pixel zijn, maar deze twee grenzen blijven
+  // leesbaar en de kosten groeien slechts met maanden/weken.
+  // Ook maandgrenzen kunnen bij historische/foutieve datums onbegrensd worden. De stap vergroot
+  // dan alleen waar een afzonderlijke maandlijn minder dan leesbaar is; voor normale planningen
+  // blijft hij precies één maand.
+  const monthStep = Math.max(
+    zoom * 28 < 1 ? 12 : 1,
+    Math.ceil(calendarDays / (28 * MAX_DAILY_GRID_STEPS)),
+  );
+  let monthCursor = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+  while (monthCursor < endExclusive) {
+    const date = monthCursor < minDate ? minDate : monthCursor;
     const x = dateToX(date);
     const month = date.getUTCMonth();
-    const weekNum = getWeekNumberFor(date, wsd);
-    const dow = isoDayOfWeek(date);
+    const monthName = months[month];
+    const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+    const label = `${capitalizedMonth} ${date.getUTCFullYear()}`;
 
-    // Month headers (capitalize first letter)
-    if (month !== lastMonth) {
-      lastMonth = month;
-      const monthName = months[month];
-      const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-      const label = `${capitalizedMonth} ${date.getUTCFullYear()}`;
+    d2d.strokeStyle = PRINT_COLORS.border;
+    d2d.lineWidth = 0.5;
+    d2d.beginPath();
+    d2d.moveTo(x, top);
+    d2d.lineTo(x, top + monthRowH);
+    d2d.stroke();
 
-      // Vertical separator
-      d2d.strokeStyle = PRINT_COLORS.border;
-      d2d.lineWidth = 0.5;
-      d2d.beginPath();
-      d2d.moveTo(x, top);
-      d2d.lineTo(x, top + monthRowH);
-      d2d.stroke();
-
-      // Alleen het label tekenen als het niet over het vorige maandlabel heen loopt (klacht 7);
-      // liever een gat dan over-elkaar-lopende tekst.
-      // Label-offsets/-tussenruimtes horen bij de TEKST en schalen dus mee.
-      d2d.font = m.font(10, true);
-      const monthLabelStart = x + m.s(4);
-      if (monthLabelStart >= lastMonthLabelRight + m.s(6)) {
-        d2d.fillStyle = PRINT_COLORS.text;
-        d2d.textBaseline = 'middle';
-        d2d.textAlign = 'left';
-        d2d.fillText(label, monthLabelStart, top + monthRowH / 2);
-        lastMonthLabelRight = monthLabelStart + d2d.measureText(label).width;
-      }
+    d2d.font = m.font(10, true);
+    const monthLabelStart = x + m.s(4);
+    if (monthLabelStart >= lastMonthLabelRight + m.s(6)) {
+      d2d.fillStyle = PRINT_COLORS.text;
+      d2d.textBaseline = 'middle';
+      d2d.textAlign = 'left';
+      d2d.fillText(label, monthLabelStart, top + monthRowH / 2);
+      lastMonthLabelRight = monthLabelStart + d2d.measureText(label).width;
     }
+    monthCursor = new Date(Date.UTC(monthCursor.getUTCFullYear(), monthCursor.getUTCMonth() + monthStep, 1));
+  }
 
-    // Week headers
-    if (dow === weekStartDow && weekNum !== lastWeek) {
-      lastWeek = weekNum;
+  // Bij minder dan één pixel per week is een weekraster onzichtbaar. Niet tekenen voorkomt dat
+  // een planning met een veel te groot datumbereik tienduizenden kalenderobjecten maakt.
+  if (zoom * (compressed ? 5 : 7) >= 1 && calendarDays <= MAX_DAILY_GRID_STEPS * 7) {
+    const firstWeekOffset = (weekStartDow - isoDayOfWeek(minDate) + 7) % 7;
+    let weekCursor = addCalendarDays(minDate, firstWeekOffset);
+    while (weekCursor < endExclusive) {
+      // Houd de weekgrens expliciet aan dezelfde datum vast als de labelberekening. De cursor
+      // springt al per week (veilig voor grote projecten), maar deze voorwaarde documenteert én
+      // bewaakt dat de zichtbare weeklabels op de ingestelde eerste dag liggen.
+      const date = weekCursor;
+      const dow = isoDayOfWeek(date);
+      if (dow === weekStartDow) {
+        const x = dateToX(date);
+        const weekLabel = `W${getWeekNumberFor(date, wsd)}`;
 
-      // Vertical separator
-      d2d.strokeStyle = PRINT_COLORS.grid;
-      d2d.lineWidth = 0.5;
-      d2d.beginPath();
-      d2d.moveTo(x, top + monthRowH);
-      d2d.lineTo(x, top + h);
-      d2d.stroke();
+        d2d.strokeStyle = PRINT_COLORS.grid;
+        d2d.lineWidth = 0.5;
+        d2d.beginPath();
+        d2d.moveTo(x, top + monthRowH);
+        d2d.lineTo(x, top + h);
+        d2d.stroke();
 
-      // Alleen tekenen als er ruimte is t.o.v. het vorige weeklabel (klacht 7).
-      const weekLabel = `W${weekNum}`;
-      const weekLabelStart = x + m.s(2);
-      d2d.font = m.font(9);
-      if (weekLabelStart >= lastWeekLabelRight + m.s(4)) {
-        d2d.fillStyle = PRINT_COLORS.textSecondary;
-        d2d.textAlign = 'left';
-        d2d.textBaseline = 'middle';
-        d2d.fillText(weekLabel, weekLabelStart, top + monthRowH + weekRowH / 2);
-        lastWeekLabelRight = weekLabelStart + d2d.measureText(weekLabel).width;
+        const weekLabelStart = x + m.s(2);
+        d2d.font = m.font(9);
+        if (weekLabelStart >= lastWeekLabelRight + m.s(4)) {
+          d2d.fillStyle = PRINT_COLORS.textSecondary;
+          d2d.textAlign = 'left';
+          d2d.textBaseline = 'middle';
+          d2d.fillText(weekLabel, weekLabelStart, top + monthRowH + weekRowH / 2);
+          lastWeekLabelRight = weekLabelStart + d2d.measureText(weekLabel).width;
+        }
       }
+      weekCursor = addCalendarDays(weekCursor, 7);
     }
+  }
 
-    // Day numbers if zoom is large enough
-    if (zoom > 15) {
+  // Dagcijfers zijn alleen zichtbaar op een brede tijdas. Beperk ook daar de iteratie bij een
+  // handmatig extreem grote rapportcanvas; maand/weekkoppen hierboven blijven dan beschikbaar.
+  if (zoom > 15 && timelineDates.length <= MAX_DAILY_GRID_STEPS) {
+    for (const date of timelineDates) {
+      const x = dateToX(date);
+      const dow = isoDayOfWeek(date);
       const dayNum = date.getUTCDate();
-      if (dow !== 6 && dow !== 7) { // Skip weekend days for cleaner display
+      if (compressed || (dow !== 6 && dow !== 7)) { // Weekenddagen staan alleen op de gewone kalender-as.
         d2d.fillStyle = PRINT_COLORS.textSecondary;
         d2d.font = m.font(7);
         d2d.textAlign = 'center';
@@ -1127,10 +1604,10 @@ function drawTimelineHeader(
         // (het label benoemt die dag toch al). Box-tegen-box, dus ook een breed tweecijferig
         // getal op de rand valt correct af.
         const dayHalf = d2d.measureText(String(dayNum)).width / 2;
-        const clash = todayLabel !== null
-          && dayCx + dayHalf > todayLabel.left
-          && dayCx - dayHalf < todayLabel.right;
-        if (!clash) {
+        const clash = (label: TodayLabelBox | null) => label !== null
+          && dayCx + dayHalf > label.left
+          && dayCx - dayHalf < label.right;
+        if (!clash(todayLabel) && !clash(statusLabel)) {
           d2d.fillText(String(dayNum), dayCx, top + h - m.s(1));
         }
       }
@@ -1146,6 +1623,19 @@ function drawTimelineHeader(
     d2d.textAlign = 'center';
     d2d.textBaseline = 'bottom';
     d2d.fillText(todayLabel.text, todayLabel.cx, top + h - m.s(1));
+  }
+  // Statusdatum-label (#54): zelfde plek/stijl als het vandaag-label. Valt het met het vandaag-
+  // label op dezelfde plek (statusdatum ≈ vandaag), dan wint het vandaag-label — de reservering
+  // hieronder tekent het statuslabel alléén als de banden niet overlappen; anders staat er één
+  // duidelijk label i.p.v. twee door elkaar.
+  if (statusLabel && !(todayLabel
+      && statusLabel.left < todayLabel.right
+      && statusLabel.right > todayLabel.left)) {
+    d2d.fillStyle = PRINT_COLORS.today;
+    d2d.font = m.font(7, true);
+    d2d.textAlign = 'center';
+    d2d.textBaseline = 'bottom';
+    d2d.fillText(statusLabel.text, statusLabel.cx, top + h - m.s(1));
   }
 
   // Table header area (left side of timeline header)
@@ -1201,8 +1691,7 @@ function drawTimelineHeader(
 function drawTaskTable(
   d2d: Draw2D,
   m: ReportMetrics,
-  flatTasks: PrintTask[],
-  depthMap: Map<string, number>,
+  printRows: { kind: 'task' | 'group'; task?: Task; depth: number; label?: string; count?: number }[],
   canvasHeight: number,
   cols: ColPositions,
   options: PrintOptions,
@@ -1216,15 +1705,10 @@ function drawTaskTable(
   d2d.fillRect(0, m.totalHeaderHeight, m.tableWidth, chartBottom - m.totalHeaderHeight);
 
   // Task rows
-  for (let i = 0; i < flatTasks.length; i++) {
-    const task = flatTasks[i];
+  for (let i = 0; i < printRows.length; i++) {
+    const row = printRows[i];
     const y = m.totalHeaderHeight + i * m.rowHeight;
-    const depth = depthMap.get(task.id) || 0;
     const textY = y + m.rowHeight / 2;
-    // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
-    // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
-    const indent = depth * m.s(12);
-    const isSummary = isSummaryTask(task);
 
     // Alternating row background
     if (i % 2 === 0) {
@@ -1239,6 +1723,35 @@ function drawTaskTable(
     d2d.moveTo(0, y + m.rowHeight);
     d2d.lineTo(m.tableWidth, y + m.rowHeight);
     d2d.stroke();
+
+    // Groepsband-rij (#54 volg-weergave): vet label met inspringing, geen datacellen — een band
+    // groepeert, hij is géén taak met datums/duur.
+    if (row.kind === 'group') {
+      const indent = row.depth * m.s(12);
+      d2d.fillStyle = PRINT_COLORS.summary;
+      d2d.font = m.font(9, true);
+      d2d.textAlign = 'left';
+      d2d.textBaseline = 'middle';
+      const nameX = cols.name.x + cellPad + indent;
+      const nameAvail = cols.name.x + cols.name.w - m.s(2) - nameX;
+      const bandLabel = `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`;
+      d2d.fillText(fitText(d2d, bandLabel, nameAvail), nameX, textY);
+      // Rijnummer telt mee (de band is een rij), maar geen WBS/duur/datums.
+      d2d.fillStyle = PRINT_COLORS.textSecondary;
+      d2d.font = m.font(8);
+      d2d.textAlign = 'right';
+      d2d.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - cellPad, textY);
+      d2d.textAlign = 'left';
+      d2d.textBaseline = 'alphabetic';
+      continue;
+    }
+
+    const task = row.task!;
+    const depth = row.depth;
+    // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
+    // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
+    const indent = depth * m.s(12);
+    const isSummary = isSummaryTask(task);
 
     // Row number
     d2d.fillStyle = PRINT_COLORS.textSecondary;
@@ -1356,12 +1869,14 @@ function drawTaskTable(
 function drawDependencies(
   d2d: Draw2D,
   m: ReportMetrics,
-  flatTasks: PrintTask[],
+  tasksById: Map<string, Task>,
   sequences: Sequence[],
   dateToX: (d: Date) => number,
   rowToY: (i: number) => number,
   zoom: number,
   options: PrintOptions,
+  /** #54 volg-weergave: alleen paren met béide endpoints zichtbaar; óók de rij-index-bron. */
+  rowIndexOf: Map<string, number>,
 ) {
   d2d.lineWidth = 1.2;
 
@@ -1370,12 +1885,11 @@ function drawDependencies(
   const drivingSet = options.drivingSequenceIds ? new Set(options.drivingSequenceIds) : null;
 
   for (const seq of sequences) {
-    const predIdx = flatTasks.findIndex(t => t.id === seq.predecessorId);
-    const succIdx = flatTasks.findIndex(t => t.id === seq.successorId);
-    if (predIdx < 0 || succIdx < 0) continue;
-
-    const pred = flatTasks[predIdx];
-    const succ = flatTasks[succIdx];
+    const pred = rowIndexOf.has(seq.predecessorId) ? tasksById.get(seq.predecessorId) : undefined;
+    const succ = rowIndexOf.has(seq.successorId) ? tasksById.get(seq.successorId) : undefined;
+    if (!pred || !succ) continue;
+    const predIdx = rowIndexOf.get(seq.predecessorId)!;
+    const succIdx = rowIndexOf.get(seq.successorId)!;
     const predY = rowToY(predIdx) + m.rowHeight / 2;
     const succY = rowToY(succIdx) + m.rowHeight / 2;
 
@@ -1482,6 +1996,7 @@ function drawFooter(
   canvasHeight: number,
   projectName: string,
   options: PrintOptions,
+  printRows: { kind: 'task' | 'group'; task?: Task; depth: number; label?: string; count?: number }[],
 ) {
   const footerTop = canvasHeight - m.footerHeight;
   // Alles in de voettekst is tekst-zone: de marge, de regelafstanden en de legenda-blokjes schalen
@@ -1553,18 +2068,86 @@ function drawFooter(
       type LegendItem = { label: string; draw: (x: number) => void };
       const items: LegendItem[] = [];
 
-      if (options.showCritical) {
-        items.push({ label: lg?.criticalPath ?? 'Kritiek pad', draw: (x) => {
-          d2d.fillStyle = PRINT_COLORS.critical;
+      // Kleurmodus-legenda (#21): in de niet-critical-modi vervallen de critical/normal-swatches —
+      // ze beloven dan juist de verkeerde betekenis. In plaats daarvan: rode-rand-verklaring
+      // (kritiek pad) en in resource-modus de resourcekleuren zelf. De legenda laat bij te weinig
+      // ruimte de laatste items weg (zie hieronder); de resource-items staan daarom vóór de rand-
+      // verklaring zodat die essentiële regel het langst overleeft… nee: de rand-regel is de
+      // minst essentiële (het kritiek pad blijft zonder legenda ook zichtbaar als rode rand), dus
+      // die staat laATSTE — zelfde bewuste positie als de relatiestijl-regel hieronder.
+      const legendPalette: BarPalette = {
+        critical: PRINT_COLORS.critical,
+        normal: PRINT_COLORS.normal,
+        nearCritical: PRINT_COLORS.nearCritical,
+        milestone: PRINT_COLORS.milestone,
+        uncategorized: PRINT_COLORS.uncategorized,
+      };
+      const legendContext: BarColorContext = {
+        activityCodeTypes: options.activityCodeTypes ?? [],
+        customFieldDefs: options.customFieldDefs ?? [],
+        resources: options.resources ?? [],
+        assignments: options.assignments ?? [],
+        taskTypeLabels: options.taskTypeLabels,
+        noneLabel: options.barColorNoneLabel ?? '(geen)',
+      };
+      const selection = options.barColorSelection ?? { mode: 'critical' };
+      const isCriticalMode = selection.mode === 'critical';
+      if (isCriticalMode) {
+        if (options.showCritical) {
+          items.push({ label: lg?.criticalPath ?? 'Kritiek pad', draw: (x) => {
+            d2d.fillStyle = PRINT_COLORS.critical;
+            d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
+            d2d.fill();
+          } });
+        }
+        items.push({ label: lg?.normal ?? 'Normaal', draw: (x) => {
+          d2d.fillStyle = PRINT_COLORS.normal;
           d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
           d2d.fill();
         } });
+        const hasNearCritical = printRows.some(row => row.kind === 'task' && row.task
+          && !row.task.time.isCritical && row.task.time.isNearCritical);
+        if (hasNearCritical) {
+          items.push({ label: lg?.nearCritical ?? 'Bijna-kritiek', draw: (x) => {
+            d2d.fillStyle = PRINT_COLORS.nearCritical;
+            d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
+            d2d.fill();
+          } });
+        }
       }
-      items.push({ label: lg?.normal ?? 'Normaal', draw: (x) => {
-        d2d.fillStyle = PRINT_COLORS.normal;
-        d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
-        d2d.fill();
-      } });
+      if (selection.mode === 'category') {
+        const effective = effectiveBarColorSelection(selection, legendContext).effective;
+        if (effective.mode === 'category') {
+          const visibleTasks = printRows
+            .filter(row => row.kind === 'task' && row.task)
+            .map(row => row.task!);
+          const categories = visibleBarColorCategories(visibleTasks, effective.field, legendContext);
+          const LEGEND_CATEGORY_CAP = 8;
+          for (const category of categories.slice(0, LEGEND_CATEGORY_CAP)) {
+            items.push({ label: category.label, draw: (x) => {
+              d2d.fillStyle = barCategoryDisplayColor(category, legendPalette);
+              d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
+              d2d.fill();
+            } });
+          }
+          const moreLabel = options.barColorsLegendLabels?.categoriesMore;
+          if (categories.length > LEGEND_CATEGORY_CAP && moreLabel) {
+            items.push({
+              label: moreLabel(categories.length - LEGEND_CATEGORY_CAP),
+              draw: () => { /* tekst-only item — geen swatch */ },
+            });
+          }
+        }
+      }
+      if (!isCriticalMode) {
+        // "Rode rand = kritiek pad"-verklaring voor task/auto/resource.
+        items.push({ label: options.barColorsLegendLabels?.criticalOutline ?? 'Kritiek pad', draw: (x) => {
+          d2d.strokeStyle = PRINT_COLORS.critical;
+          d2d.lineWidth = 1;
+          d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
+          d2d.stroke();
+        } });
+      }
       items.push({ label: lg?.milestone ?? 'Mijlpaal', draw: (x) => {
         d2d.fillStyle = PRINT_COLORS.milestone;
         const mx = x + swatchW / 2;
@@ -1590,6 +2173,15 @@ function drawFooter(
         items.push({ label: lg?.float ?? 'Speling', draw: (x) => {
           d2d.fillStyle = PRINT_COLORS.float + '40';
           d2d.fillRect(x, midY - m.s(4), swatchW, m.s(8));
+        } });
+      }
+      const hasBaseline = options.showBaselineOverlay && printRows.some(row => row.kind === 'task' && row.task
+        && options.baselineOverlay?.has(row.task.id));
+      if (hasBaseline) {
+        items.push({ label: lg?.baseline ?? 'Baseline', draw: (x) => {
+          d2d.fillStyle = PRINT_COLORS.baseline;
+          d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(1));
+          d2d.fill();
         } });
       }
       // Lijnstijl-uitleg (issue #56): ÉÉN legenda-regel die beide stijlen tegelijk toont — boven een

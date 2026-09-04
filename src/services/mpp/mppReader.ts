@@ -1231,6 +1231,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
       childIds: [],
       time: {
         durationType: raw.isElapsedDuration ? 'ELAPSEDTIME' : 'WORKTIME',
+        // MPP bewaart geplande duur in werkminuten; DurationUnits is uitsluitend het
+        // invoer-/weergaveformaat. De precisiediscriminator hierboven bepaalt daarom de
+        // betekenisvolle blijvende OPS-eenheid, net als vóór het expliciete taakmodel.
+        durationUnit: isHour ? 'hours' : 'days',
         scheduleDuration: duration,
         ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: start,

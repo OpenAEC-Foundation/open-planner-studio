@@ -1,6 +1,9 @@
 import type { UIState, AppSlice, NotifyInput } from './types';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
+import { detectSystemPrefersDark } from '@/utils/theme';
+import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
+import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export interface UiSlice {
@@ -82,6 +85,10 @@ export function createDefaultUI(): UIState {
     // Issue #61: synchroon uit localStorage, zodat de default nooit afwijkt van wat het
     // pre-paint-script in index.html al op <html> zette (headless valt peekTheme terug op 'dark').
     uiTheme: peekTheme(),
+    // Systeemkleurschema bij het bouwen van de store — synchroon, om dezelfde reden als hierboven:
+    // bij voorkeur 'system' moet de eerste React-commit meteen het juiste thema kiezen. De
+    // listener in App.tsx houdt het daarna bij.
+    systemPrefersDark: detectSystemPrefersDark(),
     // Issue #25.4: interface-lettertype — default = huidige stylesheet-defaults + 100% schaal
     // (bestaande gebruikers merken niets; App.tsx hydrateert bij opstart uit localStorage).
     uiFontFamily: 'default',
@@ -102,6 +109,8 @@ export function createDefaultUI(): UIState {
     showProjectOverview: false,
     pendingCloseDocId: null,
     showNewProjectDialog: false,
+    showNewOrOpenProjectDialog: false,
+    pendingTaskNameFocusId: null,
     showFeedbackDialog: false,
     showStructureDialog: false,
     traceMode: 'off',
@@ -112,6 +121,8 @@ export function createDefaultUI(): UIState {
     // aan staan.
     showPropertiesPanel: true,
     railPropertiesHeight: 240,
+    showWarningsPanel: false,
+    railWarningsHeight: 220,
     showHistogram: false,
     histogramHeight: 160,
     showLevelingDialog: false,
@@ -120,6 +131,8 @@ export function createDefaultUI(): UIState {
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,
+    showResourceAccent: false,   // #21: schermbeeld verandert eerst niet — expliciet aanzetten
+    barColorSelection: DEFAULT_BAR_COLOR_SELECTION,
     presentationMode: false,
     showMiniMap: false,
     showColumnsDialog: false,
@@ -130,7 +143,7 @@ export function createDefaultUI(): UIState {
     // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
     constructionMode: true,
     dateNotation: 'dmy',
-    // Fase 2.8b (§6.8): urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
+    // Urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
     // duurweergave automatisch, balk-opsplitsing bij selectie.
     enableHourPlanning: false,
     allowMixedDayHour: true,
@@ -174,6 +187,12 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   setUI: (updates) =>
     set((s) => {
+      // Tabel-overhaul: oude sessie-/tour-/extensiestaat kan nog naar het verwijderde zelfstandige
+      // Relaties-tabblad wijzen. Alle functies daarvan wonen nu in de taakgrids en hun lintacties;
+      // herstel daarom naar de volledige Tabel zonder documentdata of historie te muteren.
+      if ((updates as { activeRibbonTab?: unknown }).activeRibbonTab === 'relations') {
+        (updates as Partial<UIState>).activeRibbonTab = 'table';
+      }
       // Als debugTerminalEnabled uitgezet wordt, forceer de terminal dicht.
       if (updates.debugTerminalEnabled === false) {
         (updates as Partial<UIState>).debugTerminalOpen = false;
@@ -216,7 +235,9 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       // `updates.rightPanelCollapsed === undefined` laat een expliciete patch altijd winnen.
       const turnsDockOn = (updates.showResourcePanel === true || updates.resourcePanelDocked === true) && dockIsPresent;
       const turnsPropertiesOn = updates.showPropertiesPanel === true;
-      if ((turnsDockOn || turnsPropertiesOn) && updates.rightPanelCollapsed === undefined) {
+      // Issue #53: het Waarschuwingenpaneel is het derde railpaneel en volgt dezelfde regel.
+      const turnsWarningsOn = updates.showWarningsPanel === true;
+      if ((turnsDockOn || turnsPropertiesOn || turnsWarningsOn) && updates.rightPanelCollapsed === undefined) {
         (updates as Partial<UIState>).rightPanelCollapsed = false;
       }
       // (2) Andersom: wie de rail expliciet UITklapt terwijl het volledige resource-paneel de
@@ -239,12 +260,13 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         const dockFinal = (updates.showResourcePanel ?? s.ui.showResourcePanel)
           && (updates.resourcePanelDocked ?? s.ui.resourcePanelDocked);
         const propsFinal = updates.showPropertiesPanel ?? s.ui.showPropertiesPanel;
-        if (!dockFinal && !propsFinal) {
+        const warningsFinal = updates.showWarningsPanel ?? s.ui.showWarningsPanel;
+        if (!dockFinal && !propsFinal && !warningsFinal) {
           (updates as Partial<UIState>).showPropertiesPanel = true;
         }
       }
       Object.assign(s.ui, updates);
-      const max = s.ui.enableQuarterHourZoom ? 1000 : 400;
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
       if (s.view.zoom > max) s.view.zoom = max;
     }),
 

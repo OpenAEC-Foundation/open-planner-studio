@@ -17,22 +17,21 @@ export function IFCPanel() {
   const assignments = useAppStore(s => s.assignments);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
+  const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const resourceCalendars = useAppStore(s => s.calendars);
   // B4-fix (audit P2): baselines/activeBaselineId meesturen — voorheen schreef dit paneel stil
   // ONVOLLEDIGE IFC (baselines gingen verloren bij genereren/kopiëren vanuit de IFC-tab).
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const loadState = useAppStore(s => s.loadState);
-  const setViewStartDate = useAppStore(s => s.setViewStartDate);
-  const runCPM = useAppStore(s => s.runCPM);
   const notify = useAppStore(s => s.notify);  // bevinding K8 — alert() vervangen door het meldingenkanaal
 
   const generated = useMemo(() => {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, calendars: resourceCalendars, baselines, activeBaselineId,
+      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -40,19 +39,18 @@ export function IFCPanel() {
   const handleGenerate = useCallback(() => {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, calendars: resourceCalendars, baselines, activeBaselineId,
+      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, resourceCalendars, baselines, activeBaselineId]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
 
   const handleApply = useCallback(() => {
     void (async () => {
       try {
         const data = await readIFCWithXerReconstruction(content, buildImportLabels(tCommon));
-        loadState(data);
-        setViewStartDate(data.project.startDate);
-        runCPM();
+        // `loadState` rekent zelf door en publiceert de viewstart in dezelfde ene publicatie.
+        loadState(data, { viewStartDate: data.project.startDate });
         setDirty(false);
       } catch (err) {
         // Bevinding K8: alert() (de énige in de hele repo) vervangen door het gecentraliseerde kanaal.
@@ -63,7 +61,7 @@ export function IFCPanel() {
         });
       }
     })();
-  }, [content, loadState, setViewStartDate, runCPM, notify, tCommon]);
+  }, [content, loadState, notify, tCommon]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(content);

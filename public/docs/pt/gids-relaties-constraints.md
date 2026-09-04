@@ -97,3 +97,4 @@ Regra geral: use um **prazo** para uma data-alvo que quer monitorizar sem força
 - Veja o conflito de prazo na prática: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - A estrutura ainda não está pronta? Leia primeiro [Plannen & WBS](docs://gids-plannen-wbs).
 - Para calendários e horários de trabalho que afetam a duração das tarefas: o guia [Calendários & planeamento por horas](docs://gids-kalenders-uren).
+- Todos os prazos ultrapassados e restrições violadas num só lugar, com salto para a tarefa: o [Painel de avisos](docs://ref-waarschuwingen).

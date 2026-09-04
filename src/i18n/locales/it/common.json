@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Salvataggio automatico", "noFile": "Salva prima questo progetto per usare il salvataggio automatico.", "onHint": "Il salvataggio automatico è attivo: le modifiche vengono scritte in questo file.", "offHint": "Il salvataggio automatico è disattivato. Il recupero rimane attivo." },
   "notifications": {
     "dismiss": "Chiudi notifica",
     "openFailed": "Apertura del file non riuscita",
@@ -72,7 +73,7 @@
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
-    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse — vedi il pannello Relazioni per i dettagli.",
+    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse. Controlla le colonne Predecessori e Successori.",
     "mppSourceScheduleNotes_one": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Viene importata e mostrata così com'è.",
     "mppSourceScheduleNotes_many": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
     "mppSourceScheduleNotes_other": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
@@ -82,7 +83,14 @@
     "mppTimephasedSteeringLost_one": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_many": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_other": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
-    "readMore": "Ulteriori informazioni"
+    "readMore": "Ulteriori informazioni",
+    "pasteSkippedReadOnly_one": "{{count}} cella ignorata: è di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "pasteSkippedReadOnly_many": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "pasteSkippedReadOnly_other": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "librarySaveFailed": "Impossibile salvare la libreria",
+    "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
   },
   "yes": "Sì",
   "no": "No",
@@ -151,11 +159,15 @@
     "themeDark": "Scuro",
     "themeLight": "Chiaro",
     "themeHighContrast": "Alto contrasto",
+    "themeFollowSystem": "Segui il tema di sistema",
+    "themeSystemHint": "Segue lo schema di colori del sistema (ora: {{theme}}).",
     "timeline": "Sequenza temporale / Zoom",
     "hourPlanningSection": "Pianificazione oraria",
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
+    "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
+    "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
     "durationDisplay": "Visualizzazione della durata",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
@@ -310,6 +322,9 @@
     "openBadge": "{{count}} aperti",
     "switchHint": "⌘1–9 per cambiare",
     "openProject": "Apri progetto",
+    "newOrOpenTitle": "Avvia un progetto",
+    "newProject": "Nuovo progetto",
+    "openExistingProject": "Apri progetto esistente",
     "allProjects": "Tutti i progetti",
     "active": "Attivo",
     "tasksWord": "attività",
@@ -384,13 +399,39 @@
       "sameSize": "Stessa dimensione della versione precedente",
       "daysSincePrevious": "Dalla versione precedente: {{count}} giorni",
       "currentOnly": "Stai usando la versione {{version}}",
-      "whatsNewButton": "Novità"
+      "whatsNewButton": "Novità", "newVersion": "Nuova versione", "readGuide": "Leggi la guida", "fullNotes": "Note di rilascio complete", "openFailed": "Impossibile aprire le note di rilascio.", "inNumbers": "Questo aggiornamento in numeri", "days": "giorni dalla versione precedente", "commits": "commit dalla versione precedente", "codeLines": "righe di codice aggiunte", "codeLinesHint": "Righe aggiunte in applicazione, Rust, script e test.", "smallerLabel": "pacchetto più piccolo", "largerLabel": "pacchetto più grande", "acknowledge": "Capito"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "Scadenze superate: {{count}}",
     "violatedConstraints": "Vincoli violati: {{count}}",
-    "outOfSequence": "Relazioni fuori sequenza: {{count}}"
+    "outOfSequence": "Relazioni fuori sequenza: {{count}}",
+    "overallocated": "{{count}} risorsa/e sovrassegnata/e"
+  },
+  "warnings": {
+    "title": "Avvisi",
+    "close": "Chiudi avvisi",
+    "openPanel": "Apri il pannello Avvisi (dettagli e navigazione)",
+    "summary": "{{errors}} errore/i, {{warnings}} avviso/i",
+    "noSchedule": "Non ancora calcolato — premi Calcola (F5) per eseguire i controlli.",
+    "stale": "Pianificazione obsoleta — questo elenco proviene dall'ultimo calcolo. Ricalcola (F5).",
+    "empty": "Nessun avviso. La pianificazione supera tutti i controlli.",
+    "goTo": "Vai a: {{target}}",
+    "kind": {
+      "scheduleError": "Impossibile calcolare la pianificazione: {{message}}",
+      "missedDeadline": "Scadenza {{deadline}} superata — fine minima {{finish}}",
+      "violatedConstraint": "Il vincolo {{constraint}} è superato dalla logica (margine negativo)",
+      "outOfSequence": "Fuori sequenza: l'avanzamento del successore contraddice la relazione",
+      "truncatedLead": "Anticipo troncato dall'inizio del progetto — la relazione non è rispettata del tutto",
+      "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
+      "hammockNoFinishDriver": "Hammock senza driver di fine (nessun predecessore FF/SF): la durata torna a zero",
+      "cappedTask": "Data di fine limitata: il calendario non lascia alcuna finestra lavorativa per questa attività",
+      "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Progetto",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -606,7 +647,8 @@
       "capacity": "Capacità",
       "documents": "Documenti",
       "selectHint": "Seleziona una risorsa per vedere l'istogramma."
-    }
+    },
+    "color": "Colore"
   },
   "calendar": {
     "library": {
@@ -657,6 +699,18 @@
       "threeShift": "3 turni",
       "night": "Turno notturno",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "Inserisci un orario di pausa valido come HH:MM.",
+      "invalidWorkStart": "Inserisci un orario di inizio valido nel formato HH:MM.",
+      "invalidWorkEnd": "Inserisci un orario di fine valido nel formato HH:MM.",
+      "invalidWorkTimeOrder": "L’orario di inizio deve precedere l’orario di fine.",
+      "increaseTime": "Aumenta l’orario di 15 minuti",
+      "decreaseTime": "Riduci l’orario di 15 minuti",
+      "increaseBreakDuration": "Aumenta la durata della pausa di 15 minuti",
+      "decreaseBreakDuration": "Riduci la durata della pausa di 15 minuti",
+      "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
     },
     "worktime": {
       "section": "Orari di lavoro",
@@ -742,7 +796,7 @@
       "none": "(nessuno)"
     },
     "presentation": {
-      "hint": "Premi F11 per uscire dalla modalità presentazione"
+      "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."
     },
     "splitView": {
       "primary": "Principale",
@@ -774,6 +828,8 @@
   "duration": {
     "suffixDay": "g",
     "suffixHour": "h",
+    "days": "Giorni",
+    "hours": "Ore",
     "suffixMinute": "m"
   },
   "shortcuts": {
@@ -784,7 +840,8 @@
       "edit": "Modifica",
       "structure": "Struttura",
       "view": "Visualizza",
-      "nav": "Navigazione"
+      "nav": "Navigazione",
+      "grid": "Tabella"
     },
     "view": {
       "exitFullscreen": "Esci dalla presentazione",
@@ -804,6 +861,12 @@
       "switchDocument": "Cambia documento",
       "scrollToToday": "Vai a oggi",
       "help": "Apri guida"
+    },
+    "grid": {
+      "navigate": "Cella successiva/precedente",
+      "edit": "Modifica cella",
+      "typeToReplace": "Digitare sostituisce il contenuto della cella",
+      "clearCell": "Cancella contenuto della cella"
     }
   },
   "welcome": {

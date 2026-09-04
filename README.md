@@ -4,7 +4,7 @@
 [![Downloads](https://img.shields.io/github/downloads/OpenAEC-Foundation/open-planner-studio/total?label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
 [![CI](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml)
 [![Live deploy](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/live.yml/badge.svg)](https://open-planner-studio.open-aec.com)
-[![Testsuites](https://img.shields.io/badge/testsuites-planning%20%C2%B7%20library%20%C2%B7%20mcp%20%C2%B7%20dev--server-informational)](tests/planning/README.md)
+[![Testsuites](https://img.shields.io/badge/testsuites-planning%20%C2%B7%20library%20%C2%B7%20mcp%20%C2%B7%20dev--server%20%C2%B7%20browser-informational)](tests/planning/README.md)
 [![Talen](https://img.shields.io/badge/talen-14-informational)](src/i18n/config.ts)
 [![License](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#licentie)
 
@@ -73,9 +73,9 @@ src/
   extensions/        # Extensiesysteem (types, api, loader, service)
   i18n/              # Vertalingen, 14 talen × 4 namespaces
   hooks/  types/  utils/  styles/
-public/docs/         # In-app handleiding: 27 artikelen × 14 talen (voedt ook de wiki)
+public/docs/         # In-app handleiding: 33 artikelen × 14 talen (voedt ook de wiki)
 examples/            # Voorbeeldplanningen in IFC
-tests/               # planning · library · mcp · dev-server
+tests/               # planning · library · mcp · dev-server · browser
 src-tauri/           # De Rust-schil (dun: precies één native command)
 ```
 
@@ -90,7 +90,6 @@ en [AGENTS.md](AGENTS.md).
 | **Start** | Bestand, Bewerken, Taken toevoegen, CPM berekenen, Zoom |
 | **Planning** | CPM, Relaties beheren, Kalender, Structuur (codes/velden, in-/uitspringen), Baselines |
 | **Resources** | Resources toewijzen, histogram, nivellering |
-| **Relaties** | Snel een FS-relatie leggen tussen twee geselecteerde taken |
 | **Beeld** | Zoom, Tijdschaal, Panelen, Groeperen/filteren |
 | **Instellingen** | Project info, Kalender, Taalinstelling |
 | **Tabel** | Spreadsheet-achtige tabelweergave, één klik bewerkt een cel |
@@ -115,8 +114,9 @@ Zie de [`examples/`](examples/) map voor voorbeeldplanningen in IFC-formaat.
 
 ## Bijdragen
 
-Zie [CONTRIBUTING.md](CONTRIBUTING.md) — opzetten, de poort (`npm run verify`),
-en de vier dingen die het vaakst stil misgaan. Beveiligingsproblemen niet via een
+Zie [CONTRIBUTING.md](CONTRIBUTING.md) — opzetten, de poort (`npm run verify`,
+met de vijf testsuites `planning`/`library`/`mcp`/`dev-server`/`browser`), en de
+vier dingen die het vaakst stil misgaan. Beveiligingsproblemen niet via een
 issue maar via [SECURITY.md](SECURITY.md).
 
 ## Licentie

@@ -172,19 +172,16 @@ export interface TaskTime {
 
 **Effectieve duur-resolutie** (één gedeelde helper, gebruikt door solver, renderer, adapters):
 ```ts
-// minuten indien uur-modus, anders werkdagen×effHoursPerDay×60 (voor gemengde projecten)
+// urentaak: native minuten; dagtaak: werkdagen×effHoursPerDay×60 (alleen als equivalent)
 function durationMinutesOf(task, effCal): number
-function durationDaysOf(task, effCal): number   // uur-kalender: durationMinutes/(hpd×60); dag-kalender: scheduleDuration
+function durationDaysOf(task, effCal): number   // urentaak: durationMinutes/(hpd×60); dagtaak: scheduleDuration
 ```
 
-**Invariant — sub-dag-duur vereist een uur-kalender (Bevinding 2).** `durationMinutes` op een taak waarvan
-de effectieve kalender **dag-modus** is, is **ongedefinieerd** en wordt niet gehonoreerd: `durationDaysOf`
-assert/negeert het veld op een dag-kalender en valt terug op `scheduleDuration` — het stopt daar dus **nooit**
-`durationMinutes/(hpd×60)` (een fractionele dag) in de integer-dag-lus `addWorkDays`. Sub-dag-duur (h/m) kan
-uitsluitend bestaan op een uur-kalender-taak; de duur-parser (§6.4) dwingt dit af aan de invoerkant en
-`durationDaysOf` aan de reken-kant. Deze invariant krijgt een expliciete testcase in `cases-hours.json`
-(§8.3): `durationMinutes` op een dag-kalender-taak ⇒ genegeerd, dag-datums bit-identiek aan de tweeling
-zonder het veld.
+**Invariant — de taakeenheid is blijvend.** Bij `durationUnit: 'days'` is `scheduleDuration` de enige
+invoerbron; bij `durationUnit: 'hours'` is `durationMinutes` dat. De kalender bepaalt alleen waar deze
+hoeveelheid past en leidt de eenheid nooit af. Een WORKTIME-urentaak zonder concrete werkblokken wordt
+geblokkeerd; er bestaat geen dagfallback en geen afronding. Legacydata met `durationMinutes` migreert
+deterministisch naar uren, overige legacydata naar dagen.
 
 ### 3.2 `src/types/calendar.ts` — werktijd-banden, ploegen, 24/7
 
@@ -249,8 +246,8 @@ Rapport A §6 is geverifieerd: strings transporteren triviaal. Delta 2.8b:
 - **Snapshot/payload** (`snapshot.ts:38-53`, `documentSlice.ts:34-61`): de nieuwe optionele velden rijden
   mee in `tasks`/`calendars`/`sequences`/`project` — geen plumbing-wijziging. Een oud snapshot mist ze →
   dag-modus bij restore.
-- **localStorage/settings**: nieuw is een uur-`timeScale`-preset (§6.2) plus de vier 2.8b-instellingen
-  (Urenplanning, Gemengde dag/uur-planning toestaan, Duurweergave, Taakbalken bij onderbrekingen — §6.8) en
+- **localStorage/settings**: nieuw is een uur-`timeScale`-preset (§6.2) plus de drie blijvende 2.8b-instellingen
+  (Urenplanning, Duurweergave, Taakbalken bij onderbrekingen — §6.8) en
   de eigen werktijd-presets (§6.6). Migratie: ontbrekende sleutel ⇒ bestaande default (geen reset;
   patroon `settingsStore.ts:66,90,106`).
 - **Undo**: `createSnapshot` (`snapshot.ts:38-53`) kloont via JSON — nieuwe velden zijn plain data → werkt.
@@ -523,19 +520,16 @@ het hele-eenheden-besluit. `TaskDialog.tsx:29,221` (`useState(5)`, `parseInt`) e
 `scheduleDuration`-consumenten (`TableEditor`, `TaskPropertiesPanel`, `RelationsPanel`, `LevelingDialog`,
 `printPreview`, `wbsTemplates` — Rapport A §3.1) roepen de gedeelde formatter aan.
 
-- **`h`/`m`-suffix vereist een uur-kalender (Bevinding 2).** Sub-dag-suffixen zijn alleen geldig op een taak
-  waarvan de effectieve kalender uur-modus is; op een dag-kalender-taak levert `parseDuration` een
-  **foutmelding** (geen stille conversie naar fractionele dagen). Dit is de invoerkant van de §3.1-invariant
-  "sub-dag-duur vereist een uur-kalender".
-- **Naakt getal = werkdagen, óók in uur-modus (Bevinding 10).** Een getal zonder suffix blijft "werkdagen".
-  Op een **dag-kalender**-taak blijft dat exact het huidige gedrag (`scheduleDuration = n`, geen
-  `durationMinutes`, byte-identiek). Op een **uur-kalender**-taak wordt het n werkdagen in uur-modus:
-  `durationMinutes = n × effHoursPerDay × 60` (dus "3" op H8 = 1440 min) met afgeleid `scheduleDuration = n`.
-  Zo betekent hetzelfde naakte getal consistent "n werkdagen", ongeacht de modus.
+- **`h`/`u`-suffix kiest uren (Bevinding 2).** De gedeelde bediening zet daarmee de blijvende
+  taakeenheid op uren. Ontbreken concrete werkblokken op de toegewezen kalender, dan volgt een
+  **foutmelding** en blijft de taak ongewijzigd (geen stille dagfallback of afronding).
+- **Naakt getal volgt de geselecteerde taakeenheid.** Met Dagen geselecteerd betekent `3` drie
+  werkdagen; met Uren geselecteerd betekent het drie uur. Een expliciet suffix (`d`, `h`, of de
+  backwards-compatible invoeralias `u`) wint altijd en synchroniseert de selector.
 
 ### 6.5 Duur-weergave (Duurweergave-instelling) + mixed-kalender-val
 
-Tabellen en balk-tooltips tonen per taak de **eigen eenheid**: een dag-taak toont "3d", een uur-taak "20u".
+De gedeelde formatter toont per taak de **eigen eenheid**: een dagtaak toont "3d", een urentaak "20h".
 Dit stuurt de **Duurweergave**-instelling (§6.8): **automatisch** (default — eigen eenheid per taak),
 **altijd dagen** of **altijd uren**. Deze instelling **vervangt de eerder overwogen d/h-toggle** (P6/MSP-
 conventie, Rapport B §6.3): het is één app-brede voorkeur op de drie ingangen (§6.8), geen per-veld-knop.
@@ -544,9 +538,8 @@ Afgeleide fractionele dagen blijven als **weergave** toegestaan (hele-eenheden-b
 dubbelzinnig bij verschillende kalender-`hoursPerDay` (Rapport B §5, de P6-val — een 480-min-taak is "1d" op
 een 8u-kalender en "0,8d" op een 10u-kalender, scenario 9). Daarom toont de UI de kalender-`hoursPerDay` in
 een kolom/tooltip zodra een project kalenders met verschillende daglengtes mengt, en **waarschuwt** (net als
-de adapter-`console.warn`s) wanneer een dag-project en een uur-project samenkomen. Deze mixed-kalender-
-waarschuwing/tooltip blijft óók bestaan wanneer "Gemengde dag/uur-planning toestaan" (§6.8) uit staat: die
-poort beperkt alleen wat de UI aan *invoer* aanbiedt, niet het correct tonen van bestaande gemengde data.
+de adapter-`console.warn`s) wanneer een dag-project en een uur-project samenkomen. Gemengd plannen is
+beschikbaar zodra Urenplanning aan staat; bestaande gemengde data blijft altijd correct zichtbaar.
 
 ### 6.6 Kalenderdialoog — werktijden: presets + eigen presets + editor
 
@@ -587,14 +580,13 @@ de dag-kalender aan (byte-identiek met vóór 2.8b).
 
 ### 6.8 Instellingen
 
-2.8b introduceert vier instellingen. Ze verschijnen — conform de bestaande harde projectregel — op **alle
+2.8b introduceert drie blijvende instellingen. Ze verschijnen — conform de bestaande harde projectregel — op **alle
 drie de ingangen tegelijk** (tandwiel ⚙, Instellingen-linttab, File-backstage) via de **gedeelde
 settings-content-component**; nooit op één ingang los.
 
 | Instelling | Default | Effect |
 |---|---|---|
 | **Urenplanning** (hoofdschakelaar) | **uit** | Uit ⇒ geen uur-tijdschaal in zoom/presets (§6.2), geen uren-vakjes in de taakdialoog (§6.4), geen banden/ploegen-UI in kalenderdialoog (§6.6) en wizard (§6.7) — de app gedraagt zich exact als vóór 2.8b. Aan ⇒ de volledige 2.8b-UI. |
-| **Gemengde dag/uur-planning toestaan** (sub-instelling) | **aan** | Puur een **UI-poort** (de engine kan altijd gemengd, §5.4). Uit ⇒ binnen een project biedt de UI alleen de eenheid van de projectkalender aan; bestaande gemengde data blijft correct rekenen en tonen, en de mixed-kalender-waarschuwing (§6.5) blijft. |
 | **Duurweergave** | **automatisch** | `automatisch` (eigen eenheid per taak: "3d"/"20u") \| `altijd dagen` \| `altijd uren` (§6.5). Vervangt de d/h-toggle. |
 | **Taakbalken bij onderbrekingen** | **bij selectie** | `nooit opsplitsen` \| `opsplitsen bij selectie` (doorlopende balk; werkblokken zichtbaar zodra de taak geselecteerd is) \| `altijd opsplitsen` (§6.9). |
 
@@ -1016,8 +1008,8 @@ DST, ontkoppelde P6 Time-Periods (week/maand/jaar), kostprijs-shift-kalender, CS
 potentiële spec-gaten als constructie dichtgezet, niet als restrisico. (1) De **float-eenheid** is uniform
 vastgezet op eigen-kalender-werkdagen — fractioneel voor uur-taken, bit-identieke integers voor dag-taken
 (Bevinding 1, §5.5) — wat de 2.7-`FieldRef`-filters, de tabelkolommen en `variance.ts` beschermt tegen een
-gemengde-eenheid-breuk. (2) **Sub-dag-duur** is per invariant aan een uur-kalender gebonden: `durationMinutes`
-op een dag-kalender wordt genegeerd, dus nooit belandt een fractionele dag in `addWorkDays` (Bevinding 2,
+gemengde-eenheid-breuk. (2) **Taakduur-eenheid** is expliciet en kalenderonafhankelijk; een urentaak zonder
+concrete werkblokken wordt geblokkeerd in plaats van afgerond of als dagen gepland (Bevinding 2,
 §3.1/§5.1/§6.4). (3) De **workTime-import-discriminator** (Bevinding 3, §7) houdt dag-bestanden byte-identiek
 door `workTime` alleen te zetten bij een echte afwijking van het enkelvoudige dag-patroon.
 ```

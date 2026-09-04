@@ -20,7 +20,7 @@
 //   9. onbekende velden ketsen af; de afgeleide leesvelden komen terug als `ignoredFields`
 //  10. ALLES ook via `planner_batch` (de schemapoort + batchStep-pad)
 //  11. IFC-round-trip van workTime/shift/generation — het native formaat moet het dragen
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
@@ -44,15 +44,10 @@ registerToolModules([readTools, calendarResourceTools, batchTools]);
 
 // --- helpers -------------------------------------------------------------------------------------
 
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...overrides,
-  };
+  });
 }
 
 function toolDef(name: string) {
@@ -114,15 +109,16 @@ function bands8to16(): WorkTimeBands {
   return { byWeekday };
 }
 
-/** Blad-taak met een expliciete dag-duur; optioneel een sub-dag-duur in minuten. */
+/** Blad-taak met een expliciete dag- of uurduur. */
 function addTask(name: string, durationDays: number, durationMinutes?: number): string {
   const id = S().addTask({ name });
   const t = S().tasks.find((x) => x.id === id)!;
   S().updateTask(id, {
     time: {
       ...t.time,
+      durationUnit: durationMinutes !== undefined ? 'hours' : 'days',
       scheduleDuration: durationDays,
-      ...(durationMinutes !== undefined ? { durationMinutes } : {}),
+      durationMinutes,
     },
   });
   return id;
@@ -246,14 +242,14 @@ test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangero
 
   for (const g of gevallen) {
     const voor = JSON.stringify(S().calendars);
-    const undoVoor = S().undoStack.length;
+    const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     const item: Record<string, unknown> = { id: projId, workTime: g.workTime };
     if (g.naam === 'workTime spreekt workDays tegen') item.workDays = [1, 2, 3, 4, 5];
     const res = await call('planner_update_calendar', { calendars: [item] });
     const reden = soleRejection(res);
     assert(g.verwacht.test(reden), `[${g.naam}] onbruikbare weigeringsreden: ${reden}`);
     assertEq(JSON.stringify(S().calendars), voor, `[${g.naam}] de kalender is ONAANGEROERD gebleven`);
-    assertEq(S().undoStack.length, undoVoor, `[${g.naam}] geen undo-stap (geen transactie geopend)`);
+    assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoVoor, `[${g.naam}] geen undo-stap (geen transactie geopend)`);
     assertEq(okData(res).calendars, [], `[${g.naam}] geen enkele kalender gewijzigd`);
   }
 });
@@ -264,7 +260,7 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   S().ensureProjectCalendarInLibrary();
   addTask('Iets', 3);
   const voor = JSON.stringify(S().calendars);
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   const leeg = { byWeekday: { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] } };
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workTime: leeg }] });
   // Banden op geen enkele dag ⇒ afgeleide `workDays` is leeg ⇒ de eind-runCPM van de transactie
@@ -273,7 +269,7 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   assertEq(res.ok, false, 'de call faalt hard i.p.v. een onbruikbare kalender te committen');
   assert(/geen werkdagen/i.test((res as any).error), `begrijpelijke fout: ${(res as any).error}`);
   assertEq(JSON.stringify(S().calendars), voor, 'de kalender is volledig teruggerold');
-  assertEq(S().undoStack.length, undoVoor, 'geen achtergebleven undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoVoor, 'geen achtergebleven undo-stap');
 });
 
 test('een item met alleen afgeleide leesvelden is een no-op ⇒ zachte weigering die de velden noemt', async () => {
@@ -287,14 +283,14 @@ test('een item met alleen afgeleide leesvelden is een no-op ⇒ zachte weigering
 });
 
 // =================================================================================================
-// 4) DAG → UUR — de effectieve duur verandert en dat MOET in de respons staan
+// 4) DAG → UUR — de taakeenheid en hoeveelheid blijven behouden
 // =================================================================================================
-test('dag→uur op de projectkalender ⇒ duurgevolgen per taak in de respons', async () => {
+test('dag→uur op de projectkalender ⇒ native taakduren blijven behouden', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
-  // Taak met een sub-dag-duur: op een DAG-kalender telt `scheduleDuration` (2 dagen), op een
-  // UUR-kalender `durationMinutes` (240 min = een halve dag van 8u).
+  // Een expliciete urentaak blijft 240 minuten; de verouderde scheduleDuration-afleiding bepaalt
+  // haar identiteit niet meer en wordt door de kalenderwissel niet als invoer hergebruikt.
   const halve = addTask('Halve dag werk', 2, 240);
   const gewoon = addTask('Gewone taak', 3);
 
@@ -306,14 +302,18 @@ test('dag→uur op de projectkalender ⇒ duurgevolgen per taak in de respons', 
   assertEq(row.modeChangedFrom, 'day', 'de omschakeling wordt als zodanig gemeld');
   assertEq(row.mode, 'hour', 'de kalender is nu uur-modus');
   assertEq(row.hoursPerDayEffective, 8, 'de afgeleide netto uren per dag');
-  assertEq(row.durationChangedTaskCount, 1, 'precies één taak verandert van effectieve duur');
-  assertEq(row.durationEffects, [{ taskId: halve, name: 'Halve dag werk', beforeDays: 2, afterDays: 0.5 }],
-    'de taak met durationMinutes gaat van 2 werkdagen naar een halve');
-  assert(!row.durationEffects.some((e: any) => e.taskId === gewoon), 'een taak zonder durationMinutes verandert niet');
+  assertEq(row.taskDurationsPreserved, true, 'de respons bevestigt dat native taakduren behouden zijn');
+  assertEq(row.durationEffects, undefined, 'oude kalenderafhankelijke duurconversies zijn verwijderd');
 
   const w = (data.warnings as string[]).join(' | ');
-  assert(/EFFECTIEVE DUUR GEWIJZIGD/.test(w), `de waarschuwing noemt de duurwijziging: ${w}`);
-  assert(/durationMinutes/.test(w), `de waarschuwing legt de uur/dag-regel uit: ${w}`);
+  assert(/native hoeveelheid.*blijven behouden/.test(w), `de waarschuwing bevestigt duurbehoud: ${w}`);
+  assert(!/EFFECTIEVE DUUR GEWIJZIGD/.test(w), `de waarschuwing claimt geen duurconversie: ${w}`);
+  const hourTask = S().tasks.find((t) => t.id === halve)!;
+  assertEq(hourTask.time.durationUnit, 'hours', 'urentaak blijft uren');
+  assertEq(hourTask.time.durationMinutes, 240, 'urentaak blijft exact 240 minuten');
+  const dayTask = S().tasks.find((t) => t.id === gewoon)!;
+  assertEq(dayTask.time.durationUnit, 'days', 'dagtaak blijft dagen');
+  assertEq(dayTask.time.scheduleDuration, 3, 'dagtaak blijft exact drie dagen');
   // Taken zónder eigen calendarId hangen aan de projectkalender — dat is precies waarom dit telt.
   assertEq(S().tasks.find((t) => t.id === halve)!.calendarId, undefined, 'de taak had geen eigen kalender');
   assertEq(calById(projId)!.workDays, [1, 2, 3, 4, 5], 'workDays is uit de banden afgeleid');
@@ -321,9 +321,9 @@ test('dag→uur op de projectkalender ⇒ duurgevolgen per taak in de respons', 
 });
 
 // =================================================================================================
-// 5) UUR → DAG — `workTime: null`, met dezelfde melding de andere kant op
+// 5) UUR → DAG — `workTime: null`, zonder dagfallback of stille conversie
 // =================================================================================================
-test('uur→dag (`workTime: null`) ⇒ echt dag-modus + gemelde duurgevolgen', async () => {
+test('uur→dag met bestaande urentaak ⇒ transactie blokkeert zonder dagfallback', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
@@ -331,15 +331,13 @@ test('uur→dag (`workTime: null`) ⇒ echt dag-modus + gemelde duurgevolgen', a
   const halve = addTask('Halve dag werk', 2, 240);
 
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workTime: null }] });
-  const row = okData(res).calendars[0];
-  assertEq(row.modeChangedFrom, 'hour', 'de omschakeling uur→dag wordt gemeld');
-  assertEq(row.mode, 'day', 'de kalender is weer dag-modus');
-  assertEq(row.durationEffects, [{ taskId: halve, name: 'Halve dag werk', beforeDays: 0.5, afterDays: 2 }],
-    'de sub-dag-duur telt niet meer mee: terug naar 2 werkdagen');
-  // De SLEUTEL moet weg zijn (niet `undefined` blijven staan): `isHourCalendar` en de IFC-schrijvers
-  // lezen op aanwezigheid.
-  assertEq('workTime' in (calById(projId) as object), false, '`workTime` is echt verwijderd, niet op undefined gezet');
-  assertEq(S().calendar.workTime, undefined, 'de projectkalender-cache is meegegaan');
+  assert(!res.ok, 'banden verwijderen bij een bestaande urentaak hoort te worden geblokkeerd');
+  assert(!res.ok && /concrete werkblokken/.test(res.error), `fout legt de vereiste uit: ${res.ok ? '' : res.error}`);
+  const hourTask = S().tasks.find((t) => t.id === halve)!;
+  assertEq(hourTask.time.durationUnit, 'hours', 'urentaak blijft na blokkering uren');
+  assertEq(hourTask.time.durationMinutes, 240, 'exacte minuten blijven na blokkering behouden');
+  assert('workTime' in (calById(projId) as object), 'rollback behoudt de concrete werkblokken');
+  assertEq(S().calendar.workTime, calById(projId)!.workTime, 'projectkalender-cache blijft consistent');
 });
 
 // =================================================================================================

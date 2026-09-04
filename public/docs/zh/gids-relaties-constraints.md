@@ -97,3 +97,4 @@ MSO 和 MFO 还可以通过**强制（钉住逻辑）**复选框设为**硬性**
 - 实际查看期限冲突：[Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc)。
 - 结构尚未搭建好？请先阅读 [Plannen & WBS](docs://gids-plannen-wbs)。
 - 关于影响任务工期的日历和工作时间：请参阅指南 [Kalenders & uren-planning](docs://gids-kalenders-uren)。
+- 所有错过的截止日期和违反的限制集中在一处，并可跳转到任务：[警告面板](docs://ref-waarschuwingen)。

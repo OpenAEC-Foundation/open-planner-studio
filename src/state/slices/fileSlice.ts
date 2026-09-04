@@ -6,20 +6,35 @@ import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRe
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSlice, NotifyInput, NotificationDetailLine } from './types';
+import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport, type DocumentPayload } from '../documentContract';
+import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
-import { beginUndoable, finishMutation } from '../transaction';
 import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
+import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import {
+  invalidateUndoneHistoryForScopes,
+  removeSessionHistoryForDocumentFromState,
+  type HistoryScopeKey, type SessionHistoryEvent,
+} from '../sessionHistory';
+
+function invalidateDocumentRedo(
+  state: { historyEvents: SessionHistoryEvent[] },
+  documentId: string,
+): void {
+  const scope: HistoryScopeKey = `document:${documentId}`;
+  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
+}
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -131,7 +146,7 @@ export interface ApplyLoadedProjectOpts {
   /** Web-opslaan-doel voor het geladen document. undefined = laat de huidige handle ongemoeid
    *  (loadState-semantiek); null = geen handle (voorbeeld/fallback-web); een handle = FSA-openen. */
   fileHandle?: FileSystemFileHandle | null;
-  /** Direct doorrekenen (runCPM) na de load. Open-paden: true; loadState: false. */
+  /** Direct doorrekenen op de geïsoleerde laadpayload, vóór publicatie. */
   recompute?: boolean;
   /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
   fit?: boolean;
@@ -143,6 +158,8 @@ export interface ApplyLoadedProjectOpts {
    *  (Crash-herstel loopt NIET door applyLoadedProject maar via `restoreDocuments`, dat de opgeslagen —
    *  dus gekoppelde — staat exact herstelt en de grens-1-check apart draait, Taak 11.) */
   linkedOpen?: boolean;
+  /** Optionele view-start die samen met de nieuwe brondata wordt gepubliceerd (IFC-tab). */
+  viewStartDate?: string;
 }
 
 /** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids. */
@@ -196,7 +213,7 @@ export interface FileSlice {
   applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => AppliedOpenedImport;
 }
 
-export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
+export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   // Voeg een geopend/opgeslagen bestand toe aan de recents (elke herbruikbare ref).
   const pushRecent = async (ref: FileRef | null, name: string) => {
     if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents (spec §6)
@@ -255,7 +272,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
     return unchanged;
   };
 
-  const saveActiveDocument = async (expectedDocumentId?: string): Promise<boolean> => {
+  const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
     const state = get();
     const documentId = state.activeDocumentId;
     if (expectedDocumentId && expectedDocumentId !== documentId) return false;
@@ -288,56 +305,74 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
       return false;
     }
-  };
+  });
 
   return {
     applyLoadedProject: (parsed, opts) => {
+      const current = get();
+      const filePath = opts.filePath !== undefined ? opts.filePath : current.filePath;
+      const payload = payloadFromImport(parsed, filePath);
+      payload.view = opts.viewStartDate === undefined
+        ? { ...current.view }
+        : { ...current.view, viewStartDate: opts.viewStartDate };
+      payload.collapsedTaskIds = current.ui.collapsedTaskIds;
+      payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : current.fileHandle;
+      if (!opts.linkedOpen) {
+        payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
+        payload.resources = payload.resources.map((resource) => {
+          const { libraryOrigin: _discarded, ...rest } = resource;
+          return rest;
+        });
+        payload.calendars = payload.calendars.map((calendar) => {
+          const { libraryOrigin: _discarded, ...rest } = calendar;
+          return rest;
+        });
+        payload.calendar = payload.calendars.find(calendar =>
+          calendar.id === payload.project.calendarId) ?? payload.calendar;
+      }
+      const recorded = opts.recompute
+        ? captureRecordedDates(payload.tasks, parsed.recordedFields)
+        : null;
+      const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
+      if (recorded && recorded.total > 0) {
+        const shifted = countShiftedTasks(prepared.tasks, recorded.times);
+        if (shifted > 0) prepared.recordedDates = { ...recorded, shifted };
+      }
+      const activation = materializeLibraryBoundary({
+        payload: prepared,
+        companies: current.companies,
+        pools: current.pools,
+        mode: opts.linkedOpen ? 'open-boundary' : 'silent-switch',
+      });
       set((s) => {
-        // string = nieuw pad, null = naamloos, undefined = laat filePath ongemoeid (loadState-semantiek).
-        const filePath = opts.filePath !== undefined ? opts.filePath : s.filePath;
-        // Reset-pad (audit P10): bouw een verse payload uit het geparste project (selectie/cpm/undo/
-        // scheduleStale starten vers, isDirty=false) en hydrateer die via het documentcontract —
-        // dezelfde `DOCUMENT_FIELDS`-lijst als switchDocument/undo, dus geen stille lek. hydratePayload
-        // doet ook de §4.3-promote + §9.1-sync van de projectkalender (was hier voorheen apart).
-        // Structuur (activity-codes/custom-fields) rijdt in payloadFromImport mee — altijd overnemen
-        // (fix F6: de open-paden lieten dit historisch weg → stil dataverlies bij openen + opslaan).
-        const payload = payloadFromImport(parsed, filePath);
-        // Load-semantiek: het HUIDIGE document behoudt zijn view/inklap (in-place vervangen van de
-        // projectdata raakt zoom/groepering/inklap niet — historisch gedrag van applyLoadedProject).
-        payload.view = s.view;
-        payload.collapsedTaskIds = s.ui.collapsedTaskIds;
-        // Web-opslaan-doel: undefined = ongemoeid laten (loadState-semantiek), anders expliciet zetten.
-        payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : s.fileHandle;
-        hydratePayload(s, payload);
-        // Spec §5 (review-punt 3): een volledig-vervangende load zonder open-pad-semantiek levert een
-        // LOS document — geen stille koppeling, geen stille herkenning. Strip bedrijfsbinding + stempels.
-        if (!opts.linkedOpen) {
-          s.project = { ...s.project, companyId: undefined, companyName: undefined };
-          s.resources = s.resources.map((r) => { const { libraryOrigin: _d, ...rest } = r; return rest; });
-          s.calendars = s.calendars.map((c) => { const { libraryOrigin: _d, ...rest } = c; return rest; });
-          s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+        removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
+        if (activation.invalidateRedoScope) {
+          invalidateDocumentRedo(s, s.activeDocumentId);
         }
-        // Uur-data-melding (§6.8): bevat het bestand urenplanning terwijl de hoofdschakelaar uit
-        // staat, toon de niet-blokkerende melding — nooit stil wegronden (de engine rekent sowieso).
+        hydratePayload(s, activation.payload);
+        s.viewRows = [...activation.viewRows];
+        s.resourceLoadResult = activation.resourceLoadResult;
+        s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+        s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
         if (opts.hourDataNotice) {
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
-      // "Datums zoals opgeslagen" (issue #63): leg VÓÓR de solve vast wat het bestand zei. `set()`
-      // hierboven is synchroon en er zit niets tussenin, dus `get().tasks` hier is nog exact wat
-      // `hydratePayload` er net neerzette. Dat moet vóór de recompute hieronder: `payloadFromImport`
-      // geeft `parsed.tasks` per referentie door, dus `s.tasks`/`get().tasks` en `parsed.tasks` zijn
-      // dezelfde objecten — `runCPM` muteert ze in-place, dus na de solve zijn de gelezen waarden ook
-      // in `parsed` alweer overschreven.
-      const recorded = opts.recompute ? captureRecordedDates(get().tasks, parsed.recordedFields) : null;
-      // Na een IFC-load meteen doorrekenen (CLAUDE.md "after an IFC load"), consistent met de
-      // IFCPanel-plakroute — anders blijven statusbalk/histogram leeg tot de gebruiker F5 drukt (A5).
-      if (opts.recompute) get().runCPM();
-      // …en pas dán vergelijken. Nul verschil ⇒ niets in de state; de strook blijft dan onzichtbaar,
-      // precies zoals bedoeld.
-      if (recorded && recorded.total > 0) {
-        const shifted = countShiftedTasks(get().tasks, recorded.times);
-        if (shifted > 0) set((s) => { s.recordedDates = { ...recorded, shifted }; });
+      if (opts.recompute) {
+        const cpm = activation.payload.cpmResult;
+        if (cpm?.error) {
+          get().notify({
+            severity: 'error',
+            messageKey: 'notifications.scheduleFailed',
+            detail: cpm.error,
+            dedupeKey: 'cpm-error',
+          });
+        }
+        emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+          hasError: !!cpm?.error,
+          error: cpm?.error ?? null,
+          criticalTasks: activation.payload.tasks.filter(task => task.time.isCritical).length,
+        });
       }
       if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
       // Relaties die de solver ECHT niet kon meerekenen (eigenaarsbesluit 2026-08-15): een
@@ -346,10 +381,8 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       // gekoppeld aan zijn eigen (voor)ouder-samenvatting), een lege/kapotte tak, of de
       // MAX_EXPANDED_RELATIONS-klem — stuk voor stuk gevallen waarin de relatie écht geen effect
       // heeft. Rechtstreeks `expandSummaryRelations` aanroepen i.p.v. op `cpmResult.
-      // droppedSequenceIds` leunen: die is alleen gevuld ná `runCPM`, en `loadState` (extensie-
-      // imports, devBridge) draait die BEWUST NIET (`opts.recompute: false`, zie `loadState` in
-      // `projectSlice.ts`) — de pure expansiefunctie geeft hier hetzelfde antwoord, ongeacht of er
-      // straks nog wordt doorgerekend, en zonder de timing-afhankelijkheid van `cpmResult`. Bewust
+      // droppedSequenceIds` leunen: de pure expansiefunctie geeft hier hetzelfde antwoord zonder
+      // timing-afhankelijkheid van `cpmResult`. Bewust
       // NIET gefilterd uit het document — dat zou logica uit het bronbestand vernietigen bij open +
       // opslaan — maar wel één keer gemeld, want anders merkt niemand die een P6/MSP-plan importeert
       // dat er logica stilvalt.
@@ -400,10 +433,9 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         // heeft die state bewust niet-pristine gemaakt.
         if (!isActivePristine(get())) get().newDocument();
         openedDocumentIds.push(get().activeDocumentId);
+        // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
+        // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
         get().applyLoadedProject(result, opts);
-        // De open-grens hoort bij ieder document, niet alleen bij het document dat uiteindelijk
-        // actief blijft. Zo blijft koppeling-/librarygedrag gelijk aan herhaald enkelvoudig openen.
-        get().runOpenBoundary();
       }
 
       // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
@@ -460,7 +492,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
     saveFile: async () => { await saveActiveDocument(); },
     saveFileForDocument: (documentId) => saveActiveDocument(documentId),
 
-    saveFileAs: async () => {
+    saveFileAs: async () => runProjectFileWrite(async () => {
       const state = get();
       const documentId = state.activeDocumentId;
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
@@ -486,7 +518,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         console.error('Save As failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
       }
-    },
+    }),
 
     exportAs: async (format: ExportFormat): Promise<ExportResult> => {
       // K7 (docs/onderhoudbaarheid): alle vier exporters schrijven de CPM-uitvoer
@@ -524,7 +556,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         case 'csv':
           content = writeCSV(
             state.project, state.calendar, state.tasks,
-            state.sequences, state.resources, state.assignments,
+            state.sequences, state.resources, state.assignments, state.customTaskTypes,
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
@@ -536,7 +568,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
             // Baselines meegeven (fase 2.6, §9.1): de actieve baseline gaat naar MSPDI-slot 0.
             // Zonder deze twee argumenten viel de writer terug op zijn defaults ([] / null) en
             // ging de baseline stil verloren bij export, terwijl de reader hem wél inleest.
-            state.baselines, state.activeBaselineId,
+            state.baselines, state.activeBaselineId, state.customTaskTypes,
           );
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -544,7 +576,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         case 'p6':
           content = writeP6XML(
             state.project, state.calendar, state.tasks,
-            state.sequences, state.resources, state.assignments, state.calendars,
+            state.sequences, state.resources, state.assignments, state.calendars, state.customTaskTypes,
           );
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -625,14 +657,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
     },
 
     refreshExternalAnchorsFrom: async (filePath: string, labels) => {
+      const targetDocumentId = get().activeDocumentId;
       const src = await get().parseExternalSource(filePath, labels);
       if (!src) return null;
+      if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
       const source: ExternalSourceDoc = {
         projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
       };
       const result = refreshExternalAnchors(get().tasks, source);
       if (result.changed) {
+        let applied = false;
         set((s) => {
+          if (s.activeDocumentId !== targetDocumentId) return;
           // Wél een snapshot (issue #63, review taak 6). Dit was de énige
           // `finishMutation({ stale: true })` zónder `beginUndoable` — een bewuste asymmetrie
           // ("externe-anker-verversing is niet undoable") die niet houdbaar is zodra de modus
@@ -642,22 +678,41 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
           // undo van een OUDERE bewerking zou `datesAsRecorded: true` terugzetten terwijl de
           // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
           // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
-          beginUndoable(s);
+          runtime.beginUndoable(s);
           s.tasks = result.tasks;
-          finishMutation(s, { stale: true });
+          runtime.finishMutation(s, { stale: true });
+          applied = true;
         });
-        get().recomputeViewRows();
-        get().runCPM();
+        if (applied) {
+          get().recomputeViewRows();
+          get().runCPM();
+        }
       }
       return { refreshed: result.refreshed, missing: result.missing };
     },
 
     refreshAllExternalAnchors: async (labels) => {
+      const targetDocumentId = get().activeDocumentId;
       // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
-      const paths = new Set<string>();
+      const paths = new Map<string, string>();
+      // FIX 8c (eindreview, onderzoek): `normalizeExternalSourcePath` geeft null voor zowel "geen
+      // pad" als "een pad dat niet lexicaal absoluut is" (relatief). Het tweede geval is BEREIKBAAR:
+      // `OPS_ExternalLink` schrijft `task.externalLinks` ongefilterd als één JSON-blob weg
+      // (ifcPsets.ts) en leest 'm bij het laden ook ongevalideerd terug — een van elders aangeleverd
+      // of met de hand bewerkt IFC-bestand kan dus een relatief `sourceRef.filePath` bevatten. Zo'n
+      // pad kan de app nooit betrouwbaar herlezen (er is geen vaste "relatief-ten-opzichte-van"-map),
+      // dus het blijft terecht overgeslagen als bron — maar voorheen verdween die link daardoor
+      // volledig onzichtbaar uit de hele bewerking (niet in `refreshed`, niet in `missing`). Hij telt
+      // nu mee in `missing`, zodat de bestaande toast ("N ververst, M ontbrekend") de gebruiker
+      // tenminste laat weten dat er iets niet kon, in plaats van stilzwijgend niets te doen.
+      let unusablePathCount = 0;
       for (const task of get().tasks) {
         for (const link of task.externalLinks ?? []) {
-          if (link.sourceRef.filePath) paths.add(link.sourceRef.filePath);
+          const originalPath = link.sourceRef.filePath;
+          if (!originalPath) continue;
+          const normalizedPath = normalizeExternalSourcePath(originalPath);
+          if (normalizedPath === null) { unusablePathCount++; continue; }
+          if (!paths.has(normalizedPath)) paths.set(normalizedPath, originalPath);
         }
       }
 
@@ -673,7 +728,7 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
-      for (const p of paths) {
+      for (const p of paths.values()) {
         const src = await get().parseExternalSource(p, labels);
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee (ongewijzigd gedrag)
         sourceDocs.push({
@@ -681,12 +736,41 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
         });
       }
 
+      if (get().activeDocumentId !== targetDocumentId) {
+        return { refreshed: 0, missing: 0, sources: sourceDocs.length };
+      }
+
+      // Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende
+      // bronpaden met zo'n gedeelde id in dezelfde bulkactie, dan is project-id alleen niet langer
+      // onderscheidend: de eerste bron zou anders beide links verversen en de tweede beide opnieuw.
+      // Alleen in die aantoonbaar ambigue groep eisen we daarom het genormaliseerde bronpad. Een
+      // gewone enkelbronverversing blijft project-id-primair, zodat een verplaatst bestand werkt.
+      const pathsByProjectId = new Map<string, Set<string>>();
+      for (const source of sourceDocs) {
+        const projectId = source.projectId.trim();
+        const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
+        if (!projectId || sourcePath === null) continue;
+        const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
+        sourcePaths.add(sourcePath);
+        pathsByProjectId.set(projectId, sourcePaths);
+      }
+      const ambiguousProjectIds = new Set(
+        [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
+      );
+
       let tasks = get().tasks;
       let refreshed = 0;
-      let missing = 0;
+      // Begint bij `unusablePathCount` (zie hierboven) — een link met een pad dat nooit een bron kon
+      // worden telt hier mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar
+      // de betreffende taak niet meer bevatte.
+      let missing = unusablePathCount;
       let anyChanged = false;
       for (const source of sourceDocs) {
-        const result = refreshExternalAnchors(tasks, source);
+        const result = refreshExternalAnchors(
+          tasks,
+          source,
+          ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+        );
         tasks = result.tasks; // ketenen: elke bron ververst zijn eigen links op het vorige resultaat
         refreshed += result.refreshed;
         missing += result.missing;
@@ -694,13 +778,18 @@ export const createFileSlice: AppSlice<FileSlice> = (set, get) => {
       }
 
       if (anyChanged) {
+        let applied = false;
         set((s) => {
-          beginUndoable(s);
+          if (s.activeDocumentId !== targetDocumentId) return;
+          runtime.beginUndoable(s);
           s.tasks = tasks;
-          finishMutation(s, { stale: true });
+          runtime.finishMutation(s, { stale: true });
+          applied = true;
         });
-        get().recomputeViewRows();
-        get().runCPM();
+        if (applied) {
+          get().recomputeViewRows();
+          get().runCPM();
+        }
       }
       return { refreshed, missing, sources: sourceDocs.length };
     },

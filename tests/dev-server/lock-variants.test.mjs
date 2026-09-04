@@ -4,7 +4,12 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { withAllocLock, acquireGuardLock, allocLockPath } from '../../scripts/dev-lock.mjs';
+import {
+  withAllocLock,
+  acquireNamedGuardLock,
+  acquireGuardLock,
+  allocLockPath,
+} from '../../scripts/dev-lock.mjs';
 import { worktreeRoot } from '../../scripts/dev-port.mjs';
 
 function gitRepo() {
@@ -46,4 +51,28 @@ test('acquireGuardLock weigert direct als het slot al door een levende pid gehou
     if (prev !== undefined) process.env.OPS_DEV_GUARDED = prev;
     rmSync(root, { recursive: true, force: true });
   }
+});
+test('dev- en browserguard bestaan naast elkaar; dezelfde lane blokkeert dubbelstart', () => {
+  const prev = process.env.OPS_DEV_GUARDED;
+  delete process.env.OPS_DEV_GUARDED;
+  const root = gitRepo();
+  try {
+    const releaseDev = acquireNamedGuardLock(root, 3042, 'dev');
+    const releaseBrowser = acquireNamedGuardLock(root, 3142, 'browser');
+    assert.throws(
+      () => acquireNamedGuardLock(root, 3143, 'browser'),
+      /browser.*draait al|draait al.*browser/,
+    );
+    releaseBrowser();
+    releaseDev();
+  } finally {
+    if (prev !== undefined) process.env.OPS_DEV_GUARDED = prev;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+test('guardlane weigert identifiers die niet veilig in een tijdelijk pad passen', () => {
+  assert.throws(
+    () => acquireNamedGuardLock('/some/root', 3142, '../browser'),
+    /lane|identifier/i,
+  );
 });

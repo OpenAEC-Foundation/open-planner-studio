@@ -15,7 +15,7 @@ The **Resource calendar** window edits the own calendar of a single resource —
 
 ## Fields
 
-See the [calendar dialog](docs://ref-kalenderdialoog) for the full field reference: **Name**, **Work days** (with the Mon–Fri and Continuous (24/7) presets), **Start (hour)** / **End (hour)** / **Hours per day**, the **Working times** section (with hour planning on), **Generate holidays…** and the **Holidays** list.
+See the [calendar dialog](docs://ref-kalenderdialoog) for the full field reference: **Name**, **Work days** (with the Mon–Fri and Continuous (24/7) presets), **Start** / **End** in 24-hour HH:MM, read-only **Net hours per day**, **Break starts** / **Break duration**, the **Working times** section (with hour planning on), **Generate holidays…** and the **Holidays** list.
 
 ## Further reading
 

@@ -2,15 +2,16 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { cpmResultFromRecorded, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
   levelResources as computeLeveling,
   type LevelingOptions,
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
-import { beginUndoable, finishMutation } from '../transaction';
+import { markScheduleStale } from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSlice } from './types';
+import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
+import type { AppSliceFactory } from './types';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface ScheduleSlice {
@@ -54,7 +55,7 @@ export interface ScheduleSlice {
   clearLeveling: () => void;
 }
 
-export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
+export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => (set, get) => ({
   cpmResult: null,
   resourceLoadResult: null,
   scheduleStale: false,
@@ -69,12 +70,16 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     // één `assignResource` op aan Immer-proxywerk waar nul mutaties tegenover stonden. `get()` levert
     // dezelfde (bevroren, dus veilig te lezen) staat plain.
     const s = get();
-    const result = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+    const result = computeReliableResourceLoad(
+      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+    );
     set((st) => { st.resourceLoadResult = result; });
   },
 
   runCPM: () => {
     set((s) => {
+      const refreshPreviousEventAfter = s.scheduleStale && !s.datesAsRecorded;
+      let openedHistory = false;
       // "Datums zoals opgeslagen" (issue #63): dit is de ENIGE situatie waarin `runCPM` een undo-
       // snapshot pusht. Buiten de modus blijft het gedrag byte-identiek en blijft de invariant
       // intact waar `staleGuard.ts` (ensureFreshSchedule) en `batchTool.ts` (recomputeMidBatch) op
@@ -97,7 +102,8 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       // in hun eigen producer, via `finishMutation({ stale: true })`. Zo blijft het bij één
       // undo-stap in plaats van twee, met een tussentoestand die de gebruiker nooit gezien heeft.
       if (s.datesAsRecorded) {
-        beginUndoable(s);
+        runtime.beginUndoable(s);
+        openedHistory = true;
         s.datesAsRecorded = false;
         s.recordedDates = null;
       }
@@ -126,6 +132,12 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       if (result.error) {
         s.cpmResult = result;
         s.resourceLoadResult = null;
+        if (openedHistory) runtime.finishUndoable(s);
+        else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
+        // Een mislukte berekening laat de invoer niet actueel worden. Dit is ook belangrijk voor
+        // automatisch berekenen: de statusbalk mag de waarschuwing alleen tijdelijk onderdrukken
+        // terwijl een geplande solve nog kans heeft om te slagen.
+        markScheduleStale(s);
         return;
       }
 
@@ -133,9 +145,11 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
 
       // Belasting/overallocatie herberekenen ná de CPM-pass + samenvattingstaak-rollup hierboven
       // (de resource-belasting mapt op de zojuist bijgewerkte earlyStart/earlyFinish).
-      s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.resourceLoadResult = computeReliableResourceLoad(
+        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
+      if (openedHistory) runtime.finishUndoable(s);
+      else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
     });
 
     // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen (§4.3).
@@ -168,7 +182,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     set((s) => {
       const info = s.recordedDates;
       if (!info || s.datesAsRecorded) return; // no-op ⇒ géén snapshot (transaction.ts-patroon)
-      beginUndoable(s);
+      runtime.beginUndoable(s);
 
       for (const task of s.tasks) {
         const rec = info.times[task.id];
@@ -189,13 +203,14 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
       }
 
       s.cpmResult = cpmResultFromRecorded(info.times, s.tasks, s.calendar);
-      s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.resourceLoadResult = computeReliableResourceLoad(
+        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
       s.datesAsRecorded = true;
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
-      // BEWUST GEEN finishMutation: er is niets gewijzigd t.o.v. het bestand.
+      // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
+      runtime.finishUndoable(s);
     });
     get().recomputeViewRows();
   },
@@ -224,7 +239,7 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
     if (!cpm || cpm.error) {
       // Geen (geldige) CPM-run: niets te nivelleren — lege, veilige uitkomst.
       const end = cpm?.projectEnd ?? '';
-      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end };
+      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
     const leafTasks = s.tasks.filter(isLeafTask);
@@ -251,33 +266,68 @@ export const createScheduleSlice: AppSlice<ScheduleSlice> = (set, get) => ({
   },
 
   applyLeveling: (result) => {
+    // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): telt HOEVEEL taken hier hun sub-dag-
+    // precisie verliezen, voor de eenmalige-per-document melding hieronder (buiten de producer,
+    // zie `notifyTimephasedLoss`-precedent — `notify` roept zelf `set` aan, dus niet genest).
+    let roundedCount = 0;
     set((s) => {
-      beginUndoable(s);
+      runtime.beginUndoable(s);
       // Idempotent: eerst álle levelingDelays wissen, dan de nieuwe zetten — zo levert een
       // her-nivellering (of een leveling na een eerdere) exact het resultaat van `result`,
       // niet een optelsom.
       for (const task of s.tasks) {
         const d = result.delays[task.id];
         task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
+        // M10: `CPMSolver.shiftByLevelingDelay` leest `levelingDelayMinutes` VÓÓR `levelingDelay`.
+        // Een achtergebleven sub-dag-waarde (uit een `.mpp`-import) zou de zojuist berekende delay
+        // stil overrulen — nivelleren zou dan zichtbaar niets doen. De nivelleerder rekent in hele
+        // werkdagen, dus de sub-dag-precisie van de VORIGE nivellering vervalt hier bewust — dat is
+        // zichtbaar gebruikersverlies (eigenaarsbesluit 2026-08-31), geteld voor de melding hieronder.
+        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
+          roundedCount++;
+        }
+        task.levelingDelayMinutes = undefined;
+        task.levelingDelayElapsed = undefined;
       }
       // Wél de stale-vlag (issue #63): dit is een datum-rakende mutatie, en `stale` is het signaal
       // waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat — in dezelfde producer
       // die de snapshot hierboven al nam, dus in één undo-stap i.p.v. twee (zie moveProject).
       // De aansluitende runCPM zet `scheduleStale` meteen weer op false.
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     });
+    if (roundedCount > 0) {
+      notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
+    }
     get().runCPM();
   },
 
   clearLeveling: () => {
     let changed = false;
+    let roundedCount = 0;
     set((s) => {
-      if (!s.tasks.some((t) => t.levelingDelay !== undefined)) return; // niets te wissen, geen snapshot
-      beginUndoable(s);
-      for (const task of s.tasks) task.levelingDelay = undefined;
-      finishMutation(s, { stale: true }); // zie applyLeveling; de aansluitende runCPM wist de vlag.
+      // M10: het no-op-guard breidt uit naar `levelingDelayMinutes` — anders zou een taak die
+      // UITSLUITEND sub-dag-precisie draagt (geen `levelingDelay`) hier stil overgeslagen worden.
+      // Fixronde B1c-plan-2-etappe-2 (bevinding 6): `levelingDelayElapsed` ontbrak hier terwijl de
+      // teller vlak eronder 'm wél meetelt — een taak met UITSLUITEND `levelingDelayElapsed` werd zo
+      // stil overgeslagen (geen snapshot, geen melding), ook al zou de lus 'm wél gewist hebben.
+      if (!s.tasks.some((t) =>
+        t.levelingDelay !== undefined || t.levelingDelayMinutes !== undefined
+        || t.levelingDelayElapsed !== undefined)) return; // niets te wissen, geen snapshot
+      runtime.beginUndoable(s);
+      for (const task of s.tasks) {
+        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
+          roundedCount++;
+        }
+        task.levelingDelay = undefined;
+        task.levelingDelayMinutes = undefined;
+        task.levelingDelayElapsed = undefined;
+      }
+      runtime.finishMutation(s, { stale: true }); // zie applyLeveling; de aansluitende runCPM wist de vlag.
       changed = true;
     });
+    if (roundedCount > 0) {
+      notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
+    }
     if (changed) get().runCPM();
   },
 });

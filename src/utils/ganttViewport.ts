@@ -1,13 +1,13 @@
 // Kleine registratie van het zichtbare Gantt-tijdvenster (fase 2.7, §3.3) + de gedeelde
 // fit-to-project-berekening.
-// GanttCanvas registreert bij elke render de breedte van het primaire chart-gedeelte
-// (containerbreedte − takentabel), zodat store-acties zoals `setTimeScale` de
+// GanttCanvas registreert bij elke render de werkelijk gemeten breedte van het primaire
+// tijdlijnpaneel, zodat store-acties zoals `setTimeScale` de
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
 import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
-import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 /**
  * Zoomstap van de IN-/UITZOOM-knoppen en -sneltoetsen (K-item 34). Additief, niet
@@ -30,6 +30,86 @@ export const DEFAULT_ZOOM = 30;
  *  scrollX=0 is (effectiveViewStart − ORIGIN_PADDING_DAYS). Gedeeld door GanttCanvas (render),
  *  useZoomShortcuts (Ctrl+0-fit) en de open-fit (fileSlice.requestFitToProject → GanttCanvas). */
 export const ORIGIN_PADDING_DAYS = 14;
+
+export interface TimelineZoomResult {
+  zoom: number;
+  scrollX: number;
+}
+
+/**
+ * Cursor-geankerde zoom binnen één timelinepaneel. `anchorX` is altijd lokaal aan dat paneel:
+ * x=0 is de linker tijdlijnrand en er wordt dus geen externe DOM-kolom meer afgetrokken.
+ */
+export function computeTimelineZoom(
+  currentZoom: number,
+  requestedZoom: number,
+  scrollX: number,
+  anchorX: number,
+  maxZoom: number,
+): TimelineZoomResult {
+  const zoom = Math.max(0.5, Math.min(maxZoom, requestedZoom));
+  if (zoom === currentZoom) return { zoom, scrollX };
+  const daysUnderCursor = (anchorX + scrollX) / currentZoom;
+  return {
+    zoom,
+    scrollX: Math.max(0, daysUnderCursor * zoom - anchorX),
+  };
+}
+
+export interface SplitPaneWidths {
+  primary: number;
+  secondary: number;
+}
+
+/** Verdeel uitsluitend de ruimte naast de splitter over de twee timelinepanelen. */
+export function computeSplitPaneWidths(
+  totalWidth: number,
+  ratio: number,
+  splitterWidth: number,
+): SplitPaneWidths {
+  const available = Math.max(0, totalWidth - Math.max(0, splitterWidth));
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+  const primary = available * clampedRatio;
+  return { primary, secondary: available - primary };
+}
+
+/**
+ * Dezelfde verdeling als {@link computeSplitPaneWidths}, uitgedrukt als breed ondersteunde CSS.
+ * `calc(20% - 1px)` is gelijk aan `(100% - 5px) × 0,2`, zonder te leunen op CSS Level 4-
+ * vermenigvuldiging die nog niet in iedere ingebouwde webview beschikbaar is.
+ */
+export function splitPanePrimaryWidthCss(ratio: number, splitterWidth: number): string {
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+  const clampedSplitter = Math.max(0, splitterWidth);
+  return `calc(${clampedRatio * 100}% - ${clampedSplitter * clampedRatio}px)`;
+}
+
+export interface AnchoredZoomInput {
+  currentZoom: number;
+  currentScrollX: number;
+  requestedZoom: number;
+  /** Cursorpositie in pixels, gemeten in het coördinatenstelsel van de aanroeper. */
+  anchorX: number;
+  /** X-oorsprong van de tijdlijn binnen datzelfde coördinatenstelsel. */
+  chartOriginX: number;
+  maxZoom: number;
+}
+
+/**
+ * Eén zoomankerformule voor beide Gantt-panes. De datum die vóór de zoom onder de cursor lag blijft
+ * daar na de zoom liggen; `null` betekent dat klemmen geen wijziging oplevert.
+ */
+export function computeAnchoredZoom(input: AnchoredZoomInput): { zoom: number; scrollX: number } | null {
+  const chartAnchorX = input.anchorX - input.chartOriginX;
+  const result = computeTimelineZoom(
+    input.currentZoom,
+    input.requestedZoom,
+    input.currentScrollX,
+    chartAnchorX,
+    input.maxZoom,
+  );
+  return result.zoom === input.currentZoom ? null : result;
+}
 
 /**
  * Effectieve tijdas-oorsprong (de datum die op scrollX = 0 valt) — DE ene bron voor die formule.
@@ -68,7 +148,11 @@ export const ORIGIN_PADDING_DAYS = 14;
  *    er ooit een render-memo overheen is gegaan. Of een importer werkelijk zo'n datum kan
  *    opleveren is niet vastgesteld — maar een guard van één regel is goedkoper dan dat uitzoeken.
  */
-export function computeEffectiveViewStart(tasks: Task[], viewStartDate: string): string {
+export function computeEffectiveViewStart(
+  tasks: Task[],
+  viewStartDate: string,
+  navigationStartDates: string[] = [],
+): string {
   let earliest = parseDate(viewStartDate);
   for (const task of tasks) {
     const start = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
@@ -76,6 +160,14 @@ export function computeEffectiveViewStart(tasks: Task[], viewStartDate: string):
       const d = parseDate(start);
       if (d.getTime() < earliest.getTime()) earliest = d;
     }
+  }
+  // Een lege Gantt is niet automatisch een tijdloze Gantt: een kalender kan al concrete
+  // uitzonderingen bevatten voordat de eerste taak bestaat. Neem het begin van zulke periodes mee
+  // als mogelijke oorsprong, zodat een oudere vrije dag niet links van de onbereikbare scrollgrens
+  // blijft liggen. Ongeldige importwaarden slaan we net als ongeldige taakdatums veilig over.
+  for (const date of navigationStartDates) {
+    const parsed = parseDate(date);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getTime() < earliest.getTime()) earliest = parsed;
   }
   // Onparseerbaar (leeg, corrupte import): geef de invoer onveranderd terug in plaats van te
   // gooien. De aanroeper rekent dan met een datum die net zo min klopt als zijn invoer, maar de
@@ -85,7 +177,7 @@ export function computeEffectiveViewStart(tasks: Task[], viewStartDate: string):
 }
 
 /** Resultaat van {@link computeFitToProject}: de zoom + scroll waarmee het HELE project
- *  (vroegste start … laatste finish) edge-to-edge in het chart-gedeelte past. */
+ *  (vroegste start … laatste finish) edge-to-edge in het tijdlijnpaneel past. */
 export interface FitToProject {
   zoom: number;
   viewStartDate: string;
@@ -94,20 +186,22 @@ export interface FitToProject {
 
 /**
  * Bereken de zoom + scroll zodat de volledige projectperiode edge-to-edge in het zichtbare
- * chart-gedeelte past. ÉÉN bron van waarheid, gedeeld door de Ctrl+0-handler (useZoomShortcuts)
+ * tijdlijnpaneel past. ÉÉN bron van waarheid, gedeeld door de Ctrl+0-handler (useZoomShortcuts)
  * en de open-fit (GanttCanvas op het `pendingFit`-signaal) — zodat beide nooit uit elkaar lopen.
  *
- * `usableWidth` = containerbreedte − takentabelbreedte (de store kent die breedte niet; de
- * aanroeper meet ze). Spiegelt de veldvolgorde van `GanttCanvas.effectiveViewStart` /
+ * `timelineWidth` is de daadwerkelijk gemeten paneelbreedte. Spiegelt de veldvolgorde van
+ * `GanttCanvas.effectiveViewStart` /
  * content-width zodat de span exact klopt met wat de renderer tekent. Geeft `null` bij een leeg
  * project of een niet-zinnige breedte (≤ 0) — de aanroeper houdt dan zijn eigen gedrag aan.
  */
 export function computeFitToProject(
   tasks: Task[],
-  usableWidth: number,
+  timelineWidth: number,
   enableQuarterHourZoom: boolean,
+  enableHourPlanning = false,
+  navigationStartDates: string[] = [],
 ): FitToProject | null {
-  if (tasks.length === 0 || usableWidth <= 0) return null;
+  if (tasks.length === 0 || timelineWidth <= 0) return null;
   let minStart: string | null = null;
   let maxFinish: string | null = null;
   for (const task of tasks) {
@@ -125,12 +219,15 @@ export function computeFitToProject(
   }
   if (!minStart || !maxFinish) return null;
   const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
-  const max = enableQuarterHourZoom ? 1000 : 400;
-  const zoom = Math.max(0.5, Math.min(max, usableWidth / span));
-  // De renderer-origin op scrollX=0 is (minStart − ORIGIN_PADDING_DAYS); scroll door
-  // ORIGIN_PADDING_DAYS·zoom zodat minStart op de chart-linkerrand landt en maxFinish exact op
-  // de rechterrand → alles past edge-to-edge.
-  return { zoom, viewStartDate: minStart, scrollX: ORIGIN_PADDING_DAYS * zoom };
+  const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
+  const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
+  // De renderer kan zijn oorsprong verder naar links trekken voor kalenderuitzonderingen. Een fit
+  // die blind met alleen `ORIGIN_PADDING_DAYS` rekent, zet dan wel de juiste zoom maar laat het
+  // project te ver naar rechts staan. Gebruik exact zijn effectieve oorsprong en pan van daaruit
+  // naar de eerste taak; zonder zulke uitzonderingen blijft dit 14 × zoom en dus byte-identiek.
+  const effectiveStart = computeEffectiveViewStart(tasks, minStart, navigationStartDates);
+  const scrollX = Math.max(0, diffCalendarDays(parseDate(effectiveStart), parseDate(minStart)) * zoom);
+  return { zoom, viewStartDate: minStart, scrollX };
 }
 
 /** Kleine marge (in dagen) die vóór de doeldatum zichtbaar blijft, zodat hij niet exact tegen de
@@ -264,12 +361,12 @@ export interface FocusTaskHorizontal {
 export function computeFocusTaskHorizontal(
   durationDays: number,
   midDayOffset: number,
-  usableWidth: number,
+  timelineWidth: number,
 ): FocusTaskHorizontal {
   const duration = Math.max(1, durationDays);
-  const rawZoom = (usableWidth * FOCUS_TASK_WIDTH_FRACTION) / duration;
+  const rawZoom = (timelineWidth * FOCUS_TASK_WIDTH_FRACTION) / duration;
   const zoom = Math.max(FOCUS_TASK_MIN_ZOOM, Math.min(FOCUS_TASK_MAX_ZOOM, rawZoom));
-  const scrollX = Math.max(0, midDayOffset * zoom - usableWidth / 2);
+  const scrollX = Math.max(0, midDayOffset * zoom - timelineWidth / 2);
   return { zoom, scrollX };
 }
 

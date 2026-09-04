@@ -66,6 +66,24 @@ const PRIORITY_LOW = 100;
 const PRIORITY_NORMAL = 500;
 const PRIORITY_HIGH = 900;
 
+// Browserreview, observatie 6: de kolomkop-contextmenu (DataGridHeader.tsx) had zijn EIGEN, losse
+// maatvoering (globals.css .task-grid-header-context-menu) — `font: inherit` op de knoppen, in een
+// createPortal(..., document.body), erft daardoor `html/body`'s `calc(13px * --ui-font-scale)`
+// (issue #25.4) i.p.v. de `text-xs` (0.75rem) van dít menu. Op elke schaal is dat zichtbaar te groot
+// t.o.v. het taakmenu — bij een verhoogde --ui-font-scale precies zo groot als de gebruiker meldde
+// ("wat je bij 150% zou zien"). Eén bron voor beide menu's i.p.v. twee losse maatvoeringen die
+// opnieuw uit elkaar kunnen groeien: exporteer de klassen hier, laat DataGridHeader ze hergebruiken
+// op zijn EIGEN role="menu"/role="menuitem"-opbouw (dat menu is al toegankelijker dan dít — dit
+// exporteert dus alleen het VISUELE token, niet de semantiek).
+export const CONTEXT_MENU_CONTAINER_CLASS =
+  'fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]';
+// Bewust GEEN tekstkleur hierin: de "danger"-variant (zie MenuItem hieronder) zet `text-red-400`
+// i.p.v. `text-text-primary`, en twee kleurklassen van gelijke specificiteit op één element laten
+// de uitkomst afhangen van Tailwinds GEGENEREERDE bronvolgorde, niet van de volgorde in de
+// className-string — elke aanroeper kiest daarom zijn eigen kleur bovenop deze basis.
+export const CONTEXT_MENU_ITEM_CLASS =
+  'w-full text-left px-3 py-1.5 text-xs hover:bg-surface-hover transition-colors flex items-center gap-1.5';
+
 export function ContextMenu({
   x, y, task, barHit, group, traceActive, isTreeMode, calendars, canPaste, onClose,
   onEdit, onAddSubtask, onAddMilestone, onAddRelation, onTracePath, onSaveTemplate,
@@ -118,7 +136,7 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] py-1 min-w-[180px]"
+      className={CONTEXT_MENU_CONTAINER_CLASS}
       style={{ left: pos.left, top: pos.top }}
       onMouseLeave={() => setOpenSub(null)}
     >
@@ -270,8 +288,8 @@ function MenuItem({
 }) {
   return (
     <button
-      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-surface-hover transition-colors flex items-center gap-1.5 ${
-        disabled ? 'opacity-40 cursor-not-allowed' : danger ? 'text-red-400 hover:text-red-300' : 'text-text-primary'
+      className={`${CONTEXT_MENU_ITEM_CLASS} ${
+        disabled ? 'text-text-primary opacity-40 cursor-not-allowed' : danger ? 'text-red-400 hover:text-red-300' : 'text-text-primary'
       }`}
       onClick={disabled ? undefined : onClick}
       onMouseEnter={onEnter}

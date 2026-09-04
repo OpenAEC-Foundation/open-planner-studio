@@ -11,6 +11,7 @@ understanding on their own.
 - What each of the four context menus in the Gantt view contains.
 - How dragging works: moving a bar versus drawing a relation.
 - When a drag on empty canvas pans, and when it box-selects.
+- Moving through visible tasks or histogram resources with the arrow keys.
 - Zooming, document tabs and presentation mode.
 - How to restart the tour.
 
@@ -56,6 +57,17 @@ Click a bar to select just that task. **Ctrl/⌘+click** a bar toggles it into o
 selection instead of replacing it, so you can build up a multi-task selection one bar at a time —
 handy right before clicking the **Link** button with exactly two tasks selected, or before dragging a
 whole selection of tasks to a new position at once in the task table.
+
+First click in the **task list** or on a **Gantt bar**. Then **↑** selects the previous visible task
+and **↓** the next visible task. The selection, properties panel and bar highlight follow straight
+away. Collapsed, filtered-out or differently sorted tasks are not visited: you move through exactly
+the list currently on screen.
+
+Click the **resource picker** on the left of the histogram to make that surface active. There **↑**
+and **↓** follow that same list: **All resources** first, then every project resource. This makes it
+quick to compare resource load without repeatedly clicking a name. At either end, the current
+selection remains in place. Arrow keys with Ctrl, Alt, Shift or ⌘ keep their existing meaning
+elsewhere in the app.
 
 ## Panning versus box-select
 

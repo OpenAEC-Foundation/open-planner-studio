@@ -1,4 +1,7 @@
 import type { Task, ExternalLink } from '@/types/task';
+import { externalSourceSide, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
+
+export { externalSourceSide };
 
 /**
  * Externe (cross-project) dependencies — verversen van het bevroren anker (fase 2.9, §4.5/§5.5).
@@ -32,21 +35,10 @@ export interface RefreshResult {
   changed: boolean;
 }
 
-/**
- * Welke zijde (start/finish) van de BRONTAAK het anker voedt, per richting + relType (§4.5-mapping).
- * De relType-conventie is voorganger→opvolger (eerste teken = voorganger-zijde, tweede = opvolger-zijde).
- * - `direction:'predecessor'` — de BRON is mijn voorganger ⇒ de bron-zijde is het EERSTE teken:
- *   FS/FF ⇒ `finish`, SS/SF ⇒ `start`.
- * - `direction:'successor'` — de BRON is mijn opvolger ⇒ de bron-zijde is het TWEEDE teken:
- *   FS/SS ⇒ `start`, FF/SF ⇒ `finish`.
- */
-export function externalSourceSide(
-  direction: ExternalLink['direction'],
-  relType: ExternalLink['relType'],
-): 'start' | 'finish' {
-  const letter = direction === 'predecessor' ? relType[0] : relType[1];
-  return letter === 'F' ? 'finish' : 'start';
-}
+/** Normaal blijft de persistente project-id primair en is het pad alleen fallback. De bulkverversing
+ * gebruikt `file-path` uitsluitend wanneer twee tegelijk gelezen bronnen dezelfde project-id
+ * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
+export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
 
 /** De actuele anker-datum die `link` uit `srcTask` leest (§4.5-mapping); leeg ⇒ geen bruikbare datum. */
 export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
@@ -56,10 +48,20 @@ export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
     : srcTask.time.earlyStart || srcTask.time.scheduleStart;
 }
 
-/** Matcht een link met `source`: primair op `sourceRef.projectId`, secundair (fallback) op `filePath`. */
-function linkMatchesSource(link: ExternalLink, source: ExternalSourceDoc): boolean {
-  if (link.sourceRef.projectId && link.sourceRef.projectId === source.projectId) return true;
-  return !!link.sourceRef.filePath && !!source.filePath && link.sourceRef.filePath === source.filePath;
+/** Matcht een link met `source`: normaal primair op project-id en secundair op genormaliseerd pad.
+ * `file-path` is de begrensde ambiguïteitsmodus voor meerdere bronnen met dezelfde project-id. */
+export function linkMatchesSource(
+  link: ExternalLink,
+  source: ExternalSourceDoc,
+  matchScope: ExternalSourceMatchScope = 'project-or-path',
+): boolean {
+  if (matchScope === 'project-or-path'
+    && link.sourceRef.projectId
+    && link.sourceRef.projectId === source.projectId) return true;
+  if (!link.sourceRef.filePath || !source.filePath) return false;
+  const linkPath = normalizeExternalSourcePath(link.sourceRef.filePath);
+  const sourcePath = normalizeExternalSourcePath(source.filePath);
+  return linkPath !== null && sourcePath !== null && linkPath === sourcePath;
 }
 
 /**
@@ -69,7 +71,11 @@ function linkMatchesSource(link: ExternalLink, source: ExternalSourceDoc): boole
  * op `sourceRef.taskId`. Gevonden ⇒ anker bijgewerkt + `sourceMissing=false` + `sourceRef` gecanonicaliseerd;
  * niet gevonden (bron wél geladen, taak weg) ⇒ oud anker behouden + `sourceMissing=true`.
  */
-export function refreshExternalAnchors(tasks: Task[], source: ExternalSourceDoc): RefreshResult {
+export function refreshExternalAnchors(
+  tasks: Task[],
+  source: ExternalSourceDoc,
+  matchScope: ExternalSourceMatchScope = 'project-or-path',
+): RefreshResult {
   const srcById = new Map(source.tasks.map((t) => [t.id, t]));
   let refreshed = 0;
   let missing = 0;
@@ -79,7 +85,7 @@ export function refreshExternalAnchors(tasks: Task[], source: ExternalSourceDoc)
     if (!task.externalLinks || task.externalLinks.length === 0) return task;
     let taskChanged = false;
     const links = task.externalLinks.map((link): ExternalLink => {
-      if (!linkMatchesSource(link, source)) return link; // andere bron ⇒ ongemoeid
+      if (!linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
 
       const srcTask = srcById.get(link.sourceRef.taskId);
       if (!srcTask) {

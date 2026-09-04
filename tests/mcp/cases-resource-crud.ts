@@ -26,7 +26,7 @@
 //  16. schemapoort (dispatcher): onbekende TOP-LEVEL sleutel ⇒ VALIDATION vóór enige mutatie
 //  17. IFC-round-trip: elk schrijfbaar veld overleeft opslaan + herladen
 //  18. tooldefinitie-vorm: prefix, description, vier annotaties, batchable + batchStep
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { resourceTools } from '@/services/mcp/tools/resourceTools';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
@@ -50,15 +50,11 @@ function reset(): void {
   store.getState().newProject();
 }
 
-function makeCtx(overrides: Partial<McpContext> = {}): McpContext {
-  return {
+function makeCtx(overrides: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     expectedDocId: store.getState().activeDocumentId,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
     ...overrides,
-  };
+  });
 }
 
 const ALL_DEFS = [...resourceTools, ...calendarResourceTools, ...readTools, ...batchTools];
@@ -153,7 +149,7 @@ test('create: alle schrijfbare velden landen en komen 1-op-1 terug uit list_reso
 test('bulk: 2× create + 1 update = precies één undo-stap; één undo draait alles terug', async () => {
   reset();
   const bestaand = await makeResource({ name: 'Betonploeg' });
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const data = okData(await call('planner_manage_resources', {
     actions: [
       { action: 'create', name: 'Kraan 1', type: 'EQUIPMENT' },
@@ -163,7 +159,7 @@ test('bulk: 2× create + 1 update = precies één undo-stap; één undo draait a
   }));
   assertEq(data.resources.length, 2, 'twee aangemaakt');
   assertEq(data.updated.length, 1, 'één gewijzigd');
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'bulk over 3 acties = precies één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'bulk over 3 acties = precies één undo-stap');
   assertEq(store.getState().resources.length, 3, 'drie resources');
 
   store.getState().undo();
@@ -227,16 +223,16 @@ test('onbekend id ⇒ zachte weigering; nul uitvoerbare items betreedt GEEN tran
   addTask('A');
   store.getState().updateTask(store.getState().tasks[0].id, { name: 'A2' }); // vult de undo-stack
   store.getState().undo();
-  const redoLen = store.getState().redoStack.length;
+  const redoLen = store.getState().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoLen > 0, 'er staat iets op de redo-stack (voorwaarde van deze test)');
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await call('planner_manage_resources', { actions: [{ action: 'update', id: 'res-bestaat-niet', name: 'X' }] });
   const reason = soleReason(res);
   assert(reason.includes('res-bestaat-niet'), `de reden noemt het id: ${reason}`);
   assert(reason.includes('planner_list_resources'), `de reden noemt het alternatief: ${reason}`);
-  assertEq(store.getState().undoStack.length, undoLen, 'geen spurious undo-snapshot');
-  assertEq(store.getState().redoStack.length, redoLen, 'de redo-stack van de gebruiker blijft intact');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'geen spurious undo-snapshot');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoLen, 'de redo-stack van de gebruiker blijft intact');
 });
 
 // =================================================================================================
@@ -294,7 +290,7 @@ test('delete van een resource mét toewijzingen wordt zonder `cascade` zacht gew
       { action: 'add', taskId: t2, resourceId: id, unitsPerDay: 1 },
     ],
   }));
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await call('planner_manage_resources', { actions: [{ action: 'delete', id }] });
   const reason = soleReason(res);
@@ -303,7 +299,7 @@ test('delete van een resource mét toewijzingen wordt zonder `cascade` zacht gew
   assert(reason.includes('cascade: true'), `de weg vooruit staat erin: ${reason}`);
   assertEq(store.getState().resources.length, 1, 'de resource staat er nog');
   assertEq(store.getState().assignments.length, 2, 'de toewijzingen staan er nog');
-  assertEq(store.getState().undoStack.length, undoLen, 'en er is geen undo-stap verbruikt');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'en er is geen undo-stap verbruikt');
 });
 
 // =================================================================================================
@@ -407,7 +403,7 @@ test('planner_batch: nieuwe resource aanmaken en in de VOLGENDE stap toewijzen v
   reset();
   registerAllTools();
   const taskId = addTask('Hijsen');
-  const undoLen = store.getState().undoStack.length;
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await call('planner_batch', {
     steps: [
@@ -420,7 +416,7 @@ test('planner_batch: nieuwe resource aanmaken en in de VOLGENDE stap toewijzen v
   assert(created, 'de resource is aangemaakt');
   assertEq(store.getState().assignments.length, 1, 'er is één toewijzing');
   assertEq(store.getState().assignments[0].resourceId, created!.id, 'de tempId is naar het ECHTE resource-id vertaald');
-  assertEq(store.getState().undoStack.length, undoLen + 1, 'de hele batch is één undo-stap');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'de hele batch is één undo-stap');
 });
 
 // =================================================================================================

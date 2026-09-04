@@ -44,6 +44,7 @@ export function DocumentTabControl({
         onKeyDown={onKeyDown}
         data-ops-tab={card.id}
         data-ops-tab-index={index + 1}
+        data-testid="document-tab"
       >
         <span className="ops-dot" aria-hidden="true" />
         <span className="ops-tab-name" aria-hidden="true">{card.title}</span>

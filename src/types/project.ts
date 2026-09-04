@@ -110,6 +110,9 @@ export interface Project {
   modifiedAt: string;
   author: string;
   company: string;
+  /** Projectstandaard voor handmatig aangemaakte taken. De urenplanning-hoofdschakelaar blijft de
+   *  capabilitypoort: staat die uit, dan maakt de UI ondanks deze bewaarde voorkeur dagtaken. */
+  defaultTaskDurationUnit?: import('@/types/task').TaskDurationUnit;
   /**
    * WBS-codes automatisch nummeren (1.2.3.4, afgeleid uit de boompositie): aan ⇒ live
    * hernummeren bij elke structuurmutatie; uit/ontbreekt ⇒ vrije tekst (bestaand gedrag),

@@ -27,6 +27,10 @@ En haut de chaque groupe, vous choisissez comment ses règles se combinent :
 
 L'icône de corbeille derrière une règle supprime cette règle ; la croix en haut à droite d'un groupe imbriqué supprime le groupe entier.
 
+## Enregistrer et réutiliser des filtres
+
+En haut de la fenêtre Filtre, saisissez un **Nom** puis cliquez sur **Enregistrer** pour conserver les règles actuelles comme préréglage. Les filtres enregistrés sont disponibles sur cet appareil dans tous les projets ; ils remplacent uniquement le filtre, jamais les colonnes, le regroupement, le tri ou l'échelle de temps. Choisissez un filtre enregistré dans la même liste pour l'appliquer immédiatement, ou supprimez le préréglage sélectionné avec la corbeille.
+
 ## Appliquer, annuler et effacer
 
 - **Appliquer** active le filtre et ferme la fenêtre. Un filtre sans règles compte comme « aucun filtre ».

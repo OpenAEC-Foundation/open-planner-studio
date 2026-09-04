@@ -10,8 +10,14 @@ import {
   fetchCatalog,
   installFromCatalog,
 } from '@/extensions';
-import type { InstalledExtension, CatalogEntry, ExtensionCategory } from '@/extensions/types';
-import { Puzzle, FileArchive, FileCode, Plus } from 'lucide-react';
+import { removeQuarantinedExtension } from '@/extensions/extensionService';
+import type {
+  ReadyExtension,
+  QuarantinedExtension,
+  CatalogEntry,
+  ExtensionCategory,
+} from '@/extensions/types';
+import { AlertTriangle, Puzzle, FileArchive, FileCode, Plus } from 'lucide-react';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import './ExtensionManagerPanel.css';
 
@@ -76,9 +82,11 @@ export function ExtensionManagerPanel() {
 function InstalledTab({ search }: { search: string }) {
   const { t } = useTranslation('menu');
   const extensions = useAppStore((s) => s.installedExtensions);
+  const quarantinedExtensions = useAppStore((s) => s.quarantinedExtensions);
   const list = Object.values(extensions);
+  const quarantinedList = Object.values(quarantinedExtensions);
 
-  const filtered = list.filter((ext) => {
+  const filteredReady = list.filter((ext) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -88,8 +96,13 @@ function InstalledTab({ search }: { search: string }) {
       ext.manifest.tags?.some((tag) => tag.toLowerCase().includes(q))
     );
   });
+  const filteredQuarantined = quarantinedList.filter((ext) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return ext.displayName.toLowerCase().includes(q) || ext.reason.toLowerCase().includes(q);
+  });
 
-  if (filtered.length === 0) {
+  if (filteredReady.length === 0 && filteredQuarantined.length === 0) {
     return (
       <div className="ext-empty">
         <p>{t('extensions.noExtensions')}</p>
@@ -100,14 +113,17 @@ function InstalledTab({ search }: { search: string }) {
 
   return (
     <div className="ext-list">
-      {filtered.map((ext) => (
+      {filteredReady.map((ext) => (
         <InstalledExtensionCard key={ext.id} ext={ext} />
+      ))}
+      {filteredQuarantined.map((ext) => (
+        <QuarantinedExtensionCard key={ext.quarantineId} ext={ext} />
       ))}
     </div>
   );
 }
 
-function InstalledExtensionCard({ ext }: { ext: InstalledExtension }) {
+function InstalledExtensionCard({ ext }: { ext: ReadyExtension }) {
   const { t } = useTranslation('menu');
   const [removing, setRemoving] = useState(false);
 
@@ -132,7 +148,7 @@ function InstalledExtensionCard({ ext }: { ext: InstalledExtension }) {
   const isError = ext.status === 'error';
 
   return (
-    <div className={`ext-card ${isError ? 'ext-card-error' : ''}`}>
+    <div data-testid="extension-ready-card" className={`ext-card ${isError ? 'ext-card-error' : ''}`}>
       <div className="ext-card-icon">
         {/* K6a: manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
             geregistreerd (ook met status `disabled`) — dus altijd via de sanitizer. */}
@@ -152,7 +168,11 @@ function InstalledExtensionCard({ ext }: { ext: InstalledExtension }) {
         </div>
         <p className="ext-card-desc">{ext.manifest.description}</p>
         <span className="ext-card-author">{ext.manifest.author}</span>
-        {isError && ext.error && <p className="ext-card-error-msg">{ext.error}</p>}
+        {ext.error && (
+          <p className="ext-card-error-msg">
+            {isError ? ext.error : `${t('extensions.storageWriteFailed')} ${ext.error}`}
+          </p>
+        )}
       </div>
 
       <div className="ext-card-actions">
@@ -178,11 +198,56 @@ function InstalledExtensionCard({ ext }: { ext: InstalledExtension }) {
   );
 }
 
+function QuarantinedExtensionCard({ ext }: { ext: QuarantinedExtension }) {
+  const { t } = useTranslation('menu');
+  const [removing, setRemoving] = useState(false);
+
+  const handleRemove = useCallback(async () => {
+    if (!removing) {
+      setRemoving(true);
+      return;
+    }
+    await removeQuarantinedExtension(ext.quarantineId);
+  }, [ext.quarantineId, removing]);
+
+  return (
+    <div data-testid="extension-quarantine-card" className="ext-card ext-card-quarantined">
+      <div className="ext-card-icon ext-card-quarantine-icon" aria-hidden="true">
+        <AlertTriangle size={24} />
+      </div>
+
+      <div className="ext-card-body">
+        <div className="ext-card-header">
+          <span className="ext-card-name">
+            {ext.displayName || t('extensions.quarantineEmptyName')}
+          </span>
+          <span className="ext-quarantine-badge">{t('extensions.quarantined')}</span>
+        </div>
+        <p className="ext-card-error-msg">
+          {t('extensions.quarantineReason', { reason: ext.reason })}
+        </p>
+      </div>
+
+      <div className="ext-card-actions">
+        <button
+          data-testid="extension-quarantine-remove"
+          className={`ext-remove-btn ${removing ? 'ext-remove-confirm' : ''}`}
+          onClick={() => void handleRemove()}
+          title={removing ? t('extensions.confirmRemoveHint') : t('extensions.quarantineRemove')}
+        >
+          {removing ? t('extensions.confirm') : t('extensions.quarantineRemove')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function BrowseTab({ search }: { search: string }) {
   const { t } = useTranslation('menu');
   const catalogEntries = useAppStore((s) => s.catalogEntries);
   const catalogLoading = useAppStore((s) => s.catalogLoading);
   const catalogError = useAppStore((s) => s.catalogError);
+  const catalogIssues = useAppStore((s) => s.catalogIssues);
   const installed = useAppStore((s) => s.installedExtensions);
 
   const filtered = catalogEntries.filter((entry) => {
@@ -216,15 +281,31 @@ function BrowseTab({ search }: { search: string }) {
   }
 
   if (filtered.length === 0) {
-    return <div className="ext-empty"><p>{t('extensions.noCatalogResults')}</p></div>;
+    return (
+      <>
+        {catalogIssues.length > 0 && (
+          <div className="ext-catalog-warning" role="status">
+            {t('extensions.catalogEntriesSkipped', { count: catalogIssues.length })}
+          </div>
+        )}
+        <div className="ext-empty"><p>{t('extensions.noCatalogResults')}</p></div>
+      </>
+    );
   }
 
   return (
-    <div className="ext-list">
-      {filtered.map((entry) => (
-        <CatalogCard key={entry.id} entry={entry} isInstalled={!!installed[entry.id]} />
-      ))}
-    </div>
+    <>
+      {catalogIssues.length > 0 && (
+        <div className="ext-catalog-warning" role="status">
+          {t('extensions.catalogEntriesSkipped', { count: catalogIssues.length })}
+        </div>
+      )}
+      <div className="ext-list">
+        {filtered.map((entry) => (
+          <CatalogCard key={entry.id} entry={entry} isInstalled={!!installed[entry.id]} />
+        ))}
+      </div>
+    </>
   );
 }
 

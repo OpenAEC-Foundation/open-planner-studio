@@ -9,13 +9,15 @@
 // Draait headless tegen de ECHTE store, net als cases-mutate-cal-res.ts / cases-read.ts: de
 // muterende tools worden RECHTSTREEKS op hun module-array aangeroepen (buiten de dispatcher om, dus
 // onafhankelijk van generieke schemavalidatie daar); de leestools via de registry.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { getTool } from '@/services/mcp/toolRegistry';
 import { ensureFreshSchedule } from '@/services/mcp/staleGuard';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import type { WorkCalendar, Holiday } from '@/types/calendar';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
 
 const S = () => useAppStore.getState();
 
@@ -25,15 +27,10 @@ const S = () => useAppStore.getState();
 S().addTask({ name: 'warmup' });
 S().undo();
 
-function makeCtx(over: Partial<McpContext> = {}): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
+function makeCtx(over: McpContextOverrides = {}): McpContext {
+  return makeMcpContext(appStoreContext, {
     ...over,
-  };
+  });
 }
 
 function mtool(name: string) {
@@ -89,7 +86,7 @@ const SLUITING: Holiday = { name: 'Bedrijfssluiting', startDate: '2026-07-20', e
 test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transactie, feestdagen onaangeroerd', async () => {
   cleanProject([VORST, SLUITING]);
   const calId = S().calendar.id;
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await call('planner_update_calendar', { calendars: [{ id: calId, rawHolidays: [] }] });
 
@@ -99,7 +96,7 @@ test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transact
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assert(/leeg|replace/i.test(rej[0].reason), `weigering moet de lege lijst benoemen: ${rej[0].reason}`);
   assertEq(okData(res).calendars.length, 0, 'geen enkele kalender-rij gemeld als gewijzigd');
-  assertEq(S().undoStack.length, undoBefore, 'lege-batch-snelpad: geen undo-snapshot voor een no-op');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'lege-batch-snelpad: geen undo-snapshot voor een no-op');
   assertEq(S().calendar.holidays.length, 2, 'feestdagen onaangeroerd');
 });
 
@@ -303,10 +300,10 @@ function overloadedProject(): void {
 
 test('H8: `dryRun: "true"` (string) ⇒ VALIDATION-fout, NIET stil een echte nivellering', async () => {
   overloadedProject();
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const res = await call('planner_level_resources', { dryRun: 'true' });
   expectValidation(res, 'dryRun', 'dryRun als string');
-  assertEq(S().undoStack.length, undoBefore, 'geen mutatie/undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen mutatie/undo-stap');
   assert(S().tasks.every((t) => t.levelingDelay === undefined), 'geen enkele levelingDelay gezet');
 });
 
@@ -317,10 +314,10 @@ test('H8: `dryRun: 1` ⇒ VALIDATION-fout', async () => {
 
 test('H8: echte `dryRun: true` blijft werken en muteert niets — regressie', async () => {
   overloadedProject();
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const data = okData(await call('planner_level_resources', { dryRun: true }));
   assertEq(data.dryRun, true, 'dryRun gemeld');
-  assertEq(S().undoStack.length, undoBefore, 'preview muteert niet');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'preview muteert niet');
 });
 
 test('H8: `shiftBaselines: "ja"` ⇒ VALIDATION-fout (zelfde patroon, lagere inzet)', async () => {
@@ -345,13 +342,13 @@ test('H9: nooit-berekend document (cpmResult null, niet-stale) ⇒ ensureFreshSc
   neverCalculatedProject();
   assertEq(S().scheduleStale, false, 'precondition: niet stale (verse payload)');
   assert(S().cpmResult === null, 'precondition: nog nooit gerekend');
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const out = ensureFreshSchedule();
 
   assertEq(out.recomputed, true, 'recomputed moet true zijn — er wás geen resultaat');
   assert(S().cpmResult !== null, 'cpmResult is nu gezet');
-  assertEq(S().undoStack.length, undoBefore, 'runCPM-invariant: geen undo-snapshot');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'runCPM-invariant: geen undo-snapshot');
 });
 
 test('H9: `save_baseline` op een nooit-berekend document legt VERSE datums vast (description was onwaar)', async () => {
@@ -369,6 +366,46 @@ test('H9: `level_resources` op een nooit-berekend document rekent eerst (before/
   const data = okData(await call('planner_level_resources', { dryRun: true }));
   assertEq(data.recomputed, true, 'recomputed gemeld');
   assert(!!data.projectEndBefore, 'projectEndBefore gevuld');
+});
+
+test('H9: MCP-versheidspaden voor histogram, leveling en baseline blijven volledig in context B', async () => {
+  cleanProject([]);
+  S().setProject({ name: 'Versheids-MCP A' });
+  S().addTask({ name: 'Alleen A' });
+  S().runCPM();
+  const aBefore = JSON.stringify(capturePayload(S()));
+  const aCpm = S().cpmResult;
+
+  const makeNeverCalculatedB = () => {
+    const B = createAppStoreContext();
+    B.store.getState().applyLoadedProject(generateBenchmarkProject(30), { filePath: null, recompute: false });
+    B.store.getState().setProject({ name: 'Versheids-MCP B' });
+    return { B, ctx: makeMcpContext(B) };
+  };
+
+  const histogramFixture = makeNeverCalculatedB();
+  const histogramTool = getTool('planner_get_resource_histogram')!;
+  const histogram = await histogramTool.handler({}, histogramFixture.ctx);
+  assert(histogram.ok && (histogram.data as { recomputed: boolean }).recomputed,
+    'histogram hoort de nooit-berekende B-context eerst te herrekenen');
+  assert(histogramFixture.B.store.getState().cpmResult !== null, 'histogram hoort B van een cpmResult te voorzien');
+
+  const levelingFixture = makeNeverCalculatedB();
+  const leveling = await mtool('planner_level_resources').handler({ dryRun: true }, levelingFixture.ctx);
+  assert(leveling.ok && (leveling.data as { recomputed: boolean }).recomputed,
+    'leveling hoort de nooit-berekende B-context eerst te herrekenen');
+  assert(levelingFixture.B.store.getState().cpmResult !== null, 'leveling hoort B van een cpmResult te voorzien');
+
+  const baselineFixture = makeNeverCalculatedB();
+  const baseline = await mtool('planner_save_baseline').handler({ name: 'B-nulmeting' }, baselineFixture.ctx);
+  assert(baseline.ok && (baseline.data as { recomputed: boolean }).recomputed,
+    'save_baseline hoort de nooit-berekende B-context eerst te herrekenen');
+  assert(baselineFixture.B.store.getState().baselines.some((item) => item.name === 'B-nulmeting'),
+    'de baseline hoort uitsluitend in B te zijn opgeslagen');
+
+  assertEq(JSON.stringify(capturePayload(S())), aBefore,
+    'de drie versheidspaden op B mogen A byte-inhoudelijk niet wijzigen');
+  assert(S().cpmResult === aCpm, 'de drie B-versheidspaden mogen A niet herrekenen');
 });
 
 test('H9: al-berekend + niet-stale ⇒ nog steeds GEEN recompute (referentie identiek) — regressie', () => {
@@ -446,11 +483,11 @@ test('H10: histogram met een ONBEKEND resource-id ⇒ VALIDATION-fout die het id
 
 test('H10: histogram — geldige scope blijft werken, en de validatie draait VÓÓR de recompute', () => {
   neverCalculatedProject();
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   // Ongeldige args op een NIET-doorgerekend document: er mag niet eerst duur herrekend worden.
   expectValidation(read('planner_get_resource_histogram', { bucket: 'day' }), 'bucket', 'bucket vóór recompute');
   assert(S().cpmResult === null, 'validatie vóór de recompute: er is niets gerekend');
-  assertEq(S().undoStack.length, undoBefore, 'geen undo-effect');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen undo-effect');
 
   const data = readOk('planner_get_resource_histogram', { resourceIds: [S().resources[0].id], bucket: 'dag' });
   assertEq(data.mode, 'detail', 'gescopte call blijft detail leveren');
@@ -525,7 +562,7 @@ async function batch(steps: { tool: string; args: unknown }[]): Promise<McpToolR
 test('BATCH: een onbekende `update_project`-sleutel rolt de HELE batch terug (validatie geldt ook via batchStep)', async () => {
   cleanProject([]);
   const naamVoor = S().project.name;
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await batch([
     { tool: 'planner_update_project', args: { name: 'Mag niet blijven staan' } },
@@ -536,7 +573,7 @@ test('BATCH: een onbekende `update_project`-sleutel rolt de HELE batch terug (va
   assert((res as any).error.includes('bestaatNiet') || JSON.stringify((res as any).errorData ?? '').includes('bestaatNiet'),
     `de fout moet de onbekende sleutel noemen: ${(res as any).error}`);
   assertEq(S().project.name, naamVoor, 'volledige rollback: ook de eerste stap is terug');
-  assertEq(S().undoStack.length, undoBefore, 'geen achtergebleven undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen achtergebleven undo-stap');
 });
 
 test('BATCH: een lege `rawHolidays` blijft ook binnen een batch een ZACHTE weigering', async () => {

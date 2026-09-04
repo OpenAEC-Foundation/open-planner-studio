@@ -36,8 +36,7 @@ A checklist per task: each row has a **done checkbox**, a text box and a remove 
 ## Time
 
 - **Start date** — shows the computed early start; a manual change anchors the new date as the planned start.
-- **Duration (work days)** — whole work days; disabled for a milestone.
-- With **hour planning enabled** and an hour calendar on the task, three synchronised boxes appear: **Days**, **Hours** and **Total hours** (whole numbers only). Without an hour calendar a hint shows: "Hour input requires an hour calendar (working times)." See [Calendars & hour planning](docs://gids-kalenders-uren).
+- The dialog and properties panel use the same **Duration [value] [Days | Hours]** control. Type `2d`, `12h` or the input alias `12u`. A regular calendar with working days, start and end time, and hours per day automatically supplies effective working-time bands; use the per-weekday editor to refine them when needed. Only an empty or invalid calendar blocks hours. See [Calendars & hour planning](docs://gids-kalenders-uren).
 
 ## Hammock (derived duration)
 

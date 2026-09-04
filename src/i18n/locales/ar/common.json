@@ -2,6 +2,7 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "الحفظ التلقائي", "noFile": "احفظ هذا المشروع أولاً لاستخدام الحفظ التلقائي.", "onHint": "الحفظ التلقائي قيد التشغيل: تُكتب التغييرات في هذا الملف.", "offHint": "الحفظ التلقائي متوقف. يظل استرداد الأعطال نشطاً." },
   "notifications": {
     "dismiss": "إغلاق الإشعار",
     "openFailed": "تعذّر فتح الملف",
@@ -108,7 +109,7 @@
     "relationCreated": "تم إنشاء العلاقة: من {{predecessor}} إلى {{successor}}",
     "relationDuplicate": "هذه العلاقة موجودة بالفعل",
     "relationAncestorEndpoint": "لا يُسمح بعلاقة بين مهمة ومهمتها الموجزة الأصلية (الأب أو الجد).",
-    "summaryRelationsDropped": "تعذر إدراج {{total}} علاقة (علاقات) في الحساب — راجع لوحة العلاقات لمعرفة أيها.",
+    "summaryRelationsDropped": "تعذر إدراج {{total}} علاقة في الحساب. راجع عمودي المهام السابقة واللاحقة.",
     "mppSourceScheduleNotes_zero": "لا يحتوي ملف MS Project هذا على أي مهام ذات جدولة مجزأة أو مسواة أو موجهة بالموارد.",
     "mppSourceScheduleNotes_one": "يحتوي ملف MS Project هذا على مهمة واحدة ذات جدولة مجزأة أو مسواة أو موجهة بالموارد. تُستورد وتُعرض كما هي.",
     "mppSourceScheduleNotes_two": "يحتوي ملف MS Project هذا على مهمتين ذواتَي جدولة مجزأة أو مسواة أو موجهة بالموارد. تُستوردان وتُعرضان كما هما.",
@@ -127,7 +128,20 @@
     "mppTimephasedSteeringLost_few": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} مهام بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
     "mppTimephasedSteeringLost_many": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} مهمة بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
     "mppTimephasedSteeringLost_other": "لم يعد توزيع الساعات من MS Project يوجّه {{count}} من المهام بعد هذا التعديل؛ يبقى التوزيع الأصلي محفوظًا في الملف.",
-    "readMore": "اقرأ المزيد"
+    "readMore": "اقرأ المزيد",
+    "pasteSkippedReadOnly_zero": "لم يتم تخطي أي خلية للقراءة فقط.",
+    "pasteSkippedReadOnly_one": "تم تخطي خلية واحدة للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_two": "تم تخطي خليتين للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_few": "تم تخطي {{count}} خلايا للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_many": "تم تخطي {{count}} خلية للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "pasteSkippedReadOnly_other": "تم تخطي {{count}} من الخلايا للقراءة فقط (مثل رمز WBS المرقم تلقائيًا أو عمود محسوب).",
+    "librarySaveFailed": "تعذّر حفظ المكتبة",
+    "levelingDelayRoundedToWorkdays_zero": "لا توجد مهمة تُقرَّب لها مهلة موازنة MS Project الدقيقة بالدقيقة إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_one": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمة واحدة إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_two": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمتين إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_few": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهام إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
+    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة."
   },
   "yes": "نعم",
   "no": "لا",
@@ -196,11 +210,15 @@
     "themeDark": "داكن",
     "themeLight": "فاتح",
     "themeHighContrast": "تباين عالٍ",
+    "themeFollowSystem": "اتباع سمة النظام",
+    "themeSystemHint": "يتبع نظام الألوان الخاص بنظامك (حاليًا: {{theme}}).",
     "timeline": "الجدول الزمني / التكبير",
     "hourPlanningSection": "التخطيط بالساعات",
     "enableHourPlanning": "تفعيل التخطيط بالساعات",
     "enableHourPlanningHint": "يفعّل الجدولة بالساعة/الدقيقة: مقياس زمني بالساعات، ونوبات عمل ذات نطاقات أوقات عمل، وأشرطة مهام دقيقة على مستوى الساعة. عند الإيقاف ⇐ يبقى التطبيق مبنيًا بالكامل على اليوم كما كان.",
     "allowMixedDayHour": "السماح بالتخطيط المختلط باليوم/الساعة",
+    "defaultTaskDurationUnit": "الوحدة الافتراضية للمهام الجديدة",
+    "defaultTaskDurationUnitHint": "تحدد ما إذا كانت المهام الجديدة تبدأ بأيام العمل أو ساعات العمل. لا تتغير المهام الحالية.",
     "durationDisplay": "عرض المدة",
     "durationDisplayAuto": "تلقائي (وحدة خاصة بكل مهمة)",
     "durationDisplayDays": "أيام دائمًا",
@@ -355,6 +373,9 @@
     "openBadge": "{{count}} مفتوح",
     "switchHint": "⌘1–9 للتبديل",
     "openProject": "فتح مشروع",
+    "newOrOpenTitle": "بدء مشروع",
+    "newProject": "مشروع جديد",
+    "openExistingProject": "فتح مشروع موجود",
     "allProjects": "كل المشاريع",
     "active": "نشط",
     "tasksWord": "مهام",
@@ -429,13 +450,39 @@
       "sameSize": "بنفس حجم الإصدار السابق",
       "daysSincePrevious": "منذ الإصدار السابق: {{count}} يوم",
       "currentOnly": "أنت تستخدم الآن الإصدار {{version}}",
-      "whatsNewButton": "الجديد"
+      "whatsNewButton": "الجديد", "newVersion": "إصدار جديد", "readGuide": "اقرأ الدليل", "fullNotes": "عرض ملاحظات الإصدار الكاملة", "openFailed": "تعذر فتح ملاحظات الإصدار.", "inNumbers": "هذا التحديث بالأرقام", "days": "أيام منذ الإصدار السابق", "commits": "التزامات منذ الإصدار السابق", "codeLines": "أسطر كود مضافة", "codeLinesHint": "أسطر مضافة إجمالاً في التطبيق وRust والبرامج النصية والاختبارات.", "smallerLabel": "حزمة أصغر", "largerLabel": "حزمة أكبر", "acknowledge": "مفهوم"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
     "violatedConstraints": "القيود المخالفة: {{count}}",
-    "outOfSequence": "العلاقات خارج التسلسل: {{count}}"
+    "outOfSequence": "العلاقات خارج التسلسل: {{count}}",
+    "overallocated": "الموارد المحمَّلة بشكل زائد: {{count}}"
+  },
+  "warnings": {
+    "title": "التحذيرات",
+    "close": "إغلاق التحذيرات",
+    "openPanel": "فتح لوحة التحذيرات (التفاصيل والتنقل)",
+    "summary": "الأخطاء: {{errors}}، التحذيرات: {{warnings}}",
+    "noSchedule": "لم يُحسب بعد — اضغط على حساب (F5) لتشغيل الفحوصات.",
+    "stale": "الجدول قديم — هذه القائمة من آخر عملية حساب. أعد الحساب (F5).",
+    "empty": "لا توجد تحذيرات. الجدول يجتاز جميع الفحوصات.",
+    "goTo": "الانتقال إلى: {{target}}",
+    "kind": {
+      "scheduleError": "تعذّر حساب الجدول: {{message}}",
+      "missedDeadline": "تم تجاوز الموعد النهائي {{deadline}} — أبكر انتهاء {{finish}}",
+      "violatedConstraint": "القيد {{constraint}} يتجاوزه المنطق (فائض سالب)",
+      "outOfSequence": "خارج التسلسل: تقدم اللاحق يناقض العلاقة",
+      "truncatedLead": "تم اقتطاع التقديم ببداية المشروع — العلاقة غير مطبَّقة بالكامل",
+      "droppedSequence": "تم تجاهل العلاقة: السابق أو اللاحق مفقود أو ليس مهمة ورقية",
+      "hammockNoFinishDriver": "مهمة أرجوحية بلا محرك انتهاء (لا سابق FF/SF): تعود مدتها إلى الصفر",
+      "cappedTask": "تم اقتطاع تاريخ الانتهاء: التقويم لا يترك أي نافذة عمل لهذه المهمة",
+      "overallocation": "تحميل زائد خلال {{count}} يوم ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "المشروع",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -666,7 +713,8 @@
       "capacity": "السعة",
       "documents": "المستندات",
       "selectHint": "اختر موردًا لعرض المدرج التكراري."
-    }
+    },
+    "color": "اللون"
   },
   "calendar": {
     "library": {
@@ -717,6 +765,18 @@
       "threeShift": "ثلاث ورديات",
       "night": "وردية ليلية",
       "continuous": "24/7"
+    },
+    "simpleBreak": {
+      "invalidStart": "أدخل وقت استراحة صالحا بصيغة HH:MM.",
+      "invalidWorkStart": "أدخل وقت بدء صالحا بصيغة HH:MM.",
+      "invalidWorkEnd": "أدخل وقت انتهاء صالحا بصيغة HH:MM.",
+      "invalidWorkTimeOrder": "يجب أن يكون وقت البدء قبل وقت الانتهاء.",
+      "increaseTime": "زد الوقت 15 دقيقة",
+      "decreaseTime": "أنقص الوقت 15 دقيقة",
+      "increaseBreakDuration": "زد مدة الاستراحة 15 دقيقة",
+      "decreaseBreakDuration": "أنقص مدة الاستراحة 15 دقيقة",
+      "start": "بداية الاستراحة", "duration": "مدة الاستراحة (دقائق)", "hint": "تُشتق فترات العمل تلقائيا. المدة 0 تعني يوم عمل متصل.",
+      "errors": { "invalidDuration": "يجب أن تكون مدة الاستراحة عددا صحيحا من الدقائق يساوي 0 أو أكثر.", "outsideWorkingDay": "يجب أن تقع الاستراحة كاملة داخل يوم العمل المحدد.", "consumesWorkingDay": "لا يمكن أن تستغرق الاستراحة يوم العمل كله." }
     },
     "worktime": {
       "section": "أوقات العمل",
@@ -802,7 +862,7 @@
       "none": "(بلا)"
     },
     "presentation": {
-      "hint": "اضغط F11 للخروج من وضع العرض التقديمي"
+      "hint": "اضغط Esc أو F11 للخروج من ملء الشاشة."
     },
     "splitView": {
       "primary": "أساسي",
@@ -836,7 +896,9 @@
   },
   "duration": {
     "suffixDay": "ي",
-    "suffixHour": "س",
+    "suffixHour": "h",
+    "days": "أيام",
+    "hours": "ساعات",
     "suffixMinute": "د"
   },
   "shortcuts": {
@@ -847,7 +909,8 @@
       "edit": "تحرير",
       "structure": "البنية",
       "view": "العرض",
-      "nav": "التنقل"
+      "nav": "التنقل",
+      "grid": "الجدول"
     },
     "view": {
       "exitFullscreen": "الخروج من العرض التقديمي",
@@ -867,6 +930,12 @@
       "switchDocument": "تبديل المستند",
       "scrollToToday": "الانتقال إلى اليوم",
       "help": "فتح المساعدة"
+    },
+    "grid": {
+      "navigate": "الخلية التالية/السابقة",
+      "edit": "تعديل الخلية",
+      "typeToReplace": "الكتابة تستبدل محتوى الخلية",
+      "clearCell": "مسح محتوى الخلية"
     }
   },
   "welcome": {

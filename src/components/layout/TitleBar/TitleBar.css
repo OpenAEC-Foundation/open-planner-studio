@@ -66,7 +66,7 @@
 .quick-access-btn:disabled {
   color: var(--theme-text-muted);
   opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .quick-access-btn:disabled:hover {
@@ -74,6 +74,22 @@
   color: var(--theme-text-muted);
   opacity: 0.5;
 }
+
+/* Compact Word-achtig AutoSave-bedieningsvlak: doelbewust bovenin bij Opslaan, niet in instellingen. */
+.title-bar-autosave {
+  -webkit-app-region: no-drag;
+  height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 5px;
+  border: none; border-radius: var(--radius-md); background: transparent; color: var(--theme-text-dim);
+  font: inherit; font-size: calc(11px * var(--ui-font-scale, 1)); cursor: pointer;
+}
+.title-bar-autosave:hover { background: var(--theme-titlebar-btn-hover); color: var(--theme-text); }
+.title-bar-autosave:disabled { opacity: .55; cursor: not-allowed; }
+.title-bar-autosave:disabled:hover { background: transparent; color: var(--theme-text-dim); }
+.title-bar-autosave-track { width: 25px; height: 14px; border-radius: 99px; padding: 2px; box-sizing: border-box; background: var(--theme-control-border); transition: background .12s; }
+.title-bar-autosave-track > span { display: block; width: 10px; height: 10px; border-radius: 99px; background: var(--theme-surface); transition: transform .12s; }
+.title-bar-autosave.active { color: var(--theme-text); }
+.title-bar-autosave.active .title-bar-autosave-track { background: var(--theme-accent); }
+.title-bar-autosave.active .title-bar-autosave-track > span { transform: translateX(11px); }
 
 .quick-access-separator {
   width: 1px;

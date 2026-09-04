@@ -33,6 +33,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import type { Task } from '@/types/task';
+import { historyDepthsForActiveScope, latestAppliedDocumentDataDelta } from '@/state/sessionHistory';
 import type { Baseline } from '@/types/baseline';
 
 const S = () => useAppStore.getState();
@@ -54,6 +55,28 @@ const truthy = (label: string, cond: boolean) => {
 
 const task = (id: string): Task | undefined => S().tasks.find(t => t.id === id);
 const flat = (p: DocumentPayload) => p as unknown as Record<string, unknown>;
+
+// Mutatiebewijs voor de compilepoort staat naast de assert in documentContract.ts. Handmatige rode
+// controle: voeg tijdelijk `__taskGridContractMutationFixture: string` als stateveld aan een slice
+// toe zonder de key in AppGlobalKey te zetten; `npm run typecheck` moet dan op Unclassified falen.
+
+// Persoonlijke taakgridstate mag in geen enkele document-/undo-/IFC-/recoverybron terechtkomen.
+// Een unieke sentinel maakt ook een onbedoeld genest lek zichtbaar, niet alleen een top-level key.
+const taskGridSentinel = 'plugin.user-only-document-contract-proof';
+useAppStore.setState((s) => {
+  s.taskGridSurfaces['full-task-grid'].columns = [{
+    id: taskGridSentinel as never, width: 123, pinned: true,
+  }];
+  s.recentTaskColumns = [taskGridSentinel as never];
+});
+for (const [label, artifact] of [
+  ['DocumentPayload', capturePayload(S())],
+  ['undo-snapshot', createSnapshot(S())],
+  ['IFC-schrijfinvoer', buildWriteIFCInput(S())],
+] as const) {
+  truthy(`gebruikersvoorkeur ontbreekt volledig in ${label}`,
+    !JSON.stringify(artifact).includes(taskGridSentinel));
+}
 
 // ══ (a) VELD-LEK-TEST ═══════════════════════════════════════════════════════════════════════════
 // Bouw document 1 rijk gevuld via ECHTE store-acties (valide data — recomputeViewRows bij een swap
@@ -92,13 +115,14 @@ const doc2 = flat(capturePayload(S()));
 
 // (a1) Geen lek naar document 2: elk veld dat we in doc1 afwijkend zetten, mag in doc2 niet opduiken.
 for (const key of ['tasks', 'resources', 'assignments', 'activityCodeTypes', 'customFieldDefs',
-  'selectedTaskIds', 'collapsedTaskIds', 'baselines', 'cpmResult', 'filePath', 'calendars',
+  'selectedTaskIds', 'activeTaskId', 'collapsedTaskIds', 'baselines', 'cpmResult', 'filePath', 'calendars',
   'recordedDates', 'datesAsRecorded'] as const) {
   ne(`a1 geen lek naar doc2: ${key}`, doc2[key], expected[key]);
 }
 truthy('a1 doc2 verse tasks leeg', S().tasks.length === 0);
 truthy('a1 doc2 verse selectie leeg', S().selectedTaskIds.length === 0);
-truthy('a1 doc2 verse undo-stack leeg', S().undoStack.length === 0);
+eq('a1 doc2 heeft geen actieve taak', S().activeTaskId, null);
+truthy('a1 doc2 verse geschiedenis leeg', historyDepthsForActiveScope(S()).undoDepth === 0);
 eq('a1 doc2 vers filePath null', S().filePath, null);
 
 // (a2) Round-trip terug naar document 1: ELK contract-veld exact terug (loop over de key-lijst).
@@ -121,16 +145,28 @@ const snapKeys = DOCUMENT_FIELDS.filter(f => f.snapshot !== 'none').map(f => f.k
 // de vergelijking op `calendar` de sync-bijwerking meten i.p.v. de restore.
 const projA = { id: 'proj-ab', name: 'ProjA', description: '', startDate: '2030-01-01', endDate: '', calendarId: 'cal-x', createdAt: '2030-01-01T00:00:00.000Z', modifiedAt: '2030-01-01T00:00:00.000Z', author: '', company: '', wbsAutoNumber: true };
 const projB = { ...projA, name: 'ProjB', startDate: '2030-02-02', statusDate: '2030-03-03' };
+// Geldige Task-objecten zijn hier noodzakelijk: Task 4B leidt resourceLoadResult tijdens
+// undo/redo opnieuw uit het target af. De vroegere minimale `{ id, name, parentId, childIds }`-stubs
+// konden alleen bestaan doordat de test ze met `unknown` langs het domeincontract forceerde.
+const taskA = {
+  id: 'ta', name: 'A', parentId: null, childIds: [], resourceIds: [], isMilestone: false,
+  time: createDefaultTaskTime('2030-01-01', 1),
+} as unknown as Task;
+const taskB = {
+  id: 'tb', name: 'B', parentId: null, childIds: [], resourceIds: ['ra'], isMilestone: false,
+  time: createDefaultTaskTime('2030-01-02', 1),
+} as unknown as Task;
 const valuesA: Record<string, unknown> = {
   project: projA,
   calendar: calX,
-  tasks: [{ id: 'ta', name: 'A', parentId: null, childIds: [] }],
+  tasks: [taskA],
   sequences: [],
   resources: [{ id: 'ra', name: 'RA', type: 'LABOR', description: '', maxUnits: 1 }],
   assignments: [],
   calendars: [calX],
   activityCodeTypes: [],
   customFieldDefs: [{ id: 'cfa', name: 'CFA', type: 'text', values: {} }],
+  customTaskTypes: [{ id: 'tta', name: 'Engineering' }],
   cpmResult: { marker: 'A' },
   resourceLoadResult: null,
   scheduleStale: false,
@@ -142,13 +178,14 @@ const valuesA: Record<string, unknown> = {
 const valuesB: Record<string, unknown> = {
   project: projB,
   calendar: calX,
-  tasks: [{ id: 'ta', name: 'A', parentId: null, childIds: [] }, { id: 'tb', name: 'B', parentId: null, childIds: [] }],
+  tasks: [taskA, taskB],
   sequences: [{ id: 'sb', predecessorId: 'ta', successorId: 'tb', type: 'FS', lag: 0 }],
   resources: [],
   assignments: [{ id: 'asb', taskId: 'tb', resourceId: 'ra', unitsPerDay: 1 }],
   calendars: [calX, { ...createDefaultCalendar(), id: 'cal-y', name: 'Y' }],
   activityCodeTypes: [{ id: 'acb', name: 'ACB', values: [] }],
   customFieldDefs: [],
+  customTaskTypes: [{ id: 'ttb', name: 'Werkvoorbereiding' }],
   cpmResult: { marker: 'B' },
   resourceLoadResult: { marker: 'B' },
   scheduleStale: true,
@@ -168,13 +205,13 @@ const setSnapshotFields = (vals: Record<string, unknown>) => {
 };
 
 setSnapshotFields(valuesA);
-eq('b setup: geen undo-stack', S().undoStack.length, 0);
-// Simuleer een muterende actie: snapshot van A pushen, dan naar B muteren.
-useAppStore.setState((s) => {
-  s.undoStack.push(createSnapshot(s));
-  s.redoStack = [];
-});
+eq('b setup: geen undo-stack', S().historyEvents.filter(event => event.state === 'applied').length, 0);
+const beforeB = createSnapshot(S());
 setSnapshotFields(valuesB);
+const afterB = createSnapshot(S());
+S().recordSessionHistoryEvent('contract B', [{
+  kind: 'document-data', documentId: S().activeDocumentId, before: beforeB, after: afterB,
+}]);
 for (const key of snapKeys) eq(`b vóór undo: ${key} == B`, flat(capturePayload(S()))[key], valuesB[key]);
 
 S().undo();
@@ -220,6 +257,7 @@ const mkInput = (id: string, name: string): RecoveryDocInput => ({
   resourceCalendars: recCalendars,              // pre-2.8a-naam — moet als `calendars` landen
   activityCodeTypes: [{ id: `act-${id}`, name: 'Herstel-code', values: [] }],
   customFieldDefs: [],
+  customTaskTypes: [{ id: `type-${id}`, name: `Type ${name}` }],
   baselines: [{ id: `bl-${id}`, name: 'Herstel-BL', createdAt: '2031-01-01', tasks: [] } as never],
   activeBaselineId: `bl-${id}`,
   filePath: `/tmp/${id}.ifc`,
@@ -235,6 +273,7 @@ eq('d recovery: project overgenomen', S().project.name, 'DocB');
 eq('d recovery: tasks overgenomen', S().tasks.map(t => t.id), ['task-rec-b']);
 eq('d recovery: resourceCalendars → calendars (alias)', S().calendars.map(c => c.id), ['cal-rec']);
 eq('d recovery: activityCodeTypes overgenomen', S().activityCodeTypes.map(a => a.id), ['act-rec-b']);
+eq('d recovery: customTaskTypes overgenomen', S().customTaskTypes, [{ id: 'type-rec-b', name: 'Type DocB' }]);
 eq('d recovery: activeBaselineId overgenomen', S().activeBaselineId, 'bl-rec-b');
 eq('d recovery: filePath overgenomen', S().filePath, '/tmp/rec-b.ifc');
 truthy('d recovery: isDirty', S().isDirty === true);
@@ -247,20 +286,23 @@ truthy('d recovery: isDirty', S().isDirty === true);
 truthy('d recovery: cpmResult doorgerekend (niet null)', S().cpmResult !== null);
 eq('d recovery: cpmResult beslaat het herstelde document', S().cpmResult?.criticalPath, ['task-rec-b']);
 eq('d recovery: selectedTaskIds vers leeg', S().selectedTaskIds, []);
-eq('d recovery: undoStack vers leeg', S().undoStack.length, 0);
+eq('d recovery: activeTaskId vers leeg', S().activeTaskId, null);
+eq('d recovery: sessiehistory vers leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 
 // Inactief document rec-a kwam via de registry (payloadFromInput) — switch en controleer.
 S().switchDocument('rec-a');
 eq('d recovery: switch naar rec-a laadt zijn project', S().project.name, 'DocA');
 eq('d recovery: rec-a tasks correct', S().tasks.map(t => t.id), ['task-rec-a']);
 eq('d recovery: rec-a calendars (alias)', S().calendars.map(c => c.id), ['cal-rec']);
+eq('d recovery: rec-a customTaskTypes uit registry', S().customTaskTypes, [{ id: 'type-rec-a', name: 'Type DocA' }]);
 eq('d recovery: rec-a filePath', S().filePath, '/tmp/rec-a.ifc');
 
 // Direct payloadFromInput-eenheidscheck: alias + verse defaults.
 const p = payloadFromInput(inA);
 eq('d payloadFromInput: calendars uit resourceCalendars', p.calendars.map(c => c.id), ['cal-rec']);
 eq('d payloadFromInput: cpmResult vers null', p.cpmResult, null);
-eq('d payloadFromInput: undoStack vers leeg', p.undoStack.length, 0);
+truthy('d payloadFromInput draagt geen sessiehistorie',
+  !('historyEvents' in p) && !('nextHistorySequence' in p));
 
 // ── (d-K3) BASELINES OVERLEVEN DE HELE CRASHHERSTEL-KETEN ────────────────────────────────────
 // Bevinding K3: `useRecoveryRestore` bouwde de RecoveryDocInput met een HANDMATIGE veldopsomming
@@ -331,9 +373,12 @@ truthy('d K3 setup: baseline heeft taken', kBlBefore.tasks.length === 2);
 const kActiveBefore = S().activeBaselineId;
 
 const kIfc = writeIFC(buildWriteIFCInput(S()));
+truthy('d recovery-IFC bevat geen persoonlijke taakgridvoorkeur', !kIfc.includes(taskGridSentinel));
 const kParsed = readIFC(kIfc);
 // Exact het productiepad: de hook bouwt de recovery-invoer met deze functie, geen replica hier.
 const kInput: RecoveryDocInput = recoveryInputFromParsed(kParsed, { id: 'k3-doc', filePath: '/tmp/k3.ifc', isDirty: true });
+truthy('d recovery-invoer bevat geen persoonlijke taakgridvoorkeur',
+  !JSON.stringify(kInput).includes(taskGridSentinel));
 S().restoreDocuments([kInput], 'k3-doc');
 
 eq('d K3 keten: precies één baseline overleeft write→read→restore', S().baselines.length, 1);
@@ -424,15 +469,16 @@ eq('d eigenaarsprincipe-poort: het GESCHREVEN IFC draagt de RAUWE contouren nog 
 // uit `taskSlice.ts`'s `updateTask` verwijderd ⇒ de eerste twee asserties hierboven sloegen rood uit
 // (het venster stond nog in het geschreven IFC); teruggezet ⇒ weer groen.
 
-// Snapshot-vorm sanity: undoStack draagt `Snapshot`-objecten met het VOLLEDIGE project (pakket H).
+// Snapshot-vorm sanity: een documentdata-event draagt het VOLLEDIGE project (pakket H).
 S().newProject();
 S().addTask({ name: 'X' });
-const snap: Snapshot = S().undoStack[S().undoStack.length - 1];
+const snap: Snapshot = latestAppliedDocumentDataDelta(S())!.before;
 truthy('d snapshot draagt het volledige project (id + naam + vlag)',
   typeof snap.project.id === 'string' && snap.project.id.length > 0 &&
   typeof snap.project.name === 'string' &&
   typeof snap.project.wbsAutoNumber === 'boolean');
 truthy('d snapshot draagt de projectkalender-cache', typeof snap.calendar?.id === 'string');
+truthy('d snapshot draagt geen afleidbare resourceLoadResult', !('resourceLoadResult' in snap));
 
 // ══ (e) IN-PLACE LOAD via loadState → applyLoadedProject (key-gedreven reset-pad) ════════════════
 // loadState vervangt de projectdata IN-PLACE: geen nieuw tabblad, view/inklap behouden, filePath
@@ -455,7 +501,7 @@ eq('e loadState: tasks overgenomen', S().tasks.map(t => t.id), ['task-load']);
 eq('e loadState: activityCodeTypes overgenomen', S().activityCodeTypes.map(a => a.id), ['act-load']);
 eq('e loadState: view (zoom) BEHOUDEN', S().view.zoom, 77);
 eq('e loadState: filePath ONGEMOEID', S().filePath, '/tmp/behouden.ifc');
-eq('e loadState: undo-stack vers leeg', S().undoStack.length, 0);
+eq('e loadState: undo-stack vers leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 truthy('e loadState: isDirty false na in-place load', S().isDirty === false);
 
 // ══ (f) FROZEN-ARRAY-REGRESSIE (switchDocument na recovery, 2026-07-16) ══════════════════════════
@@ -485,13 +531,13 @@ eq('f actief document is gewisseld', S().activeDocumentId, 'froz-b');
 S().newProject();
 const gA = S().addTask({ name: 'GA' });
 const gB = S().addTask({ name: 'GB' });
-const gBase = S().undoStack.length;
+const gBase = S().historyEvents.filter(event => event.state === 'applied').length;
 S().updateTask('bestaat-niet', { name: 'X' }); // afgewezen: onbekend id
-eq('g updateTask(onbekend id): geen loze undo-snapshot', S().undoStack.length, gBase);
+eq('g updateTask(onbekend id): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gBase);
 S().addSequence({ predecessorId: gA, successorId: gB, type: 'FINISH_START', lagDays: 0 }); // geldig
-eq('g addSequence geldig: undo +1', S().undoStack.length, gBase + 1);
+eq('g addSequence geldig: undo +1', S().historyEvents.filter(event => event.state === 'applied').length, gBase + 1);
 S().addSequence({ predecessorId: gA, successorId: gB, type: 'FINISH_START', lagDays: 0 }); // exact duplicaat
-eq('g addSequence(duplicaat): geen loze undo-snapshot', S().undoStack.length, gBase + 1);
+eq('g addSequence(duplicaat): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gBase + 1);
 // Geldige mutatie ná een afgewezen: één undo herstelt direct de juiste staat (geen no-op-stap).
 S().updateTask(gA, { name: 'GA2' });
 S().updateTask('ook-niet', { name: 'Y' }); // afgewezen
@@ -503,36 +549,36 @@ eq('g één undo na afgewezen mutatie herstelt de juiste naam', S().tasks.find(t
 // in de remove*-acties"): een aanroep met een onbekend id mag GEEN undo-snapshot pushen én de
 // betrokken state-array niet aanraken (nieuwe array-referentie of niet — lengte/inhoud ongewijzigd).
 const gSeqCountBase = S().sequences.length;
-const gUndoBaseSeq = S().undoStack.length;
+const gUndoBaseSeq = S().historyEvents.filter(event => event.state === 'applied').length;
 S().removeSequence('seq-bestaat-niet');
-eq('g removeSequence(onbekend id): geen loze undo-snapshot', S().undoStack.length, gUndoBaseSeq);
+eq('g removeSequence(onbekend id): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gUndoBaseSeq);
 eq('g removeSequence(onbekend id): sequences ongewijzigd', S().sequences.length, gSeqCountBase);
 
 const gTaskCountBase = S().tasks.length;
-const gUndoBaseTask = S().undoStack.length;
+const gUndoBaseTask = S().historyEvents.filter(event => event.state === 'applied').length;
 S().deleteTask('taak-bestaat-niet');
-eq('g deleteTask(onbekend id): geen loze undo-snapshot', S().undoStack.length, gUndoBaseTask);
+eq('g deleteTask(onbekend id): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gUndoBaseTask);
 eq('g deleteTask(onbekend id): tasks ongewijzigd', S().tasks.length, gTaskCountBase);
 
 S().addResource({ name: 'GRes', type: 'LABOR', description: '', maxUnits: 1 });
 const gResCountBase = S().resources.length;
-const gUndoBaseRes = S().undoStack.length;
+const gUndoBaseRes = S().historyEvents.filter(event => event.state === 'applied').length;
 S().removeResource('resource-bestaat-niet');
-eq('g removeResource(onbekend id): geen loze undo-snapshot', S().undoStack.length, gUndoBaseRes);
+eq('g removeResource(onbekend id): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gUndoBaseRes);
 eq('g removeResource(onbekend id): resources ongewijzigd', S().resources.length, gResCountBase);
 
 S().addCalendar({ ...createDefaultCalendar(), name: 'GCal' });
 const gCalCountBase = S().calendars.length;
-const gUndoBaseCal = S().undoStack.length;
+const gUndoBaseCal = S().historyEvents.filter(event => event.state === 'applied').length;
 S().removeCalendar('calendar-bestaat-niet');
-eq('g removeCalendar(onbekend id): geen loze undo-snapshot', S().undoStack.length, gUndoBaseCal);
+eq('g removeCalendar(onbekend id): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gUndoBaseCal);
 eq('g removeCalendar(onbekend id): calendars ongewijzigd', S().calendars.length, gCalCountBase);
 
 S().saveBaseline('GBaseline');
 const gBaselineCountBase = S().baselines.length;
-const gUndoBaseBaseline = S().undoStack.length;
+const gUndoBaseBaseline = S().historyEvents.filter(event => event.state === 'applied').length;
 S().deleteBaseline('baseline-bestaat-niet');
-eq('g deleteBaseline(onbekend id): geen loze undo-snapshot', S().undoStack.length, gUndoBaseBaseline);
+eq('g deleteBaseline(onbekend id): geen loze undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, gUndoBaseBaseline);
 eq('g deleteBaseline(onbekend id): baselines ongewijzigd', S().baselines.length, gBaselineCountBase);
 
 // Andere richting van hetzelfde vangnet: met een BESTAAND id pusht elke actie WÉL precies één
@@ -542,37 +588,37 @@ eq('g deleteBaseline(onbekend id): baselines ongewijzigd', S().baselines.length,
 const gSeqValidId = S().sequences.find(
   (sq) => sq.predecessorId === gA && sq.successorId === gB && sq.type === 'FINISH_START',
 )!.id;
-const gUndoPreSeqDel = S().undoStack.length;
+const gUndoPreSeqDel = S().historyEvents.filter(event => event.state === 'applied').length;
 const gSeqLenPre = S().sequences.length;
 S().removeSequence(gSeqValidId);
-eq('g removeSequence(bestaand id): undo +1', S().undoStack.length, gUndoPreSeqDel + 1);
+eq('g removeSequence(bestaand id): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, gUndoPreSeqDel + 1);
 eq('g removeSequence(bestaand id): sequences -1', S().sequences.length, gSeqLenPre - 1);
 
-const gUndoPreTaskDel = S().undoStack.length;
+const gUndoPreTaskDel = S().historyEvents.filter(event => event.state === 'applied').length;
 const gTaskLenPre = S().tasks.length;
 S().deleteTask(gB);
-eq('g deleteTask(bestaand id): undo +1', S().undoStack.length, gUndoPreTaskDel + 1);
+eq('g deleteTask(bestaand id): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, gUndoPreTaskDel + 1);
 eq('g deleteTask(bestaand id): tasks -1', S().tasks.length, gTaskLenPre - 1);
 
 const gResValidId = S().resources.find((r) => r.name === 'GRes')!.id;
-const gUndoPreResDel = S().undoStack.length;
+const gUndoPreResDel = S().historyEvents.filter(event => event.state === 'applied').length;
 const gResLenPre = S().resources.length;
 S().removeResource(gResValidId);
-eq('g removeResource(bestaand id): undo +1', S().undoStack.length, gUndoPreResDel + 1);
+eq('g removeResource(bestaand id): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, gUndoPreResDel + 1);
 eq('g removeResource(bestaand id): resources -1', S().resources.length, gResLenPre - 1);
 
 const gCalValidId = S().calendars.find((c) => c.name === 'GCal')!.id;
-const gUndoPreCalDel = S().undoStack.length;
+const gUndoPreCalDel = S().historyEvents.filter(event => event.state === 'applied').length;
 const gCalLenPre = S().calendars.length;
 S().removeCalendar(gCalValidId);
-eq('g removeCalendar(bestaand id): undo +1', S().undoStack.length, gUndoPreCalDel + 1);
+eq('g removeCalendar(bestaand id): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, gUndoPreCalDel + 1);
 eq('g removeCalendar(bestaand id): calendars -1', S().calendars.length, gCalLenPre - 1);
 
 const gBaseValidId = S().baselines.find((b) => b.name === 'GBaseline')!.id;
-const gUndoPreBaseDel = S().undoStack.length;
+const gUndoPreBaseDel = S().historyEvents.filter(event => event.state === 'applied').length;
 const gBaseLenPre = S().baselines.length;
 S().deleteBaseline(gBaseValidId);
-eq('g deleteBaseline(bestaand id): undo +1', S().undoStack.length, gUndoPreBaseDel + 1);
+eq('g deleteBaseline(bestaand id): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, gUndoPreBaseDel + 1);
 eq('g deleteBaseline(bestaand id): baselines -1', S().baselines.length, gBaseLenPre - 1);
 
 // ══ (h) PROJECT VOLLEDIG IN DE SNAPSHOT (pakket H) ══════════════════════════════════════════════
@@ -584,20 +630,20 @@ eq('g deleteBaseline(bestaand id): baselines -1', S().baselines.length, gBaseLen
 
 // (h1) setProject — echte wijziging, no-op, en undo/redo-heen-en-weer.
 S().newProject();
-const hBase0 = S().undoStack.length;                       // = 0 na newProject
+const hBase0 = S().historyEvents.filter(event => event.state === 'applied').length;                       // = 0 na newProject
 eq('h1 setup: verse undo-stack', hBase0, 0);
 const hOrigName = S().project.name;
 S().setProject({ name: 'Project H-A' });
-eq('h1 setProject(echte wijziging): undo +1', S().undoStack.length, hBase0 + 1);
+eq('h1 setProject(echte wijziging): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, hBase0 + 1);
 eq('h1 setProject: naam gezet', S().project.name, 'Project H-A');
 const hModified = S().project.modifiedAt;
 S().setProject({ name: 'Project H-A' });                   // identieke waarde
-eq('h1 setProject(identiek): GEEN undo-stap', S().undoStack.length, hBase0 + 1);
+eq('h1 setProject(identiek): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hBase0 + 1);
 eq('h1 setProject(identiek): modifiedAt onaangeroerd', S().project.modifiedAt, hModified);
 S().setProject({ name: 'Project H-A', description: '' });  // alle velden identiek
-eq('h1 setProject(alle velden identiek): GEEN undo-stap', S().undoStack.length, hBase0 + 1);
+eq('h1 setProject(alle velden identiek): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hBase0 + 1);
 S().setProject({ name: 'Project H-B' });
-eq('h1 tweede wijziging: undo +2', S().undoStack.length, hBase0 + 2);
+eq('h1 tweede wijziging: undo +2', S().historyEvents.filter(event => event.state === 'applied').length, hBase0 + 2);
 S().undo();
 eq('h1 undo 1×: terug naar H-A', S().project.name, 'Project H-A');
 S().undo();
@@ -605,32 +651,32 @@ eq('h1 undo 2×: terug naar de oorspronkelijke naam', S().project.name, hOrigNam
 // Redo pusht een VERSE snapshot op de undo-stack — die moet het volledige project dragen.
 S().redo();
 eq('h1 redo 1×: weer H-A', S().project.name, 'Project H-A');
-const hRedoSnap: Snapshot = S().undoStack[S().undoStack.length - 1];
+const hRedoSnap: Snapshot = latestAppliedDocumentDataDelta(S())!.before;
 truthy('h1 redo-snapshot draagt het volledige project', typeof hRedoSnap.project.id === 'string' && hRedoSnap.project.name === hOrigName);
 S().redo();
 eq('h1 redo 2×: weer H-B (juiste eindstand)', S().project.name, 'Project H-B');
 
 // (h2) setStatusDate.
 S().newProject();
-const hSdBase = S().undoStack.length;
+const hSdBase = S().historyEvents.filter(event => event.state === 'applied').length;
 S().setStatusDate('2030-06-01');
-eq('h2 setStatusDate(nieuw): undo +1', S().undoStack.length, hSdBase + 1);
+eq('h2 setStatusDate(nieuw): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, hSdBase + 1);
 eq('h2 setStatusDate: waarde gezet', S().project.statusDate, '2030-06-01');
 S().setStatusDate('2030-06-01');
-eq('h2 setStatusDate(identiek): GEEN undo-stap', S().undoStack.length, hSdBase + 1);
+eq('h2 setStatusDate(identiek): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hSdBase + 1);
 S().undo();
 eq('h2 undo herstelt "geen statusdatum"', S().project.statusDate, undefined);
 S().setStatusDate(undefined);
-eq('h2 setStatusDate(undefined) terwijl er geen is: GEEN undo-stap', S().undoStack.length, hSdBase);
+eq('h2 setStatusDate(undefined) terwijl er geen is: GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hSdBase);
 
 // (h3) setProgressMode.
 S().newProject();
-const hPmBase = S().undoStack.length;
+const hPmBase = S().historyEvents.filter(event => event.state === 'applied').length;
 S().setProgressMode('PROGRESS_OVERRIDE');
-eq('h3 setProgressMode(nieuw): undo +1', S().undoStack.length, hPmBase + 1);
+eq('h3 setProgressMode(nieuw): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, hPmBase + 1);
 eq('h3 setProgressMode: waarde gezet', S().project.progressMode, 'PROGRESS_OVERRIDE');
 S().setProgressMode('PROGRESS_OVERRIDE');
-eq('h3 setProgressMode(identiek): GEEN undo-stap', S().undoStack.length, hPmBase + 1);
+eq('h3 setProgressMode(identiek): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hPmBase + 1);
 S().undo();
 eq('h3 undo herstelt de default (undefined)', S().project.progressMode, undefined);
 
@@ -639,15 +685,15 @@ eq('h3 undo herstelt de default (undefined)', S().project.progressMode, undefine
 S().newProject();
 const hCalOldId = S().project.calendarId;
 const hCalNewId = S().addCalendar({ ...createDefaultCalendar(), name: 'H-kalender', hoursPerDay: 6 });
-const hPcBase = S().undoStack.length;
+const hPcBase = S().historyEvents.filter(event => event.state === 'applied').length;
 S().setProjectCalendar(hCalNewId);
-eq('h4 setProjectCalendar(nieuw): undo +1', S().undoStack.length, hPcBase + 1);
+eq('h4 setProjectCalendar(nieuw): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, hPcBase + 1);
 eq('h4 project.calendarId gezet', S().project.calendarId, hCalNewId);
 eq('h4 cache volgt de nieuwe projectkalender', S().calendar.id, hCalNewId);
 S().setProjectCalendar(hCalNewId);
-eq('h4 setProjectCalendar(zelfde id): GEEN undo-stap', S().undoStack.length, hPcBase + 1);
+eq('h4 setProjectCalendar(zelfde id): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hPcBase + 1);
 S().setProjectCalendar('cal-bestaat-niet');
-eq('h4 setProjectCalendar(onbekend id): GEEN undo-stap', S().undoStack.length, hPcBase + 1);
+eq('h4 setProjectCalendar(onbekend id): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hPcBase + 1);
 S().undo();
 eq('h4 undo herstelt project.calendarId', S().project.calendarId, hCalOldId);
 eq('h4 undo herstelt de cache CONSISTENT met het id', S().calendar.id, hCalOldId);
@@ -656,14 +702,14 @@ truthy('h4 invariant: cache == bibliotheek-entry van project.calendarId',
 
 // (h5) setCalendar — muteert de cache én (indien aanwezig) de bibliotheek-entry.
 S().newProject();
-const hScBase = S().undoStack.length;
+const hScBase = S().historyEvents.filter(event => event.state === 'applied').length;
 const hCalBefore = S().calendar;
 S().setCalendar({ ...hCalBefore, hoursPerDay: hCalBefore.hoursPerDay + 1 });
-eq('h5 setCalendar(echte wijziging): undo +1', S().undoStack.length, hScBase + 1);
+eq('h5 setCalendar(echte wijziging): undo +1', S().historyEvents.filter(event => event.state === 'applied').length, hScBase + 1);
 eq('h5 cache bijgewerkt', S().calendar.hoursPerDay, hCalBefore.hoursPerDay + 1);
 eq('h5 bibliotheek-entry meegetrokken', S().calendars.find(c => c.id === hCalBefore.id)?.hoursPerDay, hCalBefore.hoursPerDay + 1);
 S().setCalendar({ ...S().calendar });                       // identieke inhoud, nieuwe referentie
-eq('h5 setCalendar(identieke inhoud): GEEN undo-stap', S().undoStack.length, hScBase + 1);
+eq('h5 setCalendar(identieke inhoud): GEEN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, hScBase + 1);
 S().undo();
 eq('h5 undo herstelt de cache', S().calendar.hoursPerDay, hCalBefore.hoursPerDay);
 eq('h5 undo herstelt de bibliotheek-entry', S().calendars.find(c => c.id === hCalBefore.id)?.hoursPerDay, hCalBefore.hoursPerDay);
@@ -762,29 +808,29 @@ const typeDate = (raw: string, onCommit: (iso: string) => void): string[] => {
 };
 
 S().newProject();
-const iBase = S().undoStack.length;
+const iBase = S().historyEvents.filter(event => event.state === 'applied').length;
 const iCommits = typeDate('01062030', (iso) => S().setStatusDate(iso));
 eq('i één ingetypte datum = drie live-commits', iCommits, ['2020-06-01', '0203-06-01', '2030-06-01']);
-eq('i statusdatum: drie commits = ÉÉN undo-stap', S().undoStack.length - iBase, 1);
+eq('i statusdatum: drie commits = ÉÉN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - iBase, 1);
 eq('i eindwaarde is de laatst getypte datum', S().project.statusDate, '2030-06-01');
 S().undo();
 eq('i één undo wist de hele ingetypte datum (geen onzin-tussenwaarde)', S().project.statusDate, undefined);
 
 // Coalescing mag NIET over een andere mutatie heen lopen: statusdatum → taak → statusdatum = 3 stappen.
 S().newProject();
-const iBase2 = S().undoStack.length;
+const iBase2 = S().historyEvents.filter(event => event.state === 'applied').length;
 typeDate('01062030', (iso) => S().setStatusDate(iso));
 S().addTask({ name: 'tussendoor' });
 typeDate('02072031', (iso) => S().setStatusDate(iso));
-eq('i coalescing loopt niet over een andere mutatie heen', S().undoStack.length - iBase2, 3);
+eq('i coalescing loopt niet over een andere mutatie heen', S().historyEvents.filter(event => event.state === 'applied').length - iBase2, 3);
 // …en niet over een undo heen: na een undo moet de volgende reeks een VERSE stap pushen.
 S().newProject();
 typeDate('01062030', (iso) => S().setStatusDate(iso));   // stap 1
 S().undo();                                              // stack 0, redo 1
-const iAfterUndo = S().undoStack.length;
+const iAfterUndo = S().historyEvents.filter(event => event.state === 'applied').length;
 typeDate('02072031', (iso) => S().setStatusDate(iso));
-eq('i coalescing loopt niet over een undo heen', S().undoStack.length - iAfterUndo, 1);
-eq('i mutatie na undo wist de redo-stack', S().redoStack.length, 0);
+eq('i coalescing loopt niet over een undo heen', S().historyEvents.filter(event => event.state === 'applied').length - iAfterUndo, 1);
+eq('i mutatie na undo wist de redo-stack', S().historyEvents.filter(event => event.state === 'undone').length, 0);
 
 // ══ (j) UI-VERWIJZINGEN NAAR HET UITGAANDE DOCUMENT (K-item 26) ═════════════════════════════════
 // `ui` is app-globaal, maar een paar velden erin wijzen naar iets uit het ACTIEVE document.

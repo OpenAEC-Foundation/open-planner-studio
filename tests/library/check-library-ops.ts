@@ -153,6 +153,12 @@ const genId = (prefix: string) => `${prefix}-gen-${++n}`;
   // RESOURCE_DIFF_FIELDS te zetten: dit blok kleurt dan rood.
   const maxUnitsChanged = { ...copy, maxUnits: copy.maxUnits + 5, availabilitySteps: [{ from: '2030-01-01', maxUnits: 99 }] };
   assert(diffResourceVsPool(maxUnitsChanged, p).status === 'up-to-date', 'F1: maxUnits/availabilitySteps-wijziging levert GEEN afwijking meer op (projectinzet, geen bibliotheekafspraak)');
+  // #21: color is PUUR presentatie — mag nooit een afwijkingsstatus of hash-wijziging triggeren
+  // (een andere kleur is geen "wijkt af", anders zou de afwijkingsdialoog de rapportkleuren gaan
+  // "herstellen"). Draai de negatieve controle: color in RESOURCE_DIFF_FIELDS zetten kleurt rood.
+  const colorChanged = { ...copy, color: '#0EA5E9' };
+  assert(diffResourceVsPool(colorChanged, p).status === 'up-to-date', '#21: kleurwijziging levert GEEN afwijking op (presentatie, geen bibliotheekafspraak)');
+  assert(computeResourceHash(colorChanged) === computeResourceHash(copy), '#21: kleur zit niet in computeResourceHash');
   const removedPool: CompanyPool = { ...p, resources: [] };
   assert(diffResourceVsPool(copy, removedPool).status === 'removed', 'diff: verwijderd origineel ⇒ removed');
   const c = copyCalendarToProject(p, 'pc1', [], genId)!.calendar;

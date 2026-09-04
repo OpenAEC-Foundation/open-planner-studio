@@ -1,5 +1,6 @@
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import { workDaysFromBands } from '@/services/subdayIo';
+export { seedScalarBands, seedScalarWorkTime } from '@/utils/effectiveWorkTime';
 
 /**
  * Ploeg-/werktijd-presets (fase 2.8b, §6.6/§6.7). Eén gedeelde definitie voor zowel de
@@ -22,6 +23,8 @@ export interface WorkTimePatch {
   workStartHour: number;
   workEndHour: number;
   hoursPerDay: number;
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
 }
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
@@ -46,40 +49,6 @@ export function makeBands(days: number[], bands: { start: number; end: number }[
  * - `spanne > netto` ⇒ twee banden met het pauze-gat; de pauze wordt zo dicht mogelijk bij 12:00 gelegd,
  *   geklemd binnen `[start,end)`. Landt de pauze precies op een rand, dan valt de lege band weg (één band).
  */
-export function seedScalarBands(
-  startMin: number,
-  endMin: number,
-  hoursPerDay: number,
-): { start: number; end: number }[] {
-  const target = Math.round(hoursPerDay * 60);
-  // Defensief: een niet-oplopende of ongeldige spanne ⇒ één rauwe band (canonicalisatie doet de rest).
-  if (endMin <= startMin || target <= 0) return [{ start: startMin, end: endMin }];
-  const span = endMin - startMin;
-  if (span <= target) return [{ start: startMin, end: endMin }];
-  const gap = span - target; // impliciete pauze
-  const NOON = 12 * 60;
-  // Pauze rond het middaguur, geklemd zodat beide randen binnen [start,end) blijven.
-  const gapStart = Math.min(Math.max(NOON, startMin), endMin - gap);
-  const gapEnd = gapStart + gap;
-  const bands: { start: number; end: number }[] = [];
-  if (gapStart > startMin) bands.push({ start: startMin, end: gapStart });
-  if (gapEnd < endMin) bands.push({ start: gapEnd, end: endMin });
-  return bands.length ? bands : [{ start: startMin, end: endMin }];
-}
-
-/**
- * Seed een volledige `WorkTimeBands` uit het scalar-dag-model bij het openen van de banden-editor op een
- * dag-kalender (QA-fix golf). Elke werkdag krijgt dezelfde {@link seedScalarBands}-banden, zodat de
- * afgeleide `hoursPerDay` gelijk blijft aan de opgegeven scalar-waarde (regressiekern).
- */
-export function seedScalarWorkTime(
-  workDays: number[],
-  workStartHour: number,
-  workEndHour: number,
-  hoursPerDay: number,
-): WorkTimeBands {
-  return makeBands(workDays, seedScalarBands(workStartHour * 60, workEndHour * 60, hoursPerDay));
-}
 
 /**
  * Volledige patch voor een ingebouwde ploeg-preset.
@@ -95,6 +64,7 @@ export function shiftPresetPatch(key: ShiftPresetKey): WorkTimePatch {
       return {
         workTime: undefined, shift: undefined,
         workDays: [...WEEKDAYS], workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+        simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
       };
     case 'two-shift':
       return {
@@ -206,6 +176,8 @@ export interface WorkTimePreset {
   workStartHour: number;
   workEndHour: number;
   hoursPerDay: number;
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
 }
 
 /** Snapshot de werktijd-velden van een kalender als eigen preset. */
@@ -218,6 +190,8 @@ export function presetFromCalendar(id: string, name: string, cal: WorkCalendar):
     workStartHour: cal.workStartHour,
     workEndHour: cal.workEndHour,
     hoursPerDay: cal.hoursPerDay,
+    simpleBreakStartMinute: cal.simpleBreakStartMinute,
+    simpleBreakDurationMinutes: cal.simpleBreakDurationMinutes,
   };
 }
 
@@ -227,5 +201,7 @@ export function patchFromPreset(p: WorkTimePreset): WorkTimePatch {
   return {
     workTime: p.workTime, shift: p.shift,
     workDays, workStartHour: p.workStartHour, workEndHour: p.workEndHour, hoursPerDay: p.hoursPerDay,
+    simpleBreakStartMinute: p.simpleBreakStartMinute,
+    simpleBreakDurationMinutes: p.simpleBreakDurationMinutes,
   };
 }

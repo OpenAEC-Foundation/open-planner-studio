@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 // Generieke sleep-splitter — hetzelfde patroon dat door de app werd gedupliceerd
 // (rechterpaneel-rand in App, tabel/chart-rand in GanttCanvas): losse drag-state,
@@ -14,7 +15,7 @@ import { useEffect, useState } from 'react';
 export interface UseSplitterOptions {
   min: number;
   max: number | (() => number);
-  computeSize: (e: MouseEvent) => number;
+  computeSize: (e: Pick<MouseEvent, 'clientX' | 'clientY'>) => number;
   onResize: (size: number) => void;
   onCommit?: () => void;
 }
@@ -22,29 +23,57 @@ export interface UseSplitterOptions {
 export interface Splitter {
   isResizing: boolean;
   start: () => void;
+  startPointer: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 export function useSplitter(opts: UseSplitterOptions): Splitter {
-  const [isResizing, setIsResizing] = useState(false);
+  const [dragOwner, setDragOwner] = useState<'mouse' | number | null>(null);
+  const isResizing = dragOwner !== null;
+  const optsRef = useLatestRef(opts);
 
   useEffect(() => {
-    if (!isResizing) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const maxW = typeof opts.max === 'function' ? opts.max() : opts.max;
-      const size = Math.min(maxW, Math.max(opts.min, opts.computeSize(e)));
-      opts.onResize(size);
+    if (dragOwner === null) return;
+    const resizeFrom = (e: Pick<MouseEvent, 'clientX' | 'clientY'>) => {
+      const current = optsRef.current;
+      const maxW = typeof current.max === 'function' ? current.max() : current.max;
+      const size = Math.min(maxW, Math.max(current.min, current.computeSize(e)));
+      current.onResize(size);
     };
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      opts.onCommit?.();
+    const finish = () => {
+      setDragOwner(null);
+      optsRef.current.onCommit?.();
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    const handleMouseMove = (event: MouseEvent) => resizeFrom(event);
+    const handlePointerMove = (event: PointerEvent) => {
+      if (typeof dragOwner === 'number' && event.pointerId === dragOwner) resizeFrom(event);
+    };
+    const handlePointerUp = (event: PointerEvent) => {
+      if (typeof dragOwner === 'number' && event.pointerId === dragOwner) finish();
+    };
+    if (dragOwner === 'mouse') {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', finish);
+    } else {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('pointercancel', handlePointerUp);
+    }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', finish);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [isResizing]);
+  }, [dragOwner, optsRef]);
 
-  return { isResizing, start: () => setIsResizing(true) };
+  return {
+    isResizing,
+    start: () => setDragOwner('mouse'),
+    startPointer: event => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      setDragOwner(event.pointerId);
+    },
+  };
 }

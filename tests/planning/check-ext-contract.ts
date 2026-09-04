@@ -24,6 +24,8 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task, TaskTime } from '@/types/task';
@@ -33,6 +35,12 @@ import type {
   ExtProject, ExtCalendar, ExtTask, ExtTaskTime, ExtSequence, ExtResource, ExtAssignment,
   ExtRibbonTab, ExtFontProvider,
 } from '@/extensions/extTypes';
+import type { ExtensionApi, ExtensionPermission } from '@/extensions/types';
+import {
+  createExtensionApi,
+  type ExtensionHostBinding,
+} from '@/extensions/extensionApi';
+import type { AppStoreContext } from '@/state/appStore';
 import { EXTENSION_API_VERSION, checkApiCompatibility } from '@/extensions/apiVersion';
 import {
   toExtProject, fromExtProject,
@@ -47,8 +55,7 @@ import {
   fromExtRibbonTab, fromExtFontProvider,
 } from '@/extensions/extMappers';
 import { getExtensionSdk } from '@/extensions/sdk';
-import { createExtensionApi } from '@/extensions/extensionApi';
-import { useAppStore } from '@/state/appStore';
+import { appStoreContext, useAppStore } from '@/state/appStore';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -71,23 +78,24 @@ function keys<T>() {
 
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
-  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'schedulingOptions',
+  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
 ] as const);
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
-  'holidays', 'workTime', 'shift', 'workingExceptions', 'p6Source', 'p6NonWorkPenaltyDates',
+  'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'holidays', 'workTime', 'shift', 'workingExceptions',
+  'p6Source', 'p6NonWorkPenaltyDates',
 ] as const);
 
 const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
-  'durationType', 'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish',
+  'durationType', 'durationUnit', 'scheduleDuration', 'durationMinutes', 'scheduleStart', 'scheduleFinish',
   'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'freeFloat', 'totalFloat', 'isCritical',
   'interferingFloat', 'isNearCritical', 'floatPath', 'actualStart', 'actualFinish',
   'actualDuration', 'remainingTime', 'remainingMinutes', 'completion', 'resume', 'stop',
 ] as const);
 
 const EXT_TASK_KEYS = keys<ExtTask>()([
-  'id', 'name', 'description', 'wbsCode', 'taskType', 'status', 'isMilestone', 'milestoneKind',
+  'id', 'name', 'description', 'wbsCode', 'taskType', 'customTaskType', 'status', 'isMilestone', 'milestoneKind',
   'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'isSummary', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
@@ -107,7 +115,7 @@ const EXT_SEQUENCE_KEYS = keys<ExtSequence>()([
 
 const EXT_RESOURCE_KEYS = keys<ExtResource>()([
   'id', 'name', 'type', 'description', 'costPerHour', 'maxUnits', 'calendarId',
-  'availabilitySteps', 'unitOfMeasure', 'parentId',
+  'availabilitySteps', 'unitOfMeasure', 'parentId', 'color',
 ] as const);
 
 const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
@@ -158,6 +166,7 @@ const PUBLIC_SCHEDULING_OPTION_KEYS = [
 
 const VOL_TIME = {
   durationType: 'WORKTIME',
+  durationUnit: 'hours',
   scheduleDuration: 5,
   durationMinutes: 2400,
   scheduleStart: '2026-06-01',
@@ -187,7 +196,8 @@ const VOL_TASK = {
   name: 'Fundering',
   description: 'beschrijving',
   wbsCode: '1.2',
-  taskType: 'CONSTRUCTION',
+  taskType: 'USERDEFINED',
+  customTaskTypeId: 'ops-ext-type',
   status: 'STARTED',
   isMilestone: false,
   milestoneKind: 'FINISH',
@@ -240,6 +250,7 @@ const VOL_PROJECT = {
   createdAt: '2026-01-01T00:00:00', modifiedAt: '2026-01-02T00:00:00',
   author: 'Auteur', company: 'Bedrijf',
   wbsAutoNumber: true, statusDate: '2026-06-01', progressMode: 'PROGRESS_OVERRIDE',
+  defaultTaskDurationUnit: 'days',
   schedulingOptions: {
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath', threshold: -1 },
@@ -254,6 +265,7 @@ const VOL_PROJECT = {
 const VOL_CALENDAR = {
   id: 'cal1', name: 'Kalender', description: 'omschrijving',
   workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+  simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60,
   holidays: [{ name: 'Kerst', startDate: '2026-12-25', endDate: '2026-12-26' }],
   generation: { ruleSetId: 'NL', generatedFromYear: 2026, generatedToYear: 2028, region: 'noord', breakChoice: 'noord' },
   workTime: { byWeekday: { 1: [{ start: 420, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },
@@ -386,6 +398,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
 
 const VOL_RESOURCE = {
   id: 'r1', name: 'Kraan', type: 'EQUIPMENT', description: 'omschrijving',
+  color: '#2563EB',
   costPerHour: 120, availability: 1, maxUnits: 2, calendarId: 'cal2',
   availabilitySteps: [{ from: '2026-03-01', maxUnits: 3 }],
   unitOfMeasure: 'stuks', parentId: 'crew1',
@@ -412,6 +425,10 @@ eq('7 toExtAssignment vult elk ExtAssignment-veld', aanwezig(toExtAssignment(VOL
 // `undefined` neerzet zou de check hierboven passeren.
 for (const k of EXT_TASK_KEYS) {
   if (k === 'time') continue; // apart, hieronder
+  if (k === 'customTaskType') {
+    eq('8 toExtTask draagt de stabiele custom-type-id over', toExtTask(VOL_TASK).customTaskType, { id: VOL_TASK.customTaskTypeId });
+    continue;
+  }
   eq(`8 toExtTask draagt "${String(k)}" over`,
     (toExtTask(VOL_TASK) as unknown as Record<string, unknown>)[k as string],
     (VOL_TASK as unknown as Record<string, unknown>)[k as string]);
@@ -548,7 +565,9 @@ for (const [naam, ext, bron, sleutels] of [
   for (const t of TABS) {
     eq(`27 ribbontabblad "${t}" mapt naar iets`, typeof fromExtRibbonTab(t), 'string');
   }
-  eq('27a en vandaag is dat één-op-één', TABS.map(fromExtRibbonTab), TABS.slice());
+  eq('27a bestaande extensies met relations landen na de overhaul op de volledige Tabel',
+    TABS.map(fromExtRibbonTab),
+    ['file', 'start', 'planning', 'resources', 'table', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai']);
 
   // Font-provider: de host mag NIET het object van de extensie bewaren, en `getBoldBytes` mag niet
   // als `undefined`-sleutel doorlekken (de pagineerder test op aanwezigheid).
@@ -609,7 +628,10 @@ for (const [naam, ext, bron, sleutels] of [
   const sdkSummary = getExtensionSdk().factory.createTask({ name: 'SDK lege summary', isSummary: true });
   eq('31 SDK-factory bewaart de expliciete lege summary', sdkSummary.isSummary, true);
 
-  const api = createExtensionApi('x4a-summary-contract', []);
+  const api = createExtensionApi('x4a-summary-contract', [], undefined, appStoreContext, {
+    app: appStoreContext,
+    showNotification: () => {},
+  });
   const id = api.data.addTask(sdkSummary);
   api.data.recalculate();
   eq('31a extension addTask bewaart de marker in de store',
@@ -673,6 +695,47 @@ for (const [naam, ext, bron, sleutels] of [
 
   // En tegen de ECHTE hostversie: de huidige waarde moet zichzelf accepteren.
   eq('36 de host accepteert zijn eigen versie', checkApiCompatibility(EXTENSION_API_VERSION).ok, true);
+}
+
+// ── 7. De API-factory maakt document- en hostbinding constructief expliciet ─
+{
+  type IsExact<A, B> =
+    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
+      ? (<T>() => T extends B ? 1 : 2) extends (<T>() => T extends A ? 1 : 2)
+        ? true
+        : false
+      : false;
+  type ExpectedCreateExtensionApiParameters = [
+    extensionId: string,
+    permissions: ExtensionPermission[],
+    assets: Record<string, Uint8Array> | undefined,
+    document: AppStoreContext,
+    host: ExtensionHostBinding,
+  ];
+  const exacteParameters: IsExact<
+    Parameters<typeof createExtensionApi>,
+    ExpectedCreateExtensionApiParameters
+  > = true;
+  const exactResultaat: IsExact<ReturnType<typeof createExtensionApi>, ExtensionApi> = true;
+  eq('37 createExtensionApi heeft exact vijf contextvaste parameters', exacteParameters, true);
+  eq('37a createExtensionApi retourneert exact ExtensionApi', exactResultaat, true);
+  eq('37b createExtensionApi heeft runtime-arity vijf', createExtensionApi.length, 5);
+
+  const source = readFileSync(join(process.cwd(), 'src/extensions/extensionApi.ts'), 'utf8');
+  const verbodenImports = [
+    ['useAppStore', /import[^;]*\buseAppStore\b[^;]*from/],
+    ['appStoreContext', /import[^;]*\bappStoreContext\b[^;]*from/],
+    ['appLog', /import[^;]*\bappLog\b[^;]*from/],
+    ['globale withTransaction', /import[^;]*\bwithTransaction\b[^;]*from/],
+  ].filter(([, patroon]) => (patroon as RegExp).test(source)).map(([naam]) => naam);
+  eq('38 extensionApi importeert geen singleton-, log- of globale transactiebinding',
+    verbodenImports, []);
+
+  const loaderSource = readFileSync(join(process.cwd(), 'src/extensions/extensionLoader.ts'), 'utf8');
+  eq('39 productiehost bindt warning exact aan warn',
+    /type === 'warning' \? 'warn' : 'info'/.test(loaderSource), true);
+  eq('39a productiehost behoudt source ext:extensionId en ongewijzigde message',
+    /appLog\.emit\(level, `ext:\$\{extensionId\}`, message\)/.test(loaderSource), true);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

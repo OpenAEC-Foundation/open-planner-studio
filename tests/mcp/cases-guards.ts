@@ -8,12 +8,16 @@
 // statusdatum ⇒ weigering, actuals zonder statusdatum ⇒ weigering met uitleg, actualFinish <
 // actualStart ⇒ weigering, actualFinish-wis op 100% ⇒ completion-reset, voortgang op summary ⇒
 // weigering, kringverwijzing in de voorgestelde batch ⇒ noCycle noemt de kring (+ store byte-
-// identiek binnen een transactie), dubbele toewijzing ⇒ assignmentAllowed weigert (+ bewijs dat de
-// store anders dubbel telt), onbekend task-id ⇒ per-item-fout uit tasksExist.
+// identiek binnen een transactie), dubbele toewijzing ⇒ assignmentAllowed én de store weigeren hem,
+// onbekend task-id ⇒ per-item-fout uit tasksExist.
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { validate, progress } from '@/state/mcpValidation';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
+import { createAppStoreContext } from '@/state/appStore';
+import { capturePayload } from '@/state/documentContract';
+import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 
@@ -156,13 +160,12 @@ test('validate.assignmentAllowed weigert de DUBBELE toewijzing (duplicaat = dubb
   assert(first.ok, 'de eerste toewijzing hoort te worden toegestaan');
   store.getState().assignResource(t, r, 2);
 
-  // Bewijs dat de store ZELF geen dubbele-guard heeft: een tweede store-call maakt een DUPLICAAT en
-  // de gevraagde last telt dubbel (2 + 2 = 4 eenheden/dag op dezelfde taak-resource).
+  // De algemene store-route bewaakt dezelfde invariant als laatste vangrail voor niet-MCP-aanroepers.
   store.getState().assignResource(t, r, 2);
   const dupes = store.getState().assignments.filter((a) => a.taskId === t && a.resourceId === r);
-  assertEq(dupes.length, 2, 'de store maakt zonder guard een tweede (duplicaat-)toewijzing aan');
+  assertEq(dupes.length, 1, 'de store weigert een tweede (duplicaat-)toewijzing');
   const loadSum = dupes.reduce((sum, a) => sum + a.unitsPerDay, 0);
-  assertEq(loadSum, 4, 'de gevraagde last telt zo dubbel (2+2=4) — precies wat de guard moet voorkomen');
+  assertEq(loadSum, 2, 'de geweigerde duplicaat verhoogt de gevraagde last niet');
 
   // De guard weigert de tweede toewijzing (op een staat waarin de resource er al op zit).
   const second = validate.assignmentAllowed(store.getState(), t, r, 2);
@@ -278,5 +281,65 @@ test('validate.milestoneDuration: mijlpaal met duur>0 ⇒ fout, duur 0 / geen mi
   assertEq(validate.milestoneDuration({ isMilestone: false, time: { scheduleDuration: 5 } as any }), null, 'gewone taak ⇒ geen fout');
   assertEq(validate.milestoneDuration({ isMilestone: true }), null, 'mijlpaal zonder expliciete time ⇒ geen fout (duur wordt 0)');
 });
+
+// =================================================================================================
+// 6) Contextfactory-vangrails: solverrollback en strikt synchrone callback
+// =================================================================================================
+test('solvercycle in factory B rolt B volledig terug en laat A bytegelijk', () => {
+  const A = createAppStoreContext();
+  const B = createAppStoreContext();
+  B.store.getState().addTask({ name: 'warmup' });
+  B.store.getState().undo();
+  const a = B.store.getState().addTask({ name: 'factory-cycle-A' });
+  const b = B.store.getState().addTask({ name: 'factory-cycle-B' });
+  B.store.getState().runCPM();
+  const txB = createMcpTransactions(B);
+  const aVoor = JSON.stringify(capturePayload(A.store.getState()));
+  const bVoor = JSON.stringify(createSnapshot(B.store.getState()));
+  const historyVoor = JSON.stringify(B.store.getState().historyEvents);
+
+  const result = txB.run(() => {
+    txB.draft.addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+    txB.draft.addSequence({ predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  });
+
+  assert(!result.ok, 'de eindsolver hoort de kring te weigeren');
+  assertEq(JSON.stringify(createSnapshot(B.store.getState())), bVoor,
+    'B hoort inclusief cpmResult exact terug te rollen');
+  assertEq(JSON.stringify(B.store.getState().historyEvents), historyVoor,
+    'B-history hoort na solverrollback exact gelijk te zijn');
+  assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor, 'solverrollback in B mag A niet raken');
+});
+
+test('een thenable uit de callback wordt runtime geweigerd en volledig teruggerold', () => {
+  const context = createAppStoreContext();
+  context.store.getState().addTask({ name: 'warmup' });
+  context.store.getState().undo();
+  const tx = createMcpTransactions(context);
+  const voor = JSON.stringify(createSnapshot(context.store.getState()));
+  const stacksVoor = historyDepthsForActiveScope(context.store.getState());
+  const unsafeRun = tx.run as unknown as (
+    fn: () => unknown,
+  ) => { ok: true; value: unknown; timephasedGuidanceLost: number } | { ok: false; error: string };
+
+  const result = unsafeRun(() => {
+    tx.draft.addTask({ name: 'verdwijnt-door-thenable' });
+    return Promise.resolve('asynchroon');
+  });
+
+  assert(!result.ok && /synchroon|thenable|promise/i.test(result.error),
+    'de runtimeguard hoort een herkenbare synchroniciteitsfout te geven');
+  assertEq(JSON.stringify(createSnapshot(context.store.getState())), voor,
+    'de thenable-weigering hoort de documentstate volledig terug te rollen');
+  assertEq(historyDepthsForActiveScope(context.store.getState()), stacksVoor,
+    'de thenable-weigering hoort undo/redo exact te herstellen');
+});
+
+if (false) {
+  const context = createAppStoreContext();
+  const tx = createMcpTransactions(context);
+  // @ts-expect-error MCP-transacties zijn strikt synchroon; Promise-return is type-ongeldig.
+  tx.run(async () => 'niet-toegestaan');
+}
 
 await run();

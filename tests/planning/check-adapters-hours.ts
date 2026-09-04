@@ -24,6 +24,7 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { solveProject } from '@/engine/scheduler/solveProject';
 import { installDOMParser } from './xmldom-shim';
 
 installDOMParser();
@@ -72,7 +73,7 @@ const mk = (id: string, name: string, wbs: string, start: string, finish: string
   id, name, description: '', wbsCode: wbs, taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: false,
   priority: 500, parentId: null, childIds: [],
   time: {
-    durationType: 'WORKTIME', scheduleDuration: minutes / 480, durationMinutes: minutes,
+    durationType: 'WORKTIME', durationUnit: 'hours', scheduleDuration: minutes / 480, durationMinutes: minutes,
     scheduleStart: start, scheduleFinish: finish, earlyStart: start, earlyFinish: finish,
     lateStart: start, lateFinish: finish, freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
   },
@@ -134,6 +135,52 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     [p.project.schedulingOptions?.p6Source, p.calendar.p6Source], [undefined, undefined]);
 }
 
+// Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
+// bewaren; alleen naar de kalender kijken zou de 2d-taak na export/import stil als 16h lezen.
+{
+  const daySeed = mk('t-day-on-bands', 'Twee werkdagen', '4', '2026-07-06T08:00', '2026-07-07T16:00', 960);
+  const dayOnBands: Task = {
+    ...daySeed,
+    time: {
+      ...daySeed.time,
+      durationUnit: 'days',
+      scheduleDuration: 2,
+      durationMinutes: undefined,
+    },
+  };
+  const back = readMSPDI(writeMSPDI(project, H8, [dayOnBands, tasks[0]], [], [], []));
+  const dayBack = back.tasks.find((task) => task.name === 'Twee werkdagen');
+  const hourBack = back.tasks.find((task) => task.name === 'Metselen');
+  eq('MSPDI mixed: dagtaak op uurkalender bewaart days', dayBack?.time.durationUnit, 'days');
+  eq('MSPDI mixed: dagtaak bewaart twee werkdagen', dayBack?.time.scheduleDuration, 2);
+  eq('MSPDI mixed: dagtaak krijgt geen concurrerende minutenbron', dayBack?.time.durationMinutes, undefined);
+  eq('MSPDI mixed: urentaak naast dagtaak bewaart hours', hourBack?.time.durationUnit, 'hours');
+  eq('MSPDI mixed: urentaak bewaart exacte minuten', hourBack?.time.durationMinutes, 1200);
+
+  // DurationFormat is bij vreemde MSPDI alleen presentatie. Zonder de expliciete OPS-definitie
+  // moet dezelfde uurkalender daarom de oude, backward-compatible minutenregel blijven volgen.
+  const foreign = writeMSPDI(project, H8, [dayOnBands], [], [], [])
+    .replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, '');
+  const foreignBack = readMSPDI(foreign).tasks.find((task) => task.name === 'Twee werkdagen');
+  eq('MSPDI legacy: taskmarker zonder OPS-projectdefinitie wordt genegeerd', foreignBack?.time.durationUnit, 'hours');
+  eq('MSPDI legacy: uurkalender behoudt de oude minutenbron', foreignBack?.time.durationMinutes, 960);
+
+  const p6Xml = writeP6XML(project, H8, [dayOnBands, tasks[0]], [], [], []);
+  const p6Back = readP6XML(p6Xml);
+  const p6DayBack = p6Back.tasks.find((task) => task.name === 'Twee werkdagen');
+  const p6HourBack = p6Back.tasks.find((task) => task.name === 'Metselen');
+  eq('P6 mixed: dagtaak op uurkalender bewaart days', p6DayBack?.time.durationUnit, 'days');
+  eq('P6 mixed: dagtaak bewaart twee werkdagen', p6DayBack?.time.scheduleDuration, 2);
+  eq('P6 mixed: dagtaak krijgt geen concurrerende minutenbron', p6DayBack?.time.durationMinutes, undefined);
+  eq('P6 mixed: urentaak naast dagtaak bewaart hours', p6HourBack?.time.durationUnit, 'hours');
+  eq('P6 mixed: urentaak bewaart exacte minuten', p6HourBack?.time.durationMinutes, 1200);
+
+  const foreignP6 = p6Xml.replace(/\s*<UDFType>[\s\S]*?<\/UDFType>/, '');
+  const foreignP6Back = readP6XML(foreignP6).tasks.find((task) => task.name === 'Twee werkdagen');
+  eq('P6 legacy: UDF-waarde zonder OPS-definitie wordt genegeerd', foreignP6Back?.time.durationUnit, 'hours');
+  eq('P6 legacy: uurkalender behoudt de oude minutenbron', foreignP6Back?.time.durationMinutes, 960);
+}
+
 // ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────
 // Onze eigen schrijver emitteert nooit een dag-component vóór de `T` (`minutesToIsoDuration` schrijft
 // altijd kaal `PT{h}H{m}M0S`); `P1DT2H0M0S` is de vorm die een ANDER tool zou kunnen schrijven. Vóór
@@ -156,7 +203,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     id, name, description: '', wbsCode: wbs, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: 2, scheduleStart: D, scheduleFinish: '2026-06-09',
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 2, scheduleStart: D, scheduleFinish: '2026-06-09',
       earlyStart: D, earlyFinish: '2026-06-09', lateStart: D, lateFinish: '2026-06-09',
       freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
     },
@@ -197,7 +244,15 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('P6-example leaf-schedule', digest(p6.tasks), base);
   eq('MSPDI-example leaf-schedule', digest(msp.tasks), base);
   assert([p6.calendar, ...(p6.resourceCalendars ?? [])].every(c => !c.workTime), 'P6-example: geen workTime-lek');
-  assert(p6.tasks.every(t => t.time.durationMinutes == null), 'P6-example: geen durationMinutes-lek');
+  assert(p6.tasks.every(t => t.time.durationUnit === 'days' && t.time.durationMinutes == null),
+    'P6-example: dagprecisie blijft een expliciete dagtaak zonder durationMinutes-lek');
+  const p6Solved = solveProject({
+    tasks: p6.tasks,
+    sequences: p6.sequences,
+    calendar: p6.calendar,
+    calendars: p6.resourceCalendars ?? [],
+  });
+  assert(!p6Solved.error, `P6-example: geïmporteerde dagtaken blijven planbaar (${p6Solved.error ?? 'geen fout'})`);
   assert([msp.calendar, ...(msp.resourceCalendars ?? [])].every(c => !c.workTime), 'MSPDI-example: geen workTime-lek');
   assert(msp.tasks.every(t => t.time.durationMinutes == null), 'MSPDI-example: geen durationMinutes-lek');
 }
@@ -220,7 +275,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     id: 'x', name: 'X', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: 2, scheduleStart: D, scheduleFinish: '2026-06-09',
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 2, scheduleStart: D, scheduleFinish: '2026-06-09',
       earlyStart: D, earlyFinish: '2026-06-09', lateStart: D, lateFinish: '2026-06-09',
       freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
     },
@@ -677,7 +732,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     id: 'e-work', name: 'Gewone taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION',
     status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: 2, durationMinutes: 960,
+      durationType: 'WORKTIME', durationUnit: 'hours', scheduleDuration: 2, durationMinutes: 960,
       scheduleStart: '2026-07-06T08:00', scheduleFinish: '2026-07-07T16:00',
       earlyStart: '2026-07-06T08:00', earlyFinish: '2026-07-07T16:00',
       lateStart: '2026-07-06T08:00', lateFinish: '2026-07-07T16:00',
@@ -690,7 +745,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: {
       // 3 elapsed dagen = 3×1440 klok-minuten (T8-conventie, mppReader.ts's isElapsedDuration-tak).
-      durationType: 'ELAPSEDTIME', scheduleDuration: 3, durationMinutes: 4320,
+      durationType: 'ELAPSEDTIME', durationUnit: 'hours', scheduleDuration: 3, durationMinutes: 4320,
       scheduleStart: '2026-07-08T08:00', scheduleFinish: '2026-07-11T08:00',
       earlyStart: '2026-07-08T08:00', earlyFinish: '2026-07-11T08:00',
       lateStart: '2026-07-08T08:00', lateFinish: '2026-07-11T08:00',
@@ -716,19 +771,17 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(!wC.some(w => w.includes('ELAPSEDTIME')), `H5-contrast CSV: geen ELAPSEDTIME-warn zonder elapsed-taak, kreeg [${wC.join(' | ')}]`);
   }
 
-  // (b) Eén ELAPSEDTIME-taak naast één WORKTIME-taak ⇒ precies 1 taak geteld in de warn, op alle
-  //     drie de exporters, en de herimport bewijst de daadwerkelijke (lossy) omklap naar WORKTIME.
+  // (b) MSPDI draagt ELAPSEDTIME inmiddels native via DurationFormat en waarschuwt dus niet;
+  //     P6/CSV blijven eerlijk waarschuwen over hun lossy export.
   const mixedTasks = [worktimeTask, elapsedTask];
   {
     const { out: mspdiXml, warns: wM } = withWarnings(() => writeMSPDI(projE, H8, mixedTasks, [], [], []));
-    assert(
-      wM.some(w => w.includes('MSPDI-export: 1 taak/taken met ELAPSEDTIME-duur')),
-      `H5 MSPDI-warn: verwacht "1 taak/taken met ELAPSEDTIME-duur", kreeg [${wM.join(' | ')}]`,
-    );
+    assert(!wM.some(w => w.includes('ELAPSEDTIME')),
+      `H5 MSPDI-warn: native DurationFormat hoort geen ELAPSEDTIME-waarschuwing te geven, kreeg [${wM.join(' | ')}]`);
     const backM = readMSPDI(mspdiXml);
     const elapsedBackM = backM.tasks.find(t => t.name === 'Storttijd beton (24/7)');
     assert(!!elapsedBackM, 'H5 MSPDI-round-trip: elapsed-taak komt terug (op naam)');
-    eq('H5 MSPDI-round-trip: durationType valt terug op WORKTIME (eerlijk, geen valse native-claim)', elapsedBackM?.time.durationType, 'WORKTIME');
+    eq('H5 MSPDI-round-trip: DurationFormat bewaart ELAPSEDTIME', elapsedBackM?.time.durationType, 'ELAPSEDTIME');
 
     const { out: p6Xml, warns: wP } = withWarnings(() => writeP6XML(projE, H8, mixedTasks, [], [], [], []));
     assert(
@@ -756,8 +809,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // levelingDelayMinutes, splits+timephased-venster, resume/stop) op MSPDI/P6, exact het H5-
 // ELAPSEDTIME-patroon hierboven: (a) contrast — geen enkele van de vier warns zonder de
 // bijbehorende data; (b) precies het juiste aantal wanneer de data er wél is. CSV kent geen warn
-// (vaste 14-koloms `headers`, zie csvWriter.ts) — hier bewezen: de header blijft ONGEWIJZIGD, ook
-// met een taak die alle nieuwe velden draagt (geen 15e kolom, geen warn-concept van toepassing).
+// (vaste 15-koloms `headers`, zie csvWriter.ts; inclusief het expliciete OPS custom-type-id) — hier
+// bewezen: de header blijft ONGEWIJZIGD, ook met een taak die alle nieuwe velden draagt.
 {
   // Lokale herhaling van de `withWarnings`-helper hierboven (blok-scoped `function`-declaratie in
   // het H5-blok, hier niet zichtbaar) — zelfde vorm, geen gedeelde toestand nodig.
@@ -776,7 +829,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     id: 'z-plain', name: 'Gewone taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION',
     status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: 2,
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 2,
       scheduleStart: '2026-07-06', scheduleFinish: '2026-07-07',
       earlyStart: '2026-07-06', earlyFinish: '2026-07-07',
       lateStart: '2026-07-06', lateFinish: '2026-07-07',
@@ -791,7 +844,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     levelingDelayMinutes: 30,
     splitGaps: [{ afterMinutes: 60, gapMinutes: 30 }],
     time: {
-      durationType: 'WORKTIME', scheduleDuration: 2,
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 2,
       scheduleStart: '2026-07-08', scheduleFinish: '2026-07-09',
       earlyStart: '2026-07-08', earlyFinish: '2026-07-09',
       lateStart: '2026-07-08', lateFinish: '2026-07-09',
@@ -831,11 +884,12 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(wP.some(w => w.includes('P6-export: 1 gesplitste taak/taken en 1 gecontoureerde toewijzing')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met resume/stop')), `Z14 P6 resume/stop-warn: kreeg [${wP.join(' | ')}]`);
 
-    // CSV: vaste 14 kolommen, geen warn — de rijke taak mag de kolomstructuur niet veranderen.
+    // CSV: vaste 15 kolommen, geen warn — de rijke taak mag de kolomstructuur niet veranderen.
     const { out: csvText, warns: wC } = withWarnings(() => writeCSV(projZ, H8, zTasks, [], [], zAssignments));
     assert(wC.length === 0, `Z14 CSV: geen enkele warn voor de nieuwe velden, kreeg [${wC.join(' | ')}]`);
     const header = csvText.replace(/^﻿/, '').split('\r\n')[0];
-    assert(header.split(';').length === 14, `Z14 CSV: header blijft 14 kolommen, kreeg ${header.split(';').length} (${header})`);
+    assert(header.split(';').length === 15, `Z14 CSV: header blijft 15 kolommen, kreeg ${header.split(';').length} (${header})`);
+    assert(header.includes('OPS Custom Task Type ID'), `Z14 CSV: stabiele custom-type-id-kolom ontbreekt (${header})`);
   }
 }
 

@@ -12,12 +12,60 @@ Doel: Claude Code kan functies zelf uittesten voordat een mens erbij hoeft.
 
 Begin altijd bij Tier 1; pak Tier 2 wanneer je de échte Tauri-runtime of schijf-I/O nodig hebt.
 De round-trip-check (`roundTrip()`: serialiseer→parse, meet dataverlies) werkt in beide tiers.
+Daarnaast bestaat de app-eigen MCP-bridge (Tier 1½, hieronder): geen dev-only testhaak maar het
+echte AI-assistent-oppervlak van de app (39 `planner_*`-tools) — Tauri-only en een bewuste
+gebruikerskeuze (`ui.aiMode`), geen vervanging van Tier 1 of 2.
+
+## Gecommitteerde browserpoort
+
+De vaste regressiesuite staat in `tests/browser/` en draait als vijfde gedragssuite achter zowel
+`npm test` als `npm run verify`. Installeer Chromium en zijn Linux-afhankelijkheden eenmalig en start
+de suite daarna via de worktree-veilige runner:
+
+```bash
+npx playwright install --with-deps --only-shell chromium
+npm run test:browser
+```
+
+De runner reserveert een afzonderlijke browserpoort per worktree, start en stopt zelf Vite en draait
+Chromium headless shell met één worker en nul retries. Een gerichte run geeft argumenten door, bv.
+`npm run test:browser -- tests/browser/gantt-drag-undo.spec.ts` of
+`npm run test:browser -- --grep "documentwissel"`. Bij falen staan screenshot en trace in
+`test-results/` en het HTML-rapport in `playwright-report/`; de gedeelde CI-, live- en release-gates
+uploaden deze mappen als foutartefact.
+
+De scheidslijn is bindend: klikken, typen, slepen, scrollen, taal kiezen en documenttabs wisselen
+gebeurt met echte muis-, toetsenbord- en DOM-events. `window.__OPS__` mag vooraf deterministische
+fixtures maken en achteraf domeinstate, painttellingen of renderergeometrie lezen. Het mag de
+gebruikershandeling zelf niet uitvoeren.
+
+### Extensieopslag en quarantaine
+
+`tests/browser/extensions-storage.spec.ts` legt rechtstreeks vier echte records in de
+`ops-extensions`-objectstore: een geldig legacyrecord, een vorm-kapot record, een identiteitsmismatch
+en een modern geldig record. Daarna gebruikt de test `window.__OPS__.extensions.scanStored()` alleen
+als observatienaad om te bewijzen dat scannen niets uitvoert of herschrijft. Na een echte reload
+controleert hij via de store dat alleen geldige records ready zijn en opent hij met echte kliks
+**Bestand → Extensies**. De quarantainekaarten, afwezige toggles en tweeklik-verwijdering worden via
+de DOM bediend; de IndexedDB-sleutels en `onLoad`-effecten worden onafhankelijk nagemeten.
+
+Dezelfde fixture beschadigt vervolgens een ready record ná startup en klikt de echte
+aan/uit-schakelaar. Dat bewijst de hervalidatie vlak vóór uitvoering: de kaart verhuist naar
+quarantaine en de effectteller verandert niet. Twee extra auto-enabled records leggen vast dat een
+`onLoad`-fout een runtimefout blijft en een later geldig record niet blokkeert.
+
+De dev-bridge mag voor geautomatiseerde ZIP-tests uitsluitend de menselijke vertrouwensvraag
+overslaan via `window.__OPS__.extensions.installFromZip(...)`. Dat pad gebruikt verder exact de
+productievolgorde: ZIP-parse, manifest- en identiteitsvalidatie, veilige paden, opslag en activatie.
+Er bestaat geen dev-optie die validatie omzeilt. De consentdialoog zelf test je afzonderlijk met
+`window.__OPS__.extensions.consent.set(fn)` en `.reset()`.
 
 ## Tier 1 — Licht (standaard): Playwright MCP → browser-dev-build
 
-Werkt tegen de **browser-dev-build** op de aan dit worktree toegewezen poort (zie de `▶`-print van `npm run dev` of `.claude/launch.json` → `opsDevPort`) (dezelfde React-UI als de
-desktop-app; "fully functional except file I/O and auto-save"). Geen eigen server, geen extra deps
-in het project.
+Werkt tegen de **browser-dev-build** op de aan dit worktree toegewezen poort (zie de `▶`-print van
+`npm run dev` of `.claude/launch.json` → `opsDevPort`). Dit is dezelfde React-UI als de desktop-app;
+de browser heeft eigen file-I/O en IndexedDB-recovery. Alleen Tauri-gepoorte functies, zoals de
+in-app updater en native pluginpaden, ontbreken. Deze handmatige tier start geen eigen server.
 
 ### Onderdelen
 - **`.mcp.json`** (repo-root) — koppelt de officiële Playwright MCP-server
@@ -29,8 +77,18 @@ in het project.
 - **`window.__OPS__`** (`src/utils/devBridge.ts`) — dev-only haak met:
   - `store` — de Zustand-store (`getState()` / `setState()` / `subscribe()`)
   - `log` — de log-bus (`snapshot()` geeft gelogde regels + opgevangen fouten)
+  - `gantt` — observer-only Canvasgeometrie en paintinformatie:
+    `taskBarPoint(taskId, edge, surface)`, `paintCount(surface)` en `lastSize(surface)`
+  - `library` — dev-only resourcebibliotheek-haken (B1): `state()` geeft `companies` (aantal),
+    `defaultCompanyId` en per pool `{ version, cals, res }` (bibliotheekversie, kalender- en
+    resourceaantal); `addCompany(name)` maakt een bibliotheek aan en geeft het nieuwe id terug;
+    `addResource(companyId, poolResourceId)` materialiseert een bibliotheekresource in het actieve
+    project (spiegelt de echte `addLibraryResourceToProject`-actie) en geeft
+    `{ added, resourceId }` terug
 
-  Strikt `import.meta.env.DEV`-gated → niet aanwezig in productie-builds.
+  Strikt `import.meta.env.DEV`-gated → niet aanwezig in productie-builds. (`extensions.*` is
+  eveneens onderdeel van `window.__OPS__`, maar staat gedocumenteerd bij *Extensieopslag en
+  quarantaine* hierboven i.p.v. in deze opsomming.)
 
 ### Gebruik
 1. Start de browser-dev-build (bewust **niet** `tauri:dev` — Playwright kan het desktopvenster niet
@@ -65,14 +123,61 @@ De commit-default in `.mcp.json` blijft `--headless`. Headed gebruikt de volledi
 (staat al in `~/.cache/ms-playwright/`); headless gebruikt de kleinere `chromium_headless_shell`.
 
 ### Waarom state uitlezen i.p.v. pixels
-De Gantt is een `<canvas>`: een taakbalk "aanklikken" gaat op pixelcoördinaten en een screenshot
-zegt niets hard over correctheid. De betrouwbare check is de echte store-state (datums, kritiek pad,
-`totalFloat`, `isCritical`) via `window.__OPS__`.
+De Gantt is een `<canvas>`: een screenshot zegt niets hard over domeincorrectheid en vaste
+pixelcoördinaten zijn breekbaar. Lokaliseer daarom een echte pointerhandeling met bijvoorbeeld
+`window.__OPS__.gantt.taskBarPoint(taskId, 'body', 'primary')`, voer de muishandeling via Playwright
+uit en controleer daarna de echte store-state (datums, selectie, undo, kritiek pad, `totalFloat`) via
+`window.__OPS__.store`. Voor repaintbewijs zijn `paintCount('primary')` en
+`lastSize('histogram')` observer-only; ze starten zelf geen paint. Wacht bij Gantt-paintchecks eerst
+op `document.fonts.ready` en controleer daarna twee rustige vensters van elk 500 ms.
 
 ### Wat Tier 1 niet dekt
 De échte Tauri-runtime: fysiek bestanden naar schijf schrijven/lezen (plugin-fs werkt alleen in Tauri)
 en `isTauri()`-gated paden. Daarvoor → Tier 2. (De *native* OS bestand-picker zelf automatiseert geen
 enkele tier — die omzeil je altijd met een expliciet pad.)
+
+## Tier 1½ — De app-eigen MCP-bridge (Tauri-only, bewuste gebruikerskeuze)
+
+Naast de twee testkanalen hierboven heeft de app zélf een MCP-bridge: het AI-assistent-oppervlak uit
+CLAUDE.md → *AI-assistent (MCP-bridge)*, met 39 `planner_*`-tools. Dit is **geen dev-only testhaak**
+maar een productiefunctie — je verbindt er elke MCP-client mee, ook een aparte Claude Code-sessie.
+De Rust-kant (`src-tauri/src/mcp_bridge.rs`) bindt een `tiny_http`-server op `127.0.0.1:<poort>`; de
+TS-kant (`src/services/mcp/server.ts`) start/stopt 'm via Tauri `invoke`/`listen`. **Tauri-only**: in
+de browser-dev-build bestaat de bridge niet, dus voor browserzelftests blijft Tier 1 het kanaal.
+
+### Verbinden
+1. Start de échte desktop-app (`npm run tauri:dev`) — niet de browserbuild.
+2. Zet `ui.aiMode` aan. Dat is een expliciete gebruikersinstelling (default uit), geen automatisme:
+   de checkbox staat in Instellingen (tandwiel-popup, Instellingen-ribbontab of Backstage →
+   Instellingen delen allemaal `SettingsPanelContent`) en roept `applyAiModeLive(true)` aan
+   (`src/services/mcp/server.ts`). Pas hierna verschijnt het AI-ribbontabblad.
+3. Start de bridge zelf — twee routes:
+   - handmatig: op het AI-tabblad, groep **Server** (`AiServerGroup.tsx`) — de Play/Stop-knop roept
+     `startMcpServer()`/`stopMcpServer()` aan;
+   - automatisch: instelling `ops-aiAutostart` (default **UIT** — een luisterende poort openen is
+     bewust geen stilzwijgend gedrag) laat, mits `ui.aiMode` ook aan staat, `useAiAutostart()`
+     (`src/hooks/useAiAutostart.ts`) de bridge één keer per app-sessie zelf starten, zodat een
+     handmatige stop daarna niet stil ongedaan wordt gemaakt.
+4. Poort en token staan in `localStorage`: `ops-mcpPort` (default **3877**, `MCP_DEFAULT_PORT` in
+   `src/utils/settingsStore.ts`) en `ops-mcpToken` (leeg tot de eerste start; `ensureMcpToken()`
+   genereert dan 32 crypto-random bytes, hex-gecodeerd, en onthoudt 'm). Beide staan ook leesbaar —
+   mét kant-en-klaar configuratiefragment en koppelprompt — achter de knop **Verbinden** op
+   hetzelfde AI-tabblad (`AiConnectionDetailsDialog.tsx`).
+5. Endpoint: uitsluitend `127.0.0.1:<poort>` (`bind_addr` in `mcp_bridge.rs`); de UI toont 'm als
+   `http://localhost:<poort>/mcp` — een gewone MCP-server over streamable HTTP, geen product-
+   specifiek protocol. Auth: `Authorization: Bearer <token>`, een exacte (constant-time) match,
+   anders `401`. Elk request met een aanwezige `Origin`-header wordt geweigerd met `403`, ongeacht
+   token (DNS-rebinding-bescherming — een legitieme MCP-client stuurt geen `Origin`). Requests lopen
+   strikt één-voor-één door de bridge (een `inflight`-mutex in `mcp_bridge.rs`): geen gelijktijdige
+   aanroepen.
+
+Voor de toolcatalogus (39 `planner_*`-tools; taken, relaties, resources, kalender, project,
+baselines, documenten/bestanden, leestools, `planner_batch`) zie CLAUDE.md → *AI-assistent
+(MCP-bridge)* — niet hier gedupliceerd.
+
+**Begrenzing.** Dit kanaal bestaat alleen in de échte Tauri-runtime. Wil je de browser-dev-build
+zelftesten, dan blijft Tier 1 (Playwright MCP + `window.__OPS__`) het enige kanaal — daar is geen
+bridge om te starten.
 
 ## Tier 2 — Échte Tauri-runtime: ops-test controlekanaal
 

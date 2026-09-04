@@ -1,4 +1,4 @@
-import { WorkCalendar } from '@/types/calendar';
+import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { parseDate, isoDayOfWeek, addCalendarDays, formatDate, diffCalendarDays } from '@/utils/dateUtils';
 
 /** Eén gematerialiseerd werk-interval, absolute UTC-ms, half-open `[start, end)` (fase 2.8b, §4.2). */
@@ -121,7 +121,7 @@ export class CalendarEngine {
   private buildHolidaySet(): void {
     for (const holiday of this.calendar.holidays) {
       const start = parseDate(holiday.startDate);
-      const end = parseDate(holiday.endDate);
+      const end = parseDate(holidayEndDate(holiday));
       const days = diffCalendarDays(start, end);
       for (let i = 0; i <= days; i++) {
         const d = addCalendarDays(start, i);

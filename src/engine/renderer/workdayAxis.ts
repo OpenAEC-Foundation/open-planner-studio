@@ -18,9 +18,9 @@ import { MS_PER_DAY, dateToX as calendarDateToX, xToDate as calendarXToDate, Gan
 // ── Kalender-as (variant A van §2.1): dunne wrapper om de fase-0-functies ────────────────────
 
 export interface CalendarAxisOptions {
-  /** Datum die op `dateToX(origin) === taskTableWidth - scrollX` landt. */
+  /** Datum die op `dateToX(origin) === chartOriginX - scrollX` landt. */
   origin: Date;
-  taskTableWidth: number;
+  chartOriginX: number;
   zoom: number;
   scrollX: number;
 }
@@ -33,10 +33,10 @@ export interface CalendarAxisOptions {
  * wijzigt hierdoor; dit is een NIEUW, optioneel aanroep-pad.
  */
 export function buildCalendarAxis(options: CalendarAxisOptions): GanttAxis {
-  const { origin, taskTableWidth, zoom, scrollX } = options;
+  const { origin, chartOriginX, zoom, scrollX } = options;
   return {
-    dateToX: (date: Date) => calendarDateToX(date, origin, taskTableWidth, zoom, scrollX),
-    xToDate: (x: number) => calendarXToDate(x, origin, taskTableWidth, zoom, scrollX),
+    dateToX: (date: Date) => calendarDateToX(date, origin, chartOriginX, zoom, scrollX),
+    xToDate: (x: number) => calendarXToDate(x, origin, chartOriginX, zoom, scrollX),
     daySpan: (from: Date, to: Date) => (to.getTime() - from.getTime()) / MS_PER_DAY,
     dayIndexOf: (date: Date) => (date.getTime() - origin.getTime()) / MS_PER_DAY,
     dateAtIndex: (index: number) => new Date(origin.getTime() + index * MS_PER_DAY),
@@ -66,9 +66,9 @@ const EPOCH = new Date(0);
 export interface WorkdayAxisOptions {
   /** Kalender waarop de as werkdagen bepaalt (uitsluitend via de publieke CalendarEngine-API). */
   calendar: CalendarEngine;
-  /** Datum die op `dateToX(origin) === taskTableWidth - scrollX` landt (meestal `viewStart`). */
+  /** Datum die op `dateToX(origin) === chartOriginX - scrollX` landt (meestal `viewStart`). */
   origin: Date;
-  taskTableWidth: number;
+  chartOriginX: number;
   zoom: number;
   scrollX: number;
   /** Initiële venster-padding (in KALENDERdagen) rond `origin`, elke kant. Klein houden — het
@@ -97,7 +97,7 @@ const MAX_WINDOW_DAYS = 50_000;
  * een console-warning te geven; dat is UI-beleid en hoort niet in deze headless laag.
  */
 export function buildWorkdayAxis(options: WorkdayAxisOptions): GanttAxis {
-  const { calendar, origin, taskTableWidth, zoom, scrollX } = options;
+  const { calendar, origin, chartOriginX, zoom, scrollX } = options;
   const initialPadding = options.initialPaddingDays ?? DEFAULT_INITIAL_PADDING_DAYS;
 
   if (!calendar.hasWorkingDays()) {
@@ -229,10 +229,10 @@ export function buildWorkdayAxis(options: WorkdayAxisOptions): GanttAxis {
   const axis: GanttAxis = {
     dateToX(date: Date): number {
       const idx = fractionalIndexOf(date);
-      return taskTableWidth + (idx - originIndex) * zoom - scrollX;
+      return chartOriginX + (idx - originIndex) * zoom - scrollX;
     },
     xToDate(x: number): Date {
-      const floatIdx = (x - taskTableWidth + scrollX) / zoom + originIndex;
+      const floatIdx = (x - chartOriginX + scrollX) / zoom + originIndex;
       const wholeIdx = Math.floor(floatIdx);
       const frac = floatIdx - wholeIdx;
       const dayIdx = dayAtWorkdayIndex(wholeIdx);
@@ -268,7 +268,7 @@ export interface ResolveGanttAxisOptions {
   /** De instelling (`ui.compressNonWorkdays`). Zie `isCompressedEffective` voor de effectieve waarde. */
   compressNonWorkdays: boolean;
   origin: Date;
-  taskTableWidth: number;
+  chartOriginX: number;
   zoom: number;
   scrollX: number;
 }
@@ -290,15 +290,15 @@ export function isCompressedEffective(calendar: CalendarEngine, compressNonWorkd
  * UIT (of de guard triggert) levert exact `buildCalendarAxis(...)` op — byte-identiek aan vandaag.
  */
 export function resolveGanttAxis(options: ResolveGanttAxisOptions): GanttAxis {
-  const { calendar, compressNonWorkdays, origin, taskTableWidth, zoom, scrollX } = options;
+  const { calendar, compressNonWorkdays, origin, chartOriginX, zoom, scrollX } = options;
   if (compressNonWorkdays) {
     if (calendar.hasWorkingDays()) {
-      return buildWorkdayAxis({ calendar, origin, taskTableWidth, zoom, scrollX });
+      return buildWorkdayAxis({ calendar, origin, chartOriginX, zoom, scrollX });
     }
     console.warn(
       'compressNonWorkdays: de kalender heeft geen enkele werkdag — val terug op de kalender-as ' +
         '(issue #21 punt 5, randgeval §9.4).',
     );
   }
-  return buildCalendarAxis({ origin, taskTableWidth, zoom, scrollX });
+  return buildCalendarAxis({ origin, chartOriginX, zoom, scrollX });
 }

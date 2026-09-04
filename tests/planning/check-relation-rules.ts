@@ -15,7 +15,9 @@
 
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
-import { relationVerdict, isSummaryTask, isAncestorRelation, type TaskLookup } from '@/state/relationRules';
+import {
+  relationStructureVerdict, relationVerdict, isSummaryTask, isAncestorRelation, type TaskLookup,
+} from '@/state/relationRules';
 import { useAppStore } from '@/state/appStore';
 
 let checks = 0;
@@ -124,6 +126,11 @@ const existing: Sequence[] = [
 const dupV = verdict('a', 'b', existing);
 ok('duplicaat wordt geweigerd', !dupV.ok);
 ok('… met de duplicaat-reden', !dupV.ok && dupV.reason === 'duplicate');
+ok('structurele plannerregel laat bestaand exact paar door voor finale-setvalidatie',
+  relationStructureVerdict(lookup, existing[0]).ok);
+const structuralAncestor = relationStructureVerdict(lookup, { predecessorId: 'a', successorId: 's' });
+ok('structurele plannerregel handhaaft ancestor zonder duplicaatcheck',
+  !structuralAncestor.ok && structuralAncestor.reason === 'ancestor');
 ok('ander type tussen hetzelfde paar blijft toegestaan (bv. SS+FF-ladder)',
   relationVerdict(lookup, existing, { predecessorId: 'a', successorId: 'b', type: 'START_START' }).ok);
 ok('ander PAAR met hetzelfde type blijft toegestaan',
@@ -171,9 +178,9 @@ ok('… geen extra relatie erbij', S().sequences.length === seqCountAfterSummary
 
 // Een geweigerde relatie (hier: de voorouder-relatie, ander type dan hierboven) mag geen undo-stap
 // achterlaten (zelfde regel als bij duplicaten, R3).
-const undoDepth = S().undoStack.length;
+const undoDepth = S().historyEvents.filter(event => event.state === 'applied').length;
 S().addSequence({ predecessorId: kind, successorId: fase, type: 'START_START', lagDays: 0 });
-ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().undoStack.length === undoDepth);
+ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length === undoDepth);
 
 const msId = S().addSequence({ predecessorId: mp, successorId: los, type: FS, lagDays: 0 });
 ok('addSequence staat een MIJLPAAL als voorganger toe (regressie-anker, ongewijzigd)', msId !== null);
