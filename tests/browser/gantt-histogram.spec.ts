@@ -183,6 +183,45 @@ test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra de gedeelde taakgri
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([firstId]);
 });
 
+test('histogram: kiezerlijst scrolt binnen de strook, wielscroll boven de lijst en klik na scroll pakken de juiste resource (R2a)', async ({ page, ops: _ops }) => {
+  const RESOURCE_COUNT = 30;
+  await seedProject(page, [
+    { name: 'Enkele taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  const resourceIds = await page.evaluate((count) => {
+    const s = window.__OPS__!.store.getState();
+    const ids: string[] = [];
+    for (let i = 1; i <= count; i++) {
+      ids.push(s.addResource({
+        name: `Resource ${String(i).padStart(2, '0')}`, type: 'LABOR', description: '', maxUnits: 1,
+      }));
+    }
+    s.setUI({ showHistogram: true });
+    return ids;
+  }, RESOURCE_COUNT);
+  const lastResourceId = resourceIds[resourceIds.length - 1];
+
+  const canvas = page.getByTestId('gantt-histogram-canvas');
+  await expect(canvas).toBeVisible();
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+
+  // HistogramRenderer: TOP_PAD=8, ROW_H=18 bij de standaard tekstschaal. Ongescrold past de gepinde
+  // somrij plus zes/zeven resourcerijen in de standaard stroophoogte (160px) — de dertigste resource
+  // ligt daar ver buiten. Een klik op die positie treft dus NOOIT de laatste resource vóór scrollen.
+  await canvas.click({ position: { x: 24, y: 150 } });
+  await expect.poll(() => state(page).then(s => s.view.histogramResourceId)).not.toBe(lastResourceId);
+
+  // Wielscroll BOVEN de kiezerlijst (x < pickerWidth) scrolt de lijst zelf, niet de Gantt erboven —
+  // echte browser-wheel-events, geen brug-shortcut. Ruim voorbij `maxScroll`; de hook klemt zelf af.
+  await page.mouse.move(bounds!.x + 24, bounds!.y + 80);
+  await page.mouse.wheel(0, 5000);
+
+  // Na volledige scroll staat de laatste rij rond y=134 (scrollTop 26 + (zichtbare rijen-1)*18).
+  await canvas.click({ position: { x: 24, y: 140 } });
+  await expect.poll(() => state(page).then(s => s.view.histogramResourceId)).toBe(lastResourceId);
+});
+
 test('histogram: pijltjestoetsen volgen resources zodra het histogram focus heeft', async ({ page, ops: _ops }) => {
   const { overId, spareId } = await seedResourceLoad(page);
   const histogram = page.getByTestId('gantt-histogram-canvas');
