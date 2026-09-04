@@ -206,13 +206,17 @@ export function detectDateOrder(
   }
   if (votesDmy && votesMdy) {
     // Tegenstrijdig bewijs binnen hetzelfde bestand: geen enkele orde verklaart alles. Meteen
-    // `ambiguous` — NIET doorgaan naar de ijkpuntregel (die zou één van de twee tegenstrijdige
+    // een uitkomst — NIET doorgaan naar de ijkpuntregel (die zou één van de twee tegenstrijdige
     // signalen negeren en zo alsnog stil een kant kiezen). De cellen die zelf stemden (a>12 of
     // b>12) zijn per definitie maar onder ÉÉN orde geldig, dus GEEN eerlijk voorbeeld (bevinding
-    // 4b) — zoek een cel die dat wél is; bestaat die niet, dan is er geen tonbaar bewijs en valt
-    // dit terug op `noAmbiguity` in plaats van de gebruiker een onmogelijke keuze voor te leggen.
+    // 4b) — zoek een cel die dat wél is en toon die als `ambiguous`-vraag. Bestaat die niet, dan
+    // is er geen tónbaar bewijs, maar het bestand IS wel degelijk tegenstrijdig gebleken —
+    // `noAmbiguity` zou dat verzwijgen (fixronde N-D/N-E: bij een écht mdy-bestand met één
+    // dmy-vormige typefout kreeg de gebruiker dan een muur van `unreadableDate`-weigeringen zonder
+    // enige diagnose). `contradictoryNoSample` benoemt het eerlijk; de orde blijft `dmy` (een kant
+    // moet gekozen worden om verder te kunnen).
     const genuine = findGenuineAmbiguousSample(ambiguous);
-    return genuine ? formatAmbiguous(genuine.cell, genuine.triple) : { order: 'dmy', evidence: 'noAmbiguity' };
+    return genuine ? formatAmbiguous(genuine.cell, genuine.triple) : { order: 'dmy', evidence: 'contradictoryNoSample' };
   }
   if (votesDmy) return { order: 'dmy', evidence: 'outOfRange' };
   if (votesMdy) return { order: 'mdy', evidence: 'outOfRange' };
