@@ -572,6 +572,8 @@
       "staleBanner": "Mindestens ein Dokument wurde nicht berechnet und zählt in der Belegung nicht mit.",
       "staleComputedDoc": "Für diese Übersicht bereits vorab berechnet — das Dokument selbst zeigt noch ältere Daten, bis Sie dort F5 drücken oder „Automatisch berechnen“ aktivieren.",
       "staleComputedBanner": "Geänderte Dokumente wurden für diese Übersicht bereits vorab berechnet; drücken Sie F5 im Dokument, oder aktivieren Sie „Automatisch berechnen“, um dies dauerhaft zu tun.",
+      "staleAsShownDoc": "Veraltet: dies sind die zuletzt berechneten Werte — drücken Sie F5 in diesem Dokument.",
+      "staleAsShownBanner": "Ein geändertes Dokument wurde noch nicht neu berechnet; es zählt hier mit seinen zuletzt berechneten Werten mit. Drücken Sie F5 in diesem Dokument, oder aktivieren Sie „Automatisch berechnen“.",
       "docCount_one": "{{count}} Dokument",
       "docCount_other": "{{count}} Dokumente",
       "conflictDays_one": "{{count}} Tag doppelt belegt",

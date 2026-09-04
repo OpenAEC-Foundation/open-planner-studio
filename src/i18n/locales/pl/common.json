@@ -586,6 +586,8 @@
       "staleBanner": "Co najmniej jeden dokument nie został przeliczony i nie jest uwzględniony w obłożeniu.",
       "staleComputedDoc": "Obliczone z wyprzedzeniem na potrzeby tego przeglądu — sam dokument nadal pokazuje starsze daty, dopóki nie naciśniesz tam F5 lub nie włączysz „Oblicz automatycznie”.",
       "staleComputedBanner": "Zmienione dokumenty zostały obliczone z wyprzedzeniem na potrzeby tego przeglądu; naciśnij F5 w dokumencie, albo włącz „Oblicz automatycznie”, aby robić to na stałe.",
+      "staleAsShownDoc": "Nieaktualne: to ostatnio obliczone wartości — naciśnij F5 w tym dokumencie.",
+      "staleAsShownBanner": "Zmieniony dokument nie został jeszcze przeliczony; jest tu uwzględniony z ostatnio obliczonymi wartościami. Naciśnij F5 w tym dokumencie albo włącz „Oblicz automatycznie”.",
       "docCount_one": "{{count}} dokument",
       "docCount_few": "{{count}} dokumenty",
       "docCount_many": "{{count}} dokumentów",
