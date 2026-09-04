@@ -23,6 +23,7 @@ import {
   type GridTransactionSlice,
 } from './gridTransaction';
 import { createStoreRuntime, type StoreRuntime, type StoreRuntimeOptions } from './runtime/storeRuntime';
+import { bindScratchDocumentContextFactory } from './runtime/scratchDocument';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
 export type { ExportFormat } from './slices/fileSlice';
@@ -108,3 +109,7 @@ export function createAppStore(): AppStore {
 export const appStoreContext = createAppStoreContext();
 export const useAppStore = appStoreContext.store;
 bindDefaultGridTransactionStore(useAppStore.getState, useAppStore.setState);
+// De headless scratch-instantie (`runtime/scratchDocument.ts`) bouwt eigen, wegwerpbare contexten.
+// Hij krijgt de fabriek hier aangereikt in plaats van 'm te importeren — zie het docblok daar voor
+// waarom een directe import een importcyclus zou zijn.
+bindScratchDocumentContextFactory(createAppStoreContext);

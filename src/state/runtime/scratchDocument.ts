@@ -29,9 +29,28 @@
  * globale registers (extensie-instanties, MCP, bibliotheek-persistentie) worden niet aangeraakt —
  * die leven buiten de Zustand-factory.
  */
-import { createAppStoreContext, type AppState, type AppStore } from '../appStore';
+import type { AppState, AppStore, AppStoreContext } from '../appStore';
 import { hydratePayload, capturePayload, type DocumentPayload } from '../documentContract';
+import type { StoreRuntimeOptions } from './storeRuntime';
 import type { NotifyInput } from '../slices/types';
+
+/**
+ * De contextfabriek wordt LAAT gekoppeld in plaats van rechtstreeks geïmporteerd — zelfde patroon
+ * als `bindDefaultGridTransactionStore` (`state/gridTransaction.ts`), en om dezelfde reden.
+ * `appStore.ts` importeert `librarySlice`, die deze module importeert; een gewone waarde-import van
+ * `createAppStoreContext` hier maakt daar een echte importcyclus van
+ * (`appStore → librarySlice → scratchDocument → appStore`), en `npm run verify:cycles` vangt die —
+ * terecht: zo'n cyclus werkt alleen zolang de betrokken bindingen gehoist zijn. Typen mogen wél
+ * rechtstreeks: `import type` wordt geërase en telt niet mee in de importgraaf.
+ */
+type AppStoreContextFactory = (opts?: StoreRuntimeOptions) => AppStoreContext;
+let contextFactory: AppStoreContextFactory | null = null;
+
+/** Koppel de echte fabriek. Wordt één keer aangeroepen vanuit `appStore.ts`, naast
+ *  `bindDefaultGridTransactionStore`. */
+export function bindScratchDocumentContextFactory(factory: AppStoreContextFactory): void {
+  contextFactory = factory;
+}
 
 export interface ScratchRunResult<T> {
   /** De payload ná de bewerking — klaar om in `documents[i].payload` gezet te worden. Bij een
@@ -67,7 +86,8 @@ export function runInScratchDocument<T>(
   payload: DocumentPayload,
   fn: (state: AppState) => T,
 ): ScratchRunResult<T> {
-  const ctx = createAppStoreContext({ emitHostEvents: false });
+  if (!contextFactory) throw new Error('De scratch-documentcontextfabriek is nog niet gekoppeld');
+  const ctx = contextFactory({ emitHostEvents: false });
   // 1. Hydrateren via het documentcontract — dezelfde functie die `switchDocument` gebruikt, dus
   //    élk (ook toekomstig) documentveld rijdt automatisch mee.
   ctx.store.setState((s) => { hydratePayload(s, payload); });
