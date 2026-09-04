@@ -147,6 +147,9 @@ interface PreviewLayoutState {
 interface PreviewScrollAnchor {
   index: number;
   offset: number;
+  /** `root.scrollTop` op het moment van vastleggen — het herstel vergelijkt hiermee of de
+   * gebruiker zelf al gescrold heeft vóór het (async, via rAF) herstel aan de beurt komt. */
+  scrollTopAtCapture: number;
 }
 
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -160,7 +163,7 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
   const pages = [...root.querySelectorAll<HTMLElement>('[data-preview-page]')];
-  if (pages.length === 0) return { index: 0, offset: 0 };
+  if (pages.length === 0) return { index: 0, offset: 0, scrollTopAtCapture: root.scrollTop };
   const rootTop = root.getBoundingClientRect().top;
   const visible = pages
     .map(page => ({ page, rect: page.getBoundingClientRect() }))
@@ -168,12 +171,20 @@ function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
     .sort((a, b) => Math.abs(a.rect.top - rootTop) - Math.abs(b.rect.top - rootTop))[0];
   const page = visible?.page ?? pages[0];
   return {
+    scrollTopAtCapture: root.scrollTop,
     index: Number(page.dataset.previewPage) || 0,
     offset: page.getBoundingClientRect().top - rootTop,
   };
 }
 
 function restorePreviewScrollAnchor(root: HTMLElement, anchor: PreviewScrollAnchor, totalPages: number): void {
+  // Bekende beperking: dit onderscheidt "gebruiker scrolde tussen vastleggen en herstel" alléén via
+  // scrollTop-drift — een toevallig exact even grote layoutverschuiving in dat venster (zeldzaam,
+  // niet waargenomen) zou nog steeds worden hersteld. De race die dit dichtte was reëel: het herstel
+  // draait via requestAnimationFrame, dus een scroll van de gebruiker vlak ná het vastleggen van het
+  // anker (bv. wanneer een net verschenen scrollbar de viewportbreedte wijzigt en dit effect
+  // opnieuw met een stale anker start) werd anders genegeerd en teruggedraaid.
+  if (Math.abs(root.scrollTop - anchor.scrollTopAtCapture) > 0.5) return;
   const index = Math.min(Math.max(0, anchor.index), Math.max(0, totalPages - 1));
   const page = root.querySelector<HTMLElement>(`[data-preview-page="${index}"]`);
   if (!page) return;
@@ -571,7 +582,7 @@ export function ReportPanel() {
       const layout = computeTileLayout(tileOptions);
       const total = layout.rows * layout.cols;
       const root = previewViewportRef.current;
-      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0 };
+      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTopAtCapture: 0 };
       const visibleIndices = root
         ? [...root.querySelectorAll<HTMLElement>('[data-preview-page]')]
           .filter(page => {
