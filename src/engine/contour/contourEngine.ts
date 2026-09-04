@@ -52,10 +52,9 @@ import { splitDayPattern } from '@/engine/scheduler/splitWalk';
 // totale werk dat in de k-de 5%-slice van de duur valt (de som van 1..20 is ~100). P6 schrijft zijn
 // `<ResourceCurve>`-objecten in exact dezelfde vorm (`Value0`..`Value100`, MPXJ
 // `XmlContextReader.processWorkContour`), dus deze ene tabelvorm dekt beide pakketten.
-// De indices 3 (DOUBLE_PEAK) en 7 (TURTLE) van MSPDI's `WorkContour`-enum hebben geen OPS-`ResourceCurve`-
-// lid (bewust: het enum is op acht plekken in de UI/MCP/IFC gedupliceerd — zie docs/TODO.md);
-// ze zijn hier wél aanwezig als vorm zodat een MSPDI-/P6-bestand ze exact als `curveValues` kan
-// dragen in plaats van tot uniform te vervallen.
+// Sinds de contour-UI-etappe (2026-09) zijn álle acht vormen ook een OPS-`ResourceCurve`
+// (DOUBLE_PEAK/TURTLE kwamen er als laatste bij); `ResourceLoad.ts`'s `distributeUnits` bemonstert
+// die twee rechtstreeks uit deze tabel, de zes oudere curves houden hun controlepunten daar.
 export type ContourShape =
   | 'FLAT' | 'BACK_LOADED' | 'FRONT_LOADED' | 'DOUBLE_PEAK' | 'EARLY_PEAK' | 'LATE_PEAK' | 'BELL' | 'TURTLE';
 
@@ -79,12 +78,13 @@ export const MSPDI_WORKCONTOUR_CONTOURED = 8;
 /** OPS-curve → tabelvorm. `UNIFORM` is FLAT. */
 export const CURVE_TO_SHAPE: Record<ResourceCurve, ContourShape> = {
   UNIFORM: 'FLAT', FRONT_LOADED: 'FRONT_LOADED', BACK_LOADED: 'BACK_LOADED', BELL: 'BELL',
-  EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK',
+  EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK', DOUBLE_PEAK: 'DOUBLE_PEAK', TURTLE: 'TURTLE',
 };
 
-const SHAPE_TO_CURVE: Partial<Record<ContourShape, ResourceCurve>> = {
+/** Tabelvorm → OPS-curve (inverse van `CURVE_TO_SHAPE`; bijectief sinds de contour-UI-etappe). */
+export const SHAPE_TO_CURVE: Record<ContourShape, ResourceCurve> = {
   FLAT: 'UNIFORM', FRONT_LOADED: 'FRONT_LOADED', BACK_LOADED: 'BACK_LOADED', BELL: 'BELL',
-  EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK',
+  EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK', DOUBLE_PEAK: 'DOUBLE_PEAK', TURTLE: 'TURTLE',
 };
 
 export const CURVE_VALUE_COUNT = 21;
@@ -115,7 +115,7 @@ export function isFlatCurveValues(values: readonly number[]): boolean {
 
 /** Herkent een 21-waardenlijst als een van de OPS-curves (exacte tabelmatch met tolerantie 1e-6;
  *  een vlakke lijst met een andere constante dan 5 telt ook als UNIFORM — de dichtheid is
- *  immers gelijk). `undefined` ⇒ geen OPS-vorm (DOUBLE_PEAK/TURTLE of een eigen P6-curve). */
+ *  immers gelijk). `undefined` ⇒ geen tabelvorm (een eigen P6-curve). */
 export function matchCurveValues(values: readonly number[]): ResourceCurve | undefined {
   if (values.length !== CURVE_VALUE_COUNT) return undefined;
   if (isFlatCurveValues(values)) return 'UNIFORM';
@@ -130,7 +130,8 @@ export function matchCurveValues(values: readonly number[]): ResourceCurve | und
   return undefined;
 }
 
-/** Herkent een 21-waardenlijst als een van de acht tabelvormen (ook DOUBLE_PEAK/TURTLE). */
+/** Herkent een 21-waardenlijst als een van de acht tabelvormen (zelfde match als `matchCurveValues`,
+ *  maar als vorm — FLAT in plaats van UNIFORM). */
 export function matchContourShape(values: readonly number[]): ContourShape | undefined {
   if (values.length !== CURVE_VALUE_COUNT) return undefined;
   if (isFlatCurveValues(values)) return 'FLAT';

@@ -6,7 +6,7 @@ A task tells you when something needs to happen; a resource tells you who or wha
 
 - The five resource types and when to use each.
 - Assigning resources to tasks — via the properties panel, the task dialog or the ribbon.
-- Units per day and the six distribution curves: when to pick which.
+- Units per day and the eight distribution curves: when to pick which — and how to set the hours per working day yourself.
 - Moving an assignment to a different task.
 - Resource calendars and time-phased capacity (for example a second crane added later).
 - Reading the histogram: the resource picker, drilling down per resource, spotting overallocation.
@@ -64,6 +64,8 @@ Every assignment has **units/day** (1 = one person/item full time, 0.5 = half a 
 - **Bell shaped (BELL)** — low at the start and end, peaking in the middle — a task that ramps up, runs at full tilt and winds down again.
 - **Early peak (EARLY_PEAK)** — the peak sits early in the task, then the load tapers off.
 - **Late peak (LATE_PEAK)** — the peak sits late in the task.
+- **Double peak (DOUBLE_PEAK)** — two peaks, around thirty and around eighty percent of the duration, with a dip in between — for example work in two waves with another crew's phase in the middle. The same shape as in MS Project and P6.
+- **Turtle (TURTLE)** — a flattened bell: gentle ramp-up, a long plateau at full strength, gentle ramp-down. The same shape as in MS Project and P6.
 
 Curve variation shows up most clearly in the histogram: the same task with the same units/day produces a very different bar shape with a bell curve than with uniform. The medium-sized showcase deliberately mixes uniform/front loaded/back loaded on the per-house finishing tasks, so you can compare the difference.
 
@@ -71,7 +73,7 @@ Curve variation shows up most clearly in the histogram: the same task with the s
 
 When no curve fits, set the hours per working day yourself. Next to each assignment's curve dropdown sits the **Hour distribution…** button (the bar-chart icon); it opens a window with one row per working day of the task — the same days the histogram books on, so the pause days of a split task are skipped. Each row shows the date, the **remaining** work in hours (editable) and the derived units; if the assignment already carries **actual** work (from an import with progress), that sits in its own read-only column. The starting point is exactly what the assignment books today: the chosen curve, or the exact curve from a P6 or MS Project import.
 
-- **Apply shape** fills the rows with one of the eight standard shapes (the six curves plus *Double peak* and *Turtle* from MS Project and P6), keeping the current total — a handy starting point to adjust day by day afterwards.
+- **Apply shape** fills the rows with one of the eight standard shapes (the same eight curves as the dropdown), keeping the current total — a handy starting point to adjust day by day afterwards.
 - **Apply** stores the distribution as the *contour* of this assignment. The curve dropdown then shows **Contour** and is disabled: the contour is data and wins over any curve. Histogram, overallocation, leveler and occupancy overview use it immediately, and the distribution travels in the IFC file and in an export to MS Project XML or Primavera P6 XML.
 - **Release distribution** removes the contour; the assignment follows its curve again afterwards.
 
@@ -141,7 +143,7 @@ The lesson isn't that leveling "doesn't work" — the algorithm does exactly wha
 ## Keep reading
 
 - Replay the plasterer-overallocation leveling yourself in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- See the limits of leveling in practice — plus all five resource types, all six curves and the time-phased tower-crane capacity — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
+- See the limits of leveling in practice — plus all five resource types, six of the eight curves and the time-phased tower-crane capacity — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
 - Resources run on calendars — read the guide [Calendars & hour planning](docs://gids-kalenders-uren) for resource calendars and hour planning.
 - Want to set a baseline before you start leveling, so you can see the difference? Read the guide [Baselines & progress](docs://gids-baselines-voortgang).
 - Leveling can change which tasks are critical — read the guide [Critical path & advanced analysis](docs://gids-kritiek-pad-analyse) for how to spot that.

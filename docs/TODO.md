@@ -346,11 +346,12 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       spreidingsstring `"werkuren:periodeuren;…"`, de curve zit in `ResourceCurveObjectId` →
       `<ResourceCurve>`). Gecorrigeerd in `p6xmlWriter.ts`/`p6xmlReader.ts`; de lezer accepteert
       de oude naamvorm nog als compat (een `<PlannedCurve>` zonder `:`).
-- [ ] **DOUBLE_PEAK/TURTLE als OPS-curve.** De engine kent de tabellen (MSPDI-codes 3/7, P6
-      "Double Peak"/"Trapezoidal"-achtig) en draagt ze exact als `curveValues`, maar het
-      `ResourceCurve`-enum is op acht plekken gedupliceerd (UI-dropdowns, MCP-schema, IFC-validator,
-      ext-contract, kolomregister) — bewust niet uitgebreid in deze etappe. De curvekeuze in de UI
-      toont zo'n toewijzing als "uniform" terwijl de load wél de exacte curve gebruikt.
+- [x] **DOUBLE_PEAK/TURTLE als OPS-curve** (contour-UI, 2026-09-04): `ResourceCurve` telt nu de
+      acht MS Project-vormen; de zes oudere curves houden hun controlepunten in `distributeUnits`
+      (byte-identiek), de twee nieuwe bemonsteren rechtstreeks de exacte 21-punts tabel. Alle
+      gedupliceerde lijsten (dropdowns, rasterkolom, MCP-schema, IFC-validator, ext-contract,
+      MSPDI-codes 3/7, P6-namen) zijn meegenomen. Nog steeds acht plekken — een centrale
+      `RESOURCE_CURVES`-export is een losse opruimklus.
 - [x] **Contour bewerken in de UI** (etappe contour-UI, 2026-09-04): `ContourDialog.tsx` achter de
       knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — uren per werkdag
       (verricht alleen-lezen, resterend bewerkbaar), vorm-als-data als vertrekpunt (alle acht

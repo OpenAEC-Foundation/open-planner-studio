@@ -34,6 +34,12 @@ const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
   BELL: 'Bell Shaped',
   EARLY_PEAK: 'Early Peak',
   LATE_PEAK: 'Late Peak',
+  // Contour-UI (2026-09): de twee laatste MS Project-vormen. LET OP: dit is alleen het LABEL van het
+  // `<ResourceCurve>`-object; de 21 waarden die de writer meeschrijft zijn de MS Project-tabel
+  // (`CONTOUR_SHAPE_VALUES`), niet P6's eigen ingebouwde "Double Peak"/"Trapezoidal"-tabel — de
+  // lezer matcht sowieso eerst op waarden, pas dan op naam.
+  DOUBLE_PEAK: 'Double Peak',
+  TURTLE: 'Turtle',
 };
 
 // Inkomende richting (P6-curvenaam → OPS-curve), gebruikt door de reader. BEWUST ASYMMETRISCH,
@@ -48,6 +54,8 @@ export const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
   'Bell Shaped': 'BELL',
   'Early Peak': 'EARLY_PEAK',
   'Late Peak': 'LATE_PEAK',
+  'Double Peak': 'DOUBLE_PEAK',
+  'Turtle': 'TURTLE',
 };
 
 function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {

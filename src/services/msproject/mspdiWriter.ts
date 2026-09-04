@@ -30,15 +30,19 @@ const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
-// 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
-// (Contoured/varianten) worden niet gebruikt. Geëxporteerd zodat de reader de inverse gebruikt.
+// 0=Flat, 1=BackLoaded, 2=FrontLoaded, 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle;
+// 8 (Contoured) is geen vorm maar het signaal dat er `<TimephasedData>` meegaat. Sinds de
+// contour-UI-etappe (2026-09) zijn alle acht vormen een OPS-curve. Geëxporteerd zodat de reader de
+// inverse gebruikt; gelijk aan `contourEngine.ts`'s `CONTOUR_SHAPE_MSPDI_CODE` via `CURVE_TO_SHAPE`.
 export const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
   UNIFORM: 0,
   BACK_LOADED: 1,
   FRONT_LOADED: 2,
+  DOUBLE_PEAK: 3,
   EARLY_PEAK: 4,
   LATE_PEAK: 5,
   BELL: 6,
+  TURTLE: 7,
 };
 
 // Inverse voor de reader (WorkContour-code → curve). Programmatisch afgeleid ⇒ kan niet

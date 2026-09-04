@@ -11,20 +11,24 @@ import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { enumerateTaskWorkDays } from './splitWalk';
 import {
-  matchContoursToAssignments, periodsToWorkDaySlots, slotWeightsFromValues,
+  CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
+  slotWeightsFromValues,
 } from '@/engine/contour/contourEngine';
 import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
  *  tussen punten; niet genormaliseerd (distributeUnits normaliseert zelf via Σraw). */
-const CURVE_POINTS: Record<ResourceCurve, [number, number][]> = {
+const CURVE_POINTS: Partial<Record<ResourceCurve, [number, number][]>> = {
   UNIFORM: [[0, 1.0], [1, 1.0]],
   FRONT_LOADED: [[0, 1.0], [1, 0.2]],
   BACK_LOADED: [[0, 0.2], [1, 1.0]],
   BELL: [[0, 0.2], [0.5, 1.0], [1, 0.2]],
   EARLY_PEAK: [[0, 0.2], [1 / 3, 1.0], [1, 0.2]],
   LATE_PEAK: [[0, 0.2], [2 / 3, 1.0], [1, 0.2]],
+  // DOUBLE_PEAK en TURTLE (contour-UI, 2026-09) hebben GEEN controlepunten: die twee curves bestaan
+  // alleen als MS Project-/P6-tabelvorm en worden hieronder rechtstreeks uit de exacte 21-punts
+  // tabel (`CONTOUR_SHAPE_VALUES`) bemonsterd — de zes bestaande curves blijven byte-identiek.
 };
 
 /**
@@ -49,13 +53,20 @@ export function distributeUnits(unitsPerDay: number, durationDays: number, curve
   if (durationDays <= 1) return durationDays === 1 ? [total] : [];
 
   const points = CURVE_POINTS[curve];
-  const raw: number[] = [];
-  for (let i = 0; i < durationDays; i++) {
-    const t = i / (durationDays - 1);
-    raw.push(interpolate(points, t));
+  let weights: number[];
+  if (points) {
+    const raw: number[] = [];
+    for (let i = 0; i < durationDays; i++) {
+      const t = i / (durationDays - 1);
+      raw.push(interpolate(points, t));
+    }
+    const sumRaw = raw.reduce((a, b) => a + b, 0);
+    weights = raw.map(r => r / sumRaw);
+  } else {
+    // Tabelvorm (DOUBLE_PEAK/TURTLE): integratie van de 5%-slices over `durationDays` slots —
+    // dezelfde bemonstering als een geïmporteerde `curveValues`-lijst in `assignmentDayUnits`.
+    weights = slotWeightsFromValues(CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[curve]], durationDays);
   }
-  const sumRaw = raw.reduce((a, b) => a + b, 0);
-  const weights = raw.map(r => r / sumRaw);
 
   // Grootste-rest-methode: eerst afronden naar beneden, dan de grootste fractionele resten
   // ophogen tot de som weer exact `total` is. De precisie (hele eenheden/dag bij een geheel TEMPO,

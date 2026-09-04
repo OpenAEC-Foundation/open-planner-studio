@@ -106,9 +106,21 @@ console.log('-- (a) kern: 21-punts-tabellen --');
     matchCurveValues(CONTOUR_SHAPE_VALUES.BACK_LOADED), matchCurveValues(CONTOUR_SHAPE_VALUES.BELL),
     matchCurveValues(CONTOUR_SHAPE_VALUES.EARLY_PEAK), matchCurveValues(CONTOUR_SHAPE_VALUES.LATE_PEAK),
   ], ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK']);
-  eq('a7 DOUBLE_PEAK/TURTLE zijn geen OPS-curve maar wél een vorm', [
+  eq('a7 DOUBLE_PEAK/TURTLE zijn sinds de contour-UI OPS-curve én vorm', [
     matchCurveValues(CONTOUR_SHAPE_VALUES.DOUBLE_PEAK), matchContourShape(CONTOUR_SHAPE_VALUES.TURTLE),
-  ], [undefined, 'TURTLE']);
+  ], ['DOUBLE_PEAK', 'TURTLE']);
+  // distributeUnits voor de twee tabelcurves: exacte tabelbemonstering, som exact, vorm herkenbaar.
+  const dp = distributeUnits(0.5, 4, 'DOUBLE_PEAK');
+  // Tabel-integratie over 4 slots: slices 1-5/6-10/11-15/16-20 = 20.3/29.1/21.5/29.1 % — de pieken
+  // (slice 6 en 16, dus ~30 % en ~80 % van de duur) vallen in dag 2 en 4; fractioneel tempo ⇒ honderdsten.
+  eq('a7b DOUBLE_PEAK over 4 dagen: twee pieken (dag 2 en 4), som exact', [r3(dp), Math.round(dp.reduce((a, b) => a + b, 0) * 100) / 100], [[0.41, 0.58, 0.43, 0.58], 2]);
+  const tu = distributeUnits(1, 5, 'TURTLE');
+  // Geheel tempo ⇒ hele eenheden (issue #21 punt 7): gewichten .45/1.3/1.5/1.3/.45 ⇒ grootste-rest
+  // [1,1,2,1,0] — dezelfde afronding die de zes oudere curves al krijgen (zie a7e).
+  eq('a7c TURTLE over 5 dagen bij geheel tempo: hele eenheden via grootste rest, som 5', [tu, tu.reduce((a, b) => a + b, 0)], [[1, 1, 2, 1, 0], 5]);
+  const tu2 = distributeUnits(0.5, 5, 'TURTLE');
+  ok('a7d TURTLE fractioneel: randen lager dan het plateau, som exact', tu2[0] < tu2[2] && tu2[4] < tu2[2] && Math.abs(tu2.reduce((a, b) => a + b, 0) - 2.5) < 1e-9);
+  eq('a7e de zes oudere curves blijven op hun controlepunten (BELL, 5 dagen, geheel tempo — ongewijzigd codepad)', distributeUnits(1, 5, 'BELL'), [1, 1, 2, 1, 0]);
   const flat7 = [0, ...new Array<number>(20).fill(7)];
   eq('a8 vlak met een andere constante is ook UNIFORM', [isFlatCurveValues(flat7), matchCurveValues(flat7)], [true, 'UNIFORM']);
   eq('a9 normalizeCurveValues: lengte/negatief/nul-som afgewezen, index 0 gedwongen 0', [
@@ -395,6 +407,33 @@ console.log('-- (d) store: updateTask herschaalt de contour, een naam-/datumwijz
   S().undo();
   eq('d5 undo herstelt de oude contour', find().timephasedContours?.[0].periods[0], P(0, 480, 240));
   S().newProject();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (h) DOUBLE_PEAK/TURTLE als OPS-curve: MSPDI-, P6- en IFC-round-trip --');
+{
+  const project = createDefaultProject();
+  project.startDate = '2026-06-01';
+  const t1 = task('dp', '2026-06-01', '2026-06-05', 5, { resourceIds: ['r1'] });
+  const t2 = task('tu', '2026-06-08', '2026-06-12', 5, { resourceIds: ['r1'] });
+  const r1 = res('r1', 1);
+  const assignments = [assign('a', 'dp', 'r1', 1, { curve: 'DOUBLE_PEAK' }), assign('b', 'tu', 'r1', 1, { curve: 'TURTLE' })];
+  const mspdi = writeMSPDI(project, CAL, [t1, t2], [], [r1], assignments, []);
+  ok('h1 MSPDI schrijft WorkContour 3 (Double Peak) en 7 (Turtle)', mspdi.includes('<WorkContour>3</WorkContour>') && mspdi.includes('<WorkContour>7</WorkContour>'));
+  const backM = readMSPDI(mspdi);
+  const curvesM = ['dp', 'tu'].map((n) => backM.assignments.find((a) => a.taskId === backM.tasks.find((x) => x.name === n)!.id)?.curve);
+  eq('h2 MSPDI leest ze terug als OPS-curve', curvesM, ['DOUBLE_PEAK', 'TURTLE']);
+  const p6 = writeP6XML(project, CAL, [t1, t2], [], [r1], assignments, []);
+  ok('h3 P6 schrijft twee ResourceCurve-objecten met de labels Double Peak/Turtle', /<Name>Double Peak<\/Name>/.test(p6) && /<Name>Turtle<\/Name>/.test(p6));
+  const backP = readP6XML(p6);
+  const asgnP = ['dp', 'tu'].map((n) => backP.assignments.find((a) => a.taskId === backP.tasks.find((x) => x.name === n)!.id)!);
+  eq('h4 P6 leest ze terug als OPS-curve (tabelmatch) mét de 21 waarden', [asgnP[0].curve, asgnP[1].curve, asgnP[1].curveValues], ['DOUBLE_PEAK', 'TURTLE', CONTOUR_SHAPE_VALUES.TURTLE]);
+  const ifc = writeIFC({ project, calendar: CAL, tasks: [t1, t2], sequences: [], resources: [r1], assignments });
+  const backI = readIFC(ifc);
+  eq('h5 IFC-validator accepteert de twee nieuwe curves', backI.assignments.map((a) => a.curve).sort(), ['DOUBLE_PEAK', 'TURTLE']);
+  const load = computeResourceLoad(backI.resources, backI.assignments, backI.tasks, backI.calendar, backI.resourceCalendars ?? []);
+  const dpLoad = Object.keys(load.load[backI.resources[0].id]).sort().slice(0, 5).map((k) => load.load[backI.resources[0].id][k]);
+  eq('h6 lastlezer: DOUBLE_PEAK bij geheel tempo over 5 dagen = hele eenheden, som 5', [dpLoad.reduce((a, b) => a + b, 0), dpLoad.every((v) => Number.isInteger(v))], [5, true]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -6,7 +6,7 @@ Een taak vertelt je wanneer iets moet gebeuren; een resource vertelt je wie of w
 
 - De vijf resourcetypes en wanneer je welke gebruikt.
 - Resources toewijzen aan taken — via het eigenschappenpaneel, de taakdialoog of het lint.
-- Eenheden per dag en de zes verdeelcurves: wanneer kies je welke — en hoe je de uren per werkdag zelf zet.
+- Eenheden per dag en de acht verdeelcurves: wanneer kies je welke — en hoe je de uren per werkdag zelf zet.
 - Een toewijzing verplaatsen naar een andere taak.
 - Resourcekalenders en tijd-gefaseerde capaciteit (bijvoorbeeld een tweede kraan die later bijkomt).
 - Het histogram lezen: de resourcekiezer, drilldown per resource, overallocatie herkennen.
@@ -64,6 +64,8 @@ Elke toewijzing heeft **eenheden/dag** (1 = één persoon/stuk voltijds, 0,5 = e
 - **Klokvorm (BELL)** — laag begin en einde, piek in het midden — een taak die opstart, op volle kracht draait en weer afbouwt.
 - **Vroege piek (EARLY_PEAK)** — de piek zit vroeg in de taak, daarna neemt de belasting af.
 - **Late piek (LATE_PEAK)** — de piek zit laat in de taak.
+- **Dubbele piek (DOUBLE_PEAK)** — twee pieken, rond dertig en rond tachtig procent van de duur, met een dal ertussen — bijvoorbeeld werk in twee golven met een tussenfase van een ander team. Dezelfde vorm als in MS Project en P6.
+- **Schildpad (TURTLE)** — een afgevlakte klokvorm: zachte aanloop, lang plateau op volle kracht, zachte afbouw. Dezelfde vorm als in MS Project en P6.
 
 Curve-variatie is vooral zichtbaar in het histogram: dezelfde taak met dezelfde eenheden/dag geeft met een klokvorm-curve een heel andere staafverdeling dan met uniform. De middelgrote showcase gebruikt bewust een mix (uniform/vooraan/achteraan belast) op de afbouwtaken per woning, zodat je het verschil kunt vergelijken.
 
@@ -71,7 +73,7 @@ Curve-variatie is vooral zichtbaar in het histogram: dezelfde taak met dezelfde 
 
 Past geen enkele curve, dan zet je de uren per werkdag zelf. Naast de curve-dropdown van elke toewijzing staat de knop **Urenverdeling…** (het staafdiagram-icoon); die opent een venster met één rij per werkdag van de taak — dezelfde dagen waarop het histogram boekt, dus met de pauzedagen van een gesplitste taak overgeslagen. Per rij zie je de datum, het **resterende** werk in uren (bewerkbaar) en de afgeleide eenheden; heeft de toewijzing al **verricht** werk (uit een import met voortgang), dan staat dat in een eigen kolom, alleen-lezen. Het vertrekpunt is precies wat de toewijzing nu al boekt: de gekozen curve, of de exacte curve uit een P6- of MS Project-import.
 
-- **Vorm toepassen** vult de rijen met een van de acht standaardvormen (de zes curves plus *Dubbele piek* en *Schildpad* uit MS Project en P6), met behoud van het huidige totaal — handig als vertrekpunt dat je daarna per dag bijstelt.
+- **Vorm toepassen** vult de rijen met een van de acht standaardvormen (dezelfde acht curves als de dropdown), met behoud van het huidige totaal — handig als vertrekpunt dat je daarna per dag bijstelt.
 - **Toepassen** slaat de verdeling op als *contour* van deze toewijzing. De curve-dropdown toont dan **Contour** en is uitgeschakeld: de contour is data en wint van elke curve. Histogram, overallocatie, nivelleerder en bezettingsoverzicht rekenen er meteen mee, en de verdeling gaat mee in het IFC-bestand en in een export naar MS Project XML of Primavera P6 XML.
 - **Verdeling loslaten** verwijdert de contour; de toewijzing volgt daarna weer haar curve.
 
@@ -141,7 +143,7 @@ De les is niet dat nivellering "niet werkt" — het algoritme doet precies wat g
 ## Verder lezen
 
 - Speel de nivellering van de stukadoors-overallocatie zelf na in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- Zie de grens van nivellering in de praktijk — en alle vijf resourcetypes, alle zes curves en de tijd-gefaseerde torenkraan-capaciteit — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
+- Zie de grens van nivellering in de praktijk — en alle vijf resourcetypes, zes van de acht curves en de tijd-gefaseerde torenkraan-capaciteit — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
 - Resources werken op kalenders — lees de gids [Kalenders & uren-planning](docs://gids-kalenders-uren) voor resourcekalenders en uren-planning.
 - Wil je een basislijn vastleggen vóórdat je gaat nivelleren, zodat je het verschil kunt zien? Lees de gids [Baselines & voortgang](docs://gids-baselines-voortgang).
 - Nivellering verandert soms welke taken kritiek zijn — lees de gids [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse) voor hoe je dat herkent.

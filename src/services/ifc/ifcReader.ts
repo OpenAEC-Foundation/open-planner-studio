@@ -34,7 +34,7 @@ import {
 // zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
 // registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
 
-const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 
 interface StepEntity {
   id: string; // STEP entity ID (may include letters, e.g. "300T")

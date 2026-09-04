@@ -300,7 +300,7 @@ export interface ExtAssignment {
   resourceId: string;
   /** Eenheden per werkdag (1 = 100%). */
   unitsPerDay: number;
-  curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK';
+  curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
   /** Z8-werkvenster (.mpp-import) — volledige-round-trip-velden, zie `ExtTask.timephasedFinishFloor`. */
   workWindowStart?: string;
   /** Zie `workWindowStart`. */
