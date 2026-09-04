@@ -19,7 +19,6 @@ import {
   shiftProjectDates, shiftResource, shiftBaseline,
   type MoveProjectOptions, type MoveImpact, type HolidayGapCalendar,
 } from '@/engine/moveProject';
-import { finishMutation } from '../transaction';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -29,6 +28,7 @@ import { deriveHoursPerDay } from '@/services/subdayIo';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
+import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 export { createDefaultProject };
 
 /** Opties voor de nieuw-project-wizard. */
@@ -82,6 +82,8 @@ export interface ProjectSlice {
   /** Web-opslaan-doel (spec §4). ALLEEN het FSA-opslaan-doel — nooit voor identiteit/titel;
    *  die blijven bij `filePath` (echt pad in Tauri, bestandsnaam in web). `null` in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
+  /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
+  autoSaveToFile: boolean;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -133,7 +135,7 @@ export interface ProjectSlice {
     customTaskTypes?: CustomTaskType[];
     baselines?: Baseline[];
     activeBaselineId?: string | null;
-  }) => void;
+  }, opts?: { viewStartDate?: string }) => void;
 }
 
 /**
@@ -167,6 +169,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   isDirty: false,
   filePath: null,
   fileHandle: null,
+  autoSaveToFile: false,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de
@@ -207,7 +210,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
         });
       }
       // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
-      finishMutation(s, { stale: 'startDate' in updates });
+      runtime.finishMutation(s, { stale: 'startDate' in updates });
     });
     if (clampedAnchors > 0) {
       // H3c: ná een DAADWERKELIJKE klem meteen herberekenen — anders is de melding ("meegeschoven")
@@ -231,7 +234,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.beginUndoable(s);
       s.project.wbsAutoNumber = on;
       if (on) applyWbsNumbering(s.tasks);
-      finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
+      runtime.finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
     }),
 
   setCalendar: (calendar) =>
@@ -244,7 +247,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.beginUndoable(s);
       s.calendar = calendar;
       if (idx >= 0) s.calendars[idx] = calendar;
-      finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
   setProjectCalendar: (id) =>
@@ -253,7 +256,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
       runtime.beginUndoable(s);
       s.project.calendarId = id;
-      finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
+      runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
       syncProjectCalendar(s); // §9.1: cache gelijkzetten.
     }),
 
@@ -266,14 +269,17 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     set((s) => {
       const next = date || undefined; // '' telt als wissen — zelfde effect als undefined
       if (s.project.statusDate === next) return; // no-op-guard vóór de snapshot (pakket H)
-      // Coalescing (pakket H): het statusdatumveld in het lint is een `DateTextInput` die LIVE per
-      // toetsaanslag committeert — één ingetypte datum levert meerdere geldige commits op (zie
-      // `beginUndoable`). Zonder key zouden dat evenzoveel undo-stappen met onzin-tussenwaarden zijn.
+      // Coalescing (pakket H): het statusdatumveld in het lint is een `DateTextInput`. Die commit
+      // sinds de `commitMode`-fix standaard pas bij het AFRONDEN (blur/Enter), dus één ingetypte
+      // datum = één commit; deze key is daarmee geen noodzaak meer maar wél het vangnet dat blijft
+      // gelden voor reeksen die tóch snel achter elkaar committen (plakken, corrigeren, pijltjes).
+      // Zonder key zou elke commit een eigen undo-stap met onzin-tussenwaarde zijn (zie
+      // `beginUndoable` en `tests/planning/check-date-input-commit.ts`).
       runtime.beginUndoable(s, { coalesceKey: 'project.statusDate' });
       if (next) s.project.statusDate = next;
       else delete s.project.statusDate;
       s.project.modifiedAt = new Date().toISOString();
-      finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // datum-beïnvloedend (A6): planning verouderd tot F5.
     }),
 
   setProgressMode: (mode) =>
@@ -282,7 +288,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.beginUndoable(s);
       s.project.progressMode = mode;
       s.project.modifiedAt = new Date().toISOString();
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     }),
 
   moveProject: (newStartDate, opts) => {
@@ -316,7 +322,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // gebruiker nooit gezien heeft. Nu verlaat de modus in dezelfde producer die de snapshot al
       // nam ⇒ één undo-stap. De vlag zelf is een non-issue: de `runCPM` hieronder wist hem meteen
       // weer (het is de eerste regel van die actie), dus de "verouderd"-hint knippert niet.
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
       out = { moved: true, deltaDays: delta, taskCount: s.tasks.length };
     });
     if (out.moved) {
@@ -429,6 +435,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     // nieuw per-document veld wordt hier automatisch mee-gereset (geen stille lek van het vorige
     // project). hydratePayload promoveert + synct de projectkalender (§4.3/§9.1).
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       hydratePayload(s, freshPayload());
       // Zelfde reset als newDocument()/closeDocument() in documentSlice.ts (critreview taak 12):
       // showLibraryLinkDialog/libraryRefreshNotice zijn APP-globaal en worden door hydratePayload
@@ -457,6 +464,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     if (!pristine) get().newDocument();
 
     set((s) => {
+      removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       const proj = createDefaultProject();
       proj.name = opts.name.trim() || proj.name;
       proj.description = opts.description ?? '';
@@ -522,14 +530,15 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       s.filePath = path;
     }),
 
-  loadState: (loaded) => {
+  loadState: (loaded, opts) => {
     // Dunne wrapper over de gedeelde load-implementatie (audit P5/F6): `applyLoadedProject` in
-    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad, GEEN runCPM/fit,
-    // `filePath` ongemoeid (opt weggelaten). De externe callers blijven ongewijzigd.
+    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad/fit, `filePath`
+    // ongemoeid (opt weggelaten). De berekening gebeurt vóór dezelfde ene publicatie.
     get().applyLoadedProject(loaded, {
-      recompute: false,
+      recompute: true,
       fit: false,
       hourDataNotice: false,
+      viewStartDate: opts?.viewStartDate,
     });
   },
 });

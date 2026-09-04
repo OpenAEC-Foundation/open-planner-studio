@@ -119,6 +119,14 @@ export function resolveLibrarySliceCache(
  * uitsluitend ongetelde boekingen toont "—" voor periode/piek, krijgt nooit een conflictbadge en
  * bij selectie geen chart maar de stale-uitleg.
  *
+ * Uitzondering op §4.3b — het ACTIEVE document (perf-poort, TODO na de critreview van v2026.8.0):
+ * dat krijgt `skipEphemeralSolve` mee en wordt hier dus nooit doorgerekend. Reden: elke bewerking
+ * daarin invalideert de zware memo, dus anders draait er per toetsaanslag een volledige CPM-solve
+ * synchroon in de render. Het telt gewoon mee met zijn laatst berekende cijfers — dezelfde
+ * staleness die de Gantt ernaast toont — en krijgt de derde markering
+ * (`staleAsShownDoc`/`staleAsShownBanner`) in plaats van de "alvast doorgerekend"-variant. Staat
+ * "Automatisch berekenen" aan, dan lopen die cijfers hooguit één debounce-tick achter.
+ *
  * Prestaties (§7): lazy — dit component mount alleen in de Bezettingsweergave — en één `useMemo`
  * rond `computeLibraryOccupancy`, met als afhankelijkheden de identiteiten van `s.documents`, de
  * pool en de top-level velden van het actieve document, PLUS `s.project` en `s.filePath` (de
@@ -228,13 +236,21 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     }
   }, [autoCalcCPM, staleSleepingCount, recalculateStaleSleepingDocuments]);
 
-  const { rows, anyUncountedStale, anyCountedStale, docColors } = useMemo(() => {
+  const { rows, anyUncountedStale, anyCountedStale, anyStaleAsShown, docColors } = useMemo(() => {
     const payloads = openDocumentPayloads;
     // Zelfde titel-afleiding als de tabbladen: rauwe titels eerst, dan volgnummers voor naamloze
     // documenten, dan het vertaalde label eromheen (zie `getOpenDocuments`/`useDocumentCards`).
     const rawTitles = payloads.map(({ payload }) => documentTitle(payload.filePath, payload.project.name));
     const ordinals = untitledOrdinals(rawTitles);
     const inputs: OccupancyDocInput[] = payloads.map(({ id, payload }, i) => {
+      // Perf-poort (TODO na de critreview van v2026.8.0): het ACTIEVE document wordt hier NIET
+      // efemeer doorgerekend. Elke bewerking daarin invalideert deze memo, dus anders draait er per
+      // toetsaanslag een volledige CPM-solve over de complete takenlijst synchroon in de render
+      // (gemeten 700 ms–2,6 s op 3000 taken/1500 relaties). Het actieve document heeft zijn eigen
+      // rekenpad (F5 of `useAutoCalcCPM`); het telt hier mee met zijn laatst berekende toestand —
+      // dezelfde staleness die de Gantt ernaast toont — en krijgt de "verouderd"-markering. Het
+      // wordt op ID herkend, niet op positie in de lijst.
+      const isActive = id === activeDocumentId;
       // De titel hoort bewust NIET in de cache: die hangt aan de locale en aan de volgnummers van
       // de ándere documenten, niet aan deze payload.
       const resolved = resolveLibrarySliceCache(sliceCacheRef.current, payload, companyId, pool);
@@ -250,17 +266,21 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         tasks: slice.tasks,
         calendar: payload.calendar,
         calendars: payload.calendars,
+        skipEphemeralSolve: isActive,
         // §4.3b: invoer voor de efemere doorrekening van een stale document. Bewust de VOLLEDIGE
         // takenlijst en relaties van de payload (niet de bibliotheek-snit): een gesnoeide graaf zou
         // een andere planning opleveren dan F5 in dat document. Referenties, geen kopieën — de
-        // kosten vallen pas bij een daadwerkelijke solve, en die kloont zelf.
-        solveInput: {
-          tasks: payload.tasks,
-          sequences: payload.sequences,
-          dataDate: payload.project.statusDate,
-          progressMode: payload.project.progressMode,
-          schedulingOptions: payload.project.schedulingOptions,
-        },
+        // kosten vallen pas bij een daadwerkelijke solve, en die kloont zelf. Voor het actieve
+        // document laten we hem bewust weg: daar wordt nooit gesolved (zie hierboven).
+        ...(isActive ? {} : {
+          solveInput: {
+            tasks: payload.tasks,
+            sequences: payload.sequences,
+            dataDate: payload.project.statusDate,
+            progressMode: payload.project.progressMode,
+            schedulingOptions: payload.project.schedulingOptions,
+          },
+        }),
       };
     });
     const result = computeLibraryOccupancy(companyId, pool, inputs);
@@ -274,6 +294,11 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     // hier niet fijnmazig genoeg voor die keuze.
     let anyUncountedStale = false;
     let anyCountedStale = false;
+    // Derde soort (perf-poort): een document dat hier NIET efemeer wordt doorgerekend (het actieve)
+    // maar wél stale is — de cijfers zijn zijn laatst berekende, dus "verouderd", niet "alvast
+    // doorgerekend". De banner-keuze is: ongeteld (waarschuwing) > verouderd-zoals-getoond >
+    // alvast-doorgerekend.
+    let anyStaleAsShown = false;
     // Unieke documentkleuren (i.p.v. de hash-gebaseerde `documentColor`, die bij toeval kan
     // botsen): één toewijzing per docId, op volgorde van eerste verschijnen in de zichtbare data
     // (de gesorteerde rijen + hun docs). Zo blijft elke docId uniek zolang het palet reikt, en
@@ -283,15 +308,18 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     for (const row of sorted) {
       for (const doc of row.docs) {
         if (!doc.counted) anyUncountedStale = true;
-        else if (doc.scheduleStale) anyCountedStale = true;
+        else if (doc.scheduleStale) {
+          if (doc.ephemeralComputed) anyCountedStale = true;
+          else anyStaleAsShown = true;
+        }
         if (!docColors.has(doc.docId)) {
           docColors.set(doc.docId, DOC_PALETTE[docColors.size % DOC_PALETTE.length]);
         }
       }
     }
-    return { rows: sorted, anyUncountedStale, anyCountedStale, docColors };
+    return { rows: sorted, anyUncountedStale, anyCountedStale, anyStaleAsShown, docColors };
   }, [
-    openDocumentPayloads, pool, companyId, untitledLabel, i18n.language,
+    openDocumentPayloads, activeDocumentId, pool, companyId, untitledLabel, i18n.language,
   ]);
 
   // Uitklap (chevron) en histogram-selectie zijn twee losse assen: uitklappen toont de
@@ -348,6 +376,22 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         >
           <AlertTriangle size={14} className="shrink-0" aria-hidden />
           <span>{t('resource.occupancy.staleBanner')}</span>
+        </div>
+      ) : anyStaleAsShown ? (
+        // Perf-poort: minstens één document telt mee met zijn LAATST BEREKENDE cijfers (het actieve
+        // document, dat hier bewust niet efemeer wordt doorgerekend). Informatief, dim-stijl —
+        // dezelfde vorm als de "alvast doorgerekend"-banner hieronder.
+        <div
+          className="flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium text-text-secondary"
+          style={{
+            background: 'color-mix(in srgb, var(--theme-text-dim) 12%, transparent)',
+            borderColor: 'var(--theme-text-dim)',
+          }}
+          role="status"
+          data-ops-occupancy-stale-as-shown-banner
+        >
+          <AlertTriangle size={14} className="shrink-0" aria-hidden />
+          <span>{t('resource.occupancy.staleAsShownBanner')}</span>
         </div>
       ) : anyCountedStale && (
         // §4.3b: alle stale documenten in dit overzicht zijn efemeer doorgerekend en tellen gewoon
@@ -472,15 +516,25 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                   <span className="text-[10px]">{t('resource.occupancy.staleDoc')}</span>
                                 </span>
                               ) : doc.scheduleStale && (
-                                // §4.3b: efemeer doorgerekend — de cijfers hierboven zijn al de
-                                // actuele; dit is een informatieve hint, geen fout (dim-stijl).
+                                // Twee informatieve varianten (dim-stijl, geen fout):
+                                // efemeer doorgerekend (§4.3b) ⇒ de cijfers hierboven zijn al de
+                                // actuele; niet doorgerekend (perf-poort, het actieve document) ⇒
+                                // het zijn de laatst berekende cijfers.
                                 <span
                                   className="inline-flex items-center gap-1 flex-shrink-0 text-text-secondary"
-                                  title={t('resource.occupancy.staleComputedDoc')}
-                                  data-ops-occupancy-stale-computed-doc
+                                  title={doc.ephemeralComputed
+                                    ? t('resource.occupancy.staleComputedDoc')
+                                    : t('resource.occupancy.staleAsShownDoc')}
+                                  {...(doc.ephemeralComputed
+                                    ? { 'data-ops-occupancy-stale-computed-doc': '' }
+                                    : { 'data-ops-occupancy-stale-as-shown-doc': '' })}
                                 >
                                   <AlertTriangle size={12} aria-hidden />
-                                  <span className="text-[10px]">{t('resource.occupancy.staleComputedDoc')}</span>
+                                  <span className="text-[10px]">
+                                    {doc.ephemeralComputed
+                                      ? t('resource.occupancy.staleComputedDoc')
+                                      : t('resource.occupancy.staleAsShownDoc')}
+                                  </span>
                                 </span>
                               )}
                             </div>

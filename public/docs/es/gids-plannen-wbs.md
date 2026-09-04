@@ -73,7 +73,8 @@ La pestaña de la cinta **Tabla** muestra esta misma estructura como una cuadrí
 útil cuando está introduciendo o corrigiendo muchas tareas a la vez: un solo clic en cualquier celda
 editable inicia la edición de inmediato con el valor existente seleccionado, las teclas de flecha
 mueven un cursor de celda sin abrirla, **F2**/**Enter** abre la celda actual para editarla, y
-**Tab**/**Mayús+Tab** en una fila seleccionada la sangra/reduce la sangría, igual que Alt+→/←.
+**Tab**/**Mayús+Tab** va a la celda siguiente/anterior, continuando en la fila de tarea
+siguiente/anterior. La sangría sigue usando **Alt+→**/**Alt+←**.
 Llegar a **Enter** o **↓** en la última fila crea ahí mismo una nueva tarea hermana con el cursor ya
 en su celda de nombre, para que pueda seguir introduciendo toda una lista sin tocar el ratón — esto
 solo funciona en la vista de árbol normal, ya que un filtro, una ordenación o una agrupación activa

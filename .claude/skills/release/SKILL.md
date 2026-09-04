@@ -92,6 +92,27 @@ node scripts/release-notes.mjs vX.Y.Z --format=notes   # het latest.json-notes-v
   `notes`-veld — precies de situatie van v2026.7.12. De `gate`-job logt daar een warning voor,
   vóór de build; lees die dus.
 
+### 4a. Visuele updatehoogtepunten voorbereiden (omkeerbaar)
+De dialoog **Je bent net geüpdatet** heeft een vaste, geteste U4-structuur: één prominente
+primary-kaart met eventueel één gidslink, vier compacte secondary-kaarten zonder gidslink, en één
+link naar de GitHub-wiki. Kies daarom precies vijf gebruikersgerichte highlights en voeg in
+`src/services/updater/releaseHighlights.ts` **alleen een nieuw versieblok** toe; herschrijf geen
+copy van een al uitgebrachte versie. Dat blok bevat de primary, exact vier secondaries, de
+reproduceerbare statistieken en copy voor alle veertien locales.
+
+De routine-releasegegevens kennen bewust geen screenshots, afbeeldingen of layoutvelden. Wijzig
+`JustUpdatedDialog.tsx` alleen na een expliciet, afzonderlijk door de user goedgekeurd redesign;
+een gewone release vult uitsluitend het nieuwe versieblok. Controleer vóór de tag-akkoord-poort:
+
+```bash
+npm run verify:release-highlights -- X.Y.Z
+npm run test:browser -- just-updated-dialog.spec.ts
+```
+
+De eerste poort vergelijkt het volledige versieblok met de Git-range vanaf de vorige stable tag tot
+de doel-tag — of, vóór die tag bestaat, tot de huidige `HEAD`. De tweede bewaakt de vijf kaarten,
+de ene primary-gidsknop, de Wiki-link en desktop/smal/RTL-gedrag.
+
 ### 5. Docs & wiki bijwerken (eis 4 — allebei)
 **Uitvoering: aparte Sonnet-subagent die de `wiki`-skill aanroept** (los van de changelog-subagent
 uit stap 3 — disjuncte bestanden, mag parallel). Die skill is de volledige brief; kernmandaat:

@@ -13,6 +13,18 @@ import {
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import {
+  invalidateUndoneHistoryForScopes,
+  removeSessionHistoryForDocumentFromState,
+  replaceSessionHistoryState,
+  type HistoryScopeKey,
+} from '../sessionHistory';
+import {
+  materializeLibraryBoundary,
+  prepareLoadedPayload,
+  type DocumentActivationMaterialization,
+} from '../documentActivation';
+import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -56,10 +68,23 @@ export interface DocumentEntry {
 function resetDocumentScopedUI(s: AppState): void {
   s.ui.showTaskDialog = false;
   s.ui.editingTaskId = null;
-  // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: `runOpenBoundary` zet deze
+  // Bibliotheek-afwijkingen horen bij het document dat ze opleverde: de activatiegrens zet deze
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
+}
+
+function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {
+  hydratePayload(s, activation.payload);
+  s.viewRows = [...activation.viewRows];
+  s.resourceLoadResult = activation.resourceLoadResult;
+  s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
+  s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+}
+
+function invalidateActivationRedo(s: AppState, documentId: string): void {
+  const scope: HistoryScopeKey = `document:${documentId}`;
+  s.historyEvents = invalidateUndoneHistoryForScopes(s.historyEvents, new Set([scope]));
 }
 
 /** Lichtgewicht weergave voor consumenten (bv. een toekomstige FileTabBar). */
@@ -81,7 +106,8 @@ export interface DocumentSlice {
   newDocument: () => string;
   /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
    *  kopie krijgt genulde `filePath`/`fileHandle` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty = true`, verse lege undo/redo-stacks en lege selectie, en álle muteerbare payload-velden
+   *  `isDirty = true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
+   *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
    *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
    *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
   duplicateDocument: (name?: string) => string;
@@ -94,8 +120,23 @@ export interface DocumentSlice {
   /** Alle geopende documenten als payload (actief live, rest uit de registry) —
    *  voor crash-recovery-serialisatie. */
   getOpenDocumentPayloads: () => { id: string; payload: DocumentPayload }[];
-  /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig. */
-  restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => void;
+  /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig.
+   *
+   *  Defensief per document (TODO "recovery-robuustheid bij een corrupt herstelbestand"): een
+   *  snapshot kan `readIFC` overleven (dus tot hier komen — de per-document `try/catch` in
+   *  `useRecoveryRestore` ving alleen die stap af) en toch een projectgraaf dragen die de solver
+   *  niet aankan, bijvoorbeeld een cyclische WBS-kinderrelatie die `applyCpmResult`'s recursieve
+   *  rollup in een stack-overflow laat lopen. Zo'n document wordt overgeslagen; de overige
+   *  documenten herstellen gewoon. Geeft de id's van overgeslagen documenten terug zodat de
+   *  aanroeper hun snapshots kan laten staan in plaats van ze te wissen.
+   *
+   *  Bewuste grens: alleen het ACTIEVE document wordt hier doorgerekend (net als vóór deze fix —
+   *  slapende documenten krijgen geen solve, dat is de hele reden dat ze slapend zijn). Een
+   *  corrupte snapshot die niet als actief document wordt gekozen komt dus gewoon als payload
+   *  binnen en valt pas om bij een latere `switchDocument`. Die lacune is pre-existent en niet wat
+   *  dit TODO-item ("het opstarten klapt") adresseert; alle documenten preventief solven zou het
+   *  herstel juist verzwaren met precies de solve die we hier proberen te overleven. */
+  restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => { skippedIds: string[] };
   /** Reken elk NIET-ACTIEF geopend document met een verouderde planning (`payload.scheduleStale`)
    *  écht door en schrijf de uitkomst in zijn payload terug — het terugschrijfbesluit van B1b
    *  §4.3b. Geeft het aantal bijgewerkte documenten terug (0 ⇒ er is niets gemuteerd).
@@ -109,6 +150,10 @@ export interface DocumentSlice {
    *  doorrekening is afgeleide data, geen bewerking). Het ACTIEVE document valt hier bewust buiten
    *  — dat heeft zijn eigen pad (`useAutoCalcCPM` → `runCPM`, ~100 ms). */
   recalculateStaleSleepingDocuments: () => number;
+  /** Zet alleen voor het actieve document de persoonlijke, niet-IFC AutoSave-keuze. */
+  setAutoSaveToFile: (enabled: boolean) => void;
+  /** Markeer uitsluitend de documentversie die de writer daadwerkelijk heeft weggeschreven schoon. */
+  markAutoSaveVersionSaved: (id: string, source: IFCSaveSource) => void;
 }
 
 /**
@@ -163,19 +208,22 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
   activeDocumentId: INITIAL_DOC_ID,
 
   newDocument: () => {
-    const outgoing = capturePayload(get());
+    const state = get();
+    const outgoing = capturePayload(state);
     const newId = generateId('doc');
+    const activation = materializeLibraryBoundary({
+      payload: freshPayload(), companies: state.companies, pools: state.pools, mode: 'silent-switch',
+    });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = outgoing;
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
-      hydratePayload(s, freshPayload());
-      // Een vers leeg document draait GEEN runOpenBoundary (er is niets aan gekoppeld), dus zonder
+      // Een vers leeg document heeft geen open-boundary (er is niets aan gekoppeld), dus zonder
       // deze reset blijft de ui-toestand van het vorige document hangen.
       resetDocumentScopedUI(s);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
     return newId;
   },
@@ -197,7 +245,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     const newId = generateId('doc');
 
     // Bouw de kopie-payload EXPLICIET — geen stilzwijgende afhankelijkheid van Immer-copy-on-write.
-    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie/undo/redo starten vers;
+    // 'clone'-rolvelden + view/collapsedTaskIds worden diep gekloond; selectie start vers;
     // filePath/fileHandle genuld; cpmResult/resourceLoadResult ('ref') mogen per referentie mee.
     const copy: DocumentPayload = {
       project: { ...deepClone(src.project), name: copyName },
@@ -220,24 +268,26 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       recordedDates: src.recordedDates,
       datesAsRecorded: src.datesAsRecorded,
       selectedTaskIds: [],
+      activeTaskId: null,
       view: deepClone(src.view),
       collapsedTaskIds: deepClone(src.collapsedTaskIds),
-      undoStack: [],
-      redoStack: [],
       filePath: null,
       fileHandle: null,
+      autoSaveToFile: false,
       isDirty: true,
     };
+    const activation = materializeLibraryBoundary({
+      payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',
+    });
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = src; // bron parkeren (per referentie, net als newDocument/switchDocument)
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
-      hydratePayload(s, copy);
       resetDocumentScopedUI(s);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
       sequences: copy.sequences.length,
@@ -256,34 +306,19 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     if (!target || !target.payload) return;
     const outgoing = capturePayload(state);
     const incoming = target.payload;
+    const activation = materializeLibraryBoundary({
+      payload: incoming, companies: state.companies, pools: state.pools, mode: 'silent-switch',
+    });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = outgoing;
-      hydratePayload(s, incoming);
       const inc = s.documents.find((d) => d.id === id);
       if (inc) inc.payload = null;
       s.activeDocumentId = id;
       resetDocumentScopedUI(s);
+      if (activation.invalidateRedoScope) invalidateActivationRedo(s, id);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
-    // Grens 2 (spec §3.2): activeren ververst STIL — behind-only (deviated blijft gemarkeerd, spec §3),
-    // zelfhelend als de pool schoof terwijl het document sliep. Geen dialoog bij documentwissel
-    // (alleen bij openen/herstel). Gebruikt de primitief uit Taak 5.
-    // NB (critreview taak 10, verplicht): showLibraryLinkDialog/libraryRefreshNotice zijn app-globaal
-    // en worden door runOpenBoundary alleen AANgezet — zonder expliciete reset hier zou taak 14's
-    // dialoog stale data van het VORIGE document tonen. Het net-geactiveerde document bepaalt de
-    // nieuwe toestand: dialoog blijft altijd dicht (grens 2 is stil, geen vraag), en het signaal
-    // reflecteert alleen déze verversing (of null als er niets ververst is) — nooit een oud getal.
-    {
-      const cid = get().project.companyId;
-      const refreshed = cid ? get().refreshBehindItems(cid) : 0;
-      get().setUI({ showLibraryLinkDialog: false, libraryRefreshNotice: refreshed > 0 ? refreshed : null });
-    }
-    // Grens 3/4 (plan-eis 1) kan resources/kalenders van een SLAPENDE payload hebben ververst
-    // terwijl het `resourceLoadResult` van dat document nog de oude waarden droeg (er was toen geen
-    // actief document om te herberekenen). Bij activering hier onvoorwaardelijk herberekenen dicht
-    // die hele klasse — niet alleen het pool-edit-geval, elke toekomstige dormant-mutatie ook.
-    get().recomputeResourceLoad();
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -298,14 +333,17 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     // Laatste document sluiten → reset naar één vers, leeg document.
     if (state.documents.length === 1) {
       const newId = generateId('doc');
+      const activation = materializeLibraryBoundary({
+        payload: freshPayload(), companies: state.companies, pools: state.pools, mode: 'silent-switch',
+      });
       set((s) => {
+        removeSessionHistoryForDocumentFromState(s, id);
         s.documents = [{ id: newId, payload: null }];
         s.activeDocumentId = newId;
-        hydratePayload(s, freshPayload());
         // Zie newDocument(): deze tak levert net zo'n vers, ongekoppeld document op.
         resetDocumentScopedUI(s);
+        publishActivation(s, activation);
       });
-      get().recomputeViewRows();
       runtime.emitHostEvent(HOST_EVENTS.projectNew);
       return;
     }
@@ -313,6 +351,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     // Inactief document: gewoon verwijderen.
     if (id !== state.activeDocumentId) {
       set((s) => {
+        removeSessionHistoryForDocumentFromState(s, id);
         s.documents = s.documents.filter((d) => d.id !== id);
       });
       return;
@@ -322,26 +361,19 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     const idx = state.documents.findIndex((d) => d.id === id);
     const neighbor = state.documents[idx + 1] ?? state.documents[idx - 1];
     const incoming = neighbor.payload!;
+    const activation = materializeLibraryBoundary({
+      payload: incoming, companies: state.companies, pools: state.pools, mode: 'silent-switch',
+    });
     set((s) => {
-      hydratePayload(s, incoming);
+      removeSessionHistoryForDocumentFromState(s, id);
       s.documents = s.documents.filter((d) => d.id !== id);
       const n = s.documents.find((d) => d.id === neighbor.id);
       if (n) n.payload = null;
       s.activeDocumentId = neighbor.id;
       resetDocumentScopedUI(s);
+      if (activation.invalidateRedoScope) invalidateActivationRedo(s, neighbor.id);
+      publishActivation(s, activation);
     });
-    get().recomputeViewRows();
-    // Grens 2 (spec §3.2) + NB (critreview taak 10): zie switchDocument hierboven — zelfde stille
-    // behind-only-verversing én dezelfde deterministische reset van showLibraryLinkDialog/
-    // libraryRefreshNotice, want ook hier wordt een ander document actief.
-    {
-      const cid = get().project.companyId;
-      const refreshed = cid ? get().refreshBehindItems(cid) : 0;
-      get().setUI({ showLibraryLinkDialog: false, libraryRefreshNotice: refreshed > 0 ? refreshed : null });
-    }
-    // Zie switchDocument hierboven: het net-geactiveerde buurdocument kan een verouderd
-    // `resourceLoadResult` dragen (grens 3/4 ververste zijn payload terwijl het sliep).
-    get().recomputeResourceLoad();
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -373,35 +405,132 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     }));
   },
 
-  restoreDocuments: (docs, activeId) => {
-    if (docs.length === 0) return;
-    const active = docs.find((d) => d.id === activeId) ?? docs[0];
+  setAutoSaveToFile: (enabled) => {
+    set((s) => { s.autoSaveToFile = enabled; });
+  },
+
+  markAutoSaveVersionSaved: (id, source) => {
+    const state = get();
+    if (id === state.activeDocumentId) {
+      if (sameIFCSource(source, state)) set((s) => { s.isDirty = false; });
+      return;
+    }
+    const sleeping = state.documents.find((d) => d.id === id)?.payload;
+    if (!sleeping || !sameIFCSource(source, sleeping)) return;
     set((s) => {
-      s.documents = docs.map((d) => ({
-        id: d.id,
-        payload: d.id === active.id ? null : payloadFromInput(d),
-      }));
-      s.activeDocumentId = active.id;
-      hydratePayload(s, payloadFromInput(active));
+      const target = s.documents.find((d) => d.id === id)?.payload;
+      // De bronvergelijking gebeurde vóór de producer tegen de plain payload. Binnen Immer zou
+      // `target` een proxy zijn en dus nooit referentie-gelijk kunnen zijn met `source`.
+      if (target) target.isDirty = false;
+    });
+  },
+
+  restoreDocuments: (docs, activeId) => {
+    if (docs.length === 0) return { skippedIds: [] };
+    const state = get();
+    const skippedIds: string[] = [];
+
+    // 1. Kies een actief document en reken het door. `readIFC` liep al zonder gooien (zie de
+    //    per-document `try/catch` in `useRecoveryRestore`), maar een geldig geparste, inhoudelijk
+    //    inconsistente graaf (bv. een cyclische WBS-kinderrelatie) kan de solver/rollup alsnog laten
+    //    gooien — `applyCpmResult`'s `updateSummary` heeft geen cyclusbewaking, in tegenstelling tot
+    //    de CPM-solver zelf (die geeft `result.error` terug, geen throw). De kandidaat die daarop
+    //    stukloopt wordt overgeslagen; de volgende in de lijst wordt geprobeerd, zodat één corrupt
+    //    document niet de rest van het herstel blokkeert. De oorspronkelijk actieve kandidaat gaat
+    //    als eerste, zodat een geslaagd herstel dezelfde `activeDocumentId` behoudt als voorheen.
+    const tryOrder = [
+      ...docs.filter((d) => d.id === activeId),
+      ...docs.filter((d) => d.id !== activeId),
+    ];
+    let active: RecoveryDocInput | null = null;
+    let prepared: DocumentPayload | null = null;
+    let activation: DocumentActivationMaterialization | null = null;
+    for (const candidate of tryOrder) {
+      try {
+        const p = prepareLoadedPayload(payloadFromInput(candidate), { recompute: true });
+        const a = materializeLibraryBoundary({
+          payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
+        });
+        active = candidate;
+        prepared = p;
+        activation = a;
+        break;
+      } catch (err) {
+        console.error('Recovery: hersteld document kon niet worden doorgerekend — overgeslagen:', candidate.id, err);
+        skippedIds.push(candidate.id);
+      }
+    }
+
+    // 2. De overige (slapende) documenten: geen solve, dus zelden een throw — maar dezelfde
+    //    garantie geldt: één document dat zich niet naar een payload laat vormen mag de rest niet
+    //    meeslepen.
+    const sleepingById = new Map<string, DocumentPayload>();
+    for (const d of docs) {
+      if (active && d.id === active.id) continue;
+      if (skippedIds.includes(d.id)) continue;
+      try {
+        sleepingById.set(d.id, payloadFromInput(d));
+      } catch (err) {
+        console.error('Recovery: hersteld document kon niet worden voorbereid — overgeslagen:', d.id, err);
+        skippedIds.push(d.id);
+      }
+    }
+
+    if (skippedIds.length > 0) {
+      // Eén melding voor de hele batch (net als `pasteSkippedReadOnly`) i.p.v. één per document —
+      // de losse `recoveryReadFailed`-meldingen in `useRecoveryRestore` dekken al de parsefase.
+      get().notify({
+        severity: 'error',
+        messageKey: 'notifications.recoveryDocumentsSkipped',
+        params: { count: skippedIds.length },
+        dedupeKey: 'recovery-restore-skipped',
+      });
+    }
+
+    if (!active || !prepared || !activation) {
+      // Alles was corrupt: niets te herstellen. De aanroeper laat de snapshots staan zodra
+      // `skippedIds` niet leeg is (geen stille `clearRecovery()` van de enige kopie).
+      return { skippedIds };
+    }
+    const activeDoc = active;
+    const activePayload = prepared;
+    const activation2 = activation;
+
+    set((s) => {
+      replaceSessionHistoryState(s, [], 1);
+      s.documents = docs
+        .filter((d) => !skippedIds.includes(d.id))
+        .map((d) => ({
+          id: d.id,
+          payload: d.id === activeDoc.id ? null : (sleepingById.get(d.id) ?? null),
+        }));
+      s.activeDocumentId = activeDoc.id;
       resetDocumentScopedUI(s);
+      if (activation2.invalidateRedoScope) invalidateActivationRedo(s, activeDoc.id);
+      publishActivation(s, activation2);
     });
-    get().recomputeViewRows();
-    // Doorrekenen na herstel, net als élk ander laadpad (openFile/openRecentFile/
-    // openExampleFromString gaan via applyLoadedProject met `recompute: true`). Dit was tot nu toe
-    // het énige laadpad zónder runCPM; sinds de writer de afgeleide `OPS_Analysis`-pset niet meer
-    // schrijft (interferingFloat/isNearCritical/floatPath) zou de bijna-kritiek-kleuring, de
-    // float-path-tint en het InterferingFloat-veld hier anders leeg blijven tot de gebruiker F5
-    // drukt. Alleen het ACTIEVE document: de herstelde inactieve documenten krijgen via
-    // `payloadFromInput` sowieso een verse (lege) `cpmResult` — dat was al zo — en runCPM werkt
-    // uitsluitend op de top-level (actieve) state, dus alles doorrekenen zou per document een
-    // hydrate/capture-wissel + volledige CPM-run kosten en de opstart lineair vertragen bij veel
-    // herstelde documenten, terwijl de uitkomst pas zichtbaar is als je erheen switcht.
-    get().runCPM();
+    // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
+    // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
+    const cpm = activePayload.cpmResult;
+    if (cpm?.error) {
+      get().notify({
+        severity: 'error',
+        messageKey: 'notifications.scheduleFailed',
+        detail: cpm.error,
+        dedupeKey: 'cpm-error',
+      });
+    }
+    runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
+      hasError: !!cpm?.error,
+      error: cpm?.error ?? null,
+      criticalTasks: activePayload.tasks.filter(task => task.time.isCritical).length,
+    });
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
-      tasks: active.tasks.length,
-      sequences: active.sequences.length,
-      resources: active.resources.length,
+      tasks: activeDoc.tasks.length,
+      sequences: activeDoc.sequences.length,
+      resources: activeDoc.resources.length,
     });
+    return { skippedIds };
   },
 
   recalculateStaleSleepingDocuments: () => {
@@ -438,14 +567,15 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         // mee, alleen de vier doorrekenvelden worden vervangen. `resourceLoadResult: null` omdat
         // `switchDocument` bij activering tóch onvoorwaardelijk `recomputeResourceLoad()` draait —
         // een hier berekende belasting zou dubbel werk zijn dat alleen kan verouderen.
-        // `undoStack`/`redoStack`/`isDirty` blijven letterlijk staan: geen bewerking, geen snapshot.
+        // `isDirty` blijft letterlijk staan. De app-globale sessiehistorie wordt hier niet geraakt:
+        // dit is geen gebruikersbewerking maar alleen een afleiding voor een slapend document.
         //
         // `datesAsRecorded`/`recordedDates` MOETEN hier mee gewist worden (issue #63): de spread
         // draagt ze anders ongewijzigd mee, waarna dit document belooft "dit zijn de datums zoals
         // opgeslagen" terwijl de zojuist berekende datums op het scherm staan zodra je het
         // activeert — precies de mengvorm die de modus moet voorkomen. Dat er geen undo-stap
         // tegenover staat is hier consistent: deze functie herschrijft `tasks`/`cpmResult` óók
-        // zonder snapshot, en de undo-stack van het slapende document blijft als geheel bij zijn
+        // zonder history-event; bestaande events voor het slapende document blijven bij hun
         // eigen, oudere toestand horen.
         //
         // BACKSTOP, geen dagelijks pad: `markScheduleStale` (transaction.ts) houdt `scheduleStale`

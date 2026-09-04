@@ -1,7 +1,9 @@
 # Features
 
-Open Planner Studio is a complete construction-planning application. Everything below works
-identically in the desktop app and in the browser version — the same buttons, menus and shortcuts.
+Open Planner Studio is a complete construction-planning application. Its core planning, editing,
+reporting and project-file workflows are available in both the desktop app and browser.
+Platform-specific features and limitations are called out below, including the desktop-only MCP
+bridge and automatic updates.
 
 ## Scheduling
 
@@ -16,9 +18,9 @@ identically in the desktop app and in the browser version — the same buttons, 
 
 ## Calendars
 
-- **Work calendars** — configurable working days and hours, holidays, the construction industry's collective holiday, and inspection moments.
+- **Work calendars** — configurable working days, start and finish times, breaks, holidays, the construction industry's collective holiday, and inspection moments.
 - **Resource calendars** — per-resource availability.
-- **Hour-level planning** — durations in work days with hour-level calendar resolution.
+- **Hour-level planning** — day- and hour-based task durations, with minute-accurate calendar resolution; mixed day/hour schedules are an explicit user choice.
 
 ## Resources
 
@@ -35,21 +37,24 @@ identically in the desktop app and in the browser version — the same buttons, 
 
 ## Views & editing
 
-- **Interactive Gantt chart** — drawn on an HTML5 canvas: drag & drop (including reordering or
+- **Interactive Gantt chart** — a Canvas timeline paired with an accessible DOM task grid: drag & drop (including reordering or
   reparenting tasks by dragging their row vertically), zoom, a compressed working-days axis, week
   numbers and day names in the header, dependency arrows and hit-testing.
-- **Table view** — a spreadsheet-style editor over the same model: a single click on a cell edits it
-  immediately, with keyboard navigation (arrows, F2, Tab/Shift+Tab to indent) throughout.
+- **Table view** — a spreadsheet-style editor over the same model: one click selects a cell; use
+  F2, Enter or typing to edit it. Arrow keys and Tab/Shift+Tab navigate cells, while Alt+Left and
+  Alt+Right outdent and indent tasks.
 - **Context menus** — right-click tasks for quick actions.
-- **Office-style ribbon** — tabs for Start, Planning, Resources, Relations, View, Settings, Table,
-  IFC, Report and (once enabled) AI, plus a Backstage file menu.
+- **Office-style ribbon** — tabs for Start, Planning, Resources, View, Settings, Table, IFC,
+  Report and (once enabled) AI, plus a Backstage file menu. Relation actions are available from the
+  task groups instead of a separate Relations tab.
 - **Multi-document** — work on several projects at once and switch between them.
 
 ## IFC & interoperability
 
 - **IFC 4.3 native** — projects are saved and opened as IFC (buildingSMART); there is no separate project format.
 - **4D BIM ready** — link the schedule to an IFC building model.
-- **Import/export** — CSV, Microsoft Project (`.xml`) and Primavera P6 (`.xml`) adapters.
+- **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, plus read-only
+  opening of native Microsoft Project `.mpp` files (save the result as IFC).
 
 ## AI assistant (MCP)
 
@@ -78,7 +83,10 @@ identically in the desktop app and in the browser version — the same buttons, 
 ## Platform & experience
 
 - **Desktop & browser** — Windows, macOS and Linux desktop builds (Tauri 2) plus a full-featured browser version.
-- **Auto-save & crash recovery** — your work is saved continuously and restored after an unexpected close.
+- **System-aware appearance** — optionally follow the operating system or browser light/dark colour scheme, including live changes while the app remains open; High Contrast stays an explicit choice.
+- **Auto-save & crash recovery** — recovery snapshots are written about every ten seconds and can
+  restore open work after an unexpected close. For an existing saved IFC file, you can separately
+  opt in to writing changed work back to that same file on the same interval.
 - **Automatic updates** — the desktop app updates itself where the install type supports it, and
   shows a one-off "you've just been updated" summary the first time you reopen it afterwards.
 - **14 languages** — Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어 and فارسی, including right-to-left layout for Arabic and Persian. The in-app manual has its own language picker, independent of the interface language, with a warning when a translation is behind the English source.

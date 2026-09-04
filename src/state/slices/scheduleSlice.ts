@@ -2,13 +2,13 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { cpmResultFromRecorded, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
   levelResources as computeLeveling,
   type LevelingOptions,
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
-import { finishMutation, markScheduleStale } from '../transaction';
+import { markScheduleStale } from '../transaction';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
@@ -80,12 +80,16 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // één `assignResource` op aan Immer-proxywerk waar nul mutaties tegenover stonden. `get()` levert
     // dezelfde (bevroren, dus veilig te lezen) staat plain.
     const s = get();
-    const result = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+    const result = computeReliableResourceLoad(
+      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+    );
     set((st) => { st.resourceLoadResult = result; });
   },
 
   runCPM: () => {
     set((s) => {
+      const refreshPreviousEventAfter = s.scheduleStale && !s.datesAsRecorded;
+      let openedHistory = false;
       // "Datums zoals opgeslagen" (issue #63): dit is de ENIGE situatie waarin `runCPM` een undo-
       // snapshot pusht. Buiten de modus blijft het gedrag byte-identiek en blijft de invariant
       // intact waar `staleGuard.ts` (ensureFreshSchedule) en `batchTool.ts` (recomputeMidBatch) op
@@ -109,6 +113,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // undo-stap in plaats van twee, met een tussentoestand die de gebruiker nooit gezien heeft.
       if (s.datesAsRecorded) {
         runtime.beginUndoable(s);
+        openedHistory = true;
         s.datesAsRecorded = false;
         s.recordedDates = null;
       }
@@ -136,6 +141,8 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       if (result.error) {
         s.cpmResult = result;
         s.resourceLoadResult = null;
+        if (openedHistory) runtime.finishUndoable(s);
+        else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
         // Een mislukte berekening laat de invoer niet actueel worden. Dit is ook belangrijk voor
         // automatisch berekenen: de statusbalk mag de waarschuwing alleen tijdelijk onderdrukken
         // terwijl een geplande solve nog kans heeft om te slagen.
@@ -147,9 +154,11 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
 
       // Belasting/overallocatie herberekenen ná de CPM-pass + samenvattingstaak-rollup hierboven
       // (de resource-belasting mapt op de zojuist bijgewerkte earlyStart/earlyFinish).
-      s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.resourceLoadResult = computeReliableResourceLoad(
+        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
+      if (openedHistory) runtime.finishUndoable(s);
+      else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
     });
 
     // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen (§4.3).
@@ -203,13 +212,14 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       }
 
       s.cpmResult = cpmResultFromRecorded(info.times, s.tasks, s.calendar);
-      s.resourceLoadResult = computeResourceLoad(
-        s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.resourceLoadResult = computeReliableResourceLoad(
+        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
       s.datesAsRecorded = true;
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
-      // BEWUST GEEN finishMutation: er is niets gewijzigd t.o.v. het bestand.
+      // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
+      runtime.finishUndoable(s);
     });
     get().recomputeViewRows();
   },
@@ -304,7 +314,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat — in dezelfde producer
       // die de snapshot hierboven al nam, dus in één undo-stap i.p.v. twee (zie moveProject).
       // De aansluitende runCPM zet `scheduleStale` meteen weer op false.
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     });
     if (roundedCount > 0) {
       notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
@@ -338,7 +348,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         task.levelingDelayElapsed = undefined;
         clearLevelingGaps(task); // uitsluitend `source: 'leveling'`; importsplits zijn brondata
       }
-      finishMutation(s, { stale: true }); // zie applyLeveling; de aansluitende runCPM wist de vlag.
+      runtime.finishMutation(s, { stale: true }); // zie applyLeveling; de aansluitende runCPM wist de vlag.
       changed = true;
     });
     if (roundedCount > 0) {

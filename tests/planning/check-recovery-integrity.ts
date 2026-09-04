@@ -11,12 +11,11 @@
 //   3. daardoor vuurde de per-document `try/catch` in `useRecoveryRestore` nooit en werd zo'n
 //      snapshot als volwaardig document aangeboden — en na het herstellen ook nog gewist.
 //
-// Het ergste geval is niet het lege document maar het HALVE: bij een op 80 % afgekapte snapshot
-// kwamen vrijwel alle taken terug en geen enkele relatie. Een compleet ogende planning zonder
-// logicanetwerk, zonder crash en zonder melding. Assertie 3c hieronder legt precies dat vast: de
-// afgekapte tekst bevat nog vrijwel alle IFCTASK-regels en geen enkele IFCRELSEQUENCE — dus zónder
-// de integriteitspoort ZOU een parser hier een half project uitspugen. Draai deze batterij tegen
-// de oude `readIFC` en 3a/4a/5a vallen om; dat is het bewijs dat ze de bug vangen.
+// Het ergste geval is niet het lege document maar het HALVE: een snapshot kan na alle taken maar
+// vóór of midden in de relaties afbreken. Dan ontstaat een compleet ogende planning zonder het
+// volledige logicanetwerk, zonder crash en zonder melding. Assertie 3c knipt daarom op echte
+// STEP-recordgrenzen. Vaste percentages zijn ongeschikt: een verliesloze nieuwe pset mag de
+// byteverhouding van het bestand veranderen zonder deze herstelpoort inhoudelijk te wijzigen.
 //
 // Bewust NIET getest, want bewust NIET gebouwd: een drempel op taakaantal. Een leeg-maar-echt
 // project (verse wizard, kalender en resources ingericht) is legitiem en moet gewoon herstellen —
@@ -33,6 +32,10 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
 import { parseRecoveryManifest } from '@/services/recovery/recoveryStore';
+import type { RecoveryDocInput } from '@/state/documentContract';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import type { Task } from '@/types/task';
 
 // Minimale, botsingvrije `process`-declaratie (zelfde truc als check-ifc-roundtrip.ts), zodat dit
 // bestand óók typecheckt onder een config zonder Node-typen (`types: []`).
@@ -98,21 +101,27 @@ for (const pct of [70, 80, 90]) {
     afgekapt.startsWith('ISO-10303-21;') && !afgekapt.includes('END-ISO-10303-21;'));
 }
 {
-  // 3c De pijnlijke meting uit de review, hier als tekst-eigenschap vastgelegd. De writer schrijft
-  //    de IFCRELSEQUENCE-regels ná de taken, dus een afgekapt bestand verliest éérst het complete
-  //    logicanetwerk en pas daarna taken. Gemeten op deze fixture (10 taken, 9 relaties, 8857
-  //    bytes): 70 % → 6 taken / 0 relaties, 80 % → 9 taken / 0 relaties, 90 % → 10 taken /
-  //    6 relaties. Een parser zonder integriteitspoort levert hier dus een compleet ógende planning
-  //    zonder logicanetwerk — erger dan een leeg document. De asserties leggen de EIGENSCHAP vast,
-  //    niet de exacte bytegrenzen (die schuiven mee met de writer).
+  // 3c De pijnlijke meting uit de review, als structurele STEP-eigenschap vastgelegd. De writer
+  //    schrijft alle IFCTASK-regels vóór IFCRELSEQUENCE. We knippen één keer direct vóór de eerste
+  //    relatie en één keer vóór de vijfde: zo bewijst de test exact het lege en halve netwerk,
+  //    onafhankelijk van extra verliesloze psets die later aan de writer worden toegevoegd.
   const tel = (s: string, naald: string) => s.split(naald).length - 1;
-  const bij80 = VOLLEDIG.slice(0, Math.floor(VOLLEDIG.length * 0.8));
-  const bij90 = VOLLEDIG.slice(0, Math.floor(VOLLEDIG.length * 0.9));
-  truthy('3c1 op 80% staat het overgrote deel van de taken er nog (>=8 van 10)', tel(bij80, 'IFCTASK(') >= 8);
-  eq('3c2 op 80% staat er geen enkele IFCRELSEQUENCE meer', tel(bij80, 'IFCRELSEQUENCE('), 0);
-  truthy('3c3 op 90% staan alle taken er, maar niet alle relaties',
-    tel(bij90, 'IFCTASK(') === 10 && tel(bij90, 'IFCRELSEQUENCE(') > 0 && tel(bij90, 'IFCRELSEQUENCE(') < 9);
-  eq('3c4 het volledige bestand heeft alle 9 relaties wél', tel(VOLLEDIG, 'IFCRELSEQUENCE('), 9);
+  const eersteRelatie = VOLLEDIG.indexOf('IFCRELSEQUENCE(');
+  let vijfdeRelatie = eersteRelatie;
+  for (let nummer = 2; nummer <= 5; nummer++) {
+    vijfdeRelatie = VOLLEDIG.indexOf('IFCRELSEQUENCE(', vijfdeRelatie + 1);
+  }
+  truthy('3c0 fixture bevat minstens vijf relaties op vindbare STEP-grenzen',
+    eersteRelatie > 0 && vijfdeRelatie > eersteRelatie);
+  const zonderNetwerk = VOLLEDIG.slice(0, eersteRelatie);
+  const halfNetwerk = VOLLEDIG.slice(0, vijfdeRelatie);
+  eq('3c1 vóór de eerste relatie staan alle tien taken al in de snapshot', tel(zonderNetwerk, 'IFCTASK('), 10);
+  eq('3c2 vóór de eerste relatie staat nog geen IFCRELSEQUENCE', tel(zonderNetwerk, 'IFCRELSEQUENCE('), 0);
+  eq('3c3 vóór de vijfde relatie staan alle taken maar slechts vier relaties',
+    [tel(halfNetwerk, 'IFCTASK('), tel(halfNetwerk, 'IFCRELSEQUENCE(')], [10, 4]);
+  eistFout('3c4 beide structureel halve snapshots worden geweigerd (zonder netwerk)', zonderNetwerk, 'truncated');
+  eistFout('3c5 beide structureel halve snapshots worden geweigerd (half netwerk)', halfNetwerk, 'truncated');
+  eq('3c6 het volledige bestand heeft alle 9 relaties wél', tel(VOLLEDIG, 'IFCRELSEQUENCE('), 9);
 }
 
 // ── 4. Onzin-invoer: geen STEP-bestand ────────────────────────────────────────────────────────
@@ -158,6 +167,102 @@ eq('7c lege inhoud → null', parseRecoveryManifest(''), null);
 eq('7d geldig JSON zonder documents-lijst → null', parseRecoveryManifest('{"foo":1}'), null);
 eq('7e JSON-array i.p.v. object → null', parseRecoveryManifest('[1,2,3]'), null);
 eq('7f null-literal → null', parseRecoveryManifest('null'), null);
+
+// ── 8. restoreDocuments: één logisch corrupt document mag het herstel van de rest niet blokkeren ──
+// Recovery-robuustheid (docs/TODO.md): een snapshot kan `readIFC` overleven — geen truncated STEP,
+// geen structurele fout — en toch inhoudelijk corrupt zijn. Deze fixture bouwt zo'n geval RECHT-
+// STREEKS als `RecoveryDocInput` (net als check-document-contract.ts §d): een taak met een
+// zelfverwijzende `childIds` (WBS-kind = zichzelf). `applyCpmResult`'s samenvattingsrollup
+// (`updateSummary`) heeft geen cyclusbewaking — in tegenstelling tot de CPM-solver zelf, die een
+// relatiecyclus netjes als `result.error` teruggeeft — en loopt hierop vast in een onbegrensde
+// recursie (`RangeError: Maximum call stack size exceeded`). Vóór deze fix liet dat de HELE
+// `restoreDocuments`-aanroep gooien: ook de gezonde buurdocumenten kwamen dan niet terug.
+{
+  const cal = { ...createDefaultCalendar(), id: 'cal-corrupt', name: 'Corrupt-kalender' };
+  const mkProject = (id: string, name: string) => ({
+    id: `proj-${id}`, name, description: '', startDate: '2031-01-01', endDate: '',
+    calendarId: cal.id, createdAt: '', modifiedAt: '', author: '', company: '', wbsAutoNumber: true,
+  });
+
+  const gezond: RecoveryDocInput = {
+    id: 'rec-gezond',
+    project: mkProject('rec-gezond', 'Gezond document'),
+    calendar: cal,
+    tasks: [{
+      id: 'task-gezond', name: 'Gewone taak', parentId: null, childIds: [],
+      time: createDefaultTaskTime('2031-01-01', 1),
+    } as unknown as Task],
+    sequences: [], resources: [], assignments: [],
+    resourceCalendars: [cal], activityCodeTypes: [], customFieldDefs: [], baselines: [],
+    activeBaselineId: null, filePath: '/tmp/rec-gezond.ifc', isDirty: true,
+  };
+  const corrupt: RecoveryDocInput = {
+    id: 'rec-corrupt',
+    project: mkProject('rec-corrupt', 'Corrupt document'),
+    calendar: cal,
+    // Zelfverwijzende childIds: geen enkele lezer (IFC/MSPDI/P6/mpp) produceert dit, maar een
+    // logisch beschadigde snapshot (bitrot, een handmatig geknutseld bestand) kan het wél dragen.
+    tasks: [{
+      id: 'task-corrupt', name: 'Cyclische verzameltaak', parentId: null, childIds: ['task-corrupt'],
+      time: createDefaultTaskTime('2031-01-01', 1),
+    } as unknown as Task],
+    sequences: [], resources: [], assignments: [],
+    resourceCalendars: [cal], activityCodeTypes: [], customFieldDefs: [], baselines: [],
+    activeBaselineId: null, filePath: '/tmp/rec-corrupt.ifc', isDirty: true,
+  };
+
+  // 8a — het corrupte document als AANGEVRAAGD actief document: restoreDocuments moet uitwijken
+  // naar het gezonde document i.p.v. helemaal niets te herstellen.
+  S().newProject();
+  const result = S().restoreDocuments([corrupt, gezond], 'rec-corrupt');
+  eq('8a corrupt document komt terug als overgeslagen', result.skippedIds, ['rec-corrupt']);
+  eq('8b het GEZONDE document is toch actief geworden (uitwijk, niet de gevraagde activeId)',
+    S().activeDocumentId, 'rec-gezond');
+  eq('8c het gezonde document is echt doorgerekend (cpmResult niet null)', S().cpmResult !== null, true);
+  eq('8d het corrupte document staat niet meer in de documentregistry',
+    S().documents.some(d => d.id === 'rec-corrupt'), false);
+  eq('8e het gezonde document staat wél in de registry (als actief, payload=null)',
+    S().documents.map(d => d.id), ['rec-gezond']);
+  const skipNotice = S().ui.notifications.find(n => n.messageKey === 'notifications.recoveryDocumentsSkipped');
+  truthy('8f er is een gebruikerszichtbare melding over het overgeslagen document', !!skipNotice);
+  eq('8g de melding telt exact één overgeslagen document', skipNotice?.params?.count, 1);
+
+  // 8h — ALLES corrupt: geen enkel document herstelt, maar de aanroep gooit niet en levert een
+  // volledige skip-lijst — dat is precies wat `useRecoveryRestore` gebruikt om `clearRecovery()`
+  // over te slaan (de enige kopie van de data blijft op schijf staan).
+  S().newProject();
+  const alleCorrupt: RecoveryDocInput = { ...corrupt, id: 'rec-corrupt-2', filePath: '/tmp/rec-corrupt-2.ifc' };
+  (alleCorrupt.tasks[0] as unknown as Task).id = 'task-corrupt-2';
+  (alleCorrupt.tasks[0] as unknown as Task).childIds = ['task-corrupt-2'];
+  const activeIdVoor = S().activeDocumentId;
+  const resultAlles = S().restoreDocuments([corrupt, alleCorrupt], 'rec-corrupt');
+  eq('8h beide corrupte documenten komen terug als overgeslagen',
+    [...resultAlles.skippedIds].sort(), ['rec-corrupt', 'rec-corrupt-2']);
+  eq('8i geen enkel document is hersteld: de store blijft op het document van vóór de aanroep staan',
+    S().activeDocumentId, activeIdVoor);
+  // De harde invariant van de app: er is ALTIJD minstens één document. Een volledig corrupte
+  // recovery-set mag de gebruiker dus nooit met een documentloze app achterlaten — de vroege
+  // `return` in `restoreDocuments` raakt `s.documents`/`s.activeDocumentId` daarom niet aan.
+  truthy('8j er is nog steeds minstens één document', S().documents.length >= 1);
+  truthy('8k activeDocumentId wijst naar een bestaand document',
+    S().documents.some(d => d.id === S().activeDocumentId));
+  const alleSkipNotice = S().ui.notifications.find(n => n.messageKey === 'notifications.recoveryDocumentsSkipped');
+  truthy('8l ook bij een volledig corrupte set is er een zichtbare melding', !!alleSkipNotice);
+  eq('8m die melding telt beide overgeslagen documenten', alleSkipNotice?.params?.count, 2);
+
+  // 8n — spiegelbeeld van 8a: is het GEVRAAGDE actieve document gezond, dan verandert er niets aan
+  // het bestaande gedrag (zelfde activeId, niets overgeslagen, dus de aanroeper mag `clearRecovery()`
+  // gewoon draaien). Let op de bewuste grens hiervan: een slapend document wordt bij herstel NIET
+  // doorgerekend (net als vóór deze fix), dus een corrupte snapshot die niet als actief document
+  // wordt gekozen komt hier als gewone payload binnen. Die valt pas om bij een latere
+  // `switchDocument` — een aparte, pre-existente lacune die dit item bewust niet dichttimmert.
+  S().newProject();
+  const resultGezond = S().restoreDocuments([gezond, corrupt], 'rec-gezond');
+  eq('8n gezond gevraagd actief document → niets overgeslagen', resultGezond.skippedIds, []);
+  eq('8o de gevraagde activeId is gehonoreerd', S().activeDocumentId, 'rec-gezond');
+  eq('8p beide documenten staan in de registry', S().documents.map(d => d.id).sort(),
+    ['rec-corrupt', 'rec-gezond']);
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

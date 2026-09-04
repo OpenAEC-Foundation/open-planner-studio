@@ -154,6 +154,13 @@ export interface TaskTimephasedContour {
    *  verdwenen in het app-model; de rauwe periode blijft desondanks staan, eigenaarsprincipe).
    *  `null` wanneer de toewijzing geen (vindbare) resource droeg. */
   resourceUid: number | null;
+  /** OPTIONEEL (contour-engine, 2026-09) — het OPS-`Resource.id` van de toewijzing waar deze
+   *  contour bij hoort: de sleutel waarmee `contourEngine.ts`'s `matchContoursToAssignments` een
+   *  contour aan een `ResourceAssignment` koppelt (zelfde resource, in volgorde, elke contour
+   *  hooguit één keer). Gezet door elke lezer sinds deze etappe (.mpp via `resourceIdByUniqueId`,
+   *  MSPDI/P6 rechtstreeks). Afwezig (Z14b-bestanden van vóór deze etappe) ⇒ de terugval "precies
+   *  één contour én één toewijzing op de taak" geldt, anders blijft de contour puur data. */
+  resourceId?: string;
   periods: TimephasedContourPeriod[];
 }
 
@@ -436,9 +443,16 @@ export interface Task {
    *  als `mppReader.ts`'s `deriveSplitGapsForTasks` al toepast op `splitGaps`). Periodes liggen op
    *  DEZELFDE as als `TaskSplitGap` (cumulatieve werkminuten sinds taakstart — zie die interface se
    *  eigen "TAAK-AS, NIET TOEWIJZINGS-AS"-docblok voor de volledige as-definitie). Puur data: geen
-   *  enkele solverstap leest dit veld — voedingsdata voor de latere contour-engine (eigenaarsbesluit
-   *  2026-08-18, plan §10). Round-tript via `OPS_TimephasedContours` (`ifcPsets.ts`). Afwezig ⇒ geen
-   *  echte periode-data op deze taak (byte-identiek). */
+   *  enkele solverstap leest dit veld (de CPM-datums blijven bij laag 3/4 en `splitGaps`), maar
+   *  sinds de contour-engine-etappe (2026-09) is dit WÉL de bron van de dagverdeling van de
+   *  lastlezers: `ResourceLoad.ts`'s `assignmentDayUnits` leest per toewijzing haar contour
+   *  (`contourEngine.ts`'s `matchContoursToAssignments` op `resourceId`) en levert werkminuten per
+   *  dagslot aan histogram, overallocatie, nivelleerder en bezettingsoverzicht — de curve-formule
+   *  is daar nu de terugval. Een duurwijziging herschaalt dit veld proportioneel
+   *  (`rescaleContourForDuration`, aangeroepen uit `taskSlice.ts`/`mcpTransaction.ts`) in plaats
+   *  van het te laten verouderen. Round-tript via `OPS_TimephasedContours` (`ifcPsets.ts`), en
+   *  native via MSPDI `<TimephasedData>` en P6 `<PlannedCurve>`/`<RemainingCurve>`/`<ActualCurve>`.
+   *  Afwezig ⇒ geen echte periode-data op deze taak (byte-identiek). */
   timephasedContours?: TaskTimephasedContour[];
   /** OPTIONEEL — handmatig geplande taak (MS Project "Manually Scheduled", Z0, voorlopig
    *  ONGEBRUIKT). De datums zelf blijven `time.scheduleStart`/`scheduleFinish` — dit is puur het
@@ -492,4 +506,10 @@ export interface Task {
    *  (mutaties via `updateTask(taskId, { notes })`). */
   notes?: { id: string; text: string; done: boolean }[];
 }
+
+/** Itemtypes van de drie historisch inline arrays/objecten. De aliases veranderen de opgeslagen
+ * vorm niet, maar maken compile-time velddekking buiten dit bestand mogelijk. */
+export type TaskNote = NonNullable<Task['notes']>[number];
+export type TimephasedDurationWalk = NonNullable<Task['timephasedDurationWalks']>[number];
+export type ExternalSourceRef = ExternalLink['sourceRef'];
 

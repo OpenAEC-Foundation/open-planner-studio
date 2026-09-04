@@ -16,19 +16,41 @@ function isAbort(err: unknown): boolean {
 }
 
 /**
- * Weigert de OMGEVING de schrijfactie (in plaats van de gebruiker of de schijf)?
+ * Weigert de OMGEVING de schrijfactie blijvend (in plaats van de gebruiker of de schijf)?
  *
  * Chromium gooit hier `NotAllowedError` wanneer de readwrite-grant van de handle niet op
- * `granted` staat, en `SecurityError` wanneer er geen geldige gebruikersactivatie is. Beide
- * betekenen: dit pad gaat het nooit worden, probeer een andere route. `QuotaExceededError`,
+ * `granted` staat (of nooit kan komen, zoals in een policy-geblokkeerde webview) — dát is een
+ * eigenschap van de OMGEVING en blijft gelden bij een volgende poging. `QuotaExceededError`,
  * `NotFoundError`, `NoModificationAllowedError` e.d. zijn juist ECHTE fouten (schijf vol, bestand
  * verdwenen, bestand vergrendeld) — die horen als fout gemeld te worden, niet stil omzeild.
  *
  * Bewust op `err.name` en NIET op de fouttekst: die verschilt per browser, per versie en per
  * UI-taal.
  */
+function isNotAllowedRefusal(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'NotAllowedError';
+}
+
+/**
+ * `SecurityError`: "geen geldige gebruikersactivatie" — het schrijfmoment zelf mist een geldige
+ * (verse) gebruikersgebaar, niet de omgeving die blijvend weigert. Dat is een eigenschap van DEZE
+ * ene aanroep, niet van de omgeving: de `actualAutosave`-timer (`saveToRefWithoutPromptWeb`,
+ * `src/hooks/useAutoSave.ts`) draait op een 10s-throttle zonder gebruikersgebaar en is dus de
+ * kandidaat die dit het vaakst raakt (nog niet bevestigd in een echte browser — wél de enige
+ * schrijfaanroep in dit bestand zonder omringende klik/toetsaanslag). Een handmatige Ctrl+S/
+ * "Opslaan"-klik heeft juist wél een vers gebaar, dus die mag dit zelden of nooit zien. In beide
+ * gevallen: NIET onthouden als omgevingseigenschap — de eerstvolgende aanroep (met of zonder
+ * gebaar) verdient een eigen, verse poging.
+ */
+function isSecurityRefusal(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'SecurityError';
+}
+
+/** Herkent beide gevallen — gebruikt waar het er alleen om gaat of dit pad NU niet lukt en er
+ *  moet worden teruggevallen, ongeacht of dat blijvend (`NotAllowedError`) of eenmalig
+ *  (`SecurityError`) is. Latchen gebeurt apart, per call site, alleen op `isNotAllowedRefusal`. */
 function isPlatformRefusal(err: unknown): boolean {
-  return err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+  return isNotAllowedRefusal(err) || isSecurityRefusal(err);
 }
 
 /**
@@ -180,9 +202,11 @@ export async function saveFileDialogWeb(defaultName: string, content: string, fi
       // Annuleren is geen fout — en mag dus ook geen download opleveren.
       if (isAbort(err)) return null;
       // Echte fout (schijf vol, bestand verdwenen/vergrendeld, geblokkeerd bestandstype): doorgeven,
-      // zodat de aanroeper hem als fout meldt. Alleen een omgevingsweigering valt terug.
+      // zodat de aanroeper hem als fout meldt. Alleen een omgevingsweigering valt terug — en alleen
+      // `NotAllowedError` is dat blijvend genoeg om te onthouden; `SecurityError` (geen gebruikers-
+      // activatie op dít moment) is een eenmalige makke voor deze aanroep.
       if (!isPlatformRefusal(err)) throw err;
-      platformRefusesWrites = true;
+      if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
     }
   }
   // Terugval: download. Geen herbruikbare ref — dit is de enige route die in élke omgeving werkt,
@@ -209,12 +233,48 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
     await writable.close();
     return true;
   } catch (err) {
-    // Weigert de omgeving (niet de gebruiker) het schrijven, onthoud dat dan: anders krijgt de
-    // gebruiker bij élke opslagpoging eerst een permissieprompt en dan een bestandskiezer, om
-    // vervolgens alsnog in de download-terugval te landen. Andere fouten blijven `false` geven —
-    // net als voorheen valt de aanroeper dan terug op "opslaan als", wat bij een verdwenen of
-    // vergrendeld bestand precies de juiste uitweg is.
-    if (isPlatformRefusal(err)) platformRefusesWrites = true;
+    // Weigert de omgeving blijvend (`NotAllowedError`, grant niet en nooit `granted`), onthoud dat
+    // dan: anders krijgt de gebruiker bij élke opslagpoging eerst een permissieprompt en dan een
+    // bestandskiezer, om vervolgens alsnog in de download-terugval te landen. `SecurityError` (geen
+    // gebruikersactivatie op dít moment) latcht bewust NIET — de eerstvolgende handmatige Ctrl+S
+    // heeft weer een vers gebaar en verdient een eigen, verse in-place poging in plaats van meteen
+    // gedegradeerd te worden. Andere fouten blijven `false` geven — net als voorheen valt de
+    // aanroeper dan terug op "opslaan als", wat bij een verdwenen of vergrendeld bestand precies de
+    // juiste uitweg is.
+    if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
+    return false;
+  }
+}
+
+/** Promptvrije browser-precheck voor de daadwerkelijke AutoSave-timer. */
+export async function canWriteToRefWithoutPromptWeb(ref: FileRef): Promise<boolean> {
+  if (ref.kind !== 'handle' || platformRefusesWrites) return false;
+  try {
+    return (await ref.handle.queryPermission?.({ mode: 'readwrite' })) === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Timerpad: geen `requestPermission`, geen picker en geen download-terugval — dit is de
+ * `actualAutosave`-aanroep zonder omringend gebruikersgebaar (10s-throttle, zie
+ * `src/hooks/useAutoSave.ts`), dus de meest waarschijnlijke plek voor een `SecurityError`
+ * ("geen geldige gebruikersactivatie"). Zo'n weigering is een eigenschap van DEZE ene poging, niet
+ * van de omgeving: latchen zou de eerstvolgende hándmatige save (met een écht gebaar) onterecht
+ * naar de downloadroute sturen. `onFailure` in `actualAutoSave.ts` meldt de gemiste schrijfactie
+ * al gededupliceerd — geen data gaat verloren (recovery blijft los draaien) en er komt geen
+ * browserprompt bij, want dit pad valt nooit terug op een picker.
+ */
+export async function saveToRefWithoutPromptWeb(ref: FileRef, content: string): Promise<boolean> {
+  if (!await canWriteToRefWithoutPromptWeb(ref) || ref.kind !== 'handle') return false;
+  try {
+    const writable = await ref.handle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return true;
+  } catch (err) {
+    if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
     return false;
   }
 }

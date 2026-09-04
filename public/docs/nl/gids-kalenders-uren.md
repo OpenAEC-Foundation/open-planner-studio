@@ -45,15 +45,17 @@ Opnieuw genereren voegt ontbrekende jaren toe en laat handmatig ingevoerde strem
 
 Open **Instellingen → Tijdlijn / Zoomen** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Zet daaronder ook **Gemengde dag/uur-planning toestaan** aan als je de eenheid per taak wilt kunnen kiezen; zonder die tweede voorkeur blijft de compacte duurinvoer zichtbaar, maar niet de Dagen/Uren-keuze.
 
-Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Voor je zo'n duur kunt bewerken, vraagt Open Planner Studio om urenplanning in te schakelen.
+Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Je kunt zo'n balk in het Gantt-diagram nog verplaatsen of aan een rand vergroten/verkleinen; de dagrasterstap verandert daarbij nooit de opgeslagen werkminuten in dagen. Schakel urenplanning in voor uur- of kwartierpreciese invoer en het fijnere tijdsraster.
 
 Kies in **Projectinformatie** ook **Standaardeenheid voor nieuwe taken: Dagen/Uren**. Dit is een projectinstelling en geldt voor alle handmatig aangemaakte nieuwe taken. De instelling verandert bestaande taken niet. Als urenplanning uit staat, beginnen nieuwe taken altijd veilig in dagen.
 
 ## Werktijdblokken en ploegen
 
-Iedere geldige kalender ondersteunt dag- én urentaken. Heeft een kalender nog geen handmatige blokken per weekdag, dan leidt Open Planner Studio ze puur af uit de werkdagen, begin- en eindtijd en **Uren per dag**. Een klassieke bouwkalender van 07:00–16:00 met 8 netto uur krijgt zo 07:00–12:00 en 13:00–16:00; 08:00–16:00 met 8 uur blijft één band. De per-weekdag-editor en ploegpresets, zoals **Dagdienst**, **2 ploegen**, **3 ploegen**, **Nachtploeg** en **24/7**, hebben altijd voorrang en verfijnen deze afleiding. Een nachtblok kan over middernacht lopen.
+Iedere geldige kalender ondersteunt dag- én urentaken. Heeft een kalender nog geen handmatige blokken per weekdag, dan leidt Open Planner Studio ze af uit het eenvoudige patroon. Stel **Begin**, **Einde** en **Pauze begint** in als 24-uurs HH:MM (standaard 07:00, 16:00 en 12:00); elk heeft pijltjes voor kwartierstappen. Geef vervolgens de **Pauzeduur** in minuten op: die heeft dezelfde niet-native kwartierstappen en Pijl omhoog/omlaag, maar blijft een minutenwaarde van 0 tot 1440. Zo wordt 07:00–16:00 met een pauze vanaf 12:00 van 60 minuten automatisch 07:00–12:00 en 13:00–16:00. 09:00–17:00 met 30 minuten pauze vanaf 12:00 wordt 09:00–12:00 en 12:30–17:00. Een duur van 0 betekent één doorlopende band; 08:00–16:00 zonder pauze blijft dus 08:00–16:00. **Netto-uren per dag** volgen dit patroon en zijn altijd een niet-bewerkbare waarde met twee decimalen en `h`.
 
-De afgeleide waarde **Uren per dag** helpt bij presentatie, maar bepaalt niet de eenheid van een taak. Dagtaken blijven werkdagen tellen; een urentaak gebruikt uitsluitend de effectieve bands. Alleen een lege of ongeldige kalender kan uren niet plannen. Er is geen stille taak-, eenheid- of kalenderconversie en geen afronding.
+Begin moet vóór Einde liggen; de pauze moet volledig binnen die werkdag vallen en mag de dag niet volledig opslokken. De dialoog blokkeert toepassen en legt ongeldige of onvolledige tijd uit, zonder de kalender te wijzigen. Oude kalenders zonder deze twee pauzevelden houden hun bestaande gedrag: het verschil tussen de klokspanne en de historisch opgeslagen uren wordt eerst als middaggat geïnterpreteerd en pas expliciet zodra je een scalaire tijd wijzigt. De per-weekdag-editor en ploegpresets, zoals **Dagdienst**, **2 ploegen**, **3 ploegen**, **Nachtploeg** en **24/7**, hebben altijd voorrang: zodra je daarin bands instelt, zijn die de bron van waarheid. Een nachtblok kan over middernacht lopen.
+
+De afgeleide waarde **Netto-uren per dag** helpt bij presentatie, maar bepaalt niet de eenheid van een taak. Dagtaken blijven werkdagen tellen; een urentaak gebruikt uitsluitend de effectieve bands. Alleen een lege of ongeldige kalender kan uren niet plannen. Er is geen stille taak-, eenheid- of kalenderconversie en geen afronding.
 
 ## Duur per taak invoeren
 
@@ -137,7 +139,7 @@ De uurwaarde past niet exact in een geheel aantal beschikbare werkdagen vanaf de
 
 **Een geïmporteerde urentaak is zichtbaar terwijl urenplanning uit staat**
 
-Dat beschermt de brongegevens. De precieze minuten blijven opgeslagen en worden niet in dagen veranderd. Schakel urenplanning in voordat je de duur bewerkt.
+Dat beschermt de brongegevens. De precieze minuten blijven opgeslagen en worden niet in dagen veranderd. Je kunt de balk op het dagraster nog verslepen of aan een rand aanpassen; schakel urenplanning in voor uur- of kwartierpreciese invoer en het fijnere tijdsraster.
 
 **`2d(16h)` of `16h(2d)` lijkt dubbel**
 

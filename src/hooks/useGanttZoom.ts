@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { computeAnchoredZoom, getGanttScrollBounds } from '@/utils/ganttViewport';
+import { computeTimelineZoom, getGanttScrollBounds } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import type { ModifierMap, PositionDivision, ScrollMode } from '@/state/slices/types';
@@ -7,7 +7,6 @@ import type { ViewState } from '@/types/view';
 
 interface UseGanttZoomOpts {
   containerRef: React.RefObject<HTMLDivElement | null>;
-  taskTableWidth: number;
   view: ViewState;
   enableQuarterHourZoom: boolean;
   enableHourPlanning: boolean;
@@ -22,7 +21,6 @@ const ZOOM_FACTOR_PER_TICK = 1.1;
 
 export function useGanttZoom({
   containerRef,
-  taskTableWidth,
   view,
   enableQuarterHourZoom,
   enableHourPlanning,
@@ -39,18 +37,17 @@ export function useGanttZoom({
   // Cursor-anchored zoom step. anchorX is canvas-X (pixels from canvas left edge).
   const zoomAt = useCallback((newZoom: number, anchorX: number) => {
     const { view: v, enableQuarterHourZoom: enableQH, enableHourPlanning: enableHours } = latest.current;
-    const next = computeAnchoredZoom({
-      currentZoom: v.zoom,
-      currentScrollX: v.scrollX,
-      requestedZoom: newZoom,
+    const next = computeTimelineZoom(
+      v.zoom,
+      newZoom,
+      v.scrollX,
       anchorX,
-      taskTableWidth,
-      maxZoom: maxGanttZoom(enableQH, enableHours),
-    });
-    if (!next) return;
+      maxGanttZoom(enableQH, enableHours),
+    );
+    if (next.zoom === v.zoom) return;
     setZoom(next.zoom);
     setScroll(next.scrollX, v.scrollY);
-  }, [setZoom, setScroll, taskTableWidth]);
+  }, [setZoom, setScroll]);
 
   // Wheel handler
   useEffect(() => {

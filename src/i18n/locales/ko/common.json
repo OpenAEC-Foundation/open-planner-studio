@@ -2,29 +2,33 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "자동 저장", "noFile": "자동 저장을 사용하려면 먼저 이 프로젝트를 저장하세요.", "onHint": "자동 저장이 켜져 있습니다. 변경 사항이 이 파일에 기록됩니다.", "offHint": "자동 저장이 꺼져 있습니다. 충돌 복구는 계속 활성화됩니다." },
   "notifications": {
     "dismiss": "알림 닫기",
     "openFailed": "파일을 열 수 없습니다",
     "mppLegacy": "이 .mpp 파일은 이전 형식(Project 2007 이하)을 사용합니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "mppEncrypted": "이 .mpp 파일은 암호로 보호되어 있습니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "saveFailed": "저장하지 못했습니다",
-    "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "savedViaDownload": "다운로드로 저장했습니다. '{{name}}' 파일이 다운로드 폴더에 있습니다. 이 환경에서는 앱이 선택한 위치에 직접 쓸 수 없습니다.",
     "autoSaveFailed": "자동 저장 실패",
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
     "recoveryRestoreFailed": "복원하지 못했습니다",
+    "recoveryDocumentsSkipped_other": "복구 파일 {{count}}개를 불러올 수 없어 건너뛰었습니다.",
     "scheduleFailed": "일정을 계산할 수 없습니다",
     "ifcParseFailed": "IFC를 읽을 수 없습니다",
     "templateSaved": "분기가 '{{name}}' 템플릿으로 저장되었습니다",
     "relationCreated": "관계를 만들었습니다: {{predecessor}} → {{successor}}",
     "relationDuplicate": "이 관계는 이미 있습니다",
     "relationAncestorEndpoint": "작업과 자신의 (조상) 요약 작업 간의 관계는 허용되지 않습니다.",
-    "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다 — 어떤 관계인지는 관계 패널에서 확인하세요.",
+    "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다. 선행 작업과 후속 작업 열을 확인하세요.",
+    "relationsSkippedOnInsert_other": "관계 {{count}}개를 만들지 않았습니다. 잘못된 연결입니다(예: 작업이 자신의 상위 요약 작업에 연결되었거나 중복된 관계).",
     "mppSourceScheduleNotes_other": "이 MS Project 파일에는 분할되었거나 평준화되었거나 리소스 기반으로 조정된 작업이 {{count}}개 포함되어 있습니다. 있는 그대로 가져와 표시됩니다.",
     "projectStartAnchorsClamped_other": "프로젝트 시작일이 변경되었습니다. 선행 작업이나 제약 조건이 없는 작업 기준점 {{count}}개를 새 시작일로 이동했습니다.",
     "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",
-    "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다.",
-    "readMore": "더 알아보기"
+    "readMore": "더 알아보기",
+    "pasteSkippedReadOnly_other": "읽기 전용 셀 {{count}}개를 건너뛰었습니다(예: 자동 번호가 매겨진 WBS 코드 또는 계산된 열).",
+    "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
+    "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다."
   },
   "yes": "예",
   "no": "아니오",
@@ -93,6 +97,8 @@
     "themeDark": "어두운 테마",
     "themeLight": "밝은 테마",
     "themeHighContrast": "고대비",
+    "themeFollowSystem": "시스템 테마 따르기",
+    "themeSystemHint": "시스템 색상 구성을 따릅니다(현재: {{theme}}).",
     "timeline": "타임라인 / 확대/축소",
     "hourPlanningSection": "시간 단위 계획",
     "enableHourPlanning": "시간 단위 계획 사용",
@@ -331,13 +337,39 @@
       "sameSize": "이전 버전과 동일한 크기",
       "daysSincePrevious": "이전 릴리스 이후: {{count}}일",
       "currentOnly": "현재 {{version}} 버전을 사용 중입니다",
-      "whatsNewButton": "새로운 기능"
+      "whatsNewButton": "새로운 기능", "newVersion": "새 버전", "readGuide": "가이드 읽기", "fullNotes": "전체 릴리스 노트 보기", "openFailed": "릴리스 노트를 열 수 없습니다.", "inNumbers": "이번 업데이트 수치", "days": "이전 릴리스 이후 일수", "commits": "이전 릴리스 이후 커밋", "codeLines": "추가된 코드 줄", "codeLinesHint": "앱, Rust, 스크립트 및 테스트의 추가 줄입니다.", "smallerLabel": "더 작은 패키지", "largerLabel": "더 큰 패키지", "acknowledge": "확인"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건",
-    "outOfSequence": "순서 위반 관계: {{count}}건"
+    "outOfSequence": "순서 위반 관계: {{count}}건",
+    "overallocated": "리소스 {{count}}개 과다 할당"
+  },
+  "warnings": {
+    "title": "경고",
+    "close": "경고 닫기",
+    "openPanel": "경고 패널 열기(세부 정보 및 탐색)",
+    "summary": "오류 {{errors}}개, 경고 {{warnings}}개",
+    "noSchedule": "아직 계산되지 않았습니다 — 계산(F5)을 눌러 검사를 실행하세요.",
+    "stale": "일정이 오래되었습니다 — 이 목록은 마지막 계산 결과입니다. 다시 계산(F5)하세요.",
+    "empty": "경고가 없습니다. 일정이 모든 검사를 통과했습니다.",
+    "goTo": "이동: {{target}}",
+    "kind": {
+      "scheduleError": "일정을 계산할 수 없습니다: {{message}}",
+      "missedDeadline": "기한 {{deadline}} 초과 — 최조 완료 {{finish}}",
+      "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
+      "outOfSequence": "순서 위반: 후행 작업의 진행이 관계와 모순됩니다",
+      "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
+      "droppedSequence": "관계 무시됨: 선행 또는 후행 작업이 없거나 리프 작업이 아닙니다",
+      "hammockNoFinishDriver": "완료 드라이버가 없는 해먹(FF/SF 선행 없음): 기간이 0으로 돌아갑니다",
+      "cappedTask": "완료일이 제한됨: 달력에 이 작업의 작업 가능한 기간이 없습니다",
+      "overallocation": "{{count}}일 동안 과다 할당({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "프로젝트",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -529,7 +561,9 @@
       "backLoaded": "후반 집중",
       "bell": "종형",
       "earlyPeak": "초기 피크",
-      "latePeak": "후기 피크"
+      "latePeak": "후기 피크",
+      "doublePeak": "이중 피크",
+      "turtle": "거북이"
     },
     "occupancyView": "점유 현황",
     "occupancy": {
@@ -539,6 +573,8 @@
       "staleBanner": "적어도 하나의 문서가 계산되지 않아 점유 현황에 포함되지 않습니다.",
       "staleComputedDoc": "이 개요를 위해 미리 계산되었습니다 — 문서 자체는 그곳에서 F5를 누르거나 “자동 계산”을 켤 때까지 이전 날짜를 계속 표시합니다.",
       "staleComputedBanner": "변경된 문서는 이 개요를 위해 미리 계산되었습니다. 문서에서 F5를 누르거나, 항상 그렇게 하려면 “자동 계산”을 켜세요.",
+      "staleAsShownDoc": "오래됨: 마지막으로 계산된 수치입니다 — 이 문서에서 F5를 누르세요.",
+      "staleAsShownBanner": "변경된 문서가 아직 다시 계산되지 않았습니다. 여기에서는 마지막으로 계산된 수치로 집계됩니다. 해당 문서에서 F5를 누르거나 “자동 계산”을 켜세요.",
       "docCount_other": "문서 {{count}}개",
       "conflictDays_other": "{{count}}일 이중 예약",
       "moreDays_other": "… 외 {{count}}개",
@@ -674,6 +710,18 @@
       "night": "야간 근무",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "유효한 휴식 시작 시간을 HH:MM 형식으로 입력하세요.",
+      "invalidWorkStart": "유효한 시작 시간을 HH:MM 형식으로 입력하세요.",
+      "invalidWorkEnd": "유효한 종료 시간을 HH:MM 형식으로 입력하세요.",
+      "invalidWorkTimeOrder": "시작 시간은 종료 시간보다 앞서야 합니다.",
+      "increaseTime": "시간을 15분 늘리기",
+      "decreaseTime": "시간을 15분 줄이기",
+      "increaseBreakDuration": "휴식 시간을 15분 늘리기",
+      "decreaseBreakDuration": "휴식 시간을 15분 줄이기",
+      "start": "휴식 시작", "duration": "휴식 시간(분)", "hint": "근무 시간대가 자동으로 계산됩니다. 0분은 연속 근무일입니다.",
+      "errors": { "invalidDuration": "휴식 시간은 0 이상의 정수 분이어야 합니다.", "outsideWorkingDay": "휴식은 설정된 근무일 안에 모두 있어야 합니다.", "consumesWorkingDay": "휴식이 근무일 전체를 차지할 수 없습니다." }
+    },
     "worktime": {
       "section": "근무 시간",
       "derivedHpd": "산출된 시간/일:",
@@ -800,7 +848,8 @@
       "edit": "편집",
       "structure": "구조",
       "view": "보기",
-      "nav": "탐색"
+      "nav": "탐색",
+      "grid": "테이블"
     },
     "view": {
       "exitFullscreen": "프레젠테이션 종료",
@@ -820,6 +869,12 @@
       "switchDocument": "문서 전환",
       "scrollToToday": "오늘로 이동",
       "help": "도움말 열기"
+    },
+    "grid": {
+      "navigate": "다음/이전 셀",
+      "edit": "셀 편집",
+      "typeToReplace": "입력하면 셀 내용이 대체됩니다",
+      "clearCell": "셀 내용 지우기"
     }
   },
   "welcome": {

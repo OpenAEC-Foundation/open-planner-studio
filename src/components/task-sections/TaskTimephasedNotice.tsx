@@ -32,14 +32,23 @@ export function TaskTimephasedNotice({ taskId }: { taskId: string }) {
   const hasContours = taskHasTimephasedContours(task);
   if (!active && !hasContours) return null;
 
-  const label = active ? t('properties.timephasedActive') : t('properties.timephasedLost');
+  // Contour-UI (2026-09) — derde toestand: contouren zónder MS Project-herkomst (geen enkele
+  // contour draagt een `resourceUid`: een eigen verdeling uit het contourvenster, of een
+  // P6-import). Daar is niets "losgelaten"; het is gewoon een taak met eigen urenverdelingen.
+  // Heuristiek op `resourceUid` (alleen de .mpp-/MSPDI-lezers zetten die) — geen apart veld, dus
+  // geen IFC-round-trip-impact.
+  const mspOrigin = (task.timephasedContours ?? []).some(c => c.resourceUid !== null);
+  const state: 'active' | 'lost' | 'contoured' = active ? 'active' : mspOrigin ? 'lost' : 'contoured';
+  const label = state === 'active'
+    ? t('properties.timephasedActive')
+    : state === 'lost' ? t('properties.timephasedLost') : t('properties.timephasedContoured');
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span
-        className={`badge ${active ? 'badge--blue' : 'badge--gray'} shrink-0`}
+        className={`badge ${state === 'active' ? 'badge--blue' : 'badge--gray'} shrink-0`}
         title={label}
-        data-ops-task-timephased={active ? 'active' : 'lost'}
+        data-ops-task-timephased={state}
       >
         {label}
       </span>

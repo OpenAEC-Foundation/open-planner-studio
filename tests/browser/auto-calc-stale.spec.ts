@@ -25,9 +25,12 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
   });
 
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
-  const nameCell = page.locator(`[data-testid="task-cell"][data-task-id="${first}"][data-field-key="name"]`);
-  await nameCell.locator('.cursor-text').click();
-  await nameCell.locator('input').fill('Eerste S1-taak automatisch');
+  const durationCell = page.locator(
+    `[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${first}"][data-grid-column-id="task.time.scheduleDuration"]`,
+  );
+  await durationCell.click();
+  await page.keyboard.press('Enter');
+  await durationCell.locator('input').fill('9d');
   await page.keyboard.press('Enter');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
   expect(await page.evaluate(() => (
@@ -38,8 +41,9 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
     const store = window.__OPS__!.store.getState();
     store.setUI({ autoCalcCPM: false });
   });
-  await nameCell.locator('.cursor-text').click();
-  await nameCell.locator('input').fill('Eerste S1-taak handmatig');
+  await durationCell.click();
+  await page.keyboard.press('Enter');
+  await durationCell.locator('input').fill('8d');
   await page.keyboard.press('Enter');
   await expect(page.getByText(staleText)).toBeVisible();
   await page.waitForTimeout(150);

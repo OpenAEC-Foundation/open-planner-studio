@@ -1,6 +1,6 @@
 // Karakterisering vóór de structurele Gantt-/store-refactors: de echte canvas-sleep en Ctrl+Z
 // moeten samen exact één undoable handeling blijven vormen.
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
 async function addTaskDuringGesture(page: Page, name: string): Promise<string> {
@@ -25,11 +25,19 @@ async function addTaskDuringGesture(page: Page, name: string): Promise<string> {
   return id;
 }
 
-async function canvasRowPoint(page: Page, taskId: string, yOffset = 0): Promise<{ x: number; y: number }> {
-  const row = await barPoint(page, taskId);
-  const bounds = await page.getByTestId('gantt-primary-canvas').boundingBox();
+function ganttTaskRow(page: Page, taskId: string): Locator {
+  return page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"]`,
+  );
+}
+
+async function rowPoint(row: Locator, zone: 'center' | 'after' = 'center'): Promise<{ x: number; y: number }> {
+  const bounds = await row.boundingBox();
   expect(bounds).not.toBeNull();
-  return { x: bounds!.x + 40, y: row.y + yOffset };
+  return {
+    x: bounds!.x + Math.min(120, bounds!.width / 2),
+    y: zone === 'after' ? bounds!.y + bounds!.height - 2 : bounds!.y + bounds!.height / 2,
+  };
 }
 
 test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling', async ({ page, ops: _ops }) => {
@@ -67,24 +75,23 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
   expect(restored.redoDepth).toBe(before.redoDepth + 1);
 });
 
-// Een Gantt-balk is niet alleen een datumgreep: een overwegend verticale sleep moet dezelfde
-// structurele verplaatsing opleveren als het bestaande slepen van de taakrij. Zonder die route
-// verschuift een kleine X-afwijking de datum en blijft de taak onterecht op zijn oude plek staan.
-test('Gantt-balk vertical slepen verplaatst de taak zonder haar datums te wijzigen', async ({ page, ops: _ops }) => {
+// De gedeelde DOM-taakgrid bezit de structurele rijdrag; het tijdlijncanvas bezit uitsluitend
+// datumgebaren. Slepen binnen de Gantt-rij verplaatst dus wel de taak, maar nooit haar datums.
+test('Gantt-rij vertical slepen verplaatst de taak zonder haar datums te wijzigen', async ({ page, ops: _ops }) => {
   const [firstId, secondId, thirdId] = await seedProject(page, [
     { name: 'Balk die verhuist', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Balk-doel', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Blijft derde', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
   const before = await state(page);
-  const source = await barPoint(page, firstId);
-  const target = await barPoint(page, secondId);
+  const source = await rowPoint(ganttTaskRow(page, firstId));
+  const targetRow = ganttTaskRow(page, secondId);
+  const target = await rowPoint(targetRow, 'after');
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
-  // Een lichte X-afwijking maakt dit een realistische, maar nog steeds ondubbelzinnig verticale
-  // sleep. De onderkant van de doelrij is de bestaande "na deze taak"-zone.
-  await page.mouse.move(source.x + 2, target.y + 10, { steps: 5 });
+  await page.mouse.move(source.x + 2, target.y, { steps: 5 });
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.mouse.up();
 
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
@@ -135,29 +142,29 @@ for (const edge of ['left', 'right'] as const) {
   });
 }
 
-// Rode fase vóór de refactor: de listener hield de oude rows/tasksById vast, zag Rij C niet en
-// liet Rij A daarom onbewogen staan. De test gebruikt voor de handeling uitsluitend echte muisevents.
-test('canvas rowdrag gebruikt actuele rijen en commit na een mid-gesture update precies eenmaal', async ({ page, ops: _ops }) => {
+// De ingebedde Gantt-grid gebruikt tijdens de lopende pointergesture steeds de actuele DOM-rijen.
+test('Gantt-grid rowdrag gebruikt actuele rijen en commit na een mid-gesture update precies eenmaal', async ({ page, ops: _ops }) => {
   const [firstId, secondId] = await seedProject(page, [
     { name: 'Rij A', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Rij B', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
-  const canvas = page.getByTestId('gantt-primary-canvas');
-  const source = await canvasRowPoint(page, firstId);
-  const existingTarget = await canvasRowPoint(page, secondId, 10);
+  const source = await rowPoint(ganttTaskRow(page, firstId));
+  const existingTargetRow = ganttTaskRow(page, secondId);
+  const existingTarget = await rowPoint(existingTargetRow, 'after');
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
   await page.mouse.move(existingTarget.x, existingTarget.y);
-  await expect(canvas).toHaveCSS('cursor', 'grabbing');
+  await expect(existingTargetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
 
   // Fixture-update midden in de echte pointergesture: de nieuwe rij verandert rows/tasksById.
   const thirdId = await addTaskDuringGesture(page, 'Rij C, tijdens sleep toegevoegd');
   const midGesture = await state(page);
-  const newTarget = await canvasRowPoint(page, thirdId, 10);
+  const newTargetRow = ganttTaskRow(page, thirdId);
+  const newTarget = await rowPoint(newTargetRow, 'after');
 
   await page.mouse.move(newTarget.x, newTarget.y);
-  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+  await expect(newTargetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.mouse.up();
 
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.at(-1)?.id)).toBe(firstId);
@@ -166,19 +173,20 @@ test('canvas rowdrag gebruikt actuele rijen en commit na een mid-gesture update 
   expect(dropped.undoDepth).toBe(midGesture.undoDepth + 1);
 });
 
-test('canvas rowdrag Escape annuleert zonder mutatie', async ({ page, ops: _ops }) => {
+test('Gantt-grid rowdrag Escape annuleert zonder mutatie', async ({ page, ops: _ops }) => {
   const [firstId, secondId] = await seedProject(page, [
     { name: 'Blijft vooraan', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Blijft achteraan', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
   const before = await state(page);
-  const source = await canvasRowPoint(page, firstId);
-  const target = await canvasRowPoint(page, secondId, 10);
+  const source = await rowPoint(ganttTaskRow(page, firstId));
+  const targetRow = ganttTaskRow(page, secondId);
+  const target = await rowPoint(targetRow, 'after');
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
   await page.mouse.move(target.x, target.y);
-  await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'grabbing');
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.keyboard.press('Escape');
   await page.mouse.up();
 

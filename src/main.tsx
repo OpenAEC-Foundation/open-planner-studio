@@ -21,9 +21,10 @@ import './styles/globals.css';
 
 appLog.init();
 
-// Dev-only self-test haak (window.__OPS__) voor geautomatiseerd testen via Playwright MCP.
-// DEV-guard + dynamische import zodat dit volledig uit productie-builds verdwijnt.
-if (import.meta.env.DEV) {
+// Zelftesthaak (window.__OPS__) voor geautomatiseerd testen via Playwright MCP en de expliciete
+// productiebenchmark. Gewone productiebuilds zetten VITE_OPS_BENCH_BRIDGE niet en tree-shaken de
+// dynamische import dus nog steeds volledig weg; de benchmarkbuild gebruikt wel React/Vite PROD.
+if (import.meta.env.DEV || import.meta.env.VITE_OPS_BENCH_BRIDGE === '1') {
   void import('@/utils/devBridge').then(({ installDevBridge }) => installDevBridge());
 }
 

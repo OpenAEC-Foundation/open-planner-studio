@@ -83,6 +83,18 @@ Toda asignación tiene **Uds./día** (1 = una persona/elemento a jornada complet
 
 La variación de curva se aprecia con más claridad en el histograma: la misma tarea con las mismas Uds./día produce una forma de barra muy distinta con una curva de campana que con uniforme. El ejemplo de tamaño medio mezcla deliberadamente uniforme/cargado al inicio/cargado al final en las tareas de acabado por vivienda, para que pueda comparar la diferencia.
 
+### Editar la distribución de horas manualmente
+
+Cuando ninguna curva encaja, usted da forma a la distribución por **fases**: tramos consecutivos de la tarea, cada uno con un esfuerzo fijo («media cuadrilla la primera semana, luego la cuadrilla completa»). El botón **Distribución de horas…** junto al desplegable de curva abre una ventana con, arriba, una franja donde cada fase es un bloque sobre sus días laborables (la altura es el esfuerzo) y, debajo, las mismas fases como tabla: desde, hasta, días, esfuerzo en unidades por día, horas por día y total. El punto de partida es lo que la asignación contabiliza hoy. El trabajo real aparece en gris, de solo lectura.
+
+- **Arrastrar en la franja**: el límite entre dos bloques alarga o acorta una fase (por días laborables enteros), el borde superior fija el esfuerzo, un doble clic en un día divide la fase.
+- **Escribir en la tabla**: días y esfuerzo por fase; **Dividir** y **Unir**. La última fase llega siempre hasta el final de la tarea.
+- **Aplicar forma** rellena las fases con una de las ocho formas estándar manteniendo el total.
+- **Aplicar** guarda la distribución como *contorno* de la asignación; el desplegable muestra **Contorno** y queda desactivado. Histograma, sobreasignación, nivelador y ocupación lo usan de inmediato, y la distribución viaja en IFC y en las exportaciones a MS Project XML / P6 XML.
+- **Liberar distribución** elimina el contorno.
+
+Un contorno solo cambia las horas por día de esta asignación; fechas, duración e interrupciones no cambian, tampoco con una fase de esfuerzo 0. Si más tarde cambia la duración, el contorno se estira proporcionalmente (vea [Importación de MS Project](docs://gids-msproject-import)). El panel de propiedades marca la tarea con una insignia gris. Aplicar y liberar son pasos de deshacer normales.
+
 ## Calendarios de recursos
 
 Un recurso puede estar en el **Calendario del proyecto** (por defecto) o en su propio calendario — por ejemplo para un subcontratista que solo está disponible cuatro días a la semana. Configúrelo mediante la columna **Calendario** en el panel de recursos, o el campo **Calendario** del propio recurso. Un calendario de recurso nunca toca las fechas CPM de una tarea (esas siguen funcionando con el calendario de la tarea/proyecto) — solo afecta a la **carga** y a la **nivelación**: si un recurso no trabaja un día que la tarea necesita, eso cuenta como un déficit en el histograma, y el nivelador advierte de que desplazar no soluciona ese desajuste de calendario. Vea la guía [Calendarios y planificación por horas](docs://gids-kalenders-uren) para la explicación completa de los calendarios.

@@ -1,10 +1,12 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
-  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppStore } from '@/state/appStore';
+import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { useTranslation } from 'react-i18next';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
@@ -13,6 +15,7 @@ import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { MiniMap } from './MiniMap';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import type { Task } from '@/types/task';
@@ -28,15 +31,16 @@ import { HoverTooltip } from './HoverTooltip';
 import { TaskTooltipContent } from './TaskTooltipContent';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
-import { saveLeftPanelWidth, saveHistogramHeight } from '@/utils/settingsStore';
+import { saveHistogramHeight } from '@/utils/settingsStore';
 // K-item 33: de pure afleidingen achter de weergave + de opbouw van `GanttRenderOptions`. Ze zijn
 // hierheen verhuisd zodat ze headless te controleren zijn; de `useMemo`-aanroepen hieronder blijven
 // bewust in dit component staan (zie de kop van dat bestand voor waarom).
 import {
-  buildBaselineOverlay, buildTrace,
+  buildBaselineOverlay,
   buildHistogramPicker, buildHistogramSeries,
   type GanttRenderOptionsSourceInput,
 } from './ganttRenderOptions';
+import { buildTrace } from '@/engine/taskGrid/trace';
 import { useGanttRendererHost, useGanttRendererRefs } from './hooks/useGanttRendererHost';
 import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator';
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
@@ -59,7 +63,24 @@ const SCROLLBAR_GUTTER = 8;
 // exact dezelfde tussenruimte, anders schuift hij t.o.v. zijn pane.
 const SPLIT_RATIO_BAR_WIDTH = 5;
 
-export function GanttCanvas() {
+export interface GanttGridRevealRequest {
+  taskId: string;
+  nonce: number;
+}
+
+export interface GanttCanvasProps {
+  revealRequest?: GanttGridRevealRequest | null;
+  histogramHost: HTMLDivElement | null;
+  histogramPickerWidth: number;
+  miniMapHost: HTMLDivElement | null;
+}
+
+export function GanttCanvas({
+  revealRequest = null,
+  histogramHost,
+  histogramPickerWidth,
+  miniMapHost,
+}: GanttCanvasProps) {
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const { t: tMenu } = useTranslation('menu');
@@ -76,23 +97,15 @@ export function GanttCanvas() {
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const view = useAppStore(s => s.view);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-  const collapsedTaskIds = useAppStore(s => s.ui.collapsedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);
   const selectTasks = useAppStore(s => s.selectTasks);
   const deselectAll = useAppStore(s => s.deselectAll);
-  const toggleCollapse = useAppStore(s => s.toggleCollapse);
   const addTask = useAppStore(s => s.addTask);
   const updateTask = useAppStore(s => s.updateTask);
   // Issue #40: de relatiemodus is een "plakkende Shift" — staat hij aan, dan armt een mousedown op
   // een balk hetzelfde dependency-tekenen als shift+slepen. Dit is de ENIGE lezer die gedrag
   // stuurt; vóór deze fix werd de vlag alleen geschreven (dode modus, knop deed niets zichtbaars).
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
-  // Issue #21 punt 1 (fase 2): store-actie uit fase 1 — verplaatst één taak naar een exacte
-  // positie (reorder of reparent), gebruikt door useRowDrag bij mouseup.
-  const moveTaskTo = useAppStore(s => s.moveTaskTo);
-  // Issue #26 (vervolgmelding): dezelfde sleep, maar met de hele selectie — op het canvas is een
-  // meervoudige selectie extra gewoon door de box-select.
-  const moveTasksTo = useAppStore(s => s.moveTasksTo);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
   // Fase 2.10 golf 2 (contextmenu's): golf-1-helpers + bestaande taak-acties die het contextmenu
@@ -102,7 +115,7 @@ export function GanttCanvas() {
   const pasteTasks = useAppStore(s => s.pasteTasks);
   const taskClipboard = useAppStore(s => s.taskClipboard);
   // Issue #35b: het bandkop-contextmenu bestaat alléén in gegroepeerde weergave, en daar neemt
-  // `computeViewRows` de taak-collapse (collapsedTaskIds) volledig over door de groepsbanden. De oude
+  // `computeViewRows` de taak-collapse volledig over door de groepsbanden. De oude
   // `expandAll`/`collapseAll` werken op summary-taken en zijn daar dus inert — vandaar dat
   // "Alles uit-/inklappen" in het bandkop-menu niets deed. Die items gebruiken nu de groepsacties
   // (zelfde als de Beeld-tab in gegroepeerde weergave).
@@ -114,7 +127,9 @@ export function GanttCanvas() {
   const expandTasks = useAppStore(s => s.expandTasks);
   const setZoom = useAppStore(s => s.setZoom);
   const setViewStartDate = useAppStore(s => s.setViewStartDate);
-  const uiTheme = useAppStore(s => s.ui.uiTheme);
+  // Het OPGELOSTE thema (voorkeur 'system' → dark/light): een canvas leest geen CSS, dus de
+  // renderers krijgen het hier expliciet mee — 'system' zou daar geen betekenis hebben.
+  const uiTheme = useResolvedUITheme();
   // Primitive invalidatiesleutel voor Canvas-2D: CSS-variabelen veranderen buiten de teken-
   // callbackidentiteit om, dus elke canvaslaag krijgt dit expliciete thema-contract mee.
   const canvasThemeRevision = uiTheme;
@@ -149,7 +164,6 @@ export function GanttCanvas() {
   const clearPendingFit = useAppStore(s => s.clearPendingFit);
   const clearPendingFocusTask = useAppStore(s => s.clearPendingFocusTask);
   const showMiniMap = useAppStore(s => s.ui.showMiniMap);
-  const taskTableWidth = useAppStore(s => s.ui.leftPanelWidth);
   const showHistogram = useAppStore(s => s.ui.showHistogram);
   const histogramHeight = useAppStore(s => s.ui.histogramHeight);
   const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
@@ -199,7 +213,7 @@ export function GanttCanvas() {
     rows: viewRows,
     calendar,
     view,
-    taskTableWidth,
+    histogramPickerWidth,
     histogramHeight,
     rowHeight,
     headerHeight,
@@ -217,9 +231,7 @@ export function GanttCanvas() {
     clearPendingFit,
     clearPendingFocusTask,
     setSplitView,
-    setTaskTableWidth: width => setUI({ leftPanelWidth: width }),
     setHistogramHeight: height => setUI({ histogramHeight: height }),
-    persistTaskTableWidth: width => { void saveLeftPanelWidth(width); },
     persistHistogramHeight: height => { void saveHistogramHeight(height); },
   });
   const {
@@ -229,11 +241,11 @@ export function GanttCanvas() {
     histogramContainerRef,
     primaryHScrollRef: hScrollRef,
     secondaryHScrollRef: hScrollSecondaryRef,
-    sharedVScrollRef: vScrollRef,
   } = viewport.refs;
   const effectiveViewStart = viewport.effectiveViewStart;
   const effectiveView = viewport.effectiveView;
   const sharedAxis = viewport.sharedAxis;
+  const histogramAxis = viewport.histogramAxis;
   const totalContentWidth = viewport.primary.contentWidth;
   const secondaryContentWidth = viewport.secondary?.contentWidth ?? 0;
   const primaryChartWidth = viewport.primary.chartWidth;
@@ -310,9 +322,8 @@ export function GanttCanvas() {
     if (!startString || !finishString) return;
     const state = useAppStore.getState();
     const currentView = state.view;
-    const tableWidth = state.ui.leftPanelWidth;
     const rect = canvas.getBoundingClientRect();
-    const usableWidth = rect.width - tableWidth;
+    const usableWidth = rect.width;
     if (usableWidth <= 0) return;
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
@@ -323,58 +334,18 @@ export function GanttCanvas() {
     const startX = sharedAxis.dateToX(start) + currentView.scrollX;
     const finishX = sharedAxis.dateToX(finish) + currentView.scrollX
       + (hourMode ? 0 : currentView.zoom);
-    const visibleLeft = tableWidth + currentView.scrollX;
+    const visibleLeft = currentView.scrollX;
     const visibleRight = visibleLeft + usableWidth;
     if (finishX > visibleLeft && startX < visibleRight) return;
-    state.setScroll(Math.max(0, startX - tableWidth - 40), currentView.scrollY);
+    state.setScroll(Math.max(0, startX - 40), currentView.scrollY);
   }, [canvasRef, sharedAxis]);
 
-  /**
-   * Issue #87: de primaire taaktabel en de balken delen één canvas en daarmee één focusoppervlak.
-   * De pijltjes volgen uitsluitend taken die in de huidige `viewRows` zichtbaar zijn: filters,
-   * sortering, groepering en ingeklapte takken veranderen de loopvolgorde dus niet stiekem.
-   */
-  const handleTaskCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLCanvasElement>) => {
-    if (
-      (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
-      || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
-    ) return;
-    const taskRows = viewRows.filter(
-      (row): row is Extract<typeof row, { kind: 'task' }> => row.kind === 'task',
-    );
-    if (taskRows.length === 0) return;
+  useEffect(() => {
+    if (!revealRequest) return;
+    const task = tasks.find(candidate => candidate.id === revealRequest.taskId);
+    if (task) revealTaskIfOffscreen(task);
+  }, [revealRequest, tasks, revealTaskIfOffscreen]);
 
-    const selectedId = selectedTaskIds[selectedTaskIds.length - 1];
-    const selectedIndex = taskRows.findIndex(row => row.task.id === selectedId);
-    const step = event.key === 'ArrowUp' ? -1 : 1;
-    const currentIndex = selectedIndex >= 0
-      ? selectedIndex
-      : step > 0 ? 0 : taskRows.length - 1;
-    const nextIndex = Math.max(0, Math.min(taskRows.length - 1, currentIndex + (selectedIndex >= 0 ? step : 0)));
-    const nextTask = taskRows[nextIndex].task;
-
-    event.preventDefault();
-    event.stopPropagation();
-    if (selectedId === nextTask.id) return;
-    selectTask(nextTask.id);
-
-    // Houd de nieuw gekozen rij bruikbaar zichtbaar, zonder de doelgerichte zoom van
-    // `focusOnTask` te activeren. De formule is dezelfde als die van GanttRenderer.rowToY.
-    const rowIndex = viewRows.findIndex(row => row.kind === 'task' && row.task.id === nextTask.id);
-    const canvasHeight = event.currentTarget.getBoundingClientRect().height;
-    if (rowIndex >= 0 && canvasHeight > headerHeight) {
-      const rowTop = headerHeight + rowIndex * rowHeight - view.scrollY;
-      const rowBottom = rowTop + rowHeight;
-      if (rowTop < headerHeight) setScroll(view.scrollX, rowIndex * rowHeight);
-      else if (rowBottom > canvasHeight) {
-        setScroll(view.scrollX, (rowIndex + 1) * rowHeight - (canvasHeight - headerHeight));
-      }
-    }
-    revealTaskIfOffscreen(nextTask);
-  }, [viewRows, selectedTaskIds, selectTask, headerHeight, rowHeight, view.scrollX, view.scrollY, setScroll, revealTaskIfOffscreen]);
-  const addChildTask = useCallback((parentId: string) => {
-    addTask({ name: defaultTaskName, parentId });
-  }, [addTask, defaultTaskName]);
   const openTask = useCallback((taskId: string) => {
     setUI({ showTaskDialog: true, editingTaskId: taskId });
   }, [setUI]);
@@ -383,14 +354,11 @@ export function GanttCanvas() {
     host: rendererHost,
     viewport,
     tasks,
-    rows: viewRows,
     calendar,
     effectiveCalendarByTaskId: effectiveCalById,
     selectedTaskIds,
-    taskTableWidth,
     headerHeight,
     dependencyMode,
-    treeMode: isTreeMode(view),
     scrollMode,
     enableQuarterHourZoom,
     enableHourPlanning,
@@ -398,15 +366,9 @@ export function GanttCanvas() {
     selectTask,
     selectTasks,
     deselectAll,
-    toggleCollapse,
-    setCollapsedGroupKey,
-    addChildTask,
     updateTask,
-    moveTaskTo,
-    moveTasksTo,
     setScroll,
     openTask,
-    revealTaskIfOffscreen,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
   });
 
@@ -439,12 +401,6 @@ export function GanttCanvas() {
     [baselines, activeBaselineId],
   );
 
-  const columnHeaders = useMemo(() => ({
-    wbs: tTask('table.wbs'),
-    taskName: tTask('table.name'),
-    duration: tTask('table.duration'),
-  }), [tTask]);
-
   // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
   // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
   const trace = useMemo(
@@ -469,9 +425,8 @@ export function GanttCanvas() {
       picker: histogramPicker,
       selectedResourceId: effectiveHistogramResourceId,
       view: effectiveView,
-      taskTableWidth,
-      // Issue #21 punt 5 (fase 2, §10.1): dezelfde as-instantie als de primaire Gantt-pane.
-      axis: sharedAxis,
+      pickerWidth: histogramPickerWidth,
+      axis: histogramAxis,
       // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
       fontFamily: canvasFontFamily,
       // Issue #60 (nazit uit de PR-review): zelfde tekstschaal als de Gantt erboven, anders staan
@@ -484,7 +439,7 @@ export function GanttCanvas() {
           ? tCommon('resource.histogram.noResources')
           : undefined,
     } : undefined
-  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, taskTableWidth, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, sharedAxis, canvasFontFamily, fontScale]);
+  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
 
   const primaryRenderInput = useMemo<GanttRenderOptionsSourceInput>(() => ({
     rows: viewRows,
@@ -492,7 +447,6 @@ export function GanttCanvas() {
     calendar,
     view: effectiveView,
     selectedTaskIds,
-    collapsedTaskIds,
     cpmResult,
     statusDate,
     showStatusDateLine,
@@ -508,12 +462,10 @@ export function GanttCanvas() {
     showBaselineOverlay,
     baselineOverlay,
     trace,
-    taskTableWidth,
     rowHeight,
     headerHeight,
     localizedMonths,
     localizedWeekdays,
-    columnHeaders,
     weekStartDay,
     enableQuarterHourZoom,
     effectiveCalById,
@@ -530,9 +482,9 @@ export function GanttCanvas() {
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, taskTableWidth, rowHeight, headerHeight, localizedMonths, localizedWeekdays, columnHeaders, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
-  // Secondary houdt exact zijn eigen zoom/scrollX, gedeelde rows/scrollY en taskTableWidth 0.
+  // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
     splitView ? {
       rows: viewRows,
@@ -544,7 +496,6 @@ export function GanttCanvas() {
         scrollX: splitView.secondaryScrollX,
       },
       selectedTaskIds,
-      collapsedTaskIds,
       cpmResult,
       statusDate,
       showStatusDateLine,
@@ -560,12 +511,10 @@ export function GanttCanvas() {
       showBaselineOverlay,
       baselineOverlay,
       trace,
-      taskTableWidth: 0,
       rowHeight,
       headerHeight,
       localizedMonths,
       localizedWeekdays,
-      columnHeaders,
       weekStartDay,
       enableQuarterHourZoom,
       effectiveCalById,
@@ -586,7 +535,7 @@ export function GanttCanvas() {
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, collapsedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, columnHeaders, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
@@ -602,27 +551,104 @@ export function GanttCanvas() {
     onSecondarySize: viewport.onSecondarySize,
   }, rendererHost);
 
-  // Selectie-klik in het secundaire pane (bandkop → collapse-toggle, net als links).
+  // Het secundaire tijdlijnpaneel selecteert uitsluitend een zichtbare balk of mijlpaal.
   const handleSecondaryClick = useCallback((e: ReactMouseEvent<HTMLCanvasElement>) => {
     e.currentTarget.focus({ preventScroll: true });
     const canvas = secondaryCanvasRef.current;
     const renderer = secondaryRendererRef.current;
     if (!canvas || !renderer) return;
     const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     if (y < headerHeight) return;
-    const row = renderer.getRowAtY(y);
-    if (row?.kind === 'group') {
-      setCollapsedGroupKey(row.key, !row.collapsed);
-      return;
-    }
-    if (row?.kind === 'task') selectTask(row.task.id, e.ctrlKey || e.metaKey, e.shiftKey);
+    const task = renderer.getRelationSourceAt(x, y);
+    if (task) selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey);
     else deselectAll();
-  }, [secondaryCanvasRef, secondaryRendererRef, selectTask, deselectAll, setCollapsedGroupKey, headerHeight]);
+  }, [secondaryCanvasRef, secondaryRendererRef, selectTask, deselectAll, headerHeight]);
 
   const { contextMenu, relationPopover, tooltip } = pointer;
   const boxSelectState = pointer.overlays.boxSelect;
-  const rowDragState = pointer.overlays.rowDrag;
+
+  const histogramPortal = histogramHost
+    ? createPortal(showHistogram ? (
+        <div data-testid="gantt-histogram" style={{ display: 'contents' }}>
+          <div
+            className="histogram-splitter"
+            onMouseDown={event => { event.preventDefault(); histogramSplitter.start(); }}
+            style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
+          />
+          <div
+            ref={histogramContainerRef}
+            className="relative overflow-hidden"
+            style={{ height: histogramHeight, flexShrink: 0 }}
+            data-tour-anchor="histogram-strip"
+          >
+            <canvas
+              ref={histogramCanvasRef}
+              data-testid="gantt-histogram-canvas"
+              tabIndex={0}
+              className="absolute inset-0 outline-none"
+              style={{ cursor: 'pointer' }}
+              onClick={handleHistogramClick}
+              onKeyDown={histogramInteraction.onKeyDown}
+            />
+            {scheduleStale && (
+              <div
+                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
+                style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
+              >
+                ⚠ {tCommon('resource.histogram.staleHint')}
+              </div>
+            )}
+            {histogramInteraction.tooltip && (
+              <HoverTooltip left={histogramInteraction.tooltip.x + 14} top={histogramInteraction.tooltip.y - 10}>
+                {histogramInteraction.tooltip.lines.map((line, index) => (
+                  <div key={index} className={index === 0 ? 'tooltip-title' : 'tooltip-row'}>{line}</div>
+                ))}
+              </HoverTooltip>
+            )}
+          </div>
+        </div>
+      ) : null, histogramHost)
+    : null;
+
+  const miniMapPortal = miniMapHost
+    ? createPortal(showMiniMap ? (
+        <div className="flex w-full" dir="ltr" style={{ flexShrink: 0 }}>
+          <div
+            style={{
+              width: splitView
+                ? splitPanePrimaryWidthCss(splitView.ratio, SPLIT_RATIO_BAR_WIDTH)
+                : '100%',
+              flexShrink: 0,
+            }}
+          >
+            <MiniMap
+              originDate={effectiveViewStart}
+              timelineWidth={primaryChartWidth}
+              scrollX={viewport.primary.scrollX}
+              zoom={viewport.primary.zoom}
+              onScrollXChange={viewport.minimap.primaryScrollTo}
+            />
+          </div>
+          {splitView && (
+            <>
+              <div style={{ width: SPLIT_RATIO_BAR_WIDTH, flexShrink: 0 }} />
+              <div className="flex-1 min-w-0">
+                <MiniMap
+                  originDate={effectiveViewStart}
+                  timelineWidth={secondaryChartWidth}
+                  scrollX={splitView.secondaryScrollX}
+                  zoom={splitView.secondaryZoom}
+                  onScrollXChange={viewport.minimap.secondaryScrollTo}
+                  testId="minimap-secondary"
+                />
+              </div>
+            </>
+          )}
+        </div>
+      ) : null, miniMapHost)
+    : null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -632,9 +658,8 @@ export function GanttCanvas() {
           takenlijst een strook achter die daar niets te zoeken heeft (de user: "het onderliggende
           paneel moet daar gewoon in doorlopen"). Als overlay houdt het canvas de volle hoogte en
           breedte en loopt het paneel eronder door tot de rand.
-          `dir="ltr"` op de pane-rij is FUNCTIONEEL: de renderer kent geen RTL (`isInTaskTable` is
-          letterlijk `canvasX < taskTableWidth`), dus de taaktabel wordt in ar/fa óók links
-          getekend. Liet je deze rij mirroren, dan wisselen primair en secundair pane visueel van
+          `dir="ltr"` op de pane-rij is FUNCTIONEEL: liet je deze rij mirroren, dan wisselen
+          primair en secundair pane visueel van
           plek terwijl de mini-map-strook hieronder wél LTR gepind is — die kwam dan onder het
           VERKEERDE pane te liggen (gemeten in ar). Dezelfde pin houdt bovendien de ratio-sleep
           kloppend, die `clientX - rect.left` tegen `paneRowRef` rekent en dus een niet-gespiegelde
@@ -643,7 +668,12 @@ export function GanttCanvas() {
       <div
         ref={containerRef}
         className="overflow-hidden relative"
-        style={{ width: splitView ? `${splitView.ratio * 100}%` : '100%', flexShrink: 0 }}
+        style={{
+          width: splitView
+            ? splitPanePrimaryWidthCss(splitView.ratio, SPLIT_RATIO_BAR_WIDTH)
+            : '100%',
+          flexShrink: 0,
+        }}
       >
         <canvas
           ref={canvasRef}
@@ -652,7 +682,6 @@ export function GanttCanvas() {
           className="absolute inset-0 outline-none"
           style={{ cursor: pointer.cursor }}
           onClick={handlePrimaryClick}
-          onKeyDown={handleTaskCanvasKeyDown}
           onDoubleClick={pointer.onDoubleClick}
           onMouseDown={pointer.onMouseDown}
           onMouseMove={pointer.onMouseMove}
@@ -697,42 +726,6 @@ export function GanttCanvas() {
           );
         })()}
 
-        {/* Issue #21 punt 1 (fase 2, NIET fase 3): minimale invoeg-indicator, hergebruikt exact het
-            box-select-overlaypatroon hierboven — dit is bewust sober (geen autoscroll, geen
-            "verborgen kind"-label, geen bron-rij-dimming; dat is allemaal fase 3). Alleen zichtbaar
-            bij een geldig doel (`dropTarget !== null`); canvas vult de container exact (`inset-0`),
-            dus canvas-relatieve Y = container-relatieve Y, geen client→container-omrekening nodig
-            zoals bij het box-selectiekader. */}
-        {rowDragState?.dropTarget && rowDragState.hoverRowIndex !== null && (() => {
-          const { hoverRowIndex, hoverZone } = rowDragState;
-          const rowTop = headerHeight + hoverRowIndex * rowHeight - view.scrollY;
-          if (hoverZone === 'nest') {
-            return (
-              <div
-                data-testid="row-drag-nest"
-                className="absolute"
-                style={{
-                  left: 0, right: 0, top: rowTop, height: rowHeight,
-                  border: '1px solid var(--theme-accent)',
-                  pointerEvents: 'none',
-                  zIndex: 6,
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{ position: 'absolute', inset: 0, background: 'var(--theme-accent)', opacity: 0.15 }} />
-              </div>
-            );
-          }
-          const lineTop = hoverZone === 'after' ? rowTop + rowHeight : rowTop;
-          return (
-            <div
-              data-testid="row-drag-line"
-              className="absolute"
-              style={{ left: 0, right: 0, top: lineTop - 1, height: 2, background: 'var(--theme-accent)', pointerEvents: 'none', zIndex: 6 }}
-            />
-          );
-        })()}
-
         {/* Tooltip — issue #58: HoverTooltip houdt de doos binnen het venster. Issue #65: de
             content zit sinds de extractie in TaskTooltipContent, gedeeld met de WBS-sprongknop
             in het eigenschappenpaneel. */}
@@ -742,26 +735,15 @@ export function GanttCanvas() {
           </HoverTooltip>
         )}
 
-        {/* Horizontale scrollbalk van het primaire pane (issue #22, sinds #35 een overlay). Hij
-            zweeft ONDERIN dit pane in plaats van in een eigen rij eronder, zodat het canvas de
-            volle hoogte houdt en de kaart tot de onderrand doorloopt.
-            Hij begint pas bij `taskTableWidth`: de taaktabel schuift horizontaal niet mee, dus een
-            balk daaronder was verwarrend (#22) — en dát is precies wat de losse rij weer opleverde.
-            DE VALKUIL: de scrollrange moet exact gelijk zijn aan de klem in `setScroll`
-            (`maxScrollX = totalContentWidth − canvasbreedte`, gezet in `drawPrimary`). Dat klopt
-            hier omdat zowel de zichtbare breedte (`left: taskTableWidth; right: 0` ⇒ paneBreedte −
-            taskTableWidth) als de spacer (`totalContentWidth − taskTableWidth`) met dezelfde
-            `taskTableWidth` krimpen. Laat hem dus NIET vóór de verticale balk stoppen (`right: 8`):
-            dan is hij 8px smaller dan het chartgebied en loopt de DOM-range 8px uit de pas met
-            `maxScrollX`. De 8×8px hoekoverlap met de verticale balk is bewust geaccepteerd. */}
+        {/* De horizontale balk rekent volledig in lokale tijdlijncoördinaten. */}
         <div
           ref={hScrollRef}
           data-testid="gantt-hscroll"
           className="gantt-overlay-scrollbar absolute overflow-x-auto overflow-y-hidden"
-          style={{ left: taskTableWidth, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
+          style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
           onScroll={viewport.scrollHandlers.onPrimaryHorizontalScroll}
         >
-          <div style={{ width: Math.max(1, totalContentWidth - taskTableWidth), height: 1 }} />
+          <div style={{ width: Math.max(1, totalContentWidth), height: 1 }} />
         </div>
       </div>
       {/* Secundair pane (§10): eigen tijdvenster, gedeelde rijen + verticale scroll */}
@@ -783,13 +765,8 @@ export function GanttCanvas() {
               tabIndex={0}
               className="absolute inset-0 outline-none"
               onClick={handleSecondaryClick}
-              onKeyDown={handleTaskCanvasKeyDown}
             />
-            {/* Eigen zwevende horizontale balk (issue #35 punt 1): dit pane heeft een EIGEN
-                tijdvenster (`secondaryScrollX`/`secondaryZoom`) en geen taaktabel — drawSecondary
-                tekent met `taskTableWidth: 0`, dus `left: 0` en de spacer is de volle
-                `secondaryContentWidth`. Zichtbare breedte == canvasbreedte, dus de DOM-range is
-                per constructie `secondaryContentWidth − canvasbreedte`. */}
+            {/* Eigen zwevende horizontale balk voor het secundaire tijdvenster. */}
             <div
               ref={hScrollSecondaryRef}
               data-testid="gantt-hscroll-secondary"
@@ -802,113 +779,9 @@ export function GanttCanvas() {
           </div>
         </>
       )}
-      {/* Verticale scrollbalk (issue #35 punt 2): snelle rij-navigatie voor grote WBS-structuren,
-          waar alleen het muiswiel te traag was. Eén balk voor BEIDE panes — `view.scrollY` is
-          gedeeld (drawSecondary hergebruikt hem) — dus hij zweeft rechts in de pane-RIJ, niet in
-          één pane.
-          De scrollrange moet EXACT gelijk zijn aan de klem in `setScroll`
-          (`maxScrollY = rijen·ROW_HEIGHT − (paneHoogte − HEADER_HEIGHT)`), anders loopt de balk vóór
-          of achter op het canvas. Daarom begint hij op `top: HEADER_HEIGHT` en loopt tot
-          `bottom: 0`: dan is hij precies zo hoog als het rijen-gebied (paneHoogte − HEADER_HEIGHT)
-          terwijl de spacer de volledige contenthoogte (rijen·ROW_HEIGHT) is — hetzelfde trucje als
-          de `left: taskTableWidth` van de horizontale balk. Vroeger deed een leeg blokje van
-          HEADER_HEIGHT dat werk in een echte goot-kolom; die kolom sneed 8px van de kaart af en is
-          nu een overlay. */}
-      <div
-        ref={vScrollRef}
-        data-testid="gantt-vscroll"
-        className="gantt-overlay-scrollbar absolute overflow-y-auto overflow-x-hidden"
-        style={{ right: 0, top: headerHeight, bottom: 0, width: SCROLLBAR_GUTTER, zIndex: 5 }}
-        onScroll={viewport.scrollHandlers.onSharedVerticalScroll}
-      >
-        <div style={{ height: Math.max(1, viewRows.length * rowHeight), width: 1 }} />
       </div>
-      </div>
-      {/* Histogramstrook (fase 2.5, §6.4) — derde canvas met gedeelde X-as. Loopt over de volle
-          breedte, net als de pane-rij hierboven: sinds de scrollbalken overlays zijn, is er geen
-          goot meer om onder te blijven en dus ook geen opvulblokje meer nodig. */}
-      {showHistogram && (
-        <>
-          <div
-            className="histogram-splitter"
-            onMouseDown={e => { e.preventDefault(); histogramSplitter.start(); }}
-            style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
-          />
-          <div
-            ref={histogramContainerRef}
-            className="relative overflow-hidden"
-            style={{ height: histogramHeight, flexShrink: 0 }}
-            data-tour-anchor="histogram-strip"
-          >
-            <canvas
-              ref={histogramCanvasRef}
-              data-testid="gantt-histogram-canvas"
-              tabIndex={0}
-              className="absolute inset-0 outline-none"
-              style={{ cursor: 'pointer' }}
-              onClick={handleHistogramClick}
-              onKeyDown={histogramInteraction.onKeyDown}
-            />
-            {/* Verouderd-hint (A6): het histogram volgt de belasting direct, maar de CPM-datums
-                eronder kunnen na een datum-mutatie verouderd zijn — subtiel melden. */}
-            {scheduleStale && (
-              <div
-                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
-                style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
-              >
-                ⚠ {tCommon('resource.histogram.staleHint')}
-              </div>
-            )}
-            {histogramInteraction.tooltip && (
-              <HoverTooltip left={histogramInteraction.tooltip.x + 14} top={histogramInteraction.tooltip.y - 10}>
-                {/* Issue #58 geldt hier net zo goed: dit zijn resourcenamen, tot 9 regels. */}
-                {histogramInteraction.tooltip.lines.map((l, i) => (
-                  <div key={i} className={i === 0 ? 'tooltip-title' : 'tooltip-row'}>{l}</div>
-                ))}
-              </HoverTooltip>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Mini-map (fase 2.7, §11): thumbnail van de hele projectperiode + viewport-kader.
-          Issue #35 punt 1: bij split view krijgt ELK pane een eigen strook — de tweede bestuurt
-          `splitView.secondaryScrollX`/`secondaryZoom` i.p.v. de gedeelde `view`. De breedte-
-          expressies (ratio-% + dezelfde 5px tussenruimte als de ratio-balk) zijn letterlijk die van
-          de pane-rij, zodat elke strook onder zijn eigen pane ligt. Zonder split view: één strook
-          over de volle breedte, exact zoals voorheen.
-          `dir="ltr"` pint de rij net als de pane-rij: de panes zelf spiegelen niet mee met de
-          leesrichting, dus deze stroken mogen dat ook niet — anders liggen ze in ar/fa onder het
-          verkeerde pane. Er is geen opvulblokje meer nodig: de verticale scrollbalk is een overlay
-          en neemt geen kolombreedte meer in. */}
-      {showMiniMap && (
-        <div className="flex" dir="ltr" style={{ flexShrink: 0 }}>
-          <div style={{ width: splitView ? `${splitView.ratio * 100}%` : '100%', flexShrink: 0 }}>
-            <MiniMap
-              originDate={effectiveViewStart}
-              chartWidth={primaryChartWidth}
-              scrollX={viewport.primary.scrollX}
-              zoom={viewport.primary.zoom}
-              onScrollXChange={viewport.minimap.primaryScrollTo}
-            />
-          </div>
-          {splitView && (
-            <>
-              <div style={{ width: SPLIT_RATIO_BAR_WIDTH, flexShrink: 0 }} />
-              <div className="flex-1 min-w-0">
-                <MiniMap
-                  originDate={effectiveViewStart}
-                  chartWidth={secondaryChartWidth}
-                  scrollX={splitView.secondaryScrollX}
-                  zoom={splitView.secondaryZoom}
-                  onScrollXChange={viewport.minimap.secondaryScrollTo}
-                  testId="minimap-secondary"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      {histogramPortal}
+      {miniMapPortal}
 
       {/* Context Menu */}
       {contextMenu && (

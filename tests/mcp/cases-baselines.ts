@@ -148,15 +148,15 @@ test('4. activate van de al-actieve baseline ⇒ changed:false zonder undo-stap 
   // Iets ongedaan maken zodat er een redo-stack ligt die een no-op niet mag wissen.
   S().addTask({ name: 'weg' });
   S().undo();
-  const undoBefore = S().undoStack.length;
-  const redoBefore = S().redoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
+  const redoBefore = S().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoBefore > 0, 'testopzet: er moet een redo-stack liggen');
 
   const d = await callOk('planner_activate_baseline', { baselineId: id });
   assertEq(d.changed, false, 'niets veranderd');
   assert(typeof d.reason === 'string' && d.reason.length > 0, 'de reden staat erbij');
-  assertEq(S().undoStack.length, undoBefore, 'geen extra undo-stap voor een no-op');
-  assertEq(S().redoStack.length, redoBefore, 'de redo-stack van de gebruiker blijft intact');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen extra undo-stap voor een no-op');
+  assertEq(S().historyEvents.filter(event => event.state === 'undone').length, redoBefore, 'de redo-stack van de gebruiker blijft intact');
   assertEq(S().activeBaselineId, id, 'de actieve is ongewijzigd');
 });
 
@@ -219,10 +219,10 @@ test('7. rename_baseline: hernoemt echt, weigert leeg, no-opt op dezelfde naam, 
   assert(leeg.error.includes('`name`'), `de weigering noemt het veld: ${leeg.error}`);
   assertEq(S().baselines.find((b) => b.id === a)!.name, 'Nieuw', 'naam ongewijzigd na de weigering');
 
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const same = await callOk('planner_rename_baseline', { baselineId: a, name: 'Nieuw' });
   assertEq(same.changed, false, 'zelfde naam ⇒ geen wijziging');
-  assertEq(S().undoStack.length, undoBefore, 'en dus geen undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'en dus geen undo-stap');
 
   const b = await save('Nieuw');
   const dup = await callOk('planner_rename_baseline', { baselineId: b, name: 'Nieuw' });
@@ -310,12 +310,12 @@ test('10. delete van de laatste baseline ⇒ geen actieve; compare/analyze geven
 test('11. delete met onbekend id laat geen undo-stap of wijziging achter', async () => {
   reset(1);
   const id = await save('Blijft');
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const err = await callErr('planner_delete_baseline', { baselineId: 'nope' });
   assertEq(err.code, 'VALIDATION', 'VALIDATION');
   assertEq(S().baselines.length, 1, 'niets verwijderd');
   assertEq(S().activeBaselineId, id, 'actieve ongewijzigd');
-  assertEq(S().undoStack.length, undoBefore, 'geen achtergebleven undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen achtergebleven undo-stap');
 });
 
 // =================================================================================================
@@ -382,7 +382,7 @@ test('13. batch met activate + rename + delete ⇒ één undo-stap, alles uitgev
   reset(2);
   const a = await save('A');
   const b = await save('B');
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const data = await callOk('planner_batch', {
     steps: [
@@ -397,7 +397,7 @@ test('13. batch met activate + rename + delete ⇒ één undo-stap, alles uitgev
   assertEq(S().baselines.length, 1, 'B is weg');
   assertEq(S().baselines[0].name, 'A-hernoemd', 'A is hernoemd');
   assertEq(S().activeBaselineId, a, 'A is actief');
-  assertEq(S().undoStack.length, undoBefore + 1, 'precies ÉÉN undo-stap voor de hele batch');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore + 1, 'precies ÉÉN undo-stap voor de hele batch');
 
   // De slot-leesstap ziet de eindtoestand.
   const last = data.substeps[data.substeps.length - 1];
@@ -415,7 +415,7 @@ test('14. batch met een onbekende sleutel of een onbekend id rolt ALLES terug', 
   await save('B');
   await callOk('planner_activate_baseline', { baselineId: a });
   const before = JSON.stringify({ b: S().baselines, act: S().activeBaselineId });
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const bad = await callErr('planner_batch', {
     steps: [
@@ -426,7 +426,7 @@ test('14. batch met een onbekende sleutel of een onbekend id rolt ALLES terug', 
   assertEq(bad.code, 'VALIDATION', 'schemafout in stap 2');
   assert(bad.error.includes('cascade'), `de sleutel wordt genoemd: ${bad.error}`);
   assertEq(JSON.stringify({ b: S().baselines, act: S().activeBaselineId }), before, 'stap 1 is teruggedraaid');
-  assertEq(S().undoStack.length, undoBefore, 'geen undo-stap na een teruggedraaide batch');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen undo-stap na een teruggedraaide batch');
 
   const bad2 = await callErr('planner_batch', {
     steps: [

@@ -10,16 +10,41 @@ async function canvasBounds(page: Page) {
   return bounds!;
 }
 
-async function tableRowPoint(page: Page, taskId: string, offsetY = 0) {
-  const row = await barPoint(page, taskId);
-  const bounds = await canvasBounds(page);
-  return { x: bounds.x + 40, y: row.y + offsetY };
+function tableRow(page: Page, taskId: string) {
+  return page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"]`,
+  );
+}
+
+async function tableRowPoint(page: Page, taskId: string, zone: 'center' | 'after' = 'center') {
+  const bounds = await tableRow(page, taskId).boundingBox();
+  expect(bounds).not.toBeNull();
+  return {
+    x: bounds!.x + Math.min(120, bounds!.width / 2),
+    y: zone === 'after' ? bounds!.y + bounds!.height - 2 : bounds!.y + bounds!.height / 2,
+  };
 }
 
 async function chartBackgroundPoint(page: Page, taskId: string) {
   const row = await barPoint(page, taskId);
   const bounds = await canvasBounds(page);
   return { x: bounds.x + bounds.width - 28, y: row.y };
+}
+
+async function showRelationBars(page: Page, taskIds: readonly string[]): Promise<void> {
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ showPropertiesPanel: false, rightPanelCollapsed: true });
+    s.setZoom(18);
+    s.setScroll(0, 0);
+  });
+  await expect(page.locator('[data-ops-rail="true"]')).toHaveCount(0);
+  const bounds = await canvasBounds(page);
+  for (const taskId of taskIds) {
+    const point = await barPoint(page, taskId);
+    expect(point.x).toBeGreaterThan(bounds.x);
+    expect(point.x).toBeLessThan(bounds.x + bounds.width);
+  }
 }
 
 function taskDates(snapshot: Awaited<ReturnType<typeof state>>) {
@@ -62,15 +87,19 @@ test('Gantt pointer priority: tabelsplitter wint op header, taakrij en achtergro
   }]);
   const before = await state(page);
   const row = await barPoint(page, taskId);
+  const workspaceBounds = await page.getByTestId('gantt-workspace').boundingBox();
+  expect(workspaceBounds).not.toBeNull();
+  let expectedWidth = before.ui.leftPanelWidth;
 
   for (const y of [
     (await canvasBounds(page)).y + 10,
     row.y,
     (await canvasBounds(page)).y + (await canvasBounds(page)).height - 24,
   ]) {
-    const bounds = await canvasBounds(page);
-    const width = (await state(page)).ui.leftPanelWidth;
-    const x = bounds.x + width;
+    const splitterBounds = await page.getByTestId('gantt-workspace-splitter').boundingBox();
+    expect(splitterBounds).not.toBeNull();
+    const x = splitterBounds!.x + splitterBounds!.width / 2;
+    expectedWidth = Math.round(x + 12 - workspaceBounds!.x);
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(x + 12, y, { steps: 2 });
@@ -78,7 +107,7 @@ test('Gantt pointer priority: tabelsplitter wint op header, taakrij en achtergro
   }
 
   await expect.poll(() => state(page).then(s => s.ui.leftPanelWidth))
-    .toBe(before.ui.leftPanelWidth + 36);
+    .toBe(expectedWidth);
   const after = await state(page);
   expect(taskDates(after)).toEqual(taskDates(before));
   expect(after.selectedTaskIds).toEqual(before.selectedTaskIds);
@@ -92,7 +121,7 @@ test('Gantt pointer priority: onder de header start geen taakgesture', async ({ 
   }]);
   const before = await state(page);
   const bounds = await canvasBounds(page);
-  const x = bounds.x + before.ui.leftPanelWidth + 80;
+  const x = bounds.x + 80;
   const y = bounds.y + 10;
 
   await page.mouse.move(x, y);
@@ -115,6 +144,7 @@ for (const mode of ['Shift', 'dependency mode'] as const) {
       { name: `${mode} bron`, start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
       { name: `${mode} doel`, start: '2026-09-21', finish: '2026-09-25', durationDays: 5 },
     ]);
+    await showRelationBars(page, [sourceId, targetId]);
     if (mode === 'dependency mode') {
       await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showDependencyMode: true }));
     }
@@ -151,6 +181,7 @@ test('Gantt relationpopover Escape annuleert zonder relatie, undo-stap of meldin
     { name: 'Annuleren bron', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
     { name: 'Annuleren doel', start: '2026-09-21', finish: '2026-09-25', durationDays: 5 },
   ]);
+  await showRelationBars(page, [sourceId, targetId]);
   const before = await state(page);
   const notificationsBefore = await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.length);
   const source = await barPoint(page, sourceId);
@@ -179,6 +210,7 @@ test('Gantt relationpopover bewaart gekozen type en lag als één relatie', asyn
     { name: 'Bewaren bron', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
     { name: 'Bewaren doel', start: '2026-09-21', finish: '2026-09-25', durationDays: 5 },
   ]);
+  await showRelationBars(page, [sourceId, targetId]);
   const before = await state(page);
   const source = await barPoint(page, sourceId);
   const target = await barPoint(page, targetId);
@@ -233,7 +265,7 @@ test('Gantt pointer priority: Ctrl op een balk selecteert zonder drag', async ({
   expect(after.undoDepth).toBe(before.undoDepth);
 });
 
-test('Gantt pointer priority: alleen tree mode maakt van een kale tabelrij een rowdrag', async ({ page, ops: _ops }) => {
+test('Gantt pointer priority: buiten tree mode start een kale DOM-rij geen rowdrag', async ({ page, ops: _ops }) => {
   const [firstId, secondId, thirdId] = await seedProject(page, [
     { name: 'Niet-tree C', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
     { name: 'Niet-tree A', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
@@ -245,14 +277,15 @@ test('Gantt pointer priority: alleen tree mode maakt van een kale tabelrij een r
   const before = await state(page);
   const source = await tableRowPoint(page, secondId);
   const target = await tableRowPoint(page, firstId);
+  const targetRow = tableRow(page, firstId);
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
   await page.mouse.move(target.x, target.y, { steps: 4 });
-  await expect(page.getByTestId('box-select-rect')).toBeVisible();
+  await expect(targetRow).not.toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await expect(page.getByTestId('box-select-rect')).toHaveCount(0);
   await page.mouse.up();
 
-  await expect.poll(() => state(page).then(s => s.selectedTaskIds.length)).toBeGreaterThan(1);
   const after = await state(page);
   expect(after.tasks.map(task => task.id)).toEqual([firstId, secondId, thirdId]);
   expect(after.undoDepth).toBe(before.undoDepth);
@@ -322,10 +355,12 @@ test('Gantt pointer priority: Escape annuleert row- en boxgesture zonder mutatie
   const before = await state(page);
 
   const rowStart = await tableRowPoint(page, ids[0]);
-  const rowEnd = await tableRowPoint(page, ids[1], 10);
+  const rowTarget = tableRow(page, ids[1]);
+  const rowEnd = await tableRowPoint(page, ids[1], 'after');
   await page.mouse.move(rowStart.x, rowStart.y);
   await page.mouse.down();
   await page.mouse.move(rowEnd.x, rowEnd.y, { steps: 4 });
+  await expect(rowTarget).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.keyboard.press('Escape');
   await page.mouse.up();
 

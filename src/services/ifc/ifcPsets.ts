@@ -11,7 +11,7 @@ import type {
  *
  *  - `PSET`: elke pset-NAAM als gedeelde constante. Writer én reader importeren die; nergens staat
  *    nog een los `'OPS_...'`-literal in de code (alleen in prozacommentaar).
- *  - `PER_TASK_PSETS`: de ACHT per-taak-psets die exact hetzelfde stramien volgen
+ *  - `PER_TASK_PSETS`: de per-taak-psets die exact hetzelfde stramien volgen
  *    (Constraints/ExternalLink/Hammock/Milestone/Leveling/TaskNotes/TaskAppearance/Analysis). Hun
  *    write- én read-kant zijn hier GECO-LOKEERD in één descriptor: `write(task)` levert de
  *    property-lijst (of `null`/`[]` = golden rule ⇒ niets schrijven), `apply(task, props)` zet de
@@ -29,7 +29,9 @@ import type {
  * importeren úit dit bestand).
  */
 export const PSET = {
-  // Per-taak (de acht met een descriptor in PER_TASK_PSETS).
+  // Per-taak (met een descriptor in PER_TASK_PSETS).
+  /** Stabiel intern taak-id voor externe bronverversing over herhaald lezen en herschrijven heen. */
+  TaskIdentity: 'OPS_TaskIdentity',
   Constraints: 'OPS_Constraints',
   ExternalLink: 'OPS_ExternalLink',
   Hammock: 'OPS_Hammock',
@@ -134,6 +136,18 @@ const CONSTRAINT_VALID: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNE
  * dispatcht op naam en is volgorde-ongevoelig.
  */
 export const PER_TASK_PSETS: PerTaskPset[] = [
+  // 0. Stabiele taakidentiteit. De reader consumeert deze property al vóór `extractTasks`, omdat
+  //    relaties en alle latere psets meteen het definitieve taak-id nodig hebben. `apply` is daarom
+  //    bewust een no-op; de descriptor blijft wél de enige bron voor naam en schrijfvorm.
+  {
+    name: PSET.TaskIdentity, psetSeed: 'pset_tid_', relSeed: 'rel_tid_',
+    write(task) {
+      return [{ name: 'InternalTaskId', value: `IFCTEXT(${ifcStr(task.id)})` }];
+    },
+    apply() {
+      // Al toegepast door extractTaskIdentityByStepId vóór de taakobjecten worden gebouwd.
+    },
+  },
   // 1. Fase 2.3/2.9 — datum-constraint (+ harde pin + secundaire, P6-native soft) + deadline. IfcTaskTime
   //    heeft geen constraint-/deadline-slots. ASAP (default) wordt niet geschreven.
   {
@@ -419,6 +433,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       const isValidContour = (c: unknown): c is TaskTimephasedContour =>
         !!c && typeof c === 'object'
         && (typeof (c as TaskTimephasedContour).resourceUid === 'number' || (c as TaskTimephasedContour).resourceUid === null)
+        // Contour-engine (2026-09): optioneel OPS-resource-id; afwezig blijft geldig (Z14b-bestanden).
+        && ((c as TaskTimephasedContour).resourceId === undefined || typeof (c as TaskTimephasedContour).resourceId === 'string')
         && Array.isArray((c as TaskTimephasedContour).periods)
         && (c as TaskTimephasedContour).periods.every(isValidPeriod);
       for (const { name, value } of props) {

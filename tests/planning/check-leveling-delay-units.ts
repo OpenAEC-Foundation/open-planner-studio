@@ -14,6 +14,7 @@ import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -187,11 +188,12 @@ S().newProject();
 for (const n of [...S().ui.notifications]) S().dismissNotification(n.id);
 const idW = S().addTask({ name: 'W' });
 S().updateTask(idW, { levelingDelayElapsed: true }); // UITSLUITEND het elapsed-veld
-const undoDepthBeforeW = S().undoStack.length;
+const undoDepthBeforeW = historyDepthsForActiveScope(S()).undoDepth;
 S().clearLeveling();
 eq('clearLeveling wist levelingDelayElapsed ook als het het ENIGE sub-dag-veld is',
   S().tasks.find(t => t.id === idW)!.levelingDelayElapsed, undefined);
-ok('clearLeveling pusht een undo-snapshot (geen stille no-op)', S().undoStack.length > undoDepthBeforeW);
+ok('clearLeveling pusht een undo-snapshot (geen stille no-op)',
+  historyDepthsForActiveScope(S()).undoDepth > undoDepthBeforeW);
 eq('en meldt het verlies (eerste keer voor dit document)',
   S().ui.notifications.filter(n => n.messageKey === notifKey).length, 1);
 

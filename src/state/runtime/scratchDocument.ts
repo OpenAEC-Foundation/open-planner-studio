@@ -3,10 +3,20 @@
  * Draai een bewerking op een SLAPENDE documentpayload in een eigen, headless storecontext.
  *
  * Waarom niet gewoon de payload spreaden zoals `recalculateStaleSleepingDocuments` doet: die route
- * omzeilt `beginUndoable` en moet `MAX_UNDO`-trimming en coalescing zelf naborgen. Hier draaien de
- * ECHTE acties op een echte context, dus het documentcontract, de undo-semantiek en de
- * transactie-runtime gelden vanzelf — en dat is precies wat "alles terugdraaien" (taak 6) nodig
- * heeft: een échte undo-stap op de eigen stack van dat document.
+ * doet de bewerking na in plaats van hem uit te voeren. Hier draait de ECHTE actie op een echte
+ * context — `applyLeveling` met zijn M10-strip, `finishMutation({ stale: true })`, de aansluitende
+ * `runCPM` en de meldingen die daaruit komen — dus het documentcontract en de transactie-runtime
+ * gelden vanzelf, en de uitkomst is per constructie dezelfde als wanneer de gebruiker het document
+ * eerst had geactiveerd.
+ *
+ * WAT DEZE CONTEXT NIET LEVERT (aangepast na de merge met main — sessiehistorie, 2026-09-04). In de
+ * eerste opzet was de undo-stap zélf de opbrengst: undo/redo was toen een `undoStack` PER document,
+ * dus de scratch-context liet de terug-te-draaien stap gewoon in de payload achter. Undo/redo is nu
+ * één app-globale sessiechronologie (`AppState.historyEvents`), en die van een scratch-context wordt
+ * met de context weggegooid. De aanroeper registreert het history-event daarom zelf in de ECHTE
+ * store — zie `librarySlice`'s `applyDistribution`, dat de payload van vóór en ná deze run met
+ * `snapshotOfPayload` tot één `document-data`-delta maakt. Deze functie levert dus uitsluitend de
+ * nieuwe payload en de meldingen; de historie is de verantwoordelijkheid van de aanroeper.
  *
  * Twee singleton-randen staan dicht (spec §5):
  *  (a) host-events — de context wordt met `emitHostEvents: false` gebouwd, zodat extensies geen

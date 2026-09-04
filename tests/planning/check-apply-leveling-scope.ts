@@ -13,6 +13,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task, TaskSplitGap } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -92,9 +93,12 @@ console.log('-- apply-leveling-scope: deel 3, clearLeveling wist ook leveling-ga
   eq('setup: E draagt nu twee gaten, geen delay', S().tasks.find(t => t.id === idE)?.splitGaps?.length, 2);
   eq('setup: E heeft geen levelingDelay', S().tasks.find(t => t.id === idE)?.levelingDelay, undefined);
 
-  const undoDepthBefore = S().undoStack.length;
+  // Sessiehistorie (aangepast na merge met main, 2026-09-04): de undo-diepte van het ACTIEVE
+  // document is `historyDepthsForActiveScope().undoDepth` — de per-document `undoStack` bestaat niet
+  // meer.
+  const undoDepthBefore = historyDepthsForActiveScope(S()).undoDepth;
   S().clearLeveling();
-  const undoDepthAfter = S().undoStack.length;
+  const undoDepthAfter = historyDepthsForActiveScope(S()).undoDepth;
   const tE = S().tasks.find(t => t.id === idE);
   eq('clearLeveling wist het leveling-gat', tE?.splitGaps?.length, 1);
   eq('en laat de importsplit staan', tE?.splitGaps?.[0]?.source, undefined);

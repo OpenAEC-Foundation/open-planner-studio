@@ -1,3 +1,5 @@
+// Toelichting bij dit contract (stappen, routes, "waar het echt staat"): docs/ifc-round-trip.md.
+//
 // IFC-ROUND-TRIP-CONTRACT (fase 3, eerste helft van P11 uit docs/superpowers/modulariteit-audit.md,
 // bevinding A2/F2). IFC 4.3 is het NATIVE bestandsformaat: opslaan = writeIFC, laden = readIFC. Het
 // impliciete contract "alle domeindata moet door de IFC-laag round-trippen" had géén test — twee
@@ -22,8 +24,9 @@
 //           `canon` voor de meting.
 //      Beide leunen op tests/planning/tsconfig.check.json, want de hoofd-tsconfig sluit tests/ uit.
 //   3. writeIFC(fixture) → readIFC → diepe, veld-voor-veld-vergelijking van de HELE ImportResult.
-//      Gegenereerde ids (task/resource/sequence/kalender regenereren bij inlezen) worden
-//      genormaliseerd via NATUURLIJKE SLEUTELS (wbsCode/naam) i.p.v. letterlijk vergeleken; alle
+//      Gegenereerde ids (project/resource/sequence/kalender regenereren bij inlezen) worden
+//      genormaliseerd via NATUURLIJKE SLEUTELS (wbsCode/naam) i.p.v. letterlijk vergeleken; taak-id's
+//      hebben daarnaast een expliciet stabiliteitscontract voor externe bronverversing; alle
 //      kruisverwijzingen (parentId/childIds/pred/succ/calendarId/taskId/resourceId/activityCodes)
 //      worden naar die sleutels herschreven. Datum-normalisaties (het 07:00-anker) round-trippen
 //      naar dag-datums en zijn in de fixture al in dag-vorm gekozen.
@@ -54,7 +57,7 @@
 //   vergelijking het verschil ook echt kan zien. IFCWORKPLAN.StartTime/FinishTime blijft de
 //   AFGELEIDE plan-omvang dragen. Zie blok (4) onderaan voor leeg-geval en legacy-terugval.
 //   Overige bewuste (b)-normalisaties die de fixture al in genormaliseerde vorm kiest (dus GEEN
-//   afwijking geven): ids regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
+//   afwijking geven): niet-taak-id's regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
 //   ASAP-constraint niet geschreven, shift FIRST→undefined,
 //   lagUnit WORKTIME→undefined, curve UNIFORM→undefined, progressMode RETAINED_LOGIC→undefined,
 //   dag-duren integer, priority 500 niet geschreven.
@@ -137,7 +140,7 @@ const projCal = {
   workingExceptions: [],
   generation: PROJ_GEN, shift: 'SECOND',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-projcal', poolVersion: 4 },
-} satisfies Omit<Required<WorkCalendar>, 'workTime'>;
+} satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 const libCal = {
   id: 'libcal', name: 'Sublokatie kalender', description: 'Ma-za 07-15',
   workDays: [1, 2, 3, 4, 5, 6], workStartHour: 7, workEndHour: 15, hoursPerDay: 8,
@@ -148,7 +151,7 @@ const libCal = {
   ],
   generation: LIB_GEN, shift: 'THIRD',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-libcal', poolVersion: 4 },
-} satisfies Omit<Required<WorkCalendar>, 'workTime'>;
+} satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 
 // Type-only VOLLEDIGHEIDSGETUIGE voor WorkCalendar: `workTime` aanwezig ⇒ UUR-kalender, wat de
 // dag-modus-round-trip zou ontsporen (durationMinutes/echte tijden). De veld-volledigheid van
@@ -158,6 +161,7 @@ const libCal = {
 const _CALENDAR_FIELD_WITNESS = {
   id: 'w', name: 'w', description: 'w', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30,
   workingExceptions: [{ name: 'w', startDate: '2026-01-01', endDate: '2026-01-01', bands: [{ start: 0, end: 60 }] }],
   generation: PROJ_GEN, shift: 'FIRST',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-witness', poolVersion: 1 },
@@ -343,6 +347,8 @@ const A1 = {
   // Z14: round-tript sinds OPS_Timephased — zie de KEEP-cel in ASSIGNMENT_CANON hieronder. Nog
   // ONGEVULD door de mpp-lezer (Z8, aparte taak); dit test alleen de opslag-/round-trip-laag.
   workWindowStart: '2026-07-06', workWindowFinish: '2026-07-08',
+  // Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI) reist in hetzelfde JSON-pset mee.
+  curveValues: [0, 1.3, 2.5, 3.8, 5.1, 7.6, 10.1, 7.6, 5.1, 3.8, 2.5, 2.5, 2.5, 3.8, 5.1, 7.6, 10.1, 7.6, 5.1, 3.8, 2.5],
 } satisfies Required<ResourceAssignment>;
 const assignments: ResourceAssignment[] = [
   A1,
@@ -477,6 +483,8 @@ const CALENDAR_CANON = {
   name: KEEP, description: KEEP,
   workDays: { get: (c: WorkCalendar) => [...c.workDays] },
   workStartHour: KEEP, workEndHour: KEEP, hoursPerDay: KEEP,
+  simpleBreakStartMinute: { skip: 'optioneel scalar-pauzepatroon; gedekt door check-calendar-breaks.ts' },
+  simpleBreakDurationMinutes: { skip: 'optioneel scalar-pauzepatroon; gedekt door check-calendar-breaks.ts' },
   holidays: {
     get: (c: WorkCalendar, k: Keys) => [...c.holidays]
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -596,6 +604,8 @@ const ASSIGNMENT_CANON = {
   // (ifcWriter.writeTimephasedMeta / ifcReader.extractAssignments) — echte KEEP-vergelijking.
   // Nog ONGEVULD door de mpp-lezer (Z8, aparte taak) — dit is puur de opslag-/round-trip-laag.
   workWindowStart: KEEP, workWindowFinish: KEEP,
+  // Contour-engine (2026-09): `curveValues` in hetzelfde `OPS_Timephased`-pset — echte KEEP.
+  curveValues: KEEP,
 } satisfies CanonSpec<ResourceAssignment>;
 
 const PROJECT_CANON = {
@@ -721,7 +731,8 @@ function collectDiffs(path: string, a: unknown, b: unknown, out: string[]): void
 // (1) Round-trip + veld-voor-veld. `expected` = de fixture met de bewuste (b)-normalisaties die het
 //     canon-model niet al dekt: de projectkalender-entry uit de bibliotheek filteren (writer dedupt).
 const expectedInput: ImportResult = { ...fixture, resourceCalendars: (fixture.resourceCalendars ?? []).filter(c => c.id !== fixture.project.calendarId) };
-const rt1 = readIFC(writeIFC(fixture));
+const firstIfc = writeIFC(fixture);
+const rt1 = readIFC(firstIfc);
 const rt2 = readIFC(writeIFC(rt1));
 
 {
@@ -736,6 +747,23 @@ const rt2 = readIFC(writeIFC(rt1));
   // dan zakt "datums zoals opgeslagen" stil terug op herberekenen, met een verder groene suite.
   assert(rt1.tasks.every(t => (rt1.recordedFields?.[t.id] ?? []).length === ALL_RECORDED_SLOT_KEYS.length),
     '(1b) een door OPS zelf geschreven bestand moet ALLE negen slots (7 rekenslots + 2 invoerslots) als aanwezig melden');
+}
+
+// (1c) Externe relaties bewaren het taak-id uit een geparseerd bronbestand. Daarom moet hetzelfde
+// fysieke IFC-bestand bij iedere parse dezelfde taak-id's leveren, en moeten die id's ook na
+// openen→opnieuw opslaan stabiel blijven. Alleen canonieke inhoud vergelijken (de oudere test)
+// merkt deze breuk niet: WBS/naam blijven gelijk terwijl refreshExternalAnchors de taak mist.
+{
+  const sameFileAgain = readIFC(firstIfc);
+  const idsByWbs = (r: ImportResult) => Object.fromEntries(r.tasks.map(task => [task.wbsCode, task.id]));
+  assert(JSON.stringify(idsByWbs(rt1)) === JSON.stringify(idsByWbs(sameFileAgain)),
+    '(1c) twee parses van hetzelfde IFC-bestand moeten dezelfde taak-id per WBS leveren');
+  assert(JSON.stringify(idsByWbs(rt1)) === JSON.stringify(idsByWbs(rt2)),
+    '(1c) openen en opnieuw opslaan mag taak-id\'s voor externe bronverversing niet veranderen');
+  assert(rt1.project.id === sameFileAgain.project.id,
+    '(1c) twee parses van hetzelfde IFC-bestand moeten hetzelfde project-id leveren');
+  assert(rt1.project.id === rt2.project.id,
+    '(1c) openen en opnieuw opslaan mag het project-id voor externe bronverversing niet veranderen');
 }
 
 // (2) Idempotentie: tweede round-trip byte-stabiel t.o.v. de eerste (normalisatie is stabiel).
@@ -863,8 +891,8 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(!!origGuid, 'kon het eerste GlobalId in de TaskGuids-map niet uitlezen');
   const tampered = ifc.replace(mapLine, mapLine.replace(origGuid!, otherGuid));
   const rtTampered = readIFC(tampered);
-  // NB: `readIFC` genereert per leesbeurt NIEUWE taak-id's, dus vergelijken met een id uit een
-  //     eerdere leesbeurt kan niet — we identificeren de doeltaak op naam binnen dezelfde beurt.
+  // Identificeer de doeltaak op naam binnen dezelfde beurt; de gemanipuleerde map hoort die taak
+  // nog steeds als baseline-doel aan te wijzen, onafhankelijk van het stabiliteitscontract erboven.
   const otherInTampered = rtTampered.tasks.find(t => t.name === other.name)!;
   assert(rtTampered.baselines![0].tasks.some(bt => bt.taskId === otherInTampered.id),
     'de reader moet de expliciete TaskGuids-map volgen, niet de hash herberekenen (B8-ontkoppeling)');
@@ -1429,9 +1457,10 @@ const rt2 = readIFC(writeIFC(rt1));
 //      `actualFinish`/`remainingTime`/`remainingMinutes`. `mergeTaskTime` gebruikt voor die 9 velden
 //      nu de SLEUTEL-AANWEZIGHEID-conventie (`'veld' in partial ? partial.veld : base.veld`) i.p.v.
 //      een waarde-check — dat is de enige vorm die "bewust gewist" (sleutel aanwezig, `undefined`)
-//      kan onderscheiden van "nooit genoemd" (sleutel afwezig). `TaskDialog.tsx` is aangepast van
-//      `delete time.durationMinutes` naar `time.durationMinutes = undefined`, want een `delete` laat
-//      de sleutel weer verdwijnen vóórdat de merge 'm ziet.
+//      kan onderscheiden van "nooit genoemd" (sleutel afwezig). De dagmodus in `TaskDialog.tsx`
+//      gebruikt daarom `time.durationMinutes = undefined`; de mijlpaalroute levert dezelfde
+//      expliciet aanwezige undefined-sleutel via de gedeelde `taskMilestoneTransition`, want een
+//      `delete` laat de sleutel weer verdwijnen vóórdat de merge 'm ziet.
 //        (10a) `mergeTaskTime` in isolatie — alle 9 optionele velden, beide scenario's.
 //        (10b) het reviewer-scenario op alle drie de update-paden (taskSlice/draft/api.data).
 //        (10c) de clear-conventie op store-niveau (TaskDialog-stijl payload).
@@ -1630,19 +1659,32 @@ const rt2 = readIFC(writeIFC(rt1));
   // mutatiebewijs op TaskDialog.tsx's eigen bronregels.
 }
 
-// (10d) TaskDialog.tsx-bronguard: geen `delete time.durationMinutes` meer. De gewone duurwijziging
-//       loopt nu via de gedeelde TaskDurationField en heeft een echte browsertest; alleen de
-//       mijlpaal-tak wist hier nog rechtstreeks de minutenbron.
+// (10d) Gedeelde UI-bronguard: de dialoog delegeert duurmutaties aan TaskDurationField; die wist
+//       dagmodus expliciet. De mijlpaalroute gebruikt de gedeelde transitie die dezelfde aanwezige
+//       undefined-sleutel levert. Dit repo heeft geen React-rendertest-harnas, dus dit is een
+//       bewuste, lichte bronvorm-check naast de gedragschecks voor de gedeelde helpers.
 {
   const taskDialogPath = join(HERE, '..', '..', 'src', 'components', 'dialogs', 'TaskDialog.tsx');
   const src = readFileSync(taskDialogPath, 'utf8');
+  const taskDurationFieldPath = join(HERE, '..', '..', 'src', 'components', 'task-sections', 'TaskDurationField.tsx');
+  const taskDurationFieldSource = readFileSync(taskDurationFieldPath, 'utf8');
+  const milestoneTransitionPath = join(HERE, '..', '..', 'src', 'engine', 'taskMilestoneTransition.ts');
+  const milestoneTransitionSource = readFileSync(milestoneTransitionPath, 'utf8');
   assert(!src.includes('delete time.durationMinutes'),
     '(10d) TaskDialog.tsx mag geen `delete time.durationMinutes` meer bevatten (zou de merge-sleutel weer laten verdwijnen)');
-  const assignCount = (src.match(/time\.durationMinutes = undefined;/g) ?? []).length;
+  assert(src.includes('<TaskDurationField'),
+    '(10d) TaskDialog.tsx moet duurmutaties aan het gedeelde TaskDurationField delegeren');
+  const assignCount = (taskDurationFieldSource.match(/time\.durationMinutes = undefined;/g) ?? []).length;
   assert(assignCount === 1,
-    `(10d) TaskDialog.tsx moet precies 1× \`time.durationMinutes = undefined;\` bevatten (mijlpaal-tak; gewone duur loopt gedeeld) — kreeg ${assignCount}`);
+    `(10d) TaskDurationField.tsx moet de dagmodus precies 1× met \`time.durationMinutes = undefined;\` wissen — kreeg ${assignCount}`);
+  assert(src.includes('taskMilestoneTransition(editingTask, draft.isMilestone)'),
+    '(10d) TaskDialog.tsx moet de gedeelde mijlpaaltransitie gebruiken');
+  assert(/durationMinutes:\s*undefined/.test(milestoneTransitionSource),
+    '(10d) de gedeelde mijlpaaltransitie moet durationMinutes met een aanwezige undefined-sleutel wissen');
 
-  // Mutatiebewijs: de resterende toewijzing naar `delete` veranderen maakt beide checks rood.
+  // De gedragsmatrix in check-task-grid-editors.ts bewijst daarnaast aan/uit/no-op en behoud van
+  // geïmporteerde mijlpalen-met-duur; de browsertest dekt de gedeelde duurinvoer en deze broncheck
+  // bewaakt aanvullend dat de dialoog ook voor mijlpalen dezelfde domeintransitie gebruikt.
 }
 
 // (10e) mspdiWriter.ts-vangnet: een kunstmatig-kapotte `time.completion` mag geen "NaN" in de

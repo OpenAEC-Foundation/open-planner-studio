@@ -20,7 +20,7 @@ store.getState().undo();
 
 // --- 1) Geneste 3-niveau-WBS in één call, tempId-parents in husselvolgorde --------------------------
 test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle tempIds', () => {
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   let map = new Map<string, string>();
   const res = runInMcpTransaction(() => {
@@ -33,7 +33,7 @@ test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle 
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'één transactie-snapshot (bulk = één undo-stap)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot (bulk = één undo-stap)');
   assertEq(map.size, 3, 'de map hoort álle drie de tempIds te bevatten');
 
   const idA = map.get('a')!;
@@ -55,7 +55,7 @@ test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle 
 // --- 2) Onbekende parentId ⇒ throw VÓÓR mutatie, byte-identieke rollback ----------------------------
 test('draft.addTasks onbekende parentId ⇒ transactie faalt schoon (store byte-identiek)', () => {
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeLen = store.getState().undoStack.length;
+  const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     draft.addTasks([
@@ -67,7 +67,7 @@ test('draft.addTasks onbekende parentId ⇒ transactie faalt schoon (store byte-
   assert(!res.ok, 'transactie hoort te falen op de onbekende parentId');
   assert(!res.ok && res.error.includes('bestaat-niet-en-geen-tempid'), 'de foutmelding hoort de boosdoener te noemen');
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'store-inhoud onaangeroerd (nul taken aangemaakt)');
-  assertEq(store.getState().undoStack.length, beforeLen, 'undoStack onaangeroerd na rollback');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack onaangeroerd na rollback');
   assert(!store.getState().tasks.some((t) => t.name === 'goed'), 'ook de geldige taak mag NIET zijn aangemaakt (pre-check vóór aanmaak)');
 });
 

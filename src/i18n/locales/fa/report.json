@@ -17,9 +17,13 @@
   "showLegend": "راهنما",
   "showTaskNames": "نام وظایف روی نوارها",
   "showCompletion": "نمایش پیشرفت",
+  "truncateTaskNames": "کوتاه‌سازی نام وظایف",
+  "taskNameColumnWidthLabel": "ستون نام:",
+  "taskNameColumnWidthHint": "ستون نام با بلندترین نام وظیفه تنظیم می‌شود",
   "showBaselineOverlay": "نمایش هم‌پوشانی خط مبنا",
   "autoFit": "تنظیم خودکار روی کاغذ",
   "zoom": "بزرگنمایی:",
+  "previewQuality": { "label": "کیفیت پیش‌نمایش", "standard": "استاندارد", "high": "بالا", "maximum": "حداکثر" },
   "repeatHeader": "تکرار سرصفحه در هر صفحه",
   "reportFontScaleLabel": "اندازه قلم:",
   "timelineColumnsLabel": "خط زمانی روی:",
@@ -52,7 +56,6 @@
     "categoriesMore_other": "… و {{count}} دسته دیگر"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "نام وظیفه",
     "start": "شروع",

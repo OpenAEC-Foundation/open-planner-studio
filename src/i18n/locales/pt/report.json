@@ -17,9 +17,13 @@
   "showLegend": "Legenda",
   "showTaskNames": "Nomes de tarefas nas barras",
   "showCompletion": "Mostrar conclusão",
+  "truncateTaskNames": "Truncar nomes de tarefas",
+  "taskNameColumnWidthLabel": "Coluna de nome:",
+  "taskNameColumnWidthHint": "A coluna de nome adapta-se ao nome de tarefa mais longo",
   "showBaselineOverlay": "Mostrar sobreposição da linha de base",
   "autoFit": "Ajustar ao papel automaticamente",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Qualidade da pré-visualização", "standard": "Padrão", "high": "Alta", "maximum": "Máxima" },
   "repeatHeader": "Repetir cabeçalho em cada página",
   "reportFontScaleLabel": "Tamanho da fonte:",
   "timelineColumnsLabel": "Cronograma em:",
@@ -54,7 +58,6 @@
     "categoriesMore_other": "… e {{count}} outras categorias"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Nome da tarefa",
     "start": "Início",

@@ -18,7 +18,6 @@
 // memo-grens kan een renderlus opleveren. Die faalmodus ziet geen enkele headless test. Door alleen
 // de INHOUD te verplaatsen is de hook-graaf per constructie ongewijzigd.
 import type { Task } from '@/types/task';
-import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
 import { buildBaselineOverlay, type BaselineOverlay } from '@/types/baseline';
@@ -27,60 +26,28 @@ import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
-import type { TraceMode } from '@/state/slices/types';
-import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, parseDate } from '@/utils/dateUtils';
+import { resolveTaskFinish } from '@/utils/ganttViewport';
 
 /** Overlay-datums uit de actieve baseline, keyed op Task.id. */
 export { buildBaselineOverlay };
 export type { BaselineOverlay };
-/** Path-tracing-bundel zoals de renderer hem verwacht. */
-export type GanttTrace = NonNullable<GanttRenderOptions['trace']>;
-
-/**
- * Overlay-map uit de actieve baseline. `undefined` (geen actieve baseline, of een id dat niet meer
- * bestaat) betekent voor de renderer: teken geen baseline-schaduwen.
- */
-/**
- * Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
- * driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
- */
-export function buildTrace(
-  traceMode: TraceMode,
-  selectedTaskIds: string[],
-  sequences: Sequence[],
-  cpmResult: CPMResult | null | undefined,
-): GanttTrace | undefined {
-  if (traceMode === 'off' || selectedTaskIds.length === 0) return undefined;
-  const focusId = selectedTaskIds[0];
-  const drivingIds = cpmResult && !cpmResult.error
-    ? new Set(cpmResult.drivingSequenceIds)
-    : undefined;
-  const tr = traceFrom(focusId, sequences, drivingIds);
-  return {
-    focusId,
-    predecessors: traceMode !== 'successors' ? [...tr.predecessors] : [],
-    drivingPredecessors: traceMode !== 'successors' ? [...tr.drivingPredecessors] : [],
-    successors: traceMode !== 'predecessors' ? [...tr.successors] : [],
-    drivenSuccessors: traceMode !== 'predecessors' ? [...tr.drivenSuccessors] : [],
-  };
-}
 
 export interface SharedAxisInput {
   calendar: WorkCalendar;
   compressNonWorkdays: boolean;
   /** ISO-datum van de EFFECTIEVE oorsprong (`computeEffectiveViewStart`), niet `view.viewStartDate`. */
   viewStartDate: string;
-  taskTableWidth: number;
+  chartOriginX: number;
   zoom: number;
   scrollX: number;
 }
 
 /**
  * Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): ÉÉN gedeelde `GanttAxis`-instantie voor de
- * primaire Gantt-pane ÉN de Histogram (zelfde `taskTableWidth`/`effectiveView`, dus zelfde
+ * primaire Gantt-pane ÉN de Histogram (zelfde `chartOriginX`/`effectiveView`, dus zelfde
  * kolomindeling) — anders schuiven de resource-staafjes onder de verkeerde kolommen zodra de as
  * gecomprimeerd is.
  *
@@ -94,16 +61,21 @@ export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
     calendar: engine,
     compressNonWorkdays: input.compressNonWorkdays,
     origin: parseDate(input.viewStartDate),
-    taskTableWidth: input.taskTableWidth,
+    chartOriginX: input.chartOriginX,
     zoom: input.zoom,
     scrollX: input.scrollX,
   });
 }
 
 /**
- * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom/taskTableWidth, zodat
+ * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom, zodat
  * dezelfde span ook voor het secundaire split-view-venster (eigen zoom, geen taaktabel) gebruikt
  * kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
+ *
+ * Finish-keten via {@link resolveTaskFinish} (`ganttViewport.ts`) — dezelfde functie als
+ * `computeFitToProject`, inclusief de terugval op de start. Zonder die terugval kon een taak met
+ * alleen een start wél meetellen voor de Ctrl+0-fit maar niet voor deze contentbreedte, waardoor de
+ * fit naar een positie buiten `maxScrollX` kon zoomen.
  */
 export function computeContentSpanDays(
   tasks: Task[],
@@ -115,7 +87,7 @@ export function computeContentSpanDays(
   if (tasks.length === 0 && navigationEndDates.length === 0) return null;
   let maxDays = 365;
   for (const task of tasks) {
-    const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
+    const end = resolveTaskFinish(task.time);
     if (end) {
       // Issue #21 punt 5 (fase 2, §10.2 eenheden-consistentie): bij compressie telt de
       // contentbreedte in WERKDAG-eenheden (`axis.daySpan`) i.p.v. kalenderdagen — anders is de
@@ -137,15 +109,14 @@ export function computeContentSpanDays(
   return maxDays;
 }
 
-/** Contentbreedte (px) van een tijdvenster met de gegeven zoom en tabelbreedte. */
+/** Contentbreedte (px) van een tijdlijnvenster met de gegeven zoom. */
 export function computeContentWidth(
   contentSpanDays: number | null,
   zoom: number,
-  tableWidth: number,
 ): number {
   return contentSpanDays === null
     ? 2000
-    : Math.max(2000, (contentSpanDays * 1.2) * zoom + tableWidth);
+    : Math.max(2000, (contentSpanDays * 1.2) * zoom);
 }
 
 /**

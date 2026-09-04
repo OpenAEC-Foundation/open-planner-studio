@@ -69,9 +69,21 @@ export const DURATION_DISPLAYS: DurationDisplay[] = ['auto', 'days', 'hours'];
 
 export const BAR_SPLIT_MODES: BarSplitMode[] = ['never', 'selection', 'always'];
 
-export type UITheme = 'dark' | 'light' | 'high-contrast';
+// 'system' is een VOORKEUR, geen tekenbaar thema: hij lost via `resolveUITheme`
+// (`@/utils/theme`) op naar 'dark' of 'light' op basis van `prefers-color-scheme`. Er is dus geen
+// `[data-theme="system"]`-blok in globals.css, en alles wat een thema toepast werkt met
+// `ResolvedUITheme`. 'high-contrast' blijft een expliciete keuze — het OS-kleurschema kent alleen
+// licht/donker.
+export type UITheme = 'system' | 'dark' | 'light' | 'high-contrast';
 
-export const UI_THEMES: { id: UITheme; label: string }[] = [
+/** Het thema zoals het daadwerkelijk getekend wordt — de voorkeur met 'system' al opgelost.
+ *  De volledige uitleg + `resolveUITheme` staan in `@/utils/theme`; dit alias staat hier zodat
+ *  `UI_THEMES` de systeemvoorkeur niet per ongeluk als kaart kan opnemen. */
+export type ResolvedUITheme = Exclude<UITheme, 'system'>;
+
+// Alleen de KIESBARE thema's. 'system' staat hier bewust NIET in: het is in de interface geen
+// vierde kaart maar een schakelaar onder deze drie, die ze uitgrijst zolang hij aanstaat.
+export const UI_THEMES: { id: ResolvedUITheme; label: string }[] = [
   { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light' },
   { id: 'high-contrast', label: 'High Contrast' },
@@ -110,7 +122,7 @@ export type DocumentChromeStyle = 'tabs' | 'rail' | 'switcher';
 
 export const DOCUMENT_CHROME_STYLES: DocumentChromeStyle[] = ['tabs', 'rail', 'switcher'];
 
-export type RibbonTab = 'file' | 'start' | 'planning' | 'resources' | 'relations' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report' | 'ai';
+export type RibbonTab = 'file' | 'start' | 'planning' | 'resources' | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report' | 'ai';
 
 // Backstage view (Office-style File tab full-screen) — sub-section selectie
 export type BackstageSection =
@@ -169,6 +181,10 @@ export type NotificationMessageKey =
   | 'notifications.autoSaveFailed'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
+  // Recovery-robuustheid (docs/TODO.md, "corrupt herstelbestand"): `restoreDocuments` slaat een
+  // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
+  // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
+  | 'notifications.recoveryDocumentsSkipped'
   | 'notifications.scheduleFailed'
   | 'notifications.ifcParseFailed'
   | 'notifications.templateSaved'
@@ -176,11 +192,13 @@ export type NotificationMessageKey =
   | 'notifications.relationDuplicate'
   | 'notifications.relationAncestorEndpoint'
   | 'notifications.summaryRelationsDropped'
+  | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.mppTimephasedSteeringLost'
+  | 'notifications.pasteSkippedReadOnly'
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
@@ -210,6 +228,8 @@ export interface AppNotification {
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */
 export type NotifyInput = Omit<AppNotification, 'id' | 'count'>;
+/** Een gridprepare verzamelt meldingen in deze vorm en toont ze pas ná een geslaagde commit. */
+export type DeferredNotification = NotifyInput;
 
 export interface UIState {
   showTaskDialog: boolean;
@@ -241,6 +261,10 @@ export interface UIState {
    *  alleen in Tauri gezet, maar kan overal handmatig geopend worden via Instellingen. */
   justUpdated: { from: string | null; to: string } | null;
   uiTheme: UITheme;
+  /** Session — de actuele stand van `prefers-color-scheme: dark`, bijgehouden door de
+   *  matchMedia-listener in `App.tsx`. Wordt NIET gepersisteerd (het is omgevingsstand, geen
+   *  instelling) en is alleen betekenisvol samen met `uiTheme`: zie `resolveUITheme`. */
+  systemPrefersDark: boolean;
   uiFontFamily: UIFontFamily; // persisted — interface-lettertypefamilie (issue #25.4); 'default' = stylesheet-defaults
   uiFontScale: number;        // persisted — interface-lettertypegrootte als schaalpercentage (90|100|110|125, issue #25.4)
   enableQuarterHourZoom: boolean;
@@ -287,6 +311,17 @@ export interface UIState {
    *  hoogte) — het onthoudt enkel de laatst gesleepte verdeling. Geklemd bij het laden
    *  (`settingsRegistry`) én live tijdens het slepen. */
   railPropertiesHeight: number;
+  /** session — issue #53: het Waarschuwingenpaneel (alle actieve waarschuwingen en rule-check-
+   *  fouten uit `cpmResult`/`resourceLoadResult`, klik = navigeren) staat onderin de rechter-rail,
+   *  ónder de stapel Eigenschappen/Resourcedock. Zelfde model als `showPropertiesPanel`: één
+   *  aan/uit-vlag, geen samengevouwen tussentoestand; aanzetten klapt de rail uit (`setUI`-
+   *  invariant 1b). Default uit — de statusbalk blijft de compacte ingang. */
+  showWarningsPanel: boolean;
+  /** Persisted — issue #53: hoogte in px van het Waarschuwingenpaneel (kopbalk inbegrepen) wanneer
+   *  er óók een ander railpaneel aan staat; staat alleen dit paneel aan, dan vult het de rail en is
+   *  dit veld niet van kracht. Geklemd bij het laden (`settingsRegistry`) én live tijdens het slepen
+   *  — het spiegelbeeld van `railPropertiesHeight`. */
+  railWarningsHeight: number;
   showHistogram: boolean;                   // persisted — histogramstrook onder de Gantt zichtbaar (fase 2.5)
   histogramHeight: number;                  // persisted — hoogte van de histogramstrook in px (fase 2.5)
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open (fase 2.5)

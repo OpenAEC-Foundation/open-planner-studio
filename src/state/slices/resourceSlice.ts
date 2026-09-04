@@ -1,8 +1,9 @@
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import type { TimephasedContourPeriod } from '@/types/task';
+import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
-import { finishMutation } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { clearTimephasedWindow, clearTimephasedDurationWalks, clearLevelingGaps } from '@/utils/taskDefaults';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
@@ -26,6 +27,13 @@ export interface ResourceSlice {
   /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI, §6.3). */
   updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
+  /** Contour-UI (2026-09): zet of vervang de OPGESLAGEN contour van één toewijzing
+   *  (`Task.timephasedContours`, gekoppeld via `resourceId` — `contourEngine.ts`'s
+   *  `matchContoursToAssignments`), of laat 'm los (`null` ⇒ de toewijzing valt terug op de
+   *  curve-formule). Raakt GEEN taakdatum en geen `splitGaps` (de contour verdeelt uren binnen de
+   *  bestaande duur; zie `contourEdit.ts`) — daarom geen `scheduleStale`, wél undo/`isDirty` en een
+   *  verse belasting. `null` op een toewijzing zonder contour is een no-op (geen snapshot). */
+  setAssignmentContour: (assignmentId: string, periods: TimephasedContourPeriod[] | null) => void;
   /** Verplaats een bestaande toewijzing naar een andere taak (fase 2.10, item 4): `unitsPerDay`/
    *  `curve` blijven ONGEWIJZIGD, alleen `taskId` + `resourceIds` op beide taken worden bijgewerkt.
    *  Weigert (false, geen snapshot) bij een milestone/samenvattings-doeltaak of wanneer de resource
@@ -63,7 +71,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // weergave terug op de deterministische hash — dit veld is dus puur gemak, geen vereiste.
       const color = res.color ?? nextFreePaletteColor(s.resources);
       s.resources.push({ ...res, id, color });
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
     get().recomputeResourceLoad();
@@ -85,7 +93,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (Object.keys(patch).length === 0) return;
       runtime.beginUndoable(s);
       Object.assign(s.resources[idx], patch);
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -106,7 +114,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       for (const r of s.resources) {
         if (r.parentId === id) r.parentId = undefined;
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -127,6 +135,9 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!s.resources.some(r => r.id === resourceId)) return;
       // Weigeren (bevinding 1): 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
+      // Eén resource kan per taak maar één assignment dragen. Zonder deze guard kan dezelfde
+      // invariant via de bestaande eigenschappen-/lint-route alsnog worden omzeild.
+      if (s.assignments.some(a => a.taskId === taskId && a.resourceId === resourceId)) return;
 
       runtime.beginUndoable(s);
 
@@ -146,7 +157,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `taskSlice.ts`'s `updateTask` voor de
       // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
       clearLevelingGaps(task);
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeResourceLoad();
@@ -167,10 +178,40 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (Object.keys(patch).length === 0) return;
       runtime.beginUndoable(s);
       Object.assign(s.assignments[idx], patch);
-      finishMutation(s);
+      // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
+      // geïmporteerde 21-punts curve (`curveValues`, P6/MSPDI) — anders zou het histogram de oude
+      // P6-vorm blijven tonen terwijl de dropdown de nieuwe keuze laat zien.
+      if ('curve' in patch) delete s.assignments[idx].curveValues;
+      runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
+  },
+
+  setAssignmentContour: (assignmentId, periods) => {
+    set((s) => {
+      const a = s.assignments.find(x => x.id === assignmentId);
+      if (!a) return;
+      const task = s.tasks.find(t => t.id === a.taskId);
+      if (!task) return;
+      const siblings = s.assignments.filter(x => x.taskId === a.taskId);
+      const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignmentId);
+      if (periods === null && idx < 0) return;
+      runtime.beginUndoable(s);
+      const list = task.timephasedContours ? [...task.timephasedContours] : [];
+      if (periods === null) {
+        list.splice(idx, 1);
+      } else if (idx >= 0) {
+        list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
+      } else {
+        // `resourceUid: null`: geen MS Project-herkomst — dit is een eigen verdeling van de gebruiker
+        // (`TaskTimephasedNotice` leest dat onderscheid).
+        list.push({ resourceUid: null, resourceId: a.resourceId, periods });
+      }
+      task.timephasedContours = list.length > 0 ? list : undefined;
+      runtime.finishMutation(s);
+    });
+    get().recomputeResourceLoad();
   },
 
   unassignResource: (assignmentId) => {
@@ -202,7 +243,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         // B1c-plan3 taak 3 — zie `assignResource` hierboven.
         clearLevelingGaps(removedTask);
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeResourceLoad();
@@ -261,7 +302,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (clearedNewWindow || clearedNewWalks) lostCount++;
       // B1c-plan3 taak 3 — zie `assignResource` hierboven.
       clearLevelingGaps(newTask);
-      finishMutation(s);
+      runtime.finishMutation(s);
       moved = true;
     });
     if (moved && lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
@@ -278,7 +319,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.beginUndoable(s);
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s); // houd de gedenormaliseerde projectkalender-cache in sync (§9.1).
-      finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend (§5.4).
+      runtime.finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend (§5.4).
     });
     get().recomputeResourceLoad();
   return id;
@@ -293,7 +334,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       syncProjectCalendar(s);
       // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
       const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
-      finishMutation(s, { stale: !onlyName });
+      runtime.finishMutation(s, { stale: !onlyName });
     });
     get().recomputeResourceLoad();
   },
@@ -333,7 +374,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
       }
       syncProjectCalendar(s);
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     });
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
@@ -367,7 +408,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         s.project.calendarId = calendars[0].id;
       }
       syncProjectCalendar(s);
-      finishMutation(s, { stale: true });
+      runtime.finishMutation(s, { stale: true });
     });
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();

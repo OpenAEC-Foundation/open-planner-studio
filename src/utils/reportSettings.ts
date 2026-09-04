@@ -22,7 +22,7 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
-import { REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 
 /** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
 const STORAGE_KEY = 'reportSettings';
@@ -30,6 +30,8 @@ const STORAGE_KEY = 'reportSettings';
 export type ReportType = 'gantt' | 'milestones' | 'variance';
 export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
+/** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
+export type ReportPreviewQuality = '100' | '200' | '300';
 
 export interface ReportSettings {
   reportType: ReportType;
@@ -42,6 +44,11 @@ export interface ReportSettings {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /** Taaknamen in de tabel afkappen op `taskNameColumnWidth` (aan), of de kolom aan de langste
+   *  naam laten aanpassen (uit). */
+  truncateTaskNames: boolean;
+  /** Breedte van de naamkolom (ongeschaalde px) wanneer `truncateTaskNames` aanstaat. */
+  taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
   customZoom: number;
@@ -54,6 +61,7 @@ export interface ReportSettings {
   statusLine: 'none' | 'statusDate' | 'progress';
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus (#54). */
   followView: boolean;
+  previewQuality: ReportPreviewQuality;
 }
 
 /**
@@ -71,6 +79,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   showLegend: true,
   showTaskNames: true,
   showCompletion: true,
+  truncateTaskNames: true,
+  taskNameColumnWidth: NAME_COLUMN_WIDTH_DEFAULT,
   showBaselineOverlay: false,
   autoFit: true,
   customZoom: 22,
@@ -81,6 +91,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportFontScale: 100,
   statusLine: 'none',
   followView: false,
+  previewQuality: '200',
 };
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
@@ -88,6 +99,7 @@ const REPORT_TYPES: readonly ReportType[] = ['gantt', 'milestones', 'variance'];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
+const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
@@ -144,6 +156,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     showLegend: parseBoolean(s.showLegend) ?? d.showLegend,
     showTaskNames: parseBoolean(s.showTaskNames) ?? d.showTaskNames,
     showCompletion: parseBoolean(s.showCompletion) ?? d.showCompletion,
+    truncateTaskNames: parseBoolean(s.truncateTaskNames) ?? d.truncateTaskNames,
+    taskNameColumnWidth: parseClampedInt(s.taskNameColumnWidth, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_WIDTH_MAX) ?? d.taskNameColumnWidth,
     showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,
     autoFit: parseBoolean(s.autoFit) ?? d.autoFit,
     customZoom: parseClampedInt(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
@@ -154,6 +168,9 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     reportFontScale: parseNumberChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
+    // `previewZoom` uit de kortstondige 69ad-versie wordt bewust genegeerd: de preview verandert
+    // sindsdien nooit meer van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
+    previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
   };
 }
 

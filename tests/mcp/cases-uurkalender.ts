@@ -242,14 +242,14 @@ test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangero
 
   for (const g of gevallen) {
     const voor = JSON.stringify(S().calendars);
-    const undoVoor = S().undoStack.length;
+    const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
     const item: Record<string, unknown> = { id: projId, workTime: g.workTime };
     if (g.naam === 'workTime spreekt workDays tegen') item.workDays = [1, 2, 3, 4, 5];
     const res = await call('planner_update_calendar', { calendars: [item] });
     const reden = soleRejection(res);
     assert(g.verwacht.test(reden), `[${g.naam}] onbruikbare weigeringsreden: ${reden}`);
     assertEq(JSON.stringify(S().calendars), voor, `[${g.naam}] de kalender is ONAANGEROERD gebleven`);
-    assertEq(S().undoStack.length, undoVoor, `[${g.naam}] geen undo-stap (geen transactie geopend)`);
+    assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoVoor, `[${g.naam}] geen undo-stap (geen transactie geopend)`);
     assertEq(okData(res).calendars, [], `[${g.naam}] geen enkele kalender gewijzigd`);
   }
 });
@@ -260,7 +260,7 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   S().ensureProjectCalendarInLibrary();
   addTask('Iets', 3);
   const voor = JSON.stringify(S().calendars);
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   const leeg = { byWeekday: { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] } };
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workTime: leeg }] });
   // Banden op geen enkele dag ⇒ afgeleide `workDays` is leeg ⇒ de eind-runCPM van de transactie
@@ -269,7 +269,7 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   assertEq(res.ok, false, 'de call faalt hard i.p.v. een onbruikbare kalender te committen');
   assert(/geen werkdagen/i.test((res as any).error), `begrijpelijke fout: ${(res as any).error}`);
   assertEq(JSON.stringify(S().calendars), voor, 'de kalender is volledig teruggerold');
-  assertEq(S().undoStack.length, undoVoor, 'geen achtergebleven undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoVoor, 'geen achtergebleven undo-stap');
 });
 
 test('een item met alleen afgeleide leesvelden is een no-op ⇒ zachte weigering die de velden noemt', async () => {

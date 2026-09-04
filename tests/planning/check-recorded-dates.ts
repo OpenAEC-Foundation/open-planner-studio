@@ -427,7 +427,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   useAppStore.setState((s) => { s.scheduleStale = true; });
   truthy('8e2 voorwaarde: scheduleStale staat vóór het betreden op waar', S().scheduleStale);
 
-  const undoDepthBefore = S().undoStack.length;
+  const undoDepthBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   S().showRecordedDates();
 
   eq('8f modus staat aan', S().datesAsRecorded, true);
@@ -438,25 +438,25 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   truthy('8k cpmResult is niet null', S().cpmResult !== null);
   eq('8l projectEnd komt uit het bestand', S().cpmResult?.projectEnd, '2026-03-20');
   eq('8m drivingSequenceIds is leeg (niet in IFC)', S().cpmResult?.drivingSequenceIds, []);
-  eq('8n precies één undo-stap erbij', S().undoStack.length, undoDepthBefore + 1);
+  eq('8n precies één undo-stap erbij', S().historyEvents.filter(event => event.state === 'applied').length, undoDepthBefore + 1);
   eq('8o interferingFloat gewist', S().tasks.find((t) => t.id === aId)!.time.interferingFloat, undefined);
   eq('8p isNearCritical gewist', S().tasks.find((t) => t.id === aId)!.time.isNearCritical, undefined);
   eq('8q floatPath gewist', S().tasks.find((t) => t.id === aId)!.time.floatPath, undefined);
 
   // Tweede aanroep: no-op (géén tweede undo-stap, geen wijziging).
-  const undoDepthAfterFirst = S().undoStack.length;
+  const undoDepthAfterFirst = S().historyEvents.filter(event => event.state === 'applied').length;
   S().showRecordedDates();
-  eq('8r tweede aanroep pusht geen undo-stap', S().undoStack.length, undoDepthAfterFirst);
+  eq('8r tweede aanroep pusht geen undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, undoDepthAfterFirst);
   eq('8s tweede aanroep laat de modus aan staan', S().datesAsRecorded, true);
   eq('8t tweede aanroep laat de opgeslagen datum met rust', S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16');
 
   // Zonder recordedDates (bv. na newProject()) doet de actie niets.
   S().newProject();
   eq('8u voorwaarde: newProject geeft geen recordedDates', S().recordedDates, null);
-  const undoDepthZonder = S().undoStack.length;
+  const undoDepthZonder = S().historyEvents.filter(event => event.state === 'applied').length;
   S().showRecordedDates();
   eq('8v zonder recordedDates blijft de modus uit', S().datesAsRecorded, false);
-  eq('8w zonder recordedDates geen undo-stap', S().undoStack.length, undoDepthZonder);
+  eq('8w zonder recordedDates geen undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, undoDepthZonder);
 }
 
 // ── (9) De modus verlaten (Taak 6) ───────────────────────────────────────────
@@ -481,7 +481,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('9A-4 voorwaarde: b toont weer de opgeslagen datum', earlyStartOf(bId), '2026-03-16');
   eq('9A-5 voorwaarde: planning geldt als vers vóór de bewerking', S().scheduleStale, false);
 
-  const undoVoorA = S().undoStack.length;
+  const undoVoorA = S().historyEvents.filter(event => event.state === 'applied').length;
   const aTime = S().tasks.find((t) => t.id === aId)!.time;
   // Duur van a van 5 naar 3 werkdagen: een datum-rakende bewerking (`finishMutation({ stale: true })`).
   S().updateTask(aId, { time: { ...aTime, scheduleDuration: 3 } });
@@ -489,13 +489,13 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('9A-6 een datum-rakende bewerking verlaat de modus', S().datesAsRecorded, false);
   eq('9A-7 …en wist de vastlegging', S().recordedDates, null);
   eq('9A-8 …en zet de planning op verouderd', S().scheduleStale, true);
-  eq('9A-9 …in precies één undo-stap', S().undoStack.length, undoVoorA + 1);
+  eq('9A-9 …in precies één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, undoVoorA + 1);
 
   // Wat `useExitRecordedDates` in de app doet (de hook is React en draait hier niet): één keer
   // doorrekenen. Tegelijk de invariant op deze route — de modus stond al uit, dus déze runCPM mag
   // géén tweede undo-stap opleveren.
   S().runCPM();
-  eq('9A-10 herrekenen ná het verlaten pusht geen extra undo-stap', S().undoStack.length, undoVoorA + 1);
+  eq('9A-10 herrekenen ná het verlaten pusht geen extra undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, undoVoorA + 1);
   eq('9A-11 b staat na het herrekenen op de nieuwe logische datum', earlyStartOf(bId), '2026-03-05');
 
   S().undo();
@@ -524,13 +524,13 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('9B-2 voorwaarde: b toont de opgeslagen datum', earlyStartOf(bId), '2026-03-16');
   eq('9B-3 voorwaarde: isDirty is nog false (betreden maakt niet vies)', S().isDirty, false);
 
-  const undoVoorB = S().undoStack.length;
+  const undoVoorB = S().historyEvents.filter(event => event.state === 'applied').length;
   S().runCPM();
 
   eq('9B-4 F5 verlaat de modus', S().datesAsRecorded, false);
   eq('9B-5 …en wist de vastlegging', S().recordedDates, null);
   eq('9B-6 …en rekent door: b staat weer op zijn logische datum', earlyStartOf(bId), '2026-03-09');
-  eq('9B-7 …in precies één undo-stap', S().undoStack.length, undoVoorB + 1);
+  eq('9B-7 …in precies één undo-stap', S().historyEvents.filter(event => event.state === 'applied').length, undoVoorB + 1);
 
   S().undo();
   eq('9B-8 undo na F5 herstelt de modus', S().datesAsRecorded, true);
@@ -556,9 +556,9 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   // doen" bevestigen, terwijl de assertie moet bewijzen dat een ECHTE herberekening niets pusht.
   useAppStore.setState((s) => { s.scheduleStale = true; });
 
-  const undoVoorC = S().undoStack.length;
+  const undoVoorC = S().historyEvents.filter(event => event.state === 'applied').length;
   S().runCPM();
-  eq('9C-3 runCPM buiten de modus pusht GEEN undo-snapshot', S().undoStack.length, undoVoorC);
+  eq('9C-3 runCPM buiten de modus pusht GEEN undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length, undoVoorC);
   truthy('9C-4 runCPM buiten de modus laat de vastlegging staan', S().recordedDates !== null);
   eq('9C-5 runCPM buiten de modus zet geen isDirty', S().isDirty, false);
 }
@@ -645,11 +645,11 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('10C-2 in de modus geldt de planning als vers', S().scheduleStale, false);
   truthy('10C-3 in de modus is cpmResult gevuld (de reconstructie)', S().cpmResult !== null);
 
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   const bId = idOfWbs('1.2');
   const res = ensureFreshSchedule();
   eq('10C-4 ensureFreshSchedule herrekent niet in de modus', res.recomputed, false);
-  eq('10C-5 …raakt de undo-stack niet', S().undoStack.length, undoVoor);
+  eq('10C-5 …raakt de undo-stack niet', S().historyEvents.filter(event => event.state === 'applied').length, undoVoor);
   eq('10C-6 …laat de modus staan', S().datesAsRecorded, true);
   eq('10C-7 …en laat de opgeslagen datum staan', earlyStartOf(bId), '2026-03-16');
 }
@@ -666,13 +666,13 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('10D-1 voorwaarde: modus staat aan', S().datesAsRecorded, true);
   eq('10D-2 voorwaarde: b toont de opgeslagen datum', earlyStartOf(bId), '2026-03-16');
 
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   const res = S().moveProject('2027-01-04');
   truthy('10D-3 voorwaarde: de verschuiving is écht uitgevoerd', res.moved);
 
   eq('10D-4 moveProject verlaat de modus', S().datesAsRecorded, false);
   eq('10D-5 …en wist de vastlegging', S().recordedDates, null);
-  eq('10D-6 …in precies ÉÉN undo-stap (niet twee)', S().undoStack.length, undoVoor + 1);
+  eq('10D-6 …in precies ÉÉN undo-stap (niet twee)', S().historyEvents.filter(event => event.state === 'applied').length, undoVoor + 1);
 
   S().undo();
   eq('10D-7 één undo herstelt de modus', S().datesAsRecorded, true);
@@ -746,14 +746,14 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
     loop(srcRoot);
     truthy('11b de broncontrole leest een plausibel aantal bronbestanden', bestanden.length > 100);
 
-    // Alleen `transaction.ts` mag de vlag rechtstreeks zetten; de rest gaat via `finishMutation`
+    // Alleen de bladhulp `scheduleStale.ts` mag de vlag rechtstreeks zetten; de rest gaat via `finishMutation`
     // (datum-rakende bewerkingen) of `markScheduleStale` (de niet-undoable verversingen). Beide
     // laten de vlag uit zolang "datums zoals opgeslagen" aanstaat.
-    const toegestaan = joinPath(srcRoot, 'state', 'transaction.ts');
+    const toegestaan = joinPath(srcRoot, 'state', 'scheduleStale.ts');
     const overtreders = bestanden.filter((f) =>
       f !== toegestaan && /\.scheduleStale\s*=\s*true/.test(readFileSync(f, 'utf8')));
     eq(
-      '11c `.scheduleStale = true` staat UITSLUITEND in state/transaction.ts — issue #63: buiten '
+      '11c `.scheduleStale = true` staat UITSLUITEND in state/scheduleStale.ts — issue #63: buiten '
       + '`finishMutation`/`markScheduleStale` om de vlag zetten maakt "modus aan én verouderd" weer '
       + 'bereikbaar, en dáármee kan een herberekening de modus stil verlaten zonder undo-stap '
       + '(MCP-transactie, slapende documenten, en de readOnlyHint van get_resource_histogram). '
@@ -799,31 +799,34 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   const t2 = S().addTask({ name: 'Met link naar bron B' });
   const link = (id: string, filePath: string): ExternalLink => ({
     id, direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01',
-    sourceRef: { projectId: '', taskId: 'X', filePath }, sourceMissing: false,
+    sourceRef: { projectId: 'gedeelde-bron-id', taskId: 'X', filePath }, sourceMissing: false,
   });
   S().updateTask(t1, { externalLinks: [link('l1', '/bron-a.ifc')] });
   S().updateTask(t2, { externalLinks: [link('l2', '/bron-b.ifc')] });
 
   // `parseExternalSource` leest een echt bestand via de Tauri-fs; hier vervangen we die ene actie
   // door een stub, zodat de LUS eromheen (het onderwerp van deze test) headless te meten is.
-  const brontaak = mk('X', { earlyStart: '2026-05-04', earlyFinish: '2026-05-08' });
   useAppStore.setState({
     parseExternalSource: async (filePath: string) => ({
-      projectId: `proj${filePath}`, projectName: 'Bron', filePath, tasks: [brontaak],
+      projectId: 'gedeelde-bron-id', projectName: 'Bron', filePath,
+      tasks: [mk('X', filePath === '/bron-a.ifc'
+        ? { earlyStart: '2026-05-04', earlyFinish: '2026-05-08' }
+        : { earlyStart: '2026-06-01', earlyFinish: '2026-06-05' })],
     }),
   });
 
-  const undoVoor = S().undoStack.length;
+  const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   const res = await S().refreshAllExternalAnchors();
 
   eq('12a beide bronnen zijn ingelezen', res.sources, 2);
   eq('12b beide links zijn ververst', res.refreshed, 2);
   eq('12c "Alles verversen" kost precies ÉÉN undo-stap, ongeacht het aantal bronnen',
-    S().undoStack.length, undoVoor + 1);
+    S().historyEvents.filter(event => event.state === 'applied').length, undoVoor + 1);
   eq('12d de link van bron A draagt het verse anker',
     S().tasks.find((t) => t.id === t1)!.externalLinks![0].anchorDate, '2026-05-08');
   eq('12e de link van bron B draagt het verse anker — het ketenen verliest de eerste bron niet',
-    S().tasks.find((t) => t.id === t2)!.externalLinks![0].anchorDate, '2026-05-08');
+    S().tasks.find((t) => t.id === t2)!.externalLinks![0].anchorDate, '2026-06-05');
+  eq('12e2 gelijke project-id laat iedere bron exact zijn eigen pad verversen', res.refreshed, 2);
 
   // Eén undo draait het hele gebaar terug.
   S().undo();
@@ -831,6 +834,43 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
     S().tasks.find((t) => t.id === t1)!.externalLinks![0].anchorDate, '2020-01-01');
   eq('12g één undo herstelt het anker van bron B',
     S().tasks.find((t) => t.id === t2)!.externalLinks![0].anchorDate, '2020-01-01');
+}
+
+// ── (13) Async externe verversing blijft aan het startdocument gebonden ───────────────
+{
+  S().newProject();
+  const taskA = S().addTask({ name: 'Document A' });
+  const link = (id: string, anchorDate: string): ExternalLink => ({
+    id, direction: 'predecessor', relType: 'FS', anchorDate,
+    sourceRef: { projectId: 'bron', taskId: 'X', filePath: '/bron.ifc' }, sourceMissing: false,
+  });
+  S().updateTask(taskA, { externalLinks: [link('a-link', '2026-01-01')] });
+  const documentA = S().activeDocumentId;
+  let releaseRead!: () => void;
+  const waitForRead = new Promise<void>(resolve => { releaseRead = resolve; });
+  const brontaak = mk('X', { earlyStart: '2026-03-01', earlyFinish: '2026-03-05' });
+  useAppStore.setState({
+    parseExternalSource: async (filePath: string) => {
+      await waitForRead;
+      return { projectId: 'bron', projectName: 'Bron', filePath, tasks: [brontaak] };
+    },
+  });
+
+  const refreshing = S().refreshAllExternalAnchors();
+  S().newDocument();
+  const documentB = S().activeDocumentId;
+  const taskB = S().addTask({ name: 'Document B' });
+  S().updateTask(taskB, { externalLinks: [link('b-link', '2026-02-01')] });
+  releaseRead();
+  const result = await refreshing;
+
+  eq('13a een verversing meldt na documentwissel geen mutatie in het nieuwe document', result.refreshed, 0);
+  eq('13b document B houdt zijn eigen anker',
+    S().tasks.find(task => task.id === taskB)!.externalLinks![0].anchorDate, '2026-02-01');
+  const sleepingA = S().documents.find(document => document.id === documentA)?.payload;
+  eq('13c het slapende document A wordt niet buiten zijn historygrens overschreven',
+    sleepingA?.tasks.find(task => task.id === taskA)!.externalLinks![0].anchorDate, '2026-01-01');
+  eq('13d de gebruiker blijft in document B', S().activeDocumentId, documentB);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

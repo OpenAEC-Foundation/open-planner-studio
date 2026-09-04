@@ -1,6 +1,5 @@
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { finishMutation } from '../transaction';
 import type { AppSliceFactory } from './types';
 
 export interface BaselineSlice {
@@ -43,7 +42,7 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
         projectDuration: s.cpmResult?.projectDuration ?? 0,
       });
       s.activeBaselineId = id;
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     return id;
   },
@@ -56,7 +55,7 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
       if (s.activeBaselineId === id) {
         s.activeBaselineId = s.baselines.length ? s.baselines[s.baselines.length - 1].id : null;
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     }),
 
   renameBaseline: (id, name) =>
@@ -65,7 +64,7 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
       if (!b) return;
       runtime.beginUndoable(s);
       b.name = name;
-      finishMutation(s);
+      runtime.finishMutation(s);
     }),
 
   setActiveBaseline: (id) =>
@@ -73,6 +72,6 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
       if (s.activeBaselineId === id) return;
       runtime.beginUndoable(s);
       s.activeBaselineId = id;
-      finishMutation(s);
+      runtime.finishMutation(s);
     }),
 });

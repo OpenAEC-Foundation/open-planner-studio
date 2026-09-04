@@ -5,8 +5,9 @@
  * dupliceert.
  *
  * Roep dit NA `openExampleFromString`/`applyLoadedProject` (het document moet al volledig geladen
- * zijn — `openExampleFromString` laadt bewust LOS, herkomststempels/binding zijn dus al gestript) en
- * VÓÓR `runCPM()`.
+ * en berekend zijn — `openExampleFromString` laadt bewust LOS, herkomststempels/binding zijn dus al
+ * gestript). De helper koppelt alleen resources; `linkRecognizedItems` herleidt daarna zelf de
+ * resourcebelasting en hoeft de planning niet opnieuw te draaien.
  *
  * Seedt de demo-pool idempotent, koppelt het net-geladen project eraan, en linkt automatisch elke
  * ONDUBBELZINNIGE naam-match (`computeRecognition`/`linkRecognizedItems`) — zonder het

@@ -45,6 +45,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          # De release-highlightsverifier vergelijkt de huidige tag met de
+          # vorige stabiele tag en heeft daarom tags plus volledige historie nodig.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -63,6 +67,12 @@ jobs:
       # verify:examples + verify:docs.
       - name: Verify (typecheck, testsuites, examples, docs)
         run: npm run verify
+
+      # Alleen de release-pipeline heeft gegarandeerd een stabiele tag. De
+      # highlight-cijfers worden hier daarom tegen die tagrange gevalideerd;
+      # gewone ontwikkelverificatie blijft tag-onafhankelijk.
+      - name: Verify visual release highlights
+        run: node scripts/release-highlights.mjs "${GITHUB_REF_NAME#v}"
 
       - name: Upload Playwright failure artifacts
         if: failure()

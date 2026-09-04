@@ -16,6 +16,7 @@ import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
 import { resolveDropTarget, type DropTarget } from '@/engine/view/dropTarget';
+import { shouldPromoteToRowDrag } from '@/engine/taskGrid/rowDragIntent';
 import { ROW_DRAG_THRESHOLD } from '@/components/canvas/hooks/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
 
@@ -38,7 +39,7 @@ export interface TableRowDragState {
 
 export interface UseTableRowDragOptions {
   /** De VOLLEDIGE `viewRows` (inclusief groepsrijen) — `resolveDropTarget` indexeert hierin. */
-  rows: ViewRow[];
+  rows: readonly ViewRow[];
   tasksById: Map<string, Task>;
   moveTaskTo: (id: string, target: DropTarget) => void;
   /** Issue #26 (vervolgmelding): de huidige selectie. Sleep je een rij die daar deel van uitmaakt
@@ -110,8 +111,11 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     return { rowIndex, zone, target };
   }, [optionsRef]);
 
-  // Kandidaatfase: pas bij |dy| >= drempel promoveren tot een echte sleep — verticaal gebaar, dus
-  // |dy| en geen hypot, exact zoals `useRowDrag`.
+  // Kandidaatfase: pas bij |dy| >= drempel ÉN een overwegend verticale beweging promoveren tot een
+  // echte sleep. De canvas-kant mag zuiver op |dy| gaan (mousedown begint daar in de rijgutter, niet
+  // op selecteerbare tekst); hier begint mousedown middenin een celwaarde, dus zonder de
+  // asintentie-check van `shouldPromoteToRowDrag` promoveerde een horizontale tekstselectie met wat
+  // verticale muisruis onterecht tot een rijsleep (browserreview, observatie 2).
   useEffect(() => {
     if (!candidateActive) return;
 
@@ -119,7 +123,8 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       const currentCandidate = candidateRef.current;
       if (!currentCandidate) return;
       const dy = e.clientY - currentCandidate.startClientY;
-      if (Math.abs(dy) < ROW_DRAG_THRESHOLD) return;
+      const dx = e.clientX - currentCandidate.startClientX;
+      if (!shouldPromoteToRowDrag(dx, dy, ROW_DRAG_THRESHOLD)) return;
       setCandidate(null);
       // Vangnet bij het promoveren tot een echte sleep: is er tóch al een tekstselectie over de
       // rijen ontstaan (de `user-select: none` op de rijen komt pas na de render van de

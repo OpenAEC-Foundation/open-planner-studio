@@ -2,24 +2,30 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "Salvataggio automatico", "noFile": "Salva prima questo progetto per usare il salvataggio automatico.", "onHint": "Il salvataggio automatico è attivo: le modifiche vengono scritte in questo file.", "offHint": "Il salvataggio automatico è disattivato. Il recupero rimane attivo." },
   "notifications": {
     "dismiss": "Chiudi notifica",
     "openFailed": "Apertura del file non riuscita",
     "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "mppEncrypted": "Questo file .mpp è protetto da password. Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "saveFailed": "Salvataggio non riuscito",
-    "librarySaveFailed": "Impossibile salvare la libreria",
     "savedViaDownload": "Salvato come download: '{{name}}' si trova ora nella cartella dei download. Questo ambiente non consente all'applicazione di scrivere direttamente nella posizione scelta.",
     "autoSaveFailed": "Salvataggio automatico non riuscito",
     "recoveryReadFailed": "Impossibile leggere il file ripristinato",
     "recoveryRestoreFailed": "Ripristino non riuscito",
+    "recoveryDocumentsSkipped_one": "{{count}} file di ripristino non è stato caricato ed è stato ignorato.",
+    "recoveryDocumentsSkipped_many": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
+    "recoveryDocumentsSkipped_other": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "scheduleFailed": "Impossibile calcolare la programmazione",
     "ifcParseFailed": "Impossibile leggere l'IFC",
     "templateSaved": "Ramo salvato come modello '{{name}}'",
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
-    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse — vedi il pannello Relazioni per i dettagli.",
+    "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse. Controlla le colonne Predecessori e Successori.",
+    "relationsSkippedOnInsert_one": "{{count}} relazione non è stata creata: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",
+    "relationsSkippedOnInsert_many": "{{count}} relazioni non sono state create: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",
+    "relationsSkippedOnInsert_other": "{{count}} relazioni non sono state create: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",
     "mppSourceScheduleNotes_one": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Viene importata e mostrata così com'è.",
     "mppSourceScheduleNotes_many": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
     "mppSourceScheduleNotes_other": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
@@ -29,10 +35,14 @@
     "mppTimephasedSteeringLost_one": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_many": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_other": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
+    "readMore": "Ulteriori informazioni",
+    "pasteSkippedReadOnly_one": "{{count}} cella ignorata: è di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "pasteSkippedReadOnly_many": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "pasteSkippedReadOnly_other": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
+    "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "readMore": "Ulteriori informazioni"
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
   },
   "yes": "Sì",
   "no": "No",
@@ -101,6 +111,8 @@
     "themeDark": "Scuro",
     "themeLight": "Chiaro",
     "themeHighContrast": "Alto contrasto",
+    "themeFollowSystem": "Segui il tema di sistema",
+    "themeSystemHint": "Segue lo schema di colori del sistema (ora: {{theme}}).",
     "timeline": "Sequenza temporale / Zoom",
     "hourPlanningSection": "Pianificazione oraria",
     "enableHourPlanning": "Attiva pianificazione oraria",
@@ -339,13 +351,39 @@
       "sameSize": "Stessa dimensione della versione precedente",
       "daysSincePrevious": "Dalla versione precedente: {{count}} giorni",
       "currentOnly": "Stai usando la versione {{version}}",
-      "whatsNewButton": "Novità"
+      "whatsNewButton": "Novità", "newVersion": "Nuova versione", "readGuide": "Leggi la guida", "fullNotes": "Note di rilascio complete", "openFailed": "Impossibile aprire le note di rilascio.", "inNumbers": "Questo aggiornamento in numeri", "days": "giorni dalla versione precedente", "commits": "commit dalla versione precedente", "codeLines": "righe di codice aggiunte", "codeLinesHint": "Righe aggiunte in applicazione, Rust, script e test.", "smallerLabel": "pacchetto più piccolo", "largerLabel": "pacchetto più grande", "acknowledge": "Capito"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "Scadenze superate: {{count}}",
     "violatedConstraints": "Vincoli violati: {{count}}",
-    "outOfSequence": "Relazioni fuori sequenza: {{count}}"
+    "outOfSequence": "Relazioni fuori sequenza: {{count}}",
+    "overallocated": "{{count}} risorsa/e sovrassegnata/e"
+  },
+  "warnings": {
+    "title": "Avvisi",
+    "close": "Chiudi avvisi",
+    "openPanel": "Apri il pannello Avvisi (dettagli e navigazione)",
+    "summary": "{{errors}} errore/i, {{warnings}} avviso/i",
+    "noSchedule": "Non ancora calcolato — premi Calcola (F5) per eseguire i controlli.",
+    "stale": "Pianificazione obsoleta — questo elenco proviene dall'ultimo calcolo. Ricalcola (F5).",
+    "empty": "Nessun avviso. La pianificazione supera tutti i controlli.",
+    "goTo": "Vai a: {{target}}",
+    "kind": {
+      "scheduleError": "Impossibile calcolare la pianificazione: {{message}}",
+      "missedDeadline": "Scadenza {{deadline}} superata — fine minima {{finish}}",
+      "violatedConstraint": "Il vincolo {{constraint}} è superato dalla logica (margine negativo)",
+      "outOfSequence": "Fuori sequenza: l'avanzamento del successore contraddice la relazione",
+      "truncatedLead": "Anticipo troncato dall'inizio del progetto — la relazione non è rispettata del tutto",
+      "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
+      "hammockNoFinishDriver": "Hammock senza driver di fine (nessun predecessore FF/SF): la durata torna a zero",
+      "cappedTask": "Data di fine limitata: il calendario non lascia alcuna finestra lavorativa per questa attività",
+      "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Progetto",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -541,7 +579,9 @@
       "backLoaded": "Caricato alla fine",
       "bell": "A campana",
       "earlyPeak": "Picco anticipato",
-      "latePeak": "Picco tardivo"
+      "latePeak": "Picco tardivo",
+      "doublePeak": "Doppio picco",
+      "turtle": "Tartaruga"
     },
     "occupancyView": "Occupazione",
     "occupancy": {
@@ -551,6 +591,8 @@
       "staleBanner": "Almeno un documento non è stato calcolato e non è incluso nell'occupazione.",
       "staleComputedDoc": "Calcolato in anticipo per questa panoramica — il documento stesso mostra ancora le date precedenti finché non premi F5 al suo interno o attivi “Calcola automaticamente”.",
       "staleComputedBanner": "I documenti modificati sono stati calcolati in anticipo per questa panoramica; premi F5 nel documento, oppure attiva “Calcola automaticamente” per farlo in modo permanente.",
+      "staleAsShownDoc": "Non aggiornato: questi sono gli ultimi valori calcolati — premi F5 in questo documento.",
+      "staleAsShownBanner": "Un documento modificato non è ancora stato ricalcolato; qui è conteggiato con i suoi ultimi valori calcolati. Premi F5 in quel documento, oppure attiva “Calcola automaticamente”.",
       "docCount_one": "{{count}} documento",
       "docCount_many": "{{count}} documenti",
       "docCount_other": "{{count}} documenti",
@@ -704,6 +746,18 @@
       "night": "Turno notturno",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Inserisci un orario di pausa valido come HH:MM.",
+      "invalidWorkStart": "Inserisci un orario di inizio valido nel formato HH:MM.",
+      "invalidWorkEnd": "Inserisci un orario di fine valido nel formato HH:MM.",
+      "invalidWorkTimeOrder": "L’orario di inizio deve precedere l’orario di fine.",
+      "increaseTime": "Aumenta l’orario di 15 minuti",
+      "decreaseTime": "Riduci l’orario di 15 minuti",
+      "increaseBreakDuration": "Aumenta la durata della pausa di 15 minuti",
+      "decreaseBreakDuration": "Riduci la durata della pausa di 15 minuti",
+      "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
+      "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
+    },
     "worktime": {
       "section": "Orari di lavoro",
       "derivedHpd": "Ore/giorno derivate:",
@@ -832,7 +886,8 @@
       "edit": "Modifica",
       "structure": "Struttura",
       "view": "Visualizza",
-      "nav": "Navigazione"
+      "nav": "Navigazione",
+      "grid": "Tabella"
     },
     "view": {
       "exitFullscreen": "Esci dalla presentazione",
@@ -852,6 +907,12 @@
       "switchDocument": "Cambia documento",
       "scrollToToday": "Vai a oggi",
       "help": "Apri guida"
+    },
+    "grid": {
+      "navigate": "Cella successiva/precedente",
+      "edit": "Modifica cella",
+      "typeToReplace": "Digitare sostituisce il contenuto della cella",
+      "clearCell": "Cancella contenuto della cella"
     }
   },
   "welcome": {

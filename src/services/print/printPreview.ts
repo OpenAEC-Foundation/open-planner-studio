@@ -6,7 +6,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
-import { printableWidthLogicalPx } from '@/services/print/tileLayout';
+import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
 // `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
 import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
@@ -37,7 +37,9 @@ import type { BaselineOverlay } from '@/types/baseline';
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
 const TIMELINE_HEADER_HEIGHT = 44;
-const TABLE_WIDTH = 450;
+// Issue #93: de tabelbreedte is geen constante meer maar de som van de kolommen (zie `COL` en
+// `tableWidthFor`). Met de standaard naamkolom van 130 px en Volt. aan is dat 380 px — de oude 450
+// minus de verdwenen #-kolom (30) en minus 40 px uit de te ruime WBS-/Start-/Einde-kolommen.
 const FOOTER_HEIGHT = 50;
 // Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
 // en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
@@ -71,36 +73,140 @@ const BAR_LABEL_GAP = DEP_STUB + 8;
 // daar is de grote gap niet nodig.
 const BAR_LABEL_PAD_LEFT = 4;
 
-// Column definitions for the task table
+// Column definitions for the task table. Issue #93: de vroegere `#`-rijnummerkolom is bewust
+// verdwenen — de automatisch genummerde WBS-kolom zegt al waar een rij staat, en op papier is
+// elke millimeter voor de tijdlijn.
+//
+// De vaste breedtes zijn gemeten met het gevendorde Inter (waarden 8 px, koppen 9 px vet, cel-
+// padding 4 px per zijde), niet geschat: een datum `31-12-2026` meet 43,5 px (⇒ 51,5 met padding),
+// een WBS-code `1.10.12.3` 31,5 px, `1000d` 23 px en `100%` 21 px. Start/Einde op 55 en WBS op 50
+// houden daarmee ≥ 7 % marge. Duur en Volt. blijven 45 om de langste vertaalde koppen (pl
+// "Czas trwania" 57 px — die liep al over — en de "Fertigst." 37 px) niet verder te knijpen.
+// De naamkolom staat hier bewust NIET: die breedte is instelbaar (zie `PrintOptions.taskNameColumnWidth`).
 const COL = {
-  rowNum:    { x: 0,   w: 30  },
-  wbs:       { x: 30,  w: 60  },
-  name:      { x: 90,  w: 150 }, // flexible, actual end depends on remaining
-  duration:  { x: 0,   w: 45  }, // positioned from right
-  start:     { x: 0,   w: 70  },
-  end:       { x: 0,   w: 70  },
-  complete:  { x: 0,   w: 45  },
+  wbs:       { w: 50 },
+  duration:  { w: 45 },
+  start:     { w: 55 },
+  end:       { w: 55 },
+  complete:  { w: 45 },
 };
 
-// Compute right-aligned column positions. `k` is de rapport-lettergrootteschaal (zie
+/**
+ * Grenzen van de instelbare naamkolom (ongeschaalde px). `DEFAULT` is exact de breedte die de
+ * kolom vóór deze instelling altijd had, zodat een verse installatie byte-identiek rendert.
+ * `MIN`/`MAX` begrenzen de slider in het rapportpaneel; `AUTO_MAX` is de bovengrens wanneer de
+ * kolom zich aan de langste naam aanpast (afkappen uit) — een absurd lange naam mag de pagina
+ * niet opeten, dus dáár kapt hij alsnog af.
+ */
+export const NAME_COLUMN_WIDTH_MIN = 60;
+export const NAME_COLUMN_WIDTH_MAX = 400;
+export const NAME_COLUMN_WIDTH_DEFAULT = 130;
+export const NAME_COLUMN_AUTO_MAX = 800;
+
+/** Celpadding (ongeschaald) en de inspringing per hiërarchieniveau in de naamkolom. */
+const CELL_PAD = 4;
+const NAME_INDENT_PER_LEVEL = 12;
+/** Kleine padding vóór de rechter kolomrand van de naamcel (zie `drawTaskTable`). */
+const NAME_RIGHT_PAD = 2;
+
+/** Klem een ruwe kolombreedte naar het toegestane bereik; alles wat geen getal is ⇒ default. */
+function resolveNameColumnWidth(raw: number | undefined): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return NAME_COLUMN_WIDTH_DEFAULT;
+  return Math.min(NAME_COLUMN_AUTO_MAX, Math.max(NAME_COLUMN_WIDTH_MIN, raw));
+}
+
+/**
+ * De (ongeschaalde) tabelbreedte voor één render: de som van de zichtbare kolommen. Met
+ * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
+ * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
+ */
+function tableWidthFor(showCompletion: boolean, nameW: number): number {
+  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0);
+}
+
+// Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
-// kolom nodig. Bij k = 1 is dit rekenkundig exact de oude, ongeschaalde uitkomst.
-function getColPositions(k: number) {
-  const tableWidth = TABLE_WIDTH * k;
-  const completeX = tableWidth - COL.complete.w * k;
-  const endX = completeX - COL.end.w * k;
-  const startX = endX - COL.start.w * k;
-  const durationX = startX - COL.duration.w * k;
-  const nameW = durationX - COL.name.x * k;
+// kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
+// `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
+function getColPositions(k: number, showCompletion: boolean, nameW: number) {
+  let x = 0;
+  const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
   return {
-    rowNum: { x: COL.rowNum.x * k, w: COL.rowNum.w * k },
-    wbs: { x: COL.wbs.x * k, w: COL.wbs.w * k },
-    name: { x: COL.name.x * k, w: nameW },
-    duration: { x: durationX, w: COL.duration.w * k },
-    start: { x: startX, w: COL.start.w * k },
-    end: { x: endX, w: COL.end.w * k },
-    complete: { x: completeX, w: COL.complete.w * k },
+    wbs: next(COL.wbs.w),
+    name: next(nameW),
+    duration: next(COL.duration.w),
+    start: next(COL.start.w),
+    end: next(COL.end.w),
+    complete: showCompletion ? next(COL.complete.w) : undefined,
   };
+}
+
+/** De letter van een naamcel in de taaktabel (9 px, vet voor samenvattingen), ongeschaald. */
+export function nameCellFont(bold: boolean): string {
+  return `${bold ? 'bold ' : ''}9px ${FONT_FAMILY}`;
+}
+
+/** Eén rij van de taaktabel: een taak met diepte, of een groepsband (#54 volg-weergave). */
+export interface PrintRow {
+  kind: 'task' | 'group';
+  task?: Task;
+  depth: number;
+  label?: string;   // groepsband-label
+  count?: number;   // groepsband-aantal bladrijen
+}
+
+/**
+ * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (#54 volg-weergave) tekent het rapport
+ * precies die rijen — filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders:
+ * de volledige takenboom (oud gedrag, self-flatten), met wezen zonder gevonden ouder achteraan.
+ * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
+ */
+export function buildPrintRows(tasks: Task[], rows: ViewRow[] | undefined): PrintRow[] {
+  const printRows: PrintRow[] = [];
+  if (rows) {
+    for (const row of rows) {
+      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth });
+      else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
+    }
+    return printRows;
+  }
+  const addRecursive = (task: Task, depth: number) => {
+    printRows.push({ kind: 'task', task, depth });
+    for (const child of tasks.filter(t => t.parentId === task.id)) addRecursive(child, depth + 1);
+  };
+  for (const root of tasks.filter(t => !t.parentId)) addRecursive(root, 0);
+  for (const task of tasks) {
+    if (!printRows.some(r => r.kind === 'task' && r.task!.id === task.id)) printRows.push({ kind: 'task', task, depth: 0 });
+  }
+  return printRows;
+}
+
+/** Het label van een groepsband-rij zoals de tabel het tekent. */
+function groupBandLabel(row: PrintRow): string {
+  return `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`;
+}
+
+/**
+ * De naamkolombreedte (ongeschaald) waarbij géén enkele rij afgekapt wordt: per rij de gemeten
+ * tekstbreedte plus inspringing en celpadding, precies het spiegelbeeld van de `nameAvail`-som in
+ * `drawTaskTable`. `measure` meet op de ongeschaalde letter uit {@link nameCellFont}; de aanroeper
+ * (het rapportpaneel) levert die vanuit een canvas met het geladen Inter-font, zodat preview,
+ * raster-PDF en vector-PDF alle drie hetzelfde getal krijgen. Geklemd op
+ * [{@link NAME_COLUMN_WIDTH_MIN}, {@link NAME_COLUMN_AUTO_MAX}].
+ */
+export function measureTaskNameColumnWidth(
+  printRows: PrintRow[],
+  measure: (text: string, bold: boolean) => number,
+): number {
+  let needed = 0;
+  for (const row of printRows) {
+    const bold = row.kind === 'group' || (row.task?.childIds.length ?? 0) > 0;
+    const text = row.kind === 'group' ? groupBandLabel(row) : (row.task?.name ?? '');
+    const indent = row.depth * NAME_INDENT_PER_LEVEL;
+    // +1: afronding van gemeten subpixel-breedtes mag nooit nét een ellipsis uitlokken.
+    needed = Math.max(needed, Math.ceil(measure(text, bold) + indent + CELL_PAD + NAME_RIGHT_PAD + 1));
+  }
+  return resolveNameColumnWidth(needed);
 }
 
 type ColPositions = ReturnType<typeof getColPositions>;
@@ -164,9 +270,10 @@ export const REPORT_FONT_SCALES = [90, 100, 110, 125] as const;
  * geen enkele Select kan tonen en die na een herstart dus niet reproduceerbaar is. Zelfde semantiek
  * als in de settings- en rapport-loaders, allemaal via {@link snapToChoice}.
  */
-function makeMetrics(reportFontScale: number | undefined): ReportMetrics {
+function makeMetrics(reportFontScale: number | undefined, showCompletion: boolean, taskNameColumnWidth: number | undefined): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
+  const nameW = resolveNameColumnWidth(taskNameColumnWidth);
   const projectHeaderHeight = PROJECT_HEADER_HEIGHT * k;
   const timelineHeaderHeight = TIMELINE_HEADER_HEIGHT * k;
   return {
@@ -179,9 +286,9 @@ function makeMetrics(reportFontScale: number | undefined): ReportMetrics {
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: TABLE_WIDTH * k,
+    tableWidth: tableWidthFor(showCompletion, nameW) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k),
+    cols: getColPositions(k, showCompletion, nameW),
   };
 }
 
@@ -193,6 +300,14 @@ export interface PrintOptions {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /**
+   * Breedte van de naamkolom in de taaktabel, ongeschaald (schaalt mee met `reportFontScale`).
+   * Ontbreekt ⇒ {@link NAME_COLUMN_WIDTH_DEFAULT}; buiten bereik ⇒ geklemd. Een naam die er niet in
+   * past wordt met een ellipsis afgekapt. "Niet afkappen" is géén aparte modus van de printlaag:
+   * het paneel meet dan zelf de langste naam ({@link measureTaskNameColumnWidth}) en geeft dát
+   * getal door, zodat preview, raster- en vector-export gegarandeerd dezelfde tabel tekenen.
+   */
+  taskNameColumnWidth?: number;
   /** Dezelfde tijdas-instelling als de scherm-Gantt: niet-werkdagen krijgen geen rapportkolom. */
   compressNonWorkdays?: boolean;
   /** De actieve baseline als grijze onderbalk, gelijk aan de hoofd-Gantt (#81). */
@@ -212,7 +327,7 @@ export interface PrintOptions {
        *  bindend-informatie beschikbaar is (zie {@link PrintOptions.drivingSequenceIds}). */
       relationStyle: string;
     };
-    tableHeaders: { rowNum: string; wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
+    tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
     page: string;
     of: string;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
@@ -475,51 +590,11 @@ export function renderReport(
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
-  const m = makeMetrics(options.reportFontScale);
+  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth);
 
-  // Rijen-bron (#54 volg-weergave): gegeven `options.rows` tekent het rapport precies die rijen —
-  // filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders: de volledige
-  // takenboom (oud gedrag, self-flatten). Beide vormen normaliseren hier naar één rij-type:
-  // taakrijen mét diepte plus (nieuw) groepsband-rijen die als samenvattings-strook tekenen.
-  interface PrintRow {
-    kind: 'task' | 'group';
-    task?: Task;
-    depth: number;
-    label?: string;   // groepsband-label
-    count?: number;   // groepsband-aantal bladrijen
-  }
-  const printRows: PrintRow[] = [];
-  const depthMap = new Map<string, number>();
-  if (options.rows) {
-    for (const row of options.rows) {
-      if (row.kind === 'task') {
-        depthMap.set(row.task.id, row.depth);
-        printRows.push({ kind: 'task', task: row.task, depth: row.depth });
-      } else {
-        printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
-      }
-    }
-  } else {
-    const addRecursive = (task: Task, depth: number) => {
-      depthMap.set(task.id, depth);
-      printRows.push({ kind: 'task', task, depth });
-      const children = tasks.filter(t => t.parentId === task.id);
-      for (const child of children) {
-        addRecursive(child, depth + 1);
-      }
-    };
-
-    const roots = tasks.filter(t => !t.parentId);
-    for (const root of roots) {
-      addRecursive(root, 0);
-    }
-    for (const task of tasks) {
-      if (!printRows.find(r => r.kind === 'task' && r.task!.id === task.id)) {
-        depthMap.set(task.id, 0);
-        printRows.push({ kind: 'task', task, depth: 0 });
-      }
-    }
-  }
+  // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
+  // als samenvattings-strook tekenen.
+  const printRows = buildPrintRows(tasks, options.rows);
   const flatTasks: PrintTask[] = printRows
     .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
     .map(r => ({ ...r.task, _depth: r.depth }));
@@ -566,7 +641,7 @@ export function renderReport(
   const compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
   const measureAxis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
-    origin: minDate, taskTableWidth: 0, zoom: 1, scrollX: 0,
+    origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
   });
   const timelineDays = compressed
     ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
@@ -612,7 +687,7 @@ export function renderReport(
   // Daarmee kan een PDF nooit andere werkdagen overslaan dan de scherm-Gantt of raster-preview.
   const axis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
-    origin: minDate, taskTableWidth: m.tableWidth, zoom, scrollX: 0,
+    origin: minDate, chartOriginX: m.tableWidth, zoom, scrollX: 0,
   });
   const dateToX = (date: Date) => axis.dateToX(date);
   const firstTimelineIndex = Math.ceil(axis.dayIndexOf(minDate));
@@ -1121,6 +1196,140 @@ export function renderPrintCanvas(
   );
 }
 
+/** Eén logische bronuitsnede die direct in een fysiek pagina-venster wordt getekend. */
+export interface PrintReportWindow {
+  sourceX: number;
+  sourceY: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  destinationX: number;
+  destinationY: number;
+  /** Doelpixels per logische rapportpixel. */
+  rasterScale: number;
+}
+
+/**
+ * Teken één begrensd logisch rapportvenster direct naar een bestaand pagina-canvas.
+ *
+ * Dit is uitsluitend voor de live preview: de volledige rapportlay-out wordt nog steeds door
+ * {@link renderReport} berekend en {@link TileLayout} blijft de bron van waarheid voor vensters,
+ * marges en kopherhaling. Anders dan de oude route ontstaat er alleen geen tijdelijk canvas voor
+ * alle rapportpagina's samen. Export blijft via {@link renderPrintCanvas} en de bestaande
+ * pagineerder lopen.
+ */
+export function renderPrintReportWindow(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  window: PrintReportWindow,
+): RenderReportResult {
+  let draw: CanvasDraw2D | undefined;
+  try {
+    return renderReport(
+      (logicalW, logicalH) => {
+        draw = new CanvasDraw2D(canvas, logicalW, logicalH, window.rasterScale, window);
+        return draw;
+      },
+      tasks, sequences, calendar, projectName, options,
+    );
+  } finally {
+    draw?.dispose();
+  }
+}
+
+/** Invoer voor één direct gerasterde live-previewpagina. */
+export interface PrintPreviewPageInput {
+  layout: TileLayout;
+  pageIndex: number;
+  /** Exacte rasterbreedte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterWidth: number;
+  /** Exacte rasterhoogte voor deze zichtbare pagina, al binnen het previewbudget begrensd. */
+  rasterHeight: number;
+  /** Fysieke pixels per PDF-punt van de zichtbare pagina. */
+  supersample: number;
+}
+
+/**
+ * Raster één zichtbare rapportpagina rechtstreeks vanuit de gedeelde logische renderer.
+ *
+ * De kop- en bodyvensters zijn bewust dezelfde uit {@link TileLayout} als de exportpagineerder.
+ * Daardoor blijven pagina-aantal, volgorde, herhaalde kop en bevroren kolommen exact gelijk,
+ * terwijl een lange planning nooit eerst een volledig hoog-res broncanvas hoeft op te bouwen.
+ */
+export function renderPrintPreviewPage(
+  canvas: HTMLCanvasElement,
+  tasks: Task[],
+  sequences: Sequence[],
+  calendar: WorkCalendar,
+  projectName: string,
+  options: PrintOptions,
+  input: PrintPreviewPageInput,
+): void {
+  const { layout, pageIndex, rasterWidth, rasterHeight, supersample } = input;
+  const totalPages = layout.rows * layout.cols;
+  if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) return;
+  const row = layout.bodyRows[Math.floor(pageIndex / layout.cols)];
+  const column = layout.columns[pageIndex % layout.cols];
+  if (!row || !column) return;
+
+  const pxPt = Math.max(1 / Math.max(layout.pageWidthPt, layout.pageHeightPt), supersample);
+  const pageWidth = Math.max(1, Math.round(rasterWidth));
+  const pageHeight = Math.max(1, Math.round(rasterHeight));
+  canvas.width = pageWidth;
+  canvas.height = pageHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('renderPrintPreviewPage: kon 2D-context niet verkrijgen');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pageWidth, pageHeight);
+
+  const rasterScale = layout.scale * pxPt;
+  const renderWindow = (sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number, destinationX: number, destinationY: number) => {
+    if (sourceWidth <= 0 || sourceHeight <= 0) return;
+    renderPrintReportWindow(canvas, tasks, sequences, calendar, projectName, options, {
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      destinationX,
+      destinationY,
+      rasterScale,
+    });
+  };
+
+  for (const win of column.xWindows) {
+    const destinationX = win.pageX * pxPt;
+    if (layout.repeatHeaderPx > 0) {
+      renderWindow(
+        win.srcX,
+        0,
+        win.srcW,
+        layout.repeatHeaderPx,
+        destinationX,
+        layout.marginPt * pxPt,
+      );
+    }
+    renderWindow(
+      win.srcX,
+      row.srcY,
+      win.srcW,
+      row.srcH,
+      destinationX,
+      layout.bodyTopPt * pxPt,
+    );
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#999999';
+  ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${pageIndex + 1} / ${totalPages}`, (layout.pageWidthPt - layout.marginPt) * pxPt,
+    (layout.pageHeightPt - layout.marginPt * 0.5) * pxPt);
+}
+
 /**
  * Meet een rapport zonder een HTML-canvas of GPU-/systeembuffer te reserveren. De preview gebruikt
  * dit vóór zijn echte rasterrender om zijn geheugenbudget te bepalen. Tekstbreedtes hoeven hier
@@ -1516,7 +1725,6 @@ function drawTimelineHeader(
   const headerY = top + h / 2;
 
   const th = options.labels?.tableHeaders;
-  d2d.fillText(th?.rowNum ?? '#', cols.rowNum.x + cols.rowNum.w / 2, headerY);
   d2d.fillText(th?.wbs ?? 'WBS', cols.wbs.x + cols.wbs.w / 2, headerY);
 
   d2d.textAlign = 'left';
@@ -1526,12 +1734,15 @@ function drawTimelineHeader(
   d2d.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
   d2d.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
   d2d.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
-  d2d.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
+  if (cols.complete) {
+    d2d.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
+  }
 
   // Column separator lines in header
   d2d.strokeStyle = PRINT_COLORS.border;
   d2d.lineWidth = 0.5;
-  const colBorders = [cols.wbs.x, cols.name.x, cols.duration.x, cols.start.x, cols.end.x, cols.complete.x, m.tableWidth];
+  const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x, m.tableWidth];
+  if (cols.complete) colBorders.push(cols.complete.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, top);
@@ -1563,7 +1774,7 @@ function drawTaskTable(
 ) {
   const chartBottom = canvasHeight - m.footerHeight;
   // Cel-padding: schaalt mee met de kolombreedtes, anders vreet een grotere letter de padding op.
-  const cellPad = m.s(4);
+  const cellPad = m.s(CELL_PAD);
 
   // Table background
   d2d.fillStyle = PRINT_COLORS.bg;
@@ -1592,20 +1803,15 @@ function drawTaskTable(
     // Groepsband-rij (#54 volg-weergave): vet label met inspringing, geen datacellen — een band
     // groepeert, hij is géén taak met datums/duur.
     if (row.kind === 'group') {
-      const indent = row.depth * m.s(12);
+      const indent = row.depth * m.s(NAME_INDENT_PER_LEVEL);
       d2d.fillStyle = PRINT_COLORS.summary;
       d2d.font = m.font(9, true);
       d2d.textAlign = 'left';
       d2d.textBaseline = 'middle';
       const nameX = cols.name.x + cellPad + indent;
-      const nameAvail = cols.name.x + cols.name.w - m.s(2) - nameX;
-      const bandLabel = `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`;
-      d2d.fillText(fitText(d2d, bandLabel, nameAvail), nameX, textY);
-      // Rijnummer telt mee (de band is een rij), maar geen WBS/duur/datums.
-      d2d.fillStyle = PRINT_COLORS.textSecondary;
-      d2d.font = m.font(8);
-      d2d.textAlign = 'right';
-      d2d.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - cellPad, textY);
+      const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
+      d2d.fillText(fitText(d2d, groupBandLabel(row), nameAvail), nameX, textY);
+      // Een band groepeert alleen: geen WBS/duur/datums.
       d2d.textAlign = 'left';
       d2d.textBaseline = 'alphabetic';
       continue;
@@ -1615,28 +1821,23 @@ function drawTaskTable(
     const depth = row.depth;
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
-    const indent = depth * m.s(12);
+    const indent = depth * m.s(NAME_INDENT_PER_LEVEL);
     const isSummary = task.childIds.length > 0;
-
-    // Row number
-    d2d.fillStyle = PRINT_COLORS.textSecondary;
-    d2d.font = m.font(8);
-    d2d.textAlign = 'right';
-    d2d.textBaseline = 'middle';
-    d2d.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - cellPad, textY);
 
     // WBS
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(8);
     d2d.textAlign = 'left';
+    d2d.textBaseline = 'middle';
     d2d.fillText(task.wbsCode || '', cols.wbs.x + cellPad, textY);
 
     // Name with indentation — afkorten met ellipsis i.p.v. hard clippen (klacht 4a)
     d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
     d2d.font = m.font(9, isSummary);
     d2d.textAlign = 'left';
+    // Spiegelbeeld van `measureTaskNameColumnWidth`: wijzig je deze som, wijzig dan ook die.
     const nameX = cols.name.x + cellPad + indent;
-    const nameAvail = cols.name.x + cols.name.w - m.s(2) - nameX; // kleine padding vóór de kolomrand
+    const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
     d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
 
     // Duration
@@ -1660,8 +1861,8 @@ function drawTaskTable(
       d2d.fillText(formatDutchDate(ed, options.dateNotation), cols.end.x + cols.end.w - cellPad, textY);
     }
 
-    // Completion
-    if (options.showCompletion) {
+    // Completion — de kolom bestaat alleen als `showCompletion` aanstaat (issue #93).
+    if (cols.complete) {
       d2d.fillText(formatCompletion(task.time.completion), cols.complete.x + cols.complete.w - cellPad, textY);
     }
 
@@ -1672,7 +1873,8 @@ function drawTaskTable(
   // Column separator lines throughout the table
   d2d.strokeStyle = PRINT_COLORS.grid;
   d2d.lineWidth = 0.5;
-  const colBorders = [cols.wbs.x, cols.name.x, cols.duration.x, cols.start.x, cols.end.x, cols.complete.x];
+  const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x];
+  if (cols.complete) colBorders.push(cols.complete.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, m.totalHeaderHeight);

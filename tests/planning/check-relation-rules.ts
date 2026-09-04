@@ -15,7 +15,10 @@
 
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
-import { relationVerdict, isSummaryTask, isAncestorRelation, type TaskLookup } from '@/state/relationRules';
+import type { WbsTemplate } from '@/utils/wbsTemplates';
+import {
+  relationStructureVerdict, relationVerdict, isSummaryTask, isAncestorRelation, type TaskLookup,
+} from '@/state/relationRules';
 import { useAppStore } from '@/state/appStore';
 
 let checks = 0;
@@ -124,6 +127,11 @@ const existing: Sequence[] = [
 const dupV = verdict('a', 'b', existing);
 ok('duplicaat wordt geweigerd', !dupV.ok);
 ok('… met de duplicaat-reden', !dupV.ok && dupV.reason === 'duplicate');
+ok('structurele plannerregel laat bestaand exact paar door voor finale-setvalidatie',
+  relationStructureVerdict(lookup, existing[0]).ok);
+const structuralAncestor = relationStructureVerdict(lookup, { predecessorId: 'a', successorId: 's' });
+ok('structurele plannerregel handhaaft ancestor zonder duplicaatcheck',
+  !structuralAncestor.ok && structuralAncestor.reason === 'ancestor');
 ok('ander type tussen hetzelfde paar blijft toegestaan (bv. SS+FF-ladder)',
   relationVerdict(lookup, existing, { predecessorId: 'a', successorId: 'b', type: 'START_START' }).ok);
 ok('ander PAAR met hetzelfde type blijft toegestaan',
@@ -171,9 +179,9 @@ ok('… geen extra relatie erbij', S().sequences.length === seqCountAfterSummary
 
 // Een geweigerde relatie (hier: de voorouder-relatie, ander type dan hierboven) mag geen undo-stap
 // achterlaten (zelfde regel als bij duplicaten, R3).
-const undoDepth = S().undoStack.length;
+const undoDepth = S().historyEvents.filter(event => event.state === 'applied').length;
 S().addSequence({ predecessorId: kind, successorId: fase, type: 'START_START', lagDays: 0 });
-ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().undoStack.length === undoDepth);
+ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length === undoDepth);
 
 const msId = S().addSequence({ predecessorId: mp, successorId: los, type: FS, lagDays: 0 });
 ok('addSequence staat een MIJLPAAL als voorganger toe (regressie-anker, ongewijzigd)', msId !== null);
@@ -185,6 +193,102 @@ ok('addSequence staat een MIJLPAAL als opvolger toe (regressie-anker, ongewijzig
 
 const kindId = S().addSequence({ predecessorId: kind, successorId: los, type: FS, lagDays: 0 });
 ok('addSequence staat een SUBTAAK zonder eigen kinderen toe (gewoon een bladtaak)', kindId !== null);
+
+// ── pasteTasks: `relationVerdict` is de poort, niet alleen `addSequence` (docs/TODO.md, regel ~42) ──
+//
+// `copyTasks` filtert het klembord al tot relaties waarvan BEIDE eindpunten binnen de gekopieerde
+// deelboom vallen, en `pasteTasks` herbouwt diezelfde ouder/kind-structuur 1-op-1 onder de nieuwe
+// ids — dus een relatie die in de bron structureel geldig was (geen eigen-(voor)ouder, geen
+// zelfrelatie), kan door de plakplek zelf niet alsnog een ancestor-schending worden: de relatieve
+// boom tussen de gekopieerde taken verandert niet, alleen het aanhechtpunt erboven. Het reële risico
+// is dus niet "geldig in de bron, ongeldig door de plakplek", maar "al ongeldig in de bron, maar
+// nooit via `addSequence`/`relationVerdict` gecontroleerd" — exact het IFC-importpad, dat rechtstreeks
+// naar `s.sequences` schrijft zonder de add-route. Deze regressie zet zo'n "spookrelatie" rechtstreeks
+// in de store (net als een ongevalideerde import zou doen) en bewijst dat plakken hem niet opnieuw
+// aanmaakt, terwijl een gewone geldige relatie in dezelfde tak gewoon meekomt.
+S().newProject();
+const pOuder = S().addTask({ name: 'Ouder' });
+const pKind = S().addTask({ name: 'Kind', parentId: pOuder });
+const pSibling = S().addTask({ name: 'Sibling', parentId: pOuder });
+const pElders = S().addTask({ name: 'Elders' }); // los root-niveau, plakanker
+
+// Geldige relatie via de normale route: Kind → Sibling (siblings, geen voorouder-conflict).
+const pValidSeqId = S().addSequence({ predecessorId: pKind, successorId: pSibling, type: FS, lagDays: 0 });
+ok('plak-fixture: geldige Kind→Sibling-relatie is aangemaakt', pValidSeqId !== null);
+
+// Spookrelatie rechtstreeks in de store gezet — zoals een IFC-import zou doen, buiten
+// `addSequence`/`relationVerdict` om. Kind → eigen Ouder is een ancestor-schending.
+useAppStore.setState((s) => {
+  s.sequences.push({ id: 'ghost-seq-paste', predecessorId: pKind, successorId: pOuder, type: FS, lagDays: 0 });
+});
+ok('plak-fixture: spookrelatie staat in de store (buiten relationVerdict om)',
+  S().sequences.some(e => e.id === 'ghost-seq-paste'));
+
+S().copyTasks([pOuder]); // kopieert Ouder + Kind + Sibling (met beide interne relaties)
+ok('plak-fixture: klembord bevat de hele tak', S().taskClipboard?.tasks.length === 3);
+ok('plak-fixture: klembord bevat beide interne relaties (copyTasks filtert niet op geldigheid)',
+  S().taskClipboard?.sequences.length === 2);
+
+S().selectTask(pElders); // plakken als sibling van een los root-niveau-taak
+const seqCountBeforePaste = S().sequences.length;
+const pasteRootIds = S().pasteTasks();
+ok('pasteTasks levert precies één nieuwe root op (Ouder)', pasteRootIds.length === 1);
+
+const newOuderId = pasteRootIds[0];
+const newOuderTask = S().tasks.find(t => t.id === newOuderId);
+const newKindId = newOuderTask?.childIds[0];
+const newSiblingId = newOuderTask?.childIds[1];
+ok('geplakte Ouder heeft twee nieuwe kinderen (Kind, Sibling)', newOuderTask?.childIds.length === 2);
+
+ok('pasteTasks maakt PRECIES ÉÉN nieuwe relatie aan (de geldige, niet de spookrelatie)',
+  S().sequences.length === seqCountBeforePaste + 1);
+ok('de geldige Kind→Sibling-relatie is meegeplakt met de nieuwe ids',
+  !!newKindId && !!newSiblingId
+  && S().sequences.some(e => e.predecessorId === newKindId && e.successorId === newSiblingId));
+ok('de spookrelatie (Kind→eigen Ouder) is NIET opnieuw aangemaakt onder de nieuwe ids',
+  !!newKindId && !S().sequences.some(e => e.predecessorId === newKindId && e.successorId === newOuderId));
+
+// ── insertWbsTemplate: dezelfde poort voor het tak-uit-sjabloon-pad ───────────
+//
+// Een sjabloon is app-niveau data uit `localStorage` (`utils/wbsTemplates.ts`) — net als het
+// klembord kan hij relaties bevatten die nooit via `addSequence` zijn aangemaakt (handmatig bewerkt,
+// of afkomstig van een oudere/corrupte opslag). Zelfde bewijsvorm: een ancestor-schending tussen
+// sjabloon-lokale ids mag na het invoegen niet als echte relatie in de store staan, een gewone
+// geldige relatie in het sjabloon wel.
+S().newProject();
+const template: WbsTemplate = {
+  id: 'tmpl-1',
+  name: 'Testsjabloon',
+  createdAt: new Date().toISOString(),
+  tasks: [
+    { id: 'tRoot', parentId: null, name: 'Root', description: '', taskType: 'CONSTRUCTION', isMilestone: false, durationDays: 5 },
+    { id: 'tChild', parentId: 'tRoot', name: 'Child', description: '', taskType: 'CONSTRUCTION', isMilestone: false, durationDays: 2 },
+    { id: 'tSibling', parentId: 'tRoot', name: 'Sibling', description: '', taskType: 'CONSTRUCTION', isMilestone: false, durationDays: 2 },
+  ],
+  sequences: [
+    // Spookrelatie: Child → eigen Root (ancestor-schending), nooit via relationVerdict getoetst.
+    { predecessorId: 'tChild', successorId: 'tRoot', type: FS, lagDays: 0 },
+    // Gewone geldige relatie: Child → Sibling (siblings, geen voorouder-conflict).
+    { predecessorId: 'tChild', successorId: 'tSibling', type: FS, lagDays: 0 },
+  ],
+};
+
+const seqCountBeforeTemplate = S().sequences.length;
+const newTemplateRootId = S().insertWbsTemplate(template, null);
+ok('insertWbsTemplate levert een nieuwe root op', newTemplateRootId !== null);
+
+const newTemplateRootTask = S().tasks.find(t => t.id === newTemplateRootId);
+ok('sjabloon-root heeft twee kinderen (Child, Sibling)', newTemplateRootTask?.childIds.length === 2);
+const newTemplateChildId = newTemplateRootTask?.childIds[0];
+const newTemplateSiblingId = newTemplateRootTask?.childIds[1];
+
+ok('insertWbsTemplate maakt PRECIES ÉÉN nieuwe relatie aan (de geldige, niet de spookrelatie)',
+  S().sequences.length === seqCountBeforeTemplate + 1);
+ok('de geldige Child→Sibling-relatie is mee ingevoegd met de nieuwe ids',
+  !!newTemplateChildId && !!newTemplateSiblingId
+  && S().sequences.some(e => e.predecessorId === newTemplateChildId && e.successorId === newTemplateSiblingId));
+ok('de spookrelatie (Child→eigen Root) is NIET aangemaakt onder de nieuwe ids',
+  !!newTemplateChildId && !S().sequences.some(e => e.predecessorId === newTemplateChildId && e.successorId === newTemplateRootId));
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

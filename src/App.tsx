@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue } from '@/utils/noneLabel';
+import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
 import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
@@ -8,10 +9,9 @@ import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
 import { StatusBar } from '@/components/layout/StatusBar/StatusBar';
 import { TooltipHost } from '@/components/common/Tooltip';
-import { GanttCanvas } from '@/components/canvas/GanttCanvas';
-import { TableEditor } from '@/components/panels/TableEditor';
+import { GanttWorkspace } from '@/components/canvas/GanttWorkspace';
+import { FullTaskGrid } from '@/components/task-grid/FullTaskGrid';
 import { ResourcePanel } from '@/components/panels/ResourcePanel';
-import { RelationsPanel } from '@/components/panels/RelationsPanel';
 import { PresentationHint } from '@/components/layout/PresentationHint';
 import { RightRail } from '@/components/layout/RightRail/RightRail';
 import { DocumentTabBar } from '@/components/layout/DocumentChrome/DocumentTabBar';
@@ -39,8 +39,8 @@ import { NotificationHost } from '@/components/layout/NotificationHost';
 
 // Code-splitting (pakket E2): componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
 // overlay renderen worden lazy geladen, zodat hun code niet in de eager first-load-bundel zit maar
-// pas wordt opgehaald bij openen. De altijd-gemounte chrome (TitleBar/Ribbon/StatusBar/GanttCanvas/
-// TaskPropertiesPanel/TableEditor/Resource-/Relations-panelen/DocumentChrome) blijft eager. Named
+// pas wordt opgehaald bij openen. De altijd-gemounte chrome (TitleBar/Ribbon/StatusBar/GanttWorkspace/
+// TaskPropertiesPanel/FullTaskGrid/Resource-/Relations-panelen/DocumentChrome) blijft eager. Named
 // exports ⇒ .then(m => ({ default: m.X })). Gedrag (welke conditie toont wat, welke props) ongewijzigd;
 // elke lazy-render zit in een <Suspense fallback={null}> — een dialoog/overlay die 1 frame later
 // verschijnt is prima.
@@ -83,6 +83,7 @@ function AppContent() {
   const showStructureDialog = useAppStore(s => s.ui.showStructureDialog);
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showPropertiesPanel = useAppStore(s => s.ui.showPropertiesPanel);
+  const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
@@ -98,7 +99,8 @@ function AppContent() {
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
-  const uiTheme = useAppStore(s => s.ui.uiTheme);
+  // Voorkeur + systeemstand → het thema dat écht getekend wordt (zie `useResolvedUITheme`).
+  const resolvedTheme = useResolvedUITheme();
   const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
@@ -152,10 +154,14 @@ function AppContent() {
     useAppStore.getState().recomputeViewRows();
   }, [noneLabel]);
 
-  // Apply theme to document
+  // Systeemkleurschema volgen (thema 'Systeem'): één abonnement voor de hele app.
+  useSystemColorSchemeSync();
+
+  // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; het
+  // `data-theme`-attribuut kent geen 'system'-blok in globals.css.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', uiTheme);
-  }, [uiTheme]);
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+  }, [resolvedTheme]);
 
   // Lettertype-interface toepassen (issue #25.4): de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
@@ -200,11 +206,12 @@ function AppContent() {
   // NIET meer in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
   // resource-lijst dockt in de rechter-rail (zie het dock-blok hieronder) in plaats van de hele
   // werkruimte te vervangen.
-  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'relations' || activeTab === 'ifc' || activeTab === 'report';
+  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'ifc' || activeTab === 'report';
   // Issue #46 (slot): de rechterkolom bestaat alleen zolang er minstens één railpaneel aan staat.
   // Zet de gebruiker ze allebei uit via hun lintknop, dan verdwijnt de kolom — inclusief de
   // ingeklapte strip, want er valt dan niets terug te halen.
-  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked);
+  // Issue #53: het Waarschuwingenpaneel is het derde railpaneel.
+  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked) || showWarningsPanel;
 
   // Presentation mode (fase 2.7, §9.2): één wrapper-conditie i.p.v. losse `&& !presentationMode`-
   // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/
@@ -213,7 +220,7 @@ function AppContent() {
     return (
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
         <div className="flex-1 flex overflow-hidden">
-          <GanttCanvas />
+          <GanttWorkspace />
         </div>
         <PresentationHint />
         {/* Gebruikersmeldingen (bevinding K8) — óók in de presentatiemodus: hier is verder geen
@@ -278,12 +285,11 @@ function AppContent() {
             className="ui-card flex-1 flex overflow-hidden"
             {...(activeTab === 'report' ? { 'data-tour-anchor': 'report-panel' } : {})}
           >
-            {showResourcePanel ? (
+            {showResourcePanel && !resourcePanelDocked ? (
               <ResourcePanel />
             ) : (
               <Suspense fallback={null}>
-                {activeTab === 'table' && <TableEditor />}
-                {activeTab === 'relations' && <RelationsPanel />}
+                {activeTab === 'table' && <FullTaskGrid />}
                 {activeTab === 'ifc' && <IFCPanel />}
                 {activeTab === 'report' && <ReportPanel />}
               </Suspense>
@@ -293,7 +299,7 @@ function AppContent() {
           // Gantt Chart view — zwevende kaart (Gantt + tabel samen). data-tour-anchor
           // (tourstap 2: taaktabel + Gantt).
           <div className="ui-card flex-1 flex overflow-hidden" data-tour-anchor="gantt-panel">
-            <GanttCanvas />
+            <GanttWorkspace />
           </div>
         )}
 
@@ -303,7 +309,7 @@ function AppContent() {
             (dat deel van architect-besluit 5 staat overeind); nieuw is enkel de verticale as. Staat
             geen van beide panelen aan, dan is er geen kolom — vandaar `railHasPanel` hier en niet
             een lege `ui-card` in `RightRail`. Alle overige mechaniek zit in `RightRail`. */}
-        {!isFullPanel && railHasPanel && <RightRail />}
+        {(!isFullPanel || activeTab === 'table') && railHasPanel && <RightRail />}
       </div>
         </div>{/* /werkruimte-kolom */}
       </div>{/* /body-rij */}
@@ -333,7 +339,7 @@ function AppContent() {
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
-        {showColumnsDialog && <ColumnsDialog />}
+        {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}
         {showFilterDialog && <FilterDialog />}
         {showLayoutsDialog && <LayoutsDialog />}
         {showShortcutsDialog && <ShortcutsDialog />}

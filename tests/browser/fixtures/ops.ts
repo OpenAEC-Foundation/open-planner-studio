@@ -76,7 +76,7 @@ interface CapturedBrowserError {
 export async function waitForOps(page: Page): Promise<void> {
   await expect.poll(
     () => page.evaluate(() => window.__OPS__ !== undefined),
-    { message: 'window.__OPS__ is niet geïnstalleerd' },
+    { message: 'window.__OPS__ is niet geïnstalleerd', timeout: 15_000 },
   ).toBe(true);
 }
 
@@ -125,8 +125,8 @@ export async function state(page: Page): Promise<OpsStateSnapshot> {
         showHistogram: s.ui.showHistogram,
         showMiniMap: s.ui.showMiniMap,
       },
-      undoDepth: s.undoStack.length,
-      redoDepth: s.redoStack.length,
+      undoDepth: s.historyEvents.filter(event => event.state === 'applied').length,
+      redoDepth: s.historyEvents.filter(event => event.state === 'undone').length,
     };
   });
 }
@@ -202,6 +202,14 @@ export const test = base.extend<{ ops: OpsHarness }>({
 
     await page.goto('/');
     await waitForOps(page);
+    // De welkomstdialoog komt asynchroon: pas nadat de recovery-controle (IndexedDB) klaar is en
+    // `loadWelcomeSeen()` is beantwoord, zet useSettingsBootstrap `showWelcomeDialog: true`. Een
+    // verse context heeft die vlag nooit gezien, dus de dialoog KOMT — de vraag is alleen wanneer.
+    // Hem hier al vóór die tik verbergen verloor de race op een trage runner, waarna een test
+    // tegen een `bg-black/60`-overlay aan klikte. Wacht daarom tot hij er is en verberg hem dan;
+    // `welcomeSeen` blijft bewust ongezet, zodat tests die na een reload de dialoog verwachten
+    // (extensions-storage) hem gewoon nog krijgen.
+    await page.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
     await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       s.newProject();

@@ -39,6 +39,10 @@ const contextA = createAppStoreContext();
 const contextB = createAppStoreContext();
 const A = contextA.store;
 const B = contextB.store;
+const appliedHistoryDepth = (store: typeof A) => store.getState().historyEvents
+  .filter(event => event.state === 'applied').length;
+const undoneHistoryDepth = (store: typeof A) => store.getState().historyEvents
+  .filter(event => event.state === 'undone').length;
 
 eq('1 de factory levert twee verschillende stores', A === B, false);
 eq('1a geen van beide is de singleton', A === useAppStore || B === useAppStore, false);
@@ -81,8 +85,8 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
 
 // ── 3. Undo/redo is per instantie ────────────────────────────────────
 {
-  const diepteA = A.getState().undoStack.length;
-  const diepteB = B.getState().undoStack.length;
+  const diepteA = appliedHistoryDepth(A);
+  const diepteB = appliedHistoryDepth(B);
   eq('8 beide hebben een eigen undo-stack met eigen diepte', diepteA === diepteB, false);
 
   const naamVoor = B.getState().tasks[0]?.name;
@@ -95,9 +99,9 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('10a en liet A met rust', A.getState().tasks.length, 1);
   eq('10b de eerste taak van B is ongemoeid', B.getState().tasks[0]?.name, naamVoor);
 
-  const redoB = B.getState().redoStack.length;
+  const redoB = undoneHistoryDepth(B);
   A.getState().undo();
-  eq('11 undo op A liet de redo-stack van B staan', B.getState().redoStack.length, redoB);
+  eq('11 undo op A liet de redo-geschiedenis van B staan', undoneHistoryDepth(B), redoB);
 }
 
 // ── 4. Batchruntime is contextgebonden ────────────────────────────────────
@@ -107,9 +111,9 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   const txB = createBatchTransactions(batchB);
   const appVoor = capturePayload(useAppStore.getState());
   const aVoor = capturePayload(batchA.store.getState());
-  const aUndoVoor = batchA.store.getState().undoStack.length;
-  const bUndoVoor = batchB.store.getState().undoStack.length;
-  const appUndoVoor = useAppStore.getState().undoStack.length;
+  const aUndoVoor = appliedHistoryDepth(batchA.store);
+  const bUndoVoor = appliedHistoryDepth(batchB.store);
+  const appUndoVoor = appliedHistoryDepth(useAppStore);
 
   txB.withTransaction(() => {
     eq('12 tijdens de batch is alleen runtime B actief', batchB.runtime.isBatchActive(), true);
@@ -118,10 +122,10 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
     batchB.store.getState().addTask({ name: 'bulk in B 2' });
   });
   eq('12b twee mutators in B leveren één B-snapshot',
-    batchB.store.getState().undoStack.length, bUndoVoor + 1);
-  eq('12c A krijgt door batch B geen snapshot', batchA.store.getState().undoStack.length, aUndoVoor);
+    appliedHistoryDepth(batchB.store), bUndoVoor + 1);
+  eq('12c A krijgt door batch B geen snapshot', appliedHistoryDepth(batchA.store), aUndoVoor);
   eq('12d de app-singleton krijgt door batch B geen snapshot',
-    useAppStore.getState().undoStack.length, appUndoVoor);
+    appliedHistoryDepth(useAppStore), appUndoVoor);
   eq('12e A blijft byte-inhoudelijk gelijk', capturePayload(batchA.store.getState()), aVoor);
   eq('12f de app-singleton blijft byte-inhoudelijk gelijk', capturePayload(useAppStore.getState()), appVoor);
   eq('12g runtime B sluit na de callback', batchB.runtime.isBatchActive(), false);
@@ -129,16 +133,16 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   const interleavedA = createAppStoreContext();
   const interleavedB = createAppStoreContext();
   const txInterleavedB = createBatchTransactions(interleavedB);
-  const interleavedAUndoVoor = interleavedA.store.getState().undoStack.length;
-  const interleavedBUndoVoor = interleavedB.store.getState().undoStack.length;
+  const interleavedAUndoVoor = appliedHistoryDepth(interleavedA.store);
+  const interleavedBUndoVoor = appliedHistoryDepth(interleavedB.store);
   txInterleavedB.withTransaction(() => {
     interleavedB.store.getState().addTask({ name: 'B binnen eigen batch' });
     interleavedA.store.getState().addTask({ name: 'A tijdens batch B' });
   });
   eq('13 mutatie A tijdens batch B krijgt een eigen undo-stap',
-    interleavedA.store.getState().undoStack.length, interleavedAUndoVoor + 1);
+    appliedHistoryDepth(interleavedA.store), interleavedAUndoVoor + 1);
   eq('13a batch B houdt precies één eigen undo-stap',
-    interleavedB.store.getState().undoStack.length, interleavedBUndoVoor + 1);
+    appliedHistoryDepth(interleavedB.store), interleavedBUndoVoor + 1);
 }
 
 // ── 5. Klembord blijft app-globaal; paste-undo hoort bij de doelcontext ────────
@@ -154,11 +158,11 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('14 copyTasks-klembord overleeft een documentwissel in dezelfde appcontext',
     pasteB.store.getState().taskClipboard, clipboardVoor);
 
-  const bUndoVoor = pasteB.store.getState().undoStack.length;
+  const bUndoVoor = appliedHistoryDepth(pasteB.store);
   const pasted = pasteB.store.getState().pasteTasks();
   eq('14a paste op B maakt één nieuwe root', pasted.length, 1);
   eq('14b paste op B pusht alleen op B één snapshot',
-    pasteB.store.getState().undoStack.length, bUndoVoor + 1);
+    appliedHistoryDepth(pasteB.store), bUndoVoor + 1);
   eq('14c paste op B gebruikt de klembordinhoud', pasteB.store.getState().tasks[0]?.name, 'kopieerbare tak');
   eq('14d paste op B laat A byte-inhoudelijk gelijk', capturePayload(pasteA.store.getState()), aVoor);
   eq('14e paste op B laat de app-singleton byte-inhoudelijk gelijk', capturePayload(useAppStore.getState()), appVoor);
@@ -215,8 +219,8 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
 
   const aVoorBatch = capturePayload(A.getState());
   const singletonVoorBatch = capturePayload(useAppStore.getState());
-  const aUndoVoorBatch = A.getState().undoStack.length;
-  const bUndoVoorBatch = B.getState().undoStack.length;
+  const aUndoVoorBatch = appliedHistoryDepth(A);
+  const bUndoVoorBatch = appliedHistoryDepth(B);
   const bTakenVoorBatch = B.getState().tasks.length;
   api.data.batch(() => {
     api.data.addTask({ name: 'Bulk B 1' });
@@ -225,9 +229,9 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('17 extensiebatch voegt twee taken toe aan document B',
     B.getState().tasks.length, bTakenVoorBatch + 2);
   eq('17a extensiebatch vormt precies één undo-stap in B',
-    B.getState().undoStack.length, bUndoVoorBatch + 1);
+    appliedHistoryDepth(B), bUndoVoorBatch + 1);
   eq('17b extensiebatch verandert undo van A niet',
-    A.getState().undoStack.length, aUndoVoorBatch);
+    appliedHistoryDepth(A), aUndoVoorBatch);
   eq('17c extensiebatch laat document A byte-inhoudelijk gelijk',
     capturePayload(A.getState()), aVoorBatch);
   eq('17d extensiebatch laat de app-singleton byte-inhoudelijk gelijk',
@@ -242,7 +246,7 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('18d data.getResources leest document B', api.data.getResources().map(r => r.name), ['Kraan B']);
   eq('18e data.getAssignments leest document B', api.data.getAssignments().length, 1);
 
-  const customUndoVoor = B.getState().undoStack.length;
+  const customUndoVoor = appliedHistoryDepth(B);
   const customId = api.data.addTask({
     name: 'Engineering B',
     customTaskType: { id: '  ops-engineering  ', name: '  Engineering  ' },
@@ -255,7 +259,7 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
     api.data.getTasks().find(task => task.id === customId)?.customTaskType,
     { id: 'ops-engineering', name: 'Engineering' });
   eq('18i catalogusmaterialisatie plus taak vormt één undo-stap',
-    B.getState().undoStack.length, customUndoVoor + 1);
+    appliedHistoryDepth(B), customUndoVoor + 1);
 
   let nameConflict = false;
   try {
@@ -373,12 +377,13 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
     ['getState', 'setState', 'subscribe']
       .every(k => typeof (useAppStore as unknown as Record<string, unknown>)[k] === 'function'), true);
   eq('24a de singleton levert een volledige AppState',
-    ['project', 'tasks', 'sequences', 'resources', 'assignments', 'ui', 'view', 'undoStack']
+    ['project', 'tasks', 'sequences', 'resources', 'assignments', 'ui', 'view',
+      'historyEvents', 'nextHistorySequence']
       .every(k => k in useAppStore.getState()), true);
 
   const C = createAppStore();
   const D = createAppStore();
-  for (const veld of ['tasks', 'sequences', 'resources', 'assignments', 'undoStack', 'redoStack'] as const) {
+  for (const veld of ['tasks', 'sequences', 'resources', 'assignments', 'historyEvents'] as const) {
     eq(`25 "${veld}" is niet gedeeld tussen twee verse instanties`,
       (C.getState() as unknown as Record<string, unknown>)[veld]
         === (D.getState() as unknown as Record<string, unknown>)[veld],

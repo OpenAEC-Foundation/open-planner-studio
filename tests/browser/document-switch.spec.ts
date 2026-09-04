@@ -64,7 +64,7 @@ async function expectDocument(page: Page, documentId: string, prefix: string, se
   await expect.poll(() => page.evaluate(() => ({
     primaryX: document.querySelector<HTMLElement>('[data-testid="gantt-hscroll"]')?.scrollLeft,
     secondaryX: document.querySelector<HTMLElement>('[data-testid="gantt-hscroll-secondary"]')?.scrollLeft,
-    verticalY: document.querySelector<HTMLElement>('[data-testid="gantt-vscroll"]')?.scrollTop,
+    verticalY: document.querySelector<HTMLElement>('[data-task-grid-surface-id="gantt-task-grid"] [role="grid"]')?.scrollTop,
   }))).toEqual({
     primaryX: view.scrollX,
     secondaryX: view.secondaryScrollX,
@@ -85,7 +85,7 @@ test('Gantt documenttabs herstellen beide paneviews en DOM-scrollbars', async ({
   const bIds = await seedProject(page, taskInputs('Document B', 48), 'Document B');
   await barPoint(page, bIds[0]);
   const viewB: ViewFixture = {
-    ratio: 0.68, zoom: 48, scrollX: 360, scrollY: 196, secondaryZoom: 28, secondaryScrollX: 275,
+    ratio: 0.68, zoom: 48, scrollX: 360, scrollY: 190, secondaryZoom: 28, secondaryScrollX: 275,
   };
   await configureDocument(page, bIds[5], viewB);
 

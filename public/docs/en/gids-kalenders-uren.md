@@ -45,17 +45,19 @@ Regenerating adds missing years while retaining manually entered closures.
 
 Open **Settings → Timeline / Zoom** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Also turn on **Allow mixed day/hour planning** below it when you want to choose a unit per task; without that second preference the compact duration input remains visible, but the Days/Hours choice does not.
 
-When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. Before editing such a duration, Open Planner Studio asks you to enable hour planning.
+When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. You can still move such a bar in the Gantt or resize it from an edge; the day-grid step never turns its stored working minutes into days. Enable hour planning for hour- or quarter-precise entry and the finer time grid.
 
 In **Project information**, also choose **Default unit for new tasks: Days/Hours**. This is a project setting used by every manual new-task route. It does not change existing tasks. When hour planning is off, new tasks always start safely in days.
 
 ## Working-time bands and shifts
 
-Every valid calendar supports both day and hour tasks. If a calendar has no manually entered per-weekday bands, Open Planner Studio derives them purely from its working days, start and end time, and **Hours per day**. A classic 07:00–16:00 calendar with 8 net hours therefore becomes 07:00–12:00 and 13:00–16:00; 08:00–16:00 with 8 hours remains one band. The per-weekday editor and shift presets, such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** and **24/7**, always take precedence and refine that derivation. A night band can cross midnight.
+Every valid calendar supports both day and hour tasks. If a calendar has no manually entered per-weekday bands, Open Planner Studio derives them from the simple pattern. Set **Start**, **End** and **Break starts** as 24-hour HH:MM (07:00, 16:00 and 12:00 by default); each has quarter-hour arrow controls. Then set **Break duration** in minutes: it has the same non-native quarter-hour controls and Arrow Up/Down, but remains a minute value from 0 to 1440. For example, 07:00–16:00 with a 60-minute break starting at 12:00 becomes 07:00–12:00 and 13:00–16:00. 09:00–17:00 with a 30-minute break at 12:00 becomes 09:00–12:00 and 12:30–17:00. A duration of 0 means one continuous band, so 08:00–16:00 without a break remains 08:00–16:00. **Net hours per day** follows this pattern and is always a read-only two-decimal `h` value.
 
-**Hours per day** helps with presentation but does not determine a task unit. Day tasks continue to count working days; an hour task uses only the effective bands. Only an empty or invalid calendar cannot schedule hours. There is no silent task, unit or calendar conversion and no rounding.
+Start must precede End; the break must fit entirely within that working day and cannot consume it all. The dialog blocks Apply and explains an invalid or incomplete time instead of changing the calendar. Older calendars without the two break fields retain their existing behavior: their difference between clock span and the historic stored hours is initially interpreted as a midday gap and becomes explicit only after a scalar time is edited. The per-weekday editor and shift presets, such as **Day shift**, **2 shifts**, **3 shifts**, **Night shift** and **24/7**, always take precedence: once you set bands there, those are the source of truth. A night band can cross midnight.
 
-The derived **Hours per day** helps with presentation, but it does not determine a task's unit. Without concrete bands the scheduler cannot know exactly where twelve working hours fit. If you select **Hours** for a task whose calendar has no bands, Open Planner Studio changes nothing. It explains that you must choose a calendar with working times or add them first. There is no day fallback and no rounding.
+**Net hours per day** helps with presentation but does not determine a task unit. Day tasks continue to count working days; an hour task uses only the effective bands. Only an empty or invalid calendar cannot schedule hours. There is no silent task, unit or calendar conversion and no rounding.
+
+The derived **Net hours per day** helps with presentation, but it does not determine a task's unit. Without concrete bands the scheduler cannot know exactly where twelve working hours fit. If you select **Hours** for a task whose calendar has no bands, Open Planner Studio changes nothing. It explains that you must choose a calendar with working times or add them first. There is no day fallback and no rounding.
 
 ## Entering duration per task
 
@@ -139,7 +141,7 @@ The hour value does not exactly match a whole number of available working days f
 
 **An imported hour task is visible while hour planning is off**
 
-That protects the source data. Exact minutes remain stored and are not changed into days. Enable hour planning before editing the duration.
+That protects the source data. Exact minutes remain stored and are not changed into days. You can still move the bar on the day grid or adjust it from an edge; enable hour planning for hour- or quarter-precise entry and the finer time grid.
 
 **`2d(16h)` or `16h(2d)` looks duplicated**
 

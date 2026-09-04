@@ -396,6 +396,11 @@ function writeStructure(
   // Projectsettings — wbsAutoNumber (fase 2.2) + statusDate/progressMode (fase 2.6, §8.2).
   // Golden rule: elk veld alleen wanneer gezet; geen enkel veld ⇒ geen OPS_ProjectSettings-pset.
   const projSettingProps: number[] = [];
+  // Externe bronverversing bewaart naast taak-id ook project-id. Zonder deze waarde kreeg hetzelfde
+  // IFC-bestand bij iedere parse een nieuw project-id, zodat een ververste link nooit een blijvend
+  // canonieke bronidentiteit had. Oudere bestanden vallen in de reader terug op IFC GlobalId.
+  projSettingProps.push(addLine(ctx, '_ps_projectid',
+    `IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT(${ifcStr(project.id)}),$)`));
   if (project.wbsAutoNumber !== undefined) {
     projSettingProps.push(addLine(ctx, '_ps_wbsauto',
       `IFCPROPERTYSINGLEVALUE('wbsAutoNumber',$,IFCBOOLEAN(${project.wbsAutoNumber ? '.T.' : '.F.'}),$)`));
@@ -811,10 +816,12 @@ function writeCalendarGenerationMeta(
   const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
   const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
   const hasWorkingExceptions = workingExceptionStepIds.length > 0;
+  const hasSimpleBreak = !cal.workTime
+    && (cal.simpleBreakStartMinute !== undefined || cal.simpleBreakDurationMinutes !== undefined);
   // Een enkele 08:00–16:00-band is aan de IFC-kant niet te onderscheiden van een dagkalender met
   // dezelfde scalar-uren. De OPS-markering bewaart daarom de kalenderidentiteit ook zonder urentaak.
   const isHourCalendar = cal.workTime !== undefined;
-  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions && !isHourCalendar) return;
+  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions && !hasSimpleBreak && !isHourCalendar) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -839,6 +846,18 @@ function writeCalendarGenerationMeta(
   if (needsHoursPerDayOverride) {
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(${cal.hoursPerDay}),$)`));
+  }
+  // IFC kent geen semantisch "eenvoudig pauzepatroon". Bewaar het daarom als OPS-metadata,
+  // uitsluitend wanneer de gebruiker de nieuwe velden werkelijk heeft gezet.
+  if (hasSimpleBreak) {
+    if (cal.simpleBreakStartMinute !== undefined) {
+      props.push(addLine(ctx, `_opscal_breakstart_${cal.id}`,
+        `IFCPROPERTYSINGLEVALUE('SimpleBreakStart',$,IFCINTEGER(${cal.simpleBreakStartMinute}),$)`));
+    }
+    if (cal.simpleBreakDurationMinutes !== undefined) {
+      props.push(addLine(ctx, `_opscal_breakduration_${cal.id}`,
+        `IFCPROPERTYSINGLEVALUE('SimpleBreakDuration',$,IFCINTEGER(${cal.simpleBreakDurationMinutes}),$)`));
+    }
   }
   if (isHourCalendar) {
     props.push(addLine(ctx, `_opscal_hourmode_${cal.id}`,
@@ -1181,14 +1200,18 @@ function writeTimephasedMeta(
     // Zelfde defensie/filter als writeAssignmentMeta hierboven — bepaalt hetzelfde `#index`.
     const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
     if (!list || list.length === 0) continue;
-    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string }> = {};
+    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string; curveValues?: number[] }> = {};
     list.forEach((a, index) => {
-      if (a.workWindowStart === undefined && a.workWindowFinish === undefined) return;
+      // Contour-engine (2026-09): `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in
+      // hetzelfde JSON-blob mee — additief, een toewijzing zonder venster én zonder curve schrijft
+      // nog altijd niets (byte-identiek).
+      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined) return;
       const resGuid = guidOf(ctx, a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
         ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
+        ...(a.curveValues !== undefined ? { curveValues: [...a.curveValues] } : {}),
       };
     });
     if (Object.keys(windows).length === 0) continue;

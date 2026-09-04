@@ -13,17 +13,12 @@
     // @types/node-signatuur.
     "types": ["node"]
   },
+  // Was een handonderhouden opsomming naast ALL_CHECKS in run.sh — de twee liepen uit elkaar
+  // (check-distribute.ts ontbrak hier, dus draaide wél maar werd nooit getypecheckt). Een glob
+  // over alle check-*.ts in deze map kan per definitie niet meer afwijken van wat run.sh's eigen
+  // map-glob oppikt.
   "include": [
-    "check-library-ops.ts",
-    "check-library-slice.ts",
-    "check-demo-library.ts",
-    "check-projectinfo-guard.ts",
-    "check-pool-ifc.ts",
-    "check-ifc-hostile.ts",
-    "check-i18n-plurals.ts",
-    "check-occupancy.ts",
-    "check-distribute.ts",
-    "check-apply-distribution.ts",
+    "check-*.ts",
     "../../src/types/file-system-access.d.ts"
   ]
 }

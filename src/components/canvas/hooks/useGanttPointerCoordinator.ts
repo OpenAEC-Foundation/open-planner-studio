@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useBarDrag } from './useBarDrag';
 import { usePan } from './usePan';
 import { useBoxSelect } from './useBoxSelect';
-import { useRowDrag } from './useRowDrag';
 import { useDependencyDraw } from './useDependencyDraw';
 import type {
   GanttContextMenuState,
@@ -14,13 +13,10 @@ import type {
   GanttTooltipState,
 } from './ganttCoordinatorTypes';
 
-// Halve breedte van de bewezen grijpzone rond de tabel/chart-scheiding.
-const SPLITTER_GRAB_MARGIN = 4;
-
 /**
- * Enige eigenaar van de pointerprioriteit op het primaire Ganttcanvas. De publieke renderers blijven
- * de waarheid voor row/bar/relation/collapse/add-hit-tests; deze hook kiest alleen welk bestaand
- * gebaar die uitkomst mag starten.
+ * Enige eigenaar van de pointerprioriteit op het primaire tijdlijncanvas. De DOM-grid links bezit
+ * rijselectie, disclosure, rijsleep en de workspace-splitter; deze hook coördineert uitsluitend
+ * balken, relaties, pannen en kaderselectie binnen de lokale canvascoördinaten.
  */
 export function useGanttPointerCoordinator(
   input: GanttPointerCoordinatorInput,
@@ -29,14 +25,11 @@ export function useGanttPointerCoordinator(
     host,
     viewport,
     tasks,
-    rows,
     calendar,
     effectiveCalendarByTaskId,
     selectedTaskIds,
-    taskTableWidth,
     headerHeight,
     dependencyMode,
-    treeMode,
     scrollMode,
     enableQuarterHourZoom,
     enableHourPlanning,
@@ -44,25 +37,17 @@ export function useGanttPointerCoordinator(
     selectTask,
     selectTasks,
     deselectAll,
-    toggleCollapse,
-    setCollapsedGroupKey,
-    addChildTask,
     updateTask,
-    moveTaskTo,
-    moveTasksTo,
     setScroll,
     openTask,
-    revealTaskIfOffscreen,
     clearHistogramTooltip,
   } = input;
   const canvasRef = host.primaryCanvasRef;
   const rendererRef = host.primaryRendererRef;
   const containerRef = viewport.refs.primaryContainerRef;
-  const tableSplitter = viewport.splitters.table;
   const view = viewport.effectiveView;
 
   const justBoxSelectedRef = useRef(false);
-  const justRowDraggedRef = useRef(false);
   const [hoverCursor, setHoverCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<GanttContextMenuState | null>(null);
   const [relationPopover, setRelationPopover] = useState<GanttRelationPopoverState | null>(null);
@@ -81,29 +66,6 @@ export function useGanttPointerCoordinator(
     deselectAll,
     justBoxSelectedRef,
   });
-  const tasksById = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
-  const rowDrag = useRowDrag({
-    canvasRef,
-    rendererRef,
-    rows,
-    tasksById,
-    moveTaskTo,
-    selectedTaskIds,
-    moveTasksTo,
-    justRowDraggedRef,
-    headerHeight,
-  });
-  const startRowDrag = rowDrag.startRowDrag;
-  // Alleen de boomweergave heeft een eenduidige structurele doelvolgorde. Een verticale
-  // balkgesture geeft daar zijn kandidaat door aan dezelfde rijsleep als de taakrij links;
-  // gesorteerde/gegroepeerde weergaven behouden dus hun bestaande blokkering.
-  const startVerticalBarDrag = useCallback((candidate: {
-    taskId: string;
-    startClientX: number;
-    startClientY: number;
-  }) => {
-    startRowDrag(candidate);
-  }, [startRowDrag]);
   const barDrag = useBarDrag({
     zoom: view.zoom,
     enableQuarterHourZoom,
@@ -113,7 +75,8 @@ export function useGanttPointerCoordinator(
     compressNonWorkdays,
     getTask,
     updateTask,
-    onVerticalBodyDrag: treeMode ? startVerticalBarDrag : undefined,
+    axis: viewport.sharedAxis,
+    canvasRef,
   });
   const onRelationDrawn = useCallback((sourceTaskId: string, targetTaskId: string, x: number, y: number) => {
     setRelationPopover({ sourceTaskId, targetTaskId, x, y });
@@ -123,17 +86,12 @@ export function useGanttPointerCoordinator(
     containerRef,
     depLineCanvasRef: host.dependencyCanvasRef,
     rendererRef,
-    taskTableWidth,
     onRelationDrawn,
   });
 
   const onClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     if (justBoxSelectedRef.current) {
       justBoxSelectedRef.current = false;
-      return;
-    }
-    if (justRowDraggedRef.current) {
-      justRowDraggedRef.current = false;
       return;
     }
     clearHistogramTooltip();
@@ -145,43 +103,24 @@ export function useGanttPointerCoordinator(
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
 
-    const row = renderer.getRowAtY(y);
-    if (row?.kind === 'group') {
-      setCollapsedGroupKey(row.key, !row.collapsed);
-      return;
-    }
-    if (renderer.isInTaskTable(x)) {
-      const collapseTask = renderer.isCollapseToggle(x, y);
-      if (collapseTask) {
-        toggleCollapse(collapseTask.id);
-        return;
-      }
-      const addTarget = renderer.isAddButton(x, y);
-      if (addTarget) {
-        addChildTask(addTarget.id);
-        return;
-      }
-    }
-
-    const task = renderer.getTaskAtY(y);
+    const task = renderer.getRelationSourceAt(x, y);
     if (!task) {
       deselectAll();
       return;
     }
     if (event.shiftKey) selectTask(task.id, false, true);
     else if (event.ctrlKey || event.metaKey) selectTask(task.id, true, false);
-    else {
-      selectTask(task.id, false, false);
-      if (renderer.isInTaskTable(x)) revealTaskIfOffscreen(task);
-    }
-  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, setCollapsedGroupKey, toggleCollapse, addChildTask, deselectAll, selectTask, revealTaskIfOffscreen]);
+    else selectTask(task.id, false, false);
+  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, deselectAll, selectTask]);
 
   const onDoubleClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const renderer = rendererRef.current;
     if (!canvas || !renderer) return;
-    const y = event.clientY - canvas.getBoundingClientRect().top;
-    const task = renderer.getTaskAtY(y);
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const task = renderer.getRelationSourceAt(x, y);
     if (task) openTask(task.id);
   }, [canvasRef, rendererRef, openTask]);
 
@@ -196,24 +135,14 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
-    const row = renderer.getRowAtY(y);
-    if (row?.kind === 'group') {
-      setContextMenu({
-        x: event.clientX,
-        y: event.clientY,
-        task: null,
-        barHit: false,
-        group: { key: row.key, collapsed: row.collapsed },
-      });
-      return;
-    }
-    const task = renderer.getTaskAtY(y);
+    const task = renderer.getRelationSourceAt(x, y);
+    if (!task) return;
     if (task && !selectedTaskIds.includes(task.id)) selectTask(task.id, false);
     setContextMenu({
       x: event.clientX,
       y: event.clientY,
       task,
-      barHit: !!task && !!renderer.getRelationSourceAt(x, y),
+      barHit: true,
       group: null,
     });
   }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask]);
@@ -230,15 +159,15 @@ export function useGanttPointerCoordinator(
 
   /*
    * De karakteriseringsmatrix bewaakt deze ene volgorde:
-   * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 splitter wint; 4 header stopt;
-   * 5 relatie wint van balkdrag; 6 Ctrl/Cmd-balk blijft selectie; 7 balkbody/rand sleept;
-   * 8 kale boomrij start rowdrag; 9 drag-achtergrond pant; 10 overige achtergrond boxselecteert.
+   * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 header stopt; 4 relatie wint
+   * van balkdrag; 5 Ctrl/Cmd-balk blijft selectie; 6 balkbody/rand sleept; 7 drag-achtergrond pant;
+   * 8 iedere overige achtergrondroute start kaderselectie.
    */
   const onMouseDown = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     // 1–2. Middelklik pant alleen wanneer geen enkel ander gebaar actief is.
     if (event.button === 1) {
       event.preventDefault();
-      if (barDrag.active || dependencyDraw.active || boxSelect.active || rowDrag.active || pan.active) return;
+      if (barDrag.active || dependencyDraw.active || boxSelect.active || pan.active) return;
       beginPan(event, 1);
       return;
     }
@@ -251,16 +180,10 @@ export function useGanttPointerCoordinator(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    // 3. De tabelsplitter wint ook boven header, balk en achtergrond.
-    if (Math.abs(x - taskTableWidth) <= SPLITTER_GRAB_MARGIN) {
-      event.preventDefault();
-      tableSplitter.start();
-      return;
-    }
-    // 4. Onder de timelineheader bestaat geen taakgebaar.
+    // 3. Onder de timelineheader bestaat geen taakgebaar.
     if (y < headerHeight) return;
 
-    // 5. Shift/dependency-mode gebruikt uitsluitend de publieke relatiehittest en wint van drag.
+    // 4. Shift/dependency-mode gebruikt uitsluitend de publieke relatiehittest en wint van drag.
     if (event.shiftKey || dependencyMode) {
       const source = renderer.getRelationSourceAt(x, y);
       if (source) {
@@ -278,13 +201,12 @@ export function useGanttPointerCoordinator(
 
     const hit = renderer.getTaskBarBounds(x, y);
     if (hit) {
-      // 6. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
+      // 5. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
         return;
       }
-      // 7. Gewone balkbody/rand start precies één gebaar. Alleen de body kiest na de drempel
-      // horizontaal (datum) of verticaal (de bestaande rijsleep); een rand blijft duur-slepen.
+      // 6. Gewone balkbody/rand start precies één tijdlijngebaar.
       event.preventDefault();
       barDrag.startBarDrag({
         taskId: hit.task.id,
@@ -300,35 +222,19 @@ export function useGanttPointerCoordinator(
       return;
     }
 
-    if (renderer.isInTaskTable(x)) {
-      event.preventDefault();
-      const rowTask = renderer.getTaskAtY(y);
-      // 8. Alleen een kale taakrij in pure boommodus wordt een rowdrag-kandidaat.
-      if (rowTask && treeMode && !event.ctrlKey && !event.metaKey && !event.shiftKey && !contextMenu) {
-        rowDrag.startRowDrag({
-          taskId: rowTask.id,
-          startClientX: event.clientX,
-          startClientY: event.clientY,
-        });
-        return;
-      }
-      boxSelect.startBoxSelect({ startClientX: event.clientX, startClientY: event.clientY });
-      return;
-    }
-
-    // 9. Kale chartachtergrond pant in drag-mode, behalve met Ctrl/Cmd.
+    // 7. Kale chartachtergrond pant in drag-mode, behalve met Ctrl/Cmd.
     if (scrollMode === 'drag' && !(event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       beginPan(event, 0);
       return;
     }
-    // 10. Iedere overige achtergrondroute start boxselectie.
+    // 8. Iedere overige achtergrondroute start boxselectie.
     event.preventDefault();
     boxSelect.startBoxSelect({ startClientX: event.clientX, startClientY: event.clientY });
-  }, [barDrag, dependencyDraw, boxSelect, rowDrag, pan.active, beginPan, canvasRef, rendererRef, taskTableWidth, tableSplitter, headerHeight, dependencyMode, selectTask, treeMode, contextMenu, scrollMode]);
+  }, [barDrag, dependencyDraw, boxSelect, pan.active, beginPan, canvasRef, rendererRef, headerHeight, dependencyMode, selectTask, scrollMode]);
 
   const onMouseMove = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (barDrag.active || dependencyDraw.active || pan.active || boxSelect.active || rowDrag.active || contextMenu) {
+    if (barDrag.active || dependencyDraw.active || pan.active || boxSelect.active || contextMenu) {
       setTooltip(null);
       return;
     }
@@ -338,11 +244,6 @@ export function useGanttPointerCoordinator(
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    if (Math.abs(x - taskTableWidth) <= SPLITTER_GRAB_MARGIN) {
-      setHoverCursor('col-resize');
-      setTooltip(null);
-      return;
-    }
     if (y < headerHeight) {
       setHoverCursor('default');
       setTooltip(null);
@@ -356,32 +257,24 @@ export function useGanttPointerCoordinator(
       setTooltip({ x: event.clientX, y: event.clientY, task: hit.task });
       return;
     }
-    const hoveredTask = renderer.getTaskAtY(y);
-    if (hoveredTask && x >= taskTableWidth) {
+    const hoveredTask = renderer.getRelationSourceAt(x, y);
+    if (hoveredTask) {
       setTooltip({ x: event.clientX, y: event.clientY, task: hoveredTask });
     } else {
       setTooltip(null);
     }
-    if (renderer.isInTaskTable(x)
-      && (renderer.isCollapseToggle(x, y) || renderer.isAddButton(x, y))) {
-      setHoverCursor('pointer');
-      setTooltip(null);
-      return;
-    }
-    if (scrollMode === 'drag' && x >= taskTableWidth) {
+    if (scrollMode === 'drag') {
       setHoverCursor(event.ctrlKey || event.metaKey ? 'crosshair' : 'grab');
       return;
     }
     setHoverCursor('default');
-  }, [barDrag.active, dependencyDraw.active, pan.active, boxSelect.active, rowDrag.active, contextMenu, canvasRef, rendererRef, taskTableWidth, headerHeight, dependencyMode, scrollMode]);
+  }, [barDrag.active, dependencyDraw.active, pan.active, boxSelect.active, contextMenu, canvasRef, rendererRef, headerHeight, dependencyMode, scrollMode]);
 
   const onMouseLeave = useCallback(() => setTooltip(null), []);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
 
-  const cursor = tableSplitter.isResizing
-    ? 'col-resize'
-    : pan.panState
+  const cursor = pan.panState
       ? 'grabbing'
       : barDrag.dragState
         ? (barDrag.dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
@@ -389,11 +282,9 @@ export function useGanttPointerCoordinator(
           ? 'crosshair'
           : boxSelect.boxSelectState
             ? 'crosshair'
-            : rowDrag.rowDragState
-              ? 'grabbing'
-              : dependencyMode && (hoverCursor === 'grab' || hoverCursor === 'ew-resize')
-                ? 'crosshair'
-                : hoverCursor;
+            : dependencyMode && (hoverCursor === 'grab' || hoverCursor === 'ew-resize')
+              ? 'crosshair'
+              : hoverCursor;
 
   return {
     onClick,
@@ -408,8 +299,6 @@ export function useGanttPointerCoordinator(
       pan: pan.panState,
       boxSelectCandidate: boxSelect.boxSelectCandidate,
       boxSelect: boxSelect.boxSelectState,
-      rowDragCandidate: rowDrag.rowDragCandidate,
-      rowDrag: rowDrag.rowDragState,
       dependency: dependencyDraw.depDragState,
     },
     contextMenu,

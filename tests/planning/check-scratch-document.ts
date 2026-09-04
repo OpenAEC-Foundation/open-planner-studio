@@ -69,21 +69,37 @@ console.log('-- scratch-document: geval 1, round-trip --');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Geval 2: de echte acties draaien, met echte undo-semantiek. `applyLeveling` schrijft een delay op
-// B, pusht ÉÉN snapshot op de EIGEN undo-stack van de scratch-context, en draait zelf `runCPM`.
+// Geval 2: de ECHTE actie draait — `applyLeveling` schrijft de delay op B, strijkt de M10-velden
+// glad, zet `isDirty` en draait zelf `runCPM`, zodat de datums doorgerekend terugkomen.
+//
+// AANGEPAST NA MERGE MET MAIN (sessiehistorie, 2026-09-04). Hier stond "één undo-stap op de eigen
+// stack van dat document": undo/redo was toen een `undoStack` PER document(payload). Dat model
+// bestaat niet meer — undo/redo is één app-globale sessiechronologie (`AppState.historyEvents`), en
+// die van een scratch-context wordt mét de context weggegooid. De opbrengst van deze functie is dus
+// uitsluitend de nieuwe payload (+ de meldingen); het history-event registreert de AANROEPER zelf in
+// de echte store (zie `librarySlice.applyDistribution`). Dat de payload per constructie géén historie
+// kán dragen, pinnen we hieronder op het documentcontract zelf.
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- scratch-document: geval 2, echte acties + undo --');
+console.log('-- scratch-document: geval 2, echte acties --');
 {
   const payload = basePayload();
   const beforeStart = payload.tasks.find(t => t.id === 'B')!.time.earlyStart;
-  const undoDepthBefore = payload.undoStack.length;
   const out = runInScratchDocument(payload, (s) => {
     s.applyLeveling({ delays: { B: 2 }, gaps: {} });
   });
   ok('geval 2: de run slaagt', out.ok);
-  eq('geval 2: één undo-stap op de eigen stack', out.payload.undoStack.length, undoDepthBefore + 1);
+  eq('geval 2: de delay is geschreven', out.payload.tasks.find(t => t.id === 'B')!.levelingDelay, 2);
   eq('geval 2: doorgerekend (scheduleStale false)', out.payload.scheduleStale, false);
+  ok('geval 2: er is een verse cpmResult', out.payload.cpmResult !== null);
+  eq('geval 2: en het document staat als gewijzigd', out.payload.isDirty, true);
   ok('geval 2: nieuwe datums geschreven', out.payload.tasks.find(t => t.id === 'B')!.time.earlyStart !== beforeStart);
+  // De historie hóórt hier niet: `DOCUMENT_FIELDS` is de enige bron van wat een document draagt, en
+  // de sessiechronologie staat daar bewust NIET in (hij is app-globaal). Zet iemand hem er alsnog
+  // in, dan valt deze assert om — en de `f.key`-vergelijking hierboven zou zelfs al een COMPILE-fout
+  // geven zolang hij er niet in staat, dus die kant is by construction al dicht.
+  ok('geval 2: een payload draagt geen sessiehistorie',
+    !('historyEvents' in (out.payload as unknown as Record<string, unknown>))
+    && !('nextHistorySequence' in (out.payload as unknown as Record<string, unknown>)));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -2,10 +2,12 @@
  * View-/render-contract-types (fase 1 modulariteits-sanering, thema E). Deze types beschrijven de
  * presentatie-/weergavelaag (Gantt-view, tijdschaal, filter/groep/sorteer/layout-model, datum- en
  * duurweergave) en worden gedeeld door engine (`GanttRenderer`, `HistogramRenderer`, `timelineTiers`,
- * `filterEval`), services (`printPreview`) én de state-laag. Ze wonen daarom in `src/types/` (puur,
- * geen imports) i.p.v. in de state-laag. `state/slices/types.ts` her-exporteert ze voor bestaande
+ * `filterEval`), services (`printPreview`) én de state-laag. Ze wonen daarom in `src/types/` (met
+ * alleen type-imports) i.p.v. in de state-laag. `state/slices/types.ts` her-exporteert ze voor bestaande
  * consumenten; de bijbehorende waarde-constanten (`DATE_NOTATIONS`, …) blijven daar.
  */
+
+import type { TaskGridColumnPreference } from '@/types/taskGrid';
 
 // Fase 2.7 (§3): 'year' toegevoegd als directe keuze; 'quarter' aan de dropdown.
 // Fase 2.8b (§6.2): 'hour' toegevoegd — alleen bereikbaar/zichtbaar als de hoofdschakelaar
@@ -87,7 +89,9 @@ export interface SortLevel {
 export interface Layout {
   id: string;
   name: string;
-  columns: ColumnConfig[];
+  /** Kolomindeling die op het actieve taakgridoppervlak wordt toegepast. De bron-surface wordt
+   *  niet vastgelegd: dezelfde layout is bewust bruikbaar in Gantt en volledige Tabel. */
+  columns: TaskGridColumnPreference[];
   group: GroupLevel[];
   sort: SortLevel[];
   filter: FilterNode | null;
@@ -111,8 +115,6 @@ export interface ViewState {
    *  undefined = alle renewables samengeteld. Per-document (zit in ViewState → DocumentPayload). */
   histogramResourceId?: string;
   // --- Fase 2.7 (§2.6) — per-document view-state ---
-  /** Kolom-config; undefined = defaultColumns(). */
-  columns?: ColumnConfig[];
   /** Geneste AND/OR-filter; null = geen filter (short-circuit). */
   filter: FilterNode | null;
   /** Groepeer-niveaus; [] = WBS-boom (huidig gedrag). */

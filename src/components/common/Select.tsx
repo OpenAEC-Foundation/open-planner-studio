@@ -21,6 +21,13 @@ interface SelectProps {
   id?: string;
   'aria-label'?: string;
   className?: string;
+  /** Browserreview, observatie 5: begin al UITGEKLAPT (met de volledige lijst zichtbaar) i.p.v. pas
+   *  na een tweede interactie te openen — nodig voor gridcel-editors, waar "de cel in gaan" zélf al
+   *  de keuzemoment is. Focust bij mount ook meteen de trigger, zodat pijltjes/Enter direct werken.
+   *  Bestaande (niet-grid) aanroepers laten dit weg en houden hun huidige, gesloten startgedrag. */
+  autoOpen?: boolean;
+  'aria-invalid'?: true;
+  'aria-describedby'?: string;
 }
 
 interface MenuRect {
@@ -43,11 +50,14 @@ export function Select({
   id,
   className,
   'aria-label': ariaLabel,
+  autoOpen = false,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: SelectProps) {
   const reactId = useId();
   const listboxId = `${id ?? reactId}-listbox`;
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [highlight, setHighlight] = useState(-1);
   const [rect, setRect] = useState<MenuRect | null>(null);
 
@@ -104,6 +114,14 @@ export function Select({
       window.removeEventListener('resize', onScrollOrResize);
     };
   }, [open, computeRect]);
+
+  // Browserreview, observatie 5: bij autoOpen begint de trigger nooit gefocust vanuit de gewone
+  // klik-/tabvolgorde (de gridcel-editor mount 'm rechtstreeks) — zonder deze focus werken
+  // pijltjes/Enter/Escape pas na een extra klik.
+  useEffect(() => {
+    if (autoOpen) triggerRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // On open, initialise highlight to the selected (or first enabled) option.
   useEffect(() => {
@@ -214,7 +232,14 @@ export function Select({
       case 'Enter':
       case ' ':
         e.preventDefault();
-        if (highlight >= 0) selectAt(highlight);
+        // Browserreview, observatie 5: stopPropagation zodra dit ECHT een keuze maakt — anders zou
+        // dezelfde Enter ook nog doorbubbelen naar een omringende "Enter commit"-handler (zoals de
+        // gridcel-editor), die de keuze dan een TWEEDE keer zou verwerken. Grid-integratie roept de
+        // commit zelf al aan vanuit onChange (zie TaskCellEditor); dit voorkomt dat dubbel gebeurt.
+        if (highlight >= 0) {
+          e.stopPropagation();
+          selectAt(highlight);
+        }
         break;
       case 'Escape':
         e.preventDefault();
@@ -230,8 +255,14 @@ export function Select({
     }
   };
 
+  // Browserreview, observatie 5: `autoOpen` maakt `open` al bij de EERSTE render `true` — vóór
+  // deze fix riep dat createPortal(..., document.body) al tijdens `renderToStaticMarkup` aan (dit
+  // project heeft géén jsdom), wat crasht op een ontbrekend `document`. De niet-grid-aanroepers van
+  // `Select` liepen dit nooit tegen het lijf, want die starten altijd gesloten (`open` pas `true` ná
+  // een klik, ruim ná de eerste render). `typeof document !== 'undefined'` maakt de portal SSR-veilig
+  // sowieso: de menu-portal bestaat toch pas zinvol zodra de component in een echte browser draait.
   const menu =
-    open && rect
+    open && rect && typeof document !== 'undefined'
       ? createPortal(
           <div
             ref={menuRef}
@@ -297,6 +328,8 @@ export function Select({
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
         aria-label={ariaLabel}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         onClick={() => !disabled && setOpen(o => !o)}
         onKeyDown={onTriggerKeyDown}
         onBlur={e => {

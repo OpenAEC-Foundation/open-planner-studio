@@ -201,7 +201,7 @@ function hourTask(id: string, earlyStart: string, earlyFinish: string, splitGaps
   } as Task;
 }
 
-const W = 1400, H = 600, TTW = 300, ROWH = 28, HDRH = 60;
+const W = 1400, H = 600, ROWH = 28, HDRH = 60;
 function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { rects: RRect[]; lines: LineEv[] } {
   const { ctx, rects, lines } = makeCtx();
   const renderer = new GanttRenderer(ctx, {
@@ -214,12 +214,10 @@ function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { 
     ]),
     view,
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     statusDate: view.viewStartDate,
     showProgressLine: false,
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: ROWH,
     headerHeight: HDRH,
     ...opts,
@@ -237,9 +235,9 @@ const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
 //    die de as voorschrijft, plus de necking-connector ertussen.
 //
 //    Het aantal segmenten alleen is geen bewijs: beide as-lezingen geven er drie. Deze case pint
-//    daarom de randen. Uur-modus, werkdag 08:00-16:00, zoom 240 px/dag ⇒ 10 px/uur en x(08:00)=380.
+//    daarom de randen. Uur-modus, werkdag 08:00-16:00, zoom 240 px/dag ⇒ 10 px/uur en x(08:00)=80.
 //    Werk 120 | gat 60 | werk 120 | gat 60 | werk 120 ⇒ blokken 08-10, 11-13, 14-16, dus
-//    x = 380..400, 410..430, 440..460 — drie blokken van 20 px met 10 px ertussen.
+//    x = 80..100, 110..130, 140..160 — drie blokken van 20 px met 10 px ertussen.
 console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-posities + connector --');
 {
   const twoGaps: TaskSplitGap[] = [
@@ -247,7 +245,7 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
     { afterMinutes: 300, gapMinutes: 60 },
   ];
   const rows: ViewRow[] = [
-    { kind: 'task', task: hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row0', task: hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps), depth: 0, dimmed: false },
   ];
   // barSplitMode:'never' — bewijst meteen mede dat de necking-instelling hier NIET aan te pas komt
   // (O5): met 'never' zou de kalender-necking nooit splitsen, maar `splitGaps` doet het toch.
@@ -256,12 +254,12 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
   eq('2 gaten ⇒ exact 3 roundRect-aanroepen (3 segmenten) op die rij', row0Rects.length, 3);
   if (row0Rects.length === 3) {
     const [s1, s2, s3] = row0Rects;
-    near('segment 1 begint op x(08:00)', s1.x, 380);
+    near('segment 1 begint op x(08:00)', s1.x, 80);
     near('segment 1 is 2 werkuren breed', s1.w, 20);
-    near('segment 2 begint op x(11:00) — NIET op 14:00 (dubbel getelde gaten)', s2.x, 410);
+    near('segment 2 begint op x(11:00) — NIET op 14:00 (dubbel getelde gaten)', s2.x, 110);
     near('segment 2 is 2 werkuren breed', s2.w, 20);
-    near('segment 3 begint op x(14:00)', s3.x, 440);
-    near('segment 3 loopt tot x(16:00), het taakeinde', s3.x + s3.w, 460);
+    near('segment 3 begint op x(14:00)', s3.x, 140);
+    near('segment 3 loopt tot x(16:00), het taakeinde', s3.x + s3.w, 160);
   }
   const connectorLines = lines.filter(l => Math.abs(l.y - rowMidY(0)) < 0.01);
   eq('necking-connector: exact 1 moveTo + 1 lineTo op halve rijhoogte', connectorLines.length, 2);
@@ -270,8 +268,8 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
 
 // ── 2. Dezelfde assertie in DAG-modus, op de reviewer-reproductie: 3 zuivere werkdagen met twee
 //    gaten van één dag ({480,480} en {1440,480}). CPM-spanne 5 werkdagen (ma 06-01 t/m vr 06-05),
-//    dus de werkblokken zijn ma | wo | vr. Met zoom 30 en viewStart 06-01 is x(06-01)=300 en elke
-//    dag 30 px breed ⇒ blokken op 300, 360 en 420, elk 30 px.
+//    dus de werkblokken zijn ma | wo | vr. Met zoom 30 en viewStart 06-01 is x(06-01)=0 en elke
+//    dag 30 px breed ⇒ blokken op 0, 60 en 120, elk 30 px.
 //    Op de oude as werd blok 2 twee dagen breed en begon blok 3 ná het taakeinde (achterstevoren).
 console.log('-- split-bar-render: dag-modus, twee gaten ⇒ ma | wo | vr op de juiste x --');
 {
@@ -288,19 +286,19 @@ console.log('-- split-bar-render: dag-modus, twee gaten ⇒ ma | wo | vr op de j
     },
     splitGaps: twoDayGaps,
   } as Task;
-  const { rects } = renderRows([{ kind: 'task', task: dayTask, depth: 0, dimmed: false }]);
+  const { rects } = renderRows([{ kind: 'task', rowKey: dayTask.id, task: dayTask, depth: 0, dimmed: false }]);
   const dayRects = rects.filter(r => inRow(r, 0));
   eq('dag-modus, 2 gaten ⇒ exact 3 segmenten', dayRects.length, 3);
   if (dayRects.length === 3) {
     const [s1, s2, s3] = dayRects;
-    near('maandag: x 300, breedte 30', s1.x, 300);
+    near('maandag: x 0, breedte 30', s1.x, 0);
     near('maandag is één dag breed', s1.w, 30);
-    near('woensdag begint op x 360 — NIET op 330 (blok 2 twee dagen breed)', s2.x, 360);
+    near('woensdag begint op x 60 — NIET op 30 (blok 2 twee dagen breed)', s2.x, 60);
     near('woensdag is één dag breed, niet twee', s2.w, 30);
-    near('vrijdag begint op x 420, binnen de balk', s3.x, 420);
-    near('vrijdag loopt tot x 450 (inclusieve laatste dag)', s3.x + s3.w, 450);
+    near('vrijdag begint op x 120, binnen de balk', s3.x, 120);
+    near('vrijdag loopt tot x 150 (inclusieve laatste dag)', s3.x + s3.w, 150);
     ok('geen enkel segment loopt achterstevoren of buiten de balk',
-      dayRects.every(r => r.w > 0 && r.x >= 300 && r.x + r.w <= 450));
+      dayRects.every(r => r.w > 0 && r.x >= 0 && r.x + r.w <= 150));
   }
 }
 
@@ -310,7 +308,7 @@ console.log('-- split-bar-render: dag-modus, twee gaten ⇒ ma | wo | vr op de j
 console.log('-- split-bar-render: barSplitMode=never + geen splitGaps ⇒ geen split --');
 {
   const rows: ViewRow[] = [
-    { kind: 'task', task: hourTask('row1', '2026-06-01T08:00', '2026-06-03T16:00', undefined), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row1', task: hourTask('row1', '2026-06-01T08:00', '2026-06-03T16:00', undefined), depth: 0, dimmed: false },
   ];
   const { rects, lines } = renderRows(rows, { barSplitMode: 'never' });
   const row1Rects = rects.filter(r => inRow(r, 0));
@@ -327,7 +325,7 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
 {
   const oneGap: TaskSplitGap[] = [{ afterMinutes: 120, gapMinutes: 2880 }];
   const passA = renderRows([
-    { kind: 'task', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, 0), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, 0), depth: 0, dimmed: false },
   ]);
   const bgA = passA.rects.filter(r => inRow(r, 0));
   eq('opzet pass A: 1 gat ⇒ 2 achtergrondsegmenten', bgA.length, 2);
@@ -341,7 +339,7 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
     ok('opzet: completion ligt in (0,1)', completion > 0 && completion < 1);
 
     const passB = renderRows([
-      { kind: 'task', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
+      { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
     ]);
     const row2Rects = passB.rects.filter(r => inRow(r, 0));
     // Voortgang gebruikt in critical/default exact de centrale normalLight-kleur. Herken die
@@ -369,7 +367,7 @@ console.log('-- split-bar-render: dag-modus splitGaps (addWorkingDaysSigned-pad,
     time: { ...base.time, earlyStart: '2026-06-01', earlyFinish: '2026-06-20', scheduleStart: '2026-06-01', scheduleFinish: '2026-06-20', completion: 0 },
     splitGaps: dayGap,
   } as Task;
-  const { rects } = renderRows([{ kind: 'task', task: dayTask, depth: 0, dimmed: false }]);
+  const { rects } = renderRows([{ kind: 'task', rowKey: dayTask.id, task: dayTask, depth: 0, dimmed: false }]);
   const dayRects = rects.filter(r => inRow(r, 0));
   eq('dag-modus: 1 gat ⇒ 2 segmenten, GEEN crash', dayRects.length, 2);
 }
@@ -432,7 +430,7 @@ const printOptions: PrintOptions = {
   showLegend: false, showTaskNames: false, showCompletion: true,
   autoFit: true, customZoom: 1, paperSize: 'A4', orientation: 'landscape',
   companyName: '', labels: {
-    noTasks: '-', printed: '-', legend: {} as any, tableHeaders: { rowNum: '#' } as any,
+    noTasks: '-', printed: '-', legend: {} as any, tableHeaders: {} as any,
     page: '-', of: '-', today: '-',
   }, locale: 'nl', reportFontScale: 100,
 } as PrintOptions;

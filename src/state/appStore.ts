@@ -16,6 +16,12 @@ import { createDocumentSlice, type DocumentSlice } from './slices/documentSlice'
 import { createStructureSlice, type StructureSlice } from './slices/structureSlice';
 import { createBaselineSlice, type BaselineSlice } from './slices/baselineSlice';
 import { createLibrarySlice, type LibrarySlice } from './slices/librarySlice';
+import { createTaskGridSlice, type TaskGridSlice } from './slices/taskGridSlice';
+import {
+  bindDefaultGridTransactionStore,
+  createGridTransactionSlice,
+  type GridTransactionSlice,
+} from './gridTransaction';
 import { createStoreRuntime, type StoreRuntime, type StoreRuntimeOptions } from './runtime/storeRuntime';
 
 // Consumenten blijven ExportFormat uit '@/state/appStore' importeren.
@@ -42,7 +48,9 @@ export type AppState = ProjectSlice &
   DocumentSlice &
   StructureSlice &
   BaselineSlice &
-  LibrarySlice;
+  LibrarySlice &
+  TaskGridSlice &
+  GridTransactionSlice;
 
 export type AppStore = UseBoundStore<
   Mutate<StoreApi<AppState>, [['zustand/immer', never]]>
@@ -84,6 +92,8 @@ export function createAppStoreContext(opts?: StoreRuntimeOptions): AppStoreConte
       ...createStructureSlice(runtime)(...a),
       ...createBaselineSlice(runtime)(...a),
       ...createLibrarySlice(runtime)(...a),
+      ...createTaskGridSlice(...a),
+      ...createGridTransactionSlice(...a),
     })),
   );
   return { store, runtime };
@@ -97,3 +107,4 @@ export function createAppStore(): AppStore {
 /** De gemounte productinterface blijft exact één appcontext gebruiken. */
 export const appStoreContext = createAppStoreContext();
 export const useAppStore = appStoreContext.store;
+bindDefaultGridTransactionStore(useAppStore.getState, useAppStore.setState);

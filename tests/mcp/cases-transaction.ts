@@ -9,6 +9,7 @@ import { createSnapshot } from '@/state/snapshot';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import { capturePayload } from '@/state/documentContract';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 
@@ -23,7 +24,7 @@ store.getState().undo();
 // 1) Twee mutaties binnen één transactie ⇒ undoStack groeit met exact 1.
 test('twee mutaties in één transactie ⇒ undoStack +1', () => {
   const id = store.getState().addTask({ name: 'trans-1' });
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     store.getState().updateTask(id, { name: 'een' });
@@ -31,7 +32,7 @@ test('twee mutaties in één transactie ⇒ undoStack +1', () => {
   });
 
   assert(res.ok, 'transactie hoort te slagen');
-  assertEq(store.getState().undoStack.length, before + 1, 'undoStack moet met exact 1 groeien (één snapshot voor de hele transactie)');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'undoStack moet met exact 1 groeien (één snapshot voor de hele transactie)');
   const t = store.getState().tasks.find((x) => x.id === id);
   assertEq(t?.name, 'twee', 'beide mutaties horen toegepast te zijn (laatste wint)');
 });
@@ -40,7 +41,7 @@ test('twee mutaties in één transactie ⇒ undoStack +1', () => {
 test('exception in callback ⇒ volledige rollback', () => {
   const id = store.getState().addTask({ name: 'trans-2' });
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeLen = store.getState().undoStack.length;
+  const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     store.getState().updateTask(id, { name: 'zou-verdwijnen' });
@@ -53,7 +54,7 @@ test('exception in callback ⇒ volledige rollback', () => {
     beforeSnap,
     'store-inhoud moet identiek zijn aan vóór de transactie',
   );
-  assertEq(store.getState().undoStack.length, beforeLen, 'undoStack mag niet gewijzigd zijn na rollback');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack mag niet gewijzigd zijn na rollback');
 });
 
 // 3) Ná een geslaagde transactie is de coalesce-marker gereset én de suppressie-vlag uit: een
@@ -67,10 +68,10 @@ test('na geslaagde transactie pusht een keyed mutatie een eigen snapshot', () =>
   });
   assert(res.ok, 'transactie hoort te slagen');
 
-  const afterTx = store.getState().undoStack.length;
+  const afterTx = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   store.getState().updateTask(id, { name: 'erna' }, { coalesceKey: 'x' });
   assertEq(
-    store.getState().undoStack.length,
+    store.getState().historyEvents.filter(event => event.state === 'applied').length,
     afterTx + 1,
     'keyed mutatie na de transactie hoort een eigen snapshot te pushen (geen coalesce, geen suppressie)',
   );
@@ -80,7 +81,7 @@ test('na geslaagde transactie pusht een keyed mutatie een eigen snapshot', () =>
 //    neemt zelf precies één snapshot; een runCPM in de callback (plus de eind-runCPM) voegt niets toe.
 test('runCPM binnen transactie pusht geen snapshot (invariant a)', () => {
   store.getState().addTask({ name: 'trans-4' });
-  const before = store.getState().undoStack.length;
+  const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     store.getState().runCPM();
@@ -88,7 +89,7 @@ test('runCPM binnen transactie pusht geen snapshot (invariant a)', () => {
 
   assert(res.ok, 'transactie hoort te slagen');
   assertEq(
-    store.getState().undoStack.length,
+    store.getState().historyEvents.filter(event => event.state === 'applied').length,
     before + 1,
     'alleen de transactie-snapshot; runCPM (in callback én aan het eind) pusht niets',
   );
@@ -101,14 +102,22 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
   const b = store.getState().addTask({ name: 'trans-5-B' });
   // Schone uitgangsplanning zodat cpmResult een geldige (niet-error) waarde heeft om naar terug te rollen.
   store.getState().runCPM();
+  store.getState().recomputeViewRows();
+  store.getState().recomputeResourceLoad();
+  store.setState((s) => { s.isDirty = false; });
 
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeLen = store.getState().undoStack.length;
+  const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const notificationsBefore = JSON.stringify(store.getState().ui.notifications);
   const beforeCpmError = store.getState().cpmResult?.error ?? null;
+  const beforeViewRows = JSON.stringify(store.getState().viewRows);
+  const beforeResourceLoad = JSON.stringify(store.getState().resourceLoadResult);
   assert(beforeCpmError == null, 'voorwaarde: cpmResult mag vóór de transactie geen error dragen');
+  assertEq(store.getState().isDirty, false, 'voorwaarde: document is schoon vóór de transactie');
 
   const res = runInMcpTransaction(() => {
+    // Deze taak dwingt ook de afgeleide viewRows naar een tussenstaat die rollback moet opruimen.
+    store.getState().addTask({ name: 'trans-5-moet-ook-uit-viewRows' });
     // Directe draft-mutatie: een kring A→B→A dwingt de solver tot cpmResult.error.
     store.setState((s) => {
       s.sequences.push(
@@ -124,8 +133,14 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
     beforeSnap,
     'store-inhoud (incl. sequences en cpmResult) moet identiek zijn aan vóór de transactie',
   );
-  assertEq(store.getState().undoStack.length, beforeLen, 'undoStack mag niet gewijzigd zijn na rollback');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack mag niet gewijzigd zijn na rollback');
   assertEq(store.getState().cpmResult?.error ?? null, null, 'cpmResult hoort terug op de geldige pre-transactie-waarde te staan (geen error-banner)');
+  assertEq(JSON.stringify(store.getState().viewRows), beforeViewRows,
+    'rollback herstelt viewRows exact en laat geen rij van de teruggerolde taak achter');
+  assertEq(JSON.stringify(store.getState().resourceLoadResult), beforeResourceLoad,
+    'rollback herstelt resourceLoadResult exact en laat geen null/tussenresultaat achter');
+  assertEq(store.getState().isDirty, false,
+    'een geweigerde MCP-transactie maakt een vooraf schoon document niet dirty');
   assertEq(JSON.stringify(store.getState().ui.notifications), notificationsBefore,
     'de tijdelijke solverfoutmelding hoort samen met de mislukte transactie terug te rollen');
 });
@@ -135,7 +150,7 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
 test('geneste runInMcpTransaction gooit en laat store/stacks onaangeroerd', () => {
   const id = store.getState().addTask({ name: 'reentr' });
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
-  const beforeLen = store.getState().undoStack.length;
+  const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     store.getState().updateTask(id, { name: 'buiten' });
@@ -155,7 +170,7 @@ test('geneste runInMcpTransaction gooit en laat store/stacks onaangeroerd', () =
     beforeSnap,
     'store-inhoud onaangeroerd na de geneste weigering + rollback',
   );
-  assertEq(store.getState().undoStack.length, beforeLen, 'undoStack onaangeroerd na rollback');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack onaangeroerd na rollback');
 });
 
 // 7) `prevRedo`-herstel: seed een redoStack (mutatie + undo), draai dan een transactie die faalt op
@@ -166,9 +181,9 @@ test('rollback herstelt de redo-stack exact (prevRedo)', () => {
   // Seed: een mutatie + undo laat precies één redo-entry achter.
   store.getState().updateTask(a, { name: 'redo-A2' });
   store.getState().undo();
-  assert(store.getState().redoStack.length > 0, 'voorwaarde: redoStack mag niet leeg zijn');
-  const redoBefore = JSON.stringify(store.getState().redoStack);
-  const undoLenBefore = store.getState().undoStack.length;
+  assert(store.getState().historyEvents.filter(event => event.state === 'undone').length > 0, 'voorwaarde: redoStack mag niet leeg zijn');
+  const redoBefore = JSON.stringify(store.getState().historyEvents.filter(event => event.state === 'undone'));
+  const undoLenBefore = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
     // Kring A→B→A ⇒ de eind-runCPM levert cpmResult.error ⇒ rollback-pad.
@@ -181,8 +196,9 @@ test('rollback herstelt de redo-stack exact (prevRedo)', () => {
   });
 
   assert(!res.ok, 'transactie hoort te falen op de kringverwijzing');
-  assertEq(JSON.stringify(store.getState().redoStack), redoBefore, 'redoStack hoort identiek te zijn aan vóór de transactie');
-  assertEq(store.getState().undoStack.length, undoLenBefore, 'undoStack ongewijzigd na rollback');
+  assertEq(JSON.stringify(store.getState().historyEvents.filter(event => event.state === 'undone')),
+    redoBefore, 'redo-events horen identiek te zijn aan vóór de transactie');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore, 'undoStack ongewijzigd na rollback');
 });
 
 // 8) `resetUndoCoalescing` op het ROLLBACK-pad: ná een gefaalde (teruggerolde) transactie pusht een
@@ -194,10 +210,10 @@ test('na een rollback pusht een keyed mutatie een eigen snapshot', () => {
   });
   assert(!res.ok, 'transactie hoort te falen');
 
-  const afterRollback = store.getState().undoStack.length;
+  const afterRollback = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   store.getState().updateTask(id, { name: 'na-rollback' }, { coalesceKey: 'y' });
   assertEq(
-    store.getState().undoStack.length,
+    store.getState().historyEvents.filter(event => event.state === 'applied').length,
     afterRollback + 1,
     'keyed mutatie ná rollback hoort een eigen snapshot te pushen (coalesce gereset, suppressie uit)',
   );
@@ -212,8 +228,8 @@ function warmContext(context: AppStoreContext): void {
 }
 
 const stackDepths = (context: AppStoreContext) => ({
-  undo: context.store.getState().undoStack.length,
-  redo: context.store.getState().redoStack.length,
+  undo: historyDepthsForActiveScope(context.store.getState()).undoDepth,
+  redo: historyDepthsForActiveScope(context.store.getState()).redoDepth,
 });
 
 test('createMcpTransactions(B): succes muteert en herrekent alleen B met één eigen undo', () => {
@@ -224,7 +240,7 @@ test('createMcpTransactions(B): succes muteert en herrekent alleen B met één e
   const txB = createMcpTransactions(B);
   const aVoor = JSON.stringify(capturePayload(A.store.getState()));
   const aNotificationsVoor = JSON.stringify(A.store.getState().ui.notifications);
-  const bUndoVoor = B.store.getState().undoStack.length;
+  const bUndoVoor = historyDepthsForActiveScope(B.store.getState()).undoDepth;
   const originalRunCPM = B.store.getState().runCPM;
   let bRunCPMCalls = 0;
   B.store.setState({
@@ -239,7 +255,7 @@ test('createMcpTransactions(B): succes muteert en herrekent alleen B met één e
   assert(result.ok, 'de contextgebonden transactie hoort te slagen');
   assert(result.ok && B.store.getState().tasks.some((task) => task.id === result.value),
     'de generieke returnwaarde hoort het in B aangemaakte taak-id te zijn');
-  assertEq(B.store.getState().undoStack.length, bUndoVoor + 1,
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
     'factory-B hoort precies één eigen undo-snapshot te maken');
   assertEq(bRunCPMCalls, 1, 'factory-B hoort B precies éénmaal aan het eind te herrekenen');
   assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
@@ -327,8 +343,8 @@ test('synchrone txA.run binnen txB.run is toegestaan en iedere context houdt eig
   warmContext(B);
   const txA = createMcpTransactions(A);
   const txB = createMcpTransactions(B);
-  const aUndoVoor = A.store.getState().undoStack.length;
-  const bUndoVoor = B.store.getState().undoStack.length;
+  const aUndoVoor = historyDepthsForActiveScope(A.store.getState()).undoDepth;
+  const bUndoVoor = historyDepthsForActiveScope(B.store.getState()).undoDepth;
 
   const outer = txB.run(() => {
     const bId = txB.draft.addTask({ name: 'B-outer' });
@@ -342,8 +358,10 @@ test('synchrone txA.run binnen txB.run is toegestaan en iedere context houdt eig
     'de inner returnwaarde hoort naar de taak in A te wijzen');
   assert(outer.ok && B.store.getState().tasks.some((task) => task.id === outer.value.bId),
     'de outer returnwaarde hoort naar de taak in B te wijzen');
-  assertEq(A.store.getState().undoStack.length, aUndoVoor + 1, 'A krijgt precies één eigen undo');
-  assertEq(B.store.getState().undoStack.length, bUndoVoor + 1, 'B krijgt precies één eigen undo');
+  assertEq(historyDepthsForActiveScope(A.store.getState()).undoDepth, aUndoVoor + 1,
+    'A krijgt precies één eigen undo');
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
+    'B krijgt precies één eigen undo');
 });
 
 test('succes en rollback breken B-coalescing maar laten A-coalescing doorlopen', () => {
@@ -351,8 +369,8 @@ test('succes en rollback breken B-coalescing maar laten A-coalescing doorlopen',
   const B = createAppStoreContext();
   const aId = A.store.getState().addTask({ name: 'A-coalesce-start' });
   const bId = B.store.getState().addTask({ name: 'B-coalesce-start' });
-  A.store.setState({ undoStack: [], redoStack: [] });
-  B.store.setState({ undoStack: [], redoStack: [] });
+  A.store.setState({ historyEvents: [], nextHistorySequence: 1 });
+  B.store.setState({ historyEvents: [], nextHistorySequence: 1 });
   A.runtime.resetUndoCoalescing();
   B.runtime.resetUndoCoalescing();
   for (const name of ['A-1', 'A-2']) A.store.getState().updateTask(aId, { name }, { coalesceKey: 'edit:name' });
@@ -368,10 +386,10 @@ test('succes en rollback breken B-coalescing maar laten A-coalescing doorlopen',
   assertEq(stackDepths(A), { undo: 1, redo: 0 },
     'B-succes mag de lopende A-coalescereeks niet breken');
 
-  const bUndoVoorRollback = B.store.getState().undoStack.length;
+  const bUndoVoorRollback = historyDepthsForActiveScope(B.store.getState()).undoDepth;
   const rollback = txB.run(() => { throw new Error('coalesce-rollback'); });
   assert(!rollback.ok, 'voorwaarde: de tweede B-transactie hoort terug te rollen');
-  assertEq(B.store.getState().undoStack.length, bUndoVoorRollback,
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoorRollback,
     'de rollback zelf hoort geen B-undo achter te laten');
   B.store.getState().updateTask(bId, { name: 'B-na-rollback' }, { coalesceKey: 'edit:name' });
   A.store.getState().updateTask(aId, { name: 'A-na-B-rollback' }, { coalesceKey: 'edit:name' });

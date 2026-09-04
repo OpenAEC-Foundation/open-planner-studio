@@ -1,6 +1,5 @@
 import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
-import { finishMutation } from '../transaction';
 import { relationVerdict } from '../relationRules';
 import type { AppSliceFactory } from './types';
 
@@ -31,7 +30,7 @@ export const createSequenceSlice: AppSliceFactory<SequenceSlice> = (runtime) => 
       if (!relationVerdict(lookup, s.sequences, seq).ok) return; // geen snapshot, geen loze undo-stap (R3).
       runtime.beginUndoable(s); // snapshot pas ná de guard, vóór de mutatie (zie transaction.ts).
       s.sequences.push({ ...seq, id });
-      finishMutation(s, { stale: true }); // nieuwe relatie (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // nieuwe relatie (A6): planning verouderd tot F5.
       accepted = true;
     });
     return accepted ? id : null;
@@ -62,7 +61,7 @@ export const createSequenceSlice: AppSliceFactory<SequenceSlice> = (runtime) => 
       if ('lagUnit' in patch) seq.lagUnit = patch.lagUnit;
       if ('lagPercent' in patch) seq.lagPercent = patch.lagPercent;
       if ('lagMinutes' in patch) seq.lagMinutes = patch.lagMinutes;
-      finishMutation(s, { stale: true }); // relatie-wijziging (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // relatie-wijziging (A6): planning verouderd tot F5.
       applied = true;
     });
     return applied;
@@ -73,6 +72,6 @@ export const createSequenceSlice: AppSliceFactory<SequenceSlice> = (runtime) => 
       if (!s.sequences.some(seq => seq.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
       s.sequences = s.sequences.filter(seq => seq.id !== id);
-      finishMutation(s, { stale: true }); // verwijderde relatie (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // verwijderde relatie (A6): planning verouderd tot F5.
     }),
 });

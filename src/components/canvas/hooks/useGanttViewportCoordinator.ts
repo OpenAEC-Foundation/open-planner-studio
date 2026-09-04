@@ -8,7 +8,7 @@ import {
   computeContentWidth,
 } from '../ganttRenderOptions';
 import {
-  computeAnchoredZoom,
+  computeTimelineZoom,
   computeEffectiveViewStart,
   computeFitToProject,
   computeFocusTaskHorizontal,
@@ -25,8 +25,6 @@ import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   HISTOGRAM_MAX_HEIGHT,
   HISTOGRAM_MIN_HEIGHT,
-  TASK_TABLE_MAX_WIDTH,
-  TASK_TABLE_MIN_WIDTH,
 } from '@/utils/settingsStore';
 import type {
   GanttViewportCoordinatorInput,
@@ -35,7 +33,7 @@ import type {
 
 /**
  * Bezit de volledige Gantt-viewport: afleidingen, DOM-scrollsync, wheel/zoom, fit/focus, minimaps
- * en de drie splitters. De hook krijgt concrete waarden en gerichte acties; hij leest geen store.
+ * en de histogram-/ratio-splitters. De DOM-grid en zijn workspace-splitter vallen erbuiten.
  */
 export function useGanttViewportCoordinator(
   input: GanttViewportCoordinatorInput,
@@ -46,7 +44,6 @@ export function useGanttViewportCoordinator(
   const histogramContainerRef = useRef<HTMLDivElement>(null);
   const primaryHScrollRef = useRef<HTMLDivElement>(null);
   const secondaryHScrollRef = useRef<HTMLDivElement>(null);
-  const sharedVScrollRef = useRef<HTMLDivElement>(null);
   const [primaryChartWidth, setPrimaryChartWidth] = useState(0);
   const [secondaryChartWidth, setSecondaryChartWidth] = useState(0);
 
@@ -73,11 +70,22 @@ export function useGanttViewportCoordinator(
       calendar: input.calendar,
       compressNonWorkdays: input.compressNonWorkdays,
       viewStartDate: effectiveView.viewStartDate,
-      taskTableWidth: input.taskTableWidth,
+      chartOriginX: 0,
       zoom: effectiveView.zoom,
       scrollX: effectiveView.scrollX,
     }),
-    [input.calendar, input.compressNonWorkdays, effectiveView, input.taskTableWidth],
+    [input.calendar, input.compressNonWorkdays, effectiveView],
+  );
+  const histogramAxis = useMemo(
+    () => buildSharedAxis({
+      calendar: input.calendar,
+      compressNonWorkdays: input.compressNonWorkdays,
+      viewStartDate: effectiveView.viewStartDate,
+      chartOriginX: input.histogramPickerWidth,
+      zoom: effectiveView.zoom,
+      scrollX: effectiveView.scrollX,
+    }),
+    [input.calendar, input.compressNonWorkdays, effectiveView, input.histogramPickerWidth],
   );
   const contentSpanDays = useMemo(
     () => computeContentSpanDays(
@@ -90,23 +98,23 @@ export function useGanttViewportCoordinator(
     [input.tasks, effectiveViewStart, input.compressNonWorkdays, sharedAxis, calendarNavigationDates.ends],
   );
   const contentWidthFor = useCallback(
-    (zoom: number, tableWidth: number) => computeContentWidth(contentSpanDays, zoom, tableWidth),
+    (zoom: number) => computeContentWidth(contentSpanDays, zoom),
     [contentSpanDays],
   );
   const primaryContentWidth = useMemo(
-    () => contentWidthFor(input.view.zoom, input.taskTableWidth),
-    [contentWidthFor, input.view.zoom, input.taskTableWidth],
+    () => contentWidthFor(input.view.zoom),
+    [contentWidthFor, input.view.zoom],
   );
   const splitView = input.view.splitView;
   const splitEnabled = splitView !== undefined;
   const secondaryContentWidth = useMemo(
-    () => splitView ? contentWidthFor(splitView.secondaryZoom, 0) : 0,
+    () => splitView ? contentWidthFor(splitView.secondaryZoom) : 0,
     [contentWidthFor, splitView],
   );
 
   const onPrimarySize = useCallback((width: number, height: number) => {
     const current = latest.current;
-    const chartWidth = Math.max(0, width - current.taskTableWidth);
+    const chartWidth = Math.max(0, width);
     setGanttChartWidth(chartWidth);
     setPrimaryChartWidth(previous => Math.abs(previous - chartWidth) > 1 ? chartWidth : previous);
     setGanttScrollBounds(computeGanttScrollBounds(
@@ -141,7 +149,7 @@ export function useGanttViewportCoordinator(
     const rect = container.getBoundingClientRect();
     const fit = computeFitToProject(
       current.tasks,
-      rect.width - current.taskTableWidth,
+      rect.width,
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
     );
@@ -153,7 +161,6 @@ export function useGanttViewportCoordinator(
 
   const { zoomAt } = useGanttZoom({
     containerRef: primaryContainerRef,
-    taskTableWidth: input.taskTableWidth,
     view: input.view,
     enableQuarterHourZoom: input.enableQuarterHourZoom,
     enableHourPlanning: input.enableHourPlanning,
@@ -184,7 +191,7 @@ export function useGanttViewportCoordinator(
     const rect = container.getBoundingClientRect();
     const fit = computeFitToProject(
       current.tasks,
-      rect.width - current.taskTableWidth,
+      rect.width,
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
       calendarNavigationDates.starts,
@@ -194,7 +201,7 @@ export function useGanttViewportCoordinator(
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.taskTableWidth, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, calendarNavigationDates.starts]);
+  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, calendarNavigationDates.starts]);
 
   useEffect(() => {
     const current = latest.current;
@@ -214,7 +221,7 @@ export function useGanttViewportCoordinator(
     }
 
     const rect = container.getBoundingClientRect();
-    const usableWidth = rect.width - current.taskTableWidth;
+    const usableWidth = rect.width;
     if (usableWidth <= 0) {
       current.clearPendingFocusTask();
       return;
@@ -226,9 +233,9 @@ export function useGanttViewportCoordinator(
     // krijgen; de resulterende eenheden zijn kalenderdagen op de gewone as en werkdagen onder
     // "Show only working days". Zo rekent de focusroute exact in dezelfde eenheden als de
     // renderer én de horizontale scrollgrens.
-    const startContentX = sharedAxis.dateToX(start) + current.view.scrollX - current.taskTableWidth;
+    const startContentX = sharedAxis.dateToX(start) + current.view.scrollX;
     const finishContentX = sharedAxis.dateToX(finish) + current.view.scrollX
-      - current.taskTableWidth + (hourMode ? 0 : current.view.zoom);
+      + (hourMode ? 0 : current.view.zoom);
     const durationDays = (finishContentX - startContentX) / current.view.zoom;
     const middleDayOffset = (startContentX + finishContentX) / (2 * current.view.zoom);
     const horizontal = current.view.pendingFocusTaskPreserveZoom
@@ -245,7 +252,7 @@ export function useGanttViewportCoordinator(
       : current.view.scrollY;
 
     setGanttScrollBounds(computeGanttScrollBounds(
-      contentWidthFor(horizontal.zoom, current.taskTableWidth),
+      contentWidthFor(horizontal.zoom),
       current.rows.length,
       current.rowHeight,
       current.headerHeight,
@@ -255,7 +262,7 @@ export function useGanttViewportCoordinator(
     current.clearPendingFocusTask();
     if (!current.view.pendingFocusTaskPreserveZoom) current.setZoom(horizontal.zoom);
     current.setScroll(horizontal.scrollX, scrollY);
-  }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.taskTableWidth, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
+  }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
 
   useEffect(() => {
     const element = primaryHScrollRef.current;
@@ -269,13 +276,6 @@ export function useGanttViewportCoordinator(
       element.scrollLeft = splitView.secondaryScrollX;
     }
   }, [splitView, secondaryContentWidth]);
-  useEffect(() => {
-    const element = sharedVScrollRef.current;
-    if (element && Math.abs(element.scrollTop - input.view.scrollY) > 1) {
-      element.scrollTop = input.view.scrollY;
-    }
-  }, [input.view.scrollY, input.rows.length]);
-
   const onPrimaryHorizontalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const current = latest.current;
     current.setScroll(event.currentTarget.scrollLeft, current.view.scrollY);
@@ -287,11 +287,6 @@ export function useGanttViewportCoordinator(
     if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) <= 1) return;
     current.setSplitView({ ...currentSplit, secondaryScrollX: Math.max(0, scrollX) });
   }, []);
-  const onSharedVerticalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    const current = latest.current;
-    current.setScroll(current.view.scrollX, event.currentTarget.scrollTop);
-  }, []);
-
   // Secondary gebruikt dezelfde wheelbeslissing en dezelfde ankerformule als primary, maar schrijft
   // horizontaal en zoom uitsluitend in zijn eigen splitview.
   useEffect(() => {
@@ -322,15 +317,14 @@ export function useGanttViewportCoordinator(
       });
       if (wheelFunction === 'zoom') {
         const requestedZoom = currentSplit.secondaryZoom * (delta > 0 ? 1 / 1.1 : 1.1);
-        const next = computeAnchoredZoom({
-          currentZoom: currentSplit.secondaryZoom,
-          currentScrollX: currentSplit.secondaryScrollX,
+        const next = computeTimelineZoom(
+          currentSplit.secondaryZoom,
           requestedZoom,
+          currentSplit.secondaryScrollX,
           anchorX,
-          taskTableWidth: 0,
-          maxZoom: maxGanttZoom(current.enableQuarterHourZoom, current.enableHourPlanning),
-        });
-        if (next) current.setSplitView({
+          maxGanttZoom(current.enableQuarterHourZoom, current.enableHourPlanning),
+        );
+        if (next.zoom !== currentSplit.secondaryZoom) current.setSplitView({
           ...currentSplit,
           secondaryZoom: next.zoom,
           secondaryScrollX: next.scrollX,
@@ -347,20 +341,6 @@ export function useGanttViewportCoordinator(
     return () => container.removeEventListener('wheel', handleWheel);
   }, [splitEnabled]);
 
-  const tableSplitter = useSplitter({
-    min: TASK_TABLE_MIN_WIDTH,
-    max: () => TASK_TABLE_MAX_WIDTH,
-    computeSize: event => {
-      const container = primaryContainerRef.current;
-      return container
-        ? Math.round(event.clientX - container.getBoundingClientRect().left)
-        : Number.NaN;
-    },
-    onResize: width => {
-      if (!Number.isNaN(width)) latest.current.setTaskTableWidth(width);
-    },
-    onCommit: () => latest.current.persistTaskTableWidth(latest.current.taskTableWidth),
-  });
   const histogramSplitter = useSplitter({
     min: HISTOGRAM_MIN_HEIGHT,
     max: () => HISTOGRAM_MAX_HEIGHT,
@@ -409,7 +389,6 @@ export function useGanttViewportCoordinator(
       histogramContainerRef,
       primaryHScrollRef,
       secondaryHScrollRef,
-      sharedVScrollRef,
     },
     primary: {
       chartWidth: primaryChartWidth,
@@ -426,13 +405,12 @@ export function useGanttViewportCoordinator(
     effectiveViewStart,
     effectiveView,
     sharedAxis,
+    histogramAxis,
     scrollHandlers: {
       onPrimaryHorizontalScroll,
       onSecondaryHorizontalScroll,
-      onSharedVerticalScroll,
     },
     splitters: {
-      table: tableSplitter,
       histogram: histogramSplitter,
       ratio: ratioSplitter,
     },

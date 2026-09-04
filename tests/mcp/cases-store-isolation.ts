@@ -18,7 +18,6 @@ import {
   type AppStoreContext,
 } from '@/state/appStore';
 import { capturePayload } from '@/state/documentContract';
-import { createSnapshot } from '@/state/snapshot';
 import {
   createMcpTransactions,
   type McpTransactions,
@@ -31,6 +30,7 @@ import {
 import { buildMcpContext } from '@/services/mcp/server';
 import { __resetTimephasedLossNoticeForTests } from '@/state/timephasedLossNotice';
 import type { McpContext, McpErrorCode, McpToolResult } from '@/services/mcp/contracts';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 type Stable = null | boolean | number | string | Stable[] | { [key: string]: Stable };
 
@@ -71,8 +71,8 @@ function plainState(app: AppStoreContext): Stable {
     document: capturePayload(state),
     documents: state.documents,
     activeDocumentId: state.activeDocumentId,
-    undoStack: state.undoStack,
-    redoStack: state.redoStack,
+    historyEvents: state.historyEvents,
+    nextHistorySequence: state.nextHistorySequence,
     taskClipboard: state.taskClipboard,
     ui: {
       notifications: state.ui.notifications,
@@ -154,10 +154,10 @@ function seedContext(label: string): SeededContext {
       count: 1,
     }];
     state.taskClipboard = null;
-    const ownSnapshot = createSnapshot(state);
-    state.undoStack = [ownSnapshot];
-    state.redoStack = [ownSnapshot];
   });
+  app.runtime.resetUndoCoalescing();
+  app.store.getState().updateTask(taskId, { description: `History-seed ${label}` });
+  app.store.getState().undo();
   app.runtime.resetUndoCoalescing();
   return { app, label, docId, taskId, resourceId, assignmentId };
 }
@@ -182,8 +182,8 @@ function pair(label: string): PairFixture {
 }
 
 const stackDepths = (app: AppStoreContext) => ({
-  undo: app.store.getState().undoStack.length,
-  redo: app.store.getState().redoStack.length,
+  undo: historyDepthsForActiveScope(app.store.getState()).undoDepth,
+  redo: historyDepthsForActiveScope(app.store.getState()).redoDepth,
 });
 
 function expectError(result: McpToolResult, code: McpErrorCode, label: string): void {
@@ -196,7 +196,7 @@ function expectError(result: McpToolResult, code: McpErrorCode, label: string): 
 test('succes op B: taak, relatie, resource, toewijzing en kalender committen éénmaal; A blijft exact', async () => {
   const f = pair('success');
   const aBefore = plainState(f.A.app);
-  const bUndoBefore = f.B.app.store.getState().undoStack.length;
+  const bUndoBefore = historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth;
   const originalRunCPM = f.B.app.store.getState().runCPM;
   let bRunCPMCalls = 0;
   f.B.app.store.setState({
@@ -245,8 +245,10 @@ test('succes op B: taak, relatie, resource, toewijzing en kalender committen é�
   assert(state.resources.some((resource) => resource.id === data.secondResourceId), 'de resource hoort in B');
   assert(state.assignments.some((assignment) => assignment.id === data.assignmentId), 'de toewijzing hoort in B');
   assert(state.calendars.some((calendar) => calendar.id === data.calendarId), 'de kalender hoort in B');
-  assertEq(state.undoStack.length, bUndoBefore + 1, 'B krijgt exact één undo voor de hele mutatie');
-  assertEq(state.redoStack.length, 0, 'B-redo wordt door de geslaagde mutatie gewist');
+  assertEq(historyDepthsForActiveScope(state).undoDepth, bUndoBefore + 1,
+    'B krijgt exact één undo voor de hele mutatie');
+  assertEq(historyDepthsForActiveScope(state).redoDepth, 0,
+    'B-redo wordt door de geslaagde mutatie gewist');
   assertEq(bRunCPMCalls, 1, 'de B-transactie herrekent exact éénmaal');
   assert(state.cpmResult !== null && !state.cpmResult.error, 'B heeft één geldige recompute-uitkomst');
   assertEq(result.envelope.activeDocumentId, f.B.docId, 'de envelop draagt B-document-id');
@@ -324,13 +326,13 @@ for (const rollbackCase of rollbackCases) {
       `${rollbackCase.label}: B inclusief undo/redo is exact hersteld`);
     assertPlainEq(plainState(f.A.app), aBefore, `${rollbackCase.label}: A blijft volledig bytegelijk`);
 
-    const undoAfterRollback = f.B.app.store.getState().undoStack.length;
+    const undoAfterRollback = historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth;
     f.B.app.store.getState().updateTask(
       f.B.taskId,
       { description: `bruikbaar na ${rollbackCase.label}` },
       { coalesceKey: 'task.description' },
     );
-    assertEq(f.B.app.store.getState().undoStack.length, undoAfterRollback + 1,
+    assertEq(historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth, undoAfterRollback + 1,
       `${rollbackCase.label}: suppressie is dicht en coalescing begint een nieuwe stap`);
     const reuse = f.ctxB.transactions.run(() => {
       f.ctxB.transactions.draft.updateTaskFields(f.B.taskId, { priority: 321 });
@@ -418,8 +420,8 @@ test('A kan synchroon binnen B committen; na gefaalde B-run blijven eerst A en d
   const f = pair('cross-context-reuse');
   const txA = createMcpTransactions(f.A.app);
   const txB = createMcpTransactions(f.B.app);
-  const aUndoBefore = f.A.app.store.getState().undoStack.length;
-  const bUndoBefore = f.B.app.store.getState().undoStack.length;
+  const aUndoBefore = historyDepthsForActiveScope(f.A.app.store.getState()).undoDepth;
+  const bUndoBefore = historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth;
   const cross = txB.run(() => {
     const bId = txB.draft.addTask({ name: 'B outer commit' });
     const aResult = txA.run(() => txA.draft.addTask({ name: 'A inner commit' }));
@@ -427,8 +429,10 @@ test('A kan synchroon binnen B committen; na gefaalde B-run blijven eerst A en d
     return { aId: aResult.value, bId };
   });
   assert(cross.ok, 'A-in-B hoort contextlokaal toegestaan te zijn');
-  assertEq(f.A.app.store.getState().undoStack.length, aUndoBefore + 1, 'A krijgt één eigen undo');
-  assertEq(f.B.app.store.getState().undoStack.length, bUndoBefore + 1, 'B krijgt één eigen undo');
+  assertEq(historyDepthsForActiveScope(f.A.app.store.getState()).undoDepth, aUndoBefore + 1,
+    'A krijgt één eigen undo');
+  assertEq(historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth, bUndoBefore + 1,
+    'B krijgt één eigen undo');
 
   const failed = txB.run(() => {
     txB.draft.addTask({ name: 'B rollback voor hergebruik' });
@@ -445,8 +449,8 @@ test('A kan synchroon binnen B committen; na gefaalde B-run blijven eerst A en d
 
 test('B-succes en B-rollback breken alleen B-coalescing; A-reeks blijft doorlopen', () => {
   const f = pair('coalescing');
-  f.A.app.store.setState({ undoStack: [], redoStack: [] });
-  f.B.app.store.setState({ undoStack: [], redoStack: [] });
+  f.A.app.store.setState({ historyEvents: [], nextHistorySequence: 1 });
+  f.B.app.store.setState({ historyEvents: [], nextHistorySequence: 1 });
   f.A.app.runtime.resetUndoCoalescing();
   f.B.app.runtime.resetUndoCoalescing();
   for (const description of ['A-1', 'A-2']) {
@@ -461,20 +465,25 @@ test('B-succes en B-rollback breken alleen B-coalescing; A-reeks blijft doorlope
   const txB = createMcpTransactions(f.B.app);
   const success = txB.run(() => txB.draft.updateTaskFields(f.B.taskId, { priority: 101 }));
   assert(success.ok, 'B-succesvoorwaarde');
-  const bAfterTx = f.B.app.store.getState().undoStack.length;
+  const bAfterTx = historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth;
   f.A.app.store.getState().updateTask(f.A.taskId, { description: 'A-na-B-succes' }, { coalesceKey: 'description' });
   f.B.app.store.getState().updateTask(f.B.taskId, { description: 'B-na-succes' }, { coalesceKey: 'description' });
-  assertEq(f.A.app.store.getState().undoStack.length, 1, 'A coalescet door na B-succes');
-  assertEq(f.B.app.store.getState().undoStack.length, bAfterTx + 1, 'B start na succes een nieuwe stap');
+  assertEq(historyDepthsForActiveScope(f.A.app.store.getState()).undoDepth, 1,
+    'A coalescet door na B-succes');
+  assertEq(historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth, bAfterTx + 1,
+    'B start na succes een nieuwe stap');
 
-  const bBeforeRollback = f.B.app.store.getState().undoStack.length;
+  const bBeforeRollback = historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth;
   const rollback = txB.run(() => { throw new Error('coalescing rollback'); });
   assert(!rollback.ok, 'B-rollbackvoorwaarde');
-  assertEq(f.B.app.store.getState().undoStack.length, bBeforeRollback, 'rollback laat geen undo achter');
+  assertEq(historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth, bBeforeRollback,
+    'rollback laat geen undo achter');
   f.A.app.store.getState().updateTask(f.A.taskId, { description: 'A-na-B-rollback' }, { coalesceKey: 'description' });
   f.B.app.store.getState().updateTask(f.B.taskId, { description: 'B-na-rollback' }, { coalesceKey: 'description' });
-  assertEq(f.A.app.store.getState().undoStack.length, 1, 'A coalescet ook door na B-rollback');
-  assertEq(f.B.app.store.getState().undoStack.length, bBeforeRollback + 1, 'B begint na rollback opnieuw');
+  assertEq(historyDepthsForActiveScope(f.A.app.store.getState()).undoDepth, 1,
+    'A coalescet ook door na B-rollback');
+  assertEq(historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth, bBeforeRollback + 1,
+    'B begint na rollback opnieuw');
 });
 
 // ── Contextlokale timephased teller en meldingsgate ─────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
+import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
 import type { CustomTaskType } from '@/types/taskType';
 import { generateId } from '@/utils/id';
-import { finishMutation } from '../transaction';
 import type { AppSliceFactory } from './types';
 
 /**
@@ -52,7 +52,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       if (existing || sameName || !id || !name) return;
       runtime.beginUndoable(s);
       s.customTaskTypes.push({ id, name });
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
   },
 
@@ -61,7 +61,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
     set((s) => {
       runtime.beginUndoable(s);
       s.activityCodeTypes.push({ id, name, values: [] });
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
     return id;
@@ -73,7 +73,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       if (!t || t.name === name) return;
       runtime.beginUndoable(s);
       t.name = name;
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -89,7 +89,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       // Groep-/sort-niveaus die naar dit type verwezen laten vallen (§4.3, code-mutatie).
       s.view.group = s.view.group.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -101,7 +101,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       if (!t) return;
       runtime.beginUndoable(s);
       t.values.push({ ...value, id });
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
     return id;
@@ -113,7 +113,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       if (!v) return;
       runtime.beginUndoable(s);
       Object.assign(v, patch);
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -127,7 +127,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       for (const task of s.tasks) {
         if (task.activityCodes?.[typeId] === valueId) delete task.activityCodes[typeId];
       }
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -139,12 +139,8 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const current = task.activityCodes?.[typeId];
       if ((valueId ?? undefined) === current) return;
       runtime.beginUndoable(s);
-      if (valueId === null) {
-        if (task.activityCodes) delete task.activityCodes[typeId];
-      } else {
-        task.activityCodes = { ...(task.activityCodes ?? {}), [typeId]: valueId };
-      }
-      finishMutation(s);
+      assignTaskActivityCode(task, typeId, valueId ?? undefined);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -154,7 +150,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
     set((s) => {
       runtime.beginUndoable(s);
       s.customFieldDefs.push({ id, name, type });
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
     return id;
@@ -166,7 +162,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       if (!d || d.name === name) return;
       runtime.beginUndoable(s);
       d.name = name;
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -181,7 +177,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       }
       s.view.group = s.view.group.filter(g => !(g.field.src === 'customField' && g.field.defId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'customField' && g.field.defId === id));
-      finishMutation(s);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },
@@ -193,12 +189,8 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const current = task.customFields?.[defId];
       if ((value ?? undefined) === current) return;
       runtime.beginUndoable(s);
-      if (value === null) {
-        if (task.customFields) delete task.customFields[defId];
-      } else {
-        task.customFields = { ...(task.customFields ?? {}), [defId]: value };
-      }
-      finishMutation(s);
+      assignTaskCustomField(task, defId, value ?? undefined);
+      runtime.finishMutation(s);
     });
     get().recomputeViewRows();
   },

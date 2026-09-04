@@ -7,11 +7,11 @@ test('splitter blijft actief na een mid-drag storeupdate en commit precies eenma
   await seedProject(page, [
     { name: 'Splitterreeks', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
-  const canvas = page.getByTestId('gantt-primary-canvas');
-  const bounds = await canvas.boundingBox();
+  const splitter = page.getByTestId('gantt-workspace-splitter');
+  const bounds = await splitter.boundingBox();
   expect(bounds).not.toBeNull();
-  const startWidth = await page.evaluate(() => window.__OPS__!.store.getState().ui.leftPanelWidth);
-
+  const workspaceBounds = await page.getByTestId('gantt-workspace').boundingBox();
+  expect(workspaceBounds).not.toBeNull();
   await page.evaluate(() => {
     localStorage.removeItem('ops-leftPanelWidth');
     const original = Storage.prototype.setItem;
@@ -23,13 +23,14 @@ test('splitter blijft actief na een mid-drag storeupdate en commit precies eenma
     };
   });
 
-  const start = { x: bounds!.x + startWidth, y: bounds!.y + 24 };
+  const start = { x: bounds!.x + bounds!.width / 2, y: bounds!.y + 24 };
+  const pointerBaseWidth = Math.round(start.x - workspaceBounds!.x);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(start.x + 40, start.y);
 
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.leftPanelWidth))
-    .toBe(startWidth + 40);
+    .toBe(pointerBaseWidth + 40);
   await expect.poll(() => page.evaluate(() => (
     (window as typeof window & { __OPS_SPLITTER_WRITES__?: string[] }).__OPS_SPLITTER_WRITES__?.length
   ))).toBe(0);
@@ -38,10 +39,10 @@ test('splitter blijft actief na een mid-drag storeupdate en commit precies eenma
   await page.mouse.up();
 
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.leftPanelWidth))
-    .toBe(startWidth + 70);
+    .toBe(pointerBaseWidth + 70);
   await expect.poll(() => page.evaluate(() => (
     (window as typeof window & { __OPS_SPLITTER_WRITES__?: string[] }).__OPS_SPLITTER_WRITES__
-  ))).toEqual([String(startWidth + 70)]);
+  ))).toEqual([String(pointerBaseWidth + 70)]);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-leftPanelWidth')))
-    .toBe(String(startWidth + 70));
+    .toBe(String(pointerBaseWidth + 70));
 });

@@ -17,9 +17,13 @@
   "showLegend": "Legenda",
   "showTaskNames": "Nomi attività sulle barre",
   "showCompletion": "Mostra avanzamento",
+  "truncateTaskNames": "Tronca i nomi delle attività",
+  "taskNameColumnWidthLabel": "Colonna nome:",
+  "taskNameColumnWidthHint": "La colonna del nome si adatta al nome attività più lungo",
   "showBaselineOverlay": "Mostra sovrapposizione baseline",
   "autoFit": "Adatta automaticamente alla pagina",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Qualità anteprima", "standard": "Standard", "high": "Alta", "maximum": "Massima" },
   "repeatHeader": "Ripeti intestazione su ogni pagina",
   "reportFontScaleLabel": "Dimensione carattere:",
   "timelineColumnsLabel": "Cronologia su:",
@@ -54,7 +58,6 @@
     "categoriesMore_other": "… e {{count}} altre categorie"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Nome attività",
     "start": "Inizio",

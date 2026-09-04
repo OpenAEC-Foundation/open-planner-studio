@@ -86,7 +86,7 @@ const SLUITING: Holiday = { name: 'Bedrijfssluiting', startDate: '2026-07-20', e
 test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transactie, feestdagen onaangeroerd', async () => {
   cleanProject([VORST, SLUITING]);
   const calId = S().calendar.id;
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await call('planner_update_calendar', { calendars: [{ id: calId, rawHolidays: [] }] });
 
@@ -96,7 +96,7 @@ test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transact
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assert(/leeg|replace/i.test(rej[0].reason), `weigering moet de lege lijst benoemen: ${rej[0].reason}`);
   assertEq(okData(res).calendars.length, 0, 'geen enkele kalender-rij gemeld als gewijzigd');
-  assertEq(S().undoStack.length, undoBefore, 'lege-batch-snelpad: geen undo-snapshot voor een no-op');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'lege-batch-snelpad: geen undo-snapshot voor een no-op');
   assertEq(S().calendar.holidays.length, 2, 'feestdagen onaangeroerd');
 });
 
@@ -300,10 +300,10 @@ function overloadedProject(): void {
 
 test('H8: `dryRun: "true"` (string) ⇒ VALIDATION-fout, NIET stil een echte nivellering', async () => {
   overloadedProject();
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const res = await call('planner_level_resources', { dryRun: 'true' });
   expectValidation(res, 'dryRun', 'dryRun als string');
-  assertEq(S().undoStack.length, undoBefore, 'geen mutatie/undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen mutatie/undo-stap');
   assert(S().tasks.every((t) => t.levelingDelay === undefined), 'geen enkele levelingDelay gezet');
 });
 
@@ -314,10 +314,10 @@ test('H8: `dryRun: 1` ⇒ VALIDATION-fout', async () => {
 
 test('H8: echte `dryRun: true` blijft werken en muteert niets — regressie', async () => {
   overloadedProject();
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const data = okData(await call('planner_level_resources', { dryRun: true }));
   assertEq(data.dryRun, true, 'dryRun gemeld');
-  assertEq(S().undoStack.length, undoBefore, 'preview muteert niet');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'preview muteert niet');
 });
 
 test('H8: `shiftBaselines: "ja"` ⇒ VALIDATION-fout (zelfde patroon, lagere inzet)', async () => {
@@ -342,13 +342,13 @@ test('H9: nooit-berekend document (cpmResult null, niet-stale) ⇒ ensureFreshSc
   neverCalculatedProject();
   assertEq(S().scheduleStale, false, 'precondition: niet stale (verse payload)');
   assert(S().cpmResult === null, 'precondition: nog nooit gerekend');
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const out = ensureFreshSchedule();
 
   assertEq(out.recomputed, true, 'recomputed moet true zijn — er wás geen resultaat');
   assert(S().cpmResult !== null, 'cpmResult is nu gezet');
-  assertEq(S().undoStack.length, undoBefore, 'runCPM-invariant: geen undo-snapshot');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'runCPM-invariant: geen undo-snapshot');
 });
 
 test('H9: `save_baseline` op een nooit-berekend document legt VERSE datums vast (description was onwaar)', async () => {
@@ -483,11 +483,11 @@ test('H10: histogram met een ONBEKEND resource-id ⇒ VALIDATION-fout die het id
 
 test('H10: histogram — geldige scope blijft werken, en de validatie draait VÓÓR de recompute', () => {
   neverCalculatedProject();
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   // Ongeldige args op een NIET-doorgerekend document: er mag niet eerst duur herrekend worden.
   expectValidation(read('planner_get_resource_histogram', { bucket: 'day' }), 'bucket', 'bucket vóór recompute');
   assert(S().cpmResult === null, 'validatie vóór de recompute: er is niets gerekend');
-  assertEq(S().undoStack.length, undoBefore, 'geen undo-effect');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen undo-effect');
 
   const data = readOk('planner_get_resource_histogram', { resourceIds: [S().resources[0].id], bucket: 'dag' });
   assertEq(data.mode, 'detail', 'gescopte call blijft detail leveren');
@@ -562,7 +562,7 @@ async function batch(steps: { tool: string; args: unknown }[]): Promise<McpToolR
 test('BATCH: een onbekende `update_project`-sleutel rolt de HELE batch terug (validatie geldt ook via batchStep)', async () => {
   cleanProject([]);
   const naamVoor = S().project.name;
-  const undoBefore = S().undoStack.length;
+  const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = await batch([
     { tool: 'planner_update_project', args: { name: 'Mag niet blijven staan' } },
@@ -573,7 +573,7 @@ test('BATCH: een onbekende `update_project`-sleutel rolt de HELE batch terug (va
   assert((res as any).error.includes('bestaatNiet') || JSON.stringify((res as any).errorData ?? '').includes('bestaatNiet'),
     `de fout moet de onbekende sleutel noemen: ${(res as any).error}`);
   assertEq(S().project.name, naamVoor, 'volledige rollback: ook de eerste stap is terug');
-  assertEq(S().undoStack.length, undoBefore, 'geen achtergebleven undo-stap');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen achtergebleven undo-stap');
 });
 
 test('BATCH: een lege `rawHolidays` blijft ook binnen een batch een ZACHTE weigering', async () => {

@@ -1,5 +1,5 @@
 // Karakterisering vóór het sluiten van de hookpoort: een echte taalkeuze moet zowel de
-// weekdaglabels op de tijdas als de duur-eenheid in de Canvas-taaktabel opnieuw tekenen.
+// weekdaglabels op de tijdas als de duur-eenheid in de gedeelde DOM-taakgrid opnieuw vertalen.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -17,7 +17,7 @@ async function waitForFontsAndTwoQuietWindows(page: Page): Promise<void> {
 }
 
 test('Gantt vertaalt weekdagen en duursuffix na een echte taalkeuze', async ({ page, ops: _ops }) => {
-  await seedProject(page, [{
+  const [taskId] = await seedProject(page, [{
     name: 'Lokalisatietaak',
     start: '2026-09-07',
     finish: '2026-09-18',
@@ -57,6 +57,8 @@ test('Gantt vertaalt weekdagen en duursuffix na een echte taalkeuze', async ({ p
   const drawnText = await page.evaluate(() => (
     (window as Window & { __opsGanttDrawnText?: string[] }).__opsGanttDrawnText ?? []
   ));
-  expect(drawnText).toContain('10T');
+  await expect(page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${taskId}"][data-grid-column-id="task.time.scheduleDuration"]`,
+  )).toContainText('10T');
   expect(drawnText.some(text => /^(Mo|Di|Mi|Do|Fr|Sa|So) \d+$/.test(text))).toBe(true);
 });

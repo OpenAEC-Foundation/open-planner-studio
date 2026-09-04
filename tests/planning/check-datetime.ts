@@ -9,6 +9,7 @@
 import { parseInstant, formatInstant, parseDate } from '@/utils/dateUtils';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { durationMinutesOf, durationDaysOf } from '@/engine/scheduler/duration';
+import { formatGridDateTime, parseGridDateTime } from '@/engine/taskGrid/editors';
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
@@ -115,8 +116,21 @@ eq('53 sync rev H10: ⌊20/10⌋d + (20 mod 10)u ≡ 20u', parseDuration(`${Math
 eq('54 sync fmt: 1200m @H10 auto ⇒ "2d"', formatDuration(1200, 10, 'auto'), '2d');
 eq('55 sync fmt: 1200m @H8 hours ⇒ "20h"', formatDuration(1200, 8, 'hours'), '20h');
 
+// ── 7) Persoonlijke grid-datumtijd ↔ interne ISO-minuut ──────────────────────
+eq('56 grid datetime dmy → ISO-minuut', parseGridDateTime('31-12-2026 08:45', 'dmy'), '2026-12-31T08:45');
+eq('57 grid datetime mdy → ISO-minuut', parseGridDateTime('12/31/2026 8:05', 'mdy'), '2026-12-31T08:05');
+eq('58 grid datetime ymd met T → ISO-minuut', parseGridDateTime('2026.12.31T23:59', 'ymd'), '2026-12-31T23:59');
+eq('59 date-only blijft toegestaan in datetimekolom', parseGridDateTime('31-12-2026', 'dmy'), '2026-12-31');
+eq('60 uur 24 wordt geweigerd', parseGridDateTime('31-12-2026 24:00', 'dmy'), null);
+eq('61 minuut 60 wordt geweigerd', parseGridDateTime('31-12-2026 08:60', 'dmy'), null);
+eq('62 seconden worden niet stil afgekapt door de gridparser', parseGridDateTime('31-12-2026 08:45:30', 'dmy'), null);
+eq('63 niet-bestaande grid-datumtijd wordt geweigerd', parseGridDateTime('31-02-2026 08:45', 'dmy'), null);
+eq('64 ISO-minuut formatteert naar dmy', formatGridDateTime('2026-12-31T08:45', 'dmy'), '31-12-2026 08:45');
+eq('65 datetime dmy roundtrip bewaart ISO-minuut',
+  parseGridDateTime(formatGridDateTime('2024-02-29T00:05', 'dmy'), 'dmy'), '2024-02-29T00:05');
+
 if (diffs.length === 0) {
-  console.log('OK  datetime-check: alle checks groen (55)');
+  console.log('OK  datetime-check: alle checks groen (65)');
   process.exit(0);
 } else {
   console.log(`XX  datetime-check: ${diffs.length} afwijking(en)`);

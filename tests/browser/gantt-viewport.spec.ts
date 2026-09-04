@@ -18,6 +18,12 @@ async function primaryCanvasBounds(page: Page) {
   return bounds!;
 }
 
+function ganttTaskCell(page: Page, taskId: string) {
+  return page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${taskId}"][data-grid-column-id="task.name"]`,
+  );
+}
+
 test('Gantt viewport: primary wheel volgt drag, modifier en position mode', async ({ page, ops: _ops }) => {
   await seedProject(page, manyTasks('Wheelpad'));
   const bounds = await primaryCanvasBounds(page);
@@ -124,10 +130,9 @@ test('Gantt viewport: Ctrl+0 past de hele projectspan en reset Y', async ({ page
   await expect.poll(() => state(page).then(s => s.view.zoom)).not.toBe(before.view.zoom);
   await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paintsBefore);
   const bounds = await primaryCanvasBounds(page);
-  const tableWidth = (await state(page)).ui.leftPanelWidth;
   const first = await barPoint(page, ids[0]);
   const last = await barPoint(page, ids.at(-1)!);
-  expect(first.x).toBeGreaterThanOrEqual(bounds.x + tableWidth);
+  expect(first.x).toBeGreaterThanOrEqual(bounds.x);
   expect(last.x).toBeLessThanOrEqual(bounds.x + bounds.width);
 });
 
@@ -143,27 +148,21 @@ test('Gantt viewport: een gewone klik in de takenlijst onthult alleen een verbor
     s.setScroll(0, 0);
   });
   const farPoint = await barPoint(page, farId);
-  const nearPoint = await barPoint(page, nearId);
-  const tableClick = { x: bounds.x + 120, y: farPoint.y };
   expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
   const before = await state(page);
 
-  await page.mouse.click(tableClick.x, tableClick.y);
+  await ganttTaskCell(page, farId).click();
 
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([farId]);
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
   const afterPlainClick = await state(page);
   expect(afterPlainClick.view.zoom).toBe(before.view.zoom);
 
-  await page.keyboard.down('Control');
-  await page.mouse.click(bounds.x + 120, nearPoint.y);
-  await page.keyboard.up('Control');
+  await ganttTaskCell(page, nearId).click({ modifiers: ['Control'] });
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual(expect.arrayContaining([nearId, farId]));
   expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 
-  await page.keyboard.down('Shift');
-  await page.mouse.click(bounds.x + 120, farPoint.y);
-  await page.keyboard.up('Shift');
+  await ganttTaskCell(page, farId).click({ modifiers: ['Shift'] });
   expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 });
 
@@ -181,23 +180,20 @@ test('Gantt viewport: de werkdag-as onthult een bestaande berekende taak zonder 
     s.setScroll(0, 0);
   });
   const farPoint = await barPoint(page, farId);
-  const nearPoint = await barPoint(page, nearId);
   expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
   const before = await state(page);
 
-  await page.mouse.click(bounds.x + 120, farPoint.y);
+  await ganttTaskCell(page, farId).click();
 
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([farId]);
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
   const afterPlainClick = await state(page);
   expect(afterPlainClick.view.zoom).toBe(before.view.zoom);
   const revealed = await barPoint(page, farId);
-  expect(revealed.x).toBeGreaterThanOrEqual(bounds.x + afterPlainClick.ui.leftPanelWidth);
+  expect(revealed.x).toBeGreaterThanOrEqual(bounds.x);
   expect(revealed.x).toBeLessThanOrEqual(bounds.x + bounds.width);
 
-  await page.keyboard.down('Control');
-  await page.mouse.click(bounds.x + 120, nearPoint.y);
-  await page.keyboard.up('Control');
+  await ganttTaskCell(page, nearId).click({ modifiers: ['Control'] });
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual(expect.arrayContaining([nearId, farId]));
   expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 });
@@ -207,7 +203,6 @@ test('Gantt viewport: pijlnavigatie onthult op de werkdag-as de volgende verborg
     { name: 'Toets werkdag begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
     { name: 'Toets werkdag doel', start: '2028-07-03', finish: '2028-07-14', durationDays: 10 },
   ]);
-  const gantt = page.getByTestId('gantt-primary-canvas');
   const bounds = await primaryCanvasBounds(page);
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
@@ -216,14 +211,15 @@ test('Gantt viewport: pijlnavigatie onthult op de werkdag-as de volgende verborg
     s.setZoom(60);
     s.setScroll(0, 0);
   });
-  const nearPoint = await barPoint(page, nearId);
   const farPoint = await barPoint(page, farId);
   expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
 
-  // De klik in de linker taaktabel vestigt zowel de gewone éénvoudige selectie als canvasfocus.
-  await page.mouse.click(bounds.x + 120, nearPoint.y);
+  // De gedeelde DOM-grid bezit selectie en pijlnavigatie; de Gantt-surface onthult de balk bij
+  // iedere gewone verplaatsing van de actieve cel.
+  const nearCell = ganttTaskCell(page, nearId);
+  await nearCell.click();
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([nearId]);
-  await expect(gantt).toBeFocused();
+  await expect(nearCell).toBeFocused();
   const before = await state(page);
 
   await page.keyboard.press('ArrowDown');
@@ -233,7 +229,7 @@ test('Gantt viewport: pijlnavigatie onthult op de werkdag-as de volgende verborg
   const after = await state(page);
   expect(after.view.zoom).toBe(before.view.zoom);
   const revealed = await barPoint(page, farId);
-  expect(revealed.x).toBeGreaterThanOrEqual(bounds.x + after.ui.leftPanelWidth);
+  expect(revealed.x).toBeGreaterThanOrEqual(bounds.x);
   expect(revealed.x).toBeLessThanOrEqual(bounds.x + bounds.width);
 });
 
@@ -262,7 +258,7 @@ test('Gantt viewport: een nieuwe taak blijft bij werkdagcompressie zichtbaar zon
   expect(after.view.zoom).toBe(before.view.zoom);
   const bounds = await primaryCanvasBounds(page);
   const newBar = await barPoint(page, newTaskId);
-  expect(newBar.x).toBeGreaterThanOrEqual(bounds.x + after.ui.leftPanelWidth);
+  expect(newBar.x).toBeGreaterThanOrEqual(bounds.x);
   expect(newBar.x).toBeLessThanOrEqual(bounds.x + bounds.width);
 });
 

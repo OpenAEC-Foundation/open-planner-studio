@@ -2,33 +2,45 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": {
+    "label": "AutoSave",
+    "noFile": "Save this project first to use AutoSave.",
+    "onHint": "AutoSave is on: changes are written to this file.",
+    "offHint": "AutoSave is off. Crash recovery remains active."
+  },
   "notifications": {
     "dismiss": "Close notification",
     "openFailed": "Failed to open file",
     "mppLegacy": "This .mpp file uses an older format (Project 2007 or earlier). In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "mppEncrypted": "This .mpp file is password-protected. In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "saveFailed": "Failed to save",
-    "librarySaveFailed": "Library could not be saved",
     "savedViaDownload": "Saved as a download: '{{name}}' is now in your downloads folder. This environment does not let the app write directly to the location you picked.",
     "autoSaveFailed": "Auto-save failed",
     "recoveryReadFailed": "Recovered file could not be read",
     "recoveryRestoreFailed": "Restore failed",
+    "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
+    "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",
     "ifcParseFailed": "IFC could not be read",
     "templateSaved": "Branch saved as template '{{name}}'",
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
-    "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation — see the Relations panel for which.",
+    "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation. Check the Predecessors and Successors columns.",
+    "relationsSkippedOnInsert_one": "{{count}} relation was not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
+    "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "mppSourceScheduleNotes_one": "This MS Project file contains {{count}} task with a split, leveled, or resource-driven schedule. It is imported and shown as such.",
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
     "projectStartAnchorsClamped_one": "Project start moved: {{count}} task anchor without a predecessor or constraint was shifted to the new start date.",
     "projectStartAnchorsClamped_other": "Project start moved: {{count}} task anchors without a predecessor or constraint were shifted to the new start date.",
-    "mppTimephasedSteeringLost_one": "MS Project's hour distribution no longer drives {{count}} task after this edit; the original distribution stays in the file.",
-    "mppTimephasedSteeringLost_other": "MS Project's hour distribution no longer drives {{count}} tasks after this edit; the original distribution stays in the file.",
+    "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
+    "mppTimephasedSteeringLost_other": "MS Project's date window no longer drives {{count}} tasks after this edit; the hour distribution itself still applies and stays in the file.",
+    "readMore": "Read more",
+    "pasteSkippedReadOnly_one": "Skipped {{count}} cell: it is read-only (for example an auto-numbered WBS code or a calculated column).",
+    "pasteSkippedReadOnly_other": "Skipped {{count}} cells: they are read-only (for example an auto-numbered WBS code or a calculated column).",
+    "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
-    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
-    "readMore": "Read more"
+    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays."
   },
   "yes": "Yes",
   "no": "No",
@@ -97,6 +109,8 @@
     "themeDark": "Dark",
     "themeLight": "Light",
     "themeHighContrast": "High Contrast",
+    "themeFollowSystem": "Follow system theme",
+    "themeSystemHint": "Follows your system colour scheme (currently: {{theme}}).",
     "timeline": "Timeline / Zoom",
     "hourPlanningSection": "Hour planning",
     "enableHourPlanning": "Enable hour planning",
@@ -335,13 +349,51 @@
       "sameSize": "Same size as the previous version",
       "daysSincePrevious": "Since the previous release: {{count}} days",
       "currentOnly": "You're now running version {{version}}",
-      "whatsNewButton": "What's new"
+      "whatsNewButton": "What's new",
+      "newVersion": "New version",
+      "readGuide": "Read the guide",
+      "fullNotes": "See full release notes",
+      "openFailed": "The release notes could not be opened.",
+      "inNumbers": "This update in numbers",
+      "days": "days since previous release",
+      "commits": "commits since previous release",
+      "codeLines": "added lines of code",
+      "codeLinesHint": "Gross added lines in application code, Rust, scripts and tests; documentation, translations, lockfiles and generated files are excluded.",
+      "smallerLabel": "smaller package",
+      "largerLabel": "larger package",
+      "acknowledge": "Got it"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "{{count}} deadline(s) missed",
     "violatedConstraints": "{{count}} constraint(s) violated",
-    "outOfSequence": "{{count}} out-of-sequence relation(s)"
+    "outOfSequence": "{{count}} out-of-sequence relation(s)",
+    "overallocated": "{{count}} resource(s) overallocated"
+  },
+  "warnings": {
+    "title": "Warnings",
+    "close": "Close warnings",
+    "openPanel": "Open the Warnings panel (details and navigation)",
+    "summary": "{{errors}} error(s), {{warnings}} warning(s)",
+    "noSchedule": "Not calculated yet — press Calculate (F5) to run the checks.",
+    "stale": "Schedule is stale — this list comes from the last calculation. Recalculate (F5).",
+    "empty": "No warnings. The schedule passes all checks.",
+    "goTo": "Go to: {{target}}",
+    "kind": {
+      "scheduleError": "The schedule could not be calculated: {{message}}",
+      "missedDeadline": "Deadline {{deadline}} missed — early finish {{finish}}",
+      "violatedConstraint": "Constraint {{constraint}} is overridden by the logic (negative float)",
+      "outOfSequence": "Out of sequence: the successor's progress contradicts the relation",
+      "truncatedLead": "Lead truncated by the project start — the relation is not fully honoured",
+      "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
+      "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
+      "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
+      "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})"
+    },
+    "target": {
+      "project": "Project",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -535,7 +587,9 @@
       "backLoaded": "Back loaded",
       "bell": "Bell shaped",
       "earlyPeak": "Early peak",
-      "latePeak": "Late peak"
+      "latePeak": "Late peak",
+      "doublePeak": "Double peak",
+      "turtle": "Turtle"
     },
     "occupancyView": "Occupancy",
     "occupancy": {
@@ -545,6 +599,8 @@
       "staleBanner": "At least one document has not been calculated and is not included in the occupancy.",
       "staleComputedDoc": "Calculated in advance for this overview — the document itself still shows older dates until you press F5 there or turn on “Calculate automatically”.",
       "staleComputedBanner": "Changed documents have been calculated in advance for this overview; press F5 in the document, or turn on “Calculate automatically” to do this permanently.",
+      "staleAsShownDoc": "Out of date: these are the last calculated figures — press F5 in this document.",
+      "staleAsShownBanner": "A changed document has not been recalculated yet; it is included here with its last calculated figures. Press F5 in that document, or turn on “Calculate automatically”.",
       "docCount_one": "{{count}} document",
       "docCount_other": "{{count}} documents",
       "conflictDays_one": "{{count}} day double-booked",
@@ -689,6 +745,24 @@
       "night": "Night shift",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "Enter a valid break time as HH:MM.",
+      "invalidWorkStart": "Enter a valid start time as HH:MM.",
+      "invalidWorkEnd": "Enter a valid end time as HH:MM.",
+      "invalidWorkTimeOrder": "Start time must be before end time.",
+      "increaseTime": "Increase time by 15 minutes",
+      "decreaseTime": "Decrease time by 15 minutes",
+      "increaseBreakDuration": "Increase break duration by 15 minutes",
+      "decreaseBreakDuration": "Decrease break duration by 15 minutes",
+      "start": "Break starts",
+      "duration": "Break duration (minutes)",
+      "hint": "Set a break start and duration; net hours and working-time bands are derived automatically. Set duration to 0 for a continuous working day.",
+      "errors": {
+        "invalidDuration": "Break duration must be a whole number of minutes of 0 or more.",
+        "outsideWorkingDay": "The break must fall entirely within the configured working day.",
+        "consumesWorkingDay": "The break cannot take up the whole working day."
+      }
+    },
     "worktime": {
       "section": "Working times",
       "derivedHpd": "Derived hours/day:",
@@ -816,7 +890,8 @@
       "edit": "Edit",
       "structure": "Structure",
       "view": "View",
-      "nav": "Navigation"
+      "nav": "Navigation",
+      "grid": "Table"
     },
     "view": {
       "exitFullscreen": "Exit presentation",
@@ -836,6 +911,12 @@
       "switchDocument": "Switch document",
       "scrollToToday": "Jump to today",
       "help": "Open help"
+    },
+    "grid": {
+      "navigate": "Next/previous cell",
+      "edit": "Edit cell",
+      "typeToReplace": "Typing replaces the cell content",
+      "clearCell": "Clear cell content"
     }
   },
   "welcome": {

@@ -45,9 +45,10 @@ import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
-import { distributeUnits, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
+import { assignmentDayUnits, contourLookup, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
 import { enumerateTaskWorkDays, splitGapsFromWorkDayBlocks } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /**
  * Het GEDEELDE poolitem-grootboek (spec §4, "twee grootboeken"). De motor toetst per `resourceId`
@@ -199,7 +200,7 @@ export function levelResources(
   // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
   cpmOptions: CPMOptions = {},
 ): LevelingResult {
-  const projEngine = new CalendarEngine(projectCalendar);
+  const projEngine = new CalendarEngine(calendarForEngine(projectCalendar));
 
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
   const renewable = resources.filter(r => r.type !== 'MATERIAL');
@@ -212,7 +213,9 @@ export function levelResources(
   const resById = new Map(resources.map(r => [r.id, r]));
   const engineByRes = new Map<string, CalendarEngine>();
   for (const r of selectedResources) {
-    engineByRes.set(r.id, new CalendarEngine(resolveCalendar(r.calendarId, resourceCalendars, projectCalendar)));
+    engineByRes.set(r.id, new CalendarEngine(calendarForEngine(
+      resolveCalendar(r.calendarId, resourceCalendars, projectCalendar),
+    )));
   }
 
   // Kalender-engine voor de TAAKkalender (B1c-W0.2/W0.3) — spiegelt `ResourceLoad.ts`s
@@ -227,7 +230,9 @@ export function levelResources(
     if (!eng) {
       eng = key === ''
         ? projEngine
-        : new CalendarEngine(resolveCalendar(task.calendarId, resourceCalendars, projectCalendar));
+        : new CalendarEngine(calendarForEngine(
+          resolveCalendar(task.calendarId, resourceCalendars, projectCalendar),
+        ));
       taskEngineCache.set(key, eng);
     }
     return eng;
@@ -461,6 +466,9 @@ export function levelResources(
 
   // Dagvraag per taak per geselecteerde resource: som van distributeUnits over alle assignments
   // van die taak op die resource (multi-assignment naar dezelfde resource telt op — §4.2).
+  // Contour-engine (2026-09): dezelfde `assignmentDayUnits` als het histogram — opgeslagen contour
+  // of exacte curve als data, anders de `distributeUnits`-formule (byte-identiek voor taken zonder).
+  const contourOf = contourLookup(assignments);
   const demandByTask = new Map<string, Map<string, number[]>>();
   for (const a of assignments) {
     if (!selectedIds.has(a.resourceId)) continue;
@@ -468,7 +476,7 @@ export function levelResources(
     if (!task || task.isMilestone || task.childIds.length > 0) continue;
     const dur = task.time.scheduleDuration;
     if (dur <= 0) continue;
-    const arr = distributeUnits(a.unitsPerDay, dur, a.curve ?? 'UNIFORM');
+    const arr = assignmentDayUnits(task, a, engineForTask(task).hoursPerDay * 60, contourOf(task, a));
     let byRes = demandByTask.get(a.taskId);
     if (!byRes) { byRes = new Map(); demandByTask.set(a.taskId, byRes); }
     const existing = byRes.get(a.resourceId);

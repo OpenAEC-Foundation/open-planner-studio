@@ -1,4 +1,5 @@
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
+import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
@@ -33,7 +34,7 @@ import {
 // zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
 // registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
 
-const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 
 interface StepEntity {
   id: string; // STEP entity ID (may include letters, e.g. "300T")
@@ -103,13 +104,22 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
     entityMap.set(e.id, e);
   }
 
+  // Taakidentiteit moet vóór `extractTasks` bekend zijn. Externe links bewaren het taak-id van een
+  // geparseerde bron; een nieuw willekeurig id bij iedere parse maakte een echte Tauri-refresh van
+  // hetzelfde IFC-bestand daardoor altijd `sourceMissing`. Nieuwe OPS-bestanden dragen het
+  // oorspronkelijke id in OPS_TaskIdentity; oudere/andere IFC-bestanden vallen stabiel terug op
+  // hun IFCTASK.GlobalId.
+  const taskIdentityByStepId = extractTaskIdentityByStepId(entities, entityMap);
+
   // Extract project
   const project = extractProject(entities, entityMap, labels);
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
-  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(entities, entityMap, baselineTaskStepIds);
+  const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
+  );
   const sequences = extractSequences(entities, entityMap, taskStepIdMap);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
@@ -146,6 +156,14 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
+  // Contour-engine (2026-09): `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
+  // het SCHRIJVENDE document; deze lezer regenereert resource-ids (`extractResources`), dus de
+  // verwijzing moet mee — via dezelfde deterministische GUID-hash (`ifcGuid(oudeId)` = de GlobalId
+  // die de writer voor die resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
+  // `extractStructure`, want dáár landen de `OPS_TimephasedContours`-psets op de taken. Een
+  // verwijzing die niet terug te vinden is (GUID-botsing met `#dup`-suffix, of een extern bestand)
+  // blijft ongewijzigd staan — de koppeling valt dan terug op de 1-op-1-regel van de engine.
+  remapContourResourceIds(tasks, resourceGuidMap);
   // Fase 3 (P11): OPS_Leveling wordt nu binnen extractStructure via de per-taak-registry gedispatcht
   // (samen met de andere zeven per-taak-psets) — geen losse extractLevelingMeta-aanroep meer.
 
@@ -570,6 +588,7 @@ function extractProject(
 ): Project {
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const wp = entities.find(e => e.type === 'IFCWORKPLAN');
+  const projectGlobalId = proj ? ifcSlotText(proj.args[0]) : '';
 
   // Auteur/organisatie uit de owner-history-keten (IFCOWNERHISTORY → IFCPERSONANDORGANIZATION →
   // IFCPERSON.FamilyName / IFCORGANIZATION.Name; spiegel van wat de writer schrijft). Via de keten
@@ -590,7 +609,9 @@ function extractProject(
   }
 
   return {
-    id: generateId('proj'),
+    id: projectGlobalId
+      ? `proj-ifc-${projectGlobalId}`
+      : `proj-ifc-step-${proj?.id ?? wp?.id ?? 'missing'}`,
     // Twee verschillende gevallen, bewust verschillend afgehandeld:
     //
     //  1. Er ís een IFCPROJECT. Dan telt zijn naamslot — óók als die leeg is. `ifcSlotText`, niet
@@ -729,10 +750,66 @@ function recordedSlotsOf(e: StepEntity): RecordedFieldKey[] {
   return out;
 }
 
+/**
+ * STEP-id van IFCTASK → door OPS opgeslagen intern taak-id.
+ *
+ * Dit is opzettelijk een kleine pre-pass naast de algemene per-taak-psetdispatch: die algemene
+ * dispatch krijgt pas bestaande Task-objecten. Identiteit bepaalt juist met welk id die objecten,
+ * sequence-maps en recordedFields vanaf het begin worden gemaakt.
+ */
+function extractTaskIdentityByStepId(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET'
+      || stripQuotes(pset.args[2] || '') !== PSET.TaskIdentity) continue;
+    let internalId: string | undefined;
+    for (const propRef of parseRefs(pset.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE'
+        || stripQuotes(prop.args[0] || '') !== 'InternalTaskId') continue;
+      const value = parseTypedValue(prop.args[2] || '');
+      if (isValidPersistedIfcId(value)) internalId = value;
+    }
+    if (!internalId) continue;
+    for (const objectRef of parseRefs(rel.args[4] || '')) {
+      if (entityMap.get(objectRef)?.type === 'IFCTASK') out.set(objectRef, internalId);
+    }
+  }
+  return out;
+}
+
+function isValidPersistedIfcId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 256
+    && !Array.from(value).some(character => {
+      const code = character.codePointAt(0) ?? 0;
+      return code <= 31 || code === 127;
+    });
+}
+
+function stableIfcTaskId(
+  taskEntity: StepEntity,
+  persistedIds: Map<string, string>,
+  usedIds: Set<string>,
+): string {
+  const globalId = ifcSlotText(taskEntity.args[TASK_SLOT.globalId]);
+  const base = persistedIds.get(taskEntity.id)
+    ?? (globalId ? `task-ifc-${globalId}` : `task-ifc-step-${taskEntity.id}`);
+  let id = base;
+  for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
+  usedIds.add(id);
+  return id;
+}
+
 function extractTasks(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
+  persistedIds: Map<string, string> = new Map(),
 ): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>; recordedFields: Record<string, RecordedFieldKey[]> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
@@ -744,9 +821,10 @@ function extractTasks(
   // bestand echt vulde. Een taak ZONDER IfcTaskTime krijgt een lege lijst (niet: ontbrekend) —
   // "geen enkel slot gevuld" is een uitspraak, "onbekend" niet.
   const recordedFields: Record<string, RecordedFieldKey[]> = {};
+  const usedIds = new Set<string>();
 
   for (const te of taskEntities) {
-    const id = generateId('task');
+    const id = stableIfcTaskId(te, persistedIds, usedIds);
     taskStepIdMap.set(te.id, id);
 
     // Twee IFCTASK-lay-outs (L1-fix, zie writeTask): spec-conform IFC 4.3 telt 13 args
@@ -1130,7 +1208,9 @@ function extractStructure(
         if (prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
         const name = stripQuotes(prop.args[0] || '');
         const v = parseTypedValue(prop.args[2] || '');
-        if (name === 'wbsAutoNumber') {
+        if (name === 'InternalProjectId') {
+          if (isValidPersistedIfcId(v)) project.id = v;
+        } else if (name === 'wbsAutoNumber') {
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
         } else if (name === 'DefaultTaskDurationUnit') {
           if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
@@ -1503,6 +1583,31 @@ function extractCalendarHoursPerDay(
   return undefined;
 }
 
+/** Leest het optionele eenvoudige scalar-pauzepatroon uit `OPS_Calendar`. */
+function extractCalendarSimpleBreak(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> {
+  const result: Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> = {};
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    const props = parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+    for (const prop of props) {
+      const value = parseTypedValue(prop.args[2] || '');
+      if (typeof value !== 'number' || !Number.isInteger(value)) continue;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakStart') result.simpleBreakStartMinute = value;
+      if (stripQuotes(prop.args[0] || '') === 'SimpleBreakDuration') result.simpleBreakDurationMinutes = value;
+    }
+  }
+  return result;
+}
+
 /** OPS-eigen aanvulling op IFC's ambigue standaardwerkweek: bewaart dat een kalender met precies
  * één gewone band toch uur-modus was. Zonder de markering blijft de conservatieve externe fallback
  * dag-modus; alleen bestanden die OPS zelf schreef krijgen dit expliciete vertrouwen. */
@@ -1589,6 +1694,7 @@ function buildCalendarFromEntity(
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
   calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
@@ -1836,6 +1942,8 @@ interface AssignmentMeta {
 interface WindowMeta {
   workWindowStart?: string;
   workWindowFinish?: string;
+  /** Contour-engine (2026-09) — exacte 21-punts curve, zie `ResourceAssignment.curveValues`. */
+  curveValues?: number[];
 }
 
 /** Per-taak verzamelde OPS_Assignments-meta: nieuw formaat (`GUID#N`-propnamen) als
@@ -1898,11 +2006,13 @@ function extractAssignments(
         const m = key.match(/^(.+)#(\d+)$/);
         if (!m || !val || typeof val !== 'object') continue;
         const vv = val as Record<string, unknown>;
+        const curveValues = normalizeCurveValues(vv.curveValues);
         const meta: WindowMeta = {
           ...(typeof vv.workWindowStart === 'string' ? { workWindowStart: vv.workWindowStart } : {}),
           ...(typeof vv.workWindowFinish === 'string' ? { workWindowFinish: vv.workWindowFinish } : {}),
+          ...(curveValues ? { curveValues } : {}),
         };
-        if (meta.workWindowStart === undefined && meta.workWindowFinish === undefined) continue;
+        if (meta.workWindowStart === undefined && meta.workWindowFinish === undefined && meta.curveValues === undefined) continue;
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
       }
       indexed.sort((a, b) => a.index - b.index);
@@ -1997,11 +2107,24 @@ function extractAssignments(
         ...(meta?.curve && meta.curve !== 'UNIFORM' ? { curve: meta.curve } : {}),
         ...(window?.workWindowStart !== undefined ? { workWindowStart: window.workWindowStart } : {}),
         ...(window?.workWindowFinish !== undefined ? { workWindowFinish: window.workWindowFinish } : {}),
+        ...(window?.curveValues !== undefined ? { curveValues: window.curveValues } : {}),
       });
     }
   }
 
   return assignments;
+}
+
+/** Contour-engine (2026-09) — zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
+function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, string>): void {
+  for (const task of tasks) {
+    if (!task.timephasedContours) continue;
+    for (const contour of task.timephasedContours) {
+      if (contour.resourceId === undefined) continue;
+      const mapped = resourceGuidMap.get(ifcGuid(contour.resourceId));
+      if (mapped) contour.resourceId = mapped;
+    }
+  }
 }
 
 /**

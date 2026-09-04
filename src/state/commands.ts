@@ -34,6 +34,7 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { saveShowHistogram } from '@/utils/settingsStore';
 import { ZOOM_STEP } from '@/utils/ganttViewport';
 import i18n from '@/i18n/config';
+import { canRedo, canUndo } from '@/state/sessionHistory';
 
 export interface Command {
   /** Stabiele id — tevens de sleutel in {@link COMMANDS}. */
@@ -58,12 +59,12 @@ export const COMMANDS = {
   undo: {
     id: 'undo',
     run: (s) => s.undo(),
-    isEnabled: (s) => s.undoStack.length > 0,
+    isEnabled: canUndo,
   },
   redo: {
     id: 'redo',
     run: (s) => s.redo(),
-    isEnabled: (s) => s.redoStack.length > 0,
+    isEnabled: canRedo,
   },
   save: {
     id: 'save',
@@ -120,6 +121,14 @@ export const COMMANDS = {
       const next = !s.ui.showHistogram;
       s.setUI({ showHistogram: next });
       void saveShowHistogram(next);
+    },
+  },
+  // Issue #53: het Waarschuwingenpaneel aan/uit (Beeld → Panelen). Sessie-vlag, dus niets te
+  // persisteren; het uitklappen van een ingeklapte rail regelt `setUI` (invariant 1b).
+  toggleWarningsPanel: {
+    id: 'toggleWarningsPanel',
+    run: (s) => {
+      s.setUI({ showWarningsPanel: !s.ui.showWarningsPanel });
     },
   },
 } satisfies Record<string, Command>;

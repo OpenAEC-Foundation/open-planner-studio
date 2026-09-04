@@ -72,7 +72,7 @@ const ASG: ResourceAssignment[] = [
   { id: 'aa2', taskId: task.id, resourceId: 'ra2', unitsPerDay: 3 },
 ];
 
-const W = 1200, H = 200, TTW = 300, ROWH = 28, HDRH = 60;
+const W = 1200, H = 200, ROWH = 28, HDRH = 60;
 
 function render(showResourceAccent: boolean, over: {
   darkTheme?: boolean;
@@ -82,15 +82,14 @@ function render(showResourceAccent: boolean, over: {
 } = {}) {
   const st = S();
   const { ctx, fillRects, shapes } = makeCtx();
-  const row = { kind: 'task' as const, task: over.task ?? task, depth: 0, dimmed: false };
+  const row = { kind: 'task' as const, rowKey: (over.task ?? task).id, task: over.task ?? task, depth: 0, dimmed: false };
   const renderer = new GanttRenderer(ctx, {
     rows: [row],
     sequences: [],
     calendar: st.calendar,
     view: { ...st.view, scrollX: 0, scrollY: 0 },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
-    canvasWidth: W, canvasHeight: H, taskTableWidth: TTW, rowHeight: ROWH, headerHeight: HDRH,
+    canvasWidth: W, canvasHeight: H, rowHeight: ROWH, headerHeight: HDRH,
     showResourceAccent,
     showBaselineOverlay: over.baseline,
     baselineOverlay: over.baseline
@@ -115,9 +114,8 @@ function render(showResourceAccent: boolean, over: {
 
 // De balk zelf: rowH 28, barH ≈ 0.55×28 ≈ 15; balk-y ≈ hdrH + (rowH−barH)/2 ≈ 60 + 6.5 = 66.5.
 // Het accent: y ≈ balkY + barH + 1 ≈ 82.5, h = 3 — uniek herkenbaar aan h === 3 onder de kopstrook.
-// Bewust GEEN x-filter op de tabelgrens: een taak die op de projectstart begint, laat haar balk
-// precies ÓP taskTableWidth beginnen, en een strikte `> TTW` filtert dat eerste segment onterecht
-// weg (gemeten: segment 1 op x = 300 = TTW werd gedropt terwijl segment 2 wel zichtbaar was).
+// Bewust GEEN x-filter op een tabelgrens: de renderer bezit alleen de tijdlijn en een taak op de
+// projectstart begint daarom op x = 0.
 const accents = (rects: Rect[]) => rects.filter(r => r.h === 3 && r.y > HDRH);
 
 {
@@ -173,13 +171,13 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === 3 && r.y > HDRH);
 {
   const colored = { ...task, id: task.id + '-kleur', color: '#00FF00' } as Task;
   const { shapes } = render(false, { task: colored, selection: { mode: 'critical' } });
-  const bars = shapes.filter(sh => sh.h > 10 && sh.h < 20 && sh.w > 3 && sh.x > TTW - 5);
+  const bars = shapes.filter(sh => sh.h > 10 && sh.h < 20 && sh.w > 3 && sh.x >= -1);
   ok(bars.every(b => b.fill !== '#00FF00'), 'legacy Task.color verandert de critical-vulling niet');
 }
 
 // ── Gedeelde schermkleurkeuze: critical, auto en Group-categorie ────────────────────────────────
 // Balken herkenbaar als roundRect-shapes met bar-hoogte (≈15px) in de chartzone.
-const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.h < 20 && sh.w > 3 && sh.x > TTW - 5);
+const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.h < 20 && sh.w > 3 && sh.x >= -1);
 {
   // Resource-categorie: 1:3-toewijzing ⇒ twee segmentvullingen in de resourcekleuren.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'resource' } } });

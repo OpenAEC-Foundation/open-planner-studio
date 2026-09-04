@@ -4,7 +4,8 @@
 // het VANGNETpad (§4.3): hun stale-fixtures dragen bewust géén `solveInput`, dus de default-solve
 // geeft `null` terug en het document blijft zichtbaar-ongeteld. Cases 14–16 dekken de efemere solve
 // van §4.3b (doorrekenen i.p.v. uitsluiten). Case 10 dekt daarnaast de
-// `OccupancyDocBooking.dailyLoad`-uitbreiding (histogramvoeding, som-invariant).
+// `OccupancyDocBooking.dailyLoad`-uitbreiding (histogramvoeding, som-invariant). Case 23 dekt de
+// perf-poort `skipEphemeralSolve` (het actieve document wordt niet in de render doorgerekend).
 //
 // Cases 17–20 zijn de enige die de ECHTE Zustand-store aanraken (patroon: check-library-slice.ts /
 // tests/planning/check-move-assignment.ts): het TERUGSCHRIJFBESLUIT van §4.3b woont in een
@@ -94,6 +95,9 @@ interface DocOpts {
    *  solve-invoer, dus het vangnetpad van §4.3 — zo dekken cases 1–13 bewust het vangnetgedrag. */
   solveTasks?: Task[];
   solveSequences?: Sequence[];
+  /** Zetten ⇒ `skipEphemeralSolve` (perf-poort): dit document heeft een eigen rekenpad en mag hier
+   *  niet efemeer worden doorgerekend — het telt mee met zijn taken zoals ze er staan. */
+  skipSolve?: boolean;
 }
 
 function doc(docId: string, opts: DocOpts = {}): OccupancyDocInput {
@@ -106,6 +110,7 @@ function doc(docId: string, opts: DocOpts = {}): OccupancyDocInput {
     tasks: opts.tasks ?? [],
     calendar: cal(),
     calendars: [],
+    ...(opts.skipSolve === true ? { skipEphemeralSolve: true } : {}),
     ...(opts.solveTasks !== undefined
       ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [] } }
       : {}),
@@ -621,6 +626,98 @@ function pool(resources: Resource[]): CompanyPool {
   );
 }
 
+// ── Case 23 (perf-poort): `skipEphemeralSolve` — een eigen rekenpad wordt hier NIET gesolved ────
+// De weergavelaag zet dit voor het ACTIEVE document, omdat elke bewerking daarin de zware memo
+// invalideert en er anders per toetsaanslag een volledige CPM-solve in de render draait. De poort
+// is een TELLENDE solve-injectie: nul aanroepen voor het overgeslagen document, wél een aanroep
+// voor het slapende stale document ernaast.
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 4)]);
+  // Anker 08-03, opgeslagen (verouderde) early-datums 08-10..08-12 — zo is aan de dagen te ZIEN of
+  // er gesolved is (08-03..) of dat de opgeslagen toestand gebruikt is (08-10..).
+  const actiefTasks = [staleTask('a1', '2026-08-03', '2026-08-10', '2026-08-12', 3)];
+  const slapendTasks = [staleTask('s1', '2026-08-03', '2026-08-10', '2026-08-12', 3)];
+
+  const actief = doc('d-actief', {
+    scheduleStale: true,
+    skipSolve: true,
+    resources: [stamped('d-actief-r1', 'lib-1')],
+    tasks: actiefTasks,
+    assignments: [assign('d-actief-a1', 'a1', 'd-actief-r1', 1)],
+    solveTasks: actiefTasks, // bewust WÉL aangeleverd: de skip moet zwaarder wegen dan de invoer
+  });
+  const slapend = doc('d-slapend', {
+    scheduleStale: true,
+    resources: [stamped('d-slapend-r1', 'lib-1')],
+    tasks: slapendTasks,
+    assignments: [assign('d-slapend-a1', 's1', 'd-slapend-r1', 1)],
+    solveTasks: slapendTasks,
+  });
+
+  const gesolved: string[] = [];
+  const tellendeSolve: OccupancyEphemeralSolve = (d) => {
+    gesolved.push(d.docId);
+    return ephemeralSolve(d);
+  };
+  const { rows, anyStale } = computeLibraryOccupancy('c1', p, [actief, slapend], tellendeSolve);
+
+  assert(
+    JSON.stringify(gesolved) === JSON.stringify(['d-slapend']),
+    `case 23: alleen het slapende stale document wordt gesolved (kreeg ${JSON.stringify(gesolved)})`,
+  );
+
+  const actiefBooking = rows[0]?.docs.find(d => d.docId === 'd-actief');
+  const slapendBooking = rows[0]?.docs.find(d => d.docId === 'd-slapend');
+  assert(rows.length === 1 && rows[0].docs.length === 2, `case 23: één rij met twee boekingen (kreeg ${rows.length} rijen)`);
+
+  // Het overgeslagen document telt gewoon mee — met zijn OPGESLAGEN datums, niet met een solve.
+  assert(actiefBooking?.counted === true, 'case 23: het overgeslagen document telt mee (geen vangnet)');
+  assert(actiefBooking?.ephemeralComputed === false, 'case 23: ephemeralComputed false — de cijfers komen niet uit een solve');
+  assert(actiefBooking?.scheduleStale === true, 'case 23: scheduleStale blijft staan als markering');
+  const refLoad = computeResourceLoad(actief.resources, actief.assignments, actiefTasks, cal(), []);
+  const refDaily = refLoad.load['d-actief-r1'];
+  assert(
+    JSON.stringify(actiefBooking?.dailyLoad) ===
+      JSON.stringify(Object.fromEntries(Object.keys(refDaily).filter(iso => refDaily[iso] > 0).sort().map(iso => [iso, refDaily[iso]]))),
+    `case 23: dailyLoad == de belasting op de taken ZOALS OPGESLAGEN (kreeg ${JSON.stringify(actiefBooking?.dailyLoad)})`,
+  );
+  assert(actiefBooking?.firstDay === '2026-08-10', `case 23: het overgeslagen document blijft op zijn opgeslagen datums staan (kreeg ${actiefBooking?.firstDay})`);
+
+  // Het slapende document ernaast is wél efemeer doorgerekend en landt op het anker.
+  assert(slapendBooking?.counted === true && slapendBooking?.ephemeralComputed === true,
+    'case 23: het slapende stale document is wél efemeer doorgerekend');
+  assert(slapendBooking?.firstDay === '2026-08-03',
+    `case 23: het slapende document landt op de verse datums (kreeg ${slapendBooking?.firstDay})`);
+  assert(anyStale === true, 'case 23: anyStale staat — er zitten stale documenten in het overzicht');
+
+  // De payload-taken van het overgeslagen document zijn onaangeraakt (er is niets gekloond/gesolved).
+  assert(JSON.stringify(actiefTasks[0].time.earlyStart) === JSON.stringify('2026-08-10'),
+    'case 23: de taken van het overgeslagen document zijn niet gemuteerd');
+
+  // 23b: een NIET-stale document krijgt eveneens `ephemeralComputed: false` — de vlag onderscheidt
+  // "uit een efemere solve" van "uit de taken zelf", niet stale van niet-stale.
+  const rustig = doc('d-rustig', {
+    resources: [stamped('d-rustig-r1', 'lib-1')],
+    tasks: [task('r1', '2026-08-03', '2026-08-05', 3)],
+    assignments: [assign('d-rustig-a1', 'r1', 'd-rustig-r1', 1)],
+  });
+  const b = computeLibraryOccupancy('c1', p, [rustig]);
+  assert(b.rows[0]?.docs[0]?.counted === true && b.rows[0]?.docs[0]?.ephemeralComputed === false,
+    'case 23b: een niet-stale document telt mee met ephemeralComputed false');
+  assert(b.anyStale === false, 'case 23b: geen stale document ⇒ anyStale false');
+
+  // 23c: skip + geen bruikbare datums ⇒ geen booking (fantoomrij-guard blijft gelden), géén vangnet.
+  const leeg = doc('d-leeg', {
+    scheduleStale: true,
+    skipSolve: true,
+    resources: [stamped('d-leeg-r1', 'lib-1')],
+    tasks: [task('l1', '', '', 3)],
+    assignments: [assign('d-leeg-a1', 'l1', 'd-leeg-r1', 1)],
+  });
+  const c = computeLibraryOccupancy('c1', p, [leeg]);
+  assert(c.rows.length === 0, `case 23c: overgeslagen document zonder datums levert geen fantoomrij (kreeg ${c.rows.length})`);
+}
+
 // ══ Terugschrijven mét "Automatisch berekenen" (§4.3b, tweede ronde) ════════════════════════════
 // `recalculateStaleSleepingDocuments()` in `documentSlice`: elk NIET-actief document met een
 // verouderde planning wordt écht doorgerekend en teruggeschreven (taken/`cpmResult`/
@@ -648,9 +745,10 @@ let afterPayload: DocumentPayload | null = null;
 
   const before = sleeping(parkedId);
   assert(before !== null && before.scheduleStale === true, 'case 17 setup: de geparkeerde payload is stale');
-  const undoBefore = JSON.stringify(before?.undoStack);
+  const historyBefore = JSON.stringify(S().historyEvents.filter(event =>
+    event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId)));
   const dirtyBefore = before?.isDirty;
-  assert((before?.undoStack.length ?? 0) > 0, 'case 17 setup: de geparkeerde payload draagt een undo-historie');
+  assert(JSON.parse(historyBefore).length > 0, 'case 17 setup: de sessie draagt historie voor het geparkeerde document');
   const startBefore = before?.tasks.map(t => t.time.earlyStart) ?? [];
   assert(
     startBefore.length === 2 && startBefore[0] === startBefore[1],
@@ -675,8 +773,9 @@ let afterPayload: DocumentPayload | null = null;
     `case 17: de FS-relatie is écht doorgerekend (A2 start ná A1 klaar; kreeg ${a1?.time.earlyFinish} → ${a2?.time.earlyStart})`,
   );
   // Semantiek spiegelt runCPM: geen undo-snapshot, isDirty ongemoeid.
-  assert(JSON.stringify(afterPayload?.undoStack) === undoBefore, 'case 17: de undo-stack van de payload is ongewijzigd');
-  assert(afterPayload?.redoStack.length === 0, 'case 17: de redo-stack blijft leeg (geen bewerking)');
+  assert(JSON.stringify(S().historyEvents.filter(event =>
+    event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId))) === historyBefore,
+  'case 17: de sessiehistorie van het slapende document is ongewijzigd');
   assert(afterPayload?.isDirty === dirtyBefore, 'case 17: isDirty is ongemoeid');
 }
 
@@ -734,7 +833,9 @@ let afterPayload: DocumentPayload | null = null;
   const o1 = okAfter?.tasks.find(t => t.id === 'o1');
   const o2 = okAfter?.tasks.find(t => t.id === 'o2');
   assert(!!o1 && !!o2 && o2.time.earlyStart > o1.time.earlyFinish, 'case 20: de relatie is doorgerekend (o2 ná o1)');
-  assert(okAfter?.undoStack.length === 0 && okAfter?.isDirty === false, 'case 20: geen undo-snapshot, isDirty ongemoeid');
+  assert(S().historyEvents.every(event => !event.deltas.some(delta =>
+    delta.kind !== 'grid-preference' && delta.documentId === 'doc-gezond')) && okAfter?.isDirty === false,
+  'case 20: geen history-event, isDirty ongemoeid');
 }
 
 // ── Case 21: de viewslicecache isoleert company en pool expliciet ──────────────────────────

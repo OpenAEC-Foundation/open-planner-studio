@@ -87,7 +87,7 @@ const [ta] = S().tasks;
 S().updateTask(ta.id, { time: { ...S().tasks[0].time, scheduleStart: '2026-01-01', scheduleDuration: 400 } });
 S().runCPM();
 
-const W = 1200, H = 600, TTW = 300, HEADER_H = 44;
+const W = 1200, H = 600, HEADER_H = 44;
 const VIEW_START = '2026-03-02'; // een maandag
 
 function renderRects(zoom: number, scrollX: number, compress: boolean, weekStartDay: 'monday' | 'sunday'): RectOp[] {
@@ -99,10 +99,8 @@ function renderRects(zoom: number, scrollX: number, compress: boolean, weekStart
     calendar: st.calendar,
     view: { ...st.view, zoom, scrollX, scrollY: 0, viewStartDate: VIEW_START },
     selectedTaskIds: [],
-    collapsedTaskIds: [],
     canvasWidth: W,
     canvasHeight: H,
-    taskTableWidth: TTW,
     rowHeight: 28,
     headerHeight: HEADER_H,
     compressNonWorkdays: compress,
@@ -121,7 +119,7 @@ function visibleWorkdayColumns(zoom: number, scrollX: number): { x: number; date
     calendar: engine,
     compressNonWorkdays: true,
     origin: new Date(VIEW_START + 'T00:00:00.000Z'),
-    taskTableWidth: TTW,
+    chartOriginX: 0,
     zoom,
     scrollX,
   });

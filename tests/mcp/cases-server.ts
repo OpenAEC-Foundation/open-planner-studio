@@ -19,6 +19,7 @@ import type { McpToolDef, McpToolResult, McpEnvelope } from '@/services/mcp/cont
 import { createAppStoreContext } from '@/state/appStore';
 import { capturePayload } from '@/state/documentContract';
 import { createSnapshot } from '@/state/snapshot';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { runMutateTool, runReadTool } from '@/services/mcp/tools/runtime';
 import { getTool, registerAllTools, registerToolModules } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -213,7 +214,7 @@ test('duplicate_document markeert duplicate-born in context B en laat appcontext
   const sourceId = B.store.getState().activeDocumentId;
   const appBefore = {
     payload: capturePayload(useAppStore.getState()),
-    undoDepth: useAppStore.getState().undoStack.length,
+    undoDepth: historyDepthsForActiveScope(useAppStore.getState()).undoDepth,
   };
 
   let writes = 0;
@@ -250,7 +251,7 @@ test('duplicate_document markeert duplicate-born in context B en laat appcontext
   assertEq(writes, 0, 'B hoort voor het duplicate-born document geen backupbestand te schrijven');
   assertEq({
     payload: capturePayload(useAppStore.getState()),
-    undoDepth: useAppStore.getState().undoStack.length,
+    undoDepth: historyDepthsForActiveScope(useAppStore.getState()).undoDepth,
   }, appBefore, 'de appcontext A hoort byte- en tellermatig gelijk te blijven');
 });
 
@@ -282,7 +283,7 @@ test('buildMcpContext(B) bindt read, mutatie, rollback en envelop uitsluitend aa
     'de mutatie hoort uitsluitend in B te staan');
 
   const bVoorRollback = JSON.stringify(createSnapshot(B.store.getState()));
-  const bUndoVoorRollback = B.store.getState().undoStack.length;
+  const bUndoVoorRollback = historyDepthsForActiveScope(B.store.getState()).undoDepth;
   const rollback = await runMutateTool(ctx, 'mutate', () => {
     ctx.transactions.draft.addTask({ name: 'verdwijnt-B' });
     throw new Error('context-B-rollback');
@@ -291,7 +292,7 @@ test('buildMcpContext(B) bindt read, mutatie, rollback en envelop uitsluitend aa
     'de fout hoort als getypeerde toolrollback terug te komen');
   assertEq(JSON.stringify(createSnapshot(B.store.getState())), bVoorRollback,
     'de mislukte B-mutatie hoort B volledig terug te rollen');
-  assertEq(B.store.getState().undoStack.length, bUndoVoorRollback,
+  assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoorRollback,
     'de mislukte B-mutatie mag geen undo achterlaten');
   assertEq(JSON.stringify(capturePayload(A.store.getState())), aVoor,
     'read, mutatie en rollback op B mogen A niet wijzigen');
@@ -306,8 +307,7 @@ test('twee buildMcpContext(B)-resultaten delen de runtimelease en laten B na rol
   const eerste = buildMcpContext(B);
   const tweede = buildMcpContext(B);
   const voor = JSON.stringify(createSnapshot(B.store.getState()));
-  const undoVoor = B.store.getState().undoStack.length;
-  const redoVoor = JSON.stringify(B.store.getState().redoStack);
+  const historyVoor = JSON.stringify(B.store.getState().historyEvents);
 
   const outer = eerste.transactions.run(() => {
     eerste.transactions.draft.addTask({ name: 'outer-verdwijnt' });
@@ -318,10 +318,8 @@ test('twee buildMcpContext(B)-resultaten delen de runtimelease en laten B na rol
     'de tweede contextfactory mag B\'s actieve lease niet omzeilen');
   assertEq(JSON.stringify(createSnapshot(B.store.getState())), voor,
     'de nested weigering hoort de outer B-transactie volledig terug te rollen');
-  assertEq(B.store.getState().undoStack.length, undoVoor,
-    'de nested weigering mag geen B-undo achterlaten');
-  assertEq(JSON.stringify(B.store.getState().redoStack), redoVoor,
-    'de nested weigering hoort B-redo exact te herstellen');
+  assertEq(JSON.stringify(B.store.getState().historyEvents), historyVoor,
+    'de nested weigering hoort B-history exact te herstellen');
 
   const herstel = tweede.transactions.run(() => tweede.transactions.draft.addTask({ name: 'B-herbruikbaar' }));
   assert(herstel.ok && B.store.getState().tasks.some((task) => task.name === 'B-herbruikbaar'),

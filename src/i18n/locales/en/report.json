@@ -17,9 +17,13 @@
   "showLegend": "Legend",
   "showTaskNames": "Task names on bars",
   "showCompletion": "Show completion",
+  "truncateTaskNames": "Truncate task names",
+  "taskNameColumnWidthLabel": "Name column:",
+  "taskNameColumnWidthHint": "The name column adapts to the longest task name",
   "showBaselineOverlay": "Show baseline overlay",
   "autoFit": "Auto-fit to paper",
   "zoom": "Zoom:",
+  "previewQuality": { "label": "Preview quality", "standard": "Standard", "high": "High", "maximum": "Maximum" },
   "repeatHeader": "Repeat header on each page",
   "reportFontScaleLabel": "Font size:",
   "timelineColumnsLabel": "Timeline over:",
@@ -51,7 +55,6 @@
     "categoriesMore_other": "… and {{count}} more categories"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Task Name",
     "start": "Start",

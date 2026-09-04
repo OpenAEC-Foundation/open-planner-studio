@@ -1,18 +1,21 @@
 import type { AppStoreContext } from '../appStore';
 import { attachToParent, detachFromParent, collectSubtreeIds } from '@/state/taskTree';
 import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
+import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
 } from '@/utils/taskDefaults';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { McpTransactionLease } from './storeRuntime';
-import type { DurationType, Task } from '@/types/task';
+import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
+import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
@@ -354,8 +357,12 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const { time, ...rest } = updates;
+      const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Contour-engine (2026-09) — tweeling van taskSlice.ts's `updateTask`: herschaal de contour.
+      if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
@@ -400,6 +407,8 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
+      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       Object.assign(task, top);
       let timeTouched = false;
       if (timePatch) {
@@ -409,6 +418,8 @@ function createMcpDraft(
         if (timePatch.durationType !== undefined) { task.time.durationType = timePatch.durationType; timeTouched = true; }
         if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
       }
+      // Contour-engine (2026-09) — zelfde herschaling als `updateTaskFields` hierboven.
+      if (timeTouched) rescaleTaskContours(task, oldWorkMinutes, contourHpd);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
       // volledige `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.
@@ -638,6 +649,30 @@ function createMcpDraft(
       }
       if (Object.keys(patch).length === 0) return;
       Object.assign(s.assignments[idx], patch);
+      if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
+      s.isDirty = true;
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentContour` (contour-UI, 2026-09):
+   * zet/vervangt de opgeslagen contour van één toewijzing, of laat 'm los (`null`). Onbekend id ⇒
+   * fout; `null` zonder bestaande contour ⇒ no-op. Raakt geen taakdatum (zie `contourEdit.ts`).
+   */
+  setAssignmentContour(assignmentId: string, periods: TimephasedContourPeriod[] | null): void {
+    store.setState((s) => {
+      const a = s.assignments.find((x) => x.id === assignmentId);
+      if (!a) throw new Error(`draft.setAssignmentContour: onbekende assignmentId '${assignmentId}'`);
+      const task = s.tasks.find((t) => t.id === a.taskId);
+      if (!task) throw new Error(`draft.setAssignmentContour: toewijzing '${assignmentId}' zonder taak`);
+      const siblings = s.assignments.filter((x) => x.taskId === a.taskId);
+      const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignmentId);
+      if (periods === null && idx < 0) return;
+      const list = task.timephasedContours ? [...task.timephasedContours] : [];
+      if (periods === null) list.splice(idx, 1);
+      else if (idx >= 0) list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
+      else list.push({ resourceUid: null, resourceId: a.resourceId, periods });
+      task.timephasedContours = list.length > 0 ? list : undefined;
       s.isDirty = true;
     });
   },
@@ -880,32 +915,33 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
     currentLease = lease;
 
     try {
-      const snapshot: Snapshot = createSnapshot(store.getState());
-      const prevRedo = store.getState().redoStack;
+      const initial = store.getState();
+      const snapshot: Snapshot = createSnapshot(initial);
+      const documentId = initial.activeDocumentId;
+      const previousHistory = initial.historyEvents;
+      const previousSequence = initial.nextHistorySequence;
+      const previousViewRows = initial.viewRows;
+      const previousResourceLoad = initial.resourceLoadResult;
+      const previousDirty = initial.isDirty;
       // `runCPM` publiceert een gebruikersmelding zodra de tijdelijke solve een cyclus/fout ziet.
       // Als die solve de omvattende MCP-transactie vervolgens laat falen, hoort ook die melding bij
       // de teruggedraaide poging. Notifications zijn bewust appglobaal en zitten daarom niet in de
       // documentsnapshot; bewaar hun pre-callreferentie hier expliciet. De hele run is synchroon,
       // dus er kan tijdens dit venster geen onafhankelijke gebruikersmelding tussendoor komen.
-      const prevNotifications = store.getState().ui.notifications;
+      const prevNotifications = initial.ui.notifications;
 
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
           restoreSnapshot(state, snapshot);
-          // De ene vooraf gepushte transactie-snapshot verwijderen; restoreSnapshot raakt de
-          // historiestacks niet. Redo wordt exact naar de pre-callreferentie teruggezet.
-          state.undoStack.pop();
-          state.redoStack = prevRedo;
+          state.viewRows = previousViewRows;
+          state.resourceLoadResult = previousResourceLoad;
+          state.isDirty = previousDirty;
+          replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
         });
         runtime.resetUndoCoalescing();
         return { ok: false, error };
       };
-
-      store.setState((state) => {
-        state.undoStack.push(snapshot);
-        state.redoStack = [];
-      });
 
       let value: T;
       try {
@@ -927,6 +963,9 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       if (cpm?.error) return rollback(cpm.error);
 
       runtime.resetUndoCoalescing();
+      store.setState((state) => {
+        runtime.recordDocumentDataHistory(state, snapshot, documentId, 'MCP-bewerking');
+      });
       const lostCount = runtime.countMcpTimephasedLoss(lease);
       if (lostCount > 0) {
         const state = store.getState();

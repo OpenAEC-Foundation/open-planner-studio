@@ -70,18 +70,18 @@ test('undoStack-lengte identiek vóór/na — niet-stale én stale (geen snapsho
   cleanProject();
   S().addTask({ name: 'T1', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 5) });
   S().runCPM();
-  const lenNonStaleBefore = S().undoStack.length;
+  const lenNonStaleBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   ensureFreshSchedule();
-  assertEq(S().undoStack.length, lenNonStaleBefore, 'undoStack-lengte gewijzigd in niet-stale geval');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, lenNonStaleBefore, 'undoStack-lengte gewijzigd in niet-stale geval');
 
   // Geval B: stale.
   const t1 = S().tasks[0].id;
   S().updateTask(t1, { time: createDefaultTaskTime('2026-06-01', 12) });
   assertEq(S().scheduleStale, true, 'precondition: stale na duur-wijziging');
-  const lenStaleBefore = S().undoStack.length;
+  const lenStaleBefore = S().historyEvents.filter(event => event.state === 'applied').length;
   const out = ensureFreshSchedule();
   assertEq(out.recomputed, true, 'recomputed (geval B)');
-  assertEq(S().undoStack.length, lenStaleBefore, 'undoStack-lengte gewijzigd in stale geval (recompute pushte een snapshot)');
+  assertEq(S().historyEvents.filter(event => event.state === 'applied').length, lenStaleBefore, 'undoStack-lengte gewijzigd in stale geval (recompute pushte een snapshot)');
 });
 
 // ── Eis 4: stale mét kringverwijzing ⇒ recomputed:true + error gezet, geen throw ──────────────────

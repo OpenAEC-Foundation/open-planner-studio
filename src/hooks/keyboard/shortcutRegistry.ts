@@ -36,7 +36,7 @@ import { computeScrollToDate } from '@/utils/ganttViewport';
 import { COMMANDS } from '@/state/commands';
 import i18n from '@/i18n/config';
 
-export type ShortcutCategory = 'file' | 'edit' | 'structure' | 'view' | 'nav';
+export type ShortcutCategory = 'file' | 'edit' | 'structure' | 'view' | 'nav' | 'grid';
 
 export interface ShortcutCombo {
   key: string;                 // KeyboardEvent.key, case-insensitive vergeleken
@@ -427,6 +427,18 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'menu:ribbon.toggleHistogram',
     run: COMMANDS.toggleHistogram.run,
   },
+  {
+    // Waarschuwingenpaneel aan/uit (issue #53): spiegelt de lintknop 'warningsPanel' (Beeld →
+    // Panelen en Planning → Planning) via hetzelfde commando — één definitie, zoals
+    // `check-commands.ts` afdwingt. Ctrl+Shift+L ("lijst"): Ctrl+Shift+W sluit in Chrome het
+    // venster en Ctrl+Shift+M opent daar het profielmenu, allebei op browser-chrome-niveau en dus
+    // niet te onderscheppen in de web-build; L is nergens gereserveerd.
+    id: 'view.toggleWarningsPanel',
+    combo: { key: 'l', mod: true, shift: true },
+    category: 'view',
+    labelKey: 'menu:ribbon.warningsPanel',
+    run: COMMANDS.toggleWarningsPanel.run,
+  },
 
   // --- Navigatie ---
   {
@@ -498,6 +510,88 @@ export const SHORTCUTS: ShortcutDef[] = [
     labelKey: 'context.fitToProject',
     displayOnly: true,
     run: () => { /* displayOnly: useZoomShortcuts.ts handelt dit af */ },
+  },
+
+  // --- displayOnly: taakgridtoetsen (zie src/engine/taskGrid/navigation.ts). Deze toetsen worden
+  //     al binnen de gridcontainer zelf afgehandeld (DataGridCore.tsx → resolveTaskGridCommand,
+  //     vóór ze deze globale matcher ooit bereiken); ze staan hier uitsluitend zodat het
+  //     Sneltoetsen-venster de VOLLEDIGE lijst toont, niet alleen de globale sneltoetsen.
+  //     Tab/Shift+Tab en Enter/F2 delen elk hun labelKey (twee combo's -> één rij).
+  {
+    id: 'grid.navigateNext',
+    combo: { key: 'Tab' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.navigate',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    id: 'grid.navigatePrevious',
+    combo: { key: 'Tab', shift: true },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.navigate',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    id: 'grid.editEnter',
+    combo: { key: 'Enter' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.edit',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    id: 'grid.editF2',
+    combo: { key: 'F2' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.edit',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Geen letterlijke toetscombinatie — ieder afdrukbaar teken start bewerken. `keyGlyph` in
+    // shortcutFormat.ts laat een meerkarakter-`key` ongewijzigd staan (zelfde mechanisme als de
+    // "+ / ="-uitzondering voor zoom), dus dit rendert precies als geschreven.
+    id: 'grid.typeToReplace',
+    combo: { key: 'A–Z, 0–9, …' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.typeToReplace',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Zelfde betekenis als de globale `structure.insertAbove` (zie FullTaskGrid.tsx: de grid volgt
+    // hier bewust de globale richting) — hergebruikt daarom dezelfde, al vertaalde labelKey.
+    id: 'grid.insertAbove',
+    combo: { key: 'Insert' },
+    category: 'grid',
+    labelKey: 'context.insertAbove',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Wist alleen de inhoud van de geselecteerde cellen — niet de taak/taken zelf (dat is
+    // `context.delete`). Zie FIX 1 in tabel-overhaul-review-fixes.md voor de eerdere val hier.
+    id: 'grid.clearCell',
+    combo: { key: 'Delete' },
+    category: 'grid',
+    labelKey: 'shortcuts.grid.clearCell',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af */ },
+  },
+  {
+    // Napunt 1 (onafhankelijke eindreview op b0107289): Escape in selectiemodus verplaatst de
+    // focus naar de gridcontainer ÉN laat het event doorbubbelen naar `edit.deselect` hierboven
+    // (dispatchDataGridKeyCommand slaat preventDefault/stopPropagation bewust over voor dit
+    // commando) — functioneel dezelfde uitkomst als de globale Escape, dus dezelfde, al vertaalde
+    // labelKey hergebruikt in plaats van een bijna-identieke nieuwe sleutel toe te voegen.
+    id: 'grid.exitSelection',
+    combo: { key: 'Escape' },
+    category: 'grid',
+    labelKey: 'shortcuts.edit.deselect',
+    displayOnly: true,
+    run: () => { /* displayOnly: DataGridCore.tsx handelt dit af; bubbelt door naar edit.deselect */ },
   },
 ];
 

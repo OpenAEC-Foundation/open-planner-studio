@@ -1,7 +1,7 @@
 // Gedeelde veld-catalogus voor de Beeld-UI (fase 2.7 golf 3): filter-editor (§6/§13.1),
 // groepeer-/sorteer-popovers (§7.4). DRY over de drie UI-stukken die allemaal een lijst van
 // beschikbare FieldRefs + labels + (voor filter) waarde-editor-soort nodig hebben. De
-// kolommen-dialoog heeft dit NIET nodig — die werkt direct op `ColumnConfig[]`/`defaultColumns()`.
+// De kolommen-dialoog gebruikt deze builtinlijst alleen voor zijn tijdelijke legacyveldcatalogus.
 //
 // Geen store-/React-afhankelijkheid buiten types; ontvangt i18n-labels en context als argument
 // zodat dit bestand testbaar en herbruikbaar blijft.

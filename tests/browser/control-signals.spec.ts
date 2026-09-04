@@ -4,10 +4,11 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   const startTab = page.locator('.ribbon-tab').first();
   await expect(startTab).toHaveCSS('cursor', 'pointer');
 
-  // Een Relation-knop zonder selectie is native uitgeschakeld en krijgt dezelfde niet-klikbare
-  // aanwijzing als de custom controls.
-  await page.locator('.ribbon-tab').filter({ hasText: /Relations|Relaties/ }).click();
-  const nativeDisabled = page.getByRole('button', { name: /New relation from selection|Nieuwe relatie vanuit selectie/ });
+  // De aparte relatietab bestaat niet meer. De vaste relatie-dropdown op Planning toont zonder
+  // selectie dezelfde native uitgeschakelde koppelactie en dus dezelfde niet-klikbare aanwijzing.
+  await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
+  await page.getByRole('button', { name: /^(Link|Relatie)$/ }).click();
+  const nativeDisabled = page.getByRole('menuitem', { name: /Link selected tasks|Geselecteerde taken koppelen/ });
   await expect(nativeDisabled).toBeVisible();
   await expect(nativeDisabled).toHaveCSS('cursor', 'not-allowed');
 

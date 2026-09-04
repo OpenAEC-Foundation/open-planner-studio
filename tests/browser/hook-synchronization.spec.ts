@@ -52,22 +52,40 @@ test('hook synchronization: een ander relatieveld wist half ingevoerde lag niet'
       type: 'FINISH_START',
       lagDays: 0,
     });
-    store.setUI({ activeRibbonTab: 'relations' });
+    const columns = store.taskGridSurfaces['full-task-grid'].columns;
+    if (!columns.some(column => column.id === 'relation.predecessors')) {
+      store.commitTaskGridColumns('full-task-grid', 'Relatiekolom voor browsertest', [
+        ...columns,
+        {
+          id: 'relation.predecessors' as (typeof columns)[number]['id'],
+          width: 240,
+          pinned: false,
+        },
+      ]);
+    }
+    store.setUI({ activeRibbonTab: 'table' });
     return id;
   }, { predecessor: predecessorId, successor: successorId });
   expect(sequenceId).not.toBeNull();
 
-  const lag = page.getByTitle(/Lag/).first();
-  const type = lag.locator('xpath=../preceding-sibling::div[1]//select');
+  const relationCell = page.locator(
+    `[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${successorId}"][data-grid-column-id="relation.predecessors"]`,
+  );
+  await relationCell.click();
+  await page.keyboard.press('Enter');
+  const editor = page.locator('[data-task-editor-kind="relations"]');
+  const lag = editor.locator('input[placeholder="0d"]');
+  const type = editor.locator('select');
   await expect(lag).toBeVisible();
   await lag.fill('-');
-  await expect(lag).toHaveAttribute('aria-invalid', 'true');
-  await type.selectOption('START_START');
+  await type.selectOption('SS');
 
   await expect(lag).toHaveValue('-');
+  await lag.fill('2d');
+  await lag.press('Enter');
   await expect.poll(() => page.evaluate((id) => (
-    window.__OPS__!.store.getState().sequences.find(sequence => sequence.id === id)?.type
-  ), sequenceId)).toBe('START_START');
+    window.__OPS__!.store.getState().sequences.find(sequence => sequence.id === id)
+  ), sequenceId)).toMatchObject({ type: 'START_START', lagDays: 2 });
 });
 
 test('hook synchronization: een resourcetoewijzing wist geen niet-opgeslagen taakvelden', async ({ page, ops: _ops }) => {

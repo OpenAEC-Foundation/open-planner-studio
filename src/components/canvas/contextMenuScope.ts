@@ -2,6 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import type { Task } from '@/types/task';
+import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -85,7 +86,10 @@ export const contextMenuBulk = {
     const isMilestone = !task.isMilestone;
     appTaskBulkActions.applyToTaskIds(
       contextMenuOutlineScope(task.id),
-      (state, id) => state.updateTask(id, { isMilestone }),
+      (state, id) => {
+        const current = state.tasks.find(candidate => candidate.id === id);
+        if (current) state.updateTask(id, taskMilestoneTransition(current, isMilestone));
+      },
     );
   },
 

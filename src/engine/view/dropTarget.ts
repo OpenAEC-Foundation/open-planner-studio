@@ -31,7 +31,7 @@ export interface DropTarget {
  * array-volgorde (zie `computeViewRows`), exact zoals `taskSlice.reorderSibling`'s root-tak.
  */
 export function resolveDropTarget(
-  rows: ViewRow[],
+  rows: readonly ViewRow[],
   rowIndex: number,
   zone: 'before' | 'after' | 'nest',
   tasksById: Map<string, Task>,
@@ -71,7 +71,7 @@ export function resolveDropTarget(
 /** Kindlijst van `parentId` in display-volgorde; root (`null`) leunt op de rijvolgorde. */
 function siblingIdsOf(
   parentId: string | null,
-  rows: ViewRow[],
+  rows: readonly ViewRow[],
   tasksById: Map<string, Task>,
 ): string[] {
   if (parentId !== null) {

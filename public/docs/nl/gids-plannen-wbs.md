@@ -25,6 +25,8 @@ Een platte lijst taken vertelt niets over samenhang. Door taken in te laten spri
 
 Zodra een taak minstens één subtaak heeft, wordt hij automatisch een samenvattende taak: de balk in het Gantt-diagram overspant dan de volledige periode van de vroegste start tot de laatste finish van alle subtaken eronder, en zijn eigen duur en data zijn niet langer los in te stellen. Een samenvattende taak is dus normaal gesproken altijd een afgeleide, geen los ingevoerde planning — verwijder of verschuif je de subtaken, dan past de balk van de samenvattende taak zich vanzelf aan. Eén uitzondering: een **handmatig geplande** samenvattingstaak (die vlag ontstaat bij een `.mpp`-import) rolt juist niét op — die houdt haar eigen opgeslagen datums, ook als haar subtaken verschuiven.
 
+**Herkenbaar in de naamkolom.** In de taaktabel (het tabblad **Tabel**, en dezelfde naamkolom in de rechterrail) staat een samenvattende taak vet en met een subtiele achtergrondtint op de naamcel; een mijlpaal staat vet in dezelfde kleur als zijn balk in het Gantt-diagram. Een gewone taak blijft ongewijzigd. Dat is puur visueel — er verandert niets aan hoe je een taak selecteert, sleept of bewerkt.
+
 **Inklappen en uitklappen.** Bij een grote WBS wil je de boom soms tijdelijk compacter maken. Het lint-tabblad **Beeld**, groep **Overzicht**, heeft daarvoor twee aparte knoppen — **Inklappen** en **Uitklappen** — bewust geen schakelaar, want bij een gemengde selectie (de ene tak open, de andere dicht) kan een schakelaar nooit alles dezelfde kant op zetten.
 
 - **Met een selectie** werken de knoppen op de geselecteerde taken; alleen taken mét subtaken doen mee, losse taken worden genegeerd.
@@ -91,14 +93,15 @@ beweging, het muis-equivalent van Alt+→. Selecteer eerst meerdere taken (Ctrl/
 box-selectie) en de hele selectie sleept en landt samen.
 
 Het lint-tabblad **Tabel** toont diezelfde structuur als een gewoon, bewerkbaar raster, handig als je
-in één keer veel taken invoert of corrigeert: één klik op een bewerkbare cel start meteen de
-bewerking met de bestaande waarde geselecteerd, de pijltjestoetsen verplaatsen een celcursor zonder
-hem te openen, **F2**/**Enter** opent de huidige cel voor bewerking, en **Tab**/**Shift+Tab** op een
-geselecteerde rij springt hem in/uit, net als Alt+→/←. **Enter** of **↓** op de allerlaatste rij maakt
-daar meteen een nieuwe zustertaak met de cursor al in de naamcel, zodat je een hele lijst kunt
-doorwerken zonder de muis aan te raken — dit werkt alleen in de gewone boomweergave, want met een
-filter, sortering of groepering actief zou de nieuwe taak meteen buiten beeld kunnen vallen, dus
-vraagt de app dat eerst na in plaats van stilzwijgend een taak te plaatsen die je niet ziet.
+in één keer veel taken invoert of corrigeert: één klik op een cel selecteert hem alleen — booleans,
+keuzelijsten en datums wijzigen dus niet per ongeluk door te klikken. Bewerken doe je met **F2** of
+**Enter**, of door direct te typen (dat vervangt de bestaande inhoud en start meteen de bewerking);
+dubbelklik opent in plaats daarvan het eigenschappenpaneel voor de actieve taak. De pijltjestoetsen
+verplaatsen een celcursor zonder hem te openen, en **Tab**/**Shift+Tab** gaat naar de volgende/vorige
+cel en loopt door naar de volgende/vorige taakrij. Inspringen en uitspringen blijven
+**Alt+→**/**Alt+←**. **Enter** op de allerlaatste rij opent gewoon de editor van de actieve cel;
+**↓** stopt daar (geen nieuwe rij). Een nieuwe taak invoegen — boven de actieve rij, met de cursor
+meteen in de naamcel — gaat met **Insert**.
 
 ## Mijlpaal-soorten
 

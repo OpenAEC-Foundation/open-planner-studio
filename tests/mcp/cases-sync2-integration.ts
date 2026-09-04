@@ -266,7 +266,7 @@ test('spec-usecase 1: bestek → planning in ÉÉN batch (tasks + relaties + kal
   assertEq(S().sequences[0].predecessorId, fundering.id, 'de tempId van de voorganger is opgelost');
   assertEq(S().sequences[0].successorId, ruwbouw.id, 'de tempId van de opvolger is opgelost');
   // Eén batch = één undo-stap (WP0-invariant).
-  assert(S().undoStack.length >= 1, 'de batch pushte een undo-snapshot');
+  assert(S().historyEvents.filter(event => event.state === 'applied').length >= 1, 'de batch pushte een undo-snapshot');
 });
 
 test('de OVERIGE batchStep-kernen draaien echt als stap (niet alleen aanwezig)', async () => {
@@ -431,7 +431,7 @@ test('batchStep-pad: een onbekende curve wordt óók binnen planner_batch zacht 
   assert(!!goed, 'het geldige item in dezelfde batchstap is wél aangemaakt');
   assertEq(goed!.curve, 'BELL', 'en draagt de geldige curve');
   assert(
-    !asgns.some((x) => x.curve !== undefined && !['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'].includes(x.curve)),
+    !asgns.some((x) => x.curve !== undefined && !['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'].includes(x.curve)),
     'er staat na de batch geen enkele onbekende curve in de store',
   );
 });

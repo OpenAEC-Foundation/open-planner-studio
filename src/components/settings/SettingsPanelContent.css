@@ -50,6 +50,16 @@
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.10);
 }
 
+/* Uitgegrijsd zolang "Volg systeemthema" aanstaat: de kaarten tonen dan alleen nog WAT het
+   systeem oplevert, ze zijn geen keuze meer. De tweede regel houdt de gemarkeerde kaart ook bij
+   hover herkenbaar — zonder die uitzondering wint de disabled-hoverregel van `.active`. */
+.settings-theme-card:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.settings-theme-card:disabled:hover { border-color: var(--theme-control-border); }
+.settings-theme-card.active:disabled:hover { border-color: var(--theme-accent); }
+
 .settings-theme-card h4 {
   margin: 0 0 6px 0;
   font-size: calc(11px * var(--ui-font-scale, 1));

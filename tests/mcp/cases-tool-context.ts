@@ -38,8 +38,8 @@ function plainState(app: AppStoreContext): string {
   const state = app.store.getState();
   return JSON.stringify({
     document: capturePayload(state),
-    undo: state.undoStack,
-    redo: state.redoStack,
+    historyEvents: state.historyEvents,
+    nextHistorySequence: state.nextHistorySequence,
     selectedTaskIds: state.selectedTaskIds,
     notifications: state.ui.notifications,
   });

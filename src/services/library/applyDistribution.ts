@@ -21,7 +21,13 @@ export type DistributionWritePlan =
   | { ok: false; reason: 'blocked' | 'shortfall' | 'nothing-to-write' };
 
 /** Wat `applyDistribution` teruggeeft ná een geslaagd Toepassen — de bouwstenen voor de
- *  "toegepast"-strook, inclusief "alles terugdraaien" (`undoDistribution`). */
+ *  "toegepast"-strook, inclusief "alles terugdraaien" (`undoDistribution`).
+ *
+ *  AANGEPAST NA MERGE MET MAIN (sessiehistorie, 2026-09-04). De eerste opzet bewaarde per document
+ *  `undoDepthAfterApply` — de diepte van de toenmalige per-document `undoStack`. Dat model bestaat
+ *  niet meer: undo/redo is één app-globale sessiechronologie (`state.historyEvents`), waarin een
+ *  bewerking op een ANDER document ook nieuwe events oplevert en `pruneSessionHistory` van onderaf
+ *  trimt. Een diepte is daarmee geen identiteit meer. We bewaren nu het EVENT zelf. */
 export interface DistributionApplyRecord {
   libraryItemId: string;
   /** ISO — puur voor de strooktekst. */
@@ -29,11 +35,14 @@ export interface DistributionApplyRecord {
   docs: Array<{
     docId: string;
     title: string;
-    /** `undoStack.length` NÁ het toepassen. "Alles terugdraaien" pakt alleen een document waarvan
-     *  de stack nog op precies deze diepte staat — heeft de gebruiker er intussen zelf in gewerkt,
-     *  dan zou blind terugpoppen de VERKEERDE stap ongedaan maken; dat document wordt dan
-     *  overgeslagen (zie `DistributionUndoReport.skippedDocIds`). */
-    undoDepthAfterApply: number;
+    /** Het `SessionHistoryEvent` dat het toepassen voor DIT document heeft achtergelaten.
+     *  "Alles terugdraaien" draait alleen een document terug waarvan dit event er nog is, nog op
+     *  `applied` staat, én nog het event is dat een gewone Ctrl+Z voor dat document zou kiezen —
+     *  anders heeft de gebruiker er intussen zelf in gewerkt en zou terugdraaien de VERKEERDE stap
+     *  ongedaan maken (zie `DistributionUndoReport.skippedDocIds`). */
+    historyEventId: string;
+    /** De `sequence` van datzelfde event; puur diagnostisch/voor sorteren, de identiteit is `id`. */
+    historySequence: number;
   }>;
 }
 

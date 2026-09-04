@@ -56,7 +56,7 @@ eq('10 A→B: B.childIds krijgt het kind', task(idB)?.childIds.includes(idChild)
 // ── 3) Cyklische move geweigerd: summary onder zijn eigen kind hangen. ──
 const idOuter = S().addTask({ name: 'Outer' });
 const idInner = S().addTask({ name: 'Inner', parentId: idOuter });
-const undoLenBefore = S().undoStack.length;
+const undoLenBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 const outerSnapshotBefore = JSON.stringify(task(idOuter));
 const innerSnapshotBefore = JSON.stringify(task(idInner));
 
@@ -67,7 +67,7 @@ eq('12 cykel: Inner.parentId ongewijzigd (Outer)', task(idInner)?.parentId, idOu
 eq('13 cykel: Outer.childIds ongewijzigd', task(idOuter)?.childIds.includes(idInner), true);
 eq('14 cykel: geen halftoegepaste state (Outer-object byte-identiek)', JSON.stringify(task(idOuter)), outerSnapshotBefore);
 eq('15 cykel: geen halftoegepaste state (Inner-object byte-identiek)', JSON.stringify(task(idInner)), innerSnapshotBefore);
-eq('16 cykel: geen undo-snapshot gepusht (geweigerde move is een no-op)', S().undoStack.length, undoLenBefore);
+eq('16 cykel: geen undo-snapshot gepusht (geweigerde move is een no-op)', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore);
 
 // ── 3b) Cyklische move geweigerd: taak onder zichzelf hangen (newParentId === id). ──
 const idSelf = S().addTask({ name: 'SelfMove' });

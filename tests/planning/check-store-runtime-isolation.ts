@@ -12,6 +12,7 @@ import { capturePayload } from '@/state/documentContract';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -65,23 +66,23 @@ function fixture(label: string): Fixture {
     time: createDefaultTaskTime('2026-01-05', 5),
   });
   context.store.setState((state) => {
-    state.undoStack = [];
-    state.redoStack = [];
+    state.historyEvents = [];
+    state.nextHistorySequence = 1;
   });
   context.runtime.resetUndoCoalescing();
   return { context, taskId };
 }
 
 function depths(context: AppStoreContext) {
-  const state = context.store.getState();
+  const { undoDepth, redoDepth } = historyDepthsForActiveScope(context.store.getState());
   return {
-    undo: state.undoStack.length,
-    redo: state.redoStack.length,
+    undo: undoDepth,
+    redo: redoDepth,
   };
 }
 
 function documentState(context: AppStoreContext) {
-  const { undoStack: _undoStack, redoStack: _redoStack, ...document } =
+  const { resourceLoadResult: _derivedResourceLoad, ...document } =
     capturePayload(context.store.getState());
   return document;
 }
@@ -227,6 +228,8 @@ function documentState(context: AppStoreContext) {
   eq('12 één B-undo herstelt exact de payload van vóór de batch',
     documentState(b.context), bPayloadVoor);
   eq('12a die B-undo laat precies één redo-snapshot achter', depths(b.context), { undo: 0, redo: 1 });
+  eq('12b die B-undo leidt resourcebelasting opnieuw af',
+    b.context.store.getState().resourceLoadResult !== null, true);
 
   a.context.store.getState().addTask({ name: 'A-na-B-throw' });
   b.context.store.getState().addTask({ name: 'B-na-eigen-undo' });

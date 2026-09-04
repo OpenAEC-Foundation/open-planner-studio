@@ -1,5 +1,6 @@
 import { RefObject, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { isTimelineCanvasX } from './useCanvasLayer';
 
 export interface DependencyDragState {
   sourceTaskId: string;
@@ -14,7 +15,6 @@ interface UseDependencyDrawOptions {
   containerRef: RefObject<HTMLElement | null>;
   depLineCanvasRef: RefObject<HTMLCanvasElement | null>;
   rendererRef: RefObject<GanttRenderer | null>;
-  taskTableWidth: number;
   /** Op een geldig eindpunt opent de Gantt hier de conceptrelatie-popover. De projectmutatie
    *  gebeurt pas wanneer de gebruiker de popover normaal sluit. */
   onRelationDrawn: (sourceTaskId: string, targetTaskId: string, clientX: number, clientY: number) => void;
@@ -30,7 +30,6 @@ export function useDependencyDraw({
   containerRef,
   depLineCanvasRef,
   rendererRef,
-  taskTableWidth,
   onRelationDrawn,
 }: UseDependencyDrawOptions) {
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
@@ -52,7 +51,7 @@ export function useDependencyDraw({
         const y = e.clientY - rect.top;
 
         const targetTask = renderer.getTaskAtY(y);
-        if (targetTask && targetTask.id !== depDragState.sourceTaskId && x >= taskTableWidth) {
+        if (targetTask && targetTask.id !== depDragState.sourceTaskId && isTimelineCanvasX(x, rect.width)) {
           onRelationDrawn(depDragState.sourceTaskId, targetTask.id, e.clientX, e.clientY);
         }
       }
@@ -65,7 +64,7 @@ export function useDependencyDraw({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [depDragState, canvasRef, rendererRef, taskTableWidth, onRelationDrawn]);
+  }, [depDragState, canvasRef, rendererRef, onRelationDrawn]);
 
   // Draw temporary dependency line on overlay canvas
   useEffect(() => {

@@ -79,6 +79,7 @@ const summary = {
 } as Task;
 const rows: ViewRow[] = [healthy, dateless, milestone, summary].map((task) => ({
   kind: 'task' as const,
+  rowKey: task.id,
   task,
   depth: 0,
   dimmed: false,
@@ -95,10 +96,8 @@ const renderer = new GanttRenderer(ctx, {
   calendar: state.calendar,
   view: { ...state.view, scrollX: 0, scrollY },
   selectedTaskIds: [],
-  collapsedTaskIds: [],
   canvasWidth: 1200,
   canvasHeight: 400,
-  taskTableWidth: 300,
   rowHeight,
   headerHeight,
 });

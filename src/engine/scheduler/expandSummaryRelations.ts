@@ -98,7 +98,10 @@ export interface ExpandSummaryRelationsResult {
 /** Lege, cache-gedeelde constante voor "geen bladafstammelingen" (kapotte/lege tak). */
 const NONE: string[] = [];
 
-export function expandSummaryRelations(tasks: Task[], sequences: Sequence[]): ExpandSummaryRelationsResult {
+export function expandSummaryRelations(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+): ExpandSummaryRelationsResult {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const leafDescCache = new Map<string, string[]>();
 
@@ -285,7 +288,7 @@ function dedupOriginal(ids: string[]): string[] {
  * Vouw de synthetische `::exp-<n>`-ids in een `CPMResult` terug op hun ORIGINELE relatie-id. Nodig
  * omdat `CPMSolver` niets van de expansie afweet: draai je 'm op de output van
  * `expandSummaryRelations`, dan bevatten de vier relatie-gekeyde velden synthetische ids die geen
- * van de consumenten (RelationsPanel, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas,
+ * van de consumenten (taakgrids, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas,
  * de MCP-leestools) herkent — die kennen alleen `s.sequences`, met de originele ids. Gemeten op
  * 870d339f60603f71 vóór deze fold: 114 van de 167 `drivingSequenceIds` synthetisch (dus onvindbaar in
  * `s.sequences` ⇒ stil uit elke driving-weergave gevallen), 261 van de 338 `sequenceFreeFloat`-

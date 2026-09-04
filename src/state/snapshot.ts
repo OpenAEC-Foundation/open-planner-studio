@@ -1,8 +1,8 @@
-import { isDraft, original } from 'immer';
 import type { WorkCalendar } from '@/types/calendar';
 import type { AppState } from './appStore';
 import type { DocumentPayload } from './documentContract';
 import { DOCUMENT_FIELDS } from './documentContract';
+import { originalAppState } from './immerDraft';
 import { syncProjectCalendar } from './syncProjectCalendar';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -17,15 +17,16 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
  *  IN (muteerbare projectdata, 'data'):
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
  *    customFieldDefs, baselines
- *  IN (afgeleid/scalar, 'derived'; runCPM/recomputeResourceLoad vervangt ze als geheel,
- *      muteert nooit in-place, dus delen is veilig). Zonder cpmResult/resourceLoadResult zou undo van
- *      bv. applyLeveling de taken wél maar statusbalk/histogram NIET terugdraaien (A5). recordedDates/
- *      datesAsRecorded (issue #63) horen om dezelfde reden hier: samen met `tasks` ('clone') draait
- *      één undo de datums én de modus terug:
- *    cpmResult, resourceLoadResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
+ *  IN (afgeleid/scalar, 'derived'; runCPM vervangt ze als geheel, muteert nooit in-place, dus delen
+ *      is veilig). cpmResult en scheduleStale moeten exact de handmatig berekende toestand kunnen
+ *      herstellen. recordedDates/datesAsRecorded (issue #63) horen om dezelfde reden hier: samen
+ *      met `tasks` ('data') draait één undo de datums én de modus terug:
+ *    cpmResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
  *  UIT ('none' — undo mag deze bewust NIET aanraken):
- *    selectedTaskIds, view, collapsedTaskIds, undoStack, redoStack, filePath, fileHandle,
- *    isDirty (undo/redo zet isDirty altijd op true).
+ *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, filePath, fileHandle en isDirty
+ *    (data-undo/redo zet isDirty altijd op true). De sessiehistorie is app-globaal en hoort niet bij
+ *    `DocumentPayload`. resourceLoadResult en viewRows worden door `materializeHistoryTarget` uit
+ *    het herstelde target afgeleid.
  *
  * PROJECT — de oude B3-uitzondering is VERVALLEN (pakket H). Historie: het hele `project`-object
  * stond hier NIET in, met één nauwe projectie (`wbsAutoNumber`). Reden was dat
@@ -45,7 +46,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 export type Snapshot = Pick<
   DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
-  | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult' | 'resourceLoadResult'
+  | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult'
   | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded'
 >;
 
@@ -93,17 +94,60 @@ void _assertPickHasNoExtras;
  *
  * DRAFT-NORMALISATIE. Delen mag alleen als de waarden PLAIN zijn: een Immer-draft wordt na afloop
  * van zijn producer ingetrokken, dus een gedeelde draft zou een snapshot opleveren die bij het
- * uitlezen gooit. Krijgt deze functie een draft, dan leest hij daarom via `original()` — de
- * basisstaat van die producer. Dat klopt precies zolang de aanroeper de vaste conventie aanhoudt:
- * *guards; snapshot; mutatie*. Alle vier de aanroepers doen dat (`beginUndoable`, `withTransaction`,
- * `undo`, `redo`); `runInMcpTransaction` geeft sowieso plain state door.
+ * uitlezen gooit. Krijgt deze functie een draft, dan leest hij daarom via `originalAppState()` —
+ * Immers `original()`, dus de basisstaat van die producer (zie `immerDraft.ts` voor waarom die
+ * grens een eigen module heeft).
+ *
+ * WIE GEEFT HIER EIGENLIJK EEN DRAFT DOOR? Van de acht aanroepers precies ÉÉN: `beginUndoable`
+ * (`runtime/storeRuntime.ts`), dat middenin een `set()`-producer de voor-staat vastlegt. Alleen
+ * dáár doet de conventie *guards; snapshot; mutatie* ertoe — hij snapshot vóór hij muteert, dus de
+ * basisstaat ís de bedoelde voor-staat. De overige zeven raken het `original()`-pad niet eens,
+ * want ze geven al plain state door:
+ *   - `snapshotOfCurrentState` (storeRuntime) normaliseert zelf al via `currentAppState()`;
+ *   - `withTransaction` (`runtime/createBatchTransactions`) en de MCP-transactie
+ *     (`runtime/createMcpTransactions`) lezen `store.getState()` buiten elke producer;
+ *   - undo/redo komen hier binnen via `materializeHistoryTarget` (`sessionHistory.ts`), op een
+ *     ondiepe `{...state}`-kopie;
+ *   - `gridTransaction.ts` roept drie keer aan: op zijn `Readonly<AppState>`-parameter, op het
+ *     `produce()`-resultaat en op `get()`.
+ *
+ * Wie hier een aanroeper bij zet die BINNEN een producer snapshot NÁ het muteren, breekt de
+ * conventie stil: de snapshot legt dan de na-staat vast en undo herstelt te weinig. Dat is geen
+ * crash maar stil dataverlies, dus het wordt bewaakt — `check-mutation-cost.ts` toetst het gedrag
+ * (25a/25b) en pint daarnaast de bron (27a–27c).
  */
 export function createSnapshot(s: AppState): Snapshot {
-  const base = (isDraft(s) ? (original(s) as AppState | undefined) : s) ?? s;
+  const base = originalAppState(s) ?? s;
   const snap = {} as Snapshot;
   for (const f of DOCUMENT_FIELDS) {
     if (f.snapshot === 'none') continue;
     (snap as unknown as Record<string, unknown>)[f.key] = f.get(base);
+  }
+  return snap;
+}
+
+/**
+ * Dezelfde snapshot, maar uit een SLAPENDE `DocumentPayload` in plaats van uit de live top-level
+ * state (B1c-plan3 taak 6, aangepast na de merge met main — sessiehistorie, 2026-09-04).
+ *
+ * Waarom dit bestaat. Een history-event draagt per document een `before`/`after`-`Snapshot`. Voor
+ * het actieve document levert `createSnapshot(state)` die; voor een slapend document staat dezelfde
+ * data in zijn payload, en die hydrateren-in-een-context-om-te-snapshotten zou het documentcontract
+ * twee keer doorlopen voor niets. Een payload is per definitie al plain (hij is ooit met
+ * `capturePayload` uit een state gevist), dus er valt hier ook niets te normaliseren.
+ *
+ * ZELFDE ROLREGEL als `createSnapshot`: key-gedreven over `DOCUMENT_FIELDS`, elk niet-'none'-veld
+ * PER REFERENTIE. Dat is geen kortere weg maar de voorwaarde — de compile-time-koppeling tussen de
+ * `Snapshot`-Pick en de `snapshot`-rollen (zie hierboven) geldt dan ook voor deze bron, en een nieuw
+ * documentveld rijdt automatisch mee. Delen mag om exact dezelfde reden: Immer muteert de payload
+ * nooit in-place en heeft hem bevroren.
+ */
+export function snapshotOfPayload(p: DocumentPayload): Snapshot {
+  const flat = p as unknown as Record<string, unknown>;
+  const snap = {} as Snapshot;
+  for (const f of DOCUMENT_FIELDS) {
+    if (f.snapshot === 'none') continue;
+    (snap as unknown as Record<string, unknown>)[f.key] = flat[f.key];
   }
   return snap;
 }
@@ -126,7 +170,6 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     customFieldDefs: raw.customFieldDefs ?? [],
     customTaskTypes: raw.customTaskTypes ?? [],
     cpmResult: raw.cpmResult ?? null,
-    resourceLoadResult: raw.resourceLoadResult ?? null,
     scheduleStale: raw.scheduleStale ?? false,
     baselines: raw.baselines ?? [],
     // `null` ("geen actieve baseline") is een legitieme waarde die een undo moet kunnen terugzetten;

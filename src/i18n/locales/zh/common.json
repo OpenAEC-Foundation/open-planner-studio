@@ -2,29 +2,33 @@
   "app": {
     "title": "Open Planner Studio"
   },
+  "autosave": { "label": "自动保存", "noFile": "请先保存此项目，然后才能使用自动保存。", "onHint": "自动保存已开启：更改将写入此文件。", "offHint": "自动保存已关闭。崩溃恢复仍保持启用。" },
   "notifications": {
     "dismiss": "关闭通知",
     "openFailed": "打开文件失败",
     "mppLegacy": "此 .mpp 文件使用较旧的格式（Project 2007 或更早版本）。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "mppEncrypted": "此 .mpp 文件受密码保护。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "saveFailed": "保存失败",
-    "librarySaveFailed": "无法保存库",
     "savedViaDownload": "已保存为下载文件：“{{name}}”现在位于您的下载文件夹中。当前环境不允许应用直接写入您选择的位置。",
     "autoSaveFailed": "自动保存失败",
     "recoveryReadFailed": "无法读取恢复的文件",
     "recoveryRestoreFailed": "恢复失败",
+    "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
     "scheduleFailed": "无法计算计划",
     "ifcParseFailed": "无法读取 IFC",
     "templateSaved": "分支已保存为模板“{{name}}”",
     "relationCreated": "已创建关系：{{predecessor}} → {{successor}}",
     "relationDuplicate": "该关系已存在",
     "relationAncestorEndpoint": "不允许在任务与其自身的（上级）汇总任务之间建立关系。",
-    "summaryRelationsDropped": "{{total}} 个关系未能计入计算——详情请查看关系面板。",
+    "summaryRelationsDropped": "{{total}} 个关系未能计入计算。请检查前置任务和后续任务列。",
+    "relationsSkippedOnInsert_other": "有 {{count}} 个关系未创建：链接无效（例如任务链接到其自身的（祖）父级摘要任务，或重复关系）。",
     "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",
     "projectStartAnchorsClamped_other": "项目开始日期已更改：{{count}} 个没有前置任务或限制的任务起点已移至新的开始日期。",
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
-    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
-    "readMore": "了解更多"
+    "readMore": "了解更多",
+    "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
+    "librarySaveFailed": "无法保存库",
+    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"
   },
   "yes": "是",
   "no": "否",
@@ -93,6 +97,8 @@
     "themeDark": "深色",
     "themeLight": "浅色",
     "themeHighContrast": "高对比度",
+    "themeFollowSystem": "跟随系统主题",
+    "themeSystemHint": "跟随系统的配色方案（当前：{{theme}}）。",
     "timeline": "时间轴 / 缩放",
     "hourPlanningSection": "小时计划",
     "enableHourPlanning": "启用小时计划",
@@ -331,13 +337,39 @@
       "sameSize": "与上一个版本大小相同",
       "daysSincePrevious": "距上次发布：{{count}} 天",
       "currentOnly": "你现在使用的是 {{version}} 版本",
-      "whatsNewButton": "更新内容"
+      "whatsNewButton": "更新内容", "newVersion": "新版本", "readGuide": "阅读指南", "fullNotes": "查看完整发行说明", "openFailed": "无法打开发行说明。", "inNumbers": "本次更新数据", "days": "距上次发布的天数", "commits": "自上次发布的提交", "codeLines": "新增代码行", "codeLinesHint": "应用、Rust、脚本和测试中的新增行。", "smallerLabel": "更小的安装包", "largerLabel": "更大的安装包", "acknowledge": "知道了"
     }
   },
   "statusWarnings": {
     "missedDeadlines": "已超过 {{count}} 个期限",
     "violatedConstraints": "{{count}} 个限制被违反",
-    "outOfSequence": "{{count}} 个乱序关系"
+    "outOfSequence": "{{count}} 个乱序关系",
+    "overallocated": "{{count}} 个资源过度分配"
+  },
+  "warnings": {
+    "title": "警告",
+    "close": "关闭警告",
+    "openPanel": "打开警告面板（详情与导航）",
+    "summary": "{{errors}} 个错误，{{warnings}} 个警告",
+    "noSchedule": "尚未计算 — 按“计算”(F5) 运行检查。",
+    "stale": "计划已过期 — 此列表来自上次计算。请重新计算 (F5)。",
+    "empty": "没有警告。计划通过了所有检查。",
+    "goTo": "转到：{{target}}",
+    "kind": {
+      "scheduleError": "无法计算计划：{{message}}",
+      "missedDeadline": "已错过截止日期 {{deadline}} — 最早完成 {{finish}}",
+      "violatedConstraint": "限制 {{constraint}} 被逻辑覆盖（负浮时）",
+      "outOfSequence": "顺序错误：后续任务的进度与关系矛盾",
+      "truncatedLead": "提前量被项目开始截断 — 关系未被完全遵守",
+      "droppedSequence": "关系被忽略：前置或后续任务缺失或不是叶任务",
+      "hammockNoFinishDriver": "吊床任务没有完成驱动（无 FF/SF 前置任务）：其工期回落为零",
+      "cappedTask": "完成日期被截断：日历没有为此任务留下可工作的窗口",
+      "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）"
+    },
+    "target": {
+      "project": "项目",
+      "relation": "{{predecessor}} → {{successor}}"
+    }
   },
   "baseline": {
     "dialog": {
@@ -529,7 +561,9 @@
       "backLoaded": "后置加载",
       "bell": "钟形",
       "earlyPeak": "前期高峰",
-      "latePeak": "后期高峰"
+      "latePeak": "后期高峰",
+      "doublePeak": "双峰",
+      "turtle": "龟形"
     },
     "occupancyView": "占用",
     "occupancy": {
@@ -539,6 +573,8 @@
       "staleBanner": "至少有一个文档未经计算，未计入占用。",
       "staleComputedDoc": "已为此概览提前计算 — 该文档本身仍显示旧日期，直到你在其中按 F5 或开启“自动计算”。",
       "staleComputedBanner": "已更改的文档已为此概览提前计算；请在文档中按 F5，或开启“自动计算”以持续生效。",
+      "staleAsShownDoc": "已过期：这些是上次计算的数值 — 请在此文档中按 F5。",
+      "staleAsShownBanner": "已更改的文档尚未重新计算；此处按其上次计算的数值计入。请在该文档中按 F5，或开启“自动计算”。",
       "docCount_other": "{{count}} 个文档",
       "conflictDays_other": "{{count}} 天重复预订",
       "moreDays_other": "… 另有 {{count}} 个",
@@ -674,6 +710,18 @@
       "night": "夜班",
       "continuous": "24/7"
     },
+    "simpleBreak": {
+      "invalidStart": "请输入有效的休息开始时间，格式为 HH:MM。",
+      "invalidWorkStart": "请输入有效的开始时间，格式为 HH:MM。",
+      "invalidWorkEnd": "请输入有效的结束时间，格式为 HH:MM。",
+      "invalidWorkTimeOrder": "开始时间必须早于结束时间。",
+      "increaseTime": "将时间增加15分钟",
+      "decreaseTime": "将时间减少15分钟",
+      "increaseBreakDuration": "将休息时长增加15分钟",
+      "decreaseBreakDuration": "将休息时长减少15分钟",
+      "start": "休息开始时间", "duration": "休息时长（分钟）", "hint": "工作时段会自动推导。时长为 0 表示连续工作日。",
+      "errors": { "invalidDuration": "休息时长必须是大于或等于 0 的整数分钟。", "outsideWorkingDay": "休息必须完全在设定的工作日内。", "consumesWorkingDay": "休息不能占用整个工作日。" }
+    },
     "worktime": {
       "section": "工作时间",
       "derivedHpd": "推算的小时/天：",
@@ -800,7 +848,8 @@
       "edit": "编辑",
       "structure": "结构",
       "view": "视图",
-      "nav": "导航"
+      "nav": "导航",
+      "grid": "表格"
     },
     "view": {
       "exitFullscreen": "退出演示",
@@ -820,6 +869,12 @@
       "switchDocument": "切换文档",
       "scrollToToday": "跳转到今天",
       "help": "打开帮助"
+    },
+    "grid": {
+      "navigate": "下一个/上一个单元格",
+      "edit": "编辑单元格",
+      "typeToReplace": "输入将替换单元格内容",
+      "clearCell": "清除单元格内容"
     }
   },
   "welcome": {

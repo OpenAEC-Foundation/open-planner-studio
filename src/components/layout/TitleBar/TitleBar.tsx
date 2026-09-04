@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { canRedo, canUndo } from '@/state/sessionHistory';
+import { canWriteToRefWithoutPrompt, type FileRef } from '@/services/fileAccess';
 
 // Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
@@ -18,12 +20,16 @@ export function TitleBar() {
   const project = useAppStore(s => s.project);
   const undo = useAppStore(s => s.undo);
   const redo = useAppStore(s => s.redo);
-  const undoStack = useAppStore(s => s.undoStack);
-  const redoStack = useAppStore(s => s.redoStack);
+  const undoAvailable = useAppStore(canUndo);
+  const redoAvailable = useAppStore(canRedo);
   const isDirty = useAppStore(s => s.isDirty);
   const setUI = useAppStore(s => s.setUI);
   const saveFile = useAppStore(s => s.saveFile);
   const openFile = useAppStore(s => s.openFile);
+  const filePath = useAppStore(s => s.filePath);
+  const fileHandle = useAppStore(s => s.fileHandle);
+  const autoSaveToFile = useAppStore(s => s.autoSaveToFile);
+  const setAutoSaveToFile = useAppStore(s => s.setAutoSaveToFile);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
   const [maximized, setMaximized] = useState(false);
@@ -72,6 +78,26 @@ export function TitleBar() {
     void getCurrentWindow().close();
   }, []);
 
+  // Een naamloos document heeft geen bestaand doel dat veilig overschreven mag worden. Recovery
+  // draait onafhankelijk hiervan door; de schakelaar belooft uitsluitend échte bestandsopslag.
+  const autoSaveRef = useMemo<FileRef | null>(() => (
+    fileHandle
+      ? { kind: 'handle', handle: fileHandle }
+      : (isTauri() && filePath ? { kind: 'path', path: filePath } : null)
+  ), [fileHandle, filePath]);
+  const autoSaveTitle = !autoSaveRef
+    ? tCommon('autosave.noFile')
+    : tCommon(autoSaveToFile ? 'autosave.onHint' : 'autosave.offHint');
+  const toggleAutoSave = useCallback(() => {
+    if (!autoSaveRef) return;
+    if (autoSaveToFile) { setAutoSaveToFile(false); return; }
+    // Een FSA-handle die alleen leesrecht heeft mag nooit vanuit een timer een permissieprompt
+    // opleveren. Pas na een bewuste handmatige Opslaan is de knop beschikbaar.
+    void canWriteToRefWithoutPrompt(autoSaveRef).then((canWrite) => {
+      if (canWrite) setAutoSaveToFile(true);
+    });
+  }, [autoSaveRef, autoSaveToFile, setAutoSaveToFile]);
+
   return (
     <div className="title-bar" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
       <div className="title-bar-left">
@@ -89,12 +115,26 @@ export function TitleBar() {
             <Save size={16} />
           </button>
 
+          <button
+            className={`title-bar-autosave${autoSaveToFile ? ' active' : ''}`}
+            role="switch"
+            aria-checked={autoSaveToFile}
+            aria-label={tCommon('autosave.label')}
+            disabled={!autoSaveRef}
+            title={autoSaveTitle}
+            onClick={toggleAutoSave}
+            data-ops-autosave
+          >
+            <span>{tCommon('autosave.label')}</span>
+            <span className="title-bar-autosave-track" aria-hidden><span /></span>
+          </button>
+
           <div className="quick-access-separator" />
 
           <button
             className="quick-access-btn"
             title={tMenu('ribbon.undoTitle')}
-            disabled={undoStack.length === 0}
+            disabled={!undoAvailable}
             onClick={() => undo()}
           >
             <Undo2 size={16} />
@@ -102,7 +142,7 @@ export function TitleBar() {
           <button
             className="quick-access-btn"
             title={tMenu('ribbon.redoTitle')}
-            disabled={redoStack.length === 0}
+            disabled={!redoAvailable}
             onClick={() => redo()}
           >
             <Redo2 size={16} />

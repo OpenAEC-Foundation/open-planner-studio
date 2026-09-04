@@ -198,6 +198,8 @@ export function toExtCalendar(c: WorkCalendar): ExtCalendar {
     workStartHour: c.workStartHour,
     workEndHour: c.workEndHour,
     hoursPerDay: c.hoursPerDay,
+    simpleBreakStartMinute: c.simpleBreakStartMinute,
+    simpleBreakDurationMinutes: c.simpleBreakDurationMinutes,
     holidays: c.holidays.map(copyHoliday),
     workTime: c.workTime ? copyWorkTime(c.workTime) : undefined,
     shift: c.shift,
@@ -214,6 +216,8 @@ export function fromExtCalendar(c: ExtCalendar): WorkCalendar {
     workStartHour: c.workStartHour,
     workEndHour: c.workEndHour,
     hoursPerDay: c.hoursPerDay,
+    simpleBreakStartMinute: c.simpleBreakStartMinute,
+    simpleBreakDurationMinutes: c.simpleBreakDurationMinutes,
     holidays: c.holidays.map(toIntHoliday),
     workTime: c.workTime ? toIntWorkTime(c.workTime) : undefined,
     shift: c.shift,
@@ -329,7 +333,7 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
-    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
+    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
@@ -375,7 +379,7 @@ export function fromExtTask(t: ExtTask): Task {
     // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
-    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
+    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
@@ -641,6 +645,7 @@ export function toExtAssignment(a: ResourceAssignment): ExtAssignment {
     curve: a.curve,
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
+    curveValues: a.curveValues ? [...a.curveValues] : undefined,
   };
 }
 
@@ -653,6 +658,7 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
     curve: a.curve,
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
+    curveValues: a.curveValues ? [...a.curveValues] : undefined,
   };
 }
 
@@ -700,18 +706,17 @@ export function fromExtImportResult(r: ExtImportResult): ImportResult {
 /**
  * Ext-facing tabblad-id → intern tabblad-id.
  *
- * Vandaag is dat één-op-één, en de TABEL is het punt — niet de conversie. Zonder tabel zou een
- * interne hernoeming (`'beeld'` → `'view'`) stil doorlekken naar elk geïnstalleerd manifest; nu
- * breekt hij hier op de compiler en verhuist de vertaling naar deze ene regel. De `Record` over de
- * volledige `ExtRibbonTab`-unie dwingt bovendien af dat een NIEUW ext-tabblad ook echt ergens op
- * uitkomt: een gat geeft een compileerfout in plaats van `undefined` in de store.
+ * De publieke waarde `relations` blijft voor bestaande extensies geldig, maar landt sinds de
+ * tabel-overhaul op `table`: het zelfstandige paneel bestaat niet meer en de volledige taakgrid
+ * bevat nu alle relatiefunctionaliteit. De `Record` over de volledige `ExtRibbonTab`-unie dwingt
+ * af dat een nieuw ext-tabblad ook echt ergens op uitkomt.
  */
 const RIBBON_TAB_MAP: Record<ExtRibbonTab, RibbonTab> = {
   file: 'file',
   start: 'start',
   planning: 'planning',
   resources: 'resources',
-  relations: 'relations',
+  relations: 'table',
   beeld: 'beeld',
   instellingen: 'instellingen',
   table: 'table',

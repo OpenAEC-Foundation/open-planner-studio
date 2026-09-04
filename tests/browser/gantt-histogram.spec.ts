@@ -87,9 +87,10 @@ test('histogram picker wisselt echte resourceserie en plotklik toont bijdragers'
     },
   });
 
-  await expect(page.getByText(/^(2 taken dragen bij op|2 tasks contribute on)/)).toBeVisible();
-  await expect(page.getByText('Overbelaste bijdrage A', { exact: true })).toBeVisible();
-  await expect(page.getByText('Overbelaste bijdrage B', { exact: true })).toBeVisible();
+  const tooltip = page.locator('.gantt-tooltip');
+  await expect(tooltip.getByText(/^(2 taken dragen bij op|2 tasks contribute on)/)).toBeVisible();
+  await expect(tooltip.getByText('Overbelaste bijdrage A', { exact: true })).toBeVisible();
+  await expect(tooltip.getByText('Overbelaste bijdrage B', { exact: true })).toBeVisible();
 });
 
 test('taakselectie beperkt resourcedock en histogram en wissen herstelt beide', async ({ page, ops: _ops }) => {
@@ -157,20 +158,18 @@ test('histogram splitter persisteert pas bij mouseup en paints worden weer stil'
   await waitForTwoQuietWindows(page);
 });
 
-test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra het canvas focus heeft', async ({ page, ops: _ops }) => {
+test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra de gedeelde taakgrid focus heeft', async ({ page, ops: _ops }) => {
   const [firstId, secondId, thirdId] = await seedProject(page, [
     { name: 'Toets taak een', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Toets taak twee', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
     { name: 'Toets taak drie', start: '2026-10-05', finish: '2026-10-16', durationDays: 10 },
   ]);
-  const gantt = page.getByTestId('gantt-primary-canvas');
-  const taskTableWidth = (await state(page)).ui.leftPanelWidth;
-  // Header = 50px, standaardrij = 28px: klik op de kaartzijde van rij twee. De rijselectie
-  // gebruikt daar dezelfde Gantt-hit-test als op een balk, maar blijft zoom-onafhankelijk.
-  await gantt.click({ position: { x: taskTableWidth + 40, y: 50 + 28 + 14 } });
+  const secondCell = page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${secondId}"][data-grid-column-id="task.name"]`,
+  );
+  await secondCell.click();
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([secondId]);
-  await expect(gantt).toBeFocused();
-  await expect(gantt).toHaveClass(/outline-none/);
+  await expect(secondCell).toBeFocused();
 
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([thirdId]);

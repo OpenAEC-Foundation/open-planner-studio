@@ -92,6 +92,9 @@ export interface ExtCalendar {
   workEndHour: number;
   /** Netto werkuren per dag. */
   hoursPerDay: number;
+  /** Optioneel eenvoudig scalar-pauzepatroon, in minuten vanaf middernacht / minuten duur. */
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
   holidays: ExtHoliday[];
   /** Per-weekdag werktijd-banden. Aanwezig ⇒ uur-kalender; afwezig ⇒ dag-kalender. */
   workTime?: ExtWorkTimeBands;
@@ -216,7 +219,7 @@ export interface ExtTask {
    *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
    *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').
    *  TaskTimephasedContour}. */
-  timephasedContours?: { resourceUid: number | null; periods: { afterMinutes: number; minutes: number; workMinutes: number; kind: 'actual' | 'remaining' }[] }[];
+  timephasedContours?: { resourceUid: number | null; resourceId?: string; periods: { afterMinutes: number; minutes: number; workMinutes: number; kind: 'actual' | 'remaining' }[] }[];
   /** Volledige-round-trip-velden (main-merge vóór v2026.8.1): de drie afgeleide-sturing-velden uit
    *  de .mpp-import reizen mee door de VOLLEDIGE Ext-vertaling zodat een extensie-round-trip geen
    *  data vernietigt (zelfde principe als de IFC-round-trip). Ze zijn géén invoer voor de create-/
@@ -297,11 +300,13 @@ export interface ExtAssignment {
   resourceId: string;
   /** Eenheden per werkdag (1 = 100%). */
   unitsPerDay: number;
-  curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK';
+  curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
   /** Z8-werkvenster (.mpp-import) — volledige-round-trip-velden, zie `ExtTask.timephasedFinishFloor`. */
   workWindowStart?: string;
   /** Zie `workWindowStart`. */
   workWindowFinish?: string;
+  /** Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI), zie `ResourceAssignment.curveValues`. */
+  curveValues?: number[];
 }
 
 // ── UI-contract: ribbontabbladen ──

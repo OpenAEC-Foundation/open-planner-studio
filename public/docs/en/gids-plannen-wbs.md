@@ -25,6 +25,8 @@ A flat list of tasks says nothing about how they relate. By indenting a task und
 
 As soon as a task has at least one subtask, it automatically becomes a summary task: its bar in the Gantt chart then spans the full period from the earliest start to the latest finish of all subtasks beneath it, and its own duration and dates can no longer be set independently. A summary task is therefore normally always a derived value, never a schedule you enter directly — delete or shift the subtasks, and the summary task's bar adjusts itself automatically. One exception: a **manually scheduled** summary task (that flag arises from a `.mpp` import) does *not* roll up — it keeps its own stored dates, even when its subtasks shift.
 
+**Recognizable in the name column.** In the task table (the **Table** tab, and the same name column in the right rail) a summary task shows in bold with a subtle background tint on the name cell; a milestone shows in bold in the same colour as its bar in the Gantt chart. A regular task stays unchanged. This is purely visual — it doesn't change how you select, drag, or edit a task.
+
 **Collapse and expand.** With a large WBS you'll sometimes want to compact the tree temporarily. The **View** ribbon tab, **Outline** group, has two separate buttons for this — **Collapse** and **Expand** — deliberately not a single toggle, because with a mixed selection (some branches open, others closed) a toggle could never set everything the same way.
 
 - **With a selection**, the buttons act on the selected tasks; only tasks with subtasks are affected, standalone tasks are ignored.
@@ -88,14 +90,14 @@ it in one motion — that's the mouse equivalent of Alt+→. Select several task
 or a box-select) and the whole selection drags and drops together.
 
 The **Table** ribbon tab shows this same structure as a plain, editable grid, useful when you're
-entering or correcting a lot of tasks at once: a single click on any editable cell starts editing
-immediately with the existing value selected, the arrow keys move a cell cursor without opening it,
-**F2**/**Enter** opens the current cell for editing, and **Tab**/**Shift+Tab** on a selected row
-indent/outdent it, same as Alt+→/←. Reaching **Enter** or **↓** on the very last row creates a new
-sibling task right there with the cursor already in its name cell, so you can keep a whole list going
-without touching the mouse — this only works in the plain tree view, since a filter, sort or grouping
-active could make the new task fall straight out of view, so the app asks first instead of silently
-placing a task you can't see.
+entering or correcting a lot of tasks at once: a single click on a cell only selects it — booleans,
+dropdowns and dates never change just from clicking. Editing happens with **F2** or **Enter**, or by
+typing directly (which replaces the existing content and starts editing right away); double-click
+instead opens the properties panel for the active task. The arrow keys move a cell cursor without
+opening it, and **Tab**/**Shift+Tab** moves to the next or previous cell, continuing onto the next or
+previous task row. Indenting and outdenting remain **Alt+→**/**Alt+←**. **Enter** on the very last
+row simply opens the active cell's editor; **↓** stops there (no new row). To insert a new task —
+above the active row, with the cursor placed straight in its name cell — use **Insert**.
 
 ## Milestone kinds
 

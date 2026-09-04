@@ -1,10 +1,18 @@
-// Karakterisering vóór store-/Ganttgrenswerk: de afzonderlijke DOM-tabel opent een naamcel via
-// het toetsenbord, commit met Enter en bewaart één undo-stap.
+// Karakterisering van het gedeelde DOM-raster: de tabel opent een naamcel via het toetsenbord,
+// commit met Enter en bewaart één undo-stap.
 import type { Locator, Page } from '@playwright/test';
-import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
+import { expect, seedProject, state, test } from './fixtures/ops';
 
-function taskRow(page: Page, taskId: string): Locator {
-  return page.locator(`[data-testid="task-cell"][data-task-id="${taskId}"]`).first().locator('..');
+function taskRow(page: Page, taskId: string, surfaceId = 'full-task-grid'): Locator {
+  return page.locator(
+    `[data-task-grid-surface-id="${surfaceId}"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"]`,
+  );
+}
+
+function taskCell(page: Page, taskId: string, columnId: string): Locator {
+  return taskRow(page, taskId).locator(
+    `[data-grid-data-cell="true"][data-grid-column-id="${columnId}"]`,
+  );
 }
 
 async function addTableTaskDuringGesture(page: Page, name: string): Promise<string> {
@@ -46,27 +54,21 @@ test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen',
   const before = await state(page);
 
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
-  const table = page.getByTestId('task-table-editor');
+  const table = page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]');
   await expect(table).toBeVisible();
-  const nameCell = page.locator(
-    `[data-testid="task-cell"][data-task-id="${firstId}"][data-field-key="name"]`,
-  );
+  const nameCell = taskCell(page, firstId, 'task.name');
 
-  // Eén gewone klik vestigt de cursor en opent direct; Escape herstelt rasterfocus. De daarop
-  // volgende Enter is de letterlijke toetsenbordhandeling die de cel opnieuw opent.
-  await nameCell.locator('.cursor-text').click();
+  // Een gewone klik selecteert de cel; Enter opent de editor. Escape herstelt de celfocus.
+  await nameCell.click();
+  await page.keyboard.press('Enter');
   await expect(nameCell.locator('input')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(table).toBeFocused();
+  await expect(nameCell).toBeFocused();
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator(
-    `[data-testid="task-cell"][data-task-id="${secondId}"][data-field-key="name"] .table-cell-cursor`,
-  )).toBeVisible();
+  await expect(taskCell(page, secondId, 'task.name')).toHaveAttribute('data-grid-active', 'true');
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([secondId]);
   await page.keyboard.press('ArrowUp');
-  await expect(page.locator(
-    `[data-testid="task-cell"][data-task-id="${firstId}"][data-field-key="name"] .table-cell-cursor`,
-  )).toBeVisible();
+  await expect(nameCell).toHaveAttribute('data-grid-active', 'true');
   await page.keyboard.press('Enter');
 
   const input = nameCell.locator('input');
@@ -109,7 +111,7 @@ test('table surface: rowdrag gebruikt actuele DOM-rijen en commit eenmaal', asyn
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
   await page.mouse.move(existingTarget.x, existingTarget.y);
-  await expect.poll(() => existingTargetRow.evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
+  await expect(existingTargetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
 
   // Fixture-update midden in de echte pointergesture: DOM-index, rows en tasksById veranderen.
   const thirdId = await addTableTaskDuringGesture(page, 'Tabelrij C, tijdens sleep toegevoegd');
@@ -118,7 +120,7 @@ test('table surface: rowdrag gebruikt actuele DOM-rijen en commit eenmaal', asyn
   const newTarget = await rowPoint(newTargetRow, 'after');
 
   await page.mouse.move(newTarget.x, newTarget.y);
-  await expect.poll(() => newTargetRow.evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
+  await expect(newTargetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.mouse.up();
 
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.at(-1)?.id)).toBe(firstId);
@@ -141,7 +143,7 @@ test('table surface: rowdrag Escape annuleert zonder mutatie', async ({ page, op
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
   await page.mouse.move(target.x, target.y);
-  await expect.poll(() => targetRow.evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.keyboard.press('Escape');
   await page.mouse.up();
 
@@ -150,29 +152,25 @@ test('table surface: rowdrag Escape annuleert zonder mutatie', async ({ page, op
   expect(after.undoDepth).toBe(before.undoDepth);
 });
 
-test('table surface: canvas- en DOM-rowdrag leveren dezelfde zichtbare rijuitkomst', async ({ page, ops: _ops }) => {
+test('table surface: ingebedde en volledige DOM-grid leveren dezelfde zichtbare rijuitkomst', async ({ page, ops: _ops }) => {
   const [firstId, secondId, thirdId] = await seedProject(page, [
     { name: 'Gedeeld A', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Gedeeld B', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Gedeeld C', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
   const before = await state(page);
-  const canvas = page.getByTestId('gantt-primary-canvas');
-  const canvasBounds = await canvas.boundingBox();
-  expect(canvasBounds).not.toBeNull();
-  const sourceRow = await barPoint(page, firstId);
-  const targetRow = await barPoint(page, thirdId);
-  const source = { x: canvasBounds!.x + 40, y: sourceRow.y };
-  const target = { x: canvasBounds!.x + 40, y: targetRow.y + 10 };
+  const source = await rowPoint(taskRow(page, firstId, 'gantt-task-grid'));
+  const targetRow = taskRow(page, thirdId, 'gantt-task-grid');
+  const target = await rowPoint(targetRow, 'after');
 
   await page.mouse.move(source.x, source.y);
   await page.mouse.down();
   await page.mouse.move(target.x, target.y, { steps: 4 });
-  await expect(canvas).toHaveCSS('cursor', 'grabbing');
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
   await page.mouse.up();
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
     .toEqual([secondId, thirdId, firstId]);
-  const canvasResult = await state(page);
+  const embeddedResult = await state(page);
 
   await page.keyboard.press('Control+z');
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
@@ -189,8 +187,8 @@ test('table surface: canvas- en DOM-rowdrag leveren dezelfde zichtbare rijuitkom
     .toEqual([secondId, thirdId, firstId]);
   const domResult = await state(page);
 
-  expect(domResult.viewRows).toEqual(canvasResult.viewRows);
-  expect(domResult.selectedTaskIds).toEqual(canvasResult.selectedTaskIds);
+  expect(domResult.viewRows).toEqual(embeddedResult.viewRows);
+  expect(domResult.selectedTaskIds).toEqual(embeddedResult.selectedTaskIds);
   expect(domResult.undoDepth).toBe(before.undoDepth + 1);
-  expect(canvasResult.undoDepth).toBe(before.undoDepth + 1);
+  expect(embeddedResult.undoDepth).toBe(before.undoDepth + 1);
 });

@@ -273,18 +273,192 @@ function checkAgentDocs(diffs: string[]): void {
   //     bridge er 39 draaide): een tool erbij is één regel in de registry, en niemand denkt dan
   //     aan een zin verderop in CLAUDE.md. Precies het soort drift dat deze poort hoort te vangen.
   //     Geteld over de tool-bestanden zelf, niet over een lijst die óók bij kan raken.
+  //
+  //     Bewust GEEN dynamic import van toolRegistry.ts/toolIndex.ts hier: dat sleept via
+  //     `contracts.ts` → `AppStoreContext` de hele storelaag (en indirect Tauri/DOM-afhankelijkheden)
+  //     mee een kaal Node-script in dat verder puur op bestanden/JSON draait (zie de kopcommentaar
+  //     hierboven) — precies de complicatie die `tests/mcp/cases-toolregistry.ts` uit de weg gaat
+  //     door ook niet te importeren, maar wél de bron te lezen.
+  //
+  //     In plaats daarvan hergebruiken we exact dezelfde aanpak als die poort (zie de toelichting
+  //     bovenin `cases-toolregistry.ts`): een regex op de `name: '...'`-veldliteralen van de
+  //     `McpToolDef`-objecten, niet op elke `planner_...`-achtige stringliteral. De oude regex
+  //     (`['"](planner_[a-z_]+)['"]`) matchte ELKE stringliteral met die vorm — dus ook een
+  //     tool-naam die louter in beschrijvingsproza wordt genoemd (bv. "roep hierna planner_foo aan")
+  //     terwijl `planner_foo` niet bestaat. Zo'n verzonnen naam voegde stil een extra element aan de
+  //     Set toe zonder dat er een tool bijkwam — de telling bleef toevallig kloppen zolang niemand
+  //     ook de N in CLAUDE.md aanpaste, en een niet-bestaande tool in de doc-tekst viel dus nooit op.
+  //     De `name:`-geankerde regex telt uitsluitend de daadwerkelijke contract-registraties.
   const toolsDir = join(ROOT, 'src', 'services', 'mcp', 'tools');
   const toolNames = new Set<string>();
   for (const file of readdirSync(toolsDir)) {
     if (!file.endsWith('.ts')) continue;
     const src = readFileSync(join(toolsDir, file), 'utf8');
-    for (const m of src.matchAll(/['"](planner_[a-z_]+)['"]/g)) toolNames.add(m[1]);
+    for (const m of src.matchAll(/\bname:\s*["'](planner_[a-z_]+)["']/g)) toolNames.add(m[1]);
   }
   const claimed = claude.match(/De (\d+)\s*\n?`planner_\*`-tools/);
   if (!claimed) {
     diffs.push('CLAUDE.md-check: geen "De N `planner_*`-tools"-bewering gevonden (is de zin herschreven?)');
   } else if (Number(claimed[1]) !== toolNames.size) {
     diffs.push(`CLAUDE.md zegt ${claimed[1]} \`planner_*\`-tools, maar src/services/mcp/tools/ definieert er ${toolNames.size}`);
+  }
+}
+
+/** Knipt fenced code blocks (```…```) uit vóórdat we op backtick-spans scannen, zodat een
+ *  commentaarregel in een ```bash-blok niet meetelt als "backtick-vermelding" — alleen ECHTE
+ *  inline-code-citaten in lopende tekst tellen. Regeltelling blijft gelijk (newlines behouden) zodat
+ *  eventuele toekomstige regelnummer-gebaseerde diagnostiek niet verschuift. */
+function stripFencedBlocks(text: string): string {
+  return text.replace(/```[\s\S]*?```/g, (m) => '\n'.repeat((m.match(/\n/g) ?? []).length));
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Alle inline single-backtick-spans in `text`, ná het strippen van fenced code blocks. */
+function backtickSpans(text: string): string[] {
+  return [...stripFencedBlocks(text).matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+}
+
+/** Staat `token` als LOS WOORD (regex-`\b`) binnen minstens één backtick-span? Dekt zowel een kale
+ *  vermelding (`` `verify:cycles` ``) als ingebed in een grotere backtickte vorm (`` `npm run
+ *  test:planning` ``, `` `tests/mcp/` ``) — maar NIET een toevallige substring in kale lopende tekst
+ *  (bv. "lint" binnen "**No lint script.**", of "mcp" binnen een niet-backtickt Engels/Nederlands
+ *  woord). Dat onderscheid is precies wat Poort 8b/8c hoort te maken; zie het docblock hierboven. */
+function mentionsToken(text: string, token: string): boolean {
+  const re = new RegExp(`\\b${escapeRegExp(token)}\\b`);
+  return backtickSpans(text).some((span) => re.test(span));
+}
+
+/**
+ * Poort 8 — AGENTS.md, README.md en CONTRIBUTING.md mechanisch tegen package.json (en, voor de
+ * poortbewering, tegen CLAUDE.md en de handmatig onderhouden wiki-bronpagina's in `docs/wiki/`).
+ *
+ * Poort 7 hierboven bewaakt alléén CLAUDE.md. De drie andere top-level onboardingdocumenten lazen
+ * niet mee en dreven onopgemerkt weg — AGENTS.md beweerde "no lint script" terwijl er allang een
+ * `npm run lint` bestond, README had een Ribbon-tab "Relaties" die niet bestaat, en CONTRIBUTING
+ * had zowel een hardgecodeerde poort 3007 (die per worktree varieert) als een verify-tabel die twee
+ * ketenstappen miste.
+ *
+ * Wat deze poort WEL vangt — vijf beweringen die uit package.json (en het docs-manifest) af te
+ * leiden zijn:
+ *   8a. dode `npm run <x>`-verwijzingen in de drie bestanden;
+ *   8b. of AGENTS.md/CONTRIBUTING.md elke stap uit de `verify`-keten noemt;
+ *   8c. of alle drie de bestanden elke suite uit `npm test` noemen;
+ *   8d. hardgecodeerde `localhost:3007` (AGENTS/README/CONTRIBUTING/CLAUDE.md/de wiki-bronpagina's);
+ *   8e. of README's "N artikelen"-bewering (indien aanwezig) het manifest-aantal volgt.
+ *
+ * 8b/8c tellen een stap-/suitenaam alleen mee als hij als LOS WOORD binnen een backtick-span
+ * voorkomt in lopende tekst (`mentionsToken` hierboven) — bv. `` `verify:cycles` ``,
+ * `` `npm run test:planning` `` of `` `tests/mcp/` ``. Vermeldingen binnen ```-fenced code blocks
+ * tellen daarbij NIET mee (`stripFencedBlocks` knipt ze eruit vóórdat er op backtick-spans gescand
+ * wordt) — ook een letterlijke naam in een bash-commentaarregel is geen backtick-citaat in proza,
+ * en zou anders precies het soort toevallige, niet-bedoelde match zijn die deze poort moet vermijden.
+ * Kale substring-matching over de hele lopende tekst (de vorige versie van deze poort) is vacuüm
+ * gebleken op twee manieren, allebei gevonden door
+ * de review tegen de PRE-diff-documenten: (1) een bewering als "**No lint script.**" bevat toevallig
+ * de substring "lint" en liet die leugen dus vals slagen; (2) korte namen als `mcp`/`test`/`library`
+ * matchen bijna altijd ergens toevallig in Nederlands/Engels proza, dus de check kon nooit rood
+ * worden ook al ontbrak de bedoelde vermelding. Backtick-scoping + woordgrens sluit beide gaten.
+ *
+ * Wat deze poort NIET vangt: inhoudelijke onwaarheden waarvan de tegenspraak niet in package.json of
+ * het manifest zit — bijvoorbeeld een architectuurbewering als "de enige `invoke()` is X" terwijl de
+ * code drie commands aanroept, of een beschrijving van hoe `runCPM` intern werkt die niet meer klopt.
+ * Dat soort proza blijft mensenwerk (of een gerichte poort zoals Poort 7 hierboven voor CLAUDE.md).
+ */
+function checkSupportingDocs(diffs: string[], manifestArticleCount: number): void {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
+    scripts: Record<string, string>;
+  };
+  const files: Record<string, string> = {
+    'AGENTS.md': readFileSync(join(ROOT, 'AGENTS.md'), 'utf8'),
+    'README.md': readFileSync(join(ROOT, 'README.md'), 'utf8'),
+    'CONTRIBUTING.md': readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8'),
+  };
+  const claude = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
+  const wikiDir = join(ROOT, 'docs', 'wiki');
+  const wikiFiles: Record<string, string> = {};
+  if (existsSync(wikiDir)) {
+    for (const file of readdirSync(wikiDir)) {
+      if (file.endsWith('.md')) wikiFiles[`docs/wiki/${file}`] = readFileSync(join(wikiDir, file), 'utf8');
+    }
+  }
+
+  // 8a. Dode verwijzingen: elke `npm run <x>` in deze drie bestanden moet als script bestaan.
+  for (const [name, text] of Object.entries(files)) {
+    const referenced = [...text.matchAll(/npm run ([a-z][\w:-]*)/g)].map((m) => m[1]);
+    const dangling = [...new Set(referenced)].filter((s) => !(s in pkg.scripts));
+    if (dangling.length) {
+      diffs.push(`${name} verwijst naar npm-scripts die niet bestaan: ${dangling.join(', ')}`);
+    }
+  }
+
+  // 8b. Verify-ketendekking: de stappenlijst wordt AFGELEID uit de `verify`-definitie in
+  //     package.json (gesplitst op `&&`, `npm run `/`npm test` gestript) — niet hardgecodeerd, zodat
+  //     een toekomstige ketenwijziging vanzelf een doc-update afdwingt. AGENTS.md en CONTRIBUTING.md
+  //     moeten elke stapnaam als los woord binnen een backtick-span noemen (`mentionsToken`); README
+  //     hoeft de keten niet te enumereren (zie 8c voor wat README wél moet noemen).
+  if (typeof pkg.scripts.verify !== 'string') {
+    diffs.push('package.json#scripts.verify ontbreekt of is geen string — Poort 8b kan de verify-keten niet lezen (check uitgezet, geen crash)');
+  } else {
+    const rawSteps = pkg.scripts.verify.split('&&').map((s) => s.trim());
+    const verifySteps: string[] = [];
+    const unparsed: string[] = [];
+    for (const s of rawSteps) {
+      if (s === 'npm test') { verifySteps.push('test'); continue; }
+      const m = s.match(/^npm run ([\w:-]+)$/);
+      if (m) { verifySteps.push(m[1]); continue; }
+      unparsed.push(s);
+    }
+    if (unparsed.length) {
+      // Bevinding: vóór deze guard viel Poort 8b terug op de rauwe shellstring als "stapnaam" en
+      // eiste die letterlijk terug in de docs — een verwarrende, lekkende faalmelding. Nu een
+      // expliciete, begrijpelijke melding in plaats van dat lek.
+      diffs.push(`Poort 8b: de verify-keten bevat een stap zonder \`npm run <x>\`-vorm (${unparsed.join(', ')}) — breid Poort 8 uit (scripts/verify-docs.ts, checkSupportingDocs) in plaats van op de rauwe shellstring te vertrouwen`);
+    }
+    for (const name of ['AGENTS.md', 'CONTRIBUTING.md']) {
+      const text = files[name];
+      const missing = verifySteps.filter((step) => !mentionsToken(text, step));
+      if (missing.length) {
+        diffs.push(`${name} noemt niet elke stap uit de verify-keten (package.json#scripts.verify) als backtick-token: mist ${missing.join(', ')}`);
+      }
+    }
+  }
+
+  // 8c. Suitedekking: de suitelijst wordt AFGELEID uit de `test`-definitie (test:planning →
+  //     planning, …). Alle drie de bestanden moeten elke suitenaam als los woord binnen een
+  //     backtick-span noemen (bv. `` `tests/planning/` ``, `` `npm run test:planning` `` of kaal
+  //     `` `planning` ``) — géén kale substring-match meer over lopende tekst.
+  if (typeof pkg.scripts.test !== 'string') {
+    diffs.push('package.json#scripts.test ontbreekt of is geen string — Poort 8c kan de suitelijst niet lezen (check uitgezet, geen crash)');
+  } else {
+    const suites = [...pkg.scripts.test.matchAll(/npm run test:([\w-]+)/g)].map((m) => m[1]);
+    for (const [name, text] of Object.entries(files)) {
+      const missing = suites.filter((suite) => !mentionsToken(text, suite));
+      if (missing.length) {
+        diffs.push(`${name} noemt niet elke suite uit package.json#scripts.test als backtick-token: mist ${missing.join(', ')}`);
+      }
+    }
+  }
+
+  // 8d. Hardgecodeerde dev-poort. De poort is per worktree vast toegewezen in het bereik 3007–3106
+  //     (scripts/dev-port.mjs), niet altijd 3007 — "localhost:3007" hardcoderen is dus altijd fout,
+  //     ook in CLAUDE.md en de handmatig onderhouden wiki-bronpagina's (`docs/wiki/*.md`, die via
+  //     `npm run publish:wiki` naar de publieke GitHub-wiki gaan).
+  for (const [name, text] of Object.entries({ ...files, 'CLAUDE.md': claude, ...wikiFiles })) {
+    if (text.includes('localhost:3007')) {
+      diffs.push(`${name} hardcodeert "localhost:3007" — de dev-poort is per worktree vast toegewezen (3007–3106); lees hem uit de dev-server-uitvoer of .claude/launch.json`);
+    }
+  }
+
+  // 8e. README's artikelaantal. "N artikelen" in README.md (Projectstructuur-boom) moet gelijk zijn
+  //     aan het aantal manifest-artikelen — zelfde idee als Poort 7b's auto-save-intervalcheck: een
+  //     getal dat los in twee bronnen staat en stil kan wegdrijven (27 vs. 31 was zo'n geval, gemeten
+  //     2026-09-01). Alleen gecontroleerd als README de bewering al maakt — geen eis dat hij bestaat.
+  const articleClaim = files['README.md'].match(/(\d+)\s+artikelen/);
+  if (articleClaim && Number(articleClaim[1]) !== manifestArticleCount) {
+    diffs.push(`README.md zegt "${articleClaim[1]} artikelen" maar public/docs/manifest.json telt er ${manifestArticleCount}`);
   }
 }
 
@@ -299,6 +473,8 @@ function main() {
 
   // 7. Machinaal controleerbare beweringen in CLAUDE.md (zie checkAgentDocs).
   checkAgentDocs(globalDiffs);
+  // 8. Machinaal controleerbare beweringen in AGENTS.md/README.md/CONTRIBUTING.md (zie checkSupportingDocs).
+  checkSupportingDocs(globalDiffs, manifest.articles.length);
 
   // 1a. Dubbele ids in het manifest.
   const seen = new Set<string>();
@@ -320,8 +496,8 @@ function main() {
     }
   }
 
-  console.log('── Manifest-hygiëne + CLAUDE.md-beweringen ──');
-  if (globalDiffs.length === 0) console.log('  OK  geen dubbele ids, geen wees-bestanden, CLAUDE.md loopt gelijk met de code');
+  console.log('── Manifest-hygiëne + CLAUDE.md/AGENTS.md/README.md/CONTRIBUTING.md-beweringen ──');
+  if (globalDiffs.length === 0) console.log('  OK  geen dubbele ids, geen wees-bestanden, de vier onboardingdocumenten lopen gelijk met de code');
   else { anyFail = true; for (const d of globalDiffs) console.log(`  XX  ${d}`); }
 
   // 2/3/4/5/6: per artikel.

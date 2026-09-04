@@ -12,18 +12,18 @@ export const MS_PER_DAY = 86400000;
 
 /**
  * Datum (met optionele sub-dag-precisie) → X-pixel op het chart-canvas. Identiek aan de vroegere
- * `taskTableWidth + daysFromStart * zoom - scrollX`. De aanroepers geven hun LIVE opts-waarden mee
+ * `chartOriginX + daysFromStart * zoom - scrollX`. De aanroepers geven hun LIVE opts-waarden mee
  * (geen object-allocatie op dit hot path), zodat het lees-moment van zoom/scrollX ongewijzigd blijft.
  */
 export function dateToX(
   date: Date,
   viewStart: Date,
-  taskTableWidth: number,
+  chartOriginX: number,
   zoom: number,
   scrollX: number,
 ): number {
   const daysFromStart = (date.getTime() - viewStart.getTime()) / MS_PER_DAY;
-  return taskTableWidth + daysFromStart * zoom - scrollX;
+  return chartOriginX + daysFromStart * zoom - scrollX;
 }
 
 /**
@@ -35,11 +35,11 @@ export function dateToX(
  */
 export function xToDayOffset(
   x: number,
-  taskTableWidth: number,
+  chartOriginX: number,
   zoom: number,
   scrollX: number,
 ): number {
-  return (x - taskTableWidth + scrollX) / zoom;
+  return (x - chartOriginX + scrollX) / zoom;
 }
 
 /**
@@ -51,11 +51,11 @@ export function xToDayOffset(
 export function xToDate(
   x: number,
   viewStart: Date,
-  taskTableWidth: number,
+  chartOriginX: number,
   zoom: number,
   scrollX: number,
 ): Date {
-  const days = xToDayOffset(x, taskTableWidth, zoom, scrollX);
+  const days = xToDayOffset(x, chartOriginX, zoom, scrollX);
   return new Date(viewStart.getTime() + days * MS_PER_DAY);
 }
 

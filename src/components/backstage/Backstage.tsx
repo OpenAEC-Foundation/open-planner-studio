@@ -240,7 +240,6 @@ function ExamplesSection() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const openExampleFromString = useAppStore(s => s.openExampleFromString);
-  const runCPM = useAppStore(s => s.runCPM);
   const setUI = useAppStore(s => s.setUI);
 
   const [examples, setExamples] = useState<ExampleEntry[] | null>(null);
@@ -268,10 +267,9 @@ function ExamplesSection() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
       openExampleFromString(content, ex.name, buildImportLabels(tCommon));
-      // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek): NA het
-      // laden (openExampleFromString laadt bewust LOS), VOOR runCPM.
+      // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek). De
+      // laadgrens heeft al gerekend; het linken herleidt zelf de resourcebelasting opnieuw.
       if (ex.category === 'showcase') applyDemoLibraryToShowcaseProject();
-      runCPM();
       setUI({ activeRibbonTab: 'start' });
     } catch (err) {
       console.error(`[Voorbeelden] Openen van "${ex.file}" mislukt:`, err);
@@ -492,7 +490,6 @@ function ImportSection() {
   const { t: tMenu } = useTranslation('menu');
   const importers = useAppStore(s => s.extensionImporters);
   const loadState = useAppStore(s => s.loadState);
-  const runCPM = useAppStore(s => s.runCPM);
   const setUI = useAppStore(s => s.setUI);
 
   const handleImport = (imp: ExtensionImporter) => {
@@ -509,7 +506,6 @@ function ImportSection() {
         // De importer levert een EXT-facing resultaat; map het naar de interne loadState-vorm.
         const result = fromExtImportResult(await imp.handler(file));
         loadState(result);
-        runCPM();
         setUI({ activeRibbonTab: 'start' });
       } catch (err) {
         console.error('[Extensies] Import mislukt:', err);

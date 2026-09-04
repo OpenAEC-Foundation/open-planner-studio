@@ -47,8 +47,8 @@ const viewportOutputIsNarrow: NoForbiddenKeys<GanttViewportCoordinatorOutput> = 
 const pointerInputHasTargetedActions:
   'updateTask' extends keyof GanttPointerCoordinatorInput
     ? 'moveTaskTo' extends keyof GanttPointerCoordinatorInput
-      ? true
-      : false
+      ? false
+      : true
     : false = true;
 const pointerOutputOwnsReactHandlers:
   'onMouseDown' extends keyof GanttPointerCoordinatorOutput
@@ -92,9 +92,11 @@ ok('GanttCanvas start geen gesturehooks rechtstreeks',
   !/\.(?:startBarDrag|startPan|startBoxSelect|startRowDrag|startDepDraw)\(/.test(canvasSource));
 ok('pointercoördinator bezit precies één mousedown-dispatcher',
   (pointerSource.match(/const onMouseDown\s*=\s*useCallback/g) ?? []).length === 1);
-ok('pointercoördinator gebruikt alle vijf gerichte gesture-starts',
-  ['startBarDrag', 'startPan', 'startBoxSelect', 'startRowDrag', 'startDepDraw']
+ok('pointercoördinator gebruikt alle vier gerichte tijdlijngebaren',
+  ['startBarDrag', 'startPan', 'startBoxSelect', 'startDepDraw']
     .every(name => pointerSource.includes(`.${name}(`)));
+ok('pointercoördinator bezit geen rijverplaatsing uit de DOM-tabel',
+  !pointerSource.includes('startRowDrag') && !pointerSource.includes('useRowDrag'));
 ok('pointercoördinator leest geen storesingleton', !/\buseAppStore\b/.test(pointerSource));
 ok('pointercoördinator kopieert geen renderer- of viewportgeometrie',
   !/\b(?:barGeometry|dateToX|computeGanttScrollBounds|computeFitToProject)\b/.test(pointerSource));

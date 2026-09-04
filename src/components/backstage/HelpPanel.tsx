@@ -49,7 +49,6 @@ export function HelpPanel() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon, i18n } = useTranslation('common');
   const openExampleFromString = useAppStore(s => s.openExampleFromString);
-  const runCPM = useAppStore(s => s.runCPM);
   const setUI = useAppStore(s => s.setUI);
   // mpp-nul-data-etappe — "lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
   // (`openHelpArticle` in uiSlice.ts). Eenmalig-verzoek-patroon: lezen + direct weer op `null`.
@@ -192,12 +191,11 @@ export function HelpPanel() {
       // alleen de bestandsnaam (geen manifest-`category`) — de showcase-bestanden dragen allemaal het
       // `showcase-`-voorvoegsel (zie `public/examples/manifest.json`), de basisvoorbeelden niet.
       if (file.startsWith('showcase-')) applyDemoLibraryToShowcaseProject();
-      runCPM();
       setUI({ activeRibbonTab: 'start' });
     } catch (err) {
       console.error(`[Help] Voorbeeld "${file}" openen mislukt:`, err);
     }
-  }, [openExampleFromString, runCPM, setUI, tCommon]);
+  }, [openExampleFromString, setUI, tCommon]);
 
   const selectedMeta = manifest?.articles.find(a => a.id === selectedId) ?? null;
   const selectedContent = selectedId ? articles[selectedId] : undefined;

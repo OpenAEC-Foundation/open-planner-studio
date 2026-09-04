@@ -1,13 +1,32 @@
 // Kleine registratie van het zichtbare Gantt-tijdvenster (fase 2.7, §3.3) + de gedeelde
 // fit-to-project-berekening.
-// GanttCanvas registreert bij elke render de breedte van het primaire chart-gedeelte
-// (containerbreedte − takentabel), zodat store-acties zoals `setTimeScale` de
+// GanttCanvas registreert bij elke render de werkelijk gemeten breedte van het primaire
+// tijdlijnpaneel, zodat store-acties zoals `setTimeScale` de
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
 import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+
+/** Start-keten: early → schedule (opgeslagen) → late. Gedeeld door {@link resolveTaskFinish},
+ *  {@link computeFitToProject} hier en `computeContentSpanDays` (ganttRenderOptions.ts). */
+export function resolveTaskStart(time: TaskTime): string | undefined {
+  return time.earlyStart || time.scheduleStart || time.lateStart || undefined;
+}
+
+/** Finish-keten: early → schedule → late, met een laatste terugval op {@link resolveTaskStart} —
+ *  zodat een taak met alleen een start nooit uit de scrolbare contentbreedte valt terwijl hij wél
+ *  voor de Ctrl+0-fit meetelt. Zonder die terugval kan `computeFitToProject` naar een positie zoomen
+ *  die buiten `maxScrollX` (computeGanttScrollBounds) valt. Gedeeld met `computeContentSpanDays`
+ *  (ganttRenderOptions.ts) zodat de twee ketens niet opnieuw uiteen kunnen lopen — dat was tot nu toe
+ *  alleen belofte via een toelichtende commentaarregel op beide plekken. Met de huidige importers
+ *  (IFC/CSV/MSPDI/P6/MPP) heeft elke taak altijd een niet-lege finish-keten; deze terugval dekt dus
+ *  alleen corrupte documentdata of een externe adapter/MCP-payload die buiten de taak-fabrieken
+ *  (`createDefaultTaskTime`/`mergeTaskTime`, `src/utils/taskDefaults.ts`) om schrijft. */
+export function resolveTaskFinish(time: TaskTime): string | undefined {
+  return time.earlyFinish || time.scheduleFinish || time.lateFinish || resolveTaskStart(time);
+}
 
 /**
  * Zoomstap van de IN-/UITZOOM-knoppen en -sneltoetsen (K-item 34). Additief, niet
@@ -31,14 +50,67 @@ export const DEFAULT_ZOOM = 30;
  *  useZoomShortcuts (Ctrl+0-fit) en de open-fit (fileSlice.requestFitToProject → GanttCanvas). */
 export const ORIGIN_PADDING_DAYS = 14;
 
+export interface TimelineZoomResult {
+  zoom: number;
+  scrollX: number;
+}
+
+/**
+ * Cursor-geankerde zoom binnen één timelinepaneel. `anchorX` is altijd lokaal aan dat paneel:
+ * x=0 is de linker tijdlijnrand en er wordt dus geen externe DOM-kolom meer afgetrokken.
+ */
+export function computeTimelineZoom(
+  currentZoom: number,
+  requestedZoom: number,
+  scrollX: number,
+  anchorX: number,
+  maxZoom: number,
+): TimelineZoomResult {
+  const zoom = Math.max(0.5, Math.min(maxZoom, requestedZoom));
+  if (zoom === currentZoom) return { zoom, scrollX };
+  const daysUnderCursor = (anchorX + scrollX) / currentZoom;
+  return {
+    zoom,
+    scrollX: Math.max(0, daysUnderCursor * zoom - anchorX),
+  };
+}
+
+export interface SplitPaneWidths {
+  primary: number;
+  secondary: number;
+}
+
+/** Verdeel uitsluitend de ruimte naast de splitter over de twee timelinepanelen. */
+export function computeSplitPaneWidths(
+  totalWidth: number,
+  ratio: number,
+  splitterWidth: number,
+): SplitPaneWidths {
+  const available = Math.max(0, totalWidth - Math.max(0, splitterWidth));
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+  const primary = available * clampedRatio;
+  return { primary, secondary: available - primary };
+}
+
+/**
+ * Dezelfde verdeling als {@link computeSplitPaneWidths}, uitgedrukt als breed ondersteunde CSS.
+ * `calc(20% - 1px)` is gelijk aan `(100% - 5px) × 0,2`, zonder te leunen op CSS Level 4-
+ * vermenigvuldiging die nog niet in iedere ingebouwde webview beschikbaar is.
+ */
+export function splitPanePrimaryWidthCss(ratio: number, splitterWidth: number): string {
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+  const clampedSplitter = Math.max(0, splitterWidth);
+  return `calc(${clampedRatio * 100}% - ${clampedSplitter * clampedRatio}px)`;
+}
+
 export interface AnchoredZoomInput {
   currentZoom: number;
   currentScrollX: number;
   requestedZoom: number;
-  /** Cursorpositie in canvaspixels, gemeten vanaf de linkerrand van het pane. */
+  /** Cursorpositie in pixels, gemeten in het coördinatenstelsel van de aanroeper. */
   anchorX: number;
-  /** 0 voor het secundaire pane; de echte taaktabelbreedte voor primary. */
-  taskTableWidth: number;
+  /** X-oorsprong van de tijdlijn binnen datzelfde coördinatenstelsel. */
+  chartOriginX: number;
   maxZoom: number;
 }
 
@@ -47,14 +119,15 @@ export interface AnchoredZoomInput {
  * daar na de zoom liggen; `null` betekent dat klemmen geen wijziging oplevert.
  */
 export function computeAnchoredZoom(input: AnchoredZoomInput): { zoom: number; scrollX: number } | null {
-  const zoom = Math.max(0.5, Math.min(input.maxZoom, input.requestedZoom));
-  if (zoom === input.currentZoom) return null;
-  const chartAnchorX = input.anchorX - input.taskTableWidth;
-  const daysUnderCursor = (chartAnchorX + input.currentScrollX) / input.currentZoom;
-  return {
-    zoom,
-    scrollX: Math.max(0, daysUnderCursor * zoom - chartAnchorX),
-  };
+  const chartAnchorX = input.anchorX - input.chartOriginX;
+  const result = computeTimelineZoom(
+    input.currentZoom,
+    input.requestedZoom,
+    input.currentScrollX,
+    chartAnchorX,
+    input.maxZoom,
+  );
+  return result.zoom === input.currentZoom ? null : result;
 }
 
 /**
@@ -123,7 +196,7 @@ export function computeEffectiveViewStart(
 }
 
 /** Resultaat van {@link computeFitToProject}: de zoom + scroll waarmee het HELE project
- *  (vroegste start … laatste finish) edge-to-edge in het chart-gedeelte past. */
+ *  (vroegste start … laatste finish) edge-to-edge in het tijdlijnpaneel past. */
 export interface FitToProject {
   zoom: number;
   viewStartDate: string;
@@ -132,41 +205,36 @@ export interface FitToProject {
 
 /**
  * Bereken de zoom + scroll zodat de volledige projectperiode edge-to-edge in het zichtbare
- * chart-gedeelte past. ÉÉN bron van waarheid, gedeeld door de Ctrl+0-handler (useZoomShortcuts)
+ * tijdlijnpaneel past. ÉÉN bron van waarheid, gedeeld door de Ctrl+0-handler (useZoomShortcuts)
  * en de open-fit (GanttCanvas op het `pendingFit`-signaal) — zodat beide nooit uit elkaar lopen.
  *
- * `usableWidth` = containerbreedte − takentabelbreedte (de store kent die breedte niet; de
- * aanroeper meet ze). Spiegelt de veldvolgorde van `GanttCanvas.effectiveViewStart` /
+ * `timelineWidth` is de daadwerkelijk gemeten paneelbreedte. Spiegelt de veldvolgorde van
+ * `GanttCanvas.effectiveViewStart` /
  * content-width zodat de span exact klopt met wat de renderer tekent. Geeft `null` bij een leeg
  * project of een niet-zinnige breedte (≤ 0) — de aanroeper houdt dan zijn eigen gedrag aan.
  */
 export function computeFitToProject(
   tasks: Task[],
-  usableWidth: number,
+  timelineWidth: number,
   enableQuarterHourZoom: boolean,
   enableHourPlanning = false,
   navigationStartDates: string[] = [],
 ): FitToProject | null {
-  if (tasks.length === 0 || usableWidth <= 0) return null;
+  if (tasks.length === 0 || timelineWidth <= 0) return null;
   let minStart: string | null = null;
   let maxFinish: string | null = null;
   for (const task of tasks) {
-    // LET OP de `|| s` op de finish-keten: die staat hier WEL en in `computeContentSpanDays`
-    // (ganttRenderOptions.ts) NIET. Een taak met alleen een start telt dus mee voor de Ctrl+0-fit
-    // maar niet voor de contentbreedte, en kan daardoor buiten `maxScrollX` vallen terwijl de fit
-    // er wel naartoe zoomt. Bestaand verschil, niet door K-item 33 ontstaan, en met de huidige
-    // `createDefaultTaskTime` (die altijd een `scheduleFinish` zet) alleen bereikbaar via een
-    // corrupte import of een externe adapter. Genoteerd als open punt in docs/TODO.md; deze regel
-    // staat er zodat de volgende lezer niet denkt dat het een slordigheid is.
-    const s = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
-    const f = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish || s;
+    // Start/finish via de gedeelde ketens hierboven — {@link resolveTaskFinish} valt terug op de
+    // start, dus deze fit blijft in lockstep met `computeContentSpanDays` (ganttRenderOptions.ts).
+    const s = resolveTaskStart(task.time);
+    const f = resolveTaskFinish(task.time);
     if (s && (!minStart || s < minStart)) minStart = s;
     if (f && (!maxFinish || f > maxFinish)) maxFinish = f;
   }
   if (!minStart || !maxFinish) return null;
   const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
   const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
-  const zoom = Math.max(0.5, Math.min(max, usableWidth / span));
+  const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
   // De renderer kan zijn oorsprong verder naar links trekken voor kalenderuitzonderingen. Een fit
   // die blind met alleen `ORIGIN_PADDING_DAYS` rekent, zet dan wel de juiste zoom maar laat het
   // project te ver naar rechts staan. Gebruik exact zijn effectieve oorsprong en pan van daaruit
@@ -307,12 +375,12 @@ export interface FocusTaskHorizontal {
 export function computeFocusTaskHorizontal(
   durationDays: number,
   midDayOffset: number,
-  usableWidth: number,
+  timelineWidth: number,
 ): FocusTaskHorizontal {
   const duration = Math.max(1, durationDays);
-  const rawZoom = (usableWidth * FOCUS_TASK_WIDTH_FRACTION) / duration;
+  const rawZoom = (timelineWidth * FOCUS_TASK_WIDTH_FRACTION) / duration;
   const zoom = Math.max(FOCUS_TASK_MIN_ZOOM, Math.min(FOCUS_TASK_MAX_ZOOM, rawZoom));
-  const scrollX = Math.max(0, midDayOffset * zoom - usableWidth / 2);
+  const scrollX = Math.max(0, midDayOffset * zoom - timelineWidth / 2);
   return { zoom, scrollX };
 }
 

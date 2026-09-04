@@ -1,3 +1,6 @@
+// Toelichting bij een nieuwe instelling (stappen, drie-plekken-UI, wat níét mechanisch bewaakt
+// wordt): docs/recepten/instelling.md.
+//
 // Settings-register (pakket M, audit H1) — DÉ declaratieve bron van waarheid die per app-instelling
 // (localStorage-sleutel, validator/parser, doel-UIState-veld) bindt. Naar het bewezen `SHORTCUTS`-
 // patroon (`src/hooks/keyboard/shortcutRegistry.ts`): één descriptor-entry per instelling i.p.v. een
@@ -19,6 +22,7 @@
 import { snapToChoice } from '@/utils/numberChoice';
 import { loadBarColorSelection } from '@/utils/barColorSettings';
 import type { UIState } from '@/state/slices/types';
+import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import {
   DATE_NOTATIONS,
   DURATION_DISPLAYS,
@@ -46,7 +50,9 @@ import {
   RAIL_SECTION_MAX_HEIGHT,
   HISTOGRAM_MIN_HEIGHT,
   HISTOGRAM_MAX_HEIGHT,
+  loadTaskGridPreferences,
 } from '@/utils/settingsStore';
+import type { TaskGridPreferencesLoadResult } from '@/utils/settingsStore';
 
 // --- Parse-/validatiehelpers (byte-identiek aan de oude `loadX`-validators) ---------------------
 
@@ -152,6 +158,9 @@ export const SETTINGS: SettingDescriptor[] = [
   // openstaan. Alleen de AFMETING is een voorkeur; de inklaptoestand per sectie is sessiewerk en
   // staat hier daarom bewust NIET — net zoals `rightPanelCollapsed` er niet staat.
   setting({ key: 'railPropertiesHeight', field: 'railPropertiesHeight', parse: parseClampedInt(RAIL_SECTION_MIN_HEIGHT, RAIL_SECTION_MAX_HEIGHT) }),
+  // Issue #53: idem voor het Waarschuwingenpaneel onderin de rail — alleen de hoogte is een
+  // voorkeur, `showWarningsPanel` zelf is sessiewerk.
+  setting({ key: 'railWarningsHeight', field: 'railWarningsHeight', parse: parseClampedInt(RAIL_SECTION_MIN_HEIGHT, RAIL_SECTION_MAX_HEIGHT) }),
 
   // Histogramstrook (view-state) — zichtbaarheid + geklemde hoogte
   setting({ key: 'showHistogram', field: 'showHistogram', parse: parseBoolean }),
@@ -196,12 +205,16 @@ export const SETTINGS: SettingDescriptor[] = [
  *  renders; de eindtoestand is identiek (geen veld overlapt een ander).
  *
  *  AFWIJKERS (bewust buiten `SETTINGS`, expliciet hier):
- *  - Thema: `initTheme()` migreert 7→3 oude thema's, PERSISTEERT de conversie terug naar localStorage
- *    en levert ALTIJD een waarde (default 'dark'). Dat past niet in het "afwezig ⇒ weglaten"-contract
- *    van `SETTINGS`, dus expliciet.
- *  - Bouwmodus: `loadConstructionMode()` is SYNCHROON (geen Promise) — de kalenderfabriek moet de vlag
- *    direct kunnen uitlezen — en heeft eigen serialisatie (`JSON.stringify`, default `true`). Wordt
- *    daarom als losse sync-aanroep toegevoegd; de vlag wordt ALTIJD gezet (net als voorheen). */
+ *  1. Thema: `initTheme()` migreert 7→3 oude thema's, PERSISTEERT de conversie terug naar localStorage
+ *     en levert ALTIJD een waarde (default 'dark'). Dat past niet in het "afwezig ⇒ weglaten"-contract
+ *     van `SETTINGS`, dus expliciet.
+ *  2. Bouwmodus: `loadConstructionMode()` is SYNCHROON (geen Promise) — de kalenderfabriek moet de vlag
+ *     direct kunnen uitlezen — en heeft eigen serialisatie (`JSON.stringify`, default `true`). Wordt
+ *     daarom als losse sync-aanroep toegevoegd; de vlag wordt ALTIJD gezet (net als voorheen).
+ *  3. Balkkleurkeuze (`barColorSelection`): `loadBarColorSelection()` is één objectkeuze met
+ *     legacy-migratie uit twee oude instellingen — past niet in het 1-op-1-register, want de loader
+ *     leest eerst de canonieke sleutel en valt pas bij ontbreken daarvan terug op de twee oude
+ *     bronnen. */
 export async function loadAllSettings(): Promise<Partial<UIState>> {
   const patch: Partial<UIState> = {};
 
@@ -226,4 +239,12 @@ export async function loadAllSettings(): Promise<Partial<UIState>> {
   }
 
   return patch;
+}
+
+/** Gestructureerde bootstrap-afwijker naast het 1-op-1 UI-register: één versieerbare sleutel
+ * voedt twee surfaces plus MRU en kan daarom niet als `SettingDescriptor` worden gemodelleerd. */
+export async function loadTaskGridSettings(
+  defaults: PersistedTaskGridPreferencesV1,
+): Promise<TaskGridPreferencesLoadResult> {
+  return loadTaskGridPreferences(defaults);
 }
