@@ -350,6 +350,33 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
       FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
       gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
+
+### Taaktypes / opgeslagen werk — ontwerp geschreven, nog niet gebouwd (2026-09-04)
+
+> Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
+> spec van 2026-08-18). Bouwt pas op een main mét de XER-import erin (tweede XER-merge eerst).
+> Eigenaarsbesluiten 1–7 van 2026-09-04 staan daar in §3; drie punten staan nog open.
+
+- [ ] **Beslispunt 8 — twee MS Project-gedragingen passen niet in de vier P6-types** (spec §2.3):
+      "Fixed Units, niet effort-driven" (MSP's fabrieksinstelling) en "Fixed Duration, effort-driven".
+      Advies: vier types in het menu, bewaard `effortDriven` stuurt alleen de twee afwijkende cellen.
+      Blokkeert alleen bouwstap 6 (resource erbij/eraf).
+- [ ] **Beslispunt 9 — drie optionele werkvelden per toewijzing** (begroot/verricht/resterend, de
+      driehoek op het restant); aanbeveling uit de XER-corpusscan, nog niet expliciet bevestigd.
+- [ ] **Beslispunt 10 — meerdere toewijzingen zonder eigen spanne** (spec §6.2): OPS laat elke
+      toewijzing over de hele restduur lopen; MSP/P6 geven toewijzingen een eigen spanne. Later op te
+      heffen door `workWindowStart/Finish` te activeren.
+- [ ] **MSP-meetlat: 28 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
+      tot dan draagt elke case `evidence: 'reasoned' | 'documented'` in `cases-taaktypes.json`.
+- [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt
+      hoe vaak beslispunt 8 in de praktijk speelt. Het corpus is niet in de repo.
+- [ ] **Nivelleerder-optie "inzet verlagen bij vast werk"** (eigenaarsbesluit 7-B, 2026-09-04) als
+      geavanceerde optie naast het verschuiven; de verdeler raakt nu nooit inzet of werk.
+- [ ] **% werk gereed** (MSP % Work Complete) naast de duurgebaseerde `completion`.
+- [ ] **Projectstandaard-werkregel in de UI** (projectwizard/projectinfo); het veld zelf komt in
+      bouwstap 1.
+- [ ] **P6-optie "preserve existing assignments"** bij resource erbij: OPS volgt altijd de
+      synchronisatietabel ("recalculate"); de preserve-variant is een instelling voor later.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
