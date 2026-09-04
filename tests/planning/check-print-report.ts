@@ -460,7 +460,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   // in de TABELZONE (de tijdschaal-kop rechts van de tabel tekent zelf dagnummers, die tellen niet).
   ok(!shown.texts.some(t => t.x < shown.dims.tableWidth && /^[123]$/.test(t.text)),
     '#93 geen rijnummers meer in de tabel');
-  ok(shown.texts.some(t => t.text === 'WBS' && t.x < 60), '#93 WBS is de eerste kolom (kop binnen 60 px)');
+  ok(shown.texts.some(t => t.text === 'WBS' && t.x < 50), '#93 WBS is de eerste kolom (kop binnen 50 px)');
 }
 
 if (failures > 0) { console.log(`print-report: ${failures} faalregels`); process.exit(1); }

@@ -37,7 +37,9 @@ import type { BaselineOverlay } from '@/types/baseline';
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
 const TIMELINE_HEADER_HEIGHT = 44;
-const TABLE_WIDTH = 420; // 450 tot issue #93; de 30 px van de #-kolom gaan naar de tijdlijn
+// Issue #93: 450 → 380. De 30 px van de verdwenen #-kolom en 40 px uit de te ruime WBS-/Start-/
+// Einde-kolommen gaan naar de tijdlijn; de naamkolom houdt exact zijn oude 130 px. Zie `COL`.
+const TABLE_WIDTH = 380;
 const FOOTER_HEIGHT = 50;
 // Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
 // en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
@@ -74,12 +76,18 @@ const BAR_LABEL_PAD_LEFT = 4;
 // Column definitions for the task table. Issue #93: de vroegere `#`-rijnummerkolom is bewust
 // verdwenen — de automatisch genummerde WBS-kolom zegt al waar een rij staat, en op papier is
 // elke millimeter voor de tijdlijn.
+//
+// De vaste breedtes zijn gemeten met het gevendorde Inter (waarden 8 px, koppen 9 px vet, cel-
+// padding 4 px per zijde), niet geschat: een datum `31-12-2026` meet 43,5 px (⇒ 51,5 met padding),
+// een WBS-code `1.10.12.3` 31,5 px, `1000d` 23 px en `100%` 21 px. Start/Einde op 55 en WBS op 50
+// houden daarmee ≥ 7 % marge. Duur en Volt. blijven 45 om de langste vertaalde koppen (pl
+// "Czas trwania" 57 px — die liep al over — en de "Fertigst." 37 px) niet verder te knijpen.
 const COL = {
-  wbs:       { x: 0,   w: 60  },
-  name:      { x: 60,  w: 150 }, // flexible, actual end depends on remaining
+  wbs:       { x: 0,   w: 50  },
+  name:      { x: 50,  w: 150 }, // flexible, actual end depends on remaining
   duration:  { x: 0,   w: 45  }, // positioned from right
-  start:     { x: 0,   w: 70  },
-  end:       { x: 0,   w: 70  },
+  start:     { x: 0,   w: 55  },
+  end:       { x: 0,   w: 55  },
   complete:  { x: 0,   w: 45  },
 };
 
