@@ -18,6 +18,8 @@
     "autoSaveFailed": "Automatisch opslaan mislukt",
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
     "recoveryRestoreFailed": "Herstellen mislukt",
+    "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
+    "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "scheduleFailed": "Planning kon niet worden berekend",
     "ifcParseFailed": "IFC kon niet worden gelezen",
     "templateSaved": "Tak bewaard als sjabloon '{{name}}'",

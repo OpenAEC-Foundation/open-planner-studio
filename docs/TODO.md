@@ -404,11 +404,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       bron op** met een `commitMode`-prop (commit-op-blur) in plaats van per-actie coalesce-keys —
       de gedeelde `task-sections`-componenten voeden zowel het eigenschappenpaneel als de
       taakdialoog, dus een fix in het veld zelf dekt beide in één keer.
-- [ ] **Recovery-robuustheid bij een corrupt herstelbestand.** Sinds 2026-07-20 rekent
-      `restoreDocuments` het herstelde document door (`runCPM`), net als elk ander laadpad. Een
-      corrupte of afgekapte recovery-snapshot na een crash laat het opstarten daardoor klappen in
-      plaats van doormodderen. Overweeg een defensieve afhandeling rond die ene aanroep, met een
-      zichtbare melding in plaats van een stille catch.
 - [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft
       `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
       taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum

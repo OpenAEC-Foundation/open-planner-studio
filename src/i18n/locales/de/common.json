@@ -13,6 +13,8 @@
     "autoSaveFailed": "Automatisches Speichern fehlgeschlagen",
     "recoveryReadFailed": "Wiederhergestellte Datei konnte nicht gelesen werden",
     "recoveryRestoreFailed": "Wiederherstellung fehlgeschlagen",
+    "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
+    "recoveryDocumentsSkipped_other": "{{count}} Wiederherstellungsdateien konnten nicht geladen werden und wurden übersprungen.",
     "scheduleFailed": "Zeitplan konnte nicht berechnet werden",
     "ifcParseFailed": "IFC konnte nicht gelesen werden",
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert",

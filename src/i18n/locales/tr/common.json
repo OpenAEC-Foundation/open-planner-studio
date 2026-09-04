@@ -13,6 +13,8 @@
     "autoSaveFailed": "Otomatik kaydetme başarısız",
     "recoveryReadFailed": "Kurtarılan dosya okunamadı",
     "recoveryRestoreFailed": "Geri yükleme başarısız",
+    "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
+    "recoveryDocumentsSkipped_other": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "scheduleFailed": "Planlama hesaplanamadı",
     "ifcParseFailed": "IFC okunamadı",
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi",
