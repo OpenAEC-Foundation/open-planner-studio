@@ -69,13 +69,15 @@ La variazione della curva si nota più chiaramente nell'istogramma: la stessa at
 
 ### Modificare da sé la distribuzione delle ore
 
-Quando nessuna curva è adatta, imposta tu stesso le ore per giorno lavorativo. Accanto al menu della curva di ogni assegnazione c'è il pulsante **Distribuzione ore…** (l'icona a barre); apre una finestra con una riga per ogni giorno lavorativo dell'attività — gli stessi giorni su cui l'istogramma contabilizza, quindi saltando i giorni di pausa di un'attività suddivisa. Ogni riga mostra la data, il lavoro **rimanente** in ore (modificabile) e le unità derivate; se l'assegnazione porta già lavoro **effettivo** (da un'importazione con avanzamento), questo compare in una colonna a parte, in sola lettura. Il punto di partenza è esattamente ciò che l'assegnazione contabilizza oggi: la curva scelta, oppure la curva esatta di un'importazione P6 o MS Project.
+Quando nessuna curva è adatta, dai forma tu alla distribuzione, per **fasi**: tratti consecutivi dell'attività, ciascuno con un impegno fisso («mezza squadra la prima settimana, poi la squadra intera»). Il pulsante **Distribuzione ore…** accanto al menu della curva apre una finestra con, in alto, una striscia in cui ogni fase è un blocco sui suoi giorni lavorativi (l'altezza è l'impegno) e, sotto, le stesse fasi in tabella: dal, al, giorni, impegno in unità al giorno, ore al giorno e totale. Il punto di partenza è ciò che l'assegnazione contabilizza oggi. Il lavoro effettivo compare in grigio, in sola lettura.
 
-- **Applica forma** riempie le righe con una delle otto forme standard (le sei curve più *Doppio picco* e *Tartaruga* di MS Project e P6), mantenendo il totale attuale — un comodo punto di partenza da rifinire poi giorno per giorno.
-- **Applica** salva la distribuzione come *contorno* di questa assegnazione. Il menu della curva mostra allora **Contorno** ed è disattivato: il contorno è un dato e prevale su qualsiasi curva. Istogramma, sovrassegnazione, livellatore e panoramica di occupazione lo usano subito, e la distribuzione viaggia nel file IFC e in un'esportazione verso MS Project XML o Primavera P6 XML.
-- **Rilascia distribuzione** rimuove il contorno; l'assegnazione torna poi a seguire la sua curva.
+- **Trascinare nella striscia**: il confine tra due blocchi allunga o accorcia una fase (per giorni lavorativi interi), il bordo superiore imposta l'impegno, un doppio clic su un giorno divide la fase.
+- **Digitare nella tabella**: giorni e impegno per fase; **Dividi** e **Unisci**. L'ultima fase arriva sempre alla fine dell'attività.
+- **Applica forma** riempie le fasi con una delle otto forme standard mantenendo il totale.
+- **Applica** salva la distribuzione come *contorno* dell'assegnazione; il menu mostra **Contorno** ed è disattivato. Istogramma, sovrassegnazione, livellatore e occupazione lo usano subito, e la distribuzione viaggia in IFC e nelle esportazioni MS Project XML / P6 XML.
+- **Rilascia distribuzione** rimuove il contorno.
 
-Un contorno cambia soltanto le ore per giorno di questa singola assegnazione. Le date dell'attività, la durata e le eventuali interruzioni restano come sono — anche un giorno a 0 ore resta entro la durata dell'attività e non crea un'interruzione. Per accorciare, allungare o interrompere l'attività stessa, modifica l'attività. Se in seguito cambi la durata, il contorno si allunga o si accorcia in proporzione (vedi la guida [Importazione da MS Project](docs://gids-msproject-import), sezione Assegnazioni con contorno). Il pannello delle proprietà contrassegna un'attività con distribuzioni delle ore proprie con un badge grigio che rimanda alla stessa sezione. Applicare e rilasciare sono normali passi di annullamento.
+Un contorno cambia solo le ore al giorno di questa assegnazione; date, durata e interruzioni restano invariate, anche con una fase a impegno 0. Se poi cambi la durata, il contorno si allunga in proporzione (vedi [Importazione da MS Project](docs://gids-msproject-import)). Il pannello delle proprietà contrassegna l'attività con un badge grigio. Applicare e rilasciare sono normali passi di annullamento.
 
 ## Calendari risorsa
 

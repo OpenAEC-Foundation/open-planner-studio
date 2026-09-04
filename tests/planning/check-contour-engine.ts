@@ -32,6 +32,10 @@ import { rescaleTaskContours } from '@/utils/taskDefaults';
 import {
   buildEditedContourPeriods, contourDaySlots, shapeSlotWork, workDaySlotsToPeriods,
 } from '@/engine/contour/contourEdit';
+import {
+  fitPhasesToDays, mergePhaseWithNext, movePhaseBoundary, phaseStartDay, phasesFromSlots, phasesTotalDays,
+  setPhaseDays, setPhaseUnits, slotsFromPhases, splitPhase,
+} from '@/engine/contour/contourPhases';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -532,6 +536,37 @@ console.log('-- (g) store: setAssignmentContour zet/vervangt/laat los, met undo 
   const t2 = S().tasks.find((t) => t.id === id2)!;
   eq('g18 legacy-contour vervangen op zijn plek, resourceId gezet, resourceUid behouden', t2.timephasedContours?.map((c) => [c.resourceUid, c.resourceId, c.periods.map((p) => p.workMinutes)]), [[7, r3id, [240, 240]]]);
   S().newProject();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (i) fasenmodel: run-length ↔ slots, splitsen/samenvoegen/grens/inzet --');
+{
+  const ph = (days: number, unitsPerDay: number) => ({ days, unitsPerDay });
+  eq('i1 uniforme slots ⇒ één fase', phasesFromSlots([480, 480, 480, 480, 480], MPD), [ph(5, 1)]);
+  eq('i2 run-length over de inzet (halve ploeg, dan vol, dan niets)', phasesFromSlots([240, 240, 480, 480, 480, 0], MPD), [ph(2, 0.5), ph(3, 1), ph(1, 0)]);
+  eq('i3 inverse: fasen ⇒ slots', slotsFromPhases([ph(2, 0.5), ph(3, 1), ph(1, 0)], MPD), [240, 240, 480, 480, 480, 0]);
+  eq('i4 tolerantie: 0,501 en 0,5 vouwen samen, 0,51 niet', phasesFromSlots([240, 240.48, 244.8], MPD).map((p) => p.days), [2, 1]);
+  eq('i5 lege slots ⇒ geen fasen', phasesFromSlots([], MPD), []);
+  const base = [ph(5, 1)];
+  eq('i6 splitsen ná 2 dagen', splitPhase(base, 0, 2), [ph(2, 1), ph(3, 1)]);
+  eq('i7 splitsen op een ongeldige positie is een no-op', [splitPhase(base, 0, 0), splitPhase(base, 0, 5), splitPhase(base, 3, 1)], [base, base, base]);
+  const two = [ph(2, 0.5), ph(3, 1)];
+  eq('i8 samenvoegen houdt de linker inzet', mergePhaseWithNext(two, 0), [ph(5, 0.5)]);
+  eq('i9 samenvoegen van de laatste fase is een no-op', mergePhaseWithNext(two, 1), two);
+  eq('i10 grens verschuiven naar dag 3: buur vangt op, totaal blijft 5', movePhaseBoundary(two, 0, 3), [ph(3, 0.5), ph(2, 1)]);
+  eq('i11 grens klemt op minstens één dag per fase', [movePhaseBoundary(two, 0, 0), movePhaseBoundary(two, 0, 9)], [[ph(1, 0.5), ph(4, 1)], [ph(4, 0.5), ph(1, 1)]]);
+  eq('i12 grens ná de laatste fase bestaat niet (no-op)', movePhaseBoundary(two, 1, 3), two);
+  eq('i13 setPhaseDays = grens verschuiven', setPhaseDays(two, 0, 4), [ph(4, 0.5), ph(1, 1)]);
+  eq('i14 setPhaseUnits, negatief/NaN ⇒ 0', [setPhaseUnits(two, 1, 0.75)[1], setPhaseUnits(two, 1, -1)[1], setPhaseUnits(two, 1, NaN)[1]], [ph(3, 0.75), ph(3, 0), ph(3, 0)]);
+  eq('i15 startdag per fase', [phaseStartDay(two, 0), phaseStartDay(two, 1), phasesTotalDays(two)], [0, 2, 5]);
+  eq('i16 fitPhasesToDays: te kort ⇒ laatste fase verlengd', fitPhasesToDays(two, 8, 1), [ph(2, 0.5), ph(6, 1)]);
+  eq('i17 fitPhasesToDays: te lang ⇒ afgekapt', fitPhasesToDays(two, 3, 1), [ph(2, 0.5), ph(1, 1)]);
+  eq('i18 fitPhasesToDays: zonder fasen ⇒ één vulfase', fitPhasesToDays([], 4, 0.5), [ph(4, 0.5)]);
+  // Round-trip door de opslagvorm (één periode per werkdag) — de fasen komen identiek terug.
+  const per = buildEditedContourPeriods(undefined, slotsFromPhases(two, MPD), undefined, MPD);
+  eq('i19 fasen → periodes → slots → fasen is identiek', phasesFromSlots(contourDaySlots(per, undefined, MPD).remaining, MPD), two);
+  // Vorm als fasen: FRONT_LOADED over 4 dagen = 2 fasen (65/35-tabel: dag 1-2 hoog, dag 3-4 laag).
+  eq('i20 FRONT_LOADED over 4 dagen ⇒ twee fasen', phasesFromSlots(shapeSlotWork('FRONT_LOADED', 1920, 4), MPD).map((p) => [p.days, r3([p.unitsPerDay])[0]]), [[2, 1.3], [2, 0.7]]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -69,13 +69,15 @@ Różnica krzywych najwyraźniej widoczna jest w histogramie: to samo zadanie z 
 
 ### Samodzielna edycja rozkładu godzin
 
-Gdy żadna krzywa nie pasuje, ustaw godziny na dzień roboczy samodzielnie. Obok listy krzywych każdego przypisania znajduje się przycisk **Rozkład godzin…** (ikona wykresu słupkowego); otwiera on okno z jednym wierszem na każdy dzień roboczy zadania — te same dni, na których księguje histogram, więc dni przerwy podzielonego zadania są pomijane. Każdy wiersz pokazuje datę, **pozostałą** pracę w godzinach (edytowalną) i wyliczone jednostki; jeśli przypisanie ma już pracę **wykonaną** (z importu z postępem), znajduje się ona w osobnej kolumnie tylko do odczytu. Punktem wyjścia jest dokładnie to, co przypisanie księguje dziś: wybrana krzywa albo dokładna krzywa z importu P6 lub MS Project.
+Gdy żadna krzywa nie pasuje, kształtujesz rozkład sam, w **fazach**: kolejnych odcinkach zadania, każdy ze stałym nakładem („pół brygady w pierwszym tygodniu, potem cała brygada”). Przycisk **Rozkład godzin…** obok listy krzywych otwiera okno z paskiem u góry, gdzie każda faza jest blokiem nad swoimi dniami roboczymi (wysokość to nakład), a poniżej te same fazy w tabeli: od, do, dni, nakład w jednostkach na dzień, godziny na dzień i suma. Punktem wyjścia jest to, co przypisanie księguje dziś. Praca wykonana jest szara i tylko do odczytu.
 
-- **Zastosuj kształt** wypełnia wiersze jednym z ośmiu standardowych kształtów (sześć krzywych plus *Podwójny szczyt* i *Żółw* z MS Project i P6), zachowując bieżącą sumę — wygodny punkt wyjścia do późniejszej korekty dzień po dniu.
-- **Zastosuj** zapisuje rozkład jako *kontur* tego przypisania. Lista krzywych pokazuje wtedy **Kontur** i jest wyłączona: kontur to dane i ma pierwszeństwo przed każdą krzywą. Histogram, przeciążenie, bilansowanie i przegląd obłożenia korzystają z niego od razu, a rozkład wędruje w pliku IFC oraz w eksporcie do MS Project XML lub Primavera P6 XML.
-- **Zwolnij rozkład** usuwa kontur; przypisanie znów podąża za swoją krzywą.
+- **Przeciąganie na pasku**: granica między blokami wydłuża lub skraca fazę (o całe dni robocze), górna krawędź ustawia nakład, dwukrotne kliknięcie dnia dzieli fazę.
+- **Wpisywanie w tabeli**: dni i nakład na fazę; **Podziel** i **Scal**. Ostatnia faza zawsze trwa do końca zadania.
+- **Zastosuj kształt** wypełnia fazy jednym z ośmiu standardowych kształtów, zachowując sumę.
+- **Zastosuj** zapisuje rozkład jako *kontur* przypisania; lista pokazuje **Kontur** i jest wyłączona. Histogram, przeciążenie, bilansowanie i obłożenie korzystają z niego od razu, a rozkład wędruje w IFC i eksportach MS Project XML / P6 XML.
+- **Zwolnij rozkład** usuwa kontur.
 
-Kontur zmienia wyłącznie godziny dzienne tego jednego przypisania. Daty zadania, czas trwania i ewentualne przerwy pozostają bez zmian — dzień z 0 godzin także pozostaje w obrębie czasu trwania zadania i nie tworzy przerwy. Aby skrócić, wydłużyć lub przerwać samo zadanie, edytuj zadanie. Jeśli później zmienisz czas trwania, kontur rozciąga się lub kurczy proporcjonalnie (zob. przewodnik [Import z MS Project](docs://gids-msproject-import), sekcja Przypisania z konturem). Panel właściwości oznacza zadanie z własnymi rozkładami godzin szarą plakietką z odnośnikiem do tej samej sekcji. Zastosowanie i zwolnienie to zwykłe kroki cofania.
+Kontur zmienia tylko godziny dzienne tego przypisania; daty, czas trwania i przerwy pozostają, także przy fazie z nakładem 0. Jeśli później zmienisz czas trwania, kontur rozciąga się proporcjonalnie (zob. [Import z MS Project](docs://gids-msproject-import)). Panel właściwości oznacza zadanie szarą plakietką. Zastosowanie i zwolnienie to zwykłe kroki cofania.
 
 ## Kalendarze zasobów
 

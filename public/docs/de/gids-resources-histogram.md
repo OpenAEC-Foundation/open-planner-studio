@@ -69,13 +69,15 @@ Kurvenvariation zeigt sich am deutlichsten im Histogramm: Dieselbe Aufgabe mit d
 
 ### Die Stundenverteilung selbst bearbeiten
 
-Passt keine Kurve, legen Sie die Stunden je Arbeitstag selbst fest. Neben der Kurvenauswahl jeder Zuweisung sitzt die Schaltfläche **Stundenverteilung…** (das Balkendiagramm-Symbol); sie öffnet ein Fenster mit einer Zeile je Arbeitstag des Vorgangs — dieselben Tage, auf die das Histogramm bucht, Pausentage eines unterbrochenen Vorgangs werden also übersprungen. Jede Zeile zeigt das Datum, die **verbleibende** Arbeit in Stunden (bearbeitbar) und die abgeleiteten Einheiten; trägt die Zuweisung bereits **Ist**-Arbeit (aus einem Import mit Fortschritt), steht sie in einer eigenen, schreibgeschützten Spalte. Ausgangspunkt ist genau das, was die Zuweisung heute bucht: die gewählte Kurve oder die exakte Kurve aus einem P6- oder MS-Project-Import.
+Passt keine Kurve, gestalten Sie die Verteilung selbst, in **Phasen**: zusammenhängende Abschnitte des Vorgangs mit je festem Einsatz („erste Woche halbe Kolonne, danach volle Kolonne“). Die Schaltfläche **Stundenverteilung…** neben der Kurvenauswahl öffnet ein Fenster mit oben einer Leiste, in der jede Phase ein Block über ihre Arbeitstage ist (Höhe = Einsatz), und darunter denselben Phasen als Tabelle: von, bis, Tage, Einsatz in Einheiten je Tag, Stunden je Tag und Summe. Ausgangspunkt ist, was die Zuweisung heute bucht. Ist-Arbeit erscheint grau und schreibgeschützt.
 
-- **Form anwenden** füllt die Zeilen mit einer der acht Standardformen (die sechs Kurven plus *Doppelte Spitze* und *Schildkröte* aus MS Project und P6) und behält die aktuelle Summe bei — ein praktischer Ausgangspunkt, den Sie danach tageweise anpassen.
-- **Anwenden** speichert die Verteilung als *Kontur* dieser Zuweisung. Die Kurvenauswahl zeigt dann **Kontur** und ist deaktiviert: die Kontur ist Daten und gewinnt gegen jede Kurve. Histogramm, Überlastung, Kapazitätsabgleich und Auslastungsübersicht rechnen sofort damit, und die Verteilung reist in der IFC-Datei und in einem Export nach MS Project XML oder Primavera P6 XML mit.
-- **Verteilung aufheben** entfernt die Kontur; die Zuweisung folgt danach wieder ihrer Kurve.
+- **Ziehen in der Leiste**: die Grenze zwischen zwei Blöcken verlängert oder verkürzt eine Phase (in ganzen Arbeitstagen), die Oberkante setzt den Einsatz, Doppelklick auf einen Tag teilt die Phase.
+- **Tippen in der Tabelle**: Tage und Einsatz je Phase; **Teilen** und **Zusammenführen**. Die letzte Phase läuft immer bis zum Vorgangsende.
+- **Form anwenden** füllt die Phasen mit einer der acht Standardformen und behält die Summe bei.
+- **Anwenden** speichert die Verteilung als *Kontur* der Zuweisung; die Kurvenauswahl zeigt **Kontur** und ist deaktiviert. Histogramm, Überlastung, Kapazitätsabgleich und Auslastung rechnen sofort damit, und die Verteilung reist in IFC sowie MS Project XML / P6 XML mit.
+- **Verteilung aufheben** entfernt die Kontur.
 
-Eine Kontur ändert ausschließlich die Stunden je Tag dieser einen Zuweisung. Vorgangstermine, Dauer und etwaige Unterbrechungen bleiben, wie sie sind — auch ein Tag mit 0 Stunden bleibt innerhalb der Vorgangsdauer und erzeugt keine Unterbrechung. Soll der Vorgang selbst kürzer, länger oder unterbrochen werden, bearbeiten Sie den Vorgang. Ändern Sie später die Dauer, wird die Kontur proportional gedehnt oder gestaucht (siehe den Leitfaden [MS-Project-Import](docs://gids-msproject-import), Abschnitt Konturierte Zuweisungen). Das Eigenschaftenpanel markiert einen Vorgang mit eigenen Stundenverteilungen mit einer grauen Plakette, die auf denselben Abschnitt verweist. Anwenden und Aufheben sind gewöhnliche Rückgängig-Schritte.
+Eine Kontur ändert nur die Stunden je Tag dieser Zuweisung; Termine, Dauer und Unterbrechungen bleiben, auch bei einer Phase mit Einsatz 0. Ändern Sie später die Dauer, wird die Kontur proportional gedehnt (siehe [MS-Project-Import](docs://gids-msproject-import)). Das Eigenschaftenpanel markiert einen Vorgang mit eigenen Verteilungen mit einer grauen Plakette. Anwenden und Aufheben sind gewöhnliche Rückgängig-Schritte.
 
 ## Ressourcenkalender
 

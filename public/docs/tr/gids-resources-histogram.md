@@ -69,13 +69,15 @@ Eğri değişimi en açık şekilde histogramda görünür: aynı birim/gün'e s
 
 ### Saat dağılımını kendiniz düzenleme
 
-Hiçbir eğri uymuyorsa iş günü başına saatleri kendiniz belirleyin. Her atamanın eğri açılır listesinin yanında **Saat dağılımı…** düğmesi (çubuk grafik simgesi) bulunur; görevin her iş günü için bir satır içeren bir pencere açar — histogramın kaydettiği günlerle aynıdır, bu yüzden bölünmüş bir görevin ara günleri atlanır. Her satırda tarih, düzenlenebilir **kalan** iş (saat) ve türetilen birimler görünür; atamada zaten **gerçekleşen** iş varsa (ilerleme içeren bir içe aktarmadan), o ayrı, salt okunur bir sütunda yer alır. Başlangıç noktası, atamanın bugün kaydettiğinin tam kendisidir: seçilen eğri ya da P6 veya MS Project içe aktarmasından gelen tam eğri.
+Hiçbir eğri uymuyorsa dağılımı **aşamalar** halinde kendiniz biçimlendirin: görevin ardışık bölümleri, her biri sabit bir eforla („ilk hafta yarım ekip, sonra tam ekip“). Eğri listesinin yanındaki **Saat dağılımı…** düğmesi bir pencere açar: üstte her aşamanın iş günleri üzerinde bir blok olduğu bir şerit (yükseklik efordur), altta aynı aşamalar tablo halinde: başlangıç, bitiş, gün, gün başına birim cinsinden efor, gün başına saat ve toplam. Başlangıç noktası atamanın bugün kaydettiğidir. Gerçekleşen iş gri ve salt okunurdur.
 
-- **Şekil uygula**, satırları sekiz standart şekilden biriyle (altı eğri artı MS Project ve P6'daki *Çift zirve* ve *Kaplumbağa*) doldurur ve mevcut toplamı korur — sonradan gün gün ayarlamak için pratik bir başlangıç.
-- **Uygula**, dağılımı bu atamanın *konturu* olarak kaydeder. Eğri listesi artık **Kontur** gösterir ve devre dışıdır: kontur veridir ve her eğriye üstün gelir. Histogram, aşırı atama, dengeleyici ve doluluk görünümü onu hemen kullanır; dağılım IFC dosyasında ve MS Project XML ya da Primavera P6 XML dışa aktarmasında da taşınır.
-- **Dağılımı kaldır** konturu siler; atama sonrasında yeniden eğrisini izler.
+- **Şeritte sürükleme**: iki blok arasındaki sınır aşamayı uzatır veya kısaltır (tam iş günü olarak), üst kenar eforu ayarlar, bir güne çift tıklamak aşamayı böler.
+- **Tabloya yazma**: aşama başına gün ve efor; **Böl** ve **Birleştir**. Son aşama her zaman görevin sonuna kadar sürer.
+- **Şekil uygula** aşamaları sekiz standart şekilden biriyle doldurur ve toplamı korur.
+- **Uygula** dağılımı atamanın *konturu* olarak kaydeder; liste **Kontur** gösterir ve devre dışıdır. Histogram, aşırı atama, dengeleyici ve doluluk onu hemen kullanır; dağılım IFC ile MS Project XML / P6 XML dışa aktarmalarında taşınır.
+- **Dağılımı kaldır** konturu siler.
 
-Bir kontur yalnızca bu tek atamanın günlük saatlerini değiştirir. Görev tarihleri, süre ve varsa kesintiler olduğu gibi kalır — 0 saatlik bir gün de görev süresi içinde kalır ve kesinti oluşturmaz. Görevin kendisini kısaltmak, uzatmak veya kesmek için görevi düzenleyin. Süreyi sonradan değiştirirseniz kontur orantılı olarak uzar veya kısalır (bkz. [MS Project içe aktarma](docs://gids-msproject-import) kılavuzu, Konturlu atamalar bölümü). Özellikler paneli, kendi saat dağılımları olan bir görevi aynı bölüme bağlanan gri bir rozetle işaretler. Uygulama ve kaldırma sıradan geri alma adımlarıdır.
+Bir kontur yalnızca bu atamanın günlük saatlerini değiştirir; tarihler, süre ve kesintiler, eforu 0 olan bir aşamada bile olduğu gibi kalır. Süreyi sonradan değiştirirseniz kontur orantılı uzar (bkz. [MS Project içe aktarma](docs://gids-msproject-import)). Özellikler paneli görevi gri bir rozetle işaretler. Uygulama ve kaldırma sıradan geri alma adımlarıdır.
 
 ## Kaynak takvimleri
 

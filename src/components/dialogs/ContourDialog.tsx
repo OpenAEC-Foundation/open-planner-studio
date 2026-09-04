@@ -11,7 +11,17 @@ import { contourIndexForAssignment, type ContourShape } from '@/engine/contour/c
 import {
   EDITABLE_CONTOUR_SHAPES, buildEditedContourPeriods, contourDaySlots, shapeSlotWork,
 } from '@/engine/contour/contourEdit';
+import {
+  type ContourPhase, fitPhasesToDays, mergePhaseWithNext, phaseStartDay, phasesFromSlots,
+  phasesTotalDays, setPhaseDays, setPhaseUnits, slotsFromPhases, splitPhase,
+} from '@/engine/contour/contourPhases';
 import { parseDate } from '@/utils/dateUtils';
+import { useLiveGridNav } from '@/components/panels/hooks/useLiveGridNav';
+import { ContourPhaseStrip } from './ContourPhaseStrip';
+
+/** Kolomsleutels van de fasentabel in weergavevolgorde — de bewerkbare cellen voor de rasternavigatie. */
+const PHASE_GRID_FIELDS = ['days', 'units'] as const;
+type PhaseGridField = typeof PHASE_GRID_FIELDS[number];
 
 /** ContourShape → i18n-key in de common-namespace (`resource.curve.*`, dezelfde familie als
  *  `task-sections/shared.tsx`'s `CURVE_KEY`; FLAT deelt het label "Uniform"). */
@@ -26,30 +36,34 @@ const SHAPE_KEY = {
   TURTLE: 'resource.curve.turtle',
 } as const satisfies Record<ContourShape, string>;
 
-/** Uren met hooguit twee decimalen, zonder overbodige nullen (draft-tekst én weergave). */
-function fmtHours(minutes: number): string {
-  const h = Math.round((minutes / 60) * 100) / 100;
-  return String(h);
-}
-
-function fmtUnits(minutes: number, mpd: number): string {
-  if (mpd <= 0) return '—';
-  return (Math.round((minutes / mpd) * 100) / 100).toString();
-}
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const fmtNum = (n: number) => String(round2(n));
+const fmtHours = (minutes: number) => fmtNum(minutes / 60);
 
 /**
- * Contour-UI (2026-09) — het dialoogvenster waarmee de gebruiker de urenverdeling van ÉÉN
- * toewijzing per werkdag bewerkt. Gestapeld bóven het eigenschappenpaneel óf de taakdialoog
- * (`z-[60]` + `stopBackdropPropagation`, hetzelfde patroon als `ConfirmDialog`), want de
- * Toewijzingen-sectie leeft op beide plekken.
+ * Fasen-editor (2026-09) — het venster waarmee de gebruiker de urenverdeling van ÉÉN toewijzing
+ * bewerkt, in FASEN: aaneengesloten reeksen werkdagen met één vaste inzet (`contourPhases.ts`).
+ * Boven een sleepbare strook (`ContourPhaseStrip`), eronder dezelfde fasen als tabel (van/tot,
+ * dagen, inzet, uren) met splitsen en samenvoegen; beide bewerken dezelfde `phases`-state.
+ * Gestapeld bóven het eigenschappenpaneel óf de taakdialoog (`z-[60]` + `stopBackdropPropagation`,
+ * hetzelfde patroon als `ConfirmDialog`), want de Toewijzingen-sectie leeft op beide plekken.
  *
- * Model (puur, `contourEdit.ts`): per werkdag van de taak — dezelfde dagenlijst als het histogram
- * (`taskWorkDayIsos`) — het VERRICHTE werk (alleen-lezen, uit de `actual`-periodes) en het
- * RESTERENDE werk (bewerkbaar, in uren). Zonder opgeslagen contour is het vertrekpunt precies wat de
- * lastlezers nu al boeken (`assignmentDayUnits` × slotminuten: de curve-formule of de exacte
- * P6-/MSPDI-curve), zodat "Toepassen" zonder wijziging de huidige verdeling als data vastlegt en
- * niets anders. Toepassen ⇒ `setAssignmentContour(periodes)`; Loslaten ⇒ `null` (terug naar de
- * formule). Geen enkele knop raakt een taakdatum of een onderbreking (zie `contourEdit.ts`).
+ * Model: de werkdagen van de taak zijn dezelfde dagenlijst als het histogram (`taskWorkDayIsos`);
+ * het VERRICHTE werk (actual-periodes) staat alleen-lezen onder de blokken, het RESTERENDE werk is
+ * wat de fasen beschrijven. Zonder opgeslagen contour is het vertrekpunt precies wat de lastlezers
+ * nu al boeken (`assignmentDayUnits`: de curve-formule of de exacte P6-/MSPDI-curve), zodat
+ * "Toepassen" zonder wijziging de huidige verdeling als data vastlegt en niets anders. Opslaan blijft
+ * één periode per werkdag (`slotsFromPhases` → `buildEditedContourPeriods`): de fasen zijn een
+ * weergavelaag, de opslagvorm en alle round-trips blijven ongewijzigd. Toepassen ⇒
+ * `setAssignmentContour(periodes)`; Loslaten ⇒ `null`. Geen enkele knop raakt een taakdatum of
+ * een onderbreking (zie `contourEdit.ts`).
+ *
+ * De fasentabel is een LIVE raster (elke cel is een echt invoerveld) en volgt daarom dezelfde
+ * toetsenbordregels als de resourcetabel (issue #48, `useLiveGridNav` + `@/utils/gridNavigation`):
+ * Enter/Shift+Enter omlaag/omhoog op elke cel, ↑/↓ alleen in een tekstveld (de dagen-spinner houdt
+ * zijn native stappen), cellen zonder bruikbaar element (de afgeleide dagen van de laatste fase)
+ * worden overgeslagen, en wie met het toetsenbord op een tekstcel landt, vervangt de waarde bij het
+ * typen. Geen "Enter op de laatste rij maakt een rij": de laatste fase loopt tot het taakeinde.
  */
 export function ContourDialog({ assignmentId, onClose }: { assignmentId: string; onClose: () => void }) {
   const { t, i18n } = useTranslation('task');
@@ -82,16 +96,25 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
       actual = slots.actual;
       remaining = slots.remaining;
     } else {
-      actual = [];
       remaining = assignmentDayUnits(task, assignment, mpd, null).map(u => u * mpd);
       while (remaining.length < durationDays) remaining.push(0);
       actual = remaining.map(() => 0);
     }
-    const isos = taskWorkDayIsos(task, engine, Math.max(durationDays, remaining.length));
-    return { engine, mpd, contour, actual, remaining, isos, hasActual: actual.some(m => m > 0) };
+    const n = Math.max(durationDays, remaining.length);
+    const isos = taskWorkDayIsos(task, engine, n);
+    const phases = fitPhasesToDays(phasesFromSlots(remaining, mpd), n, assignment.unitsPerDay);
+    return { engine, mpd, contour, actual, isos, n, phases, hasActual: actual.some(m => m > 0) };
   });
 
-  const [draft, setDraft] = useState<string[]>(() => (model ? model.remaining.map(fmtHours) : []));
+  const [phases, setPhasesState] = useState<ContourPhase[]>(() => model?.phases ?? []);
+  // Tekstdrafts voor de inzet-invoer (vrij typen; ongeldig ⇒ rode rand, geen commit).
+  const [unitsText, setUnitsText] = useState<string[]>(() => (model?.phases ?? []).map(p => fmtNum(p.unitsPerDay)));
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const setPhases = (next: ContourPhase[]) => {
+    setPhasesState(next);
+    setUnitsText(next.map(p => fmtNum(p.unitsPerDay)));
+  };
 
   // Escape sluit ALLEEN dit venster. Capture-fase + `stopImmediatePropagation`, zoals `ConfirmDialog`:
   // de globale Escape-sneltoets (`edit.deselect`, `shortcutRegistry.ts`) heeft geen dialooggrendel
@@ -108,44 +131,70 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     return () => document.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
+  const grid = useLiveGridNav<PhaseGridField>({
+    rowIds: phases.map((_, i) => String(i)),
+    fields: PHASE_GRID_FIELDS,
+  });
+
   if (!assignment || !task || !model) return null;
 
-  const parsed = draft.map(text => {
-    const trimmed = text.trim().replace(',', '.');
-    if (trimmed === '') return 0;
-    const n = Number(trimmed);
-    return Number.isFinite(n) && n >= 0 ? n * 60 : NaN;
-  });
-  const invalidRows = parsed.map(v => Number.isNaN(v));
-  const anyInvalid = invalidRows.some(Boolean);
-  const totalRemaining = parsed.reduce((a, v) => a + (Number.isNaN(v) ? 0 : v), 0);
-  const totalActual = model.actual.reduce((a, v) => a + v, 0);
   const hoursPerDay = model.engine.hoursPerDay;
+  const invalidRows = unitsText.map(text => {
+    const n = Number(text.trim().replace(',', '.'));
+    return text.trim() === '' || !Number.isFinite(n) || n < 0;
+  });
+  const anyInvalid = invalidRows.some(Boolean);
+  const totalDays = phasesTotalDays(phases);
+  const remainingMinutes = slotsFromPhases(phases, model.mpd).reduce((a, b) => a + b, 0);
+  const actualMinutes = model.actual.reduce((a, b) => a + b, 0);
+  const maxUnits = phases.reduce((m, p) => Math.max(m, p.unitsPerDay), 0);
+  const actualMaxUnits = model.actual.reduce((m, v) => Math.max(m, v / model.mpd), 0);
+  const scaleMax = Math.max(1, resource?.maxUnits ?? 0, maxUnits, actualMaxUnits) * 1.15;
 
-  const dateFmt = new Intl.DateTimeFormat(i18n.language, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const dateFmt = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const fmtIso = (iso: string | undefined) => {
     if (!iso) return '—';
     try { return dateFmt.format(parseDate(iso)); } catch { return iso; }
   };
-
-  const applyShape = (shape: ContourShape) => {
-    const total = totalRemaining > 0 ? totalRemaining : assignment.unitsPerDay * draft.length * model.mpd;
-    setDraft(shapeSlotWork(shape, total, draft.length).map(fmtHours));
+  const actualMinutesOfPhase = (index: number) => {
+    const start = phaseStartDay(phases, index);
+    let sum = 0;
+    for (let d = start; d < start + phases[index].days; d++) sum += model.actual[d] ?? 0;
+    return sum;
   };
 
+  const applyShape = (shape: ContourShape) => {
+    const total = remainingMinutes > 0 ? remainingMinutes : assignment.unitsPerDay * model.n * model.mpd;
+    setPhases(fitPhasesToDays(phasesFromSlots(shapeSlotWork(shape, total, model.n), model.mpd), model.n, assignment.unitsPerDay));
+    setSelected(null);
+  };
+  const commitUnitsText = (index: number, text: string) => {
+    const next = [...unitsText];
+    next[index] = text;
+    setUnitsText(next);
+    const n = Number(text.trim().replace(',', '.'));
+    if (text.trim() !== '' && Number.isFinite(n) && n >= 0) setPhasesState(setPhaseUnits(phases, index, round2(n)));
+  };
+  const commitDays = (index: number, text: string) => {
+    const n = Number(text);
+    if (Number.isFinite(n) && n >= 1) setPhases(setPhaseDays(phases, index, Math.floor(n)));
+  };
+  const split = (index: number, afterDays: number) => { setPhases(splitPhase(phases, index, afterDays)); setSelected(index); };
+  const merge = (index: number) => { setPhases(mergePhaseWithNext(phases, index)); setSelected(index); };
+
   const apply = () => {
-    if (anyInvalid) return;
-    const periods = buildEditedContourPeriods(model.contour?.periods, parsed, task.splitGaps, model.mpd);
+    if (anyInvalid || totalDays === 0) return;
+    const periods = buildEditedContourPeriods(model.contour?.periods, slotsFromPhases(phases, model.mpd), task.splitGaps, model.mpd);
     setAssignmentContour(assignment.id, periods);
     onClose();
   };
-
   const release = () => {
     setAssignmentContour(assignment.id, null);
     onClose();
   };
 
   const cellCls = 'px-2 py-1 text-[11px]';
+  const inputCls = 'input !text-[11px] !px-1 !py-0.5 text-right';
 
   return (
     <Dialog
@@ -153,7 +202,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
       stopBackdropPropagation
       onBackdropClick={onClose}
       overlayProps={{ 'data-ops-contour-dialog': true }}
-      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[85vh] flex flex-col overflow-hidden"
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[88vh] flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex flex-col gap-0.5 min-w-0">
@@ -190,60 +239,123 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      {totalDays > 0 && (
+        <div className="px-4 pt-3 pb-1">
+          <ContourPhaseStrip
+            phases={phases}
+            actualSlots={model.actual}
+            slotMinutes={model.mpd}
+            isos={model.isos}
+            scaleMax={scaleMax}
+            selected={selected}
+            onChange={setPhases}
+            onSelect={setSelected}
+            onSplit={split}
+            fmtDay={fmtIso}
+            fmtUnits={fmtNum}
+          />
+          <div className="text-[10px] text-text-secondary mt-1">{t('contourDialog.stripHint')}</div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto" ref={grid.gridRef}>
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-surface">
             <tr className="text-left text-[10px] uppercase tracking-wide text-text-secondary border-b border-border">
               <th className={cellCls}>#</th>
-              <th className={cellCls}>{t('contourDialog.day')}</th>
+              <th className={cellCls}>{t('contourDialog.from')}</th>
+              <th className={cellCls}>{t('contourDialog.to')}</th>
+              <th className={`${cellCls} text-right`}>{t('contourDialog.days')}</th>
+              <th className={`${cellCls} text-right`}>{t('contourDialog.unitsPerDay')}</th>
+              <th className={`${cellCls} text-right`}>{t('contourDialog.hoursPerDayCol')}</th>
               {model.hasActual && <th className={`${cellCls} text-right`}>{t('contourDialog.actual')}</th>}
-              <th className={`${cellCls} text-right`}>{t('contourDialog.remaining')}</th>
-              <th className={`${cellCls} text-right`}>{t('contourDialog.units')}</th>
+              <th className={`${cellCls} text-right`}>{t('contourDialog.hoursTotal')}</th>
+              <th className={cellCls} />
             </tr>
           </thead>
           <tbody>
-            {draft.map((text, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--theme-border-light)' }} data-ops-contour-row={i}>
-                <td className={`${cellCls} text-text-secondary`}>{i + 1}</td>
-                <td className={cellCls}>{fmtIso(model.isos[i])}</td>
-                {model.hasActual && (
-                  <td className={`${cellCls} text-right text-text-secondary`}>{fmtHours(model.actual[i] ?? 0)}</td>
-                )}
-                <td className={`${cellCls} text-right`}>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={text}
-                    aria-label={`${t('contourDialog.remaining')} ${i + 1}`}
-                    aria-invalid={invalidRows[i]}
-                    data-ops-contour-hours={i}
-                    onChange={e => {
-                      const next = [...draft];
-                      next[i] = e.target.value;
-                      setDraft(next);
-                    }}
-                    className={`input !text-[11px] !px-1 !py-0.5 !w-20 text-right${invalidRows[i] ? ' input--error' : ''}`}
-                  />
-                </td>
-                <td className={`${cellCls} text-right text-text-secondary`}>
-                  {invalidRows[i] ? '—' : fmtUnits((model.actual[i] ?? 0) + parsed[i], model.mpd)}
-                </td>
-              </tr>
-            ))}
+            {phases.map((p, i) => {
+              const start = phaseStartDay(phases, i);
+              const isLast = i === phases.length - 1;
+              return (
+                <tr
+                  key={i}
+                  style={{ borderBottom: '1px solid var(--theme-border-light)', background: selected === i ? 'var(--theme-surface-alt)' : undefined }}
+                  data-ops-contour-phase={i}
+                  onClick={() => setSelected(i)}
+                  {...grid.rowProps(String(i))}
+                >
+                  <td className={`${cellCls} text-text-secondary`}>{i + 1}</td>
+                  <td className={cellCls}>{fmtIso(model.isos[start])}</td>
+                  <td className={cellCls}>{fmtIso(model.isos[start + p.days - 1])}</td>
+                  <td className={`${cellCls} text-right`}>
+                    {isLast ? (
+                      <span title={t('contourDialog.lastPhaseHint')}>{p.days}</span>
+                    ) : (
+                      <input
+                        type="number" min={1} step={1}
+                        value={p.days}
+                        aria-label={`${t('contourDialog.days')} ${i + 1}`}
+                        data-ops-contour-days={i}
+                        onChange={e => commitDays(i, e.target.value)}
+                        className={`${inputCls} !w-14`}
+                        {...grid.cellProps(String(i), 'days')}
+                      />
+                    )}
+                  </td>
+                  <td className={`${cellCls} text-right`}>
+                    <input
+                      type="text" inputMode="decimal"
+                      value={unitsText[i] ?? ''}
+                      aria-label={`${t('contourDialog.unitsPerDay')} ${i + 1}`}
+                      aria-invalid={invalidRows[i]}
+                      data-ops-contour-units={i}
+                      onChange={e => commitUnitsText(i, e.target.value)}
+                      className={`${inputCls} !w-16${invalidRows[i] ? ' input--error' : ''}`}
+                      {...grid.cellProps(String(i), 'units')}
+                    />
+                  </td>
+                  <td className={`${cellCls} text-right text-text-secondary`}>{fmtNum(p.unitsPerDay * hoursPerDay)}</td>
+                  {model.hasActual && <td className={`${cellCls} text-right text-text-secondary`}>{fmtHours(actualMinutesOfPhase(i))}</td>}
+                  <td className={`${cellCls} text-right`}>{fmtNum(p.days * p.unitsPerDay * hoursPerDay)}</td>
+                  <td className={`${cellCls} whitespace-nowrap`}>
+                    <button
+                      type="button"
+                      className="ops-textlink text-[10px] mr-2 disabled:opacity-40"
+                      disabled={p.days < 2}
+                      data-ops-contour-split={i}
+                      onClick={e => { e.stopPropagation(); split(i, Math.floor(p.days / 2)); }}
+                    >
+                      {t('contourDialog.split')}
+                    </button>
+                    <button
+                      type="button"
+                      className="ops-textlink text-[10px] disabled:opacity-40"
+                      disabled={isLast}
+                      data-ops-contour-merge={i}
+                      onClick={e => { e.stopPropagation(); merge(i); }}
+                    >
+                      {t('contourDialog.merge')}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="font-semibold border-t border-border">
               <td className={cellCls} />
-              <td className={cellCls}>{tCommon('resource.total')}</td>
-              {model.hasActual && <td className={`${cellCls} text-right`}>{fmtHours(totalActual)}</td>}
-              <td className={`${cellCls} text-right`} data-ops-contour-total>{fmtHours(totalRemaining)}</td>
-              <td className={`${cellCls} text-right text-text-secondary`}>
-                {fmtUnits(totalActual + totalRemaining, model.mpd * Math.max(1, draft.length))}
-              </td>
+              <td className={cellCls} colSpan={2}>{tCommon('resource.total')}</td>
+              <td className={`${cellCls} text-right`}>{totalDays}</td>
+              <td className={cellCls} />
+              <td className={cellCls} />
+              {model.hasActual && <td className={`${cellCls} text-right`}>{fmtHours(actualMinutes)}</td>}
+              <td className={`${cellCls} text-right`} data-ops-contour-total>{fmtHours(remainingMinutes)}</td>
+              <td className={cellCls} />
             </tr>
           </tfoot>
         </table>
-        {draft.length === 0 && (
+        {totalDays === 0 && (
           <div className="p-4 text-[11px] text-text-secondary">{t('contourDialog.noDays')}</div>
         )}
       </div>
@@ -264,7 +376,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
         </button>
         <button
           onClick={apply}
-          disabled={anyInvalid || draft.length === 0}
+          disabled={anyInvalid || totalDays === 0}
           className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40"
           data-ops-contour-apply
         >

@@ -69,13 +69,15 @@ A variação de curva é mais visível no histograma: a mesma tarefa com as mesm
 
 ### Editar a distribuição de horas manualmente
 
-Quando nenhuma curva serve, defina você mesmo as horas por dia útil. Ao lado da lista de curvas de cada atribuição está o botão **Distribuição de horas…** (o ícone de barras); ele abre uma janela com uma linha por dia útil da tarefa — os mesmos dias em que o histograma contabiliza, saltando portanto os dias de pausa de uma tarefa dividida. Cada linha mostra a data, o trabalho **restante** em horas (editável) e as unidades derivadas; se a atribuição já traz trabalho **real** (de uma importação com progresso), ele aparece numa coluna própria, só de leitura. O ponto de partida é exatamente o que a atribuição contabiliza hoje: a curva escolhida, ou a curva exata de uma importação do P6 ou do MS Project.
+Quando nenhuma curva serve, você define a distribuição por **fases**: trechos consecutivos da tarefa, cada um com esforço fixo («meia equipa na primeira semana, depois a equipa inteira»). O botão **Distribuição de horas…** ao lado da lista de curvas abre uma janela com, em cima, uma faixa em que cada fase é um bloco sobre os seus dias úteis (a altura é o esforço) e, em baixo, as mesmas fases em tabela: de, até, dias, esforço em unidades por dia, horas por dia e total. O ponto de partida é o que a atribuição contabiliza hoje. O trabalho real aparece a cinzento, só de leitura.
 
-- **Aplicar forma** preenche as linhas com uma das oito formas padrão (as seis curvas mais *Pico duplo* e *Tartaruga* do MS Project e do P6), mantendo o total atual — um ponto de partida prático para ajustar depois dia a dia.
-- **Aplicar** guarda a distribuição como *contorno* desta atribuição. A lista de curvas passa a mostrar **Contorno** e fica desativada: o contorno é dado e prevalece sobre qualquer curva. Histograma, sobrealocação, nivelador e visão de ocupação usam-no de imediato, e a distribuição viaja no arquivo IFC e numa exportação para MS Project XML ou Primavera P6 XML.
-- **Libertar distribuição** remove o contorno; a atribuição volta a seguir a sua curva.
+- **Arrastar na faixa**: o limite entre dois blocos alonga ou encurta uma fase (por dias úteis inteiros), a borda superior define o esforço, um duplo clique num dia divide a fase.
+- **Escrever na tabela**: dias e esforço por fase; **Dividir** e **Juntar**. A última fase vai sempre até ao fim da tarefa.
+- **Aplicar forma** preenche as fases com uma das oito formas padrão mantendo o total.
+- **Aplicar** guarda a distribuição como *contorno* da atribuição; a lista mostra **Contorno** e fica desativada. Histograma, sobrealocação, nivelador e ocupação usam-no de imediato, e a distribuição viaja no IFC e nas exportações MS Project XML / P6 XML.
+- **Libertar distribuição** remove o contorno.
 
-Um contorno altera apenas as horas por dia desta única atribuição. As datas da tarefa, a duração e eventuais interrupções permanecem como estão — um dia com 0 horas também permanece dentro da duração da tarefa e não cria uma interrupção. Para encurtar, alongar ou interromper a própria tarefa, edite a tarefa. Se mais tarde alterar a duração, o contorno estica ou encolhe proporcionalmente (veja o guia [Importação do MS Project](docs://gids-msproject-import), secção Atribuições com contorno). O painel de propriedades marca uma tarefa com distribuições de horas próprias com um distintivo cinzento que remete para essa mesma secção. Aplicar e libertar são passos normais de desfazer.
+Um contorno altera apenas as horas por dia desta atribuição; datas, duração e interrupções permanecem, também com uma fase de esforço 0. Se mais tarde alterar a duração, o contorno estica proporcionalmente (veja [Importação do MS Project](docs://gids-msproject-import)). O painel de propriedades marca a tarefa com um distintivo cinzento. Aplicar e libertar são passos normais de desfazer.
 
 ## Calendários de recursos
 

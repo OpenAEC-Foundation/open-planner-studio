@@ -353,11 +353,23 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       MSPDI-codes 3/7, P6-namen) zijn meegenomen. Nog steeds acht plekken — een centrale
       `RESOURCE_CURVES`-export is een losse opruimklus.
 - [x] **Contour bewerken in de UI** (etappe contour-UI, 2026-09-04): `ContourDialog.tsx` achter de
-      knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — uren per werkdag
-      (verricht alleen-lezen, resterend bewerkbaar), vorm-als-data als vertrekpunt (alle acht
-      MSPDI-vormen), toepassen en **loslaten**; store-actie `setAssignmentContour` (undo, geen
-      datumwijziging). Bewerkmodel puur in `src/engine/contour/contourEdit.ts`; regressie in
-      `check-contour-engine.ts` (f)/(g) en `tests/browser/contour-dialog.spec.ts`.
+      knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — sinds de
+      fasen-editor (dezelfde dag) in FASEN: sleepbare strook (`ContourPhaseStrip.tsx`: grens per
+      werkdag, bovenrand = inzet, dubbelklik = splitsen) + fasentabel (van/tot/dagen/inzet/uren,
+      splitsen/samenvoegen), vorm-als-data als vertrekpunt (alle acht vormen), toepassen en
+      **loslaten**; verricht werk alleen-lezen. Fasenmodel puur in `contourPhases.ts` (run-length
+      over de werkdagslots), bewerkmodel in `contourEdit.ts`; opslagvorm blijft één periode per
+      werkdag. Store-actie `setAssignmentContour` (undo, geen datumwijziging). Regressie:
+      `check-contour-engine.ts` (f)/(g)/(i) en `tests/browser/contour-dialog.spec.ts` (mét muissleep).
+- [ ] **Fasen als opslagvorm.** `TimephasedContourPeriod` kan een fase van tien dagen als één
+      periode dragen, maar de editor slaat bewust één periode per werkdag op (byte-identieke
+      round-trips). Een fase-periode zou het IFC compacter maken; vergt een controle dat
+      `periodsToWorkDaySlots` mét splits een lange periode over een gat correct verdeelt (de
+      engine deelt naar rato van as-lengte, dus een gat middenin een lange periode "eet" werk op
+      dat naar het volgende werkslot schuift).
+- [ ] **Sleepbare fasen op de Gantt-balk zelf** (buiten het venster). De strook leeft nu in het
+      venster; op de balk zou het de renderer- en pointer-lagen raken (`verify:gantt-boundaries`).
+      Pas bouwen als gebruikers erom vragen.
 - [ ] **Contour via MCP en het taakraster.** De draft-API (`createMcpTransactions.setAssignmentContour`)
       bestaat, maar er is nog geen `planner_*`-tool met contract/schema (route: `docs/recepten/mcp-tool.md`).
       De rasterkolom *Toewijzingscurve* (`assignment.curve`, `TaskCellEditor.tsx`) toont een
