@@ -351,9 +351,29 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       `ResourceCurve`-enum is op acht plekken gedupliceerd (UI-dropdowns, MCP-schema, IFC-validator,
       ext-contract, kolomregister) — bewust niet uitgebreid in deze etappe. De curvekeuze in de UI
       toont zo'n toewijzing als "uniform" terwijl de load wél de exacte curve gebruikt.
-- [ ] **Contour bewerken in de UI.** Er is nog geen invoer om per dag uren te zetten of een
-      contour te wissen; de enige bronnen zijn `.mpp`/MSPDI/P6-import. Een "contour loslaten"-
-      actie (terug naar de formule) hoort bij die UI-etappe.
+- [x] **Contour bewerken in de UI** (etappe contour-UI, 2026-09-04): `ContourDialog.tsx` achter de
+      knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — uren per werkdag
+      (verricht alleen-lezen, resterend bewerkbaar), vorm-als-data als vertrekpunt (alle acht
+      MSPDI-vormen), toepassen en **loslaten**; store-actie `setAssignmentContour` (undo, geen
+      datumwijziging). Bewerkmodel puur in `src/engine/contour/contourEdit.ts`; regressie in
+      `check-contour-engine.ts` (f)/(g) en `tests/browser/contour-dialog.spec.ts`.
+- [ ] **Contour via MCP en het taakraster.** De draft-API (`createMcpTransactions.setAssignmentContour`)
+      bestaat, maar er is nog geen `planner_*`-tool met contract/schema (route: `docs/recepten/mcp-tool.md`).
+      De rasterkolom *Toewijzingscurve* (`assignment.curve`, `TaskCellEditor.tsx`) toont een
+      gecontoureerde toewijzing nog als "uniform" en laat een curvekeuze toe die geen effect heeft
+      zolang de contour bestaat — het paneel toont daar wél "Contour" en schakelt de dropdown uit.
+- [ ] **Herkomstmarkering na een MSPDI-import.** `TaskTimephasedNotice` kiest tussen "datumvenster
+      losgelaten" (grijs, MS Project-tekst) en "eigen urenverdeling" (grijs, neutraal) op de
+      heuristiek `resourceUid !== null` — die zetten zowel de `.mpp`- als de MSPDI-lezer. Een vers
+      geïmporteerd MSPDI-bestand met contouren toont daardoor de "losgelaten"-tekst terwijl er nooit
+      een datumvenster wás (MSPDI kent geen laag-3/4-sturing). Pre-existent (vóór de contour-UI
+      stond die tekst er ook), maar nu zichtbaarder; echte oplossing = een herkomstveld op de
+      contour (IFC-round-trip) of `resourceUid: null` in de MSPDI-lezer als de writer 'm niet nodig
+      heeft.
+- [ ] **Contour van een taak in uur-modus met ongelijke werkdagen.** Het dialoogvenster rekent in
+      dagslots van `hoursPerDay × 60` (zie het benaderingspunt hieronder); een korte vrijdag staat er
+      als gewone rij. Correct voor de lastlezers (dezelfde slotdefinitie), maar de urenkolom
+      suggereert meer precisie dan de as biedt.
 - [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
       FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
       gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.

@@ -579,7 +579,9 @@
       "backLoaded": "Back loaded",
       "bell": "Bell shaped",
       "earlyPeak": "Early peak",
-      "latePeak": "Late peak"
+      "latePeak": "Late peak",
+      "doublePeak": "Double peak",
+      "turtle": "Turtle"
     },
     "occupancyView": "Occupancy",
     "occupancy": {

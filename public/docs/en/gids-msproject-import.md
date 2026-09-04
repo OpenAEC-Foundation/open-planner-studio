@@ -129,7 +129,10 @@ read distribution always stays saved in the file, even after saving.
 The contour also travels outward: an export to MS Project XML writes the daily distribution as
 native `TimephasedData` (with the *Contoured* work contour), an export to Primavera P6 XML as a
 spread on the assignment; Open Planner Studio reads both formats back in as well. See the
-*Import and export* guide for the per-format details.
+*Import and export* guide for the per-format details. To adjust the distribution you read day by
+day, build your own, or release a contour, use the **Hour distribution…** button next to the
+assignment — see the [Resources & histogram](docs://gids-resources-histogram) guide, section
+Editing the hour distribution yourself.
 
 ## Milestones: MS Project's own finish-boundary convention for finish milestones
 

@@ -132,7 +132,10 @@ blijft altijd in het bestand bewaard, ook ná opslaan.
 De contour gaat ook mee naar buiten: een export naar MS Project XML schrijft de dagverdeling als
 native `TimephasedData` (en het contourtype *Contoured*), een export naar Primavera P6 XML als
 spreiding op de toewijzing; beide formaten leest Open Planner Studio ook weer terug. Zie de gids
-*Importeren en exporteren* voor de details per formaat.
+*Importeren en exporteren* voor de details per formaat. Wil je de gelezen verdeling zelf per dag
+bijstellen, een eigen verdeling maken of een contour loslaten, dan kan dat via de knop
+**Urenverdeling…** naast de toewijzing — zie de gids [Resources & histogram](docs://gids-resources-histogram),
+sectie De urenverdeling zelf bewerken.
 
 ## Mijlpalen: MS Project se eigen finish-grens-conventie voor eindmijlpalen
 

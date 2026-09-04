@@ -579,7 +579,9 @@
       "backLoaded": "Achteraan belast",
       "bell": "Klokvorm",
       "earlyPeak": "Vroege piek",
-      "latePeak": "Late piek"
+      "latePeak": "Late piek",
+      "doublePeak": "Dubbele piek",
+      "turtle": "Schildpad"
     },
     "occupancyView": "Bezetting",
     "occupancy": {

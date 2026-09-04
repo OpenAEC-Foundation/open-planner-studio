@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "每个工作日的工时分布",
+    "applyShape": "应用形状：",
+    "hoursPerDay": "每个工作日 {{hours}} 小时",
+    "day": "工作日",
+    "actual": "实际（小时）",
+    "remaining": "剩余（小时）",
+    "units": "单位",
+    "noDays": "此任务没有工作日。",
+    "hint": "该分布只更改此分配每天的工时；任务日期和中断保持不变。0 小时的日期仍在任务工期内。",
+    "release": "释放分布"
+  },
   "durationType": { "WORKTIME": "工作时间", "ELAPSEDTIME": "已用时间" },
   "table": {
     "title": "表格",
@@ -231,6 +243,7 @@
     "longFreePeriodWarningNamed": "此任务跨越{{name}} —— 一个为期 {{days}} 天的非工作时段（{{start}} 至 {{end}}）。",
     "timephasedActive": "跟随 MS Project 的工时分布",
     "timephasedLost": "编辑后不再应用 MS Project 的工时分布——原始分布仍保留在文件中",
+    "timephasedContoured": "具有自定义工时分布的分配",
     "completion": "进度（%）",
     "progress": {
       "actualStart": "实际开始",
@@ -263,7 +276,11 @@
       "allAssigned": "所有资源均已分配。",
       "disabledMilestone": "里程碑不支持分配。",
       "disabledSummary": "摘要任务不支持分配。",
-      "moveTo": "移动到…"
+      "moveTo": "移动到…",
+      "contour": "工时分布…",
+      "contoured": "轮廓",
+      "contouredHint": "此分配拥有自己的工时分布；请通过“工时分布”按钮编辑或释放。",
+      "importedCurve": "导入的曲线"
     },
     "calendar": "日历",
     "calendarProject": "项目日历",

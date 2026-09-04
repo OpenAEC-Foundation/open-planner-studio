@@ -67,6 +67,16 @@ Her atamanın bir **birim/gün**i (1 = tam zamanlı bir kişi/öğe, 0,5 = yarı
 
 Eğri değişimi en açık şekilde histogramda görünür: aynı birim/gün'e sahip aynı görev, çan eğrisiyle tekdüzeye göre çok farklı bir çubuk şekli üretir. Orta boy örnek proje, karşılaştırma yapabilmeniz için ev başına ince işler görevlerinde kasıtlı olarak tekdüze/başta yüklü/sonda yüklüyü karıştırır.
 
+### Saat dağılımını kendiniz düzenleme
+
+Hiçbir eğri uymuyorsa iş günü başına saatleri kendiniz belirleyin. Her atamanın eğri açılır listesinin yanında **Saat dağılımı…** düğmesi (çubuk grafik simgesi) bulunur; görevin her iş günü için bir satır içeren bir pencere açar — histogramın kaydettiği günlerle aynıdır, bu yüzden bölünmüş bir görevin ara günleri atlanır. Her satırda tarih, düzenlenebilir **kalan** iş (saat) ve türetilen birimler görünür; atamada zaten **gerçekleşen** iş varsa (ilerleme içeren bir içe aktarmadan), o ayrı, salt okunur bir sütunda yer alır. Başlangıç noktası, atamanın bugün kaydettiğinin tam kendisidir: seçilen eğri ya da P6 veya MS Project içe aktarmasından gelen tam eğri.
+
+- **Şekil uygula**, satırları sekiz standart şekilden biriyle (altı eğri artı MS Project ve P6'daki *Çift zirve* ve *Kaplumbağa*) doldurur ve mevcut toplamı korur — sonradan gün gün ayarlamak için pratik bir başlangıç.
+- **Uygula**, dağılımı bu atamanın *konturu* olarak kaydeder. Eğri listesi artık **Kontur** gösterir ve devre dışıdır: kontur veridir ve her eğriye üstün gelir. Histogram, aşırı atama, dengeleyici ve doluluk görünümü onu hemen kullanır; dağılım IFC dosyasında ve MS Project XML ya da Primavera P6 XML dışa aktarmasında da taşınır.
+- **Dağılımı kaldır** konturu siler; atama sonrasında yeniden eğrisini izler.
+
+Bir kontur yalnızca bu tek atamanın günlük saatlerini değiştirir. Görev tarihleri, süre ve varsa kesintiler olduğu gibi kalır — 0 saatlik bir gün de görev süresi içinde kalır ve kesinti oluşturmaz. Görevin kendisini kısaltmak, uzatmak veya kesmek için görevi düzenleyin. Süreyi sonradan değiştirirseniz kontur orantılı olarak uzar veya kısalır (bkz. [MS Project içe aktarma](docs://gids-msproject-import) kılavuzu, Konturlu atamalar bölümü). Özellikler paneli, kendi saat dağılımları olan bir görevi aynı bölüme bağlanan gri bir rozetle işaretler. Uygulama ve kaldırma sıradan geri alma adımlarıdır.
+
 ## Kaynak takvimleri
 
 Bir kaynak **Proje takvimi**nde (varsayılan) veya kendi takviminde olabilir — örneğin haftada yalnızca dört gün uygun olan bir taşeron için. Bunu kaynak panelindeki **Takvim** sütunu, veya kaynağın kendisindeki **Takvim** alanı üzerinden ayarlayın. Bir kaynak takvimi bir görevin CPM tarihlerine asla dokunmaz (bunlar görev/proje takviminde çalışmaya devam eder) — yalnızca **yükü** ve **nivellemeyi** etkiler: bir kaynak görevin ihtiyaç duyduğu bir günde çalışmıyorsa, bu histogramda bir açık olarak sayılır, ve nivelleyici kaydırmanın bu takvim uyuşmazlığını çözmeyeceği konusunda uyarır. Takvimlerin tam açıklaması için kaynak takvimleri ve saat planlaması hakkında [Takvimler & saat planlaması](docs://gids-kalenders-uren) kılavuzuna bakın.

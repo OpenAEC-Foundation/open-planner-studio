@@ -562,7 +562,9 @@
       "backLoaded": "Sonda yüklü",
       "bell": "Çan eğrisi",
       "earlyPeak": "Erken zirve",
-      "latePeak": "Geç zirve"
+      "latePeak": "Geç zirve",
+      "doublePeak": "Çift zirve",
+      "turtle": "Kaplumbağa"
     },
     "occupancyView": "Doluluk",
     "occupancy": {

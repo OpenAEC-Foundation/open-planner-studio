@@ -555,7 +555,9 @@
       "backLoaded": "后置加载",
       "bell": "钟形",
       "earlyPeak": "前期高峰",
-      "latePeak": "后期高峰"
+      "latePeak": "后期高峰",
+      "doublePeak": "双峰",
+      "turtle": "龟形"
     },
     "occupancyView": "占用",
     "occupancy": {

@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "İş günü başına saat dağılımı",
+    "applyShape": "Şekil uygula:",
+    "hoursPerDay": "İş günü başına {{hours}} saat",
+    "day": "İş günü",
+    "actual": "Gerçekleşen (sa)",
+    "remaining": "Kalan (sa)",
+    "units": "Birim",
+    "noDays": "Bu görevin iş günü yok.",
+    "hint": "Dağılım yalnızca bu atamanın günlük saatlerini değiştirir; görev tarihleri ve kesintiler olduğu gibi kalır. 0 saatlik bir gün görev süresi içinde kalır.",
+    "release": "Dağılımı kaldır"
+  },
   "durationType": { "WORKTIME": "Çalışma süresi", "ELAPSEDTIME": "Geçen süre" },
   "table": {
     "title": "Tablo",
@@ -235,6 +247,7 @@
     "longFreePeriodWarningNamed": "Bu görev {{name}} dönemini kapsıyor — {{days}} günlük çalışmaya kapalı bir dönem ({{start}} - {{end}}).",
     "timephasedActive": "MS Project'ten gelen saat dağılımını izliyor",
     "timephasedLost": "Düzenlemeden sonra MS Project'ten gelen saat dağılımı artık uygulanmıyor — özgün dağılım dosyada saklı kalıyor",
+    "timephasedContoured": "Kendi saat dağılımı olan atamalar",
     "completion": "İlerleme (%)",
     "progress": {
       "actualStart": "Gerçek başlangıç",
@@ -267,7 +280,11 @@
       "allAssigned": "Tüm kaynaklar zaten atanmış.",
       "disabledMilestone": "Kilometre taşlarında atama yapılamaz.",
       "disabledSummary": "Özet görevlerde atama yapılamaz.",
-      "moveTo": "Taşı…"
+      "moveTo": "Taşı…",
+      "contour": "Saat dağılımı…",
+      "contoured": "Kontur",
+      "contouredHint": "Bu atamanın kendi saat dağılımı var; Saat dağılımı düğmesiyle düzenleyin veya kaldırın.",
+      "importedCurve": "İçe aktarılan eğri"
     },
     "calendar": "Takvim",
     "calendarProject": "Proje takvimi",

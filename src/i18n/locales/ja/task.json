@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "稼働日ごとの時間配分",
+    "applyShape": "形状を適用:",
+    "hoursPerDay": "稼働日あたり {{hours}} 時間",
+    "day": "稼働日",
+    "actual": "実績 (h)",
+    "remaining": "残り (h)",
+    "units": "単位",
+    "noDays": "このタスクには稼働日がありません。",
+    "hint": "この配分はこの割り当ての 1 日あたりの時間のみを変更します。タスクの日付と中断はそのままです。0 時間の日はタスク期間内に留まります。",
+    "release": "配分を解除"
+  },
   "durationType": { "WORKTIME": "稼働時間", "ELAPSEDTIME": "経過時間" },
   "table": {
     "title": "テーブル",
@@ -231,6 +243,7 @@
     "longFreePeriodWarningNamed": "このタスクは{{name}} にまたがっています — {{days}} 日間の非稼働期間（{{start}} 〜 {{end}}）。",
     "timephasedActive": "MS Project の時間配分に従っています",
     "timephasedLost": "編集後、MS Project の時間配分は適用されなくなりました — 元の配分はファイルに保存されたままです",
+    "timephasedContoured": "独自の時間配分を持つ割り当て",
     "completion": "進捗（%）",
     "progress": {
       "actualStart": "実績開始",
@@ -263,7 +276,11 @@
       "allAssigned": "すべてのリソースはすでに割り当てられています。",
       "disabledMilestone": "マイルストーンには割り当てできません。",
       "disabledSummary": "サマリータスクには割り当てできません。",
-      "moveTo": "移動先…"
+      "moveTo": "移動先…",
+      "contour": "時間配分…",
+      "contoured": "輪郭",
+      "contouredHint": "この割り当てには独自の時間配分があります。「時間配分」ボタンで編集または解除してください。",
+      "importedCurve": "インポートされた曲線"
     },
     "calendar": "カレンダー",
     "calendarProject": "プロジェクトカレンダー",

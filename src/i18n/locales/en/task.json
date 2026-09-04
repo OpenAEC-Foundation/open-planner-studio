@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "Hour distribution per working day",
+    "applyShape": "Apply shape:",
+    "hoursPerDay": "{{hours}} hours per working day",
+    "day": "Working day",
+    "actual": "Actual (h)",
+    "remaining": "Remaining (h)",
+    "units": "Units",
+    "noDays": "This task has no working days.",
+    "hint": "The distribution only changes the hours per day of this assignment; task dates and splits stay as they are. A day at 0 hours stays within the task duration.",
+    "release": "Release distribution"
+  },
   "durationType": { "WORKTIME": "Work time", "ELAPSEDTIME": "Elapsed time" },
   "table": {
     "title": "Table",
@@ -355,6 +367,7 @@
     "longFreePeriodWarningNamed": "This task runs through {{name}} — a {{days}}-day non-working period ({{start}} to {{end}}).",
     "timephasedActive": "Follows the hour distribution from MS Project",
     "timephasedLost": "MS Project date window no longer applied after editing — the hour distribution itself still applies and stays in the file",
+    "timephasedContoured": "Assignments with their own hour distribution",
     "completion": "Progress (%)",
     "progress": {
       "actualStart": "Actual start",
@@ -388,7 +401,11 @@
       "allAssigned": "All resources are already assigned.",
       "disabledMilestone": "Assignments are not possible on milestones.",
       "disabledSummary": "Assignments are not possible on summary tasks.",
-      "moveTo": "Move to…"
+      "moveTo": "Move to…",
+      "contour": "Hour distribution…",
+      "contoured": "Contour",
+      "contouredHint": "This assignment has its own hour distribution; edit or release it via the Hour distribution button.",
+      "importedCurve": "Imported curve"
     },
     "calendar": "Calendar",
     "calendarProject": "Project calendar",

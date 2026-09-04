@@ -67,6 +67,16 @@ Toda a atribuição tem **unidades/dia** (1 = uma pessoa/item a tempo inteiro, 0
 
 A variação de curva é mais visível no histograma: a mesma tarefa com as mesmas unidades/dia produz uma forma de barra muito diferente com uma curva em sino do que com uniforme. O exemplo de dimensão média mistura deliberadamente uniforme/carregado no início/carregado no fim nas tarefas de acabamento por casa, para poder comparar a diferença.
 
+### Editar a distribuição de horas manualmente
+
+Quando nenhuma curva serve, defina você mesmo as horas por dia útil. Ao lado da lista de curvas de cada atribuição está o botão **Distribuição de horas…** (o ícone de barras); ele abre uma janela com uma linha por dia útil da tarefa — os mesmos dias em que o histograma contabiliza, saltando portanto os dias de pausa de uma tarefa dividida. Cada linha mostra a data, o trabalho **restante** em horas (editável) e as unidades derivadas; se a atribuição já traz trabalho **real** (de uma importação com progresso), ele aparece numa coluna própria, só de leitura. O ponto de partida é exatamente o que a atribuição contabiliza hoje: a curva escolhida, ou a curva exata de uma importação do P6 ou do MS Project.
+
+- **Aplicar forma** preenche as linhas com uma das oito formas padrão (as seis curvas mais *Pico duplo* e *Tartaruga* do MS Project e do P6), mantendo o total atual — um ponto de partida prático para ajustar depois dia a dia.
+- **Aplicar** guarda a distribuição como *contorno* desta atribuição. A lista de curvas passa a mostrar **Contorno** e fica desativada: o contorno é dado e prevalece sobre qualquer curva. Histograma, sobrealocação, nivelador e visão de ocupação usam-no de imediato, e a distribuição viaja no arquivo IFC e numa exportação para MS Project XML ou Primavera P6 XML.
+- **Libertar distribuição** remove o contorno; a atribuição volta a seguir a sua curva.
+
+Um contorno altera apenas as horas por dia desta única atribuição. As datas da tarefa, a duração e eventuais interrupções permanecem como estão — um dia com 0 horas também permanece dentro da duração da tarefa e não cria uma interrupção. Para encurtar, alongar ou interromper a própria tarefa, edite a tarefa. Se mais tarde alterar a duração, o contorno estica ou encolhe proporcionalmente (veja o guia [Importação do MS Project](docs://gids-msproject-import), secção Atribuições com contorno). O painel de propriedades marca uma tarefa com distribuições de horas próprias com um distintivo cinzento que remete para essa mesma secção. Aplicar e libertar são passos normais de desfazer.
+
 ## Calendários de recursos
 
 Um recurso pode estar no **Calendário do projeto** (predefinição) ou no seu próprio calendário — por exemplo para um subempreiteiro que só está disponível quatro dias por semana. Defina isto através da coluna **Calendário** no painel de recursos, ou o campo **Calendário** no próprio recurso. Um calendário de recurso nunca toca nas datas CPM de uma tarefa (essas continuam a decorrer no calendário da tarefa/projeto) — apenas afeta a **carga** e o **nivelamento**: se um recurso não trabalhar um dia que a tarefa necessita, isso conta como um défice no histograma, e o nivelador avisa que deslocar não resolve essa incompatibilidade de calendário. Veja o guia [Calendários & planeamento por horas](docs://gids-kalenders-uren) para a explicação completa dos calendários.

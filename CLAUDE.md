@@ -125,8 +125,15 @@ MSPDI `<TimephasedData>` (Type 1/2, per werkdag) en P6 `<ResourceCurve>` + `<Res
 MPXJ `TimephasedHelper`) round-trippen daar doorheen — let op: P6's `<PlannedCurve>` is dus GEEN
 curvenaam (dat was een fout van de vroegere writer; de lezer accepteert die naamvorm nog als compat).
 De IFC-lezer regenereert resource-ids en mapt `contour.resourceId` daarom via `ifcGuid(oudeId)` terug
-(`remapContourResourceIds`). Regressie: `tests/planning/check-contour-engine.ts`; gids:
-`public/docs/{nl,en}/gids-msproject-import.md` §"Gecontoureerde toewijzingen".
+(`remapContourResourceIds`). Bewerken in de UI (etappe contour-UI): `ContourDialog.tsx` achter de knop
+**Urenverdeling…** per toewijzing in `TaskAssignmentsSection` — uren per werkdag, vorm-als-data,
+toepassen/loslaten — op het pure bewerkmodel `src/engine/contour/contourEdit.ts` (dagslots ↔ periodes
+met gat-herinvoeging) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
+`scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-uur-dag blijft binnen de duur).
+Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
+`tests/planning/check-contour-engine.ts` en `tests/browser/contour-dialog.spec.ts`; gidsen:
+`public/docs/{nl,en}/gids-msproject-import.md` §"Gecontoureerde toewijzingen" en
+`gids-resources-histogram.md` §"De urenverdeling zelf bewerken".
 
 ### Rendering: Gantt-tijdlijn in Canvas 2D, taakraster in de DOM
 

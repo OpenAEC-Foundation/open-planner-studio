@@ -14,7 +14,8 @@ import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { McpTransactionLease } from './storeRuntime';
-import type { DurationType, Task } from '@/types/task';
+import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
+import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
@@ -635,6 +636,29 @@ function createMcpDraft(
       if (Object.keys(patch).length === 0) return;
       Object.assign(s.assignments[idx], patch);
       if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
+      s.isDirty = true;
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentContour` (contour-UI, 2026-09):
+   * zet/vervangt de opgeslagen contour van één toewijzing, of laat 'm los (`null`). Onbekend id ⇒
+   * fout; `null` zonder bestaande contour ⇒ no-op. Raakt geen taakdatum (zie `contourEdit.ts`).
+   */
+  setAssignmentContour(assignmentId: string, periods: TimephasedContourPeriod[] | null): void {
+    store.setState((s) => {
+      const a = s.assignments.find((x) => x.id === assignmentId);
+      if (!a) throw new Error(`draft.setAssignmentContour: onbekende assignmentId '${assignmentId}'`);
+      const task = s.tasks.find((t) => t.id === a.taskId);
+      if (!task) throw new Error(`draft.setAssignmentContour: toewijzing '${assignmentId}' zonder taak`);
+      const siblings = s.assignments.filter((x) => x.taskId === a.taskId);
+      const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignmentId);
+      if (periods === null && idx < 0) return;
+      const list = task.timephasedContours ? [...task.timephasedContours] : [];
+      if (periods === null) list.splice(idx, 1);
+      else if (idx >= 0) list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
+      else list.push({ resourceUid: null, resourceId: a.resourceId, periods });
+      task.timephasedContours = list.length > 0 ? list : undefined;
       s.isDirty = true;
     });
   },

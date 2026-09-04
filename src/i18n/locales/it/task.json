@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "Distribuzione ore per giorno lavorativo",
+    "applyShape": "Applica forma:",
+    "hoursPerDay": "{{hours}} ore per giorno lavorativo",
+    "day": "Giorno lavorativo",
+    "actual": "Effettivo (h)",
+    "remaining": "Rimanente (h)",
+    "units": "Unità",
+    "noDays": "Questa attività non ha giorni lavorativi.",
+    "hint": "La distribuzione modifica solo le ore per giorno di questa assegnazione; le date e le interruzioni dell'attività restano invariate. Un giorno a 0 ore resta entro la durata dell'attività.",
+    "release": "Rilascia distribuzione"
+  },
   "durationType": { "WORKTIME": "Tempo lavorativo", "ELAPSEDTIME": "Tempo trascorso" },
   "table": {
     "title": "Tabella",
@@ -239,6 +251,7 @@
     "longFreePeriodWarningNamed": "Questa attività attraversa {{name}} — un periodo non lavorativo di {{days}} giorni ({{start}} - {{end}}).",
     "timephasedActive": "Segue la distribuzione oraria di MS Project",
     "timephasedLost": "Distribuzione oraria di MS Project non più applicata dopo la modifica — la distribuzione originale resta conservata nel file",
+    "timephasedContoured": "Assegnazioni con distribuzione delle ore propria",
     "completion": "Progresso (%)",
     "progress": {
       "actualStart": "Inizio effettivo",
@@ -271,7 +284,11 @@
       "allAssigned": "Tutte le risorse sono già assegnate.",
       "disabledMilestone": "Le assegnazioni non sono possibili sui traguardi.",
       "disabledSummary": "Le assegnazioni non sono possibili sulle attività di riepilogo.",
-      "moveTo": "Sposta in…"
+      "moveTo": "Sposta in…",
+      "contour": "Distribuzione ore…",
+      "contoured": "Contorno",
+      "contouredHint": "Questa assegnazione ha una propria distribuzione delle ore; modificala o rilasciala con il pulsante Distribuzione ore.",
+      "importedCurve": "Curva importata"
     },
     "calendar": "Calendario",
     "calendarProject": "Calendario del progetto",

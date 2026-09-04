@@ -6,7 +6,7 @@ Een taak vertelt je wanneer iets moet gebeuren; een resource vertelt je wie of w
 
 - De vijf resourcetypes en wanneer je welke gebruikt.
 - Resources toewijzen aan taken — via het eigenschappenpaneel, de taakdialoog of het lint.
-- Eenheden per dag en de zes verdeelcurves: wanneer kies je welke.
+- Eenheden per dag en de zes verdeelcurves: wanneer kies je welke — en hoe je de uren per werkdag zelf zet.
 - Een toewijzing verplaatsen naar een andere taak.
 - Resourcekalenders en tijd-gefaseerde capaciteit (bijvoorbeeld een tweede kraan die later bijkomt).
 - Het histogram lezen: de resourcekiezer, drilldown per resource, overallocatie herkennen.
@@ -66,6 +66,16 @@ Elke toewijzing heeft **eenheden/dag** (1 = één persoon/stuk voltijds, 0,5 = e
 - **Late piek (LATE_PEAK)** — de piek zit laat in de taak.
 
 Curve-variatie is vooral zichtbaar in het histogram: dezelfde taak met dezelfde eenheden/dag geeft met een klokvorm-curve een heel andere staafverdeling dan met uniform. De middelgrote showcase gebruikt bewust een mix (uniform/vooraan/achteraan belast) op de afbouwtaken per woning, zodat je het verschil kunt vergelijken.
+
+### De urenverdeling zelf bewerken
+
+Past geen enkele curve, dan zet je de uren per werkdag zelf. Naast de curve-dropdown van elke toewijzing staat de knop **Urenverdeling…** (het staafdiagram-icoon); die opent een venster met één rij per werkdag van de taak — dezelfde dagen waarop het histogram boekt, dus met de pauzedagen van een gesplitste taak overgeslagen. Per rij zie je de datum, het **resterende** werk in uren (bewerkbaar) en de afgeleide eenheden; heeft de toewijzing al **verricht** werk (uit een import met voortgang), dan staat dat in een eigen kolom, alleen-lezen. Het vertrekpunt is precies wat de toewijzing nu al boekt: de gekozen curve, of de exacte curve uit een P6- of MS Project-import.
+
+- **Vorm toepassen** vult de rijen met een van de acht standaardvormen (de zes curves plus *Dubbele piek* en *Schildpad* uit MS Project en P6), met behoud van het huidige totaal — handig als vertrekpunt dat je daarna per dag bijstelt.
+- **Toepassen** slaat de verdeling op als *contour* van deze toewijzing. De curve-dropdown toont dan **Contour** en is uitgeschakeld: de contour is data en wint van elke curve. Histogram, overallocatie, nivelleerder en bezettingsoverzicht rekenen er meteen mee, en de verdeling gaat mee in het IFC-bestand en in een export naar MS Project XML of Primavera P6 XML.
+- **Verdeling loslaten** verwijdert de contour; de toewijzing volgt daarna weer haar curve.
+
+Een contour verandert uitsluitend de uren per dag van deze ene toewijzing. De taakdatums, de duur en eventuele onderbrekingen blijven wat ze zijn — ook een dag op 0 uur blijft binnen de duur van de taak en maakt geen onderbreking. Wil je de taak zelf korter, langer of onderbroken, dan bewerk je de taak. Verander je later de duur, dan rekt of krimpt de contour proportioneel mee (zie de gids [MS Project-import](docs://gids-msproject-import), sectie Gecontoureerde toewijzingen). Het eigenschappenpaneel markeert een taak met eigen urenverdelingen met een grijze badge, met een link naar diezelfde sectie. Toepassen en loslaten zijn gewone undo-stappen.
 
 ## Resourcekalenders
 

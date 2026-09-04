@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "Urenverdeling per werkdag",
+    "applyShape": "Vorm toepassen:",
+    "hoursPerDay": "{{hours}} uur per werkdag",
+    "day": "Werkdag",
+    "actual": "Verricht (u)",
+    "remaining": "Resterend (u)",
+    "units": "Eenheden",
+    "noDays": "Deze taak heeft geen werkdagen.",
+    "hint": "De verdeling verandert alleen de uren per dag van deze toewijzing; de taakdatums en onderbrekingen blijven zoals ze zijn. Een dag op 0 uur blijft binnen de duur van de taak.",
+    "release": "Verdeling loslaten"
+  },
   "durationType": { "WORKTIME": "Werktijd", "ELAPSEDTIME": "Verstreken tijd" },
   "table": {
     "title": "Tabel",
@@ -355,6 +367,7 @@
     "longFreePeriodWarningNamed": "Deze taak loopt over {{name}} — een vrije periode van {{days}} dagen ({{start}} t/m {{end}}).",
     "timephasedActive": "Volgt de urenverdeling uit MS Project",
     "timephasedLost": "Datumvenster uit MS Project niet meer toegepast na bewerking — de urenverdeling zelf blijft gelden en bewaard",
+    "timephasedContoured": "Toewijzingen met een eigen urenverdeling",
     "completion": "Voortgang (%)",
     "progress": {
       "actualStart": "Werkelijke start",
@@ -388,7 +401,11 @@
       "allAssigned": "Alle resources zijn al toegewezen.",
       "disabledMilestone": "Toewijzingen zijn niet mogelijk op mijlpalen.",
       "disabledSummary": "Toewijzingen zijn niet mogelijk op samenvattingstaken.",
-      "moveTo": "Verplaats naar…"
+      "moveTo": "Verplaats naar…",
+      "contour": "Urenverdeling…",
+      "contoured": "Contour",
+      "contouredHint": "Deze toewijzing heeft een eigen urenverdeling; bewerk of laat die los via de knop Urenverdeling.",
+      "importedCurve": "Geïmporteerde curve"
     },
     "notes": {
       "title": "Aantekeningen",

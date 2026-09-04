@@ -590,7 +590,9 @@
       "backLoaded": "محمل في النهاية",
       "bell": "جرسي الشكل",
       "earlyPeak": "ذروة مبكرة",
-      "latePeak": "ذروة متأخرة"
+      "latePeak": "ذروة متأخرة",
+      "doublePeak": "ذروة مزدوجة",
+      "turtle": "سلحفاة"
     },
     "occupancyView": "الإشغال",
     "occupancy": {

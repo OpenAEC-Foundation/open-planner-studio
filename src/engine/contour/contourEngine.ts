@@ -322,6 +322,23 @@ export function matchContoursToAssignments(
   return out;
 }
 
+/**
+ * Index (in `contours`) van de contour die volgens `matchContoursToAssignments` bij de toewijzing
+ * `assignmentId` hoort — `siblings` zijn álle toewijzingen van de taak (de volgorderegel van de
+ * koppeling gaat over de hele lijst). `-1` ⇒ geen gekoppelde contour (de toewijzing volgt de
+ * formule). Voor de schrijfkant (`resourceSlice.setAssignmentContour`): vervang precies díe entry,
+ * zodat een legacy-contour zonder `resourceId` bij de eerste bewerking zijn `resourceId` krijgt.
+ */
+export function contourIndexForAssignment(
+  contours: readonly TaskTimephasedContour[] | undefined,
+  siblings: readonly ResourceAssignment[],
+  assignmentId: string,
+): number {
+  if (!contours || contours.length === 0) return -1;
+  const matched = matchContoursToAssignments(contours, siblings).get(assignmentId);
+  return matched ? contours.indexOf(matched) : -1;
+}
+
 // ── Herschaling bij bewerken ─────────────────────────────────────────────────────────────────────
 
 /**

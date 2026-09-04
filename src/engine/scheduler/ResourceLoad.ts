@@ -170,6 +170,25 @@ export function contourLookup(
   };
 }
 
+/**
+ * De werkdagen waarop een toewijzing van `task` boekt, index-uitgelijnd op `assignmentDayUnits`
+ * (slot i ⇒ `isos[i]`). Eén definitie voor beide lastlezers hieronder ÉN voor het contour-
+ * dialoogvenster (`ContourDialog.tsx`), zodat de dag die de gebruiker bewerkt exact de dag is
+ * waarop het histogram boekt. Drie takken:
+ *  - ELAPSEDTIME: `scheduleDuration` is KALENDERdagen, niet werkdagen (zie het docblok bij
+ *    `computeResourceLoad`) — de op `earlyFinish` geklemde mapping i.p.v. `enumerateTaskWorkDays`,
+ *    die het getal als werkdagen-telling zou lezen en voorbij `earlyFinish` zou doorlopen;
+ *  - VOLTOOID (`completion >= 1 && actualFinish`, eindpoortronde W0): `earlyFinish` is dan
+ *    GEZAGHEBBEND, niet stale — dezelfde geklemde vorm, andere reden (zie datzelfde docblok);
+ *  - anders `enumerateTaskWorkDays(task.splitGaps, …)`: `durationDays` werkdagen vanaf
+ *    `earlyStart`, pauzedagen van de splits overgeslagen.
+ */
+export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, durationDays: number): string[] {
+  return task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
+    ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
+    : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+}
+
 /** ISO-datum → belaste/beschikbare eenheden. Alleen dagen met >0 belasting of capaciteit
  *  (dag-granulair) — geen volledige-projectspanne-vulling met nul-dagen. */
 export interface DailyLoad {
@@ -319,15 +338,7 @@ export function computeResourceLoad(
     const days = assignmentDayUnits(task, a, taskEngine.hoursPerDay * 60, contourOf(task, a));
     if (days.length === 0) continue;
     const durationDays = Math.max(task.time.scheduleDuration, days.length);
-
-    // ELAPSEDTIME: scheduleDuration is KALENDERdagen, niet werkdagen (zie het docblok hierboven) —
-    // de oude, op earlyFinish geklemde mapping blijft hier gelden i.p.v. enumerateTaskWorkDays, die
-    // het getal als een werkdagen-telling zou lezen en voorbij earlyFinish zou doorlopen.
-    // VOLTOOID (eindpoortronde W0): earlyFinish is voor zo'n taak GEZAGHEBBEND, niet stale (zie het
-    // docblok hierboven) — dezelfde op-earlyFinish-geklemde vorm, andere reden.
-    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
-      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
-      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+    const workDayIsos = taskWorkDayIsos(task, taskEngine, durationDays);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
@@ -491,11 +502,7 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     const dist = assignmentDayUnits(task, a, taskEngine.hoursPerDay * 60, contourOf(task, a));
     if (dist.length === 0) continue;
     const durationDays = Math.max(task.time.scheduleDuration, dist.length);
-    // ELAPSEDTIME/VOLTOOID: zelfde twee uitzonderingen als computeResourceLoad hierboven — zie het
-    // docblok daar.
-    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
-      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
-      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+    const workDayIsos = taskWorkDayIsos(task, taskEngine, durationDays);
     const daily = new Map<string, number>();
     for (let i = 0; i < dist.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];

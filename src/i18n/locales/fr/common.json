@@ -569,7 +569,9 @@
       "backLoaded": "Chargé en fin",
       "bell": "En cloche",
       "earlyPeak": "Pic précoce",
-      "latePeak": "Pic tardif"
+      "latePeak": "Pic tardif",
+      "doublePeak": "Double pic",
+      "turtle": "Tortue"
     },
     "occupancyView": "Occupation",
     "occupancy": {

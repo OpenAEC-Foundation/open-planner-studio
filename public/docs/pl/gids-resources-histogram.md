@@ -67,6 +67,16 @@ Każdy przydział ma **jednostki/dzień** (1 = jedna osoba/element na pełny eta
 
 Różnica krzywych najwyraźniej widoczna jest w histogramie: to samo zadanie z tymi samymi jednostkami/dzień daje bardzo inny kształt paska przy krzywej dzwonowej niż przy jednolitej. Średniej wielkości przykład celowo miesza jednolity/obciążony na początku/obciążony na końcu na zadaniach wykończeniowych poszczególnych domów, abyś mógł porównać różnicę.
 
+### Samodzielna edycja rozkładu godzin
+
+Gdy żadna krzywa nie pasuje, ustaw godziny na dzień roboczy samodzielnie. Obok listy krzywych każdego przypisania znajduje się przycisk **Rozkład godzin…** (ikona wykresu słupkowego); otwiera on okno z jednym wierszem na każdy dzień roboczy zadania — te same dni, na których księguje histogram, więc dni przerwy podzielonego zadania są pomijane. Każdy wiersz pokazuje datę, **pozostałą** pracę w godzinach (edytowalną) i wyliczone jednostki; jeśli przypisanie ma już pracę **wykonaną** (z importu z postępem), znajduje się ona w osobnej kolumnie tylko do odczytu. Punktem wyjścia jest dokładnie to, co przypisanie księguje dziś: wybrana krzywa albo dokładna krzywa z importu P6 lub MS Project.
+
+- **Zastosuj kształt** wypełnia wiersze jednym z ośmiu standardowych kształtów (sześć krzywych plus *Podwójny szczyt* i *Żółw* z MS Project i P6), zachowując bieżącą sumę — wygodny punkt wyjścia do późniejszej korekty dzień po dniu.
+- **Zastosuj** zapisuje rozkład jako *kontur* tego przypisania. Lista krzywych pokazuje wtedy **Kontur** i jest wyłączona: kontur to dane i ma pierwszeństwo przed każdą krzywą. Histogram, przeciążenie, bilansowanie i przegląd obłożenia korzystają z niego od razu, a rozkład wędruje w pliku IFC oraz w eksporcie do MS Project XML lub Primavera P6 XML.
+- **Zwolnij rozkład** usuwa kontur; przypisanie znów podąża za swoją krzywą.
+
+Kontur zmienia wyłącznie godziny dzienne tego jednego przypisania. Daty zadania, czas trwania i ewentualne przerwy pozostają bez zmian — dzień z 0 godzin także pozostaje w obrębie czasu trwania zadania i nie tworzy przerwy. Aby skrócić, wydłużyć lub przerwać samo zadanie, edytuj zadanie. Jeśli później zmienisz czas trwania, kontur rozciąga się lub kurczy proporcjonalnie (zob. przewodnik [Import z MS Project](docs://gids-msproject-import), sekcja Przypisania z konturem). Panel właściwości oznacza zadanie z własnymi rozkładami godzin szarą plakietką z odnośnikiem do tej samej sekcji. Zastosowanie i zwolnienie to zwykłe kroki cofania.
+
 ## Kalendarze zasobów
 
 Zasób może być na **Kalendarzu projektu** (domyślnie) albo na własnym kalendarzu — na przykład dla podwykonawcy dostępnego tylko cztery dni w tygodniu. Ustaw to przez kolumnę **Kalendarz** w panelu zasobów albo pole **Kalendarz** na samym zasobie. Kalendarz zasobu nigdy nie dotyka dat CPM zadania (te nadal działają na kalendarzu zadania/projektu) — wpływa tylko na **obciążenie** i **bilansowanie**: jeśli zasób nie pracuje w dniu, którego potrzebuje zadanie, liczy się to jako niedobór w histogramie, a bilansujący ostrzega, że przesunięcie nie naprawi tego niedopasowania kalendarzy. Zobacz przewodnik [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren) po pełne wyjaśnienie kalendarzy.

@@ -67,6 +67,16 @@ Every assignment has **units/day** (1 = one person/item full time, 0.5 = half a 
 
 Curve variation shows up most clearly in the histogram: the same task with the same units/day produces a very different bar shape with a bell curve than with uniform. The medium-sized showcase deliberately mixes uniform/front loaded/back loaded on the per-house finishing tasks, so you can compare the difference.
 
+### Editing the hour distribution yourself
+
+When no curve fits, set the hours per working day yourself. Next to each assignment's curve dropdown sits the **Hour distribution…** button (the bar-chart icon); it opens a window with one row per working day of the task — the same days the histogram books on, so the pause days of a split task are skipped. Each row shows the date, the **remaining** work in hours (editable) and the derived units; if the assignment already carries **actual** work (from an import with progress), that sits in its own read-only column. The starting point is exactly what the assignment books today: the chosen curve, or the exact curve from a P6 or MS Project import.
+
+- **Apply shape** fills the rows with one of the eight standard shapes (the six curves plus *Double peak* and *Turtle* from MS Project and P6), keeping the current total — a handy starting point to adjust day by day afterwards.
+- **Apply** stores the distribution as the *contour* of this assignment. The curve dropdown then shows **Contour** and is disabled: the contour is data and wins over any curve. Histogram, overallocation, leveler and occupancy overview use it immediately, and the distribution travels in the IFC file and in an export to MS Project XML or Primavera P6 XML.
+- **Release distribution** removes the contour; the assignment follows its curve again afterwards.
+
+A contour changes only the hours per day of this one assignment. Task dates, duration and any splits stay as they are — a day at 0 hours also stays within the task duration and does not create a split. To make the task itself shorter, longer or interrupted, edit the task. If you later change the duration, the contour stretches or shrinks proportionally (see the [MS Project import](docs://gids-msproject-import) guide, Contoured assignments section). The properties panel marks a task with its own hour distributions with a grey badge linking to that same section. Apply and release are ordinary undo steps.
+
 ## Resource calendars
 
 A resource can sit on the **Project calendar** (default) or on its own calendar — for example for a subcontractor who's only available four days a week. Set this via the **Calendar** column in the resource panel, or the **Calendar** field on the resource itself. A resource calendar never touches a task's CPM dates (those keep running on the task/project calendar) — it only affects **load** and **leveling**: if a resource doesn't work a day the task needs, that counts as a shortfall in the histogram, and the leveler warns that shifting won't fix that calendar mismatch. See the guide [Calendars & hour planning](docs://gids-kalenders-uren) for the full explanation of calendars.

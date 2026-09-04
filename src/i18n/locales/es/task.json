@@ -1,4 +1,16 @@
 {
+  "contourDialog": {
+    "title": "Distribución de horas por día laborable",
+    "applyShape": "Aplicar forma:",
+    "hoursPerDay": "{{hours}} horas por día laborable",
+    "day": "Día laborable",
+    "actual": "Real (h)",
+    "remaining": "Restante (h)",
+    "units": "Unidades",
+    "noDays": "Esta tarea no tiene días laborables.",
+    "hint": "La distribución solo cambia las horas por día de esta asignación; las fechas y las interrupciones de la tarea no cambian. Un día con 0 horas permanece dentro de la duración de la tarea.",
+    "release": "Liberar distribución"
+  },
   "durationType": { "WORKTIME": "Tiempo de trabajo", "ELAPSEDTIME": "Tiempo transcurrido" },
   "table": {
     "title": "Tabla",
@@ -252,6 +264,7 @@
     "longFreePeriodWarningNamed": "Esta tarea abarca {{name}} — un período no laborable de {{days}} días ({{start}} a {{end}}).",
     "timephasedActive": "Sigue la distribución de horas de MS Project",
     "timephasedLost": "La distribución de horas de MS Project ya no se aplica tras la edición — la distribución original se conserva en el archivo",
+    "timephasedContoured": "Asignaciones con distribución de horas propia",
     "completion": "Progreso (%)",
     "progress": {
       "actualStart": "Inicio real",
@@ -284,7 +297,11 @@
       "allAssigned": "Todos los recursos ya están asignados.",
       "disabledMilestone": "No es posible asignar en hitos.",
       "disabledSummary": "No es posible asignar en tareas de resumen.",
-      "moveTo": "Mover a…"
+      "moveTo": "Mover a…",
+      "contour": "Distribución de horas…",
+      "contoured": "Contorno",
+      "contouredHint": "Esta asignación tiene su propia distribución de horas; edítela o libérela con el botón Distribución de horas.",
+      "importedCurve": "Curva importada"
     },
     "calendar": "Calendario",
     "calendarProject": "Calendario del proyecto",
