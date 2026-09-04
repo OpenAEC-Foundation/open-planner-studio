@@ -289,15 +289,38 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
   // `fixed inset-0 … z-50` over de volle viewport, dus het tabblad ligt daaronder — Playwright's
   // eigen actionability-check ("receives pointer events") wijst dit doel af vóórdat er ooit een
   // klik gedispatcht wordt. We bewijzen de blokkade door te assert'en dat de klikpoging faalt, in
-  // plaats van een `force`-klik te gebruiken die die check zou omzeilen.
+  // plaats van een `force`-klik te gebruiken die die check zou omzeilen. Fixronde bevinding 10:
+  // eerst bevestigen dat het tabblad er ECHT staat (anders slaagt de assertie ook bij een
+  // hernoemde testid of een losstaande DOM-node), en de rejection specifiek matchen op de
+  // interceptie-boodschap i.p.v. op "gooit iets" in het algemeen.
   const docTab2 = page.locator(`[data-testid="document-tab"][data-ops-tab="${doc2Id}"]`);
-  await expect(docTab2.click({ timeout: 2000 })).rejects.toThrow();
+  await expect(docTab2).toBeVisible();
+  await expect(docTab2.click({ timeout: 2000 })).rejects.toThrow(/intercepts pointer events/);
 
   // Route 2 (E4): Control+2 — de `when: () => !hasBlockingDialogOpen()`-guard op
   // `documentSwitchShortcuts` (shortcutRegistry.ts) moet dit weigeren.
   await page.keyboard.press('Control+2');
 
   await expect.poll(() => state(page).then(s => s.activeDocumentId)).toBe(doc1Id);
+  await expect(dialog(page)).toBeVisible();
+  await expect(rowByNumber(page, 2).getByRole('button', { name: CLEAR_LINK })).toBeVisible();
+
+  // Route 3 (E4/A12, fixronde bevinding 11): Control+O. De productie-voorpoort in
+  // useKeyboardShortcuts.ts is in deze dev-testbuild (`import.meta.env.PROD === false`) sowieso
+  // inactief — die helft van A12 is hier niet te bewijzen — maar de registry-`when`-guard op
+  // `file.open` (shortcutRegistry.ts) draait wél en moet de handeling stoppen vóór `COMMANDS.open.run`
+  // ooit `openFile()` aanroept: geen filechooser-event, geen nieuw document, dialoog blijft open.
+  let fileChooserFired = false;
+  const onFileChooser = () => { fileChooserFired = true; };
+  page.on('filechooser', onFileChooser);
+  await page.keyboard.press('Control+o');
+  await page.waitForTimeout(300);
+  page.off('filechooser', onFileChooser);
+
+  expect(fileChooserFired).toBe(false);
+  const afterCtrlO = await state(page);
+  expect(afterCtrlO.activeDocumentId).toBe(doc1Id);
+  expect(afterCtrlO.documentIds).toHaveLength(2);
   await expect(dialog(page)).toBeVisible();
   await expect(rowByNumber(page, 2).getByRole('button', { name: CLEAR_LINK })).toBeVisible();
 });
