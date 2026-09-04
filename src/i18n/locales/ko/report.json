@@ -49,7 +49,6 @@
     "categoriesMore_other": "… 외 {{count}}개 범주"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "작업 이름",
     "start": "시작",

@@ -53,7 +53,6 @@
     "categoriesMore_other": "… و {{count}} دسته دیگر"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "نام وظیفه",
     "start": "شروع",

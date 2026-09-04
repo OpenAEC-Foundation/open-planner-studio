@@ -49,7 +49,6 @@
     "categoriesMore_other": "… 还有 {{count}} 个类别"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "任务名称",
     "start": "开始",

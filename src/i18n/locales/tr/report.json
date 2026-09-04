@@ -52,7 +52,6 @@
     "categoriesMore_other": "… ve {{count}} kategori daha"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Görev adı",
     "start": "Başlangıç",

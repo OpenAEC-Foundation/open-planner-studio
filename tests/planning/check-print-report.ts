@@ -138,7 +138,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       milestone: 'Mijlpaal', summary: 'Samenvatting', float: 'Speling', completion: 'Voortgang',
       relationStyle: 'Bepalend / niet-bepalend',
     },
-    tableHeaders: { rowNum: '#', wbs: 'WBS', taskName: 'Taak', start: 'Start', end: 'Eind', duration: 'Duur', completion: 'Volt.' },
+    tableHeaders: { wbs: 'WBS', taskName: 'Taak', start: 'Start', end: 'Eind', duration: 'Duur', completion: 'Volt.' },
   } as PrintOptions['labels'],
   barColorsLegendLabels: {
     criticalOutline: 'Kritiek pad (rand)',
@@ -332,6 +332,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     }),
   });
   const physicalTableWidths: number[] = [];
+  let logicalTableWidth = 0;
   // Dek alle papier-/oriëntatie- en tijdlijncombinaties die het gebruikerscontract noemt. Vooral
   // `timelineColumns: 4` is belangrijk: elke extra pagina herhaalt de tabel en mag daardoor de
   // schaal niet ongemerkt veranderen.
@@ -349,6 +350,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       logicalWidth: dims.width, logicalHeight: dims.height, frozenColumnWidthPx: dims.tableWidth, timelineColumns,
     });
     physicalTableWidths.push(dims.tableWidth * layout.scale);
+    logicalTableWidth = dims.tableWidth;
     ok(Math.abs(layout.scale - 0.75) < 0.000_001,
       `#74 ${paperSize} ${orientation}, tijdlijn over ${timelineColumns}: auto-fit houdt vaste rapporttekst-schaal 0,75 (got ${layout.scale})`);
     ok(layout.cols === timelineColumns,
@@ -358,12 +360,12 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     `#74 alle papier-/tijdlijncombinaties: tabel houdt gelijke fysieke breedte (got ${physicalTableWidths.join(' / ')})`);
   const manualLayout = computeTileLayout({
     paperSize: 'a3', orientation: 'landscape', mode: 'actual',
-    logicalWidth: 720, logicalHeight: 900, frozenColumnWidthPx: 450,
+    logicalWidth: 720, logicalHeight: 900, frozenColumnWidthPx: logicalTableWidth,
   });
   ok(Math.abs(manualLayout.scale - 0.75) < 0.000_001,
     `#74 handmatige zoom houdt dezelfde rapporttekst-schaal (got ${manualLayout.scale})`);
-  ok(Math.abs(450 * manualLayout.scale - physicalTableWidths[0]) < 0.000_001,
-    `#74 handmatige zoom houdt tabel fysiek even groot als auto-fit (got ${450 * manualLayout.scale})`);
+  ok(Math.abs(logicalTableWidth * manualLayout.scale - physicalTableWidths[0]) < 0.000_001,
+    `#74 handmatige zoom houdt tabel fysiek even groot als auto-fit (got ${logicalTableWidth * manualLayout.scale})`);
   ok(REPORT_MIN_ZOOM === 1, 'handmatige rapportzoom kan tot 1 px/dag terug voor lange projecten');
 }
 
@@ -434,6 +436,31 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   const rendered = record([absurdlyLong], [], cal, baseOptions({ paperSize: 'A4', orientation: 'landscape' }));
   ok(rendered.paths.length < 6_000,
     `lange auto-fit-tijdas begrenst onzichtbare rasterarbeid (got ${rendered.paths.length})`);
+}
+
+// ── 8. Tabelkolommen (#93) ───────────────────────────────────────────────────────────────────
+// "Voltooiing tonen" uit ⇒ de Volt.-kolom verdwijnt écht uit de tabel (kop, waarden én breedte),
+// niet alleen de percentages. En de `#`-rijnummerkolom bestaat niet meer: WBS nummert al.
+{
+  const shown = record(FIX_TASKS, [], cal, baseOptions({ showCompletion: true }));
+  const hidden = record(FIX_TASKS, [], cal, baseOptions({ showCompletion: false }));
+  ok(shown.texts.some(t => t.text === 'Volt.'), '#93 voltooiing aan: kolomkop Volt. aanwezig');
+  ok(shown.texts.some(t => t.text === '60%'), '#93 voltooiing aan: percentage van t-norm aanwezig');
+  ok(!hidden.texts.some(t => t.text === 'Volt.'), '#93 voltooiing uit: kolomkop Volt. verdwenen');
+  ok(!hidden.texts.some(t => /^\d+%$/.test(t.text)), '#93 voltooiing uit: geen enkel percentage in de tabel');
+  ok(hidden.dims.tableWidth < shown.dims.tableWidth,
+    `#93 voltooiing uit: tabel smaller (${hidden.dims.tableWidth} < ${shown.dims.tableWidth})`);
+  // De kopstrook en de tabel tekenen hun rechterrand op `tableWidth`; niets mag daar voorbij in de
+  // tabelzone staan — de tijdlijn begint precies daar.
+  const tableTexts = hidden.texts.filter(t => ['WBS', 'Taak', 'Duur', 'Start', 'Eind'].includes(t.text));
+  ok(tableTexts.length === 5 && tableTexts.every(t => t.x < hidden.dims.tableWidth),
+    '#93 voltooiing uit: de overige kolomkoppen staan allemaal links van de tabelrand');
+  ok(!shown.texts.some(t => t.text === '#'), '#93 geen #-kolomkop meer');
+  // Rijnummers werden rechts-uitgelijnd in kolom 0 getekend; die tekst ("1", "2", "3") ontbreekt nu
+  // in de TABELZONE (de tijdschaal-kop rechts van de tabel tekent zelf dagnummers, die tellen niet).
+  ok(!shown.texts.some(t => t.x < shown.dims.tableWidth && /^[123]$/.test(t.text)),
+    '#93 geen rijnummers meer in de tabel');
+  ok(shown.texts.some(t => t.text === 'WBS' && t.x < 60), '#93 WBS is de eerste kolom (kop binnen 60 px)');
 }
 
 if (failures > 0) { console.log(`print-report: ${failures} faalregels`); process.exit(1); }

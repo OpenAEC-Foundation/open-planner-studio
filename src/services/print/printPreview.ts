@@ -37,7 +37,7 @@ import type { BaselineOverlay } from '@/types/baseline';
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
 const TIMELINE_HEADER_HEIGHT = 44;
-const TABLE_WIDTH = 450;
+const TABLE_WIDTH = 420; // 450 tot issue #93; de 30 px van de #-kolom gaan naar de tijdlijn
 const FOOTER_HEIGHT = 50;
 // Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
 // en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
@@ -71,35 +71,45 @@ const BAR_LABEL_GAP = DEP_STUB + 8;
 // daar is de grote gap niet nodig.
 const BAR_LABEL_PAD_LEFT = 4;
 
-// Column definitions for the task table
+// Column definitions for the task table. Issue #93: de vroegere `#`-rijnummerkolom is bewust
+// verdwenen — de automatisch genummerde WBS-kolom zegt al waar een rij staat, en op papier is
+// elke millimeter voor de tijdlijn.
 const COL = {
-  rowNum:    { x: 0,   w: 30  },
-  wbs:       { x: 30,  w: 60  },
-  name:      { x: 90,  w: 150 }, // flexible, actual end depends on remaining
+  wbs:       { x: 0,   w: 60  },
+  name:      { x: 60,  w: 150 }, // flexible, actual end depends on remaining
   duration:  { x: 0,   w: 45  }, // positioned from right
   start:     { x: 0,   w: 70  },
   end:       { x: 0,   w: 70  },
   complete:  { x: 0,   w: 45  },
 };
 
+/**
+ * De (ongeschaalde) tabelbreedte voor één render. Met **Voltooiing tonen** uit verdwijnt de hele
+ * Volt.-kolom uit de tabel (issue #93) — niet alleen de waarden — dus krimpt de tabel met precies
+ * die kolombreedte en krijgt de tijdlijn die ruimte terug.
+ */
+function tableWidthFor(showCompletion: boolean): number {
+  return showCompletion ? TABLE_WIDTH : TABLE_WIDTH - COL.complete.w;
+}
+
 // Compute right-aligned column positions. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
-// kolom nodig. Bij k = 1 is dit rekenkundig exact de oude, ongeschaalde uitkomst.
-function getColPositions(k: number) {
-  const tableWidth = TABLE_WIDTH * k;
-  const completeX = tableWidth - COL.complete.w * k;
+// kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
+// `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
+function getColPositions(k: number, showCompletion: boolean) {
+  const tableWidth = tableWidthFor(showCompletion) * k;
+  const completeX = showCompletion ? tableWidth - COL.complete.w * k : tableWidth;
   const endX = completeX - COL.end.w * k;
   const startX = endX - COL.start.w * k;
   const durationX = startX - COL.duration.w * k;
   const nameW = durationX - COL.name.x * k;
   return {
-    rowNum: { x: COL.rowNum.x * k, w: COL.rowNum.w * k },
     wbs: { x: COL.wbs.x * k, w: COL.wbs.w * k },
     name: { x: COL.name.x * k, w: nameW },
     duration: { x: durationX, w: COL.duration.w * k },
     start: { x: startX, w: COL.start.w * k },
     end: { x: endX, w: COL.end.w * k },
-    complete: { x: completeX, w: COL.complete.w * k },
+    complete: showCompletion ? { x: completeX, w: COL.complete.w * k } : undefined,
   };
 }
 
@@ -164,7 +174,7 @@ export const REPORT_FONT_SCALES = [90, 100, 110, 125] as const;
  * geen enkele Select kan tonen en die na een herstart dus niet reproduceerbaar is. Zelfde semantiek
  * als in de settings- en rapport-loaders, allemaal via {@link snapToChoice}.
  */
-function makeMetrics(reportFontScale: number | undefined): ReportMetrics {
+function makeMetrics(reportFontScale: number | undefined, showCompletion: boolean): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
   const projectHeaderHeight = PROJECT_HEADER_HEIGHT * k;
@@ -179,9 +189,9 @@ function makeMetrics(reportFontScale: number | undefined): ReportMetrics {
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: TABLE_WIDTH * k,
+    tableWidth: tableWidthFor(showCompletion) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k),
+    cols: getColPositions(k, showCompletion),
   };
 }
 
@@ -212,7 +222,7 @@ export interface PrintOptions {
        *  bindend-informatie beschikbaar is (zie {@link PrintOptions.drivingSequenceIds}). */
       relationStyle: string;
     };
-    tableHeaders: { rowNum: string; wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
+    tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
     page: string;
     of: string;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
@@ -475,7 +485,7 @@ export function renderReport(
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
-  const m = makeMetrics(options.reportFontScale);
+  const m = makeMetrics(options.reportFontScale, options.showCompletion);
 
   // Rijen-bron (#54 volg-weergave): gegeven `options.rows` tekent het rapport precies die rijen —
   // filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders: de volledige
@@ -1650,7 +1660,6 @@ function drawTimelineHeader(
   const headerY = top + h / 2;
 
   const th = options.labels?.tableHeaders;
-  d2d.fillText(th?.rowNum ?? '#', cols.rowNum.x + cols.rowNum.w / 2, headerY);
   d2d.fillText(th?.wbs ?? 'WBS', cols.wbs.x + cols.wbs.w / 2, headerY);
 
   d2d.textAlign = 'left';
@@ -1660,12 +1669,15 @@ function drawTimelineHeader(
   d2d.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
   d2d.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
   d2d.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
-  d2d.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
+  if (cols.complete) {
+    d2d.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
+  }
 
   // Column separator lines in header
   d2d.strokeStyle = PRINT_COLORS.border;
   d2d.lineWidth = 0.5;
-  const colBorders = [cols.wbs.x, cols.name.x, cols.duration.x, cols.start.x, cols.end.x, cols.complete.x, m.tableWidth];
+  const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x, m.tableWidth];
+  if (cols.complete) colBorders.push(cols.complete.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, top);
@@ -1735,11 +1747,7 @@ function drawTaskTable(
       const nameAvail = cols.name.x + cols.name.w - m.s(2) - nameX;
       const bandLabel = `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`;
       d2d.fillText(fitText(d2d, bandLabel, nameAvail), nameX, textY);
-      // Rijnummer telt mee (de band is een rij), maar geen WBS/duur/datums.
-      d2d.fillStyle = PRINT_COLORS.textSecondary;
-      d2d.font = m.font(8);
-      d2d.textAlign = 'right';
-      d2d.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - cellPad, textY);
+      // Een band groepeert alleen: geen WBS/duur/datums.
       d2d.textAlign = 'left';
       d2d.textBaseline = 'alphabetic';
       continue;
@@ -1752,17 +1760,11 @@ function drawTaskTable(
     const indent = depth * m.s(12);
     const isSummary = task.childIds.length > 0;
 
-    // Row number
-    d2d.fillStyle = PRINT_COLORS.textSecondary;
-    d2d.font = m.font(8);
-    d2d.textAlign = 'right';
-    d2d.textBaseline = 'middle';
-    d2d.fillText(String(i + 1), cols.rowNum.x + cols.rowNum.w - cellPad, textY);
-
     // WBS
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(8);
     d2d.textAlign = 'left';
+    d2d.textBaseline = 'middle';
     d2d.fillText(task.wbsCode || '', cols.wbs.x + cellPad, textY);
 
     // Name with indentation — afkorten met ellipsis i.p.v. hard clippen (klacht 4a)
@@ -1794,8 +1796,8 @@ function drawTaskTable(
       d2d.fillText(formatDutchDate(ed, options.dateNotation), cols.end.x + cols.end.w - cellPad, textY);
     }
 
-    // Completion
-    if (options.showCompletion) {
+    // Completion — de kolom bestaat alleen als `showCompletion` aanstaat (issue #93).
+    if (cols.complete) {
       d2d.fillText(formatCompletion(task.time.completion), cols.complete.x + cols.complete.w - cellPad, textY);
     }
 
@@ -1806,7 +1808,8 @@ function drawTaskTable(
   // Column separator lines throughout the table
   d2d.strokeStyle = PRINT_COLORS.grid;
   d2d.lineWidth = 0.5;
-  const colBorders = [cols.wbs.x, cols.name.x, cols.duration.x, cols.start.x, cols.end.x, cols.complete.x];
+  const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x];
+  if (cols.complete) colBorders.push(cols.complete.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, m.totalHeaderHeight);

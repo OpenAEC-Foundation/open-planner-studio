@@ -42,7 +42,9 @@ instellingenblok:
   beschikbaar met auto-fit aan. Kies meer pagina's wanneer je de tijdas minder wilt comprimeren
   zonder de tabeltekst kleiner te maken.
 - Aan/uit-schakelaars voor **taaknamen op staafjes**, **voltooiing tonen**, **kritiek pad**,
-  **speling tonen**, **afhankelijkheden**, **weekenden** en **legenda**.
+  **speling tonen**, **afhankelijkheden**, **weekenden** en **legenda**. Met **voltooiing tonen**
+  uit verdwijnt de hele kolom *Volt.* uit de taaktabel en krijgt de tijdlijn die ruimte; de tabel
+  begint bij de WBS-kolom, er is geen aparte rijnummerkolom.
 - **Balkkleuren** — één keuze die het Gantt-scherm en het rapport samen gebruiken. *Kritiek pad*
   geeft het vertrouwde rood/oranje/blauw; *Per taak — automatisch* geeft iedere taak een vaste
   paletkleur; met *Op categorie* kiest u een veld uit dezelfde lijst als bij **Groeperen**. Kies

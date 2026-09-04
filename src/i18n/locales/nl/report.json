@@ -52,7 +52,6 @@
     "categoriesMore_other": "… en nog {{count}} categorieën"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Taaknaam",
     "start": "Start",

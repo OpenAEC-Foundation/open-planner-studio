@@ -64,7 +64,6 @@
     "categoriesMore_other": "… و{{count}} فئة إضافية"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "اسم المهمة",
     "start": "البداية",

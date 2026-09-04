@@ -55,7 +55,6 @@
     "categoriesMore_other": "… et {{count}} catégories de plus"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Nom de la tâche",
     "start": "Début",

@@ -41,7 +41,9 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
   the table text.
 - Toggles for **task names on bars**, **show completion**, **critical path**, **show float**,
-  **dependencies**, **weekends** and **legend**.
+  **dependencies**, **weekends** and **legend**. With **show completion** off the whole *Compl.*
+  column disappears from the task table and the timeline gets that space; the table starts at the
+  WBS column, there is no separate row-number column.
 - **Bar colors** — one choice shared by the on-screen Gantt and the report. *Critical path* gives
   the familiar red/orange/blue; *Per task — automatic* gives every task a stable palette color;
   *By category* lets you select a field from the same list as **Group**. For example, choose

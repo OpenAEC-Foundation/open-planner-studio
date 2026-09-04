@@ -461,7 +461,6 @@ export function ReportPanel() {
         relationStyle: t('legend.relationStyle'),
       },
       tableHeaders: {
-        rowNum: '#',
         wbs: t('tableHeaders.wbs'),
         taskName: t('tableHeaders.taskName'),
         start: t('tableHeaders.start'),
