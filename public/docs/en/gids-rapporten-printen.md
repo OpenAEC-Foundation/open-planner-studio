@@ -44,6 +44,11 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   **dependencies**, **weekends** and **legend**. With **show completion** off the whole *Compl.*
   column disappears from the task table and the timeline gets that space; the table starts at the
   WBS column, there is no separate row-number column.
+- **Truncate task names** — on (default): the name column has a fixed width that you set with the
+  **Name column** slider, and a longer name ends in an ellipsis. Off: the column becomes exactly as
+  wide as the longest name in the report (indentation included), so nothing is cut off; the
+  timeline gets correspondingly narrower. Only an extremely long name is still truncated, so that a
+  single name can never claim the whole page.
 - **Bar colors** — one choice shared by the on-screen Gantt and the report. *Critical path* gives
   the familiar red/orange/blue; *Per task — automatic* gives every task a stable palette color;
   *By category* lets you select a field from the same list as **Group**. For example, choose

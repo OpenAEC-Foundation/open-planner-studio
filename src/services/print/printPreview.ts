@@ -37,9 +37,9 @@ import type { BaselineOverlay } from '@/types/baseline';
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
 const TIMELINE_HEADER_HEIGHT = 44;
-// Issue #93: 450 → 380. De 30 px van de verdwenen #-kolom en 40 px uit de te ruime WBS-/Start-/
-// Einde-kolommen gaan naar de tijdlijn; de naamkolom houdt exact zijn oude 130 px. Zie `COL`.
-const TABLE_WIDTH = 380;
+// Issue #93: de tabelbreedte is geen constante meer maar de som van de kolommen (zie `COL` en
+// `tableWidthFor`). Met de standaard naamkolom van 130 px en Volt. aan is dat 380 px — de oude 450
+// minus de verdwenen #-kolom (30) en minus 40 px uit de te ruime WBS-/Start-/Einde-kolommen.
 const FOOTER_HEIGHT = 50;
 // Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
 // en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
@@ -82,43 +82,131 @@ const BAR_LABEL_PAD_LEFT = 4;
 // een WBS-code `1.10.12.3` 31,5 px, `1000d` 23 px en `100%` 21 px. Start/Einde op 55 en WBS op 50
 // houden daarmee ≥ 7 % marge. Duur en Volt. blijven 45 om de langste vertaalde koppen (pl
 // "Czas trwania" 57 px — die liep al over — en de "Fertigst." 37 px) niet verder te knijpen.
+// De naamkolom staat hier bewust NIET: die breedte is instelbaar (zie `PrintOptions.taskNameColumnWidth`).
 const COL = {
-  wbs:       { x: 0,   w: 50  },
-  name:      { x: 50,  w: 150 }, // flexible, actual end depends on remaining
-  duration:  { x: 0,   w: 45  }, // positioned from right
-  start:     { x: 0,   w: 55  },
-  end:       { x: 0,   w: 55  },
-  complete:  { x: 0,   w: 45  },
+  wbs:       { w: 50 },
+  duration:  { w: 45 },
+  start:     { w: 55 },
+  end:       { w: 55 },
+  complete:  { w: 45 },
 };
 
 /**
- * De (ongeschaalde) tabelbreedte voor één render. Met **Voltooiing tonen** uit verdwijnt de hele
- * Volt.-kolom uit de tabel (issue #93) — niet alleen de waarden — dus krimpt de tabel met precies
- * die kolombreedte en krijgt de tijdlijn die ruimte terug.
+ * Grenzen van de instelbare naamkolom (ongeschaalde px). `DEFAULT` is exact de breedte die de
+ * kolom vóór deze instelling altijd had, zodat een verse installatie byte-identiek rendert.
+ * `MIN`/`MAX` begrenzen de slider in het rapportpaneel; `AUTO_MAX` is de bovengrens wanneer de
+ * kolom zich aan de langste naam aanpast (afkappen uit) — een absurd lange naam mag de pagina
+ * niet opeten, dus dáár kapt hij alsnog af.
  */
-function tableWidthFor(showCompletion: boolean): number {
-  return showCompletion ? TABLE_WIDTH : TABLE_WIDTH - COL.complete.w;
+export const NAME_COLUMN_WIDTH_MIN = 60;
+export const NAME_COLUMN_WIDTH_MAX = 400;
+export const NAME_COLUMN_WIDTH_DEFAULT = 130;
+export const NAME_COLUMN_AUTO_MAX = 800;
+
+/** Celpadding (ongeschaald) en de inspringing per hiërarchieniveau in de naamkolom. */
+const CELL_PAD = 4;
+const NAME_INDENT_PER_LEVEL = 12;
+/** Kleine padding vóór de rechter kolomrand van de naamcel (zie `drawTaskTable`). */
+const NAME_RIGHT_PAD = 2;
+
+/** Klem een ruwe kolombreedte naar het toegestane bereik; alles wat geen getal is ⇒ default. */
+function resolveNameColumnWidth(raw: number | undefined): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return NAME_COLUMN_WIDTH_DEFAULT;
+  return Math.min(NAME_COLUMN_AUTO_MAX, Math.max(NAME_COLUMN_WIDTH_MIN, raw));
 }
 
-// Compute right-aligned column positions. `k` is de rapport-lettergrootteschaal (zie
+/**
+ * De (ongeschaalde) tabelbreedte voor één render: de som van de zichtbare kolommen. Met
+ * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
+ * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
+ */
+function tableWidthFor(showCompletion: boolean, nameW: number): number {
+  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0);
+}
+
+// Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
 // kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
 // `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
-function getColPositions(k: number, showCompletion: boolean) {
-  const tableWidth = tableWidthFor(showCompletion) * k;
-  const completeX = showCompletion ? tableWidth - COL.complete.w * k : tableWidth;
-  const endX = completeX - COL.end.w * k;
-  const startX = endX - COL.start.w * k;
-  const durationX = startX - COL.duration.w * k;
-  const nameW = durationX - COL.name.x * k;
+function getColPositions(k: number, showCompletion: boolean, nameW: number) {
+  let x = 0;
+  const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
   return {
-    wbs: { x: COL.wbs.x * k, w: COL.wbs.w * k },
-    name: { x: COL.name.x * k, w: nameW },
-    duration: { x: durationX, w: COL.duration.w * k },
-    start: { x: startX, w: COL.start.w * k },
-    end: { x: endX, w: COL.end.w * k },
-    complete: showCompletion ? { x: completeX, w: COL.complete.w * k } : undefined,
+    wbs: next(COL.wbs.w),
+    name: next(nameW),
+    duration: next(COL.duration.w),
+    start: next(COL.start.w),
+    end: next(COL.end.w),
+    complete: showCompletion ? next(COL.complete.w) : undefined,
   };
+}
+
+/** De letter van een naamcel in de taaktabel (9 px, vet voor samenvattingen), ongeschaald. */
+export function nameCellFont(bold: boolean): string {
+  return `${bold ? 'bold ' : ''}9px ${FONT_FAMILY}`;
+}
+
+/** Eén rij van de taaktabel: een taak met diepte, of een groepsband (#54 volg-weergave). */
+export interface PrintRow {
+  kind: 'task' | 'group';
+  task?: Task;
+  depth: number;
+  label?: string;   // groepsband-label
+  count?: number;   // groepsband-aantal bladrijen
+}
+
+/**
+ * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (#54 volg-weergave) tekent het rapport
+ * precies die rijen — filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders:
+ * de volledige takenboom (oud gedrag, self-flatten), met wezen zonder gevonden ouder achteraan.
+ * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
+ */
+export function buildPrintRows(tasks: Task[], rows: ViewRow[] | undefined): PrintRow[] {
+  const printRows: PrintRow[] = [];
+  if (rows) {
+    for (const row of rows) {
+      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth });
+      else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
+    }
+    return printRows;
+  }
+  const addRecursive = (task: Task, depth: number) => {
+    printRows.push({ kind: 'task', task, depth });
+    for (const child of tasks.filter(t => t.parentId === task.id)) addRecursive(child, depth + 1);
+  };
+  for (const root of tasks.filter(t => !t.parentId)) addRecursive(root, 0);
+  for (const task of tasks) {
+    if (!printRows.some(r => r.kind === 'task' && r.task!.id === task.id)) printRows.push({ kind: 'task', task, depth: 0 });
+  }
+  return printRows;
+}
+
+/** Het label van een groepsband-rij zoals de tabel het tekent. */
+function groupBandLabel(row: PrintRow): string {
+  return `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`;
+}
+
+/**
+ * De naamkolombreedte (ongeschaald) waarbij géén enkele rij afgekapt wordt: per rij de gemeten
+ * tekstbreedte plus inspringing en celpadding, precies het spiegelbeeld van de `nameAvail`-som in
+ * `drawTaskTable`. `measure` meet op de ongeschaalde letter uit {@link nameCellFont}; de aanroeper
+ * (het rapportpaneel) levert die vanuit een canvas met het geladen Inter-font, zodat preview,
+ * raster-PDF en vector-PDF alle drie hetzelfde getal krijgen. Geklemd op
+ * [{@link NAME_COLUMN_WIDTH_MIN}, {@link NAME_COLUMN_AUTO_MAX}].
+ */
+export function measureTaskNameColumnWidth(
+  printRows: PrintRow[],
+  measure: (text: string, bold: boolean) => number,
+): number {
+  let needed = 0;
+  for (const row of printRows) {
+    const bold = row.kind === 'group' || (row.task?.childIds.length ?? 0) > 0;
+    const text = row.kind === 'group' ? groupBandLabel(row) : (row.task?.name ?? '');
+    const indent = row.depth * NAME_INDENT_PER_LEVEL;
+    // +1: afronding van gemeten subpixel-breedtes mag nooit nét een ellipsis uitlokken.
+    needed = Math.max(needed, Math.ceil(measure(text, bold) + indent + CELL_PAD + NAME_RIGHT_PAD + 1));
+  }
+  return resolveNameColumnWidth(needed);
 }
 
 type ColPositions = ReturnType<typeof getColPositions>;
@@ -182,9 +270,10 @@ export const REPORT_FONT_SCALES = [90, 100, 110, 125] as const;
  * geen enkele Select kan tonen en die na een herstart dus niet reproduceerbaar is. Zelfde semantiek
  * als in de settings- en rapport-loaders, allemaal via {@link snapToChoice}.
  */
-function makeMetrics(reportFontScale: number | undefined, showCompletion: boolean): ReportMetrics {
+function makeMetrics(reportFontScale: number | undefined, showCompletion: boolean, taskNameColumnWidth: number | undefined): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
+  const nameW = resolveNameColumnWidth(taskNameColumnWidth);
   const projectHeaderHeight = PROJECT_HEADER_HEIGHT * k;
   const timelineHeaderHeight = TIMELINE_HEADER_HEIGHT * k;
   return {
@@ -197,9 +286,9 @@ function makeMetrics(reportFontScale: number | undefined, showCompletion: boolea
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: tableWidthFor(showCompletion) * k,
+    tableWidth: tableWidthFor(showCompletion, nameW) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k, showCompletion),
+    cols: getColPositions(k, showCompletion, nameW),
   };
 }
 
@@ -211,6 +300,14 @@ export interface PrintOptions {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /**
+   * Breedte van de naamkolom in de taaktabel, ongeschaald (schaalt mee met `reportFontScale`).
+   * Ontbreekt ⇒ {@link NAME_COLUMN_WIDTH_DEFAULT}; buiten bereik ⇒ geklemd. Een naam die er niet in
+   * past wordt met een ellipsis afgekapt. "Niet afkappen" is géén aparte modus van de printlaag:
+   * het paneel meet dan zelf de langste naam ({@link measureTaskNameColumnWidth}) en geeft dát
+   * getal door, zodat preview, raster- en vector-export gegarandeerd dezelfde tabel tekenen.
+   */
+  taskNameColumnWidth?: number;
   /** Dezelfde tijdas-instelling als de scherm-Gantt: niet-werkdagen krijgen geen rapportkolom. */
   compressNonWorkdays?: boolean;
   /** De actieve baseline als grijze onderbalk, gelijk aan de hoofd-Gantt (#81). */
@@ -493,51 +590,11 @@ export function renderReport(
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
-  const m = makeMetrics(options.reportFontScale, options.showCompletion);
+  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth);
 
-  // Rijen-bron (#54 volg-weergave): gegeven `options.rows` tekent het rapport precies die rijen —
-  // filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders: de volledige
-  // takenboom (oud gedrag, self-flatten). Beide vormen normaliseren hier naar één rij-type:
-  // taakrijen mét diepte plus (nieuw) groepsband-rijen die als samenvattings-strook tekenen.
-  interface PrintRow {
-    kind: 'task' | 'group';
-    task?: Task;
-    depth: number;
-    label?: string;   // groepsband-label
-    count?: number;   // groepsband-aantal bladrijen
-  }
-  const printRows: PrintRow[] = [];
-  const depthMap = new Map<string, number>();
-  if (options.rows) {
-    for (const row of options.rows) {
-      if (row.kind === 'task') {
-        depthMap.set(row.task.id, row.depth);
-        printRows.push({ kind: 'task', task: row.task, depth: row.depth });
-      } else {
-        printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
-      }
-    }
-  } else {
-    const addRecursive = (task: Task, depth: number) => {
-      depthMap.set(task.id, depth);
-      printRows.push({ kind: 'task', task, depth });
-      const children = tasks.filter(t => t.parentId === task.id);
-      for (const child of children) {
-        addRecursive(child, depth + 1);
-      }
-    };
-
-    const roots = tasks.filter(t => !t.parentId);
-    for (const root of roots) {
-      addRecursive(root, 0);
-    }
-    for (const task of tasks) {
-      if (!printRows.find(r => r.kind === 'task' && r.task!.id === task.id)) {
-        depthMap.set(task.id, 0);
-        printRows.push({ kind: 'task', task, depth: 0 });
-      }
-    }
-  }
+  // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
+  // als samenvattings-strook tekenen.
+  const printRows = buildPrintRows(tasks, options.rows);
   const flatTasks: PrintTask[] = printRows
     .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
     .map(r => ({ ...r.task, _depth: r.depth }));
@@ -1717,7 +1774,7 @@ function drawTaskTable(
 ) {
   const chartBottom = canvasHeight - m.footerHeight;
   // Cel-padding: schaalt mee met de kolombreedtes, anders vreet een grotere letter de padding op.
-  const cellPad = m.s(4);
+  const cellPad = m.s(CELL_PAD);
 
   // Table background
   d2d.fillStyle = PRINT_COLORS.bg;
@@ -1746,15 +1803,14 @@ function drawTaskTable(
     // Groepsband-rij (#54 volg-weergave): vet label met inspringing, geen datacellen — een band
     // groepeert, hij is géén taak met datums/duur.
     if (row.kind === 'group') {
-      const indent = row.depth * m.s(12);
+      const indent = row.depth * m.s(NAME_INDENT_PER_LEVEL);
       d2d.fillStyle = PRINT_COLORS.summary;
       d2d.font = m.font(9, true);
       d2d.textAlign = 'left';
       d2d.textBaseline = 'middle';
       const nameX = cols.name.x + cellPad + indent;
-      const nameAvail = cols.name.x + cols.name.w - m.s(2) - nameX;
-      const bandLabel = `${row.label ?? ''}${row.count !== undefined ? ` (${row.count})` : ''}`;
-      d2d.fillText(fitText(d2d, bandLabel, nameAvail), nameX, textY);
+      const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
+      d2d.fillText(fitText(d2d, groupBandLabel(row), nameAvail), nameX, textY);
       // Een band groepeert alleen: geen WBS/duur/datums.
       d2d.textAlign = 'left';
       d2d.textBaseline = 'alphabetic';
@@ -1765,7 +1821,7 @@ function drawTaskTable(
     const depth = row.depth;
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
-    const indent = depth * m.s(12);
+    const indent = depth * m.s(NAME_INDENT_PER_LEVEL);
     const isSummary = task.childIds.length > 0;
 
     // WBS
@@ -1779,8 +1835,9 @@ function drawTaskTable(
     d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
     d2d.font = m.font(9, isSummary);
     d2d.textAlign = 'left';
+    // Spiegelbeeld van `measureTaskNameColumnWidth`: wijzig je deze som, wijzig dan ook die.
     const nameX = cols.name.x + cellPad + indent;
-    const nameAvail = cols.name.x + cols.name.w - m.s(2) - nameX; // kleine padding vóór de kolomrand
+    const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
     d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
 
     // Duration

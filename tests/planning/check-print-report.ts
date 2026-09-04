@@ -13,7 +13,10 @@
  *     resource = segmenten in rato van unitsPerDay + rode outline op kritieke taken.
  *  4. LEGENDA: resource-modus toont resourcenamen + rand-verklaring; critical-modus niet.
  */
-import { renderReport, PrintOptions, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import {
+  renderReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth,
+  NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
+} from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
 import {
   computePreviewRasterLimits,
@@ -461,6 +464,57 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   ok(!shown.texts.some(t => t.x < shown.dims.tableWidth && /^[123]$/.test(t.text)),
     '#93 geen rijnummers meer in de tabel');
   ok(shown.texts.some(t => t.text === 'WBS' && t.x < 50), '#93 WBS is de eerste kolom (kop binnen 50 px)');
+}
+
+// ── 9. Instelbare naamkolom ──────────────────────────────────────────────────────────────────
+// De naamkolom is een getal in PrintOptions; het paneel kiest dat getal (slider, of gemeten
+// langste naam). De printlaag klemt, kapt met ellipsis af en laat de tabelbreedte meebewegen.
+{
+  const longName = 'Een bewust erg lange taaknaam die in de standaardkolom nooit past';
+  const T_LONG = mkTask('t-lang', longName, { time: mkTime({ earlyStart: '2026-01-05', earlyFinish: '2026-01-09', scheduleStart: '2026-01-05', scheduleFinish: '2026-01-09' }) });
+  // De opnemende Draw2D meet 6 px per teken; de naam is 65 tekens ⇒ 390 px tekst.
+  const dflt = record([T_LONG], [], cal, baseOptions());
+  const narrow = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: 80 }));
+  const wide = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: 400 }));
+  const auto = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: 600 }));
+  ok(dflt.texts.some(t => t.text.endsWith('…') && longName.startsWith(t.text.slice(0, -1))),
+    'naamkolom: standaardbreedte kapt een lange naam met ellipsis af');
+  ok(narrow.dims.tableWidth === dflt.dims.tableWidth - (NAME_COLUMN_WIDTH_DEFAULT - 80),
+    `naamkolom: smallere kolom ⇒ tabel evenveel smaller (got ${narrow.dims.tableWidth} vs ${dflt.dims.tableWidth})`);
+  ok(wide.dims.tableWidth === dflt.dims.tableWidth + (400 - NAME_COLUMN_WIDTH_DEFAULT),
+    `naamkolom: bredere kolom ⇒ tabel evenveel breder (got ${wide.dims.tableWidth})`);
+  ok(wide.texts.some(t => t.text === longName), 'naamkolom: bij 400 px staat de volledige naam in de tabel');
+  ok(auto.dims.tableWidth === dflt.dims.tableWidth + (600 - NAME_COLUMN_WIDTH_DEFAULT),
+    'naamkolom: boven de slider-max (gemeten breedte) accepteert de printlaag tot AUTO_MAX');
+  const clampedLow = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: 5 }));
+  const clampedHigh = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: 99_999 }));
+  const nan = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: Number.NaN }));
+  ok(clampedLow.dims.tableWidth === dflt.dims.tableWidth - (NAME_COLUMN_WIDTH_DEFAULT - NAME_COLUMN_WIDTH_MIN),
+    'naamkolom: te klein ⇒ geklemd op MIN');
+  ok(clampedHigh.dims.tableWidth === dflt.dims.tableWidth + (NAME_COLUMN_AUTO_MAX - NAME_COLUMN_WIDTH_DEFAULT),
+    'naamkolom: te groot ⇒ geklemd op AUTO_MAX');
+  ok(nan.dims.tableWidth === dflt.dims.tableWidth, 'naamkolom: NaN ⇒ default');
+
+  // Meting: exact het spiegelbeeld van de teken-som (tekst + inspringing 12/niveau + padding 4+2 + 1).
+  const parent = mkTask('p', 'Ouder', { childIds: ['c'] });
+  const child = mkTask('c', 'Kindnaam', { parentId: 'p' });
+  const rows = buildPrintRows([child, parent], undefined);
+  ok(rows.length === 2 && rows[0].task?.id === 'p' && rows[0].depth === 0 && rows[1].task?.id === 'c' && rows[1].depth === 1,
+    'buildPrintRows: ouder vóór kind, diepte 0/1, ongeacht invoervolgorde');
+  const measured = measureTaskNameColumnWidth(rows, (text, bold) => text.length * 10 + (bold ? 1 : 0));
+  // 'Kindnaam' = 8 tekens ⇒ 80 + indent 12 + 7 = 99 ; 'Ouder' vet = 51 + 0 + 7 = 58 ⇒ max 99.
+  ok(measured === 99, `measureTaskNameColumnWidth: langste rij incl. inspringing (got ${measured})`);
+  const bandRows = buildPrintRows([], [
+    { kind: 'group', rowKey: 'g', key: '["x"]', label: 'Metselaar', count: 12, depth: 0, levelIndex: 0, collapsed: false },
+  ]);
+  const bandMeasured = measureTaskNameColumnWidth(bandRows, (text, bold) => (bold && text === 'Metselaar (12)' ? 200 : 0));
+  ok(bandMeasured === 207, `measureTaskNameColumnWidth: groepsband meet vet mét "(count)" (got ${bandMeasured})`);
+  ok(measureTaskNameColumnWidth([], () => 0) === NAME_COLUMN_WIDTH_MIN, 'measureTaskNameColumnWidth: leeg ⇒ MIN');
+  ok(measureTaskNameColumnWidth(rows, () => 5000) === NAME_COLUMN_AUTO_MAX, 'measureTaskNameColumnWidth: absurd lang ⇒ AUTO_MAX');
+  // Rondgang: een kolom op de gemeten breedte kapt met de echte opnemende meting (6 px/teken) niets af.
+  const exact = measureTaskNameColumnWidth(buildPrintRows([T_LONG], undefined), text => text.length * 6);
+  const roundTrip = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: exact }));
+  ok(roundTrip.texts.some(t => t.text === longName), `naamkolom: gemeten breedte (${exact}) toont de naam onafgekapt`);
 }
 
 if (failures > 0) { console.log(`print-report: ${failures} faalregels`); process.exit(1); }

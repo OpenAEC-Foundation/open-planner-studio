@@ -45,6 +45,11 @@ instellingenblok:
   **speling tonen**, **afhankelijkheden**, **weekenden** en **legenda**. Met **voltooiing tonen**
   uit verdwijnt de hele kolom *Volt.* uit de taaktabel en krijgt de tijdlijn die ruimte; de tabel
   begint bij de WBS-kolom, er is geen aparte rijnummerkolom.
+- **Taaknamen afkappen** — aan (standaard): de naamkolom heeft een vaste breedte die u met de
+  slider **Naamkolom** instelt, en een langere naam eindigt op een beletselteken. Uit: de kolom
+  wordt precies zo breed als de langste naam in het rapport (inclusief inspringing), zodat niets
+  wordt afgekapt; de tijdlijn wordt navenant smaller. Alleen bij een extreem lange naam kapt de
+  kolom alsnog af, zodat één naam nooit de hele pagina opeist.
 - **Balkkleuren** — één keuze die het Gantt-scherm en het rapport samen gebruiken. *Kritiek pad*
   geeft het vertrouwde rood/oranje/blauw; *Per taak — automatisch* geeft iedere taak een vaste
   paletkleur; met *Op categorie* kiest u een veld uit dezelfde lijst als bij **Groeperen**. Kies
