@@ -29,6 +29,7 @@ import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/His
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, parseDate } from '@/utils/dateUtils';
+import { resolveTaskFinish } from '@/utils/ganttViewport';
 
 /** Overlay-datums uit de actieve baseline, keyed op Task.id. */
 export { buildBaselineOverlay };
@@ -70,6 +71,11 @@ export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
  * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom, zodat
  * dezelfde span ook voor het secundaire split-view-venster (eigen zoom, geen taaktabel) gebruikt
  * kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
+ *
+ * Finish-keten via {@link resolveTaskFinish} (`ganttViewport.ts`) — dezelfde functie als
+ * `computeFitToProject`, inclusief de terugval op de start. Zonder die terugval kon een taak met
+ * alleen een start wél meetellen voor de Ctrl+0-fit maar niet voor deze contentbreedte, waardoor de
+ * fit naar een positie buiten `maxScrollX` kon zoomen.
  */
 export function computeContentSpanDays(
   tasks: Task[],
@@ -81,7 +87,7 @@ export function computeContentSpanDays(
   if (tasks.length === 0 && navigationEndDates.length === 0) return null;
   let maxDays = 365;
   for (const task of tasks) {
-    const end = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish;
+    const end = resolveTaskFinish(task.time);
     if (end) {
       // Issue #21 punt 5 (fase 2, §10.2 eenheden-consistentie): bij compressie telt de
       // contentbreedte in WERKDAG-eenheden (`axis.daySpan`) i.p.v. kalenderdagen — anders is de

@@ -129,8 +129,11 @@ eq('03k setZoom bereikt de kwartiergrens', S().view.zoom, 4000);
     // review mat dat. Daarom eerst een positieve controle: de scan MOET de canonieke declaratie
     // in ganttViewport.ts vinden. Vindt hij die niet, dan werkt het gereedschap niet en zeggen de
     // drie checks eronder niets.
+    // Regelnummer bewust weggestript: de declaratie mag verhuizen binnen het bestand zonder dat
+    // deze poort rood wordt — het gaat om "de scan vindt hem", niet om waar hij staat.
     eq('03b de scan werkt (vindt de canonieke ZOOM_STEP-declaratie)',
-      scan(String.raw`export const ZOOM_STEP`), ['src/utils/ganttViewport.ts:22:export const ZOOM_STEP = 10;']);
+      scan(String.raw`export const ZOOM_STEP`).map(l => l.replace(/^([^:]+):\d+:/, '$1:')),
+      ['src/utils/ganttViewport.ts:export const ZOOM_STEP = 10;']);
 
     // Een getal waar de constante hoort. `[ ]?` omdat dit project bewust geen stijlregels in
     // ESLint heeft: niets dwingt de spaties rond de operator af, dus `zoom-5` moet ook vallen.

@@ -273,12 +273,28 @@ function checkAgentDocs(diffs: string[]): void {
   //     bridge er 39 draaide): een tool erbij is één regel in de registry, en niemand denkt dan
   //     aan een zin verderop in CLAUDE.md. Precies het soort drift dat deze poort hoort te vangen.
   //     Geteld over de tool-bestanden zelf, niet over een lijst die óók bij kan raken.
+  //
+  //     Bewust GEEN dynamic import van toolRegistry.ts/toolIndex.ts hier: dat sleept via
+  //     `contracts.ts` → `AppStoreContext` de hele storelaag (en indirect Tauri/DOM-afhankelijkheden)
+  //     mee een kaal Node-script in dat verder puur op bestanden/JSON draait (zie de kopcommentaar
+  //     hierboven) — precies de complicatie die `tests/mcp/cases-toolregistry.ts` uit de weg gaat
+  //     door ook niet te importeren, maar wél de bron te lezen.
+  //
+  //     In plaats daarvan hergebruiken we exact dezelfde aanpak als die poort (zie de toelichting
+  //     bovenin `cases-toolregistry.ts`): een regex op de `name: '...'`-veldliteralen van de
+  //     `McpToolDef`-objecten, niet op elke `planner_...`-achtige stringliteral. De oude regex
+  //     (`['"](planner_[a-z_]+)['"]`) matchte ELKE stringliteral met die vorm — dus ook een
+  //     tool-naam die louter in beschrijvingsproza wordt genoemd (bv. "roep hierna planner_foo aan")
+  //     terwijl `planner_foo` niet bestaat. Zo'n verzonnen naam voegde stil een extra element aan de
+  //     Set toe zonder dat er een tool bijkwam — de telling bleef toevallig kloppen zolang niemand
+  //     ook de N in CLAUDE.md aanpaste, en een niet-bestaande tool in de doc-tekst viel dus nooit op.
+  //     De `name:`-geankerde regex telt uitsluitend de daadwerkelijke contract-registraties.
   const toolsDir = join(ROOT, 'src', 'services', 'mcp', 'tools');
   const toolNames = new Set<string>();
   for (const file of readdirSync(toolsDir)) {
     if (!file.endsWith('.ts')) continue;
     const src = readFileSync(join(toolsDir, file), 'utf8');
-    for (const m of src.matchAll(/['"](planner_[a-z_]+)['"]/g)) toolNames.add(m[1]);
+    for (const m of src.matchAll(/\bname:\s*["'](planner_[a-z_]+)["']/g)) toolNames.add(m[1]);
   }
   const claimed = claude.match(/De (\d+)\s*\n?`planner_\*`-tools/);
   if (!claimed) {

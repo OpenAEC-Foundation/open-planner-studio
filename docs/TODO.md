@@ -11,46 +11,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
-### Uit de critreview van release v2026.8.0 (2026-08-17)
-- [ ] **Perf: met het bezettingsoverzicht open draait er een volledige CPM-solve per bewerking van
-  het actieve document.** `getOpenDocumentPayloads()` levert óók het actieve document mee, met
-  `scheduleStale = s.scheduleStale` — na elke bewerking `true`. De `useMemo` in
-  `ResourceOccupancyView` invalideert dan op `activeTasks`/`activeAssignments` en
-  `computeLibraryOccupancy` rekent het actieve document synchroon in de render efemeer door over de
-  vólledige takenlijst. Op de schaal die `relationRules.ts` zelf noemt (3000 taken / 1500 relaties:
-  700 ms–2,6 s) is dat merkbaar hakkelen tijdens typen. De §7-snit heeft de bibliotheek-*load*
-  teruggebracht maar de solve niet meegerekend. Richting: het actieve document overslaan in de
-  efemere tak (het heeft `useAutoCalcCPM` of F5), of de solve memoïseren per payload-referentie.
-- [ ] **`platformRefusesWrites` is een sessie-brede latch zonder uitweg.**
-  `src/services/fileAccess/webBackend.ts`: één `NotAllowedError`/`SecurityError` stuurt de rest van
-  de sessie élke opslag naar de downloadmap, ook in een browser waar in-place schrijven prima werkt.
-  Reset bestaat alleen als `resetWebWriteRefusalForTests()`. `SecurityError` is juist het
-  "geen geldige gebruikersactivatie"-geval, dus een programmatische save kan de latch omzetten en
-  daarmee de handmatige Ctrl+S daarna degraderen. Richting: alleen op `NotAllowedError` latchen en
-  `SecurityError` als eenmalige fout behandelen. (Nog te bevestigen: of een web-buildpad
-  `saveFileDialog` zonder gebruikersactivatie kan bereiken.)
-- [ ] **De acht nieuwe voorbeeld-resourcesets staan buiten elke poort.** `verify:examples` eist
-  overallocatie juist wél (regel ~196 in `verifyShowcase`, alleen voor showcases), dus niets bewaakt
-  dat de acht nieuwe sets overallocatie-vrij blijven. Ze zijn nu gemeten schoon; de eerstvolgende
-  topologie-wijziging kan ze stil overbezet maken. Overweeg een assertie.
-- [ ] **`deleteTasksBulk` kan een dode undo-stap achterlaten.** Met ≥2 ids pusht `withTransaction`
-  onvoorwaardelijk een snapshot; zijn álle ids al weg, dan blijft die stap staan. Het 1-id-pad
-  ontwijkt dat bewust.
-- [ ] **De thema-map in `index.html` is een handkopie van `THEME_MIGRATION`** in
-  `settingsStore.ts`. Vandaag identiek (acht sleutels, zelfde defaults), maar niets bewaakt dat —
-  precies de duplicatieklasse die dit project elders wél dichtzet.
-- [ ] **`relationRules.ts` is de bron van de regel, niet de poort.** `pasteTasks` (`taskSlice.ts`
-  ~978) en het tak-uit-sjabloon-pad (~1060) pushen `s.sequences` zonder `relationVerdict`, dus een
-  tak kopiëren die een spookrelatie bevat maakt er weer een. Verdedigbaar als kopie-van-bestaande-
-  data (net als import), maar de changelog van v2026.8.0 beweert "single source of truth" — zet
-  óf de code óf die tekst recht.
-- [ ] **`verify-docs.ts` poort 7e telt tools met een regex** (`/['"](planner_[a-z_]+)['"]/g`) over
-  `src/services/mcp/tools/`, dus ook tool-namen in beschrijvingsproza. Vandaag klopt de telling
-  (39), maar een beschrijving die een niet-bestaande tool noemt glipt erdoor.
-- [ ] **Mijlpaal met start maar zonder finish is niet relatie-sleepbaar.** `getRelationSourceAt`
-  eist beide datums, `drawMilestone` alleen een start — hij wordt dus getekend maar is geen
-  sleepbron. Randgeval.
-
 ### Bedrijfsbibliotheken (B1.1) — vervolgen (2026-07-24)
 - [ ] **B1b — bezettingsoverzicht** over open documenten (binnen één bedrijf/pool; bouwt op de
   herkomststempels + Resources-tab Bedrijfsweergave uit B1.1). Zie docs/library.md
@@ -393,36 +353,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       doorgeschoven, dit is puur zichtbaarheid, geen correctheidsgat.
 
 ### Klein
-- [ ] **Raster-terugval van de rapport-export heeft geen paginalimiet.** Gemeten 2026-07-27 tijdens
-      issue #25: de PREVIEW is inmiddels afgedekt (`maxPages` in `paginateCanvasToTiles`, 30 vellen),
-      maar `exportRaster()` in `ReportPanel.tsx` niet — en dat mag ook niet zomaar, want een export
-      moet compleet zijn. Daar bestaan dus álle `rows * cols` pagina-canvassen tegelijk vóór de
-      omzetting naar JPEG, op `SUPERSAMPLE = 2`. Een A3-vel is daarmee ~2382×1684×4 ≈ 16 MB; het
-      gemeten scenario van 300 taken met `timelineColumns: 8` (20 rijen × 8 kolommen = 160 pagina's)
-      komt op ~2,5 GB. Let op wanneer dit toeslaat: raster is de `catch`-terugval van de vector-tak,
-      dus precies op het moment dat de vector-export net gefaald is. `MAX_TIMELINE_COLUMNS = 32`
-      begrenst het wel, maar staat nog steeds honderden pagina's toe. Pre-existing gedrag, geen
-      regressie van #25 — dat werk maakte het pad alleen makkelijker bereikbaar (één dropdown i.p.v.
-      een handmatige zoominstelling). Fix-richting: pagina's streamend omzetten naar JPEG en het
-      canvas per pagina vrijgeven i.p.v. ze allemaal vast te houden, of één pagina-canvas hergebruiken.
-- [ ] **Taakdatumvelden pushen 3 undo-stappen per ingetypte datum.** `DateTextInput` commit live bij
-      elke toetsaanslag en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
-      levert commits op voor 2020-06-01, 0203-06-01 en 2030-06-01 — elk met een volledige snapshot.
-      Gemeten en bevestigd op 2026-07-20; pre-existing, geen regressie. De infrastructuur om dit te
-      verhelpen staat er inmiddels: `beginUndoable(s, { coalesceKey })` in `src/state/transaction.ts`
-      (gebruikt door `setStatusDate`). Voor `updateTask` kan de key niet generiek zijn — die zou ook
-      niet-datumbewerkingen en opeenvolgende Gantt-sleepacties samenvoegen — dus per veld kiezen.
-      **Onderzocht 2026-07-20:** 13 gebruiksplekken geïnventariseerd, 10 problematisch en 3 lokaal
-      (veilig). Correctie op de eerdere formulering: de start/finish-cellen in `TableEditor` zijn
-      géén `DateTextInput` en committeren al één keer. **Advies uit dat onderzoek: los het bij de
-      bron op** met een `commitMode`-prop (commit-op-blur) in plaats van per-actie coalesce-keys —
-      de gedeelde `task-sections`-componenten voeden zowel het eigenschappenpaneel als de
-      taakdialoog, dus een fix in het veld zelf dekt beide in één keer.
-- [ ] **Recovery-robuustheid bij een corrupt herstelbestand.** Sinds 2026-07-20 rekent
-      `restoreDocuments` het herstelde document door (`runCPM`), net als elk ander laadpad. Een
-      corrupte of afgekapte recovery-snapshot na een crash laat het opstarten daardoor klappen in
-      plaats van doormodderen. Overweeg een defensieve afhandeling rond die ene aanroep, met een
-      zichtbare melding in plaats van een stille catch.
 - [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft
       `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
       taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum
@@ -660,19 +590,6 @@ deel 4. In volgorde van hoe hard het split-view blokkeert:
       dagen vrij zijn — zijn in K-item 39 rechtgezet en met `check-print-screen-parity.ts` afgedekt.
       *Eerst beslissen:* moet de afdruk meeschalen met de zoom zoals het scherm, of blijft de vaste
       maand/week/dag-strook de bedoeling? Pas daarna bouwen.
-
-### Klein — fit en contentbreedte zijn het oneens over een taak zonder finish (2026-08-17)
-- [ ] **`computeFitToProject` valt op de finish-keten terug op de start (`|| s`),
-      `computeContentSpanDays` niet.** `ganttViewport.ts` doet
-      `earlyFinish || scheduleFinish || lateFinish || s`; `ganttRenderOptions.ts` doet dezelfde
-      keten zonder die laatste terugval. Een taak met alleen een start telt dus wél mee voor de
-      Ctrl+0-fit maar niet voor de contentbreedte, en kan daardoor buiten `maxScrollX` vallen
-      terwijl de fit er wél naartoe zoomt. De codedivergentie is zeker; de bereikbaarheid niet —
-      `createDefaultTaskTime` zet altijd een `scheduleFinish`, dus je hebt een corrupte import of
-      een externe adapter nodig. *Eerst uitzoeken:* wat de IFC-lezer en de CSV/MSPDI/P6-importers
-      kunnen opleveren; pas daarna beslissen welke van de twee ketens de juiste is. Niet ontstaan
-      door K-item 33 — dat item legde het alleen bloot. Er staat een toelichtende regel bij beide
-      functies zodat het verschil niet als slordigheid leest.
 
 ### Klein — de indirecte route naar een spookrelatie is volledig stil (2026-08-14)
 - [ ] **Structuurmutaties kunnen een bladtaak-met-relaties tot verzameltaak maken zonder enig

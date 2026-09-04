@@ -181,6 +181,10 @@ export type NotificationMessageKey =
   | 'notifications.autoSaveFailed'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
+  // Recovery-robuustheid (docs/TODO.md, "corrupt herstelbestand"): `restoreDocuments` slaat een
+  // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
+  // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
+  | 'notifications.recoveryDocumentsSkipped'
   | 'notifications.scheduleFailed'
   | 'notifications.ifcParseFailed'
   | 'notifications.templateSaved'
@@ -188,6 +192,7 @@ export type NotificationMessageKey =
   | 'notifications.relationDuplicate'
   | 'notifications.relationAncestorEndpoint'
   | 'notifications.summaryRelationsDropped'
+  | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.mppSourceScheduleNotes'

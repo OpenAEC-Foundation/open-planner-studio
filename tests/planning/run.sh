@@ -208,6 +208,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DTCHECK="$DIR/.datetime-check.mjs"
   if bundle_check "$DIR/check-datetime.ts" "$DTCHECK"; then node "$DTCHECK" || STATUS=1; fi
 
+  # Commitmodus van het gedeelde datumveld (DateTextInput — pure reducers): één ingetypte datum mag
+  # in de standaard 'blur'-modus precies EEN commit (en dus een undo-stap) opleveren.
+  DICHECK="$DIR/.date-input-commit-check.mjs"
+  if bundle_check "$DIR/check-date-input-commit.ts" "$DICHECK"; then node "$DICHECK" || STATUS=1; fi
+
   # "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts — pure functies, los van de CPM-cases).
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi
@@ -217,6 +222,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # verwierp: de Tauri-webview labelt elke onbekende extensie (.md) als text/html.
   TACHECK="$DIR/.text-asset-check.mjs"
   if bundle_check "$DIR/check-text-asset.ts" "$TACHECK"; then node "$TACHECK" || STATUS=1; fi
+
+  # Pre-paint-themaspiegel (issue #61): de handkopie van de themamap in index.html mag niet
+  # ongemerkt afwijken van THEME_MIGRATION (settingsStore.ts) — dezelfde duplicatieklasse die dit
+  # project elders wél mechanisch dichtzet.
+  TPCHECK="$DIR/.theme-premirror-check.mjs"
+  if bundle_check "$DIR/check-theme-premirror.ts" "$TPCHECK"; then node "$TPCHECK" || STATUS=1; fi
 
   # CalendarEngine uur-modus-checks (fase 2.8b golf 1, §4/§9 — engine-primitieven, los van de CPM-cases).
   CHCHECK="$DIR/.calendar-hours-check.mjs"
@@ -745,6 +756,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # kleurmodi + legenda — via opnemende Draw2D, zelfde renderer als preview én vector-PDF.
   PRTEXPCHECK="$DIR/.print-report.mjs"
   if bundle_check "$DIR/check-print-report.ts" "$PRTEXPCHECK"; then node "$PRTEXPCHECK" || STATUS=1; fi
+
+  # Rasterexport-streaming: exportRaster() mag geen paginalimiet hebben (een export moet compleet
+  # zijn), dus de begrenzing moet uit het geheugengedrag komen — één pagina-canvas tegelijk, meteen
+  # naar JPEG en weer vrijgegeven, in plaats van alle rows*cols canvassen tegelijk vasthouden.
+  PRTSTREAMCHECK="$DIR/.print-raster-export-streaming.mjs"
+  if bundle_check "$DIR/check-print-raster-export-streaming.ts" "$PRTSTREAMCHECK"; then node "$PRTSTREAMCHECK" || STATUS=1; fi
 
   # Issue #21 punt 2 — wanneer alleen werkdagen tonen aan staat, gebruikt het rapport dezelfde
   # gecomprimeerde as als de scherm-Gantt en vervangt het verdwenen weekendarcering door weekbanden.

@@ -1350,13 +1350,17 @@ export class GanttRenderer {
     }
   }
 
-  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
-    const ctx = this.ctx;
-    // Zelfde guard als barGeometry (TODO 2026-07-28): een datumloze mijlpaal heeft niets om op te
-    // ankeren — niets tekenen i.p.v. per frame crashen op `undefined.includes(...)`.
+  /** Schermpositie (canvas-x) van de mijlpaal-ruit voor `task`, of `null` als er niets is om op te
+   *  ankeren. Gedeeld tussen `drawMilestone` (tekenen) en `getRelationSourceAt` (relatie-hittest),
+   *  zodat een mijlpaal met alleen een start — zonder finish — precies daar hit-test waar hij ook
+   *  getekend wordt: vóór deze extractie eiste `getRelationSourceAt` via `barGeometry` altíjd zowel
+   *  start als finish, terwijl `drawMilestone` al langer genoeg had aan één van beide (TODO
+   *  'mijlpaal met start maar zonder finish is niet relatie-sleepbaar', docs/TODO.md). Bewust géén
+   *  `barGeometry`-hergebruik: die geeft een `[x1,x2)`-balkbreedte, geen enkel ruitmidden. */
+  private milestoneAnchorX(task: Task): number | null {
     const startStr = task.time.earlyStart || task.time.scheduleStart
       || task.time.earlyFinish || task.time.scheduleFinish;
-    if (!startStr) return;
+    if (!startStr) return null;
     const hourMode = startStr.includes('T');
     const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
     // Grens-model (fase 2.4): een startmijlpaal ankert op het dagBEGIN (linkerrand van de
@@ -1365,7 +1369,15 @@ export class GanttRenderer {
     // dus die ankert op de instant zelf (anchor 0) zonder dag-cel-verschuiving.
     const zoom = this.opts.view.zoom;
     const anchor = hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
-    const x = this.dateToX(date) + anchor;
+    return this.dateToX(date) + anchor;
+  }
+
+  private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
+    const ctx = this.ctx;
+    // Zelfde guard als barGeometry (TODO 2026-07-28): een datumloze mijlpaal heeft niets om op te
+    // ankeren — niets tekenen i.p.v. per frame crashen op `undefined.includes(...)`.
+    const x = this.milestoneAnchorX(task);
+    if (x === null) return;
     const cy = y + height / 2;
     const size = height * 0.4;
 
@@ -2088,9 +2100,27 @@ export class GanttRenderer {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
     const task = this.getTaskAtY(canvasY);
     if (!task) return null;
+
+    const hasStart = !!(task.time.earlyStart || task.time.scheduleStart);
+    const hasFinish = !!(task.time.earlyFinish || task.time.scheduleFinish);
+
+    // Randgeval (docs/TODO.md): een mijlpaal met precies ÉÉN kant (alleen start, of — symmetrisch —
+    // alleen finish) — bv. handmatig gezet vóórdat runCPM() gedraaid heeft. `drawMilestone` tekent
+    // 'm gewoon (leent bij ontbreken desnoods van de andere kant, zie `milestoneAnchorX`), maar
+    // viel hieronder altijd door de guard verderop, die BEIDE kanten eiste. Bewust ALLEEN dit
+    // eenzijdige geval via de tekenhelper: heeft de taak beide data (het gebruikelijke geval), dan
+    // blijft de bestaande `barGeometry`-brede grijpzone hieronder ongewijzigd — geen
+    // gedragswijziging voor een mijlpaal die al twee data draagt.
+    if (hasStart !== hasFinish && isZeroDurationMilestone(task)) {
+      const x = this.milestoneAnchorX(task);
+      if (x === null) return null;
+      const grab = 6; // zelfde marge als hieronder, zie toelichting bij `grab`.
+      return canvasX >= x - grab && canvasX <= x + grab ? task : null;
+    }
+
     // Zelfde datumloos-guard als getTaskBarBounds: een taak zonder datums heeft alleen een
     // terugval-stub op de viewstart en dus geen betekenisvolle positie om vanaf te slepen.
-    if (!(task.time.earlyStart || task.time.scheduleStart) || !(task.time.earlyFinish || task.time.scheduleFinish)) {
+    if (!hasStart || !hasFinish) {
       return null;
     }
 
