@@ -149,14 +149,21 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   // is tegenstrijdig bewijs, maar GEEN van beide cellen is zelf een eerlijk voorbeeld: onder de
   // "verkeerde" lezing levert elke cel een ONGELDIGE datum op (maand 25 bestaat niet — vóór de fix
   // rolde dat via `Date.UTC` stil door naar januari 2028, een onmogelijke "keuze"). Zonder een
-  // derde, wél eerlijke cel is er dus NIETS dubbelzinnigs te tónen — het bestand valt terug op
-  // `noAmbiguity` in plaats van de gebruiker een kapotte vraag voor te leggen.
+  // derde, wél eerlijke cel is er dus NIETS dubbelzinnigs te tónen. Opus-hercheck N-D/N-E: dat
+  // betekent NIET dat het bestand `noAmbiguity` is — het IS tegenstrijdig gebleken, alleen zonder
+  // tónbaar voorbeeld. `noAmbiguity` zou dat verzwijgen (een écht mdy-bestand met één dmy-vormige
+  // typefout krijgt dan een muur van `unreadableDate`-weigeringen zonder diagnose); het eerlijke
+  // label is `contradictoryNoSample`. De orde blijft `dmy` (een kant moet gekozen worden).
   const contradictoryNoGenuineCell: RawDateCell[] = [
     { rowNumber: 2, field: 'actualStart', raw: '25-6-2026' },
     { rowNumber: 3, field: 'actualFinish', raw: '6-25-2026' },
   ];
-  eq('tegenstrijdig bewijs zonder eerlijk voorbeeld ⇒ toch geen vraag', det(contradictoryNoGenuineCell).order, 'dmy');
-  eq('…met bewijssoort noAmbiguity', evidenceOf(det(contradictoryNoGenuineCell)), 'noAmbiguity');
+  eq('tegenstrijdig bewijs zonder eerlijk voorbeeld ⇒ orde blijft dmy', det(contradictoryNoGenuineCell).order, 'dmy');
+  eq(
+    '…maar het bewijssoort verzwijgt de tegenstrijdigheid niet (N-D/N-E)',
+    evidenceOf(det(contradictoryNoGenuineCell)),
+    'contradictoryNoSample',
+  );
 
   // Dezelfde tegenstrijdigheid, nu MET een derde cel die wél onder beide ordes een geldige,
   // verschillende datum oplevert — dat blijft `ambiguous`, met die derde cel als sample.
@@ -202,6 +209,33 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 
   eq('ijkpunt met 3 treffers beslist', det(calib3, calib3Tasks).order, 'dmy');
   eq('…met bewijssoort calibration', evidenceOf(det(calib3, calib3Tasks)), 'calibration');
+
+  // Opus-hercheck N-C: het a!==b-filter in regel 1 is DRAGEND voor de kalibratie zelf, niet alleen
+  // voor de sample-keuze. Een dag==maand-cel (bv. `3-3-2026`) levert onder BEIDE lezingen dezelfde
+  // datum op — zonder het filter zou zo'n cel, bij een id-match op een taak met precies die
+  // geplande datum, VOOR BEIDE tellers (dmyHits ÉN mdyHits) meetellen en zo de 3×-ratio breken.
+  // Vóór deze fixture liet het filter weghalen de suite ongewijzigd groen.
+  const ddTask1 = taskWithDates('t-calib-dd-1', '2026-03-03', '2026-03-03');
+  const ddTask2 = taskWithDates('t-calib-dd-2', '2026-06-06', '2026-06-06');
+  const ddTask3 = taskWithDates('t-calib-dd-3', '2026-10-10', '2026-10-10');
+  const calib3WithDayEqualsMonth: RawDateCell[] = [
+    ...calib3,
+    { rowNumber: 6, field: 'start', raw: '3-3-2026', taskId: 't-calib-dd-1' },
+    { rowNumber: 7, field: 'start', raw: '6-6-2026', taskId: 't-calib-dd-2' },
+    { rowNumber: 8, field: 'start', raw: '10-10-2026', taskId: 't-calib-dd-3' },
+  ];
+  const calib3WithDayEqualsMonthTasks = [...calib3Tasks, ddTask1, ddTask2, ddTask3];
+  eq(
+    'dag==maand-ijkpunten mogen de kalibratie niet vervuilen',
+    det(calib3WithDayEqualsMonth, calib3WithDayEqualsMonthTasks).order,
+    'dmy',
+  );
+  eq(
+    '…en de 3 echte treffers blijven een echte kalibratie-beslissing (niet toevallig ambiguous)',
+    evidenceOf(det(calib3WithDayEqualsMonth, calib3WithDayEqualsMonthTasks)),
+    'calibration',
+  );
+
   eq('2 treffers is te weinig', det(calib2, calib2Tasks).order, 'ambiguous');
   eq('ambiguous draagt een echt voorbeeld', sampleOf(det(calib2, calib2Tasks)), '12-6-2026');
   eq(

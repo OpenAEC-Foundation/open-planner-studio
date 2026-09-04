@@ -37,7 +37,12 @@ export interface ProgressSheet {
 
 export type DateOrder = 'dmy' | 'mdy';
 export type DateOrderDetection =
-  | { order: DateOrder; evidence: 'noAmbiguity' | 'outOfRange' | 'calibration' }
+  /** `contradictoryNoSample`: het bereikbewijs (regel 2) wees tegenstrijdig — sommige cellen
+   *  konden alleen dag-eerst kloppen, andere alleen maand-eerst — maar geen enkele cel was zelf
+   *  een eerlijk (onder beide lezingen geldig, verschillend) voorbeeld om te tonen. De orde blijft
+   *  `dmy` (een keuze moest gemaakt worden), maar dit label zegt eerlijk dat het bestand
+   *  tegenstrijdig was, i.p.v. stil te doen alsof er niets aan de hand was (fixronde N-D/N-E). */
+  | { order: DateOrder; evidence: 'noAmbiguity' | 'outOfRange' | 'calibration' | 'contradictoryNoSample' }
   /** `sample` is de rauwe celtekst uit het bestand. `sampleAlternatives` zijn de twee lezingen als
    *  ISO-datumstrings (GEEN geformatteerde tekst — fixronde-bevinding 5): de dialoog (baan C)
    *  formatteert ze zelf, locale-bewust, met `formatDisplayDate`. Beide lezingen zijn hier
