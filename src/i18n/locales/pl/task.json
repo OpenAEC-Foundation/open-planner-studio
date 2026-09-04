@@ -255,7 +255,7 @@
     "longFreePeriodWarningNamed": "To zadanie obejmuje {{name}} — {{days}}-dniowy okres wolny od pracy ({{start}} do {{end}}).",
     "timephasedActive": "Podąża za rozkładem godzin z MS Project",
     "timephasedLost": "Rozkład godzin z MS Project nie jest już stosowany po edycji — pierwotny rozkład pozostaje zachowany w pliku",
-    "timephasedContoured": "Przypisania z własnym rozkładem godzin",
+    "timephasedContoured": "Własny rozkład godzin",
     "completion": "Postęp (%)",
     "progress": {
       "actualStart": "Rzeczywisty początek",

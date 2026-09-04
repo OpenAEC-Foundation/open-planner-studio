@@ -251,7 +251,7 @@
     "longFreePeriodWarningNamed": "Cette tâche traverse {{name}} — une période non travaillée de {{days}} jours ({{start}} au {{end}}).",
     "timephasedActive": "Suit la répartition horaire de MS Project",
     "timephasedLost": "Répartition horaire de MS Project non appliquée après modification — la répartition d'origine reste conservée dans le fichier",
-    "timephasedContoured": "Affectations avec une répartition des heures propre",
+    "timephasedContoured": "Répartition des heures propre",
     "completion": "Avancement (%)",
     "progress": {
       "actualStart": "Début réel",

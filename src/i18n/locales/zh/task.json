@@ -243,7 +243,7 @@
     "longFreePeriodWarningNamed": "此任务跨越{{name}} —— 一个为期 {{days}} 天的非工作时段（{{start}} 至 {{end}}）。",
     "timephasedActive": "跟随 MS Project 的工时分布",
     "timephasedLost": "编辑后不再应用 MS Project 的工时分布——原始分布仍保留在文件中",
-    "timephasedContoured": "具有自定义工时分布的分配",
+    "timephasedContoured": "自定义工时分布",
     "completion": "进度（%）",
     "progress": {
       "actualStart": "实际开始",

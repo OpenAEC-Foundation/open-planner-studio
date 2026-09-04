@@ -260,7 +260,7 @@
     "longFreePeriodWarningNamed": "Diese Aufgabe erstreckt sich über {{name}} — einen arbeitsfreien Zeitraum von {{days}} Tagen ({{start}} bis {{end}}).",
     "timephasedActive": "Folgt der Stundenverteilung aus MS Project",
     "timephasedLost": "Stundenverteilung aus MS Project nach der Bearbeitung nicht mehr angewendet — die ursprüngliche Verteilung bleibt in der Datei erhalten",
-    "timephasedContoured": "Zuweisungen mit eigener Stundenverteilung",
+    "timephasedContoured": "Eigene Stundenverteilung",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",

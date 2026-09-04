@@ -251,7 +251,7 @@
     "longFreePeriodWarningNamed": "Esta tarefa atravessa {{name}} — um período não útil de {{days}} dias ({{start}} a {{end}}).",
     "timephasedActive": "Segue a distribuição de horas do MS Project",
     "timephasedLost": "Distribuição de horas do MS Project não é mais aplicada após a edição — a distribuição original permanece guardada no arquivo",
-    "timephasedContoured": "Atribuições com distribuição de horas própria",
+    "timephasedContoured": "Distribuição de horas própria",
     "completion": "Progresso (%)",
     "progress": {
       "actualStart": "Início real",

@@ -243,7 +243,7 @@
     "longFreePeriodWarningNamed": "이 작업은 {{name}} 기간에 걸쳐 있습니다 — {{days}}일간의 비근무 기간 ({{start}} ~ {{end}}).",
     "timephasedActive": "MS Project의 시간 분배를 따릅니다",
     "timephasedLost": "편집 후 MS Project의 시간 분배가 더 이상 적용되지 않습니다 — 원래 분배는 파일에 그대로 보존됩니다",
-    "timephasedContoured": "고유한 시간 분배가 있는 배정",
+    "timephasedContoured": "고유 시간 분배",
     "completion": "진행률 (%)",
     "progress": {
       "actualStart": "실제 시작",

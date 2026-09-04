@@ -247,7 +247,7 @@
     "longFreePeriodWarningNamed": "Bu görev {{name}} dönemini kapsıyor — {{days}} günlük çalışmaya kapalı bir dönem ({{start}} - {{end}}).",
     "timephasedActive": "MS Project'ten gelen saat dağılımını izliyor",
     "timephasedLost": "Düzenlemeden sonra MS Project'ten gelen saat dağılımı artık uygulanmıyor — özgün dağılım dosyada saklı kalıyor",
-    "timephasedContoured": "Kendi saat dağılımı olan atamalar",
+    "timephasedContoured": "Özel saat dağılımı",
     "completion": "İlerleme (%)",
     "progress": {
       "actualStart": "Gerçek başlangıç",

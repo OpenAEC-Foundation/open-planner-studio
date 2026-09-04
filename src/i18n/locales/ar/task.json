@@ -332,7 +332,7 @@
     "longFreePeriodWarningNamed": "تمتد هذه المهمة عبر {{name}} — فترة عطلة مدتها {{days}} يومًا ({{start}} إلى {{end}}).",
     "timephasedActive": "تتبع توزيع الساعات من MS Project",
     "timephasedLost": "لم يعد توزيع الساعات من MS Project مطبقًا بعد التعديل — يبقى التوزيع الأصلي محفوظًا في الملف",
-    "timephasedContoured": "تعيينات ذات توزيع ساعات خاص",
+    "timephasedContoured": "توزيع ساعات خاص",
     "completion": "التقدم (%)",
     "progress": {
       "actualStart": "البداية الفعلية",
