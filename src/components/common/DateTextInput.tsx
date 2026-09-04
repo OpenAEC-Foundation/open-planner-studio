@@ -30,9 +30,9 @@ export function parseFlexibleDate(raw: string): string | null {
 // alleen deze `order` te wisselen. De PARSE blijft semantisch (dag/maand/jaar per soort, niet per
 // positie), zodat een andere weergavevolgorde de parser niet raakt.
 
-type SegKind = 'day' | 'month' | 'year';
+export type SegKind = 'day' | 'month' | 'year';
 
-interface SegmentDef {
+export interface SegmentDef {
   kind: SegKind;
   maxLen: number;
   /** i18n-sleutel voor het aria-label van dit segment. */
@@ -58,7 +58,7 @@ const ORDER_BY_NOTATION: Record<DateNotation, SegKind[]> = {
   ymd: ['year', 'month', 'day'],
 };
 
-type SegState = Record<SegKind, string>;
+export type SegState = Record<SegKind, string>;
 
 const EMPTY_SEG: SegState = { day: '', month: '', year: '' };
 
@@ -69,7 +69,7 @@ function isoToSegments(iso: string): SegState {
   return { day: m[3], month: m[2], year: m[1] };
 }
 
-type SegStatus = 'empty' | 'incomplete' | 'valid' | 'invalid';
+export type SegStatus = 'empty' | 'incomplete' | 'valid' | 'invalid';
 
 /**
  * Bepaal de toestand van de drie segmenten:
@@ -80,13 +80,76 @@ type SegStatus = 'empty' | 'incomplete' | 'valid' | 'invalid';
  * De parse is semantisch dag-maand-jaar (los van de weergavevolgorde), en volgt de bestaande
  * conventie (2-cijferig jaar → 20xx) via {@link parseFlexibleDate}.
  */
-function computeSeg(seg: SegState): { status: SegStatus; iso: string | null } {
+export function computeSeg(seg: SegState): { status: SegStatus; iso: string | null } {
   const filled = [seg.day, seg.month, seg.year].filter(v => v !== '').length;
   if (filled === 0) return { status: 'empty', iso: '' };
   if (filled < 3) return { status: 'incomplete', iso: null };
   const iso = parseFlexibleDate(`${seg.day}-${seg.month}-${seg.year}`);
   return iso ? { status: 'valid', iso } : { status: 'invalid', iso: null };
 }
+
+// ── Commitmodel ──────────────────────────────────────────────────────────────
+// Wanneer een toetsaanslag de buitenwereld bereikt, is bewust DATA en geen impliciet gedrag: het
+// veld is gesegmenteerd en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
+// doorloopt de geldige tussenwaarden 2020-06-01 en 0203-06-01 vóór 2030-06-01. Committeert het veld
+// live, dan schrijft één ingetypte datum drie keer naar de store — bij een undo-plichtige actie
+// (`updateTask`, deadline, constraint, …) dus drie undo-stappen met onzin-tussenwaarden.
+// `'blur'` (de standaard) commit daarom pas bij het AFRONDEN (blur/Enter/plakken); `'live'` blijft
+// beschikbaar voor plekken die puur lokale draftstate voeden én daar live feedback op tonen.
+
+/** Wanneer een bewerking naar buiten wordt gecommit. Zie {@link resolveDateCommit}. */
+export type DateCommitMode = 'live' | 'blur';
+
+/** Fase waarin de commit wordt afgewogen: tijdens typen, of bij het afronden (blur/Enter/plak). */
+export type DateCommitPhase = 'typing' | 'finish';
+
+export type DateCommitResolution =
+  /** Niets naar buiten schrijven (en de zichtbare invoer met rust laten). */
+  | { kind: 'idle' }
+  /** Schrijf deze waarde (`''` = geen datum). De aanroeper slaat een no-op zelf over. */
+  | { kind: 'write'; iso: string }
+  /** Incompleet bij afronden: stille terugval op de laatst gecommitte waarde. */
+  | { kind: 'revert' }
+  /** Compleet maar onbestaand (bv. 31-02-2026): foutindicatie, niets committen. */
+  | { kind: 'error' };
+
+/**
+ * Pure kern van het commitgedrag — bewust zonder React/DOM, zodat de regressietest de exacte
+ * toetsaanslagreeks kan naspelen (`tests/planning/check-date-input-commit.ts`).
+ */
+export function resolveDateCommit(
+  phase: DateCommitPhase, mode: DateCommitMode, seg: SegState,
+): DateCommitResolution {
+  const st = computeSeg(seg);
+  if (phase === 'typing') {
+    if (mode === 'blur') return { kind: 'idle' };
+    if (st.status === 'empty') return { kind: 'write', iso: '' };
+    if (st.status === 'valid') return { kind: 'write', iso: st.iso! };
+    return { kind: 'idle' };
+  }
+  if (st.status === 'empty') return { kind: 'write', iso: '' };
+  if (st.status === 'valid') return { kind: 'write', iso: st.iso! };
+  if (st.status === 'incomplete') return { kind: 'revert' };
+  return { kind: 'error' };
+}
+
+/**
+ * Pure toetsaanslag-reducer: sanitiseert de invoer van segment `i` en zegt of de focus naar het
+ * volgende segment doorspringt. De component gebruikt 'm voor het echte veld, de test om een
+ * ingetypte datum toetsaanslag voor toetsaanslag na te spelen.
+ */
+export function nextSegmentState(
+  seg: SegState, order: SegmentDef[], i: number, raw: string,
+): { seg: SegState; advanceTo: number | null } {
+  const def = order[i];
+  const digits = raw.replace(/\D/g, '').slice(0, def.maxLen);
+  const next = { ...seg, [def.kind]: digits };
+  const advanceTo = digits.length >= def.maxLen && i < order.length - 1 ? i + 1 : null;
+  return { seg: next, advanceTo };
+}
+
+/** De canonieke dag-maand-jaar-volgorde; de test heeft 'm nodig om toetsaanslagen na te spelen. */
+export const DMY_ORDER: SegmentDef[] = [DAY_SEG, MONTH_SEG, YEAR_SEG];
 
 // Focus-/foutrand identiek aan het design-system (`.input:focus` en `.input--error:focus`), zodat
 // de gesegmenteerde groep exact als de oude enkele `.input` oogt. Bewust puur `border`-shorthand
@@ -126,6 +189,15 @@ interface DateTextInputProps {
   /** Placeholder-override; standaard de i18n-hint (`dd-mm-jjjj`), per segment gesplitst. */
   placeholder?: string;
   id?: string;
+  /**
+   * Wanneer een bewerking naar buiten gecommit wordt (zie {@link resolveDateCommit}):
+   *  - `'blur'` (standaard) → pas bij afronden: blur van de héle groep, Enter of plakken. Verplicht
+   *    voor elke plek die naar de store schrijft (undo-plichtig), want live committen levert per
+   *    ingetypte datum meerdere snapshots op.
+   *  - `'live'` → per toetsaanslag, zoals vroeger. Alleen voor puur lokale draftstate mét live
+   *    afgeleide feedback.
+   */
+  commitMode?: DateCommitMode;
 }
 
 /**
@@ -159,17 +231,29 @@ interface DateTextInputProps {
  *    de gecommitte waarde valt terug op de laatst geldige (de foute datum wordt NIET gecommit),
  *    de invoer blijft zichtbaar zodat de gebruiker hem kan corrigeren.
  *
- * ENTER (samenwerking met `useDialogKeys`): bij een geldige (of lege) invoer roept het veld GEEN
- * `preventDefault`/`stopPropagation` aan — de dialoog-Enter (primaire actie) gaat door, en omdat een
- * geldige datum al live gecommit is, bevestigt de dialoog met de juiste waarde. Bij een ongeldige of
- * incomplete invoer blokkeert het veld de dialoog-Enter (`preventDefault` + `stopPropagation`) en
- * toont het de foutindicatie; de focus blijft in de groep.
+ * COMMITMOMENT (`commitMode`, standaard `'blur'`): de gecommitte waarde gaat pas naar buiten bij het
+ * afronden — blur van de héle groep, Enter, of het plakken van een volledige datum. Dat is geen
+ * cosmetiek: het veld is gesegmenteerd en een jaar is al bij 2 cijfers parsebaar, dus live committen
+ * maakt van "01062030" drie geldige commits (2020-06-01 → 0203-06-01 → 2030-06-01) en dus drie
+ * undo-stappen bij elke store-schrijvende aanroeper. `'live'` is er nog voor plekken met puur lokale
+ * draftstate die daar live afgeleide feedback op tonen.
+ *
+ * ESCAPE: herstelt de laatst gecommitte waarde (en wist de foutindicatie). Stond er niets open, dan
+ * loopt Escape gewoon door naar de dialoog.
+ *
+ * ENTER (samenwerking met `useDialogKeys`): het veld rondt eerst zichzelf af. Is er niets meer dat
+ * nog doorgegeven moet worden, dan roept het GEEN `preventDefault`/`stopPropagation` aan en gaat de
+ * dialoog-Enter (primaire actie) door met de juiste waarde. Gaf deze Enter de waarde juist NÚ pas
+ * door, of is de invoer ongeldig/incompleet, dan eet het veld de toets op (`preventDefault` +
+ * `stopPropagation`) — anders zou de dialoog in dezelfde event-tick nog met zijn oude draft
+ * bevestigen. Een tweede Enter bevestigt dan wel.
  *
  * TOEKOMST (fase 2.8b — uren-scheduling): er komt tijd-van-de-dag. Deze component blokkeert die
  * uitbreiding niet; de parser is puur en tijd-loos. Bouw die tijd-invoer hier NU niet.
  */
 export function DateTextInput({
   value, onCommit, className = '', style, ariaLabel, title, disabled, placeholder, id,
+  commitMode = 'blur',
 }: DateTextInputProps) {
   const { t } = useTranslation('common');
   // Weergave-/segmentvolgorde volgt de instelling (reactief: hertekent bij wijziging).
@@ -226,26 +310,44 @@ export function DateTextInput({
     else focusSeg(idx, 'start');
   };
 
-  // Live-commit: exact als het oude veld committeert alleen een lege ('') of een geldige ISO-datum;
-  // bij incomplete/ongeldige invoer blijft de store op de laatst geldige waarde staan.
-  const commitFrom = (s: SegState) => {
-    const st = computeSeg(s);
-    if (st.status === 'empty') { if (value !== '') onCommit(''); }
-    else if (st.status === 'valid' && st.iso !== value) onCommit(st.iso!);
+  // Committeert alleen een lege ('') of een geldige ISO-datum; bij incomplete/ongeldige invoer blijft
+  // de store op de laatst geldige waarde staan. De fase bepaalt (samen met `commitMode`) óf er
+  // überhaupt geschreven wordt — zie `resolveDateCommit`.
+  const commitFrom = (s: SegState, phase: DateCommitPhase): DateCommitResolution => {
+    const res = resolveDateCommit(phase, commitMode, s);
+    if (res.kind === 'write' && res.iso !== value) onCommit(res.iso);
+    return res;
+  };
+
+  /**
+   * Afronden (blur/Enter): normaliseer, commit of val stil terug, en toon de fout bij een
+   * compleet-maar-onbestaande datum. Retourneert of er nog iets openstond, zodat Enter weet of hij
+   * de dialoog-Enter moet opeten (anders bevestigt de dialoog met de nog niet doorgegeven waarde).
+   */
+  const finish = (s: SegState): { pending: boolean; blocked: boolean } => {
+    const res = commitFrom(s, 'finish');
+    if (res.kind === 'write') {
+      setShowError(false);
+      if (res.iso !== '') setSeg(isoToSegments(res.iso)); // normaliseer (bv. 6→06, 26→2026)
+      return { pending: res.iso !== value, blocked: false };
+    }
+    if (res.kind === 'revert') {
+      setShowError(false);
+      setSeg(isoToSegments(value)); // stille terugval op laatst geldige waarde
+      return { pending: false, blocked: true };
+    }
+    setShowError(true); // compleet-maar-ongeldig: commit NIET
+    return { pending: false, blocked: true };
   };
 
   const handleChange = (i: number, raw: string) => {
-    const def = order[i];
-    const digits = raw.replace(/\D/g, '').slice(0, def.maxLen);
-    const next = { ...seg, [def.kind]: digits };
+    const { seg: next, advanceTo } = nextSegmentState(seg, order, i, raw);
     setSeg(next);
     setShowError(false); // typen wist elke eerder getoonde fout
-    commitFrom(next);
+    commitFrom(next, 'typing');
     // Auto-doorspringen: land op het volgende segment. Is dat al GEVULD, selecteer dan de inhoud (typen
     // vervangt) i.p.v. een lege cursor die door `maxLength` niets meer accepteert (QA-fix).
-    if (digits.length >= def.maxLen && i < order.length - 1) {
-      focusSeg(i + 1, next[order[i + 1].kind] ? 'all' : 'start');
-    }
+    if (advanceTo !== null) focusSeg(advanceTo, next[order[advanceTo].kind] ? 'all' : 'start');
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -255,14 +357,24 @@ export function DateTextInput({
     const atEnd = el.selectionStart === val.length && el.selectionEnd === val.length;
 
     if (e.key === 'Enter') {
-      const st = computeSeg(seg);
-      if (st.status === 'invalid' || st.status === 'incomplete') {
-        // Ongeldig/incompleet mag de dialoog-Enter niet doorlaten (zie JSDoc).
-        e.preventDefault();
-        e.stopPropagation();
-        setShowError(true);
-      }
-      return; // geldig/leeg: laat bubbelen naar useDialogKeys
+      const { pending, blocked } = finish(seg);
+      // Ongeldig/incompleet mag de dialoog-Enter niet doorlaten (zie JSDoc). En in `'blur'`-modus mag
+      // een Enter die de waarde NÚ pas doorgeeft de dialoog evenmin meteen bevestigen: de aanroeper
+      // zou in dezelfde event-tick nog zijn oude draft lezen. Een tweede Enter bevestigt dan wél.
+      if (blocked || pending) { e.preventDefault(); e.stopPropagation(); }
+      return; // niets meer openstaand: laat bubbelen naar useDialogKeys
+    }
+    if (e.key === 'Escape') {
+      // Herstel de laatst gecommitte waarde. Stond er niets open, dan is dit geen bewerking en mag
+      // Escape gewoon doorlopen naar de dialoog (sluiten).
+      const restored = isoToSegments(value);
+      const dirty = showError || JSON.stringify(restored) !== JSON.stringify(seg);
+      if (!dirty) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setSeg(restored);
+      setShowError(false);
+      return;
     }
     if (e.key === '-' || e.key === '/' || e.key === '.') {
       e.preventDefault();
@@ -288,6 +400,8 @@ export function DateTextInput({
     const iso = parseFlexibleDate(text.trim());
     if (!iso) return; // geen volledige datum → laat de standaard-plak in dit ene segment (gesanitized)
     e.preventDefault();
+    // Een volledige datum plakken is ÉÉN bewuste handeling (het equivalent van een datumprikker):
+    // die committeert meteen, ook in `'blur'`-modus.
     const segs = isoToSegments(iso);
     setSeg(segs);
     setShowError(false);
@@ -300,25 +414,7 @@ export function DateTextInput({
     // Verlaat de focus de héle groep, of springt hij alleen tussen segmenten?
     if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setGroupFocused(false);
-    const st = computeSeg(seg);
-    if (st.status === 'empty') {
-      setShowError(false);
-      if (value !== '') onCommit('');
-      return;
-    }
-    if (st.status === 'valid') {
-      setShowError(false);
-      setSeg(isoToSegments(st.iso!)); // normaliseer (bv. 6→06, 26→2026)
-      if (st.iso !== value) onCommit(st.iso!);
-      return;
-    }
-    if (st.status === 'incomplete') {
-      setShowError(false);
-      setSeg(isoToSegments(value)); // stille terugval op laatst geldige waarde
-      return;
-    }
-    // compleet-maar-ongeldig: toon fout, commit NIET (store valt terug op laatst geldig).
-    setShowError(true);
+    finish(seg);
   };
 
   const groupBorder = disabled ? null : showError ? ERROR_STYLE : groupFocused ? FOCUS_STYLE : null;

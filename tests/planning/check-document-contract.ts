@@ -750,12 +750,13 @@ truthy('h8 invariant: cache == bibliotheek-entry van project.calendarId',
   J(S().calendar) === J(S().calendars.find(c => c.id === S().project.calendarId)));
 
 // ══ (i) LIVE-COMMIT-COALESCING (pakket H) ═══════════════════════════════════════════════════════
-// `DateTextInput` committeert LIVE per toetsaanslag (`handleChange` → `commitFrom`), en
-// `parseFlexibleDate` accepteert een jaar van 2 én 3 cijfers. Het intypen van "01062030" levert
-// daardoor DRIE geldige commits op ("2020-06-01", "0203-06-01", "2030-06-01"). Nu setStatusDate een
-// undo-snapshot pusht, zou dat zonder coalescing drie undo-stappen met onzin-tussenwaarden geven.
-// `typeDate` repliceert handleChange/commitFrom toetsaanslag voor toetsaanslag (die helpers zijn niet
-// geëxporteerd; de échte `parseFlexibleDate` wordt wél gebruikt).
+// `parseFlexibleDate` accepteert een jaar van 2 én 3 cijfers, dus een veld dat LIVE per toetsaanslag
+// committeert maakt van het intypen van "01062030" DRIE geldige commits ("2020-06-01",
+// "0203-06-01", "2030-06-01"). `DateTextInput` doet dat sinds de `commitMode`-fix niet meer standaard
+// (`'blur'` commit pas bij het afronden — zie `check-date-input-commit.ts`), maar deze test bewaakt
+// de LAAG DAARONDER: ook wanneer setStatusDate wél meerdere commits achter elkaar krijgt (plakken,
+// corrigeren, een toekomstige live-aanroeper) mag dat één undo-stap blijven. `typeDate` speelt die
+// commitreeks daarom bewust nog steeds live na; de échte `parseFlexibleDate` wordt gebruikt.
 type SegKind = 'day' | 'month' | 'year';
 const SEG_ORDER: { kind: SegKind; maxLen: number }[] = [
   { kind: 'day', maxLen: 2 }, { kind: 'month', maxLen: 2 }, { kind: 'year', maxLen: 4 },
@@ -781,7 +782,7 @@ const typeDate = (raw: string, onCommit: (iso: string) => void): string[] => {
 S().newProject();
 const iBase = S().historyEvents.filter(event => event.state === 'applied').length;
 const iCommits = typeDate('01062030', (iso) => S().setStatusDate(iso));
-eq('i één ingetypte datum = drie live-commits', iCommits, ['2020-06-01', '0203-06-01', '2030-06-01']);
+eq('i een live commitreeks levert drie opeenvolgende commits', iCommits, ['2020-06-01', '0203-06-01', '2030-06-01']);
 eq('i statusdatum: drie commits = ÉÉN undo-stap', S().historyEvents.filter(event => event.state === 'applied').length - iBase, 1);
 eq('i eindwaarde is de laatst getypte datum', S().project.statusDate, '2030-06-01');
 S().undo();

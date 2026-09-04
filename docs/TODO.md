@@ -405,19 +405,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       regressie van #25 — dat werk maakte het pad alleen makkelijker bereikbaar (één dropdown i.p.v.
       een handmatige zoominstelling). Fix-richting: pagina's streamend omzetten naar JPEG en het
       canvas per pagina vrijgeven i.p.v. ze allemaal vast te houden, of één pagina-canvas hergebruiken.
-- [ ] **Taakdatumvelden pushen 3 undo-stappen per ingetypte datum.** `DateTextInput` commit live bij
-      elke toetsaanslag en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
-      levert commits op voor 2020-06-01, 0203-06-01 en 2030-06-01 — elk met een volledige snapshot.
-      Gemeten en bevestigd op 2026-07-20; pre-existing, geen regressie. De infrastructuur om dit te
-      verhelpen staat er inmiddels: `beginUndoable(s, { coalesceKey })` in `src/state/transaction.ts`
-      (gebruikt door `setStatusDate`). Voor `updateTask` kan de key niet generiek zijn — die zou ook
-      niet-datumbewerkingen en opeenvolgende Gantt-sleepacties samenvoegen — dus per veld kiezen.
-      **Onderzocht 2026-07-20:** 13 gebruiksplekken geïnventariseerd, 10 problematisch en 3 lokaal
-      (veilig). Correctie op de eerdere formulering: de start/finish-cellen in `TableEditor` zijn
-      géén `DateTextInput` en committeren al één keer. **Advies uit dat onderzoek: los het bij de
-      bron op** met een `commitMode`-prop (commit-op-blur) in plaats van per-actie coalesce-keys —
-      de gedeelde `task-sections`-componenten voeden zowel het eigenschappenpaneel als de
-      taakdialoog, dus een fix in het veld zelf dekt beide in één keer.
 - [ ] **Recovery-robuustheid bij een corrupt herstelbestand.** Sinds 2026-07-20 rekent
       `restoreDocuments` het herstelde document door (`runCPM`), net als elk ander laadpad. Een
       corrupte of afgekapte recovery-snapshot na een crash laat het opstarten daardoor klappen in
