@@ -924,6 +924,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "返回日期问题",
+    "dateOrderContradictory": "此文件包含相互矛盾的日期写法，且没有明确的单元格可供询问。应用假设为日在前；不符合该假设的日期在下方被拒绝为无法读取。",
     "confirm": "应用",
     "close": "关闭",
     "resultTitle": "结果",

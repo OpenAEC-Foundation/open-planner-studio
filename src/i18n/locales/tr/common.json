@@ -940,6 +940,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Tarih sorusuna geri dön",
+    "dateOrderContradictory": "Bu dosya, sorulacak net bir hücre olmadan birbiriyle çelişen tarih yazımları içeriyor. Uygulama gün-ay sırasını varsaydı; buna uymayan tarihler aşağıda okunamaz olarak reddedildi.",
     "confirm": "Uygula",
     "close": "Kapat",
     "resultTitle": "Sonuç",

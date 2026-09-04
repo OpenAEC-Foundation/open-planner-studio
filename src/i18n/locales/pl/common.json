@@ -972,6 +972,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Wróć do pytania o datę",
+    "dateOrderContradictory": "Ten plik zawiera sprzeczne zapisy dat, bez żadnej jednoznacznej komórki, o którą można by zapytać. Aplikacja przyjęła kolejność dzień-miesiąc; daty, które do tego nie pasują, są poniżej odrzucane jako nieczytelne.",
     "confirm": "Zastosuj",
     "close": "Zamknij",
     "resultTitle": "Wynik",

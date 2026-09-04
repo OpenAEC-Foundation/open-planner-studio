@@ -963,6 +963,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Terug naar de datumvraag",
+    "dateOrderContradictory": "Dit bestand bevat tegenstrijdige datumnotaties, zonder een duidelijke cel om over te vragen. De app is uitgegaan van dag-maand; datums die daar niet in passen staan hieronder als onleesbaar geweigerd.",
     "confirm": "Toepassen",
     "close": "Sluiten",
     "resultTitle": "Resultaat",

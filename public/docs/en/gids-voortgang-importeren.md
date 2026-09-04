@@ -57,6 +57,12 @@ done, `1` is one percent, `45.5` may use either a comma or a period. The percent
 `40` and `40%` mean the same thing. A value below 0 or above 100 is refused; there is no alternative
 reading where, say, `0.4` would count as forty percent.
 
+A whole percentage that rounds to what the task already has doesn't count as a change: if a task is
+already at 33.4% and the sheet says "33", nothing changes. Enter decimals (for example "33.4") and it
+does count as a change as soon as it differs even slightly from the current value — so you can refine
+a task's progress without first having to reset it. Two values are an exception to this and always
+count as a real change: 0% and 100%, even if the task already rounds to that value.
+
 ## Dates
 
 The following notations work, with or without a time: `2026-06-09`, `9-6-2026`, `9/6/2026`,

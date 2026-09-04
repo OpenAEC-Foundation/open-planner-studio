@@ -924,6 +924,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "날짜 질문으로 돌아가기",
+    "dateOrderContradictory": "이 파일에는 물어볼 명확한 셀 없이 서로 모순되는 날짜 표기가 포함되어 있습니다. 앱은 일-월 순서를 가정했습니다. 이에 맞지 않는 날짜는 아래에서 읽을 수 없음으로 거부되었습니다.",
     "confirm": "적용",
     "close": "닫기",
     "resultTitle": "결과",

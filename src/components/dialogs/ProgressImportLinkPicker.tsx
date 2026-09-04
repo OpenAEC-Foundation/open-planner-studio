@@ -40,11 +40,16 @@ export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange,
   }, [tasks, filter]);
 
   const truncated = filtered.length > MAX_PICKER_OPTIONS;
-  const limited = truncated ? filtered.slice(0, MAX_PICKER_OPTIONS) : filtered;
 
   // Fixronde bevinding 1: bouwde eerder buiten een memo, op elke render van deze kiezer opnieuw.
-  const options: SelectOption[] = useMemo(
-    () => limited.map(task => {
+  // Fixronde N-H: de 200-cap zit NU binnen de memo. `filtered.slice(...)` bouwt bij elke render een
+  // NIEUW array — als `limited` (dat resultaat) zelf in de deps stond, miste de memo dus altijd
+  // precies wanneer er veel taken zijn (het scenario dat de cap juist moet afvangen). `filtered` is
+  // wél stabiel (zijn eigen memo hierboven) en `truncated` is een primitieve boolean, dus samen zijn
+  // dat de juiste, stabiele deps.
+  const options: SelectOption[] = useMemo(() => {
+    const limited = truncated ? filtered.slice(0, MAX_PICKER_OPTIONS) : filtered;
+    return limited.map(task => {
       const label = `${task.wbsCode} — ${task.name}`;
       // Fixronde bevinding 4: `currentTaskId` (deze rij ZELF) is nooit "taken", ook al staat hij in
       // `takenTaskIds` — anders is de eigen, al gematchte taak niet meer terug te kiezen na "Wijzigen".
@@ -54,9 +59,8 @@ export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange,
         label: isTaken ? `${label} (${t('progressImport.pickerTaken')})` : label,
         disabled: isTaken,
       };
-    }),
-    [limited, takenTaskIds, value, currentTaskId, t],
-  );
+    });
+  }, [filtered, truncated, takenTaskIds, value, currentTaskId, t]);
 
   return (
     <div className="flex flex-col gap-1.5">

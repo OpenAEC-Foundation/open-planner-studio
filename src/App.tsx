@@ -88,6 +88,7 @@ function AppContent() {
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
+  const showProgressImportDialog = useAppStore(s => s.ui.showProgressImportDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
@@ -341,7 +342,15 @@ function AppContent() {
         {showTourOverlay && <TourOverlay />}
         <UpdateDialog />
         <PoolImportDialog />
-        <ProgressImportDialog />
+        {/* Fixronde (N-I): voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
+            gemount blijft en intern op `!open` teruggeeft. Bij deze dialoog is dat verschil van
+            belang: een unmount is de schoonste reset van zijn lokale state (sheet/rijen/overrides),
+            en voorkomt dat een latere heropening (na een vangnet-sluiting via
+            `resetDocumentScopedUI`) de oude preview van een ander document toont. Zowel
+            `hasBlockingDialogOpen` als `resetDocumentScopedUI` leunen uitsluitend op de
+            `ui.showProgressImportDialog`-vlag, niet op deze mount, dus de documentwissel-
+            blokkade (A12) blijft ongewijzigd werken. */}
+        {showProgressImportDialog && <ProgressImportDialog />}
         <ExtensionConsentDialog />
         <LibraryLinkDialog />
         {recovery && (

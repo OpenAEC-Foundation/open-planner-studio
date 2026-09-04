@@ -956,6 +956,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Voltar à pergunta sobre a data",
+    "dateOrderContradictory": "Este ficheiro contém notações de data contraditórias, sem nenhuma célula clara para perguntar. A aplicação assumiu dia-mês; as datas que não correspondem são recusadas abaixo como ilegíveis.",
     "confirm": "Aplicar",
     "close": "Fechar",
     "resultTitle": "Resultado",

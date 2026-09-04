@@ -924,6 +924,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "日付の質問に戻る",
+    "dateOrderContradictory": "このファイルには、質問できる明確なセルがないまま、矛盾する日付表記が含まれています。アプリは日-月の順と仮定しました。それに当てはまらない日付は、以下で読み取り不能として拒否されています。",
     "confirm": "適用",
     "close": "閉じる",
     "resultTitle": "結果",

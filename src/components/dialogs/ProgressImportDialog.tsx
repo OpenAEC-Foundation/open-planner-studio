@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -110,35 +110,24 @@ export function ProgressImportDialog() {
   // bestaande koppeling nog niet wissen, alleen de kiezer tonen zodat een andere taak gekozen kan worden.
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
 
-  // Fixronde bevinding 7: de component blijft permanent gemount (net als PoolImportDialog), dus
-  // ALLEEN `close()` wiste voorheen deze state. `resetDocumentScopedUI` kan `showProgressImportDialog`
-  // echter ook buiten `close()` om op false zetten (het vangnet bij een documentwissel-route die we
-  // gemist zouden hebben — A12 maakt de normale routes al onmogelijk, maar het vangnet moet wél
-  // veilig zijn als hij ooit afgaat). Zonder deze reset zou een latere heropening — in een ANDER
-  // document — de oude preview van het vorige bestand tonen. Reset daarom op elke false→true-
-  // overgang, niet alleen op een expliciete klik op Annuleren/Sluiten.
-  useEffect(() => {
-    if (!open) return;
-    setStage('pick');
-    setFileIssue(null);
-    setSheet(null);
-    setDetection(null);
-    setRows(null);
-    setOverrides(new Map());
-    setEditingRows(new Set());
-    setResult(null);
-  }, [open]);
-
   // Fixronde bevinding 1: NIET meer in de render-body — dat riep `previewProgressImport` (tot 50.000
   // rijen) bij ELKE render van deze component opnieuw aan, ook voor wijzigingen die het plan niet
-  // raken (bv. de tekst in een koppelkiezer typen elders). `previewProgressImport` leest de taken
-  // intern live uit de store, maar `tasks` hoort BEWUST niet in de deps: zolang deze dialoog openstaat
-  // is een documentwissel onmogelijk (A12) en loopt ook de MCP-bridge tegen dezelfde blokkade aan
-  // (`hasBlockingDialogOpen`), dus er is geen route waarlangs `s.tasks` kan veranderen terwijl dit
-  // gememoïseerde plan leeft.
+  // raken (bv. de tekst in een koppelkiezer typen elders — dat is child-state van
+  // `ProgressImportLinkPicker`, dus dit kost geen extra herberekening).
+  //
+  // Fixronde N-A (regressie): `tasks` staat WEL in de deps. Eerdere aanname dat A12 dit overbodig
+  // maakte klopte niet — A12 blokkeert alleen documentWISSELS; `edit.undo`/`edit.redo` hebben geen
+  // `when`-guard en muteren `s.tasks` gewoon terwijl deze dialoog open staat. Zonder `tasks` in de
+  // deps bleef het gememoïseerde plan na een Ctrl+Z/Ctrl+Y op de oude taken staan (bv. "Toegepast: 5"
+  // terwijl er na de undo nog maar 3 rijen kunnen landen).
+  // `tasks` wordt niet TEKSTUEEL gebruikt in de closure hieronder (dat gebeurt binnen
+  // `previewProgressImport` zelf, via de store), maar moet WEL een herberekening triggeren — zie de
+  // toelichting hierboven (Ctrl+Z/Ctrl+Y muteren `s.tasks` terwijl deze dialoog open staat). De
+  // linter kan die indirecte afhankelijkheid niet zien, vandaar de gerichte suppressie hieronder.
   const plan = useMemo(
     () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides) : null),
-    [stage, rows, overrides, previewProgressImport],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stage, rows, overrides, tasks, previewProgressImport],
   );
 
   const takenTaskIds = useMemo(() => {
@@ -319,6 +308,18 @@ export function ProgressImportDialog() {
               <span>{t('progressImport.summaryNeedsLink', { needsLink: plan.needsLinkCount })}</span>
               <span>{t('progressImport.summaryRefused', { refused: plan.refusedCount })}</span>
             </div>
+
+            {/* Fixronde N-D/N-E: baan B levert `evidence: 'contradictoryNoSample'` wanneer het
+                bestand tegenstrijdig datumbewijs bevat maar er geen enkele cel is om de gebruiker
+                over te vragen (A5.2 regel 2) — de app neemt dan dag-maand aan en informeert hier
+                achteraf; afwijkende datums zijn hieronder al als onleesbaar geweigerd. Alleen
+                aanwezig op de niet-ambiguous tak van `DateOrderDetection`, vandaar de guard. */}
+            {detection && detection.order !== 'ambiguous' && detection.evidence === 'contradictoryNoSample' && (
+              <div className="alert alert--warning flex items-center gap-2">
+                <AlertTriangle size={16} />
+                {t('progressImport.dateOrderContradictory')}
+              </div>
+            )}
 
             {plan.ignoredOverrideRows.length > 0 && (
               <div className="alert alert--warning flex flex-col gap-1">

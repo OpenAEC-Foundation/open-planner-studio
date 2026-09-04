@@ -963,6 +963,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Back to the date question",
+    "dateOrderContradictory": "This file contains contradictory date notations, with no clear cell to ask about. The app assumed day-first; dates that don't fit that reading are refused as unreadable below.",
     "confirm": "Apply",
     "close": "Close",
     "resultTitle": "Result",

@@ -940,6 +940,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Zurück zur Datumsfrage",
+    "dateOrderContradictory": "Diese Datei enthält widersprüchliche Datumsschreibweisen, ohne eine eindeutige Zelle zum Nachfragen. Die App ist von Tag-Monat ausgegangen; Datumsangaben, die dazu nicht passen, werden unten als unlesbar abgelehnt.",
     "confirm": "Übernehmen",
     "close": "Schließen",
     "resultTitle": "Ergebnis",

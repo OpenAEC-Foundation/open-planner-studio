@@ -61,6 +61,13 @@ gereed, `1` is één procent, `45,5` mag met komma of met punt. Het procentteken
 `40%` betekenen hetzelfde. Een waarde onder 0 of boven 100 wordt geweigerd; er is geen alternatieve
 lezing waarbij bijvoorbeeld `0,4` als veertig procent zou tellen.
 
+Een heel procent dat afgerond overeenkomt met wat de taak al heeft, telt niet als wijziging: staat een
+taak al op 33,4% en zegt het blad "33", dan verandert er niets. Vul je decimalen in (bijvoorbeeld
+"33,4"), dan telt dat wél als een wijziging zodra het net iets afwijkt van de huidige waarde — zo kun
+je een taak verfijnen zonder hem eerst terug te hoeven zetten. Twee waarden zijn hierop een
+uitzondering en gelden altijd als een echte wijziging: 0% en 100%, ook als de taak daar afgerond al op
+uitkomt.
+
 ## Datums
 
 De volgende schrijfwijzen werken, met of zonder tijd erbij: `2026-06-09`, `9-6-2026`, `9/6/2026`,
