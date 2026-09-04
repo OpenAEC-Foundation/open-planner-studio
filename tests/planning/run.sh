@@ -208,6 +208,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DTCHECK="$DIR/.datetime-check.mjs"
   if bundle_check "$DIR/check-datetime.ts" "$DTCHECK"; then node "$DTCHECK" || STATUS=1; fi
 
+  # Commitmodus van het gedeelde datumveld (DateTextInput — pure reducers): één ingetypte datum mag
+  # in de standaard 'blur'-modus precies EEN commit (en dus een undo-stap) opleveren.
+  DICHECK="$DIR/.date-input-commit-check.mjs"
+  if bundle_check "$DIR/check-date-input-commit.ts" "$DICHECK"; then node "$DICHECK" || STATUS=1; fi
+
   # "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts — pure functies, los van de CPM-cases).
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi

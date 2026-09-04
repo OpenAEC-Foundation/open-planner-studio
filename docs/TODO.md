@@ -353,19 +353,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       doorgeschoven, dit is puur zichtbaarheid, geen correctheidsgat.
 
 ### Klein
-- [ ] **Taakdatumvelden pushen 3 undo-stappen per ingetypte datum.** `DateTextInput` commit live bij
-      elke toetsaanslag en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
-      levert commits op voor 2020-06-01, 0203-06-01 en 2030-06-01 — elk met een volledige snapshot.
-      Gemeten en bevestigd op 2026-07-20; pre-existing, geen regressie. De infrastructuur om dit te
-      verhelpen staat er inmiddels: `beginUndoable(s, { coalesceKey })` in `src/state/transaction.ts`
-      (gebruikt door `setStatusDate`). Voor `updateTask` kan de key niet generiek zijn — die zou ook
-      niet-datumbewerkingen en opeenvolgende Gantt-sleepacties samenvoegen — dus per veld kiezen.
-      **Onderzocht 2026-07-20:** 13 gebruiksplekken geïnventariseerd, 10 problematisch en 3 lokaal
-      (veilig). Correctie op de eerdere formulering: de start/finish-cellen in `TableEditor` zijn
-      géén `DateTextInput` en committeren al één keer. **Advies uit dat onderzoek: los het bij de
-      bron op** met een `commitMode`-prop (commit-op-blur) in plaats van per-actie coalesce-keys —
-      de gedeelde `task-sections`-componenten voeden zowel het eigenschappenpaneel als de
-      taakdialoog, dus een fix in het veld zelf dekt beide in één keer.
 - [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft
       `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
       taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum

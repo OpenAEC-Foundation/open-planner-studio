@@ -269,9 +269,12 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     set((s) => {
       const next = date || undefined; // '' telt als wissen — zelfde effect als undefined
       if (s.project.statusDate === next) return; // no-op-guard vóór de snapshot (pakket H)
-      // Coalescing (pakket H): het statusdatumveld in het lint is een `DateTextInput` die LIVE per
-      // toetsaanslag committeert — één ingetypte datum levert meerdere geldige commits op (zie
-      // `beginUndoable`). Zonder key zouden dat evenzoveel undo-stappen met onzin-tussenwaarden zijn.
+      // Coalescing (pakket H): het statusdatumveld in het lint is een `DateTextInput`. Die commit
+      // sinds de `commitMode`-fix standaard pas bij het AFRONDEN (blur/Enter), dus één ingetypte
+      // datum = één commit; deze key is daarmee geen noodzaak meer maar wél het vangnet dat blijft
+      // gelden voor reeksen die tóch snel achter elkaar committen (plakken, corrigeren, pijltjes).
+      // Zonder key zou elke commit een eigen undo-stap met onzin-tussenwaarde zijn (zie
+      // `beginUndoable` en `tests/planning/check-date-input-commit.ts`).
       runtime.beginUndoable(s, { coalesceKey: 'project.statusDate' });
       if (next) s.project.statusDate = next;
       else delete s.project.statusDate;
