@@ -218,6 +218,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   TACHECK="$DIR/.text-asset-check.mjs"
   if bundle_check "$DIR/check-text-asset.ts" "$TACHECK"; then node "$TACHECK" || STATUS=1; fi
 
+  # Pre-paint-themaspiegel (issue #61): de handkopie van de themamap in index.html mag niet
+  # ongemerkt afwijken van THEME_MIGRATION (settingsStore.ts) — dezelfde duplicatieklasse die dit
+  # project elders wél mechanisch dichtzet.
+  TPCHECK="$DIR/.theme-premirror-check.mjs"
+  if bundle_check "$DIR/check-theme-premirror.ts" "$TPCHECK"; then node "$TPCHECK" || STATUS=1; fi
+
   # CalendarEngine uur-modus-checks (fase 2.8b golf 1, §4/§9 — engine-primitieven, los van de CPM-cases).
   CHCHECK="$DIR/.calendar-hours-check.mjs"
   if bundle_check "$DIR/check-calendar-hours.ts" "$CHCHECK"; then node "$CHCHECK" || STATUS=1; fi
