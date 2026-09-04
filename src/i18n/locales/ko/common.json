@@ -557,7 +557,9 @@
       "backLoaded": "후반 집중",
       "bell": "종형",
       "earlyPeak": "초기 피크",
-      "latePeak": "후기 피크"
+      "latePeak": "후기 피크",
+      "doublePeak": "이중 피크",
+      "turtle": "거북이"
     },
     "occupancyView": "점유 현황",
     "occupancy": {

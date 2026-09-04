@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "Stundenverteilung in Phasen",
+    "applyShape": "Form anwenden:",
+    "hoursPerDay": "{{hours}} Stunden je Arbeitstag",
+    "stripHint": "Ziehen Sie eine Grenze, um eine Phase zu verlängern oder zu verkürzen, die Oberkante für den Einsatz; Doppelklick auf einen Tag teilt eine Phase.",
+    "from": "Von",
+    "to": "Bis",
+    "days": "Tage",
+    "unitsPerDay": "Einsatz (Einh./Tag)",
+    "hoursPerDayCol": "Std./Tag",
+    "actual": "Ist (h)",
+    "hoursTotal": "Stunden",
+    "split": "Teilen",
+    "merge": "Zusammenführen",
+    "lastPhaseHint": "Die letzte Phase läuft bis zum Ende des Vorgangs.",
+    "noDays": "Dieser Vorgang hat keine Arbeitstage.",
+    "hint": "Die Verteilung ändert nur die Stunden je Tag dieser Zuweisung; Vorgangstermine und Unterbrechungen bleiben unverändert. Eine Phase mit Einsatz 0 bleibt innerhalb der Vorgangsdauer.",
+    "release": "Verteilung aufheben"
+  },
   "durationType": { "WORKTIME": "Arbeitszeit", "ELAPSEDTIME": "Verstrichene Zeit" },
   "table": {
     "title": "Tabelle",
@@ -248,6 +267,7 @@
     "longFreePeriodWarningNamed": "Diese Aufgabe erstreckt sich über {{name}} — einen arbeitsfreien Zeitraum von {{days}} Tagen ({{start}} bis {{end}}).",
     "timephasedActive": "Folgt der Stundenverteilung aus MS Project",
     "timephasedLost": "Stundenverteilung aus MS Project nach der Bearbeitung nicht mehr angewendet — die ursprüngliche Verteilung bleibt in der Datei erhalten",
+    "timephasedContoured": "Eigene Stundenverteilung",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",
@@ -280,7 +300,11 @@
       "allAssigned": "Alle Ressourcen sind bereits zugewiesen.",
       "disabledMilestone": "Zuweisungen sind bei Meilensteinen nicht möglich.",
       "disabledSummary": "Zuweisungen sind bei Sammelaufgaben nicht möglich.",
-      "moveTo": "Verschieben nach…"
+      "moveTo": "Verschieben nach…",
+      "contour": "Stundenverteilung…",
+      "contoured": "Kontur",
+      "contouredHint": "Diese Zuweisung hat eine eigene Stundenverteilung; bearbeiten oder aufheben über die Schaltfläche Stundenverteilung.",
+      "importedCurve": "Importierte Kurve"
     },
     "calendar": "Kalender",
     "calendarProject": "Projektkalender",

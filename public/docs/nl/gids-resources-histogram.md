@@ -6,7 +6,7 @@ Een taak vertelt je wanneer iets moet gebeuren; een resource vertelt je wie of w
 
 - De vijf resourcetypes en wanneer je welke gebruikt.
 - Resources toewijzen aan taken — via het eigenschappenpaneel, de taakdialoog of het lint.
-- Eenheden per dag en de zes verdeelcurves: wanneer kies je welke.
+- Eenheden per dag en de acht verdeelcurves: wanneer kies je welke — en hoe je de uren per werkdag zelf zet.
 - Een toewijzing verplaatsen naar een andere taak.
 - Resourcekalenders en tijd-gefaseerde capaciteit (bijvoorbeeld een tweede kraan die later bijkomt).
 - Het histogram lezen: de resourcekiezer, drilldown per resource, overallocatie herkennen.
@@ -64,8 +64,22 @@ Elke toewijzing heeft **eenheden/dag** (1 = één persoon/stuk voltijds, 0,5 = e
 - **Klokvorm (BELL)** — laag begin en einde, piek in het midden — een taak die opstart, op volle kracht draait en weer afbouwt.
 - **Vroege piek (EARLY_PEAK)** — de piek zit vroeg in de taak, daarna neemt de belasting af.
 - **Late piek (LATE_PEAK)** — de piek zit laat in de taak.
+- **Dubbele piek (DOUBLE_PEAK)** — twee pieken, rond dertig en rond tachtig procent van de duur, met een dal ertussen — bijvoorbeeld werk in twee golven met een tussenfase van een ander team. Dezelfde vorm als in MS Project en P6.
+- **Schildpad (TURTLE)** — een afgevlakte klokvorm: zachte aanloop, lang plateau op volle kracht, zachte afbouw. Dezelfde vorm als in MS Project en P6.
 
 Curve-variatie is vooral zichtbaar in het histogram: dezelfde taak met dezelfde eenheden/dag geeft met een klokvorm-curve een heel andere staafverdeling dan met uniform. De middelgrote showcase gebruikt bewust een mix (uniform/vooraan/achteraan belast) op de afbouwtaken per woning, zodat je het verschil kunt vergelijken.
+
+### De urenverdeling zelf bewerken
+
+Past geen enkele curve, dan bepaal je de verdeling zelf, in **fasen**: aaneengesloten stukken van de taak met elk een vaste inzet — "de eerste week een halve ploeg, daarna de volle ploeg, de laatste dagen anderhalf". Naast de curve-dropdown van elke toewijzing staat de knop **Urenverdeling…** (het staafdiagram-icoon). Die opent een venster met bovenin een strook waarin elke fase een blok is over haar werkdagen (de hoogte is de inzet), en eronder dezelfde fasen als tabel: van, tot, dagen, inzet in eenheden per dag, uren per dag en het totaal aantal uren. Het vertrekpunt is precies wat de toewijzing nu al boekt: één fase bij een uniforme curve, meerdere bij een andere vorm of een geïmporteerde verdeling. Verricht werk uit een import met voortgang staat als grijze dagstaven onder de blokken en in een eigen kolom, alleen-lezen.
+
+- **Slepen in de strook**: trek aan de grens tussen twee blokken om een fase langer of korter te maken (per hele werkdag; de buurfase vangt het verschil op), trek aan de bovenrand van een blok om de inzet te zetten, en dubbelklik op een dag om een fase daar te splitsen.
+- **Typen in de tabel**: dagen en inzet per fase; **Splitsen** deelt een fase in tweeën, **Samenvoegen** voegt een fase met de volgende samen. De laatste fase loopt altijd tot het einde van de taak.
+- **Vorm toepassen** vult de fasen met een van de acht standaardvormen (dezelfde acht als de dropdown), met behoud van het huidige totaal — een vertrekpunt dat je daarna per fase bijstelt.
+- **Toepassen** slaat de verdeling op als *contour* van deze toewijzing. De curve-dropdown toont dan **Contour** en is uitgeschakeld: de contour is data en wint van elke curve. Histogram, overallocatie, nivelleerder en bezettingsoverzicht rekenen er meteen mee, en de verdeling gaat mee in het IFC-bestand en in een export naar MS Project XML of Primavera P6 XML.
+- **Verdeling loslaten** verwijdert de contour; de toewijzing volgt daarna weer haar curve.
+
+Een contour verandert uitsluitend de uren per dag van deze ene toewijzing. De taakdatums, de duur en eventuele onderbrekingen blijven wat ze zijn — ook een fase met inzet 0 blijft binnen de duur van de taak en maakt geen onderbreking. Wil je de taak zelf korter, langer of onderbroken, dan bewerk je de taak. Verander je later de duur, dan rekt of krimpt de contour proportioneel mee (zie de gids [MS Project-import](docs://gids-msproject-import), sectie Gecontoureerde toewijzingen). Het eigenschappenpaneel markeert een taak met eigen urenverdelingen met een grijze badge, met een link naar diezelfde sectie. Toepassen en loslaten zijn gewone undo-stappen.
 
 ## Resourcekalenders
 
@@ -131,7 +145,7 @@ De les is niet dat nivellering "niet werkt" — het algoritme doet precies wat g
 ## Verder lezen
 
 - Speel de nivellering van de stukadoors-overallocatie zelf na in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- Zie de grens van nivellering in de praktijk — en alle vijf resourcetypes, alle zes curves en de tijd-gefaseerde torenkraan-capaciteit — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
+- Zie de grens van nivellering in de praktijk — en alle vijf resourcetypes, zes van de acht curves en de tijd-gefaseerde torenkraan-capaciteit — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
 - Resources werken op kalenders — lees de gids [Kalenders & uren-planning](docs://gids-kalenders-uren) voor resourcekalenders en uren-planning.
 - Wil je een basislijn vastleggen vóórdat je gaat nivelleren, zodat je het verschil kunt zien? Lees de gids [Baselines & voortgang](docs://gids-baselines-voortgang).
 - Nivellering verandert soms welke taken kritiek zijn — lees de gids [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse) voor hoe je dat herkent.

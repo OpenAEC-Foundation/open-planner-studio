@@ -148,6 +148,7 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   curve: field('direct', 'assignment.curve'),
   workWindowStart: field('technical', 'assignment.workWindowStart'),
   workWindowFinish: field('technical', 'assignment.workWindowFinish'),
+  curveValues: field('technical', 'assignment.curve'),
 } satisfies Record<keyof ResourceAssignment, FieldCoverage>;
 
 export const BASELINE_TASK_FIELD_COVERAGE = {
@@ -167,6 +168,7 @@ export const SPLIT_GAP_FIELD_COVERAGE = {
 
 export const CONTOUR_FIELD_COVERAGE = {
   resourceUid: field('technical', 'task.timephasedContours'),
+  resourceId: field('technical', 'task.timephasedContours'),
   periods: field('technical', 'task.timephasedContours'),
 } satisfies Record<keyof TaskTimephasedContour, FieldCoverage>;
 

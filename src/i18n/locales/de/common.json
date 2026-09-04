@@ -566,7 +566,9 @@
       "backLoaded": "Hinten belastet",
       "bell": "Glockenform",
       "earlyPeak": "Frühe Spitze",
-      "latePeak": "Späte Spitze"
+      "latePeak": "Späte Spitze",
+      "doublePeak": "Doppelte Spitze",
+      "turtle": "Schildkröte"
     },
     "occupancyView": "Belegung",
     "occupancy": {

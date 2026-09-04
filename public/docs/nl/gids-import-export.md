@@ -75,9 +75,13 @@ items het raakt:
   Start/Finish), alleen het feit dát MS Project ze als "Handmatig gepland" zou tonen niet.
 - De **sub-dag-precisie** van een nivelleervertraging gaat verloren — MSPDI kent geen native
   `<LevelingDelay>`/`<LevelingDelayFormat>`-element voor onze minutennauwkeurige waarde.
-- **Gesplitste taken** en **gecontoureerde toewijzingen** gaan zonder het native
-  `<TimephasedData>`-element mee — de berekende datums zelf staan er wél, de segment-/
-  vensterinformatie niet.
+- **Gecontoureerde toewijzingen** gaan sinds de contour-engine wél native mee: de dagverdeling van
+  elke toewijzing met een contour (uit een `.mpp`-, MSPDI- of P6-import) wordt als
+  `<TimephasedData>` per werkdag geschreven, met het contourtype *Contoured*, en bij het importeren
+  van een MSPDI-bestand weer teruggelezen — inclusief de onderbrekingen die erin zitten. Alleen een
+  **gesplitste taak zonder contourdata** (bijvoorbeeld een pauze die de nivelleerder heeft
+  ingevoegd) gaat zonder dat element mee: de berekende datums staan er wél, de onderbreking zelf
+  niet.
 - **Resume/stop** (een taak die buiten de gewone voortgangslogica om is hervat) heeft geen native
   `<Resume>`/`<Stop>`-element.
 - De **kritiek-pad-definitie** (near-critical-modus/drempel) en overige planningsopties zijn niet
@@ -94,8 +98,10 @@ Dezelfde soort afweging als MSPDI, met een paar P6-specifieke eigenaardigheden:
   een vast aantal dagen, want P6 kent geen procent-lag.
 - **Kalenderdag-lag** (lag in doorlooptijd-dagen in plaats van werkdagen) wordt geëxporteerd als
   een gewone uren-lag — P6 heeft geen aparte lag-eenheid per relatie.
-- De **LATE_PEAK**-belastingscurve heeft geen P6-equivalent en wordt geëxporteerd als de dichtstbij
-  liggende benadering ("Early Peak").
+- **Belastingscurves** gaan schema-native mee als P6-resourcecurve (een `<ResourceCurve>`-object
+  met 21 waarden, waarnaar de toewijzing verwijst), inclusief de LATE_PEAK-curve met haar eigen
+  vorm; een eigen P6-curve die geen van de zes OPS-vormen is, komt bij het importeren exact terug
+  (de app rekent er dan mee, ook al toont de curvekeuze in de UI hem als "uniform").
 - **Werkende kalenderuitzonderingen** (een dag die normaal vrij is maar expliciet als werkend is
   aangemerkt, bijvoorbeeld een ingeroosterde zaterdag) worden weggelaten — P6-XML kent geen
   schemaveld om zoiets per datum aan te geven. P6 modelleert een structureel afwijkend weekpatroon
@@ -106,8 +112,10 @@ Dezelfde soort afweging als MSPDI, met een paar P6-specifieke eigenaardigheden:
   "handmatig gepland" niet, dus zo'n taak exporteert als een gewone taak met berekende datums — in
   tegenstelling tot MSPDI blijven de rauwe, opgeslagen datums zelf hier dus niet gegarandeerd staan.
 - De **sub-dag-precisie** van een nivelleervertraging gaat verloren — niet uitdrukbaar in P6-XML.
-- **Gesplitste taken** en **gecontoureerde toewijzingen** worden weggelaten — niet uitdrukbaar in
-  P6-XML.
+- **Gecontoureerde toewijzingen** gaan native mee als spreiding op de toewijzing (P6's eigen
+  `PlannedCurve`/`RemainingCurve`/`ActualCurve`-notatie, verankerd op de taakstart) en worden bij het
+  importeren weer teruggelezen, inclusief onderbrekingen. Alleen een **gesplitste taak zonder
+  contourdata** wordt zonder die spreiding geëxporteerd.
 - **Resume/stop** (een taak die buiten de gewone voortgangslogica om is hervat) wordt weggelaten —
   niet uitdrukbaar in P6-XML.
 - Planningsopties (net als bij MSPDI) worden niet geëxporteerd.

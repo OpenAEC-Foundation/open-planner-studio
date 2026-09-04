@@ -566,7 +566,9 @@
       "backLoaded": "بارگذاری پایانی",
       "bell": "زنگی‌شکل",
       "earlyPeak": "اوج زودهنگام",
-      "latePeak": "اوج دیرهنگام"
+      "latePeak": "اوج دیرهنگام",
+      "doublePeak": "اوج دوگانه",
+      "turtle": "لاک‌پشت"
     },
     "occupancyView": "اشغال",
     "occupancy": {

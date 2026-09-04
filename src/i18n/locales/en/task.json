@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "Hour distribution in phases",
+    "applyShape": "Apply shape:",
+    "hoursPerDay": "{{hours}} hours per working day",
+    "stripHint": "Drag a boundary to lengthen or shorten a phase, drag the top edge to set the effort, double-click a day to split a phase.",
+    "from": "From",
+    "to": "To",
+    "days": "Days",
+    "unitsPerDay": "Effort (units/day)",
+    "hoursPerDayCol": "Hours/day",
+    "actual": "Actual (h)",
+    "hoursTotal": "Hours",
+    "split": "Split",
+    "merge": "Merge",
+    "lastPhaseHint": "The last phase runs to the end of the task.",
+    "noDays": "This task has no working days.",
+    "hint": "The distribution only changes the hours per day of this assignment; task dates and splits stay as they are. A phase with effort 0 stays within the task duration.",
+    "release": "Release distribution"
+  },
   "durationType": { "WORKTIME": "Work time", "ELAPSEDTIME": "Elapsed time" },
   "table": {
     "title": "Table",
@@ -354,7 +373,8 @@
     "longFreePeriodWarning": "This task runs through a {{days}}-day non-working period ({{start}} to {{end}}).",
     "longFreePeriodWarningNamed": "This task runs through {{name}} — a {{days}}-day non-working period ({{start}} to {{end}}).",
     "timephasedActive": "Follows the hour distribution from MS Project",
-    "timephasedLost": "MS Project hour distribution no longer applied after editing — the original distribution stays in the file",
+    "timephasedLost": "MS Project date window no longer applied after editing — the hour distribution itself still applies and stays in the file",
+    "timephasedContoured": "Own hour distribution",
     "completion": "Progress (%)",
     "progress": {
       "actualStart": "Actual start",
@@ -388,7 +408,11 @@
       "allAssigned": "All resources are already assigned.",
       "disabledMilestone": "Assignments are not possible on milestones.",
       "disabledSummary": "Assignments are not possible on summary tasks.",
-      "moveTo": "Move to…"
+      "moveTo": "Move to…",
+      "contour": "Hour distribution…",
+      "contoured": "Contour",
+      "contouredHint": "This assignment has its own hour distribution; edit or release it via the Hour distribution button.",
+      "importedCurve": "Imported curve"
     },
     "calendar": "Calendar",
     "calendarProject": "Project calendar",

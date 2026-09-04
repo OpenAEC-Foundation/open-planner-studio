@@ -33,8 +33,8 @@
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
     "projectStartAnchorsClamped_one": "Project start moved: {{count}} task anchor without a predecessor or constraint was shifted to the new start date.",
     "projectStartAnchorsClamped_other": "Project start moved: {{count}} task anchors without a predecessor or constraint were shifted to the new start date.",
-    "mppTimephasedSteeringLost_one": "MS Project's hour distribution no longer drives {{count}} task after this edit; the original distribution stays in the file.",
-    "mppTimephasedSteeringLost_other": "MS Project's hour distribution no longer drives {{count}} tasks after this edit; the original distribution stays in the file.",
+    "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
+    "mppTimephasedSteeringLost_other": "MS Project's date window no longer drives {{count}} tasks after this edit; the hour distribution itself still applies and stays in the file.",
     "readMore": "Read more",
     "pasteSkippedReadOnly_one": "Skipped {{count}} cell: it is read-only (for example an auto-numbered WBS code or a calculated column).",
     "pasteSkippedReadOnly_other": "Skipped {{count}} cells: they are read-only (for example an auto-numbered WBS code or a calculated column).",
@@ -583,7 +583,9 @@
       "backLoaded": "Back loaded",
       "bell": "Bell shaped",
       "earlyPeak": "Early peak",
-      "latePeak": "Late peak"
+      "latePeak": "Late peak",
+      "doublePeak": "Double peak",
+      "turtle": "Turtle"
     },
     "occupancyView": "Occupancy",
     "occupancy": {

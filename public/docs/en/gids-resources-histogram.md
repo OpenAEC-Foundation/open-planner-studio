@@ -6,7 +6,7 @@ A task tells you when something needs to happen; a resource tells you who or wha
 
 - The five resource types and when to use each.
 - Assigning resources to tasks — via the properties panel, the task dialog or the ribbon.
-- Units per day and the six distribution curves: when to pick which.
+- Units per day and the eight distribution curves: when to pick which — and how to set the hours per working day yourself.
 - Moving an assignment to a different task.
 - Resource calendars and time-phased capacity (for example a second crane added later).
 - Reading the histogram: the resource picker, drilling down per resource, spotting overallocation.
@@ -64,8 +64,22 @@ Every assignment has **units/day** (1 = one person/item full time, 0.5 = half a 
 - **Bell shaped (BELL)** — low at the start and end, peaking in the middle — a task that ramps up, runs at full tilt and winds down again.
 - **Early peak (EARLY_PEAK)** — the peak sits early in the task, then the load tapers off.
 - **Late peak (LATE_PEAK)** — the peak sits late in the task.
+- **Double peak (DOUBLE_PEAK)** — two peaks, around thirty and around eighty percent of the duration, with a dip in between — for example work in two waves with another crew's phase in the middle. The same shape as in MS Project and P6.
+- **Turtle (TURTLE)** — a flattened bell: gentle ramp-up, a long plateau at full strength, gentle ramp-down. The same shape as in MS Project and P6.
 
 Curve variation shows up most clearly in the histogram: the same task with the same units/day produces a very different bar shape with a bell curve than with uniform. The medium-sized showcase deliberately mixes uniform/front loaded/back loaded on the per-house finishing tasks, so you can compare the difference.
+
+### Editing the hour distribution yourself
+
+When no curve fits, you shape the distribution yourself, in **phases**: consecutive stretches of the task, each with a fixed effort — "half a crew the first week, then the full crew, one and a half for the last days". Next to each assignment's curve dropdown sits the **Hour distribution…** button (the bar-chart icon). It opens a window with a strip at the top in which every phase is a block over its working days (the height is the effort), and below it the same phases as a table: from, to, days, effort in units per day, hours per day and total hours. The starting point is exactly what the assignment books today: one phase for a uniform curve, several for another shape or an imported distribution. Actual work from an import with progress shows as grey day bars under the blocks and in its own read-only column.
+
+- **Dragging in the strip**: pull the boundary between two blocks to lengthen or shorten a phase (by whole working days; the neighbouring phase absorbs the difference), pull the top edge of a block to set the effort, and double-click a day to split a phase there.
+- **Typing in the table**: days and effort per phase; **Split** halves a phase, **Merge** joins a phase with the next one. The last phase always runs to the end of the task.
+- **Apply shape** fills the phases with one of the eight standard shapes (the same eight as the dropdown), keeping the current total — a starting point you then adjust per phase.
+- **Apply** stores the distribution as the *contour* of this assignment. The curve dropdown then shows **Contour** and is disabled: the contour is data and wins over any curve. Histogram, overallocation, leveler and occupancy overview use it immediately, and the distribution travels in the IFC file and in an export to MS Project XML or Primavera P6 XML.
+- **Release distribution** removes the contour; the assignment follows its curve again afterwards.
+
+A contour changes only the hours per day of this one assignment. Task dates, duration and any splits stay as they are — a phase with effort 0 also stays within the task duration and does not create a split. To make the task itself shorter, longer or interrupted, edit the task. If you later change the duration, the contour stretches or shrinks proportionally (see the [MS Project import](docs://gids-msproject-import) guide, Contoured assignments section). The properties panel marks a task with its own hour distributions with a grey badge linking to that same section. Apply and release are ordinary undo steps.
 
 ## Resource calendars
 
@@ -131,7 +145,7 @@ The lesson isn't that leveling "doesn't work" — the algorithm does exactly wha
 ## Keep reading
 
 - Replay the plasterer-overallocation leveling yourself in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- See the limits of leveling in practice — plus all five resource types, all six curves and the time-phased tower-crane capacity — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
+- See the limits of leveling in practice — plus all five resource types, six of the eight curves and the time-phased tower-crane capacity — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
 - Resources run on calendars — read the guide [Calendars & hour planning](docs://gids-kalenders-uren) for resource calendars and hour planning.
 - Want to set a baseline before you start leveling, so you can see the difference? Read the guide [Baselines & progress](docs://gids-baselines-voortgang).
 - Leveling can change which tasks are critical — read the guide [Critical path & advanced analysis](docs://gids-kritiek-pad-analyse) for how to spot that.

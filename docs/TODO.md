@@ -267,11 +267,12 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > Uit de Z20-eindronde: dingen die deze etappe bewust NIET meenam, met de reden erbij — zodat het
 > geen verrassing is als iemand er later tegenaan loopt.
 
-- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>`/`<TimephasedData>` lezen en schrijven.**
+- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>` lezen en schrijven.**
       Orkestratorbesluit O4 (2026-08-17): native schrijven zonder terugleeslezen zou een stille
       semantiek-omklap zijn (hetzelfde precedent als `ELAPSEDTIME`) — de MSPDI-export waarschuwt
-      daarom bewust in plaats van deze drie elementen te schrijven. Native lezen+schrijven is een
-      eigen, kleine vervolg-etappe.
+      daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
+      contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
+      `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
 - [ ] **Splitsen/handmatig plannen als bewerkfunctie (UI).** Deze etappe levert lezen, rekenen,
       tekenen en round-trip; slepen om te splitsen, split-handles in de Gantt en split ongedaan maken
       zijn een aparte etappe (plan §1.4/O2, orkestratorbesluit akkoord 2026-08-17).
@@ -290,6 +291,68 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       dan de opgeslagen klopt, is met het huidige harnas onverifieerbaar — bewerkgedrag-fidelity heeft
       nog geen meetlat. Wacht op de bewerken-zoals-MSP-meetlat uit de taaktypes-etappe
       (eigenaarsbesluit 2026-08-18: task type/effort-driven als aparte etappe, niet hier).
+
+### Contour-engine (2026-09) — geleverd en bewust laten liggen
+
+> Etappe "contour-engine" (`src/engine/contour/contourEngine.ts`, `src/services/contourIo.ts`,
+> `tests/planning/check-contour-engine.ts`): de dagverdeling van een toewijzing is nu DATA
+> (opgeslagen contour of exacte 21-punts-curve) met de `distributeUnits`-formule als terugval;
+> histogram/overallocatie/nivelleerder/bezetting lezen dezelfde `assignmentDayUnits`; een
+> duurwijziging herschaalt de contour proportioneel; MSPDI `<TimephasedData>` en P6
+> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie CLAUDE.md.
+
+- [x] **P6-export schreef de curveNAAM in `<PlannedCurve>` — een verkeerde lezing van het PMXML-schema**
+      (gevonden 2026-09-03 tegen MPXJ `XmlProjectReader`/`TimephasedHelper`: `PlannedCurve` is een
+      spreidingsstring `"werkuren:periodeuren;…"`, de curve zit in `ResourceCurveObjectId` →
+      `<ResourceCurve>`). Gecorrigeerd in `p6xmlWriter.ts`/`p6xmlReader.ts`; de lezer accepteert
+      de oude naamvorm nog als compat (een `<PlannedCurve>` zonder `:`).
+- [x] **DOUBLE_PEAK/TURTLE als OPS-curve** (contour-UI, 2026-09-04): `ResourceCurve` telt nu de
+      acht MS Project-vormen; de zes oudere curves houden hun controlepunten in `distributeUnits`
+      (byte-identiek), de twee nieuwe bemonsteren rechtstreeks de exacte 21-punts tabel. Alle
+      gedupliceerde lijsten (dropdowns, rasterkolom, MCP-schema, IFC-validator, ext-contract,
+      MSPDI-codes 3/7, P6-namen) zijn meegenomen. Nog steeds acht plekken — een centrale
+      `RESOURCE_CURVES`-export is een losse opruimklus.
+- [x] **Contour bewerken in de UI** (etappe contour-UI, 2026-09-04): `ContourDialog.tsx` achter de
+      knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — sinds de
+      fasen-editor (dezelfde dag) in FASEN: sleepbare strook (`ContourPhaseStrip.tsx`: grens per
+      werkdag, bovenrand = inzet, dubbelklik = splitsen) + fasentabel (van/tot/dagen/inzet/uren,
+      splitsen/samenvoegen), vorm-als-data als vertrekpunt (alle acht vormen), toepassen en
+      **loslaten**; verricht werk alleen-lezen. Fasenmodel puur in `contourPhases.ts` (run-length
+      over de werkdagslots), bewerkmodel in `contourEdit.ts`; opslagvorm blijft één periode per
+      werkdag. Store-actie `setAssignmentContour` (undo, geen datumwijziging). Regressie:
+      `check-contour-engine.ts` (f)/(g)/(i) en `tests/browser/contour-dialog.spec.ts` (mét muissleep).
+- [ ] **Fasen als opslagvorm.** `TimephasedContourPeriod` kan een fase van tien dagen als één
+      periode dragen, maar de editor slaat bewust één periode per werkdag op (byte-identieke
+      round-trips). Een fase-periode zou het IFC compacter maken; vergt een controle dat
+      `periodsToWorkDaySlots` mét splits een lange periode over een gat correct verdeelt (de
+      engine deelt naar rato van as-lengte, dus een gat middenin een lange periode "eet" werk op
+      dat naar het volgende werkslot schuift).
+- [ ] **Sleepbare fasen op de Gantt-balk zelf** (buiten het venster). De strook leeft nu in het
+      venster; op de balk zou het de renderer- en pointer-lagen raken (`verify:gantt-boundaries`).
+      Pas bouwen als gebruikers erom vragen.
+- [ ] **Contour via MCP en het taakraster.** De draft-API (`createMcpTransactions.setAssignmentContour`)
+      bestaat, maar er is nog geen `planner_*`-tool met contract/schema (route: `docs/recepten/mcp-tool.md`).
+      De rasterkolom *Toewijzingscurve* (`assignment.curve`, `TaskCellEditor.tsx`) toont een
+      gecontoureerde toewijzing nog als "uniform" en laat een curvekeuze toe die geen effect heeft
+      zolang de contour bestaat — het paneel toont daar wél "Contour" en schakelt de dropdown uit.
+- [ ] **Herkomstmarkering na een MSPDI-import.** `TaskTimephasedNotice` kiest tussen "datumvenster
+      losgelaten" (grijs, MS Project-tekst) en "eigen urenverdeling" (grijs, neutraal) op de
+      heuristiek `resourceUid !== null` — die zetten zowel de `.mpp`- als de MSPDI-lezer. Een vers
+      geïmporteerd MSPDI-bestand met contouren toont daardoor de "losgelaten"-tekst terwijl er nooit
+      een datumvenster wás (MSPDI kent geen laag-3/4-sturing). Pre-existent (vóór de contour-UI
+      stond die tekst er ook), maar nu zichtbaarder; echte oplossing = een herkomstveld op de
+      contour (IFC-round-trip) of `resourceUid: null` in de MSPDI-lezer als de writer 'm niet nodig
+      heeft.
+- [ ] **Contour van een taak in uur-modus met ongelijke werkdagen.** Het dialoogvenster rekent in
+      dagslots van `hoursPerDay × 60` (zie het benaderingspunt hieronder); een korte vrijdag staat er
+      als gewone rij. Correct voor de lastlezers (dezelfde slotdefinitie), maar de urenkolom
+      suggereert meer precisie dan de as biedt.
+- [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
+      FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
+      gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
+- [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
+      een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
+      benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
 
 ### Solver/presentatie — resterende punten (2026-07-20)
 

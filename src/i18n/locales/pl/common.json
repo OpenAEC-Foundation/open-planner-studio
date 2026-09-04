@@ -584,7 +584,9 @@
       "backLoaded": "Obciążony na końcu",
       "bell": "Dzwonowy",
       "earlyPeak": "Wczesny szczyt",
-      "latePeak": "Późny szczyt"
+      "latePeak": "Późny szczyt",
+      "doublePeak": "Podwójny szczyt",
+      "turtle": "Żółw"
     },
     "occupancyView": "Obłożenie",
     "occupancy": {

@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "Répartition des heures par phases",
+    "applyShape": "Appliquer une forme :",
+    "hoursPerDay": "{{hours}} heures par jour ouvré",
+    "stripHint": "Faites glisser une limite pour allonger ou raccourcir une phase, le bord supérieur pour régler l'effort, double-cliquez sur un jour pour scinder une phase.",
+    "from": "Du",
+    "to": "Au",
+    "days": "Jours",
+    "unitsPerDay": "Effort (unités/jour)",
+    "hoursPerDayCol": "Heures/jour",
+    "actual": "Réalisé (h)",
+    "hoursTotal": "Heures",
+    "split": "Scinder",
+    "merge": "Fusionner",
+    "lastPhaseHint": "La dernière phase court jusqu'à la fin de la tâche.",
+    "noDays": "Cette tâche n'a aucun jour ouvré.",
+    "hint": "La répartition ne modifie que les heures par jour de cette affectation ; les dates et les interruptions de la tâche restent inchangées. Une phase avec un effort de 0 reste dans la durée de la tâche.",
+    "release": "Libérer la répartition"
+  },
   "durationType": { "WORKTIME": "Temps de travail", "ELAPSEDTIME": "Temps écoulé" },
   "table": {
     "title": "Tableau",
@@ -239,6 +258,7 @@
     "longFreePeriodWarningNamed": "Cette tâche traverse {{name}} — une période non travaillée de {{days}} jours ({{start}} au {{end}}).",
     "timephasedActive": "Suit la répartition horaire de MS Project",
     "timephasedLost": "Répartition horaire de MS Project non appliquée après modification — la répartition d'origine reste conservée dans le fichier",
+    "timephasedContoured": "Répartition des heures propre",
     "completion": "Avancement (%)",
     "progress": {
       "actualStart": "Début réel",
@@ -271,7 +291,11 @@
       "allAssigned": "Toutes les ressources sont déjà affectées.",
       "disabledMilestone": "Les affectations ne sont pas possibles sur les jalons.",
       "disabledSummary": "Les affectations ne sont pas possibles sur les tâches récapitulatives.",
-      "moveTo": "Déplacer vers…"
+      "moveTo": "Déplacer vers…",
+      "contour": "Répartition des heures…",
+      "contoured": "Contour",
+      "contouredHint": "Cette affectation a sa propre répartition des heures ; modifiez-la ou libérez-la via le bouton Répartition des heures.",
+      "importedCurve": "Courbe importée"
     },
     "calendar": "Calendrier",
     "calendarProject": "Calendrier du projet",

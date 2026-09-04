@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "단계별 시간 분배",
+    "applyShape": "형태 적용:",
+    "hoursPerDay": "작업일당 {{hours}}시간",
+    "stripHint": "경계를 끌어 단계를 늘리거나 줄이고, 위쪽 가장자리를 끌어 투입량을 설정하세요. 날짜를 두 번 클릭하면 단계가 분할됩니다.",
+    "from": "시작",
+    "to": "종료",
+    "days": "일수",
+    "unitsPerDay": "투입량 (단위/일)",
+    "hoursPerDayCol": "시간/일",
+    "actual": "실제 (h)",
+    "hoursTotal": "시간",
+    "split": "분할",
+    "merge": "병합",
+    "lastPhaseHint": "마지막 단계는 작업 종료까지 이어집니다.",
+    "noDays": "이 작업에는 작업일이 없습니다.",
+    "hint": "분배는 이 배정의 일별 시간만 변경합니다. 작업 날짜와 중단은 그대로 유지됩니다. 투입량이 0인 단계도 작업 기간 안에 남습니다.",
+    "release": "분배 해제"
+  },
   "durationType": { "WORKTIME": "작업 시간", "ELAPSEDTIME": "경과 시간" },
   "table": {
     "title": "테이블",
@@ -231,6 +250,7 @@
     "longFreePeriodWarningNamed": "이 작업은 {{name}} 기간에 걸쳐 있습니다 — {{days}}일간의 비근무 기간 ({{start}} ~ {{end}}).",
     "timephasedActive": "MS Project의 시간 분배를 따릅니다",
     "timephasedLost": "편집 후 MS Project의 시간 분배가 더 이상 적용되지 않습니다 — 원래 분배는 파일에 그대로 보존됩니다",
+    "timephasedContoured": "고유 시간 분배",
     "completion": "진행률 (%)",
     "progress": {
       "actualStart": "실제 시작",
@@ -263,7 +283,11 @@
       "allAssigned": "모든 자원이 이미 할당되었습니다.",
       "disabledMilestone": "마일스톤에는 할당할 수 없습니다.",
       "disabledSummary": "요약 작업에는 할당할 수 없습니다.",
-      "moveTo": "이동…"
+      "moveTo": "이동…",
+      "contour": "시간 분배…",
+      "contoured": "윤곽",
+      "contouredHint": "이 배정에는 고유한 시간 분배가 있습니다. 시간 분배 버튼으로 편집하거나 해제하세요.",
+      "importedCurve": "가져온 곡선"
     },
     "calendar": "달력",
     "calendarProject": "프로젝트 달력",

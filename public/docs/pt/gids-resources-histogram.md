@@ -67,6 +67,18 @@ Toda a atribuição tem **unidades/dia** (1 = uma pessoa/item a tempo inteiro, 0
 
 A variação de curva é mais visível no histograma: a mesma tarefa com as mesmas unidades/dia produz uma forma de barra muito diferente com uma curva em sino do que com uniforme. O exemplo de dimensão média mistura deliberadamente uniforme/carregado no início/carregado no fim nas tarefas de acabamento por casa, para poder comparar a diferença.
 
+### Editar a distribuição de horas manualmente
+
+Quando nenhuma curva serve, você define a distribuição por **fases**: trechos consecutivos da tarefa, cada um com esforço fixo («meia equipa na primeira semana, depois a equipa inteira»). O botão **Distribuição de horas…** ao lado da lista de curvas abre uma janela com, em cima, uma faixa em que cada fase é um bloco sobre os seus dias úteis (a altura é o esforço) e, em baixo, as mesmas fases em tabela: de, até, dias, esforço em unidades por dia, horas por dia e total. O ponto de partida é o que a atribuição contabiliza hoje. O trabalho real aparece a cinzento, só de leitura.
+
+- **Arrastar na faixa**: o limite entre dois blocos alonga ou encurta uma fase (por dias úteis inteiros), a borda superior define o esforço, um duplo clique num dia divide a fase.
+- **Escrever na tabela**: dias e esforço por fase; **Dividir** e **Juntar**. A última fase vai sempre até ao fim da tarefa.
+- **Aplicar forma** preenche as fases com uma das oito formas padrão mantendo o total.
+- **Aplicar** guarda a distribuição como *contorno* da atribuição; a lista mostra **Contorno** e fica desativada. Histograma, sobrealocação, nivelador e ocupação usam-no de imediato, e a distribuição viaja no IFC e nas exportações MS Project XML / P6 XML.
+- **Libertar distribuição** remove o contorno.
+
+Um contorno altera apenas as horas por dia desta atribuição; datas, duração e interrupções permanecem, também com uma fase de esforço 0. Se mais tarde alterar a duração, o contorno estica proporcionalmente (veja [Importação do MS Project](docs://gids-msproject-import)). O painel de propriedades marca a tarefa com um distintivo cinzento. Aplicar e libertar são passos normais de desfazer.
+
 ## Calendários de recursos
 
 Um recurso pode estar no **Calendário do projeto** (predefinição) ou no seu próprio calendário — por exemplo para um subempreiteiro que só está disponível quatro dias por semana. Defina isto através da coluna **Calendário** no painel de recursos, ou o campo **Calendário** no próprio recurso. Um calendário de recurso nunca toca nas datas CPM de uma tarefa (essas continuam a decorrer no calendário da tarefa/projeto) — apenas afeta a **carga** e o **nivelamento**: se um recurso não trabalhar um dia que a tarefa necessita, isso conta como um défice no histograma, e o nivelador avisa que deslocar não resolve essa incompatibilidade de calendário. Veja o guia [Calendários & planeamento por horas](docs://gids-kalenders-uren) para a explicação completa dos calendários.

@@ -575,7 +575,9 @@
       "backLoaded": "Caricato alla fine",
       "bell": "A campana",
       "earlyPeak": "Picco anticipato",
-      "latePeak": "Picco tardivo"
+      "latePeak": "Picco tardivo",
+      "doublePeak": "Doppio picco",
+      "turtle": "Tartaruga"
     },
     "occupancyView": "Occupazione",
     "occupancy": {

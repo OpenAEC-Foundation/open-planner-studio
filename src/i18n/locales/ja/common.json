@@ -557,7 +557,9 @@
       "backLoaded": "後ろ倒し",
       "bell": "山型（ベル型）",
       "earlyPeak": "早期ピーク",
-      "latePeak": "後期ピーク"
+      "latePeak": "後期ピーク",
+      "doublePeak": "二峰",
+      "turtle": "タートル"
     },
     "occupancyView": "稼働状況",
     "occupancy": {

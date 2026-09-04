@@ -323,7 +323,7 @@ const TASK_TYPES: readonly TaskType[] = [
 const TASK_STATUSES: readonly TaskStatus[] = ['NOT_STARTED', 'STARTED', 'COMPLETED'];
 const MILESTONE_KINDS: readonly MilestoneKind[] = ['START', 'FINISH'];
 const CONSTRAINT_TYPES: readonly ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
-const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 const RESOURCE_CURVE_LABEL_KEYS: Readonly<Record<ResourceCurve, string>> = {
   UNIFORM: 'resource.curve.uniform',
   FRONT_LOADED: 'resource.curve.frontLoaded',
@@ -331,6 +331,8 @@ const RESOURCE_CURVE_LABEL_KEYS: Readonly<Record<ResourceCurve, string>> = {
   BELL: 'resource.curve.bell',
   EARLY_PEAK: 'resource.curve.earlyPeak',
   LATE_PEAK: 'resource.curve.latePeak',
+  DOUBLE_PEAK: 'resource.curve.doublePeak',
+  TURTLE: 'resource.curve.turtle',
 };
 
 function enumOptions(prefix: string, values: readonly string[], optional = false) {

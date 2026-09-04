@@ -2,6 +2,7 @@ import { Task, type ExternalLink } from '@/types/task';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
@@ -394,8 +395,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
       const { time, ...rest } = updates;
+      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
+      const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
+      // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
+      // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
+      if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
