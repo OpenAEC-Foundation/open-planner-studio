@@ -174,8 +174,24 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
     // openstaat — anders bevestigt de dialoog in dezelfde event-tick met zijn oude draft.
     check('f Enter rondt het veld af via finish()',
       /e\.key === 'Enter'[\s\S]{0,300}?finish\(seg\)/.test(component));
-    check('f Enter blokkeert de dialoog zolang er iets openstaat (blocked || pending)',
-      /blocked \|\| pending/.test(component));
+    // ÉÉN Enter moet committen én de dialoog bevestigen. Het veld mag de toets daarom UITSLUITEND
+    // opeten bij ongeldige/incomplete invoer (`blocked`) — niet omdat het zojuist zelf commit heeft.
+    check('f Enter blokkeert de dialoog alleen bij ongeldige/incomplete invoer',
+      /if \(blocked\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); \}/.test(component));
+    check('f Enter eet de toets NIET op enkel omdat er zojuist gecommit is',
+      !/blocked \|\| pending/.test(component) && !/pending: /.test(component));
+
+    // Dat één-Enter-gedrag hangt volledig aan `useDialogKeys`: die listener hangt aan `document` en
+    // wordt vanuit een passive effect geregistreerd, dus zonder latest-callback-ref draagt hij nog
+    // de draft van de vórige render en bevestigt de dialoog met de oude waarde. Zie de toelichting
+    // daar; deze controle voorkomt dat iemand 'm terugdraait naar een closure met deps.
+    const dialogKeys = readFileSync(joinPath(srcRoot, 'hooks', 'useDialogKeys.ts'), 'utf8');
+    check('f useDialogKeys leest onConfirm/onCancel via een latest-callback-ref',
+      /confirmRef\.current = onConfirm/.test(dialogKeys)
+      && /cancelRef\.current = onCancel/.test(dialogKeys)
+      && /const onConfirm = confirmRef\.current/.test(dialogKeys));
+    check('f de keydown-listener van useDialogKeys voert niet opnieuw op per callback-identiteit',
+      /document\.addEventListener\('keydown', onKey\);[\s\S]{0,160}?\}, \[\]\);/.test(dialogKeys));
     // Escape herstelt de laatst gecommitte waarde; zonder bewerking loopt hij door naar de dialoog.
     check('f Escape herstelt de laatst gecommitte waarde',
       /e\.key === 'Escape'[\s\S]{0,400}?setSeg\(restored\)/.test(component));

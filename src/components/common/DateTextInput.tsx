@@ -241,12 +241,14 @@ interface DateTextInputProps {
  * ESCAPE: herstelt de laatst gecommitte waarde (en wist de foutindicatie). Stond er niets open, dan
  * loopt Escape gewoon door naar de dialoog.
  *
- * ENTER (samenwerking met `useDialogKeys`): het veld rondt eerst zichzelf af. Is er niets meer dat
- * nog doorgegeven moet worden, dan roept het GEEN `preventDefault`/`stopPropagation` aan en gaat de
- * dialoog-Enter (primaire actie) door met de juiste waarde. Gaf deze Enter de waarde juist NÚ pas
- * door, of is de invoer ongeldig/incompleet, dan eet het veld de toets op (`preventDefault` +
- * `stopPropagation`) — anders zou de dialoog in dezelfde event-tick nog met zijn oude draft
- * bevestigen. Een tweede Enter bevestigt dan wel.
+ * ENTER (samenwerking met `useDialogKeys`): het veld rondt eerst zichzelf af (commit) en laat de
+ * toets dan gewoon doorbubbelen — ÉÉN Enter commit én bevestigt de dialoog, met de zojuist
+ * gecommitte waarde. Dat werkt omdat keydown een discrete event is: React flusht de setState uit
+ * deze handler nog synchroon af (render + commit + layout-effects) vóór het native event
+ * `document` bereikt, en `useDialogKeys` leest zijn `onConfirm` sinds die fix via een ref — dus
+ * geen stale draft-closure meer. Zie de uitgebreide toelichting in `useDialogKeys.ts`.
+ * Alleen bij ONGELDIGE of INCOMPLETE invoer eet het veld de toets op (`preventDefault` +
+ * `stopPropagation`) en toont het de foutindicatie; de focus blijft in de groep.
  *
  * TOEKOMST (fase 2.8b — uren-scheduling): er komt tijd-van-de-dag. Deze component blokkeert die
  * uitbreiding niet; de parser is puur en tijd-loos. Bouw die tijd-invoer hier NU niet.
@@ -321,23 +323,24 @@ export function DateTextInput({
 
   /**
    * Afronden (blur/Enter): normaliseer, commit of val stil terug, en toon de fout bij een
-   * compleet-maar-onbestaande datum. Retourneert of er nog iets openstond, zodat Enter weet of hij
-   * de dialoog-Enter moet opeten (anders bevestigt de dialoog met de nog niet doorgegeven waarde).
+   * compleet-maar-onbestaande datum. Retourneert `blocked` — of de invoer de dialoog-Enter moet
+   * tegenhouden (ongeldig/incompleet). Een geslaagde commit blokkeert NIET: die mag in dezelfde
+   * toetsaanslag de dialoog bevestigen (zie de JSDoc bovenaan).
    */
-  const finish = (s: SegState): { pending: boolean; blocked: boolean } => {
+  const finish = (s: SegState): { blocked: boolean } => {
     const res = commitFrom(s, 'finish');
     if (res.kind === 'write') {
       setShowError(false);
       if (res.iso !== '') setSeg(isoToSegments(res.iso)); // normaliseer (bv. 6→06, 26→2026)
-      return { pending: res.iso !== value, blocked: false };
+      return { blocked: false };
     }
     if (res.kind === 'revert') {
       setShowError(false);
       setSeg(isoToSegments(value)); // stille terugval op laatst geldige waarde
-      return { pending: false, blocked: true };
+      return { blocked: true };
     }
     setShowError(true); // compleet-maar-ongeldig: commit NIET
-    return { pending: false, blocked: true };
+    return { blocked: true };
   };
 
   const handleChange = (i: number, raw: string) => {
@@ -357,12 +360,13 @@ export function DateTextInput({
     const atEnd = el.selectionStart === val.length && el.selectionEnd === val.length;
 
     if (e.key === 'Enter') {
-      const { pending, blocked } = finish(seg);
-      // Ongeldig/incompleet mag de dialoog-Enter niet doorlaten (zie JSDoc). En in `'blur'`-modus mag
-      // een Enter die de waarde NÚ pas doorgeeft de dialoog evenmin meteen bevestigen: de aanroeper
-      // zou in dezelfde event-tick nog zijn oude draft lezen. Een tweede Enter bevestigt dan wél.
-      if (blocked || pending) { e.preventDefault(); e.stopPropagation(); }
-      return; // niets meer openstaand: laat bubbelen naar useDialogKeys
+      const { blocked } = finish(seg);
+      // Ongeldig/incompleet mag de dialoog-Enter niet doorlaten (zie JSDoc). Een GESLAAGDE commit
+      // laat de toets bewust doorbubbelen: `useDialogKeys` leest `onConfirm` via een ref en React
+      // heeft de setState van `finish()` op dat moment al synchroon afgeflusht (discrete event), dus
+      // de dialoog bevestigt met de zojuist gecommitte waarde. Eén Enter volstaat.
+      if (blocked) { e.preventDefault(); e.stopPropagation(); }
+      return; // geldig/leeg: laat bubbelen naar useDialogKeys
     }
     if (e.key === 'Escape') {
       // Herstel de laatst gecommitte waarde. Stond er niets open, dan is dit geen bewerking en mag

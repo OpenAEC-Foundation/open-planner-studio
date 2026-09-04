@@ -40,6 +40,22 @@ export function useDialogKeys({
   const idRef = useRef<symbol | null>(null);
   if (idRef.current === null) idRef.current = Symbol('dialog');
 
+  // Latest-callback-patroon (bewust tijdens de RENDER toegewezen, niet in een effect). De listener
+  // hieronder hangt aan `document` en wordt geregistreerd vanuit een `useEffect` — een PASSIVE
+  // effect, dat React niet meer flusht binnen de event-tick waarin de toets al bezig is te bubbelen.
+  // Las de listener `onConfirm` rechtstreeks uit zijn closure, dan droeg hij dus nog de draft van de
+  // vórige render. Dat maakte een veld dat op Enter zelf nog commit (zie `DateTextInput`) onmogelijk
+  // in één toetsaanslag: de dialoog bevestigde met de oude waarde, of het veld moest de Enter
+  // opeten en de gebruiker een tweede keer laten drukken.
+  // Waarom een ref dat oplost: keydown is een DISCRETE event, dus React rendert en commit de
+  // setState uit de React-handler nog SYNCHROON af aan het einde van zijn eigen root-listener —
+  // vóór het native event doorbubbelt naar `document`. Die her-render zet `confirmRef.current` op de
+  // verse closure; alleen passive effects blijven achter. Eén Enter volstaat daardoor weer.
+  const confirmRef = useRef(onConfirm);
+  const cancelRef = useRef(onCancel);
+  confirmRef.current = onConfirm;
+  cancelRef.current = onCancel;
+
   // Losse effect met lege deps: registratie op de stapel mag niet heropvoeren bij elke
   // onConfirm/onCancel-identiteitswissel (anders pop/push je jezelf tussentijds naar de top).
   useEffect(() => {
@@ -50,15 +66,20 @@ export function useDialogKeys({
     };
   }, []);
 
+  // Lege deps: de listener leest alles via de refs hierboven, dus hij hoeft niet opnieuw op te
+  // voeren bij elke identiteitswissel van onConfirm/onCancel (dat was ook precies het venster waarin
+  // hij een tick lang met de oude closure aan `document` hing).
   useEffect(() => {
     const id = idRef.current!;
     const onKey = (e: KeyboardEvent) => {
       if (dialogStack[dialogStack.length - 1] !== id) return; // niet de bovenste — negeren
       if (e.key === 'Escape') {
+        const onCancel = cancelRef.current;
         if (onCancel) { e.preventDefault(); onCancel(); }
         return;
       }
       if (e.key === 'Enter') {
+        const onConfirm = confirmRef.current;
         if (!onConfirm || e.defaultPrevented || e.isComposing) return;
         const el = document.activeElement as HTMLElement | null;
         if (el?.tagName === 'TEXTAREA') return;
@@ -70,5 +91,5 @@ export function useDialogKeys({
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onConfirm, onCancel]);
+  }, []);
 }
