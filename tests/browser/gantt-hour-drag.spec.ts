@@ -157,6 +157,9 @@ test('urentaak volgt onder werkdagen-as de getekende maandag-vrijdag-naad', asyn
     // Vrijdag 11 september ligt vanaf vrijdag 28 augustus precies tien zichtbare werkdagen verder.
     state.setScroll(10 * 1000, 0);
   });
+  // Zelfde reden als bij seedHourTask/de vorige test: barPoint leest renderer-eigen geometrie, en
+  // zonder deze wacht kan hij nog de as van vóór de compressNonWorkdays-mutatie teruggeven.
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
   const point = await barPoint(page, id, 'body');
 
   await page.mouse.move(point.x, point.y);
