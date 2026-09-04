@@ -13,6 +13,8 @@
     "autoSaveFailed": "ذخیره‌سازی خودکار ناموفق بود",
     "recoveryReadFailed": "فایل بازیابی‌شده خوانده نشد",
     "recoveryRestoreFailed": "بازیابی ناموفق بود",
+    "recoveryDocumentsSkipped_one": "{{count}} فایل بازیابی بارگذاری نشد و نادیده گرفته شد.",
+    "recoveryDocumentsSkipped_other": "{{count}} فایل بازیابی بارگذاری نشد و نادیده گرفته شد.",
     "scheduleFailed": "محاسبهٔ برنامه ممکن نشد",
     "ifcParseFailed": "خواندن IFC ناموفق بود",
     "templateSaved": "شاخه به عنوان الگوی «{{name}}» ذخیره شد",

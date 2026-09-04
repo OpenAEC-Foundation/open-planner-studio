@@ -13,6 +13,7 @@
     "autoSaveFailed": "自动保存失败",
     "recoveryReadFailed": "无法读取恢复的文件",
     "recoveryRestoreFailed": "恢复失败",
+    "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
     "scheduleFailed": "无法计算计划",
     "ifcParseFailed": "无法读取 IFC",
     "templateSaved": "分支已保存为模板“{{name}}”",
