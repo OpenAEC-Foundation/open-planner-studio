@@ -522,7 +522,11 @@
       "conflictDays": "{{count}} Tag(e)",
       "reason": {
         "calendarMismatch": "Die Ressource arbeitet nicht an allen Tagen, die diese Aufgabe benötigt — Verschieben löst dies nicht.",
-        "insufficientCapacity": "Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen."
+        "insufficientCapacity": "Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen.",
+        "ceilingTooTight": "Die Verschiebungsgrenze lässt zu wenig Raum: Innerhalb dieser Anzahl Arbeitstage ist kein freies Fenster.",
+        "ceilingUnreachable": "Mehr Verschiebung hilft hier nicht — ein Termin oder eine Randbedingung hält diesen Vorgang an seinem Platz.",
+        "noWindowInHorizon": "Innerhalb des durchsuchten Zeitraums wurde kein freies Fenster gefunden; weiter draußen ist es unbekannt.",
+        "residualFull": "Der eigene Einsatz hatte Raum, aber die Restkapazität der Bibliothek ist aufgebraucht — andere Projekte belegen sie."
       }
     },
     "curve": {
@@ -552,6 +556,86 @@
       "capacity": "Kapazität",
       "documents": "Dokumente",
       "selectHint": "Wählen Sie eine Ressource aus, um das Histogramm zu sehen."
+    },
+    "distribution": {
+      "open": "Verteilen…",
+      "title": "Über Projekte verteilen",
+      "back": "Zurück zur Belegung",
+      "subtitle": "{{item}} — Restkapazität über die geöffneten Projekte verteilen",
+      "blocked": {
+        "uncounted": "Zuerst berechnen: {{docs}} ist noch nicht berechnet, daher gibt es nichts zu verteilen.",
+        "material": "Dies ist ein Materialartikel; Verteilen funktioniert nur für Personen und Geräte.",
+        "noDemand": "Keines der Projekte bucht hier tatsächlich Arbeit."
+      },
+      "tool": {
+        "title": "Werkzeug",
+        "allowSplits": "Unterbrechungen zulassen",
+        "allowSplitsHint": "Die Arbeit darf Pausentage bekommen, statt sich am Stück zu verschieben. In MS Project heißt das \"Leveling can create splits in remaining work\".",
+        "price_one": "kostet {{count}} Arbeitstag Verzug",
+        "price_other": "kostet {{count}} Arbeitstage Verzug",
+        "priceNone": "kostet keinen Verzug",
+        "priceUnknown": "Preis unbekannt — Neu berechnen drücken"
+      },
+      "rank": {
+        "title": "Wer wird am meisten geschont?",
+        "hint": "Oben weicht am wenigsten ab. Ziehen, um die Reihenfolge zu ändern.",
+        "float": "Puffer: {{days}}",
+        "cost_one": "nur dieses Projekt verschieben zu lassen kostet {{count}} Arbeitstag",
+        "cost_other": "nur dieses Projekt verschieben zu lassen kostet {{count}} Arbeitstage",
+        "costNone": "nur dieses Projekt verschieben zu lassen kostet keinen Verzug",
+        "moveUp": "Nach oben",
+        "moveDown": "Nach unten"
+      },
+      "strip": {
+        "pin": "Anheften",
+        "pinned": "Angeheftet — dieses Projekt weicht nicht und behält auch seine Arbeitstage",
+        "pinnedRecorded": "Angeheftet: Datumsangaben wie gespeichert",
+        "cannotMove": "Kann nicht ausweichen — die gesamte Arbeit hier steht fest",
+        "fixedLoad": "Feste Last",
+        "ceiling": "Maximaler Verzug des Enddatums",
+        "ceilingUnlimited": "unbegrenzt",
+        "ceilingDays_one": "Obergrenze {{count}} Arbeitstag",
+        "ceilingDays_other": "Obergrenze {{count}} Arbeitstage",
+        "endUnchanged": "Ende unverändert",
+        "endShift_one": "Ende +{{count}} Tag",
+        "endShift_other": "Ende +{{count}} Tage",
+        "requestedVsAchievable": "angefragt {{requested}}, am ehesten erreichbar {{achievable}}",
+        "handleLabel": "Verzugsobergrenze für {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Neu berechnen",
+        "auto": "Automatisch verteilen",
+        "busy": "Verteilung läuft…",
+        "pressRecompute": "— Neu berechnen drücken",
+        "degraded": "Dies ist eine große Übersicht; sie rechnet nur, wenn Sie Neu berechnen drücken."
+      },
+      "stale": {
+        "rank": "Die Reihenfolge hat sich geändert — neu berechnen, um die Wirkung zu sehen.",
+        "ceiling": "Eine Obergrenze hat sich geändert — neu berechnen, um die Wirkung zu sehen.",
+        "pin": "Eine Anheftung hat sich geändert — neu berechnen, um die Wirkung zu sehen.",
+        "tool": "Das Werkzeug hat sich geändert — neu berechnen, um die Wirkung zu sehen.",
+        "edited": "In {{docs}} hat sich etwas geändert — dieser Vorschlag ist nicht mehr aktuell."
+      },
+      "shortfall": {
+        "title": "Bleibt übrig",
+        "doc_one": "{{doc}}: {{count}} Vorgang passt nicht",
+        "doc_other": "{{doc}}: {{count}} Vorgänge passen nicht"
+      },
+      "preview": {
+        "before": "Jetzt",
+        "after": "Nach Verteilung",
+        "capacity": "Kapazität"
+      },
+      "apply": "Anwenden",
+      "discard": "Verwerfen",
+      "applyBlockedShortfall": "Lösen Sie zuerst den Engpass — erweitern Sie eine Obergrenze, oder lassen Sie Unterbrechungen zu.",
+      "applyBlockedNothing": "Es gibt nichts anzuwenden: Dieser Vorschlag ändert nichts.",
+      "applied_one": "Angewendet in {{count}} Projekt.",
+      "applied_other": "Angewendet in {{count}} Projekten.",
+      "undoAll": "Alles rückgängig machen",
+      "undoneAll": "Alles wurde rückgängig gemacht.",
+      "undonePartial": "Rückgängig gemacht, außer {{docs}} — dort wurde inzwischen weitergearbeitet.",
+      "selectHint": "Wählen Sie einen Bibliotheksartikel mit einem Konflikt, um mit dem Verteilen zu beginnen."
     },
     "color": "Farbe"
   },

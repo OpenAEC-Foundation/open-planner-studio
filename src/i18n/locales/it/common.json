@@ -528,7 +528,11 @@
       "conflictDays": "{{count}} giorno/i",
       "reason": {
         "calendarMismatch": "La risorsa non lavora in tutti i giorni richiesti da questa attività — lo spostamento non risolve il problema.",
-        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto."
+        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto.",
+        "ceilingTooTight": "Il tetto di slittamento lascia troppo poco spazio: entro quel numero di giorni lavorativi non c'è una finestra libera.",
+        "ceilingUnreachable": "Concedere slittamento qui non aiuta — una scadenza o un vincolo tiene questa attività al suo posto.",
+        "noWindowInHorizon": "Nel periodo esplorato non è stata trovata alcuna finestra libera; oltre non si sa.",
+        "residualFull": "L'impegno proprio aveva spazio, ma la capacità residua della libreria è esaurita — altri progetti la occupano."
       }
     },
     "curve": {
@@ -561,6 +565,92 @@
       "capacity": "Capacità",
       "documents": "Documenti",
       "selectHint": "Seleziona una risorsa per vedere l'istogramma."
+    },
+    "distribution": {
+      "open": "Distribuisci…",
+      "title": "Distribuisci tra i progetti",
+      "back": "Torna all'occupazione",
+      "subtitle": "{{item}} — distribuisci la capacità residua tra i progetti aperti",
+      "blocked": {
+        "uncounted": "Calcola prima: {{docs}} non è ancora stato calcolato, quindi non c'è nulla da distribuire.",
+        "material": "Questo è un articolo di materiale; la distribuzione funziona solo per persone e attrezzature.",
+        "noDemand": "Nessuno dei progetti prenota effettivamente lavoro qui."
+      },
+      "tool": {
+        "title": "Strumento",
+        "allowSplits": "Consenti interruzioni",
+        "allowSplitsHint": "Il lavoro può ricevere giorni di pausa invece di spostarsi in un unico blocco. In MS Project questo si chiama \"Leveling can create splits in remaining work\".",
+        "price_one": "costa {{count}} giorno lavorativo di ritardo",
+        "price_many": "costa {{count}} giorni lavorativi di ritardo",
+        "price_other": "costa {{count}} giorni lavorativi di ritardo",
+        "priceNone": "non costa alcun ritardo",
+        "priceUnknown": "prezzo sconosciuto — premi Ricalcola"
+      },
+      "rank": {
+        "title": "Chi viene risparmiato di più?",
+        "hint": "In alto è chi si sposta meno. Trascina per cambiare l'ordine.",
+        "float": "margine: {{days}}",
+        "cost_one": "far slittare solo questo progetto costa {{count}} giorno lavorativo",
+        "cost_many": "far slittare solo questo progetto costa {{count}} giorni lavorativi",
+        "cost_other": "far slittare solo questo progetto costa {{count}} giorni lavorativi",
+        "costNone": "far slittare solo questo progetto non costa alcun ritardo",
+        "moveUp": "Sposta su",
+        "moveDown": "Sposta giù"
+      },
+      "strip": {
+        "pin": "Blocca",
+        "pinned": "Bloccato — questo progetto non slitta e mantiene anche i suoi giorni lavorativi",
+        "pinnedRecorded": "Bloccato: date come registrate",
+        "cannotMove": "Non può slittare — tutto il lavoro qui è fisso",
+        "fixedLoad": "Carico fisso",
+        "ceiling": "Ritardo massimo della data di fine",
+        "ceilingUnlimited": "illimitato",
+        "ceilingDays_one": "tetto {{count}} giorno lavorativo",
+        "ceilingDays_many": "tetto {{count}} giorni lavorativi",
+        "ceilingDays_other": "tetto {{count}} giorni lavorativi",
+        "endUnchanged": "fine invariata",
+        "endShift_one": "fine +{{count}} giorno",
+        "endShift_many": "fine +{{count}} giorni",
+        "endShift_other": "fine +{{count}} giorni",
+        "requestedVsAchievable": "richiesto {{requested}}, il più vicino raggiungibile {{achievable}}",
+        "handleLabel": "Tetto di ritardo per {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Ricalcola",
+        "auto": "Distribuisci automaticamente",
+        "busy": "Distribuzione in corso…",
+        "pressRecompute": "— premi Ricalcola",
+        "degraded": "Questa è una panoramica ampia; calcola solo quando premi Ricalcola."
+      },
+      "stale": {
+        "rank": "L'ordine è cambiato — ricalcola per vedere l'effetto.",
+        "ceiling": "Un tetto è cambiato — ricalcola per vedere l'effetto.",
+        "pin": "Un blocco è cambiato — ricalcola per vedere l'effetto.",
+        "tool": "Lo strumento è cambiato — ricalcola per vedere l'effetto.",
+        "edited": "Qualcosa è cambiato in {{docs}} — questa proposta non è più aggiornata."
+      },
+      "shortfall": {
+        "title": "Rimane",
+        "doc_one": "{{doc}}: {{count}} attività non entra",
+        "doc_many": "{{doc}}: {{count}} attività non entrano",
+        "doc_other": "{{doc}}: {{count}} attività non entrano"
+      },
+      "preview": {
+        "before": "Ora",
+        "after": "Dopo la distribuzione",
+        "capacity": "Capacità"
+      },
+      "apply": "Applica",
+      "discard": "Scarta",
+      "applyBlockedShortfall": "Risolvi prima la carenza — allarga un tetto, oppure consenti le interruzioni.",
+      "applyBlockedNothing": "Non c'è nulla da applicare: questa proposta non cambia nulla.",
+      "applied_one": "Applicato in {{count}} progetto.",
+      "applied_many": "Applicato in {{count}} progetti.",
+      "applied_other": "Applicato in {{count}} progetti.",
+      "undoAll": "Annulla tutto",
+      "undoneAll": "Tutto è stato annullato.",
+      "undonePartial": "Annullato, tranne {{docs}} — lì nel frattempo si è lavorato.",
+      "selectHint": "Scegli un articolo di libreria con un conflitto per iniziare a distribuire."
     },
     "color": "Colore"
   },

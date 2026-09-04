@@ -522,7 +522,11 @@
       "conflictDays": "{{count}} gün",
       "reason": {
         "calendarMismatch": "Kaynak bu görevin ihtiyaç duyduğu tüm günlerde çalışmıyor — kaydırma bunu çözmez.",
-        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok."
+        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok.",
+        "ceilingTooTight": "Kaydırma tavanı çok az yer bırakıyor: bu kadar iş günü içinde boş pencere yok.",
+        "ceilingUnreachable": "Burada kaydırma vermek yardımcı olmuyor — bir teslim tarihi veya kısıt bu görevi yerinde tutuyor.",
+        "noWindowInHorizon": "Taranan dönem içinde boş pencere bulunamadı; ötesinde bilinmiyor.",
+        "residualFull": "Kendi kullanımın yer vardı, ama kitaplığın kalan kapasitesi tükendi — başka projeler onu kullanıyor."
       }
     },
     "curve": {
@@ -552,6 +556,86 @@
       "capacity": "Kapasite",
       "documents": "Belgeler",
       "selectHint": "Histogramı görmek için bir kaynak seçin."
+    },
+    "distribution": {
+      "open": "Dağıt…",
+      "title": "Projeler arasında dağıt",
+      "back": "Doluluğa dön",
+      "subtitle": "{{item}} — kalan kapasiteyi açık projeler arasında dağıt",
+      "blocked": {
+        "uncounted": "Önce hesapla: {{docs}} henüz hesaplanmadı, bu yüzden dağıtılacak bir şey yok.",
+        "material": "Bu bir malzeme kalemi; dağıtım yalnızca kişiler ve ekipman için çalışır.",
+        "noDemand": "Projelerin hiçbiri burada gerçekten iş rezerve etmiyor."
+      },
+      "tool": {
+        "title": "Araç",
+        "allowSplits": "Kesintilere izin ver",
+        "allowSplitsHint": "İş, tek parça halinde kaymak yerine ara günler alabilir. MS Project'te buna \"Leveling can create splits in remaining work\" denir.",
+        "price_one": "{{count}} iş günü kaydırma maliyeti var",
+        "price_other": "{{count}} iş günü kaydırma maliyeti var",
+        "priceNone": "kaydırma maliyeti yok",
+        "priceUnknown": "fiyat bilinmiyor — Yeniden Hesapla'ya basın"
+      },
+      "rank": {
+        "title": "En çok kim korunuyor?",
+        "hint": "En üstteki en az kayar. Sırayı değiştirmek için sürükleyin.",
+        "float": "bolluk: {{days}}",
+        "cost_one": "yalnızca bu projenin kaymasına izin vermek {{count}} iş günü maliyetine mal olur",
+        "cost_other": "yalnızca bu projenin kaymasına izin vermek {{count}} iş günü maliyetine mal olur",
+        "costNone": "yalnızca bu projenin kaymasına izin vermek hiçbir kaydırma maliyetine mal olmaz",
+        "moveUp": "Yukarı taşı",
+        "moveDown": "Aşağı taşı"
+      },
+      "strip": {
+        "pin": "Sabitle",
+        "pinned": "Sabitlendi — bu proje kaymaz ve iş günlerini de korur",
+        "pinnedRecorded": "Sabitlendi: kayıtlı tarihler",
+        "cannotMove": "Kayamaz — buradaki tüm iş sabit",
+        "fixedLoad": "Sabit yük",
+        "ceiling": "Bitiş tarihinin azami kayması",
+        "ceilingUnlimited": "sınırsız",
+        "ceilingDays_one": "tavan {{count}} iş günü",
+        "ceilingDays_other": "tavan {{count}} iş günü",
+        "endUnchanged": "bitiş değişmedi",
+        "endShift_one": "bitiş +{{count}} gün",
+        "endShift_other": "bitiş +{{count}} gün",
+        "requestedVsAchievable": "istenen {{requested}}, en yakın ulaşılabilir {{achievable}}",
+        "handleLabel": "{{doc}} için kaydırma tavanı"
+      },
+      "compute": {
+        "recalculate": "Yeniden hesapla",
+        "auto": "Otomatik dağıt",
+        "busy": "Dağıtılıyor…",
+        "pressRecompute": "— Yeniden Hesapla'ya basın",
+        "degraded": "Bu büyük bir genel görünüm; yalnızca Yeniden Hesapla'ya bastığınızda hesaplar."
+      },
+      "stale": {
+        "rank": "Sıra değişti — etkisini görmek için yeniden hesaplayın.",
+        "ceiling": "Bir tavan değişti — etkisini görmek için yeniden hesaplayın.",
+        "pin": "Bir sabitleme değişti — etkisini görmek için yeniden hesaplayın.",
+        "tool": "Araç değişti — etkisini görmek için yeniden hesaplayın.",
+        "edited": "{{docs}} içinde bir şey değişti — bu öneri artık güncel değil."
+      },
+      "shortfall": {
+        "title": "Kalan",
+        "doc_one": "{{doc}}: {{count}} görev sığmıyor",
+        "doc_other": "{{doc}}: {{count}} görev sığmıyor"
+      },
+      "preview": {
+        "before": "Şimdi",
+        "after": "Dağıtımdan sonra",
+        "capacity": "Kapasite"
+      },
+      "apply": "Uygula",
+      "discard": "At",
+      "applyBlockedShortfall": "Önce eksikliği çözün — bir tavanı genişletin ya da kesintilere izin verin.",
+      "applyBlockedNothing": "Uygulanacak bir şey yok: bu öneri hiçbir şeyi değiştirmiyor.",
+      "applied_one": "{{count}} projede uygulandı.",
+      "applied_other": "{{count}} projede uygulandı.",
+      "undoAll": "Tümünü geri al",
+      "undoneAll": "Her şey geri alındı.",
+      "undonePartial": "{{docs}} hariç geri alındı — orada bu arada çalışılmış.",
+      "selectHint": "Dağıtmaya başlamak için çakışan bir kitaplık öğesi seçin."
     },
     "color": "Renk"
   },

@@ -516,7 +516,11 @@
       "conflictDays": "{{count}} 日",
       "reason": {
         "calendarMismatch": "このリソースはこのタスクが必要とするすべての日に稼働していません — 移動では解決できません。",
-        "insufficientCapacity": "フロート内の空きキャパシティが不足しているため、この競合を解決できません。"
+        "insufficientCapacity": "フロート内の空きキャパシティが不足しているため、この競合を解決できません。",
+        "ceilingTooTight": "延長の上限では余裕が少なすぎます。その稼働日数以内に空いているウィンドウがありません。",
+        "ceilingUnreachable": "ここでは延長を与えても解決しません — 期限や制約がこのタスクを固定しています。",
+        "noWindowInHorizon": "検索した期間内に空いているウィンドウが見つかりませんでした。それ以降は不明です。",
+        "residualFull": "自プロジェクトの割り当てには余裕がありましたが、ライブラリの残キャパシティが尽きています — 他のプロジェクトが占有しています。"
       }
     },
     "curve": {
@@ -543,6 +547,80 @@
       "capacity": "キャパシティ",
       "documents": "ドキュメント",
       "selectHint": "ヒストグラムを表示するにはリソースを選択してください。"
+    },
+    "distribution": {
+      "open": "配分…",
+      "title": "プロジェクト間で配分",
+      "back": "稼働状況に戻る",
+      "subtitle": "{{item}} — 残キャパシティを開いているプロジェクト間で配分",
+      "blocked": {
+        "uncounted": "先に計算してください：{{docs}} はまだ計算されていないため、配分するものがありません。",
+        "material": "これは資材項目です。配分は人員と機材にのみ機能します。",
+        "noDemand": "どのプロジェクトもここで実際に作業を予約していません。"
+      },
+      "tool": {
+        "title": "ツール",
+        "allowSplits": "中断を許可",
+        "allowSplitsHint": "作業は一気に移動する代わりに休止日を挟むことができます。MS Project ではこれを「Leveling can create splits in remaining work」と呼びます。",
+        "price_other": "{{count}} 稼働日の延長がかかります",
+        "priceNone": "延長はかかりません",
+        "priceUnknown": "価格不明 — 再計算を押してください"
+      },
+      "rank": {
+        "title": "誰が最も優先的に守られますか？",
+        "hint": "上にあるほど動きが少なくなります。ドラッグして順序を変更します。",
+        "float": "フロート：{{days}}",
+        "cost_other": "このプロジェクトだけを動かすには {{count}} 稼働日かかります",
+        "costNone": "このプロジェクトだけを動かしても延長はかかりません",
+        "moveUp": "上へ移動",
+        "moveDown": "下へ移動"
+      },
+      "strip": {
+        "pin": "固定",
+        "pinned": "固定済み — このプロジェクトは動かず、稼働日もそのまま維持されます",
+        "pinnedRecorded": "固定済み：記録された日付のとおり",
+        "cannotMove": "動かせません — ここの作業はすべて確定しています",
+        "fixedLoad": "固定負荷",
+        "ceiling": "終了日の最大延長",
+        "ceilingUnlimited": "無制限",
+        "ceilingDays_other": "上限 {{count}} 稼働日",
+        "endUnchanged": "終了日は変更なし",
+        "endShift_other": "終了日 +{{count}} 日",
+        "requestedVsAchievable": "要求 {{requested}}、達成可能な最も近い値 {{achievable}}",
+        "handleLabel": "{{doc}} の延長上限"
+      },
+      "compute": {
+        "recalculate": "再計算",
+        "auto": "自動配分",
+        "busy": "配分中…",
+        "pressRecompute": "— 再計算を押してください",
+        "degraded": "これは大規模な概要です。再計算を押したときのみ計算されます。"
+      },
+      "stale": {
+        "rank": "順序が変更されました — 効果を確認するには再計算してください。",
+        "ceiling": "上限が変更されました — 効果を確認するには再計算してください。",
+        "pin": "固定設定が変更されました — 効果を確認するには再計算してください。",
+        "tool": "ツールが変更されました — 効果を確認するには再計算してください。",
+        "edited": "{{docs}} で何かが変更されました — この提案はもう最新ではありません。"
+      },
+      "shortfall": {
+        "title": "残り",
+        "doc_other": "{{doc}}：{{count}} 件のタスクが収まりません"
+      },
+      "preview": {
+        "before": "現在",
+        "after": "配分後",
+        "capacity": "キャパシティ"
+      },
+      "apply": "適用",
+      "discard": "破棄",
+      "applyBlockedShortfall": "先に不足を解消してください — 上限を広げるか、中断を許可してください。",
+      "applyBlockedNothing": "適用するものがありません：この提案は何も変更しません。",
+      "applied_other": "{{count}} 件のプロジェクトに適用されました。",
+      "undoAll": "すべて元に戻す",
+      "undoneAll": "すべて元に戻りました。",
+      "undonePartial": "{{docs}} を除いて元に戻りました — そちらはその間に作業が行われています。",
+      "selectHint": "配分を始めるには、競合のあるライブラリ項目を選択してください。"
     },
     "color": "色"
   },

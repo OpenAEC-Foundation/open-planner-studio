@@ -6,6 +6,7 @@ import { Dialog } from '@/components/common/Dialog';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import { parseDate } from '@/utils/dateUtils';
+import { LEVELING_REASON_KEY } from '@/utils/levelingReasonKey';
 
 function fmt(iso: string): string {
   if (!iso) return '—';
@@ -218,22 +219,23 @@ export function LevelingDialog() {
                     const task = tasks.find(t => t.id === taskId);
                     const reason = result?.unresolvedReasons[taskId];
                     const intrinsic = intrinsicByTask[taskId];
-                    // Reden-specifieke uitleg (A3), gededupliceerd met de leveler-classificatie: de
-                    // leveler kiest de reden, de dialoog vult alleen de weergavedetails in.
+                    // Reden-specifieke uitleg (A3, uitgebreid B1c-plan3 taak 7), gededupliceerd met
+                    // de leveler-classificatie via `LEVELING_REASON_KEY`: de leveler kiest de reden,
+                    // de dialoog vult alleen de weergavedetails in. `INTRINSIC_OVERRUN` draagt
+                    // interpolatie (resource/peak/capacity) en krijgt daarom zijn eigen tak; de
+                    // overige zes lopen via de gedeelde mapping.
                     let explain: string | null = null;
                     if (reason === 'INTRINSIC_OVERRUN' && intrinsic) {
-                      explain = t('resource.leveling.intrinsicOverrun', {
+                      explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {
                         resource: intrinsic.resource,
                         peak: numberFmt.format(intrinsic.peak),
                         capacity: numberFmt.format(intrinsic.capacity),
                       });
-                    } else if (reason === 'CALENDAR_MISMATCH') {
-                      explain = t('resource.leveling.reason.calendarMismatch');
-                    } else if (reason === 'INSUFFICIENT_CAPACITY') {
-                      explain = t('resource.leveling.reason.insufficientCapacity');
+                    } else if (reason) {
+                      explain = t(LEVELING_REASON_KEY[reason]);
                     } else if (intrinsic) {
                       // Vangnet (geen reden meegegeven, maar intrinsiek gedetecteerd).
-                      explain = t('resource.leveling.intrinsicOverrun', {
+                      explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {
                         resource: intrinsic.resource,
                         peak: numberFmt.format(intrinsic.peak),
                         capacity: numberFmt.format(intrinsic.capacity),

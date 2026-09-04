@@ -522,7 +522,11 @@
       "conflictDays": "{{count}} dag(en)",
       "reason": {
         "calendarMismatch": "De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.",
-        "insufficientCapacity": "Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen."
+        "insufficientCapacity": "Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen.",
+        "ceilingTooTight": "Het uitloop-plafond laat te weinig ruimte: binnen dat aantal werkdagen is geen vrij venster.",
+        "ceilingUnreachable": "Uitloop geven helpt hier niet — een deadline of constraint houdt deze taak op zijn plek.",
+        "noWindowInHorizon": "Binnen de doorzochte periode is geen vrij venster gevonden; verderop is het onbekend.",
+        "residualFull": "De eigen inzet had ruimte, maar de restcapaciteit van de bibliotheek is op — andere projecten bezetten hem."
       }
     },
     "curve": {
@@ -552,6 +556,86 @@
       "capacity": "Capaciteit",
       "documents": "Documenten",
       "selectHint": "Selecteer een resource om het histogram te zien."
+    },
+    "distribution": {
+      "open": "Verdelen…",
+      "title": "Verdelen over projecten",
+      "back": "Terug naar bezetting",
+      "subtitle": "{{item}} — restcapaciteit verdelen over de geopende projecten",
+      "blocked": {
+        "uncounted": "Eerst doorrekenen: {{docs}} is nog niet berekend, dus er valt niets tegen te verdelen.",
+        "material": "Dit is een materiaal-item; verdelen werkt alleen voor mensen en materieel.",
+        "noDemand": "Geen van de projecten boekt hier daadwerkelijk werk op."
+      },
+      "tool": {
+        "title": "Gereedschap",
+        "allowSplits": "Onderbrekingen toestaan",
+        "allowSplitsHint": "Het werk mag pauzedagen krijgen in plaats van in één stuk op te schuiven. In MS Project heet dit \"Leveling can create splits in remaining work\".",
+        "price_one": "kost {{count}} werkdag uitloop",
+        "price_other": "kost {{count}} werkdagen uitloop",
+        "priceNone": "kost geen uitloop",
+        "priceUnknown": "prijs onbekend — druk op Herbereken"
+      },
+      "rank": {
+        "title": "Wie wordt het meest ontzien?",
+        "hint": "Bovenaan wijkt het minst. Sleep om de volgorde te veranderen.",
+        "float": "speling: {{days}}",
+        "cost_one": "alleen dit project laten opschuiven kost {{count}} werkdag",
+        "cost_other": "alleen dit project laten opschuiven kost {{count}} werkdagen",
+        "costNone": "alleen dit project laten opschuiven kost geen uitloop",
+        "moveUp": "Naar boven",
+        "moveDown": "Naar beneden"
+      },
+      "strip": {
+        "pin": "Vastzetten",
+        "pinned": "Vastgezet — dit project wijkt niet en houdt ook zijn werkdagen",
+        "pinnedRecorded": "Vastgezet: datums zoals opgeslagen",
+        "cannotMove": "Kan niet wijken — al het werk hier staat vast",
+        "fixedLoad": "Vaste last",
+        "ceiling": "Maximale uitloop van de einddatum",
+        "ceilingUnlimited": "onbegrensd",
+        "ceilingDays_one": "plafond {{count}} werkdag",
+        "ceilingDays_other": "plafond {{count}} werkdagen",
+        "endUnchanged": "eind ongewijzigd",
+        "endShift_one": "eind +{{count}} dag",
+        "endShift_other": "eind +{{count}} dagen",
+        "requestedVsAchievable": "gevraagd {{requested}}, dichtst haalbare {{achievable}}",
+        "handleLabel": "Uitloop-plafond voor {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Herbereken",
+        "auto": "Verdeel automatisch",
+        "busy": "Bezig met verdelen…",
+        "pressRecompute": "— druk op Herbereken",
+        "degraded": "Dit is een groot overzicht; het rekent alleen wanneer je op Herbereken drukt."
+      },
+      "stale": {
+        "rank": "De volgorde is gewijzigd — herbereken om het effect te zien.",
+        "ceiling": "Een plafond is gewijzigd — herbereken om het effect te zien.",
+        "pin": "Een vastzetting is gewijzigd — herbereken om het effect te zien.",
+        "tool": "Het gereedschap is gewijzigd — herbereken om het effect te zien.",
+        "edited": "Er is iets gewijzigd in {{docs}} — dit voorstel is niet meer actueel."
+      },
+      "shortfall": {
+        "title": "Blijft over",
+        "doc_one": "{{doc}}: {{count}} taak past niet",
+        "doc_other": "{{doc}}: {{count}} taken passen niet"
+      },
+      "preview": {
+        "before": "Nu",
+        "after": "Na verdelen",
+        "capacity": "Capaciteit"
+      },
+      "apply": "Toepassen",
+      "discard": "Verwerpen",
+      "applyBlockedShortfall": "Los eerst het tekort op — of zet een plafond ruimer, of laat onderbrekingen toe.",
+      "applyBlockedNothing": "Er valt niets toe te passen: dit voorstel verandert niets.",
+      "applied_one": "Toegepast in {{count}} project.",
+      "applied_other": "Toegepast in {{count}} projecten.",
+      "undoAll": "Alles terugdraaien",
+      "undoneAll": "Alles is teruggedraaid.",
+      "undonePartial": "Teruggedraaid, behalve {{docs}} — daar is intussen in gewerkt.",
+      "selectHint": "Kies een bibliotheekitem met een conflict om te gaan verdelen."
     },
     "color": "Kleur"
   },

@@ -522,7 +522,11 @@
       "conflictDays": "{{count}} day(s)",
       "reason": {
         "calendarMismatch": "The resource does not work on all days this task needs — shifting cannot resolve this.",
-        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict."
+        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict.",
+        "ceilingTooTight": "The extension ceiling leaves too little room: no free window within that many workdays.",
+        "ceilingUnreachable": "Giving extension does not help here — a deadline or constraint keeps this task in place.",
+        "noWindowInHorizon": "No free window was found within the searched period; beyond that it is unknown.",
+        "residualFull": "The own workload had room, but the library's residual capacity is used up — other projects occupy it."
       }
     },
     "curve": {
@@ -552,6 +556,86 @@
       "capacity": "Capacity",
       "documents": "Documents",
       "selectHint": "Select a resource to see the histogram."
+    },
+    "distribution": {
+      "open": "Distribute…",
+      "title": "Distribute over projects",
+      "back": "Back to occupancy",
+      "subtitle": "{{item}} — distribute residual capacity over the open projects",
+      "blocked": {
+        "uncounted": "Calculate first: {{docs}} has not been calculated yet, so there is nothing to distribute.",
+        "material": "This is a material item; distributing only works for people and equipment.",
+        "noDemand": "None of the projects actually book work here."
+      },
+      "tool": {
+        "title": "Tool",
+        "allowSplits": "Allow interruptions",
+        "allowSplitsHint": "The work may get pause days instead of shifting in one piece. In MS Project this is called \"Leveling can create splits in remaining work\".",
+        "price_one": "costs {{count}} workday of overrun",
+        "price_other": "costs {{count}} workdays of overrun",
+        "priceNone": "costs no overrun",
+        "priceUnknown": "price unknown — press Recalculate"
+      },
+      "rank": {
+        "title": "Who gets spared the most?",
+        "hint": "Top of the list wiggles the least. Drag to change the order.",
+        "float": "slack: {{days}}",
+        "cost_one": "letting only this project shift costs {{count}} workday",
+        "cost_other": "letting only this project shift costs {{count}} workdays",
+        "costNone": "letting only this project shift costs no overrun",
+        "moveUp": "Move up",
+        "moveDown": "Move down"
+      },
+      "strip": {
+        "pin": "Pin",
+        "pinned": "Pinned — this project does not shift, and keeps its workdays too",
+        "pinnedRecorded": "Pinned: dates as recorded",
+        "cannotMove": "Cannot shift — all the work here is fixed",
+        "fixedLoad": "Fixed load",
+        "ceiling": "Maximum overrun of the end date",
+        "ceilingUnlimited": "unlimited",
+        "ceilingDays_one": "ceiling {{count}} workday",
+        "ceilingDays_other": "ceiling {{count}} workdays",
+        "endUnchanged": "end unchanged",
+        "endShift_one": "end +{{count}} day",
+        "endShift_other": "end +{{count}} days",
+        "requestedVsAchievable": "requested {{requested}}, closest achievable {{achievable}}",
+        "handleLabel": "Overrun ceiling for {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Recalculate",
+        "auto": "Distribute automatically",
+        "busy": "Distributing…",
+        "pressRecompute": "— press Recalculate",
+        "degraded": "This is a large overview; it only calculates when you press Recalculate."
+      },
+      "stale": {
+        "rank": "The order has changed — recalculate to see the effect.",
+        "ceiling": "A ceiling has changed — recalculate to see the effect.",
+        "pin": "A pin has changed — recalculate to see the effect.",
+        "tool": "The tool has changed — recalculate to see the effect.",
+        "edited": "Something changed in {{docs}} — this proposal is no longer current."
+      },
+      "shortfall": {
+        "title": "Remaining",
+        "doc_one": "{{doc}}: {{count}} task does not fit",
+        "doc_other": "{{doc}}: {{count}} tasks do not fit"
+      },
+      "preview": {
+        "before": "Now",
+        "after": "After distributing",
+        "capacity": "Capacity"
+      },
+      "apply": "Apply",
+      "discard": "Discard",
+      "applyBlockedShortfall": "First resolve the shortfall — widen a ceiling, or allow interruptions.",
+      "applyBlockedNothing": "There is nothing to apply: this proposal changes nothing.",
+      "applied_one": "Applied in {{count}} project.",
+      "applied_other": "Applied in {{count}} projects.",
+      "undoAll": "Undo all",
+      "undoneAll": "Everything has been undone.",
+      "undonePartial": "Undone, except {{docs}} — those have since been worked on.",
+      "selectHint": "Choose a library item with a conflict to start distributing."
     },
     "color": "Color"
   },
