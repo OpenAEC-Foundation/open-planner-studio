@@ -38,32 +38,33 @@ function isDateNoop(before: string | undefined, incomingIso: string): boolean {
 }
 
 /**
- * Precisiebewuste no-op-vergelijking op completion (voortgangsimport-review, fixronde na de
- * Opus-eindreview, bevindingen 1+2). Een vaste float-epsilon (het vorige `PERCENT_EPSILON`) is
- * per constructie stuk: onze EIGEN `writeCSV` schrijft `Math.round(completion*100)`, dus 0.335
- * rondt af naar "34"; teruggelezen is dat 0.34, en `0.34 - 0.335 = 0.005000000000000004` ligt
- * NET boven elke vaste drempel die ook een echte wijziging als "45,5" (E6) nog moet doorlaten
- * — verhoog je de drempel om bevinding 1 te dichten, dan verdwijnt bevinding 2 se wijziging
- * juist stil in de "ongewijzigd"-teller.
+ * Precisiebewuste no-op-vergelijking op completion (voortgangsimport-review). Twee fixrondes:
  *
- * De vergelijking is daarom VORM-bewust in plaats van drempel-bewust:
- *  - een binnenkomende waarde die zelf een HEEL procent is (`incoming*100` is een geheel getal,
- *    op float-ruis na) — precies wat onze eigen export ALTIJD schrijft — is een no-op ⇔ ze naar
- *    hetzelfde hele procent afrondt als de huidige waarde (`Math.round(before*100) ===
- *    Math.round(incoming*100)`). Dat dekt bevinding 1: een ongewijzigd, afgerond teruggestuurd
- *    blad blijft `noop`, ongeacht hoe dicht de afronding tegen de volgende procentgrens aanligt.
- *  - een binnenkomende waarde MET decimalen (bv. "33,4" ⇒ 0.334) is alleen een no-op bij
- *    (float-tolerante, ~1e-9) EXACTE gelijkheid met de huidige waarde. Dat dekt bevinding 2: E6
- *    belooft dat `45,5` betekenisvolle invoer is, dus een decimale waarde die het huidige procent
- *    verfijnt is altijd een echte wijziging, nooit stil `noop`.
+ * Ronde 1 (bevindingen 1+2): een vaste float-epsilon is per constructie stuk — de export rondde
+ * destijds af op hele procenten, dus 0.335 kwam als "34" terug en `0.34 - 0.335 =
+ * 0.005000000000000004` lag net boven elke drempel die ook "45,5" (E6) nog als echte wijziging
+ * moest doorlaten. Opgelost door VORM-bewust te vergelijken i.p.v. drempel-bewust.
+ *
+ * Ronde 2 (N-B, Opus-hercheck, BEVESTIGD): die vorm-bewuste vergelijking loste zelf een NIEUW
+ * probleem op: "100" op een taak van 99,5% (`Math.round(99.5) === Math.round(100)`) en "33" op
+ * 33,4% verdwenen stil in de "ongewijzigd"-teller. Wie 100 (of 0) typt meldt een taak af (of heropent
+ * hem) — dat mag NOOIT stil verward worden met een afgeronde export-toevalstreffer. Twee helften:
+ *  (a) `writeCSV` schrijft nu fractionele procenten met tot 4 decimalen (`formatCompletionPercent`,
+ *      csvWriter.ts) — geen afronding naar hele procenten meer, dus een ongewijzigd blad is voor
+ *      een taak op 99,5% ook echt "99.5", niet "100".
+ *  (b) Deze vergelijking is PRECISIE-VAN-DE-INVOER-bewust: het aantal decimalen dat de invuller zelf
+ *      typte (0–4, afgeleid uit de binnenkomende waarde) bepaalt de vergelijkingsschaal — "33"
+ *      (0 decimalen) vergelijkt op hele procenten, "33,4" (1 decimaal) op tienden. Uitzondering:
+ *      een binnenkomende waarde van EXACT 0 of EXACT 1 (0%/100%) is alleen een no-op bij EXACTE
+ *      gelijkheid met de huidige waarde — 0 en 100 zijn per definitie altijd betekenisvolle invoer,
+ *      nooit een afgeronde buur van iets dat al bijna 0 of bijna 100 was.
  */
 function isCompletionUnchanged(before: number, incoming: number): boolean {
-  const incomingHundredths = incoming * 100;
-  const isWholePercent = Math.abs(incomingHundredths - Math.round(incomingHundredths)) < 1e-9;
-  if (isWholePercent) {
-    return Math.round(before * 100) === Math.round(incomingHundredths);
-  }
-  return Math.abs(before - incoming) < 1e-9;
+  if (incoming === 0 || incoming === 1) return before === incoming;
+  const percent = Math.round(incoming * 1e6) / 1e4; // percentage, float-ruis eruit (max 4 decimalen)
+  const decimalDigits = String(Math.abs(percent)).split('.')[1]?.length ?? 0;
+  const scale = 100 * 10 ** decimalDigits;
+  return Math.round(before * scale) === Math.round(incoming * scale);
 }
 
 /**

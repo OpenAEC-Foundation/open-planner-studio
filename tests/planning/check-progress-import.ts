@@ -5,9 +5,10 @@
 //   Deel 3 (T3) — buildProgressImportPlan met de ECHTE planner (planTaskCellEdits + de store).
 //   Deel 4 (T5) — de store-acties previewProgressImport/applyProgressImport (atomiciteit, undo,
 //                 drift-herberekening, overrides).
-//   Deel 5 — regressie na de Opus-eindreview (fixronde): precisiebewuste no-op-vergelijking op
-//            completion (`isCompletionUnchanged` in buildPlan.ts), via een ECHTE writeCSV→
-//            parseProgressCsv→finalizeProgressRows-round-trip, niet handgemaakte rijen.
+//   Deel 5 — regressie na twee fixrondes op de no-op-vergelijking op completion (Opus-eindreview
+//            bevindingen 1+2, daarna Opus-hercheck N-B): `isCompletionUnchanged` (buildPlan.ts) +
+//            `formatCompletionPercent` (csvWriter.ts), via een ECHTE writeCSV→parseProgressCsv→
+//            finalizeProgressRows-round-trip en echte handmatige bladen, niet handgemaakte rijen.
 // Draait via run.sh (registratie: T11). Exit 0 = alles groen; de suite print "alles groen" ook bij
 // exit 1 wanneer het bundelen faalt — de exitcode is het enige geldige oordeel.
 
@@ -312,7 +313,12 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
 
   eq('actual ná de statusdatum wordt geweigerd', plan.rows[0].reason, 'actualAfterStatusDate');
   eq('invarianten leiden actualStart af', plan.rows[1].changes.some(c => c.field === 'actualStart'), true);
-  eq('…en de geplande status is COMPLETED', plan.rows[1].plannedTask!.status, 'COMPLETED');
+  // N-G (fixronde na de Opus-hercheck): een `plannedTask!` op een onverwacht niet-`apply`-uitkomst
+  // crasht de hele suite met een kale stacktrace i.p.v. een nette diffregel — eerst de presentie
+  // toetsen, dan pas via `?.` erin lezen (een ontbrekend `plannedTask` wordt dan gewoon `undefined`
+  // in de `eq`-vergelijking, zichtbaar als een normale rode regel).
+  ok('…rij 1 leverde een plannedTask op', plan.rows[1].plannedTask !== undefined);
+  eq('…en de geplande status is COMPLETED', plan.rows[1].plannedTask?.status, 'COMPLETED');
   eq('finish vóór start wordt geweigerd', plan.rows[2].reason, 'actualFinishBeforeStart');
 }
 
@@ -413,57 +419,104 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 5 — regressie na de Opus-eindreview (fixronde, bevindingen 1+2). Een vaste float-epsilon
-// op completion is per constructie stuk: onze EIGEN `writeCSV` rondt af op hele procenten
-// (`Math.round(completion*100)`), dus 0.335 → "34" → teruggelezen 0.34, en
-// `0.34 - 0.335 = 0.005000000000000004` ligt net boven élke drempel die ook een echte decimale
-// wijziging (E6: "45,5" is betekenisvol) nog moet doorlaten. Dit deel gaat EXPRES via de ECHTE
-// schrijver/lezer/finalizer (geen handgemaakte `ProgressRow`s) — precies het pad dat de reviewer
-// gebruikte om de bug te reproduceren.
+// Deel 5 — regressie op de no-op-vergelijking op completion, twee fixrondes.
+//
+// Ronde 1 (Opus-eindreview, bevindingen 1+2): een vaste float-epsilon is per constructie stuk —
+// de export rondde destijds af op hele procenten, dus 0.335 kwam als "34" terug en
+// `0.34 - 0.335 = 0.005000000000000004` lag net boven élke drempel die ook "45,5" (E6) nog als
+// echte wijziging moest doorlaten.
+//
+// Ronde 2 (Opus-hercheck, N-B, BEVESTIGD): de vorm-bewuste vergelijking uit ronde 1 loste zelf
+// een nieuw probleem op — "100" op een taak van 99,5% (`Math.round(99.5) === Math.round(100)`)
+// en "0" op 0,4% verdwenen stil als `noop`. Wie 100 (of 0) typt meldt een taak af (of heropent
+// hem) — dat moet ALTIJD een wijziging zijn. Twee helften die hier samen kloppen: `writeCSV`
+// schrijft nu fractionele procenten (tot 4 decimalen, csvWriter.ts) en `isCompletionUnchanged`
+// (buildPlan.ts) is precisie-VAN-DE-INVOER-bewust, met 0%/100% als harde uitzondering.
+//
+// Dit hele deel gaat EXPRES via de ECHTE schrijver/lezer/finalizer — ook de handmatige
+// percentages ("33", "33,4", "100", "0") staan als tekst in een echt CSV-blad (N-F: niet met de
+// hand als `ProgressRow` gebouwd — `parseSheetPercent("33,4")` levert 0.33399999999999996, geen
+// het net-iets-andere 0.334 dat je zou krijgen door de fractie zelf uit te rekenen).
 // ════════════════════════════════════════════════════════════════════════════════════════════
 {
   const S = () => useAppStore.getState();
-  S().newProject();
-  const idH = S().addTask({ name: 'H', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.335 } });
-  const idI = S().addTask({ name: 'I', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.125 } });
-  const idJ = S().addTask({ name: 'J', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
-  S().runCPM();
-
   const realDeps: ProgressPlanDeps = {
     planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(S(), task)),
   };
 
-  // ── Bevinding 1: een ONGEWIJZIGD blad — écht geschreven en teruggelezen, dus met de
-  //    hele-procenten-afronding van de export erin — mag NUL wijzigingen tonen. Geen enkele
-  //    changes-lijst mag een afgeleide `actualStart` dragen: dat zou betekenen dat een no-op-rij
-  //    tóch als `apply` door de invarianten heen liep. ──
+  // ── Round-trip: vijf taken, inclusief de twee die ronde 1 liet zien (0.335/0.125) plus 0.995
+  //    (ronde 2 se scherpste geval, vlak onder de 100%-uitzondering) en 0.33333 (drie decimalen).
+  //    Een ONGEWIJZIGD, écht geschreven en teruggelezen blad mag NUL wijzigingen tonen — en
+  //    nergens een afgeleide actualStart, want dat zou betekenen dat een no-op-rij tóch als
+  //    `apply` door de invarianten heen liep. ──
+  S().newProject();
+  const idH = S().addTask({ name: 'H', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.335 } });
+  const idI = S().addTask({ name: 'I', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.125 } });
+  const idJ = S().addTask({ name: 'J', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
+  const idP = S().addTask({ name: 'P', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.995 } });
+  const idQ = S().addTask({ name: 'Q', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33333 } });
+  S().runCPM();
+
   const before = S();
-  const csv = writeCSV(
+  const roundTripCsv = writeCSV(
     before.project, before.calendar, before.tasks, before.sequences,
     before.resources, before.assignments, before.customTaskTypes,
   );
-  const sheet = parseProgressCsv(csv);
-  const roundTripRows = finalizeProgressRows(sheet, 'dmy');
+  const roundTripSheet = parseProgressCsv(roundTripCsv);
+  const roundTripRows = finalizeProgressRows(roundTripSheet, 'dmy');
   const roundTripPlan = buildProgressImportPlan(roundTripRows, S().tasks, realDeps);
   eq('round-trip van de eigen export ⇒ nul wijzigingen', roundTripPlan.appliedCount, 0);
   ok('…en dus ook geen enkele rij die als apply doorliep',
     roundTripPlan.rows.every((row) => row.outcome !== 'apply'));
   ok('…en NERGENS een afgeleide actualStart in de changes',
     roundTripPlan.rows.every((row) => !row.changes.some((c) => c.field === 'actualStart')));
-  ok('sanity: H/I/J zaten echt in de round-trip', [idH, idI, idJ].every(
+  ok('sanity: alle vijf taken zaten echt in de round-trip', [idH, idI, idJ, idP, idQ].every(
     (id) => roundTripRows.some((row) => row.taskId === id),
   ));
 
-  // ── Bevinding 2 (spiegelbeeld): een blad met een ECHTE decimale wijziging ("33,4" op een taak
-  //    van 33%) mag NIET stil in de "ongewijzigd"-teller verdwijnen — E6 belooft expliciet dat
-  //    "45,5" betekenisvolle invoer is. ──
-  const idK = S().addTask({ name: 'K', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
+  // ── N-B: vier precisiecases, ELK via een echt handmatig CSV-blad (twee kolommen volstaan —
+  //    `OPS Task ID` + `Completion (%)` — precies wat `parseProgressCsv` nodig heeft). ──
+  const idL = S().addTask({ name: 'L', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.334 } });
+  const idM = S().addTask({ name: 'M', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
+  const idN = S().addTask({ name: 'N', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.995 } });
+  const idO = S().addTask({ name: 'O', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.004 } });
   S().runCPM();
-  const planK = buildProgressImportPlan(
-    [makeRow(2, { taskId: idK, completion: pct(0.334) })], S().tasks, realDeps,
-  );
-  eq('een echte decimale wijziging verdwijnt niet stil', planK.appliedCount, 1);
-  eq('…en plant het exacte percentage', planK.rows[0].plannedTask!.time.completion, 0.334);
+
+  const manualCsv = [
+    'OPS Task ID;Completion (%)',
+    `${idL};33`,   // "33" op een taak van 33,4% ⇒ noop (afronding eigen export, verdedigbaar)
+    `${idM};33,4`, // "33,4" op een taak van 33% ⇒ een echte decimale wijziging
+    `${idN};100`,  // "100" op een taak van 99,5% ⇒ ALTIJD een echte wijziging (de 100%-uitzondering)
+    `${idO};0`,    // "0" op een taak van 0,4% ⇒ ALTIJD een echte wijziging (de 0%-uitzondering)
+  ].join('\r\n');
+  const manualSheet = parseProgressCsv(manualCsv);
+  const manualRows = finalizeProgressRows(manualSheet, 'dmy');
+  const manualPlan = buildProgressImportPlan(manualRows, S().tasks, realDeps);
+  const rowFor = (taskId: string) => manualPlan.rows.find((row) => row.taskId === taskId);
+
+  const rowL = rowFor(idL);
+  ok('sanity: rij L ("33" op 33,4%) gevonden', rowL !== undefined);
+  eq('"33" op 33,4% ⇒ noop (afronding eigen export, verdedigbaar)', rowL?.outcome, 'noop');
+
+  const rowM = rowFor(idM);
+  ok('sanity: rij M ("33,4" op 33%) gevonden', rowM !== undefined);
+  eq('"33,4" op 33% ⇒ een echte decimale wijziging verdwijnt niet stil', rowM?.outcome, 'apply');
+  ok('…rij M leverde een plannedTask op', rowM?.plannedTask !== undefined);
+  eq('…en plant het exacte (ongeronde) percentage van de lezer',
+    rowM?.plannedTask?.time.completion, 0.33399999999999996);
+
+  const rowN = rowFor(idN);
+  ok('sanity: rij N ("100" op 99,5%) gevonden', rowN !== undefined);
+  eq('"100" op 99,5% ⇒ ALTIJD een echte wijziging (nooit stil noop)', rowN?.outcome, 'apply');
+  ok('…rij N leverde een plannedTask op', rowN?.plannedTask !== undefined);
+  eq('…en plant 100% completion', rowN?.plannedTask?.time.completion, 1);
+  eq('…en de status is COMPLETED via de invarianten', rowN?.plannedTask?.status, 'COMPLETED');
+
+  const rowO = rowFor(idO);
+  ok('sanity: rij O ("0" op 0,4%) gevonden', rowO !== undefined);
+  eq('"0" op 0,4% ⇒ ALTIJD een echte wijziging (nooit stil noop)', rowO?.outcome, 'apply');
+  ok('…rij O leverde een plannedTask op', rowO?.plannedTask !== undefined);
+  eq('…en plant 0% completion', rowO?.plannedTask?.time.completion, 0);
 }
 
 if (diffs.length > 0) {
