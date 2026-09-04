@@ -4,7 +4,9 @@
 hyperkritische planreview (verdict: herwerken — alle blokkerende en zware punten zijn in deze
 versie verwerkt; de review mat vrijwel alle corpusgetallen zelf na en de gecorrigeerde cijfers
 hieronder zijn de zijne). Eigenaar van dit document is de orkestrator; besluiten en bevindingen
-worden hier bijgeschreven zoals bij `2026-08-17-plan-mpp-nul-afwijkingen.md`.*
+worden hier bijgeschreven zoals bij `2026-08-17-plan-mpp-nul-afwijkingen.md`. Overgenomen
+2026-09-04 door de Claude-hoofdsessie na het einde van de Codex-thread; besluiten X-O6 t/m X-O8
+en de laagbijstelling stammen uit die overname.*
 
 ## §1 Doel
 
@@ -112,9 +114,9 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
    (dialect-alias van `cstr_type` in de ProjectLens-bestanden); en `expect_end_date`
    (uitsluitend samen met de bijbehorende SCHEDOPTIONS-vlag, zie X5). **Alles wat niet op
    deze lijst staat is verboden terrein voor de lezer** — expliciet inclusief álle rekenuitvoer die er als gewone velden uitziet:
-   `early_*`, `late_*`, `restart_date`/`reend_date` (15.328/15.329 gevulde cellen),
-   `rem_late_start_date`/`rem_late_end_date` (10.193 elk), `total_float_hr_cnt`/
-   `free_float_hr_cnt`, `driving_path_flag`, `float_path`(`_order`),
+   `restart_date`/`reend_date` (15.328/15.329 gevulde cellen),
+   `rem_late_start_date`/`rem_late_end_date` (10.193 elk), `driving_path_flag`,
+   `float_path`(`_order`),
    `external_early_start_date`/`external_late_end_date` (die onder X-O1 relevant lijken maar
    uitvoer zijn), `old_restart_date`/`old_reend_date`/`old_remain_drtn_hr_cnt`,
    `crt_path_num`, `critical_drtn_hr_cnt`, `act_drtn_hr_cnt` en
@@ -131,7 +133,14 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
    (tokenizer-nota in X2). Voorbehoud: blijkt tijdens de bouw dat een bak-3-veld tóch
    planningsinvoer draagt (kandidaten: `est_wt`, `review_type`, `tmpl_guid` — op naam
    ingedeeld, niet doorgelezen), dan verhuist het expliciet naar bak 1, nooit stilzwijgend.
-   **Een corpus-%F-kolom die in géén van de drie bakken staat is een X0-poortfout, geen vrije
+   Naast deze drie bakken is er een **vierde bak: "uitsluitend weergave/meetlat, nooit
+   solverinvoer"** (X-O7, §5): `early_start_date`, `early_end_date`, `late_start_date`,
+   `late_end_date`, `total_float_hr_cnt`, `free_float_hr_cnt`. De lezer draagt ze in een apart,
+   waardedragend contractveld (werknaam `ImportResult.recordedTimes`), nooit in `Task.time` en
+   nooit in de solverinvoer — mutatiebewijs in X12-stijl: gemuteerde opgeslagen uitvoer
+   verplaatst de solve niet, maar verplaatst de weergavemodus (het issue-#63-mechanisme van
+   X-O7.3) wél.
+   **Een corpus-%F-kolom die in géén van de vier bakken staat is een X0-poortfout, geen vrije
    keuze.** De X12-sluiproute-scan grept tegen de whitelist. Drie afgekeurde pogingen in
    etappe 1 zijn het precedent.
 7. **De enum-tokenregel (delta-check — twee mechanismen, niet één):** (a) hoofdletter-
@@ -216,6 +225,72 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
   exact het bestaande `mppCode`-patroon), en een eigen paragraaf in de .xer-gids (X10) die in
   gebruikerstaal uitlegt wat het bestand wel/niet zegt over zijn getalnotatie en wanneer de
   app weigert te gokken. `verify:docs` bewaakt de gidsparagraaf zoals altijd.
+- **X-O6 — BESLOTEN (eigenaar, 2026-09-04): main wordt gemergd in de etappebranch, geen
+  rebase.** De commit-identiteiten van de branch blijven intact (reviewrapporten en het
+  X11-browserbewijs pinnen erop). Alle vier de openstaande zijbranches
+  (`codex/xer-mcp-read`, `codex/xer-ext-read`, `codex/xer-x12-v2-rebased`,
+  `codex/xer-schedoptions-provenance`) blijven onderdeel van deze etappe.
+- **X-O7 — BESLOTEN (eigenaar, 2026-09-04): P6-getrouwheid in drie lagen, bijgesteld na de
+  kalibratiemeting van dezelfde dag.** Primavera is per definitie de referentie voor wat een
+  XER-project toont.
+  1. *Primavera-gedrag nabouwen* — **het zwaartepunt na de bijstelling**: conventieverschillen
+     (bv. LS/LF van voltooide taken = werkelijke datums) worden nagebouwd achter een bron-vlag
+     die uitsluitend de XER-lezer zet (O6-patroon); de motor verandert niet voor IFC/MSP-
+     projecten. Dossier `rehab-2.xer` (14.812 cellen) is hierbij motorsemantiek, geen
+     ontbrekende invoer: (i) late zijde + float van voltooide activiteiten, 5.620 cellen — P6
+     rekent voltooide activiteiten door tot de statusdatum en geeft ze echte float; (ii) late
+     zijde van niet-gestarte activiteiten, 7.056 cellen — wij systematisch later, 140
+     verschillende delta's, anker klopt. Samen 69% van het corpustotaal (18.398 gemeten
+     cellen), beide achter een XER-bron-vlag. Echte eigen rekenfouten die daarbij boven komen
+     worden voor alle projecten gefixt, met eigen test.
+  2. *Ontbrekende instellingen afleiden* — **vervalt** (kalibratiemeting 2026-09-04, meting,
+     geen aanname): 384 combinaties van échte P6-instellingen over 34 orakelbestanden gaven een
+     beste denkbare winst van 1.033 van 18.398 cellen (5,6%), **0 bestanden met een uniek
+     optimum**, en op 2 van 9 valideerbare bestanden sprak de afleiding de gedeclareerde
+     SCHEDOPTIONS tegen. De vaste defaults uit §X5(b) blijven de weg; kalibratie wordt niet
+     gebouwd.
+  3. *Opgeslagen datums tonen* (issue #63-mechanisme): voor XER staat "Datums zoals
+     opgeslagen" standaard aan zodra er restverschillen zijn; de melding noemt het aantal
+     afwijkende taken en die taken krijgen een markering in tabel en eigenschappenpaneel.
+     Bewerken of F5 verlaat de modus zoals nu. Vereist een §4.1-uitbreiding — het laag-3-
+     besluit: de zes orakelkolommen (`early_start_date`, `early_end_date`, `late_start_date`,
+     `late_end_date`, `total_float_hr_cnt`, `free_float_hr_cnt`) verhuizen uit de verboden bak
+     naar de vierde bak "uitsluitend weergave/meetlat, nooit solverinvoer" (zie §4.1); uren →
+     werkdagen via de taak-effectieve kalender, geen `?? rec.start`/`?? 0`-terugval voor XER
+     maar een "niet vastgelegd"-representatie. Dekking gemeten: 18.388 van 18.398 cellen.
+  Poort: nul verschil na laag 1 voor bestanden mét SCHEDOPTIONS; de rest per bestand gepind met
+  aantal en oorzaak. Meetbaar-tellers blijven gepind (M1).
+- **X-O8 — VERVALLEN (eigenaar, 2026-09-04, na de kalibratiemeting): afgeleide instellingen
+  toepassen en melden.** Was bedoeld voor laag 2 van X-O7 (ontbrekende SCHEDOPTIONS afleiden
+  uit een begrensd rooster van échte P6-instellingen, met een opening die de afgeleide waarden
+  toont en linkt naar de projectinstellingen). Doordat die laag verviel — geen enkel bestand
+  met een uniek optimum — is X-O8 zonder object en vervalt eveneens.
+
+### Afspraken met de etappe taaktypes / opgeslagen werk (2026-09-04)
+
+- **Volgorde**: de taaktypes-etappe start op een main waar XER al in zit; de tweede merge
+  (origin/main ná f16bfff7, incl. contour-engine PR #95) volgt direct na de eerste.
+- **Curves**: na de tweede merge vervangt `normalizeCurveValues` + `matchCurveValues`
+  (`contourEngine.ts`) de eigen `bestFitXerCurve`, met terugval op `P6_NAME_TO_CURVE` op naam;
+  de 21 punten gaan naar `ResourceAssignment.curveValues`. Corpusfeit: RSRCCURV bestaat niet,
+  alleen RSRCCURVDATA (kolommen `pct_usage_0`..`pct_usage_20`, lineair); `curv_id` is
+  corpusbreed 2× gevuld. Het pad hoeft correct te zijn, niet rijk.
+- **Taaktype**: `Task.p6DurationType` (pset `OPS_P6Progress`, property `DurationType`) is de
+  opslag waar de taaktypes-spec naar verwijst; de spec definieert alleen de vertaling van
+  `mspTaskType`+`effortDriven` naar dezelfde vier keuzes. Het neutrale documentveld bouwt de
+  taaktypes-etappe, niet XER. `p6xmlReader` leest `<DurationType>` nog niet: meenemen zodat
+  beide P6-paden gelijk zijn. Corpusfeit: `DT_FixedRate` 0× in het corpus, `DT_FixedQty` 153×
+  in 2 bestanden.
+- **Opgeslagen werk**: geen nieuw modelveld vanuit XER. De spec definieert het eersteklasveld
+  op `ResourceAssignment`; XER zet het daarna over uit het bronarchief — alleen wanneer
+  `target_qty` afwijkt van `target_drtn_hr_cnt × target_qty_per_hr`, anders blijft het veld
+  afwezig (byte-identiek). Meetlat: HarbourPointe_AssistedLiving (98 afwijkende rijen, factor
+  3), Harbour Point DCP-03 (factor 4; `remain_qty` zonder resttarief), p6_torture_test_v1
+  (duur 0 met werk), plus 263 rijen zonder `target_qty_per_hr` in 5 bestanden. Corpusbreed: 176
+  afwijkende werkrijen in 5 bestanden; het resttarief wijkt af in 27,5% van rehab-2.
+- **Additief blijven**: `types/task.ts`, `types/resource.ts`, `taskSlice`, `resourceSlice`,
+  `documentContract`, `ifcPsets`, `taskColumnRegistry`, `fieldCoverage`. TODO-registratie in de
+  sectie "Contour-engine (2026-09)".
 
 ## §6 Banen en taken
 
