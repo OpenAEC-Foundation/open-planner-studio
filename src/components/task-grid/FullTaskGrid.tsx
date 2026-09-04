@@ -689,10 +689,15 @@ export function TaskGridSurface({
     // resterende kolombreedte volledig benut.
     const renderNameRow = (summary: Task, body: ReactNode, editingName: boolean): ReactNode => {
       const hasDisclosure = summary.childIds.length > 0;
+      // Discussion #97: samenvattingen en mijlpalen krijgen een licht typografisch accent in de
+      // naamkolom, gestuurd via dit attribuut — CSS doet de rest (vet, tint, mijlpaalkleur).
+      // Tijdens het bewerken van de naam blijft het editorveld ongemoeid (geen attribuut daarop).
+      const taskKind = summary.isMilestone ? 'milestone' : hasDisclosure ? 'summary' : undefined;
       return (
         <span
           className="full-task-grid-name"
           data-grid-name-depth={row.depth}
+          {...(taskKind && !editingName ? { 'data-grid-task-kind': taskKind } : {})}
           style={{ paddingInlineStart: taskNameIndent(row.depth, hasDisclosure, nameIndentMode) }}
         >
           {hasDisclosure && (
