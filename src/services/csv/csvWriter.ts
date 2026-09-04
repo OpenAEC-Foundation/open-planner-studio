@@ -26,6 +26,22 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
 
 // MS Project-notatie, symmetrisch met parsePredecessorString in csvReader:
 // d = werkdagen, ed = kalenderdagen (elapsed), % = procent van voorgangerduur, e% = elapsed-procent.
+/**
+ * Completion (%) — fixronde na de Opus-hercheck (N-B, BEVESTIGD): de export rondde eerder af op
+ * HELE procenten (`Math.round(completion*100)`), waardoor een taak op 99,5% als "100" terugkwam
+ * en een teruggestuurd blad met "100" op die taak stil als `noop` werd gelezen (wie 100 typt meldt
+ * de taak af — dat moet ALTIJD een wijziging zijn, nooit verward met de export se eigen afronding).
+ * De export schrijft daarom het percentage met maximaal 4 decimalen, trailing nullen weg,
+ * decimaalPUNT (bestandsformaat, niet locale): 0.5 ⇒ "50", 0.995 ⇒ "99.5", 0.33333 ⇒ "33.333".
+ * Hele procenten blijven BYTE-IDENTIEK aan vandaag ("50" blijft "50"), dus bestaande koptests op
+ * een geheel percentage breken niet. `Math.round(c*1e6)/1e4` haalt float-ruis (bv. 0.1+0.2-achtige
+ * representatiefouten) eruit vóórdat `toFixed` de string vormt.
+ */
+function formatCompletionPercent(completion: number): string {
+  const percent = Math.round(completion * 1e6) / 1e4;
+  return percent.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 function formatLag(seq: Sequence): string {
   const e = seq.lagUnit === 'ELAPSEDTIME' ? 'e' : '';
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
@@ -92,7 +108,7 @@ export function writeCSV(
 
   for (const task of tasks) {
     const predecessors = predMap.get(task.id)?.join(', ') || '';
-    const completion = Math.round(task.time.completion * 100);
+    const completion = formatCompletionPercent(task.time.completion);
 
     const row = [
       escapeCSV(task.id),
@@ -105,7 +121,7 @@ export function writeCSV(
       task.customTaskTypeId ? (customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name ?? 'USERDEFINED') : task.taskType,
       task.customTaskTypeId ?? '',
       task.status,
-      completion.toString(),
+      completion,
       task.time.actualStart || '',
       task.time.actualFinish || '',
       task.time.isCritical ? 'Yes' : 'No',
