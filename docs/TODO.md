@@ -39,11 +39,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **De thema-map in `index.html` is een handkopie van `THEME_MIGRATION`** in
   `settingsStore.ts`. Vandaag identiek (acht sleutels, zelfde defaults), maar niets bewaakt dat —
   precies de duplicatieklasse die dit project elders wél dichtzet.
-- [ ] **`relationRules.ts` is de bron van de regel, niet de poort.** `pasteTasks` (`taskSlice.ts`
-  ~978) en het tak-uit-sjabloon-pad (~1060) pushen `s.sequences` zonder `relationVerdict`, dus een
-  tak kopiëren die een spookrelatie bevat maakt er weer een. Verdedigbaar als kopie-van-bestaande-
-  data (net als import), maar de changelog van v2026.8.0 beweert "single source of truth" — zet
-  óf de code óf die tekst recht.
 - [ ] **`verify-docs.ts` poort 7e telt tools met een regex** (`/['"](planner_[a-z_]+)['"]/g`) over
   `src/services/mcp/tools/`, dus ook tool-namen in beschrijvingsproza. Vandaag klopt de telling
   (39), maar een beschrijving die een niet-bestaande tool noemt glipt erdoor.

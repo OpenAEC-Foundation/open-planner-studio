@@ -25,6 +25,8 @@
     "relationDuplicate": "Deze relatie bestaat al",
     "relationAncestorEndpoint": "Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.",
     "summaryRelationsDropped": "{{total}} relatie(s) konden niet worden meegerekend. Controleer de voorganger- en opvolgerkolommen.",
+    "relationsSkippedOnInsert_one": "{{count}} relatie is niet aangemaakt: ongeldige koppeling (bijv. een taak aan zijn eigen (voor)ouder-samenvattingstaak, of een duplicaat).",
+    "relationsSkippedOnInsert_other": "{{count}} relaties zijn niet aangemaakt: ongeldige koppeling (bijv. een taak aan zijn eigen (voor)ouder-samenvattingstaak, of een duplicaat).",
     "mppSourceScheduleNotes_one": "Dit MS Project-bestand bevat {{count}} taak met een onderbroken, genivelleerde of resource-gedreven planning. Die wordt als zodanig ingelezen en getoond.",
     "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
     "projectStartAnchorsClamped_one": "Projectstart verzet: {{count}} taakanker zonder voorganger of constraint is meegeschoven naar de nieuwe startdatum.",

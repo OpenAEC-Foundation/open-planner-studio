@@ -20,6 +20,8 @@
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
+    "relationsSkippedOnInsert_one": "{{count}} Beziehung wurde nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
+    "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "mppSourceScheduleNotes_one": "Diese MS-Project-Datei enthält {{count}} Vorgang mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Er wird so eingelesen und angezeigt.",
     "mppSourceScheduleNotes_other": "Diese MS-Project-Datei enthält {{count}} Vorgänge mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Sie werden so eingelesen und angezeigt.",
     "projectStartAnchorsClamped_one": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurde auf das neue Startdatum verschoben.",
