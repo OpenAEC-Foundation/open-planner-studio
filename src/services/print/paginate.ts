@@ -15,7 +15,8 @@
  *     tegel herhaald zodat elke pagina zelfstandig leesbaar blijft.
  *
  * De tegel-/schaalwiskunde zelf staat NIET hier maar in `tileLayout.ts` — gedeeld met de
- * vector-pagineerder, zodat preview en export gegarandeerd dezelfde indeling krijgen.
+ * vector-pagineerder en met de preview (`printPreview.renderPrintPreviewPage`), zodat preview en
+ * export gegarandeerd dezelfde indeling krijgen.
  */
 
 import { buildImagePdf, type PdfImagePage } from '@/utils/miniPdf';
@@ -61,51 +62,17 @@ export interface PaginateOptions {
    * gebruikt de default.
    */
   supersample?: number;
-  /**
-   * Harde bovengrens op het aantal pagina-CANVASSEN dat {@link paginateCanvasToTiles} daadwerkelijk
-   * AANMAAKT. Ontbreekt hij, dan wordt elke pagina van het rooster getekend (oud gedrag).
-   *
-   * WAAROM: elk pagina-canvas is een volledig `HTMLCanvasElement` op papierresolutie (A3-landscape ≈
-   * 1191×842 px ≈ 4 MB RGBA). Een A3-rapport met kopherhaling, 300 taken en `timelineColumns: 8`
-   * levert 20 rijen × 8 kolommen = 160 van die canvassen ≈ 640 MB — synchroon op de UI-thread, en de
-   * preview hertekent bij ELKE optiewijziging. De preview toont er toch maar een handvol; met
-   * `maxPages` stopt de lus met TEKENEN zodra dat aantal bereikt is.
-   *
-   * LET OP — het resultaat is dan bewust ONVOLLEDIG: `pages.length` kan KLEINER zijn dan
-   * `rows * cols`. `rows`/`cols` blijven het VOLLEDIGE rooster rapporteren (die komen uit de pure
-   * {@link computeTileLayout}, daar hoeft niets voor getekend te worden), zodat een aanroeper nog
-   * steeds "pagina 5 van 160" kan tonen. Gebruik dus `rows * cols` — niet `pages.length` — als
-   * paginatotaal.
-   *
-   * Deze optie is UITSLUITEND voor de preview. {@link paginateCanvasToPdfBytes} mag hem NIET
-   * doorgeven: een export moet compleet zijn, anders ontbreken er pagina's in de PDF. Die functie
-   * wist hem daarom expliciet.
-   */
-  maxPages?: number;
 }
 
-/** Resultaat van {@link paginateCanvasToTiles}: één canvas per pagina + paginamaat/rooster. */
-export interface PaginatedTiles {
-  /**
-   * Eén canvas per pagina (rij-voor-rij van boven naar onder, binnen een rij van links naar rechts).
-   *
-   * Normaal `rows * cols` lang. Met {@link PaginateOptions.maxPages} bevat hij BEWUST alleen de
-   * eerste N pagina's — de rest is nooit getekend. Wil je het paginatotaal weten, gebruik dan
-   * `rows * cols` en niet `pages.length`.
-   */
-  pages: HTMLCanvasElement[];
-  /** Papierbreedte in PDF-punten (honoreert oriëntatie). */
-  pageWidthPt: number;
-  /** Papierhoogte in PDF-punten (honoreert oriëntatie). */
-  pageHeightPt: number;
-  /** Aantal horizontale tegels. */
-  cols: number;
-  /** Aantal verticale tegels. */
-  rows: number;
-}
-
-/** Maak precies één pagina uit het volledige rooster. Dit is de preview-route: de PDF-export
- * blijft via {@link paginateCanvasToTiles} alle pagina's synchroon en volledig opbouwen. */
+/**
+ * Maak precies één pagina uit het volledige rooster.
+ *
+ * Dit is de STREAMENDE route: {@link paginateCanvasToPdfBytes} roept dit per pagina-index aan,
+ * zet het resultaat meteen om naar JPEG en geeft het canvas daarna vrij vóór de volgende pagina —
+ * zodat het piekgeheugen van een export O(1 pagina) blijft in plaats van O(rows × cols) canvassen
+ * tegelijk. Bruikbaar voor elke aanroeper die pagina's één voor één wil (streamend of, zoals hier,
+ * een enkele losse pagina).
+ */
 export function paginateCanvasToTile(
   canvas: HTMLCanvasElement,
   opts: PaginateOptions,
@@ -156,129 +123,54 @@ export function paginateCanvasToTile(
 const SUPERSAMPLE = 2;
 
 /**
- * Tegel een bron-canvas naar losse pagina-canvassen (één `HTMLCanvasElement` per pagina).
- *
- * Dit is de gedeelde pagineer-engine: zowel {@link paginateCanvasToPdfBytes} (voor de PDF-export)
- * als de rapport-preview gebruiken deze functie zodat de preview WYSIWYG-identiek is aan de export.
- *
- * Met {@link PaginateOptions.maxPages} stopt hij met TEKENEN na N pagina's: `pages.length` is dan
- * kleiner dan `rows * cols`, terwijl `rows`/`cols` het volledige rooster blijven rapporteren. Dat
- * is alleen voor de preview bedoeld — een export moet compleet zijn (zie de optie-doc).
- *
- * @returns {@link PaginatedTiles} — pagina-canvassen (rij-voor-rij van boven naar onder, binnen een
- *          rij van links naar rechts) + echte puntmaat + rooster.
- */
-export function paginateCanvasToTiles(canvas: HTMLCanvasElement, opts: PaginateOptions): PaginatedTiles {
-  const layout = computeTileLayout(opts);
-  const {
-    pageWidthPt: pageW, pageHeightPt: pageH, marginPt, scale, rows, cols,
-    repeatHeaderPx, bodyTopPt, columns, bodyRows,
-  } = layout;
-
-  // Device-px per logische px: converteert een logische bron-rechthoek naar het feitelijke
-  // high-res canvas-raster in de `drawImage`-bron-argumenten. `canvas.width` is logisch×dpr.
-  const srcScale = opts.logicalWidth > 0 ? canvas.width / opts.logicalWidth : 1;
-
-  const pxPt = opts.supersample ?? SUPERSAMPLE; // dest-pixels per punt op het page-canvas
-  const pageCanvasW = Math.max(1, Math.round(pageW * pxPt));
-  const pageCanvasH = Math.max(1, Math.round(pageH * pxPt));
-
-  const totalPages = rows * cols;
-  const pages: HTMLCanvasElement[] = [];
-
-  // Bovengrens op het AANMAKEN van pagina-canvassen (zie {@link PaginateOptions.maxPages}). Zonder
-  // grens: Infinity, zodat de vergelijking hieronder nooit aanslaat en het gedrag exact het oude is.
-  // Defensief geklemd — een onzinnige (negatieve/niet-eindige) waarde mag geen halve lus opleveren.
-  const maxPages = opts.maxPages === undefined || !Number.isFinite(opts.maxPages)
-    ? Infinity
-    : Math.max(0, Math.floor(opts.maxPages));
-
-  let pageIndex = 0;
-  // Gelabelde lus: de grens moet BEIDE lussen verlaten, anders zou hij per rij opnieuw beginnen.
-  pageLoop:
-  for (const row of bodyRows) {
-    for (const column of columns) {
-      if (pages.length >= maxPages) break pageLoop;
-      pageIndex++;
-
-      // Per pagina een NIEUW canvas (zodat de aanroeper alle pagina's tegelijk kan gebruiken).
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = pageCanvasW;
-      pageCanvas.height = pageCanvasH;
-      const ctx = pageCanvas.getContext('2d');
-      if (!ctx) throw new Error('paginateCanvasToTiles: kon 2D-context niet verkrijgen');
-
-      // Witte achtergrond.
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, pageCanvasW, pageCanvasH);
-
-      for (const win of column.xWindows) {
-        const destXpx = win.pageX * pxPt;
-        const destWpx = win.srcW * scale * pxPt;
-
-        // Kopstrook (bron y ∈ [0, repeatHeaderPx)) bovenaan de pagina herhalen — met EXACT het
-        // x-venster van de body eronder, anders zou de tijdschaal niet boven de juiste dagen staan.
-        if (repeatHeaderPx > 0) {
-          drawTile(
-            ctx, canvas, srcScale,
-            win.srcX, 0, win.srcW, repeatHeaderPx,
-            destXpx, marginPt * pxPt, destWpx, repeatHeaderPx * scale * pxPt,
-          );
-        }
-
-        // Body-tegel: begint onder de (eventueel) herhaalde kopstrook.
-        drawTile(
-          ctx, canvas, srcScale,
-          win.srcX, row.srcY, win.srcW, row.srcH,
-          destXpx, bodyTopPt * pxPt, destWpx, row.srcH * scale * pxPt,
-        );
-      }
-
-      // Paginanummer rechtsonder in de marge (grijs, ~8pt).
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = '#999999';
-      ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'alphabetic';
-      const label = `${pageIndex} / ${totalPages}`;
-      const labelX = (pageW - marginPt) * pxPt;
-      const labelY = (pageH - marginPt * 0.5) * pxPt;
-      ctx.fillText(label, labelX, labelY);
-
-      pages.push(pageCanvas);
-    }
-  }
-
-  return { pages, pageWidthPt: pageW, pageHeightPt: pageH, cols, rows };
-}
-
-/**
  * Tegel een bron-canvas naar multi-page PDF-bytes.
  *
- * Deelt de pagineer-engine ({@link paginateCanvasToTiles}) met de rapport-preview en zet elk
- * pagina-canvas om naar JPEG voor de PDF.
+ * STREAMEND: per pagina wordt precies één pagina-canvas getekend ({@link paginateCanvasToTile}),
+ * meteen naar JPEG omgezet en daarna vrijgegeven (`width`/`height` op 0) vóór de volgende pagina
+ * wordt getekend. Piekgeheugen aan CANVASSEN is zo O(1) in plaats van O(rows × cols).
+ *
+ * WAAROM DIT ZO MOET. Deze functie is de raster-TERUGVAL van de vector-export in `ReportPanel.tsx`,
+ * dus ze slaat precies aan op het moment dat de vector-tak net gefaald is. Een paginalimiet is hier
+ * géén optie — een export die pagina's weglaat is stil dataverlies — dus de begrenzing moet uit het
+ * geheugengedrag komen. Een vorige versie bouwde eerst het VOLLEDIGE array pagina-canvassen op vóór
+ * er ook maar één naar JPEG omgezet werd: op `SUPERSAMPLE = 2` is één A3-pagina-canvas ~16 MB, en
+ * een A3-rapport met kopherhaling, 300 taken en `timelineColumns: 8` (20 rijen × 8 kolommen = 160
+ * pagina's) hield zo ~2,5 GB tegelijk vast, synchroon op de UI-thread.
+ *
+ * WAT ER WÉL met het paginatotaal meegroeit zijn de JPEG-BYTES in `pdfPages` — die moeten allemaal
+ * in de PDF terecht komen, dus dat is onvermijdelijk. Maar dat is een andere grootteorde: een
+ * gecomprimeerde A3-pagina is honderden kB's in plaats van 16 MB, zodat hetzelfde 160-pagina-geval
+ * op tientallen MB's uitkomt in plaats van gigabytes. Regressiedekking:
+ * `tests/planning/check-print-raster-export-streaming.ts`.
  *
  * @returns Uint8Array met een geldige PDF 1.4 (meerdere pagina's, rij-voor-rij van boven naar
  *          onder, binnen een rij van links naar rechts).
  */
 export function paginateCanvasToPdfBytes(canvas: HTMLCanvasElement, opts: PaginateOptions): Uint8Array {
   const quality = opts.quality ?? 0.9;
-  // `maxPages` is een PREVIEW-optie en wordt hier expliciet gewist: een export die pagina's weglaat
-  // is stille dataverlies. De aanroeper deelt z'n optie-object soms met de preview, dus vertrouwen
-  // op "die zet 'm hier toch niet" is niet genoeg — we wissen 'm actief.
-  const { pages, pageWidthPt, pageHeightPt } = paginateCanvasToTiles(canvas, { ...opts, maxPages: undefined });
+  const layout = computeTileLayout(opts);
+  const totalPages = layout.rows * layout.cols;
 
-  const pdfPages: PdfImagePage[] = pages.map(pageCanvas => {
+  const pdfPages: PdfImagePage[] = [];
+  for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+    const pageCanvas = paginateCanvasToTile(canvas, opts, pageIndex);
+    // Defensief: binnen [0, totalPages) levert paginateCanvasToTile altijd een canvas — totalPages
+    // komt uit dezelfde computeTileLayout die de functie intern ook gebruikt om pageIndex te toetsen.
+    if (!pageCanvas) continue;
     const dataUrl = pageCanvas.toDataURL('image/jpeg', quality);
-    return {
+    pdfPages.push({
       jpegBytes: dataUrlToBytes(dataUrl),
-      widthPt: pageWidthPt,
-      heightPt: pageHeightPt,
+      widthPt: layout.pageWidthPt,
+      heightPt: layout.pageHeightPt,
       imageWidthPx: pageCanvas.width,
       imageHeightPx: pageCanvas.height,
-    };
-  });
+    });
+    // Canvas meteen vrijgeven: dit — en niet de JPEG-omzetting zelf — is de reden dat het
+    // piekgeheugen O(1) blijft. Zonder deze twee regels blijft de backing store van elke
+    // pagina tot de volgende GC-cyclus hangen en groeit het geheugen alsnog met het paginatotaal mee.
+    pageCanvas.width = 0;
+    pageCanvas.height = 0;
+  }
 
   return buildImagePdf(pdfPages);
 }
