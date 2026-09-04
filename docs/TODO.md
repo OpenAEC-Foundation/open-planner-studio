@@ -366,7 +366,7 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Beslispunt 10 — meerdere toewijzingen zonder eigen spanne** (spec §6.2): OPS laat elke
       toewijzing over de hele restduur lopen; MSP/P6 geven toewijzingen een eigen spanne. Later op te
       heffen door `workWindowStart/Finish` te activeren.
-- [ ] **MSP-meetlat: 28 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
+- [ ] **MSP-meetlat: 31 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
       tot dan draagt elke case `evidence: 'reasoned' | 'documented'` in `cases-taaktypes.json`.
 - [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt
       hoe vaak beslispunt 8 in de praktijk speelt. Het corpus is niet in de repo.

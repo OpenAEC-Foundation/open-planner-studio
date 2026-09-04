@@ -58,18 +58,19 @@ aan-knop stuurt alleen de weergave en nooit de berekening; de semantiek zit in h
 **Standaardtype** is Fixed Units (ZEKER, [M4]: "Fixed Units (default)"); de gebruiker kan dat in de
 projectopties wijzigen.
 
-**Effort-driven** (ZEKER, [M2], [M3]):
+**Effort-driven** (ZEKER; bron per punt):
 
-- Effort-driven gaat uitsluitend over het **toevoegen of verwijderen van resources**: "Project
-  lengthens or shortens the duration of the task based on the number of resources that are assigned
-  to it, but Project does not change the total work for the task." Bij Fixed Units verkort een
-  resource erbij de duur; bij Fixed Duration daalt de inzet van elke resource.
-- Effort-driven werkt pas **ná de eerste toewijzing**: "When assigning multiple resources
-  simultaneously to a task, the duration doesn't change from your original estimate." De eerste
-  toewijzing(en) zetten het werk; daarna houdt effort-driven dat werk vast.
-- **Fixed Work is altijd effort-driven** en dat vinkje is daar niet te wijzigen: "Project doesn't
-  consider fixed work tasks to have flexible work values and are therefore always effort-driven."
-- Samenvattingstaken en ingevoegde projecten kunnen niet effort-driven zijn.
+- Effort-driven gaat uitsluitend over het **toevoegen of verwijderen van resources** ([M2]):
+  "Project lengthens or shortens the duration of the task based on the number of resources that are
+  assigned to it, but Project does not change the total work for the task." Bij Fixed Units verkort
+  een resource erbij de duur; bij Fixed Duration daalt de inzet van elke resource ([M2]).
+- Effort-driven werkt pas **ná de eerste toewijzing** ([M3]): "If you assign multiple resources at
+  the same time, the duration doesn't change from your original estimate." De eerste toewijzing(en)
+  zetten het werk; daarna houdt effort-driven dat werk vast.
+- **Fixed Work is altijd effort-driven** en dat vinkje is daar niet te wijzigen ([M1]): "Project
+  doesn't consider fixed work tasks to have flexible work values and are therefore always
+  effort-driven."
+- Samenvattingstaken en ingevoegde projecten kunnen niet effort-driven zijn ([M2]).
 - Standaardwaarde van het vinkje voor nieuwe taken: de Microsoft-artikelen die ik vond noemen alleen
   dát er een optie "New tasks are effort driven" bestaat, niet wat hij standaard is ([M2], [M3]).
   Secundaire bronnen (trainingsmateriaal, [M9]) zeggen "standaard uit" voor 2010/2013/2016. Ik
@@ -97,17 +98,25 @@ projectopties wijzigen.
 
 ### 2.2 Primavera P6
 
-**De vier duration types en hun formules** (ZEKER, [P1], [P2]):
+**De vier duration types en hun formules** (definities ZEKER uit [P1]; de twee
+Fixed-Duration-formules ZEKER uit [P2]; voor de andere twee types geeft geen van beide pagina's
+een formule — de regel daar is AFGELEID uit de algemene identiteit in de inleiding van [P3],
+"Duration = Units ÷ (Resource Units ÷ Time)"):
 
-| duration type | wat vastligt | formule uit de documentatie |
+| duration type | wat vastligt | formule |
 |---|---|---|
-| Fixed Duration & Units/Time | duur en inzet per tijdseenheid | Remaining Units = Units/Time × Remaining Duration |
-| Fixed Duration & Units | duur en totaal werk | Units/Time = Remaining Units / Remaining Duration |
-| Fixed Units/Time | inzet per tijdseenheid | Duration = Units / (Units/Time) |
-| Fixed Units | totaal werk | idem |
+| Fixed Duration & Units/Time | duur en inzet per tijdseenheid | Remaining Units = Units/Time × Remaining Duration (ZEKER, [P2]) |
+| Fixed Duration & Units | duur en totaal werk | Units/Time = Remaining Units / Remaining Duration (ZEKER, [P2]) |
+| Fixed Units/Time | inzet per tijdseenheid | Duration = Units / (Units/Time) (AFGELEID uit [P3]) |
+| Fixed Units | totaal werk | idem (AFGELEID uit [P3]) |
 
-Let op de woorden in de formules: **Remaining** Units en **Remaining** Duration. P6 rekent de
-driehoek op het resterende deel, niet op het totaal (ZEKER, [P2]). Dat is de bron van de keuze in §5.
+Let op de woorden in de twee gedocumenteerde formules: **Remaining** Units en **Remaining**
+Duration. Dat P6 de driehoek op het resterende deel rekent is daarmee ZEKER voor de twee
+Fixed-Duration-types en **AFGELEID** voor Fixed Units/Time en Fixed Units: [P2] zegt daar niets
+over rest versus totaal. De redenering: P6 houdt per toewijzing Actual, Remaining en At Completion
+apart bij en herrekent Remaining of At Completion uit elkaar ([P5]), dus een regel die op het
+totaal zou werken zou verrichte uren moeten herschrijven — wat geen van de opties in [P5] doet.
+Dit is de basis van de keuze in §5 en staat daarom in §9 (cases 16–18) als te meten.
 
 **De synchronisatietabel** (ZEKER, [P3] — Oracle's eigen overzicht van wat er per type verandert):
 
@@ -124,14 +133,16 @@ werk en inzet/tijd om verwarring met OPS' `unitsPerDay` te voorkomen.)
 **Overige P6-regels** (ZEKER):
 
 - Het duration type doet pas iets zodra er minstens één resource op de activiteit staat ([P2]:
-  "Duration type applies only when at least one resource is assigned to the activity").
+  "The duration type applies only when you have at least one resource assigned to the activity").
 - Bij Start- en Finish-mijlpalen is het veld uitgeschakeld ([P1]).
-- Projectoptie bij het toevoegen van resources ([P4]): "Preserve the units, duration, and units/time
-  for existing assignments" óf "Recalculate … based on the activity's duration type". De laatste
-  kolom van de synchronisatietabel geldt dus alleen bij de tweede instelling.
-- Projectoptie bij actuals ([P5]): "Add actual to remaining" (At Completion = Remaining + Actual) óf
-  "Subtract actual from at completion" (Remaining = At Completion − Actual). Verricht werk is in beide
-  varianten een invoer die door niets anders wordt herschreven.
+- Projectoptie bij het toevoegen van resources ([P4]): "Preserve the Units, Duration, and Units/Time
+  for existing assignments" óf "Recalculate the Units, Duration, and Units/Time for existing
+  assignments based on the activity Duration Type". De laatste kolom van de synchronisatietabel
+  geldt dus alleen bij de tweede instelling.
+- Projectoptie bij actuals ([P5]): "Add actual to remaining" (At Completion Units = Remaining Units +
+  Actual Units) óf "Subtract actual from at completion" (Remaining Units = At Completion Units −
+  Actual Units). AFGELEID uit die twee formules: verricht werk is in beide varianten invoer en wordt
+  door geen van beide herschreven.
 - Standaard duration type voor nieuwe activiteiten: niet gevonden in de geraadpleegde pagina's —
   ONBEKEND uit documentatie. GEMETEN (§11): 89 % van de activiteiten in het XER-corpus staat op
   `DT_FixedDUR2` (Fixed Duration & Units).
@@ -147,7 +158,7 @@ aan een P6-type, en twee niet (AFGELEID, cel voor cel uit [M1] en [P3]):
 | Fixed Work (altijd effort-driven) | Fixed Units | alle vijf kolommen gelijk |
 | Fixed Duration, niet effort-driven | Fixed Duration & Units/Time | alle vijf kolommen gelijk |
 | Fixed Duration, effort-driven | Fixed Duration & Units | **verschil bij duur gewijzigd**: MSP herberekent werk ([M1], rij Fixed Duration), P6 herberekent inzet/tijd ([P3]) |
-| Fixed Units, niet effort-driven | — | **geen P6-tegenhanger**: bij resource erbij groeit het werk en blijft de duur; alle vier P6-types die de inzet vastzetten verkorten de duur |
+| Fixed Units, niet effort-driven | — | **geen P6-tegenhanger**: MSP combineert hier *inzet gewijzigd ⇒ duur herberekend* met *resource erbij ⇒ werk groeit, duur blijft*. In [P3] gaat de eerste eigenschap alleen samen met de twee types die bij een extra resource juist de duur verkorten (Fixed Units/Time, Fixed Units); de twee types die de duur laten staan herberekenen bij een inzetwijziging het werk |
 
 Besluit 1 (menukaart = de vier P6-types, geen los vinkje) dekt dus drie van de vijf
 MS Project-gedragingen exact. De twee andere zijn geen exotische gevallen: "Fixed Units, niet
@@ -232,7 +243,7 @@ export type WorkRule =
   | 'FIXED_DURATION_RATE'   // P6 Fixed Duration & Units/Time · MSP Fixed Duration, niet effort-driven · vandaag
   | 'FIXED_DURATION_WORK'   // P6 Fixed Duration & Units      · MSP Fixed Duration, effort-driven (zie beslispunt 8)
   | 'FIXED_WORK'            // P6 Fixed Units                 · MSP Fixed Work
-  | 'FIXED_RATE';           // P6 Fixed Units/Time            · MSP Fixed Units, effort-driven (zie beslispunt 8)
+  | 'FIXED_RATE';           // P6 Fixed Units/Time            · MSP Fixed Units, effort-driven (niet effort-driven: zie beslispunt 8)
 ```
 
 Gebruikersnamen (nl): *Vaste duur en inzet*, *Vaste duur en werk*, *Vast werk*, *Vaste inzet*. Elk
@@ -274,9 +285,10 @@ opgeslagen**, zodat een latere typewissel de herkomst niet vernietigt:
 
 De exacte tekenreeksen van P6 XML's `<DurationType>` zijn hier niet tegen het PMXML-schema
 gecontroleerd — te verifiëren tegen MPXJ's `DurationTypeHelper` bij de bouw (ONBEKEND tot dan).
-De XER-tokens komen van de XER-sessie (ZEKER voor hun branch). De MSPDI-codes `<Type>` 0/1/2 =
-Fixed Units/Fixed Duration/Fixed Work volgen dezelfde volgorde als `mppReader.ts`'s
-`MSP_TASK_TYPE_VALUES` (ZEKER).
+De XER-tokens komen van de XER-sessie (ZEKER voor hun branch). `mppReader.ts`'s `MSP_TASK_TYPE_VALUES` gebruikt de volgorde 0/1/2 =
+Fixed Units/Fixed Duration/Fixed Work (ZEKER); dat MSPDI's task-level `<Type>` dezelfde nummering
+draagt is een externe bewering die de repo nergens vastlegt — te verifiëren tegen MPXJ's
+`MSPDIReader` in stap 2 (ONBEKEND tot dan).
 
 Omgekeerd bij export: `workRule` → MSPDI `<Type>` + `<EffortDriven>` volgens dezelfde tabel, waarbij
 een bewaard `effortDriven` wint; P6 XML `<DurationType>` 1-op-1 (een MSP-afwijking uit beslispunt 8
@@ -315,9 +327,10 @@ dat is precies het getal waar een planner later op wordt afgerekend. De driehoek
 **Waar de tijdgefaseerde contour zich toe verhoudt.** De contour (`Task.timephasedContours`) is de
 *vorm*, de werkvelden zijn de *totalen*. Regel: staan ze allebei, dan moet de som van de
 `remaining`-periodes gelijk zijn aan `remainingWorkMinutes` (idem actual). Een bewerking die het
-restwerk wijzigt herschaalt de contour proportioneel (de bestaande `rescaleContourForDuration`, met
-`keepWork` voor de werkbeschermende regels — ZEKER dat die parameter al bestaat, nu gestuurd door
-`mspTaskType === 'FIXED_WORK'`; hij gaat de werkregel lezen). Wijkt de som bij import af van het veld
+restwerk wijzigt herschaalt de contour proportioneel (de bestaande `rescaleContourForDuration`: die heeft een
+parameter `taskType?: MspTaskType` en leidt daar intern `keepWork` uit af voor `'FIXED_WORK'` —
+ZEKER; die parameter gaat de werkregel dragen, dus verbreden naar `WorkRule` of een tweede
+parameter erbij, te kiezen in stap 3). Wijkt de som bij import af van het veld
 (bron inconsistent), dan winnen de velden voor de totalen en wordt de contour bij de eerste
 bewerking op de velden herschaald — nooit bij het openen (3.1-5). BEREDENEERD.
 
@@ -330,9 +343,9 @@ CREW en SUBCONTRACTOR sturen de duur. BEREDENEERD; MSP's tabel spreekt alleen ov
 | kanaal | taak | toewijzing | opmerking |
 |---|---|---|---|
 | **IFC** (native) | nieuwe pset `OPS_WorkRule` (property `WorkRule`, IFCLABEL) naast het bestaande `OPS_MspTaskType`; `Project.defaultWorkRule` in `OPS_SchedulingOptions` | JSON-pset `OPS_AssignmentWork` per taak (zelfde `writeTimephasedMeta`-vorm als `OPS_Timephased`, per toewijzing via `resourceId`, door `remapContourResourceIds`-achtige guid-remap) | route: `docs/ifc-round-trip.md` — writer, reader, fixture én canon-tabel in `check-ifc-roundtrip`; de laatste twee zijn compile-afgedwongen |
-| **MSPDI** | `<Type>`, `<EffortDriven>` (nu niet gelezen — ZEKER) | `<Work>`, `<ActualWork>`, `<RemainingWork>` op `<Assignment>` én de sommen op `<Task>` | de writer schrijft `<Work>` vandaag al afgeleid (ZEKER, regel 652); wordt: veld als aanwezig, anders afgeleid |
+| **MSPDI** | `<Type>`, `<EffortDriven>` (nu niet gelezen én niet geschreven — ZEKER, `mspdiReader.ts`/`mspdiWriter.ts`; stap 2 bouwt beide richtingen) | `<Work>`, `<ActualWork>`, `<RemainingWork>` op `<Assignment>` én de sommen op `<Task>` | de writer schrijft `<Work>` vandaag al afgeleid (ZEKER, regel 652); wordt: veld als aanwezig, anders afgeleid |
 | **P6 XML** | `<DurationType>` | `<PlannedUnits>`, `<ActualUnits>`, `<RemainingUnits>` (uren) en `<AtCompletionUnits>` = actual + remaining | lezer/writer lezen/schrijven nu alleen `PlannedUnitsPerTime` (ZEKER) |
-| **XER** (alleen lezen, XER-branch) | `TASK.duration_type` → `p6DurationType` (bestaat) + `workRule` (nieuw) | `TASKRSRC.target_qty`, `act_reg_qty + act_ot_qty`, `remain_qty` → de drie velden — **alleen wanneer `target_qty` afwijkt van duur × `target_qty_per_hr`** (afspraak met de XER-sessie); tot dan blijft alles in het bronarchief `OPS_XerSourceArchive` | GEMETEN: 176 van 61.618 rijen wijken >1 % af; 263 rijen hebben werk zonder tarief |
+| **XER** (alleen lezen, XER-branch) | `TASK.duration_type` → `p6DurationType` (bestaat op de XER-branch, niet op main — zie stap 0) + `workRule` (nieuw) | `TASKRSRC.target_qty`, `act_reg_qty + act_ot_qty`, `remain_qty` → de drie velden — **alleen wanneer `target_qty` afwijkt van duur × `target_qty_per_hr`** (afspraak met de XER-sessie); tot dan blijft alles in het bronarchief `OPS_XerSourceArchive` | GEMETEN: 176 van 61.618 rijen wijken >1 % af; 263 rijen hebben werk zonder tarief |
 | **CSV** | geen kolom (CSV kent geen toewijzingen — ZEKER, `csvWriter.ts` negeert `_assignments`) | — | bewust buiten scope |
 | **MCP** | leestools tonen `workRule`/velden; `planner_update_task` krijgt `workRule`; werkinvoer per toewijzing via `planner_update_assignment` (bestaand contract uitbreiden) | | route: `docs/recepten/mcp-tool.md`; `cases-toolregistry.ts` vangt een vergeten registratie |
 | **Extensies** | `ExtTask.workRule` alleen-lezen erbij (zoals `mspTaskType` er nu al staat — ZEKER `extTypes.ts`) | | |
@@ -349,19 +362,34 @@ MSP AFGELEID). Alles hieronder werkt op het restant.
 | **R gewijzigd** | W = R × I | I = W / R | I = W / R | W = R × I |
 | **I gewijzigd** | W = R × I | W = R × I | R = W / I | R = W / I |
 | **W gewijzigd** | I = W / R | I = W / R | R = W / I | R = W / I |
-| **resource erbij** (met inzet I_n) | nieuwe W_n = R × I_n; rest ongemoeid | totaal W blijft; verdeeld naar rato van inzet; elke I_i = W_i / R | totaal W blijft; verdeeld naar rato van inzet; R = W / ΣI | R = W / ΣI (werk blijft); **bij bewaard `effortDriven: false`: als FIXED_DURATION_RATE** (beslispunt 8-B) |
-| **resource eraf** | W_n vervalt; rest ongemoeid | totaal W blijft; opnieuw verdeeld; I_i = W_i / R | totaal W blijft; R = W / ΣI | R = W / ΣI; **bij `effortDriven: false`: W_n vervalt, R blijft** |
+| **resource erbij** (met inzet I_n) | nieuwe W_n = R × I_n; rest ongemoeid | totaal W blijft; verdeeld naar rato van inzet; elke I_i = W_i / R | totaal W blijft; verdeeld naar rato van inzet; R = max_i(W_i / I_i) | totaal W blijft; verdeeld naar rato van inzet; R = max_i(W_i / I_i); **bij bewaard `effortDriven: false`: als FIXED_DURATION_RATE** (beslispunt 8-B) |
+| **resource eraf** | W_n vervalt; rest ongemoeid | totaal W blijft; opnieuw verdeeld; I_i = W_i / R | totaal W blijft; opnieuw verdeeld; R = max_i(W_i / I_i) | totaal W blijft; opnieuw verdeeld; R = max_i(W_i / I_i); **bij `effortDriven: false`: W_n vervalt, R blijft** |
 | **typewissel** | geen getal verandert (besluit 2) | idem + W vastleggen | idem + W vastleggen | geen getal verandert |
 | **R gewijzigd, bewaard `effortDriven: true`** | — | **W = R × I** (MSP Fixed Duration + effort-driven, beslispunt 8-B) | — | — |
 
-Bronnen per kolom: FIXED_DURATION_RATE en FIXED_RATE en FIXED_WORK: rijen 1–3 ZEKER ([M1] en
-[P3] stemmen overeen), rij 4–5 ZEKER uit [P3]'s laatste kolom en [M2]. FIXED_DURATION_WORK: rij 1
-ZEKER uit [P3] (P6-lezing; de MSP-lezing staat in de laatste rij), rij 2–3 ZEKER, rij 4–5 ZEKER
-([P3]: "Units/Time of each resource"; [M2]: "decreases individual resource unit values").
-**De verdeelsleutel** bij "totaal W blijft; verdeeld" is in geen van beide documentaties benoemd
-(ONBEKEND); het ontwerp kiest *naar rato van inzet* (BEREDENEERD: bij twee gelijke resources levert
-het de helft-helft-uitkomst die beide handleidingen als voorbeeld geven; §9 meting 10 en 15 toetsen
-het).
+Bronnen per kolom: FIXED_DURATION_RATE, FIXED_RATE en FIXED_WORK: rijen 1–3 ZEKER ([M1] en
+[P3] stemmen overeen). Rij 4 (erbij) ZEKER uit [P3]'s kolom "add additional resources" en [M2].
+Rij 5 (eraf): [P3] heeft géén kolom voor verwijderen; [M2] dekt de drie effort-driven regels
+("when you assign or remove people from a task"), dus ZEKER voor FIXED_RATE, FIXED_WORK en
+FIXED_DURATION_WORK, en **AFGELEID** voor FIXED_DURATION_RATE (spiegelbeeld van rij 4).
+FIXED_DURATION_WORK: rij 1 ZEKER uit [P3] (P6-lezing; de MSP-lezing staat in de laatste rij),
+rij 2–3 ZEKER, rij 4 ZEKER ([P3]: "Units/Time of each resource"; [M2]: "decreases individual
+resource unit values").
+
+Drie regels die de tabel eenduidig maken (alle drie BEREDENEERD; §9 toetst ze):
+
+- **De verdeelsleutel** bij "totaal W blijft; verdeeld" is in geen van beide documentaties benoemd
+  (ONBEKEND). Het ontwerp verdeelt *naar rato van de inzet zoals die bij de bewerking geldt*: I_n
+  zoals ingevoerd voor de nieuwe toewijzing, de huidige I_i voor de bestaande — dus vóórdat de
+  regel zelf de inzet herrekent, anders is de sleutel circulair. Bij twee gelijke resources geeft
+  dat de helft-helft-uitkomst die beide handleidingen als voorbeeld geven (cases 10, 15, 30).
+- **De taakduur bij meerdere toewijzingen** is R = max_i(W_i / I_i) over de werkresources (§6.2).
+  Direct ná een evenredige herverdeling is dat gelijk aan W / ΣI (elke toewijzing heeft dan dezelfde
+  W_i / I_i); heeft de gebruiker per toewijzing eigen werk ingevoerd, dan bepaalt de zwaarste
+  toewijzing de duur (case 29). "R = W / ΣI" mag dus nooit als losse formule worden gebouwd.
+- **Na afronding** (§6.1) zijn W en I de opgeslagen grootheden en is R afgeleid en naar boven
+  afgerond; een volgende bewerking rekent altijd vanuit de exacte W en I, nooit terug vanuit de
+  afgeronde R (case 31).
 
 "Resource erbij" op een taak **zonder** toewijzingen: de nieuwe toewijzing krijgt W = R × I; geen
 enkele regel wordt toegepast (P6 ZEKER: het type doet pas iets vanaf één resource; MSP ZEKER: de
@@ -380,13 +408,21 @@ eerste toewijzing zet het werk).
   `remainingWorkMinutes` aanwezig, dan is het te verdelen totaal dát getal en niet
   `unitsPerDay × durationDays`. Zonder die aanpassing toont het histogram op zo'n taak te veel werk.
   BEREDENEERD; MSP staat fractionele dagen toe (0,5 d) en heeft dit probleem niet.
+- **Wat na afronding leidend is**: na case 4 geldt R = 3 d, I = 1,0 + 1,0 en W = 20 + 20 u, terwijl
+  R × ΣI = 48 u. De identiteit werk = duur × inzet geldt dan alleen nog voor de exacte, niet-afgeronde
+  R. Regel: onder de werkbeschermende regels zijn **W en I opgeslagen en is R afgeleid**; elke
+  volgende bewerking (case 31) rekent uit de exacte W en I en nooit terug uit de afgeronde R, zodat
+  herhaald bewerken niet drift. Onder de inzetbeschermende regels blijft W = R × I met de hele-dagen-R
+  die de gebruiker zelf koos — het gedrag van vandaag.
 - **Uurtaken**: R in hele minuten, naar boven; W exact.
 - I wordt op twee decimalen opgeslagen zoals nu in de UI (ZEKER `isValidUnits`-guard: > 0).
 
 ### 6.2 Meerdere toewijzingen
 
 OPS kent geen duur per toewijzing: elke toewijzing loopt over de hele taakduur (ZEKER, het
-datamodel; `workWindowStart/Finish` bestaat maar is ongebruikt). Regel in deze etappe (beslispunt
+datamodel; `workWindowStart/Finish` bestaat, round-tript al door IFC (`OPS_TimephasedWindow`) en
+het extensiecontract, maar geen lezer vult het en geen solverstap leest het — de latere activering
+is dus geen groen veld). Regel in deze etappe (beslispunt
 10): **R van de taak = max over de werkresources van W_i / I_i**, en elke toewijzing loopt over die
 R. Gevolg: wijzigt de gebruiker I van één toewijzing op een FIXED_WORK-taak, dan verandert R via die
 toewijzing en krijgen de andere toewijzingen I_j = W_j / R (hun werk blijft, dunner gespreid). MSP
@@ -407,7 +443,7 @@ over de toewijzingen verdeeld (BEREDENEERD; MSP zegt alleen "verdeeld onder de r
   daarna de as-herschaling. BEREDENEERD.
 - **Resource erbij** op een gecontoureerde taak met vast werk: besluit 3 — bestaande contouren
   houden hun vorm, hoogte × (W_i,nieuw / W_i,oud); de nieuwe toewijzing is vlak (geen contour) over de
-  nieuwe R; R = W / ΣI. Voor FIXED_DURATION_WORK hetzelfde zonder duurwijziging.
+  nieuwe R; R = max_i(W_i / I_i) (§5). Voor FIXED_DURATION_WORK hetzelfde zonder duurwijziging.
 - **Resource eraf**: contour van de verwijderde toewijzing vervalt met de toewijzing (nu al zo).
 
 ### 6.4 Kalenders en tijdmodus
@@ -516,11 +552,14 @@ werkresource op inzet 1,0 ⇒ werk 40 uur, niets verricht.
 | 23 | FIXED_WORK, contour vooraan belast | tweede resource erbij | vorm blijft, hoogte ×0,5, nieuwe resource vlak, duur korter | besloten (3) |
 | 24 | FIXED_WORK, uurtaak 16 u, inzet 1,0 | inzet → 2,0 | duur 8 u (480 min) | documented |
 | 25 | FIXED_WORK + materiaalresource 100 stuks | duur → 10 d | materiaal ongemoeid; werkresource inzet 0,5 | reasoned (§4.3) |
-| 26 | elk type, geen toewijzingen | duur → 10 d | alleen de duur; geen veld geschreven | documented [P2] |
+| 26 | elk type, geen toewijzingen | duur → 10 d | alleen de duur; geen veld geschreven | documented [P2] (P6); reasoned (MSP-lezingen) |
 | 27 | FIXED_WORK | inzet → 0 | geweigerd, niets gewijzigd | bestaande guard |
 | 28 | FIXED_WORK | inzet → 0,5, dan undo | duur, inzet, werk en contour in één stap terug | ontwerpregel §6.7 |
+| 29 | FIXED_WORK, twee resources 1,0 met per toewijzing ingevoerd werk 40 u en 8 u | duur → 10 d | inzet 0,5 en 0,1; werk ongewijzigd — en omgekeerd: inzet van de eerste → 2,0 ⇒ R = max(40/16, 8/8) = 2,5 d (OPS 3 d), tweede toewijzing loopt over die 3 d: I = 8/(3 × 8) ≈ 0,33 | reasoned (§5, R = max_i) |
+| 30 | FIXED_WORK, één resource 1,0 (40 u) | tweede resource erbij met inzet 0,5 | verdeling 1,0 : 0,5 ⇒ werk 26,67 + 13,33 u; R = 40/12 ≈ 3,33 d (OPS 4 d) | reasoned (verdeelsleutel §5) |
+| 31 | FIXED_WORK, één resource 1,0 (40 u) | inzet → 0,6, daarna inzet → 1,0 | eerst R = ⌈40/4,8⌉ = 9 d, werk 40 u; daarna R = 5 d exact (niet 9 × 8 × 1,0 = 72 u) | reasoned (§6.1, W leidend) |
 
-Deze lijst gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
+Deze lijst (31 bewerkingen) gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
 MS Project weet wat er te meten valt.
 
 ## 10. Bouwvolgorde — apart verifieerbare stappen
@@ -537,7 +576,7 @@ twee keer aan `formatRegistry.ts`, `ifcPsets.ts` en de contour-adapters wordt ge
 | 3 | Pure module `src/engine/work/workTriangle.ts`: `applyDurationEdit`, `applyUnitsEdit`, `applyWorkEdit`, `applyAssignmentAdded`, `applyAssignmentRemoved`, `applyRuleChange` — invoer: taak, toewijzingen, regel, `hoursPerDay`; uitvoer: patches, nooit een store. Plus `cases-taaktypes.json` (§9) | `tests/planning/check-work-triangle.ts` draait alle cases; `evidence` per case |
 | 4 | Bedrading: `taskSlice.updateTask` (R), `resourceSlice.updateAssignment` (I, W), `taskEditPlan`/`assignmentPlan` (raster), `createMcpTransactions` (MCP-tweeling — ZEKER dat die spiegel bestaat), `assignmentDayUnits` vierde bron (§6.1) | bestaande suites + `check-work-triangle` via de store; `cases-resource-load.json` uitgebreid |
 | 5 | UI: instelling, auto-ontsluiting + melding, paneel/dialoog, rasterkolommen, i18n 14 locales, gidsen nl+en (+12 vertalingen, anders faalt `verify:docs` niet maar is de functie onvindbaar) | `verify:i18n`, `verify:docs`, browserspec `tests/browser/work-rule.spec.ts` (echte toetsen/klikken, store-asserties) |
-| 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** | cases 4, 5, 9, 10, 15, 19, 20, 23 |
+| 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** | cases 4, 5, 9, 10, 15, 19, 20, 23, 29, 30 |
 | 7 | MCP: contract + schema + registratie; `docs/recepten/mcp-tool.md` | `tests/mcp/`, `cases-toolregistry` |
 | 8 | CLAUDE.md-sectie, TODO-afvinking, `docs/superpowers/README.md` | `verify:docs` |
 
@@ -550,7 +589,7 @@ Stap 1–3 zijn onafhankelijk van elkaar te reviewen en veranderen niets aan wat
 | activiteiten per duration type | DT_FixedDUR2 15.978 · DT_FixedDrtn 1.773 · DT_FixedQty 153 (2 bestanden) · DT_FixedRate 0 · niet-standaard DT_FixedDUR 24 | bouwvolgorde binnen stap 3: FIXED_DURATION_WORK → FIXED_DURATION_RATE → FIXED_WORK → FIXED_RATE (minst getest in de praktijk); de vandaag hardgecodeerde regel is de op één na meest voorkomende in P6-bestanden |
 | `target_qty` wijkt >1 % af van duur × tarief | 176 van 61.618 rijen (4 met duur 0); 263 rijen met werk zonder tarief; in 5 bestanden (HarbourPointe 98/417, DCP-03 As-Built 37/47, DCP-03 Baseline 35/45, p6_torture_test 5/45, testXer 1/90) | "afwezig ⇒ afgeleid" is voor 99,7 % van de rijen verliesvrij; de XER-afspraak "alleen overzetten bij afwijking" is dus goedkoop |
 | toewijzingen met een curve | 2 rijen, 1 bestand | curves + werkregels: lage prioriteit, wel correct (§6.3) |
-| verricht werk op DT_FixedQty | 1 rij | cases 17 en 19 hebben géén corpusdekking — puur beredeneerd |
+| verricht werk op DT_FixedQty | 1 rij | case 17 (verricht werk op een vast-werk-taak) heeft géén corpusdekking — puur beredeneerd |
 | `remain_qty_per_hr` ≠ `target_qty_per_hr` | rehab-2 14.459/52.640 · DCP-03 As-Built 47/47 · Baseline 45/45 · Roads 71/3.575 · HarbourPointe 14/417 | het resttarief is een eigen grootheid ⇒ drie werkvelden (beslispunt 9) |
 
 Het corpus staat bij de eigenaar (`~/open-aec/voor claude/testdata-crawl`, env `OPS_XER_CORPUS`),
@@ -559,7 +598,7 @@ van `mspTaskType × effortDriven` over de .mpp-crawl (216 bestanden) ontbreekt n
 
 ## 12. Wat dit ontwerp bewust laat liggen (→ `docs/TODO.md`)
 
-- **MSP-meetlat**: de 28 bewerkingen uit §9 meten in MS Project (en P6) zodra iemand het heeft.
+- **MSP-meetlat**: de 31 bewerkingen uit §9 meten in MS Project (en P6) zodra iemand het heeft.
 - **Telling `mspTaskType × effortDriven`** over de `OPS_MPP_CRAWL`-set: bepaalt hoe vaak beslispunt
   8 in de praktijk speelt.
 - **Nivelleerder-optie "inzet verlagen"** (besluit 7-B) onder een geavanceerde optie.
