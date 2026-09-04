@@ -11,32 +11,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
-### Uit de critreview van release v2026.8.0 (2026-08-17)
-- [ ] **`platformRefusesWrites` is een sessie-brede latch zonder uitweg.**
-  `src/services/fileAccess/webBackend.ts`: één `NotAllowedError`/`SecurityError` stuurt de rest van
-  de sessie élke opslag naar de downloadmap, ook in een browser waar in-place schrijven prima werkt.
-  Reset bestaat alleen als `resetWebWriteRefusalForTests()`. `SecurityError` is juist het
-  "geen geldige gebruikersactivatie"-geval, dus een programmatische save kan de latch omzetten en
-  daarmee de handmatige Ctrl+S daarna degraderen. Richting: alleen op `NotAllowedError` latchen en
-  `SecurityError` als eenmalige fout behandelen. (Nog te bevestigen: of een web-buildpad
-  `saveFileDialog` zonder gebruikersactivatie kan bereiken.)
-- [ ] **De acht nieuwe voorbeeld-resourcesets staan buiten elke poort.** `verify:examples` eist
-  overallocatie juist wél (regel ~196 in `verifyShowcase`, alleen voor showcases), dus niets bewaakt
-  dat de acht nieuwe sets overallocatie-vrij blijven. Ze zijn nu gemeten schoon; de eerstvolgende
-  topologie-wijziging kan ze stil overbezet maken. Overweeg een assertie.
-- [ ] **`deleteTasksBulk` kan een dode undo-stap achterlaten.** Met ≥2 ids pusht `withTransaction`
-  onvoorwaardelijk een snapshot; zijn álle ids al weg, dan blijft die stap staan. Het 1-id-pad
-  ontwijkt dat bewust.
-- [ ] **De thema-map in `index.html` is een handkopie van `THEME_MIGRATION`** in
-  `settingsStore.ts`. Vandaag identiek (acht sleutels, zelfde defaults), maar niets bewaakt dat —
-  precies de duplicatieklasse die dit project elders wél dichtzet.
-- [ ] **`verify-docs.ts` poort 7e telt tools met een regex** (`/['"](planner_[a-z_]+)['"]/g`) over
-  `src/services/mcp/tools/`, dus ook tool-namen in beschrijvingsproza. Vandaag klopt de telling
-  (39), maar een beschrijving die een niet-bestaande tool noemt glipt erdoor.
-- [ ] **Mijlpaal met start maar zonder finish is niet relatie-sleepbaar.** `getRelationSourceAt`
-  eist beide datums, `drawMilestone` alleen een start — hij wordt dus getekend maar is geen
-  sleepbron. Randgeval.
-
 ### Bedrijfsbibliotheken (B1.1) — vervolgen (2026-07-24)
 - [ ] **B1b — bezettingsoverzicht** over open documenten (binnen één bedrijf/pool; bouwt op de
   herkomststempels + Resources-tab Bedrijfsweergave uit B1.1). Zie docs/library.md
