@@ -12,15 +12,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 ## Openstaand
 
 ### Uit de critreview van release v2026.8.0 (2026-08-17)
-- [ ] **Perf: met het bezettingsoverzicht open draait er een volledige CPM-solve per bewerking van
-  het actieve document.** `getOpenDocumentPayloads()` levert óók het actieve document mee, met
-  `scheduleStale = s.scheduleStale` — na elke bewerking `true`. De `useMemo` in
-  `ResourceOccupancyView` invalideert dan op `activeTasks`/`activeAssignments` en
-  `computeLibraryOccupancy` rekent het actieve document synchroon in de render efemeer door over de
-  vólledige takenlijst. Op de schaal die `relationRules.ts` zelf noemt (3000 taken / 1500 relaties:
-  700 ms–2,6 s) is dat merkbaar hakkelen tijdens typen. De §7-snit heeft de bibliotheek-*load*
-  teruggebracht maar de solve niet meegerekend. Richting: het actieve document overslaan in de
-  efemere tak (het heeft `useAutoCalcCPM` of F5), of de solve memoïseren per payload-referentie.
 - [ ] **`platformRefusesWrites` is een sessie-brede latch zonder uitweg.**
   `src/services/fileAccess/webBackend.ts`: één `NotAllowedError`/`SecurityError` stuurt de rest van
   de sessie élke opslag naar de downloadmap, ook in een browser waar in-place schrijven prima werkt.

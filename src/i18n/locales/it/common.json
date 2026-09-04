@@ -579,6 +579,8 @@
       "staleBanner": "Almeno un documento non è stato calcolato e non è incluso nell'occupazione.",
       "staleComputedDoc": "Calcolato in anticipo per questa panoramica — il documento stesso mostra ancora le date precedenti finché non premi F5 al suo interno o attivi “Calcola automaticamente”.",
       "staleComputedBanner": "I documenti modificati sono stati calcolati in anticipo per questa panoramica; premi F5 nel documento, oppure attiva “Calcola automaticamente” per farlo in modo permanente.",
+      "staleAsShownDoc": "Non aggiornato: questi sono gli ultimi valori calcolati — premi F5 in questo documento.",
+      "staleAsShownBanner": "Un documento modificato non è ancora stato ricalcolato; qui è conteggiato con i suoi ultimi valori calcolati. Premi F5 in quel documento, oppure attiva “Calcola automaticamente”.",
       "docCount_one": "{{count}} documento",
       "docCount_many": "{{count}} documenti",
       "docCount_other": "{{count}} documenti",

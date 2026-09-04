@@ -589,6 +589,8 @@
       "staleBanner": "Minstens één document is niet doorgerekend en telt niet mee in de bezetting.",
       "staleComputedDoc": "Alvast doorgerekend voor dit overzicht — het document zelf toont oudere datums tot je daar F5 drukt of 'Automatisch berekenen' aanzet.",
       "staleComputedBanner": "Gewijzigde documenten zijn voor dit overzicht alvast doorgerekend; druk F5 in het document, of zet 'Automatisch berekenen' aan om dit blijvend te doen.",
+      "staleAsShownDoc": "Verouderd: dit zijn de laatst berekende cijfers — druk F5 in dit document.",
+      "staleAsShownBanner": "Een gewijzigd document is nog niet doorgerekend; het telt hier mee met zijn laatst berekende cijfers. Druk F5 in dat document, of zet 'Automatisch berekenen' aan.",
       "docCount_one": "{{count}} document",
       "docCount_other": "{{count}} documenten",
       "conflictDays_one": "{{count}} dag dubbel geboekt",

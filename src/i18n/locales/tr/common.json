@@ -572,6 +572,8 @@
       "staleBanner": "En az bir belge hesaplanmadı ve dolulukta sayılmıyor.",
       "staleComputedDoc": "Bu genel bakış için önceden hesaplandı — belge kendisi orada F5'e basana veya “Otomatik hesapla” seçeneğini açana kadar hâlâ eski tarihleri gösterir.",
       "staleComputedBanner": "Değiştirilen belgeler bu genel bakış için önceden hesaplandı; belgede F5'e basın veya bunu kalıcı yapmak için “Otomatik hesapla” seçeneğini açın.",
+      "staleAsShownDoc": "Güncel değil: bunlar son hesaplanan değerlerdir — bu belgede F5'e basın.",
+      "staleAsShownBanner": "Değiştirilen bir belge henüz yeniden hesaplanmadı; burada son hesaplanan değerleriyle sayılıyor. O belgede F5'e basın veya “Otomatik hesapla” seçeneğini açın.",
       "docCount_one": "{{count}} belge",
       "docCount_other": "{{count}} belge",
       "conflictDays_one": "{{count}} gün çift rezervasyonlu",

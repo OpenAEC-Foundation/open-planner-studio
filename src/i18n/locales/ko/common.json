@@ -565,6 +565,8 @@
       "staleBanner": "적어도 하나의 문서가 계산되지 않아 점유 현황에 포함되지 않습니다.",
       "staleComputedDoc": "이 개요를 위해 미리 계산되었습니다 — 문서 자체는 그곳에서 F5를 누르거나 “자동 계산”을 켤 때까지 이전 날짜를 계속 표시합니다.",
       "staleComputedBanner": "변경된 문서는 이 개요를 위해 미리 계산되었습니다. 문서에서 F5를 누르거나, 항상 그렇게 하려면 “자동 계산”을 켜세요.",
+      "staleAsShownDoc": "오래됨: 마지막으로 계산된 수치입니다 — 이 문서에서 F5를 누르세요.",
+      "staleAsShownBanner": "변경된 문서가 아직 다시 계산되지 않았습니다. 여기에서는 마지막으로 계산된 수치로 집계됩니다. 해당 문서에서 F5를 누르거나 “자동 계산”을 켜세요.",
       "docCount_other": "문서 {{count}}개",
       "conflictDays_other": "{{count}}일 이중 예약",
       "moreDays_other": "… 외 {{count}}개",

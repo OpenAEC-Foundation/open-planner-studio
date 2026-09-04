@@ -565,6 +565,8 @@
       "staleBanner": "至少有一个文档未经计算，未计入占用。",
       "staleComputedDoc": "已为此概览提前计算 — 该文档本身仍显示旧日期，直到你在其中按 F5 或开启“自动计算”。",
       "staleComputedBanner": "已更改的文档已为此概览提前计算；请在文档中按 F5，或开启“自动计算”以持续生效。",
+      "staleAsShownDoc": "已过期：这些是上次计算的数值 — 请在此文档中按 F5。",
+      "staleAsShownBanner": "已更改的文档尚未重新计算；此处按其上次计算的数值计入。请在该文档中按 F5，或开启“自动计算”。",
       "docCount_other": "{{count}} 个文档",
       "conflictDays_other": "{{count}} 天重复预订",
       "moreDays_other": "… 另有 {{count}} 个",

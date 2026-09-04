@@ -579,6 +579,8 @@
       "staleBanner": "Au moins un document n'a pas été calculé et n'est pas pris en compte dans l'occupation.",
       "staleComputedDoc": "Calculé à l'avance pour cet aperçu — le document lui-même affiche encore d'anciennes dates jusqu'à ce que vous appuyiez sur F5 ou activiez « Calculer automatiquement ».",
       "staleComputedBanner": "Les documents modifiés ont été calculés à l'avance pour cet aperçu ; appuyez sur F5 dans le document, ou activez « Calculer automatiquement » pour le faire en permanence.",
+      "staleAsShownDoc": "Obsolète : ce sont les derniers chiffres calculés — appuyez sur F5 dans ce document.",
+      "staleAsShownBanner": "Un document modifié n'a pas encore été recalculé ; il est pris en compte ici avec ses derniers chiffres calculés. Appuyez sur F5 dans ce document, ou activez « Calculer automatiquement ».",
       "docCount_one": "{{count}} document",
       "docCount_many": "{{count}} documents",
       "docCount_other": "{{count}} documents",
