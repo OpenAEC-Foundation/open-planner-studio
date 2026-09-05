@@ -78,17 +78,24 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  // p6CompletedLateFromRemainingWindow (X-O7 laag 1, klasse (i)): alleen ls/lf/tf en drivingPath
+  // schuiven — uitsluitend rehab-2 (proj_id 761) is geraakt, es/ef/ff blijven ongewijzigd.
+  // ls: 8.807→9.697 exact, 4.886→3.996 diff, 5.015→4.125 afwijkingen (−890)
+  // lf: 8.769→9.660 exact, 4.951→4.060 diff, 5.044→4.153 afwijkingen (−891)
+  // tf: 8.912→9.270 exact, 4.765→4.407 diff, 4.765→4.407 afwijkingen (−358)
+  // drivingPath: 13.186→13.180 exact, 410→416 diff/afwijkingen (+6 — een paar taken op/nabij het
+  //   kritieke pad van rehab-2 wisselen van driving-status door de gecorrigeerde late datums).
   productStrict: {
-    exact: { es: 12_680, ef: 12_437, ls: 8_807, lf: 8_769, tf: 8_912, ff: 12_499 },
+    exact: { es: 12_680, ef: 12_437, ls: 9_697, lf: 9_660, tf: 9_270, ff: 12_499 },
     sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
-    diff: { es: 1_155, ef: 1_403, ls: 4_886, lf: 4_951, tf: 4_765, ff: 823 },
+    diff: { es: 1_155, ef: 1_403, ls: 3_996, lf: 4_060, tf: 4_407, ff: 823 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 1_251, ef: 1_500, ls: 5_015, lf: 5_044, tf: 4_765, ff: 823 },
-    drivingPath: { exact: 13_186, sameday: 0, diff: 410, missing: 0, measurable: 13_596, deviations: 410 },
+    deviations: { es: 1_251, ef: 1_500, ls: 4_125, lf: 4_153, tf: 4_407, ff: 823 },
+    drivingPath: { exact: 13_180, sameday: 0, diff: 416, missing: 0, measurable: 13_596, deviations: 416 },
   },
-  productPayloadSha256: 'a97aa10c39687e33cabf23ff7a4f832556401192f4620a6cf643d97e49160783',
-  productPayloadGzipSha256: '99476b658c45a4e5fcaf42e1b94ffc827437d26a98dba2db51c6a0f9400c82bb',
-  productProjectProjectionSha256: 'ab8fef5851dd85d941e7f7f862c4ee62440e3bc2dd8f5299250053b81cfd5c7f',
+  productPayloadSha256: '298cfe1d132a7e1be26411d5a9b6424629ae77cee57938556c80db917936204f',
+  productPayloadGzipSha256: 'cdc74567101d5af75e8660c1da5b4b13fd9df5b2604fb064f27e8feab8926269',
+  productProjectProjectionSha256: '669cc7f629b52ff504da6733d3100584faeb08370861c4c5753938d093f32c42',
   roles: {
     oracle: 45,
     'engine-input': 14,
