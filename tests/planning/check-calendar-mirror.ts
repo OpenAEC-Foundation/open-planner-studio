@@ -287,60 +287,40 @@ for (const hourMode of [true, false]) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-// Deel C — de ENIGE gemeten asymmetrie zit in de P6/XER-resultaatprojectie, en die is brongebonden
+// Deel C — er is GEEN brongebonden uitzondering meer op de spiegel
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 //
-// `subtractP6XerProjectedWorkMinutes` telt per `p6NonWorkPenaltyDate` in het doorlopen venster een
-// extra niet-werkdag mee. Er is met opzet GEEN voorwaartse tegenhanger: `addWorkMinutes` blijft
-// fysiek. De backward-wandeling overbrugt daardoor MEER kalenderwerkdagen dan de forward-wandeling
-// met dezelfde werkminuten — precies de "7 vooruit, 10 terug" uit het dossier. Dat is per
-// constructie geen kalenderprimitief maar een P6-resultaatprojectie; deze batterij pint dat het
-// (a) inderdaad zo werkt en (b) UITSLUITEND met `p6Source: 'XER'` aan staat.
+// Tot etappe 7b-2 droeg `CalendarEngine` een `subtractP6XerProjectedWorkMinutes`-projectie achter
+// `p6Source === 'XER'`: die telde per `p6NonWorkPenaltyDate` in het doorlopen venster een extra
+// niet-werkdag mee, zónder voorwaartse tegenhanger. Dat was precies de "7 vooruit, 10 terug" uit het
+// diagnosedossier. De projectie is verwijderd nadat (a) de XER-decoder de werkelijk bedoelde vrije
+// dagen kon reconstrueren en (b) gemeten was dat de projectie op élk penaltydragend corpusbestand
+// nul cellen verklaarde. Deze sectie pint dat de spiegel nu ONVOORWAARDELIJK geldt: ook een kalender
+// die de volledige XER-bronstempel én een penaltylijst draagt, wandelt vooruit en achteruit exact
+// even ver. Zou iemand de projectie opnieuw invoeren, dan gaat C1 rood.
 {
-  // Kalender 842-vorm: vrijdag vrij, weekend werkt, 2 banden van samen 8 uur, blok van 10 dagen.
-  // De twee vrijdagen ín het blok (2026-03-13 en 2026-03-20 vallen erbuiten; 2026-03-13 erin) zijn
-  // de realistische penaltyvorm: een vrije uitzondering op een weekdag die tóch al geen banden heeft.
-  const penaltyDates = ['2026-03-13'];
-  const base = { p6NonWorkPenaltyDates: penaltyDates } as Partial<WorkCalendar>;
-  const withSource = new CalendarEngine(
-    hourCalendar('c-xer', [1, 2, 3, 4, 6, 7], TWO_BANDS, { ...base, p6Source: 'XER' }),
-  );
-  const withoutSource = new CalendarEngine(
-    hourCalendar('c-neutraal', [1, 2, 3, 4, 6, 7], TWO_BANDS, base),
-  );
+  const xer = new CalendarEngine(hourCalendar('c-xer', [1, 2, 3, 4, 6, 7], TWO_BANDS, {
+    p6Source: 'XER', p6NonWorkPenaltyDates: ['2026-03-13', '2026-03-20'],
+  }));
+  const neutral = new CalendarEngine(hourCalendar('c-neutraal', [1, 2, 3, 4, 6, 7], TWO_BANDS));
   // Exact het venster uit A6: 7 werkdagen à 8 uur eindigend op ma 2026-03-23.
   const finish = parseInstant('2026-03-23T17:00');
+  const start = parseInstant('2026-03-05T08:00');
   const duration = 7 * 480;
 
-  // C1 — zonder bronstempel is de projectie inert: exact de fysieke, spiegelende uitkomst.
-  eq('C1 zonder p6Source blijft de projectie de fysieke spiegel',
-    formatInstant(withoutSource.subtractP6XerProjectedWorkMinutes(finish, duration), 'hour'),
-    formatInstant(withoutSource.subtractWorkMinutes(finish, duration), 'hour'));
-  eq('C1 de fysieke spiegel is de exacte inverse van de voorwaartse wandeling',
-    formatInstant(withoutSource.addWorkMinutes(
-      withoutSource.subtractWorkMinutes(finish, duration), duration), 'hour'),
+  eq('C1 een volledige XER-bronkalender wandelt achteruit exact even ver als een neutrale',
+    formatInstant(xer.subtractWorkMinutes(finish, duration), 'hour'),
+    formatInstant(neutral.subtractWorkMinutes(finish, duration), 'hour'));
+  eq('C1 en die uitkomst is de exacte inverse van de voorwaartse wandeling',
+    formatInstant(xer.addWorkMinutes(xer.subtractWorkMinutes(finish, duration), duration), 'hour'),
     formatInstant(finish, 'hour'));
-
-  // C2 — mét bronstempel schuift de projectie de startgrens één extra vrije dag naar voren, dus
-  // overbrugt de terugwandeling méér kalenderwerkdagen dan de voorwaartse. Vastgepind als BESTAAND,
-  // bewust brongebonden gedrag, niet als wenselijke kalendersemantiek.
-  const physical = withSource.subtractWorkMinutes(finish, duration);
-  const projected = withSource.subtractP6XerProjectedWorkMinutes(finish, duration);
-  ok('C2 met p6Source wijkt de projectie af van de fysieke spiegel',
-    projected.getTime() < physical.getTime());
-  eq('C2 het verschil is exact het aantal penaltydagen × hoursPerDay',
-    withSource.workMinutesBetween(projected, physical), penaltyDates.length * 8 * 60);
-  eq('C2 de fysieke spiegel zelf blijft de exacte inverse',
-    formatInstant(withSource.addWorkMinutes(physical, duration), 'hour'),
-    formatInstant(finish, 'hour'));
-
-  // C3 — de bronpoort zit óók op de float-projectie.
-  const a = parseInstant('2026-03-05T08:00');
-  eq('C3 zonder p6Source is de floatprojectie de fysieke werkminutentelling',
-    withoutSource.p6XerProjectedWorkMinutesBetween(a, finish),
-    withoutSource.workMinutesBetween(a, finish));
-  ok('C3 met p6Source trekt de floatprojectie de penaltydagen af',
-    withSource.p6XerProjectedWorkMinutesBetween(a, finish) < withSource.workMinutesBetween(a, finish));
+  eq('C1 de bronstempel raakt ook de voorwaartse wandeling niet',
+    formatInstant(xer.addWorkMinutes(start, duration), 'hour'),
+    formatInstant(neutral.addWorkMinutes(start, duration), 'hour'));
+  eq('C2 de werkminutentelling is bronneutraal',
+    xer.workMinutesBetween(start, finish), neutral.workMinutesBetween(start, finish));
+  eq('C2 en telt exact de gevraagde duur over het blok van tien dagen',
+    xer.workMinutesBetween(start, finish), duration);
 }
 
 if (diffs.length === 0) {

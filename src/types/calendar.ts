@@ -47,11 +47,16 @@ export interface WorkCalendar {
    */
   p6Source?: 'XER';
   /**
-   * Alleen voor een kalender met `p6Source: 'XER'` en een door P6 zelf anders getelde, redundante vrije-dagrecord:
-   * een vrije uitzondering op een al niet-werkende weekdag, of een direct aangrenzende herhaling
-   * van dezelfde vrije datum. P6 laat zo'n record als één extra niet-werkdag meewegen in uurduur-
-   * en floatwandelingen, hoewel de kalenderdatum zelf al niet werkt. De XER-reader bewaart alleen
-   * de unieke brondata die dit gedrag dragen; afwezig is de algemene kalendersemantiek byte-identiek.
+   * BRONDIAGNOSE, GEEN REKENINVOER (sinds etappe 7b-2). De XER-lezer noteert hier de redundante
+   * vrije-dagrecords die hij NIET heeft kunnen verklaren: een vrije uitzondering op een al
+   * niet-werkende weekdag, of een direct aangrenzende herhaling van dezelfde vrije datum.
+   *
+   * Tot 7b-2 liet `CalendarEngine` zo'n record als één extra niet-werkdag meewegen in uurduur- en
+   * floatwandelingen. Die projectie is verwijderd: gemeten over alle zes penaltydragende
+   * corpusprojecten verklaarde ze nul cellen op alle zes de fidelity-assen, en waar ze wél iets
+   * deed (kalender 842/896 in `rehab-2.xer`) is de werkelijk bedoelde vrije dag inmiddels
+   * gereconstrueerd (`weekendClampTarget` in `xerCalendarData.ts`). Geen enkele solverpad leest dit
+   * veld nog; het round-trippt uitsluitend door het IFC zodat de brondiagnose bewaard blijft.
    */
   p6NonWorkPenaltyDates?: string[];
   /** IFC-round-tripdiagnose voor de complete penaltylijst. Afwezig = geen P6-penaltypset gezien. */

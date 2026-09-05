@@ -236,31 +236,47 @@ function shiftIsoDate(date: string, offset: number): string {
 
 /**
  * WEEKEND-KLEMHERSTEL (etappe 7b-1) — welke ECHTE vrije dag zit er achter een redundant
- * vrije-uitzonderingsrecord?
+ * vrije-uitzonderingsrecord, en wanneer mag je dat concluderen?
  *
- * HET BEWIJS (corpus `crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, kalender 842 `R111 - 1`:
- * ma-do + za + zo werkend, vrijdag vrij). De negen feestdagenblokken in `clndr_data` zijn aaneengesloten
- * vrije reeksen, maar de opgeslagen epochdagen missen elke zaterdag en zondag en herhalen in plaats
- * daarvan de aangrenzende vrijdag of maandag. Blok 2008-09-29 … 2008-10-09 staat er letterlijk als
- * `39720 39721 39722 39723 39724 39724 39727 39727 39728 39729 39730` — 10-04 (za) en 10-05 (zo)
- * ontbreken, terwijl 10-03 (vr) en 10-06 (ma) er twee keer staan. Ditzelfde patroon staat in alle
- * negen blokken van die kalender, en in het hele corpus van 93 bestanden komt een AANGRENZEND
- * DUPLICAAT verder in geen enkel bestand voor. De schrijver heeft de blokdagen dus op de MA-VR-as
- * geklemd: **zaterdag → de vrijdag ervóór, zondag → de maandag erná**.
+ * HET VERSCHIJNSEL (corpus `crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, kalenderdata gedeeld
+ * door 44 kalenders met `842` `R111 - 1` en 75 met `896` `B25 - Cal`: ma-do + za + zo werkend,
+ * vrijdag vrij). De negen feestdagenblokken zijn aaneengesloten vrije reeksen, maar de opgeslagen
+ * epochdagen missen elke zaterdag en zondag en herhalen in plaats daarvan de aangrenzende vrijdag of
+ * maandag. Blok 2008-09-29 … 2008-10-09 staat er letterlijk als `39720 39721 39722 39723 39724
+ * 39724 39727 39727 39728 39729 39730` — 10-04 (za) en 10-05 (zo) ontbreken, terwijl 10-03 (vr) en
+ * 10-06 (ma) er twee keer staan. De schrijver heeft de blokdagen op de MA-VR-as geklemd:
+ * **zaterdag → de vrijdag ervóór, zondag → de maandag erná.**
  *
- * Onafhankelijke bevestiging op dezelfde kalender: alle 23 redundante records staan op een vrijdag
- * of een maandag (0 op een andere weekdag), en de tien dagen die de set-cover van het
- * 761-diagnosedossier onafhankelijk als "moeten vrij zijn" aanwees — 2008-10-04, 2008-10-05,
- * 2008-12-07, 2008-12-13, 2008-12-14, 2009-09-19, 2009-09-20, 2009-11-28, 2009-11-29, 2009-12-05 —
- * zijn exact de klemdoelen van tien van die 23 records. Eén-op-één, geen rest.
+ * DE BRONTOETS. P6's eigen opgeslagen datums bevestigen dat: voor de 6.548 taken die op deze
+ * kalenderdata staan zet P6 in álle negen blokken — inclusief de gereconstrueerde weekenddagen —
+ * nul ES, EF, LS en LF, terwijl hij in de drie dagen direct vóór en ná de vier blokken die in de
+ * projectperiode vallen 125 (okt-2008), 141 (dec-2008), 64 (sep-2009) en 78 (nov-2009) datums zet.
+ * De weekenddagen ín die blokken zijn dus aantoonbaar niet-werkend. (De 14 EF's die op 2008-12-14
+ * te vinden zijn horen bij kalender `893` `R111 - 2`, een 7-daagse kalender zonder uitzonderingen —
+ * die wordt hier niet geraakt.)
  *
- * DE POORT. Deze reconstructie draait alleen wanneer de kalender zélf een aangrenzend duplicaat
- * draagt (zie de aanroepplek): dat duplicaat IS het bewijs dat er een dag verloren ging. Verder
- * eist deze functie dat het klemdoel (a) daadwerkelijk een zaterdag of zondag is, (b) op deze
- * kalender een WERKdag is — anders verandert vrij maken niets — en (c) niet zelf al een
- * uitzonderingsrecord heeft. Corpusmeting van die drie eisen samen: alleen rehab-2 en de twee
- * Hotel-bestanden hebben überhaupt klembare records, en de Hotel-bestanden hebben geen duplicaat
- * en blijven dus onaangeraakt.
+ * DE POORT IS PER RECORD, NIET PER KALENDER. Een klemherstel mag alleen volgen uit bewijs op het
+ * record zelf, anders maakt één toevallig dubbel record ergens in de lijst stilzwijgend verre
+ * weekenddagen vrij. Er zijn precies twee lokale bewijsvormen, en beide eisen dat het blok aan de
+ * andere kant van het weekend doorloopt:
+ *
+ *  1. **Sprong** — het record staat op een vrijdag en er is óók een uitzondering op de maandag
+ *     erná (of andersom). Het blok loopt dan over het weekend heen terwijl za/zo niet opgeslagen
+ *     zijn: precies de klemvorm. Dit dekt ook de twee blokken waarvan de openings-vrijdag géén
+ *     duplicaat draagt (2006-12-29 en 2009-09-18).
+ *  2. **Duplicaat mét blokvervolg** — het record is een aangrenzend duplicaat (twee opeenvolgende
+ *     records met dezelfde epochdag, iets wat in het hele corpus van 93 bestanden alleen in dit
+ *     bestand voorkomt) én het blok loopt aan de binnenzijde door (de dag vóór een vrijdag, of de
+ *     dag ná een maandag, draagt zelf ook een uitzondering). Dit dekt de blokranden waar het
+ *     weekend buiten de opgeslagen reeks valt (2008-12-07 vóór het blok, 2009-12-05 erná).
+ *
+ * Een op zichzelf staand dubbel record — de gewone P6-invoerfout waar deze decoder al een
+ * `DUPLICATE_EXCEPTION`-herstel voor kent — draagt géén blokvervolg en levert dus niets op. Zie de
+ * negatieve fixtures in `tests/planning/check-xer-calendar-data.ts` sectie 22.
+ *
+ * Daarnaast eist `weekendClampTarget` dat het klemdoel (a) daadwerkelijk een zaterdag of zondag is,
+ * (b) op déze kalender een WERKdag is — anders verandert vrij maken niets — en (c) niet zelf al een
+ * uitzonderingsrecord heeft.
  */
 function weekendClampTarget(
   date: string, bands: WorkTimeBands, exceptionDates: ReadonlySet<string>,
@@ -276,6 +292,18 @@ function weekendClampTarget(
   if (bands.byWeekday[targetWeekday].length === 0) return null;
   if (exceptionDates.has(target)) return null;
   return target;
+}
+
+/** Draagt DIT record zelf het bewijs van een geklemde weekenddag? Zie `weekendClampTarget`. */
+function hasWeekendClampEvidence(
+  date: string, exceptionDates: ReadonlySet<string>, adjacentDuplicates: ReadonlySet<string>,
+): boolean {
+  const weekday = isoWeekdayOf(date);
+  // Bewijsvorm 1 — de sprong over het weekend: vrijdag ↔ maandag, drie kalenderdagen verderop.
+  if (exceptionDates.has(shiftIsoDate(date, weekday === 5 ? 3 : -3))) return true;
+  // Bewijsvorm 2 — aangrenzend duplicaat, mits het blok aan de binnenzijde doorloopt.
+  return adjacentDuplicates.has(date)
+    && exceptionDates.has(shiftIsoDate(date, weekday === 5 ? -1 : 1));
 }
 
 function calendarType(raw: string): XerCalendarType {
@@ -636,13 +664,11 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   // Een werkende uitzondering wint ook voor de brongebonden P6-straf. De datum draagt dan echte
   // banden en is geen redundante vrije-dagrecord meer.
   for (const date of workingByDate.keys()) p6NonWorkPenaltyDates.delete(date);
-  // Weekend-klemherstel (7b-1). Zie `weekendClampTarget` voor het volledige bewijs: een schrijver die
-  // een uitzonderingsblok op de MA-VR-as klemt levert zaterdagen af op de vrijdag ervóór en zondagen
-  // op de maandag erná. Het bewijs dát deze kalender zo geschreven is, is de AANGRENZENDE DUPLICAAT:
-  // twee opeenvolgende records met dezelfde epochdag kunnen alleen ontstaan als twee verschillende
-  // brondagen op dezelfde datum zijn geklemd. Zonder zo'n duplicaat blijft alles ongewijzigd, dus
-  // 92 van de 93 corpusbestanden zijn hier byte-identiek.
-  for (const date of adjacentDuplicateDates.size > 0 ? [...p6NonWorkPenaltyDates] : []) {
+  // Weekend-klemherstel (7b-1), poort per RECORD. Zie `weekendClampTarget`/`hasWeekendClampEvidence`
+  // voor de twee lokale bewijsvormen en de brontoets. Zonder bewijs op het record zelf gebeurt er
+  // niets, dus 92 van de 93 corpusbestanden zijn hier byte-identiek.
+  for (const date of [...p6NonWorkPenaltyDates]) {
+    if (!hasWeekendClampEvidence(date, exceptionDates, adjacentDuplicateDates)) continue;
     const target = weekendClampTarget(date, bands, exceptionDates);
     if (target === null) continue;
     holidaysByDate.set(target, {

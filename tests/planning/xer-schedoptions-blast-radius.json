@@ -4483,7 +4483,10 @@
     }
   ],
   "expectedFinishVariant": {
-    "selection": { "chosen": true, "counterfactual": false },
+    "selection": {
+      "chosen": true,
+      "counterfactual": false
+    },
     "population": {
       "oracleFiles": 58,
       "readableFiles": 56,
@@ -4495,14 +4498,30 @@
       "sourceFiles": 2,
       "movingFiles": 0
     },
-    "movement": [0, 0, 0, 0, 0, 0, 0],
+    "movement": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
     "files": [
       {
         "id": "9590c4cdc4efa69a-1",
         "tasks": 93,
         "sourceTasks": 93,
         "activeSourceTasks": 0,
-        "movement": [0, 0, 0, 0, 0, 0, 0],
+        "movement": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "directionChanges": 0,
         "directionDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       },
@@ -4511,27 +4530,71 @@
         "tasks": 70,
         "sourceTasks": 70,
         "activeSourceTasks": 0,
-        "movement": [0, 0, 0, 0, 0, 0, 0],
+        "movement": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "directionChanges": 0,
         "directionDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       }
     ],
     "fidelity": {
       "chosen": {
-        "es": { "deviations": 7120, "measurable": 18524 },
-        "ef": { "deviations": 7002, "measurable": 18536 },
-        "ls": { "deviations": 6176, "measurable": 18406 },
-        "lf": { "deviations": 6447, "measurable": 18397 },
-        "tf": { "deviations": 9393, "measurable": 18296 },
-        "ff": { "deviations": 3521, "measurable": 17915 }
+        "es": {
+          "deviations": 7120,
+          "measurable": 18524
+        },
+        "ef": {
+          "deviations": 7002,
+          "measurable": 18536
+        },
+        "ls": {
+          "deviations": 6176,
+          "measurable": 18406
+        },
+        "lf": {
+          "deviations": 6447,
+          "measurable": 18397
+        },
+        "tf": {
+          "deviations": 9393,
+          "measurable": 18296
+        },
+        "ff": {
+          "deviations": 3521,
+          "measurable": 17915
+        }
       },
       "counterfactual": {
-        "es": { "deviations": 7120, "measurable": 18524 },
-        "ef": { "deviations": 7002, "measurable": 18536 },
-        "ls": { "deviations": 6176, "measurable": 18406 },
-        "lf": { "deviations": 6447, "measurable": 18397 },
-        "tf": { "deviations": 9393, "measurable": 18296 },
-        "ff": { "deviations": 3521, "measurable": 17915 }
+        "es": {
+          "deviations": 7120,
+          "measurable": 18524
+        },
+        "ef": {
+          "deviations": 7002,
+          "measurable": 18536
+        },
+        "ls": {
+          "deviations": 6176,
+          "measurable": 18406
+        },
+        "lf": {
+          "deviations": 6447,
+          "measurable": 18397
+        },
+        "tf": {
+          "deviations": 9393,
+          "measurable": 18296
+        },
+        "ff": {
+          "deviations": 3521,
+          "measurable": 17915
+        }
       }
     }
   },
