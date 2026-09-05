@@ -112,12 +112,14 @@ module.exports = {
 };
 ```
 
-### Read-only XER source route (permission `importSource`)
+### Read-only XER source route (permission `importSource`, `apiVersion` ≥ 1.1)
 
 Besides the mapped `data.*` DTOs (derived, normalized, always available), an extension holding the
 `importSource` permission can also reach the **original, unmodified source data** of the current
 document — today only for an opened `.xer` file (Primavera P6). Without this permission all three
 methods throw before a single byte is read; nothing leaks through a partial call or an error path.
+These three methods exist since contract version `1.1.0` — declare `"apiVersion": "1.1"` or higher
+if you rely on them; an older host simply doesn't have them.
 
 **Why a separate permission instead of core API.** The rest of `api.data.*` exposes the internal
 project model — tasks, calendar, relations — exactly what the importer made of it. The source route
@@ -155,6 +157,19 @@ All three methods are bound to the **active document**: switching documents foll
 route (or its absence) of the newly active document automatically. Every call returns a fresh,
 independent copy — mutating a returned `info`, page item or chunk never touches the retained
 archive.
+
+**Document drift while paginating.** "Follows automatically" is convenient for a single call, but a
+**risk when paginating**: pagination is inherently multiple calls over time, and there is no
+per-document page session. If the user switches documents (`switchDocument`) between two
+`getImportSourceCatalogPage` calls, the second call simply returns a page from the **new** active
+document — possibly an empty page that a naive extension reads as "done", while it actually just
+mixed two projects together. Pass `options.expectedSourceProjectId` with the `sourceProjectId` you
+got from an earlier call: if the active source selector no longer matches (including when the
+active document no longer has any XER source at all), the call throws an
+`ExtImportSourceDriftError` instead of silently continuing. Without this option there is **no**
+drift protection. The same risk applies, to a lesser extent, to fetching a sequence of
+`getImportSourceChunk` indices to reconstruct the source bytes — compare `sourceProjectId` (or the
+`sha256`) between chunks if you cannot guarantee the document won't switch.
 
 ### Data contract: the `Ext*` types
 
