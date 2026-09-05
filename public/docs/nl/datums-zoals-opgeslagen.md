@@ -100,8 +100,9 @@ Primavera legt niet voor elke activiteit alle vier de assen laatste start, laats
 speling en vrije speling vast — een activiteit kan bijvoorbeeld wel een vroege datum hebben, maar geen
 speling. Mist zo'n as in het bronbestand, dan toont de betreffende kolom in de tabel "Niet vastgelegd"
 in plaats van een getal. Dat is geen foutmelding: het betekent alleen dat het bestand zelf op dat punt
-niets zei, en Open Planner Studio verzint daar dus ook niets bij. Zodra je herberekent (bewerken of
-**F5**), vult de kolom zich met de eigen berekening van de app.
+niets zei, en Open Planner Studio verzint daar dus ook niets bij. Dit geldt alleen zolang je déze weergave bekijkt:
+zodra de app zijn eigen berekening toont — buiten deze weergave, of na herberekenen met **F5** —
+staat in die kolom gewoon het berekende getal.
 
 ## Verder lezen
 

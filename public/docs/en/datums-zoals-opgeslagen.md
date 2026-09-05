@@ -96,8 +96,9 @@ Primavera doesn't record all four axes — late start, late finish, total float 
 every activity; an activity might have an early date but no float, for example. When such an axis is
 missing from the source file, the relevant column in the table shows "Not recorded" instead of a
 number. That's not an error: it only means the file itself said nothing on that point, so Open Planner
-Studio doesn't invent anything either. Recalculate (by editing, or with **F5**), and the column fills
-in with the app's own calculation.
+Studio doesn't invent anything either. This applies only while you are looking at this view: as
+soon as the app shows its own calculation — outside this view, or after recalculating with **F5** —
+that column simply holds the calculated number.
 
 ## Further reading
 

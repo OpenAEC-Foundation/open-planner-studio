@@ -59,9 +59,11 @@ verzonnen getal.
 Bewerk je een taak, of druk je op **F5**, dan verlaat de app deze weergave en rekent hij gewoon weer
 door — precies zoals bij elk ander formaat. De herberekening zelf gebruikt Primavera's opgeslagen
 datums nooit als invoer: ze reizen als aparte, alleen-lezen brondata mee en worden uitsluitend gebruikt
-om te tonen wat het bestand zei, nooit om te sturen wat de app berekent. Sla je op als IFC, dan blijft
-deze weergave — inclusief welke activiteiten afweken en welke assen niet vastgelegd waren — bewaard in
-het projectbestand.
+om te tonen wat het bestand zei, nooit om te sturen wat de app berekent. Sla je op als IFC, dan gaan Primavera's
+opgeslagen datums mee het projectbestand in — inclusief welke assen het bronbestand niet vastlegde.
+Bij het openen van dat IFC-bestand zet de app deze weergave niet uit zichzelf weer aan: je krijgt de
+melding met een knop **Opgeslagen datums tonen** en kiest zelf. Zo kan een planning die je intussen
+hebt bewerkt en opgeslagen nooit ongevraagd weer met de oude datums op het scherm komen.
 
 Zie [Datums zoals opgeslagen](docs://datums-zoals-opgeslagen) voor de volledige uitleg van deze
 weergave, inclusief wat je wel en niet ziet zolang hij actief is en hoe je er handmatig weer uit stapt.

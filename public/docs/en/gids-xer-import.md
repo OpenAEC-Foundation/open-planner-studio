@@ -58,8 +58,11 @@ finish, total float or free float is missing for a task in the source file, the 
 Editing a task, or pressing **F5**, leaves this view and recalculates as usual — exactly as with any
 other format. The recalculation itself never uses Primavera's recorded dates as input: they travel
 along as separate, read-only source data and are used only to show what the file said, never to drive
-what the app calculates. Saving as IFC keeps this view — including which activities deviated and which
-axes were not recorded — stored in the project file.
+what the app calculates. Saving as IFC stores Primavera's recorded dates in
+the project file — including which axes the source file left unrecorded. Opening that IFC file again
+does not switch this view back on by itself: you get the notice with a **Show recorded dates** button
+and decide for yourself. That way a schedule you have edited and saved in the meantime can never come
+back on screen with the old dates unasked.
 
 See [Dates as recorded](docs://datums-zoals-opgeslagen) for the full explanation of this view,
 including what you do and don't see while it is active and how to leave it manually.
