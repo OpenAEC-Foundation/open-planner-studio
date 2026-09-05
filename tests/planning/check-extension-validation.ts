@@ -23,6 +23,7 @@ import {
   type ExtensionStorage,
 } from '@/extensions/extensionLoader';
 import { createAppStoreContext, useAppStore } from '@/state/appStore';
+import { KNOWN_PERMISSIONS } from '@/extensions/permissions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -141,6 +142,24 @@ expectFail('onbekende categorie', { ...volledig(), category: 'Security' });
 expectFail('onbekende fresh permission', { ...volledig(), permissions: ['ribbon', 'commands'] });
 expectFail('permissions is geen array', { ...volledig(), permissions: 'ribbon' });
 expectFail('permission is geen string', { ...volledig(), permissions: ['ribbon', 1] });
+
+// ── 2a. `permissions.ts` (KNOWN_PERMISSIONS) is de ENE bron voor deze validator ─────────────
+// Her-review 2 vond een tweede, handgekopieerde permissielijst in validation.ts die
+// 'importSource' miste: de permissie bestond in de guard-tabel en KNOWN_PERMISSIONS, maar géén
+// installatiepad (ZIP/catalogus, los .js, dev-bridge) kon een manifest met die permissie ooit
+// parsen — 'fresh' weigerde hem exact als de typefout 'bogus'. Dit haalt ELKE permissie die de
+// app kent door de echte 'fresh'-validatieroute en eist dat hij overleeft; een nieuwe permissie
+// die alleen aan permissions.ts wordt toegevoegd kan dus niet meer stil onbereikbaar blijven.
+// Mutatiebewijs: ontkoppel `EXTENSION_PERMISSIONS` in validation.ts weer van `KNOWN_PERMISSIONS`
+// (bv. terug naar de oude losse lijst zonder 'importSource') en dit blok kleurt rood.
+for (const permissie of KNOWN_PERMISSIONS) {
+  const parsed = expectOk(`KNOWN_PERMISSIONS bevat een bereikbare permissie: ${permissie}`,
+    parseExtensionManifest({ ...volledig(), permissions: [permissie] }, 'fresh'));
+  if (parsed) {
+    eq(`${permissie}: fresh-parse bewaart exact deze permissie`, parsed.value.permissions, [permissie]);
+  }
+}
+expectFail('een niet-gekende permissie blijft geweigerd (regressiegrens)', { ...volledig(), permissions: ['bogus'] });
 for (const veld of ['name', 'version', 'minAppVersion', 'author', 'description', 'category', 'main', 'permissions']) {
   expectFail(`fresh vereist ${veld}`, { ...volledig(), [veld]: undefined });
 }
