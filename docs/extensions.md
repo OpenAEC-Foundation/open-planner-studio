@@ -38,10 +38,12 @@ Gebruik `currentColor` voor `fill`/`stroke` zodat het icoon met het thema meekle
 | `ribbon` | **hard** — ontbreekt ⇒ `api.ui.addRibbonButton` gooit | Een knop in de ribbon plaatsen. |
 | `backstage` | **warn** (overgangsregime) — ontbreekt ⇒ `api.importers.*` werkt nog, maar logt een waarschuwing | Een importer registreren (verschijnt in Bestand → Importeren). |
 | `pdf-fonts` | **hard** — ontbreekt ⇒ `api.pdfFonts.register` gooit | Een font-provider registreren voor de vector-PDF-export (bv. CJK-glyf-bytes). |
+| `importSource` | **hard, default-deny** — ontbreekt ⇒ `api.data.getImportSourceInfo`/`getImportSourceChunk`/`getImportSourceCatalogPage` gooien vóórdat er ook maar één byte gelezen wordt | De **volledige oorspronkelijke bronbytes** van een geïmporteerd bestand (vandaag: XER) lezen, inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Zie de aparte paragraaf verderop. |
 | `filesystem` | informatief | Geen API-oppervlak; puur getoonde intentie bij installatie — **geen** sandbox-garantie (extensie-code heeft technisch gewoon toegang). |
 | `network` | informatief | Idem — getoonde intentie, geen technische grens. |
 
-`data.*`, `settings.*`, `assets.*` en `ui.showNotification` zijn **kern-API**: altijd beschikbaar, geen permissie nodig.
+`data.*` is verder **kern-API** — behalve de drie `getImportSource*`-methoden hierboven — net als
+`settings.*`, `assets.*` en `ui.showNotification`: altijd beschikbaar, geen permissie nodig.
 
 De afdwinging is gecentraliseerd in `src/extensions/permissions.ts` (één tabel pad → permissie).
 
@@ -343,6 +345,6 @@ Bij een los `.js`-bestand mag het manifest als commentaarblok bovenaan:
 
 ## Beperkingen
 
-- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen voor `ribbon`/`events`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
+- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen (default-deny) voor `ribbon`/`events`/`pdf-fonts`/`importSource`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
 - Objecten uit `api.data.get*()` zijn **verse, muteerbare `Ext*`-kopieën** — muteren raakt de store niet; schrijf terug via de muterende API-functies.
 - Het `@manifest`-commentaarblok in een los .js-bestand moet een plat JSON-object zijn (geen geneste objecten).

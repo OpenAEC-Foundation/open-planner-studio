@@ -264,8 +264,9 @@ export function createExtensionApi(
   };
 
   // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
-  // importers.*, pdfFonts.register) in checks volgens de tabel in permissions.ts. Kern-API
-  // (data.*, settings.*, assets.get, ui.showNotification) blijft ongewijzigd.
+  // importers.*, pdfFonts.register, data.getImportSource*) in checks volgens de tabel in
+  // permissions.ts. De rest van data.*, settings.*, assets.get en ui.showNotification blijven
+  // ongewijzigd kern-API.
   applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
 
   return api;

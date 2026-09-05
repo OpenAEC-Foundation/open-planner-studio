@@ -40,6 +40,12 @@ export type ExtensionCategory =
  *
  *   • 'pdf-fonts'  → api.pdfFonts.register (hard afgedwongen) — een CJK/glyf-font-provider voor de
  *     vector-PDF-export registreren (zie src/services/pdf/fontRegistry.ts).
+ *   • 'importSource' → api.data.getImportSourceInfo/getImportSourceChunk/getImportSourceCatalogPage
+ *     (hard afgedwongen, DEFAULT-DENY) — geeft de VOLLEDIGE oorspronkelijke bronbytes van een
+ *     geïmporteerd bestand (bv. de rauwe XER) terug, inclusief velden die de importlaag bewust niet
+ *     in het projectmodel materialiseert (audit-/herkomstvelden, kosten, review-/locatievelden, …).
+ *     Dat is wezenlijk breder dan de rest van `data.*` en dus expliciet GEEN kern-API — zie de
+ *     privacyparagraaf in docs/extensions.md.
  *
  * NB: 'commands' bestond hiervoor maar had nooit een API-oppervlak en is per audit P16 verwijderd.
  * Manifesten die het (of een andere onbekende waarde) nog noemen, worden bij het activeren
@@ -51,7 +57,8 @@ export type ExtensionPermission =
   | 'events'
   | 'filesystem'
   | 'network'
-  | 'pdf-fonts';
+  | 'pdf-fonts'
+  | 'importSource';
 
 export type ExtensionStatus = 'enabled' | 'disabled' | 'error' | 'loading';
 
@@ -175,11 +182,21 @@ export interface ExtensionApi {
     getSequences(): ExtSequence[];
     getResources(): ExtResource[];
     getAssignments(): ExtAssignment[];
-    /** Kleine read-only XER-bronsamenvatting; null voor een niet-XER-document. */
+    /**
+     * Kleine read-only XER-bronsamenvatting; null voor een niet-XER-document. Permissie
+     * `importSource` vereist — dit is GEEN kern-API-methode: zonder de permissie gooit deze
+     * methode vóórdat er data gelezen wordt. Zie de permissie-uitleg hierboven en docs/extensions.md.
+     */
     getImportSourceInfo(): ExtImportSourceInfo | null;
-    /** Eén verse kopie van een retained XER-bronchunk; null voor een niet-XER-document. */
+    /**
+     * Eén verse kopie van een retained XER-bronchunk; null voor een niet-XER-document. Permissie
+     * `importSource` vereist.
+     */
     getImportSourceChunk(index: number): Uint8Array | null;
-    /** Pagineerbare, gekopieerde retained XER-catalogusdata; null voor een niet-XER-document. */
+    /**
+     * Pagineerbare, gekopieerde retained XER-catalogusdata; null voor een niet-XER-document.
+     * Permissie `importSource` vereist.
+     */
     getImportSourceCatalogPage(
       collection: ExtImportSourceCollection,
       options?: ExtImportSourcePageOptions,

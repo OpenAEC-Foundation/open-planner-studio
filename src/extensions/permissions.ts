@@ -30,7 +30,13 @@ export interface PermissionCheck {
  *   • importers.*         → 'backstage' (WARN) — compat: de gepubliceerde referentie-extensie
  *       registreert een importer zonder 'backstage' te declareren. Hard afdwingen zou bestaande,
  *       geïnstalleerde extensies breken; daarom nu warn-modus (deprecatiepad). Zie docs/extensions.md.
- *   • data.*, settings.*, ui.showNotification → null (kern-API, gedocumenteerd).
+ *   • data.getImportSource* → 'importSource' (hard, DEFAULT-DENY) — deze drie methoden geven de
+ *       volledige oorspronkelijke bronbytes van een geïmporteerd bestand terug (bv. de rauwe XER),
+ *       inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Dat is
+ *       wezenlijk breder dan de rest van `data.*` en dus expliciet GEEN kern-API — zie de
+ *       privacyparagraaf in docs/extensions.md. Zonder de permissie gooit de guard vóórdat de
+ *       onderliggende functie ooit wordt aangeroepen: er wordt geen enkele byte gelezen.
+ *   • overige data.*, settings.*, ui.showNotification → null (kern-API, gedocumenteerd).
  *
  * 'filesystem'/'network' staan bewust NIET in deze tabel: ze hebben geen API-oppervlak en zijn in
  * same-context JS niet technisch afdwingbaar. Ze zijn puur installatie-informatief (getoonde intentie),
@@ -70,6 +76,11 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'data.recalculate': null,
   'data.batch': null,
 
+  // Read-only XER-bronroute — hard, DEFAULT-DENY (P1-privacyfix; zie de uitleg hierboven).
+  'data.getImportSourceInfo': { perm: 'importSource', mode: 'throw' },
+  'data.getImportSourceChunk': { perm: 'importSource', mode: 'throw' },
+  'data.getImportSourceCatalogPage': { perm: 'importSource', mode: 'throw' },
+
   // Settings — kern-API.
   'settings.get': null,
   'settings.set': null,
@@ -83,6 +94,7 @@ export const KNOWN_PERMISSIONS: readonly ExtensionPermission[] = [
   'filesystem',
   'network',
   'pdf-fonts',
+  'importSource',
 ];
 
 /**
