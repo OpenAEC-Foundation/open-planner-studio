@@ -54,8 +54,8 @@ export async function readIFCWithXerReconstruction(
   labels: ImportLabels = {},
 ): Promise<ImportResult> {
   if (content.includes(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)) {
-    const { reconstructXerSourceArchiveFromBytes } = await import('@/services/xer/xerReader');
-    return readIFC(content, labels, { reconstructXerArchive: reconstructXerSourceArchiveFromBytes });
+    const { reconstructXerSourceFromBytes } = await import('@/services/xer/xerReader');
+    return readIFC(content, labels, { reconstructXerArchive: reconstructXerSourceFromBytes });
   }
   return readIFC(content, labels);
 }

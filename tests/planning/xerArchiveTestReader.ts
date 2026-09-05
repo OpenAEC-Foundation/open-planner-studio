@@ -3,8 +3,8 @@
 // reconstructor, zonder een verborgen module-initregistratie te herstellen.
 import { readIFC } from '@/services/ifc/ifcReader';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
-import { reconstructXerSourceArchiveFromBytes } from '@/services/xer/xerReader';
+import { reconstructXerSourceFromBytes } from '@/services/xer/xerReader';
 
 export function readXerArchiveIFC(content: string, labels: ImportLabels = {}): ImportResult {
-  return readIFC(content, labels, { reconstructXerArchive: reconstructXerSourceArchiveFromBytes });
+  return readIFC(content, labels, { reconstructXerArchive: reconstructXerSourceFromBytes });
 }
