@@ -2,9 +2,11 @@
 
 *Ontwerp, 2026-09-04. Opvolger van het voorstel
 [`2026-08-18-spec-taaktypes-effort-driven.md`](2026-08-18-spec-taaktypes-effort-driven.md)
-("ontwerp vóór bouw"). Status: **ontwerp, nog niet gebouwd.** Alleen documentatie; er is in deze
-ronde geen code aangeraakt. De contour-engine, de contour-UI en de fasen-editor (2026-09) zijn
-inmiddels geleverd en worden hier als bestaand fundament gebruikt.*
+("ontwerp vóór bouw"). Status: **ontwerp; bouwstap 3 (de pure rekenkern + de meetlat) is
+gebouwd op 2026-09-05, de overige stappen niet.** Stap 3 raakt alleen nieuwe bestanden en één
+regel in `tests/planning/run.sh`, dus de volgorde "XER merget eerst" (§10 stap 0) blijft intact.
+De contour-engine, de contour-UI en de fasen-editor (2026-09) zijn geleverd en worden hier als
+bestaand fundament gebruikt.*
 
 ## 0. Leeswijzer
 
@@ -517,10 +519,13 @@ toewijzingen (regel doet niets — ZEKER), materiaalresources (§4.3).
 
 ## 9. De meetlat: bewerkingen om later tegen MS Project te toetsen
 
-Vorm: een data-gedreven case-bestand `tests/planning/cases-taaktypes.json` in het stramien van
-`cases-progress.json` (ZEKER, dat stramien bestaat), met per case een uitgangssituatie, één
-bewerking, de verwachte uitkomst en een veld `evidence: 'reasoned' | 'documented' | 'measured'`.
-De suite draait de cases tegen de pure bewerkmodule (§10 stap 3) — géén UI. Zodra iemand een
+Vorm: een data-gedreven case-bestand `tests/planning/work-triangle-cases.json` (gebouwd; de naam
+mist bewust het `cases-`-prefix, want `run.sh` globt `cases-*.json` de CPM-harnas en een vaste
+batterij-inventaris in — ZEKER), met per case een resterende uitgangssituatie, één of meer
+bewerkingen, de verwachte uitkomst en een veld `evidence: 'documented' | 'reasoned' | 'decided'
+| 'measured'`. `tests/planning/check-work-triangle.ts` draait de cases tegen de pure
+bewerkmodule (§10 stap 3) — géén UI; de drie store-gebonden cases (22, 23, 28) telt hij en
+slaat hij over. Zodra iemand een
 meting in MS Project (of P6) heeft gedaan, wordt `evidence` `measured` en de verwachting eventueel
 gecorrigeerd. Uitgangssituatie tenzij anders vermeld: dagtaak, 8 uur/dag, 5 werkdagen, één
 werkresource op inzet 1,0 ⇒ werk 40 uur, niets verricht.
@@ -573,7 +578,7 @@ twee keer aan `formatRegistry.ts`, `ifcPsets.ts` en de contour-adapters wordt ge
 |---|---|---|
 | 1 | `WorkRule`, `Task.workRule`, `Project.defaultWorkRule`, de drie werkvelden; `DOCUMENT_FIELDS`; IFC-psets `OPS_WorkRule` + `OPS_AssignmentWork`; ext-contract alleen-lezen. **Geen gedrag.** | `check-ifc-roundtrip` (fixture + canon), `check-document-contract`, `verify:cycles`; elk bestaand bestand byte-identiek |
 | 2 | Importvertaling (§4.2) voor .mpp, MSPDI (incl. `<Type>`/`<EffortDriven>` lezen), P6 XML, XER; export MSPDI/P6 XML met de werkvelden; waarschuwingen | fidelity-poort blijft 0 (`GOAL_ZERO_DEVIATIONS`); `check-mpp-*`, `check-adapters-*`; nieuwe fixtures per bron |
-| 3 | Pure module `src/engine/work/workTriangle.ts`: `applyDurationEdit`, `applyUnitsEdit`, `applyWorkEdit`, `applyAssignmentAdded`, `applyAssignmentRemoved`, `applyRuleChange` — invoer: taak, toewijzingen, regel, `hoursPerDay`; uitvoer: patches, nooit een store. Plus `cases-taaktypes.json` (§9) | `tests/planning/check-work-triangle.ts` draait alle cases; `evidence` per case |
+| 3 **(gebouwd 2026-09-05)** | Pure module `src/engine/work/workTriangle.ts`: `applyDurationEdit`, `applyUnitsEdit`, `applyWorkEdit`, `applyTaskWorkEdit`, `applyAssignmentAdded`, `applyAssignmentRemoved`, `applyRuleChange` — invoer: de RESTERENDE toestand (`TriangleState`: regel, bewaard `effortDriven`, restduur in werkminuten, per toewijzing inzet + optioneel restwerk + `drivesDuration`), uitvoer: een nieuwe toestand of een weigering met reden; nooit een store. `WorkRule` in `src/types/workRule.ts` (verhuist in stap 1 naar `task.ts`). Plus `work-triangle-cases.json` (§9) | `tests/planning/check-work-triangle.ts`: 242 checks, 33 cases (20 documented, 11 reasoned, 2 decided, 0 measured) |
 | 4 | Bedrading: `taskSlice.updateTask` (R), `resourceSlice.updateAssignment` (I, W), `taskEditPlan`/`assignmentPlan` (raster), `createMcpTransactions` (MCP-tweeling — ZEKER dat die spiegel bestaat), `assignmentDayUnits` vierde bron (§6.1) | bestaande suites + `check-work-triangle` via de store; `cases-resource-load.json` uitgebreid |
 | 5 | UI: instelling, auto-ontsluiting + melding, paneel/dialoog, rasterkolommen, i18n 14 locales, gidsen nl+en (+12 vertalingen, anders faalt `verify:docs` niet maar is de functie onvindbaar) | `verify:i18n`, `verify:docs`, browserspec `tests/browser/work-rule.spec.ts` (echte toetsen/klikken, store-asserties) |
 | 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** | cases 4, 5, 9, 10, 15, 19, 20, 23, 29, 30 |
