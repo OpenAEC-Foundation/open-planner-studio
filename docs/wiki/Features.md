@@ -29,6 +29,11 @@ bridge and automatic updates.
   (from the library, project-only, or orphaned) and a library/project view toggle. See
   [Resource libraries](docs://gids-resourcebibliotheken) in the manual.
 - **Assignments** — assign resources to tasks, with time-phased max-units availability.
+- **Task types and work** — a work rule per task (fixed duration and units, fixed duration and
+  work, fixed work, fixed units — the MS Project task types and P6 duration types) decides which
+  corner of work = remaining duration × units moves when you edit another; remaining work per
+  assignment is editable in hours. Hidden by default; a file that already carries task types shows
+  them. See [Task types and work](docs://gids-taaktypes) in the manual.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
 - **Occupancy overview** — for multiple open projects drawing from the same library, a

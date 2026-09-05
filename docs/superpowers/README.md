@@ -67,7 +67,7 @@ Wél verplaatst, omdat ze nergens meer bij horen:
 | document | status |
 |---|---|
 | `HANDOFF-2026-08-14-roadmap.md` | **actief** — wat er nog op de roadmap staat, met peildatum en afhankelijkheden |
-| `specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` | **actief ontwerp, bouwstap 3 gebouwd** — taaktypes/werkregels, opgeslagen werk per toewijzing en effort-driven bewerken; opvolger van `specs/2026-08-18-spec-taaktypes-effort-driven.md`. Bevat de MSP/P6-documentatievergelijking, de regeltabel, de meetlat (31 bewerkingen) en alle eigenaarsbesluiten (1–10, genomen). De pure rekenkern (`src/engine/work/workTriangle.ts`) staat; de overige stappen bouwen pas ná de tweede XER-merge. |
+| `specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` | **gebouwd (stappen 1–7, 2026-09-05; stap 8 = afronding docs)** — taaktypes/werkregels, opgeslagen werk per toewijzing en effort-driven bewerken; opvolger van `specs/2026-08-18-spec-taaktypes-effort-driven.md`. Bevat de MSP/P6-documentatievergelijking, de regeltabel, de meetlat (31 bewerkingen), alle eigenaarsbesluiten (1–10) en per stap de status en de verwerkte reviewbevindingen (§10). Code: `src/engine/work/` (kern, brug, zichtbaarheid), bedrading in de slices/het raster/de MCP-tweeling, UI in `TaskWorkRuleField`/`TaskAssignmentsSection`, gids `gids-taaktypes`. Open punten staan in `docs/TODO.md`. |
 | `werkdagen-as-ontwerp.md` | naslag; aangehaald vanuit `timeAxis.ts`, `workdayAxis.ts` en `check-workday-axis.ts` |
 | `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | naslag; twee varianten van hetzelfde ontwerp |
 | `modulariteit-audit.md`, `prestatie-modulariteit-audit.md` | de audits waar de P-bevindingen uit komen; aangehaald vanuit testkoppen |
