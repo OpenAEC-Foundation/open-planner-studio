@@ -783,6 +783,7 @@
   "recordedDates": {
     "offer_other": "再計算により、{{total}} 件中 {{count}} 件のタスクがファイル内の日付からずれました。",
     "activeCount_other": "Primavera が記録したスケジュールを表示しています。再計算すると {{count}} 件のタスクがずれます。",
+    "activeCountNeutral_other": "ファイルに記録されている日付を表示しています。再計算すると {{count}} 件のタスクがずれます。",
     "show": "記録された日付を表示",
     "active": "ファイルに記録されている日付をそのまま表示しています。再計算は行われていません。",
     "recalculate": "再計算",

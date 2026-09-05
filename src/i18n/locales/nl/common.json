@@ -833,6 +833,8 @@
     "offer_other": "Herberekening verschoof {{count}} van de {{total}} taken ten opzichte van de datums in het bestand.",
     "activeCount_one": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt {{count}} taak af.",
     "activeCount_other": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijken {{count}} taken af.",
+    "activeCountNeutral_one": "Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijkt {{count}} taak af.",
+    "activeCountNeutral_other": "Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijken {{count}} taken af.",
     "show": "Opgeslagen datums tonen",
     "active": "Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.",
     "recalculate": "Herberekenen",

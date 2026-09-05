@@ -26,6 +26,7 @@ import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
+import { recordedDatesActiveKey } from '@/components/layout/recordedDatesNoticeText';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -506,6 +507,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7u bron-orakel + restverschillen ⇒ modus staat AAN meteen na laden', S().datesAsRecorded, true);
   truthy('7v recordedDates is gevuld', S().recordedDates !== null);
   eq('7w shifted telt de verschoven taak (b)', S().recordedDates?.shifted, 1);
+  eq('7w2 de vastlegging draagt de herkomst die de meldingstekst stuurt', S().recordedDates?.origin, 'xer');
   eq('7x scheduleStale is false in de modus (risico §5.1, expliciet gecontroleerd)', S().scheduleStale, false);
   truthy('7y cpmResult is de reconstructie (geen solve)', S().cpmResult !== null);
   eq('7z projectEnd komt uit het bestand (orakel), niet uit een herberekening', S().cpmResult?.projectEnd, '2026-03-20');
@@ -545,6 +547,8 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
     S().datesAsRecorded, false);
   truthy('7ah …maar het aanbod verschijnt wél', S().recordedDates !== null);
   eq('7ai …met dezelfde teller als de verse import (sectie 7u)', S().recordedDates?.shifted, 1);
+  eq('7ai2 …en draagt de archiefherkomst, dus óók de Primavera-tekst (sectie 14)',
+    S().recordedDates?.origin, 'xer-archive');
 }
 
 // ── (7C) Crashherstel raakt de #63-route NIET ────────────────────────────────────────────────
@@ -1063,6 +1067,53 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('13c het slapende document A wordt niet buiten zijn historygrens overschreven',
     sleepingA?.tasks.find(task => task.id === taskA)!.externalLinks![0].anchorDate, '2026-01-01');
   eq('13d de gebruiker blijft in document B', S().activeDocumentId, documentB);
+}
+
+// ── (14) De meldingstekst is BRONAFHANKELIJK ─────────────────────────────────────────────────
+// De MODUS-ACTIEF-strook zegt "zoals Primavera ze opsloeg". Die strook is echter gedeeld met de
+// #63-route voor elk ander formaat, waar niemand weet uit welk pakket de datums komen — daar is die
+// zin een verkeerde bewering. Twee helften:
+//  (a) de KEUZE (`recordedDatesActiveKey`, de React-vrije besluitmodule achter de component);
+//  (b) de INHOUD in alle veertien talen: de Primavera-familie noemt Primavera, de neutrale familie
+//      NIET — een vertaler die de zin kopieert wordt hier gepakt, in elke taal.
+{
+  eq('14a verse XER-import ⇒ Primavera-tekst', recordedDatesActiveKey('xer'), 'recordedDates.activeCount');
+  eq('14b heropende IFC met XER-archief ⇒ óók Primavera-tekst (de datums zijn echt van P6)',
+    recordedDatesActiveKey('xer-archive'), 'recordedDates.activeCount');
+  eq('14c zonder herkomst (de #63-route, elk ander formaat) ⇒ formaatneutrale tekst',
+    recordedDatesActiveKey(undefined), 'recordedDates.activeCountNeutral');
+
+  const kandidatenL = [
+    fileURLToPath(new URL('../../src/i18n/locales/', import.meta.url).href),
+    resolvePath(process.cwd(), 'src/i18n/locales'),
+  ];
+  const localesRoot = kandidatenL.find((p) => existsSync(p)) ?? null;
+  truthy(`14d de tekstcontrole vindt src/i18n/locales/ (geprobeerd: ${kandidatenL.join(', ')})`, localesRoot !== null);
+
+  if (localesRoot) {
+    const talen = readdirSync(localesRoot, { withFileTypes: true })
+      .filter((e) => e.isDirectory()).map((e) => e.name).sort();
+    eq('14e alle veertien talen worden gecontroleerd', talen.length, 14);
+
+    const zonderNeutraal: string[] = [];
+    const neutraalNoemtPrimavera: string[] = [];
+    const primaveraNoemtHetNiet: string[] = [];
+    for (const taal of talen) {
+      const json = JSON.parse(readFileSync(joinPath(localesRoot, taal, 'common.json'), 'utf8')) as
+        Record<string, Record<string, string>>;
+      const rd = json.recordedDates ?? {};
+      const primavera = Object.entries(rd).filter(([k]) => k.startsWith('activeCount_'));
+      const neutraal = Object.entries(rd).filter(([k]) => k.startsWith('activeCountNeutral_'));
+      if (neutraal.length === 0 || neutraal.length !== primavera.length) zonderNeutraal.push(taal);
+      if (neutraal.some(([, v]) => v.includes('Primavera'))) neutraalNoemtPrimavera.push(taal);
+      if (primavera.some(([, v]) => !v.includes('Primavera'))) primaveraNoemtHetNiet.push(taal);
+    }
+    eq('14f elke taal heeft de neutrale familie met exact dezelfde pluralvormen als de Primavera-familie',
+      zonderNeutraal, []);
+    eq('14g de NEUTRALE tekst noemt Primavera in geen enkele taal', neutraalNoemtPrimavera, []);
+    eq('14h de Primavera-tekst noemt Primavera juist WEL in elke taal (anders bewijst 14g niets)',
+      primaveraNoemtHetNiet, []);
+  }
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

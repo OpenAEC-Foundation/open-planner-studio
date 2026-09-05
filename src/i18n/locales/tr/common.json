@@ -810,6 +810,8 @@
     "offer_other": "Yeniden hesaplama, dosyadaki tarihlere göre {{total}} görevden {{count}} tanesini kaydırdı.",
     "activeCount_one": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
     "activeCount_other": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
+    "activeCountNeutral_one": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
+    "activeCountNeutral_other": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
     "show": "Kaydedilen tarihleri göster",
     "active": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz. Herhangi bir yeniden hesaplama yapılmadı.",
     "recalculate": "Yeniden hesapla",

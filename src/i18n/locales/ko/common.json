@@ -783,6 +783,7 @@
   "recordedDates": {
     "offer_other": "다시 계산으로 인해 {{total}}개 작업 중 {{count}}개가 파일에 기록된 날짜에서 벗어났습니다.",
     "activeCount_other": "Primavera에 기록된 일정을 보고 있습니다. 다시 계산하면 {{count}}개의 작업이 이동합니다.",
+    "activeCountNeutral_other": "파일에 기록된 날짜를 보고 있습니다. 다시 계산하면 {{count}}개의 작업이 이동합니다.",
     "show": "기록된 날짜 표시",
     "active": "파일에 기록된 날짜를 그대로 보고 있습니다. 다시 계산되지 않았습니다.",
     "recalculate": "다시 계산",

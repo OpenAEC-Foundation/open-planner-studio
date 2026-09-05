@@ -833,6 +833,8 @@
     "offer_other": "Recalculation moved {{count}} of {{total}} tasks away from the dates in the file.",
     "activeCount_one": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} task.",
     "activeCount_other": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} tasks.",
+    "activeCountNeutral_one": "You're viewing the dates as recorded in the file; recalculating would shift {{count}} task.",
+    "activeCountNeutral_other": "You're viewing the dates as recorded in the file; recalculating would shift {{count}} tasks.",
     "show": "Show recorded dates",
     "active": "You're viewing the dates as recorded in the file. Nothing has been recalculated.",
     "recalculate": "Recalculate",

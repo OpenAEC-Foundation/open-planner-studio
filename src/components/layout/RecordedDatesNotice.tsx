@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CircleDot, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { recordedDatesActiveKey } from './recordedDatesNoticeText';
 
 /**
  * Strook voor "datums zoals opgeslagen" (issue #63). Naar het model van `DependencyModeNotice`
@@ -33,6 +34,10 @@ export function RecordedDatesNotice() {
     // `recordedDates` pas bij het VERLATEN van de modus (zelfde producer als `datesAsRecorded`),
     // dus in de praktijk is `recordedDates` hier altijd gevuld; de terugval op de tellerloze
     // `recordedDates.active` is defensief.
+    //
+    // Tekstcorrectie (T8, 2026-09-05): de strook is GEDEELD met de #63-route voor elk ander formaat
+    // (IFC/CSV/MSPDI/MPP/P6XML), waar "Primavera" een verkeerde bewering zou zijn. De keuze zelf
+    // staat in de React-vrije `recordedDatesActiveKey` zodat ze headless getest kan worden.
     return (
       <div
         className="flex items-center gap-3 px-4 py-2 text-xs border-b border-border"
@@ -43,7 +48,7 @@ export function RecordedDatesNotice() {
         <CircleDot size={14} className="shrink-0 text-accent" />
         <span className="flex-1">
           {recordedDates
-            ? t('recordedDates.activeCount', { count: recordedDates.shifted })
+            ? t(recordedDatesActiveKey(recordedDates.origin), { count: recordedDates.shifted })
             : t('recordedDates.active')}
         </span>
         <button

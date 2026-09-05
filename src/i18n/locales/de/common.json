@@ -810,6 +810,8 @@
     "offer_other": "Die Neuberechnung hat {{count}} von {{total}} Vorgängen gegenüber den Terminen in der Datei verschoben.",
     "activeCount_one": "Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde {{count}} Vorgang verschieben.",
     "activeCount_other": "Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde {{count}} Vorgänge verschieben.",
+    "activeCountNeutral_one": "Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind; eine Neuberechnung würde {{count}} Vorgang verschieben.",
+    "activeCountNeutral_other": "Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind; eine Neuberechnung würde {{count}} Vorgänge verschieben.",
     "show": "Aufgezeichnete Termine anzeigen",
     "active": "Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind. Es wurde nicht neu berechnet.",
     "recalculate": "Neu berechnen",
