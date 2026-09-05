@@ -1,6 +1,6 @@
 /** TASKRSRC-mapping met veldspecifieke P6-schalen en bron-id-indexen. */
 
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type {
   XerAssignmentCostsSource, XerAssignmentQuantitiesSource, XerAssignmentUnitScale,
   XerReadonly, XerResourceCurveSource, XerResourceIssue, XerResourceRateSource,
@@ -11,6 +11,8 @@ import {
   deriveXerAssignmentSkipExpectation,
   xerAssignmentSourceId,
 } from './xerAssignmentProvenance';
+import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
+import { P6_NAME_TO_CURVE } from '@/services/p6/p6xmlWriter';
 
 // MPXJ's XerUnitsHelper gebruikt 1.000.000 als afrondingsprecisie voor P6-werkhoeveelheden.
 // Dit is geen deler voor *_qty_per_hr: OPS gebruikt daar net als XER 1 = 100%.
@@ -75,6 +77,22 @@ function assertUniqueAssignmentIds(rows: readonly XerRow[]): void {
     firstLineById.set(sourceId, row.line);
   }
 }
+/**
+ * OPS-curve + exacte 21-punts data voor een toewijzing, uit haar gekoppelde RSRCCURVDATA-bron —
+ * zelfde contract als `p6xmlReader.ts`'s `<ResourceCurve>`-afhandeling: de contour-engine is de
+ * ENIGE curvemapping (geen eigen XER-best-fit meer). `matchCurveValues` doet de exacte tabelmatch;
+ * `P6_NAME_TO_CURVE[curv_name]` is de terugval voor een P6-curve die geen van de acht OPS-tabellen
+ * exact raakt (afgeronde/eigen P6-punten met een herkenbare P6-naam). Een vlakke curve is geen
+ * curve (spiegelt `p6xmlReader.ts`): geen `curve`, geen `curveValues`.
+ */
+function curveOf(curve: XerReadonly<XerResourceCurveSource> | undefined): { curve?: ResourceCurve; curveValues?: number[] } {
+  if (!curve?.numericPoints) return {};
+  const values = normalizeCurveValues(curve.numericPoints);
+  if (!values || isFlatCurveValues(values)) return {};
+  const matched = matchCurveValues(values) ?? P6_NAME_TO_CURVE[curve.name];
+  return { ...(matched ? { curve: matched } : {}), curveValues: values };
+}
+
 function assignmentRate(quantities: XerAssignmentQuantitiesSource): number {
   if ((quantities.targetPerHour ?? 0) > 0) return quantities.targetPerHour as number;
   return quantities.remainingPerHour ?? quantities.targetPerHour ?? 0;
@@ -200,8 +218,9 @@ export function readXerResourceAssignments(
     const curveSourceId = row.cells.curv_id?.trim() || undefined;
     const curve = curveSourceId ? curveById.get(curveSourceId) : undefined;
     if (curveSourceId && !curve) issues.push({ code: 'XER_ASSIGNMENT_CURVE_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'UNIFORM' });
+    const { curve: opsCurve, curveValues } = curveOf(curve);
     assignments.push({ id: `xer-assignment:${sourceId}`, taskId: taskSourceId, resourceId: resource.id, unitsPerDay: scaled.value,
-      ...(curve?.bestFit && curve.bestFit !== 'UNIFORM' ? { curve: curve.bestFit } : {}) });
+      ...(opsCurve ? { curve: opsCurve } : {}), ...(curveValues ? { curveValues } : {}) });
   }
   return { assignments, roleResources: Array.from(roleResourceById.values()), sources, issues };
 }

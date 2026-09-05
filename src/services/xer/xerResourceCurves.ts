@@ -1,72 +1,13 @@
-/** XER-resourcecurves: rauwe 21-puntsbrondata plus een niet-destructieve OPS-best-fit. */
+/** XER-resourcecurves: rauwe 21-puntsbrondata (RSRCCURVDATA `pct_usage_0..pct_usage_20`), niet-
+ *  destructief bewaard. De OPS-curve/`curveValues` van een toewijzing worden pas in
+ *  `xerResourceAssignments.ts` afgeleid, via de contour-engine (`normalizeCurveValues`/
+ *  `matchCurveValues`) — deze module levert alleen de gevalideerde rauwe punten. */
 
-import type { ResourceCurve } from '@/types/resource';
 import type { XerCurvePoints, XerResourceCurveSource, XerResourceIssue } from './xerResourceTypes';
+import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
 
-/** De curve-families waartegen de XER-best-fit meet. Bewust NIET heel `ResourceCurve`: de
- *  contour-engine (2026-09) breidde dat type uit met `DOUBLE_PEAK`/`TURTLE`, twee vormen die
- *  alleen als MS Project-/P6-tabel bestaan en geen controlepunten-profiel hebben. De XER-best-fit
- *  blijft daarom op deze zes families passen; de exacte 21-puntsbron blijft naast de best-fit
- *  bewaard, dus er gaat niets verloren. */
-type XerCurveFamily = Extract<
-  ResourceCurve, 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK'
->;
-
-const CURVE_FAMILIES: readonly XerCurveFamily[] = [
-  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK',
-];
 const CURVE_FIELDS = Array.from({ length: 21 }, (_, index) => `pct_usage_${index}`);
-
-function interpolate(points: readonly (readonly [number, number])[], t: number): number {
-  for (let index = 0; index < points.length - 1; index++) {
-    const [leftT, leftWeight] = points[index];
-    const [rightT, rightWeight] = points[index + 1];
-    if (t < leftT || t > rightT) continue;
-    const fraction = rightT === leftT ? 0 : (t - leftT) / (rightT - leftT);
-    return leftWeight + fraction * (rightWeight - leftWeight);
-  }
-  return points[points.length - 1][1];
-}
-
-function familyProfile(curve: XerCurveFamily): number[] {
-  const controls: Record<XerCurveFamily, readonly (readonly [number, number])[]> = {
-    UNIFORM: [[0, 1], [1, 1]],
-    FRONT_LOADED: [[0, 1], [1, 0.2]],
-    BACK_LOADED: [[0, 0.2], [1, 1]],
-    BELL: [[0, 0.2], [0.5, 1], [1, 0.2]],
-    EARLY_PEAK: [[0, 0.2], [1 / 3, 1], [1, 0.2]],
-    LATE_PEAK: [[0, 0.2], [2 / 3, 1], [1, 0.2]],
-  };
-  return Array.from({ length: 21 }, (_, index) => interpolate(controls[curve], index / 20));
-}
-
-function normalized(points: readonly number[]): number[] | undefined {
-  if (points.length !== 21 || points.some(point => !Number.isFinite(point) || point < 0 || point > 100)) return undefined;
-  const total = points.reduce((sum, point) => sum + point, 0);
-  return total > 0 ? points.map(point => point / total) : undefined;
-}
-
-/** Kies de kleinste mean-squared error; normalisatie wijzigt de bewaarde bronpunten niet. */
-export function bestFitXerCurve(points: readonly number[]): ResourceCurve | undefined {
-  const observed = normalized(points);
-  if (!observed) return undefined;
-  let best: ResourceCurve | undefined;
-  let bestError = Number.POSITIVE_INFINITY;
-  for (const family of CURVE_FAMILIES) {
-    const candidate = normalized(familyProfile(family));
-    if (!candidate) continue;
-    const error = observed.reduce((sum, point, index) => {
-      const delta = point - candidate[index];
-      return sum + delta * delta;
-    }, 0) / observed.length;
-    if (error < bestError) {
-      best = family;
-      bestError = error;
-    }
-  }
-  return best;
-}
 
 function asCurveTuple<T>(points: readonly T[]): XerCurvePoints<T> {
   return points as XerCurvePoints<T>;
@@ -105,18 +46,16 @@ export function readXerResourceCurves(tables: XerTables): {
     let numericPoints: XerCurvePoints<number> | undefined;
     try {
       const parsed = rawPoints.map(point => parseXerNumber(point, tables.numberFormat));
-      if (parsed.every((point): point is number => point !== null)) {
-        const candidate = asCurveTuple(parsed);
-        if (bestFitXerCurve(candidate) !== undefined) numericPoints = candidate;
+      if (parsed.every((point): point is number => point !== null) && normalizeCurveValues(parsed)) {
+        numericPoints = asCurveTuple(parsed);
       }
     } catch {
       // De curvelaag bewaart de tokens en rapporteert één rijgebonden fallback.
     }
-    const bestFit = numericPoints ? bestFitXerCurve(numericPoints) : undefined;
     sources.push({ rawRow: row, sourceId, internalId: `xer-curve:${sourceId}`, line: row.line,
       name: row.cells.curv_name?.trim() ?? '', rawPoints,
-      ...(numericPoints ? { numericPoints } : {}), ...(bestFit ? { bestFit } : {}) });
-    if (!numericPoints || !bestFit) {
+      ...(numericPoints ? { numericPoints } : {}) });
+    if (!numericPoints) {
       issues.push({ code: 'XER_CURVE_INVALID_POINTS', table: 'RSRCCURVDATA', line: row.line,
         sourceId, fallback: 'UNIFORM' });
     }

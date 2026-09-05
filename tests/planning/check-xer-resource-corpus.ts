@@ -52,7 +52,7 @@ interface DirectRate {
   maxUnitsPerTime: number | null;
   costs: Array<number | null>;
 }
-interface DirectCurve { sourceId: string; rawPoints: string[]; bestFit?: string; }
+interface DirectCurve { sourceId: string; rawPoints: string[]; numericPoints?: number[]; }
 interface DirectScan {
   projectId: string;
   resources: number;
@@ -126,39 +126,20 @@ function sourceNumber(raw: string | undefined, format: { decimal: '.' | ','; gro
   if (!Number.isFinite(parsed)) throw new Error(`Onafhankelijke scanner kreeg ongeldig getal ${JSON.stringify(value)}`);
   return parsed;
 }
-function curveBestFit(points: readonly string[], format: { decimal: '.' | ','; group: '.' | ',' | null }): string | undefined {
+/** Onafhankelijke tegenhanger van `normalizeCurveValues` (contourEngine.ts): 21 eindige,
+ *  niet-negatieve punten met een positieve som over de indices 1..20, of `undefined`. Sinds de
+ *  contour-engine-etappe is dit de ENIGE validatie die de productiecode nog doet (geen
+ *  eigen XER-curve-familie-best-fit meer — die is verwijderd, zie xerResourceCurves.ts). */
+function curveNumericPoints(points: readonly string[], format: { decimal: '.' | ','; group: '.' | ',' | null }): number[] | undefined {
+  if (points.length !== 21) return undefined;
   const values: number[] = [];
   for (const point of points) {
     const value = sourceNumber(point, format);
-    if (value === null || value < 0 || value > 100) return undefined;
+    if (value === null || !Number.isFinite(value) || value < 0) return undefined;
     values.push(value);
   }
-  if (values.length !== 21) return undefined;
-  const total = values.reduce((sum, point) => sum + point, 0);
-  if (total === 0) return undefined;
-  const controls: Readonly<Record<string, ReadonlyArray<readonly [number, number]>>> = {
-    UNIFORM: [[0, 1], [1, 1]], FRONT_LOADED: [[0, 1], [1, 0.2]], BACK_LOADED: [[0, 0.2], [1, 1]],
-    BELL: [[0, 0.2], [0.5, 1], [1, 0.2]], EARLY_PEAK: [[0, 0.2], [1 / 3, 1], [1, 0.2]], LATE_PEAK: [[0, 0.2], [2 / 3, 1], [1, 0.2]],
-  };
-  const observed = values.map(point => point / total);
-  let best: string | undefined;
-  let bestError = Number.POSITIVE_INFINITY;
-  for (const [family, pointsForFamily] of Object.entries(controls)) {
-    const profile = Array.from({ length: 21 }, (_, index) => {
-      const at = index / 20;
-      for (let control = 0; control < pointsForFamily.length - 1; control++) {
-        const [leftAt, leftWeight] = pointsForFamily[control];
-        const [rightAt, rightWeight] = pointsForFamily[control + 1];
-        if (at < leftAt || at > rightAt) continue;
-        return leftWeight + (rightWeight - leftWeight) * ((at - leftAt) / (rightAt - leftAt));
-      }
-      return pointsForFamily[pointsForFamily.length - 1][1];
-    });
-    const profileTotal = profile.reduce((sum, point) => sum + point, 0);
-    const error = observed.reduce((sum, point, index) => sum + (point - profile[index] / profileTotal) ** 2, 0) / observed.length;
-    if (error < bestError) { best = family; bestError = error; }
-  }
-  return best;
+  const sum = values.slice(1).reduce((total, point) => total + point, 0);
+  return sum > 0 ? values : undefined;
 }
 function scan(bytes: Uint8Array): DirectScan {
   const text = new TextDecoder().decode(bytes);
@@ -202,8 +183,8 @@ function scan(bytes: Uint8Array): DirectScan {
     materialAssignments: assignmentRows.filter(row => resourceTypes.get(row.rsrc_id) === 'rt_mat').length,
     curves: (rows.get('RSRCCURVDATA') ?? []).map(row => {
       const rawPoints = Array.from({ length: 21 }, (_, index) => row[`pct_usage_${index}`] ?? '');
-      const bestFit = curveBestFit(rawPoints, format);
-      return { sourceId: row.curv_id || '', rawPoints, ...(bestFit ? { bestFit } : {}) };
+      const numericPoints = curveNumericPoints(rawPoints, format);
+      return { sourceId: row.curv_id || '', rawPoints, ...(numericPoints ? { numericPoints } : {}) };
     }),
     roles: roles.length,
     resourceCalendars: resources.map(row => ({ sourceId: row.rsrc_id || '', ...(row.clndr_id?.trim() ? { calendarSourceId: row.clndr_id.trim() } : {}) })),
@@ -255,7 +236,7 @@ else {
     eq(`${digest}: resourcekalenderverwijzingen volgen de directe RSRC-scan`, catalog.rows.resources.map(row => ({ sourceId: row.sourceId, ...(row.calendarSourceId ? { calendarSourceId: row.calendarSourceId } : {}) })), source.resourceCalendars);
     eq(`${digest}: projectpartitie bevat alleen de directe TASKRSRC-projectview`, materialized.sources.assignments.map(row => ({ sourceId: row.sourceId, taskId: row.taskSourceId, entityKind: row.entity.kind, entitySourceId: row.entity.sourceId })), source.assignments);
     eq(`${digest}: role-only TASKRSRC blijft role-only`, materialized.sources.assignments.filter(row => row.entity.kind === 'ROLE').map(row => row.sourceId), source.assignments.filter(row => row.entityKind === 'ROLE').map(row => row.sourceId));
-    eq(`${digest}: 21 curvepunten en onafhankelijke best-fit blijven behouden`, catalog.rows.curves.map(curve => ({ sourceId: curve.sourceId, rawPoints: [...curve.rawPoints], ...(curve.bestFit ? { bestFit: curve.bestFit } : {}) })), source.curves);
+    eq(`${digest}: 21 curvepunten en onafhankelijke normalisatievalidatie blijven behouden`, catalog.rows.curves.map(curve => ({ sourceId: curve.sourceId, rawPoints: [...curve.rawPoints], ...(curve.numericPoints ? { numericPoints: [...curve.numericPoints] } : {}) })), source.curves);
     const rawRowByAssignmentId = new Map(catalog.rows.assignments.map(row => [row.cells.taskrsrc_id, row]));
     eq(`${digest}: iedere projectbron behoudt de catalogus-raw-rowidentiteit`, materialized.sources.assignments.every(sourceAssignment => sourceAssignment.rawRow === rawRowByAssignmentId.get(sourceAssignment.sourceId)), true);
     eq(`${digest}: retained raw TASKRSRC-telling is volledig vóór projectfilter`, catalog.rows.assignments.map(row => row.cells.taskrsrc_id), source.rawAssignmentIds);

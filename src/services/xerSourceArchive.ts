@@ -837,7 +837,7 @@ function validateRateSource(value: unknown, path: string): void {
 
 function validateCurveSource(value: unknown, path: string): void {
   const source = objectOf(value, path);
-  exactKeys(source, ['rawRow', 'sourceId', 'internalId', 'line', 'name', 'rawPoints', 'numericPoints', 'bestFit'], path);
+  exactKeys(source, ['rawRow', 'sourceId', 'internalId', 'line', 'name', 'rawPoints', 'numericPoints'], path);
   validateSourceRow(source.rawRow, `${path}.rawRow`);
   for (const key of ['sourceId', 'internalId', 'name'] as const) stringOf(source[key], `${path}.${key}`);
   nonNegativeInteger(source.line, `${path}.line`);
@@ -849,8 +849,6 @@ function validateCurveSource(value: unknown, path: string): void {
     if (numericPoints.length !== 21) invalid(`${path}.numericPoints is geen tuple van lengte 21`);
     numericPoints.forEach((point, index) => finiteNumber(point, `${path}.numericPoints[${index}]`));
   }
-  if (source.bestFit !== undefined) oneOf(source.bestFit,
-    ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'], `${path}.bestFit`);
 }
 
 function validateTaskResourceSource(value: unknown, path: string): void {
