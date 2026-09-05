@@ -1,5 +1,4 @@
-// B1c-plan3 taak 9 — de FASESTROOK van één document in de verdeeldialoog (spec §6, minus het
-// pointer-slepen: dat is taak 10).
+// B1c-plan3 taak 9/10 — de FASESTROOK van één document in de verdeeldialoog (spec §6).
 //
 // WAT DE STROOK TOONT. Eén SVG-rij op de GEDEELDE tijdas (`occupancyAxis.ts` — dezelfde as als het
 // histogram in het bezettingsoverzicht, zodat een strook en dat histogram per constructie boven
@@ -25,7 +24,25 @@
 // WAAROM `ceiling ?? endShiftWorkdays` HET STAPPUNT IS. Een onbegrensd plafond is geen getal op de
 // as maar de End-stand; de handle staat dan visueel aan het einde van wat er BENUT wordt. Een
 // pijltje pakt hem dus op waar hij staat. Dat is ook de enige lezing waarin de handle niet
-// verspringt op het moment dat je hem voor het eerst aanraakt.
+// verspringt op het moment dat je hem voor het eerst aanraakt. De pointer-route (taak 10) deelt
+// hetzelfde stappunt — één definitie voor toetsenbord én muis.
+//
+// POINTER-SLEPEN (taak 10, spec §6/§3.4). `setPointerCapture` op de handle zelf, GEEN document-brede
+// listener: het slepen loopt door zodra de muis het element verlaat (zoals `ContourPhaseStrip.tsx`
+// dat ook doet), en stopt gegarandeerd op pointerup/pointercancel zonder dat er iets kan "vastplakken".
+// Tijdens het slepen is er een LOKALE `dragValue` — de aria-valuenow, de plafondtekst en de
+// handlepositie volgen die waarde live, maar `endEffectText` (het label bij `data-ops-distribution-
+// effect`) blijft het effect van de vorige, WÉL doorgerekende stand tonen: dat klopt, want het effect
+// van de nieuwe stand is nog niet berekend (§3.4, "nooit per sleep-pixel"). Pas op pointerup gaat de
+// waarde via `onCeilingChange` de ui-state in — hetzelfde discrete rekenmoment als een toetsaanslag of
+// de pin-knop, en in de gedegradeerde modus dus ook: de waarde wordt gezet, er wordt niet doorgerekend.
+// Snappen op hele werkdagen: de sleepafstand in pixels deelt door `dayWidth` en rondt af — dezelfde
+// dayWidth-per-werkdag-conventie die de tekenpositie van de staart/handle hierboven al gebruikt (taak
+// 9); een tweede, kalenderdaggetrouwe omrekening zou de handle tijdens het slepen van zijn eigen
+// getekende positie laten afwijken. Een zuivere klik (pointerdown/-up zonder tussenliggende move)
+// commit NIETS: anders zou een klik op een onbegrensde handle 'm stiekem naar een concreet getal
+// verzetten.
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pin } from 'lucide-react';
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
@@ -72,6 +89,12 @@ export function PhaseStrip({
 }: PhaseStripProps) {
   const { t } = useTranslation('common');
 
+  // Sleepstate (taak 10): `dragRef` is de ene bron van waarheid TIJDENS het slepen (geen staleness
+  // over event-grenzen heen), `dragValue` is de renderbare afgeleide ervan. Niet-`null` ⇒ er wordt nu
+  // gesleept; zie het moduleblok hierboven voor waarom effect/plafond dan uit elkaar lopen.
+  const dragRef = useRef<{ pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number } | null>(null);
+  const [dragValue, setDragValue] = useState<number | null>(null);
+
   const dayWidth = axis?.dayWidth ?? 0;
   const stripWidth = axis?.width ?? AXIS.padLeft + 200;
   const yOf = (units: number) =>
@@ -106,24 +129,27 @@ export function PhaseStrip({
 
   // Rechterrand van de benutte boeking; de handle en de staart hangen daaraan.
   const usedEndX = lastBookedX === null ? AXIS.padLeft : lastBookedX + dayWidth;
-  // Het plafond ligt `ceiling - benutte uitloop` werkdagen voorbij die rand (kan negatief zijn:
-  // een plafond dat krapper is dan wat er nu benut wordt — dan valt de handle ín de strook).
-  const tailWorkdays = ceiling === null ? 0 : ceiling - endShiftWorkdays;
+  // Tijdens het slepen toont de handle de LOKALE waarde, niet het gecommitte plafond — zie het
+  // moduleblok. Buiten het slepen is dat gewoon `ceiling`.
+  const displayCeiling = dragValue !== null ? dragValue : ceiling;
+  // Het plafond ligt `displayCeiling - benutte uitloop` werkdagen voorbij die rand (kan negatief
+  // zijn: een plafond dat krapper is dan wat er nu benut wordt — dan valt de handle ín de strook).
+  const tailWorkdays = displayCeiling === null ? 0 : displayCeiling - endShiftWorkdays;
   const handleX = Math.max(
     AXIS.padLeft,
     Math.min(stripWidth - AXIS.padRight, usedEndX + tailWorkdays * dayWidth),
   );
 
-  const ceilingText = ceiling === null
+  const ceilingText = displayCeiling === null
     ? t('resource.distribution.strip.ceilingUnlimited')
-    : t('resource.distribution.strip.ceilingDays', { count: ceiling });
+    : t('resource.distribution.strip.ceilingDays', { count: displayCeiling });
   const endEffectText = endShiftWorkdays === 0
     ? t('resource.distribution.strip.endUnchanged')
     : t('resource.distribution.strip.endShift', { count: endShiftWorkdays });
   // "Toegestaan maar niet benut" (§6): pas melden zodra er echt ruimte overblijft.
-  const achievableText = ceiling !== null && endShiftWorkdays < ceiling
+  const achievableText = displayCeiling !== null && endShiftWorkdays < displayCeiling
     ? t('resource.distribution.strip.requestedVsAchievable', {
-        requested: ceiling, achievable: endShiftWorkdays,
+        requested: displayCeiling, achievable: endShiftWorkdays,
       })
     : null;
   // Gedegradeerd overzicht (§3.4): de waarde is gezet, maar er is niet doorgerekend — dan zou het
@@ -153,11 +179,51 @@ export function PhaseStrip({
     onCeilingChange(next);
   };
 
+  // Pointer-slepen (taak 10): `setPointerCapture` op de handle zelf — geen document-brede listener,
+  // zie het moduleblok. Alleen ÉÉN actieve pointer per handle: een tweede pointerdown terwijl er al
+  // gesleept wordt (multitouch) wordt genegeerd zolang de eerste nog loopt.
+  const onHandlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (pinned || dragRef.current) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase, moved: false, value: stepBase };
+    setDragValue(stepBase);
+  };
+
+  const onHandlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    drag.moved = true;
+    if (dayWidth <= 0) return;
+    // Snappen op hele werkdagen: zie het moduleblok voor de dayWidth-per-werkdag-conventie.
+    const deltaWorkdays = Math.round((event.clientX - drag.startX) / dayWidth);
+    drag.value = clamp(drag.startCeiling + deltaWorkdays);
+    setDragValue(drag.value);
+  };
+
+  const onHandlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    setDragValue(null);
+    // DISCREET rekenmoment (§3.4): een zuivere klik (geen tussenliggende move) commit niets — zie
+    // het moduleblok.
+    if (drag.moved) onCeilingChange(drag.value);
+  };
+
+  const onHandlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setDragValue(null);
+  };
+
   return (
     <div
       className="flex flex-col gap-1 px-2 py-1.5 rounded-[8px] border border-border-light"
       data-ops-distribution-strip
       data-ops-doc-id={docId}
+      data-ops-distribution-day-width={dayWidth}
       {...(pinned ? { 'data-ops-distribution-pinned': 'true' } : {})}
     >
       <div className="flex items-center gap-2">
@@ -245,11 +311,15 @@ export function PhaseStrip({
             aria-label={t('resource.distribution.strip.handleLabel', { doc: title })}
             aria-valuemin={0}
             aria-valuemax={CEILING_MAX_WORKDAYS}
-            aria-valuenow={ceiling ?? CEILING_MAX_WORKDAYS}
+            aria-valuenow={displayCeiling ?? CEILING_MAX_WORKDAYS}
             aria-valuetext={valueText}
             aria-disabled={pinned || undefined}
             title={t('resource.distribution.strip.ceiling')}
             onKeyDown={onHandleKey}
+            onPointerDown={onHandlePointerDown}
+            onPointerMove={onHandlePointerMove}
+            onPointerUp={onHandlePointerUp}
+            onPointerCancel={onHandlePointerCancel}
             data-ops-distribution-handle
             className="absolute rounded-[2px]"
             style={{
@@ -260,6 +330,7 @@ export function PhaseStrip({
               background: pinned ? 'var(--theme-text-dim)' : 'var(--theme-accent)',
               cursor: pinned ? 'not-allowed' : 'ew-resize',
               opacity: pinned ? 0.5 : 1,
+              touchAction: 'none',
             }}
           />
         </div>

@@ -6,11 +6,19 @@
 // gewoon zichtbaar ONDER de dialoog — de verdeling is een handeling óp dat overzicht, geen
 // vervanging ervan.
 //
-// WAT HIER (NOG) NIET STAAT. Taak 10 maakt de plafondhandle van de fasestroken sleepbaar met de
-// pointer (het toetsenbord is er al, zie `PhaseStrip`); taak 11 vult het voor/na-histogram. Taak 12
-// bedraadt "Toepassen" op `applyDistribution`. Tot dan staat de knop er wél, maar uitgeschakeld MET
-// REDEN — een knop die er niet is laat de gebruiker raden of de functie bestaat.
-import { useMemo } from 'react';
+// WAT HIER (NOG) NIET STAAT. Taak 11 vult het voor/na-histogram. Taak 12 bedraadt "Toepassen" op
+// `applyDistribution`. Tot dan staat de knop er wél, maar uitgeschakeld MET REDEN — een knop die er
+// niet is laat de gebruiker raden of de functie bestaat.
+//
+// RANGORDE MET DE MUIS (taak 10, spec §4 stap 1). Native HTML5 drag-and-drop — hetzelfde mechanisme
+// als `DataGridHeader`'s kolomherordening (`draggable` + `onDragStart`/`onDragOver`/`onDrop`), niet
+// een tweede pointer-events-sleepmechaniek erbij. De lijst is klein en niet virtualized, dus een
+// per-rij `onDragOver`/`onDrop` volstaat hier — de window-brede dragover/drop-vangnet-luisteraars die
+// de kolomkop nodig heeft (voor een sleep die de headerrij verlaat) zijn voor een rangordelijst met
+// eigen scrolgebied niet nodig. De "naar boven/beneden"-knoppen (`move`) blijven de toetsenbordroute
+// en het testanker; slepen (`reorderTo`) roept dezelfde `setUI` aan, dus een herordening met de muis
+// zet net als de knoppen `staleReason = 'rank'` via `diffReason` in `useDistributionProposal`.
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -62,6 +70,25 @@ export function DistributionDialog() {
     const to = from + delta;
     if (from < 0 || to < 0 || to >= order.length) return;
     [order[from], order[to]] = [order[to], order[from]];
+    setUI({ levelingDistribution: { ...tune, order } });
+  };
+
+  // Slepen (zie het moduleblok): `draggedDocId` is de rij die vastgehouden wordt, `dropTarget` de
+  // rij + plaatsing (boven/onder de rijmidden) waar hij op dit moment op zou landen — puur voor
+  // visuele feedback tijdens het slepen, `reorderTo` op `onDrop` is het enige commit-moment.
+  const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ docId: string; placement: 'before' | 'after' } | null>(null);
+
+  const reorderTo = (docId: string, targetDocId: string, placement: 'before' | 'after') => {
+    if (!tune || docId === targetDocId) return;
+    const order = rankRows.map(row => row.docId);
+    const from = order.indexOf(docId);
+    if (from < 0) return;
+    order.splice(from, 1);
+    let to = order.indexOf(targetDocId);
+    if (to < 0) return;
+    if (placement === 'after') to += 1;
+    order.splice(to, 0, docId);
     setUI({ levelingDistribution: { ...tune, order } });
   };
 
@@ -247,6 +274,36 @@ export function DistributionDialog() {
                     className="flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0"
                     data-ops-distribution-rank-row
                     data-ops-doc-id={row.docId}
+                    draggable
+                    data-ops-distribution-rank-dragging={draggedDocId === row.docId ? 'true' : undefined}
+                    data-ops-distribution-rank-drop-before={
+                      dropTarget?.docId === row.docId && dropTarget.placement === 'before' ? 'true' : undefined
+                    }
+                    data-ops-distribution-rank-drop-after={
+                      dropTarget?.docId === row.docId && dropTarget.placement === 'after' ? 'true' : undefined
+                    }
+                    onDragStart={event => {
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', row.docId);
+                      setDraggedDocId(row.docId);
+                    }}
+                    onDragOver={event => {
+                      if (draggedDocId === null || draggedDocId === row.docId) return;
+                      event.preventDefault();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      const placement: 'before' | 'after' = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+                      setDropTarget({ docId: row.docId, placement });
+                    }}
+                    onDrop={event => {
+                      event.preventDefault();
+                      if (draggedDocId !== null && dropTarget !== null) reorderTo(draggedDocId, dropTarget.docId, dropTarget.placement);
+                      setDraggedDocId(null);
+                      setDropTarget(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedDocId(null);
+                      setDropTarget(null);
+                    }}
                   >
                     <span className="tabular-nums text-text-secondary w-5">{index + 1}</span>
                     <span className="truncate font-medium flex-1 min-w-0">{row.title}</span>

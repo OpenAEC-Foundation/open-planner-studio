@@ -256,3 +256,77 @@ test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', 
   // Toegestaan maar niet benut: gevraagd 3, dichtst haalbare 1.
   await expect(strip.locator('[data-ops-distribution-achievable]')).toBeVisible();
 });
+
+// --- B1c-plan3 taak 10 — pointer-slepen op de plafond-handle, en rangorde met de muis -------------
+
+test('plafond-handle: slepen snapt op hele werkdagen en rekent pas bij loslaten', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  // De stroken staan in RANGORDE; nr. 2 is degene die moet wijken (zelfde fixture als de vorige
+  // test). Home = plafond 0 — een deterministisch startpunt voor de sleep, ongeacht de benutte
+  // uitloop; expliciet herberekend zodat het effectlabel al bij díé stand hoort vóór de sleep begint.
+  const strip = page.locator('[data-ops-distribution-strip]').nth(1);
+  const handle = strip.locator('[data-ops-distribution-handle]');
+  await handle.focus();
+  await handle.press('Home');
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  await expect(handle).toHaveAttribute('aria-valuenow', '0');
+
+  // Geen magisch getal: de dagbreedte komt uit de gedeelde tijdas (`occupancyAxis.ts`), zichtbaar via
+  // hetzelfde `data-ops-distribution-day-width`-attribuut dat de sleeppositie zelf ook gebruikt.
+  const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
+  expect(dayWidth).toBeGreaterThan(0);
+
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+
+  // Tijdens het slepen: de PLAFOND-waarde beweegt mee, het EFFECT-label niet (spec §3.4 — "nooit per
+  // sleep-pixel").
+  const effectBefore = await strip.locator('[data-ops-distribution-effect]').textContent();
+  await page.mouse.move(box.x + box.width / 2 + 3 * dayWidth, box.y + box.height / 2, { steps: 6 });
+  await expect(handle).toHaveAttribute('aria-valuenow', '3');
+  expect(await strip.locator('[data-ops-distribution-effect]').textContent()).toBe(effectBefore);
+
+  // De muis verlaat het element en het slepen loopt door — `setPointerCapture` op de handle, geen
+  // document-brede listener nodig.
+  await page.mouse.move(box.x + box.width / 2 + 5 * dayWidth, box.y - 200, { steps: 4 });
+  await expect(handle).toHaveAttribute('aria-valuenow', '5');
+  await page.mouse.up();
+
+  // Loslaten is een discreet rekenmoment (§3.4) ⇒ de waarde gaat de ui-state in en het overzicht
+  // rekent automatisch door (dezelfde route als een toetsaanslag of de pin-knop) — het effectlabel
+  // wordt dus uiteindelijk bijgewerkt, zonder dat de test zelf op "Herbereken" hoeft te klikken.
+  await expect.poll(() => strip.locator('[data-ops-distribution-effect]').textContent()).not.toBe(effectBefore);
+  const shiftedDocId = await strip.getAttribute('data-ops-doc-id') ?? '';
+  await expect.poll(() => page.evaluate(docId => {
+    const ui = window.__OPS__!.store.getState().ui.levelingDistribution!;
+    return ui.ceilings[docId];
+  }, shiftedDocId)).toBe(5);
+});
+
+test('rangorde: slepen verandert de volgorde en laat het voorstel vervallen', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+
+  const rows = page.locator('[data-ops-distribution-rank-row]');
+  await expect(rows).toHaveCount(2);
+  const firstDocId = await rows.nth(0).getAttribute('data-ops-doc-id');
+  const secondDocId = await rows.nth(1).getAttribute('data-ops-doc-id');
+
+  // Sleep rij 2 boven rij 1 — native HTML5 drag-and-drop, HETZELFDE mechanisme als
+  // `DataGridHeader`'s kolomherordening (`draggable` + dragover/drop), geen los pointer-events-
+  // sleepmechanisme ernaast. `targetPosition` mikt op het BOVENSTE stuk van rij 1, zodat de drop als
+  // "voor" telt — een drop op het midden zou de rij weer op zijn oude plek laten vallen.
+  await rows.nth(1).dragTo(rows.nth(0), { targetPosition: { x: 20, y: 2 } });
+
+  await expect(page.locator('[data-ops-distribution-rank-row]').first())
+    .toHaveAttribute('data-ops-doc-id', secondDocId!);
+  await expect(page.locator('[data-ops-distribution-rank-row]').last())
+    .toHaveAttribute('data-ops-doc-id', firstDocId!);
+  // Een herordening is een rangordewijziging ⇒ hetzelfde `staleReason = 'rank'` als de knoppen.
+  await expect(page.locator('[data-ops-distribution-dialog]'))
+    .toHaveAttribute('data-ops-distribution-last-stale-reason', 'rank');
+});
