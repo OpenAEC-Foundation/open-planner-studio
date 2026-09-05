@@ -3165,10 +3165,19 @@ export class CPMSolver {
             // ongewijzigd: `backwardConstraint` geeft daar al een echte LF terug, onafhankelijk van
             // de voorgangerduur.
             const isStartSideRelation = seq.type === 'START_START' || seq.type === 'START_FINISH';
+            // `milestoneKind: undefined` is geen detail: `relationBoundaryFlags` leidt
+            // `predStartsNextDay` af uit `scheduleDuration <= 0` PLUS `milestoneKind === 'FINISH'`.
+            // Door de duur op 0 te zetten wordt de eerste helft altijd waar, dus zonder deze regel
+            // zou uitgerekend een voltooide EINDmijlpaal-met-duur (T15-vorm) hier een extra
+            // werkdaggrens-sprong krijgen die een gewone voltooide taak niet krijgt. Onder de
+            // aanname van deze tak — nul restduur, LS is het anker, `LF = prevWorkInstant(LS)` —
+            // bestaat die aparte finishgrens niet, dus alle voltooide taken volgen hier dezelfde,
+            // grensloze route.
             const zeroRemainingPredTask: Task = isStartSideRelation
               ? {
                 ...task,
                 isMilestone: true,
+                milestoneKind: undefined,
                 time: { ...task.time, scheduleDuration: 0, durationMinutes: 0 },
               }
               : task;
