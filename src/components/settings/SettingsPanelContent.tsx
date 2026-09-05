@@ -12,7 +12,11 @@ import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 
-type SettingsTab = 'appearance' | 'language' | 'timeline' | 'application';
+// U1: drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
+// planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie).
+// De oude vierde tab "Toepassing" en de losse "Taal"-tab zijn opgegaan in de andere twee;
+// zie docs/recepten/instelling.md en public/docs/{nl,en}/ref-instellingen.md.
+type SettingsTab = 'appearance' | 'planning' | 'advanced';
 
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
 const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
@@ -171,22 +175,16 @@ export function SettingsPanelContent() {
           {t('settings.appearanceTab')}
         </button>
         <button
-          className={`settings-tab ${activeTab === 'language' ? 'active' : ''}`}
-          onClick={() => setActiveTab('language')}
+          className={`settings-tab ${activeTab === 'planning' ? 'active' : ''}`}
+          onClick={() => setActiveTab('planning')}
         >
-          {t('settings.language')}
+          {t('settings.planningTab')}
         </button>
         <button
-          className={`settings-tab ${activeTab === 'timeline' ? 'active' : ''}`}
-          onClick={() => setActiveTab('timeline')}
+          className={`settings-tab ${activeTab === 'advanced' ? 'active' : ''}`}
+          onClick={() => setActiveTab('advanced')}
         >
-          {t('settings.timeline')}
-        </button>
-        <button
-          className={`settings-tab ${activeTab === 'application' ? 'active' : ''}`}
-          onClick={() => setActiveTab('application')}
-        >
-          {t('settings.applicationTab')}
+          {t('settings.advancedTab')}
         </button>
       </div>
 
@@ -196,6 +194,7 @@ export function SettingsPanelContent() {
           <div className="settings-section-list">
             <div className="settings-section">
               <h3>{t('settings.theme')}</h3>
+              <p className="scrollzoom-hint">{t('settings.themeHint')}</p>
               <div className="settings-theme-grid">
                 {UI_THEMES.map(({ id }) => (
                   <button
@@ -232,6 +231,22 @@ export function SettingsPanelContent() {
               )}
             </div>
 
+            <div className="settings-section">
+              <h3>{t('settings.language')}</h3>
+              <Select
+                aria-label={t('settings.language')}
+                value={i18n.language}
+                onChange={v => applyLocale(v as Locale)}
+                options={[...supportedLanguages]
+                  .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
+                  .map(code => {
+                    const [short, label] = LANGUAGE_LABELS[code];
+                    return { value: code, label: `${short} — ${label}` };
+                  })}
+              />
+              <p className="scrollzoom-hint">{t('settings.languageHint')}</p>
+            </div>
+
             {/* Lettertype interface (issue #25.4): familie + grootte. Web-apps volgen — anders dan
                 native apps — niet automatisch de systeemlettertype-instelling, wat leesbaarheid/
                 toegankelijkheid kan beïnvloeden; hier kiest de gebruiker beide. Familie overschrijft
@@ -256,20 +271,7 @@ export function SettingsPanelContent() {
                 onChange={v => applyUIFontScale(Number(v))}
                 options={UI_FONT_SCALES.map(s => ({ value: String(s), label: `${s}%` }))}
               />
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.documentChrome')}</h3>
-              <Select
-                aria-label={t('settings.documentChrome')}
-                value={documentChromeStyle}
-                onChange={v => applyDocumentChrome(v as DocumentChromeStyle)}
-                options={[
-                  { value: 'tabs', label: t('settings.documentChromeTabs') },
-                  { value: 'rail', label: t('settings.documentChromeRail') },
-                  { value: 'switcher', label: t('settings.documentChromeSwitcher') },
-                ]}
-              />
+              <p className="scrollzoom-hint">{t('settings.fontScaleHint')}</p>
             </div>
 
             <div className="settings-section">
@@ -290,6 +292,92 @@ export function SettingsPanelContent() {
               <p className="scrollzoom-hint">{t('settings.dateNotationHint')}</p>
             </div>
 
+            <div className="settings-section">
+              <h3>{t('settings.durationDisplay')}</h3>
+              <Select
+                aria-label={t('settings.durationDisplay')}
+                value={durationDisplay}
+                onChange={v => applyDurationDisplay(v as DurationDisplay)}
+                options={[
+                  { value: 'auto', label: t('settings.durationDisplayAuto') },
+                  { value: 'days', label: t('settings.durationDisplayDays') },
+                  { value: 'hours', label: t('settings.durationDisplayHours') },
+                ]}
+              />
+              <p className="scrollzoom-hint">{t('settings.durationDisplayHint')}</p>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.documentChrome')}</h3>
+              <Select
+                aria-label={t('settings.documentChrome')}
+                value={documentChromeStyle}
+                onChange={v => applyDocumentChrome(v as DocumentChromeStyle)}
+                options={[
+                  { value: 'tabs', label: t('settings.documentChromeTabs') },
+                  { value: 'rail', label: t('settings.documentChromeRail') },
+                  { value: 'switcher', label: t('settings.documentChromeSwitcher') },
+                ]}
+              />
+              <p className="scrollzoom-hint">{t('settings.documentChromeHint')}</p>
+            </div>
+
+            {/* U1: subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een
+                herkenbare knip binnen Weergave. Werkdagen-as, kwartierzoom, taakbalksplitsing en
+                scroll/zoom-gedrag horen allemaal bij hoe de tijdlijn zich gedraagt. */}
+            <h4 className="settings-subhead">{t('settings.ganttSection')}</h4>
+
+            <div className="settings-section">
+              <h3>{t('settings.compressNonWorkdaysSection')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={compressNonWorkdays}
+                  onChange={e => applyCompressNonWorkdays(e.target.checked)}
+                />
+                <span>{t('settings.compressNonWorkdays')}</span>
+              </label>
+              <p className="scrollzoom-hint">{t('settings.compressNonWorkdaysHint')}</p>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.quarterHourSection')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={enableQuarterHourZoom}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setUI({ enableQuarterHourZoom: checked });
+                    void saveZoomSettings({ enableQuarterHourZoom: checked });
+                  }}
+                />
+                <span>{t('settings.enableQuarterHourZoom')}</span>
+              </label>
+              <p className="scrollzoom-hint">{t('settings.enableQuarterHourZoomHint')}</p>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.barSplitMode')}</h3>
+              <Select
+                aria-label={t('settings.barSplitMode')}
+                value={barSplitMode}
+                onChange={v => applyBarSplitMode(v as BarSplitMode)}
+                options={[
+                  { value: 'never', label: t('settings.barSplitNever') },
+                  { value: 'selection', label: t('settings.barSplitSelection') },
+                  { value: 'always', label: t('settings.barSplitAlways') },
+                ]}
+              />
+              <p className="scrollzoom-hint">{t('settings.barSplitModeHint')}</p>
+            </div>
+
+            <ScrollZoomSettings />
+          </div>
+        )}
+
+        {activeTab === 'planning' && (
+          <div className="settings-section-list">
             {/* Bouwmodus (2026-07-13): app-brede schakelaar. AAN = bouwgerichte defaults/framing
                 (default). UIT = bouw-agnostisch. Verschijnt via deze gedeelde component op alle 3
                 de ingangen (gear/ribbontab/backstage). */}
@@ -306,30 +394,6 @@ export function SettingsPanelContent() {
               <p className="scrollzoom-hint">{t('settings.constructionModeHint')}</p>
             </div>
 
-          </div>
-        )}
-
-        {activeTab === 'language' && (
-          <div className="settings-section-list">
-            <div className="settings-section">
-              <h3>{t('settings.language')}</h3>
-              <Select
-                aria-label={t('settings.language')}
-                value={i18n.language}
-                onChange={v => applyLocale(v as Locale)}
-                options={[...supportedLanguages]
-                  .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
-                  .map(code => {
-                    const [short, label] = LANGUAGE_LABELS[code];
-                    return { value: code, label: `${short} — ${label}` };
-                  })}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'timeline' && (
-          <div className="settings-section-list">
             {/* Fase 2.8b (§6.8): Urenplanning — hoofdschakelaar + 3 sub-instellingen. Alle vier
                 verschijnen op de drie ingangen tegelijk (gedeelde component). De sub-instelling
                 "Gemengd toestaan" is alleen actief als de hoofdschakelaar aan staat. */}
@@ -355,44 +419,7 @@ export function SettingsPanelContent() {
                 </label>
               )}
             </div>
-            <div className="settings-section">
-              <h3>{t('settings.durationDisplay')}</h3>
-              <Select
-                aria-label={t('settings.durationDisplay')}
-                value={durationDisplay}
-                onChange={v => applyDurationDisplay(v as DurationDisplay)}
-                options={[
-                  { value: 'auto', label: t('settings.durationDisplayAuto') },
-                  { value: 'days', label: t('settings.durationDisplayDays') },
-                  { value: 'hours', label: t('settings.durationDisplayHours') },
-                ]}
-              />
-            </div>
-            <div className="settings-section">
-              <h3>{t('settings.barSplitMode')}</h3>
-              <Select
-                aria-label={t('settings.barSplitMode')}
-                value={barSplitMode}
-                onChange={v => applyBarSplitMode(v as BarSplitMode)}
-                options={[
-                  { value: 'never', label: t('settings.barSplitNever') },
-                  { value: 'selection', label: t('settings.barSplitSelection') },
-                  { value: 'always', label: t('settings.barSplitAlways') },
-                ]}
-              />
-            </div>
-            <div className="settings-section">
-              <h3>{t('settings.compressNonWorkdaysSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={compressNonWorkdays}
-                  onChange={e => applyCompressNonWorkdays(e.target.checked)}
-                />
-                <span>{t('settings.compressNonWorkdays')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.compressNonWorkdaysHint')}</p>
-            </div>
+
             <div className="settings-section">
               <h3>{t('settings.weekStartDay')}</h3>
               <Select
@@ -408,22 +435,9 @@ export function SettingsPanelContent() {
                   { value: 'sunday', label: t('settings.weekStartSunday') },
                 ]}
               />
+              <p className="scrollzoom-hint">{t('settings.weekStartDayHint')}</p>
             </div>
-            <div className="settings-section">
-              <h3>{t('settings.quarterHourSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={enableQuarterHourZoom}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUI({ enableQuarterHourZoom: checked });
-                    void saveZoomSettings({ enableQuarterHourZoom: checked });
-                  }}
-                />
-                <span>{t('settings.enableQuarterHourZoom')}</span>
-              </label>
-            </div>
+
             <div className="settings-section">
               <h3>{t('settings.calculationSection')}</h3>
               <label className="settings-checkbox-row">
@@ -440,86 +454,11 @@ export function SettingsPanelContent() {
               </label>
               <p className="scrollzoom-hint">{t('settings.autoCalcCPMHint')}</p>
             </div>
-            <ScrollZoomSettings />
           </div>
         )}
 
-        {activeTab === 'application' && (
+        {activeTab === 'advanced' && (
           <div className="settings-section-list">
-            <div className="settings-section">
-              <h3>{t('settings.version')}</h3>
-              <div className="settings-row">
-                <span>{__APP_VERSION__}</span>
-              </div>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
-                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
-                }}
-              >
-                {t('updates.checkButton')}
-              </button>
-              <button
-                className="settings-link"
-                onClick={() => { void openWhatsNew(); }}
-              >
-                {t('updates.justUpdated.whatsNewButton')}
-              </button>
-            </div>
-
-            <div className="settings-section">
-              <h3>{t('settings.projectInfoSection')}</h3>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({ showSettingsDialog: false, showProjectInfoDialog: true });
-                }}
-              >
-                {t('settings.projectInfo')}
-              </button>
-            </div>
-
-            {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
-                Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
-                zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
-                Sluit eerst de Instellingen-dialoog (gear/Instellingen-ribbontab) én Backstage
-                (activeRibbonTab terug naar 'start', zoals Backstage's eigen closeBackstage()) zodat
-                de tour altijd vanaf een schone body start, ongeacht welke van de 3 ingangen. */}
-            <div className="settings-section">
-              <h3>{t('tour.restartButton')}</h3>
-              <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({
-                    showSettingsDialog: false,
-                    activeRibbonTab: 'start',
-                    showTourOverlay: true,
-                    tourStepIndex: 0,
-                  });
-                }}
-              >
-                {t('tour.backstageRestart')}
-              </button>
-            </div>
-
-            {/* Benchmark-tool (pakket S): via deze gedeelde component zichtbaar op alle 3 de
-                ingangen (gear/Instellingen-ribbontab/Backstage). Sluit eerst de Instellingen-dialoog
-                én Backstage (activeRibbonTab → 'start') zodat de benchmark-dialoog vrij opent. */}
-            <div className="settings-section">
-              <h3>{t('benchmark.section')}</h3>
-              <p className="scrollzoom-hint">{t('benchmark.sectionHint')}</p>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showBenchmarkDialog: true });
-                }}
-              >
-                {t('benchmark.open')}
-              </button>
-            </div>
-
             {/* AI-modus (T14) + automatisch starten: de enige twee AI-instellingen hier — de rest van
                 de bediening leeft op het AI-tabblad. AAN ⇒ tabblad verschijnt; UIT ⇒ tabblad weg +
                 bridge geforceerd gestopt (`applyAiModeLive` → `stopMcpServer` + status off). Via deze
@@ -566,6 +505,70 @@ export function SettingsPanelContent() {
                 />
                 <span>{t('settings.debugTerminalEnable')}</span>
               </label>
+              <p className="scrollzoom-hint">{t('settings.debugTerminalHint')}</p>
+            </div>
+
+            {/* Benchmark-tool (pakket S): via deze gedeelde component zichtbaar op alle 3 de
+                ingangen (gear/Instellingen-ribbontab/Backstage). Sluit eerst de Instellingen-dialoog
+                én Backstage (activeRibbonTab → 'start') zodat de benchmark-dialoog vrij opent. */}
+            <div className="settings-section">
+              <h3>{t('benchmark.section')}</h3>
+              <p className="scrollzoom-hint">{t('benchmark.sectionHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showBenchmarkDialog: true });
+                }}
+              >
+                {t('benchmark.open')}
+              </button>
+            </div>
+
+            {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
+                Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
+                zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
+                Sluit eerst de Instellingen-dialoog (gear/Instellingen-ribbontab) én Backstage
+                (activeRibbonTab terug naar 'start', zoals Backstage's eigen closeBackstage()) zodat
+                de tour altijd vanaf een schone body start, ongeacht welke van de 3 ingangen. */}
+            <div className="settings-section">
+              <h3>{t('tour.restartButton')}</h3>
+              <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({
+                    showSettingsDialog: false,
+                    activeRibbonTab: 'start',
+                    showTourOverlay: true,
+                    tourStepIndex: 0,
+                  });
+                }}
+              >
+                {t('tour.backstageRestart')}
+              </button>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.version')}</h3>
+              <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
+              <div className="settings-row">
+                <span>{__APP_VERSION__}</span>
+              </div>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
+                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
+                }}
+              >
+                {t('updates.checkButton')}
+              </button>
+              <button
+                className="settings-link"
+                onClick={() => { void openWhatsNew(); }}
+              >
+                {t('updates.justUpdated.whatsNewButton')}
+              </button>
             </div>
           </div>
         )}

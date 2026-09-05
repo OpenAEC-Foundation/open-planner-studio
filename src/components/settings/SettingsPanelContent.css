@@ -9,6 +9,17 @@
   min-height: 360px;
 }
 
+/* U1: subkop binnen een tab die een paar secties groepeert (bv. "Gantt" onder
+   Weergave) zonder zelf een nieuwe tab te worden. Iets prominenter dan een
+   gewone sectie-h3 (die is uppercase/gedimd), zonder de vorm te herontwerpen. */
+.settings-subhead {
+  margin: 4px 0 0 0;
+  font-family: var(--font-heading);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  color: var(--theme-text);
+}
+
 /* Checkbox rows */
 .settings-checkbox-row {
   display: flex;
