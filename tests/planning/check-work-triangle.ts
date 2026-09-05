@@ -62,6 +62,40 @@ interface Case {
 const here = dirname(fileURLToPath(import.meta.url));
 const file = JSON.parse(readFileSync(join(here, 'work-triangle-cases.json'), 'utf8')) as { cases: Case[] };
 
+// Sleutelvalidatie (zelfde motief als de batterij-inventaris in run.sh): een typefout in een sleutel
+// (`"dayz"`, `"evidance"`) mag niet stil een case zonder asserties opleveren.
+const KEYS = {
+  case: ['id', 'nr', 'evidence', 'source', 'scope', 'state', 'edits', 'expect'],
+  state: ['rule', 'effortDriven', 'days', 'minutes', 'hoursPerDay', 'wholeDays', 'assignments'],
+  assignment: ['id', 'units', 'hours', 'material'],
+  edit: ['kind', 'id', 'days', 'minutes', 'units', 'hours', 'material', 'rule', 'assignments'],
+  expect: ['days', 'minutes', 'assignments', 'rejected'],
+  expectAssignment: ['units', 'hours', 'derivedHours'],
+} as const;
+const EVIDENCE = ['documented', 'reasoned', 'decided', 'measured'];
+function checkKeys(label: string, obj: object, allowed: readonly string[]): void {
+  for (const k of Object.keys(obj)) if (!allowed.includes(k)) diffs.push(`${label}: onbekende sleutel "${k}"`);
+}
+for (const c of file.cases) {
+  checkKeys(c.id, c, KEYS.case);
+  if (!EVIDENCE.includes(c.evidence)) diffs.push(`${c.id}: onbekend bewijslabel "${String(c.evidence)}"`);
+  if (c.state) {
+    checkKeys(`${c.id}.state`, c.state, KEYS.state);
+    if (!WORK_RULES.includes(c.state.rule)) diffs.push(`${c.id}: onbekende werkregel "${String(c.state.rule)}"`);
+    for (const a of c.state.assignments) checkKeys(`${c.id}.state.${a.id}`, a, KEYS.assignment);
+  }
+  for (const e of c.edits ?? []) {
+    checkKeys(`${c.id}.edit`, e, KEYS.edit);
+    if (e.kind === 'check' && e.assignments) for (const [id, ex] of Object.entries(e.assignments)) checkKeys(`${c.id}.check.${id}`, ex, KEYS.expectAssignment);
+  }
+  if (c.expect) {
+    checkKeys(`${c.id}.expect`, c.expect, KEYS.expect);
+    if (c.expect.rejected === undefined && !c.expect.assignments) diffs.push(`${c.id}: expect zonder assignments én zonder rejected — toetst niets`);
+    for (const [id, ex] of Object.entries(c.expect.assignments ?? {})) checkKeys(`${c.id}.expect.${id}`, ex, KEYS.expectAssignment);
+  }
+}
+checks += file.cases.length;
+
 function toState(c: CaseState): TriangleState {
   const hpd = c.hoursPerDay ?? 8;
   const slotMinutes = hpd * 60;
@@ -118,20 +152,24 @@ for (const c of file.cases) {
   if (!c.state || !c.edits || !c.expect) { diffs.push(`${c.id}: onvolledige case (state/edits/expect)`); continue; }
   let state = toState(c.state);
   let rejected: string | undefined;
+  let before = '';
   for (const e of c.edits) {
     if (e.kind === 'check') { assertExpect(`${c.id} (tussenstand)`, state, e); continue; }
+    before = JSON.stringify(state);
     const r = apply(state, e);
     if (!r.ok) { rejected = r.reason; break; }
     state = r.state;
   }
   if (c.expect.rejected !== undefined) {
     ok(`${c.id}: verwacht weigering ${c.expect.rejected}, kreeg ${rejected ?? 'geen'}`, rejected === c.expect.rejected);
+    // "geweigerd, niets gewijzigd": de module is puur, dus de invoer mag niet gemuteerd zijn.
+    ok(`${c.id}: invoer onaangeraakt na weigering`, JSON.stringify(state) === before);
     continue;
   }
   if (rejected) { diffs.push(`${c.id}: onverwacht geweigerd (${rejected})`); continue; }
   assertExpect(c.id, state, c.expect);
 }
-ok('meetlat: 31 genummerde bewerkingen aanwezig', new Set(file.cases.map((c) => c.nr)).size === 31);
+ok('meetlat: precies de nummers 1…31 uit spec §9 aanwezig', JSON.stringify([...new Set(file.cases.map((c) => c.nr))].sort((a, b) => a - b)) === JSON.stringify(Array.from({ length: 31 }, (_, i) => i + 1)));
 ok('meetlat: geen enkele case is al gemeten (measured) — anders hoort de spec bijgewerkt', (evidenceCount.measured ?? 0) === 0);
 
 // ── (b) eigenschappen ───────────────────────────────────────────────────────────────────────────
@@ -199,6 +237,49 @@ for (const from of WORK_RULES) {
   const r2 = applyTaskWorkEdit({ ...s, rule: 'FIXED_WORK' }, 7200);
   ok('taakwerk (werk vast): 120 u verdeeld 80/40 ⇒ R = max(80/8, 40/4) = 10 d', r2.ok && r2.state.remainingMinutes === 4800
     && r2.state.assignments.every((a) => Math.abs(a.unitsPerDay - (a.id === 'a' ? 1 : 0.5)) < 1e-9));
+}
+// `effortDriven` op een andere regel dan de twee beslispunt-8-B-cellen heeft géén effect.
+// (Vergelijking zonder de vlag zelf: die reist onveranderd mee in de uitkomst.)
+const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.state, effortDriven: undefined } : r);
+{
+  const two: TriangleState = { ...base, rule: 'FIXED_WORK' };
+  for (const ed of [true, false]) {
+    const a = applyAssignmentAdded({ ...two, effortDriven: ed }, { id: 'c', unitsPerDay: 1 });
+    const b = applyAssignmentAdded(two, { id: 'c', unitsPerDay: 1 });
+    ok(`effortDriven=${ed} op FIXED_WORK: resource erbij identiek aan zonder vlag`, sansFlag(a) === sansFlag(b));
+    const d1 = applyDurationEdit({ ...two, effortDriven: ed }, 4800);
+    const d2 = applyDurationEdit(two, 4800);
+    ok(`effortDriven=${ed} op FIXED_WORK: duurwijziging identiek aan zonder vlag`, sansFlag(d1) === sansFlag(d2));
+  }
+  const fdr1 = applyDurationEdit({ ...base, effortDriven: true }, 4800);
+  const fdr2 = applyDurationEdit(base, 4800);
+  ok('effortDriven=true op FIXED_DURATION_RATE: geen effect', sansFlag(fdr1) === sansFlag(fdr2));
+  const fr1 = applyDurationEdit({ ...base, rule: 'FIXED_RATE', effortDriven: false }, 4800);
+  const fr2 = applyDurationEdit({ ...base, rule: 'FIXED_RATE' }, 4800);
+  ok('effortDriven=false op FIXED_RATE: alleen erbij/eraf wijkt af, een duurwijziging niet', sansFlag(fr1) === sansFlag(fr2));
+  const first = applyAssignmentAdded({ ...base, rule: 'FIXED_RATE', effortDriven: false, assignments: [] }, { id: 'a', unitsPerDay: 1 });
+  ok('FIXED_RATE + effortDriven=false: eerste werkresource ⇒ afgeleid werk, duur ongewijzigd', first.ok && first.state.remainingMinutes === 2400 && first.state.assignments[0].remainingWorkMinutes === undefined);
+}
+// §6.7: een uitkomst met R ≤ 0 of een niet-eindige inzet wordt geweigerd — restwerk 0 (afgesloten
+// toewijzing) en een restduur van 0 als invoer zijn de twee randen die dat kunnen veroorzaken.
+{
+  const closed: TriangleState = { ...base, rule: 'FIXED_WORK', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true, remainingWorkMinutes: 0 }] };
+  ok('restwerk 0: inzetwijziging geweigerd (R zou 0 worden)', (() => { const r = applyUnitsEdit(closed, 'a', 2); return !r.ok && r.reason === 'invalid-duration'; })());
+  ok('restwerk 0: resource erbij geweigerd (R zou 0 worden)', !applyAssignmentAdded(closed, { id: 'b', unitsPerDay: 1 }).ok);
+  ok('restwerk 0: duurwijziging mag (werk 0 blijft 0, inzet blijft)', (() => { const r = applyDurationEdit(closed, 4800); return r.ok && r.state.assignments[0].remainingWorkMinutes === 0 && r.state.assignments[0].unitsPerDay === 1; })());
+  const zeroR: TriangleState = { ...base, remainingMinutes: 0 };
+  ok('restduur 0 als invoer: werkinvoer geweigerd (geen Infinity-inzet)', (() => { const r = applyWorkEdit(zeroR, 'a', 2400); return !r.ok && r.reason === 'invalid-duration'; })());
+  ok('restduur 0 als invoer: resource erbij geweigerd', !applyAssignmentAdded(zeroR, { id: 'c', unitsPerDay: 1 }).ok);
+  const nanUnits: TriangleState = { ...base, rule: 'FIXED_WORK', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }, { id: 'x', unitsPerDay: Number.NaN, drivesDuration: true }] };
+  ok('NaN-inzet in de invoer: resource erbij geweigerd, niet stil NaN-werk', !applyAssignmentAdded(nanUnits, { id: 'c', unitsPerDay: 1 }).ok);
+}
+// FIXED_RATE: een inzetwijziging schrijft géén werkveld (§4.3) — ook niet bij afronding; het werk
+// blijft afgeleid R × I en volgt de afgeronde R.
+{
+  const s: TriangleState = { ...base, rule: 'FIXED_RATE', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }] };
+  const r = applyUnitsEdit(s, 'a', 0.6);
+  ok('FIXED_RATE: inzet → 0,6 ⇒ R = 9 d, werkveld afwezig, afgeleid 43,2 u', r.ok && r.state.remainingMinutes === 4320
+    && r.state.assignments[0].remainingWorkMinutes === undefined && Math.abs(remainingWorkOf(r.state.assignments[0], 4320) - 2592) < 1e-9);
 }
 // Afronding: naar boven, nooit onder één slot; uurmodus op hele minuten.
 near('afronding: 2,5 d → 3 d', roundUpRemaining(1200, base), 1440, 0);

@@ -90,7 +90,9 @@ export function remainingWorkOf(a: TriangleAssignment, remainingMinutes: number)
 }
 
 /** Afronding van een afgeleide restduur (regel 3): naar boven op hele werkdagen in dagmodus,
- *  op hele minuten in uurmodus. Nooit onder één slot resp. één minuut. */
+ *  op hele minuten in uurmodus. Nooit onder één slot resp. één minuut. Een ongeldig `slotMinutes`
+ *  (≤ 0) valt in dagmodus stil terug op minuutafronding — de bedrading levert altijd
+ *  `hoursPerDay × 60`, dit is de tweede grendel. */
 export function roundUpRemaining(minutes: number, state: Pick<TriangleState, 'slotMinutes' | 'wholeDays'>): number {
   if (!Number.isFinite(minutes) || minutes <= 0) return 0;
   if (state.wholeDays) {
@@ -100,8 +102,26 @@ export function roundUpRemaining(minutes: number, state: Pick<TriangleState, 'sl
   return Math.max(1, Math.ceil(minutes - EPS));
 }
 
+/**
+ * Uitgangsvalidatie (spec §6.7): een regel mag nooit een restduur ≤ 0 of een inzet ≤ 0 / niet-eindig
+ * opleveren — dan wordt de bewerking geweigerd en blijft de oude toestand staan. Dit vangt in één
+ * keer de twee gevaarlijke randen: een afgesloten toewijzing (restwerk 0) die de duur naar 0 zou
+ * trekken, en een restduur van 0 als invoer die een deling door nul (Infinity) zou geven.
+ */
+function validated(state: TriangleState): TriangleResult {
+  if (!isPositive(state.remainingMinutes)) return { ok: false, reason: 'invalid-duration' };
+  for (const a of state.assignments) {
+    if (!isPositive(a.unitsPerDay)) return { ok: false, reason: 'invalid-units' };
+    if (a.remainingWorkMinutes !== undefined && !(Number.isFinite(a.remainingWorkMinutes) && a.remainingWorkMinutes >= 0)) {
+      return { ok: false, reason: 'invalid-work' };
+    }
+  }
+  return { ok: true, state };
+}
+
 /** R = max_i(W_i / I_i) over de werkresources, met W_i afgeleid waar het veld ontbreekt (regel 2),
- *  daarna afgerond (regel 3). Zonder werkresources blijft de huidige restduur staan. */
+ *  daarna afgerond (regel 3). Zonder werkresources blijft de huidige restduur staan; is al het
+ *  restwerk 0, dan komt er 0 uit en weigert `validated` de bewerking (§6.7). */
 function derivedRemaining(state: TriangleState, assignments: readonly TriangleAssignment[]): number {
   let max = 0;
   let any = false;
@@ -115,7 +135,11 @@ function derivedRemaining(state: TriangleState, assignments: readonly TriangleAs
 }
 
 /** Nadat R is herleid: de ANDERE toewijzingen volgen de beschermde hoek van de regel — werk vast ⇒
- *  inzet = W / R; inzet vast ⇒ een aanwezig werkveld wordt R × I, een afwezig veld blijft afwezig. */
+ *  inzet = W / R; inzet vast ⇒ een aanwezig werkveld wordt R × I, een afwezig veld blijft afwezig.
+ *  Let op bij de inzetbeschermende regels: een veldloze toewijzing heeft afgeleid werk R × I, dus
+ *  wordt R door een ándere toewijzing naar boven afgerond, dan groeit haar werk met die afronding
+ *  mee. Dat volgt uit "afwezig ⇒ afgeleid" (de inzet is wat de gebruiker koos) en is de enige plek
+ *  waar afrondingsruis in een later vastgelegd werkveld kan belanden. */
 function followRule(
   state: TriangleState,
   assignments: readonly TriangleAssignment[],
@@ -138,16 +162,18 @@ function followRule(
 /** Verdeel `totalWork` naar rato van inzet over de werkresources (regel 1). Niet-werkresources
  *  blijven onaangeraakt. */
 function splitByUnits(assignments: readonly TriangleAssignment[], totalWork: number): TriangleAssignment[] {
-  const driving = assignments.filter((a) => a.drivesDuration);
+  const driving = assignments.filter((a) => a.drivesDuration && isPositive(a.unitsPerDay));
   const sumUnits = driving.reduce((s, a) => s + a.unitsPerDay, 0);
   if (sumUnits <= 0) return [...assignments];
-  return assignments.map((a) => (a.drivesDuration
+  return assignments.map((a) => (a.drivesDuration && isPositive(a.unitsPerDay)
     ? { ...a, remainingWorkMinutes: totalWork * (a.unitsPerDay / sumUnits) }
     : a));
 }
 
 function totalRemainingWork(state: TriangleState, assignments: readonly TriangleAssignment[]): number {
-  return assignments.reduce((s, a) => (a.drivesDuration ? s + remainingWorkOf(a, state.remainingMinutes) : s), 0);
+  return assignments.reduce((s, a) => (a.drivesDuration && isPositive(a.unitsPerDay)
+    ? s + remainingWorkOf(a, state.remainingMinutes)
+    : s), 0);
 }
 
 const drivingCount = (assignments: readonly TriangleAssignment[]): number =>
@@ -175,7 +201,7 @@ export function applyDurationEdit(state: TriangleState, newRemainingMinutes: num
     if (a.remainingWorkMinutes === undefined) return a;
     return { ...a, remainingWorkMinutes: R * a.unitsPerDay };
   });
-  return { ok: true, state: { ...state, remainingMinutes: R, assignments } };
+  return validated({ ...state, remainingMinutes: R, assignments });
 }
 
 /**
@@ -189,24 +215,28 @@ export function applyUnitsEdit(state: TriangleState, assignmentId: string, newUn
   if (idx < 0) return { ok: false, reason: 'unknown-assignment' };
   const target = state.assignments[idx];
   if (!target.drivesDuration || ruleProtectsDuration(state.rule)) {
+    // Duur beschermd: werk = R × I'. FIXED_DURATION_WORK legt dat werk vast (werkbeschermend);
+    // FIXED_DURATION_RATE herschrijft alleen een veld dat er al was (§4.3: afwezig blijft afwezig).
+    const writeWork = target.drivesDuration && (ruleProtectsWork(state.rule) || target.remainingWorkMinutes !== undefined);
     const edited: TriangleAssignment = {
       ...target,
       unitsPerDay: newUnitsPerDay,
-      ...(target.drivesDuration && target.remainingWorkMinutes !== undefined
-        ? { remainingWorkMinutes: state.remainingMinutes * newUnitsPerDay }
-        : {}),
+      ...(writeWork ? { remainingWorkMinutes: state.remainingMinutes * newUnitsPerDay } : {}),
     };
-    return { ok: true, state: { ...state, assignments: replaceAt(state.assignments, idx, edited) } };
+    return validated({ ...state, assignments: replaceAt(state.assignments, idx, edited) });
   }
-  const edited: TriangleAssignment = {
-    ...target,
-    unitsPerDay: newUnitsPerDay,
-    remainingWorkMinutes: remainingWorkOf(target, state.remainingMinutes),
-  };
+  // Duur herleid uit W_oud / I'. FIXED_WORK legt W_oud vast (§4.3 a); FIXED_RATE beschermt de inzet
+  // en schrijft géén veld: het werk van deze toewijzing blijft afgeleid (R' × I'), zodat een
+  // afgeronde R niet een opgeslagen W achterlaat die van R × I afwijkt.
+  const workBefore = remainingWorkOf(target, state.remainingMinutes);
+  const probe: TriangleAssignment = { ...target, unitsPerDay: newUnitsPerDay, remainingWorkMinutes: workBefore };
+  const R = derivedRemaining(state, replaceAt(state.assignments, idx, probe));
+  const edited: TriangleAssignment = ruleProtectsWork(state.rule)
+    ? probe
+    : { ...target, unitsPerDay: newUnitsPerDay };
   const withEdit = replaceAt(state.assignments, idx, edited);
-  const R = derivedRemaining(state, withEdit);
   const assignments = followRule(state, withEdit, R, new Set([assignmentId]));
-  return { ok: true, state: { ...state, remainingMinutes: R, assignments } };
+  return validated({ ...state, remainingMinutes: R, assignments });
 }
 
 /**
@@ -219,16 +249,16 @@ export function applyWorkEdit(state: TriangleState, assignmentId: string, newWor
   if (idx < 0) return { ok: false, reason: 'unknown-assignment' };
   const target = state.assignments[idx];
   if (!target.drivesDuration) {
-    return { ok: true, state: { ...state, assignments: replaceAt(state.assignments, idx, { ...target, remainingWorkMinutes: newWorkMinutes }) } };
+    return validated({ ...state, assignments: replaceAt(state.assignments, idx, { ...target, remainingWorkMinutes: newWorkMinutes }) });
   }
   if (ruleProtectsDuration(state.rule)) {
     const edited: TriangleAssignment = { ...target, remainingWorkMinutes: newWorkMinutes, unitsPerDay: newWorkMinutes / state.remainingMinutes };
-    return { ok: true, state: { ...state, assignments: replaceAt(state.assignments, idx, edited) } };
+    return validated({ ...state, assignments: replaceAt(state.assignments, idx, edited) });
   }
   const withEdit = replaceAt(state.assignments, idx, { ...target, remainingWorkMinutes: newWorkMinutes });
   const R = derivedRemaining(state, withEdit);
   const assignments = followRule(state, withEdit, R, new Set([assignmentId]));
-  return { ok: true, state: { ...state, remainingMinutes: R, assignments } };
+  return validated({ ...state, remainingMinutes: R, assignments });
 }
 
 /**
@@ -249,12 +279,12 @@ export function applyTaskWorkEdit(state: TriangleState, newTotalWorkMinutes: num
     const assignments = split.map((a) => (a.drivesDuration && a.remainingWorkMinutes !== undefined && a.remainingWorkMinutes > 0
       ? { ...a, unitsPerDay: a.remainingWorkMinutes / state.remainingMinutes }
       : a));
-    return { ok: true, state: { ...state, assignments } };
+    return validated({ ...state, assignments });
   }
+  // Alle werkresources zijn hier "bewerkt" (elk kreeg zijn deel), dus er is niets dat nog moet
+  // volgen: R = max_i(W_i / I_i) en de inzet blijft zoals ze was.
   const R = derivedRemaining(state, split);
-  const edited = new Set(split.filter((a) => a.drivesDuration).map((a) => a.id));
-  const assignments = followRule(state, split, R, edited);
-  return { ok: true, state: { ...state, remainingMinutes: R, assignments } };
+  return validated({ ...state, remainingMinutes: R, assignments: split });
 }
 
 /**
@@ -272,7 +302,7 @@ export function applyAssignmentAdded(
   if (!isPositive(added.unitsPerDay)) return { ok: false, reason: 'invalid-units' };
   if (state.assignments.some((a) => a.id === added.id)) return { ok: false, reason: 'duplicate-assignment' };
   const newcomer: TriangleAssignment = { id: added.id, unitsPerDay: added.unitsPerDay, drivesDuration: added.drivesDuration ?? true };
-  const plain = { ok: true as const, state: { ...state, assignments: [...state.assignments, newcomer] } };
+  const plain = validated({ ...state, assignments: [...state.assignments, newcomer] });
   if (!newcomer.drivesDuration || drivingCount(state.assignments) === 0) return plain;
   if (state.rule === 'FIXED_DURATION_RATE') return plain;
   if (state.rule === 'FIXED_RATE' && state.effortDriven === false) return plain;
@@ -282,10 +312,10 @@ export function applyAssignmentAdded(
     const assignments = split.map((a) => (a.drivesDuration && a.remainingWorkMinutes !== undefined && a.remainingWorkMinutes > 0
       ? { ...a, unitsPerDay: a.remainingWorkMinutes / state.remainingMinutes }
       : a));
-    return { ok: true, state: { ...state, assignments } };
+    return validated({ ...state, assignments });
   }
   const R = derivedRemaining(state, split);
-  return { ok: true, state: { ...state, remainingMinutes: R, assignments: split } };
+  return validated({ ...state, remainingMinutes: R, assignments: split });
 }
 
 /**
@@ -299,7 +329,7 @@ export function applyAssignmentRemoved(state: TriangleState, assignmentId: strin
   if (idx < 0) return { ok: false, reason: 'unknown-assignment' };
   const removed = state.assignments[idx];
   const rest = state.assignments.filter((a) => a.id !== assignmentId);
-  const plain = { ok: true as const, state: { ...state, assignments: rest } };
+  const plain = validated({ ...state, assignments: rest });
   if (!removed.drivesDuration || drivingCount(rest) === 0) return plain;
   if (state.rule === 'FIXED_DURATION_RATE') return plain;
   if (state.rule === 'FIXED_RATE' && state.effortDriven === false) return plain;
@@ -309,10 +339,10 @@ export function applyAssignmentRemoved(state: TriangleState, assignmentId: strin
     const assignments = split.map((a) => (a.drivesDuration && a.remainingWorkMinutes !== undefined && a.remainingWorkMinutes > 0
       ? { ...a, unitsPerDay: a.remainingWorkMinutes / state.remainingMinutes }
       : a));
-    return { ok: true, state: { ...state, assignments } };
+    return validated({ ...state, assignments });
   }
   const R = derivedRemaining(state, split);
-  return { ok: true, state: { ...state, remainingMinutes: R, assignments: split } };
+  return validated({ ...state, remainingMinutes: R, assignments: split });
 }
 
 /**
@@ -326,7 +356,7 @@ export function applyRuleChange(state: TriangleState, rule: WorkRule): TriangleR
       ? { ...a, remainingWorkMinutes: remainingWorkOf(a, state.remainingMinutes) }
       : a))
     : [...state.assignments];
-  return { ok: true, state: { ...state, rule, assignments } };
+  return validated({ ...state, rule, assignments });
 }
 
 function replaceAt(list: readonly TriangleAssignment[], idx: number, item: TriangleAssignment): TriangleAssignment[] {

@@ -34,5 +34,6 @@ const WORK_RULE_TABLE = {
  *  lijst exact de union dekt, zoals `TASK_TYPES` in `task.ts`. */
 export const WORK_RULES = Object.keys(WORK_RULE_TABLE) as WorkRule[];
 
-/** De werkregel die geldt wanneer een taak (en het project) er geen draagt: het huidige gedrag. */
+/** De werkregel die geldt wanneer een taak (en het project) er geen draagt: het huidige gedrag.
+ *  Nog nergens gelezen — de bedrading (bouwstap 1/4) haalt 'm hier vandaan. */
 export const DEFAULT_WORK_RULE: WorkRule = 'FIXED_DURATION_RATE';
