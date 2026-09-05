@@ -14,7 +14,7 @@ import {
 } from '@/engine/taskGrid/assignmentPlan';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
-import { recordedTaskMark } from './recordedDatesSelectors';
+import { recordedGridBinding } from './recordedDatesSelectors';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
@@ -139,7 +139,7 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     // strijkt hard falen (`plannerNotAvailable`) in plaats van de bestaande skip-readonly-route
     // te nemen, op elk document waar de kolom via FullTaskGrid wél zichtbaar is. `format`/
     // `recordedUnrecordedAxes` raken alleen weergave, niet het schrijfpad — die blijven hier weg.
-    recordedMark: recordedDates ? (task => recordedTaskMark(recordedDates, datesAsRecorded, task)) : undefined,
+    recordedMark: recordedGridBinding(recordedDates, datesAsRecorded).recordedMark,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: state.project.id,

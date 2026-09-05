@@ -50,7 +50,7 @@ import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
-import { recordedTaskMark, unrecordedAxes } from '@/state/recordedDatesSelectors';
+import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useAppStore } from '@/state/appStore';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -343,11 +343,10 @@ export function TaskGridSurface({
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
     // "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — `undefined` op documenten zonder
     // vastlegging, dus de kolom `recorded.source` en de "niet vastgelegd"-tak op late/float
-    // bestaan dan niet (`available`-gates in taskColumnRegistry.ts).
-    recordedMark: recordedDates ? (task => recordedTaskMark(recordedDates, datesAsRecorded, task)) : undefined,
-    recordedUnrecordedAxes: recordedDates
-      ? (task => unrecordedAxes(recordedDates.times[task.id]))
-      : undefined,
+    // bestaan dan niet (`available`-gates in taskColumnRegistry.ts). De poort per naad staat in
+    // `recordedGridBinding` (gedeeld met `gridTransaction.ts`, headless getest): de "niet
+    // vastgelegd"-tak hangt aan `datesAsRecorded`, niet aan het loutere bestaan van een aanbod.
+    ...recordedGridBinding(recordedDates, datesAsRecorded),
     labelForColumn: labelKey => resolveColumnLabel(
       labelKey,
       key => tTask(key, { defaultValue: key }),

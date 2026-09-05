@@ -49,8 +49,11 @@ export function unrecordedAxes(rec: RecordedTime | undefined): readonly Recorded
  *     `rec.finish` rechtstreeks naar `task.time.early*`), dus "wijkt af" zou daar altijd `false`
  *     zijn — geen zinvol signaal, dus niet apart gemeld.
  *  2. `'partly-unrecorded'` — de vastlegging zelf is onvolledig (`unrecordedAxes(rec).length > 0`):
- *     één of meer van de vier optionele assen ontbreken. Dat is een eigenschap van het BESTAND,
- *     niet van de weergavestand, dus dit geldt zowel in als buiten de modus.
+ *     één of meer van de vier optionele assen ontbreken. UITSLUITEND IN DE MODUS (critreview
+ *     laag 3, bevinding 1): de markering is een uitspraak over WAT ER OP HET SCHERM STAAT, niet
+ *     over het bestand. Buiten de modus staat onze eigen, zojuist berekende late-/spelinguitvoer
+ *     in die kolommen — daar is niets "niet vastgelegd" aan, en de badge zou de gebruiker een
+ *     echt getal laten wantrouwen (of, via `recordedUnrecordedAxes`, zelfs verbergen).
  *  3. `undefined` — geen vastlegging voor deze taak, of een volledige vastlegging die (buiten de
  *     modus) niet afwijkt van de herberekening.
  *
@@ -64,8 +67,42 @@ export function recordedTaskMark(
 ): RecordedTaskMark {
   const rec = recorded?.times[task.id];
   if (!rec) return undefined;
-  if (!datesAsRecorded && (task.time.earlyStart !== rec.start || task.time.earlyFinish !== rec.finish)) {
-    return 'deviates';
+  if (!datesAsRecorded) {
+    return task.time.earlyStart !== rec.start || task.time.earlyFinish !== rec.finish
+      ? 'deviates'
+      : undefined;
   }
   return unrecordedAxes(rec).length > 0 ? 'partly-unrecorded' : undefined;
+}
+
+/**
+ * De naad tussen de documentstate en een taakgrid-`TaskColumnContext` — één plek, zodat elk
+ * rasteroppervlak (`FullTaskGrid` voor Gantt-taakraster én het tabblad Tabel, en het schrijfpad in
+ * `gridTransaction.ts`) dezelfde poort gebruikt.
+ *
+ * De poort is `datesAsRecorded`, NIET `recordedDates !== null` (critreview laag 3, bevinding 1 —
+ * een gemeten regressie op de bestaande #63-route, niet iets XER-specifieks). `recordedDates !== null
+ * && !datesAsRecorded` is namelijk de AANBOD-stand: er is gewoon gesolved, `task.time.lateStart` en
+ * de floats zijn echte CPM-uitvoer, en `recordedAxisFormat` zou ze door "Niet vastgelegd" vervangen
+ * — permanent, want `runCPM` wist de vastlegging alleen bij het VERLATEN van de modus, dus ook F5
+ * haalde het niet weg. Een IFC vult zelden `LateStart`/`TotalFloat`, dus dat trof zo goed als elk
+ * document met een #63-aanbod.
+ *
+ * `recordedMark` hangt bewust wél aan `recordedDates` alleen: "wijkt af" is juist buiten de modus
+ * het zinvolle signaal, en die kolom vervangt geen enkele berekende waarde — hij zet er een
+ * markering náást.
+ */
+export function recordedGridBinding(
+  recorded: RecordedDatesState | null,
+  datesAsRecorded: boolean,
+): {
+  recordedMark: ((task: Task) => RecordedTaskMark) | undefined;
+  recordedUnrecordedAxes: ((task: Task) => readonly RecordedTaskAxis[]) | undefined;
+} {
+  return {
+    recordedMark: recorded ? (task => recordedTaskMark(recorded, datesAsRecorded, task)) : undefined,
+    recordedUnrecordedAxes: recorded && datesAsRecorded
+      ? (task => unrecordedAxes(recorded.times[task.id]))
+      : undefined,
+  };
 }
