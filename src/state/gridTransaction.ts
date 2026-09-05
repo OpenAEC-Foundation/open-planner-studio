@@ -698,8 +698,11 @@ function applyCellEdits(
   // Taaktypes-etappe (spec §5 rij 1): momentopname VÓÓR het plan; een gewijzigde duur laat de
   // toewijzingen daarna hun regel volgen (`settleDurationEdit`) — onder de standaardregel zonder
   // werkvelden verandert er niets.
+  // `assignmentsForTask` blijft ná de kalenderstap geldig: die muteert velden op dezelfde draft-
+  // objecten en voegt niets toe of weg (reviewronde G3: een `state.assignments.filter` hier was de
+  // O(taken × toewijzingen)-kost die de bulk-plak-meting hierboven juist wegnam).
   const current = state.tasks[taskIndex];
-  const triangle = captureTriangle(current, state.assignments.filter(a => a.taskId === current.id), state);
+  const triangle = captureTriangle(current, assignmentsForTask, state);
   const workRuleBefore = current.workRule;
   const planned = planTaskCellEdits(current, remainingEdits, environment);
   if (!planned.ok) return planned;

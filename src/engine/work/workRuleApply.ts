@@ -21,6 +21,7 @@ import type { Task } from '@/types/task';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import {
   clearTimephasedDurationWalks, clearTimephasedWindow, rescaleTaskContours, timephasedDurationWalksHaveFrozenWork,
 } from '@/utils/taskDefaults';
@@ -243,7 +244,9 @@ export interface WorkRuleDeps {
 export function workRuleContextOf(task: Task, deps: WorkRuleDeps): WorkRuleContext {
   const resources = deps.resources;
   return {
-    hoursPerDay: resolveCalendar(task.calendarId, deps.calendars as WorkCalendar[], deps.calendar).hoursPerDay,
+    // Reviewronde G5: de EFFECTIEVE uren per dag (op een uurkalender uit de banden afgeleid), dezelfde
+    // slot als het raster (`environment.effectiveHoursPerDay`) en de contourreferentie.
+    hoursPerDay: effHoursPerDay(resolveCalendar(task.calendarId, deps.calendars as WorkCalendar[], deps.calendar)),
     ...(deps.project.defaultWorkRule !== undefined ? { defaultWorkRule: deps.project.defaultWorkRule } : {}),
     resourceById: (id) => resources.find((r) => r.id === id),
   };
@@ -443,7 +446,9 @@ const NO_CALENDAR_CHANGE: CalendarSettle = { durationChanged: false, timephasedL
  *    dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werkminuten, en de as leeft op
  *    de werkminuten (reviewbevinding F3, tweede helft).
  * `completion` blijft zoals ze is (spec §6.5, ook op dit pad); de rest wordt bij een gestarte taak
- * expliciet geschreven door `applyTriangleResult`.
+ * expliciet geschreven door `applyTriangleResult`. Taken buiten `workRuleApplies` (mijlpaal,
+ * verzameltaak, hangmat, ELAPSEDTIME) blijven hier byte-identiek — óók hun contour-as (spec besluit 6,
+ * reviewronde G7: één lijn, en die staat in §6.4).
  */
 export function settleCalendarChange(
   task: Task,
@@ -459,18 +464,26 @@ export function settleCalendarChange(
   const remainingDays = triangle.state.remainingMinutes / triangle.state.slotMinutes;
   const newRemaining = remainingDays * newSlot;
   const result = applySlotChange(triangle.state, newSlot, newRemaining);
-  const keepsWork = contourKeepsWork(task, deps.project.defaultWorkRule);
-  if (!result.ok) {
-    rescaleTaskContours(task, captured.oldWorkMinutes, ctx.hoursPerDay, keepsWork);
-    return NO_CALENDAR_CHANGE;
+  // Contour-as éérst naar de nieuwe slot (dezelfde dagen, andere werkminuten), met de HOOGTE die
+  // meeschaalt (werk = R' × I, de afgeleide lezing). De regel-specifieke hoogte komt daarna niet uit
+  // een regelconstante maar uit de toewijzingen zelf: `reconcileContourWork` zet elke contour met een
+  // opgeslagen werkveld op precies dát werk (reviewronde G1/G2: een regelvlag hier schaalde dubbel
+  // onder de standaardregel en liet onder FIXED_RATE contour en toewijzing uiteenlopen). Zonder
+  // werkveld ís R' × I het werk, dus dan klopt de meegeschaalde hoogte al.
+  rescaleTaskContours(task, captured.oldWorkMinutes, ctx.hoursPerDay, false);
+  const slotWorkMinutes = totalMinutesOf(task, ctx);
+  let durationChanged = false;
+  let timephasedLost = false;
+  if (result.ok) {
+    const beforeInNewSlot: TriangleState = { ...triangle.state, slotMinutes: newSlot, remainingMinutes: newRemaining };
+    const written = applyTriangleResult(task, assignments, beforeInNewSlot, result.state, ctx);
+    if (written.durationChanged) {
+      durationChanged = true;
+      timephasedLost = settleDurationAftermath(task, deps, slotWorkMinutes);
+    }
   }
-  const beforeInNewSlot: TriangleState = { ...triangle.state, slotMinutes: newSlot, remainingMinutes: newRemaining };
-  const written = applyTriangleResult(task, assignments, beforeInNewSlot, result.state, ctx);
-  if (written.durationChanged) {
-    return { durationChanged: true, timephasedLost: settleDurationAftermath(task, deps, captured.oldWorkMinutes) };
-  }
-  rescaleTaskContours(task, captured.oldWorkMinutes, ctx.hoursPerDay, keepsWork);
-  return NO_CALENDAR_CHANGE;
+  reconcileContourWork(task, assignments, assignments.filter((a) => a.taskId === task.id).map((a) => a.id));
+  return { durationChanged, timephasedLost };
 }
 
 /**

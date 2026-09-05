@@ -498,8 +498,12 @@ Vier randregels (reviewronde 2026-09-05, F3–F6; alle BEREDENEERD):
   doen — bewust, en niet gemeten.
 - De contour-as leeft op werkminuten (§6.3), dus zij wordt na de wissel herschaald van de OUDE
   werkminuten (dagen × oude slot) naar de nieuwe — óók wanneer de regel de dagen niet wijzigt
-  (Vaste duur): dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werk. Werkbehoud in
-  de hoogte volgt `contourKeepsWork`.
+  (Vaste duur): dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werk. De hoogte volgt
+  niet een regelconstante maar de toewijzing zelf: elke contour met een opgeslagen werkveld wordt
+  op precies dat werk gezet (`reconcileContourWork`), zonder werkveld is R' × I het werk. Taken
+  buiten de regel (besluit 6: mijlpaal, verzameltaak, hangmat, ELAPSEDTIME) blijven bij een
+  kalenderwissel byte-identiek, inclusief hun contour-as — dat wijkt bewust af van de Δ-rest-regel
+  (§6.5), die als duur-identiteit wél op ELAPSEDTIME werkt.
 - Een gestarte taak: de nieuwe duur is verricht + nieuwe rest en de rest wordt expliciet
   geschreven, precies zoals bij een duurbewerking (§6.5, B2); `completion` blijft. Let op de
   bekende inconsistentie die daaruit volgt (zie §6.5, laatste punt) — die ontstaat hier zónder

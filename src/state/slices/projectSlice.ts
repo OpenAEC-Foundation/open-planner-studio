@@ -26,6 +26,7 @@ import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
 import { captureCalendarChange, settleCalendarChange } from '@/engine/work/workRuleApply';
 import { tasksFollowingProjectCalendar } from '../calendarTasks';
+import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -268,6 +269,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
 
   setProjectCalendar: (id) => {
     let changed = 0;
+    let lost = 0;
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
@@ -279,11 +281,14 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       s.project.calendarId = id;
       syncProjectCalendar(s); // §9.1: cache gelijkzetten (vóór de settle: die leest `s.calendar`).
       for (const { task, before } of affected) {
-        if (settleCalendarChange(task, s.assignments, before, s).durationChanged) changed++;
+        const settled = settleCalendarChange(task, s.assignments, before, s);
+        if (settled.durationChanged) changed++;
+        if (settled.timephasedLost) lost++; // reviewronde G4
       }
       runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
     });
-    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, get().activeDocumentId, changed);
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
+    if (lost > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lost);
   },
 
   ensureProjectCalendarInLibrary: () =>

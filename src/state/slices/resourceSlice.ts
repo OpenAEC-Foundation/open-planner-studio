@@ -428,6 +428,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
 
   updateCalendar: (id, updates) => {
     let changed = 0;
+    let lost = 0;
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
@@ -438,13 +439,16 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
       for (const { task, before } of affected) {
-        if (settleCalendarChange(task, s.assignments, before, s).durationChanged) changed++;
+        const settled = settleCalendarChange(task, s.assignments, before, s);
+        if (settled.durationChanged) changed++;
+        if (settled.timephasedLost) lost++; // reviewronde G4: zelfde melding als de andere paden.
       }
       // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
       const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
       runtime.finishMutation(s, { stale: !onlyName });
     });
-    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, get().activeDocumentId, changed);
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
+    if (lost > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lost);
     get().recomputeResourceLoad();
   },
 

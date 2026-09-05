@@ -580,7 +580,7 @@ function createMcpDraft(
       }
       s.isDirty = true;
     });
-    if (changed > 0) notifyWorkRuleDurationsChanged(context.store.getState().notify, context.store.getState().activeDocumentId, changed);
+    if (changed > 0) notifyWorkRuleDurationsChanged(context.store.getState().notify, changed);
   },
 
   /**

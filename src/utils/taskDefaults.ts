@@ -2,6 +2,7 @@ import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
 import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
@@ -345,7 +346,9 @@ export function timephasedDurationWalksHaveFrozenWork(task: Task): boolean {
  *  de projectkalender). Voor de HERSCHALINGSFACTOR is de exacte waarde alleen relevant bij een
  *  eenheidswissel dagen↔uren (bij dagen↔dagen en uren↔uren valt hij tegen elkaar weg). */
 export function taskCalendarHoursPerDay(task: Task, calendars: WorkCalendar[], projectCalendar: WorkCalendar): number {
-  return resolveCalendar(task.calendarId, calendars, projectCalendar).hoursPerDay;
+  // Reviewronde G5 (2026-09-05): de EFFECTIEVE uren per dag — op een uurkalender uit de banden
+  // afgeleid — zodat contourreferentie, werkdriehoek en raster dezelfde slot zien.
+  return effHoursPerDay(resolveCalendar(task.calendarId, calendars, projectCalendar));
 }
 
 /** Werkduur van de taak in werkminuten (zie `contourEngine.ts`'s `taskWorkMinutes`) — aan te
@@ -364,9 +367,11 @@ export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
  * Muteert `task` in-place (Immer-draft-stijl, zoals `clearTimephasedWindow`). Retourneert `true`
  * als er ECHT iets herschaald is.
  *
- * Bewust GEEN aanroep bij een kalender- of datumverschuiving: de as is offset-gebaseerd
- * (shift-invariant, zie `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling, en
- * een taakkalenderwissel verandert de werkminuten-duur van de taak niet.
+ * Bewust GEEN aanroep bij een datumverschuiving: de as is offset-gebaseerd (shift-invariant, zie
+ * `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling. Een kalenderwissel die de
+ * SLOT verandert (uren per dag) is sinds K2 (2026-09-05) wél een aanroeper — via
+ * `workRuleApply.ts`'s `settleCalendarChange`: dezelfde dagen zijn dan een andere hoeveelheid
+ * werkminuten, en de as leeft op werkminuten.
  */
 export function rescaleTaskContours(
   task: Task,

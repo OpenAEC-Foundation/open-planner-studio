@@ -35,10 +35,9 @@ export function __resetTaskTypesNoticeForTests(): void {
  * inzet). Geen sessie-gate en bewust GEEN `dedupeKey` (reviewbevinding F10): de dedupe vervangt
  * `params` en telt alleen een badge op, zodat twee bewerkingen van 5 en daarna 2 taken als
  * "2 taken ×2" zouden lezen. Eén melding per bewerking met het echte aantal; `MAX_NOTIFICATIONS`
- * begrenst de stapel. `docId` blijft in de signatuur voor de aanroepers (één plek om later toch
- * per document te vouwen).
+ * begrenst de stapel.
  */
-export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void, _docId: string, count: number): void {
+export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void, count: number): void {
   if (count <= 0) return;
   notify({
     severity: 'info',

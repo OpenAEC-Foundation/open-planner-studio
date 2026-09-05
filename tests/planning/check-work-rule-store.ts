@@ -749,6 +749,18 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().setTaskCalendar(c3.t, six);
   eq('r10 (F3) standaardregel: dagen 4, as 1440, werk volgt (1440)', [task(c3.t).time.scheduleDuration, span(c3.t), sum(c3.t)], [4, 1440, 1440]);
 
+  // (G1/G2) contour mét opgeslagen werkveld, alle vier de regels: hoogte == werk van de toewijzing (opgeslagen ?? afgeleid), as == duur × nieuwe slot.
+  for (const rule of ['FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE'] as const) {
+    const x = mkTask(`r-g-${rule}`, 4, rule === 'FIXED_DURATION_RATE' ? undefined : rule);
+    const mpd = slot();
+    S().setAssignmentContour(asgOf(x.t, x.r).id, workDaySlotsToPeriods([2 * mpd, mpd, 0.5 * mpd, 0.5 * mpd], undefined, mpd));
+    S().setAssignmentWork(asgOf(x.t, x.r).id, 4 * mpd);
+    S().setTaskCalendar(x.t, six);
+    const a = asgOf(x.t, x.r);
+    const work = a.remainingWorkMinutes ?? task(x.t).time.scheduleDuration * 360 * a.unitsPerDay;
+    eq(`r10-${rule} contour mét werkveld na 8→6 u: as = duur × 360, hoogte = werk toewijzing`, [span(x.t) === task(x.t).time.scheduleDuration * 360, Math.round(sum(x.t)), Math.round(work)], [true, Math.round(work), rule === 'FIXED_DURATION_RATE' ? 1440 : 1920]);
+    eq(`r10-${rule} histogram: som van de dageenheden = werk / 360`, Math.round(assignmentDayUnits(task(x.t), a, 360, undefined, S().assignments.filter((q) => q.taskId === x.t)).reduce((m, u) => m + u, 0) * 360), Math.round(work));
+  }
   // (F4) gestarte taak: verricht blijft een feit, heen en terug is stabiel; completion blijft (bekende inconsistentie, TODO).
   // Eerst voortgang, dán de regel: het vastgelegde RESTwerk is 5 d × 8 u = 40 u (spec §7 besluit 2).
   const f4 = mkTask('r-f4', 10);
@@ -817,6 +829,20 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   useAppStore.setState((s) => { s.tasks.find((t) => t.id === z.t)!.timephasedFinishFloor = '2026-06-05'; s.ui.notifications = []; });
   S().setTaskCalendar(z.t, six4);
   eq('r21 Z8-venster gewist door de nazorg ⇒ venster weg én melding', [task(z.t).timephasedFinishFloor, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, true]);
+  // (G4) dezelfde melding via updateCalendar en setProjectCalendar.
+  reset();
+  const six5 = addSix('r5');
+  const z2 = mkTask('r-z2', 4, 'FIXED_WORK');
+  S().setTaskCalendar(z2.t, six5);
+  useAppStore.setState((s) => { s.tasks.find((t) => t.id === z2.t)!.timephasedFinishFloor = '2026-06-05'; s.ui.notifications = []; });
+  S().updateCalendar(six5, { hoursPerDay: 4 });
+  eq('r22 (G4) updateCalendar: venster weg én verliesmelding', [task(z2.t).timephasedFinishFloor, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, true]);
+  reset();
+  const six6 = addSix('r6');
+  const z3 = mkTask('r-z3', 4, 'FIXED_WORK');
+  useAppStore.setState((s) => { s.tasks.find((t) => t.id === z3.t)!.timephasedFinishFloor = '2026-06-05'; s.ui.notifications = []; });
+  S().setProjectCalendar(six6);
+  eq('r23 (G4) setProjectCalendar: venster weg én verliesmelding', [task(z3.t).timephasedFinishFloor, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, true]);
 }
 
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
