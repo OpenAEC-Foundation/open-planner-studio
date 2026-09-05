@@ -223,6 +223,61 @@ function dateFromP6Epoch(raw: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** ISO-weekdag (1=ma … 7=zo) van een `YYYY-MM-DD`-datum. */
+function isoWeekdayOf(date: string): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return (day === 0 ? 7 : day) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+}
+
+/** `date` verschoven met `offset` kalenderdagen, weer als `YYYY-MM-DD`. */
+function shiftIsoDate(date: string, offset: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * WEEKEND-KLEMHERSTEL (etappe 7b-1) — welke ECHTE vrije dag zit er achter een redundant
+ * vrije-uitzonderingsrecord?
+ *
+ * HET BEWIJS (corpus `crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, kalender 842 `R111 - 1`:
+ * ma-do + za + zo werkend, vrijdag vrij). De negen feestdagenblokken in `clndr_data` zijn aaneengesloten
+ * vrije reeksen, maar de opgeslagen epochdagen missen elke zaterdag en zondag en herhalen in plaats
+ * daarvan de aangrenzende vrijdag of maandag. Blok 2008-09-29 … 2008-10-09 staat er letterlijk als
+ * `39720 39721 39722 39723 39724 39724 39727 39727 39728 39729 39730` — 10-04 (za) en 10-05 (zo)
+ * ontbreken, terwijl 10-03 (vr) en 10-06 (ma) er twee keer staan. Ditzelfde patroon staat in alle
+ * negen blokken van die kalender, en in het hele corpus van 93 bestanden komt een AANGRENZEND
+ * DUPLICAAT verder in geen enkel bestand voor. De schrijver heeft de blokdagen dus op de MA-VR-as
+ * geklemd: **zaterdag → de vrijdag ervóór, zondag → de maandag erná**.
+ *
+ * Onafhankelijke bevestiging op dezelfde kalender: alle 23 redundante records staan op een vrijdag
+ * of een maandag (0 op een andere weekdag), en de tien dagen die de set-cover van het
+ * 761-diagnosedossier onafhankelijk als "moeten vrij zijn" aanwees — 2008-10-04, 2008-10-05,
+ * 2008-12-07, 2008-12-13, 2008-12-14, 2009-09-19, 2009-09-20, 2009-11-28, 2009-11-29, 2009-12-05 —
+ * zijn exact de klemdoelen van tien van die 23 records. Eén-op-één, geen rest.
+ *
+ * DE POORT. Deze reconstructie draait alleen wanneer de kalender zélf een aangrenzend duplicaat
+ * draagt (zie de aanroepplek): dat duplicaat IS het bewijs dat er een dag verloren ging. Verder
+ * eist deze functie dat het klemdoel (a) daadwerkelijk een zaterdag of zondag is, (b) op deze
+ * kalender een WERKdag is — anders verandert vrij maken niets — en (c) niet zelf al een
+ * uitzonderingsrecord heeft. Corpusmeting van die drie eisen samen: alleen rehab-2 en de twee
+ * Hotel-bestanden hebben überhaupt klembare records, en de Hotel-bestanden hebben geen duplicaat
+ * en blijven dus onaangeraakt.
+ */
+function weekendClampTarget(
+  date: string, bands: WorkTimeBands, exceptionDates: ReadonlySet<string>,
+): string | null {
+  const weekday = isoWeekdayOf(date);
+  // Vrijdag draagt de geklemde zaterdag; maandag draagt de geklemde zondag.
+  const target = weekday === 5 ? shiftIsoDate(date, 1)
+    : weekday === 1 ? shiftIsoDate(date, -1)
+      : null;
+  if (target === null) return null;
+  const targetWeekday = isoWeekdayOf(target);
+  if (targetWeekday !== 6 && targetWeekday !== 7) return null;
+  if (bands.byWeekday[targetWeekday].length === 0) return null;
+  if (exceptionDates.has(target)) return null;
+  return target;
+}
+
 function calendarType(raw: string): XerCalendarType {
   switch (raw.trim().toLowerCase()) {
     case 'ca_base': return 'GLOBAL';
@@ -538,12 +593,15 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   const holidaysByDate = new Map<string, Holiday>();
   const workingByDate = new Map<string, WorkingException>();
   const p6NonWorkPenaltyDates = new Set<string>();
+  const exceptionDates = new Set<string>();
+  const adjacentDuplicateDates = new Set<string>();
   let duplicateException = false;
   let previousNonWorkDate: string | undefined;
   const exceptionContainers = root.children.filter(record => record.name === 'Exceptions');
   if (exceptionContainers.length > 1) recoveries.push('MULTIPLE_EXCEPTIONS');
   for (const exception of exceptionContainers.flatMap(container => container.children)) {
     const date = dateFromP6Epoch(exception.fields.d ?? '');
+    exceptionDates.add(date);
     const canonicalException = canonicalizeBands({ 1: bandsFromRecords(exception.children) }).bands;
     assertNoBandOverlap(canonicalException);
     const exceptionBands = canonicalException.byWeekday[1];
@@ -558,6 +616,7 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
       if (bands.byWeekday[isoDay].length === 0 || previousNonWorkDate === date) {
         p6NonWorkPenaltyDates.add(date);
       }
+      if (previousNonWorkDate === date) adjacentDuplicateDates.add(date);
       previousNonWorkDate = date;
     } else {
       previousNonWorkDate = undefined;
@@ -577,6 +636,22 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   // Een werkende uitzondering wint ook voor de brongebonden P6-straf. De datum draagt dan echte
   // banden en is geen redundante vrije-dagrecord meer.
   for (const date of workingByDate.keys()) p6NonWorkPenaltyDates.delete(date);
+  // Weekend-klemherstel (7b-1). Zie `weekendClampTarget` voor het volledige bewijs: een schrijver die
+  // een uitzonderingsblok op de MA-VR-as klemt levert zaterdagen af op de vrijdag ervóór en zondagen
+  // op de maandag erná. Het bewijs dát deze kalender zo geschreven is, is de AANGRENZENDE DUPLICAAT:
+  // twee opeenvolgende records met dezelfde epochdag kunnen alleen ontstaan als twee verschillende
+  // brondagen op dezelfde datum zijn geklemd. Zonder zo'n duplicaat blijft alles ongewijzigd, dus
+  // 92 van de 93 corpusbestanden zijn hier byte-identiek.
+  for (const date of adjacentDuplicateDates.size > 0 ? [...p6NonWorkPenaltyDates] : []) {
+    const target = weekendClampTarget(date, bands, exceptionDates);
+    if (target === null) continue;
+    holidaysByDate.set(target, {
+      name: 'Kalenderuitzondering (weekendherstel)', startDate: target, endDate: target,
+    });
+    // De dag is nu ECHT vrij; hem daarnaast nog als virtuele extra niet-werkdag laten meetellen zou
+    // dezelfde afwezigheid twee keer verrekenen in elke duur- en floatwandeling.
+    p6NonWorkPenaltyDates.delete(date);
+  }
   if (duplicateException) recoveries.push('DUPLICATE_EXCEPTION');
 
   return {

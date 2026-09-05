@@ -809,6 +809,17 @@ export class CalendarEngine {
    * kalenderprimitief: `subtractWorkMinutes` blijft de inverse van `addWorkMinutes`. De solver mag
    * deze methode alleen kiezen wanneer óók het project `schedulingOptions.p6Source === 'XER'`
    * draagt; deze kalender controleert onafhankelijk haar eigen `p6Source` via de lege index.
+   *
+   * WAAROM DEZE PROJECTIE OP EEN AL VRIJE DAG BLIJFT DUBBELTELLEN (etappe 7b-2, gemeten). Elke
+   * `p6NonWorkPenaltyDate` is per constructie óók een gewone holiday op deze kalender (de
+   * XER-decoder maakt van hetzelfde vrije-uitzonderingsrecord beide). Een generieke wacht "sla een
+   * penaltydag over die fysiek al niet werkt" is daarom hetzelfde als de hele projectie schrappen,
+   * en dat is gemeten: X12-productfidelity ging daarmee van 18.398 naar 21.588 afwijkingen. De
+   * projectie blijft dus staan voor de twaalf corpusbestanden waarvoor ze het enige model is.
+   * Het dubbeltellen wordt niet hier maar bij de BRON opgelost: zodra de decoder de werkelijk
+   * bedoelde vrije dag kan reconstrueren (`weekendClampTarget` in `xerCalendarData.ts`), levert hij
+   * voor diezelfde datum géén penaltydatum meer. Beide helften moeten samen landen — elk
+   * afzonderlijk maakt het corpus meetbaar slechter (18.398 → 21.673 resp. 21.588, samen 17.421).
    */
   subtractP6XerProjectedWorkMinutes(endInstant: Date, minutes: number): Date {
     if (minutes <= 0 || this.p6NonWorkPenaltyDayIdxSorted.length === 0) {

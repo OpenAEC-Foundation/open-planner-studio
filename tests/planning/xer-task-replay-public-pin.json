@@ -23,11 +23,11 @@
       "aggregate": {
         "es": { "improved": 0, "regressed": 0, "unchanged": 13931 },
         "ef": { "improved": 0, "regressed": 2, "unchanged": 13935 },
-        "ls": { "improved": 0, "regressed": 690, "unchanged": 13132 },
-        "lf": { "improved": 0, "regressed": 704, "unchanged": 13109 },
-        "tf": { "improved": 0, "regressed": 629, "unchanged": 13048 },
+        "ls": { "improved": 0, "regressed": 731, "unchanged": 13091 },
+        "lf": { "improved": 0, "regressed": 742, "unchanged": 13071 },
+        "tf": { "improved": 0, "regressed": 706, "unchanged": 12971 },
         "ff": { "improved": 0, "regressed": 0, "unchanged": 13322 },
-        "overall": { "improved": 0, "regressed": 704, "unchanged": 13255 }
+        "overall": { "improved": 0, "regressed": 742, "unchanged": 13217 }
       },
       "rejected": true,
       "exitCode": 1,
