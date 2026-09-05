@@ -25,6 +25,10 @@ export interface XerResourceReadContext {
   availableCalendarIds: ReadonlySet<string>;
   calendarHoursPerDay: ReadonlyMap<string, number>;
   taskIds: ReadonlySet<string>;
+  /** Taaktypes-etappe (spec §4.3/§4.4): geplande werkminuten per activiteit, voor de
+   *  "afwezig ⇒ afgeleid"-toets van de TASKRSRC-werkhoeveelheden. Optioneel: zonder deze kaart
+   *  worden geen werkvelden gezet (byte-identiek voor bestaande aanroepers). */
+  taskWorkMinutes?: ReadonlyMap<string, number>;
 }
 
 export interface XerEntityIdentity {

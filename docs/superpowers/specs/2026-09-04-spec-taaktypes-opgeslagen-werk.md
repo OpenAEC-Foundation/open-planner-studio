@@ -291,10 +291,13 @@ opgeslagen**, zodat een latere typewissel de herkomst niet vernietigt:
 | | `DT_FixedDUR2` | FIXED_DURATION_WORK |
 | | `DT_FixedQty` | FIXED_WORK |
 | | `DT_FixedRate` | FIXED_RATE |
-| | `DT_FixedDUR` (niet-standaard, 24 activiteiten in p6difftool-fixtures, GEMETEN) | **geen** werkregel; token blijft rauw bewaard in `p6DurationType`; één waarschuwing. Niet raden. |
+| | `DT_FixedDUR` (niet-standaard, 24 activiteiten in p6difftool-fixtures, GEMETEN) | de XER-lezer zelf valt bij een onbekend token gerapporteerd terug op de projectstandaard (`PROJECT.def_duration_type`, XER-etappeplan §4.7) en zet dát als `p6DurationType`; de werkregel volgt die standaard. Het rauwe token blijft in het bronarchief. (Bijgewerkt 2026-09-05 na de merge met de XER-branch; de oude regel "geen werkregel" is daarmee vervallen.) |
 
-De exacte tekenreeksen van P6 XML's `<DurationType>` zijn hier niet tegen het PMXML-schema
-gecontroleerd — te verifiëren tegen MPXJ's `DurationTypeHelper` bij de bouw (ONBEKEND tot dan).
+De P6 XML-labels zijn geverifieerd tegen de P6 EPPM REST-documentatie van het Activity-object
+(ZEKER; dezelfde enum als PMXML) en de XER-token↔label-paren tegen Oracle's XER Import/Export Data
+Map Guide (TASK.duration_type): `DT_FixedDrtn` = "Fixed Duration and Units/Time", `DT_FixedDUR2` =
+"Fixed Duration and Units". Let op: de P6 XML-lezer van de XER-branch had die twee labels
+verwisseld; bouwstap 2 heeft dat gecorrigeerd (`p6xmlReader.ts`, `check-xer-p6xml-parity.ts`).
 De XER-tokens komen van de XER-sessie (ZEKER voor hun branch). `mppReader.ts`'s `MSP_TASK_TYPE_VALUES` gebruikt de volgorde 0/1/2 =
 Fixed Units/Fixed Duration/Fixed Work (ZEKER); dat MSPDI's task-level `<Type>` dezelfde nummering
 draagt is een externe bewering die de repo nergens vastlegt — te verifiëren tegen MPXJ's

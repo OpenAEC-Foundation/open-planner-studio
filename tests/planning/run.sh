@@ -623,6 +623,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Taaktypes-etappe, bouwstap 3 (ontwerp 2026-09-04 §9/§10): de pure werkdriehoek + de meetlat.
   WTCHECK="$DIR/.check-work-triangle.mjs"
   if bundle_check "$DIR/check-work-triangle.ts" "$WTCHECK"; then node "$WTCHECK" || STATUS=1; fi
+  # Taaktypes-etappe, bouwstap 2: werkregel-/werkveldvertaling (MSPDI, P6 XML, XER) beide kanten.
+  WRMCHECK="$DIR/.check-work-rule-mapping.mjs"
+  if bundle_check "$DIR/check-work-rule-mapping.ts" "$WRMCHECK"; then node "$WRMCHECK" || STATUS=1; fi
 
   # Geavanceerde-CPM golf-0-checks (fase 2.9 — datamodel + plumbing default-inert, los van de CPM-cases).
   ACPMCHECK="$DIR/.advanced-cpm-check.mjs"

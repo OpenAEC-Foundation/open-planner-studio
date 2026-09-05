@@ -38,6 +38,8 @@ import {
   detectXerSourcePresentation,
   type XerSourceArchive,
 } from '@/services/xerSourceArchive';
+import { deriveImportedWorkRules } from '@/services/importNormalize';
+import { taskWorkMinutes as activityWorkMinutesOf } from '@/engine/contour/contourEngine';
 import { readXerCalendars } from './xerCalendarData';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
@@ -839,6 +841,7 @@ function readXerProject(
     };
   });
   const allTasks = [...wbsTasks, ...mappedActivities];
+  deriveImportedWorkRules(mappedActivities); // taaktypes-etappe: werkregel uit duration_type
   const taskById = new Map(allTasks.map(task => [task.id, task]));
   for (const task of allTasks) {
     if (!task.parentId) continue;
@@ -867,6 +870,11 @@ function readXerProject(
     availableCalendarIds: new Set(calendarList.map(calendar => calendar.id)),
     calendarHoursPerDay: new Map(calendarList.map(calendar => [calendar.id, calendar.hoursPerDay])),
     taskIds: new Set(mappedActivities.map(task => task.id)),
+    // Taaktypes-etappe: geplande werkminuten per activiteit voor de werkveld-afleiding.
+    taskWorkMinutes: new Map(mappedActivities.map(task => [
+      task.id,
+      activityWorkMinutes(task, calendarById.get(task.calendarId ?? '')?.hoursPerDay ?? projectCalendar.hoursPerDay),
+    ])),
   }, taskResourceRowsByProject.get(projectId) ?? []);
   for (const assignment of resourceResult.assignments) {
     const task = taskById.get(assignment.taskId);
@@ -998,6 +1006,11 @@ function readXerProject(
  * De baselinebeslissing zit vóór de openroute: die krijgt dus uitsluitend documenten die echt als
  * tab geopend mogen worden.
  */
+/** Geplande werkminuten van een activiteit (uurmodus: de bronminuten; dagmodus: dagen × uren/dag). */
+function activityWorkMinutes(task: Task, hoursPerDay: number): number {
+  return activityWorkMinutesOf(task.time, hoursPerDay);
+}
+
 export function readXER(bytes: Uint8Array): XerOpenResult {
   const tables = parseXerTables(bytes);
   const scheduleOptionsIndex = indexXerScheduleOptions(tables);

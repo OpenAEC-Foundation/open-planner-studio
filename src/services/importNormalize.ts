@@ -1,5 +1,27 @@
 import type { Task } from '@/types/task';
 import { formatDate } from '@/utils/dateUtils';
+import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
+
+/**
+ * Taaktypes-etappe (ontwerp 2026-09-04 §4.2), bouwstap 2 — de WERKREGEL afleiden uit de bewaarde
+ * importvelden, één keer, in elke lezer die zulke velden zet (.mpp, MSPDI, P6 XML, XER). De
+ * importvelden zelf blijven onaangeraakt (O3-precedent: één klasse taakvelden); de regel is een
+ * apart opgeslagen afgeleide, zodat een latere typewissel de herkomst niet vernietigt.
+ *   - MSP: `mspTaskType` + `effortDriven` → `workRuleFromMsp` (Fixed Units ⇒ FIXED_RATE, Fixed
+ *     Duration ± effort-driven ⇒ FIXED_DURATION_WORK/-RATE, Fixed Work ⇒ FIXED_WORK).
+ *   - P6 (XER én PMXML, beide via `p6DurationType`): `workRuleFromXerDurationType`.
+ * Een taak die al een `workRule` draagt (IFC) wordt niet overschreven; geen bron ⇒ geen veld
+ * (byte-identiek). Puur data — géén solverstap leest het; het gedrag komt in de bewerkingslaag.
+ */
+export function deriveImportedWorkRules(tasks: Task[]): void {
+  for (const task of tasks) {
+    if (task.workRule) continue;
+    const rule = task.mspTaskType
+      ? workRuleFromMsp(task.mspTaskType, task.effortDriven)
+      : workRuleFromXerDurationType(task.p6DurationType);
+    if (rule) task.workRule = rule;
+  }
+}
 
 /**
  * Fase 2.6 — voortgang-invarianten toepassen op RAUW ingelezen taken (IFC/MSPDI/P6/CSV).

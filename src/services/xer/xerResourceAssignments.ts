@@ -13,6 +13,7 @@ import {
 } from './xerAssignmentProvenance';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { P6_NAME_TO_CURVE } from '@/services/p6/p6xmlWriter';
+import { importedWorkFields } from '@/engine/work/workRuleMapping';
 
 // MPXJ's XerUnitsHelper gebruikt 1.000.000 als afrondingsprecisie voor P6-werkhoeveelheden.
 // Dit is geen deler voor *_qty_per_hr: OPS gebruikt daar net als XER 1 = 100%.
@@ -219,8 +220,22 @@ export function readXerResourceAssignments(
     const curve = curveSourceId ? curveById.get(curveSourceId) : undefined;
     if (curveSourceId && !curve) issues.push({ code: 'XER_ASSIGNMENT_CURVE_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'UNIFORM' });
     const { curve: opsCurve, curveValues } = curveOf(curve);
+    // Taaktypes-etappe (spec §4.3/§4.4, afspraak met de XER-etappe): target_qty / act_reg_qty +
+    // act_ot_qty / remain_qty (uren) worden eersteklasvelden — alleen wanneer ze afwijken van
+    // `activiteitsduur × target_qty_per_hr` (`importedWorkFields`); materiaal blijft buiten de
+    // driehoek. De rauwe rijen blijven daarnaast in het bronarchief.
+    const taskWork = context.taskWorkMinutes?.get(taskSourceId);
+    const workFields = resource.type !== 'MATERIAL' && taskWork !== undefined
+      ? importedWorkFields({
+        plannedMinutes: quantities.target !== undefined ? quantities.target * 60 : undefined,
+        actualMinutes: quantities.actualRegular !== undefined || quantities.actualOvertime !== undefined
+          ? ((quantities.actualRegular ?? 0) + (quantities.actualOvertime ?? 0)) * 60
+          : undefined,
+        remainingMinutes: quantities.remaining !== undefined ? quantities.remaining * 60 : undefined,
+      }, taskWork * scaled.value)
+      : {};
     assignments.push({ id: `xer-assignment:${sourceId}`, taskId: taskSourceId, resourceId: resource.id, unitsPerDay: scaled.value,
-      ...(opsCurve ? { curve: opsCurve } : {}), ...(curveValues ? { curveValues } : {}) });
+      ...(opsCurve ? { curve: opsCurve } : {}), ...(curveValues ? { curveValues } : {}), ...workFields });
   }
   return { assignments, roleResources: Array.from(roleResourceById.values()), sources, issues };
 }

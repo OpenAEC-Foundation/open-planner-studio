@@ -16,6 +16,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
 import { contourPeriodsToDayItems, minutesToMspdiValue } from '@/services/contourIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
+import { MSPDI_TASK_TYPE_CODE, mspFromWorkRule } from '@/engine/work/workRuleMapping';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -470,8 +471,21 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
     lines.push(`${indent(3)}<Name>${escapeXML(task.name)}</Name>`);
+    // Taaktypes-etappe (spec §4.2/§4.4): <Type> (0/1/2) en <EffortDriven> uit de werkregel; een
+    // bewaard MSP-`effortDriven` wint (`mspFromWorkRule`). Zonder werkregel valt een taak met
+    // alleen bewaarde MSP-velden op die velden terug; zonder beide schrijft de export niets
+    // (golden rule) — MS Project neemt dan zijn eigen default (Fixed Units).
+    const mspType = task.workRule
+      ? mspFromWorkRule(task.workRule, task.mspTaskType ? (task.effortDriven ?? false) : undefined)
+      : task.mspTaskType ? { type: task.mspTaskType, effortDriven: task.effortDriven ?? false } : undefined;
+    if (mspType && !isSummary) {
+      lines.push(`${indent(3)}<Type>${MSPDI_TASK_TYPE_CODE[mspType.type]}</Type>`);
+    }
     lines.push(`${indent(3)}<Duration>${durationTag}</Duration>`);
     lines.push(`${indent(3)}<DurationFormat>${durationFormat}</DurationFormat>`);
+    if (mspType && !isSummary) {
+      lines.push(`${indent(3)}<EffortDriven>${mspType.effortDriven ? 1 : 0}</EffortDriven>`);
+    }
     lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
     lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
@@ -647,10 +661,25 @@ export function writeMSPDI(
       lines.push(`${indent(3)}<UID>${uid}</UID>`);
       lines.push(`${indent(3)}<TaskUID>${taskUid}</TaskUID>`);
       lines.push(`${indent(3)}<ResourceUID>${resUid}</ResourceUID>`);
+      // Taaktypes-etappe (spec §4.3/§4.4): verricht en resterend werk alleen wanneer het veld er is
+      // (schemavolgorde: ActualWork en RemainingWork vóór Units, zie de MSPDI-Assignment-structuur).
+      if (a.actualWorkMinutes !== undefined) {
+        lines.push(`${indent(3)}<ActualWork>${minutesToMspdiValue(a.actualWorkMinutes)}</ActualWork>`);
+      }
+      if (a.remainingWorkMinutes !== undefined) {
+        lines.push(`${indent(3)}<RemainingWork>${minutesToMspdiValue(a.remainingWorkMinutes)}</RemainingWork>`);
+      }
       lines.push(`${indent(3)}<Units>${a.unitsPerDay}</Units>`);
-      // Werk: bij een contour de SOM van de dagverdeling (de echte werkinhoud), anders duur × units.
+      // Werk: het opgeslagen begrote werk als dat er is; anders bij een contour de SOM van de
+      // dagverdeling (de echte werkinhoud), anders duur × units.
       const contourWorkMinutes = dayItems.reduce((n, d) => n + d.workMinutes, 0);
-      lines.push(`${indent(3)}<Work>${dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
+      const plannedWork = a.plannedWorkMinutes
+        ?? (a.actualWorkMinutes !== undefined || a.remainingWorkMinutes !== undefined
+          ? (a.actualWorkMinutes ?? 0) + (a.remainingWorkMinutes ?? 0)
+          : undefined);
+      lines.push(`${indent(3)}<Work>${plannedWork !== undefined
+        ? minutesToMspdiValue(plannedWork)
+        : dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
       // WorkContour 8 = Contoured zodra er een echte verdeling meegaat (MPXJ `WorkContour.CONTOURED`).
       const contour = dayItems.length > 0 ? MSPDI_WORKCONTOUR_CONTOURED : CURVE_TO_WORKCONTOUR[a.curve ?? 'UNIFORM'];
       if (contour !== 0) {
