@@ -404,7 +404,7 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    vast id geven) staat als openstaand punt in `docs/TODO.md` — vergt een migratie voor bestaande
    installaties en opgeslagen stempels, daarom nu niet gedaan.
 
-5. **Verdeler-kern bestaat, nog zonder schrijfpad/paneel.** Sinds B1c-etappe 2
+5. **Verdelen over projecten: rekenkern, schrijfpad en dialoog.** Sinds B1c-etappe 2
    (`src/services/library/distribute.ts`) is er een pure rekenkern die, gegeven een poolitem en de
    geopende documenten die erop boeken, een verdelingsvoorstel berekent: documenten worden één voor
    één, in een opgegeven rangorde, tegen de restcapaciteit geplaatst — nummer 1 nivelleert alleen
@@ -414,8 +414,28 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    bezettingsoverzicht hierboven). Past een taak niet, dan wordt ze als tekort geregistreerd en boekt
    ze niets in het gedeelde grootboek — een tekort cascadeert dus niet naar de volgende documenten in
    de rangorde. Deze kern draait volledig puur (`computeDistribution`, headless getest in
-   `tests/library/check-distribute.ts`); het schrijfpad (de gevonden verschuivingen daadwerkelijk
-   toepassen) en het paneel dat dit voorstel toont, bestaan nog niet.
+   `tests/library/check-distribute.ts`).
+
+   Sinds B1c-etappe 3 heeft dit voorstel ook een schrijfpad en een bediening: een dialoog
+   ("Verdelen over projecten", geen drill-down — besluit eigenaar 2026-08-31), te openen vanuit de
+   conflictregel in het bezettingsoverzicht of vanuit de Resources-ribbon. De gebruiker stuurt het
+   voorstel bij met een rangorde ("wie wordt het meest ontzien"), een schakelaar voor onderbrekingen,
+   en per project twee begrenzingen: **vastzetten** (pin) bevriest een project volledig — einddatum
+   én werkdagen blijven ongewijzigd, het telt mee als vaste last — en een **plafond** begrenst alleen
+   hóéveel een project mag opschuiven; een plafond van 0 laat de bestaande speling nog wel toe, in
+   tegenstelling tot vastzetten. Toepassen schrijft de verschuiving in álle deelnemende documenten
+   tegelijk, ook als **Automatisch berekenen** daar uitstaat, en elk document krijgt daarbij een
+   gewone ongedaan-maken-stap — sinds de merge met main een event in de app-globale sessiehistorie,
+   net als elke andere bewerking. "Alles terugdraaien" draait die stappen in één keer terug, behalve
+   in een document waar intussen zelf verder gewerkt is; dat wordt met naam gemeld en blijft op zijn
+   nieuwe stand staan.
+
+   De rangorde, pins en plafonds horen bij de verdeelsessie zelf, niet bij het project: het zijn geen
+   `DOCUMENT_FIELDS` en ze round-trippen dus niet door het IFC, overleven geen undo in het actieve
+   document en beginnen na een herstart weer neutraal (zie de scope-bak "Waar de tune-state woont" in
+   `docs/superpowers/plans/2026-08-31-b1c-plan3-schrijfpad-paneel.md` voor de volledige afweging). Zie
+   de gebruikersgids [Verdelen over projecten](../public/docs/nl/gids-verdelen-restcapaciteit.md) voor
+   het gebruikersperspectief.
 
 ## Bekende kleine punten
 
