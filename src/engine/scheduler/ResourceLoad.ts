@@ -163,12 +163,30 @@ export function assignmentDayUnits(
     return weights.map((w) => w * total);
   }
   if (assignment.remainingWorkMinutes !== undefined && Number.isFinite(assignment.remainingWorkMinutes) && durationDays > 0) {
-    const workMinutes = Math.max(0, assignment.remainingWorkMinutes) + Math.max(0, assignment.actualWorkMinutes ?? 0);
-    const totalUnits = workMinutes / Math.max(1, mpd);
+    // Het VERRICHTE deel: `actualWorkMinutes` als de bron 'm gaf, anders afgeleid als verrichte
+    // duur × inzet (reviewbevinding B3: de werkdriehoek schrijft alleen `remainingWorkMinutes`, en
+    // een typewissel op een half gedane taak mag de belasting niet halveren — besluit 2).
+    const slotMinutes = Math.max(1, mpd);
+    const doneUnits = assignment.actualWorkMinutes !== undefined
+      ? Math.max(0, assignment.actualWorkMinutes) / slotMinutes
+      : Math.max(0, durationDays - remainingDaysOf(task, slotMinutes)) * assignment.unitsPerDay;
+    const totalUnits = Math.max(0, assignment.remainingWorkMinutes) / slotMinutes + doneUnits;
     const weights = slotWeightsFromValues(CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[assignment.curve ?? 'UNIFORM']], durationDays);
     return weights.map((w) => w * totalUnits);
   }
   return distributeUnits(assignment.unitsPerDay, durationDays, assignment.curve ?? 'UNIFORM');
+}
+
+/** Resterende duur van de taak in werkdagen (dezelfde afleiding als de solver en
+ *  `workRuleApply.ts`'s `remainingMinutesOf`): uurmodus `remainingMinutes ?? duur × (1 − voortgang)`
+ *  (÷ slot), dagmodus `remainingTime ?? duur × (1 − voortgang)`. */
+function remainingDaysOf(task: Task, slotMinutes: number): number {
+  const t = task.time;
+  if (t.durationUnit === 'hours' && typeof t.durationMinutes === 'number' && Number.isFinite(t.durationMinutes)) {
+    const rem = t.remainingMinutes ?? Math.round(t.durationMinutes * (1 - (t.completion ?? 0)));
+    return Math.max(0, rem) / slotMinutes;
+  }
+  return Math.max(0, t.remainingTime ?? Math.round(t.scheduleDuration * (1 - (t.completion ?? 0))));
 }
 
 /** Hulpje voor de lastlezers: één `matchContoursToAssignments`-uitslag per taak (gecachet per

@@ -271,6 +271,175 @@ console.log('-- (g) assignmentDayUnits: opgeslagen werk als vierde bron --');
   eq('g4 verricht + resterend telt samen', r3(assignmentDayUnits(t, { ...base, remainingWorkMinutes: 480, actualWorkMinutes: 480 }, 480)), [0.5, 0.5, 0.5, 0.5]);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (h) voortgang > 0: geen drift, voortgangsbewerking is geen duurbewerking (review B1/B2/B3) --');
+{
+  reset();
+  const t = S().addTask({ name: 'h', time: createDefaultTaskTime('2026-06-01', 10) });
+  const r1 = labor('r1');
+  S().assignResource(t, r1, 1);
+  S().updateTask(t, { time: { ...task(t).time, completion: 0.5 } });
+  S().runCPM();
+  const mpd = slot();
+  const loadBefore = assignmentDayUnits(task(t), asgOf(t, r1), mpd);
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  eq('h1 typewissel legt alleen het RESTwerk vast (5 dagen)', asgOf(t, r1).remainingWorkMinutes, 5 * mpd);
+  const r6 = (xs: number[]) => xs.map((v) => Math.round(v * 1e6) / 1e6);
+  eq('h2 (B3) histogram na typewissel ongewijzigd (verricht deel afgeleid)', r6(assignmentDayUnits(task(t), asgOf(t, r1), mpd)), r6(loadBefore));
+  // Voortgangsbewerking via updateTask met een gespreide time-tak (TaskDialog-patroon) raakt de inzet niet.
+  S().updateTask(t, { time: { ...task(t).time, completion: 0.7 } });
+  eq('h3 (B1) completion-wijziging via updateTask laat de inzet staan', asgOf(t, r1).unitsPerDay, 1);
+  S().updateTask(t, { time: { ...task(t).time, completion: 0.5 } });
+  S().runCPM();
+  // Inzet 1→2 op een half gedane taak: rest 5 d × 1 = 5 slots werk ⇒ R = 2,5 ⇒ 3 d; duur = 5 + 3 = 8.
+  S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 2 });
+  eq('h4 (B2) inzet 1→2: duur 8 (5 gedaan + 3 rest), rest expliciet 3', [task(t).time.scheduleDuration, task(t).time.remainingTime], [8, 3]);
+  S().runCPM();
+  S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 1 });
+  eq('h5 (B2) inzet 2→1: terug naar 10, rest 5 — geen drift', [task(t).time.scheduleDuration, task(t).time.remainingTime], [10, 5]);
+  S().runCPM();
+  S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 2 });
+  S().runCPM();
+  S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 1 });
+  eq('h6 (case 31) heen-en-weer blijft 10', task(t).time.scheduleDuration, 10);
+  // Raster: een voortgangscel verandert de rest, niet de duur ⇒ geen driehoekstap.
+  const cellP = (columnId: string, route: CellEditIntent['route'], value: unknown): CellEditIntent =>
+    ({ kind: 'cell-edit', taskId: t, columnId: columnId as CellEditIntent['columnId'], route, value });
+  eq('h7 (B1) rastercel completion 0,5→0,8 slaagt', runGridMutation([cellP('task.time.completion', 'task-progress', 0.8)]).ok, true);
+  eq('h8 (B1) …en laat inzet en duur staan', [asgOf(t, r1).unitsPerDay, task(t).time.scheduleDuration], [1, 10]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (i) uurmodus --');
+{
+  reset();
+  const t = S().addTask({ name: 'i', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
+  const r1 = labor('r1');
+  S().assignResource(t, r1, 1);
+  S().runCPM();
+  eq('i0 voorwaarde: uurtaak van 240 minuten', [task(t).time.durationUnit, task(t).time.durationMinutes], ['hours', 240]);
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  eq('i1 restwerk vastgelegd in minuten', asgOf(t, r1).remainingWorkMinutes, 240);
+  S().setAssignmentWork(asgOf(t, r1).id, 360);
+  eq('i2 werk 360 min bij inzet 1 ⇒ duur 360 min (geen dagafronding)', [task(t).time.durationMinutes, task(t).time.scheduleDuration], [360, 360 / slot()]);
+  S().runCPM();
+  S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 2 });
+  eq('i3 inzet 2 ⇒ 180 min', task(t).time.durationMinutes, 180);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (j) FIXED_RATE en de 8-B-cel effortDriven:false --');
+{
+  reset();
+  const t = S().addTask({ name: 'j', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r1 = labor('r1');
+  S().assignResource(t, r1, 1);
+  S().runCPM();
+  S().setTaskWorkRule(t, 'FIXED_RATE');
+  const r2 = labor('r2');
+  S().assignResource(t, r2, 1);
+  eq('j1 FIXED_RATE (zuiver P6): resource erbij verdeelt het werk ⇒ duur 2', task(t).time.scheduleDuration, 2);
+  S().runCPM();
+  S().unassignResource(asgOf(t, r2).id);
+  eq('j2 …eraf ⇒ terug naar 4', task(t).time.scheduleDuration, 4);
+  S().runCPM();
+  S().setAssignmentWork(asgOf(t, r1).id, 8 * slot());
+  eq('j3 FIXED_RATE: meer werk ⇒ langer (8), inzet blijft 1', [task(t).time.scheduleDuration, asgOf(t, r1).unitsPerDay], [8, 1]);
+  S().runCPM();
+  // 8-B: MSP "Fixed Units, niet effort-driven" ⇒ resource erbij verandert het werk, niet de duur.
+  S().updateTask(t, { mspTaskType: 'FIXED_UNITS', effortDriven: false });
+  S().runCPM();
+  S().assignResource(t, r2, 1);
+  eq('j4 (8-B) FIXED_RATE + effortDriven:false: erbij laat de duur staan', task(t).time.scheduleDuration, 8);
+  // De kern schrijft de nieuwkomer geen veld (afwezig ⇒ afgeleid als R × I, hetzelfde getal).
+  eq('j5 (8-B) …de nieuwe toewijzing krijgt geen veld (afgeleid = R × I)', asgOf(t, r2).remainingWorkMinutes, undefined);
+  S().runCPM();
+  S().unassignResource(asgOf(t, r2).id);
+  eq('j6 (8-B) …eraf laat de duur staan', task(t).time.scheduleDuration, 8);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (k) raster: materiaal, gemengde Resources-cel (K6), datums-zoals-opgeslagen --');
+{
+  reset();
+  const t = S().addTask({ name: 'k', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r1 = labor('r1');
+  S().assignResource(t, r1, 1);
+  S().runCPM();
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  const mat = S().addResource({ name: 'beton', type: 'MATERIAL', description: '', maxUnits: 100 });
+  const addMat: AssignmentSetIntent = {
+    kind: 'assignment-set', taskId: t, columnId: 'assignment.resources' as AssignmentSetIntent['columnId'],
+    tokens: [{ resourceId: r1, assignmentId: asgOf(t, r1).id, unitsPerDay: 1 }, { resourceId: mat, unitsPerDay: 20 }],
+  };
+  eq('k1 materiaal erbij via het raster slaagt', runGridMutation([addMat]).ok, true);
+  eq('k2 …en verandert de duur niet, geen werkveld op materiaal', [task(t).time.scheduleDuration, asgOf(t, mat).remainingWorkMinutes], [4, undefined]);
+  // Gemengde cel: r1 eraf + r2 erbij (à 0,5) in één keer. Volgorde verwijderen → toevoegen:
+  // r1's werk (4 slots) gaat naar de blijvers — er zijn er geen (materiaal stuurt niet), dus het
+  // werk vervalt; r2 komt daarna als EERSTE werkresource en krijgt geen veld (afwezig ⇒ afgeleid
+  // als R × I = 4 × 0,5 = 2 slots); de duur blijft 4.
+  const r2 = labor('r2');
+  const swap: AssignmentSetIntent = {
+    kind: 'assignment-set', taskId: t, columnId: 'assignment.resources' as AssignmentSetIntent['columnId'],
+    tokens: [{ resourceId: mat, assignmentId: asgOf(t, mat).id, unitsPerDay: 20 }, { resourceId: r2, unitsPerDay: 0.5 }],
+  };
+  eq('k3 (K6) r1 eraf + r2 erbij in één cel slaagt', runGridMutation([swap]).ok, true);
+  eq('k4 (K6) volgorde verwijderen→toevoegen: duur 4, r2 zonder veld (afgeleid), r1 weg', [task(t).time.scheduleDuration, asgOf(t, r2).remainingWorkMinutes, S().assignments.some((a) => a.resourceId === r1)], [4, undefined, false]);
+  // Datums zoals opgeslagen: een duur uit de driehoek verlaat die modus (zelfde als een duurcel).
+  S().runCPM();
+  useAppStore.setState((s) => { s.datesAsRecorded = true; s.recordedDates = {} as never; });
+  const units: AssignmentSetIntent = {
+    kind: 'assignment-set', taskId: t, columnId: 'assignment.unitsPerDay' as AssignmentSetIntent['columnId'],
+    tokens: [{ resourceId: mat, assignmentId: asgOf(t, mat).id, unitsPerDay: 20 }, { resourceId: r2, assignmentId: asgOf(t, r2).id, unitsPerDay: 1 }],
+  };
+  eq('k5 inzet r2 0,5→1 onder FIXED_WORK via het raster slaagt', runGridMutation([units]).ok, true);
+  eq('k6 …duur 2, planning verouderd, datums-zoals-opgeslagen verlaten', [task(t).time.scheduleDuration, S().scheduleStale, S().datesAsRecorded, S().recordedDates], [2, true, false, null]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (l) moveAssignment en removeResource lopen door de driehoek (review B4) --');
+{
+  reset();
+  const a = S().addTask({ name: 'la', time: createDefaultTaskTime('2026-06-01', 4) });
+  const b = S().addTask({ name: 'lb', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r1 = labor('r1');
+  const r2 = labor('r2');
+  S().assignResource(a, r1, 1);
+  S().assignResource(a, r2, 1);
+  S().assignResource(b, r1, 1);
+  S().runCPM();
+  S().setTaskWorkRule(a, 'FIXED_WORK');
+  S().setTaskWorkRule(b, 'FIXED_WORK');
+  // a: r1 en r2 elk 4 slots vastgelegd (8 slots totaal); b: r1 4 slots. r2 van a naar b:
+  // a ⇒ "eraf": al het restwerk (8 slots) blijft en gaat naar r1 ⇒ R = 8 d (spec §5 rij 5);
+  // b ⇒ "erbij": 4 slots over r1 + r2 naar rato ⇒ 2 + 2, R = 2 d.
+  const events0 = S().historyEvents.length;
+  S().moveAssignment(asgOf(a, r2).id, b);
+  eq('l1 verplaatsen: oude taak houdt al haar werk bij r1 (8 slots ⇒ duur 8)', [asgOf(a, r1).remainingWorkMinutes, task(a).time.scheduleDuration], [8 * slot(), 8]);
+  eq('l2 verplaatsen: nieuwe taak verdeelt haar werk ⇒ duur 2, 2 + 2', [task(b).time.scheduleDuration, asgOf(b, r1).remainingWorkMinutes, asgOf(b, r2).remainingWorkMinutes], [2, 2 * slot(), 2 * slot()]);
+  eq('l3 …één undo-stap, planning verouderd', [S().historyEvents.length - events0, S().scheduleStale], [1, true]);
+  S().runCPM();
+  // Resource r2 verwijderen: b verliest r2 ⇒ 4 slots terug naar r1 ⇒ duur 4.
+  S().removeResource(r2);
+  eq('l4 removeResource: b terug naar 4 dagen met al het werk bij r1', [task(b).time.scheduleDuration, asgOf(b, r1).remainingWorkMinutes, S().scheduleStale], [4, 4 * slot(), true]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (m) workRule via de generieke updateTask legt óók vast (review K1) --');
+{
+  reset();
+  const t = S().addTask({ name: 'm', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r1 = labor('r1');
+  S().assignResource(t, r1, 1);
+  S().runCPM();
+  S().updateTask(t, { workRule: 'FIXED_WORK' });
+  eq('m1 updateTask({ workRule }) zet de regel én legt het werk vast', [task(t).workRule, asgOf(t, r1).remainingWorkMinutes], ['FIXED_WORK', 4 * slot()]);
+  const events0 = S().historyEvents.length;
+  S().updateTask(t, { workRule: 'FIXED_WORK' });
+  eq('m2 ongewijzigde regel via updateTask: wel een (lege) stap zoals elke updateTask, geen getal veranderd', [asgOf(t, r1).unitsPerDay, task(t).time.scheduleDuration], [1, 4]);
+  void events0;
+}
+
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);

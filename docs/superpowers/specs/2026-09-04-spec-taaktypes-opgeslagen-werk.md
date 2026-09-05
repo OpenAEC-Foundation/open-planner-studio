@@ -419,9 +419,13 @@ eerste toewijzing zet het werk).
   ZEKER, `TaskTime`-docblok). Levert een regel R = W / I een fractie op, dan wordt R **naar boven op
   hele dagen** afgerond en blijft W exact staan; de laatste dag is dan niet vol. Dat vraagt één
   aanpassing in `assignmentDayUnits` (ResourceLoad.ts): een vierde bron vóór de formule — is
-  `remainingWorkMinutes` aanwezig, dan is het te verdelen totaal dát getal en niet
-  `unitsPerDay × durationDays`. Zonder die aanpassing toont het histogram op zo'n taak te veel werk.
-  BEREDENEERD; MSP staat fractionele dagen toe (0,5 d) en heeft dit probleem niet.
+  `remainingWorkMinutes` aanwezig, dan is het te verdelen totaal het RESTwerk **plus het verrichte
+  deel** (`actualWorkMinutes` als de bron 'm gaf, anders afgeleid als verrichte duur × inzet —
+  reviewbevinding B3 op bouwstap 4: de driehoek schrijft alleen het restveld, en een typewissel
+  op een half gedane taak mag de belasting niet halveren, besluit 2), gespreid met de curvevorm
+  over de hele duur; niet `unitsPerDay × durationDays`. Zonder die aanpassing toont het histogram
+  op zo'n taak te veel werk. BEREDENEERD; MSP staat fractionele dagen toe (0,5 d) en heeft dit
+  probleem niet.
 - **Wat na afronding leidend is**: na case 4 geldt R = 3 d, I = 1,0 + 1,0 en W = 20 + 20 u, terwijl
   R × ΣI = 48 u. De identiteit werk = duur × inzet geldt dan alleen nog voor de exacte, niet-afgeronde
   R. Regel: onder de werkbeschermende regels zijn **W en I opgeslagen en is R afgeleid**; elke
@@ -474,7 +478,14 @@ en werk = duur × inzet heeft er geen betekenis.
   Complete) komt er in deze etappe niet (TODO).
 - Bij een bewerking op een gestarte taak is R de **restduur** (`remainingTime`/`remainingMinutes`,
   anders duur × (1 − completion) — de bestaande afleiding in de solver, ZEKER `CPMSolver.ts`) en W
-  het restwerk. Verrichte duur en verricht werk bewegen niet.
+  het restwerk. Verrichte duur en verricht werk bewegen niet. **Terugschrijven op een gestarte taak
+  (bouwstap 4, reviewbevinding B2):** de nieuwe duur is verricht + nieuwe rest, en de rest wordt dan
+  EXPLICIET geschreven (`remainingTime` in dagmodus, `remainingMinutes` in uurmodus) — anders zou de
+  solver de rest opnieuw afleiden als nieuwe duur × (1 − completion), het verrichte deel mee
+  verschuiven en een heen-en-weer-bewerking driften (case 31). `completion` blijft zoals ze is.
+- **Een voortgangsbewerking is geen duurbewerking** (reviewbevinding B1): `completion` of
+  `remainingTime` wijzigen verandert de rest maar niet de duur, en raakt de driehoek niet; de poort
+  is de TOTALE werkduur van de taak (`settleDurationEdit` vergelijkt die met de momentopname).
 - Het `actual`-deel van een contour telt als `actualWorkMinutes` wanneer dat veld afwezig is.
 - Afsluiten op 100 %: restwerk 0, begroot blijft; heropenen laat de velden staan.
 
@@ -528,6 +539,12 @@ In scope: gewone bladtaken op werktijd, in dag- en uurmodus (besluit 6). Buiten 
 ongewijzigd en geïmporteerd type bewaard: ELAPSEDTIME-taken, hangmatten, mijlpalen (P6 schakelt het
 veld daar zelf uit — ZEKER), samenvattingstaken (MSP: nooit effort-driven — ZEKER), taken zonder
 toewijzingen (regel doet niets — ZEKER), materiaalresources (§4.3).
+
+Alle toewijzingsroutes lopen door de driehoek — ook **verplaatsen** (`moveAssignment` = eraf bij de
+oude taak + erbij bij de nieuwe) en **een resource verwijderen** (`removeResource` = eraf op elke
+taak waar hij stond); reviewbevinding B4 op bouwstap 4. Buiten de driehoek blijft alleen de
+kalender (§6.4) — met het gevolg dat na een kalenderwissel op een taak met vastgelegd werk W niet
+meer bij I × R past (het histogram toont dan I' = W / R'): open beslispunt in `docs/TODO.md`.
 
 ## 9. De meetlat: bewerkingen om later tegen MS Project te toetsen
 
@@ -591,7 +608,7 @@ twee keer aan `formatRegistry.ts`, `ifcPsets.ts` en de contour-adapters wordt ge
 | 1 | `WorkRule`, `Task.workRule`, `Project.defaultWorkRule`, de drie werkvelden; `DOCUMENT_FIELDS`; IFC-psets `OPS_WorkRule` + `OPS_AssignmentWork`; ext-contract alleen-lezen. **Geen gedrag.** | `check-ifc-roundtrip` (fixture + canon), `check-document-contract`, `verify:cycles`; elk bestaand bestand byte-identiek |
 | 2 | Importvertaling (§4.2) voor .mpp, MSPDI (incl. `<Type>`/`<EffortDriven>` lezen), P6 XML, XER; export MSPDI/P6 XML met de werkvelden; waarschuwingen | fidelity-poort blijft 0 (`GOAL_ZERO_DEVIATIONS`); `check-mpp-*`, `check-adapters-*`; nieuwe fixtures per bron |
 | 3 **(gebouwd 2026-09-05)** | Pure module `src/engine/work/workTriangle.ts`: `applyDurationEdit`, `applyUnitsEdit`, `applyWorkEdit`, `applyTaskWorkEdit`, `applyAssignmentAdded`, `applyAssignmentRemoved`, `applyRuleChange` — invoer: de RESTERENDE toestand (`TriangleState`: regel, bewaard `effortDriven`, restduur in werkminuten, per toewijzing inzet + optioneel restwerk + `drivesDuration`), uitvoer: een nieuwe toestand of een weigering met reden; nooit een store. `WorkRule` in `src/types/workRule.ts` (verhuist in stap 1 naar `task.ts`). Plus `work-triangle-cases.json` (§9) | `tests/planning/check-work-triangle.ts`: 332 checks, 39 cases (21 documented, 16 reasoned, 2 decided, 0 measured; bij een mengvorm telt het zwakste bewijs) plus eigenschappen: geen veld geschreven onder de inzetregels, typewissel in alle 16 richtingen getalvrij, weigering bij restduur ≤ 0 of niet-eindige inzet (§6.7), `effortDriven` zonder effect buiten de twee 8-B-cellen |
-| 4 **(gebouwd 2026-09-05)** | Brug `src/engine/work/workRuleApply.ts` (`captureTriangle` → kernstap → `applyTriangleResult`; `settleDurationEdit`/`settleUnitsEdit`/`planWorkEdit`+`commitTrianglePlan`/`settleAssignmentAdded`/`settleAssignmentRemoved`/`settleAssignmentPlan`/`settleRuleChange`; `contourKeepsWork`; `reconcileContourWork` = besluit 3 "vorm blijft, hoogte zakt"). Bedraad in `taskSlice.updateTask` + nieuw `setTaskWorkRule`, `resourceSlice.assignResource`/`updateAssignment`/`unassignResource` + nieuw `setAssignmentWork`, `gridTransaction.ts` (celduur én de assignment-set-cel, via `AssignmentSettleOp`), `createMcpTransactions.ts` (alle tweelingen + `setAssignmentWork`/`setTaskWorkRule` op de draft), `rescaleTaskContours(…, keepWork)` uit de effectieve regel, `assignmentDayUnits` derde bron = opgeslagen werk (§6.1). Een duur die uit de driehoek komt zet `scheduleStale`, herschaalt contour + importsplits en wist het Z8-venster — precies als een duurbewerking; onder FIXED_DURATION_RATE zonder werkvelden byte-identiek | `tests/planning/check-work-rule-store.ts` (65 checks: store, raster, MCP, vierde bron, meetlat 22/23/28), bestaande planning- en MCP-suites groen |
+| 4 **(gebouwd 2026-09-05)** | Brug `src/engine/work/workRuleApply.ts` (`captureTriangle` → kernstap → `applyTriangleResult`; `settleDurationEdit`/`settleUnitsEdit`/`planWorkEdit`+`commitTrianglePlan`/`settleAssignmentAdded`/`settleAssignmentRemoved`/`settleAssignmentPlan`/`settleRuleChange`; `contourKeepsWork`; `reconcileContourWork` = besluit 3 "vorm blijft, hoogte zakt"). Bedraad in `taskSlice.updateTask` + nieuw `setTaskWorkRule`, `resourceSlice.assignResource`/`updateAssignment`/`unassignResource` + nieuw `setAssignmentWork`, `gridTransaction.ts` (celduur én de assignment-set-cel, via `AssignmentSettleOp`), `createMcpTransactions.ts` (alle tweelingen + `setAssignmentWork`/`setTaskWorkRule` op de draft), `rescaleTaskContours(…, keepWork)` uit de effectieve regel, `assignmentDayUnits` derde bron = opgeslagen werk (§6.1). Een duur die uit de driehoek komt zet `scheduleStale`, herschaalt contour + importsplits en wist het Z8-venster — precies als een duurbewerking; onder FIXED_DURATION_RATE zonder werkvelden byte-identiek | `tests/planning/check-work-rule-store.ts` (95 checks: store, raster, MCP, vierde bron, meetlat 22/23/28, voortgang > 0, uurmodus, FIXED_RATE + 8-B, materiaal in het raster, datums-zoals-opgeslagen, verplaatsen/resource verwijderen), bestaande planning- en MCP-suites groen |
 | 5 | UI: instelling, auto-ontsluiting + melding, paneel/dialoog, rasterkolommen, i18n 14 locales, gidsen nl+en (+12 vertalingen, anders faalt `verify:docs` niet maar is de functie onvindbaar) | `verify:i18n`, `verify:docs`, browserspec `tests/browser/work-rule.spec.ts` (echte toetsen/klikken, store-asserties) |
 | 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** (genomen: 8-B). **Store/raster/MCP-kant gebouwd in stap 4** (`settleAssignmentAdded`/`Removed`, `reconcileContourWork`); wat rest is de UI-kant (stap 5) | cases 4, 5, 9, 10, 15, 19, 20, 23, 29, 30 (kern) + `check-work-rule-store` (b15–b21, d5–d9, e6–e7, f3–f4) |
 | 7 **(gebouwd 2026-09-05)** | Geen nieuwe tool (39 blijft 39) maar drie bestaande tools uitgebreid: `planner_update_tasks`/`planner_add_tasks` `fields.workRule` (enum \| null, via `draft.setTaskWorkRule` ná de duurpatch — een gelijktijdige `duration` wordt onder de OUDE regel verwerkt, `taskFields.ts`), `planner_manage_assignments` `update.remainingWorkMinutes` (> 0, via `draft.setAssignmentWork`; alleen op taken waar `workRuleApplies`), `planner_update_project` `defaultWorkRule` (enum \| null, `delete` bij null); `planner_get_project_info` toont `defaultWorkRule`, `planner_get_task` toonde `workRule` + werkvelden al sinds stap 1. `REJECT_HINTS` voor `plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes` als taakveld | `tests/mcp/cases-work-rule.ts` (9 cases via de echte dispatch, incl. `planner_batch` = één undo-stap), `cases-toolregistry`/`cases-schemavalidatie` groen |

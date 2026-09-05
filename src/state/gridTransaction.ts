@@ -19,9 +19,10 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import {
-  captureTriangle, contourKeepsWork, settleAssignmentPlan, settleDurationEdit, type AssignmentSettleOp,
+  captureTriangle, contourKeepsWork, settleAssignmentPlan, settleDurationAftermath, settleDurationEdit,
+  type AssignmentSettleOp,
 } from '@/engine/work/workRuleApply';
-import { clearTimephasedWindow, rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import {
   applyRelationMutationPlan,
@@ -374,9 +375,9 @@ function applyAssignmentSet(
     }
     const settled = settleAssignmentPlan(task, state.assignments, triangle, ops);
     if (settled.durationChanged) {
-      // Zelfde nazorg als een duurbewerking in `applyCellEdits`/`taskEditPlan.ts`.
-      rescaleTaskContours(task, oldWorkMinutes, taskCalendarHoursPerDay(task, state.calendars, state.calendar), contourKeepsWork(task, state.project.defaultWorkRule));
-      const lost = clearTimephasedWindow(task);
+      // Zelfde nazorg als een duurbewerking (`settleDurationAftermath`: contour, importsplits, Z8-
+      // venster én bevroren duur-walks — reviewbevinding K5).
+      const lost = settleDurationAftermath(task, state, oldWorkMinutes);
       if (lost && !lostTaskIds.includes(task.id)) lostTaskIds = [...lostTaskIds, task.id];
       if (state.datesAsRecorded) {
         state.datesAsRecorded = false;

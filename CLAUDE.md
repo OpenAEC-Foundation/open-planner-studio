@@ -131,12 +131,15 @@ FIXED_DURATION_WORK | FIXED_WORK | FIXED_RATE, anders `Project.defaultWorkRule`.
 opgeslagen, R afgeleid en naar boven afgerond op hele dagen/minuten); de brug
 `src/engine/work/workRuleApply.ts` (`captureTriangle` vóór de mutatie → `settle…` erna) is op vier
 plekken bedraad: `taskSlice.updateTask`/`setTaskWorkRule`, `resourceSlice.assignResource`/
-`updateAssignment`/`unassignResource`/`setAssignmentWork`, `gridTransaction.ts` en de MCP-tweeling in
-`createMcpTransactions.ts`. Een duur die uit de driehoek komt (inzet/werk/resource erbij-eraf onder
-FIXED_WORK/FIXED_RATE) zet `scheduleStale`, herschaalt contour + importsplits en wist het Z8-venster,
-precies als een duurbewerking; verandert het restwerk van een toewijzing mét contour, dan zakt de
+`updateAssignment`/`unassignResource`/`moveAssignment`/`removeResource`/`setAssignmentWork`,
+`gridTransaction.ts` en de MCP-tweeling in `createMcpTransactions.ts`. Een duur die uit de driehoek
+komt (inzet/werk/resource erbij-eraf onder FIXED_WORK/FIXED_RATE) zet `scheduleStale` en loopt door
+`settleDurationAftermath` (contour + importsplits herschalen, Z8-venster en bevroren walks wissen),
+precies als een duurbewerking; op een gestarte taak wordt de rest dan expliciet geschreven
+(`remainingTime`/`remainingMinutes`) zodat niets drift. Een voortgangsbewerking is géén duurbewerking
+(de poort is de totale werkduur). Verandert het restwerk van een toewijzing mét contour, dan zakt de
 contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaalresources sturen
-de duur nooit. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
+de duur nooit; kalenders blijven buiten de driehoek (open punt K2 in de TODO). Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
 `work-triangle-cases.json`), `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en
 `check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
 `fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`

@@ -6,12 +6,11 @@ import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import {
-  clearTimephasedWindow, clearTimephasedDurationWalks, rescaleTaskContours, taskCalendarHoursPerDay,
-  taskWorkMinutesOf, timephasedDurationWalksHaveFrozenWork,
+  clearTimephasedWindow, clearTimephasedDurationWalks, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import {
-  captureTriangle, commitTrianglePlan, contourKeepsWork, planWorkEdit, settleAssignmentAdded,
-  settleAssignmentRemoved, settleUnitsEdit,
+  captureTriangle, commitTrianglePlan, planWorkEdit, settleAssignmentAdded, settleAssignmentRemoved,
+  settleDurationAftermath, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';
 import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
@@ -72,18 +71,9 @@ export interface ResourceSlice {
 const isValidUnits = (n: unknown): n is number =>
   typeof n === 'number' && Number.isFinite(n) && n > 0;
 
-/**
- * Taaktypes-etappe (2026-09, bouwstap 4): gevolg van een DUURwijziging die uit de werkdriehoek
- * komt (inzet/werk/resource erbij-eraf onder FIXED_WORK/FIXED_RATE) — dezelfde nazorg als
- * `taskSlice.updateTask` bij een duurbewerking: contour én importsplits herschalen (werkbehoud
- * volgens de regel), Z8-venster/-walks wissen. Retourneert of er timephased-sturing verloren ging.
- */
-function afterTriangleDurationChange(s: { tasks: Task[]; calendars: WorkCalendar[]; calendar: WorkCalendar; project: { defaultWorkRule?: Task['workRule'] } }, task: Task, oldWorkMinutes: number): boolean {
-  const hpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-  rescaleTaskContours(task, oldWorkMinutes, hpd, contourKeepsWork(task, s.project.defaultWorkRule));
-  const clearedWindow = clearTimephasedWindow(task);
-  const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
-  return clearedWindow || clearedWalks;
+/** Taaktypes-etappe: oude werkminuten van een taak vóór een driehoekstap (voor de contourherschaling). */
+function workMinutesBefore(s: { calendars: WorkCalendar[]; calendar: WorkCalendar }, task: Task): number {
+  return taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
 }
 
 export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => (set, get) => ({
@@ -132,8 +122,23 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
+      // Taaktypes-etappe (spec §5 rij 5, reviewbevinding B4): elke verdwijnende toewijzing is een
+      // "resource eraf" voor haar taak — momentopname MÉT de toewijzing, settle erná.
+      const doomed = s.assignments.filter(a => a.resourceId === id);
+      const captured = doomed.map(a => {
+        const task = s.tasks.find(t => t.id === a.taskId);
+        return task ? { task, assignmentId: a.id, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: workMinutesBefore(s, task) } : null;
+      });
       s.resources = s.resources.filter(r => r.id !== id);
       s.assignments = s.assignments.filter(a => a.resourceId !== id);
+      let stale = false;
+      for (const c of captured) {
+        if (!c) continue;
+        if (settleAssignmentRemoved(c.task, s.assignments, c.triangle, c.assignmentId).durationChanged) {
+          settleDurationAftermath(c.task, s, c.oldWorkMinutes);
+          stale = true;
+        }
+      }
       // Verweesde verwijzingen in task.resourceIds opruimen.
       for (const task of s.tasks) {
         const idx = task.resourceIds.indexOf(id);
@@ -143,7 +148,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       for (const r of s.resources) {
         if (r.parentId === id) r.parentId = undefined;
       }
-      runtime.finishMutation(s);
+      runtime.finishMutation(s, { stale });
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
@@ -172,7 +177,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
 
       // Taaktypes-etappe (spec §5 rij 4, beslispunt 8-B): momentopname ZONDER de nieuwe toewijzing.
       const triangle = captureTriangle(task, s.assignments, s);
-      const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const oldWorkMinutes = workMinutesBefore(s, task);
       const id = generateId('asgn');
       const added: ResourceAssignment = { id, taskId, resourceId, unitsPerDay, curve };
       s.assignments.push(added);
@@ -182,7 +187,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // Onder FIXED_WORK/FIXED_RATE (zonder MSP-`effortDriven: false`) blijft het restwerk staan en
       // wordt de restduur korter; onder de standaardregel verandert niets (byte-identiek).
       const settled = settleAssignmentAdded(task, s.assignments, triangle, added);
-      if (settled.durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes);
+      if (settled.durationChanged) settleDurationAftermath(task, s, oldWorkMinutes);
       // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
       // van de edit-time-invalidatie-triggerset (zie `taskDefaults.ts`'s `clearTimephasedWindow`/
       // `clearTimephasedDurationWalks`): een andere resource kan een andere resourcekalender
@@ -218,7 +223,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // wordt eerst geschreven, daarna volgen werk en/of restduur de regel van de taak.
       const task = s.tasks.find(t => t.id === s.assignments[idx].taskId);
       const unitsEdit = task && typeof patch.unitsPerDay === 'number' && patch.unitsPerDay !== s.assignments[idx].unitsPerDay
-        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)) }
+        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: workMinutesBefore(s, task) }
         : null;
       Object.assign(s.assignments[idx], patch);
       // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
@@ -229,7 +234,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (unitsEdit) {
         const settled = settleUnitsEdit(unitsEdit.task, s.assignments, unitsEdit.triangle, assignmentId, s.assignments[idx].unitsPerDay);
         if (settled.durationChanged) {
-          lostTimephasedGuidance = afterTriangleDurationChange(s, unitsEdit.task, unitsEdit.oldWorkMinutes);
+          lostTimephasedGuidance = settleDurationAftermath(unitsEdit.task, s, unitsEdit.oldWorkMinutes);
           stale = true;
         }
       }
@@ -248,13 +253,13 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const task = s.tasks.find(t => t.id === a.taskId);
       if (!task) return;
       if (typeof remainingWorkMinutes !== 'number' || !Number.isFinite(remainingWorkMinutes) || remainingWorkMinutes <= 0) return;
-      const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const oldWorkMinutes = workMinutesBefore(s, task);
       // Eerst plannen (puur), dan pas de snapshot: een weigering laat geen lege undo-stap achter.
       const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
       if (!plan) return;
       runtime.beginUndoable(s);
       const settled = commitTrianglePlan(task, s.assignments, plan);
-      if (settled.durationChanged) lostTimephasedGuidance = afterTriangleDurationChange(s, task, oldWorkMinutes);
+      if (settled.durationChanged) lostTimephasedGuidance = settleDurationAftermath(task, s, oldWorkMinutes);
       runtime.finishMutation(s, { stale: settled.durationChanged });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -300,12 +305,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // Taaktypes-etappe (spec §5 rij 5): momentopname MÉT de te verwijderen toewijzing.
       const triangleTask = s.tasks.find(t => t.id === removed.taskId);
       const triangle = triangleTask ? captureTriangle(triangleTask, s.assignments, s) : null;
-      const oldWorkMinutes = triangleTask ? taskWorkMinutesOf(triangleTask, taskCalendarHoursPerDay(triangleTask, s.calendars, s.calendar)) : 0;
+      const oldWorkMinutes = triangleTask ? workMinutesBefore(s, triangleTask) : 0;
       s.assignments = s.assignments.filter(a => a.id !== assignmentId);
       let stale = false;
       if (triangleTask) {
         const settled = settleAssignmentRemoved(triangleTask, s.assignments, triangle, assignmentId);
-        if (settled.durationChanged) { afterTriangleDurationChange(s, triangleTask, oldWorkMinutes); stale = true; }
+        if (settled.durationChanged) { settleDurationAftermath(triangleTask, s, oldWorkMinutes); stale = true; }
       }
       // task.resourceIds alleen opschonen als er geen andere toewijzing van
       // dezelfde resource aan dezelfde taak meer bestaat.
@@ -352,7 +357,23 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.beginUndoable(s);
 
       const oldTaskId = assignment.taskId;
+      // Taaktypes-etappe (spec §5 rij 4/5, reviewbevinding B4): verplaatsen = eraf bij de oude taak
+      // én erbij bij de nieuwe. Beide momentopnamen VÓÓR de wissel (oud mét, nieuw zónder).
+      const oldTaskForTriangle = s.tasks.find(t => t.id === oldTaskId);
+      const oldTriangle = oldTaskForTriangle ? captureTriangle(oldTaskForTriangle, s.assignments, s) : null;
+      const oldWorkOld = oldTaskForTriangle ? workMinutesBefore(s, oldTaskForTriangle) : 0;
+      const newTriangle = captureTriangle(newTask, s.assignments, s);
+      const oldWorkNew = workMinutesBefore(s, newTask);
       assignment.taskId = newTaskId;
+      let stale = false;
+      if (oldTaskForTriangle && settleAssignmentRemoved(oldTaskForTriangle, s.assignments, oldTriangle, assignmentId).durationChanged) {
+        settleDurationAftermath(oldTaskForTriangle, s, oldWorkOld);
+        stale = true;
+      }
+      if (settleAssignmentAdded(newTask, s.assignments, newTriangle, assignment).durationChanged) {
+        settleDurationAftermath(newTask, s, oldWorkNew);
+        stale = true;
+      }
 
       // task.resourceIds bijwerken op de OUDE taak (verwijderen als geen andere toewijzing van
       // dezelfde resource meer resteert — spiegelt unassignResource) en de NIEUWE taak (toevoegen
@@ -379,7 +400,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const clearedNewWindow = clearTimephasedWindow(newTask);
       const clearedNewWalks = clearTimephasedDurationWalks(newTask);
       if (clearedNewWindow || clearedNewWalks) lostCount++;
-      runtime.finishMutation(s);
+      runtime.finishMutation(s, { stale });
       moved = true;
     });
     if (moved && lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);

@@ -406,7 +406,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `ExtTaskTime`-volledigheid niet op runtime wordt afgedwongen) stil bestaande verplichte velden
       // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
-      const { time, ...rest } = updates;
+      // Taaktypes-etappe (reviewbevinding K1): `workRule` loopt niet via de kale merge maar via
+      // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
+      // zodat `updateTask(id, { workRule })` (extensie-`data.updateTask`, dialogen) hetzelfde doet
+      // als `setTaskWorkRule`.
+      const { time, workRule, ...rest } = updates;
       // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
@@ -425,6 +429,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // nieuwe duur. Onder de standaardregel zonder werkvelden gebeurt er niets (byte-identiek).
         settleDurationEdit(s.tasks[idx], s.assignments, triangle);
       }
+      if ('workRule' in updates && s.tasks[idx].workRule !== workRule) settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft

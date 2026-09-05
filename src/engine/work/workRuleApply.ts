@@ -22,6 +22,9 @@ import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import {
+  clearTimephasedDurationWalks, clearTimephasedWindow, rescaleTaskContours, timephasedDurationWalksHaveFrozenWork,
+} from '@/utils/taskDefaults';
+import {
   applyAssignmentAdded, applyAssignmentRemoved, applyDurationEdit, applyRuleChange, applyUnitsEdit,
   applyWorkEdit, ruleProtectsWork, type TriangleAssignment, type TriangleState,
 } from '@/engine/work/workTriangle';
@@ -64,10 +67,17 @@ export function slotMinutesOf(ctx: Pick<WorkRuleContext, 'hoursPerDay'>): number
  * voortgangstak): uurmodus `remainingMinutes ?? duur × (1 − voortgang)`, dagmodus
  * `remainingTime ?? duur × (1 − voortgang)` (dagen), beide vanuit de blijvende taak-eenheid.
  */
+/** Uurtaak mét minutenbron — dezelfde test voor lezen (`remainingMinutesOf`) en schrijven
+ *  (`applyTriangleResult`), zodat een 'hours'-taak zonder `durationMinutes` in beide richtingen als
+ *  dagtaak wordt behandeld. */
+export function isHourTask(t: Task['time']): t is Task['time'] & { durationMinutes: number } {
+  return t.durationUnit === 'hours' && typeof t.durationMinutes === 'number' && Number.isFinite(t.durationMinutes);
+}
+
 export function remainingMinutesOf(task: Task, ctx: Pick<WorkRuleContext, 'hoursPerDay'>): number {
   const t = task.time;
   const slot = slotMinutesOf(ctx);
-  if (t.durationUnit === 'hours' && typeof t.durationMinutes === 'number' && Number.isFinite(t.durationMinutes)) {
+  if (isHourTask(t)) {
     const rem = t.remainingMinutes ?? Math.round(t.durationMinutes * (1 - (t.completion ?? 0)));
     return Math.max(0, rem);
   }
@@ -137,7 +147,9 @@ export function applyTriangleResult(
       || (next.remainingWorkMinutes !== undefined && a.remainingWorkMinutes !== undefined
         && Math.abs(a.remainingWorkMinutes - next.remainingWorkMinutes) > 1e-6);
     if (!unitsChanged && !workChanged) continue;
-    a.unitsPerDay = Math.round(next.unitsPerDay * 10000) / 10000;
+    // Alleen een door de KERN herleide inzet wordt afgerond; een exact geschreven gebruikersinvoer
+    // (de aanroeper schrijft die vóór de settle) blijft staan.
+    if (unitsChanged) a.unitsPerDay = Math.round(next.unitsPerDay * 10000) / 10000;
     if (next.remainingWorkMinutes === undefined) delete a.remainingWorkMinutes;
     else a.remainingWorkMinutes = next.remainingWorkMinutes;
     changed.push(a.id);
@@ -152,14 +164,21 @@ export function applyTriangleResult(
     const doneMinutes = Math.max(0, total - before.remainingMinutes);
     const newTotal = doneMinutes + after.remainingMinutes;
     const t = task.time;
-    if (t.durationUnit === 'hours') {
+    // Gestarte taak (spec §6.5, reviewbevinding B2): het verrichte deel is een feit en de REST is wat
+    // de kern teruggeeft. Zonder expliciet restveld zou de solver de rest opnieuw afleiden als
+    // `nieuwe duur × (1 − completion)` — en dan schuift het verrichte deel mee met de nieuwe duur en
+    // drift een heen-en-weer-bewerking (case 31). Daarom wordt de rest bij voortgang > 0 (of een al
+    // aanwezig restveld) expliciet geschreven; `completion` blijft zoals ze is. Een ongestarte taak
+    // krijgt geen extra veld (byte-identiek).
+    const started = (t.completion ?? 0) > 0;
+    if (isHourTask(t)) {
       t.durationMinutes = Math.round(newTotal);
       t.scheduleDuration = t.durationMinutes / slot;
-      if (t.remainingMinutes !== undefined) t.remainingMinutes = Math.round(after.remainingMinutes);
+      if (started || t.remainingMinutes !== undefined) t.remainingMinutes = Math.max(0, Math.round(after.remainingMinutes));
     } else {
       t.scheduleDuration = Math.max(0, Math.round(newTotal / slot));
       delete t.durationMinutes;
-      if (t.remainingTime !== undefined) t.remainingTime = Math.max(0, Math.round(after.remainingMinutes / slot));
+      if (started || t.remainingTime !== undefined) t.remainingTime = Math.max(0, Math.round(after.remainingMinutes / slot));
     }
     durationChanged = true;
   }
@@ -233,13 +252,16 @@ export function workRuleContextOf(task: Task, deps: WorkRuleDeps): WorkRuleConte
 export interface CapturedTriangle {
   state: TriangleState;
   ctx: WorkRuleContext;
+  /** Totale werkminuten van de taak op het moment van de momentopname — de poort van
+   *  `settleDurationEdit` (reviewbevinding B1: alleen een DUURwijziging is een duurbewerking). */
+  totalMinutes: number;
 }
 
 /** Stap 1 als momentopname VÓÓR een mutatie; `null` wanneer de regel niet op deze taak werkt. */
 export function captureTriangle(task: Task, assignments: readonly ResourceAssignment[], deps: WorkRuleDeps): CapturedTriangle | null {
   if (!workRuleApplies(task)) return null;
   const ctx = workRuleContextOf(task, deps);
-  return { state: triangleStateOf(task, assignments, ctx), ctx };
+  return { state: triangleStateOf(task, assignments, ctx), ctx, totalMinutes: totalMinutesOf(task, ctx) };
 }
 
 const NO_CHANGE: TriangleWriteBack = { durationChanged: false, changedAssignmentIds: [] };
@@ -253,6 +275,9 @@ const NO_CHANGE: TriangleWriteBack = { durationChanged: false, changedAssignment
  */
 export function settleDurationEdit(task: Task, assignments: ResourceAssignment[], captured: CapturedTriangle | null): TriangleWriteBack {
   if (!captured) return NO_CHANGE;
+  // Poort (B1): een voortgangsbewerking (`completion`/`remainingTime`) verandert de REST maar niet
+  // de duur — dat is geen duurbewerking (spec §6.5) en raakt de driehoek niet.
+  if (Math.abs(totalMinutesOf(task, captured.ctx) - captured.totalMinutes) < 1e-6) return NO_CHANGE;
   const newRemaining = remainingMinutesOf(task, captured.ctx);
   if (Math.abs(newRemaining - captured.state.remainingMinutes) < 1e-6) return NO_CHANGE;
   const result = applyDurationEdit(captured.state, newRemaining);
@@ -364,6 +389,22 @@ export function settleRuleChange(
   return applyTriangleResult(task, assignments, captured.state, result.state, captured.ctx);
 }
 
+/**
+ * Nazorg wanneer de werkdriehoek de TAAKduur verandert (inzet/werk/resource erbij-eraf onder
+ * FIXED_WORK/FIXED_RATE) — dezelfde als bij een duurbewerking in `taskSlice.updateTask`: contour én
+ * importsplits herschalen (werkbehoud volgens de regel), Z8-venster en bevroren duur-walks wissen.
+ * Eén definitie voor store, raster en MCP (reviewbevinding K5). Retourneert of er timephased-
+ * sturing verloren ging (⇒ de aanroeper meldt). `scheduleStale` en de snapshot blijven aan de
+ * aanroeper.
+ */
+export function settleDurationAftermath(task: Task, deps: WorkRuleDeps, oldWorkMinutes: number): boolean {
+  const hpd = workRuleContextOf(task, deps).hoursPerDay;
+  rescaleTaskContours(task, oldWorkMinutes, hpd, contourKeepsWork(task, deps.project.defaultWorkRule));
+  const clearedWindow = clearTimephasedWindow(task);
+  const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
+  return clearedWindow || clearedWalks;
+}
+
 /** Eén taakraster-/MCP-batchwijziging op de toewijzingen van één taak, als reeks kernstappen. */
 export type AssignmentSettleOp =
   | { kind: 'remove'; assignmentId: string }
@@ -384,6 +425,11 @@ export function settleAssignmentPlan(
 ): TriangleWriteBack {
   if (!captured || ops.length === 0) return NO_CHANGE;
   let state = captured.state;
+  // Volgorde = de toepassingsvolgorde van `applyTaskAssignmentPlan` (verwijderen → inzet →
+  // toevoegen). Dat is een BEREDENEERDE keuze (reviewbevinding K6): bij "r1 eraf + r2 erbij" in
+  // één Resources-cel onder FIXED_WORK gaat het werk van r1 eerst naar de blijvers en wordt daarna
+  // naar rato met r2 gedeeld — hetzelfde als twee losse bewerkingen in die volgorde. Bewaakt in
+  // `check-work-rule-store.ts` (sectie e).
   const order = { remove: 0, update: 1, add: 2 } as const;
   for (const op of [...ops].sort((a, b) => order[a.kind] - order[b.kind])) {
     let result;

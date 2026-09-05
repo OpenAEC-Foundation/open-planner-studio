@@ -365,11 +365,19 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       en volgt de werkdriehoek dus ook niet (AFGELEID uit de code; wat MS Project hier doet is niet
       gemeten). Beslissen: moet een duurbewerking `remainingTime` mee verschuiven (Δ), of is de
       voortgangsroute leidend?
+- [ ] **Kalenderwissel op een taak met vastgelegd werk (reviewbevinding K2, 2026-09-05).** Spec §6.4
+      houdt kalenders bewust buiten de werkdriehoek. Gevolg (ZEKER, nagerekend door de reviewer):
+      FIXED_WORK-taak 4 d op 8 u/dag (W = 1920 min, I = 1) → taakkalender 6 u/dag ⇒ de duur blijft
+      4 d (1440 werkminuten) maar W blijft 1920, dus het histogram toont 1,33 eenheden/dag op een
+      resource met `maxUnits: 1`. Beslissen: (a) I = W / R' herrekenen bij een kalenderwissel,
+      (b) W mee herschalen (werk = duur × inzet houden), of (c) laten staan en documenteren. Tot
+      dan geldt (c); geen testgeval.
 - [ ] **B1c-koppelpunt (`origin/t3code/b1c-etappe3`, gezien 2026-09-05):** die branch wist bij elke
       as-verzettende bewerking de nivelleergaten (`clearLevelingGaps`, B1c-plan3 taak 3). Een duur die
       uit de werkdriehoek komt (`afterTriangleDurationChange` in `resourceSlice.ts`/
-      `createMcpTransactions.ts`, en het assignment-set-pad in `gridTransaction.ts`) hoort dat ná de
-      merge óók te doen — toe te voegen op de kant die als tweede merget. Geen inhoudelijke overlap
+      `createMcpTransactions.ts`, en het assignment-set-pad in `gridTransaction.ts` — sinds de
+      reviewronde één plek: `workRuleApply.ts`'s `settleDurationAftermath`) hoort dat ná de merge
+      óók te doen — één regel toe te voegen op de kant die als tweede merget. Geen inhoudelijke overlap
       verder: B1c raakt inzet noch werk (besluit 7 blijft).
 
 - [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
