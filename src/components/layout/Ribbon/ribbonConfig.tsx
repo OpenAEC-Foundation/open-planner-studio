@@ -7,7 +7,7 @@ import {
   Eye, EyeOff, SaveAll,
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
-  Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
+  Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight, Split,
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
@@ -581,10 +581,30 @@ const resourcesTab: RibbonTabConfig = [
         use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showLevelingDialog: true }) }; },
       },
       {
+        // B1c-plan3 taak 8 — de verdeeldialoog (spec §7). Opent op het LAATST geopende poolitem
+        // (`ui.levelingDistribution` overleeft een sluiting); is er nog nooit een item gekozen, dan
+        // opent de dialoog met `selectHint` en verwijst hij naar het bezettingsoverzicht. Bewust
+        // GEEN `disabled` in dat geval: de knop is de plek waar je leert dat deze functie bestaat.
+        // `labelKey` staat in de `common`-namespace omdat het letterlijk dezelfde tekst is als de
+        // ingang in het bezettingsoverzicht — één sleutel, geen tweede vertaling die kan afwijken.
+        kind: 'button', id: 'distributeOverProjects', icon: <Split size={20} />, labelKey: 'common:resource.distribution.open',
+        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showDistributionDialog: true }) }; },
+      },
+      {
         kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
-          const hasLeveling = useAppStore(s => s.tasks.some(t => t.levelingDelay !== undefined));
+          // B1c-plan3 taak 2: houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
+          // `clearLeveling` (`scheduleSlice.ts`) — een knop die inschakelt terwijl de actie een
+          // no-op is, of andersom, is de bug die dit repareert. Vóór deze uitbreiding stond "Nivellering
+          // wissen" grijs op een `.mpp`-project met uitsluitend sub-dag-precisie (`levelingDelayMinutes`/
+          // `levelingDelayElapsed`) én op een project dat alleen ingevoegde pauzedagen draagt
+          // (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
+          const hasLeveling = useAppStore(s => s.tasks.some(t =>
+            t.levelingDelay !== undefined
+            || t.levelingDelayMinutes !== undefined
+            || t.levelingDelayElapsed !== undefined
+            || (t.splitGaps ?? []).some(g => g.source === 'leveling')));
           return { onClick: () => clearLeveling(), disabled: !hasLeveling };
         },
       },

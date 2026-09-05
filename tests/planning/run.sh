@@ -639,6 +639,25 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   LEVELERSPLITMODECHECK="$DIR/.leveler-splitmode.mjs"
   if bundle_check "$DIR/check-leveler-splitmode.ts" "$LEVELERSPLITMODECHECK"; then node "$LEVELERSPLITMODECHECK" || STATUS=1; fi
 
+  # B1c-plan3 taak 2: `applyLeveling` schrijft scope-behoudend en schrijft ook `splitGaps`;
+  # `clearLeveling` wist ook de leveling-gaten (met een no-op-guard die gaten meetelt); de
+  # motor-baseline is idempotent in de onderbreek-modus (geen accumulatie bij een tweede run).
+  APPLYLEVELINGSCOPECHECK="$DIR/.apply-leveling-scope.mjs"
+  if bundle_check "$DIR/check-apply-leveling-scope.ts" "$APPLYLEVELINGSCOPECHECK"; then node "$APPLYLEVELINGSCOPECHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 4: de monotone mutatieteller op de store-runtime (beweegt óók binnen een
+  # coalesce-reeks, waar undoStack.length en het interne undo-volgnummer tekortschieten) plus de
+  # referentie-gebaseerde voorstel-vingerafdruk (`documentFingerprint`).
+  MUTATIONSEQCHECK="$DIR/.mutation-seq.mjs"
+  if bundle_check "$DIR/check-mutation-seq.ts" "$MUTATIONSEQCHECK"; then node "$MUTATIONSEQCHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 5: de headless scratch-instantie (`runInScratchDocument`) — round-trip via het
+  # documentcontract, echte acties met echte undo-semantiek, de context-bewuste host-event-emitter
+  # die in de scratch-context zwijgt, meldingen die opbubbelen i.p.v. verdwijnen, en geen sporen in
+  # de app-globale store.
+  SCRATCHDOCCHECK="$DIR/.scratch-document.mjs"
+  if bundle_check "$DIR/check-scratch-document.ts" "$SCRATCHDOCCHECK"; then node "$SCRATCHDOCCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

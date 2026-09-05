@@ -141,10 +141,18 @@ if (renderError === null) {
 
   // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
   //    mijlpaal blijft geweigerd (geen visuele breedte om aan te slepen).
+  // De fixture hangt aan vandaag: op een weekenddag begint de balk van rij 1 pas op de eerstvolgende
+  // werkdag, waardoor een vaste x=20px vóór de balk lag en getTaskBarBounds null gaf (gemeten
+  // 2026-09-05, groen op 09-04/09-07). Prik daarom op de daadwerkelijk getekende roundRect van rij 1.
   const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
-  const hitWithDuration = renderer.getTaskBarBounds(TTW + 20, rowMidY(1));
+  const withDurationBar = msWithDurationBars[0];
+  ok('mijlpaal-met-duur: roundRect beschikbaar om op te prikken', withDurationBar !== undefined);
+  const hitX = withDurationBar ? withDurationBar.x + Math.min(10, withDurationBar.w / 2) : TTW + 20;
+  const hitWithDuration = renderer.getTaskBarBounds(hitX, rowMidY(1));
   ok(`mijlpaal-met-duur: getTaskBarBounds accepteert haar (kreeg: ${JSON.stringify(hitWithDuration && { edge: hitWithDuration.edge })})`, hitWithDuration !== null && hitWithDuration.task.id === 'ms-met-duur');
-  const hitReal = renderer.getTaskBarBounds(TTW + 20, rowMidY(2));
+  // De echte mijlpaal moet null blijven — prik op dezelfde x als rij 1 (de ruit staat op de
+  // startdag) zodat dit niet toevallig slaagt doordat er daar sowieso niets ligt.
+  const hitReal = renderer.getTaskBarBounds(hitX, rowMidY(2));
   ok('echte mijlpaal: getTaskBarBounds weigert haar nog steeds', hitReal === null);
 }
 

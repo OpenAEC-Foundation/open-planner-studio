@@ -1,7 +1,7 @@
 import { Task, type ExternalLink } from '@/types/task';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -416,6 +416,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
           && clearTimephasedDurationWalks(s.tasks[idx]);
         lostTimephasedGuidance = clearedWindow || clearedWalks;
+        // B1c-plan3 taak 3 (spec §4, "Invalidatie"): dezelfde bewerking die de MSP-urensturing
+        // ongeldig maakt, maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat
+        // ligt dan op een verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en
+        // blijven staan; `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-
+        // afronding hierboven is dit geen verlies van gebruikersdata uit een importbestand maar het
+        // opruimen van app-eigen afgeleide nivelleeruitvoer op een as die de gebruiker zelf zojuist
+        // heeft verzet.
+        clearLevelingGaps(s.tasks[idx]);
       }
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
@@ -434,6 +442,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s);
       task.calendarId = calendarId; // undefined = projectkalender
       lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
+      // B1c-plan3 taak 3 — zie `updateTask` hierboven.
+      clearLevelingGaps(task);
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);

@@ -160,6 +160,9 @@ export function createDefaultUI(): UIState {
     showLibraryLinkDialog: false,
     libraryRefreshNotice: null,
     resourcesView: 'project',
+    // B1c — verdeeldialoog: dicht, zonder tune-state (zie `UIState.levelingDistribution`).
+    showDistributionDialog: false,
+    levelingDistribution: null,
     // Issue #48-1: ephemeral verzoek-vlag voor een concept-rij in het resource-paneel (zie UIState).
     pendingNewResource: false,
     // Fase 2.10 onderdeel 3: first-startup — ephemeral, bootstrap-hook in App.tsx zet

@@ -137,10 +137,11 @@ S().setProject({ startDate: '2026-06-01' }); // maandag (bevestigd)
 const idT = S().addTask({ name: 'T' });
 S().updateTask(idT, { levelingDelayMinutes: 2400, levelingDelayElapsed: true });
 
-S().applyLeveling({
-  delays: { [idT]: 2 }, unresolved: {}, unresolvedReasons: {}, shifts: {},
-  projectEndBefore: '2026-06-01', projectEndAfter: '2026-06-03', gaps: {},
-});
+// B1c-plan3 taak 2: `applyLeveling` accepteert sinds nu `Pick<LevelingResult, 'delays' | 'gaps'>` —
+// een volle `LevelingResult` blijft toewijsbaar via een variabele, maar een OBJECT LITERAL triggert
+// TypeScript's excess-property-check op de overige velden. Alleen wat `applyLeveling` daadwerkelijk
+// leest hoeft hier nog te staan.
+S().applyLeveling({ delays: { [idT]: 2 }, gaps: {} });
 {
   const t = S().tasks.find(x => x.id === idT)!;
   eq('applyLeveling wist de sub-dag-precisie', t.levelingDelayMinutes, undefined);

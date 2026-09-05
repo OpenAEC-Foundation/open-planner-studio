@@ -575,7 +575,11 @@
       "conflictDays": "{{count}} dzień/dni",
       "reason": {
         "calendarMismatch": "Zasób nie pracuje we wszystkie dni potrzebne temu zadaniu — przesunięcie tego nie rozwiąże.",
-        "insufficientCapacity": "Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt."
+        "insufficientCapacity": "Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt.",
+        "ceilingTooTight": "Pułap wydłużenia zostawia zbyt mało miejsca: w tej liczbie dni roboczych nie ma wolnego okna.",
+        "ceilingUnreachable": "Danie wydłużenia tu nie pomaga — termin lub ograniczenie trzyma to zadanie na miejscu.",
+        "noWindowInHorizon": "W przeszukanym okresie nie znaleziono wolnego okna; dalej jest to nieznane.",
+        "residualFull": "Własne zaangażowanie miało miejsce, ale rezydualna zdolność biblioteki jest wyczerpana — zajmują ją inne projekty."
       }
     },
     "curve": {
@@ -615,6 +619,98 @@
       "capacity": "Zdolność",
       "documents": "Dokumenty",
       "selectHint": "Wybierz zasób, aby zobaczyć histogram."
+    },
+    "distribution": {
+      "open": "Rozdziel…",
+      "title": "Rozdziel między projekty",
+      "back": "Powrót do obłożenia",
+      "subtitle": "{{item}} — rozdziel zdolność rezydualną między otwarte projekty",
+      "blocked": {
+        "uncounted": "Najpierw przelicz: {{docs}} nie jest jeszcze obliczony, więc nie ma czego rozdzielać.",
+        "material": "To jest pozycja materiałowa; rozdzielanie działa tylko dla osób i sprzętu.",
+        "noDemand": "Żaden z projektów faktycznie tu nie rezerwuje pracy."
+      },
+      "tool": {
+        "title": "Narzędzie",
+        "allowSplits": "Zezwól na przerwy",
+        "allowSplitsHint": "Praca może dostać dni przerwy zamiast przesuwać się w całości. W MS Project nazywa się to \"Leveling can create splits in remaining work\".",
+        "price_one": "kosztuje {{count}} dzień roboczy wydłużenia",
+        "price_few": "kosztuje {{count}} dni robocze wydłużenia",
+        "price_many": "kosztuje {{count}} dni roboczych wydłużenia",
+        "price_other": "kosztuje {{count}} dnia roboczego wydłużenia",
+        "priceNone": "nie kosztuje żadnego wydłużenia",
+        "priceUnknown": "cena nieznana — naciśnij Przelicz ponownie"
+      },
+      "rank": {
+        "title": "Kto jest najbardziej oszczędzany?",
+        "hint": "Na górze przesuwa się najmniej. Przeciągnij, aby zmienić kolejność.",
+        "float": "zapas: {{days}}",
+        "cost_one": "przesunięcie tylko tego projektu kosztuje {{count}} dzień roboczy",
+        "cost_few": "przesunięcie tylko tego projektu kosztuje {{count}} dni robocze",
+        "cost_many": "przesunięcie tylko tego projektu kosztuje {{count}} dni roboczych",
+        "cost_other": "przesunięcie tylko tego projektu kosztuje {{count}} dnia roboczego",
+        "costNone": "przesunięcie tylko tego projektu nie kosztuje żadnego wydłużenia",
+        "moveUp": "Przenieś w górę",
+        "moveDown": "Przenieś w dół"
+      },
+      "strip": {
+        "pin": "Przypnij",
+        "pinned": "Przypięty — ten projekt się nie przesuwa i zachowuje też swoje dni robocze",
+        "pinnedRecorded": "Przypięty: daty tak jak zapisane",
+        "cannotMove": "Nie może się przesunąć — cała praca tutaj jest ustalona",
+        "fixedLoad": "Obciążenie stałe",
+        "ceiling": "Maksymalne wydłużenie daty zakończenia",
+        "ceilingUnlimited": "bez ograniczeń",
+        "ceilingDays_one": "pułap {{count}} dzień roboczy",
+        "ceilingDays_few": "pułap {{count}} dni robocze",
+        "ceilingDays_many": "pułap {{count}} dni roboczych",
+        "ceilingDays_other": "pułap {{count}} dnia roboczego",
+        "endUnchanged": "koniec bez zmian",
+        "endShift_one": "koniec +{{count}} dzień",
+        "endShift_few": "koniec +{{count}} dni",
+        "endShift_many": "koniec +{{count}} dni",
+        "endShift_other": "koniec +{{count}} dnia",
+        "requestedVsAchievable": "żądano {{requested}}, najbliższe osiągalne {{achievable}}",
+        "handleLabel": "Pułap wydłużenia dla {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Przelicz ponownie",
+        "auto": "Rozdziel automatycznie",
+        "busy": "Trwa rozdzielanie…",
+        "pressRecompute": "— naciśnij Przelicz ponownie",
+        "degraded": "To duży przegląd; oblicza tylko po naciśnięciu Przelicz ponownie."
+      },
+      "stale": {
+        "rank": "Kolejność się zmieniła — przelicz ponownie, aby zobaczyć efekt.",
+        "ceiling": "Pułap się zmienił — przelicz ponownie, aby zobaczyć efekt.",
+        "pin": "Przypięcie się zmieniło — przelicz ponownie, aby zobaczyć efekt.",
+        "tool": "Narzędzie się zmieniło — przelicz ponownie, aby zobaczyć efekt.",
+        "edited": "Coś się zmieniło w {{docs}} — ta propozycja jest już nieaktualna."
+      },
+      "shortfall": {
+        "title": "Pozostaje",
+        "doc_one": "{{doc}}: {{count}} zadanie nie mieści się",
+        "doc_few": "{{doc}}: {{count}} zadania nie mieszczą się",
+        "doc_many": "{{doc}}: {{count}} zadań nie mieści się",
+        "doc_other": "{{doc}}: {{count}} zadania nie mieści się"
+      },
+      "preview": {
+        "before": "Teraz",
+        "after": "Po rozdzieleniu",
+        "capacity": "Zdolność"
+      },
+      "apply": "Zastosuj",
+      "discard": "Odrzuć",
+      "applyBlockedShortfall": "Najpierw rozwiąż niedobór — poszerz pułap albo zezwól na przerwy.",
+      "applyBlockedNothing": "Nie ma nic do zastosowania: ta propozycja niczego nie zmienia.",
+      "applied_one": "Zastosowano w {{count}} projekcie.",
+      "applied_few": "Zastosowano w {{count}} projektach.",
+      "applied_many": "Zastosowano w {{count}} projektach.",
+      "applied_other": "Zastosowano w {{count}} projektach.",
+      "undoAll": "Cofnij wszystko",
+      "undoneAll": "Wszystko zostało cofnięte.",
+      "undonePartial": "Cofnięto, z wyjątkiem {{docs}} — tam w międzyczasie pracowano.",
+      "selectHint": "Wybierz pozycję biblioteki z konfliktem, aby rozpocząć rozdzielanie."
     },
     "color": "Kolor"
   },
