@@ -35,6 +35,7 @@ import type {
   ExtProject, ExtCalendar, ExtTask, ExtTaskTime, ExtSequence, ExtResource, ExtAssignment,
   ExtRibbonTab, ExtFontProvider, ExtImportSourceInfo,
 } from '@/extensions/extTypes';
+import { EXT_IMPORT_SOURCE_PAGE_SIZE_MAX } from '@/extensions/extTypes';
 import type { ExtensionApi, ExtensionPermission } from '@/extensions/types';
 import {
   createExtensionApi,
@@ -861,6 +862,34 @@ for (const [naam, ext, bron, sleutels] of [
   let invalidCollection = false;
   try { api.data.getImportSourceCatalogPage('onbekend' as never); } catch (error) { invalidCollection = error instanceof RangeError; }
   eq('44 ongeldige catalogusvragen worden fail-closed gevalideerd', [invalidRange, oversizedRange, invalidCollection], [true, true, true]);
+
+  // ── P2-fix: offset + limit blijft een safe integer, ook aan de rand ──────
+  // Vóór de fix duwde `records.slice(offset, offset + limit)` een losstaand grote offset zo het
+  // safe integer-bereik uit. `taskSourceRows` op het actieve document (P-2) telt 2 rijen; een
+  // offset voorbij het eind moet canoniseren naar `total` — een lege, geldige laatste pagina — in
+  // plaats van te gooien of een numeriek onveilige slice te maken. Mutatiebewijs: verwijder
+  // `resolvePageOffset` (of geef `rawOffset` rechtstreeks aan `records.slice` mee) en de eerste
+  // vier `total`-asserties hieronder wijken af van `2`, terwijl de oude code hier ook geen fout gaf
+  // — precies de stille modus die de review aanwees.
+  const maxSafeOffsetPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: Number.MAX_SAFE_INTEGER });
+  eq('P2 offset Number.MAX_SAFE_INTEGER canoniseert naar total i.p.v. te gooien of te overflowen', {
+    offset: maxSafeOffsetPage?.offset, total: maxSafeOffsetPage?.total, items: maxSafeOffsetPage?.items,
+  }, { offset: 2, total: 2, items: [] });
+
+  const nearOverflowOffset = Number.MAX_SAFE_INTEGER - EXT_IMPORT_SOURCE_PAGE_SIZE_MAX + 1;
+  const nearOverflowPage = api.data.getImportSourceCatalogPage('taskSourceRows', {
+    offset: nearOverflowOffset, limit: EXT_IMPORT_SOURCE_PAGE_SIZE_MAX,
+  });
+  eq('P2a offset Number.MAX_SAFE_INTEGER - limit + 1 (net over de overflowgrens van offset+limit) canoniseert ook', {
+    offset: nearOverflowPage?.offset, total: nearOverflowPage?.total, items: nearOverflowPage?.items,
+  }, { offset: 2, total: 2, items: [] });
+
+  // Zelfde twee grenzen, maar dan op een lege (bestaande maar 0-record) collectie: `total` is 0, dus
+  // canoniseren moet naar 0 gaan — niet naar de offset zelf en niet naar een negatief getal.
+  const emptyCollectionAtMax = api.data.getImportSourceCatalogPage('resourceCatalogIssues', { offset: Number.MAX_SAFE_INTEGER });
+  eq('P2b een offset voorbij het eind van een LEGE collectie canoniseert naar 0, niet naar de offset',
+    emptyCollectionAtMax && { offset: emptyCollectionAtMax.offset, total: emptyCollectionAtMax.total },
+    { offset: 0, total: 0 });
 
   const beforeMutation = api.data.getImportSourceInfo() as ExtImportSourceInfo;
   const mutableInfo = api.data.getImportSourceInfo() as unknown as { archive: { sha256: string }; catalogs: { taskSourceRows: { totalRows: number } } };
