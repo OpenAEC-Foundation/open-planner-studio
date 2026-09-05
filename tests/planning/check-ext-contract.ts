@@ -42,6 +42,7 @@ import {
 } from '@/extensions/extensionApi';
 import type { AppStoreContext } from '@/state/appStore';
 import { EXTENSION_API_VERSION, checkApiCompatibility } from '@/extensions/apiVersion';
+import { KNOWN_PERMISSIONS, sanitizeManifestPermissions } from '@/extensions/permissions';
 import {
   toExtProject, fromExtProject,
   toExtCalendar, fromExtCalendar,
@@ -694,10 +695,48 @@ for (const [naam, ext, bron, sleutels] of [
   if (!isMultiDocumentImport(opened)) throw new Error('Bronfixture moet twee XER-documenten opleveren');
 
   useAppStore.getState().newProject();
-  const api = createExtensionApi('xer-source-read-contract', [], undefined, appStoreContext, {
+  const api = createExtensionApi('xer-source-read-contract', ['importSource'], undefined, appStoreContext, {
     app: appStoreContext,
     showNotification: () => {},
   });
+
+  // ── P1-privacyfix: 'importSource' is default-deny, geen kern-API ──────────
+  // Zonder de permissie moet elke methode GOOIEN vóórdat er data gelezen wordt — geen stille null,
+  // geen gedeeltelijk antwoord. `apiNoPerm` deelt hetzelfde document als `api`; het enige verschil
+  // is de permissielijst. Mutatiebewijs: verwijder de drie 'importSource'-entries uit
+  // `API_PERMISSIONS` (permissions.ts) en dit blok kleurt rood (de calls slagen dan gewoon).
+  {
+    const apiNoPerm = createExtensionApi('xer-source-read-contract-no-perm', [], undefined, appStoreContext, {
+      app: appStoreContext,
+      showNotification: () => {},
+    });
+    const apiOtherPerm = createExtensionApi('xer-source-read-contract-other-perm', ['ribbon', 'events'], undefined, appStoreContext, {
+      app: appStoreContext,
+      showNotification: () => {},
+    });
+    const throwsWithout = (fn: () => unknown): boolean => {
+      try { fn(); return false; } catch (error) {
+        return error instanceof Error && /mist permissie: importSource/.test(error.message);
+      }
+    };
+    eq('P1 zonder permissies gooien alle drie de bronmethoden een permissiefout', [
+      throwsWithout(() => apiNoPerm.data.getImportSourceInfo()),
+      throwsWithout(() => apiNoPerm.data.getImportSourceChunk(0)),
+      throwsWithout(() => apiNoPerm.data.getImportSourceCatalogPage('taskSourceRows')),
+    ], [true, true, true]);
+    eq('P1a een ONgerelateerde permissie (ribbon/events) geeft geen toegang tot importSource', [
+      throwsWithout(() => apiOtherPerm.data.getImportSourceInfo()),
+      throwsWithout(() => apiOtherPerm.data.getImportSourceChunk(0)),
+      throwsWithout(() => apiOtherPerm.data.getImportSourceCatalogPage('taskSourceRows')),
+    ], [true, true, true]);
+    apiNoPerm._cleanup();
+    apiOtherPerm._cleanup();
+  }
+  eq('P1b importSource staat in de door de app gekende permissies (SDK/validatie)',
+    KNOWN_PERMISSIONS.includes('importSource'), true);
+  eq('P1c een manifest dat importSource declareert behoudt hem ongewijzigd (geen filtering)',
+    sanitizeManifestPermissions(['importSource', 'ribbon'], 'x'), ['importSource', 'ribbon']);
+
   eq('37 een niet-XER-document geeft geen broninfo', api.data.getImportSourceInfo(), null);
   eq('37a chunk- en catalogusroute geven zonder XER null', [
     api.data.getImportSourceChunk(0), api.data.getImportSourceCatalogPage('taskSourceRows'),
