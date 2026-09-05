@@ -29,11 +29,20 @@ covered in the [Baselines & progress](docs://gids-baselines-voortgang) guide.
 
 ## Exporting the sheet
 
-Export your project as CSV via Backstage → Export. Since this feature, every CSV export carries a
-first column `OPS Task ID` — a technical, human-unreadable key the app uses to link a returned sheet
-back to the right task. Don't remove or change that column; feel free to move or sort the rows, that
-makes no difference. Send the file to the foreman, have them fill in the progress columns and send it
-back. More on the CSV export in general is in the [Import/export](docs://gids-import-export) guide.
+The fastest route is the **Export progress sheet** button on the Planning or Table tab, in the
+Progress group. That button produces a slim CSV sheet right away with exactly the columns a foreman
+needs: task id, WBS, name, Start, Finish, Completion (%), Actual Start and Actual Finish — nothing
+else. The file is named `<project name>-voortgang.csv` and lands in your downloads folder wherever
+possible. This is the recommended route: fewer columns to accidentally change, and nothing for the
+foreman to ignore.
+
+You can also use the full CSV export instead (Backstage → Export → CSV) — it contains the same
+progress columns, plus every other project field (duration, predecessors, status, …). Both sheets are
+readable by the import: every CSV export carries a first column `OPS Task ID` — a technical,
+human-unreadable key the app uses to link a returned sheet back to the right task. Don't remove or
+change that column; feel free to move or sort the rows, that makes no difference. Send the file to the
+foreman, have them fill in the progress columns and send it back. More on the full CSV export is in the
+[Import/export](docs://gids-import-export) guide.
 
 ## Where to find the feature
 

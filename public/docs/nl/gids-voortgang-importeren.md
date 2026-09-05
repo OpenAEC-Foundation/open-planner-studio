@@ -31,12 +31,20 @@ je de statusdatum zet en wat hij verder betekent, lees je in de gids
 
 ## Het blad exporteren
 
-Exporteer je project als CSV via Backstage → Exporteren. Elke CSV-export draagt sinds deze functie een
-eerste kolom `OPS Task ID` — een technisch, voor mensen onleesbaar kenmerk dat de app gebruikt om een
-teruggestuurd blad weer aan de juiste taak te koppelen. Verwijder of wijzig die kolom niet; verplaats
-of sorteer de rijen gerust, dat maakt niets uit. Stuur het bestand naar de uitvoerder, laat hem de
-voortgangskolommen invullen en terugsturen. Meer over de CSV-export in het algemeen staat in de gids
-[Im-/export](docs://gids-import-export).
+De snelste weg is de knop **Voortgangsblad exporteren** op het Planning- of Tabel-tabblad, in de groep
+Voortgang. Die knop levert meteen een slank CSV-blad op met precies de kolommen die een uitvoerder
+nodig heeft: taak-id, WBS, naam, Start, Finish, Completion (%), Actual Start en Actual Finish — verder
+niets. Het bestand krijgt de naam `<projectnaam>-voortgang.csv` en landt waar mogelijk direct in je
+downloadmap. Dit is de aanbevolen route: minder kolommen om per ongeluk te wijzigen, en niets wat een
+uitvoerder hoeft te negeren.
+
+Je kunt in plaats daarvan ook de volledige CSV-export gebruiken (Backstage → Exporteren → CSV) — die
+bevat dezelfde voortgangskolommen, plus alle overige projectvelden (duur, predecessors, status, …).
+Beide bladen zijn leesbaar voor de import: elke CSV-export draagt een eerste kolom `OPS Task ID` — een
+technisch, voor mensen onleesbaar kenmerk dat de app gebruikt om een teruggestuurd blad weer aan de
+juiste taak te koppelen. Verwijder of wijzig die kolom niet; verplaats of sorteer de rijen gerust, dat
+maakt niets uit. Stuur het bestand naar de uitvoerder, laat hem de voortgangskolommen invullen en
+terugsturen. Meer over de volledige CSV-export staat in de gids [Im-/export](docs://gids-import-export).
 
 ## Waar je de functie vindt
 

@@ -26,6 +26,12 @@ staat op main en is de bouwsteen waar dit plan op leunt.
 | **E4** | **Handmatig koppelwerk mag nooit verloren gaan.** Een documentwissel is **onmogelijk** zolang de dialoog openstaat — niet: state over een wissel heen bewaren. `resetDocumentScopedUI` blijft als vangnet dat in de praktijk nooit mag afgaan. | *A12*, T6, T10 |
 | **E5** | **Datums worden altijd juist gelezen; stil raden is verboden.** Ruime formaatherkenning, dag/maand-volgorde **per bestand** met bewijs, en bij twijfel een expliciete vraag aan de gebruiker vóór de preview. De preview toont datums voluit. | *A5*, T1/T4/T6/T10/T12 |
 | **E6** | **De voltooiingskolom is altijd een percentage.** `100` = 100 %, `1` = 1 %, `45,5` = 45,5 %; buiten 0–100 ⇒ weigering. De fractie-interpretatie vervalt volledig in deze lezer. | *A5*, T4, T12 |
+| **E7** (2026-09-05) | **Eén knop, het slanke blad.** "Ik wil gewoon op een knop in de planning tab kunnen klikken en dan krijg ik de juiste CSV met de juiste instellingen in mijn downloads." Naast de volle CSV-export (E1) komt een export `progress-csv`/`writeProgressSheetCSV` met uitsluitend `OPS Task ID;WBS;Name;Start;Finish;Completion (%);Actual Start;Actual Finish`, achter een eigen ribbonknop (`progressExportButton`, vóór de importknop in `progressGroup` op Planning + Tabel) en een eigen Backstage-exportkaart. Bestandsnaam `<projectnaam>-voortgang.csv`, landt waar mogelijk direct in de downloadmap. | *A1*, csvWriter.ts, formatRegistry.ts, ribbonConfig.tsx |
+
+**A1-aanvulling (E7):** het slanke voortgangsblad is een **tweede schrijver** op dezelfde helpers
+(`escapeCSV`/`formatCompletionPercent`/BOM/CRLF uit `csvWriter.ts`) — er komt géén tweede lezer.
+`parseProgressCsv`/`finalizeProgressRows`/`buildProgressImportPlan` blijven ongewijzigd en lezen dit
+blad net als elke andere CSV-export (het draagt dezelfde `OPS Task ID`-kolom uit E1).
 
 Eerdere bindende besluiten die overeind blijven: de preview is **verplicht** (geen sneltoets eromheen),
 weigeringen zijn **nooit stil**, matching is **intern id primair met WBS als terugval** plus een
