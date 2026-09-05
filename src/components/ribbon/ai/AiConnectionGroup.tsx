@@ -72,8 +72,13 @@ export function AiConnectionGroup() {
   // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
   const portLocked = serverState !== 'off';
 
-  const copy = (text: string, key: string) => {
-    void navigator.clipboard?.writeText(text);
+  const copy = async (text: string, key: string) => {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      return;
+    }
     setCopied(key);
     setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
   };
@@ -133,7 +138,7 @@ export function AiConnectionGroup() {
         style={iconBtnStyle}
         title={t('ai.copy')}
         aria-label={t('ai.copy')}
-        onClick={() => copy(token, 'token')}
+        onClick={() => { void copy(token, 'token'); }}
       >
         {copied === 'token' ? <Check size={13} /> : <Copy size={13} />}
       </button>

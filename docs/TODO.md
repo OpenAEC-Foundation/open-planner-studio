@@ -32,6 +32,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Gedeelde opslag/sync** tussen machines (wortel van alle drie de B1.1-beperkingen: pool-
   divergentie tussen planners, bezettingsoverzicht dat alleen de eigen machine ziet, en
   stilzwijgend overschrijven tussen twee tabbladen/vensters op dezelfde machine).
+- [ ] **Welke projecten gebruiken een resourcebibliotheek, met knop Openen** (wens eigenaar, geparkeerd
+  2026-09-04 tot ná B1c-etappe 3). OPS heeft geen projectindex: de app kent alleen open documenten en
+  de recente-bestandenlijst, en de bibliotheekbinding staat ín het IFC. Enige eerlijke route zonder
+  index: bij koppelen/opslaan een stempel (project, pad, bibliotheek, laatst gezien) in de app-globale
+  bibliotheekopslag wegschrijven en die lijst tonen — met dezelfde grens als het bezettingsoverzicht
+  (alleen deze machine, dood pad na verplaatsen). Niet: bij elk openen van het bibliotheekscherm alle
+  recente IFC-bestanden lezen (browser vraagt per bestand toestemming).
 - [ ] **Kalenderpromotie naar de Resources-tab** verhuizen — momenteel een bewuste fase-1-interim
   in Backstage → Bibliotheek (resourcepromotie/-CRUD is al verhuisd). Zie docs/library.md
   "Resources-tab: Bedrijfsweergave en Projectweergave".
@@ -353,6 +360,18 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
+
+### Resourcekalender-semantiek — taak volgt resourcekalender als keuze (besluit eigenaar 2026-09-04)
+- [ ] **Overallocatie op een vrije dag van de resource is bewust gedrag, geen bug** (`ResourceLoad.ts`
+  §4: capaciteit 0 op niet-werkdagen van de resourcekalender). Dat is de P6-"Task Dependent"-semantiek;
+  MS Project en P6-"Resource Dependent" plannen de taak juist op de kalender van de toegewezen resource,
+  zodat het conflict nooit ontstaat. Besluit 2026-09-04: (1) nú alleen uitleggen — histogram en
+  waarschuwingenpaneel zeggen erbij dat de resource die dag volgens zijn kalender niet werkt
+  (werkblok R1); (2) láter een echt ontwerp voor "taak volgt resourcekalender" als opt-in per taak of
+  per project, in lijn met de opt-in-richting voor taaktypen/effort-driven. Raakt de CPM-motor en moet
+  tegen de `.mpp`-fidelity-poort gemeten worden (MSP-bestanden hebben die semantiek al in hun
+  opgeslagen datums). Bewust NIET gekozen: nivelleren als oplossing — dat is een pleister op een
+  kalendermismatch, geen capaciteitsconflict.
 
 ### Solver/presentatie — resterende punten (2026-07-20)
 
