@@ -142,7 +142,14 @@ if (renderError === null) {
   // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
   //    mijlpaal blijft geweigerd (geen visuele breedte om aan te slepen).
   const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
-  const hitWithDuration = renderer.getTaskBarBounds(TTW + 20, rowMidY(1));
+  //    Klik op de WERKELIJK getekende balk (`getTaskBarRect`), niet op een vaste x: een nieuw project
+  //    start op "vandaag" (`defaults.ts`), en valt vandaag in het weekend dan snapt de taak naar
+  //    maandag en begint de balk pas twee dagen rechts van de rand — de oude vaste `TTW + 20` miste
+  //    haar dan (gezien 2026-09-05, een zaterdag: lokaal én op CI rood, op weekdagen groen).
+  const rectWithDuration = renderer.getTaskBarRect('ms-met-duur');
+  ok(`mijlpaal-met-duur: getTaskBarRect levert een balk (kreeg: ${JSON.stringify(rectWithDuration)})`, rectWithDuration !== null);
+  const hitX = rectWithDuration ? Math.min(rectWithDuration.left + 4, rectWithDuration.right - 1) : TTW + 20;
+  const hitWithDuration = renderer.getTaskBarBounds(hitX, rowMidY(1));
   ok(`mijlpaal-met-duur: getTaskBarBounds accepteert haar (kreeg: ${JSON.stringify(hitWithDuration && { edge: hitWithDuration.edge })})`, hitWithDuration !== null && hitWithDuration.task.id === 'ms-met-duur');
   const hitReal = renderer.getTaskBarBounds(TTW + 20, rowMidY(2));
   ok('echte mijlpaal: getTaskBarBounds weigert haar nog steeds', hitReal === null);
