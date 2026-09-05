@@ -78,6 +78,7 @@ export function useRecoveryRestore(): RecoveryRestore {
               id: d.id,
               filePath: d.filePath,
               isDirty: d.isDirty,
+              datesAsRecorded: d.datesAsRecorded,
             }));
             entries.push({
               id: d.id,

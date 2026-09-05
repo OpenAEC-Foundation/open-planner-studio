@@ -254,6 +254,7 @@ function taskRowNames(state: AppState): string[] {
     activeBaselineId: null,
     filePath: null,
     isDirty: false,
+    datesAsRecorded: false,
   };
   const states: AppState[] = [];
   const unsubscribe = store.subscribe(state => {

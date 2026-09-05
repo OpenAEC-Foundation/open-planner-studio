@@ -752,7 +752,7 @@ truthy('9a duplicate houdt exact dezelfde X5-filecache en bronrijrefs',
       ])));
 const recoveredInputs = tabPayloads.map((document, index) => {
   const parsed = readIFC(writeIFC(buildWriteIFCInput(document.payload)));
-  return recoveryInputFromParsed(parsed, { id: `readmodel-recovery-${index}`, filePath: null, isDirty: true });
+  return recoveryInputFromParsed(parsed, { id: `readmodel-recovery-${index}`, filePath: null, isDirty: true, datesAsRecorded: false });
 });
 store().restoreDocuments(recoveredInputs, recoveredInputs[0]!.id);
 const recoveredPayloads = store().getOpenDocumentPayloads();

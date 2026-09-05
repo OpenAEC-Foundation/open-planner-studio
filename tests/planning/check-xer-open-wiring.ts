@@ -179,6 +179,7 @@ const recoveryDocs = docs.map(({ id, payload }) => ({
   baselines: payload.baselines,
   activeBaselineId: payload.activeBaselineId,
   xer: payload.xerImportMetadata ?? undefined,
+  datesAsRecorded: false,
 }));
 useAppStore.getState().restoreDocuments(recoveryDocs, otherDocumentId ?? null);
 eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwerking',

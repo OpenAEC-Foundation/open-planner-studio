@@ -105,6 +105,8 @@ export type RecoveryDocInput = ImportResult & {
   id: string;
   filePath: string | null;
   isDirty: boolean;
+  /** Zie `RecoveryDocMeta.datesAsRecorded`. */
+  datesAsRecorded: boolean;
 };
 
 /** Document-identiteit rond een herstelde snapshot: alles wat NIET uit de IFC komt maar uit de
@@ -113,6 +115,12 @@ export interface RecoveryDocMeta {
   id: string;
   filePath: string | null;
   isDirty: boolean;
+  /**
+   * Stond het document in "datums zoals opgeslagen" toen de snapshot geschreven werd? Komt uit
+   * de recovery-metadata (`RecoveryManifestDoc.datesAsRecorded`), niet uit de IFC: de weergave-
+   * stand is geen projectdata. Oudere manifesten kennen het veld niet en leveren `false`.
+   */
+  datesAsRecorded: boolean;
 }
 
 /**
@@ -393,6 +401,14 @@ export function freshPayload(): DocumentPayload {
 export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   return { ...payloadFromImport(d, d.filePath), isDirty: d.isDirty, scheduleStale: true };
 }
+
+/**
+ *  Verschil 3 met de import-kant, en de reden dat `payloadFromInput` de modusvlag NIET zelf zet:
+ *  `datesAsRecorded: true` met `scheduleStale: true` is een verboden combinatie (de invariant uit
+ *  `state/scheduleStale.ts`, bewaakt door check-recorded-dates 11d–11g). De modus komt er daarom
+ *  pas ná de payloadbouw op, samen met het bijbehorende `cpmResult` en `scheduleStale = false` —
+ *  zie `applyRecordedDatesOnLoad`/`applyRestoredRecordedMode` in `documentActivation.ts`.
+ */
 
 /** Verse payload uit een ingelezen project (IFC/CSV/MSPDI/P6). Alleen de IFC-round-trip-velden
  *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`

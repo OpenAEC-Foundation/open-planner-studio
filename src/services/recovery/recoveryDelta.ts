@@ -28,7 +28,10 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
     return other !== undefined
       && value.id === other.id
       && value.filePath === other.filePath
-      && value.isDirty === other.isDirty;
+      && value.isDirty === other.isDirty
+      // De modusvlag hoort bij de manifestmetadata (critreview laag 3): een documentwissel in of
+      // uit "datums zoals opgeslagen" moet ook zónder inhoudswijziging een manifestschrijf geven.
+      && value.datesAsRecorded === other.datesAsRecorded;
   });
 }
 
@@ -42,7 +45,9 @@ export function planRecoveryDelta(
   documents: readonly RecoverySourceDocument[],
   persisted: PersistedRecoveryState | null,
 ): RecoveryDelta {
-  const metadata = documents.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty }));
+  const metadata = documents.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
+    id, filePath, isDirty, datesAsRecorded,
+  }));
   const changedDocuments = documents.filter((document) => {
     const previous = persisted?.sources.get(document.id);
     return previous === undefined || !sameIFCSource(previous, document.source);
@@ -64,7 +69,9 @@ export function persistedRecoveryState(
 ): PersistedRecoveryState {
   return {
     activeDocumentId,
-    documents: documents.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+    documents: documents.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
+      id, filePath, isDirty, datesAsRecorded,
+    })),
     sources: new Map(documents.map((document) => [document.id, document.source])),
   };
 }
@@ -96,11 +103,16 @@ export class RecoveryDeltaTracker {
         ? cached.ifc
         : serialize(document.source);
       this.serialized.set(document.id, { source: document.source, ifc });
-      return { id: document.id, ifc, filePath: document.filePath, isDirty: document.isDirty };
+      return {
+        id: document.id, ifc, filePath: document.filePath, isDirty: document.isDirty,
+        datesAsRecorded: document.datesAsRecorded,
+      };
     });
     return {
       activeDocumentId,
-      documents: documents.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+      documents: documents.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
+        id, filePath, isDirty, datesAsRecorded,
+      })),
       upserts,
     };
   }

@@ -792,7 +792,7 @@ let afterPayload: DocumentPayload | null = null;
   // opleveren (addSequence weigert dat via relationRules): precies het crashherstel-geval, waar elke
   // niet-actieve payload per definitie `scheduleStale: true` draagt.
   const recoveryDoc = (id: string, tasks: Task[], sequences: Sequence[]): RecoveryDocInput => ({
-    id, filePath: null, isDirty: false,
+    id, filePath: null, isDirty: false, datesAsRecorded: false,
     project: { ...createDefaultProject(), name: id },
     calendar: createDefaultCalendar(),
     tasks, sequences, resources: [], assignments: [],

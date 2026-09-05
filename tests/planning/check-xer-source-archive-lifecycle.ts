@@ -157,13 +157,14 @@ await saveRecovery(fullRecoverySave(thirteen[0]!.id, thirteen.map((doc, index) =
   ifc: serializedSnapshots[index]!,
   filePath: null,
   isDirty: true,
+  datesAsRecorded: false,
 }))));
 const loadedRecovery = await loadRecovery();
 expect('5a publieke headless recovery-backend bewaart alle zelfstandige IFC-snapshots',
   loadedRecovery.docs.length === 13 && loadedRecovery.activeDocumentId === thirteen[0]!.id);
 const parsedSnapshots = loadedRecovery.docs.map(doc => readIFC(doc.ifc));
 const snapshots = parsedSnapshots.map((parsed, index) => {
-  return recoveryInputFromParsed(parsed, { id: loadedRecovery.docs[index]!.id, filePath: null, isDirty: true });
+  return recoveryInputFromParsed(parsed, { id: loadedRecovery.docs[index]!.id, filePath: null, isDirty: true, datesAsRecorded: false });
 });
 store().restoreDocuments(snapshots, snapshots[0]!.id);
 const recovered = store().getOpenDocumentPayloads();

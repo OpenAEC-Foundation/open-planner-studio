@@ -563,7 +563,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // `applyRecordedDatesOnRestore` weg (`wasInModeBeforeCrash` zonder `hasOracle`) ⇒ 7aj slaat ROOD.
 {
   const parsed = readIFC(externIfc('7C'));
-  const input = recoveryInputFromParsed(parsed, { id: 'rec-63', filePath: null, isDirty: true });
+  const input = recoveryInputFromParsed(parsed, { id: 'rec-63', filePath: null, isDirty: true, datesAsRecorded: false });
   S().newProject();
   S().restoreDocuments([input], 'rec-63');
   eq('7aj crashherstel van een gewoon #63-document zet de modus NIET aan', S().datesAsRecorded, false);

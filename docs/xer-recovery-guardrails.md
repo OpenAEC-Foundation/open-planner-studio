@@ -8,18 +8,26 @@ publiceren.
 ## Harde, machine-onafhankelijke grenzen
 
 - De recoverydelta vergelijkt de volledige `IFCSaveSource` via `sameIFCSource`. `isDirty`, het
-  actieve tabblad en bestandspaden zijn manifestmetadata; ze zijn geen inhoudsrevisie.
+  actieve tabblad, bestandspaden én de weergavestand "datums zoals opgeslagen"
+  (`datesAsRecorded`) zijn manifestmetadata; ze zijn geen inhoudsrevisie. Een wissel van die
+  weergavestand is dus wél een manifestcommit — anders zou de vlag pas bij de volgende
+  inhoudswijziging op schijf landen, precies de ronde waarin een crash hem kwijt zou zijn.
 - Eén inhoudsbewerking serialiseert precies één keer met `writeIFC` en levert precies één volledige
   IFC-upsert. De overige open documenten houden hun bestaande snapshot.
 - Een actieve-documentwissel is metadata-only: nul IFC-upserts, één manifestcommit.
-- Tauri gebruikt manifestversie 3. Nieuwe documentinhoud krijgt een immutable generatienaam. Eerst
+- Tauri gebruikt manifestversie 4 (v3 + `datesAsRecorded` per document). Nieuwe documentinhoud krijgt een immutable generatienaam. Eerst
   worden de volledige IFC-generaties via temp+rename gepubliceerd; daarna is de atomaire rename van
   het manifest het commitpunt; oude eigen generaties worden pas daarna opgeruimd.
 - De webbackend schrijft document-upserts, manifest en verwijderingen in één strikte IndexedDB-
   `readwrite`-transactie. Een fout mag de persisted basis van de delta-tracker niet bevorderen.
-- Recoverymanifesten van versie 1 en 2 blijven leesbaar. Schema-1 en schema-2 XER-bronarchieven
+- Recoverymanifesten van versie 1, 2 en 3 blijven leesbaar; een manifest zonder
+  `datesAsRecorded` levert `false` — het gewone #63-aanbod, nooit stilzwijgend de modus. Schema-1 en schema-2 XER-bronarchieven
   blijven eveneens leesbaar; schema 2 wordt in een koud proces via
   `readIFCWithXerReconstruction` uit uitsluitend de opgeslagen bronbytes herbouwd.
+- Crashherstel zet "datums zoals opgeslagen" terug uit die metadata — niet uit een heuristiek over
+  de opgeslagen datums, en voor ALLE herstelde documenten, ook de slapende. Een slapend document
+  wordt bewust niet doorgerekend en krijgt daarom de modus zonder verschiltellertje (zie
+  `applyRestoredRecordedMode`).
 - De OZB-corpusfixture opent en herstelt twaalf niet-lege documenten. Eén edit herschrijft daarvan
   slechts één IFC-snapshot. De rehab-fixture herstelt haar bronbytes checksum-exact.
 

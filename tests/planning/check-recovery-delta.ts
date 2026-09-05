@@ -35,8 +35,8 @@ const source = (label: string): IFCSaveSource => ({
 const a = source('a');
 const b = source('b');
 const docs: RecoverySourceDocument[] = [
-  { id: 'a', source: a, filePath: '/tmp/a.ifc', isDirty: true },
-  { id: 'b', source: b, filePath: '/tmp/b.ifc', isDirty: true },
+  { id: 'a', source: a, filePath: '/tmp/a.ifc', isDirty: true, datesAsRecorded: false },
+  { id: 'b', source: b, filePath: '/tmp/b.ifc', isDirty: true, datesAsRecorded: false },
 ];
 
 const first = planRecoveryDelta('a', docs, null);
@@ -57,6 +57,21 @@ const afterEditPersisted = persistedRecoveryState('a', afterOneEdit);
 const activeOnly = planRecoveryDelta('b', afterOneEdit, afterEditPersisted);
 eq('5 actieve-tabwissel heeft nul IFC-upserts', activeOnly.changedDocuments.length, 0);
 eq('6 actieve-tabwissel is manifest-only', activeOnly.manifestChanged, true);
+
+// 6b/6c — "datums zoals opgeslagen" is manifestmetadata (critreview laag 3, bevindingen 2/3):
+// crashherstel leest de vlag terug uit het manifest, dus een wissel van die stand MOET een
+// manifestcommit geven, ook wanneer de IFC-inhoud referentieel gelijk blijft. Zonder deze regel
+// zou de vlag pas op de volgende inhoudswijziging op schijf landen — en dat is precies de ronde
+// waarin een crash hem kwijt zou zijn.
+const modeToggled: RecoverySourceDocument[] = [
+  { ...afterOneEdit[0]!, datesAsRecorded: true },
+  afterOneEdit[1]!,
+];
+const modeDelta = planRecoveryDelta('a', modeToggled, afterEditPersisted);
+eq('6b een wissel van de modusvlag is een metadatawijziging', modeDelta.manifestChanged, true);
+eq('6c … zonder één enkele IFC-upsert', modeDelta.changedDocuments.length, 0);
+eq('6d … en de nieuwe persistentiebasis draagt de vlag',
+  persistedRecoveryState('a', modeToggled).documents[0]?.datesAsRecorded, true);
 
 const dirtyOnly: RecoverySourceDocument[] = [
   { ...afterOneEdit[0]!, isDirty: false },

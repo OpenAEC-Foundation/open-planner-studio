@@ -73,6 +73,7 @@ const legacyRecovery = {
   activeBaselineId: base.activeBaselineId,
   filePath: '/tmp/legacy-recovery.ifc',
   isDirty: false,
+  datesAsRecorded: false,
   undoStack: [{ marker: oldMarker }],
   redoStack: [{ marker: oldMarker }],
 } satisfies RecoveryDocInput & LegacyHistoryFields;

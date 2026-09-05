@@ -276,18 +276,24 @@ expect('5b de bestaande #63-IFC-route (recordedFields) werkt daar onveranderd',
   captureRecordedDates(reopenedPlain.tasks, reopenedPlain.recordedFields).total === reopenedPlain.tasks.length);
 
 // ── 6. Crashherstel is GEEN heropening: de modusvlag van vóór de crash komt terug ─────────────
-// "Aan blijft aan, uit blijft uit" — `restoreDocuments` gebruikt `applyRecordedDatesOnRestore`
-// (documentSlice.ts), niet `applyRecordedDatesOnLoad`, en beslist dus NIET opnieuw op basis van
-// `recordedTimesOrigin` (dat zou voor elk XER-archiefdocument altijd "alleen aanbieden" zijn,
-// zie sectie 4). Twee onafhankelijke herstelrondes — één per toestand van vóór de crash.
+// "Aan blijft aan, uit blijft uit" — en dat is sinds de critreview (bevindingen 2/3) een
+// OPGESCHREVEN FEIT: `datesAsRecorded` reist als recovery-METADATA mee (manifestveld v4), net als
+// `filePath`/`isDirty`. `restoreDocuments` leest die vlag en beslist niet opnieuw. De vorige,
+// afgeleide vorm ("0 verschoven op de rauwe taken ⇒ de modus stond aan") was aantoonbaar
+// vals-positief — zie 6h hieronder, precies de toestand waarin die heuristiek de modus ten
+// onrechte weer aanzette.
 async function recoverSingleDocument(label: string, payload: DocumentPayload): Promise<DocumentPayload> {
   await clearRecovery();
   const ifc = writeIFC(buildWriteIFCInput(payload));
-  await saveRecovery(fullRecoverySave('doc-1', [{ id: 'doc-1', ifc, filePath: null, isDirty: true }]));
+  await saveRecovery(fullRecoverySave('doc-1', [{ id: 'doc-1', ifc, filePath: null, isDirty: true, datesAsRecorded: payload.datesAsRecorded }]));
   const loaded = await loadRecovery();
   expect(`${label}: recoveryStore levert de snapshot terug`, loaded.docs.length === 1);
   const recoveredParsed = readXerArchiveIFC(loaded.docs[0]!.ifc);
-  const input = recoveryInputFromParsed(recoveredParsed, { id: 'doc-1', filePath: null, isDirty: true });
+  const input = recoveryInputFromParsed(recoveredParsed, {
+    id: 'doc-1', filePath: null, isDirty: true,
+    // Wat de recovery-metadata teruggaf — de bewaarde modusvlag, geen aanname.
+    datesAsRecorded: loaded.docs[0]!.datesAsRecorded,
+  });
   const result = store().restoreDocuments([input], 'doc-1');
   expect(`${label}: restoreDocuments slaagde zonder overgeslagen documenten`, result.skippedIds.length === 0);
   await clearRecovery();
@@ -307,6 +313,98 @@ expect('6f ... maar het #63-aanbod verschijnt wel (de restverschillen blijven zi
   recoveredFromOutsideMode.recordedDates !== null);
 eq('6g hersteld-buiten-modus document draagt dezelfde vastlegging als het gewone openen',
   recoveredFromOutsideMode.recordedDates?.times, originalTimes);
+
+// 6h — HET GAT WAAR DE HEURISTIEK OP STUKLIEP (critreview bevinding 2). Een bewerking verlaat de
+// modus en zet `scheduleStale`, maar de herberekening staat pas op `setTimeout(0)`
+// (`useExitRecordedDates`); valt de auto-save-snapshot in dat gat, dan dráágt `task.time` nog
+// steeds P6's waarden terwijl de modus UIT staat. De oude terugleesmeting zag dan "0 verschoven"
+// en zette de modus weer aan — inclusief het wissen van de verouderd-vlag, op een half bewerkte
+// planning. Met de metadatavlag kan dat niet meer.
+{
+  store().newProject();
+  store().applyOpenedImport(original, {
+    filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
+  });
+  expect('6h voorwaarde: de verse import opent ín de modus',
+    store().getOpenDocumentPayloads()[0]!.payload.datesAsRecorded === true);
+  const editId = store().tasks[0]!.id;
+  const p6Start = store().tasks[0]!.time.earlyStart;
+  store().updateTask(editId, { name: 'Hernoemd door gebruiker' });
+  const gap = store().getOpenDocumentPayloads()[0]!.payload;
+  expect('6i voorwaarde: de bewerking verliet de modus en zette de planning op verouderd',
+    gap.datesAsRecorded === false && gap.scheduleStale === true);
+  expect('6j voorwaarde: maar `task.time` draagt nog P6\'s waarden (de herberekening is uitgesteld)',
+    gap.tasks.find(task => task.id === editId)!.time.earlyStart === p6Start);
+
+  const recoveredFromGap = await recoverSingleDocument('6k', gap);
+  expect('6l herstel uit dat gat zet de modus NIET aan (de metadata zei uit, en dat telt)',
+    recoveredFromGap.datesAsRecorded === false);
+  expect('6m ... de bewerking zelf overleeft het herstel gewoon',
+    recoveredFromGap.tasks.find(task => task.id === editId)?.name === 'Hernoemd door gebruiker');
+  expect('6n ... en het #63-aanbod blijft over, zodat de gebruiker P6\'s datums zelf kan terugzetten',
+    recoveredFromGap.recordedDates !== null);
+}
+
+// 6o — SLAPENDE documenten (critreview bevinding 3). `restoreDocuments` rekent alleen het actieve
+// document door; de rest kwam terug met P6's datums in `task.time`, zonder modus en MET
+// `scheduleStale` — waarna automatisch berekenen (of de eerste F5) die datums stil wegrekende.
+{
+  store().newProject();
+  store().applyOpenedImport(original, {
+    filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
+  });
+  const firstId = store().activeDocumentId!;
+  store().newDocument();
+  store().applyOpenedImport(original, {
+    filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
+  });
+  const secondId = store().activeDocumentId!;
+  const before = store().getOpenDocumentPayloads();
+  expect('6o voorwaarde: beide documenten staan ín de modus',
+    before.length === 2 && before.every(document => document.payload.datesAsRecorded === true));
+
+  await clearRecovery();
+  await saveRecovery(fullRecoverySave(secondId, before.map(document => ({
+    id: document.id,
+    ifc: writeIFC(buildWriteIFCInput(document.payload)),
+    filePath: null,
+    isDirty: true,
+    datesAsRecorded: document.payload.datesAsRecorded,
+  }))));
+  const loadedTwo = await loadRecovery();
+  expect('6p de recovery-metadata draagt de modusvlag voor BEIDE documenten',
+    loadedTwo.docs.length === 2 && loadedTwo.docs.every(document => document.datesAsRecorded === true));
+  const inputs = loadedTwo.docs.map(document => recoveryInputFromParsed(
+    readXerArchiveIFC(document.ifc),
+    { id: document.id, filePath: null, isDirty: true, datesAsRecorded: document.datesAsRecorded },
+  ));
+  store().restoreDocuments(inputs, secondId);
+  await clearRecovery();
+
+  const restoredById = new Map(store().getOpenDocumentPayloads().map(d => [d.id, d.payload]));
+  const actief = restoredById.get(secondId);
+  const slapend = restoredById.get(firstId);
+  expect('6q het ACTIEVE herstelde document staat weer in de modus',
+    actief?.datesAsRecorded === true && actief?.scheduleStale === false);
+  expect('6r het SLAPENDE herstelde document staat óók weer in de modus',
+    slapend?.datesAsRecorded === true);
+  expect('6s ... en is dus niet als "verouderd" gemarkeerd (de invariant modus-aan-én-verouderd)',
+    slapend?.scheduleStale === false);
+  expect('6t ... met een cpmResult uit de vastlegging, niet uit een solve (geen lege planning)',
+    slapend?.cpmResult !== null);
+  // Alleen de taken die P6 écht vastlegde (R5 heeft geen vastlegging, zie sectie 2e): voor die
+  // taken moet de weergave nog exact de vastlegging zijn, want er is niet herberekend.
+  eq('6u ... en met P6\'s datums nog ín de vastgelegde taken',
+    Object.fromEntries((slapend?.tasks ?? [])
+      .filter(task => originalTimes[task.id] !== undefined)
+      .map(task => [task.id, task.time.earlyStart])),
+    Object.fromEntries(Object.entries(originalTimes).map(([id, time]) => [id, time.start])));
+
+  // Deze sectie opende bewust een TWEEDE document; de secties hierna gaan van één uit.
+  store().closeDocument(firstId);
+  expect('6v opruimen: er blijft één document open voor de volgende secties',
+    store().getOpenDocumentPayloads().length === 1);
+}
 
 // ── 7. MUTATIEBEWIJS — één orakelcel verschuift de vastlegging, niet de berekening ───────────
 function chainOf(mutate: boolean): { times: Record<string, RecordedTime>; cpm: string } {

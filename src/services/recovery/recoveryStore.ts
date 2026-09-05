@@ -11,6 +11,8 @@ export interface RecoveryDocContent {
   ifc: string;
   filePath: string | null;
   isDirty: boolean;
+  /** Zie `RecoveryDocMetadata.datesAsRecorded`. */
+  datesAsRecorded: boolean;
 }
 
 /** Metadata die bij élke recoveryronde in het manifest hoort, ook zonder nieuwe IFC-payload. */
@@ -18,6 +20,15 @@ export interface RecoveryDocMetadata {
   id: string;
   filePath: string | null;
   isDirty: boolean;
+  /**
+   * Stond dit document in "datums zoals opgeslagen" toen de snapshot werd geschreven? Expliciet
+   * meegeschreven feit i.p.v. een terugleesheuristiek (critreview laag 3, bevindingen 2/3): de
+   * datums in de snapshot kunnen toevallig gelijk zijn aan de vastlegging zónder dat de modus
+   * aanstond — bijvoorbeeld wanneer een bewerking de modus verliet en de auto-save vóór de
+   * uitgestelde herberekening viel. Zie `RecoveryManifestDoc.datesAsRecorded` voor de
+   * leesbaarheid van oudere manifesten.
+   */
+  datesAsRecorded: boolean;
 }
 
 /**
@@ -36,7 +47,9 @@ export interface RecoverySaveInput {
 export function fullRecoverySave(activeDocumentId: string | null, docs: RecoveryDocContent[]): RecoverySaveInput {
   return {
     activeDocumentId,
-    documents: docs.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
+      id, filePath, isDirty, datesAsRecorded,
+    })),
     upserts: docs,
   };
 }
@@ -65,7 +78,7 @@ const legacyFile = names.legacy;
 const TMP_SUFFIX = recoveryTmpSuffix;
 
 /** Manifestversie mét eigenaarschapsvelden. Zie `RecoveryManifest` voor de migratieregel. */
-export const RECOVERY_MANIFEST_VERSION = 3;
+export const RECOVERY_MANIFEST_VERSION = 4;
 
 /**
  * Id van DEZE app-instantie (proces/realm). Wordt in het manifest gezet zodat een volgende
@@ -201,7 +214,10 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
       if (!d || typeof d.ifc !== 'string' || typeof d.id !== 'string') continue;
       if (keepSet.has(d.ifc)) continue;      // zelfde document — onze eigen regel wint
       if (!present.has(d.ifc)) continue;     // snapshot is er niet (meer)
-      carryOver.push({ id: d.id, ifc: d.ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true });
+      carryOver.push({
+        id: d.id, ifc: d.ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
+        datesAsRecorded: d.datesAsRecorded ?? false,
+      });
     }
   }
 
@@ -252,7 +268,8 @@ function checkedUpserts(input: RecoverySaveInput): Map<string, RecoveryDocConten
       throw new Error(`Recovery: upsert ${JSON.stringify(document.id)} hoort niet uniek bij het manifest.`);
     }
     const metadata = input.documents.find((candidate) => candidate.id === document.id)!;
-    if (document.filePath !== metadata.filePath || document.isDirty !== metadata.isDirty) {
+    if (document.filePath !== metadata.filePath || document.isDirty !== metadata.isDirty
+      || document.datesAsRecorded !== metadata.datesAsRecorded) {
       throw new Error(`Recovery: upsertmetadata voor ${JSON.stringify(document.id)} wijkt af van het manifest.`);
     }
     upserts.set(document.id, document);
@@ -286,7 +303,10 @@ export function planTauriV3RecoverySave(
     const changed = upserts.get(metadata.id);
     if (changed) {
       const ifc = recoveryNames.generationIfcName(metadata.id, generation);
-      documents.push({ id: metadata.id, ifc, filePath: metadata.filePath, isDirty: metadata.isDirty });
+      documents.push({
+        id: metadata.id, ifc, filePath: metadata.filePath, isDirty: metadata.isDirty,
+        datesAsRecorded: metadata.datesAsRecorded,
+      });
       writes.push({ name: ifc, ifc: changed.ifc });
       continue;
     }
@@ -294,7 +314,10 @@ export function planTauriV3RecoverySave(
     if (!previousDocument) {
       throw new Error(`Recovery: ${JSON.stringify(metadata.id)} heeft geen vorige snapshot en geen upsert.`);
     }
-    documents.push({ id: metadata.id, ifc: previousDocument.ifc, filePath: metadata.filePath, isDirty: metadata.isDirty });
+    documents.push({
+      id: metadata.id, ifc: previousDocument.ifc, filePath: metadata.filePath,
+      isDirty: metadata.isDirty, datesAsRecorded: metadata.datesAsRecorded,
+    });
   }
 
   return { documents, writes };
@@ -450,7 +473,8 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
       const ifc = await readTextFile(path);
       let mtime: Date | null = null;
       try { mtime = (await stat(path)).mtime; } catch { /* geen mtime — laat null */ }
-      docs.push({ id, ifc, filePath: null, isDirty: true, mtime });
+      // Manifestloze scan: geen metadata, dus geen modus — het bestaande #63-aanbod blijft over.
+      docs.push({ id, ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime });
     } catch (err) {
       console.error('Recovery: kon gescande snapshot niet lezen:', name, err);
     }
@@ -479,7 +503,11 @@ async function loadTauri(): Promise<LoadedRecovery> {
           const ifc = await readTextFile(ifcPath);
           let mtime: Date | null = null;
           try { mtime = (await stat(ifcPath)).mtime; } catch { /* geen mtime — laat null */ }
-          docs.push({ id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true, mtime });
+          docs.push({
+            id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
+            // v1–v3-manifest kent het veld niet ⇒ `false` (aanbod, geen modus).
+            datesAsRecorded: d.datesAsRecorded ?? false, mtime,
+          });
         } catch (err) {
           console.error('Recovery: kon documentsnapshot niet lezen:', d.id, err);
         }
@@ -503,7 +531,10 @@ async function loadTauri(): Promise<LoadedRecovery> {
     const ifc = await readTextFile(legacyPath);
     let mtime: Date | null = null;
     try { mtime = (await stat(legacyPath)).mtime; } catch { /* geen mtime */ }
-    return { activeDocumentId: 'legacy', docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true, mtime }] };
+    return {
+      activeDocumentId: 'legacy',
+      docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime }],
+    };
   }
 
   return { activeDocumentId: null, docs: [] };
@@ -720,6 +751,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
             ifc: docKey(sid, document.id),
             filePath: document.filePath,
             isDirty: document.isDirty,
+            datesAsRecorded: document.datesAsRecorded,
           })),
           addedAt: now,
         };
@@ -748,7 +780,9 @@ async function loadWeb(): Promise<LoadedRecovery> {
   const docs: LoadedRecoveryDoc[] = [];
   const metadata = Array.isArray(manifest.documents)
     ? manifest.documents
-    : (manifest.docIds ?? []).map((id) => ({ id, ifc: docKey(sid, id), filePath: null, isDirty: true }));
+    : (manifest.docIds ?? []).map((id) => ({
+      id, ifc: docKey(sid, id), filePath: null, isDirty: true, datesAsRecorded: false,
+    }));
   for (const document of metadata) {
     const docId = document.id;
     const rec = all.find((r) => r.kind === 'doc' && r.id === docKey(sid, docId)) as WebDocRecord | undefined;
@@ -758,6 +792,8 @@ async function loadWeb(): Promise<LoadedRecovery> {
       ifc: rec.ifc,
       filePath: document.filePath ?? rec.filePath ?? null,
       isDirty: document.isDirty ?? rec.isDirty ?? true,
+      // v1–v3-webrecord kent het veld niet ⇒ `false` (aanbod, geen modus).
+      datesAsRecorded: document.datesAsRecorded ?? false,
       mtime: new Date(rec.addedAt),
     });
   }

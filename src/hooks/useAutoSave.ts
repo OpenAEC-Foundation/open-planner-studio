@@ -55,6 +55,9 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
           source: payload,
           filePath: payload.filePath,
           isDirty: payload.isDirty,
+          // "Datums zoals opgeslagen" is een weergavestand, geen IFC-inhoud: hij reist als
+          // manifestmetadata mee zodat crashherstel hem terugzet i.p.v. hem te raden.
+          datesAsRecorded: payload.datesAsRecorded,
         }));
         const recoverySave = recoveryDelta.prepare(
           state.activeDocumentId,
