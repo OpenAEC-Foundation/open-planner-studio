@@ -55,6 +55,23 @@ function validatePageOptions(options?: ExtImportSourcePageOptions): { offset: nu
   return { offset, limit };
 }
 
+/**
+ * Canoniseer `offset` tegen de werkelijke collectiegrootte, VÓÓR de slice (reviewbevinding P2).
+ *
+ * `validatePageOptions` bewijst alleen dat `offset` zelf een safe integer is — niet dat
+ * `offset + limit` dat ook blijft: met `offset` tot aan `Number.MAX_SAFE_INTEGER` en `limit` tot
+ * `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX` (500) kon die som het safe integer-bereik verlaten, en
+ * `records.slice(offset, offset + limit)` liet zo'n offset gewoon door in plaats van fail-closed
+ * te weigeren. Elke echte collectie telt hooguit een paar duizend records, dus de juiste grens is
+ * niet "offset ligt onder MAX_SAFE_INTEGER - limit" maar "offset ligt hoogstens op het einde van de
+ * collectie": begrens `offset` op `total` — een lege, geldige laatste pagina in plaats van een fout —
+ * en de daaropvolgende `offset + limit` blijft daarmee altijd ruim binnen het safe integer-bereik,
+ * want `total` is per definitie het aantal records dat al in het geheugen staat.
+ */
+function resolvePageOffset(offset: number, total: number): number {
+  return offset > total ? total : offset;
+}
+
 function documentViewFor(
   archive: XerSourceArchive,
   metadata: XerImportMetadata | null | undefined,
@@ -282,15 +299,17 @@ export function getExtImportSourceCatalogPage(
 ): ExtImportSourceCatalogPage | null {
   const selector = sourceProjectId ?? metadata?.sourceProjectId;
   if (!selector) return null;
-  const { offset, limit } = validatePageOptions(options);
+  const { offset: rawOffset, limit } = validatePageOptions(options);
   const view = documentViewFor(archive, metadata, selector);
   const records = collectionRecords(archive, selector, view, collection);
+  const total = records.length;
+  const offset = resolvePageOffset(rawOffset, total);
   return {
     collection,
     sourceProjectId: selector,
     offset,
     limit,
-    total: records.length,
+    total,
     items: records.slice(offset, offset + limit).map(copyRecord),
   };
 }
