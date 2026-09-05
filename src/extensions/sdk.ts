@@ -86,6 +86,7 @@ function buildInternalTask(partial: Partial<Task> & { name: string }): Task {
     priority: partial.priority ?? 0,
     parentId: partial.parentId ?? null,
     childIds: partial.childIds ?? [],
+    isSummary: partial.isSummary,
     time: partial.time ?? createDefaultTaskTime(start, partial.isMilestone ? 0 : 5),
     resourceIds: partial.resourceIds ?? [],
     color: partial.color,

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "manifestEntries": 93,
+  "selectedEntries": 34,
+  "projects": 47,
+  "tasks": 13982,
+  "candidates": {
+    "synthetic-zero-regression": {
+      "aggregate": {
+        "es": { "improved": 0, "regressed": 0, "unchanged": 13931 },
+        "ef": { "improved": 0, "regressed": 0, "unchanged": 13937 },
+        "ls": { "improved": 0, "regressed": 0, "unchanged": 13822 },
+        "lf": { "improved": 0, "regressed": 0, "unchanged": 13813 },
+        "tf": { "improved": 0, "regressed": 0, "unchanged": 13677 },
+        "ff": { "improved": 0, "regressed": 0, "unchanged": 13322 },
+        "overall": { "improved": 0, "regressed": 0, "unchanged": 13959 }
+      },
+      "rejected": false,
+      "exitCode": 0,
+      "memoryModel": "one-manifest-entry-and-one-project-solve-clone-at-a-time"
+    },
+    "drop-p6-finish-milestone-boundary": {
+      "aggregate": {
+        "es": { "improved": 0, "regressed": 0, "unchanged": 13931 },
+        "ef": { "improved": 0, "regressed": 2, "unchanged": 13935 },
+        "ls": { "improved": 0, "regressed": 731, "unchanged": 13091 },
+        "lf": { "improved": 0, "regressed": 742, "unchanged": 13071 },
+        "tf": { "improved": 0, "regressed": 706, "unchanged": 12971 },
+        "ff": { "improved": 0, "regressed": 0, "unchanged": 13322 },
+        "overall": { "improved": 0, "regressed": 742, "unchanged": 13217 }
+      },
+      "rejected": true,
+      "exitCode": 1,
+      "memoryModel": "one-manifest-entry-and-one-project-solve-clone-at-a-time"
+    }
+  }
+}

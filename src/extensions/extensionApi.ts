@@ -23,6 +23,12 @@ import {
 } from '@/services/extensionEvents';
 import { applyPermissionGuards } from './permissions';
 import {
+  assertNoImportSourceDrift,
+  getExtImportSourceCatalogPage,
+  getExtImportSourceChunk,
+  toExtImportSourceInfo,
+} from './extImportSource';
+import {
   toExtProject,
   toExtCalendar,
   toExtTask,
@@ -119,6 +125,31 @@ export function createExtensionApi(
       getSequences: () => document.store.getState().sequences.map(toExtSequence),
       getResources: () => document.store.getState().resources.map(toExtResource),
       getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
+      getImportSourceInfo: () => {
+        const state = document.store.getState();
+        return state.xerSourceArchive
+          ? toExtImportSourceInfo(state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId)
+          : null;
+      },
+      getImportSourceChunk: (index) => {
+        const archive = document.store.getState().xerSourceArchive;
+        return archive ? getExtImportSourceChunk(archive, index) : null;
+      },
+      getImportSourceCatalogPage: (collection, options) => {
+        const state = document.store.getState();
+        // `getExtImportSourceCatalogPage` bewaakt de drift zelf zodra er een archief is — maar als
+        // het actieve document NA een `switchDocument` helemaal geen XER-bron meer heeft, wordt die
+        // functie hier onder nooit aangeroepen (er is geen `archive` om aan door te geven). Zonder
+        // deze losse check zou een `expectedSourceProjectId` dan stil een `null` terugkrijgen i.p.v.
+        // de bedoelde `ExtImportSourceDriftError` — dezelfde stille-modus die de fix net oplost.
+        if (!state.xerSourceArchive) {
+          assertNoImportSourceDrift(options?.expectedSourceProjectId, null);
+          return null;
+        }
+        return getExtImportSourceCatalogPage(
+          state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
+        );
+      },
       addTask: (task) => {
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
         if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
@@ -245,8 +276,9 @@ export function createExtensionApi(
   };
 
   // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
-  // importers.*, pdfFonts.register) in checks volgens de tabel in permissions.ts. Kern-API
-  // (data.*, settings.*, assets.get, ui.showNotification) blijft ongewijzigd.
+  // importers.*, pdfFonts.register, data.getImportSource*) in checks volgens de tabel in
+  // permissions.ts. De rest van data.*, settings.*, assets.get en ui.showNotification blijven
+  // ongewijzigd kern-API.
   applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
 
   return api;

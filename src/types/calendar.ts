@@ -1,6 +1,10 @@
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import type { LibraryOrigin } from '@/types/library';
 
+/** Diagnose van de P6/XER-penalty-pset na IFC-inlezen. `REJECTED` en `ABSENT` maken expliciet
+ * dat P6-kalendersemantiek NIET is geactiveerd; alleen de twee geldige staten dragen `p6Source`. */
+export type P6NonWorkPenaltyDatesState = 'ABSENT' | 'VALID_EMPTY' | 'VALID_VALUES' | 'REJECTED';
+
 export interface WorkCalendar {
   id: string;
   name: string;
@@ -36,6 +40,27 @@ export interface WorkCalendar {
    *  dag- of uur-lus raakt dit veld. INVARIANT (afgedwongen door de parser, T3/T4, niet hier): een datum
    *  komt nooit tegelijk in `holidays` én in `workingExceptions` voor. */
   workingExceptions?: WorkingException[];
+  /**
+   * Expliciete herkomst van de P6-projectielaag. Alleen de XER-reader zet `XER`; IFC mag dit
+   * uitsluitend als round-tripmetadata van zo'n import bewaren. Zonder deze stempel zijn alle
+   * kalenderprimitieven en solverpaden gewone OPS-/formaatneutrale kalendersemantiek.
+   */
+  p6Source?: 'XER';
+  /**
+   * BRONDIAGNOSE, GEEN REKENINVOER (sinds etappe 7b-2). De XER-lezer noteert hier de redundante
+   * vrije-dagrecords die hij NIET heeft kunnen verklaren: een vrije uitzondering op een al
+   * niet-werkende weekdag, of een direct aangrenzende herhaling van dezelfde vrije datum.
+   *
+   * Tot 7b-2 liet `CalendarEngine` zo'n record als één extra niet-werkdag meewegen in uurduur- en
+   * floatwandelingen. Die projectie is verwijderd: gemeten over alle zes penaltydragende
+   * corpusprojecten verklaarde ze nul cellen op alle zes de fidelity-assen, en waar ze wél iets
+   * deed (kalender 842/896 in `rehab-2.xer`) is de werkelijk bedoelde vrije dag inmiddels
+   * gereconstrueerd (`weekendClampTarget` in `xerCalendarData.ts`). Geen enkele solverpad leest dit
+   * veld nog; het round-trippt uitsluitend door het IFC zodat de brondiagnose bewaard blijft.
+   */
+  p6NonWorkPenaltyDates?: string[];
+  /** IFC-round-tripdiagnose voor de complete penaltylijst. Afwezig = geen P6-penaltypset gezien. */
+  p6NonWorkPenaltyDatesState?: P6NonWorkPenaltyDatesState;
 }
 
 /** Dag-uitzondering die werktijd TOEVOEGT/AANPAST op een anders niet-werkende dag (fase 3.8, T2;

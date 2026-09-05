@@ -1,0 +1,450 @@
+/**
+ * Onafhankelijke XER-grondwaarheidscan voor de fidelitymeetlat.
+ *
+ * Dit is bewust een minimale tweede parser: geen import uit `src/services/xer`, geen gedeelde
+ * tokenizer, veldkaart, datumparser of encodinghelper. De latere productielezer kan daardoor niet
+ * tegelijk met zijn eigen meetlat dezelfde fout gaan maken. Alleen TASK-%T/%F/%R en de expliciet
+ * toegestane P6-orakelvelden worden gelezen.
+ */
+
+import type { XerScannerPrecisionFacts } from './xerFidelityTypes';
+
+export type XerGroundTruthEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+export type XerFidelityAxis = 'es' | 'ef' | 'ls' | 'lf' | 'tf' | 'ff';
+export type XerDateFidelityAxis = 'es' | 'ef' | 'ls' | 'lf';
+
+export const XER_FIDELITY_AXES: readonly XerFidelityAxis[] = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'];
+
+export interface XerGroundTruthTask {
+  projectId: string;
+  taskId: string;
+  taskCode: string;
+  statusCode: string;
+  axes: Record<XerFidelityAxis, string | number | null>;
+  /** Ruwe secondencomponent per datumas (`null` = de broncel had geen secondencomponent). */
+  rawDateSeconds: Record<XerDateFidelityAxis, string | null>;
+  drivingPath: boolean | null;
+  /** Niet-lege effectieve broncellen na statussemantiek; parsefouten staan apart in `errors`. */
+  presentAxes: Record<XerFidelityAxis, boolean>;
+}
+
+export interface XerGroundTruth {
+  encoding: XerGroundTruthEncoding;
+  projects: Set<string>;
+  tasks: XerGroundTruthTask[];
+  /** Niet-lege onparseerbare waarden en ontbrekende verplichte identiteit zijn fataal. */
+  errors: string[];
+  /** Niet-fatale expliciete formaatkeuzes die de onafhankelijke scanner niet stil mag maken. */
+  numberFormatIssues: string[];
+  /** Apart gepinde scannerfeiten; geen van deze waarden wordt product- of solverinvoer. */
+  precision: XerScannerPrecisionFacts;
+}
+
+const IDENTITY_FIELDS = ['proj_id', 'task_id', 'task_code'] as const;
+const KNOWN_STATUS_CODES = new Set(['tk_notstart', 'tk_active', 'tk_complete']);
+
+interface XerNumberFormat {
+  decimal: '.' | ',';
+  group: '.' | ',' | null;
+  fromCurrencyTable: boolean;
+}
+
+function decodeXer(bytes: Uint8Array): { text: string; encoding: XerGroundTruthEncoding } {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { text: new TextDecoder('utf-16le').decode(bytes.subarray(2)), encoding: 'utf-16le' };
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { text: new TextDecoder('utf-16be').decode(bytes.subarray(2)), encoding: 'utf-16be' };
+  }
+  const withoutUtf8Bom = bytes.length >= 3
+    && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
+    ? bytes.subarray(3)
+    : bytes;
+  try {
+    return {
+      text: new TextDecoder('utf-8', { fatal: true }).decode(withoutUtf8Bom),
+      encoding: 'utf-8',
+    };
+  } catch {
+    return {
+      text: new TextDecoder('windows-1252').decode(bytes),
+      encoding: 'windows-1252',
+    };
+  }
+}
+
+/** Canonieke minuutstring; leeg is niet meetbaar, niet-leeg maar ongeldig is een scannerfout. */
+function parseOracleDate(
+  raw: string | undefined,
+  taskId: string,
+  field: string,
+  errors: string[],
+): { minute: string | null; rawSeconds: string | null } {
+  const value = raw?.trim() ?? '';
+  if (!value || value === '0') return { minute: null, rawSeconds: null };
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/.exec(value);
+  if (!match) {
+    errors.push(`TASK ${taskId}/${field}: ongeldige datum ${JSON.stringify(value)}`);
+    return { minute: null, rawSeconds: null };
+  }
+  const [, year, month, day, rawHour, rawMinute, rawSecond, rawFraction] = match;
+  const hour = rawHour ?? '00';
+  const minute = rawMinute ?? '00';
+  if (rawSecond !== undefined && Number(rawSecond) > 59) {
+    errors.push(`TASK ${taskId}/${field}: ongeldige datum ${JSON.stringify(value)}`);
+    return { minute: null, rawSeconds: null };
+  }
+  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00Z`);
+  if (Number.isNaN(date.getTime())
+    || date.toISOString().slice(0, 16) !== `${year}-${month}-${day}T${hour}:${minute}`) {
+    errors.push(`TASK ${taskId}/${field}: ongeldige datum ${JSON.stringify(value)}`);
+    return { minute: null, rawSeconds: null };
+  }
+  return {
+    minute: `${year}-${month}-${day}T${hour}:${minute}`,
+    rawSeconds: rawSecond === undefined
+      ? null
+      : `${rawSecond}${rawFraction === undefined ? '' : `.${rawFraction}`}`,
+  };
+}
+
+function inspectNumberSymbol(
+  raw: string,
+  family: 'decimal' | 'group',
+  field: string,
+  currency: string,
+  errors: string[],
+): '.' | ',' | undefined {
+  const value = raw.trim().toLowerCase();
+  if (!value) return undefined;
+  if (value === '.' || value === 'period') return '.';
+  if (value === ',' || value === 'comma') return ',';
+  if (value.startsWith('ds_')) {
+    if (family !== 'decimal') {
+      errors.push(`CURRTYPE ${currency}/${field}: ds-token hoort niet in de groepsfamilie`);
+      return undefined;
+    }
+    if (value === 'ds_period') return '.';
+    if (value === 'ds_comma') return ',';
+  }
+  if (value.startsWith('dg_')) {
+    if (family !== 'group') {
+      errors.push(`CURRTYPE ${currency}/${field}: dg-token hoort niet in de decimaalfamilie`);
+      return undefined;
+    }
+    if (value === 'dg_period') return '.';
+    if (value === 'dg_comma') return ',';
+  }
+  errors.push(`CURRTYPE ${currency}/${field}: onbekende separator ${JSON.stringify(raw.trim())}`);
+  return undefined;
+}
+
+function inspectNumberFamily(
+  row: ReadonlyMap<string, string>,
+  family: 'decimal' | 'group',
+  currency: string,
+  errors: string[],
+): '.' | ',' | null {
+  const fields = family === 'decimal'
+    ? ['decimal_symbol', 'decimal_symbol_type']
+    : ['digit_group_symbol', 'digit_group_symbol_type'];
+  const declared = fields.filter(field => !!row.get(field)?.trim());
+  const values = declared
+    .map(field => inspectNumberSymbol(row.get(field) ?? '', family, field, currency, errors))
+    .filter((value): value is '.' | ',' => value !== undefined);
+  if (new Set(values).size > 1) {
+    errors.push(`CURRTYPE ${currency}/${family}: tegenstrijdige separatorrepresentaties`);
+    return null;
+  }
+  if (declared.length === 0 && family === 'decimal') {
+    errors.push(`CURRTYPE ${currency}/decimal: ontbrekende separatorrepresentatie`);
+  }
+  return values[0] ?? null;
+}
+
+function scanNumberFormat(
+  lines: readonly string[],
+  errors: string[],
+  issues: string[],
+): XerNumberFormat {
+  const header = lines.find(line => line.startsWith('ERMHDR\t'))?.split('\t') ?? [];
+  const defaultCurrency = header[8]?.trim() ?? '';
+  let table = '';
+  let fields: string[] = [];
+  const currencyRows: Array<{ values: Map<string, string>; line: number }> = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
+    const cells = line.split('\t');
+    const marker = cells[0]?.trim();
+    if (marker === '%E') break;
+    if (marker === '%T') {
+      table = cells[1]?.trim().toUpperCase() ?? '';
+      fields = [];
+      continue;
+    }
+    if (table !== 'CURRTYPE') continue;
+    if (marker === '%F') {
+      fields = cells.slice(1).map(field => field.trim());
+      continue;
+    }
+    if (marker !== '%R' || fields.length === 0) continue;
+    const row = new Map<string, string>();
+    const values = cells.slice(1);
+    for (let index = 0; index < fields.length; index++) row.set(fields[index], values[index] ?? '');
+    currencyRows.push({ values: row, line: lineIndex + 1 });
+  }
+  if (currencyRows.length === 0) return { decimal: '.', group: null, fromCurrencyTable: false };
+  const normalizedCurrency = defaultCurrency.toLowerCase();
+  const matches = normalizedCurrency
+    ? currencyRows.filter(candidate =>
+      candidate.values.get('curr_short_name')?.trim().toLowerCase() === normalizedCurrency)
+    : [];
+  if (matches.length === 0) {
+    issues.push(
+      `CURRTYPE: ERMHDR-valuta ${defaultCurrency || '(leeg)'} heeft geen overeenkomstige rij; `
+      + 'punt-default gebruikt',
+    );
+    return { decimal: '.', group: null, fromCurrencyTable: false };
+  }
+  const resolved = matches.map(match => {
+    const currency = match.values.get('curr_short_name')?.trim() || defaultCurrency;
+    const decimal = inspectNumberFamily(match.values, 'decimal', currency, errors);
+    const group = inspectNumberFamily(match.values, 'group', currency, errors);
+    if (decimal === null) return null;
+    if (group === decimal) {
+      errors.push('CURRTYPE: decimaal- en groepsteken zijn gelijk');
+      return null;
+    }
+    return { decimal, group, line: match.line };
+  });
+  if (resolved.some(format => format === null)) {
+    return { decimal: '.', group: null, fromCurrencyTable: true };
+  }
+  const first = resolved[0]!;
+  const conflict = resolved.find(format =>
+    format!.decimal !== first.decimal || format!.group !== first.group);
+  if (conflict) {
+    errors.push(
+      `CURRTYPE ${defaultCurrency}: regels ${first.line}, ${conflict.line} `
+      + 'hebben tegenstrijdige decimaal-/groepssemantiek',
+    );
+  }
+  return { decimal: first.decimal, group: first.group, fromCurrencyTable: true };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** P6-float staat in uren; vermenigvuldigen met 60 behoudt halve/fractionele minuten. Er is
+ * bewust geen integerafronding of epsilonpad. */
+function parseFloatMinutes(
+  raw: string | undefined,
+  taskId: string,
+  field: string,
+  format: XerNumberFormat,
+  errors: string[],
+): number | null {
+  const value = raw?.trim() ?? '';
+  if (!value) return null;
+  const decimal = escapeRegExp(format.decimal);
+  const group = format.group === null ? null : escapeRegExp(format.group);
+  const integer = group === null ? '\\d+' : `(?:\\d+|\\d{1,3}(?:${group}\\d{3})+)`;
+  const pattern = new RegExp(`^[+-]?${integer}(?:${decimal}\\d+)?$`);
+  if (!pattern.test(value)) {
+    errors.push(`TASK ${taskId}/${field}: ongeldig getal ${JSON.stringify(value)}`);
+    return null;
+  }
+  let normalized = value;
+  if (format.group !== null) normalized = normalized.split(format.group).join('');
+  if (format.decimal === ',') normalized = normalized.replace(',', '.');
+  const hours = Number(normalized);
+  if (!Number.isFinite(hours)) {
+    errors.push(`TASK ${taskId}/${field}: ongeldig getal ${JSON.stringify(value)}`);
+    return null;
+  }
+  return hours * 60;
+}
+
+function parseDrivingPath(
+  raw: string | undefined,
+  taskId: string,
+  errors: string[],
+): boolean | null {
+  const value = raw?.trim().toUpperCase() ?? '';
+  if (!value) return null;
+  if (value === 'Y') return true;
+  if (value === 'N') return false;
+  errors.push(`TASK ${taskId}/driving_path_flag: ongeldige vlag ${JSON.stringify(raw?.trim())}`);
+  return null;
+}
+
+function buildTask(
+  fields: readonly string[],
+  values: readonly string[],
+  rowNumber: number,
+  format: XerNumberFormat,
+  errors: string[],
+): XerGroundTruthTask | null {
+  const row = new Map<string, string>();
+  for (let index = 0; index < fields.length; index++) row.set(fields[index], values[index] ?? '');
+  for (const field of IDENTITY_FIELDS) {
+    if (!row.has(field)) errors.push(`TASK %F/${field}: ontbrekend verplicht veld`);
+  }
+  if (!IDENTITY_FIELDS.every(field => row.has(field))) return null;
+
+  const projectId = row.get('proj_id')?.trim() ?? '';
+  const taskId = row.get('task_id')?.trim() ?? '';
+  const taskCode = row.get('task_code')?.trim() ?? '';
+  let missingIdentity = false;
+  if (!projectId) {
+    errors.push(`TASK rij ${rowNumber}/proj_id: ontbrekende waarde`);
+    missingIdentity = true;
+  }
+  if (!taskId) {
+    errors.push(`TASK rij ${rowNumber}/task_id: ontbrekende waarde`);
+    missingIdentity = true;
+  }
+  if (!taskCode) {
+    errors.push(`TASK rij ${rowNumber}/task_code: ontbrekende waarde`);
+    missingIdentity = true;
+  }
+  if (missingIdentity) return null;
+
+  const statusCode = row.get('status_code')?.trim() ?? '';
+  const normalizedStatus = statusCode.toLowerCase();
+  if (statusCode && !KNOWN_STATUS_CODES.has(normalizedStatus)) {
+    errors.push(`TASK ${taskId}/status_code: onbekende waarde ${JSON.stringify(statusCode)}`);
+  }
+  // Deze scanner is uitsluitend de rauwe XER-meetlat. Ook op een completed activiteit zijn
+  // early/late/float opgeslagen P6-uitvoer, nooit reader- of solverinvoer. Actuals blijven
+  // afzonderlijke toegestane bronvelden in de productielezer; ze normaliseren het orakel niet.
+  const start = parseOracleDate(row.get('early_start_date'), taskId, 'early_start_date', errors);
+  const finish = parseOracleDate(row.get('early_end_date'), taskId, 'early_end_date', errors);
+  const lateStart = parseOracleDate(row.get('late_start_date'), taskId, 'late_start_date', errors);
+  const lateFinish = parseOracleDate(row.get('late_end_date'), taskId, 'late_end_date', errors);
+
+  return {
+    projectId,
+    taskId,
+    taskCode,
+    statusCode,
+    axes: {
+      es: start.minute,
+      ef: finish.minute,
+      ls: lateStart.minute,
+      lf: lateFinish.minute,
+      tf: parseFloatMinutes(row.get('total_float_hr_cnt'), taskId, 'total_float_hr_cnt', format, errors),
+      ff: parseFloatMinutes(row.get('free_float_hr_cnt'), taskId, 'free_float_hr_cnt', format, errors),
+    },
+    rawDateSeconds: {
+      es: start.rawSeconds,
+      ef: finish.rawSeconds,
+      ls: lateStart.rawSeconds,
+      lf: lateFinish.rawSeconds,
+    },
+    drivingPath: parseDrivingPath(row.get('driving_path_flag'), taskId, errors),
+    presentAxes: {
+      es: start.minute !== null,
+      ef: finish.minute !== null,
+      ls: lateStart.minute !== null,
+      lf: lateFinish.minute !== null,
+      tf: !!row.get('total_float_hr_cnt')?.trim(),
+      ff: !!row.get('free_float_hr_cnt')?.trim(),
+    },
+  };
+}
+
+export function scanXerGroundTruth(bytes: Uint8Array): XerGroundTruth {
+  const { text, encoding } = decodeXer(bytes);
+  const lines = text.split('\n').map(rawLine => rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine);
+  const tasks: XerGroundTruthTask[] = [];
+  const declaredProjects = new Set<string>();
+  const taskProjects = new Set<string>();
+  const errors: string[] = [];
+  const numberFormatIssues: string[] = [];
+  const numberFormat = scanNumberFormat(lines, errors, numberFormatIssues);
+  let table = '';
+  let fields: string[] = [];
+  let taskRowNumber = 0;
+  let projectRowNumber = 0;
+  let sawProjectTable = false;
+  const seenTaskIds = new Set<string>();
+
+  for (const line of lines) {
+    const cells = line.split('\t');
+    const marker = cells[0]?.trim();
+    if (marker === '%E') break;
+    if (marker === '%T') {
+      table = cells[1]?.trim().toUpperCase() ?? '';
+      if (table === 'PROJECT') sawProjectTable = true;
+      fields = [];
+      continue;
+    }
+    if (marker === '%F') {
+      fields = cells.slice(1).map(field => field.trim());
+      continue;
+    }
+    if (marker !== '%R' || fields.length === 0) continue;
+    if (table === 'PROJECT') {
+      projectRowNumber++;
+      const projectIdIndex = fields.indexOf('proj_id');
+      if (projectIdIndex < 0) {
+        errors.push('PROJECT %F/proj_id: ontbrekend verplicht veld');
+        continue;
+      }
+      const projectId = cells[projectIdIndex + 1]?.trim() ?? '';
+      if (!projectId) errors.push(`PROJECT rij ${projectRowNumber}/proj_id: ontbrekende waarde`);
+      else if (declaredProjects.has(projectId)) errors.push(`PROJECT rij ${projectRowNumber}: dubbele proj_id ${projectId}`);
+      else declaredProjects.add(projectId);
+      continue;
+    }
+    if (table !== 'TASK') continue;
+    taskRowNumber++;
+    const task = buildTask(fields, cells.slice(1), taskRowNumber, numberFormat, errors);
+    if (!task) continue;
+    const taskKey = `${task.projectId}\u0000${task.taskId}`;
+    if (seenTaskIds.has(taskKey)) {
+      errors.push(`TASK rij ${taskRowNumber}: dubbele task_id ${task.projectId}/${task.taskId}`);
+    } else {
+      seenTaskIds.add(taskKey);
+    }
+    tasks.push(task);
+    taskProjects.add(task.projectId);
+  }
+
+  if (sawProjectTable) {
+    for (const task of tasks) {
+      if (!declaredProjects.has(task.projectId)) {
+        errors.push(`TASK ${task.taskId}/proj_id: niet aanwezig in PROJECT-set (${task.projectId})`);
+      }
+    }
+  }
+  const dateAxes: readonly XerDateFidelityAxis[] = ['es', 'ef', 'ls', 'lf'];
+  const dateSecondCells = { es: 0, ef: 0, ls: 0, lf: 0 };
+  const dateNonZeroSubminuteCells = { es: 0, ef: 0, ls: 0, lf: 0 };
+  for (const task of tasks) {
+    for (const axis of dateAxes) {
+      const seconds = task.rawDateSeconds[axis];
+      if (seconds === null) continue;
+      dateSecondCells[axis]++;
+      if (Number(seconds) !== 0) dateNonZeroSubminuteCells[axis]++;
+    }
+  }
+  const precision: XerScannerPrecisionFacts = {
+    dateSecondCells,
+    dateNonZeroSubminuteCells,
+    floatFractionalMinuteCells: {
+      tf: tasks.filter(task => typeof task.axes.tf === 'number' && !Number.isInteger(task.axes.tf)).length,
+      ff: tasks.filter(task => typeof task.axes.ff === 'number' && !Number.isInteger(task.axes.ff)).length,
+    },
+  };
+  return {
+    encoding,
+    projects: sawProjectTable ? declaredProjects : taskProjects,
+    tasks,
+    errors,
+    numberFormatIssues,
+    precision,
+  };
+}

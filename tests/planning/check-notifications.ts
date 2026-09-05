@@ -27,6 +27,8 @@ import { commitPreparedGridMutation, prepareGridMutation } from '@/state/gridTra
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { PreparedGridMutation } from '@/state/gridTransaction';
 import type { Sequence } from '@/types/sequence';
+import type { ImportResult, MultiDocumentImport, XerImportMetadata, XerImportReport } from '@/services/importTypes';
+import { notificationDetailText } from '@/utils/notificationDetail';
 
 const S = () => useAppStore.getState();
 const N = () => S().ui.notifications;
@@ -58,6 +60,8 @@ eq('4 messageKey komt door', N()[0]?.messageKey, 'notifications.saveFailed');
 eq('5 detail blijft rauw (bewust onvertaald)', N()[0]?.detail, 'EACCES');
 eq('6 eerste voorkomen telt als 1', N()[0]?.count, 1);
 truthy('7 melding krijgt een id', typeof N()[0]?.id === 'string' && N()[0]?.id.length > 0);
+eq('7a bestaande meldingen krijgen geen X10-detailregels erbij',
+  Object.prototype.hasOwnProperty.call(N()[0]!, 'detailLines'), false);
 
 S().notify({ severity: 'info', messageKey: 'notifications.openFailed' });
 eq('8 zonder dedupeKey stapelen meldingen', N().length, 2);
@@ -207,7 +211,7 @@ eq('49 newProject wist de meldingen niet', N().length, 1);
 // Een onleesbaar voorbeeldbestand: `readIFC` gooit sinds K4 een IfcParseError. Vroeger ging dat
 // naar `console.error` en zag de gebruiker een leeg scherm zonder uitleg.
 clearAll();
-S().openExampleFromString('dit is geen IFC', 'kapot.ifc');
+await S().openExampleFromString('dit is geen IFC', 'kapot.ifc');
 eq('50 een onleesbaar bestand meldt zich', N().length, 1);
 eq('51 als fout', N()[0]?.severity, 'error');
 eq('52 met de open-sleutel', N()[0]?.messageKey, 'notifications.openFailed');
@@ -501,6 +505,162 @@ S().updateTask(tphC, { time: { ...beforeTphC.time, scheduleDuration: 4 } });
 eq('109 na newProject() meldt een NIEUW sturingsverlies WÉÉR (P1-fix, was: stil dood)', N().length, 1);
 eq('110 met de mpp-timephased-sleutel', N()[0]?.messageKey, 'notifications.mppTimephasedSteeringLost');
 
+// ── 13. X10: één eerlijke, samengestelde melding per geopend XER-bestand ──────────────────────
+// Een XER kan meerdere zelfstandige projecten opleveren. De melding hoort daarom aan de
+// BESTANDSactie (`applyOpenedImport`) en niet aan `applyLoadedProject`: twaalf documenten moeten
+// precies één toast opleveren. De productiebreuk die deze test vangt is een notify in de
+// per-documentlus, of het helemaal weglaten van de XER-samenvatting.
+const x10Report = {
+  projectsSeen: 15,
+  documentsOpened: 12,
+  emptyProjectsSkipped: 3,
+  baselineProjectsExcluded: 2,
+  baselinesMaterialized: 2,
+  danglingBaselineReferences: 3,
+  externalLinksPreserved: 4,
+  baselineExclusionReverted: true,
+  baselineFallbackReasons: ['cycle'] as XerImportReport['baselineFallbackReasons'],
+};
+
+const x10CatalogIssues = {
+  resources: {
+    catalog: { issues: [{
+      code: 'XER_RESOURCE_TYPE_FALLBACK', table: 'RSRC', line: 47, sourceId: 'R-1', fallback: 'LABOR',
+    }] },
+    assignments: [],
+    issues: [],
+  } as unknown as NonNullable<XerImportMetadata['resources']>,
+  metadata: {
+    catalog: { issues: [{ code: 'XER_UDF_UNKNOWN_DATA_TYPE', table: 'UDFTYPE', line: 48 }] },
+  } as unknown as NonNullable<XerImportMetadata['metadata']>,
+};
+
+const x10XerMetadata = (sourceProjectId: string): XerImportMetadata => ({
+  sourceProjectId,
+  defaultCurrencyCode: 'EUR',
+  tableReport: {
+    encoding: 'windows-1252',
+    endMarkerSeen: true,
+    issues: [
+      { code: 'XER_SHORT_ROW', line: 40, table: 'TASK', expected: 8, actual: 7 },
+      { code: 'XER_INVALID_NUMBER', line: 64, table: 'VENDOR_TABLE' },
+    ],
+    unknownTables: [],
+  },
+  calendarIssues: [
+    { code: 'XER_CALENDAR_INVALID_PERIOD_HOURS', calendarId: 'CAL-1', line: 31,
+      reason: 'Uren per periode zijn ongeldig.', resolution: 'REJECTED' },
+    { code: 'XER_CALENDAR_DANGLING_BASE', calendarId: 'CAL-2', line: 32,
+      reason: 'Basiskalender ontbreekt.', resolution: 'UNLINKED' },
+  ],
+  enumFallbacks: [
+    { family: 'activityType', token: 'TT_Unknown', fallback: 'TT_Task', table: 'TASK', field: 'task_type', line: 41 },
+    { family: 'status', token: 'TK_Else', fallback: 'TK_NotStart', table: 'TASK', field: 'status_code', line: 42 },
+    { family: 'relation', token: 'PR_Else', fallback: 'PR_FS', table: 'TASKPRED', field: 'pred_type', line: 43 },
+  ],
+  scheduleOptions: {
+    source: 'xer-defaults',
+    retainedSource: {},
+    fallbacks: [
+      { field: 'sched_float_based_on_finish_flag', token: 'MAYBE', fallback: 'false', line: 45 },
+      { field: 'sched_retained_logic', token: 'SOMETIMES', fallback: 'true', line: 46 },
+    ],
+    diagnostics: [],
+    sourceArchive: { rows: [], unmatchedScheduleOptionsRowIndexes: [], diagnostics: [] },
+    sourceRowIndexes: [],
+    sourceRows: [],
+  },
+  externalRelations: [],
+  externalLinks: [],
+  report: x10Report,
+  // Dit zijn bestandsbrede catalogusproblemen. Ze mogen in de enige XER-melding
+  // niet als "unsupported semantics" meetellen: die regel is uitsluitend voor
+  // veilige terugvallen van P6-schedulingopties.
+  ...x10CatalogIssues,
+});
+
+const x10Result = (index: number): ImportResult => ({
+  project: { ...S().project, id: `x10-project-${index}`, name: `XER ${index + 1}` },
+  calendar: createDefaultCalendar(),
+  tasks: [],
+  sequences: [],
+  resources: [],
+  assignments: [],
+  xer: x10XerMetadata(`P-${index + 1}`),
+});
+
+const x10Import = (): MultiDocumentImport => ({
+  kind: 'multi-document',
+  results: Array.from({ length: 12 }, (_, index) => x10Result(index)),
+  activeDocumentIndex: 0,
+});
+
+clearAll();
+S().newProject();
+S().applyOpenedImport(x10Import(), {
+  filePath: null,
+  fileHandle: null,
+  recompute: false,
+  fit: false,
+  hourDataNotice: false,
+  linkedOpen: true,
+});
+eq('111 XER met twaalf documenten toont precies één bestandsmelding', N().length, 1);
+eq('112 de XER-bestandsmelding is informatie, geen fout', N()[0]?.severity, 'info');
+eq('113 de XER-bestandsmelding gebruikt de samengestelde sleutel', N()[0]?.messageKey, 'notifications.xerImportOpened');
+eq('114 de hoofdtelling noemt de werkelijk geopende documenten', N()[0]?.params, { count: 12 });
+eq('115 de XER-bestandsmelding linkt naar de XER-gids', N()[0]?.helpArticleId, 'gids-xer-import');
+eq('116 de details dragen alle werkelijk gemeten, niet-nulle signalen', N()[0]?.detailLines, [
+  { messageKey: 'notifications.xerImportProjectsSeen', params: { count: 15 } },
+  { messageKey: 'notifications.xerImportEmptyProjectsSkipped', params: { count: 3 } },
+  { messageKey: 'notifications.xerImportBaselineProjectsExcluded', params: { count: 2 } },
+  { messageKey: 'notifications.xerImportBaselinesMaterialized', params: { count: 2 } },
+  { messageKey: 'notifications.xerImportDanglingBaselineReferences', params: { count: 3 } },
+  { messageKey: 'notifications.xerImportBaselineFallback' },
+  { messageKey: 'notifications.xerImportExternalLinks', params: { count: 4 } },
+  { messageKey: 'notifications.xerImportEncoding', params: { encoding: 'windows-1252' } },
+  { messageKey: 'notifications.xerImportParserIssues', params: { count: 1 } },
+  { messageKey: 'notifications.xerImportCalendarIssues', params: { count: 2 } },
+  { messageKey: 'notifications.xerImportNumberIssues', params: { count: 2 } },
+  { messageKey: 'notifications.xerImportEnumFallbacks', params: { count: 36 } },
+  { messageKey: 'notifications.xerImportUnsupportedSemantics', params: { count: 24 } },
+]);
+
+// Een nieuwe bestandsactie mag nooit tegen de vorige worden samengevouwen: geen dedupeKey die
+// alle XER-imports aan elkaar plakt. Tegelijk mag de bestaande per-document-enumtoast niet
+// terugkomen als tweede soort informatie naast de samengestelde melding.
+S().applyOpenedImport(x10Import(), {
+  filePath: null,
+  fileHandle: null,
+  recompute: false,
+  fit: false,
+  hourDataNotice: false,
+  linkedOpen: true,
+});
+eq('117 twee afzonderlijke XER-imports tonen twee afzonderlijke meldingen', N().length, 2);
+eq('118 ook de tweede melding is de samengestelde XER-melding', N()[1]?.messageKey, 'notifications.xerImportOpened');
+
+// De host roept deze pure helper rechtstreeks in zijn React-renderlus aan. Dit bewijst dat een
+// detailregel nooit via `detail` of een eigen formatter ontsnapt, maar met sleutel én params door
+// de bestaande t-route gaat. Oude meldingen hebben bovenaan expliciet geen detailregels.
+const translatedDetailCalls: Array<{ key: string; params?: Record<string, string | number> }> = [];
+const translatedDetail = notificationDetailText((key, params) => {
+  translatedDetailCalls.push({ key, params });
+  return `${key}:${params?.count ?? ''}`;
+}, N()[0]?.detailLines?.[0] ?? { messageKey: 'notifications.xerImportProjectsSeen' });
+eq('118a NotificationHost-detailhelper geeft de vertaalde tekst terug',
+  translatedDetail, 'notifications.xerImportProjectsSeen:15');
+eq('118b NotificationHost geeft sleutel en parameters samen aan t door', translatedDetailCalls, [
+  { key: 'notifications.xerImportProjectsSeen', params: { count: 15 } },
+]);
+
+// De echte bestaande deeplink-route: niet een test-only callback, maar `openHelpArticle` die
+// NotificationHost ook gebruikt. Een fout in helpArticleId of in de route maakt deze checks rood.
+S().openHelpArticle(N()[0]?.helpArticleId ?? '');
+eq('119 Lees meer opent Backstage', S().ui.activeRibbonTab, 'file');
+eq('120 Lees meer kiest Help', S().ui.backstageSection, 'help');
+eq('121 Lees meer draagt het XER-artikel naar HelpPanel over', S().ui.pendingHelpArticleId, 'gids-xer-import');
+
 // ── 11. Een voorbereide gridmelding wordt pas na de atomaire datacommit getoond ───────────────
 clearAll();
 S().newProject();
@@ -523,12 +683,12 @@ const gridWithNotification: PreparedGridMutation | null = gridPrepared.ok ? {
 } : null;
 const gridCommit = gridWithNotification ? commitPreparedGridMutation(gridWithNotification) : null;
 unsubscribeGrid();
-eq('111 voorbereide gridcommit met melding slaagt', gridCommit?.ok, true);
-eq('112 eerste gridpublicatie bevat data en history zonder melding', gridStates[0], {
+eq('122 voorbereide gridcommit met melding slaagt', gridCommit?.ok, true);
+eq('123 eerste gridpublicatie bevat data en history zonder melding', gridStates[0], {
   name: 'Grid na', history: 1, notifications: 0,
 });
-eq('113 gridmelding volgt in een aparte publicatie', gridStates.map(state => state.notifications), [0, 1]);
-eq('114 uitgestelde gridmelding gebruikt het normale app-globale kanaal', N()[0]?.messageKey, 'notifications.relationCreated');
+eq('124 gridmelding volgt in een aparte publicatie', gridStates.map(state => state.notifications), [0, 1]);
+eq('125 uitgestelde gridmelding gebruikt het normale app-globale kanaal', N()[0]?.messageKey, 'notifications.relationCreated');
 
 // ── Uitkomst ────────────────────────────────────────────────────────────────
 if (diffs.length) {

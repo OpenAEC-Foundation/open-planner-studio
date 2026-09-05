@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { buildImportLabels } from '@/i18n/importLabels';
 
@@ -46,18 +46,21 @@ export function IFCPanel() {
   }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
 
   const handleApply = useCallback(() => {
-    try {
-      const data = readIFC(content, buildImportLabels(tCommon));
-      loadState(data, { viewStartDate: data.project.startDate });
-      setDirty(false);
-    } catch (err) {
-      // Bevinding K8: alert() (de énige in de hele repo) vervangen door het gecentraliseerde kanaal.
-      notify({
-        severity: 'error',
-        messageKey: 'notifications.ifcParseFailed',
-        detail: (err as Error).message,
-      });
-    }
+    void (async () => {
+      try {
+        const data = await readIFCWithXerReconstruction(content, buildImportLabels(tCommon));
+        // `loadState` rekent zelf door en publiceert de viewstart in dezelfde ene publicatie.
+        loadState(data, { viewStartDate: data.project.startDate });
+        setDirty(false);
+      } catch (err) {
+        // Bevinding K8: alert() (de énige in de hele repo) vervangen door het gecentraliseerde kanaal.
+        notify({
+          severity: 'error',
+          messageKey: 'notifications.ifcParseFailed',
+          detail: (err as Error).message,
+        });
+      }
+    })();
   }, [content, loadState, notify, tCommon]);
 
   const handleCopy = useCallback(() => {

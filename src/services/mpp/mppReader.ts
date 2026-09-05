@@ -141,6 +141,7 @@ import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
 import { hasNonAnchorTime, isSubDayMinutes } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { CfbFile } from './cfb';
 import { assertReadable, detectApplicationVersion, Props } from './mppContainer';
 import {
@@ -1668,7 +1669,7 @@ export function deriveSplitGapsForTasks(
     if (!task?.time?.scheduleStart) continue;
     // Z4-fixronde punt 4: MPXJ toont nooit splits op een samenvattingstaak
     // (`Task.calculateWorkSplits`: `if (getSummary()) return emptyList()`) — spiegelt dat exact.
-    if (task.childIds.length > 0) continue;
+    if (isSummaryTask(task)) continue;
 
     const taskStart = parseInstant(task.time.scheduleStart);
     const engine = engineFor(taskCalendar(task, calResult));
@@ -1743,7 +1744,7 @@ export function deriveTimephasedContoursForTasks(
     if (!link) continue;
     const task = taskById.get(link.taskId);
     if (!task?.time?.scheduleStart) continue;
-    if (task.childIds.length > 0) continue; // spiegelt deriveSplitGapsForTasks
+    if (isSummaryTask(task)) continue; // spiegelt deriveSplitGapsForTasks
 
     const taskStart = parseInstant(task.time.scheduleStart);
     const engine = engineFor(taskCalendar(task, calResult));
@@ -1835,7 +1836,7 @@ export function deriveTimephasedContoursForTasks(
 // verdeelt het werk zich over >1 gelijktijdige toewijzing van DEZELFDE taak), niet "wat is de
 // datum" — geen tegenspraak met deze weerlegging.
 //
-// SAMENVATTINGSTAKEN: zelfde uitsluiting als Z4 (`task.childIds.length > 0`) — MSP toont geen
+// SAMENVATTINGSTAKEN: zelfde semantische uitsluiting als Z4 — MSP toont geen
 // contour-eigen venster op een WBS-samenvattingstaak, haar datums komen uit de kinderrollup.
 export interface TimephasedWindowResult {
   finishFloor: Date | null;                 // laag 3
@@ -2029,7 +2030,7 @@ export function deriveTimephasedWindowsForTasks(
     const link = linkByUid.get(uid);
     if (!link) continue;
     const task = taskById.get(link.taskId);
-    if (!task || task.childIds.length > 0) continue; // samenvattingstaak: zelfde uitsluiting als Z4
+    if (!task || isSummaryTask(task)) continue; // samenvattingstaak: zelfde uitsluiting als Z4
     if (!task.time.scheduleStart) continue;
     const completion = task.time.completion ?? 0;
 

@@ -37,6 +37,7 @@ import {
 } from './taskFields';
 import type { SequenceType } from '@/types/sequence';
 import type { Task } from '@/types/task';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { isAncestorRelation } from '@/state/relationRules';
 // De relatie-NOTATIE (type-aliassen, lag-vormen, schema-fragmenten) woont in de gedeelde veldlaag
 // `sequenceFields.ts` — één implementatie voor `add_dependencies` hier, `update_dependencies` in
@@ -94,7 +95,7 @@ function fieldContext(
 ): TaskFieldContext {
   return {
     currentIsMilestone: task?.isMilestone ?? false,
-    hasChildren: (task?.childIds.length ?? 0) > 0,
+    hasChildren: isSummaryTask(task),
     hasAssignments: task ? s.assignments.some((a) => a.taskId === task.id) : false,
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.

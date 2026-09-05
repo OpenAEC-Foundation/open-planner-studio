@@ -126,6 +126,21 @@ function installWindow(handle: FileSystemFileHandle | null, pickerError?: DOMExc
   };
 }
 
+let releaseDeferredSavePicker: ((handle: FileSystemFileHandle) => void) | null = null;
+function installDeferredSaveWindow() {
+  pickerCalls = 0;
+  permissionCalls = 0;
+  g.window = {
+    showOpenFilePicker: () => Promise.resolve([]),
+    showSaveFilePicker: () => {
+      pickerCalls++;
+      return new Promise<FileSystemFileHandle>((resolveHandle) => {
+        releaseDeferredSavePicker = resolveHandle;
+      });
+    },
+  };
+}
+
 /** Zet `window` op met een open-kiezer die `[handle]` teruggeeft (of `pickerError` gooit). */
 function installOpenWindow(handle: FileSystemFileHandle | null, pickerError?: DOMException) {
   openPickerCalls = 0;
@@ -271,6 +286,47 @@ async function main() {
   eq('7b één melding, en dat is de download-info', notes, [{ sev: 'info', key: 'notifications.savedViaDownload' }]);
   eq('7c geen rauwe browserfout als detail', S().ui.notifications[0]?.detail, undefined);
   eq('7d het document geldt als opgeslagen', S().isDirty, false);
+
+  // ── 7e. Een late uitkomst hoort bij document B, nooit bij inmiddels actief document C ─────
+  resetWebWriteRefusalForTests();
+  installDeferredSaveWindow();
+  const documentB = S().newDocument();
+  S().addTask({ name: 'B wordt opgeslagen' });
+  const documentC = S().newDocument();
+  S().switchDocument(documentB);
+  const lateSave = S().saveFile();
+  await Promise.resolve();
+  S().switchDocument(documentC);
+  const handleB = makeHandle({});
+  releaseDeferredSavePicker?.(handleB);
+  await lateSave;
+  eq('7e actieve document blijft C na late B-save', S().activeDocumentId, documentC);
+  eq('7f C krijgt B-bestandsnaam niet', S().filePath, null);
+  eq('7g C krijgt B-handle niet', S().fileHandle, null);
+  S().switchDocument(documentB);
+  eq('7h B ontvangt zijn eigen bestandsnaam', S().filePath, 'project.ifc');
+  eq('7i B ontvangt zijn eigen handle', S().fileHandle === handleB, true);
+  eq('7j ongewijzigd B wordt na zijn eigen save schoon', S().isDirty, false);
+
+  // Ook de expliciete Opslaan als-route bindt een late bestemming aan haar brondocument.
+  installDeferredSaveWindow();
+  const saveAsDocument = S().newDocument();
+  S().addTask({ name: 'Opslaan als blijft bij dit document' });
+  const saveAsNeighbour = S().newDocument();
+  S().switchDocument(saveAsDocument);
+  const lateSaveAs = S().saveFileAs();
+  await Promise.resolve();
+  S().switchDocument(saveAsNeighbour);
+  const saveAsHandle = makeHandle({});
+  releaseDeferredSavePicker?.(saveAsHandle);
+  await lateSaveAs;
+  eq('7k actieve buur blijft actief na late Opslaan als', S().activeDocumentId, saveAsNeighbour);
+  eq('7l buur krijgt Opslaan als-bestandsnaam niet', S().filePath, null);
+  eq('7m buur krijgt Opslaan als-handle niet', S().fileHandle, null);
+  S().switchDocument(saveAsDocument);
+  eq('7n Opslaan als-bestandsnaam blijft bij bron', S().filePath, 'project.ifc');
+  eq('7o Opslaan als-handle blijft bij bron', S().fileHandle === saveAsHandle, true);
+  eq('7p ongewijzigde Opslaan als-bron wordt schoon', S().isDirty, false);
 
   // ── 8. featurePolicy meldt vooraf een blokkade → meteen de input-terugval, geen picker ──────
   resetWebReadRefusalForTests();

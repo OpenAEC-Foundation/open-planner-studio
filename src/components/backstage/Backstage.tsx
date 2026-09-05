@@ -266,7 +266,7 @@ function ExamplesSection() {
       const res = await fetch(`${import.meta.env.BASE_URL}examples/${ex.file}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
-      openExampleFromString(content, ex.name, buildImportLabels(tCommon));
+      await openExampleFromString(content, ex.name, buildImportLabels(tCommon));
       // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek). De
       // laadgrens heeft al gerekend; het linken herleidt zelf de resourcebelasting opnieuw.
       if (ex.category === 'showcase') applyDemoLibraryToShowcaseProject();

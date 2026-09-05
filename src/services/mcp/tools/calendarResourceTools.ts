@@ -40,6 +40,7 @@ import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@
 import type { ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -1096,7 +1097,7 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' bestaat niet` });
           return;
         }
-        if (target.isMilestone || target.childIds.length > 0) {
+        if (target.isMilestone || isSummaryTask(target)) {
           rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' is een mijlpaal/verzameltaak; die dragen geen resources` });
           return;
         }

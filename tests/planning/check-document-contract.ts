@@ -334,8 +334,36 @@ S().updateTask(kT1, {
   // ene `updateTask`-aanroep laat ze ongemoeid staan naast de bestaande Z14-velden hierboven).
   mspTaskType: 'FIXED_DURATION', effortDriven: true,
   timephasedContours: [{ resourceUid: 12, periods: [{ afterMinutes: 0, minutes: 60, workMinutes: 60, kind: 'actual' }] }],
-  time: { ...kt1Before.time, resume: '2031-03-05', stop: '2031-03-06' },
+  // X7-reviewfix: precies de vijf velden die de P6-identiteit, voortgangsfamilie en
+  // suspend/resume-firewall vormen. Ze rijden als taakdata door document- en snapshotcontract en
+  // via OPS_P6Progress door de echte recovery-IFC-keten hieronder.
+  p6ProjectId: 'P6-K3',
+  p6TaskId: 'P6-T1',
+  p6ExplicitTargetWindow: true,
+  p6CompletePctType: 'CP_Phys',
+  p6ExpectedFinish: '2031-03-12',
+  p6SuspendResume: true,
+  time: { ...kt1Before.time, stop: '2031-03-05', resume: '2031-03-06' },
 });
+const k3X7 = (candidate: Task | undefined) => [
+  candidate?.p6ProjectId,
+  candidate?.p6TaskId,
+  candidate?.p6ExplicitTargetWindow,
+  candidate?.p6CompletePctType,
+  candidate?.p6ExpectedFinish,
+  candidate?.p6SuspendResume,
+];
+const k3X7Expected = ['P6-K3', 'P6-T1', true, 'CP_Phys', '2031-03-12', true];
+eq('d K3 X7 setup: bronvelden en firewall gezet', k3X7(S().tasks.find(t => t.id === kT1)), k3X7Expected);
+S().undo();
+eq('d K3 X7 undo: hele veldgroep terug naar afwezig', k3X7(S().tasks.find(t => t.id === kT1)),
+  [undefined, undefined, undefined, undefined, undefined, undefined]);
+S().redo();
+eq('d K3 X7 redo: hele veldgroep exact hersteld', k3X7(S().tasks.find(t => t.id === kT1)), k3X7Expected);
+const k3DocumentId = S().activeDocumentId;
+S().newDocument();
+S().switchDocument(k3DocumentId);
+eq('d K3 X7 documentwissel: hele veldgroep exact behouden', k3X7(S().tasks.find(t => t.id === kT1)), k3X7Expected);
 S().runCPM();
 S().saveBaseline('K3-nulmeting');
 // Momentopname vóór de round-trip; taak-id's worden bij het inlezen opnieuw gegenereerd (en de
@@ -382,14 +410,15 @@ eq('d K3 keten: splitGaps overleeft', kT1After?.splitGaps, [{ afterMinutes: 60, 
 eq('d K3 keten: manuallyScheduled overleeft', kT1After?.manuallyScheduled, true);
 eq('d K3 keten: levelingDelayMinutes overleeft', kT1After?.levelingDelayMinutes, 15);
 eq('d K3 keten: levelingDelayElapsed overleeft', kT1After?.levelingDelayElapsed, true);
-eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-05');
-eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-06');
+eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-05');
+eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-06');
 // Z14b — de drie NIEUWE velden overleven dezelfde keten (bewijst de "tasks"-clone-snapshot-rol
 // écht draagt wat er verder in de plan-toelichting over beweerd wordt, geen aanname).
 eq('d K3 keten: mspTaskType overleeft', kT1After?.mspTaskType, 'FIXED_DURATION');
 eq('d K3 keten: effortDriven overleeft', kT1After?.effortDriven, true);
 eq('d K3 keten: timephasedContours overleeft', kT1After?.timephasedContours,
   [{ resourceUid: 12, periods: [{ afterMinutes: 0, minutes: 60, workMinutes: 60, kind: 'actual' }] }]);
+eq('d K3 X7 recovery/IFC: bronvelden en firewall overleven write→read→restore', k3X7(kT1After), k3X7Expected);
 
 // Contract-eenheidscheck op de tweede helft van de mapping: baselines uit de recovery-invoer
 // moeten ook in de document-payload landen (vangt een regressie IN `payloadFromInput`).

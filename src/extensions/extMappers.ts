@@ -47,14 +47,20 @@ import type {
 
 // ── Kleine helpers (diepe kopie van geneste, mogelijk bevroren, waarden) ──
 
-/** `SchedulingOptions`/`ExtSchedulingOptions` zijn structureel gelijk; één helper dekt beide
- *  richtingen. De geneste `criticalDefinition`/`floatPaths` MOETEN mee-gekopieerd worden —
- *  een kale spread zou daar bevroren store-referenties doorgeven (reviewbevinding pakket N). */
-function copySchedulingOptions<T extends ExtSchedulingOptions>(o: T): T {
-  const copy = { ...o };
-  if (copy.criticalDefinition) copy.criticalDefinition = { ...copy.criticalDefinition };
-  if (copy.floatPaths) copy.floatPaths = { ...copy.floatPaths };
-  return copy;
+/** Publieke scheduling-options worden veld-voor-veld gereconstrueerd. Dit is tegelijk een
+ *  mutabiliteitsgrens en een beveiligingsgrens: runtime-objecten van JS-extensies kunnen extra
+ *  interne `p6*`-sleutels dragen die niet in `ExtSchedulingOptions` staan. Een spread zou die
+ *  ongemerkt als solverinvoer activeren. De native XER-lezer zet zulke bronopties rechtstreeks op
+ *  het interne model en loopt dus niet door deze generieke extensie-invoer. */
+function publicSchedulingOptions(o: ExtSchedulingOptions): ExtSchedulingOptions {
+  return {
+    lagCalendar: o.lagCalendar,
+    criticalDefinition: o.criticalDefinition ? { ...o.criticalDefinition } : undefined,
+    totalFloatMode: o.totalFloatMode,
+    makeOpenEndedCritical: o.makeOpenEndedCritical,
+    nearCriticalThreshold: o.nearCriticalThreshold,
+    floatPaths: o.floatPaths ? { ...o.floatPaths } : undefined,
+  };
 }
 
 function copyConstraint(c: TaskConstraint): ExtTaskConstraint {
@@ -164,7 +170,7 @@ export function toExtProject(p: Project): ExtProject {
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     defaultWorkRule: p.defaultWorkRule,
-    schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
+    schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
 
@@ -185,7 +191,7 @@ export function fromExtProject(p: ExtProject): Project {
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     defaultWorkRule: p.defaultWorkRule,
-    schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
+    schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
 
@@ -206,6 +212,8 @@ export function toExtCalendar(c: WorkCalendar): ExtCalendar {
     workTime: c.workTime ? copyWorkTime(c.workTime) : undefined,
     shift: c.shift,
     workingExceptions: c.workingExceptions ? c.workingExceptions.map(copyWorkingException) : undefined,
+    p6Source: c.p6Source,
+    p6NonWorkPenaltyDates: c.p6NonWorkPenaltyDates ? [...c.p6NonWorkPenaltyDates] : undefined,
   };
 }
 
@@ -336,12 +344,23 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
     workRule: t.workRule,
+    // X0/X12: P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
+    // analyse; `fromExtTask` hieronder accepteert ze bewust niet als generieke invoer.
+    p6DurationType: t.p6DurationType,
+    p6ActivityType: t.p6ActivityType,
+    p6ProjectId: t.p6ProjectId,
+    p6TaskId: t.p6TaskId,
+    p6ExplicitTargetWindow: t.p6ExplicitTargetWindow,
+    p6CompletePctType: t.p6CompletePctType,
+    p6ExpectedFinish: t.p6ExpectedFinish,
+    p6SuspendResume: t.p6SuspendResume,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
     parentId: t.parentId,
     childIds: [...t.childIds],
+    isSummary: t.isSummary,
     time: toExtTaskTime(t.time),
     resourceIds: [...t.resourceIds],
     color: t.color,
@@ -383,12 +402,16 @@ export function fromExtTask(t: ExtTask): Task {
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
     workRule: t.workRule,
+    // X12-herreview: de zeven P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
+    // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
+    // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
     parentId: t.parentId,
     childIds: [...t.childIds],
+    isSummary: t.isSummary,
     time: fromExtTaskTime(t.time),
     resourceIds: [...t.resourceIds],
     color: t.color,
@@ -437,6 +460,7 @@ export function fromExtTaskInput(
   if (input.manuallyScheduled !== undefined) out.manuallyScheduled = input.manuallyScheduled;
   if (input.parentId !== undefined) out.parentId = input.parentId;
   if (input.childIds !== undefined) out.childIds = [...input.childIds];
+  if (input.isSummary !== undefined) out.isSummary = input.isSummary;
   if (input.time !== undefined) out.time = fromExtTaskTime(input.time);
   if (input.resourceIds !== undefined) out.resourceIds = [...input.resourceIds];
   if (input.color !== undefined) out.color = input.color;
@@ -546,6 +570,7 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.manuallyScheduled !== undefined) out.manuallyScheduled = updates.manuallyScheduled;
   if (updates.parentId !== undefined) out.parentId = updates.parentId;
   if (updates.childIds !== undefined) out.childIds = [...updates.childIds];
+  if (updates.isSummary !== undefined) out.isSummary = updates.isSummary;
   // T14b-vervolg: `fromExtTaskTimePatch`, NIET `fromExtTaskTime` — zie de docstring daarboven. `out.time`
   // is hier op TS-niveau een volledige `TaskTime`, maar dat is dezelfde bewuste afwijking als
   // `addTask`'s `partial.time`: de echte volledigheid wordt pas door `taskSlice.updateTask`'s
@@ -577,6 +602,7 @@ export function toExtSequence(s: Sequence): ExtSequence {
     lagMinutes: s.lagMinutes,
     lagUnit: s.lagUnit,
     lagPercent: s.lagPercent,
+    p6StartAtPredecessorFinishBoundary: s.p6StartAtPredecessorFinishBoundary,
   };
 }
 

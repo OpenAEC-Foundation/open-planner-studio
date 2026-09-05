@@ -7,6 +7,7 @@ import type { CustomFieldDef } from '@/types/structure';
 import {
   parseInstant, formatInstant, addCalendarDays, diffDays, parseDate, type DateMode,
 } from '@/utils/dateUtils';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 
 /**
  * "Project verplaatsen" (pakket D1) — PURE domeintransformatie, geen store-import.
@@ -108,7 +109,14 @@ const TASK_VERDICTS = {
   mspTaskType: 'n/a',              // Z14b: MSP-eigen enum, geen datum
   effortDriven: 'n/a',             // Z14b: vlag, geen datum
   workRule: 'n/a',                 // taaktypes-etappe: regel, geen datum
-  parentId: 'n/a', childIds: 'n/a',
+  p6DurationType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
+  p6ActivityType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
+  p6ProjectId: 'n/a', p6TaskId: 'n/a', p6ExplicitTargetWindow: 'n/a', p6CompletePctType: 'n/a',
+  p6ExpectedFinish: 'shift',       // X7: opgeslagen absolute P6-brondatum verschuift mee
+  p6SuspendResume: 'n/a',          // X0 (XER-etappeplan): herkomstvlag, geen datum zelf — de
+                                    // datums eronder (time.resume/stop) schuiven al mee via
+                                    // TASK_TIME_VERDICTS
+  parentId: 'n/a', childIds: 'n/a', isSummary: 'n/a',
   time: 'shift',                  // zie TASK_TIME_VERDICTS
   resourceIds: 'n/a', color: 'n/a', activityCodes: 'n/a',
   customFields: 'keep',           // §1.7 — een 'date'-gebruikersveld heeft onbekende semantiek
@@ -166,6 +174,7 @@ const AVAILABILITY_STEP_VERDICTS = {
 
 const BASELINE_VERDICTS = {
   id: 'n/a', name: 'n/a',
+  sourceProjectId: 'n/a',
   createdAt: 'keep',              // archiefdatum — ook NIET bij shiftBaselines:true
   tasks: 'shift',                 // alleen bij shiftBaselines:true
   projectEnd: 'shift',            // idem
@@ -173,7 +182,7 @@ const BASELINE_VERDICTS = {
 } satisfies Record<keyof Baseline, MoveVerdict>;
 
 const BASELINE_TASK_VERDICTS = {
-  taskId: 'n/a',
+  taskId: 'n/a', sourceTaskId: 'n/a', sourceTaskCode: 'n/a',
   start: 'shift', finish: 'shift',
   duration: 'n/a', isMilestone: 'n/a', milestoneKind: 'n/a',
 } satisfies Record<keyof BaselineTask, MoveVerdict>;
@@ -268,6 +277,9 @@ export function shiftTask(task: Task, delta: number): Task {
   if (task.constraint) next.constraint = shiftConstraint(task.constraint, delta);
   if (task.constraint2) next.constraint2 = shiftConstraint(task.constraint2, delta);
   if (task.deadline !== undefined) next.deadline = shiftIso(task.deadline, delta);
+  if (task.p6ExpectedFinish !== undefined) {
+    next.p6ExpectedFinish = shiftIso(task.p6ExpectedFinish, delta);
+  }
   // Z8 (gemelde uitzondering op de bestandseigendom): de verdicts hierboven markeren deze twee als
   // 'shift' — dat is puur documentatie zonder DEZE regels, zie de moduleheader-waarschuwing bij
   // TASK_VERDICTS ("'keep'-voorschrift... betekent dat je de shift ook echt met de hand moet
@@ -291,6 +303,7 @@ export function shiftTask(task: Task, delta: number): Task {
       // "anker verouderd"; misbruiken zou de ghost-weergave vervuilen.
     }));
   }
+  reconcileP6SuspendResume(next);
   return next;
 }
 

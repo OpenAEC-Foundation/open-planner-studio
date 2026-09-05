@@ -92,7 +92,7 @@ export function PoolImportDialog() {
     const res = await openFileDialog([{ name: 'IFC', extensions: ['ifc'] }]);
     if (!res) return;
     try {
-      const pool = readPoolIFC(res.content);
+      const pool = await readPoolIFC(res.content);
       setImported(pool);
       // Voorselectie (issue #19, kern van de fix): gedelegeerd aan de PURE `resolvePoolImportPreselection`
       // (critreview F1 — direct headless testbaar, spiegelt de reviewer zijn eigen

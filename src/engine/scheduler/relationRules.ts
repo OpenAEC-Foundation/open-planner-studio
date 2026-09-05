@@ -1,4 +1,5 @@
 import type { Task } from '@/types/task';
+import { isSummaryTask as taskIsSummary } from '@/utils/taskHierarchy';
 
 export interface RelationEndpoints {
   predecessorId: string;
@@ -9,8 +10,11 @@ export type RelationRejection = 'self' | 'unknown-task' | 'ancestor' | 'duplicat
 export type RelationVerdict = { ok: true } | { ok: false; reason: RelationRejection };
 export type TaskLookup = (id: string) => Task | undefined;
 
+/** Delegeert naar de gedeelde WBS-semantiek: een taak met kinderen én een expliciet gemarkeerde
+ *  lege WBS-taak (P6 PROJWBS) zijn allebei samenvattingen. Zo gebruiken scheduler, renderer,
+ *  resourcepaden en IFC exact hetzelfde begrip. */
 export function isSummaryTask(task: Task | undefined): boolean {
-  return (task?.childIds.length ?? 0) > 0;
+  return taskIsSummary(task);
 }
 
 function isAncestor(lookup: TaskLookup, maybeAncestorId: string, id: string): boolean {

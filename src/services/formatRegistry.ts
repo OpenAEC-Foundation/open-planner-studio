@@ -4,10 +4,11 @@
 // gedrag ongewijzigd (fase 3.8 etappe 1, taak T1).
 
 import { readIFC } from '@/services/ifc/ifcReader';
+import { XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT } from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import type { ImportLabels, ImportResult } from '@/services/importTypes';
+import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { extensionOf } from '@/utils/filePath';
 
@@ -28,20 +29,35 @@ export interface ReadFormat {
    *  Vervangt de eerdere `id === 'ifc'`/`format === 'IFC' && !isBinary`-vergelijkingen in
    *  `fileSlice.ts` en `fileTools.ts` — één vlag, één plek. */
   canBeSaveTarget?: boolean;
-  read(input: FormatInput, labels?: ImportLabels): Promise<ImportResult>;
+  read(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport>;
 }
 
 /** Interne subdispatch voor de xml-entry van `READ_FORMATS`: kies de juiste XML-reader op basis
  *  van inhoudsmarkers (P6 vóór MS Project). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
  *  te parsen. Niet geëxporteerd (T1-restpunt): geen afnemer buiten deze module — de enige
  *  aanroeper is de xml-entry hieronder. */
-function parseProjectXml(content: string): ImportResult {
+function parseProjectXml(content: string): OpenedImport {
   const isP6 = content.includes('APIBusinessObjects') || content.includes('Primavera');
   const isMsProject =
     content.includes('schemas.microsoft.com/project') || content.includes('<Project');
   if (isP6) return readP6XML(content);
   if (isMsProject) return readMSPDI(content);
   throw new Error('Onbekend XML-formaat: geen MS Project- of Primavera-markers gevonden');
+}
+
+/**
+ * Lees IFC met behoud van de lazy XER-chunkgrens. Alleen een schema-2-envelope laadt de parser;
+ * gewone IFC en historische schema-1-archieven blijven op het bestaande synchrone hoofdpad.
+ */
+export async function readIFCWithXerReconstruction(
+  content: string,
+  labels: ImportLabels = {},
+): Promise<ImportResult> {
+  if (content.includes(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)) {
+    const { reconstructXerSourceArchiveFromBytes } = await import('@/services/xer/xerReader');
+    return readIFC(content, labels, { reconstructXerArchive: reconstructXerSourceArchiveFromBytes });
+  }
+  return readIFC(content, labels);
 }
 
 /** Default-formaat bij een onbekende extensie (bestaand gedrag: de else-tak van alle vijf
@@ -51,10 +67,10 @@ function parseProjectXml(content: string): ImportResult {
  *  dus herordenen wisselt 'm nooit stilzwijgend. */
 const IFC_FORMAT: ReadFormat = {
   id: 'ifc', extensions: ['ifc'], kind: 'text', filterName: 'IFC Files', canBeSaveTarget: true,
-  read: async (i, labels) => readIFC(i.text ?? '', labels),
+  read: async (i, labels) => readIFCWithXerReconstruction(i.text ?? '', labels),
 };
 
-// Volgorde = bestaande filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp).
+// Volgorde = filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp,xer).
 const READ_FORMATS: ReadFormat[] = [
   IFC_FORMAT,
   { id: 'csv', extensions: ['csv'], kind: 'text', filterName: 'CSV Files',
@@ -67,6 +83,13 @@ const READ_FORMATS: ReadFormat[] = [
       // Dynamic import: de parser (CFB + fieldmaps) blijft buiten de main chunk.
       const { readMPP } = await import('@/services/mpp/mppReader');
       return readMPP(i.bytes, labels);
+    } },
+  { id: 'xer', extensions: ['xer'], kind: 'binary', filterName: 'Primavera XER Files',
+    read: async (i) => {
+      if (!i.bytes) throw new Error('XER requires original binary content');
+      // Dynamic import: encodingdetectie en de semantische reader blijven buiten de main chunk.
+      const { readXER } = await import('@/services/xer/xerReader');
+      return readXER(i.bytes);
     } },
 ];
 
@@ -94,7 +117,7 @@ export function allReadFormats(): readonly ReadFormat[] {
   return READ_FORMATS;
 }
 
-export function parseOpenedFile(input: FormatInput, labels?: ImportLabels): Promise<ImportResult> {
+export function parseOpenedFile(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport> {
   return readFormatForFile(input.name).read(input, labels);
 }
 
@@ -144,10 +167,46 @@ export function saveTargetFor(
  *  laag (services/) niet van state/ afhangt. */
 export function importErrorMessageKey(
   err: unknown,
-): 'notifications.openFailed' | 'notifications.mppEncrypted' | 'notifications.mppLegacy' {
-  const code = (err as { mppCode?: string } | null | undefined)?.mppCode;
-  if (code === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
-  if (code === 'MPP_LEGACY') return 'notifications.mppLegacy';
+):
+  | 'notifications.openFailed'
+  | 'notifications.mppEncrypted'
+  | 'notifications.mppLegacy'
+  | 'notifications.xerInvalidInput'
+  | 'notifications.xerInvalidFile'
+  | 'notifications.xerInvalidEncoding'
+  | 'notifications.xerDuplicateTable'
+  | 'notifications.xerMissingRequiredColumns'
+  | 'notifications.xerMissingRequiredValue'
+  | 'notifications.xerAmbiguousDecimal'
+  | 'notifications.xerInvalidNumberFormat'
+  | 'notifications.xerInvalidNumber'
+  | 'notifications.xerSingleProjectRequired'
+  | 'notifications.xerEmptyProject'
+  | 'notifications.xerDuplicateId'
+  | 'notifications.xerAmbiguousLocalRelation'
+  | 'notifications.xerDanglingLocalRelation' {
+  const typed = err as { mppCode?: string; xerCode?: string } | null | undefined;
+  if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
+  if (typed?.mppCode === 'MPP_LEGACY') return 'notifications.mppLegacy';
+  const xerKeys = {
+    XER_INVALID_INPUT: 'notifications.xerInvalidInput',
+    XER_INVALID_FILE: 'notifications.xerInvalidFile',
+    XER_INVALID_ENCODING: 'notifications.xerInvalidEncoding',
+    XER_DUPLICATE_TABLE: 'notifications.xerDuplicateTable',
+    XER_MISSING_REQUIRED_COLUMNS: 'notifications.xerMissingRequiredColumns',
+    XER_MISSING_REQUIRED_VALUE: 'notifications.xerMissingRequiredValue',
+    XER_AMBIGUOUS_DECIMAL: 'notifications.xerAmbiguousDecimal',
+    XER_INVALID_NUMBER_FORMAT: 'notifications.xerInvalidNumberFormat',
+    XER_INVALID_NUMBER: 'notifications.xerInvalidNumber',
+    XER_SINGLE_PROJECT_REQUIRED: 'notifications.xerSingleProjectRequired',
+    XER_EMPTY_PROJECT: 'notifications.xerEmptyProject',
+    XER_DUPLICATE_ID: 'notifications.xerDuplicateId',
+    XER_AMBIGUOUS_LOCAL_RELATION: 'notifications.xerAmbiguousLocalRelation',
+    XER_DANGLING_LOCAL_RELATION: 'notifications.xerDanglingLocalRelation',
+  } as const;
+  if (typed?.xerCode && typed.xerCode in xerKeys) {
+    return xerKeys[typed.xerCode as keyof typeof xerKeys];
+  }
   return 'notifications.openFailed';
 }
 

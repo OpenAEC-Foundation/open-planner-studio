@@ -624,6 +624,21 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
     // Taaktypes-etappe (ontwerp 2026-09-04 §7): alleen-lezen tot de UI-stap 'm bewerkbaar maakt.
     readonlyColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'technical', valueKind: 'enum', read: task => task.workRule }),
+    // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
+    // round-trippen. Ze zijn puur provenance (geen solverinvoer deze etappe), dus één readonly
+    // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.
+    readonlyColumn({
+      id: 'task.p6Provenance', labelKey: 'taskGrid.columns.p6Provenance', category: 'technical', valueKind: 'technical',
+      read: task => p6ProvenanceOf(task),
+      format: value => {
+        const entries = value && typeof value === 'object' ? Object.entries(value as Record<string, unknown>) : [];
+        return entries.length ? entries.map(([key, item]) => `${key}: ${String(item)}`).join(', ') : '—';
+      },
+      copy: task => canonicalGridJson(p6ProvenanceOf(task)),
+    }),
+    // Expliciete, kinderloze WBS-samenvatting (P6 PROJWBS). Alleen-lezen: de marker komt uit de
+    // import en de hiërarchie zelf blijft via parentId/childIds bewerkbaar.
+    readonlyColumn({ id: 'task.isSummary', labelKey: 'taskGrid.columns.explicitSummary', category: 'technical', valueKind: 'boolean', read: task => task.isSummary }),
     readonlyColumn({ id: 'task.parentId', labelKey: 'taskGrid.columns.parentId', category: 'technical', valueKind: 'text', read: task => task.parentId }),
     readonlyColumn({ id: 'task.childIds', labelKey: 'taskGrid.columns.childIds', category: 'technical', valueKind: 'technical', read: task => task.childIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.childIds) }),
     readonlyColumn({ id: 'task.resourceIds', labelKey: 'taskGrid.columns.resourceIds', category: 'technical', valueKind: 'technical', read: task => task.resourceIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.resourceIds) }),
@@ -1035,6 +1050,20 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
     }
   }
   return result;
+}
+
+/** De acht XER/Primavera-bronvelden van een taak, zonder de afwezige. */
+function p6ProvenanceOf(task: Task): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  if (task.p6ProjectId !== undefined) out.p6ProjectId = task.p6ProjectId;
+  if (task.p6TaskId !== undefined) out.p6TaskId = task.p6TaskId;
+  if (task.p6ActivityType !== undefined) out.p6ActivityType = task.p6ActivityType;
+  if (task.p6DurationType !== undefined) out.p6DurationType = task.p6DurationType;
+  if (task.p6CompletePctType !== undefined) out.p6CompletePctType = task.p6CompletePctType;
+  if (task.p6ExpectedFinish !== undefined) out.p6ExpectedFinish = task.p6ExpectedFinish;
+  if (task.p6ExplicitTargetWindow !== undefined) out.p6ExplicitTargetWindow = task.p6ExplicitTargetWindow;
+  if (task.p6SuspendResume !== undefined) out.p6SuspendResume = task.p6SuspendResume;
+  return out;
 }
 
 /** Bouwt de volledige headless registry. De categorie-sortering is stabiel; binnen een categorie

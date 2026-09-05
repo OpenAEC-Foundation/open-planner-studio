@@ -1,7 +1,9 @@
 import type {
   Task, ConstraintType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType, WorkRule,
+  P6CompletePctType, P6DurationType, P6ActivityType,
 } from '@/types/task';
 import { WORK_RULES } from '@/types/workRule';
+import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 
 /**
  * IFC-pset-registry (fase 3, tweede helft van P11 uit docs/superpowers/modulariteit-audit.md,
@@ -70,6 +72,10 @@ export const PSET = {
    *  pset naast `OPS_MspTaskType`: de importvelden blijven onaangeraakt, de regel is een afgeleide
    *  die de gebruiker later los kan wijzigen. */
   WorkRule: 'OPS_WorkRule',
+  /** X7: P6-bronidentiteit, voortgangsfamilie, verwacht einde en suspend/resume-firewall. */
+  P6Progress: 'OPS_P6Progress',
+  /** Expliciete samenvattingsidentiteit voor een WBS-taak zonder kinderen. */
+  Summary: 'OPS_Summary',
   // Structuur/waarden op project- of taak-niveau (afwijkende vorm — alleen naam gedeeld).
   ProjectSettings: 'OPS_ProjectSettings',
   StructureMeta: 'OPS_StructureMeta',
@@ -87,6 +93,14 @@ export const PSET = {
   // Op de IfcWorkSchedule (autoritaire JSON-blob — alleen naam gedeeld).
   Baselines: 'OPS_Baselines',
   SchedulingOptions: 'OPS_SchedulingOptions',
+  /** X9: één projectcontainer met de exacte oorspronkelijke XER-bytes. */
+  XerSourceArchive: 'OPS_XerSourceArchive',
+  /** X9: selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
+  XerDocument: 'OPS_XerDocument',
+  /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
+   *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
+   *  koppeling toch exact, zonder een schema-ongeldige relatie te serialiseren. */
+  Sequences: 'OPS_Sequences',
   // Per kalender (afwijkende vorm — alleen naam gedeeld).
   Calendar: 'OPS_Calendar',
   // Bedrijfsbibliotheek-pool als autoritatief JSON-blob op het IfcProject (spec B1, §4).
@@ -474,9 +488,63 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 15. Taaktypes-etappe (ontwerp 2026-09-04 §4.4) — de neutrale werkregel. Zelfde vorm als 14;
+  // 15. X7 — precies de vijf velden die P6-voortgang en de resume-firewall na save/reload
+  //     betekenisvast houden. Dit is een smalle per-taak-pset; de bredere X9 raw-archive-etappe
+  //     blijft buiten scope. Golden rule: een taak zonder één van deze velden schrijft geen pset.
+  {
+    name: PSET.P6Progress, psetSeed: 'pset_p6prog_', relSeed: 'rel_p6prog_',
+    write(task) {
+      const props: PropSpec[] = [];
+      if (task.p6ProjectId) props.push({ name: 'ProjectId', value: `IFCTEXT(${ifcStr(task.p6ProjectId)})` });
+      if (task.p6TaskId) props.push({ name: 'TaskId', value: `IFCTEXT(${ifcStr(task.p6TaskId)})` });
+      if (task.p6ExplicitTargetWindow === true) props.push({ name: 'ExplicitTargetWindow', value: 'IFCBOOLEAN(.T.)' });
+      if (task.p6CompletePctType) props.push({ name: 'CompletePctType', value: `IFCLABEL(${ifcStr(task.p6CompletePctType)})` });
+      if (task.p6ExpectedFinish) props.push({ name: 'ExpectedFinish', value: `IFCTEXT(${ifcStr(task.p6ExpectedFinish)})` });
+      if (task.p6DurationType) props.push({ name: 'DurationType', value: `IFCLABEL(${ifcStr(task.p6DurationType)})` });
+      if (task.p6ActivityType) props.push({ name: 'ActivityType', value: `IFCLABEL(${ifcStr(task.p6ActivityType)})` });
+      if (task.p6SuspendResume === false) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.F.)' });
+      else if (hasValidP6SuspendResume(task)) props.push({ name: 'SuspendResume', value: 'IFCBOOLEAN(.T.)' });
+      return props.length > 0 ? props : null;
+    },
+    apply(task, props) {
+      const completePctTypes: readonly P6CompletePctType[] = ['CP_Drtn', 'CP_Phys', 'CP_Units'];
+      const durationTypes: readonly P6DurationType[] = ['DT_FixedDrtn', 'DT_FixedDUR2', 'DT_FixedRate', 'DT_FixedQty'];
+      const activityTypes: readonly P6ActivityType[] = ['TT_Task', 'TT_Rsrc', 'TT_LOE', 'TT_Mile', 'TT_FinMile', 'TT_WBS'];
+      for (const { name, value } of props) {
+        if (name === 'ExplicitTargetWindow') { if (value === true) task.p6ExplicitTargetWindow = true; continue; }
+        if (name === 'SuspendResume') { if (typeof value === 'boolean') task.p6SuspendResume = value; continue; }
+        if (typeof value !== 'string' || !value) continue;
+        if (name === 'ProjectId') task.p6ProjectId = value;
+        else if (name === 'TaskId') task.p6TaskId = value;
+        else if (name === 'ExpectedFinish') task.p6ExpectedFinish = value;
+        else if (name === 'DurationType' && (durationTypes as readonly string[]).includes(value)) task.p6DurationType = value as P6DurationType;
+        else if (name === 'ActivityType' && (activityTypes as readonly string[]).includes(value)) task.p6ActivityType = value as P6ActivityType;
+        else if (name === 'CompletePctType' && (completePctTypes as readonly string[]).includes(value)) {
+          task.p6CompletePctType = value as P6CompletePctType;
+        }
+      }
+    },
+  },
+  // 16. Expliciete WBS-identiteit — nodig om een lege PROJWBS-samenvatting door IFC te bewaren.
+  //     Alleen `true` schrijft iets; alle bestaande taken blijven byte-identiek.
+  {
+    name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',
+    write(task) {
+      return task.isSummary === true
+        ? [{ name: 'IsSummary', value: 'IFCBOOLEAN(.T.)' }]
+        : null;
+    },
+    apply(task, props) {
+      for (const { name, value } of props) {
+        if (name === 'IsSummary' && value === true) task.isSummary = true;
+      }
+    },
+  },
+  // 17. Taaktypes-etappe (ontwerp 2026-09-04 §4.4) — de neutrale werkregel. Zelfde vorm als 14;
   //     `WORK_RULES` (satisfies-afgedwongen lijst) is de geldigheidscheck, een onbekende waarde
-  //     blijft stil weg (byte-identiek voor elk bestand zonder dit pset).
+  //     blijft stil weg (byte-identiek voor elk bestand zonder dit pset). Staat NAAST
+  //     `OPS_MspTaskType` en `OPS_P6Progress`: de importvelden blijven onaangeraakt, de regel is
+  //     een afgeleide die de gebruiker later los kan wijzigen.
   {
     name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
     write(task) {

@@ -155,6 +155,16 @@ const REJECT_HINTS: Record<string, string> = {
   // Taaktypes-etappe (ontwerp 2026-09-04): leesbaar via planner_get_task; zetbaar volgt in de
   // MCP-stap (§10 stap 7) zodra de werkdriehoek in de store bedraad is.
   workRule: 'de werkregel is via de bridge nog niet zetbaar (taaktypes-etappe, bouwstap 7) — leesbaar via planner_get_task',
+  // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde "read-only, geen
+  // agent-invoervorm"-redenering als mspTaskType/effortDriven hierboven.
+  p6DurationType: 'P6\'s eigen Duration Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
+  p6ActivityType: 'P6\'s eigen Activity Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
+  p6ExplicitTargetWindow: 'de P6-XER-provenance voor een expliciet targetvenster is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6SuspendResume: 'de P6-suspend/resume-herkomstvlag is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6ProjectId: 'P6\'s bronproject-id is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6TaskId: 'P6\'s bronactiviteit-id is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6CompletePctType: 'P6\'s Completion Percent Type is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6ExpectedFinish: 'P6\'s Expected Finish is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
 };
 
 /** Uitkomst van de veldvalidatie. */

@@ -383,6 +383,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
+- [ ] **XER-opgeslagen werk (`target_qty`/`remain_qty`/`act_reg_qty`) blijft bewust in het
+      bronarchief.** Geen nieuw modelveld vanuit XER deze etappe — de taaktypes-etappe definieert het
+      eersteklasveld op `ResourceAssignment`; XER zet het pas dán over, en uitsluitend wanneer
+      `target_qty` afwijkt van `target_drtn_hr_cnt × target_qty_per_hr` (anders blijft het veld
+      afwezig, byte-identiek). Meetlatbestanden: `HarbourPointe_AssistedLiving` (98 afwijkende rijen,
+      factor 3), `Harbour Point DCP-03` (factor 4; `remain_qty` zonder resttarief), `p6_torture_test_v1`
+      (duur 0 met werk); resttarief wijkt in `rehab-2` in 27,5% van de rijen af.
 
 ### Solver/presentatie — resterende punten (2026-07-20)
 

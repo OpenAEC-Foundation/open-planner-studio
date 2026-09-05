@@ -2,8 +2,14 @@ import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
-import { readIFC } from '@/services/ifc/ifcReader';
-import { parseOpenedFile, readFormatInput } from '@/services/formatRegistry';
+import {
+  parseOpenedFile,
+  readIFCWithXerReconstruction,
+  readFormatForFile,
+  readFormatInput,
+  saveTargetFor,
+  type FormatIO,
+} from '@/services/formatRegistry';
 import { enableExtension, disableExtension, removeExtension, saveExtensionToDb, installFromZipBlob } from '@/extensions';
 import type { ExpectedExtensionIdentity, InstallOutcome } from '@/extensions';
 import type { ExtensionManifest, ReadyExtension } from '@/extensions/types';
@@ -51,12 +57,12 @@ function stateSnapshot(s: AppState) {
 }
 
 /** Niveau 1 — serialiseer de huidige state naar IFC en parse 'm terug; meet dataverlies. Werkt ook in de browser. */
-function roundTrip() {
+async function roundTrip() {
   const s = useAppStore.getState();
   const content = writeIFC(buildWriteIFCInput(s));
   // Geen `labels`: dev-only zelftesthaak (`window.__OPS__`), geen productie-UI — `readIFC` valt
   // terug op de Engelse default voor een bestand zonder IFCPROJECT (zie ImportLabels).
-  const parsed = readIFC(content);
+  const parsed = await readIFCWithXerReconstruction(content);
   const before = counts(s);
   const after = {
     tasks: parsed.tasks.length,
@@ -85,12 +91,24 @@ async function saveToPath(path: string) {
  *  Dev-only gedragsverbetering (T1): loopt nu via de formatRegistry, dus `.xml` wordt hier ook
  *  herkend (voorheen viel dat stil terug op IFC). T2: binaire formaten worden als bytes gelezen
  *  i.p.v. tekst. */
+export async function openFromPathWithIO(path: string, io: FormatIO) {
+  const input = await readFormatInput(path, io);
+  const parsed = await parseOpenedFile(input);
+  const target = saveTargetFor(readFormatForFile(path), { kind: 'path', path }, path);
+  const opened = useAppStore.getState().applyOpenedImport(parsed, {
+    filePath: target.filePath,
+    fileHandle: target.fileHandle,
+    recompute: true,
+    fit: true,
+    hourDataNotice: true,
+    linkedOpen: true,
+  });
+  return { path, ...opened, ...counts(useAppStore.getState()) };
+}
+
 async function openFromPath(path: string) {
   const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
-  const input = await readFormatInput(path, { readTextFile, readFile });
-  const parsed = await parseOpenedFile(input);
-  useAppStore.getState().loadState(parsed);
-  return { path, ...counts(useAppStore.getState()) };
+  return openFromPathWithIO(path, { readTextFile, readFile });
 }
 
 /** Dev-only: installeer een extensie direct vanuit een code-string (voor zelftests). */
@@ -131,7 +149,7 @@ async function scanStoredExtensions(): Promise<Array<{
   });
 }
 
-interface OpsCommand {
+export interface OpsCommand {
   id?: string;
   op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest';
   args?: Record<string, unknown>;
@@ -146,7 +164,7 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
     case 'getState':
       return { ok: true, result: stateSnapshot(useAppStore.getState()) };
     case 'roundTrip':
-      return { ok: true, result: roundTrip() };
+      return { ok: true, result: await roundTrip() };
     case 'save': {
       const path = cmd.args?.path as string | undefined;
       if (!path) return { ok: false, error: 'missing args.path' };
@@ -199,6 +217,14 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
   }
 }
 
+/** Serializeer precies de payload die de Tauri-poller naar res.json schrijft. Geëxporteerd voor de
+ * headless contracttest: een Promise in `result` stringifyt naar `{}` en mag nooit onzichtbaar
+ * worden achter een browser-only rooktest. */
+export async function serializeOpsTestResponse(cmd: OpsCommand): Promise<string> {
+  const res = await runOp(cmd);
+  return JSON.stringify({ id: cmd.id, ...res });
+}
+
 /**
  * Tier 2 poller: bestandssysteem-controlekanaal in de échte Tauri-runtime.
  * Leest `<appDataDir>/ops-test/cmd.json`, voert uit, schrijft `res.json`.
@@ -227,8 +253,7 @@ async function startOpsTestPoller(): Promise<void> {
         await writeTextFile(resPath, JSON.stringify({ ok: false, error: 'invalid JSON' }));
         return;
       }
-      const res = await runOp(cmd);
-      await writeTextFile(resPath, JSON.stringify({ id: cmd.id, ...res }));
+      await writeTextFile(resPath, await serializeOpsTestResponse(cmd));
     } catch (err) {
       try { await writeTextFile(resPath, JSON.stringify({ ok: false, error: String(err) })); } catch { /* leeg */ }
     }

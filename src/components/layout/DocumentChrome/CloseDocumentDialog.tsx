@@ -1,6 +1,13 @@
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { documentTitle } from '@/utils/documents';
+import { CloseDocumentDialogControl } from './CloseDocumentDialogControl';
+import {
+  createCloseDocumentActionGate,
+  createCloseDocumentDialogActions,
+  type CloseDocumentActionGate,
+} from './closeDocumentActions';
 
 /**
  * Sluit-bevestiging met drie keuzes bij een document met niet-opgeslagen
@@ -21,7 +28,24 @@ export function CloseDocumentDialog() {
   const setUI = useAppStore((s) => s.setUI);
   const closeDocument = useAppStore((s) => s.closeDocument);
   const switchDocument = useAppStore((s) => s.switchDocument);
-  const saveFile = useAppStore((s) => s.saveFile);
+  const saveFileForDocument = useAppStore((s) => s.saveFileForDocument);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const actionGateRef = useRef<CloseDocumentActionGate | null>(null);
+  const [savePending, setSavePending] = useState(false);
+  if (!actionGateRef.current) actionGateRef.current = createCloseDocumentActionGate();
+
+  useEffect(() => {
+    if (!pendingId) {
+      actionGateRef.current = createCloseDocumentActionGate();
+      setSavePending(false);
+      return;
+    }
+    if (actionGateRef.current?.started) return;
+    const activeElement = document.activeElement;
+    openerRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+    cancelButtonRef.current?.focus();
+  }, [pendingId]);
 
   if (!pendingId) return null;
 
@@ -30,55 +54,34 @@ export function CloseDocumentDialog() {
   const fp = pendingId === activeId ? filePath : entry?.payload?.filePath ?? null;
   const name = documentTitle(fp, proj?.name ?? '') || t('project.untitled');
 
-  const cancel = () => setUI({ pendingCloseDocId: null });
-  const dontSave = () => { closeDocument(pendingId); setUI({ pendingCloseDocId: null }); };
-  const save = async () => {
-    if (pendingId !== useAppStore.getState().activeDocumentId) switchDocument(pendingId);
-    try {
-      await saveFile();
-      // Alleen sluiten als het opslaan ook echt lukte (bij een geannuleerde 'Opslaan als…' of een
-      // schrijffout blijft isDirty staan → document open laten, geen werk verliezen).
-      if (!useAppStore.getState().isDirty) closeDocument(pendingId);
-    } finally {
-      // Ongeacht de afloop moet de bevestiging weg, anders blokkeert een mislukte opslag de hele
-      // app. Blijft nodig óók nu `saveFile` zelf vangt — verdedigingslinie tegen een throw hogerop.
-      setUI({ pendingCloseDocId: null });
-    }
+  const restoreOpenerFocus = () => {
+    const opener = openerRef.current;
+    if (opener?.isConnected) opener.focus({ preventScroll: true });
   };
+  const actions = createCloseDocumentDialogActions({
+    gate: actionGateRef.current,
+    pendingId,
+    getActiveDocumentId: () => useAppStore.getState().activeDocumentId,
+    switchDocument,
+    closeDocument,
+    saveFile: () => saveFileForDocument(pendingId),
+    clearPending: () => { setUI({ pendingCloseDocId: null }); },
+    restoreOpenerFocus,
+    onSavePendingChange: setSavePending,
+  });
 
   return (
-    <div
-      onClick={cancel}
-      data-ops-close-dialog
-      style={{
-        position: 'absolute', inset: 0, zIndex: 80,
-        background: 'rgba(15,16,20,0.55)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', animation: 'ops-fade 0.1s ease-out',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 420, maxWidth: '90%', background: 'var(--theme-surface-elevated)',
-          border: '1px solid var(--theme-border)', borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-pop)', padding: 20,
-        }}
-      >
-        <h3 style={{
-          margin: '0 0 8px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 'calc(15px * var(--ui-font-scale, 1))',
-          fontWeight: 700, color: 'var(--theme-text)',
-        }}>
-          {t('documents.closeTitle')}
-        </h3>
-        <p style={{ margin: '0 0 18px', fontSize: 'calc(13px * var(--ui-font-scale, 1))', lineHeight: 1.5, color: 'var(--theme-text-dim)' }}>
-          {t('documents.closeBody', { name })}
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button className="btn btn--secondary btn--sm" onClick={cancel}>{t('cancel')}</button>
-          <button className="btn btn--danger btn--sm" onClick={dontSave}>{t('documents.dontSave')}</button>
-          <button className="btn btn--primary btn--sm" onClick={() => void save()}>{t('save')}</button>
-        </div>
-      </div>
-    </div>
+    <CloseDocumentDialogControl
+      title={t('documents.closeTitle')}
+      body={t('documents.closeBody', { name })}
+      cancelLabel={t('cancel')}
+      discardLabel={t('documents.dontSave')}
+      saveLabel={t('save')}
+      busy={savePending}
+      cancelButtonRef={cancelButtonRef}
+      onCancel={actions.cancel}
+      onDiscard={actions.discard}
+      onSave={() => { void actions.save(); }}
+    />
   );
 }

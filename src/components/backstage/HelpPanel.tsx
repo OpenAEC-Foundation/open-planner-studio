@@ -185,7 +185,7 @@ export function HelpPanel() {
       const res = await fetch(`${import.meta.env.BASE_URL}examples/${file}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
-      openExampleFromString(content, file, buildImportLabels(tCommon));
+      await openExampleFromString(content, file, buildImportLabels(tCommon));
       // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek): zelfde
       // volgorde als Backstage → Voorbeelden (`ExamplesSection.handleOpen`). Deze aanroeper kent
       // alleen de bestandsnaam (geen manifest-`category`) — de showcase-bestanden dragen allemaal het

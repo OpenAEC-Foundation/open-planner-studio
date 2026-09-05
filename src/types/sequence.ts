@@ -23,6 +23,10 @@ export interface Sequence {
   lagMinutes?: number;
   /** Lag-eenheid; ontbreekt = WORKTIME (werkdagen) — bestaand gedrag, migratieloos. */
   lagUnit?: LagUnit;
+  /** XER/P6-bronsemantiek: een nul-lag FS waarvan de expliciete geplande opvolgerstart exact op
+   *  het geplande voorgangereinde én een kalenderbandeinde ligt, behoudt die finishgrens als
+   *  startrepresentatie. Andere importformaten laten dit veld weg en houden hun bestaande snap. */
+  p6StartAtPredecessorFinishBoundary?: boolean;
   /**
    * Procentuele lag: percentage van de duur van de VOORGANGER (bv. 50 = "SS+50%"),
    * per CPM-run opnieuw geëvalueerd uit de actuele duur (MS Project-semantiek) en
