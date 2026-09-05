@@ -141,6 +141,7 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
             <span
               key={item.key}
               className={`task-grid-relation-chip${item.driving ? ' task-grid-relation-chip--driving' : ''}${item.warnings.length ? ' task-grid-relation-chip--warning' : ''}`}
+              data-relation-direction={item.direction}
               onContextMenu={event => {
                 if (item.kind !== 'external' || !onExternalContextMenu) return;
                 event.preventDefault();
@@ -178,12 +179,12 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                 * native title zodat "sturend" en de concrete waarschuwing met de muis leesbaar
                 * blijven — de gewone celtooltip wordt eronder onderdrukt (dichtstbijzijnde title wint). */}
               {item.driving && (
-                <span className="task-grid-relation-icon" title={t('relations.driving')}>
+                <span className="task-grid-relation-icon task-grid-relation-icon--driving" title={t('relations.driving')}>
                   <Zap size={10} aria-label={t('relations.driving')} />
                 </span>
               )}
               {item.warnings.length > 0 && (
-                <span className="task-grid-relation-icon" title={relationWarningTexts(item, t).join(' · ')}>
+                <span className="task-grid-relation-icon task-grid-relation-icon--warning" title={relationWarningTexts(item, t).join(' · ')}>
                   <AlertTriangle size={10} aria-label={t('relations.warnings')} />
                 </span>
               )}
