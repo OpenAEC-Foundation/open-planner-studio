@@ -66,12 +66,27 @@ const FREE_TEXT_SECRET = 'FREE-TEXT-SECRET-' + 'y'.repeat(9000);
 const LABEL_SECRET = 'LABEL-SECRET-' + 'z'.repeat(9000);
 const LABEL_TRUNCATED_LENGTH = 200 + '…(afgekapt op 200 tekens)'.length;
 
+// Reviewronde 3 (review2-3d.md N2): een BLOCKLIST van vrije-tekstsleutels vergeet onvermijdelijk een
+// synoniem — `text`/`comment`/`memo`/`remark`/`title`/`longName` glipten er in ronde 2 allemaal
+// doorheen. De fix keert de classificatie om naar deny-by-default (`SAFE_LABEL_KEYS`-allowlist); deze
+// zes alias-sleutels op `roleSources[0]` bewijzen dat ELKE onbekende sleutel nu standaard verborgen
+// is, niet alleen de drie die de vorige ronde bij naam noemde.
+const ALIAS_SECRET = 'ALIAS-SECRET-' + 'a'.repeat(3000);
+const ALIAS_KEYS = ['text', 'comment', 'memo', 'remark', 'title', 'longName'] as const;
+
+// Reviewronde 3 (review2-3d.md N5): een bronrij-vorm met méér dan twee sleutels moet nog steeds
+// structureel herkend worden.
+const N5_SECRET = 'N5-SHAPE-SECRET-' + 'n'.repeat(9000);
+
 function archiveFixture(): XerSourceArchive {
   // De production-reader levert deze exact gevormde objectgrafiek. De test gebruikt een compacte
   // synthetische variant, omdat deze suite MCP-responscontracten test en geen XER-parsercontract.
   const readModel = structuredClone(createEmptyXerArchiveReadModel()) as any;
   const diagnostics = structuredClone(createEmptyXerArchiveDiagnostics()) as any;
-  readModel.numberFormat = { decimal: ',', group: '.', source: 'currtype', currencyCode: 'EUR' };
+  // Review2-3d.md ronde 3, N3: `currencyCode` komt uit CURRTYPE in het bronbestand — een 5.014-tekens
+  // waarde (exact het door de review gemeten getal) bewijst dat `summary` nu ook door de
+  // labelafkapping loopt (het IS een SAFE_LABEL_KEYS-veld, dus zichtbaar, maar hard begrensd).
+  readModel.numberFormat = { decimal: ',', group: '.', source: 'currtype', currencyCode: `EUR-${'Q'.repeat(5010)}` };
   readModel.taskSourceRowsByProject = {
     'PROJ-A': [
       { line: 11, cells: { task_id: 'TASK-A', task_name: LONG_CELL, task_notes: 'synthetic note' } },
@@ -99,13 +114,38 @@ function archiveFixture(): XerSourceArchive {
     // de lezer) maar staat wél hier — precies de P2_BASELINE-situatie uit de review: de summary moet
     // het adverteren, en de tool moet het ook echt accepteren.
     'PROJ-ONLY-IN-TASKROWS': [{ line: 500, cells: { task_id: 'ONLY-1' } }],
+    // Review2-3d.md ronde 3, N5: een bronrij met MEER dan twee sleutels (zoals
+    // `XerScheduleOptionsSourceRow` = `{table,line,cells}`) moet nog steeds structureel herkend
+    // worden — niet fail-open naar de generieke labeltak vallen.
+    'PROJ-SHAPE': [{ table: 'PROJECT', line: 800, cells: { secret_col: N5_SECRET } }],
+    // Review2-3d.md ronde 3, N4: één rij met een kolomNAAM van 60.001 tekens (de review mat exact dit
+    // getal) — moet zelf afgekapt worden, niet verbatim meegaan.
+    'PROJ-LONGKEY': [{ line: 600, cells: { [`col_${'k'.repeat(60001)}`]: 'short-value' } }],
+    // Review2-3d.md ronde 3, N4: 10 rijen × 200 cellen met LANGE kolomnamen maar TRIVIALE waarden —
+    // zonder key-begroting zou de budget-teller hier bijna niets zien (de waarden zijn 1 teken) en
+    // pas via de dure `finalizeBounded`-serialisatie ingrijpen, als het al binnen de opt-in-
+    // paginalimiet past. Met key-begroting breekt de teller tijdens de projectie af.
+    'PROJ-LONGKEY-BUDGET': Array.from({ length: 10 }, (_, rowIndex) => ({
+      line: 700 + rowIndex,
+      cells: Object.fromEntries(Array.from({ length: 200 }, (_, cellIndex) => [
+        `col_${rowIndex}_${cellIndex}_${'k'.repeat(2500)}`, 'v',
+      ])),
+    })),
   };
   readModel.resourceCatalog = {
     resources: [{ id: 'resource-1', name: 'Synthetic Crew', description: FREE_TEXT_SECRET }],
     identities: [{ kind: 'RESOURCE', sourceId: 'R-1', internalId: 'resource-1', line: 20 }],
     rows: {
       resources: [{ sourceId: 'R-1', internalId: 'resource-1', line: 20, rawType: '1', rawRow: { line: 20, cells: { rsrc_id: 'R-1', rsrc_name: 'Synthetic Crew', rsrc_notes: LONG_CELL } } }],
-      roles: [{ sourceId: 'ROLE-1', internalId: 'role-1', line: 21, name: 'Synthetic Role', shortName: 'SR', description: FREE_TEXT_SECRET, rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } } }],
+      roles: [{
+        sourceId: 'ROLE-1', internalId: 'role-1', line: 21, name: 'Synthetic Role', shortName: 'SR',
+        description: FREE_TEXT_SECRET,
+        // Zes alias-sleutels (review2-3d.md N2) — geen van deze staat op een blocklist, dus alleen
+        // deny-by-default (SAFE_LABEL_KEYS) verbergt ze allemaal.
+        text: ALIAS_SECRET, comment: ALIAS_SECRET, memo: ALIAS_SECRET, remark: ALIAS_SECRET,
+        title: ALIAS_SECRET, longName: ALIAS_SECRET,
+        rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } },
+      }],
       rates: [{ sourceId: 'R-1', internalId: 'resource-1', entity: { kind: 'RESOURCE', sourceId: 'R-1', internalId: 'resource-1' }, line: 22, maxUnitsPerTime: null, costs: [null, null, null, null, null], rawRow: { line: 22, cells: { rsrc_id: 'R-1' } } }],
       curves: [{ sourceId: 'CURVE-1', internalId: 'curve-1', line: 23, name: LABEL_SECRET, rawPoints: Array(21).fill('0'), rawRow: { line: 23, cells: { curve_id: 'CURVE-1' } } }],
       assignments: [{ sourceId: 'R-1', taskSourceId: 'TASK-A', rawRow: { line: 24, cells: { task_id: 'TASK-A' } } }],
@@ -116,7 +156,12 @@ function archiveFixture(): XerSourceArchive {
     activityCodeTypes: [{ id: 'ACTIVITY-TYPE-1', name: 'Synthetic Discipline', values: [{ id: 'ACTIVITY-VALUE-1', code: 'CIVIL' }] }],
     customFieldDefs: [{ id: 'UDF-1', name: LABEL_SECRET, type: 'text' }],
     taskProjections: [{
-      projectId: 'PROJ-A', taskId: 'TASK-A', notes: FREE_TEXT_SECRET,
+      projectId: 'PROJ-A', taskId: 'TASK-A',
+      // `Task['notes']` (src/types/task.ts) is een OBJECTARRAY (`{id,text,done}[]`), geen string
+      // (review2-3d.md ronde 3, N1) — de fixture gebruikt bewust de ECHTE vorm zodat de test het
+      // eerdere lek (de blocklist keek alleen naar de buitenste sleutel `notes`, niet naar `text`
+      // binnenin) ook echt had gezien.
+      notes: [{ id: 'note-1', text: FREE_TEXT_SECRET, done: false }],
       activityCodes: { 'ACTIVITY-TYPE-1': 'ACTIVITY-VALUE-1' },
       customFields: { 'UDF-1': FREE_TEXT_SECRET },
     }],
@@ -276,6 +321,23 @@ test('summary: veilig, volledig geteld en zonder raw bytes of vrije raw rows', (
   const serialized = JSON.stringify(data);
   assert(!serialized.includes('synthetic-chunk-0'), 'summary bevat geen raw base64-chunk');
   assert(!serialized.includes('synthetic-free-cell-'), 'summary bevat geen vrije raw task-row');
+});
+
+test('P2 #2 (N3): summary loopt door dezelfde poort — currencyCode afgekapt, importReport geen alias, responsgrens', () => {
+  const archive = attachArchive();
+  const data = ok(TOOL);
+  assertEq(data.numberFormat.currencyCode.length, LABEL_TRUNCATED_LENGTH, 'currencyCode (SAFE_LABEL_KEYS) afgekapt op 200 tekens, óók in summary (N3)');
+  assert(
+    data.importReport !== archive.diagnostics.file.importReport,
+    'importReport is een verse, gesaneerde kopie — nooit meer een levende alias naar het bevroren archief (N3)',
+  );
+  assertEq(
+    data.importReport.externalLinksPreserved,
+    archive.diagnostics.file.importReport.externalLinksPreserved,
+    'importReport-inhoud blijft (numeriek) correct ná sanering',
+  );
+  const byteLength = new TextEncoder().encode(JSON.stringify(data)).length;
+  assert(byteLength <= 256 * 1024, `summary blijft binnen de responsgrens (N3), kreeg ${byteLength} bytes`);
 });
 
 test('resourceCatalog: alle collecties zijn afzonderlijk gepagineerd', () => {
@@ -459,13 +521,22 @@ test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven z
   const roleClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'roleSources', limit: 1 });
   assert(!('description' in roleClosed.items[0]), 'roleSources.description verdwijnt zonder opt-in');
   assert(!JSON.stringify(roleClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van de vrije tekst zonder opt-in');
+  // N2: geen van de zes alias-sleutels staat op een blocklist — alleen deny-by-default verbergt ze.
+  for (const key of ALIAS_KEYS) {
+    assert(!(key in roleClosed.items[0]), `roleSources.${key} verdwijnt zonder opt-in (alias-sleutel, N2)`);
+  }
+  assert(!JSON.stringify(roleClosed).includes(ALIAS_SECRET.slice(0, 30)), 'geen spoor van alias-sleutelinhoud zonder opt-in (N2)');
 
   const resourcesClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'resources', limit: 1 });
   assert(!('description' in resourcesClosed.items[0]), 'resources.description verdwijnt zonder opt-in');
   assert(!JSON.stringify(resourcesClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van de vrije tekst zonder opt-in');
 
   const projectionsClosed = ok(TOOL, { section: 'metadataCatalog', collection: 'taskProjections', limit: 1 });
-  assert(!('notes' in projectionsClosed.items[0]), 'taskProjections.notes verdwijnt zonder opt-in');
+  // `notes` is een objectarray (`{id,text,done}[]`, review2-3d.md N1): de array zelf blijft staan
+  // (met het veilige `id`/`done`), maar het BLAD `text` — de eigenlijke notitietekst — verdwijnt.
+  assertEq(projectionsClosed.items[0].notes[0].id, 'note-1', 'notes[].id (label) blijft zichtbaar');
+  assert(!('text' in projectionsClosed.items[0].notes[0]), 'notes[].text verdwijnt zonder opt-in (N1)');
+  assertEq(projectionsClosed.items[0].notes[0].done, false, 'notes[].done (boolean) blijft ongemoeid');
   assertEq(projectionsClosed.items[0].customFields.fieldCount, 1, 'customFields wordt een fieldCount-projectie, geen waarden');
   assert(!JSON.stringify(projectionsClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van customFields-waarden zonder opt-in');
 
@@ -473,9 +544,13 @@ test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven z
   const roleOpened = ok(TOOL, { section: 'resourceCatalog', collection: 'roleSources', limit: 1, includeRawRows: true });
   assertEq(roleOpened.items[0].description.length, LONG_CELL_TRUNCATED_LENGTH, 'description afgekapt op 2.000 tekens, niet de volle 9.000');
   assert(!JSON.stringify(roleOpened).includes(FREE_TEXT_SECRET), 'ook mét opt-in blijft de VOLLE 9.000-tekens-secret buiten bereik');
+  for (const key of ALIAS_KEYS) {
+    assertEq(roleOpened.items[0][key].length, LONG_CELL_TRUNCATED_LENGTH, `roleSources.${key} afgekapt op 2.000 tekens met opt-in (N2)`);
+  }
+  assert(!JSON.stringify(roleOpened).includes(ALIAS_SECRET), 'ook mét opt-in blijft de volle alias-sleutelinhoud buiten bereik (N2)');
 
   const projectionsOpened = ok(TOOL, { section: 'metadataCatalog', collection: 'taskProjections', limit: 1, includeRawRows: true });
-  assertEq(projectionsOpened.items[0].notes.length, LONG_CELL_TRUNCATED_LENGTH, 'notes afgekapt op 2.000 tekens met opt-in');
+  assertEq(projectionsOpened.items[0].notes[0].text.length, LONG_CELL_TRUNCATED_LENGTH, 'notes[].text afgekapt op 2.000 tekens met opt-in (N1)');
   assertEq(projectionsOpened.items[0].customFields['UDF-1'].length, LONG_CELL_TRUNCATED_LENGTH, 'customFields-waarde afgekapt op 2.000 tekens met opt-in');
 
   // Labels (namen buiten rawRow) blijven ALTIJD zichtbaar, met of zonder opt-in — maar hard afgekapt
@@ -519,6 +594,8 @@ test('P1 #2: generieke walker — zonder opt-in geen string > 2.000 tekens en ge
     for (const value of strings) {
       assert(value.length <= 2000, `${label}: string van ${value.length} tekens overschrijdt de 2.000-tekens-grens zonder opt-in ("${value.slice(0, 40)}…")`);
       assert(!value.includes(FREE_TEXT_SECRET.slice(0, 50)), `${label}: bevat notitie-inhoud zonder includeRawRows`);
+      // N2: dekt ook de zes alias-sleutels (roleSources) en, via taskProjections, geneste `notes[].text`.
+      assert(!value.includes(ALIAS_SECRET.slice(0, 30)), `${label}: bevat alias-sleutelinhoud zonder includeRawRows`);
     }
   }
 });
@@ -661,6 +738,50 @@ test('P2 #5: één selectorbron — een project alleen in taskSourceRowsByProjec
   );
   const rows = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-ONLY-IN-TASKROWS', limit: 10 });
   assertEq(rows.total, 1, 'de tool accepteert exact het project dat de summary adverteert — geen zelftegenspraak meer');
+});
+
+test('P2 #5 (N5): rijdetectie op vorm (line + string-cells), niet op exact 2 sleutels', () => {
+  attachArchive();
+  const closed = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-SHAPE', limit: 1 });
+  // Vóór de fix viel een 3-sleutelrij (zoals XerScheduleOptionsSourceRow: {table,line,cells}) door
+  // naar de generieke objecttak: `cells` werd dan een gewoon record en elke celwaarde kwam als LABEL
+  // naar buiten — afgekapt, maar wél ZICHTBAAR zonder opt-in. Fail-open. Nu: fieldCount, geen cellen.
+  assert(!('cells' in closed.items[0]), 'cellen blijven volledig weg zonder opt-in, ook bij een 3-sleutelrij (N5)');
+  assertEq(closed.items[0].fieldCount, 1, 'fieldCount i.p.v. cellen (N5)');
+  assertEq(closed.items[0].table, 'PROJECT', 'overige velden (table) blijven gewoon zichtbaar als label (N5)');
+  assert(!JSON.stringify(closed).includes(N5_SECRET.slice(0, 50)), 'geen spoor van de bronrij-inhoud zonder opt-in (N5)');
+
+  const opened = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-SHAPE', limit: 1, includeRawRows: true });
+  assertEq(opened.items[0].cells.secret_col.length, LONG_CELL_TRUNCATED_LENGTH, 'met opt-in: cel afgekapt op 2.000 tekens, niet leesbaar als los label (N5)');
+});
+
+test('P2 #4 (N4): cel-/veldNAMEN worden afgekapt én meegeteld in het budget', () => {
+  attachArchive();
+  const opened = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-LONGKEY', includeRawRows: true, limit: 1 });
+  const keys = Object.keys(opened.items[0].cells);
+  assertEq(keys.length, 1, 'testopzet: precies één cel');
+  assert(keys[0].length <= LABEL_TRUNCATED_LENGTH, `kolomnaam blijft afgekapt (kreeg ${keys[0].length} tekens), niet verbatim 60.001 (N4)`);
+
+  // 10 rijen × 200 cellen met LANGE kolomnamen maar TRIVIALE waarden: zonder key-begroting zou de
+  // teller hier bijna niets zien. De weigering hoort van de budget-tijdens-projectie te komen (dus
+  // GEEN "geserialiseerd" in de melding — spiegelt de M4-pinningtest hieronder).
+  const tooManyLongKeys = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-LONGKEY-BUDGET', includeRawRows: true, limit: 10 });
+  assertEq(tooManyLongKeys.code, 'VALIDATION', 'lange kolomnamen alléén (triviale waarden) raken de responsgrens (N4)');
+  assert(!tooManyLongKeys.error.includes('geserialiseerd'), 'de weigering komt van de budget-tijdens-projectie (kolomnamen tellen mee), niet pas van finalizeBounded (N4)');
+});
+
+test('P3 (M4): het ByteBudget-effect is gepind — de weigering komt van vóór, niet ná, de serialisatie', () => {
+  attachArchive();
+  // `PROJ-BIG` (100 rijen × 3 cellen van 3.000 tekens) is groot genoeg om de budget-teller AL TIJDENS
+  // de projectie te laten afbreken, ruim vóór de dure volledige `JSON.stringify` in `finalizeBounded`.
+  // De twee foutmeldingen verschillen bewust in tekst (`createByteBudget` mist "geserialiseerd",
+  // `finalizeBounded` heeft het wél) — dat verschil is hier de gepinde eigenschap. Mutatiebewijs:
+  // schakel de `ByteBudget`-drempel uit en dezelfde aanroep krijgt de finalizeBounded-tekst (`.includes`
+  // wordt `true`), dus déze assertie kantelt — precies het gat dat de review aanwees (M4: 0 tests rood
+  // toen de budgetdrempel alleen werd uitgeschakeld).
+  const tooLarge = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-BIG', includeRawRows: true, limit: 100 });
+  assertEq(tooLarge.code, 'VALIDATION', 'responsgrens grijpt in');
+  assert(!tooLarge.error.includes('geserialiseerd'), 'de weigering komt van de budget-tijdens-projectie, vóór volledige serialisatie (M4)');
 });
 
 test('P3 #8: loopt via de ECHTE dispatch-weg (handleMcpMessage), niet alleen def.handler', async () => {
