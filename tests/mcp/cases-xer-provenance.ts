@@ -1,6 +1,6 @@
 // Gerichte MCP-contracttests voor retained XER/P6-bronsemantiek.
 // Alle bronwaarden zijn synthetisch; er wordt geen corpusnaam of pad gebruikt.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { useAppStore, makeMcpContext, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolErr, McpToolOk, McpToolResult } from '@/services/mcp/contracts';
 import {
@@ -15,13 +15,7 @@ const S = () => useAppStore.getState();
 const TOOL = 'planner_inspect_xer_provenance';
 
 function ctx(): McpContext {
-  return {
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: false,
-    readOnly: false,
-    ensureBackup: async () => null,
-  };
+  return makeMcpContext();
 }
 
 function call(name: string, args: unknown = {}): McpToolResult {
@@ -52,27 +46,44 @@ function reset(): void {
   S().newProject();
 }
 
+// Reviewbevinding P1 (batch): een grote gestructureerde XER-invoer mag geen enkele cel onbegrensd
+// laten groeien. `LONG_CELL` is > het per-cel afkapniveau (2.000 tekens) zodat afkapping écht
+// getest wordt (de oorspronkelijke synthetische fixture van 1.520 tekens bleef er ONDER en bewees
+// dus niets over de afkapgrens zelf).
+const LONG_CELL = 'synthetic-free-cell-' + 'x'.repeat(5000);
+const LONG_CELL_TRUNCATED_LENGTH = 2000 + '…(afgekapt op 2000 tekens)'.length;
+
 function archiveFixture(): XerSourceArchive {
   // De production-reader levert deze exact gevormde objectgrafiek. De test gebruikt een compacte
   // synthetische variant, omdat deze suite MCP-responscontracten test en geen XER-parsercontract.
   const readModel = structuredClone(createEmptyXerArchiveReadModel()) as any;
   const diagnostics = structuredClone(createEmptyXerArchiveDiagnostics()) as any;
-  const longCell = 'synthetic-free-cell-' + 'x'.repeat(1500);
   readModel.numberFormat = { decimal: ',', group: '.', source: 'currtype', currencyCode: 'EUR' };
   readModel.taskSourceRowsByProject = {
     'PROJ-A': [
-      { line: 11, cells: { task_id: 'TASK-A', task_name: longCell, task_notes: 'synthetic note' } },
+      { line: 11, cells: { task_id: 'TASK-A', task_name: LONG_CELL, task_notes: 'synthetic note' } },
       { line: 12, cells: { task_id: 'TASK-B', task_name: 'Second synthetic task' } },
     ],
+    // Reviewbevinding P1 (responsgrens): 100 rijen (de opt-in-paginalimiet) met elk drie ruime
+    // vrije cellen, zodat één pagina ná per-cel-afkapping alsnog boven de 256 kB-responsgrens komt.
+    'PROJ-BIG': Array.from({ length: 100 }, (_, index) => ({
+      line: 200 + index,
+      cells: {
+        task_id: `BIG-${index}`,
+        cell_a: 'a'.repeat(3000),
+        cell_b: 'b'.repeat(3000),
+        cell_c: 'c'.repeat(3000),
+      },
+    })),
   };
   readModel.resourceCatalog = {
     resources: [{ id: 'resource-1', name: 'Synthetic Crew' }],
     identities: [{ kind: 'RESOURCE', sourceId: 'R-1', internalId: 'resource-1', line: 20 }],
     rows: {
-      resources: [{ sourceId: 'R-1', rawRow: { line: 20, cells: { rsrc_id: 'R-1', rsrc_name: 'Synthetic Crew' } } }],
-      roles: [{ sourceId: 'ROLE-1', rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } } }],
-      rates: [{ sourceId: 'R-1', rawRow: { line: 22, cells: { rsrc_id: 'R-1' } } }],
-      curves: [{ sourceId: 'CURVE-1', rawRow: { line: 23, cells: { curve_id: 'CURVE-1' } } }],
+      resources: [{ sourceId: 'R-1', internalId: 'resource-1', line: 20, rawType: '1', rawRow: { line: 20, cells: { rsrc_id: 'R-1', rsrc_name: 'Synthetic Crew', rsrc_notes: LONG_CELL } } }],
+      roles: [{ sourceId: 'ROLE-1', internalId: 'role-1', line: 21, name: 'Synthetic Role', shortName: 'SR', description: '', rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } } }],
+      rates: [{ sourceId: 'R-1', internalId: 'resource-1', entity: { kind: 'RESOURCE', sourceId: 'R-1', internalId: 'resource-1' }, line: 22, maxUnitsPerTime: null, costs: [null, null, null, null, null], rawRow: { line: 22, cells: { rsrc_id: 'R-1' } } }],
+      curves: [{ sourceId: 'CURVE-1', internalId: 'curve-1', line: 23, name: 'Curve', rawPoints: Array(21).fill('0'), rawRow: { line: 23, cells: { curve_id: 'CURVE-1' } } }],
       assignments: [{ sourceId: 'R-1', taskSourceId: 'TASK-A', rawRow: { line: 24, cells: { task_id: 'TASK-A' } } }],
     },
     issues: [{ code: 'XER_RESOURCE_TYPE_FALLBACK', table: 'RSRC', line: 20, sourceId: 'R-1', fallback: 'LABOR' }],
@@ -92,7 +103,8 @@ function archiveFixture(): XerSourceArchive {
       UDFVALUE: [{ line: 29, cells: { fk_id: 'TASK-A' } }],
       MEMOTYPE: [{ line: 30, cells: { memo_type_id: 'MEMO-1' } }],
       TASKNOTE: [{ line: 31, cells: { task_id: 'TASK-A' } }],
-      TASKMEMO: [{ line: 32, cells: { task_id: 'TASK-A' } }],
+      // TASKMEMO draagt bij uitstek vrije notitietekst — de synthetische cel is bewust lang.
+      TASKMEMO: [{ line: 32, cells: { task_id: 'TASK-A', task_memo: LONG_CELL } }],
       TASK_NOTES: [{ line: 33, cells: { task_notes: 'synthetic note' } }],
       deferredUdfValues: [{ line: 34, cells: { fk_id: 'RESOURCE-1' } }],
       unknownUdfTypes: [{ line: 35, cells: { udf_type_id: 'UDF-UNKNOWN' } }],
@@ -115,7 +127,10 @@ function archiveFixture(): XerSourceArchive {
       baselineExclusionReverted: false, baselineFallbackReasons: [],
     },
   };
-  diagnostics.documentViews = { 'PROJ-A': { sourceProjectId: 'PROJ-A', synthetic: true } };
+  diagnostics.documentViews = {
+    'PROJ-A': { sourceProjectId: 'PROJ-A', synthetic: true },
+    'PROJ-BIG': { sourceProjectId: 'PROJ-BIG', synthetic: true },
+  };
   return {
     schemaVersion: 1,
     format: 'primavera-p6-xer',
@@ -153,11 +168,11 @@ function attachArchive(): XerSourceArchive {
   return archive;
 }
 
-test('registratie: XER-provenance is read-only, gesloten en batchable', () => {
+test('registratie: XER-provenance is read-only, gesloten en NIET batchable', () => {
   const tool = getTool(TOOL);
   assert(!!tool, 'XER-provenance-tool geregistreerd');
   assertEq(tool!.kind, 'read', 'kind read');
-  assertEq(tool!.batchable, true, 'batchable');
+  assertEq(tool!.batchable, false, 'niet batchable (P1-fix): read-only-belofte mag een batch niet omzeilen');
   assertEq(tool!.annotations.readOnlyHint, true, 'readOnlyHint');
   assertEq(tool!.annotations.openWorldHint, false, 'openWorldHint');
   assertEq((tool!.inputSchema as any).additionalProperties, false, 'unknown keys gesloten');
@@ -246,6 +261,24 @@ test('resourceCatalog: alle collecties zijn afzonderlijk gepagineerd', () => {
   }
 });
 
+test('resourceCatalog: rawRow-cellen alleen achter includeRawRows, met afkapping', () => {
+  attachArchive();
+  const closed = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 1 });
+  assert(!('cells' in closed.items[0].rawRow), 'zonder opt-in geen cellen in rawRow');
+  assertEq(closed.items[0].rawRow.fieldCount, 3, 'fieldCount i.p.v. cellen');
+  assertEq(closed.items[0].sourceId, 'R-1', 'niet-vrije velden blijven zichtbaar zonder opt-in');
+  const serializedClosed = JSON.stringify(closed);
+  assert(!serializedClosed.includes('synthetic-free-cell-'), 'geen vrije brontekst zonder opt-in');
+
+  const opened = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 1, includeRawRows: true });
+  assertEq(opened.items[0].rawRow.cells.rsrc_id, 'R-1', 'korte cel ongewijzigd met opt-in');
+  assertEq(opened.items[0].rawRow.cells.rsrc_notes.length, LONG_CELL_TRUNCATED_LENGTH, 'grote vrije cel afgekapt, niet volledig');
+  assert(opened.items[0].rawRow.cells.rsrc_notes.endsWith('afgekapt op 2000 tekens)'), 'afkapmarker aanwezig');
+
+  assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', includeRawRows: true, limit: 101 }).code, 'VALIDATION', 'opt-in-paginalimiet 100');
+  assertEq(err(TOOL, { section: 'summary', includeRawRows: true }).code, 'VALIDATION', 'includeRawRows alleen bij eigen sections');
+});
+
 test('metadataCatalog: activity codes, UDF-defs, projecties en retained brondata leesbaar', () => {
   attachArchive();
   for (const collection of ['activityCodeTypes', 'customFieldDefs', 'taskProjections', 'issues', 'ACTVTYPE', 'ACTVCODE', 'TASKACTV', 'UDFTYPE', 'UDFVALUE', 'MEMOTYPE', 'TASKNOTE', 'TASKMEMO', 'TASK_NOTES', 'deferredUdfValues', 'unknownUdfTypes']) {
@@ -256,25 +289,65 @@ test('metadataCatalog: activity codes, UDF-defs, projecties en retained brondata
   }
 });
 
-test('taskSourceRowsByProject: expliciete selector en geen verborgen veld/string-truncatie', () => {
+test('metadataCatalog: retained brondata (TASKMEMO) alleen achter includeRawRows, met afkapping', () => {
   attachArchive();
-  const first = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1 });
-  assertEq(first.total, 2, 'total task source rows');
-  assertEq(first.items.length, 1, 'eerste pagina');
-  assertEq(first.items[0].cells.task_name.length, 1520, 'volledige synthetische raw cel');
-  const second = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1, offset: first.next_offset });
+  const closed = ok(TOOL, { section: 'metadataCatalog', collection: 'TASKMEMO', limit: 1 });
+  assert(!('cells' in closed.items[0]), 'zonder opt-in geen cellen');
+  assertEq(closed.items[0].fieldCount, 2, 'fieldCount i.p.v. cellen');
+  const serializedClosed = JSON.stringify(closed);
+  assert(!serializedClosed.includes('synthetic-free-cell-'), 'geen vrije notitietekst zonder opt-in');
+
+  const opened = ok(TOOL, { section: 'metadataCatalog', collection: 'TASKMEMO', limit: 1, includeRawRows: true });
+  assertEq(opened.items[0].cells.task_memo.length, LONG_CELL_TRUNCATED_LENGTH, 'grote notitiecel afgekapt met opt-in');
+
+  // Genormaliseerde (niet-rij) collecties zijn ongevoelig voor includeRawRows: geen `cells` te
+  // verbergen, dus geen gedragsverschil.
+  const normalized = ok(TOOL, { section: 'metadataCatalog', collection: 'customFieldDefs', limit: 1, includeRawRows: true });
+  assertEq(normalized.items[0].id, 'UDF-1', 'genormaliseerde collectie ongewijzigd door includeRawRows');
+});
+
+test('taskSourceRowsByProject: expliciete selector, standaard geen cellen, opt-in afgekapt', () => {
+  attachArchive();
+  const closed = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 10 });
+  assertEq(closed.total, 2, 'total task source rows');
+  assert(!('cells' in closed.items[0]), 'zonder includeRawRows geen cellen');
+  assertEq(closed.items[0].fieldCount, 3, 'fieldCount i.p.v. cellen (task_id/task_name/task_notes)');
+  const serializedClosed = JSON.stringify(closed);
+  assert(!serializedClosed.includes('synthetic-free-cell-'), 'geen vrije task-row zonder opt-in (P1)');
+
+  const opened = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1, includeRawRows: true });
+  assertEq(opened.items.length, 1, 'eerste pagina');
+  assertEq(opened.items[0].cells.task_name.length, LONG_CELL_TRUNCATED_LENGTH, 'grote raw cel afgekapt, niet volledig (P1)');
+  assert(opened.items[0].cells.task_name.endsWith('afgekapt op 2000 tekens)'), 'afkapmarker aanwezig');
+  const second = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1, includeRawRows: true, offset: opened.next_offset });
   assertEq(second.items[0].cells.task_id, 'TASK-B', 'volgende pagina zonder overlap');
+
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-UNKNOWN' }).code, 'NOT_FOUND', 'unknown project');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject' }).code, 'VALIDATION', 'project-id verplicht');
+  assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', includeRawRows: true, limit: 101 }).code, 'VALIDATION', 'opt-in-paginalimiet 100');
+});
+
+test("taskSourceRowsByProject: responsgrens vangt grote pagina's ondanks per-cel-afkapping", () => {
+  attachArchive();
+  const tooLarge = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-BIG', includeRawRows: true, limit: 100 });
+  assertEq(tooLarge.code, 'VALIDATION', 'responsgrens (P1): 100 rijen × 3 afgekapte cellen > 256 kB');
+  assert(/responsgrens|limit/.test(tooLarge.error), 'foutmelding hint naar limit/offset');
+  const smaller = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-BIG', includeRawRows: true, limit: 10 });
+  assertEq(smaller.items.length, 10, 'kleinere pagina blijft onder de responsgrens');
 });
 
 test('diagnostics: archive-, unknown-table-, import-report- en documentviewinformatie', () => {
   attachArchive();
-  for (const collection of ['tableIssues', 'unknownTables', 'unknownFields', 'scheduleOptions', 'relationResolutionIssues', 'resourceCatalogIssues', 'metadataCatalogIssues', 'documentViews']) {
+  for (const collection of ['tableIssues', 'unknownTables', 'unknownFields', 'scheduleOptions', 'relationResolutionIssues', 'resourceCatalogIssues', 'metadataCatalogIssues']) {
     const data = ok(TOOL, { section: 'diagnostics', collection, limit: 1 });
     assertEq(data.total, 1, `${collection}: total`);
     assertEq(data.items.length, 1, `${collection}: item`);
   }
+  // Twee documentViews in de fixture (PROJ-A + PROJ-BIG, de laatste alleen voor de
+  // responsgrens-test hierboven) — total telt dus mee, de pagina zelf blijft limit-gestuurd.
+  const documentViews = ok(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1 });
+  assertEq(documentViews.total, 2, 'documentViews: total');
+  assertEq(documentViews.items.length, 1, 'documentViews: item');
   const report = ok(TOOL, { section: 'diagnostics', collection: 'importReport' });
   assertEq(report.report.externalLinksPreserved, 2, 'importReport diagnostics');
 });
@@ -295,7 +368,7 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: false }).code, 'VALIDATION', 'false is geen opt-in');
 });
 
-test('invalid args en planner_batch gebruiken dezelfde runtimevalidatie zonder storemutatie', async () => {
+test('invalid args worden runtime geweigerd zonder storemutatie', () => {
   attachArchive();
   const before = JSON.stringify({ tasks: S().tasks, sequences: S().sequences, archive: S().xerSourceArchive });
   assertEq(err(TOOL, { unexpected: true }).code, 'VALIDATION', 'unknown top-level key');
@@ -306,14 +379,34 @@ test('invalid args en planner_batch gebruiken dezelfde runtimevalidatie zonder s
   assertEq(err(TOOL, { section: 'diagnostics', collection: 'importReport', limit: 1 }).code, 'VALIDATION', 'geen paging op scalar report');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 0 }).code, 'VALIDATION', 'limit');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', offset: -1 }).code, 'VALIDATION', 'offset');
-  const batch = await callAsync('planner_batch', { steps: [{ tool: TOOL, args: { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1 } }] });
-  assert(batch.ok, 'geldige provenance-call in batch');
-  const batchData = (batch as McpToolOk).data as any;
-  assertEq(batchData.steps[0].data.items.length, 1, 'batch leest dezelfde pagina');
-  const badBatch = await callAsync('planner_batch', { steps: [{ tool: TOOL, args: { unexpected: true } }] });
-  assertEq(badBatch.ok, false, 'ongeldige provenance-call in batch faalt hard');
-  assertEq((badBatch as McpToolErr).code, 'VALIDATION', 'batch validation code');
-  assertEq(JSON.stringify({ tasks: S().tasks, sequences: S().sequences, archive: S().xerSourceArchive }), before, 'geen storemutatie door lees- of batchpad');
+  assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', includeRawRows: 'yes' as any }).code, 'VALIDATION', 'includeRawRows type');
+  assertEq(err(TOOL, { section: 'diagnostics', collection: 'importReport', includeRawRows: true }).code, 'VALIDATION', 'includeRawRows alleen bij de drie catalogus-sections');
+  assertEq(JSON.stringify({ tasks: S().tasks, sequences: S().sequences, archive: S().xerSourceArchive }), before, 'geen storemutatie door leespad');
+});
+
+test('P1: planner_batch weigert deze tool vóór enige mutatie, transactie of herberekening', async () => {
+  attachArchive();
+  // Expliciete, herkenbare uitgangstoestand — als checkExclusions vóór de transactie weigert, blijft
+  // dit exact zo; verandert er iets, dan liep de aanroep alsnog door de mutatie-executor.
+  useAppStore.setState((state) => {
+    state.isDirty = false;
+    state.scheduleStale = true;
+    state.cpmResult = null;
+  });
+  const before = { isDirty: S().isDirty, scheduleStale: S().scheduleStale, cpmResult: S().cpmResult };
+
+  const validArgsBatch = await callAsync('planner_batch', { steps: [{ tool: TOOL, args: { section: 'summary' } }] });
+  assertEq(validArgsBatch.ok, false, 'geldige args helpen niet: de tool zelf is uitgesloten');
+  assertEq((validArgsBatch as McpToolErr).code, 'VALIDATION', 'batchable:false ⇒ VALIDATION vóór de transactie');
+  assert(/niet batchable|uitgesloten/.test((validArgsBatch as McpToolErr).error), 'foutmelding noemt de uitsluiting');
+
+  const invalidArgsBatch = await callAsync('planner_batch', { steps: [{ tool: TOOL, args: { unexpected: true } }] });
+  assertEq(invalidArgsBatch.ok, false, 'ook met ongeldige args blijft de weigering VALIDATION');
+  assertEq((invalidArgsBatch as McpToolErr).code, 'VALIDATION', 'ongeldige args veranderen de foutcode niet');
+
+  assertEq(S().isDirty, before.isDirty, 'isDirty ongewijzigd: checkExclusions weigert vóór runInMcpTransaction');
+  assertEq(S().scheduleStale, before.scheduleStale, 'scheduleStale ongewijzigd: geen eindherberekening gedraaid');
+  assertEq(S().cpmResult, before.cpmResult, 'cpmResult ongewijzigd: geen runCPM gedraaid');
 });
 
 test('no-XER document: veilige summary meldt afwezigheid, inhoudsectie geeft NOT_FOUND', () => {

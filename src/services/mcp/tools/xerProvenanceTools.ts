@@ -39,6 +39,72 @@ interface XerProvenanceArgs {
   limit?: unknown;
   offset?: unknown;
   includeRawSource?: unknown;
+  includeRawRows?: unknown;
+}
+
+/** Sections waarvan een collectie/rij vrije brontekst (namen, notities, willekeurige XER-kolommen)
+ *  kan dragen. Zonder `includeRawRows` geven deze een tel-projectie zonder celwaarden terug — de
+ *  tweede expliciete opt-in naast `section`/`collection`, analoog aan `rawSource`/`includeRawSource`. */
+const RAW_ROWS_SECTIONS: readonly Section[] = ['resourceCatalog', 'metadataCatalog', 'taskSourceRowsByProject'];
+
+/** Binnen `resourceCatalog` de collecties die een `rawRow`-bronrij dragen; de rest (resources,
+ *  identities, issues) is al een genormaliseerde, begrensde projectie. */
+const RAW_ROW_RESOURCE_COLLECTIONS = new Set<Collection>(['resourceSources', 'roleSources', 'rates', 'curves', 'assignmentSources']);
+
+/** Binnen `metadataCatalog` de collecties die letterlijk retained bronrijen zijn (`catalog.sourceData`);
+ *  de rest (activityCodeTypes, customFieldDefs, taskProjections, issues) is al genormaliseerd. */
+const RAW_ROW_METADATA_COLLECTIONS = new Set<Collection>([
+  'ACTVTYPE', 'ACTVCODE', 'TASKACTV', 'UDFTYPE', 'UDFVALUE', 'MEMOTYPE', 'TASKNOTE', 'TASKMEMO',
+  'TASK_NOTES', 'deferredUdfValues', 'unknownUdfTypes',
+]);
+
+/** Lagere paginalimiet zodra `includeRawRows` echte celwaarden ontgrendelt — spiegelt de aparte,
+ *  strakkere grens die `rawSource` al had voor ruwe bytes. */
+const RAW_ROWS_OPT_IN_MAX_LIMIT = 100;
+/** Per-cel/per-string afkapgrens: een enkele vrije XER-kolom (notitie, naam) mag de respons niet
+ *  onbegrensd laten groeien. */
+const RAW_CELL_MAX_CHARS = 2000;
+/** Harde bovengrens op de totale geserialiseerde paginarespons; een backstop naast de rij- en
+ *  celgrenzen voor het geval veel kleinere cellen samen toch groot worden. */
+const MAX_SECTION_RESPONSE_BYTES = 256 * 1024;
+
+interface RawSourceRowLike {
+  readonly line: number;
+  readonly cells: Readonly<Record<string, string>>;
+}
+
+function truncateCell(value: string): string {
+  if (value.length <= RAW_CELL_MAX_CHARS) return value;
+  return `${value.slice(0, RAW_CELL_MAX_CHARS)}…(afgekapt op ${RAW_CELL_MAX_CHARS} tekens)`;
+}
+
+/** Zonder opt-in: alleen line + celaantal, geen enkele vrije waarde. Met opt-in: volledige cellen,
+ *  elk individueel afgekapt. */
+function projectSourceRow(row: RawSourceRowLike, includeRawRows: boolean): unknown {
+  if (!includeRawRows) {
+    return { line: row.line, fieldCount: Object.keys(row.cells).length };
+  }
+  const cells: Record<string, string> = {};
+  for (const [field, value] of Object.entries(row.cells)) cells[field] = truncateCell(value);
+  return { line: row.line, cells };
+}
+
+/** Zelfde projectie voor een item dat een `rawRow` draagt naast eigen (niet-vrije, id-achtige) velden. */
+function projectRawRowBearingItem(item: Record<string, unknown>, includeRawRows: boolean): unknown {
+  const { rawRow, ...rest } = item;
+  return { ...rest, rawRow: projectSourceRow(rawRow as RawSourceRowLike, includeRawRows) };
+}
+
+/** Responsgrens-backstop: gooi een typed fout met een pagineerhint in plaats van een onbegrensde
+ *  serialisatie toe te staan. */
+function finalizeBounded<T extends Record<string, unknown>>(result: T): T {
+  if (JSON.stringify(result).length > MAX_SECTION_RESPONSE_BYTES) {
+    throw new XerProvenanceError(
+      'VALIDATION',
+      `Deze pagina overschrijdt de responsgrens van ${MAX_SECTION_RESPONSE_BYTES} bytes geserialiseerd — verlaag \`limit\` of gebruik \`offset\` om te pagineren.`,
+    );
+  }
+  return result;
 }
 
 class XerProvenanceError extends Error {
@@ -72,7 +138,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function requireOnlyKeys(args: unknown): XerProvenanceArgs {
   if (args === undefined || args === null) return {};
   if (!isObject(args)) throw new XerProvenanceError('VALIDATION', 'inspect_xer_provenance verwacht een object met argumenten.');
-  const allowed = ['section', 'collection', 'projectId', 'limit', 'offset', 'includeRawSource'];
+  const allowed = ['section', 'collection', 'projectId', 'limit', 'offset', 'includeRawSource', 'includeRawRows'];
   for (const key of Object.keys(args)) {
     if (!allowed.includes(key)) {
       throw new XerProvenanceError('VALIDATION', `onbekend argument \`${key}\` voor inspect_xer_provenance; toegestaan: ${allowed.join(', ')}.`);
@@ -81,19 +147,33 @@ function requireOnlyKeys(args: unknown): XerProvenanceArgs {
   return args;
 }
 
-function requirePage(args: XerProvenanceArgs, rawSource: boolean): { limit: number; offset: number } {
+interface PageOptions {
+  /** Verlaagt de generieke bovengrens van 1000; gebruikt voor `rawSource` (8 chunks) en de
+   *  `includeRawRows`-opt-in (100 rijen). */
+  maxLimit?: number;
+  /** Naam voor de foutmelding zodra `limit` de verlaagde grens overschrijdt. */
+  label?: string;
+  /** Eenheid in de foutmelding ("chunks" voor rawSource, "rijen" voor raw rows). */
+  unit?: string;
+}
+
+function requirePage(args: XerProvenanceArgs, options: PageOptions = {}): { limit: number; offset: number } {
+  const maxLimit = options.maxLimit ?? 1000;
   const limit = args.limit === undefined ? 50 : args.limit;
   const offset = args.offset === undefined ? 0 : args.offset;
-  if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > 1000) {
-    throw new XerProvenanceError('VALIDATION', '`limit` moet een geheel getal van 1 t/m 1000 zijn.');
+  if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
+    if (options.label) {
+      // Een expliciete raw-data-call mag nooit ongemerkt een onbeperkte respons worden. Boven deze
+      // grens moet de client nog een pagina opvragen.
+      throw new XerProvenanceError(
+        'VALIDATION',
+        `\`${options.label}\` accepteert maximaal ${maxLimit} ${options.unit ?? 'items'} per antwoord; gebruik offset voor volgende pagina's.`,
+      );
+    }
+    throw new XerProvenanceError('VALIDATION', `\`limit\` moet een geheel getal van 1 t/m ${maxLimit} zijn.`);
   }
   if (typeof offset !== 'number' || !Number.isInteger(offset) || offset < 0) {
     throw new XerProvenanceError('VALIDATION', '`offset` moet een geheel getal ≥ 0 zijn.');
-  }
-  // Een expliciete raw-source-call mag nooit ongemerkt een onbeperkte base64-respons worden.
-  // Boven deze grens moet de client nog een pagina opvragen.
-  if (rawSource && limit > 8) {
-    throw new XerProvenanceError('VALIDATION', '`rawSource` accepteert maximaal 8 chunks per antwoord; gebruik offset voor volgende pagina\'s.');
   }
   return { limit, offset };
 }
@@ -105,13 +185,13 @@ function requireString(value: unknown, name: string): string {
   return value;
 }
 
-function page<T>(items: readonly T[], args: XerProvenanceArgs, rawSource = false): {
+function page<T>(items: readonly T[], args: XerProvenanceArgs, options: PageOptions = {}): {
   items: T[];
   total: number;
   has_more: boolean;
   next_offset: number | null;
 } {
-  const { limit, offset } = requirePage(args, rawSource);
+  const { limit, offset } = requirePage(args, options);
   const selected = items.slice(offset, offset + limit);
   const next = offset + selected.length;
   return {
@@ -245,7 +325,15 @@ function resourceCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): un
     assignmentSources: catalog.rows.assignments,
     issues: catalog.issues,
   } as Record<Collection, readonly unknown[]>;
-  return { section: 'resourceCatalog', collection, ...page(values[collection], args) };
+  const includeRawRows = args.includeRawRows === true;
+  const isRawRowCollection = RAW_ROW_RESOURCE_COLLECTIONS.has(collection);
+  const items = isRawRowCollection
+    ? (values[collection] as Record<string, unknown>[]).map((item) => projectRawRowBearingItem(item, includeRawRows))
+    : values[collection];
+  const pageOptions: PageOptions = isRawRowCollection && includeRawRows
+    ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
+    : {};
+  return finalizeBounded({ section: 'resourceCatalog', collection, ...page(items, args, pageOptions) });
 }
 
 function metadataCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
@@ -258,7 +346,15 @@ function metadataCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): un
     issues: catalog.issues,
     ...catalog.sourceData,
   };
-  return { section: 'metadataCatalog', collection, ...page(values[collection] ?? [], args) };
+  const includeRawRows = args.includeRawRows === true;
+  const isRawRowCollection = RAW_ROW_METADATA_COLLECTIONS.has(collection);
+  const items = isRawRowCollection
+    ? (values[collection] ?? []).map((row) => projectSourceRow(row as RawSourceRowLike, includeRawRows))
+    : (values[collection] ?? []);
+  const pageOptions: PageOptions = isRawRowCollection && includeRawRows
+    ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
+    : {};
+  return finalizeBounded({ section: 'metadataCatalog', collection, ...page(items, args, pageOptions) });
 }
 
 function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
@@ -294,19 +390,26 @@ function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unk
   if (!Object.prototype.hasOwnProperty.call(archive.readModel.taskSourceRowsByProject, projectId)) {
     throw new XerProvenanceError('NOT_FOUND', `Onbekende XER-projectselector: ${projectId}.`);
   }
-  return {
+  const includeRawRows = args.includeRawRows === true;
+  const rows = archive.readModel.taskSourceRowsByProject[projectId] ?? [];
+  // Zonder `includeRawRows` een tel-projectie zonder celwaarden; met de opt-in de volle rij, per cel
+  // afgekapt en met een lagere paginalimiet (zie RAW_ROWS_OPT_IN_MAX_LIMIT/RAW_CELL_MAX_CHARS hierboven).
+  const items = rows.map((row) => projectSourceRow(row, includeRawRows));
+  const pageOptions: PageOptions = includeRawRows
+    ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
+    : {};
+  return finalizeBounded({
     section: 'taskSourceRowsByProject',
     projectId,
-    // XerArchiveSourceRowV1 retains every cell; this page applies no field or string truncation.
-    ...page(archive.readModel.taskSourceRowsByProject[projectId] ?? [], args),
-  };
+    ...page(items, args, pageOptions),
+  });
 }
 
 function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   if (args.includeRawSource !== true) {
     throw new XerProvenanceError('VALIDATION', 'rawSource vereist `includeRawSource: true`; bronbytes kunnen namen en vrije notities bevatten.');
   }
-  const paged = page(archive.byteChunks, args, true);
+  const paged = page(archive.byteChunks, args, { maxLimit: 8, label: 'rawSource', unit: 'chunks' });
   return {
     section: 'rawSource',
     privacy: 'expliciet aangevraagd; base64-brondata kan vrije projectinformatie bevatten',
@@ -330,6 +433,9 @@ function inspect(state: AppState, rawArgs: unknown): unknown {
   if (args.includeRawSource !== undefined && typeof args.includeRawSource !== 'boolean') {
     throw new XerProvenanceError('VALIDATION', '`includeRawSource` moet een boolean zijn.');
   }
+  if (args.includeRawRows !== undefined && typeof args.includeRawRows !== 'boolean') {
+    throw new XerProvenanceError('VALIDATION', '`includeRawRows` moet een boolean zijn.');
+  }
   const section = (args.section ?? 'summary') as Section;
   const archive = state.xerSourceArchive;
   if (args.projectId !== undefined && (typeof args.projectId !== 'string' || args.projectId.trim() === '')) {
@@ -337,6 +443,12 @@ function inspect(state: AppState, rawArgs: unknown): unknown {
   }
   if (section !== 'rawSource' && args.includeRawSource !== undefined) {
     throw new XerProvenanceError('VALIDATION', '`includeRawSource` hoort alleen bij section `rawSource`.');
+  }
+  if (args.includeRawRows !== undefined && !RAW_ROWS_SECTIONS.includes(section)) {
+    throw new XerProvenanceError(
+      'VALIDATION',
+      '`includeRawRows` hoort alleen bij section `resourceCatalog`, `metadataCatalog` of `taskSourceRowsByProject`.',
+    );
   }
   if (section === 'summary') {
     if (args.collection !== undefined) throw new XerProvenanceError('VALIDATION', '`collection` hoort niet bij section `summary`.');
@@ -366,9 +478,16 @@ const inputSchema = {
     section: { type: 'string', enum: [...SECTIONS], description: 'Inspectieonderdeel; default summary.' },
     collection: { type: 'string', enum: [...ALL_COLLECTIONS], description: 'Gepagineerde collectie binnen resourceCatalog, metadataCatalog of diagnostics.' },
     projectId: { type: 'string', description: 'Verplichte expliciete XER-projectselector voor taskSourceRowsByProject.' },
-    limit: { type: 'number', description: 'Aantal items/chunks; default 50, rawSource maximaal 8.' },
+    limit: { type: 'number', description: 'Aantal items/chunks; default 50, rawSource maximaal 8, includeRawRows maximaal 100.' },
     offset: { type: 'number', description: 'Startindex; default 0.' },
     includeRawSource: { type: 'boolean', description: 'Verplicht true voor de expliciete rawSource-sectie.' },
+    includeRawRows: {
+      type: 'boolean',
+      description:
+        'Alleen bij resourceCatalog/metadataCatalog/taskSourceRowsByProject: ontgrendelt de vrije ' +
+        'brontekst van een rij (naam, notitie, willekeurige XER-kolom) i.p.v. alleen line+fieldCount, ' +
+        'met een lagere paginalimiet (100) en per-cel-afkapping op 2.000 tekens.',
+    },
   },
   additionalProperties: false,
 } as const;
@@ -381,12 +500,16 @@ export const xerProvenanceTools: McpToolDef[] = [{
     'import- en diagnostiektellingen), resourceCatalog, metadataCatalog, taskSourceRowsByProject, ' +
     'diagnostics of rawSource. Cataloguscollecties zijn expliciet benoemd en gepagineerd met `limit`, ' +
     '`offset`, `total`, `has_more` en `next_offset`. taskSourceRowsByProject vereist een expliciete ' +
-    '`projectId` en geeft alle cellen van die bronrijen terug zonder verborgen veld- of stringafkapping. ' +
+    '`projectId`; zonder `includeRawRows:true` levert elke rij alleen `line`+`fieldCount`, geen cellen. ' +
     'rawSource vereist expliciet `includeRawSource:true`, geeft maximaal acht vaste base64-chunks per ' +
-    'antwoord en meldt de privacygrens; summary lekt nooit raw bytes of vrije raw rows. De tool gebruikt ' +
-    'alleen retained state, muteert de store niet, voert geen CPM uit en ondersteunt geen schrijfpad.',
+    'antwoord en meldt de privacygrens; summary lekt nooit raw bytes of vrije raw rows. ' +
+    'resourceCatalog/metadataCatalog/taskSourceRowsByProject geven zonder `includeRawRows:true` een ' +
+    'beperkte projectie zonder ruwe cellen; met de opt-in gelden een lagere paginalimiet, ' +
+    'per-celafkapping en een responsgrens. De tool gebruikt alleen retained state, muteert de store ' +
+    'niet, voert geen CPM uit en ondersteunt geen schrijfpad. Niet batchable: roep hem los aan, nooit ' +
+    'als stap in `planner_batch`.',
   kind: 'read',
-  batchable: true,
+  batchable: false,
   inputSchema,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   handler: (args, ctx) => readTool(ctx, (state) => inspect(state, args)),
