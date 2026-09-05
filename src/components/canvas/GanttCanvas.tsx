@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -243,6 +244,18 @@ export function GanttCanvas({
     primaryHScrollRef: hScrollRef,
     secondaryHScrollRef: hScrollSecondaryRef,
   } = viewport.refs;
+  // R2a-fixronde punt 1: `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
+  // strook (portal-doel `histogramHost` bestaat pas ná de eerste render, of de hele Gantt wordt
+  // ver- en hermount bij een tabwissel naar Tabel/Backstage) wijzigt `.current` zonder dat React dat
+  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` moet de node zelf als afhankelijk-
+  // heid krijgen om zijn wheel-listener opnieuw te hechten, dus spiegelen we `.current` hier naar
+  // React-state via een callback-ref (die overige consumenten van `histogramContainerRef`, zoals
+  // `useGanttRendererHost`, blijven ongewijzigd via het ref-object lezen).
+  const [histogramContainerEl, setHistogramContainerEl] = useState<HTMLDivElement | null>(null);
+  const setHistogramContainerNode = useCallback((node: HTMLDivElement | null) => {
+    histogramContainerRef.current = node;
+    setHistogramContainerEl(node);
+  }, [histogramContainerRef]);
   const effectiveViewStart = viewport.effectiveViewStart;
   const effectiveView = viewport.effectiveView;
   const sharedAxis = viewport.sharedAxis;
@@ -428,8 +441,7 @@ export function GanttCanvas({
     [histogramPicker],
   );
   const { pickerScrollY: histogramPickerScrollY } = useGanttHistogramPickerScroll({
-    containerRef: histogramContainerRef,
-    enabled: showHistogram,
+    container: showHistogram ? histogramContainerEl : null,
     pickerWidth: histogramPickerWidth,
     canvasHeight: histogramHeight,
     itemCount: histogramPicker.length,
@@ -598,7 +610,7 @@ export function GanttCanvas({
             style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
           />
           <div
-            ref={histogramContainerRef}
+            ref={setHistogramContainerNode}
             className="relative overflow-hidden"
             style={{ height: histogramHeight, flexShrink: 0 }}
             data-tour-anchor="histogram-strip"

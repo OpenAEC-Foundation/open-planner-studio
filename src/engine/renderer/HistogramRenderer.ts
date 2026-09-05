@@ -70,7 +70,8 @@ const ROW_H = 18;          // hoogte van een resourcekiezer-rij
 const TOP_PAD = 8;         // ruimte boven de hoogste staaf
 const BOTTOM_PAD = 4;      // ruimte onder de nullijn
 const LEFT_PAD = 8;        // padding binnen de kiezerzone
-const PICKER_SCROLLBAR_W = 3; // breedte van de smalle scrollbalk in de kiezerzone (R2a)
+const PICKER_SCROLLBAR_W = 2; // breedte van de smalle, niet-sleepbare scroll-positie-indicator (R2a)
+const PICKER_SCROLLBAR_ALPHA = 0.45; // dekking van de indicator — subtiel, geen interactief element
 
 /** Rijhoogte van de kiezerlijst, geschaald met `fontScale` — dezelfde afronding als
  *  `HistogramRenderer.rowH`, maar als los aanroepbare functie zodat de scroll-eigenaar
@@ -79,13 +80,14 @@ export function histogramPickerRowHeight(fontScale = 1): number {
   return Math.round(ROW_H * fontScale);
 }
 
-/** Aantal kiezerrijen dat ONDER de gepinde "alle resources"-rij zichtbaar past bij de gegeven
- *  canvashoogte. Puur — geen renderer-instantie nodig — zodat de scroll-eigenaar dezelfde maat
- *  gebruikt als `drawPicker`/`pickerAt` zonder de canvasgrenzen te schenden. */
-export function histogramPickerVisibleRows(canvasHeight: number, fontScale = 1): number {
+/** Hoogte in PIXELS van de scrollbare zone ONDER de gepinde "alle resources"-rij. Puur — geen
+ *  renderer-instantie nodig — zodat de scroll-eigenaar exact dezelfde maat als `drawPicker`/
+ *  `pickerAt` gebruikt. Rekent in pixels i.p.v. hele rijen (R2a-fixronde punt 3): een rijhoogte-
+ *  restje onderaan de strook (tot 22px bij fontScale 1.25) hoort bij het scrollbare bereik, anders
+ *  blijft daar altijd een leeg gat staan dat nooit met scrollen te vullen is. */
+export function histogramPickerTrackHeight(canvasHeight: number, fontScale = 1): number {
   const rowH = histogramPickerRowHeight(fontScale);
-  const scrollableHeight = canvasHeight - TOP_PAD - rowH;
-  return Math.max(0, Math.floor(scrollableHeight / rowH));
+  return Math.max(0, canvasHeight - TOP_PAD - rowH);
 }
 
 /** Maximale scrollpositie (px) voor de kiezerlijst: `itemCount` is de VOLLEDIGE pickerlijst
@@ -93,8 +95,8 @@ export function histogramPickerVisibleRows(canvasHeight: number, fontScale = 1):
 export function histogramPickerMaxScroll(itemCount: number, canvasHeight: number, fontScale = 1): number {
   const rowH = histogramPickerRowHeight(fontScale);
   const scrollableCount = Math.max(0, itemCount - 1);
-  const visible = histogramPickerVisibleRows(canvasHeight, fontScale);
-  return Math.max(0, (scrollableCount - visible) * rowH);
+  const trackHeight = histogramPickerTrackHeight(canvasHeight, fontScale);
+  return Math.max(0, scrollableCount * rowH - trackHeight);
 }
 
 export class HistogramRenderer {
@@ -113,6 +115,9 @@ export class HistogramRenderer {
    *  hit-test. De klem gebeurt hier — niet bij de aanroeper — zodat tekenen en hit-testen altijd
    *  dezelfde afgeklemde waarde delen. */
   private pickerScrollY: number;
+  /** R2a-fixronde punt 6: één keer berekend in de constructor, hergebruikt door `drawPicker` — geen
+   *  tweede, mogelijk uit de pas lopende berekening bij het tekenen van de scroll-indicator. */
+  private maxScroll: number;
 
   constructor(ctx: CanvasRenderingContext2D, opts: HistogramRenderOptions) {
     this.ctx = ctx;
@@ -121,9 +126,9 @@ export class HistogramRenderer {
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.fontScale = opts.fontScale ?? 1;
     this.chartOriginX = opts.pickerWidth;
-    this.rowH = Math.round(ROW_H * this.fontScale);
-    const maxScroll = histogramPickerMaxScroll(opts.picker.length, opts.canvasHeight, this.fontScale);
-    this.pickerScrollY = Math.min(maxScroll, Math.max(0, opts.pickerScrollY ?? 0));
+    this.rowH = histogramPickerRowHeight(this.fontScale);
+    this.maxScroll = histogramPickerMaxScroll(opts.picker.length, opts.canvasHeight, this.fontScale);
+    this.pickerScrollY = Math.min(this.maxScroll, Math.max(0, opts.pickerScrollY ?? 0));
   }
 
   /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie (issue #25 punt 4),
@@ -162,8 +167,10 @@ export class HistogramRenderer {
     if (y >= TOP_PAD && y < TOP_PAD + this.rowH) return { id: this.opts.picker[0].id };
     const scrollTop = TOP_PAD + this.rowH;
     if (y < scrollTop) return null;
+    // `idx` is hier per constructie altijd >= 1: y >= scrollTop (net gecontroleerd) en
+    // pickerScrollY >= 0, dus de teller in de floor is nooit negatief.
     const idx = 1 + Math.floor((y - scrollTop + this.pickerScrollY) / this.rowH);
-    if (idx < 1 || idx >= this.opts.picker.length) return null;
+    if (idx >= this.opts.picker.length) return null;
     return { id: this.opts.picker[idx].id };
   }
 
@@ -223,7 +230,7 @@ export class HistogramRenderer {
 
   /** Tekent één kiezerrij op de gegeven Y (al in canvascoördinaten — de aanroeper bepaalt of dat
    *  de vaste gepinde positie is of een scroll-verschoven positie). */
-  private drawPickerRow(item: HistogramPickerItem, y: number): void {
+  private drawPickerRow(item: HistogramPickerItem, y: number, reserveScrollbar: boolean): void {
     const ctx = this.ctx;
     const c = this.colors;
     const { pickerWidth } = this.opts;
@@ -241,7 +248,9 @@ export class HistogramRenderer {
     }
     ctx.fillStyle = selected ? c.text : c.textDim;
     const textX = LEFT_PAD + 12;
-    const maxW = pickerWidth - textX - 4;
+    // R2a-fixronde punt 7: label niet onder de scroll-indicator laten doorlopen zodra die getekend
+    // wordt — de gepinde somrij (nooit `reserveScrollbar`) blijft de volle breedte gebruiken.
+    const maxW = pickerWidth - textX - 4 - (reserveScrollbar ? PICKER_SCROLLBAR_W + 2 : 0);
     ctx.fillText(this.truncate(item.label, maxW), textX, y + this.rowH / 2);
   }
 
@@ -263,8 +272,10 @@ export class HistogramRenderer {
 
     if (picker.length === 0) return;
 
+    const showScrollbar = this.maxScroll > 0;
+
     // Gepinde somrij — nooit verschoven door scroll.
-    this.drawPickerRow(picker[0], TOP_PAD);
+    this.drawPickerRow(picker[0], TOP_PAD, false);
 
     const scrollTop = TOP_PAD + this.rowH;
     const scrollableItems = picker.slice(1);
@@ -277,20 +288,25 @@ export class HistogramRenderer {
     scrollableItems.forEach((item, i) => {
       const y = scrollTop - this.pickerScrollY + i * this.rowH;
       if (y + this.rowH < scrollTop || y > canvasHeight) return;
-      this.drawPickerRow(item, y);
+      this.drawPickerRow(item, y, showScrollbar);
     });
     ctx.restore();
 
-    const maxScroll = histogramPickerMaxScroll(picker.length, canvasHeight, this.fontScale);
-    if (maxScroll <= 0) return;
-    const trackHeight = canvasHeight - scrollTop;
+    if (!showScrollbar) return;
+    // R2a-fixronde punt 3/8: dezelfde `trackHeight` als `histogramPickerTrackHeight`/de scroll-hook
+    // (pixels, geen hele rijen) — anders lopen tekenen en scrollgrenzen weer uiteen. Blijft bewust
+    // een NIET-sleepbare positie-indicator (punt 8): dun en alleen zichtbaar zolang de lijst niet
+    // past; slepen zou eigen pointer-down/-move/-up-afhandeling in de canvas-hit-test vergen die
+    // hier niet in verhouding staat tot de rest van deze fixronde.
+    const trackHeight = histogramPickerTrackHeight(canvasHeight, this.fontScale);
     const contentHeight = scrollableItems.length * this.rowH;
     const thumbHeight = Math.max(12, trackHeight * Math.min(1, trackHeight / contentHeight));
-    const thumbY = scrollTop + (this.pickerScrollY / maxScroll) * (trackHeight - thumbHeight);
+    const thumbY = scrollTop + (this.pickerScrollY / this.maxScroll) * (trackHeight - thumbHeight);
+    ctx.save();
     ctx.fillStyle = c.textDim;
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = PICKER_SCROLLBAR_ALPHA;
     ctx.fillRect(pickerWidth - PICKER_SCROLLBAR_W - 1, thumbY, PICKER_SCROLLBAR_W, thumbHeight);
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   private truncate(text: string, maxWidth: number): string {
