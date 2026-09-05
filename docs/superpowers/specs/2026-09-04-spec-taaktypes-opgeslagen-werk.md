@@ -205,7 +205,16 @@ zet het gedrag "resource erbij/eraf" bewust als aparte, late stap zodat de rest 
 | 6 | Reikwijdte: **alleen gewone bladtaken op werktijd, en uurtaken.** |
 | 7 | **Nivelleerder blijft alleen verschuiven**; "inzet verlagen bij vast werk" komt in de TODO als geavanceerde optie. |
 
-### 3.3 Open — nog door de eigenaar te nemen
+### 3.3 Genomen op 2026-09-05 (beslispunten 8–10)
+
+| nr | besluit |
+|---|---|
+| 8 | **Optie B**: vier types in het menu; het bewaarde `Task.effortDriven` stuurt alleen de twee cellen waar MS Project van P6 afwijkt (§5). Taken die in OPS worden aangemaakt krijgen het veld nooit. |
+| 9 | **Drie optionele werkvelden per toewijzing** (begroot / verricht / resterend); de driehoek werkt op het restant, begroot blijft referentie (§4.3). |
+| 10 | **De vereenvoudiging "elke toewijzing loopt over de hele restduur" is geaccepteerd** voor deze etappe; de per-toewijzing-spanne staat in `docs/TODO.md` als vervolg (§6.2, §12). |
+
+De afwegingen achter de drie punten staan hieronder bewaard zoals ze aan de eigenaar zijn
+voorgelegd.
 
 **Beslispunt 8 — de twee MS Project-gedragingen die niet in de vier P6-types passen (§2.3).**
 
@@ -215,19 +224,18 @@ zet het gedrag "resource erbij/eraf" bewust als aparte, late stap zodat de rest 
 | B. Vier types in het menu, `effortDriven` blijft bewaarde invoer die alleen de afwijkende kolommen stuurt **(advies)** | Het bestaande veld `Task.effortDriven` blijft staan zoals het nu al round-tript. De regeltabel (§5) leest het op precies de twee cellen waar MSP afwijkt: Fixed Units/Time + `effortDriven === false` ⇒ resource erbij/eraf verandert werk in plaats van duur; Fixed Duration & Units + `effortDriven === true` ⇒ duur gewijzigd verandert werk in plaats van inzet. Taken die de gebruiker in OPS aanmaakt krijgen het veld nooit en volgen zuiver P6. | Het menu blijft vier keuzes (besluit 1 intact), MSP-bestanden gedragen zich als in MSP, en de afwijking is zichtbaar te maken als bijschrift ("uit MS Project: niet effort-driven") in plaats van als vinkje. Kost één extra rij in de regeltabel en twee testgevallen. |
 | C. Zes types | Het menu toont de volledige unie (vier P6 + twee MSP). | Volledig, maar precies de "MSP-verwarring" die de eigenaar niet wil importeren; verworpen door besluit 1. |
 
-Zolang dit punt open staat, bouwt de etappe stap 1–5 van §10 zonder het te raken; stap 6 (resource
-erbij/eraf) is de eerste plek waar het antwoord nodig is.
+Gekozen: B. De rekenkern van bouwstap 3 implementeert die twee cellen al (`workTriangle.ts`,
+`TriangleState.effortDriven`; cases wt-05, wt-05b en wt-11b).
 
 **Beslispunt 9 — drie optionele werkvelden per toewijzing (§4.3).** Aanbeveling uit de corpusscan
 (GEMETEN: het resttarief `remain_qty_per_hr` wijkt in vijf bestanden structureel af van het
 begrote tarief, tot 100 % van de rijen), uitgelegd aan de eigenaar op 2026-09-04 met het
-metselwerkvoorbeeld (160 uur begroot, 80 verricht, 120 resterend). Geen bezwaar geuit, maar ook
-geen expliciet akkoord. Dit ontwerp gaat uit van de drie velden.
+metselwerkvoorbeeld (160 uur begroot, 80 verricht, 120 resterend). Gekozen: de drie velden.
 
 **Beslispunt 10 — meerdere toewijzingen en de taakduur (§6.2).** OPS kent geen duur per toewijzing;
 het ontwerp kiest de vereenvoudiging "elke toewijzing loopt over de hele restduur van de taak" en
 legt de per-toewijzing-spanne in de TODO. Dat wijkt af van MSP en P6, waar toewijzingen een eigen
-spanne hebben. Bevestiging gevraagd.
+spanne hebben. Gekozen: accepteren, mét de TODO-notitie.
 
 ## 4. Datamodel
 

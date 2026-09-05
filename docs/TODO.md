@@ -355,19 +355,22 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
 > spec van 2026-08-18). Bouwt pas op een main mét de XER-import erin (tweede XER-merge eerst).
-> Eigenaarsbesluiten 1–7 van 2026-09-04 staan daar in §3; drie punten staan nog open.
+> Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
 
-- [ ] **Beslispunt 8 — twee MS Project-gedragingen passen niet in de vier P6-types** (spec §2.3):
-      "Fixed Units, niet effort-driven" (MSP's fabrieksinstelling) en "Fixed Duration, effort-driven".
-      Advies: vier types in het menu, bewaard `effortDriven` stuurt alleen de twee afwijkende cellen.
-      Blokkeert alleen bouwstap 6 (resource erbij/eraf).
-- [ ] **Beslispunt 9 — drie optionele werkvelden per toewijzing** (begroot/verricht/resterend, de
-      driehoek op het restant); aanbeveling uit de XER-corpusscan, nog niet expliciet bevestigd.
-- [ ] **Beslispunt 10 — meerdere toewijzingen zonder eigen spanne** (spec §6.2): OPS laat elke
-      toewijzing over de hele restduur lopen; MSP/P6 geven toewijzingen een eigen spanne. Later op te
-      heffen door `workWindowStart/Finish` te activeren.
+- [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
+      het menu, bewaard `effortDriven` stuurt alleen de twee MSP-afwijkende cellen); 9 = drie optionele
+      werkvelden per toewijzing; 10 = de vereenvoudiging "elke toewijzing loopt over de hele restduur"
+      is voor deze etappe geaccepteerd — zie het vervolgpunt hieronder.
+- [ ] **Per-toewijzing-spanne (vervolg op beslispunt 10).** MS Project en P6 laten de ene resource op
+      een taak eerder klaar zijn dan de andere; OPS laat elke toewijzing over de hele restduur lopen
+      (spec §6.2: verhoog je op een vast-werk-taak de inzet van één resource, dan wordt de taak korter
+      en gaat de ándere resource dunner over die kortere duur in plaats van eerder klaar te zijn).
+      `ResourceAssignment.workWindowStart/Finish` bestaat al, round-tript door IFC
+      (`OPS_TimephasedWindow`) en het extensiecontract, maar geen lezer vult het en geen solverstap
+      leest het. Activeren raakt `assignmentDayUnits` (histogram/nivelleerder/bezetting), de
+      renderer (balk per toewijzing?) en de MSPDI-/P6-exports (per-assignment start/finish).
 - [ ] **MSP-meetlat: 31 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
-      tot dan draagt elke case `evidence: 'reasoned' | 'documented'` in `cases-taaktypes.json`.
+      tot dan draagt elke case `evidence: 'documented' | 'reasoned' | 'decided'` in `work-triangle-cases.json`.
 - [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt
       hoe vaak beslispunt 8 in de praktijk speelt. Het corpus is niet in de repo.
 - [ ] **Nivelleerder-optie "inzet verlagen bij vast werk"** (eigenaarsbesluit 7-B, 2026-09-04) als
