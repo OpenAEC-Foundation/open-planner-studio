@@ -15,6 +15,7 @@
     "recoveryRestoreFailed": "復元に失敗しました",
     "recoveryDocumentsSkipped_other": "{{count}} 件の復旧ファイルを読み込めなかったため、スキップされました。",
     "scheduleFailed": "スケジュールを計算できませんでした",
+    "distributionApplyFailed": "配分を適用できませんでした",
     "ifcParseFailed": "IFC を読み込めませんでした",
     "templateSaved": "ブランチをテンプレート「{{name}}」として保存しました",
     "relationCreated": "関係を作成しました: {{predecessor}} → {{successor}}",

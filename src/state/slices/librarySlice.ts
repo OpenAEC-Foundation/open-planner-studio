@@ -12,6 +12,7 @@ import { runInScratchDocument } from '../runtime/scratchDocument';
 import {
   planDistributionWrites,
   type DistributionApplyRecord,
+  type DistributionApplyResult,
   type DistributionUndoReport,
 } from '@/services/library/applyDistribution';
 import type { DistributionProposal } from '@/services/library/distribute';
@@ -263,13 +264,18 @@ export interface LibrarySlice {
 
   /** Toepassen (spec §5, B1c-plan3 taak 6). Schrijft het voorstel in élk deelnemend document — het
    *  actieve via het gewone top-level-pad, de slapers via een headless scratch-instantie
-   *  (`runInScratchDocument`) — en geeft een record terug waarmee de "toegepast"-strook alles in
-   *  één keer kan terugdraaien. `null` ⇒ er is niets geschreven (geblokkeerd, tekort, of niets te
-   *  doen; zie `planDistributionWrites`). */
+   *  (`runInScratchDocument`) — en geeft bij succes een record terug waarmee de "toegepast"-strook
+   *  alles in één keer kan terugdraaien.
+   *
+   *  Bij een mislukking komt de REDEN mee (`DistributionApplyResult`, fixronde B1c-etappe-3
+   *  bevinding B5): geblokkeerd/tekort/niets-te-doen uit `planDistributionWrites`, of
+   *  `'scratch-failed'` wanneer de schrijfronde van een slapend document vastliep. Voorheen was dit
+   *  één `null` voor al die gevallen en deed de dialoog er niets mee — de knop kon geruisloos niets
+   *  doen. Er is in geen enkel `ok: false`-geval iets gemuteerd. */
   applyDistribution: (
     proposal: DistributionProposal,
     scopeTaskIdsByDoc: Record<string, string[]>,
-  ) => DistributionApplyRecord | null;
+  ) => DistributionApplyResult;
 
   /** "Alles terugdraaien" (spec §5): draait per beschreven document precies de undo-stap terug die
    *  `applyDistribution` daar heeft achtergelaten. Een document waarvan de undo-diepte intussen is
@@ -1247,7 +1253,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
 
   applyDistribution: (proposal, scopeTaskIdsByDoc) => {
     const plan = planDistributionWrites(proposal, scopeTaskIdsByDoc);
-    if (!plan.ok) return null;
+    if (!plan.ok) return { ok: false, reason: plan.reason };
 
     // Een lopende coalesce-reeks (Gantt-sleep, tikken in een invoerveld) mag deze samengestelde
     // bewerking niet opslokken: `finishUndoable` zou het `after` van dát oudere event bijschrijven
@@ -1266,6 +1272,11 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     // worden weggegooid — het history-event voor dit document schrijven we hieronder zelf, in de
     // app-globale sessiechronologie waar undo/redo daadwerkelijk uit kiest.
     const sleepingResults: { docId: string; before: DocumentPayload; after: DocumentPayload }[] = [];
+    // Meldingen uit de scratch-runs worden GEOOGST maar nog NIET gepusht (fixronde B1c-etappe-3,
+    // bevinding B5). Ze horen bij een bewerking die pas in fase 2 werkelijkheid wordt; ze eerder
+    // tonen zou de gebruiker vertellen over een verlies (M10-afronding) in een document dat na een
+    // afbreking hieronder ongewijzigd is gebleven. Pas ná fase 2 gaan ze het echte kanaal in.
+    const pendingNotifications: NotifyInput[] = [];
     for (const w of sleepingWrites) {
       const entry = state.documents.find((d) => d.id === w.docId);
       if (!entry?.payload) continue; // tussentijds gesloten/geactiveerd — dit document doet niet meer mee.
@@ -1276,15 +1287,15 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const out = runInScratchDocument(entry.payload, (s) => {
         s.applyLeveling(w.write, { scopeTaskIds: w.scopeTaskIds });
       }, w.docId);
-      // Meldingen bubbelen ALTIJD op (spec §5, rand (b)) — ook bij een geslaagde run kan `applyLeveling`
-      // een M10-afrondingsmelding of (bij een onverwachte cyclus) een schedule-fout hebben gezet; niets
-      // daarvan mag in het onzichtbare kanaal van de scratch-context blijven hangen.
-      for (const n of out.notifications) get().notify(n);
-      if (!out.ok) {
-        // Er is nog NIETS gemuteerd (het actieve document komt pas hierna aan de beurt, en de
-        // eerdere scratch-runs schreven alleen naar hun eigen, weggegooide payload) — dus de hele
-        // actie stopt hier, zonder halve staat.
-        return null;
+      pendingNotifications.push(...out.notifications);
+      // Twee manieren waarop een slapende write kan vastlopen — zie `DistributionApplyResult`:
+      // `fn` gooide, óf de `runCPM` in de scratch leverde een `cpmResult.error` (relatiecyclus).
+      // Allebei blokkerend: er is nog NIETS gemuteerd (het actieve document komt pas hierna aan de
+      // beurt, en de eerdere scratch-runs schreven alleen naar hun eigen, weggegooide payload), dus
+      // de hele actie stopt hier zonder halve staat — en zonder de opgespaarde meldingen te pushen.
+      const cpmError = out.ok ? out.payload.cpmResult?.error : undefined;
+      if (!out.ok || cpmError) {
+        return { ok: false, reason: 'scratch-failed', docId: w.docId, error: out.error ?? cpmError };
       }
       sleepingResults.push({ docId: w.docId, before: entry.payload, after: out.payload });
     }
@@ -1349,9 +1360,16 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         historyEventId: event.id, historySequence: event.sequence,
       });
     }
-    if (docs.length === 0) return null;
+    if (docs.length === 0) return { ok: false, reason: 'nothing-to-write' };
 
-    return { libraryItemId: proposal.libraryItemId, appliedAt: new Date().toISOString(), docs };
+    // Nú pas de opgespaarde scratch-meldingen (spec §5, rand (b)): alles is geschreven, dus wat de
+    // slapers te melden hadden gáát ook echt over hun nieuwe staat.
+    for (const n of pendingNotifications) get().notify(n);
+
+    return {
+      ok: true,
+      record: { libraryItemId: proposal.libraryItemId, appliedAt: new Date().toISOString(), docs },
+    };
   },
 
   undoDistribution: (record) => {

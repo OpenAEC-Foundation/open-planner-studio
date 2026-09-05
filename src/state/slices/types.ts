@@ -190,6 +190,11 @@ export type NotificationMessageKey =
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
   | 'notifications.recoveryDocumentsSkipped'
   | 'notifications.scheduleFailed'
+  // Fixronde B1c-etappe-3 (bevinding B5): "Verdelen over projecten" kon geruisloos niets doen —
+  // `applyDistribution` gaf bij een mislukte schrijfronde `null` terug en de dialoog deed daar niets
+  // mee. Deze melding is de zichtbare uitkomst van dat pad; `detail` draagt de technische reden
+  // (`DistributionApplyResult.reason`/`.error`).
+  | 'notifications.distributionApplyFailed'
   | 'notifications.ifcParseFailed'
   | 'notifications.templateSaved'
   | 'notifications.relationCreated'

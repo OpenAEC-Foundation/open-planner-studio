@@ -250,10 +250,21 @@ export function DistributionDialog() {
 
   const onApply = () => {
     if (!proposal || !applyGate.ok) return;
-    const record = applyDistribution(proposal, scopeTaskIdsByDoc);
-    // `null` betekent dat de store dezelfde `planDistributionWrites`-poort alsnog dichtdeed (bv.
-    // omdat er tussen render en klik een document is gesloten). Geen strook, geen melding.
-    if (!record) return;
+    const outcome = applyDistribution(proposal, scopeTaskIdsByDoc);
+    // Mislukt = ZICHTBAAR mislukt (fixronde B1c-etappe-3, bevinding B5). Dit pad is bereikbaar
+    // ondanks `applyGate`: de poort kijkt naar de render, de store naar het moment van de klik — een
+    // document dat er tussendoor uitvalt, of een slaper waarvan de doorrekening vastloopt, komt hier
+    // uit. Vóór deze ronde deed de knop dan geruisloos niets. `detail` draagt de rauwe reden; de
+    // vertaalde tekst blijft één zin (het meldingenkanaal kent geen actieknoppen).
+    if (!outcome.ok) {
+      notify({
+        severity: 'error',
+        messageKey: 'notifications.distributionApplyFailed',
+        detail: outcome.error ?? outcome.reason,
+      });
+      return;
+    }
+    const record = outcome.record;
     const current = useAppStore.getState().ui.levelingDistribution;
     if (current) setUI({ levelingDistribution: { ...current, applied: record } });
     // Puur informatief (spec §5) — de terugweg is de strook hieronder, niet deze melding.

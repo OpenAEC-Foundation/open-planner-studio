@@ -93,8 +93,8 @@ console.log('-- apply-distribution: geval 1, geblokkeerd --');
 {
   const blocked = makeProposal({ blocked: { reason: 'MATERIAL_ITEM', docIds: [] } });
   const before = JSON.stringify(S().tasks);
-  const record = S().applyDistribution(blocked, scopeTaskIdsByDoc);
-  assert(record === null, 'geval 1: blocked ⇒ geen record');
+  const outcome = S().applyDistribution(blocked, scopeTaskIdsByDoc);
+  assert(outcome.ok === false && outcome.reason === 'blocked', 'geval 1: blocked ⇒ ok:false met reden blocked');
   assert(JSON.stringify(S().tasks) === before, 'geval 1: het actieve document is niet aangeraakt');
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === undefined, 'geval 1: ActiefIn heeft nog geen delay');
 }
@@ -105,8 +105,58 @@ console.log('-- apply-distribution: geval 1, geblokkeerd --');
 console.log('-- apply-distribution: geval 2, tekort blokkeert --');
 {
   const shortfall = makeProposal({ hasShortfall: true });
-  const record = S().applyDistribution(shortfall, scopeTaskIdsByDoc);
-  assert(record === null, 'geval 2: hasShortfall ⇒ geen record');
+  const outcome = S().applyDistribution(shortfall, scopeTaskIdsByDoc);
+  assert(outcome.ok === false && outcome.reason === 'shortfall', 'geval 2: hasShortfall ⇒ ok:false met reden shortfall');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 2b (fixronde B1c-etappe-3, bevinding B5): een SLAPENDE write die vastloopt breekt de hele
+// actie af — mét reden, zonder halve staat en zonder meldingen. Een relatiecyclus in het slapende
+// document laat de `runCPM` binnen de scratch-context een `cpmResult.error` zetten; BESLIST in deze
+// fixronde dat dát óók `ok: false` is (zie `DistributionApplyResult`): de nivelleervertraging zou
+// anders wél geschreven worden en de bijbehorende datums niet.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- apply-distribution: geval 2b, een vastgelopen slapende write --');
+{
+  const cycleDocId = S().newDocument();
+  S().setProject({ name: 'Cyclus', startDate: '2026-08-03' });
+  const idC1 = S().addTask({ name: 'C1' });
+  const idC2 = S().addTask({ name: 'C2' });
+  assert(S().addSequence({ predecessorId: idC1, successorId: idC2, type: 'FINISH_START', lagDays: 0 }) !== null,
+    'geval 2b opzet: relatie C1→C2 aangemaakt');
+  assert(S().addSequence({ predecessorId: idC2, successorId: idC1, type: 'FINISH_START', lagDays: 0 }) !== null,
+    'geval 2b opzet: en de tegenrelatie C2→C1 (de cyclus)');
+  S().switchDocument(activeDocId);
+
+  const cyclePayload = () => S().documents.find(d => d.id === cycleDocId)!.payload!;
+  const proposal = makeProposal({
+    docs: [
+      baseDocResult(activeDocId, 'Actief', { delays: { [idActiveIn]: 2 } }),
+      baseDocResult(cycleDocId, 'Cyclus', { delays: { [idC1]: 1 } }),
+    ],
+  });
+  const scope = { [activeDocId]: [idActiveIn], [cycleDocId]: [idC1, idC2] };
+
+  const tasksBefore = JSON.stringify(S().tasks);
+  const cycleBefore = JSON.stringify(cyclePayload());
+  const eventsBefore = S().historyEvents.length;
+  const notificationsBefore = S().ui.notifications.length;
+
+  const outcome = S().applyDistribution(proposal, scope);
+  assert(outcome.ok === false && outcome.reason === 'scratch-failed',
+    `geval 2b: een vastgelopen scratch-run ⇒ ok:false met reden scratch-failed (kreeg ${JSON.stringify(outcome)})`);
+  assert(outcome.ok === false && outcome.docId === cycleDocId, 'geval 2b: en het record benoemt het document dat vastliep');
+  assert(outcome.ok === false && typeof outcome.error === 'string' && outcome.error.length > 0,
+    'geval 2b: met de rauwe technische reden erbij (voor `detail` in de melding)');
+
+  assert(JSON.stringify(S().tasks) === tasksBefore, 'geval 2b: het actieve document is niet aangeraakt');
+  assert(JSON.stringify(cyclePayload()) === cycleBefore, 'geval 2b: en de payload van de slaper evenmin');
+  assert(S().historyEvents.length === eventsBefore, 'geval 2b: er is geen history-event bijgekomen');
+  assert(S().ui.notifications.length === notificationsBefore,
+    'geval 2b: en er is geen enkele melding gepusht (die horen bij een bewerking die niet heeft plaatsgevonden)');
+
+  S().closeDocument(cycleDocId);
+  S().switchDocument(activeDocId);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -124,8 +174,9 @@ let sleepCpmBefore: string;
   const sleepEventsBefore = eventsFor(sleepDocId, 'applied');
   sleepCpmBefore = JSON.stringify(sleepPayload().cpmResult);
 
-  applyRecord = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
-  assert(applyRecord !== null, 'geval 3: applyDistribution levert een record');
+  const outcome3 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
+  assert(outcome3.ok === true, 'geval 3: applyDistribution slaagt');
+  applyRecord = outcome3.ok ? outcome3.record : null;
 
   const activeTaskAfter = S().tasks.find(t => t.id === idActiveIn);
   assert(activeTaskAfter?.levelingDelay === 2, 'geval 3: het actieve document kreeg zijn delays');
@@ -189,8 +240,9 @@ console.log('-- apply-distribution: geval 7, alles terugdraaien --');
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 8, gedeeltelijk terugdraaien --');
 {
-  const record2 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
-  assert(record2 !== null, 'geval 8 opzet: opnieuw toegepast');
+  const outcome8 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
+  assert(outcome8.ok === true, 'geval 8 opzet: opnieuw toegepast');
+  const record2 = outcome8.ok ? outcome8.record : null;
 
   // Bewerk het slapende document ZELF (activeren, muteren, weer wegschakelen) — dat legt een JONGER
   // history-event voor dat document vast, bovenop wat applyDistribution er net achterliet. De poort
@@ -223,8 +275,9 @@ console.log('-- apply-distribution: geval 10, per-document undo/redo na activere
   assert(S().tasks.find(t => t.id === idS1)?.levelingDelay === undefined, 'geval 10 opzet: de slaper begint zonder delay');
   S().switchDocument(activeDocId);
 
-  const record3 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
-  assert(record3 !== null, 'geval 10 opzet: opnieuw toegepast');
+  const outcome10 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
+  assert(outcome10.ok === true, 'geval 10 opzet: opnieuw toegepast');
+  const record3 = outcome10.ok ? outcome10.record : null;
   const sleepEventId = record3!.docs.find(d => d.docId === sleepDocId)!.historyEventId;
 
   S().switchDocument(sleepDocId);
@@ -255,8 +308,9 @@ console.log('-- apply-distribution: geval 11, gesloten document --');
   S().clearLeveling();
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === undefined, 'geval 11 opzet: het actieve document begint zonder delay');
 
-  const record4 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
-  assert(record4 !== null, 'geval 11 opzet: opnieuw toegepast');
+  const outcome11 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
+  assert(outcome11.ok === true, 'geval 11 opzet: opnieuw toegepast');
+  const record4 = outcome11.ok ? outcome11.record : null;
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === 2, 'geval 11 opzet: en kreeg zijn delay');
 
   S().closeDocument(sleepDocId);

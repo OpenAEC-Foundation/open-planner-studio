@@ -20,6 +20,7 @@
     "recoveryDocumentsSkipped_many": "تعذّر تحميل {{count}} ملف استرداد وتم تخطّيه.",
     "recoveryDocumentsSkipped_other": "تعذّر تحميل {{count}} من ملفات الاسترداد وتم تخطّيها.",
     "scheduleFailed": "تعذّر حساب الجدول الزمني",
+    "distributionApplyFailed": "تعذّر تطبيق التوزيع",
     "ifcParseFailed": "تعذّرت قراءة IFC",
     "templateSaved": "تم حفظ الفرع كقالب '{{name}}'",
     "relationCreated": "تم إنشاء العلاقة: من {{predecessor}} إلى {{successor}}",

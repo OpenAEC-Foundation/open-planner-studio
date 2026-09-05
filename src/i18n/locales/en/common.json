@@ -21,6 +21,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",
+    "distributionApplyFailed": "The distribution could not be applied",
     "ifcParseFailed": "IFC could not be read",
     "templateSaved": "Branch saved as template '{{name}}'",
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
