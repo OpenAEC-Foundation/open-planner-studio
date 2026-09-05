@@ -8,7 +8,10 @@ import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
 import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
-import { explainDisplayActualLateEligibility } from './p6CompletedRouteTrace';
+import {
+  explainDisplayActualLateEligibility,
+  explainP6CompletedLateRemainingWindowEligibility,
+} from './p6CompletedRouteTrace';
 
 /**
  * Invoer voor de resultaat-post-pass (`computeScheduleResults`). Puur data + een handvol
@@ -261,8 +264,18 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // dan een verschillende TF krijgen puur omdat B later heeft gewerkt dan A, terwijl beide
     // dezelfde late-ankerketen erven). Zonder de vlag blijft dit exact `early.es`/`early.ef` —
     // byte-identiek, want dan is `late.ls`/`late.lf` ook nog de ongewijzigde actual-pin.
-    const useCompletedRemainingWindow = completedWindowDecision.eligible
-      && so?.p6Source === 'XER' && so.p6CompletedLateFromRemainingWindow === true;
+    //
+    // Review-bevinding 4 (poortdivergentie): deze poort MOET letterlijk dezelfde functie zijn als
+    // die in `CPMSolver.backwardPass`. Stond hier alleen `completedWindowDecision.eligible &&
+    // p6Source === 'XER' && vlag`, dan viel een `TK_Complete` ZONDER `act_end_date` ertussen: wel
+    // window-eligible (de CP_Drtn-route eist geen actualFinish), maar NIET
+    // `backwardActualPin`-eligible, dus de solver liet zijn late zijde ongemoeid terwijl deze
+    // weergavelaag `pinLateToActualWindow` toch uitschakelde en de float tegen het venster ging
+    // meten. Gemeten gevolg vóór deze fix (fixture `check-xer-completed-late-gate-parity.ts`):
+    // ls/lf/tf van zo'n taak veranderden terwijl de solvertak niets deed.
+    const useCompletedRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+      taskObj, dataDate, so,
+    ).eligible;
     const floatEarlyEs = useCompletedRemainingWindow ? completedDisplayWindow!.es : early.es;
     const floatEarlyEf = useCompletedRemainingWindow ? completedDisplayWindow!.ef : early.ef;
     const finishFloat = signedFloat(floatEarlyEf, late.lf, cal, taskObj);

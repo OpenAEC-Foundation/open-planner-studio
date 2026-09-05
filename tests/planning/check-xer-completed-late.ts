@@ -30,6 +30,10 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
 import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import {
+  explainBackwardActualPinEligibility,
+  explainP6CompletedLateRemainingWindowEligibility,
+} from '@/engine/scheduler/p6CompletedRouteTrace';
 import type { SchedulingOptions } from '@/types/project';
 
 const diffs: string[] = [];
@@ -78,11 +82,32 @@ function fixtureBytes(): Uint8Array {
     // waarden zouden toch al op de vloer landen, met of zonder lag).
     '%R\tL\tP1\tC1\tL\tLange, losse taak L\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t80\t80\t2026-11-02 07:00\t2026-11-13 15:00\t\t',
     '%R\tG\tP1\tC1\tG\tVoltooid geïsoleerd G\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t8\t0\t2026-07-06 07:00\t2026-07-06 15:00\t2026-07-06 07:00\t2026-07-06 15:00',
+    // Review-bevinding 3 (SS/SF-rekenfout): NS is een tweede, onafhankelijke open taak (dangling,
+    // krijgt via L dezelfde projecteinde-speling als C/E) met vier voltooide voorgangers — één per
+    // relatietype, allemaal lag 0. SSA/FSA delen dezelfde SS/FS-startanker (NS's eigen late start);
+    // SFA/FFA delen hetzelfde SF/FF-finishanker (NS's eigen late finish). Zonder de nulrestduur-
+    // conversie voor SS/SF (die vóór deze fix de volle taakduur van SSA/SFA dubbel optelde) wijken
+    // SSA/SFA af van hun FS/FF-tegenhanger; met de fix vallen ze exact samen.
+    '%R\tNS\tP1\tC1\tNS\tOnafhankelijke open opvolger NS\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t40\t40\t2026-09-14 07:00\t2026-09-18 15:00\t\t',
+    '%R\tSSA\tP1\tC1\tSSA\tVoltooid via SS\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tFSA\tP1\tC1\tFSA\tVoltooid via FS\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tSFA\tP1\tC1\tSFA\tVoltooid via SF\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tFFA\tP1\tC1\tFFA\tVoltooid via FF\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    // Review-bevinding 4 (poortdivergentie): NX is `TK_Complete` ZONDER `act_end_date` — de lezer
+    // zet daarvoor wél `completion = 1` (status_code) maar GEEN `time.actualFinish`. Zo'n taak komt
+    // dus wel door `explainP6CompletedDataDateWindow` (de CP_Drtn-route eist geen actual-finish)
+    // maar NIET door `explainBackwardActualPinEligibility`. Zonder de gedeelde poort liep de
+    // weergavelaag hier vooruit op een solvertak die niet draaide.
+    '%R\tNX\tP1\tC1\tNX\tVoltooid zonder act_end_date NX\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t',
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
     '%R\tR-AB\tB\tA\tP1\tP1\tPR_FS\t8',
     '%R\tR-BC\tC\tB\tP1\tP1\tPR_FS\t16',
     '%R\tR-CE\tE\tC\tP1\tP1\tPR_FS\t0',
+    '%R\tR-SSA-NS\tNS\tSSA\tP1\tP1\tPR_SS\t0',
+    '%R\tR-FSA-NS\tNS\tFSA\tP1\tP1\tPR_FS\t0',
+    '%R\tR-SFA-NS\tNS\tSFA\tP1\tP1\tPR_SF\t0',
+    '%R\tR-FFA-NS\tNS\tFFA\tP1\tP1\tPR_FF\t0',
     '%E',
   ].join('\n'));
 }
@@ -179,6 +204,71 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
   eq('completed-late AAN: G heeft nul totale float (klem, geen opvolgerdruk)', g.totalFloat, 0);
 }
 
+// ── Vlag AAN: SS/SF/FF-rekenfout (review-bevinding 3). ──────────────────────────────────────────
+// `backwardConstraint` geeft voor SS/SF de late START van de voorganger terug via
+// `finishFromStart(pe, predLS, predTask)` — vóór de fix telde die de VOLLE geplande duur van de
+// voltooide voorganger een tweede keer mee (de nulrestduur-klem hierboven behandelde het resultaat
+// dan óók nog als finish). Met de fix delen SSA/FSA (beide ankeren op NS's eigen late START) en
+// SFA/FFA (beide op NS's eigen late FINISH) exact dezelfde afgeleide late start — dat is geen
+// tautologie: vóór de fix week SSA/SFA een volle taakduur (16 werkuur = 2 werkdagen) af van hun
+// FS/FF-tegenhanger.
+{
+  const { result } = solveWith();
+  const ssa = result.tasks.get('SSA')!;
+  const fsa = result.tasks.get('FSA')!;
+  const sfa = result.tasks.get('SFA')!;
+  const ffa = result.tasks.get('FFA')!;
+  eq('completed-late AAN: SS en FS naar dezelfde opvolger met lag 0 geven dezelfde late start',
+    ssa.lateStart, fsa.lateStart);
+  eq('completed-late AAN: SF en FF naar dezelfde opvolger met lag 0 geven dezelfde late start',
+    sfa.lateStart, ffa.lateStart);
+  // Absolute ankers (review-bevinding 9: geen kale tautologie op de eigen formule) — vastgesteld
+  // via de motor zelf en hier bevroren; de mutatietest hieronder bewijst dat ze zonder de fix
+  // uiteenlopen.
+  eq('completed-late AAN: SSA/FSA absolute late start', { ssa: ssa.lateStart, fsa: fsa.lateStart }, {
+    ssa: '2026-11-09T07:00', fsa: '2026-11-09T07:00',
+  });
+  eq('completed-late AAN: SFA/FFA absolute late start', { sfa: sfa.lateStart, ffa: ffa.lateStart }, {
+    sfa: '2026-11-16T07:00', ffa: '2026-11-16T07:00',
+  });
+}
+
+// ── Poortpariteit solver ↔ weergave (review-bevinding 4). ──────────────────────────────────────
+// NX is `TK_Complete` zonder `act_end_date`. De brede completedWindow-poort laat 'm door, de
+// completed-actual-pin niet — precies de spleet waarin de weergavelaag vóór deze fix wél meebewoog
+// (ls/lf verschoven naar het statusdatumvenster en de float ging tegen dat venster meten) terwijl
+// `CPMSolver.backwardPass` zijn nieuwe tak oversloeg. De gedeelde poort
+// `explainP6CompletedLateRemainingWindowEligibility` sluit beide kanten tegelijk; het bewijs is dat
+// NX met vlag AAN byte-identiek is aan NX met vlag UIT.
+{
+  const { imported } = solveWith();
+  const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
+  const so = imported.project.schedulingOptions;
+  const nx = imported.tasks.find(t => t.id === 'NX');
+  if (!nx) throw new Error('fixture mist taak NX');
+  eq('poortpariteit: NX heeft completion 1 maar géén actualFinish', {
+    completion: nx.time.completion, actualFinish: nx.time.actualFinish ?? null,
+  }, { completion: 1, actualFinish: null });
+  eq('poortpariteit: NX komt WEL door de brede completedWindow-poort',
+    explainP6CompletedDataDateWindow(nx, dataDate, so), { eligible: true, reason: 'eligible' });
+  eq('poortpariteit: NX komt NIET door de completed-actual-pin',
+    explainBackwardActualPinEligibility(nx, dataDate, so),
+    { eligible: false, reason: 'missingActualFinish' });
+  eq('poortpariteit: de gedeelde poort weigert NX om diezelfde reden',
+    explainP6CompletedLateRemainingWindowEligibility(nx, dataDate, so),
+    { eligible: false, reason: 'missingActualFinish' });
+
+  const on = solveWith().result.tasks.get('NX')!;
+  const off = solveWith({ p6CompletedLateFromRemainingWindow: false }).result.tasks.get('NX')!;
+  eq('poortpariteit: NX is met vlag AAN byte-identiek aan vlag UIT (solver deed niets, weergave dus ook niet)', {
+    lateStart: on.lateStart, lateFinish: on.lateFinish, totalFloat: on.totalFloat,
+    earlyStart: on.earlyStart, earlyFinish: on.earlyFinish,
+  }, {
+    lateStart: off.lateStart, lateFinish: off.lateFinish, totalFloat: off.totalFloat,
+    earlyStart: off.earlyStart, earlyFinish: off.earlyFinish,
+  });
+}
+
 // ── Vlag UIT: byte-identiek aan het bestaande gedrag (rauwe actual-pin). ────────────────────────
 {
   const { result } = solveWith({ p6CompletedLateFromRemainingWindow: false });
@@ -197,6 +287,21 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
   eq('completed-late UIT: A en B hebben (zoals vóór deze etappe) totale float 0', {
     a: a.totalFloat, b: b.totalFloat, g: g.totalFloat,
   }, { a: 0, b: 0, g: 0 });
+  const ssa = result.tasks.get('SSA')!;
+  const fsa = result.tasks.get('FSA')!;
+  const sfa = result.tasks.get('SFA')!;
+  const ffa = result.tasks.get('FFA')!;
+  eq('completed-late UIT: SSA/FSA/SFA/FFA blijven op de rauwe actual-pin, ongeacht relatietype', {
+    ssa: { lateStart: ssa.lateStart, lateFinish: ssa.lateFinish, totalFloat: ssa.totalFloat },
+    fsa: { lateStart: fsa.lateStart, lateFinish: fsa.lateFinish, totalFloat: fsa.totalFloat },
+    sfa: { lateStart: sfa.lateStart, lateFinish: sfa.lateFinish, totalFloat: sfa.totalFloat },
+    ffa: { lateStart: ffa.lateStart, lateFinish: ffa.lateFinish, totalFloat: ffa.totalFloat },
+  }, {
+    ssa: { lateStart: '2026-08-03T07:00', lateFinish: '2026-08-04T15:00', totalFloat: 0 },
+    fsa: { lateStart: '2026-08-03T07:00', lateFinish: '2026-08-04T15:00', totalFloat: 0 },
+    sfa: { lateStart: '2026-08-03T07:00', lateFinish: '2026-08-04T15:00', totalFloat: 0 },
+    ffa: { lateStart: '2026-08-03T07:00', lateFinish: '2026-08-04T15:00', totalFloat: 0 },
+  });
 }
 
 if (diffs.length > 0) {

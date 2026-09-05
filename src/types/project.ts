@@ -111,7 +111,22 @@ export interface SchedulingOptions {
    *  actual-venster-pin blijft behouden, byte-identiek voor IFC/MSPDI/MPP en voor elke XER die
    *  vóór deze vlag is ingelezen en als IFC is opgeslagen. Uitsluitend gezet door `xerReader`
    *  (`xerScheduleOptions.ts`), en alleen effectief onder `p6Source === 'XER'`
-   *  (`CPMSolver.p6XerOption`) — exact het `p6FinishMilestoneBoundaryWindow`-stramien. */
+   *  (`CPMSolver.p6XerOption`) — exact het `p6FinishMilestoneBoundaryWindow`-stramien.
+   *
+   *  BEWIJSBASIS (review-bevinding 6, eerlijk afgebakend): de regel is gemeten op precies ÉÉN
+   *  corpusbestand. Over het hele XER-corpus komen 2.042 voltooide taken door de venster-poort;
+   *  2.040 daarvan staan in `rehab-2.xer`, de twee overige zijn losse mpxj-fixtures met één taak
+   *  en zonder ls/lf-orakel. De 591 voltooide taken in de 28 andere corpusbestanden vallen
+   *  allemaal buiten de poort (`wrongDurationType` 430, `remainingStartOff` 146, …). Wat de rest
+   *  van het corpus beschermt is dus niet de regel maar de NAUWTE van de poort
+   *  (`DT_FixedDUR2` + `rem_target_link_flag=Y` + expliciet targetvenster + `CP_Drtn`) — verruimt
+   *  iemand die poort, dan landt deze regel in één klap op honderden ongevalideerde taken.
+   *
+   *  RETAINED LOGIC: élk gemeten corpusbestand draait `RETAINED_LOGIC` (rehab-2 heeft zelfs geen
+   *  SCHEDOPTIONS-rij en valt op de defaults terug). Er is dus GEEN meting van P6-gedrag onder
+   *  `sched_progress_override = Y`. `deriveXerScheduleOptions` zet de vlag daarom expliciet weer
+   *  UIT zodra de bron progress override declareert — fail-closed, byte-identiek aan vóór deze
+   *  etappe. Wie hem daar wil openzetten heeft eerst een progress-override-meting nodig. */
   p6CompletedLateFromRemainingWindow?: boolean;
 }
 

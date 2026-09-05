@@ -52,9 +52,9 @@
         { "branch": "house", "axis": "ff", "deviations": 2352, "measurable": 7221 },
         { "branch": "xerDefaults", "axis": "es", "deviations": 1062, "measurable": 7637 },
         { "branch": "xerDefaults", "axis": "ef", "deviations": 1287, "measurable": 7649 },
-        { "branch": "xerDefaults", "axis": "ls", "deviations": 4791, "measurable": 7519 },
-        { "branch": "xerDefaults", "axis": "lf", "deviations": 4781, "measurable": 7510 },
-        { "branch": "xerDefaults", "axis": "tf", "deviations": 4592, "measurable": 7602 },
+        { "branch": "xerDefaults", "axis": "ls", "deviations": 3901, "measurable": 7519 },
+        { "branch": "xerDefaults", "axis": "lf", "deviations": 3891, "measurable": 7510 },
+        { "branch": "xerDefaults", "axis": "tf", "deviations": 4235, "measurable": 7602 },
         { "branch": "xerDefaults", "axis": "ff", "deviations": 502, "measurable": 7221 }
       ]
     },
@@ -895,11 +895,11 @@
       "xerDefaultsMovement": [
         5638,
         5486,
-        6955,
-        6957,
-        6363,
+        6950,
+        6951,
+        6360,
         2433,
-        63
+        69
       ],
       "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
@@ -4491,15 +4491,15 @@
         "measurable": 7649
       },
       "ls": {
-        "deviations": 4791,
+        "deviations": 3901,
         "measurable": 7519
       },
       "lf": {
-        "deviations": 4781,
+        "deviations": 3891,
         "measurable": 7510
       },
       "tf": {
-        "deviations": 4592,
+        "deviations": 4235,
         "measurable": 7602
       },
       "ff": {

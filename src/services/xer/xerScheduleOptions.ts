@@ -398,6 +398,14 @@ export function deriveXerScheduleOptions(
   }
 
   const progressMode = progressModeValue(row, fallbacks);
+  // X-O7 laag 1, klasse (i) (review-bevinding 6): de bewijsbasis voor
+  // `p6CompletedLateFromRemainingWindow` is uitsluitend RETAINED_LOGIC-corpus (rehab-2, geen enkel
+  // gemeten bestand declareert PROGRESS_OVERRIDE) — zie het docblok bij het veld in
+  // `types/project.ts`. Een expliciete `sched_progress_override=Y` schakelt de vlag daarom weer
+  // uit, byte-identiek aan vóór deze etappe, totdat een eigen meting progress-override-gedrag dekt.
+  if (progressMode !== 'RETAINED_LOGIC') {
+    schedulingOptions.p6CompletedLateFromRemainingWindow = false;
+  }
 
   const floatPathFields = [
     'enable_multiple_longest_path_calc',
