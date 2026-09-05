@@ -7,15 +7,18 @@
 // T11. Exit 0 = alles groen — de tail van dit script kan "alles groen" tonen bij een gefaalde
 // BUNDEL; alleen de exitcode telt.
 
-import { writeCSV } from '@/services/csv/csvWriter';
+import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { readCSV } from '@/services/csv/csvReader';
 import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { detectDateOrder, finalizeProgressRows, parseSheetDate, parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { PROGRESS_IMPORT_LIMITS, type DateOrder, type DateOrderDetection, type RawDateCell } from '@/services/progressImport/types';
+import { buildProgressImportPlan, type ProgressPlanDeps } from '@/services/progressImport/buildPlan';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
+import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
+import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -395,6 +398,78 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     4,
   );
   eq('…en draagt gewoon zijn eigen task-id', multilineThenPlain.rawRows[1]?.taskId, 'task-2');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Writer — voortgangsblad (E7, eigenaarsbesluit 2026-09-05): `writeProgressSheetCSV` is een tweede
+// SCHRIJVER op dezelfde helpers (escapeCSV/formatCompletionPercent/BOM/CRLF) uit csvWriter.ts —
+// geen tweede lezer. Exacte 8-koloms kop, correcte veldvolgorde, fractioneel percentage met
+// decimalen, en een round-trip terug door de bestaande lezer/planner (STUB-planner, zoals
+// check-progress-import.ts Deel 2) die op een ongewijzigd blad NUL wijzigingen mag opleveren.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+{
+  function stubPlanEdits(
+    task: Task,
+    edits: readonly CellEditIntent[],
+  ): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
+    const next: Task = { ...task, time: { ...task.time } };
+    for (const edit of edits) {
+      const id = String(edit.columnId);
+      if (id === 'task.time.completion') next.time.completion = edit.value as number;
+      else if (id === 'task.time.actualStart') next.time.actualStart = edit.value as string;
+      else if (id === 'task.time.actualFinish') next.time.actualFinish = edit.value as string;
+    }
+    return { ok: true, value: { task: next, changed: true, timephasedGuidanceLost: false, scheduleStale: true } };
+  }
+  const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
+
+  const taskA = baseTask('task-a', '2026-01-05', 5);
+  taskA.wbsCode = '1';
+  taskA.name = 'Fundering';
+  taskA.time.completion = 0.335;
+  const taskB = baseTask('task-b', '2026-01-12', 3);
+  taskB.wbsCode = '2';
+  taskB.time.completion = 1;
+  taskB.time.actualStart = '2026-01-12';
+  taskB.time.actualFinish = '2026-01-16';
+
+  const csv = writeProgressSheetCSV([taskA, taskB]);
+
+  ok('begint met de BOM', csv.startsWith('﻿'));
+  const withoutBom = csv.slice(1);
+  const lines = withoutBom.split('\r\n');
+  eq(
+    'exacte 8-koloms kop, in die volgorde',
+    lines[0],
+    'OPS Task ID;WBS;Name;Start;Finish;Completion (%);Actual Start;Actual Finish',
+  );
+  const fieldsA = lines[1]?.split(';') ?? [];
+  eq('rij 1: 8 velden', fieldsA.length, 8);
+  eq('rij 1 draagt het echte taak-id', fieldsA[0], 'task-a');
+  eq('rij 1 draagt de WBS', fieldsA[1], '1');
+  eq('rij 1 draagt de naam', fieldsA[2], 'Fundering');
+  eq('rij 1 draagt Start', fieldsA[3], taskA.time.earlyStart || taskA.time.scheduleStart);
+  eq('rij 1 draagt Finish', fieldsA[4], taskA.time.earlyFinish || taskA.time.scheduleFinish);
+  eq('rij 1: fractioneel percentage met decimalen (33,5% ⇒ "33.5")', fieldsA[5], '33.5');
+  eq('rij 1: geen actuals ⇒ lege cellen', fieldsA[6], '');
+  eq('rij 1: geen actuals ⇒ lege cellen', fieldsA[7], '');
+
+  const fieldsB = lines[2]?.split(';') ?? [];
+  eq('rij 2: 100% blijft "100"', fieldsB[5], '100');
+  eq('rij 2 draagt Actual Start', fieldsB[6], '2026-01-12');
+  eq('rij 2 draagt Actual Finish', fieldsB[7], '2026-01-16');
+
+  // Geen predecessors/duration/type/status/critical/float/description — de volle CSV-export heeft
+  // die kolommen wel, dit slanke blad bewust niet.
+  ok('geen "Predecessors"-kolom in het slanke blad', !lines[0]?.includes('Predecessors'));
+  ok('geen "Duration (days)"-kolom in het slanke blad', !lines[0]?.includes('Duration'));
+
+  // Round-trip: een ONGEWIJZIGD, écht geschreven en teruggelezen blad ⇒ nul wijzigingen.
+  const sheet = parseProgressCsv(csv);
+  const rows = finalizeProgressRows(sheet, 'dmy');
+  const plan = buildProgressImportPlan(rows, [taskA, taskB], stubDeps);
+  eq('round-trip van het slanke blad ⇒ nul wijzigingen', plan.appliedCount, 0);
+  ok('…en dus ook geen enkele rij die als apply doorliep', plan.rows.every((row) => row.outcome !== 'apply'));
 }
 
 if (diffs.length > 0) {

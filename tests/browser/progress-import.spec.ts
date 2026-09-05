@@ -324,3 +324,36 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
   await expect(dialog(page)).toBeVisible();
   await expect(rowByNumber(page, 2).getByRole('button', { name: CLEAR_LINK })).toBeVisible();
 });
+
+// E7 (eigenaarsbesluit 2026-09-05): "ik wil gewoon op een knop in de planning tab kunnen klikken en
+// dan krijg ik de juiste CSV met de juiste instellingen in mijn downloads" — de exportknop naast de
+// importknop in dezelfde `progressGroup`. Dit bewijst de ECHTE gebruikershandeling: een muisklik op
+// "Voortgangsblad exporteren" op Planning levert een download op met de juiste bestandsnaam en
+// precies de acht verwachte kolomkoppen van het slanke blad (niet de volle CSV-export).
+const EXPORT_BUTTON = /^(Export progress sheet|Voortgangsblad exporteren)$/;
+
+test('voortgangsblad-export: knop op Planning levert de juiste CSV in de downloads', async ({ page, ops: _ops }) => {
+  await seedProject(page, [
+    { name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ], 'Voortgangsblad-export');
+
+  // Planning-tabblad, waar `progressGroup` de exportknop vóór de importknop toont.
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' });
+  });
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: EXPORT_BUTTON }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/-voortgang\.csv$/);
+
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(chunk as Buffer);
+  const buffer = Buffer.concat(chunks);
+  // BOM (U+FEFF) strippen vóór het vergelijken — net als `parseProgressCsv` als eerste doet.
+  const text = buffer.toString('utf-8').replace(/^﻿/, '');
+  const firstLine = text.split(/\r\n|\n/)[0];
+  expect(firstLine).toBe('OPS Task ID;WBS;Name;Start;Finish;Completion (%);Actual Start;Actual Finish');
+});
