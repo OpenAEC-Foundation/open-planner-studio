@@ -292,6 +292,29 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
   `documentContract`, `ifcPsets`, `taskColumnRegistry`, `fieldCoverage`. TODO-registratie in de
   sectie "Contour-engine (2026-09)".
 
+- **X-O7 — VASTGELEGD (2026-09-05, met één genoteerde uitzondering): een fidelity-stap mag geen
+  as slechter maken.** De regel bestaat om te voorkomen dat een totaalcijfer gekocht wordt door
+  fouten van de ene as naar de andere te verschuiven. Hij verbiedt níét elke stap die een
+  *compensatiefout* blootlegt.
+
+  **Uitzondering, etappe 7b (weekend-klemherstel in `xerCalendarData.ts`).** Deze stap verbetert
+  ls/lf/tf/ff met 1.426 cellen en verslechtert es/ef met 449 (es 618→940, ef 813→940 op
+  `rehab-2.xer`; 344 resp. 327 taken nieuw fout, 281× één en 56× twee werkdagen te laat, vrijwel
+  alle op de 842-kalendergroep). De uitzondering is toegestaan omdat de BRON de kalender bevestigt
+  en de rest als dossier is geregistreerd:
+
+  1. P6 zet nul ES/EF/LS/LF ín alle negen gereconstrueerde blokken tegen 811 in de drie dagen
+     eromheen (167/214/178/252 voor de vier blokken die in de projectperiode vallen);
+  2. P6's eigen opgeslagen vensters tellen op de OUDE kalender 10,00 werkdagen voor een taak van 7
+     (`V3109400`) en 24,00 voor een taak van 21 (`V3109300`) — intern inconsistent — en op de
+     gereconstrueerde kalender exact 7,00 en 21,00.
+
+  Daaruit volgt dat een deel van de eerdere es-treffers een compensatiefout was tussen een te korte
+  kalender en een te vroeg startanker. Zulke fidelity is niet beschermenswaardig, en een regel die
+  deze stap blokkeert maakt de volgorde onmogelijk: het ankergat is niet te diagnosticeren zolang de
+  kalender de fout in de vensterlengte verstopt. **Een geschonden planregel zonder geschreven
+  uitzondering is een tijdbom voor de volgende reviewer — vandaar deze notitie.**
+
 ## §6 Banen en taken
 
 Vier banen, elk een eigen worktree (`.claude/worktrees/xer-{meetlat,lezer,motor,data}`).
@@ -523,3 +546,43 @@ dan meet, meet zijn eigen aannames.
    onderdeel van de etappe geworden (X-O1/X-O2) — dat is de bewuste verzwaring; XER-export,
    het TT_Rsrc-rekenmodel en p6xml-pariteit blijven begrensde vervolgtrajecten. De goal is
    lezen-getrouw-op-vier-assen; de multi-documentroute is er de gebruikerszichtbare helft van.
+
+## §9 Dossiers uit de etappe
+
+### 7b-4 — forward-anker na gereconstrueerde kalenderblokken
+
+**Status:** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
+2026-09-05.
+
+**Wat er staat.** Op `rehab-2.xer` verschuiven 344 ES- en 327 EF-cellen van goed naar fout
+(es 618→940, ef 813→940), 343 daarvan op de 842-kalendergroep; 281× één werkdag te laat, 56× twee,
+2× zes en 3× elf. Ze lopen van 2008-11 t/m 2010-03, dus vanaf direct ná het oktoberblok.
+
+**Wat het NIET is.** Geen kalenderfout. Gemeten op de gereconstrueerde kalender telt ons ES→EF-venster
+voor alle vijf de getraceerde taken exact evenveel werkminuten als dat van P6:
+
+| taak | duur | P6-venster op de OUDE kalender | op de NIEUWE kalender | ons venster (nieuw) |
+|---|---|---|---|---|
+| `V3109400` | 7 d | 10,00 werkdagen | 7,00 | 7,00 |
+| `V3109300` | 21 d | 24,00 werkdagen | 21,00 | 21,00 |
+| `V3109420` | 7 d | 7,00 | 7,00 | 7,00 |
+| `V3109220` | 3 d | 3,00 | 3,00 | 3,00 |
+| `V3109480` | 7 d | 7,00 | 7,00 | 7,00 |
+
+De duurwandeling klopt dus; alleen het STARTANKER ligt één tot twee werkdagen te laat. Concreet:
+P6 zet `V3109400` op 2008-12-04 → 12-24, wij op 12-06 → 12-25 — hetzelfde venster van zeven
+werkdagen, twee werkdagen naar rechts.
+
+**Waar te beginnen.** Die vijf taken, en de vraag wat P6 aan de forwardkant doet dat wij niet doen
+zodra een keten een meerdaags vrij blok kruist (kandidaten: retained-logic/voortgangssemantiek rond
+de statusdatum, of de `ownAnchor`-vloer voor taken met een voorganger vlak vóór een blok).
+
+**n=1-basis.** Het weekend-klemherstel zelf is afgeleid uit één bestand van 93
+(`crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, P6 6.0-export, kalenderdata gedeeld door 119 van
+de 124 kalenders). De reconstructie wordt binnen dat bestand door de bron bevestigd (zie de twee
+metingen bij X-O7 hierboven). Wat er níét is: een tweede bestand. MPXJ, de referentie-implementatie,
+kent het verschijnsel niet en leest de `Exceptions`-lijst letterlijk
+(`TableContextReader.processCalendarExceptions`). De poort is daarom bewust record-lokaal en
+conservatief — drie eisen op het record zelf, corpusloos gepind in `check-xer-calendar-data.ts`
+sectie 22a–22g. Duikt er een tweede bestand op, dan bevestigt of ontkracht dat de regel; het mag er
+niet stil op meeliften.

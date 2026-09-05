@@ -247,13 +247,32 @@ function shiftIsoDate(date: string, offset: number): string {
  * 10-06 (ma) er twee keer staan. De schrijver heeft de blokdagen op de MA-VR-as geklemd:
  * **zaterdag → de vrijdag ervóór, zondag → de maandag erná.**
  *
- * DE BRONTOETS. P6's eigen opgeslagen datums bevestigen dat: voor de 6.548 taken die op deze
- * kalenderdata staan zet P6 in álle negen blokken — inclusief de gereconstrueerde weekenddagen —
- * nul ES, EF, LS en LF, terwijl hij in de drie dagen direct vóór en ná de vier blokken die in de
- * projectperiode vallen 125 (okt-2008), 141 (dec-2008), 64 (sep-2009) en 78 (nov-2009) datums zet.
- * De weekenddagen ín die blokken zijn dus aantoonbaar niet-werkend. (De 14 EF's die op 2008-12-14
- * te vinden zijn horen bij kalender `893` `R111 - 2`, een 7-daagse kalender zonder uitzonderingen —
- * die wordt hier niet geraakt.)
+ * DE BRONTOETS. P6's eigen opgeslagen datums bevestigen dat. Meetdefinitie: tel over de 6.548 taken
+ * die op deze kalenderdata staan alle vier de datumassen (ES, EF, LS én LF), waarbij "IN het blok"
+ * de kalenderdagen van de GERECONSTRUEERDE blokspanne zijn en "de rand" de drie kalenderdagen direct
+ * vóór de eerste blokdag plus de drie direct ná de laatste. Uitkomst:
+ *
+ *   blok (gereconstrueerde spanne)   IN   RAND (unieke taken)
+ *   2008-09-29 … 2008-10-09           0   167 (153)
+ *   2008-12-07 … 2008-12-18           0   214 (193)
+ *   2009-09-18 … 2009-09-24           0   178 (157)
+ *   2009-11-26 … 2009-12-05           0   252 (204)
+ *   de vijf blokken buiten de projectperiode
+ *                                     0     0 (niet-informatief, en nul effect op de fidelity)
+ *
+ * Nul datums ín de blokken tegen 811 eromheen: de weekenddagen ín die blokken zijn dus aantoonbaar
+ * niet-werkend. (De 14 EF's die op 2008-12-14 te vinden zijn horen bij kalender `893` `R111 - 2`,
+ * een 7-daagse kalender zonder uitzonderingen — die wordt hier niet geraakt.)
+ *
+ * Tweede, onafhankelijke bevestiging: P6's eigen ES→EF-vensters. Op de OUDE kalender overspande
+ * `V3109400` (7 dagen duur) 10,00 werkdagen en `V3109300` (21 dagen) 24,00 — intern inconsistent.
+ * Op de gereconstrueerde kalender tellen ze exact 7,00 en 21,00.
+ *
+ * n=1. Deze regel is afgeleid uit één bestand van 93. MPXJ, de referentie-implementatie, kent het
+ * verschijnsel niet en leest de `Exceptions`-lijst letterlijk
+ * (`TableContextReader.processCalendarExceptions`). De poort hieronder is daarom bewust
+ * record-lokaal en conservatief; een tweede bestand moet de regel bevestigen of ontkrachten, niet
+ * er stil op meeliften. Zie dossier 7b-4 in `docs/superpowers/plans/2026-08-20-plan-xer-p6-lezer.md`.
  *
  * DE POORT IS PER RECORD, NIET PER KALENDER. Een klemherstel mag alleen volgen uit bewijs op het
  * record zelf, anders maakt één toevallig dubbel record ergens in de lijst stilzwijgend verre
@@ -294,16 +313,61 @@ function weekendClampTarget(
   return target;
 }
 
-/** Draagt DIT record zelf het bewijs van een geklemde weekenddag? Zie `weekendClampTarget`. */
+/**
+ * Hoeveel LOSSE uitzonderingsdatums telt de aaneengesloten reeks rond `date`? Een gat van hoogstens
+ * drie kalenderdagen breekt de reeks niet — dat gat is nu juist het geklemde weekend. Maximaal
+ * `LIMIT` stappen per richting, zodat een kalender met honderden losse feestdagen deze telling niet
+ * tot een volledige scan maakt; het antwoord wordt alleen tegen een ondergrens van 3 getoetst.
+ */
+function exceptionRunLength(date: string, exceptionDates: ReadonlySet<string>): number {
+  const LIMIT = 8;
+  let total = 1;
+  for (const direction of [-1, 1]) {
+    let current = date;
+    for (let step = 0; step < LIMIT; step++) {
+      const next = [1, 2, 3]
+        .map(gap => shiftIsoDate(current, direction * gap))
+        .find(candidate => exceptionDates.has(candidate));
+      if (next === undefined) break;
+      total++;
+      current = next;
+    }
+  }
+  return total;
+}
+
+/**
+ * Draagt DIT record zelf het bewijs van een geklemde weekenddag? Zie `weekendClampTarget`.
+ *
+ * Drie eisen, alle drie lokaal op het record en zijn directe omgeving:
+ *
+ *  1. **Meerdaags blok.** Een geklemd weekend zit per definitie ín een meerdaags vrij blok; de reeks
+ *     rond dit record telt minstens drie losse uitzonderingsdatums. Zonder deze eis maakt een
+ *     tweedaags feestdagblokje met een per ongeluk verdubbeld vrijdagrecord al een zaterdag vrij
+ *     (fixture 22g), en twee losse feestdagen die toevallig drie dagen uit elkaar liggen ook
+ *     (fixture 22f). In `rehab-2.xer` tellen alle negen blokken 5 tot 11 datums.
+ *  2. **Blokvervolg aan de van-het-weekend-AFGEKEERDE zijde** — de dag vóór een vrijdag, of de dag
+ *     ná een maandag, draagt zelf ook een uitzondering. Bij de sprongvorm volstaat het dat één van
+ *     de twee sprongpartners dat doet: blok 2006-12-29 … 2007-01-13 opent met een vrijdag zonder
+ *     voorganger maar zijn maandagpartner 2007-01-01 heeft 01-02 naast zich, en blok
+ *     2009-09-18 … 09-24 idem via maandag 09-21.
+ *  3. **Een van de twee bewijsvormen**: de sprong over het weekend (vrijdag ↔ maandag, drie
+ *     kalenderdagen uit elkaar), of een aangrenzend duplicaat op het record zelf.
+ */
 function hasWeekendClampEvidence(
   date: string, exceptionDates: ReadonlySet<string>, adjacentDuplicates: ReadonlySet<string>,
 ): boolean {
   const weekday = isoWeekdayOf(date);
-  // Bewijsvorm 1 — de sprong over het weekend: vrijdag ↔ maandag, drie kalenderdagen verderop.
-  if (exceptionDates.has(shiftIsoDate(date, weekday === 5 ? 3 : -3))) return true;
-  // Bewijsvorm 2 — aangrenzend duplicaat, mits het blok aan de binnenzijde doorloopt.
-  return adjacentDuplicates.has(date)
-    && exceptionDates.has(shiftIsoDate(date, weekday === 5 ? -1 : 1));
+  if (weekday !== 1 && weekday !== 5) return false;
+  if (exceptionRunLength(date, exceptionDates) < 3) return false;
+  const continuesAwayFromWeekend = (candidate: string): boolean =>
+    exceptionDates.has(shiftIsoDate(candidate, isoWeekdayOf(candidate) === 5 ? -1 : 1));
+  // Bewijsvorm 1 — de sprong over het weekend, mits het blok aan minstens één afgekeerde zijde doorloopt.
+  const partner = shiftIsoDate(date, weekday === 5 ? 3 : -3);
+  if (exceptionDates.has(partner)
+    && (continuesAwayFromWeekend(date) || continuesAwayFromWeekend(partner))) return true;
+  // Bewijsvorm 2 — aangrenzend duplicaat, mits het blok aan de eigen afgekeerde zijde doorloopt.
+  return adjacentDuplicates.has(date) && continuesAwayFromWeekend(date);
 }
 
 function calendarType(raw: string): XerCalendarType {

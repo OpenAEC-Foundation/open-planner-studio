@@ -595,6 +595,19 @@ eq('22d een duplicaat elders laat losse vrijdagrecords ongemoeid',
   holidayDates(calendarData(FRIDAY_OFF_WEEK, [40149, 40149, 40151, 40158])),
   ['2009-12-02', '2009-12-04', '2009-12-11']);
 
+// 22f — NEGATIEF (restlek uit de her-check): twee LOSSE feestdagen op een za-do-kalender die
+// toevallig drie dagen uit elkaar liggen — vrijdag 2009-12-04 en maandag 2009-12-07. Op zo'n
+// kalender is elke vrijdag-uitzondering per definitie redundant, dus zonder de meerdaags-blok-eis
+// én de blokvervolg-eis zou de sprongvorm hier zaterdag 12-05 half vrijmaken (en zondag 12-06 niet).
+eq('22f twee losse feestdagen drie dagen uit elkaar vormen geen geklemd blok',
+  holidayDates(calendarData(FRIDAY_OFF_WEEK, [40151, 40154])), ['2009-12-04', '2009-12-07']);
+
+// 22g — NEGATIEF (restlek uit de her-check): een tweedaags feestdagblok (do 2009-12-03 + vr 12-04)
+// op een 7-daagse kalender, waarbij de vrijdag per ongeluk dubbel staat. Het blokvervolg aan de
+// afgekeerde zijde is er wél (de donderdag), dus alleen de meerdaags-blok-eis houdt dit tegen.
+eq('22g een tweedaags blok met een dubbel vrijdagrecord maakt geen zaterdag vrij',
+  holidayDates(calendarData(SEVEN_DAY_WEEK, [40150, 40151, 40151])), ['2009-12-03', '2009-12-04']);
+
 // 22e — NEGATIEF: dezelfde geklemde reeks op een gewone ma-vr-kalender. Het klemdoel is daar zelf al
 // niet-werkend, dus herstellen zou niets veranderen en gebeurt niet.
 eq('22e op een ma-vr-kalender wordt er niets hersteld',
