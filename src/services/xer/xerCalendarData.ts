@@ -260,7 +260,9 @@ function shiftIsoDate(date: string, offset: number): string {
  *   de vijf blokken buiten de projectperiode
  *                                     0     0 (niet-informatief, en nul effect op de fidelity)
  *
- * Nul datums ín de blokken tegen 811 eromheen: de weekenddagen ín die blokken zijn dus aantoonbaar
+ * Nul datums ín alle negen blokken tegen 811 in de rand — en die 811 zit volledig op de vier blokken
+ * binnen de projectperiode (167/214/178/252), terwijl de overige vijf blokken 0 ín én 0 in de rand
+ * hebben en dus niets bewijzen: de weekenddagen ín de vier actieve blokken zijn aantoonbaar
  * niet-werkend. (De 14 EF's die op 2008-12-14 te vinden zijn horen bij kalender `893` `R111 - 2`,
  * een 7-daagse kalender zonder uitzonderingen — die wordt hier niet geraakt.)
  *
@@ -353,6 +355,14 @@ function exceptionRunLength(date: string, exceptionDates: ReadonlySet<string>): 
  *     2009-09-18 … 09-24 idem via maandag 09-21.
  *  3. **Een van de twee bewijsvormen**: de sprong over het weekend (vrijdag ↔ maandag, drie
  *     kalenderdagen uit elkaar), of een aangrenzend duplicaat op het record zelf.
+ *
+ * WAT DEZE DRIE EISEN NIET DOEN: ze sluiten de twee GEMETEN false positives (fixtures 22f en 22g),
+ * niet de hele klasse. Voeg aan 22f één dag toe — vrijdag 2009-12-04, maandag 12-07 én dinsdag
+ * 12-08 als losse feestdagen op een za-do-kalender — en de reeks haalt de drempel van drie, de
+ * maandag heeft blokvervolg aan zijn afgekeerde zijde, en zaterdag 12-05 wordt alsnog vrijgemaakt
+ * (zondag 12-06 niet, want een maandagrecord op deze kalender is geen redundant record). Het risico
+ * is empirisch klein — nul treffers in 93 corpusbestanden buiten `rehab-2.xer` — maar het is geen
+ * nul, en de poort is een filter op bewijskracht, geen sluitend bewijs.
  */
 function hasWeekendClampEvidence(
   date: string, exceptionDates: ReadonlySet<string>, adjacentDuplicates: ReadonlySet<string>,
