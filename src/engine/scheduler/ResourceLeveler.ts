@@ -877,15 +877,20 @@ export function levelResources(
     // vroegst mogelijke onderbroken plaatsing. Gebonden door `finishWindowLimit` (de FINISH-versie
     // van het plafond, niet de start-`limit` hierboven) — zie het docblok daar.
     if (splitEligible(task)) {
-      const scatterDays = scatterSlot(taskId, pf, finishWindowLimit(taskId));
+      const scatter = scatterSlot(taskId, pf, finishWindowLimit(taskId));
       // B1c-plan3 taak 1 (bevinding 12): een LEGE dagenset is geen plaatsing. `scatterSlot` geeft
       // `[]` terug zodra `need === 0` (`chosen.length === need` is dan meteen waar), en `[]` is
       // truthy — `parseDate(scatterDays[0])` maakte er dan een Invalid Date van, die als `start` de
       // hele hoofdlus in reisde (delay-meting, boeking, shifts). Niets plaatsen hoort door te vallen
       // naar het "geen slot"-vangnet hieronder.
-      if (scatterDays && scatterDays.length > 0) {
-        return { start: parseDate(scatterDays[0]), unresolved: [], scatterDays };
+      if (scatter.days && scatter.days.length > 0) {
+        return { start: parseDate(scatter.days[0]), unresolved: [], scatterDays: scatter.days };
       }
+      // B8 (fixronde B1c-etappe-3): de scatter is de LAATSTE poging. Liep díé op de zoekhorizon
+      // leeg — en niet op de venstergrens — dan is de horizon de eerlijke reden, ook wanneer de
+      // aaneengesloten scan hierboven nog netjes op het venster stopte. Zonder deze regel viel de
+      // uitputting stil weg en verzon `reasonFor` een capaciteits-/plafonddiagnose.
+      if (scatter.horizonExhausted) horizonExhausted = true;
     }
 
     // Geen slot: blijf op de gesnapte PF, verzamel de conflictdagen (waar de vraag de restcapaciteit
@@ -1015,11 +1020,21 @@ export function levelResources(
     return true;
   }
 
-  /** Dag-voor-dag-plaatsing (B1c-plan-2 taak 9). Geeft de gekozen werkdagen (ISO, oplopend) of
-   *  `null` wanneer er binnen het venster geen volledige set te vinden is. `finishLimit` begrenst de
-   *  LAATSTE dag (niet de start): met onderbrekingen groeit de FINISH van de taak, en dát is wat het
-   *  plafond moet binden (zie `finishWindowLimit`). */
-  function scatterSlot(taskId: string, pf: Date, finishLimit: Date | null): string[] | null {
+  /** Dag-voor-dag-plaatsing (B1c-plan-2 taak 9). Geeft de gekozen werkdagen (ISO, oplopend) in
+   *  `days`, of `days: null` wanneer er binnen het venster geen volledige set te vinden is.
+   *  `finishLimit` begrenst de LAATSTE dag (niet de start): met onderbrekingen groeit de FINISH van
+   *  de taak, en dát is wat het plafond moet binden (zie `finishWindowLimit`).
+   *
+   *  `horizonExhausted` spiegelt de gelijknamige vlag in `findSlot` (fixronde B1c-etappe-3,
+   *  bevinding B8): liep deze scan leeg op de ZOEKHORIZON (`scanLimit`, evt. verlengd door de
+   *  grootboekhorizon) in plaats van op de venstergrens, dan is dat een REKENgrens en geen
+   *  capaciteits- of plafondprobleem. Zonder deze terugmelding viel een uitgeputte scatter door naar
+   *  het "geen slot"-vangnet met `horizonExhausted === false`, en kreeg de gebruiker
+   *  CEILING_TOO_TIGHT/INSUFFICIENT_CAPACITY te zien in plaats van NO_WINDOW_IN_HORIZON — een
+   *  diagnose die hem naar het verkeerde knopje stuurt. */
+  function scatterSlot(
+    taskId: string, pf: Date, finishLimit: Date | null,
+  ): { days: string[] | null; horizonExhausted: boolean } {
     // B1c-plan3 taak 2: `task` komt uit `workById`, zelfde wissel als `findSlot`/`bookDemandAt`
     // hierboven, voor consistentie — `scatterSlot` leest hier vandaag geen `splitGaps`, maar de
     // gedeelde bron voorkomt dat een latere uitbreiding stilzwijgend weer op de ongestripte
@@ -1048,14 +1063,24 @@ export function levelResources(
     const chosen: string[] = [];
     let cand = nextCandidateFor(task, pf);
     let guard = 0;
+    let horizonExhausted = false;
     while (chosen.length < need && guard++ < HARD_SCAN_CAP) {
-      if (finishLimit && cand > finishLimit) return null;
-      if (guard > scanLimit && !(horizonDate && cand <= horizonDate)) return null;
+      // Venstergrens (het FINISH-plafond) — een gebruikerskeuze, GEEN horizon-uitputting. Zelfde
+      // rangorde als in `findSlot`: de venstergrens wint van de horizon.
+      if (finishLimit && cand > finishLimit) return { days: null, horizonExhausted: false };
       const iso = formatDate(cand);
       if (dayFits(byRes, chosen.length, iso)) chosen.push(iso);
-      cand = nextCandidateAfterFor(task, cand);
+      if (chosen.length >= need) break; // compleet — geen horizon-toets meer op een dag die we niet gebruiken
+      const next = nextCandidateAfterFor(task, cand);
+      // B8: exact dezelfde vorm als `findSlot` — `guard >= scanLimit` getoetst NÁ de kandidaat en
+      // tegen de VOLGENDE kandidaat. Vóór deze ronde stond hier `guard > scanLimit` vóór de
+      // kandidaat; dat scande toevallig even ver, maar de twee lussen konden bij elke volgende
+      // wijziging uit elkaar lopen — en de uitputting werd niet gemeld.
+      if (guard >= scanLimit && !(horizonDate && next <= horizonDate)) { horizonExhausted = true; break; }
+      cand = next;
     }
-    return chosen.length === need ? chosen : null;
+    if (guard >= HARD_SCAN_CAP) horizonExhausted = true; // vangrail: ook dít is een uitputting
+    return { days: chosen.length === need ? chosen : null, horizonExhausted };
   }
 
   /** Werk/gat-blokken (hele werkdagen) uit een oplopende lijst GEKOZEN ISO-werkdagen — de
