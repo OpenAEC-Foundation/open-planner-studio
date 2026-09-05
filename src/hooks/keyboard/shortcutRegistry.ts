@@ -72,7 +72,7 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
     ui.showTaskDialog || ui.showProjectSettings || ui.showProjectInfoDialog ||
     ui.showSettingsDialog || ui.showCalendarDialog || ui.showUpdateDialog ||
     ui.showNewProjectDialog || ui.showFeedbackDialog || ui.showStructureDialog ||
-    ui.showLevelingDialog || ui.showBaselineDialog || ui.showColumnsDialog ||
+    ui.showLevelingDialog || ui.showDistributionDialog || ui.showBaselineDialog || ui.showColumnsDialog ||
     ui.showFilterDialog || ui.showLayoutsDialog || ui.showProjectOverview ||
     ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog ||
     // K-item 38: de toestemmingsvraag bij een extensie-installatie is net zo goed modaal — hij

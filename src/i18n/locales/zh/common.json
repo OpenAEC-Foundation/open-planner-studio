@@ -548,7 +548,11 @@
       "conflictDays": "{{count}} 天",
       "reason": {
         "calendarMismatch": "该资源并非在此任务所需的所有天数中都工作 — 移动无法解决此问题。",
-        "insufficientCapacity": "浮动范围内的空闲产能不足，无法解决此冲突。"
+        "insufficientCapacity": "浮动范围内的空闲产能不足，无法解决此冲突。",
+        "ceilingTooTight": "延误上限空间太小：在该工作日数内没有空闲窗口。",
+        "ceilingUnreachable": "给予延误在此无济于事——截止日期或约束条件使该任务保持原位。",
+        "noWindowInHorizon": "在搜索的时间段内未找到空闲窗口；再往后则未知。",
+        "residualFull": "自身投入本有空间，但资源库的剩余产能已用尽——被其他项目占用。"
       }
     },
     "curve": {
@@ -579,6 +583,80 @@
       "capacity": "产能",
       "documents": "文档",
       "selectHint": "选择一个资源以查看直方图。"
+    },
+    "distribution": {
+      "open": "分配…",
+      "title": "在项目间分配",
+      "back": "返回占用情况",
+      "subtitle": "{{item}} — 在打开的项目之间分配剩余产能",
+      "blocked": {
+        "uncounted": "请先计算：{{docs}} 尚未计算，因此没有可分配的内容。",
+        "material": "这是一个材料项；分配仅适用于人员和设备。",
+        "noDemand": "没有任何项目在此实际预订工作。"
+      },
+      "tool": {
+        "title": "工具",
+        "allowSplits": "允许中断",
+        "allowSplitsHint": "工作可以插入暂停日，而不是整体顺延。在 MS Project 中这称为\"Leveling can create splits in remaining work\"。",
+        "price_other": "需要 {{count}} 个工作日的延误",
+        "priceNone": "不需要延误",
+        "priceUnknown": "价格未知 — 按下重新计算"
+      },
+      "rank": {
+        "title": "谁得到最大程度的照顾？",
+        "hint": "排在最上面的移动最少。拖动以更改顺序。",
+        "float": "浮动：{{days}}",
+        "cost_other": "仅让此项目顺延需要 {{count}} 个工作日",
+        "costNone": "仅让此项目顺延不需要延误",
+        "moveUp": "上移",
+        "moveDown": "下移"
+      },
+      "strip": {
+        "pin": "固定",
+        "pinned": "已固定 — 此项目不顺延，也保留其工作日",
+        "pinnedRecorded": "已固定：按记录的日期",
+        "cannotMove": "无法顺延 — 这里的所有工作都已固定",
+        "fixedLoad": "固定负荷",
+        "ceiling": "结束日期的最大延误",
+        "ceilingUnlimited": "无限制",
+        "ceilingDays_other": "上限 {{count}} 个工作日",
+        "endUnchanged": "结束日期不变",
+        "endShift_other": "结束日期 +{{count}} 天",
+        "requestedVsAchievable": "请求 {{requested}}，最接近可实现 {{achievable}}",
+        "handleLabel": "{{doc}} 的延误上限"
+      },
+      "compute": {
+        "recalculate": "重新计算",
+        "auto": "自动分配",
+        "busy": "正在分配…",
+        "pressRecompute": "— 按下重新计算",
+        "degraded": "这是一个较大的概览；仅在按下重新计算时才会计算。"
+      },
+      "stale": {
+        "rank": "顺序已更改 — 重新计算以查看效果。",
+        "ceiling": "上限已更改 — 重新计算以查看效果。",
+        "pin": "固定状态已更改 — 重新计算以查看效果。",
+        "tool": "工具已更改 — 重新计算以查看效果。",
+        "edited": "{{docs}} 中发生了变化 — 此方案已不是最新的。"
+      },
+      "shortfall": {
+        "title": "剩余",
+        "doc_other": "{{doc}}：{{count}} 项任务无法安排"
+      },
+      "preview": {
+        "before": "当前",
+        "after": "分配后",
+        "capacity": "产能"
+      },
+      "apply": "应用",
+      "discard": "放弃",
+      "applyBlockedShortfall": "请先解决缺口——放宽上限，或允许中断。",
+      "applyBlockedNothing": "没有可应用的内容：此方案不会改变任何东西。",
+      "applied_other": "已应用于 {{count}} 个项目。",
+      "undoAll": "全部撤销",
+      "undoneAll": "已全部撤销。",
+      "undonePartial": "已撤销，{{docs}} 除外 — 那些项目在此期间已被修改。",
+      "selectHint": "选择一个存在冲突的资源库项目开始分配。"
     },
     "color": "颜色"
   },

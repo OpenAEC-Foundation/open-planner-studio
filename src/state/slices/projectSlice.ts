@@ -21,7 +21,7 @@ import {
 } from '@/engine/moveProject';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
-import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
@@ -452,7 +452,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // vanuit `newDocument()`/een echte bestandsopen hoort te gebeuren).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
     });
-    emitExtensionEvent(HOST_EVENTS.projectNew);
+    runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },
 
   createNewProject: (opts) => {
@@ -522,7 +522,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // een no-op op het niet-pristine pad (newDocument() gaf daar al een vers, ongeregistreerd docId).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
     });
-    emitExtensionEvent(HOST_EVENTS.projectNew);
+    runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },
 
   setFilePath: (path) =>

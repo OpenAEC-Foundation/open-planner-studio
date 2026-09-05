@@ -566,7 +566,11 @@
       "conflictDays": "{{count}} jour(s)",
       "reason": {
         "calendarMismatch": "La ressource ne travaille pas tous les jours nécessaires à cette tâche — le décalage ne résout pas ce problème.",
-        "insufficientCapacity": "Capacité libre insuffisante dans la marge pour résoudre ce conflit."
+        "insufficientCapacity": "Capacité libre insuffisante dans la marge pour résoudre ce conflit.",
+        "ceilingTooTight": "Le plafond de décalage laisse trop peu de marge : aucune fenêtre libre dans ce nombre de jours ouvrables.",
+        "ceilingUnreachable": "Donner du décalage n'aide pas ici — une échéance ou une contrainte maintient cette tâche en place.",
+        "noWindowInHorizon": "Aucune fenêtre libre n'a été trouvée dans la période explorée ; au-delà, c'est inconnu.",
+        "residualFull": "L'engagement propre avait de la marge, mais la capacité résiduelle de la bibliothèque est épuisée — d'autres projets l'occupent."
       }
     },
     "curve": {
@@ -603,6 +607,92 @@
       "capacity": "Capacité",
       "documents": "Documents",
       "selectHint": "Sélectionnez une ressource pour voir l'histogramme."
+    },
+    "distribution": {
+      "open": "Répartir…",
+      "title": "Répartir entre les projets",
+      "back": "Retour à l'occupation",
+      "subtitle": "{{item}} — répartir la capacité résiduelle entre les projets ouverts",
+      "blocked": {
+        "uncounted": "Calculez d'abord : {{docs}} n'est pas encore calculé, il n'y a donc rien à répartir.",
+        "material": "Il s'agit d'un article matériel ; la répartition ne fonctionne que pour les personnes et le matériel.",
+        "noDemand": "Aucun des projets ne réserve réellement du travail ici."
+      },
+      "tool": {
+        "title": "Outil",
+        "allowSplits": "Autoriser les interruptions",
+        "allowSplitsHint": "Le travail peut recevoir des jours de pause plutôt que de se décaler d'un bloc. Dans MS Project, cela s'appelle « Leveling can create splits in remaining work ».",
+        "price_one": "coûte {{count}} jour ouvrable de dépassement",
+        "price_many": "coûte {{count}} jours ouvrables de dépassement",
+        "price_other": "coûte {{count}} jours ouvrables de dépassement",
+        "priceNone": "ne coûte aucun dépassement",
+        "priceUnknown": "prix inconnu — appuyez sur Recalculer"
+      },
+      "rank": {
+        "title": "Qui est le plus épargné ?",
+        "hint": "En haut, on bouge le moins. Faites glisser pour changer l'ordre.",
+        "float": "marge : {{days}}",
+        "cost_one": "décaler uniquement ce projet coûte {{count}} jour ouvrable",
+        "cost_many": "décaler uniquement ce projet coûte {{count}} jours ouvrables",
+        "cost_other": "décaler uniquement ce projet coûte {{count}} jours ouvrables",
+        "costNone": "décaler uniquement ce projet ne coûte aucun dépassement",
+        "moveUp": "Monter",
+        "moveDown": "Descendre"
+      },
+      "strip": {
+        "pin": "Épingler",
+        "pinned": "Épinglé — ce projet ne se décale pas et conserve aussi ses jours de travail",
+        "pinnedRecorded": "Épinglé : dates telles qu'enregistrées",
+        "cannotMove": "Ne peut pas se décaler — tout le travail ici est figé",
+        "fixedLoad": "Charge fixe",
+        "ceiling": "Dépassement maximal de la date de fin",
+        "ceilingUnlimited": "illimité",
+        "ceilingDays_one": "plafond {{count}} jour ouvrable",
+        "ceilingDays_many": "plafond {{count}} jours ouvrables",
+        "ceilingDays_other": "plafond {{count}} jours ouvrables",
+        "endUnchanged": "fin inchangée",
+        "endShift_one": "fin +{{count}} jour",
+        "endShift_many": "fin +{{count}} jours",
+        "endShift_other": "fin +{{count}} jours",
+        "requestedVsAchievable": "demandé {{requested}}, le plus proche réalisable {{achievable}}",
+        "handleLabel": "Plafond de dépassement pour {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Recalculer",
+        "auto": "Répartir automatiquement",
+        "busy": "Répartition en cours…",
+        "pressRecompute": "— appuyez sur Recalculer",
+        "degraded": "Il s'agit d'un grand aperçu ; il ne calcule que lorsque vous appuyez sur Recalculer."
+      },
+      "stale": {
+        "rank": "L'ordre a changé — recalculez pour voir l'effet.",
+        "ceiling": "Un plafond a changé — recalculez pour voir l'effet.",
+        "pin": "Une épingle a changé — recalculez pour voir l'effet.",
+        "tool": "L'outil a changé — recalculez pour voir l'effet.",
+        "edited": "Quelque chose a changé dans {{docs}} — cette proposition n'est plus à jour."
+      },
+      "shortfall": {
+        "title": "Reste",
+        "doc_one": "{{doc}} : {{count}} tâche ne tient pas",
+        "doc_many": "{{doc}} : {{count}} tâches ne tiennent pas",
+        "doc_other": "{{doc}} : {{count}} tâches ne tiennent pas"
+      },
+      "preview": {
+        "before": "Maintenant",
+        "after": "Après répartition",
+        "capacity": "Capacité"
+      },
+      "apply": "Appliquer",
+      "discard": "Rejeter",
+      "applyBlockedShortfall": "Résolvez d'abord le manque — élargissez un plafond, ou autorisez les interruptions.",
+      "applyBlockedNothing": "Il n'y a rien à appliquer : cette proposition ne change rien.",
+      "applied_one": "Appliqué dans {{count}} projet.",
+      "applied_many": "Appliqué dans {{count}} projets.",
+      "applied_other": "Appliqué dans {{count}} projets.",
+      "undoAll": "Tout annuler",
+      "undoneAll": "Tout a été annulé.",
+      "undonePartial": "Annulé, sauf {{docs}} — on y a travaillé entre-temps.",
+      "selectHint": "Choisissez un article de bibliothèque en conflit pour commencer à répartir."
     },
     "color": "Couleur"
   },

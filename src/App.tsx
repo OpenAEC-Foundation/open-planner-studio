@@ -56,6 +56,9 @@ const JustUpdatedDialog = lazy(() => import('@/components/dialogs/JustUpdatedDia
 const ExtensionConsentDialog = lazy(() => import('@/components/dialogs/ExtensionConsentDialog').then(m => ({ default: m.ExtensionConsentDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
+// B1c — de verdeeldialoog (spec §7): losse dialoog, patroon `showLevelingDialog`; het
+// bezettingsoverzicht blijft er gewoon onder staan.
+const DistributionDialog = lazy(() => import('@/components/dialogs/DistributionDialog/DistributionDialog').then(m => ({ default: m.DistributionDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
 const MoveProjectDialog = lazy(() => import('@/components/dialogs/MoveProjectDialog').then(m => ({ default: m.MoveProjectDialog })));
 const ColumnsDialog = lazy(() => import('@/components/dialogs/ColumnsDialog').then(m => ({ default: m.ColumnsDialog })));
@@ -87,6 +90,7 @@ function AppContent() {
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
+  const showDistributionDialog = useAppStore(s => s.ui.showDistributionDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
@@ -337,6 +341,7 @@ function AppContent() {
         {showStructureDialog && <StructureDialog />}
         {showFeedbackDialog && <FeedbackDialog />}
         {showLevelingDialog && <LevelingDialog />}
+        {showDistributionDialog && <DistributionDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
         {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}

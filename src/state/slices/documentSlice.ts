@@ -10,7 +10,7 @@ import {
   type DocumentPayload,
   type RecoveryDocInput,
 } from '../documentContract';
-import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import {
@@ -72,6 +72,15 @@ function resetDocumentScopedUI(s: AppState): void {
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
+  // B1c (spec §6a): de verdeeldialoog kijkt naar een MOMENTOPNAME van meerdere documenten. Een
+  // documentwissel of een gesloten/geopend document maakt zowel zijn tune-state (rangorde, pins en
+  // plafonds, alle op docId) als zijn toegepast-record onbetrouwbaar — dat record verwijst naar
+  // history-events van documenten die er misschien niet meer zijn (`closeDocument` ruimt die events
+  // bovendien op). BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met
+  // een vervallen voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen.
+  // Het bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
+  s.ui.showDistributionDialog = false;
+  s.ui.levelingDistribution = null;
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {
@@ -224,7 +233,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectNew);
+    runtime.emitHostEvent(HOST_EVENTS.projectNew);
     return newId;
   },
 
@@ -288,7 +297,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
       sequences: copy.sequences.length,
       resources: copy.resources.length,
@@ -319,7 +328,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (activation.invalidateRedoScope) invalidateActivationRedo(s, id);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
@@ -344,7 +353,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         resetDocumentScopedUI(s);
         publishActivation(s, activation);
       });
-      emitExtensionEvent(HOST_EVENTS.projectNew);
+      runtime.emitHostEvent(HOST_EVENTS.projectNew);
       return;
     }
 
@@ -374,7 +383,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (activation.invalidateRedoScope) invalidateActivationRedo(s, neighbor.id);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
@@ -520,12 +529,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         dedupeKey: 'cpm-error',
       });
     }
-    emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+    runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,
       criticalTasks: activePayload.tasks.filter(task => task.time.isCritical).length,
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: activeDoc.tasks.length,
       sequences: activeDoc.sequences.length,
       resources: activeDoc.resources.length,

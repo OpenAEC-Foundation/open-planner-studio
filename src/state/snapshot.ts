@@ -127,6 +127,32 @@ export function createSnapshot(s: AppState): Snapshot {
 }
 
 /**
+ * Dezelfde snapshot, maar uit een SLAPENDE `DocumentPayload` in plaats van uit de live top-level
+ * state (B1c-plan3 taak 6, aangepast na de merge met main — sessiehistorie, 2026-09-04).
+ *
+ * Waarom dit bestaat. Een history-event draagt per document een `before`/`after`-`Snapshot`. Voor
+ * het actieve document levert `createSnapshot(state)` die; voor een slapend document staat dezelfde
+ * data in zijn payload, en die hydrateren-in-een-context-om-te-snapshotten zou het documentcontract
+ * twee keer doorlopen voor niets. Een payload is per definitie al plain (hij is ooit met
+ * `capturePayload` uit een state gevist), dus er valt hier ook niets te normaliseren.
+ *
+ * ZELFDE ROLREGEL als `createSnapshot`: key-gedreven over `DOCUMENT_FIELDS`, elk niet-'none'-veld
+ * PER REFERENTIE. Dat is geen kortere weg maar de voorwaarde — de compile-time-koppeling tussen de
+ * `Snapshot`-Pick en de `snapshot`-rollen (zie hierboven) geldt dan ook voor deze bron, en een nieuw
+ * documentveld rijdt automatisch mee. Delen mag om exact dezelfde reden: Immer muteert de payload
+ * nooit in-place en heeft hem bevroren.
+ */
+export function snapshotOfPayload(p: DocumentPayload): Snapshot {
+  const flat = p as unknown as Record<string, unknown>;
+  const snap = {} as Snapshot;
+  for (const f of DOCUMENT_FIELDS) {
+    if (f.snapshot === 'none') continue;
+    (snap as unknown as Record<string, unknown>)[f.key] = flat[f.key];
+  }
+  return snap;
+}
+
+/**
  * Normaliseer een (mogelijk oude) snapshot naar de huidige vorm: legacy-alias `resourceCalendars`
  * → `calendars`, en veilige defaults voor velden die pre-2.x-snapshots misten. Snapshots leven
  * alleen in-memory (nooit geserialiseerd), dus dit is defensief — maar houdt het herstelpad robuust

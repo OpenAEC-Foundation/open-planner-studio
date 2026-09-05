@@ -8,8 +8,22 @@ import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, 
 import { markScheduleStale } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
-import { invalidateUndoneHistoryForScopes, type HistoryScopeKey } from '../sessionHistory';
-import { capturePayload, hydratePayload } from '../documentContract';
+import { runInScratchDocument } from '../runtime/scratchDocument';
+import {
+  planDistributionWrites,
+  type DistributionApplyRecord,
+  type DistributionUndoReport,
+} from '@/services/library/applyDistribution';
+import type { DistributionProposal } from '@/services/library/distribute';
+import {
+  invalidateUndoneHistoryForScopes,
+  recordSessionHistoryDeltas,
+  selectUndoHistoryEvent,
+  type HistoryScopeKey,
+  type SessionHistoryEvent,
+} from '../sessionHistory';
+import { snapshotOfPayload, type Snapshot } from '../snapshot';
+import { capturePayload, hydratePayload, type DocumentPayload } from '../documentContract';
 import { materializeLibraryBoundary } from '../documentActivation';
 
 function invalidateDocumentRedo(
@@ -18,6 +32,58 @@ function invalidateDocumentRedo(
 ): void {
   const scope: HistoryScopeKey = `document:${documentId}`;
   state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
+}
+
+/** Het history-label van een B1c-verdeling. Zelfde soort korte Nederlandse omschrijving als
+ *  `gridTransaction.ts` gebruikt; labels zijn interne historie-omschrijvingen, geen UI-tekst. */
+const DISTRIBUTION_HISTORY_LABEL = 'Verdeling toepassen';
+
+/**
+ * Het jongste toegepaste `document-data`-event voor dit document vanaf `minSequence` (B1c-plan3
+ * taak 6, aangepast na de merge met main — sessiehistorie, 2026-09-04).
+ *
+ * `applyDistribution` gebruikt dit om het event terug te vinden dat `get().applyLeveling(...)` net
+ * voor het ACTIEVE document heeft achtergelaten. `minSequence` is de `nextHistorySequence` van vlak
+ * vóór die aanroep: die teller loopt door over `pruneSessionHistory` heen, dus hij is een
+ * betrouwbaar anker waar een index of een diepte dat niet is. "Jongste" en niet "eerste", omdat
+ * `applyLeveling` → `runCPM` in de #63-modus twee events kán opleveren.
+ */
+function latestDocumentDataEventSince(
+  events: readonly SessionHistoryEvent[],
+  documentId: string,
+  minSequence: number,
+): { id: string; sequence: number } | null {
+  let selected: SessionHistoryEvent | null = null;
+  for (const event of events) {
+    if (event.state !== 'applied' || event.sequence < minSequence) continue;
+    if (!event.deltas.some((d) => d.kind === 'document-data' && d.documentId === documentId)) continue;
+    if (selected === null || event.sequence > selected.sequence) selected = event;
+  }
+  return selected === null ? null : { id: selected.id, sequence: selected.sequence };
+}
+
+/**
+ * De poort van "alles terugdraaien" (spec §5): mag dit document nog terug?
+ *
+ * Drie eisen, samen precies de vraag die undo moet beantwoorden: het event bestaat nog, het staat
+ * nog op `applied` (niemand heeft het al met Ctrl+Z teruggedraaid), en het is het event dat
+ * `selectUndoHistoryEvent` voor DIT document NU zou kiezen. Die derde eis is de kern: staat er een
+ * jonger toepasbaar event bovenop, dan heeft de gebruiker er sinds Toepassen zelf in gewerkt en zou
+ * terugdraaien de verkeerde stap ongedaan maken. Een gesloten document valt hier vanzelf uit —
+ * `removeSessionHistoryForDocument` heeft zijn events dan al verwijderd.
+ *
+ * NIET de mutatieteller/vingerafdruk uit taak 4: die twee bedienen de VOORSTEL-invalidatie van de
+ * verdeeldialoog (taak 12) — "is het voorstel nog geldig" — en beantwoorden niet de vraag welke
+ * undo-stap er nu bovenop ligt. Ze vervangen deze poort dus niet.
+ */
+function distributionUndoTarget(
+  events: readonly SessionHistoryEvent[],
+  documentId: string,
+  eventId: string,
+): SessionHistoryEvent | null {
+  const event = events.find((e) => e.id === eventId);
+  if (!event || event.state !== 'applied') return null;
+  return selectUndoHistoryEvent(events, documentId)?.id === eventId ? event : null;
 }
 
 export interface RecognitionCandidate {
@@ -194,6 +260,22 @@ export interface LibrarySlice {
    *  (beginUndoable/finishMutation-patroon). No-op (geen undo-snapshot) op een onbekend id of een
    *  resource zonder stempel. */
   unlinkResourceFromLibrary: (resourceId: string) => void;
+
+  /** Toepassen (spec §5, B1c-plan3 taak 6). Schrijft het voorstel in élk deelnemend document — het
+   *  actieve via het gewone top-level-pad, de slapers via een headless scratch-instantie
+   *  (`runInScratchDocument`) — en geeft een record terug waarmee de "toegepast"-strook alles in
+   *  één keer kan terugdraaien. `null` ⇒ er is niets geschreven (geblokkeerd, tekort, of niets te
+   *  doen; zie `planDistributionWrites`). */
+  applyDistribution: (
+    proposal: DistributionProposal,
+    scopeTaskIdsByDoc: Record<string, string[]>,
+  ) => DistributionApplyRecord | null;
+
+  /** "Alles terugdraaien" (spec §5): draait per beschreven document precies de undo-stap terug die
+   *  `applyDistribution` daar heeft achtergelaten. Een document waarvan de undo-diepte intussen is
+   *  verschoven (de gebruiker werkte er zelf in verder) wordt overgeslagen — blind terugpoppen zou
+   *  daar de VERKEERDE stap ongedaan maken — en gemeld via `DistributionUndoReport.skippedDocIds`. */
+  undoDistribution: (record: DistributionApplyRecord) => DistributionUndoReport;
 }
 
 /**
@@ -1161,5 +1243,175 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     // Puur stempels weg: geen enkel bewaard VELD verandert (naam/type/tarief/eenheid/maxUnits/kalender-
     // INHOUD blijven exact wat ze waren), dus geen datumimpact en geen belasting-/rijenherberekening
     // nodig — anders dan updateResource/removeResource hierboven raakt dit geen CPM- of tabelinvoer.
+  },
+
+  applyDistribution: (proposal, scopeTaskIdsByDoc) => {
+    const plan = planDistributionWrites(proposal, scopeTaskIdsByDoc);
+    if (!plan.ok) return null;
+
+    // Een lopende coalesce-reeks (Gantt-sleep, tikken in een invoerveld) mag deze samengestelde
+    // bewerking niet opslokken: `finishUndoable` zou het `after` van dát oudere event bijschrijven
+    // in plaats van een eigen event te maken, en dan is er geen event om in het record te zetten.
+    runtime.resetUndoCoalescing();
+
+    const state = get();
+    const activeWrite = plan.writes.find((w) => w.docId === state.activeDocumentId);
+    const sleepingWrites = plan.writes.filter((w) => w.docId !== state.activeDocumentId);
+
+    // Fase 1 — BUITEN de producer: draai elke slapende write in zijn eigen, wegwerpbare scratch-
+    // instantie (`runInScratchDocument`). Zolang hier niets geschreven is naar `s.documents`, is de
+    // hele actie nog terug te trekken — precies de atomiciteitsgarantie van
+    // `recalculateStaleSleepingDocuments`. De scratch-context draait de ECHTE actie (applyLeveling →
+    // M10-strip, `finishMutation({ stale: true })`, `runCPM`, meldingen); zijn EIGEN `historyEvents`
+    // worden weggegooid — het history-event voor dit document schrijven we hieronder zelf, in de
+    // app-globale sessiechronologie waar undo/redo daadwerkelijk uit kiest.
+    const sleepingResults: { docId: string; before: DocumentPayload; after: DocumentPayload }[] = [];
+    for (const w of sleepingWrites) {
+      const entry = state.documents.find((d) => d.id === w.docId);
+      if (!entry?.payload) continue; // tussentijds gesloten/geactiveerd — dit document doet niet meer mee.
+      const out = runInScratchDocument(entry.payload, (s) => {
+        s.applyLeveling(w.write, { scopeTaskIds: w.scopeTaskIds });
+      });
+      // Meldingen bubbelen ALTIJD op (spec §5, rand (b)) — ook bij een geslaagde run kan `applyLeveling`
+      // een M10-afrondingsmelding of (bij een onverwachte cyclus) een schedule-fout hebben gezet; niets
+      // daarvan mag in het onzichtbare kanaal van de scratch-context blijven hangen.
+      for (const n of out.notifications) get().notify(n);
+      if (!out.ok) {
+        // Er is nog NIETS gemuteerd (het actieve document komt pas hierna aan de beurt, en de
+        // eerdere scratch-runs schreven alleen naar hun eigen, weggegooide payload) — dus de hele
+        // actie stopt hier, zonder halve staat.
+        return null;
+      }
+      sleepingResults.push({ docId: w.docId, before: entry.payload, after: out.payload });
+    }
+
+    // Het actieve document (als het meedoet), via het GEWONE pad: `applyLeveling` opent zelf zijn
+    // undoable en draait zelf `runCPM` — precies dezelfde actie als een gebruiker zou triggeren.
+    // `runCPM` ververst daarna het `after` van datzelfde event (`refreshLatestDocumentDataHistoryAfter`),
+    // zodat de doorgerekende datums in dezelfde ene undo-stap zitten. Dat is gewenst.
+    let activeEvent: { id: string; sequence: number } | null = null;
+    if (activeWrite) {
+      // Anker: alles vanaf hier is ván deze aanroep. `nextHistorySequence` loopt door over pruning
+      // heen, dus dit is een betrouwbare ondergrens (anders dan een index of een diepte).
+      const sequenceBefore = get().nextHistorySequence;
+      get().applyLeveling(activeWrite.write, { scopeTaskIds: activeWrite.scopeTaskIds });
+      activeEvent = latestDocumentDataEventSince(
+        get().historyEvents, activeWrite.docId, sequenceBefore,
+      );
+    }
+
+    // Fase 2 — ÉÉN producer: de nieuwe slaper-payloads terugschrijven ÉN per slaper het history-event
+    // registreren dat "alles terugdraaien" straks moet herkennen. Beide in dezelfde producer, want een
+    // payload zonder event zou onterugdraaibaar zijn en een event zonder payload zou een niet-bestaande
+    // wijziging beloven. Sla een document over dat intussen gesloten of geactiveerd is
+    // (`entry.payload === null`), exact zoals `recalculateStaleSleepingDocuments` dat doet.
+    const sleepingEvents = new Map<string, { id: string; sequence: number }>();
+    if (sleepingResults.length > 0) {
+      set((s) => {
+        for (const r of sleepingResults) {
+          const entry = s.documents.find((d) => d.id === r.docId);
+          if (!entry || entry.payload === null) continue;
+          entry.payload = r.after;
+          const event = recordSessionHistoryDeltas(s, DISTRIBUTION_HISTORY_LABEL, [{
+            kind: 'document-data',
+            documentId: r.docId,
+            before: snapshotOfPayload(r.before),
+            after: snapshotOfPayload(r.after),
+          }]);
+          if (event) sleepingEvents.set(r.docId, { id: event.id, sequence: event.sequence });
+        }
+      });
+    }
+
+    // Bouw het record — alleen voor documenten die daadwerkelijk geschreven zijn (een tussentijds
+    // gesloten slaper werd hierboven al overgeslagen; een write die per saldo niets veranderde
+    // levert géén event en hoort dus ook niet in een "alles terugdraaien").
+    const docs: DistributionApplyRecord['docs'] = [];
+    if (activeWrite && activeEvent) {
+      const docResult = proposal.docs.find((d) => d.docId === activeWrite.docId);
+      if (docResult) {
+        docs.push({
+          docId: activeWrite.docId, title: docResult.title,
+          historyEventId: activeEvent.id, historySequence: activeEvent.sequence,
+        });
+      }
+    }
+    for (const r of sleepingResults) {
+      const event = sleepingEvents.get(r.docId);
+      const docResult = proposal.docs.find((d) => d.docId === r.docId);
+      if (!event || !docResult) continue;
+      docs.push({
+        docId: r.docId, title: docResult.title,
+        historyEventId: event.id, historySequence: event.sequence,
+      });
+    }
+    if (docs.length === 0) return null;
+
+    return { libraryItemId: proposal.libraryItemId, appliedAt: new Date().toISOString(), docs };
+  },
+
+  undoDistribution: (record) => {
+    const state = get();
+    const undoneDocIds: string[] = [];
+    const skippedDocIds: string[] = [];
+
+    const activeEntry = record.docs.find((d) => d.docId === state.activeDocumentId);
+    const sleepingEntries = record.docs.filter((d) => d.docId !== state.activeDocumentId);
+
+    // Fase 1 — PUUR bepalen wie er terug mag. Per document geldt de poort van
+    // `distributionUndoTarget`: het event bestaat nog, staat op `applied`, en is het event dat een
+    // gewone Ctrl+Z in dát document NU zou kiezen. Is dat niet zo, dan heeft de gebruiker er
+    // intussen in gewerkt (of is het document gesloten — `removeSessionHistoryForDocument` haalt de
+    // events dan weg) en zou terugdraaien de VERKEERDE stap ongedaan maken.
+    const restores: { docId: string; before: Snapshot; eventId: string }[] = [];
+    for (const d of sleepingEntries) {
+      const entry = state.documents.find((x) => x.id === d.docId);
+      const event = distributionUndoTarget(state.historyEvents, d.docId, d.historyEventId);
+      const delta = event?.deltas.find((x) => x.kind === 'document-data' && x.documentId === d.docId);
+      if (!entry?.payload || !event || delta?.kind !== 'document-data') {
+        skippedDocIds.push(d.docId);
+        continue;
+      }
+      restores.push({ docId: d.docId, before: delta.before, eventId: event.id });
+    }
+
+    // Het actieve document, via het gewone `undo()`-pad — dat kiest per constructie precies dit
+    // event zodra de poort hierboven slaagt.
+    if (activeEntry) {
+      if (distributionUndoTarget(state.historyEvents, activeEntry.docId, activeEntry.historyEventId)) {
+        get().undo();
+        undoneDocIds.push(activeEntry.docId);
+      } else {
+        skippedDocIds.push(activeEntry.docId);
+      }
+    }
+
+    // Fase 2 — ÉÉN producer: de `before`-snapshot terug in de slapende payload, en het event op
+    // `undone`. Een slaper heeft geen live state om `restoreSnapshot` op te draaien, dus de snapshot
+    // wordt over de payload gespreid; hij komt uit `snapshotOfPayload` van diezelfde payloadvorm, dus
+    // er valt niets te migreren en `project.calendarId`/`calendars`/`calendar` blijven onderling
+    // consistent. `resourceLoadResult: null` omdat `switchDocument` bij activering tóch
+    // onvoorwaardelijk `recomputeResourceLoad()` draait (en viewRows daar afleidt); `isDirty: true`
+    // spiegelt `restoreSnapshot` op het actieve pad. Redo loopt daarna over het gewone `redo()`-pad
+    // zodra de gebruiker dat document activeert: het event staat dan als enige op `undone`.
+    const restoredDocIds: string[] = [];
+    if (restores.length > 0) {
+      set((s) => {
+        for (const r of restores) {
+          const entry = s.documents.find((x) => x.id === r.docId);
+          const stored = s.historyEvents.find((e) => e.id === r.eventId);
+          if (!entry || entry.payload === null || !stored || stored.state !== 'applied') continue;
+          entry.payload = { ...entry.payload, ...r.before, isDirty: true, resourceLoadResult: null };
+          stored.state = 'undone';
+          restoredDocIds.push(r.docId);
+        }
+      });
+    }
+    for (const r of restores) {
+      if (restoredDocIds.includes(r.docId)) undoneDocIds.push(r.docId);
+      else skippedDocIds.push(r.docId);
+    }
+
+    return { undoneDocIds, skippedDocIds };
   },
 });

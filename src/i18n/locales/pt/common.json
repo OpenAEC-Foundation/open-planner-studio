@@ -566,7 +566,11 @@
       "conflictDays": "{{count}} dia(s)",
       "reason": {
         "calendarMismatch": "O recurso não trabalha em todos os dias que esta tarefa necessita — deslocar não resolve isto.",
-        "insufficientCapacity": "Não há capacidade livre suficiente dentro da folga para resolver este conflito."
+        "insufficientCapacity": "Não há capacidade livre suficiente dentro da folga para resolver este conflito.",
+        "ceilingTooTight": "O teto de atraso deixa pouco espaço: dentro desse número de dias úteis não há janela livre.",
+        "ceilingUnreachable": "Dar mais atraso não ajuda aqui — um prazo ou uma restrição mantém esta tarefa no lugar.",
+        "noWindowInHorizon": "Não foi encontrada nenhuma janela livre dentro do período pesquisado; mais além é desconhecido.",
+        "residualFull": "O envolvimento próprio tinha espaço, mas a capacidade residual da biblioteca está esgotada — outros projetos ocupam-na."
       }
     },
     "curve": {
@@ -603,6 +607,92 @@
       "capacity": "Capacidade",
       "documents": "Documentos",
       "selectHint": "Selecione um recurso para ver o histograma."
+    },
+    "distribution": {
+      "open": "Distribuir…",
+      "title": "Distribuir entre projetos",
+      "back": "Voltar à ocupação",
+      "subtitle": "{{item}} — distribuir a capacidade residual entre os projetos abertos",
+      "blocked": {
+        "uncounted": "Calcule primeiro: {{docs}} ainda não foi calculado, por isso não há nada para distribuir.",
+        "material": "Este é um item de material; a distribuição só funciona para pessoas e equipamentos.",
+        "noDemand": "Nenhum dos projetos reserva efetivamente trabalho aqui."
+      },
+      "tool": {
+        "title": "Ferramenta",
+        "allowSplits": "Permitir interrupções",
+        "allowSplitsHint": "O trabalho pode receber dias de pausa em vez de se deslocar de uma só vez. No MS Project isto chama-se \"Leveling can create splits in remaining work\".",
+        "price_one": "custa {{count}} dia útil de atraso",
+        "price_many": "custa {{count}} dias úteis de atraso",
+        "price_other": "custa {{count}} dias úteis de atraso",
+        "priceNone": "não custa nenhum atraso",
+        "priceUnknown": "preço desconhecido — prima Recalcular"
+      },
+      "rank": {
+        "title": "Quem é mais poupado?",
+        "hint": "No topo desloca-se menos. Arraste para mudar a ordem.",
+        "float": "folga: {{days}}",
+        "cost_one": "deixar apenas este projeto deslocar-se custa {{count}} dia útil",
+        "cost_many": "deixar apenas este projeto deslocar-se custa {{count}} dias úteis",
+        "cost_other": "deixar apenas este projeto deslocar-se custa {{count}} dias úteis",
+        "costNone": "deixar apenas este projeto deslocar-se não custa nenhum atraso",
+        "moveUp": "Mover para cima",
+        "moveDown": "Mover para baixo"
+      },
+      "strip": {
+        "pin": "Fixar",
+        "pinned": "Fixado — este projeto não se desloca e mantém também os seus dias úteis",
+        "pinnedRecorded": "Fixado: datas como registadas",
+        "cannotMove": "Não pode deslocar-se — todo o trabalho aqui está fixo",
+        "fixedLoad": "Carga fixa",
+        "ceiling": "Atraso máximo da data de fim",
+        "ceilingUnlimited": "ilimitado",
+        "ceilingDays_one": "teto {{count}} dia útil",
+        "ceilingDays_many": "teto {{count}} dias úteis",
+        "ceilingDays_other": "teto {{count}} dias úteis",
+        "endUnchanged": "fim inalterado",
+        "endShift_one": "fim +{{count}} dia",
+        "endShift_many": "fim +{{count}} dias",
+        "endShift_other": "fim +{{count}} dias",
+        "requestedVsAchievable": "pedido {{requested}}, mais próximo alcançável {{achievable}}",
+        "handleLabel": "Teto de atraso para {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Recalcular",
+        "auto": "Distribuir automaticamente",
+        "busy": "A distribuir…",
+        "pressRecompute": "— prima Recalcular",
+        "degraded": "Esta é uma visão geral grande; só calcula quando prime Recalcular."
+      },
+      "stale": {
+        "rank": "A ordem mudou — recalcule para ver o efeito.",
+        "ceiling": "Um teto mudou — recalcule para ver o efeito.",
+        "pin": "Uma fixação mudou — recalcule para ver o efeito.",
+        "tool": "A ferramenta mudou — recalcule para ver o efeito.",
+        "edited": "Algo mudou em {{docs}} — esta proposta já não está atual."
+      },
+      "shortfall": {
+        "title": "Sobra",
+        "doc_one": "{{doc}}: {{count}} tarefa não cabe",
+        "doc_many": "{{doc}}: {{count}} tarefas não cabem",
+        "doc_other": "{{doc}}: {{count}} tarefas não cabem"
+      },
+      "preview": {
+        "before": "Agora",
+        "after": "Depois de distribuir",
+        "capacity": "Capacidade"
+      },
+      "apply": "Aplicar",
+      "discard": "Descartar",
+      "applyBlockedShortfall": "Resolva primeiro o défice — alargue um teto, ou permita interrupções.",
+      "applyBlockedNothing": "Não há nada para aplicar: esta proposta não muda nada.",
+      "applied_one": "Aplicado em {{count}} projeto.",
+      "applied_many": "Aplicado em {{count}} projetos.",
+      "applied_other": "Aplicado em {{count}} projetos.",
+      "undoAll": "Anular tudo",
+      "undoneAll": "Tudo foi anulado.",
+      "undonePartial": "Anulado, exceto {{docs}} — nesses entretanto já se trabalhou.",
+      "selectHint": "Escolha um item de biblioteca com um conflito para começar a distribuir."
     },
     "color": "Cor"
   },
