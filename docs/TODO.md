@@ -360,19 +360,16 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > twaalf vertalingen volgen in de maandelijkse ronde.
 > Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
 
-- [ ] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` (voortgangsroute).**
-      De brug leidt de restduur af als `remainingTime ?? duur × (1 − voortgang)` — dezelfde afleiding
-      als de solver. Staat `remainingTime` expliciet, dan verandert een duurbewerking die rest NIET,
-      en volgt de werkdriehoek dus ook niet (AFGELEID uit de code; wat MS Project hier doet is niet
-      gemeten). Beslissen: moet een duurbewerking `remainingTime` mee verschuiven (Δ), of is de
-      voortgangsroute leidend?
-- [ ] **Kalenderwissel op een taak met vastgelegd werk (reviewbevinding K2, 2026-09-05).** Spec §6.4
-      houdt kalenders bewust buiten de werkdriehoek. Gevolg (ZEKER, nagerekend door de reviewer):
-      FIXED_WORK-taak 4 d op 8 u/dag (W = 1920 min, I = 1) → taakkalender 6 u/dag ⇒ de duur blijft
-      4 d (1440 werkminuten) maar W blijft 1920, dus het histogram toont 1,33 eenheden/dag op een
-      resource met `maxUnits: 1`. Beslissen: (a) I = W / R' herrekenen bij een kalenderwissel,
-      (b) W mee herschalen (werk = duur × inzet houden), of (c) laten staan en documenteren. Tot
-      dan geldt (c); geen testgeval.
+- [x] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` — besloten
+      2026-09-05:** de rest schuift mee met Δ, geklemd op 0; `completion` blijft
+      (`carryRemainingThroughDurationEdit`, store/raster/MCP). Bron: Microsoft [M5].
+- [x] **Kalenderwissel op een taak met vastgelegd werk (K2) — besloten 2026-09-05:** een kalenderwissel
+      verandert de slotgrootte en daarna beslist de werkregel (Vast werk/Vaste inzet ⇒ duur; Vaste
+      duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek). Gebouwd (spec §6.4, meetlat
+      32–34, `settleCalendarChange`); melding bij een project-/kalenderwijziging die duren verandert.
+- [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
+      en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–34 plus "duur wijzigen
+      op een taak met ingevoerde resterende duur" en noteert de uren.
 - [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
       `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
       waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.

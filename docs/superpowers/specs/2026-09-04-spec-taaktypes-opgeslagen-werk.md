@@ -466,10 +466,27 @@ over de toewijzingen verdeeld (BEREDENEERD; MSP zegt alleen "verdeeld onder de r
 
 ### 6.4 Kalenders en tijdmodus
 
-Ongewijzigd: de taakkalender bepaalt R in werkdagen/-minuten; de resourcekalender bepaalt op welke
-dagen het histogram het werk legt (`taskWorkDayIsos`, ZEKER). Een werkregel verandert niets aan
-welke dagen werkdagen zijn. ELAPSEDTIME-taken zijn buiten scope (besluit 6): hun "duur" is kloktijd
-en werk = duur × inzet heeft er geen betekenis.
+De taakkalender bepaalt R in werkdagen/-minuten; de resourcekalender bepaalt op welke dagen het
+histogram het werk legt (`taskWorkDayIsos`, ZEKER). Een werkregel verandert niets aan welke dagen
+werkdagen zijn. ELAPSEDTIME-taken zijn buiten scope (besluit 6): hun "duur" is kloktijd en werk =
+duur × inzet heeft er geen betekenis.
+
+**Kalenderwissel (eigenaarsbesluit 2026-09-05, K2 — vervangt de eerdere "ongewijzigd"-regel).**
+Een andere kalender (taakkalender, projectkalender of de inhoud van een kalender) verandert de
+SLOTgrootte: werkminuten per werkdag. De restduur in dagen blijft, het werk van vóór de wissel is
+het anker, en daarna beslist de regel van de taak (`workTriangle.ts`'s `applySlotChange`, brug
+`settleCalendarChange`):
+- FIXED_DURATION_RATE (standaard): duur en inzet blijven, het werk volgt — het gedrag van vandaag;
+  zonder werkveld byte-identiek, een aanwezig veld wordt R' × I (meetlat 34).
+- FIXED_DURATION_WORK: duur en werk blijven, de inzet wordt W / R' (meetlat 33).
+- FIXED_WORK en FIXED_RATE: werk en inzet blijven, R = max(W / I) in de nieuwe slot, naar boven op
+  hele dagen — minder uren per dag maakt de taak langer (meetlat 32). Dat verschuift dus wél de
+  planning; een project- of kalenderwijziging die duren verandert, meldt hoeveel taken
+  (`notifications.workRuleDurationsChanged`).
+Uurtaken hebben geen slotafhankelijke duur en blijven ongemoeid. Bewijs: MSP rekent
+Duration = Work ÷ (Units × Hours per day) en houdt onder Fixed Work het werk vast [M2]/[M4]
+(documented), maar MSP's "dag" is een vaste omrekenfactor (Opties → Uren per dag) en geen
+kalenderwerkdag — de vertaling naar OPS-werkdagen is beredeneerd, niet gemeten.
 
 ### 6.5 Actuals
 
@@ -486,6 +503,13 @@ en werk = duur × inzet heeft er geen betekenis.
 - **Een voortgangsbewerking is geen duurbewerking** (reviewbevinding B1): `completion` of
   `remainingTime` wijzigen verandert de rest maar niet de duur, en raakt de driehoek niet; de poort
   is de TOTALE werkduur van de taak (`settleDurationEdit` vergelijkt die met de momentopname).
+- **Duurbewerking bij een EXPLICIETE restduur (eigenaarsbesluit 2026-09-05):** het verrichte deel is
+  een feit, dus wat de gebruiker aan de duur toevoegt of afhaalt landt in de rest — rest = max(0,
+  rest + Δ), in dagen (`remainingTime`) of minuten (`remainingMinutes`); `completion` blijft zoals
+  ze is (`carryRemainingThroughDurationEdit`, in store, raster en MCP vóór de driehoekstap). Bron:
+  Microsoft, Remaining Duration = Duration − Actual Duration [M5] (documented voor de identiteit;
+  de Δ-richting bij een duurbewerking is daaruit afgeleid, niet gemeten). Zonder expliciet restveld
+  wordt de rest al uit duur × (1 − completion) afgeleid en schuift hij vanzelf mee.
 - Het `actual`-deel van een contour telt als `actualWorkMinutes` wanneer dat veld afwezig is.
 - Afsluiten op 100 %: restwerk 0, begroot blijft; heropenen laat de velden staan.
 
@@ -592,9 +616,13 @@ werkresource op inzet 1,0 ⇒ werk 40 uur, niets verricht.
 | 29 | FIXED_WORK, twee resources 1,0 met per toewijzing ingevoerd werk 40 u en 8 u | duur → 10 d | inzet 0,5 en 0,1; werk ongewijzigd — en omgekeerd: inzet van de eerste → 2,0 ⇒ R = max(40/16, 8/8) = 2,5 d (OPS 3 d), tweede toewijzing loopt over die 3 d: I = 8/(3 × 8) ≈ 0,33 | reasoned (§5, R = max_i) |
 | 30 | FIXED_WORK, één resource 1,0 (40 u) | tweede resource erbij met inzet 0,5 | verdeling 1,0 : 0,5 ⇒ werk 26,67 + 13,33 u; R = 40/12 ≈ 3,33 d (OPS 4 d) | reasoned (verdeelsleutel §5) |
 | 31 | FIXED_WORK, één resource 1,0 (40 u) | inzet → 0,6, daarna inzet → 1,0 | eerst R = ⌈40/4,8⌉ = 9 d, werk 40 u; daarna R = 5 d exact (niet 9 × 8 × 1,0 = 72 u) | reasoned (§6.1, W leidend) |
+| 32 | FIXED_WORK, 4 d op 8 u/dag, één resource 1,0 (32 u) | taakkalender → 6 u/dag | werk 32 u, inzet 1,0, R = 32/6 = 5,33 ⇒ 6 d | reasoned (K2; [M2]/[M4] documented voor "werk vast, duur herrekend", OPS-dagen beredeneerd) |
+| 33 | FIXED_DURATION_WORK, 4 d op 8 u/dag, één resource 1,0 (32 u) | taakkalender → 6 u/dag | R = 4 d, werk 32 u, inzet 32/24 = 1,33 | reasoned (K2; [P1] Units/Time = Remaining Units / Remaining Duration) |
+| 34 | FIXED_DURATION_RATE, 4 d op 8 u/dag, resource a 1,0 met veld 32 u, resource b 1,0 zonder veld | taakkalender → 6 u/dag | R = 4 d, inzet 1,0; a wordt 24 u, b blijft veldloos (afgeleid 24 u) | reasoned (K2; het gedrag van vandaag) |
 
-Deze lijst (31 bewerkingen) gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
-MS Project weet wat er te meten valt.
+Deze lijst (34 bewerkingen) gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
+MS Project weet wat er te meten valt. Voor 32–34 en de Δ-regel uit §6.5 geldt bovendien dat MS Project
+hier niet in werkdagen rekent; wie meet, noteert de uren.
 
 ## 10. Bouwvolgorde — apart verifieerbare stappen
 
@@ -656,6 +684,9 @@ MS Project (Microsoft Support, geraadpleegd 2026-09-04):
 - [M3] *The duration or work value changed when I assigned a resource* —
   https://support.microsoft.com/en-au/office/the-duration-or-work-value-changed-when-i-assigned-a-resource-a3573268-f613-419d-b78f-2516255c7432
 - [M4] *Type fields* — https://support.microsoft.com/en-us/project/type-fields
+- [M5] *Remaining Duration (task field)* — https://support.microsoft.com/en-us/project/remaining-duration-task-field
+  (geraadpleegd 2026-09-05: "Remaining Duration = Duration − Actual Duration"; een wijziging van de
+  restduur laat Project de duur herrekenen als rest + werkelijke duur)
 - [M5] *Work fields* — https://support.microsoft.com/en-us/project/work-fields
 - [M6] *Remaining Work fields* — https://support.microsoft.com/en-us/project/remaining-work-fields
 - [M7] *Actual Work fields* — https://support.microsoft.com/en-US/project/actual-work-fields

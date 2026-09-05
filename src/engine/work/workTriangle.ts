@@ -359,6 +359,40 @@ export function applyRuleChange(state: TriangleState, rule: WorkRule): TriangleR
   return validated({ ...state, rule, assignments });
 }
 
+/**
+ * Kalenderwissel (eigenaarsbesluit 2026-09-05, spec §6.4 herzien): de SLOTgrootte (werkminuten per
+ * werkdag) verandert, de restduur in dagen blijft wat ze was (`newRemainingMinutes` = dezelfde dagen
+ * in de nieuwe slot) en het werk van vóór de wissel is het anker. Daarna beslist de regel:
+ *  - FIXED_DURATION_RATE: duur en inzet blijven, het werk volgt (alleen een aanwezig veld wordt
+ *    herschreven; afwezig blijft afwezig) — het gedrag van vandaag, byte-identiek zonder werkveld;
+ *  - FIXED_DURATION_WORK: duur en werk blijven, de inzet wordt W / R';
+ *  - FIXED_WORK / FIXED_RATE: werk en inzet blijven, R = max_i(W_i / I_i) in de nieuwe slot (naar
+ *    boven op hele dagen) — minder uren per dag maakt de taak langer.
+ * Uurtaken hebben geen slotafhankelijke duur; de aanroeper (brug) roept dit dan niet aan.
+ */
+export function applySlotChange(state: TriangleState, newSlotMinutes: number, newRemainingMinutes: number): TriangleResult {
+  if (!isPositive(newSlotMinutes)) return { ok: false, reason: 'invalid-duration' };
+  if (!isPositive(newRemainingMinutes)) return { ok: false, reason: 'invalid-duration' };
+  const anchored: TriangleAssignment[] = state.assignments.map((a) => (a.drivesDuration
+    ? { ...a, remainingWorkMinutes: remainingWorkOf(a, state.remainingMinutes) }
+    : a));
+  const next: TriangleState = { ...state, slotMinutes: newSlotMinutes, remainingMinutes: newRemainingMinutes };
+  if (state.rule === 'FIXED_DURATION_RATE') {
+    const assignments = state.assignments.map((a) => (a.drivesDuration && a.remainingWorkMinutes !== undefined
+      ? { ...a, remainingWorkMinutes: newRemainingMinutes * a.unitsPerDay }
+      : a));
+    return validated({ ...next, assignments });
+  }
+  if (state.rule === 'FIXED_DURATION_WORK') {
+    const assignments = anchored.map((a) => (a.drivesDuration && a.remainingWorkMinutes !== undefined && a.remainingWorkMinutes > 0
+      ? { ...a, unitsPerDay: a.remainingWorkMinutes / newRemainingMinutes }
+      : a));
+    return validated({ ...next, assignments });
+  }
+  const R = derivedRemaining(next, anchored);
+  return validated({ ...next, remainingMinutes: R, assignments: anchored });
+}
+
 function replaceAt(list: readonly TriangleAssignment[], idx: number, item: TriangleAssignment): TriangleAssignment[] {
   const out = [...list];
   out[idx] = item;

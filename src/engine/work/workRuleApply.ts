@@ -25,8 +25,8 @@ import {
   clearTimephasedDurationWalks, clearTimephasedWindow, rescaleTaskContours, timephasedDurationWalksHaveFrozenWork,
 } from '@/utils/taskDefaults';
 import {
-  applyAssignmentAdded, applyAssignmentRemoved, applyDurationEdit, applyRuleChange, applyUnitsEdit,
-  applyWorkEdit, ruleProtectsWork, type TriangleAssignment, type TriangleState,
+  applyAssignmentAdded, applyAssignmentRemoved, applyDurationEdit, applyRuleChange, applySlotChange,
+  applyUnitsEdit, applyWorkEdit, ruleProtectsWork, type TriangleAssignment, type TriangleState,
 } from '@/engine/work/workTriangle';
 
 export interface WorkRuleContext {
@@ -403,6 +403,57 @@ export function settleDurationAftermath(task: Task, deps: WorkRuleDeps, oldWorkM
   const clearedWindow = clearTimephasedWindow(task);
   const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
   return clearedWindow || clearedWalks;
+}
+
+/**
+ * Kalenderwissel (eigenaarsbesluit 2026-09-05): aanroepen NÁDAT de kalender van de taak (of de
+ * inhoud van haar kalender) is gewijzigd, met de momentopname van daarvóór. Alleen de slotgrootte
+ * (uren per dag) telt; de restduur in dagen blijft, en de regel beslist (`applySlotChange`).
+ * Uurtaken en een ongewijzigde slot ⇒ niets. Een gewijzigde duur komt terug als `durationChanged`.
+ */
+export function settleCalendarChange(
+  task: Task,
+  assignments: ResourceAssignment[],
+  captured: CapturedTriangle | null,
+  deps: WorkRuleDeps,
+): TriangleWriteBack {
+  if (!captured || isHourTask(task.time)) return NO_CHANGE;
+  const ctx = workRuleContextOf(task, deps);
+  const newSlot = slotMinutesOf(ctx);
+  if (newSlot === captured.state.slotMinutes) return NO_CHANGE;
+  const remainingDays = captured.state.remainingMinutes / captured.state.slotMinutes;
+  const newRemaining = remainingDays * newSlot;
+  const result = applySlotChange(captured.state, newSlot, newRemaining);
+  if (!result.ok) return NO_CHANGE;
+  const beforeInNewSlot: TriangleState = { ...captured.state, slotMinutes: newSlot, remainingMinutes: newRemaining };
+  return applyTriangleResult(task, assignments, beforeInNewSlot, result.state, ctx);
+}
+
+/**
+ * Duurbewerking op een taak met EXPLICIETE restduur (eigenaarsbesluit 2026-09-05, spec §6.5): het
+ * verrichte deel is een feit, dus wat de gebruiker aan de duur toevoegt of afhaalt landt in de rest
+ * (Microsoft: Remaining Duration = Duration − Actual Duration). Rest = max(0, rest + Δ), in dagen
+ * (dagmodus, `remainingTime`) of minuten (uurmodus, `remainingMinutes`). `completion` blijft zoals
+ * ze is. Aanroepen NÁDAT de nieuwe duur is gezet, met de oude werkminuten (`taskWorkMinutes` vóór
+ * de bewerking). Zonder expliciet restveld gebeurt niets (de rest wordt dan afgeleid en schuift
+ * vanzelf mee).
+ */
+export function carryRemainingThroughDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+  const t = task.time;
+  const slot = slotMinutesOf({ hoursPerDay });
+  if (isHourTask(t)) {
+    if (t.remainingMinutes === undefined) return false;
+    const delta = t.durationMinutes - oldWorkMinutes;
+    if (Math.abs(delta) < 1e-6) return false;
+    t.remainingMinutes = Math.max(0, Math.round(t.remainingMinutes + delta));
+    return true;
+  }
+  if (t.remainingTime === undefined) return false;
+  const oldDays = Math.round(oldWorkMinutes / slot);
+  const delta = t.scheduleDuration - oldDays;
+  if (Math.abs(delta) < 1e-6) return false;
+  t.remainingTime = Math.max(0, Math.round(t.remainingTime + delta));
+  return true;
 }
 
 /** Eén taakraster-/MCP-batchwijziging op de toewijzingen van één taak, als reeks kernstappen. */

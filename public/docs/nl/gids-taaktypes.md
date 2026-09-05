@@ -29,6 +29,8 @@ In het raster werken de kolommen *Werkregel* (keuzelijst) en *Resterend werk* (`
 - De regel werkt op het **resterende** deel van een gestarte taak: verrichte duur en verricht werk bewegen nooit.
 - Een dagtaak houdt hele dagen: levert werk ÷ inzet een halve dag op, dan wordt de duur naar boven afgerond en blijft het werk exact staan.
 - Een resource erbij of eraf, ook via *Verplaats naar…* of het verwijderen van een resource, volgt dezelfde regel.
+- Een **andere kalender** (voor de taak, voor het project, of andere uren per dag in de kalender zelf) verandert het aantal werkuren per dag; daarna beslist de werkregel. Onder *Vast werk* en *Vaste inzet* wordt een taak langer als de mensen minder uren per dag maken (32 uur op 6 uur per dag = 6 dagen). Onder *Vaste duur en werk* stijgt de inzet. Onder de standaardregel blijft alles zoals voorheen: duur en inzet blijven, het werk volgt. Verandert een project- of kalenderwijziging de duur van taken, dan meldt de app hoeveel.
+- Een **duurwijziging op een gestarte taak** met een ingevoerde resterende duur laat het verrichte deel staan: wat u aan de duur toevoegt of afhaalt, komt bij de resterende duur (nooit onder nul). Het percentage gereed blijft wat u invulde.
 - Elke bewerking is één stap ongedaan te maken.
 - De projectstandaard-werkregel (voor taken zonder eigen keuze) is via de AI-assistent te zetten; een UI daarvoor volgt.
 - Mijlpalen, verzameltaken, hangmatten en taken op doorlooptijd hebben geen werkregel.

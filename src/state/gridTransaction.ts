@@ -19,8 +19,8 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import {
-  captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleDurationAftermath,
-  settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
+  captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
+  settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
 } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -680,8 +680,19 @@ function applyCellEdits(
   const planned = planTaskCellEdits(task, finalEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
+    const calendarBefore = task.calendarId;
+    const oldDays = task.time.scheduleDuration;
     state.tasks[taskIndex] = planned.value.task;
-    settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
+    // K2 (eigenaarsbesluit 2026-09-05): een kalenderwissel in de cel loopt door de werkregel; staat
+    // er in dezelfde paste óók een duur, dan wint de kalenderstap (de duur is dan al in de nieuwe
+    // slot gezet door het plan) — zelfde volgorde als `taskSlice.updateTask`.
+    if (state.tasks[taskIndex].calendarId !== calendarBefore) {
+      if (settleCalendarChange(state.tasks[taskIndex], state.assignments, triangle, state).durationChanged) {
+        settleDurationAftermath(state.tasks[taskIndex], state, oldDays * taskCalendarHoursPerDay(state.tasks[taskIndex], state.calendars, state.calendar) * 60);
+      }
+    } else {
+      settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
+    }
     // Taaktypes-etappe (spec §7, besluit 2): een typewissel in het raster legt — net als
     // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
     if (state.tasks[taskIndex].workRule !== workRuleBefore) {

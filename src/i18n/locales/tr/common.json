@@ -74,6 +74,8 @@
     "mppTimephasedSteeringLost_other": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
     "readMore": "Daha fazla bilgi",
     "taskTypesUnlocked": "Bu dosya görev türleri (iş kuralları veya kaydedilmiş iş) içeriyor; iş kuralı ve kalan iş bu belge için gösteriliyor.",
+    "workRuleDurationsChanged_one": "Takvim değişikliğinden sonra iş kuralı {{count}} görevin süresini ayarladı (iş aynı kaldı, günlük saatler değişti).",
+    "workRuleDurationsChanged_other": "Takvim değişikliğinden sonra iş kuralı {{count}} görevin süresini ayarladı (iş aynı kaldı, günlük saatler değişti).",
     "pasteSkippedReadOnly_one": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
     "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
     "librarySaveFailed": "Kitaplık kaydedilemedi",

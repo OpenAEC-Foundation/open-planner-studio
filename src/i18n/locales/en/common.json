@@ -79,6 +79,8 @@
     "mppTimephasedSteeringLost_other": "MS Project's date window no longer drives {{count}} tasks after this edit; the hour distribution itself still applies and stays in the file.",
     "readMore": "Read more",
     "taskTypesUnlocked": "This file contains task types (work rules or stored work); the work rule and remaining work are shown for this document.",
+    "workRuleDurationsChanged_one": "After the calendar change the work rule adjusted the duration of {{count}} task (work stays, hours per day changed).",
+    "workRuleDurationsChanged_other": "After the calendar change the work rule adjusted the duration of {{count}} tasks (work stays, hours per day changed).",
     "pasteSkippedReadOnly_one": "Skipped {{count}} cell: it is read-only (for example an auto-numbered WBS code or a calculated column).",
     "pasteSkippedReadOnly_other": "Skipped {{count}} cells: they are read-only (for example an auto-numbered WBS code or a calculated column).",
     "librarySaveFailed": "Library could not be saved",

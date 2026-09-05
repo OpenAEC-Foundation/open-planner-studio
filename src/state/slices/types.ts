@@ -235,7 +235,10 @@ export type NotificationMessageKey =
   | 'notifications.levelingDelayRoundedToWorkdays'
   // Taaktypes-etappe (spec §7): het geladen bestand draagt taaktypedata terwijl "Toon taaktypes"
   // uit staat — de werkregel-UI is voor dit document ontsloten; zie `src/state/taskTypesNotice.ts`.
-  | 'notifications.taskTypesUnlocked';
+  | 'notifications.taskTypesUnlocked'
+  // Eigenaarsbesluit 2026-09-05 (K2): een kalenderwissel loopt door de werkregel; wanneer dat de
+  // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
+  | 'notifications.workRuleDurationsChanged';
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */

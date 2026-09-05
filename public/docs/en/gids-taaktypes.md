@@ -29,6 +29,8 @@ In the grid the *Work rule* (list) and *Remaining work* (`name: hours; name: hou
 - The rule works on the **remaining** part of a started task: actual duration and actual work never move.
 - A day task keeps whole days: if work ÷ units yields half a day, the duration is rounded up and the work stays exact.
 - Adding or removing a resource, also via *Move to…* or deleting a resource, follows the same rule.
+- A **different calendar** (for the task, for the project, or different hours per day inside the calendar) changes the working hours per day; the work rule then decides. Under *Fixed work* and *Fixed units* a task gets longer when people work fewer hours per day (32 hours at 6 hours per day = 6 days). Under *Fixed duration and work* the units rise. Under the default rule nothing changes from before: duration and units stay, work follows. When a project or calendar change alters task durations, the app tells you how many.
+- A **duration change on a started task** with an entered remaining duration keeps the completed part: what you add to or take from the duration goes to the remaining duration (never below zero). The percent complete stays as you entered it.
 - Every edit is one undo step.
 - The project default work rule (for tasks without their own choice) can be set through the AI assistant; a UI for it will follow.
 - Milestones, summary tasks, hammocks and elapsed-time tasks have no work rule.

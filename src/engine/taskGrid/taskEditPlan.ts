@@ -1,4 +1,5 @@
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
+import { carryRemainingThroughDurationEdit } from '@/engine/work/workRuleApply';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -140,6 +141,8 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
 function finishDurationEdit(task: Task, oldWorkMinutes: number, environment: TaskEditPlanEnvironment): boolean {
   const hoursPerDay = environment.effectiveHoursPerDay;
   if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) {
+    // Eigenaarsbesluit 2026-09-05: een expliciete restduur schuift mee met de duurwijziging.
+    carryRemainingThroughDurationEdit(task, oldWorkMinutes, hoursPerDay);
     rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, environment.contourKeepsWork);
   }
   return clearScheduleGuidance(task, true);

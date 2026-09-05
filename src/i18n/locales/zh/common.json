@@ -57,6 +57,7 @@
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
     "readMore": "了解更多",
     "taskTypesUnlocked": "此文件包含任务类型（工作规则或已保存的工时）；本文档将显示工作规则和剩余工时。",
+    "workRuleDurationsChanged_other": "更改日历后，工作规则调整了 {{count}} 个任务的工期（工时不变，每日工作小时数已更改）。",
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"

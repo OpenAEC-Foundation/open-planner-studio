@@ -23,7 +23,9 @@ import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncPro
 import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
-import { clearTaskTypesNoticeForDoc } from '../taskTypesNotice';
+import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
+import { captureTriangle, settleCalendarChange, settleDurationAftermath } from '@/engine/work/workRuleApply';
+import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -264,15 +266,27 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
-  setProjectCalendar: (id) =>
+  setProjectCalendar: (id) => {
+    let changed = 0;
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
       runtime.beginUndoable(s);
+      // K2 (eigenaarsbesluit 2026-09-05): alle taken zónder eigen kalender volgen de projectkalender;
+      // momentopnamen vóór de wissel, daarna beslist de werkregel per taak.
+      const affected = s.tasks.filter((t) => t.calendarId === undefined).map((task) => ({ task, before: captureTriangle(task, s.assignments, s), oldDays: task.time.scheduleDuration }));
       s.project.calendarId = id;
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten (vóór de settle: die leest `s.calendar`).
+      for (const { task, before, oldDays } of affected) {
+        if (settleCalendarChange(task, s.assignments, before, s).durationChanged) {
+          settleDurationAftermath(task, s, oldDays * taskCalendarHoursPerDay(task, s.calendars, s.calendar) * 60);
+          changed++;
+        }
+      }
       runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
-      syncProjectCalendar(s); // §9.1: cache gelijkzetten.
-    }),
+    });
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, get().activeDocumentId, changed);
+  },
 
   ensureProjectCalendarInLibrary: () =>
     set((s) => {

@@ -10,8 +10,10 @@ import {
 } from '@/utils/taskDefaults';
 import {
   captureTriangle, commitTrianglePlan, planWorkEdit, settleAssignmentAdded, settleAssignmentRemoved,
-  settleDurationAftermath, settleUnitsEdit,
+  settleCalendarChange, settleDurationAftermath, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';
+import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
+import { tasksOnCalendar } from '../calendarTasks';
 import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
@@ -425,16 +427,27 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   },
 
   updateCalendar: (id, updates) => {
+    let changed = 0;
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
       runtime.beginUndoable(s);
+      // K2 (eigenaarsbesluit 2026-09-05): andere uren per dag ⇒ de werkregel beslist per taak op
+      // deze kalender (momentopnamen vóór de mutatie, want de kalender muteert in-place).
+      const affected = tasksOnCalendar(s, id).map(task => ({ task, before: captureTriangle(task, s.assignments, s), oldDays: task.time.scheduleDuration }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
+      for (const { task, before, oldDays } of affected) {
+        if (settleCalendarChange(task, s.assignments, before, s).durationChanged) {
+          settleDurationAftermath(task, s, oldDays * taskCalendarHoursPerDay(task, s.calendars, s.calendar) * 60);
+          changed++;
+        }
+      }
       // Pure naamswijziging raakt geen datums (§5.4); elke andere mutatie wél.
       const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
       runtime.finishMutation(s, { stale: !onlyName });
     });
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, get().activeDocumentId, changed);
     get().recomputeResourceLoad();
   },
 

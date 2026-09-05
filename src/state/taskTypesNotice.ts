@@ -29,6 +29,22 @@ export function __resetTaskTypesNoticeForTests(): void {
   notifiedDocIds.clear();
 }
 
+/**
+ * K2 (eigenaarsbesluit 2026-09-05): een project- of kalenderwijziging heeft via de werkregel de duur
+ * van `count` taken veranderd (minder/meer uren per dag ⇒ langer/korter onder Vast werk en Vaste
+ * inzet). Geen sessie-gate: elke keer dat het gebeurt is het nieuws; `dedupeKey` vouwt één burst samen.
+ */
+export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void, docId: string, count: number): void {
+  if (count <= 0) return;
+  notify({
+    severity: 'info',
+    messageKey: 'notifications.workRuleDurationsChanged',
+    params: { count },
+    dedupeKey: `work-rule-durations-${docId}`,
+    helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
+  });
+}
+
 export function notifyTaskTypesUnlocked(notify: (n: NotifyInput) => void, docId: string): void {
   if (!claimTaskTypesNotice(docId)) return;
   notify({

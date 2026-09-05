@@ -79,6 +79,8 @@
     "mppTimephasedSteeringLost_other": "Het datumvenster uit MS Project stuurt {{count}} taken niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
     "readMore": "Lees meer",
     "taskTypesUnlocked": "Dit bestand bevat taaktypes (werkregels of opgeslagen werk); de werkregel en het resterende werk zijn voor dit document zichtbaar.",
+    "workRuleDurationsChanged_one": "De werkregel heeft na de kalenderwijziging de duur van {{count}} taak aangepast (werk blijft, uren per dag veranderden).",
+    "workRuleDurationsChanged_other": "De werkregel heeft na de kalenderwijziging de duur van {{count}} taken aangepast (werk blijft, uren per dag veranderden).",
     "pasteSkippedReadOnly_one": "{{count}} cel overgeslagen: hij is read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
     "pasteSkippedReadOnly_other": "{{count}} cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",

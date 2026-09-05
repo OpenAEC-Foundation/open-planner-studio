@@ -574,6 +574,116 @@ console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest n
   eq('o9 (K3) MCP setTaskWorkRule ontsluit het document', S().taskTypesVisible, true);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkregel (K2) en rest schuift mee met Δ --');
+{
+  reset();
+  // Een tweede kalender met 6 u/dag: kopie van de projectkalender met andere hoursPerDay.
+  const base = S().calendar;
+  const six = S().addCalendar({ ...base, id: 'cal-6h', name: '6 uur', hoursPerDay: 6 } as never);
+  const sixId = typeof six === 'string' ? six : 'cal-6h';
+  eq('p0 voorwaarde: projectkalender 8 u/dag, tweede kalender 6 u/dag', [base.hoursPerDay, S().calendars.find((c) => c.id === sixId)?.hoursPerDay], [8, 6]);
+  const mk = (rule: 'FIXED_WORK' | 'FIXED_DURATION_WORK' | 'FIXED_DURATION_RATE' | 'FIXED_RATE' | undefined) => {
+    const t = S().addTask({ name: `p-${rule ?? 'std'}`, time: createDefaultTaskTime('2026-06-01', 4) });
+    const r = labor(`r-${rule ?? 'std'}`);
+    S().assignResource(t, r, 1);
+    S().runCPM();
+    if (rule) S().setTaskWorkRule(t, rule);
+    return { t, r };
+  };
+  // (32) FIXED_WORK: 32 u blijft, 6 u/dag ⇒ 6 dagen.
+  const a = mk('FIXED_WORK');
+  const events0 = S().historyEvents.length;
+  S().setTaskCalendar(a.t, sixId);
+  eq('p1 (32) FIXED_WORK: kalender 8→6 u/dag ⇒ duur 6, werk 32 u, inzet 1', [task(a.t).time.scheduleDuration, asgOf(a.t, a.r).remainingWorkMinutes, asgOf(a.t, a.r).unitsPerDay, S().scheduleStale], [6, 32 * 60, 1, true]);
+  eq('p2 …één undo-stap', S().historyEvents.length - events0, 1);
+  S().undo();
+  eq('p3 …undo zet kalender én duur terug', [task(a.t).calendarId, task(a.t).time.scheduleDuration], [undefined, 4]);
+  S().redo();
+  S().runCPM();
+  // (33) FIXED_DURATION_WORK: duur 4 blijft, inzet 32/24 = 1,333.
+  const b = mk('FIXED_DURATION_WORK');
+  S().setTaskCalendar(b.t, sixId);
+  eq('p4 (33) FIXED_DURATION_WORK: duur 4, inzet 1,3333, werk 32 u', [task(b.t).time.scheduleDuration, asgOf(b.t, b.r).unitsPerDay, asgOf(b.t, b.r).remainingWorkMinutes], [4, 1.3333, 32 * 60]);
+  // (34) standaardregel zonder veld: byte-identiek (geen veld, duur 4, inzet 1).
+  const c = mk(undefined);
+  const before = JSON.stringify(asgOf(c.t, c.r));
+  S().setTaskCalendar(c.t, sixId);
+  eq('p5 (34) standaardregel zonder werkveld: toewijzing byte-identiek, duur 4', [JSON.stringify(asgOf(c.t, c.r)) === before, task(c.t).time.scheduleDuration], [true, 4]);
+  // (34) standaardregel mét veld: werk volgt (32 → 24 u).
+  const d = mk(undefined);
+  useAppStore.setState((s) => { s.assignments.find((x) => x.taskId === d.t)!.remainingWorkMinutes = 32 * 60; });
+  S().setTaskCalendar(d.t, sixId);
+  eq('p6 (34) standaardregel mét werkveld: werk volgt naar 24 u', [task(d.t).time.scheduleDuration, asgOf(d.t, d.r).remainingWorkMinutes], [4, 24 * 60]);
+  // Uurtaak: geen slotafhankelijke duur ⇒ niets.
+  const h = S().addTask({ name: 'p-hours', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
+  const hr = labor('r-h');
+  S().assignResource(h, hr, 1);
+  S().runCPM();
+  S().setTaskWorkRule(h, 'FIXED_WORK');
+  S().setTaskCalendar(h, sixId);
+  eq('p7 uurtaak: kalenderwissel raakt duur noch inzet', [task(h).time.durationMinutes, asgOf(h, hr).unitsPerDay], [240, 1]);
+  // Via de generieke updateTask (dialoog/paneel-patch) en via het raster.
+  const e = mk('FIXED_WORK');
+  S().updateTask(e.t, { calendarId: sixId });
+  eq('p8 updateTask({ calendarId }) loopt ook door de regel ⇒ duur 6', task(e.t).time.scheduleDuration, 6);
+  const f = mk('FIXED_WORK');
+  const cellCal: CellEditIntent = { kind: 'cell-edit', taskId: f.t, columnId: 'task.calendarId' as CellEditIntent['columnId'], route: 'task-schedule', value: sixId };
+  eq('p9 rastercel kalender slaagt en volgt de regel ⇒ duur 6', [runGridMutation([cellCal]).ok, task(f.t).time.scheduleDuration], [true, 6]);
+  // Projectkalender: taken zonder eigen kalender volgen; melding met aantal.
+  reset();
+  const six2 = S().addCalendar({ ...S().calendar, id: 'cal-6h-b', name: '6 uur', hoursPerDay: 6 } as never);
+  const six2Id = typeof six2 === 'string' ? six2 : 'cal-6h-b';
+  const g1 = mk('FIXED_WORK');
+  const g2 = mk('FIXED_RATE');
+  const g3 = mk(undefined);
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  S().setProjectCalendar(six2Id);
+  eq('p10 projectkalender 8→6: Vast werk en Vaste inzet ⇒ 6 d, standaard blijft 4', [task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration, task(g3.t).time.scheduleDuration], [6, 6, 4]);
+  const note = S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged');
+  eq('p11 …één melding met het aantal aangepaste taken (2)', note?.params?.count, 2);
+  // Kalenderinhoud wijzigen (uren per dag) op de projectkalender.
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  S().updateCalendar(six2Id, { hoursPerDay: 4 });
+  eq('p12 updateCalendar 6→4 u/dag: Vast werk 32 u ⇒ 8 d; melding telt 2', [task(g1.t).time.scheduleDuration, S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged')?.params?.count], [8, 2]);
+  // MCP-tweeling: patchTaskFields met calendarId.
+  reset();
+  const six3 = S().addCalendar({ ...S().calendar, id: 'cal-6h-c', name: '6 uur', hoursPerDay: 6 } as never);
+  const six3Id = typeof six3 === 'string' ? six3 : 'cal-6h-c';
+  const m = mk('FIXED_WORK');
+  const mr = runInMcpTransaction(() => { draft.patchTaskFields(m.t, { calendarId: six3Id }); });
+  eq('p13 MCP patchTaskFields({ calendarId }) ⇒ duur 6', [mr.ok, task(m.t).time.scheduleDuration], [true, 6]);
+
+  // ── Beslispunt 2: expliciete rest schuift mee met Δ, geklemd op 0; completion blijft.
+  reset();
+  const q = S().addTask({ name: 'q', time: createDefaultTaskTime('2026-06-01', 10) });
+  const qr = labor('r-q');
+  S().assignResource(q, qr, 1);
+  S().updateTask(q, { time: { ...task(q).time, completion: 0.5, remainingTime: 3 } });
+  S().runCPM();
+  S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 12 } });
+  eq('q1 duur 10→12 bij expliciete rest 3 ⇒ rest 5, completion blijft 0,5', [task(q).time.remainingTime, task(q).time.completion], [5, 0.5]);
+  S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 4 } });
+  eq('q2 duur 12→4 (−8) ⇒ rest geklemd op 0', task(q).time.remainingTime, 0);
+  // Onder FIXED_WORK volgt de driehoek de verschoven rest.
+  S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 10, remainingTime: 5 } });
+  eq('q2b een patch die de rest ZELF zet, wordt niet ook nog verschoven', task(q).time.remainingTime, 5);
+  S().runCPM();
+  S().setTaskWorkRule(q, 'FIXED_WORK');
+  eq('q3 voorwaarde: restwerk 5 d vastgelegd', asgOf(q, qr).remainingWorkMinutes, 5 * slot());
+  S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 15 } });
+  eq('q4 duur 10→15 ⇒ rest 10, inzet 0,5 (werk 5 d blijft)', [task(q).time.remainingTime, asgOf(q, qr).unitsPerDay, asgOf(q, qr).remainingWorkMinutes], [10, 0.5, 5 * slot()]);
+  // Raster en uurmodus.
+  const cellDur: CellEditIntent = { kind: 'cell-edit', taskId: q, columnId: 'task.time.scheduleDuration' as CellEditIntent['columnId'], route: 'task-schedule', value: 20 * slot() };
+  eq('q5 rastercel duur 15→20 ⇒ rest 15', [runGridMutation([cellDur]).ok, task(q).time.remainingTime], [true, 15]);
+  const u = S().addTask({ name: 'u', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
+  S().updateTask(u, { time: { ...task(u).time, completion: 0.5, remainingMinutes: 100 } });
+  S().updateTask(u, { time: { ...task(u).time, durationMinutes: 300 } });
+  eq('q6 uurmodus: 240→300 min bij rest 100 ⇒ rest 160', task(u).time.remainingMinutes, 160);
+  const mq = runInMcpTransaction(() => { draft.patchTaskFields(q, {}, { scheduleDuration: 22 }); });
+  eq('q7 MCP patchTaskFields duur 20→22 ⇒ rest 17', [mq.ok, task(q).time.remainingTime], [true, 17]);
+}
+
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);

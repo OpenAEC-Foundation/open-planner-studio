@@ -57,6 +57,7 @@
     "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",
     "readMore": "더 알아보기",
     "taskTypesUnlocked": "이 파일에는 작업 유형(작업 규칙 또는 저장된 작업량)이 포함되어 있습니다. 이 문서에서는 작업 규칙과 남은 작업량이 표시됩니다.",
+    "workRuleDurationsChanged_other": "달력 변경 후 작업 규칙이 {{count}}개 작업의 기간을 조정했습니다(작업량 유지, 일일 시간 변경).",
     "pasteSkippedReadOnly_other": "읽기 전용 셀 {{count}}개를 건너뛰었습니다(예: 자동 번호가 매겨진 WBS 코드 또는 계산된 열).",
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다."

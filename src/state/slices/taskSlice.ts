@@ -16,7 +16,10 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
 import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
-import { captureTriangle, contourKeepsWork, settleDurationEdit, settleRuleChange } from '@/engine/work/workRuleApply';
+import {
+  captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, settleCalendarChange, settleDurationAftermath,
+  settleDurationEdit, settleRuleChange,
+} from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -411,15 +414,33 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
       // zodat `updateTask(id, { workRule })` (extensie-`data.updateTask`, dialogen) hetzelfde doet
       // als `setTaskWorkRule`.
-      const { time, workRule, ...rest } = updates;
+      const { time, workRule, calendarId, ...rest } = updates;
+      // K2 (eigenaarsbesluit 2026-09-05): een kalenderwissel EERST en apart — de slotgrootte
+      // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); daarna pas de
+      // momentopname voor een eventuele duurwijziging in dezelfde patch, zodat die op de nieuwe slot rekent.
+      if ('calendarId' in updates && s.tasks[idx].calendarId !== calendarId) {
+        const before = captureTriangle(s.tasks[idx], s.assignments, s);
+        const oldDays = s.tasks[idx].time.scheduleDuration;
+        s.tasks[idx].calendarId = calendarId;
+        if (settleCalendarChange(s.tasks[idx], s.assignments, before, s).durationChanged) {
+          settleDurationAftermath(s.tasks[idx], s, oldDays * taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar) * 60);
+        }
+      }
       // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR de merge —
       // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
       const triangle = timeUpdateTouchesTimephasedWindow(time) ? captureTriangle(s.tasks[idx], s.assignments, s) : null;
+      const restBefore = [s.tasks[idx].time.remainingTime, s.tasks[idx].time.remainingMinutes];
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Eigenaarsbesluit 2026-09-05: een duurbewerking schuift een EXPLICIETE restduur mee (Δ,
+      // geklemd op 0) — het verrichte deel is een feit. Vóór de driehoekstap, die de rest leest.
+      // Alleen wanneer de patch de rest niet ZELF zette (een gespreide `time`-tak met dezelfde
+      // waarde telt als "niet gezet").
+      const restUntouched = s.tasks[idx].time.remainingTime === restBefore[0] && s.tasks[idx].time.remainingMinutes === restBefore[1];
+      if (timeUpdateTouchesTimephasedWindow(time) && restUntouched) carryRemainingThroughDurationEdit(s.tasks[idx], oldWorkMinutes, contourHpd);
       // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
       // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
       // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
@@ -439,7 +460,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
       // voor de volledige triggerset-toelichting.
-      if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
+      if (('calendarId' in updates) || timeUpdateTouchesTimephasedWindow(time)) {
         const clearedWindow = clearTimephasedWindow(s.tasks[idx]);
         // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee (zie
         // `taskDefaults.ts`'s bijgewerkte docblok): een walk met bevroren `workMinutes` negeert een
@@ -476,7 +497,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
       runtime.beginUndoable(s);
+      // K2 (eigenaarsbesluit 2026-09-05): momentopname vóór de wissel; daarna beslist de werkregel.
+      const before = captureTriangle(task, s.assignments, s);
+      const oldDays = task.time.scheduleDuration;
       task.calendarId = calendarId; // undefined = projectkalender
+      if (settleCalendarChange(task, s.assignments, before, s).durationChanged) {
+        settleDurationAftermath(task, s, oldDays * taskCalendarHoursPerDay(task, s.calendars, s.calendar) * 60);
+      }
       lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });

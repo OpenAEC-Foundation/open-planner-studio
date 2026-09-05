@@ -57,6 +57,7 @@
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
     "readMore": "詳細を見る",
     "taskTypesUnlocked": "このファイルにはタスクの種類（作業ルールまたは保存済み作業）が含まれています。このドキュメントでは作業ルールと残作業が表示されます。",
+    "workRuleDurationsChanged_other": "カレンダー変更後、作業ルールにより {{count}} 件のタスクの期間が調整されました（作業は維持、1日の時間数が変更）。",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
