@@ -711,6 +711,34 @@ export class CalendarEngine {
   }
 
   // ── Minuut-lussen (§4.2) ───────────────────────────────────────────────────
+  //
+  // SNAP-REGEL OP NIET-WERK-INSTANTS — waarom `addWorkMinutes` en `subtractWorkMinutes` elkaars
+  // exacte spiegel zijn, en waar die spiegel schijnbaar (maar niet werkelijk) breekt.
+  //
+  // Beide lussen normaliseren hun aangrijpingspunt eerst naar een werk-instant, elk IN DE RICHTING
+  // VAN DE EIGEN WANDELING: `addWorkMinutes` gebruikt `nextWorkInstant` (vooruit), en
+  // `subtractWorkMinutes` gebruikt `prevWorkInstant` (achteruit). Daaruit volgen drie regels die je
+  // moet kennen vóór je hier iets aanraakt:
+  //
+  //  1. Voor elk WERK-instant `t` geldt `subtractWorkMinutes(addWorkMinutes(t, n), n) === t` op de
+  //     milliseconde. Dat is geen toevallige eigenschap maar de invariant waarop de backward-pass
+  //     van de solver leunt: `LS..LF` moet exact evenveel werktijd overspannen als `ES..EF`.
+  //  2. Voor een `t` die GEEN werk-instant is (midden in een weekend, een feestdag of een
+  //     aaneengesloten vrij blok van dagen) is er geen ronde-reis-identiteit, en dat is correct:
+  //     `add` snapt naar de eerstvolgende bandstart, `sub` naar het laatste band-eind ervóór. De
+  //     twee snappunten liggen per definitie aan weerszijden van hetzelfde gat. Een aanroeper die
+  //     een niet-werk-instant aanlevert vraagt om een richtingsafhankelijk antwoord en krijgt het.
+  //  3. Op een BANDGRENS zijn twee verschillende instants hetzelfde punt op de werk-as: het eind van
+  //     de ene band en het begin van de volgende hebben nul werkminuten tussen zich. `sub` levert
+  //     daarom een bandstart waar `add` een band-eind levert, zónder dat er werktijd verschilt. De
+  //     juiste gelijkheidstest tussen twee posities op de werk-as is `workMinutesBetween(a, b) === 0`,
+  //     NIET `a.getTime() === b.getTime()`.
+  //
+  // De enige asymmetrie in dit bestand is `subtractP6XerProjectedWorkMinutes` onderaan, en die is
+  // uitdrukkelijk een P6/XER-RESULTAATPROJECTIE achter `p6Source === 'XER'` — geen kalenderprimitief.
+  // `tests/planning/check-calendar-mirror.ts` pint deze drie regels én die ene bronpoort vast, over
+  // een aaneengesloten niet-werkblok van tien dagen, in dag-modus en in uur-modus met 1, 2 en 3
+  // banden per dag.
 
   /** Tel `minutes` werkminuten op vanaf `startInstant` (§4.2): verbruik over opeenvolgende banden,
    *  spring bij een bandgrens naar de volgende bandstart. Een verbruik dat exact op een band-eind
