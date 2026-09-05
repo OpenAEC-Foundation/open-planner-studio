@@ -157,6 +157,14 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
    uit ⇒ byte-identiek, uitsluitend door de betreffende lezer gezet). Verwachte kandidaten:
    de lag-kalender, retained logic vs. progress override, de Z10/Z11-relatieregels, en de
    suspend/resume-semantiek (X7).
+   **Opgeleverde O6-bronvlaggen (`SchedulingOptions`, alle alleen actief onder
+   `p6Source === 'XER'`)**: `p6PreserveActualInstants`, `p6UseRemainingStartForProgress`,
+   `p6PreserveZeroDurationConstraintInstants`, `p6FinishMilestoneBoundaryWindow` en — sinds
+   2026-09-05, X-O7 laag 1 klasse (i) — `p6CompletedLateFromRemainingWindow`. Die laatste wijkt
+   op één punt af van het stramien: hij staat in de XER-defaultset standaard **aan**, maar
+   `deriveXerScheduleOptions` zet hem weer **uit** zodra de bron `sched_progress_override = Y`
+   declareert, omdat alle corpusbewijs uitsluitend RETAINED_LOGIC is. Zie het docblok bij het veld
+   in `src/types/project.ts` voor de volledige bewijsbasis.
 3. **Corpus is publiek**; bedrijfs-XER-bestanden zouden hash-only zijn, maar het corpus bevat
    ze niet.
 4. **MPXJ (LGPL-2.1) uitsluitend lezen-om-te-begrijpen**; onafhankelijk herimplementeren,
@@ -243,6 +251,32 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
      verschillende delta's, anker klopt. Samen 69% van het corpustotaal (18.398 gemeten
      cellen), beide achter een XER-bron-vlag. Echte eigen rekenfouten die daarbij boven komen
      worden voor alle projecten gefixt, met eigen test.
+
+     **Stand 2026-09-05 — klasse (i) OPGELEVERD** (baan 7a, vlag
+     `p6CompletedLateFromRemainingWindow`). Corpusbreed gemeten: zesassige afwijkingen
+     18.398 → 16.261, ls 4.791 → 3.901, lf 4.781 → 3.891, tf 4.592 → 4.235; alle beweging zit in
+     één bestand (rehab-2), de overige 33 zijn byte-identiek. Vier dingen die je moet weten vóór
+     je hier verder bouwt:
+     - De winst hangt aan klasse (ii). Per cel op rehab-2: 890 ls- en 890 lf-cellen worden exact,
+       **0** verslechteren; tf wint er 572 en verliest er **215**. 214 van die 215 zijn voltooide
+       taken waar P6 `tf = 0` geeft en onze afgeleide LS nog van een zélf foute opvolger-LS komt.
+       Vóór deze etappe was hun `tf = 0` degeneratie (LS = de historische actual-start), dus per
+       ongeluk goed. Een fixpuntoplossing op P6's eigen opvolgerwaarden dekt 98,8%, op de onze
+       44,4% — klasse (ii) is dus de vervolgstap, niet een losstaand dossier.
+     - `drivingPath` verliest 6 cellen (`87418, 87419, 87420, 87421, 87422, 87426`). Dat is geen
+       ruis: het zijn zes OPEN taken waarvan ls/lf/tf nu exact P6 worden, inclusief `tf = 0`,
+       waarna onze `isCritical = tf ≤ drempel` ze kritiek maakt terwijl P6's `driving_path_flag`
+       `false` zegt. Een systematisch gat tussen OPS-kritiek en P6's driving-padbegrip, blootgelegd
+       dóór de verbetering; eigen vervolgetappe.
+     - De bewijsbasis is één bestand. Corpusbreed komen 2.042 voltooide taken door de poort, 2.040
+       daarvan in rehab-2. Wat de rest beschermt is de nauwte van de poort (`DT_FixedDUR2` +
+       `rem_target_link_flag=Y` + expliciet targetvenster + `CP_Drtn`), niet de regel.
+     - De poort staat óók tussen deze regel en de dertien P6-23.12-casussen. In
+       `cases-p6-verified.json` casus `09-completed-successor` (open A → FS → voltooide B) geeft
+       P6 `LS = ES`, `TF = 0`; wij ook, want die bron kent geen targetvenster en de poort blijft
+       dicht. `check-p6-verified-cases-engine.ts` haalt alle dertien casussen door de motor en pint
+       dat cel voor cel (157 van 160 cellen eens met P6); de enige afwijking is casus 10
+       (out-of-sequence voortgang, 3 cellen), klasse (ii)-materiaal.
   2. *Ontbrekende instellingen afleiden* — **vervalt** (kalibratiemeting 2026-09-04, meting,
      geen aanname): 384 combinaties van échte P6-instellingen over 34 orakelbestanden gaven een
      beste denkbare winst van 1.033 van 18.398 cellen (5,6%), **0 bestanden met een uniek
