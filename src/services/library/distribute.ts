@@ -217,8 +217,13 @@ function endShiftWorkdays(before: string, after: string, calendar: WorkCalendar)
 
 /** Alle taak-id's in dit document die via een resource stempel naar `libraryItemId` (in `companyId`)
  *  daadwerkelijk op deze pool boeken — de `scopeTaskIds` die de motor scope-behoudend nivelleert
- *  (B1c-plan-2 taak 3), zodat taken die niets met dit poolitem te maken hebben nooit verschuiven. */
-function scopeTaskIdsFor(doc: DistributionDocInput, companyId: string, libraryItemId: string): string[] {
+ *  (B1c-plan-2 taak 3), zodat taken die niets met dit poolitem te maken hebben nooit verschuiven.
+ *
+ *  GEËXPORTEERD (B1c-plan3 taak 8) omdat de verdeeldialoog exact dezelfde snit nodig heeft: de
+ *  startvolgorde is float-gesorteerd over precies de BOEKENDE taken van elk document (§4 stap 1),
+ *  en het schrijfpad (taak 6/12) geeft dezelfde scope door aan `applyDistribution`. Een tweede,
+ *  handgeschreven versie in de UI zou stilzwijgend van deze kunnen afwijken. */
+export function scopeTaskIdsFor(doc: DistributionDocInput, companyId: string, libraryItemId: string): string[] {
   const stampedResourceIds = new Set(
     doc.resources
       .filter(r => r.libraryOrigin !== undefined

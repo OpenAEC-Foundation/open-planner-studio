@@ -12,6 +12,7 @@ import {
   type OccupancyRow,
 } from '@/services/library/occupancy';
 import { documentTitle, untitledOrdinals, displayDocumentTitle, DOC_PALETTE } from '@/utils/documents';
+import { freshDistributionUi } from '@/components/dialogs/DistributionDialog/useDistributionProposal';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
 
@@ -172,6 +173,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
   const recalculateStaleSleepingDocuments = useAppStore(s => s.recalculateStaleSleepingDocuments);
+  const setUI = useAppStore(s => s.setUI);
 
   const untitledLabel = t('project.untitled');
 
@@ -468,13 +470,43 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                     </td>
                     <td className="px-2 py-1.5">
                       {hasConflict && (
-                        <span
-                          className="badge badge--red"
-                          title={conflictDatesLabel(row)}
-                          data-ops-occupancy-conflict
-                        >
-                          {t('resource.occupancy.conflictDays', { count: row.conflictDays.length })}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="badge badge--red"
+                            title={conflictDatesLabel(row)}
+                            data-ops-occupancy-conflict
+                          >
+                            {t('resource.occupancy.conflictDays', { count: row.conflictDays.length })}
+                          </span>
+                          {/* B1c-plan3 taak 8 — de INGANG van de verdeelflow (spec §7). Alleen bij een
+                              echt conflict: zonder conflict valt er niets te verdelen. Bestaat er al
+                              tune-state voor DIT poolitem, dan blijft die staan (inclusief de
+                              "toegepast"-strook uit taak 6) en wordt alleen de dialoog geopend; een
+                              ANDER item krijgt verse, float-gesorteerde tune-state.
+                              `stopPropagation`: de rij-klik selecteert de chart eronder — dat mag een
+                              klik op deze knop niet ook doen. */}
+                          <button
+                            type="button"
+                            className="px-2 py-0.5 rounded-[6px] border border-border hover:bg-surface-hover"
+                            data-ops-occupancy-distribute={row.libraryItemId}
+                            onClick={e => {
+                              e.stopPropagation();
+                              const s = useAppStore.getState();
+                              const current = s.ui.levelingDistribution;
+                              const sameItem = current !== null
+                                && current.companyId === companyId
+                                && current.libraryItemId === row.libraryItemId;
+                              setUI(sameItem
+                                ? { showDistributionDialog: true }
+                                : {
+                                    showDistributionDialog: true,
+                                    levelingDistribution: freshDistributionUi(s, untitledLabel, companyId, row.libraryItemId),
+                                  });
+                            }}
+                          >
+                            {t('resource.distribution.open')}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

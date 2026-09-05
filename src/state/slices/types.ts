@@ -33,6 +33,10 @@ export type { BarColorSelection };
 import type { McpServerStatus } from '@/services/mcp/contracts';
 export type { McpServerStatus };
 
+// B1c — het toegepast-record van de verdeeldialoog. Type-only import: geen runtime-cyclus (na
+// type-erasure blijft er niets van over, zie `verify:cycles`).
+import type { DistributionApplyRecord } from '@/services/library/applyDistribution';
+
 export type WeekStartDay = 'monday' | 'sunday';
 
 // Fase 2.10 (golf 1, sneltoetsen-fundament §"Nieuwe store-acties"): richting voor
@@ -231,6 +235,30 @@ export type NotifyInput = Omit<AppNotification, 'id' | 'count'>;
 /** Een gridprepare verzamelt meldingen in deze vorm en toont ze pas ná een geslaagde commit. */
 export type DeferredNotification = NotifyInput;
 
+/**
+ * B1c — de tune-state van de verdeeldialoog (spec §6): welk poolitem er verdeeld wordt, in welke
+ * rangorde, met welke pins en plafonds, en met welk gereedschap. Zie `UIState.levelingDistribution`
+ * voor de levensduur; het VOORSTEL is afgeleide data en staat hier bewust niet in.
+ */
+export interface DistributionUiState {
+  /** De bibliotheek (`companyId`) waarin het poolitem leeft. */
+  companyId: string;
+  /** Het poolitem waarvan de boeking verdeeld wordt. Een ANDER item ⇒ verse tune-state. */
+  libraryItemId: string;
+  /** "Onderbrekingen toestaan" (§4 stap 0 / §11.4) — het gereedschap. */
+  allowSplits: boolean;
+  /** docIds in rangorde; nr. 1 (index 0) wordt het MEEST ontzien en plaatst als eerste.
+   *  Startvolgorde bij openen: float-gesorteerd (§4 stap 1). */
+  order: string[];
+  /** docId → gepind (§6: bevriest einddatum ÉN werkdagen; telt als vaste last). */
+  pinned: Record<string, boolean>;
+  /** docId → "maximale uitloop van de einddatum" in werkdagen; `null`/afwezig = onbegrensd. */
+  ceilings: Record<string, number | null>;
+  /** Het laatst TOEGEPASTE record (B1c-plan3 taak 6), of `null`. Overleeft een sluiting van de
+   *  dialoog, zodat opnieuw openen de "toegepast"-strook met "Alles terugdraaien" nog toont. */
+  applied: DistributionApplyRecord | null;
+}
+
 export interface UIState {
   showTaskDialog: boolean;
   editingTaskId: string | null;
@@ -390,6 +418,27 @@ export interface UIState {
    *  of 'occupancy' (B1b: bezetting van de bibliotheek over álle open documenten — leesvenster).
    *  Default afgeleid: bij inhoud in de pool 'company', anders 'project' (spec §4). */
   resourcesView: 'company' | 'project' | 'occupancy';
+  /** session — B1c (spec §7, besluit eigenaar 2026-08-31): de VERDEELDIALOOG staat open. Losse
+   *  dialoog volgens het `showLevelingDialog`-patroon (gedeelde `Dialog` met focus-trap, gemount
+   *  vanuit `App.tsx`, opgenomen in `hasBlockingDialogOpen()` en de MCP-blokkeerlijst) — géén
+   *  drill-down binnen het bezettingsoverzicht, dat blijft gewoon zichtbaar eronder.
+   *
+   *  BEWUST GESCHEIDEN van `levelingDistribution` hieronder: de open/dicht-vlag mag een sluiting
+   *  NIET overleven, de tune-state juist wél. */
+  showDistributionDialog: boolean;
+  /** session — B1c: de tune-state van de verdeeldialoog (welk poolitem, rangorde, pins, plafonds,
+   *  gereedschap) plus het laatst toegepaste record. App-globaal, NIET per document (de verdeling
+   *  gaat per definitie ÓVER documenten heen) en dus NIET in `DOCUMENT_FIELDS`; ook niet in
+   *  `settingsRegistry` — het is sessiestate, geen instelling.
+   *
+   *  Overleeft het SLUITEN van de dialoog: opnieuw openen op dezelfde conflictregel toont de
+   *  eerder gekozen rangorde/plafonds én de "toegepast"-strook terug. Leeggemaakt door precies
+   *  twee dingen: het kiezen van een ÁNDER poolitem (dan is de tune-state betekenisloos) en
+   *  `resetDocumentScopedUI` bij een documentwissel (B1c-plan3 taak 12, spec §6a).
+   *
+   *  Het VOORSTEL zelf staat hier bewust niet in: dat is afgeleide data (een pure functie van deze
+   *  tune-state + de documenten) en woont in de componentstate van `useDistributionProposal`. */
+  levelingDistribution: DistributionUiState | null;
   /** session — eenmalig verzoek (issue #48-1) om in het resource-paneel een CONCEPT-rij te openen,
    *  i.p.v. meteen een naamloze resource te persisteren. Gezet door de lintknop "Nieuwe resource",
    *  geconsumeerd (en direct weer op false gezet) door `ResourcePanel`, dat er zijn lokale
