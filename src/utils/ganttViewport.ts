@@ -6,8 +6,27 @@
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
 import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+
+/** Start-keten: early → schedule (opgeslagen) → late. Gedeeld door {@link resolveTaskFinish},
+ *  {@link computeFitToProject} hier en `computeContentSpanDays` (ganttRenderOptions.ts). */
+export function resolveTaskStart(time: TaskTime): string | undefined {
+  return time.earlyStart || time.scheduleStart || time.lateStart || undefined;
+}
+
+/** Finish-keten: early → schedule → late, met een laatste terugval op {@link resolveTaskStart} —
+ *  zodat een taak met alleen een start nooit uit de scrolbare contentbreedte valt terwijl hij wél
+ *  voor de Ctrl+0-fit meetelt. Zonder die terugval kan `computeFitToProject` naar een positie zoomen
+ *  die buiten `maxScrollX` (computeGanttScrollBounds) valt. Gedeeld met `computeContentSpanDays`
+ *  (ganttRenderOptions.ts) zodat de twee ketens niet opnieuw uiteen kunnen lopen — dat was tot nu toe
+ *  alleen belofte via een toelichtende commentaarregel op beide plekken. Met de huidige importers
+ *  (IFC/CSV/MSPDI/P6/MPP) heeft elke taak altijd een niet-lege finish-keten; deze terugval dekt dus
+ *  alleen corrupte documentdata of een externe adapter/MCP-payload die buiten de taak-fabrieken
+ *  (`createDefaultTaskTime`/`mergeTaskTime`, `src/utils/taskDefaults.ts`) om schrijft. */
+export function resolveTaskFinish(time: TaskTime): string | undefined {
+  return time.earlyFinish || time.scheduleFinish || time.lateFinish || resolveTaskStart(time);
+}
 
 /**
  * Zoomstap van de IN-/UITZOOM-knoppen en -sneltoetsen (K-item 34). Additief, niet
@@ -205,15 +224,10 @@ export function computeFitToProject(
   let minStart: string | null = null;
   let maxFinish: string | null = null;
   for (const task of tasks) {
-    // LET OP de `|| s` op de finish-keten: die staat hier WEL en in `computeContentSpanDays`
-    // (ganttRenderOptions.ts) NIET. Een taak met alleen een start telt dus mee voor de Ctrl+0-fit
-    // maar niet voor de contentbreedte, en kan daardoor buiten `maxScrollX` vallen terwijl de fit
-    // er wel naartoe zoomt. Bestaand verschil, niet door K-item 33 ontstaan, en met de huidige
-    // `createDefaultTaskTime` (die altijd een `scheduleFinish` zet) alleen bereikbaar via een
-    // corrupte import of een externe adapter. Genoteerd als open punt in docs/TODO.md; deze regel
-    // staat er zodat de volgende lezer niet denkt dat het een slordigheid is.
-    const s = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
-    const f = task.time.earlyFinish || task.time.scheduleFinish || task.time.lateFinish || s;
+    // Start/finish via de gedeelde ketens hierboven — {@link resolveTaskFinish} valt terug op de
+    // start, dus deze fit blijft in lockstep met `computeContentSpanDays` (ganttRenderOptions.ts).
+    const s = resolveTaskStart(task.time);
+    const f = resolveTaskFinish(task.time);
     if (s && (!minStart || s < minStart)) minStart = s;
     if (f && (!maxFinish || f > maxFinish)) maxFinish = f;
   }

@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "Rozkład godzin w fazach",
+    "applyShape": "Zastosuj kształt:",
+    "hoursPerDay": "{{hours}} godz. na dzień roboczy",
+    "stripHint": "Przeciągnij granicę, aby wydłużyć lub skrócić fazę, górną krawędź, aby ustawić nakład; dwukrotne kliknięcie dnia dzieli fazę.",
+    "from": "Od",
+    "to": "Do",
+    "days": "Dni",
+    "unitsPerDay": "Nakład (jedn./dzień)",
+    "hoursPerDayCol": "Godz./dzień",
+    "actual": "Wykonane (h)",
+    "hoursTotal": "Godziny",
+    "split": "Podziel",
+    "merge": "Scal",
+    "lastPhaseHint": "Ostatnia faza trwa do końca zadania.",
+    "noDays": "To zadanie nie ma dni roboczych.",
+    "hint": "Rozkład zmienia tylko godziny dzienne tego przypisania; daty zadania i przerwy pozostają bez zmian. Faza z nakładem 0 pozostaje w obrębie czasu trwania zadania.",
+    "release": "Zwolnij rozkład"
+  },
   "durationType": { "WORKTIME": "Czas pracy", "ELAPSEDTIME": "Czas, który upłynął" },
   "table": {
     "title": "Tabela",
@@ -243,6 +262,7 @@
     "longFreePeriodWarningNamed": "To zadanie obejmuje {{name}} — {{days}}-dniowy okres wolny od pracy ({{start}} do {{end}}).",
     "timephasedActive": "Podąża za rozkładem godzin z MS Project",
     "timephasedLost": "Rozkład godzin z MS Project nie jest już stosowany po edycji — pierwotny rozkład pozostaje zachowany w pliku",
+    "timephasedContoured": "Własny rozkład godzin",
     "completion": "Postęp (%)",
     "progress": {
       "actualStart": "Rzeczywisty początek",
@@ -275,7 +295,11 @@
       "allAssigned": "Wszystkie zasoby są już przydzielone.",
       "disabledMilestone": "Przydziały nie są możliwe dla kamieni milowych.",
       "disabledSummary": "Przydziały nie są możliwe dla zadań sumarycznych.",
-      "moveTo": "Przenieś do…"
+      "moveTo": "Przenieś do…",
+      "contour": "Rozkład godzin…",
+      "contoured": "Kontur",
+      "contouredHint": "To przypisanie ma własny rozkład godzin; edytuj go lub zwolnij przyciskiem Rozkład godzin.",
+      "importedCurve": "Zaimportowana krzywa"
     },
     "calendar": "Kalendarz",
     "calendarProject": "Kalendarz projektu",

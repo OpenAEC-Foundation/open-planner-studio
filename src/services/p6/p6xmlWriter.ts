@@ -1,6 +1,10 @@
 import { Task, TaskConstraint } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
+import {
+  CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, isFlatCurveValues, matchContoursToAssignments,
+} from '@/engine/contour/contourEngine';
+import { contourPeriodsToP6Spread } from '@/services/contourIo';
 import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
@@ -17,16 +21,26 @@ const OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID = 900000001;
 export const OPS_P6_DURATION_UNIT_UDF_TITLE = 'OPS_TaskDurationUnit';
 export const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
 
-// Curve-/contour-naammapping (fase 2.5, §8.3): P6 kent geen `LATE_PEAK`-curve — beste
-// benadering is 'Early Peak' (gedocumenteerd verlies, zie verliesmatrix §8.4). UNIFORM wordt
-// nooit geschreven als expliciet `<PlannedCurve>`-element: 'Linear' is P6's eigen default.
+// Curve-/contour-naammapping (fase 2.5, §8.3). Contour-engine (2026-09): de curve wordt sinds
+// deze etappe SCHEMA-NATIEF geschreven — als `<ResourceCurve>`-object (21 waarden, MPXJ
+// `XmlContextWriter.writeResourceCurves`) plus `<ResourceCurveObjectId>` op de toewijzing. De
+// naam hieronder is alleen nog het `<Name>`-veld van dat object; het vroegere schrijven van de
+// naam in `<PlannedCurve>` was een verkeerde lezing van het schema (dat element is een
+// spreidingsstring, zie `contourIo.ts`) en is vervallen. LATE_PEAK heeft nu wél zijn eigen
+// tabel (MSP's Late Peak) en hoeft niet meer tot 'Early Peak' te degraderen; de naam volgt MSP.
 const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
   UNIFORM: undefined,
   FRONT_LOADED: 'Front Loaded',
   BACK_LOADED: 'Back Loaded',
   BELL: 'Bell Shaped',
   EARLY_PEAK: 'Early Peak',
-  LATE_PEAK: 'Early Peak',
+  LATE_PEAK: 'Late Peak',
+  // Contour-UI (2026-09): de twee laatste MS Project-vormen. LET OP: dit is alleen het LABEL van het
+  // `<ResourceCurve>`-object; de 21 waarden die de writer meeschrijft zijn de MS Project-tabel
+  // (`CONTOUR_SHAPE_VALUES`), niet P6's eigen ingebouwde "Double Peak"/"Trapezoidal"-tabel — de
+  // lezer matcht sowieso eerst op waarden, pas dan op naam.
+  DOUBLE_PEAK: 'Double Peak',
+  TURTLE: 'Turtle',
 };
 
 // Inkomende richting (P6-curvenaam → OPS-curve), gebruikt door de reader. BEWUST ASYMMETRISCH,
@@ -40,6 +54,9 @@ export const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
   'Back Loaded': 'BACK_LOADED',
   'Bell Shaped': 'BELL',
   'Early Peak': 'EARLY_PEAK',
+  'Late Peak': 'LATE_PEAK',
+  'Double Peak': 'DOUBLE_PEAK',
+  'Turtle': 'TURTLE',
 };
 
 function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
@@ -261,12 +278,15 @@ export function writeP6XML(
   if (levelingPrecisionCount > 0) {
     console.warn(`P6-export: ${levelingPrecisionCount} taak/taken met sub-dag-nivelleervertraging (levelingDelayMinutes) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
   }
-  // Splits en gecontoureerde toewijzingen delen dezelfde timephased-oorsprong (§3(c) van het
-  // nul-afwijkingen-plan, zelfde redenering als de MSPDI-warn) — één gecombineerde warn.
-  const splitTaskCount = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0).length;
-  const contouredAssignmentCount = assignments.filter(a => a.workWindowStart || a.workWindowFinish).length;
-  if (splitTaskCount > 0 || contouredAssignmentCount > 0) {
-    console.warn(`P6-export: ${splitTaskCount} gesplitste taak/taken en ${contouredAssignmentCount} gecontoureerde toewijzing(en) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
+  // Contour-engine (2026-09): gecontoureerde toewijzingen (`Task.timephasedContours`) gaan sinds
+  // deze etappe schema-natief mee als `<PlannedCurve>`/`<RemainingCurve>`/`<ActualCurve>`-
+  // spreiding (zie de toewijzingensectie) en de lezer leest ze terug. Alleen een gesplitste taak
+  // ZONDER contour (bv. een nivelleergat) heeft geen per-toewijzing-verdeling om te schrijven —
+  // die blijft een warn (P6 kent een onderbreking alleen als spreiding van een toewijzing).
+  const contouredTaskIds = new Set(tasks.filter(t => t.timephasedContours && t.timephasedContours.length > 0).map(t => t.id));
+  const splitWithoutContour = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0 && !contouredTaskIds.has(t.id)).length;
+  if (splitWithoutContour > 0) {
+    console.warn(`P6-export: ${splitWithoutContour} gesplitste taak/taken zonder contourdata weggelaten — alleen contouren (uit .mpp/MSPDI/P6) worden als spreiding geschreven (§6).`);
   }
   const resumeStopCount = tasks.filter(t => t.time.resume || t.time.stop).length;
   if (resumeStopCount > 0) {
@@ -375,6 +395,41 @@ export function writeP6XML(
     writeStandardWorkWeek(lines, indent, cal, hourTaskCalendarIds.has(cal.id));
     writeHolidayOrExceptions(lines, indent, cal);
     lines.push(`${indent(1)}</Calendar>`);
+  }
+
+  // Contour-engine (2026-09) — `<ResourceCurve>`-catalogus (schema-volgorde: ná Calendar, vóór
+  // Resource — MPXJ `APIBusinessObjects` propOrder). Eén object per UNIEKE 21-waardenlijst die een
+  // toewijzing gebruikt: `curveValues` (exacte P6-/MSPDI-data) of anders de tabel van `curve`.
+  const curveObjIdByKey = new Map<string, number>();
+  const curveDefs: { objId: number; name: string; values: readonly number[] }[] = [];
+  const curveObjIdFor = (a: ResourceAssignment): number | undefined => {
+    const values = a.curveValues ?? (a.curve && a.curve !== 'UNIFORM' ? CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[a.curve]] : undefined);
+    if (!values || isFlatCurveValues(values)) return undefined;
+    const key = values.map(v => String(v)).join(',');
+    let objId = curveObjIdByKey.get(key);
+    if (objId === undefined) {
+      objId = curveDefs.length + 1;
+      curveObjIdByKey.set(key, objId);
+      const name = (a.curve ? P6_CURVE_TO_NAME[a.curve] : undefined) ?? `Curve ${objId}`;
+      curveDefs.push({ objId, name, values });
+    }
+    return objId;
+  };
+  const curveObjIdByAssignment = new Map<string, number>();
+  for (const a of assignments) {
+    const objId = curveObjIdFor(a);
+    if (objId !== undefined) curveObjIdByAssignment.set(a.id, objId);
+  }
+  for (const def of curveDefs) {
+    lines.push(`${indent(1)}<ResourceCurve>`);
+    lines.push(`${indent(2)}<Name>${escapeXML(def.name)}</Name>`);
+    lines.push(`${indent(2)}<ObjectId>${def.objId}</ObjectId>`);
+    lines.push(`${indent(2)}<Values>`);
+    def.values.forEach((v, i) => {
+      lines.push(`${indent(3)}<Value${i * 5}>${v}</Value${i * 5}>`);
+    });
+    lines.push(`${indent(2)}</Values>`);
+    lines.push(`${indent(1)}</ResourceCurve>`);
   }
 
   // Resources (fase 2.5, §8.1)
@@ -581,27 +636,71 @@ export function writeP6XML(
 
   // ResourceAssignments (fase 2.5, §8.1): alleen leaf-taken kunnen assignments dragen
   // (§2.4), dus taskObjMap/leafTasks dekt alle mogelijke ActivityObjectId's.
+  // Contour-engine (2026-09): contour-koppeling per taak voor de spreidingsstrings
+  // (`contourPeriodsToP6Spread`, anker = taakstart, zie hieronder).
+  const assignmentsByTask = new Map<string, ResourceAssignment[]>();
+  for (const a of assignments) {
+    const list = assignmentsByTask.get(a.taskId) ?? [];
+    list.push(a);
+    assignmentsByTask.set(a.taskId, list);
+  }
+  const contourMatchCache = new Map<string, ReturnType<typeof matchContoursToAssignments>>();
+  const contourOf = (task: Task, a: ResourceAssignment) => {
+    if (!task.timephasedContours || task.timephasedContours.length === 0) return undefined;
+    let m = contourMatchCache.get(task.id);
+    if (!m) {
+      m = matchContoursToAssignments(task.timephasedContours, assignmentsByTask.get(task.id) ?? [a]);
+      contourMatchCache.set(task.id, m);
+    }
+    return m.get(a.id);
+  };
+
   let asgnObjId = 1;
   for (const a of assignments) {
     const actObjId = taskObjMap.get(a.taskId);
     const resObjId = resObjMap.get(a.resourceId);
     if (actObjId === undefined || resObjId === undefined) continue;
+    const task = taskById.get(a.taskId);
+    const contour = task ? contourOf(task, a) : undefined;
+    const taskStartIso = task ? (task.time.earlyStart || task.time.scheduleStart) : '';
+    const taskFinishIso = task ? (task.time.earlyFinish || task.time.scheduleFinish) : '';
+    // Spreidingsstrings (MPXJ `TimephasedHelper.write`): actual/remaining apart, en `PlannedCurve`
+    // als de volledige as. Alle drie ankeren op de TAAKSTART, en de bijbehorende ankervelden
+    // (`PlannedStartDate`/`RemainingStartDate`/`ActualStartDate`) worden meegeschreven — zonder
+    // anker leest P6/MPXJ de spreiding niet.
+    const actualPeriods = contour ? contour.periods.filter(p => p.kind === 'actual') : [];
+    const remainingPeriods = contour ? contour.periods.filter(p => p.kind === 'remaining') : [];
+    const actualSpread = actualPeriods.length > 0 ? contourPeriodsToP6Spread(actualPeriods) : null;
+    const remainingSpread = remainingPeriods.length > 0 ? contourPeriodsToP6Spread(remainingPeriods) : null;
+    const plannedSpread = contour ? contourPeriodsToP6Spread(contour.periods) : null;
+    const anchorIso = taskStartIso ? formatP6DateTime(taskStartIso) : '';
+    const curveObjId = curveObjIdByAssignment.get(a.id);
 
+    // Elementvolgorde volgt het PMXML-schema (MPXJ `ResourceAssignmentType` propOrder).
     lines.push(`${indent(1)}<ResourceAssignment>`);
-    lines.push(`${indent(2)}<ObjectId>${asgnObjId++}</ObjectId>`);
     lines.push(`${indent(2)}<ActivityObjectId>${actObjId}</ActivityObjectId>`);
-    lines.push(`${indent(2)}<ResourceObjectId>${resObjId}</ResourceObjectId>`);
+    if (actualSpread && anchorIso) {
+      lines.push(`${indent(2)}<ActualCurve>${escapeXML(actualSpread)}</ActualCurve>`);
+      lines.push(`${indent(2)}<ActualStartDate>${anchorIso}</ActualStartDate>`);
+    }
+    lines.push(`${indent(2)}<ObjectId>${asgnObjId++}</ObjectId>`);
+    if (plannedSpread && anchorIso) {
+      lines.push(`${indent(2)}<PlannedCurve>${escapeXML(plannedSpread)}</PlannedCurve>`);
+      if (taskFinishIso) lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(taskFinishIso)}</PlannedFinishDate>`);
+      lines.push(`${indent(2)}<PlannedStartDate>${anchorIso}</PlannedStartDate>`);
+    }
     // PlannedUnitsPerTime: fractie, 1.0 = 100% (L2-fix — zelfde semantiek en MPXJ-bron als
     // MaxUnitsPerTime hierboven; PmxmlUnitsHelper schaalt MPXJ-percentages /100 naar het
     // bestand). Ons `unitsPerDay` is al een fractie, dus 1:1.
     lines.push(`${indent(2)}<PlannedUnitsPerTime>${a.unitsPerDay}</PlannedUnitsPerTime>`);
-    const curveName = a.curve ? P6_CURVE_TO_NAME[a.curve] : undefined;
-    if (curveName) {
-      if (a.curve === 'LATE_PEAK') {
-        console.warn("P6-export: LATE_PEAK-curve heeft geen P6-equivalent — geëxporteerd als 'Early Peak' (beste benadering).");
-      }
-      lines.push(`${indent(2)}<PlannedCurve>${escapeXML(curveName)}</PlannedCurve>`);
+    if (remainingSpread && anchorIso) {
+      lines.push(`${indent(2)}<RemainingCurve>${escapeXML(remainingSpread)}</RemainingCurve>`);
+      lines.push(`${indent(2)}<RemainingStartDate>${anchorIso}</RemainingStartDate>`);
     }
+    if (curveObjId !== undefined) {
+      lines.push(`${indent(2)}<ResourceCurveObjectId>${curveObjId}</ResourceCurveObjectId>`);
+    }
+    lines.push(`${indent(2)}<ResourceObjectId>${resObjId}</ResourceObjectId>`);
     lines.push(`${indent(1)}</ResourceAssignment>`);
   }
 

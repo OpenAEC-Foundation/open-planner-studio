@@ -414,6 +414,33 @@
   gap: 4px;
 }
 
+/* Discussion #97: samenvattingen (containertaken) en mijlpalen zijn nu alleen via inspringing te
+ * onderscheiden van een gewone taak. `data-grid-task-kind` (gezet in FullTaskGrid.tsx, weggelaten
+ * tijdens naam-editing) stuurt hier vet + een subtiele achtergrondtint voor samenvattingen, en
+ * vet + de mijlpaalkleur voor mijlpalen — bewust dezelfde kleurfamilie als de Gantt-balk
+ * (`--color-task-milestone`), niet de rode mockupkleur uit de discussion. De tint zit op de hele
+ * naamrij (niet alleen de tekst), zodat hij als rijvlak leesbaar is; de selectiekleur van de rij
+ * (`.task-grid-data-row[data-grid-row-selected="true"]`) wint hier altijd van, dus geen eigen
+ * z-index-gedoe nodig — de tint zit hieronder in de laagvolgorde. */
+.full-task-grid-name[data-grid-task-kind="summary"] {
+  background: var(--theme-grid-summary-bg);
+}
+
+.full-task-grid-name[data-grid-task-kind="summary"] .full-task-grid-name-label {
+  font-weight: 600;
+}
+
+.full-task-grid-name[data-grid-task-kind="milestone"] .full-task-grid-name-label {
+  font-weight: 600;
+  color: var(--theme-grid-milestone-text);
+}
+
+/* Geselecteerde rij wint van de samenvattingstint (leesbaarheid op de selectiekleur staat voorop);
+ * de vette/gekleurde tekst blijft intact — alleen de achtergrond van de naamrij vervalt. */
+.task-grid-data-row[data-grid-row-selected="true"] .full-task-grid-name[data-grid-task-kind="summary"] {
+  background: transparent;
+}
+
 /* De naameditor vult de rij vanaf de tekstpositie tot de rechter kolomrand. */
 .full-task-grid-name > .task-grid-editor-host {
   flex: 1 1 auto;
@@ -1240,6 +1267,12 @@ button.task-grid-relation-reference {
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
      aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
   --theme-grid-week-band: rgba(255, 255, 255, 0.028);
+  /* Discussion #97: subtiele achtergrondtint voor samenvattingsrijen in het taakraster (naamkolom)
+     — dezelfde alpha-aanpak als de weekendarcering hierboven, zodat het geen eigen kleurfamilie
+     introduceert. Mijlpalen krijgen géén tint, alleen vette tekst in een lichtere paarstint
+     (beter leesbaar op donkere kaarten dan --color-task-milestone zelf). */
+  --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
+  --theme-grid-milestone-text: #A78BFA;
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1314,6 +1347,11 @@ button.task-grid-relation-reference {
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): subtieler dan de weekend-
      arcering, want hij bedekt hele weken i.p.v. losse dagkolommen. */
   --theme-grid-week-band: rgba(54, 54, 62, 0.03);
+  /* Discussion #97: zelfde neutrale-grijsschaal-aanpak als de rest van dit lichte thema — een
+     alpha-tint van Deep Forge, geen eigen kleur. Mijlpaaltekst gaat iets dieper dan
+     --color-task-milestone (#7C3AED) voor voldoende contrast op de kaart (AA). */
+  --theme-grid-summary-bg: rgba(54, 54, 62, 0.06);
+  --theme-grid-milestone-text: #6D28D9;
   --theme-bar-float: #059669;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
@@ -1366,6 +1404,12 @@ button.task-grid-relation-reference {
      weekend-band maar nog zichtbaar op #0a0a0a (de band moet als vlak leesbaar blijven,
      niet als per-dag-arcering concurreren). */
   --theme-grid-week-band: #141414;
+  /* Discussion #97: het paars van --color-task-milestone haalt op zwart geen AAA-contrast, dus
+     high contrast krijgt een eigen, helderdere mijlpaaltint (>=7:1 op #0a0a0a) — zichtbaar
+     onderscheiden van het accentgeel. De samenvattingstint volgt de bestaande vlakke-kleur-aanpak
+     van dit thema (geen alpha, expliciete tint zoals --theme-grid-weekend hierboven). */
+  --theme-grid-summary-bg: #1c1c1c;
+  --theme-grid-milestone-text: #D9A6FF;
   /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */

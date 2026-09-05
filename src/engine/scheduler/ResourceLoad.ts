@@ -4,25 +4,32 @@
 // (dag-granulaire belasting/capaciteit/overallocatie over alle resources+toewijzingen).
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
-import type { Task } from '@/types/task';
+import type { Task, TaskTimephasedContour } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { enumerateTaskWorkDays } from './splitWalk';
+import {
+  CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
+  slotWeightsFromValues,
+} from '@/engine/contour/contourEngine';
 import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
  *  tussen punten; niet genormaliseerd (distributeUnits normaliseert zelf via Σraw). */
-const CURVE_POINTS: Record<ResourceCurve, [number, number][]> = {
+const CURVE_POINTS: Partial<Record<ResourceCurve, [number, number][]>> = {
   UNIFORM: [[0, 1.0], [1, 1.0]],
   FRONT_LOADED: [[0, 1.0], [1, 0.2]],
   BACK_LOADED: [[0, 0.2], [1, 1.0]],
   BELL: [[0, 0.2], [0.5, 1.0], [1, 0.2]],
   EARLY_PEAK: [[0, 0.2], [1 / 3, 1.0], [1, 0.2]],
   LATE_PEAK: [[0, 0.2], [2 / 3, 1.0], [1, 0.2]],
+  // DOUBLE_PEAK en TURTLE (contour-UI, 2026-09) hebben GEEN controlepunten: die twee curves bestaan
+  // alleen als MS Project-/P6-tabelvorm en worden hieronder rechtstreeks uit de exacte 21-punts
+  // tabel (`CONTOUR_SHAPE_VALUES`) bemonsterd — de zes bestaande curves blijven byte-identiek.
 };
 
 /**
@@ -47,13 +54,20 @@ export function distributeUnits(unitsPerDay: number, durationDays: number, curve
   if (durationDays <= 1) return durationDays === 1 ? [total] : [];
 
   const points = CURVE_POINTS[curve];
-  const raw: number[] = [];
-  for (let i = 0; i < durationDays; i++) {
-    const t = i / (durationDays - 1);
-    raw.push(interpolate(points, t));
+  let weights: number[];
+  if (points) {
+    const raw: number[] = [];
+    for (let i = 0; i < durationDays; i++) {
+      const t = i / (durationDays - 1);
+      raw.push(interpolate(points, t));
+    }
+    const sumRaw = raw.reduce((a, b) => a + b, 0);
+    weights = raw.map(r => r / sumRaw);
+  } else {
+    // Tabelvorm (DOUBLE_PEAK/TURTLE): integratie van de 5%-slices over `durationDays` slots —
+    // dezelfde bemonstering als een geïmporteerde `curveValues`-lijst in `assignmentDayUnits`.
+    weights = slotWeightsFromValues(CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[curve]], durationDays);
   }
-  const sumRaw = raw.reduce((a, b) => a + b, 0);
-  const weights = raw.map(r => r / sumRaw);
 
   // Grootste-rest-methode: eerst afronden naar beneden, dan de grootste fractionele resten
   // ophogen tot de som weer exact `total` is. De precisie (hele eenheden/dag bij een geheel TEMPO,
@@ -101,6 +115,90 @@ function largestRemainderRound(values: number[], targetSum: number, unitsPerDay:
     result[fracIdx[k].i] += 1;
   }
   return result.map(v => v / scale);
+}
+
+/**
+ * Contour-engine (2026-09) — DE ENE verdeelfunctie per toewijzing: eenheden per werkdag-slot van
+ * de taak, index-uitgelijnd op `enumerateTaskWorkDays(task.splitGaps, …)` (slot i ⇒ i-de werkdag
+ * vanaf `earlyStart`, pauzedagen overgeslagen). Drie bronnen, in deze volgorde:
+ *   1. een OPGESLAGEN contour (`Task.timephasedContours`, gekoppeld via `resourceId` —
+ *      `contourEngine.ts`'s `matchContoursToAssignments`): werkminuten per slot ÷ `mpd` = eenheden
+ *      per dag. DATA, dus GEEN hele-eenheden-afronding (spec: "een fractie in een contour is
+ *      bedoelde data"). Een contour met méér slots dan `scheduleDuration` levert een langere array;
+ *      de aanroeper enumereert daarom `Math.max(durationDays, units.length)` werkdagen — het TOTAAL
+ *      blijft behouden (dezelfde garantie als het earlyFinish-besluit hieronder).
+ *   2. `ResourceAssignment.curveValues` (exacte 21-punts P6-/MSPDI-curve): `slotWeightsFromValues`
+ *      × (unitsPerDay × duur) — ook data-achtig, dus eveneens zonder de formule-afronding.
+ *   3. anders de bestaande formule `distributeUnits` (curve-vorm + hele-eenheden-afronding) —
+ *      byte-identiek voor elke toewijzing zonder contour of `curveValues`.
+ * `contour` mag door de aanroeper vooraf zijn opgezocht (één `matchContoursToAssignments` per
+ * taak); ontbreekt het argument, dan zoekt deze functie 'm zelf op uit `task.timephasedContours`
+ * en `siblings` (alle toewijzingen van de taak — nodig voor de volgorderegel van de koppeling).
+ */
+export function assignmentDayUnits(
+  task: Task,
+  assignment: ResourceAssignment,
+  mpd: number,
+  contour?: TaskTimephasedContour | null,
+  siblings?: readonly ResourceAssignment[],
+): number[] {
+  const durationDays = task.time.scheduleDuration;
+  const resolved = contour === undefined
+    ? matchContoursToAssignments(task.timephasedContours, siblings ?? [assignment]).get(assignment.id) ?? null
+    : contour;
+  if (resolved && resolved.periods.length > 0) {
+    const slotMinutes = Math.max(1, mpd);
+    const slotWork = periodsToWorkDaySlots(resolved.periods, task.splitGaps, slotMinutes, 0);
+    if (slotWork.length > 0) return slotWork.map((w) => w / slotMinutes);
+  }
+  if (assignment.curveValues && durationDays > 0) {
+    const weights = slotWeightsFromValues(assignment.curveValues, durationDays);
+    const total = assignment.unitsPerDay * durationDays;
+    return weights.map((w) => w * total);
+  }
+  return distributeUnits(assignment.unitsPerDay, durationDays, assignment.curve ?? 'UNIFORM');
+}
+
+/** Hulpje voor de lastlezers: één `matchContoursToAssignments`-uitslag per taak (gecachet per
+ *  aanroep), zodat de volgorderegel van de koppeling over álle toewijzingen van de taak gaat. */
+export function contourLookup(
+  assignments: readonly ResourceAssignment[],
+): (task: Task, assignment: ResourceAssignment) => TaskTimephasedContour | null {
+  const byTask = new Map<string, ResourceAssignment[]>();
+  for (const a of assignments) {
+    let list = byTask.get(a.taskId);
+    if (!list) { list = []; byTask.set(a.taskId, list); }
+    list.push(a);
+  }
+  const cache = new Map<string, Map<string, TaskTimephasedContour>>();
+  return (task, assignment) => {
+    if (!task.timephasedContours || task.timephasedContours.length === 0) return null;
+    let m = cache.get(task.id);
+    if (!m) {
+      m = matchContoursToAssignments(task.timephasedContours, byTask.get(task.id) ?? [assignment]);
+      cache.set(task.id, m);
+    }
+    return m.get(assignment.id) ?? null;
+  };
+}
+
+/**
+ * De werkdagen waarop een toewijzing van `task` boekt, index-uitgelijnd op `assignmentDayUnits`
+ * (slot i ⇒ `isos[i]`). Eén definitie voor beide lastlezers hieronder ÉN voor het contour-
+ * dialoogvenster (`ContourDialog.tsx`), zodat de dag die de gebruiker bewerkt exact de dag is
+ * waarop het histogram boekt. Drie takken:
+ *  - ELAPSEDTIME: `scheduleDuration` is KALENDERdagen, niet werkdagen (zie het docblok bij
+ *    `computeResourceLoad`) — de op `earlyFinish` geklemde mapping i.p.v. `enumerateTaskWorkDays`,
+ *    die het getal als werkdagen-telling zou lezen en voorbij `earlyFinish` zou doorlopen;
+ *  - VOLTOOID (`completion >= 1 && actualFinish`, eindpoortronde W0): `earlyFinish` is dan
+ *    GEZAGHEBBEND, niet stale — dezelfde geklemde vorm, andere reden (zie datzelfde docblok);
+ *  - anders `enumerateTaskWorkDays(task.splitGaps, …)`: `durationDays` werkdagen vanaf
+ *    `earlyStart`, pauzedagen van de splits overgeslagen.
+ */
+export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, durationDays: number): string[] {
+  return task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
+    ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
+    : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 }
 
 /** ISO-datum → belaste/beschikbare eenheden. Alleen dagen met >0 belasting of capaciteit
@@ -243,22 +341,16 @@ export function computeResourceLoad(
     return !!task && isLeafTask(task) && !task.isMilestone;
   });
 
-  // 2-3. Verdeel + accumuleer per resource per dag.
+  // 2-3. Verdeel + accumuleer per resource per dag. Contour-engine (2026-09): de verdeling komt uit
+  //      `assignmentDayUnits` — opgeslagen contour of exacte curve als DATA, anders de formule.
+  const contourOf = contourLookup(validAssignments);
   for (const a of validAssignments) {
     const task = taskById.get(a.taskId)!;
-    const durationDays = task.time.scheduleDuration;
-    const days = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
-    if (days.length === 0) continue;
-
     const taskEngine = engineForTask(task, taskEngineCache, projectEngine, resourceCalendars, projectCalendar);
-    // ELAPSEDTIME: scheduleDuration is KALENDERdagen, niet werkdagen (zie het docblok hierboven) —
-    // de oude, op earlyFinish geklemde mapping blijft hier gelden i.p.v. enumerateTaskWorkDays, die
-    // het getal als een werkdagen-telling zou lezen en voorbij earlyFinish zou doorlopen.
-    // VOLTOOID (eindpoortronde W0): earlyFinish is voor zo'n taak GEZAGHEBBEND, niet stale (zie het
-    // docblok hierboven) — dezelfde op-earlyFinish-geklemde vorm, andere reden.
-    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
-      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
-      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+    const days = assignmentDayUnits(task, a, taskEngine.hoursPerDay * 60, contourOf(task, a));
+    if (days.length === 0) continue;
+    const durationDays = Math.max(task.time.scheduleDuration, days.length);
+    const workDayIsos = taskWorkDayIsos(task, taskEngine, durationDays);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
@@ -414,18 +506,15 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     daily: Map<string, number>;
   }
   const perAssignment: AssignDaily[] = [];
+  const contourOf = contourLookup(assignments);
   for (const a of assignments) {
     const task = taskById.get(a.taskId);
     if (!task || task.isMilestone || isSummaryTask(task)) continue;
-    const durationDays = task.time.scheduleDuration;
-    const dist = distributeUnits(a.unitsPerDay, durationDays, a.curve ?? 'UNIFORM');
-    if (dist.length === 0) continue;
     const taskEngine = engineForTask(task, taskEngineCache, projectEngine, calendars, calendar);
-    // ELAPSEDTIME/VOLTOOID: zelfde twee uitzonderingen als computeResourceLoad hierboven — zie het
-    // docblok daar.
-    const workDayIsos = task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
-      ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
-      : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+    const dist = assignmentDayUnits(task, a, taskEngine.hoursPerDay * 60, contourOf(task, a));
+    if (dist.length === 0) continue;
+    const durationDays = Math.max(task.time.scheduleDuration, dist.length);
+    const workDayIsos = taskWorkDayIsos(task, taskEngine, durationDays);
     const daily = new Map<string, number>();
     for (let i = 0; i < dist.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];

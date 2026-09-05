@@ -67,6 +67,18 @@ Her atamanın bir **birim/gün**i (1 = tam zamanlı bir kişi/öğe, 0,5 = yarı
 
 Eğri değişimi en açık şekilde histogramda görünür: aynı birim/gün'e sahip aynı görev, çan eğrisiyle tekdüzeye göre çok farklı bir çubuk şekli üretir. Orta boy örnek proje, karşılaştırma yapabilmeniz için ev başına ince işler görevlerinde kasıtlı olarak tekdüze/başta yüklü/sonda yüklüyü karıştırır.
 
+### Saat dağılımını kendiniz düzenleme
+
+Hiçbir eğri uymuyorsa dağılımı **aşamalar** halinde kendiniz biçimlendirin: görevin ardışık bölümleri, her biri sabit bir eforla („ilk hafta yarım ekip, sonra tam ekip“). Eğri listesinin yanındaki **Saat dağılımı…** düğmesi bir pencere açar: üstte her aşamanın iş günleri üzerinde bir blok olduğu bir şerit (yükseklik efordur), altta aynı aşamalar tablo halinde: başlangıç, bitiş, gün, gün başına birim cinsinden efor, gün başına saat ve toplam. Başlangıç noktası atamanın bugün kaydettiğidir. Gerçekleşen iş gri ve salt okunurdur.
+
+- **Şeritte sürükleme**: iki blok arasındaki sınır aşamayı uzatır veya kısaltır (tam iş günü olarak), üst kenar eforu ayarlar, bir güne çift tıklamak aşamayı böler.
+- **Tabloya yazma**: aşama başına gün ve efor; **Böl** ve **Birleştir**. Son aşama her zaman görevin sonuna kadar sürer.
+- **Şekil uygula** aşamaları sekiz standart şekilden biriyle doldurur ve toplamı korur.
+- **Uygula** dağılımı atamanın *konturu* olarak kaydeder; liste **Kontur** gösterir ve devre dışıdır. Histogram, aşırı atama, dengeleyici ve doluluk onu hemen kullanır; dağılım IFC ile MS Project XML / P6 XML dışa aktarmalarında taşınır.
+- **Dağılımı kaldır** konturu siler.
+
+Bir kontur yalnızca bu atamanın günlük saatlerini değiştirir; tarihler, süre ve kesintiler, eforu 0 olan bir aşamada bile olduğu gibi kalır. Süreyi sonradan değiştirirseniz kontur orantılı uzar (bkz. [MS Project içe aktarma](docs://gids-msproject-import)). Özellikler paneli görevi gri bir rozetle işaretler. Uygulama ve kaldırma sıradan geri alma adımlarıdır.
+
 ## Kaynak takvimleri
 
 Bir kaynak **Proje takvimi**nde (varsayılan) veya kendi takviminde olabilir — örneğin haftada yalnızca dört gün uygun olan bir taşeron için. Bunu kaynak panelindeki **Takvim** sütunu, veya kaynağın kendisindeki **Takvim** alanı üzerinden ayarlayın. Bir kaynak takvimi bir görevin CPM tarihlerine asla dokunmaz (bunlar görev/proje takviminde çalışmaya devam eder) — yalnızca **yükü** ve **nivellemeyi** etkiler: bir kaynak görevin ihtiyaç duyduğu bir günde çalışmıyorsa, bu histogramda bir açık olarak sayılır, ve nivelleyici kaydırmanın bu takvim uyuşmazlığını çözmeyeceği konusunda uyarır. Takvimlerin tam açıklaması için kaynak takvimleri ve saat planlaması hakkında [Takvimler & saat planlaması](docs://gids-kalenders-uren) kılavuzuna bakın.

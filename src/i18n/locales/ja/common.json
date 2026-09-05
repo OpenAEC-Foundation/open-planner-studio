@@ -43,6 +43,7 @@
     "autoSaveFailed": "自動保存に失敗しました",
     "recoveryReadFailed": "復元したファイルを読み込めませんでした",
     "recoveryRestoreFailed": "復元に失敗しました",
+    "recoveryDocumentsSkipped_other": "{{count}} 件の復旧ファイルを読み込めなかったため、スキップされました。",
     "scheduleFailed": "スケジュールを計算できませんでした",
     "ifcParseFailed": "IFC を読み込めませんでした",
     "templateSaved": "ブランチをテンプレート「{{name}}」として保存しました",
@@ -50,6 +51,7 @@
     "relationDuplicate": "この関係はすでに存在します",
     "relationAncestorEndpoint": "タスクとその自身の(祖先)サマリータスクとの間の関係は許可されません。",
     "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
+    "relationsSkippedOnInsert_other": "{{count}} 件の関係を作成しませんでした。リンクが無効です（例：タスクが自身の（上位）サマリータスクにリンクしている、または重複している）。",
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
@@ -585,7 +587,9 @@
       "backLoaded": "後ろ倒し",
       "bell": "山型（ベル型）",
       "earlyPeak": "早期ピーク",
-      "latePeak": "後期ピーク"
+      "latePeak": "後期ピーク",
+      "doublePeak": "二峰",
+      "turtle": "タートル"
     },
     "occupancyView": "稼働状況",
     "occupancy": {
@@ -595,6 +599,8 @@
       "staleBanner": "少なくとも 1 つのドキュメントが計算されておらず、稼働状況に含まれていません。",
       "staleComputedDoc": "この概要のために事前に計算されています — ドキュメント自体は、そこで F5 を押すか「自動計算」をオンにするまで古い日付を表示したままです。",
       "staleComputedBanner": "変更されたドキュメントはこの概要のために事前に計算されています。ドキュメントで F5 を押すか、常にそうするには「自動計算」をオンにしてください。",
+      "staleAsShownDoc": "古い状態: これは前回計算された数値です — このドキュメントで F5 を押してください。",
+      "staleAsShownBanner": "変更されたドキュメントはまだ再計算されていません。ここでは前回計算された数値で集計されています。そのドキュメントで F5 を押すか、「自動計算」をオンにしてください。",
       "docCount_other": "{{count}} 件のドキュメント",
       "conflictDays_other": "{{count}} 日が二重予約",
       "moreDays_other": "… 他 {{count}} 件",

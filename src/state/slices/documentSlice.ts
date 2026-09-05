@@ -127,8 +127,23 @@ export interface DocumentSlice {
   /** Alle geopende documenten als payload (actief live, rest uit de registry) —
    *  voor crash-recovery-serialisatie. */
   getOpenDocumentPayloads: () => { id: string; payload: DocumentPayload }[];
-  /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig. */
-  restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => void;
+  /** Herstel meerdere documenten na een crash; vervangt de huidige set volledig.
+   *
+   *  Defensief per document (TODO "recovery-robuustheid bij een corrupt herstelbestand"): een
+   *  snapshot kan `readIFC` overleven (dus tot hier komen — de per-document `try/catch` in
+   *  `useRecoveryRestore` ving alleen die stap af) en toch een projectgraaf dragen die de solver
+   *  niet aankan, bijvoorbeeld een cyclische WBS-kinderrelatie die `applyCpmResult`'s recursieve
+   *  rollup in een stack-overflow laat lopen. Zo'n document wordt overgeslagen; de overige
+   *  documenten herstellen gewoon. Geeft de id's van overgeslagen documenten terug zodat de
+   *  aanroeper hun snapshots kan laten staan in plaats van ze te wissen.
+   *
+   *  Bewuste grens: alleen het ACTIEVE document wordt hier doorgerekend (net als vóór deze fix —
+   *  slapende documenten krijgen geen solve, dat is de hele reden dat ze slapend zijn). Een
+   *  corrupte snapshot die niet als actief document wordt gekozen komt dus gewoon als payload
+   *  binnen en valt pas om bij een latere `switchDocument`. Die lacune is pre-existent en niet wat
+   *  dit TODO-item ("het opstarten klapt") adresseert; alle documenten preventief solven zou het
+   *  herstel juist verzwaren met precies de solve die we hier proberen te overleven. */
+  restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => { skippedIds: string[] };
   /** Reken elk NIET-ACTIEF geopend document met een verouderde planning (`payload.scheduleStale`)
    *  écht door en schrijf de uitkomst in zijn payload terug — het terugschrijfbesluit van B1b
    *  §4.3b. Geeft het aantal bijgewerkte documenten terug (0 ⇒ er is niets gemuteerd).
@@ -521,30 +536,103 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
   },
 
   restoreDocuments: (docs, activeId) => {
-    if (docs.length === 0) return;
-    // Herstel leest per document een zelfstandig IFC; identieke gevalideerde XER-bronarchieven
-    // worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden.
+    if (docs.length === 0) return { skippedIds: [] };
+    // X6/X8-herstel leest per document een ZELFSTANDIG IFC; identieke gevalideerde XER-bron-
+    // archieven worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden
+    // (rehab-2 alleen al draagt 52.640 retained TASKRSRC-rijen). Deze stap GOOIT bewust bij een
+    // ongeldig archief (`XerSourceArchiveValidationError`) en wordt NIET afgevangen: een
+    // bronarchief zonder vindbare documentselector is geen "één kapot document" maar een kapot
+    // leesmodel, en check 10b van `check-xer-archive-readmodel.ts` pint die harde, getypeerde
+    // weigering vast. De per-document `try/catch` hieronder dekt het andere geval — een geldig
+    // gelezen document dat pas op de solve/rollup stukloopt.
     const sharedDocs = shareRecoveredXerArchives(docs);
     const state = get();
-    const active = sharedDocs.find((d) => d.id === activeId) ?? sharedDocs[0];
-    const prepared = prepareLoadedPayload(payloadFromInput(active), { recompute: true });
-    const activation = materializeLibraryBoundary({
-      payload: prepared, companies: state.companies, pools: state.pools, mode: 'open-boundary',
-    });
+    const skippedIds: string[] = [];
+
+    // 1. Kies een actief document en reken het door. `readIFC` liep al zonder gooien (zie de
+    //    per-document `try/catch` in `useRecoveryRestore`), maar een geldig geparste, inhoudelijk
+    //    inconsistente graaf (bv. een cyclische WBS-kinderrelatie) kan de solver/rollup alsnog laten
+    //    gooien — `applyCpmResult`'s `updateSummary` heeft geen cyclusbewaking, in tegenstelling tot
+    //    de CPM-solver zelf (die geeft `result.error` terug, geen throw). De kandidaat die daarop
+    //    stukloopt wordt overgeslagen; de volgende in de lijst wordt geprobeerd, zodat één corrupt
+    //    document niet de rest van het herstel blokkeert. De oorspronkelijk actieve kandidaat gaat
+    //    als eerste, zodat een geslaagd herstel dezelfde `activeDocumentId` behoudt als voorheen.
+    const tryOrder = [
+      ...sharedDocs.filter((d) => d.id === activeId),
+      ...sharedDocs.filter((d) => d.id !== activeId),
+    ];
+    let active: RecoveryDocInput | null = null;
+    let prepared: DocumentPayload | null = null;
+    let activation: DocumentActivationMaterialization | null = null;
+    for (const candidate of tryOrder) {
+      try {
+        const p = prepareLoadedPayload(payloadFromInput(candidate), { recompute: true });
+        const a = materializeLibraryBoundary({
+          payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
+        });
+        active = candidate;
+        prepared = p;
+        activation = a;
+        break;
+      } catch (err) {
+        console.error('Recovery: hersteld document kon niet worden doorgerekend — overgeslagen:', candidate.id, err);
+        skippedIds.push(candidate.id);
+      }
+    }
+
+    // 2. De overige (slapende) documenten: geen solve, dus zelden een throw — maar dezelfde
+    //    garantie geldt: één document dat zich niet naar een payload laat vormen mag de rest niet
+    //    meeslepen.
+    const sleepingById = new Map<string, DocumentPayload>();
+    for (const d of sharedDocs) {
+      if (active && d.id === active.id) continue;
+      if (skippedIds.includes(d.id)) continue;
+      try {
+        sleepingById.set(d.id, payloadFromInput(d));
+      } catch (err) {
+        console.error('Recovery: hersteld document kon niet worden voorbereid — overgeslagen:', d.id, err);
+        skippedIds.push(d.id);
+      }
+    }
+
+    if (skippedIds.length > 0) {
+      // Eén melding voor de hele batch (net als `pasteSkippedReadOnly`) i.p.v. één per document —
+      // de losse `recoveryReadFailed`-meldingen in `useRecoveryRestore` dekken al de parsefase.
+      get().notify({
+        severity: 'error',
+        messageKey: 'notifications.recoveryDocumentsSkipped',
+        params: { count: skippedIds.length },
+        dedupeKey: 'recovery-restore-skipped',
+      });
+    }
+
+    if (!active || !prepared || !activation) {
+      // Alles was corrupt: niets te herstellen. De aanroeper laat de snapshots staan zodra
+      // `skippedIds` niet leeg is (geen stille `clearRecovery()` van de enige kopie).
+      return { skippedIds };
+    }
+    const activeDoc = active;
+    const activePayload = prepared;
+    const activation2 = activation;
+
     set((s) => {
       replaceSessionHistoryState(s, [], 1);
-      s.documents = castDraft(sharedDocs.map((d) => ({
-        id: d.id,
-        payload: d.id === active.id ? null : payloadFromInput(d),
-      })));
-      s.activeDocumentId = active.id;
+      // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen, die Immer's
+      // `Draft<>` anders afwijst (X6).
+      s.documents = castDraft(sharedDocs
+        .filter((d) => !skippedIds.includes(d.id))
+        .map((d) => ({
+          id: d.id,
+          payload: d.id === activeDoc.id ? null : (sleepingById.get(d.id) ?? null),
+        })));
+      s.activeDocumentId = activeDoc.id;
       resetDocumentScopedUI(s);
-      if (activation.invalidateRedoScope) invalidateActivationRedo(s, active.id);
-      publishActivation(s, activation);
+      if (activation2.invalidateRedoScope) invalidateActivationRedo(s, activeDoc.id);
+      publishActivation(s, activation2);
     });
     // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
     // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
-    const cpm = activation.payload.cpmResult;
+    const cpm = activePayload.cpmResult;
     if (cpm?.error) {
       get().notify({
         severity: 'error',
@@ -556,13 +644,14 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,
-      criticalTasks: activation.payload.tasks.filter(task => task.time.isCritical).length,
+      criticalTasks: activePayload.tasks.filter(task => task.time.isCritical).length,
     });
     emitExtensionEvent(HOST_EVENTS.projectLoaded, {
-      tasks: active.tasks.length,
-      sequences: active.sequences.length,
-      resources: active.resources.length,
+      tasks: activeDoc.tasks.length,
+      sequences: activeDoc.sequences.length,
+      resources: activeDoc.resources.length,
     });
+    return { skippedIds };
   },
 
   recalculateStaleSleepingDocuments: () => {

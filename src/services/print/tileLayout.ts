@@ -1,11 +1,11 @@
 /**
  * Gedeelde tegel-/schaalwiskunde voor de print-pagineerders.
  *
- * Zowel de raster-pagineerder (`paginate.ts` → `paginateCanvasToTiles`, `drawImage`-crops) als de
+ * Zowel de raster-pagineerder (`paginate.ts` → `paginateCanvasToTile`, `drawImage`-crops) als de
  * vector-pagineerder (`paginateVector.ts`, één Form-XObject dat per pagina onder een eigen clip
  * ge-`Do`'d wordt) moeten EXACT dezelfde pagina-indeling produceren — anders wijkt de preview af van
  * de export. Die wiskunde stond letterlijk twee keer in de codebase (met de comment "1:1 uit
- * paginateCanvasToTiles"); elke uitbreiding moest dus twee keer, identiek, doorgevoerd worden.
+ * de raster-pagineerder"); elke uitbreiding moest dus twee keer, identiek, doorgevoerd worden.
  * Deze module is de enige bron van waarheid: een PURE functie zonder canvas-, DOM- of pdf-lib-
  * afhankelijkheid, zodat hij ook headless testbaar is.
  *

@@ -67,6 +67,18 @@ Każdy przydział ma **jednostki/dzień** (1 = jedna osoba/element na pełny eta
 
 Różnica krzywych najwyraźniej widoczna jest w histogramie: to samo zadanie z tymi samymi jednostkami/dzień daje bardzo inny kształt paska przy krzywej dzwonowej niż przy jednolitej. Średniej wielkości przykład celowo miesza jednolity/obciążony na początku/obciążony na końcu na zadaniach wykończeniowych poszczególnych domów, abyś mógł porównać różnicę.
 
+### Samodzielna edycja rozkładu godzin
+
+Gdy żadna krzywa nie pasuje, kształtujesz rozkład sam, w **fazach**: kolejnych odcinkach zadania, każdy ze stałym nakładem („pół brygady w pierwszym tygodniu, potem cała brygada”). Przycisk **Rozkład godzin…** obok listy krzywych otwiera okno z paskiem u góry, gdzie każda faza jest blokiem nad swoimi dniami roboczymi (wysokość to nakład), a poniżej te same fazy w tabeli: od, do, dni, nakład w jednostkach na dzień, godziny na dzień i suma. Punktem wyjścia jest to, co przypisanie księguje dziś. Praca wykonana jest szara i tylko do odczytu.
+
+- **Przeciąganie na pasku**: granica między blokami wydłuża lub skraca fazę (o całe dni robocze), górna krawędź ustawia nakład, dwukrotne kliknięcie dnia dzieli fazę.
+- **Wpisywanie w tabeli**: dni i nakład na fazę; **Podziel** i **Scal**. Ostatnia faza zawsze trwa do końca zadania.
+- **Zastosuj kształt** wypełnia fazy jednym z ośmiu standardowych kształtów, zachowując sumę.
+- **Zastosuj** zapisuje rozkład jako *kontur* przypisania; lista pokazuje **Kontur** i jest wyłączona. Histogram, przeciążenie, bilansowanie i obłożenie korzystają z niego od razu, a rozkład wędruje w IFC i eksportach MS Project XML / P6 XML.
+- **Zwolnij rozkład** usuwa kontur.
+
+Kontur zmienia tylko godziny dzienne tego przypisania; daty, czas trwania i przerwy pozostają, także przy fazie z nakładem 0. Jeśli później zmienisz czas trwania, kontur rozciąga się proporcjonalnie (zob. [Import z MS Project](docs://gids-msproject-import)). Panel właściwości oznacza zadanie szarą plakietką. Zastosowanie i zwolnienie to zwykłe kroki cofania.
+
 ## Kalendarze zasobów
 
 Zasób może być na **Kalendarzu projektu** (domyślnie) albo na własnym kalendarzu — na przykład dla podwykonawcy dostępnego tylko cztery dni w tygodniu. Ustaw to przez kolumnę **Kalendarz** w panelu zasobów albo pole **Kalendarz** na samym zasobie. Kalendarz zasobu nigdy nie dotyka dat CPM zadania (te nadal działają na kalendarzu zadania/projektu) — wpływa tylko na **obciążenie** i **bilansowanie**: jeśli zasób nie pracuje w dniu, którego potrzebuje zadanie, liczy się to jako niedobór w histogramie, a bilansujący ostrzega, że przesunięcie nie naprawi tego niedopasowania kalendarzy. Zobacz przewodnik [Kalendarze i planowanie godzinowe](docs://gids-kalenders-uren) po pełne wyjaśnienie kalendarzy.

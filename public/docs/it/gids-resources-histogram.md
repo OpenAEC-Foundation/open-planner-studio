@@ -67,6 +67,18 @@ Ogni assegnazione ha **unità/giorno** (1 = una persona/elemento a tempo pieno, 
 
 La variazione della curva si nota più chiaramente nell'istogramma: la stessa attività con le stesse unità/giorno produce una forma di barra molto diversa con una curva a campana rispetto a una uniforme. L'esempio di dimensioni medie mescola deliberatamente uniforme/caricato all'inizio/caricato alla fine sulle attività di finitura per casa, così puoi confrontare la differenza.
 
+### Modificare da sé la distribuzione delle ore
+
+Quando nessuna curva è adatta, dai forma tu alla distribuzione, per **fasi**: tratti consecutivi dell'attività, ciascuno con un impegno fisso («mezza squadra la prima settimana, poi la squadra intera»). Il pulsante **Distribuzione ore…** accanto al menu della curva apre una finestra con, in alto, una striscia in cui ogni fase è un blocco sui suoi giorni lavorativi (l'altezza è l'impegno) e, sotto, le stesse fasi in tabella: dal, al, giorni, impegno in unità al giorno, ore al giorno e totale. Il punto di partenza è ciò che l'assegnazione contabilizza oggi. Il lavoro effettivo compare in grigio, in sola lettura.
+
+- **Trascinare nella striscia**: il confine tra due blocchi allunga o accorcia una fase (per giorni lavorativi interi), il bordo superiore imposta l'impegno, un doppio clic su un giorno divide la fase.
+- **Digitare nella tabella**: giorni e impegno per fase; **Dividi** e **Unisci**. L'ultima fase arriva sempre alla fine dell'attività.
+- **Applica forma** riempie le fasi con una delle otto forme standard mantenendo il totale.
+- **Applica** salva la distribuzione come *contorno* dell'assegnazione; il menu mostra **Contorno** ed è disattivato. Istogramma, sovrassegnazione, livellatore e occupazione lo usano subito, e la distribuzione viaggia in IFC e nelle esportazioni MS Project XML / P6 XML.
+- **Rilascia distribuzione** rimuove il contorno.
+
+Un contorno cambia solo le ore al giorno di questa assegnazione; date, durata e interruzioni restano invariate, anche con una fase a impegno 0. Se poi cambi la durata, il contorno si allunga in proporzione (vedi [Importazione da MS Project](docs://gids-msproject-import)). Il pannello delle proprietà contrassegna l'attività con un badge grigio. Applicare e rilasciare sono normali passi di annullamento.
+
 ## Calendari risorsa
 
 Una risorsa può stare sul **Calendario di progetto** (predefinito) o sul proprio calendario — ad esempio per un subappaltatore disponibile solo quattro giorni a settimana. Imposta questo tramite la colonna **Calendario** nel pannello risorse, o il campo **Calendario** sulla risorsa stessa. Un calendario risorsa non tocca mai le date CPM di un'attività (quelle continuano a funzionare sul calendario dell'attività/progetto) — influisce solo su **carico** e **livellamento**: se una risorsa non lavora in un giorno di cui l'attività ha bisogno, ciò conta come carenza nell'istogramma, e il livellatore avvisa che spostare non risolverà quel disallineamento di calendario. Vedi la guida [Calendari e pianificazione oraria](docs://gids-kalenders-uren) per la spiegazione completa dei calendari.

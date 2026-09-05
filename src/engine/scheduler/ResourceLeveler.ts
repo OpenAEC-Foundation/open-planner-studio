@@ -45,7 +45,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
-import { distributeUnits, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
+import { assignmentDayUnits, contourLookup, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
 import { enumerateTaskWorkDays, splitGapsFromWorkDayBlocks } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
@@ -451,6 +451,9 @@ export function levelResources(
 
   // Dagvraag per taak per geselecteerde resource: som van distributeUnits over alle assignments
   // van die taak op die resource (multi-assignment naar dezelfde resource telt op — §4.2).
+  // Contour-engine (2026-09): dezelfde `assignmentDayUnits` als het histogram — opgeslagen contour
+  // of exacte curve als data, anders de `distributeUnits`-formule (byte-identiek voor taken zonder).
+  const contourOf = contourLookup(assignments);
   const demandByTask = new Map<string, Map<string, number[]>>();
   for (const a of assignments) {
     if (!selectedIds.has(a.resourceId)) continue;
@@ -458,7 +461,7 @@ export function levelResources(
     if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const dur = task.time.scheduleDuration;
     if (dur <= 0) continue;
-    const arr = distributeUnits(a.unitsPerDay, dur, a.curve ?? 'UNIFORM');
+    const arr = assignmentDayUnits(task, a, engineForTask(task).hoursPerDay * 60, contourOf(task, a));
     let byRes = demandByTask.get(a.taskId);
     if (!byRes) { byRes = new Map(); demandByTask.set(a.taskId, byRes); }
     const existing = byRes.get(a.resourceId);

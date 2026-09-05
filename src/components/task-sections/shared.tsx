@@ -11,7 +11,7 @@ import { DateTextInput } from '@/components/common/DateTextInput';
  * cirkelvormige afhankelijkheid geven zodra het paneel zelf secties uit deze map importeert.
  */
 
-export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 
 /** ResourceCurve → i18n-key in de common-namespace (resource.curve.*). `as const` houdt de
  *  literal-keytypes zodat de getypeerde `t(...)` ze accepteert. */
@@ -22,6 +22,8 @@ export const CURVE_KEY = {
   BELL: 'resource.curve.bell',
   EARLY_PEAK: 'resource.curve.earlyPeak',
   LATE_PEAK: 'resource.curve.latePeak',
+  DOUBLE_PEAK: 'resource.curve.doublePeak',
+  TURTLE: 'resource.curve.turtle',
 } as const satisfies Record<ResourceCurve, string>;
 
 /** Getypeerd invoerveld voor één custom field op een taak. */

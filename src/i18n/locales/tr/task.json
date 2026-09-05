@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "Aşamalara göre saat dağılımı",
+    "applyShape": "Şekil uygula:",
+    "hoursPerDay": "İş günü başına {{hours}} saat",
+    "stripHint": "Bir aşamayı uzatmak veya kısaltmak için sınırı, eforu ayarlamak için üst kenarı sürükleyin; bir güne çift tıklamak aşamayı böler.",
+    "from": "Başlangıç",
+    "to": "Bitiş",
+    "days": "Gün",
+    "unitsPerDay": "Efor (birim/gün)",
+    "hoursPerDayCol": "Saat/gün",
+    "actual": "Gerçekleşen (sa)",
+    "hoursTotal": "Saat",
+    "split": "Böl",
+    "merge": "Birleştir",
+    "lastPhaseHint": "Son aşama görevin sonuna kadar sürer.",
+    "noDays": "Bu görevin iş günü yok.",
+    "hint": "Dağılım yalnızca bu atamanın günlük saatlerini değiştirir; görev tarihleri ve kesintiler olduğu gibi kalır. Eforu 0 olan bir aşama görev süresi içinde kalır.",
+    "release": "Dağılımı kaldır"
+  },
   "durationType": { "WORKTIME": "Çalışma süresi", "ELAPSEDTIME": "Geçen süre" },
   "table": {
     "title": "Tablo",
@@ -235,6 +254,7 @@
     "longFreePeriodWarningNamed": "Bu görev {{name}} dönemini kapsıyor — {{days}} günlük çalışmaya kapalı bir dönem ({{start}} - {{end}}).",
     "timephasedActive": "MS Project'ten gelen saat dağılımını izliyor",
     "timephasedLost": "Düzenlemeden sonra MS Project'ten gelen saat dağılımı artık uygulanmıyor — özgün dağılım dosyada saklı kalıyor",
+    "timephasedContoured": "Özel saat dağılımı",
     "completion": "İlerleme (%)",
     "progress": {
       "actualStart": "Gerçek başlangıç",
@@ -267,7 +287,11 @@
       "allAssigned": "Tüm kaynaklar zaten atanmış.",
       "disabledMilestone": "Kilometre taşlarında atama yapılamaz.",
       "disabledSummary": "Özet görevlerde atama yapılamaz.",
-      "moveTo": "Taşı…"
+      "moveTo": "Taşı…",
+      "contour": "Saat dağılımı…",
+      "contoured": "Kontur",
+      "contouredHint": "Bu atamanın kendi saat dağılımı var; Saat dağılımı düğmesiyle düzenleyin veya kaldırın.",
+      "importedCurve": "İçe aktarılan eğri"
     },
     "calendar": "Takvim",
     "calendarProject": "Proje takvimi",

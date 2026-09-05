@@ -75,8 +75,12 @@ number of affected items:
   doesn't.
 - The **sub-minute precision** of a leveling delay is lost — MSPDI has no native
   `<LevelingDelay>`/`<LevelingDelayFormat>` element for our minute-accurate value.
-- **Split tasks** and **contoured assignments** are exported without the native `<TimephasedData>`
-  element — the computed dates themselves do come along, the segment/window information doesn't.
+- **Contoured assignments** now travel natively thanks to the contour engine: the daily
+  distribution of every assignment with a contour (from an `.mpp`, MSPDI or P6 import) is written
+  as `<TimephasedData>` per working day, with the *Contoured* work contour, and read back in when
+  importing an MSPDI file — including the interruptions it contains. Only a **split task without
+  contour data** (for example a pause inserted by the leveler) goes without that element: the
+  computed dates do come along, the interruption itself doesn't.
 - **Resume/stop** (a task resumed outside the ordinary progress logic) has no native
   `<Resume>`/`<Stop>` element.
 - The **critical-path definition** (near-critical mode/threshold) and other scheduling options aren't
@@ -93,8 +97,10 @@ The same kind of trade-off as MSPDI, with a few P6-specific quirks:
   number of days, because P6 has no percent-lag concept.
 - **Calendar-day lag** (lag in elapsed days rather than working days) is exported as a plain
   hour-based lag — P6 has no separate lag unit per relation.
-- The **LATE_PEAK** loading curve has no P6 equivalent and is exported as the closest approximation
-  ("Early Peak").
+- **Loading curves** travel schema-natively as P6 resource curves (a `<ResourceCurve>` object with
+  21 values that the assignment refers to), including the LATE_PEAK curve with its own shape; a
+  custom P6 curve that matches none of the six OPS shapes comes back exactly on import (the app
+  calculates with it, even though the curve picker in the UI shows it as "uniform").
 - **Working calendar exceptions** (a day that's normally off but explicitly marked as working —
   for example a scheduled Saturday) are dropped — P6 XML has no schema field to mark that per
   date. P6 models a structurally different weekly pattern through a separate work-week setting
@@ -105,7 +111,10 @@ The same kind of trade-off as MSPDI, with a few P6-specific quirks:
   "manually scheduled" at all, so such a task exports as an ordinary task with computed dates —
   unlike MSPDI, the raw stored dates themselves aren't guaranteed to stick around here.
 - The **sub-minute precision** of a leveling delay is lost — not expressible in P6 XML.
-- **Split tasks** and **contoured assignments** are dropped — not expressible in P6 XML.
+- **Contoured assignments** travel natively as a spread on the assignment (P6's own
+  `PlannedCurve`/`RemainingCurve`/`ActualCurve` notation, anchored at the task start) and are read
+  back on import, including interruptions. Only a **split task without contour data** is exported
+  without that spread.
 - **Resume/stop** (a task resumed outside the ordinary progress logic) is dropped — not expressible
   in P6 XML.
 - Scheduling options (as with MSPDI) are not exported.

@@ -17,6 +17,9 @@
   "showLegend": "Légende",
   "showTaskNames": "Noms des tâches sur les barres",
   "showCompletion": "Afficher l'avancement",
+  "truncateTaskNames": "Tronquer les noms de tâches",
+  "taskNameColumnWidthLabel": "Colonne nom :",
+  "taskNameColumnWidthHint": "La colonne des noms s'adapte au nom de tâche le plus long",
   "showBaselineOverlay": "Afficher la superposition de référence",
   "autoFit": "Ajustement automatique au papier",
   "zoom": "Zoom :",
@@ -55,7 +58,6 @@
     "categoriesMore_other": "… et {{count}} catégories de plus"
   },
   "tableHeaders": {
-    "rowNum": "#",
     "wbs": "WBS",
     "taskName": "Nom de la tâche",
     "start": "Début",

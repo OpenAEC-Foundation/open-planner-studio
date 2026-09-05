@@ -52,7 +52,11 @@ export async function saveTheme(theme: UITheme): Promise<void> {
 // 'light' blijft 'light' (light kleuren krijgen OpenAEC token-update in globals.css)
 // 'highContrast' wordt 'high-contrast' (consistente naamgeving)
 // Alle andere oude thema's vallen terug op 'dark'
-const THEME_MIGRATION: Record<string, UITheme> = {
+//
+// Geëxporteerd (bewust klein oppervlak) zodat `tests/planning/check-theme-premirror.ts` deze map
+// woord-voor-woord kan vergelijken met de handkopie in `index.html` — zonder deze export zou die
+// poort niet kunnen bewijzen dat de twee elkaar niet zijn ontgroeid.
+export const THEME_MIGRATION: Record<string, UITheme> = {
   'default': 'dark',
   'light': 'light',
   'dark': 'dark',

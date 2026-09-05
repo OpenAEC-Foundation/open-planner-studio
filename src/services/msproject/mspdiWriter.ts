@@ -10,7 +10,12 @@ import {
   effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { isSummaryTask } from '@/utils/taskHierarchy';
-import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
+import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
+import { contourPeriodsToDayItems, minutesToMspdiValue } from '@/services/contourIo';
+import { parseInstant, formatInstant } from '@/utils/dateUtils';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -26,15 +31,19 @@ const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
-// 0=Flat, 1=BackLoaded, 2=FrontLoaded, 4=EarlyPeak, 5=LatePeak, 6=Bell. Index 3 en 7+
-// (Contoured/varianten) worden niet gebruikt. Geëxporteerd zodat de reader de inverse gebruikt.
+// 0=Flat, 1=BackLoaded, 2=FrontLoaded, 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle;
+// 8 (Contoured) is geen vorm maar het signaal dat er `<TimephasedData>` meegaat. Sinds de
+// contour-UI-etappe (2026-09) zijn alle acht vormen een OPS-curve. Geëxporteerd zodat de reader de
+// inverse gebruikt; gelijk aan `contourEngine.ts`'s `CONTOUR_SHAPE_MSPDI_CODE` via `CURVE_TO_SHAPE`.
 export const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
   UNIFORM: 0,
   BACK_LOADED: 1,
   FRONT_LOADED: 2,
+  DOUBLE_PEAK: 3,
   EARLY_PEAK: 4,
   LATE_PEAK: 5,
   BELL: 6,
+  TURTLE: 7,
 };
 
 // Inverse voor de reader (WorkContour-code → curve). Programmatisch afgeleid ⇒ kan niet
@@ -293,13 +302,16 @@ export function writeMSPDI(
   if (levelingPrecisionCount > 0) {
     console.warn(`MSPDI-export: ${levelingPrecisionCount} taak/taken met sub-dag-nivelleervertraging (levelingDelayMinutes) geëxporteerd zonder native <LevelingDelay>/<LevelingDelayFormat> — MSPDI-lezer kent die elementen nog niet (§6).`);
   }
-  // Splits (Task.splitGaps, Z4) en gecontoureerde toewijzingen (ResourceAssignment.workWindowStart/
-  // Finish, Z0/Z14) zijn beide afgeleid uit hetzelfde timephased-mechanisme (§3(c) van het
-  // nul-afwijkingen-plan) — één warn voor <TimephasedData> dekt beide.
-  const splitTaskCount = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0).length;
-  const contouredAssignmentCount = assignments.filter(a => a.workWindowStart || a.workWindowFinish).length;
-  if (splitTaskCount > 0 || contouredAssignmentCount > 0) {
-    console.warn(`MSPDI-export: ${splitTaskCount} gesplitste taak/taken en ${contouredAssignmentCount} gecontoureerde toewijzing(en) geëxporteerd zonder native <TimephasedData> — MSPDI-lezer kent dat element nog niet (§6).`);
+  // Contour-engine (2026-09): gecontoureerde toewijzingen (`Task.timephasedContours`) gaan sinds
+  // deze etappe NATIEF mee als `<TimephasedData>` (zie de toewijzingensectie hieronder) en de lezer
+  // leest ze terug — de O4-warn van Z14 is daarmee voor contouren vervallen. Een gesplitste taak
+  // ZONDER contour (bv. een nivelleergat, `splitGaps` met `source: 'leveling'`) heeft geen
+  // per-toewijzing-verdeling om te schrijven; die blijft een warn (MSP kent een split alleen als
+  // timephased-vorm van een toewijzing).
+  const contouredTaskIds = new Set(tasks.filter(t => t.timephasedContours && t.timephasedContours.length > 0).map(t => t.id));
+  const splitWithoutContour = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0 && !contouredTaskIds.has(t.id)).length;
+  if (splitWithoutContour > 0) {
+    console.warn(`MSPDI-export: ${splitWithoutContour} gesplitste taak/taken zonder contourdata geëxporteerd zonder native <TimephasedData> — alleen contouren (uit .mpp/MSPDI/P6) worden als tijdgefaseerde verdeling geschreven (§6).`);
   }
   // Z12-herwerk/Z14: MSP's eigen resume/stop-instanten (uit-volgorde-hervatting). MSPDI kent native
   // <Resume>/<Stop>, maar onze lezer leest ze (nog) niet terug — zelfde conservatieve keuze.
@@ -588,22 +600,73 @@ export function writeMSPDI(
   if (assignments.length > 0) {
     lines.push(`${indent(1)}<Assignments>`);
     let asgnUid = 1;
+    // Contour-engine (2026-09): contour-koppeling per taak + kalender-engine per taakkalender.
+    const assignmentsByTask = new Map<string, ResourceAssignment[]>();
+    for (const a of assignments) {
+      const list = assignmentsByTask.get(a.taskId) ?? [];
+      list.push(a);
+      assignmentsByTask.set(a.taskId, list);
+    }
+    const contourMatchCache = new Map<string, Map<string, import('@/types/task').TaskTimephasedContour>>();
+    const contourOf = (task: Task, a: ResourceAssignment) => {
+      if (!task.timephasedContours || task.timephasedContours.length === 0) return undefined;
+      let m = contourMatchCache.get(task.id);
+      if (!m) {
+        m = matchContoursToAssignments(task.timephasedContours, assignmentsByTask.get(task.id) ?? [a]);
+        contourMatchCache.set(task.id, m);
+      }
+      return m.get(a.id);
+    };
+    const engineCache = new Map<string, CalendarEngine>();
+    const engineForTask = (task: Task): CalendarEngine => {
+      const key = task.calendarId ?? '';
+      let eng = engineCache.get(key);
+      if (!eng) {
+        eng = new CalendarEngine(calendarForEngine(resolveCalendar(task.calendarId, resourceCalendars, calendar)));
+        engineCache.set(key, eng);
+      }
+      return eng;
+    };
     for (const a of assignments) {
       const taskUid = taskUidMap.get(a.taskId);
       const resUid = resUidMap.get(a.resourceId);
       if (taskUid === undefined || resUid === undefined) continue;
       const task = tasks.find(t => t.id === a.taskId);
       const workDays = (task?.time.scheduleDuration ?? 0) * a.unitsPerDay;
+      // Contour-engine (2026-09): de contour van déze toewijzing (gekoppeld via `resourceId`).
+      const taskContour = task ? contourOf(task, a) : undefined;
+      const dayItems = task && taskContour && (task.time.earlyStart || task.time.scheduleStart)
+        ? contourPeriodsToDayItems(
+          engineForTask(task), resolveCalendar(task.calendarId, resourceCalendars, calendar),
+          parseInstant(task.time.earlyStart || task.time.scheduleStart), taskContour.periods,
+        )
+        : [];
 
+      const uid = asgnUid++;
       lines.push(`${indent(2)}<Assignment>`);
-      lines.push(`${indent(3)}<UID>${asgnUid++}</UID>`);
+      lines.push(`${indent(3)}<UID>${uid}</UID>`);
       lines.push(`${indent(3)}<TaskUID>${taskUid}</TaskUID>`);
       lines.push(`${indent(3)}<ResourceUID>${resUid}</ResourceUID>`);
       lines.push(`${indent(3)}<Units>${a.unitsPerDay}</Units>`);
-      lines.push(`${indent(3)}<Work>${durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
-      const contour = CURVE_TO_WORKCONTOUR[a.curve ?? 'UNIFORM'];
+      // Werk: bij een contour de SOM van de dagverdeling (de echte werkinhoud), anders duur × units.
+      const contourWorkMinutes = dayItems.reduce((n, d) => n + d.workMinutes, 0);
+      lines.push(`${indent(3)}<Work>${dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
+      // WorkContour 8 = Contoured zodra er een echte verdeling meegaat (MPXJ `WorkContour.CONTOURED`).
+      const contour = dayItems.length > 0 ? MSPDI_WORKCONTOUR_CONTOURED : CURVE_TO_WORKCONTOUR[a.curve ?? 'UNIFORM'];
       if (contour !== 0) {
         lines.push(`${indent(3)}<WorkContour>${contour}</WorkContour>`);
+      }
+      // `<TimephasedData>` per werkdag (Type 2 = verricht, 1 = resterend; Unit 2 = dag-item; Value =
+      // ISO-8601-duur) — spiegelt MPXJ `MSPDIWriter.writeAssignmentTimephasedWorkData`.
+      for (const d of dayItems) {
+        lines.push(`${indent(3)}<TimephasedData>`);
+        lines.push(`${indent(4)}<Type>${d.kind === 'actual' ? 2 : 1}</Type>`);
+        lines.push(`${indent(4)}<UID>${uid}</UID>`);
+        lines.push(`${indent(4)}<Start>${formatMSPDateTime(formatInstant(d.start, 'hour'))}</Start>`);
+        lines.push(`${indent(4)}<Finish>${formatMSPDateTime(formatInstant(d.finish, 'hour'))}</Finish>`);
+        lines.push(`${indent(4)}<Unit>2</Unit>`);
+        lines.push(`${indent(4)}<Value>${minutesToMspdiValue(d.workMinutes)}</Value>`);
+        lines.push(`${indent(3)}</TimephasedData>`);
       }
       lines.push(`${indent(2)}</Assignment>`);
     }

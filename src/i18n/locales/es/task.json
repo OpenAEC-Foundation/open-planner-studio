@@ -1,4 +1,23 @@
 {
+  "contourDialog": {
+    "title": "Distribución de horas por fases",
+    "applyShape": "Aplicar forma:",
+    "hoursPerDay": "{{hours}} horas por día laborable",
+    "stripHint": "Arrastre un límite para alargar o acortar una fase, el borde superior para fijar el esfuerzo; doble clic en un día divide una fase.",
+    "from": "Desde",
+    "to": "Hasta",
+    "days": "Días",
+    "unitsPerDay": "Esfuerzo (unid./día)",
+    "hoursPerDayCol": "Horas/día",
+    "actual": "Real (h)",
+    "hoursTotal": "Horas",
+    "split": "Dividir",
+    "merge": "Unir",
+    "lastPhaseHint": "La última fase llega hasta el final de la tarea.",
+    "noDays": "Esta tarea no tiene días laborables.",
+    "hint": "La distribución solo cambia las horas por día de esta asignación; las fechas y las interrupciones de la tarea no cambian. Una fase con esfuerzo 0 permanece dentro de la duración de la tarea.",
+    "release": "Liberar distribución"
+  },
   "durationType": { "WORKTIME": "Tiempo de trabajo", "ELAPSEDTIME": "Tiempo transcurrido" },
   "table": {
     "title": "Tabla",
@@ -252,6 +271,7 @@
     "longFreePeriodWarningNamed": "Esta tarea abarca {{name}} — un período no laborable de {{days}} días ({{start}} a {{end}}).",
     "timephasedActive": "Sigue la distribución de horas de MS Project",
     "timephasedLost": "La distribución de horas de MS Project ya no se aplica tras la edición — la distribución original se conserva en el archivo",
+    "timephasedContoured": "Distribución de horas propia",
     "completion": "Progreso (%)",
     "progress": {
       "actualStart": "Inicio real",
@@ -284,7 +304,11 @@
       "allAssigned": "Todos los recursos ya están asignados.",
       "disabledMilestone": "No es posible asignar en hitos.",
       "disabledSummary": "No es posible asignar en tareas de resumen.",
-      "moveTo": "Mover a…"
+      "moveTo": "Mover a…",
+      "contour": "Distribución de horas…",
+      "contoured": "Contorno",
+      "contouredHint": "Esta asignación tiene su propia distribución de horas; edítela o libérela con el botón Distribución de horas.",
+      "importedCurve": "Curva importada"
     },
     "calendar": "Calendario",
     "calendarProject": "Calendario del proyecto",

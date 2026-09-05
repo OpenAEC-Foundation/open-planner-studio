@@ -351,7 +351,7 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     p6CompletePctType: t.p6CompletePctType,
     p6ExpectedFinish: t.p6ExpectedFinish,
     p6SuspendResume: t.p6SuspendResume,
-    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
+    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
@@ -401,7 +401,7 @@ export function fromExtTask(t: ExtTask): Task {
     // X12-herreview: de zeven P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
     // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
     // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
-    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, periods: c.periods.map(p => ({ ...p })) })) : undefined,
+    timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
@@ -671,6 +671,7 @@ export function toExtAssignment(a: ResourceAssignment): ExtAssignment {
     curve: a.curve,
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
+    curveValues: a.curveValues ? [...a.curveValues] : undefined,
   };
 }
 
@@ -683,6 +684,7 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
     curve: a.curve,
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
+    curveValues: a.curveValues ? [...a.curveValues] : undefined,
   };
 }
 

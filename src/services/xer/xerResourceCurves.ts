@@ -4,7 +4,16 @@ import type { ResourceCurve } from '@/types/resource';
 import type { XerCurvePoints, XerResourceCurveSource, XerResourceIssue } from './xerResourceTypes';
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
 
-const CURVE_FAMILIES: readonly ResourceCurve[] = [
+/** De curve-families waartegen de XER-best-fit meet. Bewust NIET heel `ResourceCurve`: de
+ *  contour-engine (2026-09) breidde dat type uit met `DOUBLE_PEAK`/`TURTLE`, twee vormen die
+ *  alleen als MS Project-/P6-tabel bestaan en geen controlepunten-profiel hebben. De XER-best-fit
+ *  blijft daarom op deze zes families passen; de exacte 21-puntsbron blijft naast de best-fit
+ *  bewaard, dus er gaat niets verloren. */
+type XerCurveFamily = Extract<
+  ResourceCurve, 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK'
+>;
+
+const CURVE_FAMILIES: readonly XerCurveFamily[] = [
   'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK',
 ];
 const CURVE_FIELDS = Array.from({ length: 21 }, (_, index) => `pct_usage_${index}`);
@@ -20,8 +29,8 @@ function interpolate(points: readonly (readonly [number, number])[], t: number):
   return points[points.length - 1][1];
 }
 
-function familyProfile(curve: ResourceCurve): number[] {
-  const controls: Record<ResourceCurve, readonly (readonly [number, number])[]> = {
+function familyProfile(curve: XerCurveFamily): number[] {
+  const controls: Record<XerCurveFamily, readonly (readonly [number, number])[]> = {
     UNIFORM: [[0, 1], [1, 1]],
     FRONT_LOADED: [[0, 1], [1, 0.2]],
     BACK_LOADED: [[0, 0.2], [1, 1]],

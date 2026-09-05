@@ -461,9 +461,15 @@ const supportedCurve = await store().exportAs('p6');
 const supportedCurveXml = captures.at(-1) ?? '';
 expectCategories('ondersteunde P6-curve zonder retained bronwaarden geeft geen false positive',
   'p6', supportedCurve, []);
-expect('P6-writer schreef voor die negatieve fixture PlannedUnitsPerTime/PlannedCurve werkelijk',
+// Deze assertie houdt de negatieve fixture hierboven niet-leeg: "geen verliesmelding" is pas
+// betekenisvol als de writer de curve ECHT wegschreef. De vorm volgt sinds de contour-engine-
+// etappe (main, 2026-09) het P6-schema: de curvenaam staat in een `<ResourceCurve>`-catalogusobject
+// met `<ResourceCurveObjectId>` op de toewijzing, niet meer in `<PlannedCurve>` (dat element is een
+// spreidingsstring — zie het docblok bij `P6_CURVE_TO_NAME` in `p6xmlWriter.ts`).
+expect('P6-writer schreef voor die negatieve fixture PlannedUnitsPerTime/ResourceCurve werkelijk',
   supportedCurveXml.includes('<PlannedUnitsPerTime>0.5</PlannedUnitsPerTime>')
-  && supportedCurveXml.includes('<PlannedCurve>Bell Shaped</PlannedCurve>'));
+  && supportedCurveXml.includes('<Name>Bell Shaped</Name>')
+  && /<ResourceCurveObjectId>\d+<\/ResourceCurveObjectId>/.test(supportedCurveXml));
 
 // De centrale exportAs-funnel is de eigenaar van de in-app melding. Daardoor krijgen Backstage en
 // ribbon exact hetzelfde gedrag zonder twee meldschrijvers. Alleen een bewezen save mag melden;

@@ -55,6 +55,8 @@
     "autoSaveFailed": "Automatisches Speichern fehlgeschlagen",
     "recoveryReadFailed": "Wiederhergestellte Datei konnte nicht gelesen werden",
     "recoveryRestoreFailed": "Wiederherstellung fehlgeschlagen",
+    "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
+    "recoveryDocumentsSkipped_other": "{{count}} Wiederherstellungsdateien konnten nicht geladen werden und wurden übersprungen.",
     "scheduleFailed": "Zeitplan konnte nicht berechnet werden",
     "ifcParseFailed": "IFC konnte nicht gelesen werden",
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert",
@@ -62,6 +64,8 @@
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
+    "relationsSkippedOnInsert_one": "{{count}} Beziehung wurde nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
+    "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "mppSourceScheduleNotes_one": "Diese MS-Project-Datei enthält {{count}} Vorgang mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Er wird so eingelesen und angezeigt.",
     "mppSourceScheduleNotes_other": "Diese MS-Project-Datei enthält {{count}} Vorgänge mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Sie werden so eingelesen und angezeigt.",
     "projectStartAnchorsClamped_one": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurde auf das neue Startdatum verschoben.",
@@ -604,7 +608,9 @@
       "backLoaded": "Hinten belastet",
       "bell": "Glockenform",
       "earlyPeak": "Frühe Spitze",
-      "latePeak": "Späte Spitze"
+      "latePeak": "Späte Spitze",
+      "doublePeak": "Doppelte Spitze",
+      "turtle": "Schildkröte"
     },
     "occupancyView": "Belegung",
     "occupancy": {
@@ -614,6 +620,8 @@
       "staleBanner": "Mindestens ein Dokument wurde nicht berechnet und zählt in der Belegung nicht mit.",
       "staleComputedDoc": "Für diese Übersicht bereits vorab berechnet — das Dokument selbst zeigt noch ältere Daten, bis Sie dort F5 drücken oder „Automatisch berechnen“ aktivieren.",
       "staleComputedBanner": "Geänderte Dokumente wurden für diese Übersicht bereits vorab berechnet; drücken Sie F5 im Dokument, oder aktivieren Sie „Automatisch berechnen“, um dies dauerhaft zu tun.",
+      "staleAsShownDoc": "Veraltet: dies sind die zuletzt berechneten Werte — drücken Sie F5 in diesem Dokument.",
+      "staleAsShownBanner": "Ein geändertes Dokument wurde noch nicht neu berechnet; es zählt hier mit seinen zuletzt berechneten Werten mit. Drücken Sie F5 in diesem Dokument, oder aktivieren Sie „Automatisch berechnen“.",
       "docCount_one": "{{count}} Dokument",
       "docCount_other": "{{count}} Dokumente",
       "conflictDays_one": "{{count}} Tag doppelt belegt",

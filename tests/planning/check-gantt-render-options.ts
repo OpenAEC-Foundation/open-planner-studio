@@ -35,7 +35,7 @@ import { traceFrom } from '@/engine/scheduler/graphWalk';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, formatDate, parseDate, addCalendarDays } from '@/utils/dateUtils';
-import { ORIGIN_PADDING_DAYS, computeEffectiveViewStart } from '@/utils/ganttViewport';
+import { ORIGIN_PADDING_DAYS, computeEffectiveViewStart, computeFitToProject } from '@/utils/ganttViewport';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource } from '@/types/resource';
@@ -304,6 +304,44 @@ for (const compress of [false, true]) {
 eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027-03-01', false, buildSharedAxis({
   calendar, compressNonWorkdays: false, viewStartDate: '2027-03-01', chartOriginX: 0, zoom: 30, scrollX: 0,
 })), null);
+
+// 06b/06c/06d — een taak met alleen een start (geen enkele finish) telde vroeger wél mee voor de
+// Ctrl+0-fit (`computeFitToProject` had een eigen `|| s`) maar niet voor de contentbreedte
+// (`computeContentSpanDays` had die terugval niet), zodat de fit naar een positie buiten
+// `maxScrollX` kon zoomen. Beide functies delen nu `resolveTaskFinish` (`ganttViewport.ts`).
+// Bereikbaarheid: IFC/CSV/MSPDI/P6/MPP zetten alle vijf altijd een niet-lege finish-keten
+// (`csvDateOrToday`, `parseDateFromIFC` en `createDefaultTaskTime` vullen desnoods een datum in),
+// dus dit is defensief — geen bekend importscenario — maar een fit die buiten de contentbreedte
+// zoomt is de echte bug ongeacht bereikbaarheid. Deze drie cases houden de twee ketens gekoppeld.
+{
+  const farViewStart = '2020-01-01';
+  const soloStart = '2030-01-01';
+  const startOnlyTask = chained({ earlyStart: soloStart });
+  const explicitSameDayTask = chained({ earlyStart: soloStart, earlyFinish: soloStart });
+  const axisFar = buildSharedAxis({
+    calendar, compressNonWorkdays: false, viewStartDate: farViewStart, chartOriginX: 0, zoom: 30, scrollX: 0,
+  });
+  // Zonder de `|| resolveTaskStart`-terugval blijft dit op de 365-bodem (end is dan leeg) terwijl
+  // de expliciete same-day taak een echte span van ~3653 dagen geeft — ruim boven de bodem, dus
+  // deze vergelijking is niet-vacuüm.
+  eq('06b contentSpanDays: taak met alleen start valt terug op start (== expliciete same-day taak)',
+    computeContentSpanDays([startOnlyTask], farViewStart, false, axisFar),
+    computeContentSpanDays([explicitSameDayTask], farViewStart, false, axisFar));
+
+  const timelineWidth = 1200;
+  const fit = computeFitToProject([startOnlyTask], timelineWidth, false);
+  checks++;
+  if (!fit) {
+    diffs.push('06c computeFitToProject: verwacht een fit voor een taak met alleen een start');
+  } else {
+    const span = computeContentSpanDays([startOnlyTask], fit.viewStartDate, false, axisFar);
+    const fitTargetOffsetDays = diffDays(fit.viewStartDate, soloStart);
+    checks++;
+    if (span === null || fitTargetOffsetDays > span) {
+      diffs.push(`06d contentSpanDays (${String(span)}) dekt de fit-doeldatum (${fitTargetOffsetDays} dagen) niet — de fit zou buiten maxScrollX vallen`);
+    }
+  }
+}
 
 // 7 — contentWidthFor: de bodem van 2000px en de lineaire tak.
 eq('07 computeContentWidth: leeg project ⇒ vaste 2000px', computeContentWidth(null, 30), 2000);

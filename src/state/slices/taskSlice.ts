@@ -2,6 +2,7 @@ import { Task, type ExternalLink } from '@/types/task';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
@@ -13,6 +14,7 @@ import {
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
+import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -395,8 +397,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
       const { time, ...rest } = updates;
+      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
+      const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
+      // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
+      // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
+      if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
@@ -904,6 +913,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   insertWbsTemplate: (template, parentId) => {
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
+    let skippedRelations = 0;
     set((s) => {
       runtime.beginUndoable(s);
 
@@ -936,13 +946,20 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const parent = s.tasks.find(t => t.id === parentId);
         if (parent) parent.childIds.push(newRootId);
       }
+      // `relationVerdict.ts` is de bron van de regel, niet alleen de reguliere add-route
+      // (`addSequence`): een sjabloon is app-niveau data uit `localStorage` (zie
+      // `utils/wbsTemplates.ts`) en kan dus, net als een tak uit het klembord, relaties
+      // dragen die nooit via die route zijn aangemaakt. De lookup wijst al naar `s.tasks`
+      // MÉT de zojuist ingevoegde taken (nieuwe ids, ouderrelaties uit de lus hierboven).
+      const lookup = (tid: string) => s.tasks.find(t2 => t2.id === tid);
       for (const q of template.sequences) {
-        s.sequences.push({
+        const candidate = {
           ...q,
-          id: generateId('seq'),
           predecessorId: idMap.get(q.predecessorId)!,
           successorId: idMap.get(q.successorId)!,
-        });
+        };
+        if (!relationVerdict(lookup, s.sequences, candidate).ok) { skippedRelations++; continue; }
+        s.sequences.push({ ...candidate, id: generateId('seq') });
       }
 
       // WBS-codes: auto ⇒ hele boom; anders alleen de ingevoegde tak afleiden.
@@ -964,6 +981,16 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    if (skippedRelations > 0) {
+      // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet
+      // (zelfde precedent als `setProject` in projectSlice.ts).
+      get().notify({
+        severity: 'info',
+        messageKey: 'notifications.relationsSkippedOnInsert',
+        params: { count: skippedRelations },
+        dedupeKey: 'relations-skipped-on-insert-template',
+      });
+    }
     return newRootId;
   },
 

@@ -1,7 +1,7 @@
 /**
  * Vector-pagineerder (§4.3 ontwerpdoc): zet één keer-getekende Gantt-content (opgenomen door
  * {@link PdfVectorDraw2D}) om in een multi-page VECTOR-PDF. Zelfde tegel-/schaalwiskunde als de
- * raster-pagineerder (`paginate.ts` → `paginateCanvasToTiles`), maar een "tegel" wordt een PDF-
+ * raster-pagineerder (`paginate.ts` → `paginateCanvasToTile`), maar een "tegel" wordt een PDF-
  * pagina die een gedeeld **Form-XObject** onder een eigen `q … cm W n … Q`-wrapper `Do`'t
  * (transform + clip) i.p.v. een `drawImage`-crop.
  *
@@ -270,7 +270,7 @@ export async function paginateVectorToPdfBytes(
   const texts = d2d.texts;
 
   // ---- Tegel-/schaalwiskunde: gedeeld met de raster-pagineerder via `tileLayout.computeTileLayout` ----
-  // Stond hier vroeger als letterlijke kopie van `paginateCanvasToTiles`; nu één bron van waarheid,
+  // Stond hier vroeger als letterlijke kopie van de raster-pagineerder; nu één bron van waarheid,
   // zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
   const layout = computeTileLayout({
     paperSize: opts.paperSize,

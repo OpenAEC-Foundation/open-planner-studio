@@ -54,7 +54,7 @@ const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint:
  * TypeError, géén McpToolResult, corrupte waarde gecommit én een undo-stap erbij. Vandaar: filteren
  * vóór de mutatie, als ZACHTE per-item-weigering.
  */
-const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'];
+const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 const isCurve = (v: unknown): v is ResourceCurve =>
   typeof v === 'string' && (RESOURCE_CURVES as string[]).includes(v);
 /** Leesbare weigeringsreden die de geldige waarden noemt (de AI kan zich direct corrigeren). */
@@ -1210,8 +1210,8 @@ const manageAssignments: BatchStepTool = {
             unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Eenheden per WERKDAG (1 = 100% = één persoon/stuk; 0,5 = halve dag).' },
             curve: {
               type: 'string',
-              enum: ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK'],
-              description: 'Verdeelcurve over de duur; weglaten = UNIFORM.',
+              enum: ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'],
+              description: 'Verdeelcurve over de duur (de acht MS Project-/P6-vormen); weglaten = UNIFORM.',
             },
           },
         },

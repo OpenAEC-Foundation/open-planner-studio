@@ -1,5 +1,7 @@
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import type { TimephasedContourPeriod } from '@/types/task';
+import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
@@ -26,6 +28,13 @@ export interface ResourceSlice {
   /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI, §6.3). */
   updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
+  /** Contour-UI (2026-09): zet of vervang de OPGESLAGEN contour van één toewijzing
+   *  (`Task.timephasedContours`, gekoppeld via `resourceId` — `contourEngine.ts`'s
+   *  `matchContoursToAssignments`), of laat 'm los (`null` ⇒ de toewijzing valt terug op de
+   *  curve-formule). Raakt GEEN taakdatum en geen `splitGaps` (de contour verdeelt uren binnen de
+   *  bestaande duur; zie `contourEdit.ts`) — daarom geen `scheduleStale`, wél undo/`isDirty` en een
+   *  verse belasting. `null` op een toewijzing zonder contour is een no-op (geen snapshot). */
+  setAssignmentContour: (assignmentId: string, periods: TimephasedContourPeriod[] | null) => void;
   /** Verplaats een bestaande toewijzing naar een andere taak (fase 2.10, item 4): `unitsPerDay`/
    *  `curve` blijven ONGEWIJZIGD, alleen `taskId` + `resourceIds` op beide taken worden bijgewerkt.
    *  Weigert (false, geen snapshot) bij een milestone/samenvattings-doeltaak of wanneer de resource
@@ -167,10 +176,40 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (Object.keys(patch).length === 0) return;
       runtime.beginUndoable(s);
       Object.assign(s.assignments[idx], patch);
+      // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
+      // geïmporteerde 21-punts curve (`curveValues`, P6/MSPDI) — anders zou het histogram de oude
+      // P6-vorm blijven tonen terwijl de dropdown de nieuwe keuze laat zien.
+      if ('curve' in patch) delete s.assignments[idx].curveValues;
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
+  },
+
+  setAssignmentContour: (assignmentId, periods) => {
+    set((s) => {
+      const a = s.assignments.find(x => x.id === assignmentId);
+      if (!a) return;
+      const task = s.tasks.find(t => t.id === a.taskId);
+      if (!task) return;
+      const siblings = s.assignments.filter(x => x.taskId === a.taskId);
+      const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignmentId);
+      if (periods === null && idx < 0) return;
+      runtime.beginUndoable(s);
+      const list = task.timephasedContours ? [...task.timephasedContours] : [];
+      if (periods === null) {
+        list.splice(idx, 1);
+      } else if (idx >= 0) {
+        list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
+      } else {
+        // `resourceUid: null`: geen MS Project-herkomst — dit is een eigen verdeling van de gebruiker
+        // (`TaskTimephasedNotice` leest dat onderscheid).
+        list.push({ resourceUid: null, resourceId: a.resourceId, periods });
+      }
+      task.timephasedContours = list.length > 0 ? list : undefined;
+      runtime.finishMutation(s);
+    });
+    get().recomputeResourceLoad();
   },
 
   unassignResource: (assignmentId) => {

@@ -1706,6 +1706,10 @@ export function deriveTimephasedContoursForTasks(
   taskIdByUniqueId: ReadonlyMap<number, string>,
   tasks: readonly Task[],
   calResult: CalendarReadResult,
+  // Contour-engine (2026-09): MSP-resource-uid → OPS-resource-id, zodat elke contour haar
+  // `resourceId` krijgt en `contourEngine.ts` haar aan de juiste toewijzing kan koppelen.
+  // Optioneel (test-aanroepen zonder resources) ⇒ alleen `resourceUid`, zoals vóór deze etappe.
+  resourceIdByUniqueId?: ReadonlyMap<number, string>,
 ): Map<string, TaskTimephasedContour[]> {
   const rawByUid = readAssignmentTimephasedRaw(cfb, assignmentFieldMap);
   if (rawByUid.size === 0) return new Map();
@@ -1754,7 +1758,8 @@ export function deriveTimephasedContoursForTasks(
       ...toContourPeriods(remainingPeriods, 'remaining'),
     ];
     const list = contoursByTask.get(link.taskId) ?? [];
-    list.push({ resourceUid: link.resourceUid, periods });
+    const resourceId = link.resourceUid !== null ? resourceIdByUniqueId?.get(link.resourceUid) : undefined;
+    list.push({ resourceUid: link.resourceUid, ...(resourceId ? { resourceId } : {}), periods });
     contoursByTask.set(link.taskId, list);
   }
   return contoursByTask;
@@ -2291,7 +2296,7 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // contourperiodes bewaren, los van (en NAAST) `splitGaps` hierboven: dit is de bron die een
   // latere edit-time-invalidatie van `splitGaps`/het Z8-venster (taskSlice.ts/mcpTransaction.ts)
   // NOOIT wist. Zie `deriveTimephasedContoursForTasks`'s eigen moduleheader.
-  const contoursByTaskId = deriveTimephasedContoursForTasks(cfb, assignmentFieldMap, taskIdByUniqueId, tasks, calResult);
+  const contoursByTaskId = deriveTimephasedContoursForTasks(cfb, assignmentFieldMap, taskIdByUniqueId, tasks, calResult, resourceIdByUniqueId);
   for (const task of tasks) {
     const contours = contoursByTaskId.get(task.id);
     if (contours && contours.length > 0) task.timephasedContours = contours;
