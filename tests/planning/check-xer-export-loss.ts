@@ -351,10 +351,17 @@ function installAssignmentFixture(name: string, curve: 'BELL' | 'LATE_PEAK') {
   return fixture;
 }
 
+// Vóór de contour-engine-etappe (2026-09) had P6_CURVE_TO_NAME geen eigen 'Late Peak'-vermelding en
+// degradeerde LATE_PEAK bij export stil naar 'Early Peak' — toen terecht een apart assignmentverlies.
+// Sinds die etappe schrijft p6xmlWriter.ts LATE_PEAK schema-natief (`P6_CURVE_TO_NAME.LATE_PEAK ===
+// 'Late Peak'`, eigen 21-waardentabel via `<ResourceCurve>`), dus dit is GEEN verlies meer.
 installAssignmentFixture('Alleen LATE_PEAK', 'LATE_PEAK');
 const latePeakOnly = await store().exportAs('p6');
-expectCategories('P6-LATE_PEAK zonder retained quantities activeert zelfstandig assignmentverlies',
-  'p6', latePeakOnly, ['raw-curves-and-assignment-quantities']);
+const latePeakXml = captures.at(-1) ?? '';
+expectCategories('P6-LATE_PEAK zonder retained quantities is sinds de contour-engine geen assignmentverlies meer',
+  'p6', latePeakOnly, []);
+expect('P6-writer schreef voor die LATE_PEAK-fixture echt de eigen Late Peak-tabel, geen Early Peak-degradatie',
+  latePeakXml.includes('<Name>Late Peak</Name>') && !latePeakXml.includes('<Name>Early Peak</Name>'));
 
 const retainedFixture = installAssignmentFixture('Alleen retained quantities', 'BELL');
 const retainedAssignment = {

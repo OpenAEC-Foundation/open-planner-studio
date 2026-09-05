@@ -152,7 +152,14 @@ function hasRetainedAssignmentDetails(metadata: XerImportMetadata | null): boole
     || hasObjectValues(source.costs)
     || source.assignedRole !== undefined
     // `curveSourceId` verwijst naar de retained 21-punts curve in de bestandsbrede catalogus.
-    // De doelwriters schrijven noch deze bronidentiteit noch de exacte curvepunten terug.
+    // Geen doelwriter schrijft deze BRONIDENTITEIT (curv_id/curv_name) terug — de P6-writer
+    // (p6xmlWriter.ts's `curveObjIdFor`, ná de contour-engine-etappe 2026-09) genereert bij export
+    // een NIEUW `<ResourceCurve><ObjectId>` en een synthetische naam (`Curve N`) voor
+    // `ResourceAssignment.curveValues`; de 21 waarden zelf komen voor het P6-doel dus wél
+    // schema-natief terug, maar niet de oorspronkelijke P6-curve-identiteit/-naam, en MSPDI/CSV
+    // kennen dat 21-puntsformaat sowieso niet (MSPDI kent alleen de 8 vaste `WorkContour`-vormen).
+    // De overige archiefvelden hieronder (kwantiteiten, kostenopbouw, target_crv/remain_crv/
+    // actual_crv-spreidingsstrings, rate-/kostentype) blijven sowieso ongeschreven, voor elk doel.
     || Boolean(source.curveSourceId?.trim())
     || Boolean(source.rateType?.trim())
     || Boolean(source.costSourceType?.trim())
@@ -160,15 +167,11 @@ function hasRetainedAssignmentDetails(metadata: XerImportMetadata | null): boole
 }
 
 function hasAssignmentLoss(
-  format: Exclude<ExportFormat, 'ifc'>,
   capabilities: ExportCapabilities,
   input: XerExportLossInput,
 ): boolean {
   if (hasRetainedAssignmentDetails(input.importMetadata)) return true;
-  if (!capabilities.projectedAssignments && input.assignments.length > 0) return true;
-  // P6 kent geen LATE_PEAK en schrijft die aantoonbaar als Early Peak; de overige live curves
-  // en units worden door PlannedCurve/PlannedUnitsPerTime gedragen.
-  return format === 'p6' && input.assignments.some(assignment => assignment.curve === 'LATE_PEAK');
+  return !capabilities.projectedAssignments && input.assignments.length > 0;
 }
 
 function isMspdiCriticalSlackLimit(options: SchedulingOptions): boolean {
@@ -223,7 +226,7 @@ function categoriesFor(
   if (input.activityCodeTypes.length > 0
     || input.tasks.some(task => hasObjectValues(task.activityCodes))) categories.push('activity-codes');
   if (input.tasks.some(task => (task.notes?.length ?? 0) > 0)) categories.push('notes');
-  if (hasAssignmentLoss(format, capabilities, input)) {
+  if (hasAssignmentLoss(capabilities, input)) {
     categories.push('raw-curves-and-assignment-quantities');
   }
   if (input.tasks.some(task => (task.externalLinks?.length ?? 0) > 0)
