@@ -191,18 +191,18 @@ console.log('-- apply-leveling-scope: deel 4 (motor), idempotente onderbreek-mod
 // Deel 5 (B1c-plan3 taak 3): een tijdbasis-bewerking wist de LEVELING-gaten van díé taak (spec §4,
 // "Invalidatie") en laat IMPORTSPLITS staan.
 //
-// AFWIJKING van het letterlijke voorschrift: de spec noemt "voortgang" (completion/actualStart/
-// actualFinish) als vierde klasse, mét `setTaskProgress`/`setActualStart`/`setActualFinish` als
-// aanroepplekken te verwachten. De discoverable regel die het plan zelf voorschrijft
-// (`grep -rn "clearTimephasedWindow" src/`) wijst ECHTER geen van die drie functies aan — ze raken
-// `clearTimephasedWindow` helemaal niet aan (bevestigd door de bron te lezen: geen van de drie
-// noemt die functie). Een leveling-gat aan een voortgangsmutatie koppelen zou dus een NIEUW
-// triggerpunt zijn, niet het overnemen van een bestaand aanroeppatroon — buiten wat dit plan vraagt.
-// Deze case dekt daarom de drie klassen die WEL een echte `clearTimephasedWindow`-aanroepplek
-// hebben (duur, handmatige datums via `updateTask`, kalender via `setTaskCalendar`), plus de
-// "toewijzingen"-trigger die de code zelf als vierde klasse voert (`assignResource`, zie
-// `resourceSlice.ts`/`createMcpTransactions.ts`s eigen commentaar "toewijzingen is expliciet
-// onderdeel van de triggerset").
+// AANGEPAST IN DE FIXRONDE OP ETAPPE 3 (bevinding B7). Hier stond een AFWIJKING: de spec noemt vier
+// klassen (duur, kalender, handmatige datums, VOORTGANG), maar de eerste bedrading liftte mee op de
+// `clearTimephasedWindow`-aanroepplekken — en géén enkel voortgangspad raakt die functie aan (dat is
+// terecht: voortgang wist de MSP-urensturing niet). De vierde klasse viel daarmee stil weg, terwijl
+// een leveling-gat op de WERKMINUTEN-as van de taak ligt en voortgang díé as wel degelijk verzet
+// (`applyProgressInvariants` leidt er `remainingTime`/`actualStart` uit af; `CPMSolver` plant een
+// IN-PROGRESS-taak vanaf haar actuals). De invalidatie heeft nu een EIGEN, bredere triggerset
+// (`taskUpdateInvalidatesLevelingGaps`, taskDefaults.ts) met voortgang én constraints erin.
+// Deze case dekt alle klassen: duur, handmatige datums, kalender, toewijzingen, VOORTGANG (de drie
+// dedicated setters én de `time`-route van `updateTask`) en CONSTRAINTS — plus twee negatieve
+// controles (alleen-importsplits blijft ongemoeid; `priority` is nivelleer-INVOER en verzet geen
+// datum, dus die wist niets).
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-leveling-scope: deel 5, tijdbasis-bewerkingen wissen leveling-gaten --');
 {
@@ -213,6 +213,12 @@ console.log('-- apply-leveling-scope: deel 5, tijdbasis-bewerkingen wissen level
     S().applyLeveling({ delays: {}, gaps: { [id]: [importSplit5, levelingGap5] } });
     return id;
   };
+
+  // ── De write die de gaten MAAKT mag ze niet meteen invalideren. `applyLeveling` schrijft
+  // rechtstreeks op de Immer-draft (scheduleSlice.ts), niet via `updateTask`, dus hij staat per
+  // constructie buiten de poort — dit pint dat vast. ───────────────────────────────────────────────
+  const idFresh = seed('J0-vers-genivelleerd');
+  eq('applyLeveling laat zijn eigen verse gaten staan', S().tasks.find(t => t.id === idFresh)?.splitGaps?.length, 2);
 
   // ── Duur wijzigen ──────────────────────────────────────────────────────────────────────────────
   const idDur = seed('F-duur');
@@ -246,6 +252,48 @@ console.log('-- apply-leveling-scope: deel 5, tijdbasis-bewerkingen wissen level
   const tAsgn = S().tasks.find(t => t.id === idAsgn);
   eq('een toewijzing wist het leveling-gat', tAsgn?.splitGaps?.length, 1);
   eq('en laat de importsplit staan', tAsgn?.splitGaps?.[0]?.source, undefined);
+
+  // ── VOORTGANG (spec §4, vierde klasse — bevinding B7) via de drie dedicated setters. Die lopen
+  // buiten `updateTask` om en hebben dus hun eigen `clearLevelingGaps`-aanroep. ────────────────────
+  const idProgress = seed('K-voortgang');
+  S().setTaskProgress(idProgress, 0.4);
+  const tProgress = S().tasks.find(t => t.id === idProgress);
+  eq('voortgang zetten wist het leveling-gat', tProgress?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tProgress?.splitGaps?.[0]?.source, undefined);
+
+  const idActualStart = seed('L-actualStart');
+  S().setActualStart(idActualStart, '2026-06-02');
+  eq('een werkelijk begin wist het leveling-gat', S().tasks.find(t => t.id === idActualStart)?.splitGaps?.length, 1);
+
+  const idActualFinish = seed('M-actualFinish');
+  S().setActualFinish(idActualFinish, '2026-06-05');
+  eq('een werkelijk einde wist het leveling-gat', S().tasks.find(t => t.id === idActualFinish)?.splitGaps?.length, 1);
+
+  // ── VOORTGANG via de `time`-route van `updateTask` (bv. de extensie-API): `completion` zit sinds
+  // B7 in `LEVELING_GAP_TIME_TRIGGERS`, terwijl hij bewust NIET in de Z8-venstertriggerset zit. ────
+  const idCompletionField = seed('N-completion-veld');
+  S().updateTask(idCompletionField, {
+    time: { ...S().tasks.find(t => t.id === idCompletionField)!.time, completion: 0.5 },
+  });
+  const tCompletionField = S().tasks.find(t => t.id === idCompletionField);
+  eq('completion via updateTask wist het leveling-gat', tCompletionField?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tCompletionField?.splitGaps?.[0]?.source, undefined);
+
+  // ── CONSTRAINTS (top-level `Task`-veld, geen `TaskTime`-sleutel): een datum-constraint verplaatst
+  // de taak net zo hard als een handmatige datum. ──────────────────────────────────────────────────
+  const idConstraint = seed('O-constraint');
+  S().updateTask(idConstraint, { constraint: { type: 'SNET', date: '2026-07-01' } });
+  const tConstraint = S().tasks.find(t => t.id === idConstraint);
+  eq('een constraint wist het leveling-gat', tConstraint?.splitGaps?.length, 1);
+  eq('en laat de importsplit staan', tConstraint?.splitGaps?.[0]?.source, undefined);
+
+  // ── NEGATIEVE CONTROLE: `priority` is nivelleer-INVOER en verzet geen enkele datum van de taak
+  // zelf — een bestaand gat blijft daar geldig. Bewijst dat de triggerset niet te breed is. ────────
+  const idPriority = seed('P-prioriteit');
+  S().updateTask(idPriority, { priority: 900 });
+  const tPriority = S().tasks.find(t => t.id === idPriority);
+  eq('prioriteit wijzigen laat BEIDE gaten staan', tPriority?.splitGaps?.length, 2);
+  eq('inclusief het leveling-gat', tPriority?.splitGaps?.[1]?.source, 'leveling');
 
   // ── Een taak met UITSLUITEND importsplits blijft ongemoeid (contract van `clearLevelingGaps`:
   // `false` ⇒ niets gemuteerd — hier getoetst via de array-identiteit vóór/ná). ────────────────────

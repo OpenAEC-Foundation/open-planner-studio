@@ -9,6 +9,7 @@ import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
+  taskUpdateInvalidatesLevelingGaps,
 } from '@/utils/taskDefaults';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
@@ -372,15 +373,16 @@ function createMcpDraft(
           && clearTimephasedDurationWalks(s.tasks[idx]);
         // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
-        // B1c-plan3 taak 3 (spec §4, "Invalidatie"): dezelfde bewerking die de MSP-urensturing
-        // ongeldig maakt, maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat
-        // ligt dan op een verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en
-        // blijven staan; `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-
-        // afronding hierboven is dit geen verlies van gebruikersdata uit een importbestand maar het
-        // opruimen van app-eigen afgeleide nivelleeruitvoer op een as die de aanroeper zelf zojuist
-        // heeft verzet.
-        clearLevelingGaps(s.tasks[idx]);
       }
+      // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
+      // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
+      // verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en blijven staan;
+      // `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-afronding hierboven
+      // is dit geen verlies van gebruikersdata uit een importbestand maar het opruimen van app-eigen
+      // afgeleide nivelleeruitvoer op een as die de aanroeper zelf zojuist heeft verzet.
+      // EIGEN, BREDERE poort sinds de fixronde op etappe 3 (bevinding B7) — gedocumenteerde tweeling
+      // van taskSlice.ts's `updateTask`; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
+      if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
       s.isDirty = true;
     });
   },
@@ -430,10 +432,12 @@ function createMcpDraft(
         const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
-        // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
-        // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
-        clearLevelingGaps(task);
       }
+      // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
+      // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies). `timePatch` kent
+      // geen voortgangsvelden, dus voor de `time`-kant volstaat `timeTouched`; de top-level triggers
+      // (`calendarId`, `constraint`, `constraint2`) lopen wél via de gedeelde poort (B7).
+      if (taskUpdateInvalidatesLevelingGaps(top) || timeTouched) clearLevelingGaps(task);
       s.isDirty = true;
     });
   },

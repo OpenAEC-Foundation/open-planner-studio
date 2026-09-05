@@ -21,6 +21,7 @@
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import { applyProgressInvariants } from './slices/taskSlice';
+import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
@@ -231,6 +232,12 @@ export const progress = {
     applyProgressInvariants(scratch, statusDate);
     Object.assign(task.time, scratch.time);
     task.status = scratch.status;
+    // B1c-plan-2 spec §4 "Invalidatie", vierde klasse (voortgang) — bedraad in de fixronde op
+    // etappe 3, bevinding B7. Dit is het MCP-equivalent van `taskSlice`'s `setTaskProgress`/
+    // `setActualStart`/`setActualFinish`: voortgang verzet de werkminuten-as waarop een
+    // leveling-gat ligt, dus dat gat moet weg. Pas ná de commit (stap 10), zodat een geweigerd item
+    // de draft ONGEMOEID laat — dezelfde regel als de rest van deze functie.
+    clearLevelingGaps(task);
     return { applied: true };
   },
 };
