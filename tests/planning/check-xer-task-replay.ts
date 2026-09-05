@@ -52,6 +52,14 @@ if (!corpusRoot) {
     }>;
   };
   eq('task replay: openbare instrumentpin heeft schema 1', pin.version, 1);
+  // Herpin 2026-09-05 (X-O7 laag 1, klasse (i)): de negatieve kandidaat
+  // `drop-p6-finish-milestone-boundary` verliest sinds `p6CompletedLateFromRemainingWindow` MEER
+  // cellen (ls 690 → 1466, lf 704 → 1480, tf 629 → 1363, overall 704 → 1481). Dat is de bedoelde
+  // richting en geen zwakkere poort: het instrument meet hoeveel PRODUCTcellen een mutant kapot
+  // maakt, en met de nieuwe regel zijn er simpelweg veel meer exacte late-zijde-cellen om kapot te
+  // maken (corpusbreed ls 4791 → 3901 en lf 4781 → 3891 afwijkingen, zie
+  // `xer-schedoptions-blast-radius.json`). `synthetic-zero-regression` blijft ongewijzigd op 0
+  // regressies — de nulmeting is dus niet meeverschoven.
   for (const candidate of [syntheticZeroRegressionCandidate, dropFinishMilestoneBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

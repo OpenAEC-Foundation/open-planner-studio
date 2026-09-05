@@ -604,6 +604,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   P6VERIFIEDCHECK="$DIR/.p6-verified-cases.mjs"
   if bundle_check "$DIR/check-p6-verified-cases.ts" "$P6VERIFIEDCHECK"; then node "$P6VERIFIEDCHECK" || STATUS=1; fi
 
+  # Dezelfde dertien casussen, nu ECHT door lezer + solver (review-bevinding 7): de invoerzijde is
+  # corpusloos getranscribeerd, de uitkomst wordt cel voor cel tegen de P6-23.12-opname gelegd.
+  # Met OPS_P6_COMPARISON of OPS_XER_CORPUS wordt de transcriptie zelf tegen de bron gecontroleerd.
+  P6VERIFIEDENGINECHECK="$DIR/.p6-verified-cases-engine.mjs"
+  if bundle_check "$DIR/check-p6-verified-cases-engine.ts" "$P6VERIFIEDENGINECHECK"; then node "$P6VERIFIEDENGINECHECK" || STATUS=1; fi
+
   # Opslagdoel-guard voor binaire bronformaten (fase 3.8 e1, T8-stap 5a): `fileSlice.openFile`
   # via de echte `<input type=file>`-terugval — .mpp krijgt GEEN opslagdoel, .ifc (contrast) wel.
   # Corpusdeel volgt dezelfde skip-OK-conventie als hierboven.
