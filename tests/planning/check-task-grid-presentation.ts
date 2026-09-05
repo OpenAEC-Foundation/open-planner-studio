@@ -106,8 +106,27 @@ ok('De relatiechip heeft geen eigen native title meer; de details staan in de ho
     && /function RelationTooltipDetails/.test(relationCell)
     && /<RelationTooltipDetails item=\{hover\.item\} \/>/.test(relationCell));
 ok('De sturend- en waarschuwingsiconen houden hun eigen tekst als native title',
-  /className="task-grid-relation-icon" title=\{t\('relations\.driving'\)\}/.test(relationCell)
-    && /className="task-grid-relation-icon" title=\{relationWarningTexts\(item, t\)\.join/.test(relationCell));
+  /className="task-grid-relation-icon task-grid-relation-icon--driving" title=\{t\('relations\.driving'\)\}/.test(relationCell)
+    && /className="task-grid-relation-icon task-grid-relation-icon--warning" title=\{relationWarningTexts\(item, t\)\.join/.test(relationCell));
+ok('Elke relatiechip draagt de richting als data-attribuut, zodat de rolkleur uit CSS komt (issue #94)',
+  /data-relation-direction=\{item\.direction\}/.test(relationCell));
+const relationStyles = read('src/styles/globals.css');
+ok('De rolkleur van voorganger/opvolger komt uit thema-variabelen, niet uit --theme-accent op de chip',
+  /\.task-grid-relation-chip\[data-relation-direction="predecessor"\][^{]*\{\s*color:\s*var\(--relation-predecessor\);/.test(relationStyles)
+    && /\.task-grid-relation-chip\[data-relation-direction="successor"\][^{]*\{\s*color:\s*var\(--relation-successor\);/.test(relationStyles)
+    && !/\.task-grid-relation-jump\s*\{[^}]*color:\s*var\(--theme-accent\)/.test(relationStyles));
+ok('Sturend is een sterkere tint van dezelfde rolkleur (eigen driving-variabelen), niet los wel/geen kleur',
+  /\.task-grid-relation-chip--driving\[data-relation-direction="predecessor"\][\s\S]*?color:\s*var\(--relation-predecessor-driving\);/.test(relationStyles)
+    && /\.task-grid-relation-chip--driving\[data-relation-direction="successor"\][\s\S]*?color:\s*var\(--relation-successor-driving\);/.test(relationStyles));
+ok('Het warning-icoon houdt zijn eigen --warning-kleur, los van de rolkleur',
+  /\.task-grid-relation-chip--warning \.task-grid-relation-icon--warning > svg\s*\{\s*color:\s*var\(--warning,/.test(relationStyles));
+for (const theme of ['dark', 'light', 'high-contrast']) {
+  const block = new RegExp(`\\[data-theme="${theme}"\\]\\s*\\{([^}]*)\\}`).exec(relationStyles)?.[1] ?? '';
+  ok(`Thema "${theme}" definieert alle vier de relatie-rolkleurvariabelen als hex-kleur`,
+    block !== ''
+      && ['--relation-predecessor', '--relation-predecessor-driving', '--relation-successor', '--relation-successor-driving']
+        .every(name => new RegExp(`${name}:\\s*#[0-9A-Fa-f]{6};`).test(block)));
+}
 ok('De relatielink onderdrukt de celtooltip erboven met een lege title',
   /className="task-grid-relation-jump"\s+title=""/.test(relationCell));
 ok('De relatiecel meet afknippen op zijn eigen clipbox',
