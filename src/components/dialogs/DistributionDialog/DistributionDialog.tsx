@@ -25,12 +25,12 @@ import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { DISTRIBUTION_BLOCK_KEY } from '@/utils/levelingReasonKey';
 import { planDistributionWrites } from '@/services/library/applyDistribution';
-import { computeLibraryOccupancy } from '@/services/library/occupancy';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { buildOccupancyAxis, expandDays } from '@/components/panels/occupancyAxis';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { documentFloatOn, useDistributionProposal } from './useDistributionProposal';
 import { PhaseStrip } from './PhaseStrip';
+import { BeforeAfterChart } from './BeforeAfterChart';
 
 export function DistributionDialog() {
   const { t, i18n } = useTranslation('common');
@@ -106,24 +106,16 @@ export function DistributionDialog() {
     setUI({ levelingDistribution: { ...tune, ceilings: { ...tune.ceilings, [docId]: value } } });
   };
 
-  // De BOEKING per document per dag (§6, de gevulde blokken van een fasestrook). Die komt uit
-  // dezelfde kern als het bezettingsoverzicht — `computeDistribution` draait `computeLibraryOccupancy`
-  // intern al, maar geeft de per-document-dagcijfers niet terug, en een tweede, met de hand
-  // geschreven dagverdeling in de UI zou stilzwijgend van die ene bron kunnen afwijken. Daarom
-  // nogmaals dezelfde pure functie op dezelfde `inputs`: de deps zijn bewust NIET `tune` (die tikt
-  // bij elke pin- en plafondwijziging), maar het ONDERWERP plus de invoer van het huidige voorstel.
-  const companyId = tune?.companyId ?? null;
-  const libraryItemId = tune?.libraryItemId ?? null;
+  // De BOEKING per document per dag (§6, de gevulde blokken van een fasestrook + taak 11b de
+  // VOOR-stand van de voor/na-grafiek). `computeDistribution` levert dat zelf terug als
+  // `proposal.bookingByDay` (letterlijk het grootboek dat de kern al opbouwt) — een tweede aanroep
+  // van `computeLibraryOccupancy` hier zou stilzwijgend van diezelfde bron kunnen afwijken, dus die
+  // is verwijderd; dit leest uitsluitend uit het voorstel dat toch al berekend wordt.
   const bookingByDoc = useMemo(() => {
     const empty = new Map<string, Record<string, number>>();
-    if (companyId === null || libraryItemId === null || inputs.length === 0) return empty;
-    const pool = pools[companyId];
-    if (!pool) return empty;
-    const row = computeLibraryOccupancy(companyId, pool, inputs).rows
-      .find(r => r.libraryItemId === libraryItemId);
-    if (!row) return empty;
-    return new Map(row.docs.map(doc => [doc.docId, doc.dailyLoad]));
-  }, [companyId, libraryItemId, pools, inputs]);
+    if (!proposal || proposal.blocked) return empty;
+    return new Map(Object.entries(proposal.bookingByDay));
+  }, [proposal]);
 
   // De GEDEELDE tijdas van alle stroken plus de verticale schaal. De as loopt door tot voorbij de
   // laatste geboekte dag, zodat een gestippelde staart (toegestaan-maar-niet-benut) er nog binnen
@@ -186,6 +178,16 @@ export function DistributionDialog() {
     const byId = new Map(inputs.map(doc => [doc.docId, doc.title]));
     return proposal.blocked.docIds.map(id => byId.get(id) ?? id).join(', ');
   }, [proposal, inputs]);
+
+  // Taak 11b (voor/na-grafiek): welke documenten een tekort houden, met hun teller — dezelfde
+  // `DistributionDocResult.shortfalls` als het bestaande tekortblok (7), hier omgezet naar de vorm
+  // die `BeforeAfterChart` nodig heeft om de NA-onvolledigheid bij de na-grafiek zelf te melden.
+  const shortfallDocs = useMemo(() => {
+    if (!proposal || proposal.blocked) return [];
+    return proposal.docs
+      .filter(doc => doc.shortfalls.length > 0)
+      .map(doc => ({ docId: doc.docId, title: doc.title, count: doc.shortfalls.length }));
+  }, [proposal]);
 
   const showStale = staleReason !== null || busy;
 
@@ -372,12 +374,27 @@ export function DistributionDialog() {
               })}
             </section>
 
-            {/* (6) Voor/na-histogram — plaatshouder; taak 9 tekent hem. */}
+            {/* (6) Voor/na-histogram (taak 11b, spec §7): dezelfde as als de fasestroken hierboven. */}
             <section
-              className="rounded-[8px] border border-dashed border-border px-2 py-3 text-text-secondary"
+              className="rounded-[8px] border border-border px-2 py-3"
               data-ops-distribution-histogram
             >
-              {t('resource.distribution.preview.before')} / {t('resource.distribution.preview.after')} / {t('resource.distribution.preview.capacity')}
+              {poolItem ? (
+                <BeforeAfterChart
+                  poolItem={poolItem}
+                  axis={stripView?.axis ?? null}
+                  scaleMax={stripView?.scaleMax ?? 1}
+                  docs={(stripView?.docs ?? []).map(doc => ({ docId: doc.docId, title: doc.title }))}
+                  bookingByDay={proposal?.bookingByDay ?? {}}
+                  afterLoadByDay={proposal?.afterLoadByDay ?? {}}
+                  afterIncomplete={proposal?.afterIncomplete ?? false}
+                  shortfallDocs={shortfallDocs}
+                />
+              ) : (
+                <span className="text-text-secondary">
+                  {t('resource.distribution.preview.before')} / {t('resource.distribution.preview.after')} / {t('resource.distribution.preview.capacity')}
+                </span>
+              )}
             </section>
 
             {/* Tekorten (§4 stap 3): een geldige preview, maar Toepassen blijft uit. */}

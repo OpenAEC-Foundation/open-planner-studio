@@ -330,3 +330,16 @@ test('rangorde: slepen verandert de volgorde en laat het voorstel vervallen', as
   await expect(page.locator('[data-ops-distribution-dialog]'))
     .toHaveAttribute('data-ops-distribution-last-stale-reason', 'rank');
 });
+
+// --- B1c-plan3 taak 11b — de voor/na-grafiek (spec §7) ---------------------------------------------
+
+test('voor/na-preview: de na-stand blijft binnen de capaciteitslijn', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+
+  await expect(page.locator('[data-ops-distribution-chart-before]')).toBeVisible();
+  await expect(page.locator('[data-ops-distribution-chart-after]')).toBeVisible();
+  // De conflictdagen staan in de VOOR-stand rood en in de NA-stand niet meer.
+  await expect(page.locator('[data-ops-distribution-chart-before] [data-ops-conflict-day]')).not.toHaveCount(0);
+  await expect(page.locator('[data-ops-distribution-chart-after] [data-ops-conflict-day]')).toHaveCount(0);
+});
