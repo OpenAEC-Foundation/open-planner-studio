@@ -1,4 +1,4 @@
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { XerRow } from './xerTables';
 
 /**
@@ -80,7 +80,6 @@ export interface XerResourceCurveSource {
   name: string;
   rawPoints: XerCurvePoints<string>;
   numericPoints?: XerCurvePoints<number>;
-  bestFit?: ResourceCurve;
 }
 
 export type XerAssignmentUnitScale = 'DIRECT_FRACTION' | 'MATERIAL_PER_HOUR';

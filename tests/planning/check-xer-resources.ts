@@ -9,6 +9,7 @@ import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXerCalendars } from '@/services/xer/xerCalendarData';
 import { indexXerTaskResourceRows } from '@/services/xer/xerResourceAssignments';
 import { buildXerResourceCatalog, materializeXerResources } from '@/services/xer/xerResources';
+import { CONTOUR_SHAPE_VALUES } from '@/engine/contour/contourEngine';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -54,10 +55,14 @@ function bytes(lines: readonly string[]): Uint8Array {
 }
 
 const curveFields = Array.from({ length: 21 }, (_, index) => `pct_usage_${index}`);
-const bell = [
-  20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100,
-  92, 84, 76, 68, 60, 52, 44, 36, 28, 20,
-];
+// Exacte contour-engine-tabel (CONTOUR_SHAPE_VALUES.BELL): bewust NIET afgerond of herschaald, want
+// `matchCurveValues` matcht op exacte tabelwaarden (tolerantie 1e-6). `curv_name` ('Klok') is met
+// opzet GEEN P6-curvenaam — dit bewijst dat de exacte-tabelmatch de naam-terugval niet nodig heeft.
+const bell = [...CONTOUR_SHAPE_VALUES.BELL];
+// Lineaire aanloop-ramp die GEEN van de acht contour-engine-tabellen exact raakt (front-loaded
+// vorm, maar 6/4 in plaats van FRONT_LOADED's eigen 6.5/3.5) — bewijst de P6_NAME_TO_CURVE-
+// naamterugval: alleen leesbaar via `curv_name` ('Front Loaded'), nooit via een tabelmatch.
+const frontLoadedRamp = [0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
 const fixture = bytes([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tPROJECT',
@@ -72,6 +77,7 @@ const fixture = bytes([
   '%R\tT1\tP1\tMetselen\tA1\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
   '%R\tT2\tP1\tOntwerp\tA2\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
   '%R\tT3\tP1\tControle\tA3\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
+  '%R\tT4\tP1\tSchilderen\tA4\t2026-01-01\t2026-01-02\t8\tTT_Task\tTK_NotStart',
   '%T\tUMEASURE',
   '%F\tunit_id\tunit_abbrev',
   '%R\tU-KG\tkg',
@@ -93,11 +99,13 @@ const fixture = bytes([
   '%T\tRSRCCURVDATA',
   `%F\tcurv_id\tcurv_name\t${curveFields.join('\t')}`,
   `%R\tC-BELL\tKlok\t${bell.join('\t')}`,
+  `%R\tC-RAMP\tFront Loaded\t${frontLoadedRamp.join('\t')}`,
   '%T\tTASKRSRC',
   '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\trole_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty\tcurv_id\ttarget_crv\tremain_crv\tactual_crv\tcost_per_qty\ttarget_cost\tremain_cost',
   '%R\tA-LABOR\tP1\tT1\t42\t42\t0.5\t0.5\t4\t5\tC-BELL\tTC\tRC\tAC\t25\t125\t100',
   '%R\tA-MATERIAL\tP1\tT2\tMAT\t\t3\t3\t18\t24\t\t\t\t\t4\t96\t72',
   '%R\tA-ROLE\tP1\tT3\t\t42\t0.25\t0.25\t2\t2\t\t\t\t\t80\t160\t120',
+  '%R\tA-LABOR2\tP1\tT4\t42\t\t0.5\t0.5\t4\t5\tC-RAMP\t\t\t\t25\t125\t100',
   '%E',
 ]);
 
@@ -230,15 +238,30 @@ if (isMultiDocumentImport(opened)) {
     taskResourceIds: opened.tasks.filter(task => !task.isSummary).map(task => [task.id, task.resourceIds]),
   }, {
     assignments: [
+      // C-BELL matcht de contour-engine-tabel EXACT ⇒ `matchCurveValues` beslist, `curv_name`
+      // ('Klok') is geen P6-naam en wordt niet geraadpleegd.
       { taskId: 'T1', resourceId: 'xer-resource:42', unitsPerDay: 0.5, curve: 'BELL' },
       { taskId: 'T2', resourceId: 'xer-resource:MAT', unitsPerDay: 30 },
       { taskId: 'T3', resourceId: 'xer-role:42', unitsPerDay: 0.25 },
+      // C-RAMP matcht GEEN tabel exact ⇒ `matchCurveValues` geeft undefined, de OPS-curve komt
+      // uitsluitend uit de `P6_NAME_TO_CURVE['Front Loaded']`-terugval.
+      { taskId: 'T4', resourceId: 'xer-resource:42', unitsPerDay: 0.5, curve: 'FRONT_LOADED' },
     ],
     taskResourceIds: [
       ['T1', ['xer-resource:42']],
       ['T2', ['xer-resource:MAT']],
       ['T3', ['xer-role:42']],
+      ['T4', ['xer-resource:42']],
     ],
+  });
+  const t1Assignment = opened.assignments.find(assignment => assignment.taskId === 'T1');
+  const t4Assignment = opened.assignments.find(assignment => assignment.taskId === 'T4');
+  eq('X6-c2 curveValues draagt de genormaliseerde 21-punts RSRCCURVDATA-data (index0 op 0)', {
+    t1: t1Assignment?.curveValues,
+    t4: t4Assignment?.curveValues,
+  }, {
+    t1: [0, ...CONTOUR_SHAPE_VALUES.BELL.slice(1)],
+    t4: frontLoadedRamp,
   });
   const xer = opened.xer.resources;
   const catalog = xer?.catalog;
@@ -252,7 +275,7 @@ if (isMultiDocumentImport(opened)) {
     points: curve?.rawPoints.length,
     numericPoints: curve?.numericPoints?.length,
     sameRow: projectAssignment?.rawRow === rawAssignment,
-  }, { rawAssignments: 3, projectAssignments: 3, points: 21, numericPoints: 21, sameRow: true });
+  }, { rawAssignments: 4, projectAssignments: 4, points: 21, numericPoints: 21, sameRow: true });
 
   const firstResource = catalog?.resources.find(resource => resource.id === 'xer-resource:42');
   const firstSource = catalog?.rows.resources.find(source => source.sourceId === '42');
