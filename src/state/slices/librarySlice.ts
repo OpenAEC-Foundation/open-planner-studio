@@ -1269,9 +1269,13 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     for (const w of sleepingWrites) {
       const entry = state.documents.find((d) => d.id === w.docId);
       if (!entry?.payload) continue; // tussentijds gesloten/geactiveerd — dit document doet niet meer mee.
+      // Het ECHTE docId gaat mee de scratch-context in (derde singleton-rand, zie
+      // `runInScratchDocument`): `applyLeveling` sleutelt zijn eenmalige M10-melding op
+      // `activeDocumentId`, en die gate is app-globale sessie-state. Zonder dit id claimde de
+      // scratch-run 'm voor een vreemd document.
       const out = runInScratchDocument(entry.payload, (s) => {
         s.applyLeveling(w.write, { scopeTaskIds: w.scopeTaskIds });
-      });
+      }, w.docId);
       // Meldingen bubbelen ALTIJD op (spec §5, rand (b)) — ook bij een geslaagde run kan `applyLeveling`
       // een M10-afrondingsmelding of (bij een onverwachte cyclus) een schedule-fout hebben gezet; niets
       // daarvan mag in het onzichtbare kanaal van de scratch-context blijven hangen.

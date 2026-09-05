@@ -210,11 +210,26 @@ function openProjectNames(s: AppState): string[] {
   return s.documents.map((d) => (d.id === s.activeDocumentId ? s.project.name : d.payload!.project.name));
 }
 
-const INITIAL_DOC_ID = generateId('doc');
+/**
+ * Het id van het EERSTE document van een contextinstantie — PER CONTEXT vers gegenereerd.
+ *
+ * Dit stond hiervoor als `const INITIAL_DOC_ID = generateId('doc')` op MODULE-niveau, en dat is
+ * precies één id voor het hele proces: élke `createAppStoreContext()` (dus ook elke wegwerpbare
+ * scratch-context uit `state/runtime/scratchDocument.ts`) begon met hetzélfde `activeDocumentId` als
+ * document 1 van de gemounte app. Sessie-permanente registraties die op een document-id sleutelen —
+ * `state/timephasedLossNotice.ts`'s `notifiedDocIds`/`notifiedLevelingDelayDocIds` — zijn app-globale
+ * module-state en kijken dus dwars door contextgrenzen heen: een `applyLeveling` in een scratch-run
+ * claimde de M10-melding voor het ECHTE document 1, dat 'm daarna deze sessie nooit meer kreeg.
+ * Één functieaanroep per slice-instantie in plaats van één per module lost dat structureel op; de
+ * scratch-context zet daar bovenop nog het ECHTE docId van de payload (zie `runInScratchDocument`).
+ */
+function initialDocumentRegistry(): Pick<DocumentSlice, 'documents' | 'activeDocumentId'> {
+  const id = generateId('doc');
+  return { documents: [{ id, payload: null }], activeDocumentId: id };
+}
 
 export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => (set, get) => ({
-  documents: [{ id: INITIAL_DOC_ID, payload: null }],
-  activeDocumentId: INITIAL_DOC_ID,
+  ...initialDocumentRegistry(),
 
   newDocument: () => {
     const state = get();
