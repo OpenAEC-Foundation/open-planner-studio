@@ -126,14 +126,21 @@ truthy('10 T1 — task.time draagt NERGENS de orakel-lateStart (2026-01-10)',
 console.log(`.   xer-recorded-times: ${Object.keys(rt).length} van ${result.tasks.length} taken met vastgelegde early-as (fixture)`);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-// MUTATIEBEWIJS (b), UITGEVOERD ALS HANDMATIGE PROCEDURE (niet in dit bestand aanwezig): laat
-// `readXerRecordedTimes` — of de taakmapping in `xerReader.ts` — tijdelijk `row.cells.late_start_date`
-// ook naar `Task.time.lateStart` schrijven (bv. `time: { ...defaultTime, lateStart: row.cells
-// .late_start_date }` in `mappedActivities.push(...)`), en draai deze check opnieuw: check 10
-// hierboven gaat dan ROOD, want `task.time.lateStart` bevat dan de orakelwaarde `2026-01-10`.
-// Uitgevoerd en teruggedraaid tijdens de bouw van deze taak (zie het voortgangsrapport voor de
-// exitcode vóór/ná) — niet als blijvende code hier, want een permanente mutatie in dit testbestand
-// zou de fixture naar de implementatie toe schrijven, wat expliciet verboden is (baan-preambule).
+// MUTATIEBEWIJS (b) — status na taak T2. Checks 9/10 hierboven zijn tijdens de bouw van taak T1
+// bewust ROOD gemaakt door `xerReader.ts` handmatig te muteren (`row.cells.late_start_date` laten
+// lekken naar `Task.time.lateStart` in `mappedActivities.push(...)`), gecontroleerd, en weer
+// teruggedraaid — nooit als blijvende code hier, want een permanente mutatie in dit testbestand zou
+// de fixture naar de implementatie toe schrijven (verboden, baan-preambule).
+//
+// KEUZE (expliciet gevraagd bij taak T2): checks 9/10 BLIJVEN STAAN als extra, corpusloze dekking
+// naast de definitieve X12-mutatieproef — geen verplaatsing. Motivatie: dit bestand draagt zijn eigen
+// T1..T8-fixture dekt assen (afronding, per-taak-kalender, ontbrekend-paar-uitsluiting) die de
+// X12-productfixtures niet als hoofddoel hebben, en de assertie hier is goedkoper te onderhouden
+// (één klein, doelgericht bestand) dan de zwaardere productfixtures. De DEFINITIEVE, plan-vereiste
+// X12-mutatieproef (§4/T2: beide helften — `recordedTimes` verschilt exact op de gemuteerde assen
+// mét de verwachte waarden, én de solverprojectie blijft byte-gelijk) staat sinds T2 in
+// `check-xer-product-fidelity-x12.ts` (zoek op "X12-T2"), op de bestaande `completedPackageBytes`-
+// en `packageBytes`-fixtures — dat bestand is de canonieke poort voor dit mutatiebewijs.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 // MET CORPUS: aantallen per as voor twee gepinde bestanden (X-O7-bijstellingsrapport).

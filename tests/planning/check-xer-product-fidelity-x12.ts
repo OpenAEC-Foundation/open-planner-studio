@@ -68,6 +68,13 @@ function eq(label: string, got: unknown, want: unknown): void {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 }
+/** T2 (XER-etappeplan §4/T2, mutatiebewijs positieve helft): bewijst dat GEEN van de gegeven
+ *  gemuteerde bak-4-orakelwaarden ook maar ergens in `Task.time` van de geïmporteerde taken staat —
+ *  precies de kernregel van laag 3 ("opgeslagen uitvoer is meetlat, nooit invoer"), hier getoetst op
+ *  de productfixtures i.p.v. de corpusloze oracle-fixture in `check-xer-recorded-times.ts`. */
+function noRecordedAxisLeak(tasks: readonly ImportResult['tasks'][number][], oracleValues: readonly string[]): boolean {
+  return tasks.every(task => Object.values(task.time).every(value => !oracleValues.includes(value as string)));
+}
 function hash(bytes: Uint8Array): string { return createHash('sha256').update(bytes).digest('hex'); }
 function xerStructuredRecord(
   number: string,
@@ -1823,6 +1830,29 @@ async function productBaseline(
     oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
     mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
   });
+  // T2 (XER-etappeplan §4/T2) — DE POSITIEVE HELFT: het orakel-kanaal zélf verandert wél mee met de
+  // gemuteerde bak-4-cellen (dat is precies waar het voor bestaat — de weergavemodus mag bewegen),
+  // terwijl de solverprojectie hierboven bewijsbaar niet beweegt. `total_float_hr_cnt`/
+  // `free_float_hr_cnt` staan in deze fixture altijd hardcoded op '0' (rawOutput muteert alleen de
+  // vier datumcellen), dus `totalFloat`/`freeFloat`/`isCritical` blijven ook in de gemuteerde
+  // variant identiek — dat IS het verwachte gedrag, geen gat in het bewijs.
+  eq('X12-T2 F1 recordedTimes draagt de orakelwaarden (oracle-variant)', one.recordedTimes?.T1, {
+    start: '2026-01-05T08:00', finish: '2026-01-02T16:00',
+    lateStart: '2026-01-02T08:00', lateFinish: '2026-01-02T16:00',
+    totalFloat: 0, freeFloat: 0, isCritical: true,
+  });
+  eq('X12-T2 F1 recordedTimes verschilt exact op de vier gemuteerde datumassen, float/isCritical ongewijzigd',
+    oneRawMutated.recordedTimes?.T1, {
+      start: '2040-11-04T08:00', finish: '2040-11-03T16:00',
+      lateStart: '2040-11-03T08:00', lateFinish: '2040-11-03T16:00',
+      totalFloat: 0, freeFloat: 0, isCritical: true,
+    });
+  eq('X12-T2 F1 recordedTimesOrigin is xer op beide varianten',
+    [one.recordedTimesOrigin, oneRawMutated.recordedTimesOrigin], ['xer', 'xer']);
+  eq('X12-T2 F1 geen enkele Task.time-as van de gemuteerde variant draagt een orakelwaarde',
+    noRecordedAxisLeak(oneRawMutated.tasks, [
+      '2040-11-04T08:00', '2040-11-03T16:00', '2040-11-03T08:00',
+    ]), true);
   // De statusdatum, taakprovenance en gewone geplande start moeten ook na de native opslaggrens
   // aanwezig blijven; XER-archiefreconstructie levert daarmee dezelfde brongebonden route op.
   const oneReloaded = await readIFCWithXerReconstruction(writeIFC(one));
@@ -2110,6 +2140,55 @@ async function productBaseline(
     movedTasks: axes(off).filter((task, index) => JSON.stringify(task) !== JSON.stringify(axes(on)[index])).map(task => task[0]),
   }, { activeSources: 1, movedTasks: ['B', 'C'] });
   eq('X12 expected-finishketen houdt stored P6-uitvoer buiten alle productassen', axes(mutated), axes(on));
+  // T2 (XER-etappeplan §4/T2) — DE POSITIEVE HELFT op de tweede fixturefamilie: drie bronrijen
+  // (A/B/C), elk met eigen gemuteerde early/late/float-cellen. `recordedTimes` moet op alle drie
+  // exact de orakelwaarde dragen (oracle-variant `on`) en exact verschillen op alle zes assen in de
+  // gemuteerde variant (`mutated`) — terwijl de solverprojectie hierboven (`axes(mutated) === axes(on)`)
+  // bewijsbaar ongewijzigd blijft.
+  eq('X12-T2 expected-finishketen recordedTimes draagt de orakelwaarden per bronrij (oracle-variant)', {
+    A: on.recordedTimes?.A, B: on.recordedTimes?.B, C: on.recordedTimes?.C,
+  }, {
+    A: {
+      start: '2026-01-05T08:00', finish: '2026-01-05T17:00',
+      lateStart: '2026-01-05T08:00', lateFinish: '2026-01-05T17:00',
+      totalFloat: 0, freeFloat: 0, isCritical: true,
+    },
+    B: {
+      start: '2026-01-06T08:00', finish: '2026-01-07T17:00',
+      lateStart: '2026-01-06T08:00', lateFinish: '2026-01-07T17:00',
+      totalFloat: 0, freeFloat: 0, isCritical: true,
+    },
+    C: {
+      start: '2026-01-08T08:00', finish: '2026-01-08T17:00',
+      lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T17:00',
+      totalFloat: 0, freeFloat: 0, isCritical: true,
+    },
+  });
+  eq('X12-T2 expected-finishketen recordedTimes verschilt exact op alle zes gemuteerde assen per bronrij', {
+    A: mutated.recordedTimes?.A, B: mutated.recordedTimes?.B, C: mutated.recordedTimes?.C,
+  }, {
+    A: {
+      start: '2040-02-01T08:00', finish: '2040-02-01T17:00',
+      lateStart: '2040-02-02T08:00', lateFinish: '2040-02-02T17:00',
+      totalFloat: 999 * 60 / 540, freeFloat: 888 * 60 / 540, isCritical: false,
+    },
+    B: {
+      start: '2040-03-01T08:00', finish: '2040-03-01T17:00',
+      lateStart: '2040-03-02T08:00', lateFinish: '2040-03-02T17:00',
+      totalFloat: 777 * 60 / 540, freeFloat: 666 * 60 / 540, isCritical: false,
+    },
+    C: {
+      start: '2040-04-01T08:00', finish: '2040-04-01T17:00',
+      lateStart: '2040-04-02T08:00', lateFinish: '2040-04-02T17:00',
+      totalFloat: 555 * 60 / 540, freeFloat: 444 * 60 / 540, isCritical: false,
+    },
+  });
+  eq('X12-T2 expected-finishketen — geen enkele Task.time-as van de gemuteerde variant draagt een orakelwaarde',
+    noRecordedAxisLeak(mutated.tasks, [
+      '2040-02-01T08:00', '2040-02-01T17:00', '2040-02-02T08:00', '2040-02-02T17:00',
+      '2040-03-01T08:00', '2040-03-01T17:00', '2040-03-02T08:00', '2040-03-02T17:00',
+      '2040-04-01T08:00', '2040-04-01T17:00', '2040-04-02T08:00', '2040-04-02T17:00',
+    ]), true);
   const normalTruth = scanXerGroundTruth(packageBytes(true));
   const mutatedTruth = scanXerGroundTruth(packageBytes(true, true));
   eq('X12 expected-finishketen laat de onafhankelijke scannertruth wel op stored uitvoer reageren',
