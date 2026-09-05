@@ -174,6 +174,7 @@
     "miniMap": "Minimapa",
     "moveProject": "Przesuń projekt…",
     "progressImport": "Aktualizuj postęp z arkusza",
+    "progressExport": "Eksportuj arkusz postępu",
     "progressGroup": "Postęp",
     "relationDraw": "Rysuj relację",
     "relationDrawOnHint": "Włącz tryb połączeń, a następnie przeciągnij od paska do paska na wykresie Gantta",
@@ -310,6 +311,9 @@
     }
   },
   "export": {
+    "progressCsvLabel": "Arkusz postępu (CSV)",
+    "progressCsvDesc": "Odchudzony arkusz zawierający tylko id, WBS, nazwę, daty i postęp — do aktualizacji postępu.",
+    "progressCsvShort": "Postęp (CSV)",
     "csvLabel": "CSV (rozdzielany średnikiem)",
     "csvDesc": "Uniwersalny eksport tabeli. Wszystkie zadania z datami i czasem trwania.",
     "mspdiLabel": "MS Project XML",

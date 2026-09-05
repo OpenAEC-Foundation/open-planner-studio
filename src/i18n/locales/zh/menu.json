@@ -174,6 +174,7 @@
     "miniMap": "小地图",
     "moveProject": "移动项目…",
     "progressImport": "从表格更新进度",
+    "progressExport": "导出进度表",
     "progressGroup": "进度",
     "relationDraw": "绘制关系",
     "relationDrawOnHint": "开启链接模式，然后在甘特图中从一个条形拖到另一个条形",
@@ -310,6 +311,9 @@
     }
   },
   "export": {
+    "progressCsvLabel": "进度表（CSV）",
+    "progressCsvDesc": "精简表格，仅含编号、WBS、名称、日期和完成度——用于更新进度。",
+    "progressCsvShort": "进度（CSV）",
     "csvLabel": "CSV（分号分隔）",
     "csvDesc": "通用表格导出，包含所有任务的日期和工期。",
     "mspdiLabel": "MS Project XML",

@@ -174,6 +174,7 @@
     "miniMap": "ミニマップ",
     "moveProject": "プロジェクトを移動…",
     "progressImport": "シートから進捗を更新",
+    "progressExport": "進捗シートをエクスポート",
     "progressGroup": "進捗",
     "relationDraw": "関係を描画",
     "relationDrawOnHint": "リンクモードをオンにし、ガントチャートでバーからバーへドラッグします",
@@ -310,6 +311,9 @@
     }
   },
   "export": {
+    "progressCsvLabel": "進捗シート（CSV）",
+    "progressCsvDesc": "ID、WBS、名前、日付、完了率のみを含むスリムなシート — 進捗更新用。",
+    "progressCsvShort": "進捗（CSV）",
     "csvLabel": "CSV（セミコロン区切り）",
     "csvDesc": "汎用テーブルエクスポート。日付と期間を含むすべてのタスク。",
     "mspdiLabel": "MS Project XML",

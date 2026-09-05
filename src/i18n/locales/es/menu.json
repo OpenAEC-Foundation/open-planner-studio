@@ -174,6 +174,7 @@
     "miniMap": "Minimapa",
     "moveProject": "Mover proyecto…",
     "progressImport": "Actualizar avance desde una hoja",
+    "progressExport": "Exportar hoja de avance",
     "progressGroup": "Avance",
     "relationDraw": "Dibujar relación",
     "relationDrawOnHint": "Active el modo enlace; después arrastre de barra a barra en el Gantt",
@@ -310,6 +311,9 @@
     }
   },
   "export": {
+    "progressCsvLabel": "Hoja de avance (CSV)",
+    "progressCsvDesc": "Hoja reducida con solo id, EDT, nombre, fechas y avance — para actualizar el avance.",
+    "progressCsvShort": "Avance (CSV)",
     "csvLabel": "CSV (separado por punto y coma)",
     "csvDesc": "Exportación de tabla universal. Todas las tareas con fechas y duraciones.",
     "mspdiLabel": "MS Project XML",

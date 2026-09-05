@@ -174,6 +174,7 @@
     "miniMap": "Minimappa",
     "moveProject": "Sposta progetto…",
     "progressImport": "Aggiorna l'avanzamento da un foglio",
+    "progressExport": "Esporta foglio di avanzamento",
     "progressGroup": "Avanzamento",
     "relationDraw": "Disegna relazione",
     "relationDrawOnHint": "Attiva la modalità collegamento, poi trascina da barra a barra nel Gantt",
@@ -310,6 +311,9 @@
     }
   },
   "export": {
+    "progressCsvLabel": "Foglio di avanzamento (CSV)",
+    "progressCsvDesc": "Foglio snello con solo id, WBS, nome, date e avanzamento — per aggiornare l’avanzamento.",
+    "progressCsvShort": "Avanzamento (CSV)",
     "csvLabel": "CSV (separato da punto e virgola)",
     "csvDesc": "Esportazione tabella universale. Tutte le attività con date e durate.",
     "mspdiLabel": "MS Project XML",
