@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { LANGUAGE_LABELS } from '@/i18n/config';
+import { LANGUAGE_LABELS, supportedLanguages, type Locale } from '@/i18n/config';
 import { renderMiniMarkdown, extractHeadings } from '@/utils/miniMarkdown';
 import { fetchTextAsset } from '@/utils/textAsset';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
@@ -22,8 +22,10 @@ type HelpLayer = 'quickstart' | 'gidsen' | 'referentie';
 
 // Alle UI-locales met een eigen vertaalde docs-map onder public/docs/<lang>/. Elke UI-taal die
 // hier niet in staat (of waarvan een specifiek artikel ontbreekt) valt terug op de EN-docs.
-const DOC_LANGS = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
-type HelpLang = (typeof DOC_LANGS)[number];
+// De keuzelijst is exact de productbrede i18n-set. Daardoor kan een nieuwe UI-taal niet stil
+// ontbreken in Help; `verify:docs` bewaakt vervolgens dat elke taal ook een docs-map heeft.
+const DOC_LANGS = supportedLanguages;
+type HelpLang = Locale;
 
 function resolveDocLang(uiLang: string): HelpLang {
   const base = uiLang.split('-')[0];
