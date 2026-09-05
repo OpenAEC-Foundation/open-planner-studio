@@ -304,7 +304,8 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
   en de rest als dossier is geregistreerd:
 
   1. P6 zet nul ES/EF/LS/LF ín alle negen gereconstrueerde blokken tegen 811 in de drie dagen
-     eromheen (167/214/178/252 voor de vier blokken die in de projectperiode vallen);
+     eromheen, en die 811 zit volledig op de vier blokken binnen de projectperiode
+     (167/214/178/252) terwijl de overige vijf 0 ín én 0 in de rand hebben en dus niets bewijzen;
   2. P6's eigen opgeslagen vensters tellen op de OUDE kalender 10,00 werkdagen voor een taak van 7
      (`V3109400`) en 24,00 voor een taak van 21 (`V3109300`) — intern inconsistent — en op de
      gereconstrueerde kalender exact 7,00 en 21,00.
