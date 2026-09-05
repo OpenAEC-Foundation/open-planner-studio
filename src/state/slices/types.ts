@@ -206,7 +206,14 @@ export type NotificationMessageKey =
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
-  | 'notifications.levelingDelayRoundedToWorkdays';
+  | 'notifications.levelingDelayRoundedToWorkdays'
+  // B1c-plan3 taak 12 (spec §5): de afloop van "Verdelen over projecten". Deze drie zijn PUUR
+  // INFORMATIEF — de terugweg zelf ("Alles terugdraaien") woont in de verdeeldialoog, want het
+  // meldingenkanaal kent geen actieknoppen. `applied` is een meervoudfamilie (`{{count}}`
+  // projecten), `undonePartial` benoemt de documenten die hun vertraging hielden.
+  | 'resource.distribution.applied'
+  | 'resource.distribution.undoneAll'
+  | 'resource.distribution.undonePartial';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

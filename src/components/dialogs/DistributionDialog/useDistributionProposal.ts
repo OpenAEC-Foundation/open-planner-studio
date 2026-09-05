@@ -23,9 +23,16 @@
 // tune-wijziging niet meer te doen. Dan blijft alleen de EXPLICIETE route over: het openen (één keer)
 // en "Herbereken". De dialoog toont dat met `compute.degraded` + `compute.pressRecompute`; de
 // stale-strook blijft dan gewoon staan tot de gebruiker drukt — precies de bedoeling.
+//
+// DE VOORSTEL-INVALIDATIE (taak 12, spec §6a). Naast de vier tune-assen hierboven vervalt een
+// voorstel ook wanneer een BETROKKEN DOCUMENT verandert — van buiten de dialoog, want de dialoog
+// zelf is modaal met een focus-trap: auto-save-herstel, een MCP-tool, een extensie, of het
+// Toepassen van dit paneel zelf. De bewaking is `documentFingerprint` per document (taak 4):
+// referenties van de velden die `computeDistribution` leest, plus `runtime.mutationSeq()` als
+// grofmazige backstop voor het actieve document.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppStore, type AppState } from '@/state/appStore';
+import { appStoreContext, useAppStore, type AppState } from '@/state/appStore';
 import type { DistributionUiState } from '@/state/slices/types';
 import {
   computeDistribution,
@@ -33,6 +40,7 @@ import {
   type DistributionDocInput,
   type DistributionProposal,
 } from '@/services/library/distribute';
+import { documentFingerprint } from '@/services/library/proposalFingerprint';
 import { documentTitle, untitledOrdinals, displayDocumentTitle } from '@/utils/documents';
 
 /** Meer taken dan dit in één deelnemend document ⇒ handmatig herberekenen (§3.4). */
@@ -41,9 +49,41 @@ export const MAX_TASKS_AUTO = 1000;
 export const MAX_BOOKING_TASKS_AUTO = 40;
 
 /** Waarom het huidige voorstel niet meer actueel is — 1-op-1 de `resource.distribution.stale.*`
- *  sleutels. `'edited'` (een document is intussen gewijzigd) hoort bij de vingerafdruk-invalidatie
- *  van taak 10 en wordt hier nog niet gezet; de sleutel bestaat wel. */
+ *  sleutels. De vier tune-assen komen uit `diffReason`; `'edited'` komt uit de
+ *  vingerafdruk-bewaking (taak 12, spec §6a).
+ *
+ *  "Document geopend/gesloten" en "documentwissel" staan hier BEWUST NIET bij: die lopen alle vijf
+ *  via `resetDocumentScopedUI` (`documentSlice`) en sluiten de hele dialoog (besluit eigenaar
+ *  2026-08-31) in plaats van een reden te tonen. Daarom heeft de i18n-familie ook geen
+ *  `stale.documents`-sleutel. */
 export type DistributionStaleReason = 'rank' | 'ceiling' | 'pin' | 'tool' | 'edited';
+
+/** De velden die `documentFingerprint` van één document leest, uit de LIVE top-level state (het
+ *  actieve document) of uit een slapende payload. Beide vormen hebben exact deze tien velden. */
+function fingerprintOfActive(s: AppState, mutationSeq: number): string {
+  return documentFingerprint({
+    tasks: s.tasks, sequences: s.sequences, resources: s.resources, assignments: s.assignments,
+    calendar: s.calendar, calendars: s.calendars, project: s.project, cpmResult: s.cpmResult,
+    scheduleStale: s.scheduleStale, datesAsRecorded: s.datesAsRecorded,
+  }, mutationSeq);
+}
+
+/**
+ * De vingerafdruk van ELK geopend document (spec §6a). Het actieve document leest uit top-level
+ * plus de mutatieteller van deze storecontext; een slaper leest uit zijn payload — daar ís geen
+ * eigen teller voor, en die is er ook niet nodig: een slapende payload wordt altijd in zijn geheel
+ * VERVANGEN (`recalculateStaleSleepingDocuments`, `applyDistribution`, `undoDistribution`), dus de
+ * referenties zijn daar per constructie sluitend. Vandaar `mutationSeq = 0` voor slapers.
+ */
+export function documentFingerprints(s: AppState, mutationSeq: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const document of s.documents) {
+    out[document.id] = document.id === s.activeDocumentId
+      ? fingerprintOfActive(s, mutationSeq)
+      : document.payload === null ? '' : documentFingerprint(document.payload, 0);
+  }
+  return out;
+}
 
 export interface DistributionProposalState {
   /** Het laatst berekende voorstel, of `null` zolang er nog nooit gerekend is. */
@@ -56,6 +96,9 @@ export interface DistributionProposalState {
    *  observeerbaarheid (browsertest): een automatische herberekening op een klein project is
    *  binnen één macrotask klaar, dus de strook zelf is dan niet betrouwbaar te vangen. */
   lastStaleReason: DistributionStaleReason | null;
+  /** De documenttitels die bij `staleReason === 'edited'` in de tekst horen (`stale.edited` heeft
+   *  een `{{docs}}`-parameter); leeg bij elke andere reden. */
+  staleDocs: string;
   /** Te groot om automatisch door te rekenen (§3.4). */
   degraded: boolean;
   /** De expliciete route: "Verdeel automatisch" / "Herbereken". */
@@ -226,6 +269,14 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const [busy, setBusy] = useState(false);
   const [staleReason, setStaleReason] = useState<DistributionStaleReason | null>(null);
   const [lastStaleReason, setLastStaleReason] = useState<DistributionStaleReason | null>(null);
+  const [staleDocs, setStaleDocs] = useState('');
+
+  // De vingerafdrukken waarop het HUIDIGE voorstel gerekend heeft (§6a). `null` = er valt niets te
+  // bewaken: er is nog nooit gerekend, óf er is al een `'edited'` gemeld en die reden staat nog.
+  const fingerprintsRef = useRef<Record<string, string> | null>(null);
+  // De invoer van diezelfde run, als ref — de bewaker draait buiten React's renderlus en heeft de
+  // documenttitels nodig zonder van `inputs` als dependency af te hangen.
+  const inputsRef = useRef<DistributionDocInput[]>([]);
 
   // De tune-state ALS REF, zodat de run-callback stabiel blijft (hij mag niet bij elke
   // rangorde-wijziging opnieuw gemaakt worden — dat zou de in-flight-bewaking om zeep helpen).
@@ -253,13 +304,18 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
         const s = useAppStore.getState();
         const pool = s.pools[current.companyId];
         const built = buildDistributionInputs(s, untitledLabelRef.current, current);
+        inputsRef.current = built;
         setInputs(built);
         setProposal(pool
           ? computeDistribution(current.companyId, pool, current.libraryItemId, built, {
               allowSplits: current.allowSplits,
             })
           : null);
+        // De vingerafdruk hoort bij PRECIES deze momentopname: dezelfde `s` en dezelfde teller
+        // waarop zojuist gerekend is (§6a).
+        fingerprintsRef.current = documentFingerprints(s, appStoreContext.runtime.mutationSeq());
         setStaleReason(null);
+        setStaleDocs('');
       } finally {
         busyRef.current = false;
         setBusy(false);
@@ -294,8 +350,11 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     lastTuneRef.current = tune;
     setProposal(null);
     setInputs([]);
+    inputsRef.current = [];
+    fingerprintsRef.current = null;
     setStaleReason(null);
     setLastStaleReason(null);
+    setStaleDocs('');
     if (subjectKey !== null) runRef.current();
     // `tune` bewust buiten de deps: alleen het ONDERWERP is hier de trigger, niet elke tune-tik.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -317,5 +376,38 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     if (!degradedRef.current) runRef.current();
   }, [tune]);
 
-  return { proposal, busy, staleReason, lastStaleReason, degraded, recompute, inputs };
+  // Rekenmoment 3 — of juist NIET (spec §6a): een MUTATIE in een betrokken document. De bewaking
+  // hangt aan de store zelf en niet aan de renderlus, want een mutatie van buiten de dialoog (een
+  // MCP-tool, een extensie, het herstel na een crash, of het Toepassen van dit paneel zélf) hoeft
+  // geen re-render van de dialoog te veroorzaken. De vergelijking is een handvol WeakMap-lookups
+  // per document; goedkoop genoeg om aan élke store-tik te hangen.
+  //
+  // BEWUSTE AFWIJKING VAN HET PLAN (taak 12 stap 3 noemde alle vijf redenen "gewone
+  // hertriggering"): `'edited'` rekent NIET automatisch door. Twee redenen, en de tweede is de
+  // doorslaggevende. (1) De vier tune-redenen zijn handelingen ván de gebruiker ín deze dialoog —
+  // daar is meteen doorrekenen precies wat hij vraagt. Een mutatie van buiten is dat niet: het
+  // voorstel dat hij op dat moment staat te lezen zou onder zijn ogen door een ander vervangen
+  // worden, en een stroom externe mutaties (een MCP-draaiboek) zou een reeks volledige
+  // CPM-solves uitlokken. (2) Het plan eist in stap 1 tegelijk dat de stale-strook zichtbaar is
+  // én dat Toepassen uitgeschakeld blijft; met een automatische herberekening zijn beide binnen
+  // één macrotask weer weg. "Herbereken" is hier het discrete rekenmoment (§3.4).
+  useEffect(() => {
+    const unsubscribe = useAppStore.subscribe(() => {
+      const known = fingerprintsRef.current;
+      if (known === null) return;
+      const s = useAppStore.getState();
+      const now = documentFingerprints(s, appStoreContext.runtime.mutationSeq());
+      const changed = Object.keys(known).filter(docId => now[docId] !== known[docId]);
+      if (changed.length === 0) return;
+      // Eén melding per voorstel: tot de volgende geslaagde run valt er niets meer te bewaken.
+      fingerprintsRef.current = null;
+      const titles = new Map(inputsRef.current.map(doc => [doc.docId, doc.title]));
+      setStaleDocs(changed.map(docId => titles.get(docId) ?? docId).join(', '));
+      setStaleReason('edited');
+      setLastStaleReason('edited');
+    });
+    return unsubscribe;
+  }, []);
+
+  return { proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs };
 }

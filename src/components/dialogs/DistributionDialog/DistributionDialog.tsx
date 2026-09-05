@@ -6,9 +6,12 @@
 // gewoon zichtbaar ONDER de dialoog — de verdeling is een handeling óp dat overzicht, geen
 // vervanging ervan.
 //
-// WAT HIER (NOG) NIET STAAT. Taak 11 vult het voor/na-histogram. Taak 12 bedraadt "Toepassen" op
-// `applyDistribution`. Tot dan staat de knop er wél, maar uitgeschakeld MET REDEN — een knop die er
-// niet is laat de gebruiker raden of de functie bestaat.
+// TOEPASSEN EN DE TERUGWEG (taak 12, spec §5). De knop is nooit "gewoon uit": hij is
+// UITGESCHAKELD MET REDEN, in `applyGate` hieronder — een knop die er niet is (of er grijs staat
+// zonder uitleg) laat de gebruiker raden. Na een geslaagd Toepassen woont de terugweg HIER, in een
+// permanente strook met "Alles terugdraaien", en niet in het meldingenkanaal: dat kent geen
+// actieknoppen en ruimt een `info` na 5 s op. De melding die er daarnaast uit gaat is puur
+// informatief.
 //
 // RANGORDE MET DE MUIS (taak 10, spec §4 stap 1). Native HTML5 drag-and-drop — hetzelfde mechanisme
 // als `DataGridHeader`'s kolomherordening (`draggable` + `onDragStart`/`onDragOver`/`onDrop`), niet
@@ -25,6 +28,7 @@ import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { DISTRIBUTION_BLOCK_KEY } from '@/utils/levelingReasonKey';
 import { planDistributionWrites } from '@/services/library/applyDistribution';
+import { scopeTaskIdsFor } from '@/services/library/distribute';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { buildOccupancyAxis, expandDays } from '@/components/panels/occupancyAxis';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
@@ -37,8 +41,11 @@ export function DistributionDialog() {
   const tune = useAppStore(s => s.ui.levelingDistribution);
   const pools = useAppStore(s => s.pools);
   const setUI = useAppStore(s => s.setUI);
+  const notify = useAppStore(s => s.notify);
+  const applyDistribution = useAppStore(s => s.applyDistribution);
+  const undoDistribution = useAppStore(s => s.undoDistribution);
 
-  const { proposal, busy, staleReason, lastStaleReason, degraded, recompute, inputs } =
+  const { proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs } =
     useDistributionProposal(tune);
 
   const close = () => setUI({ showDistributionDialog: false });
@@ -161,23 +168,92 @@ export function DistributionDialog() {
     return { axis, docs, scaleMax };
   }, [tune, proposal, poolItem, rankRows, bookingByDoc]);
 
-  // Waarom Toepassen (nog) uit staat. De eerste drie redenen zijn ECHT en blijven na taak 12
-  // bestaan; de vierde is de tijdelijke: het schrijfpad is er (taak 6) maar wordt pas in taak 12
-  // bedraad. Er is bewust geen eigen sleutel voor die vierde toestand aangemaakt — hij verdwijnt
-  // in taak 12 en zou dan veertien locales met een dode sleutel achterlaten.
-  const applyBlockReason = useMemo(() => {
-    if (!proposal) return t('resource.distribution.compute.pressRecompute');
-    if (proposal.blocked) return t(DISTRIBUTION_BLOCK_KEY[proposal.blocked.reason]);
-    const plan = planDistributionWrites(proposal, {});
-    if (!plan.ok && plan.reason === 'shortfall') return t('resource.distribution.applyBlockedShortfall');
-    return t('resource.distribution.applyBlockedNothing');
-  }, [proposal, t]);
-
   const blockedDocTitles = useMemo(() => {
     if (!proposal?.blocked) return '';
     const byId = new Map(inputs.map(doc => [doc.docId, doc.title]));
     return proposal.blocked.docIds.map(id => byId.get(id) ?? id).join(', ');
   }, [proposal, inputs]);
+
+  // De taken die dit poolitem daadwerkelijk boeken, per document — de scope waarbinnen
+  // `applyLeveling` mag schrijven (§5, scope-behoudend toepassen). Bewust dezelfde `scopeTaskIdsFor`
+  // op dezelfde `inputs` als `computeDistribution` intern gebruikt: `DistributionDocResult` draagt de
+  // lijst niet, en een tweede afleiding zou stilzwijgend van de gerekende snit kunnen afwijken.
+  const scopeTaskIdsByDoc = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    if (!tune) return out;
+    for (const doc of inputs) out[doc.docId] = scopeTaskIdsFor(doc, tune.companyId, tune.libraryItemId);
+    return out;
+  }, [inputs, tune]);
+
+  // Waarom Toepassen wel of niet mag — en zo niet, met welke tekst (spec §4 stap 3: validatie wijst
+  // altijd een uitweg aan). De volgorde is die van de taakomschrijving: eerst "er is nog niets",
+  // dan de blokkade, dan het tekort, dan een vervallen voorstel, en pas daarna het triviale
+  // "er valt niets te schrijven".
+  const applyGate = useMemo<{ ok: boolean; reason: string }>(() => {
+    if (busy) return { ok: false, reason: t('resource.distribution.compute.busy') };
+    if (!proposal) return { ok: false, reason: t('resource.distribution.compute.pressRecompute') };
+    if (proposal.blocked) {
+      return { ok: false, reason: t(DISTRIBUTION_BLOCK_KEY[proposal.blocked.reason], { docs: blockedDocTitles }) };
+    }
+    if (proposal.hasShortfall) return { ok: false, reason: t('resource.distribution.applyBlockedShortfall') };
+    if (staleReason !== null) {
+      return { ok: false, reason: t(`resource.distribution.stale.${staleReason}`, { docs: staleDocs }) };
+    }
+    const plan = planDistributionWrites(proposal, scopeTaskIdsByDoc);
+    if (!plan.ok) {
+      return {
+        ok: false,
+        reason: plan.reason === 'shortfall'
+          ? t('resource.distribution.applyBlockedShortfall')
+          : t('resource.distribution.applyBlockedNothing'),
+      };
+    }
+    return { ok: true, reason: '' };
+  }, [busy, proposal, staleReason, staleDocs, blockedDocTitles, scopeTaskIdsByDoc, t]);
+
+  /** Het laatst toegepaste record — leeft in de tune-state en overleeft dus een sluiting van de
+   *  dialoog (§7), zodat opnieuw openen op hetzelfde poolitem de terugweg nog toont. */
+  const applied = tune?.applied ?? null;
+
+  const onApply = () => {
+    if (!proposal || !applyGate.ok) return;
+    const record = applyDistribution(proposal, scopeTaskIdsByDoc);
+    // `null` betekent dat de store dezelfde `planDistributionWrites`-poort alsnog dichtdeed (bv.
+    // omdat er tussen render en klik een document is gesloten). Geen strook, geen melding.
+    if (!record) return;
+    const current = useAppStore.getState().ui.levelingDistribution;
+    if (current) setUI({ levelingDistribution: { ...current, applied: record } });
+    // Puur informatief (spec §5) — de terugweg is de strook hieronder, niet deze melding.
+    notify({
+      severity: 'info',
+      messageKey: 'resource.distribution.applied',
+      params: { count: record.docs.length },
+    });
+    // Er is nu in élk beschreven document gemuteerd; de vingerafdruk-bewaking in
+    // `useDistributionProposal` ziet dat vanzelf en zet `staleReason = 'edited'`. Dat is exact wat
+    // §6a voorschrijft en vraagt hier dus geen eigen tak: het voorstel op het scherm hóórt niet
+    // meer bij de documenten, en Toepassen gaat daarmee op slot tot "Herbereken".
+  };
+
+  const onUndoAll = () => {
+    if (!applied) return;
+    const report = undoDistribution(applied);
+    const current = useAppStore.getState().ui.levelingDistribution;
+    if (current) setUI({ levelingDistribution: { ...current, applied: null } });
+    if (report.skippedDocIds.length > 0) {
+      const byId = new Map(applied.docs.map(doc => [doc.docId, doc.title]));
+      notify({
+        // Het meldingenkanaal kent alleen `error` en `info` (K8a). Een gedeeltelijke terugdraaiing
+        // is geen fout, maar mág niet na 5 s verdwijnen: de gebruiker denkt anders dat álles terug
+        // is terwijl één project zijn vertraging houdt. `error` is de enige plakkende severity.
+        severity: 'error',
+        messageKey: 'resource.distribution.undonePartial',
+        params: { docs: report.skippedDocIds.map(id => byId.get(id) ?? id).join(', ') },
+      });
+    } else {
+      notify({ severity: 'info', messageKey: 'resource.distribution.undoneAll' });
+    }
+  };
 
   // Taak 11b (voor/na-grafiek): welke documenten een tekort houden, met hun teller — dezelfde
   // `DistributionDocResult.shortfalls` als het bestaande tekortblok (7), hier omgezet naar de vorm
@@ -433,8 +509,34 @@ export function DistributionDialog() {
             data-ops-distribution-stale-reason={staleReason ?? ''}
           >
             {staleReason
-              ? `${t(`resource.distribution.stale.${staleReason}`)}${busy ? ` ${t('resource.distribution.compute.busy')}` : degraded ? ` ${t('resource.distribution.compute.pressRecompute')}` : ''}`
+              ? `${t(`resource.distribution.stale.${staleReason}`, { docs: staleDocs })}${busy ? ` ${t('resource.distribution.compute.busy')}` : degraded || staleReason === 'edited' ? ` ${t('resource.distribution.compute.pressRecompute')}` : ''}`
               : t('resource.distribution.compute.busy')}
+          </div>
+        )}
+
+        {/* Spec §5: de terugweg woont HIER, niet in het meldingenkanaal (dat kent geen actieknoppen
+            en ruimt info na 5 s op). Permanent zolang het record geldig is — hij verdwijnt alleen
+            door "Alles terugdraaien" of doordat een NIEUW Toepassen hem vervangt. */}
+        {applied && (
+          <div
+            className="px-2.5 py-1.5 rounded-[8px] border flex items-center gap-2"
+            style={{
+              background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+              borderColor: 'var(--accent)',
+            }}
+            role="status"
+            data-ops-distribution-applied
+          >
+            <span className="flex-1 min-w-0">
+              {t('resource.distribution.applied', { count: applied.docs.length })}
+            </span>
+            <button
+              type="button"
+              className="px-2 py-1 rounded-[8px] border border-border bg-surface hover:bg-surface-hover shrink-0"
+              onClick={onUndoAll}
+            >
+              {t('resource.distribution.undoAll')}
+            </button>
           </div>
         )}
         <div className="flex items-center justify-end gap-2">
@@ -449,13 +551,14 @@ export function DistributionDialog() {
               : t('resource.distribution.compute.recalculate')}
           </button>
           <span className="text-text-secondary flex-1 min-w-0 truncate" data-ops-distribution-apply-reason>
-            {applyBlockReason}
+            {applyGate.reason}
           </span>
           <button
             type="button"
             className="px-3 py-1.5 rounded-[8px] bg-accent text-white disabled:opacity-40"
-            disabled
-            title={applyBlockReason}
+            disabled={!applyGate.ok}
+            title={applyGate.reason || undefined}
+            onClick={onApply}
           >
             {t('resource.distribution.apply')}
           </button>

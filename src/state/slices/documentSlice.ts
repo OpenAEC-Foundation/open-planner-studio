@@ -72,6 +72,15 @@ function resetDocumentScopedUI(s: AppState): void {
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
+  // B1c (spec §6a): de verdeeldialoog kijkt naar een MOMENTOPNAME van meerdere documenten. Een
+  // documentwissel of een gesloten/geopend document maakt zowel zijn tune-state (rangorde, pins en
+  // plafonds, alle op docId) als zijn toegepast-record onbetrouwbaar — dat record verwijst naar
+  // history-events van documenten die er misschien niet meer zijn (`closeDocument` ruimt die events
+  // bovendien op). BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met
+  // een vervallen voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen.
+  // Het bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
+  s.ui.showDistributionDialog = false;
+  s.ui.levelingDistribution = null;
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {

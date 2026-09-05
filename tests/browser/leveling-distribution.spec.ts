@@ -343,3 +343,116 @@ test('voor/na-preview: de na-stand blijft binnen de capaciteitslijn', async ({ p
   await expect(page.locator('[data-ops-distribution-chart-before] [data-ops-conflict-day]')).not.toHaveCount(0);
   await expect(page.locator('[data-ops-distribution-chart-after] [data-ops-conflict-day]')).toHaveCount(0);
 });
+
+// --- B1c-plan3 taak 12 — Toepassen, de terugweg en de voorstel-invalidatie (spec §5/§6a) ---------
+
+/**
+ * Het aantal taken MET een nivelleringsvertraging over ALLE geopende documenten — het actieve op
+ * top-level, de slapers in hun payload. Bewust niet alleen `state.tasks`: bij twee conflicterende
+ * documenten wijkt er precies één, en welke dat is hangt van de float-sortering af. De belofte van
+ * Toepassen ("het schrijft over de documentgrens heen") toets je dus op de som, niet op het toevallig
+ * actieve tabblad.
+ */
+function delayedTaskCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    let count = s.tasks.filter(t => t.levelingDelay !== undefined).length;
+    for (const document of s.documents) {
+      if (document.payload) count += document.payload.tasks.filter(t => t.levelingDelay !== undefined).length;
+    }
+    return count;
+  });
+}
+
+/**
+ * Eén document dat MEER vraagt dan het poolitem ooit kan leveren (1/dag tegen een capaciteit van
+ * 0,5). Geen enkele verschuiving lost dat op — de verdeler levert een geldige preview mét tekort,
+ * en juist dat moet Toepassen tegenhouden (spec §4 stap 3).
+ */
+async function seedUnsolvableShortfall(page: Page): Promise<Library> {
+  const [taskA] = await seedProject(page, [{
+    name: 'Overvraagd', start: '2026-09-07', finish: '2026-09-18', durationDays: 10,
+  }], 'Overvraagd project');
+  await makeScheduled(page, taskA);
+  const library = await createLibrary(page, 0.5);
+  await bookOnPoolItem(page, library, taskA, 1);
+  return library;
+}
+
+test('toepassen: schrijft in beide projecten en biedt daarna "alles terugdraaien"', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const apply = page.getByRole('button', { name: /^(Toepassen|Apply)$/ });
+  await expect(apply).toBeEnabled();
+  await apply.click();
+
+  // De strook is PERMANENT (spec §5) — anders dan een `info`-melding, die het meldingenkanaal na
+  // 5 s opruimt. Vandaar de wachttijd van 6 s: die overleeft die opruiming aantoonbaar.
+  await expect(page.locator('[data-ops-distribution-applied]')).toBeVisible();
+  await page.waitForTimeout(6000);
+  await expect(page.locator('[data-ops-distribution-applied]')).toBeVisible();
+  await expect.poll(() => delayedTaskCount(page)).toBeGreaterThan(0);
+
+  // §6a: de documenten zijn nu gemuteerd, dus het voorstel op het scherm hoort er niet meer bij en
+  // Toepassen gaat op slot tot "Herbereken".
+  await expect(page.locator('[data-ops-distribution-stale]')).toContainText(/niet meer actueel|no longer/i);
+  await expect(apply).toBeDisabled();
+
+  await page.getByRole('button', { name: /Alles terugdraaien|Undo all/ }).click();
+  await expect.poll(() => delayedTaskCount(page)).toBe(0);
+  await expect(page.locator('[data-ops-distribution-applied]')).toHaveCount(0);
+});
+
+test('toepassen is uitgeschakeld-met-reden zolang er een tekort is', async ({ page, ops: _ops }) => {
+  await seedUnsolvableShortfall(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-shortfall]')).toBeVisible();
+
+  await expect(page.getByRole('button', { name: /^(Toepassen|Apply)$/ })).toBeDisabled();
+  await expect(page.locator('[data-ops-distribution-apply-reason]')).toContainText(/tekort|shortfall/i);
+});
+
+test('het voorstel vervalt met reden zodra er in een betrokken document gewerkt wordt', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+  await expect(page.locator('[data-ops-distribution-stale]')).toHaveCount(0);
+
+  // WAAROM HIER GEEN ECHTE GEBRUIKERSHANDELING STAAT. De verdeeldialoog is modaal met een
+  // focus-trap: het lint en de tabel zijn onbereikbaar zolang hij open staat, dus een bewerking ín
+  // een betrokken document kán tijdens dit scenario alleen van BUITEN komen — auto-save-herstel,
+  // een MCP-tool of een extensie. De store-route is daarmee geen vervanging van een klik maar de
+  // enige realistische bron van precies deze gebeurtenis.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const task = s.tasks[0];
+    s.updateTask(task.id, { time: { ...task.time, scheduleDuration: 4 } });
+  });
+
+  await expect(page.locator('[data-ops-distribution-stale]')).toContainText(/niet meer actueel|no longer/i);
+  await expect(page.getByRole('button', { name: /^(Toepassen|Apply)$/ })).toBeDisabled();
+
+  // "Herbereken" is het discrete rekenmoment dat de reden opruimt (§3.4).
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  await expect(page.locator('[data-ops-distribution-stale]')).toHaveCount(0);
+});
+
+test('van document wisselen sluit de dialoog', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  // Ctrl+1 springt naar het EERSTE document; het actieve is hier het tweede. De sneltoets hangt aan
+  // `window` en heeft geen `hasBlockingDialogOpen`-guard, dus hij komt langs de focus-trap heen —
+  // een echte toetsaanslag, geen store-aanroep.
+  await page.keyboard.press('Control+1');
+
+  await expect(page.locator('[data-ops-distribution-dialog]')).toHaveCount(0);
+  // §6a/besluit eigenaar: niet alleen dicht, ook de tune-state is weg — die verwees naar docIds en
+  // history-events van een momentopname die niet meer geldt.
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.levelingDistribution)).toBe(null);
+  // Het bezettingsoverzicht blijft gewoon staan; de gebruiker opent opnieuw op de conflictregel.
+  await expect(page.locator('[data-ops-occupancy-view]')).toBeVisible();
+});

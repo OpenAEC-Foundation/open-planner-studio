@@ -270,6 +270,59 @@ console.log('-- apply-distribution: geval 11, gesloten document --');
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === undefined, 'geval 11: en dat is ook echt gebeurd');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 12 (B1c-plan3 taak 12, spec §6a): een documentwissel/-sluiting/-opening laat het voorstel
+// niet "vervallen met reden" maar SLUIT de verdeeldialoog en gooit de tune-state weg (besluit
+// eigenaar 2026-08-31). Alle drie de wegen lopen via `resetDocumentScopedUI` in `documentSlice`;
+// deze check staat hier — bij de rest van het verdeel-schrijfpad — en niet in
+// check-document-activation.ts, omdat het weggegooide `applied`-record uit ditzelfde schrijfpad komt.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- apply-distribution: geval 12, documentwissel sluit de verdeeldialoog --');
+{
+  const openDialog = (): void => {
+    S().setUI({
+      showDistributionDialog: true,
+      levelingDistribution: {
+        companyId: 'bibliotheek-1', libraryItemId: 'lib-1', allowSplits: false,
+        order: [], pinned: {}, ceilings: {}, applied: null,
+      },
+    });
+  };
+  const assertClosed = (via: string): void => {
+    assert(S().ui.showDistributionDialog === false, `geval 12: ${via} sluit de dialoog`);
+    assert(S().ui.levelingDistribution === null, `geval 12: ${via} gooit de tune-state weg`);
+  };
+
+  openDialog();
+  const extraDocId = S().newDocument();
+  assertClosed('newDocument');
+
+  openDialog();
+  S().switchDocument(activeDocId);
+  assertClosed('switchDocument');
+
+  // Het ACTIEVE document sluiten wisselt naar een buur en loopt dus óók langs
+  // `resetDocumentScopedUI`.
+  openDialog();
+  S().switchDocument(extraDocId);
+  openDialog();
+  S().closeDocument(extraDocId);
+  assertClosed('closeDocument van het actieve document');
+
+  // GRENS, bewust vastgelegd: een NIET-actief document sluiten raakt `resetDocumentScopedUI` niet
+  // (dat pad wisselt geen document en mag dus ook de TaskDialog van het actieve document niet
+  // dichtgooien). De dialoog blijft daar open; het voorstel vervalt in dat geval via de
+  // vingerafdruk-bewaking in `useDistributionProposal` — het verdwenen document levert een
+  // afwijkende vingerafdruk en dus `stale.edited` met zijn titel.
+  const spareDocId = S().newDocument();
+  S().switchDocument(activeDocId);
+  openDialog();
+  S().closeDocument(spareDocId);
+  assert(S().ui.showDistributionDialog === true,
+    'geval 12: een INACTIEF document sluiten laat de dialoog staan (invalidatie loopt via de vingerafdruk)');
+  assert(S().ui.levelingDistribution !== null, 'geval 12: en laat de tune-state staan');
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (fails === 0) {
   console.log(`OK  apply-distribution-check: alle checks groen (${checks})`);
