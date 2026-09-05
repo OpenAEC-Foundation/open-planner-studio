@@ -8,6 +8,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
+import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
@@ -265,6 +266,22 @@ export interface ImportResult {
    *  onderscheiden. Een taak-id ZONDER IfcTaskTime krijgt een lege array (niet: ontbrekende sleutel)
    *  — "geen enkel slot gevuld" is een uitspraak, "onbekend" niet. */
   recordedFields?: Record<string, RecordedFieldKey[]>;
+  /** BAK 4 (XER-etappeplan §4.1, bijgesteld 2026-09-04 — X-O7 laag 3) — uitsluitend
+   *  weergave/meetlat, NOOIT solverinvoer. Per taak-id de rekenuitvoer die de BRON zelf opsloeg:
+   *  voor XER de zes kolommen `early_start_date`/`early_end_date`/`late_start_date`/
+   *  `late_end_date`/`total_float_hr_cnt`/`free_float_hr_cnt` (`xerRecordedTimes.ts`), omgerekend
+   *  naar dezelfde `RecordedTime`-vorm als de IFC-route (`src/engine/scheduler/recordedDates.ts`)
+   *  gebruikt — dat type wordt hier HERGEBRUIKT, niet gedupliceerd. Alleen `readXER` vult dit
+   *  vooralsnog (en straks de archief-reconstructie in `readIFC`, taak T5); nooit gelezen door
+   *  `solveProject`, nooit geschreven naar `Task.time` door een lezer. `captureRecordedDates`
+   *  gebruikt dit kanaal — indien aanwezig — MET VOORRANG boven `recordedFields` hierboven; de
+   *  twee kanalen worden nooit gemengd (een XER-import heeft geen `recordedFields`, een
+   *  IFC-import geen `recordedTimes`). */
+  recordedTimes?: Record<string, RecordedTime>;
+  /** Herkomst van `recordedTimes` — stuurt het standaard-aan-beleid voor "datums zoals opgeslagen"
+   *  (O6-patroon: alleen de XER-route zet dit; andere formaten blijven byte-identiek doordat dit
+   *  veld afwezig blijft). */
+  recordedTimesOrigin?: 'xer';
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */

@@ -11,16 +11,21 @@
  * dag één onvervulbaar maakte. De derde bak, `XER_TASK_IGNORED`, vangt die: "bestaat, is geen
  * rekenuitvoer, maar draagt ook geen planningsinvoer" — expliciet genegeerd, niet vergeten.
  *
- * DIT BESTAND SCHRIJFT GEEN LEZER. De whitelist-constanten zijn documentatie-van-het-plan (harde
- * regel §4/X0-brief): X0 raakt `src/services/xer/` niet aan. De corpusscan hieronder is een eigen,
- * MINIMALE %T/%F-tabelscan (geen tokenizer-hergebruik — er is nog niets om te hergebruiken; X2 bouwt
- * de echte grammatica) die uitsluitend kolomNAMEN uittrekt, nooit rijwaarden leest of interpreteert.
+ * X0 RAAKT `src/services/xer/` NIET AAN — met precies één, LATERE uitzondering (X-O7 laag 3,
+ * §4.1-bijstelling 2026-09-04): `XER_TASK_RECORDED_OUTPUT` (bak 4 hieronder) IS de whitelist voor
+ * de daadwerkelijk gebouwde `src/services/xer/xerRecordedTimes.ts`. De overige vier bakken
+ * (whitelist/forbidden/external-proxy/ignored) blijven documentatie-van-het-plan zonder eigen
+ * lezercode.
  *
- * HET GATENKAAS-MECHANISME (planreview M2): een corpus-`%F`-kolom die in GEEN van de vier bakken
+ * De corpusscan hieronder is een eigen, MINIMALE %T/%F-tabelscan (geen tokenizer-hergebruik — X2
+ * bouwt de echte grammatica) die uitsluitend kolomNAMEN uittrekt, nooit rijwaarden leest of
+ * interpreteert.
+ *
+ * HET GATENKAAS-MECHANISME (planreview M2): een corpus-`%F`-kolom die in GEEN van de VIJF bakken
  * staat is een poortfout — precies de fout die de eerste twee-bakken-versie van dit plan maakte en
- * die de her-check ving. Schrap je een whitelist- (of verboden-, of genegeerd-)veld zonder het elders
- * te herplaatsen, dan valt die kolom terug tussen wal en schip en gaat de scan ROOD (mét corpus
- * gemount) — dat IS het mutatiebewijs voor deze poort.
+ * die de her-check ving. Schrap je een whitelist- (of verboden-, of genegeerd-, of
+ * recorded-output-)veld zonder het elders te herplaatsen, dan valt die kolom terug tussen wal en
+ * schip en gaat de scan ROOD (mét corpus gemount) — dat IS mutatiebewijs (a) voor deze poort.
  *
  * Zonder `OPS_XER_CORPUS` gemount: skip met een OK-regel (zelfde conventie als
  * `check-mpp-fidelity.ts`'s `OPS_MPP_CORPUS`) — dit is dus GEEN CI-poort, hij werkt alleen lokaal
@@ -28,7 +33,8 @@
  * constanten zelf (geen dubbele/overlappende velden) draaien wél altijd.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -38,7 +44,8 @@ const truthy = (label: string, cond: boolean) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-// De vier bakken (XER-etappeplan §4.1 + D4-review: external proxy is geen lokale rekenuitvoer)
+// De vijf bakken (XER-etappeplan §4.1 + D4-review: external proxy is geen lokale rekenuitvoer;
+// bak 4 "recorded-output" kwam er later bij, X-O7 laag 3, §4.1-bijstelling 2026-09-04)
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -73,12 +80,16 @@ export const XER_TASK_WHITELIST = [
 /**
  * BAK 2 — VERBODEN: rekenuitvoer die er als gewone velden uitziet, maar dat niet is. De lezer mag
  * hier NOOIT uit lezen — de opgeslagen antwoorden zijn de meetlat (§3), nooit de invoer.
+ *
+ * De zes kolommen die ooit hier stonden (`early_start_date`, `early_end_date`, `late_start_date`,
+ * `late_end_date`, `total_float_hr_cnt`, `free_float_hr_cnt`) zijn VERHUISD naar
+ * `XER_TASK_RECORDED_OUTPUT` (bak 4, hieronder) — X-O7 laag 3, §4.1-bijstelling 2026-09-04. Ze
+ * zijn nog steeds geen `Task`-invoer, maar de lezer mag ze — als apart, waardedragend kanaal naast
+ * de taken, nooit als solverinvoer — WEL lezen voor de "datums zoals opgeslagen"-weergave.
  */
 export const XER_TASK_FORBIDDEN = [
-  'early_start_date', 'early_end_date', 'late_start_date', 'late_end_date',
   'restart_date', 'reend_date',
   'rem_late_start_date', 'rem_late_end_date',
-  'total_float_hr_cnt', 'free_float_hr_cnt',
   'driving_path_flag',
   'float_path', 'float_path_order',
   'old_restart_date', 'old_reend_date', 'old_remain_drtn_hr_cnt',
@@ -95,6 +106,27 @@ export const XER_TASK_FORBIDDEN = [
  */
 export const XER_TASK_EXTERNAL_DEPENDENCY_PROXY = [
   'external_early_start_date', 'external_late_end_date',
+] as const;
+
+/**
+ * BAK 4 — "uitsluitend weergave/meetlat, nooit solverinvoer" (plan §4.1, bijgesteld 2026-09-04 —
+ * eigenaarsbesluit X-O7 laag 3). Naamgeving-nota: het plan noemt dit "de vierde bak" (tellend
+ * whitelist/forbidden/ignored als de oorspronkelijke drie), maar dit testbestand had door
+ * `XER_TASK_EXTERNAL_DEPENDENCY_PROXY` al VIER constanten-groepen vóór deze — dit wordt dus de
+ * VIJFDE `buckets`-entry hieronder. Genoemd naar de plan-SEMANTIEK ("recorded output"), niet naar
+ * de telling.
+ *
+ * Deze zes namen waren tot deze bijstelling onderdeel van `XER_TASK_FORBIDDEN` (bak 2). Anders dan
+ * de rest van bak 2 mag de lezer ze WEL uit de TASK-tabel halen — maar uitsluitend via het eigen,
+ * geïsoleerde kanaal `src/services/xer/xerRecordedTimes.ts` (`ImportResult.recordedTimes`), NOOIT
+ * naar `Task.time` en NOOIT als solverinvoer. Het enige echte bewijs daarvoor is het
+ * X12-mutatiebewijs (taak T2): gemuteerde opgeslagen uitvoer verplaatst de solve niet, maar
+ * verplaatst de weergavemodus wél. Die scherpte mag nooit als "traag" of "redundant" gesnoeid
+ * worden (plan §5, risico 8) — het bak-4-lidmaatschap ALLEEN is een verzwakte poort.
+ */
+export const XER_TASK_RECORDED_OUTPUT = [
+  'early_start_date', 'early_end_date', 'late_start_date', 'late_end_date',
+  'total_float_hr_cnt', 'free_float_hr_cnt',
 ] as const;
 
 /**
@@ -160,10 +192,14 @@ export const XER_TASK_IGNORED: readonly string[] = [
 // Draait ALTIJD, ook zonder OPS_XER_CORPUS — dit bewaakt de constanten zelf, niet het corpus.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 {
+  // VIJF bakken sinds X-O7 laag 3 (§4.1-bijstelling 2026-09-04): de oorspronkelijke vier plus
+  // `recorded-output` (bak 4, plan-semantiek — zie de naamgevingsnota bij `XER_TASK_RECORDED_OUTPUT`
+  // hierboven voor waarom dit de vijfde `buckets`-entry is, geen "vierde").
   const buckets: [string, readonly string[]][] = [
     ['whitelist', XER_TASK_WHITELIST],
     ['forbidden', XER_TASK_FORBIDDEN],
     ['external-dependency-proxy', XER_TASK_EXTERNAL_DEPENDENCY_PROXY],
+    ['recorded-output', XER_TASK_RECORDED_OUTPUT],
     ['ignored', XER_TASK_IGNORED],
   ];
   for (const [name, list] of buckets) {
@@ -173,24 +209,85 @@ export const XER_TASK_IGNORED: readonly string[] = [
       seen.add(f);
     }
   }
-  const whitelistSet = new Set(XER_TASK_WHITELIST as readonly string[]);
-  const forbiddenSet = new Set(XER_TASK_FORBIDDEN as readonly string[]);
-  const externalProxySet = new Set(XER_TASK_EXTERNAL_DEPENDENCY_PROXY as readonly string[]);
-  const ignoredSet = new Set(XER_TASK_IGNORED);
-  for (const f of whitelistSet) {
-    truthy(`"${f}" staat niet óók in forbidden`, !forbiddenSet.has(f));
-    truthy(`"${f}" staat niet óók in external-dependency-proxy`, !externalProxySet.has(f));
-    truthy(`"${f}" staat niet óók in ignored`, !ignoredSet.has(f));
+  // Volledige paarsgewijze overlapcheck (i<j) over alle vijf bakken — generiek in plaats van een
+  // handmatige piramide, zodat een zesde bak hier vanzelf meegenomen wordt.
+  const bucketSets = buckets.map(([name, list]) => [name, new Set(list)] as const);
+  for (let i = 0; i < bucketSets.length; i++) {
+    const [nameA, setA] = bucketSets[i];
+    for (let j = i + 1; j < bucketSets.length; j++) {
+      const [nameB, setB] = bucketSets[j];
+      for (const f of setA) {
+        truthy(`"${f}" (${nameA}) staat niet óók in ${nameB}`, !setB.has(f));
+      }
+    }
   }
-  for (const f of forbiddenSet) {
-    truthy(`"${f}" staat niet óók in external-dependency-proxy`, !externalProxySet.has(f));
-    truthy(`"${f}" staat niet óók in ignored`, !ignoredSet.has(f));
-  }
-  for (const f of externalProxySet) truthy(`"${f}" staat niet óók in ignored`, !ignoredSet.has(f));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-// De corpusscan: union van alle TASK-%F-kolommen over OPS_XER_CORPUS, tegen de vier bakken.
+// Isolatiescan (X-O7 laag 3, §3.2 van het laag-3-plan): een grep op de zes BAK-4-kolomnamen
+// binnen `src/services/xer/` mag UITSLUITEND `xerRecordedTimes.ts` raken. Draait altijd, geen
+// corpus nodig — dit is een broncodescan, naar het voorbeeld van sectie 11 in
+// `check-recorded-dates.ts` (dubbele wortelkandidaat, want dit script draait zowel gebundeld in
+// `tests/planning/` als los vanuit een andere map).
+//
+// NUANCE (bewust, geen vals-positief): `total_float_hr_cnt`/`free_float_hr_cnt` komen ook voor in
+// `xerTables.ts`'s `XER_DECIMAL_FIELDS` — een AL BESTAANDE, generieke veldnaam-classificatie voor
+// getalformaat-parsing over ALLE XER-tabellen (niet TASK-specifiek, niets met "lees dit veld als
+// taakuitvoer" te maken). Die catalogus draagt de naam als lijst-element (gevolgd door een komma),
+// nooit als celtoegang of functie-argument. De scan hieronder herkent daarom twee LEESPATRONEN —
+// `cells.<veld>`/`cells['<veld>']` (celtoegang) en `'<veld>')`/`"<veld>")` (laatste argument van
+// een aanroep, zoals `ctx.numberOf(row, 'total_float_hr_cnt')`) — en negeert bewust kale
+// lijst-lidmaatschap. Zonder die nuance zou deze scan op dag één al rood staan, buiten elke wijziging
+// van deze etappe om.
+{
+  const kandidaten = [
+    fileURLToPath(new URL('../../src/', import.meta.url).href),
+    resolvePath(process.cwd(), 'src'),
+  ];
+  const srcRoot = kandidaten.find((p) => existsSync(p)) ?? null;
+  truthy(`isolatiescan vindt src/ (geprobeerd: ${kandidaten.join(', ')})`, srcRoot !== null);
+
+  if (srcRoot) {
+    const xerDir = join(srcRoot, 'services', 'xer');
+    truthy(`isolatiescan vindt ${xerDir}`, existsSync(xerDir));
+
+    if (existsSync(xerDir)) {
+      const xerFiles: string[] = [];
+      const loop = (dir: string) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name);
+          if (entry.isDirectory()) loop(full);
+          else if (/\.tsx?$/.test(entry.name)) xerFiles.push(full);
+        }
+      };
+      loop(xerDir);
+      truthy('isolatiescan leest een plausibel aantal bestanden in src/services/xer/', xerFiles.length > 5);
+
+      const toegestaan = join(xerDir, 'xerRecordedTimes.ts');
+      const overtreders: string[] = [];
+      for (const file of xerFiles) {
+        if (file === toegestaan) continue;
+        const text = readFileSync(file, 'utf8');
+        for (const field of XER_TASK_RECORDED_OUTPUT) {
+          const cellAccess = new RegExp(`cells(?:\\.${field}\\b|\\[['"]${field}['"]\\])`);
+          const callArg = new RegExp(`['"]${field}['"]\\s*\\)`);
+          if (cellAccess.test(text) || callArg.test(text)) {
+            overtreders.push(`${field} in ${file.slice(srcRoot.length)}`);
+          }
+        }
+      }
+      checks++;
+      if (overtreders.length > 0) {
+        diffs.push(
+          `isolatiescan: BAK-4-kolommen worden buiten xerRecordedTimes.ts gelezen — ${overtreders.join(', ')}`,
+        );
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// De corpusscan: union van alle TASK-%F-kolommen over OPS_XER_CORPUS, tegen de vijf bakken.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 const CORPUS = process.env.OPS_XER_CORPUS;
@@ -272,6 +369,7 @@ if (!CORPUS) {
   const whitelistSet = new Set(XER_TASK_WHITELIST as readonly string[]);
   const forbiddenSet = new Set(XER_TASK_FORBIDDEN as readonly string[]);
   const externalProxySet = new Set(XER_TASK_EXTERNAL_DEPENDENCY_PROXY as readonly string[]);
+  const recordedOutputSet = new Set(XER_TASK_RECORDED_OUTPUT as readonly string[]);
   const ignoredSet = new Set(XER_TASK_IGNORED);
 
   const unclassified: string[] = [];
@@ -279,8 +377,10 @@ if (!CORPUS) {
     const inWhitelist = whitelistSet.has(col);
     const inForbidden = forbiddenSet.has(col);
     const inExternalProxy = externalProxySet.has(col);
+    const inRecordedOutput = recordedOutputSet.has(col);
     const inIgnored = ignoredSet.has(col);
-    const bucketCount = Number(inWhitelist) + Number(inForbidden) + Number(inExternalProxy) + Number(inIgnored);
+    const bucketCount = Number(inWhitelist) + Number(inForbidden) + Number(inExternalProxy)
+      + Number(inRecordedOutput) + Number(inIgnored);
     if (bucketCount === 0) {
       unclassified.push(`"${col}" (bv. ${exampleFile})`);
     } else if (bucketCount > 1) {
@@ -294,7 +394,7 @@ if (!CORPUS) {
   checks++;
   if (unclassified.length > 0) {
     diffs.push(
-      `xer-field-whitelist: ${unclassified.length} TASK-%F-kolom(men) uit het corpus staan in géén van de vier bakken (whitelist/forbidden/external-proxy/ignored) — gatenkaas-mechanisme, plan §4.1: ${unclassified.join(', ')}`,
+      `xer-field-whitelist: ${unclassified.length} TASK-%F-kolom(men) uit het corpus staan in géén van de vijf bakken (whitelist/forbidden/external-proxy/recorded-output/ignored) — gatenkaas-mechanisme, plan §4.1: ${unclassified.join(', ')}`,
     );
   }
 

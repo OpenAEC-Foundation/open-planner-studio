@@ -39,6 +39,8 @@ import {
   type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import { readXerCalendars } from './xerCalendarData';
+import { sourceInstant } from './xerInstant';
+import { readXerRecordedTimes } from './xerRecordedTimes';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
 import {
@@ -215,15 +217,6 @@ function numberOf(
 
 function hasClock(raw: string): boolean {
   return /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/.test(raw.trim());
-}
-
-function sourceInstant(raw: string, hourMode: boolean): string | undefined {
-  const value = raw.trim();
-  if (!value) return undefined;
-  const normalized = value.replace(' ', 'T');
-  const parsed = parseInstant(normalized);
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  return formatInstant(parsed, hourMode ? 'hour' : 'day');
 }
 
 /**
@@ -601,6 +594,23 @@ function readXerProject(
     new CalendarEngine(calendar),
   ] as const));
 
+  // BAK 4 (XER-etappeplan §4.1-bijstelling 2026-09-04, X-O7 laag 3) — uitsluitend weergave/meetlat,
+  // nooit solverinvoer. Onafhankelijk van de taakmapping hieronder: leest dezelfde `activityRows`,
+  // maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts` voor de laagkeuze.
+  const recordedTimes = readXerRecordedTimes(activityRows, {
+    numberOf: (row, field) => numberOf(tables, row, field),
+    effectiveCalendarOf: (row) => {
+      const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
+      const engine = calendarEngines.get(effectiveCalendar.id)!;
+      return {
+        id: effectiveCalendar.id,
+        hourMode: effectiveCalendar.workTime !== undefined,
+        minutesPerDay: engine.hoursPerDay * 60,
+      };
+    },
+    taskIdOf: (row) => row.cells.task_id,
+  });
+
   const enumFallbacks: XerEnumFallback[] = [];
   const projectDefaultDuration = durationTypeOf(
     projectRow.cells.def_duration_type ?? '',
@@ -959,6 +969,8 @@ function readXerProject(
     assignments: resourceResult.assignments,
     activityCodeTypes: metadata.activityCodeTypes,
     customFieldDefs: metadata.customFieldDefs,
+    recordedTimes,
+    recordedTimesOrigin: 'xer',
     xer: {
       sourceProjectId: projectId,
       defaultCurrencyCode: tables.header.defaultCurrencyCode,
