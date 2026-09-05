@@ -15,9 +15,11 @@
  * vaste ISO-datums, nooit `new Date()` zonder anker.
  */
 import {
+  applyRecordedTimesToTasks,
   captureRecordedDates,
   countShiftedTasks,
   cpmResultFromRecorded,
+  type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { Task } from '@/types/task';
@@ -147,6 +149,53 @@ const zonderIfcTaskTime = captureRecordedDates(
 eq('1t taak zonder IfcTaskTime landt niet in times', Object.keys(zonderIfcTaskTime.times), []);
 eq('1u taak zonder IfcTaskTime telt niet mee in total', zonderIfcTaskTime.total, 0);
 
+// ── (1B) Bron-orakel — laag 0 (XER-etappeplan §3.3, taak T3) ──────────────────
+// De derde parameter (`recordedTimes`) heeft VOORRANG boven `recordedFields` — de twee kanalen
+// worden nooit gemengd. `mk('a', ...)` zet hier bewust een early-paar dat de early-laag zou geven
+// (2099-...) om het contrast met de orakelwaarde (2026-07-...) scherp te maken: valt de
+// implementatie stiekem terug op `recordedFields` zodra beide zijn meegegeven, dan geeft 1x/1y de
+// 2099-datum en gaat deze case ROOD — dat IS het mutatiebewijs.
+const oracle: Record<string, RecordedTime> = {
+  a: {
+    start: '2026-07-01', finish: '2026-07-05',
+    lateStart: '2026-07-02', lateFinish: '2026-07-06',
+    totalFloat: 1, freeFloat: 0.5, isCritical: false,
+  },
+};
+const metOrakel = captureRecordedDates(
+  [mk('a', { earlyStart: '2099-01-01', earlyFinish: '2099-01-05' })],
+  { a: ['earlyStart', 'earlyFinish'] }, // zou zonder orakel de early-laag geven
+  oracle,
+);
+eq('1x orakel wint van recordedFields (start)', metOrakel.times['a'].start, '2026-07-01');
+eq('1y orakel wint van recordedFields (finish)', metOrakel.times['a'].finish, '2026-07-05');
+eq('1z orakel draagt late/float/isCritical ongewijzigd door', {
+  lateStart: metOrakel.times['a'].lateStart, lateFinish: metOrakel.times['a'].lateFinish,
+  totalFloat: metOrakel.times['a'].totalFloat, freeFloat: metOrakel.times['a'].freeFloat,
+  isCritical: metOrakel.times['a'].isCritical,
+}, {
+  lateStart: '2026-07-02', lateFinish: '2026-07-06',
+  totalFloat: 1, freeFloat: 0.5, isCritical: false,
+});
+eq('1aa orakel-total = aantal entries in recordedTimes, niet in recordedFields', metOrakel.total, 1);
+
+// Filtering op onbekende taak-ids: zelfde regel als de andere twee lagen (zie 2e hieronder).
+const orakelMetOnbekend: Record<string, RecordedTime> = {
+  a: { start: '2026-08-01', finish: '2026-08-02' },
+  zzz: { start: '2026-08-03', finish: '2026-08-04' },
+};
+const gefilterd = captureRecordedDates([mk('a')], undefined, orakelMetOnbekend);
+eq('1ab orakel filtert op taak-ids die echt in tasks zitten', Object.keys(gefilterd.times), ['a']);
+eq('1ac orakel-total telt alleen de overgebleven, gefilterde entries', gefilterd.total, 1);
+
+// Randgevallen, symmetrisch met (2e)/(2f) hieronder.
+eq('1ad orakel + lege takenlijst ⇒ lege vastlegging',
+  captureRecordedDates([], undefined, { a: { start: '2026-01-01', finish: '2026-01-02' } }),
+  { times: {}, total: 0 });
+eq('1ae leeg orakel-object (aanwezig, maar zonder entries) ⇒ lege vastlegging, GEEN terugval op recordedFields',
+  captureRecordedDates([mk('a')], { a: ['scheduleStart', 'scheduleFinish'] }, {}),
+  { times: {}, total: 0 });
+
 // ── (2) Verschiltelling ──────────────────────────────────────────────────────
 // Schedule-paar aanwezig (niet `[]`, zie MOET 1 hierboven — anders wordt de taak overgeslagen en
 // blijft `times` leeg, wat deze sectie niets zou laten testen).
@@ -226,6 +275,47 @@ eq('3p times gevuld maar tasks leeg ⇒ leeg resultaat', legeTasks.tasks.size, 0
 eq('3q times gevuld maar tasks leeg ⇒ geen projecteinde', legeTasks.projectEnd, '');
 const legeBeide = cpmResultFromRecorded({}, [], cal);
 eq('3r volledig leeg ⇒ projectDuration 0', legeBeide.projectDuration, 0);
+
+// ── (3B) applyRecordedTimesToTasks — gedeelde kern (XER-etappeplan §3.4, taak T3) ─────────────
+// Rechtstreekse eenheidstest op de kern zelf (los van de winkel/`showRecordedDates`, die in sectie
+// (8) hieronder via de ECHTE store getest wordt). Bewijst: (a) de teruggegeven `CPMResult` is
+// identiek aan `cpmResultFromRecorded` op dezelfde `times`; (b) de taken worden IN-PLACE bijgewerkt
+// met exact de oude terugvallen (`?? rec.start`/`?? 0`/`?? false`); (c) `interferingFloat`/
+// `isNearCritical`/`floatPath` worden gewist — MUTATIEBEWIJS: haal één van de drie wis-regels uit
+// `applyRecordedTimesToTasks` en 3ab/3ac/3ad hieronder gaat ROOD (uitgevoerd en teruggedraaid
+// tijdens de bouw van deze taak, zie voortgangsrapport); (d) een taak zonder vastlegging blijft
+// volledig onaangeroerd.
+{
+  const kernTasks = [
+    mk('a', {
+      earlyStart: '2026-09-01', earlyFinish: '2026-09-05',
+      interferingFloat: 3, isNearCritical: true, floatPath: 0,
+    }),
+    mk('b'), // geen vastlegging voor 'b' ⇒ moet volledig ongemoeid blijven
+  ];
+  const kernTimes = captureRecordedDates(
+    [mk('a', { earlyStart: '2026-09-01', earlyFinish: '2026-09-05', totalFloat: 2, isCritical: true })],
+    { a: ['earlyStart', 'earlyFinish', 'totalFloat', 'isCritical'] },
+  ).times;
+  const kernResult = applyRecordedTimesToTasks(kernTasks, kernTimes, cal);
+  const verwachtResult = cpmResultFromRecorded(kernTimes, kernTasks, cal);
+  eq('3s applyRecordedTimesToTasks levert hetzelfde CPMResult als cpmResultFromRecorded op dezelfde times',
+    kernResult, verwachtResult);
+  const aNa = kernTasks.find((t) => t.id === 'a')!;
+  const bNa = kernTasks.find((t) => t.id === 'b')!;
+  eq('3t taak a — earlyStart bijgewerkt uit de vastlegging', aNa.time.earlyStart, '2026-09-01');
+  eq('3u taak a — earlyFinish bijgewerkt uit de vastlegging', aNa.time.earlyFinish, '2026-09-05');
+  eq('3v taak a — lateStart-terugval blijft ?? rec.start (geen late* in het bestand)', aNa.time.lateStart, '2026-09-01');
+  eq('3w taak a — lateFinish-terugval blijft ?? rec.finish', aNa.time.lateFinish, '2026-09-05');
+  eq('3x taak a — totalFloat komt uit het bestand (geen terugval nodig)', aNa.time.totalFloat, 2);
+  eq('3y taak a — isCritical komt uit het bestand', aNa.time.isCritical, true);
+  eq('3z taak b (geen vastlegging) — time volledig onaangeroerd', bNa.time, mk('b').time);
+  eq('3aa taak b — earlyStart blijft de mk-default (bewijst dat filtering op aanwezigheid werkt)',
+    bNa.time.earlyStart, '2026-03-02');
+  eq('3ab taak a — interferingFloat gewist', aNa.time.interferingFloat, undefined);
+  eq('3ac taak a — isNearCritical gewist', aNa.time.isNearCritical, undefined);
+  eq('3ad taak a — floatPath gewist', aNa.time.floatPath, undefined);
+}
 
 // ── (4) Gemiste deadlines ─────────────────────────────────────────────────────
 // `deadline` staat op Task zelf (niet op Task['time']) — vandaar `mk`'s derde parameter.

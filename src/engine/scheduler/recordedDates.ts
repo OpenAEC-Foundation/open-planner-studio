@@ -73,35 +73,63 @@ export interface RecordedDatesState extends RecordedDates {
  * Leg vast wat het bestand zei. ROEP DIT AAN VÓÓR `runCPM`: de store deelt de taak-objecten met het
  * parse-resultaat, dus na de solve zijn de oorspronkelijke waarden overschreven.
  *
- * DE LAAGKEUZE (kwaliteitsreview MOET 1 + MOET 4) wordt ÉÉN KEER PER TAAK gemaakt, niet per veld:
- *  - Beide early-slots (`earlyStart` ÉN `earlyFinish`) aanwezig ⇒ de early-laag ("berekend, maar het
- *    bestand droeg het resultaat").
- *  - Anders, en alleen als beide schedule-slots (`scheduleStart` ÉN `scheduleFinish`) aanwezig zijn
- *    ⇒ de schedule-laag ("zoals opgeslagen" in de zin van issue #63 — een P6-export die alleen
- *    ScheduleStart/ScheduleFinish vult).
- *  - Geen van beide paren compleet ⇒ GEEN uitspraak over deze taak; hij wordt overgeslagen (landt
- *    niet in `times`, telt niet mee in `total`). Dit is het pad dat een IFCTASK zonder IfcTaskTime
- *    (of met `$` op ScheduleStart) raakt: zonder deze guard zou `t.scheduleStart` de "vandaag"-
- *    fallback van `createDefaultTaskTime`/`parseDateFromIFC` zijn — een verzonnen datum die er als
- *    een echte opgeslagen waarde uit zou zien.
- * Een HALF paar (bv. alleen `earlyStart` aanwezig) wordt NOOIT aangevuld met de andere laag: zo'n
- * samengesteld paar heeft het bestand nooit gezegd, en kan zelfs finish-vóór-start opleveren.
+ * DE LAAGKEUZE — DRIE LAGEN, IN DEZE VOLGORDE (XER-etappeplan laag 3, §3.3, bovenop kwaliteitsreview
+ * MOET 1 + MOET 4):
+ *  0. **Bron-orakel** (`recordedTimes`, derde parameter): heeft de AANROEPER al een kant-en-klare
+ *     `Record<taskId, RecordedTime>` (XER's bak 4 — `ImportResult.recordedTimes`, uitsluitend
+ *     gevuld door `readXER`), dan is DÁT het antwoord — ongefilterd op de laagkeuze hieronder, wél
+ *     gefilterd op taken die daadwerkelijk in `tasks` zitten (zelfde regel als de andere twee lagen:
+ *     een vastgelegde id die niet meer bestaat telt niet mee). `recordedFields` wordt in dat geval
+ *     GENEGEERD. De twee kanalen worden NOOIT gemengd: een XER-import heeft geen `recordedFields`,
+ *     een IFC-import (nog) geen `recordedTimes`.
+ *  1. **Early-laag**: geen `recordedTimes` gegeven, en beide early-slots (`earlyStart` ÉN
+ *     `earlyFinish`) van `recordedFields` aanwezig ⇒ "berekend, maar het bestand droeg het
+ *     resultaat".
+ *  2. **Schedule-laag**: geen van beide bovenstaande, en beide schedule-slots (`scheduleStart` ÉN
+ *     `scheduleFinish`) aanwezig ⇒ "zoals opgeslagen" in de zin van issue #63 — een P6-export die
+ *     alleen ScheduleStart/ScheduleFinish vult.
+ *  Geen van de drie van toepassing ⇒ GEEN uitspraak over deze taak; hij wordt overgeslagen (landt
+ *  niet in `times`, telt niet mee in `total`). Dit is (voor lagen 1/2) het pad dat een IFCTASK zonder
+ *  IfcTaskTime (of met `$` op ScheduleStart) raakt: zonder deze guard zou `t.scheduleStart` de
+ *  "vandaag"-fallback van `createDefaultTaskTime`/`parseDateFromIFC` zijn — een verzonnen datum die
+ *  er als een echte opgeslagen waarde uit zou zien.
+ * Een HALF paar (bv. alleen `earlyStart` aanwezig, laag 1/2) wordt NOOIT aangevuld met de andere
+ * laag: zo'n samengesteld paar heeft het bestand nooit gezegd, en kan zelfs finish-vóór-start
+ * opleveren. (Laag 0 kent dit onderscheid niet: `RecordedTime.start`/`finish` zijn daar al verplicht
+ * — de lezer die het orakel vulde, koos zelf al of een taak een early-paar had, zie
+ * `readXerRecordedTimes`.)
  *
- * `late*`/`totalFloat`/`freeFloat`/`isCritical` staan LOS van de laagkeuze: die vijf worden — zoals
- * altijd — individueel meegenomen zodra hun eigen slot aanwezig is, ongeacht welke laag voor
- * start/finish werd gekozen.
+ * `late*`/`totalFloat`/`freeFloat`/`isCritical` staan LOS van de laagkeuze binnen lagen 1/2: die
+ * vijf worden — zoals altijd — individueel meegenomen zodra hun eigen slot aanwezig is, ongeacht
+ * welke laag voor start/finish werd gekozen. Binnen laag 0 draagt `RecordedTime` deze vijf al kant-
+ * en-klaar (aanwezig of `undefined`, door de aanroepende lezer bepaald).
  *
  * `recordedFields` komt uit `ImportResult.recordedFields` (`src/services/ifc/ifcTaskSlots.ts`,
  * `RECORDED_SLOT_KEYS` + `RECORDED_INPUT_SLOT_KEYS`) — de engine mag niet uit de services-laag
  * importeren, dus dit neemt bewust het structurele unietype via `@/types/task` (MOET 2:
  * `keyof TaskTimeComputed | keyof TaskTimeInput` i.p.v. een ongecontroleerd `string`), zodat een
  * hernoemd CPM-veld hier een compile-fout geeft in plaats van een `has.has(...)` die stil nooit meer
- * waar wordt.
+ * waar wordt. `recordedTimes` komt overeenkomstig uit `ImportResult.recordedTimes` — ook hier geen
+ * services-import, `RecordedTime` is al een engine-eigen type (hierboven in dit bestand).
  */
 export function captureRecordedDates(
   tasks: Task[],
   recordedFields: Record<string, readonly (keyof TaskTimeComputed | keyof TaskTimeInput)[]> | undefined,
+  recordedTimes?: Record<string, RecordedTime>,
 ): RecordedDates {
+  if (recordedTimes) {
+    // Laag 0 — bron-orakel, MET VOORRANG boven `recordedFields`. Filteren op bestaande taken houdt
+    // dezelfde regel aan als de andere twee lagen ("een vastgelegde id die niet meer bestaat telt
+    // niet mee"); `recordedFields` wordt hier bewust NIET geraadpleegd (geen menging van kanalen).
+    const knownIds = new Set(tasks.map((t) => t.id));
+    const times: Record<string, RecordedTime> = {};
+    for (const [id, rec] of Object.entries(recordedTimes)) {
+      if (!knownIds.has(id)) continue;
+      times[id] = rec;
+    }
+    return { times, total: Object.keys(times).length };
+  }
+
   const times: Record<string, RecordedTime> = {};
   if (!recordedFields) return { times, total: 0 };
 
@@ -275,4 +303,48 @@ export function cpmResultFromRecorded(
     projectEnd,
     projectDuration,
   };
+}
+
+/**
+ * Schrijf de vastlegging in de taken en lever het gereconstrueerde `CPMResult` — ÉÉN implementatie
+ * voor `showRecordedDates` (`scheduleSlice.ts`) en de standaard-aan-route bij het laden
+ * (`fileSlice.applyLoadedProject`, taak T4). Muteert `tasks` IN-PLACE (een Immer-draft óf een
+ * payload-kloon — de aanroeper bepaalt welke) en geeft daarna hetzelfde `CPMResult` terug als
+ * `cpmResultFromRecorded(times, tasks, calendar)` op diezelfde, nu-bijgewerkte taken zou geven.
+ *
+ * DE TERUGVALLEN BINNEN DEZE KERN ZIJN BEWUST ONGEWIJZIGD (plan §3.4): `TaskTime.lateStart` is een
+ * verplichte `string`, `totalFloat`/`freeFloat` verplichte `number`s (`TaskTimeComputed`,
+ * `src/types/task.ts`) — optioneel maken heeft een blast radius over renderer, taakraster, rapport,
+ * MCP en export, dus deze functie raakt dat type NIET aan. In plaats daarvan blijven de bestaande
+ * `?? rec.start`/`?? rec.finish`/`?? 0`/`?? false`-terugvallen hier als VELDWAARDE staan; "niet
+ * vastgelegd" leeft uitsluitend in `times[id].lateStart === undefined` enz. (al bestaande,
+ * gepersisteerde documentstate) en wordt pas in de UI als weergave afgedwongen (taak T6) — dit is
+ * een bewust compromis, zie plan §5/§6.
+ *
+ * Wist daarnaast per geraakte taak `interferingFloat`/`isNearCritical`/`floatPath`: die drie
+ * analyse-afgeleiden komen uit de zojuist weggegooide solve en zouden een planning beschrijven die
+ * niet meer op het scherm staat (`applyCpmResult` hanteert dezelfde regel voor uitgezette opties:
+ * afwezig ⇒ het veld wordt gewist). Een taak zónder vastlegging (`times[task.id]` ontbreekt) blijft
+ * volledig onaangeroerd.
+ */
+export function applyRecordedTimesToTasks(
+  tasks: Task[],
+  times: Record<string, RecordedTime>,
+  calendar: WorkCalendar,
+): CPMResult {
+  for (const task of tasks) {
+    const rec = times[task.id];
+    if (!rec) continue;
+    task.time.earlyStart = rec.start;
+    task.time.earlyFinish = rec.finish;
+    task.time.lateStart = rec.lateStart ?? rec.start;
+    task.time.lateFinish = rec.lateFinish ?? rec.finish;
+    task.time.totalFloat = rec.totalFloat ?? 0;
+    task.time.freeFloat = rec.freeFloat ?? 0;
+    task.time.isCritical = rec.isCritical ?? false;
+    task.time.interferingFloat = undefined;
+    task.time.isNearCritical = undefined;
+    task.time.floatPath = undefined;
+  }
+  return cpmResultFromRecorded(times, tasks, calendar);
 }
