@@ -88,7 +88,18 @@ const MAX_SECTION_RESPONSE_BYTES = 256 * 1024;
  *  `text`/`comment`/`memo`/`remark`/`title`/`longName`, een taaknotitie, een onbekende toekomstige
  *  sleutel — is zonder `includeRawRows` volledig onzichtbaar. Bewust een allowlist en geen blocklist:
  *  een vergeten sleutel hier betekent "verbergen" (fail-safe), een vergeten sleutel in een blocklist
- *  betekent "lekken" (fail-open) — precies het verschil dat ronde 2 fout deed gaan. */
+ *  betekent "lekken" (fail-open) — precies het verschil dat ronde 2 fout deed gaan.
+ *
+ *  GEACCEPTEERD RISICO (review2-3d.md ronde 4, R6): `name` en `code` blijven zichtbaar (afgekapt op
+ *  200 tekens) omdat een provenance-inspectie zonder namen nutteloos is — maar een P6-resourcenaam
+ *  is in de praktijk routinematig een persoonsnaam. Dit is dus bewust GEEN AVG-schone lijst. Moet
+ *  deze tool ooit persoonsgegevensvrij zijn, dan hoort `name` alsnog achter `includeRawRows`.
+ *
+ *  Elke sleutel hieronder is nagelopen tegen de daadwerkelijk blootgestelde grafiek (resourceCatalog,
+ *  metadataCatalog, diagnostics, taskSourceRowsByProject, summary) — geen sleutel "voor het geval
+ *  dat". `unit`/`currShortName` zijn om die reden verwijderd (kwamen nergens exposed voor;
+ *  `curr_short_name` is alleen een interne XER-kolomnaam voor numberFormat-detectie, geen
+ *  responsveld). `unitOfMeasure` staat er wél echt (Resource.unitOfMeasure, `xerResources.ts`). */
 const SAFE_LABEL_KEYS = new Set([
   // id's/verwijzingen
   'id', 'sourceId', 'internalId', 'taskId', 'predecessorTaskId', 'projectId', 'sourceProjectId',
@@ -96,13 +107,15 @@ const SAFE_LABEL_KEYS = new Set([
   'calendarSourceId', 'defaultRoleSourceId', 'unitSourceId', 'taskSourceId', 'companyId',
   'libraryItemId', 'syncedHash',
   // korte labels/codes
-  'name', 'shortName', 'code', 'taskCode', 'wbsCode', 'unit', 'unitOfMeasure', 'currencyCode',
-  'currShortName', 'defaultCurrencyCode',
+  'name', 'shortName', 'code', 'taskCode', 'wbsCode', 'unitOfMeasure', 'currencyCode',
+  'defaultCurrencyCode',
   // structurele/enum-/tokenvelden
   'kind', 'type', 'rawType', 'table', 'field', 'reason', 'fallback', 'bestFit', 'encoding',
   'newline', 'bom', 'format', 'source', 'algorithm', 'status', 'from', 'token', 'decimal', 'group',
   'progressMode', 'mappedProgressMode', 'effectiveDate',
-  // vaste, systeemeigen waarden (geen bronvrije tekst)
+  // vaste, systeemeigen waarden (geen bronvrije tekst). `value` is vandaag uitsluitend
+  // `summary.source.digest.value` (de SHA-256) — de generiekste naam hier en dus de eerste kandidaat
+  // om ooit per ongeluk vrije tekst te dragen; bij twijfel eerst hercontroleren tegen de grafiek.
   'sha256', 'value', 'availableProjectIds', 'baselineFallbackReasons',
 ]);
 /** Vrije-tekstkáárten (UDF-/activiteitswaarden e.d.): net als een rawRow geeft dit zonder opt-in
@@ -284,7 +297,12 @@ function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawR
     return truncated;
   }
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeProvenanceValue(item, key, includeRawRows, budget));
+    // review2-3d.md ronde 4, R7: een verborgen string-element mapt anders naar `undefined` → `null`
+    // in JSON (`[null, null]`) — geen lek, maar onduidelijk voor de lezer. Verborgen elementen eruit
+    // filteren i.p.v. ze als `null` te laten staan.
+    return value
+      .map((item) => sanitizeProvenanceValue(item, key, includeRawRows, budget))
+      .filter((item) => item !== undefined);
   }
   if (isPlainRecord(value)) {
     if (isRawSourceRowLike(value)) {
@@ -293,10 +311,18 @@ function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawR
     if (key !== null && FREE_TEXT_MAP_KEYS.has(key)) {
       return projectFreeTextMap(value, includeRawRows, budget);
     }
+    // review2-3d.md ronde 4, R8: dezelfde afkap-/budgetbehandeling voor de SLEUTEL als voor de
+    // waarde — anders overleeft een bronvrije sleutel (bv. een 80.000-tekens proj_id die als
+    // objectsleutel wordt gebruikt, zoals `catalogCounts.taskSourceRowsByProject`) altijd zodra zijn
+    // waarde overleeft, want een getal overleeft altijd.
     const out: Record<string, unknown> = {};
+    const usedKeys = new Set<string>();
     for (const [childKey, childValue] of Object.entries(value)) {
       const sanitized = sanitizeProvenanceValue(childValue, childKey, includeRawRows, budget);
-      if (sanitized !== undefined) out[childKey] = sanitized;
+      if (sanitized === undefined) continue;
+      const truncatedKey = uniqueTruncatedKey(truncateLabel(childKey), usedKeys);
+      budget.charge(truncatedKey);
+      out[truncatedKey] = sanitized;
     }
     return out;
   }
@@ -460,13 +486,20 @@ function validateProjectSelector(archive: XerSourceArchive, projectId: unknown):
 
 function summary(state: AppState, archive: XerSourceArchive | null): unknown {
   if (!archive) {
-    // Statische, systeemeigen tekst zonder bronvrije inhoud — hoeft niet door de poort.
-    return {
-      sourcePresent: false,
-      source: null,
-      selector: { currentProjectId: state.xerSourceProjectId, availableProjectIds: [] },
-      note: 'Er is voor dit document geen retained XER-bronarchief beschikbaar.',
-    };
+    // review2-3d.md ronde 4, R9: `state.xerSourceProjectId` is GEEN statische tekst — het is een
+    // documentveld dat uit het bestand komt en de IFC-round-trip overleeft, dus hoort net als elke
+    // andere bronstring door de poort + responsgrens. Alleen de hardcoded systeemmelding (`note`) is
+    // echt statisch; die wordt bewust NA het saneren toegevoegd (anders zou de sleutel `note` — niet
+    // op `SAFE_LABEL_KEYS`, met reden — zichzelf verbergen).
+    const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
+    const sanitized = sanitizeProvenanceValue(
+      { sourcePresent: false, source: null, selector: { currentProjectId: state.xerSourceProjectId, availableProjectIds: [] } },
+      null,
+      false,
+      budget,
+    ) as Record<string, unknown>;
+    sanitized.note = 'Er is voor dit document geen retained XER-bronarchief beschikbaar.';
+    return finalizeBounded(sanitized);
   }
   const readModel = archive.readModel;
   const file = archive.diagnostics.file;
