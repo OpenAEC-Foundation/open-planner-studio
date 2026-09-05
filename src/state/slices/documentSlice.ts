@@ -385,6 +385,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
+      taskTypesVisible: src.taskTypesVisible,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',

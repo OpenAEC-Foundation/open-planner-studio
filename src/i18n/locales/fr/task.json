@@ -56,6 +56,7 @@
     },
     "status": { "stale": "obsolète" },
     "validation": {
+      "assignmentWork": "Saisissez le travail restant en heures sous forme de nombre supérieur à 0 (nom : heures ; …).",
       "readOnly": "Cette colonne calculée ne peut pas être modifiée.",
       "invalid": "La valeur saisie n’est pas valide.",
       "relationToken": "Utilisez par exemple 1.2 FS+2d.",
@@ -232,6 +233,22 @@
     "durationTotalHours": "Heures totales",
     "hourCalendarHint": "La saisie en heures nécessite un calendrier horaire (horaires de travail)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Durée et unités fixes",
+    "FIXED_DURATION_WORK": "Durée et travail fixes",
+    "FIXED_WORK": "Travail fixe",
+    "FIXED_RATE": "Unités fixes",
+    "label": "Règle de travail",
+    "projectDefault": "Valeur par défaut du projet ({{rule}})",
+    "protects": "Protégé : {{what}}",
+    "protectsFIXED_DURATION_RATE": "durée et unités (le travail suit)",
+    "protectsFIXED_DURATION_WORK": "durée et travail (les unités suivent)",
+    "protectsFIXED_WORK": "travail (la durée suit les unités)",
+    "protectsFIXED_RATE": "unités (la durée suit le travail)",
+    "mspEffortDriven": "Depuis MS Project : piloté par l'effort",
+    "mspNotEffortDriven": "Depuis MS Project : non piloté par l'effort",
+    "none": "Valeur par défaut du projet"
+  },
   "properties": {
     "task": "Tâche",
     "deleteTask": "Supprimer la tâche",
@@ -295,7 +312,10 @@
       "contour": "Répartition des heures…",
       "contoured": "Contour",
       "contouredHint": "Cette affectation a sa propre répartition des heures ; modifiez-la ou libérez-la via le bouton Répartition des heures.",
-      "importedCurve": "Courbe importée"
+      "importedCurve": "Courbe importée",
+      "work": "Travail (rest.)",
+      "workHint": "Travail restant en heures ; la règle de travail décide si la durée ou les unités bougent.",
+      "locked": "Protégé par la règle de travail {{rule}}"
     },
     "calendar": "Calendrier",
     "calendarProject": "Calendrier du projet",

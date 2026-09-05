@@ -91,6 +91,8 @@ export interface ProjectSlice {
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
+  /** Taaktypes-etappe (spec §7): werkregel-UI ontsloten voor dit document; zie DOCUMENT_FIELDS. */
+  taskTypesVisible: boolean;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -180,6 +182,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   xerImportMetadata: null,
   xerSourceArchive: null,
   xerSourceProjectId: null,
+  taskTypesVisible: false,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de

@@ -56,6 +56,7 @@
     },
     "status": { "stale": "古い" },
     "validation": {
+      "assignmentWork": "残作業を 0 より大きい数値（時間）で入力してください（名前: 時間; …）。",
       "readOnly": "この計算列は編集できません。",
       "invalid": "入力した値は無効です。",
       "relationToken": "例: 1.2 FS+2d のように入力してください。",
@@ -224,6 +225,22 @@
     "durationTotalHours": "合計時間",
     "hourCalendarHint": "時間入力には時間カレンダー（稼働時間）が必要です。"
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "固定期間・固定単位",
+    "FIXED_DURATION_WORK": "固定期間・固定作業",
+    "FIXED_WORK": "固定作業",
+    "FIXED_RATE": "固定単位",
+    "label": "作業ルール",
+    "projectDefault": "プロジェクトの既定（{{rule}}）",
+    "protects": "保護：{{what}}",
+    "protectsFIXED_DURATION_RATE": "期間と単位（作業が追従）",
+    "protectsFIXED_DURATION_WORK": "期間と作業（単位が追従）",
+    "protectsFIXED_WORK": "作業（期間は単位に追従）",
+    "protectsFIXED_RATE": "単位（期間は作業に追従）",
+    "mspEffortDriven": "MS Project より：実効作業駆動",
+    "mspNotEffortDriven": "MS Project より：実効作業駆動ではない",
+    "none": "プロジェクトの既定"
+  },
   "properties": {
     "task": "タスク",
     "deleteTask": "タスクを削除",
@@ -287,7 +304,10 @@
       "contour": "時間配分…",
       "contoured": "輪郭",
       "contouredHint": "この割り当てには独自の時間配分があります。「時間配分」ボタンで編集または解除してください。",
-      "importedCurve": "インポートされた曲線"
+      "importedCurve": "インポートされた曲線",
+      "work": "作業（残）",
+      "workHint": "残作業（時間）。期間と単位のどちらが変わるかは作業ルールが決めます。",
+      "locked": "作業ルール {{rule}} により保護"
     },
     "calendar": "カレンダー",
     "calendarProject": "プロジェクトカレンダー",

@@ -117,6 +117,8 @@ export interface CreateTaskGridAdapterDomainInput {
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
+  /** Taaktypes-etappe (spec §7): zie `TaskColumnContext.taskTypesUnlocked`. */
+  taskTypesUnlocked?: boolean;
 }
 
 export interface CreateTaskGridAdapterProjectionInput {
@@ -240,6 +242,7 @@ export function createTaskGridAdapterDomain(
     wbsAutoNumber: input.wbsAutoNumber,
     effectiveHoursPerDay: input.effectiveHoursPerDay,
     signedWorkDaysBetween: input.signedWorkDaysBetween,
+    taskTypesUnlocked: input.taskTypesUnlocked,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: input.projectId,

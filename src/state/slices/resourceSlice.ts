@@ -259,6 +259,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!plan) return;
       runtime.beginUndoable(s);
       const settled = commitTrianglePlan(task, s.assignments, plan);
+      s.taskTypesVisible = true; // spec §7: documentontsluiting.
       if (settled.durationChanged) lostTimephasedGuidance = settleDurationAftermath(task, s, oldWorkMinutes);
       runtime.finishMutation(s, { stale: settled.durationChanged });
     });

@@ -1,3 +1,4 @@
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -127,7 +128,7 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   if (columnId === 'task.name' || columnId === 'task.description' || columnId === 'task.wbsCode'
     || columnId === 'task.taskType' || columnId === 'task.customTaskTypeId'
     || columnId === 'task.priority' || columnId === 'task.color'
-    || columnId === 'task.notes') {
+    || columnId === 'task.notes' || columnId === 'task.workRule') {
     return 'task-field';
   }
   return null;
@@ -189,6 +190,12 @@ function applyTaskField(
   } else if (id === 'task.color') {
     if (!optionalString(edit.value)) return failure('color', edit);
     task.color = edit.value;
+  } else if (id === 'task.workRule') {
+    // Taaktypes-etappe (spec §7): het VELD; de driehoekstap (restwerk vastleggen onder een
+    // werkbeschermende regel) doet `gridTransaction.ts` ná het plan, met de toewijzingen erbij.
+    if (edit.value === undefined || edit.value === '') delete task.workRule;
+    else if (typeof edit.value === 'string' && (WORK_RULES as readonly string[]).includes(edit.value)) task.workRule = edit.value as WorkRule;
+    else return failure('enum', edit);
   } else if (id === 'task.notes') {
     if (typeof edit.value !== 'string') return failure('text', edit);
     if ((task.notes?.length ?? 0) > 1) return failure('readOnly', edit);

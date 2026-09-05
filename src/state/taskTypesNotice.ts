@@ -1,0 +1,34 @@
+import type { NotifyInput } from './slices/types';
+
+/**
+ * Taaktypes-etappe (spec §7, "automatische ontsluiting"): één informatieve melding per document
+ * per sessie wanneer een geladen bestand taaktypedata draagt terwijl de instelling "Toon
+ * taaktypes" uit staat — dezelfde sessie-gate als `timephasedLossNotice.ts` (module-state, geen
+ * documentveld: sessie-UI-gedrag, overleeft een documentwissel-en-terug). Zichtbaar wordt de
+ * werkregel voor dát document sowieso (`taskTypesVisible`); de melding vertelt dat en linkt naar de
+ * gids.
+ */
+const notifiedDocIds = new Set<string>();
+
+export const TASK_TYPES_HELP_ARTICLE_ID = 'gids-taaktypes';
+
+export function claimTaskTypesNotice(docId: string): boolean {
+  if (notifiedDocIds.has(docId)) return false;
+  notifiedDocIds.add(docId);
+  return true;
+}
+
+/** Test-only reset (zelfde reden als `__resetTimephasedLossNoticeForTests`). */
+export function __resetTaskTypesNoticeForTests(): void {
+  notifiedDocIds.clear();
+}
+
+export function notifyTaskTypesUnlocked(notify: (n: NotifyInput) => void, docId: string): void {
+  if (!claimTaskTypesNotice(docId)) return;
+  notify({
+    severity: 'info',
+    messageKey: 'notifications.taskTypesUnlocked',
+    dedupeKey: 'task-types-unlocked',
+    helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
+  });
+}

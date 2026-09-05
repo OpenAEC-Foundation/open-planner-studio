@@ -56,6 +56,7 @@
     },
     "status": { "stale": "已过期" },
     "validation": {
+      "assignmentWork": "请以大于 0 的数字输入剩余工时（小时）（名称: 小时; …）。",
       "readOnly": "无法编辑此计算列。",
       "invalid": "输入的值无效。",
       "relationToken": "请使用类似 1.2 FS+2d 的格式。",
@@ -224,6 +225,22 @@
     "durationTotalHours": "总小时数",
     "hourCalendarHint": "按小时输入需要小时日历（工作时间）。"
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "固定工期和单位",
+    "FIXED_DURATION_WORK": "固定工期和工时",
+    "FIXED_WORK": "固定工时",
+    "FIXED_RATE": "固定单位",
+    "label": "工作规则",
+    "projectDefault": "项目默认（{{rule}}）",
+    "protects": "受保护：{{what}}",
+    "protectsFIXED_DURATION_RATE": "工期和单位（工时随之变化）",
+    "protectsFIXED_DURATION_WORK": "工期和工时（单位随之变化）",
+    "protectsFIXED_WORK": "工时（工期随单位变化）",
+    "protectsFIXED_RATE": "单位（工期随工时变化）",
+    "mspEffortDriven": "来自 MS Project：投入驱动",
+    "mspNotEffortDriven": "来自 MS Project：非投入驱动",
+    "none": "项目默认"
+  },
   "properties": {
     "task": "任务",
     "deleteTask": "删除任务",
@@ -287,7 +304,10 @@
       "contour": "工时分布…",
       "contoured": "轮廓",
       "contouredHint": "此分配拥有自己的工时分布；请通过“工时分布”按钮编辑或释放。",
-      "importedCurve": "导入的曲线"
+      "importedCurve": "导入的曲线",
+      "work": "工时（剩余）",
+      "workHint": "剩余工时（小时）；工作规则决定工期或单位随之变化。",
+      "locked": "受工作规则 {{rule}} 保护"
     },
     "calendar": "日历",
     "calendarProject": "项目日历",

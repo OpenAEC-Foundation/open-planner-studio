@@ -73,6 +73,7 @@
     },
     "status": { "stale": "veraltet" },
     "validation": {
+      "assignmentWork": "Geben Sie die Restarbeit in Stunden als Zahl größer als 0 ein (Name: Stunden; …).",
       "readOnly": "Diese berechnete Spalte kann nicht bearbeitet werden.",
       "invalid": "Der eingegebene Wert ist ungültig.",
       "relationToken": "Verwenden Sie zum Beispiel 1.2 FS+2d.",
@@ -245,6 +246,22 @@
     "durationTotalHours": "Stunden gesamt",
     "hourCalendarHint": "Die Stundeneingabe erfordert einen Stundenkalender (Arbeitszeiten)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Feste Dauer und Einheiten",
+    "FIXED_DURATION_WORK": "Feste Dauer und Arbeit",
+    "FIXED_WORK": "Feste Arbeit",
+    "FIXED_RATE": "Feste Einheiten",
+    "label": "Arbeitsregel",
+    "projectDefault": "Projektstandard ({{rule}})",
+    "protects": "Geschützt: {{what}}",
+    "protectsFIXED_DURATION_RATE": "Dauer und Einheiten (Arbeit folgt)",
+    "protectsFIXED_DURATION_WORK": "Dauer und Arbeit (Einheiten folgen)",
+    "protectsFIXED_WORK": "Arbeit (Dauer folgt den Einheiten)",
+    "protectsFIXED_RATE": "Einheiten (Dauer folgt der Arbeit)",
+    "mspEffortDriven": "Aus MS Project: leistungsgesteuert",
+    "mspNotEffortDriven": "Aus MS Project: nicht leistungsgesteuert",
+    "none": "Projektstandard"
+  },
   "properties": {
     "task": "Aufgabe",
     "deleteTask": "Aufgabe löschen",
@@ -308,7 +325,10 @@
       "contour": "Stundenverteilung…",
       "contoured": "Kontur",
       "contouredHint": "Diese Zuweisung hat eine eigene Stundenverteilung; bearbeiten oder aufheben über die Schaltfläche Stundenverteilung.",
-      "importedCurve": "Importierte Kurve"
+      "importedCurve": "Importierte Kurve",
+      "work": "Arbeit (Rest)",
+      "workHint": "Restarbeit in Stunden; die Arbeitsregel bestimmt, ob Dauer oder Einheiten sich bewegen.",
+      "locked": "Durch die Arbeitsregel {{rule}} geschützt"
     },
     "calendar": "Kalender",
     "calendarProject": "Projektkalender",

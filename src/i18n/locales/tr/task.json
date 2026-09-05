@@ -56,6 +56,7 @@
     },
     "status": { "stale": "eski" },
     "validation": {
+      "assignmentWork": "Kalan işi saat olarak 0'dan büyük bir sayı girin (ad: saat; …).",
       "readOnly": "Bu hesaplanan sütun düzenlenemez.",
       "invalid": "Girilen değer geçerli değil.",
       "relationToken": "Örneğin 1.2 FS+2d kullanın.",
@@ -228,6 +229,22 @@
     "durationTotalHours": "Toplam saat",
     "hourCalendarHint": "Saat girişi bir saat takvimi (çalışma saatleri) gerektirir."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Sabit süre ve birimler",
+    "FIXED_DURATION_WORK": "Sabit süre ve iş",
+    "FIXED_WORK": "Sabit iş",
+    "FIXED_RATE": "Sabit birimler",
+    "label": "İş kuralı",
+    "projectDefault": "Proje varsayılanı ({{rule}})",
+    "protects": "Korunan: {{what}}",
+    "protectsFIXED_DURATION_RATE": "süre ve birimler (iş uyar)",
+    "protectsFIXED_DURATION_WORK": "süre ve iş (birimler uyar)",
+    "protectsFIXED_WORK": "iş (süre birimleri izler)",
+    "protectsFIXED_RATE": "birimler (süre işi izler)",
+    "mspEffortDriven": "MS Project'ten: çabaya dayalı",
+    "mspNotEffortDriven": "MS Project'ten: çabaya dayalı değil",
+    "none": "Proje varsayılanı"
+  },
   "properties": {
     "task": "Görev",
     "deleteTask": "Görevi sil",
@@ -291,7 +308,10 @@
       "contour": "Saat dağılımı…",
       "contoured": "Kontur",
       "contouredHint": "Bu atamanın kendi saat dağılımı var; Saat dağılımı düğmesiyle düzenleyin veya kaldırın.",
-      "importedCurve": "İçe aktarılan eğri"
+      "importedCurve": "İçe aktarılan eğri",
+      "work": "İş (kalan)",
+      "workHint": "Saat cinsinden kalan iş; iş kuralı sürenin mi yoksa birimlerin mi değişeceğine karar verir.",
+      "locked": "{{rule}} iş kuralı tarafından korunuyor"
     },
     "calendar": "Takvim",
     "calendarProject": "Proje takvimi",

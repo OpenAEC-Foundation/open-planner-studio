@@ -189,6 +189,7 @@
       "assignmentDuplicateId": "This assignment occurs more than once.",
       "assignmentIdentity": "This assignment belongs to a different resource.",
       "assignmentUnits": "Enter units per day as a number greater than 0.",
+      "assignmentWork": "Enter remaining work in hours as a number greater than 0 (name: hours; …).",
       "assignmentCurve": "Choose a known load curve.",
       "assignmentTaskNotFound": "The task of this assignment no longer exists.",
       "assignmentTaskUnavailable": "Assignments cannot be edited on this task.",
@@ -335,6 +336,22 @@
     "durationTotalHours": "Total hours",
     "hourCalendarHint": "Hour input requires an hour calendar (working times)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Fixed duration and units",
+    "FIXED_DURATION_WORK": "Fixed duration and work",
+    "FIXED_WORK": "Fixed work",
+    "FIXED_RATE": "Fixed units",
+    "label": "Work rule",
+    "projectDefault": "Project default ({{rule}})",
+    "protects": "Protected: {{what}}",
+    "protectsFIXED_DURATION_RATE": "duration and units (work follows)",
+    "protectsFIXED_DURATION_WORK": "duration and work (units follow)",
+    "protectsFIXED_WORK": "work (duration follows units)",
+    "protectsFIXED_RATE": "units (duration follows work)",
+    "mspEffortDriven": "From MS Project: effort-driven",
+    "mspNotEffortDriven": "From MS Project: not effort-driven",
+    "none": "Project default"
+  },
   "properties": {
     "task": "Task",
     "deleteTask": "Delete task",
@@ -418,7 +435,10 @@
       "contour": "Hour distribution…",
       "contoured": "Contour",
       "contouredHint": "This assignment has its own hour distribution; edit or release it via the Hour distribution button.",
-      "importedCurve": "Imported curve"
+      "importedCurve": "Imported curve",
+      "work": "Work (rem.)",
+      "workHint": "Remaining work in hours; the work rule decides whether duration or units move.",
+      "locked": "Protected by the work rule {{rule}}"
     },
     "calendar": "Calendar",
     "calendarProject": "Project calendar",

@@ -189,6 +189,7 @@
       "assignmentDuplicateId": "Deze toewijzing komt meerdere keren voor.",
       "assignmentIdentity": "Deze toewijzing hoort bij een andere resource.",
       "assignmentUnits": "Voer eenheden per dag in als een getal groter dan 0.",
+      "assignmentWork": "Voer resterend werk in uren in als een getal groter dan 0 (naam: uren; …).",
       "assignmentCurve": "Kies een bekende belastingscurve.",
       "assignmentTaskNotFound": "De taak van deze toewijzing bestaat niet meer.",
       "assignmentTaskUnavailable": "Toewijzingen zijn op deze taak niet te bewerken.",
@@ -335,6 +336,22 @@
     "durationTotalHours": "Totaal uren",
     "hourCalendarHint": "Uren-invoer gebruikt de werktijden van de taak-kalender."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Vaste duur en inzet",
+    "FIXED_DURATION_WORK": "Vaste duur en werk",
+    "FIXED_WORK": "Vast werk",
+    "FIXED_RATE": "Vaste inzet",
+    "label": "Werkregel",
+    "projectDefault": "Projectstandaard ({{rule}})",
+    "protects": "Beschermd: {{what}}",
+    "protectsFIXED_DURATION_RATE": "duur en inzet (werk volgt)",
+    "protectsFIXED_DURATION_WORK": "duur en werk (inzet volgt)",
+    "protectsFIXED_WORK": "werk (duur volgt de inzet)",
+    "protectsFIXED_RATE": "inzet (duur volgt het werk)",
+    "mspEffortDriven": "Uit MS Project: effort-driven",
+    "mspNotEffortDriven": "Uit MS Project: niet effort-driven",
+    "none": "Projectstandaard"
+  },
   "properties": {
     "task": "Taak",
     "deleteTask": "Verwijder taak",
@@ -418,7 +435,10 @@
       "contour": "Urenverdeling…",
       "contoured": "Contour",
       "contouredHint": "Deze toewijzing heeft een eigen urenverdeling; bewerk of laat die los via de knop Urenverdeling.",
-      "importedCurve": "Geïmporteerde curve"
+      "importedCurve": "Geïmporteerde curve",
+      "work": "Werk (rest)",
+      "workHint": "Resterend werk in uren; de werkregel bepaalt of de duur of de inzet meebeweegt.",
+      "locked": "Beschermd door de werkregel {{rule}}"
     },
     "notes": {
       "title": "Aantekeningen",

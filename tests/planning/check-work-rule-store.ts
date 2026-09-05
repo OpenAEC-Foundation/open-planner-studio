@@ -19,6 +19,10 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { AssignmentSetIntent, CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
+import { hasTaskTypeData } from '@/engine/work/taskTypesVisibility';
+import { SETTINGS } from '@/utils/settingsRegistry';
+import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 
 const S = () => useAppStore.getState();
 let checks = 0;
@@ -438,6 +442,61 @@ console.log('-- (m) workRule via de generieke updateTask legt óók vast (review
   S().updateTask(t, { workRule: 'FIXED_WORK' });
   eq('m2 ongewijzigde regel via updateTask: wel een (lege) stap zoals elke updateTask, geen getal veranderd', [asgOf(t, r1).unitsPerDay, task(t).time.scheduleDuration], [1, 4]);
   void events0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Werkregel / Resterend werk --');
+{
+  eq('n1 hasTaskTypeData: leeg ⇒ false', hasTaskTypeData([], []), false);
+  eq('n2 hasTaskTypeData: workRule/mspTaskType/p6DurationType/werkveld/projectstandaard ⇒ true', [
+    hasTaskTypeData([{ workRule: 'FIXED_WORK' }], []),
+    hasTaskTypeData([{ mspTaskType: 'FIXED_UNITS' }], []),
+    hasTaskTypeData([{ p6DurationType: 'DT_FixedQty' }], []),
+    hasTaskTypeData([], [{ remainingWorkMinutes: 60 }]),
+    hasTaskTypeData([], [], { defaultWorkRule: 'FIXED_RATE' }),
+  ], [true, true, true, true, true]);
+  ok('n3 instelling showTaskTypes staat in het register', SETTINGS.some((d) => d.key === 'showTaskTypes' && d.field === 'showTaskTypes'));
+  reset();
+  eq('n4 vers document: niet ontsloten, instelling uit', [S().taskTypesVisible, S().ui.showTaskTypes], [false, false]);
+  const t = S().addTask({ name: 'n', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r1 = labor('r1');
+  S().assignResource(t, r1, 1);
+  S().runCPM();
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  eq('n5 een gezette regel ontsluit het document', S().taskTypesVisible, true);
+  // Raster: de kolom Werkregel is alleen beschikbaar wanneer ontsloten.
+  const registry = buildTaskColumnRegistry({ projectId: S().project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [], customTaskTypes: [] });
+  const workRuleCol = registry.find((d) => String(d.id) === 'task.workRule')!;
+  const workCol = registry.find((d) => String(d.id) === 'assignment.remainingWork')!;
+  const ctxBase = { projectId: S().project.id, tasksById: new Map(), relationIndex: buildTaskRelationIndex([], [], null), assignmentsByTaskId: new Map(), resourcesById: new Map(), baselinesById: new Map(), scheduleStale: false };
+  eq('n6 Werkregel- en Resterend-werk-kolom alleen beschikbaar wanneer ontsloten', [
+    workRuleCol.available({ ...ctxBase, taskTypesUnlocked: true }), workRuleCol.available(ctxBase),
+    workCol.available({ ...ctxBase, taskTypesUnlocked: true }), workCol.available(ctxBase),
+  ], [true, false, true, false]);
+  eq('n7 Werkregel is bewerkbaar met de vier waarden + projectstandaard', workRuleCol.editorOptions?.map((o) => o.value), ['', 'FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE']);
+  // Raster: typewissel via de cel legt het werk vast (zelfde als setTaskWorkRule), terug naar '' wist.
+  S().setTaskWorkRule(t, undefined);
+  useAppStore.setState((s) => { const a = s.assignments.find((x) => x.taskId === t)!; delete a.remainingWorkMinutes; });
+  const cell = (columnId: string, route: CellEditIntent['route'], value: unknown): CellEditIntent =>
+    ({ kind: 'cell-edit', taskId: t, columnId: columnId as CellEditIntent['columnId'], route, value });
+  eq('n8 rastercel Werkregel → FIXED_WORK slaagt', runGridMutation([cell('task.workRule', 'task-field', 'FIXED_WORK')]).ok, true);
+  eq('n9 …regel gezet én werk vastgelegd (4 slots)', [task(t).workRule, asgOf(t, r1).remainingWorkMinutes], ['FIXED_WORK', 4 * slot()]);
+  eq('n10 rastercel Werkregel → leeg slaagt en wist het veld', [runGridMutation([cell('task.workRule', 'task-field', undefined)]).ok, task(t).workRule], [true, undefined]);
+  eq('n11 rastercel Werkregel ongeldig wordt geweigerd', runGridMutation([cell('task.workRule', 'task-field', 'fixed_work')]).ok, false);
+  // Raster: Resterend werk als assignment-set: 4 slots → 8 slots onder FIXED_WORK ⇒ duur 8.
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  S().runCPM();
+  const setWork: AssignmentSetIntent = {
+    kind: 'assignment-set', taskId: t, columnId: 'assignment.remainingWork' as AssignmentSetIntent['columnId'],
+    tokens: [{ resourceId: r1, assignmentId: asgOf(t, r1).id, unitsPerDay: 1, remainingWorkMinutes: 8 * slot() }],
+  };
+  eq('n12 rastercel Resterend werk slaagt', runGridMutation([setWork]).ok, true);
+  eq('n13 …duur 8, werk 8 slots, planning verouderd', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes, S().scheduleStale], [8, 8 * slot(), true]);
+  S().undo();
+  eq('n14 …undo in één stap', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes], [4, 4 * slot()]);
+  // Parser van de kolom: "naam: uren".
+  const parsed = workCol.parse!('r1: 12', task(t), { ...ctxBase, taskTypesUnlocked: true, tasksById: new Map([[t, task(t)]]), assignmentsByTaskId: new Map([[t, S().assignments.filter((a) => a.taskId === t)]]), resourcesById: new Map(S().resources.map((r) => [r.id, r])), effectiveHoursPerDay: () => S().calendar.hoursPerDay });
+  eq('n15 parser "r1: 12" ⇒ 720 werkminuten', parsed.ok ? (parsed.value as { remainingWorkMinutes?: number }[])[0]?.remainingWorkMinutes : parsed, 720);
 }
 
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);

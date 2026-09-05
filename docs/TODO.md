@@ -355,8 +355,9 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
 > spec van 2026-08-18). Bouwt op de branch `claude/contour-engine-planner-mnrsy3` (PR #101), die
-> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–4, 7 (+ de store-kant van 6) staan
-> erin; 5 (UI) en 8 (docs) nog niet — zie spec §10 voor de stand per stap.
+> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–7 staan erin; 8 (afronding docs)
+> volgt — zie spec §10 voor de stand per stap. De gids `gids-taaktypes` bestaat in nl+en; de
+> twaalf vertalingen volgen in de maandelijkse ronde.
 > Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
 
 - [ ] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` (voortgangsroute).**
@@ -399,8 +400,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Nivelleerder-optie "inzet verlagen bij vast werk"** (eigenaarsbesluit 7-B, 2026-09-04) als
       geavanceerde optie naast het verschuiven; de verdeler raakt nu nooit inzet of werk.
 - [ ] **% werk gereed** (MSP % Work Complete) naast de duurgebaseerde `completion`.
-- [ ] **Projectstandaard-werkregel in de UI** (projectwizard/projectinfo); het veld zelf komt in
-      bouwstap 1.
+- [ ] **Projectstandaard-werkregel in de UI** (projectwizard/projectinfo); het veld bestaat sinds
+      bouwstap 1 en is via `planner_update_project` (`defaultWorkRule`) zetbaar; de gids noemt dat.
 - [ ] **P6-optie "preserve existing assignments"** bij resource erbij: OPS volgt altijd de
       synchronisatietabel ("recalculate"); de preserve-variant is een instelling voor later.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;

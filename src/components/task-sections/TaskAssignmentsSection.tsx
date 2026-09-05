@@ -3,11 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
-import { BarChart3, Trash2 } from 'lucide-react';
+import { BarChart3, Lock, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
+import { effectiveWorkRule, remainingMinutesOf } from '@/engine/work/workRuleApply';
+import { ruleProtectsWork } from '@/engine/work/workTriangle';
+import { taskTypesUnlocked } from '@/engine/work/taskTypesVisibility';
+import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 
 /** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine
  *  (2026-09): een opgeslagen contour (de dropdown is dan uitgeschakeld — loslaten gaat via het
@@ -34,6 +38,12 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const updateAssignment = useAppStore(s => s.updateAssignment);
   const unassignResource = useAppStore(s => s.unassignResource);
   const moveAssignment = useAppStore(s => s.moveAssignment);
+  // Taaktypes-etappe (spec §7): kolom "Werk (rest)" + slotjes op de beschermde hoek(en).
+  const setAssignmentWork = useAppStore(s => s.setAssignmentWork);
+  const unlocked = useAppStore(s => taskTypesUnlocked(s));
+  const defaultWorkRule = useAppStore(s => s.project.defaultWorkRule);
+  const calendars = useAppStore(s => s.calendars);
+  const projectCalendar = useAppStore(s => s.calendar);
   const [contourAssignmentId, setContourAssignmentId] = useState<string | null>(null);
 
   const task = tasks.find(t => t.id === taskId);
@@ -45,6 +55,16 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
   const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
+  const rule = effectiveWorkRule(task, defaultWorkRule);
+  const unitsProtected = rule === 'FIXED_DURATION_RATE' || rule === 'FIXED_RATE';
+  const workProtected = ruleProtectsWork(rule);
+  const hoursPerDay = taskCalendarHoursPerDay(task, calendars, projectCalendar);
+  /** Resterend werk in uren: opgeslagen, anders afgeleid als restduur × inzet (spec §4.3). */
+  const remainingHoursOf = (unitsPerDay: number, stored: number | undefined): number => {
+    const minutes = stored ?? remainingMinutesOf(task, { hoursPerDay }) * unitsPerDay;
+    return Math.round((minutes / 60) * 100) / 100;
+  };
+  const lockTitle = t('properties.assignments.locked', { rule: t(`workRule.${rule}`) });
 
   /** Kandidaat-doeltaken voor "verplaats naar…" (item 4): leaf-taken zonder deze resource, exclusief
    *  de huidige taak zelf. */
@@ -68,6 +88,18 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
           {taskAssignments.length === 0 && (
             <span className="text-[10px] text-text-secondary">{t('properties.assignments.empty')}</span>
           )}
+          {unlocked && taskAssignments.length > 0 && (
+            <div className="flex items-center gap-1 text-[9px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }} data-ops-assignment-header>
+              <span className="flex-1" />
+              <span className="w-14 flex items-center justify-end gap-0.5" title={unitsProtected ? lockTitle : undefined} data-ops-assignment-lock-units={unitsProtected ? 'locked' : 'free'}>
+                {unitsProtected && <Lock size={9} />}{t('properties.assignments.unitsPerDay')}
+              </span>
+              <span className="w-14 flex items-center justify-end gap-0.5" title={workProtected ? lockTitle : t('properties.assignments.workHint')} data-ops-assignment-lock-work={workProtected ? 'locked' : 'free'}>
+                {workProtected && <Lock size={9} />}{t('properties.assignments.work')}
+              </span>
+              <span className="w-24" />
+            </div>
+          )}
           {taskAssignments.map(a => {
             const res = resources.find(r => r.id === a.resourceId);
             const candidates = moveCandidates(a.resourceId);
@@ -84,6 +116,19 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                   onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
                   className="input !text-[10px] !px-1 !py-0.5 !w-14 text-right"
                 />
+                {unlocked && (res?.type === 'MATERIAL' ? (
+                  <span className="w-14 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
+                ) : (
+                  <span data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
+                    <UnitsInput
+                      value={remainingHoursOf(a.unitsPerDay, a.remainingWorkMinutes)}
+                      title={t('properties.assignments.workHint')}
+                      ariaLabel={t('properties.assignments.work')}
+                      onCommit={hours => { if (hours > 0) setAssignmentWork(a.id, Math.round(hours * 60)); }}
+                      className="input !text-[10px] !px-1 !py-0.5 !w-14 text-right"
+                    />
+                  </span>
+                ))}
                 <select
                   value={curveValue}
                   disabled={contoured}

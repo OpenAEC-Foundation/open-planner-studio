@@ -56,6 +56,7 @@
     },
     "status": { "stale": "nieaktualne" },
     "validation": {
+      "assignmentWork": "Wpisz pozostałą pracę w godzinach jako liczbę większą od 0 (nazwa: godziny; …).",
       "readOnly": "Tej kolumny obliczeniowej nie można edytować.",
       "invalid": "Wprowadzona wartość jest nieprawidłowa.",
       "relationToken": "Użyj na przykład 1.2 FS+2d.",
@@ -236,6 +237,22 @@
     "durationTotalHours": "Suma godzin",
     "hourCalendarHint": "Wprowadzanie w godzinach wymaga kalendarza godzinowego (godzin pracy)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Stały czas trwania i jednostki",
+    "FIXED_DURATION_WORK": "Stały czas trwania i praca",
+    "FIXED_WORK": "Stała praca",
+    "FIXED_RATE": "Stałe jednostki",
+    "label": "Reguła pracy",
+    "projectDefault": "Domyślna dla projektu ({{rule}})",
+    "protects": "Chronione: {{what}}",
+    "protectsFIXED_DURATION_RATE": "czas trwania i jednostki (praca się dostosowuje)",
+    "protectsFIXED_DURATION_WORK": "czas trwania i praca (jednostki się dostosowują)",
+    "protectsFIXED_WORK": "praca (czas trwania zależy od jednostek)",
+    "protectsFIXED_RATE": "jednostki (czas trwania zależy od pracy)",
+    "mspEffortDriven": "Z MS Project: sterowane nakładem pracy",
+    "mspNotEffortDriven": "Z MS Project: niesterowane nakładem pracy",
+    "none": "Domyślna dla projektu"
+  },
   "properties": {
     "task": "Zadanie",
     "deleteTask": "Usuń zadanie",
@@ -299,7 +316,10 @@
       "contour": "Rozkład godzin…",
       "contoured": "Kontur",
       "contouredHint": "To przypisanie ma własny rozkład godzin; edytuj go lub zwolnij przyciskiem Rozkład godzin.",
-      "importedCurve": "Zaimportowana krzywa"
+      "importedCurve": "Zaimportowana krzywa",
+      "work": "Praca (pozost.)",
+      "workHint": "Pozostała praca w godzinach; reguła pracy decyduje, czy zmienia się czas trwania, czy jednostki.",
+      "locked": "Chronione przez regułę pracy {{rule}}"
     },
     "calendar": "Kalendarz",
     "calendarProject": "Kalendarz projektu",

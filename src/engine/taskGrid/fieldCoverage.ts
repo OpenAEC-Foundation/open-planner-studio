@@ -69,7 +69,7 @@ export const TASK_FIELD_COVERAGE = {
   manuallyScheduled: field('technical', 'task.manuallyScheduled'),
   mspTaskType: field('technical', 'task.mspTaskType'),
   effortDriven: field('technical', 'task.effortDriven'),
-  workRule: field('technical', 'task.workRule'),
+  workRule: field('direct', 'task.workRule'),
   // XER/Primavera-herkomst: acht bronvelden, één gebundelde technische kolom (zie registry).
   p6DurationType: field('technical', 'task.p6Provenance'),
   p6ActivityType: field('technical', 'task.p6Provenance'),

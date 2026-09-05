@@ -73,6 +73,7 @@
     },
     "status": { "stale": "obsoleto" },
     "validation": {
+      "assignmentWork": "Introduzca el trabajo restante en horas como un número mayor que 0 (nombre: horas; …).",
       "readOnly": "Esta columna calculada no se puede editar.",
       "invalid": "El valor introducido no es válido.",
       "relationToken": "Use, por ejemplo, 1.2 FS+2d.",
@@ -249,6 +250,22 @@
     "durationTotalHours": "Horas totales",
     "hourCalendarHint": "La entrada en horas requiere un calendario horario (horarios de trabajo)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Duración y unidades fijas",
+    "FIXED_DURATION_WORK": "Duración y trabajo fijos",
+    "FIXED_WORK": "Trabajo fijo",
+    "FIXED_RATE": "Unidades fijas",
+    "label": "Regla de trabajo",
+    "projectDefault": "Valor predeterminado del proyecto ({{rule}})",
+    "protects": "Protegido: {{what}}",
+    "protectsFIXED_DURATION_RATE": "duración y unidades (el trabajo sigue)",
+    "protectsFIXED_DURATION_WORK": "duración y trabajo (las unidades siguen)",
+    "protectsFIXED_WORK": "trabajo (la duración sigue a las unidades)",
+    "protectsFIXED_RATE": "unidades (la duración sigue al trabajo)",
+    "mspEffortDriven": "De MS Project: condicionado por el esfuerzo",
+    "mspNotEffortDriven": "De MS Project: no condicionado por el esfuerzo",
+    "none": "Predeterminado del proyecto"
+  },
   "properties": {
     "task": "Tarea",
     "deleteTask": "Eliminar tarea",
@@ -312,7 +329,10 @@
       "contour": "Distribución de horas…",
       "contoured": "Contorno",
       "contouredHint": "Esta asignación tiene su propia distribución de horas; edítela o libérela con el botón Distribución de horas.",
-      "importedCurve": "Curva importada"
+      "importedCurve": "Curva importada",
+      "work": "Trabajo (rest.)",
+      "workHint": "Trabajo restante en horas; la regla de trabajo decide si se mueve la duración o las unidades.",
+      "locked": "Protegido por la regla de trabajo {{rule}}"
     },
     "calendar": "Calendario",
     "calendarProject": "Calendario del proyecto",

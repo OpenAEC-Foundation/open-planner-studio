@@ -20,7 +20,7 @@ import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import {
   captureTriangle, contourKeepsWork, settleAssignmentPlan, settleDurationAftermath, settleDurationEdit,
-  type AssignmentSettleOp,
+  settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
 } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -132,6 +132,9 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
     baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
     scheduleStale: state.scheduleStale,
+    // Taaktypes-etappe (spec §7): dezelfde ontsluiting als `FullTaskGrid` — anders weigert de
+    // gridtransactie een Werkregel-cel die de kolomkiezer wél toont.
+    taskTypesUnlocked: state.ui.showTaskTypes || state.taskTypesVisible,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
       task, state.calendar, state.calendars,
@@ -316,7 +319,8 @@ function applyAssignmentSet(
   const columnId = String(intent.columnId);
   if (columnId !== 'assignment.resources'
     && columnId !== 'assignment.unitsPerDay'
-    && columnId !== 'assignment.curve') {
+    && columnId !== 'assignment.curve'
+    && columnId !== 'assignment.remainingWork') {
     return { ok: false, errors: [validationError('plannerNotAvailable', intent, intent.tokens)] };
   }
   let tokens = intent.tokens;
@@ -374,7 +378,25 @@ function applyAssignmentSet(
       }
     }
     const settled = settleAssignmentPlan(task, state.assignments, triangle, ops);
-    if (settled.durationChanged) {
+    let durationChanged = settled.durationChanged;
+    // Taaktypes-etappe (spec §7): de kolom "Resterend werk" — per toewijzing één werkbewerking door
+    // de driehoek (`settleWorkEdit`), ná het (hier lege) plan.
+    if (columnId === 'assignment.remainingWork') {
+      const byId = new Map(assignmentsForTask.map(a => [a.id, a] as const));
+      const byResource = new Map(assignmentsForTask.map(a => [a.resourceId, a] as const));
+      for (const token of intent.tokens) {
+        const current = (token.assignmentId ? byId.get(token.assignmentId) : undefined) ?? byResource.get(token.resourceId);
+        const w = token.remainingWorkMinutes;
+        if (!current || typeof w !== 'number' || !Number.isFinite(w) || w <= 0) continue;
+        if (current.remainingWorkMinutes !== undefined && Math.abs(current.remainingWorkMinutes - w) < 1e-6) continue;
+        const live = state.assignments.find(a => a.id === current.id);
+        if (!live) continue;
+        const result = settleWorkEdit(task, state.assignments, state, live.id, w);
+        if (result?.durationChanged) durationChanged = true;
+        if (result) state.taskTypesVisible = true;
+      }
+    }
+    if (durationChanged) {
       // Zelfde nazorg als een duurbewerking (`settleDurationAftermath`: contour, importsplits, Z8-
       // venster én bevroren duur-walks — reviewbevinding K5).
       const lost = settleDurationAftermath(task, state, oldWorkMinutes);
@@ -650,11 +672,18 @@ function applyCellEdits(
   // toewijzingen daarna hun regel volgen (`settleDurationEdit`) — onder de standaardregel zonder
   // werkvelden verandert er niets.
   const triangle = captureTriangle(task, assignmentsForTask, state);
+  const workRuleBefore = task.workRule;
   const planned = planTaskCellEdits(task, finalEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     state.tasks[taskIndex] = planned.value.task;
     settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
+    // Taaktypes-etappe (spec §7, besluit 2): een typewissel in het raster legt — net als
+    // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
+    if (state.tasks[taskIndex].workRule !== workRuleBefore) {
+      settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule);
+      state.taskTypesVisible = true;
+    }
     if (planned.value.scheduleStale) {
       if (state.datesAsRecorded) {
         state.datesAsRecorded = false;

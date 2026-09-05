@@ -56,6 +56,7 @@
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
     "readMore": "詳細を見る",
+    "taskTypesUnlocked": "このファイルにはタスクの種類（作業ルールまたは保存済み作業）が含まれています。このドキュメントでは作業ルールと残作業が表示されます。",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
@@ -133,6 +134,8 @@
     "hourPlanningSection": "時間計画",
     "enableHourPlanning": "時間計画を有効にする",
     "enableHourPlanningHint": "時間・分単位のスケジューリングを有効にします：時間の時間軸、稼働時間帯を持つシフト、時間単位で正確なタスクバー。オフの場合 ⇒ アプリは従来どおり完全に日単位のままです。",
+    "showTaskTypes": "タスクの種類（作業ルール）を表示",
+    "showTaskTypesHint": "タスクごとに作業ルール（作業 = 残存期間 × 単位 のどの角が固定か）、割り当てごとに残作業を表示します — プロパティパネル、タスクダイアログ、グリッドで。オフ ⇒ 従来どおりにスケジュールします（期間と単位は維持、作業が追従）。すでにタスクの種類を含むファイルは常に表示されます。",
     "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
     "defaultTaskDurationUnit": "新しいタスクの既定単位",
     "defaultTaskDurationUnitHint": "新しいタスクを稼働日または作業時間のどちらで開始するかを決めます。既存のタスクは変わりません。",

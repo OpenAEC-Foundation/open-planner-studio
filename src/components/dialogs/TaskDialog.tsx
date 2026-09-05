@@ -19,6 +19,7 @@ import { TaskProgressFields } from '@/components/task-sections/TaskProgressField
 import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
 import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
+import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
@@ -160,6 +161,7 @@ export function TaskDialog() {
         constraint2: draft.constraint2,
         deadline: draft.deadline,
         notes: draft.notes,
+        workRule: draft.workRule,
         time,
       });
       // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
@@ -178,6 +180,7 @@ export function TaskDialog() {
         wbsCode: draft.wbsCode,
         taskType: draft.taskType,
         customTaskTypeId: draft.customTaskTypeId,
+        workRule: draft.workRule,
         isMilestone: draft.isMilestone,
         parentId: draft.parentId || null,
         calendarId: draft.calendarId,
@@ -297,6 +300,9 @@ export function TaskDialog() {
               <TaskDurationField task={draft} calendar={effCal} onChange={onChange} />
             </Field>
           </div>
+          {/* Taaktypes-etappe (spec §7): zelfde veld als het paneel; commit op Opslaan via `workRule`
+              in de updateTask-/addTask-patch (de store legt het werk vast, K1). */}
+          <TaskWorkRuleField task={draft} onChange={onChange} />
 
           <TaskHammockFields task={draft} onChange={onChange} />
 

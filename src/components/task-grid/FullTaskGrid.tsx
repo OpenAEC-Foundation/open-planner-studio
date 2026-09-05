@@ -235,6 +235,9 @@ export function TaskGridSurface({
   const calendar = useAppStore(state => state.calendar);
   const calendars = useAppStore(state => state.calendars);
   const scheduleStale = useAppStore(state => state.scheduleStale);
+  // Taaktypes-etappe (spec §7): werkregel-kolommen alleen wanneer ontsloten.
+  const showTaskTypes = useAppStore(state => state.ui.showTaskTypes);
+  const taskTypesVisible = useAppStore(state => state.taskTypesVisible);
   const cpmResult = useAppStore(state => state.cpmResult);
   const viewRows = useAppStore(state => state.viewRows);
   const view = useAppStore(state => state.view);
@@ -338,6 +341,7 @@ export function TaskGridSurface({
     calendarOptions,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
+    taskTypesUnlocked: showTaskTypes || taskTypesVisible,
     labelForColumn: labelKey => resolveColumnLabel(
       labelKey,
       key => tTask(key, { defaultValue: key }),
@@ -350,7 +354,7 @@ export function TaskGridSurface({
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
     cpmResult, customFieldDefs, customTaskTypes, dateNotation, project.id, project.wbsAutoNumber, resources,
-    scheduleStale, sequences, tCommon, tTask, tasks, textDirection,
+    scheduleStale, sequences, showTaskTypes, taskTypesVisible, tCommon, tTask, tasks, textDirection,
   ]);
   const adapter = useMemo(() => createTaskGridAdapter({
     surfaceId,

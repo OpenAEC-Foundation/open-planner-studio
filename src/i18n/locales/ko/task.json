@@ -56,6 +56,7 @@
     },
     "status": { "stale": "오래됨" },
     "validation": {
+      "assignmentWork": "남은 작업량을 0보다 큰 숫자(시간)로 입력하세요(이름: 시간; …).",
       "readOnly": "이 계산 열은 편집할 수 없습니다.",
       "invalid": "입력한 값이 올바르지 않습니다.",
       "relationToken": "예: 1.2 FS+2d 형식으로 입력하세요.",
@@ -224,6 +225,22 @@
     "durationTotalHours": "총 시간",
     "hourCalendarHint": "시간 입력에는 시간 달력(근무 시간)이 필요합니다."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "고정 기간 및 단위",
+    "FIXED_DURATION_WORK": "고정 기간 및 작업량",
+    "FIXED_WORK": "고정 작업량",
+    "FIXED_RATE": "고정 단위",
+    "label": "작업 규칙",
+    "projectDefault": "프로젝트 기본값({{rule}})",
+    "protects": "보호됨: {{what}}",
+    "protectsFIXED_DURATION_RATE": "기간과 단위(작업량이 따라감)",
+    "protectsFIXED_DURATION_WORK": "기간과 작업량(단위가 따라감)",
+    "protectsFIXED_WORK": "작업량(기간이 단위를 따름)",
+    "protectsFIXED_RATE": "단위(기간이 작업량을 따름)",
+    "mspEffortDriven": "MS Project에서: 작업량 기준",
+    "mspNotEffortDriven": "MS Project에서: 작업량 기준 아님",
+    "none": "프로젝트 기본값"
+  },
   "properties": {
     "task": "작업",
     "deleteTask": "작업 삭제",
@@ -287,7 +304,10 @@
       "contour": "시간 분배…",
       "contoured": "윤곽",
       "contouredHint": "이 배정에는 고유한 시간 분배가 있습니다. 시간 분배 버튼으로 편집하거나 해제하세요.",
-      "importedCurve": "가져온 곡선"
+      "importedCurve": "가져온 곡선",
+      "work": "작업량(남음)",
+      "workHint": "남은 작업량(시간). 기간과 단위 중 무엇이 변하는지는 작업 규칙이 결정합니다.",
+      "locked": "작업 규칙 {{rule}}에 의해 보호됨"
     },
     "calendar": "달력",
     "calendarProject": "프로젝트 달력",

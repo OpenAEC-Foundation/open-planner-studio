@@ -152,6 +152,7 @@ export function createDefaultUI(): UIState {
     // Issue #21 punt 5 (fase 2): default UIT (§0/§7.1 user-besluit).
     compressNonWorkdays: false,
     hourDataNotice: false,
+    showTaskTypes: false,
     structureLockedNotice: 0,
     showShortcutsDialog: false,
     showBenchmarkDialog: false,

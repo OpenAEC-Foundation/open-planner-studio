@@ -56,6 +56,7 @@
     "projectStartAnchorsClamped_other": "프로젝트 시작일이 변경되었습니다. 선행 작업이나 제약 조건이 없는 작업 기준점 {{count}}개를 새 시작일로 이동했습니다.",
     "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",
     "readMore": "더 알아보기",
+    "taskTypesUnlocked": "이 파일에는 작업 유형(작업 규칙 또는 저장된 작업량)이 포함되어 있습니다. 이 문서에서는 작업 규칙과 남은 작업량이 표시됩니다.",
     "pasteSkippedReadOnly_other": "읽기 전용 셀 {{count}}개를 건너뛰었습니다(예: 자동 번호가 매겨진 WBS 코드 또는 계산된 열).",
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다."
@@ -133,6 +134,8 @@
     "hourPlanningSection": "시간 단위 계획",
     "enableHourPlanning": "시간 단위 계획 사용",
     "enableHourPlanningHint": "시간/분 단위 스케줄링을 켭니다: 시간 단위 시간축, 근무 시간대가 있는 교대, 시간 단위로 정확한 작업 막대. 끄면 ⇒ 앱은 이전처럼 완전히 일 단위로 유지됩니다.",
+    "showTaskTypes": "작업 유형(작업 규칙) 표시",
+    "showTaskTypesHint": "작업별 작업 규칙(작업량 = 남은 기간 × 단위 중 어느 항이 고정인지)과 배정별 남은 작업량을 표시합니다 — 속성 패널, 작업 대화 상자, 그리드에서. 끄면 ⇒ 앱은 이전처럼 일정을 계산합니다(기간과 단위 유지, 작업량이 따라감). 이미 작업 유형이 있는 파일은 항상 표시됩니다.",
     "allowMixedDayHour": "일/시간 혼합 계획 허용",
     "defaultTaskDurationUnit": "새 작업의 기본 단위",
     "defaultTaskDurationUnitHint": "새 작업을 근무일 또는 근무 시간 중 어떤 단위로 시작할지 정합니다. 기존 작업은 바뀌지 않습니다.",

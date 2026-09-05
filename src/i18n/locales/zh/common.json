@@ -56,6 +56,7 @@
     "projectStartAnchorsClamped_other": "项目开始日期已更改：{{count}} 个没有前置任务或限制的任务起点已移至新的开始日期。",
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
     "readMore": "了解更多",
+    "taskTypesUnlocked": "此文件包含任务类型（工作规则或已保存的工时）；本文档将显示工作规则和剩余工时。",
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"
@@ -133,6 +134,8 @@
     "hourPlanningSection": "小时计划",
     "enableHourPlanning": "启用小时计划",
     "enableHourPlanningHint": "启用小时/分钟排程：小时级时间刻度、带工作时间段的班次，以及精确到小时的任务条。关闭 ⇒ 应用将保持与之前一样完全按天粒度运行。",
+    "showTaskTypes": "显示任务类型（工作规则）",
+    "showTaskTypesHint": "按任务显示工作规则（工时 = 剩余工期 × 单位 中哪一角固定）以及按分配显示剩余工时——在属性面板、任务对话框和表格中。关闭 ⇒ 应用按以往方式排程（工期和单位保持，工时随之变化）。已包含任务类型的文件无论如何都会显示。",
     "allowMixedDayHour": "允许混合按天/按小时计划",
     "defaultTaskDurationUnit": "新任务的默认单位",
     "defaultTaskDurationUnitHint": "决定新任务以工作日还是工作小时开始。现有任务不会改变。",

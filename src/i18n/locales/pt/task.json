@@ -56,6 +56,7 @@
     },
     "status": { "stale": "obsoleto" },
     "validation": {
+      "assignmentWork": "Introduza o trabalho restante em horas como um número maior que 0 (nome: horas; …).",
       "readOnly": "Esta coluna calculada não pode ser editada.",
       "invalid": "O valor introduzido não é válido.",
       "relationToken": "Use, por exemplo, 1.2 FS+2d.",
@@ -232,6 +233,22 @@
     "durationTotalHours": "Total de horas",
     "hourCalendarHint": "A introdução em horas requer um calendário horário (horários de trabalho)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Duração e unidades fixas",
+    "FIXED_DURATION_WORK": "Duração e trabalho fixos",
+    "FIXED_WORK": "Trabalho fixo",
+    "FIXED_RATE": "Unidades fixas",
+    "label": "Regra de trabalho",
+    "projectDefault": "Predefinição do projeto ({{rule}})",
+    "protects": "Protegido: {{what}}",
+    "protectsFIXED_DURATION_RATE": "duração e unidades (o trabalho segue)",
+    "protectsFIXED_DURATION_WORK": "duração e trabalho (as unidades seguem)",
+    "protectsFIXED_WORK": "trabalho (a duração segue as unidades)",
+    "protectsFIXED_RATE": "unidades (a duração segue o trabalho)",
+    "mspEffortDriven": "Do MS Project: condicionado pelo esforço",
+    "mspNotEffortDriven": "Do MS Project: não condicionado pelo esforço",
+    "none": "Predefinição do projeto"
+  },
   "properties": {
     "task": "Tarefa",
     "deleteTask": "Eliminar tarefa",
@@ -295,7 +312,10 @@
       "contour": "Distribuição de horas…",
       "contoured": "Contorno",
       "contouredHint": "Esta atribuição tem a sua própria distribuição de horas; edite-a ou liberte-a pelo botão Distribuição de horas.",
-      "importedCurve": "Curva importada"
+      "importedCurve": "Curva importada",
+      "work": "Trabalho (rest.)",
+      "workHint": "Trabalho restante em horas; a regra de trabalho decide se a duração ou as unidades se movem.",
+      "locked": "Protegido pela regra de trabalho {{rule}}"
     },
     "calendar": "Calendário",
     "calendarProject": "Calendário do projeto",

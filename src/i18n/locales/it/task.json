@@ -56,6 +56,7 @@
     },
     "status": { "stale": "obsoleto" },
     "validation": {
+      "assignmentWork": "Inserisci il lavoro rimanente in ore come numero maggiore di 0 (nome: ore; …).",
       "readOnly": "Questa colonna calcolata non può essere modificata.",
       "invalid": "Il valore inserito non è valido.",
       "relationToken": "Usa, ad esempio, 1.2 FS+2d.",
@@ -232,6 +233,22 @@
     "durationTotalHours": "Ore totali",
     "hourCalendarHint": "L'inserimento in ore richiede un calendario orario (orari di lavoro)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Durata e unità fisse",
+    "FIXED_DURATION_WORK": "Durata e lavoro fissi",
+    "FIXED_WORK": "Lavoro fisso",
+    "FIXED_RATE": "Unità fisse",
+    "label": "Regola di lavoro",
+    "projectDefault": "Predefinito del progetto ({{rule}})",
+    "protects": "Protetto: {{what}}",
+    "protectsFIXED_DURATION_RATE": "durata e unità (il lavoro segue)",
+    "protectsFIXED_DURATION_WORK": "durata e lavoro (le unità seguono)",
+    "protectsFIXED_WORK": "lavoro (la durata segue le unità)",
+    "protectsFIXED_RATE": "unità (la durata segue il lavoro)",
+    "mspEffortDriven": "Da MS Project: basata sull'impegno",
+    "mspNotEffortDriven": "Da MS Project: non basata sull'impegno",
+    "none": "Predefinito del progetto"
+  },
   "properties": {
     "task": "Attività",
     "deleteTask": "Elimina attività",
@@ -295,7 +312,10 @@
       "contour": "Distribuzione ore…",
       "contoured": "Contorno",
       "contouredHint": "Questa assegnazione ha una propria distribuzione delle ore; modificala o rilasciala con il pulsante Distribuzione ore.",
-      "importedCurve": "Curva importata"
+      "importedCurve": "Curva importata",
+      "work": "Lavoro (rim.)",
+      "workHint": "Lavoro rimanente in ore; la regola di lavoro decide se si muove la durata o le unità.",
+      "locked": "Protetto dalla regola di lavoro {{rule}}"
     },
     "calendar": "Calendario",
     "calendarProject": "Calendario del progetto",

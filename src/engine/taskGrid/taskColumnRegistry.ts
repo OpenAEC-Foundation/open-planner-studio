@@ -1,3 +1,5 @@
+import { WORK_RULES } from '@/types/workRule';
+import { remainingMinutesOf } from '@/engine/work/workRuleApply';
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
@@ -545,6 +547,61 @@ const parseAssignmentUnits: Parser = (text, task, ctx) => {
   return success(result);
 };
 
+/** Taaktypes-etappe: tokens mét resterend werk (opgeslagen, anders afgeleid als restduur × inzet). */
+function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
+  const hoursPerDay = ctx.effectiveHoursPerDay?.(task) ?? 8;
+  const remaining = remainingMinutesOf(task, { hoursPerDay });
+  return assignments(task, ctx).map(assignment => ({
+    assignmentId: assignment.id,
+    resourceId: assignment.resourceId,
+    unitsPerDay: assignment.unitsPerDay,
+    curve: assignment.curve,
+    remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay,
+  }));
+}
+
+function assignmentById(task: Task, ctx: TaskColumnContext, token: TaskAssignmentToken): ResourceAssignment {
+  return assignments(task, ctx).find(item => item.id === token.assignmentId)
+    ?? { id: token.assignmentId ?? '', taskId: task.id, resourceId: token.resourceId, unitsPerDay: token.unitsPerDay };
+}
+
+function workHoursText(minutes: number | undefined): string {
+  if (minutes === undefined || !Number.isFinite(minutes)) return '—';
+  return String(Math.round((minutes / 60) * 100) / 100);
+}
+
+const parseAssignmentWork: Parser = (text, task, ctx) => {
+  const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
+  if (!structured.ok || structured.value !== undefined) return structured;
+  const pairs = assignmentPairs(text);
+  if (pairs.length === 0) return failure('assignmentWork', text);
+  const result = assignmentWorkTokens(task, ctx);
+  const tokenByAssignmentId = new Map(result.map(token => [token.assignmentId, token] as const));
+  const seen = new Set<string>();
+  for (const pair of pairs) {
+    const separator = pair.lastIndexOf(':');
+    if (separator <= 0) return failure('assignmentWork', pair);
+    const resolved = resolveAssignment(pair.slice(0, separator).trim(), task, ctx);
+    const hours = Number(pair.slice(separator + 1).trim().replace(',', '.'));
+    if (!resolved.ok) return resolved;
+    if (!Number.isFinite(hours) || hours <= 0) return failure('assignmentWork', pair);
+    if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
+    seen.add(resolved.value.id);
+    tokenByAssignmentId.get(resolved.value.id)!.remainingWorkMinutes = Math.round(hours * 60);
+  }
+  return success(result);
+};
+
+function validateAssignmentWorkTokens(value: unknown, task: Task, ctx: TaskColumnContext): GridResult<unknown, readonly CellValidationError[]> {
+  const base = validateAssignmentTokens(value, task, ctx, 'assignmentWork');
+  if (!base.ok) return base;
+  for (const raw of value as readonly Partial<TaskAssignmentToken>[]) {
+    const w = raw.remainingWorkMinutes;
+    if (w !== undefined && (typeof w !== 'number' || !Number.isFinite(w) || w <= 0)) return failure('assignmentWork', raw);
+  }
+  return base;
+}
+
 const parseAssignmentCurves: Parser = (text, task, ctx) => {
   const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
   if (!structured.ok || structured.value !== undefined) return structured;
@@ -623,7 +680,12 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.mspTaskType', labelKey: 'taskGrid.columns.mspTaskType', category: 'technical', valueKind: 'enum', read: task => task.mspTaskType }),
     readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
     // Taaktypes-etappe (ontwerp 2026-09-04 §7): alleen-lezen tot de UI-stap 'm bewerkbaar maakt.
-    readonlyColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'technical', valueKind: 'enum', read: task => task.workRule }),
+    // Taaktypes-etappe (spec §7): bewerkbare werkregel — alleen zichtbaar wanneer ontsloten; `''` = terug
+    // naar de projectstandaard. De driehoekstap zit in `gridTransaction.ts` (na het plan). `readOnly`
+    // leest UITSLUITEND de gecertificeerde controllers (isMilestone/isHammock) + childIds — zie
+    // `check-grid-transaction.ts` "Aanbeveling 4"; een ELAPSEDTIME-taak mag de regel dragen, de
+    // driehoek negeert 'm daar (`workRuleApplies`).
+    editableColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('workRule', WORK_RULES, true), route: 'task-field', available: ctx => ctx.taskTypesUnlocked === true, read: task => task.workRule, readOnly: task => task.isMilestone || task.childIds.length > 0 || task.isHammock === true, parse: enumParser(WORK_RULES, true), validate: enumValidator(WORK_RULES, true) }),
     // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
     // round-trippen. Ze zijn puur provenance (geen solverinvoer deze etappe), dus één readonly
     // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.
@@ -857,7 +919,32 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
     // Taaktypes-etappe (spec §4.3/§7): alleen-lezen tot de UI-stap; minuten in de state, uren in beeld.
     assignmentWorkColumn('assignment.plannedWork', 'taskGrid.columns.assignmentPlannedWork', 'plannedWorkMinutes'),
     assignmentWorkColumn('assignment.actualWork', 'taskGrid.columns.assignmentActualWork', 'actualWorkMinutes'),
-    assignmentWorkColumn('assignment.remainingWork', 'taskGrid.columns.assignmentRemainingWork', 'remainingWorkMinutes'),
+    // Taaktypes-etappe (spec §7): resterend werk per toewijzing, bewerkbaar als "naam: uren; …" met
+    // dezelfde assignment-set-transactie als de inzet; alleen zichtbaar wanneer ontsloten. Getoond
+    // wordt het opgeslagen werk, anders het afgeleide (restduur × inzet).
+    editableColumn({
+      id: 'assignment.remainingWork', labelKey: 'taskGrid.columns.assignmentRemainingWork', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
+      available: ctx => ctx.taskTypesUnlocked === true,
+      read: assignmentWorkTokens,
+      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
+      format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
+        const item = raw as { resourceId: string; remainingWorkMinutes?: number };
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${workHoursText(item.remainingWorkMinutes)}`;
+      }).join('; ') : '—',
+      copy: (task, ctx) => structuredClipboardText(
+        assignmentWorkTokens(task, ctx).map(item => `${assignmentLabel(assignmentById(task, ctx, item), ctx)}: ${workHoursText(item.remainingWorkMinutes)}`).join('; '),
+        ASSIGNMENT_CLIPBOARD_MARKER,
+        assignmentWorkTokens(task, ctx),
+      ),
+      editText: (task, ctx) => assignmentWorkTokens(task, ctx)
+        .map(item => `${assignmentLabel(assignmentById(task, ctx, item), ctx)}: ${workHoursText(item.remainingWorkMinutes)}`).join('; '),
+      parse: parseAssignmentWork,
+      validate: (value, task, ctx) => validateAssignmentWorkTokens(value, task, ctx),
+      planWrite: (value, task) => success([{
+        kind: 'assignment-set', taskId: task.id, columnId: taskColumnId('assignment.remainingWork'),
+        tokens: value as readonly TaskAssignmentToken[],
+      }]),
+    }),
     readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowFinish'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
     readonlyColumn({ id: 'assignment.id', labelKey: 'taskGrid.columns.assignmentId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.id), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.id)) }),
     readonlyColumn({ id: 'assignment.taskId', labelKey: 'taskGrid.columns.assignmentTaskId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.taskId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.taskId)) }),

@@ -143,7 +143,14 @@ de duur nooit; kalenders blijven buiten de driehoek (open punt K2 in de TODO). R
 `work-triangle-cases.json`), `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en
 `check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
 `fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`
-`defaultWorkRule` (`tests/mcp/cases-work-rule.ts`). `src/services/contourIo.ts` is de adapterlaag:
+`defaultWorkRule` (`tests/mcp/cases-work-rule.ts`). UI: zichtbaar wanneer de instelling **Toon
+taaktypes** (`ui.showTaskTypes`, `ops-showTaskTypes`, default uit) aan staat óf het document zelf
+taaktypedata draagt (`taskTypesVisible` in `DOCUMENT_FIELDS`, afgeleid bij laden via
+`hasTaskTypeData`, met één melding per document — `taskTypesNotice.ts`); selector `taskTypesUnlocked`
+(`src/engine/work/taskTypesVisibility.ts`). Dan: `TaskWorkRuleField` in paneel en dialoog, de kolom
+**Werk (rest)** met slotjes in `TaskAssignmentsSection`, en de rasterkolommen `task.workRule` en
+`assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
+Gids: `public/docs/{nl,en}/gids-taaktypes.md`; browserspec `tests/browser/work-rule.spec.ts`. `src/services/contourIo.ts` is de adapterlaag:
 MSPDI `<TimephasedData>` (Type 1/2, per werkdag) en P6 `<ResourceCurve>` + `<ResourceCurveObjectId>`
 + de `PlannedCurve`/`RemainingCurve`/`ActualCurve`-spreidingsstrings (`"werkuren:periodeuren;…"`,
 MPXJ `TimephasedHelper`) round-trippen daar doorheen — let op: P6's `<PlannedCurve>` is dus GEEN

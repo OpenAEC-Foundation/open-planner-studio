@@ -211,6 +211,26 @@
       "cluster": "import-export"
     },
     {
+      "id": "gids-taaktypes",
+      "title": {
+        "nl": "Taaktypes en werk",
+        "en": "Task types and work",
+        "de": "Vorgangsarten und Arbeit",
+        "fr": "Types de tâche et travail",
+        "es": "Tipos de tarea y trabajo",
+        "zh": "任务类型与工时",
+        "it": "Tipi di attività e lavoro",
+        "pt": "Tipos de tarefa e trabalho",
+        "pl": "Typy zadań i praca",
+        "tr": "Görev türleri ve iş",
+        "ar": "أنواع المهام والعمل",
+        "ja": "タスクの種類と作業",
+        "ko": "작업 유형과 작업량",
+        "fa": "انواع کار و کار"
+      },
+      "layer": "gidsen"
+    },
+    {
       "id": "gids-msproject-import",
       "title": {
         "nl": "MS Project (.mpp) openen",

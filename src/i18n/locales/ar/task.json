@@ -130,6 +130,7 @@
     },
     "status": { "stale": "قديم" },
     "validation": {
+      "assignmentWork": "أدخل العمل المتبقي بالساعات كرقم أكبر من 0 (الاسم: الساعات؛ …).",
       "readOnly": "لا يمكن تحرير هذا العمود المحسوب.",
       "invalid": "القيمة المدخلة غير صالحة.",
       "relationToken": "استخدم مثلًا 1.2 FS+2d.",
@@ -318,6 +319,22 @@
     "durationTotalHours": "إجمالي الساعات",
     "hourCalendarHint": "يتطلب إدخال الساعات تقويمًا بالساعة (أوقات العمل)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "مدة ووحدات ثابتة",
+    "FIXED_DURATION_WORK": "مدة وعمل ثابتان",
+    "FIXED_WORK": "عمل ثابت",
+    "FIXED_RATE": "وحدات ثابتة",
+    "label": "قاعدة العمل",
+    "projectDefault": "الافتراضي للمشروع ({{rule}})",
+    "protects": "محمي: {{what}}",
+    "protectsFIXED_DURATION_RATE": "المدة والوحدات (يتبع العمل)",
+    "protectsFIXED_DURATION_WORK": "المدة والعمل (تتبع الوحدات)",
+    "protectsFIXED_WORK": "العمل (تتبع المدة الوحدات)",
+    "protectsFIXED_RATE": "الوحدات (تتبع المدة العمل)",
+    "mspEffortDriven": "من MS Project: مدفوع بالجهد",
+    "mspNotEffortDriven": "من MS Project: غير مدفوع بالجهد",
+    "none": "الافتراضي للمشروع"
+  },
   "properties": {
     "task": "المهمة",
     "deleteTask": "حذف المهمة",
@@ -381,7 +398,10 @@
       "contour": "توزيع الساعات…",
       "contoured": "مخطط",
       "contouredHint": "لهذا التعيين توزيع ساعات خاص به؛ عدّله أو حرّره عبر زر توزيع الساعات.",
-      "importedCurve": "منحنى مستورد"
+      "importedCurve": "منحنى مستورد",
+      "work": "العمل (المتبقي)",
+      "workHint": "العمل المتبقي بالساعات؛ تحدد قاعدة العمل ما إذا كانت المدة أم الوحدات تتغير.",
+      "locked": "محمي بقاعدة العمل {{rule}}"
     },
     "calendar": "التقويم",
     "calendarProject": "تقويم المشروع",

@@ -457,6 +457,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (!task || task.workRule === rule) return; // onbekend id of ongewijzigd: geen snapshot.
       runtime.beginUndoable(s);
       settleRuleChange(task, s.assignments, s, rule);
+      s.taskTypesVisible = true; // spec §7: wie een regel zet, ziet de regel (documentontsluiting).
       runtime.finishMutation(s); // geen `stale`: een typewissel raakt geen datum (spec besluit 2).
     });
     get().recomputeResourceLoad(); // een vastgelegd restwerk kan de vierde bron van `assignmentDayUnits` activeren.

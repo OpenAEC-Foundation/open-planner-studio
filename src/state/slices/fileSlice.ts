@@ -1,3 +1,4 @@
+import { notifyTaskTypesUnlocked } from '../taskTypesNotice';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -358,6 +359,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
+      // Taaktypes-etappe (spec §7): het bestand draagt taaktypedata terwijl de instelling uit staat
+      // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
+      {
+        const st = get();
+        if (st.taskTypesVisible && !st.ui.showTaskTypes) notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
+      }
       if (opts.recompute) {
         const cpm = activation.payload.cpmResult;
         if (cpm?.error) {

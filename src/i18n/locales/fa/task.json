@@ -56,6 +56,7 @@
     },
     "status": { "stale": "قدیمی" },
     "validation": {
+      "assignmentWork": "کار باقی‌مانده را به ساعت به‌صورت عددی بزرگ‌تر از 0 وارد کنید (نام: ساعت؛ …).",
       "readOnly": "این ستون محاسبه‌شده قابل ویرایش نیست.",
       "invalid": "مقدار واردشده معتبر نیست.",
       "relationToken": "برای نمونه از 1.2 FS+2d استفاده کنید.",
@@ -228,6 +229,22 @@
     "durationTotalHours": "مجموع ساعات",
     "hourCalendarHint": "ورود ساعتی به یک تقویم ساعتی (ساعات کاری) نیاز دارد."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "مدت و واحدهای ثابت",
+    "FIXED_DURATION_WORK": "مدت و کار ثابت",
+    "FIXED_WORK": "کار ثابت",
+    "FIXED_RATE": "واحدهای ثابت",
+    "label": "قاعدهٔ کار",
+    "projectDefault": "پیش‌فرض پروژه ({{rule}})",
+    "protects": "محافظت‌شده: {{what}}",
+    "protectsFIXED_DURATION_RATE": "مدت و واحدها (کار تبعیت می‌کند)",
+    "protectsFIXED_DURATION_WORK": "مدت و کار (واحدها تبعیت می‌کنند)",
+    "protectsFIXED_WORK": "کار (مدت از واحدها تبعیت می‌کند)",
+    "protectsFIXED_RATE": "واحدها (مدت از کار تبعیت می‌کند)",
+    "mspEffortDriven": "از MS Project: مبتنی بر تلاش",
+    "mspNotEffortDriven": "از MS Project: غیرمبتنی بر تلاش",
+    "none": "پیش‌فرض پروژه"
+  },
   "properties": {
     "task": "وظیفه",
     "deleteTask": "حذف وظیفه",
@@ -291,7 +308,10 @@
       "contour": "توزیع ساعات…",
       "contoured": "کانتور",
       "contouredHint": "این تخصیص توزیع ساعات مخصوص به خود دارد؛ آن را با دکمهٔ توزیع ساعات ویرایش یا رها کنید.",
-      "importedCurve": "منحنی وارد‌شده"
+      "importedCurve": "منحنی وارد‌شده",
+      "work": "کار (باقی‌مانده)",
+      "workHint": "کار باقی‌مانده به ساعت؛ قاعدهٔ کار تعیین می‌کند مدت یا واحدها تغییر کنند.",
+      "locked": "محافظت‌شده توسط قاعدهٔ کار {{rule}}"
     },
     "calendar": "تقویم",
     "calendarProject": "تقویم پروژه",
