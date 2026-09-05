@@ -38,29 +38,31 @@ function isDateNoop(before: string | undefined, incomingIso: string): boolean {
 }
 
 /**
- * Precisiebewuste no-op-vergelijking op completion (voortgangsimport-review). Twee fixrondes:
+ * Precisiebewuste no-op-vergelijking op completion (voortgangsimport-review). Drie fixrondes:
  *
  * Ronde 1 (bevindingen 1+2): een vaste float-epsilon is per constructie stuk — de export rondde
  * destijds af op hele procenten, dus 0.335 kwam als "34" terug en `0.34 - 0.335 =
  * 0.005000000000000004` lag net boven elke drempel die ook "45,5" (E6) nog als echte wijziging
  * moest doorlaten. Opgelost door VORM-bewust te vergelijken i.p.v. drempel-bewust.
  *
- * Ronde 2 (N-B, Opus-hercheck, BEVESTIGD): die vorm-bewuste vergelijking loste zelf een NIEUW
- * probleem op: "100" op een taak van 99,5% (`Math.round(99.5) === Math.round(100)`) en "33" op
- * 33,4% verdwenen stil in de "ongewijzigd"-teller. Wie 100 (of 0) typt meldt een taak af (of heropent
- * hem) — dat mag NOOIT stil verward worden met een afgeronde export-toevalstreffer. Twee helften:
- *  (a) `writeCSV` schrijft nu fractionele procenten met tot 4 decimalen (`formatCompletionPercent`,
- *      csvWriter.ts) — geen afronding naar hele procenten meer, dus een ongewijzigd blad is voor
- *      een taak op 99,5% ook echt "99.5", niet "100".
- *  (b) Deze vergelijking is PRECISIE-VAN-DE-INVOER-bewust: het aantal decimalen dat de invuller zelf
- *      typte (0–4, afgeleid uit de binnenkomende waarde) bepaalt de vergelijkingsschaal — "33"
- *      (0 decimalen) vergelijkt op hele procenten, "33,4" (1 decimaal) op tienden. Uitzondering:
- *      een binnenkomende waarde van EXACT 0 of EXACT 1 (0%/100%) is alleen een no-op bij EXACTE
- *      gelijkheid met de huidige waarde — 0 en 100 zijn per definitie altijd betekenisvolle invoer,
- *      nooit een afgeronde buur van iets dat al bijna 0 of bijna 100 was.
+ * Ronde 2 (N-B, Opus-hercheck): die vorm-bewuste vergelijking loste zelf een NIEUW probleem op:
+ * "100" op een taak van 99,5% verdween stil in de "ongewijzigd"-teller. Ronde 2 maakte 0%/100% toen
+ * een harde uitzondering (altijd wijziging bij exact 0 of 1 binnenkomend) én liet `writeCSV`
+ * fractionele procenten schrijven, zodat een ongewijzigd blad voor 99,5% ook echt "99.5" terugkwam.
+ *
+ * Ronde 3 (besluit 2026-09-05, gebruikstest): fractionele procenten in de export bleken zelf de
+ * bron van een erger probleem — een spreadsheet met een andere landinstelling leest "8,38" als 838
+ * (punt/komma verwisseld als decimaal- vs. duizendtalscheider). `writeCSV` schrijft daarom weer
+ * uitsluitend hele procenten (`formatCompletionPercent`). Daarmee kan het bestand "99,5%" en "100%"
+ * niet meer uit elkaar houden — de 0%/100%-harde-uitzondering van ronde 2 is dus VERVALLEN. Deze
+ * vergelijking is nu ALTIJD precisie-van-de-invoer-bewust, zonder uitzondering: het aantal
+ * decimalen dat de invuller zelf typte (0–4, afgeleid uit de binnenkomende waarde) bepaalt de
+ * vergelijkingsschaal — "33" (0 decimalen) vergelijkt op hele procenten, dus ook "100" tegen een
+ * taak op 99,5% is dan een no-op (bewust: het bestand kan dat niet beter weten), terwijl "33,4"
+ * (1 decimaal) op tienden vergelijkt en dus wél een echte wijziging blijft wanneer het document op
+ * 33% (of iets anders) stond. Decimale INVOER blijft zo altijd op zijn eigen precisie vergeleken.
  */
 function isCompletionUnchanged(before: number, incoming: number): boolean {
-  if (incoming === 0 || incoming === 1) return before === incoming;
   const percent = Math.round(incoming * 1e6) / 1e4; // percentage, float-ruis eruit (max 4 decimalen)
   const decimalDigits = String(Math.abs(percent)).split('.')[1]?.length ?? 0;
   const scale = 100 * 10 ** decimalDigits;
@@ -75,7 +77,7 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
  * Volgorde per rij (elke `refused` stopt de RIJ, nooit het blad — A3):
  *   1. geen taskId uit de match ⇒ refused (unmatched/ambiguousWbs/duplicateRow)
  *   2. geen enkele voortgangswaarde ⇒ refused/noProgressColumns
- *   3. een onleesbaar veld ⇒ refused/unreadableDate resp. unreadableNumber
+ *   3. een onleesbaar veld ⇒ refused/unreadableDate resp. unreadableNumber/percentOutOfRange
  *   4. verzameltaak (`childIds.length > 0`) ⇒ refused/summaryTask — `planTaskCellEdits` bewaakt dit
  *      zelf niet (alleen `mcpValidation` doet dat elders), dus dat hoort hier.
  *   5. no-op-filter (A6, `isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
@@ -134,6 +136,13 @@ export function buildProgressImportPlan(
       refusedCount++;
       return {
         rowNumber: row.rowNumber, outcome: 'refused', reason: 'unreadableNumber',
+        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [],
+      };
+    }
+    if (row.completion?.kind === 'outOfRange') {
+      refusedCount++;
+      return {
+        rowNumber: row.rowNumber, outcome: 'refused', reason: 'percentOutOfRange',
         match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [],
       };
     }

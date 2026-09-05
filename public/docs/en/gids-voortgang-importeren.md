@@ -34,7 +34,9 @@ Progress group. That button produces a slim CSV sheet right away with exactly th
 needs: task id, WBS, name, Start, Finish, Completion (%), Actual Start and Actual Finish — nothing
 else. The file is named `<project name>-voortgang.csv` and lands in your downloads folder wherever
 possible. This is the recommended route: fewer columns to accidentally change, and nothing for the
-foreman to ignore.
+foreman to ignore. The column headers themselves say what's expected too — for example
+"Completion (%) — fill in: 0 to 100, whole numbers" or "WBS — do not change" — so a foreman doesn't
+have to guess which columns to fill in and which to leave alone.
 
 You can also use the full CSV export instead (Backstage → Export → CSV) — it contains the same
 progress columns, plus every other project field (duration, predecessors, status, …). Both sheets are
@@ -66,11 +68,15 @@ done, `1` is one percent, `45.5` may use either a comma or a period. The percent
 `40` and `40%` mean the same thing. A value below 0 or above 100 is refused; there is no alternative
 reading where, say, `0.4` would count as forty percent.
 
+The exported sheet always contains **whole** percentages (e.g. "38", never "38.5") — a spreadsheet
+program with a different locale swaps the decimal and thousands separators, so a decimal percentage
+gets read there as an entirely different number (`8.38` becomes `838`). If you type decimals yourself
+(for example "33.4"), that still counts as a real change as soon as it differs from the current value.
 A whole percentage that rounds to what the task already has doesn't count as a change: if a task is
-already at 33.4% and the sheet says "33", nothing changes. Enter decimals (for example "33.4") and it
-does count as a change as soon as it differs even slightly from the current value — so you can refine
-a task's progress without first having to reset it. Two values are an exception to this and always
-count as a real change: 0% and 100%, even if the task already rounds to that value.
+already at 33.4% and the sheet says "33", nothing changes. That applies at the edges too: a task at
+99.5% or higher cannot be rounded up to one hundred percent complete via "100" in the sheet — the file
+can't tell 99.5% and 100% apart, so it reads as no change. Mark such a task complete in the app itself,
+or fill in a real finish date instead.
 
 ## Dates
 

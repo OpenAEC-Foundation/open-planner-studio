@@ -419,19 +419,27 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 5 — regressie op de no-op-vergelijking op completion, twee fixrondes.
+// Deel 5 — regressie op de no-op-vergelijking op completion, DRIE fixrondes.
 //
 // Ronde 1 (Opus-eindreview, bevindingen 1+2): een vaste float-epsilon is per constructie stuk —
 // de export rondde destijds af op hele procenten, dus 0.335 kwam als "34" terug en
 // `0.34 - 0.335 = 0.005000000000000004` lag net boven élke drempel die ook "45,5" (E6) nog als
 // echte wijziging moest doorlaten.
 //
-// Ronde 2 (Opus-hercheck, N-B, BEVESTIGD): de vorm-bewuste vergelijking uit ronde 1 loste zelf
-// een nieuw probleem op — "100" op een taak van 99,5% (`Math.round(99.5) === Math.round(100)`)
-// en "0" op 0,4% verdwenen stil als `noop`. Wie 100 (of 0) typt meldt een taak af (of heropent
-// hem) — dat moet ALTIJD een wijziging zijn. Twee helften die hier samen kloppen: `writeCSV`
-// schrijft nu fractionele procenten (tot 4 decimalen, csvWriter.ts) en `isCompletionUnchanged`
-// (buildPlan.ts) is precisie-VAN-DE-INVOER-bewust, met 0%/100% als harde uitzondering.
+// Ronde 2 (Opus-hercheck, N-B): de vorm-bewuste vergelijking uit ronde 1 loste zelf een nieuw
+// probleem op — "100" op een taak van 99,5% verdween stil als `noop`. Ronde 2 maakte 0%/100% toen
+// een harde uitzondering (altijd wijziging) én liet `writeCSV` fractionele procenten schrijven.
+//
+// Ronde 3 (besluit 2026-09-05, gebruikstest): fractionele procenten in de export bleken zelf het
+// probleem — een spreadsheet met een andere landinstelling (punt/komma als duizendtalscheider)
+// leest "8,38" als 838. De export schrijft daarom weer UITSLUITEND hele procenten
+// (`formatCompletionPercent` terug naar `Math.round`). Gevolg voor de no-op-uitzondering: die kan
+// niet meer "0/100 is altijd een wijziging" zijn, want een taak op 99,5% exporteert nu zelf als
+// "100" en een ongewijzigd teruggestuurd blad moet `noop` blijven. De 0%/100%-harde-uitzondering
+// van ronde 2 is daarom VERVALLEN — `isCompletionUnchanged` gebruikt overal dezelfde
+// precisie-van-de-invoer-vergelijking: "100" op ≥ 99,5% is bewust een no-op (het bestand kán niet
+// weten of de taak al op 99,5% stond of al op 100%), "100" op een lagere waarde blijft een echte
+// wijziging. Decimale INVOER ("33,4") blijft wél altijd op zijn eigen precisie vergeleken.
 //
 // Dit hele deel gaat EXPRES via de ECHTE schrijver/lezer/finalizer — ook de handmatige
 // percentages ("33", "33,4", "100", "0") staan als tekst in een echt CSV-blad (N-F: niet met de
@@ -474,20 +482,22 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
     (id) => roundTripRows.some((row) => row.taskId === id),
   ));
 
-  // ── N-B: vier precisiecases, ELK via een echt handmatig CSV-blad (twee kolommen volstaan —
+  // ── Ronde 3: vijf precisiecases, ELK via een echt handmatig CSV-blad (twee kolommen volstaan —
   //    `OPS Task ID` + `Completion (%)` — precies wat `parseProgressCsv` nodig heeft). ──
   const idL = S().addTask({ name: 'L', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.334 } });
   const idM = S().addTask({ name: 'M', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
   const idN = S().addTask({ name: 'N', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.995 } });
   const idO = S().addTask({ name: 'O', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.004 } });
+  const idR = S().addTask({ name: 'R', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.5 } });
   S().runCPM();
 
   const manualCsv = [
     'OPS Task ID;Completion (%)',
     `${idL};33`,   // "33" op een taak van 33,4% ⇒ noop (afronding eigen export, verdedigbaar)
-    `${idM};33,4`, // "33,4" op een taak van 33% ⇒ een echte decimale wijziging
-    `${idN};100`,  // "100" op een taak van 99,5% ⇒ ALTIJD een echte wijziging (de 100%-uitzondering)
-    `${idO};0`,    // "0" op een taak van 0,4% ⇒ ALTIJD een echte wijziging (de 0%-uitzondering)
+    `${idM};33,4`, // "33,4" op een taak van 33% ⇒ een echte decimale wijziging (invoer blijft toegestaan)
+    `${idN};100`,  // "100" op een taak van 99,5% ⇒ noop (BEWUST, ronde 3: het bestand kan 99,5% en 100% niet uit elkaar houden)
+    `${idO};0`,    // "0" op een taak van 0,4% ⇒ noop (BEWUST, symmetrisch met idN)
+    `${idR};100`,  // "100" op een taak van 50% ⇒ ALTIJD een echte wijziging
   ].join('\r\n');
   const manualSheet = parseProgressCsv(manualCsv);
   const manualRows = finalizeProgressRows(manualSheet, 'dmy');
@@ -507,16 +517,18 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
 
   const rowN = rowFor(idN);
   ok('sanity: rij N ("100" op 99,5%) gevonden', rowN !== undefined);
-  eq('"100" op 99,5% ⇒ ALTIJD een echte wijziging (nooit stil noop)', rowN?.outcome, 'apply');
-  ok('…rij N leverde een plannedTask op', rowN?.plannedTask !== undefined);
-  eq('…en plant 100% completion', rowN?.plannedTask?.time.completion, 1);
-  eq('…en de status is COMPLETED via de invarianten', rowN?.plannedTask?.status, 'COMPLETED');
+  eq('"100" op 99,5% ⇒ noop (bewust, ronde 3)', rowN?.outcome, 'noop');
 
   const rowO = rowFor(idO);
   ok('sanity: rij O ("0" op 0,4%) gevonden', rowO !== undefined);
-  eq('"0" op 0,4% ⇒ ALTIJD een echte wijziging (nooit stil noop)', rowO?.outcome, 'apply');
-  ok('…rij O leverde een plannedTask op', rowO?.plannedTask !== undefined);
-  eq('…en plant 0% completion', rowO?.plannedTask?.time.completion, 0);
+  eq('"0" op 0,4% ⇒ noop (bewust, symmetrisch)', rowO?.outcome, 'noop');
+
+  const rowR = rowFor(idR);
+  ok('sanity: rij R ("100" op 50%) gevonden', rowR !== undefined);
+  eq('"100" op 50% ⇒ een echte wijziging', rowR?.outcome, 'apply');
+  ok('…rij R leverde een plannedTask op', rowR?.plannedTask !== undefined);
+  eq('…en plant 100% completion', rowR?.plannedTask?.time.completion, 1);
+  eq('…en de status is COMPLETED via de invarianten', rowR?.plannedTask?.status, 'COMPLETED');
 }
 
 if (diffs.length > 0) {

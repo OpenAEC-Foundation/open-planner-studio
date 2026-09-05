@@ -27,6 +27,7 @@ staat op main en is de bouwsteen waar dit plan op leunt.
 | **E5** | **Datums worden altijd juist gelezen; stil raden is verboden.** Ruime formaatherkenning, dag/maand-volgorde **per bestand** met bewijs, en bij twijfel een expliciete vraag aan de gebruiker vóór de preview. De preview toont datums voluit. | *A5*, T1/T4/T6/T10/T12 |
 | **E6** | **De voltooiingskolom is altijd een percentage.** `100` = 100 %, `1` = 1 %, `45,5` = 45,5 %; buiten 0–100 ⇒ weigering. De fractie-interpretatie vervalt volledig in deze lezer. | *A5*, T4, T12 |
 | **E7** (2026-09-05) | **Eén knop, het slanke blad.** "Ik wil gewoon op een knop in de planning tab kunnen klikken en dan krijg ik de juiste CSV met de juiste instellingen in mijn downloads." Naast de volle CSV-export (E1) komt een export `progress-csv`/`writeProgressSheetCSV` met uitsluitend `OPS Task ID;WBS;Name;Start;Finish;Completion (%);Actual Start;Actual Finish`, achter een eigen ribbonknop (`progressExportButton`, vóór de importknop in `progressGroup` op Planning + Tabel) en een eigen Backstage-exportkaart. Bestandsnaam `<projectnaam>-voortgang.csv`, landt waar mogelijk direct in de downloadmap. | *A1*, csvWriter.ts, formatRegistry.ts, ribbonConfig.tsx |
+| **E8** (2026-09-05, gebruikstest) | **Invulinstructies in de kolomkoppen.** Letterlijke wens: "er moet ook in de headers van de kolommen komen te staan wat je in mag voeren en waar je af moet blijven" (aanleiding: OnlyOffice met NL-instellingen las "8,38" als 838, zie E7-vervolg hieronder). Het slanke voortgangsblad krijgt per kolom `<sleutel> — <instructie>` (sleutel blijft het letterlijke Engelse kolomwoord, alleen de instructie is vertaald); de lezer (`parseProgressCsv`) matcht voortaan ook op het prefix vóór de instructiemarker (` — `, ` - ` of `(`), als terugval ná de bestaande exacte alias-match. | csvWriter.ts (`writeProgressSheetCSV(tasks, headerNotes)`), `parseProgressCsv.ts` (`matchColumnKey`), `src/i18n/progressHeaderNotes.ts`, `fileSlice.ts` |
 
 **A1-aanvulling (E7):** het slanke voortgangsblad is een **tweede schrijver** op dezelfde helpers
 (`escapeCSV`/`formatCompletionPercent`/BOM/CRLF uit `csvWriter.ts`) — er komt géén tweede lezer.
@@ -207,6 +208,15 @@ aan — ons voorbeeld. In de browser kiest `openFileDialogWeb` de File System Ac
 - **Wat de id waard is.** `task.id` round-tript door IFC via pset `OPS_TaskIdentity`/`InternalTaskId`,
   dus een blad blijft geldig over opslaan/heropenen heen. Het overleeft géén her-import via
   CSV/MPP/MSPDI — daarvoor zijn de WBS-terugval en het handmatig koppelen (*A11*).
+- **Besluit 2026-09-05 (gebruikstest): hele procenten in de export; decimalen alleen op invoer.**
+  Een tussentijdse fixronde (N-B) liet `Completion (%)` met tot 4 decimalen schrijven om te
+  voorkomen dat "100" op een taak van 99,5% als no-op werd gelezen. De gebruikstest liet zien dat
+  dát erger is dan het probleem dat het oploste: een decimaal percentage gaat door
+  spreadsheetprogramma's van willekeurige landinstelling, en "8,38" wordt door een programma dat
+  punt/komma andersom gebruikt als 838 gelezen. De export schrijft daarom weer uitsluitend
+  `Math.round(completion * 100)` (`formatCompletionPercent`, csvWriter.ts). Decimale INVOER (met de
+  hand getypt, bv. "33,4") blijft wél gewoon een echte wijziging — alleen de export zelf verliest
+  zijn precisie weer, net als vóór ronde 2. Zie A6 voor het gevolg voor de no-op-vergelijking.
 
 ### A2 — De kern is puur en bestandsformaat-agnostisch
 
@@ -397,6 +407,15 @@ tolerantie zou een **ongewijzigd** teruggestuurd blad honderden "wijzigingen" to
 - **datums:** een binnenkomende **datum-only** waarde gelijk aan het datumdeel (`slice(0, 10)`) van de
   huidige waarde ⇒ geen edit. Een blad mag een datetime nooit stil degraderen tot middernacht.
 - Alle velden no-op ⇒ outcome `noop`, samengevouwen onder "ongewijzigd (N)".
+
+**Besluit 2026-09-05 (gebruikstest): hele procenten in de export; decimalen alleen op invoer.** Zie
+A1 voor de reden (spreadsheet-landinstellingen). `isCompletionUnchanged` (buildPlan.ts) is sindsdien
+ALTIJD precisie-van-de-invoer-bewust, zonder de 0%/100%-harde-uitzondering die een tussentijdse
+fixronde (N-B) had ingevoerd: "100" op een taak van ≥ 99,5% is nu bewust een `noop` (symmetrisch "0"
+op ≤ 0,5%) — het bestand kan die twee simpelweg niet uit elkaar houden zodra de export weer op hele
+procenten afrondt. Wie zo'n taak echt wil afronden, doet dat in de app zelf of via een werkelijke
+einddatum (zie de gids). De losse `PERCENT_EPSILON`-constante hierboven was al vervangen door de
+vorm-bewuste vergelijking; dit besluit verandert alleen de 0/100-uitzondering, niet de vorm-logica.
 
 ### A7 — De dialoog draagt zijn eigen resultaat; nul nieuwe notificatiesleutels
 

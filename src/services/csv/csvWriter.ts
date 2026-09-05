@@ -27,19 +27,19 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
 // MS Project-notatie, symmetrisch met parsePredecessorString in csvReader:
 // d = werkdagen, ed = kalenderdagen (elapsed), % = procent van voorgangerduur, e% = elapsed-procent.
 /**
- * Completion (%) — fixronde na de Opus-hercheck (N-B, BEVESTIGD): de export rondde eerder af op
- * HELE procenten (`Math.round(completion*100)`), waardoor een taak op 99,5% als "100" terugkwam
- * en een teruggestuurd blad met "100" op die taak stil als `noop` werd gelezen (wie 100 typt meldt
- * de taak af — dat moet ALTIJD een wijziging zijn, nooit verward met de export se eigen afronding).
- * De export schrijft daarom het percentage met maximaal 4 decimalen, trailing nullen weg,
- * decimaalPUNT (bestandsformaat, niet locale): 0.5 ⇒ "50", 0.995 ⇒ "99.5", 0.33333 ⇒ "33.333".
- * Hele procenten blijven BYTE-IDENTIEK aan vandaag ("50" blijft "50"), dus bestaande koptests op
- * een geheel percentage breken niet. `Math.round(c*1e6)/1e4` haalt float-ruis (bv. 0.1+0.2-achtige
- * representatiefouten) eruit vóórdat `toFixed` de string vormt.
+ * Completion (%) — besluit 2026-09-05 (gebruikstest): terug naar HELE procenten, geen decimalen.
+ * De tussentijdse fixronde (N-B) liet dit tot 4 decimalen schrijven om "100 op 99,5% is stil een
+ * no-op" te voorkomen — maar een bestand met decimale procenten gaat door spreadsheetprogramma's
+ * van willekeurige landinstelling: "8,38" (NL, komma als decimaalteken) wordt door een spreadsheet
+ * met de andere conventie (punt/komma als DUIZENDTALscheider) als 838 gelezen. Dat risico weegt
+ * zwaarder dan de no-op-precisie, dus de export schrijft weer uitsluitend `Math.round(completion *
+ * 100)`. `isCompletionUnchanged` (buildPlan.ts) vangt het gevolg op: "100" op een taak van ≥ 99,5%
+ * is nu bewust een no-op (symmetrisch voor "0" op ≤ 0,5%) — het bestand kan die twee simpelweg niet
+ * uit elkaar houden. Decimale INVOER (met de hand getypt, bv. "33,4") blijft wel op zijn eigen
+ * precisie vergeleken en dus altijd een echte wijziging wanneer ze afwijkt.
  */
 export function formatCompletionPercent(completion: number): string {
-  const percent = Math.round(completion * 1e6) / 1e4;
-  return percent.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+  return String(Math.round(completion * 100));
 }
 
 function formatLag(seq: Sequence): string {
@@ -134,6 +134,13 @@ export function writeCSV(
   return BOM + rows.join('\r\n') + '\r\n';
 }
 
+/** Sleutels van het slanke voortgangsblad, letterlijk — nooit vertaald (D, besluit 2026-09-05):
+ *  de LEZER (`parseProgressCsv`) matcht hierop, dus de sleutel zelf blijft in elke UI-taal Engels.
+ *  Alleen de instructie ÁCHTER de sleutel varieert per taal. */
+export type ProgressSheetColumnKey =
+  | 'OPS Task ID' | 'WBS' | 'Name' | 'Start' | 'Finish'
+  | 'Completion (%)' | 'Actual Start' | 'Actual Finish';
+
 /**
  * Voortgangsblad-export (issue #27 etappe 2, eigenaarsbesluit E7, 2026-09-05): een SLANK CSV-blad
  * met uitsluitend de kolommen die een invuller voor de voortgangsimport nodig heeft — geen
@@ -145,12 +152,28 @@ export function writeCSV(
  * dit blad net als elke andere CSV-export. Rijvolgorde = documentvolgorde, inclusief
  * verzameltaken — die worden bij terugimport netjes geweigerd (zie `matchRows`/`buildPlan`), maar
  * de invuller ziet zo wél de volledige structuur van het project.
+ *
+ * `headerNotes` (D, besluit 2026-09-05 — letterlijke gebruikerswens: "er moet ook in de headers
+ * van de kolommen komen te staan wat je in mag voeren en waar je af moet blijven", aanleiding: een
+ * OnlyOffice-gebruiker met Nederlandse instellingen die "8,38" als 838 terugkreeg). Deze module
+ * blijft PUUR — geen i18n-afhankelijkheid hier — dus de aanroeper (`fileSlice.exportAs`) geeft de
+ * al-vertaalde instructietekst per kolomsleutel mee. Een kolom zonder instructie krijgt gewoon zijn
+ * kale sleutel als kop (bestaand gedrag, o.a. voor bestaande tests die geen notes doorgeven).
+ * Scheidingsteken ` — ` (spatie, em-dash, spatie); `parseProgressCsv`'s kolomherkenning snijdt
+ * daar (of bij `(`/` - `) de instructie af en matcht het overblijvende PREFIX als vanouds.
  */
-export function writeProgressSheetCSV(tasks: Task[]): string {
-  const headers = [
+export function writeProgressSheetCSV(
+  tasks: Task[],
+  headerNotes?: Partial<Record<ProgressSheetColumnKey, string>>,
+): string {
+  const keys: ProgressSheetColumnKey[] = [
     'OPS Task ID', 'WBS', 'Name', 'Start', 'Finish',
     'Completion (%)', 'Actual Start', 'Actual Finish',
   ];
+  const headers = keys.map(key => {
+    const note = headerNotes?.[key];
+    return note ? `${key} — ${note}` : key;
+  });
 
   const rows: string[] = [];
   rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));

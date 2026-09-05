@@ -36,7 +36,9 @@ Voortgang. Die knop levert meteen een slank CSV-blad op met precies de kolommen 
 nodig heeft: taak-id, WBS, naam, Start, Finish, Completion (%), Actual Start en Actual Finish — verder
 niets. Het bestand krijgt de naam `<projectnaam>-voortgang.csv` en landt waar mogelijk direct in je
 downloadmap. Dit is de aanbevolen route: minder kolommen om per ongeluk te wijzigen, en niets wat een
-uitvoerder hoeft te negeren.
+uitvoerder hoeft te negeren. De koppen zelf zeggen er ook bij wat er van je verwacht wordt — bijvoorbeeld
+"Completion (%) — invullen: 0 t/m 100, hele getallen" of "WBS — niet wijzigen" — zodat een uitvoerder
+niet hoeft te raden welke kolommen hij mag invullen en welke hij met rust moet laten.
 
 Je kunt in plaats daarvan ook de volledige CSV-export gebruiken (Backstage → Exporteren → CSV) — die
 bevat dezelfde voortgangskolommen, plus alle overige projectvelden (duur, predecessors, status, …).
@@ -69,12 +71,15 @@ gereed, `1` is één procent, `45,5` mag met komma of met punt. Het procentteken
 `40%` betekenen hetzelfde. Een waarde onder 0 of boven 100 wordt geweigerd; er is geen alternatieve
 lezing waarbij bijvoorbeeld `0,4` als veertig procent zou tellen.
 
-Een heel procent dat afgerond overeenkomt met wat de taak al heeft, telt niet als wijziging: staat een
-taak al op 33,4% en zegt het blad "33", dan verandert er niets. Vul je decimalen in (bijvoorbeeld
-"33,4"), dan telt dat wél als een wijziging zodra het net iets afwijkt van de huidige waarde — zo kun
-je een taak verfijnen zonder hem eerst terug te hoeven zetten. Twee waarden zijn hierop een
-uitzondering en gelden altijd als een echte wijziging: 0% en 100%, ook als de taak daar afgerond al op
-uitkomt.
+Het geëxporteerde blad bevat altijd **hele** procenten (bijvoorbeeld "38", nooit "38,5") — een
+spreadsheetprogramma met een andere landinstelling wisselt punt en komma om, waardoor een decimaal
+percentage daar als een heel ander getal wordt gelezen (`8,38` wordt dan `838`). Vul je zelf decimalen
+in (bijvoorbeeld "33,4"), dan telt dat gewoon als een echte wijziging zodra het afwijkt van de huidige
+waarde. Een heel procent dat afgerond overeenkomt met wat de taak al heeft, telt niet als wijziging:
+staat een taak al op 33,4% en zegt het blad "33", dan verandert er niets. Dat geldt ook aan de
+uiteinden: een taak op 99,5% of hoger kun je niet via "100" in het blad afronden naar honderd procent
+gereed — het bestand kan 99,5% en 100% niet uit elkaar houden, dus dat leest als geen wijziging. Rond
+zo'n taak in de app zelf af, of vul een werkelijke einddatum in.
 
 ## Datums
 

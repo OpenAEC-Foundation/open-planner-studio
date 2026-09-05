@@ -982,6 +982,7 @@
       "summaryTask": "Summary tasks cannot receive progress from a sheet.",
       "unreadableDate": "Unreadable date.",
       "unreadableNumber": "Unreadable percentage.",
+      "percentOutOfRange": "Percentage outside 0–100. Check the decimal separator: 8.38 can be read as 838 by a spreadsheet with a different locale.",
       "noProgressColumns": "This row has none of the three progress values filled in.",
       "actualAfterStatusDate": "The actual date is after the status date.",
       "actualFinishBeforeStart": "Actual finish is before actual start.",

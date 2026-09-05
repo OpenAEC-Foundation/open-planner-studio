@@ -982,6 +982,7 @@
       "summaryTask": "Verzameltaken kunnen geen voortgang uit een blad krijgen.",
       "unreadableDate": "Onleesbare datum.",
       "unreadableNumber": "Onleesbaar percentage.",
+      "percentOutOfRange": "Percentage buiten 0–100. Controleer het decimaalteken: 8,38 kan in een spreadsheet met een andere landinstelling als 838 zijn gelezen.",
       "noProgressColumns": "Deze rij heeft geen van de drie voortgangswaarden ingevuld.",
       "actualAfterStatusDate": "De werkelijke datum ligt na de peildatum.",
       "actualFinishBeforeStart": "Werkelijk einde ligt vóór werkelijke start.",
