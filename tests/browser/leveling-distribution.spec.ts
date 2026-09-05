@@ -439,6 +439,80 @@ test('het voorstel vervalt met reden zodra er in een betrokken document gewerkt 
   await expect(page.locator('[data-ops-distribution-stale]')).toHaveCount(0);
 });
 
+// --- B1c-plan3 taak 13 — kostenlabels per project en prijskaartjes per gereedschapsstand (spec §4
+// stap 1 / §6) --------------------------------------------------------------------------------
+
+test('kostenlabels en prijskaartjes verschijnen en verdwijnen met het voorstel', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  // Klein project, onder de ondersteunde schaal: beide rangorderijen krijgen een gecacht kostenlabel
+  // en de gereedschapsschakelaar krijgt een prijskaartje van BEIDE standen (§6) — geen "prijs
+  // onbekend" meer.
+  await expect(page.locator('[data-ops-distribution-rank-row] [data-ops-distribution-cost]')).toHaveCount(2);
+  await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/werkdag|no overrun|geen uitloop|workday/i);
+
+  // Een externe bewerking laat het voorstel vervallen (§6a — buiten de modale dialoog om, zie de
+  // bestaande taak-12-test hierboven). De labels zijn gecachet TOT invalidatie, niet live: zodra het
+  // voorstel niet meer actueel is, vervalt ook het label — geen oud getal tonen bij een vervallen
+  // voorstel.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const task = s.tasks[0];
+    s.updateTask(task.id, { time: { ...task.time, scheduleDuration: 4 } });
+  });
+
+  await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
+  await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/prijs onbekend|price unknown/i);
+});
+
+/**
+ * Eén document met MEER dan `MAX_TASKS_AUTO` (1000) taken: één echte conflicttaak plus 1050 kale,
+ * ongerelateerde taken zonder toewijzing. De kale taken duwen alleen de teller over de grens — ze
+ * dragen geen vraag op het poolitem, dus de CPM-solve en de nivelleerpass blijven goedkoop en de
+ * test ruim binnen de Playwright-timeout.
+ */
+async function seedLargeDegradedProject(page: Page): Promise<Library> {
+  const [taskA] = await seedProject(page, [{
+    name: 'Groot project taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10,
+  }], 'Groot project');
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    for (let i = 0; i < 1050; i++) s.addTask({ name: `Kale taak ${i}`, manuallyScheduled: true });
+  });
+  const library = await createLibrary(page, 1);
+  await bookOnPoolItem(page, library, taskA, 1);
+
+  await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
+  const [taskB] = await seedProject(page, [{
+    name: 'Klein project taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10,
+  }], 'Klein project');
+  await bookOnPoolItem(page, library, taskB, 1);
+  return library;
+}
+
+test('boven de ondersteunde schaal rekent de dialoog alleen op de knop', async ({ page, ops: _ops }) => {
+  test.setTimeout(60_000);
+  const start = Date.now();
+  await seedLargeDegradedProject(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  await expect(page.locator('[data-ops-distribution-degraded]')).toBeVisible();
+  // Boven de schaal is elk label zelf een volledige extra run — dat is precies de kost die de
+  // degradatie voorkomt, dus er wordt niet automatisch gerekend: "druk op Herbereken" i.p.v. een
+  // getal.
+  await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
+
+  const handle = page.locator('[data-ops-distribution-strip]').first().getByRole('slider');
+  await handle.focus();
+  await handle.press('ArrowRight');
+  await expect(page.locator('[data-ops-distribution-effect]').first()).toContainText(/Herbereken|Recalculate/);
+
+  console.log(`seedLargeDegradedProject-test duur: ${Date.now() - start}ms`);
+});
+
 test('van document wisselen sluit de dialoog', async ({ page, ops: _ops }) => {
   await seedTwoConflictingDocuments(page);
   await openDistributionFromConflictRow(page);

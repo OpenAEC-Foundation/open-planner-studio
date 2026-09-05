@@ -45,8 +45,38 @@ export function DistributionDialog() {
   const applyDistribution = useAppStore(s => s.applyDistribution);
   const undoDistribution = useAppStore(s => s.undoDistribution);
 
-  const { proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs } =
-    useDistributionProposal(tune);
+  const {
+    proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
+    costByDoc, toolPrice,
+  } = useDistributionProposal(tune);
+
+  // Taak 13 (spec §4 stap 1 / §6): de labels zijn gecachet (zie de hook), maar mogen NOOIT getoond
+  // worden zolang het voorstel zelf niet meer bij de documenten hoort — een gecachet getal bij een
+  // vervallen voorstel is misleidender dan geen getal. Dus: staleReason of degraded ⇒ altijd de
+  // "druk op Herbereken"-tekst, ongeacht wat er nog in de cache staat.
+  const labelsValid = staleReason === null && !degraded;
+  const costLabel = (docId: string): string => {
+    const cost = labelsValid ? costByDoc[docId] : undefined;
+    if (cost === undefined) return t('resource.distribution.compute.pressRecompute');
+    return cost === 0
+      ? t('resource.distribution.rank.costNone')
+      : t('resource.distribution.rank.cost', { count: cost });
+  };
+  const priceText = (workdays: number): string => (workdays === 0
+    ? t('resource.distribution.tool.priceNone')
+    : t('resource.distribution.tool.price', { count: workdays }));
+  const toolPriceLabel = (): string => (!labelsValid || !toolPrice)
+    ? t('resource.distribution.tool.priceUnknown')
+    : `${priceText(toolPrice.off)} · ${priceText(toolPrice.on)}`;
+  // Gepind/#63/cannotMove-documenten krijgen GEEN kostenlabel (§4 stap 1: "ze wijken niet") — dat
+  // leest rechtstreeks uit het LAATST BEREKENDE voorstel (`participated`/`cannotMove`), niet uit
+  // `costByDoc`: die twee vragen zijn onafhankelijk van elkaar (een document kan best deelnemen
+  // terwijl zijn label nog niet — of niet meer — gecached is).
+  const isCostCandidate = (docId: string): boolean => {
+    if (!proposal || proposal.blocked) return false;
+    const docResult = proposal.docs.find(d => d.docId === docId);
+    return docResult !== undefined && docResult.participated && !docResult.cannotMove;
+  };
 
   const close = () => setUI({ showDistributionDialog: false });
 
@@ -309,9 +339,10 @@ export function DistributionDialog() {
           </div>
         ) : (
           <>
-            {/* (3) Gereedschap — schakelaar met prijskaartje. De prijs is `computeDistribution`
-                opnieuw draaien met de andere stand (§6); tot taak 9 die vergelijking maakt staat er
-                eerlijk "prijs onbekend". */}
+            {/* (3) Gereedschap — schakelaar met prijskaartje (taak 13, spec §6): `computeDistribution`
+                één keer met `allowSplits: false` en één keer met `true` — de prijs is de grootste
+                `endShiftWorkdays` over de deelnemers. Gecachet in de hook tot invalidatie; zolang het
+                voorstel niet actueel is staat er eerlijk "prijs onbekend". */}
             <section className="flex flex-col gap-1.5">
               <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
                 {t('resource.distribution.tool.title')}
@@ -333,7 +364,7 @@ export function DistributionDialog() {
                 </button>
                 <span className="font-medium">{t('resource.distribution.tool.allowSplits')}</span>
                 <span className="text-text-secondary" data-ops-distribution-tool-price>
-                  {t('resource.distribution.tool.priceUnknown')}
+                  {toolPriceLabel()}
                 </span>
               </div>
               <span className="text-[10px] text-text-secondary">{t('resource.distribution.tool.allowSplitsHint')}</span>
@@ -390,6 +421,11 @@ export function DistributionDialog() {
                         days: row.float === null ? '—' : numberFmt.format(row.float),
                       })}
                     </span>
+                    {isCostCandidate(row.docId) && (
+                      <span className="tabular-nums text-text-secondary" data-ops-distribution-cost>
+                        {costLabel(row.docId)}
+                      </span>
+                    )}
                     <button
                       type="button"
                       className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-40"

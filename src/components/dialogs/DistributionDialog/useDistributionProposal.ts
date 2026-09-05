@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appStoreContext, useAppStore, type AppState } from '@/state/appStore';
 import type { DistributionUiState } from '@/state/slices/types';
+import type { CompanyPool } from '@/types/library';
 import {
   computeDistribution,
   scopeTaskIdsFor,
@@ -106,6 +107,16 @@ export interface DistributionProposalState {
   /** De invoer waarop het HUIDIGE voorstel gerekend is — de dialoog leest hier de documenttitels
    *  en de float per document uit, zodat rangordelijst en strook nooit uit een andere bron komen. */
   inputs: DistributionDocInput[];
+  /** docId → "alleen dit document laten opschuiven kost N werkdagen" (taak 13, spec §4 stap 1): een
+   *  volledige `computeDistribution`-run met dít document alleen op rang 1 en alle andere deelnemers
+   *  gepind. Ontbreekt een docId ⇒ geen label — óf nog niet (her)berekend (stale/gedegradeerd), óf
+   *  het document is zelf gepind/#63/cannotMove en wijkt sowieso niet (de dialoog beslist dat via
+   *  `proposal.docs[].participated`/`cannotMove`, niet via deze map). */
+  costByDoc: Record<string, number>;
+  /** Het prijskaartje van de gereedschapsschakelaar (taak 13, spec §3.4/§6): de grootste
+   *  `endShiftWorkdays` over de deelnemers (de uitschieter, niet de som) voor elke stand van
+   *  "Onderbrekingen toestaan". `null` ⇒ nog niet (her)berekend. */
+  toolPrice: { off: number; on: number } | null;
 }
 
 /**
@@ -244,6 +255,23 @@ export function freshDistributionUi(
   };
 }
 
+/**
+ * Schaal-degradatie (§3.4), als losse functie zodat zowel de memoized `degraded`-waarde als een
+ * MET-DE-LAATSTE-INVOER berekening binnen de run-callback (vóór de volgende render) exact dezelfde
+ * poort delen — de labelpas in taak 13 moet weten of ZIJ nog mag rekenen op basis van de invoer die
+ * zojuist gebouwd is, niet op basis van de `degraded`-waarde van de vorige render.
+ */
+function isDistributionDegraded(
+  inputs: DistributionDocInput[],
+  tune: Pick<DistributionUiState, 'companyId' | 'libraryItemId'>,
+): boolean {
+  for (const doc of inputs) {
+    if (doc.tasks.length > MAX_TASKS_AUTO) return true;
+    if (scopeTaskIdsFor(doc, tune.companyId, tune.libraryItemId).length > MAX_BOOKING_TASKS_AUTO) return true;
+  }
+  return false;
+}
+
 /** Welke tune-as is er veranderd? Volgorde van benoemen = volgorde van de spec-taxonomie. */
 function diffReason(
   prev: DistributionUiState,
@@ -270,6 +298,14 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const [staleReason, setStaleReason] = useState<DistributionStaleReason | null>(null);
   const [lastStaleReason, setLastStaleReason] = useState<DistributionStaleReason | null>(null);
   const [staleDocs, setStaleDocs] = useState('');
+  const [costByDoc, setCostByDoc] = useState<Record<string, number>>({});
+  const [toolPrice, setToolPrice] = useState<{ off: number; on: number } | null>(null);
+
+  // Bewaakt de labelpas (taak 13) tegen twee soorten inhaalslag: (1) een NIEUWE hoofdrun start —
+  // elke run verhoogt de teller, dus een oudere labelpas herkent zichzelf als ingehaald; (2) een
+  // 'edited'-invalidatie zónder nieuwe run (§6a rekent bewust niet automatisch door) — die zet
+  // `fingerprintsRef.current` op `null`, en de labelpas leest dat mee als afbreekreden.
+  const generationRef = useRef(0);
 
   // De vingerafdrukken waarop het HUIDIGE voorstel gerekend heeft (§6a). `null` = er valt niets te
   // bewaken: er is nog nooit gerekend, óf er is al een `'edited'` gemeld en die reden staat nog.
@@ -292,12 +328,83 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const pendingRef = useRef(false);
   const runRef = useRef<() => void>(() => {});
 
+  /**
+   * Taak 13 (spec §4 stap 1 / §6). Per document een VOLLEDIGE `computeDistribution`-run met dat
+   * document alleen op rang 1 en alle andere deelnemers gepind ("alleen dit project laten
+   * opschuiven"), plus twee runs voor het prijskaartje van de gereedschapsschakelaar (`allowSplits`
+   * uit/aan). Draait in een EIGEN macrotask ná het hoofdvoorstel (dat schildert dan al), en breekt
+   * af zodra `myGeneration` is ingehaald door een nieuwere hoofdrun of door een 'edited'-invalidatie
+   * (`fingerprintsRef.current === null`) — beide zijn precies de gevallen waarin het hoofdvoorstel op
+   * het scherm zelf ook al niet meer bij de documenten hoort.
+   */
+  const scheduleDistributionLabels = (
+    myGeneration: number,
+    tuneAtRun: DistributionUiState,
+    pool: CompanyPool,
+    built: DistributionDocInput[],
+    proposalResult: DistributionProposal,
+  ): void => {
+    setTimeout(() => {
+      const superseded = () => generationRef.current !== myGeneration || fingerprintsRef.current === null;
+      if (superseded()) return;
+      try {
+        const costs: Record<string, number> = {};
+        for (const doc of built) {
+          const docResult = proposalResult.docs.find(d => d.docId === doc.docId);
+          // Gepind/#63/cannotMove ⇒ geen label (§4 stap 1: "ze wijken niet").
+          if (!docResult || !docResult.participated || docResult.cannotMove) continue;
+          const isolated = built.map(other => (
+            other.docId === doc.docId
+              ? { ...other, rank: 1, pinned: false }
+              : { ...other, pinned: true }
+          ));
+          const isolatedResult = computeDistribution(
+            tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, isolated,
+            { allowSplits: tuneAtRun.allowSplits },
+          );
+          if (superseded()) return;
+          if (isolatedResult.blocked) continue;
+          const own = isolatedResult.docs.find(d => d.docId === doc.docId);
+          if (own) costs[doc.docId] = own.endShiftWorkdays;
+        }
+        if (superseded()) return;
+        setCostByDoc(costs);
+
+        const priceOf = (p: DistributionProposal): number | null =>
+          p.blocked ? null : p.docs.reduce((max, d) => Math.max(max, d.endShiftWorkdays), 0);
+        const off = computeDistribution(
+          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: false },
+        );
+        if (superseded()) return;
+        const on = computeDistribution(
+          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: true },
+        );
+        if (superseded()) return;
+        const offPrice = priceOf(off);
+        const onPrice = priceOf(on);
+        if (offPrice !== null && onPrice !== null) setToolPrice({ off: offPrice, on: onPrice });
+      } catch {
+        // Een mislukte labelrun (bv. een solverfout in een isolatiescenario) laat gewoon geen label
+        // zien — nooit een gok tonen (zie het moduleblok over "stille uitsluiting" in distribute.ts).
+      }
+    }, 0);
+  };
+
   runRef.current = () => {
     const current = tuneRef.current;
     if (!current) return;
     if (busyRef.current) { pendingRef.current = true; return; }
     busyRef.current = true;
     setBusy(true);
+    // Elke hoofdrun is een nieuwe "generatie" — de labelpas van een VORIGE run herkent zichzelf
+    // hieraan als ingehaald en breekt af (§4 stap 1: "een label van een vervallen voorstel is
+    // misleidender dan geen label").
+    const myGeneration = ++generationRef.current;
+    // De labels horen bij het HUIDIGE voorstel, niet bij het vorige — ze gaan dus meteen leeg zodra
+    // een nieuwe run start (net als de bezig-toestand: een oud getal tijdens "Bezig met verdelen…"
+    // is even misleidend als een oud getal na een invalidatie).
+    setCostByDoc({});
+    setToolPrice(null);
     // Eerst de paint (bezig-toestand), dán het echte rekenwerk — zie het moduleblok.
     setTimeout(() => {
       try {
@@ -306,16 +413,25 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
         const built = buildDistributionInputs(s, untitledLabelRef.current, current);
         inputsRef.current = built;
         setInputs(built);
-        setProposal(pool
+        const proposalResult = pool
           ? computeDistribution(current.companyId, pool, current.libraryItemId, built, {
               allowSplits: current.allowSplits,
             })
-          : null);
+          : null;
+        setProposal(proposalResult);
         // De vingerafdruk hoort bij PRECIES deze momentopname: dezelfde `s` en dezelfde teller
         // waarop zojuist gerekend is (§6a).
         fingerprintsRef.current = documentFingerprints(s, appStoreContext.runtime.mutationSeq());
         setStaleReason(null);
         setStaleDocs('');
+
+        // Taak 13 (spec §4 stap 1 / §6): de kostenlabels en het prijskaartje NÁ het hoofdvoorstel,
+        // in een tweede macrotask zodat het hoofdvoorstel eerst schildert. Boven de ondersteunde
+        // schaal (§3.4) is elk label ZELF een volledige run erbij — dat is precies de kost die de
+        // schaal-degradatie voorkomt, dus daar blijft het bij "druk op Herbereken".
+        if (pool && proposalResult && !proposalResult.blocked && !isDistributionDegraded(built, current)) {
+          scheduleDistributionLabels(myGeneration, current, pool, built, proposalResult);
+        }
       } finally {
         busyRef.current = false;
         setBusy(false);
@@ -328,14 +444,10 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
 
   // Schaal-degradatie (§3.4): gemeten op de invoer van het LAATSTE voorstel — vóór de eerste run is
   // er niets te degraderen (die run is immers het openen zelf, altijd een expliciet moment).
-  const degraded = useMemo(() => {
-    if (!tune || inputs.length === 0) return false;
-    for (const doc of inputs) {
-      if (doc.tasks.length > MAX_TASKS_AUTO) return true;
-      if (scopeTaskIdsFor(doc, tune.companyId, tune.libraryItemId).length > MAX_BOOKING_TASKS_AUTO) return true;
-    }
-    return false;
-  }, [inputs, tune]);
+  const degraded = useMemo(
+    () => (!tune || inputs.length === 0 ? false : isDistributionDegraded(inputs, tune)),
+    [inputs, tune],
+  );
   const degradedRef = useRef(degraded);
   degradedRef.current = degraded;
 
@@ -355,6 +467,8 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     setStaleReason(null);
     setLastStaleReason(null);
     setStaleDocs('');
+    setCostByDoc({});
+    setToolPrice(null);
     if (subjectKey !== null) runRef.current();
     // `tune` bewust buiten de deps: alleen het ONDERWERP is hier de trigger, niet elke tune-tik.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -409,5 +523,8 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     return unsubscribe;
   }, []);
 
-  return { proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs };
+  return {
+    proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
+    costByDoc, toolPrice,
+  };
 }
