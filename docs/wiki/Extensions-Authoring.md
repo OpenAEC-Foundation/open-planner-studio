@@ -30,13 +30,15 @@ Categories: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other
 | `ribbon` | **hard** — missing ⇒ `api.ui.addRibbonButton` throws | Add a button to the ribbon. |
 | `backstage` | **warn** — missing ⇒ `api.importers.*` still works, but logs a warning | Register an importer (appears under File → Import). |
 | `pdf-fonts` | **hard** — missing ⇒ `api.pdfFonts.register` throws | Register a font provider for the vector PDF export (e.g. CJK glyph bytes). |
+| `importSource` | **hard, default-deny** — missing ⇒ `api.data.getImportSourceInfo`/`getImportSourceChunk`/`getImportSourceCatalogPage` throw before a single byte is read | Read the **full original source bytes** of an imported file (today: XER), including fields the import layer deliberately never materializes into the project model. See the section below. |
 | `filesystem` | informational | No API surface; a declared intent shown at install time — **no** sandbox guarantee. |
 | `network` | informational | Likewise — declared intent, not a technical boundary. |
 
-`data.*`, `settings.*`, `assets.*` and `ui.showNotification` are **core API**: always available, no
-permission required. Enforcement is centralized in `src/extensions/permissions.ts`. `minAppVersion` is
-also enforced: on an older app the extension refuses to activate. Unknown permissions are filtered out
-with a warning in the debug terminal.
+`data.*` is otherwise **core API** — except for the three `getImportSource*` methods above — same
+as `settings.*`, `assets.*` and `ui.showNotification`: always available, no permission required.
+Enforcement is centralized in `src/extensions/permissions.ts`. `minAppVersion` is also enforced: on
+an older app the extension refuses to activate. Unknown permissions are filtered out with a warning
+in the debug terminal.
 
 ## main.js
 
@@ -75,7 +77,7 @@ module.exports = {
 | Area | Functions |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()` |
+| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceChunk/getImportSourceCatalogPage` (permission `importSource`, see below), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permission `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permission `ribbon`), `showNotification(msg, type?)` |
 | `api.settings` | `get(key, default)`, `set(key, value)` — prefixed per extension in localStorage |
@@ -109,6 +111,50 @@ module.exports = {
   },
 };
 ```
+
+### Read-only XER source route (permission `importSource`)
+
+Besides the mapped `data.*` DTOs (derived, normalized, always available), an extension holding the
+`importSource` permission can also reach the **original, unmodified source data** of the current
+document — today only for an opened `.xer` file (Primavera P6). Without this permission all three
+methods throw before a single byte is read; nothing leaks through a partial call or an error path.
+
+**Why a separate permission instead of core API.** The rest of `api.data.*` exposes the internal
+project model — tasks, calendar, relations — exactly what the importer made of it. The source route
+returns the **full original bytes and tables**, including columns the import layer deliberately
+never materializes into the project model (provenance fields such as `create_user`/`update_date`,
+costs, review/location fields, unused UDFs, …). That is a materially larger exposure than "the app
+reads this file" — every installed extension would otherwise be able to read and forward the raw
+source text of every opened project, even without any other permission. Hence: default-deny,
+explicitly declared in `manifest.json`.
+
+```js
+// manifest.json → "permissions": ["importSource"]
+const info = api.data.getImportSourceInfo();     // null outside an XER document
+if (info) {
+  console.log(info.sourceFormat, info.archive.byteLength, info.catalogs.taskSourceRows.totalRows);
+}
+```
+
+- **`getImportSourceInfo()`** → a small summary (source format, archive identity including
+  `sha256`/`byteLength`/`chunkCount`, number formatting, diagnostics counts, the import report, the
+  schedule-options provenance and catalog counts). No record contents. **`null`** when the active
+  document has no retained XER source (any non-XER document).
+- **`getImportSourceChunk(index)`** → a fresh copy of one piece of the original file bytes.
+  Concatenate all chunks `0..chunkCount - 1` in order to reconstruct the **exact** original bytes —
+  compare against the `sha256` from `getImportSourceInfo()` to confirm. An invalid index throws a
+  `RangeError`; outside an XER document the method returns `null`.
+- **`getImportSourceCatalogPage(collection, options?)`** → paginated, per-record-copied access to
+  the retained source tables (task source rows, resource/role/rate/curve/assignment rows, activity
+  codes, custom field definitions, UDF values, schedule-options source rows, …). `options.offset`
+  (default 0) and `options.limit` (default 100, **maximum 500 per page**) drive pagination; an
+  invalid value throws a `RangeError`. An `offset` past the end of the collection does not throw —
+  it is canonicalized to `total`, yielding an empty but valid last page.
+
+All three methods are bound to the **active document**: switching documents follows the source
+route (or its absence) of the newly active document automatically. Every call returns a fresh,
+independent copy — mutating a returned `info`, page item or chunk never touches the retained
+archive.
 
 ### Data contract: the `Ext*` types
 
@@ -180,8 +226,9 @@ For a standalone `.js` file the manifest may be a comment block at the top:
 ## Limitations
 
 - The sandbox is light: extension code runs via `new Function(...)` and has access to `window`,
-  `document` and `fetch`. Permissions are enforced hard for `ribbon`/`events`, in warn mode for
-  `backstage`, and are purely informational for `filesystem`/`network`. Only install extensions you trust.
+  `document` and `fetch`. Permissions are enforced hard (default-deny) for `ribbon`/`events`/
+  `pdf-fonts`/`importSource`, in warn mode for `backstage`, and are purely informational for
+  `filesystem`/`network`. Only install extensions you trust.
 - Objects from `api.data.get*()` are fresh, mutable `Ext*` copies — mutating them does not touch the
   store; write back via the mutating API functions.
 - The `@manifest` comment block in a standalone `.js` file must be a flat JSON object (no nested objects).
