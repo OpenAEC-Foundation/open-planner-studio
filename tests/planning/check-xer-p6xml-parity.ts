@@ -37,6 +37,51 @@ expect('3 de asymmetrie is als TODO in de writer vastgelegd',
   warnings.length === 0
   && xml.includes('<PlannedDuration>')
   && readFileSync(new URL('../../src/services/p6/p6xmlWriter.ts', import.meta.url), 'utf8').includes('TODO(X9/P6XML)'));
+// Contour-engine-vervolgafspraak (2026-09, taaktypes-etappe): `<DurationType>` is de ENE asymmetrie
+// die niet langer tweerichtingsverkeer mist op de lezer — writeP6XML schrijft het element niet (zie
+// hierboven, assertie 2/3 blijven onveranderd waar), maar readP6XML leest het nu wél wanneer een
+// ECHT P6-bestand (niet onze eigen writer) het meebrengt. Injecteer het element handmatig in de
+// writer-uitvoer (dezelfde truc als de rest van dit bestand voor "een echt P6-bestand zou dit
+// dragen") om de vier canonieke PMXML-labels en de gerapporteerde terugval te bewijzen.
+function withDurationType(baseXml: string, label: string | null): string {
+  if (label === null) return baseXml;
+  return baseXml.replace(/(<Activity>[\s\S]*?<Type>[^<]*<\/Type>)/, `$1<DurationType>${label}</DurationType>`);
+}
+function readDurationType(label: string | null): { value: string | undefined; warnings: string[] } {
+  const warned: string[] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => warned.push(args.join(' '));
+  let value: string | undefined;
+  try {
+    value = readP6XML(withDurationType(xml, label)).tasks.find(t => t.name === task.name)?.p6DurationType;
+  } finally {
+    console.warn = original;
+  }
+  return { value, warnings: warned };
+}
+
+const knownDurationTypeLabels: Readonly<Record<string, string>> = {
+  'Fixed Duration and Units': 'DT_FixedDrtn',
+  'Fixed Duration and Units/Time': 'DT_FixedDUR2',
+  'Fixed Units/Time': 'DT_FixedRate',
+  'Fixed Units': 'DT_FixedQty',
+};
+for (const [label, expected] of Object.entries(knownDurationTypeLabels)) {
+  const { value, warnings: labelWarnings } = readDurationType(label);
+  expect(`4 <DurationType>${label}</DurationType> leest naar ${expected}, geen melding`,
+    value === expected && labelWarnings.length === 0);
+}
+
+const { value: unknownValue, warnings: unknownWarnings } = readDurationType('Fixed Whatever');
+expect('5 onbekend <DurationType>-label blijft afwezig en wordt gerapporteerd',
+  unknownValue === undefined
+  && unknownWarnings.length === 1
+  && unknownWarnings[0].includes('Fixed Whatever'));
+
+const { value: missingValue, warnings: missingWarnings } = readDurationType(null);
+expect('6 ontbrekend <DurationType>-element blijft afwezig, geen melding',
+  missingValue === undefined && missingWarnings.length === 0);
+
 if (failures.length === 0) {
   console.log('OK  xer-p6xml-parity: asymmetrie zichtbaar, geen gelijkwaardigheidsclaim');
   process.exit(0);
