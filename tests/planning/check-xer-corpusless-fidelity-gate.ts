@@ -595,7 +595,7 @@ function expectSourceRejected(label: string, raw: string): void {
 const manifestRaw = readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8');
 const oracleRaw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf8');
 const replayRaw = readFileSync(join(HERE, 'xer-task-replay-public-pin.json'), 'utf8');
-const productV2Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8');
+const productV2Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline-v2.json'), 'utf8');
 const sourceRaw = readFileSync(join(HERE, 'check-xer-corpusless-fidelity-gate.ts'), 'utf8');
 const manifest = JSON.parse(manifestRaw) as Manifest;
 const oracle = JSON.parse(oracleRaw) as OracleBaseline;

@@ -156,6 +156,37 @@ function validateBaseline(v: unknown): string[] {
   return problems;
 }
 
+// ── 0. De v1- en v2-productfidelitybaseline dragen elk hun eigen versienummer ──────────────────
+// `xer-product-fidelity-baseline.json` (v1, cel-regressiebewaking per taak/as, gelezen door
+// `check-xer-product-fidelity.ts`) en `xer-product-fidelity-baseline-v2.json` (v2, de 34-entry-
+// karakterisering, gelezen door `check-xer-product-fidelity-x12.ts`/`check-xer-corpusless-fidelity-
+// gate.ts`) zijn twee verschillende schema's die ooit onder ÉÉN bestandsnaam botsten: v2 overschreef
+// v1 stil, en de v1-lezer crashte met een TypeError zonder `XX `-regel (STATUS=1 zonder zichtbare
+// reden). Deze assertie bewaakt uitsluitend de vorm-vingerafdruk (version + herkenbare sleutels) van
+// elk bestand, zodat een hernieuwde botsing — ook een simpele bestandsverwisseling — hier hard en
+// leesbaar rood wordt, vóór een van de twee lezers er ooit aan toekomt.
+{
+  const v1Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf-8');
+  const v2Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline-v2.json'), 'utf-8');
+  const v1Parsed: unknown = JSON.parse(v1Raw);
+  const v2Parsed: unknown = JSON.parse(v2Raw);
+  const looksLikeV1Files = isPlainObject(v1Parsed) && isPlainObject(v1Parsed.files)
+    && Object.keys(v1Parsed.files).every(label => label.includes('/'));
+  eq('0a xer-product-fidelity-baseline.json is het v1-cel-regressieschema (version 1, label-sleutels, cellTransitions)', {
+    version: isPlainObject(v1Parsed) ? v1Parsed.version : undefined,
+    hasLabelKeyedFiles: looksLikeV1Files,
+    hasCellTransitions: isPlainObject(v1Parsed) && isPlainObject(v1Parsed.cellTransitions)
+      && v1Parsed.cellTransitions.version === 1,
+    hasV2Fields: isPlainObject(v1Parsed) && ('manifestSha256' in v1Parsed || 'characterization' in v1Parsed),
+  }, { version: 1, hasLabelKeyedFiles: true, hasCellTransitions: true, hasV2Fields: false });
+  eq('0b xer-product-fidelity-baseline-v2.json is het v2-karakteriseringsschema (version 2, manifestSha256/characterization)', {
+    version: isPlainObject(v2Parsed) ? v2Parsed.version : undefined,
+    hasManifestSha256: isPlainObject(v2Parsed) && typeof v2Parsed.manifestSha256 === 'string' && v2Parsed.manifestSha256.length > 0,
+    hasCharacterization: isPlainObject(v2Parsed) && isPlainObject(v2Parsed.characterization),
+    hasCellTransitions: isPlainObject(v2Parsed) && 'cellTransitions' in v2Parsed,
+  }, { version: 2, hasManifestSha256: true, hasCharacterization: true, hasCellTransitions: false });
+}
+
 // ── 1. De committe X1-baseline is gevuld en welgevormd ─────────────────────────────────────────
 {
   const raw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf-8');

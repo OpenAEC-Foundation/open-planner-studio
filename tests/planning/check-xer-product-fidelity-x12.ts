@@ -54,9 +54,12 @@ interface CounterfactualReport {
 }
 
 /** De complete 34-entry/47-projectsnapshot is compact opgeslagen, maar wordt hier altijd volledig
- * uitgepakt vóór vergelijking. Alleen v2 met zichtbare rode overgangsstatus is leesbaar. */
+ * uitgepakt vóór vergelijking. Alleen v2 met zichtbare rode overgangsstatus is leesbaar. Eigen
+ * bestand (`xer-product-fidelity-baseline-v2.json`) naast de losstaande v1-cel-regressiebaseline
+ * (`xer-product-fidelity-baseline.json`, bewaakt door `check-xer-product-fidelity.ts`) — de twee
+ * schema's botsten hier ooit stil onder één bestandsnaam, zie `check-xer-fidelity-baseline-schema.ts`. */
 function readProductBaseline(): ProductBaseline {
-  const raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf8');
+  const raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline-v2.json'), 'utf8');
   const validated = validateProductBaselineV2(raw);
   if (!validated.payload || validated.problems.length > 0) {
     throw new Error(`X12 productbaseline faalt gedeelde runtime-schemavalidatie: ${validated.problems.join('; ')}`);
