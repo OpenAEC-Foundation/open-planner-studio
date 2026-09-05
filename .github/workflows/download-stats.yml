@@ -1,0 +1,36 @@
+name: Download stats
+
+# Wekelijks (en op verzoek) de downloadcijfers per besturingssysteem uit de
+# GitHub Releases-API, als rapport in de job-samenvatting. Geen deploy, geen
+# commit, geen gebruikersdata: alles komt uit de publieke `download_count` per
+# release-asset. Zie `scripts/download-stats.mjs` voor wat de cijfers wel en
+# niet betekenen (Linux is install+update samen; de Snap Store zit er niet in).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # maandag 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Rapport naar de job-samenvatting
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/download-stats.mjs --repo="$GITHUB_REPOSITORY" --format=markdown | tee -a "$GITHUB_STEP_SUMMARY"
+          node scripts/download-stats.mjs --repo="$GITHUB_REPOSITORY" --format=json > download-stats.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: download-stats
+          path: download-stats.json
+          retention-days: 90
