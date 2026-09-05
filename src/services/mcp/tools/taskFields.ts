@@ -152,6 +152,9 @@ const REJECT_HINTS: Record<string, string> = {
   mspTaskType: 'MSP\'s eigen Task Type is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   effortDriven: 'MSP\'s "Effort Driven"-vlag is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   timephasedContours: 'de rauwe contourperiodes zijn via de bridge niet zetbaar (afgeleid uit een .mpp-import, geen agent-invoervorm — zie planner_get_task)',
+  // Taaktypes-etappe (ontwerp 2026-09-04): leesbaar via planner_get_task; zetbaar volgt in de
+  // MCP-stap (§10 stap 7) zodra de werkdriehoek in de store bedraad is.
+  workRule: 'de werkregel is via de bridge nog niet zetbaar (taaktypes-etappe, bouwstap 7) — leesbaar via planner_get_task',
 };
 
 /** Uitkomst van de veldvalidatie. */

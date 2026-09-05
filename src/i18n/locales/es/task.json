@@ -61,7 +61,11 @@
       "remainingMinutes": "Restante (minutos)", "remainingTime": "Restante (días laborables)", "resourceIds": "Id. de recursos", "resume": "Fecha de reanudación",
       "scheduleFinish": "Fin programado", "scheduleStart": "Inicio programado", "splitGaps": "Interrupciones", "status": "Estado", "stop": "Fecha de detención", "taskId": "Id. de tarea", "taskType": "Tipo de tarea",
       "timephasedContours": "Contornos por fases temporales", "timephasedDurationWalks": "Segmentos de duración por fases temporales", "timephasedFinishFloor": "Límite inferior de fin por fases temporales", "timephasedStartAnchor": "Anclaje de inicio por fases temporales",
-      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "workWindowStart": "Inicio de ventana de trabajo"
+      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "workWindowStart": "Inicio de ventana de trabajo",
+      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "workRule": "Regla de trabajo",
+      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "assignmentPlannedWork": "Trabajo previsto (horas)",
+      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "assignmentActualWork": "Trabajo real (horas)",
+      "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "assignmentRemainingWork": "Trabajo restante (horas)"
     },
     "category": {
       "task": "Tarea", "planning": "Planificación", "constraints": "Restricciones", "relations": "Relaciones", "resources": "Recursos",

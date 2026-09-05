@@ -163,6 +163,7 @@ export function toExtProject(p: Project): ExtProject {
     statusDate: p.statusDate,
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
+    defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
@@ -183,6 +184,7 @@ export function fromExtProject(p: ExtProject): Project {
     statusDate: p.statusDate,
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
+    defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
   };
 }
@@ -333,6 +335,7 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    workRule: t.workRule,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
@@ -379,6 +382,7 @@ export function fromExtTask(t: ExtTask): Task {
     // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    workRule: t.workRule,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
@@ -646,6 +650,9 @@ export function toExtAssignment(a: ResourceAssignment): ExtAssignment {
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
     curveValues: a.curveValues ? [...a.curveValues] : undefined,
+    plannedWorkMinutes: a.plannedWorkMinutes,
+    actualWorkMinutes: a.actualWorkMinutes,
+    remainingWorkMinutes: a.remainingWorkMinutes,
   };
 }
 
@@ -659,6 +666,9 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
     curveValues: a.curveValues ? [...a.curveValues] : undefined,
+    plannedWorkMinutes: a.plannedWorkMinutes,
+    actualWorkMinutes: a.actualWorkMinutes,
+    remainingWorkMinutes: a.remainingWorkMinutes,
   };
 }
 

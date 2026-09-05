@@ -61,7 +61,11 @@
       "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend (Arbeitstage)", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
       "scheduleFinish": "Geplantes Ende", "scheduleStart": "Geplanter Anfang", "splitGaps": "Unterbrechungen", "status": "Status", "stop": "Stoppdatum", "taskId": "Aufgaben-ID", "taskType": "Aufgabentyp",
       "timephasedContours": "Zeitphasenverläufe", "timephasedDurationWalks": "Zeitphasen-Dauersegmente", "timephasedFinishFloor": "Untergrenze des Zeitphasenendes", "timephasedStartAnchor": "Anker des Zeitphasenanfangs",
-      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters"
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workRule": "Arbeitsregel",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentPlannedWork": "Geplante Arbeit (Stunden)",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentActualWork": "Ist-Arbeit (Stunden)",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentRemainingWork": "Verbleibende Arbeit (Stunden)"
     },
     "category": {
       "task": "Aufgabe", "planning": "Planung", "constraints": "Einschränkungen", "relations": "Beziehungen", "resources": "Ressourcen",

@@ -40,6 +40,8 @@ export interface ExtProject {
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
   /** Projectstandaard voor handmatig aangemaakte taken. Oudere extensies mogen dit weglaten. */
   defaultTaskDurationUnit?: 'days' | 'hours';
+  /** Taaktypes-etappe (spec §4.1): projectstandaard-werkregel; afwezig ⇒ FIXED_DURATION_RATE. */
+  defaultWorkRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
   /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
 }
@@ -215,6 +217,10 @@ export interface ExtTask {
   mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
   /** Z14b — MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. */
   effortDriven?: boolean;
+  /** Taaktypes-etappe (ontwerp 2026-09-04 §4.1) — de neutrale werkregel van de taak (welke hoeken van
+   *  werk = duur × inzet beschermd zijn bij een bewerking). Volledige-round-trip-veld zoals
+   *  `mspTaskType`; zetbaar via de bridge volgt in de bedradingsstap. */
+  workRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
   /** Z14b (eigenaarsprincipe 2026-08-18) — rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER
    *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
    *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').
@@ -307,6 +313,12 @@ export interface ExtAssignment {
   workWindowFinish?: string;
   /** Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI), zie `ResourceAssignment.curveValues`. */
   curveValues?: number[];
+  /** Taaktypes-etappe (spec §4.3): begroot werk in werkminuten; afwezig ⇒ afgeleid. */
+  plannedWorkMinutes?: number;
+  /** Taaktypes-etappe (spec §4.3): verricht werk in werkminuten; afwezig ⇒ afgeleid. */
+  actualWorkMinutes?: number;
+  /** Taaktypes-etappe (spec §4.3): resterend werk in werkminuten; afwezig ⇒ restduur × inzet. */
+  remainingWorkMinutes?: number;
 }
 
 // ── UI-contract: ribbontabbladen ──

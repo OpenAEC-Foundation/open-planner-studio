@@ -66,6 +66,10 @@ export interface Project {
   /** Projectstandaard voor handmatig aangemaakte taken. De urenplanning-hoofdschakelaar blijft de
    *  capabilitypoort: staat die uit, dan maakt de UI ondanks deze bewaarde voorkeur dagtaken. */
   defaultTaskDurationUnit?: import('@/types/task').TaskDurationUnit;
+  /** OPTIONEEL — projectstandaard-werkregel (taaktypes-etappe, spec §4.1): geldt voor elke taak
+   *  zonder eigen `workRule`. Afwezig ⇒ FIXED_DURATION_RATE (vandaag). Round-tript via
+   *  `OPS_ProjectSettings` (`DefaultWorkRule`). */
+  defaultWorkRule?: import('@/types/workRule').WorkRule;
   /**
    * WBS-codes automatisch nummeren (1.2.3.4, afgeleid uit de boompositie): aan ⇒ live
    * hernummeren bij elke structuurmutatie; uit/ontbreekt ⇒ vrije tekst (bestaand gedrag),

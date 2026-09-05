@@ -74,7 +74,7 @@ function keys<T>() {
 
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
-  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
+  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'defaultWorkRule', 'schedulingOptions',
 ] as const);
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
@@ -98,6 +98,8 @@ const EXT_TASK_KEYS = keys<ExtTask>()([
   'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'manuallyScheduled',
   'mspTaskType', 'effortDriven', 'timephasedContours',
   'timephasedFinishFloor', 'timephasedStartAnchor', 'timephasedDurationWalks',
+  // taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel
+  'workRule',
 ] as const);
 
 const EXT_SEQUENCE_KEYS = keys<ExtSequence>()([
@@ -111,6 +113,8 @@ const EXT_RESOURCE_KEYS = keys<ExtResource>()([
 
 const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
   'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
+  // taaktypes-etappe (spec §4.3): de drie optionele werkvelden
+  'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
 ] as const);
 
 // ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
@@ -180,6 +184,7 @@ const VOL_TASK = {
   manuallyScheduled: true,
   mspTaskType: 'FIXED_WORK',
   effortDriven: true,
+  workRule: 'FIXED_RATE',
   timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 240, kind: 'remaining' }] }],
   timephasedFinishFloor: '2026-06-10T17:00',
   timephasedStartAnchor: '2026-06-01T08:00',
@@ -212,6 +217,7 @@ const VOL_PROJECT = {
   author: 'Auteur', company: 'Bedrijf',
   wbsAutoNumber: true, statusDate: '2026-06-01', progressMode: 'PROGRESS_OVERRIDE',
   defaultTaskDurationUnit: 'days',
+  defaultWorkRule: 'FIXED_DURATION_WORK',
   schedulingOptions: {
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath', threshold: -1 },
@@ -253,6 +259,7 @@ const VOL_ASSIGNMENT = {
   id: 'a1', taskId: 't1', resourceId: 'r1', unitsPerDay: 0.5, curve: 'BELL',
   workWindowStart: '2026-06-01T08:00', workWindowFinish: '2026-06-10T17:00',
   curveValues: [0, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
+  plannedWorkMinutes: 4800, actualWorkMinutes: 1200, remainingWorkMinutes: 3000,
 } satisfies Required<ResourceAssignment>;
 
 // ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────

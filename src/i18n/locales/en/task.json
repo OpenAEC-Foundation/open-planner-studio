@@ -117,7 +117,11 @@
       "totalFloat": "Total float",
       "wbs": "WBS",
       "workWindowFinish": "Work window finish",
-      "workWindowStart": "Work window start"
+      "workWindowStart": "Work window start",
+      "workRule": "Work rule",
+      "assignmentPlannedWork": "Planned work (hours)",
+      "assignmentActualWork": "Actual work (hours)",
+      "assignmentRemainingWork": "Remaining work (hours)"
     },
     "category": {
       "task": "Task",

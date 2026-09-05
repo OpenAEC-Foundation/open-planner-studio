@@ -445,6 +445,10 @@ function getTask(s: AppState, args: GetTaskArgs) {
       resourceName: resById.get(a.resourceId)?.name ?? null,
       unitsPerDay: a.unitsPerDay,
       curve: a.curve ?? 'UNIFORM',
+      // Taaktypes-etappe (spec §4.3): de drie werkvelden, alleen wanneer gezet (afwezig ⇒ afgeleid).
+      ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
+      ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
+      ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
     }));
 
   const predecessors = s.sequences
@@ -501,6 +505,8 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
     ...(task.effortDriven ? { effortDriven: true } : {}),
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
+    // Taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel, leesbaar zodra gezet.
+    ...(task.workRule ? { workRule: task.workRule } : {}),
     parentId: task.parentId,
     childIds: task.childIds,
     duration: nativeDuration(task),

@@ -1,4 +1,5 @@
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -1214,6 +1215,9 @@ function extractStructure(
           if (typeof v === 'boolean') project.wbsAutoNumber = v;
         } else if (name === 'DefaultTaskDurationUnit') {
           if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
+        } else if (name === 'DefaultWorkRule') {
+          // Taaktypes-etappe (spec §4.1): onbekende waarde ⇒ stil weg (byte-identiek default).
+          if (typeof v === 'string' && (WORK_RULES as readonly string[]).includes(v)) project.defaultWorkRule = v as WorkRule;
         } else if (name === 'StatusDate') {
           // Fase 2.6 (§8.2): P6 data date → project.statusDate.
           if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);
@@ -1944,6 +1948,15 @@ interface WindowMeta {
   workWindowFinish?: string;
   /** Contour-engine (2026-09) — exacte 21-punts curve, zie `ResourceAssignment.curveValues`. */
   curveValues?: number[];
+  /** Taaktypes-etappe (spec §4.3) — de drie optionele werkvelden in minuten, zelfde blob. */
+  plannedWorkMinutes?: number;
+  actualWorkMinutes?: number;
+  remainingWorkMinutes?: number;
+}
+
+/** Eindig, niet-negatief werkgetal uit het JSON-blob; al het andere blijft weg (nooit NaN in de state). */
+function workMinutesOf(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;
 }
 
 /** Per-taak verzamelde OPS_Assignments-meta: nieuw formaat (`GUID#N`-propnamen) als
@@ -2007,12 +2020,18 @@ function extractAssignments(
         if (!m || !val || typeof val !== 'object') continue;
         const vv = val as Record<string, unknown>;
         const curveValues = normalizeCurveValues(vv.curveValues);
+        const planned = workMinutesOf(vv.plannedWorkMinutes);
+        const actual = workMinutesOf(vv.actualWorkMinutes);
+        const remaining = workMinutesOf(vv.remainingWorkMinutes);
         const meta: WindowMeta = {
           ...(typeof vv.workWindowStart === 'string' ? { workWindowStart: vv.workWindowStart } : {}),
           ...(typeof vv.workWindowFinish === 'string' ? { workWindowFinish: vv.workWindowFinish } : {}),
           ...(curveValues ? { curveValues } : {}),
+          ...(planned !== undefined ? { plannedWorkMinutes: planned } : {}),
+          ...(actual !== undefined ? { actualWorkMinutes: actual } : {}),
+          ...(remaining !== undefined ? { remainingWorkMinutes: remaining } : {}),
         };
-        if (meta.workWindowStart === undefined && meta.workWindowFinish === undefined && meta.curveValues === undefined) continue;
+        if (Object.keys(meta).length === 0) continue;
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
       }
       indexed.sort((a, b) => a.index - b.index);
@@ -2108,6 +2127,9 @@ function extractAssignments(
         ...(window?.workWindowStart !== undefined ? { workWindowStart: window.workWindowStart } : {}),
         ...(window?.workWindowFinish !== undefined ? { workWindowFinish: window.workWindowFinish } : {}),
         ...(window?.curveValues !== undefined ? { curveValues: window.curveValues } : {}),
+        ...(window?.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: window.plannedWorkMinutes } : {}),
+        ...(window?.actualWorkMinutes !== undefined ? { actualWorkMinutes: window.actualWorkMinutes } : {}),
+        ...(window?.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: window.remainingWorkMinutes } : {}),
       });
     }
   }

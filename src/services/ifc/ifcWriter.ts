@@ -409,6 +409,11 @@ function writeStructure(
     projSettingProps.push(addLine(ctx, '_ps_defaultdurationunit',
       `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
   }
+  // Taaktypes-etappe (spec §4.1): projectstandaard-werkregel, alleen wanneer gezet (golden rule).
+  if (project.defaultWorkRule) {
+    projSettingProps.push(addLine(ctx, '_ps_defaultworkrule',
+      `IFCPROPERTYSINGLEVALUE('DefaultWorkRule',$,IFCLABEL(${ifcStr(project.defaultWorkRule)}),$)`));
+  }
   if (project.statusDate) {
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
       `IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE(${ifcStr(project.statusDate)}),$)`));
@@ -1200,18 +1205,26 @@ function writeTimephasedMeta(
     // Zelfde defensie/filter als writeAssignmentMeta hierboven — bepaalt hetzelfde `#index`.
     const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
     if (!list || list.length === 0) continue;
-    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string; curveValues?: number[] }> = {};
+    const windows: Record<string, {
+      workWindowStart?: string; workWindowFinish?: string; curveValues?: number[];
+      plannedWorkMinutes?: number; actualWorkMinutes?: number; remainingWorkMinutes?: number;
+    }> = {};
     list.forEach((a, index) => {
       // Contour-engine (2026-09): `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in
       // hetzelfde JSON-blob mee — additief, een toewijzing zonder venster én zonder curve schrijft
-      // nog altijd niets (byte-identiek).
-      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined) return;
+      // nog altijd niets (byte-identiek). Taaktypes-etappe (spec §4.3/§4.4): de drie optionele
+      // werkvelden (begroot/verricht/resterend, minuten) idem — zelfde blob, zelfde `GUID#N`-sleutel.
+      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
+        && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined) return;
       const resGuid = guidOf(ctx, a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
         ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
         ...(a.curveValues !== undefined ? { curveValues: [...a.curveValues] } : {}),
+        ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
+        ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
+        ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
       };
     });
     if (Object.keys(windows).length === 0) continue;

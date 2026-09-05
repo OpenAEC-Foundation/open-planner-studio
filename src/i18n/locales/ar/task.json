@@ -117,7 +117,11 @@
       "totalFloat": "الفائض الكلي",
       "wbs": "هيكل تقسيم العمل (WBS)",
       "workWindowFinish": "نهاية نافذة العمل",
-      "workWindowStart": "بداية نافذة العمل"
+      "workWindowStart": "بداية نافذة العمل",
+      "workRule": "قاعدة العمل",
+      "assignmentPlannedWork": "العمل المخطط (ساعات)",
+      "assignmentActualWork": "العمل الفعلي (ساعات)",
+      "assignmentRemainingWork": "العمل المتبقي (ساعات)"
     },
     "category": {
       "task": "المهمة", "planning": "التخطيط", "constraints": "القيود", "relations": "العلاقات", "resources": "الموارد",

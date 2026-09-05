@@ -107,6 +107,7 @@ const TASK_VERDICTS = {
                                     // geen datum erin — zelfde taxonomie als splitGaps hierboven
   mspTaskType: 'n/a',              // Z14b: MSP-eigen enum, geen datum
   effortDriven: 'n/a',             // Z14b: vlag, geen datum
+  workRule: 'n/a',                 // taaktypes-etappe: regel, geen datum
   parentId: 'n/a', childIds: 'n/a',
   time: 'shift',                  // zie TASK_TIME_VERDICTS
   resourceIds: 'n/a', color: 'n/a', activityCodes: 'n/a',
@@ -145,6 +146,7 @@ const PROJECT_VERDICTS = {
   statusDate: 'shift',            // P6 data date (R5)
   progressMode: 'n/a', schedulingOptions: 'n/a',
   defaultTaskDurationUnit: 'n/a',
+  defaultWorkRule: 'n/a',          // taaktypes-etappe: projectstandaard-regel, geen datum
   companyId: 'n/a', companyName: 'n/a',  // B1: statische bibliotheekbinding, geen planningsdatum
 } satisfies Record<keyof Project, MoveVerdict>;
 

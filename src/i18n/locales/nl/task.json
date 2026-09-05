@@ -117,7 +117,11 @@
       "totalFloat": "Totale speling",
       "wbs": "WBS",
       "workWindowFinish": "Einde werkvenster",
-      "workWindowStart": "Start werkvenster"
+      "workWindowStart": "Start werkvenster",
+      "workRule": "Werkregel",
+      "assignmentPlannedWork": "Begroot werk (uren)",
+      "assignmentActualWork": "Verricht werk (uren)",
+      "assignmentRemainingWork": "Resterend werk (uren)"
     },
     "category": {
       "task": "Taak",

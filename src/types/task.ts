@@ -175,6 +175,9 @@ export interface TaskTimephasedContour {
  */
 export type MspTaskType = 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
 
+/** Taaktypes-etappe (ontwerp 2026-09-04 §4.1): de neutrale werkregel, zie `@/types/workRule`. */
+export type { WorkRule } from '@/types/workRule';
+
 /**
  * Soort mijlpaal (fase 2.4, P6 Start/Finish Milestone). Dag-granulair grens-model:
  * START ankert op een dagbegin, FINISH op een dageinde (einde werkdag F = begin
@@ -471,6 +474,14 @@ export interface Task {
    *  Afwezig/false ⇒ byte-identiek. Round-tript via `OPS_MspTaskType` (`ifcPsets.ts`, zelfde pset
    *  als `mspTaskType` — het is hetzelfde MSP-taaktypeconcept-paar). */
   effortDriven?: boolean;
+  /** OPTIONEEL — de WERKREGEL van deze taak (taaktypes-etappe, ontwerp 2026-09-04 §4.1): welke
+   *  hoeken van werk = duur × inzet beschermd zijn bij een bewerking (`WorkRule`, neutraal tussen
+   *  MSP en P6). Afwezig ⇒ `Project.defaultWorkRule`, en als die ook ontbreekt FIXED_DURATION_RATE
+   *  (het gedrag van vandaag, byte-identiek). Bij import AFGELEID uit `mspTaskType`+`effortDriven`
+   *  resp. het P6-duurtype (spec §4.2) en apart bewaard, zodat een latere typewissel de herkomst
+   *  niet vernietigt. Geen enkele solverstap leest dit; alleen de bewerkingslaag
+   *  (`src/engine/work/workTriangle.ts`). Round-tript via `OPS_WorkRule` (`ifcPsets.ts`). */
+  workRule?: import('@/types/workRule').WorkRule;
   parentId: string | null; // WBS parent
   childIds: string[];      // WBS children
   time: TaskTime;
