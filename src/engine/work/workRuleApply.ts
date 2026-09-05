@@ -406,27 +406,71 @@ export function settleDurationAftermath(task: Task, deps: WorkRuleDeps, oldWorkM
 }
 
 /**
+ * Kalenderwissel (eigenaarsbesluit 2026-09-05): momentopname VÓÓR de wissel — de werkdriehoek plus
+ * de werkminuten van de taak in de OUDE slot (de referentie waar de contour-as tegen herschaald
+ * wordt; reviewbevinding F3: `oudeDagen × nieuwe slot` was de verkeerde referentie).
+ */
+export interface CalendarCapture {
+  triangle: CapturedTriangle | null;
+  /** `taskWorkMinutes` in de oude slot — ook voor taken waar de regel niet op werkt (dan blijft de
+   *  contour-as met rust; zie `settleCalendarChange`). */
+  oldWorkMinutes: number;
+}
+
+export function captureCalendarChange(task: Task, assignments: readonly ResourceAssignment[], deps: WorkRuleDeps): CalendarCapture {
+  return { triangle: captureTriangle(task, assignments, deps), oldWorkMinutes: totalMinutesOf(task, workRuleContextOf(task, deps)) };
+}
+
+export interface CalendarSettle {
+  /** De regel heeft de duur (in dagen) van de taak gewijzigd (Vast werk / Vaste inzet). */
+  durationChanged: boolean;
+  /** De nazorg (`settleDurationAftermath`) heeft Z8-venster of bevroren duur-walks gewist — de
+   *  aanroeper meldt dat (`notifyTimephasedLoss`/`recordTimephasedLoss`). */
+  timephasedLost: boolean;
+}
+
+const NO_CALENDAR_CHANGE: CalendarSettle = { durationChanged: false, timephasedLost: false };
+
+/**
  * Kalenderwissel (eigenaarsbesluit 2026-09-05): aanroepen NÁDAT de kalender van de taak (of de
  * inhoud van haar kalender) is gewijzigd, met de momentopname van daarvóór. Alleen de slotgrootte
  * (uren per dag) telt; de restduur in dagen blijft, en de regel beslist (`applySlotChange`).
- * Uurtaken en een ongewijzigde slot ⇒ niets. Een gewijzigde duur komt terug als `durationChanged`.
+ * Uurtaken en een ongewijzigde slot ⇒ niets. Eén definitie voor store, raster, MCP, project-
+ * kalender en kalenderinhoud (zes aanroepers), inclusief de nazorg:
+ *  - verandert de duur ⇒ `settleDurationAftermath` met de OUDE werkminuten als referentie (contour
+ *    en importsplits herschalen, Z8-venster en bevroren walks wissen);
+ *  - verandert de duur NIET maar de slot wél (FIXED_DURATION_*) ⇒ alleen de contour-as herschalen:
+ *    dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werkminuten, en de as leeft op
+ *    de werkminuten (reviewbevinding F3, tweede helft).
+ * `completion` blijft zoals ze is (spec §6.5, ook op dit pad); de rest wordt bij een gestarte taak
+ * expliciet geschreven door `applyTriangleResult`.
  */
 export function settleCalendarChange(
   task: Task,
   assignments: ResourceAssignment[],
-  captured: CapturedTriangle | null,
+  captured: CalendarCapture,
   deps: WorkRuleDeps,
-): TriangleWriteBack {
-  if (!captured || isHourTask(task.time)) return NO_CHANGE;
+): CalendarSettle {
+  const { triangle } = captured;
+  if (!triangle || isHourTask(task.time)) return NO_CALENDAR_CHANGE;
   const ctx = workRuleContextOf(task, deps);
   const newSlot = slotMinutesOf(ctx);
-  if (newSlot === captured.state.slotMinutes) return NO_CHANGE;
-  const remainingDays = captured.state.remainingMinutes / captured.state.slotMinutes;
+  if (newSlot === triangle.state.slotMinutes) return NO_CALENDAR_CHANGE;
+  const remainingDays = triangle.state.remainingMinutes / triangle.state.slotMinutes;
   const newRemaining = remainingDays * newSlot;
-  const result = applySlotChange(captured.state, newSlot, newRemaining);
-  if (!result.ok) return NO_CHANGE;
-  const beforeInNewSlot: TriangleState = { ...captured.state, slotMinutes: newSlot, remainingMinutes: newRemaining };
-  return applyTriangleResult(task, assignments, beforeInNewSlot, result.state, ctx);
+  const result = applySlotChange(triangle.state, newSlot, newRemaining);
+  const keepsWork = contourKeepsWork(task, deps.project.defaultWorkRule);
+  if (!result.ok) {
+    rescaleTaskContours(task, captured.oldWorkMinutes, ctx.hoursPerDay, keepsWork);
+    return NO_CALENDAR_CHANGE;
+  }
+  const beforeInNewSlot: TriangleState = { ...triangle.state, slotMinutes: newSlot, remainingMinutes: newRemaining };
+  const written = applyTriangleResult(task, assignments, beforeInNewSlot, result.state, ctx);
+  if (written.durationChanged) {
+    return { durationChanged: true, timephasedLost: settleDurationAftermath(task, deps, captured.oldWorkMinutes) };
+  }
+  rescaleTaskContours(task, captured.oldWorkMinutes, ctx.hoursPerDay, keepsWork);
+  return NO_CALENDAR_CHANGE;
 }
 
 /**
@@ -437,8 +481,14 @@ export function settleCalendarChange(
  * ze is. Aanroepen NÁDAT de nieuwe duur is gezet, met de oude werkminuten (`taskWorkMinutes` vóór
  * de bewerking). Zonder expliciet restveld gebeurt niets (de rest wordt dan afgeleid en schuift
  * vanzelf mee).
+ *
+ * Reikwijdte (reviewbevinding F7, AFGELEID uit het eigenaarsbesluit): dit is een duur-identiteit,
+ * geen driehoeksregel, dus hij geldt óók buiten `workRuleApplies` — met name op een ELAPSEDTIME-
+ * taak, waar "Remaining = Duration − Actual" net zo goed opgaat. Uitgesloten zijn alleen taken
+ * zonder eigen bewerkbare duur: verzameltaken, hangmatten en mijlpalen (Δ is daar 0 of afgeleid).
  */
 export function carryRemainingThroughDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+  if (task.childIds.length > 0 || task.isMilestone || task.isHammock === true) return false;
   const t = task.time;
   const slot = slotMinutesOf({ hoursPerDay });
   if (isHourTask(t)) {

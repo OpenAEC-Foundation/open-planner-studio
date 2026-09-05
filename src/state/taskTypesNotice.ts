@@ -32,15 +32,18 @@ export function __resetTaskTypesNoticeForTests(): void {
 /**
  * K2 (eigenaarsbesluit 2026-09-05): een project- of kalenderwijziging heeft via de werkregel de duur
  * van `count` taken veranderd (minder/meer uren per dag ⇒ langer/korter onder Vast werk en Vaste
- * inzet). Geen sessie-gate: elke keer dat het gebeurt is het nieuws; `dedupeKey` vouwt één burst samen.
+ * inzet). Geen sessie-gate en bewust GEEN `dedupeKey` (reviewbevinding F10): de dedupe vervangt
+ * `params` en telt alleen een badge op, zodat twee bewerkingen van 5 en daarna 2 taken als
+ * "2 taken ×2" zouden lezen. Eén melding per bewerking met het echte aantal; `MAX_NOTIFICATIONS`
+ * begrenst de stapel. `docId` blijft in de signatuur voor de aanroepers (één plek om later toch
+ * per document te vouwen).
  */
-export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void, docId: string, count: number): void {
+export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void, _docId: string, count: number): void {
   if (count <= 0) return;
   notify({
     severity: 'info',
     messageKey: 'notifications.workRuleDurationsChanged',
     params: { count },
-    dedupeKey: `work-rule-durations-${docId}`,
     helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
   });
 }

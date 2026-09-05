@@ -1,6 +1,6 @@
 // check-work-triangle.ts — de meetlat van de taaktypes-etappe (ontwerp 2026-09-04 §9) tegen de
 // pure rekenkern `src/engine/work/workTriangle.ts` (bouwstap 3). Twee lagen:
-//   (a) `work-triangle-cases.json`: de 34 genummerde bewerkingen uit de spec als data — per case
+//   (a) `work-triangle-cases.json`: de 36 genummerde bewerkingen uit de spec als data — per case
 //       een resterende toestand, één of meer bewerkingen en de verwachte uitkomst, met het
 //       bewijslabel (documented/reasoned/decided/measured). Cases met `scope: 'store'` (contour,
 //       undo) horen bij de bedrading en worden hier geteld maar overgeslagen.
@@ -171,7 +171,7 @@ for (const c of file.cases) {
   if (rejected) { diffs.push(`${c.id}: onverwacht geweigerd (${rejected})`); continue; }
   assertExpect(c.id, state, c.expect);
 }
-ok('meetlat: precies de nummers 1…34 uit spec §9 aanwezig (32–34: kalenderwissel, eigenaarsbesluit 2026-09-05)', JSON.stringify([...new Set(file.cases.map((c) => c.nr))].sort((a, b) => a - b)) === JSON.stringify(Array.from({ length: 34 }, (_, i) => i + 1)));
+ok('meetlat: precies de nummers 1…36 uit spec §9 aanwezig (32–36: kalenderwissel, eigenaarsbesluit 2026-09-05 + reviewronde F5/F11)', JSON.stringify([...new Set(file.cases.map((c) => c.nr))].sort((a, b) => a - b)) === JSON.stringify(Array.from({ length: 36 }, (_, i) => i + 1)));
 ok('meetlat: geen enkele case is al gemeten (measured) — anders hoort de spec bijgewerkt', (evidenceCount.measured ?? 0) === 0);
 
 // ── (b) eigenschappen ───────────────────────────────────────────────────────────────────────────

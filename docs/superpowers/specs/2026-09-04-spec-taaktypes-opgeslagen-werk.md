@@ -488,6 +488,23 @@ Duration = Work ÷ (Units × Hours per day) en houdt onder Fixed Work het werk v
 (documented), maar MSP's "dag" is een vaste omrekenfactor (Opties → Uren per dag) en geen
 kalenderwerkdag — de vertaling naar OPS-werkdagen is beredeneerd, niet gemeten.
 
+Vier randregels (reviewronde 2026-09-05, F3–F6; alle BEREDENEERD):
+- FIXED_RATE legt bij de slotwissel — net als bij een inzetbewerking (§4.3) — géén werkveld vast:
+  het anker is rekeninvoer voor R, en een afgerond R laat dan geen opgeslagen W achter die van
+  R × I afwijkt (meetlat 35). Meerdere toewijzingen: R = max(W_i / I_i) (meetlat 36).
+- Beslispunt 8-B (`effortDriven`) speelt bij een slotwissel niet: die uitzondering geldt een
+  DUURbewerking in dagen, en de slotwissel laat de dagen juist staan. Een MSP-import met Fixed
+  Duration + effort-driven krijgt hier dus de P6-lezing (inzet = W / R'), anders dan MSP zelf zou
+  doen — bewust, en niet gemeten.
+- De contour-as leeft op werkminuten (§6.3), dus zij wordt na de wissel herschaald van de OUDE
+  werkminuten (dagen × oude slot) naar de nieuwe — óók wanneer de regel de dagen niet wijzigt
+  (Vaste duur): dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werk. Werkbehoud in
+  de hoogte volgt `contourKeepsWork`.
+- Een gestarte taak: de nieuwe duur is verricht + nieuwe rest en de rest wordt expliciet
+  geschreven, precies zoals bij een duurbewerking (§6.5, B2); `completion` blijft. Let op de
+  bekende inconsistentie die daaruit volgt (zie §6.5, laatste punt) — die ontstaat hier zónder
+  gebruikersbewerking, bij elke project- of kalenderwijziging.
+
 ### 6.5 Actuals
 
 - `completion`, `actualStart/Finish`, `remainingTime/Minutes` blijven zoals ze zijn: OPS'
@@ -509,7 +526,19 @@ kalenderwerkdag — de vertaling naar OPS-werkdagen is beredeneerd, niet gemeten
   ze is (`carryRemainingThroughDurationEdit`, in store, raster en MCP vóór de driehoekstap). Bron:
   Microsoft, Remaining Duration = Duration − Actual Duration [M5] (documented voor de identiteit;
   de Δ-richting bij een duurbewerking is daaruit afgeleid, niet gemeten). Zonder expliciet restveld
-  wordt de rest al uit duur × (1 − completion) afgeleid en schuift hij vanzelf mee.
+  wordt de rest al uit duur × (1 − completion) afgeleid en schuift hij vanzelf mee. Reikwijdte
+  (reviewbevinding F7, AFGELEID): dit is een duur-identiteit en geen driehoeksregel, dus zij geldt
+  óók op ELAPSEDTIME-taken; alleen verzameltaken, hangmatten en mijlpalen (geen eigen bewerkbare
+  duur) blijven buiten schot.
+- **Bekende inconsistentie `completion` ↔ expliciete rest (reviewbevinding F4, OPEN eigenaarsvraag).**
+  Zodra de rest expliciet wordt geschreven terwijl `completion` blijft staan (Δ-regel hierboven, B2,
+  en de kalenderwissel in §6.4), zeggen de twee velden iets anders: 10 d op 50 % met rest 5 wordt na
+  een kalenderwissel naar 6 u/dag onder Vast werk 12 d met rest 7 — 5 d verricht volgens de rest,
+  maar 6 d volgens `completion` × duur. De Gantt tekent de voortgangsbalk uit `completion`
+  (`GanttRenderer.ts`), de solver plant op de rest. Opties: (a) `completion` herrekenen als
+  verricht ÷ nieuwe duur wanneer de rest expliciet wordt geschreven; (b) renderer en rapportage
+  op de rest laten leunen; (c) laten zoals het is. Vandaag: (c), conform "completion blijft"; het
+  besluit staat in `docs/TODO.md`.
 - Het `actual`-deel van een contour telt als `actualWorkMinutes` wanneer dat veld afwezig is.
 - Afsluiten op 100 %: restwerk 0, begroot blijft; heropenen laat de velden staan.
 
@@ -619,9 +648,11 @@ werkresource op inzet 1,0 ⇒ werk 40 uur, niets verricht.
 | 32 | FIXED_WORK, 4 d op 8 u/dag, één resource 1,0 (32 u) | taakkalender → 6 u/dag | werk 32 u, inzet 1,0, R = 32/6 = 5,33 ⇒ 6 d | reasoned (K2; [M2]/[M4] documented voor "werk vast, duur herrekend", OPS-dagen beredeneerd) |
 | 33 | FIXED_DURATION_WORK, 4 d op 8 u/dag, één resource 1,0 (32 u) | taakkalender → 6 u/dag | R = 4 d, werk 32 u, inzet 32/24 = 1,33 | reasoned (K2; [P1] Units/Time = Remaining Units / Remaining Duration) |
 | 34 | FIXED_DURATION_RATE, 4 d op 8 u/dag, resource a 1,0 met veld 32 u, resource b 1,0 zonder veld | taakkalender → 6 u/dag | R = 4 d, inzet 1,0; a wordt 24 u, b blijft veldloos (afgeleid 24 u) | reasoned (K2; het gedrag van vandaag) |
+| 35 | FIXED_RATE, 4 d op 8 u/dag, één resource 1,0 zonder veld | taakkalender → 6 u/dag | R = ⌈32/6⌉ = 6 d, inzet 1,0, GEEN werkveld (afgeleid 36 u) | reasoned (F5; §4.3 afwezig blijft afwezig) |
+| 36 | FIXED_WORK, 4 d op 8 u/dag, resource a 1,0 (32 u) + resource b 0,5 (8 u) | taakkalender → 6 u/dag | R = max(32/1, 8/0,5) = 32 u ÷ 6 = 5,33 ⇒ 6 d; beide werkvelden blijven | reasoned (F11; §6.2) |
 
-Deze lijst (34 bewerkingen) gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
-MS Project weet wat er te meten valt. Voor 32–34 en de Δ-regel uit §6.5 geldt bovendien dat MS Project
+Deze lijst (36 bewerkingen) gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
+MS Project weet wat er te meten valt. Voor 32–36 en de Δ-regel uit §6.5 geldt bovendien dat MS Project
 hier niet in werkdagen rekent; wie meet, noteert de uren.
 
 ## 10. Bouwvolgorde — apart verifieerbare stappen

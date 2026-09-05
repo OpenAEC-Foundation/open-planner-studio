@@ -368,8 +368,14 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek). Gebouwd (spec §6.4, meetlat
       32–34, `settleCalendarChange`); melding bij een project-/kalenderwijziging die duren verandert.
 - [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
-      en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–34 plus "duur wijzigen
+      en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen
       op een taak met ingevoerde resterende duur" en noteert de uren.
+- [ ] **Eigenaarsvraag: `completion` ↔ expliciete rest (review F4, 2026-09-05).** Zodra de rest
+      expliciet wordt geschreven terwijl `completion` blijft staan (Δ-regel én kalenderwissel),
+      tekent de Gantt de voortgang uit `completion` terwijl de solver op de rest plant — 10 d op
+      50 % met rest 5 wordt na 8→6 u/dag onder Vast werk 12 d met rest 7 (5 d verricht) maar de balk
+      toont 6 d. Opties in spec §6.5 (laatste punt): completion herrekenen bij expliciete rest,
+      renderer op de rest, of laten. Vandaag: laten, conform "completion blijft".
 - [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
       `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
       waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.
@@ -397,7 +403,7 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       (`OPS_TimephasedWindow`) en het extensiecontract, maar geen lezer vult het en geen solverstap
       leest het. Activeren raakt `assignmentDayUnits` (histogram/nivelleerder/bezetting), de
       renderer (balk per toewijzing?) en de MSPDI-/P6-exports (per-assignment start/finish).
-- [ ] **MSP-meetlat: 31 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
+- [ ] **MSP-meetlat: 36 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
       tot dan draagt elke case `evidence: 'documented' | 'reasoned' | 'decided'` in `work-triangle-cases.json`.
 - [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt
       hoe vaak beslispunt 8 in de praktijk speelt. Het corpus is niet in de repo.

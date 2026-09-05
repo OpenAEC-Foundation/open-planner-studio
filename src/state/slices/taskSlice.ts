@@ -17,7 +17,7 @@ import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds
 import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
-  captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, settleCalendarChange, settleDurationAftermath,
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, settleCalendarChange,
   settleDurationEdit, settleRuleChange,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
@@ -419,14 +419,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); daarna pas de
       // momentopname voor een eventuele duurwijziging in dezelfde patch, zodat die op de nieuwe slot rekent.
       if ('calendarId' in updates && s.tasks[idx].calendarId !== calendarId) {
-        const before = captureTriangle(s.tasks[idx], s.assignments, s);
-        const oldDays = s.tasks[idx].time.scheduleDuration;
+        const before = captureCalendarChange(s.tasks[idx], s.assignments, s);
         s.tasks[idx].calendarId = calendarId;
-        if (settleCalendarChange(s.tasks[idx], s.assignments, before, s).durationChanged) {
-          settleDurationAftermath(s.tasks[idx], s, oldDays * taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar) * 60);
-        }
+        lostTimephasedGuidance = settleCalendarChange(s.tasks[idx], s.assignments, before, s).timephasedLost;
       }
-      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
+      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder —
+      // ná de kalenderstap, zodat een duur in dezelfde patch tegen de nieuwe slot rekent (F2-tweeling).
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR de merge —
@@ -467,7 +465,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // duur-/datum-/kalenderwijziging anders stilzwijgend.
         const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
           && clearTimephasedDurationWalks(s.tasks[idx]);
-        lostTimephasedGuidance = clearedWindow || clearedWalks;
+        lostTimephasedGuidance ||= clearedWindow || clearedWalks;
       }
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
@@ -498,13 +496,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
       runtime.beginUndoable(s);
       // K2 (eigenaarsbesluit 2026-09-05): momentopname vóór de wissel; daarna beslist de werkregel.
-      const before = captureTriangle(task, s.assignments, s);
-      const oldDays = task.time.scheduleDuration;
+      const before = captureCalendarChange(task, s.assignments, s);
       task.calendarId = calendarId; // undefined = projectkalender
-      if (settleCalendarChange(task, s.assignments, before, s).durationChanged) {
-        settleDurationAftermath(task, s, oldDays * taskCalendarHoursPerDay(task, s.calendars, s.calendar) * 60);
-      }
-      lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
+      const settled = settleCalendarChange(task, s.assignments, before, s);
+      // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts. De nazorg van de regel kan het
+      // venster al gewist hebben (dan is die tweede aanroep een no-op): beide tellen als verlies.
+      lostTimephasedGuidance = settled.timephasedLost || clearTimephasedWindow(task);
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);

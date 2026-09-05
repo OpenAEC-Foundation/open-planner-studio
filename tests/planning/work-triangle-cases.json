@@ -173,6 +173,14 @@
     { "id": "wt-34", "nr": 34, "evidence": "reasoned", "source": "eigenaarsbesluit 2026-09-05 (K2): standaardregel = het gedrag van vandaag — duur en inzet blijven, het werk volgt; een aanwezig veld wordt R' × I, een afwezig veld blijft afwezig (§4.3)",
       "state": { "rule": "FIXED_DURATION_RATE", "days": 4, "assignments": [{ "id": "a", "units": 1, "hours": 32 }, { "id": "b", "units": 1 }] },
       "edits": [{ "kind": "slot", "hoursPerDay": 6 }],
-      "expect": { "days": 4, "assignments": { "a": { "units": 1, "hours": 24 }, "b": { "units": 1, "hours": null, "derivedHours": 24 } } } }
+      "expect": { "days": 4, "assignments": { "a": { "units": 1, "hours": 24 }, "b": { "units": 1, "hours": null, "derivedHours": 24 } } } },
+    { "id": "wt-35", "nr": 35, "evidence": "reasoned", "source": "reviewronde 2026-09-05 (F5): FIXED_RATE volgt bij een slotwissel dezelfde §4.3-lijn als applyUnitsEdit — inzet blijft, R = W/I in de nieuwe slot, maar er wordt GEEN werkveld vastgelegd (afgeleid blijft afgeleid: R' × I = 36 u, niet het anker 32 u)",
+      "state": { "rule": "FIXED_RATE", "days": 4, "assignments": [{ "id": "a", "units": 1 }] },
+      "edits": [{ "kind": "slot", "hoursPerDay": 6 }],
+      "expect": { "days": 6, "assignments": { "a": { "units": 1, "hours": null, "derivedHours": 36 } } } },
+    { "id": "wt-36", "nr": 36, "evidence": "reasoned", "source": "reviewronde 2026-09-05 (F11): twee toewijzingen onder FIXED_WORK bij een slotwissel — R = max(W_i / I_i) in de nieuwe slot: max(32/1, 8/0,5) = 32 u ÷ 6 u/d = 5,33 ⇒ 6 d; beide werkvelden blijven (§6.2)",
+      "state": { "rule": "FIXED_WORK", "days": 4, "assignments": [{ "id": "a", "units": 1, "hours": 32 }, { "id": "b", "units": 0.5, "hours": 8 }] },
+      "edits": [{ "kind": "slot", "hoursPerDay": 6 }],
+      "expect": { "days": 6, "assignments": { "a": { "units": 1, "hours": 32 }, "b": { "units": 0.5, "hours": 8 } } } }
   ]
 }

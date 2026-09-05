@@ -28,7 +28,7 @@ import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorC
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, planWorkEdit, commitTrianglePlan,
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, planWorkEdit, commitTrianglePlan,
   settleAssignmentAdded, settleAssignmentRemoved, settleCalendarChange, settleDurationAftermath, settleDurationEdit,
   settleRuleChange, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';
@@ -387,12 +387,9 @@ function createMcpDraft(
       const { time, workRule, calendarId, ...rest } = updates;
       // K2 — tweeling van taskSlice.ts's `updateTask`: kalenderwissel eerst en apart.
       if ('calendarId' in updates && s.tasks[idx].calendarId !== calendarId) {
-        const before = captureTriangle(s.tasks[idx], s.assignments, s);
-        const oldDays = s.tasks[idx].time.scheduleDuration;
+        const before = captureCalendarChange(s.tasks[idx], s.assignments, s);
         s.tasks[idx].calendarId = calendarId;
-        if (settleCalendarChange(s.tasks[idx], s.assignments, before, s).durationChanged) {
-          afterTriangleDurationChange(s, s.tasks[idx], oldDays * taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar) * 60);
-        }
+        if (settleCalendarChange(s.tasks[idx], s.assignments, before, s).timephasedLost) recordTimephasedLoss(id);
       }
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
@@ -450,20 +447,20 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
-      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
-      // Taaktypes-etappe (bouwstap 4) — zelfde momentopname als `updateTaskFields` hierboven.
       const { workRule, calendarId, ...topRest } = top;
       // K2 — zelfde kalenderstap als `updateTaskFields` hierboven, vóór de momentopname voor de duur.
       if ('calendarId' in top && task.calendarId !== calendarId) {
-        const before = captureTriangle(task, s.assignments, s);
-        const oldDays = task.time.scheduleDuration;
+        const before = captureCalendarChange(task, s.assignments, s);
         task.calendarId = calendarId;
-        if (settleCalendarChange(task, s.assignments, before, s).durationChanged) {
-          afterTriangleDurationChange(s, task, oldDays * taskCalendarHoursPerDay(task, s.calendars, s.calendar) * 60);
-        }
+        if (settleCalendarChange(task, s.assignments, before, s).timephasedLost) recordTimephasedLoss(id);
       }
+      // Reviewbevinding F2: de referentie voor Δ-rest en contourherschaling ná de kalenderstap
+      // (die kan de duur al verschoven hebben), precies zoals `updateTaskFields`.
+      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // Taaktypes-etappe (bouwstap 4) — zelfde momentopname als `updateTaskFields` hierboven.
       const triangle = timePatch ? captureTriangle(task, s.assignments, s) : null;
+      const restBefore = [task.time.remainingTime, task.time.remainingMinutes];
       Object.assign(task, topRest);
       let timeTouched = false;
       if (timePatch) {
@@ -475,7 +472,10 @@ function createMcpDraft(
       }
       // Contour-engine (2026-09) — zelfde herschaling als `updateTaskFields` hierboven.
       if (timeTouched) {
-        carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
+        // Reviewbevinding F8 — zelfde `restUntouched`-poort als `updateTaskFields`: `top.time` past in
+        // `Partial<Task>`, dus een aanroeper kan de rest zelf zetten; die schuift dan niet óók nog.
+        const restUntouched = task.time.remainingTime === restBefore[0] && task.time.remainingMinutes === restBefore[1];
+        if (restUntouched) carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
         rescaleTaskContours(task, oldWorkMinutes, contourHpd, contourKeepsWork(task, s.project.defaultWorkRule));
         settleDurationEdit(task, s.assignments, triangle);
       }
@@ -570,14 +570,13 @@ function createMcpDraft(
       const idx = s.calendars.findIndex((c) => c.id === id);
       if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
       // K2 — tweeling van resourceSlice.ts's `updateCalendar`: momentopnamen vóór de mutatie.
-      const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureTriangle(task, s.assignments, s), oldDays: task.time.scheduleDuration }));
+      const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
-      for (const { task, before, oldDays } of affected) {
-        if (settleCalendarChange(task, s.assignments, before, s).durationChanged) {
-          afterTriangleDurationChange(s, task, oldDays * taskCalendarHoursPerDay(task, s.calendars, s.calendar) * 60);
-          changed++;
-        }
+      for (const { task, before } of affected) {
+        const settled = settleCalendarChange(task, s.assignments, before, s);
+        if (settled.durationChanged) changed++;
+        if (settled.timephasedLost) recordTimephasedLoss(task.id);
       }
       s.isDirty = true;
     });

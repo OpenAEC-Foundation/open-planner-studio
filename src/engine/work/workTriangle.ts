@@ -369,6 +369,13 @@ export function applyRuleChange(state: TriangleState, rule: WorkRule): TriangleR
  *  - FIXED_WORK / FIXED_RATE: werk en inzet blijven, R = max_i(W_i / I_i) in de nieuwe slot (naar
  *    boven op hele dagen) — minder uren per dag maakt de taak langer.
  * Uurtaken hebben geen slotafhankelijke duur; de aanroeper (brug) roept dit dan niet aan.
+ * Twee bewuste afwijkingen van `applyDurationEdit` (reviewronde 2026-09-05, F5/F6):
+ *  - FIXED_RATE schrijft — net als `applyUnitsEdit` — géén werkveld: het anker dient alleen als
+ *    rekeninvoer voor R, zodat een naar boven afgeronde R niet een opgeslagen W achterlaat die van
+ *    R × I afwijkt (§4.3: afwezig blijft afwezig);
+ *  - beslispunt 8-B (`effortDriven`) speelt hier niet: die uitzondering geldt een DUURbewerking in
+ *    dagen, en een slotwissel verandert de restduur in dagen juist niet. Een MSP-import met
+ *    Fixed Duration + effort-driven krijgt dus bij een kalenderwissel de P6-lezing (inzet = W / R').
  */
 export function applySlotChange(state: TriangleState, newSlotMinutes: number, newRemainingMinutes: number): TriangleResult {
   if (!isPositive(newSlotMinutes)) return { ok: false, reason: 'invalid-duration' };
@@ -390,7 +397,9 @@ export function applySlotChange(state: TriangleState, newSlotMinutes: number, ne
     return validated({ ...next, assignments });
   }
   const R = derivedRemaining(next, anchored);
-  return validated({ ...next, remainingMinutes: R, assignments: anchored });
+  // FIXED_WORK legt het anker vast (werkbeschermend, §4.3 a); FIXED_RATE houdt de toewijzingen zoals
+  // ze waren (zie de docblok: geen veld dat er niet was).
+  return validated({ ...next, remainingMinutes: R, assignments: ruleProtectsWork(state.rule) ? anchored : [...state.assignments] });
 }
 
 function replaceAt(list: readonly TriangleAssignment[], idx: number, item: TriangleAssignment): TriangleAssignment[] {

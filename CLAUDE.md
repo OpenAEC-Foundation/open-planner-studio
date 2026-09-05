@@ -142,10 +142,14 @@ contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaa
 de duur nooit. Een **kalenderwissel** (taak-/projectkalender of andere uren per dag in een kalender)
 verandert de slotgrootte en loopt daarna óók door de regel (`applySlotChange`/`settleCalendarChange`:
 Vast werk/Vaste inzet ⇒ duur; Vaste duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek);
-een project-/kalenderwijziging die duren verandert meldt hoeveel (`notifyWorkRuleDurationsChanged`).
-Een duurbewerking op een taak met EXPLICIETE restduur schuift die rest mee met Δ, geklemd op 0
-(`carryRemainingThroughDurationEdit`; `completion` blijft) — beide eigenaarsbesluiten 2026-09-05,
-spec §6.4/§6.5, meetlat 32–34. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
+de contour-as herschaalt daarbij van de oude naar de nieuwe werkminuten (ook zonder dagverandering),
+en een project-/kalenderwijziging die duren verandert meldt hoeveel (`notifyWorkRuleDurationsChanged`).
+Zes aanroepers delen `captureCalendarChange` → mutatie → `settleCalendarChange` (store, raster — als
+EIGEN stap vóór de rest van de paste —, MCP-tweeling, projectkalender, kalenderinhoud). Een
+duurbewerking op een taak met EXPLICIETE restduur schuift die rest mee met Δ, geklemd op 0
+(`carryRemainingThroughDurationEdit`; `completion` blijft — de inconsistentie die dat met de Gantt-
+voortgangsbalk geeft is een open eigenaarsvraag in `docs/TODO.md`) — beide eigenaarsbesluiten
+2026-09-05, spec §6.4/§6.5, meetlat 32–36. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
 `work-triangle-cases.json`), `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en
 `check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
 `fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`

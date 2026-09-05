@@ -19,7 +19,7 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import {
-  captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
+  captureCalendarChange, captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
   settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
 } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
@@ -672,44 +672,60 @@ function applyCellEdits(
     ? validatedEdits.filter(edit => !skippedConditionalEdits.has(edit))
     : validatedEdits;
 
+  // K2 (eigenaarsbesluit 2026-09-05, reviewbevinding F1): een kalenderwissel in de cel is een EIGEN
+  // stap vóór de rest van de paste — zelfde volgorde als `taskSlice.updateTask`. De slotgrootte
+  // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); een duur in dezelfde
+  // paste wordt daarná gepland, tegen een verse momentopname in de nieuwe slot. (Het environment is
+  // al met de geplakte kalender gebouwd, dus het duurplan rekent in de juiste slot.) Een `else` tussen
+  // de twee stappen gooide de geplakte duur weg.
+  let changed = false;
+  let timephasedGuidanceLost = false;
+  let scheduleStale = false;
+  const calendarEdits = finalEdits.filter(edit => String(edit.columnId) === 'task.calendarId');
+  if (calendarEdits.length > 0) {
+    const before = captureCalendarChange(task, assignmentsForTask, state);
+    const plannedCalendar = planTaskCellEdits(task, calendarEdits, environment);
+    if (!plannedCalendar.ok) return plannedCalendar;
+    if (plannedCalendar.value.changed) {
+      changed = true;
+      timephasedGuidanceLost ||= plannedCalendar.value.timephasedGuidanceLost;
+      scheduleStale ||= plannedCalendar.value.scheduleStale;
+      state.tasks[taskIndex] = plannedCalendar.value.task;
+      timephasedGuidanceLost ||= settleCalendarChange(state.tasks[taskIndex], state.assignments, before, state).timephasedLost;
+    }
+  }
+  const remainingEdits = calendarEdits.length > 0 ? finalEdits.filter(edit => !calendarEdits.includes(edit)) : finalEdits;
   // Taaktypes-etappe (spec §5 rij 1): momentopname VÓÓR het plan; een gewijzigde duur laat de
   // toewijzingen daarna hun regel volgen (`settleDurationEdit`) — onder de standaardregel zonder
   // werkvelden verandert er niets.
-  const triangle = captureTriangle(task, assignmentsForTask, state);
-  const workRuleBefore = task.workRule;
-  const planned = planTaskCellEdits(task, finalEdits, environment);
+  const current = state.tasks[taskIndex];
+  const triangle = captureTriangle(current, state.assignments.filter(a => a.taskId === current.id), state);
+  const workRuleBefore = current.workRule;
+  const planned = planTaskCellEdits(current, remainingEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
-    const calendarBefore = task.calendarId;
-    const oldDays = task.time.scheduleDuration;
+    changed = true;
+    timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
+    scheduleStale ||= planned.value.scheduleStale;
     state.tasks[taskIndex] = planned.value.task;
-    // K2 (eigenaarsbesluit 2026-09-05): een kalenderwissel in de cel loopt door de werkregel; staat
-    // er in dezelfde paste óók een duur, dan wint de kalenderstap (de duur is dan al in de nieuwe
-    // slot gezet door het plan) — zelfde volgorde als `taskSlice.updateTask`.
-    if (state.tasks[taskIndex].calendarId !== calendarBefore) {
-      if (settleCalendarChange(state.tasks[taskIndex], state.assignments, triangle, state).durationChanged) {
-        settleDurationAftermath(state.tasks[taskIndex], state, oldDays * taskCalendarHoursPerDay(state.tasks[taskIndex], state.calendars, state.calendar) * 60);
-      }
-    } else {
-      settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
-    }
+    settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
     // Taaktypes-etappe (spec §7, besluit 2): een typewissel in het raster legt — net als
     // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
     if (state.tasks[taskIndex].workRule !== workRuleBefore) {
       settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule);
       state.taskTypesVisible = true;
     }
-    if (planned.value.scheduleStale) {
-      if (state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      markScheduleStale(state);
+  }
+  if (changed && scheduleStale) {
+    if (state.datesAsRecorded) {
+      state.datesAsRecorded = false;
+      state.recordedDates = null;
     }
+    markScheduleStale(state);
   }
   return {
     ok: true,
-    value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost, skippedReadOnlyCount },
+    value: { timephasedGuidanceLost, skippedReadOnlyCount },
   };
 }
 

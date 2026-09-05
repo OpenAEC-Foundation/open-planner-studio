@@ -90,6 +90,33 @@ test('update_tasks: workRule + duration in één call — de duur wordt onder de
   assertEq(asg(t, r).remainingWorkMinutes, 8 * slot(), 'daarna vastgelegd: 8 dagen × slot');
 });
 
+test('update_tasks: calendarId + duration in één call (review F2) — het verrichte deel blijft een feit', async () => {
+  const { t, r } = seed(10);
+  const six = store.getState().addCalendar({ ...store.getState().calendar, id: 'cal-6h', name: '6 uur', hoursPerDay: 6 } as never);
+  const sixId = typeof six === 'string' ? six : 'cal-6h';
+  store.getState().updateTask(t, { time: { ...task(t).time, completion: 0.5, remainingTime: 5 } });
+  store.getState().runCPM();
+  store.getState().setTaskWorkRule(t, 'FIXED_WORK');
+  assertEq(asg(t, r).remainingWorkMinutes, 5 * slot(), 'voorwaarde: restwerk 5 d × 8 u');
+  okData(await call('planner_update_tasks', { updates: [{ id: t, fields: { calendarId: sixId, duration: 8 } }] }));
+  assertEq([task(t).calendarId, task(t).time.scheduleDuration, task(t).time.remainingTime, task(t).time.completion], [sixId, 8, 3, 0.5], 'kalender 6 u, duur 8, rest 3 (5 d verricht), completion blijft');
+  assertEq(asg(t, r).remainingWorkMinutes, 5 * 480, 'werk 40 u blijft (Vast werk)');
+});
+
+test('update_calendar: uren per dag wijzigen laat de werkregel per taak beslissen (K2) en meldt het aantal', async () => {
+  const { t, r } = seed(4);
+  const six = store.getState().addCalendar({ ...store.getState().calendar, id: 'cal-6h-b', name: '6 uur', hoursPerDay: 6 } as never);
+  const sixId = typeof six === 'string' ? six : 'cal-6h-b';
+  store.getState().setTaskWorkRule(t, 'FIXED_WORK');
+  store.getState().setTaskCalendar(t, sixId);
+  assertEq(task(t).time.scheduleDuration, 6, 'voorwaarde: 32 u op 6 u/dag = 6 d');
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  okData(await call('planner_update_calendar', { calendars: [{ id: sixId, hoursPerDay: 4 }] }));
+  assertEq([task(t).time.scheduleDuration, asg(t, r).remainingWorkMinutes], [8, 32 * 60], '4 u/dag ⇒ 8 d, werk 32 u blijft');
+  const note = store.getState().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged');
+  assertEq(note?.params?.count, 1, 'melding met aantal 1');
+});
+
 test('add_tasks: workRule op een nieuwe taak is een kaal veld', async () => {
   reset();
   const res = await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-a', name: 'A', duration: 3, workRule: 'FIXED_RATE' }] });
