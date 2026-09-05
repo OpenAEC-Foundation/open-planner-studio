@@ -8,6 +8,7 @@ Een `.xer`-bestand is het uitwisselingsformaat van Primavera P6. Open Planner St
 - Hoe huidige projecten, lege projecten en baselineprojecten worden behandeld.
 - Welke kalender-, resource-, voortgangs- en metadata-informatie wordt ingelezen.
 - Hoe tekencodering en de P6-getalnotatie veilig worden bepaald.
+- Wat er gebeurt als de herberekening afwijkt van de datums die Primavera zelf al had opgeslagen.
 - Wat opslaan als IFC betekent en welke P6-functies nog geen eigen rekenmodel hebben.
 
 ## Openen en documenten
@@ -37,6 +38,33 @@ De rauwe P6-brongegevens die Open Planner Studio leest, blijven onderdeel van he
 XER noemt zijn tekencodering niet betrouwbaar in het bestand. Een UTF-BOM wordt gevolgd; zonder BOM gebruikt de lezer geldige UTF-8 en valt hij anders terug op Windows-1252. Is zo'n niet-ASCII-keuze nodig, dan staat de gebruikte codering in de openingsmelding. De app probeert geen regels te raden of als "overgeslagen" voor te stellen.
 
 P6 kan de decimaal- en duizendtallenscheiding in de `CURRTYPE`-tabel vastleggen, zowel als letterlijk teken als met symbolische tokens zoals `ds_Period` en `dg_Comma`. Die notatie wordt gelezen vóór duren, werk en float worden omgezet. Ontbreekt `CURRTYPE`, dan is punt de veilige standaard. Lijkt een waarde een komma-decimaal terwijl die broninformatie ontbreekt, dan stopt de import met een gerichte fout in plaats van een mogelijk verkeerd schema te openen.
+
+## Datums zoals Primavera ze opsloeg
+
+Open Planner Studio herberekent een geopende planning altijd zelf — ook een `.xer`-bestand. Op de
+meeste bestanden komt die herberekening exact overeen met wat Primavera zelf had opgeslagen. Blijven
+er verschillen over, dan zet de app zichzelf bij het openen automatisch in de weergave **datums zoals
+opgeslagen**: je ziet dan Primavera's eigen resultaat op het scherm, niet onze herberekening. Dat is
+een andere volgorde dan bij andere formaten — daar biedt de app deze weergave alleen aan via een knop;
+bij een `.xer`-bestand met restverschillen staat hij meteen aan, omdat het bestand een betrouwbare,
+eigen berekening meebrengt in plaats van alleen datums zonder rekenlogica.
+
+Bij het openen verschijnt dezelfde ene melding als hierboven, aangevuld met het aantal activiteiten
+waarvan een herberekening de datums zou verschuiven. Taken die in deze weergave zitten, zijn herkenbaar
+in de tabel — kolom **Herkomst (opgeslagen datums)** — en in het eigenschappenpaneel van de
+geselecteerde taak. Ontbreekt voor een taak de laatste start, het laatste einde, de totale speling of
+de vrije speling in het bronbestand, dan toont de betreffende kolom "Niet vastgelegd" in plaats van een
+verzonnen getal.
+
+Bewerk je een taak, of druk je op **F5**, dan verlaat de app deze weergave en rekent hij gewoon weer
+door — precies zoals bij elk ander formaat. De herberekening zelf gebruikt Primavera's opgeslagen
+datums nooit als invoer: ze reizen als aparte, alleen-lezen brondata mee en worden uitsluitend gebruikt
+om te tonen wat het bestand zei, nooit om te sturen wat de app berekent. Sla je op als IFC, dan blijft
+deze weergave — inclusief welke activiteiten afweken en welke assen niet vastgelegd waren — bewaard in
+het projectbestand.
+
+Zie [Datums zoals opgeslagen](docs://datums-zoals-opgeslagen) voor de volledige uitleg van deze
+weergave, inclusief wat je wel en niet ziet zolang hij actief is en hoe je er handmatig weer uit stapt.
 
 ## Opslaan en uitwisselen
 

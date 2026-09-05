@@ -8,6 +8,7 @@ A `.xer` file is Primavera P6's exchange format. Open Planner Studio can open it
 - How current projects, empty projects and baseline projects are handled.
 - Which calendar, resource, progress and metadata information is read.
 - How text encoding and P6 number notation are determined safely.
+- What happens when the recalculation deviates from the dates Primavera itself had already recorded.
 - What saving as IFC means and which P6 features do not yet have their own scheduling model.
 
 ## Opening and documents
@@ -37,6 +38,31 @@ The raw P6 source data that Open Planner Studio reads remains part of the docume
 XER does not reliably declare its text encoding in the file. A UTF BOM is followed; without one, the reader uses valid UTF-8 and otherwise falls back to Windows-1252. If that non-ASCII choice is needed, the opening notification states the encoding used. The app does not guess individual rows or describe them as "skipped".
 
 P6 can store decimal and thousands separators in the `CURRTYPE` table, either as literal characters or symbolic tokens such as `ds_Period` and `dg_Comma`. That notation is read before durations, work and float are converted. If `CURRTYPE` is absent, a dot is the safe default. If a value looks like a comma decimal while this source information is absent, import stops with a specific error instead of opening a potentially wrong schedule.
+
+## Dates as Primavera recorded them
+
+Open Planner Studio always recalculates an opened schedule itself — a `.xer` file included. On most
+files that recalculation matches exactly what Primavera itself had recorded. When differences remain,
+the app automatically switches itself into the **dates as recorded** view as soon as it opens: you
+then see Primavera's own result on screen, not our recalculation. That is a different order than for
+other formats — there, the app only offers this view through a button; for a `.xer` file with residual
+differences it turns on immediately, because the file brings along a trustworthy calculation of its
+own rather than just dates without any scheduling logic.
+
+The same single notification as above appears on open, extended with the number of activities whose
+dates a recalculation would shift. Tasks inside this view are recognisable in the table — column
+**Recorded-dates source** — and in the properties panel of the selected task. If the late start, late
+finish, total float or free float is missing for a task in the source file, the relevant column shows
+"Not recorded" instead of an invented number.
+
+Editing a task, or pressing **F5**, leaves this view and recalculates as usual — exactly as with any
+other format. The recalculation itself never uses Primavera's recorded dates as input: they travel
+along as separate, read-only source data and are used only to show what the file said, never to drive
+what the app calculates. Saving as IFC keeps this view — including which activities deviated and which
+axes were not recorded — stored in the project file.
+
+See [Dates as recorded](docs://datums-zoals-opgeslagen) for the full explanation of this view,
+including what you do and don't see while it is active and how to leave it manually.
 
 ## Saving and exchange
 

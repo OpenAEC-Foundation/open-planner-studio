@@ -70,9 +70,35 @@ Save while you're viewing the recorded dates, and the app writes those dates —
 version. That way you never accidentally overwrite a colleague's schedule, or the source package's
 schedule, with an outcome the app made up on its own.
 
+## Primavera P6 (.xer): this view can turn on by itself
+
+For a `.xer` file this works slightly differently from the other formats above. Primavera P6 doesn't
+just deliver dates — it also delivers its own calculation of them, not bare dates without any logic.
+If residual differences remain against Open Planner Studio's own recalculation after opening, the app
+switches itself straight into this view, without you first clicking **Show recorded dates**. In that
+case the notice above the schedule immediately states the number of activities that would shift, and
+points to the standing notice that stays visible while the view is active.
+
+Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
+with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
+in exactly the same way as with any other format (see above); the calculation itself never uses
+Primavera's recorded dates as input, only as a view. See
+[Opening Primavera P6 (.xer)](docs://gids-xer-import) for the rest of what a XER import brings along.
+
+## "Not recorded"
+
+Primavera doesn't record all four axes — late start, late finish, total float and free float — for
+every activity; an activity might have an early date but no float, for example. When such an axis is
+missing from the source file, the relevant column in the table shows "Not recorded" instead of a
+number. That's not an error: it only means the file itself said nothing on that point, so Open Planner
+Studio doesn't invent anything either. Recalculate (by editing, or with **F5**), and the column fills
+in with the app's own calculation.
+
 ## Further reading
 
 - More on which formats you can import and what does and doesn't come along — read the
   [Import/export](docs://gids-import-export) guide.
 - Float and the critical path in detail, including what "driving" actually means — read the
   [Critical path & advanced analysis](docs://gids-kritiek-pad-analyse) guide.
+- Everything a `.xer` import brings along — read the
+  [Opening Primavera P6 (.xer)](docs://gids-xer-import) guide.

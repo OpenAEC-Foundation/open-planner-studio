@@ -73,9 +73,36 @@ Sla je op terwijl je de opgeslagen datums bekijkt, dan schrijft de app die datum
 doorgerekende versie. Zo overschrijf je nooit per ongeluk de planning van een collega of van het
 bronpakket met een uitkomst die de app er zelf bij heeft bedacht.
 
+## Primavera P6 (.xer): deze weergave kan vanzelf aangaan
+
+Bij een `.xer`-bestand werkt dit net iets anders dan bij de andere formaten hierboven. Primavera P6
+levert namelijk niet alleen datums, maar ook zíjn eigen berekening daarvan — geen losse datums zonder
+logica. Blijven er na het openen restverschillen over met de herberekening van Open Planner Studio,
+dan zet de app zichzelf meteen in deze weergave, zonder dat je eerst op **Opgeslagen datums tonen**
+hoeft te klikken. De melding boven de planning noemt in dat geval meteen het aantal activiteiten dat
+zou verschuiven, en verwijst naar de vaste blijvende melding zodra de weergave actief is.
+
+De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
+datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het
+bewerken van een taak verlaten deze weergave op precies dezelfde manier als bij elk ander formaat (zie
+hierboven); de berekening zelf gebruikt Primavera's opgeslagen datums nooit als invoer, alleen als
+weergave. Zie [Primavera P6 (.xer) openen](docs://gids-xer-import) voor de rest van wat een XER-import
+meebrengt.
+
+## "Niet vastgelegd"
+
+Primavera legt niet voor elke activiteit alle vier de assen laatste start, laatste einde, totale
+speling en vrije speling vast — een activiteit kan bijvoorbeeld wel een vroege datum hebben, maar geen
+speling. Mist zo'n as in het bronbestand, dan toont de betreffende kolom in de tabel "Niet vastgelegd"
+in plaats van een getal. Dat is geen foutmelding: het betekent alleen dat het bestand zelf op dat punt
+niets zei, en Open Planner Studio verzint daar dus ook niets bij. Zodra je herberekent (bewerken of
+**F5**), vult de kolom zich met de eigen berekening van de app.
+
 ## Verder lezen
 
 - Meer over welke formaten je kunt importeren en wat daarbij wel en niet meekomt — lees de gids
   [Im-/export](docs://gids-import-export).
 - Speling en kritiek pad in detail, inclusief wat "bepalend" precies betekent — lees de gids
   [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse).
+- Alles over wat een `.xer`-import meebrengt — lees de gids
+  [Primavera P6 (.xer) openen](docs://gids-xer-import).
