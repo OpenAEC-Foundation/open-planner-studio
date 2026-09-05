@@ -19,7 +19,9 @@ There are two entry points:
 - From the Resources ribbon, whenever a conflict is open.
 
 The dialog opens with the title "Distribute over projects" and shows which library item it concerns
-at the top. A **Back to occupancy** link takes you back to the overview without changing anything.
+at the top. You close it with the cross in the top-right corner, with Esc, or with **Discard** at the
+bottom — in all three cases nothing changes, and the occupancy overview simply stays underneath the
+dialog, so there's no separate "back" step needed.
 
 A few situations block the distribution right away, with a clear reason:
 
@@ -27,12 +29,21 @@ A few situations block the distribution right away, with a clear reason:
 - The chosen item is a material item; distributing only works for people and equipment.
 - None of the projects actually book work here — there's nothing to distribute.
 
-At the top of the dialog you'll see a before-and-after histogram: how the load currently runs against
-capacity, and how that looks once you apply the proposal.
+## Allow interruptions
+
+At the top of the dialog sits the **"Allow interruptions"** toggle. It determines how a task is
+allowed to give way when there isn't enough capacity. With the toggle off, a task that doesn't fit
+shifts as a whole to a later moment. With it on, a task may also get pause days — whole workdays
+without deployment in between the days it is deployed — instead of shifting in one piece. This is
+exactly the same switch as "Leveling can create splits in remaining work" in Microsoft Project.
+
+Work that has already started is never interrupted, whether this toggle is on or off: that part can
+only give way through overrun. Whatever the toggle is set to, the dialog shows the price tag in
+workdays of overrun, so you can weigh the effect before you apply.
 
 ## Who gets spared the most?
 
-Below the histogram sits the ranking list **"Who gets spared the most?"**. This is the order in which
+Below that sits the ranking list **"Who gets spared the most?"**. This is the order in which
 projects get priority: the project at the top wiggles the least, and each project below it gives way
 first whenever a choice has to be made. Drag a project to change the order, or use the arrow buttons
 to move it up or down one place.
@@ -41,21 +52,9 @@ Next to each project you'll see the slack it still has, and what it would cost t
 project shift — in workdays of overrun. That way you can see straight away which project is the
 cheapest place to absorb the shift, instead of having to guess.
 
-## Allow interruptions
-
-The **"Allow interruptions"** toggle determines how a task is allowed to give way when there isn't
-enough capacity. With the toggle off, a task that doesn't fit shifts as a whole to a later moment.
-With it on, a task may also get pause days — whole workdays without deployment in between the days it
-is deployed — instead of shifting in one piece. This is exactly the same switch as "Leveling can
-create splits in remaining work" in Microsoft Project.
-
-Work that has already started is never interrupted, whether this toggle is on or off: that part can
-only give way through overrun. Whatever the toggle is set to, the dialog shows the price tag in
-workdays of overrun, so you can weigh the effect before you apply.
-
 ## Pinning or a ceiling
 
-For each project in the ranking list you have two ways to limit the room it gives up:
+Below that, on a strip per project, you have two ways to limit the room it gives up:
 
 - **Pin** freezes a project completely: both its end date and its workdays stay exactly as they are
   now. A pinned project never gives up room — it counts in the calculation as a fixed load that the
@@ -69,6 +68,13 @@ The ceiling is a draggable handle on each project's phase strip: drag it, or use
 move it one workday at a time, Home for a ceiling of 0, and End for unlimited. The label next to the
 handle shows what that means for the project's end date, and if less overrun turned out to be needed
 than you had allowed, the label says so explicitly: "requested X, closest achievable Y".
+
+## Before and after
+
+Below the phase strips sits a chart with two states, "Now" and "After distributing": how the load
+currently runs against the library's capacity line, and how that changes once you apply the proposal.
+If a shortfall remains despite every setting, the dialog shows next to it which tasks don't fit per
+project, and **Apply** stays disabled with the reason next to it.
 
 ## Why it sometimes doesn't work out
 
@@ -93,23 +99,41 @@ A task that can't be shifted gets a plain-language reason instead of just a red 
 A project with **["Dates as recorded"](docs://datums-zoals-opgeslagen)** turned on never takes part in
 a distribution — leave that mode in that project first before adding it to a distribution proposal.
 
-Any change to the ranking, a ceiling, a pin, or the toggle immediately invalidates the current
-proposal; press **Recalculate** afterwards, or use **Distribute automatically** to have that happen on
-its own each time. If something is edited in one of the involved projects while the dialog is open,
-the proposal lapses for the same reason. If a shortfall remains despite every setting, the dialog
-shows which tasks don't fit per project, and **Apply** stays disabled with the reason next to it.
+## Recalculated automatically, or with the button
+
+There is no separate mode for automatic calculation: at the bottom of the dialog sits a single
+button, which reads **"Distribute automatically"** as long as there's no proposal yet, and
+**"Recalculate"** afterwards. Changing the ranking, a ceiling, a pin, or the "Allow interruptions"
+toggle makes the dialog recalculate the proposal right away on its own — you don't have to press the
+button for that yourself. Only on a very large overview (many tasks in one of the involved projects,
+or many tasks that book against this item) does the dialog switch that automatism off; it then reports
+that it only calculates once you press **Recalculate** yourself.
+
+If something is edited in one of the involved projects while the dialog is open — for example by an
+AI assistant, by another edit, or because you press **Apply** yourself — the dialog reports the
+proposal as no longer current. That is never recalculated automatically: press **Recalculate**
+yourself when that happens.
 
 ## Applying and undoing
 
 Once the proposal is valid and everything fits, **Apply** writes the shift into all the involved
 projects at once — even into a project where **Calculate automatically** is switched off. Each
 project gets an ordinary undo step for it, just as if you had shifted things there by hand yourself.
+If writing to a project unexpectedly fails, nothing changes anywhere and you get an error message —
+Apply never fails halfway, and never silently.
 
-After applying, a strip "Applied in N projects" appears with an **Undo all** button. That strip stays
-in place even if you keep working elsewhere in the app in the meantime, so you don't have to decide
-right away. Undoing reverts the step in every project — except one where you yourself worked further,
-after applying: that project is then named explicitly and stays at its new state, while the rest is
-reverted normally.
+After applying, a strip "Applied in N projects" appears at the bottom of the dialog with an
+**Undo all** button. That strip stays in place as long as you keep working in the same document —
+even if you close the dialog in the meantime and later reopen it from the same conflict row. Switch
+to a different document, though, and the dialog closes on its own; opening it again starts from
+scratch, including the way back. The strip also disappears through a new **Apply**, or by going on to
+distribute a different library item.
+
+Undoing reverts the step in every project — except one where you yourself worked further, after
+applying: that project is then named explicitly and stays at its new state, while the rest is
+reverted normally. Right after applying, the dialog also reports the proposal itself as "no longer
+current" — that isn't a glitch: the projects have, after all, just changed. Press Recalculate if you
+want to distribute again from the same dialog.
 
 The choices you make in this dialog — ranking, pins, ceilings — belong to this one distribution
 session. They aren't stored anywhere in the project: close the dialog or restart the app, and next

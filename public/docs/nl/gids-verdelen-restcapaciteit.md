@@ -20,8 +20,9 @@ Er zijn twee ingangen:
 - Vanuit de Resources-ribbon, wanneer er een conflict openstaat.
 
 De dialoog opent met de titel "Verdelen over projecten" en toont bovenaan om welk bibliotheekitem
-het gaat. Een link **Terug naar bezetting** brengt je terug naar het overzicht zonder iets te
-wijzigen.
+het gaat. Je sluit hem met het kruisje rechtsboven of met Esc, of onderaan met **Verwerpen** — in
+alle drie de gevallen verandert er niets, en het bezettingsoverzicht blijft gewoon onder de dialoog
+staan, dus er is geen aparte "terug"-stap nodig.
 
 Een paar situaties blokkeren de verdeling meteen, met een duidelijke reden:
 
@@ -30,35 +31,33 @@ Een paar situaties blokkeren de verdeling meteen, met een duidelijke reden:
 - Het gekozen item is een materiaal-item; verdelen werkt alleen voor mensen en materieel.
 - Geen van de projecten boekt hier daadwerkelijk werk op — er is dan niets te verdelen.
 
-Bovenin de dialoog zie je een histogram van vóór en ná: hoe de belasting nu tegen de capaciteit
-aanloopt, en hoe dat eruitziet als je het voorstel toepast.
-
-## Wie wordt het meest ontzien?
-
-Onder het histogram staat de rangordelijst **"Wie wordt het meest ontzien?"**. Dit is de volgorde
-waarin de projecten voorrang krijgen: het project bovenaan wijkt het minst, elk project daaronder
-levert eerder in als er een keuze gemaakt moet worden. Versleep een project om de volgorde te
-wijzigen, of gebruik de pijltjes om het een plek omhoog of omlaag te zetten.
-
-Bij elk project staat de speling die het nog heeft, en wat het zou kosten om alléén dít project te
-laten opschuiven — in werkdagen uitloop. Zo zie je meteen welk project de goedkoopste plek is om de
-verschuiving te laten landen, in plaats van dat te moeten gissen.
-
 ## Onderbrekingen toestaan
 
-De schakelaar **"Onderbrekingen toestaan"** bepaalt hoe een taak mag wijken wanneer er niet genoeg
-capaciteit is. Staat de schakelaar uit, dan schuift een taak die niet past in zijn geheel op naar een
-later moment. Staat hij aan, dan mag een taak ook pauzedagen krijgen — hele werkdagen zonder inzet
-tussen de wel-ingezette dagen door — in plaats van in één stuk te verschuiven. Dit is precies dezelfde
-knop als "Leveling can create splits in remaining work" in Microsoft Project.
+Bovenaan de dialoog staat de schakelaar **"Onderbrekingen toestaan"**. Die bepaalt hoe een taak mag
+wijken wanneer er niet genoeg capaciteit is. Staat de schakelaar uit, dan schuift een taak die niet
+past in zijn geheel op naar een later moment. Staat hij aan, dan mag een taak ook pauzedagen krijgen
+— hele werkdagen zonder inzet tussen de wel-ingezette dagen door — in plaats van in één stuk te
+verschuiven. Dit is precies dezelfde knop als "Leveling can create splits in remaining work" in
+Microsoft Project.
 
 Werk dat al begonnen is, wordt nooit onderbroken, met of zonder deze schakelaar aan: dat deel kan
 alleen nog via uitloop wijken. Bij elke instelling van de schakelaar toont de dialoog het prijskaartje
 in werkdagen uitloop, zodat je het effect kunt afwegen vóór je toepast.
 
+## Wie wordt het meest ontzien?
+
+Daaronder staat de rangordelijst **"Wie wordt het meest ontzien?"**. Dit is de volgorde waarin de
+projecten voorrang krijgen: het project bovenaan wijkt het minst, elk project daaronder levert eerder
+in als er een keuze gemaakt moet worden. Versleep een project om de volgorde te wijzigen, of gebruik
+de pijltjes om het een plek omhoog of omlaag te zetten.
+
+Bij elk project staat de speling die het nog heeft, en wat het zou kosten om alléén dít project te
+laten opschuiven — in werkdagen uitloop. Zo zie je meteen welk project de goedkoopste plek is om de
+verschuiving te laten landen, in plaats van dat te moeten gissen.
+
 ## Vastzetten of een plafond
 
-Per project in de rangordelijst heb je twee manieren om de ruimte te begrenzen:
+Per project heb je daaronder, op een strook per project, twee manieren om de ruimte te begrenzen:
 
 - **Vastzetten** (de pin) bevriest een project volledig: zowel de einddatum als de werkdagen blijven
   precies zoals ze nu zijn. Een vastgezet project levert dus nooit ruimte in — het telt in de
@@ -73,6 +72,13 @@ pijltjestoetsen om per werkdag te verschuiven, Home voor een plafond van 0, en E
 Het label bij de handle toont wat dat betekent voor de einddatum van het project, en als er minder
 uitloop nodig bleek dan je had toegestaan, meldt het label dat expliciet: "gevraagd X, dichtst
 haalbare Y".
+
+## Vóór en na
+
+Onder de fasestroken staat een grafiek met twee standen, "Nu" en "Na verdelen": hoe de belasting op
+dit moment tegen de capaciteitslijn van de bibliotheek aanloopt, en hoe dat verandert zodra je het
+voorstel toepast. Blijft er, ondanks alle instellingen, een tekort over, dan toont de dialoog daarbij
+per project welke taken niet passen, en blijft **Toepassen** uitgeschakeld met de reden erbij.
 
 ## Waarom het soms niet lukt
 
@@ -99,24 +105,41 @@ Een project met **["Datums zoals opgeslagen"](docs://datums-zoals-opgeslagen)** 
 een verdeling — verlaat die modus eerst in dat project voordat je het aan een verdeelvoorstel
 toevoegt.
 
-Elke wijziging aan de rangorde, een plafond, een vastzetting of de schakelaar maakt het huidige
-voorstel meteen ongeldig; druk daarna op **Herbereken**, of gebruik **Verdeel automatisch** om dat
-telkens vanzelf te laten gebeuren. Wordt er in een van de betrokken projecten iets bewerkt terwijl de
-dialoog openstaat, dan vervalt het voorstel om diezelfde reden. Blijft er, ondanks alle instellingen,
-een tekort over, dan toont de dialoog per project welke taken niet passen, en blijft **Toepassen**
-uitgeschakeld met de reden erbij.
+## Automatisch herberekend, of met de knop
+
+Er is geen aparte modus voor automatisch rekenen: onderaan de dialoog staat één knop, die
+**"Verdeel automatisch"** heet zolang er nog geen voorstel is, en daarna **"Herbereken"**. Wijzig je
+de rangorde, een plafond, een vastzetting, of de schakelaar "Onderbrekingen toestaan", dan rekent de
+dialoog het voorstel vanzelf meteen opnieuw door — je hoeft daarvoor niet zelf op de knop te drukken.
+Alleen bij een heel groot overzicht (veel taken in een van de betrokken projecten, of veel taken die
+op dit item boeken) schakelt de dialoog dat automatisme uit; ze meldt dan dat ze pas rekent zodra je
+zelf op **Herbereken** drukt.
+
+Wordt er in een van de betrokken projecten iets bewerkt terwíjl de dialoog openstaat — bijvoorbeeld
+door een AI-assistent, door een andere bewerking, of doordat je zelf op **Toepassen** drukt — dan
+meldt de dialoog het voorstel als niet meer actueel. Dat wordt nooit automatisch opnieuw doorgerekend:
+druk dan zelf op **Herbereken**.
 
 ## Toepassen en terugdraaien
 
 Is het voorstel geldig en past alles, dan schrijft **Toepassen** de verschuiving in álle betrokken
 projecten tegelijk — ook in een project waar **Automatisch berekenen** uitstaat. Elk project krijgt
-daarbij een gewone ongedaan-maken-stap, alsof je daar zelf handmatig had geschoven.
+daarbij een gewone ongedaan-maken-stap, alsof je daar zelf handmatig had geschoven. Lukt het schrijven
+in een project onverhoopt niet, dan verandert er nergens iets en krijg je een foutmelding — Toepassen
+faalt dus nooit half en nooit stil.
 
-Na het toepassen verschijnt een strook "Toegepast in N projecten" met de knop **Alles terugdraaien**.
-Die strook blijft staan, ook als je intussen elders in de app verder werkt, zodat je niet meteen hoeft
-te beslissen. Terugdraaien maakt de stap in elk project ongedaan — behalve in een project waarin je
-zelf, ná het toepassen, alweer verder gewerkt hebt: dat project wordt dan met naam gemeld en blijft op
-zijn nieuwe stand staan, terwijl de rest gewoon teruggaat.
+Na het toepassen verschijnt onderin de dialoog een strook "Toegepast in N projecten" met de knop
+**Alles terugdraaien**. Die strook blijft staan zolang je in hetzelfde document verder werkt — ook als
+je de dialoog intussen sluit en later op dezelfde conflictregel opnieuw opent. Wissel je van
+document, dan sluit de dialoog vanzelf en begint een volgende keer weer bij nul, ook wat de terugweg
+betreft. De strook verdwijnt verder door een nieuw **Toepassen**, of doordat je een ander
+bibliotheekitem gaat verdelen.
+
+Terugdraaien maakt de stap in elk project ongedaan — behalve in een project waarin je zelf, ná het
+toepassen, alweer verder gewerkt hebt: dat project wordt dan met naam gemeld en blijft op zijn nieuwe
+stand staan, terwijl de rest gewoon teruggaat. Meteen na Toepassen meldt de dialoog het voorstel zelf
+ook als "niet meer actueel" — dat is geen storing: de projecten zijn immers net gewijzigd. Druk op
+Herbereken als je vanuit dezelfde dialoog nog een keer wilt verdelen.
 
 De keuzes die je in deze dialoog maakt — rangorde, vastzettingen, plafonds — horen bij deze ene
 verdeelsessie. Ze worden nergens in het project opgeslagen: sluit je de dialoog of herstart je de
