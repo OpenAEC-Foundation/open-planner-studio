@@ -1,4 +1,4 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveOutcome } from './index';
+import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { ensureExtension, extensionOf } from '@/utils/filePath';
 
 const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
@@ -19,10 +19,22 @@ export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDial
   return { name: basename(path), content, ref: { kind: 'path', path } };
 }
 
-export async function saveFileDialogTauri(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
+export async function saveFileDialogTauri(
+  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
   const { save } = await import('@tauri-apps/plugin-dialog');
   const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-  const picked = await save({ defaultPath: defaultName, filters });
+  let defaultPath = defaultName;
+  if (opts?.preferDownloads) {
+    try {
+      const { downloadDir, join } = await import('@tauri-apps/api/path');
+      defaultPath = await join(await downloadDir(), defaultName);
+    } catch {
+      // Downloadmap onbekend/ontoegankelijk (zeldzaam) — val terug op de kale bestandsnaam,
+      // net als het bestaande gedrag van elke andere export.
+    }
+  }
+  const picked = await save({ defaultPath, filters });
   if (!picked) return null;
   // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren (net als de oude code).
   const ext = filters[0]?.extensions[0] ?? '';

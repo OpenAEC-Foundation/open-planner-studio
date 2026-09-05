@@ -1,4 +1,4 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveOutcome } from './index';
+import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { extensionOf } from '@/utils/filePath';
 
 const hasFSA = (): boolean => typeof window !== 'undefined' && 'showOpenFilePicker' in window;
@@ -164,13 +164,21 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
   return openViaInput(filters, opts);
 }
 
-export async function saveFileDialogWeb(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
+export async function saveFileDialogWeb(
+  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
   // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
   // weigert) — de catch hieronder ving dat al af via `platformRefusesWrites`/de download-route,
   // maar de featurePolicy-precheck bespaart ook hier de nutteloze picker-flits.
   if (hasFSA() && !platformRefusesWrites && !featurePolicyBlocksFSA()) {
     try {
-      const handle = await window.showSaveFilePicker!({ suggestedName: defaultName, types: toAcceptTypes(filters) });
+      // `startIn: 'downloads'` is een Chromium-uitbreiding op de FSA-spec (well-known directory) —
+      // niet-Chromium browsers negeren een onbekende optie stilzwijgend, dus dit is veilig overal.
+      const handle = await window.showSaveFilePicker!({
+        suggestedName: defaultName,
+        types: toAcceptTypes(filters),
+        ...(opts?.preferDownloads ? { startIn: 'downloads' as const } : {}),
+      });
       const writable = await handle.createWritable();
       await writable.write(content);
       await writable.close();

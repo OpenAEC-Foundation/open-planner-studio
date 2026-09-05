@@ -8,7 +8,7 @@ import type { CustomTaskType } from '@/types/taskType';
 const DELIMITER = ';';
 const BOM = '\uFEFF';
 
-function escapeCSV(value: string): string {
+export function escapeCSV(value: string): string {
   if (value.includes(DELIMITER) || value.includes('"') || value.includes('\n') || value.includes('\r')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
@@ -37,7 +37,7 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
  * een geheel percentage breken niet. `Math.round(c*1e6)/1e4` haalt float-ruis (bv. 0.1+0.2-achtige
  * representatiefouten) eruit vóórdat `toFixed` de string vormt.
  */
-function formatCompletionPercent(completion: number): string {
+export function formatCompletionPercent(completion: number): string {
   const percent = Math.round(completion * 1e6) / 1e4;
   return percent.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
 }
@@ -127,6 +127,44 @@ export function writeCSV(
       task.time.isCritical ? 'Yes' : 'No',
       task.time.totalFloat.toString(),
       escapeCSV(task.description),
+    ];
+    rows.push(row.join(DELIMITER));
+  }
+
+  return BOM + rows.join('\r\n') + '\r\n';
+}
+
+/**
+ * Voortgangsblad-export (issue #27 etappe 2, eigenaarsbesluit E7, 2026-09-05): een SLANK CSV-blad
+ * met uitsluitend de kolommen die een invuller voor de voortgangsimport nodig heeft — geen
+ * predecessors/duration/type/status/critical/float/description zoals de volle `writeCSV`. Zelfde
+ * conventies (BOM, `;`, CRLF, `escapeCSV`, `formatCompletionPercent`), letterlijk hergebruikt uit
+ * `writeCSV` i.p.v. gekopieerd, zodat de twee schrijvers nooit uit elkaar kunnen lopen op precisie
+ * (zie de N-B/N-C-fixrondes hierboven). Tweede SCHRIJVER op dezelfde helpers — geen tweede lezer:
+ * `parseProgressCsv`/`finalizeProgressRows`/`buildProgressImportPlan` blijven ongewijzigd en lezen
+ * dit blad net als elke andere CSV-export. Rijvolgorde = documentvolgorde, inclusief
+ * verzameltaken — die worden bij terugimport netjes geweigerd (zie `matchRows`/`buildPlan`), maar
+ * de invuller ziet zo wél de volledige structuur van het project.
+ */
+export function writeProgressSheetCSV(tasks: Task[]): string {
+  const headers = [
+    'OPS Task ID', 'WBS', 'Name', 'Start', 'Finish',
+    'Completion (%)', 'Actual Start', 'Actual Finish',
+  ];
+
+  const rows: string[] = [];
+  rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
+
+  for (const task of tasks) {
+    const row = [
+      escapeCSV(task.id),
+      escapeCSV(task.wbsCode),
+      escapeCSV(task.name),
+      task.time.earlyStart || task.time.scheduleStart,
+      task.time.earlyFinish || task.time.scheduleFinish,
+      formatCompletionPercent(task.time.completion),
+      task.time.actualStart || '',
+      task.time.actualFinish || '',
     ];
     rows.push(row.join(DELIMITER));
   }

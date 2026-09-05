@@ -35,6 +35,15 @@ export interface OpenDialogOpts {
   binaryExtensions?: string[];
 }
 
+/** Extra sturing voor `saveFileDialog` — optioneel, bestaande callers ongewijzigd (E7,
+ *  voortgangsblad-export). `preferDownloads` opent de dialoog waar mogelijk al in de downloadmap:
+ *  Tauri kan dat via een volledig `defaultPath` (downloadDir() + bestandsnaam); Chromium-web kent
+ *  `showSaveFilePicker({ startIn: 'downloads' })`. Firefox/Safari (geen FSA) landen sowieso al in
+ *  de downloadmap via de bestaande `downloadBlob`-terugval — daar verandert deze vlag niets aan. */
+export interface SaveDialogOpts {
+  preferDownloads?: boolean;
+}
+
 export interface SaveOutcome {
   ref: FileRef | null;
   name: string;
@@ -58,8 +67,12 @@ export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Pr
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */
-export function saveFileDialog(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
-  return isTauri() ? saveFileDialogTauri(defaultName, content, filters) : saveFileDialogWeb(defaultName, content, filters);
+export function saveFileDialog(
+  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return isTauri()
+    ? saveFileDialogTauri(defaultName, content, filters, opts)
+    : saveFileDialogWeb(defaultName, content, filters, opts);
 }
 
 /** In-place opslaan naar een bestaande ref. `false` als onmogelijk (fallback-web of geweigerde

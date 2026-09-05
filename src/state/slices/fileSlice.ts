@@ -1,6 +1,6 @@
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
-import { writeCSV } from '@/services/csv/csvWriter';
+import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
@@ -399,8 +399,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let content: string;
       let ext: string;
       let filters: { name: string; extensions: string[] }[];
+      // E7 (2026-09-05): het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
+      // (`<projectnaam>-voortgang.csv`, i.p.v. `<projectnaam>.csv`) zodat het in de downloadmap
+      // meteen te onderscheiden is van de volle CSV-export — en waar mogelijk landt het ook echt
+      // in de downloadmap (preferDownloads hieronder), precies wat de eigenaar vroeg.
+      let nameOverride: string | undefined;
 
       switch (format) {
+        case 'progress-csv':
+          content = writeProgressSheetCSV(state.tasks);
+          ext = 'csv';
+          filters = [{ name: 'CSV Files', extensions: ['csv'] }];
+          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          break;
         case 'csv':
           content = writeCSV(
             state.project, state.calendar, state.tasks,
@@ -437,7 +448,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
       }
 
-      const outcome = await saveFileDialog(`${projectFileBase(state.project.name)}.${ext}`, content, filters);
+      const defaultName = nameOverride ?? `${projectFileBase(state.project.name)}.${ext}`;
+      const outcome = await saveFileDialog(
+        defaultName, content, filters,
+        format === 'progress-csv' ? { preferDownloads: true } : undefined,
+      );
       if (outcome) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       return { ok: true };

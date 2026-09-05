@@ -153,7 +153,7 @@ export function importErrorMessageKey(
 
 // ── Export-kant ──
 
-export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6';
+export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'progress-csv';
 
 export interface ExportFormatMeta {
   format: ExportFormat;
@@ -167,6 +167,7 @@ export interface ExportFormatMeta {
 
 /** Volgorde = bestaande Backstage-volgorde (en, sinds de review-fix, ook ExportDropdown). */
 export const EXPORT_FORMATS = [
+  { format: 'progress-csv', icon: 'CSV', labelKey: 'export.progressCsvLabel', descKey: 'export.progressCsvDesc', shortLabelKey: 'export.progressCsvShort' },
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
   { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined },
   { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined },

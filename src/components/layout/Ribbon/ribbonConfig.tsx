@@ -11,7 +11,7 @@ import {
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3,
-  ClipboardCheck,
+  ClipboardCheck, ClipboardList,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
@@ -345,6 +345,19 @@ const progressImportButton: RibbonButtonSpec = {
   },
 };
 
+/** E7 (eigenaarsbesluit 2026-09-05): "gewoon op een knop klikken en dan krijg ik de juiste CSV in
+ *  mijn downloads" — het slanke voortgangsblad (`progress-csv`, `writeProgressSheetCSV`) via één
+ *  knopdruk, vóór de importknop in dezelfde gedeelde groep (Planning + Tabel). `disabled` volgt
+ *  hetzelfde patroon als `progressImportButton`: zonder taken is er niets te exporteren. */
+const progressExportButton: RibbonButtonSpec = {
+  kind: 'button', id: 'progressExport', icon: <ClipboardList size={20} />, labelKey: 'menu:ribbon.progressExport',
+  use: () => {
+    const exportAs = useAppStore(s => s.exportAs);
+    const hasTasks = useAppStore(s => s.tasks.length > 0);
+    return { onClick: () => { void exportAs('progress-csv'); }, disabled: !hasTasks };
+  },
+};
+
 /** Afwijking 2026-09-04 (gebruikstest): `progressImportButton` in zijn EIGEN groep, gedeeld door
  *  Planning en Tabel — niet als losse knop náást een `kind: 'component'`-item (dat werkte op
  *  Planning eerst zo in de `baselines`-groep naast `BaselinesProgressGroupContent`). Een `RibbonButtonSpec`
@@ -352,9 +365,10 @@ const progressImportButton: RibbonButtonSpec = {
  *  component gemengd render je hem als kaal icoontje zonder label of knopvormgeving (bevestigd met
  *  screenshot). Vandaar een eigen groep op beide tabs i.p.v. het item in een bestaande groep te hangen.
  *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
- *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd. */
+ *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd.
+ *  `progressExportButton` staat VÓÓR de importknop (E7): eerst het blad eraf, dan terug erin. */
 const progressGroup: RibbonGroupSpec = {
-  id: 'progress', labelKey: 'menu:ribbon.progressGroup', items: [progressImportButton],
+  id: 'progress', labelKey: 'menu:ribbon.progressGroup', items: [progressExportButton, progressImportButton],
 };
 
 const planningTab: RibbonTabConfig = [

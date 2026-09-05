@@ -24,6 +24,10 @@ interface SaveFilePickerOptions {
   suggestedName?: string;
   excludeAcceptAllOption?: boolean;
   types?: FilePickerAcceptType[];
+  /** Chromium-uitbreiding op de FSA-spec: een well-known directory (o.a. `'downloads'`) of een
+   *  eerder verkregen `FileSystemHandle` als startlocatie. We gebruiken alleen de well-known
+   *  directorynamen (E7, voortgangsblad-export) — niet-Chromium browsers negeren de optie. */
+  startIn?: 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos' | FileSystemHandle;
 }
 
 // Permissie-descriptor voor de FSA-permissie-API (Chromium-only, optioneel).
