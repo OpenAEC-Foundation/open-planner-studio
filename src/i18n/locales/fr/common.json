@@ -17,6 +17,7 @@
     "recoveryDocumentsSkipped_many": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
     "recoveryDocumentsSkipped_other": "{{count}} fichiers de récupération n'ont pas pu être chargés et ont été ignorés.",
     "scheduleFailed": "Le planning n'a pas pu être calculé",
+    "distributionApplyFailed": "La répartition n'a pas pu être appliquée",
     "ifcParseFailed": "IFC n'a pas pu être lu",
     "templateSaved": "Branche enregistrée comme modèle '{{name}}'",
     "relationCreated": "Relation créée : {{predecessor}} → {{successor}}",

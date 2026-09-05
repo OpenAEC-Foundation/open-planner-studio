@@ -17,6 +17,7 @@
     "recoveryDocumentsSkipped_many": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "recoveryDocumentsSkipped_other": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "scheduleFailed": "Impossibile calcolare la programmazione",
+    "distributionApplyFailed": "Non è stato possibile applicare la distribuzione",
     "ifcParseFailed": "Impossibile leggere l'IFC",
     "templateSaved": "Ramo salvato come modello '{{name}}'",
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",

@@ -21,6 +21,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "scheduleFailed": "Planning kon niet worden berekend",
+    "distributionApplyFailed": "De verdeling kon niet worden toegepast",
     "ifcParseFailed": "IFC kon niet worden gelezen",
     "templateSaved": "Tak bewaard als sjabloon '{{name}}'",
     "relationCreated": "Relatie aangemaakt: {{predecessor}} → {{successor}}",

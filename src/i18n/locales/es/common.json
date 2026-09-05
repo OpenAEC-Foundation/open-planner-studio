@@ -17,6 +17,7 @@
     "recoveryDocumentsSkipped_many": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "recoveryDocumentsSkipped_other": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "scheduleFailed": "No se pudo calcular la planificación",
+    "distributionApplyFailed": "No se ha podido aplicar la distribución",
     "ifcParseFailed": "No se pudo leer el IFC",
     "templateSaved": "Rama guardada como plantilla '{{name}}'",
     "relationCreated": "Relación creada: {{predecessor}} → {{successor}}",

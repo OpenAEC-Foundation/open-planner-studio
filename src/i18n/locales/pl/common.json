@@ -18,6 +18,7 @@
     "recoveryDocumentsSkipped_many": "{{count}} plików odzyskiwania nie mogło zostać wczytanych i zostało pominiętych.",
     "recoveryDocumentsSkipped_other": "{{count}} pliku odzyskiwania nie mogło zostać wczytane i zostało pominięte.",
     "scheduleFailed": "Nie udało się obliczyć harmonogramu",
+    "distributionApplyFailed": "Nie udało się zastosować rozdziału",
     "ifcParseFailed": "Nie udało się odczytać pliku IFC",
     "templateSaved": "Gałąź zapisana jako szablon '{{name}}'",
     "relationCreated": "Utworzono relację: {{predecessor}} → {{successor}}",

@@ -359,6 +359,38 @@ console.log('-- B1c-plan3 taak 1: scatter-randen --');
     rFrac.gaps['h7']?.filter(g => g.source === 'leveling').length === 1);
 }
 
+// ── Bevinding B8 (fixronde op etappe 3): een scatter die op de ZOEKHORIZON vastloopt meldt dat ────
+// Het geval hierboven is het makkelijke: dáár loopt de AANEENGESLOTEN scan zelf al leeg, dus
+// `findSlot` zet `horizonExhausted` sowieso. Hier niet: taak `hz` heeft veel speling, dus de
+// aaneengesloten scan stopt netjes op de START-grens (`windowLimit`, de baseline-lateStart) — een
+// venstergrens, géén uitputting. De scatter mag daarna dóór tot de ruimere FINISH-grens
+// (`finishWindowLimit`, de baseline-lateFinish) en raakt onderweg `scanLimit` op. Vóór deze fix
+// meldde `scatterSlot` die uitputting niet en verzon `reasonFor` INSUFFICIENT_CAPACITY — een
+// diagnose die de gebruiker naar capaciteit stuurt terwijl de zoekhorizon de echte grens was.
+//
+// De opzet in getallen: `totalWork` = 5 + 1 = 6, dus `scanLimit` = max(16, 30) = 30 kandidaten.
+// `anchor` (SNET 2026-07-15) duwt het projecteinde naar 2026-07-15; `hz` heeft geen opvolgers, dus
+// haar baseline-lateFinish is dát einde (kandidaat #33 vanaf 2026-06-01) en haar lateStart vier
+// werkdagen eerder, 2026-07-09 (kandidaat #29 — nog nét binnen de horizon). Geen plafond, zodat
+// `ceilingSet` de reden niet vóór de horizon opeist. De resource is met een `availabilitySteps`-nul
+// vanaf de projectstart onbeschikbaar (zelfde truc als bevinding 11 hierboven), dus geen enkele dag
+// past — zonder dat dat `totalWork` (en dus de horizon) opblaast.
+{
+  const hz = task('hz', '2026-06-01', '2026-06-05', 5, { priority: 100 });
+  const anchor = task('hz-anchor', '2026-07-15', '2026-07-15', 1, {
+    priority: 900, constraint: { type: 'SNET', date: '2026-07-15' },
+  });
+  const resourceHz = res('r-hz', 1, { availabilitySteps: [{ from: '2026-06-01', maxUnits: 0 }] });
+  const rHorizon = levelResources(
+    [hz, anchor], [], [resourceHz], [assign('hz-a', 'hz', 'r-hz', 1)],
+    PROJECT_CAL, [], stubCpmResult('2026-07-15'),
+    { constrainToFloat: true, allowSplits: true },
+  );
+  eq('scatter die op de horizon vastloopt ⇒ NO_WINDOW_IN_HORIZON',
+    rHorizon.unresolvedReasons['hz'], 'NO_WINDOW_IN_HORIZON');
+  eq('en er is niets geplaatst', rHorizon.gaps['hz'], undefined);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-splitmode: alle checks groen (${checks})`);

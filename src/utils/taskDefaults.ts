@@ -249,6 +249,56 @@ export function timeUpdateTouchesTimephasedWindow(timeUpdate: Partial<TaskTime> 
   return Object.keys(timeUpdate).some((k) => TIMEPHASED_WINDOW_TIME_TRIGGERS.has(k as keyof TaskTime));
 }
 
+/**
+ * B1c-plan-2 spec §4 "Invalidatie", bedraad in de fixronde op etappe 3 (bevinding B7).
+ *
+ * De triggerset voor `clearLevelingGaps` is BREDER dan die van het Z8-venster hierboven. De spec
+ * noemt vier klassen — duur, kalender, handmatige datums en VOORTGANG — en die vierde ontbrak: geen
+ * enkel voortgangspad raakt `clearTimephasedWindow` aan (voortgang wist de MSP-urensturing niet, en
+ * dát is terecht), dus de eerste bedrading langs `timeUpdateTouchesTimephasedWindow` liet 'm vallen.
+ * Een leveling-gat ligt op de WERKMINUTEN-as van de taak (`TaskSplitGap.afterMinutes`); voortgang
+ * verzet die as wel degelijk — `applyProgressInvariants` leidt er `remainingTime`/`actualStart` uit
+ * af en `CPMSolver` plant een IN-PROGRESS-taak vanaf haar actuals. Een gat dat vóór de fix bleef
+ * staan, lag daarna op een dag die niet meer bestaat.
+ *
+ * Meegenomen bovenop de vier klassen: `constraint`/`constraint2` (een datum-constraint verplaatst de
+ * taak net zo hard als een handmatige datum) — die staan als TOP-LEVEL veld op `Task`, niet in
+ * `TaskTime`, en lopen daarom via `taskUpdateInvalidatesLevelingGaps` hieronder.
+ *
+ * BEWUST NIET in de set: `priority` (pure nivelleer-INVOER, verzet geen enkele datum van de taak
+ * zelf) en alles wat de solver terugschrijft. En let op de kant die je NIET ziet: `applyLeveling`
+ * (`scheduleSlice.ts`) schrijft zijn gaten rechtstreeks op de Immer-draft, niet via `updateTask` —
+ * de write die de gaten MAAKT kan zichzelf dus per constructie niet invalideren.
+ */
+const LEVELING_GAP_TIME_TRIGGERS = new Set<keyof TaskTime>([
+  ...TIMEPHASED_WINDOW_TIME_TRIGGERS,
+  'completion', 'actualStart', 'actualFinish',
+]);
+
+/** Top-level `Task`-velden die de tijdbasis van een taak verzetten (en dus haar leveling-gaten
+ *  ongeldig maken). `calendarId` deelt de trigger met het Z8-venster; de twee constraints zijn
+ *  leveling-gat-eigen. */
+const LEVELING_GAP_TASK_TRIGGERS: readonly (keyof Task)[] = ['calendarId', 'constraint', 'constraint2'];
+
+/** Zelfde "sleutel-aanwezigheid"-conventie als `timeUpdateTouchesTimephasedWindow`: de WAARDE hoeft
+ *  niet te wijzigen, het NOEMEN van de sleutel telt. Zie het docblok bij
+ *  `LEVELING_GAP_TIME_TRIGGERS` voor het waarom van de bredere set. */
+export function timeUpdateInvalidatesLevelingGaps(timeUpdate: Partial<TaskTime> | undefined): boolean {
+  if (!timeUpdate) return false;
+  return Object.keys(timeUpdate).some((k) => LEVELING_GAP_TIME_TRIGGERS.has(k as keyof TaskTime));
+}
+
+/** De volledige poort voor één taakupdate: top-level triggers (`calendarId`, `constraint`,
+ *  `constraint2`) plus de `time`-triggers hierboven. `timeUpdate` apart, omdat de aanroepers de
+ *  `time`-tak al uit de rest destructureren (en `patchTaskFields` een eigen, smallere vorm heeft). */
+export function taskUpdateInvalidatesLevelingGaps(
+  topUpdate: Partial<Task>,
+  timeUpdate?: Partial<TaskTime>,
+): boolean {
+  if (LEVELING_GAP_TASK_TRIGGERS.some((k) => k in topUpdate)) return true;
+  return timeUpdateInvalidatesLevelingGaps(timeUpdate);
+}
+
 /** Wist `timephasedFinishFloor`/`timephasedStartAnchor` als ze gezet zijn — idempotent, geen effect
  *  op een taak zonder Z8-venster. Muteert `task` in-place (Immer-draft-stijl, spiegelt de rest van
  *  taskSlice.ts/mcpTransaction.ts). Retourneert `true` als er ECHT iets gewist is (mpp-nul-data-
@@ -292,8 +342,9 @@ export function clearTimephasedDurationWalks(task: Task): boolean {
  * IFC-round-trip is "leeg/afwezig ⇒ niets geschreven".
  *
  * De AANROEPPLEKKEN (bewerkingen die de tijdbasis van een taak raken: duur, kalender, handmatige
- * datums, voortgang) worden in B1c-etappe 3 bedraad; zolang niets leveling-gaps schrijft, kan er ook
- * niets verouderen.
+ * datums, voortgang) zijn bedraad via `taskUpdateInvalidatesLevelingGaps` /
+ * `timeUpdateInvalidatesLevelingGaps` hierboven — lees dáár welke velden meetellen en waarom de set
+ * breder is dan die van het Z8-venster.
  */
 export function clearLevelingGaps(task: Task): boolean {
   const gaps = task.splitGaps;

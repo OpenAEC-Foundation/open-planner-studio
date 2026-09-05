@@ -16,6 +16,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
     "recoveryDocumentsSkipped_other": "{{count}} Wiederherstellungsdateien konnten nicht geladen werden und wurden übersprungen.",
     "scheduleFailed": "Zeitplan konnte nicht berechnet werden",
+    "distributionApplyFailed": "Die Verteilung konnte nicht angewendet werden",
     "ifcParseFailed": "IFC konnte nicht gelesen werden",
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert",
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",

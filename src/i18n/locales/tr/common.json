@@ -16,6 +16,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "recoveryDocumentsSkipped_other": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "scheduleFailed": "Planlama hesaplanamadı",
+    "distributionApplyFailed": "Dağıtım uygulanamadı",
     "ifcParseFailed": "IFC okunamadı",
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi",
     "relationCreated": "İlişki oluşturuldu: {{predecessor}} → {{successor}}",

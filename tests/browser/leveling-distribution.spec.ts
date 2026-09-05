@@ -524,9 +524,11 @@ test('van document wisselen sluit de dialoog', async ({ page, ops: _ops }) => {
   await page.keyboard.press('Control+1');
 
   await expect(page.locator('[data-ops-distribution-dialog]')).toHaveCount(0);
-  // §6a/besluit eigenaar: niet alleen dicht, ook de tune-state is weg — die verwees naar docIds en
-  // history-events van een momentopname die niet meer geldt.
-  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.levelingDistribution)).toBe(null);
+  // §6a/besluit eigenaar: de DIALOOG gaat dicht — het voorstel op het scherm hoorde bij een
+  // momentopname die niet meer geldt. De TUNE-STATE blijft juist staan (fixronde B1c-etappe-3,
+  // bevinding B3): daarin zit `applied`, het record achter "Alles terugdraaien", en een verdeling
+  // over meerdere documenten beoordeel je nu juist dóór ernaartoe te wisselen.
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.levelingDistribution !== null)).toBe(true);
   // Het bezettingsoverzicht blijft gewoon staan; de gebruiker opent opnieuw op de conflictregel.
   await expect(page.locator('[data-ops-occupancy-view]')).toBeVisible();
 });

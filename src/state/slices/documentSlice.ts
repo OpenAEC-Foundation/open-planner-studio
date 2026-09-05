@@ -73,14 +73,21 @@ function resetDocumentScopedUI(s: AppState): void {
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
   // B1c (spec §6a): de verdeeldialoog kijkt naar een MOMENTOPNAME van meerdere documenten. Een
-  // documentwissel of een gesloten/geopend document maakt zowel zijn tune-state (rangorde, pins en
-  // plafonds, alle op docId) als zijn toegepast-record onbetrouwbaar — dat record verwijst naar
-  // history-events van documenten die er misschien niet meer zijn (`closeDocument` ruimt die events
-  // bovendien op). BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met
-  // een vervallen voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen.
-  // Het bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
+  // documentwissel of een gesloten/geopend document maakt het VOORSTEL op het scherm onbetrouwbaar.
+  // BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met een vervallen
+  // voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen. Het
+  // bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
   s.ui.showDistributionDialog = false;
-  s.ui.levelingDistribution = null;
+  // De TUNE-STATE gaat hier bewust NIET mee (fixronde B1c-etappe-3, bevinding B3). Ze stond hier tot
+  // deze ronde wél, en dat nam de gebruiker zijn terugweg af: `levelingDistribution.applied` is het
+  // record achter "Alles terugdraaien", en dat is de ENIGE manier om een verdeling die over MEERDERE
+  // documenten geschreven is in één keer terug te draaien — terwijl je die documenten juist moet
+  // kunnen bekijken (dus wisselen!) om te beoordelen of je het wilt houden. Een tabwissel liet de
+  // verdeling dan onterugdraaibaar achter.
+  // Verdwenen of verschoven history-events zijn géén reden om het record te wissen: `undoDistribution`
+  // toetst per document of het vastgelegde event er nog is, nog op `applied` staat en nog het event is
+  // dat een gewone Ctrl+Z daar zou kiezen, en meldt de rest via `skippedDocIds`. Het record vervalt
+  // dus alleen door "Alles terugdraaien", een NIEUW Toepassen, of het kiezen van een ANDER poolitem.
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {
@@ -210,11 +217,26 @@ function openProjectNames(s: AppState): string[] {
   return s.documents.map((d) => (d.id === s.activeDocumentId ? s.project.name : d.payload!.project.name));
 }
 
-const INITIAL_DOC_ID = generateId('doc');
+/**
+ * Het id van het EERSTE document van een contextinstantie — PER CONTEXT vers gegenereerd.
+ *
+ * Dit stond hiervoor als `const INITIAL_DOC_ID = generateId('doc')` op MODULE-niveau, en dat is
+ * precies één id voor het hele proces: élke `createAppStoreContext()` (dus ook elke wegwerpbare
+ * scratch-context uit `state/runtime/scratchDocument.ts`) begon met hetzélfde `activeDocumentId` als
+ * document 1 van de gemounte app. Sessie-permanente registraties die op een document-id sleutelen —
+ * `state/timephasedLossNotice.ts`'s `notifiedDocIds`/`notifiedLevelingDelayDocIds` — zijn app-globale
+ * module-state en kijken dus dwars door contextgrenzen heen: een `applyLeveling` in een scratch-run
+ * claimde de M10-melding voor het ECHTE document 1, dat 'm daarna deze sessie nooit meer kreeg.
+ * Één functieaanroep per slice-instantie in plaats van één per module lost dat structureel op; de
+ * scratch-context zet daar bovenop nog het ECHTE docId van de payload (zie `runInScratchDocument`).
+ */
+function initialDocumentRegistry(): Pick<DocumentSlice, 'documents' | 'activeDocumentId'> {
+  const id = generateId('doc');
+  return { documents: [{ id, payload: null }], activeDocumentId: id };
+}
 
 export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => (set, get) => ({
-  documents: [{ id: INITIAL_DOC_ID, payload: null }],
-  activeDocumentId: INITIAL_DOC_ID,
+  ...initialDocumentRegistry(),
 
   newDocument: () => {
     const state = get();

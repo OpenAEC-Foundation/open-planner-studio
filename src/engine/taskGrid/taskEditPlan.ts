@@ -30,6 +30,7 @@ import {
 import {
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
+  clearLevelingGaps,
   timephasedDurationWalksHaveFrozenWork,
   rescaleTaskContours,
 } from '@/utils/taskDefaults';
@@ -136,6 +137,20 @@ function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: num
   if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
   return clearScheduleGuidance(task, true);
 }
+
+/**
+ * B1c-plan-2 spec §4 "Invalidatie", bedraad in de fixronde op etappe 3 (bevinding B7). De ROUTES
+ * waarvan een celwrite de tijdbasis van de taak verzet — en dus een door de nivelleerder ingevoegde
+ * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskUpdateInvalidatesLevelingGaps`
+ * (taskDefaults.ts); het grid schrijft niet via `updateTask`, dus het heeft een eigen poort nodig.
+ *
+ * Bewust NIET compleet gelijk aan de `scheduleStale`-lijst in `applyOneCellEdit`: `task.priority` zit
+ * daar wél in (nivelleren gebruikt prioriteit als invoer) maar verzet geen enkele datum van de taak
+ * zelf, dus een bestaand gat blijft daar geldig.
+ */
+const LEVELING_GAP_ROUTES: ReadonlySet<CellEditIntent['route']> = new Set([
+  'task-schedule', 'task-progress', 'task-milestone', 'task-constraint', 'task-hammock',
+]);
 
 function clearScheduleGuidance(task: Task, clearFrozenWalks: boolean): boolean {
   const clearedWindow = clearTimephasedWindow(task);
@@ -705,6 +720,8 @@ function applyOneCellEdit(
     }
   } else result = applyDynamicEdit(next, edit, environment);
   if (!result.ok) return result;
+  // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg.
+  if (LEVELING_GAP_ROUTES.has(edit.route)) clearLevelingGaps(next);
   const scheduleStale = edit.route === 'task-schedule'
     || edit.route === 'task-progress'
     || edit.route === 'task-milestone'
@@ -791,11 +808,16 @@ export function planTaskCellEdits(
     if (!pair.ok) {
       return failure(`constraintPair.${pair.issues[0]}`, ordered[ordered.length - 1], pair.issues);
     }
+    // B7 — deze twee groepen omzeilen `applyOneCellEdit` (ze worden pas ná de volledige groep
+    // gecanonicaliseerd), dus de poort staat hier apart. Pas ná de validatie: een geweigerde groep
+    // laat de taak ongemoeid.
+    clearLevelingGaps(next);
     scheduleStale = true;
   }
   if (progressEdits.length > 0) {
     const applied = applyProgressEdits(next, progressEdits, environment);
     if (!applied.ok) return applied;
+    clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
     scheduleStale = true;
   }
   return {

@@ -85,12 +85,29 @@ function harvestNotifications(store: AppStore): NotifyInput[] {
 export function runInScratchDocument<T>(
   payload: DocumentPayload,
   fn: (state: AppState) => T,
+  docId?: string,
 ): ScratchRunResult<T> {
   if (!contextFactory) throw new Error('De scratch-documentcontextfabriek is nog niet gekoppeld');
   const ctx = contextFactory({ emitHostEvents: false });
   // 1. Hydrateren via het documentcontract — dezelfde functie die `switchDocument` gebruikt, dus
   //    élk (ook toekomstig) documentveld rijdt automatisch mee.
-  ctx.store.setState((s) => { hydratePayload(s, payload); });
+  //
+  //    `docId` is de DERDE singleton-rand (naast host-events en meldingen): het document-id is geen
+  //    documentVELD (het staat niet in `DOCUMENT_FIELDS`, het is registry-state), dus zonder deze
+  //    stap draait de bewerking onder het VERSE id van de scratch-context. Twee dingen gaan daar mis:
+  //    (a) sessie-permanente, app-globale registraties die op docId sleutelen — de M10-gate in
+  //    `state/timephasedLossNotice.ts` — zouden op een fantoom-id landen (en, tot de per-context-fix
+  //    in `documentSlice`, zelfs op het id van het ECHTE eerste document); (b) een melding die de
+  //    aanroeper doorgeeft aan de gebruiker zou over een ander document gaan dan het document dat
+  //    werkelijk beschreven is. Meegeven van het echte id maakt de scratch-run per constructie
+  //    dezelfde bewerking als wanneer de gebruiker dat document eerst had geactiveerd.
+  ctx.store.setState((s) => {
+    hydratePayload(s, payload);
+    if (docId !== undefined) {
+      s.documents = [{ id: docId, payload: null }];
+      s.activeDocumentId = docId;
+    }
+  });
   // 2. De ECHTE acties draaien. `fn` krijgt de state (met alle acties erop) en mag alles doen wat een
   //    gewone gebruiker zou doen — inclusief `applyLeveling`, dat zelf zijn snapshot pusht en
   //    `runCPM` draait.

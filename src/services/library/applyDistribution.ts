@@ -46,6 +46,36 @@ export interface DistributionApplyRecord {
   }>;
 }
 
+/**
+ * Wat `librarySlice.applyDistribution` teruggeeft (fixronde B1c-etappe-3, bevinding B5).
+ *
+ * Was: `DistributionApplyRecord | null`. Een `null` betekende zes verschillende dingen tegelijk
+ * (geblokkeerd, tekort, niets te schrijven, een tussentijds gesloten document, een gegooide
+ * scratch-run, een document met een onberekenbare planning) en de dialoog kon er dus niets zinnigs
+ * over zeggen — de knop deed geruisloos niets. De discriminated union hieronder maakt de reden
+ * onderdeel van het contract, zodat de aanroeper hem als melding kan tonen.
+ *
+ * De eerste drie redenen komen rechtstreeks uit `DistributionWritePlan` (de poorten hierboven);
+ * `'scratch-failed'` is de schrijfronde zelf: de bewerking van een SLAPEND document liep vast. Dat
+ * is één van twee dingen, allebei blokkerend en allebei vóór de eerste echte write:
+ *  - `fn` gooide in de scratch-context (`ScratchRunResult.ok === false`), of
+ *  - de aansluitende `runCPM` in die context leverde een `cpmResult.error` (een relatiecyclus is het
+ *    normale geval). BESLIST in deze fixronde: dát telt óók als mislukking. Een gooiende actie is
+ *    niet de enige manier om te falen — een document waarvan de planning niet te berekenen is, zou
+ *    anders de nivelleervertraging wél geschreven krijgen maar de bijbehorende datums niet, en
+ *    precies die halve staat is wat de fase-1/fase-2-opzet moet uitsluiten.
+ * `docId` benoemt in dat geval het document dat vastliep; `error` draagt de rauwe technische tekst
+ * (cyclusmelding of exception) voor het `detail`-veld van de melding.
+ */
+export type DistributionApplyResult =
+  | { ok: true; record: DistributionApplyRecord }
+  | {
+      ok: false;
+      reason: 'blocked' | 'shortfall' | 'nothing-to-write' | 'scratch-failed';
+      docId?: string;
+      error?: string;
+    };
+
 /** Resultaat van `undoDistribution`: welke documenten daadwerkelijk zijn teruggedraaid en welke zijn
  *  overgeslagen omdat hun undo-stack intussen is verschoven. */
 export interface DistributionUndoReport {

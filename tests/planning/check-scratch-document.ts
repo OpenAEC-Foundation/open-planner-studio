@@ -7,6 +7,9 @@ import { createAppStoreContext, appStoreContext } from '@/state/appStore';
 import { DOCUMENT_FIELDS, capturePayload, freshPayload, type DocumentPayload } from '@/state/documentContract';
 import { createDefaultProject } from '@/state/defaults';
 import { subscribeExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import {
+  claimLevelingDelayRoundedNotice, __resetTimephasedLossNoticeForTests,
+} from '@/state/timephasedLossNotice';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -167,6 +170,46 @@ console.log('-- scratch-document: geval 5, geen sporen in de app-store --');
   runInScratchDocument(basePayload(), (s) => { s.applyLeveling({ delays: { B: 1 }, gaps: {} }); });
   const appAfter = JSON.stringify(capturePayload(appStoreContext.store.getState()));
   eq('geval 5: de app-store is onaangeraakt', appAfter, appBefore);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Geval 5b (fixronde B1c-etappe-3, bevinding B2): ook de APP-GLOBALE, SESSIE-PERMANENTE registraties
+// buiten de store blijven onaangeraakt. `state/timephasedLossNotice.ts` houdt de "al gemeld"-gates
+// bij in module-`Set`s op DOCUMENT-ID — geen store-state, dus `capturePayload` hierboven ziet er
+// niets van. Zolang elke contextinstantie hetzelfde `INITIAL_DOC_ID` deelde, claimde een scratch-run
+// met M10-verlies (`levelingDelayMinutes` gezet ⇒ `applyLeveling` telt 'm) de gate van het ECHTE
+// eerste document, dat de melding daarna deze sessie nooit meer kreeg. Twee poorten: het scratch-id
+// is niet dat van de app, en de gate van het app-document is na de run nog vrij.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- scratch-document: geval 5b, de sessie-gates van de app blijven vrij --');
+{
+  __resetTimephasedLossNoticeForTests();
+  const appDocId = appStoreContext.store.getState().activeDocumentId;
+  const scratchPayload: DocumentPayload = {
+    ...basePayload(),
+    // `levelingDelayMinutes` gezet ⇒ `applyLeveling` telt deze taak als sub-dag-precisieverlies (M10)
+    // en roept `notifyLevelingDelayRounded(notify, activeDocumentId, 1)` aan.
+    tasks: [task('A', '2026-06-01', '2026-06-03', 3), task('B', '2026-06-01', '2026-06-03', 3, { levelingDelayMinutes: 120 })],
+  };
+  let scratchDocId = '';
+  const out = runInScratchDocument(scratchPayload, (s) => {
+    scratchDocId = s.activeDocumentId;
+    s.applyLeveling({ delays: { B: 1 }, gaps: {} });
+  });
+  ok('geval 5b: de run slaagt', out.ok);
+  ok('geval 5b: de M10-melding is in de scratch daadwerkelijk gezet (anders bewijst deze case niets)',
+    out.notifications.some(n => n.messageKey === 'notifications.levelingDelayRoundedToWorkdays'));
+  ok('geval 5b: de scratch-context draait onder een EIGEN document-id', scratchDocId !== '' && scratchDocId !== appDocId);
+  ok('geval 5b: de M10-gate van het app-document is nog vrij', claimLevelingDelayRoundedNotice(appDocId));
+
+  // En mét een expliciet docId landt de claim op precies DAT document (het pad dat
+  // `librarySlice.applyDistribution` gebruikt) — niet op een fantoom-id van de scratch-context.
+  __resetTimephasedLossNoticeForTests();
+  const realDocId = 'doc-echt-slapend';
+  runInScratchDocument(scratchPayload, (s) => { s.applyLeveling({ delays: { B: 1 }, gaps: {} }); }, realDocId);
+  eq('geval 5b: de gate van het meegegeven docId is geclaimd', claimLevelingDelayRoundedNotice(realDocId), false);
+  ok('geval 5b: en die van het app-document nog steeds niet', claimLevelingDelayRoundedNotice(appDocId));
+  __resetTimephasedLossNoticeForTests();
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
