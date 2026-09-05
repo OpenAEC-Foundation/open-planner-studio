@@ -61,6 +61,7 @@ import { appStoreContext, useAppStore } from '@/state/appStore';
 import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
+import { ExtImportSourceDriftError } from '@/extensions/extImportSource';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -935,6 +936,27 @@ for (const [naam, ext, bron, sleutels] of [
     useAppStore.getState().tasks[0]?.p6ExpectedFinish, useAppStore.getState().tasks[0]?.p6SuspendResume,
   ], [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined]);
 
+  // ── P2-fix: fail-closed documentdrift bij pagineren (her-review 2) ────────
+  // Zonder bewaking geeft een pagineersessie na een `switchDocument` stil een lege pagina van het
+  // VERKEERDE project terug: page 1 op P-2, wisselen naar P-1, page 2 (offset:1) levert dan
+  // {sourceProjectId:'P-1', total:1, items:[]} zonder enige waarschuwing — een extensie die dat als
+  // "klaar, geen records meer" leest, heeft in werkelijkheid twee projecten door elkaar gehaald.
+  // `expectedSourceProjectId` maakt dit fail-closed. Casus (a) hieronder: het actieve document heeft
+  // ná de hostile `loadProject` hierboven HELEMAAL geen XER-bron meer (`archive === null`) — de
+  // andere risicoklasse (drift naar een niet-XER-document, niet alleen naar een ander XER-project).
+  {
+    let noArchiveDrift: ExtImportSourceDriftError | null = null;
+    try {
+      api.data.getImportSourceCatalogPage('taskSourceRows', { expectedSourceProjectId: 'P-2' });
+    } catch (error) { noArchiveDrift = error instanceof ExtImportSourceDriftError ? error : null; }
+    eq('D1 drift naar een document ZONDER XER-bron gooit i.p.v. stil null terug te geven', {
+      isDriftError: noArchiveDrift !== null,
+      message: noArchiveDrift && [/P-2/.test(noArchiveDrift.message), /geen XER-document/.test(noArchiveDrift.message)],
+    }, { isDriftError: true, message: [true, true] });
+    eq('D1a zonder expectedSourceProjectId blijft "geen archief" gewoon null geven (ongewijzigd gedrag)',
+      api.data.getImportSourceCatalogPage('taskSourceRows'), null);
+  }
+
   // loadProject is deliberately a normal generic load and must not erase/overwrite the XER source
   // route through an implicit write API. The route is gone with the replaced document; a later
   // document switch must still restore the retained source of the other XER document.
@@ -944,6 +966,31 @@ for (const [naam, ext, bron, sleutels] of [
     selector: api.data.getImportSourceInfo()?.sourceProjectId,
     taskId: cell(api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 })?.items[0], 'task_id'),
   }, { selector: 'P-1', taskId: 'T-1' });
+
+  // Casus (b): het actieve document heeft nu weer een archief (P-1) — vraag alsnog om een pagina
+  // met de VERWACHTING van het vorige project (P-2). Mutatiebewijs: verwijder de
+  // `assertNoImportSourceDrift`-aanroep uit `getExtImportSourceCatalogPage`/de wrapper in
+  // extensionApi.ts en D2/D2a kleuren rood (de aanroep slaagt dan gewoon met een pagina van P-1).
+  {
+    let wrongProjectDrift: ExtImportSourceDriftError | null = null;
+    try {
+      api.data.getImportSourceCatalogPage('taskSourceRows', { offset: 1, expectedSourceProjectId: 'P-2' });
+    } catch (error) { wrongProjectDrift = error instanceof ExtImportSourceDriftError ? error : null; }
+    eq('D2 drift tussen twee XER-documenten gooit i.p.v. een lege pagina van het verkeerde project', {
+      isDriftError: wrongProjectDrift !== null,
+      message: wrongProjectDrift && [/P-2/.test(wrongProjectDrift.message), /P-1/.test(wrongProjectDrift.message)],
+    }, { isDriftError: true, message: [true, true] });
+
+    const withExpectation = api.data.getImportSourceCatalogPage('taskSourceRows', { expectedSourceProjectId: 'P-1' });
+    const withoutExpectation = api.data.getImportSourceCatalogPage('taskSourceRows');
+    eq('D3 een KLOPPENDE expectedSourceProjectId gedraagt zich identiek aan zonder de optie', {
+      withExpectation: withExpectation && { sourceProjectId: withExpectation.sourceProjectId, total: withExpectation.total },
+      withoutExpectation: withoutExpectation && { sourceProjectId: withoutExpectation.sourceProjectId, total: withoutExpectation.total },
+    }, {
+      withExpectation: { sourceProjectId: 'P-1', total: 1 },
+      withoutExpectation: { sourceProjectId: 'P-1', total: 1 },
+    });
+  }
   api._cleanup();
 }
 

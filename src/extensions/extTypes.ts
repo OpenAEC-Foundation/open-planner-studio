@@ -419,6 +419,17 @@ export interface ExtImportSourcePageOptions {
   offset?: number;
   /** Aantal records; default 100, maximum `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX`. */
   limit?: number;
+  /**
+   * Fail-closed documentdriftbewaking (her-review 2, P2): geef het `sourceProjectId` mee dat je
+   * van een eerdere `getImportSourceInfo()`/`getImportSourceCatalogPage()`-aanroep kreeg. Wijkt de
+   * bronselector van het ACTIEVE document af — bijvoorbeeld omdat de gebruiker tussen twee
+   * paginaverzoeken met `switchDocument` gewisseld is — dan gooit de aanroep een
+   * `ExtImportSourceDriftError` in plaats van stil een lege of verkeerde pagina terug te geven.
+   * Zonder deze optie is er GEEN driftbewaking: elke aanroep leest gewoon het actieve document,
+   * en een pagineersessie die "klaar" lijkt (een lege pagina) kan in werkelijkheid halverwege naar
+   * een ander project zijn gewisseld.
+   */
+  expectedSourceProjectId?: string;
 }
 
 export interface ExtImportSourceCatalogPage {

@@ -22,7 +22,12 @@ import {
   type ExtEventListener,
 } from '@/services/extensionEvents';
 import { applyPermissionGuards } from './permissions';
-import { getExtImportSourceCatalogPage, getExtImportSourceChunk, toExtImportSourceInfo } from './extImportSource';
+import {
+  assertNoImportSourceDrift,
+  getExtImportSourceCatalogPage,
+  getExtImportSourceChunk,
+  toExtImportSourceInfo,
+} from './extImportSource';
 import {
   toExtProject,
   toExtCalendar,
@@ -132,11 +137,18 @@ export function createExtensionApi(
       },
       getImportSourceCatalogPage: (collection, options) => {
         const state = document.store.getState();
-        return state.xerSourceArchive
-          ? getExtImportSourceCatalogPage(
-            state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
-          )
-          : null;
+        // `getExtImportSourceCatalogPage` bewaakt de drift zelf zodra er een archief is — maar als
+        // het actieve document NA een `switchDocument` helemaal geen XER-bron meer heeft, wordt die
+        // functie hier onder nooit aangeroepen (er is geen `archive` om aan door te geven). Zonder
+        // deze losse check zou een `expectedSourceProjectId` dan stil een `null` terugkrijgen i.p.v.
+        // de bedoelde `ExtImportSourceDriftError` — dezelfde stille-modus die de fix net oplost.
+        if (!state.xerSourceArchive) {
+          assertNoImportSourceDrift(options?.expectedSourceProjectId, null);
+          return null;
+        }
+        return getExtImportSourceCatalogPage(
+          state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
+        );
       },
       addTask: (task) => {
         const materialize = customTaskTypeToMaterialize(task.customTaskType);

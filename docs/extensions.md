@@ -263,13 +263,15 @@ module.exports = {
 };
 ````
 
-### Read-only XER-bronroute (permissie `importSource`)
+### Read-only XER-bronroute (permissie `importSource`, `apiVersion` ≥ 1.1)
 
 Naast de gemapte `data.*`-DTO's (afgeleid, genormaliseerd, altijd beschikbaar) kan een extensie met
 de permissie `importSource` ook bij de **oorspronkelijke, ongewijzigde brondata** van het huidige
 document — vandaag alleen voor een geopend `.xer`-bestand (Primavera P6). Zonder deze permissie
 gooien alle drie de methoden vóórdat er ook maar één byte gelezen wordt; er lekt dus niets via een
-gedeeltelijke aanroep of een foutpad.
+gedeeltelijke aanroep of een foutpad. Deze drie methoden bestaan sinds contractversie `1.1.0` (zie
+*Twee versievelden, twee vragen* hierboven) — declareer `"apiVersion": "1.1"` of hoger in je
+manifest als je erop rekent; een host ouder dan 1.1 kent de methoden simpelweg niet.
 
 **Waarom een aparte permissie en geen kern-API.** De rest van `api.data.*` levert het interne
 projectmodel: taken, kalender, relaties — precies wat de importer ervan gemaakt heeft. De
@@ -310,12 +312,26 @@ if (info) {
   pagina (`items: []`) in plaats van een fout of een numeriek onveilige slice.  Buiten een
   XER-document levert de methode `null`.
 
-**Documentbinding en selector.** Alle drie de methoden werken op het **actieve document**: bij het
-wisselen van document (`switchDocument`) volgen ze automatisch mee naar de bronroute (of het
-ontbreken daarvan) van het nieuw actieve document. `info.selector`/`info.sourceProjectId`
-identificeert welk P6-project binnen het (mogelijk multi-project) XER-bestand dit document
-vertegenwoordigt — een `.xer`-bestand kan meerdere documenten openen (één per project), en elk
-document draagt zijn eigen bronselector.
+**Documentbinding, selector en documentdrift tijdens pagineren.** Alle drie de methoden werken op
+het **actieve document**: bij het wisselen van document (`switchDocument`) volgen ze automatisch
+mee naar de bronroute (of het ontbreken daarvan) van het nieuw actieve document. `info.selector`/
+`info.sourceProjectId` identificeert welk P6-project binnen het (mogelijk multi-project)
+XER-bestand dit document vertegenwoordigt — een `.xer`-bestand kan meerdere documenten openen (één
+per project), en elk document draagt zijn eigen bronselector.
+
+Dat "automatisch meevolgen" is handig voor een enkele aanroep, maar een **risico bij pagineren**:
+pagineren is per definitie meerdere aanroepen na elkaar, en er is geen paginasessie die aan één
+document vastzit. Wisselt de gebruiker tussen twee `getImportSourceCatalogPage`-aanroepen van
+document (`switchDocument`), dan levert de tweede aanroep zonder verdere maatregelen gewoon een
+pagina van het **nieuwe** actieve document — bijvoorbeeld een lege pagina omdat dat project minder
+records heeft, wat een naïeve extensie laat concluderen "klaar" terwijl in werkelijkheid twee
+projecten door elkaar zijn gehaald. Geef daarom `options.expectedSourceProjectId` mee met het
+`sourceProjectId` dat je van een eerdere aanroep kreeg: wijkt de actieve bronselector af (ook als
+het actieve document inmiddels helemaal geen XER-bron meer heeft), dan gooit de aanroep een
+`ExtImportSourceDriftError` in plaats van stilzwijgend door te gaan. Zonder deze optie is er **geen**
+driftbewaking. Dezelfde risicoklasse geldt in mindere mate voor het na elkaar opvragen van meerdere
+`getImportSourceChunk`-indexen om de bronbytes te reconstrueren — vergelijk daar `sourceProjectId`
+(of de `sha256`) tussen chunks als je niet zeker weet dat het document niet wisselt.
 
 **Verse kopieën, geen aliasing.** Zoals de rest van `api.data.*` levert elke aanroep een nieuwe,
 onafhankelijke kopie: muteren van een teruggegeven `info`, cataloguspagina-item of chunk raakt het
