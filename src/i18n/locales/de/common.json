@@ -49,6 +49,8 @@
     "xerImportUnsupportedSemantics_other": "{{count}} P6-Planungseinstellungen mit sicherem Rückfall.",
     "xerImportDatesAsRecorded_one": "{{count}} Vorgang zeigt die von Primavera gespeicherten Termine (nicht neu berechnet).",
     "xerImportDatesAsRecorded_other": "{{count}} Vorgänge zeigen die von Primavera gespeicherten Termine (nicht neu berechnet).",
+    "xerImportDatesAsRecordedOffer_one": "{{count}} Vorgang weicht von den Terminen in der Datei ab — Sie können sie anzeigen.",
+    "xerImportDatesAsRecordedOffer_other": "{{count}} Vorgänge weichen von den Terminen in der Datei ab — Sie können sie anzeigen.",
     "xerExportLoss": "Beim Export nach {{format}} gehen XER-Quellinformationen verloren.",
     "mppLegacy": "Diese .mpp-Datei verwendet ein altes Format (Project 2007 oder älter). Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "mppEncrypted": "Diese .mpp-Datei ist passwortgeschützt. Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",

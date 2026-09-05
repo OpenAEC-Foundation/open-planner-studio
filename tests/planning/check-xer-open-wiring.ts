@@ -322,6 +322,25 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     useAppStore.getState().datesAsRecorded, false);
   ok('T4-23 …maar het aanbod verschijnt wél', useAppStore.getState().recordedDates !== null);
   eq('T4-24 …met dezelfde teller', useAppStore.getState().recordedDates?.shifted, 1);
+
+  // T4-25..29 — DE MELDING MOET DE WAARHEID ZEGGEN (critreview laag 3, bevinding 4).
+  // `notifications.xerImportDatesAsRecorded` zegt letterlijk "niet herberekend". Een heropende IFC
+  // met XER-archief draagt óók `xer`-metadata en kwam dus in dezelfde regel terecht — terwijl daar
+  // per heropen-beleid juist WÉL herberekend is en de modus uit staat. De aanbodroute heeft nu een
+  // eigen, aanbiedende regel. MUTATIEBEWIJS: tel de aanbodstand weer bij
+  // `datesAsRecordedShiftedTotal` op ⇒ T4-27/T4-28 slaan rood.
+  const notifBeforeArchive = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
+  useAppStore.getState().newDocument();
+  useAppStore.getState().applyOpenedImport(singleAsArchiveOrigin, { filePath: null, recompute: true });
+  const archiveNotifs = useAppStore.getState().ui.notifications.filter((n) => !notifBeforeArchive.has(n.id));
+  eq('T4-25 de heropende XER-archief-IFC geeft één melding', archiveNotifs.length, 1);
+  eq('T4-26 voorwaarde: de modus staat daarbij UIT', useAppStore.getState().datesAsRecorded, false);
+  ok('T4-27 de melding zegt NIET "niet herberekend" (er is wél herberekend)',
+    archiveNotifs[0]?.detailLines?.every((d) => d.messageKey !== 'notifications.xerImportDatesAsRecorded') ?? false);
+  const offerDetail = archiveNotifs[0]?.detailLines
+    ?.find((d) => d.messageKey === 'notifications.xerImportDatesAsRecordedOffer');
+  ok('T4-28 …maar biedt de opgeslagen datums wél aan', offerDetail);
+  eq('T4-29 …met hetzelfde aantal afwijkende taken', offerDetail?.params?.count, 1);
 }
 
 const corpusRoot = process.env.OPS_XER_CORPUS;

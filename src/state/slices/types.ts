@@ -229,6 +229,7 @@ export type NotificationMessageKey =
   // `recordedDates.shifted` over alle documenten van dit bestand (één regel, ook bij twaalf
   // projecten — zie `xerImportNotice`/`applyOpenedImport`).
   | 'notifications.xerImportDatesAsRecorded'
+  | 'notifications.xerImportDatesAsRecordedOffer'
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'

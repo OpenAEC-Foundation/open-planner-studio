@@ -54,6 +54,8 @@
     "xerImportUnsupportedSemantics_other": "{{count}} P6-planningsinstellingen met veilige terugval.",
     "xerImportDatesAsRecorded_one": "{{count}} taak toont de datums zoals Primavera ze opsloeg (niet herberekend).",
     "xerImportDatesAsRecorded_other": "{{count}} taken tonen de datums zoals Primavera ze opsloeg (niet herberekend).",
+    "xerImportDatesAsRecordedOffer_one": "{{count}} taak wijkt af van de datums in het bestand — je kunt ze tonen.",
+    "xerImportDatesAsRecordedOffer_other": "{{count}} taken wijken af van de datums in het bestand — je kunt ze tonen.",
     "xerExportLoss": "Bij export naar {{format}} gaat XER-broninformatie verloren.",
     "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
