@@ -252,8 +252,21 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         };
       })()
       : null;
-    const finishFloat = signedFloat(early.ef, late.lf, cal, taskObj);
-    const startFloat = signedFloat(early.es, late.ls, cal, taskObj);
+    // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i)): zodra `CPMSolver` de late
+    // zijde van deze taak via de restwerkregel berekent (dezelfde `completedWindow.eligible`-poort
+    // als daar), moet de TF/FF-formule tegen hetzelfde statusdatumvenster meten, niet tegen de
+    // rauwe historische `early.es`/`early.ef` — anders combineert de formule een gewindowd late-
+    // punt met een niet-gewindowd early-punt en ontstaat een spookfloat die uitsluitend de
+    // historische afstand tussen twee taken se eigen actual-vensters meet (bv. A/B hierboven zouden
+    // dan een verschillende TF krijgen puur omdat B later heeft gewerkt dan A, terwijl beide
+    // dezelfde late-ankerketen erven). Zonder de vlag blijft dit exact `early.es`/`early.ef` —
+    // byte-identiek, want dan is `late.ls`/`late.lf` ook nog de ongewijzigde actual-pin.
+    const useCompletedRemainingWindow = completedWindowDecision.eligible
+      && so?.p6Source === 'XER' && so.p6CompletedLateFromRemainingWindow === true;
+    const floatEarlyEs = useCompletedRemainingWindow ? completedDisplayWindow!.es : early.es;
+    const floatEarlyEf = useCompletedRemainingWindow ? completedDisplayWindow!.ef : early.ef;
+    const finishFloat = signedFloat(floatEarlyEf, late.lf, cal, taskObj);
+    const startFloat = signedFloat(floatEarlyEs, late.ls, cal, taskObj);
     // Een EXPLICIETE P6-modus geldt ook voor lopende taken: start = LS−ES, finish = LF−EF en
     // smallest = min(beide). Ontbreekt de bronoptie, dan blijft de oudere OPS-invariant behouden:
     // een lopende taak gebruikt finish-float en een overige taak de kleinste — zo blijven verse,
@@ -375,6 +388,14 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const mode = completedDisplayWindow?.mode ?? modeOf(cal);
     const displayActualLateDecision = explainDisplayActualLateEligibility(taskObj, dataDate, so);
     const displayActualLate = displayActualLateDecision.eligible;
+    // Diagnose laag 1, klasse (i): zónder de nieuwe vlag pint de LATE zijde van een voltooide taak
+    // op haar rauwe actual-venster (`early.es`/`early.ef`, dezelfde bron als de bestaande
+    // `backwardActualPin` in `CPMSolver`) — asymmetrisch met de EARLY zijde hierboven, die al wél
+    // het statusdatumvenster toont zodra `completedDisplayWindow` eligible is. Mét de vlag heeft
+    // `CPMSolver.backwardPass` voor deze taak al de P6-restwerkregel toegepast (`late.ls`/`late.lf`
+    // dragen dan een zinvol, niet-gedegenereerd statusdatumvenster inclusief float) — die uitkomst
+    // hoort dan getoond te worden i.p.v. de rauwe actual-pin.
+    const pinLateToActualWindow = displayActualLate && !useCompletedRemainingWindow;
     if (backwardFloatTrace) {
       const prior = backwardFloatTrace.byTaskId[taskId] ?? {
         lateFinishSource: 'projectEnd' as const,
@@ -395,8 +416,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     taskResults.set(taskId, {
       earlyStart: formatInstant(completedDisplayWindow?.es ?? early.es, mode),
       earlyFinish: formatInstant(completedDisplayWindow?.ef ?? early.ef, mode),
-      lateStart: formatInstant(displayActualLate ? early.es : late.ls, mode),
-      lateFinish: formatInstant(displayActualLate ? early.ef : late.lf, mode),
+      lateStart: formatInstant(pinLateToActualWindow ? early.es : late.ls, mode),
+      lateFinish: formatInstant(pinLateToActualWindow ? early.ef : late.lf, mode),
       totalFloat: tf,
       freeFloat,
       isCritical,

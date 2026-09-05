@@ -123,6 +123,7 @@ export const XER_SCHEDULING_DEFAULTS = {
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: false,
     p6PreserveZeroDurationConstraintInstants: true,
+    p6CompletedLateFromRemainingWindow: true,
   },
 } as const satisfies { progressMode: ProgressMode; schedulingOptions: SchedulingOptions };
 

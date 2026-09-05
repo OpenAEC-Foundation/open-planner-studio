@@ -388,6 +388,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCOMPLETEDLOECHECK="$DIR/.xer-completed-loe-actual-finish.mjs"
   if bundle_check "$DIR/check-xer-completed-loe-actual-finish.ts" "$XERCOMPLETEDLOECHECK"; then node "$XERCOMPLETEDLOECHECK" || STATUS=1; fi
 
+  # Diagnose laag 1, klasse (i) (X-O7): een voltooide XER-activiteit staat via
+  # p6CompletedLateFromRemainingWindow ook aan de late zijde op nul restduur op de statusdatum
+  # (LF = prevWorkInstant(LS), lag vervalt tussen twee voltooide activiteiten); vlag uit blijft
+  # byte-identiek aan de rauwe actual-pin.
+  XERCOMPLETEDLATECHECK="$DIR/.xer-completed-late.mjs"
+  if bundle_check "$DIR/check-xer-completed-late.ts" "$XERCOMPLETEDLATECHECK"; then node "$XERCOMPLETEDLATECHECK" || STATUS=1; fi
+
   # X12-residu Ashspace: uitsluitend de bewezen open XER TT_LOE-span met SS-in- en FF-uittopologie
   # mag het expliciete targetvenster gebruiken; de corpusloze mutatiematrix houdt alle andere vormen dicht.
   XEROPENLOETARGETSPANCHECK="$DIR/.xer-open-loe-target-span.mjs"

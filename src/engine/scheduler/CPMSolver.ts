@@ -102,11 +102,13 @@ export type CpmProjectEndSource =
 
 export type CpmLateFinishSource =
   | 'projectEnd'
-  | 'successorConstraint';
+  | 'successorConstraint'
+  | 'completedRemainingWindow';
 
 export type CpmLateStartSource =
   | 'subDuration'
-  | 'subRemainingDuration';
+  | 'subRemainingDuration'
+  | 'completedRemainingWindow';
 
 export type CpmFreeFloatSource =
   | 'derivedFromSuccessor'
@@ -3091,6 +3093,66 @@ export class CPMSolver {
       // de late zijde. De smalle data-date-route verandert uitsluitend de forwarddatums; opgeslagen
       // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
       if (backwardActualPin.eligible) {
+        if (this.p6XerOption(this.options.schedulingOptions?.p6CompletedLateFromRemainingWindow)
+          && completedWindow.eligible) {
+          // Diagnose laag 1, klasse (i) (rehab-2, 2.036 voltooide taken, 99,9% dekking): een
+          // voltooide activiteit staat aan de late zijde óók op nul restduur op de statusdatum —
+          // `LF = prevWorkInstant(LS)` op de taak-eigen (voortgangs)kalender, `LS` = de vroegste
+          // van de door haar opvolgers toegestane late finishen, geklemd op de statusdatum. Geen
+          // opvolger ⇒ `LS` = de statusdatumklem zelf (dezelfde `nextWorkInstant`-grens als de
+          // forward completed-display-window hierboven).
+          //
+          // Bewust gepoort op `completedWindow.eligible` (dezelfde `explainP6CompletedDataDateWindow`
+          // die ook de FORWARD-display stuurt): dat is precies de asymmetrie uit de diagnose — ES
+          // toont daar al het statusdatumvenster, dus LS hoort dat ook te doen. Een voltooide taak
+          // die niet door die (nauwe) poort komt — de CP_Phys-route of de LOE/hammock-actual-finish-
+          // uitzondering (`explainCompletedXerLoeActualFinishEligibility`, expliciet ZONDER
+          // uitgaande relatie) — heeft geen zinvol statusdatumvenster aan de vroege kant en moet dus
+          // ook aan de late kant op haar bestaande actual-pin blijven staan; anders raakt LS/LF los
+          // van de eigen (niet-venster-)ES/EF van diezelfde taak.
+          const progressCal = this.progressCalendarFor(task);
+          const windowEs = this.snapOnOrAfter(progressCal, this.dataDate!);
+          let candidateLf: Date | null = null;
+          for (const seq of succs) {
+            const succResult = results.get(seq.successorId);
+            const succTask = this.tasks.get(seq.successorId);
+            if (!succResult || !succTask) continue;
+            if (succTask.isHammock) continue;
+            const succCal = this.calendarFor(succTask);
+            const succRawCompleted = !!succTask.time.actualFinish && succTask.time.completion >= 1;
+            const succWindowCompleted = this.p6CompletedDataDateWindowDecision(succTask).eligible;
+            // Een voltooide opvolger die zelf niet door de completedWindow-poort kwam (CP_Phys,
+            // de LOE/hammock-actual-finish-uitzondering) draagt nog steeds haar ongewijzigde
+            // actual-pin — pure historie, net als in de generieke tak hierboven — en mag deze taak
+            // dus niet terugtrekken.
+            if (succRawCompleted && !succWindowCompleted) continue;
+            // Gemeten uitzondering: de relatie-lag telt NIET mee tussen twee voltooide
+            // activiteiten (R1 zonder lag: 2.033/2.036), maar WEL zolang de opvolger nog restwerk
+            // heeft (R2 mét lag altijd: slechts 1.796/2.036 — de drie R1-uitzonderingen hebben
+            // stuk voor stuk een NIET-voltooide maatgevende opvolger).
+            const effectiveSeq = succWindowCompleted
+              ? { ...seq, lagDays: 0, lagMinutes: 0, lagPercent: undefined }
+              : seq;
+            const delayShiftedSuccResult = {
+              ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
+              lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
+            };
+            const constraintFinish = backwardConstraint(
+              this.relDeps, delayShiftedSuccResult, effectiveSeq, task, succTask, progressCal, succCal,
+              this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+            );
+            if (candidateLf === null || constraintFinish < candidateLf) candidateLf = constraintFinish;
+          }
+          const derivedLs = candidateLf === null ? windowEs : progressCal.nextWorkInstant(candidateLf);
+          const ls = derivedLs < windowEs ? windowEs : derivedLs;
+          const lf = progressCal.prevWorkInstant(ls);
+          this.recordBackwardFloatTrace(taskId, {
+            lateFinishSource: 'completedRemainingWindow',
+            lateStartSource: 'completedRemainingWindow',
+          });
+          results.set(taskId, { ls, lf });
+          continue;
+        }
         const ed = earlyDates.get(taskId)!;
         this.recordBackwardFloatTrace(taskId, {
           lateStartSource: this.p6XerOption(
@@ -3182,8 +3244,18 @@ export class CPMSolver {
         const succTask = this.tasks.get(seq.successorId);
         if (!succResult || !succTask) continue;
         // Een voltooide P6-opvolger beschrijft historie en mag de late finish van een nog open
-        // voorganger niet door haar historische actual finish terugtrekken.
-        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1) continue;
+        // voorganger niet door haar historische actual finish terugtrekken — TENZIJ de opvolger
+        // zelf door de completedWindow-poort kwam (de tak hierboven, `p6CompletedLateFromRemainingWindow`):
+        // dan draagt die opvolger al een zinvolle, statusdatum-gebaseerde late kant en hoort ze,
+        // net als elke andere opvolger, gewone backward-druk te leggen op haar eigen voorgangers.
+        // Een voltooide opvolger die niet door die (nauwe) poort kwam — CP_Phys of de LOE/hammock-
+        // actual-finish-uitzondering — blijft wel uitgesloten: haar ls/lf zijn dan nog steeds de
+        // rauwe actual-pin (ongewijzigd hierboven), niet iets zinvols om op terug te rekenen.
+        if (preserveActualDates && succTask.time.actualFinish && succTask.time.completion >= 1
+          && !(this.p6XerOption(this.options.schedulingOptions?.p6CompletedLateFromRemainingWindow)
+            && this.p6CompletedDataDateWindowDecision(succTask).eligible)) {
+          continue;
+        }
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen

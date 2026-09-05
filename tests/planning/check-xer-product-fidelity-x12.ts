@@ -1811,8 +1811,12 @@ async function productBaseline(
     totalFloatMinutes: oneResult?.totalFloatMinutes, freeFloatMinutes: oneResult?.freeFloatMinutes,
   }, {
     explicitTargetWindow: true,
+    // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i), default aan voor XER): een
+    // geïsoleerde voltooide taak zonder opvolgers staat aan de late zijde ook op de
+    // statusdatumklem — identiek aan haar eigen statusdatumvenster — i.p.v. het historische
+    // actual-venster (act_start/act_end 2026-01-08).
     earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
-    lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T16:00',
+    lateStart: '2026-01-05T08:00', lateFinish: '2026-01-02T16:00',
     totalFloatMinutes: 0, freeFloatMinutes: 0,
   });
   eq('X12 F1 raw early/late-mutatatie beïnvloedt de solver niet', {
@@ -1820,8 +1824,8 @@ async function productBaseline(
     mutatedAxes: [oneRawMutatedResult?.earlyStart, oneRawMutatedResult?.earlyFinish,
       oneRawMutatedResult?.lateStart, oneRawMutatedResult?.lateFinish],
   }, {
-    oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
-    mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
+    oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-05T08:00', '2026-01-02T16:00'],
+    mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-05T08:00', '2026-01-02T16:00'],
   });
   // De statusdatum, taakprovenance en gewone geplande start moeten ook na de native opslaggrens
   // aanwezig blijven; XER-archiefreconstructie levert daarmee dezelfde brongebonden route op.
@@ -1833,7 +1837,7 @@ async function productBaseline(
       oneReloadedResult?.lateStart, oneReloadedResult?.lateFinish],
   }, {
     explicitTargetWindow: true,
-    axes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-08T08:00', '2026-01-08T16:00'],
+    axes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-05T08:00', '2026-01-02T16:00'],
   });
   eq('X12 F2 meerdere XER-assignments veranderen completed-bronsemantiek niet', {
     assignmentCount: two.assignments.length,
@@ -1937,7 +1941,17 @@ async function productBaseline(
   const connectedSolved = solveImported(connected).tasks;
   const connectedA = connectedSolved.find(task => task.taskCode === 'P100');
   const connectedB = connectedSolved.find(task => task.taskCode === 'A100');
-  eq('X12 A→FS→B(completed) houdt B-inversie buiten backwarddruk op open A', {
+  // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i)): vóór deze vlag beschreef B's
+  // rauwe actual-pin (act_start/act_end 2026-01-08, ver NÁ B's eigen statusdatumvenster) pure
+  // historie en mocht ze geen backwarddruk op open A leggen — vandaar de oude testnaam. Mét de vlag
+  // draagt B (voltooid, window-eligible, geen eigen opvolgers) een zinvolle late kant: haar eigen
+  // statusdatumklem (2026-01-05T08:00), identiek aan haar vroege venster. Open A (FS lag 0 naar B,
+  // zelf al gepland op diezelfde 2026-01-05) mag daar niet ná finishen ⇒ A's late finish valt
+  // terug naar de vorige werkdag (2026-01-02) en A krijgt ECHTE negatieve float (-480 min, één
+  // werkdag) — een out-of-sequence-signaal, geen bug: A had volgens B's positie al klaar moeten
+  // zijn. Dat is precies de spiegel van de gemeten regel: een voltooide opvolger legt nu, net als
+  // elke andere opvolger, gewone backward-druk op haar voorganger.
+  eq('X12 A→FS→B(completed) legt normale backwarddruk op open A (B draagt een zinvolle late kant)', {
     a: {
       earlyStart: connectedA?.earlyStart, earlyFinish: connectedA?.earlyFinish,
       lateStart: connectedA?.lateStart, lateFinish: connectedA?.lateFinish,
@@ -1951,11 +1965,11 @@ async function productBaseline(
   }, {
     a: {
       earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-05T16:00',
-      lateStart: '2026-01-05T08:00', lateFinish: '2026-01-05T16:00', totalFloatMinutes: 0,
+      lateStart: '2026-01-02T08:00', lateFinish: '2026-01-02T16:00', totalFloatMinutes: -480,
     },
     b: {
       earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
-      lateStart: '2026-01-08T08:00', lateFinish: '2026-01-08T16:00', freeFloatMinutes: 0,
+      lateStart: '2026-01-05T08:00', lateFinish: '2026-01-02T16:00', freeFloatMinutes: 0,
     },
   });
 

@@ -97,6 +97,22 @@ export interface SchedulingOptions {
    *  het P6-pad (`progressMode`/statusdatum-gedreven planningen) behoudt de vloer bewust: dat is
    *  precies de RETAINED_LOGIC-conventie die P6 zélf documenteert. */
   unstartedIgnoresStatusDate?: boolean;
+  /** XER/P6 (diagnose laag 1, klasse (i)): P6 zet een VOLTOOIDE activiteit ook aan de LATE zijde
+   *  neer als een taak met nul restduur op de statusdatum — niet op haar historische actual-
+   *  venster (dat `preserveActualDatesInBackwardPass` hierboven wél als LS/LF-PIN gebruikt). De
+   *  gemeten regel (rehab-2, 2.036 voltooide taken, 99,9% dekking): `LF = prevWorkInstant(LS)` op
+   *  de taak-eigen (voortgangs)kalender, en `LS` = de vroegste van de door haar opvolgers
+   *  toegestane late finishen — geklemd op de statusdatum (`nextWorkInstant(statusdatum)`) zodat
+   *  ze nooit vóór de statusdatum lijkt te vallen. De relatie-lag telt daarbij NIET mee tussen
+   *  twee voltooide activiteiten (2.033/2.036), maar WEL zolang de opvolger nog restwerk heeft
+   *  (240/2.036 faalt juist zónder die uitzondering). Dat geeft een voltooide activiteit voor het
+   *  eerst een zinvolle totale float in plaats van 0, en laat haar backward-druk uitoefenen op
+   *  haar eigen voorgangers zoals elke andere taak. Default afwezig/false ⇒ de bestaande
+   *  actual-venster-pin blijft behouden, byte-identiek voor IFC/MSPDI/MPP en voor elke XER die
+   *  vóór deze vlag is ingelezen en als IFC is opgeslagen. Uitsluitend gezet door `xerReader`
+   *  (`xerScheduleOptions.ts`), en alleen effectief onder `p6Source === 'XER'`
+   *  (`CPMSolver.p6XerOption`) — exact het `p6FinishMilestoneBoundaryWindow`-stramien. */
+  p6CompletedLateFromRemainingWindow?: boolean;
 }
 
 export interface Project {
