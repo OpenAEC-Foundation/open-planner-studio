@@ -25,6 +25,11 @@ import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
+import {
+  captureTriangle, contourKeepsWork, planWorkEdit, commitTrianglePlan, settleAssignmentAdded,
+  settleAssignmentRemoved, settleDurationEdit, settleRuleChange, settleUnitsEdit,
+} from '@/engine/work/workRuleApply';
+import type { WorkRule } from '@/types/workRule';
 
 export type McpTransactionResult<T> =
   | { ok: true; value: T; timephasedGuidanceLost: number }
@@ -94,6 +99,23 @@ function createMcpDraft(
   const { store, runtime } = context;
   const recordTimephasedLoss = (taskId: string): void => {
     runtime.recordMcpTimephasedLoss(activeLease(), taskId);
+  };
+
+  /**
+   * Taaktypes-etappe (bouwstap 4): nazorg wanneer de werkdriehoek de TAAKduur verandert (inzet/
+   * werk/resource erbij-eraf onder FIXED_WORK/FIXED_RATE) — tweeling van resourceSlice.ts's
+   * `afterTriangleDurationChange`: contour + importsplits herschalen, Z8-venster/-walks wissen,
+   * verlies melden. `scheduleStale` blijft bewust aan de transactie (zie het docblok hierboven).
+   */
+  const afterTriangleDurationChange = (
+    s: { calendars: WorkCalendar[]; calendar: WorkCalendar; project: Pick<Project, 'defaultWorkRule'> },
+    task: Task,
+    oldWorkMinutes: number,
+  ): void => {
+    rescaleTaskContours(task, oldWorkMinutes, taskCalendarHoursPerDay(task, s.calendars, s.calendar), contourKeepsWork(task, s.project.defaultWorkRule));
+    const clearedWindow = clearTimephasedWindow(task);
+    const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
+    if (clearedWindow || clearedWalks) recordTimephasedLoss(task.id);
   };
 
   const rawDraft = {
@@ -362,10 +384,15 @@ function createMcpDraft(
       const { time, ...rest } = updates;
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
+      // Taaktypes-etappe (bouwstap 4) — tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
+      const triangle = timeUpdateTouchesTimephasedWindow(time) ? captureTriangle(s.tasks[idx], s.assignments, s) : null;
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
       // Contour-engine (2026-09) — tweeling van taskSlice.ts's `updateTask`: herschaal de contour.
-      if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
+      if (timeUpdateTouchesTimephasedWindow(time)) {
+        rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd, contourKeepsWork(s.tasks[idx], s.project.defaultWorkRule));
+        settleDurationEdit(s.tasks[idx], s.assignments, triangle);
+      }
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
@@ -405,6 +432,8 @@ function createMcpDraft(
       const task = s.tasks[idx];
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // Taaktypes-etappe (bouwstap 4) — zelfde momentopname als `updateTaskFields` hierboven.
+      const triangle = timePatch ? captureTriangle(task, s.assignments, s) : null;
       Object.assign(task, top);
       let timeTouched = false;
       if (timePatch) {
@@ -415,7 +444,10 @@ function createMcpDraft(
         if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
       }
       // Contour-engine (2026-09) — zelfde herschaling als `updateTaskFields` hierboven.
-      if (timeTouched) rescaleTaskContours(task, oldWorkMinutes, contourHpd);
+      if (timeTouched) {
+        rescaleTaskContours(task, oldWorkMinutes, contourHpd, contourKeepsWork(task, s.project.defaultWorkRule));
+        settleDurationEdit(task, s.assignments, triangle);
+      }
       reconcileP6SuspendResume(task);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
@@ -609,8 +641,15 @@ function createMcpDraft(
       if (!isValidUnits(unitsPerDay)) {
         throw new Error(`draft.assignResource: ongeldige unitsPerDay ${String(unitsPerDay)} (strikt positief vereist)`);
       }
-      s.assignments.push({ id, taskId, resourceId, unitsPerDay, curve });
+      // Taaktypes-etappe (spec §5 rij 4) — tweeling van resourceSlice.ts's `assignResource`.
+      const triangle = captureTriangle(task, s.assignments, s);
+      const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const added: ResourceAssignment = { id, taskId, resourceId, unitsPerDay, curve };
+      s.assignments.push(added);
       if (!task.resourceIds.includes(resourceId)) task.resourceIds.push(resourceId);
+      if (settleAssignmentAdded(task, s.assignments, triangle, added).durationChanged) {
+        afterTriangleDurationChange(s, task, oldWorkMinutes);
+      }
       // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
       // van de triggerset (plan: "duur, datums, kalender, toewijzingen"): een andere resource kan
       // een andere resourcekalender betekenen, precies de Z8-laag-4-discriminator — dus BEIDE
@@ -639,8 +678,54 @@ function createMcpDraft(
         delete patch.unitsPerDay;
       }
       if (Object.keys(patch).length === 0) return;
+      // Taaktypes-etappe (spec §5 rij 2) — tweeling van resourceSlice.ts's `updateAssignment`.
+      const task = s.tasks.find((t) => t.id === s.assignments[idx].taskId);
+      const unitsEdit = task && typeof patch.unitsPerDay === 'number' && patch.unitsPerDay !== s.assignments[idx].unitsPerDay
+        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)) }
+        : null;
       Object.assign(s.assignments[idx], patch);
       if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
+      if (unitsEdit) {
+        const settled = settleUnitsEdit(unitsEdit.task, s.assignments, unitsEdit.triangle, assignmentId, s.assignments[idx].unitsPerDay);
+        if (settled.durationChanged) afterTriangleDurationChange(s, unitsEdit.task, unitsEdit.oldWorkMinutes);
+      }
+      s.isDirty = true;
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentWork` (taaktypes-etappe, spec §5
+   * rij 3): zet het resterende werk (werkminuten, > 0) van één toewijzing; de werkdriehoek leidt
+   * inzet of restduur af. Onbekend id, ongeldig werk of een taak buiten de regel ⇒ FOUT (de
+   * toollaag pre-valideert; dit is de vangrail).
+   */
+  setAssignmentWork(assignmentId: string, remainingWorkMinutes: number): void {
+    store.setState((s) => {
+      const a = s.assignments.find((x) => x.id === assignmentId);
+      if (!a) throw new Error(`draft.setAssignmentWork: onbekende assignmentId '${assignmentId}'`);
+      const task = s.tasks.find((t) => t.id === a.taskId);
+      if (!task) throw new Error(`draft.setAssignmentWork: toewijzing '${assignmentId}' zonder taak`);
+      const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
+      if (!plan) {
+        throw new Error(`draft.setAssignmentWork: werk ${String(remainingWorkMinutes)} geweigerd (strikt positief vereist; de werkregel geldt niet op mijlpalen, hangmatten, samenvattingen of ELAPSEDTIME-taken)`);
+      }
+      if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes);
+      s.isDirty = true;
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setTaskWorkRule` (spec §5 rij 6): zet de
+   * werkregel van een taak (`undefined` = projectstandaard). Geen getal verandert; een
+   * werkbeschermende regel legt het huidige restwerk vast. Onbekend id ⇒ fout.
+   */
+  setTaskWorkRule(taskId: string, rule: WorkRule | undefined): void {
+    store.setState((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) throw new Error(`draft.setTaskWorkRule: onbekende taskId '${taskId}'`);
+      if (task.workRule === rule) return;
+      settleRuleChange(task, s.assignments, s, rule);
       s.isDirty = true;
     });
   },
@@ -729,7 +814,14 @@ function createMcpDraft(
     store.setState((s) => {
       const removed = s.assignments.find((a) => a.id === assignmentId);
       if (!removed) throw new Error(`draft.unassignResource: onbekende assignmentId '${assignmentId}'`);
+      // Taaktypes-etappe (spec §5 rij 5) — tweeling van resourceSlice.ts's `unassignResource`.
+      const triangleTask = s.tasks.find((t) => t.id === removed.taskId);
+      const triangle = triangleTask ? captureTriangle(triangleTask, s.assignments, s) : null;
+      const oldWorkMinutes = triangleTask ? taskWorkMinutesOf(triangleTask, taskCalendarHoursPerDay(triangleTask, s.calendars, s.calendar)) : 0;
       s.assignments = s.assignments.filter((a) => a.id !== assignmentId);
+      if (triangleTask && settleAssignmentRemoved(triangleTask, s.assignments, triangle, assignmentId).durationChanged) {
+        afterTriangleDurationChange(s, triangleTask, oldWorkMinutes);
+      }
       const stillAssigned = s.assignments.some(
         (a) => a.taskId === removed.taskId && a.resourceId === removed.resourceId,
       );

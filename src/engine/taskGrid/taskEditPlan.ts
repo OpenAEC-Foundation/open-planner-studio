@@ -57,6 +57,10 @@ export interface TaskEditPlanEnvironment {
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
+  /** Taaktypes-etappe (2026-09): werkbehoud bij het herschalen van een contour, afgeleid van de
+   *  effectieve werkregel (`workRuleApply.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
+   *  MSP-afleiding in `rescaleTaskContours`. */
+  contourKeepsWork?: boolean;
 }
 
 export interface PlannedTaskEdit {
@@ -132,8 +136,11 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
 /** Contour-engine (2026-09): duurwijziging in het grid herschaalt de contour — tweeling van
  *  `taskSlice.updateTask`/`createMcpTransactions.updateTaskFields`, zie `taskDefaults.ts`'s
  *  `rescaleTaskContours`. `oldWorkMinutes` is vóór de mutatie vastgelegd door `applyScheduleEdit`. */
-function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
-  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
+function finishDurationEdit(task: Task, oldWorkMinutes: number, environment: TaskEditPlanEnvironment): boolean {
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) {
+    rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, environment.contourKeepsWork);
+  }
   return clearScheduleGuidance(task, true);
 }
 
@@ -231,7 +238,7 @@ function applyScheduleEdit(
       task.time.durationMinutes = minutes;
       task.time.scheduleDuration = minutes / (environment.effectiveHoursPerDay * 60);
     }
-    lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+    lost = finishDurationEdit(task, oldWorkMinutes, environment);
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
       const parsed = edit.value as ParsedTaskDuration;
@@ -251,7 +258,7 @@ function applyScheduleEdit(
         task.time.scheduleDuration = parsed.scheduleDuration;
         task.time.durationMinutes = undefined;
       }
-      lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+      lost = finishDurationEdit(task, oldWorkMinutes, environment);
       return { ok: true, value: lost };
     }
     if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
@@ -264,7 +271,7 @@ function applyScheduleEdit(
       task.time.scheduleDuration = days;
       if (environment.hourMode) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
-      lost = finishDurationEdit(task, oldWorkMinutes, hoursPerDay);
+      lost = finishDurationEdit(task, oldWorkMinutes, environment);
     }
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);

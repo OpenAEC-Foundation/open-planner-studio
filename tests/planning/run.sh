@@ -627,6 +627,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   WRMCHECK="$DIR/.check-work-rule-mapping.mjs"
   if bundle_check "$DIR/check-work-rule-mapping.ts" "$WRMCHECK"; then node "$WRMCHECK" || STATUS=1; fi
 
+  WRSCHECK="$DIR/.check-work-rule-store.mjs"
+  if bundle_check "$DIR/check-work-rule-store.ts" "$WRSCHECK"; then node "$WRSCHECK" || STATUS=1; fi
+
   # Geavanceerde-CPM golf-0-checks (fase 2.9 — datamodel + plumbing default-inert, los van de CPM-cases).
   ACPMCHECK="$DIR/.advanced-cpm-check.mjs"
   if bundle_check "$DIR/check-advanced-cpm.ts" "$ACPMCHECK"; then node "$ACPMCHECK" || STATUS=1; fi

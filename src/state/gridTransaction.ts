@@ -18,6 +18,10 @@ import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
+import {
+  captureTriangle, contourKeepsWork, settleAssignmentPlan, settleDurationEdit, type AssignmentSettleOp,
+} from '@/engine/work/workRuleApply';
+import { clearTimephasedWindow, rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import {
   applyRelationMutationPlan,
@@ -345,12 +349,43 @@ function applyAssignmentSet(
     resourcesById,
   });
   if (!planned.ok) return planned;
-  return {
-    ok: true,
-    value: applyTaskAssignmentPlan(
-      state, planned.value, () => generateId('asgn'), applyIndexes,
-    ),
-  };
+  // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR het plan; ná het
+  // plan volgen inzet/werk/restduur de regel van de taak (spec §5 rijen 2/4/5), in één terugschrijf.
+  const task = tasksById.get(intent.taskId);
+  const triangle = task ? captureTriangle(task, assignmentsForTask, state) : null;
+  const oldWorkMinutes = task ? taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, state.calendars, state.calendar)) : 0;
+  // `applyTaskAssignmentPlan` muteert de draftobjecten in-place; de oude inzet dus vóóraf vastleggen.
+  const unitsBefore = new Map(assignmentsForTask.map(a => [a.id, a.unitsPerDay] as const));
+  const applied = applyTaskAssignmentPlan(
+    state, planned.value, () => generateId('asgn'), applyIndexes,
+  );
+  let lostTaskIds = applied.timephasedGuidanceLostTaskIds;
+  if (task && triangle) {
+    const ops: AssignmentSettleOp[] = [];
+    for (const op of planned.value.operations) {
+      if (op.kind === 'remove') ops.push({ kind: 'remove', assignmentId: op.assignmentId });
+      else if (op.kind === 'update') {
+        const before = unitsBefore.get(op.assignmentId);
+        if (before !== undefined && before !== op.unitsPerDay) ops.push({ kind: 'update', assignmentId: op.assignmentId, unitsPerDay: op.unitsPerDay });
+      } else {
+        const added = (applyIndexes.assignmentsByTaskId.get(op.taskId) ?? []).find(a => a.resourceId === op.resourceId);
+        if (added) ops.push({ kind: 'add', assignmentId: added.id, unitsPerDay: added.unitsPerDay, resourceId: added.resourceId });
+      }
+    }
+    const settled = settleAssignmentPlan(task, state.assignments, triangle, ops);
+    if (settled.durationChanged) {
+      // Zelfde nazorg als een duurbewerking in `applyCellEdits`/`taskEditPlan.ts`.
+      rescaleTaskContours(task, oldWorkMinutes, taskCalendarHoursPerDay(task, state.calendars, state.calendar), contourKeepsWork(task, state.project.defaultWorkRule));
+      const lost = clearTimephasedWindow(task);
+      if (lost && !lostTaskIds.includes(task.id)) lostTaskIds = [...lostTaskIds, task.id];
+      if (state.datesAsRecorded) {
+        state.datesAsRecorded = false;
+        state.recordedDates = null;
+      }
+      markScheduleStale(state);
+    }
+  }
+  return { ok: true, value: { timephasedGuidanceLostTaskIds: lostTaskIds } };
 }
 
 function applyRelationSet(
@@ -413,6 +448,9 @@ function applyCellEdits(
   // clipboard.ts en `pasteIntentPresent` in prepareGridMutation hieronder). Een enkele celedit of
   // Delete/Backspace (via `planTaskGridClear`) behoudt de bestaande harde weigering.
   skipReadOnlyCells: boolean,
+  // Taaktypes-etappe (2026-09): de toewijzingen van deze taak (uit de callerindex, O(1)), voor de
+  // werkdriehoek bij een duurbewerking.
+  assignmentsForTask: readonly AppState['assignments'][number][] = [],
 ): GridResult<{ timephasedGuidanceLost: boolean; skippedReadOnlyCount: number }, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
@@ -463,6 +501,7 @@ function applyCellEdits(
     customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
+    contourKeepsWork: contourKeepsWork(task, state.project.defaultWorkRule),
   };
 
   // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
@@ -606,10 +645,15 @@ function applyCellEdits(
     ? validatedEdits.filter(edit => !skippedConditionalEdits.has(edit))
     : validatedEdits;
 
+  // Taaktypes-etappe (spec §5 rij 1): momentopname VÓÓR het plan; een gewijzigde duur laat de
+  // toewijzingen daarna hun regel volgen (`settleDurationEdit`) — onder de standaardregel zonder
+  // werkvelden verandert er niets.
+  const triangle = captureTriangle(task, assignmentsForTask, state);
   const planned = planTaskCellEdits(task, finalEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     state.tasks[taskIndex] = planned.value.task;
+    settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
     if (planned.value.scheduleStale) {
       if (state.datesAsRecorded) {
         state.datesAsRecorded = false;
@@ -690,7 +734,10 @@ export function prepareGridMutation(
         if (appliedCellTaskIds.has(write.taskId)) continue;
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
-        const applied = applyCellEdits(draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells);
+        const applied = applyCellEdits(
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells,
+          draftAssignmentsByTaskId.get(write.taskId) ?? [],
+        );
         if (!applied.ok) errors.push(...applied.errors);
         else {
           const currentTaskIndex = draftTaskIndexById.get(write.taskId);

@@ -351,11 +351,26 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
       gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
 
-### Taaktypes / opgeslagen werk — ontwerp geschreven, nog niet gebouwd (2026-09-04)
+### Taaktypes / opgeslagen werk — in aanbouw (spec 2026-09-04, bouw 2026-09-05)
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
-> spec van 2026-08-18). Bouwt pas op een main mét de XER-import erin (tweede XER-merge eerst).
+> spec van 2026-08-18). Bouwt op de branch `claude/contour-engine-planner-mnrsy3` (PR #101), die
+> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–4 (+ de store-kant van 6) staan
+> erin; 5 (UI), 7 (MCP-tools) en 8 (docs) nog niet — zie spec §10 voor de stand per stap.
 > Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
+
+- [ ] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` (voortgangsroute).**
+      De brug leidt de restduur af als `remainingTime ?? duur × (1 − voortgang)` — dezelfde afleiding
+      als de solver. Staat `remainingTime` expliciet, dan verandert een duurbewerking die rest NIET,
+      en volgt de werkdriehoek dus ook niet (AFGELEID uit de code; wat MS Project hier doet is niet
+      gemeten). Beslissen: moet een duurbewerking `remainingTime` mee verschuiven (Δ), of is de
+      voortgangsroute leidend?
+- [ ] **B1c-koppelpunt (`origin/t3code/b1c-etappe3`, gezien 2026-09-05):** die branch wist bij elke
+      as-verzettende bewerking de nivelleergaten (`clearLevelingGaps`, B1c-plan3 taak 3). Een duur die
+      uit de werkdriehoek komt (`afterTriangleDurationChange` in `resourceSlice.ts`/
+      `createMcpTransactions.ts`, en het assignment-set-pad in `gridTransaction.ts`) hoort dat ná de
+      merge óók te doen — toe te voegen op de kant die als tweede merget. Geen inhoudelijke overlap
+      verder: B1c raakt inzet noch werk (besluit 7 blijft).
 
 - [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
       het menu, bewaard `effortDriven` stuurt alleen de twee MSP-afwijkende cellen); 9 = drie optionele

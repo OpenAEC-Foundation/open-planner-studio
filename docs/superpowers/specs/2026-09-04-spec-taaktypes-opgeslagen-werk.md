@@ -2,9 +2,10 @@
 
 *Ontwerp, 2026-09-04. Opvolger van het voorstel
 [`2026-08-18-spec-taaktypes-effort-driven.md`](2026-08-18-spec-taaktypes-effort-driven.md)
-("ontwerp vóór bouw"). Status: **ontwerp; bouwstap 3 (de pure rekenkern + de meetlat) is
-gebouwd op 2026-09-05, de overige stappen niet.** Stap 3 raakt alleen nieuwe bestanden en één
-regel in `tests/planning/run.sh`, dus de volgorde "XER merget eerst" (§10 stap 0) blijft intact.
+("ontwerp vóór bouw"). Status: **in aanbouw op de branch `claude/contour-engine-planner-mnrsy3`
+(PR #101, gestapeld op de XER-branch): stappen 1, 2, 3 en 4 zijn gebouwd (2026-09-05); stap 6 is
+daarin voor de store/raster/MCP-kant meegenomen (resource erbij/eraf + contourhoogte, besluit 3);
+de stappen 5, 7 en 8 nog niet.**
 De contour-engine, de contour-UI en de fasen-editor (2026-09) zijn geleverd en worden hier als
 bestaand fundament gebruikt.*
 
@@ -590,9 +591,9 @@ twee keer aan `formatRegistry.ts`, `ifcPsets.ts` en de contour-adapters wordt ge
 | 1 | `WorkRule`, `Task.workRule`, `Project.defaultWorkRule`, de drie werkvelden; `DOCUMENT_FIELDS`; IFC-psets `OPS_WorkRule` + `OPS_AssignmentWork`; ext-contract alleen-lezen. **Geen gedrag.** | `check-ifc-roundtrip` (fixture + canon), `check-document-contract`, `verify:cycles`; elk bestaand bestand byte-identiek |
 | 2 | Importvertaling (§4.2) voor .mpp, MSPDI (incl. `<Type>`/`<EffortDriven>` lezen), P6 XML, XER; export MSPDI/P6 XML met de werkvelden; waarschuwingen | fidelity-poort blijft 0 (`GOAL_ZERO_DEVIATIONS`); `check-mpp-*`, `check-adapters-*`; nieuwe fixtures per bron |
 | 3 **(gebouwd 2026-09-05)** | Pure module `src/engine/work/workTriangle.ts`: `applyDurationEdit`, `applyUnitsEdit`, `applyWorkEdit`, `applyTaskWorkEdit`, `applyAssignmentAdded`, `applyAssignmentRemoved`, `applyRuleChange` — invoer: de RESTERENDE toestand (`TriangleState`: regel, bewaard `effortDriven`, restduur in werkminuten, per toewijzing inzet + optioneel restwerk + `drivesDuration`), uitvoer: een nieuwe toestand of een weigering met reden; nooit een store. `WorkRule` in `src/types/workRule.ts` (verhuist in stap 1 naar `task.ts`). Plus `work-triangle-cases.json` (§9) | `tests/planning/check-work-triangle.ts`: 332 checks, 39 cases (21 documented, 16 reasoned, 2 decided, 0 measured; bij een mengvorm telt het zwakste bewijs) plus eigenschappen: geen veld geschreven onder de inzetregels, typewissel in alle 16 richtingen getalvrij, weigering bij restduur ≤ 0 of niet-eindige inzet (§6.7), `effortDriven` zonder effect buiten de twee 8-B-cellen |
-| 4 | Bedrading: `taskSlice.updateTask` (R), `resourceSlice.updateAssignment` (I, W), `taskEditPlan`/`assignmentPlan` (raster), `createMcpTransactions` (MCP-tweeling — ZEKER dat die spiegel bestaat), `assignmentDayUnits` vierde bron (§6.1) | bestaande suites + `check-work-triangle` via de store; `cases-resource-load.json` uitgebreid |
+| 4 **(gebouwd 2026-09-05)** | Brug `src/engine/work/workRuleApply.ts` (`captureTriangle` → kernstap → `applyTriangleResult`; `settleDurationEdit`/`settleUnitsEdit`/`planWorkEdit`+`commitTrianglePlan`/`settleAssignmentAdded`/`settleAssignmentRemoved`/`settleAssignmentPlan`/`settleRuleChange`; `contourKeepsWork`; `reconcileContourWork` = besluit 3 "vorm blijft, hoogte zakt"). Bedraad in `taskSlice.updateTask` + nieuw `setTaskWorkRule`, `resourceSlice.assignResource`/`updateAssignment`/`unassignResource` + nieuw `setAssignmentWork`, `gridTransaction.ts` (celduur én de assignment-set-cel, via `AssignmentSettleOp`), `createMcpTransactions.ts` (alle tweelingen + `setAssignmentWork`/`setTaskWorkRule` op de draft), `rescaleTaskContours(…, keepWork)` uit de effectieve regel, `assignmentDayUnits` derde bron = opgeslagen werk (§6.1). Een duur die uit de driehoek komt zet `scheduleStale`, herschaalt contour + importsplits en wist het Z8-venster — precies als een duurbewerking; onder FIXED_DURATION_RATE zonder werkvelden byte-identiek | `tests/planning/check-work-rule-store.ts` (65 checks: store, raster, MCP, vierde bron, meetlat 22/23/28), bestaande planning- en MCP-suites groen |
 | 5 | UI: instelling, auto-ontsluiting + melding, paneel/dialoog, rasterkolommen, i18n 14 locales, gidsen nl+en (+12 vertalingen, anders faalt `verify:docs` niet maar is de functie onvindbaar) | `verify:i18n`, `verify:docs`, browserspec `tests/browser/work-rule.spec.ts` (echte toetsen/klikken, store-asserties) |
-| 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** | cases 4, 5, 9, 10, 15, 19, 20, 23, 29, 30 |
+| 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** (genomen: 8-B). **Store/raster/MCP-kant gebouwd in stap 4** (`settleAssignmentAdded`/`Removed`, `reconcileContourWork`); wat rest is de UI-kant (stap 5) | cases 4, 5, 9, 10, 15, 19, 20, 23, 29, 30 (kern) + `check-work-rule-store` (b15–b21, d5–d9, e6–e7, f3–f4) |
 | 7 | MCP: contract + schema + registratie; `docs/recepten/mcp-tool.md` | `tests/mcp/`, `cases-toolregistry` |
 | 8 | CLAUDE.md-sectie, TODO-afvinking, `docs/superpowers/README.md` | `verify:docs` |
 

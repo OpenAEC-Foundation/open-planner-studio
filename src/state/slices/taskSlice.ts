@@ -16,6 +16,8 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
 import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
+import { captureTriangle, contourKeepsWork, settleDurationEdit, settleRuleChange } from '@/engine/work/workRuleApply';
+import type { WorkRule } from '@/types/workRule';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 
@@ -37,6 +39,11 @@ export interface TaskSlice {
     position?: { anchorId: string; where: 'above' | 'below' };
   }) => string;
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
+  /** Taaktypes-etappe (spec 2026-09-04 §5 rij 6): zet de werkregel van één taak (`undefined` = terug
+   *  naar de projectstandaard). Geen getal verandert; een werkbeschermende regel legt het huidige
+   *  restwerk van de werkresources vast (`workTriangle.ts`'s `applyRuleChange`). Geen
+   *  `scheduleStale` (geen datum raakt). Onbekend id of ongewijzigde regel ⇒ no-op. */
+  setTaskWorkRule: (id: string, rule: WorkRule | undefined) => void;
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
   deleteTasksBulk: (ids: readonly string[]) => void;
@@ -400,12 +407,21 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
+      // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR de merge —
+      // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
+      const triangle = timeUpdateTouchesTimephasedWindow(time) ? captureTriangle(s.tasks[idx], s.assignments, s) : null;
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
       // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
       // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
       // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
-      if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
+      // Werkbehoud volgt de effectieve werkregel (`contourKeepsWork`).
+      if (timeUpdateTouchesTimephasedWindow(time)) {
+        rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd, contourKeepsWork(s.tasks[idx], s.project.defaultWorkRule));
+        // Spec §5 rij 1: werk beschermd ⇒ inzet = W / R'; anders volgt een aanwezig werkveld de
+        // nieuwe duur. Onder de standaardregel zonder werkvelden gebeurt er niets (byte-identiek).
+        settleDurationEdit(s.tasks[idx], s.assignments, triangle);
+      }
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
@@ -424,6 +440,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    get().recomputeViewRows();
+  },
+
+  setTaskWorkRule: (id, rule) => {
+    set((s) => {
+      const task = s.tasks.find(t => t.id === id);
+      if (!task || task.workRule === rule) return; // onbekend id of ongewijzigd: geen snapshot.
+      runtime.beginUndoable(s);
+      settleRuleChange(task, s.assignments, s, rule);
+      runtime.finishMutation(s); // geen `stale`: een typewissel raakt geen datum (spec besluit 2).
+    });
+    get().recomputeResourceLoad(); // een vastgelegd restwerk kan de vierde bron van `assignmentDayUnits` activeren.
     get().recomputeViewRows();
   },
 

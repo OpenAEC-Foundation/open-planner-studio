@@ -368,7 +368,15 @@ export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
  * (shift-invariant, zie `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling, en
  * een taakkalenderwissel verandert de werkminuten-duur van de taak niet.
  */
-export function rescaleTaskContours(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+export function rescaleTaskContours(
+  task: Task,
+  oldWorkMinutes: number,
+  hoursPerDay: number,
+  // Taaktypes-etappe (2026-09, bouwstap 4): werkbehoud is een REGELkeuze (`workRuleApply.ts`'s
+  // `contourKeepsWork`), niet langer alleen een MSP-herkomstvinkje. Zonder argument geldt de oude
+  // afleiding, zodat elke bestaande aanroeper byte-identiek blijft.
+  keepWork: boolean = task.mspTaskType === 'FIXED_WORK',
+): boolean {
   const contours = task.timephasedContours;
   if (!contours || contours.length === 0) return false;
   const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
@@ -382,7 +390,7 @@ export function rescaleTaskContours(task: Task, oldWorkMinutes: number, hoursPer
   if (!rescaleFactor(reference.periods, oldWorkMinutes, newWorkMinutes)) return false;
   task.timephasedContours = contours.map((c) => ({
     ...c,
-    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, task.mspTaskType),
+    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, keepWork ? 'FIXED_WORK' : undefined),
   }));
   const gaps = rescaleSplitGaps(task.splitGaps, reference.periods, oldWorkMinutes, newWorkMinutes);
   if (gaps !== undefined) task.splitGaps = gaps;

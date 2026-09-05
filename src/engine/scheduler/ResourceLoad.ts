@@ -129,8 +129,14 @@ function largestRemainderRound(values: number[], targetSum: number, unitsPerDay:
  *      blijft behouden (dezelfde garantie als het earlyFinish-besluit hieronder).
  *   2. `ResourceAssignment.curveValues` (exacte 21-punts P6-/MSPDI-curve): `slotWeightsFromValues`
  *      × (unitsPerDay × duur) — ook data-achtig, dus eveneens zonder de formule-afronding.
- *   3. anders de bestaande formule `distributeUnits` (curve-vorm + hele-eenheden-afronding) —
- *      byte-identiek voor elke toewijzing zonder contour of `curveValues`.
+ *   3. OPGESLAGEN WERK (taaktypes-etappe 2026-09, spec §4.3/§6.5): staat er een
+ *      `remainingWorkMinutes` (uit een import die van duur × inzet afweek, of vastgelegd door een
+ *      werkbeschermende regel), dan is verricht + resterend werk het totaal en wordt dát — als
+ *      data, zonder de hele-eenheden-afronding — met de curvevorm (`CONTOUR_SHAPE_VALUES`) over de
+ *      duur gespreid. Zo boekt een niet-sturende toewijzing (W_i / I_i < R) haar eigen werk en niet
+ *      inzet × restduur. Afwezig ⇒ byte-identiek aan vandaag.
+ *   4. anders de bestaande formule `distributeUnits` (curve-vorm + hele-eenheden-afronding) —
+ *      byte-identiek voor elke toewijzing zonder contour, `curveValues` of werkveld.
  * `contour` mag door de aanroeper vooraf zijn opgezocht (één `matchContoursToAssignments` per
  * taak); ontbreekt het argument, dan zoekt deze functie 'm zelf op uit `task.timephasedContours`
  * en `siblings` (alle toewijzingen van de taak — nodig voor de volgorderegel van de koppeling).
@@ -155,6 +161,12 @@ export function assignmentDayUnits(
     const weights = slotWeightsFromValues(assignment.curveValues, durationDays);
     const total = assignment.unitsPerDay * durationDays;
     return weights.map((w) => w * total);
+  }
+  if (assignment.remainingWorkMinutes !== undefined && Number.isFinite(assignment.remainingWorkMinutes) && durationDays > 0) {
+    const workMinutes = Math.max(0, assignment.remainingWorkMinutes) + Math.max(0, assignment.actualWorkMinutes ?? 0);
+    const totalUnits = workMinutes / Math.max(1, mpd);
+    const weights = slotWeightsFromValues(CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[assignment.curve ?? 'UNIFORM']], durationDays);
+    return weights.map((w) => w * totalUnits);
   }
   return distributeUnits(assignment.unitsPerDay, durationDays, assignment.curve ?? 'UNIFORM');
 }
