@@ -77,6 +77,7 @@
       "earlyFinish": "Vroegste einde",
       "earlyStart": "Vroegste start",
       "effortDriven": "Inspanningsgestuurd",
+      "explicitSummary": "Expliciete verzameltaak",
       "externalRelationData": "Externe-relatiedata",
       "floatPath": "Spelingpad",
       "freeFloat": "Vrije speling",
@@ -97,6 +98,7 @@
       "nearCritical": "Bijna kritiek",
       "noteData": "Aantekeningendata",
       "notes": "Aantekeningen",
+      "p6Provenance": "Primavera P6-herkomst",
       "parentId": "Bovenliggende taak-id",
       "priority": "Nivelleerprioriteit",
       "remainingMinutes": "Resterend (minuten)",
@@ -117,7 +119,11 @@
       "totalFloat": "Totale speling",
       "wbs": "WBS",
       "workWindowFinish": "Einde werkvenster",
-      "workWindowStart": "Start werkvenster"
+      "workWindowStart": "Start werkvenster",
+      "workRule": "Werkregel",
+      "assignmentPlannedWork": "Begroot werk (uren)",
+      "assignmentActualWork": "Verricht werk (uren)",
+      "assignmentRemainingWork": "Resterend werk (uren)"
     },
     "category": {
       "task": "Taak",

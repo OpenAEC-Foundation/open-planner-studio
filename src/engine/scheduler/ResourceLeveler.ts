@@ -49,6 +49,7 @@ import { assignmentDayUnits, contourLookup, maxUnitsOn, enumerateWorkDays } from
 import { enumerateTaskWorkDays, splitGapsFromWorkDayBlocks } from './splitWalk';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Het GEDEELDE poolitem-grootboek (spec §4, "twee grootboeken"). De motor toetst per `resourceId`
@@ -200,6 +201,9 @@ export function levelResources(
   // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
   cpmOptions: CPMOptions = {},
 ): LevelingResult {
+  // Defensief dezelfde semantische bladgrens als scheduleSlice: directe aanroepers mogen een lege,
+  // expliciete WBS-samenvatting nooit als nivelleer-/interne CPM-taak laten binnenglippen.
+  tasks = tasks.filter(isLeafTask);
   const projEngine = new CalendarEngine(calendarForEngine(projectCalendar));
 
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
@@ -454,7 +458,7 @@ export function levelResources(
   for (const a of assignments) {
     if (!selectedIds.has(a.resourceId)) continue;
     const task = taskById.get(a.taskId);
-    if (!task || task.isMilestone || task.childIds.length > 0) continue;
+    if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const dur = task.time.scheduleDuration;
     if (dur <= 0) continue;
     const arr = assignmentDayUnits(task, a, engineForTask(task).hoursPerDay * 60, contourOf(task, a));

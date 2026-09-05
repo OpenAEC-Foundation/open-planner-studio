@@ -53,15 +53,19 @@
       "calendar": "Kalender", "childIds": "IDs untergeordneter Aufgaben", "color": "Farbe", "completion": "Fortschritt",
       "constraint2Date": "Datum der sekundären Einschränkung", "constraint2Type": "Typ der sekundären Einschränkung", "constraintDate": "Einschränkungsdatum", "constraintHard": "Harte Einschränkung", "constraintType": "Einschränkungstyp",
       "critical": "Kritisch", "customFieldData": "Benutzerfelddaten", "deadline": "Stichtag", "description": "Beschreibung", "duration": "Dauer", "durationMinutes": "Dauer (Minuten)", "durationType": "Dauertyp",
-      "earlyFinish": "Frühestes Ende", "earlyStart": "Frühester Anfang", "effortDriven": "Aufwandsgesteuert", "externalRelationData": "Daten externer Beziehungen",
+      "earlyFinish": "Frühestes Ende", "earlyStart": "Frühester Anfang", "effortDriven": "Aufwandsgesteuert", "explicitSummary": "Expliziter Sammelvorgang", "externalRelationData": "Daten externer Beziehungen",
       "floatPath": "Pufferpfad", "freeFloat": "Freier Puffer", "hammock": "Hammock (abgeleitete Dauer)", "interferingFloat": "Störender Puffer", "internalRelationData": "Daten interner Beziehungen",
       "lateFinish": "Spätestes Ende", "lateStart": "Spätester Anfang", "levelingDelay": "Kapazitätsabgleichsverzögerung", "levelingDelayElapsed": "Verstrichene Abgleichsverzögerung", "levelingDelayMinutes": "Abgleichsverzögerung (Minuten)",
       "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "Microsoft-Project-Aufgabentyp",
-      "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
+      "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "p6Provenance": "Primavera-P6-Herkunft", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
       "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend (Arbeitstage)", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
       "scheduleFinish": "Geplantes Ende", "scheduleStart": "Geplanter Anfang", "splitGaps": "Unterbrechungen", "status": "Status", "stop": "Stoppdatum", "taskId": "Aufgaben-ID", "taskType": "Aufgabentyp",
       "timephasedContours": "Zeitphasenverläufe", "timephasedDurationWalks": "Zeitphasen-Dauersegmente", "timephasedFinishFloor": "Untergrenze des Zeitphasenendes", "timephasedStartAnchor": "Anker des Zeitphasenanfangs",
-      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters"
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workRule": "Arbeitsregel",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentPlannedWork": "Geplante Arbeit (Stunden)",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentActualWork": "Ist-Arbeit (Stunden)",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentRemainingWork": "Verbleibende Arbeit (Stunden)"
     },
     "category": {
       "task": "Aufgabe", "planning": "Planung", "constraints": "Einschränkungen", "relations": "Beziehungen", "resources": "Ressourcen",

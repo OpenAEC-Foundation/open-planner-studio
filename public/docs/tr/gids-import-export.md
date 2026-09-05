@@ -61,6 +61,8 @@ Bu uyarılar özensizlik değildir — kasıtlı, açık bir seçimdir: düşür
 
 Bir `.mpp` dosyası (Microsoft Project'in yerel biçimi, Project 2010–2021) ayrı bir yol izler: bu içe aktarma **salt okunurdur** — bir `.mpp` dışa aktarımı yoktur, bu yüzden MS Project'e yeniden dışa aktarma MSPDI XML üzerinden yapılır. Neyin geldiğini ve sınırlamaların neler olduğunu görmek için [MS Project (.mpp) dosyasını açma](docs://gids-msproject-import) kılavuzuna bakın.
 
+`.xer` dosyası Primavera P6'nın değişim biçimidir. Doğrudan içe aktarılır ve düzenlemeden sonra IFC olarak kaydedilir; bkz. [Primavera P6 (.xer) dosyasını açma](docs://gids-xer-import).
+
 ## Uzantı içe aktarıcıları
 
 Yukarıdaki sabit biçimlerin ötesinde, yüklü uzantılar kendi içe aktarıcılarını ekleyebilir — örneğin varsayılan olarak desteklenmeyen bir biçim için. Bunlar **Backstage → İçe aktar** altında, her biri kendi adı, açıklaması ve eşleşen dosya uzantılarıyla görünür; hiçbir içe aktarma uzantısı yüklü değilken bu bölüm boştur. Nelerin mevcut olduğunu görmek için **Backstage → Uzantılar**'ı kontrol edin.

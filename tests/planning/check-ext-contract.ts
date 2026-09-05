@@ -33,8 +33,9 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type {
   ExtProject, ExtCalendar, ExtTask, ExtTaskTime, ExtSequence, ExtResource, ExtAssignment,
-  ExtRibbonTab, ExtFontProvider,
+  ExtRibbonTab, ExtFontProvider, ExtImportSourceInfo,
 } from '@/extensions/extTypes';
+import { EXT_IMPORT_SOURCE_PAGE_SIZE_MAX } from '@/extensions/extTypes';
 import type { ExtensionApi, ExtensionPermission } from '@/extensions/types';
 import {
   createExtensionApi,
@@ -42,16 +43,25 @@ import {
 } from '@/extensions/extensionApi';
 import type { AppStoreContext } from '@/state/appStore';
 import { EXTENSION_API_VERSION, checkApiCompatibility } from '@/extensions/apiVersion';
+import { KNOWN_PERMISSIONS, sanitizeManifestPermissions } from '@/extensions/permissions';
 import {
   toExtProject, fromExtProject,
   toExtCalendar, fromExtCalendar,
   toExtTask, fromExtTask,
+  fromExtImportResult,
   toExtTaskTime, fromExtTaskTime,
   toExtSequence, fromExtSequence,
   toExtResource, fromExtResource,
   toExtAssignment, fromExtAssignment,
+  fromExtTaskInput, fromExtTaskUpdates,
   fromExtRibbonTab, fromExtFontProvider,
 } from '@/extensions/extMappers';
+import { getExtensionSdk } from '@/extensions/sdk';
+import { appStoreContext, useAppStore } from '@/state/appStore';
+import { readXER } from '@/services/xer/xerReader';
+import { isMultiDocumentImport } from '@/services/importTypes';
+import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
+import { ExtImportSourceDriftError } from '@/extensions/extImportSource';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -74,12 +84,13 @@ function keys<T>() {
 
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
-  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
+  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'defaultWorkRule', 'schedulingOptions',
 ] as const);
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
   'id', 'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
   'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'holidays', 'workTime', 'shift', 'workingExceptions',
+  'p6Source', 'p6NonWorkPenaltyDates',
 ] as const);
 
 const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
@@ -91,17 +102,23 @@ const EXT_TASK_TIME_KEYS = keys<ExtTaskTime>()([
 
 const EXT_TASK_KEYS = keys<ExtTask>()([
   'id', 'name', 'description', 'wbsCode', 'taskType', 'customTaskType', 'status', 'isMilestone', 'milestoneKind',
-  'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'time', 'resourceIds', 'color',
+  'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'isSummary', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
   // fase 3.8 (.mpp-datumgetrouwheid): leeskant-velden uit de import, zie extTypes.ts
   'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'manuallyScheduled',
   'mspTaskType', 'effortDriven', 'timephasedContours',
   'timephasedFinishFloor', 'timephasedStartAnchor', 'timephasedDurationWalks',
+  // taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel
+  'workRule',
+  // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde behandeling als de
+  // .mpp-velden hierboven.
+  'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
 ] as const);
 
 const EXT_SEQUENCE_KEYS = keys<ExtSequence>()([
   'id', 'predecessorId', 'successorId', 'type', 'lagDays', 'lagMinutes', 'lagUnit', 'lagPercent',
+  'p6StartAtPredecessorFinishBoundary',
 ] as const);
 
 const EXT_RESOURCE_KEYS = keys<ExtResource>()([
@@ -111,6 +128,8 @@ const EXT_RESOURCE_KEYS = keys<ExtResource>()([
 
 const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
   'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
+  // taaktypes-etappe (spec §4.3): de drie optionele werkvelden
+  'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
 ] as const);
 
 // ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
@@ -122,13 +141,36 @@ const NIET_PUBLIEK = {
   // beheerd. Een extensie die deze stempels kon zetten zou een projectkopie kunnen laten dóén
   // alsof hij uit een bibliotheek komt.
   project: ['companyId', 'companyName'] as readonly string[],
-  calendar: ['generation', 'libraryOrigin'] as readonly string[],
+  // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
+  // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
+  calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
   taskTime: [] as readonly string[],
   sequence: [] as readonly string[],
   assignment: [] as readonly string[],
 };
+
+// Zichtbare velden die een extensie uitsluitend mag LEZEN. Dit is een andere grens dan
+// `NIET_PUBLIEK`: `toExt*` geeft ze bewust door, maar `fromExt*` accepteert ze niet als generieke
+// solverinvoer. Alleen de native XER-reader mag de relationele P6-bronvlag afleiden.
+const LEES_ALLEEN_EXT = {
+  project: [] as readonly string[],
+  calendar: ['p6Source', 'p6NonWorkPenaltyDates'] as readonly string[],
+  resource: [] as readonly string[],
+  task: [
+    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow',
+    'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
+  ] as readonly string[],
+  taskTime: [] as readonly string[],
+  sequence: ['p6StartAtPredecessorFinishBoundary'] as readonly string[],
+  assignment: [] as readonly string[],
+};
+
+const PUBLIC_SCHEDULING_OPTION_KEYS = [
+  'lagCalendar', 'criticalDefinition', 'totalFloatMode', 'makeOpenEndedCritical',
+  'nearCriticalThreshold', 'floatPaths',
+] as const;
 
 // ── (b) Maximale fixtures — élk optioneel veld gevuld ────────────────────────
 
@@ -180,12 +222,20 @@ const VOL_TASK = {
   manuallyScheduled: true,
   mspTaskType: 'FIXED_WORK',
   effortDriven: true,
+  workRule: 'FIXED_RATE',
+  // X0 (XER-etappeplan): drie nieuwe .xer-importvelden, allemaal gevuld — zelfde volgorde-eis als
+  // de .mpp-velden hierboven (de round-trip-check vergelijkt via JSON.stringify).
+  p6DurationType: 'DT_FixedDUR2',
+  p6ActivityType: 'TT_Rsrc',
+  p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-06-11T17:00',
+  p6SuspendResume: true,
   timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 240, kind: 'remaining' }] }],
   timephasedFinishFloor: '2026-06-10T17:00',
   timephasedStartAnchor: '2026-06-01T08:00',
   timephasedDurationWalks: [{ anchor: '2026-06-01T08:00', resourceCalendarId: 'cal2', workMinutes: 480 }],
   parentId: 'p1',
   childIds: ['c1', 'c2'],
+  isSummary: true,
   time: VOL_TIME,
   resourceIds: ['r1'],
   color: '#abcdef',
@@ -212,6 +262,7 @@ const VOL_PROJECT = {
   author: 'Auteur', company: 'Bedrijf',
   wbsAutoNumber: true, statusDate: '2026-06-01', progressMode: 'PROGRESS_OVERRIDE',
   defaultTaskDurationUnit: 'days',
+  defaultWorkRule: 'FIXED_DURATION_WORK',
   schedulingOptions: {
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath', threshold: -1 },
@@ -232,13 +283,130 @@ const VOL_CALENDAR = {
   workTime: { byWeekday: { 1: [{ start: 420, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },
   shift: 'SECOND',
   workingExceptions: [{ name: 'Inhaaldag', startDate: '2026-06-06', endDate: '2026-06-06' }],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: ['2026-06-07'],
+  p6NonWorkPenaltyDatesState: 'VALID_VALUES',
   libraryOrigin: { companyId: 'b1', libraryItemId: 'i1', poolVersion: 2, syncedHash: 'h1' },
 } satisfies Required<WorkCalendar>;
 
 const VOL_SEQUENCE = {
   id: 's1', predecessorId: 'a', successorId: 'b', type: 'START_START',
   lagDays: 2, lagMinutes: 960, lagUnit: 'ELAPSEDTIME', lagPercent: 50,
+  p6StartAtPredecessorFinishBoundary: false,
 } satisfies Required<Sequence>;
+
+// X12-fixronde: P6-relatieherkomst is uitleesbaar voor analyse, maar een gewone extensie-import
+// of `addSequence` mag nooit zelf P6-solvergedrag inschakelen. Alleen de native XER-lezer heeft
+// een expliciete bronmodus die deze vlag mag materialiseren.
+eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug in', {
+  exposed: toExtSequence({ ...VOL_SEQUENCE, p6StartAtPredecessorFinishBoundary: true })
+    .p6StartAtPredecessorFinishBoundary,
+  imported: fromExtSequence({ ...VOL_SEQUENCE, p6StartAtPredecessorFinishBoundary: true })
+    .p6StartAtPredecessorFinishBoundary,
+}, { exposed: true, imported: undefined });
+
+{
+  const hostileOptions = {
+    ...VOL_PROJECT.schedulingOptions,
+    p6Source: 'XER' as const,
+    useExpectedFinishDates: true,
+    preserveActualDatesInBackwardPass: true,
+    clampNegativeFreeFloat: true,
+    p6ZeroDurationUsesPlannedBoundary: true,
+    p6UseTaskPlannedStartFloor: true,
+    p6FinishMilestoneBoundaryWindow: true,
+    p6PreserveActualInstants: true,
+    p6UseRemainingStartForProgress: true,
+    p6PreserveZeroDurationConstraintInstants: true,
+    useProjectEndDateForFloat: true,
+    resumeFromActualElapsed: true,
+    unstartedIgnoresStatusDate: true,
+  };
+  const imported = fromExtProject({
+    ...toExtProject(VOL_PROJECT),
+    schedulingOptions: hostileOptions,
+  } as ExtProject);
+  eq('X12 generieke extensie-invoer reconstrueert uitsluitend de publieke schedulingOptions-whitelist',
+    Object.keys(imported.schedulingOptions ?? {}).sort(), [...PUBLIC_SCHEDULING_OPTION_KEYS].sort());
+  eq('X12 toExtProject toont evenmin interne runtime-opties uit een intern project',
+    Object.keys(toExtProject({ ...VOL_PROJECT, schedulingOptions: hostileOptions }).schedulingOptions ?? {}).sort(),
+    [...PUBLIC_SCHEDULING_OPTION_KEYS].sort());
+}
+
+{
+  const exposed = toExtCalendar(VOL_CALENDAR);
+  const imported = fromExtCalendar({
+    ...exposed,
+    p6Source: 'XER',
+    p6NonWorkPenaltyDates: ['2026-06-07'],
+    p6NonWorkPenaltyDatesState: 'VALID_VALUES',
+  } as ExtCalendar & { p6NonWorkPenaltyDatesState: string });
+  eq('X12 kalenderherkomst is zichtbaar in het read-model maar generieke invoer activeert haar niet', {
+    exposedSource: exposed.p6Source,
+    exposedDates: exposed.p6NonWorkPenaltyDates,
+    importedSource: imported.p6Source,
+    importedDates: imported.p6NonWorkPenaltyDates,
+    importedState: imported.p6NonWorkPenaltyDatesState,
+  }, {
+    exposedSource: 'XER', exposedDates: ['2026-06-07'],
+    importedSource: undefined, importedDates: undefined, importedState: undefined,
+  });
+}
+
+{
+  const exposed = toExtTask(VOL_TASK);
+  const imported = fromExtTask(exposed);
+  eq('X12 P6-taakherkomst is zichtbaar in het read-model maar generieke invoer activeert haar niet', {
+    exposed: {
+      p6DurationType: exposed.p6DurationType,
+      p6ActivityType: exposed.p6ActivityType,
+      p6ProjectId: exposed.p6ProjectId,
+      p6TaskId: exposed.p6TaskId,
+      p6ExplicitTargetWindow: exposed.p6ExplicitTargetWindow,
+      p6CompletePctType: exposed.p6CompletePctType,
+      p6ExpectedFinish: exposed.p6ExpectedFinish,
+      p6SuspendResume: exposed.p6SuspendResume,
+    },
+    imported: {
+      p6DurationType: imported.p6DurationType,
+      p6ActivityType: imported.p6ActivityType,
+      p6ProjectId: imported.p6ProjectId,
+      p6TaskId: imported.p6TaskId,
+      p6ExplicitTargetWindow: imported.p6ExplicitTargetWindow,
+      p6CompletePctType: imported.p6CompletePctType,
+      p6ExpectedFinish: imported.p6ExpectedFinish,
+      p6SuspendResume: imported.p6SuspendResume,
+    },
+  }, {
+    exposed: {
+      p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
+      p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys',
+      p6ExpectedFinish: '2026-06-11T17:00', p6SuspendResume: true,
+    },
+    imported: {},
+  });
+
+  const p6Keys = [
+    'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow',
+    'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
+  ];
+  const hostileTask = { ...exposed } as ExtTask;
+  const added = fromExtTaskInput({ ...hostileTask, name: 'kwaadaardige extensietaak' });
+  const updated = fromExtTaskUpdates(hostileTask);
+  const importedResult = fromExtImportResult({
+    project: toExtProject(VOL_PROJECT),
+    calendar: toExtCalendar(VOL_CALENDAR),
+    tasks: [hostileTask], sequences: [], resources: [], assignments: [],
+  });
+  const presentP6Keys = (value: object): string[] =>
+    p6Keys.filter(key => Object.prototype.hasOwnProperty.call(value, key));
+  eq('X12 geen enkel from-extensionpad accepteert P6-taakprovenance', {
+    full: presentP6Keys(imported),
+    add: presentP6Keys(added),
+    update: presentP6Keys(updated),
+    importResult: presentP6Keys(importedResult.tasks[0]),
+  }, { full: [], add: [], update: [], importResult: [] });
+}
 
 const VOL_RESOURCE = {
   id: 'r1', name: 'Kraan', type: 'EQUIPMENT', description: 'omschrijving',
@@ -253,6 +421,7 @@ const VOL_ASSIGNMENT = {
   id: 'a1', taskId: 't1', resourceId: 'r1', unitsPerDay: 0.5, curve: 'BELL',
   workWindowStart: '2026-06-01T08:00', workWindowFinish: '2026-06-10T17:00',
   curveValues: [0, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
+  plannedWorkMinutes: 4800, actualWorkMinutes: 1200, remainingWorkMinutes: 3000,
 } satisfies Required<ResourceAssignment>;
 
 // ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────
@@ -303,25 +472,25 @@ for (const [naam, ext, bron, sleutels] of [
     label: string,
     intern: object,
     bron: object,
-    nietPubliek: readonly string[],
+    nietSchrijfbaar: readonly string[],
   ) => {
-    const verwacht = Object.keys(bron).filter(k => !nietPubliek.includes(k));
+    const verwacht = Object.keys(bron).filter(k => !nietSchrijfbaar.includes(k));
     eq(label, verwacht.filter(k => !(k in intern)), []);
   };
   controle('11 fromExtProject vult elk intern Project-veld',
-    fromExtProject(toExtProject(VOL_PROJECT)), VOL_PROJECT, NIET_PUBLIEK.project);
+    fromExtProject(toExtProject(VOL_PROJECT)), VOL_PROJECT, [...NIET_PUBLIEK.project, ...LEES_ALLEEN_EXT.project]);
   controle('12 fromExtCalendar vult elk intern WorkCalendar-veld',
-    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), VOL_CALENDAR, NIET_PUBLIEK.calendar);
+    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]);
   controle('13 fromExtTask vult elk intern Task-veld',
-    fromExtTask(toExtTask(VOL_TASK)), VOL_TASK, NIET_PUBLIEK.task);
+    fromExtTask(toExtTask(VOL_TASK)), VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]);
   controle('14 fromExtTaskTime vult elk intern TaskTime-veld',
-    fromExtTaskTime(toExtTaskTime(VOL_TIME)), VOL_TIME, NIET_PUBLIEK.taskTime);
+    fromExtTaskTime(toExtTaskTime(VOL_TIME)), VOL_TIME, [...NIET_PUBLIEK.taskTime, ...LEES_ALLEEN_EXT.taskTime]);
   controle('15 fromExtSequence vult elk intern Sequence-veld',
-    fromExtSequence(toExtSequence(VOL_SEQUENCE)), VOL_SEQUENCE, NIET_PUBLIEK.sequence);
+    fromExtSequence(toExtSequence(VOL_SEQUENCE)), VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]);
   controle('16 fromExtResource vult elk intern Resource-veld',
-    fromExtResource(toExtResource(VOL_RESOURCE)), VOL_RESOURCE, NIET_PUBLIEK.resource);
+    fromExtResource(toExtResource(VOL_RESOURCE)), VOL_RESOURCE, [...NIET_PUBLIEK.resource, ...LEES_ALLEEN_EXT.resource]);
   controle('17 fromExtAssignment vult elk intern ResourceAssignment-veld',
-    fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT, NIET_PUBLIEK.assignment);
+    fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT, [...NIET_PUBLIEK.assignment, ...LEES_ALLEEN_EXT.assignment]);
 
   // En de keerzijde: de niet-publieke velden moeten óók echt WEG zijn aan de ext-kant. Zonder deze
   // check zou "niet publiek" een lijst worden die je vult zodra iets rood wordt.
@@ -341,11 +510,15 @@ for (const [naam, ext, bron, sleutels] of [
   const stripNietPubliek = (o: object, weg: readonly string[]) =>
     Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
   eq('19 project round-trip',
-    fromExtProject(toExtProject(VOL_PROJECT)), stripNietPubliek(VOL_PROJECT, NIET_PUBLIEK.project));
+    fromExtProject(toExtProject(VOL_PROJECT)), stripNietPubliek(VOL_PROJECT, [...NIET_PUBLIEK.project, ...LEES_ALLEEN_EXT.project]));
   eq('20 kalender round-trip',
-    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, NIET_PUBLIEK.calendar));
-  eq('21 taak round-trip', fromExtTask(toExtTask(VOL_TASK)), VOL_TASK);
-  eq('22 relatie round-trip', fromExtSequence(toExtSequence(VOL_SEQUENCE)), VOL_SEQUENCE);
+    fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]));
+  eq('21 taak-readmodel reist alleen naar buiten; P6-herkomst komt generiek niet terug',
+    fromExtTask(toExtTask(VOL_TASK)),
+    stripNietPubliek(VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]));
+  eq('22 relatie round-trip bewaart geen native-XER-solvervlag via generieke extensie-invoer',
+    fromExtSequence(toExtSequence(VOL_SEQUENCE)),
+    stripNietPubliek(VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]));
   eq('23 resource round-trip',
     fromExtResource(toExtResource(VOL_RESOURCE)), stripNietPubliek(VOL_RESOURCE, NIET_PUBLIEK.resource));
   eq('24 toewijzing round-trip', fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT);
@@ -449,12 +622,391 @@ for (const [naam, ext, bron, sleutels] of [
   eq('29 een class-provider overleeft de mapping (this blijft gebonden)', bindGooide, false);
 }
 
-// ── 6. De contract-versiepoort (los van minAppVersion) ───────────────────────
+// ── 6. Publieke create-/updatepaden bewaren expliciete samenvattingsidentiteit ────────────────
+// Breuk die dit vangt: `ExtTask.isSummary` staat in het publieke type, maar één van de input- of
+// updatemappers, de SDK-factory of `api.data.addTask/updateTask` laat true/false stil vallen. Een
+// lege summary zou dan als gewone CPM-knoop terugkomen.
+{
+  const mappedInput = fromExtTaskInput({ name: 'Mapper-summary', isSummary: true });
+  const mappedRegular = fromExtTaskInput({ name: 'Mapper-gewoon' });
+  eq('30 fromExtTaskInput draagt expliciet true', mappedInput.isSummary, true);
+  eq('30a fromExtTaskInput maakt invoer zonder marker niet per ongeluk summary',
+    'isSummary' in mappedRegular, false);
+  eq('30b fromExtTaskUpdates draagt expliciet true', fromExtTaskUpdates({ isSummary: true }).isSummary, true);
+  eq('30c fromExtTaskUpdates draagt expliciet false als bewuste reset',
+    fromExtTaskUpdates({ isSummary: false }).isSummary, false);
+  eq('30d fromExtTaskUpdates voegt bij een ongenoemde marker geen update toe',
+    'isSummary' in fromExtTaskUpdates({ name: 'Alleen naam' }), false);
+
+  useAppStore.getState().newProject();
+  const sdkSummary = getExtensionSdk().factory.createTask({ name: 'SDK lege summary', isSummary: true });
+  eq('31 SDK-factory bewaart de expliciete lege summary', sdkSummary.isSummary, true);
+
+  const api = createExtensionApi('x4a-summary-contract', [], undefined, appStoreContext, {
+    app: appStoreContext,
+    showNotification: () => {},
+  });
+  const id = api.data.addTask(sdkSummary);
+  api.data.recalculate();
+  eq('31a extension addTask bewaart de marker in de store',
+    useAppStore.getState().tasks.find(task => task.id === id)?.isSummary, true);
+  eq('31b extension addTask houdt de lege summary buiten CPMResult.tasks',
+    useAppStore.getState().cpmResult?.tasks.has(id), false);
+
+  api.data.updateTask(id, { isSummary: false });
+  api.data.recalculate();
+  eq('31c extension updateTask kan de marker bewust naar false terugzetten',
+    useAppStore.getState().tasks.find(task => task.id === id)?.isSummary, false);
+  eq('31d een bewust teruggezette lege summary wordt weer een solvertaak',
+    useAppStore.getState().cpmResult?.tasks.has(id), true);
+
+  api.data.updateTask(id, { isSummary: true });
+  api.data.recalculate();
+  eq('31e extension updateTask kan de samenvattingsidentiteit opnieuw aanzetten',
+    useAppStore.getState().tasks.find(task => task.id === id)?.isSummary, true);
+  eq('31f opnieuw aangezette summary blijft buiten CPMResult.tasks',
+    useAppStore.getState().cpmResult?.tasks.has(id), false);
+  api._cleanup();
+}
+
+// ── 7. Read-only XER-bronroute ──────────────────────────────────────────────
+// Synthetische, privacyveilige fixture: twee generieke projecten en drie generieke taken. De test
+// gebruikt de echte XER-reader zodat de API bovenop precies dezelfde retained archive-grafiek werkt
+// als de gebruikersroute. Geen corpusnaam, bestandspad of privélabel komt in deze bron voor.
+{
+  const source = [
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tCAL-1\tWerkweek\tCA_Project\t8\t40\t',
+    '%R\tCAL-2\tWerkweek\tCA_Project\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-1\tSynthese A\tCAL-1\t2026-09-01 08:00',
+    '%R\tP-2\tSynthese B\tCAL-2\t2026-09-02 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tT-1\tP-1\tCAL-1\tA-1\tTaak A\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-09-01 08:00\t2026-09-01 16:00',
+    '%R\tT-2\tP-2\tCAL-2\tB-1\tTaak B\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-09-02 08:00\t2026-09-02 16:00',
+    '%R\tT-3\tP-2\tCAL-2\tB-2\tTaak C\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t16\t16\t2026-09-03 08:00\t2026-09-04 16:00',
+    '%T\tACTVTYPE',
+    '%F\tactv_code_type_id\tactv_code_type\tseq_num',
+    '%R\tTYPE\tFase\t1',
+    '%T\tACTVCODE',
+    '%F\tactv_code_id\tactv_code_type_id\tshort_name\tseq_num',
+    '%R\tVALUE\tTYPE\tFase 1\t1',
+    '%T\tTASKACTV',
+    '%F\tproj_id\ttask_id\tactv_code_type_id\tactv_code_id',
+    '%R\tP-2\tT-2\tTYPE\tVALUE',
+    '%E',
+  ].join('\r\n');
+  const opened = readXER(new TextEncoder().encode(`\ufeff${source}`));
+  if (!isMultiDocumentImport(opened)) throw new Error('Bronfixture moet twee XER-documenten opleveren');
+
+  useAppStore.getState().newProject();
+  const api = createExtensionApi('xer-source-read-contract', ['importSource'], undefined, appStoreContext, {
+    app: appStoreContext,
+    showNotification: () => {},
+  });
+
+  // ── P1-privacyfix: 'importSource' is default-deny, geen kern-API ──────────
+  // Zonder de permissie moet elke methode GOOIEN vóórdat er data gelezen wordt — geen stille null,
+  // geen gedeeltelijk antwoord. `apiNoPerm` deelt hetzelfde document als `api`; het enige verschil
+  // is de permissielijst. Mutatiebewijs: verwijder de drie 'importSource'-entries uit
+  // `API_PERMISSIONS` (permissions.ts) en dit blok kleurt rood (de calls slagen dan gewoon).
+  {
+    const apiNoPerm = createExtensionApi('xer-source-read-contract-no-perm', [], undefined, appStoreContext, {
+      app: appStoreContext,
+      showNotification: () => {},
+    });
+    const apiOtherPerm = createExtensionApi('xer-source-read-contract-other-perm', ['ribbon', 'events'], undefined, appStoreContext, {
+      app: appStoreContext,
+      showNotification: () => {},
+    });
+    const throwsWithout = (fn: () => unknown): boolean => {
+      try { fn(); return false; } catch (error) {
+        return error instanceof Error && /mist permissie: importSource/.test(error.message);
+      }
+    };
+    eq('P1 zonder permissies gooien alle drie de bronmethoden een permissiefout', [
+      throwsWithout(() => apiNoPerm.data.getImportSourceInfo()),
+      throwsWithout(() => apiNoPerm.data.getImportSourceChunk(0)),
+      throwsWithout(() => apiNoPerm.data.getImportSourceCatalogPage('taskSourceRows')),
+    ], [true, true, true]);
+    eq('P1a een ONgerelateerde permissie (ribbon/events) geeft geen toegang tot importSource', [
+      throwsWithout(() => apiOtherPerm.data.getImportSourceInfo()),
+      throwsWithout(() => apiOtherPerm.data.getImportSourceChunk(0)),
+      throwsWithout(() => apiOtherPerm.data.getImportSourceCatalogPage('taskSourceRows')),
+    ], [true, true, true]);
+    apiNoPerm._cleanup();
+    apiOtherPerm._cleanup();
+  }
+  // Let op: dit toetst alléén de SDK-constante, NIET dat een echt manifest de permissie ook door
+  // de installatievalidatie krijgt — dat gat (een tweede, ontkoppelde permissielijst in
+  // validation.ts) was precies waar her-review 2 'importSource' onbereikbaar voor elke extensie
+  // vond. Die dekking staat in tests/planning/check-extension-validation.ts (KNOWN_PERMISSIONS
+  // door parseExtensionManifest(..., 'fresh') gehaald), niet hier.
+  eq('P1b importSource staat in de door de app gekende permissies (SDK-constante)',
+    KNOWN_PERMISSIONS.includes('importSource'), true);
+  eq('P1c een manifest dat importSource declareert behoudt hem ongewijzigd (geen filtering)',
+    sanitizeManifestPermissions(['importSource', 'ribbon'], 'x'), ['importSource', 'ribbon']);
+
+  eq('37 een niet-XER-document geeft geen broninfo', api.data.getImportSourceInfo(), null);
+  eq('37a chunk- en catalogusroute geven zonder XER null', [
+    api.data.getImportSourceChunk(0), api.data.getImportSourceCatalogPage('taskSourceRows'),
+  ], [null, null]);
+  const applied = useAppStore.getState().applyOpenedImport(opened, {
+    filePath: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+  });
+  const p2DocumentId = applied.documentIds[1];
+  if (p2DocumentId) useAppStore.getState().switchDocument(p2DocumentId);
+  const archive = opened.results[0]?.xerSourceArchive;
+  if (!archive) throw new Error('Bronfixture mist het retained XER-archive');
+
+  const info = api.data.getImportSourceInfo();
+  const expectedReport = {
+    projectsSeen: 2, documentsOpened: 2, emptyProjectsSkipped: 0, baselineProjectsExcluded: 0,
+    baselinesMaterialized: 0, danglingBaselineReferences: 0, externalLinksPreserved: 0,
+    baselineExclusionReverted: false, baselineFallbackReasons: [],
+  };
+  eq('37 XER-bronsamenvatting is aanwezig op het actieve document', Boolean(info), true);
+  eq('38 XER-bronsamenvatting heeft exact de actieve selector en archive-identiteit', info && {
+    sourceFormat: info.sourceFormat,
+    sourceProjectId: info.sourceProjectId,
+    selector: info.selector,
+    archive: info.archive,
+    numberFormat: info.numberFormat,
+    importReport: info.importReport,
+  }, info && {
+    sourceFormat: 'primavera-p6-xer',
+    sourceProjectId: 'P-2',
+    selector: { kind: 'sourceProjectId', value: 'P-2' },
+    archive: {
+      schemaVersion: 1, byteLength: archive.byteLength, sha256: archive.sha256,
+      encoding: 'utf-8', bom: 'utf-8', newline: 'crlf', chunkSize: 196608, chunkCount: 1,
+    },
+    numberFormat: { decimal: '.', group: null, source: 'default', currencyCode: 'EUR' },
+    importReport: expectedReport,
+  });
+  eq('39 XER-samenvatting bevat diagnostics/schedule-options/catalogustellingen', info && {
+    diagnostics: info.diagnostics,
+    scheduleOptions: info.scheduleOptions,
+    catalogs: info.catalogs,
+  }, {
+    diagnostics: {
+      file: {
+        tableReport: { encoding: 'utf-8', endMarkerSeen: true, issueCount: 0, unknownTableCount: 0, unknownFieldCount: 0 },
+        scheduleOptionsDiagnosticCount: 0, relationResolutionIssueCount: 0,
+        resourceCatalogIssueCount: 0, metadataCatalogIssueCount: 0,
+      },
+      document: {
+        calendarIssueCount: 0, enumFallbackCount: 0, scheduleOptionsFallbackCount: 0,
+        scheduleOptionsDiagnosticCount: 0, externalRelationCount: 0, externalLinkCount: 0,
+        resourceAssignmentCount: 0, resourceIssueCount: 0,
+      },
+    },
+    scheduleOptions: {
+      source: 'xer-defaults', retainedSource: {}, fallbackCount: 0, diagnosticCount: 0,
+      sourceRowCount: 1, unmatchedSourceRowCount: 0,
+    },
+    catalogs: {
+      scheduleOptions: { sourceRows: 2, unmatchedRows: 0, diagnostics: 0 },
+      resources: {
+        resources: 0, identities: 0,
+        rows: { resources: 0, roles: 0, rates: 0, curves: 0, assignments: 0 }, issues: 0,
+      },
+      metadata: {
+        activityCodeTypes: 1, customFieldDefs: 0, taskProjections: 1,
+        currentProjectTaskProjections: 1, issues: 0,
+        issueCounts: Object.fromEntries(Object.keys(info?.catalogs.metadata.issueCounts ?? {}).map(key => [key, 0])),
+        sourceData: Object.fromEntries(Object.entries(info?.catalogs.metadata.sourceData ?? {}).map(([key, count]) => [key, key === 'ACTVTYPE' || key === 'ACTVCODE' || key === 'TASKACTV' ? 1 : count])),
+      },
+      taskSourceRows: { projectCount: 2, totalRows: 3, currentProjectRows: 2 },
+    },
+  });
+
+  const chunks: Uint8Array[] = [];
+  for (let index = 0; index < (info?.archive.chunkCount ?? 0); index += 1) {
+    const chunk = api.data.getImportSourceChunk(index);
+    if (chunk) chunks.push(chunk);
+  }
+  const reconstructed = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.byteLength, 0));
+  chunks.reduce((offset, chunk) => { reconstructed.set(chunk, offset); return offset + chunk.byteLength; }, 0);
+  eq('40 bronchunks reconstrueren exact de XER-bytes en digest', {
+    byteLength: reconstructed.byteLength, sha256: sha256Hex(reconstructed), bytes: [...reconstructed],
+  }, { byteLength: archive.byteLength, sha256: archive.sha256, bytes: [...decodeXerSourceArchive(archive)] });
+
+  let invalidIndex = false;
+  try { api.data.getImportSourceChunk(-1); } catch (error) { invalidIndex = error instanceof RangeError; }
+  let invalidFraction = false;
+  try { api.data.getImportSourceChunk(0.5); } catch (error) { invalidFraction = error instanceof RangeError; }
+  eq('41 ongeldige chunkindexen worden fail-closed gevalideerd', [invalidIndex, invalidFraction], [true, true]);
+
+  const firstPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: 0, limit: 1 });
+  const secondPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: 1, limit: 1 });
+  const cell = (row: { cells?: unknown } | undefined, key: string): unknown => {
+    const cells = row?.cells;
+    return cells && typeof cells === 'object' ? (cells as Record<string, unknown>)[key] : undefined;
+  };
+  eq('42 task-bronrijen zijn pagineerbaar en documentgebonden', {
+    first: firstPage && { offset: firstPage.offset, limit: firstPage.limit, total: firstPage.total, ids: firstPage.items.map(row => cell(row, 'task_id')) },
+    second: secondPage && { offset: secondPage.offset, limit: secondPage.limit, total: secondPage.total, ids: secondPage.items.map(row => cell(row, 'task_id')) },
+  }, {
+    first: { offset: 0, limit: 1, total: 2, ids: ['T-2'] },
+    second: { offset: 1, limit: 1, total: 2, ids: ['T-3'] },
+  });
+  const schedulePage = api.data.getImportSourceCatalogPage('scheduleOptionsSourceRows', { limit: 500 });
+  eq('43 schedule-options-pagina gebruikt alleen de actieve projectbronrij', schedulePage?.items.map(row => cell(row, 'proj_id')), ['P-2']);
+  const metadataPage = api.data.getImportSourceCatalogPage('metadataSourceActvtypeRows');
+  const activityTypePage = api.data.getImportSourceCatalogPage('metadataActivityCodeTypes');
+  eq('43b retained metadata-catalogi en bronrijen zijn gekopieerd pagineerbaar', {
+    raw: metadataPage && { total: metadataPage.total, id: cell(metadataPage.items[0], 'actv_code_type_id') },
+    normalized: activityTypePage && { total: activityTypePage.total, id: activityTypePage.items[0]?.id },
+  }, { raw: { total: 1, id: 'TYPE' }, normalized: { total: 1, id: 'TYPE' } });
+  eq('43a bronroute bevat geen generiek bron-writepad', Object.keys(api.data)
+    .filter(key => key.toLowerCase().includes('importsource')).sort(), [
+      'getImportSourceCatalogPage', 'getImportSourceChunk', 'getImportSourceInfo',
+    ]);
+
+  let invalidRange = false;
+  try { api.data.getImportSourceCatalogPage('taskSourceRows', { offset: -1 }); } catch (error) { invalidRange = error instanceof RangeError; }
+  let oversizedRange = false;
+  try { api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 501 }); } catch (error) { oversizedRange = error instanceof RangeError; }
+  let invalidCollection = false;
+  try { api.data.getImportSourceCatalogPage('onbekend' as never); } catch (error) { invalidCollection = error instanceof RangeError; }
+  eq('44 ongeldige catalogusvragen worden fail-closed gevalideerd', [invalidRange, oversizedRange, invalidCollection], [true, true, true]);
+
+  // ── P2-fix: offset + limit blijft een safe integer, ook aan de rand ──────
+  // Vóór de fix duwde `records.slice(offset, offset + limit)` een losstaand grote offset zo het
+  // safe integer-bereik uit. `taskSourceRows` op het actieve document (P-2) telt 2 rijen; een
+  // offset voorbij het eind moet canoniseren naar `total` — een lege, geldige laatste pagina — in
+  // plaats van te gooien of een numeriek onveilige slice te maken. Mutatiebewijs: verwijder
+  // `resolvePageOffset` (of geef `rawOffset` rechtstreeks aan `records.slice` mee) en de eerste
+  // vier `total`-asserties hieronder wijken af van `2`, terwijl de oude code hier ook geen fout gaf
+  // — precies de stille modus die de review aanwees.
+  const maxSafeOffsetPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: Number.MAX_SAFE_INTEGER });
+  eq('P2 offset Number.MAX_SAFE_INTEGER canoniseert naar total i.p.v. te gooien of te overflowen', {
+    offset: maxSafeOffsetPage?.offset, total: maxSafeOffsetPage?.total, items: maxSafeOffsetPage?.items,
+  }, { offset: 2, total: 2, items: [] });
+
+  const nearOverflowOffset = Number.MAX_SAFE_INTEGER - EXT_IMPORT_SOURCE_PAGE_SIZE_MAX + 1;
+  const nearOverflowPage = api.data.getImportSourceCatalogPage('taskSourceRows', {
+    offset: nearOverflowOffset, limit: EXT_IMPORT_SOURCE_PAGE_SIZE_MAX,
+  });
+  eq('P2a offset Number.MAX_SAFE_INTEGER - limit + 1 (net over de overflowgrens van offset+limit) canoniseert ook', {
+    offset: nearOverflowPage?.offset, total: nearOverflowPage?.total, items: nearOverflowPage?.items,
+  }, { offset: 2, total: 2, items: [] });
+
+  // Zelfde twee grenzen, maar dan op een lege (bestaande maar 0-record) collectie: `total` is 0, dus
+  // canoniseren moet naar 0 gaan — niet naar de offset zelf en niet naar een negatief getal.
+  const emptyCollectionAtMax = api.data.getImportSourceCatalogPage('resourceCatalogIssues', { offset: Number.MAX_SAFE_INTEGER });
+  eq('P2b een offset voorbij het eind van een LEGE collectie canoniseert naar 0, niet naar de offset',
+    emptyCollectionAtMax && { offset: emptyCollectionAtMax.offset, total: emptyCollectionAtMax.total },
+    { offset: 0, total: 0 });
+
+  const beforeMutation = api.data.getImportSourceInfo() as ExtImportSourceInfo;
+  const mutableInfo = api.data.getImportSourceInfo() as unknown as { archive: { sha256: string }; catalogs: { taskSourceRows: { totalRows: number } } };
+  mutableInfo.archive.sha256 = 'veranderd';
+  mutableInfo.catalogs.taskSourceRows.totalRows = 999;
+  const mutablePage = api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 });
+  if (mutablePage?.items[0]?.cells) (mutablePage.items[0].cells as Record<string, unknown>).task_id = 'veranderd';
+  const mutableChunk = api.data.getImportSourceChunk(0);
+  if (mutableChunk) mutableChunk[0] ^= 0xff;
+  eq('45 info/page/chunk zijn verse kopieën zonder mutabele alias', {
+    info: api.data.getImportSourceInfo(),
+    taskId: cell(api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 })?.items[0], 'task_id'),
+    digest: api.data.getImportSourceInfo()?.archive.sha256,
+    chunkDigest: (() => { const chunk = api.data.getImportSourceChunk(0); return chunk ? sha256Hex(chunk) : null; })(),
+  }, {
+    info: beforeMutation,
+    taskId: 'T-2',
+    digest: archive.sha256,
+    chunkDigest: sha256Hex(decodeXerSourceArchive(archive).subarray(0, archive.byteLength)),
+  });
+
+  const visible = api.data.getTasks()[0];
+  eq('46 alle acht P6-taakvelden blijven zichtbaar via toExtTask', visible && [
+    visible.p6DurationType, visible.p6ActivityType, visible.p6ProjectId, visible.p6TaskId,
+    visible.p6ExplicitTargetWindow, visible.p6CompletePctType, visible.p6ExpectedFinish,
+    visible.p6SuspendResume,
+  ], ['DT_FixedDUR2', 'TT_Task', 'P-2', 'T-2', true, undefined, undefined, undefined]);
+
+  const hostileImportTask = { ...toExtTask(VOL_TASK), id: 'T-foreign', name: 'Generieke import' };
+  api.data.loadProject({
+    project: toExtProject(VOL_PROJECT), calendar: toExtCalendar(VOL_CALENDAR), tasks: [hostileImportTask],
+    sequences: [], resources: [], assignments: [],
+  });
+  eq('47 generieke loadProject activeert geen P6-provenance', [
+    useAppStore.getState().tasks[0]?.p6DurationType, useAppStore.getState().tasks[0]?.p6ActivityType,
+    useAppStore.getState().tasks[0]?.p6ProjectId, useAppStore.getState().tasks[0]?.p6TaskId,
+    useAppStore.getState().tasks[0]?.p6ExplicitTargetWindow, useAppStore.getState().tasks[0]?.p6CompletePctType,
+    useAppStore.getState().tasks[0]?.p6ExpectedFinish, useAppStore.getState().tasks[0]?.p6SuspendResume,
+  ], [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined]);
+
+  // ── P2-fix: fail-closed documentdrift bij pagineren (her-review 2) ────────
+  // Zonder bewaking geeft een pagineersessie na een `switchDocument` stil een lege pagina van het
+  // VERKEERDE project terug: page 1 op P-2, wisselen naar P-1, page 2 (offset:1) levert dan
+  // {sourceProjectId:'P-1', total:1, items:[]} zonder enige waarschuwing — een extensie die dat als
+  // "klaar, geen records meer" leest, heeft in werkelijkheid twee projecten door elkaar gehaald.
+  // `expectedSourceProjectId` maakt dit fail-closed. Casus (a) hieronder: het actieve document heeft
+  // ná de hostile `loadProject` hierboven HELEMAAL geen XER-bron meer (`archive === null`) — de
+  // andere risicoklasse (drift naar een niet-XER-document, niet alleen naar een ander XER-project).
+  {
+    let noArchiveDrift: ExtImportSourceDriftError | null = null;
+    try {
+      api.data.getImportSourceCatalogPage('taskSourceRows', { expectedSourceProjectId: 'P-2' });
+    } catch (error) { noArchiveDrift = error instanceof ExtImportSourceDriftError ? error : null; }
+    eq('D1 drift naar een document ZONDER XER-bron gooit i.p.v. stil null terug te geven', {
+      isDriftError: noArchiveDrift !== null,
+      message: noArchiveDrift && [/P-2/.test(noArchiveDrift.message), /geen XER-document/.test(noArchiveDrift.message)],
+    }, { isDriftError: true, message: [true, true] });
+    eq('D1a zonder expectedSourceProjectId blijft "geen archief" gewoon null geven (ongewijzigd gedrag)',
+      api.data.getImportSourceCatalogPage('taskSourceRows'), null);
+  }
+
+  // loadProject is deliberately a normal generic load and must not erase/overwrite the XER source
+  // route through an implicit write API. The route is gone with the replaced document; a later
+  // document switch must still restore the retained source of the other XER document.
+  const xerDocumentId = applied.documentIds[0];
+  if (xerDocumentId) useAppStore.getState().switchDocument(xerDocumentId);
+  eq('48 documentwissel herstelt de XER-selector en bronroute', {
+    selector: api.data.getImportSourceInfo()?.sourceProjectId,
+    taskId: cell(api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 })?.items[0], 'task_id'),
+  }, { selector: 'P-1', taskId: 'T-1' });
+
+  // Casus (b): het actieve document heeft nu weer een archief (P-1) — vraag alsnog om een pagina
+  // met de VERWACHTING van het vorige project (P-2). Mutatiebewijs: verwijder de
+  // `assertNoImportSourceDrift`-aanroep uit `getExtImportSourceCatalogPage`/de wrapper in
+  // extensionApi.ts en D2/D2a kleuren rood (de aanroep slaagt dan gewoon met een pagina van P-1).
+  {
+    let wrongProjectDrift: ExtImportSourceDriftError | null = null;
+    try {
+      api.data.getImportSourceCatalogPage('taskSourceRows', { offset: 1, expectedSourceProjectId: 'P-2' });
+    } catch (error) { wrongProjectDrift = error instanceof ExtImportSourceDriftError ? error : null; }
+    eq('D2 drift tussen twee XER-documenten gooit i.p.v. een lege pagina van het verkeerde project', {
+      isDriftError: wrongProjectDrift !== null,
+      message: wrongProjectDrift && [/P-2/.test(wrongProjectDrift.message), /P-1/.test(wrongProjectDrift.message)],
+    }, { isDriftError: true, message: [true, true] });
+
+    const withExpectation = api.data.getImportSourceCatalogPage('taskSourceRows', { expectedSourceProjectId: 'P-1' });
+    const withoutExpectation = api.data.getImportSourceCatalogPage('taskSourceRows');
+    eq('D3 een KLOPPENDE expectedSourceProjectId gedraagt zich identiek aan zonder de optie', {
+      withExpectation: withExpectation && { sourceProjectId: withExpectation.sourceProjectId, total: withExpectation.total },
+      withoutExpectation: withoutExpectation && { sourceProjectId: withoutExpectation.sourceProjectId, total: withoutExpectation.total },
+    }, {
+      withExpectation: { sourceProjectId: 'P-1', total: 1 },
+      withoutExpectation: { sourceProjectId: 'P-1', total: 1 },
+    });
+  }
+  api._cleanup();
+}
+
+// ── 8. De contract-versiepoort (los van minAppVersion) ───────────────────────
 // CalVer draagt geen breaking-change-signaal; `apiVersion` doet dat wel. De poort moet in BEIDE
 // richtingen dicht: een extensie voor een oudere major mist de brekende wijziging, een voor een
 // nieuwere rekent op iets dat er niet is.
 {
-  eq('30 de host-API-versie is een geldige semver', /^\d+\.\d+\.\d+$/.test(EXTENSION_API_VERSION), true);
+  eq('32 de host-API-versie is een geldige semver', /^\d+\.\d+\.\d+$/.test(EXTENSION_API_VERSION), true);
 
   // Legacy: geen apiVersion ⇒ toegestaan, maar herkenbaar als legacy.
   eq('31 geen apiVersion ⇒ toegestaan', checkApiCompatibility(undefined, '1.2.0').ok, true);

@@ -8,6 +8,7 @@ import type {
   FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
 } from '@/state/slices/types';
 import { evaluate, resolveField, resourceNames, type FieldValue, type ViewContext } from './filterEval';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export type { ViewContext } from './filterEval';
 
@@ -170,7 +171,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     for (const t of tasks) { visible.add(t.id); dimmed.set(t.id, false); }
   } else {
     for (const leaf of tasks) {
-      if (leaf.childIds.length !== 0) continue;
+      if (!isLeafTask(leaf)) continue;
       if (!evaluate(filter, leaf, ctx)) continue;
       visible.add(leaf.id);
       dimmed.set(leaf.id, false);
@@ -185,7 +186,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   // Stap 2 — gegroepeerde modus (§4.2/§7): platte banden op zichtbare bladeren.
   if (group.length > 0) {
     const rows: ViewRow[] = [];
-    const visibleLeaves = tasks.filter(t => t.childIds.length === 0 && visible.has(t.id));
+    const visibleLeaves = tasks.filter(t => isLeafTask(t) && visible.has(t.id));
     const walk = (leaves: Task[], levelIndex: number, path: string[]) => {
       if (levelIndex >= group.length) {
         for (const leaf of sortTasks(leaves, sort, ctx)) {

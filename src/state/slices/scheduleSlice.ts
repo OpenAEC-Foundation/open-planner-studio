@@ -12,6 +12,7 @@ import { markScheduleStale } from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface ScheduleSlice {
   cpmResult: CPMResult | null;
@@ -124,6 +125,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         // CPMSolver) — zonder deze optie kon een taak met een verouderde `scheduleStart` (bv. gezet
         // vóór een latere wijziging van de projectstartdatum) gewoon vóór het projectbegin doorlopen.
         projectStartDate: s.project.startDate,
+        projectEndDate: s.project.endDate,
       });
 
       // If circular dependency detected, store the result (with error) and bail
@@ -240,7 +242,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
-    const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
+    const leafTasks = s.tasks.filter(isLeafTask);
     // Zelfde samenvattingsrelatie-propagatie als runCPM (zie daar): `ResourceLeveler` krijgt hier
     // alleen bladtaken door, dus de expansie moet vóór het leaf-filter gebeuren, met de VOLLEDIGE
     // taakboom (parentId/childIds) als bron — `ResourceLeveler` zelf blijft ongewijzigd, die kent
@@ -258,6 +260,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         // Zelfde projectstart-vloer als runCPM hierboven (gebruikstest-bevinding 2026-08) — anders
         // zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
         projectStartDate: s.project.startDate,
+        projectEndDate: s.project.endDate,
       },
     );
   },

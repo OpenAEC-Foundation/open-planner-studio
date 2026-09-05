@@ -28,6 +28,7 @@ import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLO
 import type { VarianceRow } from '@/engine/variance';
 import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { buildBaselineOverlay } from '@/types/baseline';
 
 /** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
@@ -983,8 +984,8 @@ export function ReportPanel() {
   }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
     autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult]);
 
-  const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
-  const leafCount = tasks.filter(t => t.childIds.length === 0).length;
+  const criticalCount = tasks.filter(t => t.time.isCritical && isLeafTask(t)).length;
+  const leafCount = tasks.filter(isLeafTask).length;
 
   return (
     <div ref={containerRef} className="flex-1 flex overflow-hidden bg-surface" style={{ position: 'relative' }}>

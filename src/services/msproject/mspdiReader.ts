@@ -7,7 +7,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, parseDate, isoDayOfWeek } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { normalizeImportedProgress, deriveImportedWorkRules, rebuildWbsHierarchy } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
@@ -63,6 +63,8 @@ import {
   absoluteItemsToContourPeriods, mspdiValueToMinutes, splitGapsFromContours, type AbsoluteWorkItem,
 } from '@/services/contourIo';
 import type { TaskTimephasedContour } from '@/types/task';
+import { importedWorkFields, mspTaskTypeFromCode } from '@/engine/work/workRuleMapping';
+import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const MSP_TIME_ANCHOR = '08:00:00';
@@ -371,6 +373,8 @@ export function readMSPDI(content: string): ImportResult {
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
+  // Taaktypes-etappe: effectieve uren/dag per taak, voor de werkafleiding bij de toewijzingen.
+  const effHpdByTaskId = new Map<string, number>();
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
   // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
@@ -432,6 +436,13 @@ export function readMSPDI(content: string): ImportResult {
     const effCalId = effCalIdOfUid(taskCalUid);
     const isHour = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
+    effHpdByTaskId.set(id, effHpd);
+    // Taaktypes-etappe (spec §4.2/§4.4): MSP's <Type> (0/1/2 = Fixed Units/Duration/Work) en
+    // <EffortDriven> — dezelfde bewaarvelden als de .mpp-lezer; de werkregel volgt eruit via
+    // `deriveImportedWorkRules`. Ontbrekend/ongeldig ⇒ geen veld (byte-identiek).
+    const mspTaskType = mspTaskTypeFromCode(getElementInt(te, 'Type', -1));
+    const effortDrivenRaw = getElementText(te, 'EffortDriven').trim().toLowerCase();
+    const effortDriven = mspTaskType !== undefined && (effortDrivenRaw === '1' || effortDrivenRaw === 'true');
 
     const durationStr = getElementText(te, 'Duration');
     // Duur: uur ⇒ minuten (bron van waarheid, geen afronding, §7.3); dag ⇒ het bestaande dag-pad.
@@ -562,6 +573,8 @@ export function readMSPDI(content: string): ImportResult {
       ...(constraint ? { constraint } : {}),
       ...(deadline ? { deadline } : {}),
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
+      ...(mspTaskType ? { mspTaskType } : {}),
+      ...(effortDriven ? { effortDriven: true } : {}),
     });
     taskHourById.set(id, isHour);
 
@@ -653,13 +666,24 @@ export function readMSPDI(content: string): ImportResult {
       const units = parseFloat(unitsText);
       const contour = getElementInt(asgnEl, 'WorkContour', 0);
       const curve = WORKCONTOUR_TO_CURVE[contour];
+      const unitsPerDay = Number.isFinite(units) && unitsText ? units : 1;
+      // Taaktypes-etappe (spec §4.3, geval c): <Work>/<ActualWork>/<RemainingWork> in minuten,
+      // alleen bewaard wanneer ze iets zeggen dat `duur × inzet` niet al zegt (`importedWorkFields`).
+      const workTask = taskById.get(taskId);
+      const derivedWork = workTask ? taskWorkMinutes(workTask.time, effHpdByTaskId.get(taskId) ?? hoursPerDay) * unitsPerDay : 0;
+      const workFields = importedWorkFields({
+        plannedMinutes: mspDurationMinutes(getElementText(asgnEl, 'Work')) ?? undefined,
+        actualMinutes: mspDurationMinutes(getElementText(asgnEl, 'ActualWork')) ?? undefined,
+        remainingMinutes: mspDurationMinutes(getElementText(asgnEl, 'RemainingWork')) ?? undefined,
+      }, derivedWork);
 
       assignments.push({
         id: generateId('asgn'),
         taskId,
         resourceId,
-        unitsPerDay: Number.isFinite(units) && unitsText ? units : 1,
+        unitsPerDay,
         ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
+        ...workFields,
       });
 
       // Contour-engine (2026-09): native `<TimephasedData>` (Type 1 = resterend, 2 = verricht werk;
@@ -733,6 +757,7 @@ export function readMSPDI(content: string): ImportResult {
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);
+  deriveImportedWorkRules(tasks); // taaktypes-etappe: werkregel uit <Type>/<EffortDriven>
 
   return {
     project,

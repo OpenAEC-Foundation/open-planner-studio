@@ -10,6 +10,8 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
 import type { ImportResult } from '@/services/importTypes';
+import type { XerImportMetadata } from '@/services/importTypes';
+import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -78,6 +80,14 @@ export interface DocumentPayload {
   /** Persoonlijke sessiekeuze: echte bestands-AutoSave, geen IFC-data en geen crashherstel. */
   autoSaveToFile: boolean;
   isDirty: boolean;
+  /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren.
+   *  X9 archiveert deze selectorgebonden provenance via IFC-diagnostics; X4b bewaart haar al
+   *  door documentwissel en de recovery-inputlaag. */
+  xerImportMetadata: XerImportMetadata | null;
+  /** X9: exacte immutable bronbytes; bewust gedeeld en buiten undo/redo. */
+  xerSourceArchive: XerSourceArchive | null;
+  /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
+  xerSourceProjectId: string | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -229,6 +239,9 @@ export const DOCUMENT_FIELDS = [
   // Runtime-only: rijdt mee tussen open tabbladen, maar nooit door IFC of recoverymetadata.
   field({ key: 'autoSaveToFile', get: (s) => s.autoSaveToFile, set: (s, v) => { s.autoSaveToFile = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.autoSaveToFile ?? false }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
+  field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
+  field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
+  field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -399,6 +412,9 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     customTaskTypes: parsed.customTaskTypes ?? [],
     baselines: parsed.baselines ?? [],
     activeBaselineId: parsed.activeBaselineId ?? null,
+    xerImportMetadata: parsed.xer ?? null,
+    xerSourceArchive: parsed.xerSourceArchive ?? null,
+    xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
     filePath,
     isDirty: false,
   };

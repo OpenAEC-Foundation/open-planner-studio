@@ -16,7 +16,12 @@ import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
 import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
+import {
+  XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION, type XerSourceArchive,
+} from '@/services/xerSourceArchive';
 import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
 } from './ifcTaskSlots';
@@ -139,6 +144,9 @@ export function writeIFC(input: WriteIFCInput): string {
     baselines = [],
     activeBaselineId = null,
     libraryPool = undefined,
+    xerSourceArchive = undefined,
+    xer = undefined,
+    xerSourceProjectId = undefined,
   } = input;
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
   const now = new Date().toISOString().split('.')[0];
@@ -204,6 +212,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // Project. Description (arg 3) draagt project.description (fase 3, H2) — de reader leest 'm terug
   // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(guidOf(ctx, project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+  writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
@@ -269,6 +278,7 @@ export function writeIFC(input: WriteIFCInput): string {
   for (const seq of sequences) {
     writeSequence(ctx, seq, ownerHistId);
   }
+  writeSequenceMeta(ctx, workSchedId, sequences, ownerHistId);
 
   // Resources
   for (const res of resources) {
@@ -324,6 +334,35 @@ export function writeIFC(input: WriteIFCInput): string {
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
 
   return header + ctx.lines.join('\n') + footer;
+}
+
+/** X9 — één self-contained Pset met manifest én deterministisch geordende bytes. */
+function writeXerSourceArchive(
+  ctx: WriteContext, ownerHistId: number, archive: XerSourceArchive | undefined, sourceProjectId: string | undefined,
+): void {
+  if (!archive) return;
+  if (!sourceProjectId) throw new Error('XER-bronarchief kan niet zonder OPS_XerDocument-selector worden opgeslagen.');
+  if (!archive.diagnostics.documentViews[sourceProjectId]) {
+    throw new Error('XER-bronarchief kan niet zonder geldige OPS_XerDocument-selector worden opgeslagen.');
+  }
+  const props: number[] = [];
+  const property = (name: string, value: string) => props.push(addLine(ctx, `xerarchive_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
+  property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION})`);
+  property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
+  property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)})`);
+  property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
+  property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
+  property('ByteChunkSize', `IFCINTEGER(${XER_SOURCE_ARCHIVE_CHUNK_BYTES})`);
+  property('ByteChunkCount', `IFCINTEGER(${archive.byteChunks.length})`);
+  archive.byteChunks.forEach((chunk, index) => property(`ByteChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
+  const setId = addLine(ctx, 'pset_xerarchive', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerarchive'))},#${ownerHistId},${ifcStr(PSET.XerSourceArchive)},$,(${props.map(id => `#${id}`).join(',')}))`);
+  addLine(ctx, 'rel_xerarchive', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerarchive'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${setId})`);
+  const selectorProps: number[] = [];
+  const selector = (name: string, value: string) => selectorProps.push(addLine(ctx, `xerdoc_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
+  selector('ArchiveSha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
+  selector('SourceProjectId', `IFCTEXT(${ifcStr(sourceProjectId)})`);
+  const selectorSet = addLine(ctx, 'pset_xerdocument', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerdocument'))},#${ownerHistId},${ifcStr(PSET.XerDocument)},$,(${selectorProps.map(id => `#${id}`).join(',')}))`);
+  addLine(ctx, 'rel_xerdocument', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerdocument'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${selectorSet})`);
 }
 
 /** Eigen taaktypen blijven IFC-geldig: de taak zelf is `.USERDEFINED.` met een ObjectType-label;
@@ -408,6 +447,11 @@ function writeStructure(
   if (project.defaultTaskDurationUnit) {
     projSettingProps.push(addLine(ctx, '_ps_defaultdurationunit',
       `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
+  }
+  // Taaktypes-etappe (spec §4.1): projectstandaard-werkregel, alleen wanneer gezet (golden rule).
+  if (project.defaultWorkRule) {
+    projSettingProps.push(addLine(ctx, '_ps_defaultworkrule',
+      `IFCPROPERTYSINGLEVALUE('DefaultWorkRule',$,IFCLABEL(${ifcStr(project.defaultWorkRule)}),$)`));
   }
   if (project.statusDate) {
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
@@ -816,12 +860,15 @@ function writeCalendarGenerationMeta(
   const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
   const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
   const hasWorkingExceptions = workingExceptionStepIds.length > 0;
+  const hasP6Source = cal.p6Source === 'XER';
+  const hasRejectedPenaltyDiagnostic = cal.p6NonWorkPenaltyDatesState === 'REJECTED';
   const hasSimpleBreak = !cal.workTime
     && (cal.simpleBreakStartMinute !== undefined || cal.simpleBreakDurationMinutes !== undefined);
   // Een enkele 08:00–16:00-band is aan de IFC-kant niet te onderscheiden van een dagkalender met
   // dezelfde scalar-uren. De OPS-markering bewaart daarom de kalenderidentiteit ook zonder urentaak.
   const isHourCalendar = cal.workTime !== undefined;
-  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions && !hasSimpleBreak && !isHourCalendar) return;
+  if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions
+    && !hasSimpleBreak && !isHourCalendar && !hasP6Source && !hasRejectedPenaltyDiagnostic) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -867,6 +914,18 @@ function writeCalendarGenerationMeta(
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(idJson)}),$)`));
+  }
+  if (hasP6Source) {
+    props.push(addLine(ctx, `_opscal_p6source_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('P6Source',$,IFCLABEL('XER'),$)`));
+  }
+  if (hasP6Source) {
+    props.push(addLine(ctx, `_opscal_p6penalty_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcStr(JSON.stringify(cal.p6NonWorkPenaltyDates ?? []))}),$)`));
+  }
+  if (hasRejectedPenaltyDiagnostic) {
+    props.push(addLine(ctx, `_opscal_p6penaltystate_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDatesState',$,IFCLABEL('REJECTED'),$)`));
   }
   const setId = addLine(ctx, `_pset_opscal_${cal.id}`,
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_opscal_' + cal.id))},#${ownerHistId},${ifcStr(PSET.Calendar)},$,(${props.map(i => `#${i}`).join(',')}))`);
@@ -972,7 +1031,7 @@ function writeTask(
 
 function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
   for (const task of tasks) {
-    if (task.childIds.length === 0) continue;
+    if (!isSummaryTask(task)) continue;
     const childRefs = task.childIds
       .map(cid => ref(ctx, `task_${cid}`))
       .filter(r => r !== '#0')
@@ -1017,6 +1076,30 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
 
   addLine(ctx, `seq_${seq.id}`,
     `IFCRELSEQUENCE(${ifcStr(guidOf(ctx, seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
+}
+
+/**
+ * X12: relatie-eigen P6/XER-ankerdata. IFC 4.3 staat geen `IfcPropertySet` rechtstreeks op een
+ * `IfcRelSequence` toe (die is geen IfcObjectDefinition). Daarom is dit een geldige pset op de
+ * IfcWorkSchedule, met de werkelijk geschreven IFC-GlobalId van iedere gemarkeerde relatie als
+ * sleutel. Dat bewaart de semantiek relationeel én blijft interoperabel STEP.
+ */
+function writeSequenceMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  sequences: readonly Sequence[],
+  ownerHistId: number,
+): void {
+  const boundarySequenceGuids = sequences
+    .filter(sequence => sequence.p6StartAtPredecessorFinishBoundary === true)
+    .map(sequence => guidOf(ctx, sequence.id));
+  if (boundarySequenceGuids.length === 0) return;
+  const propId = addLine(ctx, '_ps_seq_boundary',
+    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcStr(JSON.stringify(boundarySequenceGuids))}),$)`);
+  const setId = addLine(ctx, '_pset_sequences',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_sequences'))},#${ownerHistId},${ifcStr(PSET.Sequences)},$,(#${propId}))`);
+  addLine(ctx, '_rel_sequences',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_sequences'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
 function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): void {
@@ -1200,18 +1283,26 @@ function writeTimephasedMeta(
     // Zelfde defensie/filter als writeAssignmentMeta hierboven — bepaalt hetzelfde `#index`.
     const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
     if (!list || list.length === 0) continue;
-    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string; curveValues?: number[] }> = {};
+    const windows: Record<string, {
+      workWindowStart?: string; workWindowFinish?: string; curveValues?: number[];
+      plannedWorkMinutes?: number; actualWorkMinutes?: number; remainingWorkMinutes?: number;
+    }> = {};
     list.forEach((a, index) => {
       // Contour-engine (2026-09): `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in
       // hetzelfde JSON-blob mee — additief, een toewijzing zonder venster én zonder curve schrijft
-      // nog altijd niets (byte-identiek).
-      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined) return;
+      // nog altijd niets (byte-identiek). Taaktypes-etappe (spec §4.3/§4.4): de drie optionele
+      // werkvelden (begroot/verricht/resterend, minuten) idem — zelfde blob, zelfde `GUID#N`-sleutel.
+      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
+        && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined) return;
       const resGuid = guidOf(ctx, a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
         ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
         ...(a.curveValues !== undefined ? { curveValues: [...a.curveValues] } : {}),
+        ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
+        ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
+        ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
       };
     });
     if (Object.keys(windows).length === 0) continue;

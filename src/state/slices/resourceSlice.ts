@@ -8,6 +8,7 @@ import { syncProjectCalendar } from '../syncProjectCalendar';
 import { clearTimephasedWindow, clearTimephasedDurationWalks } from '@/utils/taskDefaults';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /** Puur leesbaarheids-alias: `WorkCalendar` heeft al `id`/`name`, dus geen aparte intersectie
  *  nodig — een resource-kalender IS gewoon een `WorkCalendar` (zie fase 2.5-ontwerp §3.1). */
@@ -127,7 +128,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       // Leaf-only, geen-milestone-assignment-regel (§2.4): vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
-      if (!task || task.isMilestone || task.childIds.length > 0) return;
+      if (!task || task.isMilestone || isSummaryTask(task)) return;
       // Onbekend (of null/undefined — JS-callers via de dev-bridge omzeilen de compiler)
       // resourceId: stil weigeren, geen snapshot (M6-conventie, zoals removeResource). Een
       // toewijzing zonder bestaande resource vergiftigt anders élke writeIFC/auto-save
@@ -255,7 +256,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!assignment) return;
       const newTask = s.tasks.find(t => t.id === newTaskId);
       // Zelfde milestone/summary-guard als assignResource (§2.4) — geen toewijzing op zulke taken.
-      if (!newTask || newTask.isMilestone || newTask.childIds.length > 0) return;
+      if (!newTask || newTask.isMilestone || isSummaryTask(newTask)) return;
       // Weiger dubbele resource-op-taak (dekt ook het degenererende geval newTaskId === oude taskId:
       // de bestaande toewijzing zelf telt al mee als "al op de doeltaak").
       const alreadyOnTarget = s.assignments.some(

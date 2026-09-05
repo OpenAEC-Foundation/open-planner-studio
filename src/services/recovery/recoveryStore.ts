@@ -1,5 +1,5 @@
 import { isTauri } from '@/utils/platform';
-import { idbGetAll, idbPut, idbDelete } from '@/utils/idb';
+import { idbGetAll, openIdb } from '@/utils/idb';
 import {
   ownRecoveryNames, recoveryTmpSuffix,
   type RecoveryNames, type RecoveryManifest, type RecoveryManifestDoc,
@@ -11,6 +11,34 @@ export interface RecoveryDocContent {
   ifc: string;
   filePath: string | null;
   isDirty: boolean;
+}
+
+/** Metadata die bij élke recoveryronde in het manifest hoort, ook zonder nieuwe IFC-payload. */
+export interface RecoveryDocMetadata {
+  id: string;
+  filePath: string | null;
+  isDirty: boolean;
+}
+
+/**
+ * De opslaggrens van recovery: de volledige open-documentlijst is manifestmetadata; `upserts`
+ * bevat UITSLUITEND de nieuwe of inhoudelijk gewijzigde, volledige IFC-snapshots. Daarmee kan
+ * een actieve-tab-wissel een manifest-only schrijfactie zijn en herschrijft één taakbewerking
+ * niet de IFC-payloads van de overige documenten.
+ */
+export interface RecoverySaveInput {
+  activeDocumentId: string | null;
+  documents: RecoveryDocMetadata[];
+  upserts: RecoveryDocContent[];
+}
+
+/** Gebruik uitsluitend in tests en voor expliciete compatibiliteitsmigraties: alles is nieuw. */
+export function fullRecoverySave(activeDocumentId: string | null, docs: RecoveryDocContent[]): RecoverySaveInput {
+  return {
+    activeDocumentId,
+    documents: docs.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+    upserts: docs,
+  };
 }
 
 /** Geladen record incl. weergave-mtime (Tauri: bestand-mtime; web: addedAt). */
@@ -32,13 +60,12 @@ export interface LoadedRecovery {
 const names = ownRecoveryNames;
 const manifestName = names.manifest;
 const legacyFile = names.legacy;
-const ifcName = names.ifcName;
 
 /** Achtervoegsel van het halffabricaat van een atomaire schrijfactie (zie `saveTauri`). */
 const TMP_SUFFIX = recoveryTmpSuffix;
 
 /** Manifestversie mét eigenaarschapsvelden. Zie `RecoveryManifest` voor de migratieregel. */
-export const RECOVERY_MANIFEST_VERSION = 2;
+export const RECOVERY_MANIFEST_VERSION = 3;
 
 /**
  * Id van DEZE app-instantie (proces/realm). Wordt in het manifest gezet zodat een volgende
@@ -211,7 +238,75 @@ export function planRecoveryClear(
   return [...out];
 }
 
-async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
+function checkedUpserts(input: RecoverySaveInput): Map<string, RecoveryDocContent> {
+  const documentIds = new Set<string>();
+  for (const document of input.documents) {
+    if (!document.id || documentIds.has(document.id)) {
+      throw new Error(`Recovery: ongeldige of dubbele manifestdocument-id ${JSON.stringify(document.id)}.`);
+    }
+    documentIds.add(document.id);
+  }
+  const upserts = new Map<string, RecoveryDocContent>();
+  for (const document of input.upserts) {
+    if (!documentIds.has(document.id) || upserts.has(document.id)) {
+      throw new Error(`Recovery: upsert ${JSON.stringify(document.id)} hoort niet uniek bij het manifest.`);
+    }
+    const metadata = input.documents.find((candidate) => candidate.id === document.id)!;
+    if (document.filePath !== metadata.filePath || document.isDirty !== metadata.isDirty) {
+      throw new Error(`Recovery: upsertmetadata voor ${JSON.stringify(document.id)} wijkt af van het manifest.`);
+    }
+    upserts.set(document.id, document);
+  }
+  return upserts;
+}
+
+interface TauriSnapshotWrite {
+  name: string;
+  ifc: string;
+}
+
+/**
+ * Maak de v3-manifestvorm vóór er bytes naar schijf gaan. Ongewijzigde documenten houden hun
+ * vorige snapshotnaam; nieuwe inhoud krijgt altijd een nieuwe immutable generatie. Als een
+ * document nog geen vorige snapshot heeft, MOET de aanroeper een volledige upsert leveren — een
+ * manifest dat naar niet-bestaande inhoud wijst is slechter dan geen nieuwe manifestcommit.
+ */
+export function planTauriV3RecoverySave(
+  previous: RecoveryManifest | null,
+  input: RecoverySaveInput,
+  generation: string,
+  recoveryNames: RecoveryNames,
+): { documents: RecoveryManifestDoc[]; writes: TauriSnapshotWrite[] } {
+  const upserts = checkedUpserts(input);
+  const previousById = new Map((previous?.documents ?? []).map((document) => [document.id, document]));
+  const documents: RecoveryManifestDoc[] = [];
+  const writes: TauriSnapshotWrite[] = [];
+
+  for (const metadata of input.documents) {
+    const changed = upserts.get(metadata.id);
+    if (changed) {
+      const ifc = recoveryNames.generationIfcName(metadata.id, generation);
+      documents.push({ id: metadata.id, ifc, filePath: metadata.filePath, isDirty: metadata.isDirty });
+      writes.push({ name: ifc, ifc: changed.ifc });
+      continue;
+    }
+    const previousDocument = previousById.get(metadata.id);
+    if (!previousDocument) {
+      throw new Error(`Recovery: ${JSON.stringify(metadata.id)} heeft geen vorige snapshot en geen upsert.`);
+    }
+    documents.push({ id: metadata.id, ifc: previousDocument.ifc, filePath: metadata.filePath, isDirty: metadata.isDirty });
+  }
+
+  return { documents, writes };
+}
+
+let generationCounter = 0;
+function nextRecoveryGeneration(): string {
+  generationCounter += 1;
+  return `${Date.now().toString(36)}-${generationCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function saveTauri(input: RecoverySaveInput): Promise<void> {
   const { writeTextFile, readDir, readTextFile, exists, remove, rename, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
@@ -254,13 +349,15 @@ async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<
     console.error('Recovery: kon het bestaande manifest niet lezen vóór het opslaan:', err);
   }
 
-  const keep: string[] = [];
-  for (const d of docs) {
-    const name = ifcName(d.id);
-    await writeAtomic(name, d.ifc);
-    ownWritten.add(name);
-    keep.push(name);
+  // Fase 1 van één generatiecommit: alleen gewijzigde IFC-payloads krijgen een NIEUWE,
+  // immutable naam. Het oude manifest wijst nog naar de vorige complete generatie zolang dit
+  // lukt of faalt; een crash kan dus geen half nieuwe documentverzameling publiceren.
+  const snapshotPlan = planTauriV3RecoverySave(prev, input, nextRecoveryGeneration(), names);
+  for (const write of snapshotPlan.writes) {
+    await writeAtomic(write.name, write.ifc);
+    ownWritten.add(write.name);
   }
+  const keep = snapshotPlan.documents.map((document) => document.ifc);
 
   let listing: string[] = [];
   try {
@@ -281,16 +378,22 @@ async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<
   }
   for (const d of plan.carryOver) adoptedIfc.add(d.ifc);
 
+  const currentIds = new Set(snapshotPlan.documents.map((document) => document.id));
   const manifest: RecoveryManifest = {
     version: RECOVERY_MANIFEST_VERSION,
-    activeDocumentId: activeId,
+    activeDocumentId: input.activeDocumentId,
     documents: [
-      ...docs.map((d) => ({ id: d.id, ifc: ifcName(d.id), filePath: d.filePath, isDirty: d.isDirty })),
-      ...plan.carryOver,
+      ...snapshotPlan.documents,
+      // Een vreemde instantie kan een doc-id hebben die intussen in onze actieve set voorkomt.
+      // Onze eigen, expliciete metadata wint dan; dubbele manifestregels zouden loadRecovery
+      // anders één document tweemaal kunnen herstellen.
+      ...plan.carryOver.filter((document) => !currentIds.has(document.id)),
     ],
     ownerId: instanceId,
     heartbeatAt: Date.now(),
   };
+  // Fase 2 = het commitpoint. `rename` vervangt het manifest atomair: pas vanaf hier wordt de
+  // nieuwe verzameling generaties zichtbaar voor loadTauri. Opruimen staat bewust erná.
   await writeAtomic(manifestName, JSON.stringify(manifest));
 
   for (const name of plan.remove) {
@@ -337,7 +440,10 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
     // EXACTE naamvorm (K5): met de oude prefix-vergelijking pikte een productiebuild hier ook de
     // `recovery.<slug>.<docId>.ifc` van elke dev-worktree op. Het legacy-bestand valt hier
     // automatisch buiten (dat heeft geen doc-id-segment) en heeft zijn eigen terugval hieronder.
-    const id = name ? names.snapshotDocId(name) : null;
+    // Alleen stabiele v1/v2-snapshots mogen zonder manifest worden teruggevonden. Een v3-
+    // generatie die vóór de manifest-rename is geschreven, is nog NIET gecommit en mag bij een
+    // corrupt/ontbrekend manifest niet per ongeluk als halfnieuwe herstelset verschijnen.
+    const id = name ? names.stableSnapshotDocId(name) : null;
     if (!name || !id) continue;
     try {
       const path = await join(dir, name);
@@ -528,16 +634,21 @@ interface WebDocRecord {
   sessionId: string;
   docId: string;
   ifc: string;
-  filePath: string | null;
-  isDirty: boolean;
   addedAt: number;
+  /** v1/v2-compatibiliteit: metadata woonde toen nog in elk documentrecord. */
+  filePath?: string | null;
+  isDirty?: boolean;
 }
 interface WebManifestRecord {
   id: string; // `${sid}::manifest`
   kind: 'manifest';
   sessionId: string;
   activeDocumentId: string | null;
-  docIds: string[];
+  /** v3: alle weergave- en documentmetadata, los van de IFC-payloadrecords. */
+  documents?: RecoveryManifestDoc[];
+  /** v1/v2-compatibiliteit. */
+  docIds?: string[];
+  version?: number;
   addedAt: number;
 }
 type WebRecord = WebDocRecord | WebManifestRecord;
@@ -545,39 +656,88 @@ type WebRecord = WebDocRecord | WebManifestRecord;
 const docKey = (sid: string, docId: string): string => `${sid}::doc::${docId}`;
 const manifestKey = (sid: string): string => `${sid}::manifest`;
 
-async function saveWeb(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
+/**
+ * Schrijf de héle webdelta in ÉÉN strikte IndexedDB readwrite-transactie. Eerst lezen we de
+ * bestaande records in dezelfde transactie, daarna valideren we alle referenties, schrijven we
+ * uitsluitend de upserts en ten slotte het manifest en eventuele deletes. Een fout abort de
+ * transactie; de auto-save promoot zijn in-memory persistentiebasis pas nadat deze promise
+ * succesvol terugkeert.
+ */
+async function saveWeb(input: RecoverySaveInput): Promise<void> {
   const sid = await sessionId();
   const now = Date.now();
-  const all = await idbGetAll<WebRecord>(WEB_DB, WEB_STORE);
-
-  // Ruim verweesde vreemde sessies op (ouder dan 7 dagen).
-  for (const r of all) {
-    if (r.sessionId !== sid && now - r.addedAt > MAX_AGE_MS) {
-      await idbDelete(WEB_DB, WEB_STORE, r.id);
-    }
-  }
-
-  // Schrijf de huidige docs van deze sessie.
-  for (const d of docs) {
-    const rec: WebDocRecord = {
-      id: docKey(sid, d.id), kind: 'doc', sessionId: sid, docId: d.id,
-      ifc: d.ifc, filePath: d.filePath, isDirty: d.isDirty, addedAt: now,
+  const db = await openIdb(WEB_DB, WEB_STORE);
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(WEB_STORE, 'readwrite');
+    const store = tx.objectStore(WEB_STORE);
+    let settled = false;
+    const fail = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(err instanceof Error ? err : new Error(String(err)));
     };
-    await idbPut(WEB_DB, WEB_STORE, rec);
-  }
-  const manifest: WebManifestRecord = {
-    id: manifestKey(sid), kind: 'manifest', sessionId: sid,
-    activeDocumentId: activeId, docIds: docs.map((d) => d.id), addedAt: now,
-  };
-  await idbPut(WEB_DB, WEB_STORE, manifest);
+    tx.oncomplete = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    tx.onerror = () => fail(tx.error ?? new Error('IndexedDB-recoverytransactie mislukt.'));
+    tx.onabort = () => fail(tx.error ?? new Error('IndexedDB-recoverytransactie afgebroken.'));
 
-  // Ruim doc-records van DEZE sessie op die niet meer open zijn.
-  const keep = new Set(docs.map((d) => docKey(sid, d.id)));
-  for (const r of all) {
-    if (r.sessionId === sid && r.kind === 'doc' && !keep.has(r.id)) {
-      await idbDelete(WEB_DB, WEB_STORE, r.id);
-    }
-  }
+    const allRequest = store.getAll();
+    allRequest.onerror = () => fail(allRequest.error ?? new Error('IndexedDB-recoveryrecords niet leesbaar.'));
+    allRequest.onsuccess = () => {
+      try {
+        const all = allRequest.result as WebRecord[];
+        const upserts = checkedUpserts(input);
+        const existing = new Set(all
+          .filter((record): record is WebDocRecord => record.kind === 'doc' && record.sessionId === sid)
+          .map((record) => record.docId));
+        for (const document of input.documents) {
+          if (!upserts.has(document.id) && !existing.has(document.id)) {
+            throw new Error(`Recovery: ${JSON.stringify(document.id)} heeft geen webrecord en geen upsert.`);
+          }
+        }
+
+        // Alleen nieuwe of inhoudelijk gewijzigde IFC-payloads worden aangeraakt.
+        for (const document of upserts.values()) {
+          const record: WebDocRecord = {
+            id: docKey(sid, document.id), kind: 'doc', sessionId: sid, docId: document.id,
+            ifc: document.ifc, addedAt: now,
+          };
+          store.put(record);
+        }
+
+        // Alle metadata hoort bij het manifest. Daardoor is een actieve-tabwissel of alleen een
+        // pad-/dirtywijziging exact één manifest-write, nooit een serie grote IFC-copies.
+        const manifest: WebManifestRecord = {
+          id: manifestKey(sid), kind: 'manifest', sessionId: sid,
+          version: RECOVERY_MANIFEST_VERSION,
+          activeDocumentId: input.activeDocumentId,
+          documents: input.documents.map((document) => ({
+            id: document.id,
+            ifc: docKey(sid, document.id),
+            filePath: document.filePath,
+            isDirty: document.isDirty,
+          })),
+          addedAt: now,
+        };
+        store.put(manifest);
+
+        const keep = new Set(input.documents.map((document) => docKey(sid, document.id)));
+        for (const record of all) {
+          if (record.sessionId !== sid && now - record.addedAt > MAX_AGE_MS) store.delete(record.id);
+          if (record.sessionId === sid && record.kind === 'doc' && !keep.has(record.id)) store.delete(record.id);
+        }
+      } catch (err) {
+        // Geen gedeeltelijke promotie: alle writes hierboven horen bij dezelfde transactie en
+        // verdwijnen bij abort. Onze headless dubbel kent geen `abort`, daarom defensief optioneel.
+        (tx as unknown as { abort?: () => void }).abort?.();
+        fail(err);
+      }
+    };
+  });
 }
 
 async function loadWeb(): Promise<LoadedRecovery> {
@@ -586,28 +746,51 @@ async function loadWeb(): Promise<LoadedRecovery> {
   const manifest = all.find((r) => r.kind === 'manifest' && r.sessionId === sid) as WebManifestRecord | undefined;
   if (!manifest) return { activeDocumentId: null, docs: [] };
   const docs: LoadedRecoveryDoc[] = [];
-  for (const docId of manifest.docIds) {
+  const metadata = Array.isArray(manifest.documents)
+    ? manifest.documents
+    : (manifest.docIds ?? []).map((id) => ({ id, ifc: docKey(sid, id), filePath: null, isDirty: true }));
+  for (const document of metadata) {
+    const docId = document.id;
     const rec = all.find((r) => r.kind === 'doc' && r.id === docKey(sid, docId)) as WebDocRecord | undefined;
     if (!rec) continue;
-    docs.push({ id: rec.docId, ifc: rec.ifc, filePath: rec.filePath, isDirty: rec.isDirty, mtime: new Date(rec.addedAt) });
+    docs.push({
+      id: rec.docId,
+      ifc: rec.ifc,
+      filePath: document.filePath ?? rec.filePath ?? null,
+      isDirty: document.isDirty ?? rec.isDirty ?? true,
+      mtime: new Date(rec.addedAt),
+    });
   }
   return { activeDocumentId: manifest.activeDocumentId, docs };
 }
 
 async function clearWeb(): Promise<void> {
   const sid = await sessionId();
-  const all = await idbGetAll<WebRecord>(WEB_DB, WEB_STORE);
-  for (const r of all) {
-    if (r.sessionId === sid) await idbDelete(WEB_DB, WEB_STORE, r.id);
-  }
+  const db = await openIdb(WEB_DB, WEB_STORE);
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(WEB_STORE, 'readwrite');
+    const store = tx.objectStore(WEB_STORE);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    const allRequest = store.getAll();
+    allRequest.onerror = () => reject(allRequest.error);
+    allRequest.onsuccess = () => {
+      const ours = (allRequest.result as WebRecord[]).filter((record) => record.sessionId === sid);
+      for (const record of ours) store.delete(record.id);
+      // Echte IndexedDB committeert ook een lege transactie; de kleine headless dubbel plant dan
+      // geen `oncomplete`. Alleen voor dat lege, write-loze geval lossen we lokaal op — nooit een
+      // tweede, losse transaction openen: dat zou de atomische grens breken.
+      if (ours.length === 0) queueMicrotask(resolve);
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Publieke API — backend-keuze bij runtime.
 // ---------------------------------------------------------------------------
 
-export function saveRecovery(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
-  return isTauri() ? saveTauri(activeId, docs) : saveWeb(activeId, docs);
+export function saveRecovery(input: RecoverySaveInput): Promise<void> {
+  return isTauri() ? saveTauri(input) : saveWeb(input);
 }
 
 export function loadRecovery(): Promise<LoadedRecovery> {

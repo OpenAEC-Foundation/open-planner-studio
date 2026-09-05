@@ -7,7 +7,12 @@
 
 const dbPromises = new Map<string, Promise<IDBDatabase>>();
 
-function openDb(dbName: string, storeName: string): Promise<IDBDatabase> {
+/**
+ * Open één object-store zonder de fout te verbergen. De algemene helpers hieronder kiezen bewust
+ * voor stille terugval; recovery gebruikt deze openstap rechtstreeks voor zijn eigen atomische
+ * write-transaction, waar een fout juist aan de auto-save moet terugkeren.
+ */
+export function openIdb(dbName: string, storeName: string): Promise<IDBDatabase> {
   const cacheKey = `${dbName}::${storeName}`;
   const existing = dbPromises.get(cacheKey);
   if (existing) return existing;
@@ -40,7 +45,7 @@ function openDb(dbName: string, storeName: string): Promise<IDBDatabase> {
 /** Alle records uit de store. Bij een IDB-fout: lege lijst (stil). */
 export async function idbGetAll<T>(dbName: string, storeName: string): Promise<T[]> {
   try {
-    const db = await openDb(dbName, storeName);
+    const db = await openIdb(dbName, storeName);
     return await new Promise<T[]>((resolve, reject) => {
       const tx = db.transaction(storeName, 'readonly');
       const req = tx.objectStore(storeName).getAll();
@@ -55,7 +60,7 @@ export async function idbGetAll<T>(dbName: string, storeName: string): Promise<T
 /** Eén record op id. Bij een IDB-fout of ontbreken: undefined (stil). */
 export async function idbGet<T>(dbName: string, storeName: string, id: string): Promise<T | undefined> {
   try {
-    const db = await openDb(dbName, storeName);
+    const db = await openIdb(dbName, storeName);
     return await new Promise<T | undefined>((resolve, reject) => {
       const tx = db.transaction(storeName, 'readonly');
       const req = tx.objectStore(storeName).get(id);
@@ -73,7 +78,7 @@ export async function idbGet<T>(dbName: string, storeName: string, id: string): 
  *  laat de overige velden gewoon toe. */
 export async function idbPut(dbName: string, storeName: string, value: { id: string }): Promise<void> {
   try {
-    const db = await openDb(dbName, storeName);
+    const db = await openIdb(dbName, storeName);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(storeName, 'readwrite');
       tx.objectStore(storeName).put(value);
@@ -88,7 +93,7 @@ export async function idbPut(dbName: string, storeName: string, value: { id: str
 /** Verwijder een record op id. Faalt stil. */
 export async function idbDelete(dbName: string, storeName: string, id: string): Promise<void> {
   try {
-    const db = await openDb(dbName, storeName);
+    const db = await openIdb(dbName, storeName);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(storeName, 'readwrite');
       tx.objectStore(storeName).delete(id);

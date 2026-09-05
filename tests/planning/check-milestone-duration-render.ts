@@ -55,7 +55,15 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; roundRects: RRect[]; texts:
 }
 
 // ── Scenario: een taak met echte duur, een mijlpaal-met-duur, en een ECHTE mijlpaal ──
+// Weekend-flake (gemeten op main): zowel `project.startDate` als `view.viewStartDate` defaulten op
+// "vandaag" (`defaults.ts`). Op een zaterdag/zondag schuift de solver de taak naar de eerstvolgende
+// werkdag (maandag) terwijl het view-origin op het weekend blijft staan — de balk verschuift dan
+// pixels naar rechts terwijl de hittest hieronder op een vaste x = TTW + 20 prikt. Vaste maandag
+// (in de stijl van de andere fixtures in dit bestand, bv. check-bar-colors.ts's '2026-01-05') maakt
+// de fixture dag-onafhankelijk: project- én view-start liggen op dezelfde, altijd-werkende dag.
+const FIXED_MONDAY = '2026-01-05';
 S().newProject();
+S().setProject({ startDate: FIXED_MONDAY });
 S().addTask({ name: 'Gewoon' });
 S().runCPM();
 const base = S().tasks[0];
@@ -102,7 +110,9 @@ const rows: ViewRow[] = [
 
 const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
 const st = S();
-const view = { ...st.view, scrollX: 0, scrollY: 0 };
+// Zelfde vaste maandag als het view-origin, zodat de balk exact bij pixel 0 begint — net als op een
+// gewone werkdag, maar nooit afhankelijk van de kalenderdag waarop de suite draait.
+const view = { ...st.view, scrollX: 0, scrollY: 0, viewStartDate: FIXED_MONDAY };
 
 const { ctx, roundRects } = makeCtx();
 const renderer = new GanttRenderer(ctx, {
@@ -142,7 +152,14 @@ if (renderError === null) {
   // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
   //    mijlpaal blijft geweigerd (geen visuele breedte om aan te slepen).
   const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
-  const hitWithDuration = renderer.getTaskBarBounds(TTW + 20, rowMidY(1));
+  //    Klik op de WERKELIJK getekende balk (`getTaskBarRect`), niet op een vaste x: een nieuw project
+  //    start op "vandaag" (`defaults.ts`), en valt vandaag in het weekend dan snapt de taak naar
+  //    maandag en begint de balk pas twee dagen rechts van de rand — de oude vaste `TTW + 20` miste
+  //    haar dan (gezien 2026-09-05, een zaterdag: lokaal én op CI rood, op weekdagen groen).
+  const rectWithDuration = renderer.getTaskBarRect('ms-met-duur');
+  ok(`mijlpaal-met-duur: getTaskBarRect levert een balk (kreeg: ${JSON.stringify(rectWithDuration)})`, rectWithDuration !== null);
+  const hitX = rectWithDuration ? Math.min(rectWithDuration.left + 4, rectWithDuration.right - 1) : TTW + 20;
+  const hitWithDuration = renderer.getTaskBarBounds(hitX, rowMidY(1));
   ok(`mijlpaal-met-duur: getTaskBarBounds accepteert haar (kreeg: ${JSON.stringify(hitWithDuration && { edge: hitWithDuration.edge })})`, hitWithDuration !== null && hitWithDuration.task.id === 'ms-met-duur');
   const hitReal = renderer.getTaskBarBounds(TTW + 20, rowMidY(2));
   ok('echte mijlpaal: getTaskBarBounds weigert haar nog steeds', hitReal === null);

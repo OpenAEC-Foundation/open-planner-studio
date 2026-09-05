@@ -101,7 +101,7 @@ function samplePool(overrides: Partial<CompanyPool> = {}): CompanyPool {
   const pool = samplePool({ poolVersion: 1, resources: [res('r1', 'Kraan (); DROP TABLE')] });
   let back: CompanyPool | undefined;
   let threw = false;
-  try { back = readPoolIFC(writePoolIFC(pool)); } catch { threw = true; }
+  try { back = await readPoolIFC(writePoolIFC(pool)); } catch { threw = true; }
   assert(!threw, 'A1: pool met "();" in resourcenaam leest zonder te gooien');
   assert(back?.resources.length === 1 && back.resources[0].name === 'Kraan (); DROP TABLE', 'A1: pool-resourcenaam met "();" komt exact terug');
   assert(back?.companyName === 'Aannemer BV', 'A1: pool-metadata intact naast hostile resourcenaam');

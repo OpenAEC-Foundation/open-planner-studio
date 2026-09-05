@@ -77,6 +77,7 @@
       "earlyFinish": "Early finish",
       "earlyStart": "Early start",
       "effortDriven": "Effort driven",
+      "explicitSummary": "Explicit summary task",
       "externalRelationData": "External relationship data",
       "floatPath": "Float path",
       "freeFloat": "Free float",
@@ -97,6 +98,7 @@
       "nearCritical": "Near critical",
       "noteData": "Note data",
       "notes": "Notes",
+      "p6Provenance": "Primavera P6 provenance",
       "parentId": "Parent task ID",
       "priority": "Leveling priority",
       "remainingMinutes": "Remaining (minutes)",
@@ -117,7 +119,11 @@
       "totalFloat": "Total float",
       "wbs": "WBS",
       "workWindowFinish": "Work window finish",
-      "workWindowStart": "Work window start"
+      "workWindowStart": "Work window start",
+      "workRule": "Work rule",
+      "assignmentPlannedWork": "Planned work (hours)",
+      "assignmentActualWork": "Actual work (hours)",
+      "assignmentRemainingWork": "Remaining work (hours)"
     },
     "category": {
       "task": "Task",

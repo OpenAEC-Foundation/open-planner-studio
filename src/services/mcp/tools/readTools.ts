@@ -44,6 +44,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 // Zelfde twee bronnen als het slot in `ResourcePanel` en de weigering in `resourceTools` — één lijst.
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 // ── Lokale leestool-wikkel + nette fout ──────────────────────────────────────────────────────────
 
@@ -262,8 +263,8 @@ function calendarSummary(cal: WorkCalendar) {
 
 function getProjectInfo(s: AppState) {
   const tasks = s.tasks;
-  const leaves = tasks.filter((t) => t.childIds.length === 0);
-  const summaries = tasks.filter((t) => t.childIds.length > 0);
+  const leaves = tasks.filter(isLeafTask);
+  const summaries = tasks.filter(isSummaryTask);
   const milestones = tasks.filter((t) => t.isMilestone);
   const criticalCount = tasks.filter((t) => t.time.isCritical).length;
   const p = s.project;
@@ -389,7 +390,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   // Wees-detectie: alléén LEAF-taken die in geen enkele relatie voorkomen. Verzameltaken hebben per
   // definitie geen relaties en zijn dus geen "wezen" — die worden hier bewust uitgesloten.
   if (args.zonder_relaties === true) {
-    filtered = filtered.filter((t) => t.childIds.length === 0 && !inSeq.has(t.id));
+    filtered = filtered.filter((t) => isLeafTask(t) && !inSeq.has(t.id));
   }
 
   const paged = paginate(filtered, args);
@@ -408,7 +409,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     if (p > 0) row.prog = p;
     if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
-    if (t.childIds.length > 0) row.summary = true;
+    if (isSummaryTask(t)) row.summary = true;
     return row;
   });
   return {
@@ -445,6 +446,10 @@ function getTask(s: AppState, args: GetTaskArgs) {
       resourceName: resById.get(a.resourceId)?.name ?? null,
       unitsPerDay: a.unitsPerDay,
       curve: a.curve ?? 'UNIFORM',
+      // Taaktypes-etappe (spec §4.3): de drie werkvelden, alleen wanneer gezet (afwezig ⇒ afgeleid).
+      ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
+      ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
+      ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
     }));
 
   const predecessors = s.sequences
@@ -455,6 +460,9 @@ function getTask(s: AppState, args: GetTaskArgs) {
       wbs: wbsOf(taskById, seq.predecessorId),
       type: seqAbbrev(seq.type),
       lag: lagLabel(seq),
+      ...(seq.p6StartAtPredecessorFinishBoundary !== undefined
+        ? { p6StartAtPredecessorFinishBoundary: seq.p6StartAtPredecessorFinishBoundary }
+        : {}),
     }));
   const successors = s.sequences
     .filter((seq) => seq.predecessorId === task.id)
@@ -464,6 +472,9 @@ function getTask(s: AppState, args: GetTaskArgs) {
       wbs: wbsOf(taskById, seq.successorId),
       type: seqAbbrev(seq.type),
       lag: lagLabel(seq),
+      ...(seq.p6StartAtPredecessorFinishBoundary !== undefined
+        ? { p6StartAtPredecessorFinishBoundary: seq.p6StartAtPredecessorFinishBoundary }
+        : {}),
     }));
 
   // Effectieve kalender (§5): taak-kalender uit de bibliotheek, anders de projectkalender.
@@ -501,6 +512,16 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
     ...(task.effortDriven ? { effortDriven: true } : {}),
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
+    // Taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel, leesbaar zodra gezet.
+    ...(task.workRule ? { workRule: task.workRule } : {}),
+    ...(task.p6DurationType !== undefined ? { p6DurationType: task.p6DurationType } : {}),
+    ...(task.p6ActivityType !== undefined ? { p6ActivityType: task.p6ActivityType } : {}),
+    ...(task.p6ProjectId !== undefined ? { p6ProjectId: task.p6ProjectId } : {}),
+    ...(task.p6TaskId !== undefined ? { p6TaskId: task.p6TaskId } : {}),
+    ...(task.p6ExplicitTargetWindow !== undefined ? { p6ExplicitTargetWindow: task.p6ExplicitTargetWindow } : {}),
+    ...(task.p6CompletePctType !== undefined ? { p6CompletePctType: task.p6CompletePctType } : {}),
+    ...(task.p6ExpectedFinish !== undefined ? { p6ExpectedFinish: task.p6ExpectedFinish } : {}),
+    ...(task.p6SuspendResume !== undefined ? { p6SuspendResume: task.p6SuspendResume } : {}),
     parentId: task.parentId,
     childIds: task.childIds,
     duration: nativeDuration(task),
@@ -1030,7 +1051,11 @@ export const readTools: McpToolDef[] = [
       'aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
       'READ-ONLY `splitGaps` (werkonderbrekingen), `levelingDelayMinutes`, `mspTaskType` (MSP Task ' +
       'Type: FIXED_UNITS/FIXED_DURATION/FIXED_WORK), `effortDriven` en `timephasedContours` (rauwe ' +
-      'contourperiodes — puur data, geen rekengedrag). Onbekend id ⇒ nette NOT_FOUND. ' +
+      'contourperiodes — puur data, geen rekengedrag). Bij XER/P6 zijn, indien aanwezig, ook de acht ' +
+      'read-only bronvelden `p6DurationType`, `p6ActivityType`, `p6ProjectId`, `p6TaskId`, ' +
+      '`p6ExplicitTargetWindow` (ook false), `p6CompletePctType`, `p6ExpectedFinish` en ' +
+      '`p6SuspendResume` zichtbaar. Relatie-objecten tonen daarnaast, indien aanwezig, ' +
+      '`p6StartAtPredecessorFinishBoundary`. Onbekend id ⇒ nette NOT_FOUND. ' +
       'NAAMDRIFT LEZEN↔SCHRIJVEN: `wbs` heet bij het schrijven `wbsCode`, en `calendar.effectiveId` ' +
       'heet daar `calendarId` (let op: `effectiveId` kan de PROJECTkalender zijn — dan staat er geen ' +
       'eigen `calendarId` op de taak, zie `calendar.isProjectDefault`). ' +

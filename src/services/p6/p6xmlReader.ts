@@ -1,4 +1,5 @@
 import { Task, TaskConstraint, ConstraintType } from '@/types/task';
+import type { P6DurationType } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
@@ -7,7 +8,7 @@ import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, deriveImportedWorkRules } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
@@ -18,6 +19,8 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { axisOffsetMinutes, p6SpreadToContourPeriods, splitGapsFromContours } from '@/services/contourIo';
+import { importedWorkFields } from '@/engine/work/workRuleMapping';
+import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import {
   OPS_P6_DURATION_UNIT_UDF_TITLE,
   P6_DAY_NAMES,
@@ -115,13 +118,45 @@ function p6CodeToConstraint(code: string): { type: ConstraintType; hard?: boolea
   }
 }
 
+// P6-XML (PMXML) draagt `<DurationType>` als Engels label, niet als het XER-token
+// (`DT_FixedDrtn`/`DT_FixedDUR2`/`DT_FixedRate`/`DT_FixedQty`) — zelfde vier canonieke P6-waarden,
+// andere schrijfwijze per bronformaat. Labels geverifieerd tegen MPXJ `DurationTypeHelper`
+// (LGPL-2.1, lezen-om-te-begrijpen, §4 harde regel) en Oracle's PMXML-schemadocumentatie.
+// Taaktypes-etappe (2026-09-05): de twee Fixed-Duration-labels stonden hier verwisseld. Oracle's
+// eigen XER-datamap (P6 EPPM XER Import/Export Data Map Guide, TASK.duration_type) geeft:
+// DT_FixedDrtn = "Fixed Duration and Units/Time", DT_FixedDUR2 = "Fixed Duration and Units",
+// DT_FixedQty = "Fixed Units", DT_FixedRate = "Fixed Units/Time" — dezelfde paren als
+// `workRuleMapping.ts` (`XER_DURATION_TYPE_TOKEN` ↔ `P6_DURATION_TYPE_NAME`).
+const P6_XML_DURATION_TYPE_BY_LABEL: Readonly<Record<string, P6DurationType>> = {
+  'Fixed Duration and Units': 'DT_FixedDUR2',
+  'Fixed Duration and Units/Time': 'DT_FixedDrtn',
+  'Fixed Units/Time': 'DT_FixedRate',
+  'Fixed Units': 'DT_FixedQty',
+};
+
+/**
+ * Contour-engine-etappe (2026-09), taaktypes-vervolgafspraak: `<DurationType>` is puur data — géén
+ * solverstap leest dit veld, zelfde eigenaarsbesluit als de XER-lezer's `p6DurationType`
+ * (`task.ts`'s docblok). Onbekend/leeg label ⇒ veld AFWEZIG (byte-identiek), nooit een aanname;
+ * de onbekende waarde wordt gerapporteerd zodat een nieuw of vreemd PMXML-label zichtbaar blijft
+ * in plaats van stil te verdwijnen.
+ */
+function p6DurationTypeFromXml(raw: string): P6DurationType | undefined {
+  const label = raw.trim();
+  if (!label) return undefined;
+  const known = P6_XML_DURATION_TYPE_BY_LABEL[label];
+  if (known) return known;
+  console.warn(`P6-XML-import: onbekende <DurationType>-waarde '${label}' — p6DurationType blijft afwezig.`);
+  return undefined;
+}
+
 /** Werkweek teruglezen (fase 2.8a, §8.3, spiegel van `writeStandardWorkWeek`): per
  *  `<StandardWorkHour>` de dagnaam terugmappen naar een ISO-dagnummer via `P6_DAY_NAMES`; een dag
  *  telt als werkdag zodra hij een `<WorkTime>`-blok heeft. `workStartHour`/`workEndHour` komen van
  *  het LAATST gevonden werktijdblok (één scalar per kalender, bestaande aanname). Golden rule:
  *  geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒ lege workDays, aanroeper valt terug op
  *  de `createDefaultCalendar()`-defaults. */
-function parseP6StandardWorkWeek(calEl: Element): {
+export function parseP6StandardWorkWeek(calEl: Element): {
   workDays: number[]; workStartHour?: number; workEndHour?: number;
   rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>;
 } {
@@ -445,6 +480,7 @@ export function readP6XML(content: string): ImportResult {
     const name = getElementText(actEl, 'Name') || 'Activity';
     const p6Type = getElementText(actEl, 'Type');
     const p6Status = getElementText(actEl, 'Status');
+    const p6DurationType = p6DurationTypeFromXml(getElementText(actEl, 'DurationType'));
     const plannedDuration = getElementFloat(actEl, 'PlannedDuration');
     const plannedStartRaw = getElementText(actEl, 'PlannedStartDate');
     const plannedFinishRaw = getElementText(actEl, 'PlannedFinishDate');
@@ -531,6 +567,7 @@ export function readP6XML(content: string): ImportResult {
       wbsCode: actId,
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
+      ...(p6DurationType ? { p6DurationType } : {}),
       status,
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
@@ -580,6 +617,7 @@ export function readP6XML(content: string): ImportResult {
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);
+  deriveImportedWorkRules(tasks); // taaktypes-etappe: werkregel uit <DurationType>
 
   // Parse relationships
   const relElements = getAllByLocalName(doc, 'Relationship');
@@ -673,15 +711,32 @@ export function readP6XML(content: string): ImportResult {
       curve = P6_NAME_TO_CURVE[plannedCurveRaw];
     }
 
+    // PlannedUnitsPerTime is een fractie (1.0 = 100%), geen uren/dag (L2-fix,
+    // spiegel van p6xmlWriter) — 1:1 overnemen.
+    const unitsPerDay = plannedUnitsPerTime > 0 ? plannedUnitsPerTime : 1;
+    // Taaktypes-etappe (spec §4.3, geval c): <PlannedUnits>/<ActualUnits>/<RemainingUnits> in UREN
+    // → minuten, alleen bewaard wanneer ze afwijken van `duur × inzet/tijd` (`importedWorkFields`).
+    const workTask = taskById.get(taskId);
+    const derivedWork = workTask ? taskWorkMinutes(workTask.time, engineForTask(workTask).hoursPerDay) * unitsPerDay : 0;
+    const unitsMinutes = (tag: string): number | undefined => {
+      const raw = getElementText(asgnEl, tag);
+      if (!raw.trim()) return undefined;
+      const hours = parseFloat(raw);
+      return Number.isFinite(hours) ? hours * 60 : undefined;
+    };
+    const workFields = importedWorkFields({
+      plannedMinutes: unitsMinutes('PlannedUnits'),
+      actualMinutes: unitsMinutes('ActualUnits'),
+      remainingMinutes: unitsMinutes('RemainingUnits'),
+    }, derivedWork);
     assignments.push({
       id: generateId('asgn'),
       taskId,
       resourceId,
-      // PlannedUnitsPerTime is een fractie (1.0 = 100%), geen uren/dag (L2-fix,
-      // spiegel van p6xmlWriter) — 1:1 overnemen.
-      unitsPerDay: plannedUnitsPerTime > 0 ? plannedUnitsPerTime : 1,
+      unitsPerDay,
       ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
       ...(curveValues ? { curveValues } : {}),
+      ...workFields,
     });
 
     // Contour-engine (2026-09) — de SPREIDING: `<ActualCurve>` (verricht, anker `ActualStartDate`)

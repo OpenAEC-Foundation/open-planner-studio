@@ -368,6 +368,26 @@ function assignmentWindowText(
   return values.length > 0 ? values.join('; ') : '—';
 }
 
+type AssignmentWorkField = 'plannedWorkMinutes' | 'actualWorkMinutes' | 'remainingWorkMinutes';
+
+/** Taaktypes-etappe (spec §4.3): de drie werkvelden zijn minuten in de state, uren in beeld
+ *  (twee decimalen, zoals de contour-dialoog). Afwezig veld ⇒ niet getoond (afgeleid). */
+function assignmentWorkText(task: Task, ctx: TaskColumnContext, field: AssignmentWorkField): string {
+  const values = assignments(task, ctx).flatMap(assignment => assignment[field] !== undefined
+    ? [`${assignmentLabel(assignment, ctx)}: ${formatScalar(Math.round((assignment[field] / 60) * 100) / 100)}`]
+    : []);
+  return values.length > 0 ? values.join('; ') : '—';
+}
+
+function assignmentWorkColumn(id: string, labelKey: string, field: AssignmentWorkField): TaskColumnDescriptor {
+  return readonlyColumn({
+    id, labelKey, category: 'resources', valueKind: 'technical',
+    read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item[field] })),
+    format: (_value, task, ctx) => assignmentWorkText(task, ctx, field),
+    copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, [field]: item[field] }))),
+  });
+}
+
 const STRUCTURED_CLIPBOARD_SEPARATOR = '\u2063';
 const ASSIGNMENT_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-assignment:`;
 const ACTIVITY_CODE_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-activity-code:`;
@@ -602,6 +622,23 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.manuallyScheduled', labelKey: 'taskGrid.columns.manuallyScheduled', category: 'technical', valueKind: 'boolean', read: task => task.manuallyScheduled }),
     readonlyColumn({ id: 'task.mspTaskType', labelKey: 'taskGrid.columns.mspTaskType', category: 'technical', valueKind: 'enum', read: task => task.mspTaskType }),
     readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
+    // Taaktypes-etappe (ontwerp 2026-09-04 §7): alleen-lezen tot de UI-stap 'm bewerkbaar maakt.
+    readonlyColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'technical', valueKind: 'enum', read: task => task.workRule }),
+    // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
+    // round-trippen. Ze zijn puur provenance (geen solverinvoer deze etappe), dus één readonly
+    // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.
+    readonlyColumn({
+      id: 'task.p6Provenance', labelKey: 'taskGrid.columns.p6Provenance', category: 'technical', valueKind: 'technical',
+      read: task => p6ProvenanceOf(task),
+      format: value => {
+        const entries = value && typeof value === 'object' ? Object.entries(value as Record<string, unknown>) : [];
+        return entries.length ? entries.map(([key, item]) => `${key}: ${String(item)}`).join(', ') : '—';
+      },
+      copy: task => canonicalGridJson(p6ProvenanceOf(task)),
+    }),
+    // Expliciete, kinderloze WBS-samenvatting (P6 PROJWBS). Alleen-lezen: de marker komt uit de
+    // import en de hiërarchie zelf blijft via parentId/childIds bewerkbaar.
+    readonlyColumn({ id: 'task.isSummary', labelKey: 'taskGrid.columns.explicitSummary', category: 'technical', valueKind: 'boolean', read: task => task.isSummary }),
     readonlyColumn({ id: 'task.parentId', labelKey: 'taskGrid.columns.parentId', category: 'technical', valueKind: 'text', read: task => task.parentId }),
     readonlyColumn({ id: 'task.childIds', labelKey: 'taskGrid.columns.childIds', category: 'technical', valueKind: 'technical', read: task => task.childIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.childIds) }),
     readonlyColumn({ id: 'task.resourceIds', labelKey: 'taskGrid.columns.resourceIds', category: 'technical', valueKind: 'technical', read: task => task.resourceIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.resourceIds) }),
@@ -817,6 +854,10 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       }]),
     }),
     readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowStart'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
+    // Taaktypes-etappe (spec §4.3/§7): alleen-lezen tot de UI-stap; minuten in de state, uren in beeld.
+    assignmentWorkColumn('assignment.plannedWork', 'taskGrid.columns.assignmentPlannedWork', 'plannedWorkMinutes'),
+    assignmentWorkColumn('assignment.actualWork', 'taskGrid.columns.assignmentActualWork', 'actualWorkMinutes'),
+    assignmentWorkColumn('assignment.remainingWork', 'taskGrid.columns.assignmentRemainingWork', 'remainingWorkMinutes'),
     readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowFinish'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
     readonlyColumn({ id: 'assignment.id', labelKey: 'taskGrid.columns.assignmentId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.id), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.id)) }),
     readonlyColumn({ id: 'assignment.taskId', labelKey: 'taskGrid.columns.assignmentTaskId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.taskId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.taskId)) }),
@@ -1009,6 +1050,20 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
     }
   }
   return result;
+}
+
+/** De acht XER/Primavera-bronvelden van een taak, zonder de afwezige. */
+function p6ProvenanceOf(task: Task): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  if (task.p6ProjectId !== undefined) out.p6ProjectId = task.p6ProjectId;
+  if (task.p6TaskId !== undefined) out.p6TaskId = task.p6TaskId;
+  if (task.p6ActivityType !== undefined) out.p6ActivityType = task.p6ActivityType;
+  if (task.p6DurationType !== undefined) out.p6DurationType = task.p6DurationType;
+  if (task.p6CompletePctType !== undefined) out.p6CompletePctType = task.p6CompletePctType;
+  if (task.p6ExpectedFinish !== undefined) out.p6ExpectedFinish = task.p6ExpectedFinish;
+  if (task.p6ExplicitTargetWindow !== undefined) out.p6ExplicitTargetWindow = task.p6ExplicitTargetWindow;
+  if (task.p6SuspendResume !== undefined) out.p6SuspendResume = task.p6SuspendResume;
+  return out;
 }
 
 /** Bouwt de volledige headless registry. De categorie-sortering is stabiel; binnen een categorie

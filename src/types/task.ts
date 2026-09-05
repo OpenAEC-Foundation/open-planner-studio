@@ -175,6 +175,31 @@ export interface TaskTimephasedContour {
  */
 export type MspTaskType = 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
 
+/** Taaktypes-etappe (ontwerp 2026-09-04 §4.1): de neutrale werkregel, zie `@/types/workRule`. */
+export type { WorkRule } from '@/types/workRule';
+
+/**
+ * P6's eigen "Duration Type" (XER `TASK.duration_type` — Primavera "Duration Type" op de
+ * activiteit: stuurt hoe P6 zelf duur/eenheden/snelheid aan elkaar koppelt bij een bewerking).
+ * VIER canonieke P6-tokens (Oracle P6-schema): Fixed Duration & Units, Fixed Duration & Units/Time,
+ * Fixed Units/Time, Fixed Units. Deze unie draagt de canonieke schrijfwijze; de XER-etappe se
+ * generieke enum-tokenregel (§4.7 van het XER-etappeplan, geïmplementeerd in X4a/X5) matcht
+ * corpusvarianten case-insensitief tegen deze lijst en rapporteert — nooit stil — een token dat ook
+ * ná case-fold onbekend blijft. NIET te verwarren met `MspTaskType` hierboven: twee bronformaten,
+ * twee taaktypeconcepten met een andere waardenverzameling.
+ */
+export type P6DurationType = 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
+
+/** P6/XER `complete_pct_type`: bronsoort van voortgang en restduur. */
+export type P6CompletePctType = 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
+
+/**
+ * P6's eigen "Activity Type" (XER `TASK.task_type`): Task Dependent, Resource Dependent, Level of
+ * Effort, Start Milestone, Finish Milestone, WBS Summary. ZES canonieke P6-tokens; zie
+ * `P6DurationType` voor de case-insensitieve-matchafspraak (§4.7).
+ */
+export type P6ActivityType = 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
+
 /**
  * Soort mijlpaal (fase 2.4, P6 Start/Finish Milestone). Dag-granulair grens-model:
  * START ankert op een dagbegin, FINISH op een dageinde (einde werkdag F = begin
@@ -471,6 +496,54 @@ export interface Task {
    *  Afwezig/false ⇒ byte-identiek. Round-tript via `OPS_MspTaskType` (`ifcPsets.ts`, zelfde pset
    *  als `mspTaskType` — het is hetzelfde MSP-taaktypeconcept-paar). */
   effortDriven?: boolean;
+  /** OPTIONEEL — de WERKREGEL van deze taak (taaktypes-etappe, ontwerp 2026-09-04 §4.1): welke
+   *  hoeken van werk = duur × inzet beschermd zijn bij een bewerking (`WorkRule`, neutraal tussen
+   *  MSP en P6). Afwezig ⇒ `Project.defaultWorkRule`, en als die ook ontbreekt FIXED_DURATION_RATE
+   *  (het gedrag van vandaag, byte-identiek). Bij import AFGELEID uit `mspTaskType`+`effortDriven`
+   *  resp. het P6-duurtype (spec §4.2) en apart bewaard, zodat een latere typewissel de herkomst
+   *  niet vernietigt. Geen enkele solverstap leest dit; alleen de bewerkingslaag
+   *  (`src/engine/work/workTriangle.ts`). Round-tript via `OPS_WorkRule` (`ifcPsets.ts`). */
+  workRule?: import('@/types/workRule').WorkRule;
+  /** OPTIONEEL — P6's eigen Duration Type bij .xer-import (zie `P6DurationType`). VELD-ALS-SIGNAAL,
+   *  eigen opgeslagen veld NAAST `mspTaskType` — géén hergebruik: de twee bronformaten kennen elk
+   *  hun eigen taaktypeconcept met een andere waardenverzameling en een andere reken-relatie (MSP:
+   *  Fixed Units/Duration/Work; P6: Fixed Duration&Units/Duration&Units-per-Time/Units-per-Time/
+   *  Units). Puur data — eigenaarsbesluit XER-etappeplan §1/X0 (2026-08-20): GEEN enkele solverstap
+   *  leest dit veld deze etappe. VASTGELEGDE AFSPRAAK (§1 van het plan): de latere taaktypes/effort-
+   *  driven-motor-etappe (`2026-08-18-spec-taaktypes-effort-driven.md`) mapt zowel `mspTaskType` als
+   *  `p6DurationType` naar ÉÉN interne superset-rekenmodel — twee opslagvelden nu, één rekenmodel
+   *  straks, geen twee eilanden. Afwezig ⇒ geen .xer-herkomst of onbekend token (byte-identiek). */
+  p6DurationType?: P6DurationType;
+  /** OPTIONEEL — P6's eigen Activity Type bij .xer-import (zie `P6ActivityType`). Zelfde
+   *  eigenaarsbesluit/superset-afspraak als `p6DurationType` hierboven — puur data, geen solverstap
+   *  leest dit veld deze etappe (de XER-lezer leidt `isMilestone`/`isHammock` er later wél
+   *  OPERATIONEEL uit af — TT_Mile/TT_FinMile resp. TT_LOE, zie X4a — maar dat zijn AFGELEIDEN, niet
+   *  dit veld zelf, dat blijft de rauwe herkomst). Afwezig ⇒ geen .xer-herkomst (byte-identiek). */
+  p6ActivityType?: P6ActivityType;
+  /** `task_id` is slechts uniek binnen dit P6-project; beide bronidentiteiten blijven bewaard. */
+  p6ProjectId?: string;
+  p6TaskId?: string;
+  /**
+   * Fail-closed XER-provenance: de bron-TASK droeg werkelijk zowel `target_start_date` als
+   * `target_end_date`. Dit bewaart uitsluitend de aanwezigheid van broninvoer — nooit P6's
+   * opgeslagen early/late- of floatuitkomst — zodat een readerfallback of later berekende
+   * `scheduleStart` niet als bronfeit kan worden verward.
+   */
+  p6ExplicitTargetWindow?: boolean;
+  /** CP_Phys/CP_Units gebruiken hun bronrestduur en nooit percentage-afleiding in de solver. */
+  p6CompletePctType?: P6CompletePctType;
+  /** XER `expect_end_date`, pas actief met de expliciete projectscope-vlag uit X5. */
+  p6ExpectedFinish?: string;
+  /** P6-specifieke opt-in voor `time.resume`/`time.stop`. De XER-lezer zet dit
+   *  uitsluitend bij een volledig, chronologisch suspend/resume-paar; losse of
+   *  omgekeerde brondata blijft behouden maar activeert nooit de P6-route.
+   *  Default/afwezig behoudt de bestaande MSP-conventie. */
+  p6SuspendResume?: boolean;
+  /** Expliciete WBS-/samenvattingsidentiteit. `true` betekent dat de taak ook zonder kinderen een
+   *  samenvatting blijft (bijvoorbeeld een lege PROJWBS-rij uit P6). `false` verwijdert alleen die
+   *  expliciete marker; taken met kinderen blijven samenvatting. Afwezig houdt bij updates de
+   *  bestaande waarde ongemoeid. Gebruik `isSummaryTask`/`isLeafTask` voor de semantiek. */
+  isSummary?: boolean;
   parentId: string | null; // WBS parent
   childIds: string[];      // WBS children
   time: TaskTime;

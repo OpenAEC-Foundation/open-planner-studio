@@ -41,6 +41,7 @@ bundle_check () {
   # lekte mee zodra we stderr doorlieten. Dit dempt de samenvatting maar laat fouten staan.
   if ! "$ROOT/node_modules/.bin/esbuild" "$src" --log-level=error \
       --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
+      --external:react-dom/server \
       --define:import.meta.env.DEV=false \
       --define:import.meta.env.PROD=true \
       --define:import.meta.env.MODE='"production"' \
@@ -73,11 +74,19 @@ EXPECTED_BATTERIES=(
   msp-pariteit probes progress relations resource-leveling resource-load view
 )
 
+# JSON-meetlatdata met de verplichte `cases-*.json`-naam, maar NIET het CPM-harnessschema. Elk
+# bestand hier heeft een eigen check-script verderop; zonder deze expliciete grens zou de glob het
+# als een gewone batterij proberen te valideren en uitvoeren.
+is_auxiliary_case_data () {
+  [ "$(basename "$1")" = "cases-p6-verified.json" ]
+}
+
 check_batteries () {
   local f base b missing=() unexpected=()
   local -A want=() have=()
   for b in "${EXPECTED_BATTERIES[@]}"; do want[$b]=1; done
   for f in "$DIR"/cases-*.json; do
+    if is_auxiliary_case_data "$f"; then continue; fi
     base="$(basename "$f")"; base="${base#cases-}"; base="${base%.json}"
     have[$base]=1
     if [ -z "${want[$base]:-}" ]; then unexpected+=("$base"); fi
@@ -111,9 +120,17 @@ check_batteries
 # van EXPECTED_BATTERIES/check_batteries hierboven, maar dan voor de losse check-scripts i.p.v.
 # de cases-*.json-batterijen.
 CHECK_SCRIPT_ALLOWLIST=(
-  # (voorlopig leeg — elke check-*.ts hoort via een `if bundle_check ...`-regel aangesloten te
-  # zijn. Een bewust handmatige/rode check hoort hier met een regel die uitlegt waarom, plus een
+  # (Een bewust handmatige/rode check hoort hier met een regel die uitlegt waarom, plus een
   # verwijzing naar de bijbehorende docs/TODO.md-notitie.)
+  #
+  # De twee X8-cataloguscontracten hieronder zijn PUUR compile-time: nul runtime-asserties, ze
+  # bestaan alleen uit `@ts-expect-error`-regels die vastleggen dat de gedeelde XER-catalogus diep
+  # readonly blijft terwijl de per-projectmaterialisatie mutabel blijft. Bundelen en draaien zou
+  # niets meten (een lege module). De afdwinging zit in `tsc`: `tsconfig.tests.json` heeft
+  # `include: ["scripts", "tests", ...]`, en onder die config is een ONGEBRUIKTE
+  # `@ts-expect-error` zelf een fout — verdwijnt het readonly, dan valt `npm run typecheck` om.
+  check-xer-metadata-catalog-types.ts
+  check-xer-resource-catalog-types.ts
 )
 
 check_check_scripts () {
@@ -187,7 +204,10 @@ if [ "$#" -gt 0 ]; then
   FILES=("${CASE_FILES[@]}")
   RUN_HOLIDAYS=0
 else
-  FILES=("$DIR"/cases-*.json)
+  FILES=()
+  for f in "$DIR"/cases-*.json; do
+    if ! is_auxiliary_case_data "$f"; then FILES+=("$f"); fi
+  done
   RUN_HOLIDAYS=1   # volledige run: ook de holiday-generator-checks (fase 2.8a, §10.2)
 fi
 
@@ -233,6 +253,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   CHCHECK="$DIR/.calendar-hours-check.mjs"
   if bundle_check "$DIR/check-calendar-hours.ts" "$CHCHECK"; then node "$CHCHECK" || STATUS=1; fi
 
+  # Spiegel-invariant van de kalender- en duur-primitieven (diagnose laag 1, deeldossier "spiegel"):
+  # add/subtract zijn elkaars exacte inverse over een aaneengesloten niet-werkblok van tien dagen, ook
+  # op solverniveau — en de ENIGE asymmetrie (`subtractP6XerProjectedWorkMinutes`) blijft brongebonden.
+  MIRRORCHECK="$DIR/.calendar-mirror-check.mjs"
+  if bundle_check "$DIR/check-calendar-mirror.ts" "$MIRRORCHECK"; then node "$MIRRORCHECK" || STATUS=1; fi
+
   # Adapter-uur-precisie-checks (fase 2.8b golf 4, §7 — IFC/P6/MSPDI uur-round-trip + dag-discriminator).
   ADCHECK="$DIR/.adapters-hours-check.mjs"
   if bundle_check "$DIR/check-adapters-hours.ts" "$ADCHECK"; then node "$ADCHECK" || STATUS=1; fi
@@ -275,6 +301,302 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MPPFIDCHECK="$DIR/.mpp-fidelity.mjs"
   if bundle_check "$DIR/check-mpp-fidelity.ts" "$MPPFIDCHECK"; then node "$MPPFIDCHECK" || STATUS=1; fi
 
+  # Formaat-agnostische fidelitykern: rijvorm, minuutclassificatie en delta-administratie die de
+  # MPP- en XER-meetlat delen zonder hun grondwaarheidparsers te koppelen.
+  FIDCORECHECK="$DIR/.fidelity-core.mjs"
+  if bundle_check "$DIR/check-fidelity-core.ts" "$FIDCORECHECK"; then node "$FIDCORECHECK" || STATUS=1; fi
+
+  # XER-veldlijsten-poort (X0, XER-etappeplan §4.1/§6): whitelist/verboden/genegeerd als getypeerde
+  # constanten (`check-xer-field-whitelist.ts`), getoetst tegen de union van alle TASK-%F-kolommen
+  # over `OPS_XER_CORPUS` — het "gatenkaas"-mechanisme: een corpuskolom die in géén van de drie
+  # bakken zit is ROOD. Corpus is publiek (§4.3): namen mogen in de uitvoer, geen hash-only-regime
+  # zoals bij OPS_MPP_CORPUS. Corpus-afwezig ⇒ nette OK-skip, zelfde conventie als hierboven — dit
+  # is dus GEEN CI-poort.
+  XERWHITELISTCHECK="$DIR/.xer-field-whitelist.mjs"
+  if bundle_check "$DIR/check-xer-field-whitelist.ts" "$XERWHITELISTCHECK"; then node "$XERWHITELISTCHECK" || STATUS=1; fi
+
+  # XER-fidelity-baselinevorm (X0, XER-etappeplan §3/§6): het harness-skelet — er is nog geen lezer
+  # (X1+), dus dit bewaakt alleen de VORM van `xer-fidelity-baseline.json` (`xerFidelityTypes.ts`)
+  # via een compile-locked sleutellijst + een runtime-structuurvalidator. Corpusloos, draait altijd.
+  XERBASELINESCHEMACHECK="$DIR/.xer-fidelity-baseline-schema.mjs"
+  if bundle_check "$DIR/check-xer-fidelity-baseline-schema.ts" "$XERBASELINESCHEMACHECK"; then node "$XERBASELINESCHEMACHECK" || STATUS=1; fi
+
+  # X12: corpusloze eindvangrail. Deze bewaakt de gereviewde openbare 93-entry-inventaris, de
+  # onafhankelijke 34-entry-orakelselectie, het task-replay-kruiscontract en de volledige v2-
+  # productkarakterisering op entry-/projectniveau. Hij importeert nooit reader/scanner/solver en
+  # draait daarom precies één keer vóór corpuschecks, niet in de tijdzonematrix. De v2-snapshot
+  # blijft expliciet een rode, ongeaccepteerde karakterisering; alleen een toekomstige echte
+  # nulbaseline mag de corpusloze CI-laag als eindnulcontract bewaken.
+  XERCORPUSLESSFIDELITYGATE="$DIR/.xer-corpusless-fidelity-gate.mjs"
+  if bundle_check "$DIR/check-xer-corpusless-fidelity-gate.ts" "$XERCORPUSLESSFIDELITYGATE"; then
+    node "$XERCORPUSLESSFIDELITYGATE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
+  # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
+  # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
+  XERFIDCHECK="$DIR/.xer-fidelity.mjs"
+  if bundle_check "$DIR/check-xer-fidelity.ts" "$XERFIDCHECK"; then node "$XERFIDCHECK" || STATUS=1; fi
+
+  # XER-formaatlaag (X2): corpusloze grammatica-/encoding-/CURRTYPE-fixtures. De productparser
+  # blijft bewust onafhankelijk van X1's xerGroundTruth/xerFidelity-orakelpad.
+  XERTABLESCHECK="$DIR/.xer-tables.mjs"
+  if bundle_check "$DIR/check-xer-tables.ts" "$XERTABLESCHECK"; then node "$XERTABLESCHECK" || STATUS=1; fi
+
+  # X3-kalenderdecoder: snelle grammatica-/semantiek-/TZ-fixtures, CALENDAR-hiërarchie,
+  # uren-per-periode, P6XML-pariteit en de XER-eigen uurmodusregel.
+  XERCALENDARCHECK="$DIR/.xer-calendar-data.mjs"
+  if bundle_check "$DIR/check-xer-calendar-data.ts" "$XERCALENDARCHECK"; then node "$XERCALENDARCHECK" || STATUS=1; fi
+
+  # X4a-project/taakmapping: corpusloze PROJECT/PROJWBS/TASK/TASKPRED-fixtures, enumterugval,
+  # constraints, WBS-samenvattingen en externe-relatie-isolatie.
+  XERREADERCHECK="$DIR/.xer-reader.mjs"
+  if bundle_check "$DIR/check-xer-reader.ts" "$XERREADERCHECK"; then node "$XERREADERCHECK" || STATUS=1; fi
+
+  # PROJECT-statusdatum: last_recalc_date blijft de exclusieve bestaande route; uitsluitend een
+  # data_date-only-%F-dialect mag de fail-closed fallback openen.
+  XERPROJECTDATACHECK="$DIR/.xer-project-data-date.mjs"
+  if bundle_check "$DIR/check-xer-project-data-date.ts" "$XERPROJECTDATACHECK"; then node "$XERPROJECTDATACHECK" || STATUS=1; fi
+
+  # X7: P6-actuals/voortgang, suspend/resume-firewall en projectspecifiek verwacht einde.
+  XERPROGRESSCHECK="$DIR/.xer-progress.mjs"
+  if bundle_check "$DIR/check-xer-progress.ts" "$XERPROGRESSCHECK"; then node "$XERPROGRESSCHECK" || STATUS=1; fi
+
+  # X7 reviewfix 2: percentages worden uitsluitend uit hun expliciete P6-familie gelezen;
+  # ontbrekend type houdt de legacy fysieke fallback zonder bronremaining te herschrijven.
+  XERPROGRESSFAMILIESCHECK="$DIR/.xer-progress-families.mjs"
+  if bundle_check "$DIR/check-xer-progress-families.ts" "$XERPROGRESSFAMILIESCHECK"; then node "$XERPROGRESSFAMILIESCHECK" || STATUS=1; fi
+
+  # X7 reviewfix 2: de P6 suspend/resume-route is een blijvende invariant door edit, IFC,
+  # recovery en solver heen; stale true mag na een los/omgekeerd paar niet herleven.
+  XERSUSPENDINVARIANTCHECK="$DIR/.xer-suspend-invariant.mjs"
+  if bundle_check "$DIR/check-xer-suspend-invariant.ts" "$XERSUSPENDINVARIANTCHECK"; then node "$XERSUSPENDINVARIANTCHECK" || STATUS=1; fi
+
+  # X7 smalle solverfix: een geldige P6 suspend/resume-complete taak mag de bestaande
+  # completed-windowroute gebruiken; alle andere vormen blijven fail-closed.
+  XERCOMPLETEDSUSPENDCHECK="$DIR/.xer-completed-suspend-resume-window.mjs"
+  if bundle_check "$DIR/check-xer-completed-suspend-resume-window.ts" "$XERCOMPLETEDSUSPENDCHECK"; then node "$XERCOMPLETEDSUSPENDCHECK" || STATUS=1; fi
+
+  # X7 CP_Phys-grens: brondata blijft behouden, maar zonder bron-alleen discriminator opent
+  # CP_Phys géén completed-windowroute; de fixture bewaakt de fail-closed- en inversegrens.
+  XERCOMPLETEDCPPHYSCHECK="$DIR/.xer-completed-cp-phys-window.mjs"
+  if bundle_check "$DIR/check-xer-completed-cp-phys-window.ts" "$XERCOMPLETEDCPPHYSCHECK"; then node "$XERCOMPLETEDCPPHYSCHECK" || STATUS=1; fi
+
+  # X7 smalle solverfix: uitsluitend de bewezen completed XER-LOE-vorm mag de hammock-forwardtak
+  # passeren en haar geregistreerde actualFinish als bestaande completed-route gebruiken.
+  XERCOMPLETEDLOECHECK="$DIR/.xer-completed-loe-actual-finish.mjs"
+  if bundle_check "$DIR/check-xer-completed-loe-actual-finish.ts" "$XERCOMPLETEDLOECHECK"; then node "$XERCOMPLETEDLOECHECK" || STATUS=1; fi
+
+  # X12-residu Ashspace: uitsluitend de bewezen open XER TT_LOE-span met SS-in- en FF-uittopologie
+  # mag het expliciete targetvenster gebruiken; de corpusloze mutatiematrix houdt alle andere vormen dicht.
+  XEROPENLOETARGETSPANCHECK="$DIR/.xer-open-loe-target-span.mjs"
+  if bundle_check "$DIR/check-xer-open-loe-target-span.ts" "$XEROPENLOETARGETSPANCHECK"; then node "$XEROPENLOETARGETSPANCHECK" || STATUS=1; fi
+
+  # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
+  XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
+  if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi
+
+  # X7: zelfstandig bronorakel voor P6 voortgang/suspend-resume, zonder productiereader.
+  XERPROGRESSCORPUSCHECK="$DIR/.xer-progress-corpus.mjs"
+  if bundle_check "$DIR/check-xer-progress-corpus.ts" "$XERPROGRESSCORPUSCHECK"; then
+    node "$XERPROGRESSCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  XERPROJECTINDEXCHECK="$DIR/.xer-project-index.mjs"
+  if bundle_check "$DIR/check-xer-project-index.ts" "$XERPROJECTINDEXCHECK"; then node "$XERPROJECTINDEXCHECK" || STATUS=1; fi
+
+  # X4b-multi-projectkern: documentselectie, aanwezige P6-baselines, volledige terugval bij
+  # zelfverwijzing/cycli, solverloze cross-projectlinks en geïsoleerde documentpayloads. De twee
+  # openbare acceptatiepins draaien uitsluitend wanneer OPS_XER_CORPUS beschikbaar is.
+  XERMULTIPROJECTCHECK="$DIR/.xer-multi-project.mjs"
+  if bundle_check "$DIR/check-xer-multi-project.ts" "$XERMULTIPROJECTCHECK"; then node "$XERMULTIPROJECTCHECK" || STATUS=1; fi
+
+  # X4b-wiring: de echte registry→fileSlice→documentroute opent één XER-bestand als losse,
+  # geïsoleerde documenten met clean save-/recoverytoestand en een deterministische actieve tab.
+  XEROPENWIRINGCHECK="$DIR/.xer-open-wiring.mjs"
+  if bundle_check "$DIR/check-xer-open-wiring.ts" "$XEROPENWIRINGCHECK"; then node "$XEROPENWIRINGCHECK" || STATUS=1; fi
+
+  # X5 SCHEDOPTIONS: pure mapping/defaults plus brongebonden solvervlaggen; de end-to-end-wiring
+  # bouwt voort op X4b's per-projectdocumenten zonder diens open-fan-out te omzeilen.
+  XERSCHEDOPTIONSCHECK="$DIR/.xer-schedule-options.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options.ts" "$XERSCHEDOPTIONSCHECK"; then node "$XERSCHEDOPTIONSCHECK" || STATUS=1; fi
+
+  # X5 seriële wiring: per-project-SCHEDOPTIONS door X4b's echte meerdocumentreader, inclusief
+  # defaults, bronmetadata, documentwissel/undo/recovery en de bestaande IFC-projectvelden.
+  XERSCHEDOPTIONSWIRINGCHECK="$DIR/.xer-schedule-options-wiring.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options-wiring.ts" "$XERSCHEDOPTIONSWIRINGCHECK"; then node "$XERSCHEDOPTIONSWIRINGCHECK" || STATUS=1; fi
+
+  # Pakket B: corpusloze SCHEDOPTIONS-provenance, PROJECT-afleiding en fail-closed mutaties.
+  XERSCHEDOPTIONSPROVENANCECHECK="$DIR/.xer-schedule-option-provenance.mjs"
+  if bundle_check "$DIR/check-xer-schedule-option-provenance.ts" "$XERSCHEDOPTIONSPROVENANCECHECK"; then
+    node "$XERSCHEDOPTIONSPROVENANCECHECK" || STATUS=1
+  fi
+
+  # X5 zware openbare corpuspin: 27-kolommenunion en de 36 actuele bestanden zonder SCHEDOPTIONS,
+  # per default/per as en tegen de onafhankelijke X1-meetlat. Eén keer draaien, niet per tijdzone.
+  XERSCHEDOPTIONSCORPUSCHECK="$DIR/.xer-schedule-options-corpus.mjs"
+  if bundle_check "$DIR/check-xer-schedule-options-corpus.ts" "$XERSCHEDOPTIONSCORPUSCHECK"; then
+    node "$XERSCHEDOPTIONSCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X4a-registercontract: .xer is lazy en binair, behoudt CP1252/UTF-16-BOM-bytes en wordt nooit
+  # een opslagdoel.
+  XERREGISTRYCHECK="$DIR/.xer-registry.mjs"
+  if bundle_check "$DIR/check-xer-registry.ts" "$XERREGISTRYCHECK"; then node "$XERREGISTRYCHECK" || STATUS=1; fi
+
+  XERCHUNKCHECK="$DIR/.xer-chunk-boundary.mjs"
+  if bundle_check "$DIR/check-xer-chunk-boundary.ts" "$XERCHUNKCHECK"; then node "$XERCHUNKCHECK" || STATUS=1; fi
+
+  XERARCHIVELIFECYCLECHECK="$DIR/.xer-source-archive-lifecycle.mjs"
+  if bundle_check "$DIR/check-xer-source-archive-lifecycle.ts" "$XERARCHIVELIFECYCLECHECK"; then node "$XERARCHIVELIFECYCLECHECK" || STATUS=1; fi
+
+  XERARCHIVEREADMODELCHECK="$DIR/.xer-archive-readmodel.mjs"
+  if bundle_check "$DIR/check-xer-archive-readmodel.ts" "$XERARCHIVEREADMODELCHECK"; then node "$XERARCHIVEREADMODELCHECK" || STATUS=1; fi
+
+  XERARCHIVECHAINCHECK="$DIR/.xer-source-archive-chain.mjs"
+  if bundle_check "$DIR/check-xer-source-archive-chain.ts" "$XERARCHIVECHAINCHECK"; then node "$XERARCHIVECHAINCHECK" || STATUS=1; fi
+
+  XERP6PRESENCECHECK="$DIR/.xer-p6-presence.mjs"
+  if bundle_check "$DIR/check-xer-p6-presence.ts" "$XERP6PRESENCECHECK"; then node "$XERP6PRESENCECHECK" || STATUS=1; fi
+
+  XERARCHIVESCALECHECK="$DIR/.xer-archive-scale.mjs"
+  if bundle_check "$DIR/check-xer-archive-scale.ts" "$XERARCHIVESCALECHECK"; then node "$XERARCHIVESCALECHECK" || STATUS=1; fi
+
+  XERP6XMLPARITYCHECK="$DIR/.xer-p6xml-parity.mjs"
+  if bundle_check "$DIR/check-xer-p6xml-parity.ts" "$XERP6XMLPARITYCHECK"; then node "$XERP6XMLPARITYCHECK" || STATUS=1; fi
+
+  XERX9VERDICTSCHECK="$DIR/.xer-x9-verdicts.mjs"
+  if bundle_check "$DIR/check-xer-x9-verdicts.ts" "$XERX9VERDICTSCHECK"; then node "$XERX9VERDICTSCHECK" || STATUS=1; fi
+
+  XEREXPORTLOSSCHECK="$DIR/.xer-export-loss.mjs"
+  if bundle_check "$DIR/check-xer-export-loss.ts" "$XEREXPORTLOSSCHECK"; then node "$XEREXPORTLOSSCHECK" || STATUS=1; fi
+
+  # X4a eerste echte productmeting: readXER + de gedeelde solveProject-keten tegen precies de twee
+  # onafhankelijke acht-taaks P6-orakels uit het brief.
+  XERPRODUCTFIDCHECK="$DIR/.xer-product-fidelity.mjs"
+  if bundle_check "$DIR/check-xer-product-fidelity.ts" "$XERPRODUCTFIDCHECK"; then node "$XERPRODUCTFIDCHECK" || STATUS=1; fi
+
+  # X12: de oude twee-pinmeting blijft tijdelijk als regressiedossier bestaan, maar deze adapter
+  # meet de echte productketen over iedere door X1 geselecteerde entry en elk geïmporteerd project.
+  X12PRODUCTFIDCHECK="$DIR/.xer-product-fidelity-x12.mjs"
+  if bundle_check "$DIR/check-xer-product-fidelity-x12.ts" "$X12PRODUCTFIDCHECK"; then
+    node "$X12PRODUCTFIDCHECK" || STATUS=1
+  fi
+
+  # XER task-level counterfactual replay: corpusloze I/R/U-, oracle-firewall- en identityfixtures;
+  # met OPS_XER_CORPUS daarnaast de canonieke X12-selectie entry/project-voor-entry/project.
+  XERTASKREPLAYCHECK="$DIR/.xer-task-replay.mjs"
+  if bundle_check "$DIR/check-xer-task-replay.ts" "$XERTASKREPLAYCHECK"; then
+    node "$XERTASKREPLAYCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # XER completed-backward/float-trace: corpusloze beslisbroninstrumentatie. Deze check
+  # leest geen oracle of classificatie en bewaakt uitsluitend de optionele CPMResult-trace.
+  XERBACKWARDFLOATTRACECHECK="$DIR/.xer-backward-float-trace.mjs"
+  if bundle_check "$DIR/check-xer-backward-float-trace.ts" "$XERBACKWARDFLOATTRACECHECK"; then
+    node "$XERBACKWARDFLOATTRACECHECK" || STATUS=1
+  fi
+
+  # X4a oorspronkelijke bytes: CP1252 + beide UTF-16-BOM-vormen door web, Tauri, recents en de
+  # dev-bridge; de MCP-route heeft dezelfde drie fixtures in tests/mcp/cases-doc-file.ts.
+  XERBYTEPATHCHECK="$DIR/.xer-byte-paths.mjs"
+  if bundle_check "$DIR/check-xer-byte-paths.ts" "$XERBYTEPATHCHECK"; then node "$XERBYTEPATHCHECK" || STATUS=1; fi
+
+  # X9 — exact bronarchief en de self-contained IFC-manifest/chunkcontainer.
+  XERSOURCEARCHIVECHECK="$DIR/.xer-source-archive.mjs"
+  if bundle_check "$DIR/check-xer-source-archive.ts" "$XERSOURCEARCHIVECHECK"; then node "$XERSOURCEARCHIVECHECK" || STATUS=1; fi
+
+  IFCXERARCHIVECHECK="$DIR/.ifc-xer-archive-container.mjs"
+  if bundle_check "$DIR/check-ifc-xer-archive-container.ts" "$IFCXERARCHIVECHECK"; then node "$IFCXERARCHIVECHECK" || STATUS=1; fi
+
+  # P0: corpusloze, onafhankelijke bronretentiepoort over import, edit/CPM, undo/redo,
+  # documentwissel/-kopie, recovery en IFC. De STEP-envelope wordt zonder product-reader gecheckt.
+  XERSOURCERETENTIONCHECK="$DIR/.xer-source-retention.mjs"
+  if bundle_check "$DIR/check-xer-source-retention.ts" "$XERSOURCERETENTIONCHECK"; then node "$XERSOURCERETENTIONCHECK" || STATUS=1; fi
+
+  # X9-compactopslag: schema-2 bewaart alleen de gehashte bronbytes; diagnostics/readmodel
+  # worden bij lezen opnieuw uit die zelfstandige bron afgeleid. Schema-1 blijft invoerbaar.
+  XERARCHIVECOMPACTCHECK="$DIR/.xer-archive-compact.mjs"
+  if bundle_check "$DIR/check-xer-archive-compact.ts" "$XERARCHIVECOMPACTCHECK"; then node "$XERARCHIVECOMPACTCHECK" || STATUS=1; fi
+
+  # X9 reviewfix 1: schema-2 XER-bronarchieven moeten in een nieuw Node-proces via de ENIGE
+  # officiële asynchrone IFC-ingang zelfstandig herleven; de lage sync-lezer moet veilig verwijzen.
+  XERARCHIVECOLDREADCHECK="$DIR/.xer-archive-cold-read.mjs"
+  if bundle_check "$DIR/check-xer-archive-cold-read.ts" "$XERARCHIVECOLDREADCHECK"; then node "$XERARCHIVECOLDREADCHECK" || STATUS=1; fi
+
+  # X9: drie verse corpusprocessen. maxRSS is de OS-gemeten piek van de hele IFC- of
+  # recoveryketen, niet een misleidende netto heapdelta.
+  XERARCHIVERECOVERYCORPUSCHECK="$DIR/.xer-archive-recovery-corpus.mjs"
+  if bundle_check "$DIR/check-xer-archive-recovery-corpus.ts" "$XERARCHIVERECOVERYCORPUSCHECK"; then
+    node "$XERARCHIVERECOVERYCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
+  # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.
+  XERRESOURCESCHECK="$DIR/.xer-resources.mjs"
+  if bundle_check "$DIR/check-xer-resources.ts" "$XERRESOURCESCHECK"; then
+    node "$XERRESOURCESCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X6: echte storeduplicatie met een rehab-grote retained catalogus. Ook deze check is datumvrij.
+  XERRESOURCEDUPLICATECHECK="$DIR/.xer-resource-duplicate.mjs"
+  if bundle_check "$DIR/check-xer-resource-duplicate.ts" "$XERRESOURCEDUPLICATECHECK"; then
+    node "$XERRESOURCEDUPLICATECHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X8: metadata wordt éénmaal file-wide gemapt; de wiringfixture bewaakt projectisolatie,
+  # FT_STATICTYPE, DEL-DEL en de verplichte TASKACTV-mutatietelling.
+  XERMETADATAWIRINGCHECK="$DIR/.xer-metadata-wiring.mjs"
+  if bundle_check "$DIR/check-xer-metadata-wiring.ts" "$XERMETADATAWIRINGCHECK"; then node "$XERMETADATAWIRINGCHECK" || STATUS=1; fi
+
+  XERMETADATAINDEXCHECK="$DIR/.xer-metadata-index.mjs"
+  if bundle_check "$DIR/check-xer-metadata-index.ts" "$XERMETADATAINDEXCHECK"; then node "$XERMETADATAINDEXCHECK" || STATUS=1; fi
+
+  XERMETADATAREVIEWCHECK="$DIR/.xer-metadata-review.mjs"
+  if bundle_check "$DIR/check-xer-metadata-review.ts" "$XERMETADATAREVIEWCHECK"; then node "$XERMETADATAREVIEWCHECK" || STATUS=1; fi
+
+  # X8: onafhankelijke ruwe tellingen plus de twee zware openbare performanceprofielen.
+  XERMETADATACORPUSCHECK="$DIR/.xer-metadata-corpus.mjs"
+  if bundle_check "$DIR/check-xer-metadata-corpus.ts" "$XERMETADATACORPUSCHECK"; then
+    node "$XERMETADATACORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X6: onafhankelijke, hashgepinde corpusmeting. Deze draait eenmaal met expliciete GC, zodat
+  # parser- en kernheapdelta's vergelijkbaar blijven en nooit in de tijdzonematrix vallen.
+  XERRESOURCECORPUSCHECK="$DIR/.xer-resource-corpus.mjs"
+  if bundle_check "$DIR/check-xer-resource-corpus.ts" "$XERRESOURCECORPUSCHECK"; then
+    node --expose-gc "$XERRESOURCECORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X3-openbare corpuspin: de echte productie-ingang zonder rijvoorfilter, vier concrete
+  # herstel-/weigerhashes, basegraafpin en de statische 124-kalenderdigest. Deze zware scan draait
+  # bewust één keer en wordt daarom na het bundelen uit de tijdzonematrix verwijderd.
+  XERCALENDARCORPUSCHECK="$DIR/.xer-calendar-corpus.mjs"
+  if bundle_check "$DIR/check-xer-calendar-corpus.ts" "$XERCALENDARCORPUSCHECK"; then
+    node "$XERCALENDARCORPUSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # X2-corpuspoort: alle kedular-parserfixtures en publieke p6xer-robuustheidsgevallen zijn op
+  # concrete rapportinhoud of typed foutcode gepind. Zonder corpus een expliciete groene skip.
+  XERCORPUSCHECK="$DIR/.xer-corpus.mjs"
+  if bundle_check "$DIR/check-xer-corpus.ts" "$XERCORPUSCHECK"; then node "$XERCORPUSCHECK" || STATUS=1; fi
+
+  # P6 23.12-capture: uitsluitend de ruwe *_p6-kolommen met tijden; enginekolommen en de
+  # genormaliseerde PASS-oordelen zijn expliciet geen meetlat. Met OPS_P6_COMPARISON wordt ook de
+  # generator byte-identiek tegen de publieke bron gedraaid.
+  P6VERIFIEDCHECK="$DIR/.p6-verified-cases.mjs"
+  if bundle_check "$DIR/check-p6-verified-cases.ts" "$P6VERIFIEDCHECK"; then node "$P6VERIFIEDCHECK" || STATUS=1; fi
+
   # Opslagdoel-guard voor binaire bronformaten (fase 3.8 e1, T8-stap 5a): `fileSlice.openFile`
   # via de echte `<input type=file>`-terugval — .mpp krijgt GEEN opslagdoel, .ifc (contrast) wel.
   # Corpusdeel volgt dezelfde skip-OK-conventie als hierboven.
@@ -298,6 +620,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
   if bundle_check "$DIR/check-contour-engine.ts" "$CECHECK"; then node "$CECHECK" || STATUS=1; fi
+  # Taaktypes-etappe, bouwstap 3 (ontwerp 2026-09-04 §9/§10): de pure werkdriehoek + de meetlat.
+  WTCHECK="$DIR/.check-work-triangle.mjs"
+  if bundle_check "$DIR/check-work-triangle.ts" "$WTCHECK"; then node "$WTCHECK" || STATUS=1; fi
+  # Taaktypes-etappe, bouwstap 2: werkregel-/werkveldvertaling (MSPDI, P6 XML, XER) beide kanten.
+  WRMCHECK="$DIR/.check-work-rule-mapping.mjs"
+  if bundle_check "$DIR/check-work-rule-mapping.ts" "$WRMCHECK"; then node "$WRMCHECK" || STATUS=1; fi
 
   # Geavanceerde-CPM golf-0-checks (fase 2.9 — datamodel + plumbing default-inert, los van de CPM-cases).
   ACPMCHECK="$DIR/.advanced-cpm-check.mjs"
@@ -448,6 +776,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-external-link-dialog.ts" "$EXTLDIALOGCHECK"; then node "$EXTLDIALOGCHECK" || STATUS=1; fi
   GANTTWORKSPACECHECK="$DIR/.gantt-workspace.mjs"
   if bundle_check "$DIR/check-gantt-workspace.ts" "$GANTTWORKSPACECHECK"; then node "$GANTTWORKSPACECHECK" || STATUS=1; fi
+
+  # X11: documenttabstrip is ook bij 12+ open projecten volledig bereikbaar. De pure
+  # toetsenbord-/zichtbaarheidskern voorkomt dat tab 10–12 buiten Ctrl/Cmd-1..9 een dead-end
+  # worden; de browserproef controleert daarnaast de echte DOM en scrollcontainer.
+  DTNCHECK="$DIR/.document-tab-navigation.mjs"
+  if bundle_check "$DIR/check-document-tab-navigation.ts" "$DTNCHECK"; then node "$DTNCHECK" || STATUS=1; fi
 
   # Gantt-cull-regressie: de speling-band mag niet verdwijnen zolang hij zichtbaar is. De cull in
   # drawTaskBar keek alleen naar de BALK-extent, terwijl de band ná de balk doorloopt — een band die
@@ -898,6 +1232,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECCHECK="$DIR/.recovery-integrity.mjs"
   if bundle_check "$DIR/check-recovery-integrity.ts" "$RECCHECK"; then node "$RECCHECK" || STATUS=1; fi
 
+  # X9 recoverydelta: inhoud volgt uitsluitend IFCSaveSource/sameIFCSource. Eén wijziging geeft
+  # één upsert; actieve-tab-, pad- en dirtymetadata schrijven alleen het manifest.
+  RECDELTACHECK="$DIR/.recovery-delta.mjs"
+  if bundle_check "$DIR/check-recovery-delta.ts" "$RECDELTACHECK"; then node "$RECDELTACHECK" || STATUS=1; fi
+
+  # X9 recovery-opslaggrens: één van twaalf gewijzigde documenten geeft één doc-upsert plus één
+  # manifest-put in exact één IndexedDB-readwrite-transactie; actieve-tabwissel is metadata-only.
+  RECWRITEAMPCHECK="$DIR/.recovery-write-amplification.mjs"
+  if bundle_check "$DIR/measure-xer-recovery-write-amplification.ts" "$RECWRITEAMPCHECK"; then node "$RECWRITEAMPCHECK" || STATUS=1; fi
+
   # S2: werkelijk automatisch opslaan is nadrukkelijk geen crashherstel. De controller bewaakt
   # het bestaande schrijfdoel, single-flight, nieuwste-run en de dirty-race zonder browser/Tauri-I/O.
   AACHECK="$DIR/.actual-autosave.mjs"
@@ -920,6 +1264,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # in het documentcontract, dan verdwijnt een opslaanfout bij een tabwissel of een Ctrl+Z.
   NOTIFCHECK="$DIR/.notifications.mjs"
   if bundle_check "$DIR/check-notifications.ts" "$NOTIFCHECK"; then node "$NOTIFCHECK" || STATUS=1; fi
+
+  # X9 reviewfix 2: res.json van de Tauri-dev-poller mag geen onopgeloste Promise als `{}`
+  # serialiseren wanneer de round-tripopdracht async werkt.
+  DEVBRIDGEPOLLERCHECK="$DIR/.dev-bridge-poller.mjs"
+  if bundle_check "$DIR/check-dev-bridge-poller.ts" "$DEVBRIDGEPOLLERCHECK"; then node "$DEVBRIDGEPOLLERCHECK" || STATUS=1; fi
 
   # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.

@@ -69,6 +69,17 @@ export const TASK_FIELD_COVERAGE = {
   manuallyScheduled: field('technical', 'task.manuallyScheduled'),
   mspTaskType: field('technical', 'task.mspTaskType'),
   effortDriven: field('technical', 'task.effortDriven'),
+  workRule: field('technical', 'task.workRule'),
+  // XER/Primavera-herkomst: acht bronvelden, één gebundelde technische kolom (zie registry).
+  p6DurationType: field('technical', 'task.p6Provenance'),
+  p6ActivityType: field('technical', 'task.p6Provenance'),
+  p6ProjectId: field('technical', 'task.p6Provenance'),
+  p6TaskId: field('technical', 'task.p6Provenance'),
+  p6ExplicitTargetWindow: field('technical', 'task.p6Provenance'),
+  p6CompletePctType: field('technical', 'task.p6Provenance'),
+  p6ExpectedFinish: field('technical', 'task.p6Provenance'),
+  p6SuspendResume: field('technical', 'task.p6Provenance'),
+  isSummary: field('technical', 'task.isSummary'),
   parentId: field('technical', 'task.parentId'),
   childIds: field('technical', 'task.childIds'),
   time: field('composite', ...TASK_TIME_COLUMNS),
@@ -127,6 +138,8 @@ export const SEQUENCE_FIELD_COVERAGE = {
   lagMinutes: field('composite', 'relation.predecessors', 'relation.successors'),
   lagUnit: field('composite', 'relation.predecessors', 'relation.successors'),
   lagPercent: field('composite', 'relation.predecessors', 'relation.successors'),
+  // P6-grensregel op de relatie zelf: rijdt mee in dezelfde relatiekolommen.
+  p6StartAtPredecessorFinishBoundary: field('composite', 'relation.predecessors', 'relation.successors'),
 } satisfies Record<keyof Sequence, FieldCoverage>;
 
 export const EXTERNAL_LINK_FIELD_COVERAGE = {
@@ -149,6 +162,10 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   workWindowStart: field('technical', 'assignment.workWindowStart'),
   workWindowFinish: field('technical', 'assignment.workWindowFinish'),
   curveValues: field('technical', 'assignment.curve'),
+  // taaktypes-etappe (spec §4.3): alleen-lezen technische kolommen tot de bedradingsstap ze bewerkbaar maakt
+  plannedWorkMinutes: field('technical', 'assignment.plannedWork'),
+  actualWorkMinutes: field('technical', 'assignment.actualWork'),
+  remainingWorkMinutes: field('technical', 'assignment.remainingWork'),
 } satisfies Record<keyof ResourceAssignment, FieldCoverage>;
 
 export const BASELINE_TASK_FIELD_COVERAGE = {
@@ -158,6 +175,9 @@ export const BASELINE_TASK_FIELD_COVERAGE = {
   duration: dynamic('direct', 'baseline'),
   isMilestone: dynamic('technical', 'baseline'),
   milestoneKind: dynamic('technical', 'baseline'),
+  // XER-baselineherkomst: geen eigen vaste kolom, maar per baseline dynamisch net als de rest.
+  sourceTaskId: dynamic('technical', 'baseline'),
+  sourceTaskCode: dynamic('technical', 'baseline'),
 } satisfies Record<keyof BaselineTask, FieldCoverage>;
 
 export const SPLIT_GAP_FIELD_COVERAGE = {

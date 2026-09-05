@@ -69,4 +69,17 @@ export interface ResourceAssignment {
   workWindowStart?: string;
   /** OPTIONEEL — zie `workWindowStart`. Afwezig ⇒ geen venster (byte-identiek). */
   workWindowFinish?: string;
+  /** OPTIONEEL (taaktypes-etappe, spec §4.3) — BEGROOT werk in werkminuten (MSP Work, P6 Planned
+   *  Units, XER target_qty). Referentie; wordt door de werkdriehoek nooit herschreven. Afwezig ⇒
+   *  afgeleid als verricht + resterend. Round-tript in het `OPS_Timephased`-JSON-blob. */
+  plannedWorkMinutes?: number;
+  /** OPTIONEEL (spec §4.3) — VERRICHT werk in werkminuten (MSP Actual Work, P6 Actual Units, XER
+   *  act_reg_qty + act_ot_qty). Een feit: geen planningsbewerking raakt het. Afwezig ⇒ de som van
+   *  de `actual`-periodes van de contour, anders 0. */
+  actualWorkMinutes?: number;
+  /** OPTIONEEL (spec §4.3) — RESTEREND werk in werkminuten (MSP Remaining Work, P6 Remaining
+   *  Units, XER remain_qty). Het getal waar de werkdriehoek op werkt. Afwezig ⇒ afgeleid als
+   *  restduur × `unitsPerDay` (het gedrag van vandaag, byte-identiek); een werkbeschermende regel
+   *  legt het vast zodra ze het nodig heeft (`workTriangle.ts`). */
+  remainingWorkMinutes?: number;
 }

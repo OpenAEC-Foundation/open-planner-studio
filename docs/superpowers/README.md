@@ -67,6 +67,7 @@ Wél verplaatst, omdat ze nergens meer bij horen:
 | document | status |
 |---|---|
 | `HANDOFF-2026-08-14-roadmap.md` | **actief** — wat er nog op de roadmap staat, met peildatum en afhankelijkheden |
+| `specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` | **actief ontwerp, bouwstap 3 gebouwd** — taaktypes/werkregels, opgeslagen werk per toewijzing en effort-driven bewerken; opvolger van `specs/2026-08-18-spec-taaktypes-effort-driven.md`. Bevat de MSP/P6-documentatievergelijking, de regeltabel, de meetlat (31 bewerkingen) en alle eigenaarsbesluiten (1–10, genomen). De pure rekenkern (`src/engine/work/workTriangle.ts`) staat; de overige stappen bouwen pas ná de tweede XER-merge. |
 | `werkdagen-as-ontwerp.md` | naslag; aangehaald vanuit `timeAxis.ts`, `workdayAxis.ts` en `check-workday-axis.ts` |
 | `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | naslag; twee varianten van hetzelfde ontwerp |
 | `modulariteit-audit.md`, `prestatie-modulariteit-audit.md` | de audits waar de P-bevindingen uit komen; aangehaald vanuit testkoppen |

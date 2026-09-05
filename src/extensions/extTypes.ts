@@ -40,6 +40,8 @@ export interface ExtProject {
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
   /** Projectstandaard voor handmatig aangemaakte taken. Oudere extensies mogen dit weglaten. */
   defaultTaskDurationUnit?: 'days' | 'hours';
+  /** Taaktypes-etappe (spec §4.1): projectstandaard-werkregel; afwezig ⇒ FIXED_DURATION_RATE. */
+  defaultWorkRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
   /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
 }
@@ -102,6 +104,11 @@ export interface ExtCalendar {
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
   /** Dag-uitzonderingen die een dag WERKEND maken (fase 3.8, T2/T13). Afwezig ⇒ geen. */
   workingExceptions?: ExtWorkingException[];
+  /** Alleen-lezen P6/XER-herkomststempel. `toExtCalendar` toont hem voor analyse;
+   *  `fromExtCalendar` accepteert hem nooit als generieke solverinvoer. */
+  p6Source?: 'XER';
+  /** Alleen-lezen P6/XER-vrije-dagprojecties. Een extensie-import kan ze niet activeren. */
+  p6NonWorkPenaltyDates?: string[];
 }
 
 // ── Taak ──
@@ -215,6 +222,25 @@ export interface ExtTask {
   mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
   /** Z14b — MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. */
   effortDriven?: boolean;
+  /** Taaktypes-etappe (ontwerp 2026-09-04 §4.1) — de neutrale werkregel van de taak (welke hoeken van
+   *  werk = duur × inzet beschermd zijn bij een bewerking). Volledige-round-trip-veld zoals
+   *  `mspTaskType`; zetbaar via de bridge volgt in de bedradingsstap. */
+  workRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
+  /** X0/X12 — P6's eigen Duration Type bij .xer-import. Uitsluitend read-model voor extensies:
+   *  `toExtTask` toont het, maar geen enkel generiek from-extensionpad mag het terugschrijven. */
+  p6DurationType?: 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
+  /** X0/X12 — P6's eigen Activity Type bij .xer-import. Zelfde read-onlygrens als `p6DurationType`. */
+  p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
+  p6ProjectId?: string;
+  p6TaskId?: string;
+  /** Read-only XER-provenance: de bron-TASK droeg een expliciet target start-/finishvenster. */
+  p6ExplicitTargetWindow?: boolean;
+  p6CompletePctType?: 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
+  p6ExpectedFinish?: string;
+  /** X0/X12 — read-only herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
+   *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Alleen native
+   *  XER-/IFC-paden zetten haar intern. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */
+  p6SuspendResume?: boolean;
   /** Z14b (eigenaarsprincipe 2026-08-18) — rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER
    *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
    *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').
@@ -233,6 +259,10 @@ export interface ExtTask {
   parentId: string | null;
   /** WBS-kinderen. */
   childIds: string[];
+  /** Expliciete samenvattingsidentiteit voor een lege WBS. `true` maakt ook zonder kinderen een
+   *  summary; `false` verwijdert alleen die expliciete marker (taken mét kinderen blijven summary).
+   *  Afwezig bij create/update laat de bestaande waarde en child-afleiding ongemoeid. */
+  isSummary?: boolean;
   time: ExtTaskTime;
   resourceIds: string[];
   color?: string;
@@ -266,6 +296,9 @@ export interface ExtSequence {
   lagUnit?: 'WORKTIME' | 'ELAPSEDTIME';
   /** Procentuele lag (% van voorgangerduur). Sluit lagDays uit. */
   lagPercent?: number;
+  /** P6/XER-nul-lag-FS behoudt een expliciete voorganger-finishgrens als startrepresentatie.
+   *  Leesmetadata: gewone extensies mogen dit niet via import of mutatie activeren. */
+  readonly p6StartAtPredecessorFinishBoundary?: boolean;
 }
 
 // ── Resource ──
@@ -307,6 +340,12 @@ export interface ExtAssignment {
   workWindowFinish?: string;
   /** Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI), zie `ResourceAssignment.curveValues`. */
   curveValues?: number[];
+  /** Taaktypes-etappe (spec §4.3): begroot werk in werkminuten; afwezig ⇒ afgeleid. */
+  plannedWorkMinutes?: number;
+  /** Taaktypes-etappe (spec §4.3): verricht werk in werkminuten; afwezig ⇒ afgeleid. */
+  actualWorkMinutes?: number;
+  /** Taaktypes-etappe (spec §4.3): resterend werk in werkminuten; afwezig ⇒ restduur × inzet. */
+  remainingWorkMinutes?: number;
 }
 
 // ── UI-contract: ribbontabbladen ──
@@ -352,6 +391,180 @@ export interface ExtFontProvider {
 }
 
 // ── Importresultaat ──
+
+/** Maximaal aantal records dat één broncataloguspagina teruggeeft. */
+export const EXT_IMPORT_SOURCE_PAGE_SIZE_MAX = 500;
+
+export type ExtImportSourceCollection =
+  | 'scheduleOptionsSourceRows'
+  | 'resourceCatalogResources'
+  | 'resourceCatalogIdentities'
+  | 'resourceCatalogResourceRows'
+  | 'resourceCatalogRoleRows'
+  | 'resourceCatalogRateRows'
+  | 'resourceCatalogCurveRows'
+  | 'resourceCatalogAssignmentRows'
+  | 'resourceCatalogIssues'
+  | 'metadataActivityCodeTypes'
+  | 'metadataCustomFieldDefs'
+  | 'metadataTaskProjections'
+  | 'metadataIssues'
+  | 'metadataSourceActvtypeRows'
+  | 'metadataSourceActvcodeRows'
+  | 'metadataSourceTaskactvRows'
+  | 'metadataSourceUdfTypeRows'
+  | 'metadataSourceUdfValueRows'
+  | 'metadataSourceMemotypeRows'
+  | 'metadataSourceTasknoteRows'
+  | 'metadataSourceTaskmemoRows'
+  | 'metadataSourceTaskNotesRows'
+  | 'metadataSourceDeferredUdfValueRows'
+  | 'metadataSourceUnknownUdfTypeRows'
+  | 'taskSourceRows';
+
+/** Een record in een broncataloguspagina. De vorm is collection-specifiek en blijft een publieke
+ *  DTO: er zit geen intern store-object of class-instance achter. */
+export type ExtImportSourceRecord = Readonly<Record<string, unknown>>;
+
+export interface ExtImportSourcePageOptions {
+  /** Nulgebaseerde positie; default 0. */
+  offset?: number;
+  /** Aantal records; default 100, maximum `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX`. */
+  limit?: number;
+  /**
+   * Fail-closed documentdriftbewaking (her-review 2, P2): geef het `sourceProjectId` mee dat je
+   * van een eerdere `getImportSourceInfo()`/`getImportSourceCatalogPage()`-aanroep kreeg. Wijkt de
+   * bronselector van het ACTIEVE document af — bijvoorbeeld omdat de gebruiker tussen twee
+   * paginaverzoeken met `switchDocument` gewisseld is — dan gooit de aanroep een
+   * `ExtImportSourceDriftError` in plaats van stil een lege of verkeerde pagina terug te geven.
+   * Zonder deze optie is er GEEN driftbewaking: elke aanroep leest gewoon het actieve document,
+   * en een pagineersessie die "klaar" lijkt (een lege pagina) kan in werkelijkheid halverwege naar
+   * een ander project zijn gewisseld.
+   */
+  expectedSourceProjectId?: string;
+}
+
+export interface ExtImportSourceCatalogPage {
+  collection: ExtImportSourceCollection;
+  sourceProjectId: string;
+  offset: number;
+  limit: number;
+  total: number;
+  items: readonly ExtImportSourceRecord[];
+}
+
+export interface ExtImportSourceArchiveSummary {
+  schemaVersion: number;
+  byteLength: number;
+  sha256: string;
+  encoding: 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+  bom: 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';
+  newline: 'crlf' | 'lf' | 'cr' | 'mixed' | 'none';
+  chunkSize: number;
+  chunkCount: number;
+}
+
+export interface ExtImportSourceNumberFormat {
+  decimal: '.' | ',';
+  group: '.' | ',' | null;
+  source: 'currtype' | 'default';
+  currencyCode: string;
+}
+
+export interface ExtImportSourceReport {
+  projectsSeen: number;
+  documentsOpened: number;
+  emptyProjectsSkipped: number;
+  baselineProjectsExcluded: number;
+  baselinesMaterialized: number;
+  danglingBaselineReferences: number;
+  externalLinksPreserved: number;
+  baselineExclusionReverted: boolean;
+  baselineFallbackReasons: readonly ('self-reference' | 'cycle' | 'all-projects-baselines')[];
+}
+
+export interface ExtImportSourceDiagnosticsSummary {
+  file: {
+    tableReport: {
+      encoding: ExtImportSourceArchiveSummary['encoding'];
+      endMarkerSeen: boolean;
+      issueCount: number;
+      unknownTableCount: number;
+      unknownFieldCount: number;
+    };
+    scheduleOptionsDiagnosticCount: number;
+    relationResolutionIssueCount: number;
+    resourceCatalogIssueCount: number;
+    metadataCatalogIssueCount: number;
+  };
+  document: {
+    calendarIssueCount: number;
+    enumFallbackCount: number;
+    scheduleOptionsFallbackCount: number;
+    scheduleOptionsDiagnosticCount: number;
+    externalRelationCount: number;
+    externalLinkCount: number;
+    resourceAssignmentCount: number;
+    resourceIssueCount: number;
+  };
+}
+
+export interface ExtImportSourceScheduleOptionsSummary {
+  source: 'schedoptions' | 'xer-defaults';
+  retainedSource: Readonly<Record<string, boolean | undefined>>;
+  fallbackCount: number;
+  diagnosticCount: number;
+  sourceRowCount: number;
+  unmatchedSourceRowCount: number;
+}
+
+export interface ExtImportSourceCatalogCounts {
+  scheduleOptions: {
+    sourceRows: number;
+    unmatchedRows: number;
+    diagnostics: number;
+  };
+  resources: {
+    resources: number;
+    identities: number;
+    rows: {
+      resources: number;
+      roles: number;
+      rates: number;
+      curves: number;
+      assignments: number;
+    };
+    issues: number;
+  };
+  metadata: {
+    activityCodeTypes: number;
+    customFieldDefs: number;
+    taskProjections: number;
+    currentProjectTaskProjections: number;
+    issues: number;
+    issueCounts: Readonly<Record<string, number>>;
+    sourceData: Readonly<Record<string, number>>;
+  };
+  taskSourceRows: {
+    projectCount: number;
+    totalRows: number;
+    currentProjectRows: number;
+  };
+}
+
+/** Read-only XER-bronroute. Samenvatting en cataloguspagina's zijn verse DTO-kopieën; voor exact
+ * herstel gebruikt een extensie `getImportSourceChunk` met de digest uit `archive`. */
+export interface ExtImportSourceInfo {
+  sourceFormat: 'primavera-p6-xer';
+  sourceProjectId: string;
+  selector: { kind: 'sourceProjectId'; value: string };
+  archive: ExtImportSourceArchiveSummary;
+  numberFormat: ExtImportSourceNumberFormat;
+  diagnostics: ExtImportSourceDiagnosticsSummary;
+  importReport: ExtImportSourceReport;
+  scheduleOptions: ExtImportSourceScheduleOptionsSummary;
+  catalogs: ExtImportSourceCatalogCounts;
+}
 
 /**
  * Ext-facing importresultaat — wat een importer-handler oplevert en wat `api.data.loadProject`
