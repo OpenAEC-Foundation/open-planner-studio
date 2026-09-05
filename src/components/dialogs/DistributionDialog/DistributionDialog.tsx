@@ -6,10 +6,10 @@
 // gewoon zichtbaar ONDER de dialoog — de verdeling is een handeling óp dat overzicht, geen
 // vervanging ervan.
 //
-// WAT HIER (NOG) NIET STAAT. Taak 9 vervangt de minimale strook-regels door de echte fasestroken met
-// sleepbare plafondhandles, en vult het voor/na-histogram. Taak 12 bedraadt "Toepassen" op
-// `applyDistribution`. Tot dan staat de knop er wél, maar uitgeschakeld MET REDEN — een knop die er
-// niet is laat de gebruiker raden of de functie bestaat.
+// WAT HIER (NOG) NIET STAAT. Taak 10 maakt de plafondhandle van de fasestroken sleepbaar met de
+// pointer (het toetsenbord is er al, zie `PhaseStrip`); taak 11 vult het voor/na-histogram. Taak 12
+// bedraadt "Toepassen" op `applyDistribution`. Tot dan staat de knop er wél, maar uitgeschakeld MET
+// REDEN — een knop die er niet is laat de gebruiker raden of de functie bestaat.
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
@@ -17,7 +17,12 @@ import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { DISTRIBUTION_BLOCK_KEY } from '@/utils/levelingReasonKey';
 import { planDistributionWrites } from '@/services/library/applyDistribution';
+import { computeLibraryOccupancy } from '@/services/library/occupancy';
+import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
+import { buildOccupancyAxis, expandDays } from '@/components/panels/occupancyAxis';
+import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { documentFloatOn, useDistributionProposal } from './useDistributionProposal';
+import { PhaseStrip } from './PhaseStrip';
 
 export function DistributionDialog() {
   const { t, i18n } = useTranslation('common');
@@ -64,6 +69,78 @@ export function DistributionDialog() {
     if (!tune) return;
     setUI({ levelingDistribution: { ...tune, allowSplits: !tune.allowSplits } });
   };
+
+  const setPinned = (docId: string, value: boolean) => {
+    if (!tune) return;
+    setUI({ levelingDistribution: { ...tune, pinned: { ...tune.pinned, [docId]: value } } });
+  };
+  const setCeiling = (docId: string, value: number | null) => {
+    if (!tune) return;
+    setUI({ levelingDistribution: { ...tune, ceilings: { ...tune.ceilings, [docId]: value } } });
+  };
+
+  // De BOEKING per document per dag (§6, de gevulde blokken van een fasestrook). Die komt uit
+  // dezelfde kern als het bezettingsoverzicht — `computeDistribution` draait `computeLibraryOccupancy`
+  // intern al, maar geeft de per-document-dagcijfers niet terug, en een tweede, met de hand
+  // geschreven dagverdeling in de UI zou stilzwijgend van die ene bron kunnen afwijken. Daarom
+  // nogmaals dezelfde pure functie op dezelfde `inputs`: de deps zijn bewust NIET `tune` (die tikt
+  // bij elke pin- en plafondwijziging), maar het ONDERWERP plus de invoer van het huidige voorstel.
+  const companyId = tune?.companyId ?? null;
+  const libraryItemId = tune?.libraryItemId ?? null;
+  const bookingByDoc = useMemo(() => {
+    const empty = new Map<string, Record<string, number>>();
+    if (companyId === null || libraryItemId === null || inputs.length === 0) return empty;
+    const pool = pools[companyId];
+    if (!pool) return empty;
+    const row = computeLibraryOccupancy(companyId, pool, inputs).rows
+      .find(r => r.libraryItemId === libraryItemId);
+    if (!row) return empty;
+    return new Map(row.docs.map(doc => [doc.docId, doc.dailyLoad]));
+  }, [companyId, libraryItemId, pools, inputs]);
+
+  // De GEDEELDE tijdas van alle stroken plus de verticale schaal. De as loopt door tot voorbij de
+  // laatste geboekte dag, zodat een gestippelde staart (toegestaan-maar-niet-benut) er nog binnen
+  // past; werkdagen worden daarbij als kolommen van één dagbreedte getekend.
+  const stripView = useMemo(() => {
+    if (!tune || !proposal || proposal.blocked || !poolItem) return null;
+    const rankIndex = new Map(rankRows.map((row, index) => [row.docId, index]));
+    const docs = [...proposal.docs].sort((a, b) =>
+      (rankIndex.get(a.docId) ?? rankRows.length) - (rankIndex.get(b.docId) ?? rankRows.length));
+
+    const days = new Set<string>(Object.keys(proposal.fixedLoadByDay));
+    for (const doc of docs) for (const iso of Object.keys(bookingByDoc.get(doc.docId) ?? {})) days.add(iso);
+    if (days.size === 0) return { axis: null, docs, scaleMax: 1 };
+
+    const outlook = docs.reduce(
+      (n, doc) => Math.max(n, doc.endShiftWorkdays, tune.ceilings[doc.docId] ?? 0), 0);
+    if (outlook > 0) {
+      const last = [...days].sort()[days.size - 1];
+      // Werkdagen → kalenderdagen (5/7) plus een marge, en hoe dan ook begrensd: de staart mag de
+      // as verbreden, niet laten ontsporen.
+      const extra = Math.min(90, Math.ceil(outlook * 7 / 5) + 2);
+      for (const iso of expandDays(
+        formatDate(addCalendarDays(parseDate(last), 1)),
+        formatDate(addCalendarDays(parseDate(last), extra)),
+      )) days.add(iso);
+    }
+
+    const axis = buildOccupancyAxis([...days], { targetWidth: 560 });
+    let scaleMax = 1;
+    if (axis) {
+      for (const segment of axis.segments) {
+        for (const iso of segment.days) {
+          const capacity = maxUnitsOn(poolItem, iso);
+          if (capacity > scaleMax) scaleMax = capacity;
+          const fixed = proposal.fixedLoadByDay[iso] ?? 0;
+          for (const doc of docs) {
+            const stacked = fixed + (bookingByDoc.get(doc.docId)?.[iso] ?? 0);
+            if (stacked > scaleMax) scaleMax = stacked;
+          }
+        }
+      }
+    }
+    return { axis, docs, scaleMax };
+  }, [tune, proposal, poolItem, rankRows, bookingByDoc]);
 
   // Waarom Toepassen (nog) uit staat. De eerste drie redenen zijn ECHT en blijven na taak 12
   // bestaan; de vierde is de tijdelijke: het schrijfpad is er (taak 6) maar wordt pas in taak 12
@@ -203,33 +280,39 @@ export function DistributionDialog() {
               </div>
             </section>
 
-            {/* (5) Fasestroken — taak 9 vult ze; hier alleen de regel per document met het effect. */}
+            {/* (5) Fasestroken (§6). Eén rij per document, in RANGORDE — dezelfde volgorde als de
+                lijst hierboven, zodat een pin of plafond de stroken niet onder de muis vandaan
+                herschikt. De legenda benoemt de achtergrondband; de blokken zijn de eigen boeking. */}
             <section className="flex flex-col gap-1" data-ops-distribution-strips>
-              {(proposal?.docs ?? []).map(doc => (
-                <div
-                  key={doc.docId}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-[8px] border border-border-light"
-                  data-ops-distribution-strip
-                  data-ops-doc-id={doc.docId}
-                >
-                  <span className="truncate font-medium flex-1 min-w-0">{doc.title}</span>
-                  {!doc.participated && (
-                    <span className="text-text-secondary">
-                      {doc.pinnedReason === 'dates-as-recorded'
-                        ? t('resource.distribution.strip.pinnedRecorded')
-                        : t('resource.distribution.strip.pinned')}
-                    </span>
-                  )}
-                  {doc.cannotMove && (
-                    <span className="text-text-secondary">{t('resource.distribution.strip.cannotMove')}</span>
-                  )}
-                  <span className="tabular-nums text-text-secondary" data-ops-distribution-end-shift>
-                    {doc.endShiftWorkdays === 0
-                      ? t('resource.distribution.strip.endUnchanged')
-                      : t('resource.distribution.strip.endShift', { count: doc.endShiftWorkdays })}
-                  </span>
-                </div>
-              ))}
+              <span className="text-[10px] text-text-secondary flex items-center gap-1.5">
+                <span
+                  className="inline-block rounded-[2px] shrink-0"
+                  style={{ width: 8, height: 8, background: 'var(--theme-text-dim)', opacity: 0.35 }}
+                />
+                {t('resource.distribution.strip.fixedLoad')}
+              </span>
+              {(stripView?.docs ?? []).map(doc => {
+                const recorded = doc.pinnedReason === 'dates-as-recorded';
+                return (
+                  <PhaseStrip
+                    key={doc.docId}
+                    docId={doc.docId}
+                    title={doc.title}
+                    axis={stripView?.axis ?? null}
+                    dailyLoad={bookingByDoc.get(doc.docId) ?? {}}
+                    fixedLoadByDay={proposal?.fixedLoadByDay ?? {}}
+                    scaleMax={stripView?.scaleMax ?? 1}
+                    endShiftWorkdays={doc.endShiftWorkdays}
+                    ceiling={tune.ceilings[doc.docId] ?? null}
+                    pinned={recorded || tune.pinned[doc.docId] === true}
+                    recorded={recorded}
+                    cannotMove={doc.cannotMove}
+                    degraded={degraded}
+                    onTogglePin={() => setPinned(doc.docId, tune.pinned[doc.docId] !== true)}
+                    onCeilingChange={next => setCeiling(doc.docId, next)}
+                  />
+                );
+              })}
             </section>
 
             {/* (6) Voor/na-histogram — plaatshouder; taak 9 tekent hem. */}
