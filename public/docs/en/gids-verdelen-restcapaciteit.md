@@ -123,11 +123,10 @@ If writing to a project unexpectedly fails, nothing changes anywhere and you get
 Apply never fails halfway, and never silently.
 
 After applying, a strip "Applied in N projects" appears at the bottom of the dialog with an
-**Undo all** button. That strip stays in place as long as you keep working in the same document —
-even if you close the dialog in the meantime and later reopen it from the same conflict row. Switch
-to a different document, though, and the dialog closes on its own; opening it again starts from
-scratch, including the way back. The strip also disappears through a new **Apply**, or by going on to
-distribute a different library item.
+**Undo all** button. That strip survives switching, closing and opening projects within the same
+session: close the dialog, switch to a different document, or close and reopen a project — open the
+dialog again afterwards from the same conflict row, and the strip is still there. It only disappears
+through **Undo all**, through a new **Apply**, or by going on to distribute a different library item.
 
 Undoing reverts the step in every project — except one where you yourself worked further, after
 applying: that project is then named explicitly and stays at its new state, while the rest is
@@ -135,9 +134,10 @@ reverted normally. Right after applying, the dialog also reports the proposal it
 current" — that isn't a glitch: the projects have, after all, just changed. Press Recalculate if you
 want to distribute again from the same dialog.
 
-The choices you make in this dialog — ranking, pins, ceilings — belong to this one distribution
-session. They aren't stored anywhere in the project: close the dialog or restart the app, and next
-time you start again with a neutral ranking, no pins, no ceilings.
+The choices you make in this dialog — ranking, pins, ceilings — belong to this one session, just like
+the "applied" strip: they stay in place for as long as you keep working in the app, even across a
+document switch, and only reset to a neutral ranking once you go distribute a different library item
+or restart the app. Nothing about them is stored in the project itself.
 
 ## The boundary
 

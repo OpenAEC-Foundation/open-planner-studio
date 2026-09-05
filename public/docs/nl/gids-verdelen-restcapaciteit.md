@@ -129,10 +129,10 @@ in een project onverhoopt niet, dan verandert er nergens iets en krijg je een fo
 faalt dus nooit half en nooit stil.
 
 Na het toepassen verschijnt onderin de dialoog een strook "Toegepast in N projecten" met de knop
-**Alles terugdraaien**. Die strook blijft staan zolang je in hetzelfde document verder werkt — ook als
-je de dialoog intussen sluit en later op dezelfde conflictregel opnieuw opent. Wissel je van
-document, dan sluit de dialoog vanzelf en begint een volgende keer weer bij nul, ook wat de terugweg
-betreft. De strook verdwijnt verder door een nieuw **Toepassen**, of doordat je een ander
+**Alles terugdraaien**. Die strook overleeft het wisselen, sluiten en openen van projecten binnen
+dezelfde sessie: sluit je de dialoog, wissel je van document, of sluit en open je een project — open
+je de dialoog daarna opnieuw vanuit dezelfde conflictregel, dan staat de strook er nog gewoon. Ze
+verdwijnt pas door **Alles terugdraaien**, door een nieuw **Toepassen**, of doordat je een ander
 bibliotheekitem gaat verdelen.
 
 Terugdraaien maakt de stap in elk project ongedaan — behalve in een project waarin je zelf, ná het
@@ -141,9 +141,10 @@ stand staan, terwijl de rest gewoon teruggaat. Meteen na Toepassen meldt de dial
 ook als "niet meer actueel" — dat is geen storing: de projecten zijn immers net gewijzigd. Druk op
 Herbereken als je vanuit dezelfde dialoog nog een keer wilt verdelen.
 
-De keuzes die je in deze dialoog maakt — rangorde, vastzettingen, plafonds — horen bij deze ene
-verdeelsessie. Ze worden nergens in het project opgeslagen: sluit je de dialoog of herstart je de
-app, dan begin je de volgende keer weer met een neutrale rangorde, zonder pins of plafonds.
+De keuzes die je in deze dialoog maakt — rangorde, vastzettingen, plafonds — horen net als de
+"toegepast"-strook bij deze ene sessie: ze blijven staan zolang je met de app bezig bent, ook over een
+documentwissel heen, en gaan pas naar een neutrale rangorde zodra je een ander bibliotheekitem gaat
+verdelen of de app herstart. In het project zelf worden ze nergens opgeslagen.
 
 ## De grens
 

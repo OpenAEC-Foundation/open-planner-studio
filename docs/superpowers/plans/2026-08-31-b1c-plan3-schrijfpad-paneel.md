@@ -2157,6 +2157,9 @@ stilzwijgend laten staan als dode sleutel.
   s.ui.levelingDistribution = null;
 ```
 
+> **Aangepast na de review van 2026-09-05:** `levelingDistribution` blijft staan bij documentwissel;
+> alleen de dialoog sluit — zie `resetDocumentScopedUI`.
+
 Dit is geen open vraag meer: spec §6a zegt dat het voorstel bij een documentwissel *vervalt*, en de
 eigenaar heeft op 2026-08-31 bevestigd dat dat hier als **dialoogsluiting** landt, niet als een
 openblijvende dialoog met een vervallen voorstel. De vorige versie van dit plan had dit nog als
