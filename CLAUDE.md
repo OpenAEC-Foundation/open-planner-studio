@@ -138,7 +138,9 @@ precies als een duurbewerking; verandert het restwerk van een toewijzing mét co
 contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaalresources sturen
 de duur nooit. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
 `work-triangle-cases.json`), `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en
-`check-work-rule-store.ts` (store/raster/MCP). `src/services/contourIo.ts` is de adapterlaag:
+`check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
+`fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`
+`defaultWorkRule` (`tests/mcp/cases-work-rule.ts`). `src/services/contourIo.ts` is de adapterlaag:
 MSPDI `<TimephasedData>` (Type 1/2, per werkdag) en P6 `<ResourceCurve>` + `<ResourceCurveObjectId>`
 + de `PlannedCurve`/`RemainingCurve`/`ActualCurve`-spreidingsstrings (`"werkuren:periodeuren;…"`,
 MPXJ `TimephasedHelper`) round-trippen daar doorheen — let op: P6's `<PlannedCurve>` is dus GEEN

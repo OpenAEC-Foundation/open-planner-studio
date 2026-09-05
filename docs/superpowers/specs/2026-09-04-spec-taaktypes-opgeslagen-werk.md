@@ -3,9 +3,9 @@
 *Ontwerp, 2026-09-04. Opvolger van het voorstel
 [`2026-08-18-spec-taaktypes-effort-driven.md`](2026-08-18-spec-taaktypes-effort-driven.md)
 ("ontwerp vóór bouw"). Status: **in aanbouw op de branch `claude/contour-engine-planner-mnrsy3`
-(PR #101, gestapeld op de XER-branch): stappen 1, 2, 3 en 4 zijn gebouwd (2026-09-05); stap 6 is
+(PR #101, gestapeld op de XER-branch): stappen 1, 2, 3, 4 en 7 zijn gebouwd (2026-09-05); stap 6 is
 daarin voor de store/raster/MCP-kant meegenomen (resource erbij/eraf + contourhoogte, besluit 3);
-de stappen 5, 7 en 8 nog niet.**
+de stappen 5 (UI) en 8 (afronding docs) nog niet.**
 De contour-engine, de contour-UI en de fasen-editor (2026-09) zijn geleverd en worden hier als
 bestaand fundament gebruikt.*
 
@@ -594,7 +594,7 @@ twee keer aan `formatRegistry.ts`, `ifcPsets.ts` en de contour-adapters wordt ge
 | 4 **(gebouwd 2026-09-05)** | Brug `src/engine/work/workRuleApply.ts` (`captureTriangle` → kernstap → `applyTriangleResult`; `settleDurationEdit`/`settleUnitsEdit`/`planWorkEdit`+`commitTrianglePlan`/`settleAssignmentAdded`/`settleAssignmentRemoved`/`settleAssignmentPlan`/`settleRuleChange`; `contourKeepsWork`; `reconcileContourWork` = besluit 3 "vorm blijft, hoogte zakt"). Bedraad in `taskSlice.updateTask` + nieuw `setTaskWorkRule`, `resourceSlice.assignResource`/`updateAssignment`/`unassignResource` + nieuw `setAssignmentWork`, `gridTransaction.ts` (celduur én de assignment-set-cel, via `AssignmentSettleOp`), `createMcpTransactions.ts` (alle tweelingen + `setAssignmentWork`/`setTaskWorkRule` op de draft), `rescaleTaskContours(…, keepWork)` uit de effectieve regel, `assignmentDayUnits` derde bron = opgeslagen werk (§6.1). Een duur die uit de driehoek komt zet `scheduleStale`, herschaalt contour + importsplits en wist het Z8-venster — precies als een duurbewerking; onder FIXED_DURATION_RATE zonder werkvelden byte-identiek | `tests/planning/check-work-rule-store.ts` (65 checks: store, raster, MCP, vierde bron, meetlat 22/23/28), bestaande planning- en MCP-suites groen |
 | 5 | UI: instelling, auto-ontsluiting + melding, paneel/dialoog, rasterkolommen, i18n 14 locales, gidsen nl+en (+12 vertalingen, anders faalt `verify:docs` niet maar is de functie onvindbaar) | `verify:i18n`, `verify:docs`, browserspec `tests/browser/work-rule.spec.ts` (echte toetsen/klikken, store-asserties) |
 | 6 | Resource erbij/eraf (§5 rij 4–5) inclusief contourregels (§6.3) — **vereist beslispunt 8** (genomen: 8-B). **Store/raster/MCP-kant gebouwd in stap 4** (`settleAssignmentAdded`/`Removed`, `reconcileContourWork`); wat rest is de UI-kant (stap 5) | cases 4, 5, 9, 10, 15, 19, 20, 23, 29, 30 (kern) + `check-work-rule-store` (b15–b21, d5–d9, e6–e7, f3–f4) |
-| 7 | MCP: contract + schema + registratie; `docs/recepten/mcp-tool.md` | `tests/mcp/`, `cases-toolregistry` |
+| 7 **(gebouwd 2026-09-05)** | Geen nieuwe tool (39 blijft 39) maar drie bestaande tools uitgebreid: `planner_update_tasks`/`planner_add_tasks` `fields.workRule` (enum \| null, via `draft.setTaskWorkRule` ná de duurpatch — een gelijktijdige `duration` wordt onder de OUDE regel verwerkt, `taskFields.ts`), `planner_manage_assignments` `update.remainingWorkMinutes` (> 0, via `draft.setAssignmentWork`; alleen op taken waar `workRuleApplies`), `planner_update_project` `defaultWorkRule` (enum \| null, `delete` bij null); `planner_get_project_info` toont `defaultWorkRule`, `planner_get_task` toonde `workRule` + werkvelden al sinds stap 1. `REJECT_HINTS` voor `plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes` als taakveld | `tests/mcp/cases-work-rule.ts` (9 cases via de echte dispatch, incl. `planner_batch` = één undo-stap), `cases-toolregistry`/`cases-schemavalidatie` groen |
 | 8 | CLAUDE.md-sectie, TODO-afvinking, `docs/superpowers/README.md` | `verify:docs` |
 
 Stap 1–3 zijn onafhankelijk van elkaar te reviewen en veranderen niets aan wat de gebruiker ziet.

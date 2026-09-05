@@ -190,6 +190,8 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
     }
     return {
       ...top,
+      // Een nieuwe taak heeft nog geen toewijzingen, dus de werkregel is hier een kaal veld.
+      ...(it.patch.workRule ? { workRule: it.patch.workRule } : {}),
       name: top.name as string,
       tempId: it.tempId,
       ...(it.parentId !== undefined ? { parentId: it.parentId } : {}),
@@ -354,6 +356,10 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       else {
         if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
         ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        // Taaktypes-etappe (bouwstap 7): de werkregel via de driehoek-bewuste draft-actie, ná de
+        // duurpatch (zodat een gelijktijdige `duration` onder de OUDE regel wordt verwerkt en de
+        // nieuwe regel het restwerk van dát moment vastlegt — spec §5 rij 6, besluit 2).
+        if (res.patch.workRule !== undefined) ctx.transactions.draft.setTaskWorkRule(id, res.patch.workRule ?? undefined);
         touched = true;
       }
     }

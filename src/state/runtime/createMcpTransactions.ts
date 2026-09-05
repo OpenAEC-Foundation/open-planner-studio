@@ -183,6 +183,9 @@ function createMcpDraft(
         manuallyScheduled: partial.manuallyScheduled,
         levelingDelayMinutes: partial.levelingDelayMinutes,
         levelingDelayElapsed: partial.levelingDelayElapsed,
+        // Taaktypes-etappe (bouwstap 7): de werkregel bij aanmaak (planner_add_tasks `workRule`);
+        // een nieuwe taak heeft nog geen toewijzingen, dus dit is een kaal veld zonder driehoekstap.
+        workRule: partial.workRule,
       };
 
       s.tasks.push(task);

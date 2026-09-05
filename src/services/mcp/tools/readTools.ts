@@ -279,6 +279,7 @@ function getProjectInfo(s: AppState) {
       company: p.company,
       ...(p.statusDate ? { statusDate: p.statusDate } : {}),
       ...(p.progressMode ? { progressMode: p.progressMode } : {}),
+      ...(p.defaultWorkRule ? { defaultWorkRule: p.defaultWorkRule } : {}),
     },
     statistics: {
       totalTasks: tasks.length,

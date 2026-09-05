@@ -355,8 +355,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
 > spec van 2026-08-18). Bouwt op de branch `claude/contour-engine-planner-mnrsy3` (PR #101), die
-> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–4 (+ de store-kant van 6) staan
-> erin; 5 (UI), 7 (MCP-tools) en 8 (docs) nog niet — zie spec §10 voor de stand per stap.
+> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–4, 7 (+ de store-kant van 6) staan
+> erin; 5 (UI) en 8 (docs) nog niet — zie spec §10 voor de stand per stap.
 > Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
 
 - [ ] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` (voortgangsroute).**

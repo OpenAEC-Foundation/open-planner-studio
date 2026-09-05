@@ -36,6 +36,7 @@ import type {
 } from '@/types/task';
 import { TASK_TYPES } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
 
 // --- Patch-vorm ----------------------------------------------------------------------------------
 
@@ -55,6 +56,10 @@ export interface TaskFieldPatch {
   top: Partial<Task>;
   time?: TaskTimePatch;
   customTaskType?: CustomTaskType;
+  /** Taaktypes-etappe (bouwstap 7): de werkregel loopt NIET via de kale veld-merge maar via
+   *  `draft.setTaskWorkRule` — een werkbeschermende regel legt bij het zetten het huidige restwerk
+   *  van de toewijzingen vast (spec §5 rij 6). `null` = terug naar de projectstandaard. */
+  workRule?: WorkRule | null;
 }
 
 /** Wat de validator over de DOELTAAK moet weten (bij aanmaak: een verse, lege taak). */
@@ -117,6 +122,7 @@ export const TASK_FIELD_NAMES = [
   'constraint',
   'deadline',
   'calendarId',
+  'workRule',
 ] as const;
 
 /** Gerichte hints voor sleutels die een agent redelijkerwijs probeert maar die hier niet horen. */
@@ -152,9 +158,10 @@ const REJECT_HINTS: Record<string, string> = {
   mspTaskType: 'MSP\'s eigen Task Type is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   effortDriven: 'MSP\'s "Effort Driven"-vlag is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   timephasedContours: 'de rauwe contourperiodes zijn via de bridge niet zetbaar (afgeleid uit een .mpp-import, geen agent-invoervorm — zie planner_get_task)',
-  // Taaktypes-etappe (ontwerp 2026-09-04): leesbaar via planner_get_task; zetbaar volgt in de
-  // MCP-stap (§10 stap 7) zodra de werkdriehoek in de store bedraad is.
-  workRule: 'de werkregel is via de bridge nog niet zetbaar (taaktypes-etappe, bouwstap 7) — leesbaar via planner_get_task',
+  // Taaktypes-etappe: de werkvelden per TOEWIJZING zijn geen taakvelden.
+  remainingWorkMinutes: 'resterend werk hoort bij een TOEWIJZING: planner_manage_assignments `update` met `remainingWorkMinutes`',
+  plannedWorkMinutes: 'begroot werk is via de bridge niet zetbaar (referentiewaarde uit een import — zie planner_get_task)',
+  actualWorkMinutes: 'verricht werk is via de bridge niet zetbaar (een feit uit een import; voortgang loopt via `progress`)',
   // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde "read-only, geen
   // agent-invoervorm"-redenering als mspTaskType/effortDriven hierboven.
   p6DurationType: 'P6\'s eigen Duration Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
@@ -368,6 +375,12 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
     else if (isIsoDate(raw.deadline)) top.deadline = raw.deadline;
     else return { ok: false, reason: '`deadline` moet een ISO-datum zijn (YYYY-MM-DD) of null om te wissen' };
   }
+  let workRule: WorkRule | null | undefined;
+  if ('workRule' in raw) {
+    if (raw.workRule === null) workRule = null;
+    else if (typeof raw.workRule === 'string' && (WORK_RULES as readonly string[]).includes(raw.workRule)) workRule = raw.workRule as WorkRule;
+    else return { ok: false, reason: `\`workRule\` moet één van ${WORK_RULES.join(' | ')} zijn (of null voor de projectstandaard)` };
+  }
   if ('calendarId' in raw) {
     if (raw.calendarId === null) top.calendarId = undefined;
     else if (typeof raw.calendarId !== 'string') return { ok: false, reason: '`calendarId` moet een string zijn (of null voor de projectkalender)' };
@@ -377,7 +390,15 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   }
 
   const hasTime = Object.keys(time).length > 0;
-  return { ok: true, patch: { top, ...(hasTime ? { time } : {}), ...(customTaskType ? { customTaskType } : {}) } };
+  return {
+    ok: true,
+    patch: {
+      top,
+      ...(hasTime ? { time } : {}),
+      ...(customTaskType ? { customTaskType } : {}),
+      ...(workRule !== undefined ? { workRule } : {}),
+    },
+  };
 }
 
 // --- Voortgangs-allowlist (`update_tasks.progress`) ----------------------------------------------
@@ -521,6 +542,20 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   },
   deadline: { type: ['string', 'null'], description: 'Zachte deadline (ISO-datum); begrenst alleen de late finish. null wist hem.' },
   calendarId: { type: ['string', 'null'], description: 'Taak-kalender uit de bibliotheek (planner_get_calendars); null = projectkalender.' },
+  workRule: {
+    type: ['string', 'null'],
+    enum: [...WORK_RULES, null],
+    description:
+      'Werkregel (taaktype) van de taak: welke hoek van werk = restduur × inzet vast staat wanneer een ' +
+      'andere verandert. FIXED_DURATION_RATE (standaard, MSP "Fixed Duration", niet effort-driven): ' +
+      'duur en inzet blijven, het werk volgt. FIXED_DURATION_WORK (P6 "Fixed Duration & Units"): duur ' +
+      'en werk blijven, de inzet volgt. FIXED_WORK (MSP "Fixed Work", P6 "Fixed Units"): het werk blijft; ' +
+      'meer inzet of een extra resource maakt de taak korter. FIXED_RATE (MSP "Fixed Units" effort-driven, ' +
+      'P6 "Fixed Units/Time"): de inzet blijft; meer werk maakt de taak langer. Alleen de regel wisselen ' +
+      'verandert geen enkel getal. null = terug naar de projectstandaard (planner_update_project ' +
+      '`defaultWorkRule`). Werkt alleen op gewone bladtaken (niet op mijlpalen, verzameltaken, ' +
+      'hangmatten of ELAPSEDTIME-taken).',
+  },
 };
 
 /** Eén regel voor in tool-beschrijvingen: welke velden er zijn en dat de rest hard weigert. */
@@ -530,4 +565,5 @@ export const TASK_FIELDS_DOC =
   '`durationUnit` (`days` of `hours`; zonder eenheid blijft de achterwaarts compatibele dagregel). ' +
   'Geef beide samen om de eenheid bewust te wijzigen; de `time`-tak zelf, `status`, `parentId` en ' +
   '`resourceIds` zijn hier bewust niet zetbaar (gebruik `progress`, planner_move_task resp. ' +
-  'planner_manage_assignments).';
+  'planner_manage_assignments). `workRule` zet het taaktype (werk = restduur × inzet; zie de ' +
+  'veldbeschrijving) — resterend werk per toewijzing zet je met planner_manage_assignments.';
