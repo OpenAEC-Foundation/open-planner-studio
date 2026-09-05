@@ -202,6 +202,17 @@ export const XER_TASK_IGNORED: readonly string[] = [
     ['recorded-output', XER_TASK_RECORDED_OUTPUT],
     ['ignored', XER_TASK_IGNORED],
   ];
+  // Critreview laag 3, bevinding 8 (dubbel fail-open): de corpusscan hieronder is geen CI-poort
+  // (hij slaat over zonder OPS_XER_CORPUS), en de isolatiescan itereert over ÉXACT dezelfde
+  // constante — een naam uit `XER_TASK_RECORDED_OUTPUT` halen verwijderde hem dus stil uit béide
+  // poorten tegelijk. Deze zes namen staan daarom hier nóg een keer, met de hand, als
+  // corpusvrije verankering: schrapt iemand er één, dan is dit rood ongeacht het corpus.
+  truthy('bak 4 draagt exact de zes P6-rekenuitvoerkolommen (corpusvrije verankering)',
+    JSON.stringify([...XER_TASK_RECORDED_OUTPUT].sort()) === JSON.stringify([
+      'early_end_date', 'early_start_date', 'free_float_hr_cnt', 'late_end_date', 'late_start_date',
+      'total_float_hr_cnt',
+    ]));
+
   for (const [name, list] of buckets) {
     const seen = new Set<string>();
     for (const f of list) {
@@ -248,6 +259,8 @@ export const XER_TASK_IGNORED: readonly string[] = [
   truthy(`isolatiescan vindt src/ (geprobeerd: ${kandidaten.join(', ')})`, srcRoot !== null);
 
   if (srcRoot) {
+    // Critreview laag 3, bevinding 7: de scan liep alleen over `src/services/xer/` — een lezer in
+    // `src/services/ifc/` die archiefcellen uitleest viel erbuiten. Hij loopt nu over HEEL `src/`.
     const xerDir = join(srcRoot, 'services', 'xer');
     truthy(`isolatiescan vindt ${xerDir}`, existsSync(xerDir));
 
@@ -260,8 +273,8 @@ export const XER_TASK_IGNORED: readonly string[] = [
           else if (/\.tsx?$/.test(entry.name)) xerFiles.push(full);
         }
       };
-      loop(xerDir);
-      truthy('isolatiescan leest een plausibel aantal bestanden in src/services/xer/', xerFiles.length > 5);
+      loop(srcRoot);
+      truthy('isolatiescan leest een plausibel aantal bestanden in src/', xerFiles.length > 100);
 
       const toegestaan = join(xerDir, 'xerRecordedTimes.ts');
       const overtreders: string[] = [];
@@ -271,7 +284,10 @@ export const XER_TASK_IGNORED: readonly string[] = [
         for (const field of XER_TASK_RECORDED_OUTPUT) {
           const cellAccess = new RegExp(`cells(?:\\.${field}\\b|\\[['"]${field}['"]\\])`);
           const callArg = new RegExp(`['"]${field}['"]\\s*\\)`);
-          if (cellAccess.test(text) || callArg.test(text)) {
+          // Derde leespatroon (bevinding 7, gemeten gat): `const { early_start_date } = row.cells`
+          // en `const { early_start_date: x } = cells` — destructurering las de kolom ongezien.
+          const destructure = new RegExp(`\\{[^{}]*\\b${field}\\b[^{}]*\\}\\s*=`);
+          if (cellAccess.test(text) || callArg.test(text) || destructure.test(text)) {
             overtreders.push(`${field} in ${file.slice(srcRoot.length)}`);
           }
         }

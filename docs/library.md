@@ -389,6 +389,15 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    beperkt tot wat in deze programma-instantie bekend is — de weergave zelf meldt die grens als
    permanente voetnoot.
 
+   Sinds XER-laag 3 ("datums zoals opgeslagen") is er een tweede, subtielere grens. Een document in
+   die weergave wordt in het bezettingsoverzicht als **gepind** behandeld (`pinnedReason:
+   'dates-as-recorded'`, `services/library/distribute.ts`) en dus NOOIT efemeer doorgerekend — het
+   toont immers de datums van het bronbestand, niet onze berekening, en die stil overschrijven zou
+   precies de belofte van die weergave breken. Een verse `.xer`-import met restverschillen zet die
+   weergave zelf aan, dus dat gepinde geval is geen randgeval meer maar de normale toestand van een
+   zojuist geopend P6-bestand: de bezetting van zo'n document weerspiegelt Primavera's planning
+   totdat je het document herberekent (**F5** of een bewerking).
+
 3. **Twee tabbladen, zelfde machine.** De bibliotheek leeft app-breed in-memory en wordt bij elke
    wijziging weggeschreven; twee open tabbladen (of twee vensters) op dezelfde machine overschrijven
    elkaars laatste schrijfactie stilzwijgend — zelfde wortel als punt 1 hierboven, alleen dan zonder de

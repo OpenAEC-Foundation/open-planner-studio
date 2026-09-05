@@ -16,6 +16,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { usesP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
 import { buildXerTargetBaseline, type XerCorpusFile, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
+import { parseInstant } from '@/utils/dateUtils';
 import {
   measureXerProductFidelity,
   type XerProductAxisCounts,
@@ -72,8 +73,33 @@ function eq(label: string, got: unknown, want: unknown): void {
  *  gemuteerde bak-4-orakelwaarden ook maar ergens in `Task.time` van de geïmporteerde taken staat —
  *  precies de kernregel van laag 3 ("opgeslagen uitvoer is meetlat, nooit invoer"), hier getoetst op
  *  de productfixtures i.p.v. de corpusloze oracle-fixture in `check-xer-recorded-times.ts`. */
-function noRecordedAxisLeak(tasks: readonly ImportResult['tasks'][number][], oracleValues: readonly string[]): boolean {
-  return tasks.every(task => Object.values(task.time).every(value => !oracleValues.includes(value as string)));
+function noRecordedAxisLeak(
+  tasks: readonly ImportResult['tasks'][number][],
+  oracleValues: readonly (string | number)[],
+): boolean {
+  // Critreview laag 3, bevinding 9: de vorige vorm vergeleek alleen RAUWE STRINGS. Een lek van een
+  // gemuteerde FLOAT (`999 * 60 / 540`) naar `Task.time.totalFloat` glipte er dus doorheen, en een
+  // datum die onderweg van `2040-11-04T08:00` naar `2040-11-04` (of andersom) was genormaliseerd
+  // eveneens. Nu wordt per waarde het TYPE gerespecteerd en worden datums genormaliseerd tot hun
+  // instant (met de dag als grovere terugval, zodat een gedegradeerde representatie óók telt).
+  const key = (value: string): string => {
+    const t = parseInstant(value).getTime();
+    return Number.isNaN(t) ? `s:${value}` : `i:${t}`;
+  };
+  const dayKey = (value: string): string => `d:${value.slice(0, 10)}`;
+  const isDatum = (value: string): boolean => /^\d{4}-\d{2}-\d{2}/.test(value);
+  const verboden = new Set<string>();
+  for (const value of oracleValues) {
+    if (typeof value === 'number') { verboden.add(`n:${value}`); continue; }
+    verboden.add(key(value));
+    if (isDatum(value)) verboden.add(dayKey(value));
+  }
+  return tasks.every(task => Object.values(task.time).every(value => {
+    if (typeof value === 'number') return !verboden.has(`n:${value}`);
+    if (typeof value !== 'string') return true;
+    if (isDatum(value)) return !verboden.has(key(value)) && !verboden.has(dayKey(value));
+    return !verboden.has(key(value));
+  }));
 }
 function hash(bytes: Uint8Array): string { return createHash('sha256').update(bytes).digest('hex'); }
 function xerStructuredRecord(

@@ -182,6 +182,21 @@ eq('recorded.source toont een streepje zonder markering',
 eq('recorded.source valt terug op de Engelse sleutelnaam zonder labelForText (nooit een lege cel)',
   recordedSourceColumn.format('deviates', task, { ...withMarkCtx, labelForText: undefined }), 'deviates');
 
+// Klembord (critreview laag 3, bevinding 11): zonder eigen `copy` leverde `copyScalar` het rauwe
+// token `deviates` terwijl de cel "Wijkt af" toont. MUTATIEBEWIJS: haal de `copy`-functie uit de
+// kolomdefinitie ⇒ de eerste van deze twee slaat rood.
+const copyCtx = {
+  ...withMarkCtx,
+  labelForText: (key: string) => ({
+    'recordedDates.markDeviates': 'Wijkt af',
+    'recordedDates.markPartlyUnrecorded': 'Deels niet vastgelegd',
+  }[key] ?? key),
+};
+eq('recorded.source kopieert dezelfde tekst als de cel toont, niet het rauwe token',
+  recordedSourceColumn.copy(task, copyCtx), 'Wijkt af');
+eq('recorded.source kopieert een LEGE cel zonder markering (geen em-dash in een plakactie)',
+  recordedSourceColumn.copy(task, { ...copyCtx, recordedMark: () => undefined }), '');
+
 // De vier late-/floatkolommen: alleen de assen die `recordedUnrecordedAxes` noemt tonen "niet
 // vastgelegd"; de rest blijft de gewone geformatteerde waarde (byte-identiek aan vóór T6).
 const lateStartCol = registryPlain.find(c => c.id === 'task.time.lateStart')!;

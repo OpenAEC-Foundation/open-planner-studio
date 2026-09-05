@@ -122,6 +122,14 @@ function formatScalar(value: unknown): string {
   return String(value);
 }
 
+/** Celtekst van de kolom `recorded.source` — gedeeld door `format` en `copy`, zodat het klembord
+ *  nooit uit elkaar kan lopen met wat er op het scherm staat. */
+function recordedSourceText(value: unknown, ctx: TaskColumnContext): string {
+  if (value === 'deviates') return ctx.labelForText?.('recordedDates.markDeviates') ?? 'deviates';
+  if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
+  return '—';
+}
+
 function copyScalar(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
@@ -702,10 +710,14 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
       id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
       available: ctx => ctx.recordedMark !== undefined,
       read: (task, ctx) => ctx.recordedMark?.(task),
-      format: (value, _task, ctx) => {
-        if (value === 'deviates') return ctx.labelForText?.('recordedDates.markDeviates') ?? 'deviates';
-        if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
-        return '—';
+      format: (value, _task, ctx) => recordedSourceText(value, ctx),
+      // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`deviates`) in het klembord
+      // terwijl de cel "Wijkt af" toont (critreview laag 3, bevinding 11). Dezelfde tekst als de
+      // cel dus — en de lege markering blijft een lege klembordcel in plaats van een em-dash, want
+      // dat is wat een plakactie in een spreadsheet verwacht.
+      copy: (task, ctx) => {
+        const value = ctx.recordedMark?.(task);
+        return value === undefined ? '' : recordedSourceText(value, ctx);
       },
     }),
     editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
