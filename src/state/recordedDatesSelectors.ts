@@ -39,6 +39,43 @@ export function unrecordedAxes(rec: RecordedTime | undefined): readonly Recorded
 }
 
 /**
+ * Dezelfde vraag als `unrecordedAxes`, maar voor de UITGANGEN buiten de taaktabel (CSV-export en
+ * de MCP-leestools) — daarom in `Task['time']`-veldnamen en mét `isCritical`, dat geen tabelkolom
+ * met een "niet vastgelegd"-tekst heeft maar wél door dezelfde `?? false` naar buiten zou reizen.
+ *
+ * Critreview laag 3, bevinding 6: zolang "datums zoals opgeslagen" een KNOP was, was het tonen van
+ * de terugvallen (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`) een bewuste
+ * gebruikershandeling. Met standaard-aan op elke XER met restverschillen is het de standaard-
+ * toestand, en dan mag een verzonnen 0 of een verzonnen late datum niet stilzwijgend een
+ * CSV-export of een AI-antwoord in — daar is geen strook of badge die de stand toelicht.
+ */
+export type UnrecordedExportField = 'lateStart' | 'lateFinish' | 'totalFloat' | 'freeFloat' | 'isCritical';
+
+export function unrecordedExportFields(rec: RecordedTime | undefined): readonly UnrecordedExportField[] {
+  if (!rec) return [];
+  const fields: UnrecordedExportField[] = [];
+  if (rec.lateStart === undefined) fields.push('lateStart');
+  if (rec.lateFinish === undefined) fields.push('lateFinish');
+  if (rec.totalFloat === undefined) fields.push('totalFloat');
+  if (rec.freeFloat === undefined) fields.push('freeFloat');
+  if (rec.isCritical === undefined) fields.push('isCritical');
+  return fields;
+}
+
+/**
+ * De poort voor die uitgangen: `undefined` zodra de modus UIT staat (dan staat er onze eigen,
+ * echte berekening en valt er niets te verzwijgen) of het document geen vastlegging heeft. Zelfde
+ * regel als `recordedGridBinding`, en bewust dezelfde vorm — één begrip, twee consumenten.
+ */
+export function unrecordedExportGate(
+  recorded: RecordedDatesState | null,
+  datesAsRecorded: boolean,
+): ((task: Task) => readonly UnrecordedExportField[]) | undefined {
+  if (!recorded || !datesAsRecorded) return undefined;
+  return task => unrecordedExportFields(recorded.times[task.id]);
+}
+
+/**
  * Markering voor de taaktabel-kolom `recorded.source` (categorie `computed`). Twee gevallen, met
  * voorrang in deze volgorde:
  *

@@ -27,6 +27,8 @@ import type { Task } from '@/types/task';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { recordedDatesActiveKey } from '@/components/layout/recordedDatesNoticeText';
+import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
+import { writeCSV } from '@/services/csv/csvWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -1067,6 +1069,47 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('13c het slapende document A wordt niet buiten zijn historygrens overschreven',
     sleepingA?.tasks.find(task => task.id === taskA)!.externalLinks![0].anchorDate, '2026-01-01');
   eq('13d de gebruiker blijft in document B', S().activeDocumentId, documentB);
+}
+
+// ── (13B) EXPORT-UITGANG: geen verzonnen 0 in de CSV ────────────────────────────────────────
+// Critreview laag 3, bevinding 6. In de modus draagt `task.time` de vastlegging van het bestand,
+// mét de bewuste terugvallen voor niet-vastgelegde assen. De taaktabel toont daar "Niet
+// vastgelegd"; een CSV-cel kan een verzonnen `0` niet van een echte nulspeling onderscheiden, dus
+// daar hoort een LEGE cel. MUTATIEBEWIJS: geef de poort (`unrecordedExportGate`) niet mee aan
+// `writeCSV` in `fileSlice.exportFile` ⇒ 13Bb hieronder slaat rood.
+{
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('csv')), { filePath: null, recompute: true });
+  S().showRecordedDates();
+  truthy('13Ba voorwaarde: de modus staat aan', S().datesAsRecorded);
+
+  const kolommen = (csv: string) => csv.trim().split('\r\n').slice(1).map(regel => regel.split(';'));
+  const inModus = writeCSV(
+    S().project, S().calendar, S().tasks, S().sequences, S().resources, S().assignments,
+    S().customTaskTypes, unrecordedExportGate(S().recordedDates, S().datesAsRecorded),
+  );
+  const rijenInModus = kolommen(inModus);
+  eq('13Bb in de modus is de niet-vastgelegde totale speling (kolom 13) een LEGE cel, geen verzonnen 0',
+    rijenInModus.map(rij => rij[13]), ['', '']);
+  eq('13Bc … en de niet-vastgelegde kritiek-vlag (kolom 12) óók, geen verzonnen "No"',
+    rijenInModus.map(rij => rij[12]), ['', '']);
+  eq('13Bd … terwijl de WÉL vastgelegde datums gewoon geëxporteerd worden',
+    rijenInModus.map(rij => rij[3]), ['2026-03-02', '2026-03-16']);
+
+  // Tegenproef: buiten de modus is de export byte-identiek aan voorheen — de poort levert dan
+  // `undefined` en de kolommen dragen de echte berekening.
+  S().runCPM();
+  eq('13Be voorwaarde: runCPM verliet de modus', S().datesAsRecorded, false);
+  const buitenModus = writeCSV(
+    S().project, S().calendar, S().tasks, S().sequences, S().resources, S().assignments,
+    S().customTaskTypes, unrecordedExportGate(S().recordedDates, S().datesAsRecorded),
+  );
+  const rijenBuiten = kolommen(buitenModus);
+  eq('13Bf buiten de modus staat de BEREKENDE speling in de kolom', rijenBuiten.map(rij => rij[13]), ['0', '0']);
+  eq('13Bg … en de berekende kritiek-vlag', rijenBuiten.map(rij => rij[12]), ['Yes', 'Yes']);
+  eq('13Bh zonder poort is de export byte-identiek aan het gedrag van vóór deze wijziging',
+    writeCSV(S().project, S().calendar, S().tasks, S().sequences, S().resources, S().assignments,
+      S().customTaskTypes), buitenModus);
 }
 
 // ── (14) De meldingstekst is BRONAFHANKELIJK ─────────────────────────────────────────────────

@@ -100,6 +100,10 @@ Studio doesn't invent anything either. This applies only while you are looking a
 soon as the app shows its own calculation — outside this view, or after recalculating with **F5** —
 that column simply holds the calculated number.
 
+The same honesty applies off screen: export to CSV while this view is on and the cell for an
+unrecorded axis stays empty instead of showing a `0`, and the AI assistant sees `null` for such an
+axis, together with the list of axes the file did not record.
+
 ## Further reading
 
 - More on which formats you can import and what does and doesn't come along — read the

@@ -13,6 +13,7 @@ import type { Task } from '@/types/task';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
+import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
@@ -591,6 +592,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           content = writeCSV(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.customTaskTypes,
+            // In "datums zoals opgeslagen" mag een niet-vastgelegde as niet als verzonnen 0/No
+            // het bestand in (critreview laag 3, bevinding 6). Buiten de modus: `undefined`.
+            unrecordedExportGate(state.recordedDates, state.datesAsRecorded),
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];

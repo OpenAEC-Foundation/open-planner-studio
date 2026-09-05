@@ -104,6 +104,11 @@ niets zei, en Open Planner Studio verzint daar dus ook niets bij. Dit geldt alle
 zodra de app zijn eigen berekening toont — buiten deze weergave, of na herberekenen met **F5** —
 staat in die kolom gewoon het berekende getal.
 
+Diezelfde eerlijkheid geldt buiten het scherm: exporteer je naar CSV terwijl deze weergave aanstaat,
+dan blijft de cel voor een niet-vastgelegde as leeg in plaats van een `0` te tonen, en de
+AI-assistent krijgt voor zo'n as `null` te zien met de opsomming van welke assen het bestand niet
+vastlegde.
+
 ## Verder lezen
 
 - Meer over welke formaten je kunt importeren en wat daarbij wel en niet meekomt — lees de gids
