@@ -36,8 +36,9 @@ import {
   bindXerImportMetadataToArchive,
   createXerSourceArchiveFromOwnedMetadata,
   detectXerSourcePresentation,
-  type XerSourceArchive,
+  type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
+import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import { readXerCalendars } from './xerCalendarData';
 import { sourceInstant } from './xerInstant';
 import { readXerRecordedTimes } from './xerRecordedTimes';
@@ -1101,12 +1102,30 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   );
 }
 
-/** Herbouw de volledige X9-runtimegrafiek uit uitsluitend de canonieke XER-bronbytes. */
-export function reconstructXerSourceArchiveFromBytes(bytes: Uint8Array): XerSourceArchive {
+/**
+ * Herbouw de volledige X9-runtimegrafiek uit uitsluitend de canonieke XER-bronbytes.
+ *
+ * T5 (laag 3, §3.8): levert naast het archief óók de bak-4-vastlegging per project. Dat is GRATIS —
+ * deze functie draaide al een volledige `readXER` en gooide `recordedTimes` alleen weg — en het is
+ * de enige vorm die per constructie identiek is aan het oorspronkelijke openen (zelfde bytes,
+ * zelfde code). Er wordt hier NIETS opnieuw afgeleid; zie `XerSourceReconstruction`.
+ *
+ * Bij een meerprojectenbestand krijgt élk project zijn eigen entry (de IFC-lezer kiest daaruit met
+ * `OPS_XerDocument`'s selector). Het archief zelf is bestandsbreed en per definitie voor alle
+ * resultaten dezelfde referentie.
+ */
+export function reconstructXerSourceFromBytes(bytes: Uint8Array): XerSourceReconstruction {
   const opened = readXER(bytes);
-  const first = 'kind' in opened ? opened.results[0] : opened;
+  const results = 'kind' in opened ? opened.results : [opened];
+  const first = results[0];
   if (!first?.xerSourceArchive) {
     throw new Error('De XER-bron leverde geen reconstruerbaar bronarchief op.');
   }
-  return first.xerSourceArchive;
+  const recordedTimesByProject: Record<string, Record<string, RecordedTime>> = {};
+  for (const result of results) {
+    const projectId = result.xer?.sourceProjectId;
+    if (!projectId || !result.recordedTimes) continue;
+    recordedTimesByProject[projectId] = result.recordedTimes;
+  }
+  return { archive: first.xerSourceArchive, recordedTimesByProject };
 }
