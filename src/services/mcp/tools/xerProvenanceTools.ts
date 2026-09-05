@@ -4,6 +4,16 @@
 // `xerImportMetadata`-view. Hij parset geen bytes opnieuw en raakt de store nooit. Summary is
 // bewust vrij van raw rows en raw bytes; bronrijen en bytes zijn aparte, expliciet gepagineerde
 // secties.
+//
+// DE EIGENSCHAP (review2-3d.md): niet "drie paden dichtzetten", maar "elke string die uit een
+// bronrij komt gaat door precies één afkap-/opt-in-poort". `sanitizeProvenanceValue` hieronder is
+// die ene poort: hij loopt recursief over WAT een sectiefunctie ook teruggeeft, herkent een
+// XER-bronrij STRUCTUREEL (`{line, cells}` — dus ook op plekken waar niemand een allowlist-regel
+// voor had geschreven, zoals `diagnostics/documentViews[x].resources.assignments[].rawRow`) en
+// classificeert elke andere string op VELDNAAM: een vrije-tekstveld (`notes`/`description`/
+// `customFields`) is zonder `includeRawRows` onzichtbaar en met opt-in afgekapt op 2.000 tekens; al
+// het overige (namen, labels, ids) blijft altijd zichtbaar maar hard afgekapt op 200 tekens. Eén
+// gate, geen per-collectie-allowlist die de volgende sectie kan missen.
 
 import type { AppState } from '@/state/appStore';
 import type { McpContext, McpErrorCode, McpToolDef, McpToolResult } from '../contracts';
@@ -42,75 +52,206 @@ interface XerProvenanceArgs {
   includeRawRows?: unknown;
 }
 
-/** Sections waarvan een collectie/rij vrije brontekst (namen, notities, willekeurige XER-kolommen)
- *  kan dragen. Zonder `includeRawRows` geven deze een tel-projectie zonder celwaarden terug — de
- *  tweede expliciete opt-in naast `section`/`collection`, analoog aan `rawSource`/`includeRawSource`. */
-const RAW_ROWS_SECTIONS: readonly Section[] = ['resourceCatalog', 'metadataCatalog', 'taskSourceRowsByProject'];
-
-/** Binnen `resourceCatalog` de collecties die een `rawRow`-bronrij dragen; de rest (resources,
- *  identities, issues) is al een genormaliseerde, begrensde projectie. */
-const RAW_ROW_RESOURCE_COLLECTIONS = new Set<Collection>(['resourceSources', 'roleSources', 'rates', 'curves', 'assignmentSources']);
-
-/** Binnen `metadataCatalog` de collecties die letterlijk retained bronrijen zijn (`catalog.sourceData`);
- *  de rest (activityCodeTypes, customFieldDefs, taskProjections, issues) is al genormaliseerd. */
-const RAW_ROW_METADATA_COLLECTIONS = new Set<Collection>([
-  'ACTVTYPE', 'ACTVCODE', 'TASKACTV', 'UDFTYPE', 'UDFVALUE', 'MEMOTYPE', 'TASKNOTE', 'TASKMEMO',
-  'TASK_NOTES', 'deferredUdfValues', 'unknownUdfTypes',
-]);
+/** Sections die door de generieke bronrij-/vrije-tekstpoort lopen. `diagnostics` zit erbij sinds
+ *  review2-3d.md #1: `documentViews` draagt via `resources.assignments[].rawRow` dezelfde vrije
+ *  XER-cellen als de andere drie secties en hoorde dus niet buiten deze lijst te vallen. */
+const RAW_ROWS_SECTIONS: readonly Section[] = ['resourceCatalog', 'metadataCatalog', 'taskSourceRowsByProject', 'diagnostics'];
 
 /** Lagere paginalimiet zodra `includeRawRows` echte celwaarden ontgrendelt — spiegelt de aparte,
  *  strakkere grens die `rawSource` al had voor ruwe bytes. */
 const RAW_ROWS_OPT_IN_MAX_LIMIT = 100;
-/** Per-cel/per-string afkapgrens: een enkele vrije XER-kolom (notitie, naam) mag de respons niet
- *  onbegrensd laten groeien. */
+/** Per-cel/per-string afkapgrens voor VRIJE tekst (rawRow-cellen, notities, customFields-waarden). */
 const RAW_CELL_MAX_CHARS = 2000;
-/** Harde bovengrens op de totale geserialiseerde paginarespons; een backstop naast de rij- en
- *  celgrenzen voor het geval veel kleinere cellen samen toch groot worden. */
+/** Per-string afkapgrens voor korte LABEL-achtige velden (namen, omschrijvingen buiten `rawRow`) die
+ *  altijd zichtbaar blijven — review2-3d.md #2: zonder deze cap kon een misbruikt `name`-veld
+ *  ongehinderd megabytes meesturen omdat "genormaliseerd" werd gelezen als "veilig". */
+const LABEL_MAX_CHARS = 200;
+/** Cap op het aantal cellen/velden per bronrij of vrije-tekstkaart — review2-3d.md #6: zonder deze
+ *  cap bepaalt de `%F`-kolomkop van het bronbestand ongehinderd hoeveel cellen één rij draagt (een
+ *  aanvaller-gecontroleerd bestand kan er 20.000 declareren). */
+const MAX_CELLS_PER_ROW = 200;
+/** Harde bovengrens op de totale geserialiseerde paginarespons, in ECHTE UTF-8-bytes
+ *  (review2-3d.md #4: `String.length` telt UTF-16-code-units, geen bytes — voor CJK/Arabisch/emoji
+ *  zit daar een factor 2–3 tussen). */
 const MAX_SECTION_RESPONSE_BYTES = 256 * 1024;
+
+/** Vrije-tekstvelden (potentieel lange, narratieve inhoud) die uitsluitend met `includeRawRows`
+ *  zichtbaar worden — zonder opt-in wordt de sleutel volledig weggelaten, niet afgekapt-maar-
+ *  zichtbaar, want een notitie kan willekeurig gevoelig zijn (review2-3d.md #2: `taskProjections.notes`
+ *  en `roleSources.description` lekten via exact deze velden). */
+const FREE_TEXT_STRING_KEYS = new Set(['notes', 'note', 'description']);
+/** Vrije-tekstkáárten (UDF-/activiteitswaarden e.d.): zelfde behandeling als een rawRow-celverzameling. */
+const FREE_TEXT_MAP_KEYS = new Set(['customFields']);
 
 interface RawSourceRowLike {
   readonly line: number;
   readonly cells: Readonly<Record<string, string>>;
 }
 
-function truncateCell(value: string): string {
-  if (value.length <= RAW_CELL_MAX_CHARS) return value;
-  return `${value.slice(0, RAW_CELL_MAX_CHARS)}…(afgekapt op ${RAW_CELL_MAX_CHARS} tekens)`;
-}
-
-/** Zonder opt-in: alleen line + celaantal, geen enkele vrije waarde. Met opt-in: volledige cellen,
- *  elk individueel afgekapt. */
-function projectSourceRow(row: RawSourceRowLike, includeRawRows: boolean): unknown {
-  if (!includeRawRows) {
-    return { line: row.line, fieldCount: Object.keys(row.cells).length };
+class XerProvenanceError extends Error {
+  constructor(public readonly code: McpErrorCode, message: string) {
+    super(message);
   }
+}
+
+/** Codepoint-veilig afkappen (review2-3d.md #7): `slice(0, n)` op code-units kan een surrogaatpaar
+ *  doormidden knippen (bv. een emoji), wat een well-formed maar kapotte string oplevert voor de
+ *  client. Schuif de grens één code-unit terug zodra hij op een eenzame high surrogate uitkomt. */
+function truncateAt(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  let end = maxChars;
+  const codeUnit = value.charCodeAt(end - 1);
+  if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) end -= 1;
+  return `${value.slice(0, end)}…(afgekapt op ${maxChars} tekens)`;
+}
+
+function truncateCell(value: string): string {
+  return truncateAt(value, RAW_CELL_MAX_CHARS);
+}
+
+function truncateLabel(value: string): string {
+  return truncateAt(value, LABEL_MAX_CHARS);
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Structurele herkenning van een XER-bronrij (`XerArchiveSourceRowV1`): exact twee velden, `line`
+ *  een getal, `cells` een kaart van louter strings. Dit is bewust STRUCTUREEL i.p.v. een allowlist
+ *  per collectie — zo vindt de poort ook een `rawRow` op een plek waar niemand hem had opgeschreven
+ *  (review2-3d.md #1, `diagnostics/documentViews[x].resources.assignments[].rawRow`). */
+function isRawSourceRowLike(value: Record<string, unknown>): value is { line: number; cells: Record<string, string> } {
+  const keys = Object.keys(value);
+  if (keys.length !== 2 || typeof value.line !== 'number' || !isPlainRecord(value.cells)) return false;
+  return Object.values(value.cells).every((cell) => typeof cell === 'string');
+}
+
+/** Houdt de opgebouwde UTF-8-bytegrootte van een pagina bij TERWIJL cellen/labels geprojecteerd
+ *  worden, en breekt meteen af zodra het budget vol is — vóór de dure, autoritatieve
+ *  `JSON.stringify`-meting in `finalizeBounded` (review2-3d.md #6: "begroot vóór serialisatie"). Dit
+ *  voorkomt dat één rij met bv. 20.000 cellen alsnog een tientallen-MB-tussenstring opbouwt: de
+ *  teller breekt al af halverwege díé ene rij. */
+interface ByteBudget {
+  charge(text: string): void;
+}
+function createByteBudget(maxBytes: number): ByteBudget {
+  const encoder = new TextEncoder();
+  let used = 0;
+  return {
+    charge(text: string): void {
+      used += encoder.encode(text).byteLength;
+      if (used > maxBytes) {
+        throw new XerProvenanceError(
+          'VALIDATION',
+          `Deze pagina overschrijdt de responsgrens van ${MAX_SECTION_RESPONSE_BYTES} bytes — verlaag \`limit\` of gebruik \`offset\` om te pagineren.`,
+        );
+      }
+    },
+  };
+}
+
+/** Projecteert één bronrij. Zonder `includeRawRows`: alleen `line` + het WERKELIJKE celaantal, geen
+ *  enkele vrije waarde. Met opt-in: tot `MAX_CELLS_PER_ROW` cellen, elk individueel afgekapt en
+ *  budget-gecharged; méér cellen dan de cap krijgen een expliciete `cellsTruncatedAt`-marker in
+ *  plaats van stilzwijgend te verdwijnen. */
+function projectSourceRow(row: RawSourceRowLike, includeRawRows: boolean, budget: ByteBudget): unknown {
+  const fieldNames = Object.keys(row.cells);
+  if (!includeRawRows) {
+    return { line: row.line, fieldCount: fieldNames.length };
+  }
+  const limited = fieldNames.slice(0, MAX_CELLS_PER_ROW);
   const cells: Record<string, string> = {};
-  for (const [field, value] of Object.entries(row.cells)) cells[field] = truncateCell(value);
-  return { line: row.line, cells };
+  for (const field of limited) {
+    const truncated = truncateCell(row.cells[field]);
+    budget.charge(truncated);
+    cells[field] = truncated;
+  }
+  const projected: Record<string, unknown> = { line: row.line, cells };
+  if (fieldNames.length > MAX_CELLS_PER_ROW) {
+    projected.fieldCount = fieldNames.length;
+    projected.cellsTruncatedAt = MAX_CELLS_PER_ROW;
+  }
+  return projected;
 }
 
-/** Zelfde projectie voor een item dat een `rawRow` draagt naast eigen (niet-vrije, id-achtige) velden. */
-function projectRawRowBearingItem(item: Record<string, unknown>, includeRawRows: boolean): unknown {
-  const { rawRow, ...rest } = item;
-  return { ...rest, rawRow: projectSourceRow(rawRow as RawSourceRowLike, includeRawRows) };
+/** Zelfde cap/afkap-/opt-in-regime als `projectSourceRow`, voor een vrije-tekstkáárt (`customFields`
+ *  e.d.) die geen `{line,cells}`-vorm heeft maar dezelfde privacy-eigenschap draagt. */
+function projectFreeTextMap(map: Record<string, unknown>, includeRawRows: boolean, budget: ByteBudget): unknown {
+  const keys = Object.keys(map);
+  if (!includeRawRows) return { fieldCount: keys.length };
+  const limited = keys.slice(0, MAX_CELLS_PER_ROW);
+  const out: Record<string, string> = {};
+  for (const key of limited) {
+    const raw = map[key];
+    const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+    const truncated = truncateCell(text);
+    budget.charge(truncated);
+    out[key] = truncated;
+  }
+  const projected: Record<string, unknown> = { ...out };
+  if (keys.length > MAX_CELLS_PER_ROW) projected.__truncated = { fieldCount: keys.length, cellsTruncatedAt: MAX_CELLS_PER_ROW };
+  return projected;
 }
 
-/** Responsgrens-backstop: gooi een typed fout met een pagineerhint in plaats van een onbegrensde
- *  serialisatie toe te staan. */
+/**
+ * DE ENE POORT (review2-3d.md, verdict): elke waarde die een sectiefunctie teruggeeft loopt hierdoor
+ * vóór hij de respons in gaat. Regels, in volgorde:
+ *   1. een string onder een vrije-tekstsleutel (`notes`/`description`/…) is zonder opt-in ONZICHTBAAR
+ *      (de sleutel verdwijnt), met opt-in afgekapt op 2.000 tekens;
+ *   2. elke andere string wordt ALTIJD getoond maar hard afgekapt op 200 tekens (labels/namen/ids);
+ *   3. een object dat STRUCTUREEL een XER-bronrij is (`{line,cells}`) gaat via `projectSourceRow`,
+ *      ongeacht waar in de boom hij zit;
+ *   4. een object onder een vrije-tekstkáárt-sleutel (`customFields`) gaat via `projectFreeTextMap`;
+ *   5. arrays en overige objecten recurseren; getallen/booleans/`null` gaan ongewijzigd mee.
+ * Nooit een alias naar de bevroren archiefstate: elke tak bouwt een vers object/array op, dus er is
+ * ook geen `structuredClone` meer nodig zoals de oude `page()` die had.
+ */
+function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawRows: boolean, budget: ByteBudget): unknown {
+  if (typeof value === 'string') {
+    if (key !== null && FREE_TEXT_STRING_KEYS.has(key)) {
+      if (!includeRawRows) return undefined;
+      const truncated = truncateCell(value);
+      budget.charge(truncated);
+      return truncated;
+    }
+    const truncated = truncateLabel(value);
+    budget.charge(truncated);
+    return truncated;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeProvenanceValue(item, key, includeRawRows, budget));
+  }
+  if (isPlainRecord(value)) {
+    if (isRawSourceRowLike(value)) {
+      return projectSourceRow(value, includeRawRows, budget);
+    }
+    if (key !== null && FREE_TEXT_MAP_KEYS.has(key)) {
+      return projectFreeTextMap(value, includeRawRows, budget);
+    }
+    const out: Record<string, unknown> = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+      const sanitized = sanitizeProvenanceValue(childValue, childKey, includeRawRows, budget);
+      if (sanitized !== undefined) out[childKey] = sanitized;
+    }
+    return out;
+  }
+  return value;
+}
+
+/** Autoritatieve, echte-bytes backstop (review2-3d.md #4): meet de UITEINDELIJKE geserialiseerde
+ *  respons met `TextEncoder`, niet `String.length`. De budget-tijdens-projectie hierboven vangt de
+ *  dominante kosten al vroeg af; dit is de correctheidsgarantie voor de rest (JSON-structuuroverhead,
+ *  velden die niet via de budget-charge liepen). */
 function finalizeBounded<T extends Record<string, unknown>>(result: T): T {
-  if (JSON.stringify(result).length > MAX_SECTION_RESPONSE_BYTES) {
+  const byteLength = new TextEncoder().encode(JSON.stringify(result)).length;
+  if (byteLength > MAX_SECTION_RESPONSE_BYTES) {
     throw new XerProvenanceError(
       'VALIDATION',
       `Deze pagina overschrijdt de responsgrens van ${MAX_SECTION_RESPONSE_BYTES} bytes geserialiseerd — verlaag \`limit\` of gebruik \`offset\` om te pagineren.`,
     );
   }
   return result;
-}
-
-class XerProvenanceError extends Error {
-  constructor(public readonly code: McpErrorCode, message: string) {
-    super(message);
-  }
 }
 
 function readTool(ctx: McpContext, fn: (state: AppState) => unknown): McpToolResult {
@@ -185,22 +326,32 @@ function requireString(value: unknown, name: string): string {
   return value;
 }
 
-function page<T>(items: readonly T[], args: XerProvenanceArgs, options: PageOptions = {}): {
-  items: T[];
+interface Paginated<T> {
+  readonly slice: readonly T[];
+  readonly total: number;
+  readonly offset: number;
+}
+
+/** Slice EERST (op de ongesaneerde bron), sanitize DAARNA alleen de teruggegeven pagina — nooit
+ *  andersom. Werk is zo ∝ `limit`, niet ∝ collectiegrootte, en de budget-tijdens-projectie hierboven
+ *  charged alleen wat ook echt de respons in gaat. */
+function paginateRaw<T>(items: readonly T[], args: XerProvenanceArgs, options: PageOptions = {}): Paginated<T> {
+  const { limit, offset } = requirePage(args, options);
+  return { slice: items.slice(offset, offset + limit), total: items.length, offset };
+}
+
+function envelope(paged: Paginated<unknown>, items: unknown[]): {
+  items: unknown[];
   total: number;
   has_more: boolean;
   next_offset: number | null;
 } {
-  const { limit, offset } = requirePage(args, options);
-  const selected = items.slice(offset, offset + limit);
-  const next = offset + selected.length;
+  const next = paged.offset + items.length;
   return {
-    // Do not publish aliases into the frozen archive. This is especially important for raw rows:
-    // an MCP caller can hold the structured result before transport serialization.
-    items: structuredClone(selected),
-    total: items.length,
-    has_more: next < items.length,
-    next_offset: next < items.length ? next : null,
+    items,
+    total: paged.total,
+    has_more: next < paged.total,
+    next_offset: next < paged.total ? next : null,
   };
 }
 
@@ -214,8 +365,17 @@ function collectionOf<T>(section: Section, collection: unknown, allowed: readonl
   return value;
 }
 
+/** ÉÉN selectorbron (review2-3d.md #5): de unie van `documentViews` (daadwerkelijk geopende
+ *  projecten) en `taskSourceRowsByProject` (elk project met TASK-rijen, óók leeg/baseline-
+ *  uitgesloten). Vóór deze fix keurde de generieke `projectId`-precheck alleen `documentViews` goed,
+ *  terwijl `summary.catalogCounts.taskSourceRowsByProject` bredere projecten adverteerde die de tool
+ *  vervolgens zelf met NOT_FOUND weigerde. */
 function projectIds(archive: XerSourceArchive): string[] {
-  return Object.keys(archive.diagnostics.documentViews).sort();
+  const ids = new Set<string>([
+    ...Object.keys(archive.diagnostics.documentViews),
+    ...Object.keys(archive.readModel.taskSourceRowsByProject),
+  ]);
+  return Array.from(ids).sort();
 }
 
 function requireArchive(state: AppState): XerSourceArchive {
@@ -326,14 +486,13 @@ function resourceCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): un
     issues: catalog.issues,
   } as Record<Collection, readonly unknown[]>;
   const includeRawRows = args.includeRawRows === true;
-  const isRawRowCollection = RAW_ROW_RESOURCE_COLLECTIONS.has(collection);
-  const items = isRawRowCollection
-    ? (values[collection] as Record<string, unknown>[]).map((item) => projectRawRowBearingItem(item, includeRawRows))
-    : values[collection];
-  const pageOptions: PageOptions = isRawRowCollection && includeRawRows
+  const pageOptions: PageOptions = includeRawRows
     ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
     : {};
-  return finalizeBounded({ section: 'resourceCatalog', collection, ...page(items, args, pageOptions) });
+  const paged = paginateRaw(values[collection], args, pageOptions);
+  const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
+  const items = paged.slice.map((item) => sanitizeProvenanceValue(item, null, includeRawRows, budget));
+  return finalizeBounded({ section: 'resourceCatalog', collection, ...envelope(paged, items) });
 }
 
 function metadataCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
@@ -347,24 +506,28 @@ function metadataCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): un
     ...catalog.sourceData,
   };
   const includeRawRows = args.includeRawRows === true;
-  const isRawRowCollection = RAW_ROW_METADATA_COLLECTIONS.has(collection);
-  const items = isRawRowCollection
-    ? (values[collection] ?? []).map((row) => projectSourceRow(row as RawSourceRowLike, includeRawRows))
-    : (values[collection] ?? []);
-  const pageOptions: PageOptions = isRawRowCollection && includeRawRows
+  const pageOptions: PageOptions = includeRawRows
     ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
     : {};
-  return finalizeBounded({ section: 'metadataCatalog', collection, ...page(items, args, pageOptions) });
+  const paged = paginateRaw(values[collection] ?? [], args, pageOptions);
+  const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
+  const items = paged.slice.map((item) => sanitizeProvenanceValue(item, null, includeRawRows, budget));
+  return finalizeBounded({ section: 'metadataCatalog', collection, ...envelope(paged, items) });
 }
 
 function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   const file = archive.diagnostics.file;
   const collection = collectionOf('diagnostics', args.collection, DIAGNOSTIC_COLLECTIONS, args.collection as Collection);
+  const includeRawRows = args.includeRawRows === true;
   if (collection === 'importReport') {
     if (args.limit !== undefined || args.offset !== undefined) {
       throw new XerProvenanceError('VALIDATION', '`limit` en `offset` horen niet bij diagnostics/importReport.');
     }
-    return { section: 'diagnostics', collection, report: structuredClone(file.importReport) };
+    // Review2-3d.md #3/#6: ook het scalaire importReport-pad loopt nu door de poort + responsgrens —
+    // structureel onbegrensd blijven is fout, ongeacht wat het type vandaag toevallig bevat.
+    const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
+    const report = sanitizeProvenanceValue(file.importReport, null, includeRawRows, budget);
+    return finalizeBounded({ section: 'diagnostics', collection, report });
   }
   const values: Record<string, readonly unknown[]> = {
     tableIssues: file.tableReport.issues,
@@ -374,15 +537,23 @@ function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknow
     relationResolutionIssues: file.relationResolutionIssues,
     resourceCatalogIssues: file.resourceCatalogIssues,
     metadataCatalogIssues: file.metadataCatalogIssues,
+    // Draagt via `resources.assignments[].rawRow` dezelfde vrije XER-cellen als de andere secties
+    // (review2-3d.md #1) — `sanitizeProvenanceValue` vindt die structureel, ook zonder dat deze
+    // regel er iets specifieks voor doet.
     documentViews: Object.entries(archive.diagnostics.documentViews).sort(([left], [right]) => left.localeCompare(right)).map(([projectId, view]) => ({ projectId, view })),
   };
-  const result = page(values[collection], args);
-  return {
+  const pageOptions: PageOptions = includeRawRows
+    ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
+    : {};
+  const paged = paginateRaw(values[collection], args, pageOptions);
+  const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
+  const items = paged.slice.map((item) => sanitizeProvenanceValue(item, null, includeRawRows, budget));
+  return finalizeBounded({
     section: 'diagnostics',
     collection,
     ...(collection === 'tableIssues' ? { encoding: file.tableReport.encoding, endMarkerSeen: file.tableReport.endMarkerSeen } : {}),
-    ...result,
-  };
+    ...envelope(paged, items),
+  });
 }
 
 function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
@@ -392,24 +563,21 @@ function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unk
   }
   const includeRawRows = args.includeRawRows === true;
   const rows = archive.readModel.taskSourceRowsByProject[projectId] ?? [];
-  // Zonder `includeRawRows` een tel-projectie zonder celwaarden; met de opt-in de volle rij, per cel
-  // afgekapt en met een lagere paginalimiet (zie RAW_ROWS_OPT_IN_MAX_LIMIT/RAW_CELL_MAX_CHARS hierboven).
-  const items = rows.map((row) => projectSourceRow(row, includeRawRows));
   const pageOptions: PageOptions = includeRawRows
     ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
     : {};
-  return finalizeBounded({
-    section: 'taskSourceRowsByProject',
-    projectId,
-    ...page(items, args, pageOptions),
-  });
+  const paged = paginateRaw(rows, args, pageOptions);
+  const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
+  const items = paged.slice.map((row) => sanitizeProvenanceValue(row, null, includeRawRows, budget));
+  return finalizeBounded({ section: 'taskSourceRowsByProject', projectId, ...envelope(paged, items) });
 }
 
 function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   if (args.includeRawSource !== true) {
     throw new XerProvenanceError('VALIDATION', 'rawSource vereist `includeRawSource: true`; bronbytes kunnen namen en vrije notities bevatten.');
   }
-  const paged = page(archive.byteChunks, args, { maxLimit: 8, label: 'rawSource', unit: 'chunks' });
+  const paged = paginateRaw(archive.byteChunks, args, { maxLimit: 8, label: 'rawSource', unit: 'chunks' });
+  const next = paged.offset + paged.slice.length;
   return {
     section: 'rawSource',
     privacy: 'expliciet aangevraagd; base64-brondata kan vrije projectinformatie bevatten',
@@ -418,10 +586,10 @@ function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown 
     encoding: 'base64',
     chunkSizeBytes: XER_SOURCE_ARCHIVE_CHUNK_BYTES,
     totalChunks: archive.byteChunks.length,
-    chunks: paged.items.map((base64, index) => ({ index: (typeof args.offset === 'number' ? args.offset : 0) + index, base64 })),
+    chunks: paged.slice.map((base64, index) => ({ index: paged.offset + index, base64 })),
     total: paged.total,
-    has_more: paged.has_more,
-    next_offset: paged.next_offset,
+    has_more: next < paged.total,
+    next_offset: next < paged.total ? next : null,
   };
 }
 
@@ -447,7 +615,7 @@ function inspect(state: AppState, rawArgs: unknown): unknown {
   if (args.includeRawRows !== undefined && !RAW_ROWS_SECTIONS.includes(section)) {
     throw new XerProvenanceError(
       'VALIDATION',
-      '`includeRawRows` hoort alleen bij section `resourceCatalog`, `metadataCatalog` of `taskSourceRowsByProject`.',
+      '`includeRawRows` hoort alleen bij section `resourceCatalog`, `metadataCatalog`, `taskSourceRowsByProject` of `diagnostics`.',
     );
   }
   if (section === 'summary') {
@@ -484,9 +652,11 @@ const inputSchema = {
     includeRawRows: {
       type: 'boolean',
       description:
-        'Alleen bij resourceCatalog/metadataCatalog/taskSourceRowsByProject: ontgrendelt de vrije ' +
-        'brontekst van een rij (naam, notitie, willekeurige XER-kolom) i.p.v. alleen line+fieldCount, ' +
-        'met een lagere paginalimiet (100) en per-cel-afkapping op 2.000 tekens.',
+        'Alleen bij resourceCatalog/metadataCatalog/taskSourceRowsByProject/diagnostics: ontgrendelt ' +
+        'vrije-tekstvelden (notities, customFields, willekeurige XER-kolommen) i.p.v. ze weg te laten, ' +
+        'met een lagere paginalimiet (100), een cap van 200 cellen/velden per rij en per-cel-afkapping ' +
+        'op 2.000 tekens. Korte label-/naamvelden blijven ALTIJD zichtbaar maar afgekapt op 200 tekens,' +
+        ' met of zonder deze opt-in.',
     },
   },
   additionalProperties: false,
@@ -499,15 +669,18 @@ export const xerProvenanceTools: McpToolDef[] = [{
     '(veilig: bronaanwezigheid, byteLength, SHA-256, chunk count, selector, number format, SCHEDOPTIONS-, ' +
     'import- en diagnostiektellingen), resourceCatalog, metadataCatalog, taskSourceRowsByProject, ' +
     'diagnostics of rawSource. Cataloguscollecties zijn expliciet benoemd en gepagineerd met `limit`, ' +
-    '`offset`, `total`, `has_more` en `next_offset`. taskSourceRowsByProject vereist een expliciete ' +
-    '`projectId`; zonder `includeRawRows:true` levert elke rij alleen `line`+`fieldCount`, geen cellen. ' +
-    'rawSource vereist expliciet `includeRawSource:true`, geeft maximaal acht vaste base64-chunks per ' +
-    'antwoord en meldt de privacygrens; summary lekt nooit raw bytes of vrije raw rows. ' +
-    'resourceCatalog/metadataCatalog/taskSourceRowsByProject geven zonder `includeRawRows:true` een ' +
-    'beperkte projectie zonder ruwe cellen; met de opt-in gelden een lagere paginalimiet, ' +
-    'per-celafkapping en een responsgrens. De tool gebruikt alleen retained state, muteert de store ' +
-    'niet, voert geen CPM uit en ondersteunt geen schrijfpad. Niet batchable: roep hem los aan, nooit ' +
-    'als stap in `planner_batch`.',
+    '`offset`, `total`, `has_more` en `next_offset`. `selector.availableProjectIds` (summary) is de ' +
+    'unie van geopende documentviews en elk project met TASK-rijen (óók leeg/baseline-uitgesloten) — ' +
+    'exact de projecten die `taskSourceRowsByProject` accepteert. Vrije tekst (notities, `customFields`, ' +
+    'ruwe XER-cellen) is zonder `includeRawRows:true` volledig ONZICHTBAAR, niet slechts afgekapt; met ' +
+    'de opt-in per cel/veld afgekapt op 2.000 tekens, met een cap van 200 cellen per rij en een lagere ' +
+    'paginalimiet (100). Korte label-/naamvelden (namen, ids) blijven ALTIJD zichtbaar maar hard ' +
+    'afgekapt op 200 tekens — dit geldt voor élke string die uit een bronrij komt, ongeacht waar in de ' +
+    'respons hij landt (ook `diagnostics/documentViews`). rawSource vereist expliciet ' +
+    '`includeRawSource:true`, geeft maximaal acht vaste base64-chunks per antwoord en meldt de ' +
+    'privacygrens. Elke pagina kent een harde responsgrens (256 kB, gemeten in echte UTF-8-bytes). ' +
+    'De tool gebruikt alleen retained state, muteert de store niet, voert geen CPM uit en ondersteunt ' +
+    'geen schrijfpad. Niet batchable: roep hem los aan, nooit als stap in `planner_batch`.',
   kind: 'read',
   batchable: false,
   inputSchema,

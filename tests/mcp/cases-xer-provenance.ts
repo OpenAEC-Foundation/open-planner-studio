@@ -2,6 +2,7 @@
 // Alle bronwaarden zijn synthetisch; er wordt geen corpusnaam of pad gebruikt.
 import { useAppStore, makeMcpContext, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
+import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import type { McpContext, McpToolErr, McpToolOk, McpToolResult } from '@/services/mcp/contracts';
 import {
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
@@ -9,6 +10,7 @@ import {
   createEmptyXerArchiveReadModel,
   type XerSourceArchive,
 } from '@/services/xerSourceArchive';
+import { reconstructXerSourceArchiveFromBytes } from '@/services/xer/xerReader';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 
 const S = () => useAppStore.getState();
@@ -53,6 +55,17 @@ function reset(): void {
 const LONG_CELL = 'synthetic-free-cell-' + 'x'.repeat(5000);
 const LONG_CELL_TRUNCATED_LENGTH = 2000 + '…(afgekapt op 2000 tekens)'.length;
 
+// Reviewronde 2 (review2-3d.md #2): de eerste fix dichtte alleen `rawRow.cells` af; vrije tekst
+// BUITEN `rawRow` (roleSources.description, resources.description, taskProjections.notes/
+// customFields) ging ongefilterd mee. Twee aparte secrets houden de twee behandelingen uit elkaar:
+// FREE_TEXT_SECRET hoort in een veld dat zonder opt-in VOLLEDIG moet verdwijnen (notities); die
+// mag dus NERGENS verschijnen, ook niet als afgekapt prefix. LABEL_SECRET hoort in een kort
+// naam-/labelveld dat bewust ZICHTBAAR blijft maar hard afgekapt — daar is een 200-tekens-prefix
+// een correcte uitkomst, geen lek.
+const FREE_TEXT_SECRET = 'FREE-TEXT-SECRET-' + 'y'.repeat(9000);
+const LABEL_SECRET = 'LABEL-SECRET-' + 'z'.repeat(9000);
+const LABEL_TRUNCATED_LENGTH = 200 + '…(afgekapt op 200 tekens)'.length;
+
 function archiveFixture(): XerSourceArchive {
   // De production-reader levert deze exact gevormde objectgrafiek. De test gebruikt een compacte
   // synthetische variant, omdat deze suite MCP-responscontracten test en geen XER-parsercontract.
@@ -75,23 +88,38 @@ function archiveFixture(): XerSourceArchive {
         cell_c: 'c'.repeat(3000),
       },
     })),
+    // Review2-3d.md #4: CJK-tekst is 1 UTF-16-code-unit maar 3 UTF-8-bytes per teken. 50 rijen ×
+    // 2.000 CJK-tekens = 100.000 CODE-UNITS (ver onder de oude "String.length"-grens van 262.144)
+    // maar ≈ 300.000 ECHTE BYTES (ruim boven de 262.144-bytesgrens die de tool belooft).
+    'PROJ-CJK': Array.from({ length: 50 }, (_, index) => ({
+      line: 300 + index,
+      cells: { task_id: `CJK-${index}`, greeting: '漢'.repeat(2000) },
+    })),
+    // Review2-3d.md #5: dit project heeft GEEN documentview (het is nooit "geopend" in de zin van
+    // de lezer) maar staat wél hier — precies de P2_BASELINE-situatie uit de review: de summary moet
+    // het adverteren, en de tool moet het ook echt accepteren.
+    'PROJ-ONLY-IN-TASKROWS': [{ line: 500, cells: { task_id: 'ONLY-1' } }],
   };
   readModel.resourceCatalog = {
-    resources: [{ id: 'resource-1', name: 'Synthetic Crew' }],
+    resources: [{ id: 'resource-1', name: 'Synthetic Crew', description: FREE_TEXT_SECRET }],
     identities: [{ kind: 'RESOURCE', sourceId: 'R-1', internalId: 'resource-1', line: 20 }],
     rows: {
       resources: [{ sourceId: 'R-1', internalId: 'resource-1', line: 20, rawType: '1', rawRow: { line: 20, cells: { rsrc_id: 'R-1', rsrc_name: 'Synthetic Crew', rsrc_notes: LONG_CELL } } }],
-      roles: [{ sourceId: 'ROLE-1', internalId: 'role-1', line: 21, name: 'Synthetic Role', shortName: 'SR', description: '', rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } } }],
+      roles: [{ sourceId: 'ROLE-1', internalId: 'role-1', line: 21, name: 'Synthetic Role', shortName: 'SR', description: FREE_TEXT_SECRET, rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } } }],
       rates: [{ sourceId: 'R-1', internalId: 'resource-1', entity: { kind: 'RESOURCE', sourceId: 'R-1', internalId: 'resource-1' }, line: 22, maxUnitsPerTime: null, costs: [null, null, null, null, null], rawRow: { line: 22, cells: { rsrc_id: 'R-1' } } }],
-      curves: [{ sourceId: 'CURVE-1', internalId: 'curve-1', line: 23, name: 'Curve', rawPoints: Array(21).fill('0'), rawRow: { line: 23, cells: { curve_id: 'CURVE-1' } } }],
+      curves: [{ sourceId: 'CURVE-1', internalId: 'curve-1', line: 23, name: LABEL_SECRET, rawPoints: Array(21).fill('0'), rawRow: { line: 23, cells: { curve_id: 'CURVE-1' } } }],
       assignments: [{ sourceId: 'R-1', taskSourceId: 'TASK-A', rawRow: { line: 24, cells: { task_id: 'TASK-A' } } }],
     },
     issues: [{ code: 'XER_RESOURCE_TYPE_FALLBACK', table: 'RSRC', line: 20, sourceId: 'R-1', fallback: 'LABOR' }],
   };
   readModel.metadataCatalog = {
     activityCodeTypes: [{ id: 'ACTIVITY-TYPE-1', name: 'Synthetic Discipline', values: [{ id: 'ACTIVITY-VALUE-1', code: 'CIVIL' }] }],
-    customFieldDefs: [{ id: 'UDF-1', name: 'Synthetic phase', type: 'text' }],
-    taskProjections: [{ projectId: 'PROJ-A', taskId: 'TASK-A', activityCodes: { 'ACTIVITY-TYPE-1': 'ACTIVITY-VALUE-1' }, customFields: { 'UDF-1': 'Phase A' } }],
+    customFieldDefs: [{ id: 'UDF-1', name: LABEL_SECRET, type: 'text' }],
+    taskProjections: [{
+      projectId: 'PROJ-A', taskId: 'TASK-A', notes: FREE_TEXT_SECRET,
+      activityCodes: { 'ACTIVITY-TYPE-1': 'ACTIVITY-VALUE-1' },
+      customFields: { 'UDF-1': FREE_TEXT_SECRET },
+    }],
     taskProjectionsByProject: { 'PROJ-A': [{ projectId: 'PROJ-A', taskId: 'TASK-A' }] },
     issues: [{ code: 'XER_UDF_INVALID_VALUE', table: 'UDFVALUE', line: 31 }],
     issueCounts: { XER_UDF_INVALID_VALUE: 1 },
@@ -380,7 +408,10 @@ test('invalid args worden runtime geweigerd zonder storemutatie', () => {
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 0 }).code, 'VALIDATION', 'limit');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', offset: -1 }).code, 'VALIDATION', 'offset');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', includeRawRows: 'yes' as any }).code, 'VALIDATION', 'includeRawRows type');
-  assertEq(err(TOOL, { section: 'diagnostics', collection: 'importReport', includeRawRows: true }).code, 'VALIDATION', 'includeRawRows alleen bij de drie catalogus-sections');
+  // `diagnostics` zit sinds review2-3d.md #1 óók in RAW_ROWS_SECTIONS (documentViews draagt dezelfde
+  // vrije cellen als de andere drie) — `rawSource` heeft juist zijn EIGEN opt-in (`includeRawSource`)
+  // en blijft dus wél buiten deze lijst.
+  assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, includeRawRows: true }).code, 'VALIDATION', 'includeRawRows hoort niet bij rawSource (dat heeft includeRawSource)');
   assertEq(JSON.stringify({ tasks: S().tasks, sequences: S().sequences, archive: S().xerSourceArchive }), before, 'geen storemutatie door leespad');
 });
 
@@ -414,6 +445,245 @@ test('no-XER document: veilige summary meldt afwezigheid, inhoudsectie geeft NOT
   const data = ok(TOOL);
   assertEq(data.sourcePresent, false, 'geen XER-bron');
   assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resources' }).code, 'NOT_FOUND', 'catalogus zonder bron');
+});
+
+// =================================================================================================
+// Reviewronde 2 (review2-3d.md) — de EIGENSCHAP, niet drie losse paden.
+// =================================================================================================
+
+test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven zichtbaar maar afgekapt', () => {
+  attachArchive();
+
+  // Vrije tekst (notes/description/customFields) — de SLEUTEL verdwijnt helemaal zonder opt-in,
+  // niet slechts "afgekapt-maar-nog-zichtbaar".
+  const roleClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'roleSources', limit: 1 });
+  assert(!('description' in roleClosed.items[0]), 'roleSources.description verdwijnt zonder opt-in');
+  assert(!JSON.stringify(roleClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van de vrije tekst zonder opt-in');
+
+  const resourcesClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'resources', limit: 1 });
+  assert(!('description' in resourcesClosed.items[0]), 'resources.description verdwijnt zonder opt-in');
+  assert(!JSON.stringify(resourcesClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van de vrije tekst zonder opt-in');
+
+  const projectionsClosed = ok(TOOL, { section: 'metadataCatalog', collection: 'taskProjections', limit: 1 });
+  assert(!('notes' in projectionsClosed.items[0]), 'taskProjections.notes verdwijnt zonder opt-in');
+  assertEq(projectionsClosed.items[0].customFields.fieldCount, 1, 'customFields wordt een fieldCount-projectie, geen waarden');
+  assert(!JSON.stringify(projectionsClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van customFields-waarden zonder opt-in');
+
+  // Met opt-in: de vrije tekst komt terug, maar afgekapt op 2.000 tekens — nooit de volle 9.000.
+  const roleOpened = ok(TOOL, { section: 'resourceCatalog', collection: 'roleSources', limit: 1, includeRawRows: true });
+  assertEq(roleOpened.items[0].description.length, LONG_CELL_TRUNCATED_LENGTH, 'description afgekapt op 2.000 tekens, niet de volle 9.000');
+  assert(!JSON.stringify(roleOpened).includes(FREE_TEXT_SECRET), 'ook mét opt-in blijft de VOLLE 9.000-tekens-secret buiten bereik');
+
+  const projectionsOpened = ok(TOOL, { section: 'metadataCatalog', collection: 'taskProjections', limit: 1, includeRawRows: true });
+  assertEq(projectionsOpened.items[0].notes.length, LONG_CELL_TRUNCATED_LENGTH, 'notes afgekapt op 2.000 tekens met opt-in');
+  assertEq(projectionsOpened.items[0].customFields['UDF-1'].length, LONG_CELL_TRUNCATED_LENGTH, 'customFields-waarde afgekapt op 2.000 tekens met opt-in');
+
+  // Labels (namen buiten rawRow) blijven ALTIJD zichtbaar, met of zonder opt-in — maar hard afgekapt
+  // op 200 tekens: "genormaliseerd" mag niet langer "onbegrensd" betekenen.
+  const curvesClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'curves', limit: 1 });
+  assertEq(curvesClosed.items[0].name.length, LABEL_TRUNCATED_LENGTH, 'curves.name afgekapt op 200 tekens, altijd zichtbaar');
+  assert(curvesClosed.items[0].name.startsWith('LABEL-SECRET-'), 'een label-prefix mag zichtbaar zijn (bewuste keuze, geen notitie)');
+
+  const defsClosed = ok(TOOL, { section: 'metadataCatalog', collection: 'customFieldDefs', limit: 1 });
+  assertEq(defsClosed.items[0].name.length, LABEL_TRUNCATED_LENGTH, 'customFieldDefs.name afgekapt op 200 tekens, altijd zichtbaar');
+});
+
+/** Loopt recursief door een respons en verzamelt elke stringwaarde. */
+function collectStrings(value: unknown, out: string[]): void {
+  if (typeof value === 'string') { out.push(value); return; }
+  if (Array.isArray(value)) { value.forEach((item) => collectStrings(item, out)); return; }
+  if (value && typeof value === 'object') { Object.values(value as Record<string, unknown>).forEach((item) => collectStrings(item, out)); }
+}
+
+test('P1 #2: generieke walker — zonder opt-in geen string > 2.000 tekens en geen notitie-inhoud, over alle secties', () => {
+  attachArchive();
+  const calls: Array<[string, Record<string, unknown>]> = [
+    ['summary', {}],
+    ['resourceCatalog/resources', { section: 'resourceCatalog', collection: 'resources', limit: 10 }],
+    ['resourceCatalog/roleSources', { section: 'resourceCatalog', collection: 'roleSources', limit: 10 }],
+    ['resourceCatalog/curves', { section: 'resourceCatalog', collection: 'curves', limit: 10 }],
+    ['resourceCatalog/resourceSources', { section: 'resourceCatalog', collection: 'resourceSources', limit: 10 }],
+    ['metadataCatalog/customFieldDefs', { section: 'metadataCatalog', collection: 'customFieldDefs', limit: 10 }],
+    ['metadataCatalog/taskProjections', { section: 'metadataCatalog', collection: 'taskProjections', limit: 10 }],
+    ['metadataCatalog/TASKMEMO', { section: 'metadataCatalog', collection: 'TASKMEMO', limit: 10 }],
+    ['taskSourceRowsByProject/PROJ-A', { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 10 }],
+    ['diagnostics/documentViews', { section: 'diagnostics', collection: 'documentViews', limit: 10 }],
+    ['diagnostics/unknownFields', { section: 'diagnostics', collection: 'unknownFields', limit: 10 }],
+    ['diagnostics/importReport', { section: 'diagnostics', collection: 'importReport' }],
+  ];
+  for (const [label, args] of calls) {
+    const data = ok(TOOL, args);
+    const strings: string[] = [];
+    collectStrings(data, strings);
+    assert(strings.length > 0, `${label}: testopzet — de respons moet minstens één string bevatten`);
+    for (const value of strings) {
+      assert(value.length <= 2000, `${label}: string van ${value.length} tekens overschrijdt de 2.000-tekens-grens zonder opt-in ("${value.slice(0, 40)}…")`);
+      assert(!value.includes(FREE_TEXT_SECRET.slice(0, 50)), `${label}: bevat notitie-inhoud zonder includeRawRows`);
+    }
+  }
+});
+
+/** Reviewbevinding P1 #1 (review2-3d.md): de vorige documentViews-fixture was een handgeschreven
+ *  stub (`{sourceProjectId, synthetic:true}`) die de productievorm niet had — de test was daardoor
+ *  structureel blind voor het lek. Deze fixture gaat wél door de ECHTE lezer (`readXER`, via
+ *  `reconstructXerSourceArchiveFromBytes`), corpusloos, met een bewust gigantische vrije cel in een
+ *  TASKRSRC-kolom, zodat `documentViews[x].resources.assignments[].rawRow.cells` 'm ECHT draagt. */
+const REAL_ARCHIVE_SECRET = 'REAL-SECRET-' + 'w'.repeat(50000);
+
+function buildRealArchiveFixture(): XerSourceArchive {
+  const source = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+    '%T\tCURRTYPE',
+    '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+    '%R\tEUR\tcomma\tperiod',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-REAL\tReal fixture project\tC\t2026-08-01 08:00',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC\tStandaard\t8\t40\t',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code',
+    '%R\tT-REAL\tP-REAL\tA-1\tEchte taak\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart',
+    '%T\tRSRC',
+    '%F\trsrc_id\trsrc_name\trsrc_type\tclndr_id\tdef_qty_per_hr',
+    '%R\tR-REAL\tEchte resource\tRT_Labor\tC\t1',
+    '%T\tTASKRSRC',
+    '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty\tfree_secret_field',
+    `%R\tAS-REAL\tP-REAL\tT-REAL\tR-REAL\t0,5\t0,5\t4\t4\t${REAL_ARCHIVE_SECRET}`,
+    '%E',
+  ].join('\r\n'));
+  return reconstructXerSourceArchiveFromBytes(source);
+}
+
+/** Reviewbevinding #3/#6 (review2-3d.md): een rij met véél cellen (de `%F`-kolomkop van het
+ *  bronbestand bepaalt dat aantal, dus een aanvaller-gecontroleerd bestand kan het opdrijven) mag
+ *  geen tientallen-MB-tussenstring opbouwen vóór de responsgrens ingrijpt. 250 extra kolommen op
+ *  ÉÉN TASKRSRC-rij, elk met een ruime vrije waarde. */
+function buildManyCellsArchiveFixture(): XerSourceArchive {
+  const extraColumnCount = 250;
+  const extraFieldNames = Array.from({ length: extraColumnCount }, (_, index) => `extra_col_${index}`);
+  const extraFieldValues = Array.from({ length: extraColumnCount }, (_, index) => `val${index}-${'q'.repeat(2500)}`);
+  const source = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+    '%T\tCURRTYPE',
+    '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+    '%R\tEUR\tcomma\tperiod',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-MANYCELLS\tMany-cells fixture project\tC\t2026-08-01 08:00',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC\tStandaard\t8\t40\t',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code',
+    '%R\tT-MANYCELLS\tP-MANYCELLS\tA-1\tGrote taak\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart',
+    '%T\tRSRC',
+    '%F\trsrc_id\trsrc_name\trsrc_type\tclndr_id\tdef_qty_per_hr',
+    '%R\tR-MANYCELLS\tGrote resource\tRT_Labor\tC\t1',
+    '%T\tTASKRSRC',
+    ['%F', 'taskrsrc_id', 'proj_id', 'task_id', 'rsrc_id', 'target_qty_per_hr', 'remain_qty_per_hr', 'remain_qty', 'target_qty', ...extraFieldNames].join('\t'),
+    ['%R', 'AS-MANYCELLS', 'P-MANYCELLS', 'T-MANYCELLS', 'R-MANYCELLS', '0,5', '0,5', '4', '4', ...extraFieldValues].join('\t'),
+    '%E',
+  ].join('\r\n'));
+  return reconstructXerSourceArchiveFromBytes(source);
+}
+
+function attachRealArchive(archive: XerSourceArchive, projectId: string): void {
+  reset();
+  S().setProject({ name: 'Real XER fixture project' });
+  useAppStore.setState((state) => {
+    state.xerSourceArchive = archive as any;
+    state.xerSourceProjectId = projectId;
+  });
+}
+
+test('P1 #1: diagnostics/documentViews gated net als de andere secties (echte lezer, geen stub)', () => {
+  const archive = buildRealArchiveFixture();
+  const view = archive.diagnostics.documentViews['P-REAL'] as any;
+  assert(!!view?.resources?.assignments?.[0]?.rawRow, 'testopzet: de echte lezer levert een assignment-rawRow op');
+  assert(view.resources.assignments[0].rawRow.cells.free_secret_field.includes('REAL-SECRET-'), 'testopzet: de secretkolom staat echt in de rawRow');
+  attachRealArchive(archive, 'P-REAL');
+
+  const closed = ok(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1 });
+  const closedStr = JSON.stringify(closed);
+  assert(!closedStr.includes('REAL-SECRET-'), 'zonder opt-in mag de vrije TASKRSRC-cel niet verschijnen (P1 #1)');
+  assert(closedStr.length < 5000, 'zonder opt-in blijft de documentview-pagina klein (geen 50.000-tekens-lek)');
+
+  const opened = ok(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1, includeRawRows: true });
+  const openedStr = JSON.stringify(opened);
+  assert(!openedStr.includes(REAL_ARCHIVE_SECRET), 'zelfs met opt-in blijft de cel afgekapt, nooit de volle 50.000 tekens');
+  const cell = opened.items[0].view.resources.assignments[0].rawRow.cells.free_secret_field;
+  assertEq(cell.length, LONG_CELL_TRUNCATED_LENGTH, 'afgekapt op exact dezelfde grens als de andere secties');
+  assert(cell.startsWith('REAL-SECRET-'), 'het zichtbare prefix bevestigt dat dit dezelfde cel is');
+});
+
+test('P3 #6: cap op cellen per rij + budget-tijdens-projectie voorkomt een megabytes-tussenstring', () => {
+  const archive = buildManyCellsArchiveFixture();
+  const view = archive.diagnostics.documentViews['P-MANYCELLS'] as any;
+  assertEq(Object.keys(view.resources.assignments[0].rawRow.cells).length, 258, 'testopzet: 250 extra + 8 kernvelden');
+  attachRealArchive(archive, 'P-MANYCELLS');
+
+  // 258 cellen × ~2.026 afgekapte tekens zou zonder cap/budget ruim boven de 256 kB-responsgrens
+  // uitkomen — de fix moet dit AL TIJDENS de projectie afvangen (P3 #6), niet pas na een dure
+  // volledige serialisatie.
+  const tooMany = err(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1, includeRawRows: true });
+  assertEq(tooMany.code, 'VALIDATION', 'responsgrens grijpt in vóór de respons de deur uit gaat');
+  assert(/responsgrens|limit/.test(tooMany.error), 'foutmelding hint naar limit/offset');
+
+  // Zonder opt-in blijft de pagina klein — de cap/budget speelt alleen mee zodra celinhoud
+  // daadwerkelijk wordt uitgelezen. (De 250 onbekende TASKRSRC-kolommen leveren wél 250 kleine
+  // `unknownFields`-diagnostiekregels op — legitiem en ver onder de responsgrens, vandaar de
+  // ruimere marge dan bij de andere "zonder opt-in blijft klein"-asserties in dit bestand.)
+  const closed = ok(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1 });
+  const closedLength = JSON.stringify(closed).length;
+  assert(closedLength < 50000, `zonder opt-in blijft de pagina klein ongeacht het celaantal, kreeg ${closedLength}`);
+});
+
+test('P2 #4: de responsgrens meet ECHTE UTF-8-bytes, niet UTF-16-code-units (CJK)', () => {
+  attachArchive();
+  // 50 rijen × 2.000 CJK-tekens = 100.000 code-units (ver onder de oude "String.length"-grens) maar
+  // ≈ 300.000 ECHTE bytes (boven de 262.144-bytesgrens). Vóór de fix zou dit zijn DOORGELATEN.
+  const tooManyBytes = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-CJK', includeRawRows: true, limit: 50 });
+  assertEq(tooManyBytes.code, 'VALIDATION', 'CJK-pagina met te veel ECHTE bytes wordt geweigerd');
+
+  // Een kleinere pagina (10 rijen × 2.000 CJK-tekens ≈ 60.000 bytes) blijft ruim onder de grens.
+  const smaller = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-CJK', includeRawRows: true, limit: 10 });
+  assertEq(smaller.items.length, 10, 'kleinere CJK-pagina blijft toegestaan');
+});
+
+test('P2 #5: één selectorbron — een project alleen in taskSourceRowsByProject is toch bereikbaar', () => {
+  attachArchive();
+  const summaryData = ok(TOOL);
+  assert(
+    summaryData.selector.availableProjectIds.includes('PROJ-ONLY-IN-TASKROWS'),
+    'summary adverteert het project (unie van documentViews én taskSourceRowsByProject)',
+  );
+  const rows = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-ONLY-IN-TASKROWS', limit: 10 });
+  assertEq(rows.total, 1, 'de tool accepteert exact het project dat de summary adverteert — geen zelftegenspraak meer');
+});
+
+test('P3 #8: loopt via de ECHTE dispatch-weg (handleMcpMessage), niet alleen def.handler', async () => {
+  attachArchive();
+  const dispatchCtx = makeMcpContext(undefined, { expectedDocId: S().activeDocumentId });
+  const rpcCall = async (args: unknown) => {
+    const raw = await handleMcpMessage(
+      JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: TOOL, arguments: args } }),
+      dispatchCtx,
+    );
+    return JSON.parse(raw);
+  };
+
+  const badLimitType = await rpcCall({ limit: '5' });
+  assert(badLimitType.result?.isError === true, 'de schemapoort in de dispatcher weigert limit als string');
+  assertEq(badLimitType.result.structuredContent.code, 'VALIDATION', 'VALIDATION via de dispatcher (limit)');
+
+  const badIncludeRawRowsType = await rpcCall({ includeRawRows: 'yes' });
+  assert(badIncludeRawRowsType.result?.isError === true, 'de schemapoort weigert includeRawRows als string');
+  assertEq(badIncludeRawRowsType.result.structuredContent.code, 'VALIDATION', 'VALIDATION via de dispatcher (includeRawRows)');
+
+  const validCall = await rpcCall({ section: 'summary' });
+  assertEq(validCall.result?.isError, false, 'een geldige summary-call passeert de dispatcher ongehinderd');
 });
 
 await run();
