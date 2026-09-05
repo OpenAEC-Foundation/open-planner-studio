@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { recordedTaskMark } from '@/state/recordedDatesSelectors';
+import { recordedNoticeState } from '@/state/recordedDatesSelectors';
 
 /** Manifest-entry bestaat al (XER-etappeplan laag 3, T7) — `public/docs/{nl,en}/datums-zoals-opgeslagen.md`. */
 const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
@@ -44,9 +44,10 @@ export function TaskRecordedDatesNotice({ taskId }: { taskId: string }) {
   const rec = recordedDates?.times[task.id];
   if (!rec) return null;
 
-  const state: 'active' | 'deviates' | 'partly-unrecorded' | undefined = datesAsRecorded
-    ? 'active'
-    : recordedTaskMark(recordedDates, datesAsRecorded, task);
+  // De keuze zelf staat in `recordedNoticeState` (pure selector, headless getest): in de modus
+  // wint "deels niet vastgelegd" van "actief", zodat deze badge en de kolom `recorded.source`
+  // over dezelfde taak niet uit elkaar kunnen lopen (critreview laag 3, bevinding 1).
+  const state = recordedNoticeState(recordedDates, datesAsRecorded, task);
   if (!state) return null;
 
   const label = state === 'active'

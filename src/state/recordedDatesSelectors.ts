@@ -113,6 +113,25 @@ export function recordedTaskMark(
 }
 
 /**
+ * De badge in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`) — dezelfde bron als de
+ * tabelkolom, zodat de twee oppervlakken over dezelfde taak nooit iets anders kunnen zeggen.
+ *
+ *  - buiten de modus: precies `recordedTaskMark` (dus `'deviates'` of niets);
+ *  - in de modus: `'partly-unrecorded'` zodra de vastlegging assen mist — dát is daar het
+ *    informatieve signaal, en het is exact wat de kolom `recorded.source` dan óók toont — anders
+ *    `'active'` ("deze taak toont de datums uit het bestand").
+ */
+export function recordedNoticeState(
+  recorded: RecordedDatesState | null,
+  datesAsRecorded: boolean,
+  task: Task,
+): 'active' | RecordedTaskMark {
+  const mark = recordedTaskMark(recorded, datesAsRecorded, task);
+  if (!datesAsRecorded) return mark;
+  return recorded?.times[task.id] ? (mark ?? 'active') : undefined;
+}
+
+/**
  * De naad tussen de documentstate en een taakgrid-`TaskColumnContext` — één plek, zodat elk
  * rasteroppervlak (`FullTaskGrid` voor Gantt-taakraster én het tabblad Tabel, en het schrijfpad in
  * `gridTransaction.ts`) dezelfde poort gebruikt.

@@ -16,7 +16,7 @@
 import type { Task } from '@/types/task';
 import type { RecordedDatesState, RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { TaskColumnContext } from '@/types/taskGrid';
-import { recordedGridBinding, recordedTaskMark, unrecordedAxes } from '@/state/recordedDatesSelectors';
+import { recordedGridBinding, recordedNoticeState, recordedTaskMark, unrecordedAxes } from '@/state/recordedDatesSelectors';
 import { useAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { externIfc } from '../fixtures/recordedDatesIfc';
@@ -226,6 +226,28 @@ eq('zonder recordedUnrecordedAxes: totalFloat toont gewoon het getal, geen "niet
   totalFloatCol.format(totalFloatCol.read(task, noAxisCtx), task, noAxisCtx), '0');
 eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   lateFinishCol.format(lateFinishCol.read(task, noAxisCtx), task, noAxisCtx), task.time.lateFinish);
+
+// ── recordedNoticeState: de badge in het eigenschappenpaneel ─────────────────────────────────
+// Zelfde bron als de tabelkolom (critreview laag 3, bevinding 1): buiten de modus geen
+// "deels niet vastgelegd" meer, en IN de modus wint dat signaal juist van het kale "actief" —
+// anders zegt de badge iets anders dan de kolom `recorded.source` over dezelfde taak.
+{
+  const volledig = recordedState({ 't-1': fullRecord });
+  const onvolledig = recordedState({ 't-1': { ...fullRecord, totalFloat: undefined } });
+  const gelijk = taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish });
+  const afwijkend = taskWith({ earlyStart: '2026-02-01', earlyFinish: fullRecord.finish });
+
+  eq('badge buiten de modus, afwijkende datums ⇒ "wijkt af"',
+    recordedNoticeState(volledig, false, afwijkend), 'deviates');
+  eq('badge buiten de modus, onvolledige vastlegging maar gelijke datums ⇒ geen badge',
+    recordedNoticeState(onvolledig, false, gelijk), undefined);
+  eq('badge IN de modus, volledige vastlegging ⇒ "actief"',
+    recordedNoticeState(volledig, true, gelijk), 'active');
+  eq('badge IN de modus, onvolledige vastlegging ⇒ "deels niet vastgelegd" (zelfde als de kolom)',
+    recordedNoticeState(onvolledig, true, gelijk), 'partly-unrecorded');
+  eq('badge zonder vastlegging voor deze taak ⇒ niets, ook in de modus',
+    recordedNoticeState(recordedState({}), true, gelijk), undefined);
+}
 
 // ── recordedGridBinding: de POORT tussen documentstate en de taakgrid-naad ──────────────────
 // Critreview laag 3, bevinding 1 (BEVESTIGD, regressie op de bestaande #63-route): de naad hing op
