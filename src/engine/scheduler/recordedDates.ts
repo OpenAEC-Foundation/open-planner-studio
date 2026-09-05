@@ -67,6 +67,14 @@ export interface RecordedDates {
 export interface RecordedDatesState extends RecordedDates {
   /** Aantal taken waarvan de herberekening de datums verschoof — de teller in de melding. */
   shifted: number;
+  /** Bronformaat van de vastlegging (spiegelt `ImportResult.recordedTimesOrigin`, XER-etappe laag
+   *  3, taak T4/T5) — bewust GEEN import van dat type hier: de engine-laag kent geen formaten,
+   *  alleen deze twee letterlijke waarden. Stuurt uitsluitend WOORDKEUZE in de strook
+   *  (`RecordedDatesNotice.tsx` noemt "Primavera" alleen wanneer dit gezet is); de modus-
+   *  beslissing zelf ligt al vast in `datesAsRecorded` tegen de tijd dat dit veld gelezen wordt.
+   *  `undefined` ⇒ de bestaande, formaatneutrale #63-route (IFC/CSV/MSPDI/MPP/P6XML zonder
+   *  bron-orakel). */
+  origin?: 'xer' | 'xer-archive';
 }
 
 /**

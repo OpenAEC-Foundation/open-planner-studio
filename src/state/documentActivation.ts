@@ -209,11 +209,11 @@ export function prepareLoadedPayload(
 }
 
 /**
- * "Datums zoals opgeslagen" (issue #63) — de standaard-aan-detectie bij het laden (XER-etappeplan
- * §3.5, taak T4). Gedeeld tussen `applyLoadedProject` (`fileSlice.ts`, een vers open-pad) en
- * `restoreDocuments` (`documentSlice.ts`, crash-herstel): een hersteld document krijgt zo dezelfde
- * reproduceerbare detectie als een vers geopend document — "die solve ís de detectie" (§2.3) geldt
- * voor beide paden identiek, zonder dat de vlag zelf ooit apart bewaard hoeft te worden.
+ * "Datums zoals opgeslagen" (issue #63) — de standaard-aan-detectie bij een VERSE import
+ * (XER-etappeplan §3.5, taak T4). Aangeroepen door `applyLoadedProject` (`fileSlice.ts`) — dus elke
+ * keer dat een gebruiker een bestand opent, ook een IFC met XER-archief. Crashherstel loopt sinds
+ * het heropen-beleid (taak T5, 2026-09-05) NIET meer via deze functie, zie
+ * `applyRecordedDatesOnRestore` hieronder voor waarom.
  *
  * `rawTasks` MOET de taken van VÓÓR de solve zijn (bv. de `.tasks` van de payload die aan
  * `prepareLoadedPayload` werd gegeven — NIET `prepared.tasks`): `prepareLoadedPayload` kloont de
@@ -225,11 +225,15 @@ export function prepareLoadedPayload(
  * aanroeper kan `payload.tasks` gerust bewaren en er ná `prepareLoadedPayload(payload, ...)` nog
  * steeds naar verwijzen.
  *
- * Alleen de bron-orakel-route (XER, `parsed.recordedTimesOrigin === 'xer'`) zet de modus METEEN aan
+ * Alleen een VERSE XER-import (`parsed.recordedTimesOrigin === 'xer'`) zet de modus METEEN aan
  * (`datesAsRecorded = true`, `cpmResult` = de reconstructie i.p.v. de solve, `scheduleStale = false`
  * — nooit rechtstreeks `true` gezet, dus de invariant in `state/scheduleStale.ts` blijft heel).
- * Overige formaten (IFC/CSV/MSPDI/MPP/P6XML) bieden de modus alleen AAN — `recordedDates` gevuld,
- * `datesAsRecorded` blijft `false` — precies het bestaande #63-gedrag, ongewijzigd.
+ * Overige gevallen bieden de modus alleen AAN — `recordedDates` gevuld, `datesAsRecorded` blijft
+ * `false` — precies het bestaande #63-gedrag: dat geldt voor IFC/CSV/MSPDI/MPP/P6XML zonder
+ * bron-orakel, MAAR ook voor een HEROPENDE IFC met XER-bronarchief
+ * (`recordedTimesOrigin === 'xer-archive'`, taak T5) — heropen-beleid (orkestratorbesluit,
+ * XER-etappe laag 3, 2026-09-05): een intussen bewerkte en opgeslagen planning mag bij heropenen
+ * niet stilzwijgend P6's oude datums tonen, dus alleen een verse import krijgt de automatische AAN.
  *
  * GEEN undo-snapshot: dit is een LAADPAD, geen mutator. De aanroeper draait vlak hiervoor/hierna
  * `removeSessionHistoryForDocumentFromState` — er is geen geschiedenis waarin een pre-load-toestand
@@ -248,12 +252,69 @@ export function applyRecordedDatesOnLoad(
   if (recorded.total === 0) return;
   const shifted = countShiftedTasks(prepared.tasks, recorded.times);
   if (shifted === 0) return;
-  prepared.recordedDates = { ...recorded, shifted };
+  prepared.recordedDates = { ...recorded, shifted, origin: parsed.recordedTimesOrigin };
   if (parsed.recordedTimesOrigin === 'xer') {
     prepared.cpmResult = applyRecordedTimesToTasks(prepared.tasks, recorded.times, prepared.calendar);
     prepared.datesAsRecorded = true;
     // `prepareLoadedPayload` zette hem bij een geslaagde solve al zo; expliciet houden (plan §5
     // risico 1) — nooit een rechtstreekse `= true` ELDERS, alleen deze twee bewuste `= false`'s.
+    prepared.scheduleStale = false;
+  }
+}
+
+/**
+ * Crashherstel-variant van `applyRecordedDatesOnLoad` (heropen-beleid, taak T5, 2026-09-05).
+ *
+ * Een normale heropening mag een IFC met XER-archief NOOIT automatisch in de modus zetten (zie de
+ * docstring hierboven) — een sindsdien bewerkte en opgeslagen planning zou anders stilzwijgend P6's
+ * oude datums tonen. Crashherstel is echter GEEN heropening maar het hervatten van een onderbroken
+ * sessie: stond het document VLAK VÓÓR de crash in de modus, dan hoort het dat na herstel weer te
+ * zijn; stond het uit, dan blijft het uit. Er wordt dus NIET opnieuw beslist op basis van
+ * `recordedTimesOrigin` — dat zou bij een XER-archief altijd "alleen aanbieden" opleveren, ongeacht
+ * de toestand vóór de crash.
+ *
+ * Er bestaat geen apart persistentiekanaal voor `datesAsRecorded` (geen `OPS_`-pset, zie plan §2.7)
+ * — maar met een BRON-ORAKEL is de modus zelf al zichtbaar in de rauw gelezen taken:
+ * `applyRecordedTimesToTasks` schrijft P6's waarden LETTERLIJK in `task.time.earlyStart`/
+ * `earlyFinish` (zie die functie). Een crash-snapshot die IN de modus werd geschreven draagt in
+ * `rawTasks` dus exact het orakel op elke as die `countShiftedTasks` vergelijkt — een tweede meting
+ * van diezelfde functie, nu op de RAUWE (pre-solve) taken in plaats van de gesolvede, onderscheidt
+ * de twee gevallen: 0 verschoven op de rauwe taken is dan geen toeval maar het bewijs dat de modus
+ * aanstond toen dit werd opgeslagen.
+ *
+ * DIE METING WERKT UITSLUITEND MET EEN ORAKEL, en de guard daarop is geen voorzichtigheid maar een
+ * correctheidsvoorwaarde (gemeten 2026-09-05, sectie 7C van `check-recorded-dates.ts`): zónder
+ * `recordedTimes` haalt `captureRecordedDates` de vastlegging uit `rawTasks` ZELF (de
+ * `recordedFields`-route). Vergelijk je die taken dan met die vastlegging, dan is de uitkomst per
+ * definitie 0 verschoven — "de modus stond aan" zou voor ELK hersteld #63-document waar zijn, en
+ * crashherstel zou de modus ongevraagd aanzetten op documenten die hem nooit aan hadden. Zonder
+ * orakel is er dus niets terug te lezen en valt deze functie terug op het bestaande #63-gedrag:
+ * alleen het AANBOD herstellen. De kosten daarvan zijn eerlijk en klein — een gebruiker die vóór de
+ * crash in de modus stond op een niet-XER-document ziet na herstel het aanbod met exact dezelfde
+ * datums en is één klik verwijderd van dezelfde weergave.
+ *
+ * Zelfde aanroepcontract als `applyRecordedDatesOnLoad`: `rawTasks` is de PRE-solve array, geen
+ * undo-snapshot, muteert `prepared` in place.
+ */
+export function applyRecordedDatesOnRestore(
+  rawTasks: Task[],
+  prepared: DocumentPayload,
+  parsed: Pick<ImportResult, 'recordedFields' | 'recordedTimes' | 'recordedTimesOrigin'>,
+): void {
+  const recorded = captureRecordedDates(rawTasks, parsed.recordedFields, parsed.recordedTimes);
+  if (recorded.total === 0) return;
+  const shifted = countShiftedTasks(prepared.tasks, recorded.times);
+  if (shifted === 0) return;
+  prepared.recordedDates = { ...recorded, shifted, origin: parsed.recordedTimesOrigin };
+  // Alleen met een bron-orakel is `recorded.times` ONAFHANKELIJK van `rawTasks` en zegt de
+  // vergelijking hieronder iets — zie de docstring.
+  const hasOracle = parsed.recordedTimes !== undefined;
+  const wasInModeBeforeCrash = hasOracle && countShiftedTasks(rawTasks, recorded.times) === 0;
+  if (wasInModeBeforeCrash) {
+    prepared.cpmResult = applyRecordedTimesToTasks(prepared.tasks, recorded.times, prepared.calendar);
+    prepared.datesAsRecorded = true;
+    // Zelfde bewuste `= false` als hierboven (plan §5 risico 1) — nooit een rechtstreekse `= true`
+    // elders.
     prepared.scheduleStale = false;
   }
 }

@@ -309,6 +309,18 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   eq('T4-19 zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', useAppStore.getState().datesAsRecorded, false);
   ok('T4-20 …maar het aanbod verschijnt nog gewoon (recordedDates gevuld)', useAppStore.getState().recordedDates !== null);
   eq('T4-21 …met dezelfde teller als de aan-route', useAppStore.getState().recordedDates?.shifted, 1);
+
+  // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05, taak T5): 'xer-archive' —
+  // wat `readIFC`'s XER-archiefreconstructie zet voor een HEROPENDE IFC — biedt de modus alleen
+  // AAN, net als geheel géén herkomst hierboven. MUTATIEBEWIJS: stelde `applyRecordedDatesOnLoad`
+  // 'xer-archive' gelijk aan 'xer', dan zou T4-22 hieronder `true` worden.
+  const singleAsArchiveOrigin = { ...singleAgain, recordedTimesOrigin: 'xer-archive' as const };
+  useAppStore.getState().newDocument();
+  useAppStore.getState().applyLoadedProject(singleAsArchiveOrigin, { filePath: null, recompute: true });
+  eq('T4-22 "xer-archive" (heropende IFC) biedt de modus alleen aan, NIET gelijk aan "xer"',
+    useAppStore.getState().datesAsRecorded, false);
+  ok('T4-23 …maar het aanbod verschijnt wél', useAppStore.getState().recordedDates !== null);
+  eq('T4-24 …met dezelfde teller', useAppStore.getState().recordedDates?.shifted, 1);
 }
 
 const corpusRoot = process.env.OPS_XER_CORPUS;

@@ -280,8 +280,14 @@ export interface ImportResult {
   recordedTimes?: Record<string, RecordedTime>;
   /** Herkomst van `recordedTimes` — stuurt het standaard-aan-beleid voor "datums zoals opgeslagen"
    *  (O6-patroon: alleen de XER-route zet dit; andere formaten blijven byte-identiek doordat dit
-   *  veld afwezig blijft). */
-  recordedTimesOrigin?: 'xer';
+   *  veld afwezig blijft).
+   *  - `'xer'`: verse XER-import (`readXER`). Standaard AAN zodra er restverschillen zijn.
+   *  - `'xer-archive'`: heropende IFC met XER-bronarchief (`readIFC`'s T5-archiefreconstructie).
+   *    Alleen AANBOD, nooit automatisch AAN — een intussen bewerkte en opgeslagen planning mag bij
+   *    heropenen niet stilzwijgend P6's oude datums tonen (orkestratorbesluit, XER-etappe laag 3,
+   *    heropen-beleid 2026-09-05). `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`)
+   *    is de enige plek die op dit onderscheid let. */
+  recordedTimesOrigin?: 'xer' | 'xer-archive';
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */

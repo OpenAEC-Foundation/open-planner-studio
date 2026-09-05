@@ -82,6 +82,11 @@ dan zet de app zichzelf meteen in deze weergave, zonder dat je eerst op **Opgesl
 hoeft te klikken. De melding boven de planning noemt in dat geval meteen het aantal activiteiten dat
 zou verschuiven, en verwijst naar de vaste blijvende melding zodra de weergave actief is.
 
+Dat automatisch aangaan geldt alleen bij het openen van het `.xer`-bestand zelf: sla je het project
+daarna op en open je het later opnieuw, dan wordt de weergave alleen nog aangeboden — je klikt dan
+zelf op **Opgeslagen datums tonen** — zodat een planning die je intussen hebt bewerkt en opgeslagen
+niet ongevraagd weer de oude datums van Primavera laat zien.
+
 De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
 datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het
 bewerken van een taak verlaten deze weergave op precies dezelfde manier als bij elk ander formaat (zie

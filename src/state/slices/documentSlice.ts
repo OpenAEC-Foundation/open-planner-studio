@@ -27,7 +27,7 @@ import {
   type HistoryScopeKey,
 } from '../sessionHistory';
 import {
-  applyRecordedDatesOnLoad,
+  applyRecordedDatesOnRestore,
   materializeLibraryBoundary,
   prepareLoadedPayload,
   type DocumentActivationMaterialization,
@@ -569,15 +569,17 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       try {
         const rawPayload = payloadFromInput(candidate);
         const p = prepareLoadedPayload(rawPayload, { recompute: true });
-        // XER-etappeplan §3.5/§4-T4, risico §5.4: dezelfde standaard-aan-detectie als een vers
-        // open-pad (`applyLoadedProject`), zodat een hersteld document zijn modusvlag/`recordedDates`
-        // NIET stilzwijgend verliest. `rawPayload.tasks` is bewust de PRE-solve array —
-        // `prepareLoadedPayload` muteert zijn `input`-argument niet (zie de docstring van
-        // `applyRecordedDatesOnLoad`). Vandaag levert `readIFCWithXerReconstruction` nog geen
-        // `recordedTimes`/`recordedTimesOrigin` voor XER-documenten (dat is taak T5) — deze aanroep
-        // is dan een no-op voor XER, maar herstelt WEL het bestaande #63-aanbod (`recordedFields`,
-        // elk formaat) dat crashherstel tot nu toe stilzwijgend wegliet.
-        applyRecordedDatesOnLoad(rawPayload.tasks, p, candidate);
+        // XER-etappeplan §3.5/§4-T4, risico §5.4, heropen-beleid (taak T5, 2026-09-05): crashherstel
+        // herstelt het bestaande #63-aanbod (`recordedFields`, elk formaat) dat het tot nu toe
+        // stilzwijgend wegliet, EN — sinds `readIFCWithXerReconstruction` een XER-archief
+        // reconstrueert — de modusvlag van vóór de crash voor XER-documenten. Bewust NIET
+        // `applyRecordedDatesOnLoad`: die zet een IFC met XER-archief altijd op "alleen aanbieden"
+        // (`recordedTimesOrigin === 'xer-archive'`, het heropen-beleid), maar crashherstel is geen
+        // heropening — het hervat een onderbroken sessie en mag dus GEEN nieuwe beslissing nemen.
+        // `applyRecordedDatesOnRestore` leest in plaats daarvan af of de modus al aanstond (zie de
+        // docstring aldaar). `rawPayload.tasks` is bewust de PRE-solve array — `prepareLoadedPayload`
+        // muteert zijn `input`-argument niet.
+        applyRecordedDatesOnRestore(rawPayload.tasks, p, candidate);
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });

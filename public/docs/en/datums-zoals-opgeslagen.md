@@ -79,6 +79,11 @@ switches itself straight into this view, without you first clicking **Show recor
 case the notice above the schedule immediately states the number of activities that would shift, and
 points to the standing notice that stays visible while the view is active.
 
+That automatic switch only applies when you open the `.xer` file itself: if you then save the project
+and reopen it later, the view is merely offered — you click **Show recorded dates** yourself — so that
+a schedule you have edited and saved in the meantime is never silently shown with Primavera's old
+dates again.
+
 Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
 with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
 in exactly the same way as with any other format (see above); the calculation itself never uses

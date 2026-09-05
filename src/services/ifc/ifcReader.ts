@@ -273,7 +273,12 @@ export function readIFC(
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
     recordedFields,
-    ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer' as const } : {}),
+    // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive', NIET 'xer'
+    // — deze route is een HEROPENING, geen verse import. `applyRecordedDatesOnLoad` zet de modus
+    // alleen automatisch aan bij 'xer'; 'xer-archive' krijgt uitsluitend het #63-AANBOD, want een
+    // intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
+    // tonen. Zie `importTypes.ts` (`recordedTimesOrigin`) voor het volledige onderscheid.
+    ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
     ...(xer ? { xer } : {}),

@@ -25,6 +25,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { useAppStore } from '@/state/appStore';
+import { recoveryInputFromParsed } from '@/state/documentContract';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -528,6 +529,43 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7ad zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', S().datesAsRecorded, false);
   truthy('7ae …maar het aanbod verschijnt nog gewoon (recordedDates gevuld)', S().recordedDates !== null);
   eq('7af …met dezelfde teller', S().recordedDates?.shifted, 1);
+
+  // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive' — een
+  // heropende IFC met XER-archief (T5) — biedt de modus alleen AAN, net als 'xer-archive' zonder
+  // enige herkomst hierboven. Alleen 'xer' (verse import) zet 'm automatisch AAN. MUTATIEBEWIJS:
+  // stelde `applyRecordedDatesOnLoad` 'xer-archive' gelijk aan 'xer' (`origin !== undefined` i.p.v.
+  // `origin === 'xer'`), dan zou 7ah hieronder `true` worden en dus ROOD slaan.
+  const asXerArchive: ImportResult = {
+    ...rtOracleSource, recordedFields: undefined, recordedTimes: oracleTimes,
+    recordedTimesOrigin: 'xer-archive',
+  };
+  S().newProject();
+  S().applyLoadedProject(asXerArchive, { filePath: null, recompute: true });
+  eq('7ag "xer-archive" (heropende IFC met XER-archief) biedt de modus alleen aan, NIET gelijk aan "xer"',
+    S().datesAsRecorded, false);
+  truthy('7ah …maar het aanbod verschijnt wél', S().recordedDates !== null);
+  eq('7ai …met dezelfde teller als de verse import (sectie 7u)', S().recordedDates?.shifted, 1);
+}
+
+// ── (7C) Crashherstel raakt de #63-route NIET ────────────────────────────────────────────────
+// `restoreDocuments` gebruikt sinds het heropen-beleid (XER-etappe laag 3, T8) een eigen
+// `applyRecordedDatesOnRestore` die de modusvlag van vóór de crash TERUGLEEST uit een bron-orakel.
+// Deze sectie pint de tegenkant vast: een gewoon #63-document (IFC/CSV/MSPDI/MPP/P6XML) heeft geen
+// orakel, dus er valt niets terug te lezen — daar blijft het bestaande gedrag "alleen aanbieden"
+// gelden. Zonder deze check zou die terugleesregel stil doorslaan naar élk hersteld document: bij
+// de `recordedFields`-route komt de vastlegging namelijk uit de taken zélf, dus een vergelijking
+// van die taken met die vastlegging is per definitie 0 verschoven — "de modus stond aan" zou daar
+// dus ALTIJD waar lijken. MUTATIEBEWIJS: haal de orakel-voorwaarde uit
+// `applyRecordedDatesOnRestore` weg (`wasInModeBeforeCrash` zonder `hasOracle`) ⇒ 7aj slaat ROOD.
+{
+  const parsed = readIFC(externIfc('7C'));
+  const input = recoveryInputFromParsed(parsed, { id: 'rec-63', filePath: null, isDirty: true });
+  S().newProject();
+  S().restoreDocuments([input], 'rec-63');
+  eq('7aj crashherstel van een gewoon #63-document zet de modus NIET aan', S().datesAsRecorded, false);
+  truthy('7ak …maar herstelt wél het aanbod', S().recordedDates !== null);
+  eq('7al …met dezelfde teller als het gewone openen (sectie 7i)', S().recordedDates?.shifted, 1);
+  eq('7am …en zonder herkomststempel, dus met de formaatneutrale tekst', S().recordedDates?.origin, undefined);
 }
 
 // ── (8) showRecordedDates — de modus betreden (Taak 5) ────────────────────────

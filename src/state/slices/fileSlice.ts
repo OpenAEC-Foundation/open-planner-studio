@@ -345,10 +345,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
       if (opts.recompute) {
-        // XER-etappeplan §3.5 (taak T4): alleen de bron-orakel-route (parsed.recordedTimesOrigin
-        // === 'xer') zet de modus meteen aan; overige formaten bieden hem alleen aan — ongewijzigd
-        // #63-gedrag. `payload.tasks` is hier bewust de PRE-solve array (zie de docstring van
-        // `applyRecordedDatesOnLoad`): `prepareLoadedPayload` muteert zijn `input`-argument niet.
+        // XER-etappeplan §3.5 (taak T4), heropen-beleid (taak T5, 2026-09-05): alleen een VERSE
+        // XER-import (parsed.recordedTimesOrigin === 'xer') zet de modus meteen aan; een heropende
+        // IFC met XER-archief (recordedTimesOrigin === 'xer-archive') en overige formaten bieden
+        // hem alleen aan — ongewijzigd #63-gedrag. `payload.tasks` is hier bewust de PRE-solve
+        // array (zie de docstring van `applyRecordedDatesOnLoad`): `prepareLoadedPayload` muteert
+        // zijn `input`-argument niet.
         applyRecordedDatesOnLoad(payload.tasks, prepared, parsed);
       }
       const activation = materializeLibraryBoundary({

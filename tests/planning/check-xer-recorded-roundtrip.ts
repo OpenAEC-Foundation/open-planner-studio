@@ -9,25 +9,33 @@
  *  2. Dat geldt zowel wanneer er ÍN de modus wordt opgeslagen (P6's waarden staan dan in
  *     `task.time`, zie `applyRecordedTimesToTasks`) als daarbuiten (onze herberekening staat er).
  *     De vastlegging hangt aan de BRON, niet aan wat er toevallig in `task.time` stond.
- *  3. `recordedTimesOrigin` — de vlag die het standaard-aan-beleid van taak T4 stuurt — reist mee,
- *     dus een heropend XER-document neemt dezelfde beslissing als het origineel.
+ *  3. HEROPEN-BELEID (orkestratorbesluit, 2026-09-05): een VERSE XER-import met restverschillen
+ *     zet de modus zelf meteen aan (`recordedTimesOrigin === 'xer'`, taak T4). Een HEROPENDE IFC
+ *     met XER-archief krijgt altijd `recordedTimesOrigin === 'xer-archive'` en de modus NOOIT
+ *     automatisch — ongeacht of het bestand ín of buiten de modus werd opgeslagen — en biedt hem
+ *     alleen aan (het gewone #63-gedrag). Reden: een sindsdien bewerkte en opgeslagen planning mag
+ *     bij heropenen niet stilzwijgend P6's oude datums tonen.
  *  4. Een IFC ZONDER XER-archief blijft byte-identiek: geen `recordedTimes`, geen origin, en de
  *     bestaande #63-IFC-route (`recordedFields`) doet onveranderd zijn werk.
- *  5. Het crashherstelpad (`recoveryStore` → `readIFCWithXerReconstruction` → `restoreDocuments`)
- *     levert dezelfde vastlegging als het gewone openen.
+ *  5. CRASHHERSTEL IS GEEN HEROPENING: `restoreDocuments` gebruikt `applyRecordedDatesOnRestore`
+ *     (niet `applyRecordedDatesOnLoad`) en herstelt de modusvlag van vóór de crash — aan blijft
+ *     aan, uit blijft uit — zonder opnieuw op `recordedTimesOrigin` te beslissen (dat zou voor elk
+ *     XER-archiefdocument altijd "alleen aanbieden" zijn, zie punt 3).
  *  6. MUTATIEBEWIJS: één gewijzigde orakelcel in de bron verplaatst de vastlegging over de hele
  *     keten heen WÉL, maar het `cpmResult` ná `runCPM` GEEN millimeter.
  *  7. Hardening: de sha256-poort op het archief geldt ook voor de vastlegging — een gemanipuleerde
  *     archiefchunk wordt geweigerd in plaats van stil een andere vastlegging op te leveren.
  *
- * WAT DIT BEWUST NIET DOET: de store-vlag `datesAsRecorded` zelf wordt door taak T4
- * (`fileSlice.applyLoadedProject`) gezet en is op deze basis nog niet bedraad. Deze check toetst de
- * volledige INVOER van dat besluit (`recordedTimes` + `recordedTimesOrigin` + de shifted-telling) en
- * spiegelt de T4-beslisregel in `modeVerdict()` hieronder, zodat de gelijkheid vóór/ná de
- * round-trip nu al vastligt.
+ * Deze check leest de ECHTE productiebeslissing (`payload.datesAsRecorded` +
+ * `payload.recordedDates`) rechtstreeks van de store af — geen losse `modeVerdict`-spiegeling meer
+ * van de beslisregel, want die zou na taak T5 opnieuw moeten weten dat `applyLoadedProject` en
+ * `restoreDocuments` verschillende functies aanroepen (`applyRecordedDatesOnLoad` resp.
+ * `applyRecordedDatesOnRestore`). Rechtstreeks aflezen toetst dus de werkelijke bedrading, niet een
+ * kopie ervan.
  */
-import { captureRecordedDates, countShiftedTasks, applyRecordedTimesToTasks } from '@/engine/scheduler/recordedDates';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
+import type { DocumentPayload } from '@/state/documentContract';
 import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -160,16 +168,14 @@ function single(bytes: Uint8Array): ImportResult {
   return opened;
 }
 
-/** De T4-beslisregel, hier gespiegeld: alleen de bron-orakelroute opent meteen ín de modus, en
- *  alleen wanneer de herberekening daadwerkelijk iets verschoof. */
-function modeVerdict(parsed: ImportResult, solvedTasks: ImportResult['tasks']): { origin: string | undefined; total: number; shifted: number; mode: boolean } {
-  const recorded = captureRecordedDates(parsed.tasks, parsed.recordedFields, parsed.recordedTimes);
-  const shifted = countShiftedTasks(solvedTasks, recorded.times);
+/** Leest de ECHTE productiebeslissing van een document af — geen recomputatie, gewoon de velden
+ *  die `applyRecordedDatesOnLoad`/`applyRecordedDatesOnRestore` op de payload zetten. */
+function modeSummary(payload: DocumentPayload): { origin: string | undefined; total: number; shifted: number; mode: boolean } {
   return {
-    origin: parsed.recordedTimesOrigin,
-    total: recorded.total,
-    shifted,
-    mode: parsed.recordedTimesOrigin === 'xer' && recorded.total > 0 && shifted > 0,
+    origin: payload.recordedDates?.origin,
+    total: payload.recordedDates?.total ?? 0,
+    shifted: payload.recordedDates?.shifted ?? 0,
+    mode: payload.datesAsRecorded,
   };
 }
 
@@ -191,13 +197,28 @@ void applied;
 const basePayload = store().getOpenDocumentPayloads()[0]!.payload;
 expect('1d document draagt het XER-bronarchief en de selector',
   basePayload.xerSourceArchive !== null && basePayload.xerSourceProjectId === 'P1');
+// Heropen-beleid (taak T4): een VERSE import met restverschillen zet de modus zelf meteen aan —
+// `basePayload` staat hierdoor AL in de modus (P6's waarden staan al in `task.time`). Sectie 3
+// hergebruikt dat rechtstreeks in plaats van de modus handmatig te reconstrueren.
+expect('1f een verse import met restverschillen opent al ín de modus (T4-beleid)',
+  basePayload.datesAsRecorded === true);
+eq('1g de vastlegging op het document draagt de VERSE-import-herkomst', basePayload.recordedDates?.origin, 'xer');
+expect('1h het besluit is niet triviaal: deze fixture verschuift echt taken (aantal > 0)',
+  (basePayload.recordedDates?.shifted ?? 0) > 0);
 
 // ── 2. Opslaan BUITEN de modus: `task.time` draagt onze herberekening ────────────────────────
-const ifcOutsideMode = writeIFC(buildWriteIFCInput(basePayload));
+// De modus verlaten is een gewone mutator (`runCPM`, hetzelfde pad als F5) — zo komt de
+// "buiten de modus"-toestand tot stand zoals een gebruiker hem ook zou bereiken, in plaats van
+// hem handmatig te reconstrueren.
+store().runCPM();
+const outsidePayload = store().getOpenDocumentPayloads()[0]!.payload;
+expect('2z runCPM verlaat de modus echt', outsidePayload.datesAsRecorded === false);
+const ifcOutsideMode = writeIFC(buildWriteIFCInput(outsidePayload));
 const reopenedOutside = readXerArchiveIFC(ifcOutsideMode);
 eq('2a heropend IFC levert exact dezelfde vastlegging (alle zes assen, incl. de undefined-assen)',
   reopenedOutside.recordedTimes, originalTimes);
-eq('2b heropend IFC draagt dezelfde herkomst', reopenedOutside.recordedTimesOrigin, 'xer');
+eq('2b heropend IFC draagt de HEROPEN-herkomst (niet "xer" — dit is een heropening, geen verse import)',
+  reopenedOutside.recordedTimesOrigin, 'xer-archive');
 eq('2c heropende taak-id\'s matchen de archiefrijen (OPS_TaskIdentity)',
   reopenedOutside.tasks.map(t => t.id).sort(), ['R1', 'R2', 'R3', 'R4', 'R5', 'R6']);
 eq('2d captureRecordedDates levert identieke times vóór en ná de round-trip',
@@ -209,29 +230,39 @@ expect('2e de IFC-`recordedFields`-route wordt NIET gemengd met het bron-orakel'
   && captureRecordedDates(reopenedOutside.tasks, reopenedOutside.recordedFields, reopenedOutside.recordedTimes).times.R5 === undefined);
 
 // ── 3. Opslaan ÍN de modus: P6's waarden staan in `task.time` ────────────────────────────────
-const inModePayload = {
-  ...basePayload,
-  tasks: basePayload.tasks.map(t => ({ ...t, time: { ...t.time } })),
-};
-applyRecordedTimesToTasks(inModePayload.tasks, originalTimes, inModePayload.calendar);
-const ifcInMode = writeIFC(buildWriteIFCInput(inModePayload));
+// `basePayload` (sectie 1) staat dankzij het T4-beleid AL in de modus — dat IS de "ín de modus
+// opgeslagen"-toestand, geen aparte `applyRecordedTimesToTasks`-constructie meer nodig.
+const ifcInMode = writeIFC(buildWriteIFCInput(basePayload));
 const reopenedInMode = readXerArchiveIFC(ifcInMode);
 eq('3a in de modus opgeslagen IFC levert dezelfde vastlegging', reopenedInMode.recordedTimes, originalTimes);
-eq('3b in de modus opgeslagen IFC draagt dezelfde herkomst', reopenedInMode.recordedTimesOrigin, 'xer');
+eq('3b in de modus opgeslagen IFC draagt de HEROPEN-herkomst', reopenedInMode.recordedTimesOrigin, 'xer-archive');
 expect('3c de twee opslagvormen verschillen echt (anders bewijst 3a niets)',
   ifcInMode !== ifcOutsideMode);
 
-// ── 4. Het modusbesluit is identiek vóór en ná de round-trip ─────────────────────────────────
-const verdictBefore = modeVerdict(original, basePayload.tasks);
+// ── 4. Heropen-beleid: dezelfde vastlegging, maar NOOIT automatisch weer aan ──────────────────
+// Orkestratorbesluit (2026-09-05): een heropende IFC met XER-archief krijgt NOOIT de automatische
+// modus, ongeacht of het bestand ín of buiten de modus werd opgeslagen — alleen een VERSE
+// XER-import (sectie 1) doet dat. Anders zou een sindsdien bewerkte en opgeslagen planning bij
+// heropenen stilzwijgend P6's oude datums tonen.
 store().newProject();
 store().applyOpenedImport(reopenedOutside, {
   filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
 });
-const reopenedPayload = store().getOpenDocumentPayloads()[0]!.payload;
-const verdictAfter = modeVerdict(reopenedOutside, reopenedPayload.tasks);
-eq('4a hetzelfde standaard-aan-besluit (origin/total/shifted/mode) vóór en ná opslaan+heropenen',
-  verdictAfter, verdictBefore);
-expect('4b het besluit is niet triviaal: deze fixture verschuift echt taken', verdictBefore.mode);
+const reopenedOutsidePayload = store().getOpenDocumentPayloads()[0]!.payload;
+expect('4a heropenen van een buiten-de-modus opgeslagen IFC biedt de modus alleen aan',
+  reopenedOutsidePayload.datesAsRecorded === false && reopenedOutsidePayload.recordedDates !== null);
+
+store().newProject();
+store().applyOpenedImport(reopenedInMode, {
+  filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
+});
+const reopenedInModePayload = store().getOpenDocumentPayloads()[0]!.payload;
+expect('4b heropenen van een ín-de-modus opgeslagen IFC biedt de modus OOK alleen aan (geen stille terugval naar aan)',
+  reopenedInModePayload.datesAsRecorded === false && reopenedInModePayload.recordedDates !== null);
+eq('4c beide heropeningen komen op hetzelfde aantal verschoven taken uit als de oorspronkelijke import',
+  modeSummary(reopenedInModePayload).shifted, modeSummary(basePayload).shifted);
+eq('4d ... en dat geldt ook voor de buiten-de-modus-heropening',
+  modeSummary(reopenedOutsidePayload).shifted, modeSummary(basePayload).shifted);
 
 // ── 5. IFC ZÓNDER XER-archief blijft byte-identiek gedrag houden ─────────────────────────────
 const ifcWithoutArchive = writeIFC({
@@ -244,33 +275,38 @@ expect('5a IFC zonder XER-archief levert geen recordedTimes en geen herkomst',
 expect('5b de bestaande #63-IFC-route (recordedFields) werkt daar onveranderd',
   captureRecordedDates(reopenedPlain.tasks, reopenedPlain.recordedFields).total === reopenedPlain.tasks.length);
 
-// ── 6. Crashherstel: recoveryStore-round-trip ────────────────────────────────────────────────
-await clearRecovery();
-store().newProject();
-store().applyOpenedImport(original, {
-  filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
-});
-const recoverySource = store().getOpenDocumentPayloads();
-await saveRecovery(fullRecoverySave(recoverySource[0]!.id, recoverySource.map(document => ({
-  id: document.id,
-  ifc: writeIFC(buildWriteIFCInput(document.payload)),
-  filePath: null,
-  isDirty: true,
-}))));
-const loaded = await loadRecovery();
-expect('6a recoveryStore levert de snapshot terug', loaded.docs.length === recoverySource.length);
-const recoveredParsed = loaded.docs.map(d => readXerArchiveIFC(d.ifc));
-eq('6b hersteld document draagt dezelfde vastlegging als het gewone openen',
-  recoveredParsed[0]?.recordedTimes, originalTimes);
-eq('6c hersteld document draagt dezelfde herkomst', recoveredParsed[0]?.recordedTimesOrigin, 'xer');
-const recoveryInputs = loaded.docs.map((d, i) => recoveryInputFromParsed(
-  recoveredParsed[i]!, { id: d.id, filePath: null, isDirty: true },
-));
-store().restoreDocuments(recoveryInputs, recoveryInputs[0]!.id);
-const restored = store().getOpenDocumentPayloads()[0]!.payload;
-eq('6d na restoreDocuments is het modusbesluit gelijk aan dat van het gewone openen',
-  modeVerdict(recoveryInputs[0]!, restored.tasks), verdictBefore);
-await clearRecovery();
+// ── 6. Crashherstel is GEEN heropening: de modusvlag van vóór de crash komt terug ─────────────
+// "Aan blijft aan, uit blijft uit" — `restoreDocuments` gebruikt `applyRecordedDatesOnRestore`
+// (documentSlice.ts), niet `applyRecordedDatesOnLoad`, en beslist dus NIET opnieuw op basis van
+// `recordedTimesOrigin` (dat zou voor elk XER-archiefdocument altijd "alleen aanbieden" zijn,
+// zie sectie 4). Twee onafhankelijke herstelrondes — één per toestand van vóór de crash.
+async function recoverSingleDocument(label: string, payload: DocumentPayload): Promise<DocumentPayload> {
+  await clearRecovery();
+  const ifc = writeIFC(buildWriteIFCInput(payload));
+  await saveRecovery(fullRecoverySave('doc-1', [{ id: 'doc-1', ifc, filePath: null, isDirty: true }]));
+  const loaded = await loadRecovery();
+  expect(`${label}: recoveryStore levert de snapshot terug`, loaded.docs.length === 1);
+  const recoveredParsed = readXerArchiveIFC(loaded.docs[0]!.ifc);
+  const input = recoveryInputFromParsed(recoveredParsed, { id: 'doc-1', filePath: null, isDirty: true });
+  const result = store().restoreDocuments([input], 'doc-1');
+  expect(`${label}: restoreDocuments slaagde zonder overgeslagen documenten`, result.skippedIds.length === 0);
+  await clearRecovery();
+  return store().getOpenDocumentPayloads()[0]!.payload;
+}
+
+const recoveredFromInMode = await recoverSingleDocument('6a', basePayload);
+expect('6b hersteld document dat vóór de crash IN de modus stond, komt weer IN de modus terug (aan blijft aan)',
+  recoveredFromInMode.datesAsRecorded === true);
+eq('6c hersteld-in-modus document draagt dezelfde vastlegging als het gewone openen',
+  recoveredFromInMode.recordedDates?.times, originalTimes);
+
+const recoveredFromOutsideMode = await recoverSingleDocument('6d', outsidePayload);
+expect('6e hersteld document dat vóór de crash UIT de modus stond, blijft UIT de modus (uit blijft uit)',
+  recoveredFromOutsideMode.datesAsRecorded === false);
+expect('6f ... maar het #63-aanbod verschijnt wel (de restverschillen blijven zichtbaar)',
+  recoveredFromOutsideMode.recordedDates !== null);
+eq('6g hersteld-buiten-modus document draagt dezelfde vastlegging als het gewone openen',
+  recoveredFromOutsideMode.recordedDates?.times, originalTimes);
 
 // ── 7. MUTATIEBEWIJS — één orakelcel verschuift de vastlegging, niet de berekening ───────────
 function chainOf(mutate: boolean): { times: Record<string, RecordedTime>; cpm: string } {
@@ -393,7 +429,10 @@ function corpusRoundTrip(label: string, path: string): void {
   const reopened = readXerArchiveIFC(ifc);
   const tReopen = Date.now();
   eq(`C-${label} vastlegging identiek na opslaan+heropenen`, reopened.recordedTimes, parsed.recordedTimes);
-  eq(`C-${label} herkomst identiek na opslaan+heropenen`, reopened.recordedTimesOrigin, parsed.recordedTimesOrigin);
+  // Heropen-beleid: de VERSE import draagt 'xer', maar elke HEROPENING (ook van hetzelfde
+  // bestand) draagt altijd 'xer-archive' — dat is het hele punt van de policy, geen regressie.
+  eq(`C-${label} herkomst is de HEROPEN-vorm (niet gelijk aan de verse-importherkomst)`,
+    reopened.recordedTimesOrigin, 'xer-archive');
   expect(`C-${label} de vastlegging is niet leeg (anders bewijst de gelijkheid niets)`,
     Object.keys(reopened.recordedTimes ?? {}).length > 0);
   console.log(`.   xer-recorded-roundtrip: ${label} — taken=${parsed.tasks.length}`
