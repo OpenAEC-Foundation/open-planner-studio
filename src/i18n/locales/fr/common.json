@@ -839,7 +839,10 @@
     "activeCount_other": "Vous consultez le planning tel qu'enregistré par Primavera ; un recalcul déplacerait {{count}} tâches.",
     "show": "Afficher les dates enregistrées",
     "active": "Vous voyez les dates telles qu'elles sont enregistrées dans le fichier. Aucun recalcul n'a été effectué.",
-    "recalculate": "Recalculer"
+    "recalculate": "Recalculer",
+    "markDeviates": "Diverge",
+    "markPartlyUnrecorded": "Partiellement non enregistré",
+    "notRecorded": "Non enregistré"
   },
   "duration": {
     "suffixDay": "j",

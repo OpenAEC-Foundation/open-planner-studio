@@ -1320,6 +1320,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # TZ-onafhankelijkheid moet bewezen worden.
   RECDATES="$DIR/.check-recorded-dates.mjs"
   if bundle_check "$DIR/check-recorded-dates.ts" "$RECDATES"; then node "$RECDATES" || STATUS=1; fi
+
+  # XER-etappeplan laag 3, T6 — de taaktabel-/eigenschappenpaneelmarkering bovenop diezelfde
+  # vastlegging: `recordedDatesSelectors.ts` (puur) plus de draadverbinding in
+  # `taskColumnRegistry.ts` (kolom `recorded.source` + "niet vastgelegd" op late/float). Elke
+  # `bundle_check`-registratie draait automatisch ook in de tijdzone-matrix hieronder; deze
+  # batterij vergelijkt zelf geen datums (alleen letterlijke ISO-strings/labels), dus dat is
+  # onschuldig — geen aparte TZ-aanname om te bewijzen.
+  RECMARKCHECK="$DIR/.check-recorded-dates-mark.mjs"
+  if bundle_check "$DIR/check-recorded-dates-mark.ts" "$RECMARKCHECK"; then node "$RECMARKCHECK" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

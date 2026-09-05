@@ -839,7 +839,10 @@
     "activeCount_other": "Está a ver o planeamento tal como o Primavera o registou; recalcular deslocaria {{count}} tarefas.",
     "show": "Mostrar datas registadas",
     "active": "Está a ver as datas tal como estão registadas no ficheiro. Não foi feito nenhum recálculo.",
-    "recalculate": "Recalcular"
+    "recalculate": "Recalcular",
+    "markDeviates": "Diverge",
+    "markPartlyUnrecorded": "Parcialmente não registado",
+    "notRecorded": "Não registado"
   },
   "duration": {
     "suffixDay": "d",

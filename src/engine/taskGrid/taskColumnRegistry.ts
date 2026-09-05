@@ -8,6 +8,7 @@ import type {
   CellEditRoute,
   GridResult,
   GridWriteIntent,
+  RecordedTaskAxis,
   TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
@@ -126,6 +127,22 @@ function copyScalar(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'object') return canonicalGridJson(value);
   return String(value);
+}
+
+/**
+ * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — `format`-tak voor de vier
+ * optionele late-/floatkolommen (`task.time.lateStart`/`lateFinish`/`totalFloat`/`freeFloat`).
+ * `applyRecordedTimesToTasks` (`recordedDates.ts` §3.4) laat de bestaande `?? rec.start`/`?? 0`-
+ * terugvallen bewust als VELDWAARDE staan — "niet vastgelegd" leeft uitsluitend in
+ * `recordedDates.times[id]` en wordt hier, als WEERGAVE, afgedwongen: zonder deze tak zou een as
+ * die het bestand nooit gaf gewoon als een echt getal (vaak een verzonnen `0`) op het scherm staan.
+ * `ctx.recordedUnrecordedAxes` is `undefined` zonder vastlegging (niet-XER-documenten, of geen
+ * restverschillen) — dan valt dit terug op de gewone `formatScalar`, byte-identiek aan vóór T6.
+ */
+function recordedAxisFormat(axis: RecordedTaskAxis): Formatter {
+  return (value, task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis)
+    ? (ctx.labelForText?.('recordedDates.notRecorded') ?? '—')
+    : formatScalar(value);
 }
 
 function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
@@ -668,14 +685,29 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
     readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
-    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart }),
-    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish }),
-    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat }),
-    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat }),
+    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart, format: recordedAxisFormat('ls') }),
+    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish, format: recordedAxisFormat('lf') }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat, format: recordedAxisFormat('ff') }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat, format: recordedAxisFormat('tf') }),
     readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
+    // "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — badge die toont of DEZE
+    // taak een vastlegging heeft die afwijkt van de herberekening, of onvolledig is. Bestaat
+    // uitsluitend op documenten met een vastlegging (`ctx.recordedMark !== undefined` ⇒
+    // `recordedDates !== null`, zie `FullTaskGrid.tsx`) — op elk ander document is deze kolom
+    // onzichtbaar, dus geen ruis op IFC/CSV/MSPDI/MPP-documenten zonder issue-#63-vastlegging.
+    readonlyColumn({
+      id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
+      available: ctx => ctx.recordedMark !== undefined,
+      read: (task, ctx) => ctx.recordedMark?.(task),
+      format: (value, _task, ctx) => {
+        if (value === 'deviates') return ctx.labelForText?.('recordedDates.markDeviates') ?? 'deviates';
+        if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
+        return '—';
+      },
+    }),
     editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),

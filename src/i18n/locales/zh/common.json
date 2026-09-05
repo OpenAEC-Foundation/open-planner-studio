@@ -785,7 +785,10 @@
     "activeCount_other": "你正在查看 Primavera 记录的进度计划；重新计算将使 {{count}} 个任务偏移。",
     "show": "显示记录的日期",
     "active": "你正在查看文件中记录的日期，尚未重新计算。",
-    "recalculate": "重新计算"
+    "recalculate": "重新计算",
+    "markDeviates": "偏离",
+    "markPartlyUnrecorded": "部分未记录",
+    "notRecorded": "未记录"
   },
   "duration": {
     "suffixDay": "天",

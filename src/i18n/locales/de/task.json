@@ -58,6 +58,7 @@
       "lateFinish": "Spätestes Ende", "lateStart": "Spätester Anfang", "levelingDelay": "Kapazitätsabgleichsverzögerung", "levelingDelayElapsed": "Verstrichene Abgleichsverzögerung", "levelingDelayMinutes": "Abgleichsverzögerung (Minuten)",
       "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "Microsoft-Project-Aufgabentyp",
       "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "p6Provenance": "Primavera-P6-Herkunft", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
+      "recordedSource": "Herkunft (gespeicherte Termine)",
       "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend (Arbeitstage)", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
       "scheduleFinish": "Geplantes Ende", "scheduleStart": "Geplanter Anfang", "splitGaps": "Unterbrechungen", "status": "Status", "stop": "Stoppdatum", "taskId": "Aufgaben-ID", "taskType": "Aufgabentyp",
       "timephasedContours": "Zeitphasenverläufe", "timephasedDurationWalks": "Zeitphasen-Dauersegmente", "timephasedFinishFloor": "Untergrenze des Zeitphasenendes", "timephasedStartAnchor": "Anker des Zeitphasenanfangs",
@@ -268,6 +269,9 @@
     "timephasedActive": "Folgt der Stundenverteilung aus MS Project",
     "timephasedLost": "Stundenverteilung aus MS Project nach der Bearbeitung nicht mehr angewendet — die ursprüngliche Verteilung bleibt in der Datei erhalten",
     "timephasedContoured": "Eigene Stundenverteilung",
+    "recordedDatesActive": "Zeigt die von Primavera gespeicherten Termine für diese Aufgabe",
+    "recordedDatesDeviates": "Weicht von den gespeicherten Terminen ab",
+    "recordedDatesPartlyUnrecorded": "Erfassung teilweise unvollständig — siehe die Spalten für spätesten Termin/Puffer",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",

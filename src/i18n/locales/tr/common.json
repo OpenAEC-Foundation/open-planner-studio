@@ -812,7 +812,10 @@
     "activeCount_other": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
     "show": "Kaydedilen tarihleri göster",
     "active": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz. Herhangi bir yeniden hesaplama yapılmadı.",
-    "recalculate": "Yeniden hesapla"
+    "recalculate": "Yeniden hesapla",
+    "markDeviates": "Farklılaşıyor",
+    "markPartlyUnrecorded": "Kısmen kaydedilmedi",
+    "notRecorded": "Kaydedilmedi"
   },
   "duration": {
     "suffixDay": "g",

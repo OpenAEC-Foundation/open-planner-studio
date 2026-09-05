@@ -835,7 +835,10 @@
     "activeCount_other": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} tasks.",
     "show": "Show recorded dates",
     "active": "You're viewing the dates as recorded in the file. Nothing has been recalculated.",
-    "recalculate": "Recalculate"
+    "recalculate": "Recalculate",
+    "markDeviates": "Deviates",
+    "markPartlyUnrecorded": "Partly unrecorded",
+    "notRecorded": "Not recorded"
   },
   "duration": {
     "suffixDay": "d",

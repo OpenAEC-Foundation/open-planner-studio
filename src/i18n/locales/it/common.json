@@ -839,7 +839,10 @@
     "activeCount_other": "Stai visualizzando la pianificazione come registrata da Primavera; un ricalcolo sposterebbe {{count}} attività.",
     "show": "Mostra le date registrate",
     "active": "Stai visualizzando le date come registrate nel file. Non è stato eseguito alcun ricalcolo.",
-    "recalculate": "Ricalcola"
+    "recalculate": "Ricalcola",
+    "markDeviates": "Diverge",
+    "markPartlyUnrecorded": "Parzialmente non registrato",
+    "notRecorded": "Non registrato"
   },
   "duration": {
     "suffixDay": "g",

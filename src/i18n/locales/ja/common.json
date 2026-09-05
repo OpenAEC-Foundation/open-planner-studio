@@ -785,7 +785,10 @@
     "activeCount_other": "Primavera が記録したスケジュールを表示しています。再計算すると {{count}} 件のタスクがずれます。",
     "show": "記録された日付を表示",
     "active": "ファイルに記録されている日付をそのまま表示しています。再計算は行われていません。",
-    "recalculate": "再計算"
+    "recalculate": "再計算",
+    "markDeviates": "乖離あり",
+    "markPartlyUnrecorded": "一部未記録",
+    "notRecorded": "未記録"
   },
   "duration": {
     "suffixDay": "日",

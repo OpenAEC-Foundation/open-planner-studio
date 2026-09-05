@@ -866,7 +866,10 @@
     "activeCount_other": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadania.",
     "show": "Pokaż zapisane daty",
     "active": "Widzisz daty takie, jak zostały zapisane w pliku. Nie wykonano ponownego przeliczenia.",
-    "recalculate": "Przelicz"
+    "recalculate": "Przelicz",
+    "markDeviates": "Odbiega",
+    "markPartlyUnrecorded": "Częściowo niezapisane",
+    "notRecorded": "Niezapisane"
   },
   "duration": {
     "suffixDay": "d",

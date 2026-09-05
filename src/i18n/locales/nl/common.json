@@ -835,7 +835,10 @@
     "activeCount_other": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijken {{count}} taken af.",
     "show": "Opgeslagen datums tonen",
     "active": "Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.",
-    "recalculate": "Herberekenen"
+    "recalculate": "Herberekenen",
+    "markDeviates": "Wijkt af",
+    "markPartlyUnrecorded": "Deels niet vastgelegd",
+    "notRecorded": "Niet vastgelegd"
   },
   "duration": {
     "suffixDay": "d",

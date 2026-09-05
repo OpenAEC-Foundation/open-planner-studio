@@ -920,7 +920,10 @@
     "activeCount_other": "تشاهد الجدول كما سجّله Primavera؛ ستنتقل {{count}} مهمة عند إعادة الحساب.",
     "show": "عرض التواريخ المسجلة",
     "active": "أنت تشاهد التواريخ كما سُجّلت في الملف. لم تتم إعادة أي حساب.",
-    "recalculate": "إعادة الحساب"
+    "recalculate": "إعادة الحساب",
+    "markDeviates": "يختلف",
+    "markPartlyUnrecorded": "غير مسجل جزئيًا",
+    "notRecorded": "غير مسجل"
   },
   "duration": {
     "suffixDay": "ي",
