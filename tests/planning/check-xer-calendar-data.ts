@@ -531,11 +531,10 @@ eq('21 equivalente XER- en P6XML-werkweken leveren dezelfde canonieke banden', d
 
 // ── 22 — WEEKEND-KLEMHERSTEL (etappe 7b-1), volledig corpusloos ────────────────────────────────
 // Een P6-schrijver die een aaneengesloten vrij blok op de MA-VR-as klemt levert de zaterdagen af op
-// de vrijdag ervóór en de zondagen op de maandag erná; de aangrenzende duplicaat in de
-// `Exceptions`-lijst is daarvan het bewijs. Deze fixture is de LETTERLIJKE recordreeks van blok
-// 2009-11-26 … 2009-12-05 uit kalender 842 van `rehab-2.xer` — tien blokdagen, tien records,
-// waarvan drie duplicaten — op de calenderweek van diezelfde kalender: P6-dag 1=zo … 7=za, dus
-// werkend op ma-do + za + zo en vrij op vrijdag (P6-dag 6 ontbreekt).
+// de vrijdag ervóór en de zondagen op de maandag erná. De poort daarvoor is per RECORD (zie
+// `weekendClampTarget`/`hasWeekendClampEvidence`): sprong over het weekend, of een aangrenzend
+// duplicaat mét blokvervolg aan de binnenzijde. 22a/22b zijn de positieve gevallen, 22c–22e de
+// negatieve — die laatste drie zijn de false positives die een kalenderBREDE poort wél zou maken.
 function exceptionBlock(serials: readonly number[]): string {
   return structuredRecord('0', 'Exceptions', '', serials.map(
     (serial, index) => structuredRecord('0', String(index), `d|${serial}`, []),
@@ -550,43 +549,61 @@ function calendarData(p6Days: readonly number[], serials: readonly number[]): st
     exceptionBlock(serials),
   ]);
 }
-// P6-dagnummers: 1=zo, 2=ma, 3=di, 4=wo, 5=do, 6=vr, 7=za. Vrijdag (6) ontbreekt bewust.
-const FRIDAY_OFF_WEEK = [1, 2, 3, 4, 5, 7];
-const MON_FRI_WEEK = [2, 3, 4, 5, 6];
-// 40143=2009-11-26 (do) … 40151=2009-12-04 (vr); 11-28 (za), 11-29 (zo) en 12-05 (za) ontbreken en
-// staan in plaats daarvan als duplicaat op 11-27 (vr), 11-30 (ma) en 12-04 (vr).
-const CLAMPED_BLOCK = [40143, 40144, 40144, 40147, 40147, 40148, 40149, 40150, 40151, 40151];
-const UNCLAMPED_BLOCK = [40143, 40144, 40147, 40148, 40149, 40150, 40151];
+const holidayDates = (data: string): string[] =>
+  decodeXerCalendarData(data).holidays.map(holiday => holiday.startDate).sort();
+// P6-dagnummers: 1=zo, 2=ma, 3=di, 4=wo, 5=do, 6=vr, 7=za.
+const FRIDAY_OFF_WEEK = [1, 2, 3, 4, 5, 7];   // ma-do + za + zo werkend, vrijdag vrij (vorm 842)
+const MON_FRI_WEEK = [2, 3, 4, 5, 6];         // gewone ma-vr-kalender
+const SEVEN_DAY_WEEK = [1, 2, 3, 4, 5, 6, 7]; // alle dagen werken
 
+// 22a — de LETTERLIJKE recordreeks van blok 2009-11-26 … 2009-12-05 uit kalender 842 van
+// `rehab-2.xer`: 40143=2009-11-26 (do) … 40151=2009-12-04 (vr), met duplicaten op 11-27 (vr),
+// 11-30 (ma) en 12-04 (vr). De zaterdag ná het blok (12-05) komt uitsluitend uit het duplicaat op
+// de laatste vrijdag — het blok loopt aan de binnenzijde door (12-03 is een uitzondering).
+const CLAMPED_BLOCK = [40143, 40144, 40144, 40147, 40147, 40148, 40149, 40150, 40151, 40151];
 const clamped = decodeXerCalendarData(calendarData(FRIDAY_OFF_WEEK, CLAMPED_BLOCK));
-eq('22 het geklemde blok wordt tot tien aaneengesloten vrije dagen hersteld',
+eq('22a het geklemde blok wordt tot tien aaneengesloten vrije dagen hersteld',
   clamped.holidays.map(holiday => holiday.startDate).sort(), [
     '2009-11-26', '2009-11-27', '2009-11-28', '2009-11-29', '2009-11-30',
     '2009-12-01', '2009-12-02', '2009-12-03', '2009-12-04', '2009-12-05',
   ]);
-eq('22 een herstelde dag telt niet ook nog als virtuele P6-niet-werkdag',
+eq('22a een herstelde dag telt niet ook nog als virtuele P6-niet-werkdag',
   clamped.p6NonWorkPenaltyDates, []);
 
-// Mutatiebewijs 1 — zonder de duplicaten is er geen bewijs van een geklemde schrijver, dus geen
-// herstel: precies het gedrag van vóór deze etappe, inclusief de twee vrijdagstraffen.
-const unclamped = decodeXerCalendarData(calendarData(FRIDAY_OFF_WEEK, UNCLAMPED_BLOCK));
-eq('22 zonder aangrenzende duplicaat blijft het blok onaangeroerd',
-  unclamped.holidays.map(holiday => holiday.startDate).sort(), [
-    '2009-11-26', '2009-11-27', '2009-11-30', '2009-12-01', '2009-12-02', '2009-12-03', '2009-12-04',
+// 22b — blok 2009-09-18 … 2009-09-24 van dezelfde kalender: de openings-VRIJDAG draagt hier géén
+// duplicaat (40074=2009-09-18 staat er één keer). Die zaterdag komt dus niet uit het duplicaat maar
+// uit de SPRONG: vrijdag 09-18 en maandag 09-21 zijn allebei uitzondering, drie kalenderdagen uit
+// elkaar, met een werkend weekend ertussen dat niet is opgeslagen. Zonder deze tweede bewijsvorm
+// zou 2009-09-19 ontbreken — en dat is een van de tien dagen die de set-cover onafhankelijk eist.
+const JUMP_BLOCK = [40074, 40077, 40077, 40078, 40079, 40080];
+eq('22b de sprong vrijdag→maandag herstelt het weekend ook zonder duplicaat op de vrijdag',
+  holidayDates(calendarData(FRIDAY_OFF_WEEK, JUMP_BLOCK)), [
+    '2009-09-18', '2009-09-19', '2009-09-20', '2009-09-21',
+    '2009-09-22', '2009-09-23', '2009-09-24',
   ]);
-eq('22 zonder herstel blijven de redundante vrijdagrecords P6-niet-werkdagen',
-  unclamped.p6NonWorkPenaltyDates, ['2009-11-27', '2009-12-04']);
 
-// Mutatiebewijs 2 — dezelfde duplicaten op een gewone MA-VR-kalender: het klemdoel is daar zelf al
-// niet-werkend, dus herstellen zou niets veranderen en gebeurt niet. Zo blijft de reconstructie
-// beperkt tot kalenders waar een weekenddag écht werkt.
-const monFri = decodeXerCalendarData(calendarData(MON_FRI_WEEK, CLAMPED_BLOCK));
-eq('22 op een ma-vr-kalender wordt er niets hersteld',
-  monFri.holidays.map(holiday => holiday.startDate).sort(), [
+// 22c — NEGATIEF: een op zichzelf staand dubbel vrijdagrecord op een 7-daagse kalender. Dit is de
+// gewone P6-invoerfout waar de decoder al een `DUPLICATE_EXCEPTION`-herstel voor kent; er is geen
+// blok en dus geen bewijs. Een kalenderbrede poort maakte hier stil zaterdag 2009-12-05 vrij.
+eq('22c een los dubbel vrijdagrecord maakt geen zaterdag vrij',
+  holidayDates(calendarData(SEVEN_DAY_WEEK, [40151, 40151])), ['2009-12-04']);
+
+// 22d — NEGATIEF: een duplicaat ELDERS (woensdag 2009-12-02, geen weekendbuur) mag de betekenis van
+// twee losse vrijdag-feestdagen verderop niet veranderen. Een kalenderbrede poort maakte hier
+// 2009-12-05 én 2009-12-12 vrij.
+eq('22d een duplicaat elders laat losse vrijdagrecords ongemoeid',
+  holidayDates(calendarData(FRIDAY_OFF_WEEK, [40149, 40149, 40151, 40158])),
+  ['2009-12-02', '2009-12-04', '2009-12-11']);
+
+// 22e — NEGATIEF: dezelfde geklemde reeks op een gewone ma-vr-kalender. Het klemdoel is daar zelf al
+// niet-werkend, dus herstellen zou niets veranderen en gebeurt niet.
+eq('22e op een ma-vr-kalender wordt er niets hersteld',
+  holidayDates(calendarData(MON_FRI_WEEK, CLAMPED_BLOCK)), [
     '2009-11-26', '2009-11-27', '2009-11-30', '2009-12-01', '2009-12-02', '2009-12-03', '2009-12-04',
   ]);
-eq('22 op een ma-vr-kalender blijven de aangrenzende duplicaten P6-niet-werkdagen',
-  monFri.p6NonWorkPenaltyDates, ['2009-11-27', '2009-11-30', '2009-12-04']);
+eq('22e op een ma-vr-kalender blijven de aangrenzende duplicaten P6-niet-werkdagen',
+  decodeXerCalendarData(calendarData(MON_FRI_WEEK, CLAMPED_BLOCK)).p6NonWorkPenaltyDates,
+  ['2009-11-27', '2009-11-30', '2009-12-04']);
 
 if (diffs.length === 0) {
   console.log(`OK  xer-calendar-data: ${checks} checks groen`);

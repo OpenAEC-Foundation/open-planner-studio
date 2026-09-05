@@ -43,7 +43,6 @@ export interface ScheduleAnalysisInput {
    *  `CPMSolver.signedFloat`/`duration.ts`'s `signedElapsedSpan`. */
   signedFloat: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
   /** Formaatgebonden projectie voor relationship free float; generieke kalenderalgebra blijft fysiek. */
-  projectedWorkMinutesBetween: (eng: CalendarEngine, a: Date, b: Date) => number;
   constraintInstant: (c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   snapOnOrAfter: (eng: CalendarEngine, d: Date) => Date;
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
@@ -64,7 +63,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     schedulingOptions, dataDate,
     truncatedLeadIds, hardPinViolatedIds, hammockNoFinishDriverIds,
     projectEngine,
-    calendarFor, progressCalendarFor, signedFloat, projectedWorkMinutesBetween,
+    calendarFor, progressCalendarFor, signedFloat,
     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
     backwardFloatTrace,
   } = input;
@@ -126,7 +125,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const succCal = calendarFor(succTask);
     const reqStart = snapOnOrAfter(succCal, cRaw);
     const relFloat = succCal.isHourMode
-      ? projectedWorkMinutesBetween(succCal, reqStart, succEarly.es) / (succCal.hoursPerDay * 60)
+      ? succCal.workMinutesBetween(reqStart, succEarly.es) / (succCal.hoursPerDay * 60)
       : succCal.workDaysBetween(reqStart, succEarly.es) - 1;
     sequenceFreeFloat[seq.id] = relFloat;
     if (relFloat === 0) drivingSequenceIds.push(seq.id);

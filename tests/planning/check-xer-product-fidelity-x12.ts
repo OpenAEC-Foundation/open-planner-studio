@@ -1548,9 +1548,19 @@ async function productBaseline(
   if (isMultiDocumentImport(projectionImport)) throw new Error('X12 P6-projectiefixture moet enkelproject zijn');
   const projected = solveImported(projectionImport).tasks;
   const projectedTask = (code: string) => projected.find(task => task.taskCode === code);
-  eq('X12 P6-XER-projectie raakt alleen backward, lag en float; forward blijft fysiek', {
+  // Etappe 7b-2: de P6-XER-resultaatprojectie is VERWIJDERD. Ze schoof hier de late kant en de lag
+  // per onverklaarde strafdatum een extra niet-werkdag naar voren (`aLateStart` 2026-01-02 → 12-31,
+  // `aTotalFloat` 960 → 0, `lagPredecessorLateFinish` 12-31 → 12-29) terwijl de forwardkant fysiek
+  // bleef — precies de asymmetrie die het diagnosedossier als "7 vooruit, 10 terug" mat. Gemeten
+  // over alle zes penaltydragende corpusprojecten verklaarde ze nul cellen op alle zes de assen.
+  // Deze fixture pint nu het omgekeerde: óók met volledige XER-provenance ÉN twee onverklaarde
+  // strafdatums op de kalender is de backward-, lag- en floatkant de exacte spiegel van de
+  // forwardkant. `A100` (24 u) spant vooruit 12-31→01-02 en achteruit even lang, en houdt de twee
+  // werkdagen speling die haar opvolger `B100` haar laat.
+  eq('X12 er is geen brongebonden projectie meer: backward, lag en float spiegelen de forwardkant', {
     projectSource: projectionImport.project.schedulingOptions?.p6Source,
     calendarSource: projectionImport.calendar.p6Source,
+    penaltyDates: projectionImport.calendar.p6NonWorkPenaltyDates,
     aEarlyFinish: projectedTask('A100')?.earlyFinish,
     aLateStart: projectedTask('A100')?.lateStart,
     aTotalFloat: projectedTask('A100')?.totalFloatMinutes,
@@ -1561,12 +1571,13 @@ async function productBaseline(
   }, {
     projectSource: 'XER',
     calendarSource: 'XER',
+    penaltyDates: ['2026-01-03', '2026-01-05'],
     aEarlyFinish: '2026-01-02T17:00',
-    aLateStart: '2025-12-31T08:00',
-    aTotalFloat: 0,
-    xTotalFloat: 960,
-    xFreeFloat: 960,
-    lagPredecessorLateFinish: '2025-12-29T17:00',
+    aLateStart: '2026-01-02T08:00',
+    aTotalFloat: 960,
+    xTotalFloat: 1920,
+    xFreeFloat: 1920,
+    lagPredecessorLateFinish: '2025-12-31T17:00',
     successorEarlyStart: '2026-01-08T08:00',
   });
 

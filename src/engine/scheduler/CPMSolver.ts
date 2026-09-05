@@ -477,20 +477,6 @@ export class CPMSolver {
     this.backwardFloatTrace.byTaskId[taskId] = { ...previous, ...update };
   }
 
-  /** Smalle P6-XER-resultaatprojectie; de CalendarEngine-primitieven blijven formaatneutraal. */
-  private p6ProjectedSubtract(eng: CalendarEngine, end: Date, minutes: number): Date {
-    return this.options.schedulingOptions?.p6Source === 'XER'
-      ? eng.subtractP6XerProjectedWorkMinutes(end, minutes)
-      : eng.subtractWorkMinutes(end, minutes);
-  }
-
-  /** Smalle P6-XER-projectie voor TF/FF en relationship free float. */
-  private projectedWorkMinutesBetween(eng: CalendarEngine, a: Date, b: Date): number {
-    return this.options.schedulingOptions?.p6Source === 'XER'
-      ? eng.p6XerProjectedWorkMinutesBetween(a, b)
-      : eng.workMinutesBetween(a, b);
-  }
-
   /** De voortgangstakken gebruiken soms de resourcekalender van exact één walk als effectieve klok. */
   private progressCalendarFor(task: Task, fallback = this.calendarFor(task)): CalendarEngine {
     let progressCal = fallback;
@@ -902,7 +888,7 @@ export class CPMSolver {
     }
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
-      const natural = this.p6ProjectedSubtract(eng, end, totalMinutes);
+      const natural = eng.subtractWorkMinutes(end, totalMinutes);
       if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
         const naturalDayStart = this.dayFirstBandStart(eng, natural);
         if (naturalDayStart?.getTime() === natural.getTime()) {
@@ -997,7 +983,7 @@ export class CPMSolver {
       ) / (eng.isHourMode ? 1 : eng.hoursPerDay * 60);
     }
     return eng.isHourMode
-      ? this.p6ProjectedSubtract(eng, end, remainingWithGaps)
+      ? eng.subtractWorkMinutes(end, remainingWithGaps)
       : eng.subtractWorkDays(end, remainingWithGaps);
   }
 
@@ -1064,7 +1050,7 @@ export class CPMSolver {
     if (predEng.isHourMode) {
       const minutes = this.resolveLagMinutes(seq, predTask, predEng);
       if (sign < 0 && minutes > 0) {
-        const projected = this.p6ProjectedSubtract(predEng, base, minutes);
+        const projected = predEng.subtractWorkMinutes(base, minutes);
         // P6 WORKTIME-lag is een grensafstand. Vanaf een finishgrens moet een aftrek die exact op
         // een bandstart landt daarom de complementaire vorige finishgrens teruggeven: wo 17:00
         // min twee werkdagen = ma 17:00, niet di 08:00. Alleen de XER-resultaatprojectie krijgt
@@ -1179,7 +1165,7 @@ export class CPMSolver {
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return signedElapsedSpan(a, b, eng);
     if (eng.isHourMode && (!task || isZeroDurationMilestone(task) || taskDurationUnit(task) === 'hours')) {
-      return this.projectedWorkMinutesBetween(eng, a, b) / (eng.hoursPerDay * 60);
+      return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
     }
     return this.signedWorkDays(a, b, eng);
   }
@@ -1287,7 +1273,6 @@ export class CPMSolver {
       calendarFor: (t) => this.calendarFor(t),
       progressCalendarFor: (t) => this.progressCalendarFor(t),
       signedFloat: (a, b, eng, task) => this.signedFloat(a, b, eng, task),
-      projectedWorkMinutesBetween: (eng, a, b) => this.projectedWorkMinutesBetween(eng, a, b),
       constraintInstant: (c, eng) => this.constraintInstant(c, eng),
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
