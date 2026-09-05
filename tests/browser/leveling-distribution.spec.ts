@@ -164,3 +164,95 @@ test('verdeeldialoog: een geblokkeerd voorstel legt uit waarom en biedt geen Toe
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(0);
   await expect(page.getByRole('switch', { name: /Onderbrekingen toestaan|Allow interruptions/ })).toHaveCount(0);
 });
+
+// --- B1c-plan3 taak 9 — de fasestroken (spec §6, minus het pointer-slepen van taak 10) ----------
+
+/**
+ * `seedProject` maakt HANDMATIG GEPLANDE taken (`manuallyScheduled: true`) — daar rekent de
+ * CPM-solver de datums niet van, dus een nivelleringsdelay verschuift wel de boeking maar NIET de
+ * einddatum. Voor een fixture die het einddatum-effect meet moet de taak dus door de planner
+ * gestuurd worden; verder blijft alles bij het oude (duur en projectstartdatum staan al goed).
+ */
+async function makeScheduled(page: Page, taskId: string): Promise<void> {
+  await page.evaluate(id => {
+    window.__OPS__!.store.getState().updateTask(id, { manuallyScheduled: false });
+    window.__OPS__!.store.getState().runCPM();
+  }, taskId);
+}
+
+/**
+ * Twee documenten met elk ÉÉN werkdag werk op DEZELFDE dag, op een poolitem met capaciteit 1.
+ * Het document met rang 2 kan die maandag niet krijgen en schuift bij een plafond ≥ 1 precies één
+ * werkdag op — het kleinste fixture waarin het einddatum-effect een vast, controleerbaar getal is.
+ */
+async function seedTwoSingleDayDocuments(page: Page): Promise<Library> {
+  const [taskA] = await seedProject(page, [{
+    name: 'Eendaagse A', start: '2026-09-07', finish: '2026-09-07', durationDays: 1,
+  }], 'Eendaags project A');
+  await makeScheduled(page, taskA);
+  const library = await createLibrary(page, 1);
+  await bookOnPoolItem(page, library, taskA, 1);
+
+  await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
+  const [taskB] = await seedProject(page, [{
+    name: 'Eendaagse B', start: '2026-09-07', finish: '2026-09-07', durationDays: 1,
+  }], 'Eendaags project B');
+  await makeScheduled(page, taskB);
+  await bookOnPoolItem(page, library, taskB, 1);
+  return library;
+}
+
+test('fasestroken: pin en plafond zijn met het toetsenbord te bedienen', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const strip = page.locator('[data-ops-distribution-strip]').first();
+  // De pin is een echte toggle-knop: STABIELE naam, toestand uitsluitend via `aria-pressed` (§6).
+  const pin = strip.getByRole('button', { name: /Vastzetten|Pin/ });
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => Object.values(
+    window.__OPS__!.store.getState().ui.levelingDistribution!.pinned).filter(Boolean).length)).toBe(1);
+
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  await expect(strip).toHaveAttribute('data-ops-distribution-pinned', 'true');
+
+  await pin.click(); // pin weer los — een gepinde strook heeft geen bedienbaar plafond
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+
+  const handle = strip.getByRole('slider');
+  await handle.focus();
+  await handle.press('ArrowRight');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState()
+    .ui.levelingDistribution!.ceilings[Object.keys(window.__OPS__!.store.getState().ui.levelingDistribution!.ceilings)[0]]))
+    .toBe(1);
+
+  await handle.press('Home');
+  await expect(handle).toHaveAttribute('aria-valuenow', '0');
+  await handle.press('End');
+  await expect(handle).toHaveAttribute('aria-valuetext', /onbegrensd|unlimited/i);
+});
+
+test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  // De stroken staan in RANGORDE; nr. 2 is degene die moet wijken.
+  const strip = page.locator('[data-ops-distribution-strip]').nth(1);
+  const handle = strip.getByRole('slider');
+  await handle.focus();
+  // Home = plafond 0 — een deterministisch startpunt, ongeacht de benutte uitloop.
+  await handle.press('Home');
+  await expect(handle).toHaveAttribute('aria-valuenow', '0');
+  for (let step = 0; step < 3; step++) await handle.press('ArrowRight');
+  await expect(handle).toHaveAttribute('aria-valuenow', '3');
+
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  // Het label meldt wat er met de EINDDATUM gebeurt (+1 werkdag), niet hoe ver de handle stond (3).
+  await expect(strip.locator('[data-ops-distribution-effect]')).toContainText(/eind \+1 dag|end \+1 day/i);
+  // Toegestaan maar niet benut: gevraagd 3, dichtst haalbare 1.
+  await expect(strip.locator('[data-ops-distribution-achievable]')).toBeVisible();
+});
