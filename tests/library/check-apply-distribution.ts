@@ -272,25 +272,39 @@ console.log('-- apply-distribution: geval 11, gesloten document --');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Geval 12 (B1c-plan3 taak 12, spec §6a): een documentwissel/-sluiting/-opening laat het voorstel
-// niet "vervallen met reden" maar SLUIT de verdeeldialoog en gooit de tune-state weg (besluit
-// eigenaar 2026-08-31). Alle drie de wegen lopen via `resetDocumentScopedUI` in `documentSlice`;
-// deze check staat hier — bij de rest van het verdeel-schrijfpad — en niet in
-// check-document-activation.ts, omdat het weggegooide `applied`-record uit ditzelfde schrijfpad komt.
+// niet "vervallen met reden" maar SLUIT de verdeeldialoog (besluit eigenaar 2026-08-31). Alle drie
+// de wegen lopen via `resetDocumentScopedUI` in `documentSlice`; deze check staat hier — bij de rest
+// van het verdeel-schrijfpad — en niet in check-document-activation.ts, omdat het `applied`-record
+// uit ditzelfde schrijfpad komt.
+//
+// AANGEPAST IN DE FIXRONDE OP B1c-ETAPPE 3 (bevinding B3): de TUNE-STATE overleeft die wissel juist
+// wél. Ze werd hier tot deze ronde mee weggegooid, en daarmee `levelingDistribution.applied` — het
+// record achter "Alles terugdraaien". Dat is de enige manier om een verdeling die over meerdere
+// documenten geschreven is in één keer terug te draaien, terwijl je die documenten juist moet kunnen
+// bekijken (dus wisselen) om te beoordelen of je haar wilt houden. Verdwenen/verschoven events vangt
+// `undoDistribution` zelf af via `skippedDocIds` (geval 8 en 11 hierboven).
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 12, documentwissel sluit de verdeeldialoog --');
 {
+  // Een NIET-leeg `applied`-record: precies de terugweg die in de oude opzet verloren ging.
+  const keptRecord: DistributionApplyRecord = {
+    libraryItemId: 'lib-1', appliedAt: '2026-09-05T00:00:00.000Z',
+    docs: [{ docId: activeDocId, title: 'Actief', historyEventId: 'evt-fictief', historySequence: 1 }],
+  };
   const openDialog = (): void => {
     S().setUI({
       showDistributionDialog: true,
       levelingDistribution: {
         companyId: 'bibliotheek-1', libraryItemId: 'lib-1', allowSplits: false,
-        order: [], pinned: {}, ceilings: {}, applied: null,
+        order: [], pinned: {}, ceilings: {}, applied: keptRecord,
       },
     });
   };
   const assertClosed = (via: string): void => {
     assert(S().ui.showDistributionDialog === false, `geval 12: ${via} sluit de dialoog`);
-    assert(S().ui.levelingDistribution === null, `geval 12: ${via} gooit de tune-state weg`);
+    assert(S().ui.levelingDistribution !== null, `geval 12: ${via} laat de tune-state staan`);
+    assert(S().ui.levelingDistribution?.applied?.docs.length === 1,
+      `geval 12: ${via} laat de terugweg ("alles terugdraaien") intact`);
   };
 
   openDialog();

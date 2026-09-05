@@ -262,7 +262,8 @@ export interface DistributionUiState {
   /** docId → "maximale uitloop van de einddatum" in werkdagen; `null`/afwezig = onbegrensd. */
   ceilings: Record<string, number | null>;
   /** Het laatst TOEGEPASTE record (B1c-plan3 taak 6), of `null`. Overleeft een sluiting van de
-   *  dialoog, zodat opnieuw openen de "toegepast"-strook met "Alles terugdraaien" nog toont. */
+   *  dialoog én een documentwissel (fixronde B1c-etappe-3, bevinding B3), zodat opnieuw openen de
+   *  "toegepast"-strook met "Alles terugdraaien" nog toont — zie `UIState.levelingDistribution`. */
   applied: DistributionApplyRecord | null;
 }
 
@@ -430,18 +431,26 @@ export interface UIState {
    *  vanuit `App.tsx`, opgenomen in `hasBlockingDialogOpen()` en de MCP-blokkeerlijst) — géén
    *  drill-down binnen het bezettingsoverzicht, dat blijft gewoon zichtbaar eronder.
    *
-   *  BEWUST GESCHEIDEN van `levelingDistribution` hieronder: de open/dicht-vlag mag een sluiting
-   *  NIET overleven, de tune-state juist wél. */
+   *  BEWUST GESCHEIDEN van `levelingDistribution` hieronder: de open/dicht-vlag mag een sluiting —
+   *  en een documentwissel (`resetDocumentScopedUI`) — NIET overleven, de tune-state juist wél. */
   showDistributionDialog: boolean;
   /** session — B1c: de tune-state van de verdeeldialoog (welk poolitem, rangorde, pins, plafonds,
    *  gereedschap) plus het laatst toegepaste record. App-globaal, NIET per document (de verdeling
    *  gaat per definitie ÓVER documenten heen) en dus NIET in `DOCUMENT_FIELDS`; ook niet in
    *  `settingsRegistry` — het is sessiestate, geen instelling.
    *
-   *  Overleeft het SLUITEN van de dialoog: opnieuw openen op dezelfde conflictregel toont de
-   *  eerder gekozen rangorde/plafonds én de "toegepast"-strook terug. Leeggemaakt door precies
-   *  twee dingen: het kiezen van een ÁNDER poolitem (dan is de tune-state betekenisloos) en
-   *  `resetDocumentScopedUI` bij een documentwissel (B1c-plan3 taak 12, spec §6a).
+   *  Overleeft het SLUITEN van de dialoog én — sinds de fixronde op B1c-etappe 3 (bevinding B3) —
+   *  het WISSELEN, SLUITEN en OPENEN van documenten: opnieuw openen op dezelfde conflictregel toont
+   *  de eerder gekozen rangorde/plafonds én de "toegepast"-strook terug. Dat is geen luxe maar de
+   *  terugweg zelf — `applied` is het record achter "Alles terugdraaien", en een verdeling die over
+   *  meerdere documenten geschreven is beoordeel je juist dóór die documenten te bekijken. Een
+   *  verdwenen of verschoven history-event is geen reden om het record te wissen: `undoDistribution`
+   *  toetst dat per document en meldt de rest via `skippedDocIds`.
+   *
+   *  Leeggemaakt door precies drie dingen: het kiezen van een ÁNDER poolitem (dan is de tune-state
+   *  betekenisloos), "Alles terugdraaien", en een NIEUW Toepassen (dat het record vervangt).
+   *  `resetDocumentScopedUI` sluit bij een documentwissel wél de DIALOOG (`showDistributionDialog`),
+   *  maar laat deze state staan.
    *
    *  Het VOORSTEL zelf staat hier bewust niet in: dat is afgeleide data (een pure functie van deze
    *  tune-state + de documenten) en woont in de componentstate van `useDistributionProposal`. */

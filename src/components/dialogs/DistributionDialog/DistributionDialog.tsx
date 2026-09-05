@@ -242,7 +242,10 @@ export function DistributionDialog() {
   }, [busy, proposal, staleReason, staleDocs, blockedDocTitles, scopeTaskIdsByDoc, t]);
 
   /** Het laatst toegepaste record — leeft in de tune-state en overleeft dus een sluiting van de
-   *  dialoog (§7), zodat opnieuw openen op hetzelfde poolitem de terugweg nog toont. */
+   *  dialoog (§7) én een documentwissel (fixronde B1c-etappe-3, bevinding B3), zodat opnieuw openen
+   *  op hetzelfde poolitem de terugweg nog toont. Dat laatste is essentieel: een verdeling schrijft
+   *  in MEERDERE documenten, en die beoordeel je door ernaartoe te wisselen — de dialoog gaat daarbij
+   *  dicht (`resetDocumentScopedUI`), maar "Alles terugdraaien" moet daarna nog bestaan. */
   const applied = tune?.applied ?? null;
 
   const onApply = () => {

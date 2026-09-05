@@ -73,14 +73,21 @@ function resetDocumentScopedUI(s: AppState): void {
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
   // B1c (spec §6a): de verdeeldialoog kijkt naar een MOMENTOPNAME van meerdere documenten. Een
-  // documentwissel of een gesloten/geopend document maakt zowel zijn tune-state (rangorde, pins en
-  // plafonds, alle op docId) als zijn toegepast-record onbetrouwbaar — dat record verwijst naar
-  // history-events van documenten die er misschien niet meer zijn (`closeDocument` ruimt die events
-  // bovendien op). BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met
-  // een vervallen voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen.
-  // Het bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
+  // documentwissel of een gesloten/geopend document maakt het VOORSTEL op het scherm onbetrouwbaar.
+  // BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met een vervallen
+  // voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen. Het
+  // bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
   s.ui.showDistributionDialog = false;
-  s.ui.levelingDistribution = null;
+  // De TUNE-STATE gaat hier bewust NIET mee (fixronde B1c-etappe-3, bevinding B3). Ze stond hier tot
+  // deze ronde wél, en dat nam de gebruiker zijn terugweg af: `levelingDistribution.applied` is het
+  // record achter "Alles terugdraaien", en dat is de ENIGE manier om een verdeling die over MEERDERE
+  // documenten geschreven is in één keer terug te draaien — terwijl je die documenten juist moet
+  // kunnen bekijken (dus wisselen!) om te beoordelen of je het wilt houden. Een tabwissel liet de
+  // verdeling dan onterugdraaibaar achter.
+  // Verdwenen of verschoven history-events zijn géén reden om het record te wissen: `undoDistribution`
+  // toetst per document of het vastgelegde event er nog is, nog op `applied` staat en nog het event is
+  // dat een gewone Ctrl+Z daar zou kiezen, en meldt de rest via `skippedDocIds`. Het record vervalt
+  // dus alleen door "Alles terugdraaien", een NIEUW Toepassen, of het kiezen van een ANDER poolitem.
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {
