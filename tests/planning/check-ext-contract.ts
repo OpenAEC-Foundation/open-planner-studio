@@ -733,7 +733,12 @@ for (const [naam, ext, bron, sleutels] of [
     apiNoPerm._cleanup();
     apiOtherPerm._cleanup();
   }
-  eq('P1b importSource staat in de door de app gekende permissies (SDK/validatie)',
+  // Let op: dit toetst alléén de SDK-constante, NIET dat een echt manifest de permissie ook door
+  // de installatievalidatie krijgt — dat gat (een tweede, ontkoppelde permissielijst in
+  // validation.ts) was precies waar her-review 2 'importSource' onbereikbaar voor elke extensie
+  // vond. Die dekking staat in tests/planning/check-extension-validation.ts (KNOWN_PERMISSIONS
+  // door parseExtensionManifest(..., 'fresh') gehaald), niet hier.
+  eq('P1b importSource staat in de door de app gekende permissies (SDK-constante)',
     KNOWN_PERMISSIONS.includes('importSource'), true);
   eq('P1c een manifest dat importSource declareert behoudt hem ongewijzigd (geen filtering)',
     sanitizeManifestPermissions(['importSource', 'ribbon'], 'x'), ['importSource', 'ribbon']);
