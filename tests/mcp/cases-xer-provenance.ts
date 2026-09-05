@@ -78,6 +78,10 @@ const ALIAS_KEYS = ['text', 'comment', 'memo', 'remark', 'title', 'longName'] as
 // structureel herkend worden.
 const N5_SECRET = 'N5-SHAPE-SECRET-' + 'n'.repeat(9000);
 
+// Reviewronde 4 (review2-3d.md R8): exact het door de review gemeten getal — een project-id van
+// 80.000 tekens die als OBJECTSLEUTEL (niet als waarde) de respons in gaat.
+const LONG_PROJECT_ID = 'P'.repeat(80000);
+
 function archiveFixture(): XerSourceArchive {
   // De production-reader levert deze exact gevormde objectgrafiek. De test gebruikt een compacte
   // synthetische variant, omdat deze suite MCP-responscontracten test en geen XER-parsercontract.
@@ -131,6 +135,10 @@ function archiveFixture(): XerSourceArchive {
         `col_${rowIndex}_${cellIndex}_${'k'.repeat(2500)}`, 'v',
       ])),
     })),
+    // Review2-3d.md ronde 4, R8: een project-id van 80.000 tekens (`proj_id` komt uit het
+    // bronbestand) belandt via `summary.catalogCounts.taskSourceRowsByProject` als OBJECTSLEUTEL —
+    // de generieke objecttak deed voorheen `out[childKey] = …` zonder de sleutel zelf af te kappen.
+    [LONG_PROJECT_ID]: [{ line: 900, cells: { task_id: 'LONGID-1' } }],
   };
   readModel.resourceCatalog = {
     resources: [{ id: 'resource-1', name: 'Synthetic Crew', description: FREE_TEXT_SECRET }],
@@ -507,6 +515,41 @@ test('no-XER document: veilige summary meldt afwezigheid, inhoudsectie geeft NOT
   const data = ok(TOOL);
   assertEq(data.sourcePresent, false, 'geen XER-bron');
   assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resources' }).code, 'NOT_FOUND', 'catalogus zonder bron');
+});
+
+test('P3 (R9): sourcePresent:false loopt ook door de poort — currentProjectId afgekapt', () => {
+  reset();
+  // `xerSourceProjectId` is GEEN statische tekst — het is een documentveld dat uit het bestand komt
+  // (review2-3d.md ronde 4, R9). Vóór de fix retourneerde deze tak vóór sanitize/finalizeBounded.
+  const hugeId = 'X'.repeat(9009);
+  useAppStore.setState((state) => { state.xerSourceProjectId = hugeId; });
+  const data = ok(TOOL);
+  assertEq(data.sourcePresent, false, 'geen XER-bron');
+  assertEq(data.selector.currentProjectId.length, LABEL_TRUNCATED_LENGTH, 'currentProjectId afgekapt op 200 tekens, ook zonder archief (R9)');
+  assertEq(
+    data.note,
+    'Er is voor dit document geen retained XER-bronarchief beschikbaar.',
+    'de statische systeemmelding blijft intact — die gaat bewust NIET door de vrije-tekstpoort (R9)',
+  );
+});
+
+test('P2 (R8): sleutels in de generieke objecttak worden ook afgekapt en begroot', () => {
+  attachArchive();
+  const data = ok(TOOL);
+  const catalogKeys = Object.keys(data.catalogCounts.taskSourceRowsByProject);
+  const longKey = catalogKeys.find((k: string) => k.startsWith('P'.repeat(50)));
+  assert(!!longKey, 'testopzet: de 80.000-tekens-project-id staat als sleutel in catalogCounts');
+  assert(
+    longKey!.length <= LABEL_TRUNCATED_LENGTH,
+    `sleutel blijft afgekapt (kreeg ${longKey!.length} tekens), niet verbatim 80.000 (R8)`,
+  );
+  const availableMatch = data.selector.availableProjectIds.find((id: string) => id.startsWith('P'.repeat(50)));
+  assert(!!availableMatch, 'testopzet: dezelfde project-id staat ook in availableProjectIds');
+  assertEq(
+    availableMatch.length,
+    LABEL_TRUNCATED_LENGTH,
+    'availableProjectIds (waarde-pad) was al afgekapt — nu consistent met de sleutel (R8)',
+  );
 });
 
 // =================================================================================================
