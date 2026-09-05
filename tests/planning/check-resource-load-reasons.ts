@@ -112,6 +112,75 @@ console.log('-- resource-load-reasons: over-capacity (inzet groter dan capacitei
     !Object.values(result.overallocatedReasons['r-b'] ?? {}).includes('non-working-day'));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// (c) over-capacity: resource op de PROJECTkalender (dus wél een echte werkdag) maar met
+//     `maxUnits: 0` — capaciteit is dan altijd 0, zonder dat er een kalenderoorzaak is. Dit is
+//     géén non-working-day: de resourcekalender kent die dag gewoon een werkdag, alleen de
+//     resource zelf heeft geen capaciteit.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- resource-load-reasons: over-capacity bij maxUnits 0 op een projectkalender-werkdag --');
+{
+  const taskC = task('t-c', '2026-06-01', '2026-06-05', 5);
+  const resourceC = res('r-c', 0);
+  const assignments = [assign('a-c', 't-c', 'r-c', 1)];
+
+  const result = computeResourceLoad([resourceC], assignments, [taskC], PROJECT_CAL, []);
+
+  const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
+  eq('alle vijf werkdagen zijn overbezet (maxUnits 0)', result.overallocatedDays['r-c'], expectedDays);
+  for (const iso of expectedDays) {
+    eq(`reden op ${iso} is over-capacity (geen kalenderoorzaak)`,
+      result.overallocatedReasons['r-c']?.[iso], 'over-capacity');
+  }
+  eq('capaciteit blijft 0 op elke dag', Object.values(result.capacity['r-c'] ?? {}), [0, 0, 0, 0, 0]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// (d) over-capacity: resource met `availabilitySteps` die op de betrokken dagen naar 0 zakt —
+//     ook dan is de RESOURCEkalender-dag een werkdag, alleen de effectieve capaciteit is 0.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- resource-load-reasons: over-capacity bij availabilitySteps naar 0 --');
+{
+  const taskD = task('t-d', '2026-06-01', '2026-06-05', 5);
+  const resourceD = res('r-d', 1, {
+    availabilitySteps: [{ from: '2026-06-01', maxUnits: 0 }],
+  });
+  const assignments = [assign('a-d', 't-d', 'r-d', 1)];
+
+  const result = computeResourceLoad([resourceD], assignments, [taskD], PROJECT_CAL, []);
+
+  const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
+  eq('alle vijf werkdagen zijn overbezet (stap naar 0)', result.overallocatedDays['r-d'], expectedDays);
+  for (const iso of expectedDays) {
+    eq(`reden op ${iso} is over-capacity (geen kalenderoorzaak)`,
+      result.overallocatedReasons['r-d']?.[iso], 'over-capacity');
+  }
+  eq('capaciteit blijft 0 op elke dag (availabilitySteps)',
+    Object.values(result.capacity['r-d'] ?? {}), [0, 0, 0, 0, 0]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// (e) spookresource: assignment verwijst naar een resourceId die niet in `resources` zit (kan via
+//     import binnenkomen, `payloadFromImport` filtert niet). Zonder resource-entry wordt de
+//     resourcekalender nooit opgezocht — de reden mag dan NOOIT `non-working-day` beweren (dat zou
+//     een niet-onderbouwde kalenderclaim zijn); de juiste, kalenderloze verklaring is `over-capacity`.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- resource-load-reasons: spook-resourceId (niet in resources) is over-capacity --');
+{
+  const taskE = task('t-e', '2026-06-01', '2026-06-05', 5);
+  // Geen resource met id 'r-ghost' in de resources-array.
+  const assignments = [assign('a-e', 't-e', 'r-ghost', 1)];
+
+  const result = computeResourceLoad([], assignments, [taskE], PROJECT_CAL, []);
+
+  const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
+  eq('alle vijf werkdagen zijn overbezet (spookresource)', result.overallocatedDays['r-ghost'], expectedDays);
+  for (const iso of expectedDays) {
+    eq(`reden op ${iso} is over-capacity (nooit non-working-day zonder resource-entry)`,
+      result.overallocatedReasons['r-ghost']?.[iso], 'over-capacity');
+  }
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  resource-load-reasons: alle checks groen (${checks})`);

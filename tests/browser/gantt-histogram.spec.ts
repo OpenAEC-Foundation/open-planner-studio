@@ -52,7 +52,7 @@ async function waitForTwoQuietWindows(page: Page): Promise<number> {
   return second;
 }
 
-test('histogram picker wisselt echte resourceserie en plotklik toont bijdragers', async ({ page, ops: _ops }) => {
+test('histogram picker wisselt echte resourceserie en hover op de plot toont bijdragers', async ({ page, ops: _ops }) => {
   const { taskIds, overId, spareId } = await seedResourceLoad(page);
   const load = await page.evaluate(({ over, spare }) => {
     const result = window.__OPS__!.store.getState().resourceLoadResult!;
@@ -80,17 +80,21 @@ test('histogram picker wisselt echte resourceserie en plotklik toont bijdragers'
   const canvas = page.getByTestId('gantt-histogram-canvas');
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
-  await canvas.click({
-    position: {
-      x: taskStart.x - bounds!.x + 5,
-      y: Math.min(70, bounds!.height / 2),
-    },
-  });
+  // Eigenaarscorrectie op R1: de tooltip is een echte hover-tooltip (~300 ms vertraging), geen
+  // klikresultaat — een echte muisbeweging naar de plot en dan wachten, niet klikken.
+  await page.mouse.move(
+    taskStart.x + 5,
+    bounds!.y + Math.min(70, bounds!.height / 2),
+  );
 
   const tooltip = page.locator('.gantt-tooltip');
   await expect(tooltip.getByText(/^(2 taken dragen bij op|2 tasks contribute on)/)).toBeVisible();
   await expect(tooltip.getByText('Overbelaste bijdrage A', { exact: true })).toBeVisible();
   await expect(tooltip.getByText('Overbelaste bijdrage B', { exact: true })).toBeVisible();
+
+  // Verlaat de strook: de tooltip verdwijnt weer (echte hover, geen klikresultaat dat blijft hangen).
+  await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
+  await expect(tooltip).toHaveCount(0);
 });
 
 test('taakselectie beperkt resourcedock en histogram en wissen herstelt beide', async ({ page, ops: _ops }) => {

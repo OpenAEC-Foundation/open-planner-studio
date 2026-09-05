@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import type { HistogramRenderer } from '@/engine/renderer/HistogramRenderer';
 import type { Resource, ResourceAssignment } from '@/types/resource';
@@ -8,7 +8,15 @@ export interface GanttHistogramTooltip {
   x: number;
   y: number;
   lines: string[];
+  /** ISO-dag waarvoor `lines` is opgebouwd — gebruikt om een mousemove binnen dezelfde dag te
+   *  onderscheiden van een overstap naar een andere dag (zie `onMouseMove`). */
+  isoDate: string;
 }
+
+/** Vertraging vóór een hover de tooltip toont — dezelfde orde van grootte als de generieke
+ *  `title`-tooltip elders in de app (`TooltipHost`, 400 ms): kort genoeg om niet traag te voelen,
+ *  lang genoeg om een muis die gewoon over de strook passeert niet te laten opflitsen. */
+const HOVER_DELAY_MS = 300;
 
 interface GanttHistogramInteractionInput {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -30,6 +38,8 @@ interface GanttHistogramInteractionInput {
 interface GanttHistogramInteraction {
   tooltip: GanttHistogramTooltip | null;
   onClick: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
+  onMouseMove: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
+  onMouseLeave: () => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLCanvasElement>) => void;
   clearTooltip: () => void;
 }
@@ -37,6 +47,14 @@ interface GanttHistogramInteraction {
 /**
  * Bezit de interactie rond het bestaande histogramcanvas. Coördinaten worden uitsluitend aan de
  * levende HistogramRenderer voorgelegd; deze hook bouwt geen tijdas, picker of serie opnieuw op.
+ *
+ * Tooltipgedrag (eigenaarscorrectie op R1): een ECHTE hover-tooltip, niet een klikresultaat.
+ * `onMouseMove` toont de bijdragende-takenlijst na `HOVER_DELAY_MS` boven een dagkolom, ververst
+ * zodra de muis naar een andere dag gaat (meteen verbergen + opnieuw vertragen — hetzelfde patroon
+ * als `TooltipHost`s `dismiss()` gevolgd door een nieuwe timer) en verdwijnt bij het verlaten van de
+ * strook (`onMouseLeave`). Een klik selecteert alleen nog de resource via `pickerAt` — de tooltip zelf
+ * opent niet meer bij klik, maar `onKeyDown`s bestaande picker-navigatie (↑/↓) blijft ongewijzigd en
+ * mag de tooltip laten staan/wissen zoals voorheen.
  */
 export function useGanttHistogramInteraction(
   input: GanttHistogramInteractionInput,
@@ -53,16 +71,28 @@ export function useGanttHistogramInteraction(
     describeNonWorkingDay,
   } = input;
   const [tooltip, setTooltip] = useState<GanttHistogramTooltip | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // De dag waarvoor een hover momenteel getoond wordt óf waarvoor de vertragingstimer loopt —
+  // zodat een mousemove binnen dezelfde dag geen nieuwe vertraging start (alleen de positie volgt).
+  const hoverDateRef = useRef<string | null>(null);
 
-  const clearTooltip = useCallback(() => setTooltip(null), []);
+  const clearHoverTimer = useCallback(() => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = undefined;
+    }
+  }, []);
 
-  // Het bestaande klikresultaat verdwijnt na zes seconden. De timer hoort bij dezelfde eigenaar
-  // als de tooltipstate, zodat uitzetten/unmounten hem via de effect-cleanup opruimt.
-  useEffect(() => {
-    if (!tooltip) return;
-    const timer = setTimeout(clearTooltip, 6000);
-    return () => clearTimeout(timer);
-  }, [tooltip, clearTooltip]);
+  const clearTooltip = useCallback(() => {
+    clearHoverTimer();
+    hoverDateRef.current = null;
+    setTooltip(null);
+  }, [clearHoverTimer]);
+
+  // Opruimen bij unmount (en bij elke re-render die de timer al verving — de ref-vlag voorkomt dat
+  // een oude cleanup een inmiddels vervangen timer opruimt, al gebeurt dat hier niet want er is maar
+  // één plek die de ref zet).
+  useEffect(() => clearHoverTimer, [clearHoverTimer]);
 
   const contributingTaskNames = useCallback((isoDate: string): string[] => {
     const names = new Set<string>();
@@ -81,6 +111,14 @@ export function useGanttHistogramInteraction(
     return [...names];
   }, [assignments, resources, tasks, selectedResourceId]);
 
+  const buildTooltip = useCallback((isoDate: string, x: number, y: number): GanttHistogramTooltip => {
+    const names = contributingTaskNames(isoDate);
+    const lines = [formatContributionLabel(names.length, isoDate), ...names.slice(0, 8)];
+    const reasonLine = selectedResourceId ? describeNonWorkingDay?.(selectedResourceId, isoDate) : null;
+    if (reasonLine) lines.push(reasonLine);
+    return { x, y, lines, isoDate };
+  }, [contributingTaskNames, formatContributionLabel, selectedResourceId, describeNonWorkingDay]);
+
   const onClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const renderer = rendererRef.current;
@@ -89,25 +127,52 @@ export function useGanttHistogramInteraction(
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const pickerItem = renderer.pickerAt(x, y);
-    if (pickerItem) {
-      selectResource(pickerItem.id);
+    if (pickerItem) selectResource(pickerItem.id);
+    // Geen tooltip meer bij klik (eigenaarscorrectie): dat is nu uitsluitend hover (`onMouseMove`).
+  }, [canvasRef, rendererRef, selectResource]);
+
+  const onMouseMove = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+
+    // Boven een picker-rij (de resourcelijst zelf) toont deze strook geen dag-tooltip.
+    if (renderer.pickerAt(x, y)) {
       clearTooltip();
       return;
     }
+
     const isoDate = renderer.dayAt(x, y);
     if (!isoDate) {
       clearTooltip();
       return;
     }
-    const names = contributingTaskNames(isoDate);
-    const lines = [formatContributionLabel(names.length, isoDate), ...names.slice(0, 8)];
-    const reasonLine = selectedResourceId ? describeNonWorkingDay?.(selectedResourceId, isoDate) : null;
-    if (reasonLine) lines.push(reasonLine);
-    setTooltip({ x: event.clientX, y: event.clientY, lines });
-  }, [
-    canvasRef, rendererRef, selectResource, formatContributionLabel, contributingTaskNames,
-    clearTooltip, selectedResourceId, describeNonWorkingDay,
-  ]);
+
+    if (isoDate === hoverDateRef.current) {
+      // Zelfde dag: alleen meebewegen met de cursor, geen nieuwe vertraging/herberekening.
+      setTooltip(prev => (prev && prev.isoDate === isoDate ? { ...prev, x: clientX, y: clientY } : prev));
+      return;
+    }
+
+    // Andere dag (of eerste hover): meteen verbergen, dan opnieuw vertragen — zelfde patroon als
+    // `TooltipHost`s dismiss-vóór-nieuwe-timer.
+    clearHoverTimer();
+    hoverDateRef.current = isoDate;
+    setTooltip(null);
+    hoverTimer.current = setTimeout(() => {
+      if (hoverDateRef.current !== isoDate) return; // de muis is intussen alweer verder gegaan
+      setTooltip(buildTooltip(isoDate, clientX, clientY));
+    }, HOVER_DELAY_MS);
+  }, [canvasRef, rendererRef, clearTooltip, clearHoverTimer, buildTooltip]);
+
+  const onMouseLeave = useCallback(() => {
+    clearTooltip();
+  }, [clearTooltip]);
 
   /**
    * De resourcelijst is getekend op het canvas, dus heeft geen DOM-listbox die de pijltjes al
@@ -133,5 +198,5 @@ export function useGanttHistogramInteraction(
     clearTooltip();
   }, [resources, selectedResourceId, selectResource, clearTooltip]);
 
-  return { tooltip, onClick, onKeyDown, clearTooltip };
+  return { tooltip, onClick, onMouseMove, onMouseLeave, onKeyDown, clearTooltip };
 }

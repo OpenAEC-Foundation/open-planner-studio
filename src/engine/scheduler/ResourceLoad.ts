@@ -340,11 +340,12 @@ export function computeResourceLoad(
   const capacity: Record<string, DailyLoad> = {};
   const overallocatedDays: Record<string, string[]> = {};
   const overallocatedReasons: Record<string, Record<string, OverallocationReason>> = {};
-  // resourceId → ISO-datum → is dit een werkdag van de RESOURCE-kalender? Bijgehouden naast
+  // resourceId → ISO-datums die GEEN werkdag zijn op de RESOURCE-kalender. Bijgehouden naast
   // `capacity` (punt 4) zodat de redenbepaling (punt 6) niet op `capacity === 0` hoeft te gokken —
   // een 0-stap in `availabilitySteps` op een echte werkdag is ook capaciteit 0, maar géén
-  // `non-working-day`.
-  const isResourceWorkDay: Record<string, Record<string, boolean>> = {};
+  // `non-working-day`. Een Set van alleen de niet-werkdagen (i.p.v. een volledig boolean-record)
+  // scheelt een entry per belaste werkdag — verreweg de meerderheid.
+  const nonWorkingDaysByResource: Record<string, Set<string>> = {};
 
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const projectEngine = new CalendarEngine(calendarForEngine(projectCalendar));
@@ -388,27 +389,36 @@ export function computeResourceLoad(
     ));
 
     capacity[resource.id] = {};
-    isResourceWorkDay[resource.id] = {};
+    const nonWorkingDays = new Set<string>();
+    nonWorkingDaysByResource[resource.id] = nonWorkingDays;
     for (const iso of Object.keys(bucket)) {
       const date = parseDate(iso);
       const workDay = engine.isWorkDay(date);
       capacity[resource.id][iso] = workDay ? maxUnitsOn(resource, iso) : 0;
-      isResourceWorkDay[resource.id][iso] = workDay;
+      if (!workDay) nonWorkingDays.add(iso);
     }
   }
 
   // 6. Overallocatie: load > capacity (materiaal telt gewoon mee, zie §4.2 punt 5), met per dag de
-  //    reden — zie het docblok hierboven.
+  //    reden — zie het docblok hierboven. Default is `over-capacity`, niet `non-working-day`: een
+  //    VERWEESDE toewijzing (resourceId niet in `resources` — kan via import binnenkomen,
+  //    `payloadFromImport` filtert niet) krijgt bij punt 4 hierboven nooit een entry in
+  //    `nonWorkingDaysByResource`, dus `nonWorkingDays` is hier `undefined` en `.has(iso)` op
+  //    `undefined` zou een crash zijn — vandaar de optional chaining. Zonder die chaining (of met een
+  //    `!workDays[iso]`-achtige inversie op een lege fallback) zou het spookgeval stil als "geen
+  //    werkdag" gelezen worden — een niet-onderbouwde `non-working-day`-claim over een kalender die
+  //    nooit is opgezocht. `nonWorkingDays?.has(iso)` levert voor het spookgeval `undefined` (falsy),
+  //    dus valt bewust op `over-capacity` — de juiste, want kalenderloze verklaring.
   for (const resId of Object.keys(load)) {
     const bucket = load[resId];
     const cap = capacity[resId] ?? {};
-    const workDays = isResourceWorkDay[resId] ?? {};
+    const nonWorkingDays = nonWorkingDaysByResource[resId];
     const flagged: string[] = [];
     const reasons: Record<string, OverallocationReason> = {};
     for (const iso of Object.keys(bucket)) {
       if (bucket[iso] > (cap[iso] ?? 0)) {
         flagged.push(iso);
-        reasons[iso] = workDays[iso] ? 'over-capacity' : 'non-working-day';
+        reasons[iso] = nonWorkingDays?.has(iso) ? 'non-working-day' : 'over-capacity';
       }
     }
     if (flagged.length > 0) {
