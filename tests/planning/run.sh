@@ -309,6 +309,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERWHITELISTCHECK="$DIR/.xer-field-whitelist.mjs"
   if bundle_check "$DIR/check-xer-field-whitelist.ts" "$XERWHITELISTCHECK"; then node "$XERWHITELISTCHECK" || STATUS=1; fi
 
+  # BAK 4 (X-O7 laag 3, §4.1-bijstelling 2026-09-04): de zes P6-rekenuitvoerkolommen
+  # (early_*/late_*/total_float_hr_cnt/free_float_hr_cnt) als apart, niet-solvend kanaal
+  # (`ImportResult.recordedTimes`). Corpusloze oracle-fixture draait altijd; de corpuspins voor
+  # `p6diff-baseline.xer`/`rehab-2.xer` alleen met OPS_XER_CORPUS.
+  XERRECORDEDTIMESCHECK="$DIR/.xer-recorded-times.mjs"
+  if bundle_check "$DIR/check-xer-recorded-times.ts" "$XERRECORDEDTIMESCHECK"; then node "$XERRECORDEDTIMESCHECK" || STATUS=1; fi
+
   # XER-fidelity-baselinevorm (X0, XER-etappeplan §3/§6): het harness-skelet — er is nog geen lezer
   # (X1+), dus dit bewaakt alleen de VORM van `xer-fidelity-baseline.json` (`xerFidelityTypes.ts`)
   # via een compile-locked sleutellijst + een runtime-structuurvalidator. Corpusloos, draait altijd.
