@@ -158,6 +158,7 @@
     "hourPlanningSection": "Hour planning",
     "enableHourPlanning": "Enable hour planning",
     "enableHourPlanningHint": "Turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular as before.",
+    "taskTypesSection": "Task types",
     "showTaskTypes": "Show task types (work rules)",
     "showTaskTypesHint": "Shows the work rule per task (which corner of work = remaining duration × units is fixed) and the remaining work per assignment — in the properties panel, the task dialog and the grid. Off ⇒ the app schedules as before (duration and units stay, work follows). A file that already contains task types shows them regardless.",
     "allowMixedDayHour": "Allow mixed day/hour planning",

@@ -179,4 +179,28 @@ test('batch: workRule + unitsPerDay in één draaiboek ⇒ één undo-stap, duur
   assertEq([task(t).workRule, task(t).time.scheduleDuration, asg(t, r).unitsPerDay], [undefined, 4, 1], 'undo zet alles in één keer terug');
 });
 
+// 5) add mét werk (reviewbevinding: binnen een batch is het nieuwe assignmentId niet tempId-resolveerbaar)
+test('manage_assignments: add met remainingWorkMinutes zet het werk in dezelfde stap; hangmat/ELAPSEDTIME zacht geweigerd', async () => {
+  const { t, r } = seed();
+  store.getState().setTaskWorkRule(t, 'FIXED_WORK');
+  const r2 = store.getState().addResource({ name: 'r2', type: 'LABOR', description: '', maxUnits: 1 });
+  const res = await call('planner_batch', {
+    steps: [
+      { tool: 'planner_manage_assignments', args: { actions: [{ action: 'add', taskId: t, resourceId: r2, unitsPerDay: 1, remainingWorkMinutes: 4 * slot() }] } },
+    ],
+  });
+  assert(res.ok, `batch ok: ${res.ok ? '' : (res as McpToolErr).error}`);
+  // r1 had 4 slots vastgelegd; r2 erbij verdeelt eerst (2 + 2, duur 2) en zet dan expliciet 4 slots op r2
+  // ⇒ R = max(2/1, 4/1) = 4 dagen; r1 houdt haar 2 slots en loopt over de hele restduur (besluit 10)
+  // ⇒ inzet 0,5.
+  assertEq(asg(t, r2).remainingWorkMinutes, 4 * slot(), 'werk op de nieuwe toewijzing gezet');
+  assertEq(task(t).time.scheduleDuration, 4, 'duur volgt het grootste restwerk (4 d)');
+  assertEq([asg(t, r).unitsPerDay, asg(t, r).remainingWorkMinutes], [0.5, 2 * slot()], 'r1: werk 2 slots blijft, inzet volgt (0,5)');
+  const e = store.getState().addTask({ name: 'elapsed', time: { ...createDefaultTaskTime('2026-06-01', 4), durationType: 'ELAPSEDTIME' } });
+  const bad = await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: e, resourceId: r2, unitsPerDay: 1, remainingWorkMinutes: 480 }] });
+  const rej = rejections(bad);
+  assert(rej.length === 1 && rej[0].reason.includes('ELAPSEDTIME'), `ELAPSEDTIME zacht geweigerd: ${rej[0]?.reason}`);
+  assert(!store.getState().assignments.some((a) => a.taskId === e), 'geen toewijzing aangemaakt bij weigering');
+});
+
 await run();

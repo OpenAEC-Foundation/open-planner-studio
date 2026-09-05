@@ -172,6 +172,7 @@
     "hourPlanningSection": "Planification horaire",
     "enableHourPlanning": "Activer la planification horaire",
     "enableHourPlanningHint": "Active la planification heure/minute : une échelle de temps en heures, des équipes avec des plages horaires de travail et des barres de tâche précises à l'heure près. Désactivé ⇒ l'application reste entièrement en granularité journalière, comme auparavant.",
+    "taskTypesSection": "Types de tâche",
     "showTaskTypes": "Afficher les types de tâche (règles de travail)",
     "showTaskTypesHint": "Affiche par tâche la règle de travail (quel coin de travail = durée restante × unités est fixe) et par affectation le travail restant — dans le panneau des propriétés, la boîte de dialogue de tâche et la grille. Désactivé ⇒ l'application planifie comme avant (durée et unités restent, le travail suit). Un fichier contenant déjà des types de tâche les affiche de toute façon.",
     "allowMixedDayHour": "Autoriser la planification mixte jour/heure",

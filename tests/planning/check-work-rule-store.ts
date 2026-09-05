@@ -20,6 +20,7 @@ import type { AssignmentSetIntent, CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
 import { hasTaskTypeData } from '@/engine/work/taskTypesVisibility';
+import { __resetTaskTypesNoticeForTests, notifyTaskTypesUnlocked } from '@/state/taskTypesNotice';
 import { SETTINGS } from '@/utils/settingsRegistry';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
@@ -497,6 +498,80 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
   // Parser van de kolom: "naam: uren".
   const parsed = workCol.parse!('r1: 12', task(t), { ...ctxBase, taskTypesUnlocked: true, tasksById: new Map([[t, task(t)]]), assignmentsByTaskId: new Map([[t, S().assignments.filter((a) => a.taskId === t)]]), resourcesById: new Map(S().resources.map((r) => [r.id, r])), effectiveHoursPerDay: () => S().calendar.hoursPerDay });
   eq('n15 parser "r1: 12" ⇒ 720 werkminuten', parsed.ok ? (parsed.value as { remainingWorkMinutes?: number }[])[0]?.remainingWorkMinutes : parsed, 720);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest niets, typewissel via paneel, melding na newProject --');
+{
+  reset();
+  const t = S().addTask({ name: 'o', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r1 = labor('r1');
+  const r2 = labor('r2');
+  S().assignResource(t, r1, 1);
+  S().assignResource(t, r2, 1);
+  S().runCPM();
+  const registry = buildTaskColumnRegistry({ projectId: S().project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [], customTaskTypes: [] });
+  const workCol = registry.find((d) => String(d.id) === 'assignment.remainingWork')!;
+  const ctxOf = () => ({
+    projectId: S().project.id, tasksById: new Map([[t, task(t)]]), relationIndex: buildTaskRelationIndex([], [], null),
+    assignmentsByTaskId: new Map([[t, S().assignments.filter((a) => a.taskId === t)]]),
+    resourcesById: new Map(S().resources.map((r) => [r.id, r])), baselinesById: new Map(), scheduleStale: false,
+    taskTypesUnlocked: true, effectiveHoursPerDay: () => S().calendar.hoursPerDay,
+  });
+  // (B1) tokens met een VREEMD assignmentId (plakken vanaf een andere taak) houden hun werk.
+  const foreign = [{ assignmentId: 'van-andere-taak', resourceId: r1, unitsPerDay: 1, remainingWorkMinutes: 600 }];
+  const validated = workCol.validate!(foreign, task(t), ctxOf());
+  eq('o1 (B1) cross-task tokens behouden remainingWorkMinutes na normalisatie', validated.ok ? (validated.value as { remainingWorkMinutes?: number }[])[0]?.remainingWorkMinutes : validated, 600);
+  // (B2) FIXED_RATE, twee toewijzingen zonder opgeslagen werk: alleen r1 bewerken laat r2 zonder veld.
+  S().setTaskWorkRule(t, 'FIXED_RATE');
+  useAppStore.setState((s) => { for (const a of s.assignments) if (a.taskId === t) delete a.remainingWorkMinutes; });
+  S().runCPM();
+  const cell: AssignmentSetIntent = {
+    kind: 'assignment-set', taskId: t, columnId: 'assignment.remainingWork' as AssignmentSetIntent['columnId'],
+    tokens: [
+      { resourceId: r1, assignmentId: asgOf(t, r1).id, unitsPerDay: 1, remainingWorkMinutes: 8 * slot() },
+      { resourceId: r2, assignmentId: asgOf(t, r2).id, unitsPerDay: 1, remainingWorkMinutes: 4 * slot() }, // = de getoonde waarde
+    ],
+  };
+  eq('o2 (B2) werkcel met r2 op de getoonde waarde slaagt', runGridMutation([cell]).ok, true);
+  eq('o3 (B2) r1 8 slots ⇒ duur 8; r2 krijgt GEEN expliciet werk (blijft afgeleid)', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes, asgOf(t, r2).remainingWorkMinutes], [8, 8 * slot(), undefined]);
+  // (B3) typewissel via de generieke updateTask zet niet verouderd (setTaskWorkRule is de UI-route).
+  S().runCPM();
+  useAppStore.setState((s) => { s.datesAsRecorded = true; s.recordedDates = {} as never; });
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  eq('o4 (B3) setTaskWorkRule laat scheduleStale en datums-zoals-opgeslagen ongemoeid', [S().scheduleStale, S().datesAsRecorded], [false, true]);
+  useAppStore.setState((s) => { s.datesAsRecorded = false; s.recordedDates = null; });
+  // (K4) werk zetten op een ELAPSEDTIME-taak is een no-op zonder undo-stap.
+  const e = S().addTask({ name: 'elapsed', time: { ...createDefaultTaskTime('2026-06-01', 4), durationType: 'ELAPSEDTIME' } });
+  S().assignResource(e, r1, 1);
+  const events0 = S().historyEvents.length;
+  S().setAssignmentWork(asgOf(e, r1).id, 480);
+  eq('o5 (K4) setAssignmentWork op ELAPSEDTIME: no-op, geen undo-stap', [S().historyEvents.length - events0, asgOf(e, r1).remainingWorkMinutes], [0, undefined]);
+  // (K1) melding: één per document, opnieuw na newProject op hetzelfde docId.
+  __resetTaskTypesNoticeForTests();
+  const docId = S().activeDocumentId;
+  const count = () => S().ui.notifications.filter((n) => n.messageKey === 'notifications.taskTypesUnlocked').length;
+  notifyTaskTypesUnlocked(S().notify, docId);
+  notifyTaskTypesUnlocked(S().notify, docId);
+  eq('o6 (K1) melding één keer per document', count(), 1);
+  // De toast-lijst vouwt op `dedupeKey` samen zolang de vorige nog staat; leeg 'm dus eerst, zodat
+  // alleen de sessie-gate (per docId) telt.
+  S().newProject();
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  notifyTaskTypesUnlocked(S().notify, S().activeDocumentId);
+  eq('o7 (K1) na newProject (zelfde tabblad) opnieuw meldbaar', count(), 1);
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  notifyTaskTypesUnlocked(S().notify, S().activeDocumentId);
+  eq('o7b (K1) …maar daarna weer één keer per document', count(), 0);
+  // (K3) de generieke updateTask en de MCP-tweeling ontsluiten óók.
+  reset();
+  const t2 = S().addTask({ name: 'k3', time: createDefaultTaskTime('2026-06-01', 2) });
+  S().updateTask(t2, { workRule: 'FIXED_WORK' });
+  eq('o8 (K3) updateTask({ workRule }) ontsluit het document', S().taskTypesVisible, true);
+  reset();
+  const t3 = S().addTask({ name: 'k3b', time: createDefaultTaskTime('2026-06-01', 2) });
+  runInMcpTransaction(() => { draft.setTaskWorkRule(t3, 'FIXED_RATE'); });
+  eq('o9 (K3) MCP setTaskWorkRule ontsluit het document', S().taskTypesVisible, true);
 }
 
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);

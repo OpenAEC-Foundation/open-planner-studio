@@ -18,6 +18,12 @@ export function claimTaskTypesNotice(docId: string): boolean {
   return true;
 }
 
+/** Wis de registratie voor ÉÉN document-id — zelfde reden als `clearTimephasedLossNoticeForDoc`:
+ *  `newProject`/`createNewProject` hergebruiken het actieve docId voor een vers document (review K1). */
+export function clearTaskTypesNoticeForDoc(docId: string): void {
+  notifiedDocIds.delete(docId);
+}
+
 /** Test-only reset (zelfde reden als `__resetTimephasedLossNoticeForTests`). */
 export function __resetTaskTypesNoticeForTests(): void {
   notifiedDocIds.clear();

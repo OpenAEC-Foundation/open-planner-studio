@@ -49,10 +49,15 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   await expect(page.locator('[data-ops-assignment-lock-work]')).toHaveAttribute('data-ops-assignment-lock-work', 'locked');
   await expect(page.locator('[data-ops-assignment-work]')).toHaveAttribute('data-ops-assignment-work', 'stored');
 
-  // Werk 32 → 64 uur typen: onder vast werk wordt de taak twee keer zo lang (8 d), inzet blijft 1.
+  // Werk 32 → 64 uur TYPEN (toets voor toets, review K5: pas op Enter committen — "6" onderweg mag
+  // geen eigen driehoekstap zijn): onder vast werk wordt de taak twee keer zo lang (8 d), inzet blijft 1.
   const workInput = page.locator('[data-ops-assignment-work] input');
   await expect(workInput).toHaveValue('32');
-  await workInput.fill('64');
+  await workInput.click();
+  await workInput.press('Control+a');
+  await workInput.pressSequentially('64');
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(4);
   await workInput.press('Enter');
   st = await taskState(page, taskId);
   expect(st.duration).toBe(8);
@@ -80,6 +85,27 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   st = await taskState(page, taskId);
   expect(st.workRule).toBeUndefined();
   expect(st.work).toBe(64 * 60);
+});
+
+test('taakdialoog: werkregel kiezen commit direct, werk typen in dezelfde dialoog rekent met die regel, Opslaan draait de duur niet terug', async ({ page, ops: _ops }) => {
+  const { taskId } = await seedAssignedTask(page);
+  await page.evaluate((id) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), taskId);
+  const dialog = page.locator('[role="dialog"]').last();
+  await expect(dialog).toBeVisible();
+  const select = dialog.locator('[data-ops-work-rule]');
+  await select.selectOption('FIXED_WORK');
+  let st = await taskState(page, taskId);
+  expect(st.workRule).toBe('FIXED_WORK');
+  const workInput = dialog.locator('[data-ops-assignment-work] input');
+  await workInput.fill('64');
+  await workInput.press('Enter');
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(8);
+  // Opslaan: de duur die de driehoek zette blijft 8 (review B4).
+  await dialog.getByRole('button', { name: /opslaan|save/i }).click();
+  st = await taskState(page, taskId);
+  expect(st.duration).toBe(8);
+  expect(st.workRule).toBe('FIXED_WORK');
 });
 
 test('instelling uit en document zonder taaktypes: geen werkregel-UI; een gezette regel ontsluit het document', async ({ page, ops: _ops }) => {

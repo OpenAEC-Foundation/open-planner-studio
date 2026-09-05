@@ -346,6 +346,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // een nieuwe taak heeft nog geen toewijzingen, dus dit is een kaal veld zonder driehoekstap.
         workRule: partial.workRule,
       };
+      if (partial.workRule !== undefined) s.taskTypesVisible = true; // review K3
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
       // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt
@@ -429,7 +430,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // nieuwe duur. Onder de standaardregel zonder werkvelden gebeurt er niets (byte-identiek).
         settleDurationEdit(s.tasks[idx], s.assignments, triangle);
       }
-      if ('workRule' in updates && s.tasks[idx].workRule !== workRule) settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
+      if ('workRule' in updates && s.tasks[idx].workRule !== workRule) {
+        settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
+        if (workRule !== undefined) s.taskTypesVisible = true; // review K3: elk schrijfpad ontsluit.
+      }
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft

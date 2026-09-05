@@ -158,6 +158,7 @@
     "hourPlanningSection": "Urenplanning",
     "enableHourPlanning": "Urenplanning inschakelen",
     "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
+    "taskTypesSection": "Taaktypes",
     "showTaskTypes": "Toon taaktypes (werkregels)",
     "showTaskTypesHint": "Toont per taak de werkregel (welke hoek van werk = restduur × inzet vast staat) en per toewijzing het resterende werk — in het eigenschappenpaneel, de taakdialoog en het raster. Uit ⇒ de app plant zoals voorheen (duur en inzet blijven, werk volgt). Een bestand dat al taaktypes bevat toont ze sowieso.",
     "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",

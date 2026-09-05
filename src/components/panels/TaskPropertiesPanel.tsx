@@ -35,6 +35,7 @@ export function TaskPropertiesPanel() {
   const activeTaskId = useAppStore(s => s.activeTaskId);
   const tasks = useAppStore(s => s.tasks);
   const updateTask = useAppStore(s => s.updateTask);
+  const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const deleteTask = useAppStore(s => s.deleteTask);
   const runCPM = useAppStore(s => s.runCPM);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
@@ -101,7 +102,9 @@ export function TaskPropertiesPanel() {
 
       <TaskTimeFields task={task} onChange={update} />
 
-      <TaskWorkRuleField task={task} onChange={update} />
+      {/* Taaktypes-etappe (review B3): een typewissel rekent niets en gaat daarom via `setTaskWorkRule`
+          (geen `scheduleStale`, "datums zoals opgeslagen" blijft staan), niet via de generieke update. */}
+      <TaskWorkRuleField task={task} onChange={patch => setTaskWorkRule(task.id, patch.workRule)} />
 
       <TaskFreePeriodWarning taskId={task.id} />
 

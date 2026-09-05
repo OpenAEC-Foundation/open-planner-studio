@@ -19,8 +19,8 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import {
-  captureTriangle, contourKeepsWork, settleAssignmentPlan, settleDurationAftermath, settleDurationEdit,
-  settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
+  captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleDurationAftermath,
+  settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
 } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -384,11 +384,15 @@ function applyAssignmentSet(
     if (columnId === 'assignment.remainingWork') {
       const byId = new Map(assignmentsForTask.map(a => [a.id, a] as const));
       const byResource = new Map(assignmentsForTask.map(a => [a.resourceId, a] as const));
+      // Review B2: vergelijk met wat de cel TOONDE (opgeslagen, anders afgeleid als restduur × inzet)
+      // — een niet-bewerkte toewijzing mag haar afgeleide getal niet als expliciet werk krijgen.
+      const shownRemaining = remainingMinutesOf(task, { hoursPerDay: taskCalendarHoursPerDay(task, state.calendars, state.calendar) });
       for (const token of intent.tokens) {
         const current = (token.assignmentId ? byId.get(token.assignmentId) : undefined) ?? byResource.get(token.resourceId);
         const w = token.remainingWorkMinutes;
         if (!current || typeof w !== 'number' || !Number.isFinite(w) || w <= 0) continue;
-        if (current.remainingWorkMinutes !== undefined && Math.abs(current.remainingWorkMinutes - w) < 1e-6) continue;
+        const shown = current.remainingWorkMinutes ?? shownRemaining * current.unitsPerDay;
+        if (Math.abs(shown - w) < 1) continue;
         const live = state.assignments.find(a => a.id === current.id);
         if (!live) continue;
         const result = settleWorkEdit(task, state.assignments, state, live.id, w);

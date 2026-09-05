@@ -1,5 +1,5 @@
 import { WORK_RULES } from '@/types/workRule';
-import { remainingMinutesOf } from '@/engine/work/workRuleApply';
+import { remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply';
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
@@ -492,6 +492,8 @@ function validateAssignmentTokens(
       resourceId: token.resourceId,
       unitsPerDay: token.unitsPerDay,
       ...(token.curve ? { curve: token.curve } : {}),
+      // Taaktypes-etappe (review B1): het werk reist mee bij plakken naar een andere taak.
+      ...(token.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: token.remainingWorkMinutes } : {}),
     });
   }
   // Zelfde taak: behoud exact de bestaande payload, inclusief sleutelvolgorde voor canonieke
@@ -926,7 +928,8 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       id: 'assignment.remainingWork', labelKey: 'taskGrid.columns.assignmentRemainingWork', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
       available: ctx => ctx.taskTypesUnlocked === true,
       read: assignmentWorkTokens,
-      readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
+      // Review K4: alleen waar de regel werkt (geen hangmat/ELAPSEDTIME) — anders weigert de kern stil.
+      readOnly: (task, ctx) => !workRuleApplies(task) || assignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; remainingWorkMinutes?: number };
         return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${workHoursText(item.remainingWorkMinutes)}`;

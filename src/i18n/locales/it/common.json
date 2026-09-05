@@ -172,6 +172,7 @@
     "hourPlanningSection": "Pianificazione oraria",
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
+    "taskTypesSection": "Tipi di attività",
     "showTaskTypes": "Mostra tipi di attività (regole di lavoro)",
     "showTaskTypesHint": "Mostra per attività la regola di lavoro (quale angolo di lavoro = durata rimanente × unità è fisso) e per assegnazione il lavoro rimanente — nel pannello proprietà, nella finestra attività e nella griglia. Disattivato ⇒ l'app pianifica come prima (durata e unità restano, il lavoro segue). Un file che contiene già tipi di attività li mostra comunque.",
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",

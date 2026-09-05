@@ -134,6 +134,7 @@
     "hourPlanningSection": "小时计划",
     "enableHourPlanning": "启用小时计划",
     "enableHourPlanningHint": "启用小时/分钟排程：小时级时间刻度、带工作时间段的班次，以及精确到小时的任务条。关闭 ⇒ 应用将保持与之前一样完全按天粒度运行。",
+    "taskTypesSection": "任务类型",
     "showTaskTypes": "显示任务类型（工作规则）",
     "showTaskTypesHint": "按任务显示工作规则（工时 = 剩余工期 × 单位 中哪一角固定）以及按分配显示剩余工时——在属性面板、任务对话框和表格中。关闭 ⇒ 应用按以往方式排程（工期和单位保持，工时随之变化）。已包含任务类型的文件无论如何都会显示。",
     "allowMixedDayHour": "允许混合按天/按小时计划",

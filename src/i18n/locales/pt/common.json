@@ -172,6 +172,7 @@
     "hourPlanningSection": "Planeamento por horas",
     "enableHourPlanning": "Ativar planeamento por horas",
     "enableHourPlanningHint": "Ativa o escalonamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desativado ⇒ a aplicação permanece totalmente granular por dias, como antes.",
+    "taskTypesSection": "Tipos de tarefa",
     "showTaskTypes": "Mostrar tipos de tarefa (regras de trabalho)",
     "showTaskTypesHint": "Mostra por tarefa a regra de trabalho (que canto de trabalho = duração restante × unidades está fixo) e por atribuição o trabalho restante — no painel de propriedades, no diálogo da tarefa e na grelha. Desligado ⇒ a aplicação planeia como antes (duração e unidades mantêm-se, o trabalho segue). Um ficheiro que já contém tipos de tarefa mostra-os de qualquer forma.",
     "allowMixedDayHour": "Permitir planeamento misto de dias/horas",

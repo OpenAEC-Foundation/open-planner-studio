@@ -181,6 +181,7 @@ function createMcpDraft(
         // een nieuwe taak heeft nog geen toewijzingen, dus dit is een kaal veld zonder driehoekstap.
         workRule: partial.workRule,
       };
+      if (partial.workRule !== undefined) s.taskTypesVisible = true; // review K3
 
       s.tasks.push(task);
       if (parentId) attachToParent(s.tasks, id, parentId);
@@ -392,7 +393,10 @@ function createMcpDraft(
         rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd, contourKeepsWork(s.tasks[idx], s.project.defaultWorkRule));
         settleDurationEdit(s.tasks[idx], s.assignments, triangle);
       }
-      if ('workRule' in updates && s.tasks[idx].workRule !== workRule) settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
+      if ('workRule' in updates && s.tasks[idx].workRule !== workRule) {
+        settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
+        if (workRule !== undefined) s.taskTypesVisible = true; // review K3
+      }
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
@@ -450,7 +454,10 @@ function createMcpDraft(
         settleDurationEdit(task, s.assignments, triangle);
       }
       // Reviewbevinding K1: `workRule` via de driehoek-bewuste route, ná de duurpatch.
-      if ('workRule' in top && task.workRule !== workRule) settleRuleChange(task, s.assignments, s, workRule);
+      if ('workRule' in top && task.workRule !== workRule) {
+        settleRuleChange(task, s.assignments, s, workRule);
+        if (workRule !== undefined) s.taskTypesVisible = true; // review K3
+      }
       reconcileP6SuspendResume(task);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
@@ -725,6 +732,7 @@ function createMcpDraft(
         throw new Error(`draft.setAssignmentWork: werk ${String(remainingWorkMinutes)} geweigerd (strikt positief vereist; de werkregel geldt niet op mijlpalen, hangmatten, samenvattingen of ELAPSEDTIME-taken)`);
       }
       if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes);
+      s.taskTypesVisible = true; // review K3
       s.isDirty = true;
     });
   },
@@ -740,6 +748,7 @@ function createMcpDraft(
       if (!task) throw new Error(`draft.setTaskWorkRule: onbekende taskId '${taskId}'`);
       if (task.workRule === rule) return;
       settleRuleChange(task, s.assignments, s, rule);
+      if (rule !== undefined) s.taskTypesVisible = true; // review K3
       s.isDirty = true;
     });
   },

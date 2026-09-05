@@ -362,6 +362,7 @@ export function SettingsPanelContent() {
               )}
             </div>
             <div className="settings-section">
+              <h3>{t('settings.taskTypesSection')}</h3>
               <label className="settings-checkbox-row">
                 <input
                   type="checkbox"

@@ -153,6 +153,7 @@
     "hourPlanningSection": "Saat planlaması",
     "enableHourPlanning": "Saat planlamasını etkinleştir",
     "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
+    "taskTypesSection": "Görev türleri",
     "showTaskTypes": "Görev türlerini (iş kurallarını) göster",
     "showTaskTypesHint": "Görev başına iş kuralını (iş = kalan süre × birim eşitliğinde hangi köşenin sabit olduğu) ve atama başına kalan işi gösterir — özellikler panelinde, görev iletişim kutusunda ve tabloda. Kapalı ⇒ uygulama eskisi gibi planlar (süre ve birimler kalır, iş uyar). Zaten görev türü içeren bir dosya bunları her durumda gösterir.",
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",

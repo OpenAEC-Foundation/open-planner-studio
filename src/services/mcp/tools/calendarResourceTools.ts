@@ -1014,7 +1014,7 @@ const updateCalendar: BatchStepTool = {
 // =================================================================================================
 
 type AssignmentAction =
-  | { action: 'add'; taskId: string; resourceId: string; unitsPerDay: number; curve?: ResourceCurve }
+  | { action: 'add'; taskId: string; resourceId: string; unitsPerDay: number; curve?: ResourceCurve; remainingWorkMinutes?: number }
   | { action: 'update'; assignmentId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number }
   | { action: 'move'; assignmentId: string; taskId: string }
   | { action: 'remove'; assignmentId: string };
@@ -1058,6 +1058,19 @@ function classifyAssignments(
         if (!guard.ok) {
           rejections.push({ id: label, reason: guard.reason });
           return;
+        }
+        // Taaktypes-etappe (review): werk direct bij `add` — nodig binnen planner_batch, want een
+        // nieuwe toewijzing heeft daar nog geen tempId-resolveerbaar `assignmentId`.
+        if (act.remainingWorkMinutes !== undefined) {
+          if (!(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
+            rejections.push({ id: label, reason: `ongeldige remainingWorkMinutes ${String(act.remainingWorkMinutes)} (werkminuten, strikt positief vereist)` });
+            return;
+          }
+          const owner = s.tasks.find((t) => t.id === act.taskId);
+          if (!owner || !workRuleApplies(owner)) {
+            rejections.push({ id: label, reason: 'resterend werk is alleen zetbaar op een gewone bladtaak op werktijd (niet op een mijlpaal, verzameltaak, hangmat of ELAPSEDTIME-taak)' });
+            return;
+          }
         }
         // Simulatie bijwerken: een volgende identieke `add` botst nu op de dubbeltelling-guard.
         sim = [...sim, { id: `sim-${index}`, taskId: act.taskId, resourceId: act.resourceId, unitsPerDay: act.unitsPerDay }];
@@ -1160,6 +1173,7 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
       switch (action.action) {
         case 'add': {
           const id = ctx.transactions.draft.assignResource(action.taskId, action.resourceId, action.unitsPerDay, action.curve);
+          if (action.remainingWorkMinutes !== undefined) ctx.transactions.draft.setAssignmentWork(id, action.remainingWorkMinutes);
           added.push({
             assignmentId: id,
             taskId: action.taskId,
@@ -1201,8 +1215,8 @@ const manageAssignments: BatchStepTool = {
   description:
     'Beheer resource-toewijzingen in bulk (één call = één ongedaan-maak-stap). Per item één `action`: ' +
     '`add` (`taskId`, `resourceId`, `unitsPerDay` = eenheden per WERKDAG waarbij 1 = 100% / één ' +
-    'persoon, optioneel `curve`), `update` (`assignmentId` + `unitsPerDay`, `curve` en/of ' +
-    '`remainingWorkMinutes`), `move` (`assignmentId` naar een andere `taskId`) of `remove` ' +
+    'persoon, optioneel `curve` en `remainingWorkMinutes`), `update` (`assignmentId` + `unitsPerDay`, ' +
+    '`curve` en/of `remainingWorkMinutes`), `move` (`assignmentId` naar een andere `taskId`) of `remove` ' +
     '(`assignmentId`). De id\'s en veldnamen zijn exact die van de leestools (get_task/list_resources), ' +
     'dus je kunt ze rechtstreeks terugstoppen. WERKREGEL (taaktype, `workRule` op de taak — zie ' +
     'planner_update_tasks): werk = restduur × inzet, en de regel bepaalt welke hoek meebeweegt. Onder ' +
@@ -1244,7 +1258,7 @@ const manageAssignments: BatchStepTool = {
               type: 'number',
               exclusiveMinimum: 0,
               description:
-                'Alleen bij `update`: RESTEREND werk van deze toewijzing in WERKminuten (8 uur = 480). De ' +
+                'Bij `add` of `update`: RESTEREND werk van deze toewijzing in WERKminuten (8 uur = 480). De ' +
                 'werkregel van de taak bepaalt wat meebeweegt: de duur (FIXED_WORK/FIXED_RATE) of de inzet ' +
                 '(FIXED_DURATION_*). Alleen op een gewone bladtaak op werktijd; materiaal telt niet mee voor de duur.',
             },

@@ -172,6 +172,7 @@
     "hourPlanningSection": "Planificación por horas",
     "enableHourPlanning": "Activar planificación por horas",
     "enableHourPlanningHint": "Activa la programación por horas/minutos: una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora. Desactivado ⇒ la aplicación sigue siendo totalmente granular por días, como antes.",
+    "taskTypesSection": "Tipos de tarea",
     "showTaskTypes": "Mostrar tipos de tarea (reglas de trabajo)",
     "showTaskTypesHint": "Muestra por tarea la regla de trabajo (qué esquina de trabajo = duración restante × unidades está fija) y por asignación el trabajo restante — en el panel de propiedades, el diálogo de tarea y la cuadrícula. Desactivado ⇒ la aplicación planifica como antes (duración y unidades se mantienen, el trabajo sigue). Un archivo que ya contiene tipos de tarea los muestra de todos modos.",
     "allowMixedDayHour": "Permitir planificación mixta de días/horas",

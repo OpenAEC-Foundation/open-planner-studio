@@ -23,6 +23,7 @@ import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncPro
 import { freshPayload, hydratePayload } from '../documentContract';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
+import { clearTaskTypesNoticeForDoc } from '../taskTypesNotice';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -470,6 +471,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // `clearTimephasedLossNoticeForDoc` voor de volledige toelichting (incl. waarom dit NIET ook
       // vanuit `newDocument()`/een echte bestandsopen hoort te gebeuren).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
+      clearTaskTypesNoticeForDoc(s.activeDocumentId); // taaktypes-etappe, review K1
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },
@@ -540,6 +542,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // "al gemeld"-registratie van het vorige (lege) tabblad-verleden. Onvoorwaardelijk zetten is
       // een no-op op het niet-pristine pad (newDocument() gaf daar al een vers, ongeregistreerd docId).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
+      clearTaskTypesNoticeForDoc(s.activeDocumentId); // taaktypes-etappe, review K1
     });
     emitExtensionEvent(HOST_EVENTS.projectNew);
   },

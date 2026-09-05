@@ -373,6 +373,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       resource met `maxUnits: 1`. Beslissen: (a) I = W / R' herrekenen bij een kalenderwissel,
       (b) W mee herschalen (werk = duur × inzet houden), of (c) laten staan en documenteren. Tot
       dan geldt (c); geen testgeval.
+- [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
+      `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
+      waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.
+      Bewust gelaten: herstel is dezelfde gebruiker in (meestal) dezelfde sessie. Meenemen zodra
+      `restoreDocuments` andere laadmeldingen krijgt.
+- [ ] **Werkinvoer ≤ 0 in het paneel weigert stil** (review K6a): rode rand via `aria-invalid`, geen
+      melding — zelfde conventie als de inzetinvoer (`isValidUnits`).
 - [ ] **B1c-koppelpunt (`origin/t3code/b1c-etappe3`, gezien 2026-09-05):** die branch wist bij elke
       as-verzettende bewerking de nivelleergaten (`clearLevelingGaps`, B1c-plan3 taak 3). Een duur die
       uit de werkdriehoek komt (`afterTriangleDurationChange` in `resourceSlice.ts`/
