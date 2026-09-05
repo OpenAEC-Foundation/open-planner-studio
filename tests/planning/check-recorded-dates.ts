@@ -22,6 +22,7 @@ import {
   type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { useAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -480,6 +481,55 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7t schedule-only: vastgelegde finish van b komt uit de schedule-laag', S().recordedDates?.times[bIdSAfterLoad]?.finish, '2026-03-20');
 }
 
+// ── (7B) Standaard-aan bij het laden — bron-orakel (XER-etappeplan §3.5, taak T4) ─────────────
+// Hergebruikt de fixture van (7) hierboven, maar routeert de vastlegging via het ORAKEL-kanaal
+// (`recordedTimes`/`recordedTimesOrigin`) i.p.v. `recordedFields` — precies het contract dat
+// `readXER` (bak 4) levert. Dit bestand blijft bewust reader-agnostisch: de synthetische
+// `ImportResult` hieronder (gebouwd uit een ECHTE IFC-parse, dus geen verzonnen structuur) bewijst
+// het LAADPAD-gedrag zonder aan een specifieke lezer te hangen; `check-xer-open-wiring.ts` bewijst
+// hetzelfde met een echte XER.
+{
+  const rtOracleSource = readIFC(externIfc('7B'));
+  const oracleTimes = captureRecordedDates(rtOracleSource.tasks, rtOracleSource.recordedFields).times;
+  const asXer: ImportResult = {
+    ...rtOracleSource,
+    recordedFields: undefined,
+    recordedTimes: oracleTimes,
+    recordedTimesOrigin: 'xer',
+  };
+
+  S().newProject();
+  const undoVoorLaad = S().historyEvents.filter(event => event.state === 'applied').length;
+  S().applyLoadedProject(asXer, { filePath: null, recompute: true });
+
+  eq('7u bron-orakel + restverschillen ⇒ modus staat AAN meteen na laden', S().datesAsRecorded, true);
+  truthy('7v recordedDates is gevuld', S().recordedDates !== null);
+  eq('7w shifted telt de verschoven taak (b)', S().recordedDates?.shifted, 1);
+  eq('7x scheduleStale is false in de modus (risico §5.1, expliciet gecontroleerd)', S().scheduleStale, false);
+  truthy('7y cpmResult is de reconstructie (geen solve)', S().cpmResult !== null);
+  eq('7z projectEnd komt uit het bestand (orakel), niet uit een herberekening', S().cpmResult?.projectEnd, '2026-03-20');
+  eq('7aa het aanzetten bij het laden pusht GEEN undo-snapshot',
+    S().historyEvents.filter(event => event.state === 'applied').length, undoVoorLaad);
+
+  S().undo();
+  eq('7ab undo() direct na het laden raakt de modus niet (er is niets om naar terug te gaan)',
+    S().datesAsRecorded, true);
+  eq('7ac …noch de vastlegging', S().recordedDates?.shifted, 1);
+
+  // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT na het laden,
+  // ook al is exact hetzelfde orakel meegegeven. Bewijst dat de auto-aan-route uitsluitend op de
+  // herkomstvlag draait, niet op de loutere aanwezigheid van `recordedTimes` — en dus dat een
+  // IFC/CSV/MSPDI/MPP/P6XML-document (die dit veld nooit zet) byte-identiek #63-gedrag houdt.
+  const asUnknownOrigin: ImportResult = {
+    ...rtOracleSource, recordedFields: undefined, recordedTimes: oracleTimes,
+  };
+  S().newProject();
+  S().applyLoadedProject(asUnknownOrigin, { filePath: null, recompute: true });
+  eq('7ad zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', S().datesAsRecorded, false);
+  truthy('7ae …maar het aanbod verschijnt nog gewoon (recordedDates gevuld)', S().recordedDates !== null);
+  eq('7af …met dezelfde teller', S().recordedDates?.shifted, 1);
+}
+
 // ── (8) showRecordedDates — de modus betreden (Taak 5) ────────────────────────
 // Zelfde fixture als (7): één FS-relatie waarvan de opgeslagen datums niet uit de logica volgen
 // (b staat vast op 2026-03-16, ver ná a's werkelijke opvolgdatum 2026-03-09), zodat er na de echte
@@ -877,6 +927,20 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   geenModusEnStale('11f na een bewerking (modus uit, wél verouderd)');
   S().undo();
   geenModusEnStale('11g na undo (modus terug aan, niet verouderd)');
+
+  // (11h) XER-etappeplan §3.5/§4-T4, risico §5.1: het bron-orakel-laadpad zet de modus AAN in
+  // `applyRecordedDatesOnLoad`, dus deze invariant moet ook ná EEN AUTO-AAN-LOAD gelden — niet
+  // alleen ná een handmatige `showRecordedDates()`-aanroep zoals 11d/11e hierboven.
+  const rt11h = readIFC(externIfc('11h'));
+  const oracleTimesFor11h = captureRecordedDates(rt11h.tasks, rt11h.recordedFields).times;
+  const asXerFor11h: ImportResult = {
+    ...rt11h, recordedFields: undefined,
+    recordedTimes: oracleTimesFor11h, recordedTimesOrigin: 'xer',
+  };
+  S().newProject();
+  S().applyLoadedProject(asXerFor11h, { filePath: null, recompute: true });
+  truthy('11h voorwaarde: bron-orakel-load zette de modus echt aan', S().datesAsRecorded);
+  geenModusEnStale('11h ná een bron-orakel-load (modus meteen aan)');
 }
 
 // ── (12) "Alles verversen" blijft één undo-stap (review taak 6, B2) ──────────

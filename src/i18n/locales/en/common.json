@@ -52,6 +52,8 @@
     "xerImportEnumFallbacks_other": "{{count}} enum fallbacks.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6 scheduling setting used a safe fallback.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6 scheduling settings used safe fallbacks.",
+    "xerImportDatesAsRecorded_one": "{{count}} task shows the dates as Primavera recorded them (not recalculated).",
+    "xerImportDatesAsRecorded_other": "{{count}} tasks show the dates as Primavera recorded them (not recalculated).",
     "xerExportLoss": "Exporting to {{format}} loses XER source information.",
     "mppLegacy": "This .mpp file uses an older format (Project 2007 or earlier). In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "mppEncrypted": "This .mpp file is password-protected. In MS Project, export it as XML (File → Save As → XML) and open that file.",
@@ -829,6 +831,8 @@
   "recordedDates": {
     "offer_one": "Recalculation moved {{count}} of {{total}} tasks away from the dates in the file.",
     "offer_other": "Recalculation moved {{count}} of {{total}} tasks away from the dates in the file.",
+    "activeCount_one": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} task.",
+    "activeCount_other": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} tasks.",
     "show": "Show recorded dates",
     "active": "You're viewing the dates as recorded in the file. Nothing has been recalculated.",
     "recalculate": "Recalculate"

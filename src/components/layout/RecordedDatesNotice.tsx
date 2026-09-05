@@ -27,6 +27,12 @@ export function RecordedDatesNotice() {
   const runCPM = useAppStore((s) => s.runCPM);
 
   if (datesAsRecorded) {
+    // XER-etappeplan §3.7 punt 2 (taak T4): de MODUS-ACTIEF-stand noemt nu het aantal, ongeacht
+    // bronformaat — zowel de bron-orakel-route (XER, die zelf al ín de modus opent) als de
+    // bestaande #63-route (elk formaat, via de "Toon"-knop) delen dezelfde state. `runCPM` wist
+    // `recordedDates` pas bij het VERLATEN van de modus (zelfde producer als `datesAsRecorded`),
+    // dus in de praktijk is `recordedDates` hier altijd gevuld; de terugval op de tellerloze
+    // `recordedDates.active` is defensief.
     return (
       <div
         className="flex items-center gap-3 px-4 py-2 text-xs border-b border-border"
@@ -35,7 +41,11 @@ export function RecordedDatesNotice() {
         data-ops-recorded-dates-active
       >
         <CircleDot size={14} className="shrink-0 text-accent" />
-        <span className="flex-1">{t('recordedDates.active')}</span>
+        <span className="flex-1">
+          {recordedDates
+            ? t('recordedDates.activeCount', { count: recordedDates.shifted })
+            : t('recordedDates.active')}
+        </span>
         <button
           onClick={() => runCPM()}
           className="btn btn--sm btn--primary"

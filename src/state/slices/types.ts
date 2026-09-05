@@ -224,6 +224,11 @@ export type NotificationMessageKey =
   | 'notifications.xerImportNumberIssues'
   | 'notifications.xerImportEnumFallbacks'
   | 'notifications.xerImportUnsupportedSemantics'
+  // XER-etappeplan §3.7 (taak T4, X-O7 laag 3): "datums zoals opgeslagen" staat standaard aan zodra
+  // een geopend XER-document restverschillen heeft. Meervoud, `count` = som van
+  // `recordedDates.shifted` over alle documenten van dit bestand (één regel, ook bij twaalf
+  // projecten — zie `xerImportNotice`/`applyOpenedImport`).
+  | 'notifications.xerImportDatesAsRecorded'
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'

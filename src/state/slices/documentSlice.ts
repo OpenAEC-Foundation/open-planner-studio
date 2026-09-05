@@ -27,6 +27,7 @@ import {
   type HistoryScopeKey,
 } from '../sessionHistory';
 import {
+  applyRecordedDatesOnLoad,
   materializeLibraryBoundary,
   prepareLoadedPayload,
   type DocumentActivationMaterialization,
@@ -566,7 +567,17 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     let activation: DocumentActivationMaterialization | null = null;
     for (const candidate of tryOrder) {
       try {
-        const p = prepareLoadedPayload(payloadFromInput(candidate), { recompute: true });
+        const rawPayload = payloadFromInput(candidate);
+        const p = prepareLoadedPayload(rawPayload, { recompute: true });
+        // XER-etappeplan §3.5/§4-T4, risico §5.4: dezelfde standaard-aan-detectie als een vers
+        // open-pad (`applyLoadedProject`), zodat een hersteld document zijn modusvlag/`recordedDates`
+        // NIET stilzwijgend verliest. `rawPayload.tasks` is bewust de PRE-solve array —
+        // `prepareLoadedPayload` muteert zijn `input`-argument niet (zie de docstring van
+        // `applyRecordedDatesOnLoad`). Vandaag levert `readIFCWithXerReconstruction` nog geen
+        // `recordedTimes`/`recordedTimesOrigin` voor XER-documenten (dat is taak T5) — deze aanroep
+        // is dan een no-op voor XER, maar herstelt WEL het bestaande #63-aanbod (`recordedFields`,
+        // elk formaat) dat crashherstel tot nu toe stilzwijgend wegliet.
+        applyRecordedDatesOnLoad(rawPayload.tasks, p, candidate);
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });

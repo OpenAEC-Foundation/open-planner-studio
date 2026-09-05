@@ -1,8 +1,15 @@
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
+import {
+  applyRecordedTimesToTasks,
+  captureRecordedDates,
+  countShiftedTasks,
+} from '@/engine/scheduler/recordedDates';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import type { Company, CompanyPool } from '@/types/library';
+import type { ImportResult } from '@/services/importTypes';
+import type { Task } from '@/types/task';
 import {
   applyCalendarUpdate,
   applyResourceUpdate,
@@ -199,4 +206,54 @@ export function prepareLoadedPayload(
   });
   payload.scheduleStale = false;
   return payload;
+}
+
+/**
+ * "Datums zoals opgeslagen" (issue #63) — de standaard-aan-detectie bij het laden (XER-etappeplan
+ * §3.5, taak T4). Gedeeld tussen `applyLoadedProject` (`fileSlice.ts`, een vers open-pad) en
+ * `restoreDocuments` (`documentSlice.ts`, crash-herstel): een hersteld document krijgt zo dezelfde
+ * reproduceerbare detectie als een vers geopend document — "die solve ís de detectie" (§2.3) geldt
+ * voor beide paden identiek, zonder dat de vlag zelf ooit apart bewaard hoeft te worden.
+ *
+ * `rawTasks` MOET de taken van VÓÓR de solve zijn (bv. de `.tasks` van de payload die aan
+ * `prepareLoadedPayload` werd gegeven — NIET `prepared.tasks`): `prepareLoadedPayload` kloont de
+ * taken pas vlak vóór de solve (`cloneTasksForSolve`, ondiep met een verse `time`-kopie per taak),
+ * dus de ORIGINELE taakobjecten blijven de rauwe, ongesolvede leeswaarden dragen terwijl
+ * `prepared.tasks` de zojuist berekende uitkomst draagt — precies het contrast dat
+ * `captureRecordedDates`/`countShiftedTasks` nodig hebben. `prepareLoadedPayload` zelf muteert zijn
+ * `input`-argument niet (het bouwt intern een eigen kopie via `activationPayload`), dus de
+ * aanroeper kan `payload.tasks` gerust bewaren en er ná `prepareLoadedPayload(payload, ...)` nog
+ * steeds naar verwijzen.
+ *
+ * Alleen de bron-orakel-route (XER, `parsed.recordedTimesOrigin === 'xer'`) zet de modus METEEN aan
+ * (`datesAsRecorded = true`, `cpmResult` = de reconstructie i.p.v. de solve, `scheduleStale = false`
+ * — nooit rechtstreeks `true` gezet, dus de invariant in `state/scheduleStale.ts` blijft heel).
+ * Overige formaten (IFC/CSV/MSPDI/MPP/P6XML) bieden de modus alleen AAN — `recordedDates` gevuld,
+ * `datesAsRecorded` blijft `false` — precies het bestaande #63-gedrag, ongewijzigd.
+ *
+ * GEEN undo-snapshot: dit is een LAADPAD, geen mutator. De aanroeper draait vlak hiervoor/hierna
+ * `removeSessionHistoryForDocumentFromState` — er is geen geschiedenis waarin een pre-load-toestand
+ * kan opduiken. De contract-invariant "élke MUTATOR van `datesAsRecorded` pusht een snapshot"
+ * (`showRecordedDates`/`runCPM`) blijft onverkort gelden; dit is er geen.
+ *
+ * Muteert `prepared` in place, net als de rest van dit bestand (`prepareLoadedPayload`,
+ * `materializeBehindOnlyRefresh`).
+ */
+export function applyRecordedDatesOnLoad(
+  rawTasks: Task[],
+  prepared: DocumentPayload,
+  parsed: Pick<ImportResult, 'recordedFields' | 'recordedTimes' | 'recordedTimesOrigin'>,
+): void {
+  const recorded = captureRecordedDates(rawTasks, parsed.recordedFields, parsed.recordedTimes);
+  if (recorded.total === 0) return;
+  const shifted = countShiftedTasks(prepared.tasks, recorded.times);
+  if (shifted === 0) return;
+  prepared.recordedDates = { ...recorded, shifted };
+  if (parsed.recordedTimesOrigin === 'xer') {
+    prepared.cpmResult = applyRecordedTimesToTasks(prepared.tasks, recorded.times, prepared.calendar);
+    prepared.datesAsRecorded = true;
+    // `prepareLoadedPayload` zette hem bij een geslaagde solve al zo; expliciet houden (plan §5
+    // risico 1) — nooit een rechtstreekse `= true` ELDERS, alleen deze twee bewuste `= false`'s.
+    prepared.scheduleStale = false;
+  }
 }

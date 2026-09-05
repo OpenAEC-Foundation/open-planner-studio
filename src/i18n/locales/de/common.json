@@ -47,6 +47,8 @@
     "xerImportEnumFallbacks_other": "{{count}} Enum-Rückfälle.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-Planungseinstellung mit sicherem Rückfall.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-Planungseinstellungen mit sicherem Rückfall.",
+    "xerImportDatesAsRecorded_one": "{{count}} Vorgang zeigt die von Primavera gespeicherten Termine (nicht neu berechnet).",
+    "xerImportDatesAsRecorded_other": "{{count}} Vorgänge zeigen die von Primavera gespeicherten Termine (nicht neu berechnet).",
     "xerExportLoss": "Beim Export nach {{format}} gehen XER-Quellinformationen verloren.",
     "mppLegacy": "Diese .mpp-Datei verwendet ein altes Format (Project 2007 oder älter). Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "mppEncrypted": "Diese .mpp-Datei ist passwortgeschützt. Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
@@ -806,6 +808,8 @@
   "recordedDates": {
     "offer_one": "Die Neuberechnung hat {{count}} von {{total}} Vorgängen gegenüber den Terminen in der Datei verschoben.",
     "offer_other": "Die Neuberechnung hat {{count}} von {{total}} Vorgängen gegenüber den Terminen in der Datei verschoben.",
+    "activeCount_one": "Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde {{count}} Vorgang verschieben.",
+    "activeCount_other": "Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde {{count}} Vorgänge verschieben.",
     "show": "Aufgezeichnete Termine anzeigen",
     "active": "Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind. Es wurde nicht neu berechnet.",
     "recalculate": "Neu berechnen"
