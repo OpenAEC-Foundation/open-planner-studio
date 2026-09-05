@@ -253,6 +253,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   CHCHECK="$DIR/.calendar-hours-check.mjs"
   if bundle_check "$DIR/check-calendar-hours.ts" "$CHCHECK"; then node "$CHCHECK" || STATUS=1; fi
 
+  # Spiegel-invariant van de kalender- en duur-primitieven (diagnose laag 1, deeldossier "spiegel"):
+  # add/subtract zijn elkaars exacte inverse over een aaneengesloten niet-werkblok van tien dagen, ook
+  # op solverniveau — en de ENIGE asymmetrie (`subtractP6XerProjectedWorkMinutes`) blijft brongebonden.
+  MIRRORCHECK="$DIR/.calendar-mirror-check.mjs"
+  if bundle_check "$DIR/check-calendar-mirror.ts" "$MIRRORCHECK"; then node "$MIRRORCHECK" || STATUS=1; fi
+
   # Adapter-uur-precisie-checks (fase 2.8b golf 4, §7 — IFC/P6/MSPDI uur-round-trip + dag-discriminator).
   ADCHECK="$DIR/.adapters-hours-check.mjs"
   if bundle_check "$DIR/check-adapters-hours.ts" "$ADCHECK"; then node "$ADCHECK" || STATUS=1; fi
