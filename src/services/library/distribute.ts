@@ -132,6 +132,18 @@ export interface DistributionProposal {
   residualByDay: Record<string, number>;
   /** Minstens één document houdt een tekort ⇒ Toepassen blijft uit (etappe 3). */
   hasShortfall: boolean;
+  /** docId → ISO-dag → boeking VÓÓR de verdeling (letterlijk `dailyLoad` uit `computeLibraryOccupancy`,
+   *  voor elk document dat op dit poolitem boekt — ook gepind/#63/cannotMove). Voedt de fasestroken en
+   *  de "voor"-stand van de preview zonder tweede bezettingsberekening. */
+  bookingByDay: Record<string, Record<string, number>>;
+  /** docId → ISO-dag → boeking NA de verdeling (spec §7, voor/na-preview). Dezelfde boekhouding als het
+   *  grootboek zelf: elke boeking die in `residualOn` meetelt komt hier langs, en geen andere. Gepinde/
+   *  #63-documenten staan er met hun ongewijzigde boeking in (= hun aandeel in `fixedLoadByDay`). */
+  afterLoadByDay: Record<string, Record<string, number>>;
+  /** `true` ⇒ minstens één taak kon niet geplaatst worden, dus haar vraag staat NERGENS in
+   *  `afterLoadByDay`. Loopt altijd gelijk op met `hasShortfall`; apart benoemd omdat de preview er iets
+   *  anders mee doet dan de Toepassen-knop. */
+  afterIncomplete: boolean;
 }
 
 /** Injecteerbare motor-rand, zelfde patroon als `OccupancyEphemeralSolve` — de default draait de
@@ -300,6 +312,7 @@ export function computeDistribution(
 ): DistributionProposal {
   const empty: DistributionProposal = {
     libraryItemId, blocked: null, docs: [], fixedLoadByDay: {}, residualByDay: {}, hasShortfall: false,
+    bookingByDay: {}, afterLoadByDay: {}, afterIncomplete: false,
   };
 
   const poolItem = pool.resources.find(r => r.id === libraryItemId);
@@ -334,6 +347,18 @@ export function computeDistribution(
   // Stap 3 (vaste last): gepinde + #63-documenten. "Een document dat wél op het poolitem boekt maar
   // níét als deelnemer meedoet" heeft in dit contract maar één mechanisme — de aanroeper levert het
   // gewoon mee met `pinned: true` (zie `DistributionDocInput.pinned`s docblok).
+  // `bookingByDay` (B1c-plan3 taak 11): de "voor"-boeking, letterlijk `row.docs[].dailyLoad` — voor
+  // ELK boekend document, ongeacht gepind/#63/cannotMove/deelnemer. Één kopie per document zodat de
+  // aanroeper nooit per ongeluk `computeLibraryOccupancy`s eigen map muteert.
+  const bookingByDay: Record<string, Record<string, number>> = {};
+  for (const booking of row.docs) bookingByDay[booking.docId] = { ...booking.dailyLoad };
+
+  // `afterLoadByDay` (B1c-plan3 taak 11): de na-stand, per document. Gevuld op twee manieren die
+  // samen dezelfde boekhouding als het grootboek vormen: gepinde/#63-documenten hieronder met hun
+  // ONGEWIJZIGDE boeking (zij veranderen niet — hun aandeel in `fixedLoadByDay`); deelnemers verderop
+  // via `bookPlaced`, die exact meeloopt met wat er in `placedByItem` (dus `residualOn`) terechtkomt.
+  const afterLoadByDay: Record<string, Record<string, number>> = {};
+
   const fixedLoadByDay: Record<string, number> = {};
   for (const booking of row.docs) {
     const input = docById.get(booking.docId);
@@ -341,6 +366,7 @@ export function computeDistribution(
     for (const [iso, units] of Object.entries(booking.dailyLoad)) {
       fixedLoadByDay[iso] = (fixedLoadByDay[iso] ?? 0) + units;
     }
+    afterLoadByDay[booking.docId] = { ...booking.dailyLoad };
   }
 
   // Het gedeelde poolitem-grootboek (§4 stap 2), PER ITEM geboekt (B1c-plan3 taak 1, bevinding 6).
@@ -351,9 +377,14 @@ export function computeDistribution(
   // accumuleert over ALLE deelnemende documenten, in rangorde — dat IS de sequentiële kern van het
   // protocol.
   const placedByItem: Record<string, Record<string, number>> = {};
-  const bookPlaced = (itemId: string, iso: string, units: number) => {
+  // `docId` erbij (B1c-plan3 taak 11): elke boeking die hier langskomt telt zowel in het gedeelde
+  // grootboek (`placedByItem`, ongewijzigd t.o.v. vóór taak 11) als onder het boekende document in
+  // `afterLoadByDay` — dezelfde boekhouding, twee aanzichten, één plek die ze bijhoudt.
+  const bookPlaced = (itemId: string, iso: string, units: number, docId: string) => {
     const bucket = placedByItem[itemId] ?? (placedByItem[itemId] = {});
     bucket[iso] = (bucket[iso] ?? 0) + units;
+    const docBucket = afterLoadByDay[docId] ?? (afterLoadByDay[docId] = {});
+    docBucket[iso] = (docBucket[iso] ?? 0) + units;
   };
   const residualOn = (itemId: string, iso: string): number =>
     itemId === libraryItemId
@@ -377,7 +408,7 @@ export function computeDistribution(
         return libraryItemId;
       },
       residualOn: (itemId: string, iso: string): number => residualOn(itemId, iso),
-      book: (itemId: string, iso: string, units: number): void => bookPlaced(itemId, iso, units),
+      book: (itemId: string, iso: string, units: number): void => bookPlaced(itemId, iso, units, doc.docId),
       horizonIso,
     };
   };
@@ -438,7 +469,7 @@ export function computeDistribution(
       // bestaande boeking rechtstreeks in het grootboek (het document bezet de pool wél — het is
       // gewoon niet verplaatsbaar), geen motor-run.
       const booking = bookingByDocId.get(doc.docId)!;
-      for (const [iso, units] of Object.entries(booking.dailyLoad)) bookPlaced(libraryItemId, iso, units);
+      for (const [iso, units] of Object.entries(booking.dailyLoad)) bookPlaced(libraryItemId, iso, units, doc.docId);
       const end = currentProjectEndFor(doc);
       results.push({
         docId: doc.docId, title: doc.title, participated: true, cannotMove: true,
@@ -483,12 +514,20 @@ export function computeDistribution(
     residualByDay[iso] = residualOn(libraryItemId, iso);
   }
 
+  const hasShortfall = results.some(d => d.shortfalls.length > 0);
+
   return {
     libraryItemId,
     blocked: null,
     docs: results,
     fixedLoadByDay,
     residualByDay,
-    hasShortfall: results.some(d => d.shortfalls.length > 0),
+    hasShortfall,
+    bookingByDay,
+    afterLoadByDay,
+    // Loopt per definitie gelijk op met `hasShortfall` (zie het veldcommentaar): een niet-geplaatste
+    // taak wordt nergens via `bookPlaced` geboekt, dus haar vraag ontbreekt automatisch in
+    // `afterLoadByDay` — er is geen aparte berekening nodig.
+    afterIncomplete: hasShortfall,
   };
 }

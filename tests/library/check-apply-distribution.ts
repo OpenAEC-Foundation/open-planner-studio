@@ -65,6 +65,10 @@ function makeProposal(overrides?: Partial<DistributionProposal>): DistributionPr
       }),
     ],
     fixedLoadByDay: {}, residualByDay: {}, hasShortfall: false,
+    // B1c-plan3 taak 11: `bookingByDay`/`afterLoadByDay`/`afterIncomplete` zijn niet relevant voor
+    // dit schrijfpad-fixture (dat toetst `applyDistribution`, niet `computeDistribution` — dat laatste
+    // is al gedekt door check-distribute.ts), maar wel verplicht op het type.
+    bookingByDay: {}, afterLoadByDay: {}, afterIncomplete: false,
     ...overrides,
   };
 }
