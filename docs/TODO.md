@@ -361,8 +361,9 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
 
 - [x] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` — besloten
-      2026-09-05:** de rest schuift mee met Δ, geklemd op 0; `completion` blijft
-      (`carryRemainingThroughDurationEdit`, store/raster/MCP). Bron: Microsoft [M5].
+      2026-09-05:** de rest schuift mee met Δ, geklemd op 0; `completion` volgt daaruit (besluit
+      2026-09-06, optie a — `syncCompletionToRemaining`; `carryRemainingThroughDurationEdit`,
+      store/raster/MCP). Bron: Microsoft [M5].
 - [x] **Kalenderwissel op een taak met vastgelegd werk (K2) — besloten 2026-09-05:** een kalenderwissel
       verandert de slotgrootte en daarna beslist de werkregel (Vast werk/Vaste inzet ⇒ duur; Vaste
       duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek). Gebouwd (spec §6.4, meetlat
@@ -378,12 +379,10 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       krijgt; tot dan volgt de werkregel daar niet. Daarnaast (G10): `updateCalendar`/
       `setProjectCalendar` wissen het Z8-venster alleen wanneer de regel de duur wijzigt, terwijl
       `setTaskCalendar` dat bij elke kalenderwissel doet — zelfde trigger, ander gedrag.
-- [ ] **Eigenaarsvraag: `completion` ↔ expliciete rest (review F4, 2026-09-05).** Zodra de rest
-      expliciet wordt geschreven terwijl `completion` blijft staan (Δ-regel én kalenderwissel),
-      tekent de Gantt de voortgang uit `completion` terwijl de solver op de rest plant — 10 d op
-      50 % met rest 5 wordt na 8→6 u/dag onder Vast werk 12 d met rest 7 (5 d verricht) maar de balk
-      toont 6 d. Opties in spec §6.5 (laatste punt): completion herrekenen bij expliciete rest,
-      renderer op de rest, of laten. Vandaag: laten, conform "completion blijft".
+- [x] **`completion` ↔ expliciete rest (review F4) — besloten 2026-09-06, optie a:** zodra de brug de
+      rest expliciet schrijft (Δ-regel én kalenderwissel) wordt `completion` herrekend als
+      1 − rest ÷ duur, dezelfde formule als een restbewerking in het raster; Gantt-balk, solver en
+      rapportage delen daarmee één waarheid (spec §6.5, laatste punt; `syncCompletionToRemaining`).
 - [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
       `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
       waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.

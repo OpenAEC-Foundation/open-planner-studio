@@ -169,21 +169,51 @@ export function applyTriangleResult(
     // de kern teruggeeft. Zonder expliciet restveld zou de solver de rest opnieuw afleiden als
     // `nieuwe duur × (1 − completion)` — en dan schuift het verrichte deel mee met de nieuwe duur en
     // drift een heen-en-weer-bewerking (case 31). Daarom wordt de rest bij voortgang > 0 (of een al
-    // aanwezig restveld) expliciet geschreven; `completion` blijft zoals ze is. Een ongestarte taak
-    // krijgt geen extra veld (byte-identiek).
+    // aanwezig restveld) expliciet geschreven, en volgt `completion` daaruit (eigenaarsbesluit
+    // 2026-09-06, optie a: percentage = verricht ÷ nieuwe duur — zie `syncCompletionToRemaining`).
+    // Een ongestarte taak krijgt geen extra veld (byte-identiek).
     const started = (t.completion ?? 0) > 0;
     if (isHourTask(t)) {
       t.durationMinutes = Math.round(newTotal);
       t.scheduleDuration = t.durationMinutes / slot;
-      if (started || t.remainingMinutes !== undefined) t.remainingMinutes = Math.max(0, Math.round(after.remainingMinutes));
+      if (started || t.remainingMinutes !== undefined) {
+        t.remainingMinutes = Math.max(0, Math.round(after.remainingMinutes));
+        syncCompletionToRemaining(task);
+      }
     } else {
       t.scheduleDuration = Math.max(0, Math.round(newTotal / slot));
       delete t.durationMinutes;
-      if (started || t.remainingTime !== undefined) t.remainingTime = Math.max(0, Math.round(after.remainingMinutes / slot));
+      if (started || t.remainingTime !== undefined) {
+        t.remainingTime = Math.max(0, Math.round(after.remainingMinutes / slot));
+        syncCompletionToRemaining(task);
+      }
     }
     durationChanged = true;
   }
   return { durationChanged, changedAssignmentIds: changed };
+}
+
+/**
+ * Eigenaarsbesluit 2026-09-06 (reviewbevinding F4, optie a): zodra de brug de REST expliciet
+ * schrijft, volgt het voortgangspercentage daaruit — `completion` = 1 − rest ÷ duur — zodat de
+ * Gantt-voortgangsbalk (tekent uit `completion`), de solver (plant op de rest) en de rapportage
+ * één waarheid delen. Dezelfde formule en dezelfde randafspraken als een restbewerking in het
+ * taakraster (`taskEditPlan.ts`, route `task-progress`): duur 0 ⇒ 100 %, een percentage > 0 zet
+ * `actualStart` als die ontbrak, een percentage < 1 wist `actualFinish`. Niets zonder restveld.
+ */
+export function syncCompletionToRemaining(task: Task): void {
+  const t = task.time;
+  let completion: number;
+  if (isHourTask(t)) {
+    if (t.remainingMinutes === undefined) return;
+    completion = t.durationMinutes > 0 ? Math.max(0, Math.min(1, 1 - t.remainingMinutes / t.durationMinutes)) : 1;
+  } else {
+    if (t.remainingTime === undefined) return;
+    completion = t.scheduleDuration > 0 ? Math.max(0, Math.min(1, 1 - t.remainingTime / t.scheduleDuration)) : 1;
+  }
+  t.completion = completion;
+  if (completion > 0 && !t.actualStart) t.actualStart = t.earlyStart || t.scheduleStart;
+  if (completion < 1) t.actualFinish = undefined;
 }
 
 /**
@@ -445,8 +475,8 @@ const NO_CALENDAR_CHANGE: CalendarSettle = { durationChanged: false, timephasedL
  *  - verandert de duur NIET maar de slot wél (FIXED_DURATION_*) ⇒ alleen de contour-as herschalen:
  *    dezelfde dagen zijn in de nieuwe slot een andere hoeveelheid werkminuten, en de as leeft op
  *    de werkminuten (reviewbevinding F3, tweede helft).
- * `completion` blijft zoals ze is (spec §6.5, ook op dit pad); de rest wordt bij een gestarte taak
- * expliciet geschreven door `applyTriangleResult`. Taken buiten `workRuleApplies` (mijlpaal,
+ * De rest wordt bij een gestarte taak expliciet geschreven door `applyTriangleResult` en
+ * `completion` volgt daaruit (spec §6.5, eigenaarsbesluit 2026-09-06, ook op dit pad). Taken buiten `workRuleApplies` (mijlpaal,
  * verzameltaak, hangmat, ELAPSEDTIME) blijven hier byte-identiek — óók hun contour-as (spec besluit 6,
  * reviewronde G7: één lijn, en die staat in §6.4).
  */
@@ -490,8 +520,9 @@ export function settleCalendarChange(
  * Duurbewerking op een taak met EXPLICIETE restduur (eigenaarsbesluit 2026-09-05, spec §6.5): het
  * verrichte deel is een feit, dus wat de gebruiker aan de duur toevoegt of afhaalt landt in de rest
  * (Microsoft: Remaining Duration = Duration − Actual Duration). Rest = max(0, rest + Δ), in dagen
- * (dagmodus, `remainingTime`) of minuten (uurmodus, `remainingMinutes`). `completion` blijft zoals
- * ze is. Aanroepen NÁDAT de nieuwe duur is gezet, met de oude werkminuten (`taskWorkMinutes` vóór
+ * (dagmodus, `remainingTime`) of minuten (uurmodus, `remainingMinutes`); `completion` volgt daaruit
+ * (`syncCompletionToRemaining`, eigenaarsbesluit 2026-09-06). Aanroepen NÁDAT de nieuwe duur is
+ * gezet, met de oude werkminuten (`taskWorkMinutes` vóór
  * de bewerking). Zonder expliciet restveld gebeurt niets (de rest wordt dan afgeleid en schuift
  * vanzelf mee).
  *
@@ -509,6 +540,7 @@ export function carryRemainingThroughDurationEdit(task: Task, oldWorkMinutes: nu
     const delta = t.durationMinutes - oldWorkMinutes;
     if (Math.abs(delta) < 1e-6) return false;
     t.remainingMinutes = Math.max(0, Math.round(t.remainingMinutes + delta));
+    syncCompletionToRemaining(task);
     return true;
   }
   if (t.remainingTime === undefined) return false;
@@ -516,6 +548,7 @@ export function carryRemainingThroughDurationEdit(task: Task, oldWorkMinutes: nu
   const delta = t.scheduleDuration - oldDays;
   if (Math.abs(delta) < 1e-6) return false;
   t.remainingTime = Math.max(0, Math.round(t.remainingTime + delta));
+  syncCompletionToRemaining(task);
   return true;
 }
 

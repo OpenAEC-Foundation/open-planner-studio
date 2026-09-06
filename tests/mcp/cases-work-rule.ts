@@ -99,7 +99,7 @@ test('update_tasks: calendarId + duration in één call (review F2) — het verr
   store.getState().setTaskWorkRule(t, 'FIXED_WORK');
   assertEq(asg(t, r).remainingWorkMinutes, 5 * slot(), 'voorwaarde: restwerk 5 d × 8 u');
   okData(await call('planner_update_tasks', { updates: [{ id: t, fields: { calendarId: sixId, duration: 8 } }] }));
-  assertEq([task(t).calendarId, task(t).time.scheduleDuration, task(t).time.remainingTime, task(t).time.completion], [sixId, 8, 3, 0.5], 'kalender 6 u, duur 8, rest 3 (5 d verricht), completion blijft');
+  assertEq([task(t).calendarId, task(t).time.scheduleDuration, task(t).time.remainingTime, task(t).time.completion], [sixId, 8, 3, 0.625], 'kalender 6 u, duur 8, rest 3 (5 d verricht), completion volgt: 5/8');
   assertEq(asg(t, r).remainingWorkMinutes, 5 * 480, 'werk 40 u blijft (Vast werk)');
 });
 

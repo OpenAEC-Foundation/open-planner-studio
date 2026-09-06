@@ -504,10 +504,11 @@ Vier randregels (reviewronde 2026-09-05, F3–F6; alle BEREDENEERD):
   buiten de regel (besluit 6: mijlpaal, verzameltaak, hangmat, ELAPSEDTIME) blijven bij een
   kalenderwissel byte-identiek, inclusief hun contour-as — dat wijkt bewust af van de Δ-rest-regel
   (§6.5), die als duur-identiteit wél op ELAPSEDTIME werkt.
-- Een gestarte taak: de nieuwe duur is verricht + nieuwe rest en de rest wordt expliciet
-  geschreven, precies zoals bij een duurbewerking (§6.5, B2); `completion` blijft. Let op de
-  bekende inconsistentie die daaruit volgt (zie §6.5, laatste punt) — die ontstaat hier zónder
-  gebruikersbewerking, bij elke project- of kalenderwijziging.
+- Een gestarte taak: de nieuwe duur is verricht + nieuwe rest, de rest wordt expliciet
+  geschreven en `completion` volgt daaruit (verricht ÷ nieuwe duur), precies zoals bij een
+  duurbewerking (§6.5, B2 en het besluit van 2026-09-06). Dat gebeurt hier zónder
+  gebruikersbewerking, bij elke project- of kalenderwijziging — het percentage van een gestarte
+  taak kan dus veranderen door een kalenderwijziging.
 
 ### 6.5 Actuals
 
@@ -520,29 +521,38 @@ Vier randregels (reviewronde 2026-09-05, F3–F6; alle BEREDENEERD):
   (bouwstap 4, reviewbevinding B2):** de nieuwe duur is verricht + nieuwe rest, en de rest wordt dan
   EXPLICIET geschreven (`remainingTime` in dagmodus, `remainingMinutes` in uurmodus) — anders zou de
   solver de rest opnieuw afleiden als nieuwe duur × (1 − completion), het verrichte deel mee
-  verschuiven en een heen-en-weer-bewerking driften (case 31). `completion` blijft zoals ze is.
+  verschuiven en een heen-en-weer-bewerking driften (case 31). `completion` volgt uit de
+  geschreven rest (besluit 2026-09-06, zie het laatste punt hieronder).
 - **Een voortgangsbewerking is geen duurbewerking** (reviewbevinding B1): `completion` of
   `remainingTime` wijzigen verandert de rest maar niet de duur, en raakt de driehoek niet; de poort
   is de TOTALE werkduur van de taak (`settleDurationEdit` vergelijkt die met de momentopname).
 - **Duurbewerking bij een EXPLICIETE restduur (eigenaarsbesluit 2026-09-05):** het verrichte deel is
   een feit, dus wat de gebruiker aan de duur toevoegt of afhaalt landt in de rest — rest = max(0,
-  rest + Δ), in dagen (`remainingTime`) of minuten (`remainingMinutes`); `completion` blijft zoals
-  ze is (`carryRemainingThroughDurationEdit`, in store, raster en MCP vóór de driehoekstap). Bron:
+  rest + Δ), in dagen (`remainingTime`) of minuten (`remainingMinutes`); `completion` volgt uit
+  de nieuwe rest (`carryRemainingThroughDurationEdit`, in store, raster en MCP vóór de
+  driehoekstap). Bron:
   Microsoft, Remaining Duration = Duration − Actual Duration [M5] (documented voor de identiteit;
   de Δ-richting bij een duurbewerking is daaruit afgeleid, niet gemeten). Zonder expliciet restveld
-  wordt de rest al uit duur × (1 − completion) afgeleid en schuift hij vanzelf mee. Reikwijdte
+  wordt de rest al uit duur × (1 − completion) afgeleid en schuift hij vanzelf mee — maar let op
+  (ZEKER, `taskMutationRules.ts`'s `applyProgressInvariants` en `importNormalize.ts`): elke
+  voortgangsinvoer en elke import schrijft `remainingTime` expliciet, dus in de praktijk geldt de
+  Δ-regel voor vrijwel elke gestarte taak. Reikwijdte
   (reviewbevinding F7, AFGELEID): dit is een duur-identiteit en geen driehoeksregel, dus zij geldt
   óók op ELAPSEDTIME-taken; alleen verzameltaken, hangmatten en mijlpalen (geen eigen bewerkbare
   duur) blijven buiten schot.
-- **Bekende inconsistentie `completion` ↔ expliciete rest (reviewbevinding F4, OPEN eigenaarsvraag).**
-  Zodra de rest expliciet wordt geschreven terwijl `completion` blijft staan (Δ-regel hierboven, B2,
-  en de kalenderwissel in §6.4), zeggen de twee velden iets anders: 10 d op 50 % met rest 5 wordt na
-  een kalenderwissel naar 6 u/dag onder Vast werk 12 d met rest 7 — 5 d verricht volgens de rest,
-  maar 6 d volgens `completion` × duur. De Gantt tekent de voortgangsbalk uit `completion`
-  (`GanttRenderer.ts`), de solver plant op de rest. Opties: (a) `completion` herrekenen als
-  verricht ÷ nieuwe duur wanneer de rest expliciet wordt geschreven; (b) renderer en rapportage
-  op de rest laten leunen; (c) laten zoals het is. Vandaag: (c), conform "completion blijft"; het
-  besluit staat in `docs/TODO.md`.
+- **`completion` volgt de expliciete rest (reviewbevinding F4; eigenaarsbesluit 2026-09-06, optie a).**
+  Zodra de brug de rest expliciet schrijft (Δ-regel hierboven, B2, en de kalenderwissel in §6.4)
+  wordt `completion` herrekend als 1 − rest ÷ duur — dezelfde formule en randafspraken als een
+  restbewerking in het taakraster (`taskEditPlan.ts`, route `task-progress`: duur 0 ⇒ 100 %,
+  percentage > 0 zet een ontbrekende `actualStart`, percentage < 1 wist `actualFinish`), in
+  `workRuleApply.ts`'s `syncCompletionToRemaining`. Voorbeeld: 10 d op 50 % met rest 5 wordt na
+  een kalenderwissel naar 6 u/dag onder Vast werk 12 d met rest 7 en 41,7 % (5 d verricht) —
+  Gantt-balk, solver en rapportage zeggen hetzelfde; terug naar 8 u/dag geeft weer 10 d, rest 5,
+  50 %. Gevolg van de klem op 0: een duur die onder het verrichte deel wordt gekort, geeft rest 0
+  en dus 100 %. Verworpen alternatieven: (b) renderer en rapportage op de rest laten leunen
+  (groter, twee lezingen blijven bestaan); (c) laten (twee waarheden in één bestand). Bewijs: de
+  richting (percentage = verrichte duur ÷ duur) is Microsofts definitie van % Complete
+  (documented, niet in deze sessie opnieuw geverifieerd); de OPS-uitwerking is beredeneerd.
 - Het `actual`-deel van een contour telt als `actualWorkMinutes` wanneer dat veld afwezig is.
 - Afsluiten op 100 %: restwerk 0, begroot blijft; heropenen laat de velden staan.
 

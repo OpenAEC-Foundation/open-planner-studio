@@ -153,8 +153,11 @@ test('update_tasks: fields.duration wijzigt de duur ECHT (regressie: stille no-o
   const t = taskById(id)!;
   assertEq(t.time.scheduleDuration, 12, 'de duur is ECHT gewijzigd (time.scheduleDuration)');
   assert(!('duration' in (t as unknown as Record<string, unknown>)), 'er staat geen rommelveld `duration` op de taak');
-  // De time-tak is veld-voor-veld gepatcht, niet vervangen.
-  assertEq(t.time.completion, 0.4, 'completion overleefde de duur-wijziging');
+  // De time-tak is veld-voor-veld gepatcht, niet vervangen. Eigenaarsbesluiten 2026-09-05/06: de
+  // voortgang zette een expliciete rest (5 × 0,6 = 3 d, `applyProgressInvariants`); de duurbewerking
+  // laat het verrichte deel (2 d) staan ⇒ rest 10 en completion = 2/12 — niet meer 0,4.
+  assertEq(t.time.remainingTime, 10, 'rest schuift mee met Δ (+7): 3 → 10');
+  assert(Math.abs(t.time.completion - 2 / 12) < 1e-9, `completion volgt de rest: 2/12, kreeg ${t.time.completion}`);
   assert(t.time.actualStart !== undefined, 'actualStart (uit het voortgangspad) overleefde');
   assert(t.time.earlyStart !== '' && t.time.lateFinish !== '', 'CPM-datums zijn gevuld gebleven');
   assertEq(t.time.earlyStart, beforeEarlyStart, 'de vroege start bleef gelijk (alleen de duur wijzigde)');

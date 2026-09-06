@@ -150,9 +150,11 @@ hoogte wordt daarin tegen het werkelijke werk per toewijzing verzoend, niet tege
 Drie randpaden die de slot óók kunnen wijzigen (`setCalendar`, `resolveDeviation`, de `workTime`-
 verwijdering in de MCP-kalendertool) zijn bewust NIET bedraad — zie `docs/TODO.md`. Een
 duurbewerking op een taak met EXPLICIETE restduur schuift die rest mee met Δ, geklemd op 0
-(`carryRemainingThroughDurationEdit`; `completion` blijft — de inconsistentie die dat met de Gantt-
-voortgangsbalk geeft is een open eigenaarsvraag in `docs/TODO.md`) — beide eigenaarsbesluiten
-2026-09-05, spec §6.4/§6.5, meetlat 32–36. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
+(`carryRemainingThroughDurationEdit`). Schrijft de brug de rest expliciet — Δ-regel of kalenderwissel
+op een gestarte taak — dan volgt `completion` daaruit als 1 − rest ÷ duur (`syncCompletionToRemaining`,
+dezelfde formule als een restbewerking in het raster; eigenaarsbesluit 2026-09-06), zodat Gantt-balk,
+solver en rapportage één waarheid delen — eigenaarsbesluiten 2026-09-05/06, spec §6.4/§6.5, meetlat
+32–36. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
 `work-triangle-cases.json`), `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en
 `check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
 `fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`

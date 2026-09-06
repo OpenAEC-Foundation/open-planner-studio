@@ -654,7 +654,7 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const mr = runInMcpTransaction(() => { draft.patchTaskFields(m.t, { calendarId: six3Id }); });
   eq('p13 MCP patchTaskFields({ calendarId }) ⇒ duur 6', [mr.ok, task(m.t).time.scheduleDuration], [true, 6]);
 
-  // ── Beslispunt 2: expliciete rest schuift mee met Δ, geklemd op 0; completion blijft.
+  // ── Beslispunt 2: expliciete rest schuift mee met Δ, geklemd op 0; completion volgt (optie a, 2026-09-06).
   reset();
   const q = S().addTask({ name: 'q', time: createDefaultTaskTime('2026-06-01', 10) });
   const qr = labor('r-q');
@@ -662,9 +662,9 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   S().updateTask(q, { time: { ...task(q).time, completion: 0.5, remainingTime: 3 } });
   S().runCPM();
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 12 } });
-  eq('q1 duur 10→12 bij expliciete rest 3 ⇒ rest 5, completion blijft 0,5', [task(q).time.remainingTime, task(q).time.completion], [5, 0.5]);
+  eq('q1 duur 10→12 bij expliciete rest 3 ⇒ rest 5, completion = 7/12', [task(q).time.remainingTime, near(task(q).time.completion, 7 / 12)], [5, true]);
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 4 } });
-  eq('q2 duur 12→4 (−8) ⇒ rest geklemd op 0', task(q).time.remainingTime, 0);
+  eq('q2 duur 12→4 (−8) ⇒ rest geklemd op 0, completion 1', [task(q).time.remainingTime, task(q).time.completion], [0, 1]);
   // Onder FIXED_WORK volgt de driehoek de verschoven rest.
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 10, remainingTime: 5 } });
   eq('q2b een patch die de rest ZELF zet, wordt niet ook nog verschoven', task(q).time.remainingTime, 5);
@@ -679,9 +679,9 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const u = S().addTask({ name: 'u', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
   S().updateTask(u, { time: { ...task(u).time, completion: 0.5, remainingMinutes: 100 } });
   S().updateTask(u, { time: { ...task(u).time, durationMinutes: 300 } });
-  eq('q6 uurmodus: 240→300 min bij rest 100 ⇒ rest 160', task(u).time.remainingMinutes, 160);
+  eq('q6 uurmodus: 240→300 min bij rest 100 ⇒ rest 160, completion 140/300', [task(u).time.remainingMinutes, near(task(u).time.completion, 140 / 300)], [160, true]);
   const mq = runInMcpTransaction(() => { draft.patchTaskFields(q, {}, { scheduleDuration: 22 }); });
-  eq('q7 MCP patchTaskFields duur 20→22 ⇒ rest 17', [mq.ok, task(q).time.remainingTime], [true, 17]);
+  eq('q7 MCP patchTaskFields duur 20→22 ⇒ rest 17, completion 5/22', [mq.ok, task(q).time.remainingTime, near(task(q).time.completion, 5 / 22)], [true, 17, true]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -721,7 +721,7 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().updateTask(f2.t, { time: { ...task(f2.t).time, completion: 0.5, remainingTime: 5 } });
   S().runCPM();
   const res2 = runInMcpTransaction(() => { draft.patchTaskFields(f2.t, { calendarId: six }, { scheduleDuration: 8 }); });
-  eq('r4 (F2) MCP kalender→6 u + duur→8 in één call ⇒ duur 8, rest 3 (verricht 5 d blijft), completion 0,5', [res2.ok, task(f2.t).time.scheduleDuration, task(f2.t).time.remainingTime, task(f2.t).time.completion], [true, 8, 3, 0.5]);
+  eq('r4 (F2) MCP kalender→6 u + duur→8 in één call ⇒ duur 8, rest 3 (verricht 5 d blijft), completion 5/8', [res2.ok, task(f2.t).time.scheduleDuration, task(f2.t).time.remainingTime, task(f2.t).time.completion], [true, 8, 3, 0.625]);
   // (F8) een aanroeper die de rest ZELF zet via `top.time`, ziet 'm niet óók nog verschuiven.
   const f8 = mkTask('r-f8', 10);
   S().updateTask(f8.t, { time: { ...task(f8.t).time, completion: 0.5, remainingTime: 5 } });
@@ -761,7 +761,7 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
     eq(`r10-${rule} contour mét werkveld na 8→6 u: as = duur × 360, hoogte = werk toewijzing`, [span(x.t) === task(x.t).time.scheduleDuration * 360, Math.round(sum(x.t)), Math.round(work)], [true, Math.round(work), rule === 'FIXED_DURATION_RATE' ? 1440 : 1920]);
     eq(`r10-${rule} histogram: som van de dageenheden = werk / 360`, Math.round(assignmentDayUnits(task(x.t), a, 360, undefined, S().assignments.filter((q) => q.taskId === x.t)).reduce((m, u) => m + u, 0) * 360), Math.round(work));
   }
-  // (F4) gestarte taak: verricht blijft een feit, heen en terug is stabiel; completion blijft (bekende inconsistentie, TODO).
+  // (F4, optie a 2026-09-06) gestarte taak: verricht blijft een feit, heen en terug is stabiel; completion volgt de rest.
   // Eerst voortgang, dán de regel: het vastgelegde RESTwerk is 5 d × 8 u = 40 u (spec §7 besluit 2).
   const f4 = mkTask('r-f4', 10);
   S().updateTask(f4.t, { time: { ...task(f4.t).time, completion: 0.5 } });
@@ -769,9 +769,9 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().setTaskWorkRule(f4.t, 'FIXED_WORK');
   eq('r11a voorwaarde: restwerk 40 u vastgelegd', asgOf(f4.t, f4.r).remainingWorkMinutes, 40 * 60);
   S().setTaskCalendar(f4.t, six);
-  eq('r11 (F4) 10 d op 50 % → 6 u/dag: duur 12, rest 7, completion 0,5, werk 40 u, inzet 1', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, task(f4.t).time.completion, asgOf(f4.t, f4.r).remainingWorkMinutes, asgOf(f4.t, f4.r).unitsPerDay], [12, 7, 0.5, 40 * 60, 1]);
+  eq('r11 (F4) 10 d op 50 % → 6 u/dag: duur 12, rest 7, completion 5/12, werk 40 u, inzet 1', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, near(task(f4.t).time.completion, 5 / 12), asgOf(f4.t, f4.r).remainingWorkMinutes, asgOf(f4.t, f4.r).unitsPerDay], [12, 7, true, 40 * 60, 1]);
   S().setTaskCalendar(f4.t, undefined);
-  eq('r12 (F4) terug naar 8 u: duur 10, rest 5, werk 40 u', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, asgOf(f4.t, f4.r).remainingWorkMinutes], [10, 5, 40 * 60]);
+  eq('r12 (F4) terug naar 8 u: duur 10, rest 5, completion weer 0,5, werk 40 u', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, task(f4.t).time.completion, asgOf(f4.t, f4.r).remainingWorkMinutes], [10, 5, 0.5, 40 * 60]);
 
   // (F5) FIXED_RATE via setTaskCalendar: duur volgt, maar er komt géén werkveld.
   const f5 = mkTask('r-f5', 4, 'FIXED_RATE');
@@ -782,7 +782,7 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const f7 = S().addTask({ name: 'r-f7', time: { ...createDefaultTaskTime('2026-06-01', 10), durationType: 'ELAPSEDTIME' } });
   S().updateTask(f7, { time: { ...task(f7).time, completion: 0.5, remainingTime: 5 } });
   S().updateTask(f7, { time: { ...task(f7).time, scheduleDuration: 20 } });
-  eq('r14 (F7) ELAPSEDTIME 10→20 bij rest 5 ⇒ rest 15 (bewust, spec §6.5)', task(f7).time.remainingTime, 15);
+  eq('r14 (F7) ELAPSEDTIME 10→20 bij rest 5 ⇒ rest 15, completion 0,25 (bewust, spec §6.5)', [task(f7).time.remainingTime, task(f7).time.completion], [15, 0.25]);
 
   // (F9) projectkalender: een bungelende taakkalender volgt de projectkalender; een expliciete verwijzing naar de OUDE projectkalender niet.
   reset();
