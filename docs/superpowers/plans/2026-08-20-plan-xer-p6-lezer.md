@@ -676,168 +676,133 @@ P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de eng
   10, p6diff 8+7, HarbourPointe 7, Harbour Point DCP-03 7, sample-target 4, stack_data_center 4.
   Of die as poort wordt is een eigenaarsbesluit (§3).
 
-## §10 Overdrachtsstand 2026-09-07
+## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
-*Geschreven door de Claude-hoofdsessie die de etappe op 2026-09-04 van de Codex-thread overnam, bij
-de overdracht aan een volgende sessie. Elk punt is gelabeld ZEKER (zelf gemeten of in git
-controleerbaar), AFGELEID (uit rapporten van subagents, niet zelf nagemeten) of ONBEKEND.*
+*Herschreven door de Claude-sessie die op 2026-09-07 de etappe overnam, 7a en laag 3 landde en de
+PR naar main voorbereidde. De ochtendversie van §10 (kop `1206e010`) is vervangen; wat daar
+stond en nog geldt is hier opgenomen. Labels: ZEKER (zelf gemeten of in git controleerbaar),
+AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
 
 ### 10.0 Waar het werk staat
 
-- **ZEKER.** Etappebranch `claude/file-formats-support-phase-3-a0ebe2`, kop `cd0381b9`, gepusht naar
-  origin (fast-forward vanaf de oude Codex-push `076f67ec`). Bevat main t/m `92a656fb` (merge 1
-  `a669108e` = main f16bfff7; merge 2 `0ba05e30` = origin/main met contour-engine PR #95). Sindsdien
-  kreeg origin/main PR #100 (`7e65b6d6`, takeover-small-fixes) — **niet** gemergd.
-- **ZEKER.** Nog niet op de etappebranch, wél gepusht als losse branches op origin (alle commits
-  bestaan; de `/tmp`-worktrees zijn bij een herstart van de machine verdwenen):
-  - `claude/xer-6` (kop `6f6013e6`, 17 commits): laag 3 "Datums zoals opgeslagen voor XER", T1–T8
-    plus zeven fixcommits na de eerste critreview (o.a. recovery-manifest v4 met `datesAsRecorded`,
-    `unrecordedExportGate` voor CSV/MCP). **Her-check van de critreview is niet afgerond** (reviewer
-    crashte op een API-limiet); laatste verdict was FIXES NODIG met vijf punten die de fixcommits
-    claimen te sluiten. Landen pas na een verse her-check.
-  - `claude/xer-7a` (kop `bd1a7ab3`, 7 commits): laag 1 klasse (i), voltooide activiteiten, achter
-    vlag `p6CompletedLateFromRemainingWindow`. Eerste review: NIET LANDEN (7 punten); fixronde klaar
-    (`3a9caee5`, `f99f2957`, `8e3509f4`, `bd1a7ab3`), **her-review niet afgerond** (crash). Bevat ook
-    de nieuwe `check-p6-verified-cases-engine.ts` (13 P6-casussen door de motor; 157/160 cellen eens).
-  - `claude/xer-6-T5` (`2d5810dc`): al gecherry-pickt in `claude/xer-6` als `e663d2f7`; alleen historie.
-  - `claude/xer-3a`, `-3b`, `-3c`, `-3d`, `-5`, `-flake`, `-v1-baseline`, `-7b1-kalenderspiegel`,
-    `-plandoc-besluiten`: volledig geland; alleen historie/reviewspoor.
-- **AFGELEID.** De reviewrapporten (`/tmp/xer-overname/review*.md`, `review-laag3.md`, `review-7a.md`,
-  `review-7b.md`, het kalibratierapport en de diagnose van laag 1) stonden in `/tmp` en zijn met de
-  herstart verloren. Hun conclusies staan samengevat in X-O7 (§5), §9 en hieronder; de letterlijke
-  bevindingenlijsten niet meer.
+- **ZEKER.** Etappebranch `claude/file-formats-support-phase-3-a0ebe2`; bevat origin/main t/m
+  `d808fdec` (PR #107). Gelande banen sinds de ochtend, in deze volgorde en telkens met de X12-
+  tellers vóór/ná in het merge-commit: `claude/xer-7a` (kop `63901793`, = `bd1a7ab3` + fixronde op
+  de her-review), `claude/xer-6` (kop `dd8331a1`, = `6f6013e6` + fixronde op de her-check; daarna
+  ronde 2 `213d6f5a` op de etappebranch), origin/main (`365ff274`), één herpin (`c6f4ac2a`), docs
+  (`15e76f23`), 7a ronde 2 (`1339d9b9`). De zijbranches `claude/xer-6`/`-7a` op origin dragen de
+  oude koppen; de fixcommits staan alleen lokaal en in de merges — historie, geen werk meer.
+- **ZEKER.** Reviewspoor van deze dag (rapporten in de sessie-scratchpad, niet in de repo): 7a
+  her-review → LANDEN-MET-FIXES (7 must-fixes) → fixronde → her-check LANDEN-MET-FIXES (2 doc-
+  punten + 3 kleine) → ronde 2; laag 3 her-check → LANDEN-MET-FIXES (5 zwaar) → fixronde → her-check
+  LANDEN-MET-FIXES (R1 blokkerend + R2–R5) → ronde 2. De letterlijke bevindingenlijsten staan in de
+  commitberichten van `63901793`, `dd8331a1`, `213d6f5a`, `1339d9b9`.
 
 ### 10.a Het corpus
 
-- **ZEKER.** `OPS_XER_CORPUS` wijst op deze machine naar
-  `/home/nozzit/open-aec/voor claude/testdata-crawl`. De tests lezen `tests/planning/xer-corpus-manifest.json`
-  (93 bestanden, per bestand pad + sha256 + `source` + `role` + `included`; 45 `oracle/true`).
-- **ZEKER (herkomst per map).** Zes mappen zijn git-clones met remote en commit:
-  `cpp-cpm-engine` = https://github.com/danafitkowski/cpp-cpm-engine.git @ c279a5c;
-  `mpxj` = https://github.com/joniles/mpxj.git @ 68d36e9 (alleen lezen-om-te-begrijpen, LGPL-2.1);
-  `delay-analysis-toolkit` = https://github.com/altunozan/delay-analysis-toolkit.git @ ecab947;
-  `P6-Viewer` = https://github.com/CodeVision3000/P6-Viewer.git @ c32dc4c;
-  `ProjectLens` = https://github.com/MatthewPaver/ProjectLens.git @ fe33382;
-  `p6flow` = https://github.com/wllmtrng/p6flow.git @ 637c12e; `xer-reader` =
-  https://github.com/jjCode01/xer-reader.git @ f9fafd8. `crawl-xer-extra/` (13 bestanden) heeft een
-  eigen `MANIFEST.md` met per bestand de GitHub-URL, licentie en pad (o.a. `rehab-2.xer` =
-  https://github.com/JaiLaff/XER-Splitter, `tests/Example-XERs/rehab-2.xer`).
-- **ONBEKEND (per bestand).** `crawl-xer/` (36 bestanden + submappen `eh/`, `eh_P6Workshops/`) is op
-  2026-08-14 door een eerdere "pig-crawl"-sessie verzameld; `CORPUS-OVERZICHT.md` en `MANIFEST.md`
-  in de corpusmap noemen alleen "publieke crawl", geen URL per bestand. `pmxml-samples/` idem
-  ("publieke voorbeeldset"). Ik heb die bestanden niet zelf opgehaald en verzin geen bron.
-- **AFGELEID (reproduceerbaarheid).** Een verse machine krijgt de zes git-mappen exact terug door op
-  de genoemde commits te klonen (sha256 van de `.xer`-bestanden matcht dan het manifest, want die
-  liggen in de repo's). `crawl-xer-extra/` is reproduceerbaar via zijn `MANIFEST.md`. Voor
-  `crawl-xer/` en `pmxml-samples/` is het manifest alleen een controle achteraf: zonder de map zelf
-  (kopiëren van deze machine) kan een verse machine ze niet terughalen. De corpusgebonden checks slaan
-  zichzelf over wanneer `OPS_XER_CORPUS` ontbreekt (`OK … corpus niet aanwezig`), dus CI draait
-  corpusloos.
+- **ZEKER.** Volledig reproduceerbaar op een verse machine: de privé-repo
+  `OpenAEC-Foundation/ops-xer-corpus` (kop `e141664`) draagt `crawl-xer/`, `crawl-xer-extra/` (met
+  `MANIFEST.md`), `pmxml-samples/`, `CORPUS-OVERZICHT.md` en `MANIFEST.md`; de zes git-clones uit de
+  ochtendversie (cpp-cpm-engine `c279a5c`, delay-analysis-toolkit `ecab947`, mpxj `68d36e9` — alleen
+  de `.xer`-fixtures zijn nodig —, P6-Viewer `c32dc4c`, ProjectLens `fe33382`, p6flow `637c12e`)
+  ernaast in dezelfde corpusroot (zonder `.git`) geeft **93/93 sha256-treffers, 45/45 orakel, 0
+  extra `.xer` buiten het manifest**. `OPS_XER_CORPUS` wijst naar die root. De corpusgebonden checks
+  eisen het VOLLEDIGE manifest (`buildXerTargetBaseline` gooit bij elk ontbrekend bestand); een
+  partieel corpus meet dus alleen via een eigen omweg — die is na 93/93 weggegooid.
+- **ZEKER (nog steeds).** De corpus-`.xer`-bestanden liggen buiten de repo; CI draait corpusloos.
 
 ### 10.b De stand van X12 (productfidelity)
 
-- **ZEKER.** `tests/planning/xer-product-fidelity-baseline-v2.json` (sinds `cd0381b9` onder deze naam;
-  daarvóór overschreef baan 3a het v1-bestand onder dezelfde naam, wat `check-xer-product-fidelity.ts`
-  liet crashen) pint `finalZeroGate: red`, `accepted: false`, open categorieën
-  `strict-six-axis-deviations`, `strict-sameday-deviations`, `driving-path-report-only`.
-  De gepinde karakterisering is de meting van **vóór 7b**: 18.398 zesassige afwijkingen, 14.812 in
-  `rehab-2.xer`. De **verse** meting op `cd0381b9` (`OPS_XER_FIDELITY_REPORT=summary`) geeft
-  **17.421** — de v2-baseline en de in-bron pin van `check-xer-corpusless-fidelity-gate.ts` zijn ná 7b
-  niet herpind. Daardoor is op de kop van de branch de check "productbaseline is de verse volledige
-  productmeting" rood naast de drie nuldoel-regels. Herpinnen hoort in één stap samen met 7a
-  (verwacht ≈16.3k − 977 ≈ 15.3k; **meten, niet aannemen**), met reden per as/bestand.
-- **AFGELEID (strict-six-axis).** Kalibratiemeting 2026-09-04: instellingen afleiden uit de uitvoer
-  werkt niet (384 combinaties, geen uniek optimum) — zie X-O7. Diagnose 2026-09-04 op rehab-2:
-  (i) voltooide activiteiten 5.620 cellen — P6 zet ze aan de late kant op de statusdatum met echte
-  float; (ii) niet-gestarte 7.056 cellen — 2.165 van 2.205 LS-afwijkingen zijn doorwerking van ~40
-  bronpunten; daarvan bleek de "spiegelasymmetrie" een XER-eigen penaltyprojectie (7b, verwijderd) en
-  kalender 842 miste tien vrije dagen (7b, gereconstrueerd); 246 taken waarin P6 zichzelf tegenspreekt
-  (TF 0 naast FF > 0) zijn niet reproduceerbaar en moeten per bestand met reden gepind worden.
-  Ná 7b én 7a samen resteert vermoedelijk het forward-ankergat (dossier 7b-4, §9) plus de 212 cellen
-  die 7a's fixronde aan klasse (ii) toeschreef — **niet bevestigd**, want beide zijn nooit samen gemeten.
-- **ONBEKEND (strict-sameday).** Hoeveel cellen in de `sameday`-bucket vallen (zelfde dag, ander
-  tijdstip) heb ik nooit apart gemeten; de kalibratiemeting rapporteerde dat rehab-2's afwijkingen
-  volledig in `diff` vielen (geen `sameday`), maar corpusbreed is het getal niet vastgelegd.
-  Plan §1 zegt: sameday moet nul zijn (minuut-exact).
-- **ONBEKEND (driving-path-report-only).** De zevende as (`driving_path_flag`) staat per §3 buiten
-  de nulpoort; 7a's herpin meldde een verschuiving 13.186→13.180 exact (+6 diff) op rehab-2.
-  Of en wanneer die as poort wordt, is een eigenaarsbesluit dat niet is genomen.
-- **Laag 1 van X-O7 — ZEKER gedeeltelijk gebouwd.** Klasse (ii)-deel 7b-1/7b-2 (kalenderklem +
-  penalty weg) is **geland** (`0b8dbeb3`, `f33dbecb`, `90f5e326`, `e1915758`), review GO-met-dossier.
-  Klasse (i) (7a) is **gebouwd maar niet geland** op `claude/xer-7a`, her-review open. De bronvlag
-  voor (i) is `SchedulingOptions.p6CompletedLateFromRemainingWindow` (XER-default aan, alleen onder
-  retained logic); voor 7b is er geen vlag: de kalenderdecoder zelf is aangepast (`weekendClampTarget`
-  / `hasWeekendClampEvidence` in `xerCalendarData.ts`, corpusloos gepind in
-  `check-xer-calendar-data.ts` sectie 22a–22g), en `subtractP6XerProjectedWorkMinutes` bestaat niet meer.
+- **ZEKER.** Eén herpin (`c6f4ac2a`), volledig corpus (34 entries/47 projecten/13.982 taken):
+  **18.398** (v2-baseline, vóór 7b) → **17.421** (kop `1206e010`, ná 7b) → **15.056** (nu; 7a+7b,
+  laag 3 en main veranderen daar niets aan — gemeten, niet aangenomen). Alle beweging in rehab-2;
+  de overige 33 entries zijn byte-identiek aan de v2-baseline. Per as: 7b es +322/ef +127 slechter
+  (gedocumenteerde uitzondering), ls/lf/tf/ff beter; 7a ls −969, lf −969 (diff→exact, 0 andersom),
+  tf netto −427 (642 beter, 215 slechter — alle 215 `TK_Complete`/`DT_FixedDUR2` met P6 tf 0),
+  drivingPath 80→86. Herpind: v2-baseline, in-bron `EXPECTED` van de corpusloze poort (met de
+  attributie als toelichting), blast-radius-baseline, task-replay-pin, en de v1-herbasis (harness
+  gaf tot 7a de P6-opties niet door; productsolve op die twee bestanden ongewijzigd).
+- **ZEKER (sameday).** Corpusbreed 415 cellen, ongewijzigd sinds de v2-baseline (es 96, ef 97,
+  ls 129, lf 93, tf 0, ff 0); per bestand in §9. Open categorie — plan §1 eist nul.
+- **ZEKER (driving path).** 417 afwijkende cellen op 13.596 meetbare (301× P6 false/wij true,
+  116× andersom), 15 bestanden; per bestand in §9. Rapportage-as; promotie tot poort is een
+  eigenaarsbesluit dat niet is genomen.
+- **ZEKER (7b-4).** Per cel gemeten (§9): 7b maakte 344 ES + 327 EF fout op rehab-2; 247 taken
+  dragen de 7b-4-signatuur (venster behouden, 1–2 werkdagen naar rechts); over alle huidige ES/EF-
+  afwijkingen van rehab-2 verklaart het dossier ten hoogste 690 van 1.880 cellen. Niet gebouwd.
+- **ZEKER.** Mét corpus is de planningssuite rood op uitsluitend de drie X12-nuldoel-regels
+  (by design zolang het nuldoel niet gehaald is); de vierde regel ("baseline is de verse meting")
+  is sinds de herpin groen.
 
 ### 10.c De stand van X11 (browsergebruikstest)
 
-- **ZEKER.** Codex' X11-bewijs is geland (`487e8e93`, `5afa0ead`): `tests/browser/x11-xer-evidence.mjs`
-  (+ `x11-multidoc-contract.mjs`, `x11-phase2b-contract.mjs`, `x11-phase2b-mutations.mjs`,
-  `x11-phase2b-privacy-contract.mjs`), script `npm run test:browser:x11`, per CLAUDE.md "lokaal headed;
-  vereist OPS_XER_CORPUS + desktopdisplay, vervangt de corpusloze CI-poort niet". Scenario's in de
-  code: `crawl-xer/p6diff-baseline.xer` (klein), `OZB-Start-09Dec24.xer` (multi-document + Help),
-  multidoc-recovery, `rehab-2.xer` (grote resources). Bij merge 1 en merge 2 gaf
-  `test:browser:x11` exit 0 (integratoren), en `test:browser` (Playwright, 113 resp. 116 tests) exit 0.
-- **AFGELEID.** Wat het harnas bewijst is store-state via `window.__OPS__` (openen, meldingsregels,
-  multi-document, herstel, grote resources), geen visuele controle en geen echte muis/toets-flows
-  op de XER-specifieke UI.
-- **ONBEKEND / NIET GEDAAN.** Geen gebruikstest met de UI van laag 3 (modus standaard aan, melding,
-  markering, "niet vastgelegd"-kolom, badge) en geen visuele controle van 7a's zichtbare effect
-  (voltooide taak toont echte speling) — beide zitten op niet-gelande branches. Werkplanstap 9
-  ("gebruikstest in de browser, gids als meetlat, rehab-2/OZB/p6diff/torture") is niet uitgevoerd.
+- **ZEKER.** Nieuw: `tests/browser/recorded-dates.spec.ts` (Playwright, echte bestandskiezer):
+  XER met restverschillen opent in de modus, strook noemt Primavera, `lateStart`/`totalFloat`
+  tonen "Niet vastgelegd" mét de product-datumnotatie, badge zegt "deels niet vastgelegd" resp.
+  Primavera-tekst, Herberekenen verlaat de modus. Groen gedraaid (1 passed).
+- **ZEKER (gebruikstest met de gids als meetlat, dev-build in Chromium, 2026-09-07).**
+  `ProjectLens/docs/demo/northstar-current.xer`: opent in de modus; strook "You're viewing the
+  schedule as Primavera recorded it; recalculating would shift 21 tasks"; openingsmelding "XER file
+  opened: 1 project document" + "21 tasks show the dates as Primavera recorded them (not
+  recalculated)"; kolom **Late start** via de kolomkiezer toont "Not recorded" op alle bladtaken,
+  kolom **Recorded-dates source** toont "Partly unrecorded"; eigenschappenpaneel-badge "Recorded
+  data is partly incomplete — see the late/float columns" + Read more; **Recalculate** haalt strook,
+  "Not recorded" en de herkomstkolom weg en zet berekende datums. `rehab-2.xer`: opent in de modus
+  ("recalculating would shift 940 tasks" = de 940 ES-afwijkingen); ná Recalculate tonen 1.679 van
+  2.037 voltooide taken een totale speling > 0 (7a-effect; bv. V3101090: werkelijk einde 15-08-2007,
+  late start 04-08-2008, totale speling 59 dagen in het eigenschappenpaneel) — conform de gidstekst
+  "een voltooide activiteit toont voortaan een echte totale speling".
+- **ZEKER (waarneming, niet gefixt).** (1) In de modus tonen SAMENVATTINGSRIJEN (XER-WBS) een
+  opgerolde late start (afgeleid uit de `?? rec.start`-terugval van hun kinderen) terwijl diezelfde
+  kinderen "Niet vastgelegd" zeggen; de herkomstkolom toont daar "—". Ontwerpkeuze uit her-check
+  R1 (oprollen), eigenaarsbesluit of een samenvatting daar "Niet vastgelegd" hoort te tonen. (2)
+  rehab-2's Arabische taaknamen renderen als Windows-1252-mojibake: het bestand is geen geldige
+  UTF-8 en de X-O4-heuristiek kent alleen 1252 als terugval; de openingsmelding noemt de keuze.
+  Pre-existent (X-O4), niet deze etappe; een 1256-/CURRTYPE-taal-hint is een eigen afweging.
+- **X11-evidence (`npm run test:browser:x11`, headed, vier scenario's onder Xvfb):** zie de
+  PR-tekst voor de uitkomst van deze sessie; §10.e hieronder.
 
 ### 10.d Dossier 7b-4
 
-- **ZEKER.** Staat in §9 als "geregistreerd, niet gebouwd". Dat klopt nog: niemand heeft eraan
-  gewerkt. Het is de eerste kandidaat ná het landen van 7a, omdat 7a's fixronde 212 van zijn
-  resterende cellen aan klasse (ii) toeschrijft en 7b-4 dáár het benoemde restpunt is.
+- **ZEKER.** Gemeten, niet gebouwd — §9 draagt de cijfers. Bouwbesluit bij de eigenaar.
 
-### 10.e Laatste `npm run verify` op de kop van de branch
+### 10.e Poorten op de kop van de branch
 
-- **ZEKER.** Gedraaid 2026-09-07 op `cd0381b9` met `OPS_XER_CORPUS` gezet, vanuit de etappe-worktree:
-  **exitcode 1** (start 15:54, einde 16:03; log op deze machine
-  `/tmp/handover-verify.log`). Rode set: uitsluitend de vier X12-regels van `check-xer-product-fidelity-x12.ts` (drie nuldoel-regels op 17.421 en "productbaseline is de verse volledige productmeting" door de niet-herpinde v2-baseline), in alle vijf tijdzones; `verify` stopt daardoor bij `test:planning`, dus library/mcp/dev-server/browser/examples zijn in déze run niet gedraaid. De overige `Error`-regels in de log (rec-corrupt `RangeError`, `kapot.ifc`, ZIP-installatiefouten, dubbele `task_id 'T1'`) zijn negatieve-pad-fixtures die hun verwachte fout printen; `Save failed: ReferenceError: window is not defined` (6×) heb ik niet geverifieerd als fixture — ONBEKEND. Niets gefixt.
-- **AFGELEID.** De laatste vólledige `verify` daarvóór was bij merge 2 (`0ba05e30`, 2026-09-05):
-  exit 1 uitsluitend door de vier X12-regels; alle andere suites (library, mcp, dev-server, browser,
-  examples, docs, i18n, boundaries, cycles) exit 0. Reeksen 2–5a landden met lichte poorten en
-  losse checks, niet met de volledige suite.
+- **ZEKER.** Corpusloos: `npm run verify` — zie de PR-tekst voor de exacte uitkomst van de laatste
+  run op `1339d9b9` (typecheck, lint, planning 560/560 + TZ-matrix, library, mcp 39, dev-server,
+  browser, examples, docs, i18n, store-/gantt-boundaries, cycles). Mét corpus: planning rood op
+  uitsluitend de drie nuldoel-regels (10.b).
+- **ZEKER.** Op deze machine (Playwright 1.62.1 verwacht headless-shell 1234, geïnstalleerd is 1194)
+  is `test:browser` alleen te draaien met een alias van de verwachte buildmap naar de geïnstalleerde
+  — een omgevingsdetail, niets in de repo.
 
 ### 10.f Wat niet in het plan staat
 
-- **Valse sporen.** (1) "Formaatneutraal spiegeldefect in `subtractWorkMinutes`" (diagnose laag 1)
-  was fout: gemeten 0 afwijkingen over 9.216 vergelijkingen; het was de XER-penaltyprojectie.
-  `check-calendar-mirror.ts` pint dat. (2) Kalibratie van SCHEDOPTIONS uit de uitvoer: afgewezen op
-  meting (X-O7). (3) "Kalenderbrede" klempoort: twee false positives, daarom record-lokaal met drie
-  eisen; de klasse is niet gesloten (D′-voorbeeld in het docblok). (4) Eerste 7a-versie liet de
-  regel ook op CP_Phys/LOE-taken lopen (inversies) — daarom gepoort op `completedWindow.eligible`
-  via één gedeelde poortfunctie.
-- **Afgewezen ideeën.** Eigen curve-best-fit in de XER-lezer (vervangen door de contour-engine);
-  `OPS_`-pset voor de opgeslagen P6-datums (niet nodig: het XER-bronarchief draagt de zes kolommen
-  al en `readIFCWithXerReconstruction` reconstrueert ze); standaard-aan bij heropenen van een IFC
-  (afgewezen: een bewerkte planning mag bij heropenen niet P6's oude datums tonen ⇒ origin
-  `'xer'` vs `'xer-archive'`).
-- **Besluiten van de orkestrator die de eigenaar nog moet bevestigen.** Heropen-beleid (hierboven);
-  crashherstel behoudt de modus alleen als de vlag in het manifest staat (v4); CSV/MCP geven bij een
-  niet-vastgelegde as leeg/`null`; MCP-provenance-tool toont `name`/`code` zonder opt-in (geaccepteerd
-  risico: resourcenaam kan een persoonsnaam zijn); 7b landde met een per-as-regressie op ES/EF onder
-  de X-O7-uitzondering.
-- **Bekende losse eindjes.** (1) Zes main-bestanden gebruiken `childIds.length > 0` i.p.v.
-  `isSummaryTask()` (taskColumnRegistry, assignmentPlan, taskEditPlan, library/distribute,
-  print/barColorCategories, FullTaskGrid): voor een XER-WBS-rij zonder activiteiten tegenstrijdig
-  gedrag; geen poort rood; niet stil omzetten. (2) `readIFCWithXerReconstruction` decodeert de
-  kalender opnieuw uit het bronarchief — of de 7b-fix daarmee met terugwerkende kracht op al
-  opgeslagen documenten werkt, is niet uitgezocht; er ontbreekt ook een gidsregel over verse import
-  vs eerder opgeslagen IFC. (3) rehab-2 heropenen uit IFC kost ±21 s (STEP-parse van 50 MiB),
-  pre-existent. (4) `pmxml-samples/testXer.xer` en `groupdocs-conversion/sample.xer` zijn de enige
-  bestanden met `DT_FixedQty` (taaktypes-etappe). (5) De weekend-flake `milestone-duration-render`
-  is gefixt (`e7824f61`); de v1/v2-baselinebotsing ook (`cd0381b9`) — les: een crash in een check
-  geeft géén `XX`-regel, tel per-check exitcodes.
-- **Wat ik de opvolger zou zeggen.** Integreer in deze volgorde: verse her-review op `claude/xer-7a`
-  (let op de "poort dicht in casus 09"-verklaring en `lagPercent` bij SS/SF), landen; verse her-check
-  op `claude/xer-6` (let op manifestversie 4 en de `useAutoSave`-schakel, die niet headless is
-  getest), landen; dan één herpin van v2-baseline + in-bron pin + evt. v1 met reden per as/bestand;
-  dan volledige `test:planning` + `verify` + `test:browser(:x11)`; dan de gebruikstest in de browser;
-  dan de hyperkritische eindreview over de hele diff t.o.v. origin/main inclusief de
-  whitelist-sluiproute-scan (§4.1, nu met bak 4); dan PR (eigenaar merget). Merge PR #100 er vóór
-  de PR nog in. Vault: `issues/issue 17.md` staat op `building` met deze branchnaam.
+- **Valse sporen (nieuw).** (5) "Einde vóór start weigeren" in de vastlegging (her-check laag 3,
+  bevinding 6): gemeten en verworpen — P6's voltooid-conventie, 2.049 van 11.953 taken, docblok
+  `readXerRecordedTimes`. (6) "Poort dicht in casus 09" als verzoening: de transcriptie was
+  onbrongetrouw; brongetrouw is de poort dicht op `missingExplicitTargetWindow` en het bewijs
+  correlationeel (§5).
+- **Besluiten van de orkestrator die de eigenaar nog moet bevestigen** (ongewijzigd uit de
+  ochtend, plus twee nieuwe): heropen-beleid `'xer'` vs `'xer-archive'`; crashherstel behoudt de
+  modus alleen met de manifestvlag (v4); CSV/MCP geven bij een niet-vastgelegde as leeg/`null`;
+  MCP-provenance toont `name`/`code` zonder opt-in; 7b's ES/EF-regressie onder de X-O7-uitzondering;
+  NIEUW: samenvattingen rollen in de modus op uit vastgelegde kinderen (R1; vastgelegde
+  samenvattingen blijven staan) en `isCritical` is "niet vastgelegd" onder longest-path-kritiek
+  of niet-omrekenbare speling.
+- **Bekende losse eindjes.** (1) Zes main-bestanden met `childIds.length > 0` i.p.v.
+  `isSummaryTask()` — niet aangeraakt, niet stil om te zetten. (2) `readIFCWithXerReconstruction`
+  vs de 7b-kalender op al opgeslagen documenten — niet uitgezocht. (3) rehab-2 heropenen uit IFC
+  ±21 s. (4) `DT_FixedQty` alleen in twee bestanden. (5) Dossiers uit de her-reviews die als
+  vervolg zijn geregistreerd: bandrand-asymmetrie SS/SF vs FS/FF met lag (gepind, niet
+  gesymmetriseerd), de statusdatumklem die ook voorgangers een ruimere LS aanreikt (VERMOED), de
+  kalendermix `progressCalendarFor` vs `calendarFor` in de floatformule (VERMOED), bibliotheek-
+  refresh in de modus verliest zijn stale-signaal (VERMOED), `applyBackwardBound`/projecteinde
+  worden in de completed-late-tak overgeslagen (bewust, nergens opgeschreven behalve hier),
+  ongepind duurtype was dicht (nu gepind, 3b). (6) `docs/TODO.md`: projecteinde-fout en
+  reststart-ES (§9).
+- **Wat ik de opvolger zou zeggen.** PR #101 (taaktypes) merget ná deze PR. Het nuldoel is niet
+  gehaald en dat is zichtbaar rood mét corpus; wie verder wil: 7b-4 (690 cellen bovengrens), de
+  215 tf-cellen van klasse (ii), sameday (415, waarvan 280 in één bestand met een tijdstip-
+  conventie), en de driving-path-as als eventuele poort. Alles wat hier "gemeten" heet staat in
+  een commitbericht of in §9 met het commando erbij.
