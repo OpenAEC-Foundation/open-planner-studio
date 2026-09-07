@@ -196,7 +196,12 @@ if (!root) {
 
   const transitionFiles = Object.entries(baseline.cellTransitions.files).sort(([left], [right]) =>
     left.localeCompare(right));
-  eq('celovergangscontract pint twee hash-orakels, 37 eerder exacte cellen en exact 16+1 verbeteringen', {
+  // Herbasis 2026-09-07 (zelfde cellTransitions-schema, versie 1; geschiedenis herstart): de harness gaf vóór baan 7a `progressMode`/
+  // `schedulingOptions` niet door, dus de oude v1-cellen (24+13 exact, 16+1 verbeteringen) waren
+  // tegen een OPTIELOZE solve gemeten. Sinds de correctie meet v1 dezelfde solve als X12; de
+  // overgangshistorie start daarom opnieuw vanaf de huidige exacte set (44+16), zonder verbeteringen.
+  // Wat er t.o.v. de oude pin per cel schoof staat in de `reason`-velden van het baselinebestand.
+  eq('celovergangscontract pint twee hash-orakels, 60 eerder exacte cellen en (nog) nul verbeteringen', {
     version: baseline.cellTransitions.version,
     measuredHashes: measuredHashes.sort(),
     fileHashes: transitionFiles.map(([fileSha256]) => fileSha256),
@@ -216,10 +221,10 @@ if (!root) {
       '568c19375b4e0d674c75e6aea023c98772fb33e6896755f866e4641a56197300',
       'c872c9e704797d829205f3c5486e7c4cd5aec729143a63fbcf8b0ec8e8864a3c',
     ],
-    previouslyExact: [24, 13],
-    improvements: [16, 1],
-    improvementAxes: [['ef', 'es', 'lf', 'ls'], ['ef']],
-    buckets: ['diff', 'exact'],
+    previouslyExact: [44, 16],
+    improvements: [0, 0],
+    improvementAxes: [[], []],
+    buckets: [],
   });
   const actualTransitions = transitionFiles.flatMap(([fileSha256, file]) => file.improvements.map(improvement => {
     const measured = measuredCells.get(cellKey(fileSha256, improvement.cell));

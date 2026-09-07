@@ -78,40 +78,36 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
-  // p6CompletedLateFromRemainingWindow (X-O7 laag 1, klasse (i)): alleen ls/lf/tf en drivingPath
-  // schuiven — uitsluitend rehab-2 (proj_id 761) is geraakt, es/ef/ff blijven ongewijzigd.
-  // ls: 8.807→9.697 exact, 4.886→3.996 diff, 5.015→4.125 afwijkingen (−890)
-  // lf: 8.769→9.660 exact, 4.951→4.060 diff, 5.044→4.153 afwijkingen (−891)
-  // tf: 8.912→9.270 exact, 4.765→4.407 diff, 4.765→4.407 afwijkingen (−358)
-  // drivingPath: 13.186→13.180 exact, 410→416 diff/afwijkingen (+6). Die zes zijn precies te
-  //   benoemen (per-cel gemeten op rehab-2, 2026-09-05): 87418, 87419, 87420, 87421, 87422 en
-  //   87426 — allemaal OPEN taken waarvan ls/lf/tf nu EXACT P6 worden, inclusief `tf = 0`, waarna
-  //   onze `isCritical = tf ≤ drempel` ze kritiek maakt terwijl P6's `driving_path_flag` `false`
-  //   zegt. Geen ruis dus, maar een systematisch gat tussen OPS-kritiek en P6's driving-padbegrip
-  //   dat door de verbetering wordt blootgelegd; eigen vervolgetappe (zie het plan, X-O7 laag 1).
-  // De tf-winst is NETTO: per cel op rehab-2 worden 572 tf-cellen exact en 215 eerder exacte
-  //   tf-cellen fout. Alle 215 zijn voltooide taken (her-review: 215/215 `TK_Complete`,
-  //   `DT_FixedDUR2`) waar P6 `tf = 0` geeft terwijl onze
-  //   afgeleide LS nog van een zélf foute opvolger-LS komt (klasse (ii)); vóór deze etappe was hun
-  //   `tf = 0` degeneratie (LS = de historische actual-start), dus per ongeluk goed.
-  // Herpin 2026-09-05 (poortpariteit solver ↔ weergave, review-bevinding 4): lf 9.660 → 9.659 en
-  //   tf 9.270 → 9.269 exact. Dat is precies één taak, rehab-2 `87620` — `TK_Active` met
-  //   completion 1 maar zónder `act_end_date`: wél completedWindow-eligible, niet
-  //   backwardActualPin-eligible. Die viel vóór de fix tussen de twee poorten in en kreeg via de
-  //   weergavelaag toevallig P6's lf/tf terwijl de solvertak niets deed. Eén gedeelde poort is dat
-  //   ene toevalstreffertje waard; of P6 die vorm óók door het venster haalt is een aparte,
-  //   ongemeten vraag (n = 1).
+  // HERPIN 2026-09-07 (één herpin, volledig corpus 93/93, na het landen van 7a én 7b, laag 3 en
+  // origin/main): 18.398 (v2-baseline, vóór 7b) → 17.421 (kop 1206e010, ná 7b) → 15.056 (nu).
+  // Per bestand/as gemeten: ALLE beweging zit in rehab-2 (proj_id 761); de overige 33 entries zijn
+  // byte-identiek aan de v2-baseline. Reden per as, per stap:
+  //  - 7b (weekend-klemherstel, X-O7-uitzondering, plan §5): es 618→940 (+322), ef 813→940 (+127)
+  //    SLECHTER — de gedocumenteerde compensatiefout-blootlegging (dossier 7b-4, §9); ls 4.358→3.889,
+  //    lf 4.350→3.889, tf 4.200→3.903, ff 473→274 beter; drivingPath 79→80.
+  //  - 7a (completed-late, klasse (i)): ls 3.889→2.920 (−969: 969 cellen diff→exact, 0 exact→diff),
+  //    lf 3.889→2.920 (−969, idem), tf 3.903→3.476 (netto −427: 642 diff→exact, 215 exact→diff — de
+  //    215 zijn allemaal TK_Complete/DT_FixedDUR2 met P6 tf = 0, klasse (ii)); es/ef/ff ongewijzigd;
+  //    drivingPath 80→86 (+6: 87418, 87419, 87420, 87421, 87422, 87426 — open taken die nu exact P6's
+  //    tf = 0 krijgen en daardoor bij ons kritiek worden waar P6's driving_path_flag false zegt).
+  //  - laag 3 en origin/main: 15.056 → 15.056, per constructie en gemeten.
+  // Sameday (corpusbreed, alle 34 entries): es 96, ef 97, ls 129, lf 93, tf 0, ff 0 — ongewijzigd
+  // t.o.v. de v2-baseline; plan §1 eist nul, dus dit is een open categorie, geen residu dat hier
+  // 'met reden' wordt weggepind.
+  // Eerdere toelichting (7a-herpin op de pre-7b-basis, 2026-09-05) blijft als geschiedenis: die mat
+  // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
+  // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 12_680, ef: 12_437, ls: 9_697, lf: 9_659, tf: 9_269, ff: 12_499 },
+    exact: { es: 12_358, ef: 12_310, ls: 10_245, lf: 10_199, tf: 9_636, ff: 12_698 },
     sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
-    diff: { es: 1_155, ef: 1_403, ls: 3_996, lf: 4_061, tf: 4_408, ff: 823 },
+    diff: { es: 1_477, ef: 1_530, ls: 3_448, lf: 3_521, tf: 4_041, ff: 624 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 1_251, ef: 1_500, ls: 4_125, lf: 4_154, tf: 4_408, ff: 823 },
-    drivingPath: { exact: 13_180, sameday: 0, diff: 416, missing: 0, measurable: 13_596, deviations: 416 },
+    deviations: { es: 1_573, ef: 1_627, ls: 3_577, lf: 3_614, tf: 4_041, ff: 624 },
+    drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: '730efc48df960e5b9737fffe4edcd7fbb21fcd83c598e61c07e01a0138ea6f32',
-  productPayloadGzipSha256: '4312e54d2225831df686d374a9302ad850e980d4f38e95771105d657148dfda9',
-  productProjectProjectionSha256: 'a64de80d35a55d5c33c9b41a36c4c99cb9b620a77d0df2804e70bc111027e66a',
+  productPayloadSha256: 'ce8527748344de7f5bae3fc0c64041eff522cc939dcafa19d58c6df9c39233be',
+  productPayloadGzipSha256: 'e624e5d719c3bbb6bf02f2c69c74d07f988d39a0c9844fb492c4333e4a8cdcc2',
+  productProjectProjectionSha256: '088f059adb65fcad8e392d0e2c9f0efc522314588e60ee6936b12cc4e9487676',
   roles: {
     oracle: 45,
     'engine-input': 14,
