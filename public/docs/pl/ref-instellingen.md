@@ -33,6 +33,17 @@ same ustawienia i to, co robią, są w obu przypadkach identyczne; ten artykuł 
 - **Tryb AI** — **Włącz tryb AI** pokazuje kartę wstążki **AI** z mostkiem MCP, dzięki czemu asystent AI może pracować z Twoim harmonogramem przez Model Context Protocol; wyłączenie natychmiast zatrzymuje działający mostek. **Automatycznie uruchamiaj most** (dostępne tylko przy włączonym trybie AI) uruchamia mostek od razu po starcie aplikacji, bez konieczności najpierw odwiedzać karty AI — tylko w aplikacji desktopowej. Pełny obraz znajdziesz w wbudowanym przewodniku po asystencie AI.
 - **Terminal debugowania** — **Włącz terminal debugowania** pokazuje panel dziennika do rozwiązywania problemów.
 
+## Karta Statystyki
+
+Ile razy pobrano Open Planner Studio, według systemu operacyjnego i według wydania. Dane pochodzą z publicznych liczników pobrań GitHub Releases i są odświeżane co tydzień; aplikacja tylko je odczytuje, nic o Tobie nie jest zbierane ani wysyłane.
+
+- **Pobrania według systemu operacyjnego** — dla każdego systemu liczba pobrań, podzielona na instalatory (to, co pobiera człowiek) i aktualizacje (to, co pobiera aktualizator w aplikacji). Dla Linuksa obie wartości to jedna liczba: aktualizator pobiera ten sam plik `.deb`/`.rpm`/`.AppImage`, który pobierasz też ręcznie. W Linuksie za instalator liczy się tylko plik snap.
+- **Sprawdzenia aktualizacji z aplikacji** — ile razy instalacja desktopowa szukała nowej wersji przy starcie; przybliżona miara aktywnego użycia, nie pobranie.
+- **Według wydania** — te same dane dla każdej wersji; domyślnie sześć najnowszych, reszta pod **Pokaż wszystkie wydania (…)**.
+- **Źródło** — data danych i **Odśwież teraz**. Karta pamięta ostatnio pobrane dane przez pół godziny; jeśli odświeżenie się nie powiedzie, pozostają widoczne z komunikatem.
+
+Instalacje ze Snap Store nie przechodzą przez GitHub i nie są tu ujęte.
+
 ## Karta Język
 
 - **Język** — język wyświetlania aplikacji; czternaście języków, stosowane natychmiast.
