@@ -9,10 +9,11 @@ import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
+import { DownloadStatsSection } from '@/components/settings/DownloadStatsSection';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 
-type SettingsTab = 'appearance' | 'language' | 'timeline' | 'application';
+type SettingsTab = 'appearance' | 'language' | 'timeline' | 'application' | 'stats';
 
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
 const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
@@ -187,6 +188,12 @@ export function SettingsPanelContent() {
           onClick={() => setActiveTab('application')}
         >
           {t('settings.applicationTab')}
+        </button>
+        <button
+          className={`settings-tab ${activeTab === 'stats' ? 'active' : ''}`}
+          onClick={() => setActiveTab('stats')}
+        >
+          {t('settings.statsTab')}
         </button>
       </div>
 
@@ -569,6 +576,11 @@ export function SettingsPanelContent() {
             </div>
           </div>
         )}
+
+        {/* Statistieken: hoe vaak de app gedownload is, per OS en per release — publieke cijfers
+            uit de stats-branch, via deze gedeelde component op alle 3 de ingangen (tandwiel,
+            Instellingen-ribbontab, Backstage). Zie DownloadStatsSection. */}
+        {activeTab === 'stats' && <DownloadStatsSection />}
       </div>
     </div>
   );
