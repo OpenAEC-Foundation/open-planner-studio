@@ -42,6 +42,73 @@ Eine Tabelle aller Meilensteine im Projekt: PSP, Name, Art (automatisch/Anfang/E
 
 Vergleicht den aktuellen Terminplan mit der aktiven Baseline: Baseline-Anfang/-Ende gegenüber aktuellem Anfang/-Ende, die Differenz in Arbeitstagen für Anfang und Ende und ein Status pro Aufgabe (im Plan / später / früher / neu / entfallen). Wenn es keine aktive Baseline gibt, stellt der Bildschirm das ausdrücklich fest, statt einen leeren Bericht zu zeigen. Der Zusammenfassungsblock zeigt außerdem die Verschiebung des Projektenddatums in Arbeitstagen, falls es eine gibt. Lesen Sie die Anleitung [Baselines & Fortschritt](docs://gids-baselines-voortgang), wie Sie eine Baseline erfassen, bevor dieser Bericht Ihnen etwas Nützliches sagen kann.
 
+## Die sieben Tabellenberichte
+
+Die übrigen Berichtstypen sind Tabellenberichte direkt aus der letzten Berechnung. Sie teilen ein
+paar Regeln: Nur **Blattvorgänge** zählen als Vorgänge (Sammelvorgänge nur in der PSP-Zusammenfassung,
+Hammock-Vorgänge gar nicht); der **Stichtag** ist das Statusdatum des Projekts, ohne Statusdatum
+rechnet der Bericht mit heute und sagt das; Termine und Puffer stammen aus der letzten **Berechnung**
+(F5), bei einer geänderten Planung erscheint ein Hinweis, der PDF-Export rechnet immer erst durch;
+jeder Bericht hat einen kleinen Block **Berichtsoptionen**, der zwischen Sitzungen gemerkt wird.
+Arbeitstage werden mit *AT* abgekürzt.
+
+### Vorschau (Look-ahead)
+
+Die Liste für die wöchentliche Baubesprechung: alle Vorgänge der nächsten *N* Wochen (Standard vier)
+— was beginnt, was weiterläuft, was endet — plus das, was bereits hätte passieren müssen. Je Zeile:
+PSP, Name, Start und Ende, Restdauer, Fertigstellung, Gesamtpuffer, kritisch/fast kritisch, die
+zugewiesenen Ressourcen und ein Status: **Beginnt**, **In Arbeit**, **Hätte starten müssen** oder
+**Überfällig**. Ein Vorgang, der das ganze Fenster überspannt, ist ebenfalls enthalten.
+
+### Kritisch & fast kritisch
+
+Welche Vorgänge das Projektende bestimmen und welche kurz davor stehen. Kritisch kommt aus der
+Berechnung; *fast kritisch* ist ein Gesamtpuffer von 0 bis zur Schwelle in den Berichtsoptionen
+(Standard 5 Arbeitstage) oder die Markierung aus den Planungsoptionen. Abgeschlossene Vorgänge
+fehlen. Sortiert nach Pufferpfad, dann Puffer, dann Start; mit freiem Puffer und Pfadnummer.
+
+### Fortschrittsbericht
+
+Der periodische Überblick „Wo stehen wir“ zum Statusdatum. Die Zusammenfassung zeigt Basisplan- und
+Prognose-Ende mit der Differenz in Arbeitstagen, **geplanten** gegenüber **tatsächlichem**
+Fortschritt (beide dauergewichtet über die Blattvorgänge; geplant auf den Terminen des aktiven
+Basisplans, sonst auf der aktuellen Planung) und die Zählungen je Zustand. Darunter fünf
+Abschnitte: im vergangenen Zeitraum abgeschlossen, in Arbeit, Beginn im kommenden Zeitraum,
+überfällig und offene kritische Vorgänge. Der Zeitraum (Standard zwei Wochen) blickt gleich weit
+zurück wie voraus.
+
+### Terminplan-Qualität
+
+Eine automatische Terminplanprüfung im Sinne der DCMA-14-Punkte-Bewertung. Jede Prüfung erhält
+eine Schwere und eine Anzahl, darunter die Befunde je Vorgang oder Beziehung: **Fehler** (negativer
+Puffer, verpasster Stichtag, verletzte Einschränkung, inkonsistenter Fortschritt), **Warnungen**
+(offener Anfang oder offenes Ende, lange Dauer, Vorläufe, harte Einschränkungen, Fortschritt außer
+Reihenfolge) und **Hinweise** (fast kritisch, hoher Puffer, lange Verzögerungen). Die Schwellen
+stehen in den Berichtsoptionen; Standard nach DCMA: 44 Arbeitstage für hohen Puffer und lange
+Dauer, 10 Arbeitstage für Verzögerungen. Eine saubere Planung hat null Fehler.
+
+### Ressourcenauslastung pro Woche
+
+Je Ressource und Woche der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen), die
+Differenz, die Tagesspitze und ob die Woche überlastet ist — dieselbe Berechnung wie das Histogramm
+auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Wochen mit Bedarf sind enthalten; mit
+*Nur überlastete Wochen* bleiben nur die Engpässe.
+
+### Ressourcenzuweisungen
+
+Je Ressource die zugewiesenen Vorgänge: PSP, Name, Start und Ende, Restdauer, Einheiten pro Tag,
+Fertigstellung, kritisch und Status. Abgeschlossene Vorgänge fehlen standardmäßig. Mit einem Fenster
+in Wochen wird daraus die *Ressourcen-Vorschau*. Die Zusammenfassung zählt auch die Vorgänge ohne
+Ressource.
+
+### PSP-Zusammenfassung
+
+Die Planung je PSP-Element bis zu einer wählbaren Ebene aufgerollt — der Managementüberblick. Je
+Element: Start und Ende, Basisplan-Start und -Ende, Dauer, dauergewichteter Fortschritt, die
+Enddifferenz zum Basisplan, der kleinste Gesamtpuffer und die Anzahl der Vorgänge, davon kritisch,
+in Arbeit und abgeschlossen. Wählen Sie eine Ebene (Standard 2) oder den vollständigen PSP, auf
+Wunsch mit den Vorgängen selbst.
+
 ## Drucken und Exportieren
 
 Das Einstellungs-Panel hat unten stets eine Schaltfläche **Drucken...** — sie öffnet ein separates Druckfenster, das den Bericht enthält, und löst sofort den Browser-/OS-Druckdialog aus. Für den Gantt-Bericht verwendet dieses Fenster die gewählte Papiergröße und -ausrichtung; die Meilenstein- und Variance-Berichte drucken die Tabelle wie angezeigt.

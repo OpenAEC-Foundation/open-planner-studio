@@ -2,11 +2,13 @@
 
 Een planning is pas af als je hem ook kunt delen — op papier voor een bouwvergadering, als
 afbeelding in een presentatie, of als overzicht van wat er straks moet gebeuren en wat er al
-verschoven is. Daarvoor is er het tabblad **Rapport**, met drie rapporttypen en een printvoorbeeld.
+verschoven is. Daarvoor is er het tabblad **Rapport**, met tien rapporttypen en een printvoorbeeld.
 
 ## Wat je hier leert
 
-- De drie rapporttypen op het tabblad **Rapport**: Gantt-afdruk, mijlpalen-overzicht, variance.
+- De rapporttypen op het tabblad **Rapport**: de Gantt-afdruk, twee tabelrapporten over mijlpalen
+  en variance, en zeven tabelrapporten voor de weekvergadering, de voortgangsrapportage, de
+  planningsreview, de resources en het management.
 - Hoe het printvoorbeeld werkt: papierformaat, oriëntatie en welke elementen je aan/uit zet.
 - Hoe je een rapport daadwerkelijk afdrukt of als bestand bewaart.
 - Wat **Ctrl+P** doet in deze app.
@@ -21,7 +23,7 @@ afdrukvoorbeeld.
 Het scherm is in twee kolommen opgedeeld: links een instellingenpaneel met bovenaan de keuze
 **Rapporttype**, rechts een live voorbeeld dat direct meebeweegt met wat je links instelt.
 
-## De drie rapporttypen
+## De rapporttypen
 
 ### Gantt-afdruk
 
@@ -100,6 +102,95 @@ in plaats van een leeg rapport te tonen. Het overzichtsblok toont ook de verschu
 projecteinddatum in werkdagen, als die er is. Zie de gids [Baselines & voortgang](docs://gids-baselines-voortgang)
 voor hoe je een baseline vastlegt vóórdat je dit rapport zinvol kunt gebruiken.
 
+## De zeven tabelrapporten
+
+De overige rapporttypen zijn tabelrapporten die rechtstreeks uit de laatste berekening komen. Ze
+delen een paar afspraken:
+
+- Alleen **bladtaken** tellen als activiteit; verzameltaken zie je alleen in de WBS-samenvatting.
+  Hammock-taken (LOE) doen niet mee.
+- De **referentiedag** is de statusdatum van het project. Is er geen statusdatum, dan rekent het
+  rapport met vandaag en zegt dat er bij. Stel dus eerst een statusdatum in via de projectgegevens
+  als je een rapport voor een vaste peildatum wilt.
+- Datums en speling komen uit de laatste **berekening**. Is de planning gewijzigd sinds de laatste
+  keer dat je op *Bereken* (F5) drukte, dan staat er een melding boven het rapport; de PDF-export
+  rekent altijd eerst door.
+- Elk rapport heeft een klein blok **Rapportopties** onder de samenvatting; die keuzes worden
+  onthouden tussen sessies. Werkdagen worden afgekort tot *wd*.
+- Een taak kan in meerdere secties van één rapport staan wanneer die secties elk een andere vraag
+  beantwoorden (in uitvoering én kritiek, bijvoorbeeld).
+
+### Look-ahead
+
+De lijst voor het weekoverleg op de bouw: alle activiteiten die de komende *N* weken (standaard
+vier) aan de orde zijn — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
+gebeuren. Per rij zie je WBS, naam, start en einde, de resterende duur, de voltooiing, de totale
+speling, of de taak kritiek of near-critical is, de toegewezen resources en een status:
+**Start** (begint in het venster), **In uitvoering**, **Had moeten starten** (start vóór de
+peildatum, nog niet begonnen) of **Achterstallig** (einde vóór de peildatum, nog niet klaar). Een
+taak die het hele venster overspant staat er ook in — hetzelfde overlap-idee als het filterveld
+*In uitvoering* in de Gantt.
+
+### Kritiek & near-critical
+
+Welke activiteiten bepalen het projecteinde, en welke staan op het punt dat te gaan doen. Kritiek
+komt uit de berekening; *near-critical* is een totale speling van 0 tot en met de drempel in de
+rapportopties (standaard 5 werkdagen), of de markering uit de planningsopties als je die hebt
+ingesteld. Voltooide taken staan er niet in. Gesorteerd op float-pad (wanneer de planningsopties
+float-paden berekenen), dan op speling, dan op start. De kolommen tonen ook de vrije speling en
+het padnummer.
+
+### Voortgangsrapport
+
+Het periodieke "waar staan we"-overzicht op de statusdatum. De samenvatting geeft baseline- en
+prognose-einde met het verschil in werkdagen, de **geplande** tegenover de **werkelijke**
+voortgang en de tellingen per staat. Beide percentages zijn duurgewogen over de bladtaken: een
+mijlpaal weegt niets, een maand werk weegt zwaar. Gepland wordt gemeten op de datums van de
+actieve baseline (de afspraak waartegen je meet); zonder baseline op de huidige planning, en dat
+staat er dan bij. Daaronder vijf secties: voltooid in de afgelopen periode, in uitvoering, start
+in de komende periode, achterstallig, en de open kritieke activiteiten. De periode (standaard twee
+weken) kijkt evenveel terug als vooruit.
+
+### Planningsgezondheid
+
+Een geautomatiseerde planningsreview in de geest van de DCMA-14-puntscontrole. Elke controle
+krijgt een ernst en een telling, met daaronder de bevindingen per taak of relatie:
+
+- **Fouten** — negatieve speling, gemiste deadline, geschonden constraint, inconsistente voortgang
+  (werkelijke start of einde ná de statusdatum, 100% zonder werkelijk einde, of andersom).
+- **Waarschuwingen** — open begin of einde (geen voorganger of opvolger; mijlpalen uitgezonderd),
+  lange duur, leads (negatieve lag), harde constraints (MSO/MFO/SNLT/FNLT of een verplichte pin),
+  out-of-sequence voortgang.
+- **Ter informatie** — near-critical, hoge speling en lange lags.
+
+De drempels staan in de rapportopties. Standaard volgen ze DCMA: hoge speling en lange duur boven
+44 werkdagen; een lag boven 10 werkdagen. Een schone planning heeft nul fouten; waarschuwingen en
+informatie zijn aanleiding om te kijken, niet per se om te veranderen.
+
+### Resourcebelasting per week
+
+Per resource en per week de gevraagde inzet tegenover de beschikbare capaciteit (in eenheid-dagen),
+het verschil, de piekbelasting op één dag en of de week overbelast is. Het is dezelfde berekening
+als het histogram op het tabblad **Resources**, maar dan als tabel om naast elkaar te leggen in
+een bemensingsoverleg. Alleen weken met vraag staan erin; met de optie *Alleen overbelaste weken*
+houd je uitsluitend de knelpunten over.
+
+### Resourcetoewijzingen
+
+Per resource welke activiteiten eraan hangen: WBS, naam, start en einde, resterende duur, inzet in
+eenheden per dag, voltooiing, kritiek en status. Voltooide taken staan er standaard niet in. Met een
+venster in weken wordt het de *resource-look-ahead*: alleen wat deze ploeg of dit materieel de
+komende weken te doen heeft, plus wat er nog open staat. De samenvatting telt ook de taken zonder
+resource.
+
+### WBS-samenvatting
+
+De planning opgerold per WBS-element tot een instelbaar niveau — het managementoverzicht. Per
+element: start en einde, baseline-start en -einde, duur, duurgewogen voortgang, het verschil van het
+einde met de baseline, de kleinste totale speling en het aantal activiteiten, waarvan kritiek, in
+uitvoering en voltooid. Kies een niveau (standaard 2) of de volledige WBS, en desgewenst ook de
+activiteiten zelf onder hun element.
+
 ## Afdrukken en exporteren
 
 Onderaan het instellingenpaneel staat altijd een knop **Afdrukken...** — die opent een apart
@@ -107,9 +198,10 @@ afdrukvenster met het rapport erin en start meteen de browser-/systeem-printdial
 Gantt-rapport gebruikt dat venster het gekozen papierformaat en de oriëntatie; het mijlpalen- en
 variance-rapport printen de tabel zoals weergegeven.
 
-Alleen bij het Gantt-rapport staat er ook een knop **Exporteer PDF**. Die bewaart het huidige
+Elk rapporttype heeft een knop **Exporteer PDF**. Bij het Gantt-rapport bewaart die het huidige
 voorbeeld als een echt PDF-bestand (bestandsnaam eindigend op `-planning.pdf`) — één pagina op de
-fysieke maat van het gekozen papierformaat en de oriëntatie. Het PDF-bestand is **vectorgrafisch**:
+fysieke maat van het gekozen papierformaat en de oriëntatie; de tabelrapporten exporteren hun tabel
+met dezelfde papierinstellingen. Het PDF-bestand is **vectorgrafisch**:
 balken, lijnen en tekst worden als PDF-tekenopdrachten opgeslagen in plaats van als één ingebedde
 afbeelding, dus het blijft haarscherp op elk zoomniveau en de tekst is selecteerbaar en doorzoekbaar
 in elke PDF-viewer. Dit geldt voor Latijnse, Cyrillische, Griekse, Arabische en Perzische tekst — Arabisch en Perzisch
@@ -139,6 +231,15 @@ Elk rapporttype dient een ander gesprek:
   baselines bevat (een contractbaseline en een herbaseline na meerwerk) met eigen voortgang en
   statusdatum — een goed voorbeeld om te zien hoe de Δ-kolommen zich vullen zodra er daadwerkelijk
   verschil is tussen baseline en actuele planning.
+
+- De **look-ahead** is de lijst voor het weekoverleg; het **voortgangsrapport** de periodieke
+  rapportage aan opdrachtgever of directie. Combineer ze: het voortgangsrapport zegt waar je
+  staat, de look-ahead wat er nu moet gebeuren.
+- **Planningsgezondheid** hoort bij een planningsreview vóór je een baseline vastlegt of een
+  planning bij een contract voegt: nul fouten is de lat.
+- De twee **resource**-rapporten en de **WBS-samenvatting** zijn er voor respectievelijk het
+  bemensingsoverleg en het managementoverzicht. Alle zeven tabelrapporten werken ook op de
+  showcase hierboven, die een statusdatum, baselines en voortgang bevat.
 
 Het live voorbeeld rechts ververst bij elke wijziging aan de instellingen links — er is geen aparte
 "vernieuwen"-knop nodig, en niets wordt pas bij het afdrukken zelf berekend.
