@@ -12,6 +12,7 @@ import type {
   XerScheduleOptionsSourceArchive,
   XerTableReportMetadata,
 } from './importTypes';
+import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
@@ -120,6 +121,30 @@ export interface XerSourceArchive {
   readonly byteChunks: readonly string[];
   readonly diagnostics: XerArchiveDiagnosticsV1;
   readonly readModel: XerArchiveReadModelV1;
+}
+
+/**
+ * Wat de (lazy geladen) XER-lezer uit de canonieke bronbytes teruggeeft aan de IFC-lezer.
+ *
+ * T5 (XER-etappeplan laag 3, §3.8) verbreedt deze naad van "alleen het archief" naar "alles wat
+ * uitsluitend uit de bron af te leiden is". Reden: de reconstructie draaide al een VOLLEDIGE
+ * `readXER` over dezelfde, sha256-geverifieerde bytes — die uitkomst bevatte de bak-4-vastlegging
+ * (`ImportResult.recordedTimes`) al en gooide 'm alleen weg. Door 'm hier mee te geven is de
+ * "datums zoals opgeslagen"-vastlegging van een heropend XER-document per constructie IDENTIEK aan
+ * die van het oorspronkelijke openen: zelfde code, zelfde bytes, zelfde kalenderpromotie, zelfde
+ * getalnotatie. Er is geen tweede afleiding in de IFC-laag — en dus ook geen tweede waarheid die
+ * uit de pas kan lopen (zie de ontwerpnotitie boven `XerArchiveReconstructor` in `ifcReader.ts`).
+ */
+export interface XerSourceReconstruction {
+  readonly archive: XerSourceArchive;
+  /**
+   * `proj_id` → taak-id → wat de bron zelf opsloeg. De taak-id's zijn de rauwe `task_id`-cellen,
+   * precies de id's die `OPS_TaskIdentity` door een IFC-opslag/heropening heen vasthoudt; taken die
+   * na de import zijn toegevoegd matchen simpelweg niet en krijgen dus geen uitspraak
+   * (`captureRecordedDates` filtert op de taken die het document daadwerkelijk draagt). Een project
+   * zonder enige vastlegging staat er met een lege map in; een onbekend project ontbreekt.
+   */
+  readonly recordedTimesByProject: Readonly<Record<string, Record<string, RecordedTime>>>;
 }
 
 export interface XerSourceArchivePresentation {

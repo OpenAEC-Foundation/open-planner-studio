@@ -45,6 +45,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 // Zelfde twee bronnen als het slot in `ResourcePanel` en de weigering in `resourceTools` — één lijst.
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 
 // ── Lokale leestool-wikkel + nette fout ──────────────────────────────────────────────────────────
 
@@ -266,7 +267,13 @@ function getProjectInfo(s: AppState) {
   const leaves = tasks.filter(isLeafTask);
   const summaries = tasks.filter(isSummaryTask);
   const milestones = tasks.filter((t) => t.isMilestone);
-  const criticalCount = tasks.filter((t) => t.time.isCritical).length;
+  // "Datums zoals opgeslagen" (her-check laag 3, bevinding 10): in de modus is `isCritical` van
+  // een taak zonder vastgelegde speling de `?? false`-terugval — die telt hier niet als "niet
+  // kritiek" maar als onbekend, apart gerapporteerd zodat een AI-client geen "0 kritieke taken"
+  // uit een verzwegen as leest. Buiten de modus is `unrecordedOf` undefined ⇒ byte-identiek.
+  const unrecordedOf = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
+  const criticalUnknown = tasks.filter((t) => unrecordedOf?.(t).includes('isCritical')).length;
+  const criticalCount = tasks.filter((t) => t.time.isCritical && !unrecordedOf?.(t).includes('isCritical')).length;
   const p = s.project;
   return {
     project: {
@@ -289,6 +296,7 @@ function getProjectInfo(s: AppState) {
       resources: s.resources.length,
       assignments: s.assignments.length,
       criticalTasks: criticalCount,
+      ...(criticalUnknown > 0 ? { criticalUnrecordedTasks: criticalUnknown } : {}),
     },
     schedule: {
       scheduleStale: s.scheduleStale,
@@ -315,6 +323,10 @@ function getProjectOverview(s: AppState) {
     if (arr) arr.push(seq);
     else outByPred.set(seq.predecessorId, [seq]);
   }
+  const unrecordedOverview = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
+  const critUnrecorded = unrecordedOverview
+    ? (t: Task) => unrecordedOverview(t).includes('isCritical')
+    : undefined;
   const rows = tasks.map((t) => {
     const rels = (outByPred.get(t.id) ?? []).map((seq) => relShort(taskById, seq));
     const row: Record<string, unknown> = {
@@ -332,7 +344,10 @@ function getProjectOverview(s: AppState) {
     if (t.parentId) row.parent = taskById.get(t.parentId)?.wbsCode ?? t.parentId;
     const p = pct(t.time.completion);
     if (p > 0) row.prog = p;
-    if (t.time.isCritical) row.crit = true;
+    // Zelfde poort als `getTask` (her-check laag 3, bevinding 10): een niet-vastgelegde
+    // kritiekas in de modus is onbekend, geen `false` — dan `crit: null` i.p.v. weglaten.
+    if (critUnrecorded?.(t)) row.crit = null;
+    else if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
     if (rels.length > 0) row.rels = rels;
     return row;
@@ -372,8 +387,11 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   const inSeq = idsInAnySequence(s.sequences);
   let filtered = s.tasks;
 
-  if (args.kritiek === true) filtered = filtered.filter((t) => t.time.isCritical);
-  if (args.kritiek === false) filtered = filtered.filter((t) => !t.time.isCritical);
+  // Onbekende kritiekas (modus "datums zoals opgeslagen", her-check bevinding 10): hoort bij
+  // GEEN van beide filters — niet-vastgelegd is niet hetzelfde als niet-kritiek.
+  const critUnknown = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
+  if (args.kritiek === true) filtered = filtered.filter((t) => t.time.isCritical && !critUnknown?.(t).includes('isCritical'));
+  if (args.kritiek === false) filtered = filtered.filter((t) => !t.time.isCritical && !critUnknown?.(t).includes('isCritical'));
   if (typeof args.status === 'string') {
     const st = args.status;
     filtered = filtered.filter((t) => t.status === st);
@@ -394,6 +412,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   }
 
   const paged = paginate(filtered, args);
+  const critUnrecorded = critUnknown ? (t: Task) => critUnknown(t).includes('isCritical') : undefined;
   const rows = paged.items.map((t) => {
     const row: Record<string, unknown> = {
       id: t.id,
@@ -407,7 +426,10 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     };
     const p = pct(t.time.completion);
     if (p > 0) row.prog = p;
-    if (t.time.isCritical) row.crit = true;
+    // Zelfde poort als `getTask` (her-check laag 3, bevinding 10): een niet-vastgelegde
+    // kritiekas in de modus is onbekend, geen `false` — dan `crit: null` i.p.v. weglaten.
+    if (critUnrecorded?.(t)) row.crit = null;
+    else if (t.time.isCritical) row.crit = true;
     if (t.isMilestone) row.ms = true;
     if (isSummaryTask(t)) row.summary = true;
     return row;
@@ -477,6 +499,7 @@ function getTask(s: AppState, args: GetTaskArgs) {
   const effCal = resolveCalendar(task.calendarId, s.calendars, s.calendar);
 
   const tt = task.time;
+  const unrecorded = unrecordedExportGate(s.recordedDates, s.datesAsRecorded)?.(task);
   return {
     id: task.id,
     wbs: task.wbsCode,
@@ -521,14 +544,24 @@ function getTask(s: AppState, args: GetTaskArgs) {
     duration: nativeDuration(task),
     durationUnit: taskDurationUnit(task),
     durationType: tt.durationType,
+    // "Datums zoals opgeslagen" (critreview laag 3, bevinding 6): staat de modus aan, dan draagt
+    // `task.time` de vastlegging van het bronbestand, mét de bewuste terugvallen voor assen die het
+    // bestand NIET vastlegde (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`).
+    // In de tabel staat daar "Niet vastgelegd"; hier is `null` het equivalent. Zonder dit leest een
+    // AI-client een verzonnen nulspeling als feit — en anders dan een gebruiker ziet hij de strook
+    // boven de planning niet. `unrecorded` is `undefined` buiten de modus ⇒ byte-identieke respons.
     schedule: {
       earlyStart: tt.earlyStart,
       earlyFinish: tt.earlyFinish,
-      lateStart: tt.lateStart,
-      lateFinish: tt.lateFinish,
-      totalFloat: tt.totalFloat,
-      freeFloat: tt.freeFloat,
-      isCritical: tt.isCritical,
+      lateStart: unrecorded?.includes('lateStart') ? null : tt.lateStart,
+      lateFinish: unrecorded?.includes('lateFinish') ? null : tt.lateFinish,
+      totalFloat: unrecorded?.includes('totalFloat') ? null : tt.totalFloat,
+      freeFloat: unrecorded?.includes('freeFloat') ? null : tt.freeFloat,
+      isCritical: unrecorded?.includes('isCritical') ? null : tt.isCritical,
+      ...(unrecorded && unrecorded.length > 0 ? {
+        // Expliciet, want `null` alleen is dubbelzinnig ("onbekend" vs "leeg gelaten").
+        datesAsRecordedUnrecordedFields: unrecorded,
+      } : {}),
     },
     progress: {
       completion: pct(tt.completion),
@@ -587,16 +620,20 @@ function getCriticalPath(s: AppState) {
   const critSet = new Set(cpm.criticalPath);
 
   // Kritieke taken in TOPO-volgorde (cpm.criticalPath is opgebouwd in de solver-order).
+  // Zelfde poort als in `getTask` (critreview bevinding 6): in "datums zoals opgeslagen" is de
+  // speling van een taak zonder vastgelegde `totalFloat` een `?? 0`-terugval, geen meting.
+  const unrecordedOf = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
   const criticalTasks = cpm.criticalPath.map((id) => {
     const t = taskById.get(id);
     const r = cpm.tasks.get(id);
+    const unrecorded = t ? unrecordedOf?.(t) : undefined;
     return {
       id,
       wbs: t?.wbsCode ?? id,
       name: t?.name ?? '',
       start: r?.earlyStart ?? '',
       end: r?.earlyFinish ?? '',
-      totalFloat: r?.totalFloat ?? 0,
+      totalFloat: unrecorded?.includes('totalFloat') ? null : (r?.totalFloat ?? 0),
     };
   });
 

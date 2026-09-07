@@ -531,6 +531,7 @@ const recoveryWrites = openDocs.map(document => ({
   ifc: writeIFC(buildWriteIFCInput(document.payload)),
   filePath: null,
   isDirty: true,
+  datesAsRecorded: false,
 }));
 const expectedRecovery = recoveryWrites.map((document, index) => ({
   id: document.id,
@@ -570,7 +571,7 @@ recoveredApp.getState().closeDocument(initialFreshDocumentId);
 if (recoveryShapeOk) {
   const recoveryInputs = loadedRecovery.docs.map(document => recoveryInputFromParsed(
     readIFC(document.ifc),
-    { id: document.id, filePath: null, isDirty: true },
+    { id: document.id, filePath: null, isDirty: true, datesAsRecorded: false },
   ));
   recoveredApp.getState().restoreDocuments(recoveryInputs, duplicateId);
 }

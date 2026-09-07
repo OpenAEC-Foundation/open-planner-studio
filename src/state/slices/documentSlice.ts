@@ -27,6 +27,8 @@ import {
   type HistoryScopeKey,
 } from '../sessionHistory';
 import {
+  applyRecordedDatesOnLoad,
+  applyRestoredRecordedMode,
   materializeLibraryBoundary,
   prepareLoadedPayload,
   type DocumentActivationMaterialization,
@@ -566,7 +568,16 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     let activation: DocumentActivationMaterialization | null = null;
     for (const candidate of tryOrder) {
       try {
-        const p = prepareLoadedPayload(payloadFromInput(candidate), { recompute: true });
+        const rawPayload = payloadFromInput(candidate);
+        const p = prepareLoadedPayload(rawPayload, { recompute: true });
+        // XER-etappeplan §3.5/§4-T4, risico §5.4, heropen-beleid (T8) + critreview laag 3
+        // (bevinding 2): crashherstel herstelt het bestaande #63-aanbod (`recordedFields`, elk
+        // formaat) dat het tot nu toe stilzwijgend wegliet, EN de modusvlag van vóór de crash —
+        // uit de recovery-metadata (`candidate.datesAsRecorded`), dus een OPGESCHREVEN feit en
+        // geen heuristiek: crashherstel is het hervatten van een sessie, geen heropening, en mag
+        // dus niet opnieuw beslissen. `rawPayload.tasks` is bewust de PRE-solve array —
+        // `prepareLoadedPayload` muteert zijn `input`-argument niet.
+        applyRecordedDatesOnLoad(rawPayload.tasks, p, candidate, candidate.datesAsRecorded);
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });
@@ -588,7 +599,14 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (active && d.id === active.id) continue;
       if (skippedIds.includes(d.id)) continue;
       try {
-        sleepingById.set(d.id, payloadFromInput(d));
+        const sleeping = payloadFromInput(d);
+        // Critreview laag 3, bevinding 3: ook een SLAPEND document moet zijn weergavestand
+        // terugkrijgen. Zonder dit kwam het terug met P6's datums in `task.time`, zonder modus en
+        // mét `scheduleStale` — waarna automatisch berekenen (of de eerste F5) ze stil wegrekende.
+        // Geen solve hier (dat is de hele reden dat slapende documenten stale zijn), dus ook geen
+        // `shifted`-teller; zie `applyRestoredRecordedMode`.
+        if (d.datesAsRecorded) applyRestoredRecordedMode(sleeping, d);
+        sleepingById.set(d.id, sleeping);
       } catch (err) {
         console.error('Recovery: hersteld document kon niet worden voorbereid — overgeslagen:', d.id, err);
         skippedIds.push(d.id);

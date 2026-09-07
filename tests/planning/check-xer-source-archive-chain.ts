@@ -183,12 +183,13 @@ await saveRecovery(fullRecoverySave(thirteen[0]!.id, thirteen.map((document, ind
   ifc: ifcs[index]!,
   filePath: null,
   isDirty: true,
+  datesAsRecorded: false,
 }))));
 const loaded = await loadRecovery();
 expect('10 headless recoveryStore laadt alle dertien zelfstandige IFC-snapshots', loaded.docs.length === 13);
 const recoveryInputs = loaded.docs.map(document => recoveryInputFromParsed(
   readIFC(document.ifc),
-  { id: document.id, filePath: null, isDirty: true },
+  { id: document.id, filePath: null, isDirty: true, datesAsRecorded: false },
 ));
 store().restoreDocuments(recoveryInputs, duplicateId);
 const recovered = store().getOpenDocumentPayloads();

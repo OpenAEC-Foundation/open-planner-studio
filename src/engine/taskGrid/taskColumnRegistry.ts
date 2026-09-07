@@ -8,6 +8,7 @@ import type {
   CellEditRoute,
   GridResult,
   GridWriteIntent,
+  RecordedTaskAxis,
   TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
@@ -121,11 +122,65 @@ function formatScalar(value: unknown): string {
   return String(value);
 }
 
+/** Celtekst van de kolom `recorded.source` — gedeeld door `format` en `copy`, zodat het klembord
+ *  nooit uit elkaar kan lopen met wat er op het scherm staat. */
+function recordedSourceText(value: unknown, ctx: TaskColumnContext): string {
+  if (value === 'deviates') return ctx.labelForText?.('recordedDates.markDeviates') ?? 'deviates';
+  if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
+  return '—';
+}
+
 function copyScalar(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'object') return canonicalGridJson(value);
   return String(value);
+}
+
+/**
+ * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — `format`-tak voor de vier
+ * optionele late-/floatkolommen (`task.time.lateStart`/`lateFinish`/`totalFloat`/`freeFloat`).
+ * `applyRecordedTimesToTasks` (`recordedDates.ts` §3.4) laat de bestaande `?? rec.start`/`?? 0`-
+ * terugvallen bewust als VELDWAARDE staan — "niet vastgelegd" leeft uitsluitend in
+ * `recordedDates.times[id]` en wordt hier, als WEERGAVE, afgedwongen: zonder deze tak zou een as
+ * die het bestand nooit gaf gewoon als een echt getal (vaak een verzonnen `0`) op het scherm staan.
+ * `ctx.recordedUnrecordedAxes` is `undefined` zonder vastlegging (niet-XER-documenten, of geen
+ * restverschillen) — dan valt dit terug op de gewone `formatScalar`, byte-identiek aan vóór T6.
+ */
+function recordedAxisFormat(axis: RecordedTaskAxis): Formatter {
+  return (value, task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis)
+    ? (ctx.labelForText?.('recordedDates.notRecorded') ?? '—')
+    : formatScalar(value);
+}
+
+/**
+ * Her-check laag 3, bevindingen 1 en 2: de `format`-tak alleen was NIET genoeg. `taskGridAdapter.
+ * getCell` slaat `descriptor.format` over zodra `domain.dateNotation` gezet is (dat is in het
+ * product ALTIJD zo — `UIState.dateNotation` heeft een default) en de waarde een datumstring is:
+ * dan gaat de cel via `copyGridEditorValue` en toonde `task.time.lateStart` — de `?? rec.start`-
+ * terugval — als een echte, verzonnen late datum. En `copyScalar(read(...))` zette diezelfde
+ * terugval (of een verzonnen `0` speling) in het klembord terwijl de cel "Niet vastgelegd" toonde.
+ *
+ * Daarom is "niet vastgelegd" nu een eigenschap van de LEESWAARDE zelf: `read` levert `undefined`
+ * voor een as die het bestand niet gaf, zodat élke afnemer van de descriptor (celtekst, klembord,
+ * titel, sortering) hetzelfde ziet — er bestaat dan geen string meer die de adapter per ongeluk als
+ * datum kan opmaken. `format` blijft de tekst "Niet vastgelegd" leveren en `copy` een lege
+ * klembordcel (zelfde regel als `recorded.source` hieronder: klembord = wat de cel zegt, en een
+ * spreadsheet-plakactie verwacht leeg, geen em-dash). Buiten de modus (`recordedUnrecordedAxes`
+ * ontbreekt) is dit byte-identiek aan de kale `read`.
+ */
+function recordedAxisRead<T>(
+  axis: RecordedTaskAxis,
+  read: (task: Task) => T,
+): (task: Task, ctx: TaskColumnContext) => T | undefined {
+  return (task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis) ? undefined : read(task);
+}
+
+function recordedAxisCopy<T>(
+  axis: RecordedTaskAxis,
+  read: (task: Task) => T,
+): (task: Task, ctx: TaskColumnContext) => string {
+  return (task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis) ? '' : copyScalar(read(task));
 }
 
 function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
@@ -668,14 +723,33 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
     readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
-    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart }),
-    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish }),
-    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat }),
-    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat }),
+    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('ls', task => task.time.lateStart), format: recordedAxisFormat('ls'), copy: recordedAxisCopy('ls', task => task.time.lateStart) }),
+    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('lf', task => task.time.lateFinish), format: recordedAxisFormat('lf'), copy: recordedAxisCopy('lf', task => task.time.lateFinish) }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('ff', task => task.time.freeFloat), format: recordedAxisFormat('ff'), copy: recordedAxisCopy('ff', task => task.time.freeFloat) }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('tf', task => task.time.totalFloat), format: recordedAxisFormat('tf'), copy: recordedAxisCopy('tf', task => task.time.totalFloat) }),
     readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
+    // "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — badge die toont of DEZE
+    // taak een vastlegging heeft die afwijkt van de herberekening, of onvolledig is. Bestaat
+    // uitsluitend op documenten met een vastlegging (`ctx.recordedMark !== undefined` ⇒
+    // `recordedDates !== null`, zie `FullTaskGrid.tsx`) — op elk ander document is deze kolom
+    // onzichtbaar, dus geen ruis op IFC/CSV/MSPDI/MPP-documenten zonder issue-#63-vastlegging.
+    readonlyColumn({
+      id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
+      available: ctx => ctx.recordedMark !== undefined,
+      read: (task, ctx) => ctx.recordedMark?.(task),
+      format: (value, _task, ctx) => recordedSourceText(value, ctx),
+      // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`deviates`) in het klembord
+      // terwijl de cel "Wijkt af" toont (critreview laag 3, bevinding 11). Dezelfde tekst als de
+      // cel dus — en de lege markering blijft een lege klembordcel in plaats van een em-dash, want
+      // dat is wat een plakactie in een spreadsheet verwacht.
+      copy: (task, ctx) => {
+        const value = ctx.recordedMark?.(task);
+        return value === undefined ? '' : recordedSourceText(value, ctx);
+      },
+    }),
     editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),

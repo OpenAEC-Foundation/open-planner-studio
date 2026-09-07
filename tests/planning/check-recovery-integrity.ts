@@ -194,7 +194,7 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
     } as unknown as Task],
     sequences: [], resources: [], assignments: [],
     resourceCalendars: [cal], activityCodeTypes: [], customFieldDefs: [], baselines: [],
-    activeBaselineId: null, filePath: '/tmp/rec-gezond.ifc', isDirty: true,
+    activeBaselineId: null, filePath: '/tmp/rec-gezond.ifc', isDirty: true, datesAsRecorded: false,
   };
   const corrupt: RecoveryDocInput = {
     id: 'rec-corrupt',
@@ -208,7 +208,7 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
     } as unknown as Task],
     sequences: [], resources: [], assignments: [],
     resourceCalendars: [cal], activityCodeTypes: [], customFieldDefs: [], baselines: [],
-    activeBaselineId: null, filePath: '/tmp/rec-corrupt.ifc', isDirty: true,
+    activeBaselineId: null, filePath: '/tmp/rec-corrupt.ifc', isDirty: true, datesAsRecorded: false,
   };
 
   // 8a — het corrupte document als AANGEVRAAGD actief document: restoreDocuments moet uitwijken

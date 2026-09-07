@@ -82,12 +82,13 @@ const docs = Array.from({ length: 12 }, (_, index) => ({
   ifc: `IFC-${index + 1}-ongewijzigd`,
   filePath: null,
   isDirty: true,
+  datesAsRecorded: false,
 }));
 
 await clearRecovery();
 await saveRecovery({
   activeDocumentId: docs[0]!.id,
-  documents: docs.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+  documents: docs.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty, datesAsRecorded: false })),
   upserts: docs,
 });
 documentWrites = 0;
@@ -97,7 +98,7 @@ readwriteTransactions = 0;
 const changed = docs.map((doc, index) => index === 0 ? { ...doc, ifc: 'IFC-1-gemuteerd' } : doc);
 await saveRecovery({
   activeDocumentId: changed[0]!.id,
-  documents: changed.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+  documents: changed.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty, datesAsRecorded: false })),
   upserts: [changed[0]!],
 });
 const changedWrites = documentWrites;
@@ -110,7 +111,7 @@ manifestWrites = 0;
 readwriteTransactions = 0;
 await saveRecovery({
   activeDocumentId: changed[1]!.id,
-  documents: changed.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty })),
+  documents: changed.map(({ id, filePath, isDirty }) => ({ id, filePath, isDirty, datesAsRecorded: false })),
   upserts: [],
 });
 const metadataOnlyWrites = documentWrites;

@@ -101,6 +101,7 @@
       "p6Provenance": "Primavera P6-herkomst",
       "parentId": "Bovenliggende taak-id",
       "priority": "Nivelleerprioriteit",
+      "recordedSource": "Herkomst (opgeslagen datums)",
       "remainingMinutes": "Resterend (minuten)",
       "remainingTime": "Resterend (werkdagen)",
       "resourceIds": "Resource-id’s",
@@ -377,6 +378,10 @@
     "timephasedActive": "Volgt de urenverdeling uit MS Project",
     "timephasedLost": "Datumvenster uit MS Project niet meer toegepast na bewerking — de urenverdeling zelf blijft gelden en bewaard",
     "timephasedContoured": "Eigen urenverdeling",
+    "recordedDatesActive": "Toont Primavera’s eigen opgeslagen datums voor deze taak",
+    "recordedDatesActiveNeutral": "Toont de datums zoals ze in het bestand staan voor deze taak",
+    "recordedDatesDeviates": "Wijkt af van de opgeslagen datums",
+    "recordedDatesPartlyUnrecorded": "Vastlegging deels onvolledig — zie de late-/spelingkolommen",
     "completion": "Voortgang (%)",
     "progress": {
       "actualStart": "Werkelijke start",

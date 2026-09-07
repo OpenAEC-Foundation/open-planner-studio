@@ -61,7 +61,19 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpm
     }
   }
 
-  // Verzameltaken: datums oprollen uit de kinderen.
+  rollupSummaryTasks(tasks);
+}
+
+/**
+ * Verzameltaken: datums oprollen uit de kinderen. Uitgefactoriseerd uit `applyCpmResult` (her-check
+ * laag 3, bevinding 3) zodat "datums zoals opgeslagen" (`applyRecordedTimesToTasks`,
+ * `recordedDates.ts`) DEZELFDE rollup draait: P6 legt zijn zes uitvoerkolommen alleen op TASK-rijen
+ * vast, nooit op PROJWBS-rijen, dus een XER-WBS-rij heeft nooit een eigen vastlegging — zonder deze
+ * rollup hield zo'n samenvattingsbalk de datums van de solve die de modus zojuist verwierp (gemeten:
+ * hoofd-WBS een half jaar ná de `projectEnd` die dezelfde modus rapporteert). Gedrag byte-identiek
+ * aan de inline-versie van vóór de uitfactorisering; alleen de aanroepplek is erbij gekomen.
+ */
+export function rollupSummaryTasks(tasks: Task[]): void {
   // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `find` per taak én per kind (recursief) —
   // dat was O(n²) op de rollup.
   const byId = new Map<string, Task>(tasks.map(t => [t.id, t]));

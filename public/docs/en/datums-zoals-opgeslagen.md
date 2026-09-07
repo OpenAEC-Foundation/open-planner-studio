@@ -70,9 +70,45 @@ Save while you're viewing the recorded dates, and the app writes those dates —
 version. That way you never accidentally overwrite a colleague's schedule, or the source package's
 schedule, with an outcome the app made up on its own.
 
+## Primavera P6 (.xer): this view can turn on by itself
+
+For a `.xer` file this works slightly differently from the other formats above. Primavera P6 doesn't
+just deliver dates — it also delivers its own calculation of them, not bare dates without any logic.
+If residual differences remain against Open Planner Studio's own recalculation after opening, the app
+switches itself straight into this view, without you first clicking **Show recorded dates**. In that
+case the notice above the schedule immediately states the number of activities that would shift, and
+points to the standing notice that stays visible while the view is active.
+
+That automatic switch only applies when you open the `.xer` file itself: if you then save the project
+and reopen it later, the view is merely offered — you click **Show recorded dates** yourself — so that
+a schedule you have edited and saved in the meantime is never silently shown with Primavera's old
+dates again.
+
+Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
+with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
+in exactly the same way as with any other format (see above); the calculation itself never uses
+Primavera's recorded dates as input, only as a view. See
+[Opening Primavera P6 (.xer)](docs://gids-xer-import) for the rest of what a XER import brings along.
+
+## "Not recorded"
+
+Primavera doesn't record all four axes — late start, late finish, total float and free float — for
+every activity; an activity might have an early date but no float, for example. When such an axis is
+missing from the source file, the relevant column in the table shows "Not recorded" instead of a
+number. That's not an error: it only means the file itself said nothing on that point, so Open Planner
+Studio doesn't invent anything either. This applies only while you are looking at this view: as
+soon as the app shows its own calculation — outside this view, or after recalculating with **F5** —
+that column simply holds the calculated number.
+
+The same honesty applies off screen: export to CSV while this view is on and the cell for an
+unrecorded axis stays empty instead of showing a `0`, and the AI assistant sees `null` for such an
+axis, together with the list of axes the file did not record.
+
 ## Further reading
 
 - More on which formats you can import and what does and doesn't come along — read the
   [Import/export](docs://gids-import-export) guide.
 - Float and the critical path in detail, including what "driving" actually means — read the
   [Critical path & advanced analysis](docs://gids-kritiek-pad-analyse) guide.
+- Everything a `.xer` import brings along — read the
+  [Opening Primavera P6 (.xer)](docs://gids-xer-import) guide.

@@ -315,6 +315,24 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERWHITELISTCHECK="$DIR/.xer-field-whitelist.mjs"
   if bundle_check "$DIR/check-xer-field-whitelist.ts" "$XERWHITELISTCHECK"; then node "$XERWHITELISTCHECK" || STATUS=1; fi
 
+  # BAK 4 (X-O7 laag 3, §4.1-bijstelling 2026-09-04): de zes P6-rekenuitvoerkolommen
+  # (early_*/late_*/total_float_hr_cnt/free_float_hr_cnt) als apart, niet-solvend kanaal
+  # (`ImportResult.recordedTimes`). Corpusloze oracle-fixture draait altijd; de corpuspins voor
+  # `p6diff-baseline.xer`/`rehab-2.xer` alleen met OPS_XER_CORPUS.
+  XERRECORDEDTIMESCHECK="$DIR/.xer-recorded-times.mjs"
+  if bundle_check "$DIR/check-xer-recorded-times.ts" "$XERRECORDEDTIMESCHECK"; then node "$XERRECORDEDTIMESCHECK" || STATUS=1; fi
+
+  # T5 (laag 3, §3.8): diezelfde bak-4-vastlegging moet een IFC-OPSLAG, een HEROPENING en het
+  # CRASHHERSTEL overleven — in én buiten de modus, per project bij een meerprojectenbestand, en
+  # zonder dat een gemuteerde P6-uitvoercel de solve verplaatst. Draait de echte keten
+  # (writeIFC -> readIFCWithXerReconstruction -> recoveryStore -> restoreDocuments) op een
+  # corpusloze fixture; de corpuspins voor `p6diff-baseline.xer`/`rehab-2.xer` alleen met
+  # OPS_XER_CORPUS (nette OK-skip zonder corpus, zelfde conventie als hierboven).
+  XERRECORDEDROUNDTRIPCHECK="$DIR/.xer-recorded-roundtrip.mjs"
+  if bundle_check "$DIR/check-xer-recorded-roundtrip.ts" "$XERRECORDEDROUNDTRIPCHECK"; then
+    node "$XERRECORDEDROUNDTRIPCHECK" || STATUS=1
+  fi
+
   # XER-fidelity-baselinevorm (X0, XER-etappeplan §3/§6): het harness-skelet — er is nog geen lezer
   # (X1+), dus dit bewaakt alleen de VORM van `xer-fidelity-baseline.json` (`xerFidelityTypes.ts`)
   # via een compile-locked sleutellijst + een runtime-structuurvalidator. Corpusloos, draait altijd.
@@ -1332,6 +1350,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # TZ-onafhankelijkheid moet bewezen worden.
   RECDATES="$DIR/.check-recorded-dates.mjs"
   if bundle_check "$DIR/check-recorded-dates.ts" "$RECDATES"; then node "$RECDATES" || STATUS=1; fi
+
+  # XER-etappeplan laag 3, T6 — de taaktabel-/eigenschappenpaneelmarkering bovenop diezelfde
+  # vastlegging: `recordedDatesSelectors.ts` (puur) plus de draadverbinding in
+  # `taskColumnRegistry.ts` (kolom `recorded.source` + "niet vastgelegd" op late/float). Elke
+  # `bundle_check`-registratie draait automatisch ook in de tijdzone-matrix hieronder; deze
+  # batterij vergelijkt zelf geen datums (alleen letterlijke ISO-strings/labels), dus dat is
+  # onschuldig — geen aparte TZ-aanname om te bewijzen.
+  RECMARKCHECK="$DIR/.check-recorded-dates-mark.mjs"
+  if bundle_check "$DIR/check-recorded-dates-mark.ts" "$RECMARKCHECK"; then node "$RECMARKCHECK" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

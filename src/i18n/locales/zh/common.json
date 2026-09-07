@@ -35,6 +35,8 @@
     "xerImportNumberIssues_other": "数字格式问题：{{count}}",
     "xerImportEnumFallbacks_other": "枚举回退：{{count}}",
     "xerImportUnsupportedSemantics_other": "使用安全回退的 P6 排程设置：{{count}}",
+    "xerImportDatesAsRecorded_other": "显示 Primavera 记录日期（未重新计算）的任务：{{count}} 个",
+    "xerImportDatesAsRecordedOffer_other": "与文件中记录的日期不同的任务：{{count}} 个（可以显示）",
     "xerExportLoss": "导出为 {{format}} 会丢失 XER 源信息。",
     "mppLegacy": "此 .mpp 文件使用较旧的格式（Project 2007 或更早版本）。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "mppEncrypted": "此 .mpp 文件受密码保护。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
@@ -781,9 +783,14 @@
   },
   "recordedDates": {
     "offer_other": "重新计算使 {{total}} 个任务中的 {{count}} 个偏离了文件中记录的日期。",
+    "activeCount_other": "你正在查看 Primavera 记录的进度计划；重新计算将使 {{count}} 个任务偏移。",
+    "activeCountNeutral_other": "你正在查看文件中记录的日期；重新计算将使 {{count}} 个任务偏移。",
     "show": "显示记录的日期",
     "active": "你正在查看文件中记录的日期，尚未重新计算。",
-    "recalculate": "重新计算"
+    "recalculate": "重新计算",
+    "markDeviates": "偏离",
+    "markPartlyUnrecorded": "部分未记录",
+    "notRecorded": "未记录"
   },
   "duration": {
     "suffixDay": "天",

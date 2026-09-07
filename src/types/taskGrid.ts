@@ -6,6 +6,15 @@ import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 export type TaskGridSurfaceId = 'gantt-task-grid' | 'full-task-grid';
 export type TaskColumnId = string & { readonly __taskColumnId: unique symbol };
 
+/**
+ * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3 §3.6). Gedragslogica en de exacte
+ * regels staan in `src/state/recordedDatesSelectors.ts` — deze twee unietypes wonen hier (leaf-
+ * laag) omdat `TaskColumnContext` hieronder ze nodig heeft en niets in `src/types/*.ts` van
+ * `@/state/*` afhangt; `recordedDatesSelectors.ts` importeert ze hier weer type-only vandaan.
+ */
+export type RecordedTaskAxis = 'ls' | 'lf' | 'tf' | 'ff';
+export type RecordedTaskMark = 'deviates' | 'partly-unrecorded' | undefined;
+
 export type GridResult<T, E> =
   | { ok: true; value: T }
   | { ok: false; errors: E };
@@ -130,6 +139,15 @@ export interface TaskColumnContext {
   effectiveHoursPerDay?: (task: Task) => number;
   /** De adapter levert hier de echte projectkalenderberekening voor baselineafwijkingen. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
+  /** "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — badge voor de kolom `recorded.source`.
+   *  `undefined` op documenten zonder vastlegging (`recordedDates === null`), dus de kolom bestaat
+   *  dan niet: `available(ctx) => ctx.recordedMark !== undefined`. */
+  recordedMark?: (task: Task) => RecordedTaskMark;
+  /** Welke late-/floatassen het BESTAND niet vastlegde voor deze taak — de bestaande late-/float-
+   *  kolommen gebruiken dit om "niet vastgelegd" te tonen in plaats van de bestaande `?? 0`-
+   *  terugval (die als VELDWAARDE blijft staan, zie `recordedDates.ts` §3.4) als een echt getal te
+   *  presenteren. Zelfde aanwezigheid als `recordedMark` (beide `undefined` zonder vastlegging). */
+  recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
 }
 
 export interface TaskColumnDescriptor {

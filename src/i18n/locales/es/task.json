@@ -58,6 +58,7 @@
       "lateFinish": "Fin tardío", "lateStart": "Inicio tardío", "levelingDelay": "Retraso de redistribución", "levelingDelayElapsed": "Retraso de redistribución transcurrido", "levelingDelayMinutes": "Retraso de redistribución (minutos)",
       "mandatoryMilestone": "Hito obligatorio", "manuallyScheduled": "Programada manualmente", "milestone": "Hito", "milestoneKind": "Tipo de hito", "mspTaskType": "Tipo de tarea de Microsoft Project",
       "name": "Nombre de tarea", "nearCritical": "Casi crítica", "noteData": "Datos de notas", "notes": "Notas", "p6Provenance": "Procedencia de Primavera P6", "parentId": "Id. de tarea principal", "priority": "Prioridad de redistribución",
+      "recordedSource": "Origen (fechas registradas)",
       "remainingMinutes": "Restante (minutos)", "remainingTime": "Restante (días laborables)", "resourceIds": "Id. de recursos", "resume": "Fecha de reanudación",
       "scheduleFinish": "Fin programado", "scheduleStart": "Inicio programado", "splitGaps": "Interrupciones", "status": "Estado", "stop": "Fecha de detención", "taskId": "Id. de tarea", "taskType": "Tipo de tarea",
       "timephasedContours": "Contornos por fases temporales", "timephasedDurationWalks": "Segmentos de duración por fases temporales", "timephasedFinishFloor": "Límite inferior de fin por fases temporales", "timephasedStartAnchor": "Anclaje de inicio por fases temporales",
@@ -272,6 +273,10 @@
     "timephasedActive": "Sigue la distribución de horas de MS Project",
     "timephasedLost": "La distribución de horas de MS Project ya no se aplica tras la edición — la distribución original se conserva en el archivo",
     "timephasedContoured": "Distribución de horas propia",
+    "recordedDatesActive": "Muestra las fechas propias registradas por Primavera para esta tarea",
+    "recordedDatesActiveNeutral": "Muestra las fechas tal como se guardaron en el archivo para esta tarea",
+    "recordedDatesDeviates": "Difiere de las fechas registradas",
+    "recordedDatesPartlyUnrecorded": "El registro está parcialmente incompleto — véanse las columnas de fin tardío/holgura",
     "completion": "Progreso (%)",
     "progress": {
       "actualStart": "Inicio real",

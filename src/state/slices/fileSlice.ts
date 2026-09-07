@@ -12,8 +12,8 @@ import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport, type DocumentPayload } from '../documentContract';
-import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
-import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
+import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
+import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
 import { projectFileBase } from '@/utils/documents';
@@ -58,7 +58,23 @@ export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
  * bewaart. Deze helper zit nadrukkelijk buiten `applyLoadedProject`: één XER kan twaalf documenten
  * openen, maar is nog steeds één bestandsactie en dus één melding.
  */
-export function xerImportNotice(results: readonly ImportResult[]): NotifyInput | undefined {
+export function xerImportNotice(
+  results: readonly ImportResult[],
+  /** XER-etappeplan §3.7 (taak T4): som van `recordedDates.shifted` over alle zojuist geopende
+   *  documenten van dit bestand, GESPLITST naar wat er werkelijk gebeurde. Bewust aparte
+   *  parameters i.p.v. iets uit `results` zelf afgeleid: het aantal afwijkende taken bestaat pas
+   *  ná de solve op elk document (`applyLoadedProject` → `applyRecordedDatesOnLoad`), en
+   *  `ImportResult` draagt zelf geen `shifted`-veld (dat is documentstate, geen import-resultaat).
+   *
+   *  De SPLITSING is critreview laag 3, bevinding 4: `xerImportDatesAsRecorded` zegt letterlijk
+   *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. Een
+   *  heropende IFC met XER-archief draagt óók `xer`-metadata, maar krijgt per heropen-beleid
+   *  alleen het AANBOD — daar is wél herberekend, dus die telt in `offerTotal` en krijgt zijn
+   *  eigen, aanbiedende regel. Beide `0` ⇒ geen detailregel. */
+  datesAsRecordedShiftedTotal = 0,
+  /** Som van `recordedDates.shifted` over de documenten die de modus alléén AANBIEDEN. */
+  datesAsRecordedOfferTotal = 0,
+): NotifyInput | undefined {
   const xers = results.flatMap(result => result.xer ? [result.xer] : []);
   const xer = xers[0];
   if (!xer) return undefined;
@@ -113,6 +129,11 @@ export function xerImportNotice(results: readonly ImportResult[]): NotifyInput |
   addCount(numberIssues, 'notifications.xerImportNumberIssues');
   addCount(enumFallbacks, 'notifications.xerImportEnumFallbacks');
   addCount(unsupportedSemantics, 'notifications.xerImportUnsupportedSemantics');
+  // XER-etappeplan §3.7 (taak T4, X-O7 laag 3): "datums zoals opgeslagen" staat standaard aan zodra
+  // er restverschillen zijn. Eén regel voor het HELE bestand, ook bij twaalf documenten — de teller
+  // is de som over alle zojuist geopende documenten (zie `applyOpenedImport`), niet per document.
+  addCount(datesAsRecordedShiftedTotal, 'notifications.xerImportDatesAsRecorded');
+  addCount(datesAsRecordedOfferTotal, 'notifications.xerImportDatesAsRecordedOffer');
 
   return {
     severity: 'info',
@@ -330,13 +351,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         payload.calendar = payload.calendars.find(calendar =>
           calendar.id === payload.project.calendarId) ?? payload.calendar;
       }
-      const recorded = opts.recompute
-        ? captureRecordedDates(payload.tasks, parsed.recordedFields)
-        : null;
       const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
-      if (recorded && recorded.total > 0) {
-        const shifted = countShiftedTasks(prepared.tasks, recorded.times);
-        if (shifted > 0) prepared.recordedDates = { ...recorded, shifted };
+      if (opts.recompute) {
+        // XER-etappeplan §3.5 (taak T4), heropen-beleid (taak T5, 2026-09-05): alleen een VERSE
+        // XER-import (parsed.recordedTimesOrigin === 'xer') zet de modus meteen aan; een heropende
+        // IFC met XER-archief (recordedTimesOrigin === 'xer-archive') en overige formaten bieden
+        // hem alleen aan — ongewijzigd #63-gedrag. `payload.tasks` is hier bewust de PRE-solve
+        // array (zie de docstring van `applyRecordedDatesOnLoad`): `prepareLoadedPayload` muteert
+        // zijn `input`-argument niet.
+        applyRecordedDatesOnLoad(payload.tasks, prepared, parsed);
       }
       const activation = materializeLibraryBoundary({
         payload: prepared,
@@ -427,6 +450,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const reusedActiveTab = isActivePristine(get());
       const openedDocumentIds: string[] = [];
+      // XER-etappeplan §3.7 (taak T4): som van `recordedDates.shifted` over alle zojuist geopende
+      // documenten — per document eigen vlag/eigen vastlegging (elk document leest zijn eigen
+      // `recordedTimes` uit zijn eigen `ImportResult`), maar de MELDING blijft er één per bestand.
+      let datesAsRecordedShiftedTotal = 0;
+      // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
+      // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
+      let datesAsRecordedOfferTotal = 0;
       for (const result of results) {
         // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
         // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
@@ -436,12 +466,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
         // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
         get().applyLoadedProject(result, opts);
+        // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
+        // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
+        const shifted = get().recordedDates?.shifted ?? 0;
+        if (get().datesAsRecorded) datesAsRecordedShiftedTotal += shifted;
+        else datesAsRecordedOfferTotal += shifted;
       }
 
       // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
       // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
-      const notice = xerImportNotice(results);
+      const notice = xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal);
       if (notice) get().notify(notice);
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
@@ -557,6 +592,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           content = writeCSV(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.customTaskTypes,
+            // In "datums zoals opgeslagen" mag een niet-vastgelegde as niet als verzonnen 0/No
+            // het bestand in (critreview laag 3, bevinding 6). Buiten de modus: `undefined`.
+            unrecordedExportGate(state.recordedDates, state.datesAsRecorded),
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];

@@ -262,6 +262,7 @@ const mkInput = (id: string, name: string): RecoveryDocInput => ({
   activeBaselineId: `bl-${id}`,
   filePath: `/tmp/${id}.ifc`,
   isDirty: true,
+  datesAsRecorded: false,
 });
 const inA = mkInput('rec-a', 'DocA');
 const inB = mkInput('rec-b', 'DocB');
@@ -376,7 +377,7 @@ const kIfc = writeIFC(buildWriteIFCInput(S()));
 truthy('d recovery-IFC bevat geen persoonlijke taakgridvoorkeur', !kIfc.includes(taskGridSentinel));
 const kParsed = readIFC(kIfc);
 // Exact het productiepad: de hook bouwt de recovery-invoer met deze functie, geen replica hier.
-const kInput: RecoveryDocInput = recoveryInputFromParsed(kParsed, { id: 'k3-doc', filePath: '/tmp/k3.ifc', isDirty: true });
+const kInput: RecoveryDocInput = recoveryInputFromParsed(kParsed, { id: 'k3-doc', filePath: '/tmp/k3.ifc', isDirty: true, datesAsRecorded: false });
 truthy('d recovery-invoer bevat geen persoonlijke taakgridvoorkeur',
   !JSON.stringify(kInput).includes(taskGridSentinel));
 S().restoreDocuments([kInput], 'k3-doc');

@@ -424,6 +424,7 @@ const recoveryInputs = (multiOpened.results as XerReadResult[]).map((result, ind
     id: index === 0 ? firstDocumentId : secondDocumentId,
     filePath: null,
     isDirty: false,
+    datesAsRecorded: false,
   }));
 useAppStore.getState().restoreDocuments(recoveryInputs, secondDocumentId);
 eq('9 RecoveryDocInput bewaart instellingen en retained bronwaarde per project',

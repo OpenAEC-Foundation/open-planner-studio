@@ -100,6 +100,7 @@
       "p6Provenance": "مصدر Primavera P6",
       "parentId": "معرّف المهمة الأصلية",
       "priority": "أولوية تسوية الموارد",
+      "recordedSource": "المصدر (التواريخ المسجلة)",
       "remainingMinutes": "المتبقي (بالدقائق)",
       "remainingTime": "المتبقي (أيام عمل)",
       "resourceIds": "معرّفات الموارد",
@@ -341,6 +342,10 @@
     "timephasedActive": "تتبع توزيع الساعات من MS Project",
     "timephasedLost": "لم يعد توزيع الساعات من MS Project مطبقًا بعد التعديل — يبقى التوزيع الأصلي محفوظًا في الملف",
     "timephasedContoured": "توزيع ساعات خاص",
+    "recordedDatesActive": "يعرض التواريخ الخاصة التي سجّلها Primavera لهذه المهمة",
+    "recordedDatesActiveNeutral": "يعرض التواريخ كما سُجّلت في الملف لهذه المهمة",
+    "recordedDatesDeviates": "يختلف عن التواريخ المسجلة",
+    "recordedDatesPartlyUnrecorded": "التسجيل غير مكتمل جزئيًا — راجع أعمدة التأخر/الفائض",
     "completion": "التقدم (%)",
     "progress": {
       "actualStart": "البداية الفعلية",

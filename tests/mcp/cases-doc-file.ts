@@ -336,7 +336,7 @@ test('list_documents: hersteld document zonder cpmResult meldt "niet doorgereken
   const gen = generateBenchmarkProject(8);
   const base = {
     project: gen.project, calendar: gen.calendar, tasks: gen.tasks, sequences: gen.sequences,
-    resources: gen.resources, assignments: gen.assignments, filePath: null, isDirty: false,
+    resources: gen.resources, assignments: gen.assignments, filePath: null, isDirty: false, datesAsRecorded: false,
   };
   S().restoreDocuments(
     [

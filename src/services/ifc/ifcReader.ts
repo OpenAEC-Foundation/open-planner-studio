@@ -34,6 +34,7 @@ import {
   XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION,
   XER_SOURCE_ARCHIVE_SCHEMA_VERSION, type XerSourceArchive, type XerSourceArchiveBom,
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
+  type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
@@ -46,9 +47,39 @@ import {
 
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 
-/** Expliciete injectienaad: de compacte schema-2-envelope bewaart alleen bronbytes; de zware,
- * lazy XER-reader levert de afleiding daarvan uitsluitend via de officiële async ingang. */
-export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceArchive;
+/**
+ * Expliciete injectienaad: de compacte schema-2-envelope bewaart alleen bronbytes; de zware,
+ * lazy XER-reader levert de afleiding daarvan uitsluitend via de officiële async ingang.
+ *
+ * ONTWERPKEUZE T5 — "datums zoals opgeslagen" (issue #63, XER-laag 3) overleeft een IFC-opslag en
+ * -heropening via DEZE naad, niet via een eigen `OPS_`-pset; het etappeplan §3.8 hield beide routes
+ * open. Afweging:
+ *
+ *  - *Geen tweede afleiding.* De reconstructie draait al een volledige `readXER` over bytes die
+ *    hieronder op sha256 zijn geverifieerd. De bak-4-vastlegging die daaruit komt is per
+ *    constructie identiek aan die van het oorspronkelijke openen — zelfde kalenderpromotie
+ *    (`promoteHourCalendar`), zelfde dag/uur-representatie (`sourceInstant`), zelfde getalnotatie
+ *    (`parseXerNumber`). Zelf herrekenen uit `readModel.taskSourceRowsByProject` zou die drie in de
+ *    IFC-laag moeten NABOOTSEN op gereconstrueerde kalenders — precies de stille faalmodus die plan
+ *    §5.2 aanwijst (één representatieverschil ⇒ élke taak telt als "verschoven").
+ *  - *De chunkgrens blijft heel.* `parseXerNumber` woont in de tokenizer (`xerTables.ts`); die
+ *    hier statisch importeren trekt de hele XER-parser de hoofdbundel in.
+ *  - *Id-matching is al opgelost.* XER-taak-id's ZIJN de rauwe `task_id`-cellen, en
+ *    `OPS_TaskIdentity` draagt exact die id's door de opslag heen (zie `stableIfcTaskId`).
+ *    Baselinetaken hangen aan een `.BASELINE.`-IfcWorkSchedule en worden in `extractTasks`
+ *    overgeslagen, dus hun eigen GUID-remap (`extractBaselines`) raakt deze koppeling niet.
+ *  - *Werkt óók bij opslaan buiten de modus.* Een pset had `recordedDates` moeten meeschrijven —
+ *    maar `runCPM` WIST dat veld bij het verlaten van de modus, dus opslaan ná een herberekening zou
+ *    de vastlegging verliezen. De bronroute is herkomstgedreven en daarmee modus-onafhankelijk.
+ *  - *Kosten:* geen contractwijziging (`DOCUMENT_FIELDS`, `IFC_SAVE_KEYS` en daarmee
+ *    `sameIFCSource`/`isDirty` blijven ongemoeid) en geen extra parse — die `readXER` liep al.
+ *
+ * BEKENDE GRENS: historische schema-1-archieven (niet-compact) krijgen géén `recordedTimes` terug.
+ * `readIFCWithXerReconstruction` geeft voor die vorm bewust geen reconstructor mee (dat pad blijft
+ * synchroon, zonder XER-chunk) en het schema-1-leesmodel draagt de vastlegging niet zelf. Alleen
+ * pre-schema-2-builds schreven die vorm; de huidige writer schrijft uitsluitend schema 2.
+ */
+export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceReconstruction;
 
 export interface IfcReadOptions {
   /** Alleen `readIFCWithXerReconstruction` vult dit. De lage sync-lezer mag schema-2 nooit
@@ -137,9 +168,19 @@ export function readIFC(
 
   // Extract project
   const project = extractProject(entities, entityMap, labels);
-  const xerSourceArchive = extractXerSourceArchive(entities, entityMap, options.reconstructXerArchive);
+  const xerSource = extractXerSourceArchive(entities, entityMap, options.reconstructXerArchive);
+  const xerSourceArchive = xerSource?.archive;
   const xerSourceProjectId = extractXerSourceProjectId(entities, entityMap, xerSourceArchive);
   const xer = extractXerImportMetadata(xerSourceArchive, xerSourceProjectId);
+  // T5 — "datums zoals opgeslagen" over een IFC-opslag/heropening heen. GEEN eigen pset en geen
+  // eigen afleiding: dit is letterlijk de map die `readXER` over dezelfde, sha256-geverifieerde
+  // bronbytes maakte (zie `XerArchiveReconstructor` hierboven voor de volledige afweging). De
+  // selector `OPS_XerDocument` kiest het project; een bestand zonder XER-archief, met een onbekende
+  // selector of uit een historische schema-1-envelope houdt `recordedTimes` afwezig en gedraagt
+  // zich daarmee byte-identiek aan vóór T5.
+  const recordedTimes = xerSourceProjectId
+    ? xerSource?.recordedTimesByProject[xerSourceProjectId]
+    : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
@@ -232,6 +273,12 @@ export function readIFC(
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
     recordedFields,
+    // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive', NIET 'xer'
+    // — deze route is een HEROPENING, geen verse import. `applyRecordedDatesOnLoad` zet de modus
+    // alleen automatisch aan bij 'xer'; 'xer-archive' krijgt uitsluitend het #63-AANBOD, want een
+    // intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
+    // tonen. Zie `importTypes.ts` (`recordedTimesOrigin`) voor het volledige onderscheid.
+    ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
     ...(xer ? { xer } : {}),
@@ -375,12 +422,14 @@ function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count:
   return output;
 }
 
-/** Lees en valideer vóór allocatie de self-contained X9-container; afwezig blijft legacy-compatibel. */
+/** Lees en valideer vóór allocatie de self-contained X9-container; afwezig blijft legacy-compatibel.
+ *  Levert sinds T5 de volledige `XerSourceReconstruction`; de schema-1-tak draagt geen vastlegging
+ *  (zie de bekende grens bij `XerArchiveReconstructor`) en geeft daar een lege map bij. */
 function extractXerSourceArchive(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   reconstructXerArchive: XerArchiveReconstructor | undefined,
-): XerSourceArchive | undefined {
+): XerSourceReconstruction | undefined {
   const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
   if (!props) return undefined;
   const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion');
@@ -423,14 +472,19 @@ function extractXerSourceArchive(
   if (!(['none', 'utf-8', 'utf-16le', 'utf-16be'] as readonly string[]).includes(bom)) xerArchiveError('Bom is onbekend');
   if (!(['lf', 'crlf', 'cr', 'mixed', 'none'] as readonly string[]).includes(newline)) xerArchiveError('Newline is onbekend');
   try {
-    return createXerSourceArchiveFromOwnedMetadata(sourceBytes, {
-      schemaVersion,
-      encoding: encoding as XerSourceArchiveEncoding,
-      bom: bom as XerSourceArchiveBom,
-      newline: newline as XerSourceArchiveNewline,
-      diagnostics: archiveMetadata.diagnostics,
-      readModel: archiveMetadata.readModel,
-    });
+    // Schema 1 draagt geen bak-4-vastlegging: het leesmodel bewaart de TASK-bronrijen wél, maar de
+    // omrekening ervan vraagt de XER-kalender-/getallaag, en dit pad loopt bewust ZONDER die chunk.
+    return {
+      archive: createXerSourceArchiveFromOwnedMetadata(sourceBytes, {
+        schemaVersion,
+        encoding: encoding as XerSourceArchiveEncoding,
+        bom: bom as XerSourceArchiveBom,
+        newline: newline as XerSourceArchiveNewline,
+        diagnostics: archiveMetadata.diagnostics,
+        readModel: archiveMetadata.readModel,
+      }),
+      recordedTimesByProject: {},
+    };
   } catch (error) {
     xerArchiveError(`diagnostics/readmodel kon niet worden opgebouwd: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -440,7 +494,7 @@ function extractXerSourceArchive(
 function extractCompactXerSourceArchive(
   props: Map<string, unknown>,
   reconstructXerArchive: XerArchiveReconstructor | undefined,
-): XerSourceArchive {
+): XerSourceReconstruction {
   if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
   if (requiredString(props, 'StorageFormat') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
     xerArchiveError('StorageFormat is onbekend');
@@ -466,11 +520,14 @@ function extractCompactXerSourceArchive(
         'laadt de XER-reader bewust niet zelf',
       );
     }
-    const archive = reconstructXerArchive(sourceBytes);
+    const reconstruction = reconstructXerArchive(sourceBytes);
+    const archive = reconstruction.archive;
     if (archive.sha256 !== sourceHash || archive.byteLength !== byteLength) {
       xerArchiveError('gereconstrueerd archief past niet bij de canonieke bronbytes');
     }
-    return archive;
+    // De hashpoort hierboven geldt daarmee ook voor `recordedTimesByProject`: die map komt uit
+    // dezelfde `readXER` over dezelfde, geverifieerde bytes.
+    return reconstruction;
   } catch (error) {
     if (error instanceof IfcParseError) throw error;
     xerArchiveError(`compacte bron kon niet worden gereconstrueerd: ${error instanceof Error ? error.message : String(error)}`);

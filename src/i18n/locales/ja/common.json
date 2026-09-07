@@ -35,6 +35,8 @@
     "xerImportNumberIssues_other": "数値形式の問題: {{count}}",
     "xerImportEnumFallbacks_other": "列挙値のフォールバック: {{count}}",
     "xerImportUnsupportedSemantics_other": "安全なフォールバックを使った P6 計画設定: {{count}}",
+    "xerImportDatesAsRecorded_other": "Primavera が記録した日付をそのまま表示しているタスク: {{count}} 件（再計算していません）",
+    "xerImportDatesAsRecordedOffer_other": "ファイルに記録された日付と異なるタスク: {{count}} 件（表示できます）",
     "xerExportLoss": "{{format}} へのエクスポートでは XER のソース情報が失われます。",
     "mppLegacy": "この .mpp ファイルは古い形式（Project 2007 以前）を使用しています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "mppEncrypted": "この .mpp ファイルはパスワードで保護されています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
@@ -781,9 +783,14 @@
   },
   "recordedDates": {
     "offer_other": "再計算により、{{total}} 件中 {{count}} 件のタスクがファイル内の日付からずれました。",
+    "activeCount_other": "Primavera が記録したスケジュールを表示しています。再計算すると {{count}} 件のタスクがずれます。",
+    "activeCountNeutral_other": "ファイルに記録されている日付を表示しています。再計算すると {{count}} 件のタスクがずれます。",
     "show": "記録された日付を表示",
     "active": "ファイルに記録されている日付をそのまま表示しています。再計算は行われていません。",
-    "recalculate": "再計算"
+    "recalculate": "再計算",
+    "markDeviates": "乖離あり",
+    "markPartlyUnrecorded": "一部未記録",
+    "notRecorded": "未記録"
   },
   "duration": {
     "suffixDay": "日",

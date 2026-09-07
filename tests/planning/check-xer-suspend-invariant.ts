@@ -86,7 +86,7 @@ eq('updateTask naar losse resume wist onmiddellijk de semantische vlag maar bewa
 const looseParsed = readIFC(writeIFC(buildWriteIFCInput(looseStore.getState())));
 const recoveryStore = createAppStore();
 recoveryStore.getState().restoreDocuments([
-  recoveryInputFromParsed(looseParsed, { id: 'x7-recovery', filePath: '/tmp/x7-recovery.ifc', isDirty: true }),
+  recoveryInputFromParsed(looseParsed, { id: 'x7-recovery', filePath: '/tmp/x7-recovery.ifc', isDirty: true, datesAsRecorded: false }),
 ], 'x7-recovery');
 const recovered = recoveryStore.getState();
 const recoveredTask = recovered.tasks.find(task => task.wbsCode === 'INV')!;

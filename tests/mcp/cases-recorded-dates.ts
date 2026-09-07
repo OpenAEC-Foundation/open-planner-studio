@@ -8,7 +8,9 @@
 //       `beginUndoable` was daar niet meer onderdrukt ⇒ undo-stack 1 → 3.
 //   K2: de rollback popt één entry terwijl er in de modus twee gepusht waren ⇒ fantoom-undo-stap
 //       na een GEWEIGERDE AI-actie.
-import { useAppStore, test, assert, assertEq, run } from './harness';
+import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
+import { getTool } from '@/services/mcp/toolRegistry';
+import type { McpToolOk, McpToolResult } from '@/services/mcp/contracts';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { externIfc } from '../fixtures/recordedDatesIfc';
@@ -18,6 +20,15 @@ import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 const S = () => store.getState();
+
+/** Roep een geregistreerde leestool aan en verwacht ok:true (zelfde vorm als cases-read.ts). */
+function callOk(name: string, args: unknown = {}): any {
+  const tool = getTool(name);
+  assert(!!tool, `tool ${name} niet geregistreerd`);
+  const res = tool!.handler(args, makeMcpContext(appStoreContext)) as McpToolResult;
+  assert(res.ok, `tool ${name} gaf een fout: ${res.ok ? '' : res.error}`);
+  return (res as McpToolOk).data;
+}
 
 // Warm-up (zoals cases-bulk.ts): projectkalender tot bibliotheek-entry promoten via één undo, zodat
 // het rollback-/restore-pad een steady state heeft.
@@ -127,6 +138,42 @@ test('contextfactory B verlaat recorded-dates met één B-undo en laat A buiten 
   assertEq(A.store.getState().tasks.length, aTakenVoor, 'A-taken horen onaangeroerd te blijven');
   assertEq(historyDepthsForActiveScope(A.store.getState()).undoDepth, aUndoVoor,
     'A-undo hoort onaangeroerd te blijven');
+});
+
+// --- 5) Bevinding 6 (critreview laag 3): geen verzonnen 0/late datum via de LEESTOOLS -----------
+// In de modus draagt `task.time` de vastlegging van het bronbestand, met de bewuste terugvallen
+// (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`) voor assen die het bestand
+// NIET vastlegde. De taaktabel toont daar "Niet vastgelegd"; een AI-client zag tot nu toe een
+// verzonnen nulspeling als feit, zonder de strook die de stand toelicht.
+// MUTATIEBEWIJS: haal de `unrecorded?.includes(...)`-poort uit `getTask`/`getCriticalPath`
+// (readTools.ts) ⇒ deze twee tests slaan rood.
+test('leestools in de modus: niet-vastgelegde assen komen als null naar buiten (bevinding 6)', () => {
+  const { bId } = enterMode('mcp-unrecorded');
+  assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
+  // De gedeelde #63-fixture legt uitsluitend het early- en schedule-paar vast; alle vier de
+  // optionele assen (late start/finish, totale/vrije speling) én isCritical ontbreken.
+  const detail = callOk('planner_get_task', { taskId: bId });
+  const schedule = detail.schedule as Record<string, unknown>;
+  assertEq(schedule.earlyStart, '2026-03-16', 'de VASTGELEGDE vroege start hoort er gewoon te staan');
+  assertEq(schedule.lateStart, null, 'niet-vastgelegde late start hoort null te zijn, geen rec.start-terugval');
+  assertEq(schedule.lateFinish, null, 'niet-vastgelegde late finish hoort null te zijn');
+  assertEq(schedule.totalFloat, null, 'niet-vastgelegde totale speling hoort null te zijn, geen verzonnen 0');
+  assertEq(schedule.freeFloat, null, 'niet-vastgelegde vrije speling hoort null te zijn');
+  assertEq(schedule.isCritical, null, 'niet-vastgelegde kritiek-vlag hoort null te zijn, geen verzonnen false');
+  assertEq(schedule.datesAsRecordedUnrecordedFields,
+    ['lateStart', 'lateFinish', 'totalFloat', 'freeFloat', 'isCritical'],
+    'de respons benoemt expliciet WELKE assen het bestand niet vastlegde');
+});
+
+test('leestools buiten de modus: byte-identiek aan voorheen (geen null, geen extra veld)', () => {
+  const { bId } = enterMode('mcp-unrecorded-off');
+  S().runCPM(); // verlaat de modus, zoals F5
+  assertEq(S().datesAsRecorded, false, 'voorwaarde: de modus hoort uit te staan');
+  const schedule = callOk('planner_get_task', { taskId: bId }).schedule as Record<string, unknown>;
+  assert(typeof schedule.totalFloat === 'number', 'buiten de modus hoort de BEREKENDE speling er te staan');
+  assert(typeof schedule.lateStart === 'string', 'buiten de modus hoort de BEREKENDE late start er te staan');
+  assertEq(schedule.datesAsRecordedUnrecordedFields, undefined,
+    'buiten de modus hoort de respons geen extra veld te dragen');
 });
 
 await run();

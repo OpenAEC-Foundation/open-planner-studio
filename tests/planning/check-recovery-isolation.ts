@@ -277,18 +277,51 @@ eq('5j v2-versienummer is opgehoogd t.o.v. v1', RECOVERY_MANIFEST_VERSION > 1, t
 const v3Plan = planTauriV3RecoverySave(v2, {
   activeDocumentId: 'doc-2',
   documents: [
-    { id: 'doc-1', filePath: '/tmp/a.ifc', isDirty: true },
-    { id: 'doc-2', filePath: '/tmp/b.ifc', isDirty: false },
+    { id: 'doc-1', filePath: '/tmp/a.ifc', isDirty: true, datesAsRecorded: false },
+    { id: 'doc-2', filePath: '/tmp/b.ifc', isDirty: false, datesAsRecorded: false },
   ],
   upserts: [
-    { id: 'doc-2', ifc: 'nieuwe B-inhoud', filePath: '/tmp/b.ifc', isDirty: false },
+    { id: 'doc-2', ifc: 'nieuwe B-inhoud', filePath: '/tmp/b.ifc', isDirty: false, datesAsRecorded: false },
   ],
 }, 'g-42', PROD);
 eq('5k v3-plan behoudt een v2-snapshot zonder nieuwe inhoud', v3Plan.documents[0]?.ifc, 'recovery.doc-1.ifc');
 eq('5l v3-plan maakt precies één immutable generatie voor de upsert', v3Plan.writes,
   [{ name: 'recovery.snapshot.doc-2.g-42.ifc', ifc: 'nieuwe B-inhoud' }]);
 eq('5m v3-manifestregel wijst naar die generatie', v3Plan.documents[1]?.ifc, 'recovery.snapshot.doc-2.g-42.ifc');
-eq('5n v3 blijft na v1/v2 de actuele manifestversie', RECOVERY_MANIFEST_VERSION, 3);
+eq('5n v4 is de actuele manifestversie (v3 + de modusvlag per document)', RECOVERY_MANIFEST_VERSION, 4);
+
+// 5o–5r — "datums zoals opgeslagen" reist als manifestmetadata mee (critreview laag 3,
+// bevindingen 2/3), en een OUDER manifest zonder dat veld MOET leesbaar blijven: het staat op de
+// schijf van iedereen die de vorige versie draaide. Ontbreekt het veld, dan geldt `false` — het
+// gewone #63-aanbod, nooit stilzwijgend de modus.
+const V3_ZONDER_VLAG = parseRecoveryManifest(JSON.stringify({
+  version: 3,
+  activeDocumentId: 'doc-1',
+  documents: [{ id: 'doc-1', ifc: 'recovery.doc-1.ifc', filePath: '/tmp/p.ifc', isDirty: true }],
+  ownerId: OTHER,
+  heartbeatAt: Date.now(),
+}));
+eq('5o een v3-manifest zonder de modusvlag parst gewoon', V3_ZONDER_VLAG !== null, true);
+eq('5p … en levert het veld als undefined (geen verzonnen true)',
+  V3_ZONDER_VLAG?.documents[0]?.datesAsRecorded, undefined);
+const carryZonderVlag = planRecoveryCleanup({
+  listing: ['recovery.doc-1.ifc'],
+  prev: V3_ZONDER_VLAG,
+  self: SELF,
+  keep: [],
+  ownWritten: [],
+  adopted: [],
+  names: PROD,
+});
+eq('5q overname van een vreemd v3-manifest zet de modusvlag op false, niet undefined',
+  carryZonderVlag.carryOver[0]?.datesAsRecorded, false);
+
+const v4Plan = planTauriV3RecoverySave(null, {
+  activeDocumentId: 'doc-9',
+  documents: [{ id: 'doc-9', filePath: null, isDirty: true, datesAsRecorded: true }],
+  upserts: [{ id: 'doc-9', ifc: 'inhoud', filePath: null, isDirty: true, datesAsRecorded: true }],
+}, 'g-9', PROD);
+eq('5r een nieuw manifest schrijft de modusvlag mee', v4Plan.documents[0]?.datesAsRecorded, true);
 
 // ── 6. Halffabricaten (.tmp) op exacte naam, niet met een sweep ───────────────────────────────
 const tmpPlan = plan({

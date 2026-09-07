@@ -10,7 +10,7 @@ import {
   createEmptyXerArchiveReadModel,
   type XerSourceArchive,
 } from '@/services/xerSourceArchive';
-import { reconstructXerSourceArchiveFromBytes } from '@/services/xer/xerReader';
+import { reconstructXerSourceFromBytes } from '@/services/xer/xerReader';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 
 const S = () => useAppStore.getState();
@@ -646,7 +646,7 @@ test('P1 #2: generieke walker — zonder opt-in geen string > 2.000 tekens en ge
 /** Reviewbevinding P1 #1 (review2-3d.md): de vorige documentViews-fixture was een handgeschreven
  *  stub (`{sourceProjectId, synthetic:true}`) die de productievorm niet had — de test was daardoor
  *  structureel blind voor het lek. Deze fixture gaat wél door de ECHTE lezer (`readXER`, via
- *  `reconstructXerSourceArchiveFromBytes`), corpusloos, met een bewust gigantische vrije cel in een
+ *  `reconstructXerSourceFromBytes(...).archive`), corpusloos, met een bewust gigantische vrije cel in een
  *  TASKRSRC-kolom, zodat `documentViews[x].resources.assignments[].rawRow.cells` 'm ECHT draagt. */
 const REAL_ARCHIVE_SECRET = 'REAL-SECRET-' + 'w'.repeat(50000);
 
@@ -673,7 +673,7 @@ function buildRealArchiveFixture(): XerSourceArchive {
     `%R\tAS-REAL\tP-REAL\tT-REAL\tR-REAL\t0,5\t0,5\t4\t4\t${REAL_ARCHIVE_SECRET}`,
     '%E',
   ].join('\r\n'));
-  return reconstructXerSourceArchiveFromBytes(source);
+  return reconstructXerSourceFromBytes(source).archive;
 }
 
 /** Reviewbevinding #3/#6 (review2-3d.md): een rij met véél cellen (de `%F`-kolomkop van het
@@ -706,7 +706,7 @@ function buildManyCellsArchiveFixture(): XerSourceArchive {
     ['%R', 'AS-MANYCELLS', 'P-MANYCELLS', 'T-MANYCELLS', 'R-MANYCELLS', '0,5', '0,5', '4', '4', ...extraFieldValues].join('\t'),
     '%E',
   ].join('\r\n'));
-  return reconstructXerSourceArchiveFromBytes(source);
+  return reconstructXerSourceFromBytes(source).archive;
 }
 
 function attachRealArchive(archive: XerSourceArchive, projectId: string): void {

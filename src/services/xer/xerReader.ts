@@ -36,9 +36,12 @@ import {
   bindXerImportMetadataToArchive,
   createXerSourceArchiveFromOwnedMetadata,
   detectXerSourcePresentation,
-  type XerSourceArchive,
+  type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
+import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import { readXerCalendars } from './xerCalendarData';
+import { sourceInstant } from './xerInstant';
+import { readXerRecordedTimes } from './xerRecordedTimes';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
 import { indexXerTaskResourceRows } from './xerResourceAssignments';
 import {
@@ -215,15 +218,6 @@ function numberOf(
 
 function hasClock(raw: string): boolean {
   return /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/.test(raw.trim());
-}
-
-function sourceInstant(raw: string, hourMode: boolean): string | undefined {
-  const value = raw.trim();
-  if (!value) return undefined;
-  const normalized = value.replace(' ', 'T');
-  const parsed = parseInstant(normalized);
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  return formatInstant(parsed, hourMode ? 'hour' : 'day');
 }
 
 /**
@@ -601,6 +595,7 @@ function readXerProject(
     new CalendarEngine(calendar),
   ] as const));
 
+
   const enumFallbacks: XerEnumFallback[] = [];
   const projectDefaultDuration = durationTypeOf(
     projectRow.cells.def_duration_type ?? '',
@@ -791,6 +786,25 @@ function readXerProject(
     progressMode,
     schedulingOptions,
   } = derivedSchedule;
+  // BAK 4 (XER-etappeplan §4.1-bijstelling 2026-09-04, X-O7 laag 3) — uitsluitend weergave/meetlat,
+  // nooit solverinvoer. Onafhankelijk van de taakmapping hierboven: leest dezelfde `activityRows`,
+  // maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts` voor de laagkeuze.
+  // Staat ná `deriveXerScheduleOptions` omdat de kritiekafleiding dezelfde `criticalDefinition`
+  // gebruikt als de solver krijgt (her-check laag 3, bevinding 7).
+  const recordedTimes = readXerRecordedTimes(activityRows, {
+    numberOf: (row, field) => numberOf(tables, row, field),
+    effectiveCalendarOf: (row) => {
+      const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
+      const engine = calendarEngines.get(effectiveCalendar.id)!;
+      return {
+        id: effectiveCalendar.id,
+        hourMode: effectiveCalendar.workTime !== undefined,
+        minutesPerDay: engine.hoursPerDay * 60,
+      };
+    },
+    taskIdOf: (row) => row.cells.task_id,
+    criticalDefinition: schedulingOptions.criticalDefinition,
+  });
   // De solver krijgt alleen de finale opties; de documentmetadata krijgt uitsluitend de
   // bestaande, archive/IFC-compatibele provenancevelden. Zo kan een later toegevoegd intern
   // afleidingsveld niet per ongeluk als opgeslagen P6-invoer worden bewaard of meegestuurd.
@@ -959,6 +973,8 @@ function readXerProject(
     assignments: resourceResult.assignments,
     activityCodeTypes: metadata.activityCodeTypes,
     customFieldDefs: metadata.customFieldDefs,
+    recordedTimes,
+    recordedTimesOrigin: 'xer',
     xer: {
       sourceProjectId: projectId,
       defaultCurrencyCode: tables.header.defaultCurrencyCode,
@@ -1089,12 +1105,30 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   );
 }
 
-/** Herbouw de volledige X9-runtimegrafiek uit uitsluitend de canonieke XER-bronbytes. */
-export function reconstructXerSourceArchiveFromBytes(bytes: Uint8Array): XerSourceArchive {
+/**
+ * Herbouw de volledige X9-runtimegrafiek uit uitsluitend de canonieke XER-bronbytes.
+ *
+ * T5 (laag 3, §3.8): levert naast het archief óók de bak-4-vastlegging per project. Dat is GRATIS —
+ * deze functie draaide al een volledige `readXER` en gooide `recordedTimes` alleen weg — en het is
+ * de enige vorm die per constructie identiek is aan het oorspronkelijke openen (zelfde bytes,
+ * zelfde code). Er wordt hier NIETS opnieuw afgeleid; zie `XerSourceReconstruction`.
+ *
+ * Bij een meerprojectenbestand krijgt élk project zijn eigen entry (de IFC-lezer kiest daaruit met
+ * `OPS_XerDocument`'s selector). Het archief zelf is bestandsbreed en per definitie voor alle
+ * resultaten dezelfde referentie.
+ */
+export function reconstructXerSourceFromBytes(bytes: Uint8Array): XerSourceReconstruction {
   const opened = readXER(bytes);
-  const first = 'kind' in opened ? opened.results[0] : opened;
+  const results = 'kind' in opened ? opened.results : [opened];
+  const first = results[0];
   if (!first?.xerSourceArchive) {
     throw new Error('De XER-bron leverde geen reconstruerbaar bronarchief op.');
   }
-  return first.xerSourceArchive;
+  const recordedTimesByProject: Record<string, Record<string, RecordedTime>> = {};
+  for (const result of results) {
+    const projectId = result.xer?.sourceProjectId;
+    if (!projectId || !result.recordedTimes) continue;
+    recordedTimesByProject[projectId] = result.recordedTimes;
+  }
+  return { archive: first.xerSourceArchive, recordedTimesByProject };
 }

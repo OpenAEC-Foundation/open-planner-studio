@@ -52,6 +52,10 @@
     "xerImportEnumFallbacks_other": "{{count}} enum-terugvallen.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-planningsinstelling met veilige terugval.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-planningsinstellingen met veilige terugval.",
+    "xerImportDatesAsRecorded_one": "{{count}} taak toont de datums zoals Primavera ze opsloeg (niet herberekend).",
+    "xerImportDatesAsRecorded_other": "{{count}} taken tonen de datums zoals Primavera ze opsloeg (niet herberekend).",
+    "xerImportDatesAsRecordedOffer_one": "{{count}} taak wijkt af van de datums in het bestand — je kunt ze tonen.",
+    "xerImportDatesAsRecordedOffer_other": "{{count}} taken wijken af van de datums in het bestand — je kunt ze tonen.",
     "xerExportLoss": "Bij export naar {{format}} gaat XER-broninformatie verloren.",
     "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
@@ -829,9 +833,16 @@
   "recordedDates": {
     "offer_one": "Herberekening verschoof {{count}} van de {{total}} taken ten opzichte van de datums in het bestand.",
     "offer_other": "Herberekening verschoof {{count}} van de {{total}} taken ten opzichte van de datums in het bestand.",
+    "activeCount_one": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt {{count}} taak af.",
+    "activeCount_other": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijken {{count}} taken af.",
+    "activeCountNeutral_one": "Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijkt {{count}} taak af.",
+    "activeCountNeutral_other": "Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijken {{count}} taken af.",
     "show": "Opgeslagen datums tonen",
     "active": "Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.",
-    "recalculate": "Herberekenen"
+    "recalculate": "Herberekenen",
+    "markDeviates": "Wijkt af",
+    "markPartlyUnrecorded": "Deels niet vastgelegd",
+    "notRecorded": "Niet vastgelegd"
   },
   "duration": {
     "suffixDay": "d",

@@ -15,13 +15,20 @@
  * vaste ISO-datums, nooit `new Date()` zonder anker.
  */
 import {
+  applyRecordedTimesToTasks,
   captureRecordedDates,
   countShiftedTasks,
   cpmResultFromRecorded,
+  type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { useAppStore } from '@/state/appStore';
+import { recoveryInputFromParsed } from '@/state/documentContract';
+import { recordedDatesActiveKey, recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
+import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
+import { writeCSV } from '@/services/csv/csvWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -147,6 +154,53 @@ const zonderIfcTaskTime = captureRecordedDates(
 eq('1t taak zonder IfcTaskTime landt niet in times', Object.keys(zonderIfcTaskTime.times), []);
 eq('1u taak zonder IfcTaskTime telt niet mee in total', zonderIfcTaskTime.total, 0);
 
+// ── (1B) Bron-orakel — laag 0 (XER-etappeplan §3.3, taak T3) ──────────────────
+// De derde parameter (`recordedTimes`) heeft VOORRANG boven `recordedFields` — de twee kanalen
+// worden nooit gemengd. `mk('a', ...)` zet hier bewust een early-paar dat de early-laag zou geven
+// (2099-...) om het contrast met de orakelwaarde (2026-07-...) scherp te maken: valt de
+// implementatie stiekem terug op `recordedFields` zodra beide zijn meegegeven, dan geeft 1x/1y de
+// 2099-datum en gaat deze case ROOD — dat IS het mutatiebewijs.
+const oracle: Record<string, RecordedTime> = {
+  a: {
+    start: '2026-07-01', finish: '2026-07-05',
+    lateStart: '2026-07-02', lateFinish: '2026-07-06',
+    totalFloat: 1, freeFloat: 0.5, isCritical: false,
+  },
+};
+const metOrakel = captureRecordedDates(
+  [mk('a', { earlyStart: '2099-01-01', earlyFinish: '2099-01-05' })],
+  { a: ['earlyStart', 'earlyFinish'] }, // zou zonder orakel de early-laag geven
+  oracle,
+);
+eq('1x orakel wint van recordedFields (start)', metOrakel.times['a'].start, '2026-07-01');
+eq('1y orakel wint van recordedFields (finish)', metOrakel.times['a'].finish, '2026-07-05');
+eq('1z orakel draagt late/float/isCritical ongewijzigd door', {
+  lateStart: metOrakel.times['a'].lateStart, lateFinish: metOrakel.times['a'].lateFinish,
+  totalFloat: metOrakel.times['a'].totalFloat, freeFloat: metOrakel.times['a'].freeFloat,
+  isCritical: metOrakel.times['a'].isCritical,
+}, {
+  lateStart: '2026-07-02', lateFinish: '2026-07-06',
+  totalFloat: 1, freeFloat: 0.5, isCritical: false,
+});
+eq('1aa orakel-total = aantal entries in recordedTimes, niet in recordedFields', metOrakel.total, 1);
+
+// Filtering op onbekende taak-ids: zelfde regel als de andere twee lagen (zie 2e hieronder).
+const orakelMetOnbekend: Record<string, RecordedTime> = {
+  a: { start: '2026-08-01', finish: '2026-08-02' },
+  zzz: { start: '2026-08-03', finish: '2026-08-04' },
+};
+const gefilterd = captureRecordedDates([mk('a')], undefined, orakelMetOnbekend);
+eq('1ab orakel filtert op taak-ids die echt in tasks zitten', Object.keys(gefilterd.times), ['a']);
+eq('1ac orakel-total telt alleen de overgebleven, gefilterde entries', gefilterd.total, 1);
+
+// Randgevallen, symmetrisch met (2e)/(2f) hieronder.
+eq('1ad orakel + lege takenlijst ⇒ lege vastlegging',
+  captureRecordedDates([], undefined, { a: { start: '2026-01-01', finish: '2026-01-02' } }),
+  { times: {}, total: 0 });
+eq('1ae leeg orakel-object (aanwezig, maar zonder entries) ⇒ lege vastlegging, GEEN terugval op recordedFields',
+  captureRecordedDates([mk('a')], { a: ['scheduleStart', 'scheduleFinish'] }, {}),
+  { times: {}, total: 0 });
+
 // ── (2) Verschiltelling ──────────────────────────────────────────────────────
 // Schedule-paar aanwezig (niet `[]`, zie MOET 1 hierboven — anders wordt de taak overgeslagen en
 // blijft `times` leeg, wat deze sectie niets zou laten testen).
@@ -226,6 +280,47 @@ eq('3p times gevuld maar tasks leeg ⇒ leeg resultaat', legeTasks.tasks.size, 0
 eq('3q times gevuld maar tasks leeg ⇒ geen projecteinde', legeTasks.projectEnd, '');
 const legeBeide = cpmResultFromRecorded({}, [], cal);
 eq('3r volledig leeg ⇒ projectDuration 0', legeBeide.projectDuration, 0);
+
+// ── (3B) applyRecordedTimesToTasks — gedeelde kern (XER-etappeplan §3.4, taak T3) ─────────────
+// Rechtstreekse eenheidstest op de kern zelf (los van de winkel/`showRecordedDates`, die in sectie
+// (8) hieronder via de ECHTE store getest wordt). Bewijst: (a) de teruggegeven `CPMResult` is
+// identiek aan `cpmResultFromRecorded` op dezelfde `times`; (b) de taken worden IN-PLACE bijgewerkt
+// met exact de oude terugvallen (`?? rec.start`/`?? 0`/`?? false`); (c) `interferingFloat`/
+// `isNearCritical`/`floatPath` worden gewist — MUTATIEBEWIJS: haal één van de drie wis-regels uit
+// `applyRecordedTimesToTasks` en 3ab/3ac/3ad hieronder gaat ROOD (uitgevoerd en teruggedraaid
+// tijdens de bouw van deze taak, zie voortgangsrapport); (d) een taak zonder vastlegging blijft
+// volledig onaangeroerd.
+{
+  const kernTasks = [
+    mk('a', {
+      earlyStart: '2026-09-01', earlyFinish: '2026-09-05',
+      interferingFloat: 3, isNearCritical: true, floatPath: 0,
+    }),
+    mk('b'), // geen vastlegging voor 'b' ⇒ moet volledig ongemoeid blijven
+  ];
+  const kernTimes = captureRecordedDates(
+    [mk('a', { earlyStart: '2026-09-01', earlyFinish: '2026-09-05', totalFloat: 2, isCritical: true })],
+    { a: ['earlyStart', 'earlyFinish', 'totalFloat', 'isCritical'] },
+  ).times;
+  const kernResult = applyRecordedTimesToTasks(kernTasks, kernTimes, cal);
+  const verwachtResult = cpmResultFromRecorded(kernTimes, kernTasks, cal);
+  eq('3s applyRecordedTimesToTasks levert hetzelfde CPMResult als cpmResultFromRecorded op dezelfde times',
+    kernResult, verwachtResult);
+  const aNa = kernTasks.find((t) => t.id === 'a')!;
+  const bNa = kernTasks.find((t) => t.id === 'b')!;
+  eq('3t taak a — earlyStart bijgewerkt uit de vastlegging', aNa.time.earlyStart, '2026-09-01');
+  eq('3u taak a — earlyFinish bijgewerkt uit de vastlegging', aNa.time.earlyFinish, '2026-09-05');
+  eq('3v taak a — lateStart-terugval blijft ?? rec.start (geen late* in het bestand)', aNa.time.lateStart, '2026-09-01');
+  eq('3w taak a — lateFinish-terugval blijft ?? rec.finish', aNa.time.lateFinish, '2026-09-05');
+  eq('3x taak a — totalFloat komt uit het bestand (geen terugval nodig)', aNa.time.totalFloat, 2);
+  eq('3y taak a — isCritical komt uit het bestand', aNa.time.isCritical, true);
+  eq('3z taak b (geen vastlegging) — time volledig onaangeroerd', bNa.time, mk('b').time);
+  eq('3aa taak b — earlyStart blijft de mk-default (bewijst dat filtering op aanwezigheid werkt)',
+    bNa.time.earlyStart, '2026-03-02');
+  eq('3ab taak a — interferingFloat gewist', aNa.time.interferingFloat, undefined);
+  eq('3ac taak a — isNearCritical gewist', aNa.time.isNearCritical, undefined);
+  eq('3ad taak a — floatPath gewist', aNa.time.floatPath, undefined);
+}
 
 // ── (4) Gemiste deadlines ─────────────────────────────────────────────────────
 // `deadline` staat op Task zelf (niet op Task['time']) — vandaar `mk`'s derde parameter.
@@ -388,6 +483,92 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   const bIdSAfterLoad = S().tasks.find(t => t.wbsCode === '1.2')!.id;
   eq('7s schedule-only: vastgelegde start van b komt uit de schedule-laag', S().recordedDates?.times[bIdSAfterLoad]?.start, '2026-03-16');
   eq('7t schedule-only: vastgelegde finish van b komt uit de schedule-laag', S().recordedDates?.times[bIdSAfterLoad]?.finish, '2026-03-20');
+}
+
+// ── (7B) Standaard-aan bij het laden — bron-orakel (XER-etappeplan §3.5, taak T4) ─────────────
+// Hergebruikt de fixture van (7) hierboven, maar routeert de vastlegging via het ORAKEL-kanaal
+// (`recordedTimes`/`recordedTimesOrigin`) i.p.v. `recordedFields` — precies het contract dat
+// `readXER` (bak 4) levert. Dit bestand blijft bewust reader-agnostisch: de synthetische
+// `ImportResult` hieronder (gebouwd uit een ECHTE IFC-parse, dus geen verzonnen structuur) bewijst
+// het LAADPAD-gedrag zonder aan een specifieke lezer te hangen; `check-xer-open-wiring.ts` bewijst
+// hetzelfde met een echte XER.
+{
+  const rtOracleSource = readIFC(externIfc('7B'));
+  const oracleTimes = captureRecordedDates(rtOracleSource.tasks, rtOracleSource.recordedFields).times;
+  const asXer: ImportResult = {
+    ...rtOracleSource,
+    recordedFields: undefined,
+    recordedTimes: oracleTimes,
+    recordedTimesOrigin: 'xer',
+  };
+
+  S().newProject();
+  const undoVoorLaad = S().historyEvents.filter(event => event.state === 'applied').length;
+  S().applyLoadedProject(asXer, { filePath: null, recompute: true });
+
+  eq('7u bron-orakel + restverschillen ⇒ modus staat AAN meteen na laden', S().datesAsRecorded, true);
+  truthy('7v recordedDates is gevuld', S().recordedDates !== null);
+  eq('7w shifted telt de verschoven taak (b)', S().recordedDates?.shifted, 1);
+  eq('7w2 de vastlegging draagt de herkomst die de meldingstekst stuurt', S().recordedDates?.origin, 'xer');
+  eq('7x scheduleStale is false in de modus (risico §5.1, expliciet gecontroleerd)', S().scheduleStale, false);
+  truthy('7y cpmResult is de reconstructie (geen solve)', S().cpmResult !== null);
+  eq('7z projectEnd komt uit het bestand (orakel), niet uit een herberekening', S().cpmResult?.projectEnd, '2026-03-20');
+  eq('7aa het aanzetten bij het laden pusht GEEN undo-snapshot',
+    S().historyEvents.filter(event => event.state === 'applied').length, undoVoorLaad);
+
+  S().undo();
+  eq('7ab undo() direct na het laden raakt de modus niet (er is niets om naar terug te gaan)',
+    S().datesAsRecorded, true);
+  eq('7ac …noch de vastlegging', S().recordedDates?.shifted, 1);
+
+  // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT na het laden,
+  // ook al is exact hetzelfde orakel meegegeven. Bewijst dat de auto-aan-route uitsluitend op de
+  // herkomstvlag draait, niet op de loutere aanwezigheid van `recordedTimes` — en dus dat een
+  // IFC/CSV/MSPDI/MPP/P6XML-document (die dit veld nooit zet) byte-identiek #63-gedrag houdt.
+  const asUnknownOrigin: ImportResult = {
+    ...rtOracleSource, recordedFields: undefined, recordedTimes: oracleTimes,
+  };
+  S().newProject();
+  S().applyLoadedProject(asUnknownOrigin, { filePath: null, recompute: true });
+  eq('7ad zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', S().datesAsRecorded, false);
+  truthy('7ae …maar het aanbod verschijnt nog gewoon (recordedDates gevuld)', S().recordedDates !== null);
+  eq('7af …met dezelfde teller', S().recordedDates?.shifted, 1);
+
+  // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive' — een
+  // heropende IFC met XER-archief (T5) — biedt de modus alleen AAN, net als 'xer-archive' zonder
+  // enige herkomst hierboven. Alleen 'xer' (verse import) zet 'm automatisch AAN. MUTATIEBEWIJS:
+  // stelde `applyRecordedDatesOnLoad` 'xer-archive' gelijk aan 'xer' (`origin !== undefined` i.p.v.
+  // `origin === 'xer'`), dan zou 7ah hieronder `true` worden en dus ROOD slaan.
+  const asXerArchive: ImportResult = {
+    ...rtOracleSource, recordedFields: undefined, recordedTimes: oracleTimes,
+    recordedTimesOrigin: 'xer-archive',
+  };
+  S().newProject();
+  S().applyLoadedProject(asXerArchive, { filePath: null, recompute: true });
+  eq('7ag "xer-archive" (heropende IFC met XER-archief) biedt de modus alleen aan, NIET gelijk aan "xer"',
+    S().datesAsRecorded, false);
+  truthy('7ah …maar het aanbod verschijnt wél', S().recordedDates !== null);
+  eq('7ai …met dezelfde teller als de verse import (sectie 7u)', S().recordedDates?.shifted, 1);
+  eq('7ai2 …en draagt de archiefherkomst, dus óók de Primavera-tekst (sectie 14)',
+    S().recordedDates?.origin, 'xer-archive');
+}
+
+// ── (7C) Crashherstel raakt de #63-route NIET ────────────────────────────────────────────────
+// `restoreDocuments` leest de modusvlag van vóór de crash sinds manifest v4 als FEIT uit het
+// recovery-manifest (`RecoveryDocInput.datesAsRecorded`, `applyRecordedDatesOnLoad(..., restoredMode)`
+// in `documentActivation.ts`) — geen heuristiek meer. Deze sectie pint de tegenkant vast: een gewoon
+// #63-document (IFC/CSV/MSPDI/MPP/P6XML) dat met `datesAsRecorded: false` in het manifest stond,
+// komt terug in de AANBOD-stand en niet in de modus. MUTATIEBEWIJS: geef `restoredMode` in
+// `applyRecordedDatesOnLoad` voorrang op de manifestvlag (`restoredMode ?? true`) ⇒ 7aj slaat ROOD.
+{
+  const parsed = readIFC(externIfc('7C'));
+  const input = recoveryInputFromParsed(parsed, { id: 'rec-63', filePath: null, isDirty: true, datesAsRecorded: false });
+  S().newProject();
+  S().restoreDocuments([input], 'rec-63');
+  eq('7aj crashherstel van een gewoon #63-document zet de modus NIET aan', S().datesAsRecorded, false);
+  truthy('7ak …maar herstelt wél het aanbod', S().recordedDates !== null);
+  eq('7al …met dezelfde teller als het gewone openen (sectie 7i)', S().recordedDates?.shifted, 1);
+  eq('7am …en zonder herkomststempel, dus met de formaatneutrale tekst', S().recordedDates?.origin, undefined);
 }
 
 // ── (8) showRecordedDates — de modus betreden (Taak 5) ────────────────────────
@@ -787,6 +968,20 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   geenModusEnStale('11f na een bewerking (modus uit, wél verouderd)');
   S().undo();
   geenModusEnStale('11g na undo (modus terug aan, niet verouderd)');
+
+  // (11h) XER-etappeplan §3.5/§4-T4, risico §5.1: het bron-orakel-laadpad zet de modus AAN in
+  // `applyRecordedDatesOnLoad`, dus deze invariant moet ook ná EEN AUTO-AAN-LOAD gelden — niet
+  // alleen ná een handmatige `showRecordedDates()`-aanroep zoals 11d/11e hierboven.
+  const rt11h = readIFC(externIfc('11h'));
+  const oracleTimesFor11h = captureRecordedDates(rt11h.tasks, rt11h.recordedFields).times;
+  const asXerFor11h: ImportResult = {
+    ...rt11h, recordedFields: undefined,
+    recordedTimes: oracleTimesFor11h, recordedTimesOrigin: 'xer',
+  };
+  S().newProject();
+  S().applyLoadedProject(asXerFor11h, { filePath: null, recompute: true });
+  truthy('11h voorwaarde: bron-orakel-load zette de modus echt aan', S().datesAsRecorded);
+  geenModusEnStale('11h ná een bron-orakel-load (modus meteen aan)');
 }
 
 // ── (12) "Alles verversen" blijft één undo-stap (review taak 6, B2) ──────────
@@ -871,6 +1066,177 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('13c het slapende document A wordt niet buiten zijn historygrens overschreven',
     sleepingA?.tasks.find(task => task.id === taskA)!.externalLinks![0].anchorDate, '2026-01-01');
   eq('13d de gebruiker blijft in document B', S().activeDocumentId, documentB);
+}
+
+// ── (13B) EXPORT-UITGANG: geen verzonnen 0 in de CSV ────────────────────────────────────────
+// Critreview laag 3, bevinding 6. In de modus draagt `task.time` de vastlegging van het bestand,
+// mét de bewuste terugvallen voor niet-vastgelegde assen. De taaktabel toont daar "Niet
+// vastgelegd"; een CSV-cel kan een verzonnen `0` niet van een echte nulspeling onderscheiden, dus
+// daar hoort een LEGE cel. MUTATIEBEWIJS: geef de poort (`unrecordedExportGate`) niet mee aan
+// `writeCSV` in `fileSlice.exportFile` ⇒ 13Bb hieronder slaat rood.
+{
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('csv')), { filePath: null, recompute: true });
+  S().showRecordedDates();
+  truthy('13Ba voorwaarde: de modus staat aan', S().datesAsRecorded);
+
+  const kolommen = (csv: string) => csv.trim().split('\r\n').slice(1).map(regel => regel.split(';'));
+  const inModus = writeCSV(
+    S().project, S().calendar, S().tasks, S().sequences, S().resources, S().assignments,
+    S().customTaskTypes, unrecordedExportGate(S().recordedDates, S().datesAsRecorded),
+  );
+  const rijenInModus = kolommen(inModus);
+  eq('13Bb in de modus is de niet-vastgelegde totale speling (kolom 13) een LEGE cel, geen verzonnen 0',
+    rijenInModus.map(rij => rij[13]), ['', '']);
+  eq('13Bc … en de niet-vastgelegde kritiek-vlag (kolom 12) óók, geen verzonnen "No"',
+    rijenInModus.map(rij => rij[12]), ['', '']);
+  eq('13Bd … terwijl de WÉL vastgelegde datums gewoon geëxporteerd worden',
+    rijenInModus.map(rij => rij[3]), ['2026-03-02', '2026-03-16']);
+
+  // Tegenproef: buiten de modus is de export byte-identiek aan voorheen — de poort levert dan
+  // `undefined` en de kolommen dragen de echte berekening.
+  S().runCPM();
+  eq('13Be voorwaarde: runCPM verliet de modus', S().datesAsRecorded, false);
+  const buitenModus = writeCSV(
+    S().project, S().calendar, S().tasks, S().sequences, S().resources, S().assignments,
+    S().customTaskTypes, unrecordedExportGate(S().recordedDates, S().datesAsRecorded),
+  );
+  const rijenBuiten = kolommen(buitenModus);
+  eq('13Bf buiten de modus staat de BEREKENDE speling in de kolom', rijenBuiten.map(rij => rij[13]), ['0', '0']);
+  eq('13Bg … en de berekende kritiek-vlag', rijenBuiten.map(rij => rij[12]), ['Yes', 'Yes']);
+  eq('13Bh zonder poort is de export byte-identiek aan het gedrag van vóór deze wijziging',
+    writeCSV(S().project, S().calendar, S().tasks, S().sequences, S().resources, S().assignments,
+      S().customTaskTypes), buitenModus);
+}
+
+// ── (14) De meldingstekst is BRONAFHANKELIJK ─────────────────────────────────────────────────
+// De MODUS-ACTIEF-strook zegt "zoals Primavera ze opsloeg". Die strook is echter gedeeld met de
+// #63-route voor elk ander formaat, waar niemand weet uit welk pakket de datums komen — daar is die
+// zin een verkeerde bewering. Twee helften:
+//  (a) de KEUZE (`recordedDatesActiveKey`, de React-vrije besluitmodule achter de component);
+//  (b) de INHOUD in alle veertien talen: de Primavera-familie noemt Primavera, de neutrale familie
+//      NIET — een vertaler die de zin kopieert wordt hier gepakt, in elke taal.
+{
+  eq('14a verse XER-import ⇒ Primavera-tekst', recordedDatesActiveKey('xer'), 'recordedDates.activeCount');
+  eq('14b heropende IFC met XER-archief ⇒ óók Primavera-tekst (de datums zijn echt van P6)',
+    recordedDatesActiveKey('xer-archive'), 'recordedDates.activeCount');
+  eq('14c zonder herkomst (de #63-route, elk ander formaat) ⇒ formaatneutrale tekst',
+    recordedDatesActiveKey(undefined), 'recordedDates.activeCountNeutral');
+
+  const kandidatenL = [
+    fileURLToPath(new URL('../../src/i18n/locales/', import.meta.url).href),
+    resolvePath(process.cwd(), 'src/i18n/locales'),
+  ];
+  const localesRoot = kandidatenL.find((p) => existsSync(p)) ?? null;
+  truthy(`14d de tekstcontrole vindt src/i18n/locales/ (geprobeerd: ${kandidatenL.join(', ')})`, localesRoot !== null);
+
+  if (localesRoot) {
+    const talen = readdirSync(localesRoot, { withFileTypes: true })
+      .filter((e) => e.isDirectory()).map((e) => e.name).sort();
+    eq('14e alle veertien talen worden gecontroleerd', talen.length, 14);
+
+    const zonderNeutraal: string[] = [];
+    const neutraalNoemtPrimavera: string[] = [];
+    const primaveraNoemtHetNiet: string[] = [];
+    for (const taal of talen) {
+      const json = JSON.parse(readFileSync(joinPath(localesRoot, taal, 'common.json'), 'utf8')) as
+        Record<string, Record<string, string>>;
+      const rd = json.recordedDates ?? {};
+      const primavera = Object.entries(rd).filter(([k]) => k.startsWith('activeCount_'));
+      const neutraal = Object.entries(rd).filter(([k]) => k.startsWith('activeCountNeutral_'));
+      if (neutraal.length === 0 || neutraal.length !== primavera.length) zonderNeutraal.push(taal);
+      if (neutraal.some(([, v]) => v.includes('Primavera'))) neutraalNoemtPrimavera.push(taal);
+      if (primavera.some(([, v]) => !v.includes('Primavera'))) primaveraNoemtHetNiet.push(taal);
+    }
+    eq('14f elke taal heeft de neutrale familie met exact dezelfde pluralvormen als de Primavera-familie',
+      zonderNeutraal, []);
+    eq('14g de NEUTRALE tekst noemt Primavera in geen enkele taal', neutraalNoemtPrimavera, []);
+    eq('14h de Primavera-tekst noemt Primavera juist WEL in elke taal (anders bewijst 14g niets)',
+      primaveraNoemtHetNiet, []);
+
+    // Her-check laag 3, bevinding 5: dezelfde regel voor de per-taak-BADGE (`task.json`,
+    // `properties.recordedDatesActive[Neutral]`) — die zei "Primavera" op élk #63-document.
+    eq('14i badge: XER-herkomst ⇒ Primavera-sleutel', recordedDatesTaskActiveKey('xer'), 'properties.recordedDatesActive');
+    eq('14j badge: archiefherkomst ⇒ óók Primavera-sleutel', recordedDatesTaskActiveKey('xer-archive'), 'properties.recordedDatesActive');
+    eq('14k badge: zonder herkomst ⇒ neutrale sleutel', recordedDatesTaskActiveKey(undefined), 'properties.recordedDatesActiveNeutral');
+    const badgeZonderNeutraal: string[] = [];
+    const badgeNeutraalNoemtPrimavera: string[] = [];
+    const badgePrimaveraNoemtHetNiet: string[] = [];
+    for (const taal of talen) {
+      const json = JSON.parse(readFileSync(joinPath(localesRoot, taal, 'task.json'), 'utf8')) as
+        Record<string, Record<string, string>>;
+      const props = json.properties ?? {};
+      const primavera = props.recordedDatesActive;
+      const neutraal = props.recordedDatesActiveNeutral;
+      if (typeof neutraal !== 'string' || neutraal.length === 0) badgeZonderNeutraal.push(taal);
+      else if (neutraal.includes('Primavera')) badgeNeutraalNoemtPrimavera.push(taal);
+      // `Primaver` en niet `Primavera`: het Pools verbuigt de naam ("przez Primaverę").
+      if (typeof primavera !== 'string' || !primavera.includes('Primaver')) badgePrimaveraNoemtHetNiet.push(taal);
+    }
+    eq('14l elke taal heeft de neutrale badge-tekst', badgeZonderNeutraal, []);
+    eq('14m de NEUTRALE badge noemt Primavera in geen enkele taal', badgeNeutraalNoemtPrimavera, []);
+    eq('14n de Primavera-badge noemt Primavera juist WEL in elke taal', badgePrimaveraNoemtHetNiet, []);
+  }
+}
+
+// ── (15) Samenvattingen rollen in de modus op uit de VASTGELEGDE kinderen ───────────────────────
+// Her-check laag 3, bevinding 3: P6 legt de zes uitvoerkolommen alleen op TASK-rijen vast; een
+// WBS-rij (of IFC-fase) heeft nooit een eigen vastlegging en hield daardoor de datums van de solve
+// die de modus zojuist verwierp (gemeten: hoofd-WBS een half jaar ná `projectEnd`). Zelfde rollup
+// als na een echte solve. MUTATIEBEWIJS: haal `rollupSummaryTasks(tasks)` uit
+// `applyRecordedTimesToTasks` ⇒ 15a/15b slaan ROOD (de samenvatting houdt haar oude datums).
+{
+  const base = (id: string) => ({
+    id, name: id, description: '', wbsCode: id, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, resourceIds: [], activityCodes: {}, customFields: {},
+    externalLinks: [], notes: [],
+  });
+  const leaf = (id: string, parentId: string, es: string, ef: string): Task => ({
+    ...base(id),
+    parentId,
+    childIds: [],
+    time: {
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 5,
+      scheduleStart: es, scheduleFinish: ef, earlyStart: es, earlyFinish: ef,
+      lateStart: es, lateFinish: ef, totalFloat: 0, freeFloat: 0, isCritical: true, completion: 0,
+    },
+  } as Task);
+  const summary: Task = {
+    ...base('S'),
+    parentId: null,
+    childIds: ['A', 'B'],
+    time: {
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 10,
+      // De "weggegooide solve": een half jaar later dan wat de kinderen vastleggen.
+      scheduleStart: '2026-09-01', scheduleFinish: '2026-09-30',
+      earlyStart: '2026-09-01', earlyFinish: '2026-09-30',
+      lateStart: '2026-09-01', lateFinish: '2026-09-30',
+      totalFloat: 0, freeFloat: 0, isCritical: true, completion: 0,
+      interferingFloat: 0,
+    },
+  } as Task;
+  const tasks: Task[] = [summary, leaf('A', 'S', '2026-09-01', '2026-09-05'), leaf('B', 'S', '2026-09-08', '2026-09-12')];
+  const times: Record<string, RecordedTime> = {
+    A: { start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13', totalFloat: 5, freeFloat: 0, isCritical: false },
+    B: { start: '2026-03-09', finish: '2026-03-13', lateStart: '2026-03-09', lateFinish: '2026-03-13', totalFloat: 0, freeFloat: 0, isCritical: true },
+  };
+  const cpm = applyRecordedTimesToTasks(tasks, times, createDefaultCalendar());
+  const s = tasks[0].time;
+  eq('15a de samenvatting omspant de VASTGELEGDE kinderen (vroege zijde)',
+    [s.earlyStart, s.earlyFinish], ['2026-03-02', '2026-03-13']);
+  eq('15b ... en niet meer de weggegooide solve (late zijde en speling uit de kinderen)',
+    [s.lateStart, s.lateFinish, s.totalFloat, s.freeFloat, s.isCritical], ['2026-03-09', '2026-03-13', 0, 0, true]);
+  eq('15c analyse-afgeleiden zijn ook op de samenvatting gewist',
+    [s.interferingFloat, s.isNearCritical, s.floatPath], [undefined, undefined, undefined]);
+  eq('15d de balk klopt nu met de projecteinddatum die dezelfde modus rapporteert',
+    [cpm.projectEnd, s.earlyFinish <= cpm.projectEnd], ['2026-03-13', true]);
+  eq('15e een samenvatting zonder vastgelegde kinderen blijft onaangeroerd (geen vastlegging ⇒ niets te zeggen)',
+    (() => {
+      const alone: Task = { ...summary, id: 'S2', childIds: ['C'], time: { ...summary.time } } as Task;
+      const c = leaf('C', 'S2', '2026-09-01', '2026-09-05');
+      applyRecordedTimesToTasks([alone, c], {}, createDefaultCalendar());
+      return [alone.time.earlyStart, alone.time.earlyFinish];
+    })(), ['2026-09-01', '2026-09-05']);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

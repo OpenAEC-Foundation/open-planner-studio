@@ -47,6 +47,10 @@
     "xerImportEnumFallbacks_other": "{{count}} enum geri dönüşü.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6 planlama ayarı güvenli geri dönüş kullandı.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6 planlama ayarı güvenli geri dönüş kullandı.",
+    "xerImportDatesAsRecorded_one": "{{count}} görev, Primavera'nın kaydettiği tarihleri gösteriyor (yeniden hesaplanmadı).",
+    "xerImportDatesAsRecorded_other": "{{count}} görev, Primavera'nın kaydettiği tarihleri gösteriyor (yeniden hesaplanmadı).",
+    "xerImportDatesAsRecordedOffer_one": "{{count}} görev, dosyada kayıtlı tarihlerden farklı — bunları gösterebilirsiniz.",
+    "xerImportDatesAsRecordedOffer_other": "{{count}} görev, dosyada kayıtlı tarihlerden farklı — bunları gösterebilirsiniz.",
     "xerExportLoss": "{{format}} biçimine dışa aktarma XER kaynak bilgilerini kaybeder.",
     "mppLegacy": "Bu .mpp dosyası eski bir biçim kullanıyor (Project 2007 veya daha eski). MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
     "mppEncrypted": "Bu .mpp dosyası parola ile korunuyor. MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
@@ -806,9 +810,16 @@
   "recordedDates": {
     "offer_one": "Yeniden hesaplama, dosyadaki tarihlere göre {{total}} görevden {{count}} tanesini kaydırdı.",
     "offer_other": "Yeniden hesaplama, dosyadaki tarihlere göre {{total}} görevden {{count}} tanesini kaydırdı.",
+    "activeCount_one": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
+    "activeCount_other": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
+    "activeCountNeutral_one": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
+    "activeCountNeutral_other": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
     "show": "Kaydedilen tarihleri göster",
     "active": "Tarihleri dosyada kaydedildiği şekilde görüntülüyorsunuz. Herhangi bir yeniden hesaplama yapılmadı.",
-    "recalculate": "Yeniden hesapla"
+    "recalculate": "Yeniden hesapla",
+    "markDeviates": "Farklılaşıyor",
+    "markPartlyUnrecorded": "Kısmen kaydedilmedi",
+    "notRecorded": "Kaydedilmedi"
   },
   "duration": {
     "suffixDay": "g",

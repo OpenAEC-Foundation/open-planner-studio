@@ -142,6 +142,7 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
       ifc: ifcs[index]!,
       filePath: null,
       isDirty: true,
+      datesAsRecorded: false,
     }))));
     storageWrites.documents = 0;
     storageWrites.manifests = 0;
@@ -157,8 +158,8 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
     deltaWriteIfcCalls = 1;
     await saveRecovery({
       activeDocumentId: docs[0]!.id,
-      documents: docs.map((document) => ({ id: document.id, filePath: null, isDirty: true })),
-      upserts: [{ id: docs[0]!.id, ifc: editedIfc, filePath: null, isDirty: true }],
+      documents: docs.map((document) => ({ id: document.id, filePath: null, isDirty: true, datesAsRecorded: false })),
+      upserts: [{ id: docs[0]!.id, ifc: editedIfc, filePath: null, isDirty: true, datesAsRecorded: false }],
     });
     deltaDocumentWrites = storageWrites.documents;
     deltaManifestWrites = storageWrites.manifests;
@@ -170,7 +171,7 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
       .project.description === '__x9-recovery-delta__';
     const inputs = loaded.docs.map(document => recoveryInputFromParsed(
       readIFC(document.ifc),
-      { id: document.id, filePath: document.filePath, isDirty: document.isDirty },
+      { id: document.id, filePath: document.filePath, isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded },
     ));
     useAppStore.getState().restoreDocuments(inputs, loaded.activeDocumentId);
     const recovered = useAppStore.getState().getOpenDocumentPayloads();
