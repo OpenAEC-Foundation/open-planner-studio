@@ -78,3 +78,39 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--theme-border);
 }
+
+/* Tab Statistieken — compacte cijfertabellen die in de 520 px brede popup passen. Geen vaste
+   kolombreedtes: de browser verdeelt op inhoud, en `.num` lijnt cijfers rechts uit met tabulaire
+   cijfers zodat kolommen op elkaar staan. De tabel scrolt nooit horizontaal (issue-klasse
+   "past niet in de tandwiel-popup"): bij krapte breken de koppen, niet de cijfers. */
+.settings-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--theme-text);
+  font-variant-numeric: tabular-nums;
+}
+.settings-stats-table th,
+.settings-stats-table td {
+  padding: 3px 6px 3px 0;
+  text-align: left;
+  vertical-align: baseline;
+  border-bottom: 1px solid var(--theme-border);
+}
+.settings-stats-table th {
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+}
+.settings-stats-table th.num,
+.settings-stats-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+.settings-stats-table tr.total td {
+  font-weight: 600;
+  border-bottom: none;
+}
+.settings-stats-error {
+  color: var(--theme-danger, #dc2626);
+}

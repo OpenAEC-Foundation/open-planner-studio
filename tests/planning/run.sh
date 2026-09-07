@@ -237,6 +237,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi
 
+  # Leeskant van de stats-pijplijn (tab Statistieken in de instellingen): parser tegen de echte
+  # `downloads.json`-vorm, schema-poort en de cache-/fetch-volgorde met geïnjecteerde fetch/opslag.
+  DLSTATSCHECK="$DIR/.download-stats-check.mjs"
+  if bundle_check "$DIR/check-download-stats.ts" "$DLSTATSCHECK"; then node "$DLSTATSCHECK" || STATUS=1; fi
+
   # Tabelrapporten (discussie #31): look-ahead, kritiek, voortgang, gezondheid, resources, WBS —
   # de pure engine in src/engine/reports/ tegen een via de echte store opgebouwd project.
   RPCHECK="$DIR/.reports-check.mjs"
