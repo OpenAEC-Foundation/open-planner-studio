@@ -198,7 +198,7 @@ const variants: Variant[] = [
     fixtureShape: 'completedOnly',
     expected: {
       projectEndSource: 'completedDisplayWindow',
-      completedLateStartSource: 'subRemainingDuration',
+      completedLateStartSource: 'completedRemainingWindow',
       taskIds: ['C'],
     },
   },
@@ -211,7 +211,7 @@ const variants: Variant[] = [
     laterOpenTaskWinsProjectEnd: true,
     expected: {
       projectEndSource: 'maxEarlyFinish',
-      completedLateStartSource: 'subRemainingDuration',
+      completedLateStartSource: 'completedRemainingWindow',
       milestoneFreeFloatSource: 'projectEndFinishMilestoneBoundary',
       taskIds: ['C', 'L', 'M', 'O', 'P'],
     },
@@ -233,7 +233,7 @@ const variants: Variant[] = [
     fixtureShape: 'network',
     expected: {
       projectEndSource: 'useProjectEndDateForFloat',
-      completedLateStartSource: 'subRemainingDuration',
+      completedLateStartSource: 'completedRemainingWindow',
       milestoneFreeFloatSource: 'clampedZero',
       taskIds: ['C', 'M', 'O', 'P'],
     },
@@ -243,7 +243,7 @@ const variants: Variant[] = [
     finishMilestoneBoundary: false,
     fixtureShape: 'network',
     expected: {
-      completedLateStartSource: 'subRemainingDuration',
+      completedLateStartSource: 'completedRemainingWindow',
       milestoneFreeFloatSource: 'derivedFromSuccessor',
       taskIds: ['C', 'M', 'O', 'P'],
     },
@@ -446,7 +446,7 @@ for (const variant of completedGuardVariants) {
     displayActualLateReason: source?.backwardFloatTraceDisplayActualLateReason,
   }, {
     projectEndSource: 'completedDisplayWindow',
-    lateStartSource: 'subRemainingDuration',
+    lateStartSource: 'completedRemainingWindow',
     displayActualLate: true,
     completedWindowEligible: true,
     completedWindowReason: 'eligible',

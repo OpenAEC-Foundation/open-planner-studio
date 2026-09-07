@@ -32,6 +32,12 @@ The import reads, among other things:
 
 The raw P6 source data that Open Planner Studio reads remains part of the document. It survives tab switching, undo, recovery and saving. That is different from claiming that every P6 feature already has an equivalent editing or scheduling model: when such a model is missing, source data is retained rather than silently discarded.
 
+## Completed activities get real float
+
+Primavera treats a completed activity, for its entire calculation, as a task with zero remaining work on the data date — on the late side too. Since September 2026 Open Planner Studio mirrors that, but only for projects that came from a `.xer` file. As a result a completed activity now shows real total float instead of always zero, and it exerts backward pressure on its own predecessors like any other task. Your data does not change: the actual start and finish dates stay exactly as the file recorded them.
+
+The rule applies only where the source file supports it: activities of the "fixed duration and units" type with duration-based percent complete, a recorded planned window, and a project that links remaining work to the plan. If the file also declares that it was scheduled with *progress override* rather than *retained logic*, the previous behaviour stays. Projects from IFC, MS Project or Primavera P6 XML are unaffected.
+
 ## Text encoding and numbers
 
 XER does not reliably declare its text encoding in the file. A UTF BOM is followed; without one, the reader uses valid UTF-8 and otherwise falls back to Windows-1252. If that non-ASCII choice is needed, the opening notification states the encoding used. The app does not guess individual rows or describe them as "skipped".

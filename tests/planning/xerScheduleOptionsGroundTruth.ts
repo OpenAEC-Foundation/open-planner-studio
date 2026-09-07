@@ -206,6 +206,10 @@ export function expectedXerScheduleOptions(
     p6UseRemainingStartForProgress:
       projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y',
     p6PreserveZeroDurationConstraintInstants: true,
+    // X-O7 laag 1, klasse (i): de bewijsbasis is uitsluitend RETAINED_LOGIC-corpus, dus deze
+    // onafhankelijke afleiding zet 'm net als de productie-afleiding standaard aan en weer uit
+    // zodra `sched_progress_override=Y` blijkt (hieronder, ná de progressMode-afleiding).
+    p6CompletedLateFromRemainingWindow: true,
   };
   if (!scheduleRow) {
     return {
@@ -254,6 +258,13 @@ export function expectedXerScheduleOptions(
       `${retainedTokenRaw || '(leeg)'}/${overrideTokenRaw || '(leeg)'}`,
       'RETAINED_LOGIC',
     );
+  }
+  // Her-review bevinding 3: de klem sluit op "niet aantoonbaar Y/N" — N/N (Actual Dates) en Y/Y
+  // vallen voor de solver op RETAINED_LOGIC terug, maar houden de completed-late-vlag NIET aan.
+  const retainedUpper = retainedTokenRaw.toUpperCase();
+  const overrideUpper = overrideTokenRaw.toUpperCase();
+  if (!((retainedUpper === '' || retainedUpper === 'Y') && (overrideUpper === '' || overrideUpper === 'N'))) {
+    schedulingOptions.p6CompletedLateFromRemainingWindow = false;
   }
 
   const floatPathFields = [

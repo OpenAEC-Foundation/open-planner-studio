@@ -123,6 +123,7 @@ export const XER_SCHEDULING_DEFAULTS = {
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: false,
     p6PreserveZeroDurationConstraintInstants: true,
+    p6CompletedLateFromRemainingWindow: true,
   },
 } as const satisfies { progressMode: ProgressMode; schedulingOptions: SchedulingOptions };
 
@@ -199,6 +200,16 @@ function projectRemainingStartValue(
   if (token.toUpperCase() === 'N') return false;
   reportFallback(fallbacks, row, 'rem_target_link_flag', token, 'false');
   return false;
+}
+
+/** "Aantoonbaar retained logic" voor de completed-late-klem: geen declaratie (P6-default) of
+ *  exact `sched_retained_logic=Y`/`sched_progress_override=N` — elk half of afwijkend paar (N/N
+ *  "Actual Dates", Y/Y, N/Y, onbekende tokens) telt als NIET aantoonbaar. Bewust strenger dan
+ *  `progressModeValue`, die voor de solver zelf op RETAINED_LOGIC terugvalt. */
+function declaresRetainedLogic(row: XerRow): boolean {
+  const retained = row.cells.sched_retained_logic?.trim().toUpperCase() ?? '';
+  const override = row.cells.sched_progress_override?.trim().toUpperCase() ?? '';
+  return (retained === '' || retained === 'Y') && (override === '' || override === 'N');
 }
 
 function progressModeValue(
@@ -397,6 +408,18 @@ export function deriveXerScheduleOptions(
   }
 
   const progressMode = progressModeValue(row, fallbacks);
+  // X-O7 laag 1, klasse (i) (review-bevinding 6, aangescherpt in de her-review, bevinding 3): de
+  // bewijsbasis voor `p6CompletedLateFromRemainingWindow` is uitsluitend RETAINED_LOGIC-corpus
+  // (rehab-2, geen enkel gemeten bestand declareert iets anders) — zie het docblok bij het veld in
+  // `types/project.ts`. De klem is daarom fail-closed op "aantoonbaar retained logic": de vlag
+  // blijft alleen aan wanneer de bron géén van beide velden declareert (P6-default, rehab-2) of
+  // exact Y/N zegt. Niet alleen `sched_progress_override=Y` (N/Y) zet 'm uit, maar óók P6's
+  // "Actual Dates" (N/N) en de tegenstrijdige Y/Y — die vielen in `progressModeValue` zichtbaar
+  // terug op RETAINED_LOGIC en hielden de vlag stil aan, terwijl juist Actual Dates de modus is
+  // waarin P6 voltooid werk anders behandelt en daar geen enkele meting van bestaat.
+  if (!declaresRetainedLogic(row)) {
+    schedulingOptions.p6CompletedLateFromRemainingWindow = false;
+  }
 
   const floatPathFields = [
     'enable_multiple_longest_path_calc',

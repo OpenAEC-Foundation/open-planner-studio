@@ -388,6 +388,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XERCOMPLETEDLOECHECK="$DIR/.xer-completed-loe-actual-finish.mjs"
   if bundle_check "$DIR/check-xer-completed-loe-actual-finish.ts" "$XERCOMPLETEDLOECHECK"; then node "$XERCOMPLETEDLOECHECK" || STATUS=1; fi
 
+  # Diagnose laag 1, klasse (i) (X-O7): een voltooide XER-activiteit staat via
+  # p6CompletedLateFromRemainingWindow ook aan de late zijde op nul restduur op de statusdatum
+  # (LF = prevWorkInstant(LS), lag vervalt tussen twee voltooide activiteiten); vlag uit blijft
+  # byte-identiek aan de rauwe actual-pin.
+  XERCOMPLETEDLATECHECK="$DIR/.xer-completed-late.mjs"
+  if bundle_check "$DIR/check-xer-completed-late.ts" "$XERCOMPLETEDLATECHECK"; then node "$XERCOMPLETEDLATECHECK" || STATUS=1; fi
+
   # X12-residu Ashspace: uitsluitend de bewezen open XER TT_LOE-span met SS-in- en FF-uittopologie
   # mag het expliciete targetvenster gebruiken; de corpusloze mutatiematrix houdt alle andere vormen dicht.
   XEROPENLOETARGETSPANCHECK="$DIR/.xer-open-loe-target-span.mjs"
@@ -596,6 +603,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # generator byte-identiek tegen de publieke bron gedraaid.
   P6VERIFIEDCHECK="$DIR/.p6-verified-cases.mjs"
   if bundle_check "$DIR/check-p6-verified-cases.ts" "$P6VERIFIEDCHECK"; then node "$P6VERIFIEDCHECK" || STATUS=1; fi
+
+  # Dezelfde dertien casussen, nu ECHT door lezer + solver (review-bevinding 7): de invoerzijde is
+  # corpusloos getranscribeerd, de uitkomst wordt cel voor cel tegen de P6-23.12-opname gelegd.
+  # Met OPS_P6_COMPARISON of OPS_XER_CORPUS wordt de transcriptie zelf tegen de bron gecontroleerd.
+  P6VERIFIEDENGINECHECK="$DIR/.p6-verified-cases-engine.mjs"
+  if bundle_check "$DIR/check-p6-verified-cases-engine.ts" "$P6VERIFIEDENGINECHECK"; then node "$P6VERIFIEDENGINECHECK" || STATUS=1; fi
 
   # Opslagdoel-guard voor binaire bronformaten (fase 3.8 e1, T8-stap 5a): `fileSlice.openFile`
   # via de echte `<input type=file>`-terugval — .mpp krijgt GEEN opslagdoel, .ifc (contrast) wel.

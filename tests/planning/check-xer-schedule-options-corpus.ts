@@ -1034,6 +1034,16 @@ if (!root) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
     eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
       measured.expectedFinishVariant, committed.expectedFinishVariant);
+    // Herpin 2026-09-05 (X-O7 laag 1, klasse (i) — `p6CompletedLateFromRemainingWindow`), gemeten
+    // over de hele corpusunie: `xerDefaults` ls 4791 → 3901, lf 4781 → 3891, tf 4592 → 4235
+    // (es/ef/ff ongewijzigd). Netto −2.137 afwijkende cellen, volledig toe te schrijven aan één
+    // corpusbestand (rehab-2): de late zijde van voltooide activiteiten volgt nu het
+    // statusdatumvenster in plaats van de rauwe actual-pin. De tf-winst is NETTO: per cel gemeten
+    // op rehab-2 worden 572 tf-cellen exact en 215 eerder exacte tf-cellen fout — alle 215 zijn
+    // voltooide taken waar P6 `tf = 0` geeft en onze afgeleide LS nog van een zelf foute
+    // opvolger-LS komt (diagnose laag 1, klasse (ii)); vóór deze etappe was hun `tf = 0`
+    // degeneratie (LS = de historische actual-start), dus per ongeluk goed. Zie het baanrapport en
+    // het docblok bij `p6CompletedLateFromRemainingWindow` in `types/project.ts`.
     eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
       shape: causalProductEffectsShape(committed.causalProductEffects),
       measured: causalProductEffects(measured),

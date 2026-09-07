@@ -650,6 +650,7 @@ eq('hostile bronarchief bewaart iedere raw rij eenmaal en diagnosticeert duplica
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: false,
     p6PreserveZeroDurationConstraintInstants: true,
+    p6CompletedLateFromRemainingWindow: true,
   },
   duplicateDiagnostics: [{
     code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
@@ -721,6 +722,7 @@ eq('expliciete XER-defaultset is brongebonden en compleet', legacyResult(without
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: false,
     p6PreserveZeroDurationConstraintInstants: true,
+    p6CompletedLateFromRemainingWindow: true,
   },
   retainedSource: {},
   fallbacks: [],
@@ -751,6 +753,7 @@ eq('geexporteerde defaults blijven de ongewijzigde nul-drempel leveren', XER_SCH
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: false,
     p6PreserveZeroDurationConstraintInstants: true,
+    p6CompletedLateFromRemainingWindow: true,
   },
 });
 eq('default 1/8: finish-float', XER_SCHEDULING_DEFAULTS.schedulingOptions.totalFloatMode, 'finish');
@@ -875,6 +878,7 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: false,
     p6PreserveZeroDurationConstraintInstants: true,
+    p6CompletedLateFromRemainingWindow: false,
     useProjectEndDateForFloat: false,
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 3 },
   },
@@ -994,6 +998,25 @@ eq('niet-ondersteunde P6 Actual Dates-modus valt nooit stil terug', {
     line: 7,
   }],
 });
+// Her-review 7a, bevinding 3: de completed-late-klem sluit op "niet aantoonbaar retained logic",
+// niet op de solver-terugval. N/N (Actual Dates) en Y/Y houden de vlag dus NIET aan; Y/N en
+// (leeg)/(leeg) wél. MUTATIEBEWIJS: klem terug op `progressMode !== 'RETAINED_LOGIC'` ⇒ de N/N-
+// en Y/Y-regels hieronder slaan ROOD.
+const completedLateFlagFor = (retained: string, override: string) => deriveXerScheduleOptions(parseXerTables(xer(
+  ['proj_id'],
+  ['P1'],
+  {
+    fields: ['proj_id', 'sched_retained_logic', 'sched_progress_override'],
+    values: ['P1', retained, override],
+  },
+)), 'P1').schedulingOptions.p6CompletedLateFromRemainingWindow;
+eq('completed-late-klem: Actual Dates (N/N) zet de vlag UIT', completedLateFlagFor('N', 'N'), false);
+eq('completed-late-klem: tegenstrijdig Y/Y zet de vlag UIT', completedLateFlagFor('Y', 'Y'), false);
+eq('completed-late-klem: progress override (N/Y) zet de vlag UIT', completedLateFlagFor('N', 'Y'), false);
+eq('completed-late-klem: expliciet retained logic (Y/N) houdt de vlag AAN', completedLateFlagFor('Y', 'N'), true);
+eq('completed-late-klem: geen declaratie (leeg/leeg) houdt de vlag AAN (P6-default, rehab-2)', completedLateFlagFor('', ''), true);
+eq('completed-late-klem: half paar Y/(leeg) telt als retained logic', completedLateFlagFor('Y', ''), true);
+eq('completed-late-klem: onbekend token zet de vlag UIT', completedLateFlagFor('MAYBE', 'N'), false);
 
 const ifcProject = {
   ...createDefaultProject(),

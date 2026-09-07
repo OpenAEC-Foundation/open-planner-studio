@@ -714,6 +714,20 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 
 ### Kwaliteit & verificatie
 
+- [ ] **De per-cel-poort `cellTransitions.previouslyExact` meet sinds de X12-v2-meetlat niets meer**
+  (gemeten 2026-09-05 op `92e98b8e` én op de XER-baan 7a-branch; niet door die baan veroorzaakt).
+  `tests/planning/check-xer-product-fidelity.ts` is de v1-harness en leest
+  `tests/planning/xer-product-fidelity-baseline.json`, maar dat bestand draagt inmiddels het
+  v2-schema (`version: 2`, gzip-payload) van `xerProductBaselineV2.ts`. Mét `OPS_XER_CORPUS` liep de
+  check daardoor op een kale `TypeError` (`Object.keys(baseline.files)`); dat is nu een leesbare
+  rode regel die de oorzaak benoemt, maar de poort zelf is dood. Dat is precies de poort die
+  "cel was exact, is nu fout" zou moeten afvangen — de klasse die in baan 7a met 215 tf-cellen
+  handmatig gemeten moest worden. **Repareren = v1 zijn eigen baselinebestand teruggeven** (twee
+  openbare corpusbestanden, 8 activiteiten elk) en dat opnieuw genereren; of het
+  `previouslyExact`-mechanisme naar de v2-baseline verhuizen. Eigen etappe, geen zijklus.
+  De solve-aanroep in die harness is intussen wél rechtgezet (hij gaf `progressMode`/
+  `schedulingOptions` niet door, waardoor élke brongebonden P6-optie er per constructie inert was).
+
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde
   Backstage → Help bij élk artikel "Artikel niet gevonden", terwijl alle 354 artikelen gewoon in de

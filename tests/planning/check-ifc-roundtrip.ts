@@ -389,6 +389,7 @@ const SCHED_OPTS = {
   p6PreserveActualInstants: true,
   p6UseRemainingStartForProgress: true,
   p6PreserveZeroDurationConstraintInstants: true,
+  p6CompletedLateFromRemainingWindow: true,
   useProjectEndDateForFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },

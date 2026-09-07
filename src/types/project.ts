@@ -97,6 +97,47 @@ export interface SchedulingOptions {
    *  het P6-pad (`progressMode`/statusdatum-gedreven planningen) behoudt de vloer bewust: dat is
    *  precies de RETAINED_LOGIC-conventie die P6 zélf documenteert. */
   unstartedIgnoresStatusDate?: boolean;
+  /** XER/P6 (diagnose laag 1, klasse (i)): P6 zet een VOLTOOIDE activiteit ook aan de LATE zijde
+   *  neer als een taak met nul restduur op de statusdatum — niet op haar historische actual-
+   *  venster (dat `preserveActualDatesInBackwardPass` hierboven wél als LS/LF-PIN gebruikt). De
+   *  gemeten regel (rehab-2, 2.036 voltooide taken, 99,9% dekking): `LF = prevWorkInstant(LS)` op
+   *  de taak-eigen (voortgangs)kalender, en `LS` = de vroegste van de door haar opvolgers
+   *  toegestane late finishen — geklemd op de statusdatum (`nextWorkInstant(statusdatum)`) zodat
+   *  ze nooit vóór de statusdatum lijkt te vallen. De relatie-lag telt daarbij NIET mee tussen
+   *  twee voltooide activiteiten (2.033/2.036), maar WEL zolang de opvolger nog restwerk heeft
+   *  (240/2.036 faalt juist zónder die uitzondering). Dat geeft een voltooide activiteit voor het
+   *  eerst een zinvolle totale float in plaats van 0, en laat haar backward-druk uitoefenen op
+   *  haar eigen voorgangers zoals elke andere taak. Default afwezig/false ⇒ de bestaande
+   *  actual-venster-pin blijft behouden, byte-identiek voor IFC/MSPDI/MPP en voor elke XER die
+   *  vóór deze vlag is ingelezen en als IFC is opgeslagen. Uitsluitend gezet door `xerReader`
+   *  (`xerScheduleOptions.ts`), en alleen effectief onder `p6Source === 'XER'`
+   *  (`CPMSolver.p6XerOption`) — exact het `p6FinishMilestoneBoundaryWindow`-stramien.
+   *
+   *  BEWIJSBASIS (review-bevinding 6, eerlijk afgebakend): de regel is gemeten op precies ÉÉN
+   *  corpusbestand. Over het hele XER-corpus komen 2.042 voltooide taken door de venster-poort;
+   *  2.040 daarvan staan in `rehab-2.xer`, de twee overige zijn losse mpxj-fixtures met één taak
+   *  en zonder ls/lf-orakel. De 591 voltooide taken in de 28 andere corpusbestanden vallen
+   *  allemaal buiten de poort (`wrongDurationType` 430, `remainingStartOff` 146, …). Wat de rest
+   *  van het corpus beschermt is dus niet de regel maar de NAUWTE van de poort
+   *  (`DT_FixedDUR2` + `rem_target_link_flag=Y` + expliciet targetvenster + `CP_Drtn`) — verruimt
+   *  iemand die poort, dan landt deze regel in één klap op honderden ongevalideerde taken.
+   *
+   *  RETAINED LOGIC: élk gemeten corpusbestand draait `RETAINED_LOGIC` (rehab-2 heeft zelfs geen
+   *  SCHEDOPTIONS-rij en valt op de defaults terug). Er is dus GEEN meting van P6-gedrag onder
+   *  `sched_progress_override = Y`, en evenmin onder P6's "Actual Dates" (N/N).
+   *  `deriveXerScheduleOptions` zet de vlag daarom expliciet weer UIT zodra de bron iets anders
+   *  dan retained logic declareert (N/Y, N/N, Y/Y of een onbekend token; `declaresRetainedLogic`)
+   *  — fail-closed, byte-identiek aan vóór deze etappe. Wie hem daar wil openzetten heeft eerst
+   *  een meting onder die modus nodig.
+   *
+   *  BEWIJSSTATUS (her-review 2026-09-07, bevinding 1): de poort is CORRELATIONEEL, geen
+   *  P6-mechanisme. Het enige directe P6-bewijs voor de topologie "open voorganger → voltooide
+   *  opvolger" (casus 09 en 10 van `cases-p6-verified.json`, echt P6 23.12) spreekt de regel
+   *  tegen zodra de poort daar opengaat: P6 geeft de open voorganger tf 0, deze regel tf −5.
+   *  Op de echte bron (`cases-import.xer`: `DT_FixedDrtn`, geen `target_end_date`) blijft de
+   *  poort dicht op `wrongDurationType`/`missingExplicitTargetWindow`; dat is een toevallige
+   *  nauwte, geen semantische verzoening. Zie plan §5 X-O7 laag 1. */
+  p6CompletedLateFromRemainingWindow?: boolean;
 }
 
 export interface Project {

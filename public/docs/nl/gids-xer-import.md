@@ -32,6 +32,12 @@ De import leest onder meer:
 
 De rauwe P6-brongegevens die Open Planner Studio leest, blijven onderdeel van het document. Ze reizen mee door tabwissels, undo, herstel en opslaan. Dat is iets anders dan beloven dat iedere P6-functie al een gelijkwaardig bewerk- of rekenmodel heeft: waar zo'n motor ontbreekt, bewaren we de brondata in plaats van haar stil weg te gooien.
 
+## Voltooide activiteiten krijgen echte speling
+
+Primavera zet een voltooide activiteit voor zijn hele berekening neer als een taak met nul restwerk op de statusdatum — ook aan de late kant. Open Planner Studio doet dat sinds september 2026 na, maar uitsluitend voor projecten die uit een `.xer`-bestand komen. Gevolg: een voltooide activiteit toont voortaan een echte totale speling in plaats van altijd nul, en ze legt net als elke andere taak druk op haar eigen voorgangers. Dat is geen wijziging van je gegevens: de werkelijke start- en einddatums blijven staan zoals ze in het bestand stonden.
+
+De regel geldt alleen waar het bronbestand hem ondersteunt: activiteiten van het type "vaste duur en eenheden" met een voortgangspercentage op duurbasis, een vastgelegd geplande venster, en een project dat resterend werk aan het plan koppelt. Verklaart het bestand bovendien dat het met *progress override* gerekend is in plaats van *retained logic*, dan blijft het oude gedrag staan. Projecten uit IFC, MS Project of Primavera P6 XML veranderen niet.
+
 ## Tekencodering en getallen
 
 XER noemt zijn tekencodering niet betrouwbaar in het bestand. Een UTF-BOM wordt gevolgd; zonder BOM gebruikt de lezer geldige UTF-8 en valt hij anders terug op Windows-1252. Is zo'n niet-ASCII-keuze nodig, dan staat de gebruikte codering in de openingsmelding. De app probeert geen regels te raden of als "overgeslagen" voor te stellen.

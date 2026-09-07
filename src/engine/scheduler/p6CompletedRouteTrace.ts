@@ -2,6 +2,10 @@ import type { SchedulingOptions } from '@/types/project';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
+import {
+  explainP6CompletedDataDateWindow,
+  type P6CompletedWindowReason,
+} from '@/utils/p6CompletedTargetWindow';
 
 export type CompletedXerLoeActualFinishReason =
   | 'eligible'
@@ -171,5 +175,44 @@ export function explainDisplayActualLateEligibility(
   if (schedulingOptions?.preserveActualDatesInBackwardPass !== true) {
     return { eligible: false, reason: 'preserveActualDatesOff' };
   }
+  return { eligible: true, reason: 'eligible' };
+}
+
+export type P6CompletedLateRemainingWindowReason =
+  | 'eligible'
+  | CpmBackwardActualPinReason
+  | 'notXerSource'
+  | 'flagOff'
+  | P6CompletedWindowReason;
+
+export interface P6CompletedLateRemainingWindowDecision {
+  eligible: boolean;
+  reason: P6CompletedLateRemainingWindowReason;
+}
+
+/**
+ * Review-bevinding 4 (poortdivergentie): `CPMSolver.backwardPass` en `scheduleAnalysis` moeten
+ * PRECIES dezelfde voorwaarde gebruiken om de P6-restwerkregel voor voltooide activiteiten te
+ * activeren — anders kan een taak "tussen de poorten in vallen" (bv. `TK_Complete` zonder
+ * `act_end_date`: wel `completedWindow.eligible`, niet `backwardActualPin.eligible`) en verandert
+ * de getoonde late datum/float wél terwijl de solvertak zelf niet draait. Eén functie, drie
+ * bestaande, los getoetste bouwstenen in vaste volgorde: eerst de completed-actual-pin-poort
+ * (dataDate/preserve/actualFinish/completion — dezelfde als de oude, brede backward-pin), dan de
+ * XER-brongebonden vlag zelf, dan de nauwe statusdatumvenster-poort (dezelfde als de forward-
+ * display). De eerste afwijzing is de enige gerapporteerde reden.
+ */
+export function explainP6CompletedLateRemainingWindowEligibility(
+  task: Task,
+  dataDate: Date | null,
+  schedulingOptions: SchedulingOptions | undefined,
+): P6CompletedLateRemainingWindowDecision {
+  const pin = explainBackwardActualPinEligibility(task, dataDate, schedulingOptions);
+  if (!pin.eligible) return { eligible: false, reason: pin.reason };
+  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  if (schedulingOptions.p6CompletedLateFromRemainingWindow !== true) {
+    return { eligible: false, reason: 'flagOff' };
+  }
+  const window = explainP6CompletedDataDateWindow(task, dataDate, schedulingOptions);
+  if (!window.eligible) return { eligible: false, reason: window.reason };
   return { eligible: true, reason: 'eligible' };
 }

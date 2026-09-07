@@ -59,7 +59,16 @@ function solved(bytes: Uint8Array): XerSolvedProject {
     calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
+    // Review-bevinding 5: deze harness dráágt het `cellTransitions.previouslyExact`-mechanisme —
+    // de enige plek die "exact → fout" per cel kan afvangen — maar riep `solveProject` aan zónder
+    // `progressMode`/`schedulingOptions`. Elke brongebonden P6-optie (en dus ook
+    // `p6CompletedLateFromRemainingWindow`) was hier per constructie inert, waardoor de poort
+    // structureel blind was voor precies de wijzigingen waarvoor ze bedoeld is. Nu meet ze het
+    // echte product, zoals `check-xer-product-fidelity-x12.ts` en de solver zelf.
+    progressMode: imported.project.progressMode,
+    schedulingOptions: imported.project.schedulingOptions,
     projectStartDate: imported.project.startDate,
+    projectEndDate: imported.project.endDate,
   });
   if (cpm.error) throw new Error(cpm.error);
   const calendarById = new Map([
@@ -114,6 +123,17 @@ if (!root) {
   console.log('OK  xer-product-fidelity: corpus niet aanwezig (OPS_XER_CORPUS) — twee productpins overgeslagen');
 } else if (!existsSync(root)) {
   diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
+} else if (baseline.files === undefined || baseline.cellTransitions === undefined) {
+  // BEKEND, NIET DOOR DEZE ETAPPE VEROORZAAKT (gemeten 2026-09-05 op 92e98b8e én op deze branch):
+  // `xer-product-fidelity-baseline.json` draagt sinds de X12-v2-meetlat een ANDER schema
+  // (`version: 2`, gzip-payload) dan deze v1-harness verwacht. De check crashte daardoor met een
+  // kale `TypeError` op `Object.keys(baseline.files)`; hier is dat een leesbare rode regel geworden
+  // die de oorzaak benoemt. Gevolg voor review-bevinding 5: het `cellTransitions.previouslyExact`-
+  // mechanisme — het ENIGE dat per cel "eerder exact, nu fout" kan afvangen — meet sinds die
+  // schemawissel niets meer. Repareren betekent v1 zijn eigen baselinebestand teruggeven; dat is
+  // een eigen etappe en staat als zodanig in docs/TODO.md.
+  diffs.push('v1-productbaseline ontbreekt: xer-product-fidelity-baseline.json draagt het v2-schema'
+    + ` (version ${String(baseline.version)}) — de per-cel-poort previouslyExact meet niets`);
 } else {
   const pins = [
     'crawl-xer/p6diff-baseline.xer',

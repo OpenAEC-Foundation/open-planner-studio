@@ -135,8 +135,11 @@ eq('XER completed suspend/resume positive: geldige P6-vorm opent de completed-wi
   scheduled: {
     earlyStart: '2026-08-17T10:00',
     earlyFinish: '2026-08-17T10:00',
-    lateStart: '2026-08-04T07:00',
-    lateFinish: '2026-08-14T15:00',
+    // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i), default aan voor XER): een
+    // voltooide taak zonder opvolgers staat aan de late zijde ook op de statusdatumklem —
+    // identiek aan de forward-window hierboven, i.p.v. het historische actual-venster.
+    lateStart: '2026-08-17T10:00',
+    lateFinish: '2026-08-17T10:00',
     earlyFinishAtOrAfterEarlyStart: true,
   },
   trace: {
