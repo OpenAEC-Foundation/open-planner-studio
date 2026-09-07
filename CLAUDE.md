@@ -143,6 +143,22 @@ Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histog
 
 De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/renderer/` (`GanttRenderer`): balken, relaties, tijdschaal en hit-testing horen daar. De taakrijen links van de tijdlijn zijn juist het gedeelde DOM-raster `FullTaskGrid`, via `GanttTaskGrid`; het volledige lint-tabblad **Tabel** gebruikt dezelfde kern. `TableEditor` is alleen nog een compatibiliteitsexport naar `FullTaskGrid` en heeft geen eigen structurele verantwoordelijkheid. React beheert daarnaast de omringende chrome, panelen en dialogen.
 
+### Rapporten: één kolomspec voor DOM én PDF
+
+Het Rapport-tabblad (`ReportPanel.tsx`) kent tien rapporttypen (`ReportType` in
+`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het mijlpalen- en
+variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
+uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
+resourcebelasting per week, resourcetoewijzingen en WBS-samenvatting. Die zeven hebben een pure
+rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit; headless
+getest in `tests/planning/check-reports.ts`) en één presentatielaag: `useTableReportSpec.tsx` bouwt
+per type een `TableReportSpec` (titel, meldingen, samenvatting, secties met een `ReportColumn`-
+lijst), `TableReportView.tsx` tekent daar de `<table>`s uit en `makeSectionedRenderReport`
+(`pdfTable.ts`) de vector-PDF — dezelfde kolomspec, dus DOM en PDF kunnen niet uit elkaar lopen.
+Nieuw tabelrapport ⇒ engine-module, een `build*`-functie in `useTableReportSpec`, opties in
+`TableReportOptions` + `TableReportOptionsBlock`, sleutels onder `tableReports.*` in alle 14
+`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en).
+
 ### State: één Zustand + Immer store, samengesteld uit slices
 
 `src/state/appStore.ts` is een compositie-root: `create<AppState>()(immer(...))` combineert de slice-creators uit `src/state/slices/` plus de gridtransactieslice. Elke slice is getypeerd als `AppSlice<XSlice>` (zie `slices/types.ts`) tegen de **volledige** `AppState`, zodat cross-slice acties (runCPM, undo/redo, newProject, file-I/O) gewoon de hele Immer-draft muteren. Nieuwe state/acties horen in de passende slice; `slices/types.ts` bevat daarnaast gedeelde type/enum-definities (`ViewState`, `UIState`, …). Domain-types staan in `src/types/`. De renderer leest alleen uit de store.

@@ -39,6 +39,27 @@ export interface PdfTableSpec<Row> {
   emptyText?: string;
 }
 
+/** Eén sectie van een gesectioneerd rapport: optionele kop + eigen tabel (eigen kolomspec). */
+export interface PdfReportSection<Row = unknown> {
+  heading?: string;
+  columns: PdfTableColumn<Row>[];
+  rows: Row[];
+  emptyText?: string;
+}
+
+/**
+ * Gesectioneerd tabelrapport (de rapportuitbreiding uit discussie #31): titel, een blok
+ * samenvattingsregels ("label: waarde", met optionele nadrukkleur) en nul of meer secties met
+ * elk een kop en een tabel. Spiegelt `TableReportView.tsx` — DOM en PDF delen de kolomspec.
+ */
+export interface PdfSectionedReportSpec {
+  title: string;
+  /** Kleine regel onder de titel (bv. de periode of de statusdatum). */
+  subtitle?: string;
+  summary: { label: string; value: string; color?: string }[];
+  sections: PdfReportSection[];
+}
+
 // Zelfde gevendorde Inter-familie als de Gantt-render (printPreview.ts) — deterministisch en
 // inbedbaar, zodat measureText/vector-embedding identiek zijn (§5.1/§5.2 ontwerpdoc).
 const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -62,6 +83,12 @@ const ROW_HEIGHT = 26;
 const HEADER_HEIGHT = 30;
 const TITLE_HEIGHT = 36;
 const TITLE_BASELINE_GAP = 12; // afstand van de titel-baseline tot de onderkant van het titelblok
+const SUBTITLE_HEIGHT = 20;
+const SUMMARY_LINE_HEIGHT = 18;
+const SUMMARY_GAP = 10;
+const SECTION_HEADING_HEIGHT = 30;
+const SECTION_GAP = 14;
+const SUMMARY_COLUMN_WIDTH = 260;
 
 /**
  * Kort `text` in met een ellipsis zodat het binnen `maxWidth` past (zelfde binaire-zoek-strategie
@@ -88,6 +115,79 @@ function cellX(align: PdfTableAlign, colX: number, colW: number): number {
   return colX + colW / 2;
 }
 
+/** Tabelhoogte (header + rijen) zonder titel — gedeeld door beide render-makers hieronder. */
+function tableHeight(rowCount: number): number {
+  return HEADER_HEIGHT + Math.max(1, rowCount) * ROW_HEIGHT;
+}
+
+/**
+ * Tekent één tabel (kolomkoppen + rijen of lege-staat) op `y` en geeft de nieuwe `y` terug. Beide
+ * render-makers delen deze functie, zodat een sectie-tabel pixel-identiek is aan de losse tabel.
+ */
+function drawTable<Row>(
+  d2d: Draw2D,
+  y: number,
+  columns: PdfTableColumn<Row>[],
+  rows: Row[],
+  emptyText: string | undefined,
+): number {
+  const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
+
+  // ---- Header-rij (bold, 2px onderlijn — spiegelt de DOM `2px solid var(--theme-border)`) ----
+  let x = 0;
+  d2d.font = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
+  d2d.fillStyle = COLORS.textMuted;
+  d2d.textBaseline = 'middle';
+  const headerMidY = y + HEADER_HEIGHT / 2;
+  for (const col of columns) {
+    d2d.textAlign = col.align;
+    const avail = col.width - 2 * CELL_PAD_X;
+    d2d.fillText(fitText(d2d, col.header, avail), cellX(col.align, x, col.width), headerMidY);
+    x += col.width;
+  }
+  d2d.strokeStyle = COLORS.headerBorder;
+  d2d.lineWidth = 2;
+  d2d.beginPath();
+  d2d.moveTo(0, y + HEADER_HEIGHT);
+  d2d.lineTo(tableWidth, y + HEADER_HEIGHT);
+  d2d.stroke();
+  y += HEADER_HEIGHT;
+
+  // ---- Data-rijen (of lege-staat) ----
+  if (rows.length === 0) {
+    d2d.fillStyle = COLORS.textDim;
+    d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+    d2d.textAlign = 'left';
+    d2d.textBaseline = 'middle';
+    d2d.fillText(emptyText ?? '', CELL_PAD_X, y + ROW_HEIGHT / 2);
+    y += ROW_HEIGHT;
+  } else {
+    for (const row of rows) {
+      let cx = 0;
+      const midY = y + ROW_HEIGHT / 2;
+      for (const col of columns) {
+        const bold = col.bold?.(row) ?? false;
+        const color = col.color?.(row) ?? COLORS.text;
+        d2d.font = `${bold ? 'bold ' : ''}${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.fillStyle = color;
+        d2d.textAlign = col.align;
+        d2d.textBaseline = 'middle';
+        const avail = col.width - 2 * CELL_PAD_X;
+        d2d.fillText(fitText(d2d, col.text(row), avail), cellX(col.align, cx, col.width), midY);
+        cx += col.width;
+      }
+      d2d.strokeStyle = COLORS.rowBorder;
+      d2d.lineWidth = 1;
+      d2d.beginPath();
+      d2d.moveTo(0, y + ROW_HEIGHT);
+      d2d.lineTo(tableWidth, y + ROW_HEIGHT);
+      d2d.stroke();
+      y += ROW_HEIGHT;
+    }
+  }
+  return y;
+}
+
 /**
  * Bouw een `renderReport`-compatibele render-functie uit een generieke tabel-spec. Roept
  * `makeDraw2D` exact één keer aan (G1-conventie van de vector-pagineerder) zodra de totale
@@ -102,8 +202,7 @@ export function makeTableRenderReport<Row>(
   return (makeDraw2D) => {
     const tableWidth = spec.columns.reduce((sum, c) => sum + c.width, 0);
     const titleH = spec.title ? TITLE_HEIGHT : 0;
-    const rowCount = spec.rows.length === 0 ? 1 : spec.rows.length;
-    const height = titleH + HEADER_HEIGHT + rowCount * ROW_HEIGHT;
+    const height = titleH + tableHeight(spec.rows.length);
 
     const d2d = makeDraw2D(tableWidth, height);
 
@@ -122,58 +221,7 @@ export function makeTableRenderReport<Row>(
       y = titleH;
     }
 
-    // ---- Header-rij (bold, 2px onderlijn — spiegelt de DOM `2px solid var(--theme-border)`) ----
-    let x = 0;
-    d2d.font = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
-    d2d.fillStyle = COLORS.textMuted;
-    d2d.textBaseline = 'middle';
-    const headerMidY = y + HEADER_HEIGHT / 2;
-    for (const col of spec.columns) {
-      d2d.textAlign = col.align;
-      const avail = col.width - 2 * CELL_PAD_X;
-      d2d.fillText(fitText(d2d, col.header, avail), cellX(col.align, x, col.width), headerMidY);
-      x += col.width;
-    }
-    d2d.strokeStyle = COLORS.headerBorder;
-    d2d.lineWidth = 2;
-    d2d.beginPath();
-    d2d.moveTo(0, y + HEADER_HEIGHT);
-    d2d.lineTo(tableWidth, y + HEADER_HEIGHT);
-    d2d.stroke();
-    y += HEADER_HEIGHT;
-
-    // ---- Data-rijen (of lege-staat) ----
-    if (spec.rows.length === 0) {
-      d2d.fillStyle = COLORS.textDim;
-      d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
-      d2d.textAlign = 'left';
-      d2d.textBaseline = 'middle';
-      d2d.fillText(spec.emptyText ?? '', CELL_PAD_X, y + ROW_HEIGHT / 2);
-      y += ROW_HEIGHT;
-    } else {
-      for (const row of spec.rows) {
-        let cx = 0;
-        const midY = y + ROW_HEIGHT / 2;
-        for (const col of spec.columns) {
-          const bold = col.bold?.(row) ?? false;
-          const color = col.color?.(row) ?? COLORS.text;
-          d2d.font = `${bold ? 'bold ' : ''}${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
-          d2d.fillStyle = color;
-          d2d.textAlign = col.align;
-          d2d.textBaseline = 'middle';
-          const avail = col.width - 2 * CELL_PAD_X;
-          d2d.fillText(fitText(d2d, col.text(row), avail), cellX(col.align, cx, col.width), midY);
-          cx += col.width;
-        }
-        d2d.strokeStyle = COLORS.rowBorder;
-        d2d.lineWidth = 1;
-        d2d.beginPath();
-        d2d.moveTo(0, y + ROW_HEIGHT);
-        d2d.lineTo(tableWidth, y + ROW_HEIGHT);
-        d2d.stroke();
-        y += ROW_HEIGHT;
-      }
-    }
+    drawTable(d2d, y, spec.columns, spec.rows, spec.emptyText);
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
@@ -181,5 +229,84 @@ export function makeTableRenderReport<Row>(
     // `headerHeight: 0` — een tabel-render heeft géén herhaalbare kopstrook: titel + kolomkoppen
     // staan bewust alleen bovenaan het eerste vel (de pagineerder herhaalt niets als dit 0 is).
     return { width: tableWidth, height, tableWidth: 0, headerHeight: 0 };
+  };
+}
+
+/**
+ * Gesectioneerd rapport (titel + samenvatting + secties) als `renderReport`-functie. De breedte is
+ * de breedste sectie (minimaal de samenvattingskolom); smallere secties beginnen links uitgelijnd.
+ * Zelfde `makeDraw2D`-één-keer-conventie en `headerHeight: 0` als `makeTableRenderReport`.
+ */
+export function makeSectionedRenderReport(
+  spec: PdfSectionedReportSpec,
+): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
+  return (makeDraw2D) => {
+    const sectionWidths = spec.sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
+    const width = Math.max(SUMMARY_COLUMN_WIDTH, ...sectionWidths);
+    const subtitleH = spec.subtitle ? SUBTITLE_HEIGHT : 0;
+    // Samenvatting in twee kolommen (zoals het DOM-blok): ceil(n/2) regels.
+    const summaryLines = Math.ceil(spec.summary.length / 2);
+    const summaryH = summaryLines > 0 ? summaryLines * SUMMARY_LINE_HEIGHT + SUMMARY_GAP : 0;
+    let height = TITLE_HEIGHT + subtitleH + summaryH;
+    for (const s of spec.sections) {
+      height += (s.heading ? SECTION_HEADING_HEIGHT : 0) + tableHeight(s.rows.length) + SECTION_GAP;
+    }
+
+    const d2d = makeDraw2D(width, height);
+    d2d.fillStyle = COLORS.bg;
+    d2d.fillRect(0, 0, width, height);
+
+    d2d.fillStyle = COLORS.text;
+    d2d.font = `bold ${TITLE_FONT_SIZE}px ${FONT_FAMILY}`;
+    d2d.textAlign = 'left';
+    d2d.textBaseline = 'alphabetic';
+    d2d.fillText(spec.title, 0, TITLE_HEIGHT - TITLE_BASELINE_GAP);
+    let y = TITLE_HEIGHT;
+
+    if (spec.subtitle) {
+      d2d.fillStyle = COLORS.textMuted;
+      d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+      d2d.textBaseline = 'middle';
+      d2d.fillText(fitText(d2d, spec.subtitle, width), 0, y + SUBTITLE_HEIGHT / 2);
+      y += SUBTITLE_HEIGHT;
+    }
+
+    if (spec.summary.length > 0) {
+      const colW = Math.max(SUMMARY_COLUMN_WIDTH, width / 2);
+      spec.summary.forEach((item, i) => {
+        const col = i % 2;
+        const line = Math.floor(i / 2);
+        const x = col * colW;
+        const midY = y + line * SUMMARY_LINE_HEIGHT + SUMMARY_LINE_HEIGHT / 2;
+        d2d.textBaseline = 'middle';
+        d2d.textAlign = 'left';
+        d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.fillStyle = COLORS.textMuted;
+        const label = fitText(d2d, item.label, colW * 0.6);
+        d2d.fillText(label, x, midY);
+        const labelW = d2d.measureText(label).width + CELL_PAD_X;
+        d2d.font = `bold ${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.fillStyle = item.color ?? COLORS.text;
+        d2d.fillText(fitText(d2d, item.value, colW - labelW - CELL_PAD_X), x + labelW, midY);
+      });
+      y += summaryH;
+    }
+
+    for (const s of spec.sections) {
+      if (s.heading) {
+        d2d.fillStyle = COLORS.text;
+        d2d.font = `bold ${HEADER_FONT_SIZE + 1}px ${FONT_FAMILY}`;
+        d2d.textAlign = 'left';
+        d2d.textBaseline = 'middle';
+        d2d.fillText(fitText(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
+        y += SECTION_HEADING_HEIGHT;
+      }
+      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText);
+      y += SECTION_GAP;
+    }
+
+    d2d.textAlign = 'left';
+    d2d.textBaseline = 'alphabetic';
+    return { width, height, tableWidth: 0, headerHeight: 0 };
   };
 }
