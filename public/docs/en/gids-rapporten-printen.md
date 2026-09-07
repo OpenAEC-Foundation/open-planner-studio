@@ -2,11 +2,13 @@
 
 A schedule isn't finished until you can share it — on paper for a site meeting, as an image in a
 presentation, or as an overview of what's coming up and what has already shifted. That's what the
-**Report** tab is for, with three report types and a print preview.
+**Report** tab is for, with ten report types and a print preview.
 
 ## What you'll learn here
 
-- The three report types on the **Report** tab: Gantt print, milestone overview, variance.
+- The report types on the **Report** tab: the Gantt print, two table reports on milestones and
+  variance, and seven table reports for the weekly site meeting, progress reporting, the schedule
+  review, resources and management.
 - How the print preview works: paper size, orientation and which elements you toggle on/off.
 - How to actually print a report or save it as a file.
 - What **Ctrl+P** does in this app.
@@ -21,7 +23,7 @@ The screen is split into two columns: a settings panel on the left with the **Re
 at the top, and a live preview on the right that updates immediately as you change the settings on
 the left.
 
-## The three report types
+## The report types
 
 ### Gantt print
 
@@ -100,6 +102,94 @@ project's finish date in working days, if there is one. See the guide
 [Baselines & progress](docs://gids-baselines-voortgang) for how to record a baseline before this
 report can tell you anything useful.
 
+## The seven table reports
+
+The remaining report types are table reports drawn straight from the last calculation. They share
+a few conventions:
+
+- Only **leaf tasks** count as activities; summary tasks appear only in the WBS summary. Hammock
+  (LOE) tasks are left out.
+- The **reference day** is the project's status date. Without a status date the report uses today
+  and says so. Set a status date in the project details first if you want a report for a fixed
+  reporting date.
+- Dates and float come from the last **calculation**. If the schedule changed since you last
+  pressed *Calculate* (F5), a note appears above the report; the PDF export always recalculates
+  first.
+- Every report has a small **Report options** block under the summary; those choices are
+  remembered between sessions. Working days are abbreviated to *wd*.
+- A task can appear in several sections of one report when those sections each answer a different
+  question (in progress and critical, for instance).
+
+### Look-ahead
+
+The list for the weekly site meeting: every activity that is on the agenda for the next *N* weeks
+(four by default) — what starts, what continues, what finishes — plus what should already have
+happened. Each row shows WBS, name, start and finish, remaining duration, completion, total float,
+whether the task is critical or near-critical, the assigned resources and a status: **Starting**
+(begins in the window), **In progress**, **Should have started** (start before the reference day,
+not yet begun) or **Overdue** (finish before the reference day, not yet done). A task that spans
+the whole window is included too — the same overlap idea as the *In progress* filter field in the
+Gantt.
+
+### Critical & near-critical
+
+Which activities drive the project finish, and which are about to. Critical comes from the
+calculation; *near-critical* is a total float from 0 up to the threshold in the report options
+(5 working days by default), or the marking from the scheduling options if you have set one.
+Completed tasks are excluded. Sorted by float path (when the scheduling options compute float
+paths), then by float, then by start. The columns also show free float and the path number.
+
+### Progress report
+
+The periodic "where do we stand" overview at the status date. The summary gives the baseline and
+forecast finish with the difference in working days, **planned** versus **actual** progress and
+the counts per state. Both percentages are duration-weighted over the leaf tasks: a milestone
+weighs nothing, a month of work weighs a lot. Planned is measured on the dates of the active
+baseline (the agreement you measure against); without a baseline on the current schedule, and the
+report says so. Below that, five sections: completed in the past period, in progress, starting in
+the next period, overdue, and the open critical activities. The period (two weeks by default)
+looks back as far as it looks ahead.
+
+### Schedule health
+
+An automated schedule review in the spirit of the DCMA 14-point assessment. Every check gets a
+severity and a count, with the findings per task or relation underneath:
+
+- **Errors** — negative float, missed deadline, violated constraint, inconsistent progress (actual
+  start or finish after the status date, 100% without an actual finish, or the reverse).
+- **Warnings** — open start or end (no predecessor or successor; milestones excepted), long
+  duration, leads (negative lag), hard constraints (MSO/MFO/SNLT/FNLT or a mandatory pin),
+  out-of-sequence progress.
+- **Information** — near-critical, high float and long lags.
+
+The thresholds are in the report options. By default they follow DCMA: high float and long
+duration above 44 working days; a lag above 10 working days. A clean schedule has zero errors;
+warnings and information are a reason to look, not necessarily to change.
+
+### Resource loading per week
+
+Per resource and per week the required effort against the available capacity (in unit-days), the
+difference, the peak load on a single day and whether the week is overloaded. It is the same
+calculation as the histogram on the **Resources** tab, but as a table to lay side by side in a
+staffing meeting. Only weeks with demand are listed; with *Overloaded weeks only* you keep just the
+bottlenecks.
+
+### Resource assignments
+
+Per resource which activities it is assigned to: WBS, name, start and finish, remaining duration,
+units per day, completion, critical and status. Completed tasks are excluded by default. With a
+window in weeks it becomes the *resource look-ahead*: only what this crew or piece of equipment has
+to do in the coming weeks, plus what is still open. The summary also counts the tasks without a
+resource.
+
+### WBS summary
+
+The schedule rolled up per WBS element down to a selectable level — the management overview. Per
+element: start and finish, baseline start and finish, duration, duration-weighted progress, the
+finish difference against the baseline, the smallest total float and the number of activities, of
+which critical, in progress and completed. Pick a level (2 by default) or the full WBS, and
+optionally the activities themselves under their element.
+
 ## Printing and exporting
 
 The settings panel always has a **Print...** button at the bottom — it opens a separate print window
@@ -107,9 +197,10 @@ containing the report and immediately triggers the browser/OS print dialog. For 
 that window uses the chosen paper size and orientation; the milestone and variance reports print the
 table as displayed.
 
-Only the Gantt report also has an **Export PDF** button. That saves the current preview as an
-actual PDF file (filename ending in `-planning.pdf`) — one page sized to the physical dimensions
-of the chosen paper size and orientation. The PDF file is **vector-based**: bars, lines and text
+Every report type has an **Export PDF** button. For the Gantt report it saves the current preview
+as an actual PDF file (filename ending in `-planning.pdf`) — one page sized to the physical
+dimensions of the chosen paper size and orientation; the table reports export their table with the
+same paper settings. The PDF file is **vector-based**: bars, lines and text
 are stored as PDF drawing instructions rather than a single embedded image, so it stays crisp at
 any zoom level and the text is selectable and searchable in any PDF viewer. This applies to Latin,
 Cyrillic, Greek, Arabic and Persian text — Arabic and Persian are shaped and embedded as vector text
@@ -137,6 +228,15 @@ Each report type serves a different conversation:
   two baselines (a contract baseline and a rebaseline after a change order) with their own progress
   and status date — a good example of how the Δ columns fill in once there's an actual difference
   between the baseline and the current schedule.
+
+- The **look-ahead** is the list for the weekly meeting; the **progress report** the periodic
+  report to the client or the board. Combine them: the progress report says where you stand, the
+  look-ahead what has to happen now.
+- **Schedule health** belongs to a schedule review before you record a baseline or attach a
+  schedule to a contract: zero errors is the bar.
+- The two **resource** reports and the **WBS summary** serve the staffing meeting and the
+  management overview respectively. All seven table reports also work on the showcase above, which
+  has a status date, baselines and progress.
 
 The live preview on the right refreshes on every change to the settings on the left — there's no
 separate "refresh" button, and nothing is computed only at print time.

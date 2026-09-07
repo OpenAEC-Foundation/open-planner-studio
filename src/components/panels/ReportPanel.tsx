@@ -20,7 +20,14 @@ import {
 import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useSplitter } from '@/hooks/useSplitter';
 import { isTauri } from '@/utils/platform';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import {
+  DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, TABLE_REPORT_TYPES,
+  type ReportType, type TableReportOptions,
+} from '@/utils/reportSettings';
+import { TableReportView } from './reports/TableReportView';
+import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
+import { useTableReportSpec } from './reports/useTableReportSpec';
+import { toPdfSpec } from './reports/tableReportSpec';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
@@ -245,7 +252,12 @@ export function ReportPanel() {
 
   // De rapportopties starten op de gedeelde defaults uit `reportSettings.ts` en worden vlak na de
   // eerste render overschreven door de opgeslagen voorkeuren (zie het hydratatie-effect verderop).
-  const [reportType, setReportType] = useState<'gantt' | 'milestones' | 'variance'>(DEFAULT_REPORT_SETTINGS.reportType);
+  const [reportType, setReportType] = useState<ReportType>(DEFAULT_REPORT_SETTINGS.reportType);
+  // Opties van de zeven tabelrapporten (discussie #31) — één object, samen bewaard met de rest.
+  const [tableOptions, setTableOptions] = useState<TableReportOptions>(DEFAULT_REPORT_SETTINGS.tableReports);
+  const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
+    setTableOptions(prev => ({ ...prev, ...patch }));
+  }, []);
   const [showCritical, setShowCritical] = useState(DEFAULT_REPORT_SETTINGS.showCritical);
   const [showFloat, setShowFloat] = useState(DEFAULT_REPORT_SETTINGS.showFloat);
   const [showDeps, setShowDeps] = useState(DEFAULT_REPORT_SETTINGS.showDeps);
@@ -374,6 +386,7 @@ export function ReportPanel() {
       setStatusLine(s.statusLine);
       setFollowView(s.followView);
       setPreviewQuality(s.previewQuality);
+      setTableOptions(s.tableReports);
       hydratedRef.current = true;
       setReportSettingsHydrated(true);
     }, () => {
@@ -408,10 +421,11 @@ export function ReportPanel() {
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
       paperSize, orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      tableReports: tableOptions,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
-      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality]);
+      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality, tableOptions]);
 
   // Afkappen uit ⇒ meet de langste naam op dezelfde rijen die het rapport tekent, op het geladen
   // Inter-font (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
@@ -435,6 +449,9 @@ export function ReportPanel() {
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
+  const tableReportRef = useRef<HTMLDivElement>(null);
+  // null voor gantt/milestones/variance; anders de complete spec (titel, samenvatting, secties).
+  const tableSpec = useTableReportSpec(reportType, tableOptions);
 
   // Gepagineerde Gantt-preview: dezelfde tegels als de PDF-export (gedeelde pagineer-engine).
   const [previewPages, setPreviewPages] = useState<Map<number, PreviewPage>>(() => new Map());
@@ -903,10 +920,10 @@ export function ReportPanel() {
     // gepagineerd door dezelfde paginateVectorToPdfBytes als de Gantt-tak hierboven. Bij een fout
     // valt de export terug op het BESTAANDE DOM-screenshot-pad (modern-screenshot), zodat de export
     // nooit stukloopt.
-    const suffix = reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
+    const suffix = tableSpec ? tableSpec.fileSuffix : reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
 
     const exportTableRaster = async (): Promise<Uint8Array> => {
-      const node = reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
+      const node = tableSpec ? tableReportRef.current : reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
       if (!node) throw new Error('exportTableRaster: DOM-node niet beschikbaar');
 
       // domToCanvas met scale=s levert een canvas van node.offsetWidth*s × node.offsetHeight*s
@@ -939,7 +956,7 @@ export function ReportPanel() {
 
     let tablePdfBytes: Uint8Array;
     try {
-      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
+      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport, makeSectionedRenderReport }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
         import('@/services/print/paginateVector'),
         import('@/services/pdf/pdfTable'),
         getInterFontBytes(400),
@@ -950,7 +967,15 @@ export function ReportPanel() {
 
       // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
       // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.
-      if (reportType === 'milestones') {
+      if (tableSpec) {
+        // Tabelrapporten (discussie #31): dezelfde kolomspec als de DOM-weergave, gesectioneerd.
+        tablePdfBytes = await paginateVectorToPdfBytes(
+          makeSectionedRenderReport(toPdfSpec(tableSpec)),
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
+          { regular, bold },
+          { regular: arabicRegular, bold: arabicBold },
+        );
+      } else if (reportType === 'milestones') {
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeTableRenderReport({
             title: t('milestoneReport.title'),
@@ -982,7 +1007,7 @@ export function ReportPanel() {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult]);
+    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && isLeafTask(t)).length;
   const leafCount = tasks.filter(isLeafTask).length;
@@ -1026,19 +1051,27 @@ export function ReportPanel() {
           className="w-full min-w-0"
           aria-label={t('reportType.label')}
           value={reportType}
-          onChange={v => setReportType(v as 'gantt' | 'milestones' | 'variance')}
+          onChange={v => setReportType(v as ReportType)}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
             { value: 'milestones', label: t('reportType.milestones') },
             { value: 'variance', label: t('reportType.variance') },
+            ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: t(`reportType.${type}`) })),
           ]}
         />
 
         {/* Project summary */}
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
           <h3 className="ui-card-header !text-xs mb-2">{t('summary')}</h3>
-          <div className="grid grid-cols-2 gap-1 text-xs">
-            {reportType === 'gantt' ? (
+          <div className="grid grid-cols-2 gap-1 text-xs" data-ops-report-summary-block>
+            {tableSpec ? (
+              tableSpec.summary.map((item, i) => (
+                <span key={i} className="contents">
+                  <span className="text-text-secondary">{item.label}</span>
+                  <span style={{ color: item.color, fontWeight: item.color ? 700 : undefined }}>{item.value}</span>
+                </span>
+              ))
+            ) : reportType === 'gantt' ? (
               <>
                 <span className="text-text-secondary">{t('tasks')}</span>
                 <span>{tasks.length}</span>
@@ -1336,6 +1369,10 @@ export function ReportPanel() {
         </div>
         )}
 
+        {tableSpec && (
+          <TableReportOptionsBlock reportType={reportType} options={tableOptions} onChange={patchTableOptions} />
+        )}
+
         {/* Action buttons — alle rapporttypes exporteren naar PDF (geen uitprinten meer). */}
         <div className="flex flex-col gap-2">
           <button
@@ -1419,6 +1456,10 @@ export function ReportPanel() {
                 </div>
               </div>
             </div>
+          </div>
+        ) : tableSpec ? (
+          <div className="h-full overflow-auto p-4">
+            <TableReportView ref={tableReportRef} spec={tableSpec} />
           </div>
         ) : reportType === 'milestones' ? (
           <div className="h-full overflow-auto p-4">

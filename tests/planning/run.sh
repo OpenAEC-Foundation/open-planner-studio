@@ -237,6 +237,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi
 
+  # Tabelrapporten (discussie #31): look-ahead, kritiek, voortgang, gezondheid, resources, WBS —
+  # de pure engine in src/engine/reports/ tegen een via de echte store opgebouwd project.
+  RPCHECK="$DIR/.reports-check.mjs"
+  if bundle_check "$DIR/check-reports.ts" "$RPCHECK"; then node "$RPCHECK" || STATUS=1; fi
+
   # "Bestaat dit tekst-asset echt?"-poort van de in-app help (textAsset.ts — pure functies +
   # injecteerbare fetch). Zet de desktopbug vast waarbij een content-type-check ALLE help-artikelen
   # verwierp: de Tauri-webview labelt elke onbekende extensie (.md) als text/html.

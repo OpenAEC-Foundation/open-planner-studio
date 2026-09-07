@@ -960,7 +960,6 @@
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  color: var(--theme-accent);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -971,23 +970,41 @@
   white-space: nowrap;
 }
 
-.task-grid-relation-detail {
-  color: var(--theme-text);
-}
-
 .task-grid-relation-icon {
   display: inline-flex;
   align-items: center;
   margin-inline-start: 2px;
 }
 
-.task-grid-relation-chip--driving .task-grid-relation-detail,
-.task-grid-relation-chip--driving .task-grid-relation-icon > svg {
-  color: var(--theme-accent);
+/* Issue #94: één kleur per chip (referentie, type/lag en het sturend-icoon), gestuurd door de
+ * richting op de chip zelf — niet meer alleen het referentiedeel accentkleur, de rest tekstkleur.
+ * Sturend blijft zichtbaar als de STERKERE tint van diezelfde rolkleur, niet als los "wel/geen
+ * kleur"; het warning-icoon blijft altijd zijn eigen --warning-kleur houden. */
+.task-grid-relation-chip[data-relation-direction="predecessor"] .task-grid-relation-jump,
+.task-grid-relation-chip[data-relation-direction="predecessor"] .task-grid-relation-detail {
+  color: var(--relation-predecessor);
+}
+
+.task-grid-relation-chip[data-relation-direction="successor"] .task-grid-relation-jump,
+.task-grid-relation-chip[data-relation-direction="successor"] .task-grid-relation-detail {
+  color: var(--relation-successor);
+}
+
+.task-grid-relation-chip--driving[data-relation-direction="predecessor"] .task-grid-relation-jump,
+.task-grid-relation-chip--driving[data-relation-direction="predecessor"] .task-grid-relation-detail,
+.task-grid-relation-chip--driving[data-relation-direction="predecessor"] .task-grid-relation-icon--driving > svg {
+  color: var(--relation-predecessor-driving);
   font-weight: 700;
 }
 
-.task-grid-relation-chip--warning .task-grid-relation-icon > svg {
+.task-grid-relation-chip--driving[data-relation-direction="successor"] .task-grid-relation-jump,
+.task-grid-relation-chip--driving[data-relation-direction="successor"] .task-grid-relation-detail,
+.task-grid-relation-chip--driving[data-relation-direction="successor"] .task-grid-relation-icon--driving > svg {
+  color: var(--relation-successor-driving);
+  font-weight: 700;
+}
+
+.task-grid-relation-chip--warning .task-grid-relation-icon--warning > svg {
   color: var(--warning, #d97706);
 }
 
@@ -1293,6 +1310,16 @@ button.task-grid-relation-reference {
   --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.50);
   --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
+  /* Issue #94: rolkleuren voor Voorgangers/Opvolgers in het taakraster — voorganger volgt de
+     bestaande goud/amber-familie van GANTT_TRACE_COLORS, opvolger de paars/violet-familie
+     (zelfde conventie als de rolstip in TaskDependenciesSection). "Driving" is bewust de
+     STERKERE tint van diezelfde rolkleur, niet een andere kleur: op dit donkere thema betekent
+     sterker = lichter (op een lichte achtergrond zou het juist donkerder zijn). */
+  --relation-predecessor: #F59E0B;
+  --relation-predecessor-driving: #FCD34D;
+  --relation-successor: #A78BFA;
+  --relation-successor-driving: #C4B5FD;
+
   color-scheme: dark;
 }
 
@@ -1374,6 +1401,13 @@ button.task-grid-relation-reference {
   --shadow-pop: 0 8px 28px rgba(24, 24, 27, 0.20);
   --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
+  /* Issue #94: zie dark hierboven — zelfde rolkleur-conventie, driving hier donkerder (sterker
+     op een lichte achtergrond). */
+  --relation-predecessor: #B45309;
+  --relation-predecessor-driving: #92400E;
+  --relation-successor: #6D28D9;
+  --relation-successor-driving: #5B21B6;
+
   color-scheme: light;
 }
 
@@ -1430,6 +1464,13 @@ button.task-grid-relation-reference {
   --shadow-card: none;
   --shadow-pop: none;
   --shadow-glow: none;
+
+  /* Issue #94: zie dark hierboven — goudfamilie voor voorganger, hier vervangen door cyaan voor
+     opvolger (paars haalt op zwart geen AAA), beide met maximaal contrast op #0a0a0a. */
+  --relation-predecessor: #FFB000;
+  --relation-predecessor-driving: #FFD54F;
+  --relation-successor: #22D3EE;
+  --relation-successor-driving: #67E8F9;
 
   color-scheme: dark;
 }

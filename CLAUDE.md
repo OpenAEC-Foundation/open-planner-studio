@@ -31,6 +31,7 @@ npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafil
 npm run verify:audit      # los: npm audit --audit-level=high — bewust NIET in `verify` (zie hieronder)
 npm run gen:examples      # Voorbeeldprojecten (public/examples) opnieuw genereren
 npm run publish:wiki      # GitHub-wiki genereren uit repo-bronnen (dry-run; `-- --push` publiceert)
+npm run stats:downloads   # downloads per OS uit de GitHub Releases-API (tekst; `-- --format=markdown|json`); de workflow publiceert de JSON wekelijks naar de `stats`-databranch
 ```
 
 `npm run dev` gaat via `scripts/dev-server.mjs`: dat wijst deze worktree via `scripts/dev-port.mjs` een **vaste** poort toe (verankerd aan de worktree-root, 3007–3106), claimt een guard-slot via `scripts/dev-lock.mjs` zodat een tweede start in dezelfde worktree wordt geweigerd in plaats van stilletjes een andere poort te pakken, stempelt `.claude/launch.json` met die poort (zodat `preview_start` meteen de juiste worktree opent), en spawnt dan pas Vite. `tauri:dev` (`scripts/tauri-dev.mjs`) doet hetzelfde en start `tauri dev` met een matchende `--config` `devUrl` plus `OPS_DEV_PORT`/`OPS_DEV_INSTANCE`/`OPS_DEV_GUARDED` in de env (de geneste `dev`-start slaat de toewijzing dan over). Zo kunnen **meerdere worktrees hun dev- en desktopbuild tegelijk draaien** — elk met een eigen poort (het venster laadt nooit de Vite van een andere worktree) en eigen `recovery.<slug>.*`-auto-save-bestanden (concurrent instanties overschrijven elkaar niet in de gedeelde `appDataDir`). `vite.config.ts` leest `OPS_DEV_PORT` met `strictPort` — dat is de harde backstop: twee worktrees op dezelfde poort geeft EADDRINUSE in plaats van een verkeerde build. `App.tsx` leest de slug via de `__OPS_DEV_INSTANCE__`-define. De regressietests hiervoor staan in `tests/dev-server/`.
@@ -142,6 +143,22 @@ Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histog
 ### Rendering: Gantt-tijdlijn in Canvas 2D, taakraster in de DOM
 
 De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/renderer/` (`GanttRenderer`): balken, relaties, tijdschaal en hit-testing horen daar. De taakrijen links van de tijdlijn zijn juist het gedeelde DOM-raster `FullTaskGrid`, via `GanttTaskGrid`; het volledige lint-tabblad **Tabel** gebruikt dezelfde kern. `TableEditor` is alleen nog een compatibiliteitsexport naar `FullTaskGrid` en heeft geen eigen structurele verantwoordelijkheid. React beheert daarnaast de omringende chrome, panelen en dialogen.
+
+### Rapporten: één kolomspec voor DOM én PDF
+
+Het Rapport-tabblad (`ReportPanel.tsx`) kent tien rapporttypen (`ReportType` in
+`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het mijlpalen- en
+variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
+uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
+resourcebelasting per week, resourcetoewijzingen en WBS-samenvatting. Die zeven hebben een pure
+rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit; headless
+getest in `tests/planning/check-reports.ts`) en één presentatielaag: `useTableReportSpec.tsx` bouwt
+per type een `TableReportSpec` (titel, meldingen, samenvatting, secties met een `ReportColumn`-
+lijst), `TableReportView.tsx` tekent daar de `<table>`s uit en `makeSectionedRenderReport`
+(`pdfTable.ts`) de vector-PDF — dezelfde kolomspec, dus DOM en PDF kunnen niet uit elkaar lopen.
+Nieuw tabelrapport ⇒ engine-module, een `build*`-functie in `useTableReportSpec`, opties in
+`TableReportOptions` + `TableReportOptionsBlock`, sleutels onder `tableReports.*` in alle 14
+`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en).
 
 ### State: één Zustand + Immer store, samengesteld uit slices
 
