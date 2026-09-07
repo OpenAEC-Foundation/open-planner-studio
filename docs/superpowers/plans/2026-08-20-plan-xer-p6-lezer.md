@@ -273,10 +273,16 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
        `rem_target_link_flag=Y` + expliciet targetvenster + `CP_Drtn`), niet de regel.
      - De poort staat óók tussen deze regel en de dertien P6-23.12-casussen. In
        `cases-p6-verified.json` casus `09-completed-successor` (open A → FS → voltooide B) geeft
-       P6 `LS = ES`, `TF = 0`; wij ook, want die bron kent geen targetvenster en de poort blijft
-       dicht. `check-p6-verified-cases-engine.ts` haalt alle dertien casussen door de motor en pint
-       dat cel voor cel (157 van 160 cellen eens met P6); de enige afwijking is casus 10
-       (out-of-sequence voortgang, 3 cellen), klasse (ii)-materiaal.
+       P6 `LS = ES`, `TF = 0`; wij ook — maar alleen omdat de poort daar dicht staat op
+       `missingExplicitTargetWindow` (de echte bron `cases-import.xer` declareert wél
+       `rem_target_link_flag=Y` en `DT_FixedDrtn`, maar geen `target_end_date`). Gaat de poort op
+       diezelfde topologie open (sectie 3 van de check), dan geeft de regel A tf −5 waar P6 0 zegt.
+       `check-p6-verified-cases-engine.ts` haalt alle dertien casussen brongetrouw door de motor en
+       pint dat cel voor cel: 156 van 160 cellen eens met P6; de vier afwijkingen (casus 08 A en
+       casus 10 B, ES én LS) hebben één oorzaak buiten deze regel — onder `rem_target_link_flag=Y`
+       wordt de vroege start van een bezig zijnde taak de reststart, waar P6 de werkelijke start
+       opneemt (het orakel draagt daar het `A`-suffix); zie §9. Op de echte bytes zijn het 77/160
+       door de projecteinde-fout (`docs/TODO.md`), 156/160 zonder die optie.
      **Bewijsstatus klasse (i) (her-review 7a, 2026-09-07).** De poort van
      `p6CompletedLateFromRemainingWindow` (`DT_FixedDUR2` + `rem_target_link_flag=Y` + expliciet
      targetvenster + `CP_Drtn`) is CORRELATIONEEL, geen P6-mechanisme: de winst is echt en per cel

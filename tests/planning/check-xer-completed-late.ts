@@ -9,7 +9,7 @@
  * (`pinLateToActualWindow`) voor de implementatie, en `docs/superpowers/plans/2026-08-20-plan-xer-
  * p6-lezer.md` §5 (X-O7) voor het besluit.
  *
- * Ketting A→B→C→E (kalender ma–vr 07:00–15:00, 8 u/dag):
+ * Ketting A→B→C→E (kalender zo–do 07:00–15:00 (P6-dagindex 1–5 = zondag t/m donderdag; 1 = zondag), 8 u/dag):
  *  - A, B: voltooid, ver vóór de statusdatum. A→B is FS met een NIET-nul lag (8 u) — de gemeten
  *    uitzondering zegt dat die lag NIET meetelt omdat B (de opvolger) zelf ook voltooid is.
  *  - B→C is FS met lag 16 u; C is NIET gestart (5 dagen) — hier telt de lag WEL mee, want C heeft
@@ -59,7 +59,7 @@ function ok(label: string, condition: boolean, detail: string): void {
   if (!condition) diffs.push(`${label}: ${detail}`);
 }
 
-// Kalender ma–vr 07:00–15:00, 8 u/dag — exact het patroon uit de andere completed-XER-fixtures
+// Kalender zo–do 07:00–15:00 (P6-dagindex 1–5 = zondag t/m donderdag; 1 = zondag), 8 u/dag — exact het patroon uit de andere completed-XER-fixtures
 // (check-xer-completed-suspend-resume-window.ts, check-xer-backward-float-trace.ts).
 const earlyShiftCalendar = '(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|07:00|f|15:00)())))      (0||2()(        (0||0(s|07:00|f|15:00)())))      (0||3()(        (0||0(s|07:00|f|15:00)())))      (0||4()(        (0||0(s|07:00|f|15:00)())))      (0||5()(        (0||0(s|07:00|f|15:00)())))      (0||6()())      (0||7()())))    (0||Exceptions()())))';
 

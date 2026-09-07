@@ -3142,7 +3142,10 @@ export class CPMSolver {
             const percentResolvedSeq: Sequence = !hasPercentLag
               ? seq
               : seq.lagUnit === 'ELAPSEDTIME'
-                ? { ...seq, lagDays: resolveEffectiveLagDays(seq, task), lagMinutes: undefined, lagPercent: undefined }
+                // `lagMinutes` blijft staan: `resolveElapsedMinutes` geeft hem voorrang, en dat moet
+                // hier niet omkeren (her-review N4) — alleen de PROCENT-tak wordt tegen de echte duur
+                // in dagen vastgezet.
+                ? { ...seq, lagDays: resolveEffectiveLagDays(seq, task), lagPercent: undefined }
                 : {
                   ...seq,
                   lagDays: resolveEffectiveLagDays(seq, task, lagEng.hoursPerDay),

@@ -491,6 +491,28 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
     { ls: '2025-12-29T08:00', lf: '2026-01-02T17:00', tf: -5 });
 }
 
+// ── 3b. De transcriptie kan niet stil terugdrijven van de bron (her-check residu A / mutatie M3) ──
+// De vier poortdiscriminatoren staan hier letterlijk gepind op de bytes die `caseBytes` maakt, zoals
+// `cases-import.xer` ze draagt: `DT_FixedDrtn` (nooit `DT_FixedDUR2`), `rem_target_link_flag=Y`,
+// `target_start_date` = projectstart, leeg `target_end_date`. MUTATIEBEWIJS: zet `DT_FixedDUR2`
+// terug in `caseBytes` ⇒ 3b slaat ROOD (de poort bleef daar toevallig even dicht, vandaar deze pin).
+{
+  const case09 = CASES.find(item => item.id === '09-completed-successor')!;
+  const text = new TextDecoder().decode(caseBytes(case09));
+  const taskRows = text.split('\n').filter(line => line.startsWith('%R\t') && line.includes('\tTT_Task\t'));
+  eq('3b transcriptie draagt de bron-discriminatoren letterlijk', {
+    durationTypes: [...new Set(taskRows.map(row => row.split('\t')[7]))],
+    remTargetLink: text.includes('\tplan_end_date\trem_target_link_flag\n%R\tP\t09-completed-successor\tMONFRI\t2026-01-05 00:00\t2025-12-01 08:00\t\tY'),
+    targetStarts: [...new Set(taskRows.map(row => row.split('\t')[12]))],
+    targetEnds: [...new Set(taskRows.map(row => row.split('\t')[13]))],
+  }, {
+    durationTypes: ['DT_FixedDrtn'],
+    remTargetLink: true,
+    targetStarts: ['2025-12-01 08:00'],
+    targetEnds: [''],
+  });
+}
+
 // ── 4. De volledige agreement-matrix, eerlijk gepind ────────────────────────────────────────────
 const summary = Object.fromEntries(CASES.map(item => {
   const rows = Object.values(agreement[item.id]!);
