@@ -587,3 +587,169 @@ kent het verschijnsel niet en leest de `Exceptions`-lijst letterlijk
 conservatief — drie eisen op het record zelf, corpusloos gepind in `check-xer-calendar-data.ts`
 sectie 22a–22g. Duikt er een tweede bestand op, dan bevestigt of ontkracht dat de regel; het mag er
 niet stil op meeliften.
+
+## §10 Overdrachtsstand 2026-09-07
+
+*Geschreven door de Claude-hoofdsessie die de etappe op 2026-09-04 van de Codex-thread overnam, bij
+de overdracht aan een volgende sessie. Elk punt is gelabeld ZEKER (zelf gemeten of in git
+controleerbaar), AFGELEID (uit rapporten van subagents, niet zelf nagemeten) of ONBEKEND.*
+
+### 10.0 Waar het werk staat
+
+- **ZEKER.** Etappebranch `claude/file-formats-support-phase-3-a0ebe2`, kop `cd0381b9`, gepusht naar
+  origin (fast-forward vanaf de oude Codex-push `076f67ec`). Bevat main t/m `92a656fb` (merge 1
+  `a669108e` = main f16bfff7; merge 2 `0ba05e30` = origin/main met contour-engine PR #95). Sindsdien
+  kreeg origin/main PR #100 (`7e65b6d6`, takeover-small-fixes) — **niet** gemergd.
+- **ZEKER.** Nog niet op de etappebranch, wél gepusht als losse branches op origin (alle commits
+  bestaan; de `/tmp`-worktrees zijn bij een herstart van de machine verdwenen):
+  - `claude/xer-6` (kop `6f6013e6`, 17 commits): laag 3 "Datums zoals opgeslagen voor XER", T1–T8
+    plus zeven fixcommits na de eerste critreview (o.a. recovery-manifest v4 met `datesAsRecorded`,
+    `unrecordedExportGate` voor CSV/MCP). **Her-check van de critreview is niet afgerond** (reviewer
+    crashte op een API-limiet); laatste verdict was FIXES NODIG met vijf punten die de fixcommits
+    claimen te sluiten. Landen pas na een verse her-check.
+  - `claude/xer-7a` (kop `bd1a7ab3`, 7 commits): laag 1 klasse (i), voltooide activiteiten, achter
+    vlag `p6CompletedLateFromRemainingWindow`. Eerste review: NIET LANDEN (7 punten); fixronde klaar
+    (`3a9caee5`, `f99f2957`, `8e3509f4`, `bd1a7ab3`), **her-review niet afgerond** (crash). Bevat ook
+    de nieuwe `check-p6-verified-cases-engine.ts` (13 P6-casussen door de motor; 157/160 cellen eens).
+  - `claude/xer-6-T5` (`2d5810dc`): al gecherry-pickt in `claude/xer-6` als `e663d2f7`; alleen historie.
+  - `claude/xer-3a`, `-3b`, `-3c`, `-3d`, `-5`, `-flake`, `-v1-baseline`, `-7b1-kalenderspiegel`,
+    `-plandoc-besluiten`: volledig geland; alleen historie/reviewspoor.
+- **AFGELEID.** De reviewrapporten (`/tmp/xer-overname/review*.md`, `review-laag3.md`, `review-7a.md`,
+  `review-7b.md`, het kalibratierapport en de diagnose van laag 1) stonden in `/tmp` en zijn met de
+  herstart verloren. Hun conclusies staan samengevat in X-O7 (§5), §9 en hieronder; de letterlijke
+  bevindingenlijsten niet meer.
+
+### 10.a Het corpus
+
+- **ZEKER.** `OPS_XER_CORPUS` wijst op deze machine naar
+  `/home/nozzit/open-aec/voor claude/testdata-crawl`. De tests lezen `tests/planning/xer-corpus-manifest.json`
+  (93 bestanden, per bestand pad + sha256 + `source` + `role` + `included`; 45 `oracle/true`).
+- **ZEKER (herkomst per map).** Zes mappen zijn git-clones met remote en commit:
+  `cpp-cpm-engine` = https://github.com/danafitkowski/cpp-cpm-engine.git @ c279a5c;
+  `mpxj` = https://github.com/joniles/mpxj.git @ 68d36e9 (alleen lezen-om-te-begrijpen, LGPL-2.1);
+  `delay-analysis-toolkit` = https://github.com/altunozan/delay-analysis-toolkit.git @ ecab947;
+  `P6-Viewer` = https://github.com/CodeVision3000/P6-Viewer.git @ c32dc4c;
+  `ProjectLens` = https://github.com/MatthewPaver/ProjectLens.git @ fe33382;
+  `p6flow` = https://github.com/wllmtrng/p6flow.git @ 637c12e; `xer-reader` =
+  https://github.com/jjCode01/xer-reader.git @ f9fafd8. `crawl-xer-extra/` (13 bestanden) heeft een
+  eigen `MANIFEST.md` met per bestand de GitHub-URL, licentie en pad (o.a. `rehab-2.xer` =
+  https://github.com/JaiLaff/XER-Splitter, `tests/Example-XERs/rehab-2.xer`).
+- **ONBEKEND (per bestand).** `crawl-xer/` (36 bestanden + submappen `eh/`, `eh_P6Workshops/`) is op
+  2026-08-14 door een eerdere "pig-crawl"-sessie verzameld; `CORPUS-OVERZICHT.md` en `MANIFEST.md`
+  in de corpusmap noemen alleen "publieke crawl", geen URL per bestand. `pmxml-samples/` idem
+  ("publieke voorbeeldset"). Ik heb die bestanden niet zelf opgehaald en verzin geen bron.
+- **AFGELEID (reproduceerbaarheid).** Een verse machine krijgt de zes git-mappen exact terug door op
+  de genoemde commits te klonen (sha256 van de `.xer`-bestanden matcht dan het manifest, want die
+  liggen in de repo's). `crawl-xer-extra/` is reproduceerbaar via zijn `MANIFEST.md`. Voor
+  `crawl-xer/` en `pmxml-samples/` is het manifest alleen een controle achteraf: zonder de map zelf
+  (kopiëren van deze machine) kan een verse machine ze niet terughalen. De corpusgebonden checks slaan
+  zichzelf over wanneer `OPS_XER_CORPUS` ontbreekt (`OK … corpus niet aanwezig`), dus CI draait
+  corpusloos.
+
+### 10.b De stand van X12 (productfidelity)
+
+- **ZEKER.** `tests/planning/xer-product-fidelity-baseline-v2.json` (sinds `cd0381b9` onder deze naam;
+  daarvóór overschreef baan 3a het v1-bestand onder dezelfde naam, wat `check-xer-product-fidelity.ts`
+  liet crashen) pint `finalZeroGate: red`, `accepted: false`, open categorieën
+  `strict-six-axis-deviations`, `strict-sameday-deviations`, `driving-path-report-only`.
+  De gepinde karakterisering is de meting van **vóór 7b**: 18.398 zesassige afwijkingen, 14.812 in
+  `rehab-2.xer`. De **verse** meting op `cd0381b9` (`OPS_XER_FIDELITY_REPORT=summary`) geeft
+  **17.421** — de v2-baseline en de in-bron pin van `check-xer-corpusless-fidelity-gate.ts` zijn ná 7b
+  niet herpind. Daardoor is op de kop van de branch de check "productbaseline is de verse volledige
+  productmeting" rood naast de drie nuldoel-regels. Herpinnen hoort in één stap samen met 7a
+  (verwacht ≈16.3k − 977 ≈ 15.3k; **meten, niet aannemen**), met reden per as/bestand.
+- **AFGELEID (strict-six-axis).** Kalibratiemeting 2026-09-04: instellingen afleiden uit de uitvoer
+  werkt niet (384 combinaties, geen uniek optimum) — zie X-O7. Diagnose 2026-09-04 op rehab-2:
+  (i) voltooide activiteiten 5.620 cellen — P6 zet ze aan de late kant op de statusdatum met echte
+  float; (ii) niet-gestarte 7.056 cellen — 2.165 van 2.205 LS-afwijkingen zijn doorwerking van ~40
+  bronpunten; daarvan bleek de "spiegelasymmetrie" een XER-eigen penaltyprojectie (7b, verwijderd) en
+  kalender 842 miste tien vrije dagen (7b, gereconstrueerd); 246 taken waarin P6 zichzelf tegenspreekt
+  (TF 0 naast FF > 0) zijn niet reproduceerbaar en moeten per bestand met reden gepind worden.
+  Ná 7b én 7a samen resteert vermoedelijk het forward-ankergat (dossier 7b-4, §9) plus de 212 cellen
+  die 7a's fixronde aan klasse (ii) toeschreef — **niet bevestigd**, want beide zijn nooit samen gemeten.
+- **ONBEKEND (strict-sameday).** Hoeveel cellen in de `sameday`-bucket vallen (zelfde dag, ander
+  tijdstip) heb ik nooit apart gemeten; de kalibratiemeting rapporteerde dat rehab-2's afwijkingen
+  volledig in `diff` vielen (geen `sameday`), maar corpusbreed is het getal niet vastgelegd.
+  Plan §1 zegt: sameday moet nul zijn (minuut-exact).
+- **ONBEKEND (driving-path-report-only).** De zevende as (`driving_path_flag`) staat per §3 buiten
+  de nulpoort; 7a's herpin meldde een verschuiving 13.186→13.180 exact (+6 diff) op rehab-2.
+  Of en wanneer die as poort wordt, is een eigenaarsbesluit dat niet is genomen.
+- **Laag 1 van X-O7 — ZEKER gedeeltelijk gebouwd.** Klasse (ii)-deel 7b-1/7b-2 (kalenderklem +
+  penalty weg) is **geland** (`0b8dbeb3`, `f33dbecb`, `90f5e326`, `e1915758`), review GO-met-dossier.
+  Klasse (i) (7a) is **gebouwd maar niet geland** op `claude/xer-7a`, her-review open. De bronvlag
+  voor (i) is `SchedulingOptions.p6CompletedLateFromRemainingWindow` (XER-default aan, alleen onder
+  retained logic); voor 7b is er geen vlag: de kalenderdecoder zelf is aangepast (`weekendClampTarget`
+  / `hasWeekendClampEvidence` in `xerCalendarData.ts`, corpusloos gepind in
+  `check-xer-calendar-data.ts` sectie 22a–22g), en `subtractP6XerProjectedWorkMinutes` bestaat niet meer.
+
+### 10.c De stand van X11 (browsergebruikstest)
+
+- **ZEKER.** Codex' X11-bewijs is geland (`487e8e93`, `5afa0ead`): `tests/browser/x11-xer-evidence.mjs`
+  (+ `x11-multidoc-contract.mjs`, `x11-phase2b-contract.mjs`, `x11-phase2b-mutations.mjs`,
+  `x11-phase2b-privacy-contract.mjs`), script `npm run test:browser:x11`, per CLAUDE.md "lokaal headed;
+  vereist OPS_XER_CORPUS + desktopdisplay, vervangt de corpusloze CI-poort niet". Scenario's in de
+  code: `crawl-xer/p6diff-baseline.xer` (klein), `OZB-Start-09Dec24.xer` (multi-document + Help),
+  multidoc-recovery, `rehab-2.xer` (grote resources). Bij merge 1 en merge 2 gaf
+  `test:browser:x11` exit 0 (integratoren), en `test:browser` (Playwright, 113 resp. 116 tests) exit 0.
+- **AFGELEID.** Wat het harnas bewijst is store-state via `window.__OPS__` (openen, meldingsregels,
+  multi-document, herstel, grote resources), geen visuele controle en geen echte muis/toets-flows
+  op de XER-specifieke UI.
+- **ONBEKEND / NIET GEDAAN.** Geen gebruikstest met de UI van laag 3 (modus standaard aan, melding,
+  markering, "niet vastgelegd"-kolom, badge) en geen visuele controle van 7a's zichtbare effect
+  (voltooide taak toont echte speling) — beide zitten op niet-gelande branches. Werkplanstap 9
+  ("gebruikstest in de browser, gids als meetlat, rehab-2/OZB/p6diff/torture") is niet uitgevoerd.
+
+### 10.d Dossier 7b-4
+
+- **ZEKER.** Staat in §9 als "geregistreerd, niet gebouwd". Dat klopt nog: niemand heeft eraan
+  gewerkt. Het is de eerste kandidaat ná het landen van 7a, omdat 7a's fixronde 212 van zijn
+  resterende cellen aan klasse (ii) toeschrijft en 7b-4 dáár het benoemde restpunt is.
+
+### 10.e Laatste `npm run verify` op de kop van de branch
+
+- **ZEKER.** Gedraaid 2026-09-07 op `cd0381b9` met `OPS_XER_CORPUS` gezet, vanuit de etappe-worktree:
+  **exitcode 1** (start 15:54, einde 16:03; log op deze machine
+  `/tmp/handover-verify.log`). Rode set: uitsluitend de vier X12-regels van `check-xer-product-fidelity-x12.ts` (drie nuldoel-regels op 17.421 en "productbaseline is de verse volledige productmeting" door de niet-herpinde v2-baseline), in alle vijf tijdzones; `verify` stopt daardoor bij `test:planning`, dus library/mcp/dev-server/browser/examples zijn in déze run niet gedraaid. De overige `Error`-regels in de log (rec-corrupt `RangeError`, `kapot.ifc`, ZIP-installatiefouten, dubbele `task_id 'T1'`) zijn negatieve-pad-fixtures die hun verwachte fout printen; `Save failed: ReferenceError: window is not defined` (6×) heb ik niet geverifieerd als fixture — ONBEKEND. Niets gefixt.
+- **AFGELEID.** De laatste vólledige `verify` daarvóór was bij merge 2 (`0ba05e30`, 2026-09-05):
+  exit 1 uitsluitend door de vier X12-regels; alle andere suites (library, mcp, dev-server, browser,
+  examples, docs, i18n, boundaries, cycles) exit 0. Reeksen 2–5a landden met lichte poorten en
+  losse checks, niet met de volledige suite.
+
+### 10.f Wat niet in het plan staat
+
+- **Valse sporen.** (1) "Formaatneutraal spiegeldefect in `subtractWorkMinutes`" (diagnose laag 1)
+  was fout: gemeten 0 afwijkingen over 9.216 vergelijkingen; het was de XER-penaltyprojectie.
+  `check-calendar-mirror.ts` pint dat. (2) Kalibratie van SCHEDOPTIONS uit de uitvoer: afgewezen op
+  meting (X-O7). (3) "Kalenderbrede" klempoort: twee false positives, daarom record-lokaal met drie
+  eisen; de klasse is niet gesloten (D′-voorbeeld in het docblok). (4) Eerste 7a-versie liet de
+  regel ook op CP_Phys/LOE-taken lopen (inversies) — daarom gepoort op `completedWindow.eligible`
+  via één gedeelde poortfunctie.
+- **Afgewezen ideeën.** Eigen curve-best-fit in de XER-lezer (vervangen door de contour-engine);
+  `OPS_`-pset voor de opgeslagen P6-datums (niet nodig: het XER-bronarchief draagt de zes kolommen
+  al en `readIFCWithXerReconstruction` reconstrueert ze); standaard-aan bij heropenen van een IFC
+  (afgewezen: een bewerkte planning mag bij heropenen niet P6's oude datums tonen ⇒ origin
+  `'xer'` vs `'xer-archive'`).
+- **Besluiten van de orkestrator die de eigenaar nog moet bevestigen.** Heropen-beleid (hierboven);
+  crashherstel behoudt de modus alleen als de vlag in het manifest staat (v4); CSV/MCP geven bij een
+  niet-vastgelegde as leeg/`null`; MCP-provenance-tool toont `name`/`code` zonder opt-in (geaccepteerd
+  risico: resourcenaam kan een persoonsnaam zijn); 7b landde met een per-as-regressie op ES/EF onder
+  de X-O7-uitzondering.
+- **Bekende losse eindjes.** (1) Zes main-bestanden gebruiken `childIds.length > 0` i.p.v.
+  `isSummaryTask()` (taskColumnRegistry, assignmentPlan, taskEditPlan, library/distribute,
+  print/barColorCategories, FullTaskGrid): voor een XER-WBS-rij zonder activiteiten tegenstrijdig
+  gedrag; geen poort rood; niet stil omzetten. (2) `readIFCWithXerReconstruction` decodeert de
+  kalender opnieuw uit het bronarchief — of de 7b-fix daarmee met terugwerkende kracht op al
+  opgeslagen documenten werkt, is niet uitgezocht; er ontbreekt ook een gidsregel over verse import
+  vs eerder opgeslagen IFC. (3) rehab-2 heropenen uit IFC kost ±21 s (STEP-parse van 50 MiB),
+  pre-existent. (4) `pmxml-samples/testXer.xer` en `groupdocs-conversion/sample.xer` zijn de enige
+  bestanden met `DT_FixedQty` (taaktypes-etappe). (5) De weekend-flake `milestone-duration-render`
+  is gefixt (`e7824f61`); de v1/v2-baselinebotsing ook (`cd0381b9`) — les: een crash in een check
+  geeft géén `XX`-regel, tel per-check exitcodes.
+- **Wat ik de opvolger zou zeggen.** Integreer in deze volgorde: verse her-review op `claude/xer-7a`
+  (let op de "poort dicht in casus 09"-verklaring en `lagPercent` bij SS/SF), landen; verse her-check
+  op `claude/xer-6` (let op manifestversie 4 en de `useAutoSave`-schakel, die niet headless is
+  getest), landen; dan één herpin van v2-baseline + in-bron pin + evt. v1 met reden per as/bestand;
+  dan volledige `test:planning` + `verify` + `test:browser(:x11)`; dan de gebruikstest in de browser;
+  dan de hyperkritische eindreview over de hele diff t.o.v. origin/main inclusief de
+  whitelist-sluiproute-scan (§4.1, nu met bak 4); dan PR (eigenaar merget). Merge PR #100 er vóór
+  de PR nog in. Vault: `issues/issue 17.md` staat op `building` met deze branchnaam.
