@@ -14,6 +14,7 @@ import {
 } from '@/engine/taskGrid/assignmentPlan';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
+import { recordedGridBinding } from './recordedDatesSelectors';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
@@ -113,6 +114,8 @@ interface GridColumnRuntime {
 }
 
 function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
+  const recordedDates = state.recordedDates;
+  const datesAsRecorded = state.datesAsRecorded;
   const assignmentsByTaskId = new Map<string, AppState['assignments']>();
   for (const assignment of state.assignments) {
     const values = assignmentsByTaskId.get(assignment.taskId);
@@ -131,6 +134,12 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
       task, state.calendar, state.calendars,
     )),
+    // Alleen `recordedMark` — die stuurt de `available()`-gate van de kolom `recorded.source`
+    // (taskColumnRegistry.ts). Zonder deze naad zou een paste die toevallig over die kolom heen
+    // strijkt hard falen (`plannerNotAvailable`) in plaats van de bestaande skip-readonly-route
+    // te nemen, op elk document waar de kolom via FullTaskGrid wél zichtbaar is. `format`/
+    // `recordedUnrecordedAxes` raken alleen weergave, niet het schrijfpad — die blijven hier weg.
+    recordedMark: recordedGridBinding(recordedDates, datesAsRecorded).recordedMark,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: state.project.id,

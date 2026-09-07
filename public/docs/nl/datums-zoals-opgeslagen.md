@@ -73,9 +73,50 @@ Sla je op terwijl je de opgeslagen datums bekijkt, dan schrijft de app die datum
 doorgerekende versie. Zo overschrijf je nooit per ongeluk de planning van een collega of van het
 bronpakket met een uitkomst die de app er zelf bij heeft bedacht.
 
+## Primavera P6 (.xer): deze weergave kan vanzelf aangaan
+
+Bij een `.xer`-bestand werkt dit net iets anders dan bij de andere formaten hierboven. Primavera P6
+levert namelijk niet alleen datums, maar ook zíjn eigen berekening daarvan — geen losse datums zonder
+logica. Blijven er na het openen restverschillen over met de herberekening van Open Planner Studio,
+dan zet de app zichzelf meteen in deze weergave, zonder dat je eerst op **Opgeslagen datums tonen**
+hoeft te klikken. De melding boven de planning noemt in dat geval meteen het aantal activiteiten dat
+zou verschuiven, en verwijst naar de vaste blijvende melding zodra de weergave actief is.
+
+Dat automatisch aangaan geldt alleen bij het openen van het `.xer`-bestand zelf: sla je het project
+daarna op en open je het later opnieuw, dan wordt de weergave alleen nog aangeboden — je klikt dan
+zelf op **Opgeslagen datums tonen** — zodat een planning die je intussen hebt bewerkt en opgeslagen
+niet ongevraagd weer de oude datums van Primavera laat zien.
+
+De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
+datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het
+bewerken van een taak verlaten deze weergave op precies dezelfde manier als bij elk ander formaat (zie
+hierboven); de berekening zelf gebruikt Primavera's opgeslagen datums nooit als invoer, alleen als
+weergave. Zie [Primavera P6 (.xer) openen](docs://gids-xer-import) voor de rest van wat een XER-import
+meebrengt.
+
+## "Niet vastgelegd"
+
+Primavera legt niet voor elke activiteit alle vier de assen laatste start, laatste einde, totale
+speling en vrije speling vast — een activiteit kan bijvoorbeeld wel een vroege datum hebben, maar geen
+speling. Mist zo'n as in het bronbestand, dan toont de betreffende kolom in de tabel "Niet vastgelegd"
+in plaats van een getal. Dat is geen foutmelding: het betekent alleen dat het bestand zelf op dat punt
+niets zei, en Open Planner Studio verzint daar dus ook niets bij. Dit geldt alleen zolang je déze weergave bekijkt:
+zodra de app zijn eigen berekening toont — buiten deze weergave, of na herberekenen met **F5** —
+staat in die kolom gewoon het berekende getal.
+
+Diezelfde eerlijkheid geldt buiten het scherm: exporteer je naar CSV terwijl deze weergave aanstaat,
+dan blijft de cel voor een niet-vastgelegde as leeg in plaats van een `0` te tonen, en de
+AI-assistent krijgt voor zo'n as `null` te zien met de opsomming van welke assen het bestand niet
+vastlegde. De rapporten (het Rapport-tabblad, inclusief de PDF en het printvoorbeeld) kennen die
+lege cel nog niet: daar staat voor een niet-vastgelegde as een leeg veld of een `0`. Zolang deze
+weergave aanstaat, staat daarom boven elk rapport één melding die zegt dat je naar de datums uit het
+bestand kijkt en waar die nullen vandaan komen.
+
 ## Verder lezen
 
 - Meer over welke formaten je kunt importeren en wat daarbij wel en niet meekomt — lees de gids
   [Im-/export](docs://gids-import-export).
 - Speling en kritiek pad in detail, inclusief wat "bepalend" precies betekent — lees de gids
   [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse).
+- Alles over wat een `.xer`-import meebrengt — lees de gids
+  [Primavera P6 (.xer) openen](docs://gids-xer-import).

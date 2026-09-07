@@ -101,6 +101,8 @@ Plik `.mpp` (natywny format Microsoft Project, Project 2010–2021) to osobna ś
 MSPDI XML. Zobacz przewodnik [Otwieranie MS Project (.mpp)](docs://gids-msproject-import), aby dowiedzieć
 się, co jest przenoszone i jakie są ograniczenia.
 
+Plik `.xer` jest formatem wymiany Primavera P6. Jest importowany bezpośrednio, a po edycji zapisywany jako IFC; zobacz [Otwieranie Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importery z rozszerzeń
 
 Poza powyższymi stałymi formatami, zainstalowane rozszerzenia mogą dodawać własne importery — na przykład dla

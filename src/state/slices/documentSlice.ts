@@ -1,4 +1,5 @@
 import type { Project } from '@/types/project';
+import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
 import type { AppSliceFactory } from './types';
 import { generateId } from '@/utils/id';
@@ -13,6 +14,12 @@ import {
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
+import {
+  bindXerImportMetadataToArchive,
+  XerSourceArchiveValidationError,
+  type XerSourceArchive,
+} from '@/services/xerSourceArchive';
 import {
   invalidateUndoneHistoryForScopes,
   removeSessionHistoryForDocumentFromState,
@@ -20,6 +27,8 @@ import {
   type HistoryScopeKey,
 } from '../sessionHistory';
 import {
+  applyRecordedDatesOnLoad,
+  applyRestoredRecordedMode,
   materializeLibraryBoundary,
   prepareLoadedPayload,
   type DocumentActivationMaterialization,
@@ -173,6 +182,102 @@ function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+/**
+ * X6 bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
+ * rijen. Een documentkopie krijgt een nieuwe, mutable projectview, maar mag die catalogus nooit
+ * JSON-klonen: rehab-2 alleen al bevat 52.640 retained rijen.
+ */
+function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetadata {
+  return {
+    catalog: source.catalog,
+    assignments: source.assignments.map(assignment => ({
+      ...assignment,
+      entity: { ...assignment.entity },
+      ...(assignment.assignedRole ? { assignedRole: { ...assignment.assignedRole } } : {}),
+      quantities: { ...assignment.quantities },
+      rawCurves: { ...assignment.rawCurves },
+      costs: { ...assignment.costs },
+    })),
+    issues: source.issues.map(issue => ({ ...issue })),
+  };
+}
+
+function cloneXerImportMetadata(
+  source: XerImportMetadata,
+  archive: XerSourceArchive | null,
+): XerImportMetadata {
+  if (archive && source.sourceProjectId) {
+    return bindXerImportMetadataToArchive(archive, source.sourceProjectId);
+  }
+  const { resources, metadata, ...withoutCatalogs } = source;
+  const clone = deepClone(withoutCatalogs);
+  // X6/X8-catalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat krijgt zijn eigen
+  // mutable projectmetadata maar nooit een tweede kopie van grote TASKRSRC/TASKACTV-catalogi.
+  return {
+    ...clone,
+    ...(resources ? { resources: cloneXerResourceMetadata(resources) } : {}),
+    ...(metadata ? { metadata } : {}),
+  };
+}
+
+/** Herstel leest zelfstandige IFC's; identieke gevalideerde bronarchieven worden daarna één ref. */
+function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryDocInput[] {
+  const canonicalByDigest = new Map<string, XerSourceArchive[]>();
+  const metadataCache = new WeakMap<XerSourceArchive, string>();
+  const canonicalMetadata = (archive: XerSourceArchive): string => {
+    const cached = metadataCache.get(archive);
+    if (cached !== undefined) return cached;
+    const stable = (value: unknown): string => {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value);
+      if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+        .map(([key, child]) => `${JSON.stringify(key)}:${stable(child)}`).join(',')}}`;
+    };
+    const result = stable({ diagnostics: archive.diagnostics, readModel: archive.readModel });
+    metadataCache.set(archive, result);
+    return result;
+  };
+  const sameArchive = (left: XerSourceArchive, right: XerSourceArchive): boolean =>
+    left.schemaVersion === right.schemaVersion
+    && left.format === right.format
+    && left.byteLength === right.byteLength
+    && left.sha256 === right.sha256
+    && left.encoding === right.encoding
+    && left.bom === right.bom
+    && left.newline === right.newline
+    && left.byteChunks.length === right.byteChunks.length
+    && left.byteChunks.every((chunk, index) => chunk === right.byteChunks[index])
+    && canonicalMetadata(left) === canonicalMetadata(right);
+  const bindDocumentToArchive = (
+    doc: RecoveryDocInput,
+    archive: XerSourceArchive,
+  ): RecoveryDocInput => {
+    const selector = doc.xerSourceProjectId ?? doc.xer?.sourceProjectId;
+    if (!selector) {
+      throw new XerSourceArchiveValidationError('XER-recovery mist een documentselector');
+    }
+    const metadata = bindXerImportMetadataToArchive(archive, selector);
+    return {
+      ...doc,
+      xerSourceArchive: archive,
+      xerSourceProjectId: selector,
+      xer: metadata,
+    };
+  };
+  return docs.map(doc => {
+    const archive = doc.xerSourceArchive;
+    if (!archive) return doc;
+    const key = `${archive.byteLength}:${archive.sha256}`;
+    const candidates = canonicalByDigest.get(key) ?? [];
+    const canonical = candidates.find(candidate => sameArchive(candidate, archive));
+    if (canonical) return bindDocumentToArchive(doc, canonical);
+    candidates.push(archive);
+    canonicalByDigest.set(key, candidates);
+    return bindDocumentToArchive(doc, archive);
+  });
+}
+
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
  *  basisnaam stabiel wanneer je een variant-document opnieuw dupliceert (varianten-van-varianten). */
 const VARIANT_RE = /^(.*) \(variant (\d+)\)$/;
@@ -216,7 +321,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       // Een vers leeg document heeft geen open-boundary (er is niets aan gekoppeld), dus zonder
@@ -275,6 +380,13 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       fileHandle: null,
       autoSaveToFile: false,
       isDirty: true,
+      xerImportMetadata: src.xerImportMetadata
+        ? cloneXerImportMetadata(src.xerImportMetadata, src.xerSourceArchive)
+        : null,
+      // De originele XER-bytes zijn immutable en worden doelbewust NIET gekloond: één runtimeobject
+      // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
+      xerSourceArchive: src.xerSourceArchive,
+      xerSourceProjectId: src.xerSourceProjectId,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',
@@ -282,7 +394,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = src; // bron parkeren (per referentie, net als newDocument/switchDocument)
+      if (cur) cur.payload = castDraft(src); // bron parkeren (per referentie, net als newDocument/switchDocument)
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       resetDocumentScopedUI(s);
@@ -311,7 +423,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       const inc = s.documents.find((d) => d.id === id);
       if (inc) inc.payload = null;
       s.activeDocumentId = id;
@@ -427,6 +539,15 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return { skippedIds: [] };
+    // X6/X8-herstel leest per document een ZELFSTANDIG IFC; identieke gevalideerde XER-bron-
+    // archieven worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden
+    // (rehab-2 alleen al draagt 52.640 retained TASKRSRC-rijen). Deze stap GOOIT bewust bij een
+    // ongeldig archief (`XerSourceArchiveValidationError`) en wordt NIET afgevangen: een
+    // bronarchief zonder vindbare documentselector is geen "één kapot document" maar een kapot
+    // leesmodel, en check 10b van `check-xer-archive-readmodel.ts` pint die harde, getypeerde
+    // weigering vast. De per-document `try/catch` hieronder dekt het andere geval — een geldig
+    // gelezen document dat pas op de solve/rollup stukloopt.
+    const sharedDocs = shareRecoveredXerArchives(docs);
     const state = get();
     const skippedIds: string[] = [];
 
@@ -439,15 +560,24 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     //    document niet de rest van het herstel blokkeert. De oorspronkelijk actieve kandidaat gaat
     //    als eerste, zodat een geslaagd herstel dezelfde `activeDocumentId` behoudt als voorheen.
     const tryOrder = [
-      ...docs.filter((d) => d.id === activeId),
-      ...docs.filter((d) => d.id !== activeId),
+      ...sharedDocs.filter((d) => d.id === activeId),
+      ...sharedDocs.filter((d) => d.id !== activeId),
     ];
     let active: RecoveryDocInput | null = null;
     let prepared: DocumentPayload | null = null;
     let activation: DocumentActivationMaterialization | null = null;
     for (const candidate of tryOrder) {
       try {
-        const p = prepareLoadedPayload(payloadFromInput(candidate), { recompute: true });
+        const rawPayload = payloadFromInput(candidate);
+        const p = prepareLoadedPayload(rawPayload, { recompute: true });
+        // XER-etappeplan §3.5/§4-T4, risico §5.4, heropen-beleid (T8) + critreview laag 3
+        // (bevinding 2): crashherstel herstelt het bestaande #63-aanbod (`recordedFields`, elk
+        // formaat) dat het tot nu toe stilzwijgend wegliet, EN de modusvlag van vóór de crash —
+        // uit de recovery-metadata (`candidate.datesAsRecorded`), dus een OPGESCHREVEN feit en
+        // geen heuristiek: crashherstel is het hervatten van een sessie, geen heropening, en mag
+        // dus niet opnieuw beslissen. `rawPayload.tasks` is bewust de PRE-solve array —
+        // `prepareLoadedPayload` muteert zijn `input`-argument niet.
+        applyRecordedDatesOnLoad(rawPayload.tasks, p, candidate, candidate.datesAsRecorded);
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });
@@ -465,11 +595,18 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     //    garantie geldt: één document dat zich niet naar een payload laat vormen mag de rest niet
     //    meeslepen.
     const sleepingById = new Map<string, DocumentPayload>();
-    for (const d of docs) {
+    for (const d of sharedDocs) {
       if (active && d.id === active.id) continue;
       if (skippedIds.includes(d.id)) continue;
       try {
-        sleepingById.set(d.id, payloadFromInput(d));
+        const sleeping = payloadFromInput(d);
+        // Critreview laag 3, bevinding 3: ook een SLAPEND document moet zijn weergavestand
+        // terugkrijgen. Zonder dit kwam het terug met P6's datums in `task.time`, zonder modus en
+        // mét `scheduleStale` — waarna automatisch berekenen (of de eerste F5) ze stil wegrekende.
+        // Geen solve hier (dat is de hele reden dat slapende documenten stale zijn), dus ook geen
+        // `shifted`-teller; zie `applyRestoredRecordedMode`.
+        if (d.datesAsRecorded) applyRestoredRecordedMode(sleeping, d);
+        sleepingById.set(d.id, sleeping);
       } catch (err) {
         console.error('Recovery: hersteld document kon niet worden voorbereid — overgeslagen:', d.id, err);
         skippedIds.push(d.id);
@@ -498,12 +635,14 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
     set((s) => {
       replaceSessionHistoryState(s, [], 1);
-      s.documents = docs
+      // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen, die Immer's
+      // `Draft<>` anders afwijst (X6).
+      s.documents = castDraft(sharedDocs
         .filter((d) => !skippedIds.includes(d.id))
         .map((d) => ({
           id: d.id,
           payload: d.id === activeDoc.id ? null : (sleepingById.get(d.id) ?? null),
-        }));
+        })));
       s.activeDocumentId = activeDoc.id;
       resetDocumentScopedUI(s);
       if (activation2.invalidateRedoScope) invalidateActivationRedo(s, activeDoc.id);
@@ -559,6 +698,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
           dataDate: payload.project.statusDate,
           progressMode: payload.project.progressMode,
           schedulingOptions: payload.project.schedulingOptions,
+          projectStartDate: payload.project.startDate,
+          projectEndDate: payload.project.endDate,
         });
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
@@ -600,7 +741,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       for (const u of updates) {
         const entry = s.documents.find((d) => d.id === u.id);
         if (!entry || entry.payload === null) continue; // tussentijds gesloten/geactiveerd.
-        entry.payload = u.payload;
+        entry.payload = castDraft(u.payload);
       }
     });
     return updates.length;

@@ -20,7 +20,9 @@ export type IfcParseErrorReason =
   /** Kop én sluitmarkering aanwezig, maar er is geen `DATA;`-sectiegrens te vinden. Zonder die
    *  grens valt er niets te parsen; stil een leeg project teruggeven zou het bestand van de
    *  gebruiker onder een leeg document begraven (het pad blijft immers gekoppeld). */
-  | 'no-data-section';
+  | 'no-data-section'
+  /** Aanwezig XER-bronarchief is structureel of cryptografisch corrupt — geen legacy fallback. */
+  | 'xer-source-archive';
 
 export class IfcParseError extends Error {
   readonly reason: IfcParseErrorReason;

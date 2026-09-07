@@ -155,9 +155,22 @@ const stubAsyncOnly: McpToolDef = {
   handler: async (_args, ctx) => runMutateTool(ctx, 'mutate', () => ({ data: null })),
 };
 
+/** Strikt schema (`additionalProperties:false` + `required`), zodat een stap met ongeldige args
+ *  ook echt op `validateToolArgs` struikelt in plaats van door het lakse `{type:'object'}`-schema
+ *  van de andere stubs te glippen. Gebruikt door de P2-isDirty-pinningtest hieronder
+ *  (reviewbevinding 3, `review-mcp-read.md`). */
+const stubStrict = stubMutate('planner_stub_strict', () => ({ data: null }), {
+  inputSchema: {
+    type: 'object',
+    properties: { taskId: { type: 'string' } },
+    required: ['taskId'],
+    additionalProperties: false,
+  },
+});
+
 const stubs: McpToolDef[] = [
   stubAddTasks, stubRecord, stubReject, stubCycle, stubCycleEdges, stubBadTempId, stubExtend, stubLevel,
-  stubSaveBaseline, stubDocument, stubUndo, stubAsyncOnly,
+  stubSaveBaseline, stubDocument, stubUndo, stubAsyncOnly, stubStrict,
 ];
 
 // De registry krijgt: de ECHTE leestools (de leesstap-tests draaien tegen `planner_get_project_info`),
@@ -469,6 +482,34 @@ test('batch: ongeldige steps-args ⇒ VALIDATION zonder enige mutatie', async ()
 
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, 'geen van de weigeringen mag een undo-snapshot pushen');
   assertEq(backupCalls.length, 0, 'geen van de weigeringen mag een backup triggeren');
+});
+
+// =================================================================================================
+// 13b) P2 (review-mcp-read.md #3): een schema-VALIDATION op een stap rolt terug ZONDER isDirty aan
+// te raken. Dit is een ALGEMENE batcheigenschap, niet iets dat één tool zelf moet bewaken: de
+// schemapoort draait IN de stappenloop, dus al BINNEN `runInMcpTransaction` (zie het kopcommentaar
+// "SCHEMAPOORT PER STAP" in batchTool.ts) — de transactie is dus al gestart zodra de fout valt.
+// `createMcpTransactions.ts`'s `run()` herstelt op het rollbackpad expliciet `state.isDirty =
+// previousDirty` NA `restoreSnapshot` (die zelf, voor de gewone undo/redo-tegenhanger, altijd naar
+// `true` zou zetten — zie `snapshot.ts`). Deze test pint dat de basis dat al goed doet, zodat een
+// toekomstige regressie in die volgorde hier meteen rood wordt.
+// =================================================================================================
+test('batch: schema-ongeldige stap-args ⇒ VALIDATION zonder dat isDirty verandert', async () => {
+  backupCalls = [];
+  store.setState((s) => { s.isDirty = false; });
+  const beforeDirty = store.getState().isDirty;
+  assertEq(beforeDirty, false, 'testopzet: isDirty moet aantoonbaar op false starten');
+
+  const res = await runBatch([
+    { tool: 'planner_stub_strict', args: { unexpected: true } },
+  ]);
+
+  assert(!res.ok, 'schema-ongeldige args horen de batch te laten falen');
+  if (!res.ok) assertEq(res.code, 'VALIDATION', 'code hoort VALIDATION te zijn');
+  // Backup-trigger is hier bewust GEEN assertie: die loopt via `runMutateTool`'s preBackupGuards
+  // vóórdat de stappenloop de schemafout tegenkomt (spiegelt "precies één backup-trigger voor de
+  // hele batch" hierboven) — dat is een ander, al gedekt contractpunt, niet reviewbevinding 3.
+  assertEq(store.getState().isDirty, beforeDirty, 'isDirty hoort exact de waarde van vóór de batch te behouden, niet naar true te kantelen door de rollback');
 });
 
 // =================================================================================================

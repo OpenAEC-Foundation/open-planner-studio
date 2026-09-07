@@ -360,6 +360,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
+- [ ] **XER-opgeslagen werk (`target_qty`/`remain_qty`/`act_reg_qty`) blijft bewust in het
+      bronarchief.** Geen nieuw modelveld vanuit XER deze etappe — de taaktypes-etappe definieert het
+      eersteklasveld op `ResourceAssignment`; XER zet het pas dán over, en uitsluitend wanneer
+      `target_qty` afwijkt van `target_drtn_hr_cnt × target_qty_per_hr` (anders blijft het veld
+      afwezig, byte-identiek). Meetlatbestanden: `HarbourPointe_AssistedLiving` (98 afwijkende rijen,
+      factor 3), `Harbour Point DCP-03` (factor 4; `remain_qty` zonder resttarief), `p6_torture_test_v1`
+      (duur 0 met werk); resttarief wijkt in `rehab-2` in 27,5% van de rijen af.
 
 ### Resourcekalender-semantiek — taak volgt resourcekalender als keuze (besluit eigenaar 2026-09-04)
 - [ ] **Overallocatie op een vrije dag van de resource is bewust gedrag, geen bug** (`ResourceLoad.ts`
@@ -725,6 +732,47 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 ### Distributie & Release — release notes in de in-app updater
 
 ### Kwaliteit & verificatie
+
+- [x] **De per-cel-poort `cellTransitions.previouslyExact` meet sinds de X12-v2-meetlat niets meer**
+  — HERSTELD 2026-09-07 (etappe X12, herpin): v1 heeft zijn eigen bestand terug
+  (`xer-product-fidelity-baseline.json`, twee openbare corpusbestanden), de harness geeft
+  `progressMode`/`schedulingOptions` weer door en de overgangshistorie is herstart vanaf de huidige
+  exacte set (44+16 cellen, 0 verbeteringen; zie de `reason`-velden). De poort meet weer: een cel
+  die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
+  blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
+  enige bewaking — per as, niet per cel.
+- [ ] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
+  zonder `plan_end_date`** (her-review 7a, 2026-09-07; `xerReader.ts` `taskDerivedProjectEnd =
+  finishes[last] ?? projectStart`). Op de echte P6-export van de dertien casussen
+  (`cases-import.xer`: geen enkele `target_end_date`, geen `plan_end_date`) verankert de hele late
+  zijde daardoor op de start: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in
+  sectie 7 van `check-p6-verified-cases-engine.ts`. Fix-kandidaat: zonder bruikbaar einde
+  (`plan_end_date` leeg én geen taakeinde) de optie gerapporteerd uitzetten — met blastradius-
+  meting op het corpus (39 van 50 SCHEDOPTIONS-rijen dragen `Y`), niet als zijklus.
+- [ ] **XER: het bronarchief heeft geen bytegrens en gaat mee in élke auto-save-serialisatie**
+  (eindreview 2026-09-07, bevinding 1). Gemeten op `rehab-2.xer` (17,7 MB): IFC 50 MB, volledige
+  herstelronde 73 s / 3,1 GB piek-RSS, ±3,6 s hoofdthread per 10-secondentick; bij twaalf documenten
+  uit één bestand 26× amplificatie (OZB). Geen cap, geen opt-out, geen worker. Eigenaarsbesluit
+  (plan §10.f): bytegrens waarboven het archief niet in de recovery-snapshot meegaat, óf het
+  immutabele archief één keer apart schrijven, plus een budgetpoort in
+  `check-xer-archive-recovery-corpus.ts`. De gids benoemt de prijs nu wel.
+- [ ] **XER: "niet vastgelegd" bestaat in tabel, CSV en MCP, maar niet in de rapporten, de PDF, het
+  printvoorbeeld en de renderer** (eindreview bevinding 6). In de modus schrijft
+  `applyRecordedTimesToTasks` `totalFloat ?? 0`/`isCritical ?? false` in `task.time`; de rapporten
+  presenteren dat als cijfer (corpus: 122 taken zonder volledig late-paar, 290 zonder
+  `total_float_hr_cnt`). Nu: één melding bovenaan elk rapport (`tableReports.recordedDatesNote`).
+  Volledig: `unrecordedExportGate` door `ReportContext` en de kolomspecs heen.
+- [ ] **XER: de exportverliesmelding komt ná het schrijven** (eindreview bevinding 12) —
+  `detectXerExportLoss` draait vóór de dialoog, de `info`-melding pas ná `saveFileDialog`. Overweeg
+  de waarschuwing vóór de dialoog wanneer de categorieën het exact-source-bytes-verlies bevatten.
+- [ ] **XER: geen bovengrens op het aantal documenten uit één bestand** (eindreview bevinding 13,
+  VERMOED): elk document draagt zijn eigen archiefkopie; het corpus haalt maximaal 15 projecten. Te
+  bevestigen met een synthetisch bestand van ~100 projecten door `readXER` + auto-save.
+- [ ] **`lagCalendar` is sinds X5 effectief voor élk formaat** (eindreview bevinding 5): een
+  bestaand document waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen plant na de
+  volgende release anders. Regel in de releasenotities van die versie; eventueel migratienoot.
+- [ ] **XER: `rem_target_link_flag=Y` maakt de vroege start van een bezig zijnde taak de reststart**
+  waar P6 de werkelijke start opneemt (casus 08 A, casus 10 B: ES én LS, vier cellen). Zie plan §9.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde

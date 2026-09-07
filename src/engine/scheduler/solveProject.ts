@@ -22,6 +22,7 @@ import type { ProgressMode, SchedulingOptions } from '@/types/project';
 import { CPMSolver, type CPMResult } from './CPMSolver';
 import { applyCpmResult } from './applyCpmResult';
 import { expandSummaryRelations, foldSyntheticSequenceIds } from './expandSummaryRelations';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 /** Invoer van één doorrekening — plain data, geen store. */
 export interface SolveProjectInput {
@@ -47,13 +48,15 @@ export interface SolveProjectInput {
    *  zónder voorganger — die start op zijn eigen, ingelezen `scheduleStart` (`ownAnchor`), ook als
    *  die vóór de projectstart ligt; "een ingelezen anker wordt nooit door de vloer overruled". */
   projectStartDate?: string;
+  /** `project.endDate`; alleen bronsemantisch actief via useProjectEndDateForFloat. */
+  projectEndDate?: string;
 }
 
 /**
  * Reken de planning door en schrijf het resultaat terug op `input.tasks`.
  *
  * Exact de keten die `runCPM` altijd al draaide, ongewijzigd van volgorde en semantiek:
- *  1. leaf-filter (`childIds.length === 0`) — de solver rekent op bladen;
+ *  1. semantische leaf-filter — de solver rekent niet op WBS-samenvattingen, ook niet als ze leeg zijn;
  *  2. `new CPMSolver(...).solve()` met dataDate/progressMode/schedulingOptions;
  *  3. bij `result.error` (cyclus e.d.): NIET terugschrijven — het resultaat wordt teruggegeven met
  *     de fout erin, de taken blijven op hun oude datums staan;
@@ -64,7 +67,7 @@ export interface SolveProjectInput {
 export function solveProject(input: SolveProjectInput): CPMResult {
   // Per-taak-kalender (fase 2.8a, §5.1): de solver krijgt de projectdefault + de bibliotheek en
   // bouwt zelf een engine-cache; taken zonder eigen calendarId rekenen in de projectkalender.
-  const leafTasks = input.tasks.filter(t => t.childIds.length === 0);
+  const leafTasks = input.tasks.filter(isLeafTask);
   // Samenvattingsrelatie-propagatie (MS Project-semantiek): relaties die een WBS-samenvattingstaak
   // raken worden herschreven naar equivalente bladtaak-relaties vóórdat de solver ze ziet — de
   // solver kent alleen bladtaken. Dit hoort in de kern (niet in `runCPM`), zodat óók het
@@ -78,6 +81,7 @@ export function solveProject(input: SolveProjectInput): CPMResult {
     // gedragswijzigend (afwezig/leeg ⇒ byte-identiek); de latere golven activeren ze.
     schedulingOptions: input.schedulingOptions,
     projectStartDate: input.projectStartDate,
+    projectEndDate: input.projectEndDate,
   });
   const result = solver.solve();
   // I2 (CPM-review): de solver rekende op de GEËXPANDEERDE (synthetische) relatie-set, dus zijn

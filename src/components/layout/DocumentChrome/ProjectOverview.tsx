@@ -1,7 +1,9 @@
+import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { useDocumentCards, useDocumentActions, type DocumentCard } from './useDocumentCards';
+import { projectOverviewCloseButtonId, projectOverviewCloseFocusTarget } from './projectOverviewFocus';
 import './DocumentChrome.css';
 
 /**
@@ -14,6 +16,37 @@ export function ProjectOverview() {
   const open = useAppStore((s) => s.ui.showProjectOverview);
   const cards = useDocumentCards();
   const { switchTo, closeWithGuard, chooseNewOrOpenProject, closeOverview } = useDocumentActions();
+  const closeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const previousDocumentIds = useRef(cards.map(card => card.id));
+  const wasOpen = useRef(false);
+
+  useLayoutEffect(() => {
+    const currentDocumentIds = cards.map(card => card.id);
+    if (!open) {
+      previousDocumentIds.current = currentDocumentIds;
+      wasOpen.current = false;
+      return;
+    }
+
+    if (!wasOpen.current) {
+      wasOpen.current = true;
+      const initialTarget = cards.find(card => card.isActive)?.id ?? currentDocumentIds[0] ?? null;
+      if (initialTarget) closeButtonRefs.current.get(initialTarget)?.focus({ preventScroll: true });
+      previousDocumentIds.current = currentDocumentIds;
+      return;
+    }
+
+    const removedDocumentId = previousDocumentIds.current.find(
+      documentId => !currentDocumentIds.includes(documentId),
+    ) ?? null;
+    const focusTarget = projectOverviewCloseFocusTarget(
+      previousDocumentIds.current,
+      currentDocumentIds,
+      removedDocumentId,
+    );
+    previousDocumentIds.current = currentDocumentIds;
+    if (focusTarget) closeButtonRefs.current.get(focusTarget)?.focus({ preventScroll: true });
+  }, [cards, open]);
 
   if (!open) return null;
 
@@ -98,8 +131,14 @@ export function ProjectOverview() {
                   )}
                 </div>
                 <button
+                  ref={(element) => {
+                    if (element) closeButtonRefs.current.set(card.id, element);
+                    else closeButtonRefs.current.delete(card.id);
+                  }}
+                  id={projectOverviewCloseButtonId(card.id)}
                   onClick={(e) => { e.stopPropagation(); closeWithGuard(card); }}
                   title={t('close')}
+                  aria-label={`${t('close')} ${card.title}`}
                   className="ops-card-close"
                   style={{
                     width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',

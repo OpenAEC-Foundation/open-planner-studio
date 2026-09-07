@@ -101,6 +101,8 @@ importación es **de solo lectura** — no existe una exportación `.mpp`, así 
 pasa por MSPDI XML. Consulte la guía [Abrir MS Project (.mpp)](docs://gids-msproject-import) para saber qué se
 conserva y cuáles son las limitaciones.
 
+Un archivo `.xer` es el formato de intercambio de Primavera P6. Se importa directamente y, después de editarlo, se guarda como IFC; consulta [Abrir Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importadores de extensiones
 
 Más allá de los formatos fijos anteriores, las extensiones instaladas pueden añadir sus propios importadores — por ejemplo para un

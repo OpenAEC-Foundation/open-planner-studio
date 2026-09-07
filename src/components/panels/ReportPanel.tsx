@@ -35,6 +35,7 @@ import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLO
 import type { VarianceRow } from '@/engine/variance';
 import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { buildBaselineOverlay } from '@/types/baseline';
 
 /** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
@@ -232,6 +233,19 @@ export function ReportPanel() {
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const setUI = useAppStore(s => s.setUI);
+  // "Datums zoals opgeslagen" (issue #63; eindreview XER-etappe bevinding 6): de tabelrapporten dragen
+  // de melding in hun spec (`useTableReportSpec`); Gantt, mijlpalen en afwijkingen krijgen 'm hier,
+  // boven het voorbeeld — dezelfde tekst, zodat geen enkel rapport nullen toont zonder te zeggen dat
+  // het bestand die assen niet vastlegde.
+  const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
+  const recordedDatesNote = datesAsRecorded ? (
+    <div
+      className="mb-2 shrink-0 rounded-[6px] border border-border bg-surface px-3 py-2 text-xs text-text-secondary"
+      data-report-recorded-dates-note
+    >
+      {t('tableReports.recordedDatesNote')}
+    </div>
+  ) : null;
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
@@ -1008,8 +1022,8 @@ export function ReportPanel() {
   }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
     autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
 
-  const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
-  const leafCount = tasks.filter(t => t.childIds.length === 0).length;
+  const criticalCount = tasks.filter(t => t.time.isCritical && isLeafTask(t)).length;
+  const leafCount = tasks.filter(isLeafTask).length;
 
   return (
     <div ref={containerRef} className="flex-1 flex overflow-hidden bg-surface" style={{ position: 'relative' }}>
@@ -1393,6 +1407,7 @@ export function ReportPanel() {
       <div data-tour-anchor="report-panel" className="flex-1 min-w-0 min-h-0" style={{ background: 'var(--theme-bg)' }}>
         {reportType === 'gantt' ? (
           <div className="flex h-full min-h-0 flex-col">
+            {recordedDatesNote}
             <div
               className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-xs"
               style={{ background: 'var(--theme-bg)' }}
@@ -1462,6 +1477,7 @@ export function ReportPanel() {
           </div>
         ) : reportType === 'milestones' ? (
           <div className="h-full overflow-auto p-4">
+            {recordedDatesNote}
             <div
               ref={milestoneRef}
               className="bg-surface p-4"
@@ -1473,6 +1489,7 @@ export function ReportPanel() {
           </div>
         ) : (
           <div className="h-full overflow-auto p-4">
+            {recordedDatesNote}
             <div
               ref={varianceRef}
               className="bg-surface p-4"

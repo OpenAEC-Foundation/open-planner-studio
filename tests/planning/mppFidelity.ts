@@ -23,23 +23,16 @@
 import { readMPP } from '@/services/mpp/mppReader';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { scanGroundTruthTasks, type RawTask } from './mppGroundTruth';
+import { classify, compareFidelityRow, countFidelityAxis } from './fidelityCore';
 import { parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Project } from '@/types/project';
 
+export { classify } from './fidelityCore';
+
 const iso = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 16) : null);
 const dayOf = (s: string): string => s.slice(0, 10);
-
-/** Vergelijk twee instant-strings (onze vorm kan date-only zijn in dagmodus). */
-export function classify(ours: string | undefined, truth: string | null): 'exact' | 'sameday' | 'diff' | 'missing' {
-  if (!truth) return 'missing';
-  if (!ours) return 'missing';
-  if (ours.length >= 16 && ours.slice(0, 16) === truth) return 'exact';
-  if (ours.length === 10 && truth.slice(11) === '00:00' && ours === dayOf(truth)) return 'exact';
-  if (dayOf(ours) === dayOf(truth)) return 'sameday';
-  return 'diff';
-}
 
 function dayDelta(ours: string, truth: string): number {
   const a = parseInstant(dayOf(ours)).getTime();
@@ -216,21 +209,25 @@ export function measureFidelity(bytes: Uint8Array): FidelityRow {
     predsOf.set(s.successorId, list);
   }
 
-  let se = 0, ss = 0, sd = 0, fe = 0, fs = 0, fd = 0;
+  const comparisonRows = tasks.map(t => compareFidelityRow(t.id, {
+    start: { ours: t.time.earlyStart, truth: truthStart.get(t.id) ?? null },
+    finish: { ours: t.time.earlyFinish, truth: truthFinish.get(t.id) ?? null },
+  }));
+  const startCounts = countFidelityAxis(comparisonRows, 'start');
+  const finishCounts = countFidelityAxis(comparisonRows, 'finish');
   const buckets: Record<string, number> = {};
   const bump = (k: string) => { buckets[k] = (buckets[k] ?? 0) + 1; };
   const diffTasks: DiffTaskDetail[] = [];
 
-  for (const t of tasks) {
+  for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
+    const t = tasks[taskIndex];
+    const comparison = comparisonRows[taskIndex];
     const truthS = truthStart.get(t.id) ?? null;
     const truthF = truthFinish.get(t.id) ?? null;
-    const cs = classify(t.time.earlyStart, truthS);
-    const cf = classify(t.time.earlyFinish, truthF);
+    const cs = comparison.axes.start.verdict;
+    const cf = comparison.axes.finish.verdict;
 
-    if (cs === 'exact') se++;
-    else if (cs === 'sameday') ss++;
-    else if (cs === 'diff') {
-      sd++;
+    if (cs === 'diff') {
       // L7 (reviewbevinding): géén `truthS && dayDelta(...) !== 0`-guard meer — beide waren dode
       // conditie. `classify()` geeft 'diff' UITSLUITEND terug wanneer `truth` niet-null was (anders
       // 'missing') én de dag verschilt (anders 'exact'/'sameday'), dus `truthS` is hier altijd
@@ -244,10 +241,6 @@ export function measureFidelity(bytes: Uint8Array): FidelityRow {
       bump(delta > 0 ? 'wijLater' : 'wijVroeger');
       bump('totaal');
     }
-
-    if (cf === 'exact') fe++;
-    else if (cf === 'sameday') fs++;
-    else if (cf === 'diff') fd++;
 
     if (cs !== 'exact' || cf !== 'exact') {
       const mark = (c: ReturnType<typeof classify>): ' ' | '~' | 'X' => (c === 'exact' ? ' ' : c === 'sameday' ? '~' : 'X');
@@ -274,8 +267,8 @@ export function measureFidelity(bytes: Uint8Array): FidelityRow {
   return {
     status: 'ok',
     tasks: tasks.length,
-    startExact: se, startSameday: ss, startDiff: sd,
-    finishExact: fe, finishSameday: fs, finishDiff: fd,
+    startExact: startCounts.exact, startSameday: startCounts.sameday, startDiff: startCounts.diff,
+    finishExact: finishCounts.exact, finishSameday: finishCounts.sameday, finishDiff: finishCounts.diff,
     diffBuckets: buckets,
     diffTasks,
   };

@@ -138,6 +138,7 @@
     "notCalculatedNote": "Aún no calculado — pulse Calcular (F5) para fechas y holguras.",
     "staleNote": "El cronograma cambió desde el último cálculo — pulse Calcular (F5) para valores actuales.",
     "statusDateMissingNote": "Sin fecha de estado — el informe usa hoy ({{date}}).",
+    "recordedDatesNote": "Vista «fechas tal como se guardaron»: este informe muestra las fechas del archivo de origen, no un cálculo. Los inicios/fines tardíos y las holguras que el archivo no registró aparecen vacíos o en 0.",
     "period": "Periodo",
     "statusDate": "Fecha de estado",
     "common": {

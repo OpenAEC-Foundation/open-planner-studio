@@ -25,6 +25,9 @@ import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
+import { isLeafTask } from '@/utils/taskHierarchy';
+import type { XerImportMetadata } from '@/services/importTypes';
+import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
@@ -84,6 +87,10 @@ export interface ProjectSlice {
   fileHandle: FileSystemFileHandle | null;
   /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
   autoSaveToFile: boolean;
+  /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
+  xerImportMetadata: XerImportMetadata | null;
+  xerSourceArchive: XerSourceArchive | null;
+  xerSourceProjectId: string | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -170,6 +177,9 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   filePath: null,
   fileHandle: null,
   autoSaveToFile: false,
+  xerImportMetadata: null,
+  xerSourceArchive: null,
+  xerSourceProjectId: null,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de
@@ -362,8 +372,10 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     // wijzigt niet tussen de "voor"- en "na"-solve hieronder (alleen datums schuiven), dus één
     // expansie op `s.tasks` volstaat voor beide takken.
     const { sequences: expandedSequences } = expandSummaryRelations(s.tasks, s.sequences);
-    const solve = (tasks: Task[], dataDate: string | undefined, projectStartDate: string): CPMResult => {
-      const leaf = tasks.filter((t) => t.childIds.length === 0);
+    const solve = (
+      tasks: Task[], dataDate: string | undefined, projectStartDate: string, projectEndDate: string,
+    ): CPMResult => {
+      const leaf = tasks.filter(isLeafTask);
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
         dataDate,
         progressMode: s.project.progressMode,
@@ -372,6 +384,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
         // de HUIDIGE projectstart, de "na"-solve tegen de NIEUWE — anders zou deze preview een
         // wortel-taak vóór zijn eigen projectbegin kunnen tonen.
         projectStartDate,
+        projectEndDate,
       }).solve();
     };
 
@@ -399,11 +412,14 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     }
 
     const fresh = s.cpmResult && !s.cpmResult.error && !s.scheduleStale ? s.cpmResult : null;
-    const before = fresh ?? solve(s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate, s.project.startDate);
+    const before = fresh ?? solve(
+      s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate, s.project.startDate, s.project.endDate,
+    );
     const after = solve(
       s.tasks.map((t) => shiftTask(t, delta)),
       shiftIso(s.project.statusDate, delta),
       newStartDate,
+      shiftIso(s.project.endDate, delta) || s.project.endDate,
     );
 
     if (after.error) return { ...empty, error: after.error };

@@ -84,10 +84,36 @@ const baseFiles = fs.readdirSync(path.join(localesDir, base)).filter((f) => f.en
 
 let totalMissing = 0;
 const report = {};
+const basePluralReport = {};
 
 for (const file of baseFiles) {
   const baseData = JSON.parse(fs.readFileSync(path.join(localesDir, base, file), 'utf8'));
   const basePaths = collectPaths(baseData);
+
+  // De bronlocale is óók een echte locale. Zonder deze check kan iemand bijvoorbeeld nl/_other
+  // verwijderen: de 13 doelvertalingen vergelijken dan nog steeds met de verminkte bron en de
+  // poort blijft ten onrechte groen. Verzamel pluralen per stam, zodat alle CLDR-vormen van het
+  // Nederlands precies eenmaal vereist zijn, net als verderop voor elke doelvertaling.
+  const foundByStem = new Map();
+  for (const p of basePaths) {
+    const match = p.match(PLURAL_SUFFIX);
+    if (!match) continue;
+    const stem = p.slice(0, -match[0].length);
+    const found = foundByStem.get(stem) || new Set();
+    found.add(match[1]);
+    foundByStem.set(stem, found);
+  }
+  const baseCategories = categoriesFor(base);
+  for (const [stem, found] of foundByStem) {
+    const missing = [...baseCategories].filter(category => !found.has(category));
+    const extra = [...found].filter(category => !baseCategories.has(category));
+    if (!missing.length && !extra.length) continue;
+    const problems = [];
+    if (missing.length) problems.push(`${stem}: ontbreekt ${missing.join(', ')}`);
+    if (extra.length) problems.push(`${stem}: overbodig ${extra.join(', ')}`);
+    basePluralReport[file] = [...(basePluralReport[file] || []), ...problems];
+    totalMissing += missing.length + extra.length;
+  }
 
   for (const locale of others) {
     const expected = expectedPathsFor(basePaths, locale);
@@ -111,8 +137,17 @@ for (const file of baseFiles) {
 const jsonMode = process.argv.includes('--json');
 if (jsonMode) {
   // Rapportagemodus: bedoeld om doorgesluisd te worden, dus geen exitcode-poort.
-  console.log(JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ ...(Object.keys(basePluralReport).length ? { [base]: basePluralReport } : {}), ...report }, null, 2));
   process.exit(0);
+}
+
+if (Object.keys(basePluralReport).length) {
+  const count = Object.values(basePluralReport).reduce((total, paths) => total + paths.length, 0);
+  console.log(`\n=== ${base}: ${count} ongeldige CLDR-pluralvorm(en) ===`);
+  for (const [file, paths] of Object.entries(basePluralReport)) {
+    console.log(`  ${file}:`);
+    for (const problem of paths) console.log(`    - ${problem}`);
+  }
 }
 
 for (const locale of others) {

@@ -8,6 +8,170 @@ import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
+import type { RecordedTime } from '@/engine/scheduler/recordedDates';
+import type { XerResourceCatalog } from './xer/xerResources';
+import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
+import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
+import type { XerSourceArchive } from './xerSourceArchive';
+
+export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+
+export interface XerTableReportMetadata {
+  encoding: XerSourceEncoding;
+  endMarkerSeen: boolean;
+  issues: Array<{
+    code: string;
+    line: number;
+    table?: string;
+    expected?: number;
+    actual?: number;
+    field?: string;
+    currencyCode?: string;
+    ignoredRecords?: number;
+    ignoredLines?: number;
+  }>;
+  unknownTables: Array<{ name: string; rows: number }>;
+  /** Additief sinds XER-exportverlies fixronde 2; afwezig in oudere ingebedde bronarchieven. */
+  unknownFields?: Array<{ table: string; name: string; rows: number }>;
+}
+
+export interface XerCalendarIssueMetadata {
+  code: string;
+  calendarId: string;
+  line: number;
+  reason: string;
+  resolution: 'RECOVERED' | 'REJECTED' | 'UNLINKED';
+}
+
+export interface XerEnumFallback {
+  family: 'activityType' | 'durationType' | 'completePctType' | 'status' | 'priority' | 'constraint' | 'relation';
+  token: string;
+  fallback: string;
+  table: 'PROJECT' | 'TASK' | 'TASKPRED';
+  field: string;
+  line: number;
+}
+
+export interface XerScheduleOptionFallback {
+  field: string;
+  token: string;
+  fallback: string;
+  line: number;
+}
+
+export interface XerScheduleOptionsSourceRow {
+  table: 'PROJECT' | 'SCHEDOPTIONS';
+  line: number;
+  cells: Record<string, string>;
+}
+
+export interface XerScheduleOptionsDiagnostic {
+  code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID';
+  projectId: string;
+  /** Indexen in `XerScheduleOptionsSourceArchive.rows`; zo blijven de raw rijen één bronkopie. */
+  rowIndexes: number[];
+  lines: number[];
+}
+
+/**
+ * Bestandsbreed XER-bronarchief voor X5 en de geplande X9-native opslag. PROJECT- en
+ * SCHEDOPTIONS-rijen worden precies eenmaal gekopieerd. Projectmetadata verwijst met indexen naar
+ * deze ene bron; verweesde SCHEDOPTIONS-rijen blijven daardoor zichtbaar zonder aan een verkeerd
+ * project te worden toegeschreven.
+ */
+export interface XerScheduleOptionsSourceArchive {
+  rows: XerScheduleOptionsSourceRow[];
+  unmatchedScheduleOptionsRowIndexes: number[];
+  diagnostics: XerScheduleOptionsDiagnostic[];
+}
+
+/** Neutraal documentcontract voor X5-bronbewijs. Dit staat bewust buiten de lazy XER-chunk:
+ * algemene document-/recoverycode mag het type kennen zonder de reader statisch te laden. */
+export interface XerScheduleOptionsMetadata {
+  source: 'schedoptions' | 'xer-defaults';
+  retainedSource: {
+    sched_use_project_end_date_for_float?: boolean;
+  };
+  fallbacks: XerScheduleOptionFallback[];
+  diagnostics: XerScheduleOptionsDiagnostic[];
+  sourceArchive: XerScheduleOptionsSourceArchive;
+  /** Projectgebonden view-indexen in het bestandsbrede archief; bevat bij duplicaten alle rijen. */
+  sourceRowIndexes: number[];
+  /** Compatibele projectview; de rijobjecten zijn referenties naar `sourceArchive.rows`. */
+  sourceRows: XerScheduleOptionsSourceRow[];
+}
+
+export interface XerExternalRelation {
+  id: string;
+  localProjectId: string;
+  localTaskId: string;
+  externalProjectId: string;
+  externalTaskId: string;
+  direction: 'predecessor' | 'successor';
+  type: 'FS' | 'SS' | 'FF' | 'SF';
+  lagMinutes: number;
+}
+
+export type XerBaselineFallbackReason =
+  | 'self-reference'
+  | 'cycle'
+  | 'all-projects-baselines';
+
+/** Eén gededupliceerde relatie tussen twee werkelijk geopende XER-projectdocumenten. */
+export interface XerDocumentExternalLink {
+  id: string;
+  predecessor: { projectId: string; taskId: string };
+  successor: { projectId: string; taskId: string };
+  type: 'FS' | 'SS' | 'FF' | 'SF';
+  lagMinutes: number;
+}
+
+/** Uniform XER-openingsverslag; aanwezig bij zowel één als meerdere PROJECT-rijen. */
+export interface XerImportReport {
+  projectsSeen: number;
+  documentsOpened: number;
+  emptyProjectsSkipped: number;
+  baselineProjectsExcluded: number;
+  baselinesMaterialized: number;
+  danglingBaselineReferences: number;
+  externalLinksPreserved: number;
+  baselineExclusionReverted: boolean;
+  baselineFallbackReasons: XerBaselineFallbackReason[];
+}
+
+/** X6-bronbewijs. De catalogus is één bestandsbreed, immutable object; per document blijft alleen
+ * de gefilterde TASKRSRC-view over. X9 bepaalt later de exacte serialisatie naar IFC/recovery. */
+export interface XerResourceMetadata {
+  catalog: XerResourceCatalog;
+  assignments: XerTaskResourceSource[];
+  issues: XerResourceIssue[];
+}
+
+/** X8-bronbewijs: één readonly catalogus per geopend XER-bestand; projectvelden zijn losse views. */
+export interface XerMetadataMetadata {
+  catalog: XerMetadataCatalog;
+}
+
+/** Documentgebonden XER-brondata. Externe relaties zijn nadrukkelijk geen solverrelaties. */
+export interface XerImportMetadata {
+  /** PROJECT.proj_id dat dit document binnen het gedeelde XER-bronarchief vertegenwoordigt. */
+  sourceProjectId?: string;
+  defaultCurrencyCode: string;
+  tableReport: XerTableReportMetadata;
+  calendarIssues: XerCalendarIssueMetadata[];
+  enumFallbacks: XerEnumFallback[];
+  /** X5: afleidingsbron, terugvallen en retained/TODO-waarden van precies dit project. */
+  scheduleOptions: XerScheduleOptionsMetadata;
+  externalRelations: XerExternalRelation[];
+  /** Canonieke cross-documentlinks waarbij dit document een eindpunt is; nooit solverinvoer. */
+  externalLinks: XerDocumentExternalLink[];
+  /** Bestandsbreed verslag, bewust ook documentgebonden zodat X10 het na openen kan consumeren. */
+  report: XerImportReport;
+  /** X6 retained-data; baseline- en unscoped TASKRSRC-rijen blijven uitsluitend catalogusdata voor X9. */
+  resources?: XerResourceMetadata;
+  /** X8 retained-data; X9 bepaalt de definitieve documentcontract-/IFC-serialisatie. */
+  metadata?: XerMetadataMetadata;
+}
 
 /**
  * Eén gedeelde payload-vorm voor een ingelezen project (audit P1). De vier readers (`readIFC`,
@@ -102,4 +266,59 @@ export interface ImportResult {
    *  onderscheiden. Een taak-id ZONDER IfcTaskTime krijgt een lege array (niet: ontbrekende sleutel)
    *  — "geen enkel slot gevuld" is een uitspraak, "onbekend" niet. */
   recordedFields?: Record<string, RecordedFieldKey[]>;
+  /** BAK 4 (XER-etappeplan §4.1, bijgesteld 2026-09-04 — X-O7 laag 3) — uitsluitend
+   *  weergave/meetlat, NOOIT solverinvoer. Per taak-id de rekenuitvoer die de BRON zelf opsloeg:
+   *  voor XER de zes kolommen `early_start_date`/`early_end_date`/`late_start_date`/
+   *  `late_end_date`/`total_float_hr_cnt`/`free_float_hr_cnt` (`xerRecordedTimes.ts`), omgerekend
+   *  naar dezelfde `RecordedTime`-vorm als de IFC-route (`src/engine/scheduler/recordedDates.ts`)
+   *  gebruikt — dat type wordt hier HERGEBRUIKT, niet gedupliceerd. Alleen `readXER` vult dit
+   *  vooralsnog (en straks de archief-reconstructie in `readIFC`, taak T5); nooit gelezen door
+   *  `solveProject`, nooit geschreven naar `Task.time` door een lezer. `captureRecordedDates`
+   *  gebruikt dit kanaal — indien aanwezig — MET VOORRANG boven `recordedFields` hierboven; de
+   *  twee kanalen worden nooit gemengd (een XER-import heeft geen `recordedFields`, een
+   *  IFC-import geen `recordedTimes`). */
+  recordedTimes?: Record<string, RecordedTime>;
+  /** Herkomst van `recordedTimes` — stuurt het standaard-aan-beleid voor "datums zoals opgeslagen"
+   *  (O6-patroon: alleen de XER-route zet dit; andere formaten blijven byte-identiek doordat dit
+   *  veld afwezig blijft).
+   *  - `'xer'`: verse XER-import (`readXER`). Standaard AAN zodra er restverschillen zijn.
+   *  - `'xer-archive'`: heropende IFC met XER-bronarchief (`readIFC`'s T5-archiefreconstructie).
+   *    Alleen AANBOD, nooit automatisch AAN — een intussen bewerkte en opgeslagen planning mag bij
+   *    heropenen niet stilzwijgend P6's oude datums tonen (orkestratorbesluit, XER-etappe laag 3,
+   *    heropen-beleid 2026-09-05). `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`)
+   *    is de enige plek die op dit onderscheid let. */
+  recordedTimesOrigin?: 'xer' | 'xer-archive';
+  /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
+  xer?: XerImportMetadata;
+  /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */
+  xerSourceArchive?: XerSourceArchive;
+  /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */
+  xerSourceProjectId?: string;
+}
+
+/**
+ * Eén bronbestand kan uitzonderlijk meerdere zelfstandige projectdocumenten opleveren. De
+ * individuele payloads blijven het bestaande `ImportResult`-contract volgen; alleen de openroute
+ * krijgt hier de extra informatie welke tab na het openen actief hoort te zijn. Zo blijven alle
+ * enkelvoudige readers en hun bestaande laadpaden structureel ongewijzigd.
+ */
+export interface MultiDocumentImport {
+  kind: 'multi-document';
+  results: ImportResult[];
+  activeDocumentIndex: number;
+}
+
+/** Het resultaat van een reader op de centrale open-pijplijn. */
+export type OpenedImport = ImportResult | MultiDocumentImport;
+
+export function isMultiDocumentImport(value: OpenedImport): value is MultiDocumentImport {
+  return 'kind' in value && value.kind === 'multi-document';
+}
+
+/** De primaire payload voor read-only consumenten die per ontwerp slechts één project kennen. */
+export function activeImportResult(value: OpenedImport): ImportResult {
+  if (!isMultiDocumentImport(value)) return value;
+  const active = value.results[value.activeDocumentIndex];
+  if (!active) throw new Error('Meervoudige import bevat geen actief document');
+  return active;
 }

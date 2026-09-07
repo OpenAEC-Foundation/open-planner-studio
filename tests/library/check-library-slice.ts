@@ -1230,7 +1230,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
     calendar: useAppStore.getState().calendar,
     tasks: [], sequences: [],
     resources: [{ id: 'rr', name: 'Sloper', type: 'LABOR', description: '', maxUnits: 3, costPerHour: 3, libraryOrigin: { companyId: cid, libraryItemId: poolResId, poolVersion: 1, syncedHash } }],
-    assignments: [], filePath: null, isDirty: false,
+    assignments: [], filePath: null, isDirty: false, datesAsRecorded: false,
   }], 'doc-rec');
   const copy = useAppStore.getState().resources.find(r => r.id === 'rr');
   assert(copy?.costPerHour === 5, 'grens 4 ververst een behind-kopie stil na herstel');

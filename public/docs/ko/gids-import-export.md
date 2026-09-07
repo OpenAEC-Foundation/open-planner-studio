@@ -98,6 +98,8 @@ MSPDI와 같은 종류의 트레이드오프이며, P6 특유의 몇 가지 특�
 내보내려면 MSPDI XML을 거칩니다. 무엇이 함께 오고 어떤 제한이 있는지는
 [MS Project(.mpp) 열기](docs://gids-msproject-import) 가이드를 참고하세요.
 
+`.xer`은 Primavera P6의 교환 형식입니다. 직접 가져오며 편집 후 IFC로 저장합니다. [Primavera P6(.xer) 열기](docs://gids-xer-import)를 참조하세요.
+
 ## 확장 프로그램 가져오기 도구
 
 위의 고정된 형식 외에도, 설치된 확장 프로그램은 기본적으로 지원되지 않는 형식 등을 위해 자체

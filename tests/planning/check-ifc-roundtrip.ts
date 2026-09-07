@@ -73,6 +73,7 @@
 
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { solveProject } from '@/engine/scheduler/solveProject';
 import { ALL_RECORDED_SLOT_KEYS, IFC_TASKTIME_SLOTS, TASKTIME_SLOT, IFC_TASK_SLOTS, TASK_SLOT } from '@/services/ifc/ifcTaskSlots';
 import type { Task, TaskTime, ExternalLink, TaskSplitGap, TaskTimephasedContour } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -138,6 +139,9 @@ const projCal = {
     { name: 'Nieuwjaar', startDate: '2027-01-01', endDate: '2027-01-01' },
   ],
   workingExceptions: [],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: ['2026-12-27'],
+  p6NonWorkPenaltyDatesState: 'VALID_VALUES',
   generation: PROJ_GEN, shift: 'SECOND',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-projcal', poolVersion: 4 },
 } satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
@@ -149,6 +153,9 @@ const libCal = {
     { name: 'Overwerkdag', startDate: '2026-08-08', endDate: '2026-08-08', bands: [{ start: 360, end: 720 }] },
     { name: 'Verschoven werkdag', startDate: '2026-08-15', endDate: '2026-08-15' },
   ],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: [],
+  p6NonWorkPenaltyDatesState: 'VALID_EMPTY',
   generation: LIB_GEN, shift: 'THIRD',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-libcal', poolVersion: 4 },
 } satisfies Omit<Required<WorkCalendar>, 'workTime' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
@@ -163,6 +170,9 @@ const _CALENDAR_FIELD_WITNESS = {
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
   simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30,
   workingExceptions: [{ name: 'w', startDate: '2026-01-01', endDate: '2026-01-01', bands: [{ start: 0, end: 60 }] }],
+  p6Source: 'XER',
+  p6NonWorkPenaltyDates: [],
+  p6NonWorkPenaltyDatesState: 'VALID_EMPTY',
   generation: PROJ_GEN, shift: 'FIRST',
   libraryOrigin: { companyId: 'c-fixture', libraryItemId: 'lib-witness', poolVersion: 1 },
   workTime: { byWeekday: { 1: [{ start: 480, end: 960 }], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } },
@@ -259,6 +269,12 @@ const TM = {
   ] satisfies TaskTimephasedContour[],
   // Z14b — MSP's eigen task-type/effort-driven-vlag (eigenaarsbesluit 2026-08-18, punt 1).
   mspTaskType: 'FIXED_WORK', effortDriven: true,
+  // X0/X7 (XER-etappeplan, 2026-08-20) — duration/activity blijven tot X9 zonder IFC-pset;
+  // de vijf X7-firewall-/bronvelden hieronder round-trippen al wel exact via OPS_P6Progress.
+  p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
+  p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-07-31T17:00',
+  p6SuspendResume: true,
+  isSummary: false,
   parentId: 't-p', childIds: [],
   resourceIds: [], // milestone zonder assignments ⇒ afgeleide resourceIds is leeg (H2-fix)
   color: '#abcdef', // round-trippt via OPS_TaskAppearance (H2-fix)
@@ -314,7 +330,7 @@ const tasks: Task[] = [TP, TM, TX, TY];
 // mutueel exclusief (lagPercent wint altijd in de writer en zou lagDays overschrijven). De
 // veld-volledigheid bewaken we via een type-only getuige; de round-trip-relaties zijn realistisch.
 const sequences: Sequence[] = [
-  { id: 's1', predecessorId: 't-x', successorId: 't-m', type: 'FINISH_START', lagDays: 2, lagUnit: 'ELAPSEDTIME' },
+  { id: 's1', predecessorId: 't-x', successorId: 't-m', type: 'FINISH_START', lagDays: 2, lagUnit: 'ELAPSEDTIME', p6StartAtPredecessorFinishBoundary: true },
   { id: 's2', predecessorId: 't-x', successorId: 't-y', type: 'START_START', lagDays: 0, lagPercent: 50 },
   { id: 's3', predecessorId: 't-y', successorId: 't-m', type: 'FINISH_FINISH', lagDays: 1 },
   { id: 's4', predecessorId: 't-x', successorId: 't-m', type: 'START_FINISH', lagDays: 0 },
@@ -323,6 +339,7 @@ const sequences: Sequence[] = [
 const _SEQUENCE_FIELD_WITNESS = {
   id: 'w', predecessorId: 'a', successorId: 'b', type: 'FINISH_START',
   lagDays: 1, lagMinutes: 60, lagUnit: 'WORKTIME', lagPercent: 25,
+  p6StartAtPredecessorFinishBoundary: false,
 } satisfies Required<Sequence>;
 void _SEQUENCE_FIELD_WITNESS;
 
@@ -358,10 +375,22 @@ const assignments: ResourceAssignment[] = [
 
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
 const SCHED_OPTS = {
+  p6Source: 'XER',
   lagCalendar: 'successor',
-  criticalDefinition: { mode: 'longestPath', threshold: -1 },
+  criticalDefinition: { mode: 'longestPath', threshold: -1, thresholdHours: -8 },
   totalFloatMode: 'finish',
   makeOpenEndedCritical: true,
+  useExpectedFinishDates: false,
+  preserveActualDatesInBackwardPass: true,
+  clampNegativeFreeFloat: true,
+  p6ZeroDurationUsesPlannedBoundary: true,
+  p6UseTaskPlannedStartFloor: true,
+  p6FinishMilestoneBoundaryWindow: true,
+  p6PreserveActualInstants: true,
+  p6UseRemainingStartForProgress: true,
+  p6PreserveZeroDurationConstraintInstants: true,
+  p6CompletedLateFromRemainingWindow: true,
+  useProjectEndDateForFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob
@@ -495,6 +524,9 @@ const CALENDAR_CANON = {
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(e => canonize(WORKING_EXCEPTION_CANON, e, k)),
   },
+  p6Source: KEEP,
+  p6NonWorkPenaltyDates: KEEP,
+  p6NonWorkPenaltyDatesState: KEEP,
   generation: KEEP,
   workTime: { skip: 'aanwezig ⇒ UUR-kalender; deze fixture is dag-modus. Uur-round-trip: check-adapters-hours.ts' },
   shift: KEEP,
@@ -554,6 +586,20 @@ const TASK_CANON = {
   timephasedContours: KEEP,
   // Z14b — MSP's eigen task-type/effort-driven-vlag (`OPS_MspTaskType`), puur data, geen verwijzing.
   mspTaskType: KEEP, effortDriven: KEEP,
+  // X9 — dezelfde smalle OPS_P6Progress-Pset bewaart ook de twee P6-taaktypen; puur brondata,
+  // nooit solverinvoer.
+  p6DurationType: KEEP,
+  p6ActivityType: KEEP,
+  // X7-reviewfix: deze vijf velden vormen samen de P6-solverfirewall en bronidentiteit. Ze moeten
+  // vóór de bredere X9-archiefetappe al exact door IFC heen, anders kan een kale resume na reload
+  // onbedoeld MSP-semantiek erven.
+  p6ProjectId: KEEP,
+  p6TaskId: KEEP,
+  p6ExplicitTargetWindow: KEEP,
+  p6CompletePctType: KEEP,
+  p6ExpectedFinish: KEEP,
+  p6SuspendResume: KEEP,
+  isSummary: { skip: 'false is de afwezige default; expliciet true round-trippt in check-xer-reader' },
   parentId: { as: 'parent', get: (t: Task, k: Keys) => (t.parentId ? k.task(t.parentId) : null) },
   childIds: { as: 'children', get: (t: Task, k: Keys) => t.childIds.map(c => k.task(c)).sort() },
   time: { get: (t: Task, k: Keys) => canonize(TIME_CANON, t.time, k) },
@@ -581,6 +627,7 @@ const SEQUENCE_CANON = {
   predecessorId: { as: 'pred', get: (s: Sequence, k: Keys) => k.task(s.predecessorId) },
   successorId: { as: 'succ', get: (s: Sequence, k: Keys) => k.task(s.successorId) },
   type: KEEP, lagDays: KEEP, lagMinutes: KEEP, lagUnit: KEEP, lagPercent: KEEP,
+  p6StartAtPredecessorFinishBoundary: KEEP,
 } satisfies CanonSpec<Sequence>;
 
 const RESOURCE_CANON = {
@@ -623,12 +670,13 @@ const PROJECT_CANON = {
 
 const BASELINE_TASK_CANON = {
   taskId: { as: 'task', get: (bt: BaselineTask, k: Keys) => k.task(bt.taskId) },
+  sourceTaskId: KEEP, sourceTaskCode: KEEP,
   start: KEEP, finish: KEEP, duration: KEEP, isMilestone: KEEP, milestoneKind: KEEP,
 } satisfies CanonSpec<BaselineTask>;
 
 const BASELINE_CANON = {
   id: KEEP,   // baseline-ids round-trippen letterlijk mee (OPS_Baselines-JSON)
-  name: KEEP, createdAt: KEEP,
+  name: KEEP, createdAt: KEEP, sourceProjectId: KEEP,
   tasks: {
     get: (b: Baseline, k: Keys) => (b.tasks ?? []).map(bt => canonize(BASELINE_TASK_CANON, bt, k))
       .sort((x, y) => String(x.task).localeCompare(String(y.task))),
@@ -734,6 +782,161 @@ const expectedInput: ImportResult = { ...fixture, resourceCalendars: (fixture.re
 const firstIfc = writeIFC(fixture);
 const rt1 = readIFC(firstIfc);
 const rt2 = readIFC(writeIFC(rt1));
+
+const hasP6BoundarySequence = (input: ImportResult) =>
+  input.sequences.some(sequence => sequence.p6StartAtPredecessorFinishBoundary === true);
+
+{
+  const validIfc = writeIFC(fixture);
+  const lines = validIfc.split('\n');
+  const psetIndex = lines.findIndex(line => line.includes("'OPS_Sequences'"));
+  assert(psetIndex >= 0, 'OPS_Sequences-pset ontbreekt in de geldige writerfixture');
+  const psetId = lines[psetIndex].match(/^#(\d+)=/)?.[1];
+  assert(!!psetId, 'STEP-id van OPS_Sequences-pset ontbreekt');
+  const relationIndex = lines.findIndex(line => line.includes('IFCRELDEFINESBYPROPERTIES(')
+    && line.endsWith(`,#${psetId});`));
+  assert(relationIndex >= 0, 'IFCRELDEFINESBYPROPERTIES voor OPS_Sequences ontbreekt');
+
+  const orphan = readIFC(lines.filter((_, index) => index !== relationIndex).join('\n'));
+  assert(!hasP6BoundarySequence(orphan),
+    'een orphan OPS_Sequences-pset zonder relatie naar het live schema blijft inert');
+
+  const maskedLines = [...lines];
+  maskedLines.splice(psetIndex, 0,
+    "#990001=IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT('[\"masker\"]'),$);",
+    "#990002=IFCPROPERTYSET('maskerpset00000000000001',#1,'OPS_Sequences',$,(#990001));");
+  const masked = readIFC(maskedLines.join('\n'));
+  assert(hasP6BoundarySequence(masked),
+    'een eerdere orphan OPS_Sequences-pset mag de later geldig gekoppelde pset niet maskeren');
+
+  const baselineScheduleId = lines.find(line => line.includes('IFCWORKSCHEDULE(') && line.includes('.BASELINE.'))
+    ?.match(/^#(\d+)=/)?.[1];
+  assert(!!baselineScheduleId, 'baseline-IFCWORKSCHEDULE ontbreekt in de fixture');
+  const wrongLines = [...lines];
+  wrongLines[relationIndex] = wrongLines[relationIndex].replace(/,\(#[^)]+\),(#\d+)\);$/, `,(#${baselineScheduleId}),$1);`);
+  const wrongSchedule = readIFC(wrongLines.join('\n'));
+  assert(!hasP6BoundarySequence(wrongSchedule),
+    'OPS_Sequences op een baseline/verkeerd schema activeert de live relatie niet');
+
+  const owner = lines[relationIndex].match(/,\((#\d+)\),#\d+\);$/)?.[1];
+  assert(!!owner, 'live schema-eigenaar ontbreekt in OPS_Sequences-relatie');
+  const duplicateLines = [...lines];
+  duplicateLines.splice(relationIndex + 1, 0,
+    "#990003=IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT('[\"duplicaat\"]'),$);",
+    "#990004=IFCPROPERTYSET('duplicaatpset000000000001',#1,'OPS_Sequences',$,(#990003));",
+    `#990005=IFCRELDEFINESBYPROPERTIES('duplicaatrel0000000000001',#1,$,$,(${owner}),#990004);`);
+  const duplicate = readIFC(duplicateLines.join('\n'));
+  assert(!hasP6BoundarySequence(duplicate),
+    'twee geldig gekoppelde OPS_Sequences-bronnen zijn ambigu en falen gesloten');
+}
+
+{
+  const orphanPenaltyIfc = writeIFC(fixture).split('\n')
+    .filter(line => !line.includes("IFCPROPERTYSINGLEVALUE('P6Source'"))
+    .join('\n');
+  const orphanPenalty = readIFC(orphanPenaltyIfc);
+  assert(orphanPenalty.calendar.p6Source === undefined
+    && orphanPenalty.calendar.p6NonWorkPenaltyDates === undefined,
+  'P6NonWorkPenaltyDates zonder P6Source=XER blijft bij IFC-inlees inert en wordt niet gematerialiseerd');
+}
+
+// ── Eindreview XER-etappe, bevinding 4: het OPS_SchedulingOptions-JSON is buiteninvoer ────────────
+// Een geschreven IFC waarvan het JSON-blob is vervangen door een vijandig object: onbekende sleutels,
+// een niet-bestaande kritiek-modus, een string waar een getal hoort, een half `floatPaths`. Alles wat
+// niet aan het `SchedulingOptions`-contract voldoet valt weg; wat wél klopt (incl. `p6Source`, dat
+// legitiem round-tript) blijft staan. Het commentaar in `CPMSolver.ts` bij `p6SourceActive` beschrijft
+// precies deze grens.
+{
+  const hostile = JSON.stringify({
+    p6Source: 'XER',
+    p6CompletedLateFromRemainingWindow: true,
+    useProjectEndDateForFloat: 'ja',
+    preserveActualDatesInBackwardPass: 1,
+    lagCalendar: 'maan',
+    totalFloatMode: 'finish',
+    nearCriticalThreshold: 'drie',
+    criticalDefinition: { mode: 'NIET_BESTAAND', thresholdHours: 'tekst' },
+    floatPaths: { enabled: true, method: 'TOTAL_FLOAT' },
+    onzin: [1, 2, 3],
+  });
+  const written = writeIFC(fixture);
+  const pattern = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('[^']*'\),\$\)/;
+  assert(pattern.test(written), 'fixture schrijft het OPS_SchedulingOptions-pset (anker voor de vijandige vervanging)');
+  const hostileIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostile}'),$)`);
+  const canon = (value: unknown): string => JSON.stringify(value, (_key, v: unknown) =>
+    (v && typeof v === 'object' && !Array.isArray(v))
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : v);
+  const read = readIFC(hostileIfc).project.schedulingOptions;
+  assert(canon(read) === canon({
+    p6Source: 'XER',
+    p6CompletedLateFromRemainingWindow: true,
+    totalFloatMode: 'finish',
+  }), 'vijandig OPS_SchedulingOptions-JSON: alleen de goed getypeerde, bekende sleutels overleven; onzin-mode, string-getallen, onbekende sleutels en een half floatPaths-blok vallen weg');
+
+  const hostileCritical = JSON.stringify({ criticalDefinition: { mode: 'longestPath', threshold: 'x', thresholdHours: -4 }, floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 } });
+  const partialIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostileCritical}'),$)`);
+  assert(canon(readIFC(partialIfc).project.schedulingOptions) === canon({
+    criticalDefinition: { mode: 'longestPath', thresholdHours: -4 },
+    floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 },
+  }), 'geneste blokken: een geldige mode met een ongeldige threshold houdt alleen de geldige velden; een compleet floatPaths-blok blijft heel');
+
+  const emptyIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('{"onzin":true}'),$)`);
+  assert(readIFC(emptyIfc).project.schedulingOptions === undefined,
+    'een JSON-blob zonder één geldige sleutel levert géén leeg optieobject maar undefined (default-inert, zoals een afwezig pset)');
+}
+
+{
+  const absentPenaltyIfc = writeIFC(fixture).split('\n')
+    .filter(line => !line.includes("IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates'"))
+    .join('\n');
+  const absentPenalty = readIFC(absentPenaltyIfc);
+  assert(absentPenalty.calendar.p6Source === undefined
+    && absentPenalty.calendar.p6NonWorkPenaltyDates === undefined
+    && absentPenalty.calendar.p6NonWorkPenaltyDatesState === 'ABSENT',
+  'P6Source=XER zonder penaltylijst blijft diagnostisch ABSENT en activeert geen halve P6-kalendersemantiek');
+}
+
+{
+  const rejectedPenaltyIfc = writeIFC(fixture).replace(
+    '["2026-12-27"]', '["2026-12-27",7]',
+  );
+  const rejectedPenalty = readIFC(rejectedPenaltyIfc);
+  assert(rejectedPenalty.calendar.p6Source === undefined
+    && rejectedPenalty.calendar.p6NonWorkPenaltyDates === undefined
+    && rejectedPenalty.calendar.p6NonWorkPenaltyDatesState === 'REJECTED',
+  'één corrupte P6-penaltywaarde wijst de volledige lijst diagnostisch af en laat p6Source niet half actief');
+
+  const rejectedInput: ImportResult = {
+    ...fixture,
+    calendar: {
+      ...fixture.calendar,
+      p6Source: undefined,
+      p6NonWorkPenaltyDates: undefined,
+      p6NonWorkPenaltyDatesState: 'REJECTED',
+    },
+  };
+  const rejectedRoundTrip = readIFC(writeIFC(rejectedInput));
+  assert(rejectedRoundTrip.calendar.p6Source === undefined
+    && rejectedRoundTrip.calendar.p6NonWorkPenaltyDates === undefined
+    && rejectedRoundTrip.calendar.p6NonWorkPenaltyDatesState === 'REJECTED',
+  'REJECTED penaltydiagnostiek rondt inert afzonderlijk door IFC zonder P6-herkomst te herstellen');
+  const solveAxes = (input: ImportResult) => {
+    const solved = solveProject({
+      tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
+      calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
+      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
+    });
+    assert(!solved.error, `solverfout in REJECTED-inertietest: ${solved.error}`);
+    return input.tasks.map(task => [task.wbsCode, task.time.earlyStart, task.time.earlyFinish,
+      task.time.lateStart, task.time.lateFinish, task.time.totalFloat, task.time.freeFloat]);
+  };
+  const clean = { ...rejectedRoundTrip, calendar: { ...rejectedRoundTrip.calendar,
+    p6NonWorkPenaltyDatesState: undefined } };
+  assert(JSON.stringify(solveAxes(rejectedRoundTrip)) === JSON.stringify(solveAxes(clean)),
+    'REJECTED penaltydiagnostiek is solver-inert');
+}
 
 {
   const diffs: string[] = [];
@@ -1271,6 +1474,9 @@ const rt2 = readIFC(writeIFC(rt1));
     parentId: null, childIds: [], resourceIds: [], time: plainTime('2026-08-18', '2026-08-20', 2),
     mspTaskType: 'FIXED_DURATION', effortDriven: true,
     timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 60, workMinutes: 60, kind: 'actual' }] }],
+    // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde compact-optionele
+    // doorgifte als de drie Z14b-velden hierboven.
+    p6DurationType: 'DT_FixedQty', p6ActivityType: 'TT_LOE', p6ExplicitTargetWindow: true, p6SuspendResume: true,
   };
   const mapped8e = toExtTask(withFields);
   assert(mapped8e.mspTaskType === 'FIXED_DURATION', `(8e) toExtTask moet mspTaskType doorgeven — kreeg ${mapped8e.mspTaskType}`);
@@ -1279,6 +1485,10 @@ const rt2 = readIFC(writeIFC(rt1));
     JSON.stringify(mapped8e.timephasedContours) === JSON.stringify(withFields.timephasedContours),
     `(8e) toExtTask moet timephasedContours doorgeven — kreeg ${JSON.stringify(mapped8e.timephasedContours)}`,
   );
+  assert(mapped8e.p6DurationType === 'DT_FixedQty', `(8e) toExtTask moet p6DurationType doorgeven — kreeg ${mapped8e.p6DurationType}`);
+  assert(mapped8e.p6ActivityType === 'TT_LOE', `(8e) toExtTask moet p6ActivityType doorgeven — kreeg ${mapped8e.p6ActivityType}`);
+  assert(mapped8e.p6ExplicitTargetWindow === true, `(8e) toExtTask moet p6ExplicitTargetWindow doorgeven — kreeg ${mapped8e.p6ExplicitTargetWindow}`);
+  assert(mapped8e.p6SuspendResume === true, `(8e) toExtTask moet p6SuspendResume doorgeven — kreeg ${mapped8e.p6SuspendResume}`);
 
   const withoutFields: Task = {
     id: 't-8e-neg', name: '(8e)-zonder-velden', description: '', wbsCode: '',
@@ -1289,6 +1499,10 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(mapped8eNeg.mspTaskType === undefined, `(8e) zonder mspTaskType blijft toExtTask.mspTaskType undefined — kreeg ${mapped8eNeg.mspTaskType}`);
   assert(mapped8eNeg.effortDriven === undefined, `(8e) zonder effortDriven blijft toExtTask.effortDriven undefined — kreeg ${mapped8eNeg.effortDriven}`);
   assert(mapped8eNeg.timephasedContours === undefined, `(8e) zonder timephasedContours blijft toExtTask.timephasedContours undefined — kreeg ${mapped8eNeg.timephasedContours}`);
+  assert(mapped8eNeg.p6DurationType === undefined, `(8e) zonder p6DurationType blijft toExtTask.p6DurationType undefined — kreeg ${mapped8eNeg.p6DurationType}`);
+  assert(mapped8eNeg.p6ActivityType === undefined, `(8e) zonder p6ActivityType blijft toExtTask.p6ActivityType undefined — kreeg ${mapped8eNeg.p6ActivityType}`);
+  assert(mapped8eNeg.p6ExplicitTargetWindow === undefined, `(8e) zonder p6ExplicitTargetWindow blijft toExtTask.p6ExplicitTargetWindow undefined — kreeg ${mapped8eNeg.p6ExplicitTargetWindow}`);
+  assert(mapped8eNeg.p6SuspendResume === undefined, `(8e) zonder p6SuspendResume blijft toExtTask.p6SuspendResume undefined — kreeg ${mapped8eNeg.p6SuspendResume}`);
 
   // Mutatiebewijs (uitgevoerd): de drie nieuwe regels in `toExtTask` tijdelijk verwijderd maakt de
   // eerste drie asserties hierboven ROOD (undefined i.p.v. de gezette waarde).

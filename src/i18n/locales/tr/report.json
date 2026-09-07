@@ -135,6 +135,7 @@
     "notCalculatedNote": "Henüz hesaplanmadı — tarihler ve bolluklar için Hesapla (F5) tuşuna basın.",
     "staleNote": "Program son hesaplamadan beri değişti — güncel değerler için Hesapla (F5) tuşuna basın.",
     "statusDateMissingNote": "Durum tarihi ayarlanmadı — rapor bugünü kullanıyor ({{date}}).",
+    "recordedDatesNote": "'Kaydedildiği gibi tarihler' görünümü: bu rapor bir hesaplamayı değil, kaynak dosyadaki tarihleri gösterir. Dosyanın kaydetmediği en geç başlangıç/bitiş ve bolluk değerleri burada boş veya 0 görünür.",
     "period": "Dönem",
     "statusDate": "Durum tarihi",
     "common": {

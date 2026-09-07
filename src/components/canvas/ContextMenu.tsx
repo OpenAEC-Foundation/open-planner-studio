@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export interface ContextMenuGroupInfo {
   key: string;
@@ -129,7 +130,7 @@ export function ContextMenu({
   // (anders valt de flyout goeddeels buiten beeld).
   const flipSub = pos.left > window.innerWidth - 380;
 
-  const isSummary = task ? task.childIds.length > 0 : false;
+  const isSummary = isSummaryTask(task ?? undefined);
   const closeAll = () => { setOpenSub(null); onClose(); };
 
   return (

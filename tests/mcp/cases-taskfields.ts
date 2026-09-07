@@ -205,6 +205,27 @@ test('update_tasks: mspTaskType/effortDriven/timephasedContours zijn read-only (
   assert(t.timephasedContours === undefined, 'timephasedContours niet gezet');
 });
 
+test('X9: p6DurationType/p6ActivityType zijn via de echte MCP-update runtime read-only', async () => {
+  reset();
+  const id = seedTask('P6-brondata', 5);
+  const before = JSON.stringify(taskById(id));
+
+  for (const [field, value] of [
+    ['p6DurationType', 'DT_FixedRate'],
+    ['p6ActivityType', 'TT_LOE'],
+  ] as const) {
+    const res = await call('planner_update_tasks', {
+      updates: [{ id, fields: { [field]: value } }],
+    });
+    const rejection = rejections(res)[0];
+    assert(rejection?.reason.includes(`onbekend veld '${field}'`), `de runtimeweigering noemt ${field}`);
+    assert(/P6|\.xer|importdata/.test(rejection?.reason ?? ''), `de runtimeweigering motiveert ${field}`);
+    assertEq(okData(res).updated, [], `${field} is niet als toegepast gerapporteerd`);
+  }
+
+  assertEq(JSON.stringify(taskById(id)), before, 'beide geweigerde MCP-calls laten de taak byte-identiek');
+});
+
 test('update_tasks: fields.time wordt geweigerd en laat de hele time-tak intact', async () => {
   reset();
   withStatusDate();
@@ -346,6 +367,19 @@ test('update_tasks: isMilestone ⇒ duur 0; verzameltaak/taak-met-toewijzing wor
   const res = await call('planner_update_tasks', { updates: [{ id: parent, fields: { isMilestone: true } }] });
   assertEq(rejections(res).length, 1, 'een verzameltaak kan geen mijlpaal worden');
   assertEq(taskById(parent)!.isMilestone, false, 'de verzameltaak bleef ongewijzigd');
+
+  const emptyWbs = store.getState().addTask({ name: 'Lege P6-WBS' });
+  store.setState((s) => {
+    const task = s.tasks.find((candidate) => candidate.id === emptyWbs)!;
+    task.isSummary = true;
+  });
+  const emptyWbsResult = await call('planner_update_tasks', {
+    updates: [{ id: emptyWbs, fields: { isMilestone: true } }],
+  });
+  assertEq(rejections(emptyWbsResult).length, 1,
+    'een expliciete lege WBS-samenvatting kan via MCP geen mijlpaal worden');
+  assertEq(taskById(emptyWbs)!.isMilestone, false,
+    'de expliciete lege WBS-samenvatting bleef ongewijzigd');
 });
 
 test('update_tasks: een geweigerd fields-blok blokkeert het progress-pad van hetzelfde item NIET', async () => {

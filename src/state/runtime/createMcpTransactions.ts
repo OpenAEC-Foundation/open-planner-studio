@@ -23,6 +23,8 @@ import type { Project } from '@/types/project';
 import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { isSummaryTask } from '@/utils/taskHierarchy';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 
 export type McpTransactionResult<T> =
   | { ok: true; value: T; timephasedGuidanceLost: number }
@@ -133,6 +135,7 @@ function createMcpDraft(
         priority: partial.priority ?? 500,
         parentId,
         childIds: [],
+        isSummary: partial.isSummary,
         // T14b (gebruikstestbevinding, ernst hoog — dataverlies): zie taskSlice.ts addTask — zelfde
         // veld-voor-veld-merge, MCP-pad. Een ongemerged meegegeven `time` liet writeIFC crashen op
         // een ontbrekend `completion` (`time.completion.toFixed(1)` in ifcTaskSlots.ts).
@@ -363,6 +366,7 @@ function createMcpDraft(
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
       // Contour-engine (2026-09) — tweeling van taskSlice.ts's `updateTask`: herschaal de contour.
       if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
+      reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
@@ -412,6 +416,7 @@ function createMcpDraft(
       }
       // Contour-engine (2026-09) — zelfde herschaling als `updateTaskFields` hierboven.
       if (timeTouched) rescaleTaskContours(task, oldWorkMinutes, contourHpd);
+      reconcileP6SuspendResume(task);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
       // volledige `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.
@@ -598,7 +603,7 @@ function createMcpDraft(
     store.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) throw new Error(`draft.assignResource: onbekende taskId '${taskId}'`);
-      if (task.isMilestone || task.childIds.length > 0) {
+      if (task.isMilestone || isSummaryTask(task)) {
         throw new Error(`draft.assignResource: kan geen resource toewijzen aan een mijlpaal/samenvattingstaak '${taskId}'`);
       }
       if (!isValidUnits(unitsPerDay)) {
@@ -675,7 +680,7 @@ function createMcpDraft(
       if (!assignment) throw new Error(`draft.moveAssignment: onbekende assignmentId '${assignmentId}'`);
       const newTask = s.tasks.find((t) => t.id === newTaskId);
       if (!newTask) throw new Error(`draft.moveAssignment: onbekende taskId '${newTaskId}'`);
-      if (newTask.isMilestone || newTask.childIds.length > 0) {
+      if (newTask.isMilestone || isSummaryTask(newTask)) {
         throw new Error(`draft.moveAssignment: doeltaak '${newTaskId}' is een mijlpaal/samenvattingstaak`);
       }
       const alreadyOnTarget = s.assignments.some(

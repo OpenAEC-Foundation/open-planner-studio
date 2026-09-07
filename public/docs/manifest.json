@@ -232,6 +232,27 @@
       "cluster": "msproject-import"
     },
     {
+      "id": "gids-xer-import",
+      "title": {
+        "nl": "Primavera P6 (.xer) openen",
+        "en": "Opening Primavera P6 (.xer)",
+        "de": "Primavera P6 (.xer) öffnen",
+        "fr": "Ouvrir Primavera P6 (.xer)",
+        "es": "Abrir Primavera P6 (.xer)",
+        "zh": "打开 Primavera P6（.xer）",
+        "it": "Aprire Primavera P6 (.xer)",
+        "pt": "Abrir Primavera P6 (.xer)",
+        "pl": "Otwieranie Primavera P6 (.xer)",
+        "tr": "Primavera P6 (.xer) dosyasını açma",
+        "ar": "فتح Primavera P6 (.xer)",
+        "ja": "Primavera P6（.xer）を開く",
+        "ko": "Primavera P6(.xer) 열기",
+        "fa": "باز کردن Primavera P6 (.xer)"
+      },
+      "layer": "gidsen",
+      "cluster": "xer-import"
+    },
+    {
       "id": "datums-zoals-opgeslagen",
       "title": {
         "nl": "Datums zoals opgeslagen",

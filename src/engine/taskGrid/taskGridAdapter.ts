@@ -15,6 +15,8 @@ import type {
   CellValidationError,
   GridIntent,
   GridResult,
+  RecordedTaskAxis,
+  RecordedTaskMark,
   TaskColumnCategory,
   TaskColumnContext,
   TaskColumnDescriptor,
@@ -115,6 +117,8 @@ export interface CreateTaskGridAdapterDomainInput {
   textDirection?: 'ltr' | 'rtl';
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
+  recordedMark?: (task: Task) => RecordedTaskMark;
+  recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
 }
@@ -240,6 +244,8 @@ export function createTaskGridAdapterDomain(
     wbsAutoNumber: input.wbsAutoNumber,
     effectiveHoursPerDay: input.effectiveHoursPerDay,
     signedWorkDaysBetween: input.signedWorkDaysBetween,
+    recordedMark: input.recordedMark,
+    recordedUnrecordedAxes: input.recordedUnrecordedAxes,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: input.projectId,

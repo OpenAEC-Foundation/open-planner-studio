@@ -3,20 +3,34 @@ import { ensureExtension, extensionOf } from '@/utils/filePath';
 
 const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
 
+export interface TauriOpenIO {
+  readTextFile(path: string): Promise<string>;
+  readFile(path: string): Promise<Uint8Array>;
+}
+
+/** Injecteerbare kern van de Tauri-openroute: bewaakt vooral dat binaire bronformaten nooit via
+ * `readTextFile` lopen en hun oorspronkelijke bytes dus behouden. */
+export async function readOpenedTauriPath(
+  path: string,
+  opts: OpenDialogOpts | undefined,
+  io: TauriOpenIO,
+): Promise<OpenedFile> {
+  const isBinary = (opts?.binaryExtensions ?? []).includes(extensionOf(path));
+  if (isBinary) {
+    const bytes = await io.readFile(path);
+    return { name: basename(path), content: '', bytes, ref: { kind: 'path', path } };
+  }
+  const content = await io.readTextFile(path);
+  return { name: basename(path), content, ref: { kind: 'path', path } };
+}
+
 export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const selected = await open({ multiple: false, filters });
   if (!selected) return null;
   const path = selected as string;
-  const isBinary = (opts?.binaryExtensions ?? []).includes(extensionOf(path));
-  if (isBinary) {
-    const { readFile } = await import('@tauri-apps/plugin-fs');
-    const bytes = await readFile(path);
-    return { name: basename(path), content: '', bytes, ref: { kind: 'path', path } };
-  }
-  const { readTextFile } = await import('@tauri-apps/plugin-fs');
-  const content = await readTextFile(path);
-  return { name: basename(path), content, ref: { kind: 'path', path } };
+  const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
+  return readOpenedTauriPath(path, opts, { readTextFile, readFile });
 }
 
 export async function saveFileDialogTauri(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {

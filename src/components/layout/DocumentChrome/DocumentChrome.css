@@ -23,15 +23,25 @@
   padding: 0 6px; gap: 3px;
 }
 .ops-tabstrip-menu { align-self: center; width: 30px; height: 26px; margin-right: 2px; }
+.ops-tabstrip-scroll-button { align-self: center; width: 24px; height: 26px; flex: none; }
+.ops-tabstrip-viewport {
+  align-self: stretch; flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scroll-behavior: smooth;
+}
+.ops-tabstrip-tabs { display: flex; align-items: stretch; gap: 3px; min-width: max-content; height: 100%; }
+.ops-tab-group {
+  position: relative; align-self: flex-end; flex: none; min-width: 158px; max-width: 230px; height: 100%;
+}
 .ops-tab {
-  position: relative; display: flex; align-items: center; gap: 8px;
-  padding: 0 8px 0 11px; min-width: 158px; max-width: 230px; align-self: flex-end;
+  position: relative; display: flex; align-items: center; gap: 8px; flex: none;
+  width: 100%; padding: 0 32px 0 11px; min-width: 0; max-width: none; align-self: flex-end;
   height: 31px; border-radius: 7px 7px 0 0; border: 1px solid transparent;
-  border-bottom: none; background: transparent; cursor: pointer; overflow: hidden;
+  border-bottom: none; background: transparent; cursor: pointer; overflow: hidden; outline: none;
   font-family: var(--font-body);
 }
 .ops-tab:hover { background: var(--theme-hover); }
 .ops-tab.active { background: var(--theme-ribbon-content-bg); border-color: var(--theme-border); }
+.ops-tab:focus-visible { box-shadow: inset 0 0 0 2px var(--theme-accent); }
 .ops-tab.active::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--theme-accent);
 }
@@ -43,11 +53,12 @@
 .ops-tab.active .ops-tab-name { font-weight: 600; color: var(--theme-text); }
 .ops-dirty-dot { width: 7px; height: 7px; border-radius: 9999px; flex: none; background: var(--theme-warning-text); }
 .ops-tab-close {
+  position: absolute; right: 7px; bottom: 6px; z-index: 1;
   width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center;
   background: transparent; border: none; border-radius: 5px; cursor: pointer; color: var(--theme-text-muted);
 }
 .ops-tab-close:hover { background: var(--theme-hover); color: var(--theme-text); }
-.ops-tabstrip-add { align-self: flex-end; width: 30px; height: 31px; border-radius: 7px 7px 0 0; }
+.ops-tabstrip-add { align-self: flex-end; width: 30px; height: 31px; border-radius: 7px 7px 0 0; flex: none; }
 
 /* ---------- B: Projectbalk (rail) ---------- */
 .ops-rail {

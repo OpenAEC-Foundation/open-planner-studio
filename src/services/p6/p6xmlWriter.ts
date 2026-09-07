@@ -10,6 +10,7 @@ import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import type { CustomTaskType } from '@/types/taskType';
 
 const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -133,7 +134,7 @@ function taskTypeToP6(task: Task): string {
     // dode code: mijlpalen hebben altijd duur 0.
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
   }
-  if (task.childIds.length > 0) return 'WBS Summary';
+  if (isSummaryTask(task)) return 'WBS Summary';
   return 'Task Dependent';
 }
 
@@ -292,6 +293,11 @@ export function writeP6XML(
     console.warn(`P6-export: ${resumeStopCount} taak/taken met resume/stop (uit-volgorde-hervatting) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
   }
 
+  // X9-besluit: deze adapter is doelbewust asymmetrisch met XER. Een XER-import bewaart zijn
+  // P6-velden en exacte bron alleen via IFC; dit XML-profiel claimt daarvoor geen equivalent.
+  // TODO(X9/P6XML): pas na een gevalideerde Oracle-schema-/corpusmapping eventueel individuele
+  // DurationType/ActivityType/progressvelden lezen/schrijven, met een nieuwe parity-test.
+
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   lines.push('<APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V23.12/API/BusinessObjects" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
 
@@ -328,8 +334,8 @@ export function writeP6XML(
   }));
 
   // WBS elements (parent tasks)
-  const wbsTasks = tasks.filter(t => t.childIds.length > 0);
-  const leafTasks = tasks.filter(t => t.childIds.length === 0);
+  const wbsTasks = tasks.filter(isSummaryTask);
+  const leafTasks = tasks.filter(isLeafTask);
 
   // Project
   lines.push(`${indent(1)}<Project>`);

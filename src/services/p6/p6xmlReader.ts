@@ -1,4 +1,5 @@
 import { Task, TaskConstraint, ConstraintType } from '@/types/task';
+import type { P6DurationType } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
@@ -115,13 +116,40 @@ function p6CodeToConstraint(code: string): { type: ConstraintType; hard?: boolea
   }
 }
 
+// P6-XML (PMXML) draagt `<DurationType>` als Engels label, niet als het XER-token
+// (`DT_FixedDrtn`/`DT_FixedDUR2`/`DT_FixedRate`/`DT_FixedQty`) — zelfde vier canonieke P6-waarden,
+// andere schrijfwijze per bronformaat. Labels geverifieerd tegen MPXJ `DurationTypeHelper`
+// (LGPL-2.1, lezen-om-te-begrijpen, §4 harde regel) en Oracle's PMXML-schemadocumentatie.
+const P6_XML_DURATION_TYPE_BY_LABEL: Readonly<Record<string, P6DurationType>> = {
+  'Fixed Duration and Units': 'DT_FixedDrtn',
+  'Fixed Duration and Units/Time': 'DT_FixedDUR2',
+  'Fixed Units/Time': 'DT_FixedRate',
+  'Fixed Units': 'DT_FixedQty',
+};
+
+/**
+ * Contour-engine-etappe (2026-09), taaktypes-vervolgafspraak: `<DurationType>` is puur data — géén
+ * solverstap leest dit veld, zelfde eigenaarsbesluit als de XER-lezer's `p6DurationType`
+ * (`task.ts`'s docblok). Onbekend/leeg label ⇒ veld AFWEZIG (byte-identiek), nooit een aanname;
+ * de onbekende waarde wordt gerapporteerd zodat een nieuw of vreemd PMXML-label zichtbaar blijft
+ * in plaats van stil te verdwijnen.
+ */
+function p6DurationTypeFromXml(raw: string): P6DurationType | undefined {
+  const label = raw.trim();
+  if (!label) return undefined;
+  const known = P6_XML_DURATION_TYPE_BY_LABEL[label];
+  if (known) return known;
+  console.warn(`P6-XML-import: onbekende <DurationType>-waarde '${label}' — p6DurationType blijft afwezig.`);
+  return undefined;
+}
+
 /** Werkweek teruglezen (fase 2.8a, §8.3, spiegel van `writeStandardWorkWeek`): per
  *  `<StandardWorkHour>` de dagnaam terugmappen naar een ISO-dagnummer via `P6_DAY_NAMES`; een dag
  *  telt als werkdag zodra hij een `<WorkTime>`-blok heeft. `workStartHour`/`workEndHour` komen van
  *  het LAATST gevonden werktijdblok (één scalar per kalender, bestaande aanname). Golden rule:
  *  geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒ lege workDays, aanroeper valt terug op
  *  de `createDefaultCalendar()`-defaults. */
-function parseP6StandardWorkWeek(calEl: Element): {
+export function parseP6StandardWorkWeek(calEl: Element): {
   workDays: number[]; workStartHour?: number; workEndHour?: number;
   rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>;
 } {
@@ -445,6 +473,7 @@ export function readP6XML(content: string): ImportResult {
     const name = getElementText(actEl, 'Name') || 'Activity';
     const p6Type = getElementText(actEl, 'Type');
     const p6Status = getElementText(actEl, 'Status');
+    const p6DurationType = p6DurationTypeFromXml(getElementText(actEl, 'DurationType'));
     const plannedDuration = getElementFloat(actEl, 'PlannedDuration');
     const plannedStartRaw = getElementText(actEl, 'PlannedStartDate');
     const plannedFinishRaw = getElementText(actEl, 'PlannedFinishDate');
@@ -531,6 +560,7 @@ export function readP6XML(content: string): ImportResult {
       wbsCode: actId,
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
+      ...(p6DurationType ? { p6DurationType } : {}),
       status,
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),

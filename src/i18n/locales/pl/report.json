@@ -141,6 +141,7 @@
     "notCalculatedNote": "Jeszcze nie obliczono — naciśnij Oblicz (F5), aby uzyskać daty i zapasy.",
     "staleNote": "Harmonogram zmienił się od ostatniego obliczenia — naciśnij Oblicz (F5), aby zobaczyć aktualne wartości.",
     "statusDateMissingNote": "Nie ustawiono daty statusu — raport używa dnia dzisiejszego ({{date}}).",
+    "recordedDatesNote": "Widok „daty jak zapisano”: ten raport pokazuje daty z pliku źródłowego, a nie obliczenie. Najpóźniejsze rozpoczęcia/zakończenia i zapasy, których plik nie zapisał, są tu puste lub równe 0.",
     "period": "Okres",
     "statusDate": "Data statusu",
     "common": {

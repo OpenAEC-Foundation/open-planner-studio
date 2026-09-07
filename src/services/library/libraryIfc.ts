@@ -4,7 +4,7 @@
  * (verliesloos, incl. ids/versie). Delegeert aan de bestaande writeIFC/readIFC.
  */
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { createDefaultProject } from '@/state/slices/projectSlice';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { normalizePoolShape } from './libraryOps';
@@ -47,10 +47,10 @@ export function writePoolIFC(pool: CompanyPool): string {
  * het GEKOZEN doelbedrijf zodra de import bevestigd wordt; dit leespunt hoeft alleen een crash-vrije
  * SHAPE te garanderen voor de preview.
  */
-export function readPoolIFC(content: string): CompanyPool {
+export async function readPoolIFC(content: string): Promise<CompanyPool> {
   // Geen `labels`: dienstlaag zonder `t(...)` — pool-bestanden schrijft OPS zelf en hebben altijd een IFCPROJECT. `readIFC` valt dan terug op de Engelse
   // default voor een bestand zonder IFCPROJECT (zie ImportLabels).
-  const result = readIFC(content);
+  const result = await readIFCWithXerReconstruction(content);
   if (!result.libraryPool) {
     throw new Error('Dit IFC-bestand bevat geen bedrijfsbibliotheek (OPS_Library).');
   }

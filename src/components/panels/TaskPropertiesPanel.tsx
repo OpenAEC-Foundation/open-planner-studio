@@ -8,6 +8,7 @@ import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFie
 import { TaskTimeFields } from '@/components/task-sections/TaskTimeFields';
 import { TaskFreePeriodWarning } from '@/components/task-sections/TaskFreePeriodWarning';
 import { TaskTimephasedNotice } from '@/components/task-sections/TaskTimephasedNotice';
+import { TaskRecordedDatesNotice } from '@/components/task-sections/TaskRecordedDatesNotice';
 import { TaskHammockFields } from '@/components/task-sections/TaskHammockFields';
 import { TaskConstraintFields } from '@/components/task-sections/TaskConstraintFields';
 import { TaskDeadlineField } from '@/components/task-sections/TaskDeadlineField';
@@ -103,6 +104,8 @@ export function TaskPropertiesPanel() {
       <TaskFreePeriodWarning taskId={task.id} />
 
       <TaskTimephasedNotice taskId={task.id} />
+
+      <TaskRecordedDatesNotice taskId={task.id} />
 
       <TaskHammockFields task={task} onChange={update} />
 

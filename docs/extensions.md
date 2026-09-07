@@ -38,10 +38,12 @@ Gebruik `currentColor` voor `fill`/`stroke` zodat het icoon met het thema meekle
 | `ribbon` | **hard** — ontbreekt ⇒ `api.ui.addRibbonButton` gooit | Een knop in de ribbon plaatsen. |
 | `backstage` | **warn** (overgangsregime) — ontbreekt ⇒ `api.importers.*` werkt nog, maar logt een waarschuwing | Een importer registreren (verschijnt in Bestand → Importeren). |
 | `pdf-fonts` | **hard** — ontbreekt ⇒ `api.pdfFonts.register` gooit | Een font-provider registreren voor de vector-PDF-export (bv. CJK-glyf-bytes). |
+| `importSource` | **hard, default-deny** — ontbreekt ⇒ `api.data.getImportSourceInfo`/`getImportSourceChunk`/`getImportSourceCatalogPage` gooien vóórdat er ook maar één byte gelezen wordt | De **volledige oorspronkelijke bronbytes** van een geïmporteerd bestand (vandaag: XER) lezen, inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Zie de aparte paragraaf verderop. |
 | `filesystem` | informatief | Geen API-oppervlak; puur getoonde intentie bij installatie — **geen** sandbox-garantie (extensie-code heeft technisch gewoon toegang). |
 | `network` | informatief | Idem — getoonde intentie, geen technische grens. |
 
-`data.*`, `settings.*`, `assets.*` en `ui.showNotification` zijn **kern-API**: altijd beschikbaar, geen permissie nodig.
+`data.*` is verder **kern-API** — behalve de drie `getImportSource*`-methoden hierboven — net als
+`settings.*`, `assets.*` en `ui.showNotification`: altijd beschikbaar, geen permissie nodig.
 
 De afdwinging is gecentraliseerd in `src/extensions/permissions.ts` (één tabel pad → permissie).
 
@@ -203,7 +205,7 @@ module.exports = {
 | Onderdeel | Functies |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
+| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permissie `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` |
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
@@ -260,6 +262,80 @@ module.exports = {
   },
 };
 ````
+
+### Read-only XER-bronroute (permissie `importSource`, `apiVersion` ≥ 1.1)
+
+Naast de gemapte `data.*`-DTO's (afgeleid, genormaliseerd, altijd beschikbaar) kan een extensie met
+de permissie `importSource` ook bij de **oorspronkelijke, ongewijzigde brondata** van het huidige
+document — vandaag alleen voor een geopend `.xer`-bestand (Primavera P6). Zonder deze permissie
+gooien alle drie de methoden vóórdat er ook maar één byte gelezen wordt; er lekt dus niets via een
+gedeeltelijke aanroep of een foutpad. Deze drie methoden bestaan sinds contractversie `1.1.0` (zie
+*Twee versievelden, twee vragen* hierboven) — declareer `"apiVersion": "1.1"` of hoger in je
+manifest als je erop rekent; een host ouder dan 1.1 kent de methoden simpelweg niet.
+
+**Waarom een aparte permissie en geen kern-API.** De rest van `api.data.*` levert het interne
+projectmodel: taken, kalender, relaties — precies wat de importer ervan gemaakt heeft. De
+bronroute geeft de **volledige originele bytes en tabellen** terug, inclusief kolommen die de
+importlaag bewust nooit in het projectmodel materialiseert (audit-/herkomstvelden als
+`create_user`/`update_date`, kosten, review-/locatievelden, ongebruikte UDF's, …). Dat is een
+wezenlijk grotere blootstelling dan "de app leest dit bestand" — elke geïnstalleerde extensie zou
+anders, ook zonder enige andere permissie, de rauwe brontekst van elk geopend project kunnen lezen
+en doorsturen. Vandaar: default-deny, expliciet gedeclareerd in `manifest.json`.
+
+```js
+// manifest.json → "permissions": ["importSource"]
+const info = api.data.getImportSourceInfo();     // null buiten een XER-document
+if (info) {
+  console.log(info.sourceFormat, info.archive.byteLength, info.catalogs.taskSourceRows.totalRows);
+}
+```
+
+- **`getImportSourceInfo()`** → `ExtImportSourceInfo | null`. Een kleine, samengestelde samenvatting
+  (bronformaat, archief-identiteit inclusief `sha256`/`byteLength`/`chunkCount`, getalnotatie,
+  diagnostiek-tellingen, het importrapport, de schedule-options-herkomst en catalogustellingen).
+  Geen record-inhoud. **`null`** wanneer het actieve document geen retained XER-bron heeft (elk
+  niet-XER-document, of een XER-document van vóór deze functie).
+- **`getImportSourceChunk(index)`** → `Uint8Array | null`. Eén losse, verse kopie van een stuk van
+  de oorspronkelijke bestandsbytes (`archive.chunkSize`/`archive.chunkCount` uit `getImportSourceInfo()`
+  geven de indeling). Concateneer alle chunks 0..`chunkCount - 1` in volgorde om de **exacte**
+  oorspronkelijke bytes te reconstrueren — vergelijk de `sha256` uit `getImportSourceInfo()` om dat
+  te bevestigen. Een ongeldige index (negatief, fractioneel, of buiten bereik) gooit een
+  `RangeError`; buiten een XER-document levert de methode `null`.
+- **`getImportSourceCatalogPage(collection, options?)`** → `ExtImportSourceCatalogPage | null`.
+  Gepagineerde, per record gekopieerde toegang tot de retained brontabellen (task-bronrijen,
+  resource-/rol-/tarief-/curve-/toewijzingsrijen, activiteitscodes, custom-field-definities,
+  UDF-waarden, schedule-options-bronrijen, …) — zie `ExtImportSourceCollection` in `extTypes.ts`
+  voor de volledige lijst. `options.offset` (default 0) en `options.limit` (default 100, **maximaal
+  500 per pagina**) sturen de paginering; een niet-safe-integer of negatieve waarde gooit een
+  `RangeError`, net als een onbekende `collection`. Een `offset` voorbij het einde van de collectie
+  gooit **niet** — hij wordt gecanoniseerd naar `total` en levert zo een lege, geldige laatste
+  pagina (`items: []`) in plaats van een fout of een numeriek onveilige slice.  Buiten een
+  XER-document levert de methode `null`.
+
+**Documentbinding, selector en documentdrift tijdens pagineren.** Alle drie de methoden werken op
+het **actieve document**: bij het wisselen van document (`switchDocument`) volgen ze automatisch
+mee naar de bronroute (of het ontbreken daarvan) van het nieuw actieve document. `info.selector`/
+`info.sourceProjectId` identificeert welk P6-project binnen het (mogelijk multi-project)
+XER-bestand dit document vertegenwoordigt — een `.xer`-bestand kan meerdere documenten openen (één
+per project), en elk document draagt zijn eigen bronselector.
+
+Dat "automatisch meevolgen" is handig voor een enkele aanroep, maar een **risico bij pagineren**:
+pagineren is per definitie meerdere aanroepen na elkaar, en er is geen paginasessie die aan één
+document vastzit. Wisselt de gebruiker tussen twee `getImportSourceCatalogPage`-aanroepen van
+document (`switchDocument`), dan levert de tweede aanroep zonder verdere maatregelen gewoon een
+pagina van het **nieuwe** actieve document — bijvoorbeeld een lege pagina omdat dat project minder
+records heeft, wat een naïeve extensie laat concluderen "klaar" terwijl in werkelijkheid twee
+projecten door elkaar zijn gehaald. Geef daarom `options.expectedSourceProjectId` mee met het
+`sourceProjectId` dat je van een eerdere aanroep kreeg: wijkt de actieve bronselector af (ook als
+het actieve document inmiddels helemaal geen XER-bron meer heeft), dan gooit de aanroep een
+`ExtImportSourceDriftError` in plaats van stilzwijgend door te gaan. Zonder deze optie is er **geen**
+driftbewaking. Dezelfde risicoklasse geldt in mindere mate voor het na elkaar opvragen van meerdere
+`getImportSourceChunk`-indexen om de bronbytes te reconstrueren — vergelijk daar `sourceProjectId`
+(of de `sha256`) tussen chunks als je niet zeker weet dat het document niet wisselt.
+
+**Verse kopieën, geen aliasing.** Zoals de rest van `api.data.*` levert elke aanroep een nieuwe,
+onafhankelijke kopie: muteren van een teruggegeven `info`, cataloguspagina-item of chunk raakt het
+retained archief niet, en twee aanroepen na elkaar geven nooit hetzelfde object terug.
 
 ### Datacontract: de `Ext*`-typen
 
@@ -343,6 +419,6 @@ Bij een los `.js`-bestand mag het manifest als commentaarblok bovenaan:
 
 ## Beperkingen
 
-- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen voor `ribbon`/`events`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
+- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen (default-deny) voor `ribbon`/`events`/`pdf-fonts`/`importSource`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
 - Objecten uit `api.data.get*()` zijn **verse, muteerbare `Ext*`-kopieën** — muteren raakt de store niet; schrijf terug via de muterende API-functies.
 - Het `@manifest`-commentaarblok in een los .js-bestand moet een plat JSON-object zijn (geen geneste objecten).

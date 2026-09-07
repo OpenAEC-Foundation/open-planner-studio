@@ -1,4 +1,5 @@
 import { Task } from '@/types/task';
+import type { UnrecordedExportField } from '@/state/recordedDatesSelectors';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -43,6 +44,17 @@ export function writeCSV(
   _resources: Resource[],
   _assignments: ResourceAssignment[],
   customTaskTypes: readonly CustomTaskType[] = [],
+  /**
+   * "Datums zoals opgeslagen" (critreview laag 3, bevinding 6): staat de modus aan, dan draagt
+   * `task.time` de vastlegging van het bronbestand — mét de bewuste terugvallen voor assen die het
+   * bestand NIET vastlegde (`totalFloat ?? 0`, `isCritical ?? false`). In de tabel toont die naad
+   * "Niet vastgelegd"; hier is het equivalent een LEGE cel, want een CSV-lezer kan een verzonnen
+   * `0` niet van een echte nulspeling onderscheiden. `undefined` (het gewone geval, en elk
+   * document buiten de modus) ⇒ byte-identieke export als voorheen.
+   * De aanroeper bouwt deze functie met `unrecordedExportGate` (`state/recordedDatesSelectors`);
+   * deze module blijft store-vrij en krijgt hem als parameter.
+   */
+  unrecordedExportFieldsOf?: (task: Task) => readonly UnrecordedExportField[],
 ): string {
   // H5 (eindreview T16c): de "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de
   // relatie-lag hierboven, die "ed"/"e%" al schrijft) — een taak met ELAPSEDTIME-duur (T8, 24/7-
@@ -87,6 +99,7 @@ export function writeCSV(
   for (const task of tasks) {
     const predecessors = predMap.get(task.id)?.join(', ') || '';
     const completion = Math.round(task.time.completion * 100);
+    const unrecorded = unrecordedExportFieldsOf?.(task);
 
     const row = [
       escapeCSV(task.wbsCode),
@@ -101,8 +114,8 @@ export function writeCSV(
       completion.toString(),
       task.time.actualStart || '',
       task.time.actualFinish || '',
-      task.time.isCritical ? 'Yes' : 'No',
-      task.time.totalFloat.toString(),
+      unrecorded?.includes('isCritical') ? '' : (task.time.isCritical ? 'Yes' : 'No'),
+      unrecorded?.includes('totalFloat') ? '' : task.time.totalFloat.toString(),
       escapeCSV(task.description),
     ];
     rows.push(row.join(DELIMITER));

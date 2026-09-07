@@ -61,6 +61,8 @@ MSPDI 比 CSV 丰富得多：资源、分配（包括其负荷曲线）、日历
 
 `.mpp` 文件（Microsoft Project 的原生格式，Project 2010 至 2021）走的是另一条路径：该导入是**只读**的——不存在 `.mpp` 导出格式，因此重新导出到 MS Project 要走 MSPDI XML。参见指南[打开 MS Project（.mpp）](docs://gids-msproject-import)了解都保留了哪些内容以及有哪些限制。
 
+`.xer` 是 Primavera P6 的交换格式。应用可直接导入它；编辑后保存为 IFC。请参阅[打开 Primavera P6（.xer）](docs://gids-xer-import)。
+
 ## 扩展导入器
 
 除了上述固定格式外，已安装的扩展可以添加自己的导入器——例如针对默认不支持的格式。它们会显示在 **Backstage → 导入**下，各自带有自己的名称、描述和匹配的文件扩展名；未安装任何导入扩展时，该部分为空。查看 **Backstage → 扩展**了解有哪些可用。

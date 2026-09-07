@@ -135,6 +135,7 @@
     "notCalculatedNote": "Noch nicht berechnet — drücken Sie Berechnen (F5) für Termine und Puffer.",
     "staleNote": "Der Terminplan wurde seit der letzten Berechnung geändert — drücken Sie Berechnen (F5) für aktuelle Werte.",
     "statusDateMissingNote": "Kein Statusdatum gesetzt — der Bericht rechnet mit heute ({{date}}).",
+    "recordedDatesNote": "Ansicht „Termine wie gespeichert“: Dieser Bericht zeigt die Termine aus der Quelldatei, keine Berechnung. Späteste Anfänge/Enden und Puffer, die die Datei nicht festhielt, erscheinen hier leer oder als 0.",
     "period": "Zeitraum",
     "statusDate": "Statusdatum",
     "common": {

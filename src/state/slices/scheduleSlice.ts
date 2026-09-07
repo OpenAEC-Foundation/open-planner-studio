@@ -1,5 +1,5 @@
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import { cpmResultFromRecorded, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
+import { applyRecordedTimesToTasks, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
@@ -12,6 +12,7 @@ import { markScheduleStale } from '../transaction';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface ScheduleSlice {
   cpmResult: CPMResult | null;
@@ -124,6 +125,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         // CPMSolver) — zonder deze optie kon een taak met een verouderde `scheduleStart` (bv. gezet
         // vóór een latere wijziging van de projectstartdatum) gewoon vóór het projectbegin doorlopen.
         projectStartDate: s.project.startDate,
+        projectEndDate: s.project.endDate,
       });
 
       // If circular dependency detected, store the result (with error) and bail
@@ -182,25 +184,10 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       if (!info || s.datesAsRecorded) return; // no-op ⇒ géén snapshot (transaction.ts-patroon)
       runtime.beginUndoable(s);
 
-      for (const task of s.tasks) {
-        const rec = info.times[task.id];
-        if (!rec) continue;
-        task.time.earlyStart = rec.start;
-        task.time.earlyFinish = rec.finish;
-        task.time.lateStart = rec.lateStart ?? rec.start;
-        task.time.lateFinish = rec.lateFinish ?? rec.finish;
-        task.time.totalFloat = rec.totalFloat ?? 0;
-        task.time.freeFloat = rec.freeFloat ?? 0;
-        task.time.isCritical = rec.isCritical ?? false;
-        // De analyse-afleidingen komen uit de zojuist weggegooide solve en zouden een planning
-        // beschrijven die niet meer op het scherm staat. `applyCpmResult` hanteert dezelfde regel
-        // voor uitgezette opties: afwezig ⇒ het veld wordt gewist.
-        task.time.interferingFloat = undefined;
-        task.time.isNearCritical = undefined;
-        task.time.floatPath = undefined;
-      }
-
-      s.cpmResult = cpmResultFromRecorded(info.times, s.tasks, s.calendar);
+      // Gedeelde kern (XER-etappeplan §3.4, taak T3): schrijft de vastlegging in de taken en levert
+      // meteen het gereconstrueerde `CPMResult` — dezelfde functie die de standaard-aan-laadroute
+      // (taak T4) op een payload-kloon zal gebruiken. Geen gedragswijziging t.o.v. vóór de extractie.
+      s.cpmResult = applyRecordedTimesToTasks(s.tasks, info.times, s.calendar);
       s.resourceLoadResult = computeReliableResourceLoad(
         s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
@@ -240,7 +227,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
-    const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
+    const leafTasks = s.tasks.filter(isLeafTask);
     // Zelfde samenvattingsrelatie-propagatie als runCPM (zie daar): `ResourceLeveler` krijgt hier
     // alleen bladtaken door, dus de expansie moet vóór het leaf-filter gebeuren, met de VOLLEDIGE
     // taakboom (parentId/childIds) als bron — `ResourceLeveler` zelf blijft ongewijzigd, die kent
@@ -258,6 +245,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         // Zelfde projectstart-vloer als runCPM hierboven (gebruikstest-bevinding 2026-08) — anders
         // zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
         projectStartDate: s.project.startDate,
+        projectEndDate: s.project.endDate,
       },
     );
   },

@@ -22,6 +22,7 @@ import { readGanttPalette, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 
 export interface GanttRenderOptions {
@@ -675,7 +676,7 @@ export class GanttRenderer {
       // Alleen echte leaf-taken (geen samenvatting/mijlpaal/band) stulpen uit. M3 (Opus-review
       // T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als gewone balk
       // (regel ~940 hierboven) en krijgt dus ook haar eigen statusdatum-uitstulping.
-      if (task && !isZeroDurationMilestone(task) && task.childIds.length === 0) {
+      if (task && !isZeroDurationMilestone(task) && isLeafTask(task)) {
         const geo = this.barGeometry(task);
         const c = Math.max(0, Math.min(1, task.time.completion || 0));
         // Dagniveau-vergelijking t.o.v. de statusdatum (ook voor uur-taken: alleen de
@@ -1005,7 +1006,7 @@ export class GanttRenderer {
       let resourceAccentHeight = 0;
       if (isZeroDurationMilestone(task)) {
         this.drawMilestone(task, y, barHeight, isSelected, overrideColor);
-      } else if (task.childIds.length > 0) {
+      } else if (isSummaryTask(task)) {
         this.drawSummaryBar(task, y, barHeight, isSelected, overrideColor);
       } else if (task.isHammock) {
         this.drawHammockBar(task, y, barHeight, isSelected, overrideColor);
@@ -2022,7 +2023,7 @@ export class GanttRenderer {
     const row = this.rows[rowIndex];
     if (row?.kind !== 'task') return null;
     const task = row.task;
-    if (task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
+    if (isSummaryTask(task) || isZeroDurationMilestone(task)) return null;
     if (!(task.time.earlyStart || task.time.scheduleStart) || !(task.time.earlyFinish || task.time.scheduleFinish)) {
       return null;
     }
@@ -2045,7 +2046,7 @@ export class GanttRenderer {
     // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als
     // gewone balk (regel ~940) en moet dus ook gewoon sleep-/resize-baar zijn, zoals elke andere
     // taak met een echte duur.
-    if (!task || task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
+    if (!task || isSummaryTask(task) || isZeroDurationMilestone(task)) return null;
     // Datumloos-guard (TODO 2026-07-28): barGeometry tekent voor zo'n taak een terugval-stub op de
     // viewstart, maar die mag geen sleep/resize armen — de drag-hooks zouden met undefined
     // originalStart/originalFinish rekenen.

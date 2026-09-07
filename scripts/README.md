@@ -43,6 +43,13 @@ aangeroepen:
 - `example-resources.ts` — de resourcepool
 - `example-topologies.json` — de relatienetwerken (117 kB data, geen code)
 
+## Meetlatdata genereren
+
+`node scripts/generate-p6-verified-cases.mjs <p6-comparison-map>` schrijft
+`tests/planning/cases-p6-verified.json` opnieuw uit de publieke P6 23.12-capture. Alleen
+`activity_code` en de `*_p6`-kolommen komen mee; kloktijden en actual-suffixen blijven onvertaald.
+De `*_engine`-kolommen en PASS-oordelen zijn uitdrukkelijk geen brondata voor deze generator.
+
 ## Release en publicatie
 
 | script | aangeroepen door | doet |

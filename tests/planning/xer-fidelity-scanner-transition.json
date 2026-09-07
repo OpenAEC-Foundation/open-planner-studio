@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "causeCommit": "1259787970eeff3118396534abd703e3debbe390",
+  "previousScannerCommit": "23953b063075eabfdb801dd431c9e7a9b24edd02",
+  "identityCoverageSha256": "aeb782e82349c313c5e148589d76f1f93c504836198f4fffb1a65d3c93ec1fde",
+  "scannerErrorsSha256": "210891c76446e067aafb4f5cd2033432061d9cb6448f7115c8f2676cce633d6f",
+  "missingStoredDateTransitions": {
+    "df264eb25ca8dc0e6e29d5ba5ba4a4e370f9126aecb99ab48e9fd4383f0287b7": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "9009", "taskId": "9216", "oldActualDerived": { "es": "2025-12-15T08:00", "ef": "2025-12-30T17:00", "ls": "2025-12-15T08:00", "lf": "2025-12-30T17:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] }
+      ]
+    },
+    "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "10093", "taskId": "130421", "oldActualDerived": { "es": "2024-12-10T08:00", "ef": "2024-12-10T08:00", "ls": "2024-12-10T08:00", "lf": "2024-12-10T08:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "10093", "taskId": "130422", "oldActualDerived": { "es": "2024-12-10T08:00", "ef": "2024-12-12T16:00", "ls": "2024-12-10T08:00", "lf": "2024-12-12T16:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "10093", "taskId": "130423", "oldActualDerived": { "es": "2024-12-12T08:00", "ef": "2024-12-20T16:00", "ls": "2024-12-12T08:00", "lf": "2024-12-20T16:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] }
+      ]
+    },
+    "2a7732b5b99de2a5f40aab40e0af52757fbe68e5d4eda404a9a060fdc1be1140": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "SP_PLAN", "taskId": "A1000", "oldActualDerived": { "es": "2026-01-05T00:00", "ef": "2026-01-05T00:00", "ls": "2026-01-05T00:00", "lf": "2026-01-05T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A2000", "oldActualDerived": { "es": "2026-01-19T00:00", "ef": "2026-01-19T00:00", "ls": "2026-01-19T00:00", "lf": "2026-01-19T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A2100", "oldActualDerived": { "es": "2026-01-16T00:00", "ef": "2026-01-16T00:00", "ls": "2026-01-16T00:00", "lf": "2026-01-16T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A2110", "oldActualDerived": { "es": "2026-01-30T00:00", "ef": "2026-01-30T00:00", "ls": "2026-01-30T00:00", "lf": "2026-01-30T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A2300", "oldActualDerived": { "es": "2026-02-09T00:00", "ef": "2026-02-13T00:00", "ls": "2026-02-09T00:00", "lf": "2026-02-13T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A3000", "oldActualDerived": { "es": "2026-01-05T00:00", "ef": "2026-01-09T00:00", "ls": "2026-01-05T00:00", "lf": "2026-01-09T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A3010", "oldActualDerived": { "es": "2026-01-19T00:00", "ef": "2026-01-31T00:00", "ls": "2026-01-19T00:00", "lf": "2026-01-31T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A3020", "oldActualDerived": { "es": "2026-01-12T00:00", "ef": "2026-01-19T00:00", "ls": "2026-01-12T00:00", "lf": "2026-01-19T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A3030", "oldActualDerived": { "es": "2026-02-02T00:00", "ef": "2026-02-11T00:00", "ls": "2026-02-02T00:00", "lf": "2026-02-11T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A4100", "oldActualDerived": { "es": "2026-01-26T00:00", "ef": "2026-02-13T00:00", "ls": "2026-01-26T00:00", "lf": "2026-02-13T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] },
+        { "projectId": "SP_PLAN", "taskId": "A4110", "oldActualDerived": { "es": "2026-02-02T00:00", "ef": "2026-02-13T00:00", "ls": "2026-02-02T00:00", "lf": "2026-02-13T00:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] }
+      ]
+    },
+    "2c1dce175b9f078111a48dc13fd1777f5fbd4cd7ab6623e647e7437330c60b7f": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "761", "taskId": "84381", "oldActualDerived": { "es": "2006-11-07T08:00", "ef": "2006-11-07T08:00", "ls": "2006-11-07T08:00", "lf": "2006-11-07T08:00" }, "currentStoredMissing": ["es", "ef", "ls", "lf"] }
+      ]
+    },
+    "a7fc367eab6c904e6659a8206b9a162df132824c630e6175665c8a63f054104b": {
+      "corpusOccurrences": 2,
+      "tasks": [
+        { "projectId": "1", "taskId": "10", "oldActualDerived": { "ls": "2026-01-05T08:00", "lf": "2026-05-20T17:00" }, "currentStoredMissing": ["ls", "lf"] },
+        { "projectId": "1", "taskId": "80", "oldActualDerived": { "lf": "2026-05-20T17:00" }, "currentStoredMissing": ["lf"] }
+      ]
+    },
+    "a132f8c7ebb070d29936b8852c6dca772ebb547c0ade91c17c96425e37e63818": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "1000", "taskId": "1100", "oldActualDerived": { "ls": "2026-01-05T00:00", "lf": "2026-01-05T00:00" }, "currentStoredMissing": ["ls", "lf"] },
+        { "projectId": "1000", "taskId": "1101", "oldActualDerived": { "ls": "2026-01-06T00:00", "lf": "2026-02-09T00:00" }, "currentStoredMissing": ["ls", "lf"] }
+      ]
+    },
+    "ac4b9d677133c6edcd6129050f32233e77c9d62ef06c7caac0dbf1da0d1e43ab": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "1000", "taskId": "1100", "oldActualDerived": { "ls": "2026-01-05T00:00", "lf": "2026-01-05T00:00" }, "currentStoredMissing": ["ls", "lf"] }
+      ]
+    },
+    "790b90fda837bad342658bf2c712cf6c39ab6adcd812e67edf93cda1c7eb362f": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "1000", "taskId": "1100", "oldActualDerived": { "ls": "2026-01-05T00:00", "lf": "2026-01-05T00:00" }, "currentStoredMissing": ["ls", "lf"] },
+        { "projectId": "1000", "taskId": "1101", "oldActualDerived": { "ls": "2026-01-06T00:00", "lf": "2026-02-09T00:00" }, "currentStoredMissing": ["ls", "lf"] }
+      ]
+    },
+    "78325fb6445d22f5949bf05c1e0afe3e14b72efc9cc9480800eab4bf2b0a1056": {
+      "corpusOccurrences": 1,
+      "tasks": [
+        { "projectId": "1000", "taskId": "1100", "oldActualDerived": { "ls": "2026-01-05T00:00", "lf": "2026-01-05T00:00" }, "currentStoredMissing": ["ls", "lf"] }
+      ]
+    }
+  },
+  "oracleFingerprintTransitions": {
+    "146e4c8659bad066b298988613dec178ce63f3a2c35415937b3d70a8f8ef8158": { "old": "e6e701b2eb7cd2fd", "current": "789d55d2260a50b8" },
+    "1ba8cf1885491db3c19ebffc85fbd33935345ef9effb386a8da33226e665f9ab": { "old": "f81e7c7d61b45f91", "current": "6431acce233a860e" },
+    "1d7901d68cc7063b59dcedacc3eeae8d2c89178516421c09ae38ff523429e3af": { "old": "d14f605d6a854880", "current": "84d6d8bd748871eb" },
+    "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": { "old": "9415c811af9cd8cf", "current": "ec668c11ba3d5921" },
+    "2c1dce175b9f078111a48dc13fd1777f5fbd4cd7ab6623e647e7437330c60b7f": { "old": "c6a7ada359dc738c", "current": "2493349dd14f7fb3" },
+    "53f5cdbeb3fbd9c6cb252a48c2ad9206f1f2ab44215372f83199df3a90803ffd": { "old": "edb0bca25b371266", "current": "e5ee686e1f756d6f" },
+    "55b7e4463dcd36ba02eae072445e8fc2cc684a188e40c588b05321963a362c5e": { "old": "3f976da19fabf0b7", "current": "96a23d026fc67de2" },
+    "78325fb6445d22f5949bf05c1e0afe3e14b72efc9cc9480800eab4bf2b0a1056": { "old": "8cc9c1c456a80b52", "current": "54e563aaa3c0212e" },
+    "790b90fda837bad342658bf2c712cf6c39ab6adcd812e67edf93cda1c7eb362f": { "old": "b8ea5c0682122f82", "current": "752e6b19354f9396" },
+    "a132f8c7ebb070d29936b8852c6dca772ebb547c0ade91c17c96425e37e63818": { "old": "cf7f7bf2470c4e6e", "current": "a1160804bdaed88e" },
+    "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae": { "old": "2168c6d533f62f7b", "current": "c860b3291dba9ee1" },
+    "a7fc367eab6c904e6659a8206b9a162df132824c630e6175665c8a63f054104b": { "old": "3b0d135d5ce02f18", "current": "8c46c34ac267acaa" },
+    "ac4b9d677133c6edcd6129050f32233e77c9d62ef06c7caac0dbf1da0d1e43ab": { "old": "b83f7fe67823738b", "current": "d48ece7ca76541f4" },
+    "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167": { "old": "380e546c56886af3", "current": "a81fedfd4aaa73d8" }
+  }
+}

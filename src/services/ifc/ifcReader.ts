@@ -25,6 +25,18 @@ import {
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
+import type { XerImportMetadata } from '@/services/importTypes';
+import {
+  bindXerImportMetadataToArchive, createXerSourceArchiveFromOwnedMetadata, decodeXerBase64Chunk,
+  parseXerArchiveMetadataPayload, sha256Hex,
+  XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION,
+  XER_SOURCE_ARCHIVE_SCHEMA_VERSION, type XerSourceArchive, type XerSourceArchiveBom,
+  type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
+  type XerSourceReconstruction,
+} from '@/services/xerSourceArchive';
+import { sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -35,6 +47,46 @@ import {
 // registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
 
 const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
+
+/**
+ * Expliciete injectienaad: de compacte schema-2-envelope bewaart alleen bronbytes; de zware,
+ * lazy XER-reader levert de afleiding daarvan uitsluitend via de officiële async ingang.
+ *
+ * ONTWERPKEUZE T5 — "datums zoals opgeslagen" (issue #63, XER-laag 3) overleeft een IFC-opslag en
+ * -heropening via DEZE naad, niet via een eigen `OPS_`-pset; het etappeplan §3.8 hield beide routes
+ * open. Afweging:
+ *
+ *  - *Geen tweede afleiding.* De reconstructie draait al een volledige `readXER` over bytes die
+ *    hieronder op sha256 zijn geverifieerd. De bak-4-vastlegging die daaruit komt is per
+ *    constructie identiek aan die van het oorspronkelijke openen — zelfde kalenderpromotie
+ *    (`promoteHourCalendar`), zelfde dag/uur-representatie (`sourceInstant`), zelfde getalnotatie
+ *    (`parseXerNumber`). Zelf herrekenen uit `readModel.taskSourceRowsByProject` zou die drie in de
+ *    IFC-laag moeten NABOOTSEN op gereconstrueerde kalenders — precies de stille faalmodus die plan
+ *    §5.2 aanwijst (één representatieverschil ⇒ élke taak telt als "verschoven").
+ *  - *De chunkgrens blijft heel.* `parseXerNumber` woont in de tokenizer (`xerTables.ts`); die
+ *    hier statisch importeren trekt de hele XER-parser de hoofdbundel in.
+ *  - *Id-matching is al opgelost.* XER-taak-id's ZIJN de rauwe `task_id`-cellen, en
+ *    `OPS_TaskIdentity` draagt exact die id's door de opslag heen (zie `stableIfcTaskId`).
+ *    Baselinetaken hangen aan een `.BASELINE.`-IfcWorkSchedule en worden in `extractTasks`
+ *    overgeslagen, dus hun eigen GUID-remap (`extractBaselines`) raakt deze koppeling niet.
+ *  - *Werkt óók bij opslaan buiten de modus.* Een pset had `recordedDates` moeten meeschrijven —
+ *    maar `runCPM` WIST dat veld bij het verlaten van de modus, dus opslaan ná een herberekening zou
+ *    de vastlegging verliezen. De bronroute is herkomstgedreven en daarmee modus-onafhankelijk.
+ *  - *Kosten:* geen contractwijziging (`DOCUMENT_FIELDS`, `IFC_SAVE_KEYS` en daarmee
+ *    `sameIFCSource`/`isDirty` blijven ongemoeid) en geen extra parse — die `readXER` liep al.
+ *
+ * BEKENDE GRENS: historische schema-1-archieven (niet-compact) krijgen géén `recordedTimes` terug.
+ * `readIFCWithXerReconstruction` geeft voor die vorm bewust geen reconstructor mee (dat pad blijft
+ * synchroon, zonder XER-chunk) en het schema-1-leesmodel draagt de vastlegging niet zelf. Alleen
+ * pre-schema-2-builds schreven die vorm; de huidige writer schrijft uitsluitend schema 2.
+ */
+export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceReconstruction;
+
+export interface IfcReadOptions {
+  /** Alleen `readIFCWithXerReconstruction` vult dit. De lage sync-lezer mag schema-2 nooit
+   * afhankelijk maken van een toevallig eerder geïmporteerde module. */
+  reconstructXerArchive?: XerArchiveReconstructor;
+}
 
 interface StepEntity {
   id: string; // STEP entity ID (may include letters, e.g. "300T")
@@ -95,7 +147,11 @@ export const DEFAULT_IMPORTED_PROJECT_NAME = 'Imported project';
  * alleen de projectnaam voor een bestand zónder `IFCPROJECT`. Weglaten is toegestaan en levert de
  * Engelse default; zie `ImportLabels`.
  */
-export function readIFC(content: string, labels: ImportLabels = {}): ImportResult {
+export function readIFC(
+  content: string,
+  labels: ImportLabels = {},
+  options: IfcReadOptions = {},
+): ImportResult {
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project (K4).
   assertIfcIntegrity(content);
   const entities = parseSTEP(content);
@@ -113,6 +169,19 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
 
   // Extract project
   const project = extractProject(entities, entityMap, labels);
+  const xerSource = extractXerSourceArchive(entities, entityMap, options.reconstructXerArchive);
+  const xerSourceArchive = xerSource?.archive;
+  const xerSourceProjectId = extractXerSourceProjectId(entities, entityMap, xerSourceArchive);
+  const xer = extractXerImportMetadata(xerSourceArchive, xerSourceProjectId);
+  // T5 — "datums zoals opgeslagen" over een IFC-opslag/heropening heen. GEEN eigen pset en geen
+  // eigen afleiding: dit is letterlijk de map die `readXER` over dezelfde, sha256-geverifieerde
+  // bronbytes maakte (zie `XerArchiveReconstructor` hierboven voor de volledige afweging). De
+  // selector `OPS_XerDocument` kiest het project; een bestand zonder XER-archief, met een onbekende
+  // selector of uit een historische schema-1-envelope houdt `recordedTimes` afwezig en gedraagt
+  // zich daarmee byte-identiek aan vóór T5.
+  const recordedTimes = xerSourceProjectId
+    ? xerSource?.recordedTimesByProject[xerSourceProjectId]
+    : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
@@ -120,7 +189,10 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
   );
-  const sequences = extractSequences(entities, entityMap, taskStepIdMap);
+  const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
+    entities, entityMap, new Set(taskStepIdMap.keys()),
+  );
+  const sequences = extractSequences(entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
@@ -151,6 +223,7 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   const { activityCodeTypes, customFieldDefs } = extractStructure(
     entities, entityMap, project, tasks, taskStepIdMap, libraryPoolOut, projectStartRecorded,
   );
+  for (const task of tasks) reconcileP6SuspendResume(task);
   const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   // Z14b (Z8-nataak, F1-fixronde) — LAAG-4-kalenderwandelingen, eigen pset (zie de functie se
   // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
@@ -201,7 +274,265 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
     recordedFields,
+    // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive', NIET 'xer'
+    // — deze route is een HEROPENING, geen verse import. `applyRecordedDatesOnLoad` zet de modus
+    // alleen automatisch aan bij 'xer'; 'xer-archive' krijgt uitsluitend het #63-AANBOD, want een
+    // intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
+    // tonen. Zie `importTypes.ts` (`recordedTimesOrigin`) voor het volledige onderscheid.
+    ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const } : {}),
+    ...(xerSourceArchive ? { xerSourceArchive } : {}),
+    ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
+    ...(xer ? { xer } : {}),
   };
+}
+
+function extractXerImportMetadata(
+  archive: XerSourceArchive | undefined, sourceProjectId: string | undefined,
+): XerImportMetadata | undefined {
+  if (!archive || !sourceProjectId) return undefined;
+  try {
+    return bindXerImportMetadataToArchive(archive, sourceProjectId);
+  } catch (error) {
+    xerArchiveError(error instanceof Error ? error.message : 'selectorview is ongeldig');
+  }
+}
+
+function extractXerSourceProjectId(
+  entities: StepEntity[], entityMap: Map<string, StepEntity>, archive: XerSourceArchive | undefined,
+): string | undefined {
+  const props = archiveProps(entities, entityMap, PSET.XerDocument);
+  if (!props) {
+    if (archive) xerArchiveError('OPS_XerDocument-selector ontbreekt');
+    return undefined;
+  }
+  if (!archive) xerArchiveError('OPS_XerDocument bestaat zonder OPS_XerSourceArchive');
+  if (JSON.stringify([...props.keys()]) !== JSON.stringify(['ArchiveSha256', 'SourceProjectId'])) {
+    xerArchiveError('OPS_XerDocument-properties zijn niet exact en deterministisch geordend');
+  }
+  if (requiredString(props, 'ArchiveSha256') !== archive.sha256) xerArchiveError('selector ArchiveSha256 wijst niet naar het archief');
+  return requiredString(props, 'SourceProjectId');
+}
+
+function xerArchiveError(message: string): never {
+  throw new IfcParseError('xer-source-archive', `Ongeldig OPS_XerSourceArchive: ${message}`);
+}
+
+function archiveProps(entities: StepEntity[], entityMap: Map<string, StepEntity>, psetName: string): Map<string, unknown> | undefined {
+  const sets = entities.filter(entity => entity.type === 'IFCPROPERTYSET' && stripQuotes(entity.args[2] || '') === psetName);
+  if (sets.length === 0) return undefined;
+  if (sets.length !== 1) xerArchiveError(`Pset '${psetName}' komt ${sets.length} keer voor`);
+  const projects = entities.filter(entity => entity.type === 'IFCPROJECT');
+  if (projects.length !== 1) xerArchiveError(`Pset '${psetName}' vereist exact één IFCPROJECT; gevonden: ${projects.length}`);
+  const project = projects[0]!;
+  const attachments = entities.filter(entity =>
+    entity.type === 'IFCRELDEFINESBYPROPERTIES'
+    && parseRef(entity.args[5] || '') === sets[0]!.id,
+  );
+  if (!project || attachments.length !== 1
+    || JSON.stringify(parseRefs(attachments[0]!.args[4] || '')) !== JSON.stringify([project.id])) {
+    xerArchiveError(`Pset '${psetName}' hangt niet één-op-één aan IFCPROJECT`);
+  }
+  const values = new Map<string, unknown>();
+  for (const ref of parseRefs(sets[0]!.args[4] || '')) {
+    const prop = entityMap.get(ref);
+    if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') xerArchiveError(`property '${ref}' ontbreekt of is geen single value`);
+    const name = stripQuotes(prop.args[0] || '');
+    if (!name || values.has(name)) xerArchiveError(`property '${name || ref}' ontbreekt of is dubbel`);
+    values.set(name, parseTypedValue(prop.args[2] || ''));
+  }
+  return values;
+}
+
+function validateArchivePropertyOrder(
+  props: Map<string, unknown>, manifestNames: readonly string[], chunkCount: number, diagnosticsCount: number,
+): void {
+  const propertyBudget = props.size - manifestNames.length;
+  if (propertyBudget < 0
+    || chunkCount > propertyBudget
+    || diagnosticsCount > propertyBudget - chunkCount) {
+    xerArchiveError('chunkcounts overschrijden het werkelijk aanwezige propertybudget');
+  }
+  if (chunkCount + diagnosticsCount !== propertyBudget) {
+    xerArchiveError('chunkcounts passen niet exact bij het werkelijk aanwezige propertybudget');
+  }
+  let position = 0;
+  for (const actual of props.keys()) {
+    let expected: string;
+    if (position < manifestNames.length) {
+      expected = manifestNames[position]!;
+    } else if (position < manifestNames.length + chunkCount) {
+      expected = `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+    } else {
+      expected = `DiagnosticsChunk${String(position - manifestNames.length - chunkCount).padStart(6, '0')}`;
+    }
+    if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
+    position += 1;
+  }
+}
+
+function validateCompactArchivePropertyOrder(
+  props: Map<string, unknown>, manifestNames: readonly string[], chunkCount: number,
+): void {
+  const propertyBudget = props.size - manifestNames.length;
+  if (propertyBudget < 0 || chunkCount !== propertyBudget) {
+    xerArchiveError('chunkcount past niet exact bij het werkelijk aanwezige propertybudget');
+  }
+  let position = 0;
+  for (const actual of props.keys()) {
+    const expected = position < manifestNames.length
+      ? manifestNames[position]!
+      : `ByteChunk${String(position - manifestNames.length).padStart(6, '0')}`;
+    if (actual !== expected) xerArchiveError('properties zijn niet uniek en deterministisch geordend');
+    position += 1;
+  }
+}
+
+function nonNegativeSafeInteger(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) xerArchiveError(`${name} is geen niet-negatief safe integer`);
+  return value;
+}
+
+function requiredString(props: Map<string, unknown>, name: string): string {
+  const value = props.get(name);
+  if (typeof value !== 'string' || !value) xerArchiveError(`${name} ontbreekt of is geen tekenreeks`);
+  return value;
+}
+
+function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count: number, expectedLength: number): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  for (let index = 0; index < count; index++) {
+    const name = `${prefix}${String(index).padStart(6, '0')}`;
+    const raw = requiredString(props, name);
+    if (index < count - 1 && raw.includes('=')) xerArchiveError(`${name} bevat verboden base64-padding vóór de laatste chunk`);
+    let decoded: Uint8Array;
+    try { decoded = decodeXerBase64Chunk(raw); } catch { xerArchiveError(`${name} bevat ongeldige base64`); }
+    const expectedChunkLength = index === count - 1 ? expectedLength - index * XER_SOURCE_ARCHIVE_CHUNK_BYTES : XER_SOURCE_ARCHIVE_CHUNK_BYTES;
+    if (decoded.length !== expectedChunkLength) xerArchiveError(`${name} heeft ${decoded.length} i.p.v. ${expectedChunkLength} bytes`);
+    chunks.push(decoded);
+  }
+  for (const name of props.keys()) {
+    if (!name.startsWith(prefix)) continue;
+    if (name === `${prefix}Size` || name === `${prefix}Count`) continue;
+    const suffix = name.slice(prefix.length);
+    if (!/^\d{6}$/.test(suffix) || Number(suffix) >= count) xerArchiveError(`${name} ligt buiten de aaneengesloten chunkreeks`);
+  }
+  let output: Uint8Array;
+  try { output = new Uint8Array(expectedLength); } catch { xerArchiveError('byteLength kan op dit platform niet worden gealloceerd'); }
+  let offset = 0;
+  for (const chunk of chunks) { output.set(chunk, offset); offset += chunk.length; }
+  return output;
+}
+
+/** Lees en valideer vóór allocatie de self-contained X9-container; afwezig blijft legacy-compatibel.
+ *  Levert sinds T5 de volledige `XerSourceReconstruction`; de schema-1-tak draagt geen vastlegging
+ *  (zie de bekende grens bij `XerArchiveReconstructor`) en geeft daar een lege map bij. */
+function extractXerSourceArchive(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  reconstructXerArchive: XerArchiveReconstructor | undefined,
+): XerSourceReconstruction | undefined {
+  const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
+  if (!props) return undefined;
+  const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion');
+  if (schemaVersion === XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION) {
+    return extractCompactXerSourceArchive(props, reconstructXerArchive);
+  }
+  if (schemaVersion !== XER_SOURCE_ARCHIVE_SCHEMA_VERSION) xerArchiveError(`onbekend SchemaVersion ${schemaVersion}`);
+  if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
+  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
+  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
+  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength');
+  const diagnosticsLength = nonNegativeSafeInteger(props.get('DiagnosticsByteLength'), 'DiagnosticsByteLength');
+  const diagnosticsCount = nonNegativeSafeInteger(props.get('DiagnosticsChunkCount'), 'DiagnosticsChunkCount');
+  if (diagnosticsCount !== Math.ceil(diagnosticsLength / chunkSize)) xerArchiveError('DiagnosticsChunkCount past niet bij DiagnosticsByteLength');
+  const manifestNames = [
+    'SchemaVersion', 'Format', 'ByteLength', 'Sha256', 'Encoding', 'Bom', 'Newline',
+    'ByteChunkSize', 'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
+  ];
+  validateArchivePropertyOrder(props, manifestNames, chunkCount, diagnosticsCount);
+  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
+  const diagnosticBytes = concatArchiveChunks(props, 'DiagnosticsChunk', diagnosticsCount, diagnosticsLength);
+  const sourceHash = requiredString(props, 'Sha256');
+  const diagnosticsHash = requiredString(props, 'DiagnosticsSha256');
+  if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) xerArchiveError('Sha256 is ongeldig of past niet bij de bytes');
+  if (!/^[0-9a-f]{64}$/.test(diagnosticsHash) || sha256Hex(diagnosticBytes) !== diagnosticsHash) xerArchiveError('DiagnosticsSha256 is ongeldig of past niet bij de diagnostics');
+  let archiveMetadata: XerArchiveMetadataPayloadV1;
+  try {
+    const parsed: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(diagnosticBytes));
+    archiveMetadata = parseXerArchiveMetadataPayload(parsed);
+  } catch (error) {
+    if (error instanceof IfcParseError) throw error;
+    xerArchiveError(`diagnostics/readmodel is ongeldig: ${error instanceof Error ? error.message : 'geen geldige JSON'}`);
+  }
+  const encoding = requiredString(props, 'Encoding');
+  const bom = requiredString(props, 'Bom');
+  const newline = requiredString(props, 'Newline');
+  if (!(['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'] as readonly string[]).includes(encoding)) xerArchiveError('Encoding is onbekend');
+  if (!(['none', 'utf-8', 'utf-16le', 'utf-16be'] as readonly string[]).includes(bom)) xerArchiveError('Bom is onbekend');
+  if (!(['lf', 'crlf', 'cr', 'mixed', 'none'] as readonly string[]).includes(newline)) xerArchiveError('Newline is onbekend');
+  try {
+    // Schema 1 draagt geen bak-4-vastlegging: het leesmodel bewaart de TASK-bronrijen wél, maar de
+    // omrekening ervan vraagt de XER-kalender-/getallaag, en dit pad loopt bewust ZONDER die chunk.
+    return {
+      archive: createXerSourceArchiveFromOwnedMetadata(sourceBytes, {
+        schemaVersion,
+        encoding: encoding as XerSourceArchiveEncoding,
+        bom: bom as XerSourceArchiveBom,
+        newline: newline as XerSourceArchiveNewline,
+        diagnostics: archiveMetadata.diagnostics,
+        readModel: archiveMetadata.readModel,
+      }),
+      recordedTimesByProject: {},
+    };
+  } catch (error) {
+    xerArchiveError(`diagnostics/readmodel kon niet worden opgebouwd: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/** Schema 2 bevat alleen de bronbytes. Alle afleidbare X9-caches herleven uit die bron. */
+function extractCompactXerSourceArchive(
+  props: Map<string, unknown>,
+  reconstructXerArchive: XerArchiveReconstructor | undefined,
+): XerSourceReconstruction {
+  if (requiredString(props, 'Format') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer');
+  if (requiredString(props, 'StorageFormat') !== XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT) {
+    xerArchiveError('StorageFormat is onbekend');
+  }
+  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
+  const chunkSize = nonNegativeSafeInteger(props.get('ByteChunkSize'), 'ByteChunkSize');
+  if (chunkSize !== XER_SOURCE_ARCHIVE_CHUNK_BYTES) xerArchiveError(`ByteChunkSize is niet ${XER_SOURCE_ARCHIVE_CHUNK_BYTES}`);
+  const chunkCount = nonNegativeSafeInteger(props.get('ByteChunkCount'), 'ByteChunkCount');
+  if (chunkCount !== Math.ceil(byteLength / chunkSize)) xerArchiveError('ByteChunkCount past niet bij ByteLength');
+  const manifestNames = [
+    'SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256', 'ByteChunkSize', 'ByteChunkCount',
+  ];
+  validateCompactArchivePropertyOrder(props, manifestNames, chunkCount);
+  const sourceBytes = concatArchiveChunks(props, 'ByteChunk', chunkCount, byteLength);
+  const sourceHash = requiredString(props, 'Sha256');
+  if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) {
+    xerArchiveError('Sha256 is ongeldig of past niet bij de bytes');
+  }
+  try {
+    if (!reconstructXerArchive) {
+      xerArchiveError(
+        'compacte bron vereist readIFCWithXerReconstruction; de lage synchrone readIFC-ingang ' +
+        'laadt de XER-reader bewust niet zelf',
+      );
+    }
+    const reconstruction = reconstructXerArchive(sourceBytes);
+    const archive = reconstruction.archive;
+    if (archive.sha256 !== sourceHash || archive.byteLength !== byteLength) {
+      xerArchiveError('gereconstrueerd archief past niet bij de canonieke bronbytes');
+    }
+    // De hashpoort hierboven geldt daarmee ook voor `recordedTimesByProject`: die map komt uit
+    // dezelfde `readXER` over dezelfde, geverifieerde bytes.
+    return reconstruction;
+  } catch (error) {
+    if (error instanceof IfcParseError) throw error;
+    xerArchiveError(`compacte bron kon niet worden gereconstrueerd: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // ── STEP-tekstscan: één quote-bewuste toestandsmachine voor álle lagen (bevinding K2) ───────────
@@ -983,6 +1314,7 @@ function extractSequences(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
+  p6BoundarySequenceGuids: ReadonlySet<string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -1071,10 +1403,71 @@ function extractSequences(
     if (lagUnit) seq.lagUnit = lagUnit;
     if (lagPercent !== undefined) seq.lagPercent = lagPercent;
     if (lagMinutes !== undefined) seq.lagMinutes = lagMinutes;
+    if (p6BoundarySequenceGuids.has(stripQuotes(se.args[0] || ''))) {
+      seq.p6StartAtPredecessorFinishBoundary = true;
+    }
     sequences.push(seq);
   }
 
   return sequences;
+}
+
+/**
+ * X12: lees de relationele P6-grensmetadata. De pset hangt schema-geldig op de IfcWorkSchedule;
+ * de payload bevat daarom IfcRelSequence-GlobalIds in plaats van vluchtige OPS-relatie-id's.
+ * Corrupt/ongeldig metadata blijft inert: alleen een volledige string-array activeert een vlag.
+ */
+function extractP6BoundarySequenceGuids(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  liveTaskStepIds: ReadonlySet<string>,
+): Set<string> {
+  // Alleen een niet-baseline schema dat de daadwerkelijk ingelezen live taken bestuurt/nest,
+  // is voor deze import het relevante IfcWorkSchedule. Een gelijknamige losse pset is geen bewijs.
+  const relevantScheduleIds = new Set<string>();
+  for (const entity of entities) {
+    if (entity.type === 'IFCRELNESTS') {
+      const scheduleId = parseRef(entity.args[4] || '');
+      const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !(schedule.args[14] || '').includes('BASELINE')
+        && parseRefs(entity.args[5] || '').some(id => liveTaskStepIds.has(id))) {
+        relevantScheduleIds.add(scheduleId!);
+      }
+    } else if (entity.type === 'IFCRELASSIGNSTOCONTROL') {
+      const scheduleId = parseRef(entity.args[6] || '');
+      const schedule = scheduleId ? entityMap.get(scheduleId) : undefined;
+      if (schedule?.type === 'IFCWORKSCHEDULE' && !(schedule.args[14] || '').includes('BASELINE')
+        && parseRefs(entity.args[4] || '').some(id => liveTaskStepIds.has(id))) {
+        relevantScheduleIds.add(scheduleId!);
+      }
+    }
+  }
+
+  const accepted: Set<string>[] = [];
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    const owners = parseRefs(rel.args[4] || '');
+    if (owners.length !== 1 || !relevantScheduleIds.has(owners[0])) continue;
+    const entity = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!entity || entity.type !== 'IFCPROPERTYSET'
+      || stripQuotes(entity.args[2] || '') !== PSET.Sequences) continue;
+    for (const propRef of parseRefs(entity.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string') continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every(value => typeof value === 'string' && value.length > 0)) {
+          accepted.push(new Set(parsed));
+        }
+      } catch { /* corrupt relationeel bronmetadata blijft inert */ }
+    }
+  }
+  // Meer dan één geldige bron voor dezelfde semantiek is ambigu en faalt gesloten. Een orphan of
+  // pset op een ander schema telt niet mee en kan een latere geldige koppeling dus niet maskeren.
+  return accepted.length === 1 ? accepted[0] : new Set();
 }
 
 /** Parse een getypeerd NominalValue zoals IFCTEXT('x'), IFCREAL(1.5), IFCBOOLEAN(.T.),
@@ -1643,11 +2036,16 @@ function extractCalendarHourMode(
  * property ⇒ `undefined` — de aanroeper valt dan terug op "alles in ExceptionTimes is een
  * feestdag", het conservatieve pre-T5-gedrag voor bestanden zonder deze markering.
  */
-function extractWorkingExceptionStepIds(
+function extractCalendarExceptionMetadata(
   calStepId: string,
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-): Set<string> | undefined {
+): {
+  workingExceptionIds?: Set<string>;
+  p6Source?: 'XER';
+  p6NonWorkPenaltyDates?: string[];
+  p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
+} {
   for (const rel of entities) {
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     const objectRefs = parseRefs(rel.args[4] || '');
@@ -1659,19 +2057,66 @@ function extractWorkingExceptionStepIds(
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
 
+    const result: {
+      workingExceptionIds?: Set<string>;
+      p6Source?: 'XER';
+      p6NonWorkPenaltyDates?: string[];
+      p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
+    } = {};
+    let p6SourceSeen = false;
+    let rejectedDiagnosticSeen = false;
+    let penaltyState: import('@/types/calendar').P6NonWorkPenaltyDatesState = 'ABSENT';
+    let candidatePenaltyDates: string[] | undefined;
     for (const prop of props) {
-      if (stripQuotes(prop.args[0] || '') !== 'WorkingExceptionIds') continue;
+      const name = stripQuotes(prop.args[0] || '');
+      if (name !== 'WorkingExceptionIds' && name !== 'P6Source'
+        && name !== 'P6NonWorkPenaltyDates' && name !== 'P6NonWorkPenaltyDatesState') continue;
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
+      if (name === 'P6NonWorkPenaltyDatesState') {
+        if (value === 'REJECTED') rejectedDiagnosticSeen = true;
+        continue;
+      }
+      if (name === 'P6Source') {
+        if (value === 'XER') p6SourceSeen = true;
+        continue;
+      }
       try {
         const parsed = JSON.parse(value);
-        if (Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
-          return new Set(parsed);
+        if (name === 'WorkingExceptionIds'
+          && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
+          result.workingExceptionIds = new Set(parsed);
+        } else if (name === 'P6NonWorkPenaltyDates' && Array.isArray(parsed)) {
+          const dates = parsed.filter((candidate): candidate is string => {
+            if (typeof candidate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return false;
+            const date = new Date(`${candidate}T00:00:00Z`);
+            return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === candidate;
+          });
+          if (dates.length === parsed.length) {
+            candidatePenaltyDates = [...new Set(dates)];
+            penaltyState = candidatePenaltyDates.length === 0 ? 'VALID_EMPTY' : 'VALID_VALUES';
+          } else {
+            penaltyState = 'REJECTED';
+          }
+        } else if (name === 'P6NonWorkPenaltyDates') {
+          penaltyState = 'REJECTED';
         }
-      } catch { /* corrupte JSON: negeren — valt terug op "alles is feestdag" */ }
+      } catch {
+        if (name === 'P6NonWorkPenaltyDates') penaltyState = 'REJECTED';
+      }
     }
+    if (!rejectedDiagnosticSeen && p6SourceSeen
+      && (penaltyState === 'VALID_EMPTY' || penaltyState === 'VALID_VALUES')) {
+      result.p6Source = 'XER';
+      result.p6NonWorkPenaltyDates = candidatePenaltyDates ?? [];
+      result.p6NonWorkPenaltyDatesState = penaltyState;
+    } else if (rejectedDiagnosticSeen || p6SourceSeen) {
+      // All-or-nothing: ontbrekende of corrupte lijst mag de XER-stempel niet half actief laten.
+      result.p6NonWorkPenaltyDatesState = rejectedDiagnosticSeen ? 'REJECTED' : penaltyState;
+    }
+    return result;
   }
-  return undefined;
+  return {};
 }
 
 /** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit: naam/omschrijving/feestdagen
@@ -1762,7 +2207,8 @@ function buildCalendarFromEntity(
   // pset-check als WERKDAG worden ingelezen — een regressie t.o.v. het conservatieve pre-T5-gedrag.
   // Geen markering (eigen bestand van vóór deze herziening, of extern) ⇒ alles in ExceptionTimes
   // is een feestdag, óók met een gevulde recurrence-ref.
-  const workingExceptionIds = extractWorkingExceptionStepIds(cal.id, entities, entityMap);
+  const calendarExceptionMetadata = extractCalendarExceptionMetadata(cal.id, entities, entityMap);
+  const workingExceptionIds = calendarExceptionMetadata.workingExceptionIds;
   const exceptionRefs = parseRefs(cal.args[6] || '');
   const holidays: Holiday[] = [];
   const workingExceptions: WorkingException[] = [];
@@ -1821,6 +2267,13 @@ function buildCalendarFromEntity(
   // een expliciete lege array — beide zijn overal `?? []`-equivalent, dus geen gedragsverschil.
   calendar.holidays = holidays;
   if (workingExceptions.length > 0) calendar.workingExceptions = workingExceptions;
+  if (calendarExceptionMetadata.p6Source === 'XER') {
+    calendar.p6Source = 'XER';
+    calendar.p6NonWorkPenaltyDates = calendarExceptionMetadata.p6NonWorkPenaltyDates ?? [];
+  }
+  if (calendarExceptionMetadata.p6NonWorkPenaltyDatesState) {
+    calendar.p6NonWorkPenaltyDatesState = calendarExceptionMetadata.p6NonWorkPenaltyDatesState;
+  }
 
   // §4.3/§8.2 golden rule: createDefaultCalendar() zet altijd `generation` (nieuwe projecten zijn
   // per definitie gegenereerd) — een uit IFC gelezen kalender is dat NIET tenzij de OPS_Calendar-
@@ -2330,6 +2783,8 @@ function extractTimephasedDurationWalksMeta(
  * Fase 2.9 (§3.4/§6) — scheduling-options teruglezen uit het autoritatieve `OPS_SchedulingOptions`-
  * JSON op de `IfcWorkSchedule` (spiegel van `writeSchedulingOptionsMeta`, exact het extractBaselines-
  * patroon). Afwezig/corrupt ⇒ `undefined` (default-inert; alle solver-defaults blijven staan).
+ * Het geparste object gaat door `sanitizeSchedulingOptions` (eindreview bevinding 4): onbekende
+ * sleutels en verkeerd getypeerde waarden vallen weg in plaats van ongefilterd de solver in te gaan.
  */
 function extractSchedulingOptions(
   entities: StepEntity[],
@@ -2344,10 +2799,7 @@ function extractSchedulingOptions(
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string' || !raw) continue;
       try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return parsed as SchedulingOptions;
-        }
+        return sanitizeSchedulingOptions(JSON.parse(raw));
       } catch { /* corrupte JSON — negeer, opties blijven op default */ }
     }
   }
