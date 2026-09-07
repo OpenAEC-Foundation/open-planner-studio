@@ -759,8 +759,14 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
   rehab-2's Arabische taaknamen renderen als Windows-1252-mojibake: het bestand is geen geldige
   UTF-8 en de X-O4-heuristiek kent alleen 1252 als terugval; de openingsmelding noemt de keuze.
   Pre-existent (X-O4), niet deze etappe; een 1256-/CURRTYPE-taal-hint is een eigen afweging.
-- **X11-evidence (`npm run test:browser:x11`, headed, vier scenario's onder Xvfb):** zie de
-  PR-tekst voor de uitkomst van deze sessie; §10.e hieronder.
+- **X11-evidence (`npm run test:browser:x11`) — ZEKER: niet uitvoerbaar vanuit een verse clone.**
+  Het script pint `PHASE_2A_BASE = 790d6cd8…` en die commit bestaat in geen enkele ref of tag op
+  origin (volledige fetch, 1.948 commits); het git-bewijs stopt dan met "fase-2A-basis niet
+  leesbaar" in alle vier de scenario's (small-a, multidoc-help, multidoc-recovery,
+  large-resources; Xvfb, Chromium 1194 via `OPS_CHROMIUM_PATH`). De X11-uitkomsten in de
+  ochtendversie van deze paragraaf zijn dus alleen op de machine van de eigenaar reproduceerbaar
+  (AFGELEID). Fix hoort bij het script: een basis kiezen die op origin bestaat, of de basis uit
+  een gepushte tag lezen.
 
 ### 10.d Dossier 7b-4
 
@@ -768,10 +774,14 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
 
 ### 10.e Poorten op de kop van de branch
 
-- **ZEKER.** Corpusloos: `npm run verify` — zie de PR-tekst voor de exacte uitkomst van de laatste
-  run op `1339d9b9` (typecheck, lint, planning 560/560 + TZ-matrix, library, mcp 39, dev-server,
-  browser, examples, docs, i18n, store-/gantt-boundaries, cycles). Mét corpus: planning rood op
-  uitsluitend de drie nuldoel-regels (10.b).
+- **ZEKER.** Corpusloos `npm run verify` op `1339d9b9`: typecheck, lint, planning 560/560 + 5-TZ-
+  matrix, library, mcp 39, dev-server groen; `test:browser` 119 passed / 2 failed — beide
+  `just-updated-dialog.spec.ts` op `net::ERR_CERT_AUTHORITY_INVALID` (de TLS-proxy van de
+  sessieomgeving vóór de GitHub Releases-API; spec en updater zijn in deze etappe niet geraakt),
+  waardoor `verify` daar stopt; de resterende poorten (examples, docs, i18n, store-/gantt-
+  boundaries, cycles) los gedraaid: groen. Mét corpus: planning rood op uitsluitend de drie
+  nuldoel-regels (10.b). Ná `1339d9b9` kwamen alleen docs en de merge van PR #108 (typecheck,
+  lint, i18n, docs, X12 15.056 opnieuw gemeten).
 - **ZEKER.** Op deze machine (Playwright 1.62.1 verwacht headless-shell 1234, geïnstalleerd is 1194)
   is `test:browser` alleen te draaien met een alias van de verwachte buildmap naar de geïnstalleerde
   — een omgevingsdetail, niets in de repo.
