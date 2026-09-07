@@ -287,6 +287,35 @@ export function cpmResultFromRecorded(
     if (rec.finish > projectEnd) projectEnd = rec.finish;
   }
 
+  // Her-check laag 3, R1: samenvattingen ZONDER eigen vastlegging waaronder wél vastgelegde taken
+  // hangen, zijn zojuist door `applyRecordedTimesToTasks` opgerold uit die kinderen; hun `task.time`
+  // is dus de afgeleide van de vastlegging. Neem ze mee in het resultaat, anders spreken de twee
+  // oppervlakken (Gantt/taakraster op `task.time`, rapporten/`projectEnd` op `cpmResult`) elkaar
+  // tegen voor precies die rijen. Alleen voorouders VAN vastgelegde taken — een tak zonder enige
+  // vastlegging blijft, net als de bladtaken erin, onaangeroerd en buiten dit resultaat.
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const ancestorsOfRecorded = new Set<string>();
+  for (const task of recorded) {
+    let parentId = task.parentId;
+    while (parentId && !ancestorsOfRecorded.has(parentId)) {
+      ancestorsOfRecorded.add(parentId);
+      parentId = byId.get(parentId)?.parentId ?? null;
+    }
+  }
+  for (const id of ancestorsOfRecorded) {
+    const summary = byId.get(id);
+    if (!summary || times[id] || out.has(id)) continue;
+    out.set(id, {
+      earlyStart: summary.time.earlyStart,
+      earlyFinish: summary.time.earlyFinish,
+      lateStart: summary.time.lateStart,
+      lateFinish: summary.time.lateFinish,
+      totalFloat: summary.time.totalFloat,
+      freeFloat: summary.time.freeFloat,
+      isCritical: summary.time.isCritical,
+    });
+  }
+
   // Werkdagen tellen is geen solve — de kalender kan de span gewoon uitrekenen. `parseInstant`, NIET
   // `new Date(...)`: in uur-modus zijn earlyStart/earlyFinish van de vorm "YYYY-MM-DDTHH:mm" ZONDER
   // tijdzone. `new Date(...)` leest zo'n string per ES2015 als LOKALE tijd, terwijl de hele engine
@@ -369,9 +398,11 @@ export function applyRecordedTimesToTasks(
   // samenvatting heeft geen "niet vastgelegd"-markering per as (geen eigen `times[id]`), dus haar
   // late zijde/speling zijn afgeleid van wat de kinderen op het scherm tonen. De drie analyse-
   // afgeleiden worden ook op de samenvattingen gewist, om dezelfde reden als op de bladtaken.
-  rollupSummaryTasks(tasks);
+  // Her-check R1: een samenvatting MET eigen vastlegging (de #63-IFC-route) blijft staan zoals het
+  // bestand haar gaf — de rollup slaat haar over; alleen samenvattingen zónder vastlegging rollen op.
+  rollupSummaryTasks(tasks, { skip: task => times[task.id] !== undefined });
   for (const task of tasks) {
-    if (isLeafTask(task)) continue;
+    if (isLeafTask(task) || times[task.id]) continue;
     task.time.interferingFloat = undefined;
     task.time.isNearCritical = undefined;
     task.time.floatPath = undefined;

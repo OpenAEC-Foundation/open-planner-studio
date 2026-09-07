@@ -17,10 +17,12 @@
  *     bij heropenen niet stilzwijgend P6's oude datums tonen.
  *  4. Een IFC ZONDER XER-archief blijft byte-identiek: geen `recordedTimes`, geen origin, en de
  *     bestaande #63-IFC-route (`recordedFields`) doet onveranderd zijn werk.
- *  5. CRASHHERSTEL IS GEEN HEROPENING: `restoreDocuments` gebruikt `applyRecordedDatesOnRestore`
- *     (niet `applyRecordedDatesOnLoad`) en herstelt de modusvlag van vóór de crash — aan blijft
- *     aan, uit blijft uit — zonder opnieuw op `recordedTimesOrigin` te beslissen (dat zou voor elk
- *     XER-archiefdocument altijd "alleen aanbieden" zijn, zie punt 3).
+ *  5. CRASHHERSTEL IS GEEN HEROPENING: `restoreDocuments` leest de modusvlag van vóór de crash als
+ *     FEIT uit het recovery-manifest (v4, `RecoveryDocInput.datesAsRecorded` →
+ *     `applyRecordedDatesOnLoad(..., restoredMode)` voor het actieve, `applyRestoredRecordedMode`
+ *     voor een slapend document) — aan blijft aan, uit blijft uit — zonder opnieuw op
+ *     `recordedTimesOrigin` te beslissen (dat zou voor elk XER-archiefdocument altijd "alleen
+ *     aanbieden" zijn, zie punt 3).
  *  6. MUTATIEBEWIJS: één gewijzigde orakelcel in de bron verplaatst de vastlegging over de hele
  *     keten heen WÉL, maar het `cpmResult` ná `runCPM` GEEN millimeter.
  *  7. Hardening: de sha256-poort op het archief geldt ook voor de vastlegging — een gemanipuleerde
@@ -29,9 +31,9 @@
  * Deze check leest de ECHTE productiebeslissing (`payload.datesAsRecorded` +
  * `payload.recordedDates`) rechtstreeks van de store af — geen losse `modeVerdict`-spiegeling meer
  * van de beslisregel, want die zou na taak T5 opnieuw moeten weten dat `applyLoadedProject` en
- * `restoreDocuments` verschillende functies aanroepen (`applyRecordedDatesOnLoad` resp.
- * `applyRecordedDatesOnRestore`). Rechtstreeks aflezen toetst dus de werkelijke bedrading, niet een
- * kopie ervan.
+ * `restoreDocuments` verschillende paden bewandelen (`applyRecordedDatesOnLoad` zonder resp. mét
+ * `restoredMode`, plus `applyRestoredRecordedMode` voor slapende documenten). Rechtstreeks aflezen
+ * toetst dus de werkelijke bedrading, niet een kopie ervan.
  */
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
@@ -170,7 +172,7 @@ function single(bytes: Uint8Array): ImportResult {
 }
 
 /** Leest de ECHTE productiebeslissing van een document af — geen recomputatie, gewoon de velden
- *  die `applyRecordedDatesOnLoad`/`applyRecordedDatesOnRestore` op de payload zetten. */
+ *  die `applyRecordedDatesOnLoad`/`applyRestoredRecordedMode` op de payload zetten. */
 function modeSummary(payload: DocumentPayload): { origin: string | undefined; total: number; shifted: number; mode: boolean } {
   return {
     origin: payload.recordedDates?.origin,

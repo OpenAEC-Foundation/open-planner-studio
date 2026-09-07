@@ -1237,6 +1237,33 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
       applyRecordedTimesToTasks([alone, c], {}, createDefaultCalendar());
       return [alone.time.earlyStart, alone.time.earlyFinish];
     })(), ['2026-09-01', '2026-09-05']);
+  // Her-check R1: de opgerolde samenvatting staat óók in het cpmResult — Gantt/taakraster
+  // (`task.time`) en rapporten/`projectEnd` (`cpmResult`) mogen elkaar niet tegenspreken.
+  eq('15f de opgerolde samenvatting zit in cpmResult.tasks met dezelfde waarden als task.time',
+    cpm.tasks.get('S'), {
+      earlyStart: s.earlyStart, earlyFinish: s.earlyFinish, lateStart: s.lateStart, lateFinish: s.lateFinish,
+      totalFloat: s.totalFloat, freeFloat: s.freeFloat, isCritical: s.isCritical,
+    });
+  // Her-check R1 (blokkerend): een samenvatting MET eigen vastlegging (de #63-IFC-route: een fase
+  // draagt gewoon een IfcTaskTime) blijft staan zoals het bestand haar gaf — de rollup slaat haar
+  // over, en task.time == cpmResult. MUTATIEBEWIJS: haal het `skip`-predikaat uit
+  // `applyRecordedTimesToTasks` ⇒ 15g slaat ROOD (de rollup overschrijft de vastlegging).
+  {
+    const recordedSummary: Task = { ...summary, id: 'R', childIds: ['RA', 'RB'], time: { ...summary.time } } as Task;
+    const rTasks: Task[] = [recordedSummary, leaf('RA', 'R', '2026-09-01', '2026-09-05'), leaf('RB', 'R', '2026-09-08', '2026-09-12')];
+    const rTimes: Record<string, RecordedTime> = {
+      R: { start: '2026-02-01', finish: '2026-04-30', lateStart: '2026-02-04', lateFinish: '2026-05-05', totalFloat: 3, freeFloat: 3, isCritical: false },
+      RA: { start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13', totalFloat: 5, freeFloat: 0, isCritical: false },
+      RB: { start: '2026-03-09', finish: '2026-03-13', lateStart: '2026-03-09', lateFinish: '2026-03-13', totalFloat: 0, freeFloat: 0, isCritical: true },
+    };
+    const rCpm = applyRecordedTimesToTasks(rTasks, rTimes, createDefaultCalendar());
+    const r = rTasks[0].time;
+    eq('15g een samenvatting mét eigen vastlegging blijft staan zoals het bestand haar gaf (geen rollup eroverheen)',
+      [r.earlyStart, r.earlyFinish, r.lateStart, r.lateFinish, r.totalFloat, r.freeFloat, r.isCritical],
+      ['2026-02-01', '2026-04-30', '2026-02-04', '2026-05-05', 3, 3, false]);
+    eq('15h ... en task.time en cpmResult zeggen daar hetzelfde, projectEnd incluis',
+      [rCpm.tasks.get('R')?.earlyFinish, rCpm.projectEnd], ['2026-04-30', '2026-04-30']);
+  }
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

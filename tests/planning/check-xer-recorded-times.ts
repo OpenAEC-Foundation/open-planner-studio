@@ -237,6 +237,32 @@ if (!CORPUS) {
       start: '2026-02-16', finish: '2026-02-09', lateStart: '2026-02-16', lateFinish: '2026-02-09',
       totalFloat: 0, freeFloat: 0, isCritical: true,
     });
+  // Her-check R2: de resterende 2,6% inversies zijn NIET voltooid (nul-duur/mijlpaalrijen, scheve
+  // bronnen) — óók die worden letterlijk vastgelegd, zodat een "alleen voltooid"-guard hier rood slaat.
+  const notStartedInverted = read(withProject(
+    '%R\tP1\tNotStarted\tC1\t2026-01-01\t2026-01-01\tCT_TotFloat\t0',
+    ['%R\tT1\tP1\tC1\tA1\tScheef\tTT_Task\tDT_FixedDUR\tTK_NotStart\t0\t0\t2026-02-09\t2026-02-09\t2026-02-16\t2026-02-09\t\t\t\t'],
+  ));
+  eq('9b ook een NIET-gestarte rij met einde vóór start wordt letterlijk vastgelegd (geen guard op statusklasse)',
+    notStartedInverted.recordedTimes?.T1, { start: '2026-02-16', finish: '2026-02-09' });
+  // Her-check R3: laat de kalenderhardening de speling vallen (`day_hr_cnt` 0 ⇒ minutesPerDay 0),
+  // dan is óók isCritical "niet vastgelegd" — geen harde `false` naast een "Niet vastgelegd"-cel.
+  const zeroDay = read([
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC0\tNuluur\tCA_Base\t0\t0\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP1\tZeroDay\tC0\t2026-01-01\t2026-01-01',
+    '%T\tTASK',
+    `%F\t${FIXTURE_HEADER}`,
+    '%R\tT1\tP1\tC0\tA1\tNuluur\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-01-02\t2026-01-09\t2026-01-05\t2026-01-12\t2026-01-10\t2026-01-17\t40\t8',
+    '%E',
+  ]);
+  eq('9c speling niet omrekenbaar (minutesPerDay ≤ 0) ⇒ totalFloat, freeFloat én isCritical alle drie "niet vastgelegd"',
+    [zeroDay.recordedTimes?.T1?.totalFloat, zeroDay.recordedTimes?.T1?.freeFloat, zeroDay.recordedTimes?.T1?.isCritical],
+    [undefined, undefined, undefined]);
 
   // Bevinding 7: `isCritical` volgt de kritiekdefinitie die de solver óók krijgt.
   const drempel = read(withProject(

@@ -73,7 +73,17 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpm
  * hoofd-WBS een half jaar ná de `projectEnd` die dezelfde modus rapporteert). Gedrag byte-identiek
  * aan de inline-versie van vóór de uitfactorisering; alleen de aanroepplek is erbij gekomen.
  */
-export function rollupSummaryTasks(tasks: Task[]): void {
+export function rollupSummaryTasks(
+  tasks: Task[],
+  options?: {
+    /** Her-check laag 3, R1: een samenvatting die het bestand ZÉLF vastlegde (de #63-IFC-route
+     *  draagt op fasen gewoon een `IfcTaskTime`) blijft staan zoals het bestand haar gaf — de rollup
+     *  mag daar niet overheen schrijven, anders zegt de modus iets wat het bestand niet zei. De
+     *  kinderen eronder worden nog wél bezocht (die kunnen zelf weer onvastgelegde samenvattingen
+     *  zijn). Afwezig ⇒ elke samenvatting rolt op, byte-identiek aan `applyCpmResult`. */
+    skip?: (task: Task) => boolean;
+  },
+): void {
   // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `find` per taak én per kind (recursief) —
   // dat was O(n²) op de rollup.
   const byId = new Map<string, Task>(tasks.map(t => [t.id, t]));
@@ -82,6 +92,7 @@ export function rollupSummaryTasks(tasks: Task[]): void {
     if (!task || isLeafTask(task)) return;
 
     for (const childId of task.childIds) updateSummary(childId);
+    if (options?.skip?.(task)) return;
 
     const children = task.childIds
       .map(cid => byId.get(cid))

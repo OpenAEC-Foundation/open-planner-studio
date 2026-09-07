@@ -176,4 +176,36 @@ test('leestools buiten de modus: byte-identiek aan voorheen (geen null, geen ext
     'buiten de modus hoort de respons geen extra veld te dragen');
 });
 
+// Her-check laag 3, R4 — bevinding 10: de overige leestools poorten `isCritical` in de modus.
+// MUTATIEBEWIJS: zet `if (t.time.isCritical) row.crit = true;` terug zonder de poort, of haal
+// `criticalUnrecordedTasks`/de driewegfilter weg ⇒ deze test slaat rood.
+test('leestools in de modus: kritiek is onbekend, geen verzonnen false (bevinding 10)', () => {
+  const { aId, bId } = enterMode('mcp-crit-unknown');
+  assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
+  const info = callOk('planner_get_project_info');
+  assertEq(info.statistics.criticalTasks, 0, 'geen enkele taak mag als kritiek geteld worden op een `?? false`');
+  assertEq(info.statistics.criticalUnrecordedTasks, 2, 'beide taken hebben een onbekende kritiekas, apart geteld');
+  const overview = callOk('planner_get_project_overview');
+  const rows = (overview.tasks ?? overview.rows ?? []) as Array<Record<string, unknown>>;
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  assertEq(byId.get(aId)?.crit, null, 'overzicht: onbekende kritiekas is null, niet weggelaten');
+  assertEq(byId.get(bId)?.crit, null, 'overzicht: idem voor de tweede taak');
+  const all = callOk('planner_list_tasks', {});
+  const listed = (all.tasks ?? all.items ?? []) as Array<Record<string, unknown>>;
+  assertEq(listed.length, 2, 'zonder filter: beide taken');
+  assertEq(listed.every((row) => row.crit === null), true, 'lijst: onbekende kritiekas is null');
+  const crit = callOk('planner_list_tasks', { kritiek: true });
+  const notCrit = callOk('planner_list_tasks', { kritiek: false });
+  assertEq(((crit.tasks ?? crit.items ?? []) as unknown[]).length, 0, 'filter kritiek=true: onbekend hoort bij geen van beide');
+  assertEq(((notCrit.tasks ?? notCrit.items ?? []) as unknown[]).length, 0, 'filter kritiek=false: onbekend hoort bij geen van beide');
+
+  S().runCPM(); // verlaat de modus, zoals F5
+  const infoOff = callOk('planner_get_project_info');
+  assertEq(infoOff.statistics.criticalUnrecordedTasks, undefined, 'buiten de modus: geen extra veld');
+  assert(typeof infoOff.statistics.criticalTasks === 'number' && infoOff.statistics.criticalTasks >= 1,
+    'buiten de modus: de BEREKENDE kritieke taken tellen gewoon mee');
+  const rowsOff = ((callOk('planner_get_project_overview').tasks ?? []) as Array<Record<string, unknown>>);
+  assertEq(rowsOff.every((row) => row.crit === true || row.crit === undefined), true, 'buiten de modus: crit is true of afwezig, nooit null');
+});
+
 await run();

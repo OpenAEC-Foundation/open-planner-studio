@@ -79,8 +79,11 @@ function hoursToDays(hours: number | null, minutesPerDay: number): number | unde
  * einde vóór start, 2.036 daarvan `TK_Complete` (rehab-2: 2.042 van 6.976) — P6 zet `early_start`
  * van een voltooide activiteit op de statusdatum en `early_end` op het werkelijke einde, precies wat
  * de X12-fixture "Completed fidelity" en de statusdatumroute van de solver (laag 1) nabouwen. Een
- * guard zou dus 29% van rehab-2's vastlegging weggooien en de modus laten liegen. Wat het bestand
- * zegt, wordt getoond; de renderer ziet die inversie buiten de modus al even vaak.
+ * guard zou dus 29% van rehab-2's vastlegging weggooien en de modus laten liegen. Die voltooid-
+ * conventie dekt 97,4% van de inversies; de rest (54 van 2.090 corpusbreed: 50 `TK_NotStart`,
+ * 4 `TK_Active`, o.a. zes in rehab-2 zelf) zijn nul-duur-/mijlpaalrijen en scheve bronbestanden.
+ * Ook die tonen we zoals ze zijn: "nooit verzinnen" betekent hier "nooit corrigeren". Wat het
+ * bestand zegt, wordt getoond; de renderer ziet die inversie buiten de modus al even vaak.
  *
  * `isCritical` is een AFLEIDING, geen gelezen kolom: totale speling ≤ de kritiekdrempel uit
  * `ctx.criticalDefinition` (default 0) zodra die speling vastgelegd is; onder longest-path-kritiek
@@ -106,7 +109,10 @@ export function readXerRecordedTimes(
     const totalFloatHours = ctx.numberOf(row, 'total_float_hr_cnt');
     const totalFloat = hoursToDays(totalFloatHours, minutesPerDay);
     const freeFloat = hoursToDays(ctx.numberOf(row, 'free_float_hr_cnt'), minutesPerDay);
-    const isCritical = recordedIsCritical(totalFloatHours, ctx.criticalDefinition);
+    // Her-check R3: zonder vastgelegde (omrekenbare) speling géén kritiekoordeel — ook wanneer de
+    // `minutesPerDay`-hardening de as liet vallen; anders zegt de tabel "niet vastgelegd" waar CSV/MCP
+    // een harde `false` naar buiten dragen.
+    const isCritical = totalFloat === undefined ? undefined : recordedIsCritical(totalFloatHours, ctx.criticalDefinition);
 
     times[ctx.taskIdOf(row)] = {
       start,
