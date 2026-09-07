@@ -379,6 +379,7 @@
     "timephasedLost": "Datumvenster uit MS Project niet meer toegepast na bewerking — de urenverdeling zelf blijft gelden en bewaard",
     "timephasedContoured": "Eigen urenverdeling",
     "recordedDatesActive": "Toont Primavera’s eigen opgeslagen datums voor deze taak",
+    "recordedDatesActiveNeutral": "Toont de datums zoals ze in het bestand staan voor deze taak",
     "recordedDatesDeviates": "Wijkt af van de opgeslagen datums",
     "recordedDatesPartlyUnrecorded": "Vastlegging deels onvolledig — zie de late-/spelingkolommen",
     "completion": "Voortgang (%)",

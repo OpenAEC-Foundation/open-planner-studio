@@ -32,8 +32,9 @@ export function RecordedDatesNotice() {
     // bronformaat — zowel de bron-orakel-route (XER, die zelf al ín de modus opent) als de
     // bestaande #63-route (elk formaat, via de "Toon"-knop) delen dezelfde state. `runCPM` wist
     // `recordedDates` pas bij het VERLATEN van de modus (zelfde producer als `datesAsRecorded`),
-    // dus in de praktijk is `recordedDates` hier altijd gevuld; de terugval op de tellerloze
-    // `recordedDates.active` is defensief.
+    // dus `recordedDates` is hier altijd gevuld. De tellerloze `recordedDates.active` is de tak
+    // voor een SLAPEND hersteld document (`applyRestoredRecordedMode`): dat staat in de modus
+    // zonder ooit gesolved te zijn, dus `shifted` bestaat daar niet — en wordt niet verzonnen.
     //
     // Tekstcorrectie (T8, 2026-09-05): de strook is GEDEELD met de #63-route voor elk ander formaat
     // (IFC/CSV/MSPDI/MPP/P6XML), waar "Primavera" een verkeerde bewering zou zijn. De keuze zelf
@@ -47,7 +48,7 @@ export function RecordedDatesNotice() {
       >
         <CircleDot size={14} className="shrink-0 text-accent" />
         <span className="flex-1">
-          {recordedDates
+          {recordedDates && recordedDates.shifted !== undefined
             ? t(recordedDatesActiveKey(recordedDates.origin), { count: recordedDates.shifted })
             : t('recordedDates.active')}
         </span>
@@ -62,7 +63,10 @@ export function RecordedDatesNotice() {
     );
   }
 
-  if (!recordedDates) return null;
+  // Buiten de modus zonder teller kan per constructie niet: `shifted` ontbreekt alleen op een
+  // slapend hersteld document dat ín de modus staat (`applyRestoredRecordedMode`), en `runCPM`
+  // wist `recordedDates` bij het verlaten van de modus. Niets verzinnen ⇒ dan ook geen aanbod.
+  if (!recordedDates || recordedDates.shifted === undefined) return null;
 
   return (
     <div

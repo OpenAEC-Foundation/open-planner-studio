@@ -256,6 +256,7 @@
     "timephasedLost": "Düzenlemeden sonra MS Project'ten gelen saat dağılımı artık uygulanmıyor — özgün dağılım dosyada saklı kalıyor",
     "timephasedContoured": "Özel saat dağılımı",
     "recordedDatesActive": "Bu görev için Primavera’nın kaydettiği kendi tarihlerini gösterir",
+    "recordedDatesActiveNeutral": "Bu görev için dosyada kayıtlı tarihleri gösterir",
     "recordedDatesDeviates": "Kaydedilen tarihlerden farklılaşıyor",
     "recordedDatesPartlyUnrecorded": "Kayıt kısmen eksik — geç bitiş/bolluk sütunlarına bakın",
     "completion": "İlerleme (%)",

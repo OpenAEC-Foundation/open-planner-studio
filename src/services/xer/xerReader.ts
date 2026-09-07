@@ -595,22 +595,6 @@ function readXerProject(
     new CalendarEngine(calendar),
   ] as const));
 
-  // BAK 4 (XER-etappeplan §4.1-bijstelling 2026-09-04, X-O7 laag 3) — uitsluitend weergave/meetlat,
-  // nooit solverinvoer. Onafhankelijk van de taakmapping hieronder: leest dezelfde `activityRows`,
-  // maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts` voor de laagkeuze.
-  const recordedTimes = readXerRecordedTimes(activityRows, {
-    numberOf: (row, field) => numberOf(tables, row, field),
-    effectiveCalendarOf: (row) => {
-      const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
-      const engine = calendarEngines.get(effectiveCalendar.id)!;
-      return {
-        id: effectiveCalendar.id,
-        hourMode: effectiveCalendar.workTime !== undefined,
-        minutesPerDay: engine.hoursPerDay * 60,
-      };
-    },
-    taskIdOf: (row) => row.cells.task_id,
-  });
 
   const enumFallbacks: XerEnumFallback[] = [];
   const projectDefaultDuration = durationTypeOf(
@@ -802,6 +786,25 @@ function readXerProject(
     progressMode,
     schedulingOptions,
   } = derivedSchedule;
+  // BAK 4 (XER-etappeplan §4.1-bijstelling 2026-09-04, X-O7 laag 3) — uitsluitend weergave/meetlat,
+  // nooit solverinvoer. Onafhankelijk van de taakmapping hierboven: leest dezelfde `activityRows`,
+  // maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts` voor de laagkeuze.
+  // Staat ná `deriveXerScheduleOptions` omdat de kritiekafleiding dezelfde `criticalDefinition`
+  // gebruikt als de solver krijgt (her-check laag 3, bevinding 7).
+  const recordedTimes = readXerRecordedTimes(activityRows, {
+    numberOf: (row, field) => numberOf(tables, row, field),
+    effectiveCalendarOf: (row) => {
+      const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
+      const engine = calendarEngines.get(effectiveCalendar.id)!;
+      return {
+        id: effectiveCalendar.id,
+        hourMode: effectiveCalendar.workTime !== undefined,
+        minutesPerDay: engine.hoursPerDay * 60,
+      };
+    },
+    taskIdOf: (row) => row.cells.task_id,
+    criticalDefinition: schedulingOptions.criticalDefinition,
+  });
   // De solver krijgt alleen de finale opties; de documentmetadata krijgt uitsluitend de
   // bestaande, archive/IFC-compatibele provenancevelden. Zo kan een later toegevoegd intern
   // afleidingsveld niet per ongeluk als opgeslagen P6-invoer worden bewaard of meegestuurd.

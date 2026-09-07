@@ -252,6 +252,7 @@
     "timephasedLost": "編集後、MS Project の時間配分は適用されなくなりました — 元の配分はファイルに保存されたままです",
     "timephasedContoured": "独自の時間配分",
     "recordedDatesActive": "このタスクについて Primavera 自身が記録した日付を表示します",
+    "recordedDatesActiveNeutral": "このタスクについてファイルに記録された日付を表示します",
     "recordedDatesDeviates": "記録された日付と乖離しています",
     "recordedDatesPartlyUnrecorded": "記録データが一部不完全です — 最遅/余裕列を参照してください",
     "completion": "進捗（%）",

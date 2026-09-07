@@ -120,7 +120,9 @@ export interface RecoveryManifestDoc {
 export interface RecoveryManifest {
   /**
    * 1 = zonder eigenaarschapsvelden (t/m de multi-document-release), 2 = met `ownerId`/
-   * `heartbeatAt`, 3 = immutable generatie-snapshots met het manifest als commitpoint.
+   * `heartbeatAt`, 3 = immutable generatie-snapshots met het manifest als commitpoint, 4 = per
+   * document de modusvlag `datesAsRecorded` als manifestmetadata (XER-etappe laag 3; een oud
+   * manifest zonder vlag leest als `false` = alleen aanbieden).
    * Een v1/v2-manifest MOET leesbaar blijven: het staat op de schijf van iedereen die de vorige
    * versie draaide, en dat weigeren betekent dataverlies bij de eerste start na de update.
    * Beide eigenaarschapsvelden zijn daarom optioneel getypeerd en het versienummer wordt nergens

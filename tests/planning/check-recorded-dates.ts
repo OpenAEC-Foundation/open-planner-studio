@@ -26,7 +26,7 @@ import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
-import { recordedDatesActiveKey } from '@/components/layout/recordedDatesNoticeText';
+import { recordedDatesActiveKey, recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -554,15 +554,12 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 }
 
 // ── (7C) Crashherstel raakt de #63-route NIET ────────────────────────────────────────────────
-// `restoreDocuments` gebruikt sinds het heropen-beleid (XER-etappe laag 3, T8) een eigen
-// `applyRecordedDatesOnRestore` die de modusvlag van vóór de crash TERUGLEEST uit een bron-orakel.
-// Deze sectie pint de tegenkant vast: een gewoon #63-document (IFC/CSV/MSPDI/MPP/P6XML) heeft geen
-// orakel, dus er valt niets terug te lezen — daar blijft het bestaande gedrag "alleen aanbieden"
-// gelden. Zonder deze check zou die terugleesregel stil doorslaan naar élk hersteld document: bij
-// de `recordedFields`-route komt de vastlegging namelijk uit de taken zélf, dus een vergelijking
-// van die taken met die vastlegging is per definitie 0 verschoven — "de modus stond aan" zou daar
-// dus ALTIJD waar lijken. MUTATIEBEWIJS: haal de orakel-voorwaarde uit
-// `applyRecordedDatesOnRestore` weg (`wasInModeBeforeCrash` zonder `hasOracle`) ⇒ 7aj slaat ROOD.
+// `restoreDocuments` leest de modusvlag van vóór de crash sinds manifest v4 als FEIT uit het
+// recovery-manifest (`RecoveryDocInput.datesAsRecorded`, `applyRecordedDatesOnLoad(..., restoredMode)`
+// in `documentActivation.ts`) — geen heuristiek meer. Deze sectie pint de tegenkant vast: een gewoon
+// #63-document (IFC/CSV/MSPDI/MPP/P6XML) dat met `datesAsRecorded: false` in het manifest stond,
+// komt terug in de AANBOD-stand en niet in de modus. MUTATIEBEWIJS: geef `restoredMode` in
+// `applyRecordedDatesOnLoad` voorrang op de manifestvlag (`restoredMode ?? true`) ⇒ 7aj slaat ROOD.
 {
   const parsed = readIFC(externIfc('7C'));
   const input = recoveryInputFromParsed(parsed, { id: 'rec-63', filePath: null, isDirty: true, datesAsRecorded: false });
@@ -1156,7 +1153,90 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
     eq('14g de NEUTRALE tekst noemt Primavera in geen enkele taal', neutraalNoemtPrimavera, []);
     eq('14h de Primavera-tekst noemt Primavera juist WEL in elke taal (anders bewijst 14g niets)',
       primaveraNoemtHetNiet, []);
+
+    // Her-check laag 3, bevinding 5: dezelfde regel voor de per-taak-BADGE (`task.json`,
+    // `properties.recordedDatesActive[Neutral]`) — die zei "Primavera" op élk #63-document.
+    eq('14i badge: XER-herkomst ⇒ Primavera-sleutel', recordedDatesTaskActiveKey('xer'), 'properties.recordedDatesActive');
+    eq('14j badge: archiefherkomst ⇒ óók Primavera-sleutel', recordedDatesTaskActiveKey('xer-archive'), 'properties.recordedDatesActive');
+    eq('14k badge: zonder herkomst ⇒ neutrale sleutel', recordedDatesTaskActiveKey(undefined), 'properties.recordedDatesActiveNeutral');
+    const badgeZonderNeutraal: string[] = [];
+    const badgeNeutraalNoemtPrimavera: string[] = [];
+    const badgePrimaveraNoemtHetNiet: string[] = [];
+    for (const taal of talen) {
+      const json = JSON.parse(readFileSync(joinPath(localesRoot, taal, 'task.json'), 'utf8')) as
+        Record<string, Record<string, string>>;
+      const props = json.properties ?? {};
+      const primavera = props.recordedDatesActive;
+      const neutraal = props.recordedDatesActiveNeutral;
+      if (typeof neutraal !== 'string' || neutraal.length === 0) badgeZonderNeutraal.push(taal);
+      else if (neutraal.includes('Primavera')) badgeNeutraalNoemtPrimavera.push(taal);
+      // `Primaver` en niet `Primavera`: het Pools verbuigt de naam ("przez Primaverę").
+      if (typeof primavera !== 'string' || !primavera.includes('Primaver')) badgePrimaveraNoemtHetNiet.push(taal);
+    }
+    eq('14l elke taal heeft de neutrale badge-tekst', badgeZonderNeutraal, []);
+    eq('14m de NEUTRALE badge noemt Primavera in geen enkele taal', badgeNeutraalNoemtPrimavera, []);
+    eq('14n de Primavera-badge noemt Primavera juist WEL in elke taal', badgePrimaveraNoemtHetNiet, []);
   }
+}
+
+// ── (15) Samenvattingen rollen in de modus op uit de VASTGELEGDE kinderen ───────────────────────
+// Her-check laag 3, bevinding 3: P6 legt de zes uitvoerkolommen alleen op TASK-rijen vast; een
+// WBS-rij (of IFC-fase) heeft nooit een eigen vastlegging en hield daardoor de datums van de solve
+// die de modus zojuist verwierp (gemeten: hoofd-WBS een half jaar ná `projectEnd`). Zelfde rollup
+// als na een echte solve. MUTATIEBEWIJS: haal `rollupSummaryTasks(tasks)` uit
+// `applyRecordedTimesToTasks` ⇒ 15a/15b slaan ROOD (de samenvatting houdt haar oude datums).
+{
+  const base = (id: string) => ({
+    id, name: id, description: '', wbsCode: id, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, resourceIds: [], activityCodes: {}, customFields: {},
+    externalLinks: [], notes: [],
+  });
+  const leaf = (id: string, parentId: string, es: string, ef: string): Task => ({
+    ...base(id),
+    parentId,
+    childIds: [],
+    time: {
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 5,
+      scheduleStart: es, scheduleFinish: ef, earlyStart: es, earlyFinish: ef,
+      lateStart: es, lateFinish: ef, totalFloat: 0, freeFloat: 0, isCritical: true, completion: 0,
+    },
+  } as Task);
+  const summary: Task = {
+    ...base('S'),
+    parentId: null,
+    childIds: ['A', 'B'],
+    time: {
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: 10,
+      // De "weggegooide solve": een half jaar later dan wat de kinderen vastleggen.
+      scheduleStart: '2026-09-01', scheduleFinish: '2026-09-30',
+      earlyStart: '2026-09-01', earlyFinish: '2026-09-30',
+      lateStart: '2026-09-01', lateFinish: '2026-09-30',
+      totalFloat: 0, freeFloat: 0, isCritical: true, completion: 0,
+      interferingFloat: 0,
+    },
+  } as Task;
+  const tasks: Task[] = [summary, leaf('A', 'S', '2026-09-01', '2026-09-05'), leaf('B', 'S', '2026-09-08', '2026-09-12')];
+  const times: Record<string, RecordedTime> = {
+    A: { start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13', totalFloat: 5, freeFloat: 0, isCritical: false },
+    B: { start: '2026-03-09', finish: '2026-03-13', lateStart: '2026-03-09', lateFinish: '2026-03-13', totalFloat: 0, freeFloat: 0, isCritical: true },
+  };
+  const cpm = applyRecordedTimesToTasks(tasks, times, createDefaultCalendar());
+  const s = tasks[0].time;
+  eq('15a de samenvatting omspant de VASTGELEGDE kinderen (vroege zijde)',
+    [s.earlyStart, s.earlyFinish], ['2026-03-02', '2026-03-13']);
+  eq('15b ... en niet meer de weggegooide solve (late zijde en speling uit de kinderen)',
+    [s.lateStart, s.lateFinish, s.totalFloat, s.freeFloat, s.isCritical], ['2026-03-09', '2026-03-13', 0, 0, true]);
+  eq('15c analyse-afgeleiden zijn ook op de samenvatting gewist',
+    [s.interferingFloat, s.isNearCritical, s.floatPath], [undefined, undefined, undefined]);
+  eq('15d de balk klopt nu met de projecteinddatum die dezelfde modus rapporteert',
+    [cpm.projectEnd, s.earlyFinish <= cpm.projectEnd], ['2026-03-13', true]);
+  eq('15e een samenvatting zonder vastgelegde kinderen blijft onaangeroerd (geen vastlegging ⇒ niets te zeggen)',
+    (() => {
+      const alone: Task = { ...summary, id: 'S2', childIds: ['C'], time: { ...summary.time } } as Task;
+      const c = leaf('C', 'S2', '2026-09-01', '2026-09-05');
+      applyRecordedTimesToTasks([alone, c], {}, createDefaultCalendar());
+      return [alone.time.earlyStart, alone.time.earlyFinish];
+    })(), ['2026-09-01', '2026-09-05']);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

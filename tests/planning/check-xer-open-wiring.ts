@@ -346,6 +346,11 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (corpusRoot && existsSync(corpusRoot)) {
   const openPublicXer = async (relativePath: string) => {
+    // Partieel corpus (her-check laag 3, bevinding 12): een ontbrekend bestand is een nette rode
+    // check, geen kale `ENOENT`-stacktrace.
+    if (!existsSync(join(corpusRoot, relativePath))) {
+      throw new Error(`corpusbestand ontbreekt: ${relativePath} (OPS_XER_CORPUS wijst naar een onvolledige corpusmap)`);
+    }
     const bytes = new Uint8Array(readFileSync(join(corpusRoot, relativePath)));
     const opened = await parseOpenedFile({ name: relativePath, bytes });
     if (!isMultiDocumentImport(opened)) throw new Error(`${relativePath}: verwacht een meervoudige XER-import`);

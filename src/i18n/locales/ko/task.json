@@ -252,6 +252,7 @@
     "timephasedLost": "편집 후 MS Project의 시간 분배가 더 이상 적용되지 않습니다 — 원래 분배는 파일에 그대로 보존됩니다",
     "timephasedContoured": "고유 시간 분배",
     "recordedDatesActive": "이 작업에 대해 Primavera가 기록한 고유 날짜를 표시합니다",
+    "recordedDatesActiveNeutral": "이 작업에 대해 파일에 기록된 날짜를 표시합니다",
     "recordedDatesDeviates": "기록된 날짜와 차이가 있습니다",
     "recordedDatesPartlyUnrecorded": "기록이 일부 불완전합니다 — 최지연/여유 열을 참조하세요",
     "completion": "진행률 (%)",

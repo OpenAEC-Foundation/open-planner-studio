@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { recordedNoticeState } from '@/state/recordedDatesSelectors';
+import { recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
 
 /** Manifest-entry bestaat al (XER-etappeplan laag 3, T7) — `public/docs/{nl,en}/datums-zoals-opgeslagen.md`. */
 const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
@@ -13,8 +14,8 @@ const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
  *
  * Drie toestanden, in deze volgorde afgewogen:
  *  - 'active' (`badge--blue`, neutrale/positieve infotoestand): de modus staat AAN
- *    (`datesAsRecorded`) én deze taak heeft een vastlegging — het scherm toont Primavera's eigen
- *    datums voor deze taak, niet onze herberekening. Krijgt voorrang boven de andere twee: IN de
+ *    (`datesAsRecorded`) én deze taak heeft een vastlegging — het scherm toont de datums uit het
+ *    bestand voor deze taak (Primavera's eigen datums bij een XER-herkomst), niet onze herberekening. Krijgt voorrang boven de andere twee: IN de
  *    modus is "wijkt af" geen zinvol signaal (`recordedTaskMark` levert daar per constructie nooit
  *    `'deviates'`, zie die docstring — het scherm staat immers al gelijk aan de vastlegging).
  *  - 'deviates' (`badge--red`): BUITEN de modus wijkt de vroege start/einde van deze taak af van
@@ -50,8 +51,11 @@ export function TaskRecordedDatesNotice({ taskId }: { taskId: string }) {
   const state = recordedNoticeState(recordedDates, datesAsRecorded, task);
   if (!state) return null;
 
+  // Bronafhankelijke woordkeuze (her-check laag 3, bevinding 5): "Primavera" alleen wanneer de
+  // vastlegging echt van P6 komt (`origin` 'xer'/'xer-archive'); de #63-route van elk ander formaat
+  // krijgt de neutrale tekst. Zelfde beslisregel als de strook (`recordedDatesActiveKey`).
   const label = state === 'active'
-    ? t('properties.recordedDatesActive')
+    ? t(recordedDatesTaskActiveKey(recordedDates?.origin))
     : state === 'deviates' ? t('properties.recordedDatesDeviates') : t('properties.recordedDatesPartlyUnrecorded');
   const badgeClass = state === 'active' ? 'badge--blue' : state === 'deviates' ? 'badge--red' : 'badge--gray';
 

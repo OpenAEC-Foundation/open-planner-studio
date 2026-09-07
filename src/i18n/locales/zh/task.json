@@ -252,6 +252,7 @@
     "timephasedLost": "编辑后不再应用 MS Project 的工时分布——原始分布仍保留在文件中",
     "timephasedContoured": "自定义工时分布",
     "recordedDatesActive": "显示 Primavera 为此任务记录的日期",
+    "recordedDatesActiveNeutral": "显示文件中记录的此任务日期",
     "recordedDatesDeviates": "偏离记录的日期",
     "recordedDatesPartlyUnrecorded": "记录数据部分不完整——请查看最迟/时差列",
     "completion": "进度（%）",

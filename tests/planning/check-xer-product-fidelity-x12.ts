@@ -2214,6 +2214,9 @@ async function productBaseline(
       '2040-02-01T08:00', '2040-02-01T17:00', '2040-02-02T08:00', '2040-02-02T17:00',
       '2040-03-01T08:00', '2040-03-01T17:00', '2040-03-02T08:00', '2040-03-02T17:00',
       '2040-04-01T08:00', '2040-04-01T17:00', '2040-04-02T08:00', '2040-04-02T17:00',
+      // Her-check laag 3, bevinding 8: de zes gemuteerde FLOATS (in dagen, zoals `Task.time` ze
+      // draagt) — zonder deze zes was de `n:`-tak van `noRecordedAxisLeak` dode code.
+      999 * 60 / 540, 888 * 60 / 540, 777 * 60 / 540, 666 * 60 / 540, 555 * 60 / 540, 444 * 60 / 540,
     ]), true);
   const normalTruth = scanXerGroundTruth(packageBytes(true));
   const mutatedTruth = scanXerGroundTruth(packageBytes(true, true));

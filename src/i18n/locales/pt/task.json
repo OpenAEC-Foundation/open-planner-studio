@@ -260,6 +260,7 @@
     "timephasedLost": "Distribuição de horas do MS Project não é mais aplicada após a edição — a distribuição original permanece guardada no arquivo",
     "timephasedContoured": "Distribuição de horas própria",
     "recordedDatesActive": "Mostra as datas próprias registadas pelo Primavera para esta tarefa",
+    "recordedDatesActiveNeutral": "Mostra as datas tal como registadas no ficheiro para esta tarefa",
     "recordedDatesDeviates": "Diverge das datas registadas",
     "recordedDatesPartlyUnrecorded": "Registo parcialmente incompleto — ver as colunas de fim tardio/folga",
     "completion": "Progresso (%)",

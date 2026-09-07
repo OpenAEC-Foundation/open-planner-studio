@@ -260,6 +260,7 @@
     "timephasedLost": "Répartition horaire de MS Project non appliquée après modification — la répartition d'origine reste conservée dans le fichier",
     "timephasedContoured": "Répartition des heures propre",
     "recordedDatesActive": "Affiche les dates propres enregistrées par Primavera pour cette tâche",
+    "recordedDatesActiveNeutral": "Affiche les dates telles qu’enregistrées dans le fichier pour cette tâche",
     "recordedDatesDeviates": "Diverge des dates enregistrées",
     "recordedDatesPartlyUnrecorded": "Enregistrement partiellement incomplet — voir les colonnes fin au plus tard/marge",
     "completion": "Avancement (%)",

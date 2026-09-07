@@ -256,6 +256,7 @@
     "timephasedLost": "توزیع ساعات MS Project پس از ویرایش دیگر اعمال نمی‌شود — توزیع اصلی در فایل نگه داشته می‌شود",
     "timephasedContoured": "توزیع ساعات مخصوص",
     "recordedDatesActive": "تاریخ‌های ثبت‌شده خود Primavera را برای این فعالیت نشان می‌دهد",
+    "recordedDatesActiveNeutral": "تاریخ‌های ثبت‌شده در پرونده را برای این فعالیت نشان می‌دهد",
     "recordedDatesDeviates": "با تاریخ‌های ثبت‌شده تفاوت دارد",
     "recordedDatesPartlyUnrecorded": "ثبت داده تا حدی ناقص است — به ستون‌های دیرترین/شناوری مراجعه کنید",
     "completion": "پیشرفت (%)",

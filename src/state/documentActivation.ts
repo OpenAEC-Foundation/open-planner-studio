@@ -297,17 +297,24 @@ function enterRecordedDatesMode(payload: DocumentPayload, times: Record<string, 
  * Wat hier wél kan zonder solve: de vastlegging vastleggen (`captureRecordedDates` leest alleen het
  * bestand), de modus zetten en het `cpmResult` reconstrueren. Wat hier NIET kan: de teller
  * `shifted` — die is per definitie een vergelijking mét een herberekening, en die is er niet. De
- * payload krijgt daarom bewust GEEN `recordedDates`: de strook valt in de modus terug op zijn
- * tellerloze tekst (`recordedDates.active`, al aanwezig als defensieve tak in
- * `RecordedDatesNotice`), en de per-taakmarkering verschijnt zodra het document echt doorgerekend
- * wordt. Een verzonnen `shifted: 0` zou de gebruiker vertellen dat herberekenen niets verandert —
- * precies de leugen die `RecordedDates` (zie `recordedDates.ts`) uit zijn eigen contract weerde.
+ * payload krijgt daarom een `recordedDates` ZONDER `shifted`: de strook valt in de modus terug op
+ * zijn tellerloze tekst (`recordedDates.active` in `RecordedDatesNotice`), terwijl export-poort,
+ * "niet vastgelegd"-kolommen en badge gewoon werken (die hangen aan `times`). Een verzonnen
+ * `shifted: 0` zou de gebruiker vertellen dat herberekenen niets verandert — precies de leugen die
+ * `RecordedDates` (zie `recordedDates.ts`) uit zijn eigen contract weerde.
  */
 export function applyRestoredRecordedMode(
   payload: DocumentPayload,
-  parsed: Pick<ImportResult, 'recordedFields' | 'recordedTimes'>,
+  parsed: Pick<ImportResult, 'recordedFields' | 'recordedTimes' | 'recordedTimesOrigin'>,
 ): void {
   const recorded = captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes);
   if (recorded.total === 0) return;
+  // Her-check laag 3, bevinding 4: de vastlegging WEL zetten, alleen zonder `shifted` (optioneel
+  // sinds die bevinding). Zonder `recordedDates` hingen de export-poort (`unrecordedExportGate`),
+  // de "niet vastgelegd"-kolommen (`recordedGridBinding`) en de badge (`recordedTaskMark`) alle
+  // drie in de lucht: het document stond in de modus, maar `lateStart ?? rec.start` en
+  // `totalFloat ?? 0` reisden gewoon naar CSV en `planner_get_task`, afhankelijk van welk tabblad
+  // bij de crash toevallig actief was. Nu betekent "in de modus" op beide herstelpaden hetzelfde.
+  payload.recordedDates = { ...recorded, origin: parsed.recordedTimesOrigin };
   enterRecordedDatesMode(payload, recorded.times);
 }

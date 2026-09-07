@@ -34,6 +34,7 @@
  * kopie ervan.
  */
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
+import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { DocumentPayload } from '@/state/documentContract';
 import { readXER } from '@/services/xer/xerReader';
@@ -392,6 +393,16 @@ eq('6g hersteld-buiten-modus document draagt dezelfde vastlegging als het gewone
     slapend?.scheduleStale === false);
   expect('6t ... met een cpmResult uit de vastlegging, niet uit een solve (geen lege planning)',
     slapend?.cpmResult !== null);
+  // Her-check laag 3, bevinding 4: "in de modus" betekent op het slapende pad hetzelfde als op het
+  // actieve — de vastlegging staat er (zonder verzonnen `shifted`), dus export-poort, "niet
+  // vastgelegd"-kolommen en badge werken. MUTATIEBEWIJS: laat `applyRestoredRecordedMode`
+  // `payload.recordedDates` weer weg ⇒ 6v/6w slaan ROOD.
+  expect('6v het SLAPENDE herstelde document draagt zijn vastlegging, zonder verzonnen teller',
+    slapend?.recordedDates !== null && slapend?.recordedDates?.shifted === undefined
+      && slapend?.recordedDates?.origin === 'xer-archive'
+      && Object.keys(slapend?.recordedDates?.times ?? {}).length === Object.keys(originalTimes).length);
+  expect('6w ... zodat de export-poort ook dáár actief is (geen verzonnen speling naar CSV/MCP)',
+    slapend !== undefined && unrecordedExportGate(slapend.recordedDates, slapend.datesAsRecorded) !== undefined);
   // Alleen de taken die P6 écht vastlegde (R5 heeft geen vastlegging, zie sectie 2e): voor die
   // taken moet de weergave nog exact de vastlegging zijn, want er is niet herberekend.
   eq('6u ... en met P6\'s datums nog ín de vastgelegde taken',

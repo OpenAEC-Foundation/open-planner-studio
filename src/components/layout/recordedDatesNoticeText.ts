@@ -25,7 +25,22 @@ export type RecordedDatesActiveKey = 'recordedDates.activeCount' | 'recordedDate
  *  op de bestaande sleutels, dus een sleutel die niet bestaat geeft hier een compile-fout in plaats
  *  van een lege melding in de app. */
 export function recordedDatesActiveKey(origin: RecordedDatesState['origin']): RecordedDatesActiveKey {
-  return origin === 'xer' || origin === 'xer-archive'
+  return isPrimaveraRecordedOrigin(origin)
     ? 'recordedDates.activeCount'
     : 'recordedDates.activeCountNeutral';
+}
+
+/** Dezelfde vraag voor de per-taak-badge in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`,
+ *  namespace `task`). Her-check laag 3, bevinding 5: de badge zei "Primavera" op élk #63-document —
+ *  precies de fout die de strook één commit eerder had gerepareerd. Eén beslisregel, twee sleutels. */
+export type RecordedDatesTaskActiveKey = 'properties.recordedDatesActive' | 'properties.recordedDatesActiveNeutral';
+
+export function recordedDatesTaskActiveKey(origin: RecordedDatesState['origin']): RecordedDatesTaskActiveKey {
+  return isPrimaveraRecordedOrigin(origin)
+    ? 'properties.recordedDatesActive'
+    : 'properties.recordedDatesActiveNeutral';
+}
+
+export function isPrimaveraRecordedOrigin(origin: RecordedDatesState['origin']): boolean {
+  return origin === 'xer' || origin === 'xer-archive';
 }

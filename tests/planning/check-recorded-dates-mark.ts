@@ -22,6 +22,8 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { externIfc } from '../fixtures/recordedDatesIfc';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
+import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
+import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -318,6 +320,47 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   const modusTask = S().tasks.find(t => t.wbsCode === '1.1')!;
   eq('IN de modus: lateStart toont wél "Niet vastgelegd" (het bestand gaf die as niet)',
     lateStartCol.format(lateStartCol.read(modusTask, modusCtx), modusTask, modusCtx), 'Niet vastgelegd');
+}
+
+// ── De ECHTE naad: `taskGridAdapter.getCell` mét dateNotation (her-check laag 3, bev. 1 en 2) ──
+// De asserties hierboven riepen `descriptor.format(...)` rechtstreeks aan. Het product doet dat
+// niet: `getCell` slaat `format` over voor datumkolommen zodra `domain.dateNotation` gezet is (en
+// dat is in het product altijd zo), en `copyText` ging via `copyScalar(read(...))`. Gemeten vóór de
+// fix: `text="01-01-2026"` en `copyText="0"` waar "Niet vastgelegd" en "" hoorden. Deze sectie meet
+// daarom op `getCell().text`/`.copyText` en `copyCell`, met de productinstelling `dateNotation: 'dmy'`.
+{
+  const gridTask = taskWith({ lateStart: '2026-01-01', lateFinish: '2026-01-02', totalFloat: 0, freeFloat: 0 });
+  const makeAdapter = (recordedUnrecordedAxes: ((task: Task) => readonly ('ls' | 'lf' | 'tf' | 'ff')[]) | undefined) =>
+    createTaskGridAdapter({
+      surfaceId: 'full-task-grid', projectId: 'p-1',
+      rows: [{ kind: 'task', rowKey: 'occ-1', task: gridTask, depth: 0, dimmed: false }],
+      tasks: [gridTask], sequences: [], assignments: [], resources: [], baselines: [],
+      activityCodeTypes: [], customFieldDefs: [], scheduleStale: false, wbsAutoNumber: false,
+      selectedTaskIds: [], labelForColumn: key => key,
+      labelForText: key => ({ 'recordedDates.notRecorded': 'Niet vastgelegd' }[key] ?? key),
+      dateNotation: 'dmy',
+      recordedMark: () => undefined,
+      recordedUnrecordedAxes,
+    });
+  const inMode = makeAdapter(() => ['ls', 'tf']);
+  const cell = (adapter: ReturnType<typeof makeAdapter>, id: string) => adapter.getCell('occ-1', taskColumnId(id));
+  eq('adapter+dateNotation: lateStart (niet vastgelegd) toont "Niet vastgelegd", géén verzonnen dd-mm-jjjj',
+    cell(inMode, 'task.time.lateStart')?.text, 'Niet vastgelegd');
+  eq('adapter+dateNotation: lateStart (niet vastgelegd) kopieert LEEG, niet de `?? rec.start`-terugval',
+    [cell(inMode, 'task.time.lateStart')?.copyText, inMode.copyCell('occ-1', taskColumnId('task.time.lateStart'))], ['', '']);
+  eq('adapter+dateNotation: totalFloat (niet vastgelegd) toont "Niet vastgelegd" en kopieert leeg',
+    [cell(inMode, 'task.time.totalFloat')?.text, cell(inMode, 'task.time.totalFloat')?.copyText], ['Niet vastgelegd', '']);
+  eq('adapter+dateNotation: lateFinish (wél vastgelegd) toont gewoon de datum in dmy-notatie',
+    cell(inMode, 'task.time.lateFinish')?.text, '02-01-2026');
+  eq('adapter+dateNotation: freeFloat (wél vastgelegd) toont en kopieert het getal',
+    [cell(inMode, 'task.time.freeFloat')?.text, cell(inMode, 'task.time.freeFloat')?.copyText], ['0', '0']);
+  eq('adapter+dateNotation: de celtitel verraadt de verzonnen datum evenmin',
+    cell(inMode, 'task.time.lateStart')?.title, 'Niet vastgelegd');
+  const noMode = makeAdapter(undefined);
+  eq('adapter+dateNotation zónder modus: byte-identiek — lateStart toont de datum en kopieert die ook',
+    [cell(noMode, 'task.time.lateStart')?.text, cell(noMode, 'task.time.lateStart')?.copyText], ['01-01-2026', '01-01-2026']);
+  eq('adapter+dateNotation zónder modus: totalFloat toont het getal',
+    [cell(noMode, 'task.time.totalFloat')?.text, cell(noMode, 'task.time.totalFloat')?.copyText], ['0', '0']);
 }
 
 if (diffs.length > 0) {

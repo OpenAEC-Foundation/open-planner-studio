@@ -153,6 +153,36 @@ function recordedAxisFormat(axis: RecordedTaskAxis): Formatter {
     : formatScalar(value);
 }
 
+/**
+ * Her-check laag 3, bevindingen 1 en 2: de `format`-tak alleen was NIET genoeg. `taskGridAdapter.
+ * getCell` slaat `descriptor.format` over zodra `domain.dateNotation` gezet is (dat is in het
+ * product ALTIJD zo — `UIState.dateNotation` heeft een default) en de waarde een datumstring is:
+ * dan gaat de cel via `copyGridEditorValue` en toonde `task.time.lateStart` — de `?? rec.start`-
+ * terugval — als een echte, verzonnen late datum. En `copyScalar(read(...))` zette diezelfde
+ * terugval (of een verzonnen `0` speling) in het klembord terwijl de cel "Niet vastgelegd" toonde.
+ *
+ * Daarom is "niet vastgelegd" nu een eigenschap van de LEESWAARDE zelf: `read` levert `undefined`
+ * voor een as die het bestand niet gaf, zodat élke afnemer van de descriptor (celtekst, klembord,
+ * titel, sortering) hetzelfde ziet — er bestaat dan geen string meer die de adapter per ongeluk als
+ * datum kan opmaken. `format` blijft de tekst "Niet vastgelegd" leveren en `copy` een lege
+ * klembordcel (zelfde regel als `recorded.source` hieronder: klembord = wat de cel zegt, en een
+ * spreadsheet-plakactie verwacht leeg, geen em-dash). Buiten de modus (`recordedUnrecordedAxes`
+ * ontbreekt) is dit byte-identiek aan de kale `read`.
+ */
+function recordedAxisRead<T>(
+  axis: RecordedTaskAxis,
+  read: (task: Task) => T,
+): (task: Task, ctx: TaskColumnContext) => T | undefined {
+  return (task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis) ? undefined : read(task);
+}
+
+function recordedAxisCopy<T>(
+  axis: RecordedTaskAxis,
+  read: (task: Task) => T,
+): (task: Task, ctx: TaskColumnContext) => string {
+  return (task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis) ? '' : copyScalar(read(task));
+}
+
 function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
   const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
   const format = config.format ?? ((value: unknown) => formatScalar(value));
@@ -693,10 +723,10 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
     readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
-    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart, format: recordedAxisFormat('ls') }),
-    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish, format: recordedAxisFormat('lf') }),
-    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat, format: recordedAxisFormat('ff') }),
-    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat, format: recordedAxisFormat('tf') }),
+    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('ls', task => task.time.lateStart), format: recordedAxisFormat('ls'), copy: recordedAxisCopy('ls', task => task.time.lateStart) }),
+    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('lf', task => task.time.lateFinish), format: recordedAxisFormat('lf'), copy: recordedAxisCopy('lf', task => task.time.lateFinish) }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('ff', task => task.time.freeFloat), format: recordedAxisFormat('ff'), copy: recordedAxisCopy('ff', task => task.time.freeFloat) }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('tf', task => task.time.totalFloat), format: recordedAxisFormat('tf'), copy: recordedAxisCopy('tf', task => task.time.totalFloat) }),
     readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),

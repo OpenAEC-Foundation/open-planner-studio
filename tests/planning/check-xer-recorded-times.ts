@@ -204,6 +204,59 @@ if (!CORPUS) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Her-check laag 3, bevindingen 6 en 7 — ordetoets en kritiekdefinitie.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+{
+  const PROJECT_HEADER = 'proj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tcritical_path_type\tcritical_drtn_hr_cnt';
+  const withProject = (projectRow: string, taskRows: readonly string[]) => [
+    'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tStandaard 8u\tCA_Base\t8\t40\t',
+    '%T\tPROJECT',
+    `%F\t${PROJECT_HEADER}`,
+    projectRow,
+    '%T\tTASK',
+    `%F\t${FIXTURE_HEADER}`,
+    ...taskRows,
+    '%E',
+  ];
+  // Bevinding 6 (her-check laag 3) — GEMETEN EN VERWORPEN: een vastgelegd einde vóór de start is
+  // P6's eigen conventie voor voltooide activiteiten (early_start = statusdatum, early_end = het
+  // werkelijke einde; rehab-2: 2.042 van 6.976 taken, 2.036 daarvan TK_Complete). De lezer mag die
+  // vastlegging dus NIET weigeren — anders liegt de modus over 29% van dat bestand. Zie het
+  // docblok van `readXerRecordedTimes`. MUTATIEBEWIJS: voeg een `finish < start ⇒ continue`-guard
+  // toe ⇒ 9a slaat ROOD.
+  const completedInverted = read(withProject(
+    '%R\tP1\tCompleted\tC1\t2026-02-16\t2026-01-01\tCT_TotFloat\t0',
+    ['%R\tT1\tP1\tC1\tA1\tDone\tTT_Task\tDT_FixedDUR\tTK_Complete\t40\t0\t2026-02-02\t2026-02-09\t2026-02-16\t2026-02-09\t2026-02-16\t2026-02-09\t0\t0'],
+  ));
+  eq('9a P6-conventie voor voltooide activiteiten: early_end vóór early_start wordt letterlijk vastgelegd, niet geweigerd',
+    completedInverted.recordedTimes?.T1, {
+      start: '2026-02-16', finish: '2026-02-09', lateStart: '2026-02-16', lateFinish: '2026-02-09',
+      totalFloat: 0, freeFloat: 0, isCritical: true,
+    });
+
+  // Bevinding 7: `isCritical` volgt de kritiekdefinitie die de solver óók krijgt.
+  const drempel = read(withProject(
+    '%R\tP1\tDrempel\tC1\t2026-01-01\t2026-01-01\tCT_TotFloat\t8',
+    ['%R\tT1\tP1\tC1\tA1\tFloat4h\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-01-02\t2026-01-09\t2026-01-05\t2026-01-12\t2026-01-10\t2026-01-17\t4\t0'],
+  ));
+  eq('9e drempel 8u en 4u speling ⇒ kritiek (de solver kleurt hem óók kritiek)',
+    [drempel.recordedTimes?.T1?.totalFloat, drempel.recordedTimes?.T1?.isCritical, drempel.project.schedulingOptions?.criticalDefinition],
+    [0.5, true, { mode: 'totalFloat', thresholdHours: 8 }]);
+  const drivpath = read(withProject(
+    '%R\tP1\tLongest\tC1\t2026-01-01\t2026-01-01\tCT_DrivPath\t0',
+    ['%R\tT1\tP1\tC1\tA1\tLongest\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-01-02\t2026-01-09\t2026-01-05\t2026-01-12\t2026-01-10\t2026-01-17\t0\t0'],
+  ));
+  eq('9f longest-path-kritiek is uit een float niet af te leiden ⇒ isCritical "niet vastgelegd", float blijft',
+    [drivpath.recordedTimes?.T1?.totalFloat, drivpath.recordedTimes?.T1?.isCritical, drivpath.project.schedulingOptions?.criticalDefinition],
+    [0, undefined, { mode: 'longestPath' }]);
+  eq('9g zonder PROJECT-kolommen blijft de P6-default (drempel 0) ⇒ byte-identiek aan vóór de bevinding',
+    [rt.T2?.isCritical, rt.T1?.isCritical], [true, false]);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: xer-recorded-times — ${checks} checks groen`);

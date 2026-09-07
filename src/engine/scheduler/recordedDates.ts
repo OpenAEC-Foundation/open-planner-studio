@@ -1,4 +1,6 @@
 import type { Task, TaskTimeComputed, TaskTimeInput } from '@/types/task';
+import { rollupSummaryTasks } from './applyCpmResult';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult, CPMTaskResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
@@ -65,8 +67,13 @@ export interface RecordedDates {
  *  taak 4) bouwt zelf `{ ...captureRecordedDates(...), shifted: countShiftedTasks(...) }` —
  *  `documentContract.ts` draagt alleen het type in `DOCUMENT_FIELDS`, niet de samenstelling ervan. */
 export interface RecordedDatesState extends RecordedDates {
-  /** Aantal taken waarvan de herberekening de datums verschoof — de teller in de melding. */
-  shifted: number;
+  /** Aantal taken waarvan de herberekening de datums verschoof — de teller in de melding.
+   *  OPTIONEEL (her-check laag 3, bevinding 4): een SLAPEND hersteld document staat in de modus
+   *  zonder ooit gesolved te zijn (`applyRestoredRecordedMode`, `documentActivation.ts`), dus daar
+   *  bestáát de teller niet. Afwezig ⇒ de strook valt terug op zijn tellerloze tekst; alles wat aan
+   *  "in de modus" hangt (export-poort, "niet vastgelegd"-kolommen, badge) blijft wél gewoon werken,
+   *  want dat hangt aan `times`, niet aan deze teller. Een verzonnen `shifted: 0` blijft verboden. */
+  shifted?: number;
   /** Bronformaat van de vastlegging (spiegelt `ImportResult.recordedTimesOrigin`, XER-etappe laag
    *  3, taak T4/T5) — bewust GEEN import van dat type hier: de engine-laag kent geen formaten,
    *  alleen deze twee letterlijke waarden. Stuurt uitsluitend WOORDKEUZE in de strook
@@ -350,6 +357,21 @@ export function applyRecordedTimesToTasks(
     task.time.totalFloat = rec.totalFloat ?? 0;
     task.time.freeFloat = rec.freeFloat ?? 0;
     task.time.isCritical = rec.isCritical ?? false;
+    task.time.interferingFloat = undefined;
+    task.time.isNearCritical = undefined;
+    task.time.floatPath = undefined;
+  }
+  // Her-check laag 3, bevinding 3: samenvattingen (XER-WBS-rijen, IFC-fasen) hebben nooit een eigen
+  // vastlegging — P6 schrijft de zes kolommen alleen in TASK — en hielden dus de datums van de solve
+  // die deze modus net verwierp. Dezelfde rollup als ná een echte solve (`applyCpmResult`), zodat
+  // een fasebalk in de Gantt de vastgelegde kinderen omspant en niet een weggegooide berekening.
+  // De rollup leest de terugvallen hierboven (`?? rec.start`, `?? 0`) als kindwaarden; een
+  // samenvatting heeft geen "niet vastgelegd"-markering per as (geen eigen `times[id]`), dus haar
+  // late zijde/speling zijn afgeleid van wat de kinderen op het scherm tonen. De drie analyse-
+  // afgeleiden worden ook op de samenvattingen gewist, om dezelfde reden als op de bladtaken.
+  rollupSummaryTasks(tasks);
+  for (const task of tasks) {
+    if (isLeafTask(task)) continue;
     task.time.interferingFloat = undefined;
     task.time.isNearCritical = undefined;
     task.time.floatPath = undefined;

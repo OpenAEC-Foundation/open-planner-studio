@@ -264,6 +264,7 @@
     "timephasedLost": "Rozkład godzin z MS Project nie jest już stosowany po edycji — pierwotny rozkład pozostaje zachowany w pliku",
     "timephasedContoured": "Własny rozkład godzin",
     "recordedDatesActive": "Pokazuje własne daty zapisane przez Primaverę dla tego zadania",
+    "recordedDatesActiveNeutral": "Pokazuje daty zapisane w pliku dla tego zadania",
     "recordedDatesDeviates": "Odbiega od zapisanych dat",
     "recordedDatesPartlyUnrecorded": "Zapis jest częściowo niekompletny — zobacz kolumny późnego zakończenia/zapasu",
     "completion": "Postęp (%)",

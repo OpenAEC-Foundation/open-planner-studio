@@ -1,4 +1,5 @@
 import { Task } from '@/types/task';
+import type { UnrecordedExportField } from '@/state/recordedDatesSelectors';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -53,7 +54,7 @@ export function writeCSV(
    * De aanroeper bouwt deze functie met `unrecordedExportGate` (`state/recordedDatesSelectors`);
    * deze module blijft store-vrij en krijgt hem als parameter.
    */
-  unrecordedExportFieldsOf?: (task: Task) => readonly ('totalFloat' | 'isCritical' | string)[],
+  unrecordedExportFieldsOf?: (task: Task) => readonly UnrecordedExportField[],
 ): string {
   // H5 (eindreview T16c): de "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de
   // relatie-lag hierboven, die "ed"/"e%" al schrijft) — een taak met ELAPSEDTIME-duur (T8, 24/7-
