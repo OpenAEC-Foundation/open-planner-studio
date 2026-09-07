@@ -138,6 +138,7 @@
     "notCalculatedNote": "Ainda não calculado — prima Calcular (F5) para datas e folgas.",
     "staleNote": "O cronograma mudou desde o último cálculo — prima Calcular (F5) para valores atuais.",
     "statusDateMissingNote": "Sem data de estado — o relatório usa hoje ({{date}}).",
+    "recordedDatesNote": "Vista «datas tal como gravadas»: este relatório mostra as datas do ficheiro de origem, não um cálculo. Inícios/fins tardios e folgas que o ficheiro não registou aparecem vazios ou a 0.",
     "period": "Período",
     "statusDate": "Data de estado",
     "common": {

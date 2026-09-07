@@ -1047,6 +1047,7 @@
     "declaredHeading": "Wat deze extensie zegt te gebruiken",
     "declaredNote": "Dit is de opgave van de maker, geen beperking — de code kan hoe dan ook meer.",
     "declaredNone": "Niets opgegeven.",
+    "permImportSource": "importSource — de volledige oorspronkelijke bronbytes van elk geïmporteerd bestand (bijvoorbeeld een rauw Primavera-bestand), ook velden die niet in het project terechtkomen.",
     "cancel": "Niet installeren",
     "confirm": "Installeren"
   }

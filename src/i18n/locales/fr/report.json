@@ -138,6 +138,7 @@
     "notCalculatedNote": "Pas encore calculé — appuyez sur Calculer (F5) pour les dates et les marges.",
     "staleNote": "Le planning a changé depuis le dernier calcul — appuyez sur Calculer (F5) pour des valeurs à jour.",
     "statusDateMissingNote": "Aucune date d'état définie — le rapport utilise aujourd'hui ({{date}}).",
+    "recordedDatesNote": "Vue « dates telles qu'enregistrées » : ce rapport affiche les dates du fichier source, pas un calcul. Les débuts/fins au plus tard et les marges non enregistrés dans le fichier apparaissent vides ou à 0.",
     "period": "Période",
     "statusDate": "Date d'état",
     "common": {

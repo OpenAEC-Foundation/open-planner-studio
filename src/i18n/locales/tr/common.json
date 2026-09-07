@@ -1024,6 +1024,7 @@
     "declaredHeading": "Bu uzantının kullandığını belirttikleri",
     "declaredNote": "Bu, yazarın beyanıdır, bir kısıtlama değil — kod yine de fazlasını yapabilir.",
     "declaredNone": "Hiçbir şey belirtilmemiş.",
+    "permImportSource": "importSource — içe aktarılan her dosyanın eksiksiz özgün kaynak baytları (örneğin ham bir Primavera dosyası), projeye hiç ulaşmayan alanlar dahil.",
     "cancel": "Kurma",
     "confirm": "Kur"
   }

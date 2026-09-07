@@ -990,6 +990,7 @@
     "declaredHeading": "此扩展声明会使用的功能",
     "declaredNote": "这是作者的声明，而非限制——代码无论如何都能做得更多。",
     "declaredNone": "未声明任何内容。",
+    "permImportSource": "importSource — 每个导入文件的完整原始源字节（例如原始 Primavera 文件），包括从未进入项目的字段。",
     "cancel": "不安装",
     "confirm": "安装"
   }

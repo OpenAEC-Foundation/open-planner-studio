@@ -840,6 +840,52 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   'P6NonWorkPenaltyDates zonder P6Source=XER blijft bij IFC-inlees inert en wordt niet gematerialiseerd');
 }
 
+// ── Eindreview XER-etappe, bevinding 4: het OPS_SchedulingOptions-JSON is buiteninvoer ────────────
+// Een geschreven IFC waarvan het JSON-blob is vervangen door een vijandig object: onbekende sleutels,
+// een niet-bestaande kritiek-modus, een string waar een getal hoort, een half `floatPaths`. Alles wat
+// niet aan het `SchedulingOptions`-contract voldoet valt weg; wat wél klopt (incl. `p6Source`, dat
+// legitiem round-tript) blijft staan. Het commentaar in `CPMSolver.ts` bij `p6SourceActive` beschrijft
+// precies deze grens.
+{
+  const hostile = JSON.stringify({
+    p6Source: 'XER',
+    p6CompletedLateFromRemainingWindow: true,
+    useProjectEndDateForFloat: 'ja',
+    preserveActualDatesInBackwardPass: 1,
+    lagCalendar: 'maan',
+    totalFloatMode: 'finish',
+    nearCriticalThreshold: 'drie',
+    criticalDefinition: { mode: 'NIET_BESTAAND', thresholdHours: 'tekst' },
+    floatPaths: { enabled: true, method: 'TOTAL_FLOAT' },
+    onzin: [1, 2, 3],
+  });
+  const written = writeIFC(fixture);
+  const pattern = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('[^']*'\),\$\)/;
+  assert(pattern.test(written), 'fixture schrijft het OPS_SchedulingOptions-pset (anker voor de vijandige vervanging)');
+  const hostileIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostile}'),$)`);
+  const canon = (value: unknown): string => JSON.stringify(value, (_key, v: unknown) =>
+    (v && typeof v === 'object' && !Array.isArray(v))
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : v);
+  const read = readIFC(hostileIfc).project.schedulingOptions;
+  assert(canon(read) === canon({
+    p6Source: 'XER',
+    p6CompletedLateFromRemainingWindow: true,
+    totalFloatMode: 'finish',
+  }), 'vijandig OPS_SchedulingOptions-JSON: alleen de goed getypeerde, bekende sleutels overleven; onzin-mode, string-getallen, onbekende sleutels en een half floatPaths-blok vallen weg');
+
+  const hostileCritical = JSON.stringify({ criticalDefinition: { mode: 'longestPath', threshold: 'x', thresholdHours: -4 }, floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 } });
+  const partialIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostileCritical}'),$)`);
+  assert(canon(readIFC(partialIfc).project.schedulingOptions) === canon({
+    criticalDefinition: { mode: 'longestPath', thresholdHours: -4 },
+    floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 },
+  }), 'geneste blokken: een geldige mode met een ongeldige threshold houdt alleen de geldige velden; een compleet floatPaths-blok blijft heel');
+
+  const emptyIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('{"onzin":true}'),$)`);
+  assert(readIFC(emptyIfc).project.schedulingOptions === undefined,
+    'een JSON-blob zonder één geldige sleutel levert géén leeg optieobject maar undefined (default-inert, zoals een afwezig pset)');
+}
+
 {
   const absentPenaltyIfc = writeIFC(fixture).split('\n')
     .filter(line => !line.includes("IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates'"))

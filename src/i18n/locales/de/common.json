@@ -1024,6 +1024,7 @@
     "declaredHeading": "Was diese Erweiterung zu nutzen angibt",
     "declaredNote": "Das ist die Angabe des Autors, keine Beschränkung — der Code kann ohnehin mehr.",
     "declaredNone": "Nichts angegeben.",
+    "permImportSource": "importSource — die vollständigen ursprünglichen Quellbytes jeder importierten Datei (z. B. eine rohe Primavera-Datei), auch Felder, die nie ins Projekt gelangen.",
     "cancel": "Nicht installieren",
     "confirm": "Installieren"
   }

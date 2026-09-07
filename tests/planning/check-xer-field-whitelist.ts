@@ -246,10 +246,26 @@ export const XER_TASK_IGNORED: readonly string[] = [
 // getalformaat-parsing over ALLE XER-tabellen (niet TASK-specifiek, niets met "lees dit veld als
 // taakuitvoer" te maken). Die catalogus draagt de naam als lijst-element (gevolgd door een komma),
 // nooit als celtoegang of functie-argument. De scan hieronder herkent daarom twee LEESPATRONEN —
-// `cells.<veld>`/`cells['<veld>']` (celtoegang) en `'<veld>')`/`"<veld>")` (laatste argument van
-// een aanroep, zoals `ctx.numberOf(row, 'total_float_hr_cnt')`) — en negeert bewust kale
+// `cells.<veld>`/`cells['<veld>']` (celtoegang) en `'<veld>'` als argument BINNEN de haakjes van een
+// aanroep op dezelfde regel (zoals `ctx.numberOf(row, 'total_float_hr_cnt')` — op élke argument-
+// positie, eindreview bevinding 3: het oude patroon eiste het láátste argument en liet
+// `numberOf(row, 'total_float_hr_cnt', 0)` ongezien door) — en negeert bewust kale
 // lijst-lidmaatschap. Zonder die nuance zou deze scan op dag één al rood staan, buiten elke wijziging
 // van deze etappe om.
+//
+// BAK 2 (eindreview bevinding 3, mutatiebewijs M-B): dezelfde scanlus loopt óók over
+// `XER_TASK_FORBIDDEN`. Plan §4.1 belooft "de X12-sluiproute-scan grept tegen de whitelist", maar
+// tot deze bijstelling had bak 2 GEEN enkele consument buiten de bucket-classificatie hieronder: een
+// lezing van `restart_date` achter een `task_type === 'TT_Rsrc'`-conditie kwam door X12, deze scan,
+// de corpusloze fidelity-poort én de reader-check (alle exit 0), omdat de X12-non-interferentie-
+// fixture maar één activiteitstype kent en het corpus geen CI-poort is. Deze grep is corpusloos en
+// dus wél een CI-poort. Toegestaan zijn uitsluitend twee lezingen van DEZELFDE kolomnaam op een
+// ANDERE tabel — bak 2 is een TASK-tabel-lijst — elk gepind op bestand én exacte vorm:
+//   • `projectRow.cells.plan_end_date` in `xerReader.ts` (PROJECT-tabel: het geplande projecteinde
+//     voor `useProjectEndDateForFloat`, X5), en
+//   • `row.cells.critical_drtn_hr_cnt` in `xerScheduleOptions.ts` (SCHEDOPTIONS-tabel: de
+//     kritiek-drempel in uren, X5).
+// Elke andere treffer — ook dezelfde naam in een ander bestand of in een andere vorm — is rood.
 {
   const kandidaten = [
     fileURLToPath(new URL('../../src/', import.meta.url).href),
@@ -277,19 +293,23 @@ export const XER_TASK_IGNORED: readonly string[] = [
       truthy('isolatiescan leest een plausibel aantal bestanden in src/', xerFiles.length > 100);
 
       const toegestaan = join(xerDir, 'xerRecordedTimes.ts');
+      // Leest `text` de kolom `field`? Drie leespatronen: celtoegang, aanroepargument op dezelfde
+      // regel (elke positie; `[^()\\n]` houdt het binnen één regel én buiten geneste haakjes, zodat
+      // een lijstelement `'x',` in een meerregelig `new Set([ … ])` níét matcht), destructurering.
+      const readsField = (text: string, field: string): boolean => {
+        const cellAccess = new RegExp(`cells(?:\\.${field}\\b|\\[['"]${field}['"]\\])`);
+        const callArg = new RegExp(`\\([^()\\n]*['"]${field}['"]\\s*[,)]`);
+        // Derde leespatroon (bevinding 7, gemeten gat): `const { early_start_date } = row.cells`
+        // en `const { early_start_date: x } = cells` — destructurering las de kolom ongezien.
+        const destructure = new RegExp(`\\{[^{}]*\\b${field}\\b[^{}]*\\}\\s*=`);
+        return cellAccess.test(text) || callArg.test(text) || destructure.test(text);
+      };
       const overtreders: string[] = [];
       for (const file of xerFiles) {
         if (file === toegestaan) continue;
         const text = readFileSync(file, 'utf8');
         for (const field of XER_TASK_RECORDED_OUTPUT) {
-          const cellAccess = new RegExp(`cells(?:\\.${field}\\b|\\[['"]${field}['"]\\])`);
-          const callArg = new RegExp(`['"]${field}['"]\\s*\\)`);
-          // Derde leespatroon (bevinding 7, gemeten gat): `const { early_start_date } = row.cells`
-          // en `const { early_start_date: x } = cells` — destructurering las de kolom ongezien.
-          const destructure = new RegExp(`\\{[^{}]*\\b${field}\\b[^{}]*\\}\\s*=`);
-          if (cellAccess.test(text) || callArg.test(text) || destructure.test(text)) {
-            overtreders.push(`${field} in ${file.slice(srcRoot.length)}`);
-          }
+          if (readsField(text, field)) overtreders.push(`${field} in ${file.slice(srcRoot.length)}`);
         }
       }
       checks++;
@@ -297,6 +317,48 @@ export const XER_TASK_IGNORED: readonly string[] = [
         diffs.push(
           `isolatiescan: BAK-4-kolommen worden buiten xerRecordedTimes.ts gelezen — ${overtreders.join(', ')}`,
         );
+      }
+
+      // Zelftoets van de leespatronen (anders is een kapotte regex een stil groene scan): de
+      // M-B-mutant uit de eindreview en de drie vormen moeten matchen, kale lijst-lidmaatschap niet.
+      truthy('isolatiescan herkent de M-B-mutant (conditionele celtoegang)',
+        readsField("const x = row.cells.task_type === 'TT_Rsrc' && row.cells.restart_date ? 1 : 2;", 'restart_date'));
+      truthy('isolatiescan herkent een aanroepargument op een niet-laatste positie',
+        readsField("ctx.numberOf(row, 'restart_date', 0)", 'restart_date'));
+      truthy('isolatiescan herkent destructurering',
+        readsField('const { restart_date: r } = row.cells;', 'restart_date'));
+      truthy('isolatiescan negeert kale lijst-lidmaatschap',
+        !readsField("const F = new Set([\n  'a',\n  'restart_date',\n  'b',\n]);", 'restart_date'));
+
+      // BAK 2 — de whitelist-sluiproute-grep die plan §4.1 belooft (zie de kop van dit blok).
+      const bak2Toegestaan: ReadonlyArray<{ field: string; file: string; exact: RegExp }> = [
+        { field: 'plan_end_date', file: join(xerDir, 'xerReader.ts'), exact: /projectRow\.cells\.plan_end_date\b/ },
+        { field: 'critical_drtn_hr_cnt', file: join(xerDir, 'xerScheduleOptions.ts'), exact: /row\.cells\.critical_drtn_hr_cnt\b/ },
+      ];
+      const bak2Overtreders: string[] = [];
+      for (const file of xerFiles) {
+        const text = readFileSync(file, 'utf8');
+        for (const field of XER_TASK_FORBIDDEN) {
+          if (!readsField(text, field)) continue;
+          const uitzondering = bak2Toegestaan.find(entry => entry.field === field && entry.file === file);
+          if (uitzondering) {
+            // De uitzondering geldt voor precies die ene vorm; is de kolom daarnaast nog op een
+            // andere manier gelezen, dan blijft het bestand rood.
+            const rest = text.replace(new RegExp(uitzondering.exact.source, 'g'), '');
+            if (!readsField(rest, field)) continue;
+          }
+          bak2Overtreders.push(`${field} in ${file.slice(srcRoot.length)}`);
+        }
+      }
+      checks++;
+      if (bak2Overtreders.length > 0) {
+        diffs.push(`sluiproute-grep: BAK-2-kolommen (verboden rekenuitvoer) worden in src/ gelezen — ${bak2Overtreders.join(', ')}`);
+      }
+      // De twee toegestane andere-tabel-lezingen moeten ook echt bestaan: verdwijnt er één, dan is
+      // de uitzondering dood en hoort hij hier weg.
+      for (const entry of bak2Toegestaan) {
+        truthy(`sluiproute-grep: toegestane andere-tabel-lezing van ${entry.field} bestaat nog in ${entry.file.slice(srcRoot.length)}`,
+          existsSync(entry.file) && entry.exact.test(readFileSync(entry.file, 'utf8')));
       }
     }
   }

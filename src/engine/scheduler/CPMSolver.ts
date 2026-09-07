@@ -192,7 +192,8 @@ export function snapWorkInstantOnOrAfter(eng: CalendarEngine, from: Date): Date 
  * (relatietabel-waarschuwingen) zodat er één definitie bestaat.
  *
  * `hoursPerDay` (optioneel, fase 2.10) = de dag↔minuut-factor van de kalender waarin de lag telt —
- * de VOORGANGER-kalender voor WORKTIME (`LAG_CALENDAR='predecessor'`), 24 voor ELAPSEDTIME. Alleen
+ * de lag-kalender voor WORKTIME (`schedulingOptions.lagCalendar`, default de VOORGANGER-kalender),
+ * 24 voor ELAPSEDTIME. Alleen
  * mét die factor kan een lag die uitsluitend als `lagMinutes` bestaat (`lagDays = 0`) in DAGEN
  * uitgedrukt worden. Zonder de factor (UI-aanroepers) is de functie byte-identiek aan vóór 2.10.
  */
@@ -386,8 +387,13 @@ export class CPMSolver {
       }
     }
     // X12: relationele P6/XER-ankers vormen één brongepoorte grens. RelationMath en alle solver-
-    // paden zien uitsluitend deze effectieve relaties; een losse vlag in generieke IFC/ext-data kan
-    // daarmee nooit P6-gedrag activeren. De XER-reader is de enige schrijver van `p6Source`.
+    // paden zien uitsluitend deze effectieve relaties; een LOSSE relatievlag zonder projectniveau-
+    // `p6Source` kan daarmee geen P6-gedrag activeren. Wat deze poort NIET is (eindreview
+    // bevinding 4): een bescherming tegen een vervalst projectbestand — `p6Source` round-tript
+    // bewust door het `OPS_SchedulingOptions`-pset van het IFC (een uit XER geïmporteerd project moet
+    // na opslaan/heropenen dezelfde P6-opties dragen), dus de IFC-lezer is náást de XER-lezer een
+    // legitieme schrijver. Die lezer valideert sleutels en typen (`sanitizeSchedulingOptions`),
+    // meer niet; wie een IFC met `p6Source: 'XER'` opent, kiest daarmee voor P6-semantiek.
     const p6SourceActive = options.schedulingOptions?.p6Source === 'XER';
     this.sequences = p6SourceActive
       ? kept
@@ -1044,7 +1050,9 @@ export class CPMSolver {
     if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) return seq.lagMinutes;
     return resolveEffectiveLagDays(seq, predTask) * 24 * 60;
   }
-  /** Verschuif `base` met de relatie-lag in de VOORGANGER-engine (`LAG_CALENDAR='predecessor'`, §5.2).
+  /** Verschuif `base` met de relatie-lag in de meegegeven lag-engine (`predEng` is de naam uit de tijd
+   *  dat de voorgangerskalender een constante was; elke aanroeper geeft nu `lagEng` uit
+   *  `relDeps.lagEngine` door — `schedulingOptions.lagCalendar`, default voorganger; §5.2).
    *  Uur-pred ⇒ minuten via `addWorkingMinutesSigned`; dag-pred ⇒ dagen via `addWorkingDaysSigned`
    *  (dag-lag blijft exact als nu). `sign` = +1 voorwaarts, −1 achterwaarts (spiegel). */
   private shiftLagPred(

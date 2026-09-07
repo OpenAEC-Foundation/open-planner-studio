@@ -104,6 +104,11 @@ The same honesty applies off screen: export to CSV while this view is on and the
 unrecorded axis stays empty instead of showing a `0`, and the AI assistant sees `null` for such an
 axis, together with the list of axes the file did not record.
 
+The reports (the Report tab, including the PDF and the print preview) do not have that blank cell
+yet: there a not-recorded axis shows an empty field or a `0`. While this view is active, one notice
+therefore appears above every report saying that you are looking at the dates from the file and where
+those zeros come from.
+
 ## Further reading
 
 - More on which formats you can import and what does and doesn't come along — read the

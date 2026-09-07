@@ -52,6 +52,8 @@ const measurements = [1, 8, 32].map(chunkCount => {
   expect(`${chunkCount} chunks: SHA en gedecodeerde bytes blijven exact`,
     read.xerSourceArchive !== undefined
     && sha256Hex(decodeXerSourceArchive(read.xerSourceArchive)) === sha256Hex(bytes));
+  // Tijd en RSS blijven informatief (hostafhankelijk, geen drempel); de machine-onafhankelijke
+  // serialisatieverhouding hieronder is de echte poort (eindreview bevinding 10).
   expect(`${chunkCount} chunks: echte tijd en OS-gemeten peak RSS zijn eindige observaties`,
     Number.isFinite(peakRssKiB) && peakRssKiB > 0 && Number.isFinite(elapsedMs) && elapsedMs >= 0);
   return { chunkCount, sourceBytes: bytes.length, ifcChars: ifc.length, elapsedMs, peakRssKiB };
@@ -60,6 +62,19 @@ const measurements = [1, 8, 32].map(chunkCount => {
 expect('relatieve IFC-omvang groeit mee van 1 naar 8 naar 32 chunks',
   measurements[1]!.ifcChars > measurements[0]!.ifcChars * 6
   && measurements[2]!.ifcChars > measurements[1]!.ifcChars * 3);
+// Eindreview bevinding 10: "eindig en positief" bewaakte niets. Walltime en RSS zijn host-
+// afhankelijk, maar de SERIALISATIEVERHOUDING niet: het archief zelf kost per bronbyte een vaste
+// coderingsoverhead (gemeten 2026-09-07: 1,36 / 1,34 / 1,33 IFC-tekens per bronbyte bij 1/8/32
+// chunks; de marginale kost van 8→32 chunks 1,33). Een wijziging die de serialisatie verdubbelt
+// (dubbel coderen, een tweede kopie, een minder compacte codering) gaat hier rood, ongeacht de
+// machine. De bovengrens 1,6 laat ~20% ruimte boven de gemeten waarde en ligt ver onder ×2.
+const MAX_IFC_CHARS_PER_SOURCE_BYTE = 1.6;
+const marginal = (measurements[2]!.ifcChars - measurements[1]!.ifcChars)
+  / (measurements[2]!.sourceBytes - measurements[1]!.sourceBytes);
+expect(`32 chunks: IFC-tekens per bronbyte ≤ ${MAX_IFC_CHARS_PER_SOURCE_BYTE} (gemeten ${(measurements[2]!.ifcChars / measurements[2]!.sourceBytes).toFixed(3)})`,
+  measurements[2]!.ifcChars / measurements[2]!.sourceBytes <= MAX_IFC_CHARS_PER_SOURCE_BYTE);
+expect(`marginale serialisatiekost 8→32 chunks ≤ ${MAX_IFC_CHARS_PER_SOURCE_BYTE} tekens per bronbyte (gemeten ${marginal.toFixed(3)})`,
+  marginal <= MAX_IFC_CHARS_PER_SOURCE_BYTE);
 console.log(`X9 archive scale: ${measurements.map(item =>
   `${item.chunkCount}c source=${item.sourceBytes} ifc=${item.ifcChars} time=${item.elapsedMs.toFixed(1)}ms peak-rss=${item.peakRssKiB}KiB`
 ).join(' | ')}`);

@@ -1058,6 +1058,7 @@
     "declaredHeading": "Lo que esta extensión declara usar",
     "declaredNote": "Es la declaración del autor, no una restricción: el código puede hacer más de todos modos.",
     "declaredNone": "No declara nada.",
+    "permImportSource": "importSource — los bytes de origen completos de cada archivo importado (por ejemplo un archivo Primavera sin procesar), incluidos campos que nunca llegan al proyecto.",
     "cancel": "No instalar",
     "confirm": "Instalar"
   }

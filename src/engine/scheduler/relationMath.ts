@@ -579,7 +579,7 @@ function backwardDay(
 //  UUR-/CROSS-modus (engaged zodra minstens één zijde uur-modus is; §4.3/§5.2).
 //  Spiegelt de dag-formules met instant-primitieven: `prevWorkInstantBefore` ↔
 //  `nextWorkInstantAfter`, `subtractWorkMinutes` ↔ `addWorkMinutes`, lag terug in de
-//  VOORGANGER-engine (`LAG_CALENDAR='predecessor'`).
+//  lag-engine uit `deps.lagEngine` (`schedulingOptions.lagCalendar`, default de voorganger).
 // ═══════════════════════════════════════════════════════════════════════════
 
 function forwardHour(

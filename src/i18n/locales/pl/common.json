@@ -1092,6 +1092,7 @@
     "declaredHeading": "Co to rozszerzenie deklaruje",
     "declaredNote": "To deklaracja autora, a nie ograniczenie — kod i tak może więcej.",
     "declaredNone": "Nic nie zadeklarowano.",
+    "permImportSource": "importSource — pełne oryginalne bajty źródłowe każdego zaimportowanego pliku (np. surowy plik Primavera), łącznie z polami, które nigdy nie trafiają do projektu.",
     "cancel": "Nie instaluj",
     "confirm": "Zainstaluj"
   }

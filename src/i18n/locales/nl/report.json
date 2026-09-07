@@ -135,6 +135,7 @@
     "notCalculatedNote": "Nog niet berekend — druk op Bereken (F5) voor datums en speling.",
     "staleNote": "De planning is gewijzigd sinds de laatste berekening — druk op Bereken (F5) voor actuele waarden.",
     "statusDateMissingNote": "Geen statusdatum ingesteld — het rapport rekent met vandaag ({{date}}).",
+    "recordedDatesNote": "Weergave 'datums zoals opgeslagen': dit rapport toont de datums uit het bronbestand, niet een berekening. Laatste start/einde en speling die het bestand niet vastlegde staan hier leeg of op 0.",
     "period": "Periode",
     "statusDate": "Statusdatum",
     "common": {

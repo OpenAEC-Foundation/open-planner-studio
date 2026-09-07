@@ -135,6 +135,7 @@
     "notCalculatedNote": "Not calculated yet — press Calculate (F5) for dates and float.",
     "staleNote": "The schedule changed since the last calculation — press Calculate (F5) for current values.",
     "statusDateMissingNote": "No status date set — the report uses today ({{date}}).",
+    "recordedDatesNote": "'Dates as recorded' view: this report shows the dates from the source file, not a calculation. Late start/finish and float the file did not record appear here as blank or 0.",
     "period": "Period",
     "statusDate": "Status date",
     "common": {

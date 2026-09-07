@@ -36,6 +36,7 @@ import {
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
   type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
+import { sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -2782,6 +2783,8 @@ function extractTimephasedDurationWalksMeta(
  * Fase 2.9 (§3.4/§6) — scheduling-options teruglezen uit het autoritatieve `OPS_SchedulingOptions`-
  * JSON op de `IfcWorkSchedule` (spiegel van `writeSchedulingOptionsMeta`, exact het extractBaselines-
  * patroon). Afwezig/corrupt ⇒ `undefined` (default-inert; alle solver-defaults blijven staan).
+ * Het geparste object gaat door `sanitizeSchedulingOptions` (eindreview bevinding 4): onbekende
+ * sleutels en verkeerd getypeerde waarden vallen weg in plaats van ongefilterd de solver in te gaan.
  */
 function extractSchedulingOptions(
   entities: StepEntity[],
@@ -2796,10 +2799,7 @@ function extractSchedulingOptions(
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string' || !raw) continue;
       try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return parsed as SchedulingOptions;
-        }
+        return sanitizeSchedulingOptions(JSON.parse(raw));
       } catch { /* corrupte JSON — negeer, opties blijven op default */ }
     }
   }

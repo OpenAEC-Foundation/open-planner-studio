@@ -96,10 +96,10 @@ eq('2 DaysOfWeek zet P6 zo/ma/di om naar ISO-weekdagen en canonieke banden', dec
   3: [], 4: [], 5: [], 6: [], 7: [],
 });
 eq('3 uitzondering zonder uren is een vrije dag vanaf de P6-epoch', decoded.holidays, [{
-  name: 'Kalenderuitzondering', startDate: '1899-12-30', endDate: '1899-12-30',
+  name: 'Calendar exception', startDate: '1899-12-30', endDate: '1899-12-30',
 }]);
 eq('4 uitzondering met AM/PM-uren is een werkende uitzondering', decoded.workingExceptions, [{
-  name: 'Kalenderuitzondering', startDate: '1899-12-31', endDate: '1899-12-31',
+  name: 'Calendar exception', startDate: '1899-12-31', endDate: '1899-12-31',
   bands: [{ start: 540, end: 810 }],
 }]);
 eq('5 gelezen klokbanden dragen het XER-uursignaal', decoded.hasExplicitClockBands, true);
@@ -275,7 +275,7 @@ eq('15c werkende uitzondering wint op een dubbele datum en sluit holiday-dubbeli
 }, {
   holidays: [],
   working: [{
-    name: 'Kalenderuitzondering',
+    name: 'Calendar exception',
     startDate: '1899-12-30',
     endDate: '1899-12-30',
     bands: [{ start: 540, end: 780 }],
@@ -313,10 +313,10 @@ eq('15e meerdere Exceptions-containers behouden vrije en werkende datums in bron
   working: multipleExceptionContainers.calendars[0]?.workingExceptions,
 }, {
   holidays: [{
-    name: 'Kalenderuitzondering', startDate: '1899-12-30', endDate: '1899-12-30',
+    name: 'Calendar exception', startDate: '1899-12-30', endDate: '1899-12-30',
   }],
   working: [{
-    name: 'Kalenderuitzondering', startDate: '1899-12-31', endDate: '1899-12-31',
+    name: 'Calendar exception', startDate: '1899-12-31', endDate: '1899-12-31',
     bands: [{ start: 540, end: 780 }],
   }],
 });
@@ -569,6 +569,14 @@ eq('22a het geklemde blok wordt tot tien aaneengesloten vrije dagen hersteld',
   ]);
 eq('22a een herstelde dag telt niet ook nog als virtuele P6-niet-werkdag',
   clamped.p6NonWorkPenaltyDates, []);
+// Eindreview bevinding 7: de reconstructie laat een spoor achter — één herstelcode per kalender,
+// die via `readXerCalendars` als `XER_CALENDAR_WEEKEND_CLAMP_RECONSTRUCTED` (RECOVERED) in de
+// kalenderbevindingen en dus in de openingsmelding meetelt. De gereconstrueerde dag draagt de
+// Engelse naam die ook de andere lezers gebruiken (bevinding 8: geen Nederlands in het IFC).
+eq('22a het herstel laat een herstelcode achter', clamped.recoveries.includes('WEEKEND_CLAMP_RECONSTRUCTED'), true);
+eq('22a de gereconstrueerde dag is als zodanig benoemd',
+  clamped.holidays.find(holiday => holiday.startDate === '2009-12-05')?.name,
+  'Calendar exception (weekend reconstruction)');
 
 // 22b — blok 2009-09-18 … 2009-09-24 van dezelfde kalender: de openings-VRIJDAG draagt hier géén
 // duplicaat (40074=2009-09-18 staat er één keer). Die zaterdag komt dus niet uit het duplicaat maar
@@ -587,6 +595,8 @@ eq('22b de sprong vrijdag→maandag herstelt het weekend ook zonder duplicaat op
 // blok en dus geen bewijs. Een kalenderbrede poort maakte hier stil zaterdag 2009-12-05 vrij.
 eq('22c een los dubbel vrijdagrecord maakt geen zaterdag vrij',
   holidayDates(calendarData(SEVEN_DAY_WEEK, [40151, 40151])), ['2009-12-04']);
+eq('22c zonder herstel geen herstelcode',
+  decodeXerCalendarData(calendarData(SEVEN_DAY_WEEK, [40151, 40151])).recoveries.includes('WEEKEND_CLAMP_RECONSTRUCTED'), false);
 
 // 22d — NEGATIEF: een duplicaat ELDERS (woensdag 2009-12-02, geen weekendbuur) mag de betekenis van
 // twee losse vrijdag-feestdagen verderop niet veranderen. Een kalenderbrede poort maakte hier
@@ -617,6 +627,8 @@ eq('22e op een ma-vr-kalender wordt er niets hersteld',
 eq('22e op een ma-vr-kalender blijven de aangrenzende duplicaten P6-niet-werkdagen',
   decodeXerCalendarData(calendarData(MON_FRI_WEEK, CLAMPED_BLOCK)).p6NonWorkPenaltyDates,
   ['2009-11-27', '2009-11-30', '2009-12-04']);
+eq('22e op een ma-vr-kalender geen herstelcode',
+  decodeXerCalendarData(calendarData(MON_FRI_WEEK, CLAMPED_BLOCK)).recoveries.includes('WEEKEND_CLAMP_RECONSTRUCTED'), false);
 
 if (diffs.length === 0) {
   console.log(`OK  xer-calendar-data: ${checks} checks groen`);

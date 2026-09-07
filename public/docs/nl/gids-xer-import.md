@@ -31,6 +31,8 @@ De import leest onder meer:
 - **Resources, tarieven en toewijzingen**.
 - **Activity codes, UDF's en notities**, inclusief hun bronstructuur en koppelingen aan activiteiten.
 
+Eén kalenderregel verdient een aparte vermelding. Sommige P6-exports klemmen een aaneengesloten vrij blok op de ma–vr-as: een vrije zaterdag staat dan als dubbel record op de vrijdag ervóór, een vrije zondag op de maandag erná. Ziet de lezer dat patroon op een kalender die op zaterdag of zondag wél werkt, dan maakt hij die weekenddag alsnog vrij. Zo'n gereconstrueerde dag staat niet als record in het bestand; hij heet in de kalender "Calendar exception (weekend reconstruction)" en telt mee in de kalenderbevindingen van de openingsmelding, zodat je altijd kunt zien dát de app hier iets heeft afgeleid. De regel is afgeleid uit één bestand en slaat alleen aan bij een meerdaags blok met bewijs op het record zelf; op een gewone ma–vr-kalender verandert er niets.
+
 De rauwe P6-brongegevens die Open Planner Studio leest, blijven onderdeel van het document. Ze reizen mee door tabwissels, undo, herstel en opslaan. Dat is iets anders dan beloven dat iedere P6-functie al een gelijkwaardig bewerk- of rekenmodel heeft: waar zo'n motor ontbreekt, bewaren we de brondata in plaats van haar stil weg te gooien.
 
 ## Voltooide activiteiten krijgen echte speling
@@ -78,6 +80,8 @@ weergave, inclusief wat je wel en niet ziet zolang hij actief is en hoe je er ha
 
 Een XER-import is een **import**, geen XER-editor of XER-exporter. Wanneer je daarna opslaat, schrijft Open Planner Studio een IFC-bestand. Dat IFC is het eigen projectbestand en bewaart de gelezen XER-brondata naast de gegevens waarmee de app werkt. Het oorspronkelijke `.xer`-bestand wordt nooit stil overschreven.
 
+Die bewaarde brondata heeft een prijs bij grote bestanden. Het volledige oorspronkelijke `.xer`-bestand reist mee in het projectbestand én in elke crashherstel-snapshot, zonder bovengrens. Gemeten op het grootste testbestand (een `.xer` van 17,7 MB met ruim 2.000 activiteiten): het IFC-projectbestand wordt ongeveer 50 MB, opslaan duurt tientallen seconden en het crashherstel schrijft dat bestand elke tien seconden opnieuw zolang je bewerkt. Bij een export met veel projecten vermenigvuldigt dat: elk geopend document draagt zijn eigen kopie. Voor de meeste planningen merk je hier niets van; werk je met een export van tientallen megabytes, houd dan rekening met een traag opslaan en een grote projectmap.
+
 Voor uitwisseling naar Primavera bestaat de bestaande **Primavera P6 XML**-export. Dat is een ander formaat met eigen beperkingen; zie [Im-/export](docs://gids-import-export). Bewaar daarom altijd ook het IFC-bestand wanneer je een bewerkt project later opnieuw wilt openen.
 
 ## Grenzen die zichtbaar blijven
@@ -87,6 +91,7 @@ Een paar P6-begrippen zijn al opgeslagen, maar hebben nog geen volledig gelijkwa
 - **`TT_Rsrc`** (resource-dependent activity) en **`TT_WBS`** worden als P6-brontype bewaard. De solver heeft nog geen afzonderlijke P6-rekenmodus voor deze typen.
 - Een P6-resourcecurve met 21 punten wordt als bronverdeling bewaard. Een herkenbare vorm kan voor het histogram naar de dichtstbijzijnde ingebouwde curve worden vertaald, maar de oorspronkelijke 21-puntsvorm wordt na een bewerking nog niet opnieuw berekend.
 - De bestaande **P6 XML**-lezer en deze XER-lezer hebben nog niet dezelfde volledige veldendekking. XER kan daarom gegevens bevatten die P6 XML in de app nog niet leest of schrijft.
+- **Projecteinde als spelingsanker zonder einddatum.** Staat in het bestand de P6-optie "bereken totale speling ten opzichte van het projecteinde" aan, maar heeft het project géén *Must Finish By*-datum en geen enkele activiteit een geplande einddatum, dan valt het projecteinde in de app terug op de projectstart. Alle laatste datums verankeren dan daarop en vrijwel elke activiteit toont negatieve speling en staat kritiek. In het testmateriaal komt die combinatie voor in P6-exports van kleine, kaal aangemaakte projecten. De vroege datums en de weergave **datums zoals opgeslagen** kloppen wél; alleen de herberekende late kant is dan niet bruikbaar, en er is nog geen schakelaar om de optie uit te zetten. Dit staat als bekende fout geregistreerd.
 
 Deze grenzen verwijderen geen brongegevens uit het IFC-projectbestand. Als XER-specifieke brondata aanwezig is en je exporteert naar CSV, MS Project XML of Primavera P6 XML, past die broninformatie niet volledig in het doelformaat. Na een geslaagde export verschijnt daarom één informatieve melding met een link naar deze gids. Annuleer je de export of mislukt het opslaan, dan verschijnt die melding niet. De export naar IFC bewaart de XER-brondata; de andere exports nemen alleen de gegevens mee die hun eigen formaat ondersteunt. Het oorspronkelijke `.xer`-bestand wordt niet overschreven.
 

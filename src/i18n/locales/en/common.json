@@ -1047,6 +1047,7 @@
     "declaredHeading": "What this extension says it uses",
     "declaredNote": "This is the author's declaration, not a restriction — the code can do more regardless.",
     "declaredNone": "Nothing declared.",
+    "permImportSource": "importSource — the complete original source bytes of every imported file (for example a raw Primavera file), including fields that never reach the project.",
     "cancel": "Don't install",
     "confirm": "Install"
   }

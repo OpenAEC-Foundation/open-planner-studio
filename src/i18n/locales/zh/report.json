@@ -132,6 +132,7 @@
     "notCalculatedNote": "尚未计算——按“计算”(F5) 以获取日期和浮时。",
     "staleNote": "自上次计算以来进度计划已更改——按“计算”(F5) 以获取最新值。",
     "statusDateMissingNote": "未设置状态日期——报告以今天 ({{date}}) 为准。",
+    "recordedDatesNote": "“按保存日期”视图：本报告显示源文件中的日期，而非计算结果。文件未记录的最迟开始/完成和浮动时间在此显示为空或 0。",
     "period": "期间",
     "statusDate": "状态日期",
     "common": {

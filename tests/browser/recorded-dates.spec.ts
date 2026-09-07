@@ -104,9 +104,19 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await expect(activeBadge).toBeVisible();
   await expect(activeBadge).toContainText(/Primavera/);
 
+  // Eindreview bevinding 6: de rapporten kennen de "niet vastgelegd"-cel niet; in de modus staat
+  // daarom boven elk rapport (hier het standaardtype, de Gantt-afdruk) één melding die zegt dat je
+  // naar de datums uit het bestand kijkt. Buiten de modus is die melding weg.
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const reportNote = page.locator('[data-report-recorded-dates-note]');
+  await expect(reportNote).toBeVisible();
+  await expect(reportNote).toContainText(/(opgeslagen|recorded)/);
+
   // Herberekenen verlaat de modus: strook weg, en de kolom toont weer onze eigen, echte speling.
   await page.locator('[data-ops-recorded-dates-recalculate]').click();
   await expect(strip).toHaveCount(0);
+  await expect(reportNote).toHaveCount(0);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect.poll(() => state(page).then(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded))).toBe(false);
   await expect(taskCell(page, ids.earlyOnly, 'task.time.totalFloat')).not.toHaveText(/^(Niet vastgelegd|Not recorded)$/);
 });

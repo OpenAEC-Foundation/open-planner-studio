@@ -138,6 +138,7 @@
     "notCalculatedNote": "Non ancora calcolato — premi Calcola (F5) per date e slack.",
     "staleNote": "Il programma è cambiato dall'ultimo calcolo — premi Calcola (F5) per valori aggiornati.",
     "statusDateMissingNote": "Nessuna data di stato impostata — il rapporto usa oggi ({{date}}).",
+    "recordedDatesNote": "Vista «date come salvate»: questo rapporto mostra le date del file di origine, non un calcolo. Inizi/fini al più tardi e scorrimenti non registrati nel file compaiono vuoti o a 0.",
     "period": "Periodo",
     "statusDate": "Data di stato",
     "common": {

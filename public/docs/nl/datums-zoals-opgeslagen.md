@@ -107,7 +107,10 @@ staat in die kolom gewoon het berekende getal.
 Diezelfde eerlijkheid geldt buiten het scherm: exporteer je naar CSV terwijl deze weergave aanstaat,
 dan blijft de cel voor een niet-vastgelegde as leeg in plaats van een `0` te tonen, en de
 AI-assistent krijgt voor zo'n as `null` te zien met de opsomming van welke assen het bestand niet
-vastlegde.
+vastlegde. De rapporten (het Rapport-tabblad, inclusief de PDF en het printvoorbeeld) kennen die
+lege cel nog niet: daar staat voor een niet-vastgelegde as een leeg veld of een `0`. Zolang deze
+weergave aanstaat, staat daarom boven elk rapport één melding die zegt dat je naar de datums uit het
+bestand kijkt en waar die nullen vandaan komen.
 
 ## Verder lezen
 

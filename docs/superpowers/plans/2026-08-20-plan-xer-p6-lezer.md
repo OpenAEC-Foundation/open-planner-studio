@@ -786,6 +786,38 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
   is `test:browser` alleen te draaien met een alias van de verwachte buildmap naar de geïnstalleerde
   — een omgevingsdetail, niets in de repo.
 
+
+**Eindreview (2026-09-07, hele diff t.o.v. `origin/main` `d808fdec`, incl. bak-4-sluiproutescan).**
+Oordeel: landen-met-fixes. Vier blokkers, verwerkt in de fixcommit ná `f94122d3`: (1) de
+whitelist-sluiproute-grep dekte bak 2 niet — mutatiebewijs M-B (`restart_date` achter
+`task_type === 'TT_Rsrc'`) kwam door álle corpusloze poorten; nu grept
+`check-xer-field-whitelist.ts` bak 2 over heel `src/` met twee gepinde andere-tabel-uitzonderingen
+(`PROJECT.plan_end_date`, `SCHEDOPTIONS.critical_drtn_hr_cnt`) en herkent aanroepargumenten op elke
+positie; (2) `extractSchedulingOptions` deed `JSON.parse` + cast — nu `sanitizeSchedulingOptions`
+(bekende sleutels, enums, eindige getallen), en het commentaar bij `p6SourceActive` in `CPMSolver.ts`
+zegt niet meer dat de XER-lezer de enige schrijver is (het IFC round-tript `p6Source` legitiem);
+(3) de projecteinde-fout (36 van 39 corpus-SCHEDOPTIONS-rijen met `Y` hebben een leeg
+`plan_end_date`, 16 daarvan ook geen `target_end_date`) landt NIET gefixt — een solverwijziging
+vraagt een nieuwe corpusmeting en herpin, en de etappe had er één — maar nu wél benoemd in
+`gids-xer-import.md` (nl+en) als bekende fout; (4) `check-mpp-fidelity.ts` kon de reviewer niet draaien (geen `OPS_MPP_CORPUS`/`OPS_MPP_CRAWL`);
+daarna alsnog gedraaid tegen een sparse clone van `joniles/mpxj` (`junit/data`, 609 `.mpp`, 445
+overgeslagen als MPP_LEGACY/MPP_ENCRYPTED): 164 van de 213 gepinde bestanden gezien — de 49
+OzBuild-workshopbestanden zijn niet publiek — en op die 164 "0 verbeterd, 0 verslechterd, 164
+ongewijzigd"; de enige rode regel is de telling 164 ≠ 213 (bedrijfs-/OzBuild-deel niet
+beschikbaar). Het gedeelde relatie-/solverwerk van deze etappe raakt de MPP-datums op het publieke
+deel dus niet; de 49 OzBuild-pins blijven ONBEKEND tot de eigenaar ze draait. Kleinere bevindingen, verwerkt: dode `lagCalendar.ts` weg en drie stale docblokken
+bijgetrokken; drie Nederlandse holidaynamen in het IFC ⇒ Engels (`'Calendar exception'`,
+`'Calendar exception (weekend reconstruction)'`; digest van het 124-dossier herpind om die naam
+alleen); het weekend-klemherstel laat nu een herstelcode `WEEKEND_CLAMP_RECONSTRUCTED` /
+`XER_CALENDAR_WEEKEND_CLAMP_RECONSTRUCTED` achter (telt mee in de kalenderbevindingen van de
+openingsmelding; gids nl+en); de rapporten/PDF krijgen in de modus één melding bovenaan
+(`tableReports.recordedDatesNote`, 14 talen) in plaats van de "niet vastgelegd"-poort zelf (die
+blijft open, zie 10.f); `importSource` krijgt in de consentdialoog een vertaalde toelichting;
+`check-xer-archive-scale.ts` bewaakt de serialisatieverhouding (≤ 1,6 IFC-tekens per bronbyte,
+gemeten 1,33) in plaats van "eindig en positief"; CLAUDE.md heeft een XER-sectie. Niet verwerkt
+(eigenaar): de onbegrensde archiefretentie (bevinding 1; nu benoemd in de gids), het moment van de
+exportverliesmelding (ná het schrijven), een bovengrens op documenten per bestand (VERMOED).
+
 ### 10.f Wat niet in het plan staat
 
 - **Valse sporen (nieuw).** (5) "Einde vóór start weigeren" in de vastlegging (her-check laag 3,
@@ -800,6 +832,17 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
   NIEUW: samenvattingen rollen in de modus op uit vastgelegde kinderen (R1; vastgelegde
   samenvattingen blijven staan) en `isCritical` is "niet vastgelegd" onder longest-path-kritiek
   of niet-omrekenbare speling.
+  UIT DE EINDREVIEW (2026-09-07), vier nieuwe: (a) onbegrensde bronretentie in projectbestand én
+  auto-save (17,7 MB `.xer` ⇒ 50 MB IFC, 73 s / 3,1 GB per herstelronde) — begrenzen, één keer
+  schrijven, of bewust accepteren; (b) uitleveren mét de projecteinde-fout (`docs/TODO.md`,
+  nu in de gids benoemd) — de fix is drie regels in `deriveXerScheduleOptions` maar vraagt een
+  corpusmeting en herpin; (c) `lagCalendar` is effectief geworden voor bestaande niet-XER-
+  documenten waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen (stille herplanning bij
+  upgrade; releasenotitie nodig); (d) de kalenderdecoder reconstrueert vrije weekenddagen op een
+  n=1-basis — nu mét herstelcode en gidstekst, maar de heuristiek zelf blijft een keuze. Plus:
+  de "niet vastgelegd"-poort ontbreekt in de tien rapporten/PDF/renderer (0,7–1,6% van de
+  corpustaken heeft geen volledig late-paar of geen `total_float_hr_cnt`); in de modus staat er nu
+  één melding bovenaan elk rapport, de cel zelf toont nog leeg/0.
 - **Bekende losse eindjes.** (1) Zes main-bestanden met `childIds.length > 0` i.p.v.
   `isSummaryTask()` — niet aangeraakt, niet stil om te zetten. (2) `readIFCWithXerReconstruction`
   vs de 7b-kalender op al opgeslagen documenten — niet uitgezocht. (3) rehab-2 heropenen uit IFC

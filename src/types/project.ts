@@ -11,8 +11,13 @@ export interface SchedulingOptions {
   /** Expliciete provenance voor P6-XER-projectieregels. Alleen de XER-reader zet deze waarde;
    *  IFC bewaart haar uitsluitend om een XER-import semantisch gelijk te round-trippen. */
   p6Source?: 'XER';
-  /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' = de huidige
-   *  LAG_CALENDAR-constante (lagCalendar.ts) ⇒ byte-identiek. */
+  /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' ⇒ byte-identiek
+   *  met de oude vaste voorgangerskalender. LET OP (XER-etappe X5, eindreview bevinding 5): tot
+   *  september 2026 was dit een dode instelling — de UI bood de keuze en het IFC bewaarde haar, maar
+   *  de solver las een constante. Sinds `relDeps.lagEngine` (`CPMSolver.ts`) is ze effectief, voor
+   *  ELK formaat en niet alleen achter `p6Source`: een bestaand document waarin ooit 'successor',
+   *  '24hour' of 'projectDefault' is gekozen, plant sindsdien naar die keuze. Eigenaarsbesluit,
+   *  plan §10.f. */
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
   /** Kritiek-definitie. `threshold` is de bestaande grens in taakdagen; `thresholdHours` bewaart
    *  een P6/XER-grens in bronuren en wordt per taak tegen floaturen op diens effectieve kalender

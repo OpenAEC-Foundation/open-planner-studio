@@ -749,6 +749,28 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   sectie 7 van `check-p6-verified-cases-engine.ts`. Fix-kandidaat: zonder bruikbaar einde
   (`plan_end_date` leeg én geen taakeinde) de optie gerapporteerd uitzetten — met blastradius-
   meting op het corpus (39 van 50 SCHEDOPTIONS-rijen dragen `Y`), niet als zijklus.
+- [ ] **XER: het bronarchief heeft geen bytegrens en gaat mee in élke auto-save-serialisatie**
+  (eindreview 2026-09-07, bevinding 1). Gemeten op `rehab-2.xer` (17,7 MB): IFC 50 MB, volledige
+  herstelronde 73 s / 3,1 GB piek-RSS, ±3,6 s hoofdthread per 10-secondentick; bij twaalf documenten
+  uit één bestand 26× amplificatie (OZB). Geen cap, geen opt-out, geen worker. Eigenaarsbesluit
+  (plan §10.f): bytegrens waarboven het archief niet in de recovery-snapshot meegaat, óf het
+  immutabele archief één keer apart schrijven, plus een budgetpoort in
+  `check-xer-archive-recovery-corpus.ts`. De gids benoemt de prijs nu wel.
+- [ ] **XER: "niet vastgelegd" bestaat in tabel, CSV en MCP, maar niet in de rapporten, de PDF, het
+  printvoorbeeld en de renderer** (eindreview bevinding 6). In de modus schrijft
+  `applyRecordedTimesToTasks` `totalFloat ?? 0`/`isCritical ?? false` in `task.time`; de rapporten
+  presenteren dat als cijfer (corpus: 122 taken zonder volledig late-paar, 290 zonder
+  `total_float_hr_cnt`). Nu: één melding bovenaan elk rapport (`tableReports.recordedDatesNote`).
+  Volledig: `unrecordedExportGate` door `ReportContext` en de kolomspecs heen.
+- [ ] **XER: de exportverliesmelding komt ná het schrijven** (eindreview bevinding 12) —
+  `detectXerExportLoss` draait vóór de dialoog, de `info`-melding pas ná `saveFileDialog`. Overweeg
+  de waarschuwing vóór de dialoog wanneer de categorieën het exact-source-bytes-verlies bevatten.
+- [ ] **XER: geen bovengrens op het aantal documenten uit één bestand** (eindreview bevinding 13,
+  VERMOED): elk document draagt zijn eigen archiefkopie; het corpus haalt maximaal 15 projecten. Te
+  bevestigen met een synthetisch bestand van ~100 projecten door `readXER` + auto-save.
+- [ ] **`lagCalendar` is sinds X5 effectief voor élk formaat** (eindreview bevinding 5): een
+  bestaand document waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen plant na de
+  volgende release anders. Regel in de releasenotities van die versie; eventueel migratienoot.
 - [ ] **XER: `rem_target_link_flag=Y` maakt de vroege start van een bezig zijnde taak de reststart**
   waar P6 de werkelijke start opneemt (casus 08 A, casus 10 B: ES én LS, vier cellen). Zie plan §9.
 

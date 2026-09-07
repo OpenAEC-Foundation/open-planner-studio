@@ -50,7 +50,11 @@ export type XerCalendarRecovery =
   | 'COMPACT_RECORD'
   | 'SURPLUS_CLOSE'
   | 'MULTIPLE_EXCEPTIONS'
-  | 'DUPLICATE_EXCEPTION';
+  | 'DUPLICATE_EXCEPTION'
+  /** Weekend-klemherstel (7b-1): minstens één vrije weekenddag is gereconstrueerd die NIET als
+   *  record in het bestand staat. Eindreview bevinding 7: zonder deze code had de reconstructie
+   *  geen spoor naar de gebruiker, anders dan de holidaynaam. */
+  | 'WEEKEND_CLAMP_RECONSTRUCTED';
 
 export type XerCalendarIssueCode =
   | 'XER_CALENDAR_COMPACT_RECORD_RECOVERED'
@@ -69,6 +73,7 @@ export type XerCalendarIssueCode =
   | 'XER_CALENDAR_INVALID_PERIOD_HOURS'
   | 'XER_CALENDAR_MULTIPLE_EXCEPTIONS_MERGED'
   | 'XER_CALENDAR_DUPLICATE_EXCEPTION'
+  | 'XER_CALENDAR_WEEKEND_CLAMP_RECONSTRUCTED'
   | 'XER_CALENDAR_DANGLING_BASE'
   | 'XER_CALENDAR_SELF_BASE'
   | 'XER_CALENDAR_BASE_CYCLE';
@@ -728,11 +733,11 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
       holidaysByDate.delete(date);
       if (!workingByDate.has(date)) {
         workingByDate.set(date, {
-          name: 'Kalenderuitzondering', startDate: date, endDate: date, bands: exceptionBands,
+          name: 'Calendar exception', startDate: date, endDate: date, bands: exceptionBands,
         });
       }
     } else if (!workingByDate.has(date) && !holidaysByDate.has(date)) {
-      holidaysByDate.set(date, { name: 'Kalenderuitzondering', startDate: date, endDate: date });
+      holidaysByDate.set(date, { name: 'Calendar exception', startDate: date, endDate: date });
     }
   }
   // Een werkende uitzondering wint ook voor de brongebonden P6-straf. De datum draagt dan echte
@@ -741,18 +746,21 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   // Weekend-klemherstel (7b-1), poort per RECORD. Zie `weekendClampTarget`/`hasWeekendClampEvidence`
   // voor de twee lokale bewijsvormen en de brontoets. Zonder bewijs op het record zelf gebeurt er
   // niets, dus 92 van de 93 corpusbestanden zijn hier byte-identiek.
+  let weekendClampReconstructed = false;
   for (const date of [...p6NonWorkPenaltyDates]) {
     if (!hasWeekendClampEvidence(date, exceptionDates, adjacentDuplicateDates)) continue;
     const target = weekendClampTarget(date, bands, exceptionDates);
     if (target === null) continue;
     holidaysByDate.set(target, {
-      name: 'Kalenderuitzondering (weekendherstel)', startDate: target, endDate: target,
+      name: 'Calendar exception (weekend reconstruction)', startDate: target, endDate: target,
     });
+    weekendClampReconstructed = true;
     // De dag is nu ECHT vrij; hem daarnaast nog als virtuele extra niet-werkdag laten meetellen zou
     // dezelfde afwezigheid twee keer verrekenen in elke duur- en floatwandeling.
     p6NonWorkPenaltyDates.delete(date);
   }
   if (duplicateException) recoveries.push('DUPLICATE_EXCEPTION');
+  if (weekendClampReconstructed) recoveries.push('WEEKEND_CLAMP_RECONSTRUCTED');
 
   return {
     bands,
@@ -933,6 +941,15 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
         calendarId,
         line: row.line,
         reason: 'Meerdere Exceptions-containers zijn deterministisch in bronvolgorde samengevoegd.',
+        resolution: 'RECOVERED',
+      });
+    }
+    if (decoded.recoveries.includes('WEEKEND_CLAMP_RECONSTRUCTED')) {
+      issues.push({
+        code: 'XER_CALENDAR_WEEKEND_CLAMP_RECONSTRUCTED',
+        calendarId,
+        line: row.line,
+        reason: 'Vrije weekenddagen die de P6-schrijver op de vrijdag ervóór of de maandag erná klemde, zijn als vrije dag gereconstrueerd; ze staan niet als record in het bestand.',
         resolution: 'RECOVERED',
       });
     }

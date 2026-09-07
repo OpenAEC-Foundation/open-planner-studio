@@ -382,17 +382,27 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
   const { t: tCommon } = useTranslation('common');
   const dd = useDisplayDate();
   const { ctx, stale } = useReportContext();
+  // "Datums zoals opgeslagen" (issue #63; eindreview XER-etappe bevinding 6): in de modus lezen de
+  // rapporten `task.time` zoals de tabel, maar zónder de "niet vastgelegd"-poort van de kolommen —
+  // een as die het bestand niet vastlegde staat er dan als leeg/0. Eén melding bovenaan elk rapport
+  // (en dus ook in de PDF, die dezelfde spec tekent) zegt waar die nullen vandaan komen.
+  const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   return useMemo(() => {
     if (!isTableReportType(reportType)) return null;
-    switch (reportType) {
-      case 'lookAhead': return buildLookAhead(ctx, options, t, dd, stale);
-      case 'critical': return buildCritical(ctx, options, t, dd, stale);
-      case 'progress': return buildProgress(ctx, options, t, dd, stale);
-      case 'health': return buildHealth(ctx, options, t, dd, stale);
-      case 'resourceLoading': return buildResourceLoading(ctx, options, t, tCommon, dd, stale);
-      case 'resourceAssignments': return buildResourceAssignments(ctx, options, t, tCommon, dd, stale);
-      case 'wbsSummary': return buildWbsSummary(ctx, options, t, dd, stale);
-      default: return null;
-    }
-  }, [reportType, options, ctx, stale, t, tCommon, dd]);
+    const build = (): TableReportSpec | null => {
+      switch (reportType) {
+        case 'lookAhead': return buildLookAhead(ctx, options, t, dd, stale);
+        case 'critical': return buildCritical(ctx, options, t, dd, stale);
+        case 'progress': return buildProgress(ctx, options, t, dd, stale);
+        case 'health': return buildHealth(ctx, options, t, dd, stale);
+        case 'resourceLoading': return buildResourceLoading(ctx, options, t, tCommon, dd, stale);
+        case 'resourceAssignments': return buildResourceAssignments(ctx, options, t, tCommon, dd, stale);
+        case 'wbsSummary': return buildWbsSummary(ctx, options, t, dd, stale);
+        default: return null;
+      }
+    };
+    const spec = build();
+    if (spec && datesAsRecorded) spec.notes = [t('tableReports.recordedDatesNote'), ...spec.notes];
+    return spec;
+  }, [reportType, options, ctx, stale, datesAsRecorded, t, tCommon, dd]);
 }

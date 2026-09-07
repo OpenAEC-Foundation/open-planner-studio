@@ -31,6 +31,8 @@ The import reads, among other things:
 - **Resources, rates and assignments**.
 - **Activity codes, UDFs and notes**, including their source structure and activity links.
 
+One calendar rule deserves a separate mention. Some P6 exports clamp a contiguous non-working block onto the Monday–Friday axis: a non-working Saturday then appears as a duplicate record on the Friday before, a non-working Sunday on the Monday after. When the reader sees that pattern on a calendar that does work on Saturday or Sunday, it makes that weekend day non-working after all. Such a reconstructed day is not a record in the file; it is named "Calendar exception (weekend reconstruction)" in the calendar and counts towards the calendar findings in the opening notification, so you can always see that the app derived something here. The rule was derived from a single file and only fires on a multi-day block with evidence on the record itself; on an ordinary Monday–Friday calendar nothing changes.
+
 The raw P6 source data that Open Planner Studio reads remains part of the document. It survives tab switching, undo, recovery and saving. That is different from claiming that every P6 feature already has an equivalent editing or scheduling model: when such a model is missing, source data is retained rather than silently discarded.
 
 ## Completed activities get real float
@@ -77,6 +79,8 @@ including what you do and don't see while it is active and how to leave it manua
 
 An XER import is an **import**, not an XER editor or XER exporter. When you save afterwards, Open Planner Studio writes an IFC file. IFC is the app's native project file and retains the XER source data alongside the data the app uses. The original `.xer` file is never silently overwritten.
 
+That retained source data has a cost with large files. The complete original `.xer` file travels along in the project file and in every crash-recovery snapshot, without an upper bound. Measured on the largest test file (a 17.7 MB `.xer` with over 2,000 activities): the IFC project file becomes about 50 MB, saving takes tens of seconds, and crash recovery rewrites that file every ten seconds while you edit. With an export containing many projects this multiplies: every opened document carries its own copy. For most schedules you will not notice; if you work with an export of tens of megabytes, expect slow saves and a large project folder.
+
 For exchange with Primavera, use the existing **Primavera P6 XML** export. It is a different format with its own limits; see [Import/export](docs://gids-import-export). Keep the IFC file as well when you want to reopen an edited project later.
 
 ## Limits that stay visible
@@ -86,6 +90,7 @@ Some P6 concepts are already retained but do not yet have a fully equivalent sch
 - **`TT_Rsrc`** (resource-dependent activity) and **`TT_WBS`** are retained as P6 source types. The solver does not yet have a separate P6 scheduling mode for these types.
 - A P6 resource curve with 21 points is retained as source distribution. A recognisable shape can be mapped to the nearest built-in curve for the histogram, but the original 21-point shape is not yet recalculated after an edit.
 - The existing **P6 XML** reader and this XER reader do not yet cover the same full field set. XER can therefore contain data that P6 XML in the app does not yet read or write.
+- **Project finish as float anchor without a finish date.** If the file has the P6 option "compute total float against the project finish" switched on, but the project has no *Must Finish By* date and no activity has a planned finish date, the app's project finish falls back to the project start. All late dates then anchor on it and almost every activity shows negative float and is critical. In the test material this combination occurs in P6 exports of small, bare projects. The early dates and the **dates as recorded** view are correct; only the recalculated late side is unusable then, and there is no switch yet to turn the option off. This is registered as a known defect.
 
 These limits do not remove source data from the IFC project file. When XER-specific source data is present and you export to CSV, MS Project XML or Primavera P6 XML, that source information cannot fit completely in the target format. After a successful export, one informational notification appears with a link to this guide. If you cancel the export or saving fails, that notification does not appear. Exporting to IFC retains the XER source data; the other exports include only the data their own format supports. The original `.xer` file is not overwritten.
 

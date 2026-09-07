@@ -990,6 +990,7 @@
     "declaredHeading": "이 확장이 사용한다고 밝힌 항목",
     "declaredNote": "작성자의 신고일 뿐 제한이 아닙니다 — 코드는 그보다 더 많은 일을 할 수 있습니다.",
     "declaredNone": "신고된 항목 없음.",
+    "permImportSource": "importSource — 가져온 모든 파일의 완전한 원본 소스 바이트(예: 원시 Primavera 파일). 프로젝트에 포함되지 않는 필드까지 포함합니다.",
     "cancel": "설치 안 함",
     "confirm": "설치"
   }

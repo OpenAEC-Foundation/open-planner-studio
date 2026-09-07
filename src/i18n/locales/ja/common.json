@@ -990,6 +990,7 @@
     "declaredHeading": "この拡張機能が使用すると申告している項目",
     "declaredNote": "これは作成者による申告であり、制限ではありません。コードはそれ以上のことも実行できます。",
     "declaredNone": "申告なし。",
+    "permImportSource": "importSource — インポートした各ファイルの完全な元のソースバイト (例: 生の Primavera ファイル)。プロジェクトに取り込まれないフィールドも含みます。",
     "cancel": "インストールしない",
     "confirm": "インストール"
   }
