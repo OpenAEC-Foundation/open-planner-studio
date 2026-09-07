@@ -61,6 +61,8 @@ test('aggregate telt v2026.9.0 op zoals de API-cijfers van 2026-09-05', () => {
   assert.equal(stats.polls, 73);
   assert.deepEqual(stats.unknown, []);
   assert.equal(stats.releases.length, 1);
+  assert.equal(stats.schemaVersion, 1);
+  assert.equal(stats.source, 'github-releases');
 });
 
 test('drafts worden overgeslagen, pre-releases gemarkeerd, onbekende assets gemeld maar niet geteld', () => {
