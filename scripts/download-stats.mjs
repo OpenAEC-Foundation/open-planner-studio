@@ -29,6 +29,10 @@
 //   node scripts/download-stats.mjs --format=json
 //   node scripts/download-stats.mjs --repo owner/repo
 //
+// De Actions-workflow `download-stats.yml` publiceert de JSON-vorm bovendien naar de
+// `stats`-databranch (scripts/publish-stats-branch.sh), vaste leeslocatie:
+//   https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio/stats/downloads.json
+//
 // Zet `GITHUB_TOKEN` om de ratelimiet van 60 ongeauthenticeerde calls/uur te
 // vermijden; de Actions-workflow `download-stats.yml` doet dat automatisch.
 
@@ -105,7 +109,9 @@ export function aggregate(releases) {
   }
 
   perRelease.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
-  return { repo: undefined, generatedAt: undefined, releases: perRelease, totals, polls, unknown };
+  // `schemaVersion` is het contract voor afnemers van `downloads.json` op de stats-branch
+  // (zie scripts/publish-stats-branch.sh): verhoog 'm bij elke wijziging aan deze vorm.
+  return { schemaVersion: 1, source: 'github-releases', repo: undefined, generatedAt: undefined, releases: perRelease, totals, polls, unknown };
 }
 
 /** Wat een gebruiker "downloads" noemt: installers plus de Linux-mengvorm, zonder updater-pakketten. */
