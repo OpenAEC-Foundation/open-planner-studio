@@ -1039,7 +1039,7 @@ if (!root) {
     // (es/ef/ff ongewijzigd). Netto −2.137 afwijkende cellen, volledig toe te schrijven aan één
     // corpusbestand (rehab-2): de late zijde van voltooide activiteiten volgt nu het
     // statusdatumvenster in plaats van de rauwe actual-pin. De tf-winst is NETTO: per cel gemeten
-    // op rehab-2 worden 572 tf-cellen exact en 215 eerder exacte tf-cellen fout — 214 daarvan zijn
+    // op rehab-2 worden 572 tf-cellen exact en 215 eerder exacte tf-cellen fout — alle 215 zijn
     // voltooide taken waar P6 `tf = 0` geeft en onze afgeleide LS nog van een zelf foute
     // opvolger-LS komt (diagnose laag 1, klasse (ii)); vóór deze etappe was hun `tf = 0`
     // degeneratie (LS = de historische actual-start), dus per ongeluk goed. Zie het baanrapport en

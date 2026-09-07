@@ -259,7 +259,11 @@ export function expectedXerScheduleOptions(
       'RETAINED_LOGIC',
     );
   }
-  if (progressMode !== 'RETAINED_LOGIC') {
+  // Her-review bevinding 3: de klem sluit op "niet aantoonbaar Y/N" — N/N (Actual Dates) en Y/Y
+  // vallen voor de solver op RETAINED_LOGIC terug, maar houden de completed-late-vlag NIET aan.
+  const retainedUpper = retainedTokenRaw.toUpperCase();
+  const overrideUpper = overrideTokenRaw.toUpperCase();
+  if (!((retainedUpper === '' || retainedUpper === 'Y') && (overrideUpper === '' || overrideUpper === 'N'))) {
     schedulingOptions.p6CompletedLateFromRemainingWindow = false;
   }
 

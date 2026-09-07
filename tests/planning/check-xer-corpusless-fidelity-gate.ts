@@ -90,7 +90,8 @@ const EXPECTED = {
   //   zegt. Geen ruis dus, maar een systematisch gat tussen OPS-kritiek en P6's driving-padbegrip
   //   dat door de verbetering wordt blootgelegd; eigen vervolgetappe (zie het plan, X-O7 laag 1).
   // De tf-winst is NETTO: per cel op rehab-2 worden 572 tf-cellen exact en 215 eerder exacte
-  //   tf-cellen fout. 214 van die 215 zijn voltooide taken waar P6 `tf = 0` geeft terwijl onze
+  //   tf-cellen fout. Alle 215 zijn voltooide taken (her-review: 215/215 `TK_Complete`,
+  //   `DT_FixedDUR2`) waar P6 `tf = 0` geeft terwijl onze
   //   afgeleide LS nog van een zélf foute opvolger-LS komt (klasse (ii)); vóór deze etappe was hun
   //   `tf = 0` degeneratie (LS = de historische actual-start), dus per ongeluk goed.
   // Herpin 2026-09-05 (poortpariteit solver ↔ weergave, review-bevinding 4): lf 9.660 → 9.659 en

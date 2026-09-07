@@ -258,7 +258,7 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
      één bestand (rehab-2), de overige 33 zijn byte-identiek. Vier dingen die je moet weten vóór
      je hier verder bouwt:
      - De winst hangt aan klasse (ii). Per cel op rehab-2: 890 ls- en 890 lf-cellen worden exact,
-       **0** verslechteren; tf wint er 572 en verliest er **215**. 214 van die 215 zijn voltooide
+       **0** verslechteren; tf wint er 572 en verliest er **215**. Alle 215 zijn voltooide
        taken waar P6 `tf = 0` geeft en onze afgeleide LS nog van een zélf foute opvolger-LS komt.
        Vóór deze etappe was hun `tf = 0` degeneratie (LS = de historische actual-start), dus per
        ongeluk goed. Een fixpuntoplossing op P6's eigen opvolgerwaarden dekt 98,8%, op de onze

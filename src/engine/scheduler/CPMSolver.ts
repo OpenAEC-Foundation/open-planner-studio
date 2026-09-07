@@ -3145,9 +3145,28 @@ export class CPMSolver {
             // activiteiten (R1 zonder lag: 2.033/2.036), maar WEL zolang de opvolger nog restwerk
             // heeft (R2 mét lag altijd: slechts 1.796/2.036 — de drie R1-uitzonderingen hebben
             // stuk voor stuk een NIET-voltooide maatgevende opvolger).
+            // Her-review bevinding 4: een PROCENTUELE lag wordt tegen de voorgangerduur opgelost, en
+            // de nulrestduur-kloon hieronder zet die duur voor SS/SF op 0 — de lag verdween daar dus
+            // stil (FS/FF hielden 'm wél). Daarom hier eerst tegen de ONGEWIJZIGDE taak vastzetten,
+            // in de eenheid die de relatiewiskunde voor deze lag-soort leest (WORKTIME: minuten in de
+            // lag-kalender én dagen; ELAPSEDTIME: alleen dagen — `resolveElapsedMinutes` zou een
+            // minutenwaarde als klokminuten lezen), en `lagPercent` wissen. Daarna is de kloon een
+            // zuivere duur-neutralisatie die de lag niet meer raakt.
+            const hasPercentLag = typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent);
+            const lagEng = this.relDeps.lagEngine(progressCal, succCal);
+            const percentResolvedSeq: Sequence = !hasPercentLag
+              ? seq
+              : seq.lagUnit === 'ELAPSEDTIME'
+                ? { ...seq, lagDays: resolveEffectiveLagDays(seq, task), lagMinutes: undefined, lagPercent: undefined }
+                : {
+                  ...seq,
+                  lagDays: resolveEffectiveLagDays(seq, task, lagEng.hoursPerDay),
+                  lagMinutes: this.resolveLagMinutes(seq, task, lagEng),
+                  lagPercent: undefined,
+                };
             const effectiveSeq = succUsesRemainingWindow
               ? { ...seq, lagDays: 0, lagMinutes: 0, lagPercent: undefined }
-              : seq;
+              : percentResolvedSeq;
             const delayShiftedSuccResult = {
               ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
               lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
@@ -3165,14 +3184,17 @@ export class CPMSolver {
             // ongewijzigd: `backwardConstraint` geeft daar al een echte LF terug, onafhankelijk van
             // de voorgangerduur.
             const isStartSideRelation = seq.type === 'START_START' || seq.type === 'START_FINISH';
-            // `milestoneKind: undefined` is geen detail: `relationBoundaryFlags` leidt
-            // `predStartsNextDay` af uit `scheduleDuration <= 0` PLUS `milestoneKind === 'FINISH'`.
-            // Door de duur op 0 te zetten wordt de eerste helft altijd waar, dus zonder deze regel
-            // zou uitgerekend een voltooide EINDmijlpaal-met-duur (T15-vorm) hier een extra
-            // werkdaggrens-sprong krijgen die een gewone voltooide taak niet krijgt. Onder de
-            // aanname van deze tak — nul restduur, LS is het anker, `LF = prevWorkInstant(LS)` —
-            // bestaat die aparte finishgrens niet, dus alle voltooide taken volgen hier dezelfde,
-            // grensloze route.
+            // `milestoneKind: undefined`: `relationBoundaryFlags` leidt `predStartsNextDay` af uit
+            // `scheduleDuration <= 0` PLUS `milestoneKind === 'FINISH'`. Door de duur op 0 te zetten
+            // wordt de eerste helft altijd waar, dus zonder deze regel zou een voltooide EINDmijlpaal-
+            // met-duur (T15-vorm) hier een extra werkdaggrens-sprong krijgen die een gewone voltooide
+            // taak niet krijgt. Onder de aanname van deze tak — nul restduur, LS is het anker,
+            // `LF = prevWorkInstant(LS)` — bestaat die aparte finishgrens niet.
+            // EERLIJK GELABELD (her-review bevinding 6): dit is DEFENSIEF en via de XER-lezer
+            // ONBEREIKBAAR — `xerReader` zet `milestoneKind` alleen voor `TT_Mile`/`TT_FinMile`, en
+            // die weigert de gedeelde poort al met `wrongActivityType`. Het pad bestaat alleen via een
+            // IFC-round-trip plus handmatig markeren als mijlpaal; er is geen test die het raakt en de
+            // regel weglaten laat de suite groen. Geen gefixte bug dus, wel een gesloten deur.
             const zeroRemainingPredTask: Task = isStartSideRelation
               ? {
                 ...task,

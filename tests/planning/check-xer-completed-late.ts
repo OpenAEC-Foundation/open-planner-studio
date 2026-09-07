@@ -38,6 +38,15 @@ import type { SchedulingOptions } from '@/types/project';
 
 const diffs: string[] = [];
 let checks = 0;
+// Gemeten 2026-09-07 (her-review bevindingen 4/5). Let op: de fixturekalender heeft banden op
+// P6-dagindex 1–5 = ZONDAG t/m donderdag (P6 telt 1 = zondag), dus 2026-11-08 (zondag) is hier een
+// werkdag — één werkdag vóór SSA/FSA's 2026-11-09T07:00 (lag 0). SF landt op de finish-rand
+// (LS == LF), FF via `nextWorkInstant` op de start-rand: bevinding 5, ongewijzigd gepind.
+const LAG_PINS_START_SIDE = {
+  ssl: ['2026-11-08T07:00', '2026-11-05T15:00'], fsl: ['2026-11-08T07:00', '2026-11-05T15:00'],
+  ssp: ['2026-11-08T07:00', '2026-11-05T15:00'], fsp: ['2026-11-08T07:00', '2026-11-05T15:00'],
+};
+const LAG_PINS_FINISH_SIDE = { sfl: ['2026-11-12T15:00', '2026-11-12T15:00'], ffl: ['2026-11-15T07:00', '2026-11-12T15:00'] };
 
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
@@ -99,6 +108,18 @@ function fixtureBytes(): Uint8Array {
     // maar NIET door `explainBackwardActualPinEligibility`. Zonder de gedeelde poort liep de
     // weergavelaag hier vooruit op een solvertak die niet draaide.
     '%R\tNX\tP1\tC1\tNX\tVoltooid zonder act_end_date NX\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t',
+    // Her-review bevindingen 4/5 (lag op SS/SF): NL is een derde onafhankelijke open taak met zes
+    // voltooide voorgangers — SS/FS/SF/FF met 8 u lag (SSL/FSL/SFL/FFL), en SS/FS met een
+    // PROCENTUELE lag (SSP/FSP, 50% van 16 u = 8 u, gezet ná de import want XER kent geen
+    // procentlag). Vóór de fix verdween de procentlag op SS/SF stil (de nulrestduur-kloon zette de
+    // voorgangerduur op 0 en de lag werd daartegen opgelost); FS/FF hielden 'm wél.
+    '%R\tNL\tP1\tC1\tNL\tOnafhankelijke open opvolger NL\tTT_Task\tDT_FixedDUR\tTK_NotStart\tCP_Drtn\t40\t40\t2026-09-14 07:00\t2026-09-18 15:00\t\t',
+    '%R\tSSL\tP1\tC1\tSSL\tVoltooid via SS+lag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tFSL\tP1\tC1\tFSL\tVoltooid via FS+lag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tSFL\tP1\tC1\tSFL\tVoltooid via SF+lag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tFFL\tP1\tC1\tFFL\tVoltooid via FF+lag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tSSP\tP1\tC1\tSSP\tVoltooid via SS+procentlag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
+    '%R\tFSP\tP1\tC1\tFSP\tVoltooid via FS+procentlag\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t16\t0\t2026-08-03 07:00\t2026-08-04 15:00\t2026-08-03 07:00\t2026-08-04 15:00',
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
     '%R\tR-AB\tB\tA\tP1\tP1\tPR_FS\t8',
@@ -108,6 +129,12 @@ function fixtureBytes(): Uint8Array {
     '%R\tR-FSA-NS\tNS\tFSA\tP1\tP1\tPR_FS\t0',
     '%R\tR-SFA-NS\tNS\tSFA\tP1\tP1\tPR_SF\t0',
     '%R\tR-FFA-NS\tNS\tFFA\tP1\tP1\tPR_FF\t0',
+    '%R\tR-SSL-NL\tNL\tSSL\tP1\tP1\tPR_SS\t8',
+    '%R\tR-FSL-NL\tNL\tFSL\tP1\tP1\tPR_FS\t8',
+    '%R\tR-SFL-NL\tNL\tSFL\tP1\tP1\tPR_SF\t8',
+    '%R\tR-FFL-NL\tNL\tFFL\tP1\tP1\tPR_FF\t8',
+    '%R\tR-SSP-NL\tNL\tSSP\tP1\tP1\tPR_SS\t0',
+    '%R\tR-FSP-NL\tNL\tFSP\tP1\tP1\tPR_FS\t0',
     '%E',
   ].join('\n'));
 }
@@ -122,6 +149,15 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
   const imported = structuredClone(importFixture());
   if (overrides) {
     imported.project.schedulingOptions = { ...imported.project.schedulingOptions, ...overrides };
+  }
+  // Procentlag bestaat niet in XER (TASKPRED kent alleen `lag_hr_cnt`); een gebruiker/MCP/IFC kan
+  // hem op een XER-project wél zetten. Hier ná de import op de SSP/FSP-relaties: 50% van 16 u.
+  for (const seq of imported.sequences) {
+    if (seq.predecessorId === 'SSP' || seq.predecessorId === 'FSP') {
+      seq.lagDays = 0;
+      seq.lagMinutes = undefined;
+      seq.lagPercent = 50;
+    }
   }
   const result = solveProject({
     tasks: imported.tasks,
@@ -231,6 +267,36 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
   eq('completed-late AAN: SFA/FFA absolute late start', { sfa: sfa.lateStart, ffa: ffa.lateStart }, {
     sfa: '2026-11-16T07:00', ffa: '2026-11-16T07:00',
   });
+}
+
+// ── Vlag AAN: lag op SS/SF uit een voltooide voorganger (her-review bevindingen 4 en 5). ─────────
+// Bevinding 4: een PROCENTUELE lag werd op SS/SF tegen de nulrestduur-kloon opgelost en verdween.
+// Sinds de fix wordt hij vóór de kloon tegen de ongewijzigde taak vastgezet, dus SS+50% (= 8 u)
+// valt exact samen met SS+8 u én met FS+8 u en FS+50%. MUTATIEBEWIJS: haal `percentResolvedSeq`
+// weg (gebruik `seq`) ⇒ SSP wijkt 8 u af van SSL/FSL/FSP.
+// Bevinding 5 (karakterisering, geen doel): SF/FF met lag leveren hun late start op een andere
+// bandrand dan FS/SS zodra de aftrek exact op een bandeind landt — SF geeft de finish-instant terug
+// (LS == LF), FS via `nextWorkInstant` de start-instant. Welke conventie P6 hier hanteert is niet
+// gemeten (rehab-2 is FS-gedomineerd, geen orakelcel dekt SS/SF-met-lag); de absolute waarden
+// staan hieronder gepind zodat een bewuste symmetrisering zichtbaar is en een stille niet.
+{
+  const { result } = solveWith();
+  const ls = (id: string) => result.tasks.get(id)!.lateStart;
+  const lf = (id: string) => result.tasks.get(id)!.lateFinish;
+  eq('completed-late AAN: SS+8u en FS+8u naar dezelfde opvolger geven dezelfde late start',
+    ls('SSL'), ls('FSL'));
+  eq('completed-late AAN: SS+50% (=8u) valt samen met SS+8u — de procentlag verdwijnt niet meer',
+    ls('SSP'), ls('SSL'));
+  eq('completed-late AAN: FS+50% valt samen met FS+8u (was al zo; blijft zo)',
+    ls('FSP'), ls('FSL'));
+  eq('completed-late AAN: de lag telt echt mee (SS+8u ligt 8 werkuur vóór SS zonder lag)',
+    ls('SSL') < ls('SSA'), true);
+  eq('completed-late AAN: absolute pins SS/FS met lag (start-rand)', {
+    ssl: [ls('SSL'), lf('SSL')], fsl: [ls('FSL'), lf('FSL')], ssp: [ls('SSP'), lf('SSP')], fsp: [ls('FSP'), lf('FSP')],
+  }, LAG_PINS_START_SIDE);
+  eq('completed-late AAN: absolute pins SF/FF met lag (bevinding 5: bandrand-karakterisering)', {
+    sfl: [ls('SFL'), lf('SFL')], ffl: [ls('FFL'), lf('FFL')],
+  }, LAG_PINS_FINISH_SIDE);
 }
 
 // ── Poortpariteit solver ↔ weergave (review-bevinding 4). ──────────────────────────────────────

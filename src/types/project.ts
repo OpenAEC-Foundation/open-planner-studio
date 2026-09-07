@@ -124,9 +124,19 @@ export interface SchedulingOptions {
    *
    *  RETAINED LOGIC: élk gemeten corpusbestand draait `RETAINED_LOGIC` (rehab-2 heeft zelfs geen
    *  SCHEDOPTIONS-rij en valt op de defaults terug). Er is dus GEEN meting van P6-gedrag onder
-   *  `sched_progress_override = Y`. `deriveXerScheduleOptions` zet de vlag daarom expliciet weer
-   *  UIT zodra de bron progress override declareert — fail-closed, byte-identiek aan vóór deze
-   *  etappe. Wie hem daar wil openzetten heeft eerst een progress-override-meting nodig. */
+   *  `sched_progress_override = Y`, en evenmin onder P6's "Actual Dates" (N/N).
+   *  `deriveXerScheduleOptions` zet de vlag daarom expliciet weer UIT zodra de bron iets anders
+   *  dan retained logic declareert (N/Y, N/N, Y/Y of een onbekend token; `declaresRetainedLogic`)
+   *  — fail-closed, byte-identiek aan vóór deze etappe. Wie hem daar wil openzetten heeft eerst
+   *  een meting onder die modus nodig.
+   *
+   *  BEWIJSSTATUS (her-review 2026-09-07, bevinding 1): de poort is CORRELATIONEEL, geen
+   *  P6-mechanisme. Het enige directe P6-bewijs voor de topologie "open voorganger → voltooide
+   *  opvolger" (casus 09 en 10 van `cases-p6-verified.json`, echt P6 23.12) spreekt de regel
+   *  tegen zodra de poort daar opengaat: P6 geeft de open voorganger tf 0, deze regel tf −5.
+   *  Op de echte bron (`cases-import.xer`: `DT_FixedDrtn`, geen `target_end_date`) blijft de
+   *  poort dicht op `wrongDurationType`/`missingExplicitTargetWindow`; dat is een toevallige
+   *  nauwte, geen semantische verzoening. Zie plan §5 X-O7 laag 1. */
   p6CompletedLateFromRemainingWindow?: boolean;
 }
 
