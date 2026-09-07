@@ -733,19 +733,24 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 
 ### Kwaliteit & verificatie
 
-- [ ] **De per-cel-poort `cellTransitions.previouslyExact` meet sinds de X12-v2-meetlat niets meer**
-  (gemeten 2026-09-05 op `92e98b8e` én op de XER-baan 7a-branch; niet door die baan veroorzaakt).
-  `tests/planning/check-xer-product-fidelity.ts` is de v1-harness en leest
-  `tests/planning/xer-product-fidelity-baseline.json`, maar dat bestand draagt inmiddels het
-  v2-schema (`version: 2`, gzip-payload) van `xerProductBaselineV2.ts`. Mét `OPS_XER_CORPUS` liep de
-  check daardoor op een kale `TypeError` (`Object.keys(baseline.files)`); dat is nu een leesbare
-  rode regel die de oorzaak benoemt, maar de poort zelf is dood. Dat is precies de poort die
-  "cel was exact, is nu fout" zou moeten afvangen — de klasse die in baan 7a met 215 tf-cellen
-  handmatig gemeten moest worden. **Repareren = v1 zijn eigen baselinebestand teruggeven** (twee
-  openbare corpusbestanden, 8 activiteiten elk) en dat opnieuw genereren; of het
-  `previouslyExact`-mechanisme naar de v2-baseline verhuizen. Eigen etappe, geen zijklus.
-  De solve-aanroep in die harness is intussen wél rechtgezet (hij gaf `progressMode`/
-  `schedulingOptions` niet door, waardoor élke brongebonden P6-optie er per constructie inert was).
+- [x] **De per-cel-poort `cellTransitions.previouslyExact` meet sinds de X12-v2-meetlat niets meer**
+  — HERSTELD 2026-09-07 (etappe X12, herpin): v1 heeft zijn eigen bestand terug
+  (`xer-product-fidelity-baseline.json`, twee openbare corpusbestanden), de harness geeft
+  `progressMode`/`schedulingOptions` weer door en de overgangshistorie is herstart vanaf de huidige
+  exacte set (44+16 cellen, 0 verbeteringen; zie de `reason`-velden). De poort meet weer: een cel
+  die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
+  blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
+  enige bewaking — per as, niet per cel.
+- [ ] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
+  zonder `plan_end_date`** (her-review 7a, 2026-09-07; `xerReader.ts` `taskDerivedProjectEnd =
+  finishes[last] ?? projectStart`). Op de echte P6-export van de dertien casussen
+  (`cases-import.xer`: geen enkele `target_end_date`, geen `plan_end_date`) verankert de hele late
+  zijde daardoor op de start: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in
+  sectie 7 van `check-p6-verified-cases-engine.ts`. Fix-kandidaat: zonder bruikbaar einde
+  (`plan_end_date` leeg én geen taakeinde) de optie gerapporteerd uitzetten — met blastradius-
+  meting op het corpus (39 van 50 SCHEDOPTIONS-rijen dragen `Y`), niet als zijklus.
+- [ ] **XER: `rem_target_link_flag=Y` maakt de vroege start van een bezig zijnde taak de reststart**
+  waar P6 de werkelijke start opneemt (casus 08 A, casus 10 B: ES én LS, vier cellen). Zie plan §9.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde

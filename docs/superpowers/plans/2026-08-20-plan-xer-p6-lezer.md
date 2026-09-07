@@ -277,6 +277,15 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
        dicht. `check-p6-verified-cases-engine.ts` haalt alle dertien casussen door de motor en pint
        dat cel voor cel (157 van 160 cellen eens met P6); de enige afwijking is casus 10
        (out-of-sequence voortgang, 3 cellen), klasse (ii)-materiaal.
+     **Bewijsstatus klasse (i) (her-review 7a, 2026-09-07).** De poort van
+     `p6CompletedLateFromRemainingWindow` (`DT_FixedDUR2` + `rem_target_link_flag=Y` + expliciet
+     targetvenster + `CP_Drtn`) is CORRELATIONEEL, geen P6-mechanisme: de winst is echt en per cel
+     gemeten (rehab-2: ls/lf −969, tf −427 netto), maar het énige directe P6-bewijs voor de
+     topologie "open voorganger → voltooide opvolger" — casus 09 en 10 van `cases-p6-verified.json`
+     (echt P6 23.12) — spreekt de regel tegen zodra de poort daar opengaat (P6 geeft de open
+     voorganger tf 0, de regel tf −5). Op de echte bron (`cases-import.xer`) blijft de poort dicht
+     op `missingExplicitTargetWindow`; dat is een toevallige nauwte, geen verzoening. Wie de poort
+     verruimt, landt met deze regel op honderden ongevalideerde taken. Dossier, geen residu.
   2. *Ontbrekende instellingen afleiden* — **vervalt** (kalibratiemeting 2026-09-04, meting,
      geen aanname): 384 combinaties van échte P6-instellingen over 34 orakelbestanden gaven een
      beste denkbare winst van 1.033 van 18.398 cellen (5,6%), **0 bestanden met een uniek
@@ -621,6 +630,45 @@ kent het verschijnsel niet en leest de `Exceptions`-lijst letterlijk
 conservatief — drie eisen op het record zelf, corpusloos gepind in `check-xer-calendar-data.ts`
 sectie 22a–22g. Duikt er een tweede bestand op, dan bevestigt of ontkracht dat de regel; het mag er
 niet stil op meeliften.
+
+**Meting 2026-09-07 (volledig corpus, per cel, pre-7b `0b8dbeb3^` → nu).** 7b maakte op rehab-2
+exact 344 ES- en 327 EF-cellen fout die daarvóór exact waren (bevestigt de tabel hierboven). Van
+die 344 taken houden 249 hun venster (ES en EF verschuiven identiek) en liggen 247 één tot twee
+werkdagen naar rechts (237× één kalenderdag, 10× twee) — de 7b-4-signatuur; de overige 95 hebben
+een niet-identieke ES/EF-verschuiving en horen dus niet (alleen) bij dit dossier. Over ÁLLE huidige
+ES/EF-afwijkingen van rehab-2 (940 taken, 1.880 cellen) dragen 345 taken die signatuur: dossier
+7b-4 verklaart dus ten hoogste **690 cellen** (2 × 345), waarvan 494 door 7b zelf foutgemaakt.
+Bouwbesluit is aan de eigenaar (§10.f); niets gebouwd.
+
+### rem_target_link_flag=Y en de vroege start van bezig zijnde taken (her-review 7a, 2026-09-07)
+
+**Status:** geregistreerd, niet gebouwd. Bron: `check-p6-verified-cases-engine.ts` op de
+brongetrouwe transcriptie én de echte `cases-import.xer` (156/160 zonder de projecteinde-fout).
+De vier resterende cellen (casus 08 A en casus 10 B: ES én LS) hebben één oorzaak: onder
+`rem_target_link_flag = Y` zet de lezer `p6UseRemainingStartForProgress`, en dan wordt de VROEGE
+START van een bezig zijnde taak de reststart (statusdatum, of ná de voorganger), terwijl P6 23.12
+in `early_start_date` de WERKELIJKE start opneemt en de reststart apart in `restart_date` (bak 2)
+bewaart. Klasse (ii)-materiaal (bezig zijnde taken rond de statusdatum, X5-vlag), geen 7a.
+
+### Projecteinde valt terug op de projectstart bij leeg `plan_end_date` (her-review 7a, 2026-09-07)
+
+**Status:** geregistreerd in `docs/TODO.md`, niet gefixt. `sched_use_project_end_date_for_float = Y`
+zonder `plan_end_date` en zonder één `target_end_date` (de echte `cases-import.xer`) ⇒ het
+taak-afgeleide projecteinde is de projectSTART en de hele late zijde verankert daarop: 77/160
+P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de engine-check.
+
+### De ONBEKENDE categorieën, gemeten (2026-09-07, volledig corpus)
+
+- **Sameday** (zelfde dag, ander tijdstip): 415 cellen corpusbreed, ongewijzigd sinds de
+  v2-baseline: `groupdocs-conversion/sample.xer` 280 (70 per as, alle vier de datumassen),
+  `Roads_Project_TEC.xer` 67 (ls 58, lf 9), `northstar-previous`/`riverside-previous` 24 elk
+  (es/ef 12), `Hotel_Construction_TEC.xer` 13, `Sample_Construction_TEC.xer` 4,
+  `planning-risk-intelligent` 2, `Harbour Point DCP-03` 1. Plan §1 eist nul; open categorie.
+- **Driving path** (rapportage-as, geen poort): 417 afwijkende cellen op 13.596 meetbare —
+  301× P6 `false`/wij `true`, 116× andersom — over 15 bestanden: Hotel 88, rehab-2 86,
+  groupdocs 70, TERMINAL BUILDING-AIRPORT 35, OZB 29, gimmer-crag 24, meridianiq 20+18, ashspace
+  10, p6diff 8+7, HarbourPointe 7, Harbour Point DCP-03 7, sample-target 4, stack_data_center 4.
+  Of die as poort wordt is een eigenaarsbesluit (§3).
 
 ## §10 Overdrachtsstand 2026-09-07
 
