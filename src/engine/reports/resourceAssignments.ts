@@ -54,7 +54,9 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
   for (const a of ctx.assignments) {
     const t = taskById.get(a.taskId);
     const r = resById.get(a.resourceId);
-    if (!t || !r || t.childIds.length > 0 || t.isHammock) continue;
+    // Ook een hammock (LOE, bv. toezicht) boekt inzet — dezelfde set als `computeHistogramReport`,
+    // zodat een overbelaste week in het belastingsrapport hier altijd terug te vinden is.
+    if (!t || !r || t.childIds.length > 0) continue;
     assignedTaskIds.add(t.id);
     const state = progressState(t);
     if (!opts.includeCompleted && state === 'complete') continue;

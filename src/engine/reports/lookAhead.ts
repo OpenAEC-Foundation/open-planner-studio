@@ -1,6 +1,6 @@
 import type { Task } from '@/types/task';
 import {
-  type ReportContext, assignedResourceNames, dayOf, isNearCritical, activityTasks, overlapsWindow,
+  type ReportContext, assignedResourceNamesIndex, dayOf, isNearCritical, activityTasks, overlapsWindow,
   progressState, referenceDay, remainingDays, taskFinish, taskStart, windowEnd,
 } from './reportCommon';
 
@@ -69,6 +69,7 @@ export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): Lo
   const { day: from, statusDateMissing } = referenceDay(ctx);
   const to = windowEnd(from, Math.max(1, Math.round(opts.weeks)) * 7);
   const rows: LookAheadRow[] = [];
+  const resourceNames = assignedResourceNamesIndex(ctx);
   for (const t of activityTasks(ctx.tasks)) {
     const status = statusOf(t, from);
     if (!status) continue;
@@ -86,7 +87,7 @@ export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): Lo
       isNearCritical: isNearCritical(t, opts.nearCriticalDays),
       isMilestone: t.isMilestone,
       constraintDate: t.constraint?.date,
-      resources: assignedResourceNames(ctx, t.id),
+      resources: resourceNames.get(t.id) ?? [],
       status,
     });
   }

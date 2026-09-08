@@ -35,11 +35,12 @@ function SectionTable({ s }: { s: ReportSection }) {
             {s.columns.map(c => {
               const color = c.color?.(row);
               const bold = c.bold?.(row) ?? false;
+              const indent = c.indent?.(row) ?? 0;
               return (
                 <td
                   key={c.key}
                   className={`px-2 py-1.5 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left'}`}
-                  style={{ color, fontWeight: bold ? 600 : undefined, whiteSpace: 'nowrap' }}
+                  style={{ color, fontWeight: bold ? 600 : undefined, whiteSpace: 'nowrap', paddingLeft: indent > 0 ? `${8 + indent}px` : undefined }}
                 >
                   {c.text(row)}
                 </td>

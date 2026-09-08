@@ -258,7 +258,6 @@
       "variance": "차이",
       "peak": "최대/일",
       "overloaded": "과부하",
-      "overloadedDays": "{{days}}일",
       "resources": "자원",
       "weeks": "주",
       "overloadedWeeks": "과부하 주",

@@ -8,6 +8,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
 
 /**
@@ -45,8 +46,6 @@ export interface ReportContext {
   statusDate?: string;
   /** "Vandaag" als ISO-dag — injecteerbaar zodat de tests deterministisch zijn. */
   today: string;
-  /** Near-critical-drempel uit de planningsopties (werkdagen), indien ingesteld. */
-  nearCriticalThreshold?: number;
 }
 
 export type ProgressState = 'notStarted' | 'inProgress' | 'complete';
@@ -100,15 +99,20 @@ export function durationDays(ctx: ReportContext, t: Task): number {
 }
 
 /**
- * Resterende duur in werkdagen. Spiegelt de solver: `remainingMinutes`/`remainingTime` zijn de bron
- * zodra gezet, anders `duur × (1 − completion)`. Voltooid ⇒ 0.
+ * Resterende duur in werkdagen. Spiegelt de solver (`CPMSolver`, IN-PROGRESS-tak): in uur-modus is
+ * `remainingMinutes` de bron, in dag-modus `remainingTime`; ontbreekt die, dan `duur × (1 −
+ * completion)`. Voltooid ⇒ 0. Let op: `applyProgressInvariants` rondt `remainingTime` op hele dagen,
+ * dus een dag-taak toont hier nooit halve dagen — dat is de opgeslagen waarde, geen rekenfout.
  */
 export function remainingDays(ctx: ReportContext, t: Task): number {
   if (progressState(t) === 'complete') return 0;
   const cal = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
   const minPerDay = effHoursPerDay(cal) * 60;
-  if (t.time.remainingMinutes !== undefined && minPerDay > 0) return round1(t.time.remainingMinutes / minPerDay);
-  if (t.time.remainingTime !== undefined) return round1(t.time.remainingTime);
+  if (taskDurationUnit(t) === 'hours') {
+    if (t.time.remainingMinutes !== undefined && minPerDay > 0) return round1(t.time.remainingMinutes / minPerDay);
+  } else if (t.time.remainingTime !== undefined) {
+    return round1(t.time.remainingTime);
+  }
   return round1(durationDays(ctx, t) * (1 - t.time.completion));
 }
 
@@ -152,18 +156,25 @@ export function overlapsWindow(t: Task, fromDay: string, toDay: string): boolean
   return dayOf(taskStart(t)) <= toDay && dayOf(taskFinish(t)) >= fromDay;
 }
 
-/** Namen van de toegewezen resources van een taak, in resourcevolgorde. */
-export function assignedResourceNames(ctx: ReportContext, taskId: string): string[] {
+/**
+ * Namen van de toegewezen resources per taak, in toewijzingsvolgorde en ontdubbeld — één index
+ * voor het hele rapport (O(toewijzingen)), niet per rij (O(taken × toewijzingen)).
+ */
+export function assignedResourceNamesIndex(ctx: ReportContext): Map<string, string[]> {
   const byId = new Map(ctx.resources.map(r => [r.id, r]));
+  const out = new Map<string, string[]>();
   const seen = new Set<string>();
-  const names: string[] = [];
   for (const a of ctx.assignments) {
-    if (a.taskId !== taskId || seen.has(a.resourceId)) continue;
-    seen.add(a.resourceId);
+    const key = `${a.taskId}\u0000${a.resourceId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     const r = byId.get(a.resourceId);
-    if (r) names.push(r.name);
+    if (!r) continue;
+    let list = out.get(a.taskId);
+    if (!list) { list = []; out.set(a.taskId, list); }
+    list.push(r.name);
   }
-  return names;
+  return out;
 }
 
 /** Near-critical: 0 < TF ≤ drempel (rapportdrempel), of door de planningsopties zo gemarkeerd. */
@@ -174,18 +185,30 @@ export function isNearCritical(t: Task, thresholdDays: number): boolean {
   return thresholdDays > 0 && tf > 0 && tf <= thresholdDays;
 }
 
-/** Diepte in de WBS-boom: 1 = hoofdniveau. */
+/** Diepte in de WBS-boom: 1 = hoofdniveau. Cyclusvast (zoals `flattenOrder`): een corrupte
+ *  `parentId`-kring wordt als hoofdniveau behandeld in plaats van de stack op te blazen. */
 export function taskDepths(tasks: readonly Task[]): Map<string, number> {
   const byId = new Map(tasks.map(t => [t.id, t]));
   const depth = new Map<string, number>();
-  const depthOf = (t: Task): number => {
-    const cached = depth.get(t.id);
-    if (cached !== undefined) return cached;
-    const parent = t.parentId ? byId.get(t.parentId) : undefined;
-    const d = parent ? depthOf(parent) + 1 : 1;
-    depth.set(t.id, d);
-    return d;
-  };
-  for (const t of tasks) depthOf(t);
+  for (const t of tasks) {
+    if (depth.has(t.id)) continue;
+    // Loop de ouderketen op tot een bekende diepte, een wortel of een kring.
+    const chain: Task[] = [];
+    const onChain = new Set<string>();
+    let cur: Task | undefined = t;
+    let base = 0;
+    while (cur) {
+      const known = depth.get(cur.id);
+      if (known !== undefined) { base = known; break; }
+      if (onChain.has(cur.id)) { base = 0; break; } // kring: de rest telt vanaf hoofdniveau
+      chain.push(cur);
+      onChain.add(cur.id);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    for (let i = chain.length - 1; i >= 0; i--) {
+      base += 1;
+      depth.set(chain[i].id, base);
+    }
+  }
   return depth;
 }

@@ -264,7 +264,6 @@
       "variance": "Écart",
       "peak": "Pic/jour",
       "overloaded": "Surchargé",
-      "overloadedDays": "{{days}} jour(s)",
       "resources": "Ressources",
       "weeks": "Semaines",
       "overloadedWeeks": "Semaines surchargées",

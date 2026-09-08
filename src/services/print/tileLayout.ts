@@ -190,6 +190,9 @@ export interface TileLayout {
  *
  * @see TileLayoutInput voor de defaults die het historische gedrag reproduceren.
  */
+/** Minimale vulgraad van een body-tegel voordat een breekpositie de pagina mag verkorten. */
+const MIN_BREAK_FILL = 0.5;
+
 export function computeTileLayout(input: TileLayoutInput): TileLayout {
   const marginPt = input.marginPt ?? DEFAULT_MARGIN_PT;
   const frozenRequestedPx = Math.max(0, input.frozenColumnWidthPx ?? 0);
@@ -287,9 +290,11 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
   // logische px, bv. de onderrand van elke tabelrij), dan eindigt een body-tegel op de LAATSTE
   // breekpositie die nog op de pagina past, zodat geen tabelrij over twee pagina's wordt gesneden.
   // Past er binnen de paginahoogte geen enkele breekpositie (één rij hoger dan een pagina), dan
-  // valt die tegel terug op de volle paginahoogte — eindigheid gaat vóór netheid. Zonder
-  // breekposities (de Gantt-render, de DOM-screenshot-fallback) is dit byte-identiek de oude
-  // vaste tegeling.
+  // valt die tegel terug op de volle paginahoogte — eindigheid gaat vóór netheid. Een breek die de
+  // pagina voor minder dan `MIN_BREAK_FILL` zou vullen telt óók niet: anders volgt op zo'n gedwongen
+  // snede een flinterdunne restpagina (review-bevinding 10). Voor gewone tabel-/Gantt-rijen (tientallen
+  // px op een pagina van honderden) is die drempel nooit bindend. Zonder breekposities (de
+  // DOM-screenshot-fallback) is dit byte-identiek de oude vaste tegeling.
   const breaks = (input.breakOffsetsPx ?? [])
     .filter(y => Number.isFinite(y) && y > repeatHeaderPx && y < ch)
     .sort((x, y) => x - y);
@@ -304,7 +309,7 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
         if (y > maxEnd) break;
         best = y;
       }
-      if (best > srcY) end = best;
+      if (best > srcY && best - srcY >= MIN_BREAK_FILL * bodyRowHpx) end = best;
     }
     bodyRows.push({ srcY, srcH: end - srcY });
     if (end <= srcY) break; // degeneratie-vangnet (ch === srcY): precies één lege tegel

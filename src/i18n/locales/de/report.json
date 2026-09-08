@@ -261,7 +261,6 @@
       "variance": "Differenz",
       "peak": "Spitze/Tag",
       "overloaded": "Überlastet",
-      "overloadedDays": "{{days}} Tag(e)",
       "resources": "Ressourcen",
       "weeks": "Wochen",
       "overloadedWeeks": "Überlastete Wochen",

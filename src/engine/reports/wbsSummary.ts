@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
 import { flattenOrder } from '@/utils/wbs';
+import { parseDate } from '@/utils/dateUtils';
 import {
   type ReportContext, durationDays, makeEngineCache, progressState, round1, signedWorkDays,
   taskDepths, taskFinish, taskStart,
@@ -56,13 +57,31 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
   const engineFor = makeEngineCache(ctx);
   const projectEngine = engineFor({ calendarId: undefined } as unknown as Task);
 
-  const descendantLeaves = (t: Task): Task[] => {
-    if (t.childIds.length === 0) return t.isHammock ? [] : [t];
-    const out: Task[] = [];
-    for (const cid of t.childIds) {
-      const c = byId.get(cid);
-      if (c) out.push(...descendantLeaves(c));
+  // Bladnakomelingen per taak, gememoiseerd en cyclusvast (een corrupte `childIds`-kring mag de
+  // stack niet opblazen — `flattenOrder` verdedigt zich daar ook tegen). Iteratief, geen spread:
+  // ook 200k bladen onder één verzameltaak blijven binnen de argumentlimiet.
+  const leafCache = new Map<string, Task[]>();
+  const descendantLeaves = (root: Task): Task[] => {
+    const cached = leafCache.get(root.id);
+    if (cached) return cached;
+    if (root.childIds.length === 0) {
+      const own = root.isHammock ? [] : [root];
+      leafCache.set(root.id, own);
+      return own;
     }
+    const out: Task[] = [];
+    const seen = new Set<string>([root.id]);
+    const stack: Task[] = [root];
+    while (stack.length) {
+      const t = stack.pop()!;
+      for (let i = t.childIds.length - 1; i >= 0; i--) {
+        const c = byId.get(t.childIds[i]);
+        if (!c || seen.has(c.id)) continue;
+        seen.add(c.id);
+        if (c.childIds.length === 0) { if (!c.isHammock) out.push(c); } else stack.push(c);
+      }
+    }
+    leafCache.set(root.id, out);
     return out;
   };
 
@@ -107,11 +126,11 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
       baselineStart: bStart,
       baselineFinish: bFinish,
       durationDays: isSummary
-        ? Math.max(0, projectEngine.workDaysBetween(new Date(start.slice(0, 10)), new Date(finish.slice(0, 10))))
+        ? Math.max(0, projectEngine.workDaysBetween(parseDate(start), parseDate(finish)))
         : durationDays(ctx, t),
       completion: round1(completion * 100) / 100,
       finishVarianceDays: bFinish ? signedWorkDays(projectEngine, bFinish, finish) : undefined,
-      minTotalFloat: leaves.length ? Math.min(...leaves.map(l => l.time.totalFloat)) : t.time.totalFloat,
+      minTotalFloat: leaves.length ? leaves.reduce((m, l) => Math.min(m, l.time.totalFloat), Infinity) : t.time.totalFloat,
       isCritical: leaves.some(l => l.time.isCritical),
       counts: {
         total: leaves.length,

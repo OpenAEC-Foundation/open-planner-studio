@@ -1,6 +1,10 @@
 import type { Task, ConstraintType } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { formatLagShort } from '@/utils/lagFormat';
+import { expandSummaryRelations, originalSequenceId } from '@/engine/scheduler/expandSummaryRelations';
+import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
+import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
+import type { WorkCalendar } from '@/types/calendar';
 import { type ReportContext, dayOf, durationDays, isNearCritical, activityTasks, progressState } from './reportCommon';
 
 /**
@@ -107,13 +111,6 @@ export const HEALTH_CHECK_ORDER: readonly HealthCheckId[] = [
   'nearCritical', 'highFloat', 'longLag',
 ];
 
-function lagWorkDays(seq: Sequence): number {
-  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0) {
-    return seq.lagMinutes / (8 * 60);
-  }
-  return seq.lagDays || 0;
-}
-
 export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): HealthResult {
   const leaves = activityTasks(ctx.tasks);
   const leafIds = new Set(leaves.map(t => t.id));
@@ -130,10 +127,13 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
   const taskItem = (t: Task, detail: HealthItem['detail'] = {}): HealthItem =>
     ({ taskId: t.id, wbs: t.wbsCode, name: t.name, detail });
 
-  // Relaties tussen bladtaken (relaties op verzameltaken rekent de solver niet).
+  // Dezelfde relatieset als de solver: relaties op verzameltaken worden eerst naar bladtaakrelaties
+  // uitgevouwen (`expandSummaryRelations`, zoals `runCPM` doet — op een MS Project-import is dat
+  // de normale vorm, review-bevinding 2). Alleen relaties tussen bladtaken blijven over.
   const hasPred = new Set<string>();
   const hasSucc = new Set<string>();
-  const relations = ctx.sequences.filter(s => leafIds.has(s.predecessorId) && leafIds.has(s.successorId));
+  const { sequences: expanded } = expandSummaryRelations(ctx.tasks, ctx.sequences);
+  const relations = expanded.filter(s => leafIds.has(s.predecessorId) && leafIds.has(s.successorId));
   for (const s of relations) { hasSucc.add(s.predecessorId); hasPred.add(s.successorId); }
   // Externe links tellen als logica aan die kant.
   for (const t of leaves) {
@@ -177,15 +177,27 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
     if (completion > 0 && !actualStart) add('progressException', taskItem(t, { reason: 'progressWithoutActualStart' }));
   }
 
+  // Rapporteer per GEMODELLEERDE relatie: een faserelatie vouwt voor de solver uit tot n×m
+  // bladrelaties, maar de planner ziet er één (op de fasenamen) en telt hem één keer.
+  const originalSeqById = new Map(ctx.sequences.map(s => [s.id, s]));
   const seqItem = (s: Sequence, detail: HealthItem['detail'] = {}): HealthItem => {
-    const p = byId.get(s.predecessorId);
-    const q = byId.get(s.successorId);
-    return { sequenceId: s.id, wbs: `${p?.wbsCode ?? '?'} → ${q?.wbsCode ?? '?'}`, name: `${p?.name ?? '?'} → ${q?.name ?? '?'}`, detail };
+    const shown = originalSeqById.get(originalSequenceId(s.id)) ?? s;
+    const p = byId.get(shown.predecessorId);
+    const q = byId.get(shown.successorId);
+    return { sequenceId: shown.id, wbs: `${p?.wbsCode ?? '?'} → ${q?.wbsCode ?? '?'}`, name: `${p?.name ?? '?'} → ${q?.name ?? '?'}`, detail };
   };
+  // Eén lag-definitie met de solver (`resolveEffectiveLagDays`): procent-lag uit de voorgangerduur,
+  // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender (review-bevinding 3).
+  const reportedLag = new Set<string>();
   for (const s of relations) {
-    const lag = lagWorkDays(s);
-    if (lag < 0) add('lead', seqItem(s, { lag: formatLagShort(s), days: lag }));
-    else if (lag > opts.lagDays) add('longLag', seqItem(s, { lag: formatLagShort(s), days: lag }));
+    const orig = originalSequenceId(s.id);
+    if (reportedLag.has(orig)) continue;
+    const pred = byId.get(s.predecessorId);
+    if (!pred) continue;
+    const hpd = effHoursPerDay(effectiveCalendarOf(pred, ctx.calendar, ctx.calendars as WorkCalendar[]));
+    const lag = resolveEffectiveLagDays(s, pred, hpd);
+    if (lag < 0) { add('lead', seqItem(s, { lag: formatLagShort(s), days: lag })); reportedLag.add(orig); }
+    else if (lag > opts.lagDays) { add('longLag', seqItem(s, { lag: formatLagShort(s), days: lag })); reportedLag.add(orig); }
   }
 
   if (cpm) {
@@ -197,10 +209,11 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
       const t = byId.get(id);
       if (t) add('violatedConstraint', taskItem(t, { constraintType: t.constraint?.type, date: t.constraint?.date, float: t.time.totalFloat }));
     }
-    const seqById = new Map(ctx.sequences.map(s => [s.id, s]));
+    const seenOos = new Set<string>();
     for (const id of cpm.outOfSequenceSequenceIds) {
-      const s = seqById.get(id);
-      if (s) add('outOfSequence', seqItem(s));
+      const orig = originalSequenceId(id);
+      const s = originalSeqById.get(orig);
+      if (s && !seenOos.has(orig)) { seenOos.add(orig); add('outOfSequence', seqItem(s)); }
     }
   }
 
@@ -212,5 +225,6 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
     else if (c.severity === 'warning') totals.warnings += c.items.length;
     else totals.infos += c.items.length;
   }
-  return { checks, totals, leafCount: leaves.length, relationCount: relations.length, calculated: cpm !== null };
+  const relationCount = new Set(relations.map(s => originalSequenceId(s.id))).size;
+  return { checks, totals, leafCount: leaves.length, relationCount, calculated: cpm !== null };
 }

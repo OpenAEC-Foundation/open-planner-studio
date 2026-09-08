@@ -258,7 +258,6 @@
       "variance": "差额",
       "peak": "峰值/日",
       "overloaded": "超负荷",
-      "overloadedDays": "{{days}} 天",
       "resources": "资源",
       "weeks": "周数",
       "overloadedWeeks": "超负荷周",

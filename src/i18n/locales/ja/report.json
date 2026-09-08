@@ -258,7 +258,6 @@
       "variance": "差",
       "peak": "ピーク/日",
       "overloaded": "過負荷",
-      "overloadedDays": "{{days}} 日",
       "resources": "リソース",
       "weeks": "週",
       "overloadedWeeks": "過負荷の週",

@@ -108,15 +108,17 @@ De overige rapporttypen zijn tabelrapporten die rechtstreeks uit de laatste bere
 delen een paar afspraken:
 
 - Alleen **bladtaken** tellen als activiteit; verzameltaken zie je alleen in de WBS-samenvatting.
-  Hammock-taken (LOE) doen niet mee.
+  Hammock-taken (LOE) doen in de activiteitenrapporten niet mee; in de twee resourcerapporten
+  wél, want ook toezicht boekt inzet — dezelfde set als het histogram.
 - De **referentiedag** is de statusdatum van het project. Is er geen statusdatum, dan rekent het
   rapport met vandaag en zegt dat er bij. Stel dus eerst een statusdatum in via de projectgegevens
   als je een rapport voor een vaste peildatum wilt.
 - Datums en speling komen uit de laatste **berekening**. Is de planning gewijzigd sinds de laatste
   keer dat je op *Bereken* (F5) drukte, dan staat er een melding boven het rapport; de PDF-export
   rekent altijd eerst door.
-- Elk rapport heeft een klein blok **Rapportopties** onder de samenvatting; die keuzes worden
-  onthouden tussen sessies. Werkdagen worden afgekort tot *wd*.
+- Elk rapport heeft een klein blok **Rapportopties** onder de samenvatting, met bovenaan het
+  papierformaat en de oriëntatie van de PDF (een brede tabel op A4 staand wordt erg klein — kies
+  dan A3 liggend); die keuzes worden onthouden tussen sessies. Werkdagen worden afgekort tot *wd*.
 - Een taak kan in meerdere secties van één rapport staan wanneer die secties elk een andere vraag
   beantwoorden (in uitvoering én kritiek, bijvoorbeeld).
 
@@ -193,10 +195,9 @@ activiteiten zelf onder hun element.
 
 ## Afdrukken en exporteren
 
-Onderaan het instellingenpaneel staat altijd een knop **Afdrukken...** — die opent een apart
-afdrukvenster met het rapport erin en start meteen de browser-/systeem-printdialoog. Bij het
-Gantt-rapport gebruikt dat venster het gekozen papierformaat en de oriëntatie; het mijlpalen- en
-variance-rapport printen de tabel zoals weergegeven.
+Er is geen aparte printknop met een systeemdialoog: afdrukken gaat via de PDF. Exporteer het
+rapport, open de PDF en print die — zo komt op papier precies wat het voorbeeld toont, met dezelfde
+paginaovergangen (nooit dwars door een rij).
 
 Elk rapporttype heeft een knop **Exporteer PDF**. Bij het Gantt-rapport bewaart die het huidige
 voorbeeld als een echt PDF-bestand (bestandsnaam eindigend op `-planning.pdf`) — één pagina op de
@@ -209,8 +210,8 @@ worden eveneens als vector geshapet en ingebed. Chinese, Japanse en Koreaanse te
 installeer je een font-extensie die die glyphs levert, dan wordt ook die tekst als vector ingebed
 (selecteerbaar en doorzoekbaar); zonder zo'n extensie wordt die tekst als raster-afbeelding
 geëxporteerd — nog steeds correct leesbaar, maar niet selecteerbaar of doorzoekbaar. Handig voor e-mail of archief zonder de systeem-printdialoog erbij te hoeven halen.
-Wil je liever direct printen (of via de systeemdialoog naar PDF, bijvoorbeeld om een ander
-papierformaat te kiezen dan hierboven ingesteld), gebruik dan **Afdrukken...**.
+Wil je een ander papierformaat dan hierboven ingesteld, kies dat dan in het rapport zelf vóór het
+exporteren — de PDF is altijd op de fysieke maat van het gekozen papier.
 
 ## Rapporten in de praktijk
 

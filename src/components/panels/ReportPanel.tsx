@@ -222,6 +222,7 @@ export function ReportPanel() {
   // (doorgetrokken = bepalend, gestreept = niet-bepalend). Die informatie zit alleen in `cpmResult`,
   // dus een echte subscription — anders ververst de preview niet na een F5/Bereken.
   const cpmResult = useAppStore(s => s.cpmResult);
+  const scheduleStale = useAppStore(s => s.scheduleStale);
   // #21/#54 — bronnen voor de nieuwe exportopties: resources/toewijzingen (kleurmodi), de
   // schermweergave-rijen (volg weergave) en de statusdatum (statuslijn). Echte subscriptions
   // (geen getState): de live preview moet op al deze wijzigingen her-renderen.
@@ -830,13 +831,15 @@ export function ReportPanel() {
     }
   }, []);
 
-  const handleExportPDF = useCallback(async () => {
-    // K7: de PDF-export schrijft CPM-datums naar derden — net als fileSlice.exportAs eerst een
-    // stale schema doorrekenen (via getState, niet via een selector: de guard moet de actuele
-    // store lezen op het klikmoment), en bij een cyclus afbreken zónder te exporteren. De
-    // cpmResult.error-check is apart nodig omdat runCPM `scheduleStale` vóór de solve al op false
-    // zet; een guard op alleen die vlag zou stil met oude task.time-waarden exporteren.
-    if (useAppStore.getState().scheduleStale) useAppStore.getState().runCPM();
+  /**
+   * De eigenlijke export — draait ALTIJD op de closure-waarden van de huidige render (`tasks`,
+   * `options`, `tableSpec`). Daarom mag hij pas ná een herberekening worden aangeroepen wanneer die
+   * een re-render heeft opgeleverd; zie `handleExportPDF` en het effect eronder.
+   */
+  const runExport = useCallback(async () => {
+    // K7: bij een cyclus afbreken zónder te exporteren. De cpmResult.error-check staat hier los van
+    // de stale-vlag omdat runCPM `scheduleStale` vóór de solve al op false zet; een guard op alleen
+    // die vlag zou stil met oude task.time-waarden exporteren.
     const cpmError = useAppStore.getState().cpmResult?.error;
     if (cpmError) {
       // Zichtbaar maken is hier NIET optioneel: op het Rapport-tabblad is `GanttCanvas` niet
@@ -1010,6 +1013,27 @@ export function ReportPanel() {
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
     autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
+
+  // K7-guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
+  // leest `tasks`/`options`/`tableSpec` uit de closure van de HUIDIGE render, en die kent de
+  // herberekening nog niet (review-bevinding 1: de PDF liep weken achter op het scherm en droeg
+  // nog de "planning gewijzigd"-melding). De export wordt daarom uitgesteld tot het effect hieronder
+  // ná de re-render met de verse waarden vuurt.
+  const exportPendingRef = useRef(false);
+  const handleExportPDF = useCallback(() => {
+    const st = useAppStore.getState();
+    if (st.scheduleStale) {
+      exportPendingRef.current = true;
+      st.runCPM();
+      return;
+    }
+    void runExport();
+  }, [runExport]);
+  useEffect(() => {
+    if (!exportPendingRef.current || scheduleStale) return;
+    exportPendingRef.current = false;
+    void runExport();
+  }, [scheduleStale, runExport]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;
@@ -1372,13 +1396,21 @@ export function ReportPanel() {
         )}
 
         {tableSpec && (
-          <TableReportOptionsBlock reportType={reportType} options={tableOptions} onChange={patchTableOptions} />
+          <TableReportOptionsBlock
+            reportType={reportType}
+            options={tableOptions}
+            onChange={patchTableOptions}
+            paperSize={paperSize}
+            orientation={orientation}
+            onPaperSize={setPaperSize}
+            onOrientation={setOrientation}
+          />
         )}
 
         {/* Action buttons — alle rapporttypes exporteren naar PDF (geen uitprinten meer). */}
         <div className="flex flex-col gap-2">
           <button
-            onClick={() => { void handleExportPDF(); }}
+            onClick={handleExportPDF}
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >

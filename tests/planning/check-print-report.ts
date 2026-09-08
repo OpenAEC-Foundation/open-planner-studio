@@ -400,9 +400,15 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     ok(Math.abs(last.srcY + last.srcH - 3000) < 1e-9, 'de laatste tegel eindigt op de bronhoogte');
     ok(broken.rows === broken.bodyRows.length && broken.rows >= plain.rows, 'rows = aantal tegels, nooit minder dan de vaste tegeling');
     ok(JSON.stringify(computeTileLayout({ ...base, breakOffsetsPx: [] }).bodyRows) === JSON.stringify(plain.bodyRows), 'lege breeklijst ⇒ byte-identiek');
-    // Een rij hoger dan de pagina: geen passende breek ⇒ terugval op de paginahoogte (eindig).
-    const tall = computeTileLayout({ ...base, logicalHeight: 5000, breakOffsetsPx: [4900] });
-    ok(tall.bodyRows.length >= 2 && tall.bodyRows.every(r => r.srcH > 0 && r.srcH <= pageSrcH + 1e-9), 'te hoge rij ⇒ terugval op paginahoogte, eindig');
+    // Rijen HOGER dan de pagina (breaks op 1500/3000/4500 bij ±1140 px per pagina): geen passende
+    // breek ⇒ volle pagina; en de restpagina erna mag geen runt worden (vulgraad ≥ 50%, bevinding 10).
+    const tall = computeTileLayout({ ...base, logicalHeight: 6000, breakOffsetsPx: [1500, 3000, 4500] });
+    ok(tall.bodyRows.every(r => r.srcH > 0 && r.srcH <= pageSrcH + 1e-9), 'te hoge rijen ⇒ elke tegel ≤ paginahoogte, eindig');
+    ok(tall.bodyRows.slice(0, -1).every(r => r.srcH >= 0.5 * pageSrcH), `te hoge rijen ⇒ geen runt-pagina's (${tall.bodyRows.map(r => Math.round(r.srcH)).join(',')})`);
+    ok(tall.bodyRows.some(r => r.srcH === pageSrcH), 'te hoge rijen ⇒ minstens één gedwongen volle pagina');
+    // Een breek vlak onder de kop (10 px) mag de eerste pagina niet tot 10 px reduceren.
+    const early = computeTileLayout({ ...base, logicalHeight: 3000, breakOffsetsPx: [10, 2500] });
+    ok(early.bodyRows[0].srcH >= 0.5 * pageSrcH, 'vroege breek ⇒ eerste pagina geen runt');
   }
 
   // Gantt-afdruk (issue #110, Manu's nabespreking): de render levert per taakrij een breekpositie,

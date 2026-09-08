@@ -261,7 +261,6 @@
       "variance": "Variance",
       "peak": "Peak/day",
       "overloaded": "Overloaded",
-      "overloadedDays": "{{days}} day(s)",
       "resources": "Resources",
       "weeks": "Weeks",
       "overloadedWeeks": "Overloaded weeks",

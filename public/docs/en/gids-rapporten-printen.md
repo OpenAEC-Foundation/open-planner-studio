@@ -108,15 +108,17 @@ The remaining report types are table reports drawn straight from the last calcul
 a few conventions:
 
 - Only **leaf tasks** count as activities; summary tasks appear only in the WBS summary. Hammock
-  (LOE) tasks are left out.
+  (LOE) tasks are left out of the activity reports, but included in the two resource reports:
+  supervision books effort too, and it is the same set as the histogram.
 - The **reference day** is the project's status date. Without a status date the report uses today
   and says so. Set a status date in the project details first if you want a report for a fixed
   reporting date.
 - Dates and float come from the last **calculation**. If the schedule changed since you last
   pressed *Calculate* (F5), a note appears above the report; the PDF export always recalculates
   first.
-- Every report has a small **Report options** block under the summary; those choices are
-  remembered between sessions. Working days are abbreviated to *wd*.
+- Every report has a small **Report options** block under the summary, starting with the paper
+  size and orientation of the PDF (a wide table on A4 portrait gets very small; pick A3 landscape
+  instead); those choices are remembered between sessions. Working days are abbreviated to *wd*.
 - A task can appear in several sections of one report when those sections each answer a different
   question (in progress and critical, for instance).
 
@@ -192,10 +194,9 @@ optionally the activities themselves under their element.
 
 ## Printing and exporting
 
-The settings panel always has a **Print...** button at the bottom — it opens a separate print window
-containing the report and immediately triggers the browser/OS print dialog. For the Gantt report,
-that window uses the chosen paper size and orientation; the milestone and variance reports print the
-table as displayed.
+There is no separate print button with a system dialog: printing goes through the PDF. Export the
+report, open the PDF and print it — that way paper shows exactly what the preview shows, with the
+same page breaks (never through a row).
 
 Every report type has an **Export PDF** button. For the Gantt report it saves the current preview
 as an actual PDF file (filename ending in `-planning.pdf`) — one page sized to the physical
@@ -207,8 +208,8 @@ Cyrillic, Greek, Arabic and Persian text — Arabic and Persian are shaped and e
 as well. Chinese, Japanese and Korean text is opt-in: install a font extension that supplies those
 glyphs and it is embedded as vector too (selectable and searchable); without such an extension that
 text is exported as a raster image — still correctly displayed, but not selectable or searchable. Handy for email or archiving without going through the system
-print dialog. If you'd rather print directly (or save to PDF via the system dialog, e.g. to pick a
-different paper size than the one configured above), use **Print...**.
+print dialog. If you want a different paper size than the one configured above, pick it in the
+report itself before exporting — the PDF is always at the physical size of the chosen paper.
 
 ## Reports in practice
 
