@@ -145,6 +145,7 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
       { label: t(`${p}.status_lateStart`), value: String(r.counts.lateStart), color: r.counts.lateStart ? REPORT_COLORS.warn : undefined },
       { label: t(`${p}.status_starting`), value: String(r.counts.starting) },
       { label: t('tableReports.common.critical'), value: String(r.counts.critical), color: r.counts.critical ? REPORT_COLORS.error : undefined },
+      { label: t('tableReports.common.nearCritical'), value: String(r.counts.nearCritical), color: r.counts.nearCritical ? REPORT_COLORS.warn : undefined },
     ],
     sections: [section<LookAheadRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
     fileSuffix: 'look-ahead',
@@ -209,7 +210,7 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: `${t('tableReports.statusDate')}: ${dd.date(s.statusDate)}`,
+    // Geen ondertitel: de statusdatum staat al als eerste regel van de samenvatting (issue #110 punt 4).
     notes: commonNotes(t, dd, ctx, stale, s.statusDateMissing),
     summary,
     sections: [
@@ -261,7 +262,7 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: t(`${p}.subtitle`, { float: o.healthHighFloatDays, duration: o.healthLongDurationDays, lag: o.healthLagDays }),
+    subtitle: t(`${p}.subtitle`, { float: o.healthHighFloatDays, duration: o.healthLongDurationDays, lag: o.healthLagDays, near: o.nearCriticalDays }),
     notes: commonNotes(t, dd, ctx, stale),
     summary: [
       { label: t(`${p}.errors`), value: String(r.totals.errors), color: r.totals.errors ? REPORT_COLORS.error : REPORT_COLORS.ok },

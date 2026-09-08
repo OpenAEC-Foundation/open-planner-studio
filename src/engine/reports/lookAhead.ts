@@ -53,7 +53,7 @@ export interface LookAheadResult {
   to: string;
   statusDateMissing: boolean;
   rows: LookAheadRow[];
-  counts: { total: number; overdue: number; lateStart: number; inProgress: number; starting: number; critical: number };
+  counts: { total: number; overdue: number; lateStart: number; inProgress: number; starting: number; critical: number; nearCritical: number };
 }
 
 function statusOf(t: Task, refDay: string): LookAheadStatus | null {
@@ -101,6 +101,7 @@ export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): Lo
       inProgress: count('inProgress'),
       starting: count('starting'),
       critical: rows.filter(r => r.isCritical).length,
+      nearCritical: rows.filter(r => r.isNearCritical).length,
     },
   };
 }

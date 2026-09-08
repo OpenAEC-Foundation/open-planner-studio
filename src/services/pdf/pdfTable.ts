@@ -130,6 +130,7 @@ function drawTable<Row>(
   columns: PdfTableColumn<Row>[],
   rows: Row[],
   emptyText: string | undefined,
+  breaks?: number[],
 ): number {
   const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
 
@@ -161,6 +162,7 @@ function drawTable<Row>(
     d2d.textBaseline = 'middle';
     d2d.fillText(emptyText ?? '', CELL_PAD_X, y + ROW_HEIGHT / 2);
     y += ROW_HEIGHT;
+    breaks?.push(y);
   } else {
     for (const row of rows) {
       let cx = 0;
@@ -183,6 +185,8 @@ function drawTable<Row>(
       d2d.lineTo(tableWidth, y + ROW_HEIGHT);
       d2d.stroke();
       y += ROW_HEIGHT;
+      // Onder elke rij mag een pagina eindigen — nooit erdoorheen (issue #110 punt 3).
+      breaks?.push(y);
     }
   }
   return y;
@@ -221,14 +225,15 @@ export function makeTableRenderReport<Row>(
       y = titleH;
     }
 
-    drawTable(d2d, y, spec.columns, spec.rows, spec.emptyText);
+    const breakOffsets: number[] = [];
+    drawTable(d2d, y, spec.columns, spec.rows, spec.emptyText, breakOffsets);
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
 
     // `headerHeight: 0` — een tabel-render heeft géén herhaalbare kopstrook: titel + kolomkoppen
     // staan bewust alleen bovenaan het eerste vel (de pagineerder herhaalt niets als dit 0 is).
-    return { width: tableWidth, height, tableWidth: 0, headerHeight: 0 };
+    return { width: tableWidth, height, tableWidth: 0, headerHeight: 0, breakOffsets };
   };
 }
 
@@ -292,6 +297,8 @@ export function makeSectionedRenderReport(
       y += summaryH;
     }
 
+    const breakOffsets: number[] = [];
+    if (spec.summary.length > 0 || spec.subtitle) breakOffsets.push(y);
     for (const s of spec.sections) {
       if (s.heading) {
         d2d.fillStyle = COLORS.text;
@@ -301,12 +308,15 @@ export function makeSectionedRenderReport(
         d2d.fillText(fitText(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
         y += SECTION_HEADING_HEIGHT;
       }
-      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText);
+      // Een sectiekop mag niet los onderaan een pagina blijven staan: de breekpositie vóór de kop
+      // vervalt zodra de kop getekend is (de laatste breek vóór de kop was het sectie-einde ervoor).
+      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText, breakOffsets);
       y += SECTION_GAP;
+      breakOffsets.push(y);
     }
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
-    return { width, height, tableWidth: 0, headerHeight: 0 };
+    return { width, height, tableWidth: 0, headerHeight: 0, breakOffsets };
   };
 }

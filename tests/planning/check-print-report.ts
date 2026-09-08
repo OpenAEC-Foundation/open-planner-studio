@@ -18,6 +18,7 @@ import {
   NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
 } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
+import { makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
 import {
   computePreviewRasterLimits,
   PREVIEW_MAX_PAGE_PIXELS,
@@ -379,6 +380,57 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   const a2 = PAPER_PT.a2;
   ok(a2.width === PAPER_PT.a3.height && a2.height === PAPER_PT.a1.width,
     `#83 A2 gebruikt de gedeelde ISO-afmetingen (got ${a2.width}×${a2.height} pt)`);
+  // Issue #110 punt 3 — rij-bewuste paginering: met breekposities eindigt elke body-tegel op de
+  // laatste breek die past; zonder breekposities blijft de tegeling byte-identiek.
+  {
+    const base = { paperSize: 'a4' as const, orientation: 'portrait' as const, mode: 'fit-width' as const, logicalWidth: 800, logicalHeight: 3000, frozenColumnWidthPx: 0 };
+    const plain = computeTileLayout(base);
+    const pageSrcH = plain.printH / plain.scale;
+    // Rijen van 26 px vanaf y = 66 (titel + kop), zoals pdfTable.
+    const rowBreaks: number[] = [];
+    for (let y = 66 + 26; y < 3000; y += 26) rowBreaks.push(y);
+    const broken = computeTileLayout({ ...base, breakOffsetsPx: rowBreaks });
+    ok(plain.bodyRows.every(r => r.srcH <= pageSrcH + 1e-9), 'tegels zonder breekposities passen op de pagina');
+    ok(broken.bodyRows.every(r => r.srcH <= pageSrcH + 1e-9), 'tegels met breekposities passen op de pagina');
+    ok(broken.bodyRows.slice(0, -1).every(r => rowBreaks.includes(r.srcY + r.srcH)),
+      'elke tegel (behalve de laatste) eindigt op een rijgrens');
+    ok(broken.bodyRows[0].srcY === 0 && broken.bodyRows.every((r, i) => i === 0 || r.srcY === broken.bodyRows[i - 1].srcY + broken.bodyRows[i - 1].srcH),
+      'tegels sluiten aan zonder gat of overlap');
+    const last = broken.bodyRows[broken.bodyRows.length - 1];
+    ok(Math.abs(last.srcY + last.srcH - 3000) < 1e-9, 'de laatste tegel eindigt op de bronhoogte');
+    ok(broken.rows === broken.bodyRows.length && broken.rows >= plain.rows, 'rows = aantal tegels, nooit minder dan de vaste tegeling');
+    ok(JSON.stringify(computeTileLayout({ ...base, breakOffsetsPx: [] }).bodyRows) === JSON.stringify(plain.bodyRows), 'lege breeklijst ⇒ byte-identiek');
+    // Een rij hoger dan de pagina: geen passende breek ⇒ terugval op de paginahoogte (eindig).
+    const tall = computeTileLayout({ ...base, logicalHeight: 5000, breakOffsetsPx: [4900] });
+    ok(tall.bodyRows.length >= 2 && tall.bodyRows.every(r => r.srcH > 0 && r.srcH <= pageSrcH + 1e-9), 'te hoge rij ⇒ terugval op paginahoogte, eindig');
+  }
+
+  // Contract pdfTable → tileLayout (issue #110 punt 3): de breekposities die de tabelrender levert
+  // vallen precies op rijgrenzen, en de pagineerder eindigt elke pagina op zo'n grens.
+  {
+    const stub: Draw2D = {
+      font: '', fillStyle: '', strokeStyle: '', lineWidth: 1, textAlign: 'left', textBaseline: 'alphabetic',
+      setLineDash() {}, fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {},
+      fill() {}, stroke() {}, roundRect() {}, fillText() {}, measureText: (t: string) => ({ width: t.length * 6 }),
+    };
+    const rows = Array.from({ length: 300 }, (_, i) => ({ n: `rij ${i}` }));
+    const columns = [{ header: 'Naam', width: 300, align: 'left' as const, text: (r: { n: string }) => r.n }];
+    const dims = makeSectionedRenderReport({
+      title: 'Test', subtitle: 'sub', summary: [{ label: 'a', value: '1' }],
+      sections: [{ heading: 'A', columns, rows }, { heading: 'B', columns, rows: rows.slice(0, 40) }],
+    })(() => stub);
+    ok((dims.breakOffsets?.length ?? 0) >= 340, 'gesectioneerde render levert een breekpositie per rij');
+    const layout = computeTileLayout({
+      paperSize: 'a4', orientation: 'portrait', mode: 'fit-width',
+      logicalWidth: dims.width, logicalHeight: dims.height, frozenColumnWidthPx: 0, breakOffsetsPx: dims.breakOffsets,
+    });
+    const set = new Set(dims.breakOffsets);
+    ok(layout.rows > 1, 'de 340 rijen vullen meer dan één pagina');
+    ok(layout.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)), 'elke pagina eindigt op een rijgrens uit de render');
+    const single = makeTableRenderReport({ title: 'T', columns, rows })(() => stub);
+    ok(single.breakOffsets?.length === 300, 'losse tabelrender: één breekpositie per rij');
+  }
+
   const portrait = computeTileLayout({
     paperSize: 'a2', orientation: 'portrait', mode: 'fit-width', logicalWidth: 900, logicalHeight: 1200,
   });

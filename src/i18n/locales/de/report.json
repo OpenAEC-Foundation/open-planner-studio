@@ -212,7 +212,7 @@
     },
     "health": {
       "title": "Terminplan-Qualität",
-      "subtitle": "Schwellen: hoher Puffer > {{float}} AT · lange Dauer > {{duration}} AT · Verzögerung > {{lag}} AT",
+      "subtitle": "Schwellen: hoher Puffer > {{float}} AT · lange Dauer > {{duration}} AT · Verzögerung > {{lag}} AT · fast kritisch ≤ {{near}} AT",
       "errors": "Fehler",
       "warnings": "Warnungen",
       "infos": "Hinweise",

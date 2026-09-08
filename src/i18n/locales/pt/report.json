@@ -215,7 +215,7 @@
     },
     "health": {
       "title": "Saúde do cronograma",
-      "subtitle": "Limiares: folga alta > {{float}} du · duração longa > {{duration}} du · atraso > {{lag}} du",
+      "subtitle": "Limiares: folga alta > {{float}} du · duração longa > {{duration}} du · atraso > {{lag}} du · quase crítico ≤ {{near}} du",
       "errors": "Erros",
       "warnings": "Avisos",
       "infos": "Informação",

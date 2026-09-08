@@ -218,7 +218,7 @@
     },
     "health": {
       "title": "Kondycja harmonogramu",
-      "subtitle": "Progi: duży zapas > {{float}} dr · długi czas trwania > {{duration}} dr · zwłoka > {{lag}} dr",
+      "subtitle": "Progi: duży zapas > {{float}} dr · długi czas trwania > {{duration}} dr · zwłoka > {{lag}} dr · prawie krytyczne ≤ {{near}} dr",
       "errors": "Błędy",
       "warnings": "Ostrzeżenia",
       "infos": "Informacje",

@@ -106,6 +106,12 @@ export interface TileLayoutInput {
    */
   repeatHeaderHeightPx?: number;
   /**
+   * OPTIONEEL — toegestane breekposities (y in logische px vanaf de bovenkant van de bron) waar een
+   * pagina mag eindigen; typisch de onderrand van elke tabelrij. Zie de rij-bewuste tegeling in
+   * `computeTileLayout`. Afwezig/leeg ⇒ vaste tegeling op paginahoogte (byte-identiek).
+   */
+  breakOffsetsPx?: readonly number[];
+  /**
    * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen van toepassing in
    * `'fit-width'`; in `'actual'` volgt het kolom-aantal uit de bronbreedte en wordt dit genegeerd.
    * Default 1 = alles op één paginabreedte, oud gedrag.
@@ -276,13 +282,35 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
     : 0;
   const repeatHeaderPtH = repeatHeaderPx * scale;
   const bodyRowHpx = pageSrcHpx - repeatHeaderPx;
-  const rows = Math.max(1, Math.ceil((ch - repeatHeaderPx) / bodyRowHpx));
-
   const bodyRows: TileBodyRow[] = [];
-  for (let r = 0; r < rows; r++) {
-    const srcY = repeatHeaderPx + r * bodyRowHpx;
-    bodyRows.push({ srcY, srcH: Math.min(bodyRowHpx, ch - srcY) });
+  // Rij-bewuste paginering (issue #110 punt 3): levert de render toegestane breekposities (y in
+  // logische px, bv. de onderrand van elke tabelrij), dan eindigt een body-tegel op de LAATSTE
+  // breekpositie die nog op de pagina past, zodat geen tabelrij over twee pagina's wordt gesneden.
+  // Past er binnen de paginahoogte geen enkele breekpositie (één rij hoger dan een pagina), dan
+  // valt die tegel terug op de volle paginahoogte — eindigheid gaat vóór netheid. Zonder
+  // breekposities (de Gantt-render, de DOM-screenshot-fallback) is dit byte-identiek de oude
+  // vaste tegeling.
+  const breaks = (input.breakOffsetsPx ?? [])
+    .filter(y => Number.isFinite(y) && y > repeatHeaderPx && y < ch)
+    .sort((x, y) => x - y);
+  let srcY = repeatHeaderPx;
+  while (srcY < ch || bodyRows.length === 0) {
+    const maxEnd = Math.min(ch, srcY + bodyRowHpx);
+    let end = maxEnd;
+    if (breaks.length > 0 && maxEnd < ch) {
+      let best = -1;
+      for (const y of breaks) {
+        if (y <= srcY) continue;
+        if (y > maxEnd) break;
+        best = y;
+      }
+      if (best > srcY) end = best;
+    }
+    bodyRows.push({ srcY, srcH: end - srcY });
+    if (end <= srcY) break; // degeneratie-vangnet (ch === srcY): precies één lege tegel
+    srcY = end;
   }
+  const rows = bodyRows.length;
 
   // ---- Horizontale vensters per kolom -----------------------------------------------------------
   const columns: TileColumn[] = [];

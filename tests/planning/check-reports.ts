@@ -108,6 +108,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('lookAhead: D (start op de statusdatum) staat erin', r.rows.some(x => x.taskId === D));
   ok('lookAhead: rijen gesorteerd op start', r.rows.every((x, i) => i === 0 || r.rows[i - 1].start <= x.start));
   eq('lookAhead: tellingen sluiten', r.counts.overdue + r.counts.lateStart + r.counts.inProgress + r.counts.starting, r.counts.total);
+  // Issue #110 punt 1: de near-critical-telling hoort in de samenvatting.
+  eq('lookAhead: near-critical geteld', r.counts.nearCritical, r.rows.filter(x => x.isNearCritical).length);
 
   // Zonder statusdatum ⇒ vandaag als referentie + melding.
   const r2 = computeLookAhead({ ...ctx, statusDate: undefined, today: '2026-09-25' }, { weeks: 1, nearCriticalDays: 0 });
@@ -120,7 +122,10 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   g.time.earlyStart = '2026-09-08'; g.time.earlyFinish = '2026-09-09';
   const d = clone.find(t => t.id === D)!;
   d.time.earlyStart = '2026-09-10'; d.time.earlyFinish = '2026-09-30';
+  const f = clone.find(t => t.id === F)!;
+  f.time.isCritical = false; f.time.totalFloat = 4;
   const r3 = computeLookAhead({ ...ctx, tasks: clone }, { weeks: 2, nearCriticalDays: 5 });
+  eq('lookAhead: TF 4 ≤ 5 ⇒ near-critical-telling 1', r3.counts.nearCritical, 1);
   eq('lookAhead: finish vóór de statusdatum ⇒ achterstallig', r3.rows.find(x => x.taskId === G)?.status, 'overdue');
   eq('lookAhead: start vóór de statusdatum, niet gestart ⇒ had moeten starten', r3.rows.find(x => x.taskId === D)?.status, 'lateStart');
 }

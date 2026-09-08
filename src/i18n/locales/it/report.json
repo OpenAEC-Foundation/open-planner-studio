@@ -215,7 +215,7 @@
     },
     "health": {
       "title": "Salute del programma",
-      "subtitle": "Soglie: slack elevato > {{float}} gl · durata lunga > {{duration}} gl · ritardo > {{lag}} gl",
+      "subtitle": "Soglie: slack elevato > {{float}} gl · durata lunga > {{duration}} gl · ritardo > {{lag}} gl · quasi critico ≤ {{near}} gl",
       "errors": "Errori",
       "warnings": "Avvisi",
       "infos": "Informazioni",

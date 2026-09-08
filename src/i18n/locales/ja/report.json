@@ -209,7 +209,7 @@
     },
     "health": {
       "title": "スケジュール健全性",
-      "subtitle": "しきい値: 高フロート > {{float}} 稼働日 · 長期間 > {{duration}} 稼働日 · ラグ > {{lag}} 稼働日",
+      "subtitle": "しきい値: 高フロート > {{float}} 稼働日 · 長期間 > {{duration}} 稼働日 · ラグ > {{lag}} 稼働日 · 準クリティカル ≤ {{near}} 稼働日",
       "errors": "エラー",
       "warnings": "警告",
       "infos": "情報",

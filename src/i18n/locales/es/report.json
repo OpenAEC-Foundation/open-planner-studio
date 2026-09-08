@@ -215,7 +215,7 @@
     },
     "health": {
       "title": "Salud del cronograma",
-      "subtitle": "Umbrales: holgura alta > {{float}} dl · duración larga > {{duration}} dl · retardo > {{lag}} dl",
+      "subtitle": "Umbrales: holgura alta > {{float}} dl · duración larga > {{duration}} dl · retardo > {{lag}} dl · casi crítico ≤ {{near}} dl",
       "errors": "Errores",
       "warnings": "Avisos",
       "infos": "Información",

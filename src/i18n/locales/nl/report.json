@@ -212,7 +212,7 @@
     },
     "health": {
       "title": "Planningsgezondheid",
-      "subtitle": "Drempels: hoge speling > {{float}} wd · lange duur > {{duration}} wd · lag > {{lag}} wd",
+      "subtitle": "Drempels: hoge speling > {{float}} wd · lange duur > {{duration}} wd · lag > {{lag}} wd · near-critical ≤ {{near}} wd",
       "errors": "Fouten",
       "warnings": "Waarschuwingen",
       "infos": "Ter informatie",
