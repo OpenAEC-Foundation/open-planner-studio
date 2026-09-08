@@ -606,7 +606,7 @@ export function ReportPanel() {
 
     const renderPreview = () => {
       if (cancelled) return;
-      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = measurePrintReport(
+      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets } = measurePrintReport(
         tasks, sequences, calendar, projectName, options,
       );
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
@@ -626,6 +626,8 @@ export function ReportPanel() {
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
         timelineColumns: options.timelineColumns,
+        // Rij-bewuste paginering (issue #110): preview en export delen dezelfde breekposities.
+        breakOffsetsPx: breakOffsets,
         supersample: previewLimits.pageSupersample,
       };
       const layout = computeTileLayout(tileOptions);
@@ -865,7 +867,7 @@ export function ReportPanel() {
       // 1) levert de LOGISCHE maten + naam-kolombreedte; de tweede render het high-res raster.
       const exportRaster = (): Uint8Array => {
         const exportCanvas = document.createElement('canvas');
-        const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = renderPrintCanvas(
+        const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets } = renderPrintCanvas(
           exportCanvas, tasks, sequences, calendar, projectName, options, 1,
         );
         const exportScale = computeHighResScale(logicalWidth, logicalHeight);
@@ -877,6 +879,7 @@ export function ReportPanel() {
           // raster-terugval WYSIWYG gelijk is aan beide (issue #25 punt 1 + 5).
           repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
           timelineColumns,
+          breakOffsetsPx: breakOffsets,
         });
       };
 

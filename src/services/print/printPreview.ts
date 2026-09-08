@@ -1172,7 +1172,10 @@ export function renderReport(
 
   // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
   // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
-  return { width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight };
+  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen (issue #110, Manu's nabespreking:
+  // ook de Gantt-afdruk sneed rijen). De voet (legenda) is één blok; die volgt de laatste rijgrens.
+  const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
+  return { width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight, breakOffsets };
 }
 
 

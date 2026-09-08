@@ -14,7 +14,7 @@
  *  4. LEGENDA: resource-modus toont resourcenamen + rand-verklaring; critical-modus niet.
  */
 import {
-  renderReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth,
+  renderReport, measurePrintReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth,
   NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
 } from '@/services/print/printPreview';
 import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
@@ -403,6 +403,28 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     // Een rij hoger dan de pagina: geen passende breek ⇒ terugval op de paginahoogte (eindig).
     const tall = computeTileLayout({ ...base, logicalHeight: 5000, breakOffsetsPx: [4900] });
     ok(tall.bodyRows.length >= 2 && tall.bodyRows.every(r => r.srcH > 0 && r.srcH <= pageSrcH + 1e-9), 'te hoge rij ⇒ terugval op paginahoogte, eindig');
+  }
+
+  // Gantt-afdruk (issue #110, Manu's nabespreking): de render levert per taakrij een breekpositie,
+  // en de pagineerder eindigt elke pagina op zo'n rijgrens — ook met herhaalde kop.
+  {
+    const many = Array.from({ length: 120 }, (_, i) => ({ ...T_NORM, id: `g${i}`, name: `Taak ${i}`, wbsCode: String(i + 1) }));
+    const dims = measurePrintReport(many, [], cal, 'Rijgrenzen', baseOptions());
+    ok(dims.breakOffsets?.length === many.length, 'Gantt-render: één breekpositie per printrij');
+    ok((dims.breakOffsets ?? []).every((y, i, arr) => i === 0 || y - arr[i - 1] === arr[1] - arr[0]),
+      'Gantt-render: breekposities liggen op vaste rijhoogte');
+    ok((dims.breakOffsets ?? [])[0] > dims.headerHeight, 'Gantt-render: eerste breek ligt onder de kopstrook');
+    const set = new Set(dims.breakOffsets);
+    for (const repeat of [0, dims.headerHeight]) {
+      const layout = computeTileLayout({
+        paperSize: 'a4', orientation: 'landscape', mode: 'fit-width',
+        logicalWidth: dims.width, logicalHeight: dims.height, frozenColumnWidthPx: dims.tableWidth,
+        repeatHeaderHeightPx: repeat, breakOffsetsPx: dims.breakOffsets,
+      });
+      ok(layout.rows > 1, `Gantt (kop ${repeat ? 'herhaald' : 'niet herhaald'}): meer dan één pagina`);
+      ok(layout.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)),
+        `Gantt (kop ${repeat ? 'herhaald' : 'niet herhaald'}): elke pagina eindigt op een rijgrens`);
+    }
   }
 
   // Contract pdfTable → tileLayout (issue #110 punt 3): de breekposities die de tabelrender levert
