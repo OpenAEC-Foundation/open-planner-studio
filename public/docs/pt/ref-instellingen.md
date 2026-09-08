@@ -33,7 +33,9 @@ mas as próprias definições e o que fazem são idênticas de qualquer forma; e
 - **Modo IA** — **Ativar modo IA** mostra o separador do friso **IA** com a ponte MCP, para que um assistente de IA possa trabalhar no seu cronograma através do Model Context Protocol; desativá-lo interrompe imediatamente uma ponte em execução. **Iniciar a ponte automaticamente** (só disponível com o modo IA ligado) coloca a ponte ativa assim que a aplicação arranca, sem ter de visitar primeiro o separador IA — apenas na aplicação de ambiente de trabalho. Veja o guia do assistente de IA integrado na aplicação para o panorama completo.
 - **Terminal de depuração** — **Activar terminal de depuração** mostra o painel de registo para resolução de problemas.
 
-## Separador Estatísticas
+## Estatísticas (botão no separador Aplicação)
+
+Abra em **Definições** → separador **Aplicação** → **Estatísticas…**; é propositadamente uma janela separada atrás de um botão, não um separador próprio.
 
 Quantas vezes o Open Planner Studio foi transferido, por sistema operativo e por versão. Os números vêm dos contadores públicos de transferências do GitHub Releases e são atualizados semanalmente; a aplicação apenas os lê, nada é recolhido nem enviado sobre si.
 

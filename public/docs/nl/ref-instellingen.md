@@ -33,7 +33,9 @@ als **Algemeen**, **Taal** en **Tijdlijn / Zoomen**.
 - **AI-modus** — **AI-modus inschakelen** toont het lint-tabblad **AI** met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken; uitzetten stopt een lopende bridge meteen. **Bridge automatisch starten** (alleen beschikbaar met AI-modus aan) zet de bridge meteen live bij het opstarten van de app, zonder eerst het AI-tabblad te hoeven openen — alleen in de desktop-app. Zie de in-app AI-assistent-gids voor het volledige verhaal.
 - **Debug-terminal** — **Debug-terminal inschakelen** toont het logpaneel voor probleemonderzoek.
 
-## Tab Statistieken
+## Statistieken (knop op tab Toepassing)
+
+Open via **Instellingen** → tab **Toepassing** → **Statistieken…**; het is bewust een apart venster achter een knop en geen eigen tab.
 
 Hoe vaak Open Planner Studio is gedownload, per besturingssysteem en per release. De cijfers komen uit de openbare downloadtellers van GitHub Releases en worden wekelijks bijgewerkt; de app leest alleen, er wordt niets van jou verzameld of verstuurd.
 

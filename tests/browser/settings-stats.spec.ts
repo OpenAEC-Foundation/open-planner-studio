@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures/ops';
+import type { Page } from '@playwright/test';
 
 // Tab Statistieken in de instellingen: leest `downloads.json` van de stats-branch. De route wordt
 // hier onderschept, zodat de test deterministisch is en nooit het echte GitHub raakt.
@@ -27,18 +28,30 @@ const FIXTURE = {
   ],
 };
 
-test('tab Statistieken toont downloads per OS en per release, past in de popup, en valt bij een fout terug op de cache', async ({ page, ops }) => {
+/** Instellingen → tab Toepassing → knop Statistieken… → de dialoog. De instellingen-dialoog sluit daarbij. */
+async function openStatsDialog(page: Page): Promise<void> {
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
+  const settings = page.locator('.settings-dialog');
+  await expect(settings).toBeVisible();
+  await settings.getByRole('button', { name: 'Application' }).click();
+  await settings.getByRole('button', { name: 'Statistics…' }).click();
+  await expect(settings).toHaveCount(0);
+  await expect(page.locator('[data-ops-stats-dialog]')).toBeVisible();
+}
+
+test('Statistieken achter de knop op tab Toepassing: downloads per OS en per release, past in de dialoog, en valt bij een fout terug op de cache', async ({ page, ops }) => {
   // De bewuste 503 verderop logt de browser als resource-fout; dat is het geteste pad, geen bug.
   ops.acceptError(/status of 503/);
   let hits = 0;
   await page.route(STATS_URL, route => { hits++; void route.fulfill({ json: FIXTURE }); });
 
+  // Geen eigen tabblad meer: de instellingen-dialoog heeft precies vier tabs.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  const settings = page.locator('.settings-dialog');
-  await expect(settings).toBeVisible();
-  await settings.getByRole('button', { name: 'Statistics' }).click();
+  await expect(page.locator('.settings-dialog .settings-tab')).toHaveCount(4);
+  await openStatsDialog(page);
 
-  const stats = settings.locator('[data-ops-download-stats]');
+  const dialog = page.locator('[data-ops-stats-dialog]');
+  const stats = dialog.locator('[data-ops-download-stats]');
   await expect(stats).toBeVisible();
   const windowsRow = stats.getByRole('row', { name: /^Windows/ });
   await expect(windowsRow).toContainText('358');
@@ -54,16 +67,15 @@ test('tab Statistieken toont downloads per OS en per release, past in de popup, 
   await expect(stats.getByRole('row', { name: /^v2026\./ })).toHaveCount(8);
   await expect(stats.getByRole('row', { name: /^v2026\.7\.10/ })).toContainText('24');
 
-  // Niets steekt horizontaal buiten de tabinhoud van de 520 px brede popup.
-  const content = settings.locator('.settings-tab-content');
-  await expect(content.evaluate(el => el.scrollWidth <= el.clientWidth)).resolves.toBe(true);
+  // Niets steekt horizontaal buiten de dialoog.
+  await expect(dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).resolves.toBe(true);
   await expect(stats.evaluate(el => el.scrollWidth <= el.clientWidth)).resolves.toBe(true);
   await page.screenshot({ path: 'test-results/settings-stats-tab.png' });
 
-  // Sluiten en heropenen: binnen de cache-termijn géén tweede fetch.
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: false }));
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await settings.getByRole('button', { name: 'Statistics' }).click();
+  // Escape sluit; opnieuw openen via de instellingen: binnen de cache-termijn géén tweede fetch.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await openStatsDialog(page);
   await expect(stats.getByRole('row', { name: /^Total/ })).toContainText('686');
   expect(hits).toBe(1);
 

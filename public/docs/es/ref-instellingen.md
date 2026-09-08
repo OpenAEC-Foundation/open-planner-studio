@@ -51,7 +51,9 @@ agrupa como **General**, **Idioma** y **Línea de tiempo / Zoom**.
   integrada en la aplicación para el panorama completo.
 - **Terminal de depuración** — **Activar terminal de depuración** muestra el panel de registro para la resolución de problemas.
 
-## Pestaña Estadísticas
+## Estadísticas (botón en la pestaña Aplicación)
+
+Se abre en **Configuración** → pestaña **Aplicación** → **Estadísticas…**; a propósito es una ventana aparte detrás de un botón, no una pestaña propia.
 
 Cuántas veces se ha descargado Open Planner Studio, por sistema operativo y por versión. Las cifras proceden de los contadores públicos de descargas de GitHub Releases y se actualizan semanalmente; la aplicación solo las lee, no se recopila ni se envía nada sobre ti.
 

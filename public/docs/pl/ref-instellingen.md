@@ -33,7 +33,9 @@ same ustawienia i to, co robią, są w obu przypadkach identyczne; ten artykuł 
 - **Tryb AI** — **Włącz tryb AI** pokazuje kartę wstążki **AI** z mostkiem MCP, dzięki czemu asystent AI może pracować z Twoim harmonogramem przez Model Context Protocol; wyłączenie natychmiast zatrzymuje działający mostek. **Automatycznie uruchamiaj most** (dostępne tylko przy włączonym trybie AI) uruchamia mostek od razu po starcie aplikacji, bez konieczności najpierw odwiedzać karty AI — tylko w aplikacji desktopowej. Pełny obraz znajdziesz w wbudowanym przewodniku po asystencie AI.
 - **Terminal debugowania** — **Włącz terminal debugowania** pokazuje panel dziennika do rozwiązywania problemów.
 
-## Karta Statystyki
+## Statystyki (przycisk na karcie Aplikacja)
+
+Otwórz przez **Ustawienia** → karta **Aplikacja** → **Statystyki…**; celowo jest to osobne okno za przyciskiem, a nie własna karta.
 
 Ile razy pobrano Open Planner Studio, według systemu operacyjnego i według wydania. Dane pochodzą z publicznych liczników pobrań GitHub Releases i są odświeżane co tydzień; aplikacja tylko je odczytuje, nic o Tobie nie jest zbierane ani wysyłane.
 

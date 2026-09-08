@@ -30,7 +30,9 @@
 - **Yapay zeka modu** — **Yapay zeka modunu etkinleştir**, MCP köprüsüne sahip **Yapay Zeka** şerit sekmesini gösterir; böylece bir yapay zeka asistanı Model Context Protocol üzerinden planınızla çalışabilir; kapatmak çalışan bir köprüyü hemen durdurur. **Köprüyü otomatik başlat** (yalnızca yapay zeka modu açıkken kullanılabilir), önce Yapay Zeka sekmesini ziyaret etmeden köprüyü uygulama açılır açılmaz devreye alır — yalnızca masaüstü uygulamasında. Tam resim için uygulama içi yapay-zeka-asistanı kılavuzuna bakın.
 - **Hata ayıklama terminali** — **Hata ayıklama terminalini etkinleştir**, sorun giderme için günlük panelini gösterir.
 
-## İstatistikler sekmesi
+## İstatistikler (Uygulama sekmesindeki düğme)
+
+**Ayarlar** → **Uygulama** sekmesi → **İstatistikler…** ile açılır; bilinçli olarak ayrı bir sekme değil, bir düğmenin arkasındaki ayrı bir penceredir.
 
 Open Planner Studio’nun işletim sistemine ve sürüme göre kaç kez indirildiği. Rakamlar GitHub Releases’ın herkese açık indirme sayaçlarından gelir ve haftalık yenilenir; uygulama yalnızca okur, sizden hiçbir veri toplanmaz veya gönderilmez.
 
