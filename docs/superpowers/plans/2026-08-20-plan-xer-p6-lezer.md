@@ -832,6 +832,14 @@ exportverliesmelding (ná het schrijven), een bovengrens op documenten per besta
   NIEUW: samenvattingen rollen in de modus op uit vastgelegde kinderen (R1; vastgelegde
   samenvattingen blijven staan) en `isCritical` is "niet vastgelegd" onder longest-path-kritiek
   of niet-omrekenbare speling.
+  BEVESTIGD DOOR DE EIGENAAR (2026-09-09), na uitleg per vraag: (1) heropen-beleid wordt
+  optie B — een heropend eigen IFC gaat automatisch in de modus zolang het document sinds de
+  import niet is bewerkt, anders alleen aanbieden (te bouwen, `docs/TODO.md`); daarbovenop het
+  bredere besluit dat ELK formaat zich als XER moet gedragen (automatisch de modus aan bij
+  afwijkingen, met melding en strook; "vergelijk wat er is" per formaat, ook CSV) en dat de
+  nul-afwijkingen-meetlat per formaat als aparte etappe volgt (optie 3) — beide in `docs/TODO.md`.
+  De eigenaar bevestigde tevens dat het nuldoel (§1) de lat blijft en dat deze PR een gemeten
+  tussenstand is, geen eindpunt.
   UIT DE EINDREVIEW (2026-09-07), vier nieuwe: (a) onbegrensde bronretentie in projectbestand én
   auto-save (17,7 MB `.xer` ⇒ 50 MB IFC, 73 s / 3,1 GB per herstelronde) — begrenzen, één keer
   schrijven, of bewust accepteren; (b) uitleveren mét de projecteinde-fout (`docs/TODO.md`,
