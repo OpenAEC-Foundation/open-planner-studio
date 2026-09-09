@@ -215,7 +215,7 @@
     },
     "health": {
       "title": "Santé du planning",
-      "subtitle": "Seuils : marge élevée > {{float}} jo · longue durée > {{duration}} jo · décalage > {{lag}} jo",
+      "subtitle": "Seuils : marge élevée > {{float}} jo · longue durée > {{duration}} jo · décalage > {{lag}} jo · quasi critique ≤ {{near}} jo",
       "errors": "Erreurs",
       "warnings": "Avertissements",
       "infos": "Informations",
@@ -264,7 +264,6 @@
       "variance": "Écart",
       "peak": "Pic/jour",
       "overloaded": "Surchargé",
-      "overloadedDays": "{{days}} jour(s)",
       "resources": "Ressources",
       "weeks": "Semaines",
       "overloadedWeeks": "Semaines surchargées",

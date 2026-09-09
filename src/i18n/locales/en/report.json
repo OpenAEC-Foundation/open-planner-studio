@@ -212,7 +212,7 @@
     },
     "health": {
       "title": "Schedule health",
-      "subtitle": "Thresholds: high float > {{float}} wd · long duration > {{duration}} wd · lag > {{lag}} wd",
+      "subtitle": "Thresholds: high float > {{float}} wd · long duration > {{duration}} wd · lag > {{lag}} wd · near-critical ≤ {{near}} wd",
       "errors": "Errors",
       "warnings": "Warnings",
       "infos": "Information",
@@ -261,7 +261,6 @@
       "variance": "Variance",
       "peak": "Peak/day",
       "overloaded": "Overloaded",
-      "overloadedDays": "{{days}} day(s)",
       "resources": "Resources",
       "weeks": "Weeks",
       "overloadedWeeks": "Overloaded weeks",

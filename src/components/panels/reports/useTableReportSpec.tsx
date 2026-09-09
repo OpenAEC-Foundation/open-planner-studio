@@ -51,15 +51,14 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const statusDate = useAppStore(s => s.project.statusDate);
-  const nearCriticalThreshold = useAppStore(s => s.project.schedulingOptions?.nearCriticalThreshold);
   const stale = useAppStore(s => s.scheduleStale);
   // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
   const today = formatDate(new Date());
   const ctx = useMemo<ReportContext>(() => ({
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
     baseline: activeBaselineId ? baselines.find(b => b.id === activeBaselineId) ?? null : null,
-    statusDate, today, nearCriticalThreshold,
-  }), [tasks, sequences, resources, assignments, calendar, calendars, cpmResult, baselines, activeBaselineId, statusDate, today, nearCriticalThreshold]);
+    statusDate, today,
+  }), [tasks, sequences, resources, assignments, calendar, calendars, cpmResult, baselines, activeBaselineId, statusDate, today]);
   return { ctx, stale };
 }
 
@@ -145,6 +144,7 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
       { label: t(`${p}.status_lateStart`), value: String(r.counts.lateStart), color: r.counts.lateStart ? REPORT_COLORS.warn : undefined },
       { label: t(`${p}.status_starting`), value: String(r.counts.starting) },
       { label: t('tableReports.common.critical'), value: String(r.counts.critical), color: r.counts.critical ? REPORT_COLORS.error : undefined },
+      { label: t('tableReports.common.nearCritical'), value: String(r.counts.nearCritical), color: r.counts.nearCritical ? REPORT_COLORS.warn : undefined },
     ],
     sections: [section<LookAheadRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
     fileSuffix: 'look-ahead',
@@ -209,7 +209,7 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: `${t('tableReports.statusDate')}: ${dd.date(s.statusDate)}`,
+    // Geen ondertitel: de statusdatum staat al als eerste regel van de samenvatting (issue #110 punt 4).
     notes: commonNotes(t, dd, ctx, stale, s.statusDateMissing),
     summary,
     sections: [
@@ -261,7 +261,7 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: t(`${p}.subtitle`, { float: o.healthHighFloatDays, duration: o.healthLongDurationDays, lag: o.healthLagDays }),
+    subtitle: t(`${p}.subtitle`, { float: o.healthHighFloatDays, duration: o.healthLongDurationDays, lag: o.healthLagDays, near: o.nearCriticalDays }),
     notes: commonNotes(t, dd, ctx, stale),
     summary: [
       { label: t(`${p}.errors`), value: String(r.totals.errors), color: r.totals.errors ? REPORT_COLORS.error : REPORT_COLORS.ok },
@@ -289,7 +289,8 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
     { key: 'available', header: t(`${p}.available`), width: 90, align: 'right', text: r => num(r.available) },
     { key: 'variance', header: t(`${p}.variance`), width: 80, align: 'right', text: r => signed(r.variance), color: r => (r.variance < 0 ? REPORT_COLORS.error : undefined), bold: r => r.variance < 0 },
     { key: 'peak', header: t(`${p}.peak`), width: 80, align: 'right', text: r => num(r.peakDayLoad) },
-    { key: 'overloaded', header: t(`${p}.overloaded`), width: 100, align: 'left', text: r => (r.overloaded ? t(`${p}.overloadedDays`, { days: r.overloadedDays }) : ''), color: r => (r.overloaded ? REPORT_COLORS.error : undefined), bold: r => r.overloaded },
+    // Aantal overbelaste dagen als getal: geen taalkundig meervoud nodig (Pools "dni" was fout bij 1).
+    { key: 'overloaded', header: t(`${p}.overloaded`), width: 100, align: 'right', text: r => (r.overloaded ? String(r.overloadedDays) : ''), color: r => (r.overloaded ? REPORT_COLORS.error : undefined), bold: r => r.overloaded },
   ];
   return {
     title: t(`${p}.title`),
@@ -349,7 +350,7 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
   const p = 'tableReports.wbsSummary';
   const columns: ReportColumn<WbsSummaryRow>[] = [
     { key: 'wbs', header: t('tableReports.common.wbs'), width: 80, align: 'left', text: r => r.wbs, bold: r => r.isSummary },
-    { key: 'name', header: t('tableReports.common.name'), width: 240, align: 'left', text: r => `${'    '.repeat(Math.max(0, r.level - 1))}${r.name}`, bold: r => r.isSummary },
+    { key: 'name', header: t('tableReports.common.name'), width: 240, align: 'left', text: r => r.name, bold: r => r.isSummary, indent: r => Math.max(0, r.level - 1) * 14 },
     dateCol('start', t('tableReports.common.start'), r => r.start, dd),
     dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
     dateCol('baselineStart', t(`${p}.baselineStart`), r => r.baselineStart, dd),

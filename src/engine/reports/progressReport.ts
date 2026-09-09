@@ -1,7 +1,7 @@
 import type { Task } from '@/types/task';
 import { parseDate } from '@/utils/dateUtils';
 import {
-  type ReportContext, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState,
+  type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState,
   referenceDay, remainingDays, round1, signedWorkDays, taskFinish, taskStart, windowEnd, windowStart,
 } from './reportCommon';
 
@@ -38,6 +38,12 @@ export interface ProgressRow {
   totalFloat: number;
   isCritical: boolean;
   isNearCritical: boolean;
+  /** Voortgangsstaat — de drie tellingen `complete`/`inProgress`/`notStarted` sommeren tot `total`. */
+  state: ProgressState;
+  /** Achterstallig, ORTHOGONAAL aan de staat: een lopende taak die te laat is blijft "in uitvoering"
+   *  én is achterstallig (issue #110-review, bevinding 4). */
+  overdue?: 'start' | 'finish';
+  /** Weergavestatus: achterstallig wint van de staat. */
   status: ProgressRowStatus;
 }
 
@@ -74,13 +80,11 @@ export interface ProgressReportResult {
   critical: ProgressRow[];
 }
 
-function rowStatus(t: Task, refDay: string): ProgressRowStatus {
-  const state = progressState(t);
-  if (state === 'complete') return 'complete';
-  if (dayOf(taskFinish(t)) < refDay) return 'overdueFinish';
-  if (state === 'inProgress') return 'inProgress';
-  if (dayOf(taskStart(t)) < refDay) return 'overdueStart';
-  return 'notStarted';
+function overdueOf(t: Task, state: ProgressState, refDay: string): ProgressRow['overdue'] {
+  if (state === 'complete') return undefined;
+  if (dayOf(taskFinish(t)) < refDay) return 'finish';
+  if (state === 'notStarted' && dayOf(taskStart(t)) < refDay) return 'start';
+  return undefined;
 }
 
 export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOptions): ProgressReportResult {
@@ -98,9 +102,12 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   let plannedSum = 0;
   let actualSum = 0;
 
+  const leafById = new Map(leaves.map(t => [t.id, t]));
   for (const t of leaves) {
     const bt = baseMap.get(t.id);
-    const status = rowStatus(t, ref);
+    const state = progressState(t);
+    const overdue = overdueOf(t, state, ref);
+    const status: ProgressRowStatus = overdue === 'finish' ? 'overdueFinish' : overdue === 'start' ? 'overdueStart' : state;
     rows.set(t.id, {
       taskId: t.id,
       wbs: t.wbsCode,
@@ -113,12 +120,16 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
       totalFloat: t.time.totalFloat,
       isCritical: t.time.isCritical,
       isNearCritical: isNearCritical(t, opts.nearCriticalDays),
+      state,
+      overdue,
       status,
     });
 
-    // Duurgewogen voortgang. Gewicht = de duur van de taak (baseline-duur als die er is, anders de
-    // huidige) in werkdagen; mijlpalen wegen 0 en tellen dus niet mee.
-    const weight = bt ? bt.duration : durationDays(ctx, t);
+    // Duurgewogen voortgang. Gewicht = de HUIDIGE duur van de taak in werkdagen (óók mét baseline:
+    // `BaselineTask.duration` is `scheduleDuration`, dat voor een uur-taak niet canoniek is en de
+    // taak 10× te zwaar zou wegen — review-bevinding 5); mijlpalen wegen 0 en tellen dus niet mee.
+    // De GEPLANDE fractie wordt wél op de baseline-DATUMS gemeten wanneer die er zijn.
+    const weight = durationDays(ctx, t);
     if (weight <= 0) continue;
     const start = bt ? bt.start : taskStart(t);
     const finish = bt ? bt.finish : taskFinish(t);
@@ -143,19 +154,18 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
     : undefined;
 
   const completedInPeriod = all.filter(r => {
-    if (r.status !== 'complete') return false;
+    if (r.state !== 'complete') return false;
     const done = dayOf(r.actualFinish ?? r.finish);
     return done >= periodFrom && done <= ref;
   });
-  const inProgress = all.filter(r => r.status === 'inProgress');
+  const inProgress = all.filter(r => r.state === 'inProgress');
   const startingNext = all.filter(r => {
-    if (r.status !== 'notStarted') return false;
-    const t = leaves.find(l => l.id === r.taskId)!;
-    const s = dayOf(taskStart(t));
+    if (r.state !== 'notStarted' || r.overdue) return false;
+    const s = dayOf(taskStart(leafById.get(r.taskId)!));
     return s >= ref && s <= periodTo;
   });
-  const overdue = all.filter(r => r.status === 'overdueStart' || r.status === 'overdueFinish');
-  const critical = all.filter(r => r.status !== 'complete' && r.isCritical);
+  const overdue = all.filter(r => r.overdue !== undefined);
+  const critical = all.filter(r => r.state !== 'complete' && r.isCritical);
 
   const byWbs = (a: ProgressRow, b: ProgressRow) => a.finish.localeCompare(b.finish) || a.wbs.localeCompare(b.wbs);
   for (const list of [completedInPeriod, inProgress, startingNext, overdue, critical]) list.sort(byWbs);
@@ -174,11 +184,11 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
       plannedBasis: ctx.baseline ? 'baseline' : 'current',
       counts: {
         total: all.length,
-        complete: all.filter(r => r.status === 'complete').length,
+        complete: all.filter(r => r.state === 'complete').length,
         inProgress: inProgress.length,
-        notStarted: all.filter(r => r.status === 'notStarted' || r.status === 'overdueStart').length,
+        notStarted: all.filter(r => r.state === 'notStarted').length,
         critical: critical.length,
-        nearCritical: all.filter(r => r.status !== 'complete' && r.isNearCritical).length,
+        nearCritical: all.filter(r => r.state !== 'complete' && r.isNearCritical).length,
         overdue: overdue.length,
       },
     },

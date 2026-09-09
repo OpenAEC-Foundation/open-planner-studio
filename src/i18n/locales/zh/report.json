@@ -209,7 +209,7 @@
     },
     "health": {
       "title": "进度计划健康度",
-      "subtitle": "阈值：高浮时 > {{float}} 工日 · 长工期 > {{duration}} 工日 · 延时 > {{lag}} 工日",
+      "subtitle": "阈值：高浮时 > {{float}} 工日 · 长工期 > {{duration}} 工日 · 延时 > {{lag}} 工日 · 近关键 ≤ {{near}} 工日",
       "errors": "错误",
       "warnings": "警告",
       "infos": "信息",
@@ -258,7 +258,6 @@
       "variance": "差额",
       "peak": "峰值/日",
       "overloaded": "超负荷",
-      "overloadedDays": "{{days}} 天",
       "resources": "资源",
       "weeks": "周数",
       "overloadedWeeks": "超负荷周",

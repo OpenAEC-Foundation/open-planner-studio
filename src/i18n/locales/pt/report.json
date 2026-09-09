@@ -215,7 +215,7 @@
     },
     "health": {
       "title": "Saúde do cronograma",
-      "subtitle": "Limiares: folga alta > {{float}} du · duração longa > {{duration}} du · atraso > {{lag}} du",
+      "subtitle": "Limiares: folga alta > {{float}} du · duração longa > {{duration}} du · atraso > {{lag}} du · quase crítico ≤ {{near}} du",
       "errors": "Erros",
       "warnings": "Avisos",
       "infos": "Informação",
@@ -264,7 +264,6 @@
       "variance": "Diferença",
       "peak": "Pico/dia",
       "overloaded": "Sobrecarregado",
-      "overloadedDays": "{{days}} dia(s)",
       "resources": "Recursos",
       "weeks": "Semanas",
       "overloadedWeeks": "Semanas sobrecarregadas",

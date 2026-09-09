@@ -12,7 +12,7 @@ import { useAppStore } from '@/state/appStore';
 import {
   type ReportContext,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
-  computeResourceLoading, computeResourceAssignments, computeWbsSummary, progressState, remainingDays,
+  computeResourceLoading, computeResourceAssignments, computeWbsSummary, progressState, remainingDays, taskDepths,
 } from '@/engine/reports';
 import type { Task } from '@/types/task';
 
@@ -84,7 +84,6 @@ const ctxFromStore = (): ReportContext => {
     calendar: s.calendar, calendars: s.calendars, cpmResult: s.cpmResult,
     baseline: s.baselines.find(b => b.id === s.activeBaselineId) ?? null,
     statusDate: s.project.statusDate, today: '2026-09-18',
-    nearCriticalThreshold: s.project.schedulingOptions?.nearCriticalThreshold,
   };
 };
 const ctx = ctxFromStore();
@@ -108,6 +107,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('lookAhead: D (start op de statusdatum) staat erin', r.rows.some(x => x.taskId === D));
   ok('lookAhead: rijen gesorteerd op start', r.rows.every((x, i) => i === 0 || r.rows[i - 1].start <= x.start));
   eq('lookAhead: tellingen sluiten', r.counts.overdue + r.counts.lateStart + r.counts.inProgress + r.counts.starting, r.counts.total);
+  // Issue #110 punt 1: de near-critical-telling hoort in de samenvatting.
+  eq('lookAhead: near-critical geteld', r.counts.nearCritical, r.rows.filter(x => x.isNearCritical).length);
 
   // Zonder statusdatum ⇒ vandaag als referentie + melding.
   const r2 = computeLookAhead({ ...ctx, statusDate: undefined, today: '2026-09-25' }, { weeks: 1, nearCriticalDays: 0 });
@@ -120,7 +121,10 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   g.time.earlyStart = '2026-09-08'; g.time.earlyFinish = '2026-09-09';
   const d = clone.find(t => t.id === D)!;
   d.time.earlyStart = '2026-09-10'; d.time.earlyFinish = '2026-09-30';
+  const f = clone.find(t => t.id === F)!;
+  f.time.isCritical = false; f.time.totalFloat = 4;
   const r3 = computeLookAhead({ ...ctx, tasks: clone }, { weeks: 2, nearCriticalDays: 5 });
+  eq('lookAhead: TF 4 ≤ 5 ⇒ near-critical-telling 1', r3.counts.nearCritical, 1);
   eq('lookAhead: finish vóór de statusdatum ⇒ achterstallig', r3.rows.find(x => x.taskId === G)?.status, 'overdue');
   eq('lookAhead: start vóór de statusdatum, niet gestart ⇒ had moeten starten', r3.rows.find(x => x.taskId === D)?.status, 'lateStart');
 }
@@ -161,16 +165,45 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('progress: baseline-einde bekend', !!s.baselineFinish);
   ok('progress: prognose-einde bekend', !!s.forecastFinish);
   ok('progress: C 3 dagen langer ⇒ projecteinde later dan de baseline', (s.finishVarianceDays ?? 0) > 0, `Δ=${s.finishVarianceDays}`);
-  // Werkelijke voortgang duurgewogen op de BASELINE-duren: A 5×1 + B 10×0.4 = 9 van (5+10+5+0+3+46+2)=71 ⇒ 12.7%.
-  near('progress: werkelijke voortgang duurgewogen', s.actualPct, (9 / 71) * 100, 0.2);
+  // Werkelijke voortgang duurgewogen op de HUIDIGE duren (C = 8, niet de baseline-5):
+  // A 5×1 + B 10×0.4 = 9 van (5+10+8+0+3+46+2)=74 ⇒ 12.2%.
+  near('progress: werkelijke voortgang duurgewogen', s.actualPct, (9 / 74) * 100, 0.2);
   ok('progress: geplande voortgang tussen werkelijk en 100', s.plannedPct > s.actualPct && s.plannedPct <= 100, `gepland=${s.plannedPct}`);
   ok('progress: kritieke sectie bevat alleen open kritieke taken', r.critical.every(x => x.isCritical && x.status !== 'complete'));
 
-  // Zonder baseline: gepland t.o.v. de huidige planning, gewicht = huidige duur (C = 8).
+  // Zonder baseline: gepland t.o.v. de huidige planning; het gewicht is ALTIJD de huidige duur
+  // (C = 8), ook mét baseline (review-bevinding 5: baseline.duration is voor uur-taken niet canoniek).
   const r2 = computeProgressReport({ ...ctx, baseline: null }, { periodWeeks: 1, nearCriticalDays: 5 });
   eq('progress: zonder baseline ⇒ huidige planning als basis', r2.summary.plannedBasis, 'current');
   near('progress: zonder baseline weegt C 8', r2.summary.actualPct, (9 / 74) * 100, 0.2);
+  near('progress: mét baseline hetzelfde gewicht (huidige duur)', s.actualPct, (9 / 74) * 100, 0.2);
   eq('progress: zonder baseline geen Δ einde', r2.summary.finishVarianceDays, undefined);
+
+  // Bevinding 4: een lopende taak die te laat is blijft "in uitvoering" én is achterstallig; de drie
+  // staat-tellingen sommeren tot het totaal.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const b = clone.find(t => t.id === B)!;
+    b.time.earlyStart = '2026-09-07'; b.time.earlyFinish = '2026-09-11'; // einde vóór de statusdatum, 40% klaar
+    const r3 = computeProgressReport({ ...ctx, tasks: clone }, { periodWeeks: 2, nearCriticalDays: 5 });
+    const c = r3.summary.counts;
+    eq('progress: staat-tellingen sommeren tot het totaal', c.complete + c.inProgress + c.notStarted, c.total);
+    ok('progress: te late lopende taak staat in "in uitvoering"', r3.inProgress.some(x => x.taskId === B));
+    ok('progress: … én in "achterstallig"', r3.overdue.some(x => x.taskId === B && x.overdue === 'finish'));
+    eq('progress: weergavestatus = had moeten eindigen', r3.inProgress.find(x => x.taskId === B)?.status, 'overdueFinish');
+    eq('progress: in uitvoering geteld', c.inProgress, 1);
+  }
+
+  // Bevinding 5: een uur-taak weegt naar haar echte werkdag-duur, óók mét actieve baseline.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const g = clone.find(t => t.id === G)!;
+    g.time.durationUnit = 'hours'; g.time.durationMinutes = 4 * 60; g.time.scheduleDuration = 5; // 4 u = 0,5 wd
+    const withBase = computeProgressReport({ ...ctx, tasks: clone }, { periodWeeks: 2, nearCriticalDays: 5 });
+    const noBase = computeProgressReport({ ...ctx, tasks: clone, baseline: null }, { periodWeeks: 2, nearCriticalDays: 5 });
+    near('progress: uur-taak weegt 0,5 wd — baseline aan/uit maakt geen verschil', withBase.summary.actualPct, noBase.summary.actualPct, 0.01);
+    near('progress: gewicht G = 0,5 (A 5 + B 10 + C 8 + G 0,5 + D 3 + F 46 = 72,5)', noBase.summary.actualPct, (9 / 72.5) * 100, 0.2);
+  }
 }
 
 // ── Planningsgezondheid ──────────────────────────────────────────────────────────────────────────
@@ -194,6 +227,57 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('health: totalen sluiten', r.totals.errors + r.totals.warnings + r.totals.infos, r.checks.reduce((n, c) => n + c.items.length, 0));
   eq('health: relaties geteld', r.relationCount, 3);
   eq('health: bladtaken geteld', r.leafCount, 7);
+
+  // Bevinding 2: relaties op VERZAMELTAKEN telt de solver wél (expandSummaryRelations) — dit rapport dus ook.
+  {
+    S().newProject();
+    S().setProject({ name: 'Fasen', startDate: '2026-09-07' });
+    const f1 = S().addTask({ name: 'Fase 1' });
+    const f2 = S().addTask({ name: 'Fase 2' });
+    const a1 = task('A1', 5, f1); const a2 = task('A2', 5, f1);
+    const b1 = task('B1', 5, f2); const b2 = task('B2', 5, f2);
+    S().addSequence({ predecessorId: a1, successorId: a2, type: 'FINISH_START', lagDays: 0 });
+    S().addSequence({ predecessorId: b1, successorId: b2, type: 'FINISH_START', lagDays: 0 });
+    S().addSequence({ predecessorId: f1, successorId: f2, type: 'FINISH_START', lagDays: 20 });
+    S().runCPM();
+    const c2 = ctxFromStore();
+    const h = computeScheduleHealth(c2, { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 });
+    const it = (id: string) => h.checks.find(c => c.id === id)!.items;
+    ok('health: A2 heeft via de faserelatie een opvolger', !it('noSuccessor').some(i => i.taskId === a2));
+    ok('health: B1 heeft via de faserelatie een voorganger', !it('noPredecessor').some(i => i.taskId === b1));
+    // De faserelatie wordt voor de solver uitgevouwen tot 2×2 bladrelaties, maar de planner
+    // modelleerde er ÉÉN: het rapport meldt hem één keer, op de fasenamen, en telt hem één keer.
+    eq('health: de faserelatie (lag 20) telt als één lange lag', it('longLag').length, 1);
+    ok('health: … op de fasenamen', it('longLag')[0].name.includes('Fase 1') && it('longLag')[0].name.includes('Fase 2'));
+    eq('health: relatietelling = gemodelleerde relaties (2 + 1)', h.relationCount, 3);
+  }
+
+  // Bevinding 3: één lag-definitie met de solver — procent-lag, procent-lead en uurlag.
+  {
+    S().newProject();
+    S().setProject({ name: 'Lag', startDate: '2026-09-07' });
+    const p = task('P', 40, null); const q = task('Q', 5, null); const r = task('R', 5, null); const u = task('U', 5, null);
+    S().addSequence({ predecessorId: p, successorId: q, type: 'FINISH_START', lagDays: 0, lagPercent: 50 });   // +20 wd
+    S().addSequence({ predecessorId: p, successorId: r, type: 'FINISH_START', lagDays: 0, lagPercent: -25 });  // −10 wd
+    S().addSequence({ predecessorId: q, successorId: u, type: 'FINISH_START', lagDays: 5, lagMinutes: 240 });  // dag-lag leidend: 5
+    S().runCPM();
+    const h = computeScheduleHealth(ctxFromStore(), { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 });
+    const it = (id: string) => h.checks.find(c => c.id === id)!.items;
+    eq('health: +50% van 40 wd = 20 wd ⇒ lange lag', it('longLag').map(i => i.detail.days), [20]);
+    eq('health: −25% van 40 wd = −10 wd ⇒ lead', it('lead').map(i => i.detail.days), [-10]);
+    ok('health: lagDays 5 + lagMinutes ⇒ 5 wd (dag-lag leidend), dus geen lange lag', !it('longLag').some(i => i.detail.days === 0.5));
+  }
+
+  // Bevinding 6: een corrupte parentId/childIds-kring mag niet crashen.
+  {
+    const kring = ctx.tasks.map(t => ({ ...t, childIds: [...t.childIds] }));
+    const x = kring.find(t => t.id === D)!; const y = kring.find(t => t.id === G)!;
+    x.parentId = y.id; y.parentId = x.id; x.childIds = [y.id]; y.childIds = [x.id];
+    let crashed = false;
+    try { computeWbsSummary({ ...ctx, tasks: kring }, { maxLevel: 0, includeActivities: true }); } catch { crashed = true; }
+    eq('wbs: kringverwijzing crasht niet', crashed, false);
+    ok('wbs: diepten eindig', [...taskDepths(kring).values()].every(d => Number.isFinite(d) && d >= 1));
+  }
 
   // Inconsistente actuals + negatieve speling op een kloon.
   const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
@@ -233,7 +317,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   const r = computeResourceAssignments(ctx, { weeks: 0, includeCompleted: false });
   eq('assignments: voltooide A weggelaten ⇒ B en D', r.rows.map(x => x.taskId).sort(), [B, D].sort());
   eq('assignments: geen venster', r.from, undefined);
-  ok('assignments: gesorteerd op start binnen de resource', r.rows.every((x, i) => i === 0 || x.start <= r.rows[i].start));
+  ok('assignments: gesorteerd op start binnen de resource', r.rows.every((x, i) => i === 0 || r.rows[i - 1].start <= x.start));
   eq('assignments: taken zonder resource (C, F, G — E is mijlpaal)', r.counts.unassignedTasks, 3);
   const r2 = computeResourceAssignments(ctx, { weeks: 0, includeCompleted: true });
   eq('assignments: met voltooide ⇒ ook A', r2.rows.length, 3);

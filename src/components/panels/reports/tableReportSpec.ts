@@ -44,7 +44,8 @@ export function section<Row>(s: ReportSection<Row>): ReportSection {
 export function toPdfSpec(spec: TableReportSpec): PdfSectionedReportSpec {
   return {
     title: spec.title,
-    subtitle: [spec.subtitle, ...spec.notes].filter(Boolean).join(' · ') || undefined,
+    subtitle: spec.subtitle,
+    notes: spec.notes,
     summary: spec.summary.map(s => ({ label: s.label, value: s.value, color: s.color })),
     sections: spec.sections.map(s => ({ heading: s.heading, columns: s.columns, rows: s.rows, emptyText: s.emptyText })),
   };

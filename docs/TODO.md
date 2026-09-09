@@ -11,6 +11,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
+- [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
+  `public/docs/{de,fr,es,it,pt,pl,tr,ar,fa,zh,ja,ko}/gids-rapporten-printen.md` staat nog dat het
+  instellingenpaneel een printknop met systeemdialoog heeft; die is er niet (alles gaat via
+  Exporteer PDF). nl en en zijn gecorrigeerd; de rest volgt in de maandelijkse vertaalronde.
+  `verify:docs` vangt proza niet.
+- [ ] **Relatiepijlen in de Gantt-afdruk over een paginagrens.** Sinds issue #110 eindigt een
+  pagina op een rijgrens, maar een pijl tussen twee rijen op verschillende pagina's wordt nog
+  gesneden. Inherent aan tegelen; een oplossing (pijl per pagina afkappen met een markering) is
+  renderer-werk.
+- [ ] **RTL-tabelrapporten: DOM spiegelt kolommen, PDF niet.** Een `dir=rtl`-locale (ar/fa)
+  spiegelt de HTML-tabel; de vector-PDF tekent de kolommen LTR. Niet geverifieerd in een echte
+  browser; wel een bekende divergentie tussen de twee weergaven.
+
 ### Bedrijfsbibliotheken (B1.1) — vervolgen (2026-07-24)
 - [ ] **B1b — bezettingsoverzicht** over open documenten (binnen één bedrijf/pool; bouwt op de
   herkomststempels + Resources-tab Bedrijfsweergave uit B1.1). Zie docs/library.md

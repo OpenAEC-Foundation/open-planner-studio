@@ -212,7 +212,7 @@
     },
     "health": {
       "title": "Program sağlığı",
-      "subtitle": "Eşikler: yüksek bolluk > {{float}} ig · uzun süre > {{duration}} ig · gecikme > {{lag}} ig",
+      "subtitle": "Eşikler: yüksek bolluk > {{float}} ig · uzun süre > {{duration}} ig · gecikme > {{lag}} ig · kritiğe yakın ≤ {{near}} ig",
       "errors": "Hatalar",
       "warnings": "Uyarılar",
       "infos": "Bilgi",
@@ -261,7 +261,6 @@
       "variance": "Fark",
       "peak": "Tepe/gün",
       "overloaded": "Aşırı yüklü",
-      "overloadedDays": "{{days}} gün",
       "resources": "Kaynaklar",
       "weeks": "Haftalar",
       "overloadedWeeks": "Aşırı yüklü haftalar",

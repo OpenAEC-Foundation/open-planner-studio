@@ -215,7 +215,7 @@
     },
     "health": {
       "title": "Salute del programma",
-      "subtitle": "Soglie: slack elevato > {{float}} gl · durata lunga > {{duration}} gl · ritardo > {{lag}} gl",
+      "subtitle": "Soglie: slack elevato > {{float}} gl · durata lunga > {{duration}} gl · ritardo > {{lag}} gl · quasi critico ≤ {{near}} gl",
       "errors": "Errori",
       "warnings": "Avvisi",
       "infos": "Informazioni",
@@ -264,7 +264,6 @@
       "variance": "Differenza",
       "peak": "Picco/giorno",
       "overloaded": "Sovraccarico",
-      "overloadedDays": "{{days}} giorno/i",
       "resources": "Risorse",
       "weeks": "Settimane",
       "overloadedWeeks": "Settimane sovraccariche",

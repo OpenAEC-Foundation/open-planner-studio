@@ -224,7 +224,7 @@
     },
     "health": {
       "title": "سلامة الجدول الزمني",
-      "subtitle": "الحدود: فائض مرتفع > {{float}} ي.ع · مدة طويلة > {{duration}} ي.ع · تأخير > {{lag}} ي.ع",
+      "subtitle": "الحدود: فائض مرتفع > {{float}} ي.ع · مدة طويلة > {{duration}} ي.ع · تأخير > {{lag}} ي.ع · شبه حرج ≤ {{near}} ي.ع",
       "errors": "أخطاء",
       "warnings": "تحذيرات",
       "infos": "معلومات",
@@ -273,7 +273,6 @@
       "variance": "الفرق",
       "peak": "الذروة/يوم",
       "overloaded": "محمّل بإفراط",
-      "overloadedDays": "{{days}} يوم",
       "resources": "الموارد",
       "weeks": "الأسابيع",
       "overloadedWeeks": "أسابيع محمّلة بإفراط",

@@ -209,7 +209,7 @@
     },
     "health": {
       "title": "일정 건전성",
-      "subtitle": "임계값: 높은 여유 > {{float}} 작업일 · 긴 기간 > {{duration}} 작업일 · 지연 > {{lag}} 작업일",
+      "subtitle": "임계값: 높은 여유 > {{float}} 작업일 · 긴 기간 > {{duration}} 작업일 · 지연 > {{lag}} 작업일 · 준주공정 ≤ {{near}} 작업일",
       "errors": "오류",
       "warnings": "경고",
       "infos": "정보",
@@ -258,7 +258,6 @@
       "variance": "차이",
       "peak": "최대/일",
       "overloaded": "과부하",
-      "overloadedDays": "{{days}}일",
       "resources": "자원",
       "weeks": "주",
       "overloadedWeeks": "과부하 주",
