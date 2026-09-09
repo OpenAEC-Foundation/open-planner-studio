@@ -749,30 +749,9 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   sectie 7 van `check-p6-verified-cases-engine.ts`. Fix-kandidaat: zonder bruikbaar einde
   (`plan_end_date` leeg én geen taakeinde) de optie gerapporteerd uitzetten — met blastradius-
   meting op het corpus (39 van 50 SCHEDOPTIONS-rijen dragen `Y`), niet als zijklus.
-- [ ] **"Datums zoals opgeslagen" voor ÁLLE formaten zoals nu bij XER** (eigenaarsbesluit
-  2026-09-09: "het moet altijd gaan zoals het nu bij XER werkt"). Stand: alleen de XER-lezer levert
-  `recordedTimes` (zes assen); de IFC-lezer levert `recordedFields` en biedt de weergave alleen aan;
-  MSPDI, P6 XML, `.mpp` en CSV lezen alleen start/einde en zetten late datums en speling als
-  VULLING (`lateStart = start`, `totalFloat = 0`) — geen vergelijking, geen melding, geen weergave.
-  Te bouwen, als eigen etappe op een nieuwe branch bovenop PR #109 (niet in die PR: de eindreview
-  is dan ongeldig):
-  1. Lezers: MSPDI (`<EarlyStart>/<EarlyFinish>/<LateStart>/<LateFinish>/<TotalSlack>/<FreeSlack>`),
-     P6 XML (`EarlyStartDate`/`LateStartDate`/…/`TotalFloat`/`FreeFloat`) en `.mpp` (veldkaart
-     nog te controleren — ONBEKEND of de late velden erin zitten) leveren `recordedTimes` op zes
-     assen, CSV op wat de kolommen dragen (start/einde, evt. totale speling); ontbrekende assen
-     zijn "niet vastgelegd", nooit vulling. Zelfde kanaal als XER, nooit solverinvoer (bak 4).
-  2. Laadbeleid: bij afwijkingen automatisch de weergave aan, met openingsmelding en strook,
-     voor elk formaat (besluit vraag 1-van-11 optie "A: vergelijk wat er is" — ook voor CSV;
-     een CSV met alleen start/einde vergelijkt op die twee assen). IFC uit een ander pakket:
-     automatisch aan i.p.v. alleen aanbieden. Eigen IFC (heropenen): optie B — automatisch aan
-     zolang het document sinds de import niet is bewerkt (nieuw kenmerk "ongewijzigd sinds
-     import" in het IFC, gewist bij elke bewerking; opslaan-zonder-bewerken telt als
-     ongewijzigd), anders alleen aanbieden.
-  3. Per formaat een check in `tests/planning/` (mechanisme + round-trip) en een browsertest;
-     gidsen `datums-zoals-opgeslagen.md` en `gids-import-export.md` (nl+en) bijwerken.
-  Volgorde: P6 XML → MSPDI → `.mpp` → CSV → IFC-optie B.
-- [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná het
-  mechanisme hierboven** (eigenaarsbesluit 2026-09-09, optie 3). Nu: alleen XER (93 bestanden,
+- [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
+  etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
+  die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
   zes assen) en `.mpp` (216 bestanden, alleen start/einde) hebben een corpus + gepinde baseline;
   MSPDI en P6 XML zijn nooit gemeten. Materiaal: `ops-xer-corpus/pmxml-samples/` (9 P6 XML) en
   de publieke MPXJ-junit-data (148 XML, deels MSPDI, deels P6 XML). Per formaat: corpus,

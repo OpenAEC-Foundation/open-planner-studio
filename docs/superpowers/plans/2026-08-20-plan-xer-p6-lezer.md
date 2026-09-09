@@ -837,7 +837,13 @@ exportverliesmelding (ná het schrijven), een bovengrens op documenten per besta
   import niet is bewerkt, anders alleen aanbieden (te bouwen, `docs/TODO.md`); daarbovenop het
   bredere besluit dat ELK formaat zich als XER moet gedragen (automatisch de modus aan bij
   afwijkingen, met melding en strook; "vergelijk wat er is" per formaat, ook CSV) en dat de
-  nul-afwijkingen-meetlat per formaat als aparte etappe volgt (optie 3) — beide in `docs/TODO.md`.
+  nul-afwijkingen-meetlat per formaat als aparte etappe volgt (optie 3, `docs/TODO.md`). Het
+  mechanisme zelf wordt direct gebouwd (verduidelijking eigenaar 2026-09-09: alleen de meetlat
+  gaat naar de TODO): lezers MSPDI/P6 XML/`.mpp`/CSV leveren `recordedTimes` op de assen die het
+  bestand draagt (ontbrekende assen "niet vastgelegd", nooit vulling), laadbeleid "automatisch aan
+  bij afwijkingen" voor elk formaat incl. IFC uit een ander pakket, eigen IFC via optie B (kenmerk
+  "ongewijzigd sinds import"), per formaat een planningscheck en een browsertest, gidsen nl+en.
+  Volgorde P6 XML → MSPDI → `.mpp` → CSV → IFC-optie B.
   De eigenaar bevestigde tevens dat het nuldoel (§1) de lat blijft en dat deze PR een gemeten
   tussenstand is, geen eindpunt.
   UIT DE EINDREVIEW (2026-09-07), vier nieuwe: (a) onbegrensde bronretentie in projectbestand én
