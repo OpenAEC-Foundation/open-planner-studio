@@ -33,7 +33,9 @@ the settings themselves and what they do are identical either way; this article 
 - **AI mode** — **Enable AI mode** shows the **AI** ribbon tab with the MCP bridge, so an AI assistant can work with your schedule over the Model Context Protocol; turning it off stops a running bridge immediately. **Start bridge automatically** (only available with AI mode on) brings the bridge live as soon as the app starts, without visiting the AI tab first — desktop app only. See the in-app AI-assistant guide for the full picture.
 - **Debug terminal** — **Enable debug terminal** shows the log panel for troubleshooting.
 
-## Statistics tab
+## Statistics (button on the Application tab)
+
+Open via **Settings** → **Application** tab → **Statistics…**; it is deliberately a separate window behind a button, not a tab of its own.
 
 How often Open Planner Studio has been downloaded, per operating system and per release. The figures come from the public download counters of GitHub Releases and are refreshed weekly; the app only reads them, nothing is collected or sent about you.
 

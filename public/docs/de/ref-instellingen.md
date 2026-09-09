@@ -30,7 +30,9 @@ Alle drei zeigen exakt dieselben Einstellungen. Je nach Version sind sie über d
 - **KI-Modus** — **KI-Modus aktivieren** zeigt die Menüband-Registerkarte **KI** mit der MCP-Bridge, sodass ein KI-Assistent über das Model Context Protocol mit Ihrem Terminplan arbeiten kann; das Ausschalten stoppt eine laufende Bridge sofort. **Bridge automatisch starten** (nur verfügbar, wenn KI-Modus an ist) aktiviert die Bridge direkt beim Start der App, ohne vorher die KI-Registerkarte zu öffnen — nur in der Desktop-App. Siehe die In-App-Anleitung zum KI-Assistenten für das vollständige Bild.
 - **Debug-Terminal** — **Debug-Terminal aktivieren** zeigt das Protokoll-Panel zur Fehlersuche.
 
-## Registerkarte Statistiken
+## Statistiken (Schaltfläche auf der Registerkarte Anwendung)
+
+Öffnen über **Einstellungen** → Registerkarte **Anwendung** → **Statistiken…**; bewusst ein eigenes Fenster hinter einer Schaltfläche, keine eigene Registerkarte.
 
 Wie oft Open Planner Studio heruntergeladen wurde, je Betriebssystem und je Release. Die Zahlen stammen aus den öffentlichen Download-Zählern von GitHub Releases und werden wöchentlich aktualisiert; die App liest sie nur, von Ihnen wird nichts erfasst oder gesendet.
 

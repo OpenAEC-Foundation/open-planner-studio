@@ -365,6 +365,9 @@ export interface UIState {
   /** session — ingebouwde benchmark-tool (pakket S) open. Draait geïsoleerd op gegenereerde
    *  data; raakt het open project/de store niet aan. */
   showBenchmarkDialog: boolean;
+  /** session — statistieken-dialoog (downloads per OS/release van de stats-branch) open; knop
+   *  op Instellingen → Toepassing, naast Benchmark. Leest alleen, raakt de store niet aan. */
+  showStatsDialog: boolean;
   /** session — de lopende toestemmingsvraag bij het installeren van een extensie (K-item 38), of
    *  `null` als er geen vraag openstaat. Bevat de gegevens die de dialoog toont; het ANTWOORD gaat
    *  niet via de store maar via de resolver in `extensions/consent.ts` — een promise-resolver hoort
