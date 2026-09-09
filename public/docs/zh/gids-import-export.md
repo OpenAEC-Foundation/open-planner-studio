@@ -61,6 +61,8 @@ MSPDI 比 CSV 丰富得多：资源、分配（包括其负荷曲线）、日历
 
 `.mpp` 文件（Microsoft Project 的原生格式，Project 2010 至 2021）走的是另一条路径：该导入是**只读**的——不存在 `.mpp` 导出格式，因此重新导出到 MS Project 要走 MSPDI XML。参见指南[打开 MS Project（.mpp）](docs://gids-msproject-import)了解都保留了哪些内容以及有哪些限制。
 
+每个导入的文件都带有源软件自己计算出的日期——Primavera 和 MS Project 还包括最迟日期和浮动时间，CSV 则取决于列中的内容。如果 Open Planner Studio 的重新计算与之不同，文件将以**按保存日期**视图打开：你先看到源软件的结果并收到通知，重新计算后才看到我们自己的结果。参见[按保存日期](docs://datums-zoals-opgeslagen)。
+
 `.xer` 是 Primavera P6 的交换格式。应用可直接导入它；编辑后保存为 IFC。请参阅[打开 Primavera P6（.xer）](docs://gids-xer-import)。
 
 ## 扩展导入器

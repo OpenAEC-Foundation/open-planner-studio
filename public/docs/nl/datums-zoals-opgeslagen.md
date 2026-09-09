@@ -73,26 +73,35 @@ Sla je op terwijl je de opgeslagen datums bekijkt, dan schrijft de app die datum
 doorgerekende versie. Zo overschrijf je nooit per ongeluk de planning van een collega of van het
 bronpakket met een uitkomst die de app er zelf bij heeft bedacht.
 
-## Primavera P6 (.xer): deze weergave kan vanzelf aangaan
+## Bij het openen van een ander bestandsformaat gaat deze weergave vanzelf aan
 
-Bij een `.xer`-bestand werkt dit net iets anders dan bij de andere formaten hierboven. Primavera P6
-levert namelijk niet alleen datums, maar ook zíjn eigen berekening daarvan — geen losse datums zonder
-logica. Blijven er na het openen restverschillen over met de herberekening van Open Planner Studio,
-dan zet de app zichzelf meteen in deze weergave, zonder dat je eerst op **Opgeslagen datums tonen**
-hoeft te klikken. De melding boven de planning noemt in dat geval meteen het aantal activiteiten dat
-zou verschuiven, en verwijst naar de vaste blijvende melding zodra de weergave actief is.
+Voor elk bestand dat uit een ander pakket komt, gaat de weergave bij het openen meteen aan zodra er
+verschillen zijn — je hoeft niet eerst op **Opgeslagen datums tonen** te klikken. Dat geldt voor
+Primavera P6 (`.xer` en P6 XML), Microsoft Project (`.mpp` en MS Project XML), CSV en een
+IFC-bestand dat niet door Open Planner Studio zelf is geschreven. De app leest uit zo'n bestand de
+datums die het bronpakket zelf vastlegde — waar het bestand ze draagt ook de late datums, de speling
+en het kritiek-kenmerk — en vergelijkt die met zijn eigen herberekening. Wijkt er iets af, dan zie
+je de opgeslagen datums, met de openingsmelding die het aantal afwijkende taken noemt en de vaste
+strook boven de planning. Wat het bestand niet vastlegde, blijft "Niet vastgelegd" (zie hieronder):
+een CSV met alleen start en einde wordt op die twee assen vergeleken en toont de andere vier leeg.
 
-Dat automatisch aangaan geldt alleen bij het openen van het `.xer`-bestand zelf: sla je het project
-daarna op en open je het later opnieuw, dan wordt de weergave alleen nog aangeboden — je klikt dan
-zelf op **Opgeslagen datums tonen** — zodat een planning die je intussen hebt bewerkt en opgeslagen
-niet ongevraagd weer de oude datums van Primavera laat zien.
+Bij een `.xer`- of P6 XML-bestand zegt de strook "zoals Primavera hem opsloeg"; bij de andere
+formaten "zoals ze in het bestand staan", omdat de app dan niet weet uit welk pakket de datums komen.
+
+Sla je het project daarna op als IFC en open je dat bestand later opnieuw, dan gaat de weergave
+alleen vanzelf aan zolang je het project sinds de import **niet hebt bewerkt**. Herberekenen met
+**F5** en opslaan tellen daarbij niet als bewerking; een taak wijzigen, een relatie toevoegen of een
+kalender aanpassen wel. Heb je bewerkt, dan wordt de weergave bij het heropenen alleen nog
+aangeboden — je klikt dan zelf — zodat een planning die je intussen hebt veranderd nooit ongevraagd
+weer met de oude datums uit het bronbestand op het scherm komt. De app onthoudt dat "ongewijzigd
+sinds import" in het projectbestand zelf.
 
 De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
 datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het
-bewerken van een taak verlaten deze weergave op precies dezelfde manier als bij elk ander formaat (zie
-hierboven); de berekening zelf gebruikt Primavera's opgeslagen datums nooit als invoer, alleen als
-weergave. Zie [Primavera P6 (.xer) openen](docs://gids-xer-import) voor de rest van wat een XER-import
-meebrengt.
+bewerken van een taak verlaten deze weergave op precies dezelfde manier als hierboven beschreven; de
+berekening zelf gebruikt de opgeslagen datums van het bronpakket nooit als invoer, alleen als
+weergave. Zie [Primavera P6 (.xer) openen](docs://gids-xer-import) en
+[MS Project (.mpp) openen](docs://gids-msproject-import) voor wat die imports verder meebrengen.
 
 ## "Niet vastgelegd"
 

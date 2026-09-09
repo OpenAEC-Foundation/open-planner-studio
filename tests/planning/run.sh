@@ -1369,6 +1369,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # onschuldig — geen aparte TZ-aanname om te bewijzen.
   RECMARKCHECK="$DIR/.check-recorded-dates-mark.mjs"
   if bundle_check "$DIR/check-recorded-dates-mark.ts" "$RECMARKCHECK"; then node "$RECMARKCHECK" || STATUS=1; fi
+
+  # Eigenaarsbesluit 2026-09-09 — "datums zoals opgeslagen" voor ÁLLE formaten: de lezers van
+  # P6 XML/MSPDI/CSV (en corpus-optioneel .mpp) leveren het bak-4-kanaal, en de IFC-herkomst
+  # ('ifc' vs 'ifc-own' + OPS_ImportProvenance) stuurt het heropen-beleid (optie B).
+  RECFORMATS="$DIR/.check-recorded-times-formats.mjs"
+  if bundle_check "$DIR/check-recorded-times-formats.ts" "$RECFORMATS"; then node "$RECFORMATS" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

@@ -61,6 +61,8 @@ Bu uyarılar özensizlik değildir — kasıtlı, açık bir seçimdir: düşür
 
 Bir `.mpp` dosyası (Microsoft Project'in yerel biçimi, Project 2010–2021) ayrı bir yol izler: bu içe aktarma **salt okunurdur** — bir `.mpp` dışa aktarımı yoktur, bu yüzden MS Project'e yeniden dışa aktarma MSPDI XML üzerinden yapılır. Neyin geldiğini ve sınırlamaların neler olduğunu görmek için [MS Project (.mpp) dosyasını açma](docs://gids-msproject-import) kılavuzuna bakın.
 
+İçe aktarılan her dosya, kaynak programın kendi hesapladığı tarihleri taşır — Primavera ve MS Project'te en geç tarihler ve bolluklar da, CSV'de sütunların içerdiği ne varsa. Open Planner Studio'nun yeniden hesaplaması bunlardan farklıysa dosya **kaydedildiği gibi tarihler** görünümünde açılır: önce kaynak programın söylediğini bir bildirimle görürsünüz, kendi sonucumuzu ise ancak yeniden hesapladıktan sonra. Bkz. [Kaydedildiği gibi tarihler](docs://datums-zoals-opgeslagen).
+
 `.xer` dosyası Primavera P6'nın değişim biçimidir. Doğrudan içe aktarılır ve düzenlemeden sonra IFC olarak kaydedilir; bkz. [Primavera P6 (.xer) dosyasını açma](docs://gids-xer-import).
 
 ## Uzantı içe aktarıcıları

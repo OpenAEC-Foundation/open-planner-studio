@@ -70,25 +70,33 @@ Save while you're viewing the recorded dates, and the app writes those dates —
 version. That way you never accidentally overwrite a colleague's schedule, or the source package's
 schedule, with an outcome the app made up on its own.
 
-## Primavera P6 (.xer): this view can turn on by itself
+## Opening another file format turns this view on by itself
 
-For a `.xer` file this works slightly differently from the other formats above. Primavera P6 doesn't
-just deliver dates — it also delivers its own calculation of them, not bare dates without any logic.
-If residual differences remain against Open Planner Studio's own recalculation after opening, the app
-switches itself straight into this view, without you first clicking **Show recorded dates**. In that
-case the notice above the schedule immediately states the number of activities that would shift, and
-points to the standing notice that stays visible while the view is active.
+For every file that comes from another package, the view switches on as soon as you open it and
+differences exist — you don't first click **Show recorded dates**. That applies to Primavera P6
+(`.xer` and P6 XML), Microsoft Project (`.mpp` and MS Project XML), CSV, and an IFC file that was not
+written by Open Planner Studio itself. From such a file the app reads the dates the source package
+recorded — including, where the file carries them, the late dates, the float and the critical flag —
+and compares them with its own recalculation. If anything differs, you see the recorded dates, with
+the opening notification stating the number of differing tasks and the standing notice above the
+schedule. Whatever the file did not record stays "Not recorded" (see below): a CSV with only start
+and finish is compared on those two axes and shows the other four empty.
 
-That automatic switch only applies when you open the `.xer` file itself: if you then save the project
-and reopen it later, the view is merely offered — you click **Show recorded dates** yourself — so that
-a schedule you have edited and saved in the meantime is never silently shown with Primavera's old
-dates again.
+For a `.xer` or P6 XML file the notice says "as Primavera recorded them"; for the other formats "as
+recorded in the file", because the app then does not know which package the dates came from.
+
+If you then save the project as IFC and reopen that file later, the view only switches on by itself
+as long as you have **not edited** the project since the import. Recalculating with **F5** and
+saving do not count as editing; changing a task, adding a relationship or adjusting a calendar do.
+Once you have edited, reopening only offers the view — you click yourself — so that a schedule you
+have changed in the meantime never comes back on screen with the old dates from the source file
+unasked. The app remembers "unchanged since import" inside the project file itself.
 
 Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
 with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
-in exactly the same way as with any other format (see above); the calculation itself never uses
-Primavera's recorded dates as input, only as a view. See
-[Opening Primavera P6 (.xer)](docs://gids-xer-import) for the rest of what a XER import brings along.
+in exactly the same way as described above; the calculation itself never uses the source package's
+recorded dates as input, only as a view. See [Opening Primavera P6 (.xer)](docs://gids-xer-import)
+and [Opening MS Project (.mpp)](docs://gids-msproject-import) for what those imports bring along.
 
 ## "Not recorded"
 

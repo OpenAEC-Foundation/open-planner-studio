@@ -37,6 +37,8 @@
     "xerImportUnsupportedSemantics_other": "安全なフォールバックを使った P6 計画設定: {{count}}",
     "xerImportDatesAsRecorded_other": "Primavera が記録した日付をそのまま表示しているタスク: {{count}} 件（再計算していません）",
     "xerImportDatesAsRecordedOffer_other": "ファイルに記録された日付と異なるタスク: {{count}} 件（表示できます）",
+    "importDatesAsRecorded_other": "ファイルに記録された日付をそのまま表示しているタスク: {{count}} 件（再計算していません）",
+    "importDatesAsRecordedOffer_other": "ファイルに記録された日付と異なるタスク: {{count}} 件（表示できます）",
     "xerExportLoss": "{{format}} へのエクスポートでは XER のソース情報が失われます。",
     "mppLegacy": "この .mpp ファイルは古い形式（Project 2007 以前）を使用しています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "mppEncrypted": "この .mpp ファイルはパスワードで保護されています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",

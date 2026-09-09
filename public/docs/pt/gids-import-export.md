@@ -103,6 +103,8 @@ para o MS Project passa pelo MSPDI XML. Veja o guia
 [Abrir o MS Project (.mpp)](docs://gids-msproject-import) para saber o que é trazido e quais são as
 limitações.
 
+Cada ficheiro importado traz as datas que o programa de origem calculou por si — no Primavera e no MS Project também as datas tardias e as folgas, no CSV o que as colunas contiverem. Se o recálculo do Open Planner Studio divergir delas, o ficheiro abre na vista **datas tal como gravadas**: vê primeiro o que o programa de origem dizia, com uma notificação, e só depois de recalcular o nosso próprio resultado. Consulte [Datas tal como gravadas](docs://datums-zoals-opgeslagen).
+
 Um ficheiro `.xer` é o formato de intercâmbio do Primavera P6. É importado diretamente e, depois de editado, guardado como IFC; consulte [Abrir o Primavera P6 (.xer)](docs://gids-xer-import).
 
 ## Importadores de extensões

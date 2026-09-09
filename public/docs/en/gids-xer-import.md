@@ -68,9 +68,10 @@ other format. The recalculation itself never uses Primavera's recorded dates as 
 along as separate, read-only source data and are used only to show what the file said, never to drive
 what the app calculates. Saving as IFC stores Primavera's recorded dates in
 the project file — including which axes the source file left unrecorded. Opening that IFC file again
-does not switch this view back on by itself: you get the notice with a **Show recorded dates** button
-and decide for yourself. That way a schedule you have edited and saved in the meantime can never come
-back on screen with the old dates unasked.
+only switches this view back on by itself as long as you have not edited the project since the
+import (recalculating and saving do not count as editing). Once you have edited, you get the notice
+with a **Show recorded dates** button and decide for yourself. That way a schedule you have changed
+in the meantime can never come back on screen with the old dates unasked.
 
 See [Dates as recorded](docs://datums-zoals-opgeslagen) for the full explanation of this view,
 including what you do and don't see while it is active and how to leave it manually.

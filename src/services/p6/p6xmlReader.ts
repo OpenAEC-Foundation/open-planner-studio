@@ -19,6 +19,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { axisOffsetMinutes, p6SpreadToContourPeriods, splitGapsFromContours } from '@/services/contourIo';
+import { buildRecordedTime, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import {
   OPS_P6_DURATION_UNIT_UDF_TITLE,
   P6_DAY_NAMES,
@@ -462,6 +463,14 @@ export function readP6XML(content: string): ImportResult {
     }
   }
 
+  // "Datums zoals opgeslagen" voor P6 XML (eigenaarsbesluit 2026-09-09): P6's EIGEN rekenuitvoer
+  // per activiteit — `EarlyStartDate`/`EarlyFinishDate` (terugval `StartDate`/`FinishDate`),
+  // `LateStartDate`/`LateFinishDate`, `TotalFloat`/`FreeFloat` (uren) en `IsCritical` — als apart,
+  // waardedragend kanaal naast de taken (`ImportResult.recordedTimes`), nooit als solverinvoer:
+  // `task.time` krijgt hieronder onverkort de geplande datums, precies als vóór dit kanaal (bak 4,
+  // XER-etappeplan §4.1). Ontbrekende assen ontbreken, nooit een terugval.
+  const recordedTimes: Record<string, RecordedTime> = {};
+
   for (const actEl of activityElements) {
     const objId = getElementInt(actEl, 'ObjectId', -1);
     if (objId < 0) continue;
@@ -498,6 +507,28 @@ export function readP6XML(content: string): ImportResult {
     const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
     const plannedStart = isHour ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
     const plannedFinish = isHour ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+
+    {
+      const recordedDate = (raw: string): string | undefined =>
+        raw ? (isHour ? parseP6Instant(raw) : parseP6Date(raw)) : undefined;
+      const floatDays = (raw: string): number | undefined => {
+        if (!raw) return undefined;
+        const hours = Number.parseFloat(raw);
+        return Number.isFinite(hours) ? recordedFloatDays(hours * 60, effHpd * 60) : undefined;
+      };
+      const criticalRaw = getElementText(actEl, 'IsCritical');
+      const recorded = buildRecordedTime({
+        start: recordedDate(getElementText(actEl, 'EarlyStartDate') || getElementText(actEl, 'StartDate')),
+        finish: recordedDate(getElementText(actEl, 'EarlyFinishDate') || getElementText(actEl, 'FinishDate')),
+        lateStart: recordedDate(getElementText(actEl, 'LateStartDate')),
+        lateFinish: recordedDate(getElementText(actEl, 'LateFinishDate')),
+        totalFloat: floatDays(getElementText(actEl, 'TotalFloat')),
+        freeFloat: floatDays(getElementText(actEl, 'FreeFloat')),
+        isCritical: criticalRaw === 'true' || criticalRaw === '1' ? true
+          : criticalRaw === 'false' || criticalRaw === '0' ? false : undefined,
+      });
+      if (recorded) recordedTimes[id] = recorded;
+    }
 
     // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
@@ -763,6 +794,7 @@ export function readP6XML(content: string): ImportResult {
     assignments,
     resourceCalendars,
     customTaskTypes: [...customTaskTypes.values()],
+    ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'p6xml' as const } : {}),
   };
 }
 

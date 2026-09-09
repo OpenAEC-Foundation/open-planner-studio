@@ -19,6 +19,7 @@ import {
 } from '@/services/library';
 import { markScheduleStale } from './transaction';
 import type { DocumentPayload } from './documentContract';
+import { isFreshImportOrigin } from './documentContract';
 import { promoteProjectCalendarToLibrary, syncProjectCalendar } from './syncProjectCalendar';
 
 export type LibraryBoundaryMode = 'silent-switch' | 'open-boundary';
@@ -261,7 +262,17 @@ export function applyRecordedDatesOnLoad(
   const recorded = captureRecordedDates(rawTasks, parsed.recordedFields, parsed.recordedTimes);
   if (recorded.total === 0) return;
   const shifted = countShiftedTasks(prepared.tasks, recorded.times);
-  const enterMode = restoredMode ?? (parsed.recordedTimesOrigin === 'xer' && shifted > 0);
+  // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt" + heropen-
+  // beleid optie B): een VERSE import van elk formaat gaat automatisch in de modus zodra er
+  // restverschillen zijn; een HEROPENING van een eigen IFC ('ifc-own'/'xer-archive') alleen
+  // zolang het document sinds de import niet is bewerkt (`importPristine`, uit het bestand zelf);
+  // zonder herkomst uitsluitend het aanbod.
+  const origin = parsed.recordedTimesOrigin;
+  const autoEnter = shifted > 0 && (
+    isFreshImportOrigin(origin)
+    || ((origin === 'ifc-own' || origin === 'xer-archive') && prepared.importPristine === true)
+  );
+  const enterMode = restoredMode ?? autoEnter;
   // Niets verschoven én geen modus om te herstellen ⇒ er valt niets te melden: de herberekening
   // kwam exact uit op wat het bestand zei.
   if (shifted === 0 && !enterMode) return;

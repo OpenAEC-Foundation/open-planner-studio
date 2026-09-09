@@ -416,7 +416,11 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   truthy('7h afwijking gedetecteerd: recordedDates is gezet', S().recordedDates !== null);
   eq('7i shifted telt de verschoven taak (b)', S().recordedDates?.shifted, 1);
   eq('7j total telt alle vastgelegde taken (a + b)', S().recordedDates?.total, 2);
-  eq('7k detectie zet de modus niet aan', S().datesAsRecorded, false);
+  // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt"): een IFC uit
+  // een ANDER pakket (geen IFCAPPLICATION 'OPS', geen OPS_-pset ⇒ herkomst 'ifc') is een verse
+  // import en gaat bij afwijkingen automatisch in de modus. Vóór dat besluit bood het alleen aan.
+  eq('7k detectie zet de modus AAN voor een IFC uit een ander pakket (herkomst "ifc")', S().datesAsRecorded, true);
+  eq('7k2 …met die herkomst op de vastlegging', S().recordedDates?.origin, 'ifc');
 
   // Tegenproef: een bestand dat de app ZELF schreef, levert geen aanbod op — de writer vult altijd
   // alle negen slots (zie check-ifc-roundtrip.ts (1b)) én runCPM heeft de datums al sluitend gemaakt
@@ -524,9 +528,12 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT na het laden,
   // ook al is exact hetzelfde orakel meegegeven. Bewijst dat de auto-aan-route uitsluitend op de
   // herkomstvlag draait, niet op de loutere aanwezigheid van `recordedTimes` — en dus dat een
-  // IFC/CSV/MSPDI/MPP/P6XML-document (die dit veld nooit zet) byte-identiek #63-gedrag houdt.
+  // import zonder herkomststempel (extensie-importer) het aanbiedende #63-gedrag houdt.
+  // Sinds 2026-09-09 draagt élke lezer een herkomst (ook `readIFC`: 'ifc'/'ifc-own'), dus de
+  // "geen herkomst"-route moet hier EXPLICIET worden nagebootst — het geval van een importer
+  // zonder stempel (bv. een extensie-importer).
   const asUnknownOrigin: ImportResult = {
-    ...rtOracleSource, recordedFields: undefined, recordedTimes: oracleTimes,
+    ...rtOracleSource, recordedFields: undefined, recordedTimes: oracleTimes, recordedTimesOrigin: undefined,
   };
   S().newProject();
   S().applyLoadedProject(asUnknownOrigin, { filePath: null, recompute: true });
@@ -551,6 +558,30 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7ai …met dezelfde teller als de verse import (sectie 7u)', S().recordedDates?.shifted, 1);
   eq('7ai2 …en draagt de archiefherkomst, dus óók de Primavera-tekst (sectie 14)',
     S().recordedDates?.origin, 'xer-archive');
+
+  // Heropen-beleid OPTIE B (eigenaarsbesluit 2026-09-09): dezelfde heropening gaat WEL automatisch
+  // aan zolang het bestand zelf zegt dat het sinds de import ongewijzigd is (`importPristine`,
+  // uit `OPS_ImportProvenance`). MUTATIEBEWIJS: laat `prepared.importPristine` weg uit
+  // `applyRecordedDatesOnLoad` ⇒ 7aj2 slaat ROOD.
+  S().newProject();
+  S().applyLoadedProject({ ...asXerArchive, importPristine: true }, { filePath: null, recompute: true });
+  eq('7aj2 "xer-archive" + ongewijzigd sinds import ⇒ automatisch AAN (optie B)', S().datesAsRecorded, true);
+  eq('7aj3 …en de payload draagt de vlag', S().importPristine, true);
+
+  // Elk ander formaat gedraagt zich als XER (eigenaarsbesluit 2026-09-09): verse import ⇒ aan.
+  for (const origin of ['p6xml', 'mspdi', 'mpp', 'csv', 'ifc'] as const) {
+    S().newProject();
+    S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: origin }, { filePath: null, recompute: true });
+    eq(`7aj4 verse import met herkomst "${origin}" ⇒ automatisch AAN`, S().datesAsRecorded, true);
+    eq(`7aj5 …en een verse import is per definitie ongewijzigd sinds import (${origin})`, S().importPristine, true);
+  }
+  // 'ifc-own' zonder vlag: alleen aanbod (zoals 'xer-archive'); mét vlag: aan.
+  S().newProject();
+  S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'ifc-own' }, { filePath: null, recompute: true });
+  eq('7aj6 heropend eigen IFC zonder vlag biedt alleen aan', [S().datesAsRecorded, S().recordedDates !== null, S().importPristine], [false, true, false]);
+  S().newProject();
+  S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'ifc-own', importPristine: true }, { filePath: null, recompute: true });
+  eq('7aj7 heropend eigen IFC mét vlag ⇒ automatisch AAN', S().datesAsRecorded, true);
 }
 
 // ── (7C) Crashherstel raakt de #63-route NIET ────────────────────────────────────────────────
@@ -568,8 +599,17 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7aj crashherstel van een gewoon #63-document zet de modus NIET aan', S().datesAsRecorded, false);
   truthy('7ak …maar herstelt wél het aanbod', S().recordedDates !== null);
   eq('7al …met dezelfde teller als het gewone openen (sectie 7i)', S().recordedDates?.shifted, 1);
-  eq('7am …en zonder herkomststempel, dus met de formaatneutrale tekst', S().recordedDates?.origin, undefined);
+  eq('7am …met de herkomst "ifc" (ander pakket), dus met de formaatneutrale tekst (sectie 14)', S().recordedDates?.origin, 'ifc');
 }
+
+/**
+ * Secties 8 t/m 13 testen het HANDMATIG betreden en verlaten van de modus op een document dat de
+ * modus alleen AANBIEDT. Sinds 2026-09-09 gaat een IFC uit een ander pakket (herkomst 'ifc')
+ * automatisch de modus in (sectie 7/7B/16), dus de aanbiedende uitgangstoestand wordt hier
+ * expliciet nagebootst door de herkomst te wissen — het geval van een importer zonder stempel.
+ * De inhoud van de vastlegging is exact dezelfde als bij het echte openen.
+ */
+const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), recordedTimesOrigin: undefined });
 
 // ── (8) showRecordedDates — de modus betreden (Taak 5) ────────────────────────
 // Zelfde fixture als (7): één FS-relatie waarvan de opgeslagen datums niet uit de logica volgen
@@ -577,7 +617,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // solve écht iets "terug te tonen" is.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('2')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('2')), { filePath: null, recompute: true });
   truthy('8a voorwaarde: recordedDates is gezet (b verschoof)', S().recordedDates !== null);
 
   const aId = idOfWbs('1.1');
@@ -651,7 +691,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // (9.A) Route A — bewerken verlaat de modus, Ctrl+Z draait modus én datums in één stap terug.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('9a')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('9a')), { filePath: null, recompute: true });
   const aId = idOfWbs('1.1');
   const bId = idOfWbs('1.2');
 
@@ -697,7 +737,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // (9.B) Route B — F5/"Bereken" verlaat de modus, mét een werkende Ctrl+Z.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('9b')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('9b')), { filePath: null, recompute: true });
   const bId = idOfWbs('1.2');
 
   S().showRecordedDates();
@@ -730,7 +770,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // uitzondering niet stilletjes het algemene geval wordt.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('9c')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('9c')), { filePath: null, recompute: true });
   eq('9C-1 voorwaarde: de modus staat UIT (detectie zet hem niet aan)', S().datesAsRecorded, false);
   truthy('9C-2 voorwaarde: er is wél iets aan te bieden (anders meet dit een vacuüm)', S().recordedDates !== null);
   // Zet `scheduleStale` expres aan (direct, geen actie): zonder dit zou runCPM hooguit "niets te
@@ -750,7 +790,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // herrekent, want `scheduleStale` blijft uit. Precies de mengvorm die de modus moet voorkomen.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('9d')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('9d')), { filePath: null, recompute: true });
   const bId = idOfWbs('1.2');
   S().showRecordedDates();
   eq('9D-1 voorwaarde: modus staat aan', S().datesAsRecorded, true);
@@ -770,7 +810,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // (10.A) K3 — een SLAPEND document dat op de achtergrond wordt doorgerekend.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('10a')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('10a')), { filePath: null, recompute: true });
   S().showRecordedDates();
   const slapendId = S().activeDocumentId;
   const bId = idOfWbs('1.2');
@@ -820,7 +860,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // modus niet weggooien en de undo-stack niet raken.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('10c')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('10c')), { filePath: null, recompute: true });
   S().showRecordedDates();
   eq('10C-1 voorwaarde: modus staat aan', S().datesAsRecorded, true);
   eq('10C-2 in de modus geldt de planning als vers', S().scheduleStale, false);
@@ -840,7 +880,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // het, in een tweede undo-stap met een tussentoestand die de gebruiker nooit gezien heeft.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('10d')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('10d')), { filePath: null, recompute: true });
   S().showRecordedDates();
   const bId = idOfWbs('1.2');
   const startVoor = S().project.startDate;
@@ -958,7 +998,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   };
 
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('11')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('11')), { filePath: null, recompute: true });
   geenModusEnStale('11d na laden');
   S().showRecordedDates();
   geenModusEnStale('11e in de modus');
@@ -972,7 +1012,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   // (11h) XER-etappeplan §3.5/§4-T4, risico §5.1: het bron-orakel-laadpad zet de modus AAN in
   // `applyRecordedDatesOnLoad`, dus deze invariant moet ook ná EEN AUTO-AAN-LOAD gelden — niet
   // alleen ná een handmatige `showRecordedDates()`-aanroep zoals 11d/11e hierboven.
-  const rt11h = readIFC(externIfc('11h'));
+  const rt11h = offerOnly(externIfc('11h'));
   const oracleTimesFor11h = captureRecordedDates(rt11h.tasks, rt11h.recordedFields).times;
   const asXerFor11h: ImportResult = {
     ...rt11h, recordedFields: undefined,
@@ -1076,7 +1116,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
 // `writeCSV` in `fileSlice.exportFile` ⇒ 13Bb hieronder slaat rood.
 {
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('csv')), { filePath: null, recompute: true });
+  S().applyLoadedProject(offerOnly(externIfc('csv')), { filePath: null, recompute: true });
   S().showRecordedDates();
   truthy('13Ba voorwaarde: de modus staat aan', S().datesAsRecorded);
 
@@ -1263,6 +1303,75 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
       ['2026-02-01', '2026-04-30', '2026-02-04', '2026-05-05', 3, 3, false]);
     eq('15h ... en task.time en cpmResult zeggen daar hetzelfde, projectEnd incluis',
       [rCpm.tasks.get('R')?.earlyFinish, rCpm.projectEnd], ['2026-04-30', '2026-04-30']);
+  }
+}
+
+// ── (16) "Ongewijzigd sinds import" — heropen-beleid optie B (eigenaarsbesluit 2026-09-09) ────────
+// De levenscyclus van `importPristine` door het ECHTE laad-, bewerk-, opslaan- en heropenpad, op een
+// IFC uit een ander pakket (herkomst 'ifc'): verse import ⇒ vlag aan ⇒ automatisch in de modus;
+// opslaan (ín de modus!) schrijft het pset; heropenen van dat eigen IFC ('ifc-own') gaat opnieuw
+// automatisch de modus in; één bewerking wist de vlag; F5 en opslaan niet.
+{
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('16')), { filePath: null, recompute: true });
+  eq('16a verse import uit een ander pakket: vlag aan én modus aan', [S().importPristine, S().datesAsRecorded], [true, true]);
+
+  const savedInMode = writeIFC(buildWriteIFCInput(S()));
+  truthy('16b opslaan ín de modus schrijft OPS_ImportProvenance', savedInMode.includes("'OPS_ImportProvenance'"));
+  const reopened = readIFC(savedInMode);
+  eq('16c het heropende eigen IFC is een heropening mét vlag', [reopened.recordedTimesOrigin, reopened.importPristine], ['ifc-own', true]);
+  S().newProject();
+  S().applyLoadedProject(reopened, { filePath: null, recompute: true });
+  eq('16d heropenen van het ongewijzigde eigen IFC gaat automatisch de modus in (optie B)', [S().datesAsRecorded, S().recordedDates?.origin], [true, 'ifc-own']);
+  eq('16e …met dezelfde verschuivingsteller als de verse import', S().recordedDates?.shifted, 1);
+
+  // F5 verlaat de modus maar is geen bewerking; opslaan evenmin.
+  S().runCPM();
+  eq('16f F5 verlaat de modus zonder de vlag te wissen', [S().datesAsRecorded, S().importPristine], [false, true]);
+  const savedOutside = writeIFC(buildWriteIFCInput(S()));
+  truthy('16g ook ná F5 draagt het opgeslagen bestand de vlag', savedOutside.includes("'OPS_ImportProvenance'"));
+  S().newProject();
+  S().applyLoadedProject(readIFC(savedOutside), { filePath: null, recompute: true });
+  // Ná F5 draagt het opgeslagen IFC ONZE berekening als taakdatums, en een gewoon IFC heeft — anders
+  // dan een XER-archief (check-xer-recorded-roundtrip 4a) — geen apart bronkanaal: de vastlegging
+  // ís dan de herberekening, dus er valt niets meer te tonen. Geen modus, geen aanbod.
+  eq('16h heropenen na F5+opslaan: het bestand draagt de herberekening zelf ⇒ niets te melden', [S().datesAsRecorded, S().recordedDates], [false, null]);
+
+  // Eén bewerking (echte mutator) wist de vlag; daarna alleen nog het aanbod.
+  S().updateTask(S().tasks[0]!.id, { name: 'Bewerkt' });
+  eq('16i een bewerking verlaat de modus én wist de vlag', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, false, true]);
+  const savedEdited = writeIFC(buildWriteIFCInput(S()));
+  truthy('16j het bewerkte bestand draagt geen OPS_ImportProvenance meer', !savedEdited.includes("'OPS_ImportProvenance'"));
+  S().newProject();
+  S().applyLoadedProject(readIFC(savedEdited), { filePath: null, recompute: true });
+  eq('16k heropenen van het bewerkte eigen IFC: vlag uit, en (zonder apart bronkanaal) geen verschil met het bestand', [S().datesAsRecorded, S().recordedDates, S().importPristine], [false, null, false]);
+  // Undo maakt een bewerkt document niet weer "ongewijzigd" (conservatief, geen snapshot-rol).
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('16u')), { filePath: null, recompute: true });
+  S().updateTask(S().tasks[0]!.id, { name: 'Bewerkt' });
+  S().undo();
+  eq('16l undo herstelt de vlag NIET (nooit een gok richting automatisch aan)', S().importPristine, false);
+
+  // Broncodescan: `isDirty = true` staat uitsluitend in `documentEdited.ts` — élke mutator die het
+  // document vuil maakt, wist daarmee ook de vlag. Zelfde wortelkandidaten als sectie 11.
+  const kandidaten = [
+    fileURLToPath(new URL('../../src/', import.meta.url).href),
+    resolvePath(process.cwd(), 'src'),
+  ];
+  const srcRoot = kandidaten.find((p) => existsSync(p)) ?? null;
+  truthy('16m de broncontrole vindt src/', srcRoot !== null);
+  if (srcRoot) {
+    const overtreders: string[] = [];
+    const loop = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = joinPath(dir, entry.name);
+        if (entry.isDirectory()) loop(full);
+        else if (/\.tsx?$/.test(entry.name) && !full.endsWith('documentEdited.ts')
+          && /\bisDirty\s*=\s*true\b/.test(readFileSync(full, 'utf8'))) overtreders.push(full.slice(srcRoot.length));
+      }
+    };
+    loop(srcRoot);
+    eq('16n `isDirty = true` staat nergens buiten markDocumentEdited (documentEdited.ts)', overtreders, []);
   }
 }
 

@@ -52,6 +52,8 @@ export function isActivePristine(s: AppState): boolean {
 
 /** De in-app gids achter de ene bestandsbrede XER-openingsmelding. */
 export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
+/** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
+export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
 
 /**
  * Vorm één gebruikerszichtbaar verslag uit uitsluitend de feiten die de XER-lezer bestandsbreed
@@ -478,6 +480,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
       const notice = xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal);
       if (notice) get().notify(notice);
+      // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt"): de andere
+      // formaten hebben geen eigen openingsmelding, maar wél dezelfde ene regel over "datums zoals
+      // opgeslagen" — formaatneutraal verwoord (de strook kiest zelf de Primavera-tekst voor P6 XML).
+      // Alleen wanneer er iets te melden is; een bestand zonder restverschillen blijft stil, zoals
+      // vóór dit besluit.
+      if (!notice && (datesAsRecordedShiftedTotal > 0 || datesAsRecordedOfferTotal > 0)) {
+        const shifted = datesAsRecordedShiftedTotal > 0;
+        get().notify({
+          severity: 'info',
+          messageKey: shifted ? 'notifications.importDatesAsRecorded' : 'notifications.importDatesAsRecordedOffer',
+          params: { count: shifted ? datesAsRecordedShiftedTotal : datesAsRecordedOfferTotal },
+          helpArticleId: RECORDED_DATES_HELP_ARTICLE_ID,
+        });
+      }
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
       const activeId = openedDocumentIds[activeIndex];

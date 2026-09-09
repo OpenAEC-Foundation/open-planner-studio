@@ -8,6 +8,7 @@ import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/impor
 import { csvDateOrToday } from '@/services/importDates';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
+import { buildRecordedTime, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 interface ParsedRow {
   wbs: string;
@@ -24,6 +25,8 @@ interface ParsedRow {
   actualFinish?: string;
   critical: boolean;
   totalFloat: number;
+  /** Zie de toelichting bij `rows.push` in `readCSV`. */
+  recorded?: RecordedTime;
   description: string;
 }
 
@@ -202,7 +205,25 @@ export function readCSV(content: string): ImportResult {
     const actualStartRaw = get('actualStart').trim();
     const actualFinishRaw = get('actualFinish').trim();
 
+    // "Datums zoals opgeslagen" voor CSV (eigenaarsbesluit 2026-09-09, "vergelijk wat er is"):
+    // alleen kolommen die het bestand ÉCHT heeft en die voor deze rij gevuld zijn tellen als
+    // vastlegging — een ontbrekende kolom is "niet vastgelegd", nooit de `vandaag`-/`0`-terugval
+    // die `task.time` hieronder wél krijgt. Late datums kent een CSV niet.
+    const recordedStartRaw = colMap.start !== undefined ? get('start').trim() : '';
+    const recordedFinishRaw = colMap.finish !== undefined ? get('finish').trim() : '';
+    const recordedFloatRaw = colMap.totalFloat !== undefined ? get('totalFloat').trim() : '';
+    const recordedCriticalRaw = colMap.critical !== undefined ? get('critical').trim().toLowerCase() : '';
+    const recordedFloat = recordedFloatRaw ? Number.parseFloat(recordedFloatRaw) : Number.NaN;
+
     rows.push({
+      recorded: buildRecordedTime({
+        start: recordedStartRaw ? parseDate(recordedStartRaw) : undefined,
+        finish: recordedFinishRaw ? parseDate(recordedFinishRaw) : undefined,
+        totalFloat: Number.isFinite(recordedFloat) ? recordedFloat : undefined,
+        isCritical: recordedCriticalRaw === 'yes' || recordedCriticalRaw === 'ja' || recordedCriticalRaw === 'true' || recordedCriticalRaw === '1' ? true
+          : recordedCriticalRaw === 'no' || recordedCriticalRaw === 'nee' || recordedCriticalRaw === 'false' || recordedCriticalRaw === '0' ? false
+            : undefined,
+      }),
       wbs: get('wbs'),
       name: get('name', 'Task'),
       duration: parseFloat(get('duration', '5')) || 5,
@@ -224,6 +245,7 @@ export function readCSV(content: string): ImportResult {
   // Create tasks and map WBS -> task id
   const tasks: Task[] = [];
   const wbsToId = new Map<string, string>();
+  const recordedTimes: Record<string, RecordedTime> = {};
   // Een niet-IFC-classificatie uit CSV is geen reden om gegevens naar CONSTRUCTION te degraderen.
   // Hij wordt uitsluitend in dit geïmporteerde project een USERDEFINED-type, nooit automatisch
   // onderdeel van de persoonlijke app-brede lijst.
@@ -245,6 +267,7 @@ export function readCSV(content: string): ImportResult {
   for (const row of rows) {
     const id = generateId('task');
     wbsToId.set(row.wbs, id);
+    if (row.recorded) recordedTimes[id] = row.recorded;
 
     const rawType = row.taskType.trim();
     const parsedType = parseTaskType(rawType);
@@ -358,5 +381,6 @@ export function readCSV(content: string): ImportResult {
     resources: [],
     assignments: [],
     customTaskTypes: [...customById.values()],
+    ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),
   };
 }

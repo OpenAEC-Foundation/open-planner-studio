@@ -9,7 +9,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
 import type { XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { ColumnConfig, ViewState } from './slices/types';
@@ -88,6 +88,13 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
+  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). `true`
+   *  vanaf een verse import tot de eerste bewerking (`markDocumentEdited`); opslaan wist hem niet.
+   *  Round-tript via `OPS_ImportProvenance` (alleen als `true`), zodat een heropend eigen IFC
+   *  weet of het automatisch in "datums zoals opgeslagen" mag. Geen undo-rol: undo maakt een
+   *  bewerkt document niet weer "ongewijzigd" (conservatief — nooit een gok richting automatisch
+   *  aan). */
+  importPristine: boolean;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -250,6 +257,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
+  field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -431,7 +439,19 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
+    // Heropen-beleid optie B: een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
+    // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
+    // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
+    // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
+    importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
     filePath,
     isDirty: false,
   };
+}
+
+/** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
+ *  heropening van een eigen IFC (alleen automatisch aan zolang `importPristine`). Eén definitie,
+ *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
+export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
+  return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';
 }

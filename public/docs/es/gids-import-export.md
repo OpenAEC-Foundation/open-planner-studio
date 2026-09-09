@@ -101,6 +101,8 @@ importación es **de solo lectura** — no existe una exportación `.mpp`, así 
 pasa por MSPDI XML. Consulte la guía [Abrir MS Project (.mpp)](docs://gids-msproject-import) para saber qué se
 conserva y cuáles son las limitaciones.
 
+Cada archivo importado lleva las fechas que el programa de origen calculó por sí mismo — en Primavera y MS Project también las fechas tardías y las holguras, en CSV lo que contengan las columnas. Si el recálculo de Open Planner Studio difiere de ellas, el archivo se abre en la vista **fechas tal como se guardaron**: primero ves lo que decía el programa de origen, con una notificación, y solo tras recalcular nuestro propio resultado. Consulta [Fechas tal como se guardaron](docs://datums-zoals-opgeslagen).
+
 Un archivo `.xer` es el formato de intercambio de Primavera P6. Se importa directamente y, después de editarlo, se guarda como IFC; consulta [Abrir Primavera P6 (.xer)](docs://gids-xer-import).
 
 ## Importadores de extensiones

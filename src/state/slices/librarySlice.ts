@@ -11,6 +11,7 @@ import { appLog } from '@/services/debug/appLog';
 import { invalidateUndoneHistoryForScopes, type HistoryScopeKey } from '../sessionHistory';
 import { capturePayload, hydratePayload } from '../documentContract';
 import { materializeLibraryBoundary } from '../documentActivation';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 function invalidateDocumentRedo(
   state: { historyEvents: import('../sessionHistory').SessionHistoryEvent[] },
@@ -637,7 +638,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       }
       runtime.beginUndoable(s);
       s.calendars = [...s.calendars, copy.calendar];
-      s.isDirty = true;
+      markDocumentEdited(s);
       result = { added: true, calendarId: copy.calendar.id };
       runtime.finishMutation(s);
     });

@@ -69,9 +69,11 @@ door — precies zoals bij elk ander formaat. De herberekening zelf gebruikt Pri
 datums nooit als invoer: ze reizen als aparte, alleen-lezen brondata mee en worden uitsluitend gebruikt
 om te tonen wat het bestand zei, nooit om te sturen wat de app berekent. Sla je op als IFC, dan gaan Primavera's
 opgeslagen datums mee het projectbestand in — inclusief welke assen het bronbestand niet vastlegde.
-Bij het openen van dat IFC-bestand zet de app deze weergave niet uit zichzelf weer aan: je krijgt de
-melding met een knop **Opgeslagen datums tonen** en kiest zelf. Zo kan een planning die je intussen
-hebt bewerkt en opgeslagen nooit ongevraagd weer met de oude datums op het scherm komen.
+Open je dat IFC-bestand later opnieuw, dan gaat de weergave alleen vanzelf weer aan zolang je het
+project sinds de import niet hebt bewerkt (herberekenen en opslaan tellen niet als bewerking). Heb je
+wel bewerkt, dan krijg je de melding met een knop **Opgeslagen datums tonen** en kies je zelf. Zo kan
+een planning die je intussen hebt veranderd nooit ongevraagd weer met de oude datums op het scherm
+komen.
 
 Zie [Datums zoals opgeslagen](docs://datums-zoals-opgeslagen) voor de volledige uitleg van deze
 weergave, inclusief wat je wel en niet ziet zolang hij actief is en hoe je er handmatig weer uit stapt.

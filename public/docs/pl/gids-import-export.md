@@ -101,6 +101,8 @@ Plik `.mpp` (natywny format Microsoft Project, Project 2010–2021) to osobna ś
 MSPDI XML. Zobacz przewodnik [Otwieranie MS Project (.mpp)](docs://gids-msproject-import), aby dowiedzieć
 się, co jest przenoszone i jakie są ograniczenia.
 
+Każdy zaimportowany plik niesie daty, które program źródłowy sam obliczył — w Primaverze i MS Project także najpóźniejsze daty i zapasy, w CSV to, co zawierają kolumny. Jeśli ponowne obliczenie w Open Planner Studio się od nich różni, plik otwiera się w widoku **daty jak zapisano**: najpierw widzisz, co mówił program źródłowy, z powiadomieniem, a dopiero po ponownym obliczeniu nasz własny wynik. Zobacz [Daty jak zapisano](docs://datums-zoals-opgeslagen).
+
 Plik `.xer` jest formatem wymiany Primavera P6. Jest importowany bezpośrednio, a po edycji zapisywany jako IFC; zobacz [Otwieranie Primavera P6 (.xer)](docs://gids-xer-import).
 
 ## Importery z rozszerzeń

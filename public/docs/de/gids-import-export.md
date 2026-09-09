@@ -61,6 +61,8 @@ Diese Warnungen sind keine Schlamperei — sie sind eine bewusste, ausdrücklich
 
 Eine `.mpp`-Datei (das native Microsoft-Project-Format, Project 2010 bis 2021) ist ein eigener Weg: Dieser Import ist **nur lesend** — es gibt keinen `.mpp`-Export, ein Re-Export nach MS Project läuft daher über MSPDI-XML. Siehe die Anleitung [MS Project (.mpp) öffnen](docs://gids-msproject-import) für das, was mitkommt, und die Einschränkungen.
 
+Jede importierte Datei trägt die Termine, die das Quellprogramm selbst berechnet hat — bei Primavera und MS Project auch die spätesten Termine und die Puffer, bei CSV das, was die Spalten enthalten. Weicht die Neuberechnung von Open Planner Studio davon ab, öffnet sich die Datei in der Ansicht **Termine wie gespeichert**: Sie sehen zuerst, was das Quellprogramm sagte, mit einer Meldung, und erst nach dem Neuberechnen unser eigenes Ergebnis. Siehe [Termine wie gespeichert](docs://datums-zoals-opgeslagen).
+
 Eine `.xer`-Datei ist das Austauschformat von Primavera P6. Sie wird direkt importiert und nach einer Bearbeitung als IFC gespeichert; siehe [Primavera P6 (.xer) öffnen](docs://gids-xer-import).
 
 ## Erweiterungs-Importer

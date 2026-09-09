@@ -61,6 +61,8 @@ MSPDI と同種のトレードオフがあり、いくつか P6 固有の癖も�
 
 `.mpp` ファイル（Microsoft Project のネイティブ形式、Project 2010〜2021）は別の経路をたどります。このインポートは**読み取り専用**です —`.mpp` のエクスポートは存在しないため、MS Project への再エクスポートは MSPDI XML 経由になります。何が引き継がれ、どのような制限があるかについては、ガイド[MS Project（.mpp）を開く](docs://gids-msproject-import)を参照してください。
 
+インポートした各ファイルには、元のソフトウェア自身が計算した日付が含まれています。Primavera と MS Project では最遅日付とフロートも、CSV では列にある内容が対象です。Open Planner Studio の再計算がそれと異なる場合、ファイルは**保存された日付**表示で開きます。まず元のソフトウェアの結果が通知とともに表示され、再計算して初めて当アプリの結果が表示されます。[保存された日付](docs://datums-zoals-opgeslagen)を参照してください。
+
 `.xer` は Primavera P6 の交換形式です。直接インポートし、編集後は IFC として保存します。詳しくは[Primavera P6（.xer）を開く](docs://gids-xer-import)をご覧ください。
 
 ## 拡張機能インポーター

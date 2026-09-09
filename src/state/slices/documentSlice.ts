@@ -115,7 +115,7 @@ export interface DocumentSlice {
   newDocument: () => string;
   /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
    *  kopie krijgt genulde `filePath`/`fileHandle` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty = true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
+   *  `isDirty: true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
    *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
    *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
    *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
@@ -387,6 +387,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
+      // Een kopie is per definitie geen ongewijzigde import meer (heropen-beleid optie B).
+      importPristine: false,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',

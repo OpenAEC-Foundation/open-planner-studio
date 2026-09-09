@@ -213,6 +213,9 @@ export interface ImportLabels {
   unassignedResource?: string;
 }
 
+/** Zie `ImportResult.recordedTimesOrigin`. */
+export type RecordedTimesOrigin = 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'mpp' | 'csv' | 'ifc' | 'ifc-own';
+
 export interface ImportResult {
   // Kernvelden — door elk formaat geleverd.
   project: Project;
@@ -278,16 +281,27 @@ export interface ImportResult {
    *  twee kanalen worden nooit gemengd (een XER-import heeft geen `recordedFields`, een
    *  IFC-import geen `recordedTimes`). */
   recordedTimes?: Record<string, RecordedTime>;
-  /** Herkomst van `recordedTimes` — stuurt het standaard-aan-beleid voor "datums zoals opgeslagen"
-   *  (O6-patroon: alleen de XER-route zet dit; andere formaten blijven byte-identiek doordat dit
-   *  veld afwezig blijft).
-   *  - `'xer'`: verse XER-import (`readXER`). Standaard AAN zodra er restverschillen zijn.
-   *  - `'xer-archive'`: heropende IFC met XER-bronarchief (`readIFC`'s T5-archiefreconstructie).
-   *    Alleen AANBOD, nooit automatisch AAN — een intussen bewerkte en opgeslagen planning mag bij
-   *    heropenen niet stilzwijgend P6's oude datums tonen (orkestratorbesluit, XER-etappe laag 3,
-   *    heropen-beleid 2026-09-05). `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`)
-   *    is de enige plek die op dit onderscheid let. */
-  recordedTimesOrigin?: 'xer' | 'xer-archive';
+  /** Herkomst van de VASTLEGGING (`recordedTimes`, of voor IFC `recordedFields`) — stuurt het
+   *  standaard-aan-beleid voor "datums zoals opgeslagen" (eigenaarsbesluit 2026-09-09: "het moet
+   *  altijd gaan zoals het nu bij XER werkt", plus heropen-beleid optie B).
+   *  - VERSE IMPORT — `'xer'`, `'p6xml'`, `'mspdi'`, `'mpp'`, `'csv'` en `'ifc'` (een IFC dat
+   *    NIET door deze app is geschreven): standaard AAN zodra er restverschillen zijn.
+   *  - HEROPENING — `'xer-archive'` (eigen IFC mét XER-bronarchief) en `'ifc-own'` (eigen IFC
+   *    zonder archief): automatisch AAN alleen zolang het document sinds de import niet is
+   *    bewerkt (`importPristine`, hieronder); anders uitsluitend het AANBOD — een intussen
+   *    bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend de oude brondatums
+   *    tonen.
+   *  - `undefined`: geen herkomst (bv. een extensie-importer) ⇒ alleen aanbod.
+   *  `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`) is de enige plek die op dit
+   *  onderscheid let; `recordedDatesNoticeText.ts` kiest er alleen de WOORDKEUZE op. */
+  recordedTimesOrigin?: RecordedTimesOrigin;
+  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). Alleen
+   *  gevuld door `readIFC` uit het `OPS_ImportProvenance`-pset van een EIGEN IFC; `true` betekent
+   *  dat het document tussen de oorspronkelijke import en dit opslaan geen enkele bewerking heeft
+   *  gehad (opslaan zelf telt niet als bewerking). Afwezig ⇒ `false` voor een heropening (nooit
+   *  een gok), en irrelevant voor een verse import (die is per definitie ongewijzigd — zie
+   *  `payloadFromImport`). Elke mutator wist de vlag via `markDocumentEdited`. */
+  importPristine?: boolean;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */

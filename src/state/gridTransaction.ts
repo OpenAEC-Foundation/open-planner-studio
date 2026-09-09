@@ -41,6 +41,7 @@ import type {
   TaskColumnDescriptor,
 } from '@/types/taskGrid';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 export interface PreparedGridMutation {
   documentId: string;
@@ -858,7 +859,7 @@ function commitPreparedAgainstStore(
         restoreSnapshot(state, prepared.after);
         state.viewRows = [...prepared.derivedAfter.viewRows];
         state.resourceLoadResult = prepared.derivedAfter.resourceLoadResult;
-        state.isDirty = true;
+        markDocumentEdited(state);
         recordDocumentDataHistoryDelta(
           state, prepared.label, prepared.documentId, prepared.before, prepared.after,
         );

@@ -286,7 +286,9 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
 {
   const S = () => useAppStore.getState();
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('mark')), { filePath: null, recompute: true });
+  // Sinds 2026-09-09 gaat een IFC uit een ander pakket automatisch de modus in; deze sectie test
+  // de markering vanuit de AANBOD-stand en wist daarom de herkomst (importer zonder stempel).
+  S().applyLoadedProject({ ...readIFC(externIfc('mark')), recordedTimesOrigin: undefined }, { filePath: null, recompute: true });
   ok('voorwaarde: de gewone IFC-fixture staat in de AANBOD-stand (aanbod gevuld, modus uit)',
     S().recordedDates !== null && S().datesAsRecorded === false);
 

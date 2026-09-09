@@ -6,6 +6,7 @@ import { originalAppState } from './immerDraft';
 import { syncProjectCalendar } from './syncProjectCalendar';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 /**
  * De undo/redo-snapshot is een EXPLICIETE subset van het documentcontract (audit P10).
@@ -184,5 +185,5 @@ export function restoreSnapshot(s: AppState, raw: Snapshot): void {
   // DEZELFDE snapshot, dus de cache wordt consistent met het herstelde id afgeleid; de
   // orphan-fallback promoveert de meegeherstelde `calendar`-waarde (niet de nieuwere).
   syncProjectCalendar(s);
-  s.isDirty = true;
+  markDocumentEdited(s);
 }

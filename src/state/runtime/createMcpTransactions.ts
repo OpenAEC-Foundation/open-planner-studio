@@ -25,6 +25,7 @@ import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 export type McpTransactionResult<T> =
   | { ok: true; value: T; timephasedGuidanceLost: number }
@@ -174,7 +175,7 @@ function createMcpDraft(
         task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
       }
 
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -314,7 +315,7 @@ function createMcpDraft(
         }
         // WBS-auto-nummering herafleiden nu de volgorde definitief is (spiegelt draft.addTask).
         if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-        s.isDirty = true;
+        markDocumentEdited(s);
       });
     }
 
@@ -336,7 +337,7 @@ function createMcpDraft(
       const lookup = (tid: string) => s.tasks.find((t) => t.id === tid);
       if (!relationVerdict(lookup, s.sequences, seq).ok) return; // result blijft null
       s.sequences.push({ ...seq, id });
-      s.isDirty = true;
+      markDocumentEdited(s);
       result = id;
     });
     return result;
@@ -377,7 +378,7 @@ function createMcpDraft(
         // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -428,7 +429,7 @@ function createMcpDraft(
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -447,7 +448,7 @@ function createMcpDraft(
       ) === 0);
       if (sameName) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameName.id}'`);
       s.customTaskTypes.push(normalized);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -472,7 +473,7 @@ function createMcpDraft(
       s.assignments = s.assignments.filter((a) => !removeIds.has(a.taskId));
       s.selectedTaskIds = s.selectedTaskIds.filter((sid) => !removeIds.has(sid));
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -486,7 +487,7 @@ function createMcpDraft(
     store.setState((s) => {
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -502,7 +503,7 @@ function createMcpDraft(
       if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -518,7 +519,7 @@ function createMcpDraft(
         throw new Error(`draft.addResource: ongeldige maxUnits ${String(res.maxUnits)} (strikt positief vereist)`);
       }
       s.resources.push({ ...res, id });
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -548,7 +549,7 @@ function createMcpDraft(
         if (value === undefined) delete target[key];
         else target[key] = value;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -588,7 +589,7 @@ function createMcpDraft(
       for (const r of s.resources) {
         if (r.parentId === id) delete r.parentId;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return report;
   },
@@ -619,7 +620,7 @@ function createMcpDraft(
       const clearedWalks = clearTimephasedDurationWalks(task);
       // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
       if (clearedWindow || clearedWalks) recordTimephasedLoss(taskId);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -641,7 +642,7 @@ function createMcpDraft(
       if (Object.keys(patch).length === 0) return;
       Object.assign(s.assignments[idx], patch);
       if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -664,7 +665,7 @@ function createMcpDraft(
       else if (idx >= 0) list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
       else list.push({ resourceUid: null, resourceId: a.resourceId, periods });
       task.timephasedContours = list.length > 0 ? list : undefined;
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -716,7 +717,7 @@ function createMcpDraft(
       const clearedNewWalks = clearTimephasedDurationWalks(newTask);
       // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
       if (clearedNewWindow || clearedNewWalks) recordTimephasedLoss(newTaskId);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -746,7 +747,7 @@ function createMcpDraft(
         // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
         if (clearedWindow || clearedWalks) recordTimephasedLoss(removedTask.id);
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -774,7 +775,7 @@ function createMcpDraft(
         task.levelingDelayMinutes = undefined;
         task.levelingDelayElapsed = undefined;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     if (roundedCount > 0) {
       const state = store.getState();
@@ -796,7 +797,7 @@ function createMcpDraft(
         task.levelingDelayMinutes = undefined;
         task.levelingDelayElapsed = undefined;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     if (roundedCount > 0) {
       const state = store.getState();
@@ -832,7 +833,7 @@ function createMcpDraft(
           prevStartDate, nextStartDate: updates.startDate,
         });
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return clampedAnchors;
   },

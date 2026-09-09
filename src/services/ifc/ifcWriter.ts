@@ -147,6 +147,7 @@ export function writeIFC(input: WriteIFCInput): string {
     xerSourceArchive = undefined,
     xer = undefined,
     xerSourceProjectId = undefined,
+    importPristine = undefined,
   } = input;
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
   const now = new Date().toISOString().split('.')[0];
@@ -329,6 +330,8 @@ export function writeIFC(input: WriteIFCInput): string {
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
   writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
+  // Heropen-beleid optie B: OPS_ImportProvenance-pset, alleen bij `importPristine === true`.
+  writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -712,6 +715,27 @@ function writeSchedulingOptionsMeta(
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedopts'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
+/**
+ * Heropen-beleid optie B (eigenaarsbesluit 2026-09-09) — "ongewijzigd sinds import" als één
+ * `OPS_ImportProvenance`-pset op de `IfcWorkSchedule`. Golden rule: alleen geschreven als de vlag
+ * `true` is; `false`/afwezig ⇒ geen pset, dus elk bestand van vóór deze vlag blijft byte-identiek
+ * en leest terug als `false` (nooit een gok richting "automatisch aan").
+ */
+function writeImportProvenanceMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  importPristine: boolean,
+  ownerHistId: number,
+): void {
+  if (!importPristine) return;
+  const propId = addLine(ctx, '_ps_importprov',
+    `IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)`);
+  const setId = addLine(ctx, '_pset_importprov',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_importprov'))},#${ownerHistId},${ifcStr(PSET.ImportProvenance)},$,(#${propId}))`);
+  addLine(ctx, '_rel_importprov',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_importprov'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
 /** Fase 2.8b (§7.1) — `IfcWorkCalendar.PredefinedType` uit `calendar.shift`. CONVENTIE: buildingSMART

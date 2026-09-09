@@ -54,6 +54,42 @@ void _assertRecordedTimeCompleet;
  *  Wil een aanroeper capture + shifted-telling samen bewaren, dan bouwt hij zelf
  *  `{ ...captureRecordedDates(...), shifted: countShiftedTasks(...) }` — de twee bronwaarden bestaan
  *  dan pas ECHT allebei. */
+/**
+ * Eén vastlegging uit losse, elk OPTIONELE assen — de gedeelde bouwsteen voor de lezers van
+ * P6 XML, MSPDI, `.mpp` en CSV (eigenaarsbesluit 2026-09-09: elk formaat vergelijkt "wat er is").
+ * Zonder start én einde is er geen uitspraak (`undefined`, nooit een terugval); een ontbrekende
+ * andere as blijft weg uit het object ("niet vastgelegd"), nooit `0` of een gekopieerde datum —
+ * dezelfde regel als `readXerRecordedTimes` (`xerRecordedTimes.ts`).
+ */
+export function buildRecordedTime(input: {
+  start: string | undefined;
+  finish: string | undefined;
+  lateStart?: string;
+  lateFinish?: string;
+  totalFloat?: number;
+  freeFloat?: number;
+  isCritical?: boolean;
+}): RecordedTime | undefined {
+  if (!input.start || !input.finish) return undefined;
+  return {
+    start: input.start,
+    finish: input.finish,
+    ...(input.lateStart ? { lateStart: input.lateStart } : {}),
+    ...(input.lateFinish ? { lateFinish: input.lateFinish } : {}),
+    ...(input.totalFloat !== undefined ? { totalFloat: input.totalFloat } : {}),
+    ...(input.freeFloat !== undefined ? { freeFloat: input.freeFloat } : {}),
+    ...(input.isCritical !== undefined ? { isCritical: input.isCritical } : {}),
+  };
+}
+
+/** Werkminuten (speling zoals een bronpakket ze opslaat: uren × 60, of tienden van minuten ÷ 10)
+ *  → werkdagen op de taak-effectieve kalender. Geen positieve `minutesPerDay` ⇒ geen betrouwbare
+ *  dagconversie ⇒ de as ontbreekt (zelfde hardening als `hoursToDays` in `xerRecordedTimes.ts`). */
+export function recordedFloatDays(minutes: number | null | undefined, minutesPerDay: number): number | undefined {
+  if (minutes === null || minutes === undefined || !Number.isFinite(minutes) || !(minutesPerDay > 0)) return undefined;
+  return Math.round(minutes) / minutesPerDay;
+}
+
 export interface RecordedDates {
   /** Per taak-id wat het bestand vastlegde. */
   times: Record<string, RecordedTime>;
@@ -81,7 +117,7 @@ export interface RecordedDatesState extends RecordedDates {
    *  beslissing zelf ligt al vast in `datesAsRecorded` tegen de tijd dat dit veld gelezen wordt.
    *  `undefined` ⇒ de bestaande, formaatneutrale #63-route (IFC/CSV/MSPDI/MPP/P6XML zonder
    *  bron-orakel). */
-  origin?: 'xer' | 'xer-archive';
+  origin?: 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'mpp' | 'csv' | 'ifc' | 'ifc-own';
 }
 
 /**

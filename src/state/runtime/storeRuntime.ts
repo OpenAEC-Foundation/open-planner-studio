@@ -7,6 +7,7 @@ import {
 } from '../sessionHistory';
 import type { AppState } from '../appStore';
 import { markScheduleStale } from '../scheduleStale';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
 export const MAX_UNDO = MAX_SESSION_HISTORY_EVENTS_PER_SCOPE;
@@ -159,7 +160,7 @@ export function createStoreRuntime(): StoreRuntime {
     },
 
     finishMutation(state, opts) {
-      state.isDirty = true;
+      markDocumentEdited(state);
       if (opts?.stale && state.datesAsRecorded) {
         state.datesAsRecorded = false;
         state.recordedDates = null;

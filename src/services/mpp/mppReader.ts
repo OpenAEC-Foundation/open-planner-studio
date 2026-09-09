@@ -156,6 +156,7 @@ import {
 import { readCalendars, promoteCalendarsForHourMode, type CalendarReadResult } from './mppCalendars';
 import { MAX_VAR_TEXT_BYTES, clampRemainingDurationTenths, clampManualDurationTenths, clampLevelingDelayTenths } from './limits';
 import { readRelations, readResources, readAssignments, readAssignmentTimephasedRaw } from './mppEntities';
+import { buildRecordedTime, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import {
   decodeRegularTimephasedWork, decodePlannedRegularTimephasedWork,
   deriveSplitGapsFromPeriods, deriveTaskSplitGaps, shiftPeriods, hasAnyTimephasedData,
@@ -735,6 +736,9 @@ export interface ReadTasksResult {
    *  de twee rode-pad-fixtures, en de corpusbrede manual-taken-telling uit acceptatiepunt 5, naast
    *  baan M's onafhankelijke `mppGroundTruth.ts`-telling). */
   rawScans: readonly RawTaskScan[];
+  /** "Datums zoals opgeslagen" (eigenaarsbesluit 2026-09-09): MSP's eigen rekenuitvoer per taak-id,
+   *  weergavekanaal — `readMPP` geeft dit als `ImportResult.recordedTimes` door. */
+  recordedTimes: Record<string, RecordedTime>;
 }
 
 /** Fase A — rauwe scan: alle velden die `readTasks` nodig heeft, als getal/`Date`/string, NOG GEEN
@@ -784,6 +788,17 @@ export interface RawTaskScan {
    *  ontbreekt, het veld niet in de field map staat, of het record te kort is voor deze offset. */
   manualStartTs: Date | null;
   manualFinishTs: Date | null;
+  /** "Datums zoals opgeslagen" (eigenaarsbesluit 2026-09-09) — MSP's eigen rekenuitvoer, rauw:
+   *  `null` bij een ontbrekend veld in de veldkaart of een leeg record. Slack in tienden van een
+   *  minuut (zelfde eenheid als `durationRaw`, eenhedenbron ACTUAL_DURATION_UNITS). Alleen het
+   *  weergavekanaal `ImportResult.recordedTimes` leest dit; `task.time` nooit. */
+  earlyStartTs: Date | null;
+  earlyFinishTs: Date | null;
+  lateStartTs: Date | null;
+  lateFinishTs: Date | null;
+  freeSlackRaw: number | null;
+  startSlackRaw: number | null;
+  finishSlackRaw: number | null;
   /** Z2 — rauwe MANUAL_DURATION (Fixed2Data blok 1, offset 58, veld-id 1288, tienden-van-een-
    *  minuut — zelfde vorm/klem-precedent als `durationRaw`/`remainingDurationRaw`, zie
    *  `limits.ts`'s `clampManualDurationTenths`). `null` bij ontbrekend veld/te kort record. */
@@ -894,6 +909,16 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const nameKey = varDataKeyOf(taskFieldMap, TaskFieldId.Name);
   const wbsKey = varDataKeyOf(taskFieldMap, TaskFieldId.Wbs);
   const mspTaskTypeOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.Type); // Z14b
+  // "Datums zoals opgeslagen" — weergavekanaal, zie `TaskFieldId.EarlyStart`.
+  const earlyStartOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.EarlyStart);
+  const earlyFinishOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.EarlyFinish);
+  const lateStartOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.LateStart);
+  const lateFinishOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.LateFinish);
+  const freeSlackOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.FreeSlack);
+  const startSlackOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.StartSlack);
+  const finishSlackOffset = fixedOffsetOf(taskFieldMap, TaskFieldId.FinishSlack);
+  const slackAt = (data: Uint8Array, offset: number | null, ctx: string): number | null =>
+    offset !== null && data.length >= offset + 4 ? getInt(data, offset, ctx) : null;
 
   // Harde veldmap-check (T5-kwaliteitsreview-minor): UNIQUE_ID/ID alleen was te zwak — een
   // taaklijst zonder NAME (var-data) of zonder SCHEDULED_START/FINISH (fixed-data) is geen
@@ -1043,6 +1068,13 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
       manualDurationRaw, manualDurationIsElapsed, isMilestone, constraintCode, constraintDateTs, deadlineTs,
       percentComplete, actualStartTs, actualFinishTs, resumeTs, stopTs, effCal, calendarOverride,
       mspTaskTypeRaw, effortDrivenRaw,
+      earlyStartTs: readTimestampField(data, earlyStartOffset, 'TBkndTask earlyStart'),
+      earlyFinishTs: readTimestampField(data, earlyFinishOffset, 'TBkndTask earlyFinish'),
+      lateStartTs: readTimestampField(data, lateStartOffset, 'TBkndTask lateStart'),
+      lateFinishTs: readTimestampField(data, lateFinishOffset, 'TBkndTask lateFinish'),
+      freeSlackRaw: slackAt(data, freeSlackOffset, 'TBkndTask freeSlack'),
+      startSlackRaw: slackAt(data, startSlackOffset, 'TBkndTask startSlack'),
+      finishSlackRaw: slackAt(data, finishSlackOffset, 'TBkndTask finishSlack'),
     });
   }
 
@@ -1069,6 +1101,8 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const taskIdByUniqueId = new Map<number, string>();
   const taskHourById = new Map<string, boolean>();
   const records: RawTaskRecord[] = [];
+  /** "Datums zoals opgeslagen" — per taak-id MSP's eigen rekenuitvoer (zie `TaskFieldId.EarlyStart`). */
+  const recordedTimes: Record<string, RecordedTime> = {};
   for (const raw of raws) {
     const cal = raw.effCal;
     const isHour = hourModeCals.has(cal);
@@ -1273,6 +1307,37 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
     taskIdByUniqueId.set(raw.uniqueId, task.id);
     taskHourById.set(task.id, isHour);
+
+    // "Datums zoals opgeslagen" (eigenaarsbesluit 2026-09-09): MSP's eigen uitvoer als apart kanaal.
+    // Start/einde: EARLY_START/EARLY_FINISH, terugval het opgeslagen (manual-bewuste) start/einde-
+    // paar dat `task.time` óók kreeg. Slack: tienden van een minuut → werkdagen op de taak-
+    // effectieve kalender; ELAPSED-eenheden (zie `isElapsedDuration`) tellen in klokminuten en
+    // gaan door de vaste 24-uursdag, exact zoals de duur hierboven. Total Slack = min(start-,
+    // finish-slack) — MS Project's definitie; MPP14 slaat geen eigen TOTAL_SLACK op. Kritiek =
+    // total slack ≤ 0 (MSP's default "Tasks are critical if slack is less than or equal to 0
+    // days"); zonder omrekenbare total slack geen oordeel. Ontbrekende assen ontbreken.
+    {
+      const slackDays = (tenths: number | null): number | undefined => {
+        if (tenths === null) return undefined;
+        return raw.isElapsedDuration
+          ? recordedFloatDays(tenths / 10, 24 * 60)
+          : recordedFloatDays(tenths / 10, (isHour ? effHpd : hoursPerDay) * 60);
+      };
+      const totalSlackRaw = raw.startSlackRaw !== null && raw.finishSlackRaw !== null
+        ? Math.min(raw.startSlackRaw, raw.finishSlackRaw)
+        : (raw.finishSlackRaw ?? raw.startSlackRaw);
+      const totalFloat = slackDays(totalSlackRaw);
+      const recorded = buildRecordedTime({
+        start: formatField(raw.earlyStartTs) ?? formatField(resolvedStartTs),
+        finish: formatField(raw.earlyFinishTs) ?? formatField(resolvedFinishTs),
+        lateStart: formatField(raw.lateStartTs),
+        lateFinish: formatField(raw.lateFinishTs),
+        totalFloat,
+        freeFloat: slackDays(raw.freeSlackRaw),
+        isCritical: totalFloat === undefined ? undefined : totalFloat <= 0,
+      });
+      if (recorded) recordedTimes[task.id] = recorded;
+    }
   }
 
   // ID-volgorde = zowel de Gantt-/rijvolgorde die MS Project's eigen XML-export gebruikt, als
@@ -1284,7 +1349,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const tasks = records.map((r) => r.task);
   normalizeImportedProgress(tasks, statusDate);
   return {
-    tasks, taskIdByUniqueId, taskHourById,
+    tasks, taskIdByUniqueId, taskHourById, recordedTimes,
     rawScans: raws, // Z2 — zie ReadTasksResult se toelichting; readMPP hieronder geeft dit NIET door
   };
 }
@@ -2248,7 +2313,7 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // mspdiReader's `taskCalendarId`-toewijzing tijdens de taken-lus) — de oude post-hoc-koppelstap
   // (`calendarUniqueIdByTaskId` → `calResult.calendarByUniqueId`-lookup ná `readTasks`) is dus
   // vervallen; `taskHourById` voedt T7's relaties (lag-eenheid-keuze, spiegelt mspdiReader).
-  const { tasks, taskIdByUniqueId, taskHourById } = readTasks({
+  const { tasks, taskIdByUniqueId, taskHourById, recordedTimes } = readTasks({
     cfb, taskFieldMap, hoursPerDay, statusDate: project.statusDate, applicationVersion, calResult,
   });
 
@@ -2372,5 +2437,6 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     // `parsed.sourceScheduleNotes?.total` kan volstaan en geen aparte "0 gevonden"-staat hoeft te
     // onderscheiden.
     ...(scheduleNotes.total > 0 ? { sourceScheduleNotes: scheduleNotes } : {}),
+    ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'mpp' as const } : {}),
   };
 }
