@@ -2,6 +2,8 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
+import { ensureThemeVisible, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
+import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 
 /**
  * Fase 2.10 (item 6, architect-besluit 6): compacte resource-lijst voor de gedockte rechter-rail
@@ -9,7 +11,9 @@ import { scopeTaskResources } from '@/utils/taskResourceScope';
  * kolommenset t.o.v. de volledige `ResourcePanel`: alleen naam (readonly hier — hernoemen blijft
  * een taak voor het volledige paneel), max. eenheden (bewerkbaar, zelfde `updateResource`-actie)
  * en een simpele belasting-badge afgeleid uit `resourceLoadResult.overallocatedDays` (dezelfde bron
- * als het histogram) — géén tarief/kalender/eenheid/ouder-bewerking hier.
+ * als het histogram) — géén tarief/kalender/eenheid/ouder-bewerking hier. Issue #115: vóór de naam
+ * staat wél het kleurvlakje in de resourcekleur — dezelfde `resourceDisplayColor` (+ donker-thema-
+ * verlichting) als het resource-accent onder de Gantt-balk, zodat je dat accent hier kunt aflezen.
  */
 export function ResourcePanelCompact() {
   const { t } = useTranslation('common');
@@ -18,6 +22,7 @@ export function ResourcePanelCompact() {
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
   const updateResource = useAppStore(s => s.updateResource);
+  const darkTheme = useResolvedUITheme() === 'dark';
   const { resources } = scopeTaskResources(allResources, assignments, selectedTaskIds);
 
   if (resources.length === 0) {
@@ -35,6 +40,12 @@ export function ResourcePanelCompact() {
             key={r.id}
             className="flex items-center gap-1.5 px-1.5 py-1 rounded-[6px] hover:bg-surface-hover"
           >
+            <span
+              title={t('resource.color')}
+              className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+              style={{ background: ensureThemeVisible(resourceDisplayColor(r), darkTheme) }}
+              data-ops-resource-color={r.id}
+            />
             <span className="flex-1 truncate" title={r.name || r.id}>{r.name || r.id}</span>
             <UnitsInput
               value={r.maxUnits}

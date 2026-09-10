@@ -189,12 +189,12 @@
 
 .task-grid-data-row.task-grid-trace-predecessor,
 .task-grid-data-row.task-grid-trace-predecessor-driving {
-  border-inline-start: 3px solid var(--trace-predecessor, #7c3aed);
+  border-inline-start: 3px solid var(--trace-predecessor, #F59E0B);
 }
 
 .task-grid-data-row.task-grid-trace-successor,
 .task-grid-data-row.task-grid-trace-successor-driving {
-  border-inline-start: 3px dashed var(--trace-successor, #0284c7);
+  border-inline-start: 3px dashed var(--trace-successor, #A78BFA);
 }
 
 .task-grid-data-row.task-grid-trace-predecessor-driving,
@@ -1149,6 +1149,12 @@ button.task-grid-relation-reference {
 :root {
   /* Brand — primary */
   --deep-forge:      #36363E;
+
+  /* Path tracing (issue #114): de rijmarkering in het taakraster gebruikt dezelfde tinten als de
+     Gantt-balken — GANTT_TRACE_COLORS in src/engine/renderer/themePalette.ts is de bron;
+     tests/planning/check-dependency-presentation.ts bewaakt dat beide gelijk blijven. */
+  --trace-predecessor: #F59E0B;
+  --trace-successor:   #A78BFA;
 
   /* Brand — secondary */
   --signal-orange:   #EA580C;

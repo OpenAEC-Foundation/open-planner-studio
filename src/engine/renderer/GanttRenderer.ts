@@ -1078,7 +1078,10 @@ export class GanttRenderer {
     const color = overrideColor ?? modeColor ?? this.barColor(task);
     // Voortgangsvulling: in de modi ligt er geen bijpassende "licht"-variant van een willekeurige
     // moduskleur — dan de vaste semi-transparante donkere laag (zelfde keuze als de printlaag).
-    const progressColor = selection.mode !== 'critical'
+    // Issue #114: óók bij een trace-tint (`overrideColor`). De blauwe/rode "licht"-variant hoort bij
+    // de standaardbalkkleur; op een goud/paarse voorganger-/opvolgerbalk verving hij die kleur juist —
+    // een voltooide taak was dan van een gedimde niet te onderscheiden en de trace leek niet te werken.
+    const progressColor = selection.mode !== 'critical' || overrideColor
       ? 'rgba(0, 0, 0, 0.25)'
       : task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
 
