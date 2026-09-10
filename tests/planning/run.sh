@@ -579,6 +579,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RDCHECK="$DIR/.renderer-dateless.mjs"
   if bundle_check "$DIR/check-renderer-dateless.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
 
+  # Issue #114: de trace-tint (voorganger goud / opvolger paars) mag niet door de blauwe/rode
+  # voortgangsvulling worden overschilderd — een voltooide voorganger leek anders niet gemarkeerd.
+  TRACEPROGCHECK="$DIR/.gantt-trace-progress.mjs"
+  if bundle_check "$DIR/check-gantt-trace-progress.ts" "$TRACEPROGCHECK"; then node "$TRACEPROGCHECK" || STATUS=1; fi
+
   # Dev-only Gantt-testdriver: reverse locator gebruikt exact de renderer-eigen balkgeometrie en
   # behoudt het bestaande hit-testbeleid voor datumloze taken, mijlpalen en verzameltaken.
   GTDCHECK="$DIR/.gantt-test-driver.mjs"
