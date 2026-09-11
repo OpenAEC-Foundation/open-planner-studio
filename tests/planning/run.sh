@@ -595,6 +595,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
 
+  # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
+  # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
+  # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem
+  # en hit-test). Standaardgeval, exact passende lijst, nul resources en de laatste-resource-hit
+  # bij volle scroll.
+  HISTPICKCHECK="$DIR/.histogram-picker-geometry.mjs"
+  if bundle_check "$DIR/check-histogram-picker-geometry.ts" "$HISTPICKCHECK"; then node "$HISTPICKCHECK" || STATUS=1; fi
+
   # Z15 (etappe "nul afwijkingen", baan D): onderbroken balken (Task.splitGaps) in de Gantt-canvas
   # ÉN print/PDF — gatentelling ⇒ segmentaantal + necking-connector, O5 (splitGaps ALTIJD gesplitst,
   # ongeacht barSplitMode), globale voortgangsvulling over de segmenten heen, dag-/uur-modus.
