@@ -4,7 +4,7 @@ import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
-import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, DEMO_COMPANY_ID, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
+import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
 import { markScheduleStale } from '../transaction';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
@@ -117,9 +117,11 @@ export interface LibrarySlice {
   addCompany: (name: string) => string;
   /** Seed (idempotent) de demo-resourcebibliotheek (issue #19, user-verzoek: showcase-voorbeelden
    *  delen één gedeelde pool "dezelfde ploeg in twee projecten"). Bestaat het bedrijf `DEMO_COMPANY_ID`
-   *  al, dan gebeurt er NIETS (ook de inhoud wordt niet overschreven — de gebruiker mag 'm bewerkt
-   *  hebben) en wordt alleen het id teruggegeven. Loopt door dezelfde `set`/`persist`-laag als
-   *  `addCompany` — geen parallelle opslagroute. Retourneert altijd `DEMO_COMPANY_ID`. */
+   *  al, dan wordt er niets opnieuw aangemaakt en niets verwijderd; wél wordt een pool van een
+   *  OUDERE `DEMO_LIBRARY_SEED_VERSION` eenmalig bijgewerkt (capaciteiten/omschrijvingen op
+   *  naam-match, ontbrekende items erbij — id's ongemoeid, zie `migrateDemoLibrarySeed`). Loopt
+   *  door dezelfde `set`/`persist`-laag als `addCompany` — geen parallelle opslagroute.
+   *  Retourneert altijd `DEMO_COMPANY_ID`. */
   seedDemoLibrary: () => string;
   renameCompany: (id: string, name: string) => void;
   /** Verwijder een bedrijf (spec §5). Er blijft altijd ≥1 bedrijf (spec §2, no-op op het laatste).
@@ -401,7 +403,24 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     // Idempotentie (spec): bestaat het bedrijf al, dan niets aanmaken/overschrijven — alleen het
     // vaste id teruggeven. Companies+pools horen 1-op-1 samen (invariant elders in deze slice), dus
     // de aanwezigheid van het BEDRIJF is voldoende signaal.
-    if (get().companies.some((c) => c.id === DEMO_COMPANY_ID)) return DEMO_COMPANY_ID;
+    //
+    // MAAR (B1c): "niets overschrijven" betekende óók dat een inhoudscorrectie in de seed een
+    // bestaande installatie nooit bereikte — die bleef op de oude, te krappe capaciteiten staan en
+    // zag in het bezettingsoverzicht een muur van rode rijen. Vandaar de INHOUDsversie
+    // (`DEMO_LIBRARY_SEED_VERSION`): een oudere demo-pool wordt eenmalig bijgewerkt
+    // (`migrateDemoLibrarySeed` — maxUnits/omschrijving op naam-match, ontbrekende items erbij,
+    // NIETS verwijderd, id's ongemoeid zodat stempels geldig blijven). Veranderde er inhoudelijk
+    // iets, dan bumpen we de pool zodat gekoppelde documenten hun classificatie herzien; veranderde
+    // er niets, dan alleen de versiemarkering zetten (geen loze bump).
+    if (get().companies.some((c) => c.id === DEMO_COMPANY_ID)) {
+      const existing = get().pools[DEMO_COMPANY_ID];
+      if (existing && (existing.seedVersion ?? 0) < DEMO_LIBRARY_SEED_VERSION) {
+        const { pool: migrated, changed } = migrateDemoLibrarySeed(existing);
+        set((s) => { s.pools[DEMO_COMPANY_ID] = changed ? bumpPool(migrated) : migrated; });
+        persist(get);
+      }
+      return DEMO_COMPANY_ID;
+    }
     set((s) => {
       const { company, pool } = buildDemoLibrarySeed();
       s.companies.push(company);

@@ -95,6 +95,21 @@ const inputs: OccupancyDocInput[] = payloads.map(({ docId, payload }) => ({
   },
 }));
 
+/** Het TWEEDE bedoelde knelpunt: één stukadoorsploeg die in alle drie de showcases meedoet. Anders
+ *  dan `CONFLICT_ITEM` is dit conflict NIET zonder tekort te verdelen — MIDDEL en GROOT hebben elk
+ *  hun eigen, in hun spec gedocumenteerde interne stukadoors-overallocatie (GROOT vraagt op één dag
+ *  9 van de 3), en geen enkele volgorde van projecten neemt die weg. De eis hieronder is daarom
+ *  alleen het KRUIS-deel: er moet een conflict zijn dat uit ≥2 documenten komt. */
+const CROSS_ITEM = 'Plasterers';
+
+/** De EXACTE set poolitems die met de drie showcases open rood mag staan. Waarom exact en niet
+ *  "minstens": de demo was een ruïne — bijna élke rij stond rood omdat de demo-bibliotheek kleiner
+ *  gedimensioneerd was dan wat de showcases er samen op boeken, waardoor het bedoelde verhaal
+ *  (dezelfde metselploeg in twee projecten, de stukadoors in drie) verdronk in ruis. Een "minstens
+ *  deze twee"-assert had dat niet gezien. Deze set is dus de poort die een toekomstige regeneratie
+ *  van de voorbeelden — of een krappere bibliotheekcapaciteit — dwingt bewust te zijn. */
+const EXPECTED_CONFLICT_ITEMS = [CONFLICT_ITEM, CROSS_ITEM];
+
 const poolItem = pool?.resources.find((r) => r.name === CONFLICT_ITEM);
 assert(!!poolItem, `poolitem "${CONFLICT_ITEM}" aanwezig in de demo-bibliotheek`);
 
@@ -114,6 +129,33 @@ if (row) {
   assert(docsOnConflictDays.length >= 2,
     `conflict op "${CONFLICT_ITEM}" komt van ${docsOnConflictDays.length} document(en) — verwacht ≥2 (kruis-project)`);
   assert(row.capacityAtPeak > 0, `"${CONFLICT_ITEM}" heeft een bedrijfscapaciteit > 0 op de piekdag`);
+}
+
+// ═══ (a2) ALLEEN de bedoelde items staan rood — exacte set ═══════════════════════════════════════
+{
+  const rood = occupancy.rows.filter((r) => r.conflictDays.length > 0).map((r) => r.name).sort();
+  const verwacht = [...EXPECTED_CONFLICT_ITEMS].sort();
+  assert(
+    rood.length === verwacht.length && rood.every((n, i) => n === verwacht[i]),
+    `rode rijen in het bezettingsoverzicht: [${rood.join(', ')}] — verwacht exact [${verwacht.join(', ')}]. ` +
+    'Een item dat hier onbedoeld bij staat maakt de demo onleesbaar; verhoog de capaciteit in ' +
+    'src/services/library/demoLibrary.ts (en bump DEMO_LIBRARY_SEED_VERSION) of neem de ' +
+    'overboeking in de showcase-spec weg.',
+  );
+}
+
+// ═══ (a3) Het tweede bedoelde knelpunt is ECHT een kruis-project-conflict ════════════════════════
+{
+  const crossPoolItem = pool?.resources.find((r) => r.name === CROSS_ITEM);
+  const crossRow = occupancy.rows.find((r) => r.libraryItemId === crossPoolItem?.id);
+  assert(!!crossRow, `"${CROSS_ITEM}" heeft een rij in het bezettingsoverzicht`);
+  if (crossRow) {
+    assert(crossRow.conflictDays.length > 0, `"${CROSS_ITEM}" heeft conflictdagen (heeft: 0)`);
+    const cset = new Set(crossRow.conflictDays);
+    const docs = crossRow.docs.filter((b) => b.counted && Object.keys(b.dailyLoad).some((iso) => cset.has(iso)));
+    assert(docs.length >= 2,
+      `conflict op "${CROSS_ITEM}" komt van ${docs.length} document(en) — verwacht ≥2 (kruis-project)`);
+  }
 }
 
 // ═══ (b) "Verdeel automatisch" lost het op: geen blokkade, geen tekort, en er verschuift iets ═════
@@ -139,6 +181,22 @@ if (poolItem) {
   for (const d of moved) {
     assert(d.endShiftWorkdays <= 15,
       `"${d.title}" schuift ${d.endShiftWorkdays} werkdagen op — dat is geen bescheiden verschuiving meer`);
+  }
+}
+
+// ═══ (b2) Ook het tweede knelpunt is verdeelbaar — zij het niet bescheiden ═══════════════════════
+// Gemeten: geen blokkade, geen tekort, maar GROOT schuift ~27 werkdagen op. Dat is geen fout maar
+// het gevolg van GROOT's eigen, in zijn spec beloofde interne stukadoors-overallocatie (één ploeg
+// van 3 voor drie torens, vraag 9): die moet de verdeling er óók uit werken. De ≤15-werkdagen-eis
+// van (b) geldt hier dus bewust NIET — alleen "oplosbaar zonder tekort".
+{
+  const crossPoolItem = pool?.resources.find((r) => r.name === CROSS_ITEM);
+  if (crossPoolItem) {
+    const proposal = computeDistribution(DEMO_COMPANY_ID, pool, crossPoolItem.id, distInputs, { allowSplits: false });
+    assert(proposal.blocked === null,
+      `verdeling "${CROSS_ITEM}" geblokkeerd: ${proposal.blocked ? proposal.blocked.reason : ''}`);
+    assert(proposal.hasShortfall === false,
+      `verdeling "${CROSS_ITEM}" laat een tekort achter (${proposal.docs.reduce((a, d) => a + d.shortfalls.length, 0)} niet-geplaatste taak/taken)`);
   }
 }
 
