@@ -325,7 +325,7 @@ export function SettingsPanelContent() {
             {/* U1: subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een
                 herkenbare knip binnen Weergave. Werkdagen-as, kwartierzoom, taakbalksplitsing en
                 scroll/zoom-gedrag horen allemaal bij hoe de tijdlijn zich gedraagt. */}
-            <h4 className="settings-subhead">{t('settings.ganttSection')}</h4>
+            <h3 className="settings-subhead">{t('settings.ganttSection')}</h3>
 
             <div className="settings-section">
               <h3>{t('settings.compressNonWorkdaysSection')}</h3>

@@ -58,7 +58,7 @@ async function assertThreeTabsAndSections(container: Locator): Promise<void> {
     await tabs.nth(i).click();
     // Scopen op directe kinderen: de theme-kaartjes (Weergave → Thema) hebben zelf ook een <h4>
     // per kleurstaal, die géén sectiekop is en dus niet mag meetellen.
-    const headings = container.locator('.settings-section-list > .settings-section > h3, .settings-section-list > h4.settings-subhead');
+    const headings = container.locator('.settings-section-list > .settings-section > h3, .settings-section-list > h3.settings-subhead');
     await expect(headings).toHaveCount(SECTION_HEADINGS[i].length);
     for (let j = 0; j < SECTION_HEADINGS[i].length; j++) {
       await expect(headings.nth(j)).toHaveText(SECTION_HEADINGS[i][j]);
