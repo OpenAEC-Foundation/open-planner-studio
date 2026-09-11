@@ -35,6 +35,16 @@ export interface CompanyPool {
   companyName: string;
   poolVersion: number;
   modifiedAt: string; // ISO 8601
+  /**
+   * Alleen voor GEGENEREERDE pools (nu uitsluitend de demo-bibliotheek, zie
+   * `services/library/demoLibrary.ts`): met welke INHOUDSversie van de seed deze pool is
+   * aangemaakt/bijgewerkt. Losstaand van `poolVersion` — dat is de bewerkingsteller waar
+   * herkomststempels en de import-demping op leunen; dit veld zegt alleen "de ingebakken
+   * demo-inhoud is al bijgewerkt tot hier", zodat `seedDemoLibrary` een bestaande installatie
+   * eenmalig kan bijwerken in plaats van hem voor altijd op de oude inhoud te laten staan.
+   * Afwezig ⇒ versie 0 (een pool van vóór dit veld, of een door de gebruiker gemaakte pool).
+   */
+  seedVersion?: number;
   calendars: WorkCalendar[];
   resources: Resource[];
 }
