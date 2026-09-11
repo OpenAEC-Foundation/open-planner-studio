@@ -54,7 +54,9 @@ gradaties: **Beeld → Balkkleuren → Op categorie → Resource** kleurt de hel
 partijen gesegmenteerd naar verhouding van hun inzet, met het kritieke pad als rode rand), en de
 aparte toggle **Resource-accent** (Beeld → Baselines & voortgang) zet een dun streepje in de
 resourcekleur onder de balk. Dat accent staat los van de gekozen balkkleuring en kan dus ook samen
-met Taaktype, Discipline of de automatische taakkleuren aanstaan.
+met Taaktype, Discipline of de automatische taakkleuren aanstaan. Het compacte Resources-paneel in
+de rechterrail toont vóór elke resource hetzelfde kleurvlakje, zodat je een accentstreepje direct aan
+een resource kunt koppelen.
 
 ## Wat volgt de bibliotheek mee — en wat niet
 

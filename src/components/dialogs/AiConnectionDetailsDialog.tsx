@@ -68,8 +68,13 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
   const promptReal = promptFor(token);
   const promptShown = showToken ? promptReal : promptFor(MASK);
 
-  const copy = (text: string, key: string) => {
-    void navigator.clipboard?.writeText(text);
+  const copy = async (text: string, key: string) => {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      return;
+    }
     setCopied(key);
     setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
   };
@@ -77,7 +82,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
   const copyButton = (text: string, key: string) => (
     <button
       type="button"
-      onClick={() => copy(text, key)}
+      onClick={() => { void copy(text, key); }}
       title={t('ai.copy')}
       aria-label={t('ai.copy')}
       className="shrink-0 p-1 border border-border rounded-[8px] hover:bg-surface-hover"

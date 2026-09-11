@@ -63,6 +63,7 @@ const FilterDialog = lazy(() => import('@/components/dialogs/FilterDialog').then
 const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').then(m => ({ default: m.LayoutsDialog })));
 const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
 const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
+const StatsDialog = lazy(() => import('@/components/dialogs/StatsDialog').then(m => ({ default: m.StatsDialog })));
 const PoolImportDialog = lazy(() => import('@/components/dialogs/PoolImportDialog').then(m => ({ default: m.PoolImportDialog })));
 const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDialog').then(m => ({ default: m.LibraryLinkDialog })));
 const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').then(m => ({ default: m.RecoveryDialog })));
@@ -94,6 +95,7 @@ function AppContent() {
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
   const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
+  const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const justUpdated = useAppStore(s => s.ui.justUpdated);
@@ -344,6 +346,7 @@ function AppContent() {
         {showLayoutsDialog && <LayoutsDialog />}
         {showShortcutsDialog && <ShortcutsDialog />}
         {showBenchmarkDialog && <BenchmarkDialog />}
+        {showStatsDialog && <StatsDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {showTourOverlay && <TourOverlay />}
         <UpdateDialog />

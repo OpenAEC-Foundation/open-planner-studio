@@ -72,6 +72,71 @@ fecha de fin del proyecto en días laborables, si lo hay. Vea la guía
 [Baselines y progreso](docs://gids-baselines-voortgang) para saber cómo registrar una baseline antes de que este
 informe pueda decirle algo útil.
 
+## Los siete informes tabulares
+
+Los demás tipos de informe son tablas tomadas directamente del último cálculo. Comparten unas
+reglas: solo las **tareas hoja** cuentan como actividades (las tareas resumen solo aparecen en el
+resumen EDT; las tareas hamaca no); el **día de referencia** es la fecha de estado del proyecto —
+sin fecha de estado el informe usa hoy y lo indica; fechas y holguras vienen del último **cálculo**
+(F5), un aviso señala un cronograma modificado desde entonces y la exportación a PDF siempre
+recalcula antes; cada informe tiene un pequeño bloque **Opciones del informe** que se recuerda
+entre sesiones. Los días laborables se abrevian *dl*.
+
+### Previsión (look-ahead)
+
+La lista para la reunión semanal de obra: todas las actividades de las próximas *N* semanas
+(cuatro por defecto) — lo que empieza, continúa o termina — más lo que ya debería haber ocurrido.
+Por fila: EDT, nombre, inicio y fin, duración restante, avance, holgura total, crítica o casi
+crítica, recursos asignados y un estado: **Empieza**, **En curso**, **Debió empezar** o
+**Atrasada**. Una actividad que abarca toda la ventana también aparece.
+
+### Crítico y casi crítico
+
+Qué actividades determinan el fin del proyecto y cuáles están a punto de hacerlo. Crítico viene del
+cálculo; *casi crítico* es una holgura total de 0 hasta el umbral de las opciones (5 días laborables
+por defecto) o la marca de las opciones de programación. Las tareas completadas se excluyen. Orden
+por ruta de holgura, luego holgura, luego inicio; con holgura libre y número de ruta.
+
+### Informe de avance
+
+El resumen periódico de «dónde estamos» en la fecha de estado. La cabecera da el fin de línea base
+y el fin previsto con la diferencia en días laborables, el avance **planificado** frente al **real**
+(ambos ponderados por duración sobre las tareas hoja; planificado sobre las fechas de la línea base
+activa, si no sobre el cronograma actual) y los recuentos por estado. Debajo, cinco secciones:
+completadas en el periodo anterior, en curso, empiezan en el próximo periodo, atrasadas y
+actividades críticas abiertas. El periodo (dos semanas por defecto) mira tanto atrás como adelante.
+
+### Salud del cronograma
+
+Una revisión automática del cronograma en el espíritu de los 14 puntos de DCMA. Cada comprobación
+recibe una gravedad y un recuento, con los hallazgos por tarea o relación: **errores** (holgura
+negativa, fecha límite incumplida, restricción violada, avance incoherente), **avisos** (inicio o
+fin abiertos, duración larga, adelantos, restricciones duras, avance fuera de secuencia) e
+**información** (casi crítico, holgura alta, retardos largos). Los umbrales están en las opciones;
+por defecto según DCMA: 44 días laborables para holgura alta y duración larga, 10 para retardos.
+Un cronograma limpio tiene cero errores.
+
+### Carga de recursos por semana
+
+Por recurso y semana, la demanda frente a la capacidad disponible (en unidades-día), la diferencia,
+el pico diario y si la semana está sobrecargada — el mismo cálculo que el histograma de la pestaña
+**Recursos**, en forma de tabla. Solo aparecen semanas con demanda; con *Solo semanas sobrecargadas*
+quedan únicamente los cuellos de botella.
+
+### Asignaciones de recursos
+
+Por recurso, las actividades asignadas: EDT, nombre, inicio y fin, duración restante, unidades por
+día, avance, crítica y estado. Las tareas completadas se excluyen por defecto. Con una ventana en
+semanas se convierte en la *previsión por recurso*. El resumen cuenta también las tareas sin recurso.
+
+### Resumen EDT
+
+El cronograma agregado por elemento EDT hasta un nivel a elegir — la vista de dirección. Por
+elemento: inicio y fin, inicio y fin de línea base, duración, avance ponderado por duración,
+diferencia del fin respecto a la línea base, menor holgura total y número de actividades, de ellas
+críticas, en curso y completadas. Elija un nivel (2 por defecto) o la EDT completa, con las
+actividades si lo desea.
+
 ## Imprimir y exportar
 
 El panel de configuración siempre tiene un botón **Imprimir...** al pie — abre una ventana de impresión aparte

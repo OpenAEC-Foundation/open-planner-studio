@@ -520,6 +520,23 @@ export function SettingsPanelContent() {
               </button>
             </div>
 
+            {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
+                van de stats-branch). Bewust een KNOP naast Benchmark en geen eigen tabblad — de
+                gemiddelde gebruiker heeft er niets aan. Sluit net als Benchmark eerst de
+                Instellingen-dialoog én Backstage zodat de dialoog vrij opent. */}
+            <div className="settings-section">
+              <h3>{t('settings.statsSection')}</h3>
+              <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showStatsDialog: true });
+                }}
+              >
+                {t('settings.statsOpen')}
+              </button>
+            </div>
+
             {/* AI-modus (T14) + automatisch starten: de enige twee AI-instellingen hier — de rest van
                 de bediening leeft op het AI-tabblad. AAN ⇒ tabblad verschijnt; UIT ⇒ tabblad weg +
                 bridge geforceerd gestopt (`applyAiModeLive` → `stopMcpServer` + status off). Via deze

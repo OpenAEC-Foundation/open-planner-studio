@@ -157,6 +157,70 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   await expect(relationCell.locator('.task-grid-relation-chip')).not.toHaveAttribute('title', /.+/);
 });
 
+test('tabel: relatiechips krijgen één kleur per richting, sturend als sterkere tint (issue #94)', async ({ page, ops: _ops }) => {
+  // Voorganger met haakje (FS+2d, wordt de sturende relatie) en een tweede voorganger die veel
+  // eerder klaar is en dus speling houdt (niet-sturend) — zo staan een sturende én een
+  // niet-sturende chip tegelijk in dezelfde kolom.
+  const [drivingPredId, slackPredId, mainId] = await seedProject(page, [
+    { name: 'Sturende voorganger', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Voorganger met speling', start: '2026-09-07', finish: '2026-09-09', durationDays: 3 },
+    { name: 'Hoofdtaak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  await page.evaluate(({ drivingPredId, slackPredId, mainId }) => {
+    const s = window.__OPS__!.store.getState();
+    // `seedProject` maakt alle taken `manuallyScheduled: true` (haar eigen invariant: een expliciet
+    // opgegeven start/finish moet blijven staan zoals opgegeven). Voor de hoofdtaak is dat hier
+    // ongewenst: `CPMSolver.forwardPass` slaat voor een manual taak de hele voorganger-drukberekening
+    // over (haar early/late komen rauw van haar eigen opgeslagen datums) en zet dus nooit een
+    // `seqConstraint` voor een relatie die op haar uitkomt — zonder dat kan `scheduleAnalysis`
+    // geen enkele binnenkomende relatie ooit als sturend (`relFloat === 0`) markeren. Om hier een
+    // echte sturende/niet-sturende relatie te krijgen moet de hoofdtaak dus automatisch gepland
+    // zijn, zodat haar vroege datums écht uit de twee voorgangerrelaties worden afgeleid.
+    s.updateTask(mainId, { manuallyScheduled: false });
+    s.addSequence({ predecessorId: drivingPredId, successorId: mainId, type: 'FINISH_START', lagDays: 2 });
+    s.addSequence({ predecessorId: slackPredId, successorId: mainId, type: 'FINISH_START', lagDays: 0 });
+    const columns = window.__OPS__!.store.getState().taskGridSurfaces['full-task-grid'].columns;
+    window.__OPS__!.store.getState().setTaskGridColumns('full-task-grid', [
+      ...columns,
+      { id: 'relation.predecessors', width: 240, pinned: false } as unknown as (typeof columns)[number],
+      { id: 'relation.successors', width: 160, pinned: false } as unknown as (typeof columns)[number],
+    ]);
+    window.__OPS__!.store.getState().runCPM();
+  }, { drivingPredId, slackPredId, mainId });
+  await openTable(page);
+
+  const chipColor = (chip: Locator, part: 'task-grid-relation-jump' | 'task-grid-relation-detail') =>
+    chip.locator(`.${part}`).evaluate(el => getComputedStyle(el).color);
+
+  const predecessorsCell = taskCell(page, mainId, 'relation.predecessors');
+  const drivingChip = predecessorsCell.locator('.task-grid-relation-chip--driving');
+  const slackChip = predecessorsCell.locator('.task-grid-relation-chip:not(.task-grid-relation-chip--driving)');
+  await expect(drivingChip).toHaveCount(1);
+  await expect(slackChip).toHaveCount(1);
+
+  // Binnen één chip zijn referentie en type/lag exact dezelfde kleur — voor zowel de sturende als
+  // de niet-sturende chip (klacht 1: niet langer alleen het WBS-deel gekleurd bij niet-sturend).
+  const drivingJump = await chipColor(drivingChip, 'task-grid-relation-jump');
+  const drivingDetail = await chipColor(drivingChip, 'task-grid-relation-detail');
+  expect(drivingJump).toBe(drivingDetail);
+  const slackJump = await chipColor(slackChip, 'task-grid-relation-jump');
+  const slackDetail = await chipColor(slackChip, 'task-grid-relation-detail');
+  expect(slackJump).toBe(slackDetail);
+  // Sturend is een sterkere tint van dezelfde voorgangerkleur, niet een andere kleur.
+  expect(drivingJump).not.toBe(slackJump);
+
+  // De opvolgerkant van diezelfde sturende relatie (gezien vanaf de voorganger) krijgt de
+  // opvolgerkleur — een andere rolkleur dan de voorgangerkant (klacht 2).
+  const successorsCell = taskCell(page, drivingPredId, 'relation.successors');
+  const successorChip = successorsCell.locator('.task-grid-relation-chip').first();
+  await expect(successorChip).toHaveCount(1);
+  const successorJump = await chipColor(successorChip, 'task-grid-relation-jump');
+  const successorDetail = await chipColor(successorChip, 'task-grid-relation-detail');
+  expect(successorJump).toBe(successorDetail);
+  expect(successorJump).not.toBe(drivingJump);
+  expect(successorJump).not.toBe(slackJump);
+});
+
 test('tabel: Delete op een verplichte cel meldt in de interfacetaal, niet in het Nederlands', async ({ page, ops: _ops }) => {
   const [id] = await seedProject(page, [
     { name: 'Verplichte naam', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },

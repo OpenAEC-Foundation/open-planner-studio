@@ -72,6 +72,69 @@ zakończenia projektu w dniach roboczych, jeśli takie istnieje. Zobacz przewodn
 [Baseline i postęp](docs://gids-baselines-voortgang), aby dowiedzieć się, jak zarejestrować baseline, zanim ten
 raport będzie mógł powiedzieć Ci coś użytecznego.
 
+## Siedem raportów tabelarycznych
+
+Pozostałe typy raportów to tabele pobierane wprost z ostatniego obliczenia. Łączy je kilka zasad:
+tylko **zadania liściowe** liczą się jako czynności (zadania sumaryczne pojawiają się wyłącznie w
+podsumowaniu WBS, zadania hamakowe wcale); **dzień odniesienia** to data statusu projektu — bez daty
+statusu raport przyjmuje dzisiaj i o tym informuje; daty i zapasy pochodzą z ostatniego
+**obliczenia** (F5), zmieniony od tego czasu harmonogram sygnalizuje notatka, a eksport PDF zawsze
+najpierw przelicza; każdy raport ma mały blok **Opcje raportu**, zapamiętywany między sesjami. Dni
+robocze skracane są do *dr*.
+
+### Prognoza (look-ahead)
+
+Lista na cotygodniową naradę budowy: wszystkie czynności najbliższych *N* tygodni (domyślnie
+czterech) — co się zaczyna, trwa lub kończy — plus to, co już powinno było się wydarzyć. W wierszu:
+WBS, nazwa, start i koniec, pozostały czas, ukończenie, zapas całkowity, krytyczne lub prawie
+krytyczne, przydzielone zasoby i status: **Rozpoczyna się**, **W toku**, **Powinno się rozpocząć**
+lub **Zaległe**. Czynność obejmująca całe okno również się pojawia.
+
+### Krytyczne i prawie krytyczne
+
+Które czynności wyznaczają koniec projektu, a które są tego bliskie. Krytyczność pochodzi z
+obliczenia; *prawie krytyczne* to zapas całkowity od 0 do progu z opcji (domyślnie 5 dni roboczych)
+lub oznaczenie z opcji harmonogramowania. Zadania ukończone są pomijane. Sortowanie według ścieżki
+zapasu, potem zapasu, potem startu; z zapasem swobodnym i numerem ścieżki.
+
+### Raport postępu
+
+Okresowy przegląd „gdzie jesteśmy” na datę statusu. Podsumowanie podaje koniec bazowy i
+prognozowany z różnicą w dniach roboczych, postęp **planowany** wobec **rzeczywistego** (oba ważone
+czasem trwania zadań liściowych; planowany na datach aktywnego planu bazowego, w przeciwnym razie na
+bieżącym harmonogramie) oraz liczby według stanu. Poniżej pięć sekcji: ukończone w minionym okresie,
+w toku, rozpoczynające się w następnym okresie, zaległe i otwarte czynności krytyczne. Okres
+(domyślnie dwa tygodnie) sięga tak samo wstecz, jak w przód.
+
+### Kondycja harmonogramu
+
+Automatyczny przegląd harmonogramu w duchu 14-punktowej oceny DCMA. Każda kontrola otrzymuje wagę i
+liczbę, a pod spodem ustalenia dla zadań lub relacji: **błędy** (ujemny zapas, niedotrzymany termin,
+naruszone ograniczenie, niespójny postęp), **ostrzeżenia** (otwarty początek lub koniec, długi czas
+trwania, wyprzedzenia, twarde ograniczenia, postęp poza kolejnością) i **informacje** (prawie
+krytyczne, duży zapas, długie zwłoki). Progi są w opcjach; domyślnie według DCMA: 44 dni robocze
+dla dużego zapasu i długiego czasu trwania, 10 dla zwłok. Czysty harmonogram ma zero błędów.
+
+### Obciążenie zasobów tygodniowo
+
+Dla zasobu i tygodnia zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach), różnica,
+dzienny szczyt i czy tydzień jest przeciążony — to samo obliczenie co histogram na karcie **Zasoby**,
+w postaci tabeli. Pokazywane są tylko tygodnie z zapotrzebowaniem; opcja *Tylko przeciążone
+tygodnie* zostawia same wąskie gardła.
+
+### Przydziały zasobów
+
+Dla zasobu przydzielone czynności: WBS, nazwa, start i koniec, pozostały czas, jednostki na dzień,
+ukończenie, krytyczność i status. Ukończone zadania są domyślnie pomijane. Z oknem w tygodniach
+staje się to *prognozą zasobów*. Podsumowanie liczy też zadania bez zasobu.
+
+### Podsumowanie WBS
+
+Harmonogram zwinięty według elementów WBS do wybranego poziomu — widok dla kierownictwa. Dla
+elementu: start i koniec, start i koniec bazowy, czas trwania, postęp ważony czasem trwania, różnica
+końca względem planu bazowego, najmniejszy zapas całkowity i liczba czynności, w tym krytycznych, w
+toku i ukończonych. Wybierz poziom (domyślnie 2) lub pełny WBS, opcjonalnie z samymi czynnościami.
+
 ## Drukowanie i eksportowanie
 
 Panel ustawień zawsze ma na dole przycisk **Drukuj...** — otwiera on osobne okno druku
