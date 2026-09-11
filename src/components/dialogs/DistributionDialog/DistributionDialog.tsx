@@ -33,6 +33,7 @@ import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { buildOccupancyAxis, expandDays } from '@/components/panels/occupancyAxis';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { documentFloatOn, useDistributionProposal } from './useDistributionProposal';
+import { assignDocColors } from './chartGeometry';
 import { PhaseStrip } from './PhaseStrip';
 import { BeforeAfterChart } from './BeforeAfterChart';
 
@@ -154,9 +155,15 @@ export function DistributionDialog() {
     return new Map(Object.entries(proposal.bookingByDay));
   }, [proposal]);
 
-  // De GEDEELDE tijdas van alle stroken plus de verticale schaal. De as loopt door tot voorbij de
-  // laatste geboekte dag, zodat een gestippelde staart (toegestaan-maar-niet-benut) er nog binnen
-  // past; werkdagen worden daarbij als kolommen van één dagbreedte getekend.
+  // De GEDEELDE tijdas van alle stroken plus de verticale schaal VAN DE STROKEN. De as loopt door
+  // tot voorbij de laatste geboekte dag, zodat een gestippelde staart (toegestaan-maar-niet-benut)
+  // er nog binnen past; werkdagen worden daarbij als kolommen van één dagbreedte getekend.
+  //
+  // `scaleMax` hier is bewust de PER-DOCUMENT-schaal: een fasestrook toont de vaste last plus de
+  // boeking van ÉÉN document, dus het hoogste van die per-document-stapelingen is precies de juiste
+  // bovengrens. De voor/na-grafiek stapelt ALLE documenten en heeft daarom een eigen, hogere schaal
+  // (`chartScaleMax` in `chartGeometry.ts`) — deze waarde daar hergebruiken liet het conflict
+  // letterlijk van de grafiek af vallen (fixronde-2 bevinding B1).
   const stripView = useMemo(() => {
     if (!tune || !proposal || proposal.blocked || !poolItem) return null;
     const rankIndex = new Map(rankRows.map((row, index) => [row.docId, index]));
@@ -197,6 +204,15 @@ export function DistributionDialog() {
     }
     return { axis, docs, scaleMax };
   }, [tune, proposal, poolItem, rankRows, bookingByDoc]);
+
+  // Eén kleurtoewijzing voor de hele dialoog (fixronde-2 bevinding B9): de fasestroken EN de
+  // legenda/staven van de voor/na-grafiek lezen dezelfde map, zodat "project B" boven en onder
+  // dezelfde kleur heeft. Stond dit in de grafiek, dan tekende de strook zijn boeking in het
+  // accentkleur en klopte de belofte "strook en grafiek matchen" alleen op de x-as.
+  const docColors = useMemo(
+    () => assignDocColors((stripView?.docs ?? []).map(doc => doc.docId)),
+    [stripView],
+  );
 
   const blockedDocTitles = useMemo(() => {
     if (!proposal?.blocked) return '';
@@ -487,6 +503,7 @@ export function DistributionDialog() {
                     dailyLoad={bookingByDoc.get(doc.docId) ?? {}}
                     fixedLoadByDay={proposal?.fixedLoadByDay ?? {}}
                     scaleMax={stripView?.scaleMax ?? 1}
+                    color={docColors.get(doc.docId) ?? 'var(--theme-accent)'}
                     endShiftWorkdays={doc.endShiftWorkdays}
                     ceiling={tune.ceilings[doc.docId] ?? null}
                     pinned={recorded || tune.pinned[doc.docId] === true}
@@ -509,8 +526,8 @@ export function DistributionDialog() {
                 <BeforeAfterChart
                   poolItem={poolItem}
                   axis={stripView?.axis ?? null}
-                  scaleMax={stripView?.scaleMax ?? 1}
                   docs={(stripView?.docs ?? []).map(doc => ({ docId: doc.docId, title: doc.title }))}
+                  docColors={docColors}
                   bookingByDay={proposal?.bookingByDay ?? {}}
                   afterLoadByDay={proposal?.afterLoadByDay ?? {}}
                   afterIncomplete={proposal?.afterIncomplete ?? false}

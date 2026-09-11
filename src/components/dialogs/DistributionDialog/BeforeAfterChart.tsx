@@ -1,13 +1,18 @@
 // B1c-plan3 taak 11b — de voor/na-preview van de verdeeldialoog (spec §7).
 //
 // Twee gestapelde histogrammen, VOOR (`proposal.bookingByDay`) boven NA (`proposal.afterLoadByDay`),
-// op de GEDEELDE tijdas (`occupancyAxis.ts` — dezelfde instantie als de fasestroken erboven, zodat
-// een strook en de grafiek per constructie op dezelfde x-posities uitkomen; spec §7 wil één as voor
-// stroken én grafiek, geen tweede berekening). De geometrie hieronder is een kleine, eigen kopie van
-// wat `ResourceOccupancyView.tsx`s `OccupancyHistogram` doet (gestapelde staven per document,
-// capaciteits-traplijn via `maxUnitsOn`, conflictband) — bewust GEEN gedeelde afhankelijkheid tussen
-// de twee: die histogram-memo zit vast aan zijn EIGEN as-opbouw (gatcompressie, datumlabels) en heeft
-// hier geen weerslag; een kleine, eigen versie is goedkoper dan een generieke component ervoor.
+// op de GEDEELDE tijdas (`occupancyAxis.ts` — dezelfde as-INSTANTIE als de fasestroken erboven, die
+// de dialoog één keer bouwt; spec §7 wil één as voor stroken én grafiek, geen tweede berekening).
+// De geometrie zelf staat in `chartGeometry.ts` (puur, headless getoetst) en is een kleine, eigen
+// variant van wat `ResourceOccupancyView.tsx`s `OccupancyHistogram` doet (gestapelde staven per
+// document, capaciteits-traplijn via `maxUnitsOn`, conflictband) — bewust GEEN gedeelde
+// afhankelijkheid tussen de twee: die histogram-memo zit vast aan zijn EIGEN as-opbouw
+// (gatcompressie, datumlabels) en heeft hier geen weerslag.
+//
+// DE VERTICALE SCHAAL IS EEN EIGEN SCHAAL (fixronde-2 bevinding B1). Deze grafiek STAPELT alle
+// documenten; de fasestroken tekenen er één per rij. Leende de grafiek de strookschaal, dan viel de
+// stapelsom boven de schaal en werd het conflict onzichtbaar. `chartScaleMax` rekent daarom over de
+// stapelsom van VOOR én NA plus de capaciteit; `PhaseStrip` houdt zijn eigen `scaleMax`.
 //
 // CONFLICTDEFINITIE (ongewijzigd t.o.v. het bezettingsoverzicht): som van de boeking over alle
 // documenten op een dag STRIKT GROTER dan `maxUnitsOn(poolItem, dag)` — geen tweede definitie. Voor
@@ -17,16 +22,23 @@
 // taak niet kon plaatsen (`afterIncomplete`): haar vraag staat dan NERGENS in `afterLoadByDay`, dus
 // de na-som onderschat de werkelijke behoefte. Daarom een aparte, expliciete tekortmarkering bij de
 // na-grafiek in plaats van een (foutieve) conflictband.
+//
+// DE CONFLICTBAND WORDT NA DE STAVEN GETEKEND (fixronde-2 bevinding B1). Ervóór schilderde een volle
+// staaf de band gewoon dicht. Nu ligt de band als transparante wassing mét omranding bovenop — een
+// conflictdag blijft dus herkenbaar, hoe hoog de staven er ook staan.
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Resource } from '@/types/resource';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { DOC_PALETTE } from '@/utils/documents';
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
+import {
+  CHART_PLOT, buildStackedChart, chartScaleMax, type StackedChartGeometry,
+} from './chartGeometry';
 
 const CHART = {
-  plotHeight: 72,
-  padTop: 4,
+  plotHeight: CHART_PLOT.height,
+  padTop: CHART_PLOT.padTop,
   padLeft: AXIS.padLeft,
   padRight: AXIS.padRight,
 };
@@ -46,12 +58,11 @@ export interface BeforeAfterChartProps {
   poolItem: Resource;
   /** De GEDEELDE as — dezelfde instantie als de fasestroken erboven; `null` ⇒ niets te tekenen. */
   axis: OccupancyAxis | null;
-  /** Bovengrens van de verticale as, gedeeld tussen VOOR en NA zodat de twee grafieken echt
-   *  vergelijkbaar zijn (dezelfde schaal die de dialoog al voor de fasestroken berekent). */
-  scaleMax: number;
   /** Alle documenten die op dit poolitem boeken, in RANGORDE — zelfde volgorde en zelfde docId's als
-   *  de fasestroken erboven, zodat de documentkleur overal hetzelfde is. */
+   *  de fasestroken erboven. */
   docs: BeforeAfterChartDoc[];
+  /** docId → kleur, door de dialoog bepaald en gedeeld met de fasestroken. */
+  docColors: Map<string, string>;
   /** `DistributionProposal.bookingByDay` — de VOOR-stand, letterlijk het grootboek. */
   bookingByDay: Record<string, Record<string, number>>;
   /** `DistributionProposal.afterLoadByDay` — de NA-stand, dezelfde boekhouding. */
@@ -62,92 +73,17 @@ export interface BeforeAfterChartProps {
   shortfallDocs: BeforeAfterChartShortfall[];
 }
 
-/** Stabiele, onderling onderscheidbare kleur per document — dezelfde toewijzingslogica (eerste-
- *  gezien-volgorde over `DOC_PALETTE`) als `ResourceOccupancyView.tsx`s `docColors`, hier opnieuw
- *  toegepast op de rangorde van DEZE dialoog zodat strook en grafiek altijd matchen. */
-function assignDocColors(docIds: string[]): Map<string, string> {
-  const colors = new Map<string, string>();
-  for (const docId of docIds) {
-    if (!colors.has(docId)) colors.set(docId, DOC_PALETTE[colors.size % DOC_PALETTE.length]);
-  }
-  return colors;
-}
-
-interface StackedChart {
-  bars: { key: string; x: number; y: number; w: number; h: number; fill: string }[];
-  conflictDays: { key: string; x: number }[];
-  capPaths: string[];
-  baselineY: number;
-}
-
-/** Bouwt de geometrie van ÉÉN gestapeld histogram (VOOR of NA) op de gedeelde `axis`. Puur — geen
- *  React, geen state; aangeroepen voor beide standen met dezelfde `docsOrder`/`docColors`/`scaleMax`
- *  zodat de twee grafieken per constructie vergelijkbaar zijn. */
-function buildStack(
-  axis: OccupancyAxis,
-  poolItem: Resource,
-  loadByDoc: Map<string, Record<string, number>>,
-  docsOrder: string[],
-  docColors: Map<string, string>,
-  scaleMax: number,
-): StackedChart {
-  const yOf = (units: number) =>
-    CHART.padTop + CHART.plotHeight * (1 - Math.min(1, Math.max(0, units) / Math.max(0.01, scaleMax)));
-  const bars: StackedChart['bars'] = [];
-  const conflictDays: StackedChart['conflictDays'] = [];
-  const capPaths: string[] = [];
-
-  for (const segment of axis.segments) {
-    let capPath = '';
-    let prevCap: number | null = null;
-    for (let i = 0; i < segment.days.length; i++) {
-      const iso = segment.days[i];
-      const x = segment.x0 + i * axis.dayWidth;
-
-      let acc = 0;
-      for (const docId of docsOrder) {
-        const units = loadByDoc.get(docId)?.[iso] ?? 0;
-        if (units <= 0) continue;
-        const y0 = yOf(acc);
-        acc += units;
-        const y1 = yOf(acc);
-        bars.push({
-          key: `${iso}-${docId}`,
-          x: x + 0.5,
-          y: y1,
-          w: Math.max(1, axis.dayWidth - 1),
-          h: Math.max(0.5, y0 - y1),
-          fill: docColors.get(docId) ?? DOC_PALETTE[0],
-        });
-      }
-
-      // Conflictdefinitie (moduleblok hierboven): som STRIKT GROTER dan de capaciteit — géén tweede
-      // definitie t.o.v. het bezettingsoverzicht.
-      const cap = maxUnitsOn(poolItem, iso);
-      if (acc > cap) conflictDays.push({ key: iso, x });
-
-      const y = yOf(cap);
-      if (prevCap === null) capPath += `M ${x} ${y}`;
-      else if (cap !== prevCap) capPath += ` L ${x} ${y}`;
-      capPath += ` L ${x + axis.dayWidth} ${y}`;
-      prevCap = cap;
-    }
-    capPaths.push(capPath);
-  }
-
-  return { bars, conflictDays, capPaths, baselineY: yOf(0) };
-}
-
 /** Eén van de twee gestapelde histogrammen (VOOR of NA), inclusief het `data-ops-distribution-
  *  chart-before`/`-after`-anker dat de browsertest gebruikt. */
 function MiniHistogram({
-  kind, label, axis, chart, width,
+  kind, label, axis, chart, width, docColors,
 }: {
   kind: 'before' | 'after';
   label: string;
   axis: OccupancyAxis;
-  chart: StackedChart;
+  chart: StackedChartGeometry;
   width: number;
+  docColors: Map<string, string>;
 }) {
   const height = CHART.padTop + CHART.plotHeight;
   return (
@@ -167,20 +103,13 @@ function MiniHistogram({
           aria-label={label}
           style={{ display: 'block' }}
         >
-          {chart.conflictDays.map(r => (
-            <rect
-              key={`c-${r.key}`}
-              x={r.x}
-              y={CHART.padTop}
-              width={axis.dayWidth}
-              height={CHART.plotHeight}
-              fill="var(--error)"
-              opacity={0.16}
-              data-ops-conflict-day
-            />
-          ))}
           {chart.bars.map(b => (
-            <rect key={b.key} x={b.x} y={b.y} width={b.w} height={b.h} fill={b.fill} />
+            <rect
+              key={b.key}
+              x={b.x} y={b.y} width={b.w} height={b.h}
+              fill={docColors.get(b.docId) ?? DOC_PALETTE[0]}
+              data-ops-doc-id={b.docId}
+            />
           ))}
           <line
             x1={CHART.padLeft} y1={chart.baselineY} x2={width - CHART.padRight} y2={chart.baselineY}
@@ -188,6 +117,23 @@ function MiniHistogram({
           />
           {chart.capPaths.map((d, i) => (
             <path key={`cap-${i}`} d={d} fill="none" stroke="var(--theme-text-dim)" strokeWidth={1.5} strokeDasharray="5 3" />
+          ))}
+          {/* NA de staven (zie het moduleblok): een volle staaf mag de conflictmarkering niet
+              overschilderen. Wassing + omranding, zodat de band ook bovenop kleur leesbaar blijft. */}
+          {chart.conflictDays.map(r => (
+            <rect
+              key={`c-${r.key}`}
+              x={r.x + 0.5}
+              y={CHART.padTop + 0.5}
+              width={Math.max(1, axis.dayWidth - 1)}
+              height={CHART.plotHeight - 1}
+              fill="var(--error)"
+              fillOpacity={0.16}
+              stroke="var(--error)"
+              strokeOpacity={0.8}
+              strokeWidth={1}
+              data-ops-conflict-day
+            />
           ))}
           {axis.breaks.map((x, i) => (
             <text key={`b-${i}`} x={x} y={CHART.padTop + CHART.plotHeight / 2} textAnchor="middle" fontSize={11} fill="var(--theme-text-muted)">⋯</text>
@@ -199,19 +145,21 @@ function MiniHistogram({
 }
 
 export function BeforeAfterChart({
-  poolItem, axis, scaleMax, docs, bookingByDay, afterLoadByDay, afterIncomplete, shortfallDocs,
+  poolItem, axis, docs, docColors, bookingByDay, afterLoadByDay, afterIncomplete, shortfallDocs,
 }: BeforeAfterChartProps) {
   const { t } = useTranslation('common');
 
-  const docColors = useMemo(() => assignDocColors(docs.map(d => d.docId)), [docs]);
   const docIds = useMemo(() => docs.map(d => d.docId), [docs]);
 
   const charts = useMemo(() => {
     if (axis === null) return null;
-    const before = buildStack(axis, poolItem, new Map(Object.entries(bookingByDay)), docIds, docColors, scaleMax);
-    const after = buildStack(axis, poolItem, new Map(Object.entries(afterLoadByDay)), docIds, docColors, scaleMax);
+    const capacityOn = (iso: string) => maxUnitsOn(poolItem, iso);
+    // Eén schaal voor beide standen, over de STAPELSOM — zie het moduleblok (bevinding B1).
+    const scaleMax = chartScaleMax(axis, capacityOn, [bookingByDay, afterLoadByDay]);
+    const before = buildStackedChart(axis, capacityOn, bookingByDay, docIds, scaleMax);
+    const after = buildStackedChart(axis, capacityOn, afterLoadByDay, docIds, scaleMax);
     return { before, after };
-  }, [axis, poolItem, bookingByDay, afterLoadByDay, docIds, docColors, scaleMax]);
+  }, [axis, poolItem, bookingByDay, afterLoadByDay, docIds]);
 
   if (axis === null || charts === null) {
     return (
@@ -229,6 +177,7 @@ export function BeforeAfterChart({
         axis={axis}
         chart={charts.before}
         width={axis.width}
+        docColors={docColors}
       />
       <MiniHistogram
         kind="after"
@@ -236,6 +185,7 @@ export function BeforeAfterChart({
         axis={axis}
         chart={charts.after}
         width={axis.width}
+        docColors={docColors}
       />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {docs.map(doc => (

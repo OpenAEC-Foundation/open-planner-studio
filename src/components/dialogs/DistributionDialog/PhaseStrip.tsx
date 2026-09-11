@@ -1,8 +1,10 @@
 // B1c-plan3 taak 9/10 — de FASESTROOK van één document in de verdeeldialoog (spec §6).
 //
-// WAT DE STROOK TOONT. Eén SVG-rij op de GEDEELDE tijdas (`occupancyAxis.ts` — dezelfde as als het
-// histogram in het bezettingsoverzicht, zodat een strook en dat histogram per constructie boven
-// elkaar uitkomen):
+// WAT DE STROOK TOONT. Eén SVG-rij op de tijdas die de dialoog één keer bouwt (`occupancyAxis.ts`)
+// en aan alle stroken én aan de voor/na-grafiek doorgeeft — binnen déze dialoog komen die dus per
+// constructie op dezelfde x-posities uit. Met het histogram van het bezettingsoverzicht deelt hij
+// alleen de as-CODE, niet de as-instantie: dat overzicht rekent op een andere richtbreedte
+// (`targetWidth` 760 tegen 560 hier) en heeft dus een eigen dagbreedte (bevinding B9).
 //  - de VASTE LAST als achtergrondband: wat gepinde/#63-documenten al van het poolitem opeisen;
 //  - de BOEKING van dít document als gevulde blokken over de dagen waarop het echt boekt. Dagen
 //    zonder boeking binnen de spanne blijven leeg — dat is precies wat een bestaande split of een
@@ -65,8 +67,15 @@ export interface PhaseStripProps {
   dailyLoad: Record<string, number>;
   /** ISO-dag → vaste last van gepinde/#63-documenten (uit `DistributionProposal`). */
   fixedLoadByDay: Record<string, number>;
-  /** Bovengrens van de verticale as in eenheden (capaciteit of hoogste stapeling). */
+  /** Bovengrens van de verticale as in eenheden (capaciteit of hoogste per-document-stapeling).
+   *  BEWUST de per-document-schaal: een strook toont de vaste last plus de boeking van ÉÉN
+   *  document. De voor/na-grafiek stapelt alle documenten en heeft daarom een eigen, hogere schaal
+   *  (`chartGeometry.ts`s `chartScaleMax`). */
   scaleMax: number;
+  /** De identiteitskleur van dít document, door de dialoog toegewezen (`assignDocColors`) en
+   *  gedeeld met de legenda en de staven van de voor/na-grafiek — daar hoort hetzelfde project
+   *  dezelfde kleur te hebben (fixronde-2 bevinding B9). */
+  color: string;
   /** Werkdagen die de einddatum van dít document opschuift in het huidige voorstel. */
   endShiftWorkdays: number;
   /** Het ingestelde plafond in werkdagen; `null` = onbegrensd. */
@@ -83,7 +92,7 @@ export interface PhaseStripProps {
 }
 
 export function PhaseStrip({
-  docId, title, axis, dailyLoad, fixedLoadByDay, scaleMax,
+  docId, title, axis, dailyLoad, fixedLoadByDay, scaleMax, color,
   endShiftWorkdays, ceiling, pinned, recorded, cannotMove, degraded,
   onTogglePin, onCeilingChange,
 }: PhaseStripProps) {
@@ -291,16 +300,18 @@ export function PhaseStrip({
               <rect key={`f-${r.key}`} x={r.x} y={r.y} width={dayWidth} height={r.h}
                 fill="var(--theme-text-dim)" opacity={0.35} />
             ))}
-            {/* De boeking van dít document; boekingsloze dagen binnen de spanne blijven leeg. */}
+            {/* De boeking van dít document, in de DOCUMENTKLEUR (bevinding B9) — dezelfde die de
+                legenda en de staven van de voor/na-grafiek eronder gebruiken; boekingsloze dagen
+                binnen de spanne blijven leeg. */}
             {bookedRects.map(r => (
               <rect key={`b-${r.key}`} x={r.x + 0.5} y={r.y} width={Math.max(1, dayWidth - 1)} height={r.h}
-                fill="var(--theme-accent)" opacity={pinned ? 0.45 : 0.85} />
+                fill={color} opacity={pinned ? 0.45 : 0.85} data-ops-doc-id={docId} />
             ))}
             {/* Toegestaan maar niet benut. */}
             {tailWorkdays > 0 && dayWidth > 0 && (
               <rect
                 x={usedEndX} y={2} width={Math.max(1, handleX - usedEndX)} height={STRIP_HEIGHT - 4}
-                fill="none" stroke="var(--theme-accent)" strokeWidth={1} strokeDasharray="3 3"
+                fill="none" stroke={color} strokeWidth={1} strokeDasharray="3 3"
                 data-ops-distribution-tail
               />
             )}

@@ -342,6 +342,33 @@ test('voor/na-preview: de na-stand blijft binnen de capaciteitslijn', async ({ p
   // De conflictdagen staan in de VOOR-stand rood en in de NA-stand niet meer.
   await expect(page.locator('[data-ops-distribution-chart-before] [data-ops-conflict-day]')).not.toHaveCount(0);
   await expect(page.locator('[data-ops-distribution-chart-after] [data-ops-conflict-day]')).toHaveCount(0);
+
+  // Fixronde-2 bevinding B1: de VOOR-stand is een GESTAPELDE grafiek, dus hij moet allebei de
+  // documenten ECHT laten zien. Leende hij de per-document-schaal van de fasestroken, dan klom de
+  // eerste staaf naar volle hoogte en zakte de tweede op de zichtbaarheidsbodem van 0,5 px — het
+  // conflict werd dan door de schaal weggepoetst. Gemeten in echte px op het scherm, per document.
+  const barHeights = await page.locator('[data-ops-distribution-chart-before] rect[data-ops-doc-id]')
+    .evaluateAll(nodes => {
+      const byDoc = new Map<string, number>();
+      for (const node of nodes) {
+        const docId = node.getAttribute('data-ops-doc-id') ?? '';
+        const height = node.getBoundingClientRect().height;
+        byDoc.set(docId, Math.max(byDoc.get(docId) ?? 0, height));
+      }
+      return [...byDoc.entries()];
+    });
+  expect(barHeights.length).toBe(2);
+  for (const [docId, height] of barHeights) {
+    expect(height, `staafhoogte van ${docId}`).toBeGreaterThan(10);
+  }
+
+  // En de conflictband wordt NÁ de staven getekend, dus een volle staaf schildert 'm niet dicht:
+  // hij heeft een echte, meetbare bounding box.
+  const conflictBox = await page.locator('[data-ops-distribution-chart-before] [data-ops-conflict-day]')
+    .first().boundingBox();
+  expect(conflictBox).not.toBeNull();
+  expect(conflictBox!.width).toBeGreaterThan(0);
+  expect(conflictBox!.height).toBeGreaterThan(0);
 });
 
 // --- B1c-plan3 taak 12 — Toepassen, de terugweg en de voorstel-invalidatie (spec §5/§6a) ---------

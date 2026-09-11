@@ -673,6 +673,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SCRATCHDOCCHECK="$DIR/.scratch-document.mjs"
   if bundle_check "$DIR/check-scratch-document.ts" "$SCRATCHDOCCHECK"; then node "$SCRATCHDOCCHECK" || STATUS=1; fi
 
+  # B1c-etappe3 fixronde 2: de pure laag achter de verdeeldialoog — de verticale schaal van de
+  # GESTAPELDE voor/na-grafiek (die is de stapelsom over alle documenten, niet de per-document-
+  # schaal van de fasestroken; bevinding B1) plus de volgorde-ongevoelige `diffReason` (B11).
+  DISTCHARTCHECK="$DIR/.distribution-chart-scale.mjs"
+  if bundle_check "$DIR/check-distribution-chart-scale.ts" "$DISTCHARTCHECK"; then node "$DISTCHARTCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"

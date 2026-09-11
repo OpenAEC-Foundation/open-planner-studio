@@ -3,9 +3,13 @@
 // Deze module is LETTERLIJK de as-opbouw die tot nu toe binnen `OccupancyHistogram`s memo stond
 // (`ResourceOccupancyView.tsx`, §5a): domein → gatcompressie → dagbreedte → segmenten/breuken.
 // Er is bewust geen gedragswijziging bij de verhuizing: het histogram roept nu dezelfde code aan
-// die de fasestroken van de verdeeldialoog gebruiken, zodat een strook en het histogram eronder
-// per constructie op dezelfde x-posities uitkomen. Een tweede, handgeschreven as in de dialoog zou
-// daar stilzwijgend van kunnen afwijken.
+// die de fasestroken van de verdeeldialoog gebruiken. Wat dat oplevert is ÉÉN as-DEFINITIE, geen
+// gedeelde as-instantie: binnen de verdeeldialoog bouwt de dialoog de as één keer en gebruiken de
+// stroken én de voor/na-grafiek diezelfde instantie, dus dáár liggen ze per constructie op dezelfde
+// x-posities. Tegenover het bezettingshistogram geldt dat NIET — dat rekent op een andere
+// richtbreedte (`targetWidth` 760 tegen 560 in de dialoog) en dus op een eigen dagbreedte
+// (bevinding B9, fixronde-2). Een tweede, handgeschreven as-implementatie zou wél stilzwijgend van
+// de gatcompressie en de segmentopbouw kunnen afwijken; dat is wat deze module voorkomt.
 //
 // PUUR, GEEN REACT. De aanroeper bepaalt zelf wat er ín die as getekend wordt (staven, banden,
 // handles) en hoe hoog de plot is; deze module kent alleen de horizontale indeling.
