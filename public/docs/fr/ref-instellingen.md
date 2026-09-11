@@ -32,6 +32,19 @@ article les regroupe sous **Général**, **Langue** et **Chronologie / Zoom**.
 - **Mode IA** — **Activer le mode IA** affiche l'onglet de ruban **IA** avec le pont MCP, permettant à un assistant IA de travailler avec votre planning via le Model Context Protocol ; le désactiver arrête immédiatement un pont en cours d'exécution. **Démarrer la passerelle automatiquement** (disponible uniquement avec le mode IA activé) met le pont en service dès le démarrage de l'application, sans devoir d'abord ouvrir l'onglet IA — application de bureau uniquement. Voir le guide de l'assistant IA intégré à l'application pour le tableau complet.
 - **Terminal de débogage** — **Activer le terminal de débogage** affiche le panneau de journal pour le dépannage.
 
+## Statistiques (bouton de l’onglet Application)
+
+Ouvrez via **Paramètres** → onglet **Application** → **Statistiques…** ; c’est volontairement une fenêtre séparée derrière un bouton, pas un onglet à part.
+
+Combien de fois Open Planner Studio a été téléchargé, par système d’exploitation et par version. Les chiffres proviennent des compteurs de téléchargement publics de GitHub Releases et sont actualisés chaque semaine ; l’application se contente de les lire, rien n’est collecté ni envoyé vous concernant.
+
+- **Téléchargements par système d’exploitation** — par système, le nombre de téléchargements, réparti entre installateurs (ce qu’une personne télécharge) et mises à jour (ce que le programme de mise à jour intégré récupère). Pour Linux, les deux forment un seul chiffre : le programme de mise à jour récupère le même `.deb`/`.rpm`/`.AppImage` que vous téléchargez aussi manuellement. Sous Linux, seul le fichier snap compte comme installateur.
+- **Vérifications de mise à jour depuis l’application** — combien de fois une installation de bureau a cherché une nouvelle version au démarrage ; une mesure approximative de l’utilisation active, pas un téléchargement.
+- **Par version** — les mêmes chiffres par version ; les six plus récentes par défaut, avec **Afficher les … versions** pour le reste.
+- **Source** — la date des chiffres et **Actualiser maintenant**. L’onglet conserve les derniers chiffres récupérés pendant une demi-heure ; si l’actualisation échoue, ils restent visibles avec un avertissement.
+
+Les installations via le Snap Store ne passent pas par GitHub et ne figurent pas ici.
+
 ## Onglet Langue
 
 - **Langue** — la langue d'affichage de l'application, appliquée immédiatement.

@@ -48,5 +48,19 @@ Minder vaak gebruikte instellingen: de AI-assistent, foutopsporing en apparaat-/
 - **AI-modus** — **AI-modus inschakelen** toont het lint-tabblad **AI** met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken; uitzetten stopt een lopende bridge meteen. **Bridge automatisch starten** (alleen beschikbaar met AI-modus aan) zet de bridge meteen live bij het opstarten van de app, zonder eerst het AI-tabblad te hoeven openen — alleen in de desktop-app. De verdere AI-verbindingsopties (poort, token) staan op het AI-tabblad zelf. Zie de in-app AI-assistent-gids voor het volledige verhaal.
 - **Debug-terminal** — **Debug-terminal inschakelen** toont het logpaneel voor probleemonderzoek.
 - **Benchmark** — opent de ingebouwde benchmark-tool, om de reken-/renderprestaties van deze machine te meten. Je kiest een planningsgrootte en het aantal resources; de gegenereerde planning heeft een echt relatienetwerk, waarin elke taak zonder subtaken minstens één relatie krijgt. Kies nul resources om te zien wat de resourcebelasting zelf kost.
+- **Statistieken** — opent **Statistieken…**: hoe vaak Open Planner Studio is gedownload, per besturingssysteem en per release. Bewust een knop naast Benchmark en geen eigen tab.
 - **Rondleiding** — **Rondleiding starten** speelt de introductie-rondleiding opnieuw af. Dezelfde herstart zit ook in ribbontab **Beeld** → **Rondleiding** en in de Backstage (**Bestand** → **Rondleiding starten**).
 - **Versie** — het versienummer van de app (alleen-lezen), met een link **Controleren op updates** die het update-venster opent. Updates installeren werkt alleen in de desktop-app; Snap- en AppImage-installaties updaten via hun eigen kanaal. Los daarvan verschijnt de eerste keer dat je de app opent nadat die zichzelf automatisch heeft bijgewerkt, vanzelf een eenmalige "Je bent net geüpdatet"-dialoog — de versiesprong, het grootteverschil van de installer, het aantal dagen sinds de vorige release en de GitHub-releasebeschrijving, voor zover die op te halen waren. Dat is een ander, automatisch moment dan de handmatige link **Controleren op updates** hierboven.
+
+## Statistieken (knop op tab Geavanceerd)
+
+Open via **Instellingen** → tab **Geavanceerd** → **Statistieken…**; het is bewust een apart venster achter een knop en geen eigen tab.
+
+Hoe vaak Open Planner Studio is gedownload, per besturingssysteem en per release. De cijfers komen uit de openbare downloadtellers van GitHub Releases en worden wekelijks bijgewerkt; de app leest alleen, er wordt niets van jou verzameld of verstuurd.
+
+- **Downloads per besturingssysteem** — per systeem het aantal downloads, uitgesplitst in installers (wat een mens downloadt) en updates (wat de in-app updater ophaalt). Bij Linux staan die twee samen in één getal: de updater haalt daar hetzelfde `.deb`/`.rpm`/`.AppImage` op dat je ook handmatig downloadt. Als installer telt op Linux alleen het snap-bestand.
+- **Updatecontroles vanuit de app** — hoe vaak een desktop-installatie bij het opstarten naar een nieuwe versie heeft gekeken; een ruwe maat voor actief gebruik, geen download.
+- **Per release** — dezelfde cijfers per versie; standaard de zes nieuwste, met **Alle … releases tonen** voor de rest.
+- **Bron** — de peildatum van de cijfers en **Nu vernieuwen**. Het venster onthoudt de laatst opgehaalde stand een half uur; lukt vernieuwen niet, dan blijft die stand zichtbaar met een melding.
+
+Installaties via de Snap Store lopen niet via GitHub en ontbreken hier.

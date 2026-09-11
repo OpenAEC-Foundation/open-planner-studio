@@ -524,6 +524,23 @@ export function SettingsPanelContent() {
               </button>
             </div>
 
+            {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
+                van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
+                tabblad — de gemiddelde gebruiker heeft er niets aan. Sluit net als Benchmark eerst
+                de Instellingen-dialoog én Backstage zodat de dialoog vrij opent. */}
+            <div className="settings-section">
+              <h3>{t('settings.statsSection')}</h3>
+              <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
+              <button
+                className="settings-link"
+                onClick={() => {
+                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showStatsDialog: true });
+                }}
+              >
+                {t('settings.statsOpen')}
+              </button>
+            </div>
+
             {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
                 Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).

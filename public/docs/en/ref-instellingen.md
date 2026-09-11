@@ -48,5 +48,19 @@ Less frequently used settings: the AI assistant, troubleshooting and device/vers
 - **AI mode** — **Enable AI mode** shows the **AI** ribbon tab with the MCP bridge, so an AI assistant can work with your schedule over the Model Context Protocol; turning it off stops a running bridge immediately. **Start bridge automatically** (only available with AI mode on) brings the bridge live as soon as the app starts, without visiting the AI tab first — desktop app only. The rest of the AI connection options (port, token) live on the AI tab itself. See the in-app AI-assistant guide for the full picture.
 - **Debug terminal** — **Enable debug terminal** shows the log panel for troubleshooting.
 - **Benchmark** — opens the built-in benchmark tool, for measuring this machine's scheduling/rendering performance. You pick a schedule size and a number of resources; the generated schedule has a real relationship network, in which every task without subtasks gets at least one relationship. Pick zero resources to see what the resource load itself costs.
+- **Statistics** — opens **Statistics…**: how often Open Planner Studio has been downloaded, per operating system and per release. Deliberately a button next to Benchmark, not a tab of its own.
 - **Tour** — **Start tour** replays the introductory tour. The same restart also sits on the **View** ribbon tab → **Tour** and in the Backstage (**File** → **Start tour**).
 - **Version** — the app's version number (read-only), with a **Check for updates** link that opens the update window. Installing updates only works in the desktop app; Snap and AppImage installs update through their own channel. Separately, the first time you open the app after it auto-updated itself, a one-off "You've just been updated" dialog appears on its own — the version jump, the installer size difference, the days since the previous release and the GitHub release notes, whichever of those it could fetch. That's a different, automatic moment from the manual **Check for updates** link here.
+
+## Statistics (button on the Advanced tab)
+
+Open via **Settings** → **Advanced** tab → **Statistics…**; it is deliberately a separate window behind a button, not a tab of its own.
+
+How often Open Planner Studio has been downloaded, per operating system and per release. The figures come from the public download counters of GitHub Releases and are refreshed weekly; the app only reads them, nothing is collected or sent about you.
+
+- **Downloads per operating system** — per system the number of downloads, split into installers (what a person downloads) and updates (what the in-app updater fetches). For Linux the two are one figure: the updater fetches the same `.deb`/`.rpm`/`.AppImage` that you also download by hand. On Linux only the snap file counts as an installer.
+- **Update checks from the app** — how often a desktop install looked for a new version at start-up; a rough measure of active use, not a download.
+- **Per release** — the same figures per version; the six newest by default, with **Show all … releases** for the rest.
+- **Source** — the date the figures were taken and **Refresh now**. The window remembers the last fetched figures for half an hour; if refreshing fails, those stay visible with a notice.
+
+Installs via the Snap Store do not go through GitHub and are not included here.

@@ -30,7 +30,8 @@
     "verify:gantt-boundaries": "node scripts/verify-gantt-boundaries.mjs",
     "verify:cycles": "node scripts/verify-cycles.mjs",
     "verify:audit": "npm audit --audit-level=high",
-    "publish:wiki": "node scripts/publish-wiki.mjs"
+    "publish:wiki": "node scripts/publish-wiki.mjs",
+    "stats:downloads": "node scripts/download-stats.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

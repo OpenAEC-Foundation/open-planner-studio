@@ -42,6 +42,69 @@ Projedeki her kilometre taşının bir tablosu: WBS, ad, tür (otomatik/başlang
 
 Mevcut planı etkin baseline ile karşılaştırır: baseline başlangıç/bitiş ile mevcut başlangıç/bitişi, başlangıç ve bitiş için iş günü farkını ve görev başına bir durumu (planında / geç / erken / yeni / kaldırıldı). Etkin bir baseline yoksa, ekran bunu boş bir rapor göstermek yerine açıkça belirtir. Özet bloğu ayrıca, varsa, projenin bitiş tarihindeki kaymayı iş günü cinsinden gösterir. Bu rapor size yararlı bir şey söyleyebilmesi için önce bir baseline'ın nasıl kaydedileceği için [Baseline'lar & ilerleme](docs://gids-baselines-voortgang) kılavuzuna bakın.
 
+## Yedi tablo raporu
+
+Diğer rapor türleri doğrudan son hesaplamadan alınan tablolardır. Birkaç ortak kural vardır: yalnızca
+**yaprak görevler** aktivite sayılır (özet görevler yalnızca İKY özetinde görünür; hamak görevler hiç
+görünmez); **referans günü** projenin durum tarihidir — durum tarihi yoksa rapor bugünü kullanır ve
+bunu belirtir; tarihler ve bolluklar son **hesaplamadan** (F5) gelir, o zamandan beri değişen bir
+program bir notla belirtilir ve PDF dışa aktarımı her zaman önce yeniden hesaplar; her raporun
+oturumlar arasında hatırlanan küçük bir **Rapor seçenekleri** bloğu vardır. İş günleri *ig* olarak
+kısaltılır.
+
+### İleriye bakış (look-ahead)
+
+Haftalık şantiye toplantısının listesi: önümüzdeki *N* haftanın (varsayılan dört) tüm aktiviteleri —
+ne başlıyor, ne sürüyor, ne bitiyor — artı çoktan olmuş olması gerekenler. Satır başına: İKY, ad,
+başlangıç ve bitiş, kalan süre, tamamlanma, toplam bolluk, kritik veya kritiğe yakın, atanan
+kaynaklar ve bir durum: **Başlıyor**, **Devam ediyor**, **Başlamış olmalıydı** veya **Gecikmiş**.
+Tüm pencereyi kapsayan bir aktivite de listelenir.
+
+### Kritik ve kritiğe yakın
+
+Hangi aktiviteler proje bitişini belirliyor ve hangileri buna yaklaşıyor. Kritiklik hesaplamadan
+gelir; *kritiğe yakın*, seçeneklerdeki eşiğe kadar (varsayılan 5 iş günü) 0'dan başlayan toplam
+bolluk ya da programlama seçeneklerindeki işaretlemedir. Tamamlanan görevler hariç tutulur. Bolluk
+yolu, sonra bolluk, sonra başlangıca göre sıralanır; serbest bolluk ve yol numarasıyla.
+
+### İlerleme raporu
+
+Durum tarihinde periyodik "neredeyiz" özeti. Özet, temel ve tahmini bitişi iş günü farkıyla,
+**planlanan** ile **gerçekleşen** ilerlemeyi (her ikisi de yaprak görevlerin süresine göre
+ağırlıklı; planlanan etkin temel planın tarihlerinde, yoksa mevcut programda) ve duruma göre
+sayımları verir. Altında beş bölüm: geçen dönemde tamamlananlar, devam edenler, gelecek dönemde
+başlayanlar, gecikmişler ve açık kritik aktiviteler. Dönem (varsayılan iki hafta) geriye baktığı
+kadar ileriye de bakar.
+
+### Program sağlığı
+
+DCMA 14 maddelik değerlendirme ruhunda otomatik bir program incelemesi. Her kontrol bir önem ve
+sayı alır; altında görev veya ilişki başına bulgular: **hatalar** (negatif bolluk, kaçırılan son
+tarih, ihlal edilen kısıt, tutarsız ilerleme), **uyarılar** (açık başlangıç veya bitiş, uzun süre,
+öne almalar, sert kısıtlar, sıra dışı ilerleme) ve **bilgi** (kritiğe yakın, yüksek bolluk, uzun
+gecikmeler). Eşikler seçeneklerdedir; varsayılan DCMA'ya göre: yüksek bolluk ve uzun süre için 44
+iş günü, gecikmeler için 10. Temiz bir programda sıfır hata vardır.
+
+### Haftalık kaynak yükü
+
+Kaynak ve hafta başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve haftanın
+aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo halinde.
+Yalnızca gereksinimi olan haftalar listelenir; *Yalnızca aşırı yüklü haftalar* ile sadece darboğazlar
+kalır.
+
+### Kaynak atamaları
+
+Kaynak başına atanan aktiviteler: İKY, ad, başlangıç ve bitiş, kalan süre, günlük birim,
+tamamlanma, kritik ve durum. Tamamlanan görevler varsayılan olarak hariçtir. Hafta cinsinden bir
+pencereyle *kaynak ileriye bakışı* olur. Özet, kaynaksız görevleri de sayar.
+
+### İKY özeti
+
+Program, seçilebilir bir seviyeye kadar İKY öğesi başına toplanır — yönetim görünümü. Öğe başına:
+başlangıç ve bitiş, temel başlangıç ve bitiş, süre, süreye göre ağırlıklı ilerleme, temel plana göre
+bitiş farkı, en küçük toplam bolluk ve aktivite sayısı; bunların kritik, devam eden ve tamamlanan
+kısmı. Bir seviye (varsayılan 2) veya tam İKY seçin, isterseniz aktivitelerin kendisiyle.
+
 ## Yazdırma ve dışa aktarma
 
 Ayarlar panelinin altında her zaman bir **Yazdır...** düğmesi vardır — raporu içeren ayrı bir yazdırma penceresi açar ve hemen tarayıcı/işletim sistemi yazdırma iletişim penceresini tetikler. Gantt raporu için, o pencere seçilen kağıt boyutunu ve yönü kullanır; kilometre taşı ve variance raporları tabloyu gösterildiği gibi yazdırır.
