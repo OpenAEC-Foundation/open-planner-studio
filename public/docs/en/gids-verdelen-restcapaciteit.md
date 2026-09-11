@@ -23,6 +23,18 @@ at the top. You close it with the cross in the top-right corner, with Esc, or wi
 bottom — in all three cases nothing changes, and the occupancy overview simply stays underneath the
 dialog, so there's no separate "back" step needed.
 
+### Trying it out with the examples
+
+The bundled showcases already carry this conflict. Via **File → Examples**, open all three showcases
+— [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc),
+[Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) and
+[Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) — each in its
+own tab, press F5 in every project and then go to **Resources → Occupancy**. The **Masonry crew** row
+is red: there is only one such crew, and in early June it is laying the walls of the family home
+extension and of house 6 in De Akkers at the same time. Click **Distribute…** on that row and let
+**Distribute automatically** build the proposal; then change the ranking, or put a ceiling on one of
+the projects, and watch what happens to the proposed shift.
+
 A few situations block the distribution right away, with a clear reason:
 
 - One of the involved projects hasn't been calculated yet — calculate it first (F5) in that project.

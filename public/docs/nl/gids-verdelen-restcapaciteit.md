@@ -24,6 +24,18 @@ het gaat. Je sluit hem met het kruisje rechtsboven of met Esc, of onderaan met *
 alle drie de gevallen verandert er niets, en het bezettingsoverzicht blijft gewoon onder de dialoog
 staan, dus er is geen aparte "terug"-stap nodig.
 
+### Uitproberen met de voorbeelden
+
+De meegeleverde showcases dragen dit conflict zelf al. Open via **Bestand → Voorbeelden** alle drie
+de showcases — [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc),
+[Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) en
+[Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) — elk in een
+eigen tabblad, druk in elk project F5 en ga dan naar **Resources → Bezetting**. De rij **Masonry
+crew** staat rood: die ploeg is er maar één, en begin juni metselt hij tegelijk aan de uitbouw van de
+eengezinswoning én aan woning 6 van De Akkers. Klik daar op **Verdelen…** en laat **Verdeel
+automatisch** het voorstel maken; verander daarna eens de rangorde of zet een plafond op een project,
+en kijk wat er met de voorgestelde verschuiving gebeurt.
+
 Een paar situaties blokkeren de verdeling meteen, met een duidelijke reden:
 
 - Een van de betrokken projecten is nog niet doorgerekend — reken het eerst door (F5) in dat
