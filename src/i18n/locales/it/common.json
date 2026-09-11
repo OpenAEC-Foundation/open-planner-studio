@@ -747,7 +747,10 @@
       "undoAll": "Annulla tutto",
       "undoneAll": "Tutto è stato annullato.",
       "undonePartial": "Annullato, tranne {{docs}} — lì nel frattempo si è lavorato.",
-      "selectHint": "Scegli un articolo di libreria con un conflitto per iniziare a distribuire."
+      "selectHint": "Scegli un articolo di libreria con un conflitto per iniziare a distribuire.",
+      "noConflicts": "Nessun elemento della libreria è attualmente prenotato due volte nei progetti aperti.",
+      "pickAnother": "Scegli un altro elemento…",
+      "pickAnotherApplied": "Scegli un altro elemento (la barra di annullamento scompare)…"
     },
     "color": "Colore"
   },

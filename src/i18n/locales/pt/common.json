@@ -747,7 +747,10 @@
       "undoAll": "Anular tudo",
       "undoneAll": "Tudo foi anulado.",
       "undonePartial": "Anulado, exceto {{docs}} — nesses entretanto já se trabalhou.",
-      "selectHint": "Escolha um item de biblioteca com um conflito para começar a distribuir."
+      "selectHint": "Escolha um item de biblioteca com um conflito para começar a distribuir.",
+      "noConflicts": "Nenhum item da biblioteca está atualmente com reserva dupla nos projetos abertos.",
+      "pickAnother": "Escolher outro item…",
+      "pickAnotherApplied": "Escolher outro item (a barra de desfazer desaparece)…"
     },
     "color": "Cor"
   },

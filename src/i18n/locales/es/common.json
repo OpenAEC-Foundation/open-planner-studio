@@ -747,7 +747,10 @@
       "undoAll": "Deshacer todo",
       "undoneAll": "Todo se ha deshecho.",
       "undonePartial": "Deshecho, excepto {{docs}} — en esos ya se ha trabajado mientras tanto.",
-      "selectHint": "Elige un artículo de biblioteca con un conflicto para empezar a repartir."
+      "selectHint": "Elige un artículo de biblioteca con un conflicto para empezar a repartir.",
+      "noConflicts": "Ningún elemento de la biblioteca tiene actualmente doble reserva en los proyectos abiertos.",
+      "pickAnother": "Elegir otro elemento…",
+      "pickAnotherApplied": "Elegir otro elemento (la barra de deshacer desaparece)…"
     },
     "color": "Color"
   },

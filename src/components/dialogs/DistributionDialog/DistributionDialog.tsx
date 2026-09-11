@@ -6,6 +6,12 @@
 // gewoon zichtbaar ONDER de dialoog — de verdeling is een handeling óp dat overzicht, geen
 // vervanging ervan.
 //
+// TWEE STANDEN (bedieningsreparatie 2026-09-11). Zonder gekozen poolitem (`ui.levelingDistribution
+// === null`) is dit een KIEZER: de lijst met bibliotheekitems die nú een conflict hebben over de
+// geopende documenten (`DistributionPicker`), plus alleen een sluitknop. Pas met een gekozen item
+// verschijnen het voorstel en de knoppenbalk. De weg terug is "Ander item kiezen…" onderin, die de
+// tune-state op `null` zet — inclusief het `applied`-record, want dat hoort bij dít item.
+//
 // TOEPASSEN EN DE TERUGWEG (taak 12, spec §5). De knop is nooit "gewoon uit": hij is
 // UITGESCHAKELD MET REDEN, in `applyGate` hieronder — een knop die er niet is (of er grijs staat
 // zonder uitleg) laat de gebruiker raden. Na een geslaagd Toepassen woont de terugweg HIER, in een
@@ -35,6 +41,7 @@ import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { documentFloatOn, useDistributionProposal } from './useDistributionProposal';
 import { assignDocColors } from './chartGeometry';
 import { PhaseStrip } from './PhaseStrip';
+import { DistributionPicker } from './DistributionPicker';
 import { BeforeAfterChart } from './BeforeAfterChart';
 
 export function DistributionDialog() {
@@ -373,9 +380,14 @@ export function DistributionDialog() {
           <div className="text-sm font-semibold truncate" style={{ fontFamily: 'var(--font-heading)' }}>
             {tune ? itemName : t('resource.distribution.title')}
           </div>
-          <div className="text-[11px] text-text-secondary truncate">
-            {tune ? t('resource.distribution.subtitle', { item: itemName }) : t('resource.distribution.selectHint')}
-          </div>
+          {/* De kiezer-stand zet zijn eigen uitleg boven de lijst (en zijn eigen zin wanneer er
+              niets te kiezen valt); die hier herhalen gaf een kop die "kies een conflict" zei boven
+              een paneel dat meldt dat er geen conflict is. */}
+          {tune && (
+            <div className="text-[11px] text-text-secondary truncate">
+              {t('resource.distribution.subtitle', { item: itemName })}
+            </div>
+          )}
         </div>
         <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px] shrink-0" title={t('resource.distribution.back')}>
           <X size={16} />
@@ -384,9 +396,10 @@ export function DistributionDialog() {
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
         {!tune ? (
-          <div className="text-text-secondary" data-ops-distribution-select-hint>
-            {t('resource.distribution.selectHint')}
-          </div>
+          /* (1b) KIEZER-STAND (bedieningsreparatie 2026-09-11). Zonder gekozen poolitem stond hier
+             alleen `selectHint` plus drie uitgeschakelde knoppen — een dialoog waarin niets kon.
+             Nu is de lege stand de keuzelijst zelf; zie `DistributionPicker`. */
+          <DistributionPicker />
         ) : proposal?.blocked ? (
           /* (2) Blokkade — één vorm voor alle drie de redenen (§3.1: nooit een stille uitsluiting). */
           <div
@@ -587,8 +600,26 @@ export function DistributionDialog() {
         )}
       </div>
 
-      {/* (7) Stale-strook + knoppenbalk */}
+      {/* (7) Stale-strook + knoppenbalk.
+
+          IN DE KIEZER-STAND STAAT HIER NIETS BEHALVE "SLUITEN" (bedieningsreparatie 2026-09-11).
+          "Verdeel automatisch", "Toepassen" en "Verwerpen" slaan zonder gekozen poolitem nergens
+          op; ze stonden er grijs, en drie grijze knoppen lezen als "deze functie is stuk" in plaats
+          van "kies eerst iets". De handeling die hier wél bestaat — een item kiezen — staat in het
+          paneel erboven. */}
       <div className="border-t border-border px-4 py-3 flex flex-col gap-2 text-xs bg-surface">
+        {!tune ? (
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover"
+              onClick={close}
+            >
+              {t('close')}
+            </button>
+          </div>
+        ) : (
+        <>
         {degraded && (
           <div className="text-text-secondary" data-ops-distribution-degraded>
             {t('resource.distribution.compute.degraded')}
@@ -637,11 +668,28 @@ export function DistributionDialog() {
           </div>
         )}
         <div className="flex items-center justify-end gap-2">
+          {/* Terug naar de kiezer. Geen bevestigingsdialoog (die zou over een dialoog heen moeten,
+              en `hasBlockingDialogOpen` weert dat terecht) — in plaats daarvan ZEGT de knop wat er
+              verdwijnt zodra er een `applied`-record staat: twee losse sleutels, want de waarschuwende
+              variant is een andere zin en geen ingevulde parameter. `levelingDistribution: null` is
+              de bestaande regel "ander poolitem = verse tune-state": het `applied`-record hoort bij
+              dít item en vervalt dus mee. De terugdraai-strook is daarmee weg, de schrijfactie in de
+              documenten blijft staan (die draai je terug met de gewone undo per document). */}
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover mr-auto"
+            data-ops-distribution-pick-another
+            onClick={() => setUI({ levelingDistribution: null })}
+          >
+            {applied
+              ? t('resource.distribution.pickAnotherApplied')
+              : t('resource.distribution.pickAnother')}
+          </button>
           <button
             type="button"
             className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover disabled:opacity-40"
             onClick={recompute}
-            disabled={busy || !tune}
+            disabled={busy}
           >
             {proposal === null
               ? t('resource.distribution.compute.auto')
@@ -667,6 +715,8 @@ export function DistributionDialog() {
             {t('resource.distribution.discard')}
           </button>
         </div>
+        </>
+        )}
       </div>
     </Dialog>
   );

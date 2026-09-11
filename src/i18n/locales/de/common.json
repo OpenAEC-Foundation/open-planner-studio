@@ -729,7 +729,10 @@
       "undoAll": "Alles rückgängig machen",
       "undoneAll": "Alles wurde rückgängig gemacht.",
       "undonePartial": "Rückgängig gemacht, außer {{docs}} — dort wurde inzwischen weitergearbeitet.",
-      "selectHint": "Wählen Sie einen Bibliotheksartikel mit einem Konflikt, um mit dem Verteilen zu beginnen."
+      "selectHint": "Wählen Sie einen Bibliotheksartikel mit einem Konflikt, um mit dem Verteilen zu beginnen.",
+      "noConflicts": "Zurzeit ist kein Bibliothekselement über die geöffneten Projekte hinweg doppelt belegt.",
+      "pickAnother": "Anderes Element wählen…",
+      "pickAnotherApplied": "Anderes Element wählen (die Rückgängig-Leiste entfällt)…"
     },
     "color": "Farbe"
   },

@@ -729,7 +729,10 @@
       "undoAll": "Alles terugdraaien",
       "undoneAll": "Alles is teruggedraaid.",
       "undonePartial": "Teruggedraaid, behalve {{docs}} — daar is intussen in gewerkt.",
-      "selectHint": "Kies een bibliotheekitem met een conflict om te gaan verdelen."
+      "selectHint": "Kies een bibliotheekitem met een conflict om te gaan verdelen.",
+      "noConflicts": "Er is nu geen enkel bibliotheekitem dubbel geboekt over de geopende projecten.",
+      "pickAnother": "Ander item kiezen…",
+      "pickAnotherApplied": "Ander item kiezen (de terugdraai-strook vervalt)…"
     },
     "color": "Kleur"
   },

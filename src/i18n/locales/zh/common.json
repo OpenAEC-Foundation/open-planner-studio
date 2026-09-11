@@ -711,7 +711,10 @@
       "undoAll": "全部撤销",
       "undoneAll": "已全部撤销。",
       "undonePartial": "已撤销，{{docs}} 除外 — 那些项目在此期间已被修改。",
-      "selectHint": "选择一个存在冲突的资源库项目开始分配。"
+      "selectHint": "选择一个存在冲突的资源库项目开始分配。",
+      "noConflicts": "当前没有任何资源库条目在已打开的项目之间被重复预订。",
+      "pickAnother": "选择其他条目…",
+      "pickAnotherApplied": "选择其他条目（撤销条将消失）…"
     },
     "color": "颜色"
   },

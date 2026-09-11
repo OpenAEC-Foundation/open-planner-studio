@@ -583,8 +583,11 @@ const resourcesTab: RibbonTabConfig = [
       {
         // B1c-plan3 taak 8 — de verdeeldialoog (spec §7). Opent op het LAATST geopende poolitem
         // (`ui.levelingDistribution` overleeft een sluiting); is er nog nooit een item gekozen, dan
-        // opent de dialoog met `selectHint` en verwijst hij naar het bezettingsoverzicht. Bewust
-        // GEEN `disabled` in dat geval: de knop is de plek waar je leert dat deze functie bestaat.
+        // opent de dialoog in zijn KIEZER-stand: de lijst met bibliotheekitems die nú een conflict
+        // hebben over de geopende documenten, één klik van een voorstel af (bedieningsreparatie
+        // 2026-09-11 — die stand toonde eerder alleen een hint plus uitgeschakelde knoppen). Bewust
+        // GEEN `disabled`: de knop is de plek waar je leert dat deze functie bestaat, en hij leidt
+        // nu ook zonder voorkennis ergens heen.
         // `labelKey` staat in de `common`-namespace omdat het letterlijk dezelfde tekst is als de
         // ingang in het bezettingsoverzicht — één sleutel, geen tweede vertaling die kan afwijken.
         kind: 'button', id: 'distributeOverProjects', icon: <Split size={20} />, labelKey: 'common:resource.distribution.open',
