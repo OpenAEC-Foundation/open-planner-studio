@@ -17,7 +17,14 @@ werkelijk beschikbaar is.
 Er zijn twee ingangen:
 
 - Vanuit een conflictregel in het bezettingsoverzicht: de knop **Verdelen…**.
-- Vanuit de Resources-ribbon, wanneer er een conflict openstaat.
+- Rechtstreeks via de Resources-ribbon: ook daar staat **Verdelen…**.
+
+Heb je nog geen bibliotheekitem gekozen, dan opent die ribbonknop eerst een keuzelijst met de items
+die op dit moment dubbel geboekt zijn over de geopende projecten, met per regel het aantal projecten
+en het aantal conflictdagen. Eén klik op zo'n regel start het voorstel. Is er nergens een dubbele
+boeking, dan zegt de dialoog dat gewoon: "Er is nu geen enkel bibliotheekitem dubbel geboekt over de
+geopende projecten." In een lopende verdeling brengt **Ander item kiezen…** onderin je terug naar die
+lijst; let op: daarmee vervalt ook de strook "Toegepast in … projecten".
 
 De dialoog opent met de titel "Verdelen over projecten" en toont bovenaan om welk bibliotheekitem
 het gaat. Je sluit hem met het kruisje rechtsboven of met Esc, of onderaan met **Verwerpen** — in

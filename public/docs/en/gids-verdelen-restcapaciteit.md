@@ -16,7 +16,14 @@ single shift that fits within what's actually available.
 There are two entry points:
 
 - From a conflict row in the occupancy overview: the **Distribute…** button.
-- From the Resources ribbon, whenever a conflict is open.
+- Straight from the Resources ribbon: **Distribute…** sits there too.
+
+If you haven't picked a library item yet, that ribbon button first opens a list of the items that are
+currently double-booked across the open projects, with the number of projects and the number of
+conflict days on each row. One click on a row starts the proposal. If nothing is double-booked
+anywhere, the dialog simply says so: "No library item is currently double-booked across the open
+projects." During a distribution in progress, **Choose another item…** at the bottom takes you back to
+that list; note that this also drops the "Applied in … projects" bar.
 
 The dialog opens with the title "Distribute over projects" and shows which library item it concerns
 at the top. You close it with the cross in the top-right corner, with Esc, or with **Discard** at the
