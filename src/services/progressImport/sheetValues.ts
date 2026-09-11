@@ -53,8 +53,15 @@ const ISO_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 // Excel herschrijft bij opslaan ALLE datumcellen naar zijn locale-formaat, meestal zonder
 // voorloopnullen (`9-6-2026`) en met de locale-scheider (`-`/`/`/`.`) — vandaar `\d{1,2}` i.p.v.
-// een vaste breedte (A5.1).
-const NUMERIC_DATE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+// een vaste breedte (A5.1). Besluit 2026-09-05 (gebruikstest): ook een TWEECIJFERIG jaar
+// (`03-01-27`) hoort hierbij — hetzelfde gedrag als Excel se eigen "korte datum"-notatie; het
+// jaardeel accepteert dus zowel `\d{4}` als `\d{2}` (`toFullYear` hieronder maakt er `20YY` van).
+const NUMERIC_DATE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+
+/** `YY` ⇒ `20YY` (besluit 2026-09-05); `YYYY` blijft ongemoeid. */
+function toFullYear(raw: string): number {
+  return raw.length === 2 ? 2000 + Number(raw) : Number(raw);
+}
 
 /**
  * Ruim herkennend, streng valideert, NOOIT radend (A5.1/E5). `order` beslist alleen de
@@ -91,7 +98,7 @@ export function parseSheetDate(raw: string, order: DateOrder = 'dmy'): DateValue
   if (numeric) {
     const a = Number(numeric[1]);
     const b = Number(numeric[2]);
-    const year = Number(numeric[3]);
+    const year = toFullYear(numeric[3]);
     const day = order === 'mdy' ? b : a;
     const month = order === 'mdy' ? a : b;
     const hour = numeric[4] !== undefined ? Number(numeric[4]) : undefined;
@@ -133,7 +140,7 @@ function extractNumericTriple(raw: string): NumericTriple | null {
   // (jaar ACHTERAAN, 1-2 cijfers ervoor) sowieso nooit, dus geen aparte ISO-uitsluiting nodig.
   const m = NUMERIC_DATE.exec(trimmed);
   if (!m) return null;
-  return { a: Number(m[1]), b: Number(m[2]), year: Number(m[3]) };
+  return { a: Number(m[1]), b: Number(m[2]), year: toFullYear(m[3]) };
 }
 
 /** Bouwt de `ambiguous`-uitkomst uit een cel waarvan BEIDE lezingen al gevalideerd zijn (zie
