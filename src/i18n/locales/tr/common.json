@@ -229,7 +229,7 @@
     "tokenWarning": "Bu belirteç açık plana erişim sağlar; başkalarıyla paylaşmayın.",
     "connectPrompt": "Bağlantı istemi",
     "connectPromptHint": "Bunu yapay zekâ aracınıza yapıştırın; kendisi bağlanır.",
-    "connectPromptText": "Bilgisayarımda çalışan bir MCP sunucusuna bağlan: ad {{name}}, aktarım akışlı HTTP, URL {{url}}, Authorization: Bearer {{token}} başlığıyla. Bunu MCP yapılandırmana ekle (örneğin mcpServers bloğu olarak) ve bağlan. Ardından kontrol için araç listesini iste: {{prefix}} ön ekine sahip yaklaşık {{count}} araç görmelisin. Bu sunucuyla neler yapabileceğini kısaca özetle.",
+    "connectPromptText": "Bilgisayarımda çalışan bir MCP sunucusuna bağlan: ad {{name}}, aktarım akışlı HTTP, URL {{url}}, Authorization: Bearer {{token}} başlığıyla. Bunu MCP yapılandırmana ekle (örneğin mcpServers bloğu olarak) ve bağlan. Ardından kontrol için araç listesini iste: {{prefix}} ön ekine sahip yaklaşık {{count}} araç görmelisin. Bu sunucuyla neler yapabileceğini kısaca özetle. Herhangi bir şeyi değiştirmeden önce planner_get_planning_guide aracıyla planlama kılavuzunu oku.",
     "statusDot": "Yapay zeka köprüsü: {{status}}"
   },
   "aiSafety": {

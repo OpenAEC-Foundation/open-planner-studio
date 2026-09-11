@@ -222,7 +222,7 @@
     "tokenWarning": "该令牌可访问当前打开的计划，请勿与他人分享。",
     "connectPrompt": "连接提示词",
     "connectPromptHint": "把它粘贴给你的 AI 智能体，它会自行完成连接。",
-    "connectPromptText": "请连接一个运行在我电脑上的 MCP 服务器：名称 {{name}}，传输方式为流式 HTTP，URL 为 {{url}}，并附带请求头 Authorization: Bearer {{token}}。把它加入你的 MCP 配置（例如作为 mcpServers 块）并建立连接。然后列出工具以做检查：你应当看到约 {{count}} 个以 {{prefix}} 为前缀的工具。请简要说明用这个服务器可以做什么。",
+    "connectPromptText": "请连接一个运行在我电脑上的 MCP 服务器：名称 {{name}}，传输方式为流式 HTTP，URL 为 {{url}}，并附带请求头 Authorization: Bearer {{token}}。把它加入你的 MCP 配置（例如作为 mcpServers 块）并建立连接。然后列出工具以做检查：你应当看到约 {{count}} 个以 {{prefix}} 为前缀的工具。请简要说明用这个服务器可以做什么。在做任何修改之前，请先通过工具 planner_get_planning_guide 阅读规划指南。",
     "statusDot": "AI 桥接：{{status}}"
   },
   "aiSafety": {

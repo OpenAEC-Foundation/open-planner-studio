@@ -16,6 +16,9 @@
 //      waarschuwt op h4+, tabellen, blockquotes, horizontale lijnen, genest/ingesprongen
 //      lijst-items, voetnoten, reference-style links, raw HTML-tags (buiten inline-code) en
 //      linkschema's anders dan docs:///examples://.
+//   7/8. Machinaal controleerbare beweringen in CLAUDE.md/AGENTS.md/README.md/CONTRIBUTING.md.
+//   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
+//      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
 //   6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, NL≉EN
 //      (>60% identieke niet-lege regels tussen de twee taalversies = verdachte niet-vertaling).
 //
@@ -462,6 +465,40 @@ function checkSupportingDocs(diffs: string[], manifestArticleCount: number): voi
   }
 }
 
+/**
+ * Poort 9 — de agent-skill "goed-plannen" heeft ÉÉN bron.
+ *
+ * `public/skills/goed-plannen/SKILL.md` is de bron: die wordt met de webbuild meegeleverd en is dus
+ * publiek downloadbaar (én de tool `planner_get_planning_guide` leest hem daar). Claude Code leest
+ * skills uitsluitend uit `.claude/skills/`, dus daar moet een kopie staan. Een symlink kan niet:
+ * CI draait óók op Windows, waar een repo-symlink zonder ontwikkelaarsmodus als tekstbestand
+ * uitcheckt — dan serveert de app een pad in plaats van een skill.
+ *
+ * Dus: byte-identieke kopie, met deze poort als bewaker. Wijzig altijd de bron in `public/` en
+ * kopieer daarna; de foutmelding hieronder zegt precies dat.
+ */
+function checkSkillCopy(diffs: string[]): void {
+  const source = join(ROOT, 'public', 'skills', 'goed-plannen', 'SKILL.md');
+  const copy = join(ROOT, '.claude', 'skills', 'goed-plannen', 'SKILL.md');
+  if (!existsSync(source)) {
+    diffs.push('ontbreekt: public/skills/goed-plannen/SKILL.md (de bron van de agent-skill, publiek geserveerd door de webbuild)');
+    return;
+  }
+  if (!existsSync(copy)) {
+    diffs.push('ontbreekt: .claude/skills/goed-plannen/SKILL.md — kopieer hem uit public/skills/goed-plannen/SKILL.md (Claude Code leest skills alleen daar)');
+    return;
+  }
+  const a = readFileSync(source);
+  const b = readFileSync(copy);
+  if (!a.equals(b)) {
+    diffs.push(
+      '.claude/skills/goed-plannen/SKILL.md wijkt af van public/skills/goed-plannen/SKILL.md — ' +
+      'de bron staat in public/ (die wordt uitgeleverd en gedownload); kopieer hem daarna over de ' +
+      '.claude-versie heen (`cp public/skills/goed-plannen/SKILL.md .claude/skills/goed-plannen/SKILL.md`)',
+    );
+  }
+}
+
 function main() {
   let anyFail = false;
   const globalDiffs: string[] = [];
@@ -475,6 +512,8 @@ function main() {
   checkAgentDocs(globalDiffs);
   // 8. Machinaal controleerbare beweringen in AGENTS.md/README.md/CONTRIBUTING.md (zie checkSupportingDocs).
   checkSupportingDocs(globalDiffs, manifest.articles.length);
+  // 9. De agent-skill heeft één bron (zie checkSkillCopy).
+  checkSkillCopy(globalDiffs);
 
   // 1a. Dubbele ids in het manifest.
   const seen = new Set<string>();

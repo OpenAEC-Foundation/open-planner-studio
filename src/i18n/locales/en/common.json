@@ -234,7 +234,7 @@
     "tokenWarning": "This token grants access to the open plan. Do not share it with others.",
     "connectPrompt": "Connection prompt",
     "connectPromptHint": "Paste this into your AI agent — it will connect itself.",
-    "connectPromptText": "Connect to an MCP server running on my computer: name {{name}}, transport streamable HTTP, URL {{url}}, with the header Authorization: Bearer {{token}}. Add it to your MCP configuration (for example as an mcpServers block) and connect. Then list the tools as a check: you should see about {{count}} tools with the prefix {{prefix}}. Briefly summarise what you can do with this server.",
+    "connectPromptText": "Connect to an MCP server running on my computer: name {{name}}, transport streamable HTTP, URL {{url}}, with the header Authorization: Bearer {{token}}. Add it to your MCP configuration (for example as an mcpServers block) and connect. Then list the tools as a check: you should see about {{count}} tools with the prefix {{prefix}}. Briefly summarise what you can do with this server. Before you change anything, first read the planning guide via the tool planner_get_planning_guide.",
     "statusDot": "AI bridge: {{status}}"
   },
   "aiSafety": {

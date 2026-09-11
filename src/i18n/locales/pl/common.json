@@ -243,7 +243,7 @@
     "tokenWarning": "Ten token daje dostęp do otwartego harmonogramu. Nie udostępniaj go innym.",
     "connectPrompt": "Polecenie połączenia",
     "connectPromptHint": "Wklej to swojemu agentowi AI — połączy się sam.",
-    "connectPromptText": "Połącz się z serwerem MCP działającym na moim komputerze: nazwa {{name}}, transport strumieniowy HTTP, adres {{url}}, z nagłówkiem Authorization: Bearer {{token}}. Dodaj go do swojej konfiguracji MCP (na przykład jako blok mcpServers) i nawiąż połączenie. Następnie pobierz listę narzędzi w celu sprawdzenia: powinieneś zobaczyć około {{count}} narzędzi z przedrostkiem {{prefix}}. Krótko podsumuj, co można zrobić z tym serwerem.",
+    "connectPromptText": "Połącz się z serwerem MCP działającym na moim komputerze: nazwa {{name}}, transport strumieniowy HTTP, adres {{url}}, z nagłówkiem Authorization: Bearer {{token}}. Dodaj go do swojej konfiguracji MCP (na przykład jako blok mcpServers) i nawiąż połączenie. Następnie pobierz listę narzędzi w celu sprawdzenia: powinieneś zobaczyć około {{count}} narzędzi z przedrostkiem {{prefix}}. Krótko podsumuj, co można zrobić z tym serwerem. Zanim cokolwiek zmienisz, przeczytaj najpierw przewodnik planowania za pomocą narzędzia planner_get_planning_guide.",
     "statusDot": "Mostek AI: {{status}}"
   },
   "aiSafety": {

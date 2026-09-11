@@ -234,7 +234,7 @@
     "tokenWarning": "Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.",
     "connectPrompt": "Koppelprompt",
     "connectPromptHint": "Plak dit in je AI-agent — die koppelt zichzelf.",
-    "connectPromptText": "Verbind met een MCP-server die op mijn computer draait: naam {{name}}, transport streamable HTTP, URL {{url}}, met de header Authorization: Bearer {{token}}. Voeg hem toe aan je MCP-configuratie (bijvoorbeeld als mcpServers-blok) en maak verbinding. Vraag daarna de toollijst op ter controle: je zou ongeveer {{count}} tools moeten zien met het voorvoegsel {{prefix}}. Vat kort samen wat je met deze server kunt doen.",
+    "connectPromptText": "Verbind met een MCP-server die op mijn computer draait: naam {{name}}, transport streamable HTTP, URL {{url}}, met de header Authorization: Bearer {{token}}. Voeg hem toe aan je MCP-configuratie (bijvoorbeeld als mcpServers-blok) en maak verbinding. Vraag daarna de toollijst op ter controle: je zou ongeveer {{count}} tools moeten zien met het voorvoegsel {{prefix}}. Vat kort samen wat je met deze server kunt doen. Lees vóór je iets wijzigt eerst de planningsgids via de tool planner_get_planning_guide.",
     "statusDot": "AI-bridge: {{status}}"
   },
   "aiSafety": {

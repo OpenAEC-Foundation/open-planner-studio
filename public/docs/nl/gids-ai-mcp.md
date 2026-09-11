@@ -105,12 +105,18 @@ Daarbovenop komt de gewone ongedaan-maak-geschiedenis: een assistent deelt die m
 
 Een assistent die de tools kent, kan nog steeds een planning bouwen waar geen planner iets aan heeft:
 taken zonder relaties, een vaste datum op elke taak, of een opdeling die veel te fijn is om bij te
-houden. De principes die dat voorkomen staan in de gids [Goed plannen: van eisen naar een betrouwbare
-planning](docs://gids-goed-plannen) — laat je assistent die lezen voordat hij begint, of verwijs er
-in je opdracht naar. In de broncode van Open Planner Studio staat daarnaast een korte agent-skill
-onder `.claude/skills/goed-plannen/`, die voor de inhoud naar diezelfde gids verwijst en alleen het
-agent-specifieke toevoegt: in welke volgorde je de `planner_`-tools inzet en wat je aan de gebruiker
-terugmeldt.
+houden. Dat hoef je niet meer zelf te voorkomen. Bij het verbinden krijgt de assistent de kernregels
+automatisch mee — de bridge stuurt ze in het `instructions`-veld van de MCP-handshake, en clients
+zetten die tekst in hun systeemprompt: begin bij de mijlpalen, taken van ongeveer een dag tot twee
+weken, relaties in plaats van vaste datums, en meld je aannames terug.
+
+De volledige uitleg staat in de gids [Goed plannen: van eisen naar een betrouwbare
+planning](docs://gids-goed-plannen). Je assistent kan die zelf ophalen met de tool
+`planner_get_planning_guide` — die geeft de gidstekst (Nederlands of Engels), een korte agent-skill
+met de toolvolgorde, en de aanwijzing waar hij die skill neerzet zodat hij in een volgende sessie
+meekomt: `.claude/skills/goed-plannen/SKILL.md` in de projectmap waarin hij werkt, of
+`~/.claude/skills/goed-plannen/SKILL.md` voor al zijn projecten. Downloaden kan ook rechtstreeks,
+van `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md`.
 
 ## Verder lezen
 

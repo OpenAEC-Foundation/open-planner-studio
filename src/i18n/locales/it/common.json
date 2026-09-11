@@ -236,7 +236,7 @@
     "tokenWarning": "Questo token dà accesso al piano aperto. Non condividerlo con altri.",
     "connectPrompt": "Prompt di connessione",
     "connectPromptHint": "Incolla questo nel tuo agente IA: si collega da solo.",
-    "connectPromptText": "Connettiti a un server MCP in esecuzione sul mio computer: nome {{name}}, trasporto HTTP in streaming, URL {{url}}, con l'header Authorization: Bearer {{token}}. Aggiungilo alla tua configurazione MCP (per esempio come blocco mcpServers) e collegati. Poi chiedi l'elenco degli strumenti come verifica: dovresti vedere circa {{count}} strumenti con il prefisso {{prefix}}. Riassumi brevemente cosa puoi fare con questo server.",
+    "connectPromptText": "Connettiti a un server MCP in esecuzione sul mio computer: nome {{name}}, trasporto HTTP in streaming, URL {{url}}, con l'header Authorization: Bearer {{token}}. Aggiungilo alla tua configurazione MCP (per esempio come blocco mcpServers) e collegati. Poi chiedi l'elenco degli strumenti come verifica: dovresti vedere circa {{count}} strumenti con il prefisso {{prefix}}. Riassumi brevemente cosa puoi fare con questo server. Prima di modificare qualcosa, leggi la guida alla pianificazione con lo strumento planner_get_planning_guide.",
     "statusDot": "Bridge IA: {{status}}"
   },
   "aiSafety": {
