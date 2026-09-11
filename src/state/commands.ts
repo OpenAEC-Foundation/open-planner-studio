@@ -123,6 +123,14 @@ export const COMMANDS = {
       void saveShowHistogram(next);
     },
   },
+  // Issue #53: het Waarschuwingenpaneel aan/uit (Beeld → Panelen). Sessie-vlag, dus niets te
+  // persisteren; het uitklappen van een ingeklapte rail regelt `setUI` (invariant 1b).
+  toggleWarningsPanel: {
+    id: 'toggleWarningsPanel',
+    run: (s) => {
+      s.setUI({ showWarningsPanel: !s.ui.showWarningsPanel });
+    },
+  },
 } satisfies Record<string, Command>;
 
 export type CommandId = keyof typeof COMMANDS;

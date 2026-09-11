@@ -31,7 +31,9 @@ import {
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
   timephasedDurationWalksHaveFrozenWork,
+  rescaleTaskContours,
 } from '@/utils/taskDefaults';
+import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -127,6 +129,14 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   return null;
 }
 
+/** Contour-engine (2026-09): duurwijziging in het grid herschaalt de contour — tweeling van
+ *  `taskSlice.updateTask`/`createMcpTransactions.updateTaskFields`, zie `taskDefaults.ts`'s
+ *  `rescaleTaskContours`. `oldWorkMinutes` is vóór de mutatie vastgelegd door `applyScheduleEdit`. */
+function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
+  return clearScheduleGuidance(task, true);
+}
+
 function clearScheduleGuidance(task: Task, clearFrozenWalks: boolean): boolean {
   const clearedWindow = clearTimephasedWindow(task);
   const clearedWalks = clearFrozenWalks && timephasedDurationWalksHaveFrozenWork(task)
@@ -192,6 +202,7 @@ function applyScheduleEdit(
 ): GridResult<boolean, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let lost = false;
+  const oldWorkMinutes = taskWorkMinutes(task.time, environment.effectiveHoursPerDay);
   if (id === 'task.time.durationType') {
     if (edit.value !== 'WORKTIME' && edit.value !== 'ELAPSEDTIME') return failure('enum', edit);
     if (task.time.durationType !== edit.value) {
@@ -220,7 +231,7 @@ function applyScheduleEdit(
       task.time.durationMinutes = minutes;
       task.time.scheduleDuration = minutes / (environment.effectiveHoursPerDay * 60);
     }
-    lost = clearScheduleGuidance(task, true);
+    lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
       const parsed = edit.value as ParsedTaskDuration;
@@ -240,7 +251,7 @@ function applyScheduleEdit(
         task.time.scheduleDuration = parsed.scheduleDuration;
         task.time.durationMinutes = undefined;
       }
-      lost = clearScheduleGuidance(task, true);
+      lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
       return { ok: true, value: lost };
     }
     if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
@@ -253,7 +264,7 @@ function applyScheduleEdit(
       task.time.scheduleDuration = days;
       if (environment.hourMode) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
-      lost = clearScheduleGuidance(task, true);
+      lost = finishDurationEdit(task, oldWorkMinutes, hoursPerDay);
     }
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);

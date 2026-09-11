@@ -1,7 +1,7 @@
 import { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
+import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -12,6 +12,12 @@ import { isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
+import type { TaskTimephasedContour } from '@/types/task';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
+import { axisOffsetMinutes, p6SpreadToContourPeriods, splitGapsFromContours } from '@/services/contourIo';
 import {
   OPS_P6_DURATION_UNIT_UDF_TITLE,
   P6_DAY_NAMES,
@@ -605,6 +611,36 @@ export function readP6XML(content: string): ImportResult {
     sequences.push(seq);
   }
 
+  // Contour-engine (2026-09) — `<ResourceCurve>`-catalogus: P6's resourcecurves als 21 waarden
+  // (`Value0`..`Value100`, MPXJ `XmlContextReader.processWorkContour`), gekeyd op ObjectId. Een
+  // toewijzing verwijst ernaar via `<ResourceCurveObjectId>`.
+  const curveByObjId = new Map<number, { name: string; values: number[] }>();
+  for (const curveEl of getAllByLocalName(doc, 'ResourceCurve')) {
+    const objId = getElementInt(curveEl, 'ObjectId', -1);
+    if (objId < 0) continue;
+    const valuesEl = curveEl.getElementsByTagName('Values')[0];
+    if (!valuesEl) continue;
+    const raw: number[] = [];
+    for (let pct = 0; pct <= 100; pct += 5) raw.push(getElementFloat(valuesEl, `Value${pct}`, NaN));
+    const values = normalizeCurveValues(raw);
+    if (!values) continue;
+    curveByObjId.set(objId, { name: getElementText(curveEl, 'Name'), values });
+  }
+
+  // Kalender-engine per taakkalender voor de as-vertaling van de spreidingsstrings.
+  const taskById = new Map(tasks.map(t => [t.id, t] as const));
+  const engineCache = new Map<string, CalendarEngine>();
+  const engineForTask = (task: Task): CalendarEngine => {
+    const key = task.calendarId ?? '';
+    let eng = engineCache.get(key);
+    if (!eng) {
+      eng = new CalendarEngine(calendarForEngine(resolveCalendar(task.calendarId, resourceCalendars, calendar)));
+      engineCache.set(key, eng);
+    }
+    return eng;
+  };
+  const contoursByTaskId = new Map<string, TaskTimephasedContour[]>();
+
   // ResourceAssignments (fase 2.5, §8.1)
   const asgnElements = getAllByLocalName(doc, 'ResourceAssignment');
   const assignments: ResourceAssignment[] = [];
@@ -617,8 +653,25 @@ export function readP6XML(content: string): ImportResult {
     if (!taskId || !resourceId) continue;
 
     const plannedUnitsPerTime = getElementFloat(asgnEl, 'PlannedUnitsPerTime');
-    const curveName = getElementText(asgnEl, 'PlannedCurve');
-    const curve = P6_NAME_TO_CURVE[curveName];
+
+    // Contour-engine (2026-09) — de CURVE. Schema-native: `<ResourceCurveObjectId>` → catalogus;
+    // de 21 waarden zijn de exacte data (`curveValues`), `curve` is de OPS-benadering: een exacte
+    // tabelmatch, anders de P6-curvenaam (`P6_NAME_TO_CURVE`), anders geen OPS-vorm. Een vlakke
+    // curve is geen curve. COMPAT: bestanden van de OPS-schrijver van vóór deze etappe droegen
+    // de curveNAAM in `<PlannedCurve>` (een verkeerde lezing van het schema — daar hoort een
+    // spreidingsstring `"werkuren:periodeuren;…"`, MPXJ `TimephasedHelper`); een `<PlannedCurve>`
+    // zonder `:` wordt daarom nog als naam gelezen.
+    const plannedCurveRaw = getElementText(asgnEl, 'PlannedCurve');
+    const curveObjId = getElementInt(asgnEl, 'ResourceCurveObjectId', -1);
+    const catalogCurve = curveObjId >= 0 ? curveByObjId.get(curveObjId) : undefined;
+    let curve: ResourceCurve | undefined;
+    let curveValues: number[] | undefined;
+    if (catalogCurve && !isFlatCurveValues(catalogCurve.values)) {
+      curve = matchCurveValues(catalogCurve.values) ?? P6_NAME_TO_CURVE[catalogCurve.name];
+      curveValues = catalogCurve.values;
+    } else if (plannedCurveRaw && plannedCurveRaw.indexOf(':') === -1) {
+      curve = P6_NAME_TO_CURVE[plannedCurveRaw];
+    }
 
     assignments.push({
       id: generateId('asgn'),
@@ -628,7 +681,47 @@ export function readP6XML(content: string): ImportResult {
       // spiegel van p6xmlWriter) — 1:1 overnemen.
       unitsPerDay: plannedUnitsPerTime > 0 ? plannedUnitsPerTime : 1,
       ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
+      ...(curveValues ? { curveValues } : {}),
     });
+
+    // Contour-engine (2026-09) — de SPREIDING: `<ActualCurve>` (verricht, anker `ActualStartDate`)
+    // en `<RemainingCurve>` (resterend, anker `RemainingStartDate`) hebben voorrang; zonder die
+    // twee geldt `<PlannedCurve>` (anker `PlannedStartDate`) als resterend werk — MPXJ
+    // `XmlProjectReader` leest exact deze drie met deze ankers. Ankers worden op de taak-as gezet
+    // via de taakkalender (`axisOffsetMinutes`); ontbreekt een anker, dan geldt de taakstart.
+    const task = taskById.get(taskId);
+    if (task && task.time.scheduleStart && task.childIds.length === 0) {
+      const engine = engineForTask(task);
+      const taskStart = parseInstant(task.time.scheduleStart);
+      const anchorOffset = (tag: string): number => {
+        const raw = getElementText(asgnEl, tag);
+        return raw ? axisOffsetMinutes(engine, taskStart, parseInstant(raw), false) : 0;
+      };
+      const actualSpread = getElementText(asgnEl, 'ActualCurve');
+      const remainingSpread = getElementText(asgnEl, 'RemainingCurve');
+      let periods = [
+        ...p6SpreadToContourPeriods(actualSpread, anchorOffset('ActualStartDate'), 'actual'),
+        ...p6SpreadToContourPeriods(remainingSpread, anchorOffset('RemainingStartDate'), 'remaining'),
+      ];
+      if (periods.length === 0 && plannedCurveRaw.indexOf(':') >= 0) {
+        periods = p6SpreadToContourPeriods(plannedCurveRaw, anchorOffset('PlannedStartDate'), 'remaining');
+      }
+      if (periods.length > 1 && periods.some(p => p.workMinutes > 0)) {
+        const list = contoursByTaskId.get(taskId) ?? [];
+        list.push({ resourceUid: null, resourceId, periods });
+        contoursByTaskId.set(taskId, list);
+      }
+    }
+  }
+  // Contouren + afgeleide werkonderbrekingen op de taken (zelfde afleiding als de .mpp-/MSPDI-lezer).
+  for (const [taskId, contours] of contoursByTaskId) {
+    const task = taskById.get(taskId);
+    if (!task) continue;
+    task.timephasedContours = contours;
+    if (!task.splitGaps || task.splitGaps.length === 0) {
+      const gaps = splitGapsFromContours(contours.map(c => c.periods));
+      if (gaps.length > 0) task.splitGaps = gaps;
+    }
   }
 
   return {

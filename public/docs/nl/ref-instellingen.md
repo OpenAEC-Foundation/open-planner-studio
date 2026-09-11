@@ -8,45 +8,59 @@ Het venster **Instellingen** bevat de app-instellingen: voorkeuren die op dit ap
 - **Instellingen** (ribbontab) → lintgroep **Project** → **Instellingen**.
 - **Bestand** → **Instellingen** (Backstage).
 
-Alle drie tonen exact dezelfde instellingen. Afhankelijk van je versie staan ze verdeeld over drie
-of vier tabs — een vierde, **Toepassing**, is onlangs afgesplitst van het staartje van de eerste tab
-— maar de instellingen zelf en wat ze doen zijn in beide gevallen identiek; dit artikel groepeert ze
-als **Algemeen**, **Taal** en **Tijdlijn / Zoomen**.
+Alle drie tonen exact dezelfde instellingen, verdeeld over drie tabs: **Weergave**, **Planning** en **Geavanceerd**.
 
-## Tab Algemeen
+## Tab Weergave
 
-**Weergave:**
+Uiterlijk van de interface en de tijdlijn.
 
-- **Thema** — **Donker**, **Licht** of **Hoog contrast**; klik op een kaartje om te wisselen.
+- **Thema** — **Donker**, **Licht** of **Hoog contrast**; klik op een kaartje om te wisselen. Daaronder staat **Volg systeemthema**: staat die aan, dan volgt de app het kleurschema van je besturingssysteem of browser en wisselt hij meteen mee wanneer dat omgaat, ook terwijl de app openstaat. De drie kaartjes zijn dan uitgegrijsd — je ziet alleen nog welk thema het systeem oplevert. Zet je de schakelaar weer uit, dan blijf je op precies dat thema staan. **Hoog contrast** kun je alleen zelf kiezen, want een systeem kent alleen licht en donker.
+- **Taal** — de weergavetaal van de app, direct toegepast.
 - **Lettertype** — **Standaard**, **Systeem**, **Met schreef** of **Monospace**; overschrijft het lettertype van de interface. Web-apps volgen niet automatisch de systeemlettertype-instelling, dus dit en de volgende instelling zijn hoe je het zelf kiest.
 - **Tekengrootte** — 90%, 100%, 110% of 125%; schaalt de interface-tekst en -indeling.
-- **Documentwissel-stijl** — hoe je tussen geopende documenten wisselt: **Horizontale tabbladen**, **Verticale tabbladen** of **Pil**.
 - **Datumnotatie** — **dd-mm-jjjj**, **mm-dd-jjjj** of **jjjj-mm-dd**. Bepaalt alleen de weergave; bestanden en berekeningen blijven ongewijzigd.
-- **Bouwmodus** — **Bouwmodus inschakelen** wisselt de standaarden voor *nieuwe* projecten tussen bouwgericht (een bouwkalender met NL-feestdagen, bouwvak, faseringssjablonen) en een neutrale, bouw-agnostische opzet. Bestaande projecten blijven in beide gevallen ongewijzigd.
-
-**Toepassing:**
-
-- **Versie** — het versienummer van de app (alleen-lezen), met een link **Controleren op updates** die het update-venster opent. Updates installeren werkt alleen in de desktop-app; Snap- en AppImage-installaties updaten via hun eigen kanaal. Los daarvan verschijnt de eerste keer dat je de app opent nadat die zichzelf automatisch heeft bijgewerkt, vanzelf een eenmalige "Je bent net geüpdatet"-dialoog — de versiesprong, het grootteverschil van de installer, het aantal dagen sinds de vorige release en de GitHub-releasebeschrijving, voor zover die op te halen waren. Dat is een ander, automatisch moment dan de handmatige link **Controleren op updates** hierboven.
-- **Projectinformatie...** — een snelkoppeling naar het venster [Projectinformatie](docs://ref-projectgegevens).
-- **Rondleiding** — **Rondleiding starten** speelt de introductie-rondleiding opnieuw af. Dezelfde herstart zit ook in ribbontab **Beeld** → **Rondleiding** en in de Backstage (**Bestand** → **Rondleiding starten**).
-- **Benchmark** — opent de ingebouwde benchmark-tool, om de reken-/renderprestaties van deze machine te meten. Je kiest een planningsgrootte en het aantal resources; de gegenereerde planning heeft een echt relatienetwerk, waarin elke taak zonder subtaken minstens één relatie krijgt. Kies nul resources om te zien wat de resourcebelasting zelf kost.
-- **AI-modus** — **AI-modus inschakelen** toont het lint-tabblad **AI** met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken; uitzetten stopt een lopende bridge meteen. **Bridge automatisch starten** (alleen beschikbaar met AI-modus aan) zet de bridge meteen live bij het opstarten van de app, zonder eerst het AI-tabblad te hoeven openen — alleen in de desktop-app. Zie de in-app AI-assistent-gids voor het volledige verhaal.
-- **Debug-terminal** — **Debug-terminal inschakelen** toont het logpaneel voor probleemonderzoek.
-
-## Tab Taal
-
-- **Taal** — de weergavetaal van de app, direct toegepast.
-
-## Tab Tijdlijn / Zoomen
-
-- **Urenplanning** — **Urenplanning inschakelen** zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair. Met de schakelaar aan verschijnt **Gemengde dag/uur-planning toestaan**; alleen wanneer die ook aan staat, kun je de eenheid per taak kiezen. Bestaande urentaken worden nooit geconverteerd. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
 - **Duurweergave** — **Automatisch (eigen eenheid per taak)**, **Altijd dagen** of **Altijd uren**.
-- **Taakbalken bij onderbrekingen** — **Nooit opsplitsen**, **Opsplitsen bij selectie** of **Altijd opsplitsen**: of een balk visueel splitst rond niet-werkdagen.
+- **Documentwissel-stijl** — hoe je tussen geopende documenten wisselt: **Horizontale tabbladen**, **Verticale tabbladen** of **Pil**.
+
+**Gantt** — instellingen voor de tijdlijn zelf:
+
 - **Tijd-as** — **Alleen werkbare dagen tonen** comprimeert de tijdlijn: weekenden en feestdagen uit de projectkalender worden overgeslagen, zodat een taak van 5 werkdagen precies 5 kolommen breed is, ongeacht wat de kalender daartussen doet.
-- **Week begint op** — **Maandag** of **Zondag** (weekindeling van de tijdschaal).
 - **Kwartieren tonen bij ver inzoomen** — extra kwartier-gradatie op de uur-tijdschaal.
-- **Berekenen** — **Automatisch berekenen** herberekent de planning zodra die verouderd raakt, in plaats van te wachten op F5.
+- **Taakbalken bij onderbrekingen** — **Nooit opsplitsen**, **Opsplitsen bij selectie** of **Altijd opsplitsen**: of een balk visueel splitst rond niet-werkdagen.
 - **Scrollen & zoomen** — **Modus**:
 - **Zoom + slepen** (de standaard) — scrollwiel zoomt (gecentreerd op de cursor); de achtergrond van de planning versleep je om te verschuiven; Shift+scrollwiel scrolt door de rijen; Ctrl/⌘+slepen tekent een selectiekader.
 - **Positie** — de plek van de cursor bepaalt de scrollrichting; met **Schermverdeling** (**Links/rechts**, **Boven/onder** of **Rechtsboven-hoek**). Ctrl+scroll = zoomen, Shift+scroll = horizontaal.
 - **Toetsen** — wijs zelf toe welke besturing (**Scrollen**, **Ctrl + scrollen**, **Shift + scrollen**) welke functie krijgt (**Verticaal**, **Horizontaal**, **Zoomen**) door de knopjes te verslepen; een bezette plek wisselt om.
+
+## Tab Planning
+
+Instellingen die bepalen hoe er gepland en gerekend wordt.
+
+- **Bouwmodus** — **Bouwmodus inschakelen** wisselt de standaarden voor *nieuwe* projecten tussen bouwgericht (een bouwkalender met NL-feestdagen, bouwvak, faseringssjablonen) en een neutrale, bouw-agnostische opzet. Bestaande projecten blijven in beide gevallen ongewijzigd.
+- **Urenplanning** — **Urenplanning inschakelen** zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair. Met de schakelaar aan verschijnt **Gemengde dag/uur-planning toestaan**; alleen wanneer die ook aan staat, kun je de eenheid per taak kiezen. Bestaande urentaken worden nooit geconverteerd. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
+- **Week begint op** — **Maandag** of **Zondag** (weekindeling van de tijdschaal).
+- **Berekenen** — **Automatisch berekenen** herberekent de planning zodra die verouderd raakt, in plaats van te wachten op F5.
+
+## Tab Geavanceerd
+
+Minder vaak gebruikte instellingen: de AI-assistent, foutopsporing en apparaat-/versie-informatie. Projectinformatie zit hier bewust niet meer — die vind je via **Bestand** → **Projectinformatie** of de eigen dialoog.
+
+- **AI-modus** — **AI-modus inschakelen** toont het lint-tabblad **AI** met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken; uitzetten stopt een lopende bridge meteen. **Bridge automatisch starten** (alleen beschikbaar met AI-modus aan) zet de bridge meteen live bij het opstarten van de app, zonder eerst het AI-tabblad te hoeven openen — alleen in de desktop-app. De verdere AI-verbindingsopties (poort, token) staan op het AI-tabblad zelf. Zie de in-app AI-assistent-gids voor het volledige verhaal.
+- **Debug-terminal** — **Debug-terminal inschakelen** toont het logpaneel voor probleemonderzoek.
+- **Benchmark** — opent de ingebouwde benchmark-tool, om de reken-/renderprestaties van deze machine te meten. Je kiest een planningsgrootte en het aantal resources; de gegenereerde planning heeft een echt relatienetwerk, waarin elke taak zonder subtaken minstens één relatie krijgt. Kies nul resources om te zien wat de resourcebelasting zelf kost.
+- **Statistieken** — opent **Statistieken…**: hoe vaak Open Planner Studio is gedownload, per besturingssysteem en per release. Bewust een knop naast Benchmark en geen eigen tab.
+- **Rondleiding** — **Rondleiding starten** speelt de introductie-rondleiding opnieuw af. Dezelfde herstart zit ook in ribbontab **Beeld** → **Rondleiding** en in de Backstage (**Bestand** → **Rondleiding starten**).
+- **Versie** — het versienummer van de app (alleen-lezen), met een link **Controleren op updates** die het update-venster opent. Updates installeren werkt alleen in de desktop-app; Snap- en AppImage-installaties updaten via hun eigen kanaal. Los daarvan verschijnt de eerste keer dat je de app opent nadat die zichzelf automatisch heeft bijgewerkt, vanzelf een eenmalige "Je bent net geüpdatet"-dialoog — de versiesprong, het grootteverschil van de installer, het aantal dagen sinds de vorige release en de GitHub-releasebeschrijving, voor zover die op te halen waren. Dat is een ander, automatisch moment dan de handmatige link **Controleren op updates** hierboven.
+
+## Statistieken (knop op tab Geavanceerd)
+
+Open via **Instellingen** → tab **Geavanceerd** → **Statistieken…**; het is bewust een apart venster achter een knop en geen eigen tab.
+
+Hoe vaak Open Planner Studio is gedownload, per besturingssysteem en per release. De cijfers komen uit de openbare downloadtellers van GitHub Releases en worden wekelijks bijgewerkt; de app leest alleen, er wordt niets van jou verzameld of verstuurd.
+
+- **Downloads per besturingssysteem** — per systeem het aantal downloads, uitgesplitst in installers (wat een mens downloadt) en updates (wat de in-app updater ophaalt). Bij Linux staan die twee samen in één getal: de updater haalt daar hetzelfde `.deb`/`.rpm`/`.AppImage` op dat je ook handmatig downloadt. Als installer telt op Linux alleen het snap-bestand.
+- **Updatecontroles vanuit de app** — hoe vaak een desktop-installatie bij het opstarten naar een nieuwe versie heeft gekeken; een ruwe maat voor actief gebruik, geen download.
+- **Per release** — dezelfde cijfers per versie; standaard de zes nieuwste, met **Alle … releases tonen** voor de rest.
+- **Bron** — de peildatum van de cijfers en **Nu vernieuwen**. Het venster onthoudt de laatst opgehaalde stand een half uur; lukt vernieuwen niet, dan blijft die stand zichtbaar met een melding.
+
+Installaties via de Snap Store lopen niet via GitHub en ontbreken hier.

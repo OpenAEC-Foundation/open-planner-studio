@@ -6,7 +6,7 @@ Een taak vertelt je wanneer iets moet gebeuren; een resource vertelt je wie of w
 
 - De vijf resourcetypes en wanneer je welke gebruikt.
 - Resources toewijzen aan taken — via het eigenschappenpaneel, de taakdialoog of het lint.
-- Eenheden per dag en de zes verdeelcurves: wanneer kies je welke.
+- Eenheden per dag en de acht verdeelcurves: wanneer kies je welke — en hoe je de uren per werkdag zelf zet.
 - Een toewijzing verplaatsen naar een andere taak.
 - Resourcekalenders en tijd-gefaseerde capaciteit (bijvoorbeeld een tweede kraan die later bijkomt).
 - Het histogram lezen: de resourcekiezer, drilldown per resource, overallocatie herkennen.
@@ -64,12 +64,28 @@ Elke toewijzing heeft **eenheden/dag** (1 = één persoon/stuk voltijds, 0,5 = e
 - **Klokvorm (BELL)** — laag begin en einde, piek in het midden — een taak die opstart, op volle kracht draait en weer afbouwt.
 - **Vroege piek (EARLY_PEAK)** — de piek zit vroeg in de taak, daarna neemt de belasting af.
 - **Late piek (LATE_PEAK)** — de piek zit laat in de taak.
+- **Dubbele piek (DOUBLE_PEAK)** — twee pieken, rond dertig en rond tachtig procent van de duur, met een dal ertussen — bijvoorbeeld werk in twee golven met een tussenfase van een ander team. Dezelfde vorm als in MS Project en P6.
+- **Schildpad (TURTLE)** — een afgevlakte klokvorm: zachte aanloop, lang plateau op volle kracht, zachte afbouw. Dezelfde vorm als in MS Project en P6.
 
 Curve-variatie is vooral zichtbaar in het histogram: dezelfde taak met dezelfde eenheden/dag geeft met een klokvorm-curve een heel andere staafverdeling dan met uniform. De middelgrote showcase gebruikt bewust een mix (uniform/vooraan/achteraan belast) op de afbouwtaken per woning, zodat je het verschil kunt vergelijken.
+
+### De urenverdeling zelf bewerken
+
+Past geen enkele curve, dan bepaal je de verdeling zelf, in **fasen**: aaneengesloten stukken van de taak met elk een vaste inzet — "de eerste week een halve ploeg, daarna de volle ploeg, de laatste dagen anderhalf". Naast de curve-dropdown van elke toewijzing staat de knop **Urenverdeling…** (het staafdiagram-icoon). Die opent een venster met bovenin een strook waarin elke fase een blok is over haar werkdagen (de hoogte is de inzet), en eronder dezelfde fasen als tabel: van, tot, dagen, inzet in eenheden per dag, uren per dag en het totaal aantal uren. Het vertrekpunt is precies wat de toewijzing nu al boekt: één fase bij een uniforme curve, meerdere bij een andere vorm of een geïmporteerde verdeling. Verricht werk uit een import met voortgang staat als grijze dagstaven onder de blokken en in een eigen kolom, alleen-lezen.
+
+- **Slepen in de strook**: trek aan de grens tussen twee blokken om een fase langer of korter te maken (per hele werkdag; de buurfase vangt het verschil op), trek aan de bovenrand van een blok om de inzet te zetten, en dubbelklik op een dag om een fase daar te splitsen.
+- **Typen in de tabel**: dagen en inzet per fase; **Splitsen** deelt een fase in tweeën, **Samenvoegen** voegt een fase met de volgende samen. De laatste fase loopt altijd tot het einde van de taak.
+- **Vorm toepassen** vult de fasen met een van de acht standaardvormen (dezelfde acht als de dropdown), met behoud van het huidige totaal — een vertrekpunt dat je daarna per fase bijstelt.
+- **Toepassen** slaat de verdeling op als *contour* van deze toewijzing. De curve-dropdown toont dan **Contour** en is uitgeschakeld: de contour is data en wint van elke curve. Histogram, overallocatie, nivelleerder en bezettingsoverzicht rekenen er meteen mee, en de verdeling gaat mee in het IFC-bestand en in een export naar MS Project XML of Primavera P6 XML.
+- **Verdeling loslaten** verwijdert de contour; de toewijzing volgt daarna weer haar curve.
+
+Een contour verandert uitsluitend de uren per dag van deze ene toewijzing. De taakdatums, de duur en eventuele onderbrekingen blijven wat ze zijn — ook een fase met inzet 0 blijft binnen de duur van de taak en maakt geen onderbreking. Wil je de taak zelf korter, langer of onderbroken, dan bewerk je de taak. Verander je later de duur, dan rekt of krimpt de contour proportioneel mee (zie de gids [MS Project-import](docs://gids-msproject-import), sectie Gecontoureerde toewijzingen). Het eigenschappenpaneel markeert een taak met eigen urenverdelingen met een grijze badge, met een link naar diezelfde sectie. Toepassen en loslaten zijn gewone undo-stappen.
 
 ## Resourcekalenders
 
 Een resource kan op de **Projectkalender** staan (standaard) of op een eigen kalender — bijvoorbeeld voor een onderaannemer die maar vier dagen per week beschikbaar is. Dit stel je in via de kolom **Kalender** in het resourcepaneel, of het veld **Kalender** in het eigenschappenpaneel van de resource zelf. Een resourcekalender raakt nooit de CPM-datums van de taak (die blijven op de taak-/projectkalender lopen) — hij beïnvloedt uitsluitend de **belasting** en de **nivellering**: werkt een resource op een dag niet die de taak wél nodig heeft, dan telt dat als een tekort in het histogram, en de nivelleerder waarschuwt dat schuiven dit kalendermismatch niet oplost. Zie de gids [Kalenders & uren-planning](docs://gids-kalenders-uren) voor de volledige uitleg van kalenders.
+
+Staat een staaf rood op een dag waarop de taak zelf gewoon doorloopt, controleer dan de resourcekalender: als die dag daar geen werkdag is, is de capaciteit daar 0 en telt élke inzet meteen als overbelasting — ook al werkt de taakkalender die dag gewoon door. De tooltip op zo'n staaf (zie hieronder) benoemt dit expliciet, met de naam van de resourcekalender erbij — dat gebeurt alleen als u een specifieke resource hebt gekozen in het histogram, niet bij "Alle resources", want dan kunnen meerdere resources met elk hun eigen (mogelijk verschillende) reden op dezelfde dag samenkomen — en het waarschuwingenpaneel telt zulke dagen apart van "gewone" overbelasting (inzet groter dan capaciteit). De oplossing ligt dan niet in nivelleren maar in het kalendermismatch zelf wegnemen — een andere resourcekalender kiezen, of accepteren dat de resource die dag simpelweg niet inzetbaar is.
 
 ## Het histogram lezen
 
@@ -77,7 +93,9 @@ Zet het histogram aan via de lintgroep **Histogram** op het tabblad **Resources*
 
 Links van de staafjes, boven de taaktabel-kolom, staat de **resourcekiezer**: een lijstje met "Alle resources" bovenaan en daaronder elke resource, elk met een rood stipje als die resource ergens overbelast is. Klik op een naam om in te zoomen op precies die resource — het histogram herschaalt naar zijn belasting en capaciteit alleen. Klik terug op "Alle resources" om weer de som van alle resources te zien. Naast klikken kun je ook met de knoppen **Vorige**/**Volgende** in de lintgroep **Histogram** door de resources heen stappen, zonder de kiezer zelf aan te klikken.
 
-Klik je op een overbelaste staaf, dan toont een tooltip hoeveel taken op die dag bijdragen aan de belasting, met de eerste paar taaknamen — handig om snel te zien wélke combinatie van taken de overallocatie veroorzaakt zonder elke toewijzing los na te lopen.
+Bij veel resources past de lijst niet in de hoogte van de strook: de rij "Alle resources" blijft dan vastgepind bovenaan, terwijl de resources eronder **scrollen binnen de kiezerzone** — met het muiswiel boven de lijst, of automatisch zodra je via het waarschuwingenpaneel of het resourcepaneel een resource kiest die net buiten beeld staat. Een dun streepje rechts in de kiezer toont dan waar je in de lijst zit; het is uitsluitend een indicator en niet zelf sleepbaar. Wil je meer resources tegelijk zien zonder te scrollen, vergroot dan de strook door de scheidingslijn erboven te verslepen.
+
+Houd de muis boven een overbelaste staaf (een korte hover volstaat), dan toont een tooltip hoeveel taken op die dag bijdragen aan de belasting, met de eerste paar taaknamen — handig om snel te zien wélke combinatie van taken de overallocatie veroorzaakt zonder elke toewijzing los na te lopen.
 
 Selecteer je één of meer taken in de Gantt, dan wordt dit tijdelijk een taakcontext: de resourcekiezer, de histogramstaven en de tooltip gebruiken alleen de toewijzingen van die selectie. Het gedockte resourcepaneel toont in diezelfde situatie alleen de bijbehorende resources. Met Ctrl/Cmd- of Shift-selectie is dat de unie van de resources van alle geselecteerde taken. Wis de selectie, dan keren het volledige resourcelijstje en histogram terug; een eerder handmatig gekozen histogramresource blijft daarbij je voorkeur.
 
@@ -131,7 +149,7 @@ De les is niet dat nivellering "niet werkt" — het algoritme doet precies wat g
 ## Verder lezen
 
 - Speel de nivellering van de stukadoors-overallocatie zelf na in [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
-- Zie de grens van nivellering in de praktijk — en alle vijf resourcetypes, alle zes curves en de tijd-gefaseerde torenkraan-capaciteit — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
+- Zie de grens van nivellering in de praktijk — en alle vijf resourcetypes, zes van de acht curves en de tijd-gefaseerde torenkraan-capaciteit — in [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc).
 - Resources werken op kalenders — lees de gids [Kalenders & uren-planning](docs://gids-kalenders-uren) voor resourcekalenders en uren-planning.
 - Wil je een basislijn vastleggen vóórdat je gaat nivelleren, zodat je het verschil kunt zien? Lees de gids [Baselines & voortgang](docs://gids-baselines-voortgang).
 - Nivellering verandert soms welke taken kritiek zijn — lees de gids [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse) voor hoe je dat herkent.

@@ -39,7 +39,6 @@ agrupa como **General**, **Idioma** y **Línea de tiempo / Zoom**.
   diferencia de tamaño del instalador, los días transcurridos desde la versión anterior y las notas
   de la versión de GitHub, los que haya podido obtener. Ese es un momento distinto, automático, del
   enlace manual **Buscar actualizaciones** de aquí.
-- **Información del proyecto...** — acceso directo a la ventana [Información del proyecto](docs://ref-projectgegevens).
 - **Recorrido** — **Iniciar recorrido** repite el recorrido introductorio. El mismo reinicio también está en la pestaña de la cinta **Vista** → **Recorrido** y en el Backstage (**Archivo** → **Iniciar recorrido**).
 - **Benchmark** — abre la herramienta de benchmark integrada, para medir el rendimiento de
   planificación/renderizado de este equipo.
@@ -50,6 +49,19 @@ agrupa como **General**, **Idioma** y **Línea de tiempo / Zoom**.
   tener que visitar antes la pestaña IA — solo en la aplicación de escritorio. Vea la guía de IA
   integrada en la aplicación para el panorama completo.
 - **Terminal de depuración** — **Activar terminal de depuración** muestra el panel de registro para la resolución de problemas.
+
+## Estadísticas (botón en la pestaña Aplicación)
+
+Se abre en **Configuración** → pestaña **Aplicación** → **Estadísticas…**; a propósito es una ventana aparte detrás de un botón, no una pestaña propia.
+
+Cuántas veces se ha descargado Open Planner Studio, por sistema operativo y por versión. Las cifras proceden de los contadores públicos de descargas de GitHub Releases y se actualizan semanalmente; la aplicación solo las lee, no se recopila ni se envía nada sobre ti.
+
+- **Descargas por sistema operativo** — por sistema, el número de descargas, dividido en instaladores (lo que descarga una persona) y actualizaciones (lo que obtiene el actualizador integrado). En Linux ambos son una sola cifra: el actualizador descarga el mismo `.deb`/`.rpm`/`.AppImage` que tú también descargas a mano. En Linux solo el archivo snap cuenta como instalador.
+- **Comprobaciones de actualización desde la aplicación** — cuántas veces una instalación de escritorio buscó una versión nueva al iniciarse; una medida aproximada del uso activo, no una descarga.
+- **Por versión** — las mismas cifras por versión; las seis más recientes por defecto, con **Mostrar las … versiones** para el resto.
+- **Fuente** — la fecha de las cifras y **Actualizar ahora**. La pestaña recuerda las últimas cifras obtenidas durante media hora; si la actualización falla, siguen visibles con un aviso.
+
+Las instalaciones desde la Snap Store no pasan por GitHub y no aparecen aquí.
 
 ## Pestaña Idioma
 

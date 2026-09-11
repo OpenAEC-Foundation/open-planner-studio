@@ -40,7 +40,7 @@ export interface Resource {
   libraryOrigin?: LibraryOrigin;
 }
 
-export type ResourceCurve = 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK';
+export type ResourceCurve = 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
 
 export interface ResourceAssignment {
   id: string;
@@ -51,6 +51,17 @@ export interface ResourceAssignment {
   unitsPerDay: number;
   /** Verdeelcurve over de duur (P6 resource curves, vereenvoudigd). undefined = UNIFORM. */
   curve?: ResourceCurve;
+  /** OPTIONEEL (contour-engine, 2026-09) — de EXACTE 21-punts curve van deze toewijzing zoals P6
+   *  (`<ResourceCurve>`, `Value0`..`Value100`) of MSPDI (een `WorkContour`-vorm zonder OPS-`curve`-
+   *  lid, zoals Double Peak/Turtle) die aanlevert: index 0 is 0, indices 1..20 het percentage werk
+   *  in elke 5%-slice van de duur (`contourEngine.ts`'s `CONTOUR_SHAPE_VALUES`-vorm). AANWEZIG ⇒ de
+   *  lastlezers (`ResourceLoad.ts`'s `assignmentDayUnits`) verdelen hiermee, zonder de hele-
+   *  eenheden-afronding van de formule (bedoelde data); `curve` blijft daarnaast de UI-benadering
+   *  (bv. P6 "Front Loaded" ⇒ `curve: 'FRONT_LOADED'` én de P6-eigen waarden hier). Wordt gewist
+   *  zodra de gebruiker `curve` wijzigt (`resourceSlice.updateAssignment`). Round-tript via het
+   *  `OPS_Timephased`-pset (`ifcWriter.ts`'s `writeTimephasedMeta`) en native via P6. Afwezig ⇒
+   *  byte-identiek. */
+  curveValues?: number[];
   /** OPTIONEEL — timephased-venster van deze toewijzing (MS Project "contouring", etappe "nul
    *  afwijkingen" Z0, voorlopig ONGEBRUIKT: geen lezer vult dit, geen solver-stap raadpleegt het).
    *  ISO-datum(tijd); precedent voor "effective-dated venster op een resource-object":

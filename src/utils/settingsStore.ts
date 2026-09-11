@@ -45,12 +45,18 @@ export async function saveTheme(theme: UITheme): Promise<void> {
   localStorage.setItem('ops-theme', theme);
 }
 
-// Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment)
+// Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment), plus de latere
+// 'system'-voorkeur (volg het OS-kleurschema) die geen migratie nodig heeft maar wél in deze map
+// moet staan — een onbekende sleutel valt hieronder terug op 'dark'.
 // 'default' was de warme bruine + amber dark theme; nu de canonical 'dark'
 // 'light' blijft 'light' (light kleuren krijgen OpenAEC token-update in globals.css)
 // 'highContrast' wordt 'high-contrast' (consistente naamgeving)
 // Alle andere oude thema's vallen terug op 'dark'
-const THEME_MIGRATION: Record<string, UITheme> = {
+//
+// Geëxporteerd (bewust klein oppervlak) zodat `tests/planning/check-theme-premirror.ts` deze map
+// woord-voor-woord kan vergelijken met de handkopie in `index.html` — zonder deze export zou die
+// poort niet kunnen bewijzen dat de twee elkaar niet zijn ontgroeid.
+export const THEME_MIGRATION: Record<string, UITheme> = {
   'default': 'dark',
   'light': 'light',
   'dark': 'dark',
@@ -59,6 +65,7 @@ const THEME_MIGRATION: Record<string, UITheme> = {
   'warm-ember': 'dark',
   'highContrast': 'high-contrast',
   'high-contrast': 'high-contrast',
+  'system': 'system',
 };
 
 export async function initTheme(): Promise<UITheme> {
@@ -142,6 +149,12 @@ export const RAIL_SECTION_MAX_HEIGHT = 2000;
 
 export async function saveRailPropertiesHeight(value: number): Promise<void> {
   await setSetting('railPropertiesHeight', Math.round(value));
+}
+
+// Issue #53: hoogte van het Waarschuwingenpaneel onderin de rail (ui.railWarningsHeight) — zelfde
+// categorie en klemmen als de Eigenschappen-sectie hierboven.
+export async function saveRailWarningsHeight(value: number): Promise<void> {
+  await setSetting('railWarningsHeight', Math.round(value));
 }
 
 export async function saveRibbonCompact(value: boolean): Promise<void> {

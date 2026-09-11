@@ -25,6 +25,8 @@ A flat list of tasks says nothing about how they relate. By indenting a task und
 
 As soon as a task has at least one subtask, it automatically becomes a summary task: its bar in the Gantt chart then spans the full period from the earliest start to the latest finish of all subtasks beneath it, and its own duration and dates can no longer be set independently. A summary task is therefore normally always a derived value, never a schedule you enter directly — delete or shift the subtasks, and the summary task's bar adjusts itself automatically. One exception: a **manually scheduled** summary task (that flag arises from a `.mpp` import) does *not* roll up — it keeps its own stored dates, even when its subtasks shift.
 
+**Recognizable in the name column.** In the task table (the **Table** tab, and the same name column in the right rail) a summary task shows in bold with a subtle background tint on the name cell; a milestone shows in bold in the same colour as its bar in the Gantt chart. A regular task stays unchanged. This is purely visual — it doesn't change how you select, drag, or edit a task.
+
 **Collapse and expand.** With a large WBS you'll sometimes want to compact the tree temporarily. The **View** ribbon tab, **Outline** group, has two separate buttons for this — **Collapse** and **Expand** — deliberately not a single toggle, because with a mixed selection (some branches open, others closed) a toggle could never set everything the same way.
 
 - **With a selection**, the buttons act on the selected tasks; only tasks with subtasks are affected, standalone tasks are ignored.

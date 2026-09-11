@@ -433,6 +433,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       const isValidContour = (c: unknown): c is TaskTimephasedContour =>
         !!c && typeof c === 'object'
         && (typeof (c as TaskTimephasedContour).resourceUid === 'number' || (c as TaskTimephasedContour).resourceUid === null)
+        // Contour-engine (2026-09): optioneel OPS-resource-id; afwezig blijft geldig (Z14b-bestanden).
+        && ((c as TaskTimephasedContour).resourceId === undefined || typeof (c as TaskTimephasedContour).resourceId === 'string')
         && Array.isArray((c as TaskTimephasedContour).periods)
         && (c as TaskTimephasedContour).periods.every(isValidPeriod);
       for (const { name, value } of props) {

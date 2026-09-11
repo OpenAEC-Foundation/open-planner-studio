@@ -24,11 +24,23 @@
 **Uygulama:**
 
 - **Sürüm** — uygulamanın sürüm numarası (salt okunur), güncelleme penceresini açan bir **Güncellemeleri denetle** bağlantısıyla birlikte. Güncellemeleri yüklemek yalnızca masaüstü uygulamasında çalışır; Snap ve AppImage kurulumları kendi kanalları üzerinden güncellenir. Ayrıca, uygulama kendini otomatik güncelledikten sonra ilk açtığınızda, "Az önce güncellendiniz" iletişim penceresi kendiliğinden tek seferlik olarak görünür — sürüm sıçraması, yükleyici boyutu farkı, önceki sürümden bu yana geçen gün sayısı ve GitHub yayın notları, alabildiği hangisiyse. Bu, buradaki elle **Güncellemeleri denetle** bağlantısından farklı, otomatik bir andır.
-- **Proje bilgileri...** — [Proje bilgileri](docs://ref-projectgegevens) penceresine kısayol.
 - **Tur** — **Turu başlat**, giriş turunu tekrar oynatır. Aynı yeniden başlatma, **Görünüm** şerit sekmesindeki **Tur**'da ve Backstage'de (**Dosya** → **Turu başlat**) de bulunur.
 - **Kıyaslama** — bu makinenin planlama/çizim performansını ölçmek için yerleşik kıyaslama aracını açar.
 - **Yapay zeka modu** — **Yapay zeka modunu etkinleştir**, MCP köprüsüne sahip **Yapay Zeka** şerit sekmesini gösterir; böylece bir yapay zeka asistanı Model Context Protocol üzerinden planınızla çalışabilir; kapatmak çalışan bir köprüyü hemen durdurur. **Köprüyü otomatik başlat** (yalnızca yapay zeka modu açıkken kullanılabilir), önce Yapay Zeka sekmesini ziyaret etmeden köprüyü uygulama açılır açılmaz devreye alır — yalnızca masaüstü uygulamasında. Tam resim için uygulama içi yapay-zeka-asistanı kılavuzuna bakın.
 - **Hata ayıklama terminali** — **Hata ayıklama terminalini etkinleştir**, sorun giderme için günlük panelini gösterir.
+
+## İstatistikler (Uygulama sekmesindeki düğme)
+
+**Ayarlar** → **Uygulama** sekmesi → **İstatistikler…** ile açılır; bilinçli olarak ayrı bir sekme değil, bir düğmenin arkasındaki ayrı bir penceredir.
+
+Open Planner Studio’nun işletim sistemine ve sürüme göre kaç kez indirildiği. Rakamlar GitHub Releases’ın herkese açık indirme sayaçlarından gelir ve haftalık yenilenir; uygulama yalnızca okur, sizden hiçbir veri toplanmaz veya gönderilmez.
+
+- **İşletim sistemine göre indirmeler** — sistem başına indirme sayısı; yükleyiciler (bir kişinin indirdiği) ve güncellemeler (uygulama içi güncelleyicinin aldığı) olarak ayrılmış. Linux’ta ikisi tek rakamdır: güncelleyici, elle de indirdiğiniz aynı `.deb`/`.rpm`/`.AppImage` dosyasını alır. Linux’ta yükleyici olarak yalnızca snap dosyası sayılır.
+- **Uygulamadan yapılan güncelleme denetimleri** — bir masaüstü kurulumunun açılışta kaç kez yeni sürüm aradığı; etkin kullanımın kaba bir ölçüsü, indirme değil.
+- **Sürüme göre** — aynı rakamlar sürüm başına; varsayılan olarak en yeni altı sürüm, kalanı için **… sürümün tümünü göster**.
+- **Kaynak** — rakamların tarihi ve **Şimdi yenile**. Sekme son alınan rakamları yarım saat hatırlar; yenileme başarısız olursa bunlar bir uyarıyla görünür kalır.
+
+Snap Store üzerinden yapılan kurulumlar GitHub’dan geçmez ve burada yer almaz.
 
 ## Dil sekmesi
 

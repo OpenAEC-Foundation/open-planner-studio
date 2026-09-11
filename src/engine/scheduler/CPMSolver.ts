@@ -68,6 +68,11 @@ export interface CPMResult {
   projectEnd: string;
   projectDuration: number; // work days
   error?: string; // Set if circular dependency detected
+  /** OPTIONEEL (issue #53, waarschuwingenpaneel): de taak-ids van de gedetecteerde cyclus, in
+   *  loopvolgorde — dezelfde ids waarvan `error` de namen noemt. Alleen gezet op het cyclus-pad;
+   *  afwezig op elk ander pad (byte-identiek default), zodat een consument de cyclus kan
+   *  navigeren/markeren in plaats van namen uit de foutstring te moeten parsen. */
+  cycleTaskIds?: string[];
 }
 
 /** Voortgangs-opties (fase 2.6). Leeg ⇒ geen statusdatum-gedrag (byte-identiek aan vóór 2.6). */
@@ -166,7 +171,7 @@ export interface CPMTaskResult {
  * onparseerbare startdatum): alle verzamelingen leeg, alleen de foutmelding verschilt per pad.
  * Eén fabriek zodat de drie guards nooit kunnen divergeren.
  */
-function emptyResult(error: string): CPMResult {
+function emptyResult(error: string, cycleTaskIds?: string[]): CPMResult {
   return {
     tasks: new Map(),
     criticalPath: [],
@@ -183,6 +188,7 @@ function emptyResult(error: string): CPMResult {
     projectEnd: '',
     projectDuration: 0,
     error,
+    ...(cycleTaskIds ? { cycleTaskIds } : {}),
   };
 }
 
@@ -917,7 +923,8 @@ export class CPMSolver {
     const cycle = this.detectCycle();
     if (cycle) {
       const cycleNames = cycle.map(id => this.tasks.get(id)?.name || id).join(' -> ');
-      return emptyResult(`Circular dependency detected: ${cycleNames}`);
+      // `cycle` sluit de lus (eerste knoop staat ook achteraan); voor navigatie tellen unieke ids.
+      return emptyResult(`Circular dependency detected: ${cycleNames}`, [...new Set(cycle)]);
     }
 
     // Guard: een kalender zonder werkdagen zou anders (via de MAX_SCAN-fallback) stil

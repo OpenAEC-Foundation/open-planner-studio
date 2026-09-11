@@ -27,11 +27,23 @@ same ustawienia i to, co robią, są w obu przypadkach identyczne; ten artykuł 
 **Aplikacja:**
 
 - **Wersja** — numer wersji aplikacji (tylko do odczytu), z odnośnikiem **Sprawdź aktualizacje**, który otwiera okno aktualizacji. Instalowanie aktualizacji działa tylko w aplikacji desktopowej; instalacje Snap i AppImage aktualizują się przez własny kanał. Osobno, przy pierwszym otwarciu aplikacji po jej samodzielnej aktualizacji, pojawia się jednorazowe okno „Masz najnowszą wersję!" — skok wersji, różnica w rozmiarze instalatora, liczba dni od poprzedniego wydania i informacje o wydaniu z GitHub, cokolwiek z tego udało się pobrać. To inny, automatyczny moment niż ręczny odnośnik **Sprawdź aktualizacje** tutaj.
-- **Informacje o projekcie...** — skrót do okna [Informacje o projekcie](docs://ref-projectgegevens).
 - **Wycieczka** — **Rozpocznij wycieczkę** odtwarza ponownie wycieczkę wprowadzającą. To samo ponowne uruchomienie znajduje się też na karcie wstążki **Widok** → **Wycieczka** oraz w Backstage (**Plik** → **Rozpocznij wycieczkę**).
 - **Benchmark** — otwiera wbudowane narzędzie benchmarku, do mierzenia wydajności harmonogramowania/renderowania na tym komputerze.
 - **Tryb AI** — **Włącz tryb AI** pokazuje kartę wstążki **AI** z mostkiem MCP, dzięki czemu asystent AI może pracować z Twoim harmonogramem przez Model Context Protocol; wyłączenie natychmiast zatrzymuje działający mostek. **Automatycznie uruchamiaj most** (dostępne tylko przy włączonym trybie AI) uruchamia mostek od razu po starcie aplikacji, bez konieczności najpierw odwiedzać karty AI — tylko w aplikacji desktopowej. Pełny obraz znajdziesz w wbudowanym przewodniku po asystencie AI.
 - **Terminal debugowania** — **Włącz terminal debugowania** pokazuje panel dziennika do rozwiązywania problemów.
+
+## Statystyki (przycisk na karcie Aplikacja)
+
+Otwórz przez **Ustawienia** → karta **Aplikacja** → **Statystyki…**; celowo jest to osobne okno za przyciskiem, a nie własna karta.
+
+Ile razy pobrano Open Planner Studio, według systemu operacyjnego i według wydania. Dane pochodzą z publicznych liczników pobrań GitHub Releases i są odświeżane co tydzień; aplikacja tylko je odczytuje, nic o Tobie nie jest zbierane ani wysyłane.
+
+- **Pobrania według systemu operacyjnego** — dla każdego systemu liczba pobrań, podzielona na instalatory (to, co pobiera człowiek) i aktualizacje (to, co pobiera aktualizator w aplikacji). Dla Linuksa obie wartości to jedna liczba: aktualizator pobiera ten sam plik `.deb`/`.rpm`/`.AppImage`, który pobierasz też ręcznie. W Linuksie za instalator liczy się tylko plik snap.
+- **Sprawdzenia aktualizacji z aplikacji** — ile razy instalacja desktopowa szukała nowej wersji przy starcie; przybliżona miara aktywnego użycia, nie pobranie.
+- **Według wydania** — te same dane dla każdej wersji; domyślnie sześć najnowszych, reszta pod **Pokaż wszystkie wydania (…)**.
+- **Źródło** — data danych i **Odśwież teraz**. Karta pamięta ostatnio pobrane dane przez pół godziny; jeśli odświeżenie się nie powiedzie, pozostają widoczne z komunikatem.
+
+Instalacje ze Snap Store nie przechodzą przez GitHub i nie są tu ujęte.
 
 ## Karta Język
 

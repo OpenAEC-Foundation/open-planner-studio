@@ -4,7 +4,7 @@ import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/typ
 import { clearTimephasedDurationWalks, clearTimephasedWindow } from '@/utils/taskDefaults';
 
 const RESOURCE_CURVES: readonly ResourceCurve[] = [
-  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK',
+  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
 ];
 
 export type AssignmentPlanOperation =

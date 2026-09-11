@@ -183,7 +183,7 @@ export function TaskCellEditor({
   const resourceOptions = descriptor?.editorOptions ?? [];
   const resourceOptionById = new Map(resourceOptions.map(option => [option.value, option] as const));
   const curves: readonly ResourceCurve[] = [
-    'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK',
+    'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
   ];
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   // Browserreview, observatie 5: `commit()` leest hieruit i.p.v. rechtstreeks uit de `text`-state.

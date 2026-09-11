@@ -122,13 +122,32 @@ export function useRecoveryRestore(): RecoveryRestore {
           onRestore: () => {
             void (async () => {
               try {
-                if (restored.length > 0) {
-                  useAppStore.getState().restoreDocuments(restored, loaded.activeDocumentId);
-                }
+                // `restoreDocuments` gooit sinds de recovery-robuustheidsfix niet meer op een
+                // corrupt-maar-parseerbaar document (bv. een cyclische WBS-relatie die de solver
+                // laat gooien) — het slaat zo'n document zelf over en geeft de overgeslagen id's
+                // terug. Zolang er niets is overgeslagen is het resultaat byte-voor-byte hetzelfde
+                // als voorheen.
+                const skipped = restored.length > 0
+                  ? useAppStore.getState().restoreDocuments(restored, loaded.activeDocumentId).skippedIds
+                  : [];
                 // Dialoog meteen weg zodra het herstel zelf klaar is — de opruimactie eronder is
                 // bestands-I/O en mag de gebruiker niet laten wachten.
                 setRecovery(null);
-                await clearRecovery();
+                // Alleen wissen als ALLES is meegenomen. Is er iets overgeslagen, dan blijft de
+                // volledige snapshotset staan — er is geen selectieve delete in `recoveryStore`, en
+                // de enige kopie van een overgeslagen document wissen zou het bewijs met de data
+                // weggooien (zelfde afweging als de parse-fout hierboven in de detectiefase).
+                //
+                // Prijs daarvan: de dialoog komt bij de volgende start opnieuw met dezelfde set, en
+                // de melding hierboven dus ook. Dat is bewust geaccepteerd en géén doodlopende weg —
+                // "Verwerpen" in de dialoog blijft de uitweg, en die keuze hoort bij de gebruiker
+                // en niet bij een stille `clearRecovery()`. Het is ook geen regressie: vóór deze fix
+                // gooide `restoreDocuments` op zo'n snapshot, kwam `clearRecovery()` net zo min aan
+                // bod en herstelde bovendien géén enkel document. De herstelde documenten zelf zijn
+                // hierna gewoon open, dus de eerstvolgende auto-save-ronde schrijft hún snapshots
+                // vers weg; de overgeslagen snapshot blijft ernaast bestaan via de carry-over in
+                // `planRecoveryCleanup` (een manifest van een vorige sessie is `foreign`).
+                if (skipped.length === 0) await clearRecovery();
               } catch (err) {
                 // Snapshots blijven staan. `finish()` gaat bewust wél door: de auto-save-poort
                 // dichthouden zou betekenen dat vanaf nu NIETS meer wordt weggeschreven — een

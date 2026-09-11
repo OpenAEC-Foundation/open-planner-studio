@@ -32,6 +32,10 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
 import { parseRecoveryManifest } from '@/services/recovery/recoveryStore';
+import type { RecoveryDocInput } from '@/state/documentContract';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import type { Task } from '@/types/task';
 
 // Minimale, botsingvrije `process`-declaratie (zelfde truc als check-ifc-roundtrip.ts), zodat dit
 // bestand óók typecheckt onder een config zonder Node-typen (`types: []`).
@@ -163,6 +167,102 @@ eq('7c lege inhoud → null', parseRecoveryManifest(''), null);
 eq('7d geldig JSON zonder documents-lijst → null', parseRecoveryManifest('{"foo":1}'), null);
 eq('7e JSON-array i.p.v. object → null', parseRecoveryManifest('[1,2,3]'), null);
 eq('7f null-literal → null', parseRecoveryManifest('null'), null);
+
+// ── 8. restoreDocuments: één logisch corrupt document mag het herstel van de rest niet blokkeren ──
+// Recovery-robuustheid (docs/TODO.md): een snapshot kan `readIFC` overleven — geen truncated STEP,
+// geen structurele fout — en toch inhoudelijk corrupt zijn. Deze fixture bouwt zo'n geval RECHT-
+// STREEKS als `RecoveryDocInput` (net als check-document-contract.ts §d): een taak met een
+// zelfverwijzende `childIds` (WBS-kind = zichzelf). `applyCpmResult`'s samenvattingsrollup
+// (`updateSummary`) heeft geen cyclusbewaking — in tegenstelling tot de CPM-solver zelf, die een
+// relatiecyclus netjes als `result.error` teruggeeft — en loopt hierop vast in een onbegrensde
+// recursie (`RangeError: Maximum call stack size exceeded`). Vóór deze fix liet dat de HELE
+// `restoreDocuments`-aanroep gooien: ook de gezonde buurdocumenten kwamen dan niet terug.
+{
+  const cal = { ...createDefaultCalendar(), id: 'cal-corrupt', name: 'Corrupt-kalender' };
+  const mkProject = (id: string, name: string) => ({
+    id: `proj-${id}`, name, description: '', startDate: '2031-01-01', endDate: '',
+    calendarId: cal.id, createdAt: '', modifiedAt: '', author: '', company: '', wbsAutoNumber: true,
+  });
+
+  const gezond: RecoveryDocInput = {
+    id: 'rec-gezond',
+    project: mkProject('rec-gezond', 'Gezond document'),
+    calendar: cal,
+    tasks: [{
+      id: 'task-gezond', name: 'Gewone taak', parentId: null, childIds: [],
+      time: createDefaultTaskTime('2031-01-01', 1),
+    } as unknown as Task],
+    sequences: [], resources: [], assignments: [],
+    resourceCalendars: [cal], activityCodeTypes: [], customFieldDefs: [], baselines: [],
+    activeBaselineId: null, filePath: '/tmp/rec-gezond.ifc', isDirty: true,
+  };
+  const corrupt: RecoveryDocInput = {
+    id: 'rec-corrupt',
+    project: mkProject('rec-corrupt', 'Corrupt document'),
+    calendar: cal,
+    // Zelfverwijzende childIds: geen enkele lezer (IFC/MSPDI/P6/mpp) produceert dit, maar een
+    // logisch beschadigde snapshot (bitrot, een handmatig geknutseld bestand) kan het wél dragen.
+    tasks: [{
+      id: 'task-corrupt', name: 'Cyclische verzameltaak', parentId: null, childIds: ['task-corrupt'],
+      time: createDefaultTaskTime('2031-01-01', 1),
+    } as unknown as Task],
+    sequences: [], resources: [], assignments: [],
+    resourceCalendars: [cal], activityCodeTypes: [], customFieldDefs: [], baselines: [],
+    activeBaselineId: null, filePath: '/tmp/rec-corrupt.ifc', isDirty: true,
+  };
+
+  // 8a — het corrupte document als AANGEVRAAGD actief document: restoreDocuments moet uitwijken
+  // naar het gezonde document i.p.v. helemaal niets te herstellen.
+  S().newProject();
+  const result = S().restoreDocuments([corrupt, gezond], 'rec-corrupt');
+  eq('8a corrupt document komt terug als overgeslagen', result.skippedIds, ['rec-corrupt']);
+  eq('8b het GEZONDE document is toch actief geworden (uitwijk, niet de gevraagde activeId)',
+    S().activeDocumentId, 'rec-gezond');
+  eq('8c het gezonde document is echt doorgerekend (cpmResult niet null)', S().cpmResult !== null, true);
+  eq('8d het corrupte document staat niet meer in de documentregistry',
+    S().documents.some(d => d.id === 'rec-corrupt'), false);
+  eq('8e het gezonde document staat wél in de registry (als actief, payload=null)',
+    S().documents.map(d => d.id), ['rec-gezond']);
+  const skipNotice = S().ui.notifications.find(n => n.messageKey === 'notifications.recoveryDocumentsSkipped');
+  truthy('8f er is een gebruikerszichtbare melding over het overgeslagen document', !!skipNotice);
+  eq('8g de melding telt exact één overgeslagen document', skipNotice?.params?.count, 1);
+
+  // 8h — ALLES corrupt: geen enkel document herstelt, maar de aanroep gooit niet en levert een
+  // volledige skip-lijst — dat is precies wat `useRecoveryRestore` gebruikt om `clearRecovery()`
+  // over te slaan (de enige kopie van de data blijft op schijf staan).
+  S().newProject();
+  const alleCorrupt: RecoveryDocInput = { ...corrupt, id: 'rec-corrupt-2', filePath: '/tmp/rec-corrupt-2.ifc' };
+  (alleCorrupt.tasks[0] as unknown as Task).id = 'task-corrupt-2';
+  (alleCorrupt.tasks[0] as unknown as Task).childIds = ['task-corrupt-2'];
+  const activeIdVoor = S().activeDocumentId;
+  const resultAlles = S().restoreDocuments([corrupt, alleCorrupt], 'rec-corrupt');
+  eq('8h beide corrupte documenten komen terug als overgeslagen',
+    [...resultAlles.skippedIds].sort(), ['rec-corrupt', 'rec-corrupt-2']);
+  eq('8i geen enkel document is hersteld: de store blijft op het document van vóór de aanroep staan',
+    S().activeDocumentId, activeIdVoor);
+  // De harde invariant van de app: er is ALTIJD minstens één document. Een volledig corrupte
+  // recovery-set mag de gebruiker dus nooit met een documentloze app achterlaten — de vroege
+  // `return` in `restoreDocuments` raakt `s.documents`/`s.activeDocumentId` daarom niet aan.
+  truthy('8j er is nog steeds minstens één document', S().documents.length >= 1);
+  truthy('8k activeDocumentId wijst naar een bestaand document',
+    S().documents.some(d => d.id === S().activeDocumentId));
+  const alleSkipNotice = S().ui.notifications.find(n => n.messageKey === 'notifications.recoveryDocumentsSkipped');
+  truthy('8l ook bij een volledig corrupte set is er een zichtbare melding', !!alleSkipNotice);
+  eq('8m die melding telt beide overgeslagen documenten', alleSkipNotice?.params?.count, 2);
+
+  // 8n — spiegelbeeld van 8a: is het GEVRAAGDE actieve document gezond, dan verandert er niets aan
+  // het bestaande gedrag (zelfde activeId, niets overgeslagen, dus de aanroeper mag `clearRecovery()`
+  // gewoon draaien). Let op de bewuste grens hiervan: een slapend document wordt bij herstel NIET
+  // doorgerekend (net als vóór deze fix), dus een corrupte snapshot die niet als actief document
+  // wordt gekozen komt hier als gewone payload binnen. Die valt pas om bij een latere
+  // `switchDocument` — een aparte, pre-existente lacune die dit item bewust niet dichttimmert.
+  S().newProject();
+  const resultGezond = S().restoreDocuments([gezond, corrupt], 'rec-gezond');
+  eq('8n gezond gevraagd actief document → niets overgeslagen', resultGezond.skippedIds, []);
+  eq('8o de gevraagde activeId is gehonoreerd', S().activeDocumentId, 'rec-gezond');
+  eq('8p beide documenten staan in de registry', S().documents.map(d => d.id).sort(),
+    ['rec-corrupt', 'rec-gezond']);
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

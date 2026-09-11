@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { measurePrintReport, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { buildPrintRows, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { ensureExtension } from '@/utils/filePath';
@@ -20,7 +20,14 @@ import {
 import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useSplitter } from '@/hooks/useSplitter';
 import { isTauri } from '@/utils/platform';
-import { DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings } from '@/utils/reportSettings';
+import {
+  DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, TABLE_REPORT_TYPES,
+  type ReportType, type TableReportOptions,
+} from '@/utils/reportSettings';
+import { TableReportView } from './reports/TableReportView';
+import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
+import { useTableReportSpec } from './reports/useTableReportSpec';
+import { toPdfSpec } from './reports/tableReportSpec';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
@@ -147,9 +154,8 @@ interface PreviewLayoutState {
 interface PreviewScrollAnchor {
   index: number;
   offset: number;
-  /** `root.scrollTop` op het moment van vastleggen — het herstel vergelijkt hiermee of de
-   * gebruiker zelf al gescrold heeft vóór het (async, via rAF) herstel aan de beurt komt. */
-  scrollTopAtCapture: number;
+  /** scrollTop op het moment van vastleggen; het herstel slaat over als die intussen veranderde. */
+  scrollTop: number;
 }
 
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -163,7 +169,7 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
   const pages = [...root.querySelectorAll<HTMLElement>('[data-preview-page]')];
-  if (pages.length === 0) return { index: 0, offset: 0, scrollTopAtCapture: root.scrollTop };
+  if (pages.length === 0) return { index: 0, offset: 0, scrollTop: root.scrollTop };
   const rootTop = root.getBoundingClientRect().top;
   const visible = pages
     .map(page => ({ page, rect: page.getBoundingClientRect() }))
@@ -171,20 +177,21 @@ function capturePreviewScrollAnchor(root: HTMLElement): PreviewScrollAnchor {
     .sort((a, b) => Math.abs(a.rect.top - rootTop) - Math.abs(b.rect.top - rootTop))[0];
   const page = visible?.page ?? pages[0];
   return {
-    scrollTopAtCapture: root.scrollTop,
     index: Number(page.dataset.previewPage) || 0,
     offset: page.getBoundingClientRect().top - rootTop,
+    scrollTop: root.scrollTop,
   };
 }
 
+/** Herstelt het leesanker ná een layoutwissel — maar alleen als de gebruiker intussen niet zelf
+ * heeft gescrold. Het anker wordt vastgelegd in `renderPreview` (na de 100ms-debounce) en pas in
+ * de eerstvolgende animatieframe teruggezet; op een trage machine (CI-runner, zware rasterisatie)
+ * ligt daar een venster waarin een echte wielscroll landt. Zonder deze poort trok het herstel de
+ * viewport dan terug naar de positie van vóór die scroll (browsertest "stabiel scrollanker":
+ * scrollTop 0 direct ná een geslaagde scroll). Een gewijzigde scrollTop betekent dat de gebruiker
+ * al ergens anders leest; die positie wint. */
 function restorePreviewScrollAnchor(root: HTMLElement, anchor: PreviewScrollAnchor, totalPages: number): void {
-  // Bekende beperking: dit onderscheidt "gebruiker scrolde tussen vastleggen en herstel" alléén via
-  // scrollTop-drift — een toevallig exact even grote layoutverschuiving in dat venster (zeldzaam,
-  // niet waargenomen) zou nog steeds worden hersteld. De race die dit dichtte was reëel: het herstel
-  // draait via requestAnimationFrame, dus een scroll van de gebruiker vlak ná het vastleggen van het
-  // anker (bv. wanneer een net verschenen scrollbar de viewportbreedte wijzigt en dit effect
-  // opnieuw met een stale anker start) werd anders genegeerd en teruggedraaid.
-  if (Math.abs(root.scrollTop - anchor.scrollTopAtCapture) > 0.5) return;
+  if (root.scrollTop !== anchor.scrollTop) return;
   const index = Math.min(Math.max(0, anchor.index), Math.max(0, totalPages - 1));
   const page = root.querySelector<HTMLElement>(`[data-preview-page="${index}"]`);
   if (!page) return;
@@ -215,6 +222,7 @@ export function ReportPanel() {
   // (doorgetrokken = bepalend, gestreept = niet-bepalend). Die informatie zit alleen in `cpmResult`,
   // dus een echte subscription — anders ververst de preview niet na een F5/Bereken.
   const cpmResult = useAppStore(s => s.cpmResult);
+  const scheduleStale = useAppStore(s => s.scheduleStale);
   // #21/#54 — bronnen voor de nieuwe exportopties: resources/toewijzingen (kleurmodi), de
   // schermweergave-rijen (volg weergave) en de statusdatum (statuslijn). Echte subscriptions
   // (geen getState): de live preview moet op al deze wijzigingen her-renderen.
@@ -244,7 +252,12 @@ export function ReportPanel() {
 
   // De rapportopties starten op de gedeelde defaults uit `reportSettings.ts` en worden vlak na de
   // eerste render overschreven door de opgeslagen voorkeuren (zie het hydratatie-effect verderop).
-  const [reportType, setReportType] = useState<'gantt' | 'milestones' | 'variance'>(DEFAULT_REPORT_SETTINGS.reportType);
+  const [reportType, setReportType] = useState<ReportType>(DEFAULT_REPORT_SETTINGS.reportType);
+  // Opties van de zeven tabelrapporten (discussie #31) — één object, samen bewaard met de rest.
+  const [tableOptions, setTableOptions] = useState<TableReportOptions>(DEFAULT_REPORT_SETTINGS.tableReports);
+  const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
+    setTableOptions(prev => ({ ...prev, ...patch }));
+  }, []);
   const [showCritical, setShowCritical] = useState(DEFAULT_REPORT_SETTINGS.showCritical);
   const [showFloat, setShowFloat] = useState(DEFAULT_REPORT_SETTINGS.showFloat);
   const [showDeps, setShowDeps] = useState(DEFAULT_REPORT_SETTINGS.showDeps);
@@ -253,6 +266,13 @@ export function ReportPanel() {
   const [showLegend, setShowLegend] = useState(DEFAULT_REPORT_SETTINGS.showLegend);
   const [showTaskNames, setShowTaskNames] = useState(DEFAULT_REPORT_SETTINGS.showTaskNames);
   const [showCompletion, setShowCompletion] = useState(DEFAULT_REPORT_SETTINGS.showCompletion);
+  // Naamkolom in de taaktabel: afkappen op een instelbare breedte (slider), of de kolom aan de
+  // langste naam laten aanpassen. In dat laatste geval meet het paneel zelf (zie het effect
+  // verderop) en krijgt de printlaag alleen het resulterende getal — één getal voor preview,
+  // raster- en vector-export, zodat die drie nooit een verschillende tabel tekenen.
+  const [truncateTaskNames, setTruncateTaskNames] = useState(DEFAULT_REPORT_SETTINGS.truncateTaskNames);
+  const [taskNameColumnWidth, setTaskNameColumnWidth] = useState(DEFAULT_REPORT_SETTINGS.taskNameColumnWidth);
+  const [autoNameColumnWidth, setAutoNameColumnWidth] = useState<number | undefined>(undefined);
   const [showBaselineOverlay, setShowBaselineOverlay] = useState(DEFAULT_REPORT_SETTINGS.showBaselineOverlay);
   const [autoFit, setAutoFit] = useState(DEFAULT_REPORT_SETTINGS.autoFit);
   const [customZoom, setCustomZoom] = useState(DEFAULT_REPORT_SETTINGS.customZoom);
@@ -353,6 +373,8 @@ export function ReportPanel() {
       setShowLegend(s.showLegend);
       setShowTaskNames(s.showTaskNames);
       setShowCompletion(s.showCompletion);
+      setTruncateTaskNames(s.truncateTaskNames);
+      setTaskNameColumnWidth(s.taskNameColumnWidth);
       setShowBaselineOverlay(s.showBaselineOverlay);
       setAutoFit(s.autoFit);
       setCustomZoom(s.customZoom);
@@ -364,6 +386,7 @@ export function ReportPanel() {
       setStatusLine(s.statusLine);
       setFollowView(s.followView);
       setPreviewQuality(s.previewQuality);
+      setTableOptions(s.tableReports);
       hydratedRef.current = true;
       setReportSettingsHydrated(true);
     }, () => {
@@ -396,15 +419,39 @@ export function ReportPanel() {
     // best-effort — mislukt het, dan blijft de instelling gewoon binnen deze sessie werken.
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
-      showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation,
-      repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
+      paperSize, orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      tableReports: tableOptions,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
-      showCompletion, showBaselineOverlay, autoFit, customZoom, paperSize, orientation, repeatHeader, timelineColumns,
-      reportFontScale, statusLine, followView, previewQuality]);
+      showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
+      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality, tableOptions]);
+
+  // Afkappen uit ⇒ meet de langste naam op dezelfde rijen die het rapport tekent, op het geladen
+  // Inter-font (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
+  // De meting gebeurt hier en niet in de printlaag: `measurePrintReport` (paginering) heeft geen
+  // canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster-/vector-render.
+  useEffect(() => {
+    if (truncateTaskNames) return;
+    let cancelled = false;
+    void ensureInterLoaded().then(() => {
+      if (cancelled) return;
+      const ctx = document.createElement('canvas').getContext('2d');
+      if (!ctx) { setAutoNameColumnWidth(NAME_COLUMN_WIDTH_DEFAULT); return; }
+      const rows = buildPrintRows(tasks, followView ? viewRows : undefined);
+      setAutoNameColumnWidth(measureTaskNameColumnWidth(rows, (text, bold) => {
+        ctx.font = nameCellFont(bold);
+        return ctx.measureText(text).width;
+      }));
+    });
+    return () => { cancelled = true; };
+  }, [truncateTaskNames, tasks, viewRows, followView]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
+  const tableReportRef = useRef<HTMLDivElement>(null);
+  // null voor gantt/milestones/variance; anders de complete spec (titel, samenvatting, secties).
+  const tableSpec = useTableReportSpec(reportType, tableOptions);
 
   // Gepagineerde Gantt-preview: dezelfde tegels als de PDF-export (gedeelde pagineer-engine).
   const [previewPages, setPreviewPages] = useState<Map<number, PreviewPage>>(() => new Map());
@@ -442,10 +489,14 @@ export function ReportPanel() {
   const locale = i18n.language;
   // Eén waardeobject is de contractgrens tussen UI, preview en export. Daardoor kan geen van beide
   // renderpaden per ongeluk een losse oude optie of vertaalde kop uit een eerdere render vasthouden.
+  // Tot de meting klaar is (afkappen net uitgezet) houdt de preview de sliderbreedte; de meting
+  // vervangt die één render later. Bewust geen "leeg" tussenframe.
+  const effectiveNameColumnWidth = truncateTaskNames ? taskNameColumnWidth : (autoNameColumnWidth ?? taskNameColumnWidth);
   const options = useMemo<PrintOptions>(() => ({
     showCritical, showFloat, showDeps, showWeekends, showLegend,
     showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
+    taskNameColumnWidth: effectiveNameColumnWidth,
     labels: {
       noTasks: t('noTasks'),
       printed: t('printed'),
@@ -461,7 +512,6 @@ export function ReportPanel() {
         relationStyle: t('legend.relationStyle'),
       },
       tableHeaders: {
-        rowNum: '#',
         wbs: t('tableHeaders.wbs'),
         taskName: t('tableHeaders.taskName'),
         start: t('tableHeaders.start'),
@@ -512,7 +562,7 @@ export function ReportPanel() {
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
     },
   }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
-    autoFit, customZoom, paperSize, orientation, companyName, t, locale, project.startDate,
+    autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
@@ -557,7 +607,7 @@ export function ReportPanel() {
 
     const renderPreview = () => {
       if (cancelled) return;
-      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = measurePrintReport(
+      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets } = measurePrintReport(
         tasks, sequences, calendar, projectName, options,
       );
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
@@ -577,12 +627,14 @@ export function ReportPanel() {
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
         timelineColumns: options.timelineColumns,
+        // Rij-bewuste paginering (issue #110): preview en export delen dezelfde breekposities.
+        breakOffsetsPx: breakOffsets,
         supersample: previewLimits.pageSupersample,
       };
       const layout = computeTileLayout(tileOptions);
       const total = layout.rows * layout.cols;
       const root = previewViewportRef.current;
-      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTopAtCapture: 0 };
+      const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTop: 0 };
       const visibleIndices = root
         ? [...root.querySelectorAll<HTMLElement>('[data-preview-page]')]
           .filter(page => {
@@ -779,13 +831,15 @@ export function ReportPanel() {
     }
   }, []);
 
-  const handleExportPDF = useCallback(async () => {
-    // K7: de PDF-export schrijft CPM-datums naar derden — net als fileSlice.exportAs eerst een
-    // stale schema doorrekenen (via getState, niet via een selector: de guard moet de actuele
-    // store lezen op het klikmoment), en bij een cyclus afbreken zónder te exporteren. De
-    // cpmResult.error-check is apart nodig omdat runCPM `scheduleStale` vóór de solve al op false
-    // zet; een guard op alleen die vlag zou stil met oude task.time-waarden exporteren.
-    if (useAppStore.getState().scheduleStale) useAppStore.getState().runCPM();
+  /**
+   * De eigenlijke export — draait ALTIJD op de closure-waarden van de huidige render (`tasks`,
+   * `options`, `tableSpec`). Daarom mag hij pas ná een herberekening worden aangeroepen wanneer die
+   * een re-render heeft opgeleverd; zie `handleExportPDF` en het effect eronder.
+   */
+  const runExport = useCallback(async () => {
+    // K7: bij een cyclus afbreken zónder te exporteren. De cpmResult.error-check staat hier los van
+    // de stale-vlag omdat runCPM `scheduleStale` vóór de solve al op false zet; een guard op alleen
+    // die vlag zou stil met oude task.time-waarden exporteren.
     const cpmError = useAppStore.getState().cpmResult?.error;
     if (cpmError) {
       // Zichtbaar maken is hier NIET optioneel: op het Rapport-tabblad is `GanttCanvas` niet
@@ -816,7 +870,7 @@ export function ReportPanel() {
       // 1) levert de LOGISCHE maten + naam-kolombreedte; de tweede render het high-res raster.
       const exportRaster = (): Uint8Array => {
         const exportCanvas = document.createElement('canvas');
-        const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight } = renderPrintCanvas(
+        const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets } = renderPrintCanvas(
           exportCanvas, tasks, sequences, calendar, projectName, options, 1,
         );
         const exportScale = computeHighResScale(logicalWidth, logicalHeight);
@@ -828,6 +882,7 @@ export function ReportPanel() {
           // raster-terugval WYSIWYG gelijk is aan beide (issue #25 punt 1 + 5).
           repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
           timelineColumns,
+          breakOffsetsPx: breakOffsets,
         });
       };
 
@@ -870,10 +925,10 @@ export function ReportPanel() {
     // gepagineerd door dezelfde paginateVectorToPdfBytes als de Gantt-tak hierboven. Bij een fout
     // valt de export terug op het BESTAANDE DOM-screenshot-pad (modern-screenshot), zodat de export
     // nooit stukloopt.
-    const suffix = reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
+    const suffix = tableSpec ? tableSpec.fileSuffix : reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
 
     const exportTableRaster = async (): Promise<Uint8Array> => {
-      const node = reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
+      const node = tableSpec ? tableReportRef.current : reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
       if (!node) throw new Error('exportTableRaster: DOM-node niet beschikbaar');
 
       // domToCanvas met scale=s levert een canvas van node.offsetWidth*s × node.offsetHeight*s
@@ -906,7 +961,7 @@ export function ReportPanel() {
 
     let tablePdfBytes: Uint8Array;
     try {
-      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
+      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport, makeSectionedRenderReport }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
         import('@/services/print/paginateVector'),
         import('@/services/pdf/pdfTable'),
         getInterFontBytes(400),
@@ -917,7 +972,15 @@ export function ReportPanel() {
 
       // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
       // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.
-      if (reportType === 'milestones') {
+      if (tableSpec) {
+        // Tabelrapporten (discussie #31): dezelfde kolomspec als de DOM-weergave, gesectioneerd.
+        tablePdfBytes = await paginateVectorToPdfBytes(
+          makeSectionedRenderReport(toPdfSpec(tableSpec)),
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
+          { regular, bold },
+          { regular: arabicRegular, bold: arabicBold },
+        );
+      } else if (reportType === 'milestones') {
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeTableRenderReport({
             title: t('milestoneReport.title'),
@@ -949,7 +1012,28 @@ export function ReportPanel() {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult]);
+    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
+
+  // K7-guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
+  // leest `tasks`/`options`/`tableSpec` uit de closure van de HUIDIGE render, en die kent de
+  // herberekening nog niet (review-bevinding 1: de PDF liep weken achter op het scherm en droeg
+  // nog de "planning gewijzigd"-melding). De export wordt daarom uitgesteld tot het effect hieronder
+  // ná de re-render met de verse waarden vuurt.
+  const exportPendingRef = useRef(false);
+  const handleExportPDF = useCallback(() => {
+    const st = useAppStore.getState();
+    if (st.scheduleStale) {
+      exportPendingRef.current = true;
+      st.runCPM();
+      return;
+    }
+    void runExport();
+  }, [runExport]);
+  useEffect(() => {
+    if (!exportPendingRef.current || scheduleStale) return;
+    exportPendingRef.current = false;
+    void runExport();
+  }, [scheduleStale, runExport]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;
@@ -993,19 +1077,27 @@ export function ReportPanel() {
           className="w-full min-w-0"
           aria-label={t('reportType.label')}
           value={reportType}
-          onChange={v => setReportType(v as 'gantt' | 'milestones' | 'variance')}
+          onChange={v => setReportType(v as ReportType)}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
             { value: 'milestones', label: t('reportType.milestones') },
             { value: 'variance', label: t('reportType.variance') },
+            ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: t(`reportType.${type}`) })),
           ]}
         />
 
         {/* Project summary */}
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
           <h3 className="ui-card-header !text-xs mb-2">{t('summary')}</h3>
-          <div className="grid grid-cols-2 gap-1 text-xs">
-            {reportType === 'gantt' ? (
+          <div className="grid grid-cols-2 gap-1 text-xs" data-ops-report-summary-block>
+            {tableSpec ? (
+              tableSpec.summary.map((item, i) => (
+                <span key={i} className="contents">
+                  <span className="text-text-secondary">{item.label}</span>
+                  <span style={{ color: item.color, fontWeight: item.color ? 700 : undefined }}>{item.value}</span>
+                </span>
+              ))
+            ) : reportType === 'gantt' ? (
               <>
                 <span className="text-text-secondary">{t('tasks')}</span>
                 <span>{tasks.length}</span>
@@ -1248,6 +1340,29 @@ export function ReportPanel() {
               <input type="checkbox" checked={showCompletion} onChange={e => setShowCompletion(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showCompletion', { defaultValue: 'Voltooiing tonen' })}</span>
             </label>
+            {/* Naamkolom: afkappen op een instelbare breedte, of meegroeien met de langste naam. */}
+            <label className="flex items-center gap-2 min-w-0">
+              <input data-ops-report-truncate-names type="checkbox" checked={truncateTaskNames} onChange={e => setTruncateTaskNames(e.target.checked)} className="accent-accent flex-shrink-0" />
+              <span className="min-w-0">{t('truncateTaskNames')}</span>
+            </label>
+            {truncateTaskNames ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <label className="text-text-secondary w-20 flex-shrink-0">{t('taskNameColumnWidthLabel')}</label>
+                <input
+                  data-ops-report-name-column-width
+                  type="range"
+                  min={NAME_COLUMN_WIDTH_MIN}
+                  max={NAME_COLUMN_WIDTH_MAX}
+                  value={taskNameColumnWidth}
+                  onChange={e => setTaskNameColumnWidth(Number(e.target.value))}
+                  aria-label={t('taskNameColumnWidthLabel')}
+                  className="flex-1 min-w-0"
+                />
+                <span className="w-8 flex-shrink-0 text-right">{taskNameColumnWidth}</span>
+              </div>
+            ) : (
+              <span className="text-text-secondary">{t('taskNameColumnWidthHint')}</span>
+            )}
             <label className="flex items-center gap-2 min-w-0">
               <input data-ops-report-baseline-overlay type="checkbox" checked={showBaselineOverlay} onChange={e => setShowBaselineOverlay(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showBaselineOverlay')}</span>
@@ -1280,10 +1395,22 @@ export function ReportPanel() {
         </div>
         )}
 
+        {tableSpec && (
+          <TableReportOptionsBlock
+            reportType={reportType}
+            options={tableOptions}
+            onChange={patchTableOptions}
+            paperSize={paperSize}
+            orientation={orientation}
+            onPaperSize={setPaperSize}
+            onOrientation={setOrientation}
+          />
+        )}
+
         {/* Action buttons — alle rapporttypes exporteren naar PDF (geen uitprinten meer). */}
         <div className="flex flex-col gap-2">
           <button
-            onClick={() => { void handleExportPDF(); }}
+            onClick={handleExportPDF}
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >
@@ -1363,6 +1490,10 @@ export function ReportPanel() {
                 </div>
               </div>
             </div>
+          </div>
+        ) : tableSpec ? (
+          <div className="h-full overflow-auto p-4">
+            <TableReportView ref={tableReportRef} spec={tableSpec} />
           </div>
         ) : reportType === 'milestones' ? (
           <div className="h-full overflow-auto p-4">

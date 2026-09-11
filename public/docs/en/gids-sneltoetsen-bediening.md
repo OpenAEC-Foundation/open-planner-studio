@@ -96,7 +96,7 @@ Besides the zoom buttons on the ribbon, **+**/**=** (or **Ctrl+=**) zooms in and
 project fits on screen ("fit to project") — the same as the button with that name in the empty-canvas
 context menu above. The timeline header adapts as you zoom in further: week numbers appear once
 there's room for them, and day names label each column once you're zoomed in close enough to work at
-day level. If **Show only working days** (Settings → Timeline / Zoom) is on, the header — and the
+day level. If **Show only working days** (Settings → Appearance → Gantt) is on, the header — and the
 bars themselves — skip weekends and holidays entirely instead of just greying them out, so a
 5-workday task is exactly 5 columns wide.
 

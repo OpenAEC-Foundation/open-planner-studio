@@ -22,12 +22,69 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
-import { REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 
 /** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
 const STORAGE_KEY = 'reportSettings';
 
-export type ReportType = 'gantt' | 'milestones' | 'variance';
+export type ReportType =
+  | 'gantt' | 'milestones' | 'variance'
+  // Tabelrapporten uit discussie #31 (manuvarkey) — zie `src/engine/reports/`.
+  | 'lookAhead' | 'critical' | 'progress' | 'health' | 'resourceLoading' | 'resourceAssignments' | 'wbsSummary';
+
+/** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
+export const TABLE_REPORT_TYPES: readonly ReportType[] = [
+  'lookAhead', 'critical', 'progress', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',
+];
+
+export function isTableReportType(type: ReportType): boolean {
+  return TABLE_REPORT_TYPES.includes(type);
+}
+
+/**
+ * Opties van de tabelrapporten — één object, samen bewaard met de rest van de rapportinstellingen.
+ * De drempels zijn werkdagen; de vensters kalenderweken. Defaults: look-ahead 4 weken (het
+ * gangbare "four-week look-ahead"), near-critical ≤ 5 wd, gezondheid volgens DCMA (44 wd).
+ */
+export interface TableReportOptions {
+  lookAheadWeeks: number;
+  nearCriticalDays: number;
+  progressPeriodWeeks: number;
+  healthHighFloatDays: number;
+  healthLongDurationDays: number;
+  healthLagDays: number;
+  resourceLoadOnlyOverloaded: boolean;
+  /** 0 = alle toewijzingen. */
+  resourceAssignmentWeeks: number;
+  resourceAssignmentIncludeCompleted: boolean;
+  /** 0 = volledige WBS. */
+  wbsSummaryLevel: number;
+  wbsSummaryIncludeActivities: boolean;
+}
+
+export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
+  lookAheadWeeks: 4,
+  nearCriticalDays: 5,
+  progressPeriodWeeks: 2,
+  healthHighFloatDays: 44,
+  healthLongDurationDays: 44,
+  healthLagDays: 10,
+  resourceLoadOnlyOverloaded: false,
+  resourceAssignmentWeeks: 0,
+  resourceAssignmentIncludeCompleted: false,
+  wbsSummaryLevel: 2,
+  wbsSummaryIncludeActivities: false,
+};
+
+/** Grenzen van de numerieke opties (de UI en de loader delen ze). */
+export const TABLE_REPORT_LIMITS = {
+  weeks: { min: 1, max: 12 },
+  assignmentWeeks: { min: 0, max: 12 },
+  nearCriticalDays: { min: 0, max: 60 },
+  thresholdDays: { min: 1, max: 365 },
+  lagDays: { min: 0, max: 365 },
+  wbsLevel: { min: 0, max: 8 },
+} as const;
 export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
 /** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
@@ -44,6 +101,11 @@ export interface ReportSettings {
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
+  /** Taaknamen in de tabel afkappen op `taskNameColumnWidth` (aan), of de kolom aan de langste
+   *  naam laten aanpassen (uit). */
+  truncateTaskNames: boolean;
+  /** Breedte van de naamkolom (ongeschaalde px) wanneer `truncateTaskNames` aanstaat. */
+  taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
   customZoom: number;
@@ -57,6 +119,7 @@ export interface ReportSettings {
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus (#54). */
   followView: boolean;
   previewQuality: ReportPreviewQuality;
+  tableReports: TableReportOptions;
 }
 
 /**
@@ -74,6 +137,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   showLegend: true,
   showTaskNames: true,
   showCompletion: true,
+  truncateTaskNames: true,
+  taskNameColumnWidth: NAME_COLUMN_WIDTH_DEFAULT,
   showBaselineOverlay: false,
   autoFit: true,
   customZoom: 22,
@@ -85,10 +150,11 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   statusLine: 'none',
   followView: false,
   previewQuality: '200',
+  tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
 };
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
-const REPORT_TYPES: readonly ReportType[] = ['gantt', 'milestones', 'variance'];
+const REPORT_TYPES: readonly ReportType[] = ['gantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
@@ -129,6 +195,26 @@ function parseClampedInt(raw: unknown, min: number, max: number): number | undef
   return Math.min(max, Math.max(min, Math.round(raw)));
 }
 
+function parseTableReportOptions(raw: unknown): TableReportOptions {
+  const d = DEFAULT_TABLE_REPORT_OPTIONS;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...d };
+  const s = raw as Record<string, unknown>;
+  const L = TABLE_REPORT_LIMITS;
+  return {
+    lookAheadWeeks: parseClampedInt(s.lookAheadWeeks, L.weeks.min, L.weeks.max) ?? d.lookAheadWeeks,
+    nearCriticalDays: parseClampedInt(s.nearCriticalDays, L.nearCriticalDays.min, L.nearCriticalDays.max) ?? d.nearCriticalDays,
+    progressPeriodWeeks: parseClampedInt(s.progressPeriodWeeks, L.weeks.min, L.weeks.max) ?? d.progressPeriodWeeks,
+    healthHighFloatDays: parseClampedInt(s.healthHighFloatDays, L.thresholdDays.min, L.thresholdDays.max) ?? d.healthHighFloatDays,
+    healthLongDurationDays: parseClampedInt(s.healthLongDurationDays, L.thresholdDays.min, L.thresholdDays.max) ?? d.healthLongDurationDays,
+    healthLagDays: parseClampedInt(s.healthLagDays, L.lagDays.min, L.lagDays.max) ?? d.healthLagDays,
+    resourceLoadOnlyOverloaded: parseBoolean(s.resourceLoadOnlyOverloaded) ?? d.resourceLoadOnlyOverloaded,
+    resourceAssignmentWeeks: parseClampedInt(s.resourceAssignmentWeeks, L.assignmentWeeks.min, L.assignmentWeeks.max) ?? d.resourceAssignmentWeeks,
+    resourceAssignmentIncludeCompleted: parseBoolean(s.resourceAssignmentIncludeCompleted) ?? d.resourceAssignmentIncludeCompleted,
+    wbsSummaryLevel: parseClampedInt(s.wbsSummaryLevel, L.wbsLevel.min, L.wbsLevel.max) ?? d.wbsSummaryLevel,
+    wbsSummaryIncludeActivities: parseBoolean(s.wbsSummaryIncludeActivities) ?? d.wbsSummaryIncludeActivities,
+  };
+}
+
 /**
  * Laad de rapportinstellingen. Tolerant op alle drie de manieren waarop de sleutel "fout" kan staan:
  * hij ontbreekt (verse installatie), hij mist velden (opgeslagen door een oudere versie), of een
@@ -149,6 +235,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     showLegend: parseBoolean(s.showLegend) ?? d.showLegend,
     showTaskNames: parseBoolean(s.showTaskNames) ?? d.showTaskNames,
     showCompletion: parseBoolean(s.showCompletion) ?? d.showCompletion,
+    truncateTaskNames: parseBoolean(s.truncateTaskNames) ?? d.truncateTaskNames,
+    taskNameColumnWidth: parseClampedInt(s.taskNameColumnWidth, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_WIDTH_MAX) ?? d.taskNameColumnWidth,
     showBaselineOverlay: parseBoolean(s.showBaselineOverlay) ?? d.showBaselineOverlay,
     autoFit: parseBoolean(s.autoFit) ?? d.autoFit,
     customZoom: parseClampedInt(s.customZoom, ZOOM_MIN, ZOOM_MAX) ?? d.customZoom,
@@ -162,6 +250,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     // `previewZoom` uit de kortstondige 69ad-versie wordt bewust genegeerd: de preview verandert
     // sindsdien nooit meer van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
     previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
+    tableReports: parseTableReportOptions(s.tableReports),
   };
 }
 

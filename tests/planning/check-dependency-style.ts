@@ -145,7 +145,7 @@ function labelsOf(over: Partial<Record<string, string>> = {}): NonNullable<Print
   return {
     noTasks: j.noTasks, printed: j.printed,
     legend: { ...j.legend, ...over },
-    tableHeaders: { rowNum: '#', ...j.tableHeaders },
+    tableHeaders: j.tableHeaders,
     page: j.page, of: j.of, today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
   };
 }

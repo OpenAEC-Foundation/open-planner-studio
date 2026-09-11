@@ -11,45 +11,19 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
-### Uit de critreview van release v2026.8.0 (2026-08-17)
-- [ ] **Perf: met het bezettingsoverzicht open draait er een volledige CPM-solve per bewerking van
-  het actieve document.** `getOpenDocumentPayloads()` levert óók het actieve document mee, met
-  `scheduleStale = s.scheduleStale` — na elke bewerking `true`. De `useMemo` in
-  `ResourceOccupancyView` invalideert dan op `activeTasks`/`activeAssignments` en
-  `computeLibraryOccupancy` rekent het actieve document synchroon in de render efemeer door over de
-  vólledige takenlijst. Op de schaal die `relationRules.ts` zelf noemt (3000 taken / 1500 relaties:
-  700 ms–2,6 s) is dat merkbaar hakkelen tijdens typen. De §7-snit heeft de bibliotheek-*load*
-  teruggebracht maar de solve niet meegerekend. Richting: het actieve document overslaan in de
-  efemere tak (het heeft `useAutoCalcCPM` of F5), of de solve memoïseren per payload-referentie.
-- [ ] **`platformRefusesWrites` is een sessie-brede latch zonder uitweg.**
-  `src/services/fileAccess/webBackend.ts`: één `NotAllowedError`/`SecurityError` stuurt de rest van
-  de sessie élke opslag naar de downloadmap, ook in een browser waar in-place schrijven prima werkt.
-  Reset bestaat alleen als `resetWebWriteRefusalForTests()`. `SecurityError` is juist het
-  "geen geldige gebruikersactivatie"-geval, dus een programmatische save kan de latch omzetten en
-  daarmee de handmatige Ctrl+S daarna degraderen. Richting: alleen op `NotAllowedError` latchen en
-  `SecurityError` als eenmalige fout behandelen. (Nog te bevestigen: of een web-buildpad
-  `saveFileDialog` zonder gebruikersactivatie kan bereiken.)
-- [ ] **De acht nieuwe voorbeeld-resourcesets staan buiten elke poort.** `verify:examples` eist
-  overallocatie juist wél (regel ~196 in `verifyShowcase`, alleen voor showcases), dus niets bewaakt
-  dat de acht nieuwe sets overallocatie-vrij blijven. Ze zijn nu gemeten schoon; de eerstvolgende
-  topologie-wijziging kan ze stil overbezet maken. Overweeg een assertie.
-- [ ] **`deleteTasksBulk` kan een dode undo-stap achterlaten.** Met ≥2 ids pusht `withTransaction`
-  onvoorwaardelijk een snapshot; zijn álle ids al weg, dan blijft die stap staan. Het 1-id-pad
-  ontwijkt dat bewust.
-- [ ] **De thema-map in `index.html` is een handkopie van `THEME_MIGRATION`** in
-  `settingsStore.ts`. Vandaag identiek (acht sleutels, zelfde defaults), maar niets bewaakt dat —
-  precies de duplicatieklasse die dit project elders wél dichtzet.
-- [ ] **`relationRules.ts` is de bron van de regel, niet de poort.** `pasteTasks` (`taskSlice.ts`
-  ~978) en het tak-uit-sjabloon-pad (~1060) pushen `s.sequences` zonder `relationVerdict`, dus een
-  tak kopiëren die een spookrelatie bevat maakt er weer een. Verdedigbaar als kopie-van-bestaande-
-  data (net als import), maar de changelog van v2026.8.0 beweert "single source of truth" — zet
-  óf de code óf die tekst recht.
-- [ ] **`verify-docs.ts` poort 7e telt tools met een regex** (`/['"](planner_[a-z_]+)['"]/g`) over
-  `src/services/mcp/tools/`, dus ook tool-namen in beschrijvingsproza. Vandaag klopt de telling
-  (39), maar een beschrijving die een niet-bestaande tool noemt glipt erdoor.
-- [ ] **Mijlpaal met start maar zonder finish is niet relatie-sleepbaar.** `getRelationSourceAt`
-  eist beide datums, `drawMilestone` alleen een start — hij wordt dus getekend maar is geen
-  sleepbron. Randgeval.
+### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
+- [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
+  `public/docs/{de,fr,es,it,pt,pl,tr,ar,fa,zh,ja,ko}/gids-rapporten-printen.md` staat nog dat het
+  instellingenpaneel een printknop met systeemdialoog heeft; die is er niet (alles gaat via
+  Exporteer PDF). nl en en zijn gecorrigeerd; de rest volgt in de maandelijkse vertaalronde.
+  `verify:docs` vangt proza niet.
+- [ ] **Relatiepijlen in de Gantt-afdruk over een paginagrens.** Sinds issue #110 eindigt een
+  pagina op een rijgrens, maar een pijl tussen twee rijen op verschillende pagina's wordt nog
+  gesneden. Inherent aan tegelen; een oplossing (pijl per pagina afkappen met een markering) is
+  renderer-werk.
+- [ ] **RTL-tabelrapporten: DOM spiegelt kolommen, PDF niet.** Een `dir=rtl`-locale (ar/fa)
+  spiegelt de HTML-tabel; de vector-PDF tekent de kolommen LTR. Niet geverifieerd in een echte
+  browser; wel een bekende divergentie tussen de twee weergaven.
 
 ### Bedrijfsbibliotheken (B1.1) — vervolgen (2026-07-24)
 - [ ] **B1b — bezettingsoverzicht** over open documenten (binnen één bedrijf/pool; bouwt op de
@@ -72,6 +46,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Gedeelde opslag/sync** tussen machines (wortel van alle drie de B1.1-beperkingen: pool-
   divergentie tussen planners, bezettingsoverzicht dat alleen de eigen machine ziet, en
   stilzwijgend overschrijven tussen twee tabbladen/vensters op dezelfde machine).
+- [ ] **Welke projecten gebruiken een resourcebibliotheek, met knop Openen** (wens eigenaar, geparkeerd
+  2026-09-04 tot ná B1c-etappe 3). OPS heeft geen projectindex: de app kent alleen open documenten en
+  de recente-bestandenlijst, en de bibliotheekbinding staat ín het IFC. Enige eerlijke route zonder
+  index: bij koppelen/opslaan een stempel (project, pad, bibliotheek, laatst gezien) in de app-globale
+  bibliotheekopslag wegschrijven en die lijst tonen — met dezelfde grens als het bezettingsoverzicht
+  (alleen deze machine, dood pad na verplaatsen). Niet: bij elk openen van het bibliotheekscherm alle
+  recente IFC-bestanden lezen (browser vraagt per bestand toestemming).
 - [ ] **Kalenderpromotie naar de Resources-tab** verhuizen — momenteel een bewuste fase-1-interim
   in Backstage → Bibliotheek (resourcepromotie/-CRUD is al verhuisd). Zie docs/library.md
   "Resources-tab: Bedrijfsweergave en Projectweergave".
@@ -307,11 +288,12 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > Uit de Z20-eindronde: dingen die deze etappe bewust NIET meenam, met de reden erbij — zodat het
 > geen verrassing is als iemand er later tegenaan loopt.
 
-- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>`/`<TimephasedData>` lezen en schrijven.**
+- [ ] **Native MSPDI-`<Manual>`/`<LevelingDelay>` lezen en schrijven.**
       Orkestratorbesluit O4 (2026-08-17): native schrijven zonder terugleeslezen zou een stille
       semantiek-omklap zijn (hetzelfde precedent als `ELAPSEDTIME`) — de MSPDI-export waarschuwt
-      daarom bewust in plaats van deze drie elementen te schrijven. Native lezen+schrijven is een
-      eigen, kleine vervolg-etappe.
+      daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
+      contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
+      `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
 - [ ] **Splitsen/handmatig plannen als bewerkfunctie (UI).** Deze etappe levert lezen, rekenen,
       tekenen en round-trip; slepen om te splitsen, split-handles in de Gantt en split ongedaan maken
       zijn een aparte etappe (plan §1.4/O2, orkestratorbesluit akkoord 2026-08-17).
@@ -330,6 +312,80 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       dan de opgeslagen klopt, is met het huidige harnas onverifieerbaar — bewerkgedrag-fidelity heeft
       nog geen meetlat. Wacht op de bewerken-zoals-MSP-meetlat uit de taaktypes-etappe
       (eigenaarsbesluit 2026-08-18: task type/effort-driven als aparte etappe, niet hier).
+
+### Contour-engine (2026-09) — geleverd en bewust laten liggen
+
+> Etappe "contour-engine" (`src/engine/contour/contourEngine.ts`, `src/services/contourIo.ts`,
+> `tests/planning/check-contour-engine.ts`): de dagverdeling van een toewijzing is nu DATA
+> (opgeslagen contour of exacte 21-punts-curve) met de `distributeUnits`-formule als terugval;
+> histogram/overallocatie/nivelleerder/bezetting lezen dezelfde `assignmentDayUnits`; een
+> duurwijziging herschaalt de contour proportioneel; MSPDI `<TimephasedData>` en P6
+> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie CLAUDE.md.
+
+- [x] **P6-export schreef de curveNAAM in `<PlannedCurve>` — een verkeerde lezing van het PMXML-schema**
+      (gevonden 2026-09-03 tegen MPXJ `XmlProjectReader`/`TimephasedHelper`: `PlannedCurve` is een
+      spreidingsstring `"werkuren:periodeuren;…"`, de curve zit in `ResourceCurveObjectId` →
+      `<ResourceCurve>`). Gecorrigeerd in `p6xmlWriter.ts`/`p6xmlReader.ts`; de lezer accepteert
+      de oude naamvorm nog als compat (een `<PlannedCurve>` zonder `:`).
+- [x] **DOUBLE_PEAK/TURTLE als OPS-curve** (contour-UI, 2026-09-04): `ResourceCurve` telt nu de
+      acht MS Project-vormen; de zes oudere curves houden hun controlepunten in `distributeUnits`
+      (byte-identiek), de twee nieuwe bemonsteren rechtstreeks de exacte 21-punts tabel. Alle
+      gedupliceerde lijsten (dropdowns, rasterkolom, MCP-schema, IFC-validator, ext-contract,
+      MSPDI-codes 3/7, P6-namen) zijn meegenomen. Nog steeds acht plekken — een centrale
+      `RESOURCE_CURVES`-export is een losse opruimklus.
+- [x] **Contour bewerken in de UI** (etappe contour-UI, 2026-09-04): `ContourDialog.tsx` achter de
+      knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — sinds de
+      fasen-editor (dezelfde dag) in FASEN: sleepbare strook (`ContourPhaseStrip.tsx`: grens per
+      werkdag, bovenrand = inzet, dubbelklik = splitsen) + fasentabel (van/tot/dagen/inzet/uren,
+      splitsen/samenvoegen), vorm-als-data als vertrekpunt (alle acht vormen), toepassen en
+      **loslaten**; verricht werk alleen-lezen. Fasenmodel puur in `contourPhases.ts` (run-length
+      over de werkdagslots), bewerkmodel in `contourEdit.ts`; opslagvorm blijft één periode per
+      werkdag. Store-actie `setAssignmentContour` (undo, geen datumwijziging). Regressie:
+      `check-contour-engine.ts` (f)/(g)/(i) en `tests/browser/contour-dialog.spec.ts` (mét muissleep).
+- [ ] **Fasen als opslagvorm.** `TimephasedContourPeriod` kan een fase van tien dagen als één
+      periode dragen, maar de editor slaat bewust één periode per werkdag op (byte-identieke
+      round-trips). Een fase-periode zou het IFC compacter maken; vergt een controle dat
+      `periodsToWorkDaySlots` mét splits een lange periode over een gat correct verdeelt (de
+      engine deelt naar rato van as-lengte, dus een gat middenin een lange periode "eet" werk op
+      dat naar het volgende werkslot schuift).
+- [ ] **Sleepbare fasen op de Gantt-balk zelf** (buiten het venster). De strook leeft nu in het
+      venster; op de balk zou het de renderer- en pointer-lagen raken (`verify:gantt-boundaries`).
+      Pas bouwen als gebruikers erom vragen.
+- [ ] **Contour via MCP en het taakraster.** De draft-API (`createMcpTransactions.setAssignmentContour`)
+      bestaat, maar er is nog geen `planner_*`-tool met contract/schema (route: `docs/recepten/mcp-tool.md`).
+      De rasterkolom *Toewijzingscurve* (`assignment.curve`, `TaskCellEditor.tsx`) toont een
+      gecontoureerde toewijzing nog als "uniform" en laat een curvekeuze toe die geen effect heeft
+      zolang de contour bestaat — het paneel toont daar wél "Contour" en schakelt de dropdown uit.
+- [ ] **Herkomstmarkering na een MSPDI-import.** `TaskTimephasedNotice` kiest tussen "datumvenster
+      losgelaten" (grijs, MS Project-tekst) en "eigen urenverdeling" (grijs, neutraal) op de
+      heuristiek `resourceUid !== null` — die zetten zowel de `.mpp`- als de MSPDI-lezer. Een vers
+      geïmporteerd MSPDI-bestand met contouren toont daardoor de "losgelaten"-tekst terwijl er nooit
+      een datumvenster wás (MSPDI kent geen laag-3/4-sturing). Pre-existent (vóór de contour-UI
+      stond die tekst er ook), maar nu zichtbaarder; echte oplossing = een herkomstveld op de
+      contour (IFC-round-trip) of `resourceUid: null` in de MSPDI-lezer als de writer 'm niet nodig
+      heeft.
+- [ ] **Contour van een taak in uur-modus met ongelijke werkdagen.** Het dialoogvenster rekent in
+      dagslots van `hoursPerDay × 60` (zie het benaderingspunt hieronder); een korte vrijdag staat er
+      als gewone rij. Correct voor de lastlezers (dezelfde slotdefinitie), maar de urenkolom
+      suggereert meer precisie dan de as biedt.
+- [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
+      FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
+      gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
+- [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
+      een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
+      benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
+
+### Resourcekalender-semantiek — taak volgt resourcekalender als keuze (besluit eigenaar 2026-09-04)
+- [ ] **Overallocatie op een vrije dag van de resource is bewust gedrag, geen bug** (`ResourceLoad.ts`
+  §4: capaciteit 0 op niet-werkdagen van de resourcekalender). Dat is de P6-"Task Dependent"-semantiek;
+  MS Project en P6-"Resource Dependent" plannen de taak juist op de kalender van de toegewezen resource,
+  zodat het conflict nooit ontstaat. Besluit 2026-09-04: (1) nú alleen uitleggen — histogram en
+  waarschuwingenpaneel zeggen erbij dat de resource die dag volgens zijn kalender niet werkt
+  (werkblok R1); (2) láter een echt ontwerp voor "taak volgt resourcekalender" als opt-in per taak of
+  per project, in lijn met de opt-in-richting voor taaktypen/effort-driven. Raakt de CPM-motor en moet
+  tegen de `.mpp`-fidelity-poort gemeten worden (MSP-bestanden hebben die semantiek al in hun
+  opgeslagen datums). Bewust NIET gekozen: nivelleren als oplossing — dat is een pleister op een
+  kalendermismatch, geen capaciteitsconflict.
 
 ### Solver/presentatie — resterende punten (2026-07-20)
 
@@ -393,36 +449,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       doorgeschoven, dit is puur zichtbaarheid, geen correctheidsgat.
 
 ### Klein
-- [ ] **Raster-terugval van de rapport-export heeft geen paginalimiet.** Gemeten 2026-07-27 tijdens
-      issue #25: de PREVIEW is inmiddels afgedekt (`maxPages` in `paginateCanvasToTiles`, 30 vellen),
-      maar `exportRaster()` in `ReportPanel.tsx` niet — en dat mag ook niet zomaar, want een export
-      moet compleet zijn. Daar bestaan dus álle `rows * cols` pagina-canvassen tegelijk vóór de
-      omzetting naar JPEG, op `SUPERSAMPLE = 2`. Een A3-vel is daarmee ~2382×1684×4 ≈ 16 MB; het
-      gemeten scenario van 300 taken met `timelineColumns: 8` (20 rijen × 8 kolommen = 160 pagina's)
-      komt op ~2,5 GB. Let op wanneer dit toeslaat: raster is de `catch`-terugval van de vector-tak,
-      dus precies op het moment dat de vector-export net gefaald is. `MAX_TIMELINE_COLUMNS = 32`
-      begrenst het wel, maar staat nog steeds honderden pagina's toe. Pre-existing gedrag, geen
-      regressie van #25 — dat werk maakte het pad alleen makkelijker bereikbaar (één dropdown i.p.v.
-      een handmatige zoominstelling). Fix-richting: pagina's streamend omzetten naar JPEG en het
-      canvas per pagina vrijgeven i.p.v. ze allemaal vast te houden, of één pagina-canvas hergebruiken.
-- [ ] **Taakdatumvelden pushen 3 undo-stappen per ingetypte datum.** `DateTextInput` commit live bij
-      elke toetsaanslag en `parseFlexibleDate` accepteert een jaar al bij 2 cijfers, dus "01062030"
-      levert commits op voor 2020-06-01, 0203-06-01 en 2030-06-01 — elk met een volledige snapshot.
-      Gemeten en bevestigd op 2026-07-20; pre-existing, geen regressie. De infrastructuur om dit te
-      verhelpen staat er inmiddels: `beginUndoable(s, { coalesceKey })` in `src/state/transaction.ts`
-      (gebruikt door `setStatusDate`). Voor `updateTask` kan de key niet generiek zijn — die zou ook
-      niet-datumbewerkingen en opeenvolgende Gantt-sleepacties samenvoegen — dus per veld kiezen.
-      **Onderzocht 2026-07-20:** 13 gebruiksplekken geïnventariseerd, 10 problematisch en 3 lokaal
-      (veilig). Correctie op de eerdere formulering: de start/finish-cellen in `TableEditor` zijn
-      géén `DateTextInput` en committeren al één keer. **Advies uit dat onderzoek: los het bij de
-      bron op** met een `commitMode`-prop (commit-op-blur) in plaats van per-actie coalesce-keys —
-      de gedeelde `task-sections`-componenten voeden zowel het eigenschappenpaneel als de
-      taakdialoog, dus een fix in het veld zelf dekt beide in één keer.
-- [ ] **Recovery-robuustheid bij een corrupt herstelbestand.** Sinds 2026-07-20 rekent
-      `restoreDocuments` het herstelde document door (`runCPM`), net als elk ander laadpad. Een
-      corrupte of afgekapte recovery-snapshot na een crash laat het opstarten daardoor klappen in
-      plaats van doormodderen. Overweeg een defensieve afhandeling rond die ene aanroep, met een
-      zichtbare melding in plaats van een stille catch.
 - [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft
       `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
       taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum
@@ -660,19 +686,6 @@ deel 4. In volgorde van hoe hard het split-view blokkeert:
       dagen vrij zijn — zijn in K-item 39 rechtgezet en met `check-print-screen-parity.ts` afgedekt.
       *Eerst beslissen:* moet de afdruk meeschalen met de zoom zoals het scherm, of blijft de vaste
       maand/week/dag-strook de bedoeling? Pas daarna bouwen.
-
-### Klein — fit en contentbreedte zijn het oneens over een taak zonder finish (2026-08-17)
-- [ ] **`computeFitToProject` valt op de finish-keten terug op de start (`|| s`),
-      `computeContentSpanDays` niet.** `ganttViewport.ts` doet
-      `earlyFinish || scheduleFinish || lateFinish || s`; `ganttRenderOptions.ts` doet dezelfde
-      keten zonder die laatste terugval. Een taak met alleen een start telt dus wél mee voor de
-      Ctrl+0-fit maar niet voor de contentbreedte, en kan daardoor buiten `maxScrollX` vallen
-      terwijl de fit er wél naartoe zoomt. De codedivergentie is zeker; de bereikbaarheid niet —
-      `createDefaultTaskTime` zet altijd een `scheduleFinish`, dus je hebt een corrupte import of
-      een externe adapter nodig. *Eerst uitzoeken:* wat de IFC-lezer en de CSV/MSPDI/P6-importers
-      kunnen opleveren; pas daarna beslissen welke van de twee ketens de juiste is. Niet ontstaan
-      door K-item 33 — dat item legde het alleen bloot. Er staat een toelichtende regel bij beide
-      functies zodat het verschil niet als slordigheid leest.
 
 ### Klein — de indirecte route naar een spookrelatie is volledig stil (2026-08-14)
 - [ ] **Structuurmutaties kunnen een bladtaak-met-relaties tot verzameltaak maken zonder enig

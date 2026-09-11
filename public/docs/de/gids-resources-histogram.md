@@ -67,6 +67,18 @@ Jede Zuweisung hat **Einh./Tag** (1 = eine Person/ein Gegenstand vollzeit, 0,5 =
 
 Kurvenvariation zeigt sich am deutlichsten im Histogramm: Dieselbe Aufgabe mit denselben Einh./Tag erzeugt mit einer Glockenkurve eine ganz andere Balkenform als mit „Gleichmäßig". Der mittelgroße Showcase mischt absichtlich Gleichmäßig/Vorne belastet/Hinten belastet bei den abschlussbezogenen Aufgaben je Haus, damit Sie den Unterschied vergleichen können.
 
+### Die Stundenverteilung selbst bearbeiten
+
+Passt keine Kurve, gestalten Sie die Verteilung selbst, in **Phasen**: zusammenhängende Abschnitte des Vorgangs mit je festem Einsatz („erste Woche halbe Kolonne, danach volle Kolonne“). Die Schaltfläche **Stundenverteilung…** neben der Kurvenauswahl öffnet ein Fenster mit oben einer Leiste, in der jede Phase ein Block über ihre Arbeitstage ist (Höhe = Einsatz), und darunter denselben Phasen als Tabelle: von, bis, Tage, Einsatz in Einheiten je Tag, Stunden je Tag und Summe. Ausgangspunkt ist, was die Zuweisung heute bucht. Ist-Arbeit erscheint grau und schreibgeschützt.
+
+- **Ziehen in der Leiste**: die Grenze zwischen zwei Blöcken verlängert oder verkürzt eine Phase (in ganzen Arbeitstagen), die Oberkante setzt den Einsatz, Doppelklick auf einen Tag teilt die Phase.
+- **Tippen in der Tabelle**: Tage und Einsatz je Phase; **Teilen** und **Zusammenführen**. Die letzte Phase läuft immer bis zum Vorgangsende.
+- **Form anwenden** füllt die Phasen mit einer der acht Standardformen und behält die Summe bei.
+- **Anwenden** speichert die Verteilung als *Kontur* der Zuweisung; die Kurvenauswahl zeigt **Kontur** und ist deaktiviert. Histogramm, Überlastung, Kapazitätsabgleich und Auslastung rechnen sofort damit, und die Verteilung reist in IFC sowie MS Project XML / P6 XML mit.
+- **Verteilung aufheben** entfernt die Kontur.
+
+Eine Kontur ändert nur die Stunden je Tag dieser Zuweisung; Termine, Dauer und Unterbrechungen bleiben, auch bei einer Phase mit Einsatz 0. Ändern Sie später die Dauer, wird die Kontur proportional gedehnt (siehe [MS-Project-Import](docs://gids-msproject-import)). Das Eigenschaftenpanel markiert einen Vorgang mit eigenen Verteilungen mit einer grauen Plakette. Anwenden und Aufheben sind gewöhnliche Rückgängig-Schritte.
+
 ## Ressourcenkalender
 
 Eine Ressource kann auf dem **Projektkalender** (Standard) oder auf ihrem eigenen Kalender stehen — zum Beispiel für einen Subunternehmer, der nur vier Tage pro Woche verfügbar ist. Stellen Sie dies über die Spalte **Kalender** im Ressourcen-Panel oder das Feld **Kalender** bei der Ressource selbst ein. Ein Ressourcenkalender berührt nie die CPM-Termine einer Aufgabe (diese laufen weiter auf dem Aufgaben-/Projektkalender) — er beeinflusst nur **Auslastung** und **Abgleich**: Arbeitet eine Ressource an einem Tag nicht, den die Aufgabe braucht, zählt das im Histogramm als Defizit, und der Abgleicher warnt, dass Verschieben diese Kalender-Abweichung nicht behebt. Lesen Sie die Anleitung [Kalender & Stundenplanung](docs://gids-kalenders-uren) für die vollständige Erklärung der Kalender.

@@ -72,6 +72,68 @@ data de fim do projeto em dias úteis, se existir. Veja o guia
 [Baselines & progresso](docs://gids-baselines-voortgang) para saber como registar uma baseline antes de este
 relatório poder dizer-lhe algo útil.
 
+## Os sete relatórios tabulares
+
+Os restantes tipos de relatório são tabelas tiradas diretamente do último cálculo. Partilham algumas
+regras: só as **tarefas folha** contam como atividades (as tarefas resumo só aparecem no resumo EAP;
+as tarefas hammock não); o **dia de referência** é a data de estado do projeto — sem data de estado
+o relatório usa hoje e diz isso; datas e folgas vêm do último **cálculo** (F5), uma nota assinala um
+cronograma alterado desde então e a exportação PDF recalcula sempre primeiro; cada relatório tem um
+pequeno bloco **Opções do relatório**, lembrado entre sessões. Os dias úteis abreviam-se para *du*.
+
+### Previsão (look-ahead)
+
+A lista para a reunião semanal de obra: todas as atividades das próximas *N* semanas (quatro por
+defeito) — o que começa, continua ou termina — mais o que já devia ter acontecido. Por linha: EAP,
+nome, início e fim, duração restante, progresso, folga total, crítica ou quase crítica, recursos
+atribuídos e um estado: **Começa**, **Em curso**, **Devia ter começado** ou **Atrasada**. Uma
+atividade que abrange toda a janela também aparece.
+
+### Crítico e quase crítico
+
+Que atividades determinam o fim do projeto e quais estão prestes a fazê-lo. Crítico vem do cálculo;
+*quase crítico* é uma folga total de 0 até ao limiar das opções (5 dias úteis por defeito) ou a
+marcação das opções de programação. As tarefas concluídas são excluídas. Ordenação por caminho de
+folga, depois folga, depois início; com folga livre e número de caminho.
+
+### Relatório de progresso
+
+O ponto de situação periódico «onde estamos» na data de estado. O resumo dá o fim da linha de base
+e o fim previsto com a diferença em dias úteis, o progresso **planeado** face ao **real** (ambos
+ponderados pela duração das tarefas folha; planeado nas datas da linha de base ativa, senão no
+cronograma atual) e as contagens por estado. Por baixo, cinco secções: concluídas no período
+anterior, em curso, começam no próximo período, atrasadas e atividades críticas em aberto. O período
+(duas semanas por defeito) olha tanto para trás como para a frente.
+
+### Saúde do cronograma
+
+Uma revisão automática do cronograma no espírito dos 14 pontos DCMA. Cada verificação recebe uma
+gravidade e uma contagem, com as constatações por tarefa ou relação: **erros** (folga negativa,
+prazo falhado, restrição violada, progresso incoerente), **avisos** (início ou fim abertos, duração
+longa, avanços, restrições rígidas, progresso fora de sequência) e **informação** (quase crítico,
+folga alta, atrasos longos). Os limiares estão nas opções; por defeito segundo DCMA: 44 dias úteis
+para folga alta e duração longa, 10 para atrasos. Um cronograma limpo tem zero erros.
+
+### Carga de recursos por semana
+
+Por recurso e semana, a necessidade face à capacidade disponível (em unidades-dia), a diferença, o
+pico diário e se a semana está sobrecarregada — o mesmo cálculo do histograma no separador
+**Recursos**, em forma de tabela. Só aparecem semanas com necessidade; com *Apenas semanas
+sobrecarregadas* ficam só os estrangulamentos.
+
+### Atribuições de recursos
+
+Por recurso, as atividades atribuídas: EAP, nome, início e fim, duração restante, unidades por dia,
+progresso, crítica e estado. As tarefas concluídas são excluídas por defeito. Com uma janela em
+semanas torna-se a *previsão por recurso*. O resumo conta também as tarefas sem recurso.
+
+### Resumo EAP
+
+O cronograma agregado por elemento EAP até um nível à escolha — a vista de gestão. Por elemento:
+início e fim, início e fim da linha de base, duração, progresso ponderado pela duração, diferença do
+fim face à linha de base, menor folga total e número de atividades, das quais críticas, em curso e
+concluídas. Escolha um nível (2 por defeito) ou a EAP completa, com as atividades se quiser.
+
 ## Imprimir e exportar
 
 O painel de definições tem sempre um botão **Imprimir...** no fundo — abre uma janela de impressão separada

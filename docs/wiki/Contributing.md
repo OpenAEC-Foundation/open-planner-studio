@@ -32,7 +32,7 @@ whole app state back to IFC.
 # Install dependencies
 npm install
 
-# Start the browser dev server (http://localhost:3007)
+# Start the browser dev server — it prints which port it picked
 npm run dev
 
 # Build the production web bundle
@@ -45,16 +45,24 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
+There is no single fixed port: `npm run dev` assigns each worktree its own **fixed** port in the
+3007-3106 range (anchored to the worktree root, so it survives restarts) and stamps it in
+`.claude/launch.json`. Read the port from the dev-server's own output rather than assuming any one
+port number — that lets multiple worktrees run `dev`/`tauri:dev` at the same time without clobbering
+each other's port.
+
 ## Tests
 
-`tsc` (run via `npm run build`) is the main static check — TypeScript is in strict mode. The
-behavioural suite covers CPM and calendar scheduling:
+`npm run verify` is the repository gate: it combines strict type checks, linting, all behavioural
+suites (including browser flows), examples, documentation, i18n, dependency-cycle and audit checks.
+Run it before submitting a change:
 
 ```bash
-bash tests/planning/run.sh
+npm run verify
 ```
 
-Run it after changing scheduling code.
+Use `npm test` to run only the five behavioural suites. For a focused scheduling change, run
+`npm run test:planning`; it covers CPM and calendar scheduling.
 
 ## Project layout
 

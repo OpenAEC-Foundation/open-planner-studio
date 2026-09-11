@@ -88,17 +88,20 @@ ok('Taaknamen benutten de cel tot vlak voor de rechter kolomgrens',
 
 const chooserAnchorRule = cssRule(/\.task-grid-column-chooser-anchor\s*\{([^}]*)\}/);
 const addColumnRule = cssRule(/\.task-grid-add-column\s*\{([^}]*)\}/);
-ok('De kolomkiezer reserveert slechts een compacte strook van zestien pixels',
-  /--task-grid-chooser-strip:\s*16px/.test(styles)
-    && chooserAnchorRule.includes('padding-inline: 0'));
+// Issue #89: de plusknop stond tegen de kaderrand en tegen de laatste kolominhoud aan. De strook
+// is nu knop (20px) plus zes pixels lucht aan weerszijden, en de knop zelf heeft een vast vierkant
+// met een pas bij hover/focus zichtbare rand — géén permanent gevuld vlak.
+ok('De kolomkiezer reserveert een strook met lucht rond de plusknop',
+  /--task-grid-chooser-strip:\s*32px/.test(styles)
+    && chooserAnchorRule.includes('padding-inline: 6px'));
 ok('De kiezerstrook volgt de scrollende header en inhoud in plaats van de scrollcontainer te versmallen',
   !cssRule(/\.task-grid-core\s*\{([^}]*)\}/).includes('padding-inline-end')
     && /\.task-grid-header-row,\s*\.task-grid-body\s*\{[^}]*padding-inline-end:\s*var\(--task-grid-chooser-strip/s.test(styles));
-ok('De plusknop is een kaal icoon zonder permanent vierkant vlak',
-  addColumnRule.includes('width: 16px')
-    && addColumnRule.includes('height: 18px')
+ok('De plusknop is een vrijstaand vierkant van twintig pixels zonder permanent gevuld vlak',
+  addColumnRule.includes('width: 20px')
+    && addColumnRule.includes('height: 20px')
     && addColumnRule.includes('background: transparent')
-    && addColumnRule.includes('border: 0'));
+    && addColumnRule.includes('border: 1px solid transparent'));
 
 const ganttGrid = exists(gridPath) ? read(gridPath) : '';
 const fullGrid = read('src/components/task-grid/FullTaskGrid.tsx');
