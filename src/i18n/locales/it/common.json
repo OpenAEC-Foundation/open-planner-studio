@@ -951,6 +951,7 @@
     "pickerTaken": "già collegata a un'altra riga",
     "overrideDropped": "Il collegamento della riga {{row}} punta a un'attività non più esistente ed è stato ignorato.",
     "moreRows": "…e altri {{more}}",
+    "sheetRowHint": "riga {{row}} nel foglio",
     "dateOrderTitle": "Prima il giorno o prima il mese?",
     "dateOrderQuestion": "«{{sample}}» — che data è?",
     "dateOrderOptionA": "{{date}}",

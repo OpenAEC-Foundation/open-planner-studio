@@ -26,8 +26,11 @@ const KNOWN_PLANNER_REASONS = new Set<string>([
   'actualAfterStatusDate', 'actualFinishBeforeStart', 'conflictingProgressInputs',
 ]);
 
+/** Rijkop in de preview (gebruikstest 2026-09-11, fix 3): "ik hoef toch alleen de wbs te zien,
+ *  niet ook het taaknummer?" — WBS en naam, gescheiden door een spatie, zonder em-dash en zonder
+ *  bladrijnummer. Zelfde vorm als de taakverwijzing in `RelationCellEditor`. */
 function taskLabel(task: Task): string {
-  return `${task.wbsCode} — ${task.name}`;
+  return `${task.wbsCode} ${task.name}`;
 }
 
 /** Datum-only binnenkomende waarde die exact het datumdeel van de huidige waarde herhaalt, is geen

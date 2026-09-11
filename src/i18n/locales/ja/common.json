@@ -919,6 +919,7 @@
     "pickerTaken": "すでに他の行に紐付いています",
     "overrideDropped": "行 {{row}} の紐付けは存在しないタスクを指していたため、無視されました。",
     "moreRows": "…ほか{{more}}件",
+    "sheetRowHint": "シートの {{row}} 行目",
     "dateOrderTitle": "日が先か、月が先か？",
     "dateOrderQuestion": "「{{sample}}」— これはどちらの日付ですか？",
     "dateOrderOptionA": "{{date}}",

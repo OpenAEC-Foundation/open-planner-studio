@@ -999,6 +999,7 @@
     "pickerTaken": "مرتبطة بالفعل بصف آخر",
     "overrideDropped": "يشير ربط الصف {{row}} إلى مهمة لم تعد موجودة، وتم تجاهله.",
     "moreRows": "…و {{more}} أخرى",
+    "sheetRowHint": "الصف {{row}} في الورقة",
     "dateOrderTitle": "اليوم أولاً أم الشهر أولاً؟",
     "dateOrderQuestion": "«{{sample}}» — أي تاريخ هذا؟",
     "dateOrderOptionA": "{{date}}",

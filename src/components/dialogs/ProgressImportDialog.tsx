@@ -234,7 +234,7 @@ export function ProgressImportDialog() {
   const emptyLabel = t('progressImport.empty');
 
   const renderChanges = (row: ProgressPlanRow) => (
-    <ul className="flex flex-col gap-0.5 pl-3 list-disc">
+    <ul className="flex flex-col gap-0.5 pl-4 list-disc text-text-secondary">
       {row.changes.map(change => (
         <li key={change.field}>
           {t(`progressImport.field.${change.field}`)}:{' '}
@@ -336,9 +336,19 @@ export function ProgressImportDialog() {
                 {cappedNeedsLink.shown.map(row => {
                   const sheetRow = findSheetRow(rows, row.rowNumber);
                   return (
-                    <div key={row.rowNumber} className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5">
+                    <div
+                      key={row.rowNumber}
+                      data-ops-progress-row={row.rowNumber}
+                      className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
+                    >
+                      {/* Fix 3 (gebruikstest 2026-09-11): de rijkop is WBS + naam in de primaire
+                          tekstkleur; het BLADrijnummer verschijnt alleen hier — bij een rij die nog
+                          geen taak heeft is dat het enige aanknopingspunt met het bestand. */}
+                      <span className="font-medium text-text-primary">
+                        {sheetRow?.wbsCode ?? ''} {sheetRow?.name ?? ''}
+                      </span>
                       <span className="text-text-secondary">
-                        #{row.rowNumber} — {sheetRow?.wbsCode ?? ''} {sheetRow?.name ?? ''}
+                        {t('progressImport.sheetRowHint', { row: row.rowNumber })}
                       </span>
                       <ProgressImportLinkPicker
                         tasks={tasks}
@@ -360,8 +370,12 @@ export function ProgressImportDialog() {
               <div className="flex flex-col gap-2">
                 <p className="font-medium">{t('progressImport.sectionDoubtful')}</p>
                 {cappedDoubtful.shown.map(row => (
-                  <div key={row.rowNumber} className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5">
-                    <span className="text-text-secondary">#{row.rowNumber} — {row.taskLabel}</span>
+                  <div
+                    key={row.rowNumber}
+                    data-ops-progress-row={row.rowNumber}
+                    className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
+                  >
+                    <span className="font-medium text-text-primary">{row.taskLabel}</span>
                     {renderRowOutcome(row)}
                     <div className="flex gap-2">
                       <button
@@ -397,9 +411,13 @@ export function ProgressImportDialog() {
             {generalRows.length > 0 && (
               <div className="flex flex-col gap-2">
                 {cappedGeneral.shown.map(row => (
-                  <div key={row.rowNumber} className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5">
+                  <div
+                    key={row.rowNumber}
+                    data-ops-progress-row={row.rowNumber}
+                    className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-text-secondary">#{row.rowNumber} — {row.taskLabel}</span>
+                      <span className="font-medium text-text-primary">{row.taskLabel}</span>
                       {overrides.has(row.rowNumber) && (
                         <button onClick={() => clearOverride(row.rowNumber)} className="btn btn--sm btn--secondary">
                           {t('progressImport.clearLink')}
@@ -433,8 +451,16 @@ export function ProgressImportDialog() {
               <span>{t('progressImport.summaryRefused', { refused: result.refusedCount })}</span>
             </div>
             {cappedRefusedResult.shown.map(row => (
-              <div key={row.rowNumber} className="flex flex-col gap-1 border border-border rounded-[10px] p-2.5">
-                <span className="text-text-secondary">#{row.rowNumber} — {row.taskLabel ?? ''}</span>
+              <div
+                key={row.rowNumber}
+                data-ops-progress-row={row.rowNumber}
+                className="flex flex-col gap-1 border border-border rounded-[10px] p-2.5"
+              >
+                {/* Een geweigerde rij ZONDER koppeling heeft geen taaklabel — dan is het
+                    bladrijnummer het enige dat de gebruiker terug naar het bestand wijst. */}
+                <span className="font-medium text-text-primary">
+                  {row.taskLabel ?? t('progressImport.sheetRowHint', { row: row.rowNumber })}
+                </span>
                 {row.reason && <span style={{ color: 'var(--error)' }}>{t(`progressImport.reason.${row.reason}`)}</span>}
               </div>
             ))}

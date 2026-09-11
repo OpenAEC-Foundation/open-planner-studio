@@ -951,6 +951,7 @@
     "pickerTaken": "ya vinculada a otra fila",
     "overrideDropped": "El vínculo de la fila {{row}} apunta a una tarea que ya no existe y fue ignorado.",
     "moreRows": "…y {{more}} más",
+    "sheetRowHint": "fila {{row}} de la hoja",
     "dateOrderTitle": "¿Día primero o mes primero?",
     "dateOrderQuestion": "«{{sample}}» — ¿qué fecha es esa?",
     "dateOrderOptionA": "{{date}}",

@@ -935,6 +935,7 @@
     "pickerTaken": "zaten başka bir satıra bağlı",
     "overrideDropped": "{{row}} numaralı satırın eşleştirmesi artık var olmayan bir göreve işaret ediyor ve yok sayıldı.",
     "moreRows": "…ve {{more}} tane daha",
+    "sheetRowHint": "sayfadaki {{row}}. satır",
     "dateOrderTitle": "Önce gün mü, önce ay mı?",
     "dateOrderQuestion": "“{{sample}}” — bu hangi tarih?",
     "dateOrderOptionA": "{{date}}",

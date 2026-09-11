@@ -34,12 +34,13 @@ function dialog(page: Page) {
   return page.locator(DIALOG);
 }
 
-/** Rijcontainer in de preview/dateOrder-lijsten: elke rij (wacht-op-koppeling, betwijfeld, gewoon)
- *  deelt dezelfde `rounded-[10px]`-kaartklasse in `ProgressImportDialog.tsx`; de tellersbalk gebruikt
- *  diezelfde klasse ook, dus filteren op de `#<rijnummer> —`-tekst (ANKERED aan het begin, zodat rij 2
- *  niet ook rij 20 vangt) is nodig om de kaart uniek te maken. */
+/** Rijcontainer in de preview/dateOrder-lijsten. Tot 2026-09-11 filterde dit op de `#<rijnummer> —`
+ *  KOPTEKST van de kaart; die kop is bij fix 3 (gebruikstest) vervangen door "WBS naam" — het
+ *  bladrijnummer staat alleen nog als kleine hint bij rijen zonder koppeling. Elke rijkaart draagt
+ *  daarom nu een expliciet `data-ops-progress-row`-attribuut, wat sowieso een steviger anker is dan
+ *  zichtbare tekst (de tellersbalk deelt dezelfde `rounded-[10px]`-kaartklasse). */
 function rowByNumber(page: Page, rowNumber: number) {
-  return page.locator('div[class*="rounded-[10px]"]').filter({ hasText: new RegExp(`^#${rowNumber} —`) });
+  return page.locator(`[data-ops-progress-row="${rowNumber}"]`);
 }
 
 async function openViaBackstage(page: Page): Promise<void> {
