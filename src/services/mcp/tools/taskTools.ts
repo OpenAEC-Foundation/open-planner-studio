@@ -995,9 +995,11 @@ const redo: McpToolDef = {
 const runCpm: McpToolDef = {
   name: 'planner_run_cpm',
   description:
-    'Herbereken de planning expliciet (kritieke-pad-methode + kalender) en wis daarmee `scheduleStale`. ' +
-    'Retourneert het projecteinde, de projectduur (werkdagen) en een kritieke-pad-samenvatting. Mutaties ' +
-    'herrekenen zelf al; gebruik dit om een verouderde planning te verversen of het resultaat op te vragen.',
+    'Vraag de PLANNINGSUITKOMST op. Wijzigingen via de tools zijn al doorgerekend — elke mutatie draait ' +
+    'aan het eind zelf `runCPM` — dus je hoeft dit NIET aan te roepen om te verversen. Deze tool herberekent ' +
+    'idempotent (kritieke-pad-methode + kalender, wist `scheduleStale`) en geeft het projecteinde, de ' +
+    'projectduur (werkdagen) en een kritieke-pad-samenvatting terug: precies de cijfers waarmee je de ' +
+    'gebruiker het effect van je wijzigingen meldt.',
   kind: 'other',
   batchable: false,
   annotations: { ...STD_ANNOT, idempotentHint: true },
