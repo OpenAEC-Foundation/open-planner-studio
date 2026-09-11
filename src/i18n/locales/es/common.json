@@ -428,7 +428,9 @@
       "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
       "hammockNoFinishDriver": "Hamaca sin impulsor de fin (sin predecesor FF/SF): su duración vuelve a cero",
       "cappedTask": "Fecha de fin limitada: el calendario no deja ninguna ventana laborable para esta tarea",
-      "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})"
+      "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}}) — el recurso no trabaja ese(os) día(s) según su calendario",
+      "overallocationMixed": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}}), de los cuales {{nonWorking}} día(s) el recurso no trabaja según su calendario"
     },
     "target": {
       "project": "Proyecto",
@@ -588,6 +590,7 @@
     "histogram": {
       "allResources": "Todos los recursos",
       "overallocatedTooltip": "{{count}} tareas contribuyen el {{date}}",
+      "overallocatedNonWorkingDay": "No trabaja este día según el calendario «{{calendar}}»",
       "noData": "Recalcula (F5) para mostrar la carga",
       "noResources": "Aún no hay recursos",
       "units": "unidades",

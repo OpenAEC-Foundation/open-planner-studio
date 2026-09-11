@@ -620,6 +620,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
   if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
 
+  # R1: `computeResourceLoad` levert per overbezette dag ook de REDEN (`overallocatedReasons`) —
+  # `non-working-day` (resourcekalender kent de dag geen werkdag) vs. `over-capacity` (inzet groter
+  # dan capaciteit > 0), zodat het histogram-tooltip en het waarschuwingenpaneel kunnen uitleggen
+  # waaróm een dag rood staat.
+  RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
+  if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
+
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
   # `computeResourceLoad` (W0.1).

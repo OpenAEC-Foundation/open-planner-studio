@@ -85,6 +85,8 @@ A contour changes only the hours per day of this one assignment. Task dates, dur
 
 A resource can sit on the **Project calendar** (default) or on its own calendar — for example for a subcontractor who's only available four days a week. Set this via the **Calendar** column in the resource panel, or the **Calendar** field on the resource itself. A resource calendar never touches a task's CPM dates (those keep running on the task/project calendar) — it only affects **load** and **leveling**: if a resource doesn't work a day the task needs, that counts as a shortfall in the histogram, and the leveler warns that shifting won't fix that calendar mismatch. See the guide [Calendars & hour planning](docs://gids-kalenders-uren) for the full explanation of calendars.
 
+If a bar is red on a day the task itself keeps running normally, check the resource calendar: if that day isn't a working day there, capacity is 0 and any assignment at all immediately counts as overallocation — even though the task calendar keeps running that day. The tooltip on such a bar (see below) says so explicitly, naming the resource calendar — that only happens once you've picked a specific resource in the histogram, not for "All resources", since then multiple resources with possibly different reasons can land on the same day — and the warnings panel counts those days separately from "ordinary" overallocation (assignment exceeding capacity). The fix there isn't leveling but removing the calendar mismatch itself — choose a different resource calendar, or accept that the resource simply isn't available that day.
+
 ## Reading the histogram
 
 Turn the histogram on via the **Histogram** ribbon group on the **Resources** tab (the **Histogram** button). A strip appears under the Gantt on the same time axis: bars per day, with the part above the capacity line shown in red.
@@ -93,7 +95,7 @@ To the left of the bars, above the task-table column, sits the **resource picker
 
 With many resources the list no longer fits the strip's height: the "All resources" row stays pinned at the top, while the resources below it **scroll within the picker area** — with the mouse wheel over the list, or automatically whenever a resource you pick via the warnings panel or the resource panel sits just out of view. A thin strip on the right of the picker then shows where you are in the list; it's a position indicator only, not draggable. To see more resources at once without scrolling, drag the divider above the strip to make it taller.
 
-Click an overloaded bar and a tooltip shows how many tasks contribute to the load that day, with the first few task names — handy for quickly seeing which combination of tasks causes the overallocation without checking every assignment by hand.
+Hover over an overloaded bar (a brief pause is enough) and a tooltip shows how many tasks contribute to the load that day, with the first few task names — handy for quickly seeing which combination of tasks causes the overallocation without checking every assignment by hand.
 
 When you select one or more tasks in the Gantt, this temporarily becomes a task context: the resource picker, histogram bars and tooltip use assignments from that selection only. In the same situation, the docked resource panel shows only the matching resources. With Ctrl/Cmd or Shift selection, this is the union of resources from all selected tasks. Clear the selection to restore the full resource list and histogram; a histogram resource you chose manually remains your preference.
 

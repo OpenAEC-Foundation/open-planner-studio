@@ -414,7 +414,9 @@
       "droppedSequence": "关系被忽略：前置或后续任务缺失或不是叶任务",
       "hammockNoFinishDriver": "吊床任务没有完成驱动（无 FF/SF 前置任务）：其工期回落为零",
       "cappedTask": "完成日期被截断：日历没有为此任务留下可工作的窗口",
-      "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）"
+      "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）",
+      "overallocationNonWorkingDay": "{{count}} 天过度分配（{{first}} – {{last}}）—— 该资源根据其日历在这些天不工作",
+      "overallocationMixed": "{{count}} 天过度分配（{{first}} – {{last}}），其中 {{nonWorking}} 天该资源根据其日历不工作"
     },
     "target": {
       "project": "项目",
@@ -570,6 +572,7 @@
     "histogram": {
       "allResources": "所有资源",
       "overallocatedTooltip": "{{count}} 个任务在 {{date}} 有负荷",
+      "overallocatedNonWorkingDay": "根据日历“{{calendar}}”，该资源这天不工作",
       "noData": "重新计算 (F5) 以显示负荷",
       "noResources": "尚无资源",
       "units": "单位",

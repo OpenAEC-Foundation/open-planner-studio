@@ -449,7 +449,9 @@
       "droppedSequence": "تم تجاهل العلاقة: السابق أو اللاحق مفقود أو ليس مهمة ورقية",
       "hammockNoFinishDriver": "مهمة أرجوحية بلا محرك انتهاء (لا سابق FF/SF): تعود مدتها إلى الصفر",
       "cappedTask": "تم اقتطاع تاريخ الانتهاء: التقويم لا يترك أي نافذة عمل لهذه المهمة",
-      "overallocation": "تحميل زائد خلال {{count}} يوم ({{first}} – {{last}})"
+      "overallocation": "تحميل زائد خلال {{count}} يوم ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "تحميل زائد خلال {{count}} يوم ({{first}} – {{last}}) — لا يعمل المورد في هذا اليوم (الأيام) وفق تقويمه",
+      "overallocationMixed": "تحميل زائد خلال {{count}} يوم ({{first}} – {{last}})، منها {{nonWorking}} يوم لا يعمل فيها المورد وفق تقويمه"
     },
     "target": {
       "project": "المشروع",
@@ -615,6 +617,7 @@
     "histogram": {
       "allResources": "جميع الموارد",
       "overallocatedTooltip": "{{count}} مهام تساهم في {{date}}",
+      "overallocatedNonWorkingDay": "لا يعمل في هذا اليوم وفق تقويم \"{{calendar}}\"",
       "noData": "أعد الحساب (F5) لإظهار الحمل",
       "noResources": "لا توجد موارد بعد",
       "units": "وحدات",
