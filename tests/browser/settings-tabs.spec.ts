@@ -39,6 +39,7 @@ const SECTION_HEADINGS: RegExp[][] = [
     /^(AI mode|AI-modus)$/,
     /^(Debug terminal|Debug-terminal)$/,
     /^Benchmark$/,
+    /^(Statistics|Statistieken)$/,
     /^(Tour|Rondleiding)$/,
     /^(Version|Versie)$/,
   ],
