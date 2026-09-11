@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -44,6 +45,7 @@ import { buildTrace } from '@/engine/taskGrid/trace';
 import { useGanttRendererHost, useGanttRendererRefs } from './hooks/useGanttRendererHost';
 import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator';
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
+import { useGanttHistogramPickerScroll } from './hooks/useGanttHistogramPickerScroll';
 import { useGanttPointerCoordinator } from './hooks/useGanttPointerCoordinator';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 
@@ -242,6 +244,18 @@ export function GanttCanvas({
     primaryHScrollRef: hScrollRef,
     secondaryHScrollRef: hScrollSecondaryRef,
   } = viewport.refs;
+  // R2a-fixronde punt 1: `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
+  // strook (portal-doel `histogramHost` bestaat pas ná de eerste render, of de hele Gantt wordt
+  // ver- en hermount bij een tabwissel naar Tabel/Backstage) wijzigt `.current` zonder dat React dat
+  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` moet de node zelf als afhankelijk-
+  // heid krijgen om zijn wheel-listener opnieuw te hechten, dus spiegelen we `.current` hier naar
+  // React-state via een callback-ref (die overige consumenten van `histogramContainerRef`, zoals
+  // `useGanttRendererHost`, blijven ongewijzigd via het ref-object lezen).
+  const [histogramContainerEl, setHistogramContainerEl] = useState<HTMLDivElement | null>(null);
+  const setHistogramContainerNode = useCallback((node: HTMLDivElement | null) => {
+    histogramContainerRef.current = node;
+    setHistogramContainerEl(node);
+  }, [histogramContainerRef]);
   const effectiveViewStart = viewport.effectiveViewStart;
   const effectiveView = viewport.effectiveView;
   const sharedAxis = viewport.sharedAxis;
@@ -419,6 +433,23 @@ export function GanttCanvas({
     [scopedResourceLoadResult, effectiveHistogramResourceId, scopedTaskResources.resources],
   );
 
+  // R2a: scrollpositie van de kiezerlijst — sessiestate, buiten de store (zie de hook-kop). De
+  // id-lijst is nodig voor de reveal-logica (punt 4: een van buiten gekozen resource die buiten
+  // beeld ligt) en volgt bewust dezelfde volgorde als `buildHistogramPicker`.
+  const histogramPickerIds = useMemo(
+    () => histogramPicker.map(item => item.id),
+    [histogramPicker],
+  );
+  const { pickerScrollY: histogramPickerScrollY } = useGanttHistogramPickerScroll({
+    container: showHistogram ? histogramContainerEl : null,
+    pickerWidth: histogramPickerWidth,
+    canvasHeight: histogramHeight,
+    itemCount: histogramPicker.length,
+    pickerIds: histogramPickerIds,
+    selectedResourceId: effectiveHistogramResourceId,
+    fontScale,
+  });
+
   const histogramRenderInput = useMemo<HistogramRenderInput | undefined>(() => (
     showHistogram ? {
       series: histogramSeries,
@@ -426,6 +457,7 @@ export function GanttCanvas({
       selectedResourceId: effectiveHistogramResourceId,
       view: effectiveView,
       pickerWidth: histogramPickerWidth,
+      pickerScrollY: histogramPickerScrollY,
       axis: histogramAxis,
       // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
       fontFamily: canvasFontFamily,
@@ -439,7 +471,7 @@ export function GanttCanvas({
           ? tCommon('resource.histogram.noResources')
           : undefined,
     } : undefined
-  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
+  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, histogramPickerScrollY, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
 
   const primaryRenderInput = useMemo<GanttRenderOptionsSourceInput>(() => ({
     rows: viewRows,
@@ -578,7 +610,7 @@ export function GanttCanvas({
             style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
           />
           <div
-            ref={histogramContainerRef}
+            ref={setHistogramContainerNode}
             className="relative overflow-hidden"
             style={{ height: histogramHeight, flexShrink: 0 }}
             data-tour-anchor="histogram-strip"
