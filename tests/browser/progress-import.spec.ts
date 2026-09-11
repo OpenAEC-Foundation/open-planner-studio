@@ -355,5 +355,18 @@ test('voortgangsblad-export: knop op Planning levert de juiste CSV in de downloa
   // BOM (U+FEFF) strippen vóór het vergelijken — net als `parseProgressCsv` als eerste doet.
   const text = buffer.toString('utf-8').replace(/^﻿/, '');
   const firstLine = text.split(/\r\n|\n/)[0];
-  expect(firstLine).toBe('OPS Task ID;WBS;Name;Start;Finish;Completion (%);Actual Start;Actual Finish');
+  const cells = firstLine.split(';');
+  // Punt D (besluit 2026-09-05): elke kop draagt een invulinstructie na ` — `, in de actieve
+  // UI-taal (niet per se Nederlands, afhankelijk van hoe deze suite draait) — assert op de
+  // SLEUTELS (altijd letterlijk Engels, `parseProgressCsv` matcht daarop) en dat elke cel het
+  // scheidingsteken draagt, niet op de exacte NL-instructietekst.
+  const expectedKeys = [
+    'OPS Task ID', 'WBS', 'Name', 'Start', 'Finish',
+    'Completion (%)', 'Actual Start', 'Actual Finish',
+  ];
+  expect(cells).toHaveLength(8);
+  for (const cell of cells) expect(cell).toContain(' — ');
+  for (let i = 0; i < expectedKeys.length; i++) {
+    expect(cells[i]?.startsWith(`${expectedKeys[i]} — `)).toBe(true);
+  }
 });

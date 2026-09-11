@@ -314,6 +314,13 @@
     "progressCsvLabel": "Foglio di avanzamento (CSV)",
     "progressCsvDesc": "Foglio snello con solo id, WBS, nome, date e avanzamento — per aggiornare l’avanzamento.",
     "progressCsvShort": "Avanzamento (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "non modificare",
+      "plannedReadOnly": "pianificato, non modificare",
+      "completion": "da compilare: da 0 a 100, numeri interi",
+      "actualStart": "da compilare: data di inizio effettiva (gg-mm-aaaa)",
+      "actualFinish": "da compilare: data di fine effettiva (gg-mm-aaaa)"
+    },
     "csvLabel": "CSV (separato da punto e virgola)",
     "csvDesc": "Esportazione tabella universale. Tutte le attività con date e durate.",
     "mspdiLabel": "MS Project XML",

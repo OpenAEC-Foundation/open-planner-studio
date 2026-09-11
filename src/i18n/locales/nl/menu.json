@@ -314,6 +314,13 @@
     "progressCsvLabel": "Voortgangsblad (CSV)",
     "progressCsvDesc": "Slank blad met alleen id, WBS, naam, datums en voltooiing — voor het bijwerken van de voortgang.",
     "progressCsvShort": "Voortgang (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "niet wijzigen",
+      "plannedReadOnly": "gepland, niet wijzigen",
+      "completion": "invullen: 0 t/m 100, hele getallen",
+      "actualStart": "invullen: werkelijke startdatum (dd-mm-jjjj)",
+      "actualFinish": "invullen: werkelijke einddatum (dd-mm-jjjj)"
+    },
     "csvLabel": "CSV (puntkomma-gescheiden)",
     "csvDesc": "Universele tabel-export. Alle taken met datums en duur.",
     "mspdiLabel": "MS Project XML",

@@ -314,6 +314,13 @@
     "progressCsvLabel": "Feuille d’avancement (CSV)",
     "progressCsvDesc": "Feuille allégée avec uniquement l’id, la SDP, le nom, les dates et l’avancement — pour mettre à jour l’avancement.",
     "progressCsvShort": "Avancement (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "ne pas modifier",
+      "plannedReadOnly": "prévu, ne pas modifier",
+      "completion": "à remplir : 0 à 100, nombres entiers",
+      "actualStart": "à remplir : date de début réelle (jj-mm-aaaa)",
+      "actualFinish": "à remplir : date de fin réelle (jj-mm-aaaa)"
+    },
     "csvLabel": "CSV (séparé par des points-virgules)",
     "csvDesc": "Export tableau universel. Toutes les tâches avec dates et durées.",
     "mspdiLabel": "MS Project XML",

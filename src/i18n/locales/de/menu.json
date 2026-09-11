@@ -314,6 +314,13 @@
     "progressCsvLabel": "Fortschrittsblatt (CSV)",
     "progressCsvDesc": "Schlankes Blatt mit nur ID, PSP, Name, Terminen und Fortschritt — zum Aktualisieren des Fortschritts.",
     "progressCsvShort": "Fortschritt (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "nicht ändern",
+      "plannedReadOnly": "geplant, nicht ändern",
+      "completion": "ausfüllen: 0 bis 100, ganze Zahlen",
+      "actualStart": "ausfüllen: tatsächliches Startdatum (TT-MM-JJJJ)",
+      "actualFinish": "ausfüllen: tatsächliches Enddatum (TT-MM-JJJJ)"
+    },
     "csvLabel": "CSV (semikolon-getrennt)",
     "csvDesc": "Universeller Tabellenexport. Alle Aufgaben mit Terminen und Dauer.",
     "mspdiLabel": "MS Project XML",

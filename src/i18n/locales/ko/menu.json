@@ -314,6 +314,13 @@
     "progressCsvLabel": "진행률 시트(CSV)",
     "progressCsvDesc": "ID, WBS, 이름, 날짜, 완료율만 포함된 간결한 시트 — 진행률 업데이트용.",
     "progressCsvShort": "진행률(CSV)",
+    "progressCsvNotes": {
+      "readOnly": "변경하지 마세요",
+      "plannedReadOnly": "계획값, 변경하지 마세요",
+      "completion": "입력: 0~100 사이의 정수",
+      "actualStart": "입력: 실제 시작일 (일-월-년)",
+      "actualFinish": "입력: 실제 종료일 (일-월-년)"
+    },
     "csvLabel": "CSV (세미콜론 구분)",
     "csvDesc": "범용 테이블 내보내기. 날짜 및 기간이 포함된 모든 작업.",
     "mspdiLabel": "MS Project XML",

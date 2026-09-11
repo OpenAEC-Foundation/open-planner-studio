@@ -314,6 +314,13 @@
     "progressCsvLabel": "Hoja de avance (CSV)",
     "progressCsvDesc": "Hoja reducida con solo id, EDT, nombre, fechas y avance — para actualizar el avance.",
     "progressCsvShort": "Avance (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "no modificar",
+      "plannedReadOnly": "planificado, no modificar",
+      "completion": "rellenar: de 0 a 100, números enteros",
+      "actualStart": "rellenar: fecha de inicio real (dd-mm-aaaa)",
+      "actualFinish": "rellenar: fecha de fin real (dd-mm-aaaa)"
+    },
     "csvLabel": "CSV (separado por punto y coma)",
     "csvDesc": "Exportación de tabla universal. Todas las tareas con fechas y duraciones.",
     "mspdiLabel": "MS Project XML",

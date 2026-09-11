@@ -314,6 +314,13 @@
     "progressCsvLabel": "進捗シート（CSV）",
     "progressCsvDesc": "ID、WBS、名前、日付、完了率のみを含むスリムなシート — 進捗更新用。",
     "progressCsvShort": "進捗（CSV）",
+    "progressCsvNotes": {
+      "readOnly": "変更しないでください",
+      "plannedReadOnly": "予定値、変更しないでください",
+      "completion": "入力してください：0〜100の整数",
+      "actualStart": "入力してください：実際の開始日（日-月-年）",
+      "actualFinish": "入力してください：実際の終了日（日-月-年）"
+    },
     "csvLabel": "CSV（セミコロン区切り）",
     "csvDesc": "汎用テーブルエクスポート。日付と期間を含むすべてのタスク。",
     "mspdiLabel": "MS Project XML",

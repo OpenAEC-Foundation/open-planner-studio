@@ -314,6 +314,13 @@
     "progressCsvLabel": "İlerleme sayfası (CSV)",
     "progressCsvDesc": "Yalnızca kimlik, İş Kırılım Yapısı, ad, tarihler ve tamamlanma içeren sade sayfa — ilerlemeyi güncellemek için.",
     "progressCsvShort": "İlerleme (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "değiştirmeyin",
+      "plannedReadOnly": "planlanan, değiştirmeyin",
+      "completion": "doldurun: 0 ile 100 arası, tam sayı",
+      "actualStart": "doldurun: gerçek başlangıç tarihi (gg-aa-yyyy)",
+      "actualFinish": "doldurun: gerçek bitiş tarihi (gg-aa-yyyy)"
+    },
     "csvLabel": "CSV (noktalı virgülle ayrılmış)",
     "csvDesc": "Evrensel tablo dışa aktarımı. Tarihler ve sürelerle birlikte tüm görevler.",
     "mspdiLabel": "MS Project XML",

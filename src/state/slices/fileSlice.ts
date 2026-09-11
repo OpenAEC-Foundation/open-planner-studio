@@ -406,12 +406,28 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let nameOverride: string | undefined;
 
       switch (format) {
-        case 'progress-csv':
-          content = writeProgressSheetCSV(state.tasks);
+        case 'progress-csv': {
+          // Dynamische import (D, besluit 2026-09-05): `@/i18n/config` initialiseert i18next en
+          // raakt DIRECT bij het laden al `document.documentElement.dir` aan (RTL-afhandeling) —
+          // een top-level import hier zou dat in `fileSlice.ts` trekken, en daarmee in ELKE
+          // headless test die `appStore` importeert (64 van de 65 `check-*.ts`-batterijen die
+          // hem gebruiken hebben geen document-stub, want vóór dit punt kende `appStore` geen
+          // enkel transitief pad naar i18n). Zelfde patroon als de Tauri-imports elders in deze
+          // slice: puur data-laden blijft synchroon, alles met een randeffect gaat achter een
+          // dynamic import.
+          const [{ default: i18n }, { buildProgressHeaderNotes }] = await Promise.all([
+            import('@/i18n/config'),
+            import('@/i18n/progressHeaderNotes'),
+          ]);
+          content = writeProgressSheetCSV(
+            state.tasks,
+            buildProgressHeaderNotes((key) => i18n.t(key, { ns: 'menu' })),
+          );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
           nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
           break;
+        }
         case 'csv':
           content = writeCSV(
             state.project, state.calendar, state.tasks,

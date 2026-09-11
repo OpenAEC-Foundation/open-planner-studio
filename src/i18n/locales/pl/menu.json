@@ -314,6 +314,13 @@
     "progressCsvLabel": "Arkusz postępu (CSV)",
     "progressCsvDesc": "Odchudzony arkusz zawierający tylko id, WBS, nazwę, daty i postęp — do aktualizacji postępu.",
     "progressCsvShort": "Postęp (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "nie zmieniać",
+      "plannedReadOnly": "zaplanowane, nie zmieniać",
+      "completion": "wypełnij: od 0 do 100, liczby całkowite",
+      "actualStart": "wypełnij: rzeczywista data rozpoczęcia (dd-mm-rrrr)",
+      "actualFinish": "wypełnij: rzeczywista data zakończenia (dd-mm-rrrr)"
+    },
     "csvLabel": "CSV (rozdzielany średnikiem)",
     "csvDesc": "Uniwersalny eksport tabeli. Wszystkie zadania z datami i czasem trwania.",
     "mspdiLabel": "MS Project XML",

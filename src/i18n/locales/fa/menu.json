@@ -314,6 +314,13 @@
     "progressCsvLabel": "صفحهٔ پیشرفت (CSV)",
     "progressCsvDesc": "صفحه‌ای فشرده شامل فقط شناسه، WBS، نام، تاریخ‌ها و درصد تکمیل — برای به‌روزرسانی پیشرفت.",
     "progressCsvShort": "پیشرفت (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "تغییر ندهید",
+      "plannedReadOnly": "برنامه‌ریزی‌شده، تغییر ندهید",
+      "completion": "تکمیل کنید: عددی صحیح بین ۰ تا ۱۰۰",
+      "actualStart": "تکمیل کنید: تاریخ شروع واقعی (روز-ماه-سال)",
+      "actualFinish": "تکمیل کنید: تاریخ پایان واقعی (روز-ماه-سال)"
+    },
     "csvLabel": "CSV (نقطه‌ویرگول‌جدا)",
     "csvDesc": "خروجی جدول همه‌منظوره. تمام وظایف با تاریخ و مدت.",
     "mspdiLabel": "MS Project XML",

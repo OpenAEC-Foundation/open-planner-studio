@@ -137,16 +137,44 @@ const COLUMN_ALIASES: Record<string, readonly string[]> = {
   finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
 };
 
+// Besluit 2026-09-05 (punt D, gebruikstest — letterlijke wens: "er moet ook in de headers van de
+// kolommen komen te staan wat je in mag voeren en waar je af moet blijven"): het geëxporteerde
+// voortgangsblad (`writeProgressSheetCSV`) draagt per kolom een invulinstructie NA de sleutel,
+// gescheiden door ` — ` (`<sleutel> — <instructie>`). De vroegste van deze drie markers snijdt
+// dus de instructie van de sleutel af: `HEADER_INSTRUCTION_MARKERS`.
+const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
+
+/**
+ * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `COLUMN_ALIASES` (bestaand gedrag,
+ * dekt zowel oude bladen als de volledige CSV-export). Lukt dat niet, dan is de terugval het
+ * PREFIX vóór de vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
+ * `Completion (%) — invullen: …` — het haakje van "(%)" zelf ligt vóór de "—", dus de afgesneden
+ * prefix wordt "completion", een bestaande alias (E6/A5.6-notitie: geen aparte "haakjes"-uitzondering
+ * nodig, de bestaande exacte alias "completion" vangt dat al op). Geen van beide treft ⇒ geen kolom.
+ */
+function matchColumnKey(header: string): string | undefined {
+  const h = header.toLowerCase().trim();
+  for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
+    if (aliases.includes(h)) return key;
+  }
+  let cut = -1;
+  for (const marker of HEADER_INSTRUCTION_MARKERS) {
+    const idx = h.indexOf(marker);
+    if (idx >= 0 && (cut === -1 || idx < cut)) cut = idx;
+  }
+  if (cut <= 0) return undefined; // geen marker, of de sleutel zelf zou leeg zijn.
+  const prefix = h.slice(0, cut).trim();
+  for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
+    if (aliases.includes(prefix)) return key;
+  }
+  return undefined;
+}
+
 function mapColumnIndex(headers: readonly string[]): Record<string, number> {
   const map: Record<string, number> = {};
   for (let i = 0; i < headers.length; i++) {
-    const h = headers[i].toLowerCase().trim();
-    for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
-      if (aliases.includes(h)) {
-        map[key] = i;
-        break;
-      }
-    }
+    const key = matchColumnKey(headers[i]);
+    if (key !== undefined) map[key] = i;
   }
   return map;
 }

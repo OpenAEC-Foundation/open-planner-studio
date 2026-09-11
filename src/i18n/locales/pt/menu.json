@@ -314,6 +314,13 @@
     "progressCsvLabel": "Folha de progresso (CSV)",
     "progressCsvDesc": "Folha reduzida apenas com id, EAP, nome, datas e progresso — para atualizar o progresso.",
     "progressCsvShort": "Progresso (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "não alterar",
+      "plannedReadOnly": "planeado, não alterar",
+      "completion": "preencher: 0 a 100, números inteiros",
+      "actualStart": "preencher: data de início real (dd-mm-aaaa)",
+      "actualFinish": "preencher: data de fim real (dd-mm-aaaa)"
+    },
     "csvLabel": "CSV (separado por ponto e vírgula)",
     "csvDesc": "Exportação de tabela universal. Todas as tarefas com datas e durações.",
     "mspdiLabel": "MS Project XML",

@@ -314,6 +314,13 @@
     "progressCsvLabel": "ورقة التقدّم (CSV)",
     "progressCsvDesc": "ورقة مبسّطة تحتوي فقط على المعرّف وهيكل تجزئة العمل والاسم والتواريخ ونسبة الإنجاز — لتحديث التقدّم.",
     "progressCsvShort": "التقدّم (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "لا تُغيّر",
+      "plannedReadOnly": "مخطَّط، لا تُغيّر",
+      "completion": "املأ: من 0 إلى 100، أعداد صحيحة",
+      "actualStart": "املأ: تاريخ البدء الفعلي (يوم-شهر-سنة)",
+      "actualFinish": "املأ: تاريخ الانتهاء الفعلي (يوم-شهر-سنة)"
+    },
     "csvLabel": "CSV (مفصول بفاصلة منقوطة)",
     "csvDesc": "تصدير جدولي عام. جميع المهام مع التواريخ والمُدد.",
     "mspdiLabel": "MS Project XML",

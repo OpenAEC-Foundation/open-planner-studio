@@ -314,6 +314,13 @@
     "progressCsvLabel": "进度表（CSV）",
     "progressCsvDesc": "精简表格，仅含编号、WBS、名称、日期和完成度——用于更新进度。",
     "progressCsvShort": "进度（CSV）",
+    "progressCsvNotes": {
+      "readOnly": "请勿更改",
+      "plannedReadOnly": "计划值，请勿更改",
+      "completion": "请填写：0 到 100 的整数",
+      "actualStart": "请填写：实际开始日期（日-月-年）",
+      "actualFinish": "请填写：实际完成日期（日-月-年）"
+    },
     "csvLabel": "CSV（分号分隔）",
     "csvDesc": "通用表格导出，包含所有任务的日期和工期。",
     "mspdiLabel": "MS Project XML",
