@@ -48,6 +48,19 @@ import { documentTitle, untitledOrdinals, displayDocumentTitle } from '@/utils/d
 export const MAX_TASKS_AUTO = 1000;
 /** Meer taken dan dit die op dít poolitem boeken ⇒ handmatig herberekenen (§3.4). */
 export const MAX_BOOKING_TASKS_AUTO = 40;
+/**
+ * Meer GEOPENDE DOCUMENTEN dan dit ⇒ handmatig herberekenen (fixronde-2 bevinding B6).
+ *
+ * De twee grenzen hierboven meten één document tegelijk, en dat mist de kost die juist met het
+ * AANTAL documenten meegroeit: `computeDistribution` draait per deelnemer een volledige CPM-solve
+ * plus nivelleerpass, en de labelpas doet dat nóg een keer per deelnemer (spec §4 stap 1). De
+ * totale kost van een tune-tik loopt dus ruwweg met het KWADRAAT van het aantal documenten op,
+ * terwijl elk afzonderlijk document ruim onder `MAX_TASKS_AUTO` kan blijven. Spec §3.4 rekent met
+ * "vier documenten ≈ ≤ 2 s"; zes is daarvan de marge, daarboven blijft alleen de expliciete route
+ * over ("Herbereken"). Gemeten aanleiding: vijf documenten van 990 taken gaven een hoofdrun van
+ * 1,6 s plus een labelpas van 3,8 s — en dat bij élke tune-wijziging.
+ */
+export const MAX_DOCS_AUTO = 6;
 
 /** Waarom het huidige voorstel niet meer actueel is — 1-op-1 de `resource.distribution.stale.*`
  *  sleutels. De vier tune-assen komen uit `diffReason`; `'edited'` komt uit de
@@ -91,6 +104,11 @@ export interface DistributionProposalState {
   proposal: DistributionProposal | null;
   /** Er loopt een berekening (§3.4 bezig-toestand). */
   busy: boolean;
+  /** Er loopt nog een LABELPAS: het hoofdvoorstel staat al op het scherm, maar de kostenlabels en
+   *  het prijskaartje worden nog gerekend (fixronde-2 bevinding B6). De dialoog toont daar
+   *  `compute.busy` voor — een leeg of oud label zou liegen — terwijl de hoofdknoppen gewoon
+   *  bruikbaar blijven: deze pas raakt het voorstel zelf niet. */
+  labelsBusy: boolean;
   /** Niet-null ⇒ het voorstel hoort niet meer bij de bediening; de dialoog toont de reden. */
   staleReason: DistributionStaleReason | null;
   /** De LAATSTE reden sinds het openen, ook nadat de strook alweer verdwenen is. Puur voor
@@ -265,6 +283,9 @@ function isDistributionDegraded(
   inputs: DistributionDocInput[],
   tune: Pick<DistributionUiState, 'companyId' | 'libraryItemId'>,
 ): boolean {
+  // De documenttelling staat VOORAAN: hij is gratis, en de lus eronder doet per document een
+  // `scopeTaskIdsFor` (bevinding B6 — de poort telde het aantal documenten helemaal niet mee).
+  if (inputs.length > MAX_DOCS_AUTO) return true;
   for (const doc of inputs) {
     if (doc.tasks.length > MAX_TASKS_AUTO) return true;
     if (scopeTaskIdsFor(doc, tune.companyId, tune.libraryItemId).length > MAX_BOOKING_TASKS_AUTO) return true;
@@ -334,6 +355,7 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const [proposal, setProposal] = useState<DistributionProposal | null>(null);
   const [inputs, setInputs] = useState<DistributionDocInput[]>([]);
   const [busy, setBusy] = useState(false);
+  const [labelsBusy, setLabelsBusy] = useState(false);
   const [staleReason, setStaleReason] = useState<DistributionStaleReason | null>(null);
   const [lastStaleReason, setLastStaleReason] = useState<DistributionStaleReason | null>(null);
   const [staleDocs, setStaleDocs] = useState('');
@@ -367,14 +389,52 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const pendingRef = useRef(false);
   const runRef = useRef<() => void>(() => {});
 
+  // Opruimen bij unmount (fixronde-2 bevinding B6: de labelpas liep vrolijk door nadat de dialoog
+  // gesloten was — seconden CPU voor een scherm dat niemand meer ziet). Élke geplande macrotask van
+  // deze hook (de hoofdrun én iedere labelstap) loopt via `schedule` en leest deze vlag; een
+  // afgedankte hook rekent dus niets meer en plant ook niets meer.
+  //
+  // WAAROM EEN VLAG EN GEEN `clearTimeout`-LIJST. De app draait in `React.StrictMode`, en die doet
+  // bij élke mount een mount→cleanup→mount. Een cleanup die de al geplande macrotasks wist, gooit
+  // daarmee de OPENINGSRUN weg die het subject-effect zojuist plande — en dat effect plant hem niet
+  // opnieuw, want het onderwerp is dan niet veranderd. Resultaat: een dialoog die in dev nooit een
+  // voorstel toont. Met een vlag die bij (her)mount weer op `false` gaat, klopt beide gevallen: de
+  // StrictMode-remount pakt zijn eigen geplande run gewoon op, en een echte unmount legt alles stil.
+  // Er blijft hooguit één macrotask openstaan die meteen niets doet.
+  const disposedRef = useRef(false);
+
+  /** Plan `fn` in een EIGEN macrotask, tenzij deze hook inmiddels is afgedankt. */
+  const schedule = (fn: () => void): void => {
+    setTimeout(() => {
+      if (disposedRef.current) return;
+      fn();
+    }, 0);
+  };
+
+  // NB: hier wordt bewust NIET `generationRef` opgehoogd. Dat zou bij de StrictMode-cleanup de
+  // labelpas van de zojuist geplande openingsrun als "ingehaald" bestempelen, waarna er in dev nooit
+  // een kostenlabel verschijnt. De vlag hierboven is de afbreekreden; de generatie blijft van de
+  // hoofdruns.
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => { disposedRef.current = true; };
+  }, []);
+
   /**
    * Taak 13 (spec §4 stap 1 / §6). Per document een VOLLEDIGE `computeDistribution`-run met dat
    * document alleen op rang 1 en alle andere deelnemers gepind ("alleen dit project laten
    * opschuiven"), plus twee runs voor het prijskaartje van de gereedschapsschakelaar (`allowSplits`
-   * uit/aan). Draait in een EIGEN macrotask ná het hoofdvoorstel (dat schildert dan al), en breekt
-   * af zodra `myGeneration` is ingehaald door een nieuwere hoofdrun of door een 'edited'-invalidatie
+   * uit/aan). Draait ná het hoofdvoorstel (dat schildert dan al), en breekt af zodra `myGeneration`
+   * is ingehaald door een nieuwere hoofdrun of door een 'edited'-invalidatie
    * (`fingerprintsRef.current === null`) — beide zijn precies de gevallen waarin het hoofdvoorstel op
    * het scherm zelf ook al niet meer bij de documenten hoort.
+   *
+   * ÉÉN MACROTASK PER STAP, NIET ÉÉN VOOR ALLES (fixronde-2 bevinding B6). Dit stond in één
+   * synchrone `setTimeout`-callback: N volledige solves plus twee prijsruns achter elkaar, zonder
+   * dat de browser ertussen kon schilderen of een klik kon verwerken. Gemeten op vijf documenten
+   * van 990 taken: 3,8 seconden bevroren UI, bij élke tune-wijziging — en `superseded()` kón
+   * daartussen niet ingrijpen, want er was geen "daartussen". Elke stap heeft nu zijn eigen
+   * macrotask, dus de UI blijft responsief en een afbreekreden landt binnen één stap.
    */
   const scheduleDistributionLabels = (
     myGeneration: number,
@@ -383,50 +443,70 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     built: DistributionDocInput[],
     proposalResult: DistributionProposal,
   ): void => {
-    setTimeout(() => {
-      const superseded = () => generationRef.current !== myGeneration || fingerprintsRef.current === null;
-      if (superseded()) return;
-      try {
-        const costs: Record<string, number> = {};
-        for (const doc of built) {
-          const docResult = proposalResult.docs.find(d => d.docId === doc.docId);
-          // Gepind/#63/cannotMove ⇒ geen label (§4 stap 1: "ze wijken niet").
-          if (!docResult || !docResult.participated || docResult.cannotMove) continue;
-          const isolated = built.map(other => (
-            other.docId === doc.docId
-              ? { ...other, rank: 1, pinned: false }
-              : { ...other, pinned: true }
-          ));
-          const isolatedResult = computeDistribution(
-            tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, isolated,
-            { allowSplits: tuneAtRun.allowSplits },
-          );
-          if (superseded()) return;
-          if (isolatedResult.blocked) continue;
-          const own = isolatedResult.docs.find(d => d.docId === doc.docId);
-          if (own) costs[doc.docId] = own.endShiftWorkdays;
-        }
-        if (superseded()) return;
-        setCostByDoc(costs);
+    const superseded = () => generationRef.current !== myGeneration || fingerprintsRef.current === null;
+    // Alleen de teller van DEZE pas mag de bezig-toestand weer uitzetten: een nieuwere pas loopt
+    // dan al en heeft 'm zojuist zelf aangezet.
+    const finish = () => { if (generationRef.current === myGeneration) setLabelsBusy(false); };
 
-        const priceOf = (p: DistributionProposal): number | null =>
-          p.blocked ? null : p.docs.reduce((max, d) => Math.max(max, d.endShiftWorkdays), 0);
-        const off = computeDistribution(
-          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: false },
+    const priceOf = (p: DistributionProposal): number | null =>
+      p.blocked ? null : p.docs.reduce((max, d) => Math.max(max, d.endShiftWorkdays), 0);
+
+    const costs: Record<string, number> = {};
+    let offPrice: number | null = null;
+    let onPrice: number | null = null;
+    const steps: (() => void)[] = [];
+
+    for (const doc of built) {
+      const docResult = proposalResult.docs.find(d => d.docId === doc.docId);
+      // Gepind/#63/cannotMove ⇒ geen label (§4 stap 1: "ze wijken niet"), en dus ook geen stap.
+      if (!docResult || !docResult.participated || docResult.cannotMove) continue;
+      steps.push(() => {
+        const isolated = built.map(other => (
+          other.docId === doc.docId
+            ? { ...other, rank: 1, pinned: false }
+            : { ...other, pinned: true }
+        ));
+        const isolatedResult = computeDistribution(
+          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, isolated,
+          { allowSplits: tuneAtRun.allowSplits },
         );
-        if (superseded()) return;
-        const on = computeDistribution(
-          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: true },
-        );
-        if (superseded()) return;
-        const offPrice = priceOf(off);
-        const onPrice = priceOf(on);
-        if (offPrice !== null && onPrice !== null) setToolPrice({ off: offPrice, on: onPrice });
+        if (isolatedResult.blocked) return;
+        const own = isolatedResult.docs.find(d => d.docId === doc.docId);
+        if (own) costs[doc.docId] = own.endShiftWorkdays;
+      });
+    }
+    // De labels gaan in ÉÉN keer naar de state, ná de laatste isolatierun: half gevulde
+    // rangorderijen zijn misleidender dan een zichtbare bezig-toestand.
+    steps.push(() => { setCostByDoc({ ...costs }); });
+    steps.push(() => {
+      offPrice = priceOf(computeDistribution(
+        tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: false },
+      ));
+    });
+    steps.push(() => {
+      onPrice = priceOf(computeDistribution(
+        tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: true },
+      ));
+    });
+    steps.push(() => {
+      if (offPrice !== null && onPrice !== null) setToolPrice({ off: offPrice, on: onPrice });
+    });
+
+    const runStep = (index: number): void => {
+      if (superseded() || index >= steps.length) { finish(); return; }
+      try {
+        steps[index]();
       } catch {
-        // Een mislukte labelrun (bv. een solverfout in een isolatiescenario) laat gewoon geen label
+        // Een mislukte stap (bv. een solverfout in een isolatiescenario) laat gewoon geen label
         // zien — nooit een gok tonen (zie het moduleblok over "stille uitsluiting" in distribute.ts).
+        // De rest van de pas loopt door: één onberekenbaar project hoort de andere labels niet mee
+        // te slepen.
       }
-    }, 0);
+      schedule(() => runStep(index + 1));
+    };
+
+    setLabelsBusy(true);
+    schedule(() => runStep(0));
   };
 
   runRef.current = () => {
@@ -444,8 +524,11 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     // is even misleidend als een oud getal na een invalidatie).
     setCostByDoc({});
     setToolPrice(null);
+    // De labelpas van de vorige generatie is hiermee ingehaald; zijn bezig-toestand hoort dus ook
+    // weg. Wordt er straks weer een pas gepland, dan zet die 'm zelf terug aan.
+    setLabelsBusy(false);
     // Eerst de paint (bezig-toestand), dán het echte rekenwerk — zie het moduleblok.
-    setTimeout(() => {
+    schedule(() => {
       try {
         const s = useAppStore.getState();
         const pool = s.pools[current.companyId];
@@ -476,7 +559,7 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
         setBusy(false);
         if (pendingRef.current) { pendingRef.current = false; runRef.current(); }
       }
-    }, 0);
+    });
   };
 
   const recompute = useCallback(() => { runRef.current(); }, []);
@@ -563,7 +646,7 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   }, []);
 
   return {
-    proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
+    proposal, busy, labelsBusy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
     costByDoc, toolPrice,
   };
 }

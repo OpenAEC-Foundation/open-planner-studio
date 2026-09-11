@@ -519,6 +519,42 @@ async function seedLargeDegradedProject(page: Page): Promise<Library> {
   return library;
 }
 
+/**
+ * ZEVEN kleine documenten, elk met één eendaagse taak op hetzelfde poolitem (fixronde-2 bevinding
+ * B6). Geen enkel document komt ook maar in de buurt van `MAX_TASKS_AUTO` of
+ * `MAX_BOOKING_TASKS_AUTO` — het is het AANTAL documenten dat de kost opdrijft: `computeDistribution`
+ * draait per deelnemer een volledige solve, en de labelpas doet dat nog een keer per deelnemer.
+ */
+async function seedManySmallDocuments(page: Page, count: number): Promise<Library> {
+  const [firstTask] = await seedProject(page, [{
+    name: 'Project 1 taak', start: '2026-09-07', finish: '2026-09-07', durationDays: 1,
+  }], 'Project 1');
+  const library = await createLibrary(page, 1);
+  await bookOnPoolItem(page, library, firstTask, 1);
+
+  for (let i = 2; i <= count; i++) {
+    await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
+    const [task] = await seedProject(page, [{
+      name: `Project ${i} taak`, start: '2026-09-07', finish: '2026-09-07', durationDays: 1,
+    }], `Project ${i}`);
+    await bookOnPoolItem(page, library, task, 1);
+  }
+  return library;
+}
+
+test('boven het documentenplafond rekent de dialoog alleen op de knop', async ({ page, ops: _ops }) => {
+  test.setTimeout(60_000);
+  // Zeven documenten: één meer dan `MAX_DOCS_AUTO` (6). Elk document is minuscuul, dus alleen de
+  // documenttelling in de degradatiepoort kan dit vangen — precies wat er ontbrak (bevinding B6).
+  await seedManySmallDocuments(page, 7);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(7);
+
+  await expect(page.locator('[data-ops-distribution-degraded]')).toBeVisible();
+  // Gedegradeerd ⇒ geen labelpas, dus geen "Bezig…" maar de expliciete route.
+  await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
+});
+
 test('boven de ondersteunde schaal rekent de dialoog alleen op de knop', async ({ page, ops: _ops }) => {
   test.setTimeout(60_000);
   const start = Date.now();

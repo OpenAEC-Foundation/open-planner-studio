@@ -47,7 +47,7 @@ export function DistributionDialog() {
   const undoDistribution = useAppStore(s => s.undoDistribution);
 
   const {
-    proposal, busy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
+    proposal, busy, labelsBusy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
     costByDoc, toolPrice,
   } = useDistributionProposal(tune);
 
@@ -56,7 +56,14 @@ export function DistributionDialog() {
   // vervallen voorstel is misleidender dan geen getal. Dus: staleReason of degraded ⇒ altijd de
   // "druk op Herbereken"-tekst, ongeacht wat er nog in de cache staat.
   const labelsValid = staleReason === null && !degraded;
+  // De labelpas loopt in eigen macrotasks ná het hoofdvoorstel (fixronde-2 bevinding B6), dus er is
+  // een echt venster waarin het voorstel al staat en de getallen nog niet. Dat venster hoort
+  // ZICHTBAAR te zijn: "Bezig…" bij de labels, terwijl de hoofdknoppen gewoon bruikbaar blijven —
+  // deze pas raakt het voorstel zelf niet. Zonder deze toestand las hetzelfde venster als "druk op
+  // Herbereken", terwijl er juist gerekend werd.
+  const labelsPending = busy || labelsBusy;
   const costLabel = (docId: string): string => {
+    if (labelsPending) return t('resource.distribution.compute.busy');
     const cost = labelsValid ? costByDoc[docId] : undefined;
     if (cost === undefined) return t('resource.distribution.compute.pressRecompute');
     return cost === 0
@@ -66,9 +73,12 @@ export function DistributionDialog() {
   const priceText = (workdays: number): string => (workdays === 0
     ? t('resource.distribution.tool.priceNone')
     : t('resource.distribution.tool.price', { count: workdays }));
-  const toolPriceLabel = (): string => (!labelsValid || !toolPrice)
-    ? t('resource.distribution.tool.priceUnknown')
-    : `${priceText(toolPrice.off)} · ${priceText(toolPrice.on)}`;
+  const toolPriceLabel = (): string => {
+    if (labelsPending) return t('resource.distribution.compute.busy');
+    return (!labelsValid || !toolPrice)
+      ? t('resource.distribution.tool.priceUnknown')
+      : `${priceText(toolPrice.off)} · ${priceText(toolPrice.on)}`;
+  };
   // Gepind/#63/cannotMove-documenten krijgen GEEN kostenlabel (§4 stap 1: "ze wijken niet") — dat
   // leest rechtstreeks uit het LAATST BEREKENDE voorstel (`participated`/`cannotMove`), niet uit
   // `costByDoc`: die twee vragen zijn onafhankelijk van elkaar (een document kan best deelnemen
