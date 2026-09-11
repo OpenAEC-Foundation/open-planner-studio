@@ -554,6 +554,7 @@
     "projectView": "المشروع",
     "companyViewHint": "هذا يعدّل المكتبة وينطبق على جميع المشاريع — خارج نطاق التراجع.",
     "assignFromCompany": "تعيين للمشروع",
+    "inProject": "في المشروع ({{count}}×)",
     "removeFromProject": "إزالة من المشروع",
     "confirmRemoveResource": "هل تريد إزالة '{{name}}' من المكتبة؟ ينطبق هذا على جميع المشاريع ولا يمكن التراجع عنه.",
     "field": {

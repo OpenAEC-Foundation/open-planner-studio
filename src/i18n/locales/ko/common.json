@@ -509,6 +509,7 @@
     "projectView": "프로젝트",
     "companyViewHint": "이 작업은 라이브러리 데이터를 편집하며 모든 프로젝트에 적용됩니다 — 실행 취소 대상이 아닙니다.",
     "assignFromCompany": "프로젝트에 할당",
+    "inProject": "프로젝트에 포함 ({{count}}×)",
     "removeFromProject": "프로젝트에서 제거",
     "confirmRemoveResource": "라이브러리에서 '{{name}}'을(를) 삭제하시겠습니까? 이는 모든 프로젝트에 적용되며 실행 취소할 수 없습니다.",
     "field": {

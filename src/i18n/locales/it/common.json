@@ -527,6 +527,7 @@
     "projectView": "Progetto",
     "companyViewHint": "Questo modifica la libreria e vale per tutti i progetti — fuori dall'annulla.",
     "assignFromCompany": "Assegna al progetto",
+    "inProject": "Nel progetto ({{count}}×)",
     "removeFromProject": "Rimuovi dal progetto",
     "confirmRemoveResource": "Rimuovere «{{name}}» dalla libreria? Questo vale per tutti i progetti e non può essere annullato.",
     "field": {

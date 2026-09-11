@@ -509,6 +509,7 @@
     "projectView": "项目",
     "companyViewHint": "此操作会编辑资源库数据，适用于所有项目——不在撤销范围内。",
     "assignFromCompany": "分配到项目",
+    "inProject": "已在项目中（{{count}}×）",
     "removeFromProject": "从项目中移除",
     "confirmRemoveResource": "要从资源库中移除“{{name}}”吗？此操作适用于所有项目，且无法撤销。",
     "field": {

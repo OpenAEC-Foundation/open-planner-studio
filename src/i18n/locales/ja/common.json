@@ -509,6 +509,7 @@
     "projectView": "プロジェクト",
     "companyViewHint": "これはライブラリデータを編集し、すべてのプロジェクトに適用されます — 元に戻す操作の対象外です。",
     "assignFromCompany": "プロジェクトに割り当て",
+    "inProject": "プロジェクト内（{{count}}×）",
     "removeFromProject": "プロジェクトから削除",
     "confirmRemoveResource": "ライブラリから「{{name}}」を削除しますか？これはすべてのプロジェクトに適用され、元に戻せません。",
     "field": {

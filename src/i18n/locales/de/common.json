@@ -518,6 +518,7 @@
     "projectView": "Projekt",
     "companyViewHint": "Dies bearbeitet die Bibliothek und gilt für alle Projekte — außerhalb von Rückgängig.",
     "assignFromCompany": "Dem Projekt zuweisen",
+    "inProject": "Im Projekt ({{count}}×)",
     "removeFromProject": "Aus Projekt entfernen",
     "confirmRemoveResource": "'{{name}}' aus der Bibliothek entfernen? Dies gilt für alle Projekte und kann nicht rückgängig gemacht werden.",
     "field": {

@@ -536,6 +536,7 @@
     "projectView": "Projekt",
     "companyViewHint": "To edytuje bibliotekę i dotyczy wszystkich projektów — poza cofaniem.",
     "assignFromCompany": "Przypisz do projektu",
+    "inProject": "W projekcie ({{count}}×)",
     "removeFromProject": "Usuń z projektu",
     "confirmRemoveResource": "Usunąć „{{name}}” z biblioteki? Dotyczy to wszystkich projektów i nie można tego cofnąć.",
     "field": {

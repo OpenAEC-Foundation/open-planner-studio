@@ -518,6 +518,7 @@
     "projectView": "پروژه",
     "companyViewHint": "این کار کتابخانه را ویرایش می‌کند و برای همه پروژه‌ها اعمال می‌شود — خارج از واگرد.",
     "assignFromCompany": "تخصیص به پروژه",
+    "inProject": "در پروژه ({{count}}×)",
     "removeFromProject": "حذف از پروژه",
     "confirmRemoveResource": "'{{name}}' از کتابخانه حذف شود؟ این کار برای همه پروژه‌ها اعمال می‌شود و قابل واگرد نیست.",
     "field": {

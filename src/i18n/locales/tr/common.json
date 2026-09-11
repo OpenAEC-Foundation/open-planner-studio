@@ -518,6 +518,7 @@
     "projectView": "Proje",
     "companyViewHint": "Bu, kitaplığı düzenler ve tüm projeler için geçerlidir — geri almanın dışında.",
     "assignFromCompany": "Projeye ata",
+    "inProject": "Projede ({{count}}×)",
     "removeFromProject": "Projeden kaldır",
     "confirmRemoveResource": "'{{name}}' kitaplıktan kaldırılsın mı? Bu, tüm projeler için geçerlidir ve geri alınamaz.",
     "field": {

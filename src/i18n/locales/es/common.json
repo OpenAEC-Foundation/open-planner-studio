@@ -527,6 +527,7 @@
     "projectView": "Proyecto",
     "companyViewHint": "Esto edita la biblioteca y se aplica a todos los proyectos — fuera de deshacer.",
     "assignFromCompany": "Asignar al proyecto",
+    "inProject": "En el proyecto ({{count}}×)",
     "removeFromProject": "Quitar del proyecto",
     "confirmRemoveResource": "¿Eliminar «{{name}}» de la biblioteca? Esto se aplica a todos los proyectos y no se puede deshacer.",
     "field": {

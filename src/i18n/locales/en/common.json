@@ -518,6 +518,7 @@
     "projectView": "Project",
     "companyViewHint": "This edits the library and applies to all projects — outside undo.",
     "assignFromCompany": "Assign to project",
+    "inProject": "In project ({{count}}×)",
     "removeFromProject": "Remove from project",
     "confirmRemoveResource": "Remove '{{name}}' from the library? This applies to all projects and cannot be undone.",
     "field": {

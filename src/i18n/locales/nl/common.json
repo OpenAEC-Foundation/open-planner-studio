@@ -518,6 +518,7 @@
     "projectView": "Project",
     "companyViewHint": "Dit bewerkt de bibliotheek en geldt voor alle projecten — valt buiten ongedaan maken.",
     "assignFromCompany": "Toewijzen aan project",
+    "inProject": "In project ({{count}}×)",
     "removeFromProject": "Verwijder uit project",
     "confirmRemoveResource": "'{{name}}' verwijderen uit de bibliotheek? Dit geldt voor alle projecten en is niet ongedaan te maken.",
     "field": {

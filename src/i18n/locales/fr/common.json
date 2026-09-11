@@ -527,6 +527,7 @@
     "projectView": "Projet",
     "companyViewHint": "Ceci modifie la bibliothèque et s'applique à tous les projets — hors annulation.",
     "assignFromCompany": "Affecter au projet",
+    "inProject": "Dans le projet ({{count}}×)",
     "removeFromProject": "Retirer du projet",
     "confirmRemoveResource": "Supprimer « {{name}} » de la bibliothèque ? Cela s'applique à tous les projets et est irréversible.",
     "field": {
