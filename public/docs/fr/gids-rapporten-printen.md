@@ -42,6 +42,73 @@ Un tableau de chaque jalon du projet : WBS, nom, type (automatique/début/fin), 
 
 Compare le planning actuel à la baseline active : début/fin de la baseline par rapport au début/fin actuel, la différence en jours ouvrés pour le début et la fin, et un statut par tâche (dans les délais / en retard / en avance / nouvelle / supprimée). S'il n'y a pas de baseline active, l'écran le mentionne explicitement au lieu d'afficher un rapport vide. Le bloc de résumé affiche aussi le décalage de la date de fin du projet en jours ouvrés, s'il y en a un. Voir le guide [Baselines & avancement](docs://gids-baselines-voortgang) pour savoir comment enregistrer une baseline avant que ce rapport puisse vous apprendre quelque chose d'utile.
 
+## Les sept rapports tabulaires
+
+Les autres types de rapport sont des tableaux tirés directement du dernier calcul. Ils partagent
+quelques règles : seules les **tâches feuilles** comptent comme activités (les tâches récapitulatives
+n'apparaissent que dans la synthèse WBS, les tâches hamac pas du tout) ; le **jour de référence** est
+la date d'état du projet — sans date d'état, le rapport utilise aujourd'hui et le dit ; les dates et
+marges viennent du dernier **calcul** (F5), une note signale un planning modifié depuis, et l'export
+PDF recalcule toujours d'abord ; chaque rapport a un petit bloc **Options du rapport**, mémorisé
+entre les sessions. Les jours ouvrés sont abrégés en *jo*.
+
+### Prévision (look-ahead)
+
+La liste de la réunion de chantier hebdomadaire : toutes les activités des *N* prochaines semaines
+(quatre par défaut) — ce qui démarre, continue ou se termine — plus ce qui aurait déjà dû se faire.
+Par ligne : WBS, nom, début et fin, durée restante, avancement, marge totale, critique ou quasi
+critique, ressources affectées et un statut : **Démarre**, **En cours**, **Aurait dû démarrer** ou
+**En retard**. Une activité qui couvre toute la fenêtre y figure aussi.
+
+### Critique & quasi critique
+
+Quelles activités déterminent la fin du projet, et lesquelles sont sur le point de le faire.
+Critique vient du calcul ; *quasi critique* est une marge totale de 0 jusqu'au seuil des options
+(5 jours ouvrés par défaut) ou le marquage des options de planification. Les tâches terminées sont
+exclues. Tri par chemin de marge, puis marge, puis début ; avec la marge libre et le numéro de
+chemin.
+
+### Rapport d'avancement
+
+Le point périodique « où en sommes-nous » à la date d'état. La synthèse donne la fin de référence
+et la fin prévue avec l'écart en jours ouvrés, l'avancement **prévu** contre **réel** (tous deux
+pondérés par la durée des tâches feuilles ; prévu sur les dates de la référence active, sinon sur
+le planning actuel) et les comptages par état. Dessous, cinq sections : terminé pendant la période
+écoulée, en cours, démarre pendant la prochaine période, en retard, et activités critiques ouvertes.
+La période (deux semaines par défaut) regarde autant en arrière qu'en avant.
+
+### Santé du planning
+
+Une revue de planning automatisée dans l'esprit des 14 points DCMA. Chaque contrôle reçoit une
+gravité et un nombre, avec les constats par tâche ou lien : **erreurs** (marge négative, échéance
+manquée, contrainte violée, avancement incohérent), **avertissements** (début ou fin ouverts, longue
+durée, avances, contraintes dures, avancement hors séquence) et **informations** (quasi critique,
+marge élevée, décalages longs). Les seuils sont dans les options ; par défaut selon DCMA : 44 jours
+ouvrés pour la marge élevée et la longue durée, 10 pour les décalages. Un planning propre a zéro
+erreur.
+
+### Charge des ressources par semaine
+
+Par ressource et par semaine, le besoin face à la capacité disponible (en unités-jours), l'écart,
+le pic journalier et si la semaine est surchargée — le même calcul que l'histogramme de l'onglet
+**Ressources**, sous forme de tableau. Seules les semaines avec un besoin figurent ; *Semaines
+surchargées uniquement* ne garde que les goulots.
+
+### Affectations des ressources
+
+Par ressource, les activités qui lui sont affectées : WBS, nom, début et fin, durée restante, unités
+par jour, avancement, critique et statut. Les tâches terminées sont exclues par défaut. Avec une
+fenêtre en semaines, cela devient la *prévision par ressource*. La synthèse compte aussi les tâches
+sans ressource.
+
+### Synthèse WBS
+
+Le planning agrégé par élément WBS jusqu'à un niveau au choix — la vue de direction. Par élément :
+début et fin, début et fin de référence, durée, avancement pondéré par la durée, écart de fin par
+rapport à la référence, plus petite marge totale et nombre d'activités, dont critiques, en cours et
+terminées. Choisissez un niveau (2 par défaut) ou le WBS complet, avec les activités si vous le
+souhaitez.
+
 ## Imprimer et exporter
 
 Le panneau de paramètres a toujours un bouton **Imprimer...** en bas — il ouvre une fenêtre d'impression séparée contenant le rapport et déclenche immédiatement la boîte de dialogue d'impression du navigateur/système d'exploitation. Pour le rapport Gantt, cette fenêtre utilise le format de papier et l'orientation choisis ; les rapports de jalons et de variance impriment le tableau tel qu'affiché.

@@ -217,6 +217,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi
 
+  # Leeskant van de stats-pijplijn (tab Statistieken in de instellingen): parser tegen de echte
+  # `downloads.json`-vorm, schema-poort en de cache-/fetch-volgorde met geïnjecteerde fetch/opslag.
+  DLSTATSCHECK="$DIR/.download-stats-check.mjs"
+  if bundle_check "$DIR/check-download-stats.ts" "$DLSTATSCHECK"; then node "$DLSTATSCHECK" || STATUS=1; fi
+
+  # Tabelrapporten (discussie #31): look-ahead, kritiek, voortgang, gezondheid, resources, WBS —
+  # de pure engine in src/engine/reports/ tegen een via de echte store opgebouwd project.
+  RPCHECK="$DIR/.reports-check.mjs"
+  if bundle_check "$DIR/check-reports.ts" "$RPCHECK"; then node "$RPCHECK" || STATUS=1; fi
+
   # "Bestaat dit tekst-asset echt?"-poort van de in-app help (textAsset.ts — pure functies +
   # injecteerbare fetch). Zet de desktopbug vast waarbij een content-type-check ALLE help-artikelen
   # verwierp: de Tauri-webview labelt elke onbekende extensie (.md) als text/html.
@@ -568,6 +578,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # viewstart, en getTaskBarBounds weigert de stub (geen drag met undefined originalStart).
   RDCHECK="$DIR/.renderer-dateless.mjs"
   if bundle_check "$DIR/check-renderer-dateless.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
+
+  # Issue #114: de trace-tint (voorganger goud / opvolger paars) mag niet door de blauwe/rode
+  # voortgangsvulling worden overschilderd — een voltooide voorganger leek anders niet gemarkeerd.
+  TRACEPROGCHECK="$DIR/.gantt-trace-progress.mjs"
+  if bundle_check "$DIR/check-gantt-trace-progress.ts" "$TRACEPROGCHECK"; then node "$TRACEPROGCHECK" || STATUS=1; fi
 
   # Dev-only Gantt-testdriver: reverse locator gebruikt exact de renderer-eigen balkgeometrie en
   # behoudt het bestaande hit-testbeleid voor datumloze taken, mijlpalen en verzameltaken.

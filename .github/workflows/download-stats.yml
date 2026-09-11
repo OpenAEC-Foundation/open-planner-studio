@@ -1,0 +1,46 @@
+name: Download stats
+
+# Wekelijks (en op verzoek) de downloadcijfers per besturingssysteem uit de
+# GitHub Releases-API: als rapport in de job-samenvatting, als artefact, én als
+# `downloads.json` op de `stats`-databranch — de vaste leeslocatie voor de app
+# en voor iedereen:
+#   https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio/stats/downloads.json
+# Geen deploy, geen commit op main, geen gebruikersdata: alles komt uit de
+# publieke `download_count` per release-asset. Een push naar `stats` triggert
+# niets (ci.yml en live.yml luisteren alleen naar main). Zie de kop van
+# `scripts/download-stats.mjs` voor wat de cijfers wel en niet betekenen
+# (Linux is install+update samen; de Snap Store zit er niet in).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # maandag 06:00 UTC
+
+# `contents: write` uitsluitend voor de push naar de `stats`-databranch; de
+# checkout van main blijft alleen-lezen in de praktijk (er wordt niets in
+# gewijzigd of gecommit).
+permissions:
+  contents: write
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Rapport naar de job-samenvatting
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/download-stats.mjs --repo="$GITHUB_REPOSITORY" --format=markdown | tee -a "$GITHUB_STEP_SUMMARY"
+          node scripts/download-stats.mjs --repo="$GITHUB_REPOSITORY" --format=json > download-stats.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: download-stats
+          path: download-stats.json
+          retention-days: 90
+      - name: Publiceer naar de stats-databranch
+        run: bash scripts/publish-stats-branch.sh download-stats.json

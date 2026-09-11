@@ -141,10 +141,17 @@ if (renderError === null) {
 
   // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
   //    mijlpaal blijft geweigerd (geen visuele breedte om aan te slepen).
+  //    De x-coördinaat komt uit de balkgeometrie zelf en niet uit een vast getal: `newProject()`
+  //    zet project- én viewstart op vandaag, en valt vandaag in een weekend dan schuift de solver
+  //    de taak naar maandag, zodat de balk pas op x = 2 × zoom begint en een vaste x = 20 hem mist
+  //    (edge-zone 6). Zo stond CI op zaterdag 2026-09-05 rood terwijl hij op vrijdag groen was.
   const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
-  const hitWithDuration = renderer.getTaskBarBounds(TTW + 20, rowMidY(1));
-  ok(`mijlpaal-met-duur: getTaskBarBounds accepteert haar (kreeg: ${JSON.stringify(hitWithDuration && { edge: hitWithDuration.edge })})`, hitWithDuration !== null && hitWithDuration.task.id === 'ms-met-duur');
-  const hitReal = renderer.getTaskBarBounds(TTW + 20, rowMidY(2));
+  const rectWithDuration = renderer.getTaskBarRect('ms-met-duur');
+  ok(`mijlpaal-met-duur: getTaskBarRect levert een balk (kreeg: ${JSON.stringify(rectWithDuration)})`, rectWithDuration !== null);
+  const hitX = rectWithDuration ? (rectWithDuration.left + rectWithDuration.right) / 2 : TTW + 20;
+  const hitWithDuration = renderer.getTaskBarBounds(hitX, rowMidY(1));
+  ok(`mijlpaal-met-duur: getTaskBarBounds accepteert haar (kreeg: ${JSON.stringify(hitWithDuration && { edge: hitWithDuration.edge })})`, hitWithDuration !== null && hitWithDuration.task.id === 'ms-met-duur' && hitWithDuration.edge === 'body');
+  const hitReal = renderer.getTaskBarBounds(hitX, rowMidY(2));
   ok('echte mijlpaal: getTaskBarBounds weigert haar nog steeds', hitReal === null);
 }
 

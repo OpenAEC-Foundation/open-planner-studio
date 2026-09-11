@@ -54,6 +54,12 @@ export interface PaginateOptions {
   timelineColumns?: number;
   /** Paginamarge in punten (rondom). Default 24. */
   marginPt?: number;
+  /**
+   * Toegestane paginabreekposities (logische px; `renderPrintCanvas().breakOffsets`): een pagina
+   * eindigt dan op de laatste rijgrens die past i.p.v. dwars door een rij (issue #110 punt 3).
+   * Afwezig ⇒ vaste tegeling op paginahoogte.
+   */
+  breakOffsetsPx?: readonly number[];
   /** JPEG-kwaliteit voor elke pagina (0..1). Default 0.9. */
   quality?: number;
   /**
