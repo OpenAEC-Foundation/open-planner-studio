@@ -196,9 +196,20 @@ test('histogram: een klik op een staaf opent geen tooltip', async ({ page, ops: 
   const plotPoint = { x: taskStart.x + 5, y: bounds!.y + Math.min(70, bounds!.height / 2) };
 
   // Een klik op de plot (geen pickerrij) selecteert niets en mag — net als vóór de
-  // eigenaarscorrectie op R1 al gold voor `onClick` — geen tooltip openen. Wachten voorbij de
-  // hover-vertraging (300 ms) bevestigt dat de klik zelf geen hover triggert.
+  // eigenaarscorrectie op R1 al gold voor `onClick` — geen tooltip openen. Playwrights
+  // `mouse.click` genereert zelf een `mousemove` naar dat punt vóór de down/up (net als een echte
+  // muis die er vlak vóór het klikken aankomt), dus die impliciete hover start ook hier de eigen
+  // 300 ms-vertragingstimer — dat is geen regressie, dat ís het hoverpad. Wat hier bewaakt wordt,
+  // is dat `onClick` zelf niet synchroon (buiten die hovertimer om) een tooltip opent: meteen na
+  // de klik, ruim binnen de hover-vertraging, moet de tooltip nog afwezig zijn.
   await page.mouse.click(plotPoint.x, plotPoint.y);
+  await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
+  await page.waitForTimeout(100);
+  await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
+
+  // Beweeg weg vóórdat de impliciete hover-timer (300 ms) alsnog afgaat, zodat deze test niet
+  // toevallig slaagt dankzij een latere tooltip die er weer verdwijnt.
+  await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
   await page.waitForTimeout(400);
   await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
 });
