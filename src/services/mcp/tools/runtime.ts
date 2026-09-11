@@ -110,7 +110,8 @@ export function buildEnvelope(ctx: McpContext): McpEnvelope {
 const BLOCKING_UI_FLAGS = [
   'showTaskDialog', 'showProjectSettings', 'showProjectInfoDialog', 'showSettingsDialog',
   'showCalendarDialog', 'showUpdateDialog', 'showNewProjectDialog', 'showFeedbackDialog',
-  'showStructureDialog', 'showLevelingDialog', 'showBaselineDialog', 'showColumnsDialog',
+  'showStructureDialog', 'showLevelingDialog', 'showDistributionDialog', 'showBaselineDialog',
+  'showColumnsDialog',
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
   'showTourOverlay', 'showWelcomeDialog',
 ] as const;
