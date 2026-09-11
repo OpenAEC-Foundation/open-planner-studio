@@ -30,9 +30,18 @@ De meegeleverde showcases dragen dit conflict zelf al. Open via **Bestand → Vo
 de showcases — [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc),
 [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) en
 [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) — elk in een
-eigen tabblad, druk in elk project F5 en ga dan naar **Resources → Bezetting**. De rij **Masonry
-crew** staat rood: die ploeg is er maar één, en begin juni metselt hij tegelijk aan de uitbouw van de
-eengezinswoning én aan woning 6 van De Akkers. Klik daar op **Verdelen…** en laat **Verdeel
+eigen tabblad, druk in elk project F5 en ga dan naar **Resources → Bezetting**. Precies twee rijen
+staan rood, en dat is zo bedoeld: het bedrijf is op alle andere punten ruim genoeg voor deze drie
+projecten samen.
+
+De eerste is **Masonry crew**: die ploeg is er maar één, en begin juni metselt hij tegelijk aan de
+uitbouw van de eengezinswoning én aan woning 6 van De Akkers. Dat is het schoolvoorbeeld — twee
+projecten, één ploeg, netjes op te lossen door een van beide iets op te schuiven. De tweede is
+**Plasterers**: één stukadoorsploeg die in alle drie de projecten meedoet, én binnen het
+appartementencomplex al aan drie torens tegelijk gevraagd wordt. Die is ook oplosbaar, maar kost het
+appartementencomplex een flink stuk uitloop — leerzaam om naast het eerste geval te leggen.
+
+Klik op **Masonry crew** en dan op **Verdelen…**, en laat **Verdeel
 automatisch** het voorstel maken; verander daarna eens de rangorde of zet een plafond op een project,
 en kijk wat er met de voorgestelde verschuiving gebeurt.
 

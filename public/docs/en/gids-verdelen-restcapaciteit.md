@@ -29,9 +29,18 @@ The bundled showcases already carry this conflict. Via **File → Examples**, op
 — [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc),
 [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) and
 [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) — each in its
-own tab, press F5 in every project and then go to **Resources → Occupancy**. The **Masonry crew** row
-is red: there is only one such crew, and in early June it is laying the walls of the family home
-extension and of house 6 in De Akkers at the same time. Click **Distribute…** on that row and let
+own tab, press F5 in every project and then go to **Resources → Occupancy**. Exactly two rows are
+red, and that is deliberate: on every other point the company is comfortably big enough for these
+three projects combined.
+
+The first is **Masonry crew**: there is only one such crew, and in early June it is laying the walls
+of the family home extension and of house 6 in De Akkers at the same time. That is the textbook
+case — two projects, one crew, neatly resolved by moving one of them slightly. The second is
+**Plasterers**: a single plastering crew that appears in all three projects, and that the apartment
+complex alone already wants on three towers at once. That one is resolvable too, but it costs the
+apartment complex a sizeable delay — instructive to compare with the first case.
+
+Click **Masonry crew**, then **Distribute…** on that row and let
 **Distribute automatically** build the proposal; then change the ranking, or put a ceiling on one of
 the projects, and watch what happens to the proposed shift.
 
