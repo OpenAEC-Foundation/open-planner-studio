@@ -89,24 +89,41 @@ export function DistributionDialog() {
     [i18n.language],
   );
 
+  // De VOLLEDIGE rangorde, inclusief docId's die de LAATSTE run niet gezien heeft (fixronde-2
+  // bevinding B10). `rankRows` hieronder toont alleen wat er in `inputs` zit — dat is juist voor de
+  // weergave, maar een herordening mag daar niet uit gebouwd worden: `order = rankRows.map(...)`
+  // gooide elk id weg dat toevallig niet in het laatste voorstel zat (een document dat nog niet in
+  // `inputs` stond omdat er sinds het openen nog niet gerekend is). Die rangorde was dan stilletjes
+  // weg. Dus: `tune.order` is de basis, en alleen nieuw gezien docId's sluiten achteraan aan.
+  const orderBase = useMemo(() => {
+    if (!tune) return [];
+    const known = new Set(tune.order);
+    return [...tune.order, ...inputs.map(doc => doc.docId).filter(id => !known.has(id))];
+  }, [tune, inputs]);
+
   // De rangordelijst leest UITSLUITEND uit `tune.order` — de bron van waarheid voor de rangorde.
   // Documenten die na het openen zijn bijgekomen sluiten achteraan aan (zie `buildDistributionInputs`).
   const rankRows = useMemo(() => {
     if (!tune) return [];
     const byId = new Map(inputs.map(doc => [doc.docId, doc]));
-    const ordered = [...tune.order.filter(id => byId.has(id)), ...inputs.map(d => d.docId).filter(id => !tune.order.includes(id))];
-    return ordered.map(docId => {
+    return orderBase.filter(id => byId.has(id)).map(docId => {
       const doc = byId.get(docId)!;
       return { docId, title: doc.title, float: documentFloatOn(doc, tune.companyId, tune.libraryItemId) };
     });
-  }, [tune, inputs]);
+  }, [tune, inputs, orderBase]);
 
+  // Eén plaats omhoog/omlaag = een VERWISSELING met de dichtstbijzijnde ZICHTBARE buur binnen
+  // `orderBase`. Onbekende id's ertussen worden overgeslagen en blijven op hun eigen index staan —
+  // een verwisseling raakt per definitie alleen de twee betrokken plekken (bevinding B10).
   const move = (docId: string, delta: -1 | 1) => {
     if (!tune) return;
-    const order = rankRows.map(row => row.docId);
+    const order = [...orderBase];
+    const visible = new Set(rankRows.map(row => row.docId));
     const from = order.indexOf(docId);
-    const to = from + delta;
-    if (from < 0 || to < 0 || to >= order.length) return;
+    if (from < 0) return;
+    let to = from + delta;
+    while (to >= 0 && to < order.length && !visible.has(order[to])) to += delta;
+    if (to < 0 || to >= order.length) return;
     [order[from], order[to]] = [order[to], order[from]];
     setUI({ levelingDistribution: { ...tune, order } });
   };
@@ -117,9 +134,12 @@ export function DistributionDialog() {
   const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ docId: string; placement: 'before' | 'after' } | null>(null);
 
+  // Slepen verplaatst ÉÉN id binnen `orderBase` (bevinding B10): alleen het gesleepte id wordt
+  // eruit gehaald en opnieuw ingevoegd, de rest — inclusief de docId's die dit voorstel niet gezien
+  // heeft — houdt zijn onderlinge volgorde.
   const reorderTo = (docId: string, targetDocId: string, placement: 'before' | 'after') => {
     if (!tune || docId === targetDocId) return;
-    const order = rankRows.map(row => row.docId);
+    const order = [...orderBase];
     const from = order.indexOf(docId);
     if (from < 0) return;
     order.splice(from, 1);
