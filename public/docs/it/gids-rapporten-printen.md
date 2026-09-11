@@ -69,6 +69,70 @@ anche lo spostamento della data di fine del progetto in giorni lavorativi, se pr
 [Baseline e avanzamento](docs://gids-baselines-voortgang) per come registrare una baseline prima che
 questo report possa dirti qualcosa di utile.
 
+## I sette rapporti tabellari
+
+Gli altri tipi di rapporto sono tabelle tratte direttamente dall'ultimo calcolo. Condividono alcune
+regole: solo le **attività foglia** contano come attività (le attività di riepilogo compaiono solo
+nel riepilogo WBS; le attività hammock no); il **giorno di riferimento** è la data di stato del
+progetto — senza data di stato il rapporto usa oggi e lo segnala; date e slack vengono dall'ultimo
+**calcolo** (F5), una nota segnala un programma modificato da allora e l'esportazione PDF ricalcola
+sempre prima; ogni rapporto ha un piccolo blocco **Opzioni del rapporto**, ricordato tra le sessioni.
+I giorni lavorativi sono abbreviati in *gl*.
+
+### Previsione (look-ahead)
+
+L'elenco per la riunione settimanale di cantiere: tutte le attività delle prossime *N* settimane
+(quattro per default) — cosa inizia, prosegue o finisce — più ciò che avrebbe già dovuto accadere.
+Per riga: WBS, nome, inizio e fine, durata residua, avanzamento, slack totale, critica o quasi
+critica, risorse assegnate e uno stato: **Inizia**, **In corso**, **Doveva iniziare** o **In
+ritardo**. Compare anche un'attività che copre l'intera finestra.
+
+### Critico e quasi critico
+
+Quali attività determinano la fine del progetto e quali stanno per farlo. Critico viene dal calcolo;
+*quasi critico* è uno slack totale da 0 fino alla soglia delle opzioni (5 giorni lavorativi per
+default) o la marcatura delle opzioni di programmazione. Le attività completate sono escluse.
+Ordinamento per percorso di slack, poi slack, poi inizio; con slack libero e numero di percorso.
+
+### Rapporto di avanzamento
+
+Il quadro periodico «a che punto siamo» alla data di stato. Il riepilogo dà fine baseline e fine
+prevista con la differenza in giorni lavorativi, l'avanzamento **pianificato** contro quello
+**effettivo** (entrambi pesati sulla durata delle attività foglia; pianificato sulle date della
+baseline attiva, altrimenti sul programma attuale) e i conteggi per stato. Sotto, cinque sezioni:
+completate nel periodo passato, in corso, iniziano nel prossimo periodo, in ritardo e attività
+critiche aperte. Il periodo (due settimane per default) guarda indietro quanto avanti.
+
+### Salute del programma
+
+Una revisione automatica del programma nello spirito dei 14 punti DCMA. Ogni controllo riceve una
+gravità e un conteggio, con i rilievi per attività o relazione: **errori** (slack negativo, scadenza
+mancata, vincolo violato, avanzamento incoerente), **avvisi** (inizio o fine aperti, durata lunga,
+anticipi, vincoli rigidi, avanzamento fuori sequenza) e **informazioni** (quasi critico, slack
+elevato, ritardi lunghi). Le soglie sono nelle opzioni; default secondo DCMA: 44 giorni lavorativi
+per slack elevato e durata lunga, 10 per i ritardi. Un programma pulito ha zero errori.
+
+### Carico risorse per settimana
+
+Per risorsa e settimana, il fabbisogno rispetto alla capacità disponibile (in unità-giorno), la
+differenza, il picco giornaliero e se la settimana è sovraccarica — lo stesso calcolo
+dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo le settimane con
+fabbisogno; con *Solo settimane sovraccariche* restano solo i colli di bottiglia.
+
+### Assegnazioni risorse
+
+Per risorsa, le attività assegnate: WBS, nome, inizio e fine, durata residua, unità al giorno,
+avanzamento, critica e stato. Le attività completate sono escluse per default. Con una finestra in
+settimane diventa la *previsione per risorsa*. Il riepilogo conta anche le attività senza risorsa.
+
+### Riepilogo WBS
+
+Il programma aggregato per elemento WBS fino a un livello a scelta — la vista per la direzione. Per
+elemento: inizio e fine, inizio e fine baseline, durata, avanzamento pesato sulla durata, differenza
+della fine rispetto alla baseline, slack totale minimo e numero di attività, di cui critiche, in
+corso e completate. Scegliete un livello (2 per default) o la WBS completa, con le attività se
+volete.
+
 ## Stampare ed esportare
 
 Il pannello delle impostazioni ha sempre un pulsante **Stampa...** in fondo — apre una finestra di

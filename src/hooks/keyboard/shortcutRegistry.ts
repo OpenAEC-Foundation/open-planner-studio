@@ -74,7 +74,7 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
     ui.showNewProjectDialog || ui.showFeedbackDialog || ui.showStructureDialog ||
     ui.showLevelingDialog || ui.showDistributionDialog || ui.showBaselineDialog || ui.showColumnsDialog ||
     ui.showFilterDialog || ui.showLayoutsDialog || ui.showProjectOverview ||
-    ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog ||
+    ui.presentationMode || ui.showTourOverlay || ui.showWelcomeDialog || ui.showStatsDialog ||
     // K-item 38: de toestemmingsvraag bij een extensie-installatie is net zo goed modaal — hij
     // wacht op een antwoord en er mag intussen niets aan de planning gebeuren.
     ui.pendingExtensionConsent !== null

@@ -33,6 +33,19 @@ mas as próprias definições e o que fazem são idênticas de qualquer forma; e
 - **Modo IA** — **Ativar modo IA** mostra o separador do friso **IA** com a ponte MCP, para que um assistente de IA possa trabalhar no seu cronograma através do Model Context Protocol; desativá-lo interrompe imediatamente uma ponte em execução. **Iniciar a ponte automaticamente** (só disponível com o modo IA ligado) coloca a ponte ativa assim que a aplicação arranca, sem ter de visitar primeiro o separador IA — apenas na aplicação de ambiente de trabalho. Veja o guia do assistente de IA integrado na aplicação para o panorama completo.
 - **Terminal de depuração** — **Activar terminal de depuração** mostra o painel de registo para resolução de problemas.
 
+## Estatísticas (botão no separador Aplicação)
+
+Abra em **Definições** → separador **Aplicação** → **Estatísticas…**; é propositadamente uma janela separada atrás de um botão, não um separador próprio.
+
+Quantas vezes o Open Planner Studio foi transferido, por sistema operativo e por versão. Os números vêm dos contadores públicos de transferências do GitHub Releases e são atualizados semanalmente; a aplicação apenas os lê, nada é recolhido nem enviado sobre si.
+
+- **Transferências por sistema operativo** — por sistema, o número de transferências, dividido em instaladores (o que uma pessoa transfere) e atualizações (o que o atualizador integrado obtém). No Linux os dois são um único número: o atualizador transfere o mesmo `.deb`/`.rpm`/`.AppImage` que também transfere manualmente. No Linux só o ficheiro snap conta como instalador.
+- **Verificações de atualização a partir da aplicação** — quantas vezes uma instalação de secretária procurou uma versão nova ao arrancar; uma medida aproximada de utilização ativa, não uma transferência.
+- **Por versão** — os mesmos números por versão; as seis mais recentes por defeito, com **Mostrar todas as … versões** para o resto.
+- **Fonte** — a data dos números e **Atualizar agora**. O separador guarda os últimos números obtidos durante meia hora; se a atualização falhar, continuam visíveis com um aviso.
+
+As instalações via Snap Store não passam pelo GitHub e não constam aqui.
+
 ## Separador Idioma
 
 - **Idioma** — o idioma de apresentação da aplicação, aplicado imediatamente.

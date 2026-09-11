@@ -33,6 +33,19 @@ als **Algemeen**, **Taal** en **Tijdlijn / Zoomen**.
 - **AI-modus** — **AI-modus inschakelen** toont het lint-tabblad **AI** met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken; uitzetten stopt een lopende bridge meteen. **Bridge automatisch starten** (alleen beschikbaar met AI-modus aan) zet de bridge meteen live bij het opstarten van de app, zonder eerst het AI-tabblad te hoeven openen — alleen in de desktop-app. Zie de in-app AI-assistent-gids voor het volledige verhaal.
 - **Debug-terminal** — **Debug-terminal inschakelen** toont het logpaneel voor probleemonderzoek.
 
+## Statistieken (knop op tab Toepassing)
+
+Open via **Instellingen** → tab **Toepassing** → **Statistieken…**; het is bewust een apart venster achter een knop en geen eigen tab.
+
+Hoe vaak Open Planner Studio is gedownload, per besturingssysteem en per release. De cijfers komen uit de openbare downloadtellers van GitHub Releases en worden wekelijks bijgewerkt; de app leest alleen, er wordt niets van jou verzameld of verstuurd.
+
+- **Downloads per besturingssysteem** — per systeem het aantal downloads, uitgesplitst in installers (wat een mens downloadt) en updates (wat de in-app updater ophaalt). Bij Linux staan die twee samen in één getal: de updater haalt daar hetzelfde `.deb`/`.rpm`/`.AppImage` op dat je ook handmatig downloadt. Als installer telt op Linux alleen het snap-bestand.
+- **Updatecontroles vanuit de app** — hoe vaak een desktop-installatie bij het opstarten naar een nieuwe versie heeft gekeken; een ruwe maat voor actief gebruik, geen download.
+- **Per release** — dezelfde cijfers per versie; standaard de zes nieuwste, met **Alle … releases tonen** voor de rest.
+- **Bron** — de peildatum van de cijfers en **Nu vernieuwen**. De tab onthoudt de laatst opgehaalde stand een half uur; lukt vernieuwen niet, dan blijft die stand zichtbaar met een melding.
+
+Installaties via de Snap Store lopen niet via GitHub en ontbreken hier.
+
 ## Tab Taal
 
 - **Taal** — de weergavetaal van de app, direct toegepast.
