@@ -101,4 +101,5 @@ Ahora que tiene tareas y relaciones, puede hacer que se calcule la planificació
 
 - Repita los pasos anteriores con un ejemplo completo: abra [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) mediante **Archivo → Ejemplos** y reconozca la cadena FS entre las fases, el solape SS entre el trabajo de muros y de cubierta, el enlace FF entre el trabajo de alicatado y de pintura, y la restricción de permiso (SNET) antes del inicio.
 - ¿Quiere saber más sobre la estructura de tareas, las tareas de resumen, los tipos de hito y los códigos de actividad? Lea la guía [Planificación y WBS](docs://gids-plannen-wbs).
+- Ya sabe cómo funcionan los botones; si quiere saber qué hace fiable a un cronograma — granularidad, vínculos, restricciones, holgura, baseline —, lea la guía [Planificar bien: de los requisitos a un cronograma fiable](docs://gids-goed-plannen).
 - ¿Prefiere hacer un recorrido visual por las áreas principales de la pantalla? Reinicie el recorrido mediante la pestaña **Vista** → botón **Recorrido**, o mediante **Archivo** → **Iniciar recorrido**.

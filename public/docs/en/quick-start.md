@@ -101,4 +101,5 @@ Now that you have tasks and relations, you can have the schedule calculated (CPM
 
 - Replay the steps above with a complete example: open [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) via **File → Examples** and recognize the FS chain between the phases, the SS overlap between the wall and roof work, the FF link between the tiling and painting work, and the permit constraint (SNET) before the start.
 - Want to know more about task structure, summary tasks, milestone kinds and activity codes? Read the guide [Planning & WBS](docs://gids-plannen-wbs).
+- You now know how the buttons work; if you want to know what makes a schedule reliable — granularity, relationships, constraints, float, baseline — read the guide [Planning well: from requirements to a reliable schedule](docs://gids-goed-plannen).
 - Would you rather take a visual tour of the main areas of the screen? Restart the tour via the **View** tab → **Tour** button, or via **File** → **Start tour**.

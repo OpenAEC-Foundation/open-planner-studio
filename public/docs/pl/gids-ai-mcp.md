@@ -101,6 +101,10 @@ Do tego dochodzi zwykła historia cofania, którą asystent dzieli z Tobą. Wszy
 
 **Nic się nie dzieje, choć asystent twierdzi, że mu się udało.** Sprawdź w panelu aktywności, co faktycznie wywołał i co wróciło w odpowiedzi. Jeśli pojawiła się odmowa, niemal zawsze wskaże ona pole, które było nieprawidłowe, oraz alternatywę.
 
+## Jak sprawić, by asystent AI dobrze planował
+
+Asystent, który zna narzędzia, wciąż może zbudować harmonogram bezużyteczny dla planisty: zadania bez powiązań, sztywna data przy każdym zadaniu albo podział zbyt drobny, by dało się go utrzymać. Zasady, które temu zapobiegają, opisuje przewodnik [Dobre planowanie: od wymagań do wiarygodnego harmonogramu](docs://gids-goed-plannen) — daj go asystentowi do przeczytania, zanim zacznie, albo powołaj się na niego w poleceniu. W kodzie źródłowym Open Planner Studio znajduje się ponadto krótka umiejętność agenta w `.claude/skills/goed-plannen/`, która w kwestii treści odsyła do tego samego przewodnika i dodaje tylko to, co dotyczy agenta: w jakiej kolejności używać narzędzi `planner_` i co zgłosić użytkownikowi.
+
 ## Czytaj dalej
 
 - [Baseline i postęp](docs://gids-baselines-voortgang) — co data statusu robi z Twoim harmonogramem. Warto to wiedzieć, zanim pozwolisz asystentowi ją ustawić: to nie jest tylko data raportowa, przesuwa też do przodu jeszcze nierozpoczętą pracę.

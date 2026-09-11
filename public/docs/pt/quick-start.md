@@ -101,4 +101,5 @@ Agora que tem tarefas e relações, pode mandar calcular o cronograma (CPM — C
 
 - Repita os passos acima com um exemplo completo: abra [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) através de **Ficheiro → Exemplos** e reconheça a cadeia FS entre as fases, a sobreposição SS entre o trabalho de paredes e cobertura, a ligação FF entre o trabalho de ladrilhagem e pintura, e a restrição de licença (SNET) antes do início.
 - Quer saber mais sobre a estrutura de tarefas, tarefas de resumo, tipos de marco e códigos de atividade? Leia o guia [Planeamento & WBS](docs://gids-plannen-wbs).
+- Já sabe como funcionam os botões; se quiser saber o que torna um planeamento fiável — granularidade, ligações, restrições, folga, baseline —, leia o guia [Planear bem: dos requisitos a um planeamento fiável](docs://gids-goed-plannen).
 - Prefere fazer uma visita visual às principais áreas do ecrã? Reinicie o tour através do separador **Visualização** → botão **Tour**, ou através de **Ficheiro** → **Iniciar tour**.

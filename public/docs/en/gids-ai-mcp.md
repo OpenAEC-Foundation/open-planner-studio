@@ -101,6 +101,16 @@ On top of that there is the ordinary undo history, which an assistant shares wit
 
 **Nothing happens although the assistant says it worked.** Check the activity panel for what it actually called and what came back. If there is a refusal, it will almost always name the field that was wrong as well as the alternative.
 
+## Getting your AI assistant to plan well
+
+An assistant that knows the tools can still build a schedule no planner can use: tasks without
+relationships, a fixed date on everything, or a breakdown far too fine to maintain. The principles
+that prevent this are in the guide [Planning well: from requirements to a reliable
+schedule](docs://gids-goed-plannen) — have your assistant read it before it starts, or point to it in
+your instructions. The Open Planner Studio source tree also carries a short agent skill under
+`.claude/skills/goed-plannen/`, which defers to that same guide for the substance and adds only what
+is agent-specific: the order in which to use the `planner_` tools, and what to report back to you.
+
 ## Further reading
 
 - [Baselines & progress](docs://gids-baselines-voortgang) — what the status date does to your schedule. Worth knowing before you let an assistant set it: it is not merely a reporting date, it also pushes not-yet-started work forward.

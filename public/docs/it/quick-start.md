@@ -101,4 +101,5 @@ Ora che hai attività e relazioni, puoi far calcolare la pianificazione (CPM —
 
 - Ripeti i passaggi sopra con un esempio completo: apri [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) tramite **File → Esempi** e riconosci la catena FS tra le fasi, la sovrapposizione SS tra il lavoro di muratura e la struttura del tetto, il collegamento FF tra le piastrelle e il lavoro di pittura, e il vincolo del permesso (SNET) prima dell'inizio.
 - Vuoi saperne di più sulla struttura delle attività, le attività di riepilogo, i tipi di cardine e i codici attività? Leggi la guida [Pianificazione e WBS](docs://gids-plannen-wbs).
+- Ora sai come funzionano i pulsanti; se vuoi sapere che cosa rende affidabile un programma — granularità, legami, vincoli, scorrimento, baseline — leggi la guida [Pianificare bene: dai requisiti a un programma affidabile](docs://gids-goed-plannen).
 - Preferisci fare un tour visivo delle aree principali dello schermo? Riavvia il tour tramite la scheda **Vista** → pulsante **Tour**, oppure tramite **File** → **Avvia tour**.

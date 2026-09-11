@@ -101,4 +101,5 @@ Nu je taken en relaties hebt, kun je de planning laten doorrekenen (CPM — Crit
 
 - Speel de stappen hierboven nog eens na met een compleet voorbeeld: open [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) via **Bestand → Voorbeelden** en herken de FS-keten tussen de fasen, de SS-overlap tussen wand- en dakwerk, de FF-koppeling tussen tegel- en schilderwerk, en de vergunning-constraint (SNET) vóór de start.
 - Meer weten over taakstructuur, samenvattende taken, mijlpaal-soorten en activity codes? Lees de gids [Plannen & WBS](docs://gids-plannen-wbs).
+- Je weet nu hoe de knoppen werken; wil je weten wat een planning betrouwbaar maakt — granulariteit, relaties, constraints, speling, baseline — lees dan de gids [Goed plannen: van eisen naar een betrouwbare planning](docs://gids-goed-plannen).
 - Wil je liever een visuele rondleiding langs de belangrijkste onderdelen van het scherm? Herstart de rondleiding via het tabblad **Beeld** → knop **Rondleiding**, of via **Bestand** → **Rondleiding starten**.

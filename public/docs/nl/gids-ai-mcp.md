@@ -101,6 +101,17 @@ Daarbovenop komt de gewone ongedaan-maak-geschiedenis: een assistent deelt die m
 
 **Er gebeurt niets terwijl de assistent zegt dat het gelukt is.** Kijk in het activiteitenpaneel wat hij daadwerkelijk heeft aangeroepen en wat er terugkwam. Staat daar een weigering, dan noemt die vrijwel altijd het veld dat fout was én het alternatief.
 
+## Laat je AI-assistent goed plannen
+
+Een assistent die de tools kent, kan nog steeds een planning bouwen waar geen planner iets aan heeft:
+taken zonder relaties, een vaste datum op elke taak, of een opdeling die veel te fijn is om bij te
+houden. De principes die dat voorkomen staan in de gids [Goed plannen: van eisen naar een betrouwbare
+planning](docs://gids-goed-plannen) — laat je assistent die lezen voordat hij begint, of verwijs er
+in je opdracht naar. In de broncode van Open Planner Studio staat daarnaast een korte agent-skill
+onder `.claude/skills/goed-plannen/`, die voor de inhoud naar diezelfde gids verwijst en alleen het
+agent-specifieke toevoegt: in welke volgorde je de `planner_`-tools inzet en wat je aan de gebruiker
+terugmeldt.
+
 ## Verder lezen
 
 - [Baselines & voortgang](docs://gids-baselines-voortgang) — wat de statusdatum met je planning doet. Goed om te weten voordat je een assistent hem laat zetten: hij is niet alleen een peildatum, maar schuift ook nog niet gestart werk naar voren.

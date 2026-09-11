@@ -101,6 +101,10 @@ Lorsqu'il demande la liste des ressources, un assistant voit immédiatement lesq
 
 **Rien ne se passe alors que l'assistant affirme que ça a fonctionné.** Consultez le panneau d'activité pour voir ce qu'il a réellement appelé et ce qui est revenu. En cas de refus, celui-ci nomme presque toujours à la fois le champ qui posait problème et l'alternative.
 
+## Faire planifier correctement votre assistant IA
+
+Un assistant qui connaît les outils peut malgré tout produire un planning dont aucun planificateur ne pourra rien faire : des tâches sans liens, une date fixe sur chaque tâche, ou un découpage bien trop fin pour être tenu à jour. Les principes qui évitent cela figurent dans le guide [Bien planifier : des exigences à un planning fiable](docs://gids-goed-plannen) — faites-le lire à votre assistant avant qu'il ne commence, ou renvoyez-y dans vos instructions. Le code source d'Open Planner Studio contient en outre une courte compétence d'agent sous `.claude/skills/goed-plannen/`, qui renvoie au même guide pour le fond et n'ajoute que ce qui est propre à l'agent : l'ordre d'utilisation des outils `planner_` et ce qu'il doit vous rapporter.
+
 ## Pour aller plus loin
 
 - [Baselines & avancement](docs://gids-baselines-voortgang) — ce que la date de statut fait à votre planning. Bon à savoir avant de laisser un assistant la définir : ce n'est pas seulement une date de référence, elle avance aussi le travail pas encore démarré.

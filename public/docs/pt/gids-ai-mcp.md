@@ -101,6 +101,10 @@ Para além disso, há o histórico de desfazer normal, que um assistente partilh
 
 **Não acontece nada, apesar de o assistente dizer que funcionou.** Veja no painel de atividade o que ele realmente invocou e o que voltou como resposta. Se houver uma recusa, esta indicará quase sempre o campo que estava errado, bem como a alternativa.
 
+## Levar o seu assistente de IA a planear bem
+
+Um assistente que conhece as ferramentas pode ainda assim construir um planeamento que não serve a nenhum planeador: tarefas sem ligações, uma data fixa em cada tarefa, ou uma decomposição demasiado fina para ser mantida. Os princípios que evitam isso estão no guia [Planear bem: dos requisitos a um planeamento fiável](docs://gids-goed-plannen) — dê-o a ler ao seu assistente antes de começar, ou remeta para ele nas suas instruções. O código-fonte do Open Planner Studio contém ainda uma breve skill de agente em `.claude/skills/goed-plannen/`, que remete para esse mesmo guia quanto ao conteúdo e acrescenta apenas o que é específico do agente: por que ordem usar as ferramentas `planner_` e o que reportar ao utilizador.
+
 ## Leitura adicional
 
 - [Baselines & progresso](docs://gids-baselines-voortgang) — o que a data de estado faz ao seu cronograma. Vale a pena saber antes de deixar um assistente defini-la: não é apenas uma data de referência, também empurra para a frente o trabalho ainda não iniciado.

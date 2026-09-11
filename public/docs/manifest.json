@@ -22,6 +22,14 @@
       "layer": "quickstart"
     },
     {
+      "id": "gids-goed-plannen",
+      "title": {
+        "nl": "Goed plannen: van eisen naar een betrouwbare planning",
+        "en": "Planning well: from requirements to a reliable schedule"
+      },
+      "layer": "gidsen"
+    },
+    {
       "id": "gids-plannen-wbs",
       "title": {
         "nl": "Plannen & WBS",
