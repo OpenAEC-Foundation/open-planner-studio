@@ -114,6 +114,64 @@ async function openDistributionFromConflictRow(page: Page): Promise<void> {
   await expect(page.locator('[data-ops-distribution-dialog]')).toBeVisible();
 }
 
+/** De ANDERE echte route: de lintknop "Verdelen…" op het Resources-tabblad, zonder eerder gekozen
+ *  poolitem — de stand die vóór de reparatie van 2026-09-11 doodliep. */
+async function openDistributionFromRibbon(page: Page): Promise<void> {
+  await page.locator('.ribbon-tab').filter({ hasText: /^Resources$/ }).click();
+  await page.locator('.ribbon-content').getByRole('button', { name: /Verdelen|Distribute/ }).click();
+  await expect(page.locator('[data-ops-distribution-dialog]')).toBeVisible();
+}
+
+test('lintknop zonder gekozen item: de kiezer toont de conflicten en één klik start het voorstel', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  // Niets gekozen: de dialoog opent in zijn kiezer-stand.
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.levelingDistribution)).toBe(null);
+  await openDistributionFromRibbon(page);
+
+  const picks = page.locator('[data-ops-distribution-pick]');
+  await expect(picks).toHaveCount(1);
+  await expect(picks.first()).toContainText('Gedeelde kraan');
+  // In de kiezer-stand bestaan de voorstel-knoppen niet — er valt nog niets te herberekenen of toe
+  // te passen (dat waren juist de drie grijze knoppen die de gebruiker deden vastlopen).
+  await expect(page.locator('[data-ops-distribution-dialog]')
+    .getByRole('button', { name: /Toepassen|Apply/ })).toHaveCount(0);
+  await expect(page.locator('[data-ops-distribution-dialog]')
+    .getByRole('button', { name: /Verdeel automatisch|Herbereken|Distribute automatically|Recalculate/ })).toHaveCount(0);
+
+  // Klikken = dezelfde start als de conflictregel in het overzicht: beide documenten krijgen een strook.
+  await picks.first().click();
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+});
+
+test('lintknop zonder conflict: de kiezer zegt dat er niets te verdelen valt', async ({ page, ops: _ops }) => {
+  // Eén document dat ruim binnen de capaciteit boekt — geen dubbele boeking, dus geen keuze.
+  const [taskA] = await seedProject(page, [{
+    name: 'Solo taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10,
+  }], 'Solo project');
+  const library = await createLibrary(page, 2);
+  await bookOnPoolItem(page, library, taskA, 1);
+
+  await openDistributionFromRibbon(page);
+  await expect(page.locator('[data-ops-distribution-no-conflicts]')).toBeVisible();
+  await expect(page.locator('[data-ops-distribution-pick]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-distribution-dialog]')
+    .getByRole('button', { name: /Toepassen|Apply/ })).toHaveCount(0);
+});
+
+test('"Ander item kiezen…" brengt de gevulde dialoog terug naar de kiezer', async ({ page, ops: _ops }) => {
+  await seedTwoConflictingDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  await page.locator('[data-ops-distribution-pick-another]').click();
+
+  // Geen bevestigingsdialoog ertussen: de tune-state is meteen weg en de kiezer staat er weer.
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.levelingDistribution)).toBe(null);
+  await expect(page.locator('[data-ops-distribution-dialog]')).toBeVisible();
+  await expect(page.locator('[data-ops-distribution-pick]')).toHaveCount(1);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(0);
+});
+
 test('verdeeldialoog: openen vanuit de conflictregel, een voorstel rekenen, focus-trap en sluiten', async ({ page, ops: _ops }) => {
   await seedTwoConflictingDocuments(page);
   await openDistributionFromConflictRow(page);
