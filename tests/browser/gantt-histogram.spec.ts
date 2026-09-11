@@ -187,6 +187,43 @@ test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra de gedeelde taakgri
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([firstId]);
 });
 
+test('histogram: een klik op een staaf opent geen tooltip', async ({ page, ops: _ops }) => {
+  const { taskIds } = await seedResourceLoad(page);
+  const taskStart = await barPoint(page, taskIds[0], 'left');
+  const canvas = page.getByTestId('gantt-histogram-canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  const plotPoint = { x: taskStart.x + 5, y: bounds!.y + Math.min(70, bounds!.height / 2) };
+
+  // Een klik op de plot (geen pickerrij) selecteert niets en mag — net als vóór de
+  // eigenaarscorrectie op R1 al gold voor `onClick` — geen tooltip openen. Wachten voorbij de
+  // hover-vertraging (300 ms) bevestigt dat de klik zelf geen hover triggert.
+  await page.mouse.click(plotPoint.x, plotPoint.y);
+  await page.waitForTimeout(400);
+  await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
+});
+
+test('histogram: histogram uit en weer aan toont geen spontane tooltip', async ({ page, ops: _ops }) => {
+  const { taskIds } = await seedResourceLoad(page);
+  const taskStart = await barPoint(page, taskIds[0], 'left');
+  const canvas = page.getByTestId('gantt-histogram-canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+
+  // Hover eerst echt een tooltip open (zelfde route als de eerste test in dit bestand).
+  await page.mouse.move(taskStart.x + 5, bounds!.y + Math.min(70, bounds!.height / 2));
+  const tooltip = page.locator('.gantt-tooltip');
+  await expect(tooltip).toBeVisible();
+
+  // Herreview-gat (a): het lint zet het histogram uit (portal-canvas unmount, tooltipstate niet
+  // vanzelf) en meteen weer aan — de tooltip mag niet spontaan terugkomen zonder nieuwe hover.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showHistogram: false }));
+  await expect(page.getByTestId('gantt-histogram')).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showHistogram: true }));
+  await expect(page.getByTestId('gantt-histogram-canvas')).toBeVisible();
+  await expect(tooltip).toHaveCount(0);
+});
+
 test('histogram: pijltjestoetsen volgen resources zodra het histogram focus heeft', async ({ page, ops: _ops }) => {
   const { overId, spareId } = await seedResourceLoad(page);
   const histogram = page.getByTestId('gantt-histogram-canvas');

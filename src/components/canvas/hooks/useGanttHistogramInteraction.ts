@@ -18,6 +18,15 @@ export interface GanttHistogramTooltip {
  *  lang genoeg om een muis die gewoon over de strook passeert niet te laten opflitsen. */
 const HOVER_DELAY_MS = 300;
 
+/** Absoluut vangnet: sluit een getoonde tooltip sowieso na dit aantal ms, ook zonder `mouseLeave`.
+ *  Reden (herreview R1-mits): `onMouseLeave` is de enige normale sluitroute, maar twee gevallen
+ *  geven dat event nooit — een touch-/pen-tap stuurt een compat-`mousemove` + `click` zonder
+ *  opvolgende `mouseleave`, en een muis die het canvas verlaat via een ander venster/overlay kan de
+ *  browser evengoed missen. Zonder vangnet blijft de tooltipstate dan voor onbepaalde tijd hangen
+ *  (zie ook de `active`-effect hieronder voor het lint-uit/-aan-gat). Was vóór deze hook al aanwezig
+ *  als 6-seconden-timer op het klikresultaat; hier hetzelfde principe op de hover-tooltip. */
+const TOOLTIP_SAFETY_NET_MS = 6000;
+
 interface GanttHistogramInteractionInput {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   rendererRef: RefObject<HistogramRenderer | null>;
@@ -27,6 +36,10 @@ interface GanttHistogramInteractionInput {
   selectedResourceId?: string;
   selectResource: (resourceId?: string) => void;
   formatContributionLabel: (count: number, isoDate: string) => string;
+  /** Weerspiegelt `ui.showHistogram`. Wordt deze `false` (lint-knop uit) terwijl een tooltip nog
+   *  staat, dan sluit de hook 'm meteen — anders overleeft de tooltipstate het portal-unmount van
+   *  het canvas en verschijnt hij spontaan weer zodra het histogram terugkomt, zonder nieuwe hover. */
+  active: boolean;
   /** R1: extra tooltipregel als deze dag voor `selectedResourceId` overbezet is met reden
    *  `non-working-day` (de resourcekalender kent die dag geen werkdag). `null` als niet van
    *  toepassing. Alleen aangeroepen met een gekozen resource — bij "alle resources" kan een dag
@@ -55,6 +68,14 @@ interface GanttHistogramInteraction {
  * strook (`onMouseLeave`). Een klik selecteert alleen nog de resource via `pickerAt` — de tooltip zelf
  * opent niet meer bij klik, maar `onKeyDown`s bestaande picker-navigatie (↑/↓) blijft ongewijzigd en
  * mag de tooltip laten staan/wissen zoals voorheen.
+ *
+ * Sluitroutes buiten `onMouseLeave` (herreview R1-mits): deze hook zelf wordt NIET ge-unmount
+ * wanneer het histogram via het lint wordt uitgezet — alleen het canvas/portal in `GanttCanvas`
+ * verdwijnt dan. Zonder ingrijpen blijft de tooltipstate dus gewoon bestaan en verschijnt hij
+ * spontaan weer zodra het histogram terugkomt, zonder dat er een nieuwe hover was. Vandaar het
+ * `active`-effect dat de tooltip sluit zodra `active` (= `ui.showHistogram`) `false` wordt. Daarnaast
+ * bewaakt `TOOLTIP_SAFETY_NET_MS` het geval dat `onMouseLeave` helemaal nooit komt — met name een
+ * touch-/pen-tap, die een compat-`mousemove` en -`click` stuurt maar nooit een `mouseleave`.
  */
 export function useGanttHistogramInteraction(
   input: GanttHistogramInteractionInput,
@@ -69,6 +90,7 @@ export function useGanttHistogramInteraction(
     selectResource,
     formatContributionLabel,
     describeNonWorkingDay,
+    active,
   } = input;
   const [tooltip, setTooltip] = useState<GanttHistogramTooltip | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -93,6 +115,23 @@ export function useGanttHistogramInteraction(
   // een oude cleanup een inmiddels vervangen timer opruimt, al gebeurt dat hier niet want er is maar
   // één plek die de ref zet).
   useEffect(() => clearHoverTimer, [clearHoverTimer]);
+
+  // Gat (a) uit de R1-herreview: het histogram uitzetten unmount alleen het portal-canvas, niet deze
+  // hook. Zonder deze sluiting overleeft de tooltipstate dat en verschijnt hij zonder nieuwe hover
+  // weer zodra het histogram teruggezet wordt.
+  useEffect(() => {
+    if (!active) clearTooltip();
+  }, [active, clearTooltip]);
+
+  // Gat (b): absoluut vangnet voor een tooltip die geen `mouseLeave` krijgt (touch/pen-tap, of een
+  // gemiste browser-mouseleave). Elke keer dat de tooltip verandert (nieuwe dag, of alleen de
+  // cursorpositie bij dezelfde dag) start de timer opnieuw; blijft de muis gewoon stilstaan zonder
+  // dat er iets verandert, dan sluit de tooltip na `TOOLTIP_SAFETY_NET_MS` sowieso.
+  useEffect(() => {
+    if (!tooltip) return;
+    const timer = setTimeout(clearTooltip, TOOLTIP_SAFETY_NET_MS);
+    return () => clearTimeout(timer);
+  }, [tooltip, clearTooltip]);
 
   const contributingTaskNames = useCallback((isoDate: string): string[] => {
     const names = new Set<string>();

@@ -322,6 +322,7 @@ export function GanttCanvas({
     selectResource: setHistogramResource,
     formatContributionLabel: formatHistogramContributionLabel,
     describeNonWorkingDay: describeHistogramNonWorkingDay,
+    active: showHistogram,
   });
 
   const defaultTaskName = tTask('defaultTask');
@@ -399,13 +400,9 @@ export function GanttCanvas({
     histogramInteraction.onClick(event);
   }, [focusCanvas, histogramInteraction]);
   // Eigenaarscorrectie op R1: de tooltip is een echte hover-tooltip (zie de hook), dus deze twee
-  // routes hoeven geen focus te claimen — alleen de klik (resourceselectie) doet dat.
-  const handleHistogramMouseMove = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
-    histogramInteraction.onMouseMove(event);
-  }, [histogramInteraction]);
-  const handleHistogramMouseLeave = useCallback(() => {
-    histogramInteraction.onMouseLeave();
-  }, [histogramInteraction]);
+  // routes hoeven geen focus te claimen — alleen de klik (resourceselectie) doet dat. Geen eigen
+  // wrapper nodig: `histogramInteraction.onMouseMove`/`.onMouseLeave` zijn zelf al gememoiseerd in
+  // de hook, dus rechtstreeks doorgeven zoals `onKeyDown` hieronder al deed.
 
   // Issue #51: alleen een actieve RAND-sleep voedt de bestaande duurpil in de renderer.
   const durationDrag = useMemo(
@@ -610,8 +607,8 @@ export function GanttCanvas({
               className="absolute inset-0 outline-none"
               style={{ cursor: 'pointer' }}
               onClick={handleHistogramClick}
-              onMouseMove={handleHistogramMouseMove}
-              onMouseLeave={handleHistogramMouseLeave}
+              onMouseMove={histogramInteraction.onMouseMove}
+              onMouseLeave={histogramInteraction.onMouseLeave}
               onKeyDown={histogramInteraction.onKeyDown}
             />
             {scheduleStale && (
