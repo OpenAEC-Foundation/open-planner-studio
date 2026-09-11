@@ -43,7 +43,7 @@ wat er dan uiterlijk waterdicht moet zijn, en van daaruit naar de start.
 
 Een oplevering die contractueel vastligt markeer je als verplichte mijlpaal, zodat iedereen die het
 bestand opent ziet dat dat moment onderhandelbaar noch verschuifbaar is. De drie soorten mijlpalen —
-start, eind, inspectiemoment — en het aparte contractuele vlag staan in de gids
+start, eind, inspectiemoment — en de aparte contractuele vlag staan in de gids
 [Plannen & WBS](docs://gids-plannen-wbs).
 
 ## De opdeling: fasen, werkpakketten, taken
@@ -90,10 +90,13 @@ de gids [Kalenders, werkdagen en werkuren](docs://gids-kalenders-uren).
 Stop geen risico in de duur van losse taken. Wie overal een dag extra bijtelt, verstopt de marge
 zodat niemand hem meer kan zien of sturen — en op de plek waar de marge echt nodig was, is hij te
 klein. Maak reserve zichtbaar: een expliciete buffertaak vóór de opleverdatum, of een aparte
-weerverletpost. Voor buitenwerk in de winter is dat geen luxe: in de Nederlandse bouw wordt met
-ongeveer 180 werkbare dagen per jaar gerekend, en vorst- en stormverlet volgt een eigen cao-regeling.
-Zet die verwachte verletdagen in de kalender of als aparte post, niet verstopt in de duur van het
-metselwerk.
+weerverletpost. Voor buitenwerk in de winter is dat geen luxe. Let daarbij op dubbeltelling: de
+ongeveer 180 werkbare werkdagen per jaar waarmee in de Nederlandse bouw gerekend wordt, is een
+contractueel jaargetal (UAV) waar feestdagen, bouwvak én verlet al vanaf zijn getrokken. Staan de
+feestdagen en de bouwvak dus al in je projectkalender, dan resteert alleen het weerverlet als aparte
+post — tel het jaargetal er niet nog eens overheen. Vorst- en stormverlet volgt een eigen regeling in
+de cao Onwerkbaar weer Bouw & Infra. Zet die verwachte verletdagen in de kalender of als aparte post,
+niet verstopt in de duur van het metselwerk.
 
 ## Relaties: zonder netwerk is het geen planning
 
@@ -114,13 +117,21 @@ klassieke geval is een rij woningen of een toren met verdiepingen: het metselwer
 te zijn voordat de installateur begint, hij loopt er drie dagen achteraan. Dat is een start-start met
 lag van drie dagen, niet een eind-start op een kunstmatig opgeknipte taak. Zet er dan wel een
 eind-eind naast, anders kan de opvolger in theorie eerder klaar zijn dan de voorganger. Start-finish
-laat je staan; in de bouwpraktijk is er vrijwel nooit een goede reden voor.
+gebruik je niet; in de bouwpraktijk is er vrijwel nooit een goede reden voor.
+
+Leg die start-start bij voorkeur tussen taken, niet tussen fasen: een start-start of start-eind
+waarvan de voorganger een samenvattende taak is, rekent Open Planner Studio bewust aan de veilige
+kant — hij laat de opvolger wachten op de laatst startende subtaak in plaats van de eerste, en plant
+dus nooit te vroeg maar soms te laat. Eind-start en eind-eind op een samenvattende taak zijn wél
+exact.
 
 Ga zuinig om met lags, en vooral met negatieve lags. Een lag is wachttijd zonder zichtbare reden —
 niemand kan achteraf zien waaróm er zeven dagen tussen zit. Is het uitharden van beton, maak er dan
 een lag in doorlooptijddagen van (beton hardt ook in het weekend uit), of beter nog: een echte taak
-"uitharden" die iedereen kan zien en volgen. Een negatieve lag, een overlap, verstopt bovendien een
-volgorde die je nooit meer terugvindt zodra er iets verschuift. Relatietypes, lags in werkdagen
+"uitharden" die iedereen kan zien en volgen. Een negatieve lag — een lead, een overlap — hoort er
+eigenlijk niet te zijn: in een schedule-review is de norm nul. Wil je overlap, knip de voorganger dan
+op of gebruik een start-start; een lead verstopt bovendien een volgorde die je nooit meer terugvindt
+zodra er iets verschuift. Relatietypes, lags in werkdagen
 tegenover doorlooptijddagen en de procentuele lag staan in de gids
 [Relaties & constraints](docs://gids-relaties-constraints).
 
@@ -174,7 +185,7 @@ eerlijke capaciteit — twee stukadoors betekent twee, niet "twee, maar in een n
 Lees het histogram als een vraag, niet als een fout. Rood boven de lijn betekent dat de planning meer
 vraagt dan je hebt op die dag. Soms is het antwoord: schuiven. Vaak is het antwoord: dit gaat niet,
 en dat wilde ik weten. Nivelleer wanneer er ruimte is en de einddatum mag ademen, of nivelleer binnen
-de bestaande speling wanneer de opleverdatum vastligt — dan blijft de einddatum staan en houd je een
+de bestaande speling (*smoothing* — zo heet de knop ook) wanneer de opleverdatum vastligt — dan blijft de einddatum staan en houd je een
 gemarkeerd restconflict over, wat een eerlijker uitkomst is dan een opgelost ogend schema.
 
 Nivelleer níét wanneer de vraag structureel groter is dan de capaciteit. De nivelleerder herschikt
@@ -199,9 +210,10 @@ zegt hoeveel hij mag uitlopen zonder zijn eerstvolgende opvolger in beweging te 
 is de speling die niemands einddatum raakt maar wel iemand in de weg zit — nuttig als je met
 onderaannemers werkt die je niet twee keer kunt verzetten.
 
-Zet die kolommen erbij in de taaktabel, en let op drie signalen. Een taak met een paar dagen speling
-is geen veilige taak maar een bijna-kritieke taak; zet de bijna-kritiek-drempel aan en je ziet ze in
-één kleur. Een taak met extreem veel speling — meer dan een maand of twee — is bijna altijd een taak
+Zet die kolommen erbij in de taaktabel — via **Beeld → Kolommen…** — en let op drie signalen. Een
+taak met een paar dagen speling is geen veilige taak maar een bijna-kritieke taak; zet de
+bijna-kritiek-drempel aan en je ziet ze in één kleur. Een taak met extreem veel speling — meer dan
+ongeveer twee maanden, in schedule-reviews geteld als 44 werkdagen — is bijna altijd een taak
 die een opvolger mist, niet een taak die echt zo veel ruimte heeft; dat is een van de vaste controles
 in een schedule-review, en het wijst je precies naar de gaten in je netwerk. En negatieve speling is
 nooit een rekenfout: het is de planning die zegt dat een deadline of een gepinde datum niet past.
@@ -214,6 +226,14 @@ Leg een baseline vast zodra de planning is goedgekeurd en vóórdat er een schop
 Zonder dat ijkpunt kun je later alleen zeggen dát het anders loopt, niet hoeveel en vanaf wanneer —
 en precies dat is wat je nodig hebt in een bouwvergadering, bij meerwerk en als er over vertraging
 gesproken wordt. Herbereken eerst, anders bevries je verouderde datums.
+
+**Leg vast waaróp je hebt gepland.** Een baseline bewaart de datums, maar niet de aannames erachter —
+en juist die worden gevraagd zodra er over vertraging wordt gesproken. Schrijf daarom bij het
+vastleggen kort op wat de basis van dit schema is (in de schedule-praktijk: de *schedule basis*):
+welke productiviteitscijfers je hebt gebruikt, welke kalender en waaróm die zo staat, wat je bewust
+buiten de planning hebt gelaten, van wie de aangehouden levertijden komen, en wie het schema heeft
+goedgekeurd. Een halve pagina is genoeg; zonder die pagina is een half jaar later niet meer te
+reconstrueren of een uitloop uit de uitvoering kwam of uit een aanname.
 
 Daarna is bijhouden ritme, geen project. Werk wekelijks bij, in dezelfde volgorde: zet de statusdatum
 op de peildatum, vul werkelijke start- en einddatums in van wat gestart en klaar is, corrigeer de
@@ -232,7 +252,8 @@ Een herbaseline maak je alleen bij een echte scopewijziging, en dan naast de eer
 
 Tot slot: een planning is pas betrouwbaar als de mensen die het werk doen erin geloven. Laat de
 uitvoerder en de onderaannemers de weekplanning tegen dit model leggen. Haal je week in week uit
-maar de helft van wat je had afgesproken, dan is niet de uitvoering het probleem maar de planning.
+maar de helft van wat je had afgesproken, dan zit het probleem vaker in de planning dan in de
+uitvoering.
 
 ## Veelgemaakte fouten
 

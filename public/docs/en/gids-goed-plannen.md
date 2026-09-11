@@ -77,7 +77,7 @@ normal day with the crew you will actually get, not for the best day with the be
 obvious and it is still the most common mistake: optimism compounds along the chain, and a schedule
 in which every task assumes the best day almost never meets its handover date.
 
-Days or hours is a real choice, not formatting. Choose **days** for work that runs the site —
+Days or hours is a real choice, not formatting. Choose **days** for work that sets the pace on site —
 bricklaying, plastering, tiling: it takes five days, whether a day happens to be eight or nine hours.
 Choose **hours** when the hours themselves are the unit and the remainder of the day matters: a
 three-hour inspection, a fourteen-hour concrete pour spread over two days, shift work. Open Planner
@@ -87,10 +87,14 @@ Studio stores that choice per task and never converts silently; how exactly that
 Do not hide risk inside individual durations. Adding a day everywhere buries the margin so that
 nobody can see or steer it any more — and where the margin was really needed, it turns out to be too
 small. Make reserve visible: an explicit buffer task before the handover date, or a separate weather
-allowance. For outdoor work in winter that is not a luxury: Dutch construction commonly reckons with
-around 180 workable days a year, and frost and storm delay follow their own collective-agreement
-rules. Put those expected lost days in the calendar or in a separate item, not hidden inside the
-duration of the brickwork.
+allowance. For outdoor work in winter that is not a luxury — but watch out for double counting. The
+roughly 180 workable working days a year that Dutch construction reckons with is a contractual annual
+figure (UAV) from which public holidays, the industry shutdown *and* lost days have already been
+deducted. So if the holidays and the shutdown are already in your project calendar, only weather
+delay remains as a separate item — do not add the annual figure on top of it again. Frost and storm
+delay follow their own rules in the Onwerkbaar weer Bouw & Infra collective agreement. Put those
+expected lost days in the calendar or in a separate item, not hidden inside the duration of the
+brickwork.
 
 ## Relationships: without a network it is not a schedule
 
@@ -110,14 +114,22 @@ understands without explanation, and the only one that behaves predictably durin
 case is a terrace of houses or a tower with floors: the bricklaying does not have to be finished
 before the installer starts, he follows three days behind. That is a start-to-start with a three-day
 lag, not a finish-to-start on an artificially chopped-up task. Put a finish-to-finish next to it,
-otherwise the successor could in theory finish before the predecessor does. Leave start-to-finish
-alone; in construction there is almost never a good reason for it.
+otherwise the successor could in theory finish before the predecessor does. Do not use
+start-to-finish; in construction there is almost never a good reason for it.
+
+Preferably draw that start-to-start between tasks, not between phases: for a start-to-start or a
+start-to-finish whose predecessor is a summary task, Open Planner Studio deliberately calculates on
+the safe side — it makes the successor wait for the last-starting subtask instead of the first one,
+so it never plans too early but sometimes too late. Finish-to-start and finish-to-finish on a summary
+task are exact.
 
 Be sparing with lags, and especially with negative ones. A lag is waiting time without a visible
 reason — nobody can tell later why there are seven days in between. If it is concrete curing, make it
 a lag in elapsed days (concrete cures at the weekend too), or better still a real "curing" task that
-everyone can see and follow. A negative lag, an overlap, additionally hides a sequence you will never
-recover once something moves. Relationship types, lags in working days versus elapsed days and
+everyone can see and follow. A negative lag — a lead, an overlap — should really not be there at all:
+in a schedule review the norm is zero. If you want overlap, split the predecessor or use a
+start-to-start; a lead also hides a sequence you will never recover once something moves.
+Relationship types, lags in working days versus elapsed days and
 percentage lags are covered in the guide
 [Relations & constraints](docs://gids-relaties-constraints).
 
@@ -170,7 +182,8 @@ honest capacity — two plasterers means two, not "two, but three at a push".
 Read the histogram as a question, not as an error. Red above the line means the schedule asks for more
 than you have that day. Sometimes the answer is: shift it. Often the answer is: this will not work,
 and that is what I wanted to know. Level when there is room and the end date may breathe, or level
-within the existing float when the handover date is fixed — the end date then stays put and you are
+within the existing float (*smoothing* — that is what the button is called) when the handover date is
+fixed — the end date then stays put and you are
 left with a flagged residual conflict, which is a more honest outcome than a plan that merely looks
 solved.
 
@@ -196,9 +209,10 @@ without setting its next successor in motion. The difference is the float that t
 date but does get in someone's way — useful when you work with subcontractors you cannot reschedule
 twice.
 
-Add those columns to the task table and watch for three signals. A task with a couple of days of
-float is not a safe task but a near-critical one; turn on the near-critical threshold and you see them
-in a colour of their own. A task with an extreme amount of float — more than a month or two — is
+Add those columns to the task table — via **View → Columns…** — and watch for three signals. A task
+with a couple of days of float is not a safe task but a near-critical one; turn on the near-critical
+threshold and you see them in a colour of their own. A task with an extreme amount of float — more
+than about two months, counted in schedule reviews as 44 working days — is
 almost always a task missing a successor rather than one that genuinely has that much room; that is
 one of the standard checks in a schedule review, and it points you straight at the holes in your
 network. And negative float is never a calculation error: it is the schedule saying that a deadline or
@@ -211,6 +225,14 @@ Record a baseline as soon as the schedule is approved and before a spade goes in
 Without that reference you can only say later that things are running differently, not by how much and
 from when — and that is exactly what you need in a site meeting, in a variation claim and when delay
 is being discussed. Recalculate first, or you will freeze stale dates.
+
+**Record what you planned on.** A baseline preserves the dates, but not the assumptions behind them —
+and those are exactly what gets asked for once delay is being discussed. So when you record the
+baseline, write down briefly what this schedule rests on (the *schedule basis*): which productivity
+figures you used, which calendar and why it is set that way, what you deliberately left out of the
+schedule, whose lead times you adopted, and who approved the schedule. Half a page is enough; without
+that page nobody can reconstruct six months later whether an overrun came from the execution or from
+an assumption.
 
 After that, updating is a rhythm, not a project. Update weekly, in the same order: set the status date
 to the reporting date, enter actual start and finish dates for what has started and finished, correct
@@ -228,7 +250,7 @@ the guide [Baselines & progress](docs://gids-baselines-voortgang).
 
 Finally: a schedule is only reliable if the people doing the work believe in it. Let the site manager
 and the subcontractors hold their weekly plan against this model. If week after week you achieve only
-half of what was agreed, the problem is not the execution but the schedule.
+half of what was agreed, the problem lies more often in the schedule than in the execution.
 
 ## Common mistakes
 
@@ -241,7 +263,7 @@ half of what was agreed, the problem is not the execution but the schedule.
 - Weather allowance and the industry shutdown missing from the calendar. They arrive in January
   regardless.
 - Lags instead of tasks. Seven days of waiting without a name is inexplicable three months later.
-- Levelling before the logic is settled, or levelling on and on against a structural capacity
+- Levelling before the logic is settled, or continuing to level against a structural capacity
   shortfall.
 - Forgetting to calculate. "Out of date" in the status bar means you are looking at the previous
   schedule.

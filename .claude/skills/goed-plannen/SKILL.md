@@ -14,6 +14,11 @@ speling, baseline — staan in **één** bron:
 - `public/docs/nl/gids-goed-plannen.md` (Nederlands, de brontekst)
 - `public/docs/en/gids-goed-plannen.md` (Engels)
 
+Werk je zonder de repository, dan staat dezelfde gids online:
+
+- `https://open-planner-studio.open-aec.com/docs/nl/gids-goed-plannen.md`
+- `https://open-planner-studio.open-aec.com/docs/en/gids-goed-plannen.md`
+
 **Lees die gids voordat je aan een planning begint** en houd je eraan. Dit bestand herhaalt hem
 bewust niet; het voegt alleen toe wat een agent extra moet weten omdat hij via de MCP-bridge werkt
 in plaats van via de interface.
@@ -48,10 +53,11 @@ Controleer de namen en schema's daar of via `tools/list` — raad ze nooit.
 
 ## Herberekenen
 
-Mutatietools herberekenen zelf al, dus je werkt niet stil op verouderde datums. Roep na een reeks
-wijzigingen tóch `planner_run_cpm` aan: dat wist `scheduleStale` expliciet en geeft je het
-projecteinde, de projectduur en een kritieke-pad-samenvatting terug — het resultaat waar je je
-conclusie op baseert. Baseer nooit een uitspraak over datums, speling of kritiek pad op cijfers van
+Mutatietools herberekenen zelf al — elke MCP-transactie draait aan het eind `runCPM` — dus je werkt
+niet stil op verouderde datums. Roep na een reeks wijzigingen tóch `planner_run_cpm` aan, niet om de
+planning vers te maken maar om het resultaat te krijgen: die tool geeft je het projecteinde, de
+projectduur en een kritieke-pad-samenvatting terug, en dat zijn de cijfers waarop je je conclusie
+baseert. Baseer nooit een uitspraak over datums, speling of kritiek pad op cijfers van
 vóór je laatste wijziging.
 
 ## `planner_batch` voor samenhangende reeksen
