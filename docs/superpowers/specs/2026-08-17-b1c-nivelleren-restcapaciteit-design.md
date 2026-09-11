@@ -3,10 +3,11 @@
 Datum: 2026-08-17 · Herzien: 2026-08-27 — twee hyperkritische reviewronden (NO-GO →
 GO-MITS, alle punten verwerkt) én rebase op main (472 commits, o.a. de .mpp-etappe en de
 store-runtime-verbouwing). Herzien: 2026-08-31 — de lezing van "float eerst, uitschieter
-minimaal" bevestigd tijdens etappe 2 (§11.6). Status: **ontwerp compleet** — alle
-beslispunten besloten (§11); volgende stap: implementatieplan. De speelbare prototypes
-staan als privé-artifacts: "Wie wijkt?" (rondes 1–3) en "Interface-lab" (vier
-tune-bedieningen).
+minimaal" bevestigd tijdens etappe 2 (§11.6); tijdens etappe 3 bevestigd dat de
+tune-bediening (pin, plafond, rangorde) sessie-stand is en geen projectdata (§11.7).
+Status: **ontwerp compleet** — alle beslispunten besloten (§11); volgende stap:
+implementatieplan. De speelbare prototypes staan als privé-artifacts: "Wie wijkt?"
+(rondes 1–3) en "Interface-lab" (vier tune-bedieningen).
 
 ## 1. Doel en aanleiding
 
@@ -296,6 +297,11 @@ idee eigenaar —, verdeelbalk, communicerende vaten, fasestrook-handles). **Bes
 - **Bediening**: pointer-slepen (blijft werken buiten het element) én toetsenbord
   (`role="slider"`, pijltjes = één werkdag, Home/End, `aria-valuetext` met plafond, benutting
   en einddatum-effect); pin met `aria-pressed`. Snappen op hele werkdagen.
+- **De tune-bediening is sessie-stand** (besluit eigenaar 2026-08-31, §11.7): pin, plafond en
+  rangorde zitten niet in het projectbestand en overleven geen app-herstart. Ctrl+Z in het
+  actieve document raakt ze nooit, en na een herstart begint de gebruiker neutraal
+  (float-gesorteerd, geen pins, geen plafonds). Persistentie ervan — tot en met een
+  `.ifc`-round-trip — blijft een mogelijke latere uitbreiding, geen v1-werk.
 - Twee **systeembevindingen** uit het lab blijven van kracht: (1) de som garanderen is de
   oplossing niet garanderen — elke stand vergt een echte haalbaarheidscheck; (2) de haalbare
   standen zijn schaars — de bediening toont "gevraagd X, dichtst haalbare Y" in plaats van
@@ -383,3 +389,10 @@ Headless, in de bestaande suites:
    **Nee: dat ís de bestaande vroegste-venster-plaatsing van de motor (§4), geen tweede
    algoritme — besloten eigenaar 2026-08-31.** Een slimmere zoekstap blijft een mogelijke
    latere uitbreiding, geen v1-werk.
+7. ~~Overleeft de tune-bediening (pin, plafond, rangorde) een app-herstart of een
+   `.ifc`-round-trip?~~ — **Nee, sessie-stand (§6), besloten eigenaar 2026-08-31.** Dit
+   bevestigt de keuze die etappe 3 al maakte: geen documentveld, geen `OPS_`-pset. Ctrl+Z in
+   het actieve document raakt de tune-state nooit; na een herstart begint de gebruiker
+   neutraal. Persistentie blijft een mogelijke latere uitbreiding, geen v1-werk — kiest de
+   eigenaar daar ooit voor, dan verandert de betekenis van de pin van "deze verdeelsessie"
+   naar "dit project ligt vast", en dat is een apart besluit.

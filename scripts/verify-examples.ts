@@ -6,9 +6,10 @@
 //     string). Fase 2.10: het digest omvat nu ook notes, voortgang/actuals en baselines, zodat de
 //     nieuwe schema-uitbreidingen ook echt round-trip-getoetst worden;
 //  4. per showcase dat de beloofde functies aantoonbaar aanwezig zijn (constraints, START/FINISH-
-//     + verplichte mijlpaal, baseline). Ploeg-hiërarchie/curve-variatie/oplosbare overallocatie
-//     zijn alleen verplicht voor showcases die zelf resources declareren (KLEIN heeft er bewust
-//     geen — zie showcases.ts);
+//     + verplichte mijlpaal, baseline). Ploeg-hiërarchie geldt voor elke showcase die zelf
+//     resources declareert; curve-variatie en overallocatie zijn per showcase DECLARATIEF ingedeeld
+//     (CURVE_VARIATION_*/OVERALLOC_* hieronder) — KLEIN draagt sinds B1c wél resources, maar
+//     bewust uitsluitend UNIFORM en zonder eigen overallocatie (zie showcases.ts);
 //  5. (golf 2) suite-brede unie incl. de 8 geavanceerde functies (hard pin, constraint2, hammock,
 //     near-critical, float paths, uren-planning, 2 baselines+rebaseline, externe koppeling) +
 //     een aparte bronbestand-consistentiecheck voor de externe koppeling (§4.2).
@@ -83,6 +84,12 @@ const OVERALLOC_REQUIRED = new Set<string>([
   'showcase-appartementencomplex',    // GROOT: torenkraan + stukadoors, precies 2 knelpunten (§4.2)
 ]);
 const OVERALLOC_FORBIDDEN = new Set<string>([
+  // KLEIN is een SHOWCASE, maar hoort hier bewust thuis: sinds B1c draagt hij wél een resourceset
+  // (de demo-bibliotheeknamen, zodat het bezettingsoverzicht iets te tonen heeft), maar zijn belofte
+  // is entry-level — de projectinzet blijft binnen elke bedrijfscapaciteit en er is dus GEEN eigen
+  // overallocatie. Het conflict dat hij demonstreert is bedrijfsbreed (samen met MIDDEL op de
+  // Masonry crew) en leeft in het bezettingsoverzicht, niet in zijn eigen histogram.
+  'showcase-verbouwing-eengezinswoning',
   '01-grachtenpand-amsterdam',
   '03-kantoorgebouw-zuidas',
   '05-brugvervanging-n279',
@@ -92,6 +99,38 @@ const OVERALLOC_FORBIDDEN = new Set<string>([
   '15-datacentrum-agriport',
   '20-woonwijk-almere',
 ]);
+
+// ── Curve-variatie-classificatie (B1c) ──────────────────────────────────────────────────────
+// `verifyShowcase` eiste blind ≥3 verschillende toewijzingscurves zodra een showcase resources
+// declareert. Dat was prima zolang alleen MIDDEL en GROOT resources hadden, maar KLEIN draagt er
+// sinds B1c ook — en diens belofte is juist het TEGENDEEL: entry-level, dus uitsluitend UNIFORM
+// (curve-variatie is showcase-materiaal van de twee grotere planningen). Zelfde declaratieve vorm
+// als OVERALLOC_*: een showcase met resources die in geen van beide lijsten staat faalt hard, zodat
+// de keuze expliciet blijft. De KLEIN-kant is bovendien een ECHTE poort: "geen curves" wordt nu
+// getoetst in plaats van alleen beloofd.
+const CURVE_VARIATION_REQUIRED = new Set<string>([
+  'showcase-rijwoningen-de-akkers',   // MIDDEL: FRONT_LOADED/BACK_LOADED op het schilderwerk e.a.
+  'showcase-appartementencomplex',    // GROOT: de volledige zesdelige curve-set
+]);
+const CURVE_VARIATION_FORBIDDEN = new Set<string>([
+  'showcase-verbouwing-eengezinswoning', // KLEIN: entry-level, bewust UITSLUITEND UNIFORM
+]);
+
+/** Toetst de curve-belofte van een showcase die resources declareert. */
+function verifyCurveClass(spec: ProjectSpec, parsed: Parsed, diffs: string[]) {
+  const curves = new Set(parsed.assignments.map(a => a.curve ?? 'UNIFORM'));
+  const required = CURVE_VARIATION_REQUIRED.has(spec.slug);
+  const forbidden = CURVE_VARIATION_FORBIDDEN.has(spec.slug);
+  if (required === forbidden) {
+    diffs.push(`curve-classificatie ontbreekt voor "${spec.slug}": voeg de slug toe aan CURVE_VARIATION_REQUIRED (curve-variatie hoort bij deze showcase) of CURVE_VARIATION_FORBIDDEN (bewust uitsluitend UNIFORM) in scripts/verify-examples.ts`);
+    return;
+  }
+  if (required) {
+    expect(diffs, curves.size >= 3, `curve-variatie te laag (${curves.size})`);
+  } else {
+    expect(diffs, curves.size === 1 && curves.has('UNIFORM'), `curve-variatie gevonden (verwacht uitsluitend UNIFORM): ${[...curves].sort().join(', ')}`);
+  }
+}
 
 /** Toetst de overallocatie-belofte voor een spec die resources declareert, op basis van
  *  `scheduleFacts` (echte CPM + resource-load, dezelfde route als de rest van deze poort).
@@ -228,8 +267,7 @@ function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): Ret
   const hasResources = (spec.resources?.length ?? 0) > 0;
   if (hasResources) {
     expect(diffs, parsed.resources.some(r => r.parentId), `geen ploeg-hiërarchie (resource met parent)`);
-    const curves = new Set(parsed.assignments.map(a => a.curve ?? 'UNIFORM'));
-    expect(diffs, curves.size >= 3, `curve-variatie te laag (${curves.size})`);
+    verifyCurveClass(spec, parsed, diffs);
   }
 
   const facts = scheduleFacts(parsed);
