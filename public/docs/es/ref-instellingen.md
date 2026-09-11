@@ -39,7 +39,6 @@ agrupa como **General**, **Idioma** y **Línea de tiempo / Zoom**.
   diferencia de tamaño del instalador, los días transcurridos desde la versión anterior y las notas
   de la versión de GitHub, los que haya podido obtener. Ese es un momento distinto, automático, del
   enlace manual **Buscar actualizaciones** de aquí.
-- **Información del proyecto...** — acceso directo a la ventana [Información del proyecto](docs://ref-projectgegevens).
 - **Recorrido** — **Iniciar recorrido** repite el recorrido introductorio. El mismo reinicio también está en la pestaña de la cinta **Vista** → **Recorrido** y en el Backstage (**Archivo** → **Iniciar recorrido**).
 - **Benchmark** — abre la herramienta de benchmark integrada, para medir el rendimiento de
   planificación/renderizado de este equipo.
