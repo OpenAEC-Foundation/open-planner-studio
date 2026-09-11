@@ -725,7 +725,10 @@
       "undoAll": "Undo all",
       "undoneAll": "Everything has been undone.",
       "undonePartial": "Undone, except {{docs}} — those have since been worked on.",
-      "selectHint": "Choose a library item with a conflict to start distributing."
+      "selectHint": "Choose a library item with a conflict to start distributing.",
+      "noConflicts": "No library item is currently double-booked across the open projects.",
+      "pickAnother": "Choose another item…",
+      "pickAnotherApplied": "Choose another item (the undo bar goes away)…"
     },
     "color": "Color"
   },

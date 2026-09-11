@@ -725,7 +725,10 @@
       "undoAll": "Tümünü geri al",
       "undoneAll": "Her şey geri alındı.",
       "undonePartial": "{{docs}} hariç geri alındı — orada bu arada çalışılmış.",
-      "selectHint": "Dağıtmaya başlamak için çakışan bir kitaplık öğesi seçin."
+      "selectHint": "Dağıtmaya başlamak için çakışan bir kitaplık öğesi seçin.",
+      "noConflicts": "Şu anda açık projeler arasında çift rezerve edilmiş bir kitaplık öğesi yok.",
+      "pickAnother": "Başka bir öğe seç…",
+      "pickAnotherApplied": "Başka bir öğe seç (geri alma çubuğu kaybolur)…"
     },
     "color": "Renk"
   },

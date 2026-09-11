@@ -743,7 +743,10 @@
       "undoAll": "Tout annuler",
       "undoneAll": "Tout a été annulé.",
       "undonePartial": "Annulé, sauf {{docs}} — on y a travaillé entre-temps.",
-      "selectHint": "Choisissez un article de bibliothèque en conflit pour commencer à répartir."
+      "selectHint": "Choisissez un article de bibliothèque en conflit pour commencer à répartir.",
+      "noConflicts": "Aucun élément de bibliothèque n'est actuellement réservé en double sur les projets ouverts.",
+      "pickAnother": "Choisir un autre élément…",
+      "pickAnotherApplied": "Choisir un autre élément (la barre d'annulation disparaît)…"
     },
     "color": "Couleur"
   },

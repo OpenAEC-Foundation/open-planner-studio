@@ -761,7 +761,10 @@
       "undoAll": "Cofnij wszystko",
       "undoneAll": "Wszystko zostało cofnięte.",
       "undonePartial": "Cofnięto, z wyjątkiem {{docs}} — tam w międzyczasie pracowano.",
-      "selectHint": "Wybierz pozycję biblioteki z konfliktem, aby rozpocząć rozdzielanie."
+      "selectHint": "Wybierz pozycję biblioteki z konfliktem, aby rozpocząć rozdzielanie.",
+      "noConflicts": "Żaden element biblioteki nie jest obecnie podwójnie zarezerwowany w otwartych projektach.",
+      "pickAnother": "Wybierz inny element…",
+      "pickAnotherApplied": "Wybierz inny element (pasek cofania zniknie)…"
     },
     "color": "Kolor"
   },
