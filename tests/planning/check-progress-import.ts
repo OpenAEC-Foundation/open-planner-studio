@@ -303,6 +303,7 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   const idA = S().addTask({ name: 'A ná statusdatum', time: createDefaultTaskTime('2026-01-05', 5) });
   const idB = S().addTask({ name: 'B naar 100%', time: createDefaultTaskTime('2026-01-05', 5) });
   const idC = S().addTask({ name: 'C finish vóór start', time: createDefaultTaskTime('2026-01-05', 5) });
+  const idD = S().addTask({ name: 'D 45% zonder actuals', time: createDefaultTaskTime('2026-01-05', 5) });
   S().runCPM();
 
   const realDeps: ProgressPlanDeps = {
@@ -315,11 +316,23 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
     makeRow(3, { taskId: idB, completion: pct(1) }),
     // finish vóór start ⇒ geweigerd door dezelfde invariant.
     makeRow(4, { taskId: idC, actualStart: dateVal('2026-01-10'), actualFinish: dateVal('2026-01-08') }),
+    // 45%, geen actuals in het blad ⇒ de invariant leidt een actualStart af (fix 2-fixture).
+    makeRow(5, { taskId: idD, completion: pct(0.45) }),
   ];
   const plan = buildProgressImportPlan(rows, S().tasks, realDeps);
 
   eq('actual ná de statusdatum wordt geweigerd', plan.rows[0].reason, 'actualAfterStatusDate');
-  eq('invarianten leiden actualStart af', plan.rows[1].changes.some(c => c.field === 'actualStart'), true);
+  // Fix 2 (gebruikstest 2026-09-11): "waarom staat overal → actual start x of y, dat heb ik niet
+  // ingevoerd en dat leidt het programma af." De preview toont voortaan UITSLUITEND de velden die
+  // de rij zélf aanleverde; door de invarianten AFGELEIDE waarden (actualStart uit een percentage,
+  // status, actualFinish uit 100%) blijven wél in `plannedTask` en worden wél toegepast — ze staan
+  // alleen niet meer als "wijziging" in de lijst. Mutatiebewijs: haal het aanleverfilter in
+  // `buildPlan.ts` weg ⇒ deze twee regels kleuren rood.
+  eq('afgeleide actualStart staat NIET in de changes',
+    plan.rows[1].changes.some(c => c.field === 'actualStart'), false);
+  eq('…de aangeleverde completion wél', plan.rows[1].changes.map(c => c.field), ['completion']);
+  ok('…en de afgeleide actualStart staat wél in de geplande taak',
+    plan.rows[1].plannedTask?.time.actualStart !== undefined);
   // N-G (fixronde na de Opus-hercheck): een `plannedTask!` op een onverwacht niet-`apply`-uitkomst
   // crasht de hele suite met een kale stacktrace i.p.v. een nette diffregel — eerst de presentie
   // toetsen, dan pas via `?.` erin lezen (een ontbrekend `plannedTask` wordt dan gewoon `undefined`
@@ -327,6 +340,12 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   ok('…rij 1 leverde een plannedTask op', plan.rows[1].plannedTask !== undefined);
   eq('…en de geplande status is COMPLETED', plan.rows[1].plannedTask?.status, 'COMPLETED');
   eq('finish vóór start wordt geweigerd', plan.rows[2].reason, 'actualFinishBeforeStart');
+
+  // Fix 2, het letterlijke voorbeeld van de eigenaar: "45" op een taak zonder actuals.
+  eq('45% ⇒ changes bevat alleen completion', plan.rows[3].changes.map(c => c.field), ['completion']);
+  eq('…en de rij wordt gewoon toegepast', plan.rows[3].outcome, 'apply');
+  ok('…terwijl de afgeleide actualStart wel degelijk geschreven wordt',
+    plan.rows[3].plannedTask?.time.actualStart !== undefined);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════

@@ -83,8 +83,8 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
  *   5. no-op-filter (A6, `isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
  *      velden worden een `CellEditIntent`; niets over ⇒ noop.
  *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`.
- *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst (before uit de
- *      HUIDIGE taak, after uit de GEPLANDE taak).
+ *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst — alleen de velden
+ *      die de RIJ ZELF aanleverde (fix 2), before uit de HUIDIGE taak, after uit de GEPLANDE taak.
  * `needsConfirmation` (⇔ `match === 'wbs'`) wordt op ELKE rij gezet die een taak trof, ongeacht de
  * outcome — ook een geweigerde WBS-match blijft "betwijfeld" totdat hij bevestigd of gecorrigeerd is.
  */
@@ -223,19 +223,25 @@ export function buildProgressImportPlan(
       };
     }
 
-    // 7. `changes` is een VOLLEDIGE before/after-diff over alle drie de velden op de GEPLANDE taak
-    // — niet alleen de velden die het blad zelf aanleverde. `applyProgressInvariants` kan bv. bij
-    // 100% completion zelf een actualStart/actualFinish afleiden zonder dat het blad die kolom
-    // droeg; die afgeleide wijziging moet net zo goed in de preview staan (T3 Deel 3).
+    // 7. `changes` toont UITSLUITEND de velden die de RIJ ZELF aanleverde (gebruikstest
+    // 2026-09-11, fix 2). Letterlijke wens van de eigenaar: "waarom staat overal → actual start x
+    // of y, dat heb ik niet ingevoerd en dat leidt het programma af." `applyProgressInvariants`
+    // leidt bij een percentage zelf een actualStart af (en bij 100% ook een actualFinish plus de
+    // status); dat gedrag blijft ongewijzigd — die waarden zitten gewoon in `plannedTask` en
+    // worden ook echt geschreven — maar ze horen niet in de "dit verandert er"-lijst, want de
+    // invuller herkent ze niet als iets dat hij zelf invoerde. De before/after komt nog steeds uit
+    // de HUIDIGE resp. de GEPLANDE taak, zodat de preview de echte einduitkomst van dat veld
+    // toont (bv. een completion die de planner zelf nog bijstelde) en niet de rauwe bladwaarde.
     const changes: ProgressFieldChange[] = [];
     const plannedTime = planned.value.task.time;
-    if (!isCompletionUnchanged(task.time.completion, plannedTime.completion)) {
+    if (row.completion?.kind === 'value'
+      && !isCompletionUnchanged(task.time.completion, plannedTime.completion)) {
       changes.push({ field: 'completion', before: task.time.completion, after: plannedTime.completion });
     }
-    if (task.time.actualStart !== plannedTime.actualStart) {
+    if (row.actualStart?.kind === 'value' && task.time.actualStart !== plannedTime.actualStart) {
       changes.push({ field: 'actualStart', before: task.time.actualStart, after: plannedTime.actualStart });
     }
-    if (task.time.actualFinish !== plannedTime.actualFinish) {
+    if (row.actualFinish?.kind === 'value' && task.time.actualFinish !== plannedTime.actualFinish) {
       changes.push({ field: 'actualFinish', before: task.time.actualFinish, after: plannedTime.actualFinish });
     }
 
