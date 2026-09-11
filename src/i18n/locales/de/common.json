@@ -959,6 +959,7 @@
       "summaryTask": "Sammelaufgaben können keinen Fortschritt aus einem Blatt erhalten.",
       "unreadableDate": "Unlesbares Datum.",
       "unreadableNumber": "Unlesbarer Prozentwert.",
+      "percentOutOfRange": "Prozentwert außerhalb von 0–100. Prüfen Sie das Dezimaltrennzeichen: „8,38“ kann in einer Tabellenkalkulation mit anderer Spracheinstellung als 838 gelesen werden.",
       "noProgressColumns": "Diese Zeile hat keinen der drei Fortschrittswerte ausgefüllt.",
       "actualAfterStatusDate": "Das tatsächliche Datum liegt nach dem Stichtag.",
       "actualFinishBeforeStart": "Tatsächliches Ende liegt vor tatsächlichem Start.",

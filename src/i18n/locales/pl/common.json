@@ -991,6 +991,7 @@
       "summaryTask": "Zadania sumaryczne nie mogą otrzymywać postępu z arkusza.",
       "unreadableDate": "Nieczytelna data.",
       "unreadableNumber": "Nieczytelny procent.",
+      "percentOutOfRange": "Procent poza zakresem 0–100. Sprawdź separator dziesiętny: w arkuszu kalkulacyjnym z innymi ustawieniami regionalnymi „8,38” może zostać odczytane jako 838.",
       "noProgressColumns": "Ten wiersz nie ma wypełnionej żadnej z trzech wartości postępu.",
       "actualAfterStatusDate": "Rzeczywista data przypada po dacie statusu.",
       "actualFinishBeforeStart": "Rzeczywiste zakończenie przypada przed rzeczywistym startem.",

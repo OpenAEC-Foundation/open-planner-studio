@@ -943,6 +943,7 @@
       "summaryTask": "요약 작업은 시트에서 진행률을 받을 수 없습니다.",
       "unreadableDate": "읽을 수 없는 날짜입니다.",
       "unreadableNumber": "읽을 수 없는 백분율입니다.",
+      "percentOutOfRange": "백분율이 0–100 범위를 벗어났습니다. 소수점 구분 기호를 확인하세요. 지역 설정이 다른 스프레드시트에서는 \"8.38\"이 838로 읽힐 수 있습니다.",
       "noProgressColumns": "이 행에는 세 가지 진행률 값 중 어느 것도 입력되어 있지 않습니다.",
       "actualAfterStatusDate": "실제 날짜가 기준일 이후입니다.",
       "actualFinishBeforeStart": "실제 종료일이 실제 시작일보다 앞섭니다.",

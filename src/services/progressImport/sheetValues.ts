@@ -16,7 +16,8 @@ import {
 } from './types';
 
 type DateValue = { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
-type PercentValue = { kind: 'value'; value: number } | { kind: 'unreadable'; raw: string };
+type PercentValue = { kind: 'value'; value: number } | { kind: 'unreadable'; raw: string }
+  | { kind: 'outOfRange'; raw: string };
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -117,13 +118,20 @@ const PERCENT = /^\s*-?\d+(?:[.,]\d+)?\s*%?\s*$/;
 /**
  * E6/A5.6: de kolom is ALTIJD een percentage. `100` = 100 %, `1` = 1 %; de fractie-interpretatie
  * ("waarde in [0,1] is al een fractie") bestaat in deze lezer niet.
+ *
+ * Besluit 2026-09-05 (gebruikstest): een numeriek LEESBARE waarde buiten [0, 100] (bv. "838",
+ * "-5") krijgt zijn EIGEN uitkomst (`outOfRange`), apart van `unreadable` (tekst/geen match). De
+ * valkuil is anders: "838" is typisch een decimaalteken dat door een spreadsheet met de andere
+ * landinstelling als duizendtalscheider is gelezen ("8,38" ⇒ 838) — de dialoog kan dat alleen
+ * benoemen als het weet dat het getal wél geparsed kon worden.
  */
 export function parseSheetPercent(raw: string): PercentValue | undefined {
   if (raw.trim().length === 0) return undefined; // Q1: leeg = geen wijziging.
   if (!PERCENT.test(raw)) return { kind: 'unreadable', raw };
   const numeric = raw.replace(/%/g, '').replace(',', '.').trim();
   const value = Number(numeric);
-  if (!Number.isFinite(value) || value < 0 || value > 100) return { kind: 'unreadable', raw };
+  if (!Number.isFinite(value)) return { kind: 'unreadable', raw };
+  if (value < 0 || value > 100) return { kind: 'outOfRange', raw };
   return { kind: 'value', value: value / 100 };
 }
 

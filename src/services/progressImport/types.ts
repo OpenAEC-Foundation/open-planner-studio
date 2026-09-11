@@ -56,7 +56,8 @@ export interface ProgressRow {
   taskId?: string;
   wbsCode?: string;
   name?: string;
-  completion?: { kind: 'value'; value: number } | { kind: 'unreadable'; raw: string };
+  completion?: { kind: 'value'; value: number } | { kind: 'unreadable'; raw: string }
+    | { kind: 'outOfRange'; raw: string };
   actualStart?: { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
   actualFinish?: { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
 }
@@ -69,6 +70,11 @@ export type ProgressMatchKind = 'id' | 'wbs' | 'manual';
 export type ProgressRowReason =
   | 'unmatched' | 'ambiguousWbs' | 'duplicateRow' | 'summaryTask'
   | 'unreadableDate' | 'unreadableNumber' | 'noProgressColumns'
+  // `percentOutOfRange` (besluit 2026-09-05, gebruikstest): een numeriek LEESBARE waarde buiten
+  // [0, 100] (bv. "838", "-5") — apart van `unreadableNumber` (tekst/geen match), want de valkuil
+  // is anders: een decimaalteken dat een spreadsheet met andere landinstelling als duizendtal-
+  // scheider las ("8,38" ⇒ 838). De dialoog mag dat verschil expliciet benoemen.
+  | 'percentOutOfRange'
   | 'actualAfterStatusDate' | 'actualFinishBeforeStart' | 'conflictingProgressInputs'
   | 'rejected';          // overige plannerfout; `plannerCode` draagt de originele code
 

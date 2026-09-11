@@ -975,6 +975,7 @@
       "summaryTask": "Le attività di riepilogo non possono ricevere avanzamento da un foglio.",
       "unreadableDate": "Data illeggibile.",
       "unreadableNumber": "Percentuale illeggibile.",
+      "percentOutOfRange": "Percentuale fuori dall'intervallo 0–100. Controlla il separatore decimale: in un foglio di calcolo con impostazioni regionali diverse, \"8,38\" può essere letto come 838.",
       "noProgressColumns": "Questa riga non ha nessuno dei tre valori di avanzamento compilato.",
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
       "actualFinishBeforeStart": "La fine effettiva precede l'inizio effettivo.",
