@@ -944,7 +944,6 @@
       "unreadableDate": "日期无法读取。",
       "unreadableNumber": "百分比无法读取。",
       "percentOutOfRange": "百分比超出 0–100 范围。请检查小数点：在使用不同区域设置的电子表格中，“8.38” 可能被读作 838。",
-      "noProgressColumns": "此行未填写三个进度值中的任何一个。",
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
       "conflictingProgressInputs": "填写的值互相矛盾。",

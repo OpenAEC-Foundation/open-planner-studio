@@ -22,6 +22,7 @@ import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externa
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import type { ImportLabelT } from '@/i18n/importLabels';
 import {
   invalidateUndoneHistoryForScopes,
   removeSessionHistoryForDocumentFromState,
@@ -415,13 +416,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // enkel transitief pad naar i18n). Zelfde patroon als de Tauri-imports elders in deze
           // slice: puur data-laden blijft synchroon, alles met een randeffect gaat achter een
           // dynamic import.
-          const [{ default: i18n }, { buildProgressHeaderNotes }] = await Promise.all([
+          const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote }] = await Promise.all([
             import('@/i18n/config'),
             import('@/i18n/progressHeaderNotes'),
           ]);
+          // `any`-sleutel: de i18next-`t` is op sleutel-literals getypeerd; `ImportLabelT` is
+          // precies de bestaande overloop-uitweg daarvoor (zie `importLabels.ts`).
+          const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
           content = writeProgressSheetCSV(
             state.tasks,
-            buildProgressHeaderNotes((key) => i18n.t(key, { ns: 'menu' })),
+            buildProgressHeaderNotes(menuT),
+            // Fix 1 (gebruikstest 2026-09-11): verzameltaken dragen hun "niet invullen" IN het
+            // blad zelf, i.p.v. pas bij terugimport als weigering op te duiken.
+            buildProgressSummaryNote(menuT),
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];

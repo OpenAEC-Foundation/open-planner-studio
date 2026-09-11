@@ -653,6 +653,81 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('abc blijft reason unreadableNumber', rowFor(taskZ.id)?.reason, 'unreadableNumber');
 }
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Writer/lezer — verzameltaken dragen hun eigen markering IN het blad (gebruikstest 2026-09-11,
+// fix 1). Letterlijke wens van de eigenaar: "hij zegt dat summary tasks geen progress kunnen
+// krijgen uit een spreadsheet, waarom staat dat ook niet gewoon in dat veld in de spreadsheet?".
+// De drie INVULcellen van een verzameltaak (`childIds.length > 0`) krijgen een gelokaliseerde
+// markeertekst die met een em-dash (U+2014) begint; de lezer telt een cel die met `—` begint als
+// AFWEZIG (niet als onleesbaar), zodat een ongewijzigd teruggestuurd blad nul weigeringen geeft.
+// Mutatiebewijs: haal de em-dash-terugval in `finalizeProgressRows` weg ⇒ de round-trip hieronder
+// levert `refusedCount > 0` (onleesbare datum/percentage) en dit blok kleurt rood.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+{
+  function stubPlanEditsS(
+    task: Task,
+    edits: readonly CellEditIntent[],
+  ): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
+    const next: Task = { ...task, time: { ...task.time } };
+    for (const edit of edits) {
+      const id = String(edit.columnId);
+      if (id === 'task.time.completion') next.time.completion = edit.value as number;
+      else if (id === 'task.time.actualStart') next.time.actualStart = edit.value as string;
+      else if (id === 'task.time.actualFinish') next.time.actualFinish = edit.value as string;
+    }
+    return { ok: true, value: { task: next, changed: true, timephasedGuidanceLost: false, scheduleStale: true } };
+  }
+  const stubDepsS: ProgressPlanDeps = { planEdits: stubPlanEditsS };
+
+  const parent = baseTask('task-parent', '2026-01-05', 5);
+  parent.wbsCode = '1';
+  parent.name = 'Ruwbouw';
+  parent.childIds = ['task-child'];
+  parent.time.completion = 0.4;
+  const child = baseTask('task-child', '2026-01-05', 5);
+  child.wbsCode = '1.1';
+  child.name = 'Fundering';
+  child.parentId = parent.id;
+  child.time.completion = 0.4;
+
+  const SUMMARY_NOTE = '— verzameltaak: niet invullen';
+  const csvS = writeProgressSheetCSV([parent, child], undefined, SUMMARY_NOTE);
+  const linesS = csvS.slice(1).split('\r\n');
+  const parentFields = linesS[1]?.split(';') ?? [];
+  const childFields = linesS[2]?.split(';') ?? [];
+
+  eq('verzameltaak: Completion draagt de markering', parentFields[5], SUMMARY_NOTE);
+  eq('verzameltaak: Actual Start draagt de markering', parentFields[6], SUMMARY_NOTE);
+  eq('verzameltaak: Actual Finish draagt de markering', parentFields[7], SUMMARY_NOTE);
+  eq('verzameltaak: de leescellen blijven gewoon gevuld', parentFields[1], '1');
+  eq('bladtaak houdt zijn echte percentage', childFields[5], '40');
+  eq('bladtaak krijgt GEEN markering', childFields[6], '');
+
+  // Round-trip: het geëxporteerde blad ongewijzigd terug ⇒ niets toegepast, niets geweigerd.
+  const sheetS = parseProgressCsv(csvS);
+  const rowsS = finalizeProgressRows(sheetS, 'dmy');
+  const planS = buildProgressImportPlan(rowsS, [parent, child], stubDepsS);
+  eq('round-trip met verzameltaak ⇒ niets toegepast', planS.appliedCount, 0);
+  eq('…en NIETS geweigerd', planS.refusedCount, 0);
+  eq('…de verzameltaakrij is gewoon ongewijzigd', planS.rows[0]?.outcome, 'noop');
+  eq('…net als de bladtaakrij', planS.rows[1]?.outcome, 'noop');
+
+  // Zonder markeertekst blijft het blad exact zoals het was (de parameter is optioneel).
+  const csvPlain = writeProgressSheetCSV([parent, child]);
+  const plainParent = csvPlain.slice(1).split('\r\n')[1]?.split(';') ?? [];
+  eq('zonder markeertekst: verzameltaak schrijft gewoon zijn eigen percentage', plainParent[5], '40');
+
+  // De lezer zelf: een cel die met een em-dash begint is AFWEZIG, niet onleesbaar.
+  const markedSheet = parseProgressCsv(
+    'OPS Task ID;Completion (%);Actual Start\r\n'
+    + `task-child;${SUMMARY_NOTE};${SUMMARY_NOTE}`,
+  );
+  const markedRows = finalizeProgressRows(markedSheet, 'dmy');
+  eq('em-dash-cel ⇒ completion afwezig', markedRows[0]?.completion, undefined);
+  eq('em-dash-cel ⇒ actualStart afwezig', markedRows[0]?.actualStart, undefined);
+}
+
+
 if (diffs.length > 0) {
   console.error(`FAIL progress-import-csv: ${diffs.length}/${checks} afwijkingen`);
   for (const diff of diffs) console.error(`  - ${diff}`);

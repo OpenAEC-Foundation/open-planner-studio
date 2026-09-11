@@ -944,7 +944,6 @@
       "unreadableDate": "日付を読み取れません。",
       "unreadableNumber": "パーセンテージを読み取れません。",
       "percentOutOfRange": "パーセンテージが0〜100の範囲外です。小数点記号を確認してください。地域設定が異なる表計算ソフトでは「8.38」が838と読み取られることがあります。",
-      "noProgressColumns": "この行には3つの進捗値のいずれも入力されていません。",
       "actualAfterStatusDate": "実際の日付がステータス日より後です。",
       "actualFinishBeforeStart": "実終了が実開始より前です。",
       "conflictingProgressInputs": "入力された値が矛盾しています。",

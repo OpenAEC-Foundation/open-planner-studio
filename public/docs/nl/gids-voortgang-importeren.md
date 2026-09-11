@@ -124,7 +124,9 @@ Een rij wordt geweigerd, met een reden die de preview toont, in onder meer deze 
 
 - De werkelijke datum ligt na de peildatum (vandaar: zet die peildatum eerst).
 - Werkelijk einde ligt vóór werkelijke start.
-- De rij verwijst naar een verzameltaak — die kan geen eigen voortgang dragen.
+- De rij verwijst naar een verzameltaak — die kan geen eigen voortgang dragen; in het blad dat de app
+  zelf exporteert staat dat er meteen bij: de invulcellen van een verzameltaak dragen de tekst
+  "— verzameltaak: niet invullen", en die tekst laat je gewoon staan.
 - Een datum of percentage is onleesbaar.
 
 Eén geweigerde rij houdt de rest van het blad niet tegen: alle andere rijen worden gewoon verwerkt.

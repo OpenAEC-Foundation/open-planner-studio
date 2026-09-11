@@ -976,7 +976,6 @@
       "unreadableDate": "Data ilegível.",
       "unreadableNumber": "Percentagem ilegível.",
       "percentOutOfRange": "Percentagem fora de 0–100. Verifique o separador decimal: numa folha de cálculo com outra configuração regional, \"8,38\" pode ser lido como 838.",
-      "noProgressColumns": "Esta linha não tem nenhum dos três valores de progresso preenchido.",
       "actualAfterStatusDate": "A data real é posterior à data de estado.",
       "actualFinishBeforeStart": "O fim real é anterior ao início real.",
       "conflictingProgressInputs": "Os valores inseridos contradizem-se.",

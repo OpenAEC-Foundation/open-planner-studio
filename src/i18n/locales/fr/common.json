@@ -976,7 +976,6 @@
       "unreadableDate": "Date illisible.",
       "unreadableNumber": "Pourcentage illisible.",
       "percentOutOfRange": "Pourcentage hors de 0–100. Vérifiez le séparateur décimal : dans un tableur avec une autre langue, « 8,38 » peut être lu comme 838.",
-      "noProgressColumns": "Cette ligne ne contient aucune des trois valeurs d'avancement.",
       "actualAfterStatusDate": "La date réelle est postérieure à la date de statut.",
       "actualFinishBeforeStart": "La fin réelle précède le début réel.",
       "conflictingProgressInputs": "Les valeurs saisies se contredisent.",

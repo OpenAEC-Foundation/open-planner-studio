@@ -319,7 +319,8 @@
       "plannedReadOnly": "planeado, não alterar",
       "completion": "preencher: 0 a 100, números inteiros",
       "actualStart": "preencher: data de início real (dd-mm-aaaa)",
-      "actualFinish": "preencher: data de fim real (dd-mm-aaaa)"
+      "actualFinish": "preencher: data de fim real (dd-mm-aaaa)",
+      "summaryRow": "— tarefa de resumo: não preencher"
     },
     "csvLabel": "CSV (separado por ponto e vírgula)",
     "csvDesc": "Exportação de tabela universal. Todas as tarefas com datas e durações.",

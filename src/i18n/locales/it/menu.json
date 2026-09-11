@@ -319,7 +319,8 @@
       "plannedReadOnly": "pianificato, non modificare",
       "completion": "da compilare: da 0 a 100, numeri interi",
       "actualStart": "da compilare: data di inizio effettiva (gg-mm-aaaa)",
-      "actualFinish": "da compilare: data di fine effettiva (gg-mm-aaaa)"
+      "actualFinish": "da compilare: data di fine effettiva (gg-mm-aaaa)",
+      "summaryRow": "— attività di riepilogo: non compilare"
     },
     "csvLabel": "CSV (separato da punto e virgola)",
     "csvDesc": "Esportazione tabella universale. Tutte le attività con date e durate.",

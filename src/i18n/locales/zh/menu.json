@@ -319,7 +319,8 @@
       "plannedReadOnly": "计划值，请勿更改",
       "completion": "请填写：0 到 100 的整数",
       "actualStart": "请填写：实际开始日期（日-月-年）",
-      "actualFinish": "请填写：实际完成日期（日-月-年）"
+      "actualFinish": "请填写：实际完成日期（日-月-年）",
+      "summaryRow": "— 摘要任务：请勿填写"
     },
     "csvLabel": "CSV（分号分隔）",
     "csvDesc": "通用表格导出，包含所有任务的日期和工期。",

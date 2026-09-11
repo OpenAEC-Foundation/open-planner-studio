@@ -278,15 +278,31 @@ export function detectDateOrder(
 }
 
 /**
+ * Markeercel (gebruikstest 2026-09-11, fix 1): het geëxporteerde voortgangsblad zet in de drie
+ * invulcellen van een VERZAMELtaak een gelokaliseerde tekst die met een em-dash (U+2014) begint —
+ * `writeProgressSheetCSV(tasks, headerNotes, summaryNote)`. Een cel die daarmee begint telt als
+ * AFWEZIG (leeg), niet als onleesbaar: het is geen invoer maar een instructie, en een ongewijzigd
+ * teruggestuurd blad mag daar geen enkele weigering aan overhouden. De em-dash is bewust gekozen
+ * omdat geen enkele geldige datum- of percentage-invoer ermee begint (een minteken is `-`, U+002D)
+ * en de markering daardoor bestandsformaat-agnostisch blijft (A9: XLSX levert dezelfde strings).
+ */
+function isMarkerCell(raw: string): boolean {
+  return raw.trimStart().startsWith('\u2014');
+}
+
+/**
  * Finaliseert een rauw blad onder de vastgestelde datumvolgorde. `Start`/`Finish` (`detectionCells`)
  * worden hier bewust NIET gelezen — die zijn uitsluitend detectiemateriaal (A5.4): er bestaat geen
  * veld in `ProgressRow` dat ze zou kunnen dragen.
  */
 export function finalizeProgressRows(sheet: ProgressSheet, order: DateOrder): readonly ProgressRow[] {
   return sheet.rawRows.map((row): ProgressRow => {
-    const completion = row.rawCompletion !== undefined ? parseSheetPercent(row.rawCompletion) : undefined;
-    const actualStart = row.rawActualStart !== undefined ? parseSheetDate(row.rawActualStart, order) : undefined;
-    const actualFinish = row.rawActualFinish !== undefined ? parseSheetDate(row.rawActualFinish, order) : undefined;
+    const completion = row.rawCompletion !== undefined && !isMarkerCell(row.rawCompletion)
+      ? parseSheetPercent(row.rawCompletion) : undefined;
+    const actualStart = row.rawActualStart !== undefined && !isMarkerCell(row.rawActualStart)
+      ? parseSheetDate(row.rawActualStart, order) : undefined;
+    const actualFinish = row.rawActualFinish !== undefined && !isMarkerCell(row.rawActualFinish)
+      ? parseSheetDate(row.rawActualFinish, order) : undefined;
     return {
       rowNumber: row.rowNumber,
       ...(row.taskId !== undefined ? { taskId: row.taskId } : {}),

@@ -319,7 +319,8 @@
       "plannedReadOnly": "planificado, no modificar",
       "completion": "rellenar: de 0 a 100, números enteros",
       "actualStart": "rellenar: fecha de inicio real (dd-mm-aaaa)",
-      "actualFinish": "rellenar: fecha de fin real (dd-mm-aaaa)"
+      "actualFinish": "rellenar: fecha de fin real (dd-mm-aaaa)",
+      "summaryRow": "— tarea resumen: no rellenar"
     },
     "csvLabel": "CSV (separado por punto y coma)",
     "csvDesc": "Exportación de tabla universal. Todas las tareas con fechas y duraciones.",

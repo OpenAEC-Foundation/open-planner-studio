@@ -76,7 +76,7 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
  *
  * Volgorde per rij (elke `refused` stopt de RIJ, nooit het blad — A3):
  *   1. geen taskId uit de match ⇒ refused (unmatched/ambiguousWbs/duplicateRow)
- *   2. geen enkele voortgangswaarde ⇒ refused/noProgressColumns
+ *   2. geen enkele voortgangswaarde ⇒ noop (niets ingevuld = niets te beoordelen)
  *   3. een onleesbaar veld ⇒ refused/unreadableDate resp. unreadableNumber/percentOutOfRange
  *   4. verzameltaak (`childIds.length > 0`) ⇒ refused/summaryTask — `planTaskCellEdits` bewaakt dit
  *      zelf niet (alleen `mcpValidation` doet dat elders), dus dat hoort hier.
@@ -122,11 +122,16 @@ export function buildProgressImportPlan(
     const task = tasksById.get(taskId)!;
     const label = taskLabel(task);
 
-    // 2. Geen enkele voortgangswaarde.
+    // 2. Geen enkele voortgangswaarde ⇒ ONGEWIJZIGD, geen weigering (gebruikstest 2026-09-11,
+    // fix 1): "wat niet is ingevoerd hoeft ook niet beoordeeld te worden". Hier landt ook de
+    // verzameltaakrij uit het eigen exportblad, waarvan de drie invulcellen een em-dash-markering
+    // dragen (zie `isMarkerCell`, sheetValues.ts) en dus als afwezig binnenkomen. `noProgressColumns`
+    // bestaat daarom alleen nog als BESTANDSniveau-`fileIssue` (geen enkele voortgangskolom in het
+    // hele blad) — als rij-reden is hij vervallen.
     if (row.completion === undefined && row.actualStart === undefined && row.actualFinish === undefined) {
-      refusedCount++;
+      noopCount++;
       return {
-        rowNumber: row.rowNumber, outcome: 'refused', reason: 'noProgressColumns',
+        rowNumber: row.rowNumber, outcome: 'noop',
         match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [],
       };
     }

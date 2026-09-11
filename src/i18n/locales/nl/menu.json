@@ -319,7 +319,8 @@
       "plannedReadOnly": "gepland, niet wijzigen",
       "completion": "invullen: 0 t/m 100, hele getallen",
       "actualStart": "invullen: werkelijke startdatum (dd-mm-jjjj)",
-      "actualFinish": "invullen: werkelijke einddatum (dd-mm-jjjj)"
+      "actualFinish": "invullen: werkelijke einddatum (dd-mm-jjjj)",
+      "summaryRow": "— verzameltaak: niet invullen"
     },
     "csvLabel": "CSV (puntkomma-gescheiden)",
     "csvDesc": "Universele tabel-export. Alle taken met datums en duur.",

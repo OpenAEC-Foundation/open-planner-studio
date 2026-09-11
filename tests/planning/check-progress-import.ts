@@ -237,12 +237,19 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   );
   ok('één geweigerde rij stopt het blad niet', planMixed.appliedCount === 2 && planMixed.refusedCount === 1);
 
-  // ── Een rij zonder enige voortgangswaarde. ──
+  // ── Een rij zonder enige voortgangswaarde is ONGEWIJZIGD, geen weigering (gebruikstest
+  // 2026-09-11, fix 1): "wat niet is ingevoerd hoeft ook niet beoordeeld te worden". Een
+  // verzameltaakrij uit het geëxporteerde blad (drie em-dash-markeringen ⇒ drie afwezige waarden)
+  // landt precies hier, en die mag de weigeringsteller niet vullen. `noProgressColumns` bestaat
+  // alleen nog als BESTANDSniveau-`fileIssue` (geen enkele voortgangskolom in het hele blad).
   const tEmpty = makeTask('wbs-empty');
   const planEmpty = buildProgressImportPlan(
     [makeRow(2, { taskId: tEmpty.id })], [tEmpty], stubDeps,
   );
-  eq('rij zonder voortgangskolommen', planEmpty.rows[0].reason, 'noProgressColumns');
+  eq('rij zonder voortgangskolommen ⇒ noop', planEmpty.rows[0].outcome, 'noop');
+  eq('…zonder reden', planEmpty.rows[0].reason, undefined);
+  eq('…en telt als ongewijzigd', planEmpty.noopCount, 1);
+  eq('…en niet als geweigerd', planEmpty.refusedCount, 0);
 
   // ── Een WBS-match is "betwijfeld" totdat hij bevestigd of gecorrigeerd is (A11). ──
   const tWbs = makeTask('wbs-doubt');

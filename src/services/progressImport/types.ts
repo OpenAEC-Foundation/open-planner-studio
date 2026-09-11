@@ -69,7 +69,10 @@ export type ProgressMatchKind = 'id' | 'wbs' | 'manual';
 
 export type ProgressRowReason =
   | 'unmatched' | 'ambiguousWbs' | 'duplicateRow' | 'summaryTask'
-  | 'unreadableDate' | 'unreadableNumber' | 'noProgressColumns'
+  // `noProgressColumns` is als RIJ-reden vervallen (gebruikstest 2026-09-11, fix 1): een rij
+  // zonder ingevulde voortgangswaarde is `noop`, geen weigering. Als BESTANDSniveau-issue
+  // (`ProgressFileIssue`) bestaat de code gewoon nog.
+  | 'unreadableDate' | 'unreadableNumber'
   // `percentOutOfRange` (besluit 2026-09-05, gebruikstest): een numeriek LEESBARE waarde buiten
   // [0, 100] (bv. "838", "-5") — apart van `unreadableNumber` (tekst/geen match), want de valkuil
   // is anders: een decimaalteken dat een spreadsheet met andere landinstelling als duizendtal-

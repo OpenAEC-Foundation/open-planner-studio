@@ -319,7 +319,8 @@
       "plannedReadOnly": "planned, do not change",
       "completion": "fill in: 0 to 100, whole numbers",
       "actualStart": "fill in: actual start date (dd-mm-yyyy)",
-      "actualFinish": "fill in: actual finish date (dd-mm-yyyy)"
+      "actualFinish": "fill in: actual finish date (dd-mm-yyyy)",
+      "summaryRow": "— summary task: do not fill in"
     },
     "csvLabel": "CSV (semicolon-separated)",
     "csvDesc": "Universal table export. All tasks with dates and durations.",

@@ -319,7 +319,8 @@
       "plannedReadOnly": "prévu, ne pas modifier",
       "completion": "à remplir : 0 à 100, nombres entiers",
       "actualStart": "à remplir : date de début réelle (jj-mm-aaaa)",
-      "actualFinish": "à remplir : date de fin réelle (jj-mm-aaaa)"
+      "actualFinish": "à remplir : date de fin réelle (jj-mm-aaaa)",
+      "summaryRow": "— tâche récapitulative : ne pas remplir"
     },
     "csvLabel": "CSV (séparé par des points-virgules)",
     "csvDesc": "Export tableau universel. Toutes les tâches avec dates et durées.",

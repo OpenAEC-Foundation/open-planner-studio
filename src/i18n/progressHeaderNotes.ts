@@ -25,3 +25,14 @@ export function buildProgressHeaderNotes(t: ImportLabelT): Partial<Record<Progre
     'Actual Finish': t('export.progressCsvNotes.actualFinish'),
   };
 }
+
+/**
+ * Markeertekst voor de drie INVULcellen van een verzameltaak in het voortgangsblad (gebruikstest
+ * 2026-09-11, fix 1). Begint bewust met een em-dash (U+2014): dat is het teken waarop
+ * `finalizeProgressRows` de cel als afwezig telt, zodat een ongewijzigd teruggestuurd blad geen
+ * enkele weigering oplevert. De vertalingen staan onder `menu:export.progressCsvNotes.summaryRow`
+ * en beginnen alle veertien met diezelfde em-dash.
+ */
+export function buildProgressSummaryNote(t: ImportLabelT): string {
+  return t('export.progressCsvNotes.summaryRow');
+}

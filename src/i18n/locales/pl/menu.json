@@ -319,7 +319,8 @@
       "plannedReadOnly": "zaplanowane, nie zmieniać",
       "completion": "wypełnij: od 0 do 100, liczby całkowite",
       "actualStart": "wypełnij: rzeczywista data rozpoczęcia (dd-mm-rrrr)",
-      "actualFinish": "wypełnij: rzeczywista data zakończenia (dd-mm-rrrr)"
+      "actualFinish": "wypełnij: rzeczywista data zakończenia (dd-mm-rrrr)",
+      "summaryRow": "— zadanie sumaryczne: nie wypełniać"
     },
     "csvLabel": "CSV (rozdzielany średnikiem)",
     "csvDesc": "Uniwersalny eksport tabeli. Wszystkie zadania z datami i czasem trwania.",

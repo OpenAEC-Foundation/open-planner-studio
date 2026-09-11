@@ -119,7 +119,9 @@ A row is refused, with a reason shown in the preview, in cases including:
 
 - The actual date is after the status date (hence: set that status date first).
 - Actual finish is before actual start.
-- The row refers to a summary task — those can't carry their own progress.
+- The row refers to a summary task — those can't carry their own progress; the sheet the app exports
+  says so in the cells themselves: a summary task's fill-in cells read "— summary task: do not fill
+  in", and you simply leave that text alone.
 - A date or percentage is unreadable.
 
 One refused row doesn't stop the rest of the sheet: every other row is still processed.

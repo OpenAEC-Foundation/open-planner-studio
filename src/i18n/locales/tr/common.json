@@ -960,7 +960,6 @@
       "unreadableDate": "Okunamayan tarih.",
       "unreadableNumber": "Okunamayan yüzde.",
       "percentOutOfRange": "Yüzde 0–100 aralığının dışında. Ondalık ayırıcıyı kontrol edin: farklı bölge ayarlarına sahip bir e-tablo \"8,38\" değerini 838 olarak okuyabilir.",
-      "noProgressColumns": "Bu satırda üç ilerleme değerinden hiçbiri doldurulmamış.",
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "conflictingProgressInputs": "Girilen değerler birbiriyle çelişiyor.",

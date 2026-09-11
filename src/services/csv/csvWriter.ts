@@ -150,8 +150,17 @@ export type ProgressSheetColumnKey =
  * (zie de N-B/N-C-fixrondes hierboven). Tweede SCHRIJVER op dezelfde helpers — geen tweede lezer:
  * `parseProgressCsv`/`finalizeProgressRows`/`buildProgressImportPlan` blijven ongewijzigd en lezen
  * dit blad net als elke andere CSV-export. Rijvolgorde = documentvolgorde, inclusief
- * verzameltaken — die worden bij terugimport netjes geweigerd (zie `matchRows`/`buildPlan`), maar
- * de invuller ziet zo wél de volledige structuur van het project.
+ * verzameltaken — die kunnen geen voortgang uit een blad krijgen, maar de invuller ziet zo wél de
+ * volledige structuur van het project.
+ *
+ * `summaryNote` (gebruikstest 2026-09-11, fix 1 — letterlijke gebruikerswens: "hij zegt dat
+ * summary tasks geen progress kunnen krijgen uit een spreadsheet, waarom staat dat ook niet gewoon
+ * in dat veld in de spreadsheet?"). Staat hij aan, dan krijgen de drie INVULcellen (Completion,
+ * Actual Start, Actual Finish) van een verzameltaak (`childIds.length > 0`) die al-vertaalde tekst
+ * i.p.v. een waarde. De tekst MOET met een em-dash (U+2014) beginnen: dat is het teken waarop
+ * `finalizeProgressRows` de cel als AFWEZIG telt, zodat een ongewijzigd teruggestuurd blad nul
+ * weigeringen oplevert. Zonder de parameter schrijft het blad gewoon de echte waarden (bestaand
+ * gedrag; alle bestaande tests geven hem niet mee).
  *
  * `headerNotes` (D, besluit 2026-09-05 — letterlijke gebruikerswens: "er moet ook in de headers
  * van de kolommen komen te staan wat je in mag voeren en waar je af moet blijven", aanleiding: een
@@ -165,6 +174,7 @@ export type ProgressSheetColumnKey =
 export function writeProgressSheetCSV(
   tasks: Task[],
   headerNotes?: Partial<Record<ProgressSheetColumnKey, string>>,
+  summaryNote?: string,
 ): string {
   const keys: ProgressSheetColumnKey[] = [
     'OPS Task ID', 'WBS', 'Name', 'Start', 'Finish',
@@ -179,15 +189,16 @@ export function writeProgressSheetCSV(
   rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
 
   for (const task of tasks) {
+    const marked = summaryNote !== undefined && task.childIds.length > 0;
     const row = [
       escapeCSV(task.id),
       escapeCSV(task.wbsCode),
       escapeCSV(task.name),
       task.time.earlyStart || task.time.scheduleStart,
       task.time.earlyFinish || task.time.scheduleFinish,
-      formatCompletionPercent(task.time.completion),
-      task.time.actualStart || '',
-      task.time.actualFinish || '',
+      marked ? escapeCSV(summaryNote) : formatCompletionPercent(task.time.completion),
+      marked ? escapeCSV(summaryNote) : (task.time.actualStart || ''),
+      marked ? escapeCSV(summaryNote) : (task.time.actualFinish || ''),
     ];
     rows.push(row.join(DELIMITER));
   }

@@ -319,7 +319,8 @@
       "plannedReadOnly": "planlanan, değiştirmeyin",
       "completion": "doldurun: 0 ile 100 arası, tam sayı",
       "actualStart": "doldurun: gerçek başlangıç tarihi (gg-aa-yyyy)",
-      "actualFinish": "doldurun: gerçek bitiş tarihi (gg-aa-yyyy)"
+      "actualFinish": "doldurun: gerçek bitiş tarihi (gg-aa-yyyy)",
+      "summaryRow": "— özet görev: doldurmayın"
     },
     "csvLabel": "CSV (noktalı virgülle ayrılmış)",
     "csvDesc": "Evrensel tablo dışa aktarımı. Tarihler ve sürelerle birlikte tüm görevler.",

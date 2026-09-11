@@ -319,7 +319,8 @@
       "plannedReadOnly": "계획값, 변경하지 마세요",
       "completion": "입력: 0~100 사이의 정수",
       "actualStart": "입력: 실제 시작일 (일-월-년)",
-      "actualFinish": "입력: 실제 종료일 (일-월-년)"
+      "actualFinish": "입력: 실제 종료일 (일-월-년)",
+      "summaryRow": "— 요약 작업: 입력하지 마세요"
     },
     "csvLabel": "CSV (세미콜론 구분)",
     "csvDesc": "범용 테이블 내보내기. 날짜 및 기간이 포함된 모든 작업.",

@@ -319,7 +319,8 @@
       "plannedReadOnly": "geplant, nicht ändern",
       "completion": "ausfüllen: 0 bis 100, ganze Zahlen",
       "actualStart": "ausfüllen: tatsächliches Startdatum (TT-MM-JJJJ)",
-      "actualFinish": "ausfüllen: tatsächliches Enddatum (TT-MM-JJJJ)"
+      "actualFinish": "ausfüllen: tatsächliches Enddatum (TT-MM-JJJJ)",
+      "summaryRow": "— Sammelvorgang: nicht ausfüllen"
     },
     "csvLabel": "CSV (semikolon-getrennt)",
     "csvDesc": "Universeller Tabellenexport. Alle Aufgaben mit Terminen und Dauer.",
