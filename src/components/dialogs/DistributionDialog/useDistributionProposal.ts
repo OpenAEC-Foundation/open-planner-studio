@@ -272,15 +272,54 @@ function isDistributionDegraded(
   return false;
 }
 
-/** Welke tune-as is er veranderd? Volgorde van benoemen = volgorde van de spec-taxonomie. */
-function diffReason(
+/** Alle sleutels van twee records samen — de basis van een volgorde-ONgevoelige vergelijking. */
+function allKeys(a: Record<string, unknown>, b: Record<string, unknown>): string[] {
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])];
+}
+
+/**
+ * Zijn dit dezelfde pins? AFWEZIG ≡ `false` — de dialoog zet een pin uit door `false` te schrijven
+ * (`setPinned`), maar een verse tune-state (`freshDistributionUi`) levert gewoon een leeg object.
+ * Dat is dezelfde bediening en mag dus niet als wijziging lezen.
+ */
+function samePins(prev: Record<string, boolean>, next: Record<string, boolean>): boolean {
+  return allKeys(prev, next).every(docId => (prev[docId] === true) === (next[docId] === true));
+}
+
+/**
+ * Zijn dit dezelfde plafonds? AFWEZIG ≡ `null` = ONBEGRENSD — dat is letterlijk de lezing van
+ * `DistributionUiState.ceilings` en van `buildDistributionInputs` (`tune.ceilings[id] ?? null`).
+ * Let op het verschil met plafond 0: dat is "geen enkele uitloop toegestaan", een echte grens, en
+ * dus wél een andere stand dan onbegrensd.
+ */
+function sameCeilings(
+  prev: Record<string, number | null>,
+  next: Record<string, number | null>,
+): boolean {
+  return allKeys(prev, next).every(docId => (prev[docId] ?? null) === (next[docId] ?? null));
+}
+
+/**
+ * Welke tune-as is er veranderd? Volgorde van benoemen = volgorde van de spec-taxonomie.
+ *
+ * VOLGORDE-ONGEVOELIG (fixronde-2 bevinding B11). Dit stond op `JSON.stringify`, en die vergelijkt
+ * óók de sleutelVOLGORDE en het verschil tussen "afwezig" en een expliciet geschreven default. Een
+ * `setUI` die de records opnieuw opbouwt las daardoor als een pin- of plafondwijziging: het
+ * voorstel verviel, de stale-strook verscheen en Toepassen ging op slot zonder dat de gebruiker
+ * iets veranderd had. De vergelijking is nu de VERZAMELING sleutels met een expliciete default per
+ * as.
+ *
+ * Geëxporteerd voor `tests/planning/check-distribution-chart-scale.ts`: de rest van de hook is
+ * React-gebonden, dit stukje is puur en hoort mechanisch vastgezet.
+ */
+export function diffReason(
   prev: DistributionUiState,
   next: DistributionUiState,
 ): DistributionStaleReason | null {
   if (prev.allowSplits !== next.allowSplits) return 'tool';
   if (prev.order.join(' ') !== next.order.join(' ')) return 'rank';
-  if (JSON.stringify(prev.pinned) !== JSON.stringify(next.pinned)) return 'pin';
-  if (JSON.stringify(prev.ceilings) !== JSON.stringify(next.ceilings)) return 'ceiling';
+  if (!samePins(prev.pinned, next.pinned)) return 'pin';
+  if (!sameCeilings(prev.ceilings, next.ceilings)) return 'ceiling';
   return null;
 }
 
