@@ -172,6 +172,53 @@ function resolveScheduleField(raw: Date | null, scheduled: Date | null, isManual
  *  `mppEntities.ts` (50/51) — taken en resources delen dit blokformaat niet. */
 const TASK_FIXED2_META_ITEM_SIZE_CANDIDATES = [92, 93, 94, 95, 96];
 
+// ── Late datums en speling (meetopdracht 2026-09-11, "late/float-meting") ────────────────────
+// Veld-id's + blok-0-offsets letterlijk uit `FieldMap14.java`'s `getDefaultTaskData()` (MPXJ
+// 16.7.0, commit ac7aa7b8):
+//   r. 67  `new FieldItem(TaskField.LATE_START,   FIXED_DATA, 0,  12,  39, 0, 0)`
+//   r. 95  `new FieldItem(TaskField.LATE_FINISH,  FIXED_DATA, 0, 110,  40, 0, 0)`
+//   r. 70  `new FieldItem(TaskField.FREE_SLACK,   FIXED_DATA, 0,  24,  21, 0, 0)`
+//   r. 71  `new FieldItem(TaskField.START_SLACK,  FIXED_DATA, 0,  28, 438, 0, 0)`
+//   r. 72  `new FieldItem(TaskField.FINISH_SLACK, FIXED_DATA, 0,  32, 439, 0, 0)`
+//   r. 84  `new FieldItem(TaskField.ACTUAL_START, FIXED_DATA, 0,  72,  41, 0, 0)`
+//   r. 85  `new FieldItem(TaskField.ACTUAL_FINISH,FIXED_DATA, 0,  76,  42, 0, 0)`
+// TOTAL_SLACK (MPP-veld-id 22, `common/MPPTaskField.java` r. 385) heeft GEEN entry in
+// `getDefaultTaskData()`: MPXJ leest 'm nooit uit een MPP14-bestand maar berekent 'm
+// (`Task.java` r. 7274 `CALCULATED_FIELD_MAP.put(TaskField.TOTAL_SLACK, Task::calculateTotalSlack)`
+// → `cpm/MicrosoftSlackCalculator.java` `calculateTotalSlack`). Het id wordt hier tóch opgezocht in
+// de DATA-GEDREVEN veldkaart (`fixedOffsetOf`), zodat de meting kan RAPPORTEREN of een bestand het
+// veld alsnog opgeslagen draagt (corpusbreed te meten, niet aan te nemen).
+//
+// EENHEID (spelingen): `TaskField.java` r. 73/287/288 — `FREE_SLACK`/`START_SLACK`/`FINISH_SLACK`
+// zijn `DataType.DURATION` met eenhedenbron `ACTUAL_DURATION_UNITS` (id 181, offset 46) — precies
+// het veld dat hieronder al als `durUnit` gelezen wordt. De ruwe int is TIENDEN VAN EEN MINUUT
+// (`MPPUtility.getDuration(double, TimeUnit)` r. 504: "Value is given in 1/10 of minute";
+// `getAdjustedDuration` r. 694 e.v. deelt voor DAYS door `minutesPerDay × 10`, voor HOURS door
+// 600 — dus raw/10 is altijd het aantal (werk-)minuten, ongeacht de weergave-eenheid; bij een
+// ELAPSED-eenheid zijn het kalenderminuten). Sentinel: raw === -1 ⇒ `null` (`getAdjustedDuration`
+// r. 698 `if (duration != -1)`).
+const TASK_FIELD_LATE_START = 39;
+const TASK_FIELD_LATE_FINISH = 40;
+const TASK_FIELD_FREE_SLACK = 21;
+const TASK_FIELD_START_SLACK = 438;
+const TASK_FIELD_FINISH_SLACK = 439;
+const TASK_FIELD_TOTAL_SLACK = 22;
+const TASK_FIELD_ACTUAL_START = 41;
+const TASK_FIELD_ACTUAL_FINISH = 42;
+const DURATION_NULL_SENTINEL = -1;
+
+/** Ruwe duur-int (tienden van een minuut) of `null` bij afwezig veld/te kort record/-1-sentinel. */
+function readRawDuration(data: Uint8Array, offset: number | null, ctx: string): number | null {
+  if (offset === null || data.length < offset + 4) return null;
+  const raw = getInt(data, offset, ctx);
+  return raw === DURATION_NULL_SENTINEL ? null : raw;
+}
+
+function readOptionalTimestamp(data: Uint8Array, offset: number | null, ctx: string): Date | null {
+  if (offset === null || data.length < offset + 4) return null;
+  return getTimestamp(data, offset, ctx);
+}
+
 export interface RawTask {
   uniqueId: number;
   /** Taak-ID (kolomvolgorde in MS Project) — de join-sleutel naar `Task.id` in `readMPP`'s output. */
@@ -184,6 +231,23 @@ export interface RawTask {
    *  (ELAPSED-duur e.d.) zodat die geen derde lus hoeven te bouwen. */
   durationRaw: number;
   durUnit: string;
+  /** Late/float-meting (2026-09-11) — zie de constantenblok-toelichting hierboven. Alle velden
+   *  OPTIONEEL op storage-niveau (`null` bij een ontbrekend veld in de veldkaart, een te kort
+   *  record of de -1-sentinel); `durUnit` hierboven is de eenheid van de drie spelingen. */
+  isManual: boolean;
+  lateStart: Date | null;
+  lateFinish: Date | null;
+  /** Ruwe tienden-van-een-minuut (raw/10 = minuten), `null` ⇒ niet opgeslagen. */
+  startSlackRaw: number | null;
+  finishSlackRaw: number | null;
+  freeSlackRaw: number | null;
+  /** Alleen gevuld als de data-gedreven veldkaart veld-id 22 in blok 0 draagt — MPXJ kent geen
+   *  default-offset voor dit veld en berekent het; de meting rapporteert of het corpus het tóch
+   *  opgeslagen heeft. */
+  totalSlackRaw: number | null;
+  totalSlackFieldPresent: boolean;
+  actualStart: Date | null;
+  actualFinish: Date | null;
 }
 
 /**
@@ -236,6 +300,15 @@ export function scanGroundTruthTasks(bytes: Uint8Array): { raws: RawTask[]; fiel
   const offDur = fixedOffsetOf(fm, TaskFieldId.ScheduledDuration);
   const offDurUnits = fixedOffsetOf(fm, TaskFieldId.DurationUnits);
   const nameKey = varDataKeyOf(fm, TaskFieldId.Name)!;
+  // Late/float-meting: alle zes optioneel (`null` ⇒ het bestand/de veldkaart kent het veld niet).
+  const offLateStart = fixedOffsetOf(fm, TASK_FIELD_LATE_START);
+  const offLateFinish = fixedOffsetOf(fm, TASK_FIELD_LATE_FINISH);
+  const offFreeSlack = fixedOffsetOf(fm, TASK_FIELD_FREE_SLACK);
+  const offStartSlack = fixedOffsetOf(fm, TASK_FIELD_START_SLACK);
+  const offFinishSlack = fixedOffsetOf(fm, TASK_FIELD_FINISH_SLACK);
+  const offTotalSlack = fixedOffsetOf(fm, TASK_FIELD_TOTAL_SLACK);
+  const offActualStart = fixedOffsetOf(fm, TASK_FIELD_ACTUAL_START);
+  const offActualFinish = fixedOffsetOf(fm, TASK_FIELD_ACTUAL_FINISH);
 
   const byUid = new Map<number, number>();
   const deleted = new Set<number>();
@@ -279,6 +352,16 @@ export function scanGroundTruthTasks(bytes: Uint8Array): { raws: RawTask[]; fiel
       finish: resolveScheduleField(rawFinish, scheduledFinish, isManual),
       durationRaw: offDur !== null && data.length >= offDur + 4 ? getInt(data, offDur, 'du') : 0,
       durUnit: offDurUnits !== null && data.length >= offDurUnits + 2 ? getDurationTimeUnits(getShort(data, offDurUnits, 'dun')) : '?',
+      isManual,
+      lateStart: readOptionalTimestamp(data, offLateStart, 'ls'),
+      lateFinish: readOptionalTimestamp(data, offLateFinish, 'lf'),
+      startSlackRaw: readRawDuration(data, offStartSlack, 'ssl'),
+      finishSlackRaw: readRawDuration(data, offFinishSlack, 'fsl'),
+      freeSlackRaw: readRawDuration(data, offFreeSlack, 'frs'),
+      totalSlackRaw: readRawDuration(data, offTotalSlack, 'tsl'),
+      totalSlackFieldPresent: offTotalSlack !== null,
+      actualStart: readOptionalTimestamp(data, offActualStart, 'as'),
+      actualFinish: readOptionalTimestamp(data, offActualFinish, 'af'),
     });
   }
   raws.sort((a, b) => a.id - b.id);

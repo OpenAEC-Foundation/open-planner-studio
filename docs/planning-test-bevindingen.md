@@ -160,3 +160,13 @@ naar het anker; herhaald berekenen is idempotent.
 Je kunt resources aanmaken en aan taken koppelen, maar de planning rekent er (nog) niet mee — de
 rekenmotor krijgt alleen taken, relaties en de kalender. Er is dus geen resource-nivellering. Dit is
 bewust niet aangeraakt; het is een aparte feature-keuze, geen rekenfout.
+
+---
+
+## Vervolgmeting: `.mpp`-late datums en speling (2026-09-11)
+
+De `.mpp`-meetlat (`tests/planning/check-mpp-fidelity.ts`) bewaakt start en finish op nul
+afwijkingen. Late start, late finish, totale en vrije speling zijn los daarvan gemeten tegen wat
+MS Project zelf opslaat — als rapport, zonder poort of pin. Tabel per as, diagnoseklassen en de
+beperkingen (welke pins niet gezien zijn) staan in
+[`planning-test-bevindingen-mpp-late-float.md`](planning-test-bevindingen-mpp-late-float.md).

@@ -87,3 +87,17 @@ solver — en draai `run.sh`.
 
 De aanleiding en de oorspronkelijke bevindingen staan in
 [`docs/planning-test-bevindingen.md`](../../docs/planning-test-bevindingen.md).
+
+## Rapportmodus: `.mpp`-late datums en speling (geen poort)
+
+`check-mpp-fidelity.ts` meet en pint alleen start/finish. Voor late start, late finish, totale en
+vrije speling is er een aparte **rapportmodus** die niets pint en niet in `run.sh` staat:
+
+```bash
+OPS_MPP_CORPUS=… OPS_MPP_CRAWL=… bash tests/planning/report-mpp-late-float.sh
+OPS_MPP_LATE_FLOAT_DETAIL=mpp14duration.mpp bash tests/planning/report-mpp-late-float.sh   # per taak
+```
+
+Meetkern `mppLateFloatFidelity.ts` (zelfde `readMPP` + `solveProject`-keten als de meetlat, tegen de
+grondwaarheid uit `mppGroundTruth.ts`, die daarvoor óók veld 39/40/438/439/21 leest). Uitkomst,
+eenheden en de afwijkingsklassen: [`docs/planning-test-bevindingen-mpp-late-float.md`](../../docs/planning-test-bevindingen-mpp-late-float.md).

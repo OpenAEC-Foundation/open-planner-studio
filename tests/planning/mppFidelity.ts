@@ -27,6 +27,7 @@ import { parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Project } from '@/types/project';
+import type { WorkCalendar } from '@/types/calendar';
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 16) : null);
 const dayOf = (s: string): string => s.slice(0, 10);
@@ -53,6 +54,12 @@ export interface SolvedMpp {
   sequences: Sequence[];
   project: Project;
   cpmError: string | null;
+  /** Late/float-meting (2026-09-11, `mppLateFloatFidelity.ts`): de kalenders van DEZELFDE
+   *  `readMPP`-uitkomst als `tasks` — nodig om de taak-effectieve `CalendarEngine` (en dus de
+   *  werkdag→minuut-factor van onze float) exact zo op te bouwen als `CPMSolver.calendarFor`.
+   *  Een tweede `readMPP` zou verse kalender-id's geven die `task.calendarId` niet meer matchen. */
+  projectCalendar: WorkCalendar;
+  calendars: WorkCalendar[];
 }
 
 /**
@@ -75,7 +82,10 @@ export function solveMppBytes(bytes: Uint8Array): SolvedMpp {
     // een taak zonder voorganger houdt sindsdien altijd haar eigen (evt. vóór-projectstart) anker aan.
     projectStartDate: result.project.startDate,
   });
-  return { tasks: result.tasks, sequences: result.sequences, project: result.project, cpmError: cpm.error ?? null };
+  return {
+    tasks: result.tasks, sequences: result.sequences, project: result.project, cpmError: cpm.error ?? null,
+    projectCalendar: result.calendar, calendars: result.resourceCalendars ?? [],
+  };
 }
 
 /** Eén rij van een afwijkende taak, voor `OPS_MPP_FIDELITY_REPORT=detail` — het "detail-formaat"
