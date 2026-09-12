@@ -11,7 +11,7 @@ import {
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
-  ClipboardCheck, ClipboardList,
+  FileDown, FileUp,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
@@ -337,7 +337,7 @@ const moveProjectButton: RibbonButtonSpec = {
  *  (één bron, twee callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`). Uitgeschakeld
  *  zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
 const progressImportButton: RibbonButtonSpec = {
-  kind: 'button', id: 'progressImport', icon: <ClipboardCheck size={20} />, labelKey: 'menu:ribbon.progressImport',
+  kind: 'small', id: 'progressImport', icon: <FileUp size={14} />, labelKey: 'menu:ribbon.progressImport',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -356,7 +356,7 @@ const progressImportButton: RibbonButtonSpec = {
  *  Backstage → Exporteren en onverkort een leesbaar importformaat. Het knoplabel
  *  (`menu:ribbon.progressExport`) noemt bewust geen formaat en hoefde dus niet te wijzigen. */
 const progressExportButton: RibbonButtonSpec = {
-  kind: 'button', id: 'progressExport', icon: <ClipboardList size={20} />, labelKey: 'menu:ribbon.progressExport',
+  kind: 'small', id: 'progressExport', icon: <FileDown size={14} />, labelKey: 'menu:ribbon.progressExport',
   use: () => {
     const exportAs = useAppStore(s => s.exportAs);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -374,7 +374,8 @@ const progressExportButton: RibbonButtonSpec = {
  *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd.
  *  `progressExportButton` staat VÓÓR de importknop (E7): eerst het blad eraf, dan terug erin. */
 const progressGroup: RibbonGroupSpec = {
-  id: 'progress', labelKey: 'menu:ribbon.progressGroup', items: [progressExportButton, progressImportButton],
+  id: 'progress', labelKey: 'menu:ribbon.progressGroup',
+  items: [{ kind: 'stack', id: 'progressStack', items: [progressExportButton, progressImportButton] }],
 };
 
 /** Waarschuwingenpaneel aan/uit (issue #53) — Beeld → Panelen én Planning → Planning, naast Bereken. */

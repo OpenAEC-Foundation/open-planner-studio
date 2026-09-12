@@ -126,7 +126,9 @@ back to that same question from the preview — any links you made by hand stay 
 ## An empty field means: no change
 
 A returned sheet often comes back partially filled in. If a foreman leaves a column empty, the task's
-existing value simply stays as it is — an empty field **clears nothing**.
+existing value simply stays as it is — an empty field **clears nothing**. One side effect comes with
+that: if you do fill in a percentage above 0 for a task that had no actual start yet, the app derives
+that actual start itself — so an empty start field does not stay empty in that case.
 
 ## Linking: automatic, and by hand
 

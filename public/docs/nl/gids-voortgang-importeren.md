@@ -128,7 +128,9 @@ daarbij gewoon staan.
 ## Een leeg veld betekent: geen wijziging
 
 Een teruggestuurd blad komt vaak deels ingevuld terug. Laat een uitvoerder een kolom leeg, dan blijft
-de bestaande waarde van die taak gewoon staan — een leeg veld **wist niets**.
+de bestaande waarde van die taak gewoon staan — een leeg veld **wist niets**. Eén neveneffect hoort
+hierbij: vul je wel een percentage boven 0 in voor een taak die nog geen werkelijke start had, dan
+leidt de app die werkelijke start zelf af — een leeg startveld blijft dan dus niet leeg.
 
 ## Koppelen: automatisch, en met de hand
 
