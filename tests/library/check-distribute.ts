@@ -5,7 +5,10 @@
 // stijl van deze suite.
 //
 // Draait via run.sh. Exit 0 = alles groen.
-import { computeDistribution, type DistributionDocInput } from '@/services/library/distribute';
+import { computeDistribution, type DistributionDocInput, type DistributionLevelRun } from '@/services/library/distribute';
+import { computeLibraryOccupancy } from '@/services/library/occupancy';
+import type { LevelingPoolLedger } from '@/engine/scheduler/ResourceLeveler';
+import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { createDefaultProject } from '@/state/slices/projectSlice';
@@ -594,6 +597,175 @@ console.log('-- distribute: NO_DEMAND is het algemenere vangnet naast MATERIAL_I
   const p17 = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
   assert(p17.blocked?.reason === 'NO_DEMAND', `case 17: algemener vangnet blokkeert (kreeg ${p17.blocked?.reason})`);
   assert(p17.docs.length === 0, 'case 17: en levert geen leeg "opgelost"-voorstel');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 1, bevinding 6: het grootboek boekt PER ITEM. `makeLedgerForDoc` negeerde `itemId`
+// volledig (`residualOn: (_itemId, iso) => residualOn(iso)`). Dat was tot dusver correct omdat
+// `poolItemOf` uitsluitend `libraryItemId` teruggeeft — maar het is een ONGESCHREVEN invariant, en
+// een toekomstige verdeler over meerdere poolitems tegelijk zou stil alles op één hoop boeken. Deze
+// case pint dat de sleutel gebruikt WORDT: de `runLeveling`-hook (dezelfde injecteerbare motor-rand
+// als de rest van dit bestand) vangt de door `computeDistribution` gebouwde `poolLedger` op, zodat
+// de test rechtstreeks tegen `book`/`residualOn` kan toetsen — `makeLedgerForDoc` zelf is niet
+// geëxporteerd.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: het poolitem-grootboek boekt PER ITEM (bevinding 6) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+  const d1 = distDoc('d1', {
+    rank: 1,
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [task('a1', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('d1-a1', 'a1', 'd1-r1', 1)],
+  });
+  let capturedLedger: LevelingPoolLedger | undefined;
+  const stubRun: DistributionLevelRun = (_doc, options) => {
+    capturedLedger = options.poolLedger;
+    return {
+      delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {},
+      projectEndBefore: '2026-08-03', projectEndAfter: '2026-08-03', gaps: {},
+    };
+  };
+  computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF, stubRun);
+  const l = capturedLedger!;
+  assert(l !== undefined, 'bevinding 6: de motor-run kreeg een poolLedger mee');
+  const before = l.residualOn('lib-1', '2026-08-03');
+  l.book('een-ander-item', '2026-08-03', 99);
+  assert(
+    l.residualOn('lib-1', '2026-08-03') === before,
+    'bevinding 6: een boeking op een ANDER itemId raakt dit poolitem niet',
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 11 (a)+(b): `afterLoadByDay`/`bookingByDay`, sluitende boekhouding. Zelfde fixture
+// als case 1 (geen tekort): d0 (gepind) bezet ma 08-03 volledig; d1 se A wijkt één dag om d0 heen.
+// (a) Voor elke dag in `residualByDay` is Σ_doc afterLoadByDay[doc][iso] + residualByDay[iso] gelijk
+//     aan de poolcapaciteit — het gepinde document (d0) staat ZELF in `afterLoadByDay`, dus de som
+//     daarover dekt zowel de vaste last als de geplaatste boeking, geen dubbeltelling nodig.
+// (b) d0 (gepind) staat met zijn ONGEWIJZIGDE boeking in de na-stand: gelijk aan zijn voor-stand.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: afterLoadByDay + residualByDay = capaciteit (taak 11a) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+  const d0 = distDoc('d0', {
+    pinned: true,
+    resources: [stamped('d0-r1', 'lib-1')],
+    tasks: [task('x0', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('d0-a1', 'x0', 'd0-r1', 2)],
+  });
+  const taskZ = task('z', '2026-08-03', '2026-08-05', 3);
+  const taskA = task('a', '2026-08-03', '2026-08-04', 2);
+  const d1 = distDoc('d1', {
+    rank: 1,
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [taskZ, taskA],
+    assignments: [assign('d1-a1', 'a', 'd1-r1', 1)],
+  });
+  const result = computeDistribution('c1', p, 'lib-1', [d0, d1], OPTS_OFF);
+  const poolItem = p.resources[0];
+  const docIds = result.docs.map(d => d.docId);
+  for (const iso of Object.keys(result.residualByDay)) {
+    const sumAfter = docIds.reduce((sum, id) => sum + (result.afterLoadByDay[id]?.[iso] ?? 0), 0);
+    const cap = maxUnitsOn(poolItem, iso);
+    assert(
+      sumAfter + result.residualByDay[iso] === cap,
+      `taak 11a: dag ${iso}: Σafter (${sumAfter}) + rest (${result.residualByDay[iso]}) !== capaciteit (${cap})`,
+    );
+  }
+  assert(
+    JSON.stringify(result.afterLoadByDay['d0']) === JSON.stringify(result.bookingByDay['d0']),
+    `taak 11b: gepind document staat ongewijzigd in de na-stand (na: ${JSON.stringify(result.afterLoadByDay['d0'])}, voor: ${JSON.stringify(result.bookingByDay['d0'])})`,
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 11 (c): bij een tekort is `afterIncomplete === true` en de niet-geplaatste vraag
+// ontbreekt in `afterLoadByDay`. LET OP: dit vraagt om een tekort waar de POOL zelf nog ruimte heeft
+// (anders toont de som toch de volle capaciteit — gewoon omdat een ANDER document 'm al volmaakt, niet
+// omdat de ontbrekende vraag ontbreekt). Daarom hier het CEILING_TOO_TIGHT-type tekort van case 4b
+// (eigen krappe projectinzet, GEEN pool-blokkade), met de poolcapaciteit gelijkgetrokken aan a1+a2
+// samen (2): had a2 wél geplaatst, dan was de pool exact vol; nu ontbreekt precies haar eenheid.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: tekort ⇒ afterIncomplete en ontbrekende vraag (taak 11c) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]); // a1 (1) + a2 (1) = 2, zou de pool precies vullen
+  const d1 = distDoc('d1', {
+    rank: 1, ceilingWorkdays: 0,
+    resources: [stamped('d1-r1', 'lib-1', 'c1', { maxUnits: 1 })], // krappe PROJECTinzet blokkeert a2, niet de pool
+    tasks: [
+      task('a1', '2026-08-03', '2026-08-03', 1, { priority: 900 }),
+      task('a2', '2026-08-03', '2026-08-03', 1, { priority: 100, deadline: '2026-08-03' }),
+    ],
+    assignments: [assign('d1-a1', 'a1', 'd1-r1', 1), assign('d1-a2', 'a2', 'd1-r1', 1)],
+  });
+  const result = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
+  const shortfallA2 = result.docs[0].shortfalls.find(s => s.taskId === 'a2');
+  assert(
+    shortfallA2?.reason === 'CEILING_TOO_TIGHT',
+    `taak 11c sanity: tekort door het eigen plafond, niet door de pool (kreeg ${shortfallA2?.reason})`,
+  );
+  assert(result.hasShortfall === true, 'taak 11c sanity: hasShortfall staat');
+  assert(result.afterIncomplete === true, `taak 11c: afterIncomplete volgt hasShortfall (kreeg ${result.afterIncomplete})`);
+  const poolItem = p.resources[0];
+  const conflictIso = '2026-08-03';
+  const sumAfter = result.docs.reduce((sum, d) => sum + (result.afterLoadByDay[d.docId]?.[conflictIso] ?? 0), 0);
+  const cap = maxUnitsOn(poolItem, conflictIso);
+  assert(sumAfter < cap, `taak 11c: de niet-geplaatste vraag (a2) ontbreekt uit afterLoadByDay — som (${sumAfter}) < capaciteit (${cap})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 11 (d): een `blocked`-voorstel levert lege boekhoudingen — zelfde fixture als case 16
+// (MATERIAL_ITEM).
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: blocked-voorstel ⇒ bookingByDay/afterLoadByDay leeg (taak 11d) --');
+{
+  const p = pool([poolRes('lib-mat', 'Beton', 1, { type: 'MATERIAL' })]);
+  const mk = (id: string, rank: number) => distDoc(id, {
+    rank,
+    resources: [stamped(`${id}-r1`, 'lib-mat', 'c1', { type: 'MATERIAL' })],
+    tasks: [task(`${id}-t1`, '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign(`${id}-a1`, `${id}-t1`, `${id}-r1`, 1)],
+  });
+  const result = computeDistribution('c1', p, 'lib-mat', [mk('d1', 1), mk('d2', 2)], OPTS_OFF);
+  assert(result.blocked?.reason === 'MATERIAL_ITEM', 'taak 11d sanity: geblokkeerd (zelfde fixture als case 16)');
+  assert(JSON.stringify(result.bookingByDay) === '{}', `taak 11d: bookingByDay is leeg bij blokkade (kreeg ${JSON.stringify(result.bookingByDay)})`);
+  assert(JSON.stringify(result.afterLoadByDay) === '{}', `taak 11d: afterLoadByDay is leeg bij blokkade (kreeg ${JSON.stringify(result.afterLoadByDay)})`);
+  assert(result.afterIncomplete === false, 'taak 11d: afterIncomplete is false bij blokkade');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// B1c-plan3 taak 11 (e): `bookingByDay` bevat élk boekend document (ook gepind), met dezelfde waarden
+// als `computeLibraryOccupancy`s eigen `row.docs[].dailyLoad` — geen tweede, kunnen-divergeren
+// berekening. Zelfde fixture als taak 11a/b.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: bookingByDay bevat elk boekend document, gelijk aan de bezetting (taak 11e) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+  const d0 = distDoc('d0', {
+    pinned: true,
+    resources: [stamped('d0-r1', 'lib-1')],
+    tasks: [task('x0', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('d0-a1', 'x0', 'd0-r1', 2)],
+  });
+  const taskZ = task('z', '2026-08-03', '2026-08-05', 3);
+  const taskA = task('a', '2026-08-03', '2026-08-04', 2);
+  const d1 = distDoc('d1', {
+    rank: 1,
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [taskZ, taskA],
+    assignments: [assign('d1-a1', 'a', 'd1-r1', 1)],
+  });
+  const result = computeDistribution('c1', p, 'lib-1', [d0, d1], OPTS_OFF);
+  const { rows } = computeLibraryOccupancy('c1', p, [d0, d1]);
+  const row = rows.find(r => r.libraryItemId === 'lib-1')!;
+  assert(row.docs.length > 0, 'taak 11e sanity: er boeken documenten op dit poolitem');
+  for (const booking of row.docs) {
+    assert(
+      JSON.stringify(result.bookingByDay[booking.docId]) === JSON.stringify(booking.dailyLoad),
+      `taak 11e: bookingByDay['${booking.docId}'] == row.docs[].dailyLoad (kreeg ${JSON.stringify(result.bookingByDay[booking.docId])}, verwacht ${JSON.stringify(booking.dailyLoad)})`,
+    );
+  }
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

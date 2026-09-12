@@ -2,7 +2,7 @@
 // één gedeelde pool ("dezelfde ploeg in twee projecten"). Headless store-batterij (patroon
 // check-library-slice.ts): draait de ECHTE Zustand-store op Node. Exitcode = poort.
 import { useAppStore } from '@/state/appStore';
-import { DEMO_COMPANY_ID, buildDemoLibrarySeed } from '@/services/library/demoLibrary';
+import { DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, buildDemoLibrarySeed } from '@/services/library/demoLibrary';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
 
 let checks = 0; let fails = 0;
@@ -135,6 +135,54 @@ function assert(cond: boolean, msg: string): void {
   // helemaal niets meer gekoppeld wordt.
   const schilder = after.resources.find(r => r.name === 'Painters');
   assert(schilder?.libraryOrigin?.companyId === DEMO_COMPANY_ID, 'F2 negatieve controle: resource-koppeling (Painters) werkt nog gewoon');
+}
+
+// --- (e) Seed-VERSIE: een bestaande demo-pool van vóór de capaciteitscorrectie wordt bijgewerkt ---
+// Waarom: `seedDemoLibrary` was idempotent op de AANWEZIGHEID van het bedrijf, dus een installatie
+// die de demo-bibliotheek ooit geseed had kreeg een latere inhoudscorrectie nooit te zien — en zag
+// in het bezettingsoverzicht een muur van rode rijen. De migratie mag daarbij geen id's veranderen
+// (herkomststempels in open/opgeslagen projecten wijzen daarnaar) en niets verwijderen.
+{
+  useAppStore.setState({ companies: [], pools: {} } as never);
+  const { company, pool } = buildDemoLibrarySeed();
+  // Simuleer een pool van vóór deze versie: oude (te krappe) capaciteiten, geen seedVersion, en
+  // één item dat de oude seed nog niet kende.
+  const oud = {
+    ...pool,
+    seedVersion: undefined,
+    poolVersion: 3,
+    resources: pool.resources
+      .filter((r) => r.name !== 'Lift supplier')
+      .map((r) => r.name === 'Carpenters' ? { ...r, maxUnits: 4, description: 'oude omschrijving' }
+        : r.name === 'Tilers' ? { ...r, maxUnits: 3 }
+          : r.name === 'Kitchen fitters' ? { ...r, maxUnits: 2 } : r),
+  };
+  const idsVoor = new Map(oud.resources.map((r) => [r.name, r.id]));
+  useAppStore.setState({ companies: [company], pools: { [DEMO_COMPANY_ID]: oud } } as never);
+
+  useAppStore.getState().seedDemoLibrary();
+  const na = useAppStore.getState().pools[DEMO_COMPANY_ID];
+  const byName = (n: string) => na.resources.find((r) => r.name === n);
+
+  assert(na.seedVersion === DEMO_LIBRARY_SEED_VERSION, 'migratie: seedVersion gezet op de huidige inhoudsversie');
+  assert(byName('Carpenters')?.maxUnits === 14, `migratie: Carpenters-capaciteit bijgewerkt (heeft: ${byName('Carpenters')?.maxUnits})`);
+  assert(byName('Tilers')?.maxUnits === 16, `migratie: Tilers-capaciteit bijgewerkt (heeft: ${byName('Tilers')?.maxUnits})`);
+  assert(byName('Kitchen fitters')?.maxUnits === 9, `migratie: Kitchen fitters-capaciteit bijgewerkt (heeft: ${byName('Kitchen fitters')?.maxUnits})`);
+  assert(byName('Carpenters')?.description !== 'oude omschrijving', 'migratie: omschrijving bijgewerkt');
+  assert(!!byName('Lift supplier'), 'migratie: ontbrekend item toegevoegd');
+  assert(na.resources.length === 14, `migratie: niets verwijderd, geen duplicaten (heeft: ${na.resources.length})`);
+  for (const [naam, id] of idsVoor) {
+    assert(byName(naam)?.id === id, `migratie: id van "${naam}" ongewijzigd (stempels blijven geldig)`);
+  }
+  assert(na.poolVersion === 4, `migratie: pool gebumpt zodat gekoppelde projecten herclassificeren (heeft: ${na.poolVersion})`);
+  assert(byName('Plasterers')?.maxUnits === 3, 'migratie: het bedoelde knelpunt Plasterers blijft krap (3)');
+  assert(byName('Masonry crew')?.maxUnits === 1, 'migratie: het bedoelde knelpunt Masonry crew blijft krap (1)');
+
+  // Tweede aanroep ⇒ no-op: geen bump, dezelfde objectreferentie.
+  const poolNaEerste = useAppStore.getState().pools[DEMO_COMPANY_ID];
+  useAppStore.getState().seedDemoLibrary();
+  assert(useAppStore.getState().pools[DEMO_COMPANY_ID] === poolNaEerste,
+    'migratie (2e aanroep): no-op — zelfde pool-objectreferentie, geen extra bump');
 }
 
 console.log(`demo-library: ${checks - fails}/${checks} groen`);
