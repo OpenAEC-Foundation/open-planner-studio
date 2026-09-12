@@ -26,6 +26,7 @@
  */
 
 import {
+  ZipCompressionUnsupportedError,
   parseZipEntries,
   type ZipEntry,
   type ZipReadLimits,
@@ -57,7 +58,11 @@ export interface XlsxSheet {
 }
 
 export type XlsxReadIssue =
-  | 'notAZip' | 'encrypted' | 'noSheet' | 'tooLarge' | 'tooManyRows' | 'malformed';
+  | 'notAZip' | 'encrypted' | 'noSheet' | 'tooLarge' | 'tooManyRows' | 'malformed'
+  /** Niet het bestand maar de OMGEVING mankeert iets: geen `DecompressionStream`, dus een
+   *  gedeflate blad kan hier niet uitgepakt worden. Bewust géén `notAZip`: dat zou de gebruiker
+   *  naar het verkeerde bestand laten zoeken. */
+  | 'unsupported';
 
 export class XlsxReadError extends Error {
   readonly issue: XlsxReadIssue;
@@ -543,6 +548,19 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.slice().buffer as ArrayBuffer;
 }
 
+/**
+ * Elke fout uit de ZIP-laag krijgt hier zijn `XlsxReadIssue`. De omgevingsweigering houdt zijn
+ * EIGEN reden (`unsupported`) in plaats van als `notAZip` te vervlakken — het bestand mankeert
+ * niets.
+ */
+function asXlsxReadError(err: unknown): XlsxReadError {
+  if (err instanceof XlsxReadError) return err;
+  if (err instanceof ZipCompressionUnsupportedError) {
+    return new XlsxReadError('unsupported', err.message);
+  }
+  return new XlsxReadError('notAZip', err instanceof Error ? err.message : 'onleesbaar ZIP-archief');
+}
+
 function zipLimitsFrom(limits: XlsxLimits): ZipReadLimits {
   return {
     maxEntryBytes: limits.maxEntryBytes,
@@ -586,8 +604,7 @@ export async function readXlsxSheetWith(
   try {
     meta = await readEntries(buffer, zipLimits, name => XLSX_METADATA_PARTS.has(name));
   } catch (err) {
-    if (err instanceof XlsxReadError) throw err;
-    throw new XlsxReadError('notAZip', err instanceof Error ? err.message : 'onleesbaar ZIP-archief');
+    throw asXlsxReadError(err);
   }
 
   if (textOf(meta, '[Content_Types].xml') === undefined) {
@@ -631,8 +648,7 @@ export async function readXlsxSheetWith(
   try {
     sheetEntries = await readEntries(buffer, zipLimits, name => name === sheetPath);
   } catch (err) {
-    if (err instanceof XlsxReadError) throw err;
-    throw new XlsxReadError('notAZip', err instanceof Error ? err.message : 'onleesbaar ZIP-archief');
+    throw asXlsxReadError(err);
   }
   const sheetXml = textOf(sheetEntries, sheetPath);
   if (sheetXml === undefined) throw new XlsxReadError('noSheet', `bladpart ontbreekt: ${sheetPath}`);

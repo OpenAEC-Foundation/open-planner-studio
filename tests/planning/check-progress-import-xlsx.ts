@@ -352,6 +352,14 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 
   const notOoxml = await zipOf([{ name: 'hoi.txt', data: 'geen werkmap' }]);
   eq('zip zonder [Content_Types].xml ⇒ notAZip', await issueOf(readXlsxSheet(notOoxml)), 'notAZip');
+
+  // Omgeving zonder `DecompressionStream` (fixronde eindreview): het BESTAND mankeert niets, dus
+  // `notAZip` zou de gebruiker naar een probleem laten zoeken dat er niet is. Geinjecteerd via de
+  // ZIP-naad, niet door de omgeving te vervalsen — zelfde vorm als `writeZip`'s `deflate: null`.
+  const zonderInflater: XlsxZipReader = (buffer, zipLimits, select) =>
+    parseZipEntries(buffer, zipLimits, select, { inflate: null });
+  eq('geen inflater ⇒ unsupported, niet notAZip',
+    await issueOf(readXlsxSheetWith(zonderInflater, small)), 'unsupported');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
