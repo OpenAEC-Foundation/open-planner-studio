@@ -291,8 +291,19 @@ function buildStyles(): string {
   const borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>'];
   const cellStyleXfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>'];
 
+  /**
+   * `locked` is expliciet, niet impliciet (eindreview 2026-09-12, punt a). `locked="1"` is
+   * weliswaar de default van `CT_CellProtection`, maar die default erft via `cellStyleXfs[0]` —
+   * en dat is precies de keten die een latere bewerking (een extra `cellStyleXfs`-entry, een
+   * `xfId`-wijziging, of een programma dat het blad herschrijft) stilzwijgend kan doorsnijden.
+   * Een blad dat dán zijn vergrendeling verliest gaat niet stuk: het accepteert gewoon
+   * bewerkingen in de alleen-lezen kolommen, en dat merk je pas bij de terugimport. Vandaar
+   * `applyProtection="1"` + een uitgeschreven `<protection locked="1"/>` op elke stijl waarvan de
+   * vergrendeling ertoe doet — de vier ontgrendelde stijlen dragen hun `locked="0"` al net zo hard.
+   */
   const xf = (opts: {
-    numFmtId?: number; fontId?: number; fillId?: number; unlocked?: boolean; wrap?: boolean;
+    numFmtId?: number; fontId?: number; fillId?: number;
+    locked?: boolean; wrap?: boolean;
   }): string => {
     const numFmtId = opts.numFmtId ?? 0;
     const head = [
@@ -301,25 +312,25 @@ function buildStyles(): string {
       opts.fontId ? ' applyFont="1"' : '',
       opts.fillId ? ' applyFill="1"' : '',
       opts.wrap ? ' applyAlignment="1"' : '',
-      opts.unlocked ? ' applyProtection="1"' : '',
+      opts.locked === undefined ? '' : ' applyProtection="1"',
     ].join('');
     // `CT_Xf` is óók een sequence: `alignment` vóór `protection`.
     const children = `${opts.wrap ? '<alignment vertical="top" wrapText="1"/>' : ''}`
-      + `${opts.unlocked ? '<protection locked="0"/>' : ''}`;
+      + (opts.locked === undefined ? '' : `<protection locked="${opts.locked ? 1 : 0}"/>`);
     return children ? `${head}>${children}</xf>` : `${head}/>`;
   };
 
   const cellXfs = [
     xf({}),                                                    // 0 standaard
-    xf({ fontId: 1, wrap: true }),                             // 1 kop
-    xf({}),                                                    // 2 alleen-lezen tekst
-    xf({ numFmtId: 164 }),                                     // 3 alleen-lezen datum
-    xf({ numFmtId: 165 }),                                     // 4 alleen-lezen datumtijd
-    xf({ unlocked: true }),                                    // 5 invul-tekst
-    xf({ numFmtId: 166, unlocked: true }),                     // 6 invul-percentage
-    xf({ numFmtId: 164, unlocked: true }),                     // 7 invul-datum
-    xf({ numFmtId: 165, unlocked: true }),                     // 8 invul-datumtijd
-    xf({ fillId: 1, wrap: true }),                             // 9 verzamelrij-markering
+    xf({ fontId: 1, wrap: true, locked: true }),               // 1 kop
+    xf({ locked: true }),                                      // 2 alleen-lezen tekst
+    xf({ numFmtId: 164, locked: true }),                       // 3 alleen-lezen datum
+    xf({ numFmtId: 165, locked: true }),                       // 4 alleen-lezen datumtijd
+    xf({ locked: false }),                                     // 5 invul-tekst
+    xf({ numFmtId: 166, locked: false }),                      // 6 invul-percentage
+    xf({ numFmtId: 164, locked: false }),                      // 7 invul-datum
+    xf({ numFmtId: 165, locked: false }),                      // 8 invul-datumtijd
+    xf({ fillId: 1, wrap: true, locked: true }),               // 9 verzamelrij-markering
   ];
 
   const group = (tag: string, items: readonly string[]): string =>
@@ -368,6 +379,38 @@ function validationXml(opts: {
   return `<dataValidation ${attrs.join(' ')}><formula1>${opts.f1}</formula1><formula2>${opts.f2}</formula2></dataValidation>`;
 }
 
+/**
+ * De `sqref` van één invulkolom: rij 2 t/m `lastRow`, MÍNUS de rijen van verzameltaken.
+ *
+ * Waarom die uitzondering (eindreview 2026-09-12, punt b): de drie invulcellen van een verzamelrij
+ * dragen géén getal of datum maar de em-dash-MEDEDELING "niet invullen" — een tekstcel. Een
+ * `date`- of `decimal`-validatie over zo'n cel is een tegenstrijdigheid: Excel toont er de
+ * invulhint van een kolom die daar juist niet ingevuld mag worden, en zodra de invuller de cel
+ * aanraakt (kopiëren-plakken over het blad, of het blad met een ander programma bewerken dat de
+ * bladbeveiliging negeert) krijgt hij een foutmelding over een datum, niet de uitleg dat een
+ * verzameltaak zijn voortgang uit zijn kinderen krijgt. De bladbeveiliging houdt de cel al
+ * vergrendeld; de validatie hoort er dan ook niet overheen te lopen.
+ *
+ * Aaneengesloten rijen worden tot één bereik samengevouwen (`G3:G7 G9`), zoals Excel zelf ook
+ * schrijft; een enkele rij wordt een kale celverwijzing. Zonder taken blijft er `X2` staan —
+ * `X2:X1` zou ongeldig zijn.
+ */
+function fillableSqref(letter: string, markedRows: ReadonlySet<number>, lastRow: number): string {
+  const ranges: string[] = [];
+  let runStart: number | undefined;
+  const flush = (end: number): void => {
+    if (runStart === undefined) return;
+    ranges.push(runStart === end ? `${letter}${runStart}` : `${letter}${runStart}:${letter}${end}`);
+    runStart = undefined;
+  };
+  for (let row = 2; row <= lastRow; row++) {
+    if (markedRows.has(row)) flush(row - 1);
+    else if (runStart === undefined) runStart = row;
+  }
+  flush(lastRow);
+  return ranges.join(' ');
+}
+
 function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string {
   const notes = text.headerNotes;
   const summaryNote = text.summaryNote;
@@ -405,9 +448,11 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
   // Vaste kophoogte: de instructie mag wrappen zonder de kolom breed te maken.
   const rows = [`<row r="1" ht="46" customHeight="1">${headerCells}</row>`];
 
+  const markedRows = new Set<number>();
   tasks.forEach((task, index) => {
     const rowNumber = index + 2;
     const marked = summaryNote !== undefined && task.childIds.length > 0;
+    if (marked) markedRows.add(rowNumber);
     const values = rowValues(task, marked, summaryNote ?? '');
     const cells = COLUMNS.map((col, i) =>
       dataCell(`${columnLetter(i)}${rowNumber}`, col, values[i] ?? '', marked && col.editable),
@@ -419,19 +464,28 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
   // Begrensd tot de werkelijke laatste rij — géén open `F2:F1048576`. Bij een leeg project blijft
   // rij 2 staan, anders zou `F2:F1` een ongeldig bereik zijn.
   const lastRow = Math.max(2, tasks.length + 1);
+  // DRIE blokken, één per invulkolom — niet twee met `G2:H…` samengevoegd. Een `dataValidation`
+  // draagt precies één `prompt`, dus een gedeeld G/H-blok gaf de kolom *Actual Finish* de tooltip
+  // van *Actual Start* ("werkelijke startdatum") — eindreview 2026-09-12, bevinding 3. De REGEL
+  // (type/bereik/foutmelding) is voor beide datumkolommen identiek; alleen de invulhint verschilt.
+  const dateRule = {
+    // 1 = 1900-01-01, 2958465 = 9999-12-31: de volle datumruimte van Excel.
+    type: 'date' as const, f1: '1', f2: '2958465',
+    title: text.validation?.dateTitle, error: text.validation?.dateError,
+  };
   const validations = [
-    validationXml({
-      type: 'decimal', sqref: `F2:F${lastRow}`, f1: '0', f2: '100',
+    { sqref: fillableSqref('F', markedRows, lastRow), opts: {
+      type: 'decimal' as const, f1: '0', f2: '100',
       title: text.validation?.percentTitle, error: text.validation?.percentError,
       prompt: notes?.['Completion (%)'],
-    }),
-    validationXml({
-      // 1 = 1900-01-01, 2958465 = 9999-12-31: de volle datumruimte van Excel.
-      type: 'date', sqref: `G2:H${lastRow}`, f1: '1', f2: '2958465',
-      title: text.validation?.dateTitle, error: text.validation?.dateError,
-      prompt: notes?.['Actual Start'],
-    }),
-  ];
+    } },
+    { sqref: fillableSqref('G', markedRows, lastRow), opts: { ...dateRule, prompt: notes?.['Actual Start'] } },
+    { sqref: fillableSqref('H', markedRows, lastRow), opts: { ...dateRule, prompt: notes?.['Actual Finish'] } },
+  ]
+    // Een blad waarin élke taak een verzameltaak is houdt geen invulbare rij over; dan is een
+    // `dataValidation` zonder bereik geen "lege regel" maar ongeldige XML.
+    .filter(v => v.sqref.length > 0)
+    .map(v => validationXml({ ...v.opts, sqref: v.sqref }));
 
   const lastCol = columnLetter(COLUMNS.length - 1);
   return `${XML_DECL}<worksheet xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">`
@@ -446,7 +500,9 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
     + `<sheetData>${rows.join('')}</sheetData>`
     // Let op de polariteit: 1 = VERBODEN. Zie de moduledoc, valstrik 3.
     + '<sheetProtection sheet="1" selectLockedCells="0" selectUnlockedCells="0" formatColumns="0" formatRows="0"/>'
-    + `<dataValidations count="${validations.length}">${validations.join('')}</dataValidations>`
+    + (validations.length > 0
+      ? `<dataValidations count="${validations.length}">${validations.join('')}</dataValidations>`
+      : '')
     + '</worksheet>';
 }
 

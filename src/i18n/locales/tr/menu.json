@@ -323,7 +323,9 @@
       "dateError": "Geçerli bir tarih girin."
     },
     "progressXlsxNotes": {
-      "completion": "doldurun: 0 ile 100 arası, ondalık sayı kullanılabilir"
+      "completion": "doldurun: 0 ile 100 arası, ondalık sayı kullanılabilir",
+      "actualStart": "doldurun: gerçek başlangıç tarihi (tarih olarak)",
+      "actualFinish": "doldurun: gerçek bitiş tarihi (tarih olarak)"
     },
     "progressCsvLabel": "İlerleme sayfası (CSV)",
     "progressCsvDesc": "Aynı sade ilerleme sayfasının düz metin hâli — CSV ile çalışmayı tercih edenler için.",

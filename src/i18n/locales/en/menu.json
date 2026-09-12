@@ -323,7 +323,9 @@
       "dateError": "Enter a valid date."
     },
     "progressXlsxNotes": {
-      "completion": "fill in: 0 to 100, decimals allowed"
+      "completion": "fill in: 0 to 100, decimals allowed",
+      "actualStart": "fill in: actual start date (as a date)",
+      "actualFinish": "fill in: actual finish date (as a date)"
     },
     "progressCsvLabel": "Progress sheet (CSV)",
     "progressCsvDesc": "The same slim progress sheet as plain text — for those who prefer working with a CSV.",

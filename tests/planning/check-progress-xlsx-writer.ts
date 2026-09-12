@@ -176,10 +176,7 @@ const colWidths = (sheet: string): number[] =>
 const colStyles = (sheet: string): number[] =>
   [...sheet.matchAll(/<col\b[^>]*\bstyle="(\d+)"/g)].map(m => Number(m[1]));
 
-function validation(sheet: string, type: 'decimal' | 'date'): Record<string, string> {
-  const m = new RegExp(`<dataValidation type="${type}"[^>]*>[\\s\\S]*?</dataValidation>`).exec(sheet);
-  if (!m) return {};
-  const block = m[0];
+function parseValidation(block: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   for (const a of block.slice(0, block.indexOf('>')).matchAll(/([a-zA-Z0-9]+)="([^"]*)"/g)) {
     attrs[a[1]!] = a[2]!;
@@ -187,6 +184,20 @@ function validation(sheet: string, type: 'decimal' | 'date'): Record<string, str
   attrs.f1 = /<formula1>([^<]*)<\/formula1>/.exec(block)?.[1] ?? '';
   attrs.f2 = /<formula2>([^<]*)<\/formula2>/.exec(block)?.[1] ?? '';
   return attrs;
+}
+
+/** Alle `dataValidation`-blokken, in bladvolgorde. */
+function validations(sheet: string): Record<string, string>[] {
+  return [...sheet.matchAll(/<dataValidation [\s\S]*?<\/dataValidation>/g)].map(m => parseValidation(m[0]));
+}
+
+/**
+ * De validatie die over kolom `letter` gaat. Sinds de eindreview (bevinding 3) is er per
+ * INVULKOLOM één blok — alleen zo kan elke kolom zijn eigen invulhint dragen — dus zoeken op
+ * `type` alleen zou de twee datumkolommen niet uit elkaar houden.
+ */
+function validationOf(sheet: string, letter: 'F' | 'G' | 'H'): Record<string, string> {
+  return validations(sheet).find(v => (v.sqref ?? '').startsWith(letter)) ?? {};
 }
 
 /** De stijlindex van de cel die de verzamelrij-markering draagt. */
@@ -271,18 +282,46 @@ eq('selecteren blijft toegestaan', ws.includes('selectLockedCells="0"'), true);
 eq('kolombreedte aanpassen mag', ws.includes('formatColumns="0"'), true);
 ok('geen wachtwoord op de bladbeveiliging', !ws.includes('password='));
 eq('vier ontgrendelde stijlen', unlockedStyleCount(st), 4); // tekst/percentage/datum/datumtijd
-eq('percentagevalidatie 0..100', (({ f1, f2, allowBlank }) => ({ f1, f2, allowBlank }))(validation(ws, 'decimal')),
+// Punt a van de eindreview: de vergrendeling van de alleen-lezen stijlen en van de
+// verzamelrij-markering staat er UITGESCHREVEN, niet alleen geërfd via `cellStyleXfs[0]`. Vijf
+// stijlen: kop, alleen-lezen tekst/datum/datumtijd en de verzamelrij-markering.
+eq('vijf expliciet vergrendelde stijlen',
+  cellXfEntries(st).filter(xf => xf.includes('<protection locked="1"/>')).length, 5);
+ok('elke stijl met een protection-kind zegt dat ook in applyProtection',
+  cellXfEntries(st).every(xf => xf.includes('<protection ') === xf.includes('applyProtection="1"')));
+ok('de verzamelrij-stijl is expliciet vergrendeld',
+  (cellXfEntries(st)[lockedSummaryStyle(st)] ?? '').includes('applyProtection="1"')
+  && (cellXfEntries(st)[lockedSummaryStyle(st)] ?? '').includes('<protection locked="1"/>'));
+eq('percentagevalidatie 0..100', (({ f1, f2, allowBlank }) => ({ f1, f2, allowBlank }))(validationOf(ws, 'F')),
   { f1: '0', f2: '100', allowBlank: '1' });
-eq('datumvalidatie is type date', validation(ws, 'date').type, 'date');
-eq('twee validatieblokken', declaredCount(ws, 'dataValidations'), 2);
-eq('percentagevalidatie dekt precies de invulkolom tot de laatste rij',
-  validation(ws, 'decimal').sqref, 'F2:F4');
-eq('datumvalidatie dekt beide werkelijke-datumkolommen', validation(ws, 'date').sqref, 'G2:H4');
+eq('de percentagekolom is een decimal-validatie', validationOf(ws, 'F').type, 'decimal');
+eq('beide datumkolommen zijn type date',
+  [validationOf(ws, 'G').type, validationOf(ws, 'H').type], ['date', 'date']);
+// Bevinding 3 van de eindreview: één blok per INVULKOLOM. Een gedeeld `G2:H…`-blok kan maar één
+// `prompt` dragen, en dat was die van *Actual Start* — de tooltip op *Actual Finish* zei dus
+// "startdatum".
+eq('drie validatieblokken, één per invulkolom', declaredCount(ws, 'dataValidations'), 3);
+eq('…en er staan er ook echt drie', validations(ws).length, 3);
+// Punt b: rij 2 is de verzameltaak; die drie invulcellen dragen een tekstmededeling, geen getal of
+// datum, dus geen enkele validatie hoort erover te lopen.
+eq('percentagevalidatie slaat de verzamelrij over', validationOf(ws, 'F').sqref, 'F3:F4');
+eq('de werkelijke-startkolom slaat de verzamelrij over', validationOf(ws, 'G').sqref, 'G3:G4');
+eq('de werkelijke-eindkolom slaat de verzamelrij over', validationOf(ws, 'H').sqref, 'H3:H4');
+ok('geen enkele sqref raakt rij 2', validations(ws).every(v => !/[FGH]2\b/.test(v.sqref ?? '')));
 ok('sqref is begrensd tot de laatste rij', !ws.includes('1048576'));
-ok('een lege cel mag nooit een foutmelding geven', validation(ws, 'date').allowBlank === '1');
-eq('de foutmelding is een stop', validation(ws, 'decimal').errorStyle, 'stop');
+ok('een lege cel mag nooit een foutmelding geven',
+  validations(ws).every(v => v.allowBlank === '1'));
+eq('de foutmelding is een stop', validationOf(ws, 'F').errorStyle, 'stop');
 ok('de invulhint hergebruikt de kopinstructie',
-  validation(ws, 'decimal').prompt === 'vul hier het percentage in (0-100)');
+  validationOf(ws, 'F').prompt === 'vul hier het percentage in (0-100)');
+eq('de werkelijke-startkolom heeft de starthint',
+  validationOf(ws, 'G').prompt, 'vul hier de werkelijke startdatum in');
+eq('de werkelijke-eindkolom heeft zijn EIGEN hint, niet die van de startkolom',
+  validationOf(ws, 'H').prompt, 'vul hier de werkelijke einddatum in');
+ok('de twee datumkolommen delen wél dezelfde regel en foutmelding',
+  validationOf(ws, 'G').error === validationOf(ws, 'H').error
+  && validationOf(ws, 'G').f1 === validationOf(ws, 'H').f1
+  && validationOf(ws, 'G').f2 === validationOf(ws, 'H').f2);
 eq('de invulkolommen dragen ook op kolomniveau een ontgrendelde stijl',
   colStyles(ws).slice(5), [6, 7, 7]);
 eq('de alleen-lezen kolommen dragen een vergrendelde stijl', colStyles(ws).slice(0, 5), [2, 2, 2, 3, 3]);
@@ -354,15 +393,37 @@ ok('& in een taaknaam', ws.includes('Staal &amp; Beton'));
   const bws = bare.find(p => p.name === 'xl/worksheets/sheet1.xml')?.xml ?? '';
   ok('zonder instructies staat de kale sleutel in de kop', bws.includes('>OPS Task ID<'));
   ok('zonder summaryNote krijgt een verzameltaak gewoon zijn waarde', /<c r="F2" s="6"><v>50<\/v>/.test(bws));
-  ok('de validatie blijft staan zonder teksten', bws.includes('<dataValidations count="2">'));
+  ok('de validatie blijft staan zonder teksten', bws.includes('<dataValidations count="3">'));
   ok('geen leeg errorTitle-attribuut', !bws.includes('errorTitle=""'));
+  ok('geen leeg prompt-attribuut', !bws.includes('prompt=""'));
+  // Zonder `summaryNote` is er geen enkele markering, dus ook niets om over te slaan: de bereiken
+  // beginnen weer op rij 2. Dat pint dat de uitzondering aan de MARKERING hangt en niet aan
+  // "heeft kinderen".
+  eq('zonder markering dekt de validatie ook de verzamelrij', validationOf(bws, 'G').sqref, 'G2:G4');
 }
 {
-  // Een leeg project: `F2:F1` zou een ongeldig bereik zijn, dus de ondergrens is rij 2.
+  // Een leeg project: `F2:F1` zou een ongeldig bereik zijn, dus de ondergrens is rij 2. Eén rij
+  // levert een kale celverwijzing op — precies wat Excel zelf schrijft.
   const empty = buildProgressXlsxParts([], text);
   const ews = empty.find(p => p.name === 'xl/worksheets/sheet1.xml')?.xml ?? '';
-  eq('leeg project houdt een geldig validatiebereik', validation(ews, 'decimal').sqref, 'F2:F2');
+  eq('leeg project houdt een geldig validatiebereik', validationOf(ews, 'F').sqref, 'F2');
+  ok('leeg project schrijft nooit een omgekeerd bereik', !ews.includes(':F1"') && !ews.includes(':F1 '));
   ok('leeg project heeft alleen de kopregel', !ews.includes('<row r="2"'));
+}
+{
+  // Alléén verzameltaken: er blijft geen invulbare rij over. Een `dataValidation` zonder bereik is
+  // ongeldige XML, dus het hele element hoort dan weg te blijven — niet als lege huls te blijven
+  // staan.
+  const allSummary = buildProgressXlsxParts(
+    [tasks[0]!, { ...tasks[1]!, childIds: ['x'] }, { ...tasks[2]!, childIds: ['y'] }],
+    text,
+  );
+  const aws = allSummary.find(p => p.name === 'xl/worksheets/sheet1.xml')?.xml ?? '';
+  ok('een blad zonder invulbare rij krijgt géén dataValidations-element',
+    !aws.includes('<dataValidations'));
+  ok('…maar wel gewoon zijn rijen en bladbeveiliging',
+    aws.includes('<row r="4"') && aws.includes('<sheetProtection sheet="1"'));
+  ok('geen lege sqref in het bestand', !aws.includes('sqref=""'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
