@@ -312,8 +312,23 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "進捗シート（Excel）",
+    "progressXlsxDesc": "ID、WBS、名前、日付、完了率のみを含むスリムなシート — 列幅固定、フィールドのロック、日付チェック付き。",
+    "progressXlsxShort": "進捗（Excel）",
+    "progressXlsxSheetName": "進捗",
+    "progressXlsxValidation": {
+      "percentTitle": "完了率（%）",
+      "percentError": "0 から 100 までの数値を入力してください。",
+      "dateTitle": "実績日",
+      "dateError": "有効な日付を入力してください。"
+    },
+    "progressXlsxNotes": {
+      "completion": "入力してください：0〜100、小数も可",
+      "actualStart": "入力してください：実際の開始日（日付として）",
+      "actualFinish": "入力してください：実際の終了日（日付として）"
+    },
     "progressCsvLabel": "進捗シート（CSV）",
-    "progressCsvDesc": "ID、WBS、名前、日付、完了率のみを含むスリムなシート — 進捗更新用。",
+    "progressCsvDesc": "同じスリムな進捗シートのプレーンテキスト版 — CSV で作業したい方向け。",
     "progressCsvShort": "進捗（CSV）",
     "progressCsvNotes": {
       "readOnly": "変更しないでください",

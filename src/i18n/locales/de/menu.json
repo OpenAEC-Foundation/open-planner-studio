@@ -312,8 +312,23 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Fortschrittsblatt (Excel)",
+    "progressXlsxDesc": "Schlankes Blatt mit nur ID, PSP, Name, Terminen und Fortschritt — mit festen Spaltenbreiten, gesperrten Feldern und Datumsprüfung.",
+    "progressXlsxShort": "Fortschritt (Excel)",
+    "progressXlsxSheetName": "Fortschritt",
+    "progressXlsxValidation": {
+      "percentTitle": "Fortschritt (%)",
+      "percentError": "Geben Sie eine Zahl von 0 bis 100 ein.",
+      "dateTitle": "Tatsächliches Datum",
+      "dateError": "Geben Sie ein gültiges Datum ein."
+    },
+    "progressXlsxNotes": {
+      "completion": "ausfüllen: 0 bis 100, Dezimalstellen erlaubt",
+      "actualStart": "ausfüllen: tatsächliches Startdatum (als Datum)",
+      "actualFinish": "ausfüllen: tatsächliches Enddatum (als Datum)"
+    },
     "progressCsvLabel": "Fortschrittsblatt (CSV)",
-    "progressCsvDesc": "Schlankes Blatt mit nur ID, PSP, Name, Terminen und Fortschritt — zum Aktualisieren des Fortschritts.",
+    "progressCsvDesc": "Dasselbe schlanke Fortschrittsblatt als reiner Text — für alle, die lieber mit einer CSV arbeiten.",
     "progressCsvShort": "Fortschritt (CSV)",
     "progressCsvNotes": {
       "readOnly": "nicht ändern",

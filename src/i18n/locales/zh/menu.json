@@ -312,8 +312,23 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "进度表（Excel）",
+    "progressXlsxDesc": "精简表格，仅含编号、WBS、名称、日期和完成度——列宽固定、字段锁定并带日期校验。",
+    "progressXlsxShort": "进度（Excel）",
+    "progressXlsxSheetName": "进度",
+    "progressXlsxValidation": {
+      "percentTitle": "完成度（%）",
+      "percentError": "请输入 0 到 100 之间的数字。",
+      "dateTitle": "实际日期",
+      "dateError": "请输入有效的日期。"
+    },
+    "progressXlsxNotes": {
+      "completion": "请填写：0 到 100，允许小数",
+      "actualStart": "请填写：实际开始日期（日期格式）",
+      "actualFinish": "请填写：实际完成日期（日期格式）"
+    },
     "progressCsvLabel": "进度表（CSV）",
-    "progressCsvDesc": "精简表格，仅含编号、WBS、名称、日期和完成度——用于更新进度。",
+    "progressCsvDesc": "同一份精简进度表的纯文本版——适合更习惯使用 CSV 的人。",
     "progressCsvShort": "进度（CSV）",
     "progressCsvNotes": {
       "readOnly": "请勿更改",

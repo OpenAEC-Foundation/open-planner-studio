@@ -1064,7 +1064,8 @@
       "tooManyRows": "Este ficheiro tem demasiadas linhas para ser lido como planilha de progresso.",
       "noKeyColumn": "Este ficheiro não tem coluna «OPS Task ID» nem «WBS» para ligar linhas a tarefas.",
       "noProgressColumns": "Este ficheiro não tem nenhuma das colunas Conclusão, Início real ou Fim real.",
-      "unreadable": "Não foi possível ler este ficheiro como planilha de progresso."
+      "unreadable": "Não foi possível ler este ficheiro como planilha de progresso.",
+      "encrypted": "Este ficheiro está protegido por palavra-passe e não pode ser lido."
     },
     "reason": {
       "unmatched": "Nenhuma tarefa encontrada para esta linha.",

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { buildPrintRows, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
-import { ensureExtension } from '@/utils/filePath';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
@@ -19,7 +18,7 @@ import {
 } from '@/components/viewControls/barColorFieldOptions';
 import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useSplitter } from '@/hooks/useSplitter';
-import { isTauri } from '@/utils/platform';
+import { saveBytesDialog } from '@/services/fileAccess';
 import {
   DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, TABLE_REPORT_TYPES,
   type ReportType, type TableReportOptions,
@@ -808,26 +807,33 @@ export function ReportPanel() {
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
 
-  /** Gedeelde PDF-schrijver: Tauri → save-dialoog + writeFile, web → blob-download. */
+  /**
+   * Gedeelde PDF-schrijver. Sinds issue #27 etappe 3 (X8) loopt dit via `saveBytesDialog`, het
+   * enige byte-schrijfpad van de app — Tauri: save-dialoog + `writeFile`; web: FSA-picker met
+   * download-terugval. Bewust GEEN `viaDownload`-melding: dat was hier ook vóór de lift niet zo
+   * (Q3 in het plan), en die melding erbij zou deze etappe stil uitbreiden.
+   *
+   * De try/catch is niet optioneel (eindreview 2026-09-12, bevinding 4). `saveBytesDialog` geeft
+   * een geannuleerde dialoog terug als `null`, maar een ECHTE fout (schijf vol, bestand
+   * vergrendeld, geweigerd bestandstype) gooit hij bewust door — zie `saveDataDialogWeb`. Deze
+   * aanroeper hangt aan een `void runExport()`, dus zonder vangnet werd dat een unhandled
+   * rejection: de gebruiker drukt op Exporteren en er gebeurt zichtbaar niets. Melden gaat via het
+   * ene meldingskanaal (K8a) met dezelfde sleutel die `fileSlice` voor een mislukte schrijfactie
+   * gebruikt — geen nieuwe sleutel voor dezelfde gebeurtenis.
+   */
   const writePdf = useCallback(async (pdfBytes: Uint8Array, defaultName: string) => {
-    if (isTauri()) {
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-      const picked = await save({
-        defaultPath: defaultName,
-        filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    try {
+      await saveBytesDialog(
+        defaultName, pdfBytes,
+        [{ name: 'PDF Document', extensions: ['pdf'] }],
+        { mime: 'application/pdf' },
+      );
+    } catch (err) {
+      useAppStore.getState().notify({
+        severity: 'error',
+        messageKey: 'notifications.saveFailed',
+        detail: (err as Error).message,
       });
-      if (!picked) return;
-      const savedPath = ensureExtension(picked, 'pdf');
-      await writeFile(savedPath, pdfBytes);
-    } else {
-      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = defaultName;
-      link.href = url;
-      link.click();
-      URL.revokeObjectURL(url);
     }
   }, []);
 
@@ -1020,6 +1026,20 @@ export function ReportPanel() {
   // nog de "planning gewijzigd"-melding). De export wordt daarom uitgesteld tot het effect hieronder
   // ná de re-render met de verse waarden vuurt.
   const exportPendingRef = useRef(false);
+  /**
+   * `runExport` wordt vanaf twee plekken los gestart (`void`), dus een afwijzing die het `writePdf`
+   * -vangnet niet dekt — het opbouwen van de PDF zelf, een glyph die `pdf-lib` weigert — zou een
+   * unhandled rejection zijn. Zelfde kanaal, zelfde reden als in `writePdf`.
+   */
+  const startExport = useCallback(() => {
+    runExport().catch((err: unknown) => {
+      useAppStore.getState().notify({
+        severity: 'error',
+        messageKey: 'notifications.saveFailed',
+        detail: (err as Error).message,
+      });
+    });
+  }, [runExport]);
   const handleExportPDF = useCallback(() => {
     const st = useAppStore.getState();
     if (st.scheduleStale) {
@@ -1027,13 +1047,13 @@ export function ReportPanel() {
       st.runCPM();
       return;
     }
-    void runExport();
-  }, [runExport]);
+    startExport();
+  }, [startExport]);
   useEffect(() => {
     if (!exportPendingRef.current || scheduleStale) return;
     exportPendingRef.current = false;
-    void runExport();
-  }, [scheduleStale, runExport]);
+    startExport();
+  }, [scheduleStale, startExport]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;

@@ -312,8 +312,23 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Progress sheet (Excel)",
+    "progressXlsxDesc": "Slim sheet with only id, WBS, name, dates and completion — with fixed column widths, locked fields and date checking.",
+    "progressXlsxShort": "Progress (Excel)",
+    "progressXlsxSheetName": "Progress",
+    "progressXlsxValidation": {
+      "percentTitle": "Completion (%)",
+      "percentError": "Enter a number from 0 to 100.",
+      "dateTitle": "Actual date",
+      "dateError": "Enter a valid date."
+    },
+    "progressXlsxNotes": {
+      "completion": "fill in: 0 to 100, decimals allowed",
+      "actualStart": "fill in: actual start date (as a date)",
+      "actualFinish": "fill in: actual finish date (as a date)"
+    },
     "progressCsvLabel": "Progress sheet (CSV)",
-    "progressCsvDesc": "Slim sheet with only id, WBS, name, dates and completion — for updating progress.",
+    "progressCsvDesc": "The same slim progress sheet as plain text — for those who prefer working with a CSV.",
     "progressCsvShort": "Progress (CSV)",
     "progressCsvNotes": {
       "readOnly": "do not change",

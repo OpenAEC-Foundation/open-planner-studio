@@ -1046,7 +1046,8 @@
       "tooManyRows": "This file has too many rows to read as a progress sheet.",
       "noKeyColumn": "This file has no “OPS Task ID” or “WBS” column to link rows to tasks.",
       "noProgressColumns": "This file has none of the Completion, Actual Start or Actual Finish columns.",
-      "unreadable": "This file could not be read as a progress sheet."
+      "unreadable": "This file could not be read as a progress sheet.",
+      "encrypted": "This file is password-protected and cannot be read."
     },
     "reason": {
       "unmatched": "No task found for this row.",

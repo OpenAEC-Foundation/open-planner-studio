@@ -1028,7 +1028,8 @@
       "tooManyRows": "此文件行数太多，无法作为进度表读取。",
       "noKeyColumn": "此文件没有“OPS Task ID”或“WBS”列，无法将行与任务关联。",
       "noProgressColumns": "此文件没有完成度、实际开始或实际完成中的任何一列。",
-      "unreadable": "此文件无法作为进度表读取。"
+      "unreadable": "此文件无法作为进度表读取。",
+      "encrypted": "此文件受密码保护，无法读取。"
     },
     "reason": {
       "unmatched": "未找到此行对应的任务。",

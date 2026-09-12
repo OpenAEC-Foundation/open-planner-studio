@@ -312,8 +312,23 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Foglio di avanzamento (Excel)",
+    "progressXlsxDesc": "Foglio snello con solo id, WBS, nome, date e avanzamento — con larghezze di colonna fisse, campi bloccati e controllo delle date.",
+    "progressXlsxShort": "Avanzamento (Excel)",
+    "progressXlsxSheetName": "Avanzamento",
+    "progressXlsxValidation": {
+      "percentTitle": "Completamento (%)",
+      "percentError": "Inserisci un numero da 0 a 100.",
+      "dateTitle": "Data effettiva",
+      "dateError": "Inserisci una data valida."
+    },
+    "progressXlsxNotes": {
+      "completion": "da compilare: da 0 a 100, sono ammessi i decimali",
+      "actualStart": "da compilare: data di inizio effettiva (come data)",
+      "actualFinish": "da compilare: data di fine effettiva (come data)"
+    },
     "progressCsvLabel": "Foglio di avanzamento (CSV)",
-    "progressCsvDesc": "Foglio snello con solo id, WBS, nome, date e avanzamento — per aggiornare l’avanzamento.",
+    "progressCsvDesc": "Lo stesso foglio di avanzamento snello in testo semplice — per chi preferisce lavorare con un CSV.",
     "progressCsvShort": "Avanzamento (CSV)",
     "progressCsvNotes": {
       "readOnly": "non modificare",

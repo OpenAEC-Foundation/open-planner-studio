@@ -1046,7 +1046,8 @@
       "tooManyRows": "Dit bestand heeft te veel rijen om als voortgangsblad te lezen.",
       "noKeyColumn": "Dit bestand heeft geen kolom “OPS Task ID” of “WBS” om rijen aan taken te koppelen.",
       "noProgressColumns": "Dit bestand heeft geen van de kolommen Voltooiing, Werkelijke start of Werkelijk einde.",
-      "unreadable": "Dit bestand kon niet als voortgangsblad worden gelezen."
+      "unreadable": "Dit bestand kon niet als voortgangsblad worden gelezen.",
+      "encrypted": "Dit bestand is met een wachtwoord beveiligd en kan niet worden gelezen."
     },
     "reason": {
       "unmatched": "Geen taak gevonden voor deze rij.",

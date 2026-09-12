@@ -1082,7 +1082,8 @@
       "tooManyRows": "Ten plik ma zbyt wiele wierszy, aby odczytać go jako arkusz postępu.",
       "noKeyColumn": "Ten plik nie ma kolumny „OPS Task ID” ani „WBS” do powiązania wierszy z zadaniami.",
       "noProgressColumns": "Ten plik nie ma żadnej z kolumn Ukończenie, Rzeczywisty start ani Rzeczywiste zakończenie.",
-      "unreadable": "Nie udało się odczytać tego pliku jako arkusza postępu."
+      "unreadable": "Nie udało się odczytać tego pliku jako arkusza postępu.",
+      "encrypted": "Ten plik jest chroniony hasłem i nie można go odczytać."
     },
     "reason": {
       "unmatched": "Nie znaleziono zadania dla tego wiersza.",

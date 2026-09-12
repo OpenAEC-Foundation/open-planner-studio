@@ -1064,7 +1064,8 @@
       "tooManyRows": "Este archivo tiene demasiadas filas para leerlo como hoja de avance.",
       "noKeyColumn": "Este archivo no tiene columna «OPS Task ID» ni «WBS» para vincular filas con tareas.",
       "noProgressColumns": "Este archivo no tiene ninguna de las columnas Finalización, Inicio real o Fin real.",
-      "unreadable": "Este archivo no se pudo leer como hoja de avance."
+      "unreadable": "Este archivo no se pudo leer como hoja de avance.",
+      "encrypted": "Este archivo está protegido con contraseña y no se puede leer."
     },
     "reason": {
       "unmatched": "No se encontró ninguna tarea para esta fila.",

@@ -1064,7 +1064,8 @@
       "tooManyRows": "Questo file ha troppe righe per essere letto come foglio di avanzamento.",
       "noKeyColumn": "Questo file non ha una colonna «OPS Task ID» né «WBS» per collegare le righe alle attività.",
       "noProgressColumns": "Questo file non ha nessuna delle colonne Completamento, Inizio effettivo o Fine effettiva.",
-      "unreadable": "Questo file non è stato possibile leggerlo come foglio di avanzamento."
+      "unreadable": "Questo file non è stato possibile leggerlo come foglio di avanzamento.",
+      "encrypted": "Questo file è protetto da password e non può essere letto."
     },
     "reason": {
       "unmatched": "Nessuna attività trovata per questa riga.",

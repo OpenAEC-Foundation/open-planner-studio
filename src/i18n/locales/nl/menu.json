@@ -312,8 +312,23 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Voortgangsblad (Excel)",
+    "progressXlsxDesc": "Slank blad met alleen id, WBS, naam, datums en voltooiing — met vaste kolombreedtes, vergrendelde velden en datumcontrole.",
+    "progressXlsxShort": "Voortgang (Excel)",
+    "progressXlsxSheetName": "Voortgang",
+    "progressXlsxValidation": {
+      "percentTitle": "Voltooiing (%)",
+      "percentError": "Vul een getal van 0 tot en met 100 in.",
+      "dateTitle": "Werkelijke datum",
+      "dateError": "Vul een geldige datum in."
+    },
+    "progressXlsxNotes": {
+      "completion": "invullen: 0 t/m 100, decimalen toegestaan",
+      "actualStart": "invullen: werkelijke startdatum (als datum)",
+      "actualFinish": "invullen: werkelijke einddatum (als datum)"
+    },
     "progressCsvLabel": "Voortgangsblad (CSV)",
-    "progressCsvDesc": "Slank blad met alleen id, WBS, naam, datums en voltooiing — voor het bijwerken van de voortgang.",
+    "progressCsvDesc": "Hetzelfde slanke voortgangsblad als platte tekst — voor wie liever met een CSV werkt.",
     "progressCsvShort": "Voortgang (CSV)",
     "progressCsvNotes": {
       "readOnly": "niet wijzigen",

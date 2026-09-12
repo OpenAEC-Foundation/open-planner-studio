@@ -24,6 +24,7 @@ import {
   sha256Hex,
   verifyCatalogDownload,
 } from '@/extensions/extensionService';
+import { crc32 } from '@/services/zip/crc32';
 import { executeExtensionCode } from '@/extensions/extensionLoader';
 import { resetConsentAsker, setConsentAsker } from '@/extensions/consent';
 
@@ -44,7 +45,10 @@ interface StoredZipFixtureEntry {
   declaredUncompressedSize?: number;
 }
 
-/** Kleine local-header-only ZIP-fixture; voldoende voor de echte fallbackparser. */
+/** Kleine local-header-only ZIP-fixture; voldoende voor de echte fallbackparser.
+ *  De CRC-32 wordt ECHT ingevuld: de lezer toetst hem sinds de fixronde op issue #27 etappe 3, en
+ *  een fixture met een nul-CRC zou dan als "beschadigd archief" stranden — een testartefact, geen
+ *  bevinding. */
 const storedZip = (entries: StoredZipFixtureEntry[]): Blob => {
   const chunks: Uint8Array[] = [];
   for (const entry of entries) {
@@ -56,7 +60,7 @@ const storedZip = (entries: StoredZipFixtureEntry[]): Blob => {
     view.setUint16(4, 20, true);
     view.setUint16(6, 0, true);
     view.setUint16(8, 0, true);
-    view.setUint32(14, 0, true);
+    view.setUint32(14, crc32(data), true);
     view.setUint32(18, data.length, true);
     view.setUint32(22, entry.declaredUncompressedSize ?? data.length, true);
     view.setUint16(26, name.length, true);

@@ -1064,7 +1064,8 @@
       "tooManyRows": "Ce fichier contient trop de lignes pour être lu comme feuille d'avancement.",
       "noKeyColumn": "Ce fichier n'a pas de colonne « OPS Task ID » ni « WBS » pour lier les lignes aux tâches.",
       "noProgressColumns": "Ce fichier n'a aucune des colonnes Avancement, Début réel ou Fin réelle.",
-      "unreadable": "Ce fichier n'a pas pu être lu comme feuille d'avancement."
+      "unreadable": "Ce fichier n'a pas pu être lu comme feuille d'avancement.",
+      "encrypted": "Ce fichier est protégé par mot de passe et ne peut pas être lu."
     },
     "reason": {
       "unmatched": "Aucune tâche trouvée pour cette ligne.",

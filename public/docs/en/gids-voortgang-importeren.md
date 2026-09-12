@@ -8,6 +8,7 @@ project. That's what this feature does: it **updates existing tasks**, it never 
 
 - Why you set a status date first, before reading a sheet back in.
 - How to export the sheet, and what the `OPS Task ID` column does.
+- What is locked down in the Excel sheet, and why.
 - Where to find the feature.
 - Which three columns are read, and which two are only used as a check.
 - That completion is always a percentage.
@@ -30,17 +31,37 @@ covered in the [Baselines & progress](docs://gids-baselines-voortgang) guide.
 ## Exporting the sheet
 
 The fastest route is the **Export progress sheet** button on the Planning or Table tab, in the
-Progress group. That button produces a slim CSV sheet right away with exactly the columns a foreman
+Progress group. That button produces an **Excel workbook** (`.xlsx`) with exactly the columns a foreman
 needs: task id, WBS, name, Start, Finish, Completion (%), Actual Start and Actual Finish — nothing
-else. The file is named `<project name>-voortgang.csv` and lands in your downloads folder wherever
+else. The file is named `<project name>-voortgang.xlsx` and lands in your downloads folder wherever
 possible. This is the recommended route: fewer columns to accidentally change, and nothing for the
 foreman to ignore. The column headers themselves say what's expected too — for example
-"Completion (%) — fill in: 0 to 100, whole numbers" or "WBS — do not change" — so a foreman doesn't
-have to guess which columns to fill in and which to leave alone.
+"Completion (%) — fill in: 0 to 100" or "WBS — do not change".
+
+### What is locked down in the Excel sheet
+
+- **Only the three fill-in columns can be edited**: Completion (%), Actual Start and Actual Finish.
+  The rest of the sheet is locked — typing in the WBS or Name column is simply refused by your
+  spreadsheet program. There is no password on it: this is a handrail against a slip, not a lock
+  against intent.
+- **The columns have a usable width**, so names and dates are readable straight away without dragging
+  column borders first.
+- **Dates are real date cells** and the percentage is a real number cell. So fill in an actual date as
+  a date — with the date picker, or simply typed — and not as loose text.
+- **The fill-in columns check what you type.** A percentage must be between 0 and 100 and may have
+  decimals (`33.4` is fine); a date must be a valid date. Type `150` in the percentage column and your
+  spreadsheet program says so right away.
+- **Summary tasks are not filled in.** Their three fill-in cells carry the text "— summary task: do
+  not fill in"; just leave that text in place.
+
+Prefer plain text? The same slim sheet still exists as a CSV, with exactly the same columns:
+Backstage → Export → **Progress sheet (CSV)**. Handy when the sheet has to go through a script, an ERP
+import or a word processor afterwards. Everything below applies to both sheets; where they differ,
+that is stated explicitly.
 
 You can also use the full CSV export instead (Backstage → Export → CSV) — it contains the same
-progress columns, plus every other project field (duration, predecessors, status, …). Both sheets are
-readable by the import: every CSV export carries a first column `OPS Task ID` — a technical,
+progress columns, plus every other project field (duration, predecessors, status, …). All three sheets
+are readable by the import: every export sheet carries a first column `OPS Task ID` — a technical,
 human-unreadable key the app uses to link a returned sheet back to the right task. Don't remove or
 change that column; feel free to move or sort the rows, that makes no difference. Send the file to the
 foreman, have them fill in the progress columns and send it back. More on the full CSV export is in the
@@ -68,21 +89,33 @@ done, `1` is one percent, `45.5` may use either a comma or a period. The percent
 `40` and `40%` mean the same thing. A value below 0 or above 100 is refused; there is no alternative
 reading where, say, `0.4` would count as forty percent.
 
-The exported sheet always contains **whole** percentages (e.g. "38", never "38.5") — a spreadsheet
-program with a different locale swaps the decimal and thousands separators, so a decimal percentage
-gets read there as an entirely different number (`8.38` becomes `838`). If you type decimals yourself
-(for example "33.4"), that still counts as a real change as soon as it differs from the current value.
-A whole percentage that rounds to what the task already has doesn't count as a change: if a task is
-already at 33.4% and the sheet says "33", nothing changes. That applies at the edges too: a task at
-99.5% or higher cannot be rounded up to one hundred percent complete via "100" in the sheet — the file
-can't tell 99.5% and 100% apart, so it reads as no change. Mark such a task complete in the app itself,
-or fill in a real finish date instead.
+The **Excel** sheet puts the percentage in a real number cell and therefore carries the decimals
+along: if a task is at 33.4%, that is what the sheet says, and you may just as well fill in decimals
+yourself.
+
+The **CSV** sheet, by contrast, always contains **whole** percentages (e.g. "38", never "38.5"). That
+is not sloppiness but a necessity: a spreadsheet program with a different locale swaps the decimal and
+thousands separators, so a decimal percentage in plain text gets read there as an entirely different
+number (`8.38` becomes `838`). If you type decimals into a CSV yourself (for example "33.4"), that
+still counts as a real change as soon as it differs from the current value. A whole percentage that
+rounds to what the task already has doesn't count as a change: if a task is already at 33.4% and the
+CSV sheet says "33", nothing changes. That applies at the edges too: a task at 99.5% or higher cannot
+be rounded up to one hundred percent complete via "100" in a CSV — that sheet can't tell 99.5% and
+100% apart, so it reads as no change. Mark such a task complete in the app itself, or fill in a real
+finish date instead.
 
 ## Dates
 
-The following notations work, with or without a time: `2026-06-09`, `9-6-2026`, `9/6/2026`,
-`9.6.2026`. The app determines, for the **whole file**, whether the first component is the day or the
-month — Excel is consistent about that, so it only needs deciding once per file. Where possible the
+In the **Excel** sheet dates live in real date cells. The question "is 6-9 the 6th of September or
+the 9th of June?" simply doesn't arise there: the cell carries the date itself, not a way of writing
+it. So if you fill in an actual date as a date, re-importing an `.xlsx` will **never** show you the
+day/month question below. Type loose text into such a cell by accident and it is unreadable, and the
+row is refused — the app does not guess.
+
+The rest of this section is therefore about the **CSV** sheet. The following notations work there,
+with or without a time: `2026-06-09`, `9-6-2026`, `9/6/2026`, `9.6.2026`. The app determines, for the
+**whole file**, whether the first component is the day or the month — a spreadsheet program is
+consistent about that, so it only needs deciding once per file. Where possible the
 app works this out automatically (for example because one component is above 12, or because the dates
 in the sheet match the planned dates in your project).
 
@@ -93,7 +126,9 @@ back to that same question from the preview — any links you made by hand stay 
 ## An empty field means: no change
 
 A returned sheet often comes back partially filled in. If a foreman leaves a column empty, the task's
-existing value simply stays as it is — an empty field **clears nothing**.
+existing value simply stays as it is — an empty field **clears nothing**. One side effect comes with
+that: if you do fill in a percentage above 0 for a task that had no actual start yet, the app derives
+that actual start itself — so an empty start field does not stay empty in that case.
 
 ## Linking: automatic, and by hand
 

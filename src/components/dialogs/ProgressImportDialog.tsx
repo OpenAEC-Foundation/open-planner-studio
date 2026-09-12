@@ -5,6 +5,7 @@ import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { openFileDialog } from '@/services/fileAccess';
 import { formatDisplayDate, parseDate } from '@/utils/dateUtils';
+import { extensionOf } from '@/utils/filePath';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
 // A9: `parseProgressCsv` is de ENIGE module die van CSV weet; `sheetValues` is bestandsformaat-
 // agnostisch. Beide rechtstreeks uit hun eigen bestand — NIET via de barrel (die is van baan A/T1-T3).
@@ -156,13 +157,31 @@ export function ProgressImportDialog() {
 
   const pick = async () => {
     setFileIssue(null);
-    // Fixronde bevinding 5: geen rood pad — een throw uit `openFileDialog`/`parseProgressCsv` (bv.
+    // Fixronde bevinding 5: geen rood pad — een throw uit `openFileDialog`/de lezer (bv.
     // een geweigerde bestandspermissie, of onverwachte inhoud die de parser zelf niet als `fileIssue`
     // afvangt) verdween voorheen als onafgehandelde promise-rejection, zonder enige melding.
     try {
-      const res = await openFileDialog([{ name: 'CSV', extensions: ['csv'] }]);
+      // X11: de dialoog accepteert beide voortgangsformaten. `binaryExtensions` zorgt dat een
+      // `.xlsx` als bytes binnenkomt; de dispatch gaat op de EXTENSIE en niet op
+      // `res.bytes !== undefined` — `bytes` is een gevolg van die optie, niet een eigenschap van
+      // het bestand, dus duck-typen zou een vergeten optie stil de CSV-lezer op binaire rommel
+      // zetten. De xlsx-lezer laadt dynamisch: de ZIP/XLSX-code hoort niet in de hoofdbundel.
+      const res = await openFileDialog(
+        [{ name: 'Progress sheet', extensions: ['xlsx', 'csv'] },
+         { name: 'Excel Workbook', extensions: ['xlsx'] },
+         { name: 'CSV Files', extensions: ['csv'] }],
+        { binaryExtensions: ['xlsx'] },
+      );
       if (!res) return;
-      const parsed = parseProgressCsv(res.content);
+      let parsed: ProgressSheet;
+      if (extensionOf(res.name) === 'xlsx') {
+        // Geen bytes terwijl de extensie `.xlsx` zegt ⇒ onleesbaar, nooit een gok.
+        if (!res.bytes) { setFileIssue('unreadable'); return; }
+        const { parseProgressXlsx } = await import('@/services/progressImport/parseProgressXlsx');
+        parsed = await parseProgressXlsx(res.bytes);
+      } else {
+        parsed = parseProgressCsv(res.content);
+      }
       if (parsed.fileIssue) {
         setFileIssue(parsed.fileIssue);
         return;

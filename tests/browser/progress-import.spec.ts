@@ -18,6 +18,15 @@
 // DOM-observer op het input-element zelf.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
+// T13: de spec leest de gedownloade bytes met de ECHTE productielezer en bouwt zijn mutatie met de
+// ECHTE productieschrijver. Beide zijn puur (geen store, geen React, geen `@tauri-apps/*`) en
+// draaien dus gewoon in de Node-kant van Playwright — de `@/`-alias komt uit `tsconfig.json`.
+// Ze VERVANGEN geen gebruikershandeling: de export blijft een muisklik en de import blijft een
+// echte bestandskiezer; deze twee dienen alleen om te toetsen wát er over de lijn ging.
+import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
+import { detectDateOrder } from '@/services/progressImport/sheetValues';
+import { writeProgressSheetXLSX } from '@/services/xlsx/writeProgressXlsx';
+import type { Task } from '@/types/task';
 
 const DIALOG = '[data-ops-progress-import-dialog]';
 
@@ -53,14 +62,49 @@ async function openViaBackstage(page: Page): Promise<void> {
   await expect(dialog(page)).toBeVisible();
 }
 
-async function chooseCsv(page: Page, csv: string, name = 'voortgang.csv'): Promise<void> {
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Kiest een bestand via de ECHTE bestandskiezer van de dialoog — zie de kop van dit bestand. */
+async function chooseSheet(
+  page: Page, name: string, mimeType: string, buffer: Buffer,
+): Promise<void> {
   await page.evaluate(() => {
     delete (window as unknown as { showOpenFilePicker?: unknown }).showOpenFilePicker;
   });
   const chooserPromise = page.waitForEvent('filechooser');
   await dialog(page).getByRole('button', { name: CHOOSE_FILE }).click();
   const chooser = await chooserPromise;
-  await chooser.setFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf-8') });
+  await chooser.setFiles({ name, mimeType, buffer });
+}
+
+async function chooseCsv(page: Page, csv: string, name = 'voortgang.csv'): Promise<void> {
+  await chooseSheet(page, name, 'text/csv', Buffer.from(csv, 'utf-8'));
+}
+
+/** De bytes van een `download`-event als één Buffer. */
+async function downloadBytes(download: { createReadStream: () => Promise<NodeJS.ReadableStream | null> }): Promise<Buffer> {
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+}
+
+/** De taken zoals ze NU in de store staan — invoer voor `writeProgressSheetXLSX` in de spec. */
+async function storeTasks(page: Page): Promise<Task[]> {
+  return page.evaluate(() => JSON.parse(
+    JSON.stringify(window.__OPS__!.store.getState().tasks),
+  ) as unknown) as Promise<Task[]>;
+}
+
+/** Klikt de exportknop op Planning en levert de gedownloade bytes + de voorgestelde naam. */
+async function exportProgressSheet(page: Page): Promise<{ name: string; bytes: Buffer }> {
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' });
+  });
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: EXPORT_BUTTON }).click();
+  const download = await downloadPromise;
+  return { name: download.suggestedFilename(), bytes: await downloadBytes(download) };
 }
 
 async function taskTime(page: Page, taskId: string) {
@@ -327,47 +371,135 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
 });
 
 // E7 (eigenaarsbesluit 2026-09-05): "ik wil gewoon op een knop in de planning tab kunnen klikken en
-// dan krijg ik de juiste CSV met de juiste instellingen in mijn downloads" — de exportknop naast de
-// importknop in dezelfde `progressGroup`. Dit bewijst de ECHTE gebruikershandeling: een muisklik op
-// "Voortgangsblad exporteren" op Planning levert een download op met de juiste bestandsnaam en
-// precies de acht verwachte kolomkoppen van het slanke blad (niet de volle CSV-export).
+// dan krijg ik de juiste [blad] met de juiste instellingen in mijn downloads" — de exportknop naast
+// de importknop in dezelfde `progressGroup`. Sinds issue #27 etappe 3 levert die knop een `.xlsx`
+// in plaats van een CSV (de CSV-variant blijft bereikbaar via Backstage → Exporteren); deze twee
+// cases bewijzen de ECHTE handeling en de ECHTE terugweg.
 const EXPORT_BUTTON = /^(Export progress sheet|Voortgangsblad exporteren)$/;
 
-test('voortgangsblad-export: knop op Planning levert de juiste CSV in de downloads', async ({ page, ops: _ops }) => {
-  await seedProject(page, [
+test('voortgangsblad-export: knop op Planning levert een leesbaar .xlsx in de downloads', async ({ page, ops: _ops }) => {
+  const [idA] = await seedProject(page, [
     { name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ], 'Voortgangsblad-export');
 
-  // Planning-tabblad, waar `progressGroup` de exportknop vóór de importknop toont.
-  await page.evaluate(() => {
-    window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' });
-  });
+  // Testopzet, geen geteste handeling: één taak met werkelijke datums, zodat ALLE ACHT kolommen
+  // van het blad gevuld zijn en de kolomherkenning hieronder ook echt acht dingen kan aantonen.
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    s.setActualStart(id, '2026-09-07');
+    s.setTaskProgress(id, 0.4);
+  }, idA);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: EXPORT_BUTTON }).click();
-  const download = await downloadPromise;
+  const { name, bytes } = await exportProgressSheet(page);
 
-  expect(download.suggestedFilename()).toMatch(/-voortgang\.csv$/);
+  expect(name).toMatch(/-voortgang\.xlsx$/);
+  // `PK\x03\x04` — een ZIP, dus geen CSV en geen half bestand.
+  expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
 
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream!) chunks.push(chunk as Buffer);
-  const buffer = Buffer.concat(chunks);
-  // BOM (U+FEFF) strippen vóór het vergelijken — net als `parseProgressCsv` als eerste doet.
-  const text = buffer.toString('utf-8').replace(/^﻿/, '');
-  const firstLine = text.split(/\r\n|\n/)[0];
-  const cells = firstLine.split(';');
-  // Punt D (besluit 2026-09-05): elke kop draagt een invulinstructie na ` — `, in de actieve
-  // UI-taal (niet per se Nederlands, afhankelijk van hoe deze suite draait) — assert op de
-  // SLEUTELS (altijd letterlijk Engels, `parseProgressCsv` matcht daarop) en dat elke cel het
-  // scheidingsteken draagt, niet op de exacte NL-instructietekst.
-  const expectedKeys = [
-    'OPS Task ID', 'WBS', 'Name', 'Start', 'Finish',
-    'Completion (%)', 'Actual Start', 'Actual Finish',
-  ];
-  expect(cells).toHaveLength(8);
-  for (const cell of cells) expect(cell).toContain(' — ');
-  for (let i = 0; i < expectedKeys.length; i++) {
-    expect(cells[i]?.startsWith(`${expectedKeys[i]} — `)).toBe(true);
-  }
+  // De echte lezer over de echte bytes: dit is de ene plek waar bewezen wordt dat de kopregel die
+  // de SCHRIJVER neerzet (mét de vertaalde ` — instructie`-suffixen) door de LEZER herkend wordt.
+  const sheet = await parseProgressXlsx(new Uint8Array(bytes));
+  expect(sheet.fileIssue).toBeUndefined();
+  expect(sheet.rawRows).toHaveLength(1);
+
+  const row = sheet.rawRows[0]!;
+  // Zes van de acht kolommen landen op de rij zelf…
+  expect(row.taskId).toBe(idA);
+  expect(row.wbsCode).toBeTruthy();
+  expect(row.name).toBe('Fundering');
+  expect(row.rawCompletion).toBeTruthy();
+  expect(row.rawActualStart).toBe('2026-09-07');
+  expect(row.rawActualFinish === undefined || row.rawActualFinish === '').toBe(true);
+  // …en de twee detectie-only kolommen (Start/Finish) in `detectionCells`.
+  const detected = new Set(sheet.detectionCells.map(cell => cell.field));
+  expect(detected.has('start')).toBe(true);
+  expect(detected.has('finish')).toBe(true);
+  expect(detected.has('actualStart')).toBe(true);
+
+  // X4/E9: het blad schrijft ECHTE datumcellen, dus de lezer krijgt ISO terug en de dag/maand-vraag
+  // kan bij een `.xlsx` per constructie niet ontstaan.
+  const tasks = await storeTasks(page);
+  const detection = detectDateOrder(sheet.detectionCells, tasks);
+  expect(detection.order).not.toBe('ambiguous');
+  expect(detection.order === 'ambiguous' ? undefined : detection.evidence).toBe('noAmbiguity');
+});
+
+// Fixronde na de eindreview: de EERSTE vraag bij een round-trip is niet "komt een wijziging aan"
+// maar "blijft een ONgewijzigd blad ook echt ongewijzigd". Gaat dat mis, dan krijgt de invuller bij
+// elke ronde een lijst met veranderingen die hij nooit heeft aangebracht — en verliest hij het zicht
+// op de wijzigingen die er wel toe doen. Hier is de hele keten een echte handeling: klikken op
+// exporteren, het gedownloade bestand ONGEWIJZIGD via de bestandskiezer terugvoeren, en de preview
+// lezen zoals de gebruiker hem ziet.
+test('exporteren en meteen terugimporteren geeft nul wijzigingen', async ({ page, ops: _ops }) => {
+  const [idA, idB] = await seedProject(page, [
+    { name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Ruwbouw', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
+  ], 'Voortgangsblad-noop');
+
+  // Testopzet, geen geteste handeling: twee taken met echte voortgang, zodat het blad ook echt
+  // percentages en werkelijke datums draagt om over te struikelen.
+  await page.evaluate(([a, b]) => {
+    const s = window.__OPS__!.store.getState();
+    s.setActualStart(a, '2026-09-07');
+    s.setTaskProgress(a, 1 / 3);
+    s.setTaskProgress(b, 0);
+  }, [idA, idB] as const);
+
+  const { bytes } = await exportProgressSheet(page);
+
+  await openViaBackstage(page);
+  await chooseSheet(page, 'voortgang.xlsx', XLSX_MIME, Buffer.from(bytes));
+
+  // Geen dag/maand-vraag: de preview staat er meteen.
+  await expect(dialog(page).getByText(/^(Day or month first\?|Dag of maand eerst\?)$/)).toHaveCount(0);
+  await expect(dialog(page).getByText(/^(Applied|Toegepast): 0$/)).toBeVisible();
+  await expect(dialog(page).getByText(/^(Refused|Geweigerd): 0$/)).toBeVisible();
+  await expect(dialog(page).getByText(/^(Unchanged|Ongewijzigd): 2$/)).toBeVisible();
+  await expect(page.getByText(NEEDS_LINK_HEADING)).toHaveCount(0);
+  // Niets toe te passen, dus de bevestigknop hoort onbruikbaar te zijn.
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toBeDisabled();
+
+  await dialog(page).getByRole('button', { name: CANCEL }).click();
+  await expect(dialog(page)).toHaveCount(0);
+
+  // En het document is ook echt onaangeraakt gebleven.
+  const after = await taskTime(page, idA);
+  expect(after.completion).toBeCloseTo(1 / 3, 4);
+  expect(after.actualStart).toBe('2026-09-07');
+});
+
+test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', async ({ page, ops: _ops }) => {
+  const [idA] = await seedProject(page, [
+    { name: 'Terugimport-taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ], 'Voortgangsblad-terugimport');
+
+  // Exporteren is hier óók een echte muisklik: het blad dat straks teruggaat is het blad dat de
+  // gebruiker daadwerkelijk zou krijgen.
+  const exported = await exportProgressSheet(page);
+  const exportedSheet = await parseProgressXlsx(new Uint8Array(exported.bytes));
+  expect(exportedSheet.fileIssue).toBeUndefined();
+  expect(exportedSheet.rawRows[0]?.taskId).toBe(idA);
+
+  // Eén percentage wijzigen en het blad met de ECHTE schrijver opnieuw bouwen — de tegenhanger van
+  // "iemand vult in Excel 65 in en slaat op". Alles eromheen (kolommen, koppen, sleutelkolom,
+  // datumcellen) blijft precies wat de app zelf schreef.
+  const tasks = await storeTasks(page);
+  const mutated = tasks.map(task => (task.id === idA
+    ? { ...task, time: { ...task.time, completion: 0.65 } }
+    : task));
+  const buffer = Buffer.from(await writeProgressSheetXLSX(mutated));
+
+  await openViaBackstage(page);
+  await chooseSheet(page, 'voortgang.xlsx', XLSX_MIME, buffer);
+
+  // Geen dag/maand-vraag: de preview staat er meteen, met de bevestigknop vrij en zonder losse rij.
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toBeEnabled();
+  await expect(page.getByText(NEEDS_LINK_HEADING)).toHaveCount(0);
+  await expect(rowByNumber(page, 2)).toBeVisible();
+
+  await dialog(page).getByRole('button', { name: APPLY }).click();
+  await expect(dialog(page).getByRole('button', { name: CLOSE })).toBeVisible();
+
+  const after = await taskTime(page, idA);
+  expect(after.completion).toBeCloseTo(0.65, 5);
 });
