@@ -7,7 +7,7 @@
 // herkend als elke andere kolom, maar landen NOOIT in `RawProgressRow` — alleen in
 // `detectionCells` (A5.4). Dat is een structurele garantie: er bestaat geen veld in het
 // rij-contract dat een Start/Finish-waarde zou kunnen dragen.
-export const COLUMN_ALIASES: Record<string, readonly string[]> = {
+export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   taskId: ['ops task id', 'ops taskid', 'task id'],
   wbs: ['wbs', 'wbs code', 'wbscode'],
   name: ['name', 'task name', 'naam', 'taak'],
@@ -26,7 +26,7 @@ export const COLUMN_ALIASES: Record<string, readonly string[]> = {
 export const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
 
 /**
- * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `COLUMN_ALIASES` (bestaand gedrag,
+ * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `PROGRESS_COLUMN_ALIASES` (bestaand gedrag,
  * dekt zowel oude bladen als de volledige CSV-export). Lukt dat niet, dan is de terugval het
  * PREFIX vóór de vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
  * `Completion (%) — invullen: …` — het haakje van "(%)" zelf ligt vóór de "—", dus de afgesneden
@@ -35,7 +35,7 @@ export const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
  */
 export function matchColumnKey(header: string): string | undefined {
   const h = header.toLowerCase().trim();
-  for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
+  for (const [key, aliases] of Object.entries(PROGRESS_COLUMN_ALIASES)) {
     if (aliases.includes(h)) return key;
   }
   let cut = -1;
@@ -45,7 +45,7 @@ export function matchColumnKey(header: string): string | undefined {
   }
   if (cut <= 0) return undefined; // geen marker, of de sleutel zelf zou leeg zijn.
   const prefix = h.slice(0, cut).trim();
-  for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
+  for (const [key, aliases] of Object.entries(PROGRESS_COLUMN_ALIASES)) {
     if (aliases.includes(prefix)) return key;
   }
   return undefined;
