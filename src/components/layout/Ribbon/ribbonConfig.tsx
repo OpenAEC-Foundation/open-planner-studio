@@ -346,15 +346,21 @@ const progressImportButton: RibbonButtonSpec = {
 };
 
 /** E7 (eigenaarsbesluit 2026-09-05): "gewoon op een knop klikken en dan krijg ik de juiste CSV in
- *  mijn downloads" — het slanke voortgangsblad (`progress-csv`, `writeProgressSheetCSV`) via één
- *  knopdruk, vóór de importknop in dezelfde gedeelde groep (Planning + Tabel). `disabled` volgt
- *  hetzelfde patroon als `progressImportButton`: zonder taken is er niets te exporteren. */
+ *  mijn downloads" — het slanke voortgangsblad via één knopdruk, vóór de importknop in dezelfde
+ *  gedeelde groep (Planning + Tabel). `disabled` volgt hetzelfde patroon als
+ *  `progressImportButton`: zonder taken is er niets te exporteren.
+ *
+ *  Sinds issue #27 etappe 3 (X10/Q1) levert deze knop `.xlsx` in plaats van `.csv`: één knop = het
+ *  beste antwoord, en op elk punt dat E9 noemt (kolombreedte, vergrendeling, validatie,
+ *  datumtrouw) is de werkmap simpelweg beter. CSV verdwijnt niet — het blijft een exportkaart in
+ *  Backstage → Exporteren en onverkort een leesbaar importformaat. Het knoplabel
+ *  (`menu:ribbon.progressExport`) noemt bewust geen formaat en hoefde dus niet te wijzigen. */
 const progressExportButton: RibbonButtonSpec = {
   kind: 'button', id: 'progressExport', icon: <ClipboardList size={20} />, labelKey: 'menu:ribbon.progressExport',
   use: () => {
     const exportAs = useAppStore(s => s.exportAs);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
-    return { onClick: () => { void exportAs('progress-csv'); }, disabled: !hasTasks };
+    return { onClick: () => { void exportAs('progress-xlsx'); }, disabled: !hasTasks };
   },
 };
 
