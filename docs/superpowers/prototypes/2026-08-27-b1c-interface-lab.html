@@ -1,0 +1,1314 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>Interface-lab</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#faf9f5;color:#1c1b19;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 20px 72px}
+  h1{font-size:22px;line-height:1.3;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+  h2{font-size:16px;margin:0 0 10px;font-weight:650}
+  h3{font-size:13.5px;margin:0 0 6px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:#6b6862}
+  p{margin:0 0 10px}
+  .sub{color:#6b6862;font-size:14px}
+  .card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:16px}
+  .card + .card{margin-top:14px}
+  .muted{color:#6b6862}
+  .small{font-size:13px}
+  .xsmall{font-size:12.5px}
+  .mono{font-variant-numeric:tabular-nums}
+  .row{display:flex;align-items:center;gap:10px}
+  .row-wrap{flex-wrap:wrap}
+  .spacer{flex:1 1 auto}
+  .hidden{display:none !important}
+
+  button{font:inherit;cursor:pointer;color:inherit}
+  .btn{border:1px solid #ddd;background:#fff;border-radius:8px;padding:7px 13px;line-height:1.2}
+  .btn:hover:not(:disabled){border-color:#b8b6b0;background:#f6f5f1}
+  .btn:focus-visible{outline:2px solid #378ADD;outline-offset:2px}
+  .btn-primary{background:#1c1b19;border-color:#1c1b19;color:#fff}
+  .btn-primary:hover:not(:disabled){background:#3a3833;border-color:#3a3833}
+  .btn-sm{padding:4px 10px;font-size:13px;border-radius:7px}
+  .btn:disabled{opacity:.42;cursor:default}
+  .btn[aria-pressed="true"]{background:#1c1b19;border-color:#1c1b19;color:#fff}
+
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12.5px;border:1px solid;white-space:nowrap}
+  .pill-red{background:#fdf0ed;border-color:#f0c3b8;color:#a53a20}
+  .pill-green{background:#edf9f4;border-color:#b6e3d1;color:#0f6a4c}
+  .pill-amber{background:#fdf6e6;border-color:#ecd9a5;color:#87620f}
+  .pill-grey{background:#f4f3ef;border-color:#dedcd6;color:#605e58}
+
+  .tabs{display:flex;gap:6px;margin:22px 0 0;border-bottom:1px solid #ddd;flex-wrap:wrap}
+  .tab{border:1px solid #ddd;border-bottom-color:transparent;background:#f2f1ec;border-radius:10px 10px 0 0;padding:9px 13px;margin-bottom:-1px;color:#55534d;text-align:left}
+  .tab:hover{background:#eceae4}
+  .tab[aria-selected="true"]{background:#fff;color:#1c1b19;font-weight:650}
+  .tab:focus-visible{outline:2px solid #378ADD;outline-offset:2px}
+  .tab .tag{font-weight:650;margin-right:6px;color:#8a8880}
+  .tab[aria-selected="true"] .tag{color:#1c1b19}
+  .panel{padding-top:16px}
+
+  .occ{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .occ-name{font-weight:650}
+  .chip{width:11px;height:11px;border-radius:3px;flex:0 0 auto;display:inline-block}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0 4px}
+  .legend span.it{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4a4844}
+  svg.hist{display:block;width:100%;height:auto}
+
+  .badges{display:flex;gap:10px;flex-wrap:wrap}
+  .bdg{flex:1 1 190px;min-width:0;border:1px solid #e4e2dc;border-radius:9px;padding:7px 10px;background:#fbfaf7}
+  .bdg .bl{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .bdg .bn{font-weight:600;font-size:13.5px}
+
+  /* fasestrook */
+  .phase{margin-top:8px}
+  .prow{display:flex;align-items:center;gap:10px;padding:5px 0}
+  .plabel{width:150px;flex:0 0 auto;font-size:13px;display:flex;align-items:center;gap:7px;min-width:0}
+  .plabel .nmw{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ptrack{position:relative;flex:1 1 auto;min-width:90px;height:26px;background:#faf9f5;border:1px solid #eceae4;border-radius:6px;overflow:hidden}
+  .ptrack.tall{height:32px;overflow:visible}
+  .pblocks{position:absolute;left:0;right:0;top:0;bottom:0;overflow:hidden;border-radius:5px}
+  .psep{position:absolute;top:0;bottom:0;width:1px;background:#e6e4dd}
+  .pmonth{position:absolute;top:0;bottom:0;width:1px;background:#cfcdc5}
+  .pblk{position:absolute;top:3px;height:14px}
+  .ptrack.tall .pblk{top:5px;height:15px}
+  .pwork{border-right:1px solid rgba(255,255,255,.8)}
+  .ppause{background:repeating-linear-gradient(135deg,rgba(28,27,25,.05) 0 3px,rgba(28,27,25,.17) 3px 6px);border:1px solid #d7d4cd;border-radius:2px}
+  .pfree{position:absolute;top:3px;height:14px;border:1px dashed #cfcdc5;border-radius:2px}
+  .ptrack.tall .pfree{top:5px;height:15px}
+  .pfl{position:absolute;bottom:3px;height:3px;background:repeating-linear-gradient(90deg,#b0ada5 0 3px,transparent 3px 6px)}
+  .pover{position:absolute;bottom:3px;height:3px;background:#C4402A}
+  .pend{width:132px;flex:0 0 auto;text-align:right;font-size:12.5px}
+  .phandle{position:absolute;top:1px;height:30px;width:15px;margin-left:-7px;border:1px solid #6f6c66;background:#fff;border-radius:4px;cursor:ew-resize;touch-action:none;padding:0;display:flex;align-items:center;justify-content:center;z-index:4}
+  .phandle::before{content:"";width:1px;height:13px;background:#6f6c66;box-shadow:3px 0 0 #6f6c66,-3px 0 0 #6f6c66}
+  .phandle:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
+
+  /* radar */
+  .radarwrap{max-width:470px;margin:2px auto 0}
+  svg.radar{display:block;width:100%;height:auto;touch-action:none}
+  .radar circle.rhandle{cursor:grab;touch-action:none;outline:none}
+  .radar circle.rhandle:focus-visible{stroke:#1c1b19;stroke-width:3.5}
+  .radar line.rhit{cursor:crosshair}
+  .axlist{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .axi{flex:1 1 190px;min-width:0;border:1px solid #e4e2dc;border-radius:9px;padding:7px 10px;background:#fff;font-size:13px}
+
+  /* verdeelbalk */
+  .bartrack{position:relative;height:48px;border:1px solid #ddd;border-radius:9px;background:#f6f5f1;margin:14px 0 8px}
+  .barseg{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:650;color:#fff;overflow:hidden;font-variant-numeric:tabular-nums}
+  .bartick{position:absolute;top:0;width:1px;height:7px;background:rgba(28,27,25,.22)}
+  .barticklo{position:absolute;bottom:0;width:1px;height:7px;background:rgba(28,27,25,.22)}
+  .bardiv{position:absolute;top:-6px;bottom:-6px;width:14px;margin-left:-7px;border:1px solid #55534d;background:#fff;border-radius:4px;cursor:ew-resize;touch-action:none;padding:0;display:flex;align-items:center;justify-content:center}
+  .bardiv::before{content:"";width:1px;height:16px;background:#55534d;box-shadow:3px 0 0 #55534d,-3px 0 0 #55534d}
+  .bardiv:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
+  .barscale{position:relative;height:16px;font-size:11.5px;color:#8a8880}
+  .barscale span{position:absolute;transform:translateX(-50%);font-variant-numeric:tabular-nums}
+  .barlegend{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .barli{flex:1 1 190px;min-width:0;border:1px solid #e4e2dc;border-radius:9px;padding:7px 10px;background:#fbfaf7;font-size:13px}
+
+  /* communicerende vaten */
+  .vessels{display:flex;gap:10px;align-items:stretch;margin:12px 0 4px}
+  .vaxis{flex:0 0 30px;position:relative;height:186px;margin-top:20px}
+  .vaxis span{position:absolute;right:4px;transform:translateY(50%);font-size:11.5px;color:#8a8880;font-variant-numeric:tabular-nums}
+  .vcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .vhead{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:18px;display:flex;align-items:center;gap:6px}
+  .vtube{position:relative;height:186px;border:1px solid #e0ded7;border-radius:8px;background:#faf9f5;overflow:visible}
+  .vtube.pinned{border-color:#b8b6b0;background:#f4f3ef}
+  .vgrid{position:absolute;left:0;right:0;height:1px;background:#eceae4}
+  .vfill{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 7px 7px}
+  .vhandle{position:absolute;left:-4px;right:-4px;height:15px;margin-bottom:-8px;border:1px solid #6f6c66;background:#fff;border-radius:4px;cursor:ns-resize;touch-action:none;padding:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1}
+  .vhandle:focus-visible{outline:2px solid #378ADD;outline-offset:1px}
+  .vhandle[aria-disabled="true"]{cursor:default;background:#f4f3ef;color:#8a8880}
+  .vfoot{font-size:12px;color:#605e58;min-height:34px}
+
+  .valid{border-radius:8px;padding:9px 11px;margin-top:12px;font-size:13.5px}
+  .valid.ok{background:#edf9f4;border:1px solid #b6e3d1;color:#0f6a4c}
+  .valid.bad{background:#fdf0ed;border:1px solid #f0c3b8;color:#a53a20}
+  .valid .btn{margin-left:2px}
+
+  .applied{border:1px solid #b6e3d1;background:#f8fdfb;border-radius:10px;padding:11px;margin-top:12px}
+
+  .note{border-left:3px solid #e0ded7;padding:2px 0 2px 11px;color:#605e58;font-size:13px}
+  .note-warn{border-left-color:#ecd9a5;background:#fdfaf1;padding:8px 11px;border-radius:0 8px 8px 0}
+  .note-info{border-left-color:#cfe1f3;background:#f7fafd;padding:8px 11px;border-radius:0 8px 8px 0}
+
+  .kv{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 0}
+  .kvi{border:1px solid #e4e2dc;border-radius:9px;padding:7px 11px;background:#fbfaf7;font-size:13px;flex:1 1 200px;min-width:0}
+  .kvi .n{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums;display:block}
+
+  .judge{background:#fbfaf7}
+  .jgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .jitem .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:#8a8880;margin-bottom:2px}
+  .jitem .v{font-size:13px;line-height:1.5}
+  .jitem.strong .k{color:#0f6a4c}
+  .jitem.weak .k{color:#a53a20}
+
+  @media (max-width:820px){
+    .plabel{width:104px}
+    .pend{width:112px}
+    .pcaption{padding-left:114px !important}
+  }
+  @media (max-width:640px){
+    .jgrid{grid-template-columns:1fr}
+  }
+  @media (max-width:560px){
+    .plabel{width:84px;font-size:12.5px}
+    .prow{flex-wrap:wrap}
+    .pend{flex:1 1 100%;width:auto;text-align:left;padding-left:94px}
+    .pcaption{padding-left:0 !important}
+    .vessels{gap:7px}
+    .vaxis{flex:0 0 22px}
+    .vtube,.vaxis{height:160px}
+    .tab{padding:8px 10px;font-size:14px}
+  }
+</style>
+<div class="wrap">
+
+  <header>
+    <h1>Interface-lab — vier manieren om de last te verdelen</h1>
+    <p class="sub">Vervolg op ronde 2. De <em>rekenkern</em> staat vast: het conflict wordt opgelost door pauzedagen te verdelen over de drie documenten, precies zoals in <span class="mono">wie-wijkt-v2</span>. Wat hier ter discussie staat is uitsluitend de <strong>bediening</strong> van die stap. Vier tabbladen, vier bedieningen, exact dezelfde taak op exact hetzelfde scenario — zodat je kunt <em>voelen</em> welke het beste werkt in plaats van erover te praten.</p>
+
+    <div class="card" style="margin-top:14px">
+      <h3>De taak — in alle vier de tabbladen identiek</h3>
+      <p class="small" style="margin:0 0 4px">Resourcebibliotheek <strong>Bouwbedrijf De&nbsp;Vries</strong>, poolitem <strong>Metselploeg — capaciteit 2 ploegen</strong>. Drie geopende projectdocumenten boeken elk 1 ploeg en overlappen op <strong id="sc-window">&hellip;</strong>. Piek 3 &gt; capaciteit 2. Za/zo geen werkdag; de as loopt t/m 4 september. De float verschilt: <span id="sc-floats"></span>.</p>
+      <div class="kv" id="sc-kv"></div>
+      <p class="small" id="sc-punch" style="margin:10px 0 0"></p>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Bedieningsvarianten" id="tablist">
+    <button class="tab" role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true"><span class="tag">1</span>Ster met trekpunten</button>
+    <button class="tab" role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false" tabindex="-1"><span class="tag">2</span>Verdeelbalk</button>
+    <button class="tab" role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false" tabindex="-1"><span class="tag">3</span>Communicerende vaten</button>
+    <button class="tab" role="tab" id="tab-4" aria-controls="panel-4" aria-selected="false" tabindex="-1"><span class="tag">4</span>Fasestrook-handles</button>
+  </nav>
+
+  <main id="panels"></main>
+
+  <section style="margin-top:26px">
+    <h2>Combineerbaar — ze sluiten elkaar niet uit</h2>
+    <div class="card" id="combi"></div>
+  </section>
+
+</div>
+<script>
+(function(){
+  "use strict";
+  /* ================================================================== */
+  /* Scenario en rekenkern — identiek aan wie-wijkt-v2 (pauzedagen-modus) */
+  /* ================================================================== */
+
+  var DAYS = [[3,8],[4,8],[5,8],[6,8],[7,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+              [17,8],[18,8],[19,8],[20,8],[21,8],[24,8],[25,8],[26,8],[27,8],[28,8],
+              [31,8],[1,9],[2,9],[3,9],[4,9]];
+  var N = DAYS.length;
+  var CAP = 2;
+  var WEEK_BREAKS = [4,9,14,19];
+  var MONTH_BREAK = 21;
+  var MONTHS = {8:'aug', 9:'sep'};
+  var MAXPAUSE = 8;      // bereik van de pauzeplafonds (fasestrook-handles)
+  var MAXC = 8;          // bereik van de uitloop-assen (radar, vaten)
+  var MAXSHIFT = 14;
+
+  var DOCS = [
+    { id:'zuidas', name:'Kantoor Zuidas',       short:'Zuidas',   color:'#378ADD',
+      start:4, work:9, float:0, floatTxt:'geen float (kritiek pad)' },
+    { id:'villa',  name:'Villa Wassenaar',      short:'Villa',    color:'#1D9E75',
+      start:7, work:6, float:2, floatTxt:'2 werkdagen float' },
+    { id:'linde',  name:'Zorgcentrum De Linde', short:'De Linde', color:'#D85A30',
+      start:7, work:6, float:3, floatTxt:'3 werkdagen float' }
+  ];
+
+  function docById(id){ for(var i=0;i<DOCS.length;i++){ if(DOCS[i].id===id) return DOCS[i]; } return null; }
+  function docIdx(d){ return DOCS.indexOf(d); }
+  function origEnd(d){ return d.start + d.work - 1; }
+  function floatEnd(d){ return origEnd(d) + d.float; }
+  function zeroCaps(){ var c={}; DOCS.forEach(function(d){ c[d.id]=0; }); return c; }
+  function cloneCaps(c){ var r={}; DOCS.forEach(function(d){ r[d.id]=c[d.id]|0; }); return r; }
+  function capsFromArr(a){ var c={}; DOCS.forEach(function(d,i){ c[d.id]=a[i]|0; }); return c; }
+  function capsArr(c){ return DOCS.map(function(d){ return c[d.id]|0; }); }
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function plural(n,one,other){ return n===1?one:other; }
+  function signed(n){ return (n>=0?'+':'')+n; }
+  function dagen(n){ return signed(n)+' '+plural(n,'dag','dagen'); }
+  function tone(c){ return c===0 ? 'green' : (c<=2 ? 'amber' : 'red'); }
+  function fmtDay(i){
+    if(i===null || i===undefined) return 'onbekend';
+    if(i>N-1) return 'na 4 sep';
+    if(i<0) i=0;
+    return DAYS[i][0]+' '+MONTHS[DAYS[i][1]];
+  }
+  function fmtRange(a,b){
+    if(b===null || b===undefined) return fmtDay(a)+' &ndash; onbekend';
+    var clipped = b>N-1, A = a<0?0:a, B = clipped?N-1:b;
+    if(DAYS[A][1]===DAYS[B][1]) return DAYS[A][0]+' &ndash; '+DAYS[B][0]+' '+MONTHS[DAYS[B][1]]+(clipped?' &hellip;':'');
+    return fmtDay(A)+' &ndash; '+fmtDay(B)+(clipped?' &hellip;':'');
+  }
+  function dayList(idx){ return idx.map(function(i){ return fmtDay(i); }).join(', '); }
+
+  /* De nivelleerder: per dag pauzeren wie nog pauzeruimte heeft, tot de
+     bezetting onder de capaciteit zit. caps = pauzeplafond per document.   */
+  function runLevel(caps, pref){
+    var st = DOCS.map(function(d){
+      return { d:d, rem:d.work, pauses:0, work:[], paused:[], end:null };
+    });
+    var usage = new Array(N); for(var i=0;i<N;i++) usage[i]=0;
+    var excess = 0;
+    for(var t=0;t<N;t++){
+      var act = st.filter(function(s){ return t>=s.d.start && s.rem>0; });
+      var need = Math.max(0, act.length - CAP);
+      var pauseSet = [];
+      if(need>0){
+        var cand = act.filter(function(s){ return s.pauses < (caps[s.d.id]|0); });
+        cand.sort(pref);
+        pauseSet = cand.slice(0, need);
+      }
+      /* jshint loopfunc:true */
+      (function(day){
+        act.forEach(function(s){
+          if(pauseSet.indexOf(s) >= 0){ s.pauses++; s.paused.push(day); }
+          else { s.rem--; s.work.push(day); if(s.rem===0) s.end = day; usage[day]++; }
+        });
+      })(t);
+      if(usage[t] > CAP) excess += usage[t] - CAP;
+    }
+    var res = { usage:usage, excess:excess, byId:{}, unfinished:[], sumPauses:0,
+                maxCost:0, changed:0, conflictDays:[] };
+    st.forEach(function(s){
+      var cost = Math.max(0, s.pauses - s.d.float);
+      var works = new Array(N), pausedFlag = new Array(N);
+      for(var i=0;i<N;i++){ works[i]=false; pausedFlag[i]=false; }
+      s.work.forEach(function(i){ works[i]=true; });
+      s.paused.forEach(function(i){ pausedFlag[i]=true; });
+      res.byId[s.d.id] = { doc:s.d, pauses:s.pauses, cost:cost, end:s.end,
+                           works:works, pausedOn:pausedFlag, pauseDays:s.paused.slice() };
+      if(s.rem>0) res.unfinished.push(s.d.id);
+      res.sumPauses += s.pauses;
+      if(cost > res.maxCost) res.maxCost = cost;
+      if(s.pauses > 0) res.changed++;
+    });
+    for(var k=0;k<N;k++) if(usage[k]>CAP) res.conflictDays.push(k);
+    return res;
+  }
+
+  // Alle vier de varianten sturen deze ene verdeler aan, met dezelfde voorkeur.
+  function prefFair(a,b){
+    return (a.pauses-a.d.float) - (b.pauses-b.d.float)
+        || (b.d.float - a.d.float)
+        || (docIdx(a.d) - docIdx(b.d));
+  }
+  var memo = {};
+  function level(caps){
+    var k = capsArr(caps).join('-');
+    if(memo[k]) return memo[k];
+    var r = runLevel(caps, prefFair);
+    memo[k] = r;
+    return r;
+  }
+  function isOk(res){ return res.excess === 0 && res.unfinished.length === 0; }
+
+  /* Referentiepunten */
+  var BASE = level(zeroCaps());
+  var SHORTFALL = BASE.excess;
+
+  function usageShift(offs){
+    var u = new Array(N); for(var i=0;i<N;i++) u[i]=0;
+    DOCS.forEach(function(d){
+      var a = d.start + (offs[d.id]|0), b = a + d.work - 1;
+      for(var j=Math.max(0,a); j<=Math.min(N-1,b); j++) u[j]++;
+    });
+    return u;
+  }
+  function aloneShift(id){
+    for(var k=1;k<=MAXSHIFT;k++){
+      var o = {}; o[id] = k;
+      var u = usageShift(o), bad = false;
+      for(var i=0;i<N;i++) if(u[i]>CAP){ bad = true; break; }
+      if(!bad) return k;
+    }
+    return null;
+  }
+  var ALONE = DOCS.map(function(d){
+    var k = aloneShift(d.id);
+    return { doc:d, shift:k, cost: k===null ? null : Math.max(0, k - d.float) };
+  });
+  var BEST_ALONE = ALONE.filter(function(a){ return a.cost!==null; })
+                        .sort(function(x,y){ return x.cost - y.cost; })[0];
+
+  // Het eerlijke optimum: kleinste "grootste einddatum-verschuiving".
+  var FAIR = (function(){
+    for(var c=0;c<=MAXC;c++){
+      var caps = {};
+      DOCS.forEach(function(d){ caps[d.id] = d.float + c; });
+      var r = level(caps);
+      if(isOk(r)){
+        var used = {};
+        DOCS.forEach(function(d){ used[d.id] = r.byId[d.id].pauses; });
+        var r2 = level(used);
+        if(isOk(r2)) return { caps:used, res:r2, c:c };
+        return { caps:caps, res:r, c:c };
+      }
+    }
+    return null;
+  })();
+
+  var SUMFLOAT = 0; DOCS.forEach(function(d){ SUMFLOAT += d.float; });
+
+  /* Scenariokaart */
+  (function(){
+    var cd = BASE.conflictDays;
+    document.getElementById('sc-window').innerHTML =
+      fmtRange(cd[0], cd[cd.length-1]) + ' (' + cd.length + ' werkdagen)';
+    document.getElementById('sc-floats').innerHTML = DOCS.map(function(d){
+      return '<strong>'+esc(d.short)+'</strong> '+(d.float===0?'0 werkdagen':d.float+' werkdagen');
+    }).join(' &middot; ');
+
+    var kv = ALONE.map(function(a){
+      return '<div class="kvi"><span class="n" style="color:'+(a.cost===0?'#0f6a4c':(a.cost<=3?'#87620f':'#a53a20'))+'">'+
+        dagen(a.cost)+'</span>'+esc(a.doc.short)+' draagt alles<div class="xsmall muted">'+
+        a.shift+' werkdagen schuiven &minus; '+a.doc.float+' float</div></div>';
+    });
+    kv.push('<div class="kvi" style="background:#f4fbf8;border-color:#b6e3d1"><span class="n" style="color:#0f6a4c">'+
+      dagen(FAIR.res.maxCost)+'</span>de last verdelen<div class="xsmall muted">'+
+      DOCS.map(function(d){ return esc(d.short)+' '+FAIR.res.byId[d.id].pauses; }).join(' &middot; ')+' pauzedagen</div></div>');
+    document.getElementById('sc-kv').innerHTML = kv.join('');
+
+    document.getElementById('sc-punch').innerHTML =
+      'Het tekort is <strong>'+SHORTFALL+' ploegdagen</strong> (elke conflictdag &eacute;&eacute;n ploeg te veel). '+
+      'Laat je &eacute;&eacute;n document alles dragen, dan kost dat op zijn goedkoopst <strong>'+esc(BEST_ALONE.doc.short)+' '+dagen(BEST_ALONE.cost)+
+      '</strong>; verdeel je het, dan blijft de <strong>grootste einddatum-verschuiving '+dagen(FAIR.res.maxCost)+
+      '</strong>. Dat eerlijke optimum is in elk tabblad haalbaar &mdash; de vraag is met welke bediening je er als planner het snelst en het bewustst komt.';
+  })();
+
+  /* ================================================================== */
+  /* Gedeelde weergave: histogram, einddatum-badges, fasestrook          */
+  /* ================================================================== */
+
+  var VW=900, VH=252, ML=44, MR=16, MT=36, MB=52;
+  var PW = VW-ML-MR, COLW = PW/N;
+  var PB = VH-MB, PT = MT, MAXV = 3.25, UNIT = (PB-PT)/MAXV;
+  var BPAD = Math.min(6, COLW*0.2);
+  function xAt(i){ return ML + i*COLW; }
+  function yAt(v){ return PB - v*UNIT; }
+
+  function histMarkup(res, applied){
+    var u = res.usage, conf = res.conflictDays, s = [];
+    s.push('<svg class="hist" viewBox="0 0 '+VW+' '+VH+'" role="img" aria-label="Bezetting Metselploeg per werkdag, piek '+
+      Math.max.apply(null,u)+' van capaciteit '+CAP+'">');
+
+    var bandA, bandB, bandFill, bandStroke, bandLabel, bandColor;
+    if(conf.length){
+      bandA = conf[0]; bandB = conf[conf.length-1];
+      bandFill='rgba(196,64,42,.07)'; bandStroke='rgba(196,64,42,.28)';
+      bandLabel = conf.length+' '+plural(conf.length,'conflictdag','conflictdagen')+' &middot; '+fmtRange(bandA,bandB);
+      bandColor = '#a53a20';
+    } else {
+      bandA = BASE.conflictDays[0]; bandB = BASE.conflictDays[BASE.conflictDays.length-1];
+      bandFill='rgba(29,158,117,.08)'; bandStroke='rgba(29,158,117,.32)';
+      bandLabel = (applied ? 'Toegepast: conflict opgelost' : 'Oplossing: conflict opgelost') + ' &middot; voormalig conflictvenster';
+      bandColor = '#0f6a4c';
+    }
+    s.push('<rect x="'+xAt(bandA).toFixed(1)+'" y="'+PT+'" width="'+((bandB-bandA+1)*COLW).toFixed(1)+'" height="'+(PB-PT).toFixed(1)+'" fill="'+bandFill+'" stroke="'+bandStroke+'" stroke-dasharray="3 3"/>');
+    s.push('<text x="'+(xAt(bandA)+3).toFixed(1)+'" y="'+(PT-9)+'" font-size="12" font-weight="600" fill="'+bandColor+'">'+bandLabel+'</text>');
+
+    for(var v=0;v<=3;v++){
+      var y = yAt(v);
+      s.push('<line x1="'+ML+'" y1="'+y.toFixed(1)+'" x2="'+(ML+PW)+'" y2="'+y.toFixed(1)+'" stroke="'+(v===0?'#9a978f':'#eceae4')+'" stroke-width="1"/>');
+      s.push('<text x="'+(ML-9)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="11.5" fill="#8a8880">'+v+'</text>');
+    }
+    s.push('<text x="4" y="'+(PT-9)+'" text-anchor="start" font-size="11" fill="#8a8880">ploegen</text>');
+
+    WEEK_BREAKS.forEach(function(i){
+      s.push('<line x1="'+xAt(i+1).toFixed(1)+'" y1="'+PT+'" x2="'+xAt(i+1).toFixed(1)+'" y2="'+PB+'" stroke="#e3e1da" stroke-width="1" stroke-dasharray="2 4"/>');
+    });
+    s.push('<line x1="'+xAt(MONTH_BREAK).toFixed(1)+'" y1="'+(PT-4)+'" x2="'+xAt(MONTH_BREAK).toFixed(1)+'" y2="'+(PB+18)+'" stroke="#cfcdc5" stroke-width="1"/>');
+
+    for(var i2=0;i2<N;i2++){
+      var lev = 0;
+      for(var k=0;k<DOCS.length;k++){
+        var d = DOCS[k], r = res.byId[d.id];
+        if(!r.works[i2]) continue;
+        s.push('<rect x="'+(xAt(i2)+BPAD).toFixed(1)+'" y="'+yAt(lev+1).toFixed(1)+'" width="'+(COLW-2*BPAD).toFixed(1)+'" height="'+UNIT.toFixed(1)+'" fill="'+d.color+'" fill-opacity="0.92" stroke="#fff" stroke-width="1" rx="1.5"/>');
+        lev++;
+      }
+      if(u[i2] > CAP){
+        s.push('<rect x="'+(xAt(i2)+BPAD-1).toFixed(1)+'" y="'+yAt(u[i2]).toFixed(1)+'" width="'+(COLW-2*BPAD+2).toFixed(1)+'" height="'+(yAt(CAP)-yAt(u[i2])).toFixed(1)+'" fill="rgba(196,64,42,.22)"/>');
+        s.push('<line x1="'+(xAt(i2)+BPAD-1).toFixed(1)+'" y1="'+yAt(u[i2]).toFixed(1)+'" x2="'+(xAt(i2)+COLW-BPAD+1).toFixed(1)+'" y2="'+yAt(u[i2]).toFixed(1)+'" stroke="#C4402A" stroke-width="2.5"/>');
+        s.push('<rect x="'+xAt(i2).toFixed(1)+'" y="'+(PB+1)+'" width="'+COLW.toFixed(1)+'" height="3" fill="#C4402A"/>');
+      }
+    }
+
+    var yc = yAt(CAP);
+    s.push('<path d="M '+ML+' '+yc.toFixed(1)+' L '+(ML+PW)+' '+yc.toFixed(1)+'" stroke="#1c1b19" stroke-width="1.8" fill="none"/>');
+    s.push('<rect x="'+(ML+PW-104)+'" y="'+(yc-17)+'" width="100" height="15" fill="#fff" fill-opacity=".88"/>');
+    s.push('<text x="'+(ML+PW-4)+'" y="'+(yc-6)+'" text-anchor="end" font-size="11.5" font-weight="600" fill="#1c1b19">capaciteit 2</text>');
+
+    for(var i3=0;i3<N;i3++){
+      var isC = u[i3]>CAP;
+      s.push('<text x="'+(xAt(i3)+COLW/2).toFixed(1)+'" y="'+(PB+18)+'" text-anchor="middle" font-size="11" font-weight="'+(isC?'700':'400')+'" fill="'+(isC?'#a53a20':'#75726b')+'">'+DAYS[i3][0]+'</text>');
+    }
+    s.push('<text x="'+(xAt(0)+(MONTH_BREAK*COLW)/2).toFixed(1)+'" y="'+(PB+38)+'" text-anchor="middle" font-size="11.5" fill="#8a8880">augustus 2026 &middot; alleen werkdagen</text>');
+    s.push('<text x="'+(xAt(MONTH_BREAK)+((N-MONTH_BREAK)*COLW)/2).toFixed(1)+'" y="'+(PB+38)+'" text-anchor="middle" font-size="11.5" fill="#8a8880">september</text>');
+    s.push('</svg>');
+    return s.join('');
+  }
+
+  function legendHTML(){
+    return DOCS.map(function(d){
+      return '<span class="it"><span class="chip" style="background:'+d.color+'"></span>'+esc(d.name)+'</span>';
+    }).join('') +
+      '<span class="it"><span style="display:inline-block;width:16px;height:2px;background:#1c1b19"></span>capaciteitslijn</span>'+
+      '<span class="it"><span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:rgba(196,64,42,.35);border:1px solid #C4402A"></span>boven capaciteit</span>';
+  }
+
+  function badgesHTML(res){
+    return DOCS.map(function(d){
+      var r = res.byId[d.id];
+      return '<div class="bdg"><div class="bl"><span class="chip" style="background:'+d.color+'"></span>'+
+        '<span class="bn">'+esc(d.short)+'</span>'+
+        '<span class="pill pill-'+tone(r.cost)+'">einddatum '+dagen(r.cost)+'</span></div>'+
+        '<div class="xsmall muted" style="margin-top:3px">eindigt <span class="mono">'+fmtDay(r.end)+'</span>'+
+        (r.pauses>0 ? ' (was '+fmtDay(origEnd(d))+') &middot; '+r.pauses+' '+plural(r.pauses,'pauzedag','pauzedagen') : ' &middot; ongewijzigd')+
+        '</div></div>';
+    }).join('');
+  }
+
+  var SEPS = WEEK_BREAKS.map(function(i){
+      return '<span class="psep" style="left:'+pct(i+1).toFixed(3)+'%"></span>';
+    }).join('') + '<span class="pmonth" style="left:'+pct(MONTH_BREAK).toFixed(3)+'%"></span>';
+  function pct(i){ return (i/N*100); }
+
+  // De blokjes van één fase: werkdagen, pauzedagen, float-meetlat, overschrijding
+  // en (optioneel) de niet-benutte ruimte tot het plafond.
+  function rowBlocks(d, r, capEnd){
+    var oe = origEnd(d), fe = floatEnd(d), out = SEPS;
+    if(d.float > 0){
+      out += '<span class="pfl" style="left:'+pct(oe+1).toFixed(3)+'%;width:'+pct(d.float).toFixed(3)+'%"></span>';
+    }
+    var end = r.end===null ? N-1 : r.end;
+    if(end > fe){
+      out += '<span class="pover" style="left:'+pct(fe+1).toFixed(3)+'%;width:'+pct(end-fe).toFixed(3)+'%"></span>';
+    }
+    if(capEnd !== undefined && capEnd > end){
+      out += '<span class="pfree" style="left:'+pct(end+1).toFixed(3)+'%;width:'+pct(capEnd-end).toFixed(3)+'%"></span>';
+    }
+    for(var i=0;i<N;i++){
+      if(r.works[i]){
+        out += '<span class="pblk pwork" style="left:'+pct(i).toFixed(3)+'%;width:'+pct(1).toFixed(3)+'%;background:'+d.color+'"></span>';
+      } else if(r.pausedOn[i]){
+        out += '<span class="pblk ppause" style="left:'+pct(i).toFixed(3)+'%;width:'+pct(1).toFixed(3)+'%"></span>';
+      }
+    }
+    return out;
+  }
+  var PHASE_CAPTION =
+    'Volle blokjes = werkdagen van de metselfase (boekt 1 ploeg) &middot; '+
+    'gearceerd = pauzedag (boekt niets, de fase loopt aan het eind door) &middot; '+
+    'de meetlat eronder: grijs gestippeld = float, rood = voorbij de float en dus einddatum-verschuiving';
+
+  function phaseMarkup(res){
+    var rows = DOCS.map(function(d){
+      var r = res.byId[d.id];
+      return '<div class="prow">'+
+        '<span class="plabel"><span class="chip" style="background:'+d.color+'"></span><span class="nmw">'+esc(d.short)+'</span></span>'+
+        '<span class="ptrack">'+rowBlocks(d, r)+'</span>'+
+        '<span class="pend">'+(r.pauses>0
+            ? '<span class="pill pill-'+tone(r.cost)+'">'+dagen(r.cost)+'</span>'
+            : '<span class="muted">ongewijzigd</span>')+'</span></div>';
+    }).join('');
+    return '<div class="phase">'+rows+
+      '<div class="xsmall muted pcaption" style="margin-top:4px;padding-left:160px">'+PHASE_CAPTION+'</div></div>';
+  }
+
+  /* ================================================================== */
+  /* Paneel-omhulsel: bediening + uitkomst + oordeel, per variant        */
+  /* ================================================================== */
+
+  function judgeHTML(j){
+    var items = [
+      { cls:'strong', k:'Sterk',                  v:j.sterk },
+      { cls:'weak',   k:'Zwak',                   v:j.zwak },
+      { cls:'',       k:'Schaalbaarheid &mdash; 8 open projecten?', v:j.schaal },
+      { cls:'',       k:'Toetsenbord',            v:j.kb }
+    ];
+    return '<h3 style="margin-bottom:9px">Oordeel</h3><div class="jgrid">'+
+      items.map(function(i){
+        return '<div class="jitem '+i.cls+'"><div class="k">'+i.k+'</div><div class="v">'+i.v+'</div></div>';
+      }).join('')+'</div>';
+  }
+
+  function Panel(cfg){
+    var self = this;
+    this.cfg = cfg;
+    this.mode = 'bewerken';
+    this.note = '';               // variant-specifieke uitweg/toelichting
+
+    var sec = document.createElement('section');
+    sec.className = 'panel hidden';
+    sec.id = 'panel-'+cfg.k;
+    sec.setAttribute('role','tabpanel');
+    sec.setAttribute('aria-labelledby','tab-'+cfg.k);
+    sec.innerHTML =
+      '<div class="card">'+
+        '<div class="row row-wrap" style="margin-bottom:6px">'+
+          '<h2 style="margin:0">'+cfg.k+' &middot; '+cfg.title+'</h2>'+
+          '<span class="spacer"></span>'+
+          '<span class="pill p-state"></span>'+
+        '</div>'+
+        '<p class="small muted">'+cfg.lead+'</p>'+
+        '<div class="p-ctl"></div>'+
+        '<div class="valid p-valid" role="status" aria-live="polite"></div>'+
+        '<div class="row row-wrap" style="margin-top:11px">'+
+          '<button class="btn btn-primary p-apply">Toepassen</button>'+
+          '<button class="btn p-reset">Reset</button>'+
+          '<span class="spacer"></span>'+
+          '<span class="xsmall muted p-why"></span>'+
+        '</div>'+
+        '<div class="p-applied"></div>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="occ">'+
+          '<span class="occ-name">Metselploeg</span>'+
+          '<span class="muted small p-meta"></span>'+
+          '<span class="spacer"></span>'+
+          '<span class="xsmall muted">Bouwbedrijf De&nbsp;Vries &middot; 3 open documenten</span>'+
+        '</div>'+
+        '<div class="p-badges" style="margin-top:11px"></div>'+
+        '<div class="legend p-legend"></div>'+
+        '<div class="p-hist"></div>'+
+        (cfg.phaseInCtl ? '' : '<div class="p-phase"></div>')+
+      '</div>'+
+      '<div class="card judge">'+judgeHTML(cfg.judge)+'</div>';
+    document.getElementById('panels').appendChild(sec);
+
+    this.el      = sec;
+    this.elCtl   = sec.querySelector('.p-ctl');
+    this.elState = sec.querySelector('.p-state');
+    this.elValid = sec.querySelector('.p-valid');
+    this.elApply = sec.querySelector('.p-apply');
+    this.elReset = sec.querySelector('.p-reset');
+    this.elWhy   = sec.querySelector('.p-why');
+    this.elDone  = sec.querySelector('.p-applied');
+    this.elMeta  = sec.querySelector('.p-meta');
+    this.elBadge = sec.querySelector('.p-badges');
+    this.elHist  = sec.querySelector('.p-hist');
+    this.elPhase = sec.querySelector('.p-phase');
+    sec.querySelector('.p-legend').innerHTML = legendHTML();
+
+    this.elApply.addEventListener('click', function(){
+      if(self.elApply.disabled) return;
+      self.mode = 'toegepast';
+      self.render();
+    });
+    this.elReset.addEventListener('click', function(){
+      self.mode = 'bewerken';
+      self.note = '';
+      self.ctl.reset();
+    });
+    this.elDone.addEventListener('click', function(e){
+      var t = e.target;
+      if(t && t.getAttribute && t.getAttribute('data-undo') !== null){
+        self.mode = 'bewerken';
+        self.render();
+      }
+    });
+
+    this.ctl = cfg.build(this, this.elCtl);
+    this.caps = cloneCaps(this.ctl.caps);
+    this.render();
+  }
+
+  // Aangeroepen door de bediening: nieuw pauzeplafond → doorrekenen → hertekenen.
+  Panel.prototype.update = function(caps, note){
+    this.caps = cloneCaps(caps);
+    this.note = note || '';
+    if(this.mode === 'toegepast') this.mode = 'bewerken';
+    this.render();
+  };
+
+  Panel.prototype.render = function(){
+    var res = this.res = level(this.caps);
+    var ok = isOk(res), applied = (this.mode === 'toegepast');
+    var peak = 0; for(var i=0;i<N;i++) if(res.usage[i]>peak) peak = res.usage[i];
+
+    this.elMeta.textContent = 'piek '+peak+' / capaciteit '+CAP;
+    if(!ok){
+      this.elState.className = 'pill p-state pill-red';
+      this.elState.textContent = res.conflictDays.length+' '+plural(res.conflictDays.length,'conflictdag','conflictdagen');
+    } else if(applied){
+      this.elState.className = 'pill p-state pill-green';
+      this.elState.textContent = 'toegepast · conflict opgelost';
+    } else {
+      this.elState.className = 'pill p-state pill-amber';
+      this.elState.textContent = 'oplossing gevonden — nog niet toegepast';
+    }
+
+    this.elBadge.innerHTML = badgesHTML(res);
+    this.elHist.innerHTML = histMarkup(res, applied);
+    if(this.elPhase) this.elPhase.innerHTML = phaseMarkup(res);
+
+    if(ok){
+      this.elValid.className = 'valid p-valid ok';
+      this.elValid.innerHTML = '<strong>Conflict opgelost.</strong> Piek terug op '+CAP+
+        '. Grootste einddatum-verschuiving <strong>'+dagen(res.maxCost)+'</strong> ('+
+        res.sumPauses+' '+plural(res.sumPauses,'pauzedag','pauzedagen')+' verdeeld over '+
+        res.changed+' '+plural(res.changed,'document','documenten')+')'+
+        (res.maxCost > FAIR.res.maxCost ? '. Het eerlijke optimum is '+dagen(FAIR.res.maxCost)+' — dit kan dus nog beter.' : '.')+
+        (this.note ? ' <span class="muted">'+this.note+'</span>' : '');
+    } else {
+      this.elValid.className = 'valid p-valid bad';
+      this.elValid.innerHTML = '<strong>Nog '+res.excess+' '+plural(res.excess,'ploegdag','ploegdagen')+' tekort.</strong> '+
+        (res.unfinished.length ? 'Bovendien past minstens één fase niet meer binnen de as (t/m 4 sep). ' : '')+
+        res.conflictDays.length+' '+plural(res.conflictDays.length,'dag','dagen')+' boven capaciteit ('+
+        dayList(res.conflictDays)+'). '+
+        (this.note || this.cfg.uitweg);
+    }
+    this.elApply.disabled = !ok || applied;
+    this.elWhy.textContent = !ok ? 'Toepassen kan niet: het tekort is niet gedekt.'
+                                 : (applied ? '' : 'Er wordt nog niets geschreven.');
+
+    this.elDone.className = applied ? 'p-applied applied' : 'p-applied hidden';
+    this.elDone.innerHTML = applied
+      ? '<span class="pill pill-green">Toegepast</span> <span class="small" style="margin-left:6px">Geschreven in '+
+        res.changed+' '+plural(res.changed,'document','documenten')+' plus de pool — in het echt één samengestelde undo-stap.</span>'+
+        '<div class="row" style="margin-top:9px"><button class="btn btn-sm" data-undo>Ongedaan maken</button></div>'
+      : '';
+
+    this.ctl.sync();
+  };
+
+  /* --- tabbladen --------------------------------------------------- */
+  var TABS = ['1','2','3','4'];
+  function selectTab(k){
+    TABS.forEach(function(x){
+      var tab = document.getElementById('tab-'+x);
+      var pan = document.getElementById('panel-'+x);
+      var on = (x===k);
+      tab.setAttribute('aria-selected', on?'true':'false');
+      tab.setAttribute('tabindex', on?'0':'-1');
+      if(pan) pan.classList.toggle('hidden', !on);
+    });
+  }
+  TABS.forEach(function(k){
+    document.getElementById('tab-'+k).addEventListener('click', function(){ selectTab(k); });
+  });
+  document.getElementById('tablist').addEventListener('keydown', function(e){
+    var cur = TABS.indexOf((document.activeElement && document.activeElement.id || '').replace('tab-',''));
+    if(cur < 0) return;
+    var nxt = null;
+    if(e.key === 'ArrowRight') nxt = (cur+1) % TABS.length;
+    else if(e.key === 'ArrowLeft') nxt = (cur-1+TABS.length) % TABS.length;
+    else if(e.key === 'Home') nxt = 0;
+    else if(e.key === 'End') nxt = TABS.length-1;
+    if(nxt === null) return;
+    e.preventDefault();
+    selectTab(TABS[nxt]);
+    document.getElementById('tab-'+TABS[nxt]).focus();
+  });
+
+  /* --- gedeelde sleep-helper: pointer-events, werkt buiten het element - */
+  function dragify(el, onMove){
+    el.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(el.getAttribute('aria-disabled') === 'true') return;
+      try{ el.focus({ preventScroll:true }); }catch(err){ try{ el.focus(); }catch(e2){} }
+      try{ el.setPointerCapture(e.pointerId); }catch(err){}
+      function mv(ev){ onMove(ev); }
+      function up(){
+        el.removeEventListener('pointermove', mv);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+        try{ el.releasePointerCapture(e.pointerId); }catch(err){}
+      }
+      el.addEventListener('pointermove', mv);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+      onMove(e);
+    });
+  }
+  function stepKey(e){
+    if(e.key === 'ArrowRight' || e.key === 'ArrowUp') return 1;
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowDown') return -1;
+    if(e.key === 'PageUp') return 3;
+    if(e.key === 'PageDown') return -3;
+    if(e.key === 'Home') return 'min';
+    if(e.key === 'End') return 'max';
+    return null;
+  }
+
+  /* ================================================================== */
+  /* 1 · Ster (radar) met trekpunten                                     */
+  /*    as = maximale uitloop van de einddatum (0–8 werkdagen).          */
+  /*    plafond per document = float + as-waarde pauzedagen.             */
+  /* ================================================================== */
+
+  function buildRadar(panel, mount){
+    var VBW=420, VBH=240, CX=210, CY=152, R=100;
+    var ANG = [-90, 30, 150];
+    var c = [0,0,0];
+
+    function pt(i, v){
+      var a = ANG[i]*Math.PI/180, r = v/MAXC*R;
+      return [CX + r*Math.cos(a), CY + r*Math.sin(a)];
+    }
+    function poly(vals){
+      return vals.map(function(v,i){ var p = pt(i,v); return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+    }
+    function capsOf(arr){
+      var caps = {};
+      DOCS.forEach(function(d,i){ caps[d.id] = d.float + (arr[i]|0); });
+      return caps;
+    }
+
+    var s = [];
+    s.push('<svg class="radar" viewBox="0 0 '+VBW+' '+VBH+'" role="group" aria-label="Uitloopplafond per project, drie assen">');
+    [2,4,6,8].forEach(function(v){
+      s.push('<polygon points="'+poly([v,v,v])+'" fill="none" stroke="'+(v===8?'#dedcd6':'#eceae4')+'" stroke-width="1"/>');
+    });
+    ANG.forEach(function(a,i){
+      var p = pt(i,MAXC);
+      s.push('<line x1="'+CX+'" y1="'+CY+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'" stroke="#dedcd6" stroke-width="1"/>');
+    });
+    [2,4,6,8].forEach(function(v){
+      var p = pt(0,v);
+      s.push('<text x="'+(CX-8)+'" y="'+(p[1]+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" fill="#a8a59e">+'+v+'</text>');
+    });
+    s.push('<circle cx="'+CX+'" cy="'+CY+'" r="2" fill="#b3b0a8"/>');
+    s.push('<polygon class="r-inner" points="'+poly([0,0,0])+'" fill="#1c1b19" fill-opacity=".08" stroke="#6f6c66" stroke-width="1.4"/>');
+    s.push('<polygon class="r-outer" points="'+poly(c)+'" fill="none" stroke="#1c1b19" stroke-width="1.8" stroke-linejoin="round"/>');
+    DOCS.forEach(function(d,i){
+      var p = pt(i,MAXC);
+      s.push('<line class="rhit" data-ax="'+i+'" x1="'+CX+'" y1="'+CY+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+
+        '" stroke="transparent" stroke-width="22" pointer-events="stroke"/>');
+    });
+    DOCS.forEach(function(d,i){
+      s.push('<circle class="r-dot" data-ax="'+i+'" cx="0" cy="0" r="3" fill="'+d.color+'"/>');
+    });
+    DOCS.forEach(function(d,i){
+      s.push('<circle class="rhandle" data-ax="'+i+'" cx="0" cy="0" r="7.5" fill="#fff" stroke="'+d.color+'" stroke-width="2.5"'+
+        ' tabindex="0" role="slider" aria-label="Maximale uitloop einddatum '+esc(d.name)+'"'+
+        ' aria-valuemin="0" aria-valuemax="'+MAXC+'" aria-valuenow="0"></circle>');
+    });
+    DOCS.forEach(function(d,i){
+      var anchor = i===0 ? 'middle' : (i===1 ? 'start' : 'end');
+      var lp = i===0 ? [CX, 22] : (i===1 ? [316, 213] : [104, 213]);
+      s.push('<text class="r-l1" data-ax="'+i+'" x="'+lp[0]+'" y="'+lp[1]+'" text-anchor="'+anchor+'" font-size="12.5" font-weight="650" fill="'+d.color+'">'+esc(d.short)+'</text>');
+      s.push('<text class="r-l2" data-ax="'+i+'" x="'+lp[0]+'" y="'+(lp[1]+14)+'" text-anchor="'+anchor+'" font-size="11.5" fill="#605e58"></text>');
+    });
+    s.push('</svg>');
+
+    mount.innerHTML =
+      '<p class="xsmall muted" style="margin:0 0 4px">Drie assen, één per project, elk 0&ndash;'+MAXC+' werkdagen <em>uitloop van de einddatum</em>. '+
+      'De <strong>buitenste veelhoek</strong> is het plafond dat je zelf zet: sleep een trekpunt langs zijn as, of geef het focus (Tab) en gebruik '+
+      '&larr;&rarr;&uarr;&darr; · Home/End · PageUp/PageDown. De <strong>gevulde binnenvorm</strong> is wat de nivelleerder er werkelijk van gebruikt &mdash; '+
+      'die volgt, je kunt er niet aan trekken. Op 0-0-0 mag elk project nog wél zijn eigen float opgebruiken; dat is hier net niet genoeg.</p>'+
+      '<div class="radarwrap">'+s.join('')+'</div>'+
+      '<div class="xsmall muted" style="text-align:center;margin-top:2px">as = werkdagen uitloop van de einddatum, bovenop de eigen float</div>'+
+      '<div class="axlist"></div>';
+
+    var svg    = mount.querySelector('svg.radar');
+    var pOuter = svg.querySelector('.r-outer');
+    var pInner = svg.querySelector('.r-inner');
+    var dots   = Array.prototype.slice.call(svg.querySelectorAll('.r-dot'));
+    var hands  = Array.prototype.slice.call(svg.querySelectorAll('.rhandle'));
+    var l2s    = Array.prototype.slice.call(svg.querySelectorAll('.r-l2'));
+    var elList = mount.querySelector('.axlist');
+
+    function setAx(i, v){
+      v = Math.max(0, Math.min(MAXC, v|0));
+      if(v === c[i]) return;
+      c[i] = v;
+      panel.update(capsOf(c));
+    }
+    function valueAt(i, ev){
+      var rect = svg.getBoundingClientRect();
+      if(!(rect.width > 0)) return c[i];
+      var k = VBW / rect.width;
+      var x = (ev.clientX - rect.left)*k - CX;
+      var y = (ev.clientY - rect.top)*k - CY;
+      var a = ANG[i]*Math.PI/180;
+      var proj = x*Math.cos(a) + y*Math.sin(a);
+      return Math.round(proj / R * MAXC);
+    }
+    hands.forEach(function(h, i){
+      dragify(h, function(ev){ setAx(i, valueAt(i, ev)); });
+      h.addEventListener('keydown', function(e){
+        var st = stepKey(e);
+        if(st === null) return;
+        e.preventDefault();
+        setAx(i, st==='min' ? 0 : (st==='max' ? MAXC : c[i]+st));
+      });
+    });
+    Array.prototype.forEach.call(svg.querySelectorAll('.rhit'), function(line){
+      var i = parseInt(line.getAttribute('data-ax'),10);
+      line.addEventListener('pointerdown', function(e){
+        e.preventDefault();
+        try{ hands[i].focus({ preventScroll:true }); }catch(err){}
+        setAx(i, valueAt(i, e));
+      });
+    });
+
+    return {
+      caps: capsOf(c),
+      reset: function(){ c = [0,0,0]; panel.update(capsOf(c)); },
+      sync: function(){
+        var res = panel.res;
+        var used = DOCS.map(function(d){ return res.byId[d.id].cost; });
+        pOuter.setAttribute('points', poly(c));
+        pInner.setAttribute('points', poly(used));
+        DOCS.forEach(function(d,i){
+          var ph = pt(i, c[i]), pd = pt(i, used[i]);
+          hands[i].setAttribute('cx', ph[0].toFixed(1));
+          hands[i].setAttribute('cy', ph[1].toFixed(1));
+          dots[i].setAttribute('cx', pd[0].toFixed(1));
+          dots[i].setAttribute('cy', pd[1].toFixed(1));
+          hands[i].setAttribute('aria-valuenow', String(c[i]));
+          hands[i].setAttribute('aria-valuetext', 'maximaal '+dagen(c[i])+' uitloop, benut '+dagen(used[i])+
+            ', eindigt '+fmtDay(res.byId[d.id].end));
+          l2s[i].textContent = 'max '+signed(c[i])+' · benut '+signed(used[i]);
+        });
+        elList.innerHTML = DOCS.map(function(d,i){
+          var r = res.byId[d.id];
+          return '<div class="axi"><span class="chip" style="background:'+d.color+'"></span> <strong>'+esc(d.short)+'</strong>'+
+            ' <span class="mono">max '+signed(c[i])+'</span> · <span class="mono">benut '+signed(r.cost)+'</span>'+
+            '<div class="xsmall muted">'+esc(d.floatTxt)+' · '+r.pauses+' '+plural(r.pauses,'pauzedag','pauzedagen')+
+            ' binnen plafond '+(d.float+c[i])+'</div></div>';
+        }).join('');
+      }
+    };
+  }
+
+  /* ================================================================== */
+  /* 2 · Verdeelbalk — het tekort als één balk met sleepbare wanden       */
+  /* ================================================================== */
+
+  function buildBar(panel, mount){
+    var T = SHORTFALL;
+    function evenSplit(){
+      var base = Math.floor(T/3), rest = T - base*3, a = [base,base,base];
+      for(var i=0;i<rest;i++) a[i]++;
+      return a;
+    }
+    var seg = evenSplit();
+    var fairArr = capsArr(FAIR.caps);
+    var fairFits = fairArr[0]+fairArr[1]+fairArr[2] === T;
+
+    var ticks = '', scale = '';
+    for(var k=0;k<=T;k++){
+      var p = (k/T*100).toFixed(3);
+      if(k>0 && k<T){
+        ticks += '<span class="bartick" style="left:'+p+'%"></span><span class="barticklo" style="left:'+p+'%"></span>';
+      }
+      scale += '<span style="left:'+p+'%">'+k+'</span>';
+    }
+
+    mount.innerHTML =
+      '<p class="xsmall muted" style="margin:0">Het tekort is één grootheid: <strong>'+SHORTFALL+' ploegdagen</strong>. '+
+      'Hier is dat één balk van '+T+' delen; de drie projectvakken vullen hem samen altijd precies. '+
+      'Sleep een <strong>wand</strong> of geef hem focus en gebruik &larr;&rarr; · Home/End. '+
+      'Een vak overschrijdt de float? Dan zie je dat aan de badge (+1, +2 …) &mdash; niet aan een foutmelding.</p>'+
+      '<div class="bartrack">'+
+        DOCS.map(function(d,i){ return '<span class="barseg" data-seg="'+i+'"></span>'; }).join('')+
+        ticks+
+        '<button class="bardiv" data-div="0" type="button" role="slider" aria-label="Wand tussen '+esc(DOCS[0].short)+' en '+esc(DOCS[1].short)+'" aria-valuemin="0" aria-valuemax="'+T+'" aria-valuenow="0" style="z-index:3"></button>'+
+        '<button class="bardiv" data-div="1" type="button" role="slider" aria-label="Wand tussen '+esc(DOCS[1].short)+' en '+esc(DOCS[2].short)+'" aria-valuemin="0" aria-valuemax="'+T+'" aria-valuenow="0" style="z-index:2"></button>'+
+      '</div>'+
+      '<div class="barscale">'+scale+'</div>'+
+      '<div class="barlegend"></div>';
+
+    var track = mount.querySelector('.bartrack');
+    var segs  = Array.prototype.slice.call(mount.querySelectorAll('.barseg'));
+    var divs  = Array.prototype.slice.call(mount.querySelectorAll('.bardiv'));
+    var elLeg = mount.querySelector('.barlegend');
+
+    function bounds(){ return [seg[0], seg[0]+seg[1]]; }
+    function setDiv(j, v){
+      var b = bounds();
+      if(j===0) v = Math.max(0, Math.min(b[1], v|0));
+      else      v = Math.max(b[0], Math.min(T, v|0));
+      var d0 = j===0 ? v : b[0], d1 = j===0 ? b[1] : v;
+      if(d0===b[0] && d1===b[1]) return;
+      seg = [d0, d1-d0, T-d1];
+      panel.update(capsFromArr(seg));
+    }
+    divs.forEach(function(dv, j){
+      dragify(dv, function(ev){
+        var rect = track.getBoundingClientRect();
+        if(!(rect.width > 0)) return;
+        setDiv(j, Math.round((ev.clientX - rect.left) / rect.width * T));
+      });
+      dv.addEventListener('keydown', function(e){
+        var st = stepKey(e);
+        if(st === null) return;
+        e.preventDefault();
+        var b = bounds(), cur = b[j];
+        if(st === 'min') setDiv(j, j===0 ? 0 : b[0]);
+        else if(st === 'max') setDiv(j, j===0 ? b[1] : T);
+        else setDiv(j, cur + (st>0?1:-1));
+      });
+    });
+    if(fairFits){
+      panel.elValid.addEventListener('click', function(e){
+        if(e.target && e.target.getAttribute && e.target.getAttribute('data-fair') !== null){
+          seg = fairArr.slice();
+          panel.update(capsFromArr(seg));
+        }
+      });
+    }
+
+    return {
+      caps: capsFromArr(seg),
+      reset: function(){ seg = evenSplit(); panel.update(capsFromArr(seg)); },
+      sync: function(){
+        var res = panel.res, cum = 0;
+        DOCS.forEach(function(d,i){
+          var left = cum/T*100, w = seg[i]/T*100;
+          cum += seg[i];
+          segs[i].style.left = left.toFixed(3)+'%';
+          segs[i].style.width = w.toFixed(3)+'%';
+          segs[i].style.background = d.color;
+          segs[i].style.borderRadius = (i===0?'8px 0 0 8px':(i===2?'0 8px 8px 0':'0'));
+          segs[i].textContent = seg[i] > 0 ? (seg[i]+' '+plural(seg[i],'dag','dagen')) : '';
+          segs[i].title = d.name+': '+seg[i]+' '+plural(seg[i],'pauzedag','pauzedagen');
+        });
+        var b = bounds();
+        divs.forEach(function(dv, j){
+          dv.style.left = (b[j]/T*100).toFixed(3)+'%';
+          dv.setAttribute('aria-valuenow', String(b[j]));
+          dv.setAttribute('aria-valuemin', String(j===0 ? 0 : b[0]));
+          dv.setAttribute('aria-valuemax', String(j===0 ? b[1] : T));
+          dv.setAttribute('aria-valuetext', j===0
+            ? DOCS[0].short+' '+seg[0]+', '+DOCS[1].short+' '+seg[1]
+            : DOCS[1].short+' '+seg[1]+', '+DOCS[2].short+' '+seg[2]);
+        });
+        elLeg.innerHTML = DOCS.map(function(d,i){
+          var r = res.byId[d.id];
+          return '<div class="barli"><span class="chip" style="background:'+d.color+'"></span> <strong>'+esc(d.short)+'</strong>'+
+            ' <span class="mono">'+seg[i]+' '+plural(seg[i],'pauzedag','pauzedagen')+'</span> '+
+            '<span class="pill pill-'+tone(r.cost)+'">'+dagen(r.cost)+'</span>'+
+            '<div class="xsmall muted">'+esc(d.floatTxt)+(r.pauses!==seg[i] ? ' · benut '+r.pauses : '')+
+            ' · eindigt '+fmtDay(r.end)+'</div></div>';
+        }).join('');
+      }
+    };
+  }
+
+  /* ================================================================== */
+  /* 3 · Communicerende vaten — je stuurt op de einddatum, de oplosser    */
+  /*     zoekt de dichtstbijzijnde haalbare verdeling voor de rest.       */
+  /* ================================================================== */
+
+  var FEAS = null;
+  function feasList(){
+    if(FEAS) return FEAS;
+    FEAS = [];
+    for(var a=0;a<=MAXC;a++) for(var b=0;b<=MAXC;b++) for(var g=0;g<=MAXC;g++){
+      var arr = [a,b,g], caps = {};
+      DOCS.forEach(function(d,i){ caps[d.id] = d.float + arr[i]; });
+      var r = level(caps);
+      if(!isOk(r)) continue;
+      FEAS.push({ caps:caps,
+                  costs: DOCS.map(function(d){ return r.byId[d.id].cost; }),
+                  maxCost: r.maxCost, sumPauses: r.sumPauses, sumC: a+b+g });
+    }
+    return FEAS;
+  }
+  function better(s, best){
+    for(var i=0;i<s.length;i++){ if(s[i] !== best[i]) return s[i] < best[i]; }
+    return false;
+  }
+  // targetIdx = -1 → geen vraag, kies de rustigste haalbare stand.
+  function vesselSolve(targetIdx, target, pins, prev){
+    var list = feasList(), best = null, bestS = null;
+    for(var n=0;n<list.length;n++){
+      var f = list[n], skip = false, dist = 0;
+      for(var i=0;i<DOCS.length;i++){
+        if(pins[i] && i!==targetIdx && f.costs[i] !== prev[i]){ skip = true; break; }
+        if(i!==targetIdx && !pins[i]) dist += Math.abs(f.costs[i] - prev[i]);
+      }
+      if(skip) continue;
+      var s = [ targetIdx<0 ? 0 : Math.abs(f.costs[targetIdx]-target), dist, f.maxCost, f.sumPauses, f.sumC ];
+      if(!bestS || better(s, bestS)){ bestS = s; best = f; }
+    }
+    return best;
+  }
+
+  function buildVessels(panel, mount){
+    var pins = [false,false,false];
+    // Startstand = dezelfde onopgeloste uitgangssituatie als de andere tabbladen:
+    // alle drie op +0. Elke aanraking laat de oplosser een geldige verdeling zoeken.
+    var startCaps = zeroCaps(), startLevels = [0,0,0];
+    var levels = startLevels.slice();
+    // De gevraagde stand loopt náást de bereikte stand. Zonder dat blijft de
+    // bediening hangen: niet elk niveau is haalbaar, en dan zou stap na stap
+    // steeds opnieuw vanaf dezelfde bereikte waarde vragen.
+    var wants = startLevels.slice();
+    feasList();
+
+    var grid = '', ax = '';
+    for(var v=0;v<=MAXC;v++){
+      var p = (v/MAXC*100).toFixed(3);
+      grid += '<span class="vgrid" style="bottom:'+p+'%"></span>';
+      if(v % 2 === 0) ax += '<span style="bottom:'+p+'%">'+signed(v)+'</span>';
+    }
+
+    mount.innerHTML =
+      '<p class="xsmall muted" style="margin:0 0 2px">Eén kolom per project; het niveau is de <strong>einddatum-verschuiving</strong> (+N werkdagen bovenop de eigen float). '+
+      'Sleep een niveau omhoog of omlaag &mdash; of gebruik &uarr;&darr; · Home/End &mdash; en de oplosser herverdeelt de last <em>live</em> over de andere kolommen: '+
+      'de dichtstbijzijnde verdeling die het conflict nog dekt. Met <strong>vastzetten</strong> bevries je een niveau; wat overblijft moet het dan opvangen.</p>'+
+      '<div class="vessels">'+
+        '<div class="vaxis">'+ax+'</div>'+
+        DOCS.map(function(d,i){
+          return '<div class="vcol">'+
+            '<div class="vhead"><span class="chip" style="background:'+d.color+'"></span>'+esc(d.short)+'</div>'+
+            '<div class="vtube" data-tube="'+i+'">'+grid+
+              '<span class="vfill" data-fill="'+i+'" style="background:'+d.color+'33;border-top:2px solid '+d.color+'"></span>'+
+              '<button class="vhandle" data-h="'+i+'" type="button" role="slider" aria-orientation="vertical"'+
+                ' aria-label="Einddatum-verschuiving '+esc(d.name)+'" aria-valuemin="0" aria-valuemax="'+MAXC+'" aria-valuenow="0"></button>'+
+            '</div>'+
+            '<div class="vfoot" data-foot="'+i+'"></div>'+
+            '<button class="btn btn-sm" data-pin="'+i+'" aria-pressed="false">vastzetten</button>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+
+    var tubes = Array.prototype.slice.call(mount.querySelectorAll('.vtube'));
+    var fills = Array.prototype.slice.call(mount.querySelectorAll('.vfill'));
+    var hands = Array.prototype.slice.call(mount.querySelectorAll('.vhandle'));
+    var feet  = Array.prototype.slice.call(mount.querySelectorAll('[data-foot]'));
+    var pinBs = Array.prototype.slice.call(mount.querySelectorAll('[data-pin]'));
+
+    function pinHint(){
+      var n = pins.filter(Boolean).length;
+      if(n === 3) return 'Alle drie zijn vastgezet — er is niets meer te herverdelen. Maak er één los.';
+      return '';
+    }
+    function ask(i, want){
+      want = Math.max(0, Math.min(MAXC, want|0));
+      if(pins[i]) return;
+      var sol = vesselSolve(i, want, pins, levels);
+      if(!sol){
+        var loose = [];
+        DOCS.forEach(function(d,j){ if(pins[j]) loose.push(d.short); });
+        panel.update(panel.caps, 'Onhaalbaar: met '+(loose.length?loose.join(' en ')+' vastgezet':'deze combinatie')+
+          ' bestaat er geen verdeling die het tekort dekt. Maak '+(loose.length?loose.join(' of '):'een kolom')+' los, of geef een ander project meer uitloop.');
+        return;
+      }
+      var reached = sol.costs[i];
+      levels = sol.costs.slice();
+      wants = sol.costs.slice();
+      wants[i] = want;                 // de vraag blijft staan, ook als hij niet gehaald wordt
+      var note = '';
+      if(reached !== want){
+        note = 'Gevraagd '+dagen(want)+' voor '+DOCS[i].short+', dichtst haalbare stand '+dagen(reached)+
+               (pins.filter(Boolean).length ? ' met de huidige pins.' : '. Niet elk niveau bestaat: de nivelleerder deelt hele pauzedagen uit.');
+      }
+      panel.update(sol.caps, note || pinHint());
+    }
+    hands.forEach(function(h, i){
+      dragify(h, function(ev){
+        var rect = tubes[i].getBoundingClientRect();
+        if(!(rect.height > 0)) return;
+        ask(i, Math.round((rect.bottom - ev.clientY) / rect.height * MAXC));
+      });
+      h.addEventListener('keydown', function(e){
+        var st = stepKey(e);
+        if(st === null) return;
+        e.preventDefault();
+        ask(i, st==='min' ? 0 : (st==='max' ? MAXC : wants[i]+st));
+      });
+    });
+    pinBs.forEach(function(b, i){
+      b.addEventListener('click', function(){
+        pins[i] = !pins[i];
+        panel.update(panel.caps, pinHint() ||
+          (pins[i] ? DOCS[i].short+' staat vast op '+dagen(levels[i])+' — de rest moet het nu opvangen.' : ''));
+      });
+    });
+
+    return {
+      caps: startCaps,
+      reset: function(){
+        pins = [false,false,false];
+        levels = startLevels.slice();
+        wants = startLevels.slice();
+        panel.update(startCaps, '');
+      },
+      sync: function(){
+        var res = panel.res;
+        DOCS.forEach(function(d,i){
+          var lv = res.byId[d.id].cost;
+          levels[i] = lv;
+          var p = (lv/MAXC*100).toFixed(3);
+          fills[i].style.height = p+'%';
+          hands[i].style.bottom = p+'%';
+          hands[i].textContent = signed(lv);
+          hands[i].setAttribute('aria-valuenow', String(lv));
+          hands[i].setAttribute('aria-valuetext', dagen(lv)+', eindigt '+fmtDay(res.byId[d.id].end)+
+            (pins[i] ? ', vastgezet' : ''));
+          hands[i].setAttribute('aria-disabled', pins[i] ? 'true' : 'false');
+          tubes[i].classList.toggle('pinned', pins[i]);
+          feet[i].innerHTML = '<span class="pill pill-'+tone(lv)+'">'+dagen(lv)+'</span>'+
+            '<div class="xsmall muted" style="margin-top:2px">eindigt '+fmtDay(res.byId[d.id].end)+
+            '<br>'+res.byId[d.id].pauses+' '+plural(res.byId[d.id].pauses,'pauzedag','pauzedagen')+'</div>';
+          pinBs[i].setAttribute('aria-pressed', pins[i] ? 'true':'false');
+          pinBs[i].textContent = pins[i] ? 'vast — losmaken' : 'vastzetten';
+        });
+      }
+    };
+  }
+
+  /* ================================================================== */
+  /* 4 · Fasestrook-handles — bediening ín de tijdlijn                    */
+  /* ================================================================== */
+
+  function buildPhaseHandles(panel, mount){
+    var caps = zeroCaps();
+
+    mount.innerHTML =
+      '<p class="xsmall muted" style="margin:0 0 2px">Geen apart bedieningspaneel: je sleept de <strong>handle aan het einde van de fase</strong> naar rechts en kent daarmee uitloop toe. '+
+      'De nivelleerder besluit vervolgens zelf op welke dagen hij pauzeert. Toetsenbord: &larr;&rarr; = één werkdag, PageUp/PageDown = drie, Home = geen uitloop, End = maximaal.</p>'+
+      '<div class="phase"></div>'+
+      '<div class="xsmall muted pcaption" style="margin-top:4px;padding-left:160px">'+PHASE_CAPTION+
+      ' &middot; de gestippelde omlijning rechts is ruimte die je wél toestond maar die niet nodig bleek</div>';
+
+    var host = mount.querySelector('.phase');
+    var rows = DOCS.map(function(d){
+      var row = document.createElement('div');
+      row.className = 'prow';
+      row.innerHTML =
+        '<span class="plabel"><span class="chip" style="background:'+d.color+'"></span><span class="nmw">'+esc(d.short)+'</span></span>'+
+        '<span class="ptrack tall"><span class="pblocks"></span>'+
+          '<button class="phandle" type="button" role="slider" aria-label="Einde metselfase '+esc(d.name)+
+          '" aria-valuemin="0" aria-valuemax="'+MAXPAUSE+'" aria-valuenow="0"></button></span>'+
+        '<span class="pend"></span>';
+      host.appendChild(row);
+      return { el:row, blocks:row.querySelector('.pblocks'), handle:row.querySelector('.phandle'), end:row.querySelector('.pend') };
+    });
+
+    function setCap(i, v){
+      var d = DOCS[i];
+      v = Math.max(0, Math.min(MAXPAUSE, v|0));
+      if(v === caps[d.id]) return;
+      caps[d.id] = v;
+      panel.update(caps);
+    }
+    DOCS.forEach(function(d, i){
+      var track = rows[i].el.querySelector('.ptrack');
+      dragify(rows[i].handle, function(ev){
+        var rect = track.getBoundingClientRect();
+        if(!(rect.width > 0)) return;
+        var e = Math.round((ev.clientX - rect.left) / rect.width * N) - 1;
+        setCap(i, e - origEnd(d));
+      });
+      rows[i].handle.addEventListener('keydown', function(e){
+        var st = stepKey(e);
+        if(st === null) return;
+        e.preventDefault();
+        setCap(i, st==='min' ? 0 : (st==='max' ? MAXPAUSE : caps[d.id]+st));
+      });
+    });
+
+    return {
+      caps: caps,
+      reset: function(){ caps = zeroCaps(); panel.update(caps); },
+      sync: function(){
+        var res = panel.res;
+        DOCS.forEach(function(d, i){
+          var r = res.byId[d.id], cap = caps[d.id], capEnd = origEnd(d) + cap;
+          rows[i].blocks.innerHTML = rowBlocks(d, r, capEnd);
+          rows[i].handle.style.left = pct(capEnd+1).toFixed(3)+'%';
+          rows[i].handle.setAttribute('aria-valuenow', String(cap));
+          rows[i].handle.setAttribute('aria-valuetext', 'einde uiterlijk '+fmtDay(capEnd)+', maximaal '+cap+' '+
+            plural(cap,'pauzedag','pauzedagen')+', benut '+r.pauses+', einddatum '+dagen(r.cost));
+          rows[i].end.innerHTML = '<span class="pill pill-'+tone(r.cost)+'">'+dagen(r.cost)+'</span>'+
+            '<div class="xsmall muted">max '+fmtDay(capEnd)+(r.pauses!==cap ? ' · benut '+r.pauses : '')+'</div>';
+        });
+      }
+    };
+  }
+
+  /* ================================================================== */
+  /* De vier varianten + oordeel                                         */
+  /* ================================================================== */
+
+  var FAIRTXT = DOCS.map(function(d){ return FAIR.caps[d.id]; }).join(' · ');
+  var FAIRBTN = 'Zet op de eerlijke verhouding (' + FAIRTXT + ')';
+  // De gelijke verdeling van het tekort: doorgerekend, want hij dekt het niet.
+  var EVEN = (function(){
+    var b = Math.floor(SHORTFALL/3), rest = SHORTFALL - b*3, a = [b,b,b];
+    for(var i=0;i<rest;i++) a[i]++;
+    return a;
+  })();
+  var EVEN_RES = level(capsFromArr(EVEN));
+  var EVENTXT = EVEN.join('&middot;');
+  var EVENSHORT = EVEN_RES.excess + ' ' + plural(EVEN_RES.excess,'ploegdag','ploegdagen');
+
+  var VARIANTS = [
+    {
+      k:'1', title:'Ster (radar) met trekpunten', build:buildRadar,
+      lead:'Twee veelhoeken over drie assen. De buitenste zet jij: het plafond &ldquo;zoveel mag de einddatum uitlopen&rdquo;. De binnenste vult de nivelleerder in: wat hij er werkelijk van gebruikt.',
+      uitweg:'Trek een trekpunt verder naar buiten &mdash; of, als je niemand wilt laten uitlopen: dat kan hier niet, de floats samen zijn '+SUMFLOAT+' dagen en het tekort is '+SHORTFALL+'.',
+      judge:{
+        sterk:'Drie plafonds in één blik, en het verschil tussen <em>toegestaan</em> en <em>werkelijk benut</em> is meteen zichtbaar: de gevulde binnenvorm blijft achter bij de omtrek zodra je te ruim instelt. De scheve vorm laat in één oogopslag zien wie de last draagt.',
+        zwak:'Gelijke straal is geen gelijke pijn: +2 op een kritiek pad is iets heel anders dan +2 met drie dagen float, maar de radar tekent ze even lang. De veelhoek suggereert daarbij een oppervlak dat niets betekent &mdash; een &ldquo;mooie regelmatige driehoek&rdquo; is geen doel, en toch ga je erop mikken.',
+        schaal:'Slecht. Met 8 open projecten staan de assen op 45&deg;, gaan de labels over elkaar en moet je radiaal slepen met twee vrijheidsgraden voor één waarde. Boven ongeveer zes assen is dit decoratie, geen bediening.',
+        kb:'Goed: elk trekpunt is een <code>role="slider"</code> met pijltjes, Home/End en PageUp/PageDown. Maar &ldquo;welk punt heb ik nu&rdquo; moet volledig uit de aria-tekst komen &mdash; de vorm zegt een schermlezer niets.'
+      }
+    },
+    {
+      k:'2', title:'Verdeelbalk met sleepbare wanden', build:buildBar,
+      lead:'Het tekort van '+SHORTFALL+' ploegdagen als één balk. Drie vakken, twee wanden, som altijd precies '+SHORTFALL+'.',
+      uitweg:'Verschuif een wand: méér dagen naar het project met de meeste float. '+
+             (capsArr(FAIR.caps).reduce(function(a,b){return a+b;},0) === SHORTFALL
+               ? '<button class="btn btn-sm" data-fair>'+FAIRBTN+'</button>' : ''),
+      judge:{
+        sterk:'Het tekort is één grootheid en je ziet hem in zijn geheel; verdelen is één gebaar en er kan geen rest &ldquo;vergeten&rdquo; worden. Van de vier is dit de bediening die het snelst begrepen wordt.',
+        zwak:'Je verdeelt <strong>mechaniekdagen</strong> (pauzedagen), niet pijn: het einddatum-effect zie je alleen via de badges, en het is niet lineair &mdash; 2 pauzedagen kosten Villa 0 dagen einddatum en Zuidas 2. En de aanname &ldquo;som = '+SHORTFALL+', dus per constructie geen tekort&rdquo; blijkt <strong>niet te kloppen</strong>: de gelijke verdeling '+EVENTXT+' (de startstand van dit tabblad) laat '+EVENSHORT+' tekort. Een pauze duwt de staart van een fase vooruit, waar die opnieuw om capaciteit vraagt. De balk garandeert de som, niet de oplossing.',
+        schaal:'Uitstekend. 8 projecten = 7 wanden in dezelfde balk, zonder extra schermruimte. Wel worden vakken van 0 of 1 dag muizenwerk; een minimale klikbreedte en toetsenbordbediening zijn dan noodzakelijk, niet optioneel.',
+        kb:'Het best bedienbaar van de vier: elke wand is een slider met een expliciet bereik tussen zijn buren, en aria-valuetext kan beide aangrenzende vakken noemen. Wanden die op elkaar liggen (vak = 0) zijn met de muis niet te scheiden, met het toetsenbord wel.'
+      }
+    },
+    {
+      k:'3', title:'Communicerende vaten', build:buildVessels,
+      lead:'Je stuurt niet op pauzedagen maar op de einddatum zelf. Trek een kolom en de oplosser herverdeelt de rest naar de dichtstbijzijnde haalbare stand; een pin bevriest een niveau.',
+      uitweg:'Trek een kolom omhoog, of maak een pin los.',
+      judge:{
+        sterk:'Je stuurt op de grootheid die in de bouwvergadering écht op tafel ligt: de einddatum. &ldquo;Zuidas mag niet schuiven&rdquo; is één sleep plus één pin, en het resultaat is per definitie een geldige verdeling &mdash; je kunt hier geen ongeldige stand instellen.',
+        zwak:'Magisch, en dat is een probleem. De oplosser kiest onzichtbaar wat de andere kolommen doen; twee keer dezelfde sleep kan een andere verdeling opleveren en je ziet niet waarom. De metafoor belooft bovendien behoud van volume, en dat is er niet: zet Villa vast op +0 en trek De Linde dan naar +0 &mdash; Zuidas schiet naar +3. Eén dag minder hier kost er drie daar, en dat staat nergens op het scherm voordat je het doet. Erger: de haalbare niveaus zijn <strong>schaars</strong>. Villa en De Linde kunnen in dit scenario alleen op +0 of +1 landen, Zuidas alleen op +0 of +3 &mdash; vraag Zuidas om +1 en de kolom blijft staan waar hij stond, met alleen een statusregel als uitleg. Een schuif die je vinger niet volgt voelt kapot, ook als hij het niet is. En omdat een ongeldige stand hier niet bestaat, zie je het conflict na de eerste aanraking nooit meer terug.',
+        schaal:'Twijfelachtig. 8 kolommen passen visueel prima, maar elke sleep herschikt dan 7 andere projecten; zonder pins is dat onvoorspelbaar en met pins loopt het snel vast op &ldquo;onhaalbaar&rdquo;. De oplosser krijgt meer vrijheid dan een planner kan overzien.',
+        kb:'Sliders plus pin-toggles werken, maar het gevolg van een toets landt <em>elders</em> op het scherm (twee andere kolommen én de statusregel). Een <code>aria-live</code>-melding na elke stap is hier geen extraatje maar de enige manier om het te volgen.'
+      }
+    },
+    {
+      k:'4', title:'Fasestrook-handles', build:buildPhaseHandles, phaseInCtl:true,
+      lead:'Dezelfde fasestroken als in ronde 2, maar nu met een sleepbare handle aan het einde van elke fase. Bediening ín de tijdlijn: geen apart paneel, geen abstracte eenheid.',
+      uitweg:'Sleep een handle verder naar rechts &mdash; bij een project met float kost de eerste stap nog niets.',
+      judge:{
+        sterk:'Bediening en gevolg op dezelfde plek: je sleept de einddatum en ziet de pauzedagen in dezelfde rij ontstaan, op de dagen waar het conflict zat. Geen mentale omrekening tussen &ldquo;pauzedagen&rdquo; en &ldquo;einddatum&rdquo;, en de gestippelde staart laat zien dat je meer toestond dan nodig was.',
+        zwak:'Fijnmotoriek. Eén werkdag is hier ongeveer 4% van de balkbreedte; op een trackpad mis je makkelijk een dag, en op smalle schermen wordt het gokken. Verder toont het per project maar één dimensie (het plafond) en niets over de <em>afweging</em> tussen projecten &mdash; wie er beter tegen kan moet je zelf uit de float-meetlatten lezen.',
+        schaal:'Het beste van de vier: 8 projecten zijn 8 rijen op dezelfde tijdas, precies zoals een Gantt al werkt. Nadeel bij die lengte: de handle staat ver van de conflictdagen die je probeert op te lossen, en de lijst gaat scrollen.',
+        kb:'Het nauwkeurigst van alle vier: één pijltje = precies één werkdag, Home = geen uitloop, End = maximaal. Dat is exacter dan slepen, en de aria-tekst kan de echte datum noemen in plaats van een getal.'
+      }
+    }
+  ];
+
+  var panels = {};
+  VARIANTS.forEach(function(cfg){ panels[cfg.k] = new Panel(cfg); });
+
+  document.getElementById('combi').innerHTML =
+    '<p class="small" style="margin:0 0 10px">Deze vier zijn geen keuzemenu van één. Ze bedienen dezelfde verdeler op verschillende abstractieniveaus, en dat maakt ze stapelbaar:</p>'+
+    '<div class="kv">'+
+      '<div class="kvi"><strong>Overzicht + precisie</strong><div class="xsmall muted" style="margin-top:3px">Ster of vaten als <em>overzicht</em> boven de stroken (wie draagt hoeveel, in één blik), fasestrook-handles voor het <em>bijstellen van één project</em>. Dat is precies de rolverdeling die de Gantt nu al heeft tussen samenvattingsbalk en taakbalk.</div></div>'+
+      '<div class="kvi"><strong>&ldquo;Hoeveel&rdquo; + &ldquo;waar&rdquo;</strong><div class="xsmall muted" style="margin-top:3px">De verdeelbalk zegt hoeveel dagen elk project inlevert; de fasestrook laat zien wáár die dagen landen. Eén balk boven de stroken, met dezelfde kleuren, is één samenhangend beeld.</div></div>'+
+      '<div class="kvi"><strong>Pins zijn universeel</strong><div class="xsmall muted" style="margin-top:3px">Het pin-idee uit variant 3 (&ldquo;dit niveau staat vast&rdquo;) werkt in alle vier: een vastgezette as, een vastgezet vak, een vastgezette handle. Dat is waarschijnlijk de belangrijkste vondst van dit lab &mdash; onafhankelijk van de vorm.</div></div>'+
+      '<div class="kvi"><strong>De rangorde uit ronde 2 blijft</strong><div class="xsmall muted" style="margin-top:3px">Alle vier zijn een <em>tune</em>-stap: ze veronderstellen een eerste voorstel. De rangorde uit concept F bepaalt dat voorstel; deze bediening bepaalt hoe je er daarna vanaf wijkt.</div></div>'+
+    '</div>'+
+    '<div class="note note-warn" style="margin-top:12px"><strong>Wat in alle vier hetzelfde blijft.</strong> Eén verdeler (pauzedagen tegen restcapaciteit, per dag), één gedeelde uitkomstweergave, en dezelfde poort: <em>toepassen kan pas als het tekort gedekt is</em>. Ook de kanttekening uit ronde 2 geldt onveranderd &mdash; dit schrijft in meerdere documenten tegelijk en vraagt dus één samengestelde undo-stap over documentgrenzen, die de undo-stack (nu per document) nog niet kent.</div>'+
+    '<div class="note note-info" style="margin-top:10px"><strong>Wat dit lab feitelijk heeft opgeleverd.</strong> Twee dingen die vooraf niet vaststonden. (1) De verdeelbalk garandeert de <em>som</em>, niet de <em>oplossing</em>: '+SHORTFALL+' dagen gelijk verdelen ('+EVENTXT+') laat '+EVENSHORT+' over, want een pauze verschuift de staart van een fase naar een dag waar opnieuw om capaciteit wordt gevraagd. (2) De vaten-metafoor belooft behoud dat er niet is: De Linde één dag ontzien kost Zuidas er drie. (3) Sturen op de einddatum stuit op een <em>schaarse</em> verzameling haalbare standen &mdash; hier +0 of +1 voor twee projecten en +0 of +3 voor het derde &mdash; dus een schuif op die grootheid kan de vinger niet volgen. Alle drie zijn geen implementatiefouten maar eigenschappen van het onderliggende probleem &mdash; welke bediening je ook kiest, de UI moet ze kunnen laten zien.</div>';
+
+  selectTab('1');
+
+})();
+</script>
+
+</body></html>

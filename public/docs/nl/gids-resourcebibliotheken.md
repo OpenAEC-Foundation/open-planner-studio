@@ -79,7 +79,7 @@ Wijs je een bibliotheekresource toe, dan reist zijn kalender mee als een gekoppe
 
 ## Drie acties die de werelden verbinden
 
-- **Toewijzen aan project** — van bibliotheek naar project: maakt een bewerkbare kopie met herkomst.
+- **Toewijzen aan project** — van bibliotheek naar project: maakt een bewerkbare kopie met herkomst. Die knop staat in de Bibliotheek-weergave alleen bij items die nog niet in dit project zitten. Zit een item er al wel in, dan zie je in plaats daarvan de markering **In project (N×)**, met N het aantal gekoppelde kopieën in het actieve project.
 - **Naar de bibliotheek** — van een projecteigen rij naar de gedeelde bibliotheek: koppelt meteen. Bestaat er al een item met dezelfde naam in de bibliotheek, dan koppelt de app daaraan in plaats van te dupliceren.
 - **Losmaken van de bibliotheek** — de herkomst verdwijnt, alles wordt weer volledig bewerkbaar. Een meegereisde kalender gaat mee los, tenzij een andere nog-gekoppelde resource diezelfde kalender ook gebruikt.
 

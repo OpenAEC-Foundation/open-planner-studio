@@ -83,5 +83,7 @@ definieert.**
 
 - `docs/onderhoudbaarheid/` — het onderhoudbaarheidsonderzoek en de K-items. Dat is een rapport met
   een peildatum: bevindingen daarin worden niet herschreven als de code verandert.
+- `docs/superpowers/prototypes/` — bewaarde speelbare HTML-prototypes uit ontwerpfasen (o.a. het
+  B1c-interface-lab); niet gebundeld in de app, open ze rechtstreeks in een browser.
 - `docs/archive/superpowers/` — oudere ontwerpen (zoom, debug-terminal, stijlboek), met dezelfde
   waarschuwing: nuttig voor het waarom, niet voor het wat.

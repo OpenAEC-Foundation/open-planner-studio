@@ -126,6 +126,13 @@ export function normalizePoolShape(cid: string, raw: Partial<CompanyPool> | null
       ? Math.max(1, p.poolVersion)
       : 1,
     modifiedAt: typeof p.modifiedAt === 'string' ? p.modifiedAt : new Date().toISOString(),
+    // Optioneel (alleen gegenereerde pools, zie `demoLibrary.ts`): bewaren als het een geldig
+    // geheel getal ≥0 is, anders weglaten. Moet de normalisatie overleven — anders leest een
+    // installatie zijn eigen "al bijgewerkt"-markering nooit terug en draait de seed-migratie
+    // bij élke start opnieuw.
+    ...(typeof p.seedVersion === 'number' && Number.isInteger(p.seedVersion) && p.seedVersion >= 0
+      ? { seedVersion: p.seedVersion }
+      : {}),
     // Fix B5: `Array.isArray` i.p.v. `??` — een object i.p.v. array (bijv. een hand-gemaakt of
     // door een derde tool geproduceerd OPS_Library-bestand met `calendars: {...}`) is niet-nullish,
     // dus `?? []` liet het ongewijzigd door; een latere `.push`/`.filter`/`.find` op zo'n object

@@ -85,11 +85,7 @@
 .title-bar-autosave:hover { background: var(--theme-titlebar-btn-hover); color: var(--theme-text); }
 .title-bar-autosave:disabled { opacity: .55; cursor: not-allowed; }
 .title-bar-autosave:disabled:hover { background: transparent; color: var(--theme-text-dim); }
-.title-bar-autosave-track { width: 25px; height: 14px; border-radius: 99px; padding: 2px; box-sizing: border-box; background: var(--theme-control-border); transition: background .12s; }
-.title-bar-autosave-track > span { display: block; width: 10px; height: 10px; border-radius: 99px; background: var(--theme-surface); transition: transform .12s; }
 .title-bar-autosave.active { color: var(--theme-text); }
-.title-bar-autosave.active .title-bar-autosave-track { background: var(--theme-accent); }
-.title-bar-autosave.active .title-bar-autosave-track > span { transform: translateX(11px); }
 
 .quick-access-separator {
   width: 1px;

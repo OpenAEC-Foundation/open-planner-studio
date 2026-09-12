@@ -348,6 +348,22 @@ export function ResourcePanel() {
   // blijft de gekozen weergave gewoon staan (dit effect draait niet per render/edit).
   useResourceViewReset(project.companyId, linked, setUI);
 
+  // Bedieningsgat (Bibliotheek-weergave): élk poolitem toonde "Toewijzen aan project", ook als het
+  // actieve project er al een gestempelde kopie van heeft — dat leest als "dit moet nog allemaal".
+  // Eén map per render (libraryItemId → aantal gekoppelde projectresources), zodat de rij geen
+  // per-rij `find` over `resources` hoeft te doen. Alleen stempels van DE GEKOPPELDE bibliotheek
+  // tellen mee: een stempel van een ander bedrijf zegt niets over dit item.
+  const inProjectByLibraryItem = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!project.companyId) return map;
+    for (const r of resources) {
+      const origin = r.libraryOrigin;
+      if (!origin || origin.companyId !== project.companyId) continue;
+      map.set(origin.libraryItemId, (map.get(origin.libraryItemId) ?? 0) + 1);
+    }
+    return map;
+  }, [resources, project.companyId]);
+
   // Lintknop "Nieuwe resource" (#48-1): die persisteerde vroeger meteen een naamloze resource (echte
   // store-mutatie + undo-stap). Nu zet hij alleen `ui.pendingNewResource` en opent dit effect
   // dezelfde concept-rij als de "+ Nieuwe resource"-knop in het paneel — één route, één gedrag.
@@ -592,6 +608,7 @@ export function ResourcePanel() {
                       onCancelRemove={() => setConfirmPoolDelete(null)}
                       onCalendarChange={value => onPoolCalendarChange(r, value)}
                       onEditCalendar={() => r.calendarId && setCalDialog({ id: r.calendarId, poolCompanyId: project.companyId! })}
+                      inProjectCount={inProjectByLibraryItem.get(r.id) ?? 0}
                       onAssignToProject={() => onAssignFromCompany(r.id)}
                       cellProps={grid.cellProps}
                       rowProps={grid.rowProps}
@@ -711,7 +728,7 @@ function ResourceRow({
   showParentColumn = true,
   confirmingDelete, confirmMessage,
   onToggleSteps, onPatch, onRequestRemove, onConfirmRemove, onCancelRemove,
-  onCalendarChange, onEditCalendar, onAssignToProject, onUnlink, onPromoteToLibrary,
+  onCalendarChange, onEditCalendar, onAssignToProject, inProjectCount = 0, onUnlink, onPromoteToLibrary,
   cellProps, rowProps,
 }: {
   resource: Resource;
@@ -737,6 +754,10 @@ function ResourceRow({
   onEditCalendar: () => void;
   /** Pool-only: "Toewijzen aan project" (behouden op de bestaande plek, expliciete user-wens). */
   onAssignToProject?: () => void;
+  /** Pool-only: hoeveel resources in het ACTIEVE project een stempel op dit poolitem hebben. > 0 ⇒
+   *  de rij toont de badge "In project" in plaats van de knop "Toewijzen aan project" (die knop gaf
+   *  daar toch alleen de melding "Zit al in het project."). */
+  inProjectCount?: number;
   /** Project-only: "Losmaken van de bibliotheek" — alleen zichtbaar/zinvol op een geërfde (locked) rij. */
   onUnlink?: () => void;
   /** Project-only, tegenhanger van `onAssignToProject` (issue #19, punt D5): "naar de bibliotheek"
@@ -1047,7 +1068,16 @@ function ResourceRow({
         )}
         <td className="px-1 py-1 text-center">
           <div className="flex items-center gap-0.5 justify-center">
-            {isPool && onAssignToProject && !confirmingDelete && (
+            {isPool && inProjectCount > 0 && !confirmingDelete && (
+              <span
+                className="inline-flex items-center rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[10px] text-text-secondary"
+                data-ops-pool-in-project={inProjectCount}
+                title={t('companyLibrary.alreadyInProject')}
+              >
+                {t('companyLibrary.inProject', { count: inProjectCount })}
+              </span>
+            )}
+            {isPool && inProjectCount === 0 && onAssignToProject && !confirmingDelete && (
               <button
                 onClick={onAssignToProject}
                 className="btn btn--sm btn--secondary !py-0.5 !px-1.5 !text-[10px]"
