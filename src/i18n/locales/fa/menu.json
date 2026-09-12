@@ -322,6 +322,9 @@
       "dateTitle": "تاریخ واقعی",
       "dateError": "تاریخ معتبری وارد کنید."
     },
+    "progressXlsxNotes": {
+      "completion": "تکمیل کنید: بین ۰ تا ۱۰۰، اعشار مجاز است"
+    },
     "progressCsvLabel": "صفحهٔ پیشرفت (CSV)",
     "progressCsvDesc": "همان صفحهٔ پیشرفت فشرده به‌صورت متن ساده — برای کسانی که ترجیح می‌دهند با CSV کار کنند.",
     "progressCsvShort": "پیشرفت (CSV)",

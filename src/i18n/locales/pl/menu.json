@@ -322,6 +322,9 @@
       "dateTitle": "Data rzeczywista",
       "dateError": "Wpisz prawidłową datę."
     },
+    "progressXlsxNotes": {
+      "completion": "wypełnij: od 0 do 100, dozwolone ułamki dziesiętne"
+    },
     "progressCsvLabel": "Arkusz postępu (CSV)",
     "progressCsvDesc": "Ten sam odchudzony arkusz postępu jako zwykły tekst — dla tych, którzy wolą pracować z plikiem CSV.",
     "progressCsvShort": "Postęp (CSV)",

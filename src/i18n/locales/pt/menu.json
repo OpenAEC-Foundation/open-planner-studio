@@ -322,6 +322,9 @@
       "dateTitle": "Data real",
       "dateError": "Introduza uma data válida."
     },
+    "progressXlsxNotes": {
+      "completion": "preencher: 0 a 100, decimais permitidos"
+    },
     "progressCsvLabel": "Folha de progresso (CSV)",
     "progressCsvDesc": "A mesma folha de progresso reduzida em texto simples — para quem prefere trabalhar com um CSV.",
     "progressCsvShort": "Progresso (CSV)",

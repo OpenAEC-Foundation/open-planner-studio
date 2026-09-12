@@ -322,6 +322,9 @@
       "dateTitle": "Werkelijke datum",
       "dateError": "Vul een geldige datum in."
     },
+    "progressXlsxNotes": {
+      "completion": "invullen: 0 t/m 100, decimalen toegestaan"
+    },
     "progressCsvLabel": "Voortgangsblad (CSV)",
     "progressCsvDesc": "Hetzelfde slanke voortgangsblad als platte tekst — voor wie liever met een CSV werkt.",
     "progressCsvShort": "Voortgang (CSV)",

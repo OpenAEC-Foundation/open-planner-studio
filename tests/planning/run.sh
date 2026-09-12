@@ -1014,6 +1014,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
   PICSVCHECK="$DIR/.progress-import-csv.mjs"
   if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+
+  # Issue #27 etappe 3: de `.xlsx`-laag onder het voortgangsblad. Vier batterijen, van onder naar
+  # boven: de XML-/serialdatum-primitieven, de eigen ZIP-schrijver en -lezer (inclusief de
+  # zip-bom- en Zip64-weigeringen), de OOXML-schrijver van het blad (kindvolgordes, bescherming,
+  # invoervalidatie) en ten slotte `parseProgressXlsx` met de ECHTE round-trip door beide.
+  XLSXPRIMCHECK="$DIR/.xlsx-primitives.mjs"
+  if bundle_check "$DIR/check-xlsx-primitives.ts" "$XLSXPRIMCHECK"; then node "$XLSXPRIMCHECK" || STATUS=1; fi
+  ZIPCHECK="$DIR/.zip.mjs"
+  if bundle_check "$DIR/check-zip.ts" "$ZIPCHECK"; then node "$ZIPCHECK" || STATUS=1; fi
+  PXLSXWCHECK="$DIR/.progress-xlsx-writer.mjs"
+  if bundle_check "$DIR/check-progress-xlsx-writer.ts" "$PXLSXWCHECK"; then node "$PXLSXWCHECK" || STATUS=1; fi
+  PIXLSXCHECK="$DIR/.progress-import-xlsx.mjs"
+  if bundle_check "$DIR/check-progress-import-xlsx.ts" "$PIXLSXCHECK"; then node "$PIXLSXCHECK" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

@@ -11,7 +11,20 @@
 import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
 import type { ImportLabelT } from './importLabels';
 
-export function buildProgressHeaderNotes(t: ImportLabelT): Partial<Record<ProgressSheetColumnKey, string>> {
+/**
+ * `'csv'` (de standaard) levert de kopinstructies van het CSV-blad; `'xlsx'` wijkt op één punt af.
+ *
+ * Dat ene punt is de voltooiingskolom. In de CSV vraagt de instructie om HELE getallen — daar is
+ * dat de eerlijke vraag, want een CSV kent geen celopmaak en een `33,333333`-achtige waarde uit een
+ * spreadsheet-export levert bij het teruglezen alleen maar ruis. Het `.xlsx`-blad heeft wél een
+ * echte percentagecel met een `decimal`-validatie tussen 0 en 100, dus daar zou "hele getallen" de
+ * invuller onnodig beperken. Eén gedeelde sleutel voor beide zou dus altijd voor één van de twee
+ * formaten liegen; daarom `menu:export.progressXlsxNotes.completion` ernaast.
+ */
+export function buildProgressHeaderNotes(
+  t: ImportLabelT,
+  variant: 'csv' | 'xlsx' = 'csv',
+): Partial<Record<ProgressSheetColumnKey, string>> {
   const readOnly = t('export.progressCsvNotes.readOnly');
   const plannedReadOnly = t('export.progressCsvNotes.plannedReadOnly');
   return {
@@ -20,7 +33,9 @@ export function buildProgressHeaderNotes(t: ImportLabelT): Partial<Record<Progre
     Name: readOnly,
     Start: plannedReadOnly,
     Finish: plannedReadOnly,
-    'Completion (%)': t('export.progressCsvNotes.completion'),
+    'Completion (%)': variant === 'xlsx'
+      ? t('export.progressXlsxNotes.completion')
+      : t('export.progressCsvNotes.completion'),
     'Actual Start': t('export.progressCsvNotes.actualStart'),
     'Actual Finish': t('export.progressCsvNotes.actualFinish'),
   };

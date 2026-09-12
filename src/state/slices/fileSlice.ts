@@ -423,7 +423,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ]);
           const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
           payload = await writeProgressSheetXLSX(state.tasks, {
-            headerNotes: buildProgressHeaderNotes(menuT),
+            // `'xlsx'`: alleen de voltooiingskolom krijgt een eigen instructie (decimalen mogen
+            // hier wél, anders dan in de CSV) — zie `buildProgressHeaderNotes`.
+            headerNotes: buildProgressHeaderNotes(menuT, 'xlsx'),
             summaryNote: buildProgressSummaryNote(menuT),
             sheetName: menuT('export.progressXlsxSheetName'),
             validation: buildProgressXlsxValidationText(menuT),

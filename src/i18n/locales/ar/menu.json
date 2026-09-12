@@ -322,6 +322,9 @@
       "dateTitle": "التاريخ الفعلي",
       "dateError": "أدخل تاريخاً صالحاً."
     },
+    "progressXlsxNotes": {
+      "completion": "املأ: من 0 إلى 100، ويُسمح بالكسور العشرية"
+    },
     "progressCsvLabel": "ورقة التقدّم (CSV)",
     "progressCsvDesc": "نفس ورقة التقدّم المبسّطة كنص عادي — لمن يفضّل العمل بملف CSV.",
     "progressCsvShort": "التقدّم (CSV)",

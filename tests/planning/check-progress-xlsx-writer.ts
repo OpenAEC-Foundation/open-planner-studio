@@ -17,18 +17,11 @@
 // de `sheetProtection`-polariteit, de `_xHHHH_`-notatie) en uit wat de invuller op zijn scherm hoort
 // te zien. Ze zijn niet uit de code teruggelezen.
 //
-// STUB, expliciet gemarkeerd: `writeZip` (taak T5, baan A) bestaat op het moment van schrijven nog
-// niet. De structurele asserties draaien daarom op `buildProgressXlsxParts` en hebben de ZIP niet
-// nodig; de zip-SAMENSTELLING wordt getoetst op de bytes die `writeProgressSheetXLSX` teruggeeft, op
-// een manier die met beide werkt — is er een echte ZIP (`PK\x03\x04`), dan wordt de local header
-// gelezen; is er een stub-`writeZip` ingealiast, dan wordt diens JSON-weergave gelezen. De ECHTE
-// round-trip door de echte ZIP-lezer komt in T8/T14.
-//
-// Standalone draaien zolang T5 nog niet gemerged is (voeg de eerste `--alias:` toe; daarna vervalt
-// die regel en draait het gewone `bundle_check`-commando uit tests/planning/README.md):
-//   node_modules/.bin/esbuild tests/planning/check-progress-xlsx-writer.ts --bundle \
-//     --platform=node --format=esm --alias:@/services/zip/zipWriter=<stub>.ts --alias:@=src \
-//     --outfile=/tmp/check.mjs && node /tmp/check.mjs; echo "exit: $?"
+// De structurele asserties draaien op `buildProgressXlsxParts` en hebben de ZIP niet nodig. De
+// zip-SAMENSTELLING wordt daarnaast getoetst op de echte bytes van `writeProgressSheetXLSX`: sinds
+// T14 gaan die door de ECHTE `parseZipEntries` uit `@/services/zip` heen, dus dit is een volwaardige
+// schrijver→lezer-round-trip en geen headerinspectie meer. De eerdere stub-/`--alias`-constructie
+// (nodig zolang baan A's `writeZip` nog niet bestond) is daarmee vervallen.
 //
 // Draait via run.sh (registratie: T14). Exit 0 = alles groen; de suite print "alles groen" ook bij
 // exit 1 wanneer het bundelen faalt — de exitcode is het enige geldige oordeel.
@@ -38,6 +31,7 @@ import {
   writeProgressSheetXLSX,
   type ProgressXlsxText,
 } from '@/services/xlsx/writeProgressXlsx';
+import { parseZipEntries } from '@/services/zip';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
 
@@ -372,25 +366,33 @@ ok('& in een taaknaam', ws.includes('Staal &amp; Beton'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// zip-samenstelling — werkt zowel met de echte `writeZip` (T5) als met een ingealiaste stub
+// zip-samenstelling — de echte schrijver door de echte lezer (T14)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const bytes = await writeProgressSheetXLSX(tasks, text);
 ok('de schrijver levert bytes', bytes instanceof Uint8Array && bytes.length > 0);
 {
-  const head = new TextDecoder().decode(bytes.slice(0, 4));
-  if (head === 'PK') {
-    // Echte ZIP: de naam van de eerste entry staat in de local file header vanaf byte 30.
-    const nameLen = bytes[26]! | (bytes[27]! << 8);
-    eq('[Content_Types].xml is de eerste zip-entry',
-      new TextDecoder().decode(bytes.slice(30, 30 + nameLen)), '[Content_Types].xml');
-  } else {
-    // Stub-`writeZip`: JSON-weergave van de aangeboden bestandslijst.
-    const listed = JSON.parse(new TextDecoder().decode(bytes)) as { name: string; text: string }[];
-    eq('alle zes parts worden aan de zip aangeboden, in volgorde',
-      listed.map(f => f.name), parts.map(p => p.name));
-    eq('de parts gaan als UTF-8 de zip in', listed.map(f => f.text), parts.map(p => p.xml));
-  }
+  eq('het bestand begint met de ZIP-magic',
+    Array.from(bytes.slice(0, 4)), [0x50, 0x4b, 0x03, 0x04]);
+
+  // De naam van de eerste entry staat in de local file header vanaf byte 30. OOXML-consumers
+  // verwachten `[Content_Types].xml` als eerste — geen spec-eis, wel wat elke echte schrijver
+  // doet, en sommige strikte lezers leunen erop.
+  const nameLen = bytes[26]! | (bytes[27]! << 8);
+  eq('[Content_Types].xml is de eerste zip-entry',
+    new TextDecoder().decode(bytes.slice(30, 30 + nameLen)), '[Content_Types].xml');
+
+  // …en dan de round-trip: uitpakken met de PRODUCTIE-lezer en de parts terugvergelijken met wat
+  // `buildProgressXlsxParts` opleverde. Dat toetst in één keer de CRC's, de maten, de central
+  // directory én dat er onderweg niets stilzwijgend van vorm verandert.
+  const entries = await parseZipEntries(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+  );
+  eq('alle zes parts komen er in dezelfde volgorde weer uit',
+    entries.map(e => e.name), parts.map(p => p.name));
+  const decoder = new TextDecoder();
+  eq('de parts komen byte-identiek terug',
+    entries.map(e => decoder.decode(e.data)), parts.map(p => p.xml));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -176,10 +176,24 @@ function addZipPayloadSize(current: number, size: number, name: string, limits: 
   return next;
 }
 
-/** Strip uitsluitend één topmap wanneer iedere bestandsentry exact diezelfde topmap deelt. */
-function normalizeZipEntries(entries: ZipEntry[]): ZipEntry[] {
+/**
+ * Strip uitsluitend één topmap wanneer iedere bestandsentry exact diezelfde topmap deelt — en
+ * ALLEEN wanneer het hele archief gevraagd is (`stripTopDir`).
+ *
+ * Die tweede voorwaarde is geen detail. Het strippen bestaat voor de extensie-installatie, waar een
+ * ZIP vaak één wikkelmap draagt (`mijn-extensie/manifest.json`). Een afnemer die met `select` een
+ * SUBSET opvraagt bedoelt daar iets heel anders mee: hij vraagt om exact díe padnamen. Zou er dan
+ * ook gestript worden, dan krijgt hij ze onder een andere naam terug — en bij een selectie van één
+ * part is "iedere entry deelt dezelfde topmap" per definitie waar. Precies dat brak de tweede pass
+ * van de `.xlsx`-lezer: die vraagt `xl/worksheets/sheet1.xml` op en kreeg `worksheets/sheet1.xml`
+ * terug, waarna elk echt voortgangsblad als `noSheet` werd geweigerd (gevonden bij de T14-integratie
+ * van issue #27; de twee banen waren los groen).
+ *
+ * De naamveiligheids- en dubbelnaamcontroles gelden onverkort in beide gevallen.
+ */
+function normalizeZipEntries(entries: ZipEntry[], stripTopDir: boolean): ZipEntry[] {
   const parts = entries.map((entry) => entry.name.split('/'));
-  const sharedTopDir = parts.length > 0
+  const sharedTopDir = stripTopDir && parts.length > 0
     && parts.every((segments) => segments.length > 1 && segments[0] === parts[0][0]);
   const seen = new Set<string>();
 
@@ -215,7 +229,7 @@ export async function parseZipEntries(
     console.warn('[ZIP] Central-directory-lezing faalde, val terug op local-scan:', err);
   }
   const entries = viaCentral ?? await parseViaLocalHeaders(buffer, limits, select);
-  return normalizeZipEntries(entries);
+  return normalizeZipEntries(entries, select === undefined);
 }
 
 /** Zoek de End Of Central Directory-record (scan achterwaarts; comment is meestal leeg). */

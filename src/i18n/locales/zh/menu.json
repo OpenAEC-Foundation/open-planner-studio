@@ -322,6 +322,9 @@
       "dateTitle": "实际日期",
       "dateError": "请输入有效的日期。"
     },
+    "progressXlsxNotes": {
+      "completion": "请填写：0 到 100，允许小数"
+    },
     "progressCsvLabel": "进度表（CSV）",
     "progressCsvDesc": "同一份精简进度表的纯文本版——适合更习惯使用 CSV 的人。",
     "progressCsvShort": "进度（CSV）",

@@ -322,6 +322,9 @@
       "dateTitle": "Tatsächliches Datum",
       "dateError": "Geben Sie ein gültiges Datum ein."
     },
+    "progressXlsxNotes": {
+      "completion": "ausfüllen: 0 bis 100, Dezimalstellen erlaubt"
+    },
     "progressCsvLabel": "Fortschrittsblatt (CSV)",
     "progressCsvDesc": "Dasselbe schlanke Fortschrittsblatt als reiner Text — für alle, die lieber mit einer CSV arbeiten.",
     "progressCsvShort": "Fortschritt (CSV)",

@@ -10,10 +10,9 @@
 // eigen XML-scanner, precies omdat de shim geen attributen kent en juist de attributen (`r`, `t`,
 // `s`, `numFmtId`, `date1904`) hier alle betekenis dragen.
 //
-// !!! TIJDELIJK (baan C draait parallel aan baan A en B) !!!
-// De fixtures worden hieronder met een KLEINE, LOKALE store-only ZIP-schrijver gebouwd, zodat deze
-// check niet op baan B's `writeProgressSheetXLSX` hoeft te wachten. Taak T14 vervangt de handgemaakte
-// "ons eigen blad"-fixture door de ECHTE round-trip door de schrijver; deze helper mag daarbij weg.
+// De fixtures worden gebouwd met de ECHTE `writeZip` uit `@/services/zip` (sinds T14; daarvoor stond
+// hier een tijdelijke, store-only kopie omdat baan A en baan C parallel liepen). Wat de lezer hier
+// binnenkrijgt is dus byte-voor-byte wat de app schrijft — deflate en al.
 //
 // Exit 0 = alles groen. De tail van dit script kan "groen" tonen bij een gefaalde BUNDEL — alleen de
 // exitcode telt.
@@ -28,7 +27,7 @@ import {
   type XlsxSheet,
   type XlsxZipReader,
 } from '@/services/xlsx/readXlsxSheet';
-import { parseZipEntries } from '@/services/zip/zipReader';
+import { parseZipEntries, writeZip } from '@/services/zip';
 import { isoToSerial } from '@/services/xlsx/serialDate';
 import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
@@ -57,83 +56,22 @@ function ok(label: string, condition: boolean): void {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
-// TIJDELIJKE fixture-gereedschap: store-only ZIP-schrijver (T14 haalt dit weg)
+// Fixture-gereedschap: de ECHTE ZIP-schrijver
 // ════════════════════════════════════════════════════════════════════════════════════════════
-
-const CRC_TABLE = (() => {
-  const table = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c >>> 0;
-  }
-  return table;
-})();
-
-function crc32(data: Uint8Array): number {
-  let c = 0xffffffff;
-  for (let i = 0; i < data.length; i++) c = CRC_TABLE[(c ^ data[i]!) & 0xff]! ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
+//
+// Sinds T14 bouwen deze fixtures met `writeZip` uit `@/services/zip` — dezelfde schrijver die het
+// product gebruikt. De tijdelijke, store-only kopie die baan C nodig had zolang baan A nog liep is
+// daarmee weg: wat hier de lezer in gaat is precies wat de app schrijft, deflate en al.
 
 interface ZipInput { name: string; data: string | Uint8Array }
 
-/** Minimale, ongecomprimeerde ZIP — genoeg om een OOXML-pakket na te bootsen. */
-function storeZip(files: readonly ZipInput[]): Uint8Array {
+async function zipOf(files: readonly ZipInput[]): Promise<Uint8Array> {
   const encoder = new TextEncoder();
-  const locals: Uint8Array[] = [];
-  const centrals: Uint8Array[] = [];
-  let offset = 0;
-  for (const file of files) {
-    const nameBytes = encoder.encode(file.name);
-    const data = typeof file.data === 'string' ? encoder.encode(file.data) : file.data;
-    const crc = crc32(data);
-
-    const local = new Uint8Array(30 + nameBytes.length + data.length);
-    const lv = new DataView(local.buffer);
-    lv.setUint32(0, 0x04034b50, true);
-    lv.setUint16(4, 20, true);
-    lv.setUint16(8, 0, true); // store
-    lv.setUint32(14, crc, true);
-    lv.setUint32(18, data.length, true);
-    lv.setUint32(22, data.length, true);
-    lv.setUint16(26, nameBytes.length, true);
-    local.set(nameBytes, 30);
-    local.set(data, 30 + nameBytes.length);
-    locals.push(local);
-
-    const central = new Uint8Array(46 + nameBytes.length);
-    const cv = new DataView(central.buffer);
-    cv.setUint32(0, 0x02014b50, true);
-    cv.setUint16(4, 20, true);
-    cv.setUint16(6, 20, true);
-    cv.setUint16(10, 0, true);
-    cv.setUint32(16, crc, true);
-    cv.setUint32(20, data.length, true);
-    cv.setUint32(24, data.length, true);
-    cv.setUint16(28, nameBytes.length, true);
-    cv.setUint32(42, offset, true);
-    central.set(nameBytes, 46);
-    centrals.push(central);
-
-    offset += local.length;
-  }
-  const centralSize = centrals.reduce((sum, c) => sum + c.length, 0);
-  const eocd = new Uint8Array(22);
-  const ev = new DataView(eocd.buffer);
-  ev.setUint32(0, 0x06054b50, true);
-  ev.setUint16(8, files.length, true);
-  ev.setUint16(10, files.length, true);
-  ev.setUint32(12, centralSize, true);
-  ev.setUint32(16, offset, true);
-
-  const total = offset + centralSize + eocd.length;
-  const out = new Uint8Array(total);
-  let p = 0;
-  for (const chunk of [...locals, ...centrals, eocd]) { out.set(chunk, p); p += chunk.length; }
-  return out;
+  return writeZip(files.map(file => ({
+    name: file.name,
+    data: typeof file.data === 'string' ? encoder.encode(file.data) : file.data,
+  })));
 }
-
 /**
  * Laat de central directory LIEGEN over de omvang van één part: de gecomprimeerde én de
  * ongecomprimeerde maat gaan naar een absurde waarde. Een lezer die die getallen op hun woord
@@ -144,13 +82,30 @@ function inflateHeaderLie(bytes: Uint8Array, partName: string): Uint8Array {
   const out = bytes.slice();
   const view = new DataView(out.buffer);
   const decoder = new TextDecoder();
-  for (let i = 0; i + 46 <= out.length; i++) {
-    if (view.getUint32(i, true) !== 0x02014b50) continue;
-    const nameLen = view.getUint16(i + 28, true);
-    if (decoder.decode(out.subarray(i + 46, i + 46 + nameLen)) !== partName) continue;
-    view.setUint32(i + 20, 0x7fffff00, true); // compSize
-    view.setUint32(i + 24, 0x7fffff00, true); // uncompressedSize
-    return out;
+
+  // De central directory wordt via de EOCD gevonden, niet met een naïeve scan op de signatuur: nu
+  // de fixtures door de ECHTE schrijver gaan is de payload gedeflate, en dan kan `50 4b 01 02`
+  // toevallig ergens ín de gecomprimeerde bytes staan. Via de EOCD-offset lopen we gegarandeerd de
+  // echte directory af.
+  let eocd = -1;
+  for (let p = out.length - 22; p >= 0; p--) {
+    if (view.getUint32(p, true) === 0x06054b50) { eocd = p; break; }
+  }
+  if (eocd < 0) throw new Error('testfixture: geen EOCD gevonden');
+
+  const total = view.getUint16(eocd + 10, true);
+  let cd = view.getUint32(eocd + 16, true);
+  for (let i = 0; i < total; i++) {
+    if (view.getUint32(cd, true) !== 0x02014b50) break;
+    const nameLen = view.getUint16(cd + 28, true);
+    const extraLen = view.getUint16(cd + 30, true);
+    const commentLen = view.getUint16(cd + 32, true);
+    if (decoder.decode(out.subarray(cd + 46, cd + 46 + nameLen)) === partName) {
+      view.setUint32(cd + 20, 0x7fffff00, true); // compSize
+      view.setUint32(cd + 24, 0x7fffff00, true); // uncompressedSize
+      return out;
+    }
+    cd += 46 + nameLen + extraLen + commentLen;
   }
   throw new Error(`testfixture: part ${partName} niet gevonden in de central directory`);
 }
@@ -223,8 +178,8 @@ interface BookOptions {
   extra?: readonly ZipInput[];
 }
 
-function makeWorkbook(opts: BookOptions): Uint8Array {
-  return storeZip([
+function makeWorkbook(opts: BookOptions): Promise<Uint8Array> {
+  return zipOf([
     { name: '[Content_Types].xml', data: CONTENT_TYPES },
     { name: '_rels/.rels', data: ROOT_RELS },
     { name: 'xl/workbook.xml', data: workbookXml(opts.epoch1904 ?? false) },
@@ -280,7 +235,7 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
     '<row r="5"><c r="F5" t="e"><v>#DIV/0!</v></c></row>',
     '<row r="6"><c r="A6" t="b"><v>1</v></c><c r="B6" t="str"><v>=A1</v></c></row>',
   ].join('');
-  const bytes = makeWorkbook({ rows, shared: ['Kop A', 'Kop B', 'Kop C', 'Fundering'] });
+  const bytes = await makeWorkbook({ rows, shared: ['Kop A', 'Kop B', 'Kop C', 'Fundering'] });
   const sheet = await readXlsxSheet(bytes);
 
   eq('sharedString wordt opgelost', cell(sheet, 2, 'A')?.text, 'Fundering');
@@ -306,7 +261,7 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
   // rijnummer als de kolomindex moeten uit het `r`-attribuut komen, niet uit een teller.
   const rows = '<row r="1"><c r="A1" t="s"><v>0</v></c></row>'
     + '<row r="7"><c r="C7" t="s"><v>1</v></c></row>';
-  const sheet = await readXlsxSheet(makeWorkbook({ rows, shared: ['eerste', 'derde'] }));
+  const sheet = await readXlsxSheet(await makeWorkbook({ rows, shared: ['eerste', 'derde'] }));
 
   eq('twee rijen in het blad', sheet.rows.length, 2);
   eq('rijnummer komt uit r=', sheet.rows[1]?.rowNumber, 7);
@@ -315,7 +270,7 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 }
 
 {
-  const sheet1904 = await readXlsxSheet(makeWorkbook({
+  const sheet1904 = await readXlsxSheet(await makeWorkbook({
     rows: '<row r="1"><c r="A1" s="1"><v>1</v></c></row>',
     epoch1904: true,
   }));
@@ -332,7 +287,7 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
       if (take) opened.push(name);
       return take;
     });
-  const bytes = makeWorkbook({
+  const bytes = await makeWorkbook({
     rows: '<row r="1"><c r="A1" t="inlineStr"><is><t>x</t></is></c></row>',
     extra: [
       { name: 'xl/media/image1.png', data: 'niet-uitpakken' },
@@ -360,22 +315,22 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
   cfb.set([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1], 0);
   eq('CFB-magic ⇒ encrypted', await issueOf(readXlsxSheet(cfb)), 'encrypted');
 
-  const small = makeWorkbook({ rows: '<row r="1"><c r="A1" t="inlineStr"><is><t>x</t></is></c></row>' });
+  const small = await makeWorkbook({ rows: '<row r="1"><c r="A1" t="inlineStr"><is><t>x</t></is></c></row>' });
   eq('te groot ⇒ tooLarge',
     await issueOf(readXlsxSheet(small, { ...XLSX_LIMITS, maxBytes: 10 })), 'tooLarge');
   eq('de standaardgrens staat op 16 MiB', XLSX_LIMITS.maxBytes, 16 * 1024 * 1024);
 
-  const manyRows = makeWorkbook({
+  const manyRows = await makeWorkbook({
     rows: Array.from({ length: 5 }, (_, i) => `<row r="${i + 1}"><c r="A${i + 1}"><v>1</v></c></row>`).join(''),
   });
   eq('te veel rijen ⇒ tooManyRows',
     await issueOf(readXlsxSheet(manyRows, { ...XLSX_LIMITS, maxRows: 3 })), 'tooManyRows');
 
-  const billionLaughs = makeWorkbook({ rows: '<row r="1"/>' });
+  const billionLaughs = await makeWorkbook({ rows: '<row r="1"/>' });
   const evilSheet = '<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol">]>'
     + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
     + '<sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>&lol;</t></is></c></row></sheetData></worksheet>';
-  const evil = storeZip([
+  const evil = await zipOf([
     { name: '[Content_Types].xml', data: CONTENT_TYPES },
     { name: '_rels/.rels', data: ROOT_RELS },
     { name: 'xl/workbook.xml', data: workbookXml() },
@@ -387,7 +342,7 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
   ok('de goedaardige variant leest gewoon', (await readXlsxSheet(billionLaughs)).rows.length === 1);
   eq('DTD wordt geweigerd', await issueOf(readXlsxSheet(evil)), 'malformed');
 
-  const noSheet = storeZip([
+  const noSheet = await zipOf([
     { name: '[Content_Types].xml', data: CONTENT_TYPES },
     { name: '_rels/.rels', data: ROOT_RELS },
     { name: 'xl/workbook.xml', data: workbookXml() },
@@ -395,7 +350,7 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
   ]);
   eq('werkmap zonder blad ⇒ noSheet', await issueOf(readXlsxSheet(noSheet)), 'noSheet');
 
-  const notOoxml = storeZip([{ name: 'hoi.txt', data: 'geen werkmap' }]);
+  const notOoxml = await zipOf([{ name: 'hoi.txt', data: 'geen werkmap' }]);
   eq('zip zonder [Content_Types].xml ⇒ notAZip', await issueOf(readXlsxSheet(notOoxml)), 'notAZip');
 }
 
@@ -473,7 +428,7 @@ function progressRowXml(rowNumber: number, input: SheetRowInput): string {
 function progressSheetBytes(
   rows: readonly SheetRowInput[],
   headers: readonly string[] = SHEET_HEADERS,
-): Uint8Array {
+): Promise<Uint8Array> {
   const headerXml = `<row r="1">${headers.map((h, i) => inlineCell(`${COLUMN_LETTERS[i]}1`, h)).join('')}</row>`;
   const body = rows.map((row, i) => progressRowXml(i + 2, row)).join('');
   return makeWorkbook({ rows: headerXml + body });
@@ -561,7 +516,7 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
     rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
   ];
 
-  const sheet = await parseProgressXlsx(progressSheetBytes(unchanged));
+  const sheet = await parseProgressXlsx(await progressSheetBytes(unchanged));
   eq('geen bestandsprobleem', sheet.fileIssue, undefined);
   const plan = planFor(sheet, tasks);
 
@@ -582,10 +537,10 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   // A9: een `.xlsx` levert ISO-datums, dus de dag/maand-vraag kán niet ontstaan.
   eq('datums zijn ondubbelzinnig', evidenceOf(detectDateOrder(sheet.detectionCells, tasks)), 'noAmbiguity');
   eq('een derde overleeft de round-trip',
-    planFor(await parseProgressXlsx(progressSheetBytes([rowFor(taskA, 1 / 3)])), [taskA]).noopCount, 1);
+    planFor(await parseProgressXlsx(await progressSheetBytes([rowFor(taskA, 1 / 3)])), [taskA]).noopCount, 1);
   eq('een uur-modus-datetime overleeft',
     planFor(
-      await parseProgressXlsx(progressSheetBytes([
+      await parseProgressXlsx(await progressSheetBytes([
         rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
       ])),
       [taskB],
@@ -607,7 +562,7 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
     rowFor(taskA, taskA.time.completion),
     rowFor(taskB, 0.5, taskB.time.actualStart, taskB.time.actualFinish),
   ];
-  const mutated = planFor(await parseProgressXlsx(progressSheetBytes(mutatedRows)), tasks);
+  const mutated = planFor(await parseProgressXlsx(await progressSheetBytes(mutatedRows)), tasks);
   eq('één wijziging, één apply', mutated.appliedCount, 1);
   eq('…op de juiste taak', mutated.rows.find(r => r.outcome === 'apply')?.taskId, taskB.id);
 
@@ -618,13 +573,13 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
     rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
   ];
   eq('een gewijzigde Start-kolom verandert niets',
-    planFor(await parseProgressXlsx(progressSheetBytes(changedStart)), tasks).appliedCount, 0);
+    planFor(await parseProgressXlsx(await progressSheetBytes(changedStart)), tasks).appliedCount, 0);
 }
 
 {
   // Excel-realisme: 45 % staat in het bestand als 0.45 met een percentage-`numFmt`.
   const task = baseTask('task-pct', '2026-02-02', 4);
-  const sheet = await parseProgressXlsx(progressSheetBytes([
+  const sheet = await parseProgressXlsx(await progressSheetBytes([
     { taskId: task.id, wbs: task.wbsCode, name: task.name, completion: 0.45 },
   ]));
   eq('45% als percentagecel leest als 45', sheet.rawRows[0]?.rawCompletion, '45');
@@ -636,13 +591,13 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   // Grenzen op de rijwaarden: te lang, en met een stuurteken. Beide tellen als AFWEZIG, nooit
   // afgekapt — een afgekapt id kan een andere taak matchen dan de invuller bedoelde.
   const longId = 'x'.repeat(PROGRESS_IMPORT_LIMITS.maxIdChars + 1);
-  const longSheet = await parseProgressXlsx(progressSheetBytes([
+  const longSheet = await parseProgressXlsx(await progressSheetBytes([
     { taskId: longId, wbs: '1', name: 'Lang', completion: 0.5 },
   ]));
   eq('te lang id telt als afwezig', longSheet.rawRows[0]?.taskId, undefined);
   ok('…maar de rij zelf blijft bestaan', longSheet.rawRows.length === 1);
 
-  const ctrlSheet = await parseProgressXlsx(progressSheetBytes([
+  const ctrlSheet = await parseProgressXlsx(await progressSheetBytes([
     // `_x0001_` is de OOXML-notatie voor een stuurteken (ST_Xstring); de lezer zet hem
     // terug naar U+0001, precies zoals Excel doet - dit is dus een ECHT stuurteken.
     { taskId: 'task_x0001_a', wbs: '1', name: 'Stuur', completion: 0.5 },
@@ -652,13 +607,13 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 
 {
   // Bestandsbrede weigeringen — elke `catch` heeft hier zijn eigen rode-pad-fixture.
-  const noKey = progressSheetBytes(
+  const noKey = await progressSheetBytes(
     [{ name: 'Zonder sleutel', completion: 0.5 }],
     ['Name', 'Completion (%)'],
   );
   eq('blad zonder sleutelkolom', (await parseProgressXlsx(noKey)).fileIssue, 'noKeyColumn');
 
-  const noProgress = progressSheetBytes([{ taskId: 'task-x', name: 'Zonder voortgang' }], ['OPS Task ID', 'Name']);
+  const noProgress = await progressSheetBytes([{ taskId: 'task-x', name: 'Zonder voortgang' }], ['OPS Task ID', 'Name']);
   eq('blad zonder voortgangskolommen', (await parseProgressXlsx(noProgress)).fileIssue, 'noProgressColumns');
 
   const cfb = new Uint8Array(64);
@@ -668,19 +623,19 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   // Zip-bom: de central directory LIEGT over de omvang van een van de parts. Een lengte uit een
   // bestandsheader is een leugen tot het tegendeel blijkt (hardening-checklist).
   const bomb = inflateHeaderLie(
-    progressSheetBytes([{ taskId: 'task-x', wbs: '1', name: 'Bom', completion: 0.5 }]),
+    await progressSheetBytes([{ taskId: 'task-x', wbs: '1', name: 'Bom', completion: 0.5 }]),
     'xl/worksheets/sheet1.xml',
   );
   eq('zip-bom', (await parseProgressXlsx(bomb)).fileIssue, 'unreadable');
 
   eq('rommelbytes', (await parseProgressXlsx(new TextEncoder().encode('geen werkmap'))).fileIssue, 'unreadable');
   eq('te groot ⇒ tooLarge',
-    (await parseProgressXlsx(progressSheetBytes([{ taskId: 'a', wbs: '1', completion: 0.5 }]),
+    (await parseProgressXlsx(await progressSheetBytes([{ taskId: 'a', wbs: '1', completion: 0.5 }]),
       { ...PROGRESS_IMPORT_LIMITS, maxBytes: 10 })).fileIssue,
     'tooLarge');
   eq('te veel rijen ⇒ tooManyRows',
     (await parseProgressXlsx(
-      progressSheetBytes([
+      await progressSheetBytes([
         { taskId: 'a', wbs: '1', completion: 0.5 },
         { taskId: 'b', wbs: '2', completion: 0.5 },
       ]),
