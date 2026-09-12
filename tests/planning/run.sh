@@ -595,6 +595,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
 
+  # U2: rasterdichtheid per zoom. De dagraster-lus tekende op elk zoomniveau een lijn per kalender-
+  # dag; op jaarzoom werd het canvas daardoor een streeppatroon. Telt met de echte renderer de
+  # verticale rasterlijnen bij dag-/week-/maandzoom (dagzoom moet ONGEWIJZIGD blijven).
+  GGDCHECK="$DIR/.gantt-grid-density.mjs"
+  if bundle_check "$DIR/check-gantt-grid-density.ts" "$GGDCHECK"; then node "$GGDCHECK" || STATUS=1; fi
+
+  # U2: balklabels worden met "…" afgekapt i.p.v. hard geclipt ("Sheet pil") of samengeknepen via
+  # fillText-maxWidth. Toetst met de echte renderer welke string er in de fillText ging.
+  GLECHECK="$DIR/.gantt-label-ellipsis.mjs"
+  if bundle_check "$DIR/check-gantt-label-ellipsis.ts" "$GLECHECK"; then node "$GLECHECK" || STATUS=1; fi
+
   # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
   # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
   # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem

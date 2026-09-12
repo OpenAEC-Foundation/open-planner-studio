@@ -216,6 +216,10 @@ function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { 
     selectedTaskIds: [],
     statusDate: view.viewStartDate,
     showProgressLine: false,
+    // U2: het statusdatum-labelvlak (`drawStatusDateBadge`) is óók een roundRect en landt vlak
+    // onder de kop — dus in de bovenste taakrij, waar deze check juist segmenten telt. Deze
+    // batterij gaat over balksegmentatie, niet over de statusdatum-markering; daarom hier uit.
+    showStatusDateLine: false,
     canvasWidth: W,
     canvasHeight: H,
     rowHeight: ROWH,
@@ -344,7 +348,7 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
     const row2Rects = passB.rects.filter(r => inRow(r, 0));
     // Voortgang gebruikt in critical/default exact de centrale normalLight-kleur. Herken die
     // rechtstreeks; Task.color is legacydata en hoort geen renderer-testhulpmiddel meer te zijn.
-    const progressFills = row2Rects.filter(r => r.fillStyle.toUpperCase() === '#1D4ED8');
+    const progressFills = row2Rects.filter(r => r.fillStyle.toUpperCase() === '#5778D6');
     ok('er is minstens 1 voortgangsvulling', progressFills.length > 0);
     const seg2Start = seg2.x;
     const leaksIntoSeg2 = progressFills.some(r => r.x >= seg2Start - 0.01);

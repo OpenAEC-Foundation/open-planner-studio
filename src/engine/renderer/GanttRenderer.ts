@@ -176,6 +176,25 @@ function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | nu
   return nearCriticalHatch;
 }
 
+/** U2 — hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
+ *
+ * Waarom: de dagraster-lus tekende op ELK zoomniveau een lijn per kalenderdag. Op jaarzoom
+ * (~1-2 px/dag) staan die lijnen zo dicht opeen dat het canvas een egaal streeppatroon wordt en
+ * de balken erin verdwijnen — op de lichte kaart het meest storend, maar dezelfde code draait in
+ * het donkere thema. De grenzen:
+ *   - `>= 8` px/dag ⇒ 'day'   — elke dag een lijn, dikke weekgrens. ONGEWIJZIGD gedrag.
+ *   - `>= 2` px/dag ⇒ 'week'  — alleen de (bestaande, dikkere) weekgrens.
+ *   - `<  2` px/dag ⇒ 'month' — alleen maandgrenzen.
+ * De weekend-/niet-werkdagarcering en de om-en-om weekband blijven op elk niveau ongemoeid: die
+ * zijn vlakken, geen lijnen, en dragen juist de weekstructuur zodra de lijnen wegvallen.
+ */
+export type GanttGridDensity = 'day' | 'week' | 'month';
+export function gridDensityForZoom(zoom: number): GanttGridDensity {
+  if (zoom >= 8) return 'day';
+  if (zoom >= 2) return 'week';
+  return 'month';
+}
+
 export class GanttRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: GanttRenderOptions;
@@ -412,11 +431,15 @@ export class GanttRenderer {
     // wanneer de losse statusdatumlijn terugtreedt, dus deze aanroepen blijven exclusief.
     this.drawProgressLine();
     this.drawStatusDateLine();
+    // U2: het horizontale statusdatum-labelvlak, bovenop beide varianten van de markering.
+    this.drawStatusDateBadge();
   }
 
   private drawGridBackground(): void {
     const { canvasWidth, canvasHeight, headerHeight, view } = this.opts;
     const ctx = this.ctx;
+    // U2 — rasterdichtheid volgt de zoom (zie `gridDensityForZoom`).
+    const density = gridDensityForZoom(view.zoom);
 
     // Calculate visible date range
     const visibleDays = Math.ceil(canvasWidth / view.zoom) + 2;
@@ -467,12 +490,25 @@ export class GanttRenderer {
           ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
         }
 
-        ctx.strokeStyle = this.colors.grid;
-        ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x, headerHeight);
-        ctx.lineTo(x, canvasHeight);
-        ctx.stroke();
+        // U2 — rasterdichtheid: op dagzoom (>=8 px/dag) ONGEWIJZIGD (elke dag een lijn, dikke
+        // weekgrens); daaronder alleen nog de weekgrens, en onder 2 px/dag alleen de maandgrens.
+        // Een maandgrens op de WERKDAGEN-as is de eerste WERKDAG van de maand — `getDate() === 1`
+        // faalt hier, want de 1e kan een niet-werkdag zijn en bestaat dan niet als kolom.
+        const isWeekStart = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1);
+        // UTC-accessors: alle datums in deze renderer komen uit `parseDate`/`addCalendarDays`, die
+        // bewust op UTC-middernacht rekenen. `getMonth()` zou in een tijdzone achter UTC de vórige
+        // maand teruggeven en de maandgrens een dag laten verspringen (bewezen door de
+        // tijdzonematrix aan het eind van tests/planning/run.sh).
+        const isMonthStart = density === 'month'
+          && this.axis.dateAtIndex(axisStartIndex + i - 1).getUTCMonth() !== date.getUTCMonth();
+        if (density === 'day' || (density === 'week' && isWeekStart) || isMonthStart) {
+          ctx.strokeStyle = this.colors.grid;
+          ctx.lineWidth = density === 'day' ? (isWeekStart ? 1 : 0.5) : 1;
+          ctx.beginPath();
+          ctx.moveTo(x, headerHeight);
+          ctx.lineTo(x, canvasHeight);
+          ctx.stroke();
+        }
       }
     } else {
       for (let i = -1; i < visibleDays; i++) {
@@ -488,13 +524,17 @@ export class GanttRenderer {
           ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
         }
 
-        // Vertical grid line
-        ctx.strokeStyle = this.colors.grid;
-        ctx.lineWidth = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1) ? 1 : 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x, headerHeight);
-        ctx.lineTo(x, canvasHeight);
-        ctx.stroke();
+        // Vertical grid line — U2: dichtheid volgt de zoom (dagzoom byte-identiek aan voorheen).
+        const isWeekStart = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1);
+        const isMonthStart = date.getUTCDate() === 1; // UTC: zie de compressie-tak hierboven
+        if (density === 'day' || (density === 'week' && isWeekStart) || (density === 'month' && isMonthStart)) {
+          ctx.strokeStyle = this.colors.grid;
+          ctx.lineWidth = density === 'day' ? (isWeekStart ? 1 : 0.5) : 1;
+          ctx.beginPath();
+          ctx.moveTo(x, headerHeight);
+          ctx.lineTo(x, canvasHeight);
+          ctx.stroke();
+        }
       }
     }
 
@@ -639,6 +679,55 @@ export class GanttRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
+
+  /**
+   * U2 — statusdatum-label: een klein horizontaal vlakje naast de markering, net onder de kop.
+   *
+   * De statusdatummarkering (gestippelde lijn óf de voortgangs-zigzag) is tot nu toe ONBENOEMD: hij
+   * is optisch niet te onderscheiden van de vandaag-lijn, die dezelfde accentkleur en hetzelfde
+   * streepjespatroon draagt. Een naam bij de lijn hoort horizontaal en leesbaar te staan, niet
+   * 90° gedraaid langs de lijn omlaag. Kleuren komen uit dezelfde thematokens als het sleep-pilletje
+   * (`--theme-accent` via `colors.statusDate` + `--theme-accent-on`), dus per thema correct.
+   *
+   * Het vlakje staat rechts van de lijn, tenzij het dan buiten het canvas zou vallen — dan links.
+   */
+  private drawStatusDateBadge(): void {
+    const iso = this.opts.statusDate;
+    if (!iso) return;
+    // Geen markering zichtbaar ⇒ ook geen label. (Beide vlaggen zijn default-aan: `!== false`.)
+    if (this.opts.showStatusDateLine === false && this.opts.showProgressLine === false) return;
+    const { canvasWidth, headerHeight } = this.opts;
+    const x = this.dateToX(parseDate(iso));
+    if (x < 0 || x >= canvasWidth) return;
+
+    const ctx = this.ctx;
+    const label = iso.slice(0, 10);
+    ctx.save();
+    ctx.font = this.font(10, true);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const padX = GanttRenderer.DRAG_BADGE_PAD_X;
+    const h = GanttRenderer.DRAG_BADGE_H;
+    const w = ctx.measureText(label).width + padX * 2;
+    let bx = x + 4;
+    if (bx + w > canvasWidth - 2) bx = x - 4 - w;
+    bx = Math.max(2, bx);
+    const by = headerHeight + 4;
+
+    ctx.beginPath();
+    ctx.roundRect(bx, by, w, h, 3);
+    ctx.fillStyle = this.colors.statusDate;
+    ctx.fill();
+    // Randje in de paneelkleur: het vlakje ligt vlak naast de even accentkleurige lijn en zou er
+    // anders mee samenvloeien (zelfde overweging als bij het sleep-pilletje).
+    ctx.strokeStyle = this.colors.bg;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = this.colors.accentOn;
+    ctx.fillText(label, bx + padX, by + h / 2 + 0.5);
+    ctx.restore();
   }
 
   /** Voortgangslijn (fase 2.6, §6.3): één verticale lijn op de statusdatum die per zichtbare
@@ -1023,6 +1112,32 @@ export class GanttRenderer {
     }
   }
 
+  /**
+   * U2 — kapt `text` met een echte ellips af zodat het binnen `maxWidth` past.
+   *
+   * Waarom niet `fillText(text, x, y, maxWidth)`: die KNIJPT de glyphs horizontaal samen; een lange
+   * taaknaam wordt dan onleesbaar smal in plaats van kort. Waarom niet alleen `clip()`: dat snijdt
+   * hard af, midden in een letter ("Sheet pil") zonder enig teken dat er meer stond. Binaire zoek
+   * over `measureText` (O(log n) metingen per label) geeft de langste prefix die met "…" past.
+   * `''` betekent: zelfs de ellips past niet — dan hoort er niets getekend te worden.
+   * LET OP: de aanroeper moet `ctx.font` al gezet hebben; `measureText` hangt daarvan af.
+   */
+  private ellipsize(text: string, maxWidth: number): string {
+    const ctx = this.ctx;
+    if (maxWidth <= 0) return '';
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    const dots = '…';
+    if (ctx.measureText(dots).width > maxWidth) return '';
+    let lo = 0;
+    let hi = text.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (ctx.measureText(text.slice(0, mid) + dots).width <= maxWidth) lo = mid;
+      else hi = mid - 1;
+    }
+    return text.slice(0, lo) + dots;
+  }
+
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {
     const ctx = this.ctx;
     const geo = this.barGeometry(task);
@@ -1208,7 +1323,12 @@ export class GanttRenderer {
     // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
     // wordt daar ook in de zichtbaarheidstest gebruikt.
     if (floatWidth > 0) {
-      ctx.fillStyle = this.colors.float + 'E6'; // ~90% opacity — float band needs ≥3:1 vs light bg
+      // U2 — ingetogen speling: halve balkhoogte, verticaal gecentreerd (ongewijzigd) maar op 40%
+      // dekking i.p.v. ~90%. Op 90% domineerde de groene band het beeld: hij is vaak veel BREDER
+      // dan de balk zelf, dus een even "harde" kleur trekt de blik weg van de planning. 40% leest
+      // nog als een duidelijke band, maar als achtergrondinformatie. De float-kleur zelf haalt
+      // >=3:1 op beide kaarten (zie themePalette/globals.css); de band is bewust geen tekstdrager.
+      ctx.fillStyle = this.colors.float + '66'; // 0.4 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }
 
@@ -1245,7 +1365,7 @@ export class GanttRenderer {
       }
     }
 
-    // Task name on bar (if wide enough)
+    // Task name on bar (if wide enough) — U2: ellips i.p.v. een harde clip-snede.
     if (width > 40) {
       ctx.fillStyle = this.colors.barText;
       ctx.font = this.font(10);
@@ -1253,8 +1373,10 @@ export class GanttRenderer {
       ctx.save();
       ctx.beginPath();
       ctx.rect(x1 + 4, y, width - 8, height);
-      ctx.clip();
-      ctx.fillText(task.name, x1 + 6, y + height / 2);
+      ctx.clip(); // blijft als vangnet staan; `ellipsize` hoort er al binnen te passen
+      // width - 10 = precies de ruimte tussen de tekststart (x1+6) en de rechter cliprand.
+      const label = this.ellipsize(task.name, width - 10);
+      if (label) ctx.fillText(label, x1 + 6, y + height / 2);
       ctx.restore();
     }
     return resourceAccentHeight;
@@ -1307,8 +1429,9 @@ export class GanttRenderer {
       ctx.save();
       ctx.beginPath();
       ctx.rect(x1 + 4, y, width - 8, height);
-      ctx.clip();
-      ctx.fillText(task.name, x1 + 6, y + height * 0.2);
+      ctx.clip(); // vangnet, zie drawTaskBar
+      const label = this.ellipsize(task.name, width - 10);
+      if (label) ctx.fillText(label, x1 + 6, y + height * 0.2);
       ctx.restore();
     }
   }

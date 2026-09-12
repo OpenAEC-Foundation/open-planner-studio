@@ -139,7 +139,7 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === 3 && r.y > HDRH);
 {
   const { fillRects, shapes } = render(true, { baseline: true });
   const a = accents(fillRects);
-  const baseline = shapes.find(sh => sh.fill === '#6B7280' && sh.h < 10);
+  const baseline = shapes.find(sh => sh.fill === '#808694' && sh.h < 10);
   ok(a.length === 2, `baseline-combinatie: beide accentsegmenten aanwezig (got ${a.length})`);
   ok(!!baseline, 'baseline-combinatie: baseline aanwezig');
   if (a.length > 0 && baseline) {
@@ -191,7 +191,7 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
     ok(Math.abs(seg2.x - (seg1.x + seg1.w)) < 1.5, 'scherm resource-modus: segmenten aaneengesloten');
   }
   // Kritieke taak zonder expliciete moduskleur → rode rand.
-  ok(bars.some(b => b.stroke === '#DC2626'), 'scherm Resource-categorie: rode rand om kritieke taak');
+  ok(bars.some(b => b.stroke === '#DA5252'), 'scherm Resource-categorie: rode rand om kritieke taak');
 }
 {
   // auto: vulling = palet-hash op taak-id (licht thema ⇒ exacte kleur).

@@ -73,9 +73,9 @@ function record(tasks: Task[], sequences: Sequence[], calendar: WorkCalendar, op
 }
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────────────────────
-const CRITICAL = '#DC2626';
-const NORMAL = '#2563EB';
-const BASELINE = '#6B7280';
+const CRITICAL = '#DA5252';
+const NORMAL = '#648BE0';
+const BASELINE = '#808694';
 
 const cal: WorkCalendar = {
   id: 'c1', name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5, 6, 7],

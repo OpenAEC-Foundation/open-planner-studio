@@ -33,14 +33,14 @@ export const GANTT_TRACE_COLORS = {
 } as const;
 
 const BRAND = {
-  critical: '#DC2626',          // kritiek (rood)
+  critical: '#DA5252',          // kritiek (rood) — U2: >=3:1 op lichte EN donkere kaart
   criticalLight: '#991B1B',     // voortgangsvulling kritiek
   nearCritical: '#F59E0B',      // bijna-kritiek (amber, fase 2.9 §5.4)
   hammock: '#0E7490',           // hammock/LOE-balk (teal, fase 2.9 §5.3)
-  normal: '#2563EB',            // normale taak (blauw)
-  normalLight: '#1D4ED8',       // voortgangsvulling / voltooid (blauw)
-  milestone: '#7C3AED',         // mijlpaal (paars, ruit)
-  baseline: '#6B7280',          // baseline-onderbalk (grijs)
+  normal: '#648BE0',            // normale taak (blauw) — U2: >=3:1 op lichte EN donkere kaart
+  normalLight: '#5778D6',       // voortgangsvulling / voltooid (blauw) — U2
+  milestone: '#986DE2',         // mijlpaal (paars, ruit) — U2
+  baseline: '#808694',          // baseline-onderbalk (grijs) — U2
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
   summary: '#475569',           // samenvattingsbalk (slate)
   ghost: '#94A3B8',             // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
@@ -130,9 +130,9 @@ export function readGanttPalette(): GanttPalette {
     normal: BRAND.normal,
     normalLight: BRAND.normalLight,
     milestone: BRAND.milestone,
-    float: v('--theme-bar-float', '#059669'),
+    float: v('--theme-bar-float', '#1E976F'),
     baseline: BRAND.baseline,
-    complete: BRAND.normalLight, // '#1D4ED8', zelfde hex als normalLight
+    complete: BRAND.normalLight, // '#5778D6', zelfde hex als normalLight
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
@@ -230,21 +230,21 @@ export const PRINT_PALETTE = {
   borderDark: '#9ca3af',
   text: '#111827',
   textSecondary: '#6b7280',
-  critical: BRAND.critical,   // '#DC2626'
+  critical: BRAND.critical,   // '#DA5252'
   criticalDark: '#991b1b',
   // Bijna-kritiek (#21 kleurmodi): de print tekende bijna-kritiek nooit zelf (critical/normal
   // waren de enige balkkleuren); de 'critical'-kleurmodus deelt die keuze nu met barColors.
   nearCritical: BRAND.nearCritical, // '#F59E0B'
-  normal: BRAND.normal,       // '#2563EB'
-  normalDark: '#1d4ed8',
-  milestone: BRAND.milestone, // '#7C3AED'
-  baseline: BRAND.baseline,   // '#6B7280'
+  normal: BRAND.normal,       // '#648BE0'
+  normalDark: '#5778d6',
+  milestone: BRAND.milestone, // '#986DE2'
+  baseline: BRAND.baseline,   // '#808694'
   uncategorized: BRAND.ghost, // '#94A3B8' — ontbrekende categoriewaarde
-  float: '#10B981',
+  float: '#1E976F',
   dependency: '#9CA3AF',
   today: '#F59E0B',
   headerBg: '#f1f5f9',
-  summary: BRAND.milestone,   // '#7C3AED' — print-samenvatting is violet (zelfde hex als mijlpaal)
+  summary: BRAND.milestone,   // '#986DE2' — print-samenvatting is violet (zelfde hex als mijlpaal)
   rowEven: '#f9fafb',
   rowOdd: '#ffffff',
 };

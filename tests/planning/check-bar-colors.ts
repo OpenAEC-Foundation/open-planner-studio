@@ -53,7 +53,7 @@ ok(nextFreePaletteColor(taken) === RESOURCE_PALETTE[5], 'eerste vijf bezet → z
 
 // 6. Geen paletkleur gelijk aan de kritiek-roodtint van het printpalet (PRINT_PALETTE.critical =
 //    '#DC2626') — de rode rand voor kritieke taken moet visueel vrij blijven.
-ok(!RESOURCE_PALETTE.includes('#DC2626'), 'palet vermijdt kritiek-rood');
+ok(!RESOURCE_PALETTE.includes('#DA5252'), 'palet vermijdt kritiek-rood');
 
 // ── barColors: modi, segmenten, randen (#21, ontwerp §4) ───────────────────────────────────────
 import { computeBarColors } from '@/services/print/barColors';
@@ -68,8 +68,8 @@ import type { Task, TaskTime } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 
 const PAL: BarPalette = {
-  critical: '#DC2626', normal: '#2563EB', nearCritical: '#F59E0B',
-  milestone: '#7C3AED', uncategorized: '#94A3B8',
+  critical: '#DA5252', normal: '#648BE0', nearCritical: '#F59E0B',
+  milestone: '#986DE2', uncategorized: '#94A3B8',
 };
 
 const mkTime = (over: Partial<TaskTime> = {}): TaskTime => ({
