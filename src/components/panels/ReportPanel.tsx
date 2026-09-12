@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { buildPrintRows, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
-import { ensureExtension } from '@/utils/filePath';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
@@ -19,7 +18,7 @@ import {
 } from '@/components/viewControls/barColorFieldOptions';
 import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useSplitter } from '@/hooks/useSplitter';
-import { isTauri } from '@/utils/platform';
+import { saveBytesDialog } from '@/services/fileAccess';
 import {
   DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, TABLE_REPORT_TYPES,
   type ReportType, type TableReportOptions,
@@ -808,27 +807,18 @@ export function ReportPanel() {
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
 
-  /** Gedeelde PDF-schrijver: Tauri → save-dialoog + writeFile, web → blob-download. */
+  /**
+   * Gedeelde PDF-schrijver. Sinds issue #27 etappe 3 (X8) loopt dit via `saveBytesDialog`, het
+   * enige byte-schrijfpad van de app — Tauri: save-dialoog + `writeFile`; web: FSA-picker met
+   * download-terugval. Bewust GEEN `viaDownload`-melding: dat was hier ook vóór de lift niet zo
+   * (Q3 in het plan), en die melding erbij zou deze etappe stil uitbreiden.
+   */
   const writePdf = useCallback(async (pdfBytes: Uint8Array, defaultName: string) => {
-    if (isTauri()) {
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-      const picked = await save({
-        defaultPath: defaultName,
-        filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
-      });
-      if (!picked) return;
-      const savedPath = ensureExtension(picked, 'pdf');
-      await writeFile(savedPath, pdfBytes);
-    } else {
-      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = defaultName;
-      link.href = url;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
+    await saveBytesDialog(
+      defaultName, pdfBytes,
+      [{ name: 'PDF Document', extensions: ['pdf'] }],
+      { mime: 'application/pdf' },
+    );
   }, []);
 
   /**
