@@ -15,8 +15,10 @@
 // DE BEZIG-TOESTAND IS ECHT, GEEN COSMETICA. `setBusy(true)` gebeurt synchroon, het rekenen pas in
 // een `setTimeout(…, 0)` daarna — anders blokkeert de synchrone solve de paint en ziet de gebruiker
 // nooit dat er iets gebeurt. Er loopt er precies één tegelijk; een verzoek dat tijdens een run
-// binnenkomt wordt daarna precies ÉÉN keer ingehaald (niet N keer — een sleepbeweging over de
-// plafondhandle in taak 9 levert anders een wachtrij die minutenlang naloopt).
+// binnenkomt wordt daarna precies ÉÉN keer ingehaald (niet N keer). DÍT MECHANISME IS DE THROTTLE
+// DIE SPEC §5 VRAAGT: onder de ondersteunde schaal commit de balk élke gesnapte werkdag tijdens het
+// slepen, en deze in-flight-bewaking zorgt dat er maximaal één run loopt en de laatste stand wint.
+// Er hoort hier GEEN tweede timer bij te komen — die zou de laatste stand kunnen inslikken.
 //
 // SCHAAL-DEGRADATIE (§3.4). Boven `MAX_TASKS_AUTO` taken in één deelnemend document of
 // `MAX_BOOKING_TASKS_AUTO` boekende taken op dít poolitem is automatisch doorrekenen bij elke
@@ -42,6 +44,9 @@ import {
   type DistributionProposal,
 } from '@/services/library/distribute';
 import { documentFingerprint } from '@/services/library/proposalFingerprint';
+// TODO(plan4-T1): vervang deze twee lokale helpers door
+// `import { maxEndShiftWorkdays, savingsWorkdays } from './stripGeometry';` zodra taak 1 die module
+// heeft toegevoegd — de signaturen en het gedrag hieronder zijn letterlijk die van het plan.
 import { documentTitle, untitledOrdinals, displayDocumentTitle } from '@/utils/documents';
 
 /** Meer taken dan dit in één deelnemend document ⇒ handmatig herberekenen (§3.4). */
@@ -61,6 +66,24 @@ export const MAX_BOOKING_TASKS_AUTO = 40;
  * 1,6 s plus een labelpas van 3,8 s — en dat bij élke tune-wijziging.
  */
 export const MAX_DOCS_AUTO = 6;
+
+// TODO(plan4-T1): deze twee helpers horen in `./stripGeometry.ts` (taak 1 van plan 4) en staan hier
+// tijdelijk lokaal omdat die module in deze worktree nog niet bestaat. Bij het samenvoegen: dit blok
+// schrappen en de import bovenaan activeren — signatuur en gedrag zijn identiek aan de plantekst.
+
+/** De grootste einddatum-verschuiving over de deelnemers — de UITSCHIETER, niet de som (§2.2). */
+export function maxEndShiftWorkdays(docs: { endShiftWorkdays: number }[]): number {
+  return docs.reduce((max, doc) => Math.max(max, doc.endShiftWorkdays), 0);
+}
+
+/**
+ * Het verschil-prijskaartje van "Onderbrekingen toestaan" (§2.2): hoeveel werkdagen de aan-stand
+ * bespaart ten opzichte van de uit-stand. Geklemd op 0 — onderbreken kán in theorie duurder
+ * uitvallen, en dan is "bespaart niets" het eerlijke antwoord.
+ */
+export function savingsWorkdays(offMax: number, onMax: number): number {
+  return Math.max(0, offMax - onMax);
+}
 
 /** Waarom het huidige voorstel niet meer actueel is — 1-op-1 de `resource.distribution.stale.*`
  *  sleutels. De vier tune-assen komen uit `diffReason`; `'edited'` komt uit de
@@ -125,15 +148,31 @@ export interface DistributionProposalState {
   /** De invoer waarop het HUIDIGE voorstel gerekend is — de dialoog leest hier de documenttitels
    *  en de float per document uit, zodat rangordelijst en strook nooit uit een andere bron komen. */
   inputs: DistributionDocInput[];
-  /** docId → "alleen dit document laten opschuiven kost N werkdagen" (taak 13, spec §4 stap 1): een
-   *  volledige `computeDistribution`-run met dít document alleen op rang 1 en alle andere deelnemers
-   *  gepind. Ontbreekt een docId ⇒ geen label — óf nog niet (her)berekend (stale/gedegradeerd), óf
-   *  het document is zelf gepind/#63/cannotMove en wijkt sowieso niet (de dialoog beslist dat via
-   *  `proposal.docs[].participated`/`cannotMove`, niet via deze map). */
+  /**
+   * Het VERSCHIL-prijskaartje van "Onderbrekingen toestaan" (spec §2.2, eigenaarsbesluit
+   * 2026-09-12). Twee volledige `computeDistribution`-runs — één met `allowSplits: false`, één met
+   * `true` — leveren elk de grootste `endShiftWorkdays` over de deelnemers (de UITSCHIETER, niet de
+   * som); `workdays` is het verschil daartussen, geklemd op ≥ 0.
+   *
+   * Waarom één verschil en niet twee bedragen: de gebruikstest van 2026-09-12 las "kost 27
+   * werkdagen uitloop · kost 27 werkdagen uitloop" als een weergavefout. Een gebruiker wil weten wat
+   * de schakelaar hém oplevert, niet wat elke stand los kost.
+   *
+   * `null` ⇒ nog niet (her)berekend; de dialoog zegt dan eerlijk "prijs onbekend".
+   */
+  savings: { workdays: number } | null;
+  /**
+   * @deprecated COMPAT — TAAK 4 RUIMT DIT OP. De rangordelijst met haar kostenlabels is met deze
+   * taak vervallen (§2.1/§8) en de per-deelnemer-isolatieruns die deze map vulden zijn verdwenen;
+   * hij staat hier alleen nog omdat `DistributionDialog.tsx` pas in taak 4 herbouwd wordt en
+   * anders niet compileert. Altijd leeg. Verwijder dit veld zodra de dialoog het niet meer leest.
+   */
   costByDoc: Record<string, number>;
-  /** Het prijskaartje van de gereedschapsschakelaar (taak 13, spec §3.4/§6): de grootste
-   *  `endShiftWorkdays` over de deelnemers (de uitschieter, niet de som) voor elke stand van
-   *  "Onderbrekingen toestaan". `null` ⇒ nog niet (her)berekend. */
+  /**
+   * @deprecated COMPAT — TAAK 4 RUIMT DIT OP. Vervangen door `savings` (één verschil in plaats van
+   * twee bedragen, §2.2). Wordt gevuld uit dezelfde twee prijsruns als `savings`, dus hij kost niets
+   * extra; alleen de dialoog van vóór taak 4 leest hem nog.
+   */
   toolPrice: { off: number; on: number } | null;
 }
 
@@ -359,7 +398,11 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const [staleReason, setStaleReason] = useState<DistributionStaleReason | null>(null);
   const [lastStaleReason, setLastStaleReason] = useState<DistributionStaleReason | null>(null);
   const [staleDocs, setStaleDocs] = useState('');
-  const [costByDoc, setCostByDoc] = useState<Record<string, number>>({});
+  const [savings, setSavings] = useState<{ workdays: number } | null>(null);
+  // COMPAT — TAAK 4 RUIMT DEZE TWEE OP. `costByDoc` blijft per definitie leeg (de isolatieruns die
+  // hem vulden zijn met de rangordelijst verdwenen); `toolPrice` wordt uit dezelfde twee prijsruns
+  // als `savings` gevuld. Beide bestaan alleen zolang `DistributionDialog.tsx` ze nog leest.
+  const [costByDoc] = useState<Record<string, number>>({});
   const [toolPrice, setToolPrice] = useState<{ off: number; on: number } | null>(null);
 
   // Bewaakt de labelpas (taak 13) tegen twee soorten inhaalslag: (1) een NIEUWE hoofdrun start —
@@ -421,27 +464,23 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   }, []);
 
   /**
-   * Taak 13 (spec §4 stap 1 / §6). Per document een VOLLEDIGE `computeDistribution`-run met dat
-   * document alleen op rang 1 en alle andere deelnemers gepind ("alleen dit project laten
-   * opschuiven"), plus twee runs voor het prijskaartje van de gereedschapsschakelaar (`allowSplits`
-   * uit/aan). Draait ná het hoofdvoorstel (dat schildert dan al), en breekt af zodra `myGeneration`
-   * is ingehaald door een nieuwere hoofdrun of door een 'edited'-invalidatie
-   * (`fingerprintsRef.current === null`) — beide zijn precies de gevallen waarin het hoofdvoorstel op
-   * het scherm zelf ook al niet meer bij de documenten hoort.
+   * Spec §2.2 — het VERSCHIL-prijskaartje. Twee volledige `computeDistribution`-runs (`allowSplits`
+   * uit en aan) ná het hoofdvoorstel, elk in een eigen macrotask zodat de browser ertussen kan
+   * schilderen en een afbreekreden binnen één stap landt. Breekt af zodra `myGeneration` is
+   * ingehaald door een nieuwere hoofdrun of door een 'edited'-invalidatie
+   * (`fingerprintsRef.current === null`) — beide zijn precies de gevallen waarin het hoofdvoorstel
+   * op het scherm zelf ook al niet meer bij de documenten hoort.
    *
-   * ÉÉN MACROTASK PER STAP, NIET ÉÉN VOOR ALLES (fixronde-2 bevinding B6). Dit stond in één
-   * synchrone `setTimeout`-callback: N volledige solves plus twee prijsruns achter elkaar, zonder
-   * dat de browser ertussen kon schilderen of een klik kon verwerken. Gemeten op vijf documenten
-   * van 990 taken: 3,8 seconden bevroren UI, bij élke tune-wijziging — en `superseded()` kón
-   * daartussen niet ingrijpen, want er was geen "daartussen". Elke stap heeft nu zijn eigen
-   * macrotask, dus de UI blijft responsief en een afbreekreden landt binnen één stap.
+   * DIT WAS VIER KEER ZO DUUR. Tot 2026-09-12 deed deze pas óók per deelnemer een isolatierun voor
+   * de kostenlabels van de rangordelijst. Die lijst is weg (§2.1) en die runs dus ook: er blijven
+   * twee runs over in plaats van N+2. Dat is wat het live meerekenen tijdens het slepen (§5)
+   * betaalbaar maakt.
    */
-  const scheduleDistributionLabels = (
+  const scheduleSavingsPass = (
     myGeneration: number,
     tuneAtRun: DistributionUiState,
     pool: CompanyPool,
     built: DistributionDocInput[],
-    proposalResult: DistributionProposal,
   ): void => {
     const superseded = () => generationRef.current !== myGeneration || fingerprintsRef.current === null;
     // Alleen de teller van DEZE pas mag de bezig-toestand weer uitzetten: een nieuwere pas loopt
@@ -449,58 +488,39 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     const finish = () => { if (generationRef.current === myGeneration) setLabelsBusy(false); };
 
     const priceOf = (p: DistributionProposal): number | null =>
-      p.blocked ? null : p.docs.reduce((max, d) => Math.max(max, d.endShiftWorkdays), 0);
+      p.blocked ? null : maxEndShiftWorkdays(p.docs);
 
-    const costs: Record<string, number> = {};
     let offPrice: number | null = null;
     let onPrice: number | null = null;
-    const steps: (() => void)[] = [];
-
-    for (const doc of built) {
-      const docResult = proposalResult.docs.find(d => d.docId === doc.docId);
-      // Gepind/#63/cannotMove ⇒ geen label (§4 stap 1: "ze wijken niet"), en dus ook geen stap.
-      if (!docResult || !docResult.participated || docResult.cannotMove) continue;
-      steps.push(() => {
-        const isolated = built.map(other => (
-          other.docId === doc.docId
-            ? { ...other, rank: 1, pinned: false }
-            : { ...other, pinned: true }
+    const steps: (() => void)[] = [
+      () => {
+        offPrice = priceOf(computeDistribution(
+          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: false },
         ));
-        const isolatedResult = computeDistribution(
-          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, isolated,
-          { allowSplits: tuneAtRun.allowSplits },
-        );
-        if (isolatedResult.blocked) return;
-        const own = isolatedResult.docs.find(d => d.docId === doc.docId);
-        if (own) costs[doc.docId] = own.endShiftWorkdays;
-      });
-    }
-    // De labels gaan in ÉÉN keer naar de state, ná de laatste isolatierun: half gevulde
-    // rangorderijen zijn misleidender dan een zichtbare bezig-toestand.
-    steps.push(() => { setCostByDoc({ ...costs }); });
-    steps.push(() => {
-      offPrice = priceOf(computeDistribution(
-        tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: false },
-      ));
-    });
-    steps.push(() => {
-      onPrice = priceOf(computeDistribution(
-        tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: true },
-      ));
-    });
-    steps.push(() => {
-      if (offPrice !== null && onPrice !== null) setToolPrice({ off: offPrice, on: onPrice });
-    });
+      },
+      () => {
+        onPrice = priceOf(computeDistribution(
+          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: true },
+        ));
+      },
+      () => {
+        if (offPrice !== null && onPrice !== null) {
+          setSavings({ workdays: savingsWorkdays(offPrice, onPrice) });
+          // COMPAT — TAAK 4 RUIMT DIT OP: dezelfde twee getallen nog even in de oude vorm, zodat
+          // de nog niet herbouwde dialoog blijft compileren en draaien. Kost niets extra.
+          setToolPrice({ off: offPrice, on: onPrice });
+        }
+      },
+    ];
 
     const runStep = (index: number): void => {
       if (superseded() || index >= steps.length) { finish(); return; }
       try {
         steps[index]();
       } catch {
-        // Een mislukte stap (bv. een solverfout in een isolatiescenario) laat gewoon geen label
-        // zien — nooit een gok tonen (zie het moduleblok over "stille uitsluiting" in distribute.ts).
-        // De rest van de pas loopt door: één onberekenbaar project hoort de andere labels niet mee
-        // te slepen.
+        // Een mislukte stap laat gewoon geen prijs zien — nooit een gok tonen. De volgende stap
+        // loopt door; zonder beide prijzen blijft `savings` op `null` en zegt de dialoog eerlijk
+        // dat de prijs onbekend is.
       }
       schedule(() => runStep(index + 1));
     };
@@ -519,11 +539,11 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     // hieraan als ingehaald en breekt af (§4 stap 1: "een label van een vervallen voorstel is
     // misleidender dan geen label").
     const myGeneration = ++generationRef.current;
-    // De labels horen bij het HUIDIGE voorstel, niet bij het vorige — ze gaan dus meteen leeg zodra
-    // een nieuwe run start (net als de bezig-toestand: een oud getal tijdens "Bezig met verdelen…"
-    // is even misleidend als een oud getal na een invalidatie).
-    setCostByDoc({});
-    setToolPrice(null);
+    // De prijs hoort bij het HUIDIGE voorstel, niet bij het vorige — hij gaat dus meteen leeg zodra
+    // een nieuwe run start. Een oud getal tijdens "Bezig met verdelen…" is even misleidend als een
+    // oud getal na een invalidatie.
+    setSavings(null);
+    setToolPrice(null); // COMPAT — TAAK 4 RUIMT DIT OP.
     // De labelpas van de vorige generatie is hiermee ingehaald; zijn bezig-toestand hoort dus ook
     // weg. Wordt er straks weer een pas gepland, dan zet die 'm zelf terug aan.
     setLabelsBusy(false);
@@ -547,12 +567,12 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
         setStaleReason(null);
         setStaleDocs('');
 
-        // Taak 13 (spec §4 stap 1 / §6): de kostenlabels en het prijskaartje NÁ het hoofdvoorstel,
-        // in een tweede macrotask zodat het hoofdvoorstel eerst schildert. Boven de ondersteunde
-        // schaal (§3.4) is elk label ZELF een volledige run erbij — dat is precies de kost die de
-        // schaal-degradatie voorkomt, dus daar blijft het bij "druk op Herbereken".
+        // Spec §2.2: de verschil-prijs NÁ het hoofdvoorstel, in een tweede macrotask zodat het
+        // hoofdvoorstel eerst schildert. Boven de ondersteunde schaal (§3.4) is elke prijsrun ZELF
+        // een volledige run erbij — dat is precies de kost die de schaal-degradatie voorkomt, dus
+        // daar blijft het bij "druk op Herbereken".
         if (pool && proposalResult && !proposalResult.blocked && !isDistributionDegraded(built, current)) {
-          scheduleDistributionLabels(myGeneration, current, pool, built, proposalResult);
+          scheduleSavingsPass(myGeneration, current, pool, built);
         }
       } finally {
         busyRef.current = false;
@@ -589,8 +609,8 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     setStaleReason(null);
     setLastStaleReason(null);
     setStaleDocs('');
-    setCostByDoc({});
-    setToolPrice(null);
+    setSavings(null);
+    setToolPrice(null); // COMPAT — TAAK 4 RUIMT DIT OP.
     if (subjectKey !== null) runRef.current();
     // `tune` bewust buiten de deps: alleen het ONDERWERP is hier de trigger, niet elke tune-tik.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -647,6 +667,8 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
 
   return {
     proposal, busy, labelsBusy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
+    savings,
+    // COMPAT — TAAK 4 RUIMT DEZE TWEE OP.
     costByDoc, toolPrice,
   };
 }
