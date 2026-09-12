@@ -81,6 +81,9 @@ function resetDocumentScopedUI(s: AppState): void {
   // BESLUIT EIGENAAR 2026-08-31: de DIALOOG SLUIT dan, en blijft niet open staan met een vervallen
   // voorstel; er is bij een losse dialoog immers geen "eronder" om op terug te vallen. Het
   // bezettingsoverzicht blijft gewoon staan, dus de gebruiker opent opnieuw op de conflictregel.
+  // Sinds issue #27/E4 is Ctrl/⌘1-9 al geblokkeerd door `hasBlockingDialogOpen`, dus deze regel
+  // dekt nog uitsluitend de ÓVERIGE wisselpaden: een rechtstreekse `switchDocument` uit de store,
+  // een MCP-tool, en het sluiten van een document.
   s.ui.showDistributionDialog = false;
   // De TUNE-STATE gaat hier bewust NIET mee (fixronde B1c-etappe-3, bevinding B3). Ze stond hier tot
   // deze ronde wél, en dat nam de gebruiker zijn terugweg af: `levelingDistribution.applied` is het

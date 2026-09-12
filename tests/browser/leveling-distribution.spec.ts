@@ -653,11 +653,26 @@ test('van document wisselen sluit de dialoog', async ({ page, ops: _ops }) => {
   await seedTwoConflictingDocuments(page);
   await openDistributionFromConflictRow(page);
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+  const documentIds = await page.evaluate(
+    () => window.__OPS__!.store.getState().documents.map(d => d.id));
+  const activeBefore = await page.evaluate(
+    () => window.__OPS__!.store.getState().activeDocumentId);
 
-  // Ctrl+1 springt naar het EERSTE document; het actieve is hier het tweede. De sneltoets hangt aan
-  // `window` en heeft geen `hasBlockingDialogOpen`-guard, dus hij komt langs de focus-trap heen —
-  // een echte toetsaanslag, geen store-aanroep.
+  // (1) DE SNELTOETS DOET NIETS ZOLANG DEZE DIALOOG OPENSTAAT — dat is sinds issue #27/E4 de
+  // belofte, niet een gemiste route. `nav.switchDocument1..9` draagt daar een
+  // `when: () => !hasBlockingDialogOpen()`, en `ui.showDistributionDialog` staat in die lijst: een
+  // modale dialoog hoort modaal te zijn. Vóór #27 wisselde Ctrl+1 gewoon door en ving
+  // `resetDocumentScopedUI` de scherven op; die volgorde is nu omgedraaid.
   await page.keyboard.press('Control+1');
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(activeBefore);
+  await expect(page.locator('[data-ops-distribution-dialog]')).toBeVisible();
+
+  // (2) DE NIET-TOETSENBORDROUTE. `switchDocument` is óók bereikbaar buiten de sneltoets om — via
+  // de store zelf, via een MCP-tool en via het sluiten van een document — en die paden komen niet
+  // langs `hasBlockingDialogOpen`. Daar is `resetDocumentScopedUI` het vangnet, en dát is wat deze
+  // helft toetst: een echte klik bestaat er niet voor, dus dit gaat bewust via de brug.
+  const other = documentIds.find(id => id !== activeBefore)!;
+  await page.evaluate(id => window.__OPS__!.store.getState().switchDocument(id), other);
 
   await expect(page.locator('[data-ops-distribution-dialog]')).toHaveCount(0);
   // §6a/besluit eigenaar: de DIALOOG gaat dicht — het voorstel op het scherm hoorde bij een
