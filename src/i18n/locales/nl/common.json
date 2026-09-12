@@ -675,13 +675,17 @@
       },
       "rank": {
         "title": "Wie wordt het meest ontzien?",
-        "hint": "Bovenaan wijkt het minst. Sleep om de volgorde te veranderen.",
+        "hint": "Bovenaan wijkt het minst. Sleep aan de greep links, of gebruik de pijlknoppen rechts.",
+        "drag": "Volgorde verslepen",
         "float": "speling: {{days}}",
         "cost_one": "alleen dit project laten opschuiven kost {{count}} werkdag",
         "cost_other": "alleen dit project laten opschuiven kost {{count}} werkdagen",
         "costNone": "alleen dit project laten opschuiven kost geen uitloop",
         "moveUp": "Naar boven",
         "moveDown": "Naar beneden"
+      },
+      "help": {
+        "dragHandle": "Sleep deze rij naar een andere plek in de volgorde."
       },
       "strip": {
         "pin": "Vastzetten",

@@ -374,11 +374,21 @@ test('rangorde: slepen verandert de volgorde en laat het voorstel vervallen', as
   const firstDocId = await rows.nth(0).getAttribute('data-ops-doc-id');
   const secondDocId = await rows.nth(1).getAttribute('data-ops-doc-id');
 
-  // Sleep rij 2 boven rij 1 — native HTML5 drag-and-drop, HETZELFDE mechanisme als
-  // `DataGridHeader`'s kolomherordening (`draggable` + dragover/drop), geen los pointer-events-
-  // sleepmechanisme ernaast. `targetPosition` mikt op het BOVENSTE stuk van rij 1, zodat de drop als
-  // "voor" telt — een drop op het midden zou de rij weer op zijn oude plek laten vallen.
-  await rows.nth(1).dragTo(rows.nth(0), { targetPosition: { x: 20, y: 2 } });
+  // Sleep rij 2 boven rij 1 — POINTER-EVENTS aan de greep (gebruikstest 2026-09-12, gebrek 2:
+  // HTML5-dnd deed in de iframe-preview en de Tauri-webview niets). Dus echte muisbewegingen met
+  // `steps`: een pointerdown op de greep, een paar tussenstappen zodat `pointermove` het doel kan
+  // bepalen (zonder move commit de sleep bewust niets), en loslaten boven de BOVENSTE helft van
+  // rij 1 — een loslaten op de onderste helft zou de rij weer op zijn oude plek laten vallen.
+  const grip = rows.nth(1).locator('[data-ops-distribution-rank-grip]');
+  const gripBox = (await grip.boundingBox())!;
+  const targetBox = (await rows.nth(0).boundingBox())!;
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + 20, targetBox.y + targetBox.height * 0.2, { steps: 8 });
+  // De rij licht op tijdens het slepen en de doelrij toont de invoegindicator.
+  await expect(rows.nth(1)).toHaveAttribute('data-ops-distribution-rank-dragging', 'true');
+  await expect(rows.nth(0)).toHaveAttribute('data-ops-distribution-rank-drop-before', 'true');
+  await page.mouse.up();
 
   await expect(page.locator('[data-ops-distribution-rank-row]').first())
     .toHaveAttribute('data-ops-doc-id', secondDocId!);

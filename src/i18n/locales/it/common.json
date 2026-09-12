@@ -688,7 +688,8 @@
       },
       "rank": {
         "title": "Chi viene risparmiato di più?",
-        "hint": "In alto è chi si sposta meno. Trascina per cambiare l'ordine.",
+        "hint": "Quello in alto cede di meno. Trascina la maniglia a sinistra oppure usa le frecce a destra.",
+        "drag": "Trascina per riordinare",
         "float": "margine: {{days}}",
         "cost_one": "far slittare solo questo progetto costa {{count}} giorno lavorativo",
         "cost_many": "far slittare solo questo progetto costa {{count}} giorni lavorativi",
@@ -696,6 +697,9 @@
         "costNone": "far slittare solo questo progetto non costa alcun ritardo",
         "moveUp": "Sposta su",
         "moveDown": "Sposta giù"
+      },
+      "help": {
+        "dragHandle": "Trascina questa riga in un'altra posizione dell'ordine."
       },
       "strip": {
         "pin": "Blocca",

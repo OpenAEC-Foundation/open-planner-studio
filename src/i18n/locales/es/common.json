@@ -688,7 +688,8 @@
       },
       "rank": {
         "title": "¿A quién se respeta más?",
-        "hint": "Arriba es lo que menos se desplaza. Arrastra para cambiar el orden.",
+        "hint": "El de arriba cede lo menos posible. Arrastre el asa de la izquierda o use las flechas de la derecha.",
+        "drag": "Arrastrar para reordenar",
         "float": "holgura: {{days}}",
         "cost_one": "dejar que solo este proyecto se desplace cuesta {{count}} día laborable",
         "cost_many": "dejar que solo este proyecto se desplace cuesta {{count}} días laborables",
@@ -696,6 +697,9 @@
         "costNone": "dejar que solo este proyecto se desplace no cuesta ningún retraso",
         "moveUp": "Subir",
         "moveDown": "Bajar"
+      },
+      "help": {
+        "dragHandle": "Arrastre esta fila a otra posición del orden."
       },
       "strip": {
         "pin": "Fijar",

@@ -675,13 +675,17 @@
       },
       "rank": {
         "title": "En çok kim korunuyor?",
-        "hint": "En üstteki en az kayar. Sırayı değiştirmek için sürükleyin.",
+        "hint": "En üstteki en az kayar. Soldaki tutamacı sürükleyin veya sağdaki ok düğmelerini kullanın.",
+        "drag": "Sıralamak için sürükleyin",
         "float": "bolluk: {{days}}",
         "cost_one": "yalnızca bu projenin kaymasına izin vermek {{count}} iş günü maliyetine mal olur",
         "cost_other": "yalnızca bu projenin kaymasına izin vermek {{count}} iş günü maliyetine mal olur",
         "costNone": "yalnızca bu projenin kaymasına izin vermek hiçbir kaydırma maliyetine mal olmaz",
         "moveUp": "Yukarı taşı",
         "moveDown": "Aşağı taşı"
+      },
+      "help": {
+        "dragHandle": "Bu satırı sıradaki başka bir konuma sürükleyin."
       },
       "strip": {
         "pin": "Sabitle",

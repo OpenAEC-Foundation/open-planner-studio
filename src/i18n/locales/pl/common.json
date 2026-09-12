@@ -701,7 +701,8 @@
       },
       "rank": {
         "title": "Kto jest najbardziej oszczędzany?",
-        "hint": "Na górze przesuwa się najmniej. Przeciągnij, aby zmienić kolejność.",
+        "hint": "Ten na górze ustępuje najmniej. Przeciągnij uchwyt po lewej albo użyj strzałek po prawej.",
+        "drag": "Przeciągnij, aby zmienić kolejność",
         "float": "zapas: {{days}}",
         "cost_one": "przesunięcie tylko tego projektu kosztuje {{count}} dzień roboczy",
         "cost_few": "przesunięcie tylko tego projektu kosztuje {{count}} dni robocze",
@@ -710,6 +711,9 @@
         "costNone": "przesunięcie tylko tego projektu nie kosztuje żadnego wydłużenia",
         "moveUp": "Przenieś w górę",
         "moveDown": "Przenieś w dół"
+      },
+      "help": {
+        "dragHandle": "Przeciągnij ten wiersz w inne miejsce kolejności."
       },
       "strip": {
         "pin": "Przypnij",

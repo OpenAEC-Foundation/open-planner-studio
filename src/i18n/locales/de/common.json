@@ -675,13 +675,17 @@
       },
       "rank": {
         "title": "Wer wird am meisten geschont?",
-        "hint": "Oben weicht am wenigsten ab. Ziehen, um die Reihenfolge zu ändern.",
+        "hint": "Ganz oben weicht am wenigsten. Ziehen Sie am Griff links oder nutzen Sie die Pfeiltasten rechts.",
+        "drag": "Zum Umsortieren ziehen",
         "float": "Puffer: {{days}}",
         "cost_one": "nur dieses Projekt verschieben zu lassen kostet {{count}} Arbeitstag",
         "cost_other": "nur dieses Projekt verschieben zu lassen kostet {{count}} Arbeitstage",
         "costNone": "nur dieses Projekt verschieben zu lassen kostet keinen Verzug",
         "moveUp": "Nach oben",
         "moveDown": "Nach unten"
+      },
+      "help": {
+        "dragHandle": "Ziehen Sie diese Zeile an eine andere Stelle in der Reihenfolge."
       },
       "strip": {
         "pin": "Anheften",

@@ -19,17 +19,29 @@
 // actieknoppen en ruimt een `info` na 5 s op. De melding die er daarnaast uit gaat is puur
 // informatief.
 //
-// RANGORDE MET DE MUIS (taak 10, spec §4 stap 1). Native HTML5 drag-and-drop — hetzelfde mechanisme
-// als `DataGridHeader`'s kolomherordening (`draggable` + `onDragStart`/`onDragOver`/`onDrop`), niet
-// een tweede pointer-events-sleepmechaniek erbij. De lijst is klein en niet virtualized, dus een
-// per-rij `onDragOver`/`onDrop` volstaat hier — de window-brede dragover/drop-vangnet-luisteraars die
-// de kolomkop nodig heeft (voor een sleep die de headerrij verlaat) zijn voor een rangordelijst met
-// eigen scrolgebied niet nodig. De "naar boven/beneden"-knoppen (`move`) blijven de toetsenbordroute
-// en het testanker; slepen (`reorderTo`) roept dezelfde `setUI` aan, dus een herordening met de muis
-// zet net als de knoppen `staleReason = 'rank'` via `diffReason` in `useDistributionProposal`.
-import { useMemo, useState } from 'react';
+// RANGORDE MET DE MUIS (taak 10, spec §4 stap 1) — POINTER-EVENTS, NIET HTML5-DND.
+//
+// Dit was native HTML5 drag-and-drop (`draggable` + `onDragStart`/`onDragOver`/`onDrop`), naar het
+// model van `DataGridHeader`'s kolomherordening. In de GEBRUIKSTEST van de eigenaar (2026-09-12)
+// deed "Sleep om de volgorde te veranderen" simpelweg niets. Dat is geen toeval en ook geen bug in
+// deze component: HTML5-dnd hangt aan een apart, door de host geleverd drag-protocol
+// (`dragstart` → `DataTransfer` → `drop`) dat buiten een gewoon browsertabblad onbetrouwbaar is.
+// De app draait juist óók in een iframe-preview (de t3-omgeving) en in een Tauri-webview (WebKitGTK
+// op Linux), en daar wordt de dragstart geregeld door de host afgevangen of nooit uitgezonden —
+// dan valt het hele mechanisme stil, zónder foutmelding. Pointer-events kennen dat probleem niet:
+// `setPointerCapture` houdt de gebeurtenissen binnen dit document, ongeacht de host.
+//
+// Het patroon is daarom letterlijk dat van de plafond-handle in `PhaseStrip.tsx`: capture op de
+// GREEP zelf (het ⋮⋮-icoon, `cursor: grab`), geen document-brede listeners, één actieve pointer,
+// en `pointercancel` als opruimpad. Tijdens het slepen licht de gesleepte rij op en toont de
+// doelrij een invoegindicator (inset-boxshadow, dus geen layoutverschuiving).
+//
+// De "naar boven/beneden"-knoppen (`move`) blijven onveranderd de toetsenbordroute en het
+// testanker; slepen (`reorderTo`) roept dezelfde `setUI` aan, dus een herordening met de muis zet
+// net als de knoppen `staleReason = 'rank'` via `diffReason` in `useDistributionProposal`.
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { DISTRIBUTION_BLOCK_KEY } from '@/utils/levelingReasonKey';
@@ -154,12 +166,6 @@ export function DistributionDialog() {
     setUI({ levelingDistribution: { ...tune, order } });
   };
 
-  // Slepen (zie het moduleblok): `draggedDocId` is de rij die vastgehouden wordt, `dropTarget` de
-  // rij + plaatsing (boven/onder de rijmidden) waar hij op dit moment op zou landen — puur voor
-  // visuele feedback tijdens het slepen, `reorderTo` op `onDrop` is het enige commit-moment.
-  const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ docId: string; placement: 'before' | 'after' } | null>(null);
-
   // Slepen verplaatst ÉÉN id binnen `orderBase` (bevinding B10): alleen het gesleepte id wordt
   // eruit gehaald en opnieuw ingevoegd, de rest — inclusief de docId's die dit voorstel niet gezien
   // heeft — houdt zijn onderlinge volgorde.
@@ -174,6 +180,76 @@ export function DistributionDialog() {
     if (placement === 'after') to += 1;
     order.splice(to, 0, docId);
     setUI({ levelingDistribution: { ...tune, order } });
+  };
+
+  // Slepen (zie het moduleblok): `draggedDocId` is de rij die vastgehouden wordt, `dropTarget` de
+  // rij + plaatsing (boven/onder de rijmidden) waar hij op dit moment op zou landen — puur voor
+  // visuele feedback tijdens het slepen, het loslaten is het enige commit-moment.
+  const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ docId: string; placement: 'before' | 'after' } | null>(null);
+  // De levende rij-elementen, zodat een pointermove de doelrij uit de ECHTE geometrie kan halen.
+  // Bij HTML5-dnd deed de browser die hit-test (per-rij `onDragOver`); met pointer capture komen
+  // alle moves op de greep binnen, dus doen we het zelf. Een `ref`-map en geen `querySelectorAll`:
+  // die zou ook de rijen van een eventuele tweede lijst vangen.
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  // Eén actieve pointer tegelijk (zoals `PhaseStrip`): `moved` onderscheidt een zuivere klik op de
+  // greep — die commit niets — van een echte sleep.
+  const dragRef = useRef<{ pointerId: number; docId: string; moved: boolean } | null>(null);
+
+  /** De rij + plaatsing onder deze y-coördinaat. Buiten de lijst: de dichtstbijzijnde rand, zodat
+   *  een sleep die boven of onder de lijst uitschiet nog steeds een zinnig doel houdt. */
+  const dropTargetAt = (clientY: number, dragged: string): { docId: string; placement: 'before' | 'after' } | null => {
+    let best: { docId: string; placement: 'before' | 'after'; distance: number } | null = null;
+    for (const row of rankRows) {
+      if (row.docId === dragged) continue;
+      const el = rowRefs.current.get(row.docId);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const middle = rect.top + rect.height / 2;
+      const placement: 'before' | 'after' = clientY < middle ? 'before' : 'after';
+      const distance = clientY < rect.top ? rect.top - clientY : clientY > rect.bottom ? clientY - rect.bottom : 0;
+      if (best === null || distance < best.distance) best = { docId: row.docId, placement, distance };
+    }
+    return best === null ? null : { docId: best.docId, placement: best.placement };
+  };
+
+  const onGripPointerDown = (docId: string) => (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (dragRef.current) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, docId, moved: false };
+    setDraggedDocId(docId);
+    setDropTarget(null);
+  };
+
+  const onGripPointerMove = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    drag.moved = true;
+    setDropTarget(dropTargetAt(event.clientY, drag.docId));
+  };
+
+  const endDrag = (commit: boolean) => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (commit && drag !== null && drag.moved && dropTarget !== null) {
+      reorderTo(drag.docId, dropTarget.docId, dropTarget.placement);
+    }
+    setDraggedDocId(null);
+    setDropTarget(null);
+  };
+
+  const onGripPointerUp = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    endDrag(true);
+  };
+
+  const onGripPointerCancel = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    endDrag(false);
   };
 
   const toggleSplits = () => {
@@ -462,10 +538,24 @@ export function DistributionDialog() {
                 {rankRows.map((row, index) => (
                   <div
                     key={row.docId}
-                    className="flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0"
+                    ref={el => {
+                      if (el) rowRefs.current.set(row.docId, el);
+                      else rowRefs.current.delete(row.docId);
+                    }}
+                    className={`flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0 ${
+                      draggedDocId === row.docId ? 'bg-surface-hover' : ''}`}
+                    // De invoegindicator is een INSET-boxshadow en geen border: een echte rand van
+                    // 2px zou de rij hoger maken en de lijst onder de muis laten verspringen —
+                    // precies tijdens het mikken.
+                    style={{
+                      boxShadow: dropTarget?.docId === row.docId
+                        ? dropTarget.placement === 'before'
+                          ? 'inset 0 2px 0 0 var(--accent)'
+                          : 'inset 0 -2px 0 0 var(--accent)'
+                        : undefined,
+                    }}
                     data-ops-distribution-rank-row
                     data-ops-doc-id={row.docId}
-                    draggable
                     data-ops-distribution-rank-dragging={draggedDocId === row.docId ? 'true' : undefined}
                     data-ops-distribution-rank-drop-before={
                       dropTarget?.docId === row.docId && dropTarget.placement === 'before' ? 'true' : undefined
@@ -473,29 +563,27 @@ export function DistributionDialog() {
                     data-ops-distribution-rank-drop-after={
                       dropTarget?.docId === row.docId && dropTarget.placement === 'after' ? 'true' : undefined
                     }
-                    onDragStart={event => {
-                      event.dataTransfer.effectAllowed = 'move';
-                      event.dataTransfer.setData('text/plain', row.docId);
-                      setDraggedDocId(row.docId);
-                    }}
-                    onDragOver={event => {
-                      if (draggedDocId === null || draggedDocId === row.docId) return;
-                      event.preventDefault();
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      const placement: 'before' | 'after' = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-                      setDropTarget({ docId: row.docId, placement });
-                    }}
-                    onDrop={event => {
-                      event.preventDefault();
-                      if (draggedDocId !== null && dropTarget !== null) reorderTo(draggedDocId, dropTarget.docId, dropTarget.placement);
-                      setDraggedDocId(null);
-                      setDropTarget(null);
-                    }}
-                    onDragEnd={() => {
-                      setDraggedDocId(null);
-                      setDropTarget(null);
-                    }}
                   >
+                    {/* De GREEP (gebruikstest 2026-09-12, gebrek 2). Slepen was onzichtbaar: de hele
+                        rij was `draggable`, zonder greep en zonder `cursor: grab`, dus niets aan de
+                        rij verried dat hij te verslepen was — laat staan dat het mechanisme het in
+                        een webview deed. `touchAction: 'none'` houdt de sleep bij de pointer in
+                        plaats van bij de scroll van de dialoog. */}
+                    <span
+                      role="button"
+                      tabIndex={-1}
+                      aria-label={t('resource.distribution.rank.drag')}
+                      title={t('resource.distribution.help.dragHandle')}
+                      className="shrink-0 text-text-secondary hover:text-text-primary"
+                      style={{ cursor: draggedDocId === row.docId ? 'grabbing' : 'grab', touchAction: 'none' }}
+                      data-ops-distribution-rank-grip
+                      onPointerDown={onGripPointerDown(row.docId)}
+                      onPointerMove={onGripPointerMove}
+                      onPointerUp={onGripPointerUp}
+                      onPointerCancel={onGripPointerCancel}
+                    >
+                      <GripVertical size={13} />
+                    </span>
                     <span className="tabular-nums text-text-secondary w-5">{index + 1}</span>
                     <span className="truncate font-medium flex-1 min-w-0">{row.title}</span>
                     <span className="tabular-nums text-text-secondary">

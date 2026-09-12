@@ -688,7 +688,8 @@
       },
       "rank": {
         "title": "Quem é mais poupado?",
-        "hint": "No topo desloca-se menos. Arraste para mudar a ordem.",
+        "hint": "O de cima cede menos. Arraste a alça à esquerda ou use as setas à direita.",
+        "drag": "Arrastar para reordenar",
         "float": "folga: {{days}}",
         "cost_one": "deixar apenas este projeto deslocar-se custa {{count}} dia útil",
         "cost_many": "deixar apenas este projeto deslocar-se custa {{count}} dias úteis",
@@ -696,6 +697,9 @@
         "costNone": "deixar apenas este projeto deslocar-se não custa nenhum atraso",
         "moveUp": "Mover para cima",
         "moveDown": "Mover para baixo"
+      },
+      "help": {
+        "dragHandle": "Arraste esta linha para outra posição na ordem."
       },
       "strip": {
         "pin": "Fixar",

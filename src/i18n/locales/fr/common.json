@@ -688,7 +688,8 @@
       },
       "rank": {
         "title": "Qui est le plus épargné ?",
-        "hint": "En haut, on bouge le moins. Faites glisser pour changer l'ordre.",
+        "hint": "Celui du haut cède le moins. Faites glisser la poignée à gauche, ou utilisez les flèches à droite.",
+        "drag": "Faire glisser pour réordonner",
         "float": "marge : {{days}}",
         "cost_one": "décaler uniquement ce projet coûte {{count}} jour ouvrable",
         "cost_many": "décaler uniquement ce projet coûte {{count}} jours ouvrables",
@@ -696,6 +697,9 @@
         "costNone": "décaler uniquement ce projet ne coûte aucun dépassement",
         "moveUp": "Monter",
         "moveDown": "Descendre"
+      },
+      "help": {
+        "dragHandle": "Faites glisser cette ligne à une autre place dans l'ordre."
       },
       "strip": {
         "pin": "Épingler",

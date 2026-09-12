@@ -675,13 +675,17 @@
       },
       "rank": {
         "title": "Who gets spared the most?",
-        "hint": "Top of the list wiggles the least. Drag to change the order.",
+        "hint": "The one on top gives way the least. Drag the handle on the left, or use the arrow buttons on the right.",
+        "drag": "Drag to reorder",
         "float": "slack: {{days}}",
         "cost_one": "letting only this project shift costs {{count}} workday",
         "cost_other": "letting only this project shift costs {{count}} workdays",
         "costNone": "letting only this project shift costs no overrun",
         "moveUp": "Move up",
         "moveDown": "Move down"
+      },
+      "help": {
+        "dragHandle": "Drag this row to another position in the order."
       },
       "strip": {
         "pin": "Pin",
