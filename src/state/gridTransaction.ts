@@ -28,6 +28,7 @@ import {
 } from '@/engine/taskGrid/relationPlan';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
+import type { Task } from '@/types/task';
 import type {
   CellEditIntent,
   CellValidationError,
@@ -399,6 +400,31 @@ function applyRelationSet(
   return { ok: true, value: { changed: planned.value.changed } };
 }
 
+/**
+ * Bouwt de `TaskEditPlanEnvironment` voor `task` tegen `state`. Uitgelicht uit `applyCellEdits`
+ * (T3, issue #27 etappe 2) zodat de voortgangsimport (`src/services/progressImport/buildPlan.ts`,
+ * via `taskSlice.ts`) exact dezelfde omgeving kan opbouwen als het taakgrid — één implementatie,
+ * geen tweede die kan afdrijven. Pure refactor: de body is ongewijzigd het oude objectliteral;
+ * `check-grid-transaction.ts` bewijst dat dit gedragsneutraal is (het bestaande callsite hieronder
+ * geeft nog steeds `taskForCalendar` mee, niet de rauwe `task`).
+ */
+export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskEditPlanEnvironment {
+  const effectiveCalendar = effectiveCalendarOf(task, state.calendar, state.calendars);
+  return {
+    projectId: state.project.id,
+    wbsAutoNumber: state.project.wbsAutoNumber === true,
+    statusDate: state.project.statusDate,
+    calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
+    effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
+    hourMode: isHourCalendar(effectiveCalendar) === true,
+    effectiveCalendar,
+    enableHourPlanning: state.ui.enableHourPlanning,
+    customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
+    activityCodeTypes: state.activityCodeTypes,
+    customFieldDefs: state.customFieldDefs,
+  };
+}
+
 function applyCellEdits(
   state: AppState,
   edits: readonly CellEditIntent[],
@@ -450,20 +476,7 @@ function applyCellEdits(
   const taskForCalendar = calendarEdit
     ? { ...task, calendarId: calendarEdit.value as string | undefined }
     : task;
-  const effectiveCalendar = effectiveCalendarOf(taskForCalendar, state.calendar, state.calendars);
-  const environment: TaskEditPlanEnvironment = {
-    projectId: state.project.id,
-    wbsAutoNumber: state.project.wbsAutoNumber === true,
-    statusDate: state.project.statusDate,
-    calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
-    effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
-    hourMode: isHourCalendar(effectiveCalendar) === true,
-    effectiveCalendar,
-    enableHourPlanning: state.ui.enableHourPlanning,
-    customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
-    activityCodeTypes: state.activityCodeTypes,
-    customFieldDefs: state.customFieldDefs,
-  };
+  const environment: TaskEditPlanEnvironment = buildTaskEditPlanEnvironment(state, taskForCalendar);
 
   // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
   // worden geschreven wanneer zij in de beginstaat al schrijfbaar is, of wanneer de OVERIGE

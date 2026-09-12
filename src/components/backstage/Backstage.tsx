@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
   Printer, Info, Settings, X, FileType, Puzzle, Upload, BookOpen, Compass, LifeBuoy, Building2,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
@@ -491,6 +492,13 @@ function ImportSection() {
   const importers = useAppStore(s => s.extensionImporters);
   const loadState = useAppStore(s => s.loadState);
   const setUI = useAppStore(s => s.setUI);
+  const hasTasks = useAppStore(s => s.tasks.length > 0);
+
+  // Issue #27 etappe 2 (E2/A10): "Voortgang bijwerken uit een blad" krijgt een EIGEN kaart bovenaan,
+  // boven de extensie-importerlijst — die lijst en zijn `loadState`-gedrag blijven ongewijzigd. Sluit
+  // Backstage mee (`activeRibbonTab: 'start'`), naar hetzelfde patroon als `ExportSection` na een
+  // geslaagde export, zodat het resultaat meteen tegen de planning zichtbaar is.
+  const openProgressImport = () => setUI({ activeRibbonTab: 'start', showProgressImportDialog: true });
 
   const handleImport = (imp: ExtensionImporter) => {
     const input = document.createElement('input');
@@ -520,6 +528,20 @@ function ImportSection() {
     <>
       <h2 className="backstage-title">{tMenu('extensions.import')}</h2>
       <p className="backstage-subtitle">{tMenu('extensions.importSubtitle')}</p>
+      <div className="backstage-export-grid">
+        <button
+          className="backstage-export-card"
+          onClick={openProgressImport}
+          disabled={!hasTasks}
+          data-ops-progress-import-card
+        >
+          <span className="backstage-export-icon"><ClipboardCheck size={20} /></span>
+          <span className="backstage-export-info">
+            <h4>{tMenu('backstage.progressImportCardTitle')}</h4>
+            <p>{tMenu('backstage.progressImportCardDesc')}</p>
+          </span>
+        </button>
+      </div>
       {importers.length === 0 ? (
         <div className="backstage-empty">{tMenu('extensions.importEmpty')}</div>
       ) : (

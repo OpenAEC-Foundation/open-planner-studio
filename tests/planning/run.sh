@@ -595,6 +595,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
 
+  # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
+  # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
+  # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem
+  # en hit-test). Standaardgeval, exact passende lijst, nul resources en de laatste-resource-hit
+  # bij volle scroll.
+  HISTPICKCHECK="$DIR/.histogram-picker-geometry.mjs"
+  if bundle_check "$DIR/check-histogram-picker-geometry.ts" "$HISTPICKCHECK"; then node "$HISTPICKCHECK" || STATUS=1; fi
+
   # Z15 (etappe "nul afwijkingen", baan D): onderbroken balken (Task.splitGaps) in de Gantt-canvas
   # ÉN print/PDF — gatentelling ⇒ segmentaantal + necking-connector, O5 (splitGaps ALTIJD gesplitst,
   # ongeacht barSplitMode), globale voortgangsvulling over de segmenten heen, dag-/uur-modus.
@@ -611,6 +619,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
   RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
   if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
+
+  # R1: `computeResourceLoad` levert per overbezette dag ook de REDEN (`overallocatedReasons`) —
+  # `non-working-day` (resourcekalender kent de dag geen werkdag) vs. `over-capacity` (inzet groter
+  # dan capaciteit > 0), zodat het histogram-tooltip en het waarschuwingenpaneel kunnen uitleggen
+  # waaróm een dag rood staat.
+  RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
+  if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
 
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
@@ -991,6 +1006,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # TZ-onafhankelijkheid moet bewezen worden.
   RECDATES="$DIR/.check-recorded-dates.mjs"
   if bundle_check "$DIR/check-recorded-dates.ts" "$RECDATES"; then node "$RECDATES" || STATUS=1; fi
+
+  # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
+  # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
+  PICHECK="$DIR/.progress-import.mjs"
+  if bundle_check "$DIR/check-progress-import.ts" "$PICHECK"; then node "$PICHECK" || STATUS=1; fi
+  # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
+  PICSVCHECK="$DIR/.progress-import-csv.mjs"
+  if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

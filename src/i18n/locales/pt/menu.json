@@ -174,6 +174,9 @@
     "splitView": "Vista dividida",
     "miniMap": "Minimapa",
     "moveProject": "Mover projeto…",
+    "progressImport": "Atualizar o progresso a partir de uma planilha",
+    "progressExport": "Exportar folha de progresso",
+    "progressGroup": "Progresso",
     "relationDraw": "Desenhar relação",
     "relationDrawOnHint": "Ative o modo de ligação e depois arraste de barra para barra no Gantt",
     "relationDrawOffHint": "Desativar o modo de ligação",
@@ -285,6 +288,8 @@
     "examplesShowcaseBadge": "Todas as funcionalidades",
     "exportTitle": "Exportar",
     "exportSubtitle": "Escolha um formato. O projeto será convertido e guardado.",
+    "progressImportCardTitle": "Atualizar o progresso a partir de uma planilha",
+    "progressImportCardDesc": "Leia uma planilha CSV devolvida e atualize a conclusão, o início real e o fim real.",
     "printTitle": "Imprimir",
     "printSubtitle": "Abra o ecrã de relatório para pré-visualização e definições de impressão.",
     "openPrintPreview": "Abrir pré-visualização",
@@ -307,6 +312,17 @@
     }
   },
   "export": {
+    "progressCsvLabel": "Folha de progresso (CSV)",
+    "progressCsvDesc": "Folha reduzida apenas com id, EAP, nome, datas e progresso — para atualizar o progresso.",
+    "progressCsvShort": "Progresso (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "não alterar",
+      "plannedReadOnly": "planeado, não alterar",
+      "completion": "preencher: 0 a 100, números inteiros",
+      "actualStart": "preencher: data de início real (dd-mm-aaaa)",
+      "actualFinish": "preencher: data de fim real (dd-mm-aaaa)",
+      "summaryRow": "— tarefa de resumo: não preencher"
+    },
     "csvLabel": "CSV (separado por ponto e vírgula)",
     "csvDesc": "Exportação de tabela universal. Todas as tarefas com datas e durações.",
     "mspdiLabel": "MS Project XML",

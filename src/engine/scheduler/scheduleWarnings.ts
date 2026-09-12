@@ -52,6 +52,9 @@ export interface ScheduleWarningFacts {
   days?: number;
   firstDay?: string;
   lastDay?: string;
+  /** R1: van `days`, het aantal met reden `non-working-day` (resourcekalender kent die dag geen
+   *  werkdag). 0 betekent niet "geen reden bekend" maar "alle overbezette dagen zijn over-capacity". */
+  nonWorkingDays?: number;
 }
 
 export interface ScheduleWarning {
@@ -180,10 +183,12 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
   if (resourceLoadResult) {
     for (const [resourceId, days] of Object.entries(resourceLoadResult.overallocatedDays)) {
       if (!resourceById.has(resourceId) || days.length === 0) continue;
+      const reasons = resourceLoadResult.overallocatedReasons[resourceId] ?? {};
+      const nonWorkingDays = days.filter(d => reasons[d] === 'non-working-day').length;
       push({
         id: `overallocation:${resourceId}`, kind: 'overallocation', severity: 'warning',
         target: { type: 'resource', resourceId },
-        facts: { days: days.length, firstDay: days[0], lastDay: days[days.length - 1] },
+        facts: { days: days.length, firstDay: days[0], lastDay: days[days.length - 1], nonWorkingDays },
       }, resourceIndex.get(resourceId) ?? Number.MAX_SAFE_INTEGER);
     }
   }
