@@ -465,7 +465,6 @@ export class GanttRenderer {
       for (let i = -1; i < visibleDays; i++) {
         const date = this.axis.dateAtIndex(axisStartIndex + i);
         const x = this.axis.dateToX(date);
-        const dayOfWeek = isoDayOfWeek(date);
 
         // Geen weekend-arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag
         // terug (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
@@ -494,7 +493,6 @@ export class GanttRenderer {
         // weekgrens); daaronder alleen nog de weekgrens, en onder 2 px/dag alleen de maandgrens.
         // Een maandgrens op de WERKDAGEN-as is de eerste WERKDAG van de maand — `getDate() === 1`
         // faalt hier, want de 1e kan een niet-werkdag zijn en bestaat dan niet als kolom.
-        const isWeekStart = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1);
         // U2-fixronde — de WEEKGRENS is op deze as een OVERGANG tussen twee getekende kolommen, net
         // als de maandgrens hieronder. Hangen aan `isWeekStart` (de weekstartdag zelf) gaf op een
         // gecomprimeerde as NUL rasterlijnen zodra die dag geen werkdag is: bij
@@ -512,7 +510,10 @@ export class GanttRenderer {
         const isMonthStart = density === 'month' && prevDate.getUTCMonth() !== date.getUTCMonth();
         if (density === 'day' || (density === 'week' && isWeekBoundary) || isMonthStart) {
           ctx.strokeStyle = this.colors.grid;
-          ctx.lineWidth = density === 'day' ? (isWeekStart ? 1 : 0.5) : 1;
+          // U2-slotronde — ook de DIKTE hangt aan de overgang, niet aan de weekstartdag zelf: op
+          // dagzoom verdween de dikke weekscheiding anders volledig zodra die dag geen kolom is
+          // (`weekStartDay: 'sunday'`, of een kalender zonder maandag).
+          ctx.lineWidth = density === 'day' ? (isWeekBoundary ? 1 : 0.5) : 1;
           ctx.beginPath();
           ctx.moveTo(x, headerHeight);
           ctx.lineTo(x, canvasHeight);

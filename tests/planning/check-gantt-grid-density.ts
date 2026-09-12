@@ -233,6 +233,29 @@ for (const scenario of [
     `gecomprimeerd (${scenario.label}), zoom 6: lijnafstand = ${scenario.perWeek} werkdagkolommen`,
     gaps.every((gp) => Math.abs(gp - scenario.perWeek * 6) < 1e-6),
   );
+
+  // Slotronde-regressie: op DAGZOOM (12 px/dag) tekent de gecomprimeerde tak elke kolom, en de
+  // DIKTE onderscheidt de weekscheiding. Die dikte hing nog aan `isWeekStart`, dus bij
+  // `weekStartDay: 'sunday'` of een kalender zonder maandag was er geen enkele 1 px-lijn meer:
+  // het raster werd één egale reeks halve lijnen zonder weekstructuur.
+  const dagLines = compressedGridLines(12, scenario.weekDays, scenario.wsd);
+  const dagKolommen = compressedColumns(12);
+  eq(`gecomprimeerd (${scenario.label}), zoom 12: één lijn per werkdagkolom`, dagLines.length, dagKolommen);
+  const dik = dagLines.filter((l) => l.lineWidth === 1);
+  ok(`gecomprimeerd (${scenario.label}), zoom 12: er zijn dikke (1 px) weekscheidingen`, dik.length > 0);
+  ok(
+    `gecomprimeerd (${scenario.label}), zoom 12: één dikke lijn per week (${dik.length} vs ~${(dagKolommen / scenario.perWeek).toFixed(1)})`,
+    Math.abs(dik.length - dagKolommen / scenario.perWeek) <= 1,
+  );
+  ok(
+    `gecomprimeerd (${scenario.label}), zoom 12: de overige lijnen zijn dun (0,5)`,
+    dagLines.filter((l) => l.lineWidth === 0.5).length === dagLines.length - dik.length,
+  );
+  const dikGaps = dik.slice(1).map((l, i) => l.x1 - dik[i].x1);
+  ok(
+    `gecomprimeerd (${scenario.label}), zoom 12: dikke lijnen ${scenario.perWeek} kolommen uit elkaar`,
+    dikGaps.every((gp) => Math.abs(gp - scenario.perWeek * 12) < 1e-6),
+  );
 }
 
 // ── Uitslag ─────────────────────────────────────────────────────────────────

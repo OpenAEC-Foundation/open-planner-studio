@@ -606,6 +606,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GLECHECK="$DIR/.gantt-label-ellipsis.mjs"
   if bundle_check "$DIR/check-gantt-label-ellipsis.ts" "$GLECHECK"; then node "$GLECHECK" || STATUS=1; fi
 
+  # U2: labelkleur op de balk. Eén balkpalet voor licht én donker laat geen vaste witte tekst toe;
+  # `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding. Pint zwart op de zes
+  # balktinten en wit op de voortgangsvulling en de 25%-zwart-overlay.
+  BLCCHECK="$DIR/.bar-label-color.mjs"
+  if bundle_check "$DIR/check-bar-label-color.ts" "$BLCCHECK"; then node "$BLCCHECK" || STATUS=1; fi
+
   # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
   # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
   # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem

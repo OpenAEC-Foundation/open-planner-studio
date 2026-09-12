@@ -136,9 +136,9 @@ export function compositeOver(top: string, base: string): string {
 
 /**
  * De leesbaarste labelkleur op `barColor`: bijna-zwart of wit, wie van de twee de hoogste
- * WCAG-contrastverhouding haalt. Eén bron voor balklabels, mijlpaallabels-op-vlak en
- * histogramlabels-op-staaf; labels die op de CANVAS-achtergrond staan (het mijlpaalbijschrift
- * naast de ruit, de histogram-rijlabels) horen bij `palette.text`/`textDim` en niet hier.
+ * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, dat op
+ * de balkkleur zelf of op de voortgangsvulling staat. Labels op de CANVAS-achtergrond horen bij
+ * `palette.text`/`textSecondary` en niet hier.
  * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit, het vroegere gedrag.
  */
 export function barLabelColor(barColor: string): string {
@@ -191,11 +191,6 @@ export interface GanttPalette {
   traceSuccDriving: string;
   /** Tint per float-pad (≥2); pad 1 = kritiek. */
   floatPathTints: string[];
-  /** Wit label-tekst op een gekleurde knop/vlak met een vaste donkere achtergrond.
-   *  LET OP (U2-fixronde): het TAAKBALK-label gebruikt dit NIET meer — dat kiest per balk zwart of
-   *  wit via `barLabelColor`, omdat één balkpalet voor licht én donker geen vaste witte tekst
-   *  toelaat. Gebruik dit veld alleen waar de ondergrond gegarandeerd donker is. */
-  barText: string;
   /** Tekstkleur ÓP een accent-vlak (`--theme-accent-on`): wit in licht/donker, zwart in
    *  high-contrast. Zelfde paar dat de DOM-chrome al gebruikt voor accentknoppen — de tekenlaag
    *  mag daar geen eigen wit-op-oranje van maken (issue #51). */
@@ -242,7 +237,6 @@ export function readGanttPalette(): GanttPalette {
     traceSucc: BRAND.traceSucc,
     traceSuccDriving: BRAND.traceSuccDriving,
     floatPathTints: FLOAT_PATH_TINTS,
-    barText: '#ffffff',
     accentOn: v('--theme-accent-on', '#ffffff'),
   };
 }

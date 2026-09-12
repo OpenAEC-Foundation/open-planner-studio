@@ -100,7 +100,7 @@ day level. If **Show only working days** (Settings → Appearance → Gantt) is 
 bars themselves — skip weekends and holidays entirely instead of just greying them out, so a
 5-workday task is exactly 5 columns wide.
 
-The vertical grid thins out along with it. Zoomed in far (roughly half a centimetre per day or more)
+The vertical grid thins out along with it. Zoomed in well (roughly two millimetres per day or more)
 every day gets a line, with a heavier line on the week boundary. Zoom out and only that week boundary
 remains; at year level only the month boundaries do — otherwise the canvas would turn into an even
 striped pattern that swallows the bars. Weekend shading and the alternating week bands stay at every
