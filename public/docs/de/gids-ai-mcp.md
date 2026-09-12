@@ -101,6 +101,10 @@ Obendrauf kommt die gewöhnliche Rückgängig-Historie, die ein Assistent mit Ih
 
 **Es passiert nichts, obwohl der Assistent sagt, es sei gelungen.** Prüfen Sie im Aktivitätsbereich, was er tatsächlich aufgerufen hat und was zurückkam. Steht dort eine Ablehnung, nennt sie fast immer sowohl das Feld, das falsch war, als auch die Alternative.
 
+## So plant Ihr KI-Assistent gut
+
+Ein Assistent, der die Tools kennt, kann trotzdem einen Terminplan bauen, mit dem kein Planer etwas anfangen kann: Vorgänge ohne Verknüpfungen, ein festes Datum auf jedem Vorgang oder eine Gliederung, die viel zu fein ist, um sie zu pflegen. Die Grundsätze, die das verhindern, stehen in der Anleitung [Gut planen](docs://gids-goed-plannen) — lassen Sie sie Ihren Assistenten lesen, bevor er anfängt, oder verweisen Sie in Ihrem Auftrag darauf. Im Quellcode von Open Planner Studio liegt außerdem ein kurzer Agenten-Skill unter `.claude/skills/goed-plannen/`, der für den Inhalt auf dieselbe Anleitung verweist und nur das Agenten-spezifische ergänzt: in welcher Reihenfolge die `planner_`-Tools einzusetzen sind und was dem Nutzer zurückgemeldet wird.
+
 ## Weiterlesen
 
 - [Baselines & Fortschritt](docs://gids-baselines-voortgang) — was das Statusdatum mit Ihrem Terminplan macht. Gut zu wissen, bevor Sie es einen Assistenten setzen lassen: Es ist nicht nur ein Stichtag für Berichte, sondern schiebt auch noch nicht begonnene Arbeit nach vorne.

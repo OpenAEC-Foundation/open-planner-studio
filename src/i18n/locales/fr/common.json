@@ -249,7 +249,7 @@
     "tokenWarning": "Ce jeton donne accès au planning ouvert. Ne le partagez pas.",
     "connectPrompt": "Invite de connexion",
     "connectPromptHint": "Collez ceci dans votre agent IA — il se connecte tout seul.",
-    "connectPromptText": "Connecte-toi à un serveur MCP qui tourne sur mon ordinateur : nom {{name}}, transport HTTP streamable, URL {{url}}, avec l'en-tête Authorization: Bearer {{token}}. Ajoute-le à ta configuration MCP (par exemple dans un bloc mcpServers) et connecte-toi. Demande ensuite la liste des outils pour vérifier : tu devrais voir environ {{count}} outils portant le préfixe {{prefix}}. Résume brièvement ce que tu peux faire avec ce serveur.",
+    "connectPromptText": "Connecte-toi à un serveur MCP qui tourne sur mon ordinateur : nom {{name}}, transport HTTP streamable, URL {{url}}, avec l'en-tête Authorization: Bearer {{token}}. Ajoute-le à ta configuration MCP (par exemple dans un bloc mcpServers) et connecte-toi. Demande ensuite la liste des outils pour vérifier : tu devrais voir environ {{count}} outils portant le préfixe {{prefix}}. Résume brièvement ce que tu peux faire avec ce serveur. Avant de modifier quoi que ce soit, lis d'abord le guide de planification via l'outil planner_get_planning_guide.",
     "statusDot": "Pont IA : {{status}}"
   },
   "aiSafety": {

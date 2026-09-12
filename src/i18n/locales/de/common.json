@@ -242,7 +242,7 @@
     "tokenWarning": "Dieses Token gewährt Zugriff auf den geöffneten Plan. Geben Sie es nicht weiter.",
     "connectPrompt": "Verbindungs-Prompt",
     "connectPromptHint": "Fügen Sie dies in Ihren KI-Agenten ein — er verbindet sich selbst.",
-    "connectPromptText": "Verbinde dich mit einem MCP-Server, der auf meinem Computer läuft: Name {{name}}, Transport Streamable HTTP, URL {{url}}, mit dem Header Authorization: Bearer {{token}}. Füge ihn deiner MCP-Konfiguration hinzu (zum Beispiel als mcpServers-Block) und stelle die Verbindung her. Rufe danach zur Kontrolle die Werkzeugliste ab: Du solltest etwa {{count}} Werkzeuge mit dem Präfix {{prefix}} sehen. Fasse kurz zusammen, was du mit diesem Server tun kannst.",
+    "connectPromptText": "Verbinde dich mit einem MCP-Server, der auf meinem Computer läuft: Name {{name}}, Transport Streamable HTTP, URL {{url}}, mit dem Header Authorization: Bearer {{token}}. Füge ihn deiner MCP-Konfiguration hinzu (zum Beispiel als mcpServers-Block) und stelle die Verbindung her. Rufe danach zur Kontrolle die Werkzeugliste ab: Du solltest etwa {{count}} Werkzeuge mit dem Präfix {{prefix}} sehen. Fasse kurz zusammen, was du mit diesem Server tun kannst. Lies vor jeder Änderung zuerst den Planungsleitfaden über das Werkzeug planner_get_planning_guide.",
     "statusDot": "KI-Bridge: {{status}}"
   },
   "aiSafety": {

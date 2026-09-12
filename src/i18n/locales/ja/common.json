@@ -235,7 +235,7 @@
     "tokenWarning": "このトークンは開いている工程表へのアクセスを許可します。他人と共有しないでください。",
     "connectPrompt": "接続用プロンプト",
     "connectPromptHint": "これを AI エージェントに貼り付けると、自分で接続します。",
-    "connectPromptText": "私のコンピューターで動作している MCP サーバーに接続してください。名前は {{name}}、トランスポートはストリーミング HTTP、URL は {{url}}、ヘッダーは Authorization: Bearer {{token}} です。これをあなたの MCP 設定に（例えば mcpServers ブロックとして）追加して接続してください。その後、確認のためツール一覧を取得してください。接頭辞 {{prefix}} が付いたツールが約 {{count}} 個表示されるはずです。このサーバーで何ができるかを簡潔にまとめてください。",
+    "connectPromptText": "私のコンピューターで動作している MCP サーバーに接続してください。名前は {{name}}、トランスポートはストリーミング HTTP、URL は {{url}}、ヘッダーは Authorization: Bearer {{token}} です。これをあなたの MCP 設定に（例えば mcpServers ブロックとして）追加して接続してください。その後、確認のためツール一覧を取得してください。接頭辞 {{prefix}} が付いたツールが約 {{count}} 個表示されるはずです。このサーバーで何ができるかを簡潔にまとめてください。何かを変更する前に、まずツール planner_get_planning_guide で計画ガイドを読んでください。",
     "statusDot": "AIブリッジ: {{status}}"
   },
   "aiSafety": {

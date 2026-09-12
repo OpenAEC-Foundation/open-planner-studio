@@ -249,7 +249,7 @@
     "tokenWarning": "Este token da acceso al plan abierto. No lo compartas con otras personas.",
     "connectPrompt": "Indicación de conexión",
     "connectPromptHint": "Pega esto en tu agente de IA: se conecta solo.",
-    "connectPromptText": "Conéctate a un servidor MCP que se ejecuta en mi ordenador: nombre {{name}}, transporte HTTP en streaming, URL {{url}}, con el encabezado Authorization: Bearer {{token}}. Añádelo a tu configuración MCP (por ejemplo como bloque mcpServers) y conéctate. Después pide la lista de herramientas para comprobarlo: deberías ver unas {{count}} herramientas con el prefijo {{prefix}}. Resume brevemente qué puedes hacer con este servidor.",
+    "connectPromptText": "Conéctate a un servidor MCP que se ejecuta en mi ordenador: nombre {{name}}, transporte HTTP en streaming, URL {{url}}, con el encabezado Authorization: Bearer {{token}}. Añádelo a tu configuración MCP (por ejemplo como bloque mcpServers) y conéctate. Después pide la lista de herramientas para comprobarlo: deberías ver unas {{count}} herramientas con el prefijo {{prefix}}. Resume brevemente qué puedes hacer con este servidor. Antes de cambiar nada, lee primero la guía de planificación con la herramienta planner_get_planning_guide.",
     "statusDot": "Puente de IA: {{status}}"
   },
   "aiSafety": {

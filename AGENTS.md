@@ -181,7 +181,7 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   store (`getState`/`setState`/`subscribe`), the log-bus, `extensions.*`, and
   observer-only Canvas/Gantt geometry. Prefer asserting via store state over
   canvas pixels; it must never perform the tested user action itself.
-- The app also exposes its own **MCP bridge** with 39 `planner_*` tools
+- The app also exposes its own **MCP bridge** with 40 `planner_*` tools
   (`src/services/mcp/`) — the real AI-assistant surface, Tauri-only, gated
   behind `ui.aiMode` (see CLAUDE.md's *AI-assistent (MCP-bridge)* section).
   Not a dev-only test hook and not a substitute for the two mechanisms above.

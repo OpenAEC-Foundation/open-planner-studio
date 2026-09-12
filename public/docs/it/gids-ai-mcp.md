@@ -101,6 +101,10 @@ A questo si aggiunge la normale cronologia di annullamento, che un assistente co
 
 **Non succede nulla anche se l'assistente dice che ha funzionato.** Controlla il pannello attività per vedere cosa ha effettivamente chiamato e cosa è tornato indietro. Se c'è un rifiuto, indica quasi sempre anche il campo che era sbagliato e l'alternativa.
 
+## Far pianificare bene il tuo assistente IA
+
+Un assistente che conosce gli strumenti può comunque costruire un programma inutilizzabile per un pianificatore: attività senza legami, una data fissa su ogni attività, o una scomposizione troppo fine per essere mantenuta. I principi che lo evitano sono nella guida [Pianificare bene](docs://gids-goed-plannen) — falla leggere al tuo assistente prima che inizi, oppure richiamala nelle tue istruzioni. Nel codice sorgente di Open Planner Studio c'è inoltre una breve skill per agenti sotto `.claude/skills/goed-plannen/`, che per i contenuti rimanda alla stessa guida e aggiunge solo ciò che è specifico dell'agente: in quale ordine usare gli strumenti `planner_` e che cosa riferire all'utente.
+
 ## Per saperne di più
 
 - [Baseline e avanzamento](docs://gids-baselines-voortgang) — cosa fa la data di stato alla tua pianificazione. Bene saperlo prima di lasciarla impostare a un assistente: non è solo una data di riferimento, sposta in avanti anche il lavoro non ancora iniziato.

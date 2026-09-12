@@ -10,6 +10,7 @@ dist/
 !.claude/skills/release/
 !.claude/skills/wiki/
 !.claude/skills/docs-update/
+!.claude/skills/goed-plannen/
 temp/
 
 # Tauri
