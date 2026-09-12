@@ -681,6 +681,9 @@
         "price_many": "cuesta {{count}} días laborables de retraso",
         "price_other": "cuesta {{count}} días laborables de retraso",
         "priceNone": "no cuesta ningún retraso",
+        "priceOff": "desactivado: {{price}}",
+        "priceOn": "activado: {{price}}",
+        "priceSame": "{{price}} — en ambos casos",
         "priceUnknown": "precio desconocido — pulsa Recalcular"
       },
       "rank": {

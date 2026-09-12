@@ -668,6 +668,9 @@
         "price_one": "costs {{count}} workday of overrun",
         "price_other": "costs {{count}} workdays of overrun",
         "priceNone": "costs no overrun",
+        "priceOff": "off: {{price}}",
+        "priceOn": "on: {{price}}",
+        "priceSame": "{{price}} — in both settings",
         "priceUnknown": "price unknown — press Recalculate"
       },
       "rank": {

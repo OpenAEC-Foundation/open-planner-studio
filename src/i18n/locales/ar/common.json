@@ -720,6 +720,9 @@
         "price_many": "تكلف {{count}} يوم عمل تمديدًا",
         "price_other": "تكلف {{count}} يوم عمل تمديدًا",
         "priceNone": "لا يكلف أي تمديد",
+        "priceOff": "إيقاف: {{price}}",
+        "priceOn": "تشغيل: {{price}}",
+        "priceSame": "{{price}} — في كلتا الحالتين",
         "priceUnknown": "السعر غير معروف — اضغط على إعادة الحساب"
       },
       "rank": {

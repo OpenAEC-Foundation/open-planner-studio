@@ -655,6 +655,9 @@
         "allowSplitsHint": "工作可以插入暂停日，而不是整体顺延。在 MS Project 中这称为\"Leveling can create splits in remaining work\"。",
         "price_other": "需要 {{count}} 个工作日的延误",
         "priceNone": "不需要延误",
+        "priceOff": "关闭：{{price}}",
+        "priceOn": "开启：{{price}}",
+        "priceSame": "{{price}} — 两种设置下相同",
         "priceUnknown": "价格未知 — 按下重新计算"
       },
       "rank": {

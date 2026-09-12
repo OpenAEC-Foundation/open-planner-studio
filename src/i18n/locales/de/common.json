@@ -668,6 +668,9 @@
         "price_one": "kostet {{count}} Arbeitstag Verzug",
         "price_other": "kostet {{count}} Arbeitstage Verzug",
         "priceNone": "kostet keinen Verzug",
+        "priceOff": "aus: {{price}}",
+        "priceOn": "ein: {{price}}",
+        "priceSame": "{{price}} — in beiden Stellungen",
         "priceUnknown": "Preis unbekannt — Neu berechnen drücken"
       },
       "rank": {

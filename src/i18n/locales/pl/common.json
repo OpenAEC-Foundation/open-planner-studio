@@ -694,6 +694,9 @@
         "price_many": "kosztuje {{count}} dni roboczych wydłużenia",
         "price_other": "kosztuje {{count}} dnia roboczego wydłużenia",
         "priceNone": "nie kosztuje żadnego wydłużenia",
+        "priceOff": "wyłączone: {{price}}",
+        "priceOn": "włączone: {{price}}",
+        "priceSame": "{{price}} — w obu ustawieniach",
         "priceUnknown": "cena nieznana — naciśnij Przelicz ponownie"
       },
       "rank": {

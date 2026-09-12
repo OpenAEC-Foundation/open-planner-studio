@@ -681,6 +681,9 @@
         "price_many": "custa {{count}} dias úteis de atraso",
         "price_other": "custa {{count}} dias úteis de atraso",
         "priceNone": "não custa nenhum atraso",
+        "priceOff": "desativado: {{price}}",
+        "priceOn": "ativado: {{price}}",
+        "priceSame": "{{price}} — em ambos os casos",
         "priceUnknown": "preço desconhecido — prima Recalcular"
       },
       "rank": {

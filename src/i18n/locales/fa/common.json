@@ -668,6 +668,9 @@
         "price_one": "{{count}} روز کاری تمدید هزینه دارد",
         "price_other": "{{count}} روز کاری تمدید هزینه دارد",
         "priceNone": "هیچ تمدیدی هزینه ندارد",
+        "priceOff": "خاموش: {{price}}",
+        "priceOn": "روشن: {{price}}",
+        "priceSame": "{{price}} — در هر دو حالت",
         "priceUnknown": "قیمت نامشخص — روی محاسبه مجدد بزنید"
       },
       "rank": {

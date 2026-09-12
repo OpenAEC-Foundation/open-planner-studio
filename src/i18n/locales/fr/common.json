@@ -681,6 +681,9 @@
         "price_many": "coûte {{count}} jours ouvrables de dépassement",
         "price_other": "coûte {{count}} jours ouvrables de dépassement",
         "priceNone": "ne coûte aucun dépassement",
+        "priceOff": "désactivé : {{price}}",
+        "priceOn": "activé : {{price}}",
+        "priceSame": "{{price}} — dans les deux cas",
         "priceUnknown": "prix inconnu — appuyez sur Recalculer"
       },
       "rank": {

@@ -668,6 +668,9 @@
         "price_one": "{{count}} iş günü kaydırma maliyeti var",
         "price_other": "{{count}} iş günü kaydırma maliyeti var",
         "priceNone": "kaydırma maliyeti yok",
+        "priceOff": "kapalı: {{price}}",
+        "priceOn": "açık: {{price}}",
+        "priceSame": "{{price}} — her iki durumda da",
         "priceUnknown": "fiyat bilinmiyor — Yeniden Hesapla'ya basın"
       },
       "rank": {

@@ -655,6 +655,9 @@
         "allowSplitsHint": "作業は一気に移動する代わりに休止日を挟むことができます。MS Project ではこれを「Leveling can create splits in remaining work」と呼びます。",
         "price_other": "{{count}} 稼働日の延長がかかります",
         "priceNone": "延長はかかりません",
+        "priceOff": "オフ: {{price}}",
+        "priceOn": "オン: {{price}}",
+        "priceSame": "{{price}} — どちらの設定でも同じ",
         "priceUnknown": "価格不明 — 再計算を押してください"
       },
       "rank": {

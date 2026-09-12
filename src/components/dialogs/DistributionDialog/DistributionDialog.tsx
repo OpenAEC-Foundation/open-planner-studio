@@ -80,11 +80,20 @@ export function DistributionDialog() {
   const priceText = (workdays: number): string => (workdays === 0
     ? t('resource.distribution.tool.priceNone')
     : t('resource.distribution.tool.price', { count: workdays }));
+  // Het prijskaartje benoemt WELKE STAND het getal hoort (gebruikstest 2026-09-12, gebrek 1). Er
+  // stonden twee kale prijzen naast elkaar ("kost 27 werkdagen uitloop · kost 27 werkdagen
+  // uitloop"): zonder "uit:"/"aan:" leest dat als een weergavefout in plaats van als twee standen.
+  // En als beide standen even duur zijn — wat op de showcase-fixture aantoonbaar het geval is,
+  // want daar lost onderbreken de interne overallocatie van het grote project niet op — is één
+  // prijs met "in beide standen" eerlijker dan hetzelfde getal twee keer.
   const toolPriceLabel = (): string => {
     if (labelsPending) return t('resource.distribution.compute.busy');
-    return (!labelsValid || !toolPrice)
-      ? t('resource.distribution.tool.priceUnknown')
-      : `${priceText(toolPrice.off)} · ${priceText(toolPrice.on)}`;
+    if (!labelsValid || !toolPrice) return t('resource.distribution.tool.priceUnknown');
+    if (toolPrice.off === toolPrice.on) {
+      return t('resource.distribution.tool.priceSame', { price: priceText(toolPrice.off) });
+    }
+    return `${t('resource.distribution.tool.priceOff', { price: priceText(toolPrice.off) })}`
+      + ` · ${t('resource.distribution.tool.priceOn', { price: priceText(toolPrice.on) })}`;
   };
   // Gepind/#63/cannotMove-documenten krijgen GEEN kostenlabel (§4 stap 1: "ze wijken niet") — dat
   // leest rechtstreeks uit het LAATST BEREKENDE voorstel (`participated`/`cannotMove`), niet uit

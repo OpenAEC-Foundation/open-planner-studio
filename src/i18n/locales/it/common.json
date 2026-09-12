@@ -681,6 +681,9 @@
         "price_many": "costa {{count}} giorni lavorativi di ritardo",
         "price_other": "costa {{count}} giorni lavorativi di ritardo",
         "priceNone": "non costa alcun ritardo",
+        "priceOff": "disattivato: {{price}}",
+        "priceOn": "attivato: {{price}}",
+        "priceSame": "{{price}} — in entrambi i casi",
         "priceUnknown": "prezzo sconosciuto — premi Ricalcola"
       },
       "rank": {

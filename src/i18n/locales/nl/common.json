@@ -668,6 +668,9 @@
         "price_one": "kost {{count}} werkdag uitloop",
         "price_other": "kost {{count}} werkdagen uitloop",
         "priceNone": "kost geen uitloop",
+        "priceOff": "uit: {{price}}",
+        "priceOn": "aan: {{price}}",
+        "priceSame": "{{price}} — in beide standen",
         "priceUnknown": "prijs onbekend — druk op Herbereken"
       },
       "rank": {

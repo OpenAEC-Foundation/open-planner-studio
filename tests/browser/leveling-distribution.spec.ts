@@ -537,6 +537,11 @@ test('kostenlabels en prijskaartjes verschijnen en verdwijnen met het voorstel',
   // onbekend" meer.
   await expect(page.locator('[data-ops-distribution-rank-row] [data-ops-distribution-cost]')).toHaveCount(2);
   await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/werkdag|no overrun|geen uitloop|workday/i);
+  // Gebruikstest 2026-09-12, gebrek 1: de prijs mag nooit als twee kale, naamloze getallen naast
+  // elkaar staan. Er staat óf "uit: … · aan: …", óf — wanneer beide standen even duur zijn — één
+  // prijs met "in beide standen".
+  await expect(page.locator('[data-ops-distribution-tool-price]'))
+    .toContainText(/uit:|off:|in beide standen|in both settings/i);
 
   // Een externe bewerking laat het voorstel vervallen (§6a — buiten de modale dialoog om, zie de
   // bestaande taak-12-test hierboven). De labels zijn gecachet TOT invalidatie, niet live: zodra het
