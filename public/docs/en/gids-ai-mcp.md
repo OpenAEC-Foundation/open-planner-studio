@@ -17,7 +17,7 @@ The bridge works **in the desktop app only**. The AI tab is visible in the brows
 
 ## Switching it on
 
-AI mode is off by default. Turn it on at **Settings → Application → Enable AI mode** — through the gear icon, the Settings ribbon tab or File → Settings; all three show the same switch.
+AI mode is off by default. Turn it on at **Settings → Advanced → Enable AI mode** — through the gear icon, the Settings ribbon tab or File → Settings; all three show the same switch.
 
 Once it is on, an extra **AI** tab appears in the ribbon. Switch AI mode back off and the tab disappears and a running bridge is stopped immediately — so a server never keeps listening without the tab being there.
 

@@ -9,6 +9,7 @@ import { collectScheduleWarnings, summarizeScheduleWarnings, hasScheduleWarningT
 import { revealScheduleWarning } from '@/state/warningNavigation';
 import { COMMANDS } from '@/state/commands';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -69,6 +70,9 @@ S().runCPM();
   eq('08 constraint-rij draagt type + datum', [vc.facts.constraintType, vc.facts.constraintDate], ['SNLT', '2026-09-09']);
   const oa = w.find(x => x.kind === 'overallocation')!;
   eq('09 overbezettingsrij wijst naar de resource met dagtelling', [oa.target, (oa.facts.days ?? 0) > 0], [{ type: 'resource', resourceId: r }, true]);
+  // R1: deze overbezetting komt van twee parallelle toewijzingen op de projectkalender (geen
+  // resourcekalendermismatch) ⇒ puur over-capacity, dus nonWorkingDays === 0 (niet "onbekend").
+  eq('09a overbezettingsrij is puur over-capacity: nonWorkingDays is 0', oa.facts.nonWorkingDays, 0);
   eq('10 volgorde: deadline vóór constraint vóór overbezetting', [
     kinds.indexOf('missedDeadline') < kinds.indexOf('violatedConstraint'),
     kinds.indexOf('violatedConstraint') < kinds.indexOf('overallocation'),
@@ -81,6 +85,44 @@ S().runCPM();
     cpmResult: s.cpmResult, resourceLoadResult: s.resourceLoadResult,
   });
   eq('12 deterministisch', w2, w);
+}
+
+// ── 1b) R1: `nonWorkingDays`-feit voor de drie takken (alles vrije dagen, mix, geen) ─────────────
+// Synthetische `resourceLoadResult` in plaats van een echte solve: `collectScheduleWarnings` is
+// puur en leest alleen `overallocatedDays`/`overallocatedReasons`, dus dit dekt de drie takken
+// zonder een kalendermismatch te hoeven opzetten via een echte resourcekalender.
+{
+  const rxAll = S().addResource({ name: 'RX Alles vrije dagen', type: 'LABOR', description: '', maxUnits: 1 });
+  const rxMix = S().addResource({ name: 'RX Mix', type: 'LABOR', description: '', maxUnits: 1 });
+  const rxNone = S().addResource({ name: 'RX Geen', type: 'LABOR', description: '', maxUnits: 1 });
+  const s = S();
+  const synthetic: ResourceLoadResult = {
+    load: {}, capacity: {},
+    overallocatedDays: {
+      [rxAll]: ['2026-09-08', '2026-09-09'],
+      [rxMix]: ['2026-09-08', '2026-09-09', '2026-09-10'],
+      [rxNone]: ['2026-09-08'],
+    },
+    overallocatedReasons: {
+      [rxAll]: { '2026-09-08': 'non-working-day', '2026-09-09': 'non-working-day' },
+      [rxMix]: { '2026-09-08': 'over-capacity', '2026-09-09': 'non-working-day', '2026-09-10': 'non-working-day' },
+      [rxNone]: { '2026-09-08': 'over-capacity' },
+    },
+  };
+  const w = collectScheduleWarnings({
+    tasks: s.tasks, sequences: s.sequences, resources: s.resources,
+    cpmResult: null, resourceLoadResult: synthetic,
+  });
+  const oaAll = w.find(x => x.target.type === 'resource' && x.target.resourceId === rxAll)!;
+  eq('1b.1 alles vrije dagen: days=2, nonWorkingDays=2', [oaAll.facts.days, oaAll.facts.nonWorkingDays], [2, 2]);
+  const oaMix = w.find(x => x.target.type === 'resource' && x.target.resourceId === rxMix)!;
+  eq('1b.2 mix: days=3, nonWorkingDays=2', [oaMix.facts.days, oaMix.facts.nonWorkingDays], [3, 2]);
+  const oaNone = w.find(x => x.target.type === 'resource' && x.target.resourceId === rxNone)!;
+  eq('1b.3 geen vrije dag erbij: days=1, nonWorkingDays=0', [oaNone.facts.days, oaNone.facts.nonWorkingDays], [1, 0]);
+
+  S().removeResource(rxAll);
+  S().removeResource(rxMix);
+  S().removeResource(rxNone);
 }
 
 // ── 2) Navigatie: taak, relatie, resource ────────────────────────────────────

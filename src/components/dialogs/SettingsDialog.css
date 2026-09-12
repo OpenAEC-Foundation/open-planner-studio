@@ -179,47 +179,6 @@
   text-decoration: underline;
 }
 
-/* Language list */
-.settings-lang-list {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--theme-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  overflow-y: auto;
-}
-
-.settings-lang-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  background: transparent;
-  color: var(--theme-text);
-  cursor: pointer;
-  transition: background 0.1s;
-  border-bottom: 1px solid var(--theme-border);
-}
-
-.settings-lang-item:last-child {
-  border-bottom: none;
-}
-
-.settings-lang-item:hover {
-  background: var(--theme-hover);
-}
-
-.settings-lang-item.active {
-  background: var(--theme-accent);
-  color: var(--theme-accent-on);
-}
-
-.settings-lang-code {
-  font-weight: 700;
-  min-width: 20px;
-}
-
 /* Footer */
 .settings-footer {
   display: flex;

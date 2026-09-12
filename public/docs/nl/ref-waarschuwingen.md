@@ -21,7 +21,7 @@ Alles komt uit de laatste berekening (F5) en de daaruit afgeleide resourcebelast
 - **Relatie genegeerd** — de voorganger of opvolger ontbreekt of is geen bladtaak; de relatie telt niet mee in de berekening.
 - **Hammock zonder eind-driver** — een hammocktaak zonder FF- of SF-voorganger; de duur valt terug op nul.
 - **Einddatum afgekapt** — de kalender laat voor deze taak geen werkbaar venster over.
-- **Overbezet** — een resource is op een of meer dagen zwaarder ingezet dan zijn capaciteit. De rij noemt het aantal dagen en de eerste en laatste dag.
+- **Overbezet** — een resource is op een of meer dagen zwaarder ingezet dan zijn capaciteit. De rij noemt het aantal dagen en de eerste en laatste dag, en onderscheidt drie gevallen: gewone overbezetting (de inzet overschrijdt de capaciteit), overbezetting doordat de resourcekalender die dag(en) geen werkdag kent (zie de gids [Resources & histogram](docs://gids-resources-histogram)), of een mix van beide met het aantal kalenderdagen erbij.
 
 Staat er **Geen waarschuwingen**, dan voldoet de planning aan alle controles. Is er nog nooit berekend, dan biedt het paneel de knop **Bereken** aan.
 

@@ -17,7 +17,7 @@ De bridge werkt **alleen in de desktop-app**. In de browserversie is het AI-tabb
 
 ## Aanzetten
 
-De AI-modus staat standaard uit. Je zet hem aan bij **Instellingen → Toepassing → AI-modus inschakelen** — via het tandwiel, via het lint-tabblad Instellingen of via Bestand → Instellingen; alle drie tonen dezelfde schakelaar.
+De AI-modus staat standaard uit. Je zet hem aan bij **Instellingen → Geavanceerd → AI-modus inschakelen** — via het tandwiel, via het lint-tabblad Instellingen of via Bestand → Instellingen; alle drie tonen dezelfde schakelaar.
 
 Zodra hij aanstaat, verschijnt er een extra tabblad **AI** in het lint. Zet je de AI-modus weer uit, dan verdwijnt het tabblad en wordt een draaiende bridge meteen gestopt — er blijft dus nooit een server luisteren zonder dat het tabblad erbij staat.
 

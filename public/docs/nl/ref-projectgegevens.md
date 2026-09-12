@@ -5,7 +5,6 @@ Het venster **Projectinformatie** bevat de metadata van het project plus de sect
 ## Openen
 
 - **Instellingen** (ribbontab) → lintgroep **Project** → **Projectinfo**.
-- Instellingen-venster (tandwiel ⚙) → tab **Algemeen** → **Projectinformatie...**
 - **Bestand** → **Projectinfo** — een vereenvoudigde variant in de Backstage, met alleen de metadata-velden (zonder Berekening-sectie).
 
 **Toepassen** voert alle wijzigingen in één keer door; **Annuleren**, **Esc** of een klik buiten het venster gooit ze weg. **Enter** doet hetzelfde als Toepassen.

@@ -52,7 +52,7 @@ async function waitForTwoQuietWindows(page: Page): Promise<number> {
   return second;
 }
 
-test('histogram picker wisselt echte resourceserie en plotklik toont bijdragers', async ({ page, ops: _ops }) => {
+test('histogram picker wisselt echte resourceserie en hover op de plot toont bijdragers', async ({ page, ops: _ops }) => {
   const { taskIds, overId, spareId } = await seedResourceLoad(page);
   const load = await page.evaluate(({ over, spare }) => {
     const result = window.__OPS__!.store.getState().resourceLoadResult!;
@@ -80,17 +80,21 @@ test('histogram picker wisselt echte resourceserie en plotklik toont bijdragers'
   const canvas = page.getByTestId('gantt-histogram-canvas');
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
-  await canvas.click({
-    position: {
-      x: taskStart.x - bounds!.x + 5,
-      y: Math.min(70, bounds!.height / 2),
-    },
-  });
+  // Eigenaarscorrectie op R1: de tooltip is een echte hover-tooltip (~300 ms vertraging), geen
+  // klikresultaat — een echte muisbeweging naar de plot en dan wachten, niet klikken.
+  await page.mouse.move(
+    taskStart.x + 5,
+    bounds!.y + Math.min(70, bounds!.height / 2),
+  );
 
   const tooltip = page.locator('.gantt-tooltip');
   await expect(tooltip.getByText(/^(2 taken dragen bij op|2 tasks contribute on)/)).toBeVisible();
   await expect(tooltip.getByText('Overbelaste bijdrage A', { exact: true })).toBeVisible();
   await expect(tooltip.getByText('Overbelaste bijdrage B', { exact: true })).toBeVisible();
+
+  // Verlaat de strook: de tooltip verdwijnt weer (echte hover, geen klikresultaat dat blijft hangen).
+  await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
+  await expect(tooltip).toHaveCount(0);
 });
 
 test('taakselectie beperkt resourcedock en histogram en wissen herstelt beide', async ({ page, ops: _ops }) => {
@@ -181,6 +185,54 @@ test('Gantt: pijltjestoetsen volgen de zichtbare taken zodra de gedeelde taakgri
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([firstId]);
   await page.keyboard.press('ArrowUp');
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([firstId]);
+});
+
+test('histogram: een klik op een staaf opent geen tooltip', async ({ page, ops: _ops }) => {
+  const { taskIds } = await seedResourceLoad(page);
+  const taskStart = await barPoint(page, taskIds[0], 'left');
+  const canvas = page.getByTestId('gantt-histogram-canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  const plotPoint = { x: taskStart.x + 5, y: bounds!.y + Math.min(70, bounds!.height / 2) };
+
+  // Een klik op de plot (geen pickerrij) selecteert niets en mag — net als vóór de
+  // eigenaarscorrectie op R1 al gold voor `onClick` — geen tooltip openen. Playwrights
+  // `mouse.click` genereert zelf een `mousemove` naar dat punt vóór de down/up (net als een echte
+  // muis die er vlak vóór het klikken aankomt), dus die impliciete hover start ook hier de eigen
+  // 300 ms-vertragingstimer — dat is geen regressie, dat ís het hoverpad. Wat hier bewaakt wordt,
+  // is dat `onClick` zelf niet synchroon (buiten die hovertimer om) een tooltip opent: meteen na
+  // de klik, ruim binnen de hover-vertraging, moet de tooltip nog afwezig zijn.
+  await page.mouse.click(plotPoint.x, plotPoint.y);
+  await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
+  await page.waitForTimeout(100);
+  await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
+
+  // Beweeg weg vóórdat de impliciete hover-timer (300 ms) alsnog afgaat, zodat deze test niet
+  // toevallig slaagt dankzij een latere tooltip die er weer verdwijnt.
+  await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
+  await page.waitForTimeout(400);
+  await expect(page.locator('.gantt-tooltip')).toHaveCount(0);
+});
+
+test('histogram: histogram uit en weer aan toont geen spontane tooltip', async ({ page, ops: _ops }) => {
+  const { taskIds } = await seedResourceLoad(page);
+  const taskStart = await barPoint(page, taskIds[0], 'left');
+  const canvas = page.getByTestId('gantt-histogram-canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+
+  // Hover eerst echt een tooltip open (zelfde route als de eerste test in dit bestand).
+  await page.mouse.move(taskStart.x + 5, bounds!.y + Math.min(70, bounds!.height / 2));
+  const tooltip = page.locator('.gantt-tooltip');
+  await expect(tooltip).toBeVisible();
+
+  // Herreview-gat (a): het lint zet het histogram uit (portal-canvas unmount, tooltipstate niet
+  // vanzelf) en meteen weer aan — de tooltip mag niet spontaan terugkomen zonder nieuwe hover.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showHistogram: false }));
+  await expect(page.getByTestId('gantt-histogram')).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showHistogram: true }));
+  await expect(page.getByTestId('gantt-histogram-canvas')).toBeVisible();
+  await expect(tooltip).toHaveCount(0);
 });
 
 async function seedManyResources(page: Page, count: number): Promise<string[]> {

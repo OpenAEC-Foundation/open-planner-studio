@@ -28,26 +28,26 @@ const FIXTURE = {
   ],
 };
 
-/** Instellingen → tab Toepassing → knop Statistieken… → de dialoog. De instellingen-dialoog sluit daarbij. */
+/** Instellingen → tab Geavanceerd → knop Statistieken… → de dialoog. De instellingen-dialoog sluit daarbij. */
 async function openStatsDialog(page: Page): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.locator('.settings-dialog');
   await expect(settings).toBeVisible();
-  await settings.getByRole('button', { name: 'Application' }).click();
+  await settings.getByRole('button', { name: 'Advanced' }).click();
   await settings.getByRole('button', { name: 'Statistics…' }).click();
   await expect(settings).toHaveCount(0);
   await expect(page.locator('[data-ops-stats-dialog]')).toBeVisible();
 }
 
-test('Statistieken achter de knop op tab Toepassing: downloads per OS en per release, past in de dialoog, en valt bij een fout terug op de cache', async ({ page, ops }) => {
+test('Statistieken achter de knop op tab Geavanceerd: downloads per OS en per release, past in de dialoog, en valt bij een fout terug op de cache', async ({ page, ops }) => {
   // De bewuste 503 verderop logt de browser als resource-fout; dat is het geteste pad, geen bug.
   ops.acceptError(/status of 503/);
   let hits = 0;
   await page.route(STATS_URL, route => { hits++; void route.fulfill({ json: FIXTURE }); });
 
-  // Geen eigen tabblad meer: de instellingen-dialoog heeft precies vier tabs.
+  // Geen eigen tabblad meer: de instellingen-dialoog heeft precies drie tabs (U1).
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await expect(page.locator('.settings-dialog .settings-tab')).toHaveCount(4);
+  await expect(page.locator('.settings-dialog .settings-tab')).toHaveCount(3);
   await openStatsDialog(page);
 
   const dialog = page.locator('[data-ops-stats-dialog]');
