@@ -9,6 +9,7 @@ maakt er geen nieuwe van.
 
 - Waarom je eerst een peildatum zet, vóór je een blad terugleest.
 - Hoe je het blad exporteert en wat de kolom `OPS Task ID` doet.
+- Wat er in het Excel-blad vastzit, en waarom.
 - Waar je de functie vindt.
 - Welke drie kolommen worden ingelezen, en welke twee alleen ter controle dienen.
 - Dat voltooiing altijd een percentage is.
@@ -32,19 +33,38 @@ je de statusdatum zet en wat hij verder betekent, lees je in de gids
 ## Het blad exporteren
 
 De snelste weg is de knop **Voortgangsblad exporteren** op het Planning- of Tabel-tabblad, in de groep
-Voortgang. Die knop levert meteen een slank CSV-blad op met precies de kolommen die een uitvoerder
-nodig heeft: taak-id, WBS, naam, Start, Finish, Completion (%), Actual Start en Actual Finish — verder
-niets. Het bestand krijgt de naam `<projectnaam>-voortgang.csv` en landt waar mogelijk direct in je
-downloadmap. Dit is de aanbevolen route: minder kolommen om per ongeluk te wijzigen, en niets wat een
-uitvoerder hoeft te negeren. De koppen zelf zeggen er ook bij wat er van je verwacht wordt — bijvoorbeeld
-"Completion (%) — invullen: 0 t/m 100, hele getallen" of "WBS — niet wijzigen" — zodat een uitvoerder
-niet hoeft te raden welke kolommen hij mag invullen en welke hij met rust moet laten.
+Voortgang. Die knop levert een **Excel-werkmap** (`.xlsx`) op met precies de kolommen die een
+uitvoerder nodig heeft: taak-id, WBS, naam, Start, Finish, Completion (%), Actual Start en Actual
+Finish — verder niets. Het bestand krijgt de naam `<projectnaam>-voortgang.xlsx` en landt waar mogelijk
+direct in je downloadmap. Dit is de aanbevolen route: minder kolommen om per ongeluk te wijzigen, en
+niets wat een uitvoerder hoeft te negeren. De koppen zeggen er zelf bij wat er van je verwacht wordt —
+bijvoorbeeld "Completion (%) — invullen: 0 t/m 100" of "WBS — niet wijzigen".
+
+### Wat er in het Excel-blad vastzit
+
+- **Alleen de drie invulkolommen zijn bewerkbaar**: Completion (%), Actual Start en Actual Finish. De
+  rest van het blad is vergrendeld — typen in de kolom WBS of Naam weigert je spreadsheetprogramma
+  gewoon. Er zit geen wachtwoord op: dit is een leuning tegen een ongelukje, geen slot tegen opzet.
+- **De kolommen hebben een bruikbare breedte**, zodat namen en datums meteen leesbaar zijn zonder dat
+  je eerst kolomranden moet slepen.
+- **Datums zijn echte datumcellen** en het percentage is een echte getalcel. Vul een werkelijke datum
+  dus in als datum — met de datumkiezer of gewoon getypt — en niet als losse tekst.
+- **De invulkolommen controleren wat je typt.** Een percentage moet tussen 0 en 100 liggen en mag
+  decimalen hebben (`33,4` is prima); een datum moet een geldige datum zijn. Typ je `150` in de
+  percentagekolom, dan zegt je spreadsheetprogramma er meteen wat van.
+- **Verzameltaken vul je niet in.** Hun drie invulcellen dragen de tekst "— verzameltaak: niet
+  invullen"; laat die tekst gewoon staan.
+
+Liever platte tekst? Hetzelfde slanke blad blijft als CSV bestaan, met exact dezelfde kolommen:
+Backstage → Exporteren → **Voortgangsblad (CSV)**. Handig wanneer het blad daarna nog door een
+scriptje, een ERP-import of een tekstverwerker moet. Alles wat hieronder staat geldt voor beide
+bladen; waar ze van elkaar verschillen, staat dat er expliciet bij.
 
 Je kunt in plaats daarvan ook de volledige CSV-export gebruiken (Backstage → Exporteren → CSV) — die
 bevat dezelfde voortgangskolommen, plus alle overige projectvelden (duur, predecessors, status, …).
-Beide bladen zijn leesbaar voor de import: elke CSV-export draagt een eerste kolom `OPS Task ID` — een
-technisch, voor mensen onleesbaar kenmerk dat de app gebruikt om een teruggestuurd blad weer aan de
-juiste taak te koppelen. Verwijder of wijzig die kolom niet; verplaats of sorteer de rijen gerust, dat
+Alle drie de bladen zijn leesbaar voor de import: elk exportblad draagt een eerste kolom
+`OPS Task ID` — een technisch, voor mensen onleesbaar kenmerk dat de app gebruikt om een teruggestuurd
+blad weer aan de juiste taak te koppelen. Verwijder of wijzig die kolom niet; verplaats of sorteer de rijen gerust, dat
 maakt niets uit. Stuur het bestand naar de uitvoerder, laat hem de voortgangskolommen invullen en
 terugsturen. Meer over de volledige CSV-export staat in de gids [Im-/export](docs://gids-import-export).
 
@@ -71,21 +91,32 @@ gereed, `1` is één procent, `45,5` mag met komma of met punt. Het procentteken
 `40%` betekenen hetzelfde. Een waarde onder 0 of boven 100 wordt geweigerd; er is geen alternatieve
 lezing waarbij bijvoorbeeld `0,4` als veertig procent zou tellen.
 
-Het geëxporteerde blad bevat altijd **hele** procenten (bijvoorbeeld "38", nooit "38,5") — een
-spreadsheetprogramma met een andere landinstelling wisselt punt en komma om, waardoor een decimaal
-percentage daar als een heel ander getal wordt gelezen (`8,38` wordt dan `838`). Vul je zelf decimalen
-in (bijvoorbeeld "33,4"), dan telt dat gewoon als een echte wijziging zodra het afwijkt van de huidige
-waarde. Een heel procent dat afgerond overeenkomt met wat de taak al heeft, telt niet als wijziging:
-staat een taak al op 33,4% en zegt het blad "33", dan verandert er niets. Dat geldt ook aan de
-uiteinden: een taak op 99,5% of hoger kun je niet via "100" in het blad afronden naar honderd procent
-gereed — het bestand kan 99,5% en 100% niet uit elkaar houden, dus dat leest als geen wijziging. Rond
-zo'n taak in de app zelf af, of vul een werkelijke einddatum in.
+Het **Excel**-blad zet het percentage in een echte getalcel en draagt de decimalen dus gewoon mee:
+staat een taak op 33,4%, dan staat dat er ook zo in, en je mag zelf net zo goed decimalen invullen.
+
+Het **CSV**-blad bevat daarentegen altijd **hele** procenten (bijvoorbeeld "38", nooit "38,5"). Dat is
+geen slordigheid maar een noodzaak: een spreadsheetprogramma met een andere landinstelling wisselt punt
+en komma om, waardoor een decimaal percentage in platte tekst als een heel ander getal wordt gelezen
+(`8,38` wordt dan `838`). Vul je in een CSV zelf decimalen in (bijvoorbeeld "33,4"), dan telt dat
+gewoon als een echte wijziging zodra het afwijkt van de huidige waarde. Een heel procent dat afgerond
+overeenkomt met wat de taak al heeft, telt niet als wijziging: staat een taak al op 33,4% en zegt het
+CSV-blad "33", dan verandert er niets. Dat geldt ook aan de uiteinden: een taak op 99,5% of hoger kun
+je niet via "100" in een CSV afronden naar honderd procent gereed — dat blad kan 99,5% en 100% niet uit
+elkaar houden, dus dat leest als geen wijziging. Rond zo'n taak in de app zelf af, of vul een
+werkelijke einddatum in.
 
 ## Datums
 
-De volgende schrijfwijzen werken, met of zonder tijd erbij: `2026-06-09`, `9-6-2026`, `9/6/2026`,
-`9.6.2026`. De app stelt voor het **hele bestand** vast of de eerste component dag of maand is —
-Excel is daar consequent in, dus dat hoeft maar één keer per bestand bepaald te worden. Waar mogelijk
+In het **Excel**-blad staan datums in echte datumcellen. Daar bestaat de vraag "is 6-9 nu 6 september
+of 9 juni?" dus niet: de cel draagt de datum zelf, niet de schrijfwijze ervan. Vul je een werkelijke
+datum in als datum, dan krijg je bij het terugimporteren van een `.xlsx` **nooit** de dag/maand-vraag
+hieronder te zien. Typ je er per ongeluk losse tekst in, dan is die cel onleesbaar en wordt de rij
+geweigerd — de app raadt niet.
+
+De rest van deze paragraaf gaat dus over het **CSV**-blad. De volgende schrijfwijzen werken daar, met
+of zonder tijd erbij: `2026-06-09`, `9-6-2026`, `9/6/2026`, `9.6.2026`. De app stelt voor het **hele
+bestand** vast of de eerste component dag of maand is — een spreadsheetprogramma is daar consequent
+in, dus dat hoeft maar één keer per bestand bepaald te worden. Waar mogelijk
 leidt de app dat automatisch af (bijvoorbeeld doordat een component boven de 12 uitkomt, of doordat de
 datums in het blad overeenkomen met de geplande datums in je project).
 
