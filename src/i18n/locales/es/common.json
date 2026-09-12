@@ -22,6 +22,7 @@
     "recoveryDocumentsSkipped_many": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "recoveryDocumentsSkipped_other": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "scheduleFailed": "No se pudo calcular la planificación",
+    "distributionApplyFailed": "No se ha podido aplicar la distribución",
     "ifcParseFailed": "No se pudo leer el IFC",
     "templateSaved": "Rama guardada como plantilla '{{name}}'",
     "relationCreated": "Relación creada: {{predecessor}} → {{successor}}",
@@ -526,6 +527,7 @@
     "projectView": "Proyecto",
     "companyViewHint": "Esto edita la biblioteca y se aplica a todos los proyectos — fuera de deshacer.",
     "assignFromCompany": "Asignar al proyecto",
+    "inProject": "En el proyecto ({{count}}×)",
     "removeFromProject": "Quitar del proyecto",
     "confirmRemoveResource": "¿Eliminar «{{name}}» de la biblioteca? Esto se aplica a todos los proyectos y no se puede deshacer.",
     "field": {
@@ -619,7 +621,11 @@
       "conflictDays": "{{count}} día(s)",
       "reason": {
         "calendarMismatch": "El recurso no trabaja todos los días que necesita esta tarea — desplazarla no resuelve esto.",
-        "insufficientCapacity": "No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto."
+        "insufficientCapacity": "No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto.",
+        "ceilingTooTight": "El techo de holgura deja muy poco margen: no hay ninguna ventana libre dentro de esos días laborables.",
+        "ceilingUnreachable": "Dar más margen no ayuda aquí — una fecha límite o una restricción mantiene esta tarea en su sitio.",
+        "noWindowInHorizon": "No se encontró ninguna ventana libre dentro del período explorado; más allá se desconoce.",
+        "residualFull": "El propio uso tenía margen, pero la capacidad residual de la biblioteca está agotada — otros proyectos la ocupan."
       }
     },
     "curve": {
@@ -656,6 +662,114 @@
       "capacity": "Capacidad",
       "documents": "Documentos",
       "selectHint": "Selecciona un recurso para ver el histograma."
+    },
+    "distribution": {
+      "open": "Repartir…",
+      "title": "Repartir entre proyectos",
+      "back": "Volver a la ocupación",
+      "subtitle": "{{item}} — repartir la capacidad residual entre los proyectos abiertos",
+      "intro": "Elija a quién se protege más, fije o limite un proyecto si hace falta y mire en el gráfico qué queda de la doble reserva. Aplicar escribe los desplazamientos en todos los proyectos implicados.",
+      "blocked": {
+        "uncounted": "Calcula primero: {{docs}} aún no está calculado, así que no hay nada que repartir.",
+        "material": "Esto es un artículo de material; el reparto solo funciona para personas y equipos.",
+        "noDemand": "Ninguno de los proyectos reserva trabajo realmente aquí."
+      },
+      "tool": {
+        "title": "Herramienta",
+        "allowSplits": "Permitir interrupciones",
+        "allowSplitsHint": "El trabajo puede recibir días de pausa en lugar de desplazarse de una sola vez. En MS Project esto se llama \"Leveling can create splits in remaining work\".",
+        "price_one": "cuesta {{count}} día laborable de retraso",
+        "price_many": "cuesta {{count}} días laborables de retraso",
+        "price_other": "cuesta {{count}} días laborables de retraso",
+        "priceNone": "no cuesta ningún retraso",
+        "priceOff": "desactivado: {{price}}",
+        "priceOn": "activado: {{price}}",
+        "priceSame": "{{price}} — en ambos casos",
+        "priceUnknown": "precio desconocido — pulsa Recalcular"
+      },
+      "rank": {
+        "title": "¿A quién se respeta más?",
+        "hint": "El de arriba cede lo menos posible. Arrastre el asa de la izquierda o use las flechas de la derecha.",
+        "drag": "Arrastrar para reordenar",
+        "float": "holgura: {{days}}",
+        "cost_one": "dejar que solo este proyecto se desplace cuesta {{count}} día laborable",
+        "cost_many": "dejar que solo este proyecto se desplace cuesta {{count}} días laborables",
+        "cost_other": "dejar que solo este proyecto se desplace cuesta {{count}} días laborables",
+        "costNone": "dejar que solo este proyecto se desplace no cuesta ningún retraso",
+        "moveUp": "Subir",
+        "moveDown": "Bajar"
+      },
+      "help": {
+        "dragHandle": "Arrastre esta fila a otra posición del orden.",
+        "allowSplits": "Permite que el trabajo tenga días de pausa en lugar de desplazarse de una pieza; da más margen al reparto, pero genera tareas divididas.",
+        "price": "La etiqueta de precio muestra, por posición, cuántos días laborables se desplaza la fecha de fin del proyecto más afectado; un único precio con «en ambos casos» significa que interrumpir no cambia nada aquí.",
+        "rank": "El de arriba cede lo menos posible: ese proyecto conserva sus fechas en la medida de lo posible y los de abajo se desplazan para hacer sitio.",
+        "rankCost": "Lo que costaría si únicamente este proyecto se desplazara y todos los demás se quedaran quietos: una referencia para elegir el orden, no el resultado de la propuesta actual.",
+        "pin": "Fija este proyecto: conserva su fecha de fin y sus días laborables, y cuenta como carga fija que los demás proyectos deben rodear.",
+        "ceiling": "Cuántos días laborables puede desplazarse como máximo la fecha de fin de este proyecto. Arrastre el asa o use las flechas, Inicio (sin desbordamiento) y Fin (ilimitado). La etiqueta muestra el efecto en la fecha de fin, no cuánto ha arrastrado.",
+        "chart": "Ahora = la reserva actual de todos los proyectos abiertos juntos; Después de repartir = lo que queda tras el reparto. El rojo supera la capacidad.",
+        "recompute": "Vuelve a calcular la propuesta con el orden, las fijaciones y los límites actuales.",
+        "apply": "Escribe los desplazamientos en todos los proyectos implicados; cada proyecto recibe su propio paso de deshacer.",
+        "discard": "Cierra el diálogo sin cambiar nada.",
+        "pickAnother": "Volver a la lista de elementos de la biblioteca para repartir otro elemento."
+      },
+      "strip": {
+        "pin": "Fijar",
+        "pinned": "Fijado — este proyecto no se desplaza y también conserva sus días laborables",
+        "pinnedRecorded": "Fijado: fechas tal como se guardaron",
+        "cannotMove": "No puede desplazarse — todo el trabajo aquí está fijo",
+        "fixedLoad": "Carga fija",
+        "ceiling": "Retraso máximo de la fecha de fin",
+        "ceilingUnlimited": "sin límite",
+        "ceilingDays_one": "techo {{count}} día laborable",
+        "ceilingDays_many": "techo {{count}} días laborables",
+        "ceilingDays_other": "techo {{count}} días laborables",
+        "endUnchanged": "fin sin cambios",
+        "endShift_one": "fin +{{count}} día",
+        "endShift_many": "fin +{{count}} días",
+        "endShift_other": "fin +{{count}} días",
+        "requestedVsAchievable": "solicitado {{requested}}, más cercano alcanzable {{achievable}}",
+        "handleLabel": "Techo de retraso para {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Recalcular",
+        "auto": "Repartir automáticamente",
+        "busy": "Repartiendo…",
+        "pressRecompute": "— pulsa Recalcular",
+        "degraded": "Esta es una vista general grande; solo calcula cuando pulsas Recalcular."
+      },
+      "stale": {
+        "rank": "El orden ha cambiado — recalcula para ver el efecto.",
+        "ceiling": "Un techo ha cambiado — recalcula para ver el efecto.",
+        "pin": "Una fijación ha cambiado — recalcula para ver el efecto.",
+        "tool": "La herramienta ha cambiado — recalcula para ver el efecto.",
+        "edited": "Algo ha cambiado en {{docs}} — esta propuesta ya no está actualizada."
+      },
+      "shortfall": {
+        "title": "Sobra",
+        "doc_one": "{{doc}}: {{count}} tarea no cabe",
+        "doc_many": "{{doc}}: {{count}} tareas no caben",
+        "doc_other": "{{doc}}: {{count}} tareas no caben"
+      },
+      "preview": {
+        "before": "Ahora",
+        "after": "Después de repartir",
+        "capacity": "Capacidad"
+      },
+      "apply": "Aplicar",
+      "discard": "Descartar",
+      "applyBlockedShortfall": "Resuelve primero el déficit — amplía un techo, o permite interrupciones.",
+      "applyBlockedNothing": "No hay nada que aplicar: esta propuesta no cambia nada.",
+      "applied_one": "Aplicado en {{count}} proyecto.",
+      "applied_many": "Aplicado en {{count}} proyectos.",
+      "applied_other": "Aplicado en {{count}} proyectos.",
+      "undoAll": "Deshacer todo",
+      "undoneAll": "Todo se ha deshecho.",
+      "undonePartial": "Deshecho, excepto {{docs}} — en esos ya se ha trabajado mientras tanto.",
+      "selectHint": "Elige un artículo de biblioteca con un conflicto para empezar a repartir.",
+      "noConflicts": "Ningún elemento de la biblioteca tiene actualmente doble reserva en los proyectos abiertos.",
+      "pickAnother": "Elegir otro elemento…",
+      "pickAnotherApplied": "Elegir otro elemento (la barra de deshacer desaparece)…"
     },
     "color": "Color"
   },
