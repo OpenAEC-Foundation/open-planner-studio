@@ -511,12 +511,25 @@ export function DistributionDialog() {
                   role="switch"
                   aria-checked={tune.allowSplits}
                   onClick={toggleSplits}
-                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${tune.allowSplits ? 'bg-accent' : 'bg-surface-hover border border-border'}`}
+                  // Gebruikstest 2026-09-12, gebrek 3: de knop stond niet gecentreerd. Drie
+                  // oorzaken, alle drie geometrie — en de kern is dat de wortel-fontgrootte in deze
+                  // app 13px is, niet 16px. Tailwind's `w-9`/`h-5`/`w-4` zijn rem-maten, dus het
+                  // spoor is 29,25 × 16,25 px en de knop 13 × 13 px; de `left`-waarden stonden in
+                  // VASTE pixels en klopten dus met geen enkele stand. (a) Verticaal zette
+                  // `top-0.5` (2px) de knop te hoog — nu centreert `top-1/2 -translate-y-1/2`
+                  // exact, ongeacht de fontgrootte. (b) De rand zat alléén in de uit-stand, dus de
+                  // binnenbreedte sprong tussen de standen; nu heeft het spoor in BEIDE standen een
+                  // rand (in de aan-stand in de accentkleur, dus onzichtbaar). (c) De marge staat
+                  // nu in dezelfde rem-basis als de knop zelf: `0.125rem` links in de uit-stand en
+                  // `calc(100% - 1rem - 0.125rem)` in de aan-stand — `100%` is de binnenbreedte van
+                  // het spoor, dus links en rechts blijft per definitie evenveel over. Het blijft
+                  // een `left`, zodat de knop nog steeds glijdt in plaats van te springen.
+                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 border ${tune.allowSplits ? 'bg-accent border-accent' : 'bg-surface-hover border-border'}`}
                   data-ops-distribution-allow-splits
                 >
                   <span
-                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
-                    style={{ left: tune.allowSplits ? 18 : 2 }}
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all"
+                    style={{ left: tune.allowSplits ? 'calc(100% - 1rem - 0.125rem)' : '0.125rem' }}
                   />
                   <span className="sr-only">{t('resource.distribution.tool.allowSplits')}</span>
                 </button>
