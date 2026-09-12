@@ -30,6 +30,18 @@ import {
 } from '@/services/xlsx/readXlsxSheet';
 import { parseZipEntries } from '@/services/zip/zipReader';
 import { isoToSerial } from '@/services/xlsx/serialDate';
+import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
+import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
+import { buildProgressImportPlan, type ProgressPlanDeps } from '@/services/progressImport/buildPlan';
+import {
+  PROGRESS_IMPORT_LIMITS,
+  type DateOrderDetection,
+  type ProgressSheet,
+} from '@/services/progressImport/types';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import type { Task } from '@/types/task';
+import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
+import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -122,6 +134,27 @@ function storeZip(files: readonly ZipInput[]): Uint8Array {
   return out;
 }
 
+/**
+ * Laat de central directory LIEGEN over de omvang van één part: de gecomprimeerde én de
+ * ongecomprimeerde maat gaan naar een absurde waarde. Een lezer die die getallen op hun woord
+ * gelooft, alloceert of leest buiten het bestand; een lezer die ze tegen `buffer.byteLength` en zijn
+ * eigen limieten toetst, weigert. Dat laatste is wat de hardening-checklist eist.
+ */
+function inflateHeaderLie(bytes: Uint8Array, partName: string): Uint8Array {
+  const out = bytes.slice();
+  const view = new DataView(out.buffer);
+  const decoder = new TextDecoder();
+  for (let i = 0; i + 46 <= out.length; i++) {
+    if (view.getUint32(i, true) !== 0x02014b50) continue;
+    const nameLen = view.getUint16(i + 28, true);
+    if (decoder.decode(out.subarray(i + 46, i + 46 + nameLen)) !== partName) continue;
+    view.setUint32(i + 20, 0x7fffff00, true); // compSize
+    view.setUint32(i + 24, 0x7fffff00, true); // uncompressedSize
+    return out;
+  }
+  throw new Error(`testfixture: part ${partName} niet gevonden in de central directory`);
+}
+
 // ── de vaste OOXML-omhulling ────────────────────────────────────────────────────────────────
 const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -161,13 +194,14 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <numFmt numFmtId="165" formatCode="0.0%"/>
 <numFmt numFmtId="166" formatCode="&quot;dagen&quot;\\ 0"/>
 </numFmts>
-<cellXfs count="6">
+<cellXfs count="7">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="9" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="22" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 </cellXfs>
 </styleSheet>`;
 
@@ -363,6 +397,296 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 
   const notOoxml = storeZip([{ name: 'hoi.txt', data: 'geen werkmap' }]);
   eq('zip zonder [Content_Types].xml ⇒ notAZip', await issueOf(readXlsxSheet(notOoxml)), 'notAZip');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Deel 2 (T8) — `parseProgressXlsx` en de round-trip
+// ════════════════════════════════════════════════════════════════════════════════════════════
+
+// !!! TIJDELIJK: dit blad wordt HIER met de hand nagebouwd zoals baan B's `writeProgressSheetXLSX`
+// het schrijft — acht kolommen met invulinstructies in de kop, datums als seriële getallen met een
+// datum-`numFmt`, het percentage als FRACTIE met een percentage-`numFmt` (X6/Q2: met decimalen, want
+// de landinstellingen-valstrik van CSV bestaat in een getalcel niet), en een em-dash-markering op de
+// drie invulcellen van een verzameltaak. T14 vervangt dit door de ECHTE round-trip door de schrijver.
+
+const SHEET_HEADERS = [
+  'OPS Task ID — niet wijzigen',
+  'WBS — niet wijzigen',
+  'Name — niet wijzigen',
+  'Start — niet wijzigen',
+  'Finish — niet wijzigen',
+  'Completion (%) — invullen: 0 t/m 100',
+  'Actual Start — invullen: datum',
+  'Actual Finish — invullen: datum',
+];
+
+const MARKER = '—'; // em-dash: "hier valt niets in te vullen"
+
+/** Kolomletter uit een 0-gebaseerde index (A…H is ruim genoeg voor dit blad). */
+const COLUMN_LETTERS = 'ABCDEFGH';
+
+interface SheetRowInput {
+  taskId?: string;
+  wbs?: string;
+  name?: string;
+  start?: string;
+  finish?: string;
+  /** Fractie (0.335 = 33,5 %) als getal, of letterlijke celtekst (bv. de em-dash-markering). */
+  completion?: number | string;
+  actualStart?: string;
+  actualFinish?: string;
+}
+
+function inlineCell(ref: string, text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<c r="${ref}" t="inlineStr"><is><t>${escaped}</t></is></c>`;
+}
+
+/** Datumcel: serieel getal + de datum-`numFmt`. Met een tijddeel gaat hij naar stijl 6 (numFmt 22). */
+function dateCell(ref: string, iso: string): string {
+  const serial = isoToSerial(iso);
+  if (serial === undefined) throw new Error(`testfixture: onleesbare datum ${iso}`);
+  const style = iso.length > 10 ? 6 : 1;
+  return `<c r="${ref}" s="${style}"><v>${serial}</v></c>`;
+}
+
+function progressRowXml(rowNumber: number, input: SheetRowInput): string {
+  const ref = (col: number): string => `${COLUMN_LETTERS[col]}${rowNumber}`;
+  const cells: string[] = [];
+  if (input.taskId !== undefined) cells.push(inlineCell(ref(0), input.taskId));
+  if (input.wbs !== undefined) cells.push(inlineCell(ref(1), input.wbs));
+  if (input.name !== undefined) cells.push(inlineCell(ref(2), input.name));
+  if (input.start !== undefined) cells.push(dateCell(ref(3), input.start));
+  if (input.finish !== undefined) cells.push(dateCell(ref(4), input.finish));
+  if (typeof input.completion === 'number') {
+    cells.push(`<c r="${ref(5)}" s="4"><v>${input.completion}</v></c>`);
+  } else if (input.completion !== undefined) {
+    cells.push(inlineCell(ref(5), input.completion));
+  }
+  for (const [col, value] of [[6, input.actualStart], [7, input.actualFinish]] as const) {
+    if (value === undefined) continue;
+    cells.push(value === MARKER ? inlineCell(ref(col), value) : dateCell(ref(col), value));
+  }
+  return `<row r="${rowNumber}">${cells.join('')}</row>`;
+}
+
+function progressSheetBytes(
+  rows: readonly SheetRowInput[],
+  headers: readonly string[] = SHEET_HEADERS,
+): Uint8Array {
+  const headerXml = `<row r="1">${headers.map((h, i) => inlineCell(`${COLUMN_LETTERS[i]}1`, h)).join('')}</row>`;
+  const body = rows.map((row, i) => progressRowXml(i + 2, row)).join('');
+  return makeWorkbook({ rows: headerXml + body });
+}
+
+// ── taken + de STUB-planner (zelfde vorm als check-progress-import-csv.ts) ───────────────────
+let taskSeq = 0;
+function baseTask(id: string, start: string, durationDays: number): Task {
+  taskSeq++;
+  return {
+    id,
+    name: `Taak ${taskSeq}`,
+    description: '',
+    wbsCode: String(taskSeq),
+    taskType: 'CONSTRUCTION',
+    status: 'NOT_STARTED',
+    isMilestone: false,
+    priority: 0,
+    parentId: null,
+    childIds: [],
+    time: createDefaultTaskTime(start, durationDays),
+    resourceIds: [],
+  };
+}
+
+function stubPlanEdits(
+  task: Task,
+  edits: readonly CellEditIntent[],
+): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
+  const next: Task = { ...task, time: { ...task.time } };
+  for (const edit of edits) {
+    const id = String(edit.columnId);
+    if (id === 'task.time.completion') next.time.completion = edit.value as number;
+    else if (id === 'task.time.actualStart') next.time.actualStart = edit.value as string;
+    else if (id === 'task.time.actualFinish') next.time.actualFinish = edit.value as string;
+  }
+  return { ok: true, value: { task: next, changed: true, timephasedGuidanceLost: false, scheduleStale: true } };
+}
+const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
+
+/** Het bewijslabel van de detectie — `ambiguous` heeft geen `evidence`, dat IS zijn uitkomst. */
+function evidenceOf(detection: DateOrderDetection): string {
+  return detection.order === 'ambiguous' ? 'ambiguous' : detection.evidence;
+}
+
+function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
+  const detection = detectDateOrder(sheet.detectionCells, tasks);
+  const order = detection.order === 'ambiguous' ? 'dmy' : detection.order;
+  return buildProgressImportPlan(finalizeProgressRows(sheet, order), tasks, stubDeps);
+}
+
+{
+  // Drie taken: een verzameltaak, een taak met een derde voltooid, en een afgeronde taak met een
+  // actual start op de minuut nauwkeurig (uur-modus).
+  const parent = baseTask('task-parent', '2026-01-05', 10);
+  parent.wbsCode = '1';
+  parent.name = 'Fundering';
+  parent.childIds = ['task-a', 'task-b'];
+  const taskA = baseTask('task-a', '2026-01-05', 5);
+  taskA.parentId = parent.id;
+  taskA.wbsCode = '1.1';
+  taskA.time.completion = 1 / 3;
+  const taskB = baseTask('task-b', '2026-01-12', 3);
+  taskB.parentId = parent.id;
+  taskB.wbsCode = '1.2';
+  taskB.time.completion = 1;
+  taskB.time.actualStart = '2026-01-12T08:30';
+  taskB.time.actualFinish = '2026-01-16';
+  const tasks = [parent, taskA, taskB];
+
+  const rowFor = (task: Task, completion: number | string, aStart?: string, aFinish?: string): SheetRowInput => ({
+    taskId: task.id,
+    wbs: task.wbsCode,
+    name: task.name,
+    start: task.time.earlyStart || task.time.scheduleStart,
+    finish: task.time.earlyFinish || task.time.scheduleFinish,
+    completion,
+    ...(aStart !== undefined ? { actualStart: aStart } : {}),
+    ...(aFinish !== undefined ? { actualFinish: aFinish } : {}),
+  });
+
+  const unchanged = [
+    rowFor(parent, MARKER, MARKER, MARKER),
+    rowFor(taskA, taskA.time.completion),
+    rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
+  ];
+
+  const sheet = await parseProgressXlsx(progressSheetBytes(unchanged));
+  eq('geen bestandsprobleem', sheet.fileIssue, undefined);
+  const plan = planFor(sheet, tasks);
+
+  eq('nul toepassingen', plan.appliedCount, 0);
+  eq('nul weigeringen', plan.refusedCount, 0);
+  eq('alles ongewijzigd', plan.noopCount, tasks.length);
+  eq('geen rij wacht op koppeling', plan.needsLinkCount, 0);
+  eq('elke rij matcht op id', plan.rows.every(r => r.match === 'id'), true);
+  eq('verzameltaken geven geen weigering', plan.rows.filter(r => r.reason === 'summaryTask').length, 0);
+  // De em-dash-markering op de drie invulcellen moet ONGEWIJZIGD doorgegeven worden: `isMarkerCell`
+  // in sheetValues.ts laat de rij dan als "niets ingevuld" landen. Zou deze lezer er een waarde van
+  // maken, dan wordt de verzameltaakrij een zichtbare weigering in plaats van een stille no-op.
+  const parentRow = plan.rows.find(r => r.taskId === parent.id);
+  eq('de verzameltaakrij is een no-op, geen weigering',
+    [parentRow?.outcome, parentRow?.reason], ['noop', undefined]);
+  eq('…en de markering komt letterlijk door', sheet.rawRows[0]?.rawCompletion, MARKER);
+
+  // A9: een `.xlsx` levert ISO-datums, dus de dag/maand-vraag kán niet ontstaan.
+  eq('datums zijn ondubbelzinnig', evidenceOf(detectDateOrder(sheet.detectionCells, tasks)), 'noAmbiguity');
+  eq('een derde overleeft de round-trip',
+    planFor(await parseProgressXlsx(progressSheetBytes([rowFor(taskA, 1 / 3)])), [taskA]).noopCount, 1);
+  eq('een uur-modus-datetime overleeft',
+    planFor(
+      await parseProgressXlsx(progressSheetBytes([
+        rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
+      ])),
+      [taskB],
+    ).noopCount,
+    1);
+
+  // Rijnummers zijn ECHTE Excel-rijnummers, en Start/Finish bereiken `rawRows` nooit.
+  eq('rijnummer = Excel-rijnummer', sheet.rawRows[0]?.rowNumber, 2);
+  eq('kop met instructie matcht nog steeds', sheet.rawRows.length, 3);
+  eq('Start/Finish blijven detectie-only',
+    Object.keys(sheet.rawRows[0] ?? {}).some(k => /start|finish/i.test(k) && !/actual/i.test(k)),
+    false);
+  ok('…maar ze zijn er wél als detectiemateriaal',
+    sheet.detectionCells.some(c => c.field === 'start') && sheet.detectionCells.some(c => c.field === 'finish'));
+
+  // Eén gewijzigde cel = één toepassing, op precies die taak.
+  const mutatedRows = [
+    rowFor(parent, MARKER, MARKER, MARKER),
+    rowFor(taskA, taskA.time.completion),
+    rowFor(taskB, 0.5, taskB.time.actualStart, taskB.time.actualFinish),
+  ];
+  const mutated = planFor(await parseProgressXlsx(progressSheetBytes(mutatedRows)), tasks);
+  eq('één wijziging, één apply', mutated.appliedCount, 1);
+  eq('…op de juiste taak', mutated.rows.find(r => r.outcome === 'apply')?.taskId, taskB.id);
+
+  // Een gewijzigde Start-kolom is per constructie betekenisloos: hij is detectie-only.
+  const changedStart = [
+    rowFor(parent, MARKER, MARKER, MARKER),
+    { ...rowFor(taskA, taskA.time.completion), start: '2030-03-03', finish: '2030-03-09' },
+    rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
+  ];
+  eq('een gewijzigde Start-kolom verandert niets',
+    planFor(await parseProgressXlsx(progressSheetBytes(changedStart)), tasks).appliedCount, 0);
+}
+
+{
+  // Excel-realisme: 45 % staat in het bestand als 0.45 met een percentage-`numFmt`.
+  const task = baseTask('task-pct', '2026-02-02', 4);
+  const sheet = await parseProgressXlsx(progressSheetBytes([
+    { taskId: task.id, wbs: task.wbsCode, name: task.name, completion: 0.45 },
+  ]));
+  eq('45% als percentagecel leest als 45', sheet.rawRows[0]?.rawCompletion, '45');
+  const rows = finalizeProgressRows(sheet, 'dmy');
+  eq('…en wordt de fractie 0,45', rows[0]?.completion, { kind: 'value', value: 0.45 });
+}
+
+{
+  // Grenzen op de rijwaarden: te lang, en met een stuurteken. Beide tellen als AFWEZIG, nooit
+  // afgekapt — een afgekapt id kan een andere taak matchen dan de invuller bedoelde.
+  const longId = 'x'.repeat(PROGRESS_IMPORT_LIMITS.maxIdChars + 1);
+  const longSheet = await parseProgressXlsx(progressSheetBytes([
+    { taskId: longId, wbs: '1', name: 'Lang', completion: 0.5 },
+  ]));
+  eq('te lang id telt als afwezig', longSheet.rawRows[0]?.taskId, undefined);
+  ok('…maar de rij zelf blijft bestaan', longSheet.rawRows.length === 1);
+
+  const ctrlSheet = await parseProgressXlsx(progressSheetBytes([
+    // `_x0001_` is de OOXML-notatie voor een stuurteken (ST_Xstring); de lezer zet hem
+    // terug naar U+0001, precies zoals Excel doet - dit is dus een ECHT stuurteken.
+    { taskId: 'task_x0001_a', wbs: '1', name: 'Stuur', completion: 0.5 },
+  ]));
+  eq('id met stuurteken telt niet', ctrlSheet.rawRows[0]?.taskId, undefined);
+}
+
+{
+  // Bestandsbrede weigeringen — elke `catch` heeft hier zijn eigen rode-pad-fixture.
+  const noKey = progressSheetBytes(
+    [{ name: 'Zonder sleutel', completion: 0.5 }],
+    ['Name', 'Completion (%)'],
+  );
+  eq('blad zonder sleutelkolom', (await parseProgressXlsx(noKey)).fileIssue, 'noKeyColumn');
+
+  const noProgress = progressSheetBytes([{ taskId: 'task-x', name: 'Zonder voortgang' }], ['OPS Task ID', 'Name']);
+  eq('blad zonder voortgangskolommen', (await parseProgressXlsx(noProgress)).fileIssue, 'noProgressColumns');
+
+  const cfb = new Uint8Array(64);
+  cfb.set([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1], 0);
+  eq('wachtwoordbestand', (await parseProgressXlsx(cfb)).fileIssue, 'encrypted');
+
+  // Zip-bom: de central directory LIEGT over de omvang van een van de parts. Een lengte uit een
+  // bestandsheader is een leugen tot het tegendeel blijkt (hardening-checklist).
+  const bomb = inflateHeaderLie(
+    progressSheetBytes([{ taskId: 'task-x', wbs: '1', name: 'Bom', completion: 0.5 }]),
+    'xl/worksheets/sheet1.xml',
+  );
+  eq('zip-bom', (await parseProgressXlsx(bomb)).fileIssue, 'unreadable');
+
+  eq('rommelbytes', (await parseProgressXlsx(new TextEncoder().encode('geen werkmap'))).fileIssue, 'unreadable');
+  eq('te groot ⇒ tooLarge',
+    (await parseProgressXlsx(progressSheetBytes([{ taskId: 'a', wbs: '1', completion: 0.5 }]),
+      { ...PROGRESS_IMPORT_LIMITS, maxBytes: 10 })).fileIssue,
+    'tooLarge');
+  eq('te veel rijen ⇒ tooManyRows',
+    (await parseProgressXlsx(
+      progressSheetBytes([
+        { taskId: 'a', wbs: '1', completion: 0.5 },
+        { taskId: 'b', wbs: '2', completion: 0.5 },
+      ]),
+      { ...PROGRESS_IMPORT_LIMITS, maxRows: 1 },
+    )).fileIssue,
+    'tooManyRows');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
