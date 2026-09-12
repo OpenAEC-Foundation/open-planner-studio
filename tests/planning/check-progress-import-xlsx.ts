@@ -12,7 +12,9 @@
 //
 // De fixtures worden gebouwd met de ECHTE `writeZip` uit `@/services/zip` (sinds T14; daarvoor stond
 // hier een tijdelijke, store-only kopie omdat baan A en baan C parallel liepen). Wat de lezer hier
-// binnenkrijgt is dus byte-voor-byte wat de app schrijft — deflate en al.
+// binnenkrijgt is dus byte-voor-byte wat de app schrijft — deflate en al. De round-trip-asserties
+// gaan bovendien door de ECHTE `writeProgressSheetXLSX`: exporteren en meteen terugimporteren moet
+// nul wijzigingen geven, en dat is alleen bewijs als de schrijver er zelf in zit.
 //
 // Exit 0 = alles groen. De tail van dit script kan "groen" tonen bij een gefaalde BUNDEL — alleen de
 // exitcode telt.
@@ -29,6 +31,7 @@ import {
 } from '@/services/xlsx/readXlsxSheet';
 import { parseZipEntries, writeZip } from '@/services/zip';
 import { isoToSerial } from '@/services/xlsx/serialDate';
+import { writeProgressSheetXLSX, type ProgressXlsxText } from '@/services/xlsx';
 import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import { buildProgressImportPlan, type ProgressPlanDeps } from '@/services/progressImport/buildPlan';
@@ -424,11 +427,45 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 // Deel 2 (T8) — `parseProgressXlsx` en de round-trip
 // ════════════════════════════════════════════════════════════════════════════════════════════
 
-// !!! TIJDELIJK: dit blad wordt HIER met de hand nagebouwd zoals baan B's `writeProgressSheetXLSX`
-// het schrijft — acht kolommen met invulinstructies in de kop, datums als seriële getallen met een
-// datum-`numFmt`, het percentage als FRACTIE met een percentage-`numFmt` (X6/Q2: met decimalen, want
-// de landinstellingen-valstrik van CSV bestaat in een getalcel niet), en een em-dash-markering op de
-// drie invulcellen van een verzameltaak. T14 vervangt dit door de ECHTE round-trip door de schrijver.
+// De ROUND-TRIP-asserties hieronder draaien op de echte `writeProgressSheetXLSX`; zie het blok
+// "DE ECHTE ROUND-TRIP". De handgebouwde bladen in dit deel dienen een ander doel: ze bootsen na wat
+// EXCEL zelf produceert en onze schrijver juist niet doet — een percentage als fractie met een
+// percentage-`numFmt`, gedeelde strings, een foutcel — plus de rode paden (geen sleutelkolom, geen
+// voortgangskolommen, de grenzen). Die mogen dus met de hand blijven; ze toetsen de LEZER tegen de
+// buitenwereld, niet de schrijver tegen zichzelf.
+//
+// De tekst die de app bij het exporteren meegeeft (`fileSlice.exportAs` → `progressHeaderNotes.ts`)
+// staat hier als VASTE strings. Deze suite draait headless zonder i18n-initialisatie, en de
+// round-trip mag ook niet aan een vertaalsleutel hangen; wat telt is dat er ECHTE kopinstructies en
+// een ECHTE em-dash-verzamelmarkering doorheen lopen — precies de twee dingen die een naieve lezer
+// als data zou aanzien.
+
+const EXPORT_TEXT: ProgressXlsxText = {
+  headerNotes: {
+    'OPS Task ID': 'niet wijzigen',
+    WBS: 'niet wijzigen',
+    Name: 'niet wijzigen',
+    Start: 'geplande datum, niet wijzigen',
+    Finish: 'geplande datum, niet wijzigen',
+    'Completion (%)': 'invullen: 0 t/m 100',
+    'Actual Start': 'invullen: werkelijke startdatum (jjjj-mm-dd)',
+    'Actual Finish': 'invullen: werkelijke einddatum (jjjj-mm-dd)',
+  },
+  // MOET met een em-dash beginnen: dat is het teken waarop `isMarkerCell` de cel als afwezig telt.
+  summaryNote: '\u2014 verzameltaak: vul hier niets in',
+  sheetName: 'Voortgang',
+  validation: {
+    percentTitle: 'Ongeldig percentage',
+    percentError: 'Vul een getal van 0 tot en met 100 in.',
+    dateTitle: 'Ongeldige datum',
+    dateError: 'Vul een geldige datum in (jjjj-mm-dd).',
+  },
+};
+
+/** Het blad zoals de app het exporteert — de ENE bron van de round-trip-asserties. */
+function exportSheet(tasks: readonly Task[]): Promise<Uint8Array> {
+  return writeProgressSheetXLSX(tasks, EXPORT_TEXT);
+}
 
 const SHEET_HEADERS = [
   'OPS Task ID — niet wijzigen',
@@ -547,42 +584,58 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 }
 
 {
-  // Drie taken: een verzameltaak, een taak met een derde voltooid, en een afgeronde taak met een
-  // actual start op de minuut nauwkeurig (uur-modus).
-  const parent = baseTask('task-parent', '2026-01-05', 10);
+  // ── DE ECHTE ROUND-TRIP ────────────────────────────────────────────────────────────────────
+  // Exporteren en meteen terugimporteren moet NUL wijzigingen opleveren. Deze asserties draaien
+  // daarom op de volle keten die het product ook loopt:
+  //
+  //     writeProgressSheetXLSX  ->  parseProgressXlsx (parseZipEntries + readXlsxSheet)
+  //                             ->  detectDateOrder  ->  finalizeProgressRows
+  //                             ->  buildProgressImportPlan
+  //
+  // Een met de hand nagebouwd blad zou hier precies het verkeerde bewaken: het toetst dan of de
+  // TEST de schrijver goed nadoet. De vorige versie deed dat en zat er ook echt naast — hij
+  // schreef het percentage als fractie met een percentage-`numFmt`, terwijl de schrijver een heel
+  // percentage met `numFmt` 166 schrijft. Handgebouwde bladen blijven hieronder wel staan voor de
+  // Excel-realisme-cases (sharedStrings, `t="e"`, percentage-`numFmt`, `date1904`): daar is de
+  // vraag juist of de LEZER omgaat met wat Excel zelf produceert.
+  //
+  // Mutatiebewijs: laat de schrijver het percentage als fractie wegschrijven en deze asserties
+  // slaan om van "nul toepassingen" naar een toepassing per taak.
+  //
+  // Vijf taken, zodat elke valstrik uit de contour van dit blad erin zit: een verzameltaak (de
+  // em-dash-markering), 1/3 (een breuk die geen mooie decimaal is), 0 en 0,999 (de randen), en een
+  // werkelijke start op de MINUUT (uur-modus: een gebroken serieel getal).
+  const parent = baseTask('task-parent', '2026-06-01', 20);
   parent.wbsCode = '1';
   parent.name = 'Fundering';
-  parent.childIds = ['task-a', 'task-b'];
-  const taskA = baseTask('task-a', '2026-01-05', 5);
-  taskA.parentId = parent.id;
-  taskA.wbsCode = '1.1';
-  taskA.time.completion = 1 / 3;
-  const taskB = baseTask('task-b', '2026-01-12', 3);
-  taskB.parentId = parent.id;
-  taskB.wbsCode = '1.2';
-  taskB.time.completion = 1;
-  taskB.time.actualStart = '2026-01-12T08:30';
-  taskB.time.actualFinish = '2026-01-16';
-  const tasks = [parent, taskA, taskB];
+  parent.childIds = ['task-derde', 'task-uur', 'task-nul', 'task-bijna'];
 
-  const rowFor = (task: Task, completion: number | string, aStart?: string, aFinish?: string): SheetRowInput => ({
-    taskId: task.id,
-    wbs: task.wbsCode,
-    name: task.name,
-    start: task.time.earlyStart || task.time.scheduleStart,
-    finish: task.time.earlyFinish || task.time.scheduleFinish,
-    completion,
-    ...(aStart !== undefined ? { actualStart: aStart } : {}),
-    ...(aFinish !== undefined ? { actualFinish: aFinish } : {}),
-  });
+  const derde = baseTask('task-derde', '2026-06-01', 5);
+  derde.parentId = parent.id;
+  derde.wbsCode = '1.1';
+  derde.time.completion = 1 / 3;
 
-  const unchanged = [
-    rowFor(parent, MARKER, MARKER, MARKER),
-    rowFor(taskA, taskA.time.completion),
-    rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
-  ];
+  const uur = baseTask('task-uur', '2026-06-09', 3);
+  uur.parentId = parent.id;
+  uur.wbsCode = '1.2';
+  uur.time.completion = 1;
+  uur.time.actualStart = '2026-06-09T08:30';
+  uur.time.actualFinish = '2026-06-11';
 
-  const sheet = await parseProgressXlsx(await progressSheetBytes(unchanged));
+  const nul = baseTask('task-nul', '2026-06-15', 4);
+  nul.parentId = parent.id;
+  nul.wbsCode = '1.3';
+  nul.time.completion = 0;
+
+  const bijna = baseTask('task-bijna', '2026-06-22', 4);
+  bijna.parentId = parent.id;
+  bijna.wbsCode = '1.4';
+  bijna.time.completion = 0.999;
+  bijna.time.actualStart = '2026-06-22';
+
+  const tasks = [parent, derde, uur, nul, bijna];
+
+  const sheet = await parseProgressXlsx(await exportSheet(tasks));
   eq('geen bestandsprobleem', sheet.fileIssue, undefined);
   const plan = planFor(sheet, tasks);
 
@@ -592,54 +645,53 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
   eq('geen rij wacht op koppeling', plan.needsLinkCount, 0);
   eq('elke rij matcht op id', plan.rows.every(r => r.match === 'id'), true);
   eq('verzameltaken geven geen weigering', plan.rows.filter(r => r.reason === 'summaryTask').length, 0);
-  // De em-dash-markering op de drie invulcellen moet ONGEWIJZIGD doorgegeven worden: `isMarkerCell`
-  // in sheetValues.ts laat de rij dan als "niets ingevuld" landen. Zou deze lezer er een waarde van
-  // maken, dan wordt de verzameltaakrij een zichtbare weigering in plaats van een stille no-op.
+
+  // De em-dash-markering die de schrijver zelf op de drie invulcellen zet, moet door de lezer
+  // ongewijzigd doorgegeven worden: `isMarkerCell` laat de rij dan als "niets ingevuld" landen.
   const parentRow = plan.rows.find(r => r.taskId === parent.id);
   eq('de verzameltaakrij is een no-op, geen weigering',
     [parentRow?.outcome, parentRow?.reason], ['noop', undefined]);
-  eq('…en de markering komt letterlijk door', sheet.rawRows[0]?.rawCompletion, MARKER);
+  eq('...en de markering van de schrijver komt letterlijk door',
+    sheet.rawRows[0]?.rawCompletion, EXPORT_TEXT.summaryNote);
 
-  // A9: een `.xlsx` levert ISO-datums, dus de dag/maand-vraag kán niet ontstaan.
-  eq('datums zijn ondubbelzinnig', evidenceOf(detectDateOrder(sheet.detectionCells, tasks)), 'noAmbiguity');
-  eq('een derde overleeft de round-trip',
-    planFor(await parseProgressXlsx(await progressSheetBytes([rowFor(taskA, 1 / 3)])), [taskA]).noopCount, 1);
-  eq('een uur-modus-datetime overleeft',
-    planFor(
-      await parseProgressXlsx(await progressSheetBytes([
-        rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
-      ])),
-      [taskB],
-    ).noopCount,
-    1);
+  // A9: een `.xlsx` levert ISO-datums, dus de dag/maand-vraag kan niet ontstaan.
+  eq('geen datumvraag', evidenceOf(detectDateOrder(sheet.detectionCells, tasks)), 'noAmbiguity');
 
-  // Rijnummers zijn ECHTE Excel-rijnummers, en Start/Finish bereiken `rawRows` nooit.
+  // De vier randgevallen ook los, zodat een falende round-trip meteen wijst waar het misgaat.
+  for (const solo of [derde, uur, nul, bijna]) {
+    const soloPlan = planFor(await parseProgressXlsx(await exportSheet([solo])), [solo]);
+    eq(`${solo.wbsCode} los: ongewijzigd`, [soloPlan.noopCount, soloPlan.appliedCount], [1, 0]);
+  }
+
+  // Rijnummers zijn ECHTE Excel-rijnummers (de kop is rij 1), en Start/Finish bereiken `rawRows`
+  // nooit — ze bestaan uitsluitend als detectiemateriaal.
   eq('rijnummer = Excel-rijnummer', sheet.rawRows[0]?.rowNumber, 2);
-  eq('kop met instructie matcht nog steeds', sheet.rawRows.length, 3);
+  eq('elke taak levert een rij', sheet.rawRows.length, tasks.length);
+  eq('de kop met instructies wordt als kop herkend',
+    sheet.rawRows.every(r => r.taskId !== undefined), true);
   eq('Start/Finish blijven detectie-only',
     Object.keys(sheet.rawRows[0] ?? {}).some(k => /start|finish/i.test(k) && !/actual/i.test(k)),
     false);
-  ok('…maar ze zijn er wél als detectiemateriaal',
+  ok('...maar ze zijn er wel als detectiemateriaal',
     sheet.detectionCells.some(c => c.field === 'start') && sheet.detectionCells.some(c => c.field === 'finish'));
 
-  // Eén gewijzigde cel = één toepassing, op precies die taak.
-  const mutatedRows = [
-    rowFor(parent, MARKER, MARKER, MARKER),
-    rowFor(taskA, taskA.time.completion),
-    rowFor(taskB, 0.5, taskB.time.actualStart, taskB.time.actualFinish),
-  ];
-  const mutated = planFor(await parseProgressXlsx(await progressSheetBytes(mutatedRows)), tasks);
-  eq('één wijziging, één apply', mutated.appliedCount, 1);
-  eq('…op de juiste taak', mutated.rows.find(r => r.outcome === 'apply')?.taskId, taskB.id);
+  // Een echt gewijzigde cel = een toepassing, op precies die taak. Ook dat loopt door de ECHTE
+  // schrijver: het blad wordt geexporteerd uit een gewijzigde takenlijst en tegen de originele
+  // takenlijst geimporteerd — precies wat er gebeurt als de invuller de cel aanpast.
+  const gewijzigd = tasks.map(task => task.id !== uur.id
+    ? task
+    : { ...task, time: { ...task.time, completion: 0.5 } });
+  const mutated = planFor(await parseProgressXlsx(await exportSheet(gewijzigd)), tasks);
+  eq('een wijziging, een apply', mutated.appliedCount, 1);
+  eq('...op de juiste taak', mutated.rows.find(r => r.outcome === 'apply')?.taskId, uur.id);
 
   // Een gewijzigde Start-kolom is per constructie betekenisloos: hij is detectie-only.
-  const changedStart = [
-    rowFor(parent, MARKER, MARKER, MARKER),
-    { ...rowFor(taskA, taskA.time.completion), start: '2030-03-03', finish: '2030-03-09' },
-    rowFor(taskB, taskB.time.completion, taskB.time.actualStart, taskB.time.actualFinish),
-  ];
+  const verschovenStart = tasks.map(task => task.id !== derde.id
+    ? task
+    : { ...task, time: { ...task.time, scheduleStart: '2030-03-03', earlyStart: '2030-03-03',
+        scheduleFinish: '2030-03-09', earlyFinish: '2030-03-09' } });
   eq('een gewijzigde Start-kolom verandert niets',
-    planFor(await parseProgressXlsx(await progressSheetBytes(changedStart)), tasks).appliedCount, 0);
+    planFor(await parseProgressXlsx(await exportSheet(verschovenStart)), tasks).appliedCount, 0);
 }
 
 {

@@ -424,6 +424,50 @@ test('voortgangsblad-export: knop op Planning levert een leesbaar .xlsx in de do
   expect(detection.order === 'ambiguous' ? undefined : detection.evidence).toBe('noAmbiguity');
 });
 
+// Fixronde na de eindreview: de EERSTE vraag bij een round-trip is niet "komt een wijziging aan"
+// maar "blijft een ONgewijzigd blad ook echt ongewijzigd". Gaat dat mis, dan krijgt de invuller bij
+// elke ronde een lijst met veranderingen die hij nooit heeft aangebracht — en verliest hij het zicht
+// op de wijzigingen die er wel toe doen. Hier is de hele keten een echte handeling: klikken op
+// exporteren, het gedownloade bestand ONGEWIJZIGD via de bestandskiezer terugvoeren, en de preview
+// lezen zoals de gebruiker hem ziet.
+test('exporteren en meteen terugimporteren geeft nul wijzigingen', async ({ page, ops: _ops }) => {
+  const [idA, idB] = await seedProject(page, [
+    { name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Ruwbouw', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
+  ], 'Voortgangsblad-noop');
+
+  // Testopzet, geen geteste handeling: twee taken met echte voortgang, zodat het blad ook echt
+  // percentages en werkelijke datums draagt om over te struikelen.
+  await page.evaluate(([a, b]) => {
+    const s = window.__OPS__!.store.getState();
+    s.setActualStart(a, '2026-09-07');
+    s.setTaskProgress(a, 1 / 3);
+    s.setTaskProgress(b, 0);
+  }, [idA, idB] as const);
+
+  const { bytes } = await exportProgressSheet(page);
+
+  await openViaBackstage(page);
+  await chooseSheet(page, 'voortgang.xlsx', XLSX_MIME, Buffer.from(bytes));
+
+  // Geen dag/maand-vraag: de preview staat er meteen.
+  await expect(dialog(page).getByText(/^(Day or month first\?|Dag of maand eerst\?)$/)).toHaveCount(0);
+  await expect(dialog(page).getByText(/^(Applied|Toegepast): 0$/)).toBeVisible();
+  await expect(dialog(page).getByText(/^(Refused|Geweigerd): 0$/)).toBeVisible();
+  await expect(dialog(page).getByText(/^(Unchanged|Ongewijzigd): 2$/)).toBeVisible();
+  await expect(page.getByText(NEEDS_LINK_HEADING)).toHaveCount(0);
+  // Niets toe te passen, dus de bevestigknop hoort onbruikbaar te zijn.
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toBeDisabled();
+
+  await dialog(page).getByRole('button', { name: CANCEL }).click();
+  await expect(dialog(page)).toHaveCount(0);
+
+  // En het document is ook echt onaangeraakt gebleven.
+  const after = await taskTime(page, idA);
+  expect(after.completion).toBeCloseTo(1 / 3, 4);
+  expect(after.actualStart).toBe('2026-09-07');
+});
+
 test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', async ({ page, ops: _ops }) => {
   const [idA] = await seedProject(page, [
     { name: 'Terugimport-taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
