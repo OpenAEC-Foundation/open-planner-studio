@@ -1,7 +1,8 @@
 import { Task, type ExternalLink } from '@/types/task';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
+  taskUpdateInvalidatesLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -436,6 +437,16 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           && clearTimephasedDurationWalks(s.tasks[idx]);
         lostTimephasedGuidance = clearedWindow || clearedWalks;
       }
+      // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
+      // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
+      // verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en blijven staan;
+      // `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-afronding hierboven
+      // is dit geen verlies van gebruikersdata uit een importbestand maar het opruimen van app-eigen
+      // afgeleide nivelleeruitvoer op een as die de gebruiker zelf zojuist heeft verzet.
+      // EIGEN POORT sinds de fixronde op etappe 3 (bevinding B7): de triggerset is BREDER dan die van
+      // het Z8-venster hierboven — voortgang en constraints horen erbij. Zie
+      // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
+      if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
     });
@@ -453,6 +464,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s);
       task.calendarId = calendarId; // undefined = projectkalender
       lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
+      // B1c-plan3 taak 3 — zie `updateTask` hierboven.
+      clearLevelingGaps(task);
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -1024,6 +1037,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
+      // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
+      // eigen aanroep; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts voor het waarom.
+      clearLevelingGaps(task);
       // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
       // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
       // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
@@ -1049,6 +1066,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
     });
@@ -1070,6 +1088,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
       if (!date && task.time.completion >= 1) task.time.completion = 0;
       applyProgressInvariants(task, s.project.statusDate);
+      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
     });

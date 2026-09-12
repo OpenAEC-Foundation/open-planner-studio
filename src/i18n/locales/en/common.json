@@ -21,6 +21,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",
+    "distributionApplyFailed": "The distribution could not be applied",
     "ifcParseFailed": "IFC could not be read",
     "templateSaved": "Branch saved as template '{{name}}'",
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
@@ -517,6 +518,7 @@
     "projectView": "Project",
     "companyViewHint": "This edits the library and applies to all projects — outside undo.",
     "assignFromCompany": "Assign to project",
+    "inProject": "In project ({{count}}×)",
     "removeFromProject": "Remove from project",
     "confirmRemoveResource": "Remove '{{name}}' from the library? This applies to all projects and cannot be undone.",
     "field": {
@@ -610,7 +612,11 @@
       "conflictDays": "{{count}} day(s)",
       "reason": {
         "calendarMismatch": "The resource does not work on all days this task needs — shifting cannot resolve this.",
-        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict."
+        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict.",
+        "ceilingTooTight": "The extension ceiling leaves too little room: no free window within that many workdays.",
+        "ceilingUnreachable": "Giving extension does not help here — a deadline or constraint keeps this task in place.",
+        "noWindowInHorizon": "No free window was found within the searched period; beyond that it is unknown.",
+        "residualFull": "The own workload had room, but the library's residual capacity is used up — other projects occupy it."
       }
     },
     "curve": {
@@ -644,6 +650,108 @@
       "capacity": "Capacity",
       "documents": "Documents",
       "selectHint": "Select a resource to see the histogram."
+    },
+    "distribution": {
+      "open": "Distribute…",
+      "title": "Distribute over projects",
+      "back": "Back to occupancy",
+      "subtitle": "{{item}} — distribute residual capacity over the open projects",
+      "intro": "Choose who is spared the most, pin or cap a project where needed, and look at the chart to see what remains of the double booking. Apply writes the shifts into every project involved.",
+      "blocked": {
+        "uncounted": "Calculate first: {{docs}} has not been calculated yet, so there is nothing to distribute.",
+        "material": "This is a material item; distributing only works for people and equipment.",
+        "noDemand": "None of the projects actually book work here."
+      },
+      "tool": {
+        "title": "Tool",
+        "allowSplits": "Allow interruptions",
+        "allowSplitsHint": "The work may get pause days instead of shifting in one piece. In MS Project this is called \"Leveling can create splits in remaining work\".",
+        "price_one": "costs {{count}} workday of overrun",
+        "price_other": "costs {{count}} workdays of overrun",
+        "priceNone": "costs no overrun",
+        "priceOff": "off: {{price}}",
+        "priceOn": "on: {{price}}",
+        "priceSame": "{{price}} — in both settings",
+        "priceUnknown": "price unknown — press Recalculate"
+      },
+      "rank": {
+        "title": "Who gets spared the most?",
+        "hint": "The one on top gives way the least. Drag the handle on the left, or use the arrow buttons on the right.",
+        "drag": "Drag to reorder",
+        "float": "slack: {{days}}",
+        "cost_one": "letting only this project shift costs {{count}} workday",
+        "cost_other": "letting only this project shift costs {{count}} workdays",
+        "costNone": "letting only this project shift costs no overrun",
+        "moveUp": "Move up",
+        "moveDown": "Move down"
+      },
+      "help": {
+        "dragHandle": "Drag this row to another position in the order.",
+        "allowSplits": "Allows the work to take pause days instead of shifting in one piece; this gives the distribution more room, but produces split tasks.",
+        "price": "The price tag shows, per setting, how many working days the end date of the worst-affected project shifts; a single price with \"in both settings\" means interrupting makes no difference here.",
+        "rank": "The one on top gives way the least: that project keeps its dates as much as possible, while the ones below shift to make room.",
+        "rankCost": "What it would cost if only this project shifted and all the others stayed put — a yardstick for choosing the order, not the outcome of the current proposal.",
+        "pin": "Pin this project: it keeps its end date and its working days, and counts as a fixed load the other projects have to work around.",
+        "ceiling": "How many working days this project's end date may shift at most. Drag the handle, or use the arrow keys, Home (no overrun) and End (unlimited). The label shows the effect on the end date, not how far you dragged.",
+        "chart": "Now = the current booking of all open projects together; After distributing = what remains once the work is spread. Red is whatever exceeds the capacity.",
+        "recompute": "Recalculates the proposal with the current order, pins and caps.",
+        "apply": "Writes the shifts into every project involved; each project gets its own undo step.",
+        "discard": "Closes the dialog without changing anything.",
+        "pickAnother": "Back to the list of library items, to distribute a different item."
+      },
+      "strip": {
+        "pin": "Pin",
+        "pinned": "Pinned — this project does not shift, and keeps its workdays too",
+        "pinnedRecorded": "Pinned: dates as recorded",
+        "cannotMove": "Cannot shift — all the work here is fixed",
+        "fixedLoad": "Fixed load",
+        "ceiling": "Maximum overrun of the end date",
+        "ceilingUnlimited": "unlimited",
+        "ceilingDays_one": "ceiling {{count}} workday",
+        "ceilingDays_other": "ceiling {{count}} workdays",
+        "endUnchanged": "end unchanged",
+        "endShift_one": "end +{{count}} day",
+        "endShift_other": "end +{{count}} days",
+        "requestedVsAchievable": "requested {{requested}}, closest achievable {{achievable}}",
+        "handleLabel": "Overrun ceiling for {{doc}}"
+      },
+      "compute": {
+        "recalculate": "Recalculate",
+        "auto": "Distribute automatically",
+        "busy": "Distributing…",
+        "pressRecompute": "— press Recalculate",
+        "degraded": "This is a large overview; it only calculates when you press Recalculate."
+      },
+      "stale": {
+        "rank": "The order has changed — recalculate to see the effect.",
+        "ceiling": "A ceiling has changed — recalculate to see the effect.",
+        "pin": "A pin has changed — recalculate to see the effect.",
+        "tool": "The tool has changed — recalculate to see the effect.",
+        "edited": "Something changed in {{docs}} — this proposal is no longer current."
+      },
+      "shortfall": {
+        "title": "Remaining",
+        "doc_one": "{{doc}}: {{count}} task does not fit",
+        "doc_other": "{{doc}}: {{count}} tasks do not fit"
+      },
+      "preview": {
+        "before": "Now",
+        "after": "After distributing",
+        "capacity": "Capacity"
+      },
+      "apply": "Apply",
+      "discard": "Discard",
+      "applyBlockedShortfall": "First resolve the shortfall — widen a ceiling, or allow interruptions.",
+      "applyBlockedNothing": "There is nothing to apply: this proposal changes nothing.",
+      "applied_one": "Applied in {{count}} project.",
+      "applied_other": "Applied in {{count}} projects.",
+      "undoAll": "Undo all",
+      "undoneAll": "Everything has been undone.",
+      "undonePartial": "Undone, except {{docs}} — those have since been worked on.",
+      "selectHint": "Choose a library item with a conflict to start distributing.",
+      "noConflicts": "No library item is currently double-booked across the open projects.",
+      "pickAnother": "Choose another item…",
+      "pickAnotherApplied": "Choose another item (the undo bar goes away)…"
     },
     "color": "Color"
   },
