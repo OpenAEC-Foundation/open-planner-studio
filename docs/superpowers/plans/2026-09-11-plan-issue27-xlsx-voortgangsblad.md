@@ -512,10 +512,26 @@ afhandeling als `saveFileDialogWeb`, en anders `downloadBlob`. `downloadBlob` ve
 `(name: string, content: string | Uint8Array, mime?: string)`.
 
 `ReportPanel.writePdf` (r760–779) wordt vervangen door een aanroep van `saveBytesDialog` en verliest
-zijn eigen `@tauri-apps/*`-imports. **Gedrag blijft gelijk:** `viaDownload` wordt daar nog steeds niet
-gemeld (dat is vandaag ook zo) — zie Q3. Dit is geen opportunisme: `writePdf` is de enige bestaande
+zijn eigen `@tauri-apps/*`-imports. Dit is geen opportunisme: `writePdf` is de enige bestaande
 byte-schrijver, en hem laten staan zou betekenen dat er ná deze etappe **twee** byte-schrijfpaden zijn
 met verschillende foutafhandeling. Precies de duplicatie waar K6 over gaat.
+
+> **Correctie (eindreview 2026-09-12, bevinding 4).** Hier stond "**gedrag blijft gelijk**". Dat was
+> onwaar, op twee manieren:
+>
+> 1. **Op web is de PDF-export van een stille download een bestandskiezer geworden.** De oude
+>    `writePdf` deed op de webbuild altijd een download; `saveBytesDialog` probeert op Chromium
+>    eerst `showSaveFilePicker`. Dat verschil is een verbetering (de gebruiker kiest waar het
+>    bestand landt, en de FSA-route werkt óók waar downloads geblokkeerd zijn) en het blijft
+>    staan — maar het is wél een gedragswijziging en hoort niet als "gelijk" te zijn opgeschreven.
+>    Wat wél gelijk bleef: `viaDownload` wordt nog steeds niet gemeld — zie Q3.
+> 2. **De foutafhandeling was juist NIET gelijk.** `saveDataDialogWeb` gooit een echte fout
+>    (schijf vol, bestand vergrendeld, geweigerd type) bewust door; alleen annuleren en een
+>    omgevingsweigering vangt hij zelf af. `writePdf` ving niets en hangt aan een
+>    `void runExport()`, dus zo'n fout werd een unhandled rejection: de gebruiker drukt op
+>    Exporteren en er gebeurt zichtbaar niets. Sinds de fixronde vangen `writePdf` én de starter
+>    van `runExport` dat af en melden ze het via het ene meldingskanaal (K8a) met de bestaande
+>    sleutel `common:notifications.saveFailed` — geen nieuwe sleutel voor dezelfde gebeurtenis.
 
 ### X9 — `exportAs` draagt `string | Uint8Array`
 
@@ -1237,7 +1253,7 @@ T14 (poort). T15 mag met D mee.
 |---|---|---|
 | **Q1** | Vervangt `.xlsx` de knop, of komt er een tweede knop naast? | **Vervangt** (*X10*). Eén knop = het beste antwoord; CSV blijft als exportkaart en als leesformaat. Terugdraaien kost één extra `RibbonButtonSpec`. |
 | **Q2** | Exporteert het `.xlsx`-blad het percentage met decimalen (afwijkend van CSV)? | **Ja** (*X6*). De landinstellingen-valstrik die A1 tot afronden dwong bestaat in een getalcel niet. Gevolg: de xlsx-round-trip is exacter dan de CSV-round-trip. |
-| **Q3** | Meldt de PDF-export voortaan dat hij in de downloadmap is beland (`viaDownload`)? | **Nee, gedrag blijft gelijk.** Dat is een eigen verbetering met een eigen meldingsvraag; hem meenemen zou deze etappe stil uitbreiden. Kost later drie regels. |
+| **Q3** | Meldt de PDF-export voortaan dat hij in de downloadmap is beland (`viaDownload`)? | **Nee.** Dat is een eigen verbetering met een eigen meldingsvraag; hem meenemen zou deze etappe stil uitbreiden. Kost later drie regels. *Correctie 2026-09-12 (bevinding 4): hier stond "gedrag blijft gelijk", en dat was onwaar — op web opent de PDF-export sinds de lift eerst een bestandskiezer in plaats van stil te downloaden, en een echte schrijffout werd een unhandled rejection. De kiezer blijft; de foutmelding is toegevoegd. Zie de correctie bij X8.* |
 | **Q4** | Krijgen de invulkolommen ook een `dataValidation`-**prompt** (het gele tooltipje bij selectie)? | **Ja**, met dezelfde teksten als de kopcel — nul extra i18n-sleutels, en precies de begeleiding die E8/E9 vragen. Storend? Eén attribuut weghalen. |
 | **Q5** | Moet het blad ook beschermd zijn tegen rijen invoegen/verwijderen? | **Ja, via de standaard.** `insertRows`/`deleteRows` blijven op hun default (verboden onder bladbeveiliging); we zetten er niets voor. Een ingevoegde rij zou toch geen `OPS Task ID` dragen en netjes als `unmatched` in de koppelsectie belanden. |
 | **Q6** | Moeten de onderlagen (`zip/`, `xlsx/`) ook door andere exports gebruikt worden (rapport als werkmap, volle takenlijst)? | **Niet in deze etappe.** De lagen zijn er algemeen genoeg voor; dat is een vervolg met een eigen ontwerpvraag, geen afgeleide belofte. |
