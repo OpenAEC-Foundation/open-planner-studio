@@ -3,11 +3,11 @@
  * (issue #27, etappe 3, X2). Puur: geen store, geen React, geen `@tauri-apps/*`, geen
  * module-level muteerbare state. `extensionService` is sindsdien gewoon een afnemer.
  *
- * Dit bestand is in deze stap een LETTERLIJKE verplaatsing; het enige verschil met de
- * extensieversie is dat de twee `MAX_ZIP_*`-constanten velden van een injecteerbare
- * `ZipReadLimits` zijn geworden. De hardening (uitpakbudget per chunk, `maxEntries`,
- * Zip64-weigering, `select`) volgt in de stap hierna, zodat de extensiechecks eerst
- * ongewijzigd groen kunnen bewijzen dat de lift gedragsneutraal is.
+ * Drie dingen zijn hier bewust anders dan in de extensieversie:
+ *   1. de limieten zijn **injecteerbaar** (`ZipReadLimits`) in plaats van module-locale constanten;
+ *   2. het uitpakbudget wordt **tijdens** het inflaten per chunk afgerekend, niet erna — een
+ *      nacontrole is geen limiet (zie `inflateRawBounded`);
+ *   3. Zip64 wordt expliciet **geweigerd** in plaats van stil verkeerd gelezen.
  */
 
 export interface ZipEntry {
@@ -15,6 +15,9 @@ export interface ZipEntry {
   data: Uint8Array;
 }
 
+/** `bytesSeen` staat er voor de zip-bomtest: het is het aantal bytes dat al uitgepakt wás toen de
+ *  weigering afging. Verhuist de budgettoets naar ná de inflatielus, dan springt dat getal van
+ *  "budget + één chunk" naar de volle payload — precies het mutatiebewijs. */
 export class ZipValidationError extends Error {
   readonly bytesSeen?: number;
   constructor(message: string, bytesSeen?: number) {
@@ -48,13 +51,34 @@ const SIG_CENTRAL = 0x02014b50;     // central directory file header
 const SIG_EOCD = 0x06054b50;        // end of central directory
 const SIG_DATA_DESC = 0x08074b50;   // optional data descriptor
 
-/** Inflate ruwe deflate-data via de browser-native DecompressionStream. */
-async function inflateRaw(compressed: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+/** De sentinels die in een Zip64-archief "de echte maat staat in het extra-veld" betekenen. */
+const ZIP64_U32 = 0xffffffff;
+const ZIP64_U16 = 0xffff;
+
+/** Zip64 wordt geweigerd, niet geraden: zonder deze weigering leest de lezer zo'n bestand stil
+ *  verkeerd (alle maten komen uit `getUint32`). Onze eigen bladen zijn kilobytes groot. */
+function rejectZip64(): never {
+  throw new ZipValidationError('Zip64 wordt niet ondersteund');
+}
+
+/**
+ * Inflate ruwe deflate-data via de browser-native DecompressionStream, met een budget dat **per
+ * chunk** wordt afgerekend. Zodra de som het budget passeert wordt de reader gecancelled en vliegt
+ * er een `ZipValidationError`; er wordt dus nooit meer dan budget + één chunk gealloceerd.
+ *
+ * Geëxporteerd omdat de zip-bomtest hem los moet kunnen aanroepen om `bytesSeen` te toetsen.
+ */
+export async function inflateRawBounded(
+  compressed: Uint8Array,
+  budget: number,
+): Promise<Uint8Array> {
   const ds = new DecompressionStream('deflate-raw');
   const writer = ds.writable.getWriter();
   const reader = ds.readable.getReader();
-  void writer.write(compressed);
-  void writer.close();
+  // Bewust niet awaiten: bij een grote buffer blokkeert `write` op backpressure zolang er nog
+  // niemand leest. Fouten uit deze kant komen alsnog via `reader.read()` terug.
+  void writer.write(compressed as Uint8Array<ArrayBuffer>).catch(() => {});
+  void writer.close().catch(() => {});
 
   const chunks: Uint8Array[] = [];
   let totalLen = 0;
@@ -63,6 +87,13 @@ async function inflateRaw(compressed: Uint8Array<ArrayBuffer>): Promise<Uint8Arr
     if (done) break;
     chunks.push(value);
     totalLen += value.length;
+    if (totalLen > budget) {
+      await reader.cancel().catch(() => {});
+      throw new ZipValidationError(
+        `Uitgepakte ZIP-data overschrijdt het budget van ${budget} bytes`,
+        totalLen,
+      );
+    }
   }
   const out = new Uint8Array(totalLen);
   let pos = 0;
@@ -73,10 +104,52 @@ async function inflateRaw(compressed: Uint8Array<ArrayBuffer>): Promise<Uint8Arr
   return out;
 }
 
-async function decompressEntry(method: number, compressed: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
-  if (method === 0) return compressed;       // stored
-  if (method === 8) return inflateRaw(compressed); // deflate
-  throw new Error(`Niet-ondersteunde compressiemethode: ${method}`);
+/**
+ * Het budget voor één entry. De absolute grenzen dragen de garantie; `maxRatio` is de goedkope
+ * vroege uitstap. Beide worden teruggegeven zodat de weigering kan zeggen wélke grens het was —
+ * "deze entry inflateert 200× " is voor de gebruiker een ander verhaal dan "dit bestand is groot".
+ */
+function entryBudget(
+  limits: ZipReadLimits,
+  alreadyUnpacked: number,
+  compSize: number,
+): { budget: number; ratioBudget: number } {
+  const absolute = Math.min(limits.maxEntryBytes, limits.maxTotalBytes - alreadyUnpacked);
+  const ratioBudget = compSize * limits.maxRatio;
+  return { budget: Math.max(0, Math.min(absolute, ratioBudget)), ratioBudget };
+}
+
+async function decompressEntry(
+  method: number,
+  compressed: Uint8Array<ArrayBuffer>,
+  limits: ZipReadLimits,
+  alreadyUnpacked: number,
+  name: string,
+): Promise<Uint8Array> {
+  const { budget, ratioBudget } = entryBudget(limits, alreadyUnpacked, compressed.length);
+
+  if (method === 0) {                              // stored — geen inflatie, dus geen bom
+    if (compressed.length > budget) {
+      throw new ZipValidationError(
+        `ZIP-entry "${name}" overschrijdt de uitpaklimiet van ${budget} bytes`,
+        compressed.length,
+      );
+    }
+    return compressed;
+  }
+  if (method !== 8) throw new Error(`Niet-ondersteunde compressiemethode: ${method}`);
+
+  try {
+    return await inflateRawBounded(compressed, budget);
+  } catch (err) {
+    if (err instanceof ZipValidationError) {
+      const label = budget === ratioBudget && ratioBudget < limits.maxEntryBytes
+        ? `ZIP-entry "${name}" overschrijdt het compressie-ratio-plafond van ${limits.maxRatio}x`
+        : `ZIP-entry "${name}" overschrijdt de uitpaklimiet van ${budget} bytes`;
+      throw new ZipValidationError(label, err.bytesSeen);
+    }
+    throw err;
+  }
 }
 
 function assertSafeZipEntryName(name: string): void {
@@ -123,19 +196,25 @@ function normalizeZipEntries(entries: ZipEntry[]): ZipEntry[] {
  * Parse ZIP-entries. Primair via de CENTRAL DIRECTORY (betrouwbare maten, lost het
  * data-descriptor-overshoot-probleem op); valt terug op een local-header-scan als de
  * EOCD ontbreekt of de central-directory-lezing faalt.
+ *
+ * `select` bepaalt WELKE entries worden uitgepakt — de rest wordt overgeslagen zónder te inflaten
+ * (hardening én snelheid: het scannen van de directory is goedkoop, inflaten is dat niet). Hij
+ * krijgt de naam zoals die in het archief staat, dus vóór het strippen van een gedeelde topmap.
+ * Ontbreekt hij, dan worden alle entries uitgepakt — het bestaande extensiegedrag.
  */
 export async function parseZipEntries(
   buffer: ArrayBuffer,
   limits: ZipReadLimits = EXTENSION_ZIP_LIMITS,
+  select?: (name: string) => boolean,
 ): Promise<ZipEntry[]> {
   let viaCentral: ZipEntry[] | null = null;
   try {
-    viaCentral = await parseViaCentralDirectory(buffer, limits);
+    viaCentral = await parseViaCentralDirectory(buffer, limits, select);
   } catch (err) {
     if (err instanceof ZipValidationError) throw err;
     console.warn('[ZIP] Central-directory-lezing faalde, val terug op local-scan:', err);
   }
-  const entries = viaCentral ?? await parseViaLocalHeaders(buffer, limits);
+  const entries = viaCentral ?? await parseViaLocalHeaders(buffer, limits, select);
   return normalizeZipEntries(entries);
 }
 
@@ -151,6 +230,7 @@ function findEocdOffset(view: DataView, byteLength: number): number {
 async function parseViaCentralDirectory(
   buffer: ArrayBuffer,
   limits: ZipReadLimits,
+  select?: (name: string) => boolean,
 ): Promise<ZipEntry[] | null> {
   const view = new DataView(buffer);
   const eocd = findEocdOffset(view, buffer.byteLength);
@@ -158,12 +238,16 @@ async function parseViaCentralDirectory(
 
   const total = view.getUint16(eocd + 10, true);
   let cd = view.getUint32(eocd + 16, true); // offset van central directory
+  if (total === ZIP64_U16 || cd === ZIP64_U32) rejectZip64();
+  if (total > limits.maxEntries) {
+    throw new ZipValidationError(`ZIP bevat ${total} entries; het maximum is ${limits.maxEntries}`);
+  }
 
   const entries: ZipEntry[] = [];
   let declaredTotal = 0;
   let actualTotal = 0;
   for (let i = 0; i < total; i++) {
-    if (cd + 4 > buffer.byteLength || view.getUint32(cd, true) !== SIG_CENTRAL) break;
+    if (cd + 46 > buffer.byteLength || view.getUint32(cd, true) !== SIG_CENTRAL) break;
 
     const method = view.getUint16(cd + 10, true);
     const compSize = view.getUint32(cd + 20, true);
@@ -172,7 +256,15 @@ async function parseViaCentralDirectory(
     const extraLen = view.getUint16(cd + 30, true);
     const commentLen = view.getUint16(cd + 32, true);
     const localOffset = view.getUint32(cd + 42, true);
+    if (compSize === ZIP64_U32 || uncompressedSize === ZIP64_U32 || localOffset === ZIP64_U32) {
+      rejectZip64();
+    }
 
+    // Elke lengte uit een header is een leugen tot het tegendeel blijkt: eerst toetsen tegen de
+    // bufferlengte, dan pas een view maken of de cursor verzetten.
+    if (cd + 46 + nameLen + extraLen + commentLen > buffer.byteLength) {
+      throw new ZipValidationError('ZIP central directory loopt buiten het bestand');
+    }
     const name = new TextDecoder().decode(new Uint8Array(buffer, cd + 46, nameLen));
     cd += 46 + nameLen + extraLen + commentLen;
 
@@ -180,15 +272,19 @@ async function parseViaCentralDirectory(
 
     if (name.endsWith('/')) continue; // map
     declaredTotal = addZipPayloadSize(declaredTotal, uncompressedSize, name, limits);
+    if (select && !select(name)) continue; // niet gevraagd: niet uitpakken
 
     // Lees het local file header om de exacte datastart te vinden (extra-veld kan afwijken).
-    if (view.getUint32(localOffset, true) !== SIG_LOCAL) continue;
+    if (localOffset + 30 > buffer.byteLength || view.getUint32(localOffset, true) !== SIG_LOCAL) continue;
     const localNameLen = view.getUint16(localOffset + 26, true);
     const localExtraLen = view.getUint16(localOffset + 28, true);
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    if (dataStart + compSize > buffer.byteLength) {
+      throw new ZipValidationError(`ZIP-entry "${name}" loopt buiten het bestand`);
+    }
 
     const compressed = new Uint8Array(buffer, dataStart, compSize);
-    const data = await decompressEntry(method, compressed);
+    const data = await decompressEntry(method, compressed, limits, actualTotal, name);
     actualTotal = addZipPayloadSize(actualTotal, data.length, name, limits);
     entries.push({ name, data });
   }
@@ -196,20 +292,28 @@ async function parseViaCentralDirectory(
   return entries;
 }
 
-/** Fallback: lineaire scan over local file headers (voor ZIP's zonder bruikbare EOCD). */
+/** Fallback: lineaire scan over local file headers (voor ZIP's zonder bruikbare EOCD).
+ *  Draagt exact dezelfde grenzen als de central-directory-route — anders was de hardening te
+ *  omzeilen door de central directory simpelweg weg te laten. */
 async function parseViaLocalHeaders(
   buffer: ArrayBuffer,
   limits: ZipReadLimits,
+  select?: (name: string) => boolean,
 ): Promise<ZipEntry[]> {
   const view = new DataView(buffer);
   const entries: ZipEntry[] = [];
   let offset = 0;
   let declaredTotal = 0;
   let actualTotal = 0;
+  let seenHeaders = 0;
 
-  while (offset + 4 <= buffer.byteLength) {
+  while (offset + 30 <= buffer.byteLength) {
     const sig = view.getUint32(offset, true);
     if (sig !== SIG_LOCAL) break;
+
+    if (++seenHeaders > limits.maxEntries) {
+      throw new ZipValidationError(`ZIP bevat meer dan ${limits.maxEntries} entries`);
+    }
 
     const flags = view.getUint16(offset + 6, true);
     const method = view.getUint16(offset + 8, true);
@@ -217,6 +321,10 @@ async function parseViaLocalHeaders(
     const uncompressedSize = view.getUint32(offset + 22, true);
     const nameLen = view.getUint16(offset + 26, true);
     const extraLen = view.getUint16(offset + 28, true);
+    if (compSize === ZIP64_U32 || uncompressedSize === ZIP64_U32) rejectZip64();
+    if (offset + 30 + nameLen + extraLen > buffer.byteLength) {
+      throw new ZipValidationError('ZIP local header loopt buiten het bestand');
+    }
     const name = new TextDecoder().decode(new Uint8Array(buffer, offset + 30, nameLen));
     const dataOffset = offset + 30 + nameLen + extraLen;
 
@@ -230,15 +338,20 @@ async function parseViaLocalHeaders(
       compSize = dataLen;
       dataDescLen = descLen;
     }
+    if (dataOffset + compSize > buffer.byteLength) {
+      throw new ZipValidationError(`ZIP-entry "${name}" loopt buiten het bestand`);
+    }
 
     if (!name.endsWith('/')) {
       if (uncompressedSize > 0) {
         declaredTotal = addZipPayloadSize(declaredTotal, uncompressedSize, name, limits);
       }
-      const compressed = new Uint8Array(buffer, dataOffset, compSize);
-      const data = await decompressEntry(method, compressed);
-      actualTotal = addZipPayloadSize(actualTotal, data.length, name, limits);
-      entries.push({ name, data });
+      if (!select || select(name)) {
+        const compressed = new Uint8Array(buffer, dataOffset, compSize);
+        const data = await decompressEntry(method, compressed, limits, actualTotal, name);
+        actualTotal = addZipPayloadSize(actualTotal, data.length, name, limits);
+        entries.push({ name, data });
+      }
     }
 
     offset = dataOffset + compSize + dataDescLen;
