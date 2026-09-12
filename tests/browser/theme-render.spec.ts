@@ -81,7 +81,7 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.getByRole('dialog');
   await expect(settings).toBeVisible();
-  await settings.locator('.settings-theme-card').nth(2).click();
+  await settings.locator('[data-ops-theme-card="high-contrast"]').click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme))
     .toBe('high-contrast');
   await expect.poll(() => paintCount(page, 'primary')).toBeGreaterThan(before.paint);

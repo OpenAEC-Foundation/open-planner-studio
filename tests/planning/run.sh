@@ -101,9 +101,90 @@ check_batteries () {
 }
 check_batteries
 
+# ── Check-scriptinventaris ──────────────────────────────────────────────────────────────────
+# Een `check-*.ts`-bestand dat op schijf staat maar door GEEN ENKELE `if bundle_check
+# "$DIR/check-..."`-regel wordt aangeroepen, draait in een volledige run stilzwijgend niet mee —
+# geen foutmelding, gewoon een lager totaal (zo werd `check-tauri-refresh-evidence.ts` wees:
+# bestond, typechecte mee via tsconfig.check.json, maar was door geen `bundle_check`-regel
+# aangesloten — gevonden 2026-09, inmiddels bedraad). Iedere `check-*.ts` moet daarom OFWEL
+# aangeroepen worden, OFWEL expliciet met reden op CHECK_SCRIPT_ALLOWLIST staan — naar het model
+# van EXPECTED_BATTERIES/check_batteries hierboven, maar dan voor de losse check-scripts i.p.v.
+# de cases-*.json-batterijen.
+CHECK_SCRIPT_ALLOWLIST=(
+  # (voorlopig leeg — elke check-*.ts hoort via een `if bundle_check ...`-regel aangesloten te
+  # zijn. Een bewust handmatige/rode check hoort hier met een regel die uitlegt waarom, plus een
+  # verwijzing naar de bijbehorende docs/TODO.md-notitie.)
+)
+
+check_check_scripts () {
+  local f base missing=() allow
+  local -A wired=() allowed=()
+  for base in $(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
+      | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true); do
+    wired[$base]=1
+  done
+  for allow in "${CHECK_SCRIPT_ALLOWLIST[@]:-}"; do
+    [ -n "$allow" ] && allowed[$allow]=1
+  done
+  for f in "$DIR"/check-*.ts; do
+    base="$(basename "$f")"
+    if [ -z "${wired[$base]:-}" ] && [ -z "${allowed[$base]:-}" ]; then
+      missing+=("$base")
+    fi
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "XX  check-scriptinventaris: ${#missing[@]} bestand(en) niet aangeroepen en niet op de allowlist: ${missing[*]}"
+    echo "    (nieuwe/vergeten check-*.ts? bedraad 'm met 'if bundle_check ...; then ...; fi', of zet 'm"
+    echo "    met een reden op CHECK_SCRIPT_ALLOWLIST bovenin dit script — nooit stilzwijgend een rode check bedraden)"
+    STATUS=1
+  else
+    echo "OK  check-scriptinventaris: alle check-*.ts-bestanden aangesloten of op de allowlist"
+  fi
+}
+check_check_scripts
+
+# ── Argumentafhandeling (gerichte run) ─────────────────────────────────────────────────────
+# Twee argumentvormen, door elkaar toegestaan: `cases-<naam>.json` (één CPM-batterij, gaat naar
+# de harness zoals voorheen) en `check-<naam>.ts` (één losse check-batterij — voorheen alleen via
+# een volledige run bereikbaar). Onbekende namen worden verzameld en maken de run rood, maar
+# blokkeren de rest niet: zelfde STATUS-accumulatie-filosofie als `bundle_check` hierboven — je
+# ziet zo in één keer het hele beeld i.p.v. bij de eerste typefout af te breken.
+# Beide vormen worden gededupliceerd: hetzelfde argument twee keer meegeven bundelt/draait het
+# niet twee keer, en telt bij de "GERICHTE RUN"-samenvatting onderaan ook maar één keer mee als
+# "wél gedraaid" (voorheen liet `check-x.ts check-x.ts` de skip-teller er één te veel uitzien).
+CHECK_NAMES=()
 if [ "$#" -gt 0 ]; then
-  FILES=()
-  for f in "$@"; do FILES+=("$DIR/$f"); done
+  CASE_FILES=()
+  UNKNOWN_ARGS=()
+  declare -A SEEN_CASE_FILES=() SEEN_CHECK_NAMES=()
+  for f in "$@"; do
+    case "$f" in
+      cases-*.json)
+        if [ ! -f "$DIR/$f" ]; then
+          UNKNOWN_ARGS+=("$f")
+        elif [ -z "${SEEN_CASE_FILES[$f]:-}" ]; then
+          CASE_FILES+=("$DIR/$f")
+          SEEN_CASE_FILES[$f]=1
+        fi
+        ;;
+      check-*.ts)
+        if [ ! -f "$DIR/$f" ]; then
+          UNKNOWN_ARGS+=("$f")
+        elif [ -z "${SEEN_CHECK_NAMES[$f]:-}" ]; then
+          CHECK_NAMES+=("$f")
+          SEEN_CHECK_NAMES[$f]=1
+        fi
+        ;;
+      *)
+        UNKNOWN_ARGS+=("$f")
+        ;;
+    esac
+  done
+  for u in "${UNKNOWN_ARGS[@]}"; do
+    echo "XX  onbekend argument: $u (verwacht cases-<naam>.json of check-<naam>.ts, bestaand in $DIR)"
+    STATUS=1
+  done
+  FILES=("${CASE_FILES[@]}")
   RUN_HOLIDAYS=0
 else
   FILES=("$DIR"/cases-*.json)
@@ -127,15 +208,36 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DTCHECK="$DIR/.datetime-check.mjs"
   if bundle_check "$DIR/check-datetime.ts" "$DTCHECK"; then node "$DTCHECK" || STATUS=1; fi
 
+  # Commitmodus van het gedeelde datumveld (DateTextInput — pure reducers): één ingetypte datum mag
+  # in de standaard 'blur'-modus precies EEN commit (en dus een undo-stap) opleveren.
+  DICHECK="$DIR/.date-input-commit-check.mjs"
+  if bundle_check "$DIR/check-date-input-commit.ts" "$DICHECK"; then node "$DICHECK" || STATUS=1; fi
+
   # "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts — pure functies, los van de CPM-cases).
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi
+
+  # Leeskant van de stats-pijplijn (tab Statistieken in de instellingen): parser tegen de echte
+  # `downloads.json`-vorm, schema-poort en de cache-/fetch-volgorde met geïnjecteerde fetch/opslag.
+  DLSTATSCHECK="$DIR/.download-stats-check.mjs"
+  if bundle_check "$DIR/check-download-stats.ts" "$DLSTATSCHECK"; then node "$DLSTATSCHECK" || STATUS=1; fi
+
+  # Tabelrapporten (discussie #31): look-ahead, kritiek, voortgang, gezondheid, resources, WBS —
+  # de pure engine in src/engine/reports/ tegen een via de echte store opgebouwd project.
+  RPCHECK="$DIR/.reports-check.mjs"
+  if bundle_check "$DIR/check-reports.ts" "$RPCHECK"; then node "$RPCHECK" || STATUS=1; fi
 
   # "Bestaat dit tekst-asset echt?"-poort van de in-app help (textAsset.ts — pure functies +
   # injecteerbare fetch). Zet de desktopbug vast waarbij een content-type-check ALLE help-artikelen
   # verwierp: de Tauri-webview labelt elke onbekende extensie (.md) als text/html.
   TACHECK="$DIR/.text-asset-check.mjs"
   if bundle_check "$DIR/check-text-asset.ts" "$TACHECK"; then node "$TACHECK" || STATUS=1; fi
+
+  # Pre-paint-themaspiegel (issue #61): de handkopie van de themamap in index.html mag niet
+  # ongemerkt afwijken van THEME_MIGRATION (settingsStore.ts) — dezelfde duplicatieklasse die dit
+  # project elders wél mechanisch dichtzet.
+  TPCHECK="$DIR/.theme-premirror-check.mjs"
+  if bundle_check "$DIR/check-theme-premirror.ts" "$TPCHECK"; then node "$TPCHECK" || STATUS=1; fi
 
   # CalendarEngine uur-modus-checks (fase 2.8b golf 1, §4/§9 — engine-primitieven, los van de CPM-cases).
   CHCHECK="$DIR/.calendar-hours-check.mjs"
@@ -202,6 +304,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
+  # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
+  CECHECK="$DIR/.check-contour-engine.mjs"
+  if bundle_check "$DIR/check-contour-engine.ts" "$CECHECK"; then node "$CECHECK" || STATUS=1; fi
 
   # Geavanceerde-CPM golf-0-checks (fase 2.9 — datamodel + plumbing default-inert, los van de CPM-cases).
   ACPMCHECK="$DIR/.advanced-cpm-check.mjs"
@@ -250,6 +356,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
+
+  # Tauri-verversing van externe relaties (tabel-overhaul, eindreview-bewijs): gehashte before/
+  # after/source-IFC's uit de ECHTE desktop-app (docs/superpowers/evidence/tabel-overhaul-*.md)
+  # tonen dat de lintactie "Alle externe relaties vernieuwen" het verouderde anker/sourceMissing/
+  # identiteit herstelt via OPS_TaskIdentity/InternalProjectId/GlobalId-terugvallen. Was tot 2026-09
+  # een wees (bestond, typechecte mee via tsconfig.check.json, maar door geen `bundle_check`-regel
+  # aangeroepen — zie de check-scriptinventaris bovenin dit script); groen in isolatie bevonden,
+  # dus hier alsnog aangesloten in plaats van op de allowlist gezet.
+  TAURIREFRESHCHECK="$DIR/.tauri-refresh-evidence.mjs"
+  if bundle_check "$DIR/check-tauri-refresh-evidence.ts" "$TAURIREFRESHCHECK"; then node "$TAURIREFRESHCHECK" || STATUS=1; fi
 
   # Documentcontract-checks (audit P10, F1/F3 — key-gedreven capture/hydrate/reset, Snapshot-subset,
   # B3-regressie, recovery-round-trip; headless tegen de echte store, los van de CPM-cases).
@@ -333,6 +449,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"
   if bundle_check "$DIR/check-full-task-grid-surface.ts" "$TGFULLSURFACECHECK"; then node "$TGFULLSURFACECHECK" || STATUS=1; fi
+  # Issue #89: naaminspringing, één tooltip per cel, plusknop met lucht, naameditor op volle breedte.
+  TGPRESENTATIONCHECK="$DIR/.task-grid-presentation.mjs"
+  if bundle_check "$DIR/check-task-grid-presentation.ts" "$TGPRESENTATIONCHECK"; then node "$TGPRESENTATIONCHECK" || STATUS=1; fi
   TGKEYROUTECHECK="$DIR/.task-grid-keyboard-event-routing.mjs"
   if bundle_check "$DIR/check-keyboard-event-routing.ts" "$TGKEYROUTECHECK"; then node "$TGKEYROUTECHECK" || STATUS=1; fi
   EXTLDIALOGCHECK="$DIR/.external-link-dialog.mjs"
@@ -390,6 +509,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   FOCUSCHECK="$DIR/.focus-task.mjs"
   if bundle_check "$DIR/check-focus-task.ts" "$FOCUSCHECK"; then node "$FOCUSCHECK" || STATUS=1; fi
 
+  # Issue #53 (Waarschuwingenpaneel): de pure verzamelaar over cpmResult/resourceLoadResult, de
+  # solver-uitbreiding `cycleTaskIds`, de navigatie naar taak/relatie/resource/cyclus op een echte
+  # store, en de setUI-invarianten voor het derde railpaneel.
+  WARNCHECK="$DIR/.schedule-warnings.mjs"
+  if bundle_check "$DIR/check-schedule-warnings.ts" "$WARNCHECK"; then node "$WARNCHECK" || STATUS=1; fi
+
   # Tabel-overhaul Task 1: stabiele rowKeys voor boom-, groeps- en dubbele resource-occurrences,
   # occurrence-range met unieke domeinselectie en cursorherstel als filter/collapse een rij wist.
   VRKCHECK="$DIR/.view-row-key.mjs"
@@ -442,6 +567,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RWDSETTINGSCHECK="$DIR/.report-working-days-setting.mjs"
   if bundle_check "$DIR/check-report-working-days-setting.ts" "$RWDSETTINGSCHECK"; then node "$RWDSETTINGSCHECK" || STATUS=1; fi
 
+  # Naamkolom van de rapporttabel: afkappen aan/uit + sliderbreedte, defaults en klemmen.
+  RNCSETTINGSCHECK="$DIR/.report-name-column-setting.mjs"
+  if bundle_check "$DIR/check-report-name-column-setting.ts" "$RNCSETTINGSCHECK"; then node "$RNCSETTINGSCHECK" || STATUS=1; fi
+
   # Renderer-datumloos-regressie (TODO-item 2026-07-28): `barGeometry` (en `drawMilestone`) gooide
   # per frame een TypeError op een taak zonder start-/finishdatums (`undefined.includes('T')`) en
   # liet de hele Gantt zwart. Draait de echte renderer over datumloze leaf-/summary-/mijlpaal-rijen:
@@ -449,6 +578,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # viewstart, en getTaskBarBounds weigert de stub (geen drag met undefined originalStart).
   RDCHECK="$DIR/.renderer-dateless.mjs"
   if bundle_check "$DIR/check-renderer-dateless.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
+
+  # Issue #114: de trace-tint (voorganger goud / opvolger paars) mag niet door de blauwe/rode
+  # voortgangsvulling worden overschilderd — een voltooide voorganger leek anders niet gemarkeerd.
+  TRACEPROGCHECK="$DIR/.gantt-trace-progress.mjs"
+  if bundle_check "$DIR/check-gantt-trace-progress.ts" "$TRACEPROGCHECK"; then node "$TRACEPROGCHECK" || STATUS=1; fi
 
   # Dev-only Gantt-testdriver: reverse locator gebruikt exact de renderer-eigen balkgeometrie en
   # behoudt het bestaande hit-testbeleid voor datumloze taken, mijlpalen en verzameltaken.
@@ -460,6 +594,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # en sleep-/resize-baar zijn — dezelfde discriminator als de solver (isZeroDurationMilestone).
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
+
+  # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
+  # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
+  # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem
+  # en hit-test). Standaardgeval, exact passende lijst, nul resources en de laatste-resource-hit
+  # bij volle scroll.
+  HISTPICKCHECK="$DIR/.histogram-picker-geometry.mjs"
+  if bundle_check "$DIR/check-histogram-picker-geometry.ts" "$HISTPICKCHECK"; then node "$HISTPICKCHECK" || STATUS=1; fi
 
   # Z15 (etappe "nul afwijkingen", baan D): onderbroken balken (Task.splitGaps) in de Gantt-canvas
   # ÉN print/PDF — gatentelling ⇒ segmentaantal + necking-connector, O5 (splitGaps ALTIJD gesplitst,
@@ -477,6 +619,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
   RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
   if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
+
+  # R1: `computeResourceLoad` levert per overbezette dag ook de REDEN (`overallocatedReasons`) —
+  # `non-working-day` (resourcekalender kent de dag geen werkdag) vs. `over-capacity` (inzet groter
+  # dan capaciteit > 0), zodat het histogram-tooltip en het waarschuwingenpaneel kunnen uitleggen
+  # waaróm een dag rood staat.
+  RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
+  if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
 
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
@@ -626,6 +775,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   BARCOLORSETTINGSCHECK="$DIR/.bar-color-settings.mjs"
   if bundle_check "$DIR/check-bar-color-settings.ts" "$BARCOLORSETTINGSCHECK"; then node "$BARCOLORSETTINGSCHECK" || STATUS=1; fi
 
+  # Thema "Systeem": resolutie van de voorkeur naar dark/light, de matchMedia-detectie/-listener,
+  # de opslag (geen legacymigratie van 'system'), en de bronpoorten op het pre-paint-script in
+  # index.html + de [data-theme]-blokken in globals.css.
+  SYSTEMTHEMECHECK="$DIR/.system-theme.mjs"
+  if bundle_check "$DIR/check-system-theme.ts" "$SYSTEMTHEMECHECK"; then node "$SYSTEMTHEMECHECK" || STATUS=1; fi
+
   # Balkkleurcategorieën delen exact de Group-veldcatalogus; een verwijderd projectveld valt
   # tijdelijk terug op Taaktype zonder de globale keuze te overschrijven.
   BARCOLORFIELDCHECK="$DIR/.bar-color-field-options.mjs"
@@ -635,6 +790,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # kleurmodi + legenda — via opnemende Draw2D, zelfde renderer als preview én vector-PDF.
   PRTEXPCHECK="$DIR/.print-report.mjs"
   if bundle_check "$DIR/check-print-report.ts" "$PRTEXPCHECK"; then node "$PRTEXPCHECK" || STATUS=1; fi
+
+  # Rasterexport-streaming: exportRaster() mag geen paginalimiet hebben (een export moet compleet
+  # zijn), dus de begrenzing moet uit het geheugengedrag komen — één pagina-canvas tegelijk, meteen
+  # naar JPEG en weer vrijgegeven, in plaats van alle rows*cols canvassen tegelijk vasthouden.
+  PRTSTREAMCHECK="$DIR/.print-raster-export-streaming.mjs"
+  if bundle_check "$DIR/check-print-raster-export-streaming.ts" "$PRTSTREAMCHECK"; then node "$PRTSTREAMCHECK" || STATUS=1; fi
 
   # Issue #21 punt 2 — wanneer alleen werkdagen tonen aan staat, gebruikt het rapport dezelfde
   # gecomprimeerde as als de scherm-Gantt en vervangt het verdwenen weekendarcering door weekbanden.
@@ -855,8 +1016,35 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
 fi
 
+# ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────
+# Zelfde `bundle_check`-mechanisme als hierboven, maar dan alleen voor de expliciet gevraagde
+# bestanden — dus geen esbuild-kosten voor de overige check-batterijen. Twee checks forceren in
+# de volledige run bewust OPS_RELAX_PERF=0 (zware, tijdzone-onafhankelijke performance-poorten);
+# dat gedrag wordt hier gespiegeld zodat een gerichte aanroep niet stilzwijgend een relaxte
+# omgevingsvariabele van de aanroepende shell overneemt.
+if [ "${#CHECK_NAMES[@]}" -gt 0 ]; then
+  for name in "${CHECK_NAMES[@]}"; do
+    base="${name%.ts}"
+    out="$DIR/.$base.mjs"
+    if bundle_check "$DIR/$name" "$out"; then
+      case "$base" in
+        check-task-grid-performance|check-task-grid-paste-performance)
+          OPS_RELAX_PERF=0 node "$out" || STATUS=1
+          ;;
+        *)
+          node "$out" || STATUS=1
+          ;;
+      esac
+    fi
+  done
+fi
+
 if [ "$HARNESS_OK" -eq 1 ]; then
-  node "$OUT" "${FILES[@]}" || STATUS=1
+  # Bij een gerichte run met uitsluitend check-*.ts-argumenten is FILES leeg; de harness dan
+  # toch aanroepen zou alleen een verwarrende "TOTAAL: 0/0" opleveren.
+  if [ "${#FILES[@]}" -gt 0 ]; then
+    node "$OUT" "${FILES[@]}" || STATUS=1
+  fi
 else
   echo "XX  cases overgeslagen: de harness kon niet gebundeld worden (zie de fout hierboven)"
 fi
@@ -903,6 +1091,48 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
       STATUS=1
     fi
   done
+fi
+
+# ── Waarschuwing bij een gerichte run ───────────────────────────────────────────────────────
+# RUN_HOLIDAYS is exact 0 wanneer er argumenten meegegeven zijn (zie de argumentafhandeling
+# hierboven). Het aantal overgeslagen check-batterijen wordt dynamisch geteld door dit script
+# zelf te lezen — geen los bijgehouden getal dat kan verouderen zodra er een check bij komt of
+# verdwijnt. De regel-vorm (`if bundle_check "$DIR/check-...`) filtert het documentatievoorbeeld
+# in het commentaar boven `bundle_check` eruit: die staat op een `#`-regel.
+#
+# Twee dingen die hier bewust anders zijn dan de eerste versie van deze paragraaf:
+#  1. `"${BASH_SOURCE[0]}"` i.p.v. het hardgecodeerde `"$DIR/run.sh"`, en de hele grep-pijplijn
+#     eindigt op `|| true`. Onder `set -euo pipefail` faalt een `VAR=$(pijplijn)`-toewijzing zodra
+#     één stap in de pijplijn niets vindt (bijv. na een naamswijziging van deze regelvorm) — de
+#     assignment krijgt dan exitcode 1, en `set -e` doodt het script VOORDAT de banner of
+#     `exit "$STATUS"` bereikt wordt: een groene gerichte run eindigt dan als stille exitcode 1.
+#     `|| true` maakt lege uitvoer (dus `wc -l` = 0) het ergste geval, nooit een crash.
+#  2. De telling gaat via WIRED_CHECK_NAMES (de daadwerkelijke namen, niet alleen een aantal) en
+#     REQUESTED_CHECK_NAMES (een SET, geen array) i.p.v. `TOTAL - ${#CHECK_NAMES[@]}`. Dat oude
+#     verschil loog in twee gevallen: een dubbel opgegeven check (`check-x.ts check-x.ts`) trok
+#     twee van het totaal af terwijl er maar één overgeslagen werd, en een check-bestand dat wel
+#     op schijf staat maar niet via een `bundle_check`-regel is aangesloten (een wees, zie de
+#     check-scriptinventaris hierboven) telde toch mee als "gedraaid" zodra je 'm als argument gaf.
+if [ "$RUN_HOLIDAYS" -eq 0 ]; then
+  mapfile -t WIRED_CHECK_NAMES < <(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
+    | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true)
+  TOTAL_CHECK_SCRIPTS="${#WIRED_CHECK_NAMES[@]}"
+  declare -A REQUESTED_CHECK_NAMES=()
+  for n in "${CHECK_NAMES[@]}"; do REQUESTED_CHECK_NAMES[$n]=1; done
+  SKIPPED_CHECK_COUNT=0
+  for n in "${WIRED_CHECK_NAMES[@]}"; do
+    if [ -z "${REQUESTED_CHECK_NAMES[$n]:-}" ]; then
+      SKIPPED_CHECK_COUNT=$((SKIPPED_CHECK_COUNT + 1))
+    fi
+  done
+  echo ""
+  echo "############################################################################"
+  echo "##  GERICHTE RUN — dit is niet de volledige poort."
+  echo "##  $SKIPPED_CHECK_COUNT van de $TOTAL_CHECK_SCRIPTS check-*.ts-regressiebatterijen zijn"
+  echo "##  overgeslagen, plus de tijdzone-matrix onderaan dit script."
+  echo "##  Draai 'bash tests/planning/run.sh' zonder argumenten voor de volledige poort"
+  echo "##  vóór je op dit resultaat vertrouwt (bijv. vóór een commit of PR)."
+  echo "############################################################################"
 fi
 
 exit "$STATUS"

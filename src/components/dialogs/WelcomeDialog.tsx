@@ -4,7 +4,8 @@ import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
-import { UITheme, UI_THEMES } from '@/state/slices/types';
+import { UITheme, ResolvedUITheme, UI_THEMES } from '@/state/slices/types';
+import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { saveLocale, saveTheme, saveAutoCalcCPM, saveWelcomeSeen } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 
@@ -15,7 +16,7 @@ const THEME_LABEL_KEYS = {
   'dark':          'settings.themeDark',
   'light':         'settings.themeLight',
   'high-contrast': 'settings.themeHighContrast',
-} as const satisfies Record<UITheme, string>;
+} as const satisfies Record<ResolvedUITheme, string>;
 
 /**
  * Welkomstdialoog (fase 2.10, onderdeel 3, §6) — 2 stappen:
@@ -32,6 +33,10 @@ export function WelcomeDialog() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
+  // Zelfde tweetrapsvorm als in de settings-UI: de keuzelijst toont wat er getekend wordt en gaat
+  // op slot zolang de systeemschakelaar aanstaat.
+  const resolvedTheme = useResolvedUITheme();
+  const followSystem = currentTheme === 'system';
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -105,10 +110,20 @@ export function WelcomeDialog() {
                   <label className="block mb-1 text-xs text-text-secondary">{t('settings.theme')}</label>
                   <Select
                     aria-label={t('settings.theme')}
-                    value={currentTheme}
+                    value={followSystem ? resolvedTheme : currentTheme}
+                    disabled={followSystem}
                     onChange={v => applyTheme(v as UITheme)}
                     options={UI_THEMES.map(({ id }) => ({ value: id, label: t(THEME_LABEL_KEYS[id]) }))}
                   />
+                  <label className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      data-ops-follow-system-theme
+                      checked={followSystem}
+                      onChange={e => applyTheme(e.target.checked ? 'system' : resolvedTheme)}
+                    />
+                    <span>{t('settings.themeFollowSystem')}</span>
+                  </label>
                 </div>
 
                 <label className="flex items-center gap-2">

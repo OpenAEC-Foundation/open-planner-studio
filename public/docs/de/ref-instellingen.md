@@ -24,11 +24,23 @@ Alle drei zeigen exakt dieselben Einstellungen. Je nach Version sind sie über d
 **Anwendung:**
 
 - **Version** — die Versionsnummer der App (schreibgeschützt), mit einem Link **Nach Updates suchen**, der das Update-Fenster öffnet. Updates installieren funktioniert nur in der Desktop-App; Snap- und AppImage-Installationen aktualisieren über ihren eigenen Kanal. Separat davon erscheint beim ersten Öffnen der App nach einem automatischen Update von selbst ein einmaliger „Du bist auf dem neuesten Stand"-Dialog: der Versionssprung, der Größenunterschied des Installationspakets, die Tage seit dem vorigen Release und die GitHub-Release-Notizen — je nachdem, was sich davon abrufen ließ. Das ist ein anderer, automatischer Moment als der manuelle Link **Nach Updates suchen** hier.
-- **Projektinformationen...** — Verknüpfung zum Fenster [Projektinformationen](docs://ref-projectgegevens).
 - **Tour** — **Tour starten** spielt die Einführungstour erneut ab. Derselbe Neustart sitzt auch auf der Menüband-Registerkarte **Ansicht** → **Tour** und in der Backstage (**Datei** → **Tour starten**).
 - **Benchmark** — öffnet das eingebaute Benchmark-Werkzeug, um die Terminplanungs-/Rendering-Leistung dieses Rechners zu messen.
 - **KI-Modus** — **KI-Modus aktivieren** zeigt die Menüband-Registerkarte **KI** mit der MCP-Bridge, sodass ein KI-Assistent über das Model Context Protocol mit Ihrem Terminplan arbeiten kann; das Ausschalten stoppt eine laufende Bridge sofort. **Bridge automatisch starten** (nur verfügbar, wenn KI-Modus an ist) aktiviert die Bridge direkt beim Start der App, ohne vorher die KI-Registerkarte zu öffnen — nur in der Desktop-App. Siehe die In-App-Anleitung zum KI-Assistenten für das vollständige Bild.
 - **Debug-Terminal** — **Debug-Terminal aktivieren** zeigt das Protokoll-Panel zur Fehlersuche.
+
+## Statistiken (Schaltfläche auf der Registerkarte Anwendung)
+
+Öffnen über **Einstellungen** → Registerkarte **Anwendung** → **Statistiken…**; bewusst ein eigenes Fenster hinter einer Schaltfläche, keine eigene Registerkarte.
+
+Wie oft Open Planner Studio heruntergeladen wurde, je Betriebssystem und je Release. Die Zahlen stammen aus den öffentlichen Download-Zählern von GitHub Releases und werden wöchentlich aktualisiert; die App liest sie nur, von Ihnen wird nichts erfasst oder gesendet.
+
+- **Downloads je Betriebssystem** — je System die Anzahl der Downloads, aufgeteilt in Installer (was ein Mensch herunterlädt) und Updates (was der In-App-Updater lädt). Bei Linux sind beide eine Zahl: der Updater lädt dieselbe `.deb`/`.rpm`/`.AppImage`, die Sie auch manuell herunterladen. Unter Linux zählt nur die Snap-Datei als Installer.
+- **Update-Prüfungen aus der App** — wie oft eine Desktop-Installation beim Start nach einer neuen Version gesucht hat; ein grobes Maß für aktive Nutzung, kein Download.
+- **Je Release** — dieselben Zahlen je Version; standardmäßig die sechs neuesten, mit **Alle … Releases anzeigen** für den Rest.
+- **Quelle** — der Stichtag der Zahlen und **Jetzt aktualisieren**. Die Registerkarte merkt sich den zuletzt abgerufenen Stand eine halbe Stunde; schlägt das Aktualisieren fehl, bleibt dieser Stand mit einem Hinweis sichtbar.
+
+Installationen über den Snap Store laufen nicht über GitHub und fehlen hier.
 
 ## Registerkarte Sprache
 

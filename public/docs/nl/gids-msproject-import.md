@@ -103,24 +103,39 @@ taak (en van taken die erop wachten) blijft na een nivellering kloppen.
 
 ### Gecontoureerde toewijzingen
 
-Heeft een resource-toewijzing in MS Project een eigen werkvenster gekregen dat afwijkt van een
-platte, gelijkmatige verdeling (resource-contouring, of een taak die over een langere periode is
-uitgesmeerd dan haar duur op zichzelf zou vragen), dan volgt Open Planner Studio dat venster bij
-het openen: de datums komen uit MS Project se eigen opgeslagen antwoord, niet uit een kale
-duur-optelling. Wat er niet meekomt, is de vorm van die verdeling zelf — de oplopende of aflopende
-belasting per dag binnen het venster. Open Planner Studio heeft nog geen contour-rekenmodule: de
-resource-belasting van een taak wordt altijd gelijkmatig over haar werkdagen verdeeld, ook voor een
-geïmporteerde contourtaak.
+Heeft een resource-toewijzing in MS Project een eigen werkverdeling gekregen die afwijkt van een
+platte, gelijkmatige verdeling (resource-contouring: bijvoorbeeld een oplopende belasting, een
+halve kracht in de eerste week, of een taak die over een langere periode is uitgesmeerd dan haar
+duur op zichzelf zou vragen), dan leest Open Planner Studio die verdeling volledig mee. Bij het
+openen volgen de datums MS Project se eigen opgeslagen antwoord, en de contour-engine gebruikt de
+gelezen dagverdeling als echte data: het resource-histogram, de overallocatie-detectie, de
+nivelleerder en het bezettingsoverzicht tonen en rekenen met de werkelijke uren per dag van de
+toewijzing — een halve kracht op maandag staat er als een halve kracht, niet afgerond en niet
+gelijkmatig uitgesmeerd. Een dag zonder werk binnen de contour (een onderbreking) draagt geen
+belasting.
 
-Bewerk je zo'n taak vervolgens zelf — de duur, de datums, de toewijzingen of de kalender — dan laat
-Open Planner Studio het bij import vastgelegde venster los: de taak valt terug op een gewone,
-doorlopende duurberekening zonder de oorspronkelijke contourvorm. De eerste keer dat dit binnen een
-geopend document gebeurt, verschijnt daarover een informatieve melding met een link naar deze
+Bewerk je zo'n taak vervolgens zelf, dan reist de verdeling mee. Verandert de duur, dan rekt of
+krimpt Open Planner Studio de contour proportioneel mee met de nieuwe duur (dezelfde regel die
+MS Project voor een gecontourde toewijzing hanteert); al verricht werk blijft daarbij staan en
+alleen het resterende deel wordt herschaald. Een taak waarvan MS Project het taaktype op *Vast werk*
+had staan, houdt haar totale werk vast en verandert alleen de inzet per dag. Een verplaatsing in
+de tijd, een kalenderwissel of een andere toewijzing raakt de verdeling niet. Wat er bij zo'n
+bewerking wél loslaat, is het bij import gelezen *datumvenster* van MS Project: de einddatum van
+de taak komt daarna uit Open Planner Studio se eigen berekening (duur plus eventuele
+onderbrekingen) in plaats van uit MS Project se opgeslagen antwoord. De eerste keer dat dit binnen
+een geopend document gebeurt, verschijnt daarover een informatieve melding met een link naar deze
 sectie; latere bewerkingen in hetzelfde document melden zich niet nog eens. Het eigenschappenpaneel
-van de taak toont voortaan of ze nog actief door MS Project gestuurd wordt, of dat die sturing na
-een bewerking is losgelaten — met dezelfde link. Geen van beide raakt het bestand zelf: de
-oorspronkelijk gelezen verdeling blijft altijd bewaard, ook ná opslaan; alleen de AFGELEIDE sturing
-die de motor gebruikte wordt losgelaten.
+van de taak toont of het datumvenster nog actief door MS Project gestuurd wordt, of dat die
+sturing na een bewerking is losgelaten — met dezelfde link. De oorspronkelijk gelezen verdeling
+blijft altijd in het bestand bewaard, ook ná opslaan.
+
+De contour gaat ook mee naar buiten: een export naar MS Project XML schrijft de dagverdeling als
+native `TimephasedData` (en het contourtype *Contoured*), een export naar Primavera P6 XML als
+spreiding op de toewijzing; beide formaten leest Open Planner Studio ook weer terug. Zie de gids
+*Importeren en exporteren* voor de details per formaat. Wil je de gelezen verdeling zelf per dag
+bijstellen, een eigen verdeling maken of een contour loslaten, dan kan dat via de knop
+**Urenverdeling…** naast de toewijzing — zie de gids [Resources & histogram](docs://gids-resources-histogram),
+sectie De urenverdeling zelf bewerken.
 
 ## Mijlpalen: MS Project se eigen finish-grens-conventie voor eindmijlpalen
 

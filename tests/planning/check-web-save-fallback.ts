@@ -26,9 +26,16 @@
 //      één keer terugvallen op de input-terugval (en dat onthouden voor de volgende open-poging).
 //  10. Annuleren (AbortError uit de picker) blijft `null` — geen tweede picker via de terugval.
 //
+// En (docs/TODO.md, sessie-brede latch zonder uitweg, 2026-09-04):
+//  11. `SecurityError` ("geen geldige gebruikersactivatie") is een eenmalige makke van díe ene
+//      aanroep, geen omgevingseigenschap — hij latcht in geen van de drie schrijfroutes
+//      (`saveFileDialogWeb`, `saveToRefWeb`, `saveToRefWithoutPromptWeb`), en de eerstvolgende
+//      poging (ook zonder gebruikersgebaar, zoals de autosave-timer) probeert gewoon weer
+//      in-place. `NotAllowedError` blijft wél latchen, zoals voorheen.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import {
-  saveFileDialogWeb, saveToRefWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
+  saveFileDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, webWriteRefusedByPlatform, resetWebWriteRefusalForTests,
   openFileDialogWeb, webReadRefusedByPlatform, resetWebReadRefusalForTests,
 } from '@/services/fileAccess/webBackend';
 import type { FileRef } from '@/services/fileAccess';
@@ -137,6 +144,13 @@ const refused = () => new DOMException(
   "Failed to execute 'createWritable' on 'FileSystemFileHandle': The request is not allowed by the user agent or the platform in the current context.",
   'NotAllowedError',
 );
+// "Geen geldige gebruikersactivatie" — het schrijfmoment zelf mist een vers gebruikersgebaar
+// (typisch: de `actualAutosave`-timer, die zonder klik/toetsaanslag draait). Dit mag NIET latchen:
+// het is een eigenschap van deze ene poging, niet van de omgeving.
+const refusedSecurity = () => new DOMException(
+  "Failed to execute 'createWritable' on 'FileSystemFileHandle': No user activation is currently available.",
+  'SecurityError',
+);
 const FILTERS = [{ name: 'IFC Files', extensions: ['ifc'] }];
 
 async function main() {
@@ -167,6 +181,18 @@ async function main() {
   const naEerste = permissionCalls;
   eq('3c tweede poging vraagt geen permissie meer', await saveToRefWeb(ref, 'IFC') === false && permissionCalls === naEerste, true);
 
+  // ── 3d. saveToRefWeb: SecurityError (geen gebruikersactivatie) latcht NIET ───────────────
+  // Kern van de fix: een eenmalige SecurityError mag de rest van de sessie niet naar downloaden
+  // sturen — de volgende (handmatige) poging probeert gewoon weer in-place.
+  resetWebWriteRefusalForTests();
+  const refSecurity: FileRef = { kind: 'handle', handle: makeHandle({ writeError: refusedSecurity() }) };
+  eq('3d in-place schrijven mislukt bij SecurityError', await saveToRefWeb(refSecurity, 'IFC'), false);
+  eq('3e maar de omgeving geldt niet als blijvend geweigerd', webWriteRefusedByPlatform(), false);
+  // Bewijs dat de volgende poging écht opnieuw in-place probeert (geen latch): een handle die
+  // nu wél slaagt, slaagt ook meteen.
+  const refHersteld: FileRef = { kind: 'handle', handle: makeHandle({}) };
+  eq('3f eerstvolgende poging probeert weer gewoon in-place', await saveToRefWeb(refHersteld, 'IFC'), true);
+
   // ── 4. Annuleren is geen fout en levert GEEN download ────────────────────────────────────
   resetWebWriteRefusalForTests();
   downloads.length = 0;
@@ -196,6 +222,38 @@ async function main() {
   outcome = await saveFileDialogWeb('plan.ifc', 'IFC', FILTERS);
   eq('6a download-terugval zonder FSA', downloads.map(d => d.name), ['plan.ifc']);
   eq('6b ook daar als download gemarkeerd', outcome?.viaDownload, true);
+
+  // ── 6c. saveFileDialogWeb: SecurityError valt ook terug op downloaden, maar latcht niet ──
+  resetWebWriteRefusalForTests();
+  downloads.length = 0;
+  installWindow(makeHandle({ writeError: refusedSecurity() }));
+  outcome = await saveFileDialogWeb('plan.ifc', 'IFC', FILTERS);
+  eq('6c SecurityError levert alsnog een download op', outcome?.viaDownload, true);
+  eq('6d maar de omgeving geldt niet als blijvend geweigerd', webWriteRefusedByPlatform(), false);
+  // Volgende poging probeert dus weer eerst de echte picker (geen latch onthouden). Nieuwe,
+  // gezonde handle: de vorige weigerde bij élke aanroep, dus die zou een tweede keer opnieuw
+  // (terecht) mislukken en niets bewijzen over de latch.
+  downloads.length = 0;
+  installWindow(makeHandle({}));
+  outcome = await saveFileDialogWeb('plan3.ifc', 'IFC', FILTERS);
+  eq('6e eerstvolgende poging probeert de picker weer', pickerCalls, 1);
+  eq('6f en die slaagt gewoon in-place (geen download)', downloads.length, 0);
+  eq('6g dus geen viaDownload meer', outcome?.viaDownload, undefined);
+
+  // ── 6h. saveToRefWithoutPromptWeb (autosave-timerpad, geen gebruikersgebaar): SecurityError
+  // latcht niet — de volgende (handmatige) save mag alsnog in-place proberen. NotAllowedError
+  // blijft wél latchen, zoals bij de overige schrijfroutes.
+  resetWebWriteRefusalForTests();
+  let refTimer: FileRef = { kind: 'handle', handle: makeHandle({ writeError: refusedSecurity() }) };
+  eq('6i timerpad met SecurityError levert false op', await saveToRefWithoutPromptWeb(refTimer, 'IFC'), false);
+  eq('6j maar latcht niet', webWriteRefusedByPlatform(), false);
+  refTimer = { kind: 'handle', handle: makeHandle({}) };
+  eq('6k eerstvolgende timerpoging schrijft weer gewoon', await saveToRefWithoutPromptWeb(refTimer, 'IFC'), true);
+
+  resetWebWriteRefusalForTests();
+  refTimer = { kind: 'handle', handle: makeHandle({ writeError: refused() }) };
+  eq('6l timerpad met NotAllowedError levert false op', await saveToRefWithoutPromptWeb(refTimer, 'IFC'), false);
+  eq('6m en latcht wél (blijvende omgevingsweigering)', webWriteRefusedByPlatform(), true);
 
   // ── 7. De store zet dit om in een info-melding, niet in "opslaan mislukt" ────────────────
   // Pas hier importeren: de store trekt het halve `src/`-oppervlak mee en heeft aan de DOM-stub

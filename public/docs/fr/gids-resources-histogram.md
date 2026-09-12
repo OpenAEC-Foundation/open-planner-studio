@@ -67,6 +67,18 @@ Chaque affectation a des **unités/j** (1 = une personne/un élément à temps p
 
 La variation de courbe se voit le plus clairement dans l'histogramme : la même tâche avec les mêmes unités/j produit une forme de barre très différente avec une courbe en cloche qu'avec une courbe uniforme. Le cas d'usage de taille moyenne mélange délibérément uniforme/chargé en début/chargé en fin sur les tâches de finition par maison, afin que vous puissiez comparer la différence.
 
+### Modifier soi-même la répartition des heures
+
+Quand aucune courbe ne convient, vous façonnez la répartition vous-même, par **phases** : des tronçons consécutifs de la tâche, chacun avec un effort fixe (« une demi-équipe la première semaine, puis l'équipe complète »). Le bouton **Répartition des heures…** à côté de la liste des courbes ouvre une fenêtre avec, en haut, une bande où chaque phase est un bloc sur ses jours ouvrés (la hauteur est l'effort) et, en dessous, les mêmes phases sous forme de tableau : du, au, jours, effort en unités par jour, heures par jour et total. Le point de départ est ce que l'affectation comptabilise aujourd'hui. Le travail réalisé apparaît en gris, en lecture seule.
+
+- **Glisser dans la bande** : la limite entre deux blocs allonge ou raccourcit une phase (par jour ouvré entier), le bord supérieur règle l'effort, un double-clic sur un jour scinde la phase.
+- **Saisir dans le tableau** : jours et effort par phase ; **Scinder** et **Fusionner**. La dernière phase court toujours jusqu'à la fin de la tâche.
+- **Appliquer une forme** remplit les phases avec l'une des huit formes standard, en conservant le total actuel.
+- **Appliquer** enregistre la répartition comme *contour* de l'affectation ; la liste des courbes affiche **Contour** et est désactivée. Histogramme, surallocation, lissage et occupation l'utilisent immédiatement, et la répartition voyage dans l'IFC et les exports MS Project XML / P6 XML.
+- **Libérer la répartition** supprime le contour.
+
+Un contour ne change que les heures par jour de cette affectation ; les dates, la durée et les interruptions de la tâche restent inchangées, même pour une phase à effort 0. Si vous changez la durée plus tard, le contour s'étire proportionnellement (voir le guide [Import MS Project](docs://gids-msproject-import)). Le panneau des propriétés marque une tâche ayant ses propres répartitions par un badge gris. Appliquer et libérer sont des étapes d'annulation ordinaires.
+
 ## Calendriers de ressources
 
 Une ressource peut se trouver sur le **Calendrier du projet** (par défaut) ou sur son propre calendrier — par exemple pour un sous-traitant disponible seulement quatre jours par semaine. Configurez cela via la colonne **Calendrier** du panneau des ressources, ou le champ **Calendrier** sur la ressource elle-même. Un calendrier de ressource ne touche jamais aux dates CPM d'une tâche (celles-ci continuent de fonctionner sur le calendrier de la tâche/du projet) — il n'affecte que la **charge** et le **nivellement** : si une ressource ne travaille pas un jour dont la tâche a besoin, cela compte comme un déficit dans l'histogramme, et le niveleur avertit qu'un décalage ne résoudra pas ce désaccord de calendrier. Voir le guide [Calendriers & planification horaire](docs://gids-kalenders-uren) pour l'explication complète des calendriers.

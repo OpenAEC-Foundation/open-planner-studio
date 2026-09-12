@@ -25,6 +25,8 @@ Een platte lijst taken vertelt niets over samenhang. Door taken in te laten spri
 
 Zodra een taak minstens één subtaak heeft, wordt hij automatisch een samenvattende taak: de balk in het Gantt-diagram overspant dan de volledige periode van de vroegste start tot de laatste finish van alle subtaken eronder, en zijn eigen duur en data zijn niet langer los in te stellen. Een samenvattende taak is dus normaal gesproken altijd een afgeleide, geen los ingevoerde planning — verwijder of verschuif je de subtaken, dan past de balk van de samenvattende taak zich vanzelf aan. Eén uitzondering: een **handmatig geplande** samenvattingstaak (die vlag ontstaat bij een `.mpp`-import) rolt juist niét op — die houdt haar eigen opgeslagen datums, ook als haar subtaken verschuiven.
 
+**Herkenbaar in de naamkolom.** In de taaktabel (het tabblad **Tabel**, en dezelfde naamkolom in de rechterrail) staat een samenvattende taak vet en met een subtiele achtergrondtint op de naamcel; een mijlpaal staat vet in dezelfde kleur als zijn balk in het Gantt-diagram. Een gewone taak blijft ongewijzigd. Dat is puur visueel — er verandert niets aan hoe je een taak selecteert, sleept of bewerkt.
+
 **Inklappen en uitklappen.** Bij een grote WBS wil je de boom soms tijdelijk compacter maken. Het lint-tabblad **Beeld**, groep **Overzicht**, heeft daarvoor twee aparte knoppen — **Inklappen** en **Uitklappen** — bewust geen schakelaar, want bij een gemengde selectie (de ene tak open, de andere dicht) kan een schakelaar nooit alles dezelfde kant op zetten.
 
 - **Met een selectie** werken de knoppen op de geselecteerde taken; alleen taken mét subtaken doen mee, losse taken worden genegeerd.

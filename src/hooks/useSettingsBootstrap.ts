@@ -16,9 +16,10 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // initLocale() is naar main.tsx verhuisd (pré-render, zodat de actieve taal-chunk vóór
     // de eerste paint geladen is). Hier alleen nog de overige app-instellingen hydrateren.
     // Pakket M (audit H1): één registergedreven hydratatie i.p.v. ~20 losse `loadX().then(setUI)`-
-    // blokken. `loadAllSettings` itereert het `SETTINGS`-register + de twee afwijkers (thema-migratie,
-    // synchrone bouwmodus) en levert één `setUI`-patch. Gedrag identiek: zelfde sleutels/validators/
-    // defaults; alleen minder losse setUI-calls (de eindtoestand is gelijk — geen veld overlapt).
+    // blokken. `loadAllSettings` itereert het `SETTINGS`-register + de drie afwijkers (thema-migratie,
+    // synchrone bouwmodus, balkkleurkeuze) en levert één `setUI`-patch. Gedrag identiek: zelfde
+    // sleutels/validators/defaults; alleen minder losse setUI-calls (de eindtoestand is gelijk — geen
+    // veld overlapt).
     void loadAllSettings().then(patch => setUI(patch));
     void loadAllExtensions();
     // Recente bestanden leven in IndexedDB (async, met eenmalige localStorage-migratie) —

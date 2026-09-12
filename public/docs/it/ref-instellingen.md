@@ -27,11 +27,23 @@ articolo le raggruppa come **Generale**, **Lingua** e **Sequenza temporale / Zoo
 **Applicazione:**
 
 - **Versione** — il numero di versione dell'app (sola lettura), con un link **Controlla aggiornamenti** che apre la finestra di aggiornamento. L'installazione degli aggiornamenti funziona solo nell'app desktop; le installazioni Snap e AppImage si aggiornano tramite il proprio canale. A parte questo, la prima volta che apri l'app dopo che si è aggiornata automaticamente, compare da sola una finestra di dialogo una tantum "Sei stato appena aggiornato" — il salto di versione, la differenza di dimensione dell'installer, i giorni trascorsi dalla release precedente e le note di rilascio di GitHub, per quanto sia stato possibile recuperarle. È un momento diverso, automatico, rispetto al link manuale **Controlla aggiornamenti** qui sopra.
-- **Informazioni sul progetto...** — una scorciatoia alla finestra [Informazioni sul progetto](docs://ref-projectgegevens).
 - **Tour** — **Avvia tour** riavvia il tour introduttivo. Lo stesso riavvio si trova anche nella scheda della barra multifunzione **Vista** → **Tour** e nel Backstage (**File** → **Avvia tour**).
 - **Benchmark** — apre lo strumento di benchmark integrato, per misurare le prestazioni di calcolo/rendering di questa macchina.
 - **Modalità IA** — **Attiva la modalità IA** mostra la scheda della barra multifunzione **IA** con il bridge MCP, così un assistente IA può lavorare con la tua pianificazione tramite il Model Context Protocol; disattivarla arresta immediatamente un bridge in esecuzione. **Avvia il bridge automaticamente** (disponibile solo con la modalità IA attiva) avvia il bridge non appena parte l'app, senza dover prima visitare la scheda IA — solo app desktop. Vedi la guida in-app all'assistente IA per il quadro completo.
 - **Terminale di debug** — **Abilita il terminale di debug** mostra il pannello di log per la risoluzione dei problemi.
+
+## Statistiche (pulsante nella scheda Applicazione)
+
+Si apre da **Impostazioni** → scheda **Applicazione** → **Statistiche…**; è volutamente una finestra separata dietro un pulsante, non una scheda a sé.
+
+Quante volte Open Planner Studio è stato scaricato, per sistema operativo e per release. Le cifre provengono dai contatori pubblici di download di GitHub Releases e sono aggiornate ogni settimana; l’app le legge soltanto, non viene raccolto né inviato nulla su di te.
+
+- **Download per sistema operativo** — per sistema il numero di download, suddiviso in installer (ciò che una persona scarica) e aggiornamenti (ciò che l’updater in-app recupera). Per Linux i due sono un’unica cifra: l’updater scarica lo stesso `.deb`/`.rpm`/`.AppImage` che scarichi anche a mano. Su Linux solo il file snap conta come installer.
+- **Controlli aggiornamenti dall’app** — quante volte un’installazione desktop ha cercato una nuova versione all’avvio; una misura approssimativa dell’uso attivo, non un download.
+- **Per release** — le stesse cifre per versione; le sei più recenti per impostazione predefinita, con **Mostra tutte le … release** per il resto.
+- **Fonte** — la data delle cifre e **Aggiorna ora**. La scheda ricorda le ultime cifre recuperate per mezz’ora; se l’aggiornamento fallisce, restano visibili con un avviso.
+
+Le installazioni tramite Snap Store non passano da GitHub e non compaiono qui.
 
 ## Scheda Lingua
 

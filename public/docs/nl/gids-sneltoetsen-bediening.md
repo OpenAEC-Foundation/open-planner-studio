@@ -99,7 +99,7 @@ de zoom aan zodat het hele project in beeld past ("passend maken op project") �
 knop met die naam in het lege-canvas-contextmenu hierboven. De tijdlijnheader past zich aan naarmate
 je verder inzoomt: weeknummers verschijnen zodra er ruimte voor is, en dagnamen labelen elke kolom
 zodra je dicht genoeg op dagniveau zit. Staat **Alleen werkbare dagen tonen** (Instellingen →
-Tijdlijn / Zoomen) aan, dan slaan de header én de balken zelf weekenden en feestdagen helemaal over
+Weergave → Gantt) aan, dan slaan de header én de balken zelf weekenden en feestdagen helemaal over
 in plaats van ze alleen grijs te tonen, zodat een taak van 5 werkdagen precies 5 kolommen breed is.
 
 ## Documenttabs

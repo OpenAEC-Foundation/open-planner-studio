@@ -1200,14 +1200,18 @@ function writeTimephasedMeta(
     // Zelfde defensie/filter als writeAssignmentMeta hierboven — bepaalt hetzelfde `#index`.
     const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
     if (!list || list.length === 0) continue;
-    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string }> = {};
+    const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string; curveValues?: number[] }> = {};
     list.forEach((a, index) => {
-      if (a.workWindowStart === undefined && a.workWindowFinish === undefined) return;
+      // Contour-engine (2026-09): `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in
+      // hetzelfde JSON-blob mee — additief, een toewijzing zonder venster én zonder curve schrijft
+      // nog altijd niets (byte-identiek).
+      if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined) return;
       const resGuid = guidOf(ctx, a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
         ...(a.workWindowFinish !== undefined ? { workWindowFinish: a.workWindowFinish } : {}),
+        ...(a.curveValues !== undefined ? { curveValues: [...a.curveValues] } : {}),
       };
     });
     if (Object.keys(windows).length === 0) continue;

@@ -97,3 +97,4 @@ Genel kural: planın mantığını zorlamadan izlemek istediğiniz bir hedef tar
 - Son tarih çakışmasını pratikte görün: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Yapı henüz kurulmadı mı? Önce [Planlama & WBS](docs://gids-plannen-wbs)'i okuyun.
 - Görev süresini etkileyen takvimler ve çalışma saatleri için: [Takvimler & saat planlaması](docs://gids-kalenders-uren) kılavuzu.
+- Kaçırılan tüm son tarihler ve ihlal edilen kısıtlamalar tek yerde, göreve atlama ile: [Uyarılar paneli](docs://ref-waarschuwingen).

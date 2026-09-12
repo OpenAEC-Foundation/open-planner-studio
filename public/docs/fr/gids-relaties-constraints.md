@@ -97,3 +97,4 @@ Règle empirique : utilisez une **échéance** pour une date cible que vous voul
 - Voyez le conflit d'échéance en pratique : [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Structure pas encore en place ? Lisez d'abord [Planification & WBS](docs://gids-plannen-wbs).
 - Pour les calendriers et horaires de travail qui affectent la durée des tâches : le guide [Calendriers & planification horaire](docs://gids-kalenders-uren).
+- Toutes les échéances dépassées et contraintes violées au même endroit, avec un saut vers la tâche : le [Panneau des avertissements](docs://ref-waarschuwingen).

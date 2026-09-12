@@ -1,5 +1,10 @@
 import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
 import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import {
+  rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
+} from '@/engine/contour/contourEngine';
 
 /**
  * Fabrieksfunctie voor een verse {@link TaskTime}. Leeft in de utils-laag (niet in `src/types/`)
@@ -331,4 +336,55 @@ export function taskHasTimephasedContours(task: Task): boolean {
  *  blijft terecht ongemoeid door de aanroepers hieronder. */
 export function timephasedDurationWalksHaveFrozenWork(task: Task): boolean {
   return (task.timephasedDurationWalks ?? []).some((w) => w.workMinutes !== undefined);
+}
+
+// ── Contour-engine (2026-09): herschaling bij een duurwijziging ──────────────────────────────────
+
+/** `hoursPerDay` van de TAAKkalender (scalar uit de `WorkCalendar`, dezelfde bron als
+ *  `CPMSolver.calendarFor`/`ResourceLoad.engineForTask`: `task.calendarId` → bibliotheek, anders
+ *  de projectkalender). Voor de HERSCHALINGSFACTOR is de exacte waarde alleen relevant bij een
+ *  eenheidswissel dagen↔uren (bij dagen↔dagen en uren↔uren valt hij tegen elkaar weg). */
+export function taskCalendarHoursPerDay(task: Task, calendars: WorkCalendar[], projectCalendar: WorkCalendar): number {
+  return resolveCalendar(task.calendarId, calendars, projectCalendar).hoursPerDay;
+}
+
+/** Werkduur van de taak in werkminuten (zie `contourEngine.ts`'s `taskWorkMinutes`) — aan te
+ *  roepen VÓÓR een `mergeTaskTime`, zodat `rescaleTaskContours` de oude waarde kent. */
+export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
+  return taskWorkMinutes(task.time, hoursPerDay);
+}
+
+/**
+ * Contour-engine (2026-09) — de bewerkregel "een bewerking op een gecontourde taak neemt de
+ * verdeling mee" (taaktypes-spec, "Wat er onder de motorkap nodig is" punt 3). Aan te roepen NÁ de
+ * duurmutatie op een taak die `timephasedContours` draagt: herschaalt de contourperiodes én de
+ * IMPORTsplits (`splitGaps` zonder `source`) proportioneel van `oldWorkMinutes` naar de nieuwe
+ * werkduur van de taak, volgens `contourEngine.ts`'s `rescaleContourForDuration` (actual-periodes
+ * blijven staan, FIXED_WORK houdt het werk vast). Idempotent: gelijke duur ⇒ niets gewijzigd.
+ * Muteert `task` in-place (Immer-draft-stijl, zoals `clearTimephasedWindow`). Retourneert `true`
+ * als er ECHT iets herschaald is.
+ *
+ * Bewust GEEN aanroep bij een kalender- of datumverschuiving: de as is offset-gebaseerd
+ * (shift-invariant, zie `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling, en
+ * een taakkalenderwissel verandert de werkminuten-duur van de taak niet.
+ */
+export function rescaleTaskContours(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+  const contours = task.timephasedContours;
+  if (!contours || contours.length === 0) return false;
+  const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
+  // Eén gedeeld profiel voor de factor: de contour met de langste asspanne bepaalt de taakduur
+  // (dezelfde "langste toewijzing bepaalt de finish"-regel als laag 3/4), dus die is de referentie
+  // voor zowel de periodes als de gaten.
+  const reference = contours.reduce((best, c) => {
+    const span = c.periods.reduce((m, p) => Math.max(m, p.afterMinutes + p.minutes), 0);
+    return span > best.span ? { span, periods: c.periods } : best;
+  }, { span: -1, periods: contours[0].periods });
+  if (!rescaleFactor(reference.periods, oldWorkMinutes, newWorkMinutes)) return false;
+  task.timephasedContours = contours.map((c) => ({
+    ...c,
+    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, task.mspTaskType),
+  }));
+  const gaps = rescaleSplitGaps(task.splitGaps, reference.periods, oldWorkMinutes, newWorkMinutes);
+  if (gaps !== undefined) task.splitGaps = gaps;
+  return true;
 }

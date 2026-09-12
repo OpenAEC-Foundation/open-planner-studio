@@ -1,0 +1,578 @@
+// check-contour-engine.ts — de contour-engine (2026-09): vijf lagen, elk headless tegen de echte
+// code (geen mocks van de engine of de adapters):
+//   (a) de pure kern (`src/engine/contour/contourEngine.ts`): 21-punts-tabellen, slotgewichten,
+//       periodes → dagslots (mét gat-uitlijning), contour↔toewijzing-koppeling, herschaling;
+//   (b) de lastlezers: `computeResourceLoad`/`computeHistogramReport` verdelen een opgeslagen
+//       contour als DATA (fracties blijven staan, gaten dragen geen last) en vallen zonder contour
+//       byte-identiek terug op `distributeUnits`; `curveValues` (exacte P6-curve) telt als data;
+//   (c) de nivelleerder boekt de contour-dagvraag (een halve-eenheid-contour past naast een
+//       halve-eenheid-taak op een capaciteit van 1, waar de formule 1/dag zou botsen);
+//   (d) bewerken: `rescaleTaskContours` (taakslice/MCP/grid-tweelingen) rekt de periodes én de
+//       importsplits proportioneel mee, laat actuals staan en houdt bij FIXED_WORK het werk vast;
+//   (e) de adapters: MSPDI `<TimephasedData>` en P6 `<ResourceCurve>`/`<ResourceCurveObjectId>`/
+//       `<PlannedCurve>`-spreiding round-trippen via de echte writer→reader, plus de IFC-koppeling
+//       (`resourceId` op een contour overleeft de resource-id-regeneratie van de IFC-lezer).
+//
+// Kalender: ma–vr 8u (08:00–16:00), week van ma 2026-06-01. Draait via run.sh. Exit 0 = groen.
+import {
+  CONTOUR_SHAPE_VALUES, MSPDI_WORKCONTOUR_CONTOURED, isFlatCurveValues, matchContourShape,
+  matchContoursToAssignments, matchCurveValues, normalizeCurveValues, periodsSpanMinutes,
+  periodsToSlotWork, periodsToWorkDaySlots, periodsWorkMinutes, rescaleContourForDuration,
+  rescaleFactor, rescaleSplitGaps, slotWeightsFromValues, taskWorkMinutes, contourIndexForAssignment,
+} from '@/engine/contour/contourEngine';
+import {
+  axisOffsetMinutes, contourPeriodsToP6Spread, minutesToMspdiValue, mspdiValueToMinutes,
+  p6SpreadToContourPeriods, splitGapsFromContours,
+} from '@/services/contourIo';
+import { computeResourceLoad, computeHistogramReport, assignmentDayUnits, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { levelResources, type LevelingOptions } from '@/engine/scheduler/ResourceLeveler';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { rescaleTaskContours } from '@/utils/taskDefaults';
+import {
+  buildEditedContourPeriods, contourDaySlots, shapeSlotWork, workDaySlotsToPeriods,
+} from '@/engine/contour/contourEdit';
+import {
+  fitPhasesToDays, mergePhaseWithNext, movePhaseBoundary, phaseStartDay, phasesFromSlots, phasesTotalDays,
+  setPhaseDays, setPhaseUnits, slotsFromPhases, splitPhase,
+} from '@/engine/contour/contourPhases';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { writeP6XML } from '@/services/p6/p6xmlWriter';
+import { readP6XML } from '@/services/p6/p6xmlReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { createDefaultProject } from '@/state/slices/projectSlice';
+import { useAppStore } from '@/state/appStore';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
+import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { WorkCalendar } from '@/types/calendar';
+import { installDOMParser } from './xmldom-shim';
+
+installDOMParser();
+
+declare const process: { exit(code: number): never };
+
+let checks = 0;
+const diffs: string[] = [];
+function eq(label: string, actual: unknown, expected: unknown): void {
+  checks++;
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
+  }
+}
+function ok(label: string, cond: boolean): void {
+  checks++;
+  if (!cond) diffs.push(label);
+}
+const r3 = (xs: readonly number[]): number[] => xs.map((x) => Math.round(x * 1000) / 1000);
+
+const CAL: WorkCalendar = {
+  id: 'cal-contour', name: 'project', description: '', workDays: [1, 2, 3, 4, 5],
+  workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+};
+const MPD = 480;
+
+function task(id: string, earlyStart: string, earlyFinish: string, durationDays: number, extra?: Partial<Task>): Task {
+  return {
+    id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: {
+      durationType: 'WORKTIME', durationUnit: 'days', scheduleDuration: durationDays,
+      scheduleStart: earlyStart, scheduleFinish: earlyFinish,
+      earlyStart, earlyFinish, lateStart: earlyStart, lateFinish: earlyFinish,
+      freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
+    },
+    ...extra,
+  };
+}
+function res(id: string, maxUnits = 1, extra?: Partial<Resource>): Resource {
+  return { id, name: id, type: 'LABOR', description: '', maxUnits, ...extra };
+}
+function assign(id: string, taskId: string, resourceId: string, unitsPerDay: number, extra?: Partial<ResourceAssignment>): ResourceAssignment {
+  return { id, taskId, resourceId, unitsPerDay, ...extra };
+}
+const P = (afterMinutes: number, minutes: number, workMinutes: number, kind: 'actual' | 'remaining' = 'remaining'): TimephasedContourPeriod =>
+  ({ afterMinutes, minutes, workMinutes, kind });
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (a) kern: 21-punts-tabellen --');
+{
+  eq('a1 FRONT_LOADED over 2 slots = 65/35', r3(slotWeightsFromValues(CONTOUR_SHAPE_VALUES.FRONT_LOADED, 2)), [0.65, 0.35]);
+  eq('a2 FLAT over 3 slots = derden', r3(slotWeightsFromValues(CONTOUR_SHAPE_VALUES.FLAT, 3)), r3([1 / 3, 1 / 3, 1 / 3]));
+  const w20 = slotWeightsFromValues(CONTOUR_SHAPE_VALUES.BELL, 20);
+  eq('a3 BELL over 20 slots = de tabel zelf (÷100)', r3(w20), r3(CONTOUR_SHAPE_VALUES.BELL.slice(1).map((v) => v / 100)));
+  ok('a4 som van de gewichten is exact 1', Math.abs(slotWeightsFromValues(CONTOUR_SHAPE_VALUES.EARLY_PEAK, 7).reduce((a, b) => a + b, 0) - 1) < 1e-12);
+  eq('a5 lege slots bij 0', slotWeightsFromValues(CONTOUR_SHAPE_VALUES.FLAT, 0), []);
+  eq('a6 matchCurveValues herkent elke OPS-vorm', [
+    matchCurveValues(CONTOUR_SHAPE_VALUES.FLAT), matchCurveValues(CONTOUR_SHAPE_VALUES.FRONT_LOADED),
+    matchCurveValues(CONTOUR_SHAPE_VALUES.BACK_LOADED), matchCurveValues(CONTOUR_SHAPE_VALUES.BELL),
+    matchCurveValues(CONTOUR_SHAPE_VALUES.EARLY_PEAK), matchCurveValues(CONTOUR_SHAPE_VALUES.LATE_PEAK),
+  ], ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK']);
+  eq('a7 DOUBLE_PEAK/TURTLE zijn sinds de contour-UI OPS-curve én vorm', [
+    matchCurveValues(CONTOUR_SHAPE_VALUES.DOUBLE_PEAK), matchContourShape(CONTOUR_SHAPE_VALUES.TURTLE),
+  ], ['DOUBLE_PEAK', 'TURTLE']);
+  // distributeUnits voor de twee tabelcurves: exacte tabelbemonstering, som exact, vorm herkenbaar.
+  const dp = distributeUnits(0.5, 4, 'DOUBLE_PEAK');
+  // Tabel-integratie over 4 slots: slices 1-5/6-10/11-15/16-20 = 20.3/29.1/21.5/29.1 % — de pieken
+  // (slice 6 en 16, dus ~30 % en ~80 % van de duur) vallen in dag 2 en 4; fractioneel tempo ⇒ honderdsten.
+  eq('a7b DOUBLE_PEAK over 4 dagen: twee pieken (dag 2 en 4), som exact', [r3(dp), Math.round(dp.reduce((a, b) => a + b, 0) * 100) / 100], [[0.41, 0.58, 0.43, 0.58], 2]);
+  const tu = distributeUnits(1, 5, 'TURTLE');
+  // Geheel tempo ⇒ hele eenheden (issue #21 punt 7): gewichten .45/1.3/1.5/1.3/.45 ⇒ grootste-rest
+  // [1,1,2,1,0] — dezelfde afronding die de zes oudere curves al krijgen (zie a7e).
+  eq('a7c TURTLE over 5 dagen bij geheel tempo: hele eenheden via grootste rest, som 5', [tu, tu.reduce((a, b) => a + b, 0)], [[1, 1, 2, 1, 0], 5]);
+  const tu2 = distributeUnits(0.5, 5, 'TURTLE');
+  ok('a7d TURTLE fractioneel: randen lager dan het plateau, som exact', tu2[0] < tu2[2] && tu2[4] < tu2[2] && Math.abs(tu2.reduce((a, b) => a + b, 0) - 2.5) < 1e-9);
+  eq('a7e de zes oudere curves blijven op hun controlepunten (BELL, 5 dagen, geheel tempo — ongewijzigd codepad)', distributeUnits(1, 5, 'BELL'), [1, 1, 2, 1, 0]);
+  const flat7 = [0, ...new Array<number>(20).fill(7)];
+  eq('a8 vlak met een andere constante is ook UNIFORM', [isFlatCurveValues(flat7), matchCurveValues(flat7)], [true, 'UNIFORM']);
+  eq('a9 normalizeCurveValues: lengte/negatief/nul-som afgewezen, index 0 gedwongen 0', [
+    normalizeCurveValues([1, 2, 3]), normalizeCurveValues([0, ...new Array<number>(19).fill(5), -1]),
+    normalizeCurveValues(new Array<number>(21).fill(0)), normalizeCurveValues([9, ...new Array<number>(20).fill(5)])?.[0],
+  ], [null, null, null, 0]);
+  eq('a10 MSPDI-code Contoured = 8', MSPDI_WORKCONTOUR_CONTOURED, 8);
+}
+
+console.log('-- (a) kern: periodes → slots --');
+{
+  const periods = [P(0, 480, 240), P(480, 480, 0), P(960, 480, 480)];
+  eq('a11 slotwerk per dag (met gat als 0)', periodsToSlotWork(periods, MPD), [240, 0, 480]);
+  eq('a12 spanne en werk', [periodsSpanMinutes(periods), periodsWorkMinutes(periods)], [1440, 720]);
+  eq('a13 periode over een slotgrens wordt naar rato gesplitst', periodsToSlotWork([P(240, 480, 480)], MPD), [240, 240]);
+  eq('a14 minSlots vult aan met 0', periodsToSlotWork([P(0, 480, 480)], MPD, 3), [480, 0, 0]);
+  eq('a15 uitlijning op werkdagen: het gat-slot verdwijnt', periodsToWorkDaySlots(periods, [{ afterMinutes: 480, gapMinutes: 480 }], MPD), [240, 480]);
+  eq('a16 werk in een gat-slot schuift door naar de volgende werkdag (nooit weg)',
+    periodsToWorkDaySlots([P(0, 480, 240), P(480, 480, 60), P(960, 480, 480)], [{ afterMinutes: 480, gapMinutes: 480 }], MPD), [240, 540]);
+  eq('a17 zonder gaten identiek aan periodsToSlotWork', periodsToWorkDaySlots(periods, undefined, MPD), [240, 0, 480]);
+  eq('a18 corrupte periodes (NaN/negatief/nul-lang) worden genegeerd',
+    periodsToSlotWork([P(NaN, 480, 480), P(0, 0, 100), P(0, 480, -5), P(480, 480, 120)], MPD), [0, 120]);
+  eq('a19 taakwerkminuten: dagen × mpd, uren = durationMinutes', [
+    taskWorkMinutes({ durationUnit: 'days', scheduleDuration: 3 }, 8),
+    taskWorkMinutes({ durationUnit: 'hours', durationMinutes: 300, scheduleDuration: 0.625 }, 8),
+  ], [1440, 300]);
+}
+
+console.log('-- (a) kern: contour ↔ toewijzing --');
+{
+  const c1: TaskTimephasedContour = { resourceUid: 1, resourceId: 'r1', periods: [P(0, 480, 480)] };
+  const c2: TaskTimephasedContour = { resourceUid: 2, resourceId: 'r1', periods: [P(0, 480, 240)] };
+  const cOld: TaskTimephasedContour = { resourceUid: 7, periods: [P(0, 480, 120)] };
+  const a1 = assign('a1', 't', 'r1', 1);
+  const a2 = assign('a2', 't', 'r1', 1);
+  const a3 = assign('a3', 't', 'r9', 1);
+  const m = matchContoursToAssignments([c1, c2], [a1, a2, a3]);
+  eq('a20 twee toewijzingen van dezelfde resource krijgen elk hun eigen contour, in volgorde',
+    [m.get('a1')?.resourceUid, m.get('a2')?.resourceUid, m.has('a3')], [1, 2, false]);
+  eq('a21 Z14b-contour zonder resourceId: alleen de 1-op-1-terugval', [
+    matchContoursToAssignments([cOld], [a1]).get('a1')?.resourceUid,
+    matchContoursToAssignments([cOld], [a1, a2]).size,
+  ], [7, 0]);
+}
+
+console.log('-- (a) kern: herschaling --');
+{
+  const periods = [P(0, 480, 480, 'actual'), P(480, 480, 240), P(960, 480, 0), P(1440, 480, 480)];
+  // Taak 3 werkdagen (1440 min) + 1 dag gat; actual = 480 ⇒ restant 960 → 1920 is factor 2.
+  const scaled = rescaleContourForDuration(periods, 1440, 2400);
+  eq('a22 actual blijft staan, restant ×2 op as én werk', scaled, [
+    P(0, 480, 480, 'actual'), P(480, 960, 480), P(1440, 960, 0), P(2400, 960, 960),
+  ]);
+  eq('a23 FIXED_WORK houdt het werk vast (dichtheid daalt)', rescaleContourForDuration([P(0, 480, 480)], 480, 960, 'FIXED_WORK'), [P(0, 960, 480)]);
+  eq('a24 gelijke duur ⇒ ongewijzigd, ongeldig ⇒ ongewijzigd', [
+    rescaleFactor(periods, 1440, 1440), rescaleFactor(periods, 1440, 0), rescaleFactor(periods, 480, 960),
+  ], [null, null, null]);
+  eq('a25 importsplits schalen mee, nivelleergaten niet', rescaleSplitGaps(
+    [{ afterMinutes: 960, gapMinutes: 480 }, { afterMinutes: 1200, gapMinutes: 480, source: 'leveling' }],
+    periods, 1440, 2400,
+  ), [{ afterMinutes: 1440, gapMinutes: 960 }, { afterMinutes: 1200, gapMinutes: 480, source: 'leveling' }]);
+
+  // De taak-helper (aanroep vanuit taskSlice/MCP/grid): periodes én gaten, mspTaskType-bewust.
+  const t = task('t', '2026-06-01', '2026-06-03', 3, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 240), P(480, 480, 0), P(960, 960, 960)] }],
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
+  });
+  t.time.scheduleDuration = 6; // bewerking: 3 → 6 dagen (de aanroeper heeft de oude 1440 al vastgelegd)
+  ok('a26 rescaleTaskContours meldt een echte herschaling', rescaleTaskContours(t, 1440, 8));
+  eq('a27 periodes ×2', t.timephasedContours?.[0].periods, [P(0, 960, 480), P(960, 960, 0), P(1920, 1920, 1920)]);
+  eq('a28 gaten ×2', t.splitGaps, [{ afterMinutes: 960, gapMinutes: 960 }]);
+  ok('a29 idempotent: nogmaals met de nieuwe duur ⇒ niets', !rescaleTaskContours(t, 2880, 8));
+  const noC = task('u', '2026-06-01', '2026-06-03', 3);
+  ok('a30 taak zonder contour ⇒ no-op', !rescaleTaskContours(noC, 1440, 8));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (b) lastlezers: contour als data --');
+{
+  // 3-daagse taak ma 06-01..wo 06-03, contour: ma 0.5, di gat, wo 1.0 — en het gat zit óók in splitGaps
+  // (zoals de .mpp-lezer beide uit dezelfde periodes afleidt), dus de taak werkt ma/wo/do.
+  const t = task('t', '2026-06-01', '2026-06-04', 3, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 240), P(480, 480, 0), P(960, 480, 480), P(1440, 480, 480)] }],
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
+  });
+  const a = assign('a', 't', 'r1', 1);
+  const load = computeResourceLoad([res('r1', 1)], [a], [t], CAL, []);
+  eq('b1 dagbelasting volgt de contour (fractie blijft, gatdag draagt niets)', load.load.r1, { '2026-06-01': 0.5, '2026-06-03': 1, '2026-06-04': 1 });
+  eq('b2 geen overallocatie', load.overallocatedDays.r1, undefined);
+  eq('b3 assignmentDayUnits: contourdata zonder hele-eenheden-afronding', assignmentDayUnits(t, a, MPD, undefined, [a]), [0.5, 1, 1]);
+
+  // Zonder contour: byte-identiek aan de formule.
+  const plain = task('p', '2026-06-01', '2026-06-03', 3);
+  const ap = assign('ap', 'p', 'r1', 2, { curve: 'FRONT_LOADED' });
+  eq('b4 zonder contour = distributeUnits', assignmentDayUnits(plain, ap, MPD), distributeUnits(2, 3, 'FRONT_LOADED'));
+
+  // curveValues (exacte P6-curve) telt als data: FRONT_LOADED-tabel over 2 dagen = 65/35 van 2×1.
+  const two = task('q', '2026-06-01', '2026-06-02', 2);
+  const aq = assign('aq', 'q', 'r1', 1, { curve: 'FRONT_LOADED', curveValues: [...CONTOUR_SHAPE_VALUES.FRONT_LOADED] });
+  eq('b5 curveValues verdeelt met de 21-punts-tabel (geen vervlakking op 2 dagen)', r3(assignmentDayUnits(two, aq, MPD)), [1.3, 0.7]);
+  eq('b6 de formule geeft hier het hele-eenheden-artefact [2,0] (bestaand gedrag, ongewijzigd)', distributeUnits(1, 2, 'FRONT_LOADED'), [2, 0]);
+
+  // Histogram-rapport ziet dezelfde dagwaarden + veroorzaker-attributie op de contourdag.
+  const over = task('o', '2026-06-01', '2026-06-01', 1, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 720)] }],
+  });
+  const ao = assign('ao', 'o', 'r1', 1);
+  const rep = computeHistogramReport({
+    tasks: [over], sequences: [], assignments: [ao], resources: [res('r1', 1)], calendar: CAL, calendars: [],
+    cpmResult: null, from: '2026-06-01', to: '2026-06-01', bucket: 'dag',
+  });
+  eq('b7 histogram: 1,5 eenheid uit de contour, overbelast, veroorzaker = de toewijzing', [
+    rep.resources[0].buckets[0].load, rep.resources[0].buckets[0].overallocatedDays, rep.resources[0].buckets[0].causes?.[0].contribution,
+  ], [1.5, ['2026-06-01'], 1.5]);
+
+  // Contour langer dan de duur: het totaal blijft behouden (aanroeper enumereert genoeg dagen).
+  const longer = task('l', '2026-06-01', '2026-06-01', 1, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 480), P(480, 480, 480)] }],
+  });
+  const al = assign('al', 'l', 'r1', 1);
+  eq('b8 contour voorbij scheduleDuration verliest geen werk', computeResourceLoad([res('r1')], [al], [longer], CAL, []).load.r1, { '2026-06-01': 1, '2026-06-02': 1 });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (c) nivelleerder boekt de contour --');
+{
+  function stubCpmResult(projectEnd: string): CPMResult {
+    return {
+      tasks: new Map(), criticalPath: [], drivingSequenceIds: [], sequenceFreeFloat: {},
+      truncatedLeadSequenceIds: [], violatedConstraintTaskIds: [], missedDeadlineTaskIds: [],
+      outOfSequenceSequenceIds: [], nearCriticalTaskIds: [], criticalPaths: [], floatPathByTask: {},
+      hammockNoFinishDriverTaskIds: [], projectEnd, projectDuration: 0,
+    };
+  }
+  const OPTS: LevelingOptions = { constrainToFloat: false };
+  // A: 2 dagen met een halve-eenheid-contour (units 1 — de formule zou 1/dag boeken). B: 2 dagen 0.5/dag.
+  const mk = (withContour: boolean) => {
+    const a = task('a', '2026-06-01', '2026-06-02', 2, {
+      priority: 600,
+      ...(withContour ? { timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 960, 480)] }] } : {}),
+    });
+    const b = task('b', '2026-06-01', '2026-06-02', 2, { priority: 500 });
+    const assignments = [assign('a-r1', 'a', 'r1', 1), assign('b-r1', 'b', 'r1', 0.5)];
+    return levelResources([a, b], [], [res('r1', 1)], assignments, CAL, [], stubCpmResult('2026-06-02'), OPTS);
+  };
+  eq('c1 met contour (0,5/dag) past B ernaast: geen delay', mk(true).delays['b'], undefined);
+  ok('c2 zonder contour boekt A 1/dag en moet B wijken', (mk(false).delays['b'] ?? 0) > 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (e) adapters: as-vertaling --');
+{
+  const eng = new CalendarEngine(CAL);
+  const start = new Date('2026-06-01T00:00:00Z');
+  eq('e1 dag-modus asoffset: werkdagen vóór de dag × mpd, eindinstant mét tijd telt de eigen dag', [
+    axisOffsetMinutes(eng, start, new Date('2026-06-01T08:00:00Z')),
+    axisOffsetMinutes(eng, start, new Date('2026-06-03T08:00:00Z')),
+    axisOffsetMinutes(eng, start, new Date('2026-06-03T16:00:00Z'), true),
+    axisOffsetMinutes(eng, start, new Date('2026-06-08T08:00:00Z')), // over het weekend
+    axisOffsetMinutes(eng, start, new Date('2026-05-20T08:00:00Z')), // vóór de start ⇒ 0
+  ], [0, 960, 1440, 2400, 0]);
+  eq('e2 P6-spreiding heen en terug', [
+    p6SpreadToContourPeriods('4:8;0:8;8:8', 0, 'remaining'),
+    contourPeriodsToP6Spread([P(0, 480, 240), P(480, 480, 0), P(960, 480, 480)]),
+    contourPeriodsToP6Spread([P(0, 480, 240), P(960, 480, 480)]), // leeg stuk as ⇒ "0:8"
+    p6SpreadToContourPeriods('Front Loaded', 0, 'remaining'),      // naam, geen spreiding
+    p6SpreadToContourPeriods('4:8;kapot', 0, 'remaining'),
+  ], [
+    [P(0, 480, 240), P(480, 480, 0), P(960, 480, 480)], '4:8;0:8;8:8', '4:8;0:8;8:8', [], [],
+  ]);
+  eq('e3 MSPDI-duurnotatie', [mspdiValueToMinutes('PT8H30M0S'), mspdiValueToMinutes('PT0H0M0S'), mspdiValueToMinutes('P2D'), mspdiValueToMinutes('x'), minutesToMspdiValue(510)],
+    [510, 0, 2880, null, 'PT8H30M0S']);
+  eq('e4 gaten uit contouren = dezelfde afleiding als de .mpp-lezer',
+    splitGapsFromContours([[P(0, 480, 240), P(480, 480, 0), P(960, 480, 480)]]), [{ afterMinutes: 480, gapMinutes: 480 }]);
+}
+
+console.log('-- (e) adapters: MSPDI round-trip --');
+{
+  const project = createDefaultProject();
+  project.startDate = '2026-06-01';
+  const t = task('t', '2026-06-01', '2026-06-04', 3, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 240), P(480, 480, 0), P(960, 480, 480), P(1440, 480, 480)] }],
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
+    resourceIds: ['r1'],
+  });
+  const plain = task('p', '2026-06-08', '2026-06-09', 2, { resourceIds: ['r1'] });
+  const r1 = res('r1', 1);
+  const assignments = [assign('a', 't', 'r1', 1), assign('b', 'p', 'r1', 1, { curve: 'BELL' })];
+  const xml = writeMSPDI(project, CAL, [t, plain], [], [r1], assignments, []);
+  ok('e5 writer schrijft TimephasedData + WorkContour 8 voor de contourtaak', xml.includes('<TimephasedData>') && xml.includes('<WorkContour>8</WorkContour>'));
+  ok('e6 writer schrijft alleen werkdagen met een 0-item voor het gat (4 items: ma/di/wo/do)', (xml.match(/<TimephasedData>/g) ?? []).length === 4 && xml.includes('<Value>PT0H0M0S</Value>'));
+  ok('e7 gewone curve blijft WorkContour 6 (Bell), zonder TimephasedData', xml.includes('<WorkContour>6</WorkContour>'));
+  const back = readMSPDI(xml);
+  const bt = back.tasks.find((x) => x.name === 't')!;
+  const bp = back.tasks.find((x) => x.name === 'p')!;
+  eq('e8 contour komt terug op de taak, gekoppeld aan de resource', [
+    bt.timephasedContours?.length, bt.timephasedContours?.[0].resourceId === back.assignments.find((a) => a.taskId === bt.id)?.resourceId,
+  ], [1, true]);
+  eq('e9 slotwerk per dag identiek na round-trip', periodsToSlotWork(bt.timephasedContours![0].periods, MPD), [240, 0, 480, 480]);
+  eq('e10 gaten afgeleid uit de contour', bt.splitGaps, [{ afterMinutes: 480, gapMinutes: 480 }]);
+  eq('e11 taak zonder contour blijft zonder (Bell-curve intact)', [bp.timephasedContours, back.assignments.find((a) => a.taskId === bp.id)?.curve], [undefined, 'BELL']);
+  const load = computeResourceLoad(back.resources, back.assignments, back.tasks, back.calendar, back.resourceCalendars ?? []);
+  eq('e12 lastlezer ziet na round-trip dezelfde dagverdeling', load.load[back.resources[0].id]['2026-06-01'], 0.5);
+}
+
+console.log('-- (e) adapters: P6 round-trip --');
+{
+  const project = createDefaultProject();
+  project.startDate = '2026-06-01';
+  const t = task('t', '2026-06-01', '2026-06-04', 3, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 240), P(480, 480, 0), P(960, 480, 480), P(1440, 480, 480)] }],
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
+    resourceIds: ['r1'],
+  });
+  const plain = task('p', '2026-06-08', '2026-06-09', 2, { resourceIds: ['r1', 'r2'] });
+  const custom = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]; // geen OPS-vorm
+  const assignments = [
+    assign('a', 't', 'r1', 1),
+    assign('b', 'p', 'r1', 1, { curve: 'LATE_PEAK' }),
+    assign('c', 'p', 'r2', 0.5, { curveValues: custom }),
+  ];
+  const xml = writeP6XML(project, CAL, [t, plain], [], [res('r1', 1), res('r2', 1)], assignments, []);
+  ok('e13 writer schrijft ResourceCurve-catalogus + ResourceCurveObjectId', (xml.match(/<ResourceCurve>/g) ?? []).length === 2 && xml.includes('<ResourceCurveObjectId>'));
+  ok('e14 writer schrijft een spreidingsstring in PlannedCurve (geen curvenaam meer)', /<PlannedCurve>4:8;0:8;8:8;8:8<\/PlannedCurve>/.test(xml) && !xml.includes('<PlannedCurve>Late Peak</PlannedCurve>'));
+  ok('e15 PlannedStartDate als anker meegeschreven', xml.includes('<PlannedStartDate>2026-06-01T08:00:00</PlannedStartDate>'));
+  const back = readP6XML(xml);
+  const bt = back.tasks.find((x) => x.name === 't')!;
+  const bp = back.tasks.find((x) => x.name === 'p')!;
+  eq('e16 contour terug via de spreiding', periodsToSlotWork(bt.timephasedContours![0].periods, MPD), [240, 0, 480, 480]);
+  eq('e17 gaten afgeleid', bt.splitGaps, [{ afterMinutes: 480, gapMinutes: 480 }]);
+  const asgnP = back.assignments.filter((a) => a.taskId === bp.id);
+  const late = asgnP.find((a) => a.unitsPerDay === 1)!;
+  const cust = asgnP.find((a) => a.unitsPerDay === 0.5)!;
+  eq('e18 LATE_PEAK komt als LATE_PEAK terug (exacte tabelmatch) mét de 21 waarden', [late.curve, late.curveValues], ['LATE_PEAK', CONTOUR_SHAPE_VALUES.LATE_PEAK]);
+  eq('e19 eigen curve: geen OPS-vorm, wél de exacte waarden', [cust.curve, cust.curveValues], [undefined, custom]);
+  ok('e20 taak zonder contour krijgt er geen', bp.timephasedContours === undefined);
+
+  // Compat: een bestand van de oude OPS-schrijver droeg de curveNAAM in <PlannedCurve>.
+  const legacy = xml.replace(/<ResourceCurveObjectId>\d+<\/ResourceCurveObjectId>/g, '').replace(/<PlannedCurve>[^<]*<\/PlannedCurve>/g, '<PlannedCurve>Bell Shaped</PlannedCurve>');
+  const backLegacy = readP6XML(legacy);
+  eq('e21 legacy curvenaam in PlannedCurve wordt nog als curve gelezen (alleen `a` droeg het element)',
+    backLegacy.assignments.map((a) => a.curve), ['BELL', undefined, undefined]);
+}
+
+console.log('-- (e) IFC: contour-koppeling overleeft de resource-id-regeneratie --');
+{
+  const project = createDefaultProject();
+  project.startDate = '2026-06-01';
+  const t = task('t', '2026-06-01', '2026-06-03', 3, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 240), P(480, 960, 960)] }],
+    resourceIds: ['r1'],
+  });
+  const resources = [res('r1', 1), res('r2', 1)];
+  const assignments = [assign('a', 't', 'r2', 1), assign('b', 't', 'r1', 1)]; // r2 eerst: volgorde ≠ resource-volgorde
+  const ifc = writeIFC({ project, calendar: CAL, tasks: [t], sequences: [], resources, assignments });
+  const back = readIFC(ifc);
+  const bt = back.tasks[0];
+  const contour = bt.timephasedContours?.[0];
+  const toR1 = back.assignments.find((a) => back.resources.find((r) => r.id === a.resourceId)?.name === 'r1');
+  ok('e22 resource-ids zijn geregenereerd (de test toetst iets echts)', toR1 !== undefined && toR1.resourceId !== 'r1');
+  eq('e23 contour.resourceId wijst na herladen naar de NIEUWE id van r1', contour?.resourceId, toR1?.resourceId);
+  const m = matchContoursToAssignments(bt.timephasedContours, back.assignments.filter((a) => a.taskId === bt.id));
+  eq('e24 koppeling landt op de r1-toewijzing, niet op de eerste', m.get(toR1!.id)?.periods.length, 2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (d) store: updateTask herschaalt de contour, een naam-/datumwijziging niet --');
+{
+  const S = () => useAppStore.getState();
+  S().newProject();
+  const id = S().addTask({ name: 'contour-store', time: createDefaultTaskTime('2026-06-01', 3) });
+  S().updateTask(id, {
+    timephasedContours: [{ resourceUid: null, resourceId: 'r-x', periods: [P(0, 480, 240), P(480, 480, 0), P(960, 960, 960)] }],
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
+  });
+  const find = () => S().tasks.find((t) => t.id === id)!;
+  S().updateTask(id, { name: 'hernoemd' });
+  eq('d1 naamswijziging raakt de contour niet', find().timephasedContours?.[0].periods, [P(0, 480, 240), P(480, 480, 0), P(960, 960, 960)]);
+  S().updateTask(id, { time: { ...find().time, scheduleStart: '2026-06-08' } });
+  eq('d2 datumverschuiving raakt de contour niet (offset-as)', find().timephasedContours?.[0].periods[2], P(960, 960, 960));
+  S().updateTask(id, { time: { ...find().time, scheduleDuration: 6 } });
+  eq('d3 duur 3 → 6 dagen: periodes ×2', find().timephasedContours?.[0].periods, [P(0, 960, 480), P(960, 960, 0), P(1920, 1920, 1920)]);
+  eq('d4 importsplits ×2 mee', find().splitGaps, [{ afterMinutes: 960, gapMinutes: 960 }]);
+  S().undo();
+  eq('d5 undo herstelt de oude contour', find().timephasedContours?.[0].periods[0], P(0, 480, 240));
+  S().newProject();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (h) DOUBLE_PEAK/TURTLE als OPS-curve: MSPDI-, P6- en IFC-round-trip --');
+{
+  const project = createDefaultProject();
+  project.startDate = '2026-06-01';
+  const t1 = task('dp', '2026-06-01', '2026-06-05', 5, { resourceIds: ['r1'] });
+  const t2 = task('tu', '2026-06-08', '2026-06-12', 5, { resourceIds: ['r1'] });
+  const r1 = res('r1', 1);
+  const assignments = [assign('a', 'dp', 'r1', 1, { curve: 'DOUBLE_PEAK' }), assign('b', 'tu', 'r1', 1, { curve: 'TURTLE' })];
+  const mspdi = writeMSPDI(project, CAL, [t1, t2], [], [r1], assignments, []);
+  ok('h1 MSPDI schrijft WorkContour 3 (Double Peak) en 7 (Turtle)', mspdi.includes('<WorkContour>3</WorkContour>') && mspdi.includes('<WorkContour>7</WorkContour>'));
+  const backM = readMSPDI(mspdi);
+  const curvesM = ['dp', 'tu'].map((n) => backM.assignments.find((a) => a.taskId === backM.tasks.find((x) => x.name === n)!.id)?.curve);
+  eq('h2 MSPDI leest ze terug als OPS-curve', curvesM, ['DOUBLE_PEAK', 'TURTLE']);
+  const p6 = writeP6XML(project, CAL, [t1, t2], [], [r1], assignments, []);
+  ok('h3 P6 schrijft twee ResourceCurve-objecten met de labels Double Peak/Turtle', /<Name>Double Peak<\/Name>/.test(p6) && /<Name>Turtle<\/Name>/.test(p6));
+  const backP = readP6XML(p6);
+  const asgnP = ['dp', 'tu'].map((n) => backP.assignments.find((a) => a.taskId === backP.tasks.find((x) => x.name === n)!.id)!);
+  eq('h4 P6 leest ze terug als OPS-curve (tabelmatch) mét de 21 waarden', [asgnP[0].curve, asgnP[1].curve, asgnP[1].curveValues], ['DOUBLE_PEAK', 'TURTLE', CONTOUR_SHAPE_VALUES.TURTLE]);
+  const ifc = writeIFC({ project, calendar: CAL, tasks: [t1, t2], sequences: [], resources: [r1], assignments });
+  const backI = readIFC(ifc);
+  eq('h5 IFC-validator accepteert de twee nieuwe curves', backI.assignments.map((a) => a.curve).sort(), ['DOUBLE_PEAK', 'TURTLE']);
+  const load = computeResourceLoad(backI.resources, backI.assignments, backI.tasks, backI.calendar, backI.resourceCalendars ?? []);
+  const dpLoad = Object.keys(load.load[backI.resources[0].id]).sort().slice(0, 5).map((k) => load.load[backI.resources[0].id][k]);
+  eq('h6 lastlezer: DOUBLE_PEAK bij geheel tempo over 5 dagen = hele eenheden, som 5', [dpLoad.reduce((a, b) => a + b, 0), dpLoad.every((v) => Number.isInteger(v))], [5, true]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (f) bewerkmodel: dagslots ↔ periodes, vorm als data --');
+{
+  // Heen en terug zonder gaten: 3 werkdagen, 4/8/2 uur.
+  const slots = [240, 480, 120];
+  const per = workDaySlotsToPeriods(slots, undefined, MPD);
+  eq('f1 slots → periodes zonder gaten (één periode per slot)', per, [P(0, 480, 240), P(480, 480, 480), P(960, 480, 120)]);
+  eq('f2 periodes → slots (inverse)', contourDaySlots(per, undefined, MPD).remaining, slots);
+  // Met een gat van 1 werkdag ná dag 1: de as krijgt slot 1 als gat, de werkdagen 2 en 3 schuiven op.
+  const gaps = [{ afterMinutes: 480, gapMinutes: 480 }];
+  const perG = workDaySlotsToPeriods(slots, gaps, MPD);
+  eq('f3 slots → periodes met gat: gat-slot krijgt geen periode', perG, [P(0, 480, 240), P(960, 480, 480), P(1440, 480, 120)]);
+  eq('f4 periodes → werkdagslots met gat (inverse, gat-uitgelijnd)', contourDaySlots(perG, gaps, MPD).remaining, slots);
+  eq('f5 lastlezer boekt dezelfde werkdagslots', periodsToWorkDaySlots(perG, gaps, MPD), slots);
+  // actual/remaining apart: verricht werk op dag 1, resterend op dag 2-3.
+  const mixed: TimephasedContourPeriod[] = [
+    { afterMinutes: 0, minutes: 480, workMinutes: 480, kind: 'actual' },
+    P(480, 480, 240), P(960, 480, 240),
+  ];
+  const ds = contourDaySlots(mixed, undefined, MPD, 4);
+  eq('f6 actual-slots apart', ds.actual, [480, 0, 0, 0]);
+  eq('f7 remaining-slots apart, opgevuld tot minSlots', ds.remaining, [0, 240, 240, 0]);
+  const edited = buildEditedContourPeriods(mixed, [0, 120, 360, 60], undefined, MPD);
+  eq('f8 bewerken bewaart de actual-periode ongewijzigd', edited[0], mixed[0]);
+  eq('f9 bewerken bouwt de remaining-periodes opnieuw uit de dagwaarden', edited.slice(1), [P(0, 480, 0), P(480, 480, 120), P(960, 480, 360), P(1440, 480, 60)]);
+  eq('f10 ongeldige dagwaarden worden 0', buildEditedContourPeriods(undefined, [NaN, -5, 30], undefined, MPD).map((p) => p.workMinutes), [0, 0, 30]);
+  // Vorm als data: FRONT_LOADED over 2 dagen = 65/35 van het totaal (dezelfde tabel als b5), som exact.
+  const fl = shapeSlotWork('FRONT_LOADED', 960, 2);
+  eq('f11 vorm als data (FRONT_LOADED, 2 dagen)', r3(fl), [624, 336]);
+  ok('f12 vorm-som is exact het totaal', Math.abs(shapeSlotWork('TURTLE', 1234, 7).reduce((a, b) => a + b, 0) - 1234) < 1e-9);
+  eq('f13 FLAT is gelijkmatig', r3(shapeSlotWork('FLAT', 900, 3)), [300, 300, 300]);
+  eq('f14 nul slots ⇒ leeg', shapeSlotWork('BELL', 480, 0), []);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (g) store: setAssignmentContour zet/vervangt/laat los, met undo en verse belasting --');
+{
+  const S = () => useAppStore.getState();
+  S().newProject();
+  const id = S().addTask({ name: 'contour-ui', time: createDefaultTaskTime('2026-06-01', 3) });
+  const r1 = S().addResource({ name: 'r1', type: 'LABOR', description: '', maxUnits: 1 });
+  const r2 = S().addResource({ name: 'r2', type: 'LABOR', description: '', maxUnits: 1 });
+  S().assignResource(id, r1, 1);
+  S().assignResource(id, r2, 1);
+  S().runCPM();
+  const find = () => S().tasks.find((t) => t.id === id)!;
+  const asg = (rid: string) => S().assignments.find((a) => a.taskId === id && a.resourceId === rid)!;
+  const loadOf = (rid: string) => S().resourceLoadResult?.load[rid] ?? {};
+  const mpdOf = () => S().calendar.hoursPerDay * 60;
+  const dirtyBefore = S().isDirty;
+  // null zonder contour: no-op (geen snapshot, geen dirty).
+  const depth0 = S().historyEvents.length;
+  S().setAssignmentContour(asg(r1).id, null);
+  eq('g1 loslaten zonder contour is een no-op (geen undo-event)', S().historyEvents.length, depth0);
+  eq('g2 …en zet niets dirty', S().isDirty, dirtyBefore);
+  // Zetten: r1 krijgt 2/8/6 uur over de 3 dagen.
+  S().setAssignmentContour(asg(r1).id, workDaySlotsToPeriods([120, 480, 360], undefined, mpdOf()));
+  eq('g3 contour aangemaakt met resourceId en resourceUid null', find().timephasedContours?.map((c) => [c.resourceId, c.resourceUid]), [[r1, null]]);
+  eq('g4 koppeling landt op de r1-toewijzing', contourIndexForAssignment(find().timephasedContours, S().assignments.filter((a) => a.taskId === id), asg(r1).id), 0);
+  eq('g5 r2 blijft op de formule', contourIndexForAssignment(find().timephasedContours, S().assignments.filter((a) => a.taskId === id), asg(r2).id), -1);
+  const l1 = loadOf(r1);
+  eq('g6 belasting van r1 volgt de contour (0.25/1/0.75)', r3(Object.keys(l1).sort().map((k) => l1[k])), [0.25, 1, 0.75]);
+  const l2 = loadOf(r2);
+  eq('g7 belasting van r2 blijft de formule (1/1/1)', r3(Object.keys(l2).sort().map((k) => l2[k])), [1, 1, 1]);
+  ok('g8 isDirty gezet', S().isDirty);
+  eq('g9 geen taakdatum geraakt', [find().time.earlyStart, find().time.earlyFinish], ['2026-06-01', '2026-06-03']);
+  ok('g10 planning niet stale (contour raakt geen datum)', !S().scheduleStale);
+  // Vervangen: r1 opnieuw, r2 erbij — twee contouren, elk op de eigen toewijzing.
+  S().setAssignmentContour(asg(r2).id, workDaySlotsToPeriods([480, 0, 480], undefined, mpdOf()));
+  S().setAssignmentContour(asg(r1).id, workDaySlotsToPeriods([480, 480, 0], undefined, mpdOf()));
+  eq('g11 twee contouren, r1 vervangen op zijn plek', find().timephasedContours?.map((c) => [c.resourceId, c.periods.map((p) => p.workMinutes)]), [[r1, [480, 480, 0]], [r2, [480, 0, 480]]]);
+  const l2b = loadOf(r2);
+  eq('g12 belasting r2: dag 2 zonder werk (geen split, dag blijft binnen de duur)', r3(Object.keys(l2b).sort().map((k) => l2b[k])), [1, 0, 1]);
+  // Loslaten: r2 terug naar de formule; r1 blijft.
+  S().setAssignmentContour(asg(r2).id, null);
+  eq('g13 r2 losgelaten, r1 blijft', find().timephasedContours?.map((c) => c.resourceId), [r1]);
+  const l2c = loadOf(r2);
+  eq('g14 belasting r2 weer de formule', r3(Object.keys(l2c).sort().map((k) => l2c[k])), [1, 1, 1]);
+  S().setAssignmentContour(asg(r1).id, null);
+  eq('g15 laatste contour weg ⇒ veld afwezig', find().timephasedContours, undefined);
+  S().undo();
+  eq('g16 undo herstelt de r1-contour', find().timephasedContours?.map((c) => c.resourceId), [r1]);
+  S().undo();
+  eq('g17 tweede undo herstelt ook r2', find().timephasedContours?.map((c) => c.resourceId), [r1, r2]);
+  // Legacy: een contour zónder resourceId (Z14b-bestand) op een taak met één toewijzing krijgt bij de
+  // eerste bewerking zijn resourceId (zelfde entry, geen tweede contour).
+  S().newProject();
+  const id2 = S().addTask({ name: 'legacy', time: createDefaultTaskTime('2026-06-01', 2) });
+  const r3id = S().addResource({ name: 'r3', type: 'LABOR', description: '', maxUnits: 1 });
+  S().assignResource(id2, r3id, 1);
+  S().updateTask(id2, { timephasedContours: [{ resourceUid: 7, periods: [P(0, 480, 480), P(480, 480, 480)] }] });
+  const a3 = S().assignments.find((a) => a.taskId === id2)!;
+  S().setAssignmentContour(a3.id, workDaySlotsToPeriods([240, 240], undefined, mpdOf()));
+  const t2 = S().tasks.find((t) => t.id === id2)!;
+  eq('g18 legacy-contour vervangen op zijn plek, resourceId gezet, resourceUid behouden', t2.timephasedContours?.map((c) => [c.resourceUid, c.resourceId, c.periods.map((p) => p.workMinutes)]), [[7, r3id, [240, 240]]]);
+  S().newProject();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (i) fasenmodel: run-length ↔ slots, splitsen/samenvoegen/grens/inzet --');
+{
+  const ph = (days: number, unitsPerDay: number) => ({ days, unitsPerDay });
+  eq('i1 uniforme slots ⇒ één fase', phasesFromSlots([480, 480, 480, 480, 480], MPD), [ph(5, 1)]);
+  eq('i2 run-length over de inzet (halve ploeg, dan vol, dan niets)', phasesFromSlots([240, 240, 480, 480, 480, 0], MPD), [ph(2, 0.5), ph(3, 1), ph(1, 0)]);
+  eq('i3 inverse: fasen ⇒ slots', slotsFromPhases([ph(2, 0.5), ph(3, 1), ph(1, 0)], MPD), [240, 240, 480, 480, 480, 0]);
+  eq('i4 tolerantie: 0,501 en 0,5 vouwen samen, 0,51 niet', phasesFromSlots([240, 240.48, 244.8], MPD).map((p) => p.days), [2, 1]);
+  eq('i5 lege slots ⇒ geen fasen', phasesFromSlots([], MPD), []);
+  const base = [ph(5, 1)];
+  eq('i6 splitsen ná 2 dagen', splitPhase(base, 0, 2), [ph(2, 1), ph(3, 1)]);
+  eq('i7 splitsen op een ongeldige positie is een no-op', [splitPhase(base, 0, 0), splitPhase(base, 0, 5), splitPhase(base, 3, 1)], [base, base, base]);
+  const two = [ph(2, 0.5), ph(3, 1)];
+  eq('i8 samenvoegen houdt de linker inzet', mergePhaseWithNext(two, 0), [ph(5, 0.5)]);
+  eq('i9 samenvoegen van de laatste fase is een no-op', mergePhaseWithNext(two, 1), two);
+  eq('i10 grens verschuiven naar dag 3: buur vangt op, totaal blijft 5', movePhaseBoundary(two, 0, 3), [ph(3, 0.5), ph(2, 1)]);
+  eq('i11 grens klemt op minstens één dag per fase', [movePhaseBoundary(two, 0, 0), movePhaseBoundary(two, 0, 9)], [[ph(1, 0.5), ph(4, 1)], [ph(4, 0.5), ph(1, 1)]]);
+  eq('i12 grens ná de laatste fase bestaat niet (no-op)', movePhaseBoundary(two, 1, 3), two);
+  eq('i13 setPhaseDays = grens verschuiven', setPhaseDays(two, 0, 4), [ph(4, 0.5), ph(1, 1)]);
+  eq('i14 setPhaseUnits, negatief/NaN ⇒ 0', [setPhaseUnits(two, 1, 0.75)[1], setPhaseUnits(two, 1, -1)[1], setPhaseUnits(two, 1, NaN)[1]], [ph(3, 0.75), ph(3, 0), ph(3, 0)]);
+  eq('i15 startdag per fase', [phaseStartDay(two, 0), phaseStartDay(two, 1), phasesTotalDays(two)], [0, 2, 5]);
+  eq('i16 fitPhasesToDays: te kort ⇒ laatste fase verlengd', fitPhasesToDays(two, 8, 1), [ph(2, 0.5), ph(6, 1)]);
+  eq('i17 fitPhasesToDays: te lang ⇒ afgekapt', fitPhasesToDays(two, 3, 1), [ph(2, 0.5), ph(1, 1)]);
+  eq('i18 fitPhasesToDays: zonder fasen ⇒ één vulfase', fitPhasesToDays([], 4, 0.5), [ph(4, 0.5)]);
+  // Round-trip door de opslagvorm (één periode per werkdag) — de fasen komen identiek terug.
+  const per = buildEditedContourPeriods(undefined, slotsFromPhases(two, MPD), undefined, MPD);
+  eq('i19 fasen → periodes → slots → fasen is identiek', phasesFromSlots(contourDaySlots(per, undefined, MPD).remaining, MPD), two);
+  // Vorm als fasen: FRONT_LOADED over 4 dagen = 2 fasen (65/35-tabel: dag 1-2 hoog, dag 3-4 laag).
+  eq('i20 FRONT_LOADED over 4 dagen ⇒ twee fasen', phasesFromSlots(shapeSlotWork('FRONT_LOADED', 1920, 4), MPD).map((p) => [p.days, r3([p.unitsPerDay])[0]]), [[2, 1.3], [2, 0.7]]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+if (diffs.length > 0) {
+  console.log(`XX contour-engine — ${diffs.length} van ${checks} checks rood:`);
+  for (const d of diffs) console.log(`   XX ${d}`);
+  process.exit(1);
+}
+console.log(`OK contour-engine: ${checks}/${checks} groen`);

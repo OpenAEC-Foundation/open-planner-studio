@@ -1,5 +1,8 @@
 // MCP-toolregistry — de publieke ingang: importeert alle tool-modules en registreert ze bij load.
 //
+// Toelichting bij een nieuwe tool (stappen, context-aandachtspunten, het mechanische vangnet):
+// docs/recepten/mcp-tool.md. Dat vangnet zelf is `tests/mcp/cases-toolregistry.ts`.
+//
 // STRUCTUUR (parallellisatie-eis, spec §componenten): elke `tools/*.ts`-module exporteert zijn eigen
 // `McpToolDef[]`; deze registry importeert die arrays en slaat ze plat. Een baan voegt dus precies
 // twee dingen toe: zijn eigen module én één regel in `MODULES` hieronder.

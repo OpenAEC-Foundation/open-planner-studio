@@ -431,11 +431,13 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary font-medium">{tMenu('projectInfo.startDate')}</label>
-            <DateTextInput value={startDate} onCommit={setStartDate} className={inputCls} ariaLabel={tMenu('projectInfo.startDate')} />
+            {/* Lokale draftstate zonder undo-kosten, mét live afgeleide feedback (de kalenderspanne
+                hieronder rekent mee terwijl je typt) ⇒ hier blijft live committen zinvol. */}
+            <DateTextInput value={startDate} onCommit={setStartDate} className={inputCls} commitMode="live" ariaLabel={tMenu('projectInfo.startDate')} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-text-secondary font-medium">{tMenu('projectInfo.endDate')}</label>
-            <DateTextInput value={endDate} onCommit={setEndDate} className={inputCls} ariaLabel={tMenu('projectInfo.endDate')} />
+            <DateTextInput value={endDate} onCommit={setEndDate} className={inputCls} commitMode="live" ariaLabel={tMenu('projectInfo.endDate')} />
           </div>
         </div>
 

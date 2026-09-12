@@ -56,7 +56,7 @@ Er zijn drie manieren om een relatie aan te maken, afhankelijk van waar je toch 
 
 1. **Slepen in het Gantt-diagram**: houd **Shift** ingedrukt en sleep van de balk van de voorganger naar de balk van de opvolger. Zodra je loslaat, ontstaat direct een FS-relatie met lag 0, en verschijnt meteen het venster **Type relatie** — daarin pas je het type (FS/SS/FF/SF) en de lag aan zonder het eigenschappenpaneel te hoeven openen.
 2. **Selectie + knop**: selecteer eerst de voorganger, houd Ctrl/Cmd ingedrukt en selecteer daarna de opvolger (in die volgorde). Zijn er zo precies twee taken geselecteerd, kies dan **Relatie → Geselecteerde taken koppelen** op het tabblad **Start**, **Planning** of **Tabel**. Er wordt meteen een FS-relatie met vertraging 0 aangemaakt. Open het relatietoken daarna in de taakgrid als je type of lag wilt wijzigen.
-3. **Rechtstreeks in de taakgrid**: voeg via het plusje de kolom **Voorgangers** of **Opvolgers** toe. Open een cel, zoek op WBS/taaknaam en stel FS/SS/FF/SF plus lag in. Bestaande relatietokens kun je openen om ze te wijzigen of verwijderen; vrije speling, bepalende status en waarschuwingen zijn als aparte kolommen beschikbaar.
+3. **Rechtstreeks in de taakgrid**: voeg via het plusje de kolom **Voorgangers** of **Opvolgers** toe. Open een cel, zoek op WBS/taaknaam en stel FS/SS/FF/SF plus lag in. Bestaande relatietokens kun je openen om ze te wijzigen of verwijderen; vrije speling, bepalende status en waarschuwingen zijn als aparte kolommen beschikbaar. Voorgangers en opvolgers hebben elk hun eigen kleur in deze kolommen; een bepalende (driving) relatie krijgt een sterkere tint van diezelfde kleur, plus vet.
 
 De kolom **Bepalend** (driving) laat na een berekening zien welke relatie daadwerkelijk de start- of einddatum van de opvolger bepaalt — bij een taak met meerdere voorgangers is dat niet per se de relatie die je het laatst hebt aangemaakt, maar degene met de laatste (bepalende) datum.
 
@@ -121,3 +121,4 @@ Vuistregel: gebruik een **deadline** voor een streefdatum die je wilt bewaken zo
 - Zie het deadline-conflict in de praktijk: [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc).
 - Structuur nog niet op orde? Lees eerst de gids [Plannen & WBS](docs://gids-plannen-wbs).
 - Voor kalenders en werktijden die de duur van taken beïnvloeden: de gids [Kalenders & uren-planning](docs://gids-kalenders-uren).
+- Alle overschreden deadlines en constraints op één plek, met een sprong naar de taak: het [Waarschuwingenpaneel](docs://ref-waarschuwingen).

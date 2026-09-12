@@ -85,6 +85,16 @@ eq('10 delete: één handeling = één undo-stap (niet N)', S().historyEvents.fi
 run(COMMANDS.undo);
 eq('11 delete: één undo brengt ze allebei terug', S().tasks.filter(t => t.id === idA || t.id === idB).length, 2);
 
+// TODO.md: deleteTasksBulk met ≥2 ids die stuk voor stuk al niet (meer) bestaan mag geen dode
+// undo-stap achterlaten — het 1-id-pad (deleteTask) ontweek dat al bewust, het ≥2-pad moet dat nu
+// ook doen.
+{
+  const undoDepthBefore = historyDepthsForActiveScope(S()).undoDepth;
+  S().deleteTasksBulk(['onbekend-1', 'onbekend-2']);
+  eq('11e deleteTasksBulk met louter onbekende ids: geen dode undo-stap',
+    historyDepthsForActiveScope(S()).undoDepth, undoDepthBefore);
+}
+
 // Het commandocontract krijgt de doelstore expliciet mee. Een eerdere implementatie gebruikte
 // desondanks de app-gebonden bulkadapter, waardoor `COMMANDS.delete.run(storeB)` stil store A
 // muteerde. Hetzelfde taak-id aan beide kanten maakt zowel het gemiste doel als de nevenschade

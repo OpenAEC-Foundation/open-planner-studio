@@ -1,5 +1,5 @@
-import { current, isDraft } from 'immer';
 import { createSnapshot, type Snapshot } from '../snapshot';
+import { currentAppState } from '../immerDraft';
 import {
   MAX_SESSION_HISTORY_EVENTS_PER_SCOPE,
   recordSessionHistoryDeltas,
@@ -54,9 +54,13 @@ export interface StoreRuntime {
   exitMcpTransaction(lease: McpTransactionLease): void;
 }
 
+/**
+ * De NA-staat van een mutatie: binnen een producer moet dat de draft INCLUSIEF zijn mutaties zijn,
+ * dus `current()` en niet de basis die `createSnapshot` zelf zou lezen. `currentAppState` levert
+ * plain state op, waarna `createSnapshot` de velden gewoon per referentie deelt.
+ */
 function snapshotOfCurrentState(state: AppState): Snapshot {
-  if (!isDraft(state)) return createSnapshot(state);
-  return createSnapshot(current(state) as AppState);
+  return createSnapshot(currentAppState(state));
 }
 
 export function snapshotsEqual(left: Snapshot, right: Snapshot): boolean {

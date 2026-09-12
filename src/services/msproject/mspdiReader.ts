@@ -55,6 +55,14 @@ import {
   MAX_CALENDAR_EXCEPTIONS,
 } from '@/services/calendarRecurrence';
 import type { RecurrenceSpec, RawException, HolidayBudget } from '@/services/calendarRecurrence';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
+import {
+  absoluteItemsToContourPeriods, mspdiValueToMinutes, splitGapsFromContours, type AbsoluteWorkItem,
+} from '@/services/contourIo';
+import type { TaskTimephasedContour } from '@/types/task';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const MSP_TIME_ANCHOR = '08:00:00';
@@ -614,6 +622,21 @@ export function readMSPDI(content: string): ImportResult {
   // Assignments (fase 2.5, §8.2)
   const assignmentsRoot = root.getElementsByTagName('Assignments')[0];
   const assignments: ResourceAssignment[] = [];
+  // Contour-engine (2026-09): taak-lookup + kalender-engine per taakkalender voor de as-vertaling
+  // van `<TimephasedData>` (zie `contourIo.ts`). Kalenders zijn hierboven al gepromoveerd naar
+  // uur-modus waar de discriminator dat besliste, dus `calendarForEngine` levert de juiste modus.
+  const taskById = new Map(tasks.map(t => [t.id, t] as const));
+  const engineCache = new Map<string, CalendarEngine>();
+  const engineForTask = (task: Task): CalendarEngine => {
+    const key = task.calendarId ?? '';
+    let eng = engineCache.get(key);
+    if (!eng) {
+      eng = new CalendarEngine(calendarForEngine(resolveCalendar(task.calendarId, resourceCalendars, calendar)));
+      engineCache.set(key, eng);
+    }
+    return eng;
+  };
+  const contoursByTaskId = new Map<string, TaskTimephasedContour[]>();
   if (assignmentsRoot) {
     const asgnElements = assignmentsRoot.getElementsByTagName('Assignment');
     for (let i = 0; i < asgnElements.length; i++) {
@@ -638,6 +661,56 @@ export function readMSPDI(content: string): ImportResult {
         unitsPerDay: Number.isFinite(units) && unitsText ? units : 1,
         ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
       });
+
+      // Contour-engine (2026-09): native `<TimephasedData>` (Type 1 = resterend, 2 = verricht werk;
+      // MPXJ `MSPDIReader.readTimephasedWork`) → contourperiodes op de taak-as van déze taak,
+      // gekoppeld aan de toewijzing via `resourceId`. Vlakke data (één item, of alleen nul-werk)
+      // levert géén contour op — een contour die niets toevoegt aan `Units × duur` is ruis.
+      // `WorkContour === 8` (Contoured) is het MSP-signaal, maar de data zelf is leidend.
+      const task = taskById.get(taskId);
+      if (task) {
+        const items: AbsoluteWorkItem[] = [];
+        const tpElements = asgnEl.getElementsByTagName('TimephasedData');
+        for (let j = 0; j < tpElements.length; j++) {
+          const tp = tpElements[j];
+          if (tp.parentElement !== asgnEl) continue;
+          const type = getElementInt(tp, 'Type', -1);
+          if (type !== 1 && type !== 2) continue;
+          const startRaw = getElementText(tp, 'Start');
+          const finishRaw = getElementText(tp, 'Finish');
+          if (!startRaw || !finishRaw) continue;
+          const workMinutes = mspdiValueToMinutes(getElementText(tp, 'Value'));
+          if (workMinutes === null) continue;
+          items.push({
+            start: parseInstant(startRaw), finish: parseInstant(finishRaw), workMinutes,
+            kind: type === 2 ? 'actual' : 'remaining',
+          });
+        }
+        if (items.length > 0 && task.time.scheduleStart) {
+          const periods = absoluteItemsToContourPeriods(
+            engineForTask(task), parseInstant(task.time.scheduleStart), items,
+          );
+          const hasWork = periods.some(p => p.workMinutes > 0);
+          const informative = periods.length > 1 || contour === MSPDI_WORKCONTOUR_CONTOURED;
+          if (hasWork && informative) {
+            const list = contoursByTaskId.get(taskId) ?? [];
+            list.push({ resourceUid, resourceId, periods });
+            contoursByTaskId.set(taskId, list);
+          }
+        }
+      }
+    }
+  }
+  // Contour-engine: contouren én de daaruit afgeleide werkonderbrekingen op de taken zetten —
+  // dezelfde afleiding als de .mpp-lezer (`splitGapsFromContours`), alleen voor taken die nog geen
+  // gaten dragen (MSPDI kent geen andere split-bron, dus dat is per constructie elke taak).
+  for (const [taskId, contours] of contoursByTaskId) {
+    const task = taskById.get(taskId);
+    if (!task || task.childIds.length > 0) continue;
+    task.timephasedContours = contours;
+    if (!task.splitGaps || task.splitGaps.length === 0) {
+      const gaps = splitGapsFromContours(contours.map(c => c.periods));
+      if (gaps.length > 0) task.splitGaps = gaps;
     }
   }
 

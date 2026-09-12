@@ -27,11 +27,23 @@ article les regroupe sous **Général**, **Langue** et **Chronologie / Zoom**.
 **Application :**
 
 - **Version** — le numéro de version de l'application (lecture seule), avec un lien **Rechercher des mises à jour** qui ouvre la fenêtre de mise à jour. L'installation des mises à jour ne fonctionne que dans l'application de bureau ; les installations Snap et AppImage se mettent à jour via leur propre canal. Séparément, la première fois que vous ouvrez l'application après qu'elle s'est mise à jour automatiquement, une boîte de dialogue ponctuelle « Vous venez d'être mis à jour » apparaît d'elle-même — le saut de version, la différence de taille de l'installateur, le nombre de jours depuis la version précédente et les notes de version GitHub, pour celles qu'elle a pu récupérer. C'est un moment différent, automatique, du lien manuel **Rechercher des mises à jour** ci-dessus.
-- **Informations du projet...** — raccourci vers la fenêtre [Informations du projet](docs://ref-projectgegevens).
 - **Visite guidée** — **Démarrer la visite guidée** relance la visite guidée d'introduction. Le même redémarrage se trouve aussi sur l'onglet de ruban **Affichage** → **Visite guidée** et dans le Backstage (**Fichier** → **Démarrer la visite guidée**).
 - **Benchmark** — ouvre l'outil de benchmark intégré, pour mesurer les performances de calcul/rendu de cette machine.
 - **Mode IA** — **Activer le mode IA** affiche l'onglet de ruban **IA** avec le pont MCP, permettant à un assistant IA de travailler avec votre planning via le Model Context Protocol ; le désactiver arrête immédiatement un pont en cours d'exécution. **Démarrer la passerelle automatiquement** (disponible uniquement avec le mode IA activé) met le pont en service dès le démarrage de l'application, sans devoir d'abord ouvrir l'onglet IA — application de bureau uniquement. Voir le guide de l'assistant IA intégré à l'application pour le tableau complet.
 - **Terminal de débogage** — **Activer le terminal de débogage** affiche le panneau de journal pour le dépannage.
+
+## Statistiques (bouton de l’onglet Application)
+
+Ouvrez via **Paramètres** → onglet **Application** → **Statistiques…** ; c’est volontairement une fenêtre séparée derrière un bouton, pas un onglet à part.
+
+Combien de fois Open Planner Studio a été téléchargé, par système d’exploitation et par version. Les chiffres proviennent des compteurs de téléchargement publics de GitHub Releases et sont actualisés chaque semaine ; l’application se contente de les lire, rien n’est collecté ni envoyé vous concernant.
+
+- **Téléchargements par système d’exploitation** — par système, le nombre de téléchargements, réparti entre installateurs (ce qu’une personne télécharge) et mises à jour (ce que le programme de mise à jour intégré récupère). Pour Linux, les deux forment un seul chiffre : le programme de mise à jour récupère le même `.deb`/`.rpm`/`.AppImage` que vous téléchargez aussi manuellement. Sous Linux, seul le fichier snap compte comme installateur.
+- **Vérifications de mise à jour depuis l’application** — combien de fois une installation de bureau a cherché une nouvelle version au démarrage ; une mesure approximative de l’utilisation active, pas un téléchargement.
+- **Par version** — les mêmes chiffres par version ; les six plus récentes par défaut, avec **Afficher les … versions** pour le reste.
+- **Source** — la date des chiffres et **Actualiser maintenant**. L’onglet conserve les derniers chiffres récupérés pendant une demi-heure ; si l’actualisation échoue, ils restent visibles avec un avertissement.
+
+Les installations via le Snap Store ne passent pas par GitHub et ne figurent pas ici.
 
 ## Onglet Langue
 

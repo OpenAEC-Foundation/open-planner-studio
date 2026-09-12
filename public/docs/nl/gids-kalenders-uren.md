@@ -43,7 +43,7 @@ Opnieuw genereren voegt ontbrekende jaren toe en laat handmatig ingevoerde strem
 
 ### Urenplanning inschakelen
 
-Open **Instellingen → Tijdlijn / Zoomen** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Zet daaronder ook **Gemengde dag/uur-planning toestaan** aan als je de eenheid per taak wilt kunnen kiezen; zonder die tweede voorkeur blijft de compacte duurinvoer zichtbaar, maar niet de Dagen/Uren-keuze.
+Open **Instellingen → Planning** en zet **Urenplanning inschakelen** aan. Deze hoofdschakelaar maakt uurinvoer, uurprecieze planning en de uur-tijdschaal beschikbaar. Zet daaronder ook **Gemengde dag/uur-planning toestaan** aan als je de eenheid per taak wilt kunnen kiezen; zonder die tweede voorkeur blijft de compacte duurinvoer zichtbaar, maar niet de Dagen/Uren-keuze.
 
 Staat urenplanning uit, dan krijgen nieuwe taken de eenheid **Dagen**. Bestaande of geïmporteerde urentaken worden niet geconverteerd en niet afgerond. Hun uurwaarde blijft bewaard. Je kunt zo'n balk in het Gantt-diagram nog verplaatsen of aan een rand vergroten/verkleinen; de dagrasterstap verandert daarbij nooit de opgeslagen werkminuten in dagen. Schakel urenplanning in voor uur- of kwartierpreciese invoer en het fijnere tijdsraster.
 

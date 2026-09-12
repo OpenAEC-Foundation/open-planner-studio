@@ -10,7 +10,7 @@ import {
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
   Keyboard, PanelRight,
-  CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3,
+  CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
   ClipboardCheck, ClipboardList,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -371,8 +371,25 @@ const progressGroup: RibbonGroupSpec = {
   id: 'progress', labelKey: 'menu:ribbon.progressGroup', items: [progressExportButton, progressImportButton],
 };
 
+/** Waarschuwingenpaneel aan/uit (issue #53) — Beeld → Panelen én Planning → Planning, naast Bereken. */
+const warningsPanelButton: RibbonButtonSpec = {
+  kind: 'button', id: 'warningsPanel', icon: <AlertTriangle size={20} />, labelKey: 'menu:ribbon.warningsPanel',
+  // Zelfde vorm als de Eigenschappen-knop: actief ⇔ je ziet het paneel nu (rail niet ingeklapt en
+  // niet verdrongen door het volledige resourcepaneel); aanzetten klapt de rail zo nodig uit
+  // (`setUI`-invariant 1b). Het omzetten zelf zit in het commando.
+  use: () => {
+    const binding = useCommandBinding(COMMANDS.toggleWarningsPanel);
+    const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
+    const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
+    const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+    const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
+    const railVisible = !rightPanelCollapsed && !(showResourcePanel && !resourcePanelDocked);
+    return { ...binding, active: railVisible && showWarningsPanel };
+  },
+};
+
 const planningTab: RibbonTabConfig = [
-  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton] },
+  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton, warningsPanelButton] },
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
     items: [relationDropdownItem],
@@ -717,6 +734,7 @@ const beeldTab: RibbonTabConfig = [
       openResourcePanelButton,
       dockResourcePanelButton,
       toggleHistogramButton,
+      warningsPanelButton,
     ],
   },
   {

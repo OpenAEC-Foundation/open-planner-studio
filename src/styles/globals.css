@@ -75,8 +75,13 @@
 
 /* Een editorpop-over is bewust breder/hoger dan zijn 28px-cel. De gewone celinhoud blijft
  * ellipsized, maar de actieve editor mag niet door die wrapper worden afgeknipt: anders zijn
- * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar. */
-.task-grid-cell-content:has(> .task-grid-editor-host) {
+ * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar.
+ * Issue #89: de contentspan is een flex-item van de cel en kromp zonder `flex: 1 1 auto` tot de
+ * intrinsieke breedte van het invoerveld (~20 tekens), zodat de naameditor maar een deel van de
+ * kolom vulde. De editor hoort de volle resterende kolombreedte te krijgen; de naameditor staat
+ * daarbij genest in de inspringrij (`.full-task-grid-name`), vandaar de afstammelingsselector. */
+.task-grid-cell-content:has(.task-grid-editor-host) {
+  flex: 1 1 auto;
   overflow: visible;
 }
 
@@ -184,12 +189,12 @@
 
 .task-grid-data-row.task-grid-trace-predecessor,
 .task-grid-data-row.task-grid-trace-predecessor-driving {
-  border-inline-start: 3px solid var(--trace-predecessor, #7c3aed);
+  border-inline-start: 3px solid var(--trace-predecessor, #F59E0B);
 }
 
 .task-grid-data-row.task-grid-trace-successor,
 .task-grid-data-row.task-grid-trace-successor-driving {
-  border-inline-start: 3px dashed var(--trace-successor, #0284c7);
+  border-inline-start: 3px dashed var(--trace-successor, #A78BFA);
 }
 
 .task-grid-data-row.task-grid-trace-predecessor-driving,
@@ -366,12 +371,18 @@
   height: 100%;
 }
 
+/* Issue #89: de subtaak-plus staat ná de naam en wordt met `margin-inline-start: auto` tegen
+ * de rechter kolomrand gedrukt, zodat hij op elke samenvattende rij op dezelfde plek staat en
+ * de naamtekst links de hiërarchie kan laten zien. De lichte rand maakt hem als knop herkenbaar. */
 .gantt-task-grid-add-child {
   flex: none;
+  margin-inline-start: auto;
+  /* Vrij van de kolomrand (issue #89, punt 4 vroeg juist om lucht rond zo'n knop). */
+  margin-inline-end: 6px;
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--theme-border-light);
   border-radius: 3px;
   color: var(--theme-text-muted);
   background: transparent;
@@ -381,6 +392,7 @@
 .gantt-task-grid-add-child:hover,
 .gantt-task-grid-add-child:focus-visible {
   color: var(--theme-accent);
+  border-color: var(--theme-accent);
   background: var(--theme-hover);
   outline: none;
 }
@@ -397,13 +409,56 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  /* Issue #89: triehoekje (16px) + deze gap (4px) = één inspringeenheid van 20px, dezelfde
+   * TASK_NAME_INDENT_UNIT als in src/engine/taskGrid/nameIndent.ts. */
   gap: 4px;
+}
+
+/* Discussion #97: samenvattingen (containertaken) en mijlpalen zijn nu alleen via inspringing te
+ * onderscheiden van een gewone taak. `data-grid-task-kind` (gezet in FullTaskGrid.tsx, weggelaten
+ * tijdens naam-editing) stuurt hier vet + een subtiele achtergrondtint voor samenvattingen, en
+ * vet + de mijlpaalkleur voor mijlpalen — bewust dezelfde kleurfamilie als de Gantt-balk
+ * (`--color-task-milestone`), niet de rode mockupkleur uit de discussion. De tint zit op de hele
+ * naamrij (niet alleen de tekst), zodat hij als rijvlak leesbaar is; de selectiekleur van de rij
+ * (`.task-grid-data-row[data-grid-row-selected="true"]`) wint hier altijd van, dus geen eigen
+ * z-index-gedoe nodig — de tint zit hieronder in de laagvolgorde. */
+.full-task-grid-name[data-grid-task-kind="summary"] {
+  background: var(--theme-grid-summary-bg);
+}
+
+.full-task-grid-name[data-grid-task-kind="summary"] .full-task-grid-name-label {
+  font-weight: 600;
+}
+
+.full-task-grid-name[data-grid-task-kind="milestone"] .full-task-grid-name-label {
+  font-weight: 600;
+  color: var(--theme-grid-milestone-text);
+}
+
+/* Geselecteerde rij wint van de samenvattingstint (leesbaarheid op de selectiekleur staat voorop);
+ * de vette/gekleurde tekst blijft intact — alleen de achtergrond van de naamrij vervalt. */
+.task-grid-data-row[data-grid-row-selected="true"] .full-task-grid-name[data-grid-task-kind="summary"] {
+  background: transparent;
+}
+
+/* De naameditor vult de rij vanaf de tekstpositie tot de rechter kolomrand. */
+.full-task-grid-name > .task-grid-editor-host {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* De algemene celpadding liet rechts van een taaknaam zeven ongebruikte pixels liggen: genoeg voor
  * nog een letter vóór de ellipsis. Links blijft de normale inspringruimte intact. */
 .task-grid-cell:has(.full-task-grid-name) {
   padding-inline-end: 1px;
+}
+
+/* Issue #89: de contentspan is een flex-item van de cel en kromp tot zijn inhoud, zodat de
+ * rechts uitgelijnde subtaak-plus (`margin-inline-start: auto`) nooit verder kwam dan het einde
+ * van de naamtekst. De naamcel laat zijn contentspan daarom de hele celbreedte vullen; de
+ * naamtekst zelf blijft via `.full-task-grid-name-label` krimpen en afknippen. */
+.task-grid-cell:has(.full-task-grid-name) > .task-grid-cell-content {
+  flex: 1 1 auto;
 }
 
 /* Vervolgmelding op observatie 3a/3b (probleem B): `.full-task-grid-name` is zelf een
@@ -420,6 +475,7 @@
  * ondanks het vaste-breedte triehoekje ernaast) plus `overflow:hidden`/`text-overflow:ellipsis` —
  * de clip zit nu op de plek waar de tekst zelf staat, niet alleen bij de voorouder. */
 .full-task-grid-name-label {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -517,8 +573,9 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
-  /* Eén bron voor de compacte "kolom toevoegen"-strook: uitsluitend het 16px brede icoon. */
-  --task-grid-chooser-strip: 16px;
+  /* Eén bron voor de "kolom toevoegen"-strook: een 20px-knop met 6px lucht aan weerszijden, zodat
+   * hij vrijstaat van de laatste kolominhoud én van de rand van het kader (issue #89). */
+  --task-grid-chooser-strip: 32px;
 }
 
 .task-grid-column-header[data-grid-dragging="true"] {
@@ -577,24 +634,24 @@
   z-index: calc(var(--z-sticky) + 1);
   inset-block-start: 0;
   inset-inline-end: 0;
-  width: var(--task-grid-chooser-strip, 34px);
+  width: var(--task-grid-chooser-strip, 32px);
   height: var(--task-grid-header-height);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-inline: 0;
+  padding-inline: 6px;
   background: var(--theme-surface-alt);
 }
 
 .task-grid-add-column {
-  width: 16px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
   padding: 0;
   color: var(--theme-text-muted);
   background: transparent;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 3px;
 }
 
@@ -602,6 +659,7 @@
 .task-grid-add-column:focus-visible,
 .task-grid-add-column[aria-expanded="true"] {
   color: var(--theme-text);
+  border-color: var(--theme-border);
   background: var(--theme-hover);
   outline: none;
 }
@@ -902,7 +960,6 @@
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  color: var(--theme-accent);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -913,17 +970,41 @@
   white-space: nowrap;
 }
 
-.task-grid-relation-detail {
-  color: var(--theme-text);
+.task-grid-relation-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 2px;
 }
 
-.task-grid-relation-chip--driving .task-grid-relation-detail,
-.task-grid-relation-chip--driving > svg {
-  color: var(--theme-accent);
+/* Issue #94: één kleur per chip (referentie, type/lag en het sturend-icoon), gestuurd door de
+ * richting op de chip zelf — niet meer alleen het referentiedeel accentkleur, de rest tekstkleur.
+ * Sturend blijft zichtbaar als de STERKERE tint van diezelfde rolkleur, niet als los "wel/geen
+ * kleur"; het warning-icoon blijft altijd zijn eigen --warning-kleur houden. */
+.task-grid-relation-chip[data-relation-direction="predecessor"] .task-grid-relation-jump,
+.task-grid-relation-chip[data-relation-direction="predecessor"] .task-grid-relation-detail {
+  color: var(--relation-predecessor);
+}
+
+.task-grid-relation-chip[data-relation-direction="successor"] .task-grid-relation-jump,
+.task-grid-relation-chip[data-relation-direction="successor"] .task-grid-relation-detail {
+  color: var(--relation-successor);
+}
+
+.task-grid-relation-chip--driving[data-relation-direction="predecessor"] .task-grid-relation-jump,
+.task-grid-relation-chip--driving[data-relation-direction="predecessor"] .task-grid-relation-detail,
+.task-grid-relation-chip--driving[data-relation-direction="predecessor"] .task-grid-relation-icon--driving > svg {
+  color: var(--relation-predecessor-driving);
   font-weight: 700;
 }
 
-.task-grid-relation-chip--warning > svg {
+.task-grid-relation-chip--driving[data-relation-direction="successor"] .task-grid-relation-jump,
+.task-grid-relation-chip--driving[data-relation-direction="successor"] .task-grid-relation-detail,
+.task-grid-relation-chip--driving[data-relation-direction="successor"] .task-grid-relation-icon--driving > svg {
+  color: var(--relation-successor-driving);
+  font-weight: 700;
+}
+
+.task-grid-relation-chip--warning .task-grid-relation-icon--warning > svg {
   color: var(--warning, #d97706);
 }
 
@@ -1069,6 +1150,12 @@ button.task-grid-relation-reference {
   /* Brand — primary */
   --deep-forge:      #36363E;
 
+  /* Path tracing (issue #114): de rijmarkering in het taakraster gebruikt dezelfde tinten als de
+     Gantt-balken — GANTT_TRACE_COLORS in src/engine/renderer/themePalette.ts is de bron;
+     tests/planning/check-dependency-presentation.ts bewaakt dat beide gelijk blijven. */
+  --trace-predecessor: #F59E0B;
+  --trace-successor:   #A78BFA;
+
   /* Brand — secondary */
   --signal-orange:   #EA580C;
   --warm-gold:       #F59E0B;
@@ -1203,6 +1290,12 @@ button.task-grid-relation-reference {
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
      aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
   --theme-grid-week-band: rgba(255, 255, 255, 0.028);
+  /* Discussion #97: subtiele achtergrondtint voor samenvattingsrijen in het taakraster (naamkolom)
+     — dezelfde alpha-aanpak als de weekendarcering hierboven, zodat het geen eigen kleurfamilie
+     introduceert. Mijlpalen krijgen géén tint, alleen vette tekst in een lichtere paarstint
+     (beter leesbaar op donkere kaarten dan --color-task-milestone zelf). */
+  --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
+  --theme-grid-milestone-text: #A78BFA;
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1223,63 +1316,103 @@ button.task-grid-relation-reference {
   --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.50);
   --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
 
+  /* Issue #94: rolkleuren voor Voorgangers/Opvolgers in het taakraster — voorganger volgt de
+     bestaande goud/amber-familie van GANTT_TRACE_COLORS, opvolger de paars/violet-familie
+     (zelfde conventie als de rolstip in TaskDependenciesSection). "Driving" is bewust de
+     STERKERE tint van diezelfde rolkleur, niet een andere kleur: op dit donkere thema betekent
+     sterker = lichter (op een lichte achtergrond zou het juist donkerder zijn). */
+  --relation-predecessor: #F59E0B;
+  --relation-predecessor-driving: #FCD34D;
+  --relation-successor: #A78BFA;
+  --relation-successor-driving: #C4B5FD;
+
   color-scheme: dark;
 }
 
 /* Light theme — OpenAEC light variant
-   Blueprint White (#FAFAF9) bg, Concrete (#F5F5F4) surfaces, Deep Forge (#36363E) text,
-   Amber accent (zelfde als dark — accent kleuren wisselen niet tussen modes). */
+   Blueprint White-kaarten op een neutraal-grijze werkruimte, Deep Forge-tekst, Amber accent
+   (zelfde als dark — accent kleuren wisselen niet tussen modes).
+
+   Herontwerp 2026-09: het vorige light-palet was een KOELE blauwgrijze schaal (#DCE2EB /
+   #C7CFDB / #333845) die niets deelde met het merk-grijs (Deep Forge #36363E, Scaffold Gray
+   #A1A1AA en het charcoal van dark zijn allemaal neutrale zinc-tinten). Koel staalblauw naast
+   het amber accent oogde als een complementair kleurconflict, harde witte vlakken (#FFFFFF voor
+   kaart, input, dropdown én ribbon) gaven geen lagenwerking, en de weekendarcering (#E6EBF2 op
+   wit, 1.20:1) tekende zware strepen waar dark met 0.035 wit (≈1.11:1) volstaat. Het palet
+   hieronder is één NEUTRALE grijsschaal — bewust niet warm getint (een stone-variant is
+   geprobeerd en afgekeurd: "alsof er koffie overheen is gegooid") — met dezelfde drie-laagse
+   opbouw als dark: werkruimte < ingedrukte chrome (tabstrip) < kaart/ribbon-inhoud < zwevend
+   (popover/input). */
 [data-theme="light"] {
-  /* Koele neutralen + Soft Depth. --theme-bg is de getinte werkruimte (achter de
-     kaarten); --theme-surface (#FFFFFF) zijn de zwevende kaarten/chrome. */
-  /* Tint dieper + surfaces/randen opgevoerd zodat witte kaarten "zweven" en
-     niet versmelten tot één witte massa. */
-  --theme-bg: #DCE2EB;
-  --theme-surface: #FFFFFF;
-  --theme-surface-alt: #EAEEF4;
+  /* Lagen: --theme-bg is de getinte werkruimte (achter de kaarten); --theme-surface zijn de
+     kaarten/chrome (bewust géén #FFFFFF — dat blijft over voor wat er bovenop zweeft: inputs,
+     dropdowns, dialogen via --theme-surface-elevated). */
+  --theme-bg: #E5E5E8;
+  --theme-surface: #FAFAFA;
+  --theme-surface-alt: #F1F1F3;
   --theme-surface-elevated: #FFFFFF;
-  /* Contrast-optie A: zichtbare kaart-/scheidingsrand (opgevoerd) … */
-  --theme-border: #C7CFDB;
-  --theme-border-light: #D2D9E4;
-  /* … en een stevigere control-rand (#8C94A2 ≈ 3:1 op wit, WCAG 1.4.11 AA) voor
-     inputs/selects/knoppen, zodat de zachte look toegankelijk blijft. */
-  --theme-control-border: #8C94A2;
-  /* Construction Amber (gelijk aan dark + prototype) — levendiger dan amber-700,
-     zodat de oranje knoppen niet "donkerder" ogen in light. Wit op amber ~3.3:1
-     (voldoet aan 3:1 voor UI-componenten/grote tekst; amber-700 was strikt 4.5:1). */
+  /* Zachte kaart-/scheidingsranden in dezelfde schaal (1.42:1 op de kaart — een rand hoeft
+     geen contrastnorm te halen; de hiërarchie komt uit tint + schaduw) … */
+  --theme-border: #D4D4D8;
+  --theme-border-light: #E4E4E7;
+  /* … en een stevigere control-rand voor inputs/selects/knoppen: #88888F ≈ 3.4:1 op de kaart,
+     3.5:1 op wit en 3.1:1 op surface-alt (WCAG 1.4.11 AA voor UI-componenten). */
+  --theme-control-border: #88888F;
+  /* Construction Amber (gelijk aan dark). Wit op amber ~3.2:1 (3:1 voor UI-componenten/grote
+     tekst). Hover blijft in de amber-familie (amber-700, wit-op 5.0:1) i.p.v. naar rood-oranje
+     te kantelen zoals het vorige #C2410C. */
   --theme-accent: #D97706;
-  --theme-accent-hover: #C2410C;
+  --theme-accent-hover: #B45309;
   --theme-accent-on: #ffffff;
-  --theme-text: #333845;
-  --theme-text-dim: #5B6472;
-  --theme-text-muted: #6B7280; /* labels — AA ~4.6:1 op light surfaces */
-  --theme-hover: rgba(99, 110, 130, 0.10);
+  /* Tekst: Deep Forge-tint, iets dieper voor lopende tekst (13.7:1 op de kaart). dim 6.9:1,
+     muted 5.1:1 op de kaart en 4.8:1 op surface-alt (labels — AA). */
+  --theme-text: #2A2A31;
+  --theme-text-dim: #57575F;
+  --theme-text-muted: #6A6A73;
+  /* Hover/arcering als alpha van Deep Forge, zodat ze op élke laag dezelfde tint houden. */
+  --theme-hover: rgba(54, 54, 62, 0.07);
   --theme-active: #D97706;
-  --theme-active-border: #C2410C;
-  --theme-warning-text: #946200;
-  --theme-grid-weekend: #E6EBF2;
+  --theme-active-border: #B45309;
+  --theme-warning-text: #8A5A00; /* 5.7:1 op de kaart, 5.3:1 op surface-alt */
+  /* Weekendarcering als alpha (≈1.09:1 op de kaart) — pariteit met dark (0.035 wit ≈ 1.11:1),
+     zodat de tijdlijn geen strepenpatroon meer is. */
+  --theme-grid-weekend: rgba(54, 54, 62, 0.05);
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): subtieler dan de weekend-
      arcering, want hij bedekt hele weken i.p.v. losse dagkolommen. */
-  --theme-grid-week-band: #EFF3F8;
+  --theme-grid-week-band: rgba(54, 54, 62, 0.03);
+  /* Discussion #97: zelfde neutrale-grijsschaal-aanpak als de rest van dit lichte thema — een
+     alpha-tint van Deep Forge, geen eigen kleur. Mijlpaaltekst gaat iets dieper dan
+     --color-task-milestone (#7C3AED) voor voldoende contrast op de kaart (AA). */
+  --theme-grid-summary-bg: rgba(54, 54, 62, 0.06);
+  --theme-grid-milestone-text: #6D28D9;
   --theme-bar-float: #059669;
-  --theme-critical-text: #D12020;
+  --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
-  --theme-scrollbar-track: #DCE2EB;
-  --theme-scrollbar-thumb: #B6BFCD;
-  /* Effen vlakken i.p.v. gradients ("geen rare gradients"); titelbalk licht. */
-  --theme-ribbon-bg: #FFFFFF;
-  --theme-ribbon-tab-bg: #F6F8FB;
-  --theme-ribbon-content-bg: #FFFFFF;
+  --theme-scrollbar-track: #E5E5E8;
+  --theme-scrollbar-thumb: #BDBDC4;
+  /* Effen vlakken i.p.v. gradients ("geen rare gradients"). Zelfde opbouw als dark: titelbalk
+     en ribbon-container één tint, de tabstrip ingedrukt (donkerder), de ribbon-inhoud als
+     kaart erbovenop. */
+  --theme-ribbon-bg: #F4F4F5;
+  --theme-ribbon-tab-bg: #E9E9EC;
+  --theme-ribbon-content-bg: #FAFAFA;
   --theme-file-tab-bg: #D97706;
-  --theme-file-tab-hover: #C2410C;
-  --theme-titlebar-bg: #FFFFFF;
-  --theme-titlebar-btn-hover: rgba(99, 110, 130, 0.10);
-  --theme-titlebar-btn-active: rgba(99, 110, 130, 0.16);
-  /* Soft Depth — schaduw-tokens. */
-  --shadow-card: 0 1px 2px rgba(40, 48, 64, 0.06), 0 6px 18px rgba(40, 48, 64, 0.08);
-  --shadow-pop: 0 8px 28px rgba(40, 48, 64, 0.18);
+  --theme-file-tab-hover: #B45309;
+  --theme-titlebar-bg: #F4F4F5;
+  --theme-titlebar-btn-hover: rgba(54, 54, 62, 0.08);
+  --theme-titlebar-btn-active: rgba(54, 54, 62, 0.14);
+  /* Soft Depth — schaduw-tokens, neutraal (zinc-900) i.p.v. blauwgrijs. */
+  --shadow-card: 0 1px 2px rgba(24, 24, 27, 0.06), 0 6px 18px rgba(24, 24, 27, 0.10);
+  --shadow-pop: 0 8px 28px rgba(24, 24, 27, 0.20);
   --shadow-glow: 0 2px 10px rgba(217, 119, 6, 0.40);
+
+  /* Issue #94: zie dark hierboven — zelfde rolkleur-conventie, driving hier donkerder (sterker
+     op een lichte achtergrond). */
+  --relation-predecessor: #B45309;
+  --relation-predecessor-driving: #92400E;
+  --relation-successor: #6D28D9;
+  --relation-successor-driving: #5B21B6;
 
   color-scheme: light;
 }
@@ -1311,6 +1444,12 @@ button.task-grid-relation-reference {
      weekend-band maar nog zichtbaar op #0a0a0a (de band moet als vlak leesbaar blijven,
      niet als per-dag-arcering concurreren). */
   --theme-grid-week-band: #141414;
+  /* Discussion #97: het paars van --color-task-milestone haalt op zwart geen AAA-contrast, dus
+     high contrast krijgt een eigen, helderdere mijlpaaltint (>=7:1 op #0a0a0a) — zichtbaar
+     onderscheiden van het accentgeel. De samenvattingstint volgt de bestaande vlakke-kleur-aanpak
+     van dit thema (geen alpha, expliciete tint zoals --theme-grid-weekend hierboven). */
+  --theme-grid-summary-bg: #1c1c1c;
+  --theme-grid-milestone-text: #D9A6FF;
   /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
@@ -1331,6 +1470,13 @@ button.task-grid-relation-reference {
   --shadow-card: none;
   --shadow-pop: none;
   --shadow-glow: none;
+
+  /* Issue #94: zie dark hierboven — goudfamilie voor voorganger, hier vervangen door cyaan voor
+     opvolger (paars haalt op zwart geen AAA), beide met maximaal contrast op #0a0a0a. */
+  --relation-predecessor: #FFB000;
+  --relation-predecessor-driving: #FFD54F;
+  --relation-successor: #22D3EE;
+  --relation-successor-driving: #67E8F9;
 
   color-scheme: dark;
 }
@@ -1764,7 +1910,7 @@ html, body, #root {
   color: var(--theme-accent-on);
 }
 .btn--primary:hover:not(:disabled) {
-  /* theme-aware hover: light = #9A3412 (white text 7.3:1), dark = #EA580C
+  /* theme-aware hover: light = #B45309 (white text 5.0:1), dark = #EA580C
      (unchanged from --signal-orange). Avoids the 3.56:1 fail white-on-#EA580C
      gave in light mode. */
   background: var(--theme-accent-hover);

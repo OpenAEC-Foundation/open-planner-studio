@@ -23,7 +23,7 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { parseInstant } from '@/utils/dateUtils';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
@@ -110,6 +110,23 @@ const hourMilestone: Task = {
   },
 } as Task;
 
+// docs/TODO.md-randgeval: een mijlpaal met alleen een START — géén finish — bv. een handmatig
+// gezette mijlpaal vóórdat runCPM() is gedraaid. `drawMilestone` tekende hem altijd al (leent bij
+// ontbreken van de finish desnoods van de start zelf), maar `getRelationSourceAt` weigerde hem
+// door de onvoorwaardelijke `earlyFinish`/`scheduleFinish`-guard — geen relatie-sleepbron, terwijl
+// er wél een zichtbare ruit staat. `milestoneAnchorX` repareert dat.
+const startOnlyMilestone: Task = {
+  ...healthy,
+  id: 'ms-start-only',
+  isMilestone: true,
+  time: {
+    ...healthy.time,
+    earlyStart: healthy.time.earlyStart, scheduleStart: healthy.time.scheduleStart,
+    earlyFinish: undefined, scheduleFinish: undefined,
+    scheduleDuration: 0,
+  },
+} as unknown as Task;
+
 const rows: ViewRow[] = [
   { kind: 'task', rowKey: healthy.id, task: healthy, depth: 0, dimmed: false },
   { kind: 'task', rowKey: datelessLeaf.id, task: datelessLeaf, depth: 0, dimmed: false },
@@ -119,6 +136,7 @@ const rows: ViewRow[] = [
   { kind: 'task', rowKey: datedMilestone.id, task: datedMilestone, depth: 0, dimmed: false },
   { kind: 'task', rowKey: datedSummary.id, task: datedSummary, depth: 0, dimmed: false },
   { kind: 'task', rowKey: hourMilestone.id, task: hourMilestone, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: startOnlyMilestone.id, task: startOnlyMilestone, depth: 0, dimmed: false },
 ];
 
 const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
@@ -236,6 +254,22 @@ if (renderError === null) {
       renderer.getRelationSourceAt(hourX1 + 4, rowMidY(7))?.id === 'ms-hour');
     ok('getRelationSourceAt accepteert de UUR-mijlpaal ruim buiten de marge (bewijst dat de marge iets doet)',
       renderer.getRelationSourceAt(hourX1 + 20, rowMidY(7)) === null);
+
+    // 7. docs/TODO.md-randgeval: mijlpaal met alleen een start (geen finish). `drawMilestone` tekent
+    //    hem gewoon — deel dezelfde ankerlogica (`milestoneAnchorX`) om te bepalen waar de ruit staat,
+    //    onafhankelijk van `barGeometry`/`roundRect` (een mijlpaal tekent geen rechthoek).
+    //    `milestoneKind` is hier onbekend (AUTO) ⇒ zelfde dag-gecentreerde anker als drawMilestone
+    //    (anchor = zoom / 2), dus + view.zoom / 2 t.o.v. de dagcelstart.
+    const startOnlyX = renderer.dateToX(parseDate(startOnlyMilestone.time.earlyStart!)) + view.zoom / 2;
+    ok('getRelationSourceAt weigert een MIJLPAAL MET ALLEEN EEN START (dit is de bug die we repareren)',
+      renderer.getRelationSourceAt(startOnlyX, rowMidY(8))?.id === 'ms-start-only');
+    ok('getRelationSourceAt vindt de start-only mijlpaal ook net binnen de marge (startOnlyX+4)',
+      renderer.getRelationSourceAt(startOnlyX + 4, rowMidY(8))?.id === 'ms-start-only');
+    ok('getRelationSourceAt weigert de start-only mijlpaal ruim buiten de marge',
+      renderer.getRelationSourceAt(startOnlyX + 20, rowMidY(8)) === null);
+    // Regressie-anker de andere kant op: sleep/resize blijft geweigerd (een ruit heeft geen duur).
+    ok('getTaskBarBounds armt drag op de start-only mijlpaal (mag niet)',
+      renderer.getTaskBarBounds(startOnlyX, rowMidY(8)) === null);
   }
 }
 

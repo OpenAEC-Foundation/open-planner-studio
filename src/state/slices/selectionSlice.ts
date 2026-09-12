@@ -18,6 +18,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import { collectSubtreeIds } from '@/state/taskTree';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { generateId } from '@/utils/id';
+import { relationVerdict } from '@/state/relationRules';
 import {
   normalizeTaskRowCursor,
   uniqueTaskIds,
@@ -185,6 +186,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
   pasteTasks: () => {
     const newRootIds: string[] = [];
+    let skippedRelations = 0;
     set((s) => {
       const clip = s.taskClipboard;
       if (!clip || clip.tasks.length === 0) return;
@@ -229,13 +231,25 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
       // Interne relaties opnieuw aanmaken met de nieuwe ids. Spread behoudt óók de
       // optionele lag-velden (lagUnit/lagPercent) — die vielen hier eerder stil weg.
+      //
+      // `relationVerdict.ts` is de bron van de regel, niet alleen de reguliere add-route
+      // (`addSequence`): een gekopieerde tak kan een relatie dragen die nooit via die route
+      // is aangemaakt (bv. een IFC-import las hem in zonder validatie — de reader schrijft
+      // rechtstreeks naar `s.sequences`). Zonder deze toets zou plakken zo'n spookrelatie
+      // eeuwig laten voortleven. De lookup wijst al naar `s.tasks` MÉT de zojuist geplakte
+      // taken (nieuwe ids, ouderrelaties uit de lus hierboven), dus de toets ziet exact de
+      // boom zoals hij na het plakken is — inclusief een eventuele ancestor-conflict door de
+      // plakplek zelf. De duplicaatcheck loopt tegen `s.sequences` zoals die tot nu toe in
+      // déze plakactie is opgebouwd, identiek aan hoe `addSequence` dat per aanroep doet.
+      const lookup = (tid: string) => s.tasks.find((t) => t.id === tid);
       for (const seq of clip.sequences) {
-        s.sequences.push({
+        const candidate = {
           ...seq,
-          id: generateId('seq'),
           predecessorId: idMap.get(seq.predecessorId)!,
           successorId: idMap.get(seq.successorId)!,
-        });
+        };
+        if (!relationVerdict(lookup, s.sequences, candidate).ok) { skippedRelations++; continue; }
+        s.sequences.push({ ...candidate, id: generateId('seq') });
       }
 
       // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan overslaan).
@@ -267,6 +281,16 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       runtime.finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    if (skippedRelations > 0) {
+      // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet
+      // (zelfde precedent als `setProject` in projectSlice.ts).
+      get().notify({
+        severity: 'info',
+        messageKey: 'notifications.relationsSkippedOnInsert',
+        params: { count: skippedRelations },
+        dedupeKey: 'relations-skipped-on-paste',
+      });
+    }
     return newRootIds;
   },
 });

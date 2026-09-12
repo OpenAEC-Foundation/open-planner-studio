@@ -37,6 +37,13 @@
 // verschijnt als ongetelde booking (`counted: false`) zonder cijfers, zodat er niets stil
 // verdwijnt en de gebruiker weet wat te doen (document activeren, F5).
 //
+// EIGEN REKENPAD (`skipEphemeralSolve`, perf-poort na de critreview van v2026.8.0) — een document
+// dat de aanroeper zelf al doorrekent (het ACTIEVE document: F5 / "Automatisch berekenen") wordt
+// hier niet efemeer doorgerekend, maar telt mee met zijn taken zoals ze er staan: de laatst
+// berekende toestand, precies wat de gebruiker in dat document op het scherm ziet. Zonder die uitweg
+// draait er per toetsaanslag een volledige CPM-solve in de render van deze weergave. Zie het
+// veldcommentaar bij `OccupancyDocInput.skipEphemeralSolve`.
+//
 // Capaciteit komt van het POOLitem via `maxUnitsOn` (§6): `maxUnits`/`availabilitySteps` op een
 // projectkopie zijn projectinzet, maar de B1b-vraag is een bedrijfsvraag — twee projecten die elk
 // binnen hun eigen inzet blijven kunnen samen alsnog boven wat het bedrijf heeft uitkomen. Twee
@@ -85,6 +92,21 @@ export interface OccupancyDocInput {
    *  ⇒ dat document valt op het vangnetpad (§4.3). Optioneel zodat aanroepers die geen planning
    *  kunnen aanleveren (of bewust niet willen doorrekenen) gewoon het vangnet krijgen. */
   solveInput?: OccupancySolveInput;
+  /**
+   * Dit document heeft een EIGEN rekenpad (F5 / "Automatisch berekenen") en mag hier niet efemeer
+   * worden doorgerekend — ook niet wanneer het stale is. Perf-poort (TODO-item na de critreview van
+   * v2026.8.0): de weergavelaag zet dit voor het ACTIEVE document, want dáár is elke toetsaanslag
+   * een memo-invalidatie en zou er dus per bewerking een volledige CPM-solve over de complete
+   * takenlijst in de render draaien (700 ms–2,6 s op 3000 taken).
+   *
+   * Bewuste afwijking van het vangnet van §4.3: zo'n document telt gewoon mee, maar dan met zijn
+   * taken ZOALS ZE ER NU STAAN — de laatst berekende toestand, precies wat de gebruiker in dat
+   * document zelf op het scherm ziet. Dat is dus dezelfde staleness als de Gantt van dat document,
+   * niet een hybride die nergens vandaan komt; de booking krijgt `ephemeralComputed: false` zodat de
+   * weergave "verouderd, dit zijn de laatst berekende cijfers" kan tonen in plaats van de
+   * "alvast doorgerekend"-markering.
+   */
+  skipEphemeralSolve?: boolean;
 }
 
 /**
@@ -136,6 +158,10 @@ export interface OccupancyDocBooking {
   /** false ⇒ vangnet: zichtbaar maar niet meegeteld (§4.3, alleen wanneer de efemere solve niet kon
    *  of faalde) — dan geen cijfers. */
   counted: boolean;
+  /** De cijfers komen uit een EFEMERE doorrekening (§4.3b) in plaats van uit de taken zoals ze in
+   *  het document staan. Alleen dan geldt de "alvast doorgerekend"-markering; een stale document met
+   *  `skipEphemeralSolve` telt mee met zijn laatst berekende cijfers en krijgt hier `false`. */
+  ephemeralComputed: boolean;
   firstDay: string | null;  // ISO, eerste dag met belasting > 0 (null bij counted: false)
   lastDay: string | null;
   peak: number;             // hoogste dagbelasting binnen dít document (0 bij counted: false)
@@ -168,7 +194,9 @@ export interface OccupancyRow {
  * `ephemeralSolve`, de echte reken-kern op een kloon). Lukt dat, dan telt het document gewoon mee
  * met de doorgerekende datums (`counted: true`, `scheduleStale: true` als informatieve markering).
  * Lukt het niet (geen `solveInput`, een cyclus, een exception), dan geldt het vangnet van §4.3:
- * zichtbaar maar niet meegeteld.
+ * zichtbaar maar niet meegeteld. Draagt het document `skipEphemeralSolve`, dan wordt `solve` voor
+ * dat document helemaal niet aangeroepen en telt het mee met zijn eigen (laatst berekende) taken —
+ * `counted: true`, `ephemeralComputed: false`, `scheduleStale` blijft staan als markering.
  * Boeking-/telregels: een booking is `counted` wanneer het document doorgerekend beschikbaar is
  * (niet stale, of efemeer doorgerekend) én de berekende belasting op minstens één dag > 0 is. Een
  * vangnet-document met toewijzingen op aan het poolitem gestempelde resources levert een ongetelde
@@ -197,6 +225,8 @@ export function computeLibraryOccupancy(
   interface DocBucket {
     doc: OccupancyDocInput;
     counted: boolean;
+    /** De cijfers komen uit de efemere solve (§4.3b) — zie `OccupancyDocBooking.ephemeralComputed`. */
+    ephemeralComputed: boolean;
     daily: Map<string, number>; // leeg bij counted: false
   }
   const perItem = new Map<string, { byDoc: Map<string, DocBucket>; total: Map<string, number> }>();
@@ -224,8 +254,10 @@ export function computeLibraryOccupancy(
     // onaangeraakt). Lukt dat, dan tellen de doorgerekende taken gewoon mee; faalt het, dan geldt
     // het vangnet hieronder. Een exception uit de injectie telt als mislukking: dit is een
     // leesvenster, dat mag nooit de hele weergave onderuit halen.
+    // `skipEphemeralSolve` slaat die solve over: dat document heeft een eigen rekenpad en telt mee
+    // met zijn taken zoals ze er staan (zie het veldcommentaar) — geen solve, dus ook geen vangnet.
     let solvedTasks: Task[] | null = null;
-    if (doc.scheduleStale) {
+    if (doc.scheduleStale && doc.skipEphemeralSolve !== true) {
       try {
         solvedTasks = solve(doc);
       } catch {
@@ -233,7 +265,7 @@ export function computeLibraryOccupancy(
       }
     }
 
-    if (doc.scheduleStale && solvedTasks === null) {
+    if (doc.scheduleStale && doc.skipEphemeralSolve !== true && solvedTasks === null) {
       // Vangnet (§4.3): niet rekenen (de engine-uitkomst zou noch oud noch nieuw zijn), maar elke
       // boeking — het document heeft toewijzingen op een gestempelde resource — blijft zichtbaar
       // als ongetelde booking. Geen cijfers, dus ook geen bijdrage aan `total`.
@@ -241,7 +273,7 @@ export function computeLibraryOccupancy(
         if (!doc.assignments.some(a => a.resourceId === resource.id)) continue;
         const bucket = bucketFor(resource.libraryOrigin!.libraryItemId);
         if (!bucket.byDoc.has(doc.docId)) {
-          bucket.byDoc.set(doc.docId, { doc, counted: false, daily: new Map() });
+          bucket.byDoc.set(doc.docId, { doc, counted: false, ephemeralComputed: false, daily: new Map() });
         }
       }
       continue;
@@ -267,7 +299,7 @@ export function computeLibraryOccupancy(
         const bucket = bucketFor(itemId);
         let docBucket = bucket.byDoc.get(doc.docId);
         if (!docBucket) {
-          docBucket = { doc, counted: true, daily: new Map() };
+          docBucket = { doc, counted: true, ephemeralComputed: solvedTasks !== null, daily: new Map() };
           bucket.byDoc.set(doc.docId, docBucket);
         }
         // Meerdere kopieën met dezelfde stempel in één document sommeren gewoon op.
@@ -286,7 +318,7 @@ export function computeLibraryOccupancy(
     if (!bucket) continue;
 
     const docBookings: OccupancyDocBooking[] = [];
-    for (const { doc, counted, daily } of bucket.byDoc.values()) {
+    for (const { doc, counted, ephemeralComputed, daily } of bucket.byDoc.values()) {
       let firstDay: string | null = null;
       let lastDay: string | null = null;
       let peak = 0;
@@ -307,6 +339,7 @@ export function computeLibraryOccupancy(
         title: doc.title,
         scheduleStale: doc.scheduleStale,
         counted,
+        ephemeralComputed,
         firstDay,
         lastDay,
         peak,

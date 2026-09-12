@@ -70,6 +70,46 @@ function expect(diffs: string[], ok: boolean, msg: string): Check {
   return { ok, msg };
 }
 
+// ── Overallocatie-classificatie (docs/TODO.md, regel ~32) ───────────────────────────────────
+// `verifyShowcase` eiste al overallocatie voor showcases met resources, maar niets bewaakte het
+// omgekeerde: de acht basisvoorbeeld-resourcesets uit `example-resources.ts` beloven EXPLICIET
+// ("GEEN OVERALLOCATIE — harde eis", zie aldaar) dat ze schoon blijven, en dat werd nergens
+// getoetst. Declaratief opgezet i.p.v. "elk voorbeeld zónder resources is vanzelf schoon": een
+// spec met resources die in GEEN van beide lijsten staat, faalt hard met een duidelijke melding
+// in plaats van stilzwijgend ongetoetst te blijven — zo moet een nieuw voorbeeld met resources
+// altijd expliciet worden ingedeeld.
+const OVERALLOC_REQUIRED = new Set<string>([
+  'showcase-rijwoningen-de-akkers',   // MIDDEL: met nivellering oplosbare overallocatie (stukadoors)
+  'showcase-appartementencomplex',    // GROOT: torenkraan + stukadoors, precies 2 knelpunten (§4.2)
+]);
+const OVERALLOC_FORBIDDEN = new Set<string>([
+  '01-grachtenpand-amsterdam',
+  '03-kantoorgebouw-zuidas',
+  '05-brugvervanging-n279',
+  '08-zorgcentrum-de-linde',
+  '10-villa-wassenaar',
+  '12-windturbine-offshore',
+  '15-datacentrum-agriport',
+  '20-woonwijk-almere',
+]);
+
+/** Toetst de overallocatie-belofte voor een spec die resources declareert, op basis van
+ *  `scheduleFacts` (echte CPM + resource-load, dezelfde route als de rest van deze poort).
+ *  Faalt hard als de slug in geen van beide declaratieve lijsten hierboven voorkomt. */
+function verifyOverallocClass(spec: ProjectSpec, facts: ReturnType<typeof scheduleFacts>, diffs: string[]) {
+  const required = OVERALLOC_REQUIRED.has(spec.slug);
+  const forbidden = OVERALLOC_FORBIDDEN.has(spec.slug);
+  if (required === forbidden) {
+    diffs.push(`overallocatie-classificatie ontbreekt voor "${spec.slug}": voeg de slug toe aan OVERALLOC_REQUIRED (showcase — mag overallocatie tonen) of OVERALLOC_FORBIDDEN (referentievoorbeeld — moet schoon blijven) in scripts/verify-examples.ts`);
+    return;
+  }
+  if (required) {
+    expect(diffs, facts.overalloc.length > 0, `geen overallocatie zichtbaar (verwacht, want showcase)`);
+  } else {
+    expect(diffs, facts.overalloc.length === 0, `overallocatie gevonden (verwacht 0 — referentievoorbeeld): ${facts.overalloc.join(', ')}`);
+  }
+}
+
 function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed: Parsed } {
   const diffs: string[] = [];
   const content = readFileSync(join(EX_DIR, `${spec.slug}.ifc`), 'utf8');
@@ -193,7 +233,7 @@ function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): Ret
   }
 
   const facts = scheduleFacts(parsed);
-  if (hasResources) expect(diffs, facts.overalloc.length > 0, `geen overallocatie zichtbaar`);
+  if (hasResources) verifyOverallocClass(spec, facts, diffs);
   return facts;
 }
 
@@ -312,6 +352,12 @@ function main() {
         const b = (parsed.baselines ?? []).find(x => x.id === parsed.activeBaselineId);
         if (b) scActiveBaselineName = b.name;
       }
+    } else if ((spec.resources?.length ?? 0) > 0) {
+      // Niet-showcase (basisvoorbeeld) met een resourceset — o.a. de acht sets uit
+      // `example-resources.ts` (docs/TODO.md, regel ~32): die beloven expliciet "GEEN
+      // OVERALLOCATIE", maar niets bewaakte dat tot nu toe. Zelfde route als de showcase-poort
+      // (`scheduleFacts` = echte CPM + resource-load), omgekeerde eis.
+      verifyOverallocClass(spec, scheduleFacts(parsed), extra);
     }
     const all = [...diffs, ...extra];
     const ok = all.length === 0;
