@@ -153,7 +153,7 @@ export function importErrorMessageKey(
 
 // ── Export-kant ──
 
-export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'progress-csv';
+export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'progress-csv' | 'progress-xlsx';
 
 export interface ExportFormatMeta {
   format: ExportFormat;

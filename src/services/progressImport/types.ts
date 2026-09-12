@@ -25,7 +25,9 @@ export interface RawProgressRow {
 }
 
 export type ProgressFileIssue =
-  | 'tooLarge' | 'tooManyRows' | 'noKeyColumn' | 'noProgressColumns' | 'unreadable';
+  | 'tooLarge' | 'tooManyRows' | 'noKeyColumn' | 'noProgressColumns' | 'unreadable'
+  /** Het bestand is met een wachtwoord beveiligd (CFB-container i.p.v. ZIP) — X7. */
+  | 'encrypted';
 
 /** Wat een bestandslezer (CSV nu, XLSX later) oplevert. */
 export interface ProgressSheet {
