@@ -312,8 +312,18 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Feuille d’avancement (Excel)",
+    "progressXlsxDesc": "Feuille allégée avec uniquement l’id, la SDP, le nom, les dates et l’avancement — avec largeurs de colonnes fixes, champs verrouillés et contrôle des dates.",
+    "progressXlsxShort": "Avancement (Excel)",
+    "progressXlsxSheetName": "Avancement",
+    "progressXlsxValidation": {
+      "percentTitle": "Avancement (%)",
+      "percentError": "Saisissez un nombre de 0 à 100.",
+      "dateTitle": "Date réelle",
+      "dateError": "Saisissez une date valide."
+    },
     "progressCsvLabel": "Feuille d’avancement (CSV)",
-    "progressCsvDesc": "Feuille allégée avec uniquement l’id, la SDP, le nom, les dates et l’avancement — pour mettre à jour l’avancement.",
+    "progressCsvDesc": "La même feuille d’avancement allégée en texte brut — pour qui préfère travailler avec un CSV.",
     "progressCsvShort": "Avancement (CSV)",
     "progressCsvNotes": {
       "readOnly": "ne pas modifier",

@@ -1046,7 +1046,8 @@
       "tooManyRows": "Diese Datei hat zu viele Zeilen, um als Fortschrittsblatt gelesen zu werden.",
       "noKeyColumn": "Diese Datei hat keine Spalte „OPS Task ID“ oder „WBS“, um Zeilen mit Aufgaben zu verknüpfen.",
       "noProgressColumns": "Diese Datei hat keine der Spalten Fertigstellung, Tatsächlicher Start oder Tatsächliches Ende.",
-      "unreadable": "Diese Datei konnte nicht als Fortschrittsblatt gelesen werden."
+      "unreadable": "Diese Datei konnte nicht als Fortschrittsblatt gelesen werden.",
+      "encrypted": "Diese Datei ist passwortgeschützt und kann nicht gelesen werden."
     },
     "reason": {
       "unmatched": "Keine Aufgabe für diese Zeile gefunden.",

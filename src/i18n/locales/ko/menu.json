@@ -312,8 +312,18 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "진행률 시트(Excel)",
+    "progressXlsxDesc": "ID, WBS, 이름, 날짜, 완료율만 포함된 간결한 시트 — 열 너비 고정, 필드 잠금, 날짜 검사 포함.",
+    "progressXlsxShort": "진행률(Excel)",
+    "progressXlsxSheetName": "진행률",
+    "progressXlsxValidation": {
+      "percentTitle": "완료율(%)",
+      "percentError": "0에서 100 사이의 숫자를 입력하세요.",
+      "dateTitle": "실제 날짜",
+      "dateError": "올바른 날짜를 입력하세요."
+    },
     "progressCsvLabel": "진행률 시트(CSV)",
-    "progressCsvDesc": "ID, WBS, 이름, 날짜, 완료율만 포함된 간결한 시트 — 진행률 업데이트용.",
+    "progressCsvDesc": "같은 간결한 진행률 시트의 일반 텍스트 버전 — CSV로 작업하는 것을 선호하는 분용.",
     "progressCsvShort": "진행률(CSV)",
     "progressCsvNotes": {
       "readOnly": "변경하지 마세요",

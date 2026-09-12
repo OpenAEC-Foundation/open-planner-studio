@@ -1046,7 +1046,8 @@
       "tooManyRows": "Bu dosya ilerleme tablosu olarak okunamayacak kadar çok satıra sahip.",
       "noKeyColumn": "Bu dosyada satırları görevlerle eşleştirecek “OPS Task ID” veya “WBS” sütunu yok.",
       "noProgressColumns": "Bu dosyada Tamamlanma, Gerçek Başlangıç veya Gerçek Bitiş sütunlarından hiçbiri yok.",
-      "unreadable": "Bu dosya ilerleme tablosu olarak okunamadı."
+      "unreadable": "Bu dosya ilerleme tablosu olarak okunamadı.",
+      "encrypted": "Bu dosya parola korumalı ve okunamıyor."
     },
     "reason": {
       "unmatched": "Bu satır için görev bulunamadı.",
