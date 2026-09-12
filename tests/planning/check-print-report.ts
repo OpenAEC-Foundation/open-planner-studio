@@ -73,6 +73,8 @@ function record(tasks: Task[], sequences: Sequence[], calendar: WorkCalendar, op
 }
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────────────────────
+// Het PRINTpalet loopt bewust niet mee met de U2-schermkleuren: papier is wit, dus de verzadigde
+// merkhexen blijven staan (zie de toelichting bij PRINT_PALETTE in themePalette.ts).
 const CRITICAL = '#DC2626';
 const NORMAL = '#2563EB';
 const BASELINE = '#6B7280';

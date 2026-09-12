@@ -102,6 +102,14 @@ zodra je dicht genoeg op dagniveau zit. Staat **Alleen werkbare dagen tonen** (I
 Weergave → Gantt) aan, dan slaan de header én de balken zelf weekenden en feestdagen helemaal over
 in plaats van ze alleen grijs te tonen, zodat een taak van 5 werkdagen precies 5 kolommen breed is.
 
+Ook het verticale raster dunt mee uit. Ruim ingezoomd (ongeveer twee millimeter per dag of meer)
+krijgt elke dag een lijn, met een dikkere lijn op de weekgrens. Zoom je verder uit, dan blijft alleen
+die weekgrens over, en op jaarniveau uitsluitend de maandgrenzen — anders zou het canvas een egaal
+streeppatroon worden waarin de balken verdwijnen. De weekendarcering en de om-en-om weekbanden
+blijven op elk zoomniveau staan: die dragen de weekstructuur zodra de lijnen wegvallen. Heb je een
+**statusdatum** ingesteld, dan staat de datum ervan nu als klein label in de tijdlijnkop naast de
+gestippelde statusdatumlijn, zodat die niet meer met de vandaag-lijn te verwarren is.
+
 ## Documenttabs
 
 Heb je meerdere projecten tegelijk open (elk in zijn eigen documenttabblad), dan springt

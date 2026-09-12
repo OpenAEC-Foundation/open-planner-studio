@@ -68,7 +68,7 @@ const st = S();
 const rows: ViewRow[] = st.tasks.map(task => ({ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }));
 const ROWH = 28, HDRH = 60;
 const inRow = (f: Fill, i: number) => f.y >= HDRH + i * ROWH && f.y + f.h <= HDRH + (i + 1) * ROWH;
-const LIGHT = ['#1D4ED8', '#991B1B'].map(c => c.toLowerCase());
+const LIGHT = ['#5778D6', '#991B1B'].map(c => c.toLowerCase());
 
 function render(traceMode: 'off' | 'predecessors' | 'successors'): Fill[] {
   const { ctx, fills } = makeCtx();

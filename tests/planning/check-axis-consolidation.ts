@@ -29,9 +29,9 @@ g.document = { documentElement: {}, createElement: () => ({ getContext: () => nu
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
-import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { GanttRenderer, gridDensityForZoom } from '@/engine/renderer/GanttRenderer';
 import { dateToX, xToDate, xToDayOffset, MS_PER_DAY } from '@/engine/renderer/timeAxis';
-import { addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { addCalendarDays, diffCalendarDays, parseDate } from '@/utils/dateUtils';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -231,12 +231,24 @@ function renderedGridDays(canvasWidth: number, zoom: number, scrollX: number): n
 }
 
 function expectedGridX(canvasWidth: number, zoom: number, scrollX: number): number[] {
-  const viewStart = new Date(S().view.viewStartDate);
+  // `parseDate`, niet `new Date(iso)`: beide leveren hier UTC-middernacht, maar `parseDate` is
+  // letterlijk dezelfde bron als de renderer — en de weekdag-/maandfilter hieronder hangt aan die
+  // kalenderdag. Voor de x-waarden zelf maakt het niets uit: `oldDateToXWithScroll` rekent met het
+  // VERSCHIL tussen `date` en `viewStart`, en beide komen uit dezelfde basis.
+  const viewStart = parseDate(S().view.viewStartDate);
   const visibleDays = Math.ceil(canvasWidth / zoom) + 2;
   const startOffset = oldStartOffset(scrollX, zoom); // de OUDE formule, onafhankelijk berekend
+  // U2: sinds de rasterdichtheid per zoom loopt, tekent de renderer onder 8 px/dag niet meer élke
+  // dag. Deze check gaat over de startOffset-FORMULE (welke x-posities), niet over de dichtheid —
+  // dus wordt hier dezelfde filter toegepast. Drempels NIET met de hand nagebouwd maar uit
+  // `gridDensityForZoom` zelf: een verschoven drempel hoort deze check niet stilletjes te laten
+  // slagen op een andere lijnenset. weekStartDay is in deze scène de default 'monday'.
+  const density = gridDensityForZoom(zoom);
   const xs: number[] = [];
   for (let i = -1; i < visibleDays; i++) {
     const date = addCalendarDays(viewStart, startOffset + i);
+    if (density === 'week' && date.getUTCDay() !== 1) continue;
+    if (density === 'month' && date.getUTCDate() !== 1) continue;
     xs.push(oldDateToXWithScroll(date, viewStart, 0, zoom, scrollX));
   }
   return xs;

@@ -5,8 +5,9 @@
 // Ontwerpeisen (vastgelegd in tests/planning/check-bar-colors.ts):
 //  1. 12 kleuren, onderling onderscheidbaar ÓÓK in grijswaarden (elke kleur een eigen lichtheidsband
 //     — zwart-wit laserprinters en grijswaarden-PDF-viewers bestaan echt op bouwplaatsen);
-//  2. géén van de kleuren is de kritiek-roodtint van het printpalet ('#DC2626') — rood is gereserveerd
-//     voor de rode rand om kritieke taken in de niet-critical kleurmodi (B5);
+//  2. géén van de kleuren is een kritiek-roodtint — niet die van het scherm ('#DA5252', BRAND.critical
+//     sinds U2) en niet die van het printpalet ('#DC2626') — rood is gereserveerd voor de rode rand
+//     om kritieke taken in de niet-critical kleurmodi (B5);
 //  3. voldoende verzadiging om op een lichte printachtergrond te staan.
 //
 // De lichtheden lopen bewust sterk uiteen: band 1/12 breed per kleur.
@@ -16,7 +17,8 @@ import type { Resource } from '@/types/resource';
 // het volle bereik ~0.16 … ~0.87, elk ≥ ~0.06 uit elkaar — 10 van de 12 lichtheidsbanden uniek
 // (bewaakt door de check). Binnen een band verschilt de hue maximaal (grijs/rood/pink/oranje/
 // teal/indigo/amber/violet/sky/green/geel/lime). Noot: red-700 (#B91C1C) is donkerder én
-// duidelijk anders van tint dan critical-rood (#DC2626) — de rode kritiek-rand blijft leesbaar.
+// duidelijk anders van tint dan critical-rood (scherm #DA5252, print #DC2626) — de rode kritiek-rand
+// blijft leesbaar.
 export const RESOURCE_PALETTE: readonly string[] = [
   '#1E293B', // 0  slate-800   (l ≈ 0.16)
   '#B91C1C', // 1  red-700     (l ≈ 0.24)

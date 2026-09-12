@@ -57,7 +57,7 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
 
 // De stub geeft fillStyle letterlijk terug (geen canvas-normalisatie naar rgba()), en met de
 // lege getComputedStyle-stub valt de float-kleur terug op de hardcoded default.
-const FLOAT_FILL = '#059669E6';
+const FLOAT_FILL = '#1E976F99'; // U2: nieuwe float-hex (fallback) op 60% dekking (fixronde)
 const isFloat = (fill: string) => fill.toUpperCase() === FLOAT_FILL.toUpperCase();
 
 // ── Scenario: één taak met speling naast een langere kritieke taak ───────────
