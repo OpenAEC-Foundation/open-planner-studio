@@ -52,11 +52,13 @@ A negative number (lead) means the successor starts while the predecessor is sti
 
 ## Adding relations
 
-There are three ways to create a relation, depending on where you're already working:
+There are four ways to create a relation, depending on where you're already working:
 
 1. **Dragging in the Gantt chart**: hold **Shift** and drag from the predecessor's bar to the successor's bar. As soon as you release, an FS relation with lag 0 is created immediately, and the **Relation type** window appears right away — there you can adjust the type (FS/SS/FF/SF) and the lag without having to open the properties panel.
 2. **Selection + button**: select the predecessor first, hold Ctrl/Cmd and select the successor next (in that order). With exactly two tasks selected this way, choose **Relation → Link selected tasks** on the **Start**, **Planning**, or **Table** ribbon tab. This immediately creates an FS relation with lag 0. Open its token in the task grid afterwards if you need another type or lag.
 3. **Directly in the task grid**: add the **Predecessors** or **Successors** column via the plus button. Open a cell to search by WBS/task name and set FS/SS/FF/SF plus lag. Existing relation tokens can be opened to edit or remove them; related free float, driving state, and warnings are available as separate columns. Predecessors and successors each have their own color in these columns; a driving relation gets a stronger tint of that same color, plus bold.
+
+4. **In the properties panel**: the **Dependencies** section has an **Add relation** button. It opens a draft row inside the same list — no separate window. First pick the direction (**Predecessor** or **Successor**, seen from the selected task), then type part of the WBS code or task name in the search field and pick a task with the mouse or with the arrow keys plus **Enter**. Set the type and the lag, then confirm with the check mark (or press **Enter** again). **Esc** discards the draft row without changing anything. If the relation is refused — because it already exists, for instance, or because both endpoints sit in the same parent-child chain — a notification explains why and the draft row stays open so you can correct your choice.
 
 The **Driving** column shows, after a calculation, which relation actually determines the successor's start or finish date — for a task with multiple predecessors, that isn't necessarily the relation you created most recently, but the one with the latest (driving) date.
 

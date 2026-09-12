@@ -52,11 +52,13 @@ Een negatief getal (lead) betekent dat de opvolger al start terwijl de voorgange
 
 ## Relaties leggen
 
-Er zijn drie manieren om een relatie aan te maken, afhankelijk van waar je toch al aan het werk bent:
+Er zijn vier manieren om een relatie aan te maken, afhankelijk van waar je toch al aan het werk bent:
 
 1. **Slepen in het Gantt-diagram**: houd **Shift** ingedrukt en sleep van de balk van de voorganger naar de balk van de opvolger. Zodra je loslaat, ontstaat direct een FS-relatie met lag 0, en verschijnt meteen het venster **Type relatie** — daarin pas je het type (FS/SS/FF/SF) en de lag aan zonder het eigenschappenpaneel te hoeven openen.
 2. **Selectie + knop**: selecteer eerst de voorganger, houd Ctrl/Cmd ingedrukt en selecteer daarna de opvolger (in die volgorde). Zijn er zo precies twee taken geselecteerd, kies dan **Relatie → Geselecteerde taken koppelen** op het tabblad **Start**, **Planning** of **Tabel**. Er wordt meteen een FS-relatie met vertraging 0 aangemaakt. Open het relatietoken daarna in de taakgrid als je type of lag wilt wijzigen.
 3. **Rechtstreeks in de taakgrid**: voeg via het plusje de kolom **Voorgangers** of **Opvolgers** toe. Open een cel, zoek op WBS/taaknaam en stel FS/SS/FF/SF plus lag in. Bestaande relatietokens kun je openen om ze te wijzigen of verwijderen; vrije speling, bepalende status en waarschuwingen zijn als aparte kolommen beschikbaar. Voorgangers en opvolgers hebben elk hun eigen kleur in deze kolommen; een bepalende (driving) relatie krijgt een sterkere tint van diezelfde kleur, plus vet.
+
+4. **In het eigenschappenpaneel**: onder **Afhankelijkheden** staat de knop **Relatie toevoegen**. Die opent een conceptregel in dezelfde lijst — geen apart venster. Kies eerst de richting (**Voorganger** of **Opvolger**, gezien vanuit de geselecteerde taak), typ daarna een deel van het WBS-nummer of de taaknaam in het zoekveld en kies een taak met de muis of met de pijltoetsen plus **Enter**. Stel vervolgens nog het type en de lag in en bevestig met het vinkje (of nogmaals **Enter**). **Esc** gooit de conceptregel weg zonder iets te wijzigen. Weigert de planning de relatie — bijvoorbeeld omdat hij al bestaat, of omdat beide eindpunten in dezelfde ouder-kindketen liggen — dan verschijnt daarover een melding en blijft de conceptregel staan zodat je de keuze kunt corrigeren.
 
 De kolom **Bepalend** (driving) laat na een berekening zien welke relatie daadwerkelijk de start- of einddatum van de opvolger bepaalt — bij een taak met meerdere voorgangers is dat niet per se de relatie die je het laatst hebt aangemaakt, maar degene met de laatste (bepalende) datum.
 
