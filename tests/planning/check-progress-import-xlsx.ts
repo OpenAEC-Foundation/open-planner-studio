@@ -270,6 +270,64 @@ const SERIAL_2026_07_01 = isoToSerial('2026-07-01')!;
 }
 
 {
+  // ── dubbel of dalend `r` is een WEIGERING, geen interpretatie (fixronde eindreview) ────────
+  // `rowNumber` is de sleutel van `buildPlan`'s rijmap en van de handmatige koppelingen (A11).
+  // Twee rijen met hetzelfde `r` betekent dat de tweede de eerste daar stil overschrijft: de
+  // invuller krijgt een toepassing op een taak die hij niet bewerkte, zonder ook maar één
+  // weigering. Hetzelfde geldt een niveau lager voor twee cellen met dezelfde kolom.
+  const dubbel = await makeWorkbook({
+    rows: '<row r="2"><c r="A2" t="inlineStr"><is><t>eerste</t></is></c></row>'
+      + '<row r="2"><c r="A2" t="inlineStr"><is><t>tweede</t></is></c></row>',
+  });
+  eq('dubbel rijnummer ⇒ malformed', await issueOf(readXlsxSheet(dubbel)), 'malformed');
+
+  const dalend = await makeWorkbook({
+    rows: '<row r="5"><c r="A5" t="inlineStr"><is><t>vijf</t></is></c></row>'
+      + '<row r="3"><c r="A3" t="inlineStr"><is><t>drie</t></is></c></row>',
+  });
+  eq('dalend rijnummer ⇒ malformed', await issueOf(readXlsxSheet(dalend)), 'malformed');
+
+  const dubbeleCel = await makeWorkbook({
+    rows: '<row r="2">'
+      + '<c r="A2" t="inlineStr"><is><t>eerste</t></is></c>'
+      + '<c r="A2" t="inlineStr"><is><t>tweede</t></is></c>'
+      + '</row>',
+  });
+  eq('dubbele celkolom ⇒ malformed', await issueOf(readXlsxSheet(dubbeleCel)), 'malformed');
+
+  const dalendeCel = await makeWorkbook({
+    rows: '<row r="2">'
+      + '<c r="C2" t="inlineStr"><is><t>drie</t></is></c>'
+      + '<c r="B2" t="inlineStr"><is><t>twee</t></is></c>'
+      + '</row>',
+  });
+  eq('dalende celkolom ⇒ malformed', await issueOf(readXlsxSheet(dalendeCel)), 'malformed');
+
+  // Overgeslagen rijen en kolommen blijven gewoon geldig — de eis is OPLOPEND, niet aaneengesloten.
+  const sprong = await readXlsxSheet(await makeWorkbook({
+    rows: '<row r="2"><c r="A2" t="inlineStr"><is><t>a</t></is></c>'
+      + '<c r="D2" t="inlineStr"><is><t>d</t></is></c></row>'
+      + '<row r="9"><c r="B9" t="inlineStr"><is><t>b</t></is></c></row>',
+  }));
+  eq('gaten in rijen en kolommen blijven geldig',
+    [sprong.rows.length, cell(sprong, 2, 'D')?.text, cell(sprong, 9, 'B')?.text],
+    [2, 'd', 'b']);
+
+  // Een `.xlsx` waarin de kop dubbel staat is voor de VOORTGANGSIMPORT een bestandsbrede
+  // weigering, niet een half toegepast blad.
+  const dubbelBlad = await makeWorkbook({
+    rows: '<row r="1"><c r="A1" t="inlineStr"><is><t>OPS Task ID</t></is></c>'
+      + '<c r="B1" t="inlineStr"><is><t>Completion (%)</t></is></c></row>'
+      + '<row r="2"><c r="A2" t="inlineStr"><is><t>task-a</t></is></c>'
+      + '<c r="B2"><v>10</v></c></row>'
+      + '<row r="2"><c r="A2" t="inlineStr"><is><t>task-b</t></is></c>'
+      + '<c r="B2"><v>90</v></c></row>',
+  });
+  eq('…en de voortgangsimport maakt er een net fileIssue van',
+    (await parseProgressXlsx(dubbelBlad)).fileIssue, 'unreadable');
+}
+
+{
   const sheet1904 = await readXlsxSheet(await makeWorkbook({
     rows: '<row r="1"><c r="A1" s="1"><v>1</v></c></row>',
     epoch1904: true,

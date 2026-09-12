@@ -356,6 +356,8 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
   const rows: XlsxRow[] = [];
   let row: XlsxRow | null = null;
   let nextRowNumber = 1;
+  /** Het hoogste rijnummer dat al gezien is. Zie de uniciteitstoets hieronder. */
+  let lastRowNumber = 0;
 
   // Cel-in-aanbouw.
   let cellRef: string | undefined;
@@ -373,6 +375,15 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
     if (!cellOpen || row === null) return;
     cellOpen = false;
     const col = columnFromCellRef(cellRef) ?? nextCol;
+    // Zelfde redenering als bij de rijnummers, één niveau lager: twee cellen met hetzelfde `r`
+    // binnen één rij zouden allebei in `row.cells` landen en de LAATSTE zou winnen bij het lezen —
+    // stil de verkeerde kolomwaarde. Cellen staan in een geldige xlsx strikt oplopend.
+    if (col < nextCol) {
+      throw new XlsxReadError(
+        'malformed',
+        `kolomindex ${col} is niet oplopend binnen rij ${row.rowNumber}`,
+      );
+    }
     nextCol = col + 1;
     if (col >= limits.maxCols) {
       throw new XlsxReadError('malformed', `kolomindex ${col} boven de grens`);
@@ -436,6 +447,17 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
         const attr = ev.attrs.r;
         const parsed = attr !== undefined ? Number(attr) : NaN;
         const rowNumber = Number.isInteger(parsed) && parsed > 0 ? parsed : nextRowNumber;
+        // `r` is de SLEUTEL van de handmatige koppelingen (A11) en van `buildPlan`'s rijmap. Een
+        // tweede `<row r="2">` zou de eerste daar stil overschrijven — de invuller ziet dan een
+        // toepassing op een taak die hij niet bewerkte, zonder één weigering. Rijnummers zijn in
+        // een geldige xlsx strikt oplopend; alles anders is een weigering, geen interpretatie.
+        if (rowNumber <= lastRowNumber) {
+          throw new XlsxReadError(
+            'malformed',
+            `rijnummer ${rowNumber} is niet oplopend (na ${lastRowNumber})`,
+          );
+        }
+        lastRowNumber = rowNumber;
         nextRowNumber = rowNumber + 1;
         if (rows.length >= limits.maxRows) {
           throw new XlsxReadError('tooManyRows', 'te veel rijen in het werkblad');
