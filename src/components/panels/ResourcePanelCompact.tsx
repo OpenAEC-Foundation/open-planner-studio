@@ -42,7 +42,7 @@ export function ResourcePanelCompact() {
           >
             <span
               title={t('resource.color')}
-              className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+              className="w-2 h-3.5 rounded-sm flex-shrink-0"
               style={{ background: ensureThemeVisible(resourceDisplayColor(r), darkTheme) }}
               data-ops-resource-color={r.id}
             />
@@ -59,9 +59,9 @@ export function ResourcePanelCompact() {
               title={t('resource.maxUnits')}
             />
             <span
-              title={overallocated ? t('resource.compact.overallocated') : t('ok')}
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ background: overallocated ? 'var(--error)' : 'var(--success)' }}
+              title={overallocated ? t('resource.compact.overallocated') : undefined}
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${overallocated ? '' : 'invisible'}`}
+              style={{ background: 'var(--error)' }}
             />
           </div>
         );
