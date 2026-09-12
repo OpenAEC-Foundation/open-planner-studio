@@ -680,6 +680,7 @@
       "title": "Rozdziel między projekty",
       "back": "Powrót do obłożenia",
       "subtitle": "{{item}} — rozdziel zdolność rezydualną między otwarte projekty",
+      "intro": "Wybierz, kto ma być najbardziej oszczędzony, w razie potrzeby przypnij projekt albo nadaj mu limit i sprawdź na wykresie, co zostaje z podwójnej rezerwacji. Zastosuj zapisuje przesunięcia we wszystkich objętych projektach.",
       "blocked": {
         "uncounted": "Najpierw przelicz: {{docs}} nie jest jeszcze obliczony, więc nie ma czego rozdzielać.",
         "material": "To jest pozycja materiałowa; rozdzielanie działa tylko dla osób i sprzętu.",
@@ -713,7 +714,18 @@
         "moveDown": "Przenieś w dół"
       },
       "help": {
-        "dragHandle": "Przeciągnij ten wiersz w inne miejsce kolejności."
+        "dragHandle": "Przeciągnij ten wiersz w inne miejsce kolejności.",
+        "allowSplits": "Pozwala, aby praca miała dni przerwy zamiast przesuwać się w jednym kawałku; daje to rozdziałowi więcej miejsca, ale powstają zadania pocięte.",
+        "price": "Metka ceny pokazuje dla każdego ustawienia, o ile dni roboczych przesuwa się data zakończenia najbardziej dotkniętego projektu; jedna cena z „w obu ustawieniach” oznacza, że przerywanie niczego tu nie zmienia.",
+        "rank": "Ten na górze ustępuje najmniej: ten projekt zachowuje swoje terminy w możliwie największym stopniu, a projekty poniżej przesuwają się, by zrobić miejsce.",
+        "rankCost": "Ile kosztowałoby, gdyby przesunął się wyłącznie ten projekt, a wszystkie pozostałe stały w miejscu — miara do wyboru kolejności, a nie wynik bieżącej propozycji.",
+        "pin": "Przypina ten projekt: zachowuje swoją datę zakończenia i swoje dni robocze oraz liczy się jako stałe obciążenie, które pozostałe projekty muszą ominąć.",
+        "ceiling": "O ile dni roboczych data zakończenia tego projektu może się najwyżej przesunąć. Przeciągnij uchwyt albo użyj strzałek, Home (bez przekroczenia) i End (bez ograniczenia). Etykieta pokazuje skutek dla daty zakończenia, a nie odległość przeciągnięcia.",
+        "chart": "Teraz = bieżąca rezerwacja wszystkich otwartych projektów razem; Po rozdzieleniu = to, co zostaje po rozdzieleniu. Czerwień wykracza ponad wydajność.",
+        "recompute": "Przelicza propozycję z bieżącą kolejnością, przypięciami i limitami.",
+        "apply": "Zapisuje przesunięcia we wszystkich objętych projektach; każdy projekt otrzymuje własny krok cofnięcia.",
+        "discard": "Zamyka okno bez żadnych zmian.",
+        "pickAnother": "Powrót do listy elementów biblioteki, aby rozdzielić inny element."
       },
       "strip": {
         "pin": "Przypnij",

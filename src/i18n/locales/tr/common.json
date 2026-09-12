@@ -656,6 +656,7 @@
       "title": "Projeler arasında dağıt",
       "back": "Doluluğa dön",
       "subtitle": "{{item}} — kalan kapasiteyi açık projeler arasında dağıt",
+      "intro": "En çok kimin korunacağını seçin, gerekirse bir projeyi sabitleyin veya ona bir tavan verin ve çift rezervasyondan geriye ne kaldığını grafikte görün. Uygula, kaymaları ilgili tüm projelere yazar.",
       "blocked": {
         "uncounted": "Önce hesapla: {{docs}} henüz hesaplanmadı, bu yüzden dağıtılacak bir şey yok.",
         "material": "Bu bir malzeme kalemi; dağıtım yalnızca kişiler ve ekipman için çalışır.",
@@ -685,7 +686,18 @@
         "moveDown": "Aşağı taşı"
       },
       "help": {
-        "dragHandle": "Bu satırı sıradaki başka bir konuma sürükleyin."
+        "dragHandle": "Bu satırı sıradaki başka bir konuma sürükleyin.",
+        "allowSplits": "İşin tek parça hâlinde kaymak yerine ara günler almasına izin verir; dağıtıma daha çok alan tanır, ancak bölünmüş görevler oluşturur.",
+        "price": "Fiyat etiketi, her konum için en çok etkilenen projenin bitiş tarihinin kaç iş günü kaydığını gösterir; «her iki durumda da» yazan tek bir fiyat, bölmenin burada bir fark yaratmadığı anlamına gelir.",
+        "rank": "En üstteki en az kayar: o proje tarihlerini olabildiğince korur, altındakiler yer açmak için kayar.",
+        "rankCost": "Yalnızca bu proje kaysa ve diğerlerinin tümü yerinde kalsa neye mal olacağı — sırayı seçmek için bir ölçüt, mevcut önerinin sonucu değil.",
+        "pin": "Bu projeyi sabitler: bitiş tarihini ve iş günlerini korur ve diğer projelerin etrafından dolaşması gereken sabit bir yük olarak sayılır.",
+        "ceiling": "Bu projenin bitiş tarihinin en fazla kaç iş günü kayabileceği. Tutamacı sürükleyin veya ok tuşlarını, Home (taşma yok) ve End (sınırsız) tuşlarını kullanın. Etiket, ne kadar sürüklediğinizi değil, bitiş tarihine etkisini gösterir.",
+        "chart": "Şimdi = açık tüm projelerin şu anki toplam rezervasyonu; Dağıtımdan sonra = dağıtımdan sonra geriye kalan. Kırmızı, kapasitenin üzerine çıkan kısımdır.",
+        "recompute": "Öneriyi mevcut sıra, sabitlemeler ve tavanlarla yeniden hesaplar.",
+        "apply": "Kaymaları ilgili tüm projelere yazar; her proje kendi geri alma adımını alır.",
+        "discard": "İletişim kutusunu hiçbir şeyi değiştirmeden kapatır.",
+        "pickAnother": "Başka bir öğeyi dağıtmak için kitaplık öğeleri listesine dönün."
       },
       "strip": {
         "pin": "Sabitle",

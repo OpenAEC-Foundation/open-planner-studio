@@ -668,6 +668,7 @@
       "title": "Répartir entre les projets",
       "back": "Retour à l'occupation",
       "subtitle": "{{item}} — répartir la capacité résiduelle entre les projets ouverts",
+      "intro": "Choisissez qui est le plus épargné, épinglez un projet ou donnez-lui un plafond si nécessaire, et regardez dans le graphique ce qu'il reste de la double réservation. Appliquer écrit les décalages dans tous les projets concernés.",
       "blocked": {
         "uncounted": "Calculez d'abord : {{docs}} n'est pas encore calculé, il n'y a donc rien à répartir.",
         "material": "Il s'agit d'un article matériel ; la répartition ne fonctionne que pour les personnes et le matériel.",
@@ -699,7 +700,18 @@
         "moveDown": "Descendre"
       },
       "help": {
-        "dragHandle": "Faites glisser cette ligne à une autre place dans l'ordre."
+        "dragHandle": "Faites glisser cette ligne à une autre place dans l'ordre.",
+        "allowSplits": "Autorise le travail à comporter des jours de pause au lieu de se décaler d'un seul bloc ; cela donne plus de marge à la répartition, mais découpe les tâches.",
+        "price": "L'étiquette de prix indique, pour chaque position, de combien de jours ouvrés la date de fin du projet le plus touché se décale ; un prix unique avec « dans les deux cas » signifie qu'interrompre ne change rien ici.",
+        "rank": "Celui du haut cède le moins : ce projet conserve ses dates autant que possible, les projets en dessous se décalent pour faire de la place.",
+        "rankCost": "Ce que cela coûterait si seul ce projet se décalait et que tous les autres restaient en place — un repère pour choisir l'ordre, pas le résultat de la proposition actuelle.",
+        "pin": "Épingle ce projet : il conserve sa date de fin et ses jours ouvrés, et compte comme charge fixe que les autres projets doivent contourner.",
+        "ceiling": "De combien de jours ouvrés la date de fin de ce projet peut se décaler au maximum. Faites glisser la poignée, ou utilisez les flèches, Début (aucun dépassement) et Fin (illimité). L'étiquette montre l'effet sur la date de fin, pas la distance parcourue.",
+        "chart": "Maintenant = la réservation actuelle de tous les projets ouverts réunis ; Après répartition = ce qu'il reste une fois le travail réparti. Le rouge dépasse la capacité.",
+        "recompute": "Recalcule la proposition avec l'ordre, les épingles et les plafonds actuels.",
+        "apply": "Écrit les décalages dans tous les projets concernés ; chaque projet reçoit sa propre étape d'annulation.",
+        "discard": "Ferme la boîte de dialogue sans rien modifier.",
+        "pickAnother": "Retour à la liste des éléments de bibliothèque, pour répartir un autre élément."
       },
       "strip": {
         "pin": "Épingler",

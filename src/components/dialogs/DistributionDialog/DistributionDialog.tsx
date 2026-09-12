@@ -473,6 +473,14 @@ export function DistributionDialog() {
               {t('resource.distribution.subtitle', { item: itemName })}
             </div>
           )}
+          {/* Eén regel die de hele handeling uitlegt (gebruikstest 2026-09-12, gebrek 4). Bewust
+              NIET afgekapt (`truncate`) zoals de ondertitel erboven: een uitleg die halverwege
+              ophoudt met "…" legt niets uit. */}
+          {tune && (
+            <div className="text-[11px] text-text-secondary mt-0.5" data-ops-distribution-intro>
+              {t('resource.distribution.intro')}
+            </div>
+          )}
         </div>
         <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px] shrink-0" title={t('resource.distribution.back')}>
           <X size={16} />
@@ -526,6 +534,7 @@ export function DistributionDialog() {
                   // een `left`, zodat de knop nog steeds glijdt in plaats van te springen.
                   className={`relative w-9 h-5 rounded-full transition-colors shrink-0 border ${tune.allowSplits ? 'bg-accent border-accent' : 'bg-surface-hover border-border'}`}
                   data-ops-distribution-allow-splits
+                  title={t('resource.distribution.help.allowSplits')}
                 >
                   <span
                     className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all"
@@ -533,8 +542,14 @@ export function DistributionDialog() {
                   />
                   <span className="sr-only">{t('resource.distribution.tool.allowSplits')}</span>
                 </button>
-                <span className="font-medium">{t('resource.distribution.tool.allowSplits')}</span>
-                <span className="text-text-secondary" data-ops-distribution-tool-price>
+                <span className="font-medium" title={t('resource.distribution.help.allowSplits')}>
+                  {t('resource.distribution.tool.allowSplits')}
+                </span>
+                <span
+                  className="text-text-secondary"
+                  title={t('resource.distribution.help.price')}
+                  data-ops-distribution-tool-price
+                >
                   {toolPriceLabel()}
                 </span>
               </div>
@@ -543,10 +558,16 @@ export function DistributionDialog() {
 
             {/* (4) Rangorde */}
             <section className="flex flex-col gap-1.5">
-              <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+              <span
+                className="text-[10px] uppercase tracking-wide"
+                style={{ color: 'var(--theme-text-muted)' }}
+                title={t('resource.distribution.help.rank')}
+              >
                 {t('resource.distribution.rank.title')}
               </span>
-              <span className="text-[10px] text-text-secondary">{t('resource.distribution.rank.hint')}</span>
+              <span className="text-[10px] text-text-secondary" title={t('resource.distribution.help.rank')}>
+                {t('resource.distribution.rank.hint')}
+              </span>
               <div className="flex flex-col">
                 {rankRows.map((row, index) => (
                   <div
@@ -605,7 +626,11 @@ export function DistributionDialog() {
                       })}
                     </span>
                     {isCostCandidate(row.docId) && (
-                      <span className="tabular-nums text-text-secondary" data-ops-distribution-cost>
+                      <span
+                        className="tabular-nums text-text-secondary"
+                        title={t('resource.distribution.help.rankCost')}
+                        data-ops-distribution-cost
+                      >
                         {costLabel(row.docId)}
                       </span>
                     )}
@@ -673,6 +698,7 @@ export function DistributionDialog() {
             {/* (6) Voor/na-histogram (taak 11b, spec §7): dezelfde as als de fasestroken hierboven. */}
             <section
               className="rounded-[8px] border border-border px-2 py-3"
+              title={t('resource.distribution.help.chart')}
               data-ops-distribution-histogram
             >
               {poolItem ? (
@@ -789,6 +815,7 @@ export function DistributionDialog() {
             type="button"
             className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover mr-auto"
             data-ops-distribution-pick-another
+            title={t('resource.distribution.help.pickAnother')}
             onClick={() => setUI({ levelingDistribution: null })}
           >
             {applied
@@ -800,6 +827,7 @@ export function DistributionDialog() {
             className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover disabled:opacity-40"
             onClick={recompute}
             disabled={busy}
+            title={t('resource.distribution.help.recompute')}
           >
             {proposal === null
               ? t('resource.distribution.compute.auto')
@@ -812,7 +840,7 @@ export function DistributionDialog() {
             type="button"
             className="px-3 py-1.5 rounded-[8px] bg-accent text-white disabled:opacity-40"
             disabled={!applyGate.ok}
-            title={applyGate.reason || undefined}
+            title={applyGate.reason || t('resource.distribution.help.apply')}
             onClick={onApply}
           >
             {t('resource.distribution.apply')}
@@ -820,6 +848,7 @@ export function DistributionDialog() {
           <button
             type="button"
             className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover"
+            title={t('resource.distribution.help.discard')}
             onClick={close}
           >
             {t('resource.distribution.discard')}

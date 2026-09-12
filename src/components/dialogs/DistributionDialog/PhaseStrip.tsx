@@ -252,7 +252,7 @@ export function PhaseStrip({
             type="button"
             aria-pressed={pinned}
             aria-label={t('resource.distribution.strip.pin')}
-            title={pinned ? t('resource.distribution.strip.pinned') : t('resource.distribution.strip.pin')}
+            title={`${pinned ? t('resource.distribution.strip.pinned') : t('resource.distribution.strip.pin')} — ${t('resource.distribution.help.pin')}`}
             onClick={onTogglePin}
             className={`p-0.5 rounded shrink-0 hover:bg-surface-hover ${pinned ? 'text-accent' : 'text-text-secondary'}`}
             data-ops-distribution-pin
@@ -325,7 +325,7 @@ export function PhaseStrip({
             aria-valuenow={displayCeiling ?? CEILING_MAX_WORKDAYS}
             aria-valuetext={valueText}
             aria-disabled={pinned || undefined}
-            title={t('resource.distribution.strip.ceiling')}
+            title={`${t('resource.distribution.strip.ceiling')} — ${t('resource.distribution.help.ceiling')}`}
             onKeyDown={onHandleKey}
             onPointerDown={onHandlePointerDown}
             onPointerMove={onHandlePointerMove}

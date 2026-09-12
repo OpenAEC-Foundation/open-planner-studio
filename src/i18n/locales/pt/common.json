@@ -668,6 +668,7 @@
       "title": "Distribuir entre projetos",
       "back": "Voltar à ocupação",
       "subtitle": "{{item}} — distribuir a capacidade residual entre os projetos abertos",
+      "intro": "Escolha quem é mais poupado, fixe ou limite um projeto quando necessário e veja no gráfico o que resta da reserva dupla. Aplicar escreve os deslocamentos em todos os projetos envolvidos.",
       "blocked": {
         "uncounted": "Calcule primeiro: {{docs}} ainda não foi calculado, por isso não há nada para distribuir.",
         "material": "Este é um item de material; a distribuição só funciona para pessoas e equipamentos.",
@@ -699,7 +700,18 @@
         "moveDown": "Mover para baixo"
       },
       "help": {
-        "dragHandle": "Arraste esta linha para outra posição na ordem."
+        "dragHandle": "Arraste esta linha para outra posição na ordem.",
+        "allowSplits": "Permite que o trabalho tenha dias de pausa em vez de se deslocar de uma só vez; dá mais folga à distribuição, mas gera tarefas divididas.",
+        "price": "A etiqueta de preço mostra, por posição, quantos dias úteis a data de fim do projeto mais afetado se desloca; um único preço com «em ambos os casos» significa que interromper não muda nada aqui.",
+        "rank": "O de cima cede menos: esse projeto mantém as suas datas tanto quanto possível e os de baixo deslocam-se para abrir espaço.",
+        "rankCost": "O que custaria se apenas este projeto se deslocasse e todos os outros ficassem parados — uma referência para escolher a ordem, não o resultado da proposta atual.",
+        "pin": "Fixa este projeto: mantém a data de fim e os seus dias úteis e conta como carga fixa que os outros projetos têm de contornar.",
+        "ceiling": "Quantos dias úteis a data de fim deste projeto pode deslocar-se no máximo. Arraste a alça ou use as setas, Home (sem excesso) e End (ilimitado). A etiqueta mostra o efeito na data de fim, não a distância arrastada.",
+        "chart": "Agora = a reserva atual de todos os projetos abertos em conjunto; Depois de distribuir = o que resta após a distribuição. O vermelho ultrapassa a capacidade.",
+        "recompute": "Recalcula a proposta com a ordem, as fixações e os limites atuais.",
+        "apply": "Escreve os deslocamentos em todos os projetos envolvidos; cada projeto recebe o seu próprio passo de anulação.",
+        "discard": "Fecha a caixa de diálogo sem alterar nada.",
+        "pickAnother": "Voltar à lista de itens da biblioteca, para distribuir outro item."
       },
       "strip": {
         "pin": "Fixar",

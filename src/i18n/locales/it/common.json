@@ -668,6 +668,7 @@
       "title": "Distribuisci tra i progetti",
       "back": "Torna all'occupazione",
       "subtitle": "{{item}} — distribuisci la capacità residua tra i progetti aperti",
+      "intro": "Scegli chi viene risparmiato di più, fissa o limita un progetto se serve e guarda nel grafico che cosa resta della doppia prenotazione. Applica scrive gli spostamenti in tutti i progetti coinvolti.",
       "blocked": {
         "uncounted": "Calcola prima: {{docs}} non è ancora stato calcolato, quindi non c'è nulla da distribuire.",
         "material": "Questo è un articolo di materiale; la distribuzione funziona solo per persone e attrezzature.",
@@ -699,7 +700,18 @@
         "moveDown": "Sposta giù"
       },
       "help": {
-        "dragHandle": "Trascina questa riga in un'altra posizione dell'ordine."
+        "dragHandle": "Trascina questa riga in un'altra posizione dell'ordine.",
+        "allowSplits": "Consente al lavoro di avere giorni di pausa invece di spostarsi in un unico blocco; dà più margine alla distribuzione, ma produce attività spezzate.",
+        "price": "Il cartellino mostra, per ciascuna posizione, di quanti giorni lavorativi si sposta la data di fine del progetto più colpito; un unico prezzo con «in entrambi i casi» significa che interrompere qui non cambia nulla.",
+        "rank": "Quello in alto cede di meno: quel progetto mantiene le sue date il più possibile, mentre quelli sotto si spostano per fare spazio.",
+        "rankCost": "Quanto costerebbe se soltanto questo progetto si spostasse e tutti gli altri restassero fermi — un metro per scegliere l'ordine, non il risultato della proposta attuale.",
+        "pin": "Fissa questo progetto: mantiene la data di fine e i suoi giorni lavorativi e conta come carico fisso attorno al quale gli altri progetti devono muoversi.",
+        "ceiling": "Di quanti giorni lavorativi può spostarsi al massimo la data di fine di questo progetto. Trascina la maniglia oppure usa i tasti freccia, Home (nessuno sforamento) e Fine (illimitato). L'etichetta mostra l'effetto sulla data di fine, non quanto hai trascinato.",
+        "chart": "Ora = la prenotazione attuale di tutti i progetti aperti insieme; Dopo la distribuzione = ciò che resta dopo aver distribuito. Il rosso supera la capacità.",
+        "recompute": "Ricalcola la proposta con l'ordine, i fissaggi e i limiti attuali.",
+        "apply": "Scrive gli spostamenti in tutti i progetti coinvolti; ogni progetto riceve il proprio passo di annullamento.",
+        "discard": "Chiude la finestra senza modificare nulla.",
+        "pickAnother": "Torna all'elenco degli elementi della libreria per distribuire un altro elemento."
       },
       "strip": {
         "pin": "Blocca",

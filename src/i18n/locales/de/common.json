@@ -656,6 +656,7 @@
       "title": "Über Projekte verteilen",
       "back": "Zurück zur Belegung",
       "subtitle": "{{item}} — Restkapazität über die geöffneten Projekte verteilen",
+      "intro": "Wählen Sie, wer am meisten geschont wird, fixieren oder begrenzen Sie bei Bedarf ein Projekt, und sehen Sie im Diagramm, was von der Doppelbuchung übrig bleibt. Übernehmen schreibt die Verschiebungen in alle beteiligten Projekte.",
       "blocked": {
         "uncounted": "Zuerst berechnen: {{docs}} ist noch nicht berechnet, daher gibt es nichts zu verteilen.",
         "material": "Dies ist ein Materialartikel; Verteilen funktioniert nur für Personen und Geräte.",
@@ -685,7 +686,18 @@
         "moveDown": "Nach unten"
       },
       "help": {
-        "dragHandle": "Ziehen Sie diese Zeile an eine andere Stelle in der Reihenfolge."
+        "dragHandle": "Ziehen Sie diese Zeile an eine andere Stelle in der Reihenfolge.",
+        "allowSplits": "Erlaubt, dass die Arbeit Pausentage erhält, statt am Stück zu verschieben; das gibt der Verteilung mehr Spielraum, erzeugt aber unterbrochene Vorgänge.",
+        "price": "Das Preisschild zeigt je Stellung, um wie viele Arbeitstage sich das Enddatum des am stärksten betroffenen Projekts verschiebt; ein einzelner Preis mit „in beiden Stellungen“ heißt, dass Unterbrechen hier nichts ändert.",
+        "rank": "Ganz oben weicht am wenigsten: Dieses Projekt behält seine Termine so weit wie möglich, die darunter verschieben sich, um Platz zu schaffen.",
+        "rankCost": "Was es kosten würde, wenn sich ausschließlich dieses Projekt verschöbe und alle anderen stehen blieben — ein Maßstab für die Reihenfolge, nicht das Ergebnis des aktuellen Vorschlags.",
+        "pin": "Fixiert dieses Projekt: Es behält sein Enddatum und seine Arbeitstage und zählt als feste Last, um die die anderen Projekte herum müssen.",
+        "ceiling": "Um wie viele Arbeitstage sich das Enddatum dieses Projekts höchstens verschieben darf. Ziehen Sie den Griff, oder nutzen Sie die Pfeiltasten, Pos1 (kein Überlauf) und Ende (unbegrenzt). Die Beschriftung zeigt die Wirkung auf das Enddatum, nicht die Ziehdistanz.",
+        "chart": "Jetzt = die aktuelle Buchung aller geöffneten Projekte zusammen; Nach dem Verteilen = was nach der Verteilung übrig bleibt. Rot liegt über der Kapazität.",
+        "recompute": "Berechnet den Vorschlag mit der aktuellen Reihenfolge, den Fixierungen und Obergrenzen neu.",
+        "apply": "Schreibt die Verschiebungen in alle beteiligten Projekte; jedes Projekt erhält einen eigenen Rückgängig-Schritt.",
+        "discard": "Schließt den Dialog, ohne etwas zu ändern.",
+        "pickAnother": "Zurück zur Liste der Bibliothekselemente, um ein anderes Element zu verteilen."
       },
       "strip": {
         "pin": "Anheften",

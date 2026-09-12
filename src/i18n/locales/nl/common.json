@@ -656,6 +656,7 @@
       "title": "Verdelen over projecten",
       "back": "Terug naar bezetting",
       "subtitle": "{{item}} — restcapaciteit verdelen over de geopende projecten",
+      "intro": "Kies wie het meest ontzien wordt, zet zo nodig een project vast of geef het een plafond, en kijk in de grafiek wat er van de dubbele boeking overblijft. Toepassen schrijft de verschuivingen in alle betrokken projecten.",
       "blocked": {
         "uncounted": "Eerst doorrekenen: {{docs}} is nog niet berekend, dus er valt niets tegen te verdelen.",
         "material": "Dit is een materiaal-item; verdelen werkt alleen voor mensen en materieel.",
@@ -685,7 +686,18 @@
         "moveDown": "Naar beneden"
       },
       "help": {
-        "dragHandle": "Sleep deze rij naar een andere plek in de volgorde."
+        "dragHandle": "Sleep deze rij naar een andere plek in de volgorde.",
+        "allowSplits": "Laat toe dat het werk pauzedagen krijgt in plaats van in één stuk op te schuiven; dat geeft de verdeling meer ruimte, maar levert opgeknipte taken op.",
+        "price": "Het prijskaartje toont per stand hoeveel werkdagen de einddatum van het zwaarst getroffen project opschuift; staat er één prijs met \"in beide standen\", dan maakt onderbreken hier geen verschil.",
+        "rank": "Bovenaan wijkt het minst: dat project houdt zijn datums zoveel mogelijk, de projecten eronder schuiven op om ruimte te maken.",
+        "rankCost": "Wat het zou kosten als uitsluitend dit project opschoof en alle andere bleven staan — een maatstaf om de volgorde op te kiezen, niet de uitkomst van het huidige voorstel.",
+        "pin": "Zet dit project vast: het houdt zijn einddatum én zijn werkdagen, en telt mee als vaste last waar de andere projecten omheen moeten.",
+        "ceiling": "Hoeveel werkdagen de einddatum van dit project maximaal mag opschuiven. Sleep de greep, of gebruik de pijltjestoetsen, Home (geen uitloop) en End (onbegrensd). Het label toont het effect op de einddatum, niet hoe ver je gesleept hebt.",
+        "chart": "Nu = de huidige boeking van alle geopende projecten samen; Na verdelen = wat er na de verdeling overblijft. Rood is wat boven de capaciteit uitkomt.",
+        "recompute": "Rekent het voorstel opnieuw door met de huidige volgorde, vastzettingen en plafonds.",
+        "apply": "Schrijft de verschuivingen weg in alle betrokken projecten; elk project krijgt een eigen ongedaan-maken-stap.",
+        "discard": "Sluit de dialoog zonder iets te wijzigen.",
+        "pickAnother": "Terug naar de lijst met bibliotheekitems, om een ander item te verdelen."
       },
       "strip": {
         "pin": "Vastzetten",

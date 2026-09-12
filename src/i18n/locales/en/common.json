@@ -656,6 +656,7 @@
       "title": "Distribute over projects",
       "back": "Back to occupancy",
       "subtitle": "{{item}} — distribute residual capacity over the open projects",
+      "intro": "Choose who is spared the most, pin or cap a project where needed, and look at the chart to see what remains of the double booking. Apply writes the shifts into every project involved.",
       "blocked": {
         "uncounted": "Calculate first: {{docs}} has not been calculated yet, so there is nothing to distribute.",
         "material": "This is a material item; distributing only works for people and equipment.",
@@ -685,7 +686,18 @@
         "moveDown": "Move down"
       },
       "help": {
-        "dragHandle": "Drag this row to another position in the order."
+        "dragHandle": "Drag this row to another position in the order.",
+        "allowSplits": "Allows the work to take pause days instead of shifting in one piece; this gives the distribution more room, but produces split tasks.",
+        "price": "The price tag shows, per setting, how many working days the end date of the worst-affected project shifts; a single price with \"in both settings\" means interrupting makes no difference here.",
+        "rank": "The one on top gives way the least: that project keeps its dates as much as possible, while the ones below shift to make room.",
+        "rankCost": "What it would cost if only this project shifted and all the others stayed put — a yardstick for choosing the order, not the outcome of the current proposal.",
+        "pin": "Pin this project: it keeps its end date and its working days, and counts as a fixed load the other projects have to work around.",
+        "ceiling": "How many working days this project's end date may shift at most. Drag the handle, or use the arrow keys, Home (no overrun) and End (unlimited). The label shows the effect on the end date, not how far you dragged.",
+        "chart": "Now = the current booking of all open projects together; After distributing = what remains once the work is spread. Red is whatever exceeds the capacity.",
+        "recompute": "Recalculates the proposal with the current order, pins and caps.",
+        "apply": "Writes the shifts into every project involved; each project gets its own undo step.",
+        "discard": "Closes the dialog without changing anything.",
+        "pickAnother": "Back to the list of library items, to distribute a different item."
       },
       "strip": {
         "pin": "Pin",
