@@ -29,7 +29,7 @@ g.document = { documentElement: {}, createElement: () => ({ getContext: () => nu
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
-import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { GanttRenderer, gridDensityForZoom } from '@/engine/renderer/GanttRenderer';
 import { dateToX, xToDate, xToDayOffset, MS_PER_DAY } from '@/engine/renderer/timeAxis';
 import { addCalendarDays, diffCalendarDays, parseDate } from '@/utils/dateUtils';
 import fs from 'node:fs';
@@ -240,10 +240,10 @@ function expectedGridX(canvasWidth: number, zoom: number, scrollX: number): numb
   const startOffset = oldStartOffset(scrollX, zoom); // de OUDE formule, onafhankelijk berekend
   // U2: sinds de rasterdichtheid per zoom loopt, tekent de renderer onder 8 px/dag niet meer élke
   // dag. Deze check gaat over de startOffset-FORMULE (welke x-posities), niet over de dichtheid —
-  // dus wordt hier dezelfde filter toegepast, met de drempels uit `gridDensityForZoom` los
-  // nagebouwd (onafhankelijke telling, net als de oude formules hierboven). weekStartDay is in
-  // deze scène de default 'monday'.
-  const density = zoom >= 8 ? 'day' : zoom >= 2 ? 'week' : 'month';
+  // dus wordt hier dezelfde filter toegepast. Drempels NIET met de hand nagebouwd maar uit
+  // `gridDensityForZoom` zelf: een verschoven drempel hoort deze check niet stilletjes te laten
+  // slagen op een andere lijnenset. weekStartDay is in deze scène de default 'monday'.
+  const density = gridDensityForZoom(zoom);
   const xs: number[] = [];
   for (let i = -1; i < visibleDays; i++) {
     const date = addCalendarDays(viewStart, startOffset + i);

@@ -216,10 +216,6 @@ function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { 
     selectedTaskIds: [],
     statusDate: view.viewStartDate,
     showProgressLine: false,
-    // U2: het statusdatum-labelvlak (`drawStatusDateBadge`) is óók een roundRect en landt vlak
-    // onder de kop — dus in de bovenste taakrij, waar deze check juist segmenten telt. Deze
-    // batterij gaat over balksegmentatie, niet over de statusdatum-markering; daarom hier uit.
-    showStatusDateLine: false,
     canvasWidth: W,
     canvasHeight: H,
     rowHeight: ROWH,

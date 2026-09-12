@@ -170,6 +170,69 @@ function verticalGridLines(zoom: number): Seg[] {
   ok('zoom 1,5: veel minder dan 1 lijn per week', lines.length < dates.length / 7 / 3);
 }
 
+// ── Gecomprimeerde as: de weekgrens is een OVERGANG, geen weekstartDAG ──────
+//
+// Fixronde-regressie. In de gecomprimeerde tak hing de weeklijn aan `isWeekStart` — de vraag "is
+// deze kolom de weekstartdag?". Op een werkdagen-as bestaat die dag alleen als hij een WERKDAG is:
+// bij `weekStartDay: 'sunday'` nooit (zondag is vrij), en bij een kalender di–za evenmin (maandag
+// is dan vrij). Resultaat: NUL rasterlijnen op weekzoom, precies waar het raster de weekstructuur
+// moet dragen. De grens hangt nu aan `getWeekNumberFor(vorige) !== getWeekNumberFor(deze)` —
+// dezelfde bron als de om-en-om weekband, dus lijn en band vallen op dezelfde naad.
+
+/** Rasterlijnen op de GECOMPRIMEERDE as. `weekDays` = ISO-werkdagen van de kalender. */
+function compressedGridLines(
+  zoom: number,
+  weekDays: number[],
+  weekStartDay: 'monday' | 'sunday',
+): Seg[] {
+  const { ctx, segs } = makeCtx();
+  const st = S();
+  new GanttRenderer(ctx, {
+    rows,
+    sequences: [],
+    calendar: { ...st.calendar, workDays: weekDays },
+    view: { ...st.view, scrollX: 0, scrollY: 0, zoom, viewStartDate: FIXED_START },
+    selectedTaskIds: [],
+    canvasWidth: W,
+    canvasHeight: H,
+    rowHeight: ROWH,
+    headerHeight: HDRH,
+    compressNonWorkdays: true,
+    weekStartDay,
+  }).render();
+  return segs.filter((sg) => sg.stroke === GRID && sg.x1 === sg.x2 && sg.y1 !== sg.y2);
+}
+
+/** Aantal zichtbare werkdag-kolommen op de gecomprimeerde as (de lus loopt i = -1 .. visibleDays-1,
+ *  elke stap één ECHTE werkdag). */
+function compressedColumns(zoom: number): number {
+  return Math.ceil(W / zoom) + 2 + 1;
+}
+
+for (const scenario of [
+  { label: 'ma-vr, week begint zondag', weekDays: [1, 2, 3, 4, 5], wsd: 'sunday' as const, perWeek: 5 },
+  { label: 'ma-vr, week begint maandag', weekDays: [1, 2, 3, 4, 5], wsd: 'monday' as const, perWeek: 5 },
+  { label: 'di-za, week begint maandag', weekDays: [2, 3, 4, 5, 6], wsd: 'monday' as const, perWeek: 5 },
+]) {
+  const lines = compressedGridLines(6, scenario.weekDays, scenario.wsd);
+  ok(`gecomprimeerd (${scenario.label}), zoom 6: er zijn rasterlijnen`, lines.length > 0);
+  // Eén grens per week: het aantal kolommen gedeeld door de werkdagen-per-week, ±1 voor de
+  // aangesneden weken aan de randen van het venster.
+  const kolommen = compressedColumns(6);
+  const verwachteWeken = kolommen / scenario.perWeek;
+  ok(
+    `gecomprimeerd (${scenario.label}), zoom 6: één lijn per week (${lines.length} vs ~${verwachteWeken.toFixed(1)})`,
+    Math.abs(lines.length - verwachteWeken) <= 1,
+  );
+  ok(`gecomprimeerd (${scenario.label}), zoom 6: elke lijn is een volle (1 px) weeklijn`, lines.every((l) => l.lineWidth === 1));
+  // De lijnen staan op regelmatige afstand: precies `perWeek` kolommen × zoom uit elkaar.
+  const gaps = lines.slice(1).map((l, i) => l.x1 - lines[i].x1);
+  ok(
+    `gecomprimeerd (${scenario.label}), zoom 6: lijnafstand = ${scenario.perWeek} werkdagkolommen`,
+    gaps.every((gp) => Math.abs(gp - scenario.perWeek * 6) < 1e-6),
+  );
+}
+
 // ── Uitslag ─────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  gantt-grid-density: alle checks groen (${checks})`);

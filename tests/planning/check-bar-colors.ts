@@ -51,9 +51,12 @@ ok(nextFreePaletteColor([]) === RESOURCE_PALETTE[0], 'leeg veld → eerste kleur
 const taken = RESOURCE_PALETTE.slice(0, 5).map(c => ({ id: c, name: c, type: 'LABOR' as const, description: '', maxUnits: 1, color: c }));
 ok(nextFreePaletteColor(taken) === RESOURCE_PALETTE[5], 'eerste vijf bezet → zesde kleur');
 
-// 6. Geen paletkleur gelijk aan de kritiek-roodtint van het printpalet (PRINT_PALETTE.critical =
-//    '#DC2626') — de rode rand voor kritieke taken moet visueel vrij blijven.
-ok(!RESOURCE_PALETTE.includes('#DA5252'), 'palet vermijdt kritiek-rood');
+// 6. Geen paletkleur gelijk aan een kritiek-roodtint — de rode rand voor kritieke taken moet
+//    visueel vrij blijven. Er zijn er sinds U2 twee: '#DA5252' op het scherm (BRAND.critical, één
+//    palet voor licht én donker) en '#DC2626' op papier (PRINT_PALETTE.critical, dat bewust de
+//    verzadigde merkhex houdt).
+ok(!RESOURCE_PALETTE.includes('#DA5252'), 'palet vermijdt kritiek-rood (scherm)');
+ok(!RESOURCE_PALETTE.includes('#DC2626'), 'palet vermijdt kritiek-rood (print)');
 
 // ── barColors: modi, segmenten, randen (#21, ontwerp §4) ───────────────────────────────────────
 import { computeBarColors } from '@/services/print/barColors';

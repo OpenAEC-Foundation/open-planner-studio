@@ -1465,8 +1465,9 @@ button.task-grid-relation-reference {
      van dit thema (geen alpha, expliciete tint zoals --theme-grid-weekend hierboven). */
   --theme-grid-summary-bg: #1c1c1c;
   --theme-grid-milestone-text: #D9A6FF;
-  /* U2: één balkpalet — gelijk aan --color-task-float (5.4:1 op #0a0a0a als vlak). */
-  --theme-bar-float: #1E976F;
+  /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). Het U2-besluit "één
+     balkpalet" gold voor licht en dark; high-contrast houdt bewust zijn eigen, hardere tint. */
+  --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
   --theme-critical-text: #FF6B6B;
   --theme-input-bg: #000000;

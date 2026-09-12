@@ -18,7 +18,7 @@ import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
-import { readGanttPalette, type GanttPalette } from './themePalette';
+import { readGanttPalette, barLabelColor, compositeOver, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
@@ -495,13 +495,22 @@ export class GanttRenderer {
         // Een maandgrens op de WERKDAGEN-as is de eerste WERKDAG van de maand — `getDate() === 1`
         // faalt hier, want de 1e kan een niet-werkdag zijn en bestaat dan niet als kolom.
         const isWeekStart = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1);
+        // U2-fixronde — de WEEKGRENS is op deze as een OVERGANG tussen twee getekende kolommen, net
+        // als de maandgrens hieronder. Hangen aan `isWeekStart` (de weekstartdag zelf) gaf op een
+        // gecomprimeerde as NUL rasterlijnen zodra die dag geen werkdag is: bij
+        // `weekStartDay: 'sunday'` bestaat zondag per definitie niet als kolom, en bij een kalender
+        // di–za ontbreekt maandag. De overgang bestaat altijd. Bron is `getWeekNumberFor` —
+        // dezelfde als de om-en-om weekband hierboven en het "W{n}"-kopje, zodat lijn en band op
+        // exact dezelfde naad vallen.
+        const prevDate = this.axis.dateAtIndex(axisStartIndex + i - 1);
+        const weekStartDay = this.opts.weekStartDay ?? 'monday';
+        const isWeekBoundary = getWeekNumberFor(prevDate, weekStartDay) !== getWeekNumberFor(date, weekStartDay);
         // UTC-accessors: alle datums in deze renderer komen uit `parseDate`/`addCalendarDays`, die
         // bewust op UTC-middernacht rekenen. `getMonth()` zou in een tijdzone achter UTC de vórige
         // maand teruggeven en de maandgrens een dag laten verspringen (bewezen door de
         // tijdzonematrix aan het eind van tests/planning/run.sh).
-        const isMonthStart = density === 'month'
-          && this.axis.dateAtIndex(axisStartIndex + i - 1).getUTCMonth() !== date.getUTCMonth();
-        if (density === 'day' || (density === 'week' && isWeekStart) || isMonthStart) {
+        const isMonthStart = density === 'month' && prevDate.getUTCMonth() !== date.getUTCMonth();
+        if (density === 'day' || (density === 'week' && isWeekBoundary) || isMonthStart) {
           ctx.strokeStyle = this.colors.grid;
           ctx.lineWidth = density === 'day' ? (isWeekStart ? 1 : 0.5) : 1;
           ctx.beginPath();
@@ -713,7 +722,11 @@ export class GanttRenderer {
     let bx = x + 4;
     if (bx + w > canvasWidth - 2) bx = x - 4 - w;
     bx = Math.max(2, bx);
-    const by = headerHeight + 4;
+    // U2-fixronde: het vlakje hoort IN de kopstrook, op de onderste tier-band — dezelfde band waar
+    // het weeknummer/de dagkop staat. Het stond op `headerHeight + 4`, dus bovenop de eerste
+    // taakrij: daar dekt het balken en labels af, en het verschoof mee met het scrollen van de
+    // rijen terwijl de lijn zelf blijft staan. In de kop staat het stil en dekt het niets af.
+    const by = headerHeight - h - 2;
 
     ctx.beginPath();
     ctx.roundRect(bx, by, w, h, 3);
@@ -955,6 +968,11 @@ export class GanttRenderer {
       // vóór het einde van deze tick past (x2-2) — anders overslaan (nooit knijpen/afkappen via
       // een fillText-maxWidth), zodat twee labels (bv. maandnamen) nooit door elkaar heen lopen.
       // De lastDrawnRight-guard hierboven blijft als extra vangnet.
+      // U2-fixronde, bewuste afwijking van de balklabels: de tijdschaal-koppen krijgen GEEN
+      // `ellipsize`. Een tijdschaalkop is een datum-aanduiding — "ok…" of "20…" zegt niets en
+      // kost de lezer alsnog een blik; een OVERGESLAGEN kop laat de eerstvolgende passende tick
+      // (bv. de volgende maand) het bereik dragen, wat wél leesbaar is. Een taaknaam daarentegen
+      // is uniek en gedeeltelijk lezen helpt daar wel. Niet wijzigen zonder die afweging te wegen.
       if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
         const measured = ctx.measureText(labelText).width;
         if (labelX + measured <= x2 - 2) {
@@ -1128,14 +1146,20 @@ export class GanttRenderer {
     if (ctx.measureText(text).width <= maxWidth) return text;
     const dots = '…';
     if (ctx.measureText(dots).width > maxWidth) return '';
+    // U2-fixronde: knippen op TEKEN-grens, niet op UTF-16-code-unit. `slice` kan een surrogaatpaar
+    // halveren — een emoji of een CJK-extensieteken wordt dan een losse vervangingsglyph (U+FFFD)
+    // vlak vóór de ellips. `Array.from` splitst op code points; gekozen boven `Intl.Segmenter`
+    // omdat die (a) niet overal in de canvas-testomgeving bestaat en (b) per aanroep een object
+    // kost, terwijl code points het probleem dat we hier hebben — kapotte glyphs — al oplossen.
+    const chars = Array.from(text);
     let lo = 0;
-    let hi = text.length;
+    let hi = chars.length;
     while (lo < hi) {
       const mid = Math.ceil((lo + hi) / 2);
-      if (ctx.measureText(text.slice(0, mid) + dots).width <= maxWidth) lo = mid;
+      if (ctx.measureText(chars.slice(0, mid).join('') + dots).width <= maxWidth) lo = mid;
       else hi = mid - 1;
     }
-    return text.slice(0, lo) + dots;
+    return chars.slice(0, lo).join('') + dots;
   }
 
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {
@@ -1323,12 +1347,17 @@ export class GanttRenderer {
     // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
     // wordt daar ook in de zichtbaarheidstest gebruikt.
     if (floatWidth > 0) {
-      // U2 — ingetogen speling: halve balkhoogte, verticaal gecentreerd (ongewijzigd) maar op 40%
+      // U2 — ingetogen speling: halve balkhoogte, verticaal gecentreerd (ongewijzigd) maar op 60%
       // dekking i.p.v. ~90%. Op 90% domineerde de groene band het beeld: hij is vaak veel BREDER
-      // dan de balk zelf, dus een even "harde" kleur trekt de blik weg van de planning. 40% leest
-      // nog als een duidelijke band, maar als achtergrondinformatie. De float-kleur zelf haalt
-      // >=3:1 op beide kaarten (zie themePalette/globals.css); de band is bewust geen tekstdrager.
-      ctx.fillStyle = this.colors.float + '66'; // 0.4 alpha
+      // dan de balk zelf, dus een even "harde" kleur trekt de blik weg van de planning.
+      // U2-fixronde: 40% was te ver. Wat telt is het GEBLENDE contrast van de band tegen zijn
+      // ondergrond, niet dat van de ongemengde float-kleur (#1E976F, >=3:1 op beide kaarten).
+      // Gemeten (WCAG 2.x) voor #1E976F over de ondergrond:
+      //   dekking  lichte kaart #FAFAFA / weekendarcering licht / donkere kaart #2E3239
+      //     0.40     1,60 / 1,56 / 1,64   — op weekendarcering niet meer van een vrije dag te onderscheiden
+      //     0.60     2,07 / 1,98 / 2,13   — leesbaar als eigen band, nog steeds achtergrondinformatie
+      // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 was wél te weinig.
+      ctx.fillStyle = this.colors.float + '99'; // 0.6 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }
 
@@ -1367,7 +1396,17 @@ export class GanttRenderer {
 
     // Task name on bar (if wide enough) — U2: ellips i.p.v. een harde clip-snede.
     if (width > 40) {
-      ctx.fillStyle = this.colors.barText;
+      // U2-fixronde — labelkleur volgt de BALK, niet een vaste witte hex. Met één balkpalet voor
+      // licht én donker is wit niet houdbaar (zie `barLabelColor` in themePalette.ts voor de
+      // gemeten verhoudingen). Kies de kleur op het vlak dat de gebruiker ONDER het label ziet:
+      // dat is de voortgangsvulling zodra die tot voorbij de tekststart loopt, anders de
+      // (mogelijk moduseigen) balkkleur. `compositeOver` lost de half-transparante zwarte
+      // voortgangslaag van de kleurmodi op tot een echte hex.
+      const baseUnderLabel = modeSegments.length > 0 ? modeSegments[0].color : color;
+      const underLabel = task.time.completion > 0 && progressEnd > x1 + 6
+        ? compositeOver(progressColor, baseUnderLabel)
+        : baseUnderLabel;
+      ctx.fillStyle = barLabelColor(underLabel);
       ctx.font = this.font(10);
       ctx.textBaseline = 'middle';
       ctx.save();
@@ -1552,11 +1591,16 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    // Label
+    // Label — U2-fixronde: ook hier een echte ellips. Het mijlpaallabel stond ongebreideld naast de
+    // ruit en liep bij een lange naam dwars over de volgende balken heen. Grens: de ruimte tot het
+    // canvas-einde, maar hoogstens 200 px (voorbij die breedte is een naam als aanduiding klaar en
+    // begint hij alleen nog te overlappen).
+    const labelX = x + size + 6;
     ctx.fillStyle = this.colors.text;
     ctx.font = this.font(10);
     ctx.textBaseline = 'middle';
-    ctx.fillText(task.name, x + size + 6, cy);
+    const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4));
+    if (msLabel) ctx.fillText(msLabel, labelX, cy);
   }
 
   /**
