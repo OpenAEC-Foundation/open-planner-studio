@@ -10,6 +10,8 @@
  *   3. Zip64 wordt expliciet **geweigerd** in plaats van stil verkeerd gelezen.
  */
 
+import { crc32 } from './crc32';
+
 export interface ZipEntry {
   name: string;
   data: Uint8Array;
@@ -25,6 +27,35 @@ export class ZipValidationError extends Error {
     this.name = 'ZipValidationError';
     this.bytesSeen = bytesSeen;
   }
+}
+
+/**
+ * De omgeving kan geen deflate uitpakken. Een subklasse van `ZipValidationError` zodat hij door
+ * `parseZipEntries` heen propageert in plaats van in de local-scan-terugval te belanden — die zou
+ * exact dezelfde fout nóg een keer produceren, met een misleidende `console.warn` ertussen.
+ *
+ * Waarom een EIGEN fout: zonder deze guard wordt een gedeflate blad in een omgeving zonder
+ * `DecompressionStream` als "geen ZIP" gemeld. Dat is precies de nutteloze melding uit K8 — het
+ * bestand mankeert niets, de omgeving kan het alleen niet uitpakken.
+ */
+export class ZipCompressionUnsupportedError extends ZipValidationError {
+  constructor() {
+    super('Compressie niet ondersteund in deze omgeving');
+    this.name = 'ZipCompressionUnsupportedError';
+  }
+}
+
+/** De inflater als naad: `(gecomprimeerd, budget) => uitgepakt`. */
+export type ZipInflate = (compressed: Uint8Array, budget: number) => Promise<Uint8Array>;
+
+export interface ZipReadOptions {
+  /**
+   * `undefined` (standaard) kiest `DecompressionStream` als die bestaat en anders de
+   * omgevingsweigering; `null` dwingt die weigering af; een functie vervangt de inflater.
+   * Zelfde vorm als `writeZip`'s `deflate`-naad, zodat beide takken getest kunnen worden zónder
+   * de omgeving te vervalsen.
+   */
+  inflate?: ZipInflate | null;
 }
 
 export interface ZipReadLimits {
@@ -72,6 +103,7 @@ export async function inflateRawBounded(
   compressed: Uint8Array,
   budget: number,
 ): Promise<Uint8Array> {
+  if (typeof DecompressionStream === 'undefined') throw new ZipCompressionUnsupportedError();
   const ds = new DecompressionStream('deflate-raw');
   const writer = ds.writable.getWriter();
   const reader = ds.readable.getReader();
@@ -104,6 +136,15 @@ export async function inflateRawBounded(
   return out;
 }
 
+/** Kiest de inflater; zie `ZipReadOptions.inflate`. */
+function resolveInflate(opts: ZipReadOptions | undefined): ZipInflate {
+  if (opts?.inflate === null) return () => Promise.reject(new ZipCompressionUnsupportedError());
+  if (opts?.inflate !== undefined) return opts.inflate;
+  return typeof DecompressionStream === 'undefined'
+    ? () => Promise.reject(new ZipCompressionUnsupportedError())
+    : inflateRawBounded;
+}
+
 /**
  * Het budget voor één entry. De absolute grenzen dragen de garantie; `maxRatio` is de goedkope
  * vroege uitstap. Beide worden teruggegeven zodat de weigering kan zeggen wélke grens het was —
@@ -125,6 +166,7 @@ async function decompressEntry(
   limits: ZipReadLimits,
   alreadyUnpacked: number,
   name: string,
+  inflate: ZipInflate,
 ): Promise<Uint8Array> {
   const { budget, ratioBudget } = entryBudget(limits, alreadyUnpacked, compressed.length);
 
@@ -140,8 +182,9 @@ async function decompressEntry(
   if (method !== 8) throw new Error(`Niet-ondersteunde compressiemethode: ${method}`);
 
   try {
-    return await inflateRawBounded(compressed, budget);
+    return await inflate(compressed, budget);
   } catch (err) {
+    if (err instanceof ZipCompressionUnsupportedError) throw err; // geen budgetkwestie
     if (err instanceof ZipValidationError) {
       const label = budget === ratioBudget && ratioBudget < limits.maxEntryBytes
         ? `ZIP-entry "${name}" overschrijdt het compressie-ratio-plafond van ${limits.maxRatio}x`
@@ -149,6 +192,22 @@ async function decompressEntry(
       throw new ZipValidationError(label, err.bytesSeen);
     }
     throw err;
+  }
+}
+
+/**
+ * De CRC-32 die de ZIP zelf van deze entry vastlegde tegen de bytes die eruit kwamen. Zonder deze
+ * toets is een geflipte byte in een gestoorde entry volstrekt onzichtbaar: hij komt gewoon als
+ * inhoud terug en de fout landt pas ergens verderop (of nergens). Een archief dat zijn eigen
+ * checksum niet haalt is beschadigd, punt.
+ */
+function verifyEntryCrc(expected: number, data: Uint8Array, name: string): void {
+  const actual = crc32(data);
+  if (actual !== expected) {
+    throw new ZipValidationError(
+      `Beschadigd archief: de CRC-32 van ZIP-entry "${name}" klopt niet `
+      + `(vastgelegd 0x${expected.toString(16)}, berekend 0x${actual.toString(16)})`,
+    );
   }
 }
 
@@ -220,15 +279,17 @@ export async function parseZipEntries(
   buffer: ArrayBuffer,
   limits: ZipReadLimits = EXTENSION_ZIP_LIMITS,
   select?: (name: string) => boolean,
+  opts?: ZipReadOptions,
 ): Promise<ZipEntry[]> {
+  const inflate = resolveInflate(opts);
   let viaCentral: ZipEntry[] | null = null;
   try {
-    viaCentral = await parseViaCentralDirectory(buffer, limits, select);
+    viaCentral = await parseViaCentralDirectory(buffer, limits, select, inflate);
   } catch (err) {
     if (err instanceof ZipValidationError) throw err;
     console.warn('[ZIP] Central-directory-lezing faalde, val terug op local-scan:', err);
   }
-  const entries = viaCentral ?? await parseViaLocalHeaders(buffer, limits, select);
+  const entries = viaCentral ?? await parseViaLocalHeaders(buffer, limits, select, inflate);
   return normalizeZipEntries(entries, select === undefined);
 }
 
@@ -245,6 +306,7 @@ async function parseViaCentralDirectory(
   buffer: ArrayBuffer,
   limits: ZipReadLimits,
   select?: (name: string) => boolean,
+  inflate: ZipInflate = inflateRawBounded,
 ): Promise<ZipEntry[] | null> {
   const view = new DataView(buffer);
   const eocd = findEocdOffset(view, buffer.byteLength);
@@ -264,6 +326,7 @@ async function parseViaCentralDirectory(
     if (cd + 46 > buffer.byteLength || view.getUint32(cd, true) !== SIG_CENTRAL) break;
 
     const method = view.getUint16(cd + 10, true);
+    const expectedCrc = view.getUint32(cd + 16, true);
     const compSize = view.getUint32(cd + 20, true);
     const uncompressedSize = view.getUint32(cd + 24, true);
     const nameLen = view.getUint16(cd + 28, true);
@@ -298,7 +361,8 @@ async function parseViaCentralDirectory(
     }
 
     const compressed = new Uint8Array(buffer, dataStart, compSize);
-    const data = await decompressEntry(method, compressed, limits, actualTotal, name);
+    const data = await decompressEntry(method, compressed, limits, actualTotal, name, inflate);
+    verifyEntryCrc(expectedCrc, data, name);
     actualTotal = addZipPayloadSize(actualTotal, data.length, name, limits);
     entries.push({ name, data });
   }
@@ -313,6 +377,7 @@ async function parseViaLocalHeaders(
   buffer: ArrayBuffer,
   limits: ZipReadLimits,
   select?: (name: string) => boolean,
+  inflate: ZipInflate = inflateRawBounded,
 ): Promise<ZipEntry[]> {
   const view = new DataView(buffer);
   const entries: ZipEntry[] = [];
@@ -331,6 +396,11 @@ async function parseViaLocalHeaders(
 
     const flags = view.getUint16(offset + 6, true);
     const method = view.getUint16(offset + 8, true);
+    let expectedCrc = view.getUint32(offset + 14, true);
+    // Bit 3 zet de CRC in een data descriptor ná de data; het local header draagt dan een nul.
+    // Kunnen we die descriptor niet aanwijzen, dan is er GEEN vastgelegde CRC om tegen te toetsen
+    // — dan overslaan, want een nul-CRC als waarheid nemen zou elke bit-3-entry vals afkeuren.
+    let crcKnown = (flags & 0x08) === 0;
     let compSize = view.getUint32(offset + 18, true);
     const uncompressedSize = view.getUint32(offset + 22, true);
     const nameLen = view.getUint16(offset + 26, true);
@@ -351,6 +421,15 @@ async function parseViaLocalHeaders(
       const { dataLen, descLen } = scanDataDescriptor(view, buffer.byteLength, dataOffset);
       compSize = dataLen;
       dataDescLen = descLen;
+      // Bij bit 3 staat de CRC-32 niet in het local header (daar staat 0) maar in de descriptor:
+      // ná de optionele signatuur van 4 bytes. Zonder deze correctie zou élke bit-3-entry op een
+      // valse CRC-mismatch stuklopen.
+      const descStart = dataOffset + dataLen;
+      const crcAt = descStart + (descLen === 16 ? 4 : 0);
+      if (descLen > 0 && crcAt + 4 <= buffer.byteLength) {
+        expectedCrc = view.getUint32(crcAt, true);
+        crcKnown = true;
+      }
     }
     if (dataOffset + compSize > buffer.byteLength) {
       throw new ZipValidationError(`ZIP-entry "${name}" loopt buiten het bestand`);
@@ -362,7 +441,8 @@ async function parseViaLocalHeaders(
       }
       if (!select || select(name)) {
         const compressed = new Uint8Array(buffer, dataOffset, compSize);
-        const data = await decompressEntry(method, compressed, limits, actualTotal, name);
+        const data = await decompressEntry(method, compressed, limits, actualTotal, name, inflate);
+        if (crcKnown) verifyEntryCrc(expectedCrc, data, name);
         actualTotal = addZipPayloadSize(actualTotal, data.length, name, limits);
         entries.push({ name, data });
       }
