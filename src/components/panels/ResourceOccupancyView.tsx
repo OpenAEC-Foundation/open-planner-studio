@@ -12,8 +12,9 @@ import {
   type OccupancyRow,
 } from '@/services/library/occupancy';
 import { documentTitle, untitledOrdinals, displayDocumentTitle, DOC_PALETTE } from '@/utils/documents';
+import { freshDistributionUi } from '@/components/dialogs/DistributionDialog/useDistributionProposal';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
-import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
+import { AXIS, buildOccupancyAxis } from './occupancyAxis';
 
 /** Maximaal getoonde conflictdatums in de badge-tooltip/subregel (§5: "max. ~5, dan …"). */
 const MAX_CONFLICT_DATES_SHOWN = 5;
@@ -172,6 +173,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
   const recalculateStaleSleepingDocuments = useAppStore(s => s.recalculateStaleSleepingDocuments);
+  const setUI = useAppStore(s => s.setUI);
 
   const untitledLabel = t('project.untitled');
 
@@ -468,13 +470,43 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                     </td>
                     <td className="px-2 py-1.5">
                       {hasConflict && (
-                        <span
-                          className="badge badge--red"
-                          title={conflictDatesLabel(row)}
-                          data-ops-occupancy-conflict
-                        >
-                          {t('resource.occupancy.conflictDays', { count: row.conflictDays.length })}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="badge badge--red"
+                            title={conflictDatesLabel(row)}
+                            data-ops-occupancy-conflict
+                          >
+                            {t('resource.occupancy.conflictDays', { count: row.conflictDays.length })}
+                          </span>
+                          {/* B1c-plan3 taak 8 — de INGANG van de verdeelflow (spec §7). Alleen bij een
+                              echt conflict: zonder conflict valt er niets te verdelen. Bestaat er al
+                              tune-state voor DIT poolitem, dan blijft die staan (inclusief de
+                              "toegepast"-strook uit taak 6) en wordt alleen de dialoog geopend; een
+                              ANDER item krijgt verse, float-gesorteerde tune-state.
+                              `stopPropagation`: de rij-klik selecteert de chart eronder — dat mag een
+                              klik op deze knop niet ook doen. */}
+                          <button
+                            type="button"
+                            className="px-2 py-0.5 rounded-[6px] border border-border hover:bg-surface-hover"
+                            data-ops-occupancy-distribute={row.libraryItemId}
+                            onClick={e => {
+                              e.stopPropagation();
+                              const s = useAppStore.getState();
+                              const current = s.ui.levelingDistribution;
+                              const sameItem = current !== null
+                                && current.companyId === companyId
+                                && current.libraryItemId === row.libraryItemId;
+                              setUI(sameItem
+                                ? { showDistributionDialog: true }
+                                : {
+                                    showDistributionDialog: true,
+                                    levelingDistribution: freshDistributionUi(s, untitledLabel, companyId, row.libraryItemId),
+                                  });
+                            }}
+                          >
+                            {t('resource.distribution.open')}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -583,42 +615,19 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
 
 // --- §5a: SVG-histogram per geselecteerd poolitem ------------------------------------------------
 
-/** Vaste tekenmaten van het histogram (viewBox-eenheden ≈ px; horizontaal scrollbaar). */
+/** Vaste tekenmaten van het histogram (viewBox-eenheden ≈ px; horizontaal scrollbaar). De
+ *  horizontale maten komen uit de GEDEELDE as (`occupancyAxis.ts`) — het histogram en de
+ *  fasestroken van de verdeeldialoog tekenen op precies dezelfde x-indeling. */
 const CHART = {
   plotHeight: 130,
   axisGap: 16,     // ruimte onder de plot voor datumlabels
-  padLeft: 34,     // ruimte links voor de y-as-waarden
-  padRight: 8,
+  padLeft: AXIS.padLeft,
+  padRight: AXIS.padRight,
   padTop: 8,
-  minDayWidth: 4,
-  maxDayWidth: 16,
-  targetWidth: 760, // richtbreedte; meer dagen ⇒ breder (scroll), minder ⇒ bredere staven
-  breakWidth: 14,   // breedte van de "⋯"-breukmarkering tussen segmenten
 };
-
-/** Gaten langer dan dit aantal kalenderdagen zonder enige boeking worden ingeklapt (§5a). */
-const GAP_COMPRESS_DAYS = 30;
 
 /** Minimale horizontale ruimte tussen twee datumlabels (viewBox-eenheden ≈ px bij fontSize 8). */
 const MIN_LABEL_GAP = 48;
-
-interface ChartSegment {
-  /** Alle kalenderdagen van het segment (granulariteit één dag, incl. boekingsloze dagen). */
-  days: string[];
-  /** x-positie (viewBox) van de eerste dag. */
-  x0: number;
-}
-
-/** Alle ISO-kalenderdagen van `from` t/m `to` (inclusief). */
-function expandDays(from: string, to: string): string[] {
-  const days: string[] = [];
-  for (let d = parseDate(from); ; d = addCalendarDays(d, 1)) {
-    const iso = formatDate(d);
-    if (iso > to) break;
-    days.push(iso);
-  }
-  return days;
-}
 
 /**
  * Gestapeld daghistogram voor één poolitem (§5a, herzien): per ISO-dag de bijdrage per GETELD
@@ -652,45 +661,12 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
     // geen cijfers en dragen dus ook geen as-domein bij).
     const bookedDays = new Set<string>();
     for (const d of countedDocs) for (const iso of Object.keys(d.dailyLoad)) bookedDays.add(iso);
-    const sortedBooked = [...bookedDays].sort();
-    if (sortedBooked.length === 0) return null;
 
-    // Gatcompressie: een aaneengesloten reeks kalenderdagen ZONDER boeking die langer is dan
-    // GAP_COMPRESS_DAYS breekt het domein in twee segmenten. `diffDays(prev, iso) - 1` is precies
-    // de lengte van dat gat (opeenvolgende dagen ⇒ 0). Binnen een segment worden álle
-    // kalenderdagen getoond, ook boekingsloze, zodat de tijd daar proportioneel blijft.
-    const ranges: { from: string; to: string }[] = [];
-    let from = sortedBooked[0];
-    let prev = from;
-    for (let i = 1; i < sortedBooked.length; i++) {
-      const iso = sortedBooked[i];
-      if (diffDays(prev, iso) - 1 > GAP_COMPRESS_DAYS) {
-        ranges.push({ from, to: prev });
-        from = iso;
-      }
-      prev = iso;
-    }
-    ranges.push({ from, to: prev });
-
-    const totalDays = ranges.reduce((n, r) => n + diffDays(r.from, r.to) + 1, 0);
-    const dayWidth = Math.max(
-      CHART.minDayWidth,
-      Math.min(CHART.maxDayWidth, Math.floor(CHART.targetWidth / totalDays)),
-    );
-
-    const segments: ChartSegment[] = [];
-    const breaks: number[] = []; // x-middens van de breukmarkeringen tussen de segmenten
-    let cursor = CHART.padLeft;
-    for (const range of ranges) {
-      if (segments.length > 0) {
-        breaks.push(cursor + CHART.breakWidth / 2);
-        cursor += CHART.breakWidth;
-      }
-      const days = expandDays(range.from, range.to);
-      segments.push({ days, x0: cursor });
-      cursor += days.length * dayWidth;
-    }
-    const width = cursor + CHART.padRight;
+    // Domein, gatcompressie, dagbreedte en segmenten: de GEDEELDE as (`occupancyAxis.ts`), dezelfde
+    // die de fasestroken van de verdeeldialoog gebruiken.
+    const axis = buildOccupancyAxis([...bookedDays]);
+    if (axis === null) return null;
+    const { segments, breaks, dayWidth, width } = axis;
     const height = CHART.padTop + CHART.plotHeight + CHART.axisGap;
 
     // Belasting en capaciteit per getoonde dag; y-schaal over beide.

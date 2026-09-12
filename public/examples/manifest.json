@@ -4,7 +4,7 @@
     {
       "file": "showcase-verbouwing-eengezinswoning.ifc",
       "name": "Refurbishment & Extension of a Family Home",
-      "description": "Entry-level showcase: an extension to a family home with WBS phasing, a finish-start chain with one start-start overlap (walls/roof) and one finish-finish link (painting just after tiling), an SNET permit constraint, a start milestone and a mandatory handover milestone, a comfortable deadline (no conflict) and one baseline taken right after set-up.",
+      "description": "Entry-level showcase: an extension to a family home with WBS phasing, a finish-start chain with one start-start overlap (walls/roof) and one finish-finish link (painting just after tiling), an SNET permit constraint, a start milestone and a mandatory handover milestone, a comfortable deadline (no conflict) and one baseline taken right after set-up. A small crew set from the shared demo resource library, without any overallocation of its own — the masonry crew is booked in the same week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict that \"Distribute\" can resolve.",
       "category": "showcase",
       "tags": [
         "residential",
@@ -12,13 +12,14 @@
         "entry-level",
         "milestones",
         "constraints",
-        "baseline"
+        "baseline",
+        "resources"
       ]
     },
     {
       "file": "showcase-rijwoningen-de-akkers.ifc",
       "name": "6 New Terraced Houses, De Akkers",
-      "description": "Mid-sized showcase: six terraced houses with a shared foundation (frost delay via extraHolidays), a masonry crew (CREW+LABOR) moving from house to house, MEP fitters on a four-day resource calendar, fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible over-allocation on the plasterers, a mandatory handover inspection per house plus a deliberately tight contract deadline (negative total float), activity codes House x Discipline, notes (open and completed), progress plus a status date halfway through, and a baseline before start.",
+      "description": "Mid-sized showcase: six terraced houses with a shared foundation (frost delay via extraHolidays), a masonry crew (CREW+LABOR) moving from house to house — the same crew as in the small refurbishment showcase, so the occupancy overview shows a cross-project conflict on it — fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible over-allocation on the plasterers, a mandatory handover inspection per house plus a deliberately tight contract deadline (negative total float), activity codes House x Discipline, notes (open and completed), progress plus a status date halfway through, and a baseline before start.",
       "category": "showcase",
       "tags": [
         "residential",

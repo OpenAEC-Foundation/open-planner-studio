@@ -79,7 +79,7 @@ Assign a library resource, and its calendar travels along as a linked copy that 
 
 ## Three actions that connect the two worlds
 
-- **Assign to project** — from library to project: creates an editable copy with provenance.
+- **Assign to project** — from library to project: creates an editable copy with provenance. In the Library view that button only appears on items that aren't in this project yet. If an item is already in there, you'll see the **In project (N×)** badge instead, where N is the number of linked copies in the active project.
 - **To the library** — from a project-only row into the shared library: links it immediately. If an item with the same name already exists in the library, the app links to that one instead of duplicating it.
 - **Unlink from library** — provenance disappears, everything becomes fully editable again. A calendar that travelled along unlinks with it, unless another still-linked resource is using that same calendar.
 
