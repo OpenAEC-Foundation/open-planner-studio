@@ -1786,6 +1786,93 @@ html, body, #root {
   justify-content: center;
 }
 
+/* Relatie toevoegen vanuit het eigenschappenpaneel (2026-09). De conceptrij hergebruikt bewust
+   `.dependency-row` voor type/lag/bevestigen, zodat hij exact onder de bestaande relaties uitlijnt
+   — ook in de smalle container-query-variant. Alleen de kop (richting + zoekveld) staat erboven,
+   want die twee passen niet in dezelfde vijf kolommen. */
+.dependency-add-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.dependency-add-button:hover {
+  background: var(--theme-hover);
+  color: var(--theme-text);
+}
+
+.dependency-add-button:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
+}
+
+.dependency-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-hover);
+}
+
+.dependency-draft-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* De trefferlijst zweeft boven de rest van het paneel: hij mag de conceptrij en de knoppen
+   eronder niet verspringen terwijl er getypt wordt. */
+.dependency-draft-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dependency-draft-options {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 2px);
+  z-index: var(--z-dropdown);
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-elevated);
+  box-shadow: var(--shadow-pop);
+}
+
+.dependency-draft-option {
+  display: block;
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  text-align: start;
+  color: var(--theme-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dependency-draft-option:hover,
+[data-ops-dependency-highlighted].dependency-draft-option {
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+}
+
+
 /* Toast notification — gecentraliseerde gebruikersmeldingen (bevinding K8). De stapel-container
    positioneert; de losse melding verzorgt alleen inhoud + klik. De naam is ops-toast (was
    gantt-toast): de meldingen komen ook uit Backstage/tabel/rapport, waar geen canvas is. */
