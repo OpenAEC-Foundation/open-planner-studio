@@ -19,6 +19,8 @@ import {
   parseZipEntries,
   type ZipReadLimits,
 } from '@/services/zip/zipReader';
+import { crc32 } from '@/services/zip/crc32';
+import { writeZip, type ZipFileInput } from '@/services/zip/zipWriter';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -249,6 +251,139 @@ const bomb: RawZipEntry = {
   const err = await caught(() => parseZipEntries(
     rawZip([bomb], { localOnly: true }), BOMB_LIMITS));
   eq('7 de fallbackroute weigert de bom ook', err instanceof ZipValidationError, true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEEL 2 — de schrijver (T5)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// De drie CRC-32-vectoren zijn de bekende IEEE-802.3-checkwaarden (o.a. de "check"-waarde 0xCBF43926
+// voor "123456789" uit de CRC-catalogus). Ze komen NIET uit onze eigen implementatie: een
+// zelfgeschreven CRC die consequent hetzelfde foute antwoord geeft, ziet de gebruiker pas als
+// "Excel wil het bestand herstellen".
+eq('8 crc32 leeg', crc32(bytes('')) >>> 0, 0x00000000);
+eq('8a crc32 check-waarde "123456789"', crc32(bytes('123456789')) >>> 0, 0xCBF43926);
+eq('8b crc32 quick brown fox',
+  crc32(bytes('The quick brown fox jumps over the lazy dog')) >>> 0, 0x414FA339);
+
+const hex = (data: Uint8Array): string =>
+  Array.from(data, (b) => b.toString(16).padStart(2, '0')).join('');
+
+/** Loopt de local headers af en levert de gebruikte compressiemethode per entry. */
+const methodsOf = (zip: Uint8Array): number[] => {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const out: number[] = [];
+  let offset = 0;
+  while (offset + 30 <= zip.length && view.getUint32(offset, true) === 0x04034b50) {
+    out.push(view.getUint16(offset + 8, true));
+    const compSize = view.getUint32(offset + 18, true);
+    offset += 30 + view.getUint16(offset + 26, true) + view.getUint16(offset + 28, true) + compSize;
+  }
+  return out;
+};
+
+const firstEntryName = (zip: Uint8Array): string => {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  return new TextDecoder().decode(zip.subarray(30, 30 + view.getUint16(26, true)));
+};
+
+/** Leest de CRC-velden uit de CENTRAL DIRECTORY en vergelijkt ze met een eigen CRC over de
+ *  UITGEPAKTE bytes. Rekent de schrijver het CRC over de gecomprimeerde data, dan valt dit om. */
+const centralCrcsKloppen = async (zip: Uint8Array): Promise<boolean> => {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  let eocd = -1;
+  for (let p = zip.length - 22; p >= 0; p--) {
+    if (view.getUint32(p, true) === 0x06054b50) { eocd = p; break; }
+  }
+  if (eocd < 0) return false;
+
+  const total = view.getUint16(eocd + 10, true);
+  let cd = view.getUint32(eocd + 16, true);
+  const declared = new Map<string, number>();
+  for (let i = 0; i < total; i++) {
+    if (view.getUint32(cd, true) !== 0x02014b50) return false;
+    const nameLen = view.getUint16(cd + 28, true);
+    const name = new TextDecoder().decode(zip.subarray(cd + 46, cd + 46 + nameLen));
+    declared.set(name, view.getUint32(cd + 16, true) >>> 0);
+    cd += 46 + nameLen + view.getUint16(cd + 30, true) + view.getUint16(cd + 32, true);
+  }
+
+  const entries = await parseZipEntries(
+    zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength) as ArrayBuffer,
+    EXTENSION_ZIP_LIMITS,
+  );
+  if (entries.length !== declared.size) return false;
+  return entries.every((entry) => declared.get(entry.name) === (crc32(entry.data) >>> 0));
+};
+
+const files: ZipFileInput[] = [
+  { name: '[Content_Types].xml', data: bytes('<Types/>') },
+  { name: 'xl/workbook.xml', data: bytes('<workbook>'.repeat(40)) },
+  { name: 'leeg.bin', data: new Uint8Array(0) },
+];
+
+/** Schrijven → lezen → namen en bytes exact terug. */
+const roundTrip = async (
+  input: readonly ZipFileInput[],
+  opts: { deflate?: ((data: Uint8Array) => Promise<Uint8Array>) | null },
+): Promise<string> => {
+  const zip = await writeZip(input, opts);
+  const back = await parseZipEntries(
+    zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength) as ArrayBuffer,
+    EXTENSION_ZIP_LIMITS,
+  );
+  if (back.length !== input.length) return `aantal ${back.length} ≠ ${input.length}`;
+  for (const original of input) {
+    const found = back.find((entry) => entry.name === original.name);
+    if (!found) return `ontbreekt: ${original.name}`;
+    if (hex(found.data) !== hex(original.data)) return `bytes verschillen: ${original.name}`;
+  }
+  return 'ok';
+};
+
+eq('9 store: round-trip', await roundTrip(files, { deflate: null }), 'ok');
+eq('9a deflate: round-trip', await roundTrip(files, {}), 'ok');
+
+{
+  // Goed samendrukbaar: dan hoort de deflate-tak daadwerkelijk kleiner uit te komen.
+  const big: ZipFileInput[] = [{ name: 'groot.txt', data: bytes('herhaal '.repeat(20000)) }];
+  eq('10 deflate is kleiner',
+    (await writeZip(big)).length < (await writeZip(big, { deflate: null })).length, true);
+}
+
+{
+  // Incompressibel: deflate maakt het gróter, dus de schrijver hoort store te kiezen. Zonder die
+  // keuze zou elk .xlsx met een al-gecomprimeerde part onnodig opzwellen.
+  const random = new Uint8Array(4096);
+  for (let i = 0; i < random.length; i++) random[i] = (i * 2654435761) % 251 ^ ((i >> 3) * 97);
+  const zip = await writeZip([{ name: 'ruis.bin', data: crypto.getRandomValues(random) }]);
+  eq('11 incompressibel blijft store', methodsOf(zip)[0], 0);
+}
+
+eq('12 Content_Types eerst', firstEntryName(await writeZip([
+  { name: 'xl/workbook.xml', data: bytes('<workbook/>') },
+  { name: '[Content_Types].xml', data: bytes('<Types/>') },
+])), '[Content_Types].xml');
+
+eq('13 deterministisch', hex(await writeZip(files)), hex(await writeZip(files)));
+
+eq('14 crc in de central directory klopt', await centralCrcsKloppen(await writeZip(files)), true);
+eq('14a …ook in de store-tak',
+  await centralCrcsKloppen(await writeZip(files, { deflate: null })), true);
+
+{
+  // Al onze partnamen zijn ASCII. Een niet-ASCII naam gooit liever dan stilzwijgend in een
+  // onduidelijke codepage te belanden — daarmee is de UTF-8-vlag (bit 11) een non-issue.
+  ok('15 niet-ASCII naam gooit',
+    (await caught(() => writeZip([{ name: 'blad€.xml', data: bytes('x') }]))) instanceof Error);
+  ok('15a lege naam gooit',
+    (await caught(() => writeZip([{ name: '', data: bytes('x') }]))) instanceof Error);
+}
+
+{
+  const tooMany: ZipFileInput[] = [];
+  for (let i = 0; i <= 0xffff; i++) tooMany.push({ name: `f${i}.txt`, data: bytes('x') });
+  ok('16 >65535 entries gooit', (await caught(() => writeZip(tooMany))) instanceof Error);
 }
 
 // ── Uitslag ─────────────────────────────────────────────────────────────────
