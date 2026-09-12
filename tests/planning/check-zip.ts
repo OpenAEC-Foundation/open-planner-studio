@@ -432,6 +432,41 @@ eq('14a …ook in de store-tak',
 }
 
 {
+  // Bit 3 (data descriptor): de CRC staat NIET in het local header — daar staat een nul — maar
+  // achter de data. Zonder die correctie zou elke bit-3-entry vals afgekeurd worden; met een
+  // descriptor die over de checksum liegt moet de weigering er juist wél komen.
+  const data = bytes('descriptor-entry');
+  const naam = bytes('d.txt');
+  const bit3 = (crcInDescriptor: number): ArrayBuffer => {
+    const chunk = new Uint8Array(30 + naam.length + data.length + 16);
+    const view = new DataView(chunk.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0x08, true);   // bit 3
+    view.setUint16(8, 0, true);      // stored
+    view.setUint32(14, 0, true);     // CRC hoort hier NUL te zijn bij bit 3
+    view.setUint32(18, 0, true);     // idem compSize
+    view.setUint32(22, 0, true);     // idem uncompressedSize
+    view.setUint16(26, naam.length, true);
+    chunk.set(naam, 30);
+    chunk.set(data, 30 + naam.length);
+    const desc = 30 + naam.length + data.length;
+    view.setUint32(desc, 0x08074b50, true);
+    view.setUint32(desc + 4, crcInDescriptor, true);
+    view.setUint32(desc + 8, data.length, true);
+    view.setUint32(desc + 12, data.length, true);
+    return chunk.buffer as ArrayBuffer;
+  };
+
+  eq('19 bit-3-entry leest, met de CRC uit de descriptor',
+    new TextDecoder().decode((await parseZipEntries(bit3(crc32(data)), EXTENSION_ZIP_LIMITS))[0]!.data),
+    'descriptor-entry');
+  const err = await caught(() => parseZipEntries(bit3(0xdeadbeef), EXTENSION_ZIP_LIMITS));
+  eq('19a …en een gelogen descriptor-CRC wordt betrapt',
+    err instanceof ZipValidationError && err.message.includes('CRC-32'), true);
+}
+
+{
   // ── Omgeving zonder DecompressionStream (fixronde na de eindreview) ───────
   // Geïnjecteerd, niet vervalst — zelfde naadvorm als `writeZip`'s `deflate: null`. Zonder deze
   // guard komt een gedeflate blad als "geen ZIP" terug, en gaat de gebruiker een bestand zoeken

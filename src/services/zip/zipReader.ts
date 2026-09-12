@@ -397,6 +397,10 @@ async function parseViaLocalHeaders(
     const flags = view.getUint16(offset + 6, true);
     const method = view.getUint16(offset + 8, true);
     let expectedCrc = view.getUint32(offset + 14, true);
+    // Bit 3 zet de CRC in een data descriptor ná de data; het local header draagt dan een nul.
+    // Kunnen we die descriptor niet aanwijzen, dan is er GEEN vastgelegde CRC om tegen te toetsen
+    // — dan overslaan, want een nul-CRC als waarheid nemen zou elke bit-3-entry vals afkeuren.
+    let crcKnown = (flags & 0x08) === 0;
     let compSize = view.getUint32(offset + 18, true);
     const uncompressedSize = view.getUint32(offset + 22, true);
     const nameLen = view.getUint16(offset + 26, true);
@@ -422,7 +426,10 @@ async function parseViaLocalHeaders(
       // valse CRC-mismatch stuklopen.
       const descStart = dataOffset + dataLen;
       const crcAt = descStart + (descLen === 16 ? 4 : 0);
-      if (descLen > 0 && crcAt + 4 <= buffer.byteLength) expectedCrc = view.getUint32(crcAt, true);
+      if (descLen > 0 && crcAt + 4 <= buffer.byteLength) {
+        expectedCrc = view.getUint32(crcAt, true);
+        crcKnown = true;
+      }
     }
     if (dataOffset + compSize > buffer.byteLength) {
       throw new ZipValidationError(`ZIP-entry "${name}" loopt buiten het bestand`);
@@ -435,7 +442,7 @@ async function parseViaLocalHeaders(
       if (!select || select(name)) {
         const compressed = new Uint8Array(buffer, dataOffset, compSize);
         const data = await decompressEntry(method, compressed, limits, actualTotal, name, inflate);
-        verifyEntryCrc(expectedCrc, data, name);
+        if (crcKnown) verifyEntryCrc(expectedCrc, data, name);
         actualTotal = addZipPayloadSize(actualTotal, data.length, name, limits);
         entries.push({ name, data });
       }
