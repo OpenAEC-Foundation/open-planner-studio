@@ -812,13 +812,29 @@ export function ReportPanel() {
    * enige byte-schrijfpad van de app — Tauri: save-dialoog + `writeFile`; web: FSA-picker met
    * download-terugval. Bewust GEEN `viaDownload`-melding: dat was hier ook vóór de lift niet zo
    * (Q3 in het plan), en die melding erbij zou deze etappe stil uitbreiden.
+   *
+   * De try/catch is niet optioneel (eindreview 2026-09-12, bevinding 4). `saveBytesDialog` geeft
+   * een geannuleerde dialoog terug als `null`, maar een ECHTE fout (schijf vol, bestand
+   * vergrendeld, geweigerd bestandstype) gooit hij bewust door — zie `saveDataDialogWeb`. Deze
+   * aanroeper hangt aan een `void runExport()`, dus zonder vangnet werd dat een unhandled
+   * rejection: de gebruiker drukt op Exporteren en er gebeurt zichtbaar niets. Melden gaat via het
+   * ene meldingskanaal (K8a) met dezelfde sleutel die `fileSlice` voor een mislukte schrijfactie
+   * gebruikt — geen nieuwe sleutel voor dezelfde gebeurtenis.
    */
   const writePdf = useCallback(async (pdfBytes: Uint8Array, defaultName: string) => {
-    await saveBytesDialog(
-      defaultName, pdfBytes,
-      [{ name: 'PDF Document', extensions: ['pdf'] }],
-      { mime: 'application/pdf' },
-    );
+    try {
+      await saveBytesDialog(
+        defaultName, pdfBytes,
+        [{ name: 'PDF Document', extensions: ['pdf'] }],
+        { mime: 'application/pdf' },
+      );
+    } catch (err) {
+      useAppStore.getState().notify({
+        severity: 'error',
+        messageKey: 'notifications.saveFailed',
+        detail: (err as Error).message,
+      });
+    }
   }, []);
 
   /**
@@ -1010,6 +1026,20 @@ export function ReportPanel() {
   // nog de "planning gewijzigd"-melding). De export wordt daarom uitgesteld tot het effect hieronder
   // ná de re-render met de verse waarden vuurt.
   const exportPendingRef = useRef(false);
+  /**
+   * `runExport` wordt vanaf twee plekken los gestart (`void`), dus een afwijzing die het `writePdf`
+   * -vangnet niet dekt — het opbouwen van de PDF zelf, een glyph die `pdf-lib` weigert — zou een
+   * unhandled rejection zijn. Zelfde kanaal, zelfde reden als in `writePdf`.
+   */
+  const startExport = useCallback(() => {
+    runExport().catch((err: unknown) => {
+      useAppStore.getState().notify({
+        severity: 'error',
+        messageKey: 'notifications.saveFailed',
+        detail: (err as Error).message,
+      });
+    });
+  }, [runExport]);
   const handleExportPDF = useCallback(() => {
     const st = useAppStore.getState();
     if (st.scheduleStale) {
@@ -1017,13 +1047,13 @@ export function ReportPanel() {
       st.runCPM();
       return;
     }
-    void runExport();
-  }, [runExport]);
+    startExport();
+  }, [startExport]);
   useEffect(() => {
     if (!exportPendingRef.current || scheduleStale) return;
     exportPendingRef.current = false;
-    void runExport();
-  }, [scheduleStale, runExport]);
+    startExport();
+  }, [scheduleStale, startExport]);
 
   const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;

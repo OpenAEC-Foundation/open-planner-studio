@@ -323,7 +323,9 @@
       "dateError": "有効な日付を入力してください。"
     },
     "progressXlsxNotes": {
-      "completion": "入力してください：0〜100、小数も可"
+      "completion": "入力してください：0〜100、小数も可",
+      "actualStart": "入力してください：実際の開始日（日付として）",
+      "actualFinish": "入力してください：実際の終了日（日付として）"
     },
     "progressCsvLabel": "進捗シート（CSV）",
     "progressCsvDesc": "同じスリムな進捗シートのプレーンテキスト版 — CSV で作業したい方向け。",

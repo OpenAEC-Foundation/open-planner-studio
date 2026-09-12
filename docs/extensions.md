@@ -143,6 +143,16 @@ Het veldbeleid in hoofdlijnen:
   — ruim voorbij de limieten hierboven — dus verpak gewoon met de standaardinstellingen van je
   ZIP-programma.
 
+Sinds de gedeelde ZIP-laag (2026-09, issue #27 etappe 3) gelden er naast die twee maten nog twee
+grenzen, en die zijn er tegen een **zip bomb**: een archief van een paar kilobyte dat bij het
+uitpakken gigabytes oplevert, of dat uit tienduizenden lege entries bestaat. Een extensie-ZIP mag
+daarom hoogstens **2048 entries** bevatten, en per entry mag uitgepakt ÷ ingepakt niet boven de
+**200×** uitkomen. Beide worden tijdens het uitpakken gecontroleerd, dus een archief dat eroverheen
+gaat wordt afgebroken en niet eerst volledig in het geheugen gezet. Een echte extensie zit daar niet
+in de buurt: een `main.js` met wat iconen en vertalingen is een handvol bestanden, en 200× is ruim
+boven wat deflate op broncode haalt. Loop je er tóch tegenaan, dan is dat vrijwel altijd een teken
+dat er build-artefacten of een `node_modules` in de ZIP zijn meegegaan.
+
 Bij installatie vanuit de catalogus moeten de `id` en `version` uit de gevalideerde
 `manifest.json` exact overeenkomen met de gevalideerde catalogusentry. De app normaliseert geen
 hoofdletters, spaties of versienummers om een mismatch passend te maken. Een aanwezige checksum,

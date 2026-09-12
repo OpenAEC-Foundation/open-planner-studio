@@ -323,7 +323,9 @@
       "dateError": "올바른 날짜를 입력하세요."
     },
     "progressXlsxNotes": {
-      "completion": "입력: 0~100, 소수점 사용 가능"
+      "completion": "입력: 0~100, 소수점 사용 가능",
+      "actualStart": "입력: 실제 시작일 (날짜 형식)",
+      "actualFinish": "입력: 실제 종료일 (날짜 형식)"
     },
     "progressCsvLabel": "진행률 시트(CSV)",
     "progressCsvDesc": "같은 간결한 진행률 시트의 일반 텍스트 버전 — CSV로 작업하는 것을 선호하는 분용.",

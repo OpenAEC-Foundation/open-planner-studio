@@ -55,6 +55,25 @@ export function isActivePristine(s: AppState): boolean {
 // importeurs (Backstage, via appStore) ongewijzigd blijven werken.
 export { type ExportFormat };
 
+/**
+ * Hoort het resultaat van deze export in **Recente bestanden**?
+ *
+ * Ja voor de formaten die de app zelf terug kan openen als PROJECT (`ifc`, `csv`, `mspdi`, `p6`):
+ * daar is een recents-entry precies wat de gebruiker wil.
+ *
+ * Nee voor de twee voortgangsbladen (eindreview 2026-09-12, bevinding 5). Die zijn geen project
+ * maar een invulformulier met acht kolommen; ze komen terug via **Importeren → Voortgang**, niet
+ * via Openen. Stonden ze in de recents, dan levert één klik op `<project>-voortgang.xlsx` daar de
+ * openroute op — die het bestand als project probeert te lezen en met een foutmelding eindigt.
+ * Een lijst die de gebruiker naar een gegarandeerde fout stuurt is erger dan een lege lijst.
+ *
+ * Los geëxporteerd zodat de regel toetsbaar is zonder een bestandsdialoog te hoeven simuleren:
+ * `tests/planning/check-export-guard.ts` loopt hem over álle `ExportFormat`-waarden.
+ */
+export function exportGoesToRecents(format: ExportFormat): boolean {
+  return format !== 'progress-csv' && format !== 'progress-xlsx';
+}
+
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
  *  opslaan-dialoog en de CPM-cyclusfout (`cpmResult.error`) als boodschap meegegeven, zodat de
  *  aanroeper die kan tonen i.p.v. stilletjes niets te doen. */
@@ -508,7 +527,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = typeof payload === 'string'
         ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
         : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
-      if (outcome) await pushRecent(outcome.ref, outcome.name);
+      if (outcome && exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       return { ok: true };
     },

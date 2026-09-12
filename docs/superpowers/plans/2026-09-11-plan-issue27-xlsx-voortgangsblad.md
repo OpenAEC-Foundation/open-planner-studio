@@ -358,6 +358,16 @@ Controleren → Bladbeveiliging opheffen werkt en is toegestaan.
 **Invoervalidatie.** Twee `dataValidation`-blokken, `sqref` begrensd tot de werkelijke laatste rij (géén
 open `F2:F1048576`):
 
+> **Correctie (eindreview 2026-09-12, bevinding 3 + punt b).** Het zijn er **drie** geworden, één
+> per invulkolom, en de bereiken slaan de verzamelrijen over. Twee redenen, allebei bewezen door de
+> uitvoering: (1) een `dataValidation` draagt precies één `prompt`, dus het gedeelde `G2:H…`-blok
+> gaf de kolom *Actual Finish* de tooltip van *Actual Start* ("werkelijke startdatum"); (2) de drie
+> invulcellen van een verzamelrij dragen een em-dash-MEDEDELING, geen getal of datum — een
+> `date`-validatie hoort daar niet overheen te lopen. De regel (type, formules, foutmelding) is
+> voor beide datumkolommen nog steeds identiek; alleen de invulhint verschilt. Blijft er geen
+> invulbare rij over (een blad met alléén verzameltaken), dan vervalt het hele
+> `dataValidations`-element in plaats van als lege huls te blijven staan.
+
 ```xml
 <dataValidations count="2">
   <dataValidation type="decimal" operator="between" allowBlank="1" showInputMessage="1"
@@ -512,10 +522,26 @@ afhandeling als `saveFileDialogWeb`, en anders `downloadBlob`. `downloadBlob` ve
 `(name: string, content: string | Uint8Array, mime?: string)`.
 
 `ReportPanel.writePdf` (r760–779) wordt vervangen door een aanroep van `saveBytesDialog` en verliest
-zijn eigen `@tauri-apps/*`-imports. **Gedrag blijft gelijk:** `viaDownload` wordt daar nog steeds niet
-gemeld (dat is vandaag ook zo) — zie Q3. Dit is geen opportunisme: `writePdf` is de enige bestaande
+zijn eigen `@tauri-apps/*`-imports. Dit is geen opportunisme: `writePdf` is de enige bestaande
 byte-schrijver, en hem laten staan zou betekenen dat er ná deze etappe **twee** byte-schrijfpaden zijn
 met verschillende foutafhandeling. Precies de duplicatie waar K6 over gaat.
+
+> **Correctie (eindreview 2026-09-12, bevinding 4).** Hier stond "**gedrag blijft gelijk**". Dat was
+> onwaar, op twee manieren:
+>
+> 1. **Op web is de PDF-export van een stille download een bestandskiezer geworden.** De oude
+>    `writePdf` deed op de webbuild altijd een download; `saveBytesDialog` probeert op Chromium
+>    eerst `showSaveFilePicker`. Dat verschil is een verbetering (de gebruiker kiest waar het
+>    bestand landt, en de FSA-route werkt óók waar downloads geblokkeerd zijn) en het blijft
+>    staan — maar het is wél een gedragswijziging en hoort niet als "gelijk" te zijn opgeschreven.
+>    Wat wél gelijk bleef: `viaDownload` wordt nog steeds niet gemeld — zie Q3.
+> 2. **De foutafhandeling was juist NIET gelijk.** `saveDataDialogWeb` gooit een echte fout
+>    (schijf vol, bestand vergrendeld, geweigerd type) bewust door; alleen annuleren en een
+>    omgevingsweigering vangt hij zelf af. `writePdf` ving niets en hangt aan een
+>    `void runExport()`, dus zo'n fout werd een unhandled rejection: de gebruiker drukt op
+>    Exporteren en er gebeurt zichtbaar niets. Sinds de fixronde vangen `writePdf` én de starter
+>    van `runExport` dat af en melden ze het via het ene meldingskanaal (K8a) met de bestaande
+>    sleutel `common:notifications.saveFailed` — geen nieuwe sleutel voor dezelfde gebeurtenis.
 
 ### X9 — `exportAs` draagt `string | Uint8Array`
 
@@ -588,6 +614,13 @@ vangnet voor al het overige.
 | `export.progressXlsxSheetName` | `menu` | de bladnaam in de werkmap (≤ 31 tekens, zonder `[]:*?/\`) |
 | `export.progressXlsxValidation.percentTitle` / `percentError` / `dateTitle` / `dateError` | `menu` | de vier validatieteksten |
 | `progressImport.fileIssue.encrypted` | `common` | de nieuwe `ProgressFileIssue` |
+
+> **Correctie (eindreview 2026-09-12, bevinding 3).** Er kwamen er twee bij:
+> `export.progressXlsxNotes.actualStart` en `.actualFinish` (namespace `menu`, veertien locales).
+> Het `.xlsx`-blad kon de CSV-instructies voor de datumkolommen niet hergebruiken: die noemen een
+> SCHRIJFWIJZE (`dd-mm-jjjj`), terwijl de `.xlsx`-cel een echte datumcel is en de dag/maand-vraag
+> daar niet bestaat — de gids zegt dat ook met zoveel woorden. Eén gedeelde sleutel zou dus altijd
+> voor één van de twee formaten liegen, precies zoals dat bij `completion` al gold.
 
 **Hergebruikt, dus géén nieuwe sleutels:** `export.progressCsvNotes.*` (kopinstructies én de
 `dataValidation`-prompts), `export.progressCsvNotes.summaryRow` (de em-dash-markering),
@@ -1206,7 +1239,8 @@ T14 (poort). T15 mag met D mee.
 |---|---|
 | `tests/planning/check-xlsx-primitives.ts` | de escaper (incl. `_xHHHH_` en de `_x`-zelfontsnapping) en de seriële datums (1900-bug, 1904, tijddeel, weigering < 61), onder de tijdzonematrix |
 | `tests/planning/check-zip.ts` | CRC-32 tegen bekende vectoren, schrijf/lees-round-trip in beide compressietakken, determinisme, en de drie nieuwe weigeringen: zip-bom (mét `bytesSeen`-bewijs), ratio, Zip64 |
-| `tests/planning/check-progress-xlsx-writer.ts` | de partstructuur: kindvolgordes van worksheet en styleSheet, de fills/fonts/borders-minima, kolombreedtes, `sheetProtection`-polariteit, de twee `dataValidation`s, datum- en getalcellen, instructies en em-dash-markering |
+| `tests/planning/check-progress-xlsx-writer.ts` | de partstructuur: kindvolgordes van worksheet en styleSheet, de fills/fonts/borders-minima, kolombreedtes, `sheetProtection`-polariteit, de drie `dataValidation`s (één per invulkolom, verzamelrijen uitgesloten), de expliciet uitgeschreven `protection locked`-stijlen, datum- en getalcellen, instructies en em-dash-markering |
+| `tests/planning/check-export-guard.ts` | naast de K7-guard: welke exportformaten in **Recente bestanden** landen — de twee voortgangsbladen niet (bevinding 5), en een nieuw formaat in `EXPORT_FORMATS` valt daar mechanisch door de mand |
 | `tests/planning/check-progress-import-xlsx.ts` | **de poort van deze etappe**: round-trip met nul wijzigingen en nul weigeringen, `noAmbiguity` (geen datumvraag), één gewijzigde cel = één toepassing, sharedStrings, percentage-`numFmt`, sparse rijnummers, en alle bestandsgrenzen |
 | bestaande `tests/planning/check-ext-integrity.ts` / `check-ext-consent.ts` | bewijzen dat de zip-lift gedragsneutraal is voor extensies |
 | bestaande `tests/planning/check-progress-import-csv.ts` | bewijst dat de `sheetColumns`-lift gedragsneutraal is |
@@ -1237,7 +1271,7 @@ T14 (poort). T15 mag met D mee.
 |---|---|---|
 | **Q1** | Vervangt `.xlsx` de knop, of komt er een tweede knop naast? | **Vervangt** (*X10*). Eén knop = het beste antwoord; CSV blijft als exportkaart en als leesformaat. Terugdraaien kost één extra `RibbonButtonSpec`. |
 | **Q2** | Exporteert het `.xlsx`-blad het percentage met decimalen (afwijkend van CSV)? | **Ja** (*X6*). De landinstellingen-valstrik die A1 tot afronden dwong bestaat in een getalcel niet. Gevolg: de xlsx-round-trip is exacter dan de CSV-round-trip. |
-| **Q3** | Meldt de PDF-export voortaan dat hij in de downloadmap is beland (`viaDownload`)? | **Nee, gedrag blijft gelijk.** Dat is een eigen verbetering met een eigen meldingsvraag; hem meenemen zou deze etappe stil uitbreiden. Kost later drie regels. |
-| **Q4** | Krijgen de invulkolommen ook een `dataValidation`-**prompt** (het gele tooltipje bij selectie)? | **Ja**, met dezelfde teksten als de kopcel — nul extra i18n-sleutels, en precies de begeleiding die E8/E9 vragen. Storend? Eén attribuut weghalen. |
+| **Q3** | Meldt de PDF-export voortaan dat hij in de downloadmap is beland (`viaDownload`)? | **Nee.** Dat is een eigen verbetering met een eigen meldingsvraag; hem meenemen zou deze etappe stil uitbreiden. Kost later drie regels. *Correctie 2026-09-12 (bevinding 4): hier stond "gedrag blijft gelijk", en dat was onwaar — op web opent de PDF-export sinds de lift eerst een bestandskiezer in plaats van stil te downloaden, en een echte schrijffout werd een unhandled rejection. De kiezer blijft; de foutmelding is toegevoegd. Zie de correctie bij X8.* |
+| **Q4** | Krijgen de invulkolommen ook een `dataValidation`-**prompt** (het gele tooltipje bij selectie)? | **Ja**, met dezelfde teksten als de kopcel, en precies de begeleiding die E8/E9 vragen. Storend? Eén attribuut weghalen. *Correctie 2026-09-12 (bevinding 3): "nul extra i18n-sleutels" klopte niet helemaal — de twee datumkolommen kregen wél eigen xlsx-teksten (`progressXlsxNotes.actualStart|actualFinish`), omdat de CSV-tekst een schrijfwijze noemt die in een datumcel niet bestaat. En omdat één blok maar één prompt draagt, is de datumvalidatie per kolom gesplitst.* |
 | **Q5** | Moet het blad ook beschermd zijn tegen rijen invoegen/verwijderen? | **Ja, via de standaard.** `insertRows`/`deleteRows` blijven op hun default (verboden onder bladbeveiliging); we zetten er niets voor. Een ingevoegde rij zou toch geen `OPS Task ID` dragen en netjes als `unmatched` in de koppelsectie belanden. |
 | **Q6** | Moeten de onderlagen (`zip/`, `xlsx/`) ook door andere exports gebruikt worden (rapport als werkmap, volle takenlijst)? | **Niet in deze etappe.** De lagen zijn er algemeen genoeg voor; dat is een vervolg met een eigen ontwerpvraag, geen afgeleide belofte. |

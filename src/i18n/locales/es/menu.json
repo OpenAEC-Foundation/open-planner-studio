@@ -323,7 +323,9 @@
       "dateError": "Introduzca una fecha válida."
     },
     "progressXlsxNotes": {
-      "completion": "rellenar: de 0 a 100, se permiten decimales"
+      "completion": "rellenar: de 0 a 100, se permiten decimales",
+      "actualStart": "rellenar: fecha de inicio real (como fecha)",
+      "actualFinish": "rellenar: fecha de fin real (como fecha)"
     },
     "progressCsvLabel": "Hoja de avance (CSV)",
     "progressCsvDesc": "La misma hoja de avance reducida en texto plano — para quien prefiera trabajar con un CSV.",

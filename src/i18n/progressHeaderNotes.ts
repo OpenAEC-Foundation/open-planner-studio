@@ -12,14 +12,24 @@ import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
 import type { ImportLabelT } from './importLabels';
 
 /**
- * `'csv'` (de standaard) levert de kopinstructies van het CSV-blad; `'xlsx'` wijkt op één punt af.
+ * `'csv'` (de standaard) levert de kopinstructies van het CSV-blad; `'xlsx'` wijkt op DRIE punten
+ * af — telkens omdat de CSV-tekst in een `.xlsx` niet alleen overbodig maar aantoonbaar ONWAAR is.
  *
- * Dat ene punt is de voltooiingskolom. In de CSV vraagt de instructie om HELE getallen — daar is
- * dat de eerlijke vraag, want een CSV kent geen celopmaak en een `33,333333`-achtige waarde uit een
- * spreadsheet-export levert bij het teruglezen alleen maar ruis. Het `.xlsx`-blad heeft wél een
- * echte percentagecel met een `decimal`-validatie tussen 0 en 100, dus daar zou "hele getallen" de
- * invuller onnodig beperken. Eén gedeelde sleutel voor beide zou dus altijd voor één van de twee
- * formaten liegen; daarom `menu:export.progressXlsxNotes.completion` ernaast.
+ * 1. **De voltooiingskolom.** In de CSV vraagt de instructie om HELE getallen — daar is dat de
+ *    eerlijke vraag, want een CSV kent geen celopmaak en een `33,333333`-achtige waarde uit een
+ *    spreadsheet-export levert bij het teruglezen alleen maar ruis. Het `.xlsx`-blad heeft wél een
+ *    echte percentagecel met een `decimal`-validatie tussen 0 en 100, dus daar zou "hele getallen"
+ *    de invuller onnodig beperken.
+ * 2. en 3. **De twee werkelijke-datumkolommen.** De CSV-instructie noemt een SCHRIJFWIJZE
+ *    (`dd-mm-jjjj`), want in platte tekst moet de invuller zelf de dag/maand-volgorde kiezen en de
+ *    lezer moet daarop gokken. In het `.xlsx`-blad is de cel een echte datumcel (`numFmt` 164,
+ *    `yyyy-mm-dd`) met een `date`-validatie: de invuller typt een datum in zijn eigen
+ *    landinstelling en de cel draagt een serieel getal — die dag/maand-vraag bestaat er domweg
+ *    niet. Zou de CSV-tekst blijven staan, dan zou het blad om een notatie vragen die het zelf
+ *    niet gebruikt, en de gids (`gids-voortgang-importeren.md`) tegenspreken.
+ *
+ * Eén gedeelde sleutel voor beide formaten zou dus altijd voor één van de twee liegen; daarom
+ * staan `menu:export.progressXlsxNotes.completion|actualStart|actualFinish` ernaast.
  */
 export function buildProgressHeaderNotes(
   t: ImportLabelT,
@@ -36,8 +46,12 @@ export function buildProgressHeaderNotes(
     'Completion (%)': variant === 'xlsx'
       ? t('export.progressXlsxNotes.completion')
       : t('export.progressCsvNotes.completion'),
-    'Actual Start': t('export.progressCsvNotes.actualStart'),
-    'Actual Finish': t('export.progressCsvNotes.actualFinish'),
+    'Actual Start': variant === 'xlsx'
+      ? t('export.progressXlsxNotes.actualStart')
+      : t('export.progressCsvNotes.actualStart'),
+    'Actual Finish': variant === 'xlsx'
+      ? t('export.progressXlsxNotes.actualFinish')
+      : t('export.progressCsvNotes.actualFinish'),
   };
 }
 

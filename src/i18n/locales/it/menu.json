@@ -323,7 +323,9 @@
       "dateError": "Inserisci una data valida."
     },
     "progressXlsxNotes": {
-      "completion": "da compilare: da 0 a 100, sono ammessi i decimali"
+      "completion": "da compilare: da 0 a 100, sono ammessi i decimali",
+      "actualStart": "da compilare: data di inizio effettiva (come data)",
+      "actualFinish": "da compilare: data di fine effettiva (come data)"
     },
     "progressCsvLabel": "Foglio di avanzamento (CSV)",
     "progressCsvDesc": "Lo stesso foglio di avanzamento snello in testo semplice — per chi preferisce lavorare con un CSV.",
