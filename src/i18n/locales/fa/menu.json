@@ -312,8 +312,18 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "صفحهٔ پیشرفت (Excel)",
+    "progressXlsxDesc": "صفحه‌ای فشرده شامل فقط شناسه، WBS، نام، تاریخ‌ها و درصد تکمیل — با عرض ستون ثابت، فیلدهای قفل‌شده و بررسی تاریخ.",
+    "progressXlsxShort": "پیشرفت (Excel)",
+    "progressXlsxSheetName": "پیشرفت",
+    "progressXlsxValidation": {
+      "percentTitle": "درصد تکمیل (%)",
+      "percentError": "عددی بین ۰ تا ۱۰۰ وارد کنید.",
+      "dateTitle": "تاریخ واقعی",
+      "dateError": "تاریخ معتبری وارد کنید."
+    },
     "progressCsvLabel": "صفحهٔ پیشرفت (CSV)",
-    "progressCsvDesc": "صفحه‌ای فشرده شامل فقط شناسه، WBS، نام، تاریخ‌ها و درصد تکمیل — برای به‌روزرسانی پیشرفت.",
+    "progressCsvDesc": "همان صفحهٔ پیشرفت فشرده به‌صورت متن ساده — برای کسانی که ترجیح می‌دهند با CSV کار کنند.",
     "progressCsvShort": "پیشرفت (CSV)",
     "progressCsvNotes": {
       "readOnly": "تغییر ندهید",

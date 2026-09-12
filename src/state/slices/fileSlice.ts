@@ -3,7 +3,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
-import { openFileDialog, saveFileDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
@@ -397,9 +397,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const state = get();
 
-      let content: string;
+      // X9: sinds het `.xlsx`-voortgangsblad draagt de export tekst ÓF bytes. De afsplitsing
+      // staat één keer, ná de switch — niet per tak — zodat de recents-, download- en
+      // meldingsafhandeling voor beide vormen letterlijk dezelfde regels zijn.
+      let payload: string | Uint8Array;
       let ext: string;
       let filters: { name: string; extensions: string[] }[];
+      let mime: string | undefined;
       // E7 (2026-09-05): het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
       // (`<projectnaam>-voortgang.csv`, i.p.v. `<projectnaam>.csv`) zodat het in de downloadmap
       // meteen te onderscheiden is van de volle CSV-export — en waar mogelijk landt het ook echt
@@ -407,6 +411,29 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let nameOverride: string | undefined;
 
       switch (format) {
+        case 'progress-xlsx': {
+          // Zelfde i18n-reden als bij `progress-csv` hieronder: `@/i18n/config` heeft een
+          // randeffect bij het laden, dus dynamisch. De schrijver zelf ook — de ZIP/XLSX-laag
+          // hoort niet in de hoofdbundel (net als `mppReader`), en een statische import hier zou
+          // hem er stilzwijgend in trekken.
+          const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote, buildProgressXlsxValidationText }, { writeProgressSheetXLSX }] = await Promise.all([
+            import('@/i18n/config'),
+            import('@/i18n/progressHeaderNotes'),
+            import('@/services/xlsx/writeProgressXlsx'),
+          ]);
+          const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
+          payload = await writeProgressSheetXLSX(state.tasks, {
+            headerNotes: buildProgressHeaderNotes(menuT),
+            summaryNote: buildProgressSummaryNote(menuT),
+            sheetName: menuT('export.progressXlsxSheetName'),
+            validation: buildProgressXlsxValidationText(menuT),
+          });
+          ext = 'xlsx';
+          filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
+          mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          break;
+        }
         case 'progress-csv': {
           // Dynamische import (D, besluit 2026-09-05): `@/i18n/config` initialiseert i18next en
           // raakt DIRECT bij het laden al `document.documentElement.dir` aan (RTL-afhandeling) —
@@ -423,7 +450,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // `any`-sleutel: de i18next-`t` is op sleutel-literals getypeerd; `ImportLabelT` is
           // precies de bestaande overloop-uitweg daarvoor (zie `importLabels.ts`).
           const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
-          content = writeProgressSheetCSV(
+          payload = writeProgressSheetCSV(
             state.tasks,
             buildProgressHeaderNotes(menuT),
             // Fix 1 (gebruikstest 2026-09-11): verzameltaken dragen hun "niet invullen" IN het
@@ -436,7 +463,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
         }
         case 'csv':
-          content = writeCSV(
+          payload = writeCSV(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.customTaskTypes,
           );
@@ -444,7 +471,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
           break;
         case 'mspdi':
-          content = writeMSPDI(
+          payload = writeMSPDI(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.calendars,
             // Baselines meegeven (fase 2.6, §9.1): de actieve baseline gaat naar MSPDI-slot 0.
@@ -456,7 +483,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
         case 'p6':
-          content = writeP6XML(
+          payload = writeP6XML(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.calendars, state.customTaskTypes,
           );
@@ -465,17 +492,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
         case 'ifc':
         default:
-          content = writeIFC(buildWriteIFCInput(state));
+          payload = writeIFC(buildWriteIFCInput(state));
           ext = 'ifc';
           filters = [{ name: 'IFC Files', extensions: ['ifc'] }];
           break;
       }
 
       const defaultName = nameOverride ?? `${projectFileBase(state.project.name)}.${ext}`;
-      const outcome = await saveFileDialog(
-        defaultName, content, filters,
-        format === 'progress-csv' ? { preferDownloads: true } : undefined,
-      );
+      // E7: beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
+      const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
+        ? { preferDownloads: true, mime }
+        : undefined;
+      const outcome = typeof payload === 'string'
+        ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
+        : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
       if (outcome) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       return { ok: true };

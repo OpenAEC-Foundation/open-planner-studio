@@ -312,8 +312,18 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Folha de progresso (Excel)",
+    "progressXlsxDesc": "Folha reduzida apenas com id, EAP, nome, datas e progresso — com larguras de coluna fixas, campos bloqueados e verificação de datas.",
+    "progressXlsxShort": "Progresso (Excel)",
+    "progressXlsxSheetName": "Progresso",
+    "progressXlsxValidation": {
+      "percentTitle": "Conclusão (%)",
+      "percentError": "Introduza um número de 0 a 100.",
+      "dateTitle": "Data real",
+      "dateError": "Introduza uma data válida."
+    },
     "progressCsvLabel": "Folha de progresso (CSV)",
-    "progressCsvDesc": "Folha reduzida apenas com id, EAP, nome, datas e progresso — para atualizar o progresso.",
+    "progressCsvDesc": "A mesma folha de progresso reduzida em texto simples — para quem prefere trabalhar com um CSV.",
     "progressCsvShort": "Progresso (CSV)",
     "progressCsvNotes": {
       "readOnly": "não alterar",

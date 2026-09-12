@@ -137,7 +137,11 @@ Het veldbeleid in hoofdlijnen:
   traversalcontrole onderworpen; dubbele namen na het eventueel verwijderen van één gedeelde
   topmap zijn ongeldig;
 - uitgepakte ZIP-entries/assets zijn begrensd op 24 MiB per bestand en 48 MiB totaal; opgeslagen
-  `mainCode` is begrensd op 48 MiB UTF-8.
+  `mainCode` is begrensd op 48 MiB UTF-8;
+- de ZIP zelf moet een gewone (niet-Zip64) archief zijn: Zip64-verpakte extensies worden geweigerd.
+  In de praktijk raak je die grens alleen met meer dan 65 535 bestanden of een archief boven de 4 GiB
+  — ruim voorbij de limieten hierboven — dus verpak gewoon met de standaardinstellingen van je
+  ZIP-programma.
 
 Bij installatie vanuit de catalogus moeten de `id` en `version` uit de gevalideerde
 `manifest.json` exact overeenkomen met de gevalideerde catalogusentry. De app normaliseert geen

@@ -36,3 +36,30 @@ export function buildProgressHeaderNotes(t: ImportLabelT): Partial<Record<Progre
 export function buildProgressSummaryNote(t: ImportLabelT): string {
   return t('export.progressCsvNotes.summaryRow');
 }
+
+/**
+ * De vier teksten van de twee `dataValidation`-regels in het `.xlsx`-voortgangsblad (X5, T12):
+ * titel + foutmelding voor de percentagekolom (0-100) en voor de twee datumkolommen. Q4: dezelfde
+ * teksten dienen ook als validatie-*prompt* (het gele tooltipje bij celselectie) - nul extra
+ * sleutels voor precies de begeleiding die E8/E9 vragen.
+ *
+ * Bewust een eigen, structureel gelijk returntype in plaats van `ProgressXlsxText['validation']`
+ * te importeren: deze module hoort bij de i18n-laag en mag de (dynamisch geladen) xlsx-chunk niet
+ * statisch binnentrekken - precies de reden waarom `writeProgressSheetXLSX` zijn teksten van
+ * buiten krijgt.
+ */
+export interface ProgressXlsxValidationText {
+  percentTitle: string;
+  percentError: string;
+  dateTitle: string;
+  dateError: string;
+}
+
+export function buildProgressXlsxValidationText(t: ImportLabelT): ProgressXlsxValidationText {
+  return {
+    percentTitle: t('export.progressXlsxValidation.percentTitle'),
+    percentError: t('export.progressXlsxValidation.percentError'),
+    dateTitle: t('export.progressXlsxValidation.dateTitle'),
+    dateError: t('export.progressXlsxValidation.dateError'),
+  };
+}
