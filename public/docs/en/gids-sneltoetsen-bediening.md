@@ -100,6 +100,14 @@ day level. If **Show only working days** (Settings → Appearance → Gantt) is 
 bars themselves — skip weekends and holidays entirely instead of just greying them out, so a
 5-workday task is exactly 5 columns wide.
 
+The vertical grid thins out along with it. Zoomed in far (roughly half a centimetre per day or more)
+every day gets a line, with a heavier line on the week boundary. Zoom out and only that week boundary
+remains; at year level only the month boundaries do — otherwise the canvas would turn into an even
+striped pattern that swallows the bars. Weekend shading and the alternating week bands stay at every
+zoom level: they carry the week structure once the lines drop away. If you have set a **status
+date**, its date now appears as a small label in the timeline header next to the dashed status-date
+line, so it can no longer be confused with the today line.
+
 ## Document tabs
 
 If you have several projects open at once (each in its own document tab), **Ctrl+1** through

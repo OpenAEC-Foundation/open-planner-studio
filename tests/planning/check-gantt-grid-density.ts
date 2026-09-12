@@ -190,7 +190,9 @@ function compressedGridLines(
   new GanttRenderer(ctx, {
     rows,
     sequences: [],
-    calendar: { ...st.calendar, workDays: weekDays },
+    // `holidays: []` is hier essentieel: met feestdagen heeft niet elke week evenveel
+    // werkdagkolommen en is "één lijn per week" niet meer als vaste kolomafstand te meten.
+    calendar: { ...st.calendar, workDays: weekDays, holidays: [] },
     view: { ...st.view, scrollX: 0, scrollY: 0, zoom, viewStartDate: FIXED_START },
     selectedTaskIds: [],
     canvasWidth: W,
