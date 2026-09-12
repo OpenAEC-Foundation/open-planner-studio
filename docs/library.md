@@ -419,8 +419,9 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    Sinds B1c-etappe 3 heeft dit voorstel ook een schrijfpad en een bediening: een dialoog
    ("Verdelen over projecten", geen drill-down — besluit eigenaar 2026-08-31), te openen vanuit de
    conflictregel in het bezettingsoverzicht of vanuit de Resources-ribbon. De gebruiker stuurt het
-   voorstel bij met een rangorde ("wie wordt het meest ontzien"), een schakelaar voor onderbrekingen,
-   en per project twee begrenzingen: **vastzetten** (pin) bevriest een project volledig — einddatum
+   voorstel bij vanuit de balken zelf (herontwerp 2026-09-12: de rangordelijst is uit beeld
+   verdwenen — de rijvolgorde ís de spelingsvolgorde van de rekenaar, en sturen doe je met de greep
+   en de pin), met daarnaast een schakelaar voor onderbrekingen, en per project twee begrenzingen: **vastzetten** (pin) bevriest een project volledig — einddatum
    én werkdagen blijven ongewijzigd, het telt mee als vaste last — en een **plafond** begrenst alleen
    hóéveel een project mag opschuiven; een plafond van 0 laat de bestaande speling nog wel toe, in
    tegenstelling tot vastzetten. Toepassen schrijft de verschuiving in álle deelnemende documenten
@@ -430,7 +431,7 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    in een document waar intussen zelf verder gewerkt is; dat wordt met naam gemeld en blijft op zijn
    nieuwe stand staan.
 
-   De rangorde, pins en plafonds horen bij de verdeelsessie zelf, niet bij het project: het zijn geen
+   De pins en plafonds horen bij de verdeelsessie zelf, niet bij het project: het zijn geen
    `DOCUMENT_FIELDS` en ze round-trippen dus niet door het IFC, overleven geen undo in het actieve
    document en beginnen na een herstart weer neutraal (zie de scope-bak "Waar de tune-state woont" in
    `docs/superpowers/plans/2026-08-31-b1c-plan3-schrijfpad-paneel.md` voor de volledige afweging). Zie

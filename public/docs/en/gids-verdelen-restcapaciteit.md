@@ -48,8 +48,8 @@ complex alone already wants on three towers at once. That one is resolvable too,
 apartment complex a sizeable delay — instructive to compare with the first case.
 
 Click **Masonry crew**, then **Distribute…** on that row and let
-**Distribute automatically** build the proposal; then change the ranking, or put a ceiling on one of
-the projects, and watch what happens to the proposed shift.
+**Distribute automatically** build the proposal; then drag a project's grip to the right, or pin a
+project, and watch what happens to the proposed shift.
 
 A few situations block the distribution right away, with a clear reason:
 
@@ -66,23 +66,41 @@ without deployment in between the days it is deployed — instead of shifting in
 exactly the same switch as "Leveling can create splits in remaining work" in Microsoft Project.
 
 Work that has already started is never interrupted, whether this toggle is on or off: that part can
-only give way through overrun. Whatever the toggle is set to, the dialog shows the price tag in
-workdays of overrun, so you can weigh the effect before you apply.
+only give way through overrun. Next to the switch you see what it buys you, as a single difference:
+with the switch off it reads "would save 3 workdays", with it on "saves 3 workdays". If interrupting
+buys nothing here, it says so plainly.
 
-## Who gets spared the most?
+## The bar is the control
 
-Below that sits the ranking list **"Who gets spared the most?"**. This is the order in which
-projects get priority: the project at the top wiggles the least, and each project below it gives way
-first whenever a choice has to be made. Drag a project to change the order, or use the arrow buttons
-to move it up or down one place.
+Below the switch, each project gets one bar on one shared timeline. On the left the project name with
+a colour dot and the slack it still has, in the middle the bar itself, on the right the outcome.
 
-Next to each project you'll see the slack it still has, and what it would cost to let only this
-project shift — in workdays of overrun. That way you can see straight away which project is the
-cheapest place to absorb the shift, instead of having to guess.
+Inside the bar you see one block per workday in the project's colour, separated by a thin white line
+— so you can literally count the days. A **hatched** block is a pause day: a workday on which the
+distributor holds the work still to make room for another project. Those only appear when "Allow
+interruptions" is on.
+
+A thin gauge runs along the bottom of the bar. The **grey dotted** part is the slack this project
+still had: it may shift that far without moving its end date. The **solid red** part is everything
+beyond that — real end-date shift. A bar without red costs the project nothing.
+
+To the right of the last block sits a **grip** with three strokes. Drag it to the right to allow this
+project more overrun; the distributor then decides for itself which days to pause on and how much of
+that room it actually needs. Whatever you allowed but turned out not to be needed shows up as a
+**dotted box** behind the bar. While you drag, the app recalculates: the other bars, the chart and
+the outcomes move under your hand. On a very large overview it does not — there the calculation
+follows when you release.
+
+The same grip works from the keyboard: the arrow keys move one workday, PageUp and PageDown three,
+Home sets the ceiling to zero and End makes it unlimited.
+
+To the right of the bar sits the outcome: a coloured pill with what happens to the end date (green at
+zero, amber at a day or two, red above that), and below it the latest date you allowed plus how many
+of those days are actually used.
 
 ## Pinning or a ceiling
 
-Below that, on a strip per project, you have two ways to limit the room it gives up:
+For each project you have two ways to limit the room it gives up:
 
 - **Pin** freezes a project completely: both its end date and its workdays stay exactly as they are
   now. A pinned project never gives up room — it counts in the calculation as a fixed load that the
@@ -92,14 +110,14 @@ Below that, on a strip per project, you have two ways to limit the room it gives
   already present within the existing schedule may still be used — that's different from pinning,
   where even the workdays within the task no longer change.
 
-The ceiling is a draggable handle on each project's phase strip: drag it, or use the arrow keys to
-move it one workday at a time, Home for a ceiling of 0, and End for unlimited. The label next to the
-handle shows what that means for the project's end date, and if less overrun turned out to be needed
-than you had allowed, the label says so explicitly: "requested X, closest achievable Y".
+Pinning is the **pin** text button next to the project name; it turns into **pinned — unpin**. The
+ceiling is the grip in the bar, as described above. The **Reset** button at the bottom puts every
+ceiling and pin back to neutral in one go; the "Allow interruptions" switch stays as it is, because
+that is a choice about the tool and not about one project.
 
 ## Before and after
 
-Below the phase strips sits a chart with two states, "Now" and "After distributing": how the load
+Below the bars sits a chart with two states, "Now" and "After distributing": how the load
 currently runs against the library's capacity line, and how that changes once you apply the proposal.
 If a shortfall remains despite every setting, the dialog shows next to it which tasks don't fit per
 project, and **Apply** stays disabled with the reason next to it.
@@ -121,8 +139,8 @@ A task that can't be shifted gets a plain-language reason instead of just a red 
 - **No free window was found within the searched period.** Further out in time it's unknown whether
   there's room — this isn't a definitive "no", it just means the search period wasn't long enough.
 - **The library's residual capacity is used up.** This project's own demand still had room, but other
-  projects already occupy the resource up to the company capacity. Give that other project a lower
-  spot in the ranking, or pin it so the rest can plan around it.
+  projects already occupy the resource up to the company capacity. Allow that other project more
+  overrun with its grip, or pin it so the rest can plan around it.
 
 A project with **["Dates as recorded"](docs://datums-zoals-opgeslagen)** turned on never takes part in
 a distribution — leave that mode in that project first before adding it to a distribution proposal.
@@ -131,7 +149,7 @@ a distribution — leave that mode in that project first before adding it to a d
 
 There is no separate mode for automatic calculation: at the bottom of the dialog sits a single
 button, which reads **"Distribute automatically"** as long as there's no proposal yet, and
-**"Recalculate"** afterwards. Changing the ranking, a ceiling, a pin, or the "Allow interruptions"
+**"Recalculate"** afterwards. Changing a ceiling, a pin, or the "Allow interruptions"
 toggle makes the dialog recalculate the proposal right away on its own — you don't have to press the
 button for that yourself. Only on a very large overview (many tasks in one of the involved projects,
 or many tasks that book against this item) does the dialog switch that automatism off; it then reports
@@ -141,6 +159,17 @@ If something is edited in one of the involved projects while the dialog is open 
 AI assistant, by another edit, or because you press **Apply** yourself — the dialog reports the
 proposal as no longer current. That is never recalculated automatically: press **Recalculate**
 yourself when that happens.
+
+## The line below the chart
+
+Below the chart there is always one line with the verdict. Green means the conflict is resolved, with
+the largest end-date shift and the project carrying it. Red means a shortfall remains, with the first
+days on which it goes wrong. If every project is pinned, that line says there is nothing to
+redistribute and that you should unpin one. If the proposal is no longer current — because you
+changed something, or because someone worked in one of the projects — that shows up there too.
+
+That line is always there, even when there is nothing to report. That is deliberate: it stops the
+rest of the screen from jumping whenever something changes.
 
 ## Applying and undoing
 
@@ -162,9 +191,9 @@ reverted normally. Right after applying, the dialog also reports the proposal it
 current" — that isn't a glitch: the projects have, after all, just changed. Press Recalculate if you
 want to distribute again from the same dialog.
 
-The choices you make in this dialog — ranking, pins, ceilings — belong to this one session, just like
+The choices you make in this dialog — pins and ceilings — belong to this one session, just like
 the "applied" strip: they stay in place for as long as you keep working in the app, even across a
-document switch, and only reset to a neutral ranking once you go distribute a different library item
+document switch, and only reset to neutral once you go distribute a different library item
 or restart the app. Nothing about them is stored in the project itself.
 
 ## The boundary

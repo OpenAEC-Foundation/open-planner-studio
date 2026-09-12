@@ -49,8 +49,8 @@ appartementencomplex al aan drie torens tegelijk gevraagd wordt. Die is ook oplo
 appartementencomplex een flink stuk uitloop — leerzaam om naast het eerste geval te leggen.
 
 Klik op **Masonry crew** en dan op **Verdelen…**, en laat **Verdeel
-automatisch** het voorstel maken; verander daarna eens de rangorde of zet een plafond op een project,
-en kijk wat er met de voorgestelde verschuiving gebeurt.
+automatisch** het voorstel maken; trek daarna eens de greep van een project naar rechts of zet een
+project vast, en kijk wat er met de voorgestelde verschuiving gebeurt.
 
 Een paar situaties blokkeren de verdeling meteen, met een duidelijke reden:
 
@@ -69,23 +69,42 @@ verschuiven. Dit is precies dezelfde knop als "Leveling can create splits in rem
 Microsoft Project.
 
 Werk dat al begonnen is, wordt nooit onderbroken, met of zonder deze schakelaar aan: dat deel kan
-alleen nog via uitloop wijken. Bij elke instelling van de schakelaar toont de dialoog het prijskaartje
-in werkdagen uitloop, zodat je het effect kunt afwegen vóór je toepast.
+alleen nog via uitloop wijken. Naast de schakelaar staat wat hij oplevert, als één verschil: staat
+hij uit, dan lees je "zou 3 werkdagen besparen"; staat hij aan, dan "bespaart 3 werkdagen". Levert
+onderbreken hier niets op, dan staat dat er ook gewoon.
 
-## Wie wordt het meest ontzien?
+## De balk is de bediening
 
-Daaronder staat de rangordelijst **"Wie wordt het meest ontzien?"**. Dit is de volgorde waarin de
-projecten voorrang krijgen: het project bovenaan wijkt het minst, elk project daaronder levert eerder
-in als er een keuze gemaakt moet worden. Versleep een project om de volgorde te wijzigen, of gebruik
-de pijltjes om het een plek omhoog of omlaag te zetten.
+Onder de schakelaar staat per project één balk op één gedeelde tijdas. Links de projectnaam met een
+kleurstip en de speling die dat project nog heeft, in het midden de balk zelf, rechts de uitkomst.
 
-Bij elk project staat de speling die het nog heeft, en wat het zou kosten om alléén dít project te
-laten opschuiven — in werkdagen uitloop. Zo zie je meteen welk project de goedkoopste plek is om de
-verschuiving te laten landen, in plaats van dat te moeten gissen.
+In de balk zie je per werkdag een apart blokje in de kleur van het project, met een dun wit lijntje
+ertussen — zo kun je de dagen letterlijk tellen. Een **gearceerd** blokje is een pauzedag: een
+werkdag waarop de verdeler het werk even stillegt om ruimte te maken voor een ander project. Die
+verschijnen alleen als je "Onderbrekingen toestaan" aan hebt staan.
+
+Onderin de balk loopt een dunne meetlat mee. Het **grijs gestippelde** deel is de speling die dit
+project nog had: zoveel mag het opschuiven zonder dat de einddatum meegaat. Het **massief rode**
+deel is alles daarvoorbij — dát is echte einddatum-verschuiving. Een balk zonder rood kost het
+project dus niets.
+
+Rechts van het laatste blokje staat een **greep** met drie streepjes. Trek die naar rechts om dit
+project meer uitloop toe te staan; de verdeler bepaalt vervolgens zelf op welke dagen hij pauzeert
+en hoeveel van die ruimte hij echt nodig heeft. Wat je toestond maar niet nodig bleek, staat als een
+**gestippeld kadertje** achter de balk. Terwijl je sleept rekent de app mee: de andere balken, de
+grafiek en de uitkomsten veranderen onder je hand. Op een heel groot overzicht doet hij dat niet —
+daar volgt de berekening zodra je loslaat.
+
+Met het toetsenbord werkt dezelfde greep: pijltjes verzetten één werkdag, PageUp en PageDown drie,
+Home zet het plafond op nul en End maakt het onbegrensd.
+
+Rechts van de balk staat de uitkomst: een gekleurde pil met wat er met de einddatum gebeurt (groen
+bij nul, amber bij een dag of twee, rood daarboven), en daaronder de uiterste datum die je toestond
+plus hoeveel dagen daarvan echt benut zijn.
 
 ## Vastzetten of een plafond
 
-Per project heb je daaronder, op een strook per project, twee manieren om de ruimte te begrenzen:
+Per project heb je twee manieren om de ruimte te begrenzen:
 
 - **Vastzetten** (de pin) bevriest een project volledig: zowel de einddatum als de werkdagen blijven
   precies zoals ze nu zijn. Een vastgezet project levert dus nooit ruimte in — het telt in de
@@ -95,15 +114,15 @@ Per project heb je daaronder, op een strook per project, twee manieren om de rui
   mag verschuiven, maar de speling binnen de bestaande planning nog wel benut mag worden — dat is
   iets anders dan vastzetten, waar zelfs de werkdagen binnen de taak niet meer wijzigen.
 
-Het plafond is een sleepbare handle op de fasestrook van elk project: sleep hem, of gebruik de
-pijltjestoetsen om per werkdag te verschuiven, Home voor een plafond van 0, en End voor onbegrensd.
-Het label bij de handle toont wat dat betekent voor de einddatum van het project, en als er minder
-uitloop nodig bleek dan je had toegestaan, meldt het label dat expliciet: "gevraagd X, dichtst
-haalbare Y".
+Vastzetten doe je met de tekstknop **vastzetten** links bij de projectnaam; hij verandert dan in
+**vast — losmaken**. Het plafond zet je met de greep in de balk, zoals hierboven beschreven. Met de
+knop **Reset** onderin zet je in één keer alle plafonds en vastzettingen terug op neutraal; de
+schakelaar "Onderbrekingen toestaan" blijft daarbij staan, want dat is een keuze over het
+gereedschap en niet over één project.
 
 ## Vóór en na
 
-Onder de fasestroken staat een grafiek met twee standen, "Nu" en "Na verdelen": hoe de belasting op
+Onder de balken staat een grafiek met twee standen, "Nu" en "Na verdelen": hoe de belasting op
 dit moment tegen de capaciteitslijn van de bibliotheek aanloopt, en hoe dat verandert zodra je het
 voorstel toepast. Blijft er, ondanks alle instellingen, een tekort over, dan toont de dialoog daarbij
 per project welke taken niet passen, en blijft **Toepassen** uitgeschakeld met de reden erbij.
@@ -126,8 +145,8 @@ vinkje:
 - **Binnen de doorzochte periode is geen vrij venster gevonden.** Verderop in de tijd is het onbekend
   of er wel ruimte is — dit is geen definitief "nee", maar de zoekperiode was niet lang genoeg.
 - **De restcapaciteit van de bibliotheek is op.** De eigen inzet van dit project had nog ruimte, maar
-  andere projecten bezetten de resource al tot aan de bedrijfscapaciteit. Geef zo'n ander project een
-  lagere plek in de rangorde, of zet het vast zodat de rest eromheen plant.
+  andere projecten bezetten de resource al tot aan de bedrijfscapaciteit. Sta zo'n ander project met
+  zijn greep meer uitloop toe, of zet het vast zodat de rest eromheen plant.
 
 Een project met **["Datums zoals opgeslagen"](docs://datums-zoals-opgeslagen)** aan doet nooit mee in
 een verdeling — verlaat die modus eerst in dat project voordat je het aan een verdeelvoorstel
@@ -137,7 +156,7 @@ toevoegt.
 
 Er is geen aparte modus voor automatisch rekenen: onderaan de dialoog staat één knop, die
 **"Verdeel automatisch"** heet zolang er nog geen voorstel is, en daarna **"Herbereken"**. Wijzig je
-de rangorde, een plafond, een vastzetting, of de schakelaar "Onderbrekingen toestaan", dan rekent de
+een plafond, een vastzetting, of de schakelaar "Onderbrekingen toestaan", dan rekent de
 dialoog het voorstel vanzelf meteen opnieuw door — je hoeft daarvoor niet zelf op de knop te drukken.
 Alleen bij een heel groot overzicht (veel taken in een van de betrokken projecten, of veel taken die
 op dit item boeken) schakelt de dialoog dat automatisme uit; ze meldt dan dat ze pas rekent zodra je
@@ -147,6 +166,18 @@ Wordt er in een van de betrokken projecten iets bewerkt terwíjl de dialoog open
 door een AI-assistent, door een andere bewerking, of doordat je zelf op **Toepassen** drukt — dan
 meldt de dialoog het voorstel als niet meer actueel. Dat wordt nooit automatisch opnieuw doorgerekend:
 druk dan zelf op **Herbereken**.
+
+## De regel onder de grafiek
+
+Onder de grafiek staat altijd één regel met het oordeel. Groen betekent dat het conflict opgelost is,
+met daarbij de grootste einddatum-verschuiving en het project dat hem draagt. Rood betekent dat er
+nog een tekort staat, met de eerste dagen waarop het misgaat. Staan alle projecten vast, dan zegt die
+regel dat er niets te herverdelen valt en dat je er één moet losmaken. Is het voorstel niet meer
+actueel — omdat je iets veranderde of omdat er in een van de projecten gewerkt is — dan staat dat
+daar ook.
+
+Die regel is er altijd, ook als er niets te melden valt. Dat is met opzet: zo verspringt de rest van
+het scherm niet zodra er iets verandert.
 
 ## Toepassen en terugdraaien
 
@@ -169,9 +200,9 @@ stand staan, terwijl de rest gewoon teruggaat. Meteen na Toepassen meldt de dial
 ook als "niet meer actueel" — dat is geen storing: de projecten zijn immers net gewijzigd. Druk op
 Herbereken als je vanuit dezelfde dialoog nog een keer wilt verdelen.
 
-De keuzes die je in deze dialoog maakt — rangorde, vastzettingen, plafonds — horen net als de
+De keuzes die je in deze dialoog maakt — vastzettingen en plafonds — horen net als de
 "toegepast"-strook bij deze ene sessie: ze blijven staan zolang je met de app bezig bent, ook over een
-documentwissel heen, en gaan pas naar een neutrale rangorde zodra je een ander bibliotheekitem gaat
+documentwissel heen, en gaan pas terug naar neutraal zodra je een ander bibliotheekitem gaat
 verdelen of de app herstart. In het project zelf worden ze nergens opgeslagen.
 
 ## De grens
