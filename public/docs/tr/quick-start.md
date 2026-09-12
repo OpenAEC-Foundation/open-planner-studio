@@ -101,5 +101,5 @@ Artık görevleriniz ve ilişkileriniz olduğuna göre, planı hesaplatabilirsin
 
 - Yukarıdaki adımları tam bir örnekle tekrarlayın: **Dosya → Örnekler** üzerinden [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc)'i açın ve fazlar arasındaki FS zincirini, duvar ve çatı işleri arasındaki SS örtüşmesini, fayans ve boya işleri arasındaki FF bağlantısını ve başlangıçtan önceki ruhsat kısıtlamasını (SNET) tanıyın.
 - Görev yapısı, özet görevler, kilometre taşı türleri ve aktivite kodları hakkında daha fazla bilgi mi istiyorsunuz? [Planlama & WBS](docs://gids-plannen-wbs) kılavuzunu okuyun.
-- Artık düğmelerin nasıl çalıştığını biliyorsunuz; bir programı neyin güvenilir kıldığını — ayrıntı düzeyi, ilişkiler, kısıtlamalar, bolluk, baseline — öğrenmek isterseniz [İyi planlama: gereksinimlerden güvenilir bir programa](docs://gids-goed-plannen) kılavuzunu okuyun.
+- Artık düğmelerin nasıl çalıştığını biliyorsunuz; bir programı neyin güvenilir kıldığını — ayrıntı düzeyi, ilişkiler, kısıtlamalar, bolluk, baseline — öğrenmek isterseniz [İyi planlama](docs://gids-goed-plannen) kılavuzunu okuyun.
 - Ekranın ana bölümlerinde görsel bir tur mu tercih edersiniz? Turu **Görünüm** sekmesi → **Tur** düğmesi üzerinden, veya **Dosya** → **Turu başlat** üzerinden yeniden başlatın.

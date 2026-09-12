@@ -1,4 +1,4 @@
-# Goed plannen: van eisen naar een betrouwbare planning
+# Goed plannen
 
 De andere gidsen leggen uit hóé iets werkt: waar de knop zit, wat een veld doet, hoe een venster
 zich gedraagt. Deze gids gaat over de vraag die daarvóór komt — wat maakt een planning goed? Een

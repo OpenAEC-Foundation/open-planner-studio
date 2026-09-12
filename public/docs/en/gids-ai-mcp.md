@@ -110,8 +110,7 @@ the bridge sends them in the `instructions` field of the MCP handshake, and clie
 into their system prompt: start from the milestones, tasks of roughly a day to two weeks,
 relationships instead of fixed dates, and report your assumptions back.
 
-The full explanation is in the guide [Planning well: from requirements to a reliable
-schedule](docs://gids-goed-plannen). Your assistant can fetch it itself with the tool
+The full explanation is in the guide [Planning well](docs://gids-goed-plannen). Your assistant can fetch it itself with the tool
 `planner_get_planning_guide` — that returns the guide text (Dutch or English), a short agent skill
 with the tool order, and where to install that skill so it comes along in a later session:
 `.claude/skills/goed-plannen/SKILL.md` in the project folder it works in, or

@@ -1,4 +1,4 @@
-# Planning well: from requirements to a reliable schedule
+# Planning well
 
 The other guides explain how something works: where the button is, what a field does, how a window
 behaves. This guide is about the question that comes before all that — what makes a schedule good? A

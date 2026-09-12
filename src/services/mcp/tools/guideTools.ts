@@ -3,8 +3,8 @@
 //
 // WAAROM EEN TOOL EN NIET ALLEEN `instructions`. De initialize-respons draagt sinds D2b de
 // kernregels mee (`MCP_INSTRUCTIONS` in `dispatcher.ts`), maar die tekst moet kort blijven — hij
-// gaat in élke systeemprompt mee. De volledige gids ("Goed plannen: van eisen naar een betrouwbare
-// planning") is een artikel van duizenden woorden; die haalt een agent hier op wanneer hij hem
+// gaat in élke systeemprompt mee. De volledige gids ("Goed plannen") is een artikel van duizenden
+// woorden; die haalt een agent hier op wanneer hij hem
 // nodig heeft. Daarnaast levert deze tool de agent-SKILL plus de aanwijzing waar hij die zelf kan
 // neerzetten, zodat de gids ook in een vólgende sessie meekomt zonder dat de gebruiker iets doet.
 //
@@ -108,8 +108,7 @@ export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      'Fetch the Open Planner Studio planning guide ("Planning well: from requirements to a ' +
-      'reliable schedule") and/or the agent skill that describes how to drive the planner_* tools. ' +
+      'Fetch the Open Planner Studio planning guide ("Planning well") and/or the agent skill that describes how to drive the planner_* tools. ' +
       'Read this BEFORE building or restructuring a schedule. Also returns where to install the ' +
       'skill so it is available in later sessions. Read-only; touches no project data.',
     kind: 'read',

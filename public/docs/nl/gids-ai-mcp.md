@@ -110,8 +110,7 @@ automatisch mee — de bridge stuurt ze in het `instructions`-veld van de MCP-ha
 zetten die tekst in hun systeemprompt: begin bij de mijlpalen, taken van ongeveer een dag tot twee
 weken, relaties in plaats van vaste datums, en meld je aannames terug.
 
-De volledige uitleg staat in de gids [Goed plannen: van eisen naar een betrouwbare
-planning](docs://gids-goed-plannen). Je assistent kan die zelf ophalen met de tool
+De volledige uitleg staat in de gids [Goed plannen](docs://gids-goed-plannen). Je assistent kan die zelf ophalen met de tool
 `planner_get_planning_guide` — die geeft de gidstekst (Nederlands of Engels), een korte agent-skill
 met de toolvolgorde, en de aanwijzing waar hij die skill neerzet zodat hij in een volgende sessie
 meekomt: `.claude/skills/goed-plannen/SKILL.md` in de projectmap waarin hij werkt, of

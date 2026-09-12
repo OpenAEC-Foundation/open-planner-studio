@@ -103,7 +103,7 @@ A questo si aggiunge la normale cronologia di annullamento, che un assistente co
 
 ## Far pianificare bene il tuo assistente IA
 
-Un assistente che conosce gli strumenti può comunque costruire un programma inutilizzabile per un pianificatore: attività senza legami, una data fissa su ogni attività, o una scomposizione troppo fine per essere mantenuta. I principi che lo evitano sono nella guida [Pianificare bene: dai requisiti a un programma affidabile](docs://gids-goed-plannen) — falla leggere al tuo assistente prima che inizi, oppure richiamala nelle tue istruzioni. Nel codice sorgente di Open Planner Studio c'è inoltre una breve skill per agenti sotto `.claude/skills/goed-plannen/`, che per i contenuti rimanda alla stessa guida e aggiunge solo ciò che è specifico dell'agente: in quale ordine usare gli strumenti `planner_` e che cosa riferire all'utente.
+Un assistente che conosce gli strumenti può comunque costruire un programma inutilizzabile per un pianificatore: attività senza legami, una data fissa su ogni attività, o una scomposizione troppo fine per essere mantenuta. I principi che lo evitano sono nella guida [Pianificare bene](docs://gids-goed-plannen) — falla leggere al tuo assistente prima che inizi, oppure richiamala nelle tue istruzioni. Nel codice sorgente di Open Planner Studio c'è inoltre una breve skill per agenti sotto `.claude/skills/goed-plannen/`, che per i contenuti rimanda alla stessa guida e aggiunge solo ciò che è specifico dell'agente: in quale ordine usare gli strumenti `planner_` e che cosa riferire all'utente.
 
 ## Per saperne di più
 

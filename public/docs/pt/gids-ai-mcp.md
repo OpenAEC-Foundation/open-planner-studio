@@ -103,7 +103,7 @@ Para além disso, há o histórico de desfazer normal, que um assistente partilh
 
 ## Levar o seu assistente de IA a planear bem
 
-Um assistente que conhece as ferramentas pode ainda assim construir um planeamento que não serve a nenhum planeador: tarefas sem ligações, uma data fixa em cada tarefa, ou uma decomposição demasiado fina para ser mantida. Os princípios que evitam isso estão no guia [Planear bem: dos requisitos a um planeamento fiável](docs://gids-goed-plannen) — dê-o a ler ao seu assistente antes de começar, ou remeta para ele nas suas instruções. O código-fonte do Open Planner Studio contém ainda uma breve skill de agente em `.claude/skills/goed-plannen/`, que remete para esse mesmo guia quanto ao conteúdo e acrescenta apenas o que é específico do agente: por que ordem usar as ferramentas `planner_` e o que reportar ao utilizador.
+Um assistente que conhece as ferramentas pode ainda assim construir um planeamento que não serve a nenhum planeador: tarefas sem ligações, uma data fixa em cada tarefa, ou uma decomposição demasiado fina para ser mantida. Os princípios que evitam isso estão no guia [Planear bem](docs://gids-goed-plannen) — dê-o a ler ao seu assistente antes de começar, ou remeta para ele nas suas instruções. O código-fonte do Open Planner Studio contém ainda uma breve skill de agente em `.claude/skills/goed-plannen/`, que remete para esse mesmo guia quanto ao conteúdo e acrescenta apenas o que é específico do agente: por que ordem usar as ferramentas `planner_` e o que reportar ao utilizador.
 
 ## Leitura adicional
 

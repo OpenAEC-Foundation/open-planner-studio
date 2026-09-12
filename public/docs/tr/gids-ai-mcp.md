@@ -103,7 +103,7 @@ Bunun üstüne, bir asistanın sizinle paylaştığı olağan geri alma geçmiş
 
 ## Yapay zekâ asistanınıza iyi plan yaptırma
 
-Araçları bilen bir asistan bile hiçbir planlamacının işine yaramayacak bir program kurabilir: ilişkisi olmayan görevler, her göreve konmuş sabit bir tarih ya da sürdürülemeyecek kadar ince bir kırılım. Bunu önleyen ilkeler [İyi planlama: gereksinimlerden güvenilir bir programa](docs://gids-goed-plannen) kılavuzunda yer alır — asistanınıza işe başlamadan önce okutun veya görevinizde ona atıf yapın. Ayrıca Open Planner Studio'nun kaynak kodunda `.claude/skills/goed-plannen/` altında kısa bir ajan becerisi bulunur; içerik için aynı kılavuza yönlendirir ve yalnızca ajana özgü olanı ekler: `planner_` araçlarının hangi sırayla kullanılacağı ve kullanıcıya ne rapor edileceği.
+Araçları bilen bir asistan bile hiçbir planlamacının işine yaramayacak bir program kurabilir: ilişkisi olmayan görevler, her göreve konmuş sabit bir tarih ya da sürdürülemeyecek kadar ince bir kırılım. Bunu önleyen ilkeler [İyi planlama](docs://gids-goed-plannen) kılavuzunda yer alır — asistanınıza işe başlamadan önce okutun veya görevinizde ona atıf yapın. Ayrıca Open Planner Studio'nun kaynak kodunda `.claude/skills/goed-plannen/` altında kısa bir ajan becerisi bulunur; içerik için aynı kılavuza yönlendirir ve yalnızca ajana özgü olanı ekler: `planner_` araçlarının hangi sırayla kullanılacağı ve kullanıcıya ne rapor edileceği.
 
 ## Daha fazla okuma
 
