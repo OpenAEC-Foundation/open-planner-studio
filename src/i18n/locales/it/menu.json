@@ -174,6 +174,9 @@
     "splitView": "Vista divisa",
     "miniMap": "Minimappa",
     "moveProject": "Sposta progetto…",
+    "progressImport": "Aggiorna l'avanzamento da un foglio",
+    "progressExport": "Esporta foglio di avanzamento",
+    "progressGroup": "Avanzamento",
     "relationDraw": "Disegna relazione",
     "relationDrawOnHint": "Attiva la modalità collegamento, poi trascina da barra a barra nel Gantt",
     "relationDrawOffHint": "Disattiva la modalità collegamento",
@@ -285,6 +288,8 @@
     "examplesShowcaseBadge": "Tutte le funzionalità",
     "exportTitle": "Esporta",
     "exportSubtitle": "Scegli un formato. Il progetto verrà convertito e salvato.",
+    "progressImportCardTitle": "Aggiorna l'avanzamento da un foglio",
+    "progressImportCardDesc": "Leggi un foglio CSV restituito e aggiorna completamento, inizio effettivo e fine effettiva.",
     "printTitle": "Stampa",
     "printSubtitle": "Apri la schermata del rapporto per l'anteprima di stampa e le impostazioni.",
     "openPrintPreview": "Apri anteprima di stampa",
@@ -307,6 +312,17 @@
     }
   },
   "export": {
+    "progressCsvLabel": "Foglio di avanzamento (CSV)",
+    "progressCsvDesc": "Foglio snello con solo id, WBS, nome, date e avanzamento — per aggiornare l’avanzamento.",
+    "progressCsvShort": "Avanzamento (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "non modificare",
+      "plannedReadOnly": "pianificato, non modificare",
+      "completion": "da compilare: da 0 a 100, numeri interi",
+      "actualStart": "da compilare: data di inizio effettiva (gg-mm-aaaa)",
+      "actualFinish": "da compilare: data di fine effettiva (gg-mm-aaaa)",
+      "summaryRow": "— attività di riepilogo: non compilare"
+    },
     "csvLabel": "CSV (separato da punto e virgola)",
     "csvDesc": "Esportazione tabella universale. Tutte le attività con date e durate.",
     "mspdiLabel": "MS Project XML",

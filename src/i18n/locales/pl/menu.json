@@ -174,6 +174,9 @@
     "splitView": "Widok podzielony",
     "miniMap": "Minimapa",
     "moveProject": "Przesuń projekt…",
+    "progressImport": "Aktualizuj postęp z arkusza",
+    "progressExport": "Eksportuj arkusz postępu",
+    "progressGroup": "Postęp",
     "relationDraw": "Rysuj relację",
     "relationDrawOnHint": "Włącz tryb połączeń, a następnie przeciągnij od paska do paska na wykresie Gantta",
     "relationDrawOffHint": "Wyłącz tryb połączeń",
@@ -285,6 +288,8 @@
     "examplesShowcaseBadge": "Wszystkie funkcje",
     "exportTitle": "Eksport",
     "exportSubtitle": "Wybierz format. Projekt zostanie przekonwertowany i zapisany.",
+    "progressImportCardTitle": "Aktualizuj postęp z arkusza",
+    "progressImportCardDesc": "Wczytaj zwrócony arkusz CSV i zaktualizuj ukończenie, rzeczywisty start i rzeczywiste zakończenie.",
     "printTitle": "Drukowanie",
     "printSubtitle": "Otwórz ekran raportu, aby wyświetlić podgląd wydruku i ustawienia.",
     "openPrintPreview": "Otwórz podgląd wydruku",
@@ -307,6 +312,17 @@
     }
   },
   "export": {
+    "progressCsvLabel": "Arkusz postępu (CSV)",
+    "progressCsvDesc": "Odchudzony arkusz zawierający tylko id, WBS, nazwę, daty i postęp — do aktualizacji postępu.",
+    "progressCsvShort": "Postęp (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "nie zmieniać",
+      "plannedReadOnly": "zaplanowane, nie zmieniać",
+      "completion": "wypełnij: od 0 do 100, liczby całkowite",
+      "actualStart": "wypełnij: rzeczywista data rozpoczęcia (dd-mm-rrrr)",
+      "actualFinish": "wypełnij: rzeczywista data zakończenia (dd-mm-rrrr)",
+      "summaryRow": "— zadanie sumaryczne: nie wypełniać"
+    },
     "csvLabel": "CSV (rozdzielany średnikiem)",
     "csvDesc": "Uniwersalny eksport tabeli. Wszystkie zadania z datami i czasem trwania.",
     "mspdiLabel": "MS Project XML",

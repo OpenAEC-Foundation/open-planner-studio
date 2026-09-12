@@ -72,6 +72,10 @@ function resetDocumentScopedUI(s: AppState): void {
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
+  // Issue #27/E4: vangnet, geen normale route — een documentwissel is al onmogelijk zolang deze
+  // dialoog openstaat (zie hasBlockingDialogOpen/BLOCKING_UI_FLAGS + de when-guards op Ctrl/⌘1-9 en
+  // Ctrl+O). Gaat dit wél af, dan is er een wisselroute gemist; dat is een bug, geen normaal gedrag.
+  s.ui.showProgressImportDialog = false;
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {

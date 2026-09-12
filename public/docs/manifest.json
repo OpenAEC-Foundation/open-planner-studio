@@ -211,6 +211,27 @@
       "cluster": "import-export"
     },
     {
+      "id": "gids-voortgang-importeren",
+      "title": {
+        "nl": "Voortgang importeren",
+        "en": "Importing progress",
+        "de": "Fortschritt importieren",
+        "fr": "Importer l'avancement",
+        "es": "Importar el avance",
+        "zh": "导入进度",
+        "it": "Importare l'avanzamento",
+        "pt": "Importar o progresso",
+        "pl": "Importowanie postępu",
+        "tr": "İlerlemeyi içe aktarma",
+        "ar": "استيراد التقدّم",
+        "ja": "進捗のインポート",
+        "ko": "진행률 가져오기",
+        "fa": "درون‌ریزی پیشرفت"
+      },
+      "layer": "gidsen",
+      "cluster": "voortgang-importeren"
+    },
+    {
       "id": "gids-msproject-import",
       "title": {
         "nl": "MS Project (.mpp) openen",
