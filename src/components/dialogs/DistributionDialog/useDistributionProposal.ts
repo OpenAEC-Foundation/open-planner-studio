@@ -433,15 +433,22 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
    * op het scherm zelf ook al niet meer bij de documenten hoort.
    *
    * DIT WAS VIER KEER ZO DUUR. Tot 2026-09-12 deed deze pas óók per deelnemer een isolatierun voor
-   * de kostenlabels van de rangordelijst. Die lijst is weg (§2.1) en die runs dus ook: er blijven
-   * twee runs over in plaats van N+2. Dat is wat het live meerekenen tijdens het slepen (§5)
-   * betaalbaar maakt.
+   * de kostenlabels van de rangordelijst. Die lijst is weg (§2.1) en die runs dus ook.
+   *
+   * EN ÉÉN VAN DIE TWEE WAS ER AL (bevinding B3 van de review). Het hoofdvoorstel is per definitie
+   * al de run van de INGESTELDE stand van `allowSplits`, en `computeDistribution` is puur over
+   * dezelfde `built` — dus die stand nog eens uitrekenen levert gegarandeerd hetzelfde getal op.
+   * De prijs van de ingestelde stand komt daarom uit `proposalResult`; alleen de TEGENOVERGESTELDE
+   * stand wordt hier nog gerekend. Eén run per voorstel in plaats van twee, wat het live
+   * meerekenen tijdens het slepen (§5) betaalbaar houdt.
    */
   const scheduleSavingsPass = (
     myGeneration: number,
     tuneAtRun: DistributionUiState,
     pool: CompanyPool,
     built: DistributionDocInput[],
+    /** Het zojuist berekende hoofdvoorstel — de run van `tuneAtRun.allowSplits`. */
+    mainProposal: DistributionProposal,
   ): void => {
     const superseded = () => generationRef.current !== myGeneration || fingerprintsRef.current === null;
     // Alleen de teller van DEZE pas mag de bezig-toestand weer uitzetten: een nieuwere pas loopt
@@ -451,18 +458,17 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     const priceOf = (p: DistributionProposal): number | null =>
       p.blocked ? null : maxEndShiftWorkdays(p.docs);
 
-    let offPrice: number | null = null;
-    let onPrice: number | null = null;
+    // De ingestelde stand is het hoofdvoorstel zelf; alleen de andere stand moet nog gerekend.
+    const mainPrice = priceOf(mainProposal);
+    const otherStand = !tuneAtRun.allowSplits;
+    let offPrice: number | null = tuneAtRun.allowSplits ? null : mainPrice;
+    let onPrice: number | null = tuneAtRun.allowSplits ? mainPrice : null;
     const steps: (() => void)[] = [
       () => {
-        offPrice = priceOf(computeDistribution(
-          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: false },
+        const other = priceOf(computeDistribution(
+          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: otherStand },
         ));
-      },
-      () => {
-        onPrice = priceOf(computeDistribution(
-          tuneAtRun.companyId, pool, tuneAtRun.libraryItemId, built, { allowSplits: true },
-        ));
+        if (otherStand) onPrice = other; else offPrice = other;
       },
       () => {
         if (offPrice !== null && onPrice !== null) {
@@ -529,7 +535,7 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
         // een volledige run erbij — dat is precies de kost die de schaal-degradatie voorkomt, dus
         // daar blijft het bij "druk op Herbereken".
         if (pool && proposalResult && !proposalResult.blocked && !isDistributionDegraded(built, current)) {
-          scheduleSavingsPass(myGeneration, current, pool, built);
+          scheduleSavingsPass(myGeneration, current, pool, built, proposalResult);
         }
       } finally {
         busyRef.current = false;
