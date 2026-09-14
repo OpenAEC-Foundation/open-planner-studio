@@ -122,12 +122,12 @@ the curve was imported from MS Project or P6 and is none of the eight built-in s
 *Imported curve* — the same as in the properties panel. The two columns make the table a good 130 px
 wider and the time axis narrower. If less than about a fifth of the paper width would remain for
 the timeline — because of a wide name column, a large font size (the table scales with it, the
-timeline does not) or small or portrait paper — and leaving out the two columns fixes that, the
-report drops them itself and says so in the summary block. If the table is too wide even without
-the columns, they simply stay. On portrait A4 with the default settings they fit; when the notice
-appears, choose a larger paper size or landscape, a smaller font size or a narrower name column, or
-turn off *Show completion*. Turn **Show units/day and curve** off for the narrow table of the Gantt
-print.
+timeline does not) or small or portrait paper — the report drops the two columns itself and says so
+in the summary block. On portrait A4 with the default settings they fit. A larger paper size or
+landscape, a smaller font size or a narrower table (a narrower name column with *Truncate task
+names*, or *Show completion* off) gives the timeline more room; as soon as the table leaves enough
+room again the columns come back by themselves. Turn **Show units/day and curve** off for the narrow
+table of the Gantt print.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from

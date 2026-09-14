@@ -161,6 +161,25 @@ export function isArabicScriptCp(cp: number): boolean {
  * erven de font-klasse van hun run-level (RTL → Arabisch, anders Latijn). Zo blijft een Arabische run
  * mét interne spaties op het Arabische font i.p.v. bij elke spatie te splitsen.
  */
+/**
+ * Bidi-stuurtekens (UAX #9, "default ignorable"): LRM/RLM, ALM, de embedding/override-tekens en de
+ * isolaten. Ze sturen de UBA-levelberekening en hebben geen glyph — een shaper laat ze weg. Inter
+ * heeft er geen glyph voor en zou ze als `.notdef` van 0,66 em tekenen (review #139, bevinding 1/6),
+ * terwijl `Intl.NumberFormat` in `ar`/`fa` een U+200E vóór een minteken zet en de DOM die nodig heeft.
+ * Vandaar: de tekens BLIJVEN in de tekst voor {@link segmentRuns} (levels) en verdwijnen pas bij het
+ * shapen van elke run ({@link layoutRuns}) en op het Latijnse/CJK-snelpad vóór het encoden.
+ */
+export function isBidiControlCp(cp: number): boolean {
+  return cp === 0x200e || cp === 0x200f || cp === 0x061c || (cp >= 0x202a && cp <= 0x202e) || (cp >= 0x2066 && cp <= 0x2069);
+}
+
+const BIDI_CONTROLS = /[\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g;
+
+/** `text` zonder bidi-stuurtekens (zie {@link isBidiControlCp}); voor glyph-emissie en breedtemeting. */
+export function stripBidiControls(text: string): string {
+  return text.replace(BIDI_CONTROLS, '');
+}
+
 export function isNeutralCp(cp: number): boolean {
   return (
     cp === 0x20 || cp === 0x09 || cp === 0x0a || cp === 0x0d || // whitespace
@@ -370,10 +389,12 @@ export function layoutRuns(
   const visual = reorderL2(logical);
   const runs: RawRunSized[] = [];
   for (const lr of visual) {
-    const str = text.slice(lr.start, lr.end);
+    // De stuurtekens hebben hun werk (de levels) gedaan; een run die alleen daaruit bestaat wordt
+    // een lege run van breedte 0.
+    const str = stripBidiControls(text.slice(lr.start, lr.end));
     const dir: 'ltr' | 'rtl' = (lr.level & 1) === 1 ? 'rtl' : 'ltr';
     const { fk, fontKey } = pickFont(lr.cls, bold, fonts);
-    const gr = fk.layout(str, undefined, undefined, undefined, dir);
+    const gr = str ? fk.layout(str, undefined, undefined, undefined, dir) : { glyphs: [], positions: [] };
     const glyphIds = gr.glyphs.map(g => g.id);
     const advances = gr.positions.map(p => p.xAdvance);
     const xOffsets = gr.positions.map(p => p.xOffset ?? 0);

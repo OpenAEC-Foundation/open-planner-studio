@@ -17,6 +17,7 @@ import {
 } from '@/engine/reports';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
+import { layoutRuns, stripBidiControls, type ShapeFontkitFont, type ShapingFonts } from '@/services/pdf/bidiShape';
 import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
@@ -651,12 +652,34 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('reportNumber: geen plus bij nul of negatief', [formatSignedReportNumber(0, 'nl'), formatSignedReportNumber(-2, 'nl')], ['0', '-2']);
   // Review #139, bevindingen 5–7: Latijnse cijfers in élke taal, geen bidi-markering, geen "-0".
   eq('reportNumber: fa ⇒ Latijnse cijfers', formatReportNumber(1.5, 'fa'), '1.5');
-  eq('reportNumber: ar negatief zonder U+200E', [...formatReportNumber(-2, 'ar')].map(c => c.charCodeAt(0)), [45, 50]);
+  // De U+200E die Intl vóór het teken zet BLIJFT: zonder staat "-2" in een RTL-alinea als "2-" (ronde 2, bevinding 1).
+  eq('reportNumber: ar negatief houdt de bidi-markering', [...formatReportNumber(-2, 'ar')].map(c => c.charCodeAt(0)), [0x200e, 45, 50]);
+  eq('reportNumber: fa signed positief houdt de bidi-markering', [...formatSignedReportNumber(2, 'fa')].map(c => c.charCodeAt(0)), [0x200e, 43, 50]);
+  eq('reportNumber: welgevormde maar onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz'), '0.5');
+  eq('reportNumber: gecachete formatter geeft dezelfde uitkomst', [formatReportNumber(1.25, 'de'), formatReportNumber(1.25, 'de')], ['1,25', '1,25']);
   eq('reportNumber: -0,001 rondt af op "0", niet "-0"', [formatReportNumber(-0.001, 'nl'), formatReportNumber(-0.001), formatSignedReportNumber(-0.001, 'nl'), formatSignedReportNumber(-0.001)], ['0', '0', '0', '0']);
   eq('reportNumber: NaN/oneindig ⇒ leeg', [formatReportNumber(NaN, 'nl'), formatSignedReportNumber(Infinity, 'nl')], ['', '']);
   eq('reportNumber: onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz-!!'), '0.5');
   eq('reportNumber: lag-tekst krijgt het decimaalteken van de taal', [localizeDecimalPoint('+1.5d', 'nl'), localizeDecimalPoint('+1.5d', 'en'), localizeDecimalPoint('+2d', 'nl'), localizeDecimalPoint('+1.5d')], ['+1,5d', '+1.5d', '+2d', '+1.5d']);
   eq('curveState: lege curveValues zijn geen geïmporteerde curve', assignmentCurveState({ ...bare, curveValues: [] }, false), 'UNIFORM');
+
+  // Vector-PDF: de bidi-markering stuurt de levels (min links van het cijfer in een RTL-alinea) maar
+  // krijgt nooit een glyph — anders tekent Inter een `.notdef` van 0,66 em (ronde 2, bevinding 1/6).
+  eq('bidi: stripBidiControls haalt LRM/RLM/ALM/isolaten weg', stripBidiControls('\u200E-2 \u202Bx\u202C \u2067y\u2069 \u061Cz'), '-2 x y z');
+  {
+    const seen: string[] = [];
+    const fakeFont = (tag: string): ShapeFontkitFont => ({
+      unitsPerEm: 1000,
+      layout: (str: string) => { seen.push(`${tag}:${str}`); return { glyphs: [...str].map((_, i) => ({ id: i + 1 })), positions: [...str].map(() => ({ xAdvance: 500 })) }; },
+      hasGlyphForCodePoint: (cp: number) => cp !== 0x200e,
+    });
+    const fonts: ShapingFonts = { latinRegular: fakeFont('L'), latinBold: fakeFont('LB'), arabicRegular: fakeFont('A'), arabicBold: fakeFont('AB') };
+    const runs = layoutRuns('\u0645 \u200E-2', 'rtl', fonts, false, 10);
+    ok('bidi: geen run bevat nog de LRM bij het shapen', !seen.some(str => str.includes('\u200E')), JSON.stringify(seen));
+    ok('bidi: glyphs = tekens zonder stuurtekens', runs.every(r => r.glyphIds.length === stripBidiControls(r.text).length));
+    const minus = runs.find(r => r.text.includes('-'));
+    ok('bidi: "-2" blijft één LTR-run met de min vooraan', !!minus && minus.dir === 'ltr' && minus.text.startsWith('-'), JSON.stringify(runs.map(r => [r.text, r.dir])));
+  }
 
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).

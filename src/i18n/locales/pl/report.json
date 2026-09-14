@@ -144,7 +144,7 @@
     "includeUnassigned": "Uwzględnij zadania bez zasobu",
     "groupByType": "Grupuj według typu zasobu",
     "showAssignmentColumns": "Pokaż jednostki/dzień i krzywą",
-    "columnsDropped": "Pominięto kolumny Jedn./d i Krzywa: tabela zostawiała za mało miejsca na oś czasu. Wybierz większy papier lub orientację poziomą, mniejszą czcionkę lub węższą kolumnę nazw, albo wyłącz Pokaż postęp.",
+    "columnsDropped": "Pominięto kolumny Jedn./d i Krzywa: tabela zostawiała za mało miejsca na oś czasu. Więcej miejsca da większy papier lub orientacja pozioma, mniejsza czcionka albo węższa tabela.",
     "emptyPeriod": "Brak zadań w okresie raportu — wybierz inny okres lub Cały projekt.",
     "outsidePeriod": "Poza okresem:",
     "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",

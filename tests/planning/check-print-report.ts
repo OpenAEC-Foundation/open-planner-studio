@@ -587,11 +587,11 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(JSON.stringify(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, rowAssignments }))) === JSON.stringify(plainA),
         'rowAssignments zonder assignmentColumns ⇒ byte-identiek');
 
-      // Restpunt review #138 (ronde 2, bevinding 5), aangescherpt na review #139 (bevindingen 1, 2
-      // en 4): laat de tabel mét kolommen minder dan `minChartWidthPx` (een vijfde van de
-      // printbreedte, vloer 160 px) tijdlijn over op één papierbreedte ÉN lost weglaten dat op, dan
-      // laat de render de twee kolommen vallen en meldt dat. A4 liggend is 1058,5 px breed ⇒ de tabel
-      // mag 846,8 px zijn: een naamkolom van 500 px geeft 893 px mét en 750 px zónder de kolommen.
+      // Restpunt review #138 (ronde 2, bevinding 5), aangescherpt na review #139 (twee rondes): laat
+      // de tabel mét kolommen minder dan `minChartWidthPx` (een vijfde van de printbreedte, vloer
+      // 160 px) tijdlijn over op één papierbreedte, dan laat de render de twee kolommen vallen en
+      // meldt dat — monotoon in de tabelbreedte. A4 liggend is 1058,5 px breed ⇒ de tabel mag 846,8
+      // px zijn: een naamkolom van 500 px geeft 893 px mét de kolommen.
       const a4 = { paperSize: 'A4' as const, orientation: 'landscape' as const };
       const wideOpts = baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, ...a4, taskNameColumnWidth: 500 });
       const wide = record([T_NORM, T_CRIT], [], cal, wideOpts);
@@ -600,15 +600,21 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(wide.dims.tableWidth === wideNoCols.dims.tableWidth && !wide.texts.some(t => t.text === 'Eenh./d'),
         'weggelaten ⇒ dezelfde tabel als zonder de optie, geen kolomkop');
       ok(withCols.dims.assignmentColumnsDropped === undefined, 'gewone naamkolom ⇒ kolommen blijven, geen melding');
-      // Lost weglaten niets op (800 px naamkolom: 1050 px zónder de kolommen), dan blijven ze staan.
-      const hopeless = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, ...a4, taskNameColumnWidth: 800 }));
-      ok(hopeless.dims.assignmentColumnsDropped === undefined && hopeless.texts.some(t => t.text === 'Eenh./d'),
-        'tabel ook zonder de kolommen te breed ⇒ kolommen blijven, geen melding');
+      // Monotoon: ook een tabel die zónder de kolommen te breed blijft (800 px naamkolom: 1050 px)
+      // laat ze vallen — weglaten maakt de tijdas nooit smaller (review #139 ronde 2, bevinding 3).
+      const wider = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, ...a4, taskNameColumnWidth: 800 }));
+      ok(wider.dims.assignmentColumnsDropped === true && !wider.texts.some(t => t.text === 'Eenh./d'),
+        'tabel ook zonder de kolommen te breed ⇒ kolommen tóch weggelaten (monotoon)');
       // A4 staand (729,7 px, vloer 160 ⇒ 569,7 px tabel) met verse instellingen: 523 px past.
       const portrait = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'portrait' }));
       ok(portrait.dims.assignmentColumnsDropped === undefined && portrait.texts.some(t => t.text === 'Eenh./d'),
         'A4 staand met standaardinstellingen ⇒ kolommen blijven');
-      // De lettergrootte schaalt de tabel mee, de grens niet: 125 % op A4 staand geeft 654 px ⇒ weg, 475 px zonder ⇒ past.
+      // De dode zone van de tussenvariant: A4 staand, naamkolom 350 ⇒ 743 px mét (past de pagina niet
+      // eens), 600 px zonder (past de pagina, maar niet de grens). Kolommen weg, tijdas 129,7 px.
+      const dead = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'portrait', taskNameColumnWidth: 350 }));
+      ok(dead.dims.assignmentColumnsDropped === true && dead.dims.tableWidth === 600,
+        `A4 staand met naamkolom 350 ⇒ kolommen weggelaten, tabel 600 px (got ${dead.dims.tableWidth})`);
+      // De lettergrootte schaalt de tabel mee, de grens niet: 125 % op A4 staand geeft 654 px ⇒ weg.
       const bigFont = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'portrait', reportFontScale: 125 }));
       ok(bigFont.dims.assignmentColumnsDropped === true, 'grote lettergrootte op A4 staand ⇒ kolommen weggelaten');
 
@@ -628,6 +634,9 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       const plainDur = record([T_HALF], [], cal, baseOptions());
       ok(nlDur.texts.some(t => t.text === '2,5d') && plainDur.texts.some(t => t.text === '2.5d'),
         `duurcel volgt numberLocale ("2,5d" in nl, "2.5d" zonder; got ${JSON.stringify(nlDur.texts.filter(t => t.text.endsWith('d')).map(t => t.text))})`);
+      const T_NAN = mkTask('t-nan', 'Onbekende duur', { time: mkTime({ scheduleDuration: NaN }) });
+      const nanDur = record([T_NAN], [], cal, baseOptions());
+      ok(nanDur.texts.some(t => t.text === '—') && !nanDur.texts.some(t => t.text === 'd'), 'niet-eindige duur ⇒ streepje, geen losse "d"');
     }
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee

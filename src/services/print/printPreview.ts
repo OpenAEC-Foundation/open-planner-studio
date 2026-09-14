@@ -102,12 +102,15 @@ const COL = {
  * toewijzingskolommen (Eenh./d + Curve) laat vallen: een vijfde van de printbreedte, met een vloer
  * van 160 logische px voor klein papier (A4 staand: 730 px breed, dus 160 in plaats van 146). Komt de
  * tabel mét kolommen daaronder — door een brede naamkolom, een grote rapportlettergrootte (de tabel
- * schaalt mee, deze grens niet) of klein/staand papier — én lost weglaten dat op (zonder de kolommen
- * blijft er wél genoeg chart over), dan vallen de twee kolommen en meldt de render dat via
- * `RenderReportResult.assignmentColumnsDropped`. Lost weglaten niets op, dan blijven ze staan: de
- * gebruiker koos ze, en een tijdas van een paar pixels heeft hij dan toch al. Review #138 ronde 2
- * bevinding 5; de vaste 240 px van de eerste versie gooide op A4 staand de kolommen al bij verse
- * instellingen weg (review #139, bevindingen 1, 2 en 4).
+ * schaalt mee, deze grens niet) of klein/staand papier — dan vallen de twee kolommen en meldt de
+ * render dat via `RenderReportResult.assignmentColumnsDropped`. De regel is bewust MONOTOON in de
+ * tabelbreedte: elke bredere tabel laat de kolommen óók vallen. Een tussenvariant "alleen weglaten
+ * als de tabel zónder de kolommen wél past" liet een dode zone open waarin een tabel die de pagina
+ * al niet paste zijn optionele kolommen hield en de tijdas op 1 px klemde, zonder melding; en een
+ * bredere naamkolom bracht de kolommen dan terug (review #139, ronde 2, bevinding 3). Weglaten maakt
+ * de tijdas nooit smaller — helpt het niet genoeg, dan zegt de melding wat wél ruimte geeft. Review
+ * #138 ronde 2 bevinding 5; de vaste 240 px van de eerste versie gooide op A4 staand de kolommen al
+ * bij verse instellingen weg (review #139, ronde 1, bevindingen 1 en 2).
  */
 const MIN_CHART_WIDTH_FRACTION = 0.2;
 const MIN_CHART_WIDTH_FLOOR_PX = 160;
@@ -521,7 +524,8 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
  * `numberLocale` de neutrale punt, op twee decimalen afgerond.
  */
 function formatDuration(days: number, locale: string | undefined): string {
-  return `${formatReportNumber(days, locale)}d`;
+  const text = formatReportNumber(days, locale);
+  return text ? `${text}d` : '—'; // niet-eindig: een streepje, geen losse eenheid
 }
 
 /**
@@ -731,14 +735,10 @@ export function renderReport(
   let assignmentColumns = !!options.assignmentColumns;
   let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns);
   let assignmentColumnsDropped = false;
-  const maxTableWidth = printableWidth - minChartWidthPx(printableWidth);
-  if (assignmentColumns && m.tableWidth > maxTableWidth) {
-    const without = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false);
-    if (without.tableWidth <= maxTableWidth) {
-      assignmentColumns = false;
-      assignmentColumnsDropped = true;
-      m = without;
-    }
+  if (assignmentColumns && m.tableWidth > printableWidth - minChartWidthPx(printableWidth)) {
+    assignmentColumns = false;
+    assignmentColumnsDropped = true;
+    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false);
   }
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die

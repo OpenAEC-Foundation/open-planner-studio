@@ -138,7 +138,7 @@
     "includeUnassigned": "Include tasks without a resource",
     "groupByType": "Group by resource type",
     "showAssignmentColumns": "Show units/day and curve",
-    "columnsDropped": "The Units/d and Curve columns were left out: the table left too little room for the time axis. Choose a larger paper size or landscape, a smaller font size or a narrower name column, or turn off Show completion.",
+    "columnsDropped": "The Units/d and Curve columns were left out: the table left too little room for the time axis. A larger paper size or landscape, a smaller font size or a narrower table gives more room.",
     "emptyPeriod": "No tasks in the reporting period — choose another period or Whole project.",
     "outsidePeriod": "Outside the period:",
     "empty": "No resource assignments — assign resources to tasks first.",

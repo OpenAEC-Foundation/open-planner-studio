@@ -125,11 +125,12 @@ P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmpor
 hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel ruim 130 px breder en de
 tijdas dus smaller. Blijft er voor de tijdlijn minder over dan ongeveer een vijfde van de
 papierbreedte — door een brede naamkolom, een grote lettergrootte (de tabel schaalt mee, de tijdlijn
-niet) of klein of staand papier — én lost het weglaten van de twee kolommen dat op, dan laat het
-rapport ze zelf weg en meldt dat in het overzichtsblok. Is de tabel ook zonder de kolommen te breed,
-dan blijven ze gewoon staan. Op A4 staand met de standaardinstellingen passen ze; kies bij de melding
-groter of liggend papier, een kleinere lettergrootte of een smallere naamkolom, of zet *Voltooiing
-tonen* uit. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
+niet) of klein of staand papier — dan laat het rapport de twee kolommen zelf weg en meldt dat in het
+overzichtsblok. Op A4 staand met de standaardinstellingen passen ze. Meer ruimte voor de tijdlijn
+geeft groter of liggend papier, een kleinere lettergrootte of een smallere tabel (een smallere
+naamkolom bij *Taaknamen afkappen*, of *Voltooiing tonen* uit); zodra de tabel weer ruimte laat komen
+de kolommen vanzelf terug. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de
+Gantt-afdruk.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
