@@ -137,15 +137,27 @@ export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
  * elke resource begint op een nieuwe pagina, zodat je per ploeg of medewerker één vel kunt
  * uitdelen; uit = één doorlopend overlegdocument. `includeUnassigned` neemt de taken zonder
  * resource als laatste band mee — handig om in een overleg te zien wat nog niemand heeft.
+ * `groupByType` (manuvarkey, punt 2) zet er een laag boven: eerst een band per resourcetype
+ * (arbeid, ploeg, onderaannemer, materieel, materiaal), daarbinnen per resource. `period` (punt 3)
+ * is de gedeelde rapportageperiode (issue #120): alleen taken die het venster raken, en de tijdas
+ * exact op het venster; default `project` = het oude gedrag. `showAssignmentColumns` (punt 1)
+ * zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
+ * de band — standaard aan: dat is de informatie waarvoor je dit rapport uitdeelt.
  */
 export interface ResourceGanttReportOptions {
   pageBreakPerResource: boolean;
   includeUnassigned: boolean;
+  groupByType: boolean;
+  period: ReportingPeriod;
+  showAssignmentColumns: boolean;
 }
 
 export const DEFAULT_RESOURCE_GANTT_OPTIONS: ResourceGanttReportOptions = {
   pageBreakPerResource: false,
   includeUnassigned: false,
+  groupByType: false,
+  period: { preset: 'project' },
+  showAssignmentColumns: true,
 };
 
 /** Grenzen van de numerieke opties (de UI en de loader delen ze). */
@@ -330,6 +342,9 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
   return {
     pageBreakPerResource: parseBoolean(s.pageBreakPerResource) ?? d.pageBreakPerResource,
     includeUnassigned: parseBoolean(s.includeUnassigned) ?? d.includeUnassigned,
+    groupByType: parseBoolean(s.groupByType) ?? d.groupByType,
+    period: parseReportingPeriod(s.period, d.period),
+    showAssignmentColumns: parseBoolean(s.showAssignmentColumns) ?? d.showAssignmentColumns,
   };
 }
 

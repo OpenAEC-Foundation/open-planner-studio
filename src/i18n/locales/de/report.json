@@ -55,6 +55,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "Einh./T",
+    "curve": "Kurve",
     "taskName": "Aufgabenname",
     "start": "Anfang",
     "end": "Ende",
@@ -134,6 +136,10 @@
   "resourceGantt": {
     "pageBreakPerResource": "Jede Ressource auf einer neuen Seite",
     "includeUnassigned": "Aufgaben ohne Ressource einbeziehen",
+    "groupByType": "Nach Ressourcentyp gruppieren",
+    "showAssignmentColumns": "Einheiten/Tag und Kurve anzeigen",
+    "emptyPeriod": "Keine Vorgänge im Berichtszeitraum — wählen Sie einen anderen Zeitraum oder Gesamtes Projekt.",
+    "outsidePeriod": "Außerhalb des Zeitraums:",
     "empty": "Keine Ressourcenzuweisungen — weisen Sie zuerst Ressourcen zu Aufgaben zu.",
     "resources": "Ressourcen:",
     "assignments": "Zuweisungen:",

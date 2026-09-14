@@ -58,6 +58,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "Unità/g",
+    "curve": "Curva",
     "taskName": "Nome attività",
     "start": "Inizio",
     "end": "Fine",
@@ -137,6 +139,10 @@
   "resourceGantt": {
     "pageBreakPerResource": "Ogni risorsa su una nuova pagina",
     "includeUnassigned": "Includi le attività senza risorsa",
+    "groupByType": "Raggruppa per tipo di risorsa",
+    "showAssignmentColumns": "Mostra unità/giorno e curva",
+    "emptyPeriod": "Nessuna attività nel periodo del report — scegli un altro periodo o Intero progetto.",
+    "outsidePeriod": "Fuori dal periodo:",
     "empty": "Nessuna assegnazione di risorse — assegna prima le risorse alle attività.",
     "resources": "Risorse:",
     "assignments": "Assegnazioni:",

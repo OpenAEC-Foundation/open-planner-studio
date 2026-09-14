@@ -67,6 +67,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "وحدة/يوم",
+    "curve": "المنحنى",
     "taskName": "اسم المهمة",
     "start": "البداية",
     "end": "النهاية",
@@ -146,6 +148,10 @@
   "resourceGantt": {
     "pageBreakPerResource": "كل مورد في صفحة جديدة",
     "includeUnassigned": "تضمين المهام بدون مورد",
+    "groupByType": "تجميع حسب نوع المورد",
+    "showAssignmentColumns": "إظهار الوحدات/اليوم والمنحنى",
+    "emptyPeriod": "لا توجد مهام في فترة التقرير — اختر فترة أخرى أو المشروع بأكمله.",
+    "outsidePeriod": "خارج الفترة:",
     "empty": "لا توجد تعيينات موارد — عيّن الموارد للمهام أولاً.",
     "resources": "الموارد:",
     "assignments": "التعيينات:",

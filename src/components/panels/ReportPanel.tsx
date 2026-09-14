@@ -27,6 +27,7 @@ import {
 import { computeResourceGanttRows } from '@/engine/reports';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
+import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeriodField';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
@@ -447,12 +448,36 @@ export function ReportPanel() {
   const isGanttLike = isGanttReportType(reportType);
   const noneLabel = tTask('structure.none');
   // De bandvolgorde volgt de app-taal (nooit de OS-taal van de afdrukker: zelfde vel, zelfde nummering).
+  // Typelabels voor de optionele typelaag (punt 2): dezelfde sleutels als het resourcepaneel.
+  const resourceTypeLabels = useMemo(() => ({
+    LABOR: tCommon('resource.type.labor'), CREW: tCommon('resource.type.crew'),
+    SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
+    MATERIAL: tCommon('resource.type.material'),
+  }), [tCommon]);
+  // Vertaalde curvenamen voor de toewijzingskolommen (punt 1): dezelfde sleutels als het taakraster.
+  const curveLabels = useMemo(() => ({
+    UNIFORM: tCommon('resource.curve.uniform'), FRONT_LOADED: tCommon('resource.curve.frontLoaded'),
+    BACK_LOADED: tCommon('resource.curve.backLoaded'), BELL: tCommon('resource.curve.bell'),
+    EARLY_PEAK: tCommon('resource.curve.earlyPeak'), LATE_PEAK: tCommon('resource.curve.latePeak'),
+    DOUBLE_PEAK: tCommon('resource.curve.doublePeak'), TURTLE: tCommon('resource.curve.turtle'),
+    // Dezelfde twee toestanden als het eigenschappenpaneel: contour op de taak, geïmporteerde curve.
+    contoured: tTask('properties.assignments.contoured'), imported: tTask('properties.assignments.importedCurve'),
+  }), [tCommon, tTask]);
+  // Rapportageperiode als tijdvenster (punt 3): dezelfde oplossing als het control toont; bij
+  // *Hele project* geen venster, zodat het rapport byte-identiek blijft aan vóór deze optie.
+  const resourceGanttPeriod = useResolvedPeriod(resourceGanttOptions.period);
+  const resourceGanttWindow = reportType === 'resourceGantt' && resourceGanttOptions.period.preset !== 'project'
+    ? resourceGanttPeriod
+    : undefined;
   const resourceGantt = useMemo(() => (reportType === 'resourceGantt'
     ? computeResourceGanttRows({ tasks, resources, assignments }, {
       includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel, locale: i18n.language,
+      groupByType: resourceGanttOptions.groupByType, typeLabels: resourceTypeLabels,
+      window: resourceGanttWindow,
     })
     : null),
-  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned, i18n.language]);
+  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned,
+    resourceGanttOptions.groupByType, resourceTypeLabels, resourceGanttWindow, i18n.language]);
   // Rijenbron van de Gantt-render: resourcediagram ⇒ de resourcebanden; Gantt-afdruk ⇒ de schermrijen
   // bij Volg weergave (#54), anders `undefined` = de volledige takenboom (oud gedrag, geen verrassingen).
   const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
@@ -536,7 +561,13 @@ export function ReportPanel() {
     labels: {
       // Resourcediagram zonder één toewijzing: zeg wat er ontbreekt, niet "geen taken" — tenzij er
       // écht geen taken zijn, dan is "wijs resources toe" het verkeerde advies.
-      noTasks: reportType === 'resourceGantt' && tasks.length > 0 ? t('resourceGantt.empty') : t('noTasks'),
+      // Leeg door het venster (géén bladtaak meer in de periode) ⇒ wijs naar de periode; leeg terwijl
+      // er wél taken in de periode staan ⇒ die zijn niet toegewezen, en een andere periode helpt niet.
+      noTasks: reportType === 'resourceGantt' && tasks.length > 0
+        ? (resourceGantt && resourceGantt.counts.inPeriod === 0 && resourceGantt.counts.outsidePeriod > 0
+          ? t('resourceGantt.emptyPeriod')
+          : t('resourceGantt.empty'))
+        : t('noTasks'),
       printed: t('printed'),
       legend: {
         criticalPath: t('legend.criticalPath'),
@@ -552,6 +583,8 @@ export function ReportPanel() {
       tableHeaders: {
         wbs: t('tableHeaders.wbs'),
         taskName: t('tableHeaders.taskName'),
+        unitsPerDay: t('tableHeaders.unitsPerDay'),
+        curve: t('tableHeaders.curve'),
         start: t('tableHeaders.start'),
         end: t('tableHeaders.end'),
         duration: t('tableHeaders.duration'),
@@ -594,6 +627,12 @@ export function ReportPanel() {
     rows: reportRows,
     // Issue #113 "een blad per persoon": gedwongen paginaovergang vóór elke resourceband.
     pageBreakBeforeGroups: reportType === 'resourceGantt' && resourceGanttOptions.pageBreakPerResource,
+    // Punt 3: de tijdas op de rapportageperiode (alleen resourcediagram, alleen buiten *Hele project*).
+    timeWindow: resourceGanttWindow,
+    // Punt 1: eenheden/dag en curve van de band op de taak als tabelkolommen (alleen resourcediagram).
+    assignmentColumns: reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns,
+    rowAssignments: resourceGantt?.assignmentByRowKey,
+    curveLabels,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -603,7 +642,8 @@ export function ReportPanel() {
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
-    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length]);
+    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
+    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -615,7 +655,10 @@ export function ReportPanel() {
       ? (value as ViewRow[]).map(r => (r.kind === 'group'
         ? `g:${r.key}:${r.label}:${r.count}:${r.depth}`
         : `t:${r.rowKey}:${r.depth}:${r.dimmed ? 1 : 0}`))
-      : value
+      // Een Map serialiseert als `{}`; de toewijzingskolommen (punt 1) moeten wél een herrender geven.
+      : key === 'rowAssignments' && value instanceof Map
+        ? [...(value as Map<string, unknown>).entries()]
+        : value
   )), [options]);
 
   // Eén generatie beheert één layout + één begrensde renderqueue. Een optiewijziging annuleert het
@@ -1187,6 +1230,12 @@ export function ReportPanel() {
                 <span data-ops-resource-gantt-count="assignments">{resourceGantt.counts.assignments}</span>
                 <span className="text-text-secondary">{t('resourceGantt.unassigned')}</span>
                 <span data-ops-resource-gantt-count="unassigned">{resourceGantt.counts.unassignedTasks}</span>
+                {resourceGanttWindow && (
+                  <>
+                    <span className="text-text-secondary">{t('resourceGantt.outsidePeriod')}</span>
+                    <span data-ops-resource-gantt-count="outsidePeriod">{resourceGantt.counts.outsidePeriod}</span>
+                  </>
+                )}
               </>
             ) : reportType === 'gantt' ? (
               <>
@@ -1400,6 +1449,33 @@ export function ReportPanel() {
                   />
                   <span className="min-w-0">{t('resourceGantt.includeUnassigned')}</span>
                 </label>
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={resourceGanttOptions.groupByType}
+                    onChange={e => patchResourceGanttOptions({ groupByType: e.target.checked })}
+                    className="accent-accent flex-shrink-0"
+                    data-ops-report-option="groupByType"
+                  />
+                  <span className="min-w-0">{t('resourceGantt.groupByType')}</span>
+                </label>
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={resourceGanttOptions.showAssignmentColumns}
+                    onChange={e => patchResourceGanttOptions({ showAssignmentColumns: e.target.checked })}
+                    className="accent-accent flex-shrink-0"
+                    data-ops-report-option="showAssignmentColumns"
+                  />
+                  <span className="min-w-0">{t('resourceGantt.showAssignmentColumns')}</span>
+                </label>
+                {/* Punt 3: de gedeelde rapportageperiode (issue #120) als tijdvenster van dit rapport. */}
+                <ReportingPeriodField
+                  id="report-opt-resourceGanttPeriod"
+                  value={resourceGanttOptions.period}
+                  onChange={next => patchResourceGanttOptions({ period: next })}
+                  dataKey="resourceGanttPeriod"
+                />
               </>
             )}
 

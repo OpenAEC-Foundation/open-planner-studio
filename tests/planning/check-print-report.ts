@@ -47,6 +47,9 @@ function record(tasks: Task[], sequences: Sequence[], calendar: WorkCalendar, op
   const rects: RectEv[] = [];
   const paths: PathEv[] = [];
   const roundRects: RoundRectEv[] = [];
+  // Gevulde paden (mijlpaal- en baselineruiten, samenvattingshaakjes) — `fill()` legde ze eerder
+  // stil weg, waardoor een ruit die over de tabel steekt onzichtbaar bleef voor de tests.
+  const fills: PathEv[] = [];
   let seq = 0;
   let curPath: { x: number; y: number }[] | null = null;
   const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline, dash: [] as number[] };
@@ -62,14 +65,14 @@ function record(tasks: Task[], sequences: Sequence[], calendar: WorkCalendar, op
     fillRect(x, y, w, h) { rects.push({ x, y, w, h, color: st.fillStyle, seq: seq++ }); },
     strokeRect() {}, beginPath() { curPath = []; }, moveTo(x, y) { if (!curPath) curPath = []; curPath.push({ x, y }); },
     lineTo(x, y) { if (!curPath) curPath = []; curPath.push({ x, y }); },
-    closePath() {}, fill() { curPath = null; },
+    closePath() {}, fill() { if (curPath) fills.push({ pts: curPath, color: st.fillStyle, dash: [], seq: seq++ }); curPath = null; },
     stroke() { if (curPath) paths.push({ pts: curPath, color: st.strokeStyle, dash: [...st.dash], seq: seq++ }); curPath = null; },
     roundRect(x, y, w, h) { roundRects.push({ x, y, w, h, color: st.fillStyle, strokeColor: st.strokeStyle, mode: 'fill', seq: seq++ }); },
     fillText(text, x, y) { texts.push({ text, x, y, color: st.fillStyle, font: st.font, seq: seq++ }); },
     measureText(t) { return measure(t); },
   };
   const dims = renderReport(() => d2d, tasks, sequences, calendar, 'P', options);
-  return { texts, rects, paths, roundRects, dims };
+  return { texts, rects, paths, roundRects, fills, dims };
 }
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────────────────────
@@ -486,6 +489,104 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     // Eén band ⇒ niets te breken: geen gedwongen posities, dus ook geen lege eerste pagina.
     const single = measurePrintReport(bandTasks.slice(0, 2), [], cal, 'Eén resource', baseOptions({ rows: bands.slice(0, 3), pageBreakBeforeGroups: true }));
     ok(single.forcedBreakOffsets === undefined, 'één band ⇒ geen gedwongen posities');
+    // Typelaag (manuvarkey punt 2): een band direct ónder een band krijgt géén eigen gedwongen
+    // positie — de typekop blijft bij zijn eerste resource; de tweede resource onder hetzelfde type
+    // en de volgende typekop breken wél.
+    const typed: ViewRow[] = [
+      { kind: 'group', rowKey: 'type0', key: 'type0', label: 'Ploeg', count: 4, depth: 0, levelIndex: 0, collapsed: false },
+      ...bands.slice(0, 6).map(r => ({ ...r, depth: r.depth + 1 })),
+      { kind: 'group', rowKey: 'type1', key: 'type1', label: 'Materieel', count: 2, depth: 0, levelIndex: 0, collapsed: false },
+      ...bands.slice(6).map(r => ({ ...r, depth: r.depth + 1 })),
+    ];
+    const typedForced = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: typed, pageBreakBeforeGroups: true }));
+    ok(JSON.stringify(typedForced.forcedBreakOffsets) === JSON.stringify([typedForced.headerHeight + 4 * rowH, typedForced.headerHeight + 7 * rowH]),
+      `typelaag: gedwongen posities vóór resource 2 (rij 4) en typeband 2 (rij 7), niet vóór een band direct onder een typekop (got ${JSON.stringify(typedForced.forcedBreakOffsets)})`);
+
+    // Tijdvenster (manuvarkey punt 3): de tijdas loopt exact over het venster (einde inclusief, geen
+    // marge van 7/14 dagen), balken worden op de chartrand geklemd, en een taak buiten het venster
+    // tekent geen balk en geen balklabel (zijn tabelrij blijft: welke rijen meedoen beslist de
+    // rijenbron). Zonder venster byte-identiek. Venster 10–14 jan bij 60 px/dag: de kritieke taak
+    // (12–16 jan) begint 120 px in de chart — ruimte voor het label links van de balk — en wordt
+    // rechts afgekapt; de zichtbare (5–9 jan) en de gefilterde (19–23 jan) taak vallen erbuiten.
+    {
+      const win = { from: '2026-01-10', to: '2026-01-14' };
+      const fixed = baseOptions({ autoFit: false, customZoom: 60, showFloat: false });
+      const rec = record(FIX_TASKS, [], cal, { ...fixed, timeWindow: win });
+      const d = rec.dims;
+      ok(Math.abs(d.width - (d.tableWidth + 5 * 60)) < 1e-6, `venster van 5 dagen ⇒ chart 5 × zoom breed (got ${d.width - d.tableWidth})`);
+      const inBody = (y: number) => y >= d.headerHeight && y < d.height - d.footerHeight;
+      const bars = rec.roundRects.filter(r => (r.color === CRITICAL || r.color === NORMAL) && inBody(r.y));
+      ok(bars.length === 1 && bars[0].color === CRITICAL, `alleen de kritieke taak tekent een balk (got ${bars.length})`);
+      ok(bars.every(b => b.x >= d.tableWidth - 1e-6 && b.x + b.w <= d.width + 1e-6), 'de balk ligt binnen het chartgebied');
+      ok(Math.abs(bars[0].x - (d.tableWidth + 2 * 60)) < 1e-6 && Math.abs(bars[0].x + bars[0].w - d.width) < 1e-6,
+        'de balk begint op 12 jan en eindigt op de rechter chartrand, niet erbuiten');
+      const chartTexts = rec.texts.filter(t => t.x >= d.tableWidth && inBody(t.y)).map(t => t.text);
+      ok(chartTexts.some(t => t.startsWith('Kritieke')), `balklabel van de kritieke taak in de chart (got ${JSON.stringify(chartTexts)})`);
+      ok(!chartTexts.some(t => t.startsWith('Gefilterde') || t.startsWith('Zichtbare')), 'taken buiten het venster: geen balklabel');
+      ok(rec.texts.filter(t => t.text === T_HIDDEN.name && t.x < d.tableWidth).length === 1, 'taak buiten het venster houdt zijn tabelrij');
+      ok(JSON.stringify(record(FIX_TASKS, [], cal, fixed)) === JSON.stringify(record(FIX_TASKS, [], cal, { ...fixed, timeWindow: undefined })),
+        'zonder venster byte-identiek');
+
+      // Review-bevinding 2: een mijlpaal op de eerste vensterdag bij lage zoom (4 px/dag, ruit ± 6 px)
+      // hangt niet half over de tabel — het middelpunt wordt naar binnen geklemd. Niets in het
+      // chartgebied (gevulde paden, balken, lijnen) ligt links van de tabelrand of rechts van de chart.
+      const ms = mkTask('t-ms', 'Mijlpaal', { isMilestone: true, time: mkTime({ earlyStart: '2026-01-10', earlyFinish: '2026-01-10', scheduleStart: '2026-01-10', scheduleFinish: '2026-01-10' }) });
+      const low = record([ms, T_CRIT], [], cal, { ...fixed, customZoom: 4, timeWindow: win });
+      const ld = low.dims;
+      const inBodyPt = (y: number) => y >= ld.headerHeight && y < ld.height - ld.footerHeight;
+      // `pts.length > 0`: een lege `beginPath(); roundRect(); fill()` (voortgangsoverlay) mag de
+      // assertie niet vacuüm vervullen (review ronde 2, bevinding 9).
+      const bodyFills = low.fills.filter(f => f.pts.length > 0 && f.pts.every(p => inBodyPt(p.y)));
+      ok(bodyFills.length >= 1, `de ruit wordt getekend (got ${bodyFills.length} gevulde paden)`);
+      ok(bodyFills.every(f => f.pts.every(p => p.x >= ld.tableWidth - 1e-6 && p.x <= ld.width + 1e-6)),
+        `ruit binnen het chartgebied (got ${JSON.stringify(bodyFills.map(f => f.pts.map(p => Math.round(p.x * 100) / 100)))}, tabel ${ld.tableWidth}, chart tot ${ld.width})`);
+      const lowBars = low.roundRects.filter(r => (r.color === CRITICAL || r.color === NORMAL) && inBodyPt(r.y));
+      ok(lowBars.every(b => b.x >= ld.tableWidth - 1e-6 && b.x + b.w <= ld.width + 1e-6), 'ook bij 4 px/dag blijft de balk binnen de chart');
+      // Review-bevinding 7: de 3 px-minimumbreedte steekt niet meer over de rechter chartrand.
+      const tiny = record([T_CRIT], [], cal, { ...fixed, customZoom: 1, timeWindow: { from: '2026-01-10', to: '2026-01-12' } });
+      const tinyBar = tiny.roundRects.find(r => r.color === CRITICAL && r.y >= tiny.dims.headerHeight && r.y < tiny.dims.height - tiny.dims.footerHeight);
+      ok(!!tinyBar && tinyBar.x + tinyBar.w <= tiny.dims.width + 1e-6 && tinyBar.w >= 3 - 1e-6, `minimumbreedte naar binnen geschoven en op de chartrand geklemd (got ${JSON.stringify(tinyBar)}, chart tot ${tiny.dims.width})`);
+      // Lege staat: een lange instructie wordt op woordgrenzen gewrapt, nooit halverwege afgekapt.
+      // De testmeter rekent 6 px per teken; deze tekst is 143 tekens = 858 px, dus minstens twee regels.
+      const lang = 'Keine Vorgänge im Berichtszeitraum — wählen Sie einen anderen Zeitraum oder Gesamtes Projekt, um alle Vorgänge des Projekts wieder zu sehen.';
+      const leeg = record([], [], cal, baseOptions({ labels: { ...baseOptions().labels!, noTasks: lang } }));
+      const leegTexts = leeg.texts.map(t => t.text);
+      ok(leegTexts.length >= 2 && leegTexts.join(' ') === lang && leegTexts.every(t => !t.includes('…')),
+        `lege staat gewrapt zonder afkappen (got ${JSON.stringify(leegTexts)})`);
+    }
+
+    // Toewijzingskolommen (manuvarkey punt 1): twee kolommen direct achter de naam (x 180–225 en
+    // 225–300 bij de standaardnaamkolom van 130), gevuld per rijsleutel; de tabel wordt precies de
+    // twee kolombreedtes breder; zonder de optie (ook mét `rowAssignments`) byte-identiek.
+    {
+      const aBands: ViewRow[] = [
+        { kind: 'group', rowKey: 'b', key: 'b', label: 'Metselaar', count: 2, depth: 0, levelIndex: 0, collapsed: false },
+        { kind: 'task', rowKey: 'b/norm', task: T_NORM, depth: 1, dimmed: false },
+        { kind: 'task', rowKey: 'b/crit', task: T_CRIT, depth: 1, dimmed: false },
+      ];
+      const rowAssignments = new Map([
+        ['b/norm', { unitsPerDay: 1.5, curve: 'FRONT_LOADED' as const }],
+        ['b/crit', { unitsPerDay: 2, curve: null }],
+      ]);
+      const plainA = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands }));
+      const withCols = record([T_NORM, T_CRIT], [], cal, baseOptions({
+        rows: aBands, assignmentColumns: true, rowAssignments, curveLabels: { FRONT_LOADED: 'Vooraan belast' },
+      }));
+      ok(withCols.dims.tableWidth === plainA.dims.tableWidth + 45 + 98, `tabel precies twee kolommen breder (got +${withCols.dims.tableWidth - plainA.dims.tableWidth})`);
+      const inCol = (t: { x: number; y: number }, x0: number, x1: number) => t.x >= x0 && t.x <= x1 && t.y > withCols.dims.headerHeight && t.y < withCols.dims.height - withCols.dims.footerHeight;
+      const unitsTexts = withCols.texts.filter(t => inCol(t, 180, 225)).map(t => t.text).sort();
+      const curveTexts = withCols.texts.filter(t => inCol(t, 225, 300)).map(t => t.text).sort();
+      ok(JSON.stringify(unitsTexts) === JSON.stringify(['1.5', '2']), `eenheden per rij in de kolom (got ${JSON.stringify(unitsTexts)})`);
+      // De testmeter rekent 6 px per teken, dus "Vooraan belast" (84 px) kapt in de 75 px-kolom af op
+      // een beletselteken — dat is het bedoelde `fitText`-gedrag; met het echte 8 px-font past het.
+      ok(curveTexts.length === 2 && curveTexts.some(t => t.startsWith('Vooraan be')) && curveTexts.includes('—'),
+        `vertaalde curve (desnoods afgekort), streepje bij verschillende curves (got ${JSON.stringify(curveTexts)})`);
+      const heads = withCols.texts.filter(t => t.y <= withCols.dims.headerHeight).map(t => t.text);
+      ok(heads.includes('Eenh./d') && heads.includes('Curve'), 'kolomkoppen aanwezig (Nederlandse terugval zonder label)');
+      ok(!plainA.texts.some(t => t.text === 'Eenh./d' || t.text === 'Vooraan belast'), 'zonder optie geen kolommen');
+      ok(JSON.stringify(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, rowAssignments }))) === JSON.stringify(plainA),
+        'rowAssignments zonder assignmentColumns ⇒ byte-identiek');
+    }
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
     // paginabreedtes — steeds drie body-rijen die exact op de bandgrenzen eindigen.

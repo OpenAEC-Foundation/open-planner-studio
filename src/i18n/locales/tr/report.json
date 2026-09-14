@@ -55,6 +55,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "Birim/g",
+    "curve": "Eğri",
     "taskName": "Görev adı",
     "start": "Başlangıç",
     "end": "Bitiş",
@@ -134,6 +136,10 @@
   "resourceGantt": {
     "pageBreakPerResource": "Her kaynak yeni bir sayfada",
     "includeUnassigned": "Kaynaksız görevleri dahil et",
+    "groupByType": "Kaynak türüne göre grupla",
+    "showAssignmentColumns": "Birim/gün ve eğriyi göster",
+    "emptyPeriod": "Rapor döneminde görev yok — başka bir dönem veya Tüm proje seçin.",
+    "outsidePeriod": "Dönem dışında:",
     "empty": "Kaynak ataması yok — önce görevlere kaynak atayın.",
     "resources": "Kaynaklar:",
     "assignments": "Atamalar:",

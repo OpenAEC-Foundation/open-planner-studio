@@ -30,6 +30,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import type { BaselineOverlay } from '@/types/baseline';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
@@ -89,6 +90,10 @@ const COL = {
   start:     { w: 55 },
   end:       { w: 55 },
   complete:  { w: 45 },
+  // Toewijzingskolommen van het resourcediagram (manuvarkey punt 1): eenheden per dag en de
+  // verdeelcurve van de resource van de band op die taak. Alleen bij `assignmentColumns`.
+  units:     { w: 45 },
+  curve:     { w: 98 },
 };
 
 /**
@@ -120,20 +125,24 @@ function resolveNameColumnWidth(raw: number | undefined): number {
  * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
  * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
  */
-function tableWidthFor(showCompletion: boolean, nameW: number): number {
-  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0);
+function tableWidthFor(showCompletion: boolean, nameW: number, assignmentColumns = false): number {
+  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0)
+    + (assignmentColumns ? COL.units.w + COL.curve.w : 0);
 }
 
 // Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
 // kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
 // `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
-function getColPositions(k: number, showCompletion: boolean, nameW: number) {
+function getColPositions(k: number, showCompletion: boolean, nameW: number, assignmentColumns = false) {
   let x = 0;
   const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
   return {
     wbs: next(COL.wbs.w),
     name: next(nameW),
+    // Direct achter de naam: ze horen bij "wie staat hierop en hoe", niet bij de datums.
+    units: assignmentColumns ? next(COL.units.w) : undefined,
+    curve: assignmentColumns ? next(COL.curve.w) : undefined,
     duration: next(COL.duration.w),
     start: next(COL.start.w),
     end: next(COL.end.w),
@@ -153,6 +162,8 @@ export interface PrintRow {
   depth: number;
   label?: string;   // groepsband-label
   count?: number;   // groepsband-aantal bladrijen
+  /** Toewijzing van de band op deze taak (resourcediagram, `PrintOptions.rowAssignments`). */
+  assignment?: RowAssignment;
 }
 
 /**
@@ -161,11 +172,15 @@ export interface PrintRow {
  * de volledige takenboom (oud gedrag, self-flatten), met wezen zonder gevonden ouder achteraan.
  * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
  */
-export function buildPrintRows(tasks: Task[], rows: ViewRow[] | undefined): PrintRow[] {
+export function buildPrintRows(
+  tasks: Task[],
+  rows: ViewRow[] | undefined,
+  rowAssignments?: ReadonlyMap<string, RowAssignment>,
+): PrintRow[] {
   const printRows: PrintRow[] = [];
   if (rows) {
     for (const row of rows) {
-      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth });
+      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
       else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
     }
     return printRows;
@@ -270,7 +285,12 @@ export const REPORT_FONT_SCALES = [90, 100, 110, 125] as const;
  * geen enkele Select kan tonen en die na een herstart dus niet reproduceerbaar is. Zelfde semantiek
  * als in de settings- en rapport-loaders, allemaal via {@link snapToChoice}.
  */
-function makeMetrics(reportFontScale: number | undefined, showCompletion: boolean, taskNameColumnWidth: number | undefined): ReportMetrics {
+function makeMetrics(
+  reportFontScale: number | undefined,
+  showCompletion: boolean,
+  taskNameColumnWidth: number | undefined,
+  assignmentColumns = false,
+): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
   const nameW = resolveNameColumnWidth(taskNameColumnWidth);
@@ -286,9 +306,9 @@ function makeMetrics(reportFontScale: number | undefined, showCompletion: boolea
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: tableWidthFor(showCompletion, nameW) * k,
+    tableWidth: tableWidthFor(showCompletion, nameW, assignmentColumns) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k, showCompletion, nameW),
+    cols: getColPositions(k, showCompletion, nameW, assignmentColumns),
   };
 }
 
@@ -327,7 +347,11 @@ export interface PrintOptions {
        *  bindend-informatie beschikbaar is (zie {@link PrintOptions.drivingSequenceIds}). */
       relationStyle: string;
     };
-    tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
+    tableHeaders: {
+      wbs: string; taskName: string; start: string; end: string; duration: string; completion: string;
+      /** Koppen van de toewijzingskolommen (resourcediagram); ontbreken ⇒ Nederlandse terugval. */
+      unitsPerDay?: string; curve?: string;
+    };
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
     /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
@@ -361,6 +385,31 @@ export interface PrintOptions {
    * `timelineColumns` moet krijgen. Default 1 = oud gedrag (alles op één paginabreedte).
    */
   timelineColumns?: number;
+  /**
+   * OPTIONEEL — rapportageperiode als TIJDVENSTER (manuvarkey op #113, punt 3; resourcediagram): de
+   * tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de gebruikelijke marge van
+   * 7/14 dagen, en balken, mijlpalen, speling, voortgang en baseline worden op de chartrand
+   * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd (ook de 3 px-
+   * minimumbreedte van een balk en het middelpunt van een ruit; relatiepijlen worden bij een
+   * venster helemaal niet getekend). Welke rijen in het
+   * venster horen beslist de rijenbron (`computeResourceGanttRows`), niet de render; een rij die
+   * er toch buiten valt tekent gewoon geen balk. Relatiepijlen worden niet geklemd: het venster
+   * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ byte-identiek.
+   */
+  timeWindow?: { from: string; to: string };
+  /**
+   * OPTIONEEL — TOEWIJZINGSKOLOMMEN (manuvarkey op #113, punt 1; resourcediagram): twee extra
+   * tabelkolommen direct achter de naam — eenheden per dag en verdeelcurve van de resource van de
+   * band op die taak — gevuld uit `rowAssignments` (per `ViewRow.rowKey`, uit
+   * `computeResourceGanttRows().assignmentByRowKey`). Een rij zonder entry (bandrij, "(geen)")
+   * laat de cellen leeg. De tabel wordt precies de twee kolombreedtes breder; afwezig ⇒
+   * byte-identiek.
+   */
+  assignmentColumns?: boolean;
+  rowAssignments?: ReadonlyMap<string, RowAssignment>;
+  /** Vertaalde curvenamen (`common:resource.curve.*`, plus `contoured`/`imported` uit
+   *  `task:properties.assignments.*`); een ontbrekend label valt terug op de enum-/toestandsnaam. */
+  curveLabels?: Partial<Record<RowCurve, string>>;
   /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
@@ -448,6 +497,28 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
 /** Format duration as "15d" */
 function formatDuration(days: number): string {
   return `${days}d`;
+}
+
+/**
+ * Breek `text` op woordgrenzen in regels die binnen `maxWidth` passen (dezelfde px-eenheid als
+ * `d2d.measureText`). Eén woord dat alleen al te breed is wordt met een ellipsis afgekort.
+ */
+function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (d2d.measureText(candidate).width <= maxWidth) { line = candidate; continue; }
+    if (line) lines.push(line);
+    line = d2d.measureText(word).width <= maxWidth ? word : fitText(d2d, word, maxWidth);
+  }
+  if (line) lines.push(line);
+  return lines.length > 0 ? lines : [''];
+}
+
+/** Eenheden per dag: geheel als "2", anders tot twee decimalen zonder nullen ("0.5", "1.25"). */
+function formatUnitsPerDay(units: number): string {
+  return String(Math.round(units * 100) / 100);
 }
 
 /** Format completion as "75%" */
@@ -625,11 +696,11 @@ export function renderReport(
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
-  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth);
+  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, !!options.assignmentColumns);
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
   // als samenvattings-strook tekenen.
-  const printRows = buildPrintRows(tasks, options.rows);
+  const printRows = buildPrintRows(tasks, options.rows, options.rowAssignments);
   const flatTasks: PrintTask[] = printRows
     .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
     .map(r => ({ ...r.task, _depth: r.depth }));
@@ -641,7 +712,12 @@ export function renderReport(
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(14);
     d2d.textAlign = 'center';
-    d2d.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
+    // Woord-wrap binnen de 600 px brede doos: een instructie ("kies een andere periode …") mag
+    // niet halverwege afkappen (review ronde 2, bevinding 4). Verticaal is er ruimte zat.
+    const emptyLines = wrapWords(d2d, options.labels?.noTasks ?? 'No tasks to display', 560);
+    const emptyLineH = m.s(18);
+    const emptyTop = 100 - ((emptyLines.length - 1) * emptyLineH) / 2;
+    emptyLines.forEach((line, i) => d2d.fillText(line, 300, emptyTop + i * emptyLineH));
     // Geen kop-/tijdschaalstrook in de lege-staat (alleen een centrale melding) ⇒ niets te herhalen.
     // Het meldingsvak zelf houdt z'n vaste 600×200; alleen de tekst erin volgt de schaal.
     return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0, footerHeight: 0 };
@@ -663,9 +739,15 @@ export function renderReport(
     }
   }
 
-  // Add padding days
-  minDate = addCalendarDays(minDate, -7);
-  maxDate = addCalendarDays(maxDate, 14);
+  if (options.timeWindow) {
+    // Tijdvenster: de as is precies het venster (einde exclusief, dus `to` + 1), zonder marge.
+    minDate = parseDate(options.timeWindow.from);
+    maxDate = addCalendarDays(parseDate(options.timeWindow.to), 1);
+  } else {
+    // Add padding days
+    minDate = addCalendarDays(minDate, -7);
+    maxDate = addCalendarDays(maxDate, 14);
+  }
 
   const calendarDays = diffCalendarDays(minDate, maxDate);
 
@@ -673,11 +755,20 @@ export function renderReport(
   // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
   // werkdag valt gecontroleerd terug op de gewone kalender-as).
   const calEngine = new CalendarEngine(calendar);
-  const compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
-  const measureAxis = resolveGanttAxis({
+  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  let measureAxis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
     origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
   });
+  // Tijdvenster zonder één werkdag (b.v. een weekend) op de gecomprimeerde as: de as zou dan naar
+  // de eerstvolgende werkdag búiten het venster kleven. Val voor dít venster terug op de kalender-as.
+  if (options.timeWindow && compressed && measureAxis.daySpan(minDate, maxDate) < 1) {
+    compressed = false;
+    measureAxis = resolveGanttAxis({
+      calendar: calEngine, compressNonWorkdays: false,
+      origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
+    });
+  }
   const timelineDays = compressed
     ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
     : calendarDays;
@@ -711,6 +802,10 @@ export function renderReport(
 
   const chartWidth = timelineDays * zoom;
   const canvasWidth = m.tableWidth + chartWidth;
+  // Tijdvenster: chart-x klemmen op het chartgebied (zie `PrintOptions.timeWindow`). Zonder venster
+  // is dit de identiteit, zodat de oude render byte-identiek blijft.
+  const windowed = !!options.timeWindow;
+  const clampX = (x: number) => (windowed ? Math.min(canvasWidth, Math.max(m.tableWidth, x)) : x);
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
   const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
 
@@ -890,7 +985,7 @@ export function renderReport(
               const statusUtc = Date.UTC(statusDay.getUTCFullYear(), statusDay.getUTCMonth(), statusDay.getUTCDate());
               const fullyDone = c >= 1 && finishDay <= statusUtc;
               const notStarted = c === 0 && startDay >= statusUtc;
-              if (!fullyDone && !notStarted) px = bx1 + (bx2 - bx1) * c;
+              if (!fullyDone && !notStarted) px = clampX(bx1 + (bx2 - bx1) * c);
             }
             d2d.lineTo(statusLineX!, rowTop);
             d2d.lineTo(px, rowMid);
@@ -977,33 +1072,47 @@ export function renderReport(
       const x = dateToX(date) + zoom / 2;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
+      // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
+      // rand wordt met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of
+      // over de rechterrand hangt (hyperkritische review, bevinding 2).
+      // Middelpunt buiten het chartgebied ⇒ niet tekenen (een naar binnen geklemde ruit zou
+      // een dag suggereren waarop de mijlpaal niet valt — review ronde 2, bevinding 6).
+      const inWindow = !windowed || (x >= m.tableWidth && x <= canvasWidth);
+      const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
-      const advies = colorAdvice(task);
-      d2d.fillStyle = advies.kind === 'solid' ? advies.fill : advies.segments[0].color;
-      if (advies.outline) {
-        // Rode rand om een kritieke mijlpaal in de niet-critical-modi: de ruit omtrekken.
-        d2d.strokeStyle = advies.outline;
-        d2d.lineWidth = 1;
-      }
-      d2d.beginPath();
-      d2d.moveTo(x, cy - size);
-      d2d.lineTo(x + size, cy);
-      d2d.lineTo(x, cy + size);
-      d2d.lineTo(x - size, cy);
-      d2d.closePath();
-      d2d.fill();
-      if (advies.outline) d2d.stroke();
+      if (inWindow) {
+        const advies = colorAdvice(task);
+        d2d.fillStyle = advies.kind === 'solid' ? advies.fill : advies.segments[0].color;
+        if (advies.outline) {
+          // Rode rand om een kritieke mijlpaal in de niet-critical-modi: de ruit omtrekken.
+          d2d.strokeStyle = advies.outline;
+          d2d.lineWidth = 1;
+        }
+        d2d.beginPath();
+        d2d.moveTo(cx, cy - size);
+        d2d.lineTo(cx + size, cy);
+        d2d.lineTo(cx, cy + size);
+        d2d.lineTo(cx - size, cy);
+        d2d.closePath();
+        d2d.fill();
+        if (advies.outline) d2d.stroke();
 
-      // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
-        barLabelJobs.push({ name: task.name, barRightX: x + size, barLeftX: x - size, y: cy + m.s(3), bold: false });
+        // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
+        if (options.showTaskNames) {
+          barLabelJobs.push({ name: task.name, barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false });
+        }
       }
     } else if (task.childIds.length > 0) {
       // Summary bracket bar
       const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
       const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-      const x1 = dateToX(start);
-      const x2 = dateToX(end) + zoom;
+      const rawX1 = dateToX(start);
+      const rawX2 = dateToX(end) + zoom;
+      // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
+      // een echt begin/einde suggereren). Valt de hele haak buiten het venster, dan niets.
+      const x1 = clampX(rawX1);
+      const x2 = clampX(rawX2);
+      if (windowed && x2 <= x1) continue;
       const width = Math.max(x2 - x1, 3);
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
@@ -1012,20 +1121,24 @@ export function renderReport(
       d2d.fillRect(x1, barY, width, barH);
 
       // Left triangle
-      d2d.beginPath();
-      d2d.moveTo(x1, barY);
-      d2d.lineTo(x1, barY + barH + 5);
-      d2d.lineTo(x1 + 6, barY + barH);
-      d2d.closePath();
-      d2d.fill();
+      if (x1 === rawX1) {
+        d2d.beginPath();
+        d2d.moveTo(x1, barY);
+        d2d.lineTo(x1, barY + barH + 5);
+        d2d.lineTo(x1 + 6, barY + barH);
+        d2d.closePath();
+        d2d.fill();
+      }
 
       // Right triangle
-      d2d.beginPath();
-      d2d.moveTo(x1 + width, barY);
-      d2d.lineTo(x1 + width, barY + barH + 5);
-      d2d.lineTo(x1 + width - 6, barY + barH);
-      d2d.closePath();
-      d2d.fill();
+      if (x2 === rawX2) {
+        d2d.beginPath();
+        d2d.moveTo(x1 + width, barY);
+        d2d.lineTo(x1 + width, barY + barH + 5);
+        d2d.lineTo(x1 + width - 6, barY + barH);
+        d2d.closePath();
+        d2d.fill();
+      }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
@@ -1035,9 +1148,15 @@ export function renderReport(
       // Normal task bar
       const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
       const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-      const x1 = dateToX(start);
-      const x2 = dateToX(end) + zoom;
-      const width = Math.max(x2 - x1, 3);
+      const rawX1 = dateToX(start);
+      const rawX2 = dateToX(end) + zoom;
+      const width = Math.max(rawX2 - rawX1, 3);
+      // Tijdvenster: de balkuiteinden geklemd op het chartgebied; de voortgangsgrens en de
+      // speling hieronder klemmen op dezelfde manier. Een balk die helemaal buiten het venster
+      // valt tekent niets (ook geen label).
+      const x1 = clampX(rawX1);
+      const x2 = clampX(rawX2);
+      if (windowed && x2 <= x1) continue;
 
       // Kleurmodi (#21) en onderbroken balken (Z15) zijn onafhankelijke dimensies: dezelfde
       // kleurverhouding komt terug in elk werkblok van één taak.
@@ -1046,10 +1165,11 @@ export function renderReport(
       const segments = task.splitGaps && task.splitGaps.length > 0
         ? computeSplitSegments(task.splitGaps, start, end, false, calEngine)
         : [{ start, end }];
-      const segs = segments.map((s, i) => ({
-        x1: i === 0 ? x1 : dateToX(s.start),
-        x2: i === segments.length - 1 ? x2 : dateToX(s.end),
-      }));
+      const segs = segments.map((s, i) => {
+        const rx1 = i === 0 ? rawX1 : dateToX(s.start);
+        const rx2 = i === segments.length - 1 ? rawX2 : dateToX(s.end);
+        return { rx1, rx2, x1: clampX(rx1), x2: clampX(rx2) };
+      }).filter(s => !windowed || s.x2 > s.x1);
       const split = segs.length > 1;
 
       if (split) {
@@ -1062,33 +1182,52 @@ export function renderReport(
       }
 
       for (const s of segs) {
-        const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
+        // De minimumbreedte (3 px, 2 bij splits) op de RUWE maat, en het einde bij een venster op de
+        // chartrand geklemd zodat dat minimum er niet overheen steekt.
+        const minW = split ? 2 : 3;
+        const rawSw = Math.max(s.rx2 - s.rx1, minW);
+        // Zichtbare breedte: zonder venster de oude `max(breedte, minimum)` op x1; bij een venster
+        // de geklemde breedte, en is die smaller dan het minimum, dan schuift het minimum naar
+        // binnen (zoals de ruit) in plaats van te worden afgeknepen, zodat een eendagstaak op de
+        // laatste vensterdag zichtbaar blijft (review ronde 2, bevinding 7).
+        let sx1 = s.x1;
+        let sw = windowed ? s.x2 - s.x1 : rawSw;
+        if (windowed && sw < minW) {
+          sw = Math.min(minW, canvasWidth - m.tableWidth);
+          sx1 = Math.max(m.tableWidth, Math.min(s.x1, canvasWidth - sw));
+        }
         if (advies.kind === 'segments') {
-          let sx = s.x1;
+          // Kleurvakken op de ruwe tijdas verdeeld en daarna per vak op het chartgebied geknipt: een
+          // afgekapte balk toont zo de kleuren die bij het zichtbare stuk horen (review, bevinding 8).
+          let sx = s.rx1;
           advies.segments.forEach((seg, si) => {
             const isLast = si === advies.segments.length - 1;
-            const w = isLast ? s.x1 + sw - sx : Math.round(sw * seg.weight);
-            d2d.fillStyle = seg.color;
-            d2d.roundRect(sx, y, w, barHeight, si === 0 ? 3 : 0);
-            d2d.fill();
+            const w = isLast ? s.rx1 + rawSw - sx : Math.round(rawSw * seg.weight);
+            const vx1 = windowed ? Math.max(sx, m.tableWidth) : sx;
+            const vx2 = windowed ? Math.min(sx + w, canvasWidth) : sx + w;
+            if (!windowed || vx2 > vx1) {
+              d2d.fillStyle = seg.color;
+              d2d.roundRect(vx1, y, vx2 - vx1, barHeight, si === 0 ? 3 : 0);
+              d2d.fill();
+            }
             sx += w;
           });
         } else {
           d2d.fillStyle = advies.fill;
-          d2d.roundRect(s.x1, y, sw, barHeight, 3);
+          d2d.roundRect(sx1, y, sw, barHeight, 3);
           d2d.fill();
         }
         if (advies.outline) {
           d2d.strokeStyle = advies.outline;
           d2d.lineWidth = 1;
-          d2d.roundRect(s.x1, y, sw, barHeight, 3);
+          d2d.roundRect(sx1, y, sw, barHeight, 3);
           d2d.stroke();
         }
       }
 
       // Eén globale voortgangsgrens over de volle taakduur, maar nooit kleur over de tijdgaten.
       if (options.showCompletion && task.time.completion > 0) {
-        const progressEnd = x1 + width * task.time.completion;
+        const progressEnd = clampX(rawX1 + width * task.time.completion);
         d2d.fillStyle = 'rgba(0, 0, 0, 0.25)';
         for (const s of segs) {
           const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
@@ -1104,17 +1243,17 @@ export function renderReport(
       }
 
       // Float indicator
-      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical) {
-        const floatWidth = task.time.totalFloat * zoom;
+      const floatEndX = clampX(rawX2 + task.time.totalFloat * zoom);
+      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
-        d2d.roundRect(x2, y + barHeight * 0.2, floatWidth, barHeight * 0.6, 2);
+        d2d.roundRect(x2, y + barHeight * 0.2, floatEndX - x2, barHeight * 0.6, 2);
         d2d.fill();
       }
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
         const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
-        const barRightX = x2 + (hasFloat ? task.time.totalFloat * zoom : 0);
+        const barRightX = hasFloat ? Math.max(x2, floatEndX) : x2;
         barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
       }
     }
@@ -1131,19 +1270,24 @@ export function renderReport(
       if (baseline.isMilestone) {
         const x = dateToX(parseDate(baseline.start)) + zoom / 2;
         const cy = baseY + baseHeight / 2;
-        d2d.beginPath();
-        d2d.moveTo(x, cy - baseHeight);
-        d2d.lineTo(x + baseHeight, cy);
-        d2d.lineTo(x, cy + baseHeight);
-        d2d.lineTo(x - baseHeight, cy);
-        d2d.closePath();
-        d2d.fill();
+        if (!windowed || (x >= m.tableWidth && x <= canvasWidth)) {
+          const bcx = windowed ? Math.min(canvasWidth - baseHeight, Math.max(m.tableWidth + baseHeight, x)) : x;
+          d2d.beginPath();
+          d2d.moveTo(bcx, cy - baseHeight);
+          d2d.lineTo(bcx + baseHeight, cy);
+          d2d.lineTo(bcx, cy + baseHeight);
+          d2d.lineTo(bcx - baseHeight, cy);
+          d2d.closePath();
+          d2d.fill();
+        }
       } else {
-        const x1 = dateToX(parseDate(baseline.start));
-        const x2 = dateToX(parseDate(baseline.finish)) + zoom;
-        d2d.beginPath();
-        d2d.roundRect(x1, baseY, Math.max(x2 - x1, 2), baseHeight, 1);
-        d2d.fill();
+        const x1 = clampX(dateToX(parseDate(baseline.start)));
+        const x2 = clampX(dateToX(parseDate(baseline.finish)) + zoom);
+        if (!windowed || x2 > x1) {
+          d2d.beginPath();
+          d2d.roundRect(x1, baseY, Math.max(x2 - x1, 2), baseHeight, 1);
+          d2d.fill();
+        }
       }
     }
   }
@@ -1165,7 +1309,9 @@ export function renderReport(
   // tegel geëmit), dus daar was dit nooit stuk. De omkering repareert dus feitelijk de RASTER-preview
   // en brengt die in lijn met wat de export altijd al deed — wat precies de bedoeling is, want die
   // twee horen WYSIWYG te zijn.
-  if (options.showDeps) {
+  // Bij een tijdvenster worden relaties nooit getekend: `drawDependencies` klemt niet, en het
+  // venster wordt alleen op het resourcediagram aangeboden, dat sowieso geen relaties tekent.
+  if (options.showDeps && !windowed) {
     // #54 volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
     // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
     // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus (= alle taken
@@ -1206,7 +1352,9 @@ export function renderReport(
   // Resourcediagram (issue #113): een gedwongen overgang vóór elke bandrij ná de eerste — de
   // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
   const forcedBreakOffsets = options.pageBreakBeforeGroups
-    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 ? [m.totalHeaderHeight + i * m.rowHeight] : []))
+    // Een band direct ónder een band (typelaag, punt 2) blijft bij zijn ouder: anders zou de typekop
+    // alleen op een verder leeg vel staan.
+    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
     : undefined;
   return {
     width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
@@ -1787,8 +1935,10 @@ function drawTimelineHeader(
 
   d2d.textAlign = 'left';
   d2d.fillText(th?.taskName ?? 'Taaknaam', cols.name.x + m.s(4), headerY);
+  if (cols.curve) d2d.fillText(th?.curve ?? 'Curve', cols.curve.x + m.s(4), headerY);
 
   d2d.textAlign = 'center';
+  if (cols.units) d2d.fillText(th?.unitsPerDay ?? 'Eenh./d', cols.units.x + cols.units.w / 2, headerY);
   d2d.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
   d2d.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
   d2d.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
@@ -1801,6 +1951,7 @@ function drawTimelineHeader(
   d2d.lineWidth = 0.5;
   const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x, m.tableWidth];
   if (cols.complete) colBorders.push(cols.complete.x);
+  if (cols.units && cols.curve) colBorders.push(cols.units.x, cols.curve.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, top);
@@ -1825,7 +1976,7 @@ function drawTimelineHeader(
 function drawTaskTable(
   d2d: Draw2D,
   m: ReportMetrics,
-  printRows: { kind: 'task' | 'group'; task?: Task; depth: number; label?: string; count?: number }[],
+  printRows: PrintRow[],
   canvasHeight: number,
   cols: ColPositions,
   options: PrintOptions,
@@ -1898,6 +2049,17 @@ function drawTaskTable(
     const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
     d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
 
+    // Toewijzingskolommen (resourcediagram): eenheden rechts uitgelijnd, de curve links en afgekort.
+    if (cols.units && cols.curve && row.assignment) {
+      d2d.fillStyle = PRINT_COLORS.textSecondary;
+      d2d.font = m.font(8);
+      d2d.textAlign = 'right';
+      d2d.fillText(formatUnitsPerDay(row.assignment.unitsPerDay), cols.units.x + cols.units.w - cellPad, textY);
+      d2d.textAlign = 'left';
+      const curveText = row.assignment.curve === null ? '—' : (options.curveLabels?.[row.assignment.curve] ?? row.assignment.curve);
+      d2d.fillText(fitText(d2d, curveText, cols.curve.w - 2 * cellPad), cols.curve.x + cellPad, textY);
+    }
+
     // Duration
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(8);
@@ -1933,6 +2095,7 @@ function drawTaskTable(
   d2d.lineWidth = 0.5;
   const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x];
   if (cols.complete) colBorders.push(cols.complete.x);
+  if (cols.units && cols.curve) colBorders.push(cols.units.x, cols.curve.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, m.totalHeaderHeight);

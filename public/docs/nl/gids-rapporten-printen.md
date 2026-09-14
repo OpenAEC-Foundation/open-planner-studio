@@ -104,7 +104,27 @@ een nieuwe pagina** — een los vel per persoon om uit te delen. Een taak met tw
 onder beide banden; verzameltaken doen niet mee — een toewijzing op een verzameltaak (die uit een
 import kan komen) wordt hier niet getoond. Met **Taken zonder
 resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het overleg meteen ziet wat
-nog niemand heeft.
+nog niemand heeft. Met **Groeperen op resourcetype** komt er een laag boven: eerst een band per type
+— arbeid, ploeg, onderaannemer, materieel, materiaal, in die vaste volgorde — en daarbinnen de
+resources; handig als je in het overleg eerst de mensen en dan het materieel bespreekt, of alleen het
+materieelblok wilt afdrukken; het getal achter een typeband telt de taakrijen eronder, dus een taak
+die onder twee resources van hetzelfde type staat telt twee keer. Bij *Elke resource op een nieuwe
+pagina* begint een typeband op een nieuw vel samen met zijn eerste resource. Met **Rapportageperiode** — dezelfde keuze als bij de
+tabelrapporten, zie verderop — beperk je het diagram tot een tijdvenster: alleen taken die het
+venster raken doen mee, de tijdas loopt precies van de begin- tot de einddatum, en een balk die
+verder doorloopt wordt aan de rand afgekapt. Zo leg je in dezelfde vergadering het look-ahead-rapport
+en het resourcediagram over exact dezelfde weken naast elkaar. *Hele project* (standaard) is het
+gewone gedrag; bij een venster telt het overzichtsblok ook hoeveel taken erbuiten vallen.
+Achter de taaknaam staan standaard twee kolommen **Eenh./d** en **Curve**: hoeveel eenheden per
+dag de resource van die band op de taak staat en met welke verdeelcurve — "je staat halve dagen
+op Fundering, vooraan belast" zegt meer dan "je staat op Fundering". Een taak onder twee banden
+toont per band de eigen inzet; twee toewijzingen van dezelfde resource op één taak worden
+opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillende curves hebben.
+Heeft de toewijzing een eigen urenverdeling, dan staat er *Contour*; is de curve uit MS Project of
+P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmporteerde curve* —
+hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel ruim 130 px breder en de
+tijdas dus smaller; bij lange taaknamen met *Taaknamen afkappen* uit kan de tijdas daardoor bijna
+verdwijnen. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
@@ -162,7 +182,7 @@ delen een paar afspraken:
 
 Vier rapporten werken op een tijdvenster: look-ahead, voortgang, resourcebelasting en
 resourcetoewijzingen. Ze delen één *Rapportageperiode*-keuze in de rapportopties, met een eigen
-onthouden instelling per rapport:
+onthouden instelling per rapport (het resourcediagram hierboven kent dezelfde keuze):
 
 - **Volgende / afgelopen week, 2, 4, 6, 8 of 12 weken** en **volgende / afgelopen maand** — gerekend
   vanaf de statusdatum van het project (of vandaag als die ontbreekt). Een preset is inclusief aan

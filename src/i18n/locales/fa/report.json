@@ -56,6 +56,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "واحد/روز",
+    "curve": "منحنی",
     "taskName": "نام وظیفه",
     "start": "شروع",
     "end": "پایان",
@@ -135,6 +137,10 @@
   "resourceGantt": {
     "pageBreakPerResource": "هر منبع در صفحه‌ای جدید",
     "includeUnassigned": "شامل کردن کارهای بدون منبع",
+    "groupByType": "گروه‌بندی بر اساس نوع منبع",
+    "showAssignmentColumns": "نمایش واحد/روز و منحنی",
+    "emptyPeriod": "هیچ کاری در دوره گزارش وجود ندارد — دوره دیگری یا کل پروژه را انتخاب کنید.",
+    "outsidePeriod": "خارج از دوره:",
     "empty": "هیچ تخصیص منبعی وجود ندارد — ابتدا منابع را به کارها تخصیص دهید.",
     "resources": "منابع:",
     "assignments": "تخصیص‌ها:",

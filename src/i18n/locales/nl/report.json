@@ -55,6 +55,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "Eenh./d",
+    "curve": "Curve",
     "taskName": "Taaknaam",
     "start": "Start",
     "end": "Einde",
@@ -134,6 +136,10 @@
   "resourceGantt": {
     "pageBreakPerResource": "Elke resource op een nieuwe pagina",
     "includeUnassigned": "Taken zonder resource meenemen",
+    "groupByType": "Groeperen op resourcetype",
+    "showAssignmentColumns": "Eenheden/dag en curve tonen",
+    "emptyPeriod": "Geen taken in de rapportageperiode — kies een andere periode of Hele project.",
+    "outsidePeriod": "Buiten de periode:",
     "empty": "Geen resourcetoewijzingen — wijs eerst resources toe aan taken.",
     "resources": "Resources:",
     "assignments": "Toewijzingen:",

@@ -57,6 +57,41 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await expect(pages).toHaveCount(3);
   await expect(count('unassigned')).toHaveText('1');
 
+  // Typelaag (manuvarkey punt 2): Ploeg A (ploeg) en Kraan (materieel) krijgen elk een typekop, en die
+  // blijft bij zijn eerste resource op hetzelfde vel — nog steeds drie pagina's, geen leeg vel per type.
+  await page.locator('[data-ops-report-option="groupByType"]').check();
+  await expect(pages).toHaveCount(3);
+
+  // Toewijzingskolommen (manuvarkey punt 1): standaard aan; uitzetten maakt de tabel smaller en
+  // rastert de preview dus opnieuw.
+  const colsToggle = page.locator('[data-ops-report-option="showAssignmentColumns"]');
+  await expect(colsToggle).toBeChecked();
+  const firstImg = pages.first().locator('img');
+  const beforeCols = await firstImg.getAttribute('src');
+  await colsToggle.uncheck();
+  await expect.poll(() => firstImg.getAttribute('src'), { timeout: 20_000 }).not.toBe(beforeCols);
+  await colsToggle.check();
+
+  // Rapportageperiode (manuvarkey punt 3): een eigen bereik dat alleen Fundering raakt ⇒ alleen Ploeg A
+  // blijft over; Casco (met Kraan) en Gevel vallen buiten de periode en de telling zegt dat. Terug naar
+  // Hele project herstelt alles — de export hieronder telt dan weer drie pagina's.
+  const periodField = page.locator('[data-ops-report-period="resourceGanttPeriod"]');
+  await periodField.getByLabel(/^(Reporting period:|Rapportageperiode:)$/).click();
+  await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
+  const fromInput = page.locator('[data-ops-report-option="resourceGanttPeriod.from"]');
+  const toInput = page.locator('[data-ops-report-option="resourceGanttPeriod.to"]');
+  await toInput.fill('2026-09-15');
+  await fromInput.fill('2026-09-01');
+  await expect(count('resources')).toHaveText('1');
+  await expect(count('assignments')).toHaveText('1');
+  await expect(count('unassigned')).toHaveText('0');
+  await expect(count('outsidePeriod')).toHaveText('2');
+  await expect(pages).toHaveCount(1);
+  await periodField.getByLabel(/^(Reporting period:|Rapportageperiode:)$/).click();
+  await page.getByRole('option', { name: /^(Project duration|Hele project)$/ }).click();
+  await expect(count('outsidePeriod')).toHaveCount(0);
+  await expect(pages).toHaveCount(3);
+
   // De échte export (vector-tak, zie paginateVector) moet dezelfde drie pagina's opleveren als de
   // preview: dat is het pad dat de gebruiker in handen krijgt, en de enige plek waar de gedwongen
   // breekposities de PDF in gaan.
