@@ -747,6 +747,45 @@
         "shortfall_one": "Nog {{count}} ploegdag tekort op {{days}}…",
         "shortfall_other": "Nog {{count}} ploegdagen tekort op {{days}}…",
         "allPinned": "Alle projecten staan vast — er is niets te herverdelen. Maak er één los."
+      },
+      "glossary": {
+        "toggle": "Wat betekenen de termen?",
+        "slack": {
+          "term": "speling",
+          "text": "Het aantal werkdagen dat dit project later mag beginnen met deze resource zonder dat zijn einddatum opschuift. Wie de minste speling heeft, staat bovenaan en wordt het meest ontzien."
+        },
+        "ceiling": {
+          "term": "plafond · \"max …\"",
+          "text": "De maximale uitloop van de einddatum die jij dit project toestaat, in werkdagen; je zet hem met de greep aan het einde van de balk. \"max <datum>\" is de dag waar dat plafond op uitkomt. Plafond 0 betekent: de einddatum staat vast, maar binnen de speling mag er nog geschoven worden."
+        },
+        "used": {
+          "term": "benut",
+          "text": "Hoeveel werkdagen van het plafond de verdeler daadwerkelijk nodig had. Minder dan het plafond is prima: de gestippelde rest is toegestaan maar niet gebruikt."
+        },
+        "fixedLoad": {
+          "term": "vaste last",
+          "text": "Boekingen op deze resource die niet mogen bewegen: projecten die je hebt vastgezet, en projecten in \"datums zoals opgeslagen\". De verdeler plant er omheen."
+        },
+        "pauseDay": {
+          "term": "pauzedag · onderbrekingen",
+          "text": "Een werkdag binnen de looptijd waarop dit project deze resource niet gebruikt. Met \"Onderbrekingen toestaan\" aan mag de verdeler zulke pauzes invoegen zodat een taak om een ander project heen werkt in plaats van er volledig achter te wachten. Een gat tussen twee taken telt ook als pauzedag."
+        },
+        "shortfall": {
+          "term": "\"past niet\" · tekort",
+          "text": "De verdeler kon voor die taak geen dagen vinden waarop de resource nog vrij is, binnen het plafond dat je dit project gaf. Hij boekt hem dan bewust niet over de capaciteit heen. Uitweg: geef dit project meer uitloop, zet een ander project vast of maak het juist los, of sta onderbrekingen toe."
+        },
+        "endShift": {
+          "term": "einddatum-verschuiving · \"eind +N dagen\"",
+          "text": "Hoeveel werkdagen de einddatum van het hele project later komt te liggen door deze verdeling. \"Eind ongewijzigd\" betekent dat het verschuiven binnen de speling paste."
+        },
+        "pin": {
+          "term": "vastzetten",
+          "text": "Dit project doet niet mee in de verdeling: het houdt zijn einddatum én zijn werkdagen, en telt voor de anderen als vaste last."
+        },
+        "savings": {
+          "term": "\"zou N werkdagen besparen\" · \"bespaart\"",
+          "text": "Hoeveel werkdagen uitloop de andere stand van \"Onderbrekingen toestaan\" zou schelen. \"Zou niets besparen\" betekent dat het voor dit conflict geen verschil maakt."
+        }
       }
     },
     "color": "Kleur"

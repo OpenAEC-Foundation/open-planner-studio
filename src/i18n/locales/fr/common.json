@@ -767,6 +767,45 @@
         "shortfall_many": "Il manque encore {{count}} jours-équipe les {{days}}…",
         "shortfall_other": "Il manque encore {{count}} jours-équipe les {{days}}…",
         "allPinned": "Tous les projets sont épinglés — il n'y a rien à redistribuer. Détachez-en un."
+      },
+      "glossary": {
+        "toggle": "Que signifient ces termes ?",
+        "slack": {
+          "term": "marge",
+          "text": "Le nombre de jours ouvrés dont ce projet peut commencer plus tard avec cette ressource sans que sa date de fin bouge. Celui qui a le moins de marge figure en haut et est le plus ménagé."
+        },
+        "ceiling": {
+          "term": "plafond · « max … »",
+          "text": "Le décalage maximal de la date de fin que vous autorisez à ce projet, en jours ouvrés ; vous le réglez avec la poignée au bout de la barre. « max <date> » est le jour auquel ce plafond aboutit. Un plafond de 0 signifie : la date de fin est figée, mais on peut encore déplacer à l'intérieur de la marge."
+        },
+        "used": {
+          "term": "utilisé",
+          "text": "Combien de jours ouvrés du plafond la répartition a réellement utilisés. Moins que le plafond, c'est très bien : le reste en pointillé est autorisé mais non utilisé."
+        },
+        "fixedLoad": {
+          "term": "charge fixe",
+          "text": "Les réservations sur cette ressource qui ne peuvent pas bouger : les projets que vous avez épinglés et les projets affichés avec les dates telles qu'enregistrées. La répartition planifie autour d'elles."
+        },
+        "pauseDay": {
+          "term": "jour de pause · interruptions",
+          "text": "Un jour ouvré de la durée pendant lequel ce projet n'utilise pas cette ressource. Avec « Autoriser les interruptions » activé, la répartition peut insérer de telles pauses pour qu'une tâche contourne un autre projet au lieu d'attendre entièrement derrière lui. Un écart entre deux tâches compte aussi comme jour de pause."
+        },
+        "shortfall": {
+          "term": "« ne tient pas » · déficit",
+          "text": "Pour cette tâche, la répartition n'a trouvé aucun jour où la ressource est encore libre, dans le plafond que vous avez donné à ce projet. Elle évite alors délibérément de la réserver au-delà de la capacité. Issues : donnez plus de décalage à ce projet, épinglez un autre projet ou au contraire détachez-le, ou autorisez les interruptions."
+        },
+        "endShift": {
+          "term": "décalage de la date de fin · « fin +N jours »",
+          "text": "De combien de jours ouvrés la date de fin de tout le projet se retrouve plus tard à cause de cette répartition. « Fin inchangée » signifie que le déplacement tenait dans la marge."
+        },
+        "pin": {
+          "term": "épingler",
+          "text": "Ce projet ne participe pas à la répartition : il conserve sa date de fin et ses jours ouvrés, et compte comme charge fixe pour les autres."
+        },
+        "savings": {
+          "term": "« économiserait N jours ouvrés » · « économise »",
+          "text": "Combien de jours ouvrés de décalage l'autre position de « Autoriser les interruptions » ferait gagner. « N'économiserait rien » signifie que cela ne change rien pour ce conflit."
+        }
       }
     },
     "color": "Couleur"

@@ -767,6 +767,45 @@
         "shortfall_many": "Todavía faltan {{count}} días-cuadrilla el {{days}}…",
         "shortfall_other": "Todavía faltan {{count}} días-cuadrilla el {{days}}…",
         "allPinned": "Todos los proyectos están fijados: no hay nada que redistribuir. Suelta uno."
+      },
+      "glossary": {
+        "toggle": "¿Qué significan estos términos?",
+        "slack": {
+          "term": "holgura",
+          "text": "El número de días laborables que este proyecto puede empezar más tarde con este recurso sin que su fecha de fin se desplace. Quien tiene menos holgura aparece arriba y es el más respetado."
+        },
+        "ceiling": {
+          "term": "techo · «máx. …»",
+          "text": "El desplazamiento máximo de la fecha de fin que permites a este proyecto, en días laborables; lo ajustas con el tirador al final de la barra. «máx. <fecha>» es el día al que llega ese techo. Techo 0 significa: la fecha de fin es fija, pero dentro de la holgura todavía se puede mover."
+        },
+        "used": {
+          "term": "usado",
+          "text": "Cuántos días laborables del techo ha necesitado realmente el reparto. Menos que el techo está bien: el resto punteado está permitido pero no se usa."
+        },
+        "fixedLoad": {
+          "term": "carga fija",
+          "text": "Reservas sobre este recurso que no pueden moverse: proyectos que has fijado y proyectos con las fechas tal como se guardaron. El reparto planifica a su alrededor."
+        },
+        "pauseDay": {
+          "term": "día de pausa · interrupciones",
+          "text": "Un día laborable dentro de la duración en el que este proyecto no usa este recurso. Con «Permitir interrupciones» activado, el reparto puede insertar esas pausas para que una tarea rodee a otro proyecto en lugar de esperar del todo detrás de él. Un hueco entre dos tareas también cuenta como día de pausa."
+        },
+        "shortfall": {
+          "term": "«no cabe» · déficit",
+          "text": "Para esa tarea el reparto no encontró días en los que el recurso siga libre, dentro del techo que diste a este proyecto. Entonces, deliberadamente, no la reserva por encima de la capacidad. Salidas: da más margen a este proyecto, fija otro proyecto o suéltalo, o permite interrupciones."
+        },
+        "endShift": {
+          "term": "desplazamiento de la fecha de fin · «fin +N días»",
+          "text": "Cuántos días laborables más tarde queda la fecha de fin de todo el proyecto por este reparto. «Fin sin cambios» significa que el desplazamiento cupo dentro de la holgura."
+        },
+        "pin": {
+          "term": "fijar",
+          "text": "Este proyecto no participa en el reparto: conserva su fecha de fin y sus días laborables, y cuenta como carga fija para los demás."
+        },
+        "savings": {
+          "term": "«ahorraría N días laborables» · «ahorra»",
+          "text": "Cuántos días laborables de desplazamiento supondría la otra posición de «Permitir interrupciones». «No ahorraría nada» significa que para este conflicto no cambia nada."
+        }
       }
     },
     "color": "Color"

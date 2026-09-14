@@ -747,6 +747,45 @@
         "shortfall_one": "Still {{count}} crew day short on {{days}}…",
         "shortfall_other": "Still {{count}} crew days short on {{days}}…",
         "allPinned": "Every project is pinned — there is nothing to redistribute. Unpin one."
+      },
+      "glossary": {
+        "toggle": "What do these terms mean?",
+        "slack": {
+          "term": "slack",
+          "text": "The number of workdays this project may start later with this resource without its end date moving. Whoever has the least slack is listed first and is spared the most."
+        },
+        "ceiling": {
+          "term": "ceiling · \"max …\"",
+          "text": "The maximum end-date slip you allow this project, in workdays; you set it with the handle at the end of the bar. \"max <date>\" is the day that ceiling works out to. Ceiling 0 means the end date is fixed, but there may still be movement within the slack."
+        },
+        "used": {
+          "term": "used",
+          "text": "How many workdays of the ceiling the distribution actually needed. Less than the ceiling is fine: the dotted remainder is allowed but not used."
+        },
+        "fixedLoad": {
+          "term": "fixed load",
+          "text": "Bookings on this resource that may not move: projects you have pinned, and projects showing dates as recorded. The distribution plans around them."
+        },
+        "pauseDay": {
+          "term": "pause day · interruptions",
+          "text": "A workday within the run on which this project does not use this resource. With \"Allow interruptions\" on, the distribution may insert such pauses so a task works around another project instead of waiting fully behind it. A gap between two tasks also counts as a pause day."
+        },
+        "shortfall": {
+          "term": "\"does not fit\" · shortfall",
+          "text": "For that task the distribution could find no days on which the resource is still free, within the ceiling you gave this project. It then deliberately does not book it over capacity. Ways out: give this project more slip, pin another project or unpin it, or allow interruptions."
+        },
+        "endShift": {
+          "term": "end-date shift · \"end +N days\"",
+          "text": "How many workdays later the end date of the whole project lands because of this distribution. \"End unchanged\" means the shifting fitted within the slack."
+        },
+        "pin": {
+          "term": "pin",
+          "text": "This project takes no part in the distribution: it keeps both its end date and its workdays, and counts as fixed load for the others."
+        },
+        "savings": {
+          "term": "\"would save N workdays\" · \"saves\"",
+          "text": "How many workdays of slip the other setting of \"Allow interruptions\" would make. \"Would save nothing\" means it makes no difference for this conflict."
+        }
       }
     },
     "color": "Color"

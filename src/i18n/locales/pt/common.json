@@ -767,6 +767,45 @@
         "shortfall_many": "Ainda faltam {{count}} dias-equipa em {{days}}…",
         "shortfall_other": "Ainda faltam {{count}} dias-equipa em {{days}}…",
         "allPinned": "Todos os projetos estão fixados — não há nada para redistribuir. Solte um."
+      },
+      "glossary": {
+        "toggle": "O que significam estes termos?",
+        "slack": {
+          "term": "folga",
+          "text": "O número de dias úteis que este projeto pode começar mais tarde com este recurso sem que a sua data de fim se desloque. Quem tem menos folga fica no topo e é o mais poupado."
+        },
+        "ceiling": {
+          "term": "teto · «máx. …»",
+          "text": "O deslocamento máximo da data de fim que permite a este projeto, em dias úteis; define-o com a pega no fim da barra. «máx. <data>» é o dia a que esse teto chega. Teto 0 significa: a data de fim está fixa, mas dentro da folga ainda se pode deslocar."
+        },
+        "used": {
+          "term": "usado",
+          "text": "Quantos dias úteis do teto a distribuição precisou realmente. Menos do que o teto é bom: o resto pontilhado é permitido mas não usado."
+        },
+        "fixedLoad": {
+          "term": "carga fixa",
+          "text": "Reservas neste recurso que não podem mover-se: projetos que fixou e projetos com as datas como registadas. A distribuição planeia à volta delas."
+        },
+        "pauseDay": {
+          "term": "dia de pausa · interrupções",
+          "text": "Um dia útil dentro da duração em que este projeto não usa este recurso. Com «Permitir interrupções» ativo, a distribuição pode inserir essas pausas para que uma tarefa contorne outro projeto em vez de esperar totalmente atrás dele. Uma lacuna entre duas tarefas também conta como dia de pausa."
+        },
+        "shortfall": {
+          "term": "«não cabe» · défice",
+          "text": "Para essa tarefa a distribuição não encontrou dias em que o recurso ainda esteja livre, dentro do teto que deu a este projeto. Assim, deliberadamente não a reserva acima da capacidade. Saídas: dê mais deslocação a este projeto, fixe outro projeto ou solte-o, ou permita interrupções."
+        },
+        "endShift": {
+          "term": "deslocamento da data de fim · «fim +N dias»",
+          "text": "Quantos dias úteis mais tarde fica a data de fim de todo o projeto por causa desta distribuição. «Fim inalterado» significa que a deslocação coube dentro da folga."
+        },
+        "pin": {
+          "term": "fixar",
+          "text": "Este projeto não participa na distribuição: mantém a sua data de fim e os seus dias úteis e conta como carga fixa para os outros."
+        },
+        "savings": {
+          "term": "«pouparia N dias úteis» · «poupa»",
+          "text": "Quantos dias úteis de deslocação a outra posição de «Permitir interrupções» faria. «Não pouparia nada» significa que para este conflito não faz diferença."
+        }
       }
     },
     "color": "Cor"

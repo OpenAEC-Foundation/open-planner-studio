@@ -747,6 +747,45 @@
         "shortfall_one": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik…",
         "shortfall_other": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik…",
         "allPinned": "Tüm projeler sabit — yeniden dağıtılacak bir şey yok. Birini çözün."
+      },
+      "glossary": {
+        "toggle": "Bu terimler ne anlama geliyor?",
+        "slack": {
+          "term": "bolluk",
+          "text": "Bu projenin, bitiş tarihi kaymadan bu kaynakla kaç iş günü daha geç başlayabileceği. En az bolluğu olan en üstte durur ve en çok o korunur."
+        },
+        "ceiling": {
+          "term": "tavan · “en geç …”",
+          "text": "Bu projeye izin verdiğiniz azami bitiş tarihi kayması, iş günü olarak; çubuğun ucundaki tutamakla ayarlarsınız. “en geç <tarih>”, bu tavanın denk geldiği gündür. Tavan 0 şu demektir: bitiş tarihi sabittir, ama bolluk içinde hâlâ kaydırma yapılabilir."
+        },
+        "used": {
+          "term": "kullanılan",
+          "text": "Dağıtımın tavandan gerçekte kaç iş günü kullandığı. Tavandan az olması sorun değildir: noktalı kalan kısım izinli ama kullanılmamıştır."
+        },
+        "fixedLoad": {
+          "term": "sabit yük",
+          "text": "Bu kaynaktaki hareket edemeyen rezervasyonlar: sabitlediğiniz projeler ve kayıtlı tarihlerle gösterilen projeler. Dağıtım onların etrafından planlar."
+        },
+        "pauseDay": {
+          "term": "mola günü · kesintiler",
+          "text": "Süre içinde bu projenin bu kaynağı kullanmadığı bir iş günü. “Kesintilere izin ver” açıkken dağıtım böyle molalar ekleyebilir; böylece bir görev başka bir projenin tamamen arkasında beklemek yerine onun etrafından çalışır. İki görev arasındaki boşluk da mola günü sayılır."
+        },
+        "shortfall": {
+          "term": "“sığmıyor” · açık",
+          "text": "Bu projeye verdiğiniz tavan içinde, dağıtım o görev için kaynağın hâlâ boş olduğu gün bulamadı. O zaman görevi bilerek kapasitenin üstüne rezerve etmez. Çıkış yolları: bu projeye daha fazla kayma tanıyın, başka bir projeyi sabitleyin veya tam tersine serbest bırakın ya da kesintilere izin verin."
+        },
+        "endShift": {
+          "term": "bitiş tarihi kayması · “bitiş +N gün”",
+          "text": "Bu dağıtım yüzünden tüm projenin bitiş tarihinin kaç iş günü geriye kaydığı. “Bitiş değişmedi”, kaydırmanın bolluk içine sığdığı anlamına gelir."
+        },
+        "pin": {
+          "term": "sabitle",
+          "text": "Bu proje dağıtıma katılmaz: hem bitiş tarihini hem iş günlerini korur ve diğerleri için sabit yük sayılır."
+        },
+        "savings": {
+          "term": "“N iş günü kazandırırdı” · “kazandırır”",
+          "text": "“Kesintilere izin ver” ayarının diğer konumunun kaç iş günü kayma kazandıracağı. “Hiçbir şey kazandırmazdı”, bu çakışma için fark yaratmadığı anlamına gelir."
+        }
       }
     },
     "color": "Renk"

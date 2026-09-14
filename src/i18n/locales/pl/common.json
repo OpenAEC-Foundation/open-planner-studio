@@ -787,6 +787,45 @@
         "shortfall_many": "Brakuje jeszcze {{count}} dni brygady w {{days}}…",
         "shortfall_other": "Brakuje jeszcze {{count}} dnia brygady w {{days}}…",
         "allPinned": "Wszystkie projekty są przypięte — nie ma czego rozdzielać. Odepnij jeden."
+      },
+      "glossary": {
+        "toggle": "Co oznaczają te pojęcia?",
+        "slack": {
+          "term": "zapas",
+          "text": "Liczba dni roboczych, o które ten projekt może rozpocząć się później z tym zasobem bez przesunięcia jego daty zakończenia. Kto ma najmniejszy zapas, stoi na górze i jest najbardziej oszczędzany."
+        },
+        "ceiling": {
+          "term": "pułap · „maks. …”",
+          "text": "Maksymalne przesunięcie daty zakończenia, na które pozwalasz temu projektowi, w dniach roboczych; ustawiasz je uchwytem na końcu paska. „maks. <data>” to dzień, na który wypada ten pułap. Pułap 0 oznacza: data zakończenia jest stała, ale w ramach zapasu wciąż można przesuwać."
+        },
+        "used": {
+          "term": "wykorzystano",
+          "text": "Ile dni roboczych pułapu rozłożenie faktycznie potrzebowało. Mniej niż pułap jest w porządku: kropkowana reszta jest dozwolona, ale niewykorzystana."
+        },
+        "fixedLoad": {
+          "term": "stałe obciążenie",
+          "text": "Rezerwacje na tym zasobie, które nie mogą się ruszać: projekty przez ciebie przypięte oraz projekty z datami tak jak zapisane. Rozłożenie planuje wokół nich."
+        },
+        "pauseDay": {
+          "term": "dzień przerwy · przerwy",
+          "text": "Dzień roboczy w czasie trwania, w którym ten projekt nie korzysta z tego zasobu. Przy włączonym „Zezwól na przerwy” rozłożenie może wstawiać takie przerwy, aby zadanie obeszło inny projekt, zamiast czekać w całości za nim. Luka między dwoma zadaniami też liczy się jako dzień przerwy."
+        },
+        "shortfall": {
+          "term": "„nie mieści się” · niedobór",
+          "text": "Dla tego zadania rozłożenie nie znalazło dni, w których zasób jest jeszcze wolny, w ramach pułapu nadanego temu projektowi. Świadomie nie rezerwuje go wtedy ponad wydajność. Wyjścia: daj temu projektowi więcej przesunięcia, przypnij inny projekt albo go odepnij, albo zezwól na przerwy."
+        },
+        "endShift": {
+          "term": "przesunięcie daty zakończenia · „koniec +N dni”",
+          "text": "O ile dni roboczych później wypada data zakończenia całego projektu z powodu tego rozłożenia. „Koniec bez zmian” oznacza, że przesunięcie zmieściło się w zapasie."
+        },
+        "pin": {
+          "term": "przypnij",
+          "text": "Ten projekt nie bierze udziału w rozłożeniu: zachowuje datę zakończenia i swoje dni robocze, a dla pozostałych liczy się jako stałe obciążenie."
+        },
+        "savings": {
+          "term": "„zaoszczędziłoby N dni roboczych” · „oszczędza”",
+          "text": "Ile dni roboczych przesunięcia dałoby drugie ustawienie „Zezwól na przerwy”. „Nic by nie zaoszczędziło” oznacza, że dla tego konfliktu nie robi to różnicy."
+        }
       }
     },
     "color": "Kolor"

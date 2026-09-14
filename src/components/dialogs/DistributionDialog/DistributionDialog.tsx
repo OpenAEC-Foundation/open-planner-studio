@@ -69,6 +69,7 @@ import { STRIP } from './stripGeometry';
 import { PhaseStrip } from './PhaseStrip';
 import { DistributionPicker } from './DistributionPicker';
 import { BeforeAfterChart } from './BeforeAfterChart';
+import { DistributionGlossary } from './DistributionGlossary';
 
 /** De inhoudsbreedte van het dialoogpaneel: `w-[960px]` min de `p-4`-padding aan weerszijden.
  *  Alleen de terugval vóór de eerste ResizeObserver-meting; daarna telt de gemeten breedte. */
@@ -703,6 +704,21 @@ export function DistributionDialog() {
                   data-ops-distribution-legend
                 >
                   {t('resource.distribution.strip.legend')}
+                </div>
+
+                {/* De begrippenlijst, direct onder de legenda (eigenaarsvraag 2026-09-14). Net als
+                    de legenda hoort hij bij de rijen en niet bij de tijdas, dus hij is op precies
+                    dezelfde manier MEEBEVROREN en krijgt dezelfde inspringing en breedtecap —
+                    anders rekt een uitgeklapte definitie de scroll-container breder dan de as. */}
+                <div
+                  className="sticky z-[2] bg-surface"
+                  style={{
+                    marginLeft: STRIP.labelWidth + STRIP.gap,
+                    left: STRIP.labelWidth + STRIP.gap,
+                    maxWidth: (stripView?.axis?.width ?? trackSpace) + STRIP.gap + STRIP.endWidth,
+                  }}
+                >
+                  <DistributionGlossary />
                 </div>
 
                 {/* De einddatum-badges per project, boven het histogram (§3.4). Een project met een

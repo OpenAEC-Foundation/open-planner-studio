@@ -747,6 +747,45 @@
         "shortfall_one": "Es fehlt noch {{count}} Schichttag am {{days}}…",
         "shortfall_other": "Es fehlen noch {{count}} Schichttage am {{days}}…",
         "allPinned": "Alle Projekte sind fixiert — es gibt nichts umzuverteilen. Lösen Sie eines."
+      },
+      "glossary": {
+        "toggle": "Was bedeuten diese Begriffe?",
+        "slack": {
+          "term": "Puffer",
+          "text": "Die Anzahl Arbeitstage, um die dieses Projekt mit dieser Ressource später beginnen darf, ohne dass sein Endtermin verschoben wird. Wer den geringsten Puffer hat, steht oben und wird am meisten geschont."
+        },
+        "ceiling": {
+          "term": "Obergrenze · „max. …“",
+          "text": "Die maximale Endterminverschiebung, die Sie diesem Projekt erlauben, in Arbeitstagen; Sie stellen sie mit dem Griff am Ende des Balkens ein. „max. <Datum>“ ist der Tag, auf den diese Obergrenze hinausläuft. Obergrenze 0 bedeutet: Der Endtermin steht fest, aber innerhalb des Puffers darf noch verschoben werden."
+        },
+        "used": {
+          "term": "genutzt",
+          "text": "Wie viele Arbeitstage der Obergrenze die Verteilung tatsächlich gebraucht hat. Weniger als die Obergrenze ist in Ordnung: Der gepunktete Rest ist erlaubt, aber ungenutzt."
+        },
+        "fixedLoad": {
+          "term": "feste Last",
+          "text": "Buchungen auf dieser Ressource, die sich nicht bewegen dürfen: Projekte, die Sie fixiert haben, und Projekte mit Datumsangaben wie gespeichert. Die Verteilung plant darum herum."
+        },
+        "pauseDay": {
+          "term": "Pausentag · Unterbrechungen",
+          "text": "Ein Arbeitstag innerhalb der Laufzeit, an dem dieses Projekt diese Ressource nicht nutzt. Ist „Unterbrechungen zulassen“ aktiv, darf die Verteilung solche Pausen einfügen, damit ein Vorgang um ein anderes Projekt herum arbeitet, statt vollständig dahinter zu warten. Auch eine Lücke zwischen zwei Vorgängen zählt als Pausentag."
+        },
+        "shortfall": {
+          "term": "„passt nicht“ · Fehlmenge",
+          "text": "Für diesen Vorgang fand die Verteilung innerhalb der Obergrenze, die Sie diesem Projekt gegeben haben, keine Tage, an denen die Ressource noch frei ist. Sie bucht ihn dann bewusst nicht über die Kapazität hinaus. Auswege: Geben Sie diesem Projekt mehr Spielraum, fixieren Sie ein anderes Projekt oder lösen Sie es gerade, oder lassen Sie Unterbrechungen zu."
+        },
+        "endShift": {
+          "term": "Endterminverschiebung · „Ende +N Tage“",
+          "text": "Um wie viele Arbeitstage der Endtermin des gesamten Projekts durch diese Verteilung später liegt. „Ende unverändert“ bedeutet, dass das Verschieben in den Puffer passte."
+        },
+        "pin": {
+          "term": "fixieren",
+          "text": "Dieses Projekt nimmt an der Verteilung nicht teil: Es behält seinen Endtermin und seine Arbeitstage und zählt für die anderen als feste Last."
+        },
+        "savings": {
+          "term": "„würde N Arbeitstage sparen“ · „spart“",
+          "text": "Wie viele Arbeitstage Verschiebung die andere Stellung von „Unterbrechungen zulassen“ ausmachen würde. „Würde nichts sparen“ bedeutet, dass es für diesen Konflikt keinen Unterschied macht."
+        }
       }
     },
     "color": "Farbe"
