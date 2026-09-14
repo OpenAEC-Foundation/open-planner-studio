@@ -69,6 +69,24 @@ const DIALOG_CONTENT_WIDTH = 960 - 32;
  *  een handvol dagen die je moet kunnen aanwijzen en tellen. Boven ~28 px worden het luiken. */
 const DIALOG_MAX_DAY_WIDTH = 28;
 
+/**
+ * Twee losse clausules aan elkaar met ÉÉN scheidingsteken — de " · " die de balk-labels ook
+ * gebruiken (polishronde 2026-09-14, bevinding 8).
+ *
+ * De kale aaneenschakeling gaf twee soorten rommel. De stale-reden eindigt op een em-dash-zin
+ * ("… — dit voorstel is niet meer actueel.") en `compute.pressRecompute` BEGINT met een em-dash,
+ * dus las de strook als "… — niet meer actueel. — druk op Herbereken": twee streepjes in één
+ * regel. En de tekortkop eindigt op "…", waarna de opsomming van documenten er met een spatie
+ * tegenaan geplakt werd alsof die ellips het scheidingsteken was. Het afpellen van een leidend
+ * streepje is bewust op de TEKST en niet op de vertaalsleutel: de dertien vertalingen dragen dat
+ * streepje ook, en die staan buiten het bestek van deze ronde.
+ */
+function joinClauses(head: string, tail: string): string {
+  const trimmed = tail.replace(/^[\s\u2014\u2013-]+/, '').trim();
+  if (trimmed === '') return head;
+  return `${head.trimEnd()} \u00b7 ${trimmed}`;
+}
+
 export function DistributionDialog() {
   const { t, i18n } = useTranslation('common');
   const tune = useAppStore(s => s.ui.levelingDistribution);
@@ -413,8 +431,10 @@ export function DistributionDialog() {
     if (staleReason !== null) {
       return {
         tone: 'neutral',
-        text: t(`resource.distribution.stale.${staleReason}`, { docs: staleDocs })
-          + (degraded || staleReason === 'edited' ? ` ${t('resource.distribution.compute.pressRecompute')}` : ''),
+        text: joinClauses(
+          t(`resource.distribution.stale.${staleReason}`, { docs: staleDocs }),
+          degraded || staleReason === 'edited' ? t('resource.distribution.compute.pressRecompute') : '',
+        ),
         stale: true,
       };
     }
@@ -432,7 +452,7 @@ export function DistributionDialog() {
         count: shortfallDays.length,
         days: shortfallDays.slice(0, 3).map(formatDay).join(', '),
       });
-      return { tone: 'bad', text: named ? `${head} ${named}` : head, stale: false };
+      return { tone: 'bad', text: joinClauses(head, named), stale: false };
     }
     const worst = proposal.docs.reduce(
       (best, doc) => (doc.endShiftWorkdays > best.endShiftWorkdays ? doc : best),
@@ -642,9 +662,16 @@ export function DistributionDialog() {
                 })}
 
                 {/* De legenda-regel (§4), ingesprongen tot waar de tracks beginnen. */}
+                {/* De legenda mag WRAPPEN (polishronde 2026-09-14, bevinding 9): zonder breedtecap
+                    duwde hij als één lange regel de scroll-container breder dan de balken zelf, dus
+                    verscheen er een horizontale schuifbalk die niets met de tijdas te maken had. Hij
+                    krijgt precies de ruimte van de track plus het uitkomstlabel. */}
                 <div
                   className="text-[10px] text-text-secondary"
-                  style={{ marginLeft: STRIP.labelWidth + STRIP.gap }}
+                  style={{
+                    marginLeft: STRIP.labelWidth + STRIP.gap,
+                    maxWidth: (stripView?.axis?.width ?? trackSpace) + STRIP.gap + STRIP.endWidth,
+                  }}
                   data-ops-distribution-legend
                 >
                   {t('resource.distribution.strip.legend')}

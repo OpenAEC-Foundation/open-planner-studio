@@ -300,7 +300,20 @@ export function PhaseStrip({
             aria-pressed={pinned}
             title={t('resource.distribution.help.pin')}
             onClick={onTogglePin}
-            className="text-[10px] text-left underline underline-offset-2 text-text-secondary hover:text-text-primary"
+            // EEN ECHTE KNOP, GEEN ONDERSTREEPT WOORDJE (polishronde 2026-09-14, bevinding 7). Het
+            // vastzetten is naast de greep de tweede bediening van de rij; als kale link tussen
+            // twee regels grijze tekst las hij als voetnoot. Dezelfde vorm als "Reset" onderin de
+            // dialoog — rand, afgeronde hoek, hover-vlak — alleen compacter. In gepinde stand draagt
+            // hij het accent, zodat de stand ook zonder de tekst te lezen zichtbaar is; `aria-pressed`
+            // blijft de bron voor hulptechnologie en de browsertest.
+            className="mt-0.5 self-start max-w-full truncate rounded-[6px] border px-1.5 py-[1px] text-[10px] leading-4 hover:bg-surface-hover"
+            style={pinned
+              ? {
+                borderColor: 'var(--theme-accent)',
+                background: 'color-mix(in srgb, var(--theme-accent) 12%, transparent)',
+                color: 'var(--theme-accent)',
+              }
+              : { borderColor: 'var(--theme-border)', color: 'var(--color-text-secondary)' }}
             data-ops-distribution-pin
           >
             {pinned
