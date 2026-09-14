@@ -322,6 +322,20 @@ export function PhaseStrip({
               fill="var(--theme-text-dim)" opacity={0.14} />
           ))}
 
+          {/* De BREUKEN van de as (bevinding B1). Een gat van meer dan `GAP_COMPRESS_DAYS`
+              kalenderdagen is weggeklapt; zonder markering leest de balk alsof de twee segmenten
+              aan elkaar vast zitten. Zelfde "⋯" als het histogram en de voor/na-grafiek. */}
+          {(axis?.breaks ?? []).map((x, i) => (
+            <text
+              key={`brk-${i}`}
+              x={x} y={STRIP.trackHeight / 2 + 4}
+              textAnchor="middle" fontSize={11} fill="var(--theme-text-muted)"
+              data-ops-distribution-break
+            >
+              ⋯
+            </text>
+          ))}
+
           {/* Weekscheidingen (1 px) en de donkerdere maandlijn. */}
           {(geometry?.weekLines ?? []).map((x, i) => (
             <rect key={`w-${i}`} x={x} y={0} width={1} height={STRIP.trackHeight} fill="var(--theme-border-light)" />

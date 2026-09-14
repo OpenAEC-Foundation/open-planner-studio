@@ -22,7 +22,7 @@
 // balk vol arcering staan en zou een echte, ingevoegde onderbreking niet meer opvallen — precies het
 // gebrek dat de gebruikstest van 2026-09-12 aanwees ("pauzes waren onzichtbaar").
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
-import { parseDate } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
 /** De maatvoering van één rij, letterlijk uit het prototype (tabblad 4, `.prow`/`.ptrack.tall`).
  *  Eén definitie, gedeeld door `PhaseStrip.tsx` (de rij zelf) en `DistributionDialog.tsx` (de
@@ -136,27 +136,62 @@ function firstBookedDay(loadByDay: Record<string, number>): string | null {
 }
 
 /**
- * Loop vanaf (exclusief) `fromIso` `workdays` WERKdagen vooruit over de as en geef de dag waarop je
- * uitkomt plus de x van zijn rechterrand. Loopt de as op vóór het aantal bereikt is, dan levert hij
- * het aseinde — de handle mag de as nooit verlaten.
+ * De x van de RECHTERrand van `iso`.
+ *
+ * DE AS IS NIET DE KALENDER (bevinding B1 van de review). `buildOccupancyAxis` klapt elk gat van
+ * meer dan `GAP_COMPRESS_DAYS` kalenderdagen weg, dus een datum kan bestaan zonder een plek op de
+ * as te hebben (`xOf` geeft dan `null`). Zo'n dag krijgt hier de rechterrand van het segment waar
+ * hij ACHTER ligt: de balk stopt netjes op de breuk in plaats van er dwars doorheen te lopen. De
+ * datum zelf blijft onaangeroerd — die gaat als `ceilingEndIso` gewoon naar het uitkomstlabel.
+ */
+function rightEdgeX(axis: OccupancyAxis, iso: string): number {
+  const x = axis.xOf(iso);
+  if (x !== null) return x + axis.dayWidth;
+  let edge = AXIS.padLeft;
+  for (const segment of axis.segments) {
+    if (segment.days[0] > iso) break;
+    edge = segment.x0 + segment.days.length * axis.dayWidth;
+  }
+  return edge;
+}
+
+/** Ruime bovengrens op de kalenderwandeling hieronder, zodat een kalender waarin (bijna) niets een
+ *  werkdag is nooit een oneindige lus wordt. */
+function walkLimit(workdays: number): number {
+  return workdays * 7 + 400;
+}
+
+/**
+ * Loop vanaf (exclusief) `fromIso` `workdays` WERKdagen vooruit — over de KALENDER, niet over de
+ * as — en geef de dag waarop je uitkomt plus de x van zijn rechterrand.
+ *
+ * WAAROM DE KALENDER EN NIET DE AS. Tot bevinding B1 liep deze functie over de dagen die de as nog
+ * overhad. Bij een gecomprimeerd gat (twee projecten maanden uit elkaar) sloeg hij daarmee de hele
+ * weggeklapte periode over en landde het plafond maanden te ver: een greep van "vijf werkdagen"
+ * kwam in juni uit in plaats van in maart. De telling hoort in kalenderdagen; pas de TEKENpositie
+ * is een asvraag, en die loopt via `rightEdgeX`.
+ *
+ * Vindt de wandeling het aantal niet binnen de limiet, dan is er geen datum (`iso === null`) en
+ * valt de x terug op het einde van de as.
  */
 function advanceWorkdays(
   axis: OccupancyAxis,
-  days: { iso: string; x: number }[],
   fromIso: string | null,
   workdays: number,
   isWorkingDay: (iso: string) => boolean,
 ): { iso: string | null; xEnd: number } {
-  const startX = fromIso === null
-    ? AXIS.padLeft
-    : (axis.xOf(fromIso) ?? AXIS.padLeft) + axis.dayWidth;
+  if (fromIso === null) return { iso: null, xEnd: AXIS.padLeft };
+  const startX = rightEdgeX(axis, fromIso);
   if (workdays <= 0) return { iso: fromIso, xEnd: startX };
   let remaining = workdays;
-  for (const day of days) {
-    if (fromIso !== null && day.iso <= fromIso) continue;
-    if (!isWorkingDay(day.iso)) continue;
+  let cursor = parseDate(fromIso);
+  const limit = walkLimit(workdays);
+  for (let step = 0; step < limit; step++) {
+    cursor = addCalendarDays(cursor, 1);
+    const iso = formatDate(cursor);
+    if (!isWorkingDay(iso)) continue;
     remaining -= 1;
-    if (remaining === 0) return { iso: day.iso, xEnd: day.x + axis.dayWidth };
+    if (remaining === 0) return { iso, xEnd: rightEdgeX(axis, iso) };
   }
   return { iso: null, xEnd: axis.width - AXIS.padRight };
 }
@@ -184,7 +219,7 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
       // Een niet-werkdag zonder boeking is geen pauze maar gewoon weekend: niets tekenen.
     }
   }
-  const phaseEndX = last === null ? AXIS.padLeft : (axis.xOf(last) ?? AXIS.padLeft) + dayWidth;
+  const phaseEndX = last === null ? AXIS.padLeft : rightEdgeX(axis, last);
 
   // (2) De vaste last, samengevoegd tot aaneengesloten banden.
   const fixedBands: StripBand[] = [];
@@ -200,8 +235,8 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
 
   // (3) De meetlat, verankerd aan het OORSPRONKELIJKE fase-einde.
   const origEnd = lastBookedDay(beforeLoadByDay);
-  const origEndX = origEnd === null ? AXIS.padLeft : (axis.xOf(origEnd) ?? AXIS.padLeft) + dayWidth;
-  const slack = advanceWorkdays(axis, days, origEnd, Math.max(0, Math.floor(slackWorkdays)), isWorkingDay);
+  const origEndX = origEnd === null ? AXIS.padLeft : rightEdgeX(axis, origEnd);
+  const slack = advanceWorkdays(axis, origEnd, Math.max(0, Math.floor(slackWorkdays)), isWorkingDay);
   const slackEndX = Math.min(trackRight, slack.xEnd);
   const slackBar = slackEndX > origEndX ? { x: origEndX, w: slackEndX - origEndX } : null;
   const overrunBar = phaseEndX > slackEndX ? { x: slackEndX, w: phaseEndX - slackEndX } : null;
@@ -223,7 +258,7 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
     // de vrije ruimte dan stilzwijgend met die verschuiving krimpen terwijl er niets van de uitloop
     // verbruikt is.
     const remaining = Math.max(0, Math.floor(ceilingWorkdays) - Math.max(0, Math.floor(endShiftWorkdays)));
-    const ceiling = advanceWorkdays(axis, days, last, remaining, isWorkingDay);
+    const ceiling = advanceWorkdays(axis, last, remaining, isWorkingDay);
     handleX = Math.max(AXIS.padLeft, Math.min(trackRight, ceiling.xEnd));
     ceilingEndIso = ceiling.iso;
   }
