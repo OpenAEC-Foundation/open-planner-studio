@@ -93,7 +93,7 @@ const COL = {
   // Toewijzingskolommen van het resourcediagram (manuvarkey punt 1): eenheden per dag en de
   // verdeelcurve van de resource van de band op die taak. Alleen bij `assignmentColumns`.
   units:     { w: 45 },
-  curve:     { w: 92 },
+  curve:     { w: 98 },
 };
 
 /**
@@ -499,6 +499,23 @@ function formatDuration(days: number): string {
   return `${days}d`;
 }
 
+/**
+ * Breek `text` op woordgrenzen in regels die binnen `maxWidth` passen (dezelfde px-eenheid als
+ * `d2d.measureText`). Eén woord dat alleen al te breed is wordt met een ellipsis afgekort.
+ */
+function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (d2d.measureText(candidate).width <= maxWidth) { line = candidate; continue; }
+    if (line) lines.push(line);
+    line = d2d.measureText(word).width <= maxWidth ? word : fitText(d2d, word, maxWidth);
+  }
+  if (line) lines.push(line);
+  return lines.length > 0 ? lines : [''];
+}
+
 /** Eenheden per dag: geheel als "2", anders tot twee decimalen zonder nullen ("0.5", "1.25"). */
 function formatUnitsPerDay(units: number): string {
   return String(Math.round(units * 100) / 100);
@@ -695,7 +712,12 @@ export function renderReport(
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(14);
     d2d.textAlign = 'center';
-    d2d.fillText(fitText(d2d, options.labels?.noTasks ?? 'No tasks to display', 580), 300, 100);
+    // Woord-wrap binnen de 600 px brede doos: een instructie ("kies een andere periode …") mag
+    // niet halverwege afkappen (review ronde 2, bevinding 4). Verticaal is er ruimte zat.
+    const emptyLines = wrapWords(d2d, options.labels?.noTasks ?? 'No tasks to display', 560);
+    const emptyLineH = m.s(18);
+    const emptyTop = 100 - ((emptyLines.length - 1) * emptyLineH) / 2;
+    emptyLines.forEach((line, i) => d2d.fillText(line, 300, emptyTop + i * emptyLineH));
     // Geen kop-/tijdschaalstrook in de lege-staat (alleen een centrale melding) ⇒ niets te herhalen.
     // Het meldingsvak zelf houdt z'n vaste 600×200; alleen de tekst erin volgt de schaal.
     return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0, footerHeight: 0 };
@@ -1053,7 +1075,9 @@ export function renderReport(
       // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
       // rand wordt met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of
       // over de rechterrand hangt (hyperkritische review, bevinding 2).
-      const inWindow = !windowed || (x + size >= m.tableWidth && x - size <= canvasWidth);
+      // Middelpunt buiten het chartgebied ⇒ niet tekenen (een naar binnen geklemde ruit zou
+      // een dag suggereren waarop de mijlpaal niet valt — review ronde 2, bevinding 6).
+      const inWindow = !windowed || (x >= m.tableWidth && x <= canvasWidth);
       const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
       if (inWindow) {
@@ -1160,8 +1184,18 @@ export function renderReport(
       for (const s of segs) {
         // De minimumbreedte (3 px, 2 bij splits) op de RUWE maat, en het einde bij een venster op de
         // chartrand geklemd zodat dat minimum er niet overheen steekt.
-        const rawSw = Math.max(s.rx2 - s.rx1, split ? 2 : 3);
-        const sw = (windowed ? Math.min(s.rx1 + rawSw, canvasWidth) : s.rx1 + rawSw) - s.x1;
+        const minW = split ? 2 : 3;
+        const rawSw = Math.max(s.rx2 - s.rx1, minW);
+        // Zichtbare breedte: zonder venster de oude `max(breedte, minimum)` op x1; bij een venster
+        // de geklemde breedte, en is die smaller dan het minimum, dan schuift het minimum naar
+        // binnen (zoals de ruit) in plaats van te worden afgeknepen, zodat een eendagstaak op de
+        // laatste vensterdag zichtbaar blijft (review ronde 2, bevinding 7).
+        let sx1 = s.x1;
+        let sw = windowed ? s.x2 - s.x1 : rawSw;
+        if (windowed && sw < minW) {
+          sw = Math.min(minW, canvasWidth - m.tableWidth);
+          sx1 = Math.max(m.tableWidth, Math.min(s.x1, canvasWidth - sw));
+        }
         if (advies.kind === 'segments') {
           // Kleurvakken op de ruwe tijdas verdeeld en daarna per vak op het chartgebied geknipt: een
           // afgekapte balk toont zo de kleuren die bij het zichtbare stuk horen (review, bevinding 8).
@@ -1180,13 +1214,13 @@ export function renderReport(
           });
         } else {
           d2d.fillStyle = advies.fill;
-          d2d.roundRect(s.x1, y, sw, barHeight, 3);
+          d2d.roundRect(sx1, y, sw, barHeight, 3);
           d2d.fill();
         }
         if (advies.outline) {
           d2d.strokeStyle = advies.outline;
           d2d.lineWidth = 1;
-          d2d.roundRect(s.x1, y, sw, barHeight, 3);
+          d2d.roundRect(sx1, y, sw, barHeight, 3);
           d2d.stroke();
         }
       }
@@ -1236,7 +1270,7 @@ export function renderReport(
       if (baseline.isMilestone) {
         const x = dateToX(parseDate(baseline.start)) + zoom / 2;
         const cy = baseY + baseHeight / 2;
-        if (!windowed || (x + baseHeight >= m.tableWidth && x - baseHeight <= canvasWidth)) {
+        if (!windowed || (x >= m.tableWidth && x <= canvasWidth)) {
           const bcx = windowed ? Math.min(canvasWidth - baseHeight, Math.max(m.tableWidth + baseHeight, x)) : x;
           d2d.beginPath();
           d2d.moveTo(bcx, cy - baseHeight);

@@ -618,6 +618,15 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('resourceGantt/curve: curveValues mét OPS-vorm ⇒ de vorm', layered.assignmentByRowKey.get(rowOf2('Kraan', B).rowKey)?.curve, 'FRONT_LOADED');
   eq('resourceGantt/curve: contour op de taak voor deze resource ⇒ contoured', layered.assignmentByRowKey.get(rowOf2('Jan', D).rowKey)?.curve, 'contoured');
   eq('resourceGantt/curve: contour geldt alleen voor de gekoppelde resource', layered.assignmentByRowKey.get(rowOf2('Kraan', D).rowKey)?.curve, 'imported');
+  // Ronde 2, bevinding 3: de contourkoppeling loopt op de VOLLEDIGE recordlijst van de taak, ook
+  // met een record naar een onbekende resource erbij — dan slaat de legacy-terugval (één contour
+  // zonder resourceId bij precies één record) níét toe, net als in het paneel en de lastverdeling.
+  const dLegacy = { ...byId(D), timephasedContours: [{ resourceUid: null, periods: [] }] };
+  const legacy = computeResourceGanttRows({
+    tasks: ctx.tasks.map(t => (t.id === D ? dLegacy : t)), resources: [kraan],
+    assignments: [asgFull('g1', D, kraan.id, 1), asgFull('g2', D, 'res-onbekend', 1)],
+  }, opts);
+  eq('resourceGantt/curve: legacy-contour telt niet bij twee records (ook als er één naar een onbekende resource wijst)', legacy.assignmentByRowKey.get(legacy.rows.find(x => x.kind === 'task' && x.task.id === D)!.rowKey)?.curve, 'UNIFORM');
 
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).

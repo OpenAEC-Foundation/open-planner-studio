@@ -46,12 +46,17 @@ import type { ResolvedPeriod } from './reportingPeriod';
  *
  * Per taakrij onder een resourceband levert `assignmentByRowKey` de TOEWIJZING van die band op
  * die taak (punt 1): eenheden per dag en de verdeelcurve — de rij is een taak, maar wat de lezer
- * wil weten is "hoe zwaar staat déze resource erop". De curve volgt dezelfde drie lagen als de
- * lastverdeling zelf (`ResourceLoad.ts`'s `assignmentDayUnits`) en het eigenschappenpaneel
- * (`TaskAssignmentsSection`): een opgeslagen CONTOUR op de taak wint (`'contoured'`), dan een
- * exacte geïmporteerde curve zonder OPS-vorm (`curveValues` zonder `curve` ⇒ `'imported'`), dan
- * pas `curve` (afwezig = UNIFORM) — een P6-/MSP-import met een front-loaded curve mag hier nooit
- * "Uniform" heten (hyperkritische review, bevinding 1). Twee records van dezelfde resource op één
+ * wil weten is "hoe zwaar staat déze resource erop". De curveTOESTAND is exact de weergaveregel
+ * van het eigenschappenpaneel (`TaskAssignmentsSection`), zodat rapport en paneel nooit twee
+ * antwoorden geven: een aan de toewijzing gekoppelde CONTOUR op de taak ⇒ `'contoured'`, anders
+ * `curveValues` zonder OPS-vorm (`curve` afwezig) ⇒ `'imported'`, anders `curve` (afwezig =
+ * UNIFORM). Let op: dat is een WEERGAVEregel, niet de verdeelregel van `ResourceLoad.ts`'s
+ * `assignmentDayUnits` — die verdeelt met `curveValues` zodra die er zijn, óók naast een `curve`
+ * (het gewone P6-pad: naamterugval + exacte waarden), en negeert een contour zonder periodes. Het
+ * rapport toont dus wat het paneel toont ("Vooraan belast"), terwijl het histogram P6's exacte
+ * waarden gebruikt; een echt gedeelde toestandshelper is een vervolgstap (review ronde 2). Een
+ * P6-/MSP-import met een curve zonder OPS-vorm heet hier in elk geval nooit "Uniform"
+ * (ronde 1, bevinding 1). Twee records van dezelfde resource op één
  * taak (één rij) worden opgeteld; de curve is alleen bekend als alle records dezelfde hebben
  * (anders `null`, de render toont een streepje). De "(geen)"-band heeft geen toewijzing en dus
  * geen entry. De render tekent dit als twee tabelkolommen (`PrintOptions.assignmentColumns`).
@@ -195,17 +200,20 @@ export function computeResourceGanttRows(
   // Per resource-id × taak-id de opgetelde eenheden en de verzameling curvetoestanden (punt 1).
   const loadByResourceTask = new Map<string, { unitsPerDay: number; curves: Set<RowCurve> }>();
   const assignedTaskIds = new Set<string>();
-  // Geldige records per taak, voor de contourkoppeling (dezelfde `matchContoursToAssignments` als
-  // de lastverdeling en het eigenschappenpaneel: per taak, in recordvolgorde).
-  const validByTask = new Map<string, ResourceAssignment[]>();
+  // Contourkoppeling op de VOLLEDIGE recordlijst per taak — ook records naar een onbekende
+  // resource (die filtert de rij-opbouw hieronder pas weg) — precies zoals `ResourceLoad.ts`'s
+  // `contourLookup` en het eigenschappenpaneel de lijst aanbieden; anders kan de legacy-terugval
+  // in `matchContoursToAssignments` (`assignments.length === 1`) hier anders uitvallen dan daar
+  // (review ronde 2, bevinding 3).
+  const recordsByTask = new Map<string, ResourceAssignment[]>();
   for (const a of ctx.assignments) {
-    if (!leafById.has(a.taskId) || !resourceIds.has(a.resourceId)) continue;
-    const list = validByTask.get(a.taskId) ?? [];
+    if (!leafById.has(a.taskId)) continue;
+    const list = recordsByTask.get(a.taskId) ?? [];
     list.push(a);
-    validByTask.set(a.taskId, list);
+    recordsByTask.set(a.taskId, list);
   }
   const contouredIds = new Set<string>();
-  for (const [taskId, list] of validByTask) {
+  for (const [taskId, list] of recordsByTask) {
     const task = leafById.get(taskId)!;
     if (task.timephasedContours && task.timephasedContours.length > 0) {
       for (const id of matchContoursToAssignments(task.timephasedContours, list).keys()) contouredIds.add(id);

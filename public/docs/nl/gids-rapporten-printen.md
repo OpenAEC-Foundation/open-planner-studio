@@ -120,10 +120,11 @@ dag de resource van die band op de taak staat en met welke verdeelcurve — "je 
 op Fundering, vooraan belast" zegt meer dan "je staat op Fundering". Een taak onder twee banden
 toont per band de eigen inzet; twee toewijzingen van dezelfde resource op één taak worden
 opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillende curves hebben.
-Heeft de toewijzing een eigen urenverdeling of een uit MS Project of P6 geïmporteerde exacte curve,
-dan staat er *Contour* respectievelijk *Geïmporteerde curve* — hetzelfde als in het
-eigenschappenpaneel. De twee kolommen maken de tabel breder en de tijdas dus smaller; zet
-**Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
+Heeft de toewijzing een eigen urenverdeling, dan staat er *Contour*; is de curve uit MS Project of
+P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmporteerde curve* —
+hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel ruim 130 px breder en de
+tijdas dus smaller; bij lange taaknamen met *Taaknamen afkappen* uit kan de tijdas daardoor bijna
+verdwijnen. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het

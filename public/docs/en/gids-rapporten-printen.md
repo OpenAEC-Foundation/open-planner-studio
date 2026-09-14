@@ -117,10 +117,12 @@ default: how many units per day the band's resource is assigned to the task, and
 distribution curve — "you are on Foundations half days, front loaded" says more than "you are on
 Foundations". A task under two bands shows each band's own load; two assignments of the same
 resource on one task are added up, and a dash in the curve column means those assignments carry
-different curves. If the assignment has its own hour distribution or an exact curve imported from
-MS Project or P6, the column says *Contour* or *Imported curve* respectively — the same as in the
-properties panel. The two columns make the table wider and the time axis narrower; turn **Show
-units/day and curve** off for the narrow table of the Gantt print.
+different curves. If the assignment has its own hour distribution the column says *Contour*; if
+the curve was imported from MS Project or P6 and is none of the eight built-in shapes it says
+*Imported curve* — the same as in the properties panel. The two columns make the table a good 130 px
+wider and the time axis narrower; with long task names and *Truncate task names* off the time axis
+can all but disappear. Turn **Show units/day and curve** off for the narrow table of the Gantt
+print.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from

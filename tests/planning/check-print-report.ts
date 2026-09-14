@@ -534,7 +534,9 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       const low = record([ms, T_CRIT], [], cal, { ...fixed, customZoom: 4, timeWindow: win });
       const ld = low.dims;
       const inBodyPt = (y: number) => y >= ld.headerHeight && y < ld.height - ld.footerHeight;
-      const bodyFills = low.fills.filter(f => f.pts.every(p => inBodyPt(p.y)));
+      // `pts.length > 0`: een lege `beginPath(); roundRect(); fill()` (voortgangsoverlay) mag de
+      // assertie niet vacuüm vervullen (review ronde 2, bevinding 9).
+      const bodyFills = low.fills.filter(f => f.pts.length > 0 && f.pts.every(p => inBodyPt(p.y)));
       ok(bodyFills.length >= 1, `de ruit wordt getekend (got ${bodyFills.length} gevulde paden)`);
       ok(bodyFills.every(f => f.pts.every(p => p.x >= ld.tableWidth - 1e-6 && p.x <= ld.width + 1e-6)),
         `ruit binnen het chartgebied (got ${JSON.stringify(bodyFills.map(f => f.pts.map(p => Math.round(p.x * 100) / 100)))}, tabel ${ld.tableWidth}, chart tot ${ld.width})`);
@@ -543,7 +545,14 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       // Review-bevinding 7: de 3 px-minimumbreedte steekt niet meer over de rechter chartrand.
       const tiny = record([T_CRIT], [], cal, { ...fixed, customZoom: 1, timeWindow: { from: '2026-01-10', to: '2026-01-12' } });
       const tinyBar = tiny.roundRects.find(r => r.color === CRITICAL && r.y >= tiny.dims.headerHeight && r.y < tiny.dims.height - tiny.dims.footerHeight);
-      ok(!!tinyBar && tinyBar.x + tinyBar.w <= tiny.dims.width + 1e-6 && tinyBar.w > 0, `minimumbreedte geklemd op de chartrand (got ${JSON.stringify(tinyBar)}, chart tot ${tiny.dims.width})`);
+      ok(!!tinyBar && tinyBar.x + tinyBar.w <= tiny.dims.width + 1e-6 && tinyBar.w >= 3 - 1e-6, `minimumbreedte naar binnen geschoven en op de chartrand geklemd (got ${JSON.stringify(tinyBar)}, chart tot ${tiny.dims.width})`);
+      // Lege staat: een lange instructie wordt op woordgrenzen gewrapt, nooit halverwege afgekapt.
+      // De testmeter rekent 6 px per teken; deze tekst is 143 tekens = 858 px, dus minstens twee regels.
+      const lang = 'Keine Vorgänge im Berichtszeitraum — wählen Sie einen anderen Zeitraum oder Gesamtes Projekt, um alle Vorgänge des Projekts wieder zu sehen.';
+      const leeg = record([], [], cal, baseOptions({ labels: { ...baseOptions().labels!, noTasks: lang } }));
+      const leegTexts = leeg.texts.map(t => t.text);
+      ok(leegTexts.length >= 2 && leegTexts.join(' ') === lang && leegTexts.every(t => !t.includes('…')),
+        `lege staat gewrapt zonder afkappen (got ${JSON.stringify(leegTexts)})`);
     }
 
     // Toewijzingskolommen (manuvarkey punt 1): twee kolommen direct achter de naam (x 180–225 en
@@ -563,7 +572,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       const withCols = record([T_NORM, T_CRIT], [], cal, baseOptions({
         rows: aBands, assignmentColumns: true, rowAssignments, curveLabels: { FRONT_LOADED: 'Vooraan belast' },
       }));
-      ok(withCols.dims.tableWidth === plainA.dims.tableWidth + 45 + 92, `tabel precies twee kolommen breder (got +${withCols.dims.tableWidth - plainA.dims.tableWidth})`);
+      ok(withCols.dims.tableWidth === plainA.dims.tableWidth + 45 + 98, `tabel precies twee kolommen breder (got +${withCols.dims.tableWidth - plainA.dims.tableWidth})`);
       const inCol = (t: { x: number; y: number }, x0: number, x1: number) => t.x >= x0 && t.x <= x1 && t.y > withCols.dims.headerHeight && t.y < withCols.dims.height - withCols.dims.footerHeight;
       const unitsTexts = withCols.texts.filter(t => inCol(t, 180, 225)).map(t => t.text).sort();
       const curveTexts = withCols.texts.filter(t => inCol(t, 225, 300)).map(t => t.text).sort();
