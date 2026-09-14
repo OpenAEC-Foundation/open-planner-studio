@@ -17,7 +17,7 @@ import {
   renderReport, measurePrintReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth,
   NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
 } from '@/services/print/printPreview';
-import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
+import { computeTileLayout, footerLayoutWidthFor, PAPER_PT } from '@/services/print/tileLayout';
 import { makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
 import {
   computePreviewRasterLimits,
@@ -137,7 +137,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   // De labels komen in het product vanuit ReportPanel. De voortgangsdatum moet een eigen label
   // krijgen: met alleen `statusDate` zou de export bij beide lijnsoorten "Statusdatum" afdrukken.
   labels: {
-    noTasks: '-', printed: '-', page: '-', of: '-', today: '-', statusDate: 'Statusdatum',
+    noTasks: '-', printed: '-', today: '-', statusDate: 'Statusdatum',
     progressDate: 'Voortgangsdatum',
     legend: {
       criticalPath: 'Kritiek pad', normal: 'Normaal', nearCritical: 'Bijna-kritiek',
@@ -561,6 +561,24 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     const smallFooter = computeTileLayout({ ...smallTile, repeatFooterHeightPx: small.footerHeight });
     ok(smallPlain.rows === 1 && smallFooter.repeatFooterPx === 0 && JSON.stringify(smallFooter.bodyRows) === JSON.stringify(smallPlain.bodyRows),
       'éénpagina-afdruk: voet niet herhaald, tegeling identiek');
+    ok(footerLayoutWidthFor(smallFooter) === undefined && footerLayoutWidthFor(withFooter) === withFooter.footerLayoutWidthPx,
+      'footerLayoutWidthFor: undefined zonder herhaling (oude render), de paginabreedte mét');
+    // Review #135 ronde 2, B1: één rij hoog maar over meerdere kolommen getegeld is óók meer dan één
+    // vel — dan hoort de voet wél herhaald (en dus binnen één paginabreedte gelegd) te worden.
+    const smallTwoCols = computeTileLayout({ ...smallTile, timelineColumns: 2, repeatFooterHeightPx: small.footerHeight });
+    ok(smallTwoCols.rows === 1 && smallTwoCols.cols === 2 && smallTwoCols.repeatFooterPx === small.footerHeight,
+      `één rij × twee kolommen: voet herhaald (got rows ${smallTwoCols.rows}, cols ${smallTwoCols.cols}, voet ${smallTwoCols.repeatFooterPx})`);
+    ok(Math.abs(smallTwoCols.bodyRows[0].srcY + smallTwoCols.bodyRows[0].srcH - smallTwoCols.repeatFooterSrcY) < 1e-9,
+      'één rij × twee kolommen: de body-tegel eindigt boven de voet');
+    const smallActual = computeTileLayout({ ...smallTile, mode: 'actual', repeatFooterHeightPx: small.footerHeight });
+    ok(smallActual.cols > 1 ? smallActual.repeatFooterPx === small.footerHeight : smallActual.repeatFooterPx === 0,
+      `'actual' met ${smallActual.cols} kolom(men): voet ${smallActual.cols > 1 ? 'wel' : 'niet'} herhaald`);
+    // B5: een gedwongen positie ín de voetstrook (onbereikbaar voor de echte render, maar de functie
+    // is de bron van waarheid voor beide backends) zet de herhaling niet aan — anders zou hij de
+    // voet loskoppelen en daarna als breekpositie wegvallen. Zonder herhaling is de voet gewoon body
+    // en mag zo'n positie hem als elke andere gedwongen positie afsplitsen; dat is niet deze zaak.
+    const inFooter = computeTileLayout({ ...smallTile, repeatFooterHeightPx: small.footerHeight, forcedBreakOffsetsPx: [small.height - small.footerHeight / 2] });
+    ok(inFooter.repeatFooterPx === 0, 'gedwongen positie in de voetstrook zet de herhaling niet aan');
     // Degeneratie: een voet die (met de kop) de hele pagina of de hele bron opeet wordt niet herhaald.
     const tooTall = computeTileLayout({ ...tile, repeatFooterHeightPx: dims.height });
     ok(tooTall.repeatFooterPx === 0 && JSON.stringify(tooTall.bodyRows) === JSON.stringify(plain.bodyRows), 'te hoge voet ⇒ niet herhaald, tegeling als zonder');

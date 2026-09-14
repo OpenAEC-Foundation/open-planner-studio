@@ -26,7 +26,7 @@ import { subsetFont } from '@/services/pdf/hbSubset';
 import { appLog } from '@/services/debug/appLog';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
-import { computeTileLayout, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
+import { computeTileLayout, footerLayoutWidthFor, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
 
 /** Optie-subset voor de vector-pagineerder; de logische dims + bevroren-kolombreedte komen uit de render. */
 export interface VectorPaginateOptions {
@@ -291,8 +291,9 @@ export async function paginateVectorToPdfBytes(
   // zijn (anders staat het merk in kolom N en de legenda in kolom 2). De render kent die breedte
   // pas ná de tegelwiskunde, dus één extra pass met `footerLayoutWidth`; de maten veranderen daar
   // niet door (de voet bepaalt de canvasbreedte niet), maar we herrekenen de layout voor de zekerheid.
-  if (layout.repeatFooterPx > 0 && layout.footerLayoutWidthPx < dims.width) {
-    ({ d2d, dims } = runRender(lastCjk, layout.footerLayoutWidthPx));
+  const footerLayoutWidth = footerLayoutWidthFor(layout);
+  if (footerLayoutWidth !== undefined && footerLayoutWidth < dims.width) {
+    ({ d2d, dims } = runRender(lastCjk, footerLayoutWidth));
     layout = computeTileLayout(tileInput(dims));
   }
 

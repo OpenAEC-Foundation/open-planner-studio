@@ -175,6 +175,16 @@ export interface TileBodyRow {
   srcH: number;
 }
 
+/**
+ * De breedte waarbinnen de render de voetinhoud moet leggen (`PrintOptions.footerLayoutWidth`),
+ * of `undefined` wanneer de voet niet herhaald wordt — dan hangt hij aan de body en hoort hij, net
+ * als vóór deze optie, over de volle canvasbreedte te liggen. Eén helper voor preview, raster- én
+ * vector-pagineerder, zodat de drie paden niet uiteenlopen (review #135 ronde 2, B2).
+ */
+export function footerLayoutWidthFor(layout: Pick<TileLayout, 'repeatFooterPx' | 'footerLayoutWidthPx'>): number | undefined {
+  return layout.repeatFooterPx > 0 ? layout.footerLayoutWidthPx : undefined;
+}
+
 /** Volledig uitgerekende pagina-indeling; beide backends tekenen hier 1:1 uit. */
 export interface TileLayout {
   /** Papierbreedte in punten (honoreert oriëntatie). */
@@ -334,12 +344,15 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
   const repeatHeaderPtH = repeatHeaderPx * scale;
   // Voetherhaling: dezelfde degeneratie-vangnetten als de kop, nu gegeven de (al toegepaste) kop —
   // er moet body overblijven, op de pagina én in de bron. En alleen als er écht iets te herhalen
-  // valt: past de bron (kop meegerekend) op één pagina en dwingt geen gedwongen breekpositie een
-  // tweede af, dan blijft de voet aan de laatste rij hangen zoals altijd.
+  // valt: past de bron (kop meegerekend) op één pagina, tegelt hij niet horizontaal (`cols > 1` is
+  // óók meer dan één vel — review #135 ronde 2, B1) en dwingt geen gedwongen breekpositie een tweede
+  // pagina af, dan blijft de voet aan de laatste rij hangen zoals altijd. De gedwongen posities
+  // worden hier getoetst tegen `ch - voet`: een positie ín de voetstrook zou de herhaling aanzetten
+  // maar daarna als breekpositie wegvallen (`inBody` filtert op `bodyEnd`), en dat gat mag niet.
   const footerRequestedPx = Math.max(0, input.repeatFooterHeightPx ?? 0);
   const forcesSecondPage = (input.forcedBreakOffsetsPx ?? [])
-    .some(y => Number.isFinite(y) && y > repeatHeaderPx && y < ch);
-  const multiPage = ch > pageSrcHpx || forcesSecondPage;
+    .some(y => Number.isFinite(y) && y > repeatHeaderPx && y < ch - footerRequestedPx);
+  const multiPage = ch > pageSrcHpx || cols > 1 || forcesSecondPage;
   const repeatFooterPx = footerRequestedPx > 0
     && multiPage
     && repeatHeaderPx + footerRequestedPx < pageSrcHpx

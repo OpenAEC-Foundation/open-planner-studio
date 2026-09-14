@@ -7,7 +7,7 @@ import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes, type PaginateOptions } from '@/services/print/paginate';
-import { computeTileLayout } from '@/services/print/tileLayout';
+import { computeTileLayout, footerLayoutWidthFor } from '@/services/print/tileLayout';
 import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
@@ -676,8 +676,9 @@ export function ReportPanel() {
         supersample: previewLimits.pageSupersample,
       };
       const layout = computeTileLayout(tileOptions);
-      // De herhaalde voet wordt binnen één paginabreedte gelegd (meerdere kolommen ⇒ compleet op elk vel).
-      const pageOptions: PrintOptions = { ...options, footerLayoutWidth: layout.footerLayoutWidthPx };
+      // De herhaalde voet wordt binnen één paginabreedte gelegd (meerdere kolommen ⇒ compleet op elk
+      // vel); zonder herhaling blijft de render exact de oude (voet over de volle canvasbreedte).
+      const pageOptions: PrintOptions = { ...options, footerLayoutWidth: footerLayoutWidthFor(layout) };
       const total = layout.rows * layout.cols;
       const root = previewViewportRef.current;
       const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTop: 0 };
@@ -937,10 +938,11 @@ export function ReportPanel() {
           breakOffsetsPx: breakOffsets,
           forcedBreakOffsetsPx: forcedBreakOffsets,
         };
-        // De high-res render legt de voet binnen één paginabreedte (zie `footerLayoutWidth`).
+        // De high-res render legt de voet binnen één paginabreedte (zie `footerLayoutWidth`) — alleen
+        // wanneer hij herhaald wordt; anders is dit letterlijk de oude render.
         const exportScale = computeHighResScale(logicalWidth, logicalHeight);
         renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName,
-          { ...options, footerLayoutWidth: computeTileLayout(rasterTile).footerLayoutWidthPx }, exportScale);
+          { ...options, footerLayoutWidth: footerLayoutWidthFor(computeTileLayout(rasterTile)) }, exportScale);
         return paginateCanvasToPdfBytes(exportCanvas, rasterTile);
       };
 
