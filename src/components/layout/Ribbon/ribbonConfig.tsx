@@ -333,9 +333,9 @@ const moveProjectButton: RibbonButtonSpec = {
   },
 };
 
-/** E2 (issue #27 etappe 2): "Voortgang bijwerken uit een blad" — hetzelfde spec op Planning én Tabel
- *  (één bron, twee callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`). Uitgeschakeld
- *  zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
+/** E2 (issue #27 etappe 2): "Voortgang bijwerken uit een blad" — hetzelfde spec op Planning, Tabel
+ *  én Rapport (één bron, drie callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`).
+ *  Uitgeschakeld zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
 const progressImportButton: RibbonButtonSpec = {
   kind: 'small', id: 'progressImport', icon: <FileUp size={14} />, labelKey: 'menu:ribbon.progressImport',
   use: () => {
@@ -347,7 +347,7 @@ const progressImportButton: RibbonButtonSpec = {
 
 /** E7 (eigenaarsbesluit 2026-09-05): "gewoon op een knop klikken en dan krijg ik de juiste CSV in
  *  mijn downloads" — het slanke voortgangsblad via één knopdruk, vóór de importknop in dezelfde
- *  gedeelde groep (Planning + Tabel). `disabled` volgt hetzelfde patroon als
+ *  gedeelde groep (Planning + Tabel + Rapport). `disabled` volgt hetzelfde patroon als
  *  `progressImportButton`: zonder taken is er niets te exporteren.
  *
  *  Sinds issue #27 etappe 3 (X10/Q1) levert deze knop `.xlsx` in plaats van `.csv`: één knop = het
@@ -365,13 +365,13 @@ const progressExportButton: RibbonButtonSpec = {
 };
 
 /** Afwijking 2026-09-04 (gebruikstest): `progressImportButton` in zijn EIGEN groep, gedeeld door
- *  Planning en Tabel — niet als losse knop náást een `kind: 'component'`-item (dat werkte op
+ *  Planning, Tabel en Rapport — niet als losse knop náást een `kind: 'component'`-item (dat werkte op
  *  Planning eerst zo in de `baselines`-groep naast `BaselinesProgressGroupContent`). Een `RibbonButtonSpec`
  *  rendert zijn label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een
  *  component gemengd render je hem als kaal icoontje zonder label of knopvormgeving (bevestigd met
- *  screenshot). Vandaar een eigen groep op beide tabs i.p.v. het item in een bestaande groep te hangen.
+ *  screenshot). Vandaar een eigen groep op alle drie de tabs i.p.v. het item in een bestaande groep te hangen.
  *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
- *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab` toegevoegd.
+ *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab`/`reportTab` toegevoegd.
  *  `progressExportButton` staat VÓÓR de importknop (E7): eerst het blad eraf, dan terug erin. */
 const progressGroup: RibbonGroupSpec = {
   id: 'progress', labelKey: 'menu:ribbon.progressGroup',
@@ -841,9 +841,9 @@ const instellingenTab: RibbonTabConfig = [
  *
  * De eerste vijf groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
  * zodat een volgende knop op Start hier automatisch meekomt. **Uitzondering (E2, issue #27 etappe 2):**
- * `progressGroup` (gedeeld met Planning, zie daar) hangt hier ACHTERAAN als eigen groep — niet in de
+ * `progressGroup` (gedeeld met Planning en Rapport, zie daar) hangt hier ACHTERAAN als eigen groep — niet in de
  * gedeelde `scheduleGroup`, want een knop dáár zou automatisch ook op Start verschijnen, en de
- * voortgangsimport is bewust alleen op Backstage → Importeren, Planning en Tabel te vinden.
+ * voortgangsimport is bewust alleen op Backstage → Importeren, Planning, Tabel en Rapport te vinden.
  */
 const tableTab: RibbonTabConfig = [
   fileGroup,
@@ -861,6 +861,7 @@ const ifcTab: RibbonTabConfig = [
 
 const reportTab: RibbonTabConfig = [
   { id: 'reporting', labelKey: 'menu:ribbon.reporting', items: [printPreviewButton] },
+  progressGroup,
 ];
 
 /** AI-tab (T14/T15/T16) — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
