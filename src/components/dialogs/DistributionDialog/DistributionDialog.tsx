@@ -41,6 +41,16 @@
 // links `STRIP.labelWidth + STRIP.gap` en rechts `STRIP.endWidth + STRIP.gap` marge, zodat hun
 // plotgebied exact samenvalt met de tracks; de `AXIS.padLeft` van 34 px zit ín de as en geldt dus
 // voor beide.
+//
+// …MAAR NIET ALLES SCHUIFT MEE (gebruikstest eigenaar 2026-09-14). Alleen de TIJDAS hoort te
+// scrollen. De labelkolom links en de uitkomstkolom rechts van elke balk stonden ín diezelfde
+// scroller, dus zodra een opgerekt plafond de as breder maakte dan de dialoog schoven ze mee en
+// liepen ze de rand uit: de eigenaar zag "eind +5 dage" en "max onbegrensd · benu" afgekapt. Die
+// twee kolommen zijn nu BEVROREN (`position: sticky`, links respectievelijk rechts), net als de
+// legenda en de einddatum-badges — die horen bij de rijen, niet bij de as. Het histogram schuift
+// wél mee (het moet kolom-op-kolom onder de dagblokjes blijven) en krijgt daarom aan beide kanten
+// een even brede, ondoorzichtige vastgezette strook, zodat er geen staaf zichtbaar blijft voor een
+// dag waarvan het blokje erboven al achter de labelkolom verdwenen is.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
@@ -544,8 +554,16 @@ export function DistributionDialog() {
         ...(lastStaleReason ? { 'data-ops-distribution-last-stale-reason': lastStaleReason } : {}),
       }}
     >
-      {/* (1) Kop */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface gap-3">
+      {/* (1) Kop.
+
+          `items-start`, NIET `items-center` (gebruikstest eigenaar 2026-09-14). De kop van déze
+          dialoog is in de gevulde stand DRIE regels hoog — itemnaam, ondertitel, introregel —
+          terwijl hij in bijvoorbeeld `ProjectInfoDialog` één regel is. Met `items-center` centreert
+          het sluitkruisje zich over die hele hoogte, en stond het dus halverwege de kop te zweven:
+          precies waar niemand een sluitknop zoekt. Uitgelijnd op de TITELregel staat hij weer waar
+          hij hoort. De hoogte van de kop verandert hier niet door (§7) — dit is alleen de verticale
+          uitlijning van twee bestaande kinderen, geen extra of weggehaald blok. */}
+      <div className="flex items-start justify-between px-4 py-3 border-b border-border bg-surface gap-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold truncate" style={{ fontFamily: 'var(--font-heading)' }}>
             {tune ? itemName : t('resource.distribution.title')}
@@ -624,7 +642,13 @@ export function DistributionDialog() {
 
             {/* (3)(4) DE BALKEN EN DE UITKOMST, in ÉÉN horizontale scroll-container zodat ze
                 kolom-op-kolom uitgelijnd blijven — ook tijdens het scrollen (spec §3.4). */}
-            <div ref={scrollerRef} className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
+            <div
+              ref={scrollerRef}
+              className="overflow-x-auto"
+              dir="ltr"
+              style={{ direction: 'ltr' }}
+              data-ops-distribution-scroller
+            >
               <div className="inline-flex flex-col gap-1 min-w-full" data-ops-distribution-strips>
                 {(stripView?.docs ?? []).map(doc => {
                   const recorded = doc.pinnedReason === 'dates-as-recorded';
@@ -648,7 +672,6 @@ export function DistributionDialog() {
                       pinned={pinnedNow}
                       recorded={recorded}
                       cannotMove={doc.cannotMove}
-                      liveCommit={!degraded}
                       busy={busy}
                       shortfallCount={short?.count ?? 0}
                       {...(short
@@ -666,10 +689,15 @@ export function DistributionDialog() {
                     duwde hij als één lange regel de scroll-container breder dan de balken zelf, dus
                     verscheen er een horizontale schuifbalk die niets met de tijdas te maken had. Hij
                     krijgt precies de ruimte van de track plus het uitkomstlabel. */}
+                {/* MEEBEVROREN met de labelkolom (gebruikstest 2026-09-14): de legenda hoort niet
+                    bij de tijdas maar bij de rijen erboven, dus hij hoort ook niet mee te schuiven
+                    wanneer de as breder is dan de dialoog. `sticky` op exact zijn eigen
+                    inspringing houdt hem staan zonder zijn plek te veranderen. */}
                 <div
-                  className="text-[10px] text-text-secondary"
+                  className="text-[10px] text-text-secondary sticky z-[2] bg-surface"
                   style={{
                     marginLeft: STRIP.labelWidth + STRIP.gap,
+                    left: STRIP.labelWidth + STRIP.gap,
                     maxWidth: (stripView?.axis?.width ?? trackSpace) + STRIP.gap + STRIP.endWidth,
                   }}
                   data-ops-distribution-legend
@@ -681,9 +709,15 @@ export function DistributionDialog() {
                     tekort krijgt hier zijn markering: zijn balk is dan (deels) LEEG omdat de motor
                     zijn werk nergens kwijt kon, en dat moet bij die kleur staan en niet alleen
                     onderin de validatiestrook. */}
+                {/* Ook meebevroren: dit is een WRAPPENDE lijst met "project: einddatum", geen
+                    as-gebonden strook — hij hoort niet weg te schuiven achter de labelkolom. */}
                 <div
-                  className="flex flex-wrap gap-x-3 gap-y-1 mt-1"
-                  style={{ marginLeft: STRIP.labelWidth + STRIP.gap, marginRight: STRIP.endWidth + STRIP.gap }}
+                  className="flex flex-wrap gap-x-3 gap-y-1 mt-1 sticky z-[2] bg-surface"
+                  style={{
+                    marginLeft: STRIP.labelWidth + STRIP.gap,
+                    marginRight: STRIP.endWidth + STRIP.gap,
+                    left: STRIP.labelWidth + STRIP.gap,
+                  }}
                   data-ops-distribution-end-badges
                 >
                   {(stripView?.docs ?? []).map(doc => {
@@ -720,32 +754,46 @@ export function DistributionDialog() {
                     van het histogram moet exact op de tracks vallen. Met `px-2` stond elke
                     histogramkolom 8 px rechts van zijn dagblokje — gemeten 2026-09-14, blokje op
                     x=428 tegen staaf op x=436. */}
-                <section
-                  className="rounded-[8px] border border-border py-3 mt-1"
-                  style={{
-                    marginLeft: STRIP.labelWidth + STRIP.gap - 1,
-                    marginRight: STRIP.endWidth + STRIP.gap - 1,
-                  }}
-                  title={t('resource.distribution.help.chart')}
-                  data-ops-distribution-histogram
-                >
-                  {poolItem ? (
-                    <BeforeAfterChart
-                      poolItem={poolItem}
-                      axis={stripView?.axis ?? null}
-                      docs={(stripView?.docs ?? []).map(doc => ({ docId: doc.docId, title: doc.title }))}
-                      docColors={docColors}
-                      bookingByDay={proposal?.bookingByDay ?? {}}
-                      afterLoadByDay={proposal?.afterLoadByDay ?? {}}
-                      afterIncomplete={proposal?.afterIncomplete ?? false}
-                      shortfallDocs={shortfallDocs}
-                    />
-                  ) : (
-                    <span className="text-text-secondary">
-                      {t('resource.distribution.preview.before')} / {t('resource.distribution.preview.after')} / {t('resource.distribution.preview.capacity')}
-                    </span>
-                  )}
-                </section>
+                {/* HET HISTOGRAM SCHUIFT WÉL MEE — het is as-gebonden en moet kolom-op-kolom onder
+                    de dagblokjes blijven staan. Maar dan moet het aan beide kanten net zo bedekt
+                    worden als de tracks, anders zie je hier staven voor dagen waarvan het blokje
+                    erboven achter de labelkolom verdwenen is. Vandaar twee ondoorzichtige,
+                    vastgezette stroken links en rechts, precies zo breed als de bevroren kolommen
+                    (min de 1 px rand van de sectie, net als de oude marges). */}
+                <div className="flex mt-1" data-ops-distribution-histogram-row>
+                  <div
+                    className="shrink-0 sticky left-0 z-[2] bg-surface"
+                    style={{ width: STRIP.labelWidth + STRIP.gap - 1 }}
+                    aria-hidden
+                  />
+                  <section
+                    className="rounded-[8px] border border-border py-3 flex-1 min-w-0"
+                    title={t('resource.distribution.help.chart')}
+                    data-ops-distribution-histogram
+                  >
+                    {poolItem ? (
+                      <BeforeAfterChart
+                        poolItem={poolItem}
+                        axis={stripView?.axis ?? null}
+                        docs={(stripView?.docs ?? []).map(doc => ({ docId: doc.docId, title: doc.title }))}
+                        docColors={docColors}
+                        bookingByDay={proposal?.bookingByDay ?? {}}
+                        afterLoadByDay={proposal?.afterLoadByDay ?? {}}
+                        afterIncomplete={proposal?.afterIncomplete ?? false}
+                        shortfallDocs={shortfallDocs}
+                      />
+                    ) : (
+                      <span className="text-text-secondary">
+                        {t('resource.distribution.preview.before')} / {t('resource.distribution.preview.after')} / {t('resource.distribution.preview.capacity')}
+                      </span>
+                    )}
+                  </section>
+                  <div
+                    className="shrink-0 sticky right-0 z-[2] bg-surface"
+                    style={{ width: STRIP.endWidth + STRIP.gap - 1 }}
+                    aria-hidden
+                  />
+                </div>
               </div>
             </div>
           </>

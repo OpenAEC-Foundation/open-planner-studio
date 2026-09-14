@@ -26,13 +26,24 @@
 // hebben; de arcering van een pauzedag leest dan de projectkalender, niet die van de taak. Voor de
 // bedoeling van de balk — "hier zit een ingevoegde onderbreking" — is dat de juiste grofheid.
 //
-// LIVE MEEREKENEN TIJDENS HET SLEPEN (§5). Onder de ondersteunde schaal gaat élke gesnapte
-// werkdagverandering meteen naar `onCeilingChange` — de hook coalesceert die runs zelf (één in
-// vlucht, de laatste stand wint), dus er is hier GEEN eigen timer nodig en er mag er ook geen
-// bijkomen: een tweede throttle zou de laatste stand kunnen inslikken. Boven de schaal
-// (`liveCommit === false`) commit alleen het loslaten, en beweegt tijdens het slepen dus alleen de
-// handle en de plafondtekst. Een zuivere klik (pointerdown/-up zonder move) commit nooit iets:
-// anders zou een klik op een onbegrensde handle 'm stiekem op een concreet getal zetten.
+// HERREKENEN PAS BIJ LOSLATEN (eigenaarsbesluit 2026-09-14, vervangt het "live per gesnapte
+// werkdag" uit spec §5). De vorige stand commit élke gesnapte werkdag tijdens het slepen; de hook
+// coalesceerde die runs wel, maar elke binnenkomende run wisselde de bezig-toestand om en tekende
+// pil, badges, histogram, validatiestrook en prijskaartje opnieuw. De eigenaar in de gebruikstest:
+// "het flikkert enorm omdat het elke keer herberekent; het moet pas herberekenen en de nieuwe
+// statusmelding tonen wanneer ik de muis loslaat."
+//
+// Dus: tijdens een pointer-sleep is ALLES lokaal. `dragValue` stuurt de greep, de gestippelde rest
+// (`freeBox`) en de plafondtekst van DEZE rij; er gaat geen `onCeilingChange` uit, dus er is geen
+// `computeDistribution`, geen store-mutatie en geen hertekening van de rest van de dialoog. Pas
+// `pointerup` commit één keer — één run, dus de bezig-toestand gaat precies één keer aan en uit in
+// plaats van te knipperen. `pointercancel` breekt af zonder te committen.
+//
+// HET TOETSENBORD BLIJFT WÉL EEN DISCREET REKENMOMENT (spec §3.4): één toets = één stand = één run.
+// Daar is niets aan te flikkeren, en zonder run zou een pijltje niets lijken te doen.
+//
+// Een zuivere klik (pointerdown/-up zonder move) commit nooit iets: anders zou een klik op een
+// onbegrensde handle 'm stiekem op een concreet getal zetten.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
@@ -91,8 +102,6 @@ export interface PhaseStripProps {
   recorded: boolean;
   /** Alle betrokken taken staan vast (priority 1000) — het document KAN niet wijken. */
   cannotMove: boolean;
-  /** Onder de ondersteunde schaal ⇒ élke gesnapte werkdag commit meteen (§5). */
-  liveCommit: boolean;
   /** Er loopt een berekening: de uitkomstpil toont "Bezig…" ZONDER van maat te veranderen (§7). */
   busy: boolean;
   /**
@@ -111,15 +120,33 @@ export interface PhaseStripProps {
 
 export function PhaseStrip({
   docId, title, axis, beforeLoadByDay, afterLoadByDay, fixedLoadByDay, isWorkingDay, color,
-  slackWorkdays, endShiftWorkdays, ceiling, pinned, recorded, cannotMove, liveCommit, busy,
+  slackWorkdays, endShiftWorkdays, ceiling, pinned, recorded, cannotMove, busy,
   shortfallCount, shortfallTitle, formatDay, onTogglePin, onCeilingChange,
 }: PhaseStripProps) {
   const { t } = useTranslation('common');
 
   // Sleepstate: `dragRef` is de bron van waarheid TIJDENS het slepen (geen staleness over
   // event-grenzen heen), `dragValue` de renderbare afgeleide. Niet-`null` ⇒ er wordt nu gesleept.
-  const dragRef = useRef<{ pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number;
+    /** De getekende x van de greep bij `startCeiling`, pas op de EERSTE beweging vastgelegd. */
+    baseHandleX: number | null;
+  } | null>(null);
   const [dragValue, setDragValue] = useState<number | null>(null);
+  // DE GETEKENDE x VAN DE GREEP TIJDENS HET SLEPEN (eigenaarsbesluit 2026-09-14, vervolg).
+  //
+  // Zonder herberekening groeit de TIJDAS tijdens het slepen niet mee, en dan kan de geometrie de
+  // greep niet meer plaatsen: `advanceWorkdays` landt op een datum die niet op de as staat en
+  // `rightEdgeX` klemt die terug op de rechterrand van het laatste assegment. Gemeten op de
+  // screenshot van deze ronde: het uitkomstlabel liep netjes door naar "max 22 okt" terwijl de
+  // greep bij het fase-einde bleef plakken — je sleepte en er bewoog niets.
+  //
+  // Vandaar deze afgeleide: zodra er echt bewogen wordt, tekenen we de greep op zijn ANKER plus het
+  // aantal gesnapte werkdagen × de dagbreedte. Dat is exact de omrekening die `onHandlePointerMove`
+  // óók gebruikt om de waarde te bepalen, dus greep en muis lopen per constructie synchroon. Blijft
+  // `null` tot de eerste beweging — dan staat de geometrie er nog gewoon goed op, ook bij een
+  // plafond dat van ONBEGRENSD komt (waar de greep aan de rechterrand van de as staat).
+  const [dragHandleX, setDragHandleX] = useState<number | null>(null);
   // De greep moet ZICHTBAAR de focus hebben (spec §5): hij wordt met pijltjes bediend, en zonder
   // omranding weet je niet welke van de rijen die toets opvangt. Dat kan hier niet met
   // `:focus-visible` in CSS omdat de hele greep inline gestyled is (zijn x volgt de geometrie), dus
@@ -144,7 +171,15 @@ export function PhaseStrip({
     showGhosts: shortfallCount > 0,
   });
 
-  const handleX = geometry?.handleX ?? AXIS.padLeft;
+  const handleX = dragHandleX ?? geometry?.handleX ?? AXIS.padLeft;
+  // De "toegestaan maar niet benut"-doos loopt van het fase-einde tot de greep (§4), dus zodra de
+  // greep tijdens het slepen geëxtrapoleerd wordt, moet de doos mee — anders zou hij achterblijven
+  // op de oude asrand en de greep los van de balk lijken te zweven.
+  const freeBox = dragHandleX !== null && geometry !== null
+    ? (dragHandleX > geometry.phaseEndX
+      ? { x: geometry.phaseEndX, w: dragHandleX - geometry.phaseEndX }
+      : null)
+    : geometry?.freeBox ?? null;
   const patternId = `ops-pause-${docId}`;
 
   const ceilingText = displayCeiling === null
@@ -214,7 +249,10 @@ export function PhaseStrip({
     // dus niets — terwijl de greep er wel "aangeraakt" uitzag. Focus dus zelf zetten, ná het
     // capturen, zodat toetsenbordbediening naadloos op de muis aansluit.
     event.currentTarget.focus();
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase, moved: false, value: stepBase };
+    dragRef.current = {
+      pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase,
+      moved: false, value: stepBase, baseHandleX: null,
+    };
     setDragValue(stepBase);
   };
 
@@ -223,15 +261,23 @@ export function PhaseStrip({
     if (!drag || drag.pointerId !== event.pointerId) return;
     drag.moved = true;
     if (dayWidth <= 0) return;
+    // Het anker: de x die de geometrie NU voor `startCeiling` tekent. Pas hier vastgelegd en niet
+    // bij `pointerdown`, want daar staat `displayCeiling` nog op de oude waarde — bij een plafond
+    // dat van ONBEGRENSD komt zou dat de rechterrand van de as zijn in plaats van de benutte stand.
+    if (drag.baseHandleX === null) drag.baseHandleX = geometry?.handleX ?? AXIS.padLeft;
     // Snappen op hele werkdagen: dezelfde dayWidth-per-werkdag-conventie die de tekenpositie van de
     // handle hierboven gebruikt. Een tweede, kalenderdaggetrouwe omrekening zou de handle tijdens
     // het slepen van zijn eigen getekende positie laten afwijken.
     const next = clamp(drag.startCeiling + Math.round((event.clientX - drag.startX) / dayWidth));
     if (next === drag.value) return;
     drag.value = next;
+    // ALLEEN lokale state — géén `commit` hier. Zie de kop van dit bestand: het herrekenen hoort
+    // bij het loslaten, zodat de dialoog tijdens het slepen niet staat te knipperen.
     setDragValue(next);
-    // Onder de schaal is ELKE gesnapte werkdag een rekenmoment (§5). De hook coalesceert.
-    if (liveCommit) commit(next);
+    setDragHandleX(Math.max(AXIS.padLeft, Math.min(
+      trackWidth - AXIS.padRight,
+      drag.baseHandleX + (next - drag.startCeiling) * dayWidth,
+    )));
   };
 
   const onHandlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -239,9 +285,13 @@ export function PhaseStrip({
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
+    // HET ENIGE REKENMOMENT VAN EEN SLEEP. `commit` vóór `setDragValue(null)`, en allebei binnen
+    // dezelfde eventhandler: React batcht ze, dus de volgende render heeft `dragValue === null`
+    // én het nieuwe `ceiling` al. Andersom zou de greep één frame terugspringen naar zijn oude
+    // stand voordat de nieuwe prop binnenkomt. Een zuivere klik (niet bewogen) commit niets.
+    if (drag.moved) commit(drag.value);
     setDragValue(null);
-    // Een zuivere klik commit niets; in de live-stand is de waarde al onderweg.
-    if (drag.moved && !liveCommit) commit(drag.value);
+    setDragHandleX(null);
   };
 
   const onHandlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -249,6 +299,7 @@ export function PhaseStrip({
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setDragValue(null);
+    setDragHandleX(null);
   };
 
   // Een tekort weegt zwaarder dan de einddatum: past er een taak niet, dan is de rij rood, ook
@@ -264,10 +315,22 @@ export function PhaseStrip({
       data-ops-distribution-day-width={dayWidth}
       {...(pinned ? { 'data-ops-distribution-pinned': 'true' } : {})}
     >
-      {/* (a) LABEL — kleurstip, projectnaam, speling, pin-tekstknop (§4/§6). */}
+      {/* (a) LABEL — kleurstip, projectnaam, speling, pin-tekstknop (§4/§6).
+
+          VASTGEZETTE KOLOM (gebruikstest eigenaar 2026-09-14). De rij staat in één horizontale
+          scroll-container samen met de tracks; rekt het plafond de tijdas voorbij de dialoogbreedte,
+          dan schoof deze kolom mee naar links en verdween de projectnaam uit beeld — precies
+          wanneer je 'm nodig hebt, want je bent dán aan het vergelijken. `position: sticky` is hier
+          de bevriezing en niet een aparte kolom-buiten-de-scroller: alleen zo blijven de rijhoogtes
+          van label, track en uitkomst per constructie gelijk (ze zitten in dezelfde flexrij) en
+          blijft de sleepstate LOKAAL in deze component. Zou de kolom een eigen stapel buiten de
+          scroller zijn, dan moest `dragValue` naar de dialoog — en dan hertekent elke sleepstap de
+          hele dialoog, inclusief het histogram, wat reparatie 2 hieronder juist wegneemt.
+          Ondoorzichtige achtergrond: de track schuift eronderdoor. */}
       <div
-        className="flex flex-col justify-center shrink-0 min-w-0"
+        className="flex flex-col justify-center shrink-0 min-w-0 sticky left-0 z-[2] bg-surface"
         style={{ width: STRIP.labelWidth }}
+        data-ops-distribution-label
       >
         <span className="flex items-center gap-1.5 min-w-0">
           <span
@@ -388,10 +451,10 @@ export function PhaseStrip({
           ))}
 
           {/* "Toegestaan maar niet benut" — lege doos met gestippelde rand (§4). */}
-          {geometry?.freeBox && (
+          {freeBox && (
             <rect
-              x={geometry.freeBox.x} y={STRIP.blockTop}
-              width={Math.max(1, geometry.freeBox.w)} height={STRIP.blockHeight}
+              x={freeBox.x} y={STRIP.blockTop}
+              width={Math.max(1, freeBox.w)} height={STRIP.blockHeight}
               fill="none" stroke="var(--theme-text-dim)" strokeWidth={1} strokeDasharray="3 3" rx={2}
               // GEDEMPT (polishronde 2026-09-14). Bij een onbegrensd plafond staat de greep aan de
               // rechterrand, dus deze doos beslaat sinds de breedtefix de HELE track in plaats van
@@ -509,14 +572,22 @@ export function PhaseStrip({
         </button>
       </div>
 
-      {/* (c) UITKOMSTLABEL — vaste breedte, dus een toestandswissel verandert de maat niet (§7). */}
+      {/* (c) UITKOMSTLABEL — vaste breedte, dus een toestandswissel verandert de maat niet (§7).
+          VASTGEZET aan de RECHTERrand om dezelfde reden als het label links: de eigenaar zag
+          "eind +5 dage" en "max onbegrensd · benu" halverwege afgekapt tegen de dialoogrand zodra
+          de as voorbij de zichtbare breedte gerekt was. De uitkomst is de reden dat je sleept; die
+          mag nooit uit beeld schuiven. */}
       <div
-        className="flex flex-col items-end shrink-0 text-right"
+        className="flex flex-col items-end shrink-0 text-right sticky right-0 z-[2] bg-surface"
         style={{ width: STRIP.endWidth }}
         data-ops-distribution-effect
       >
         <span
           className="inline-block max-w-full truncate rounded-full px-2 py-0.5 tabular-nums"
+          // Een eigen anker naast `data-ops-distribution-effect`: de REGEL eronder ("max … · benut
+          // …") draagt de plafondtekst en beweegt dus wél mee tijdens het slepen. Alleen de pil
+          // hoort stil te staan tot het loslaten, dus alleen de pil is daar toetsbaar op.
+          data-ops-distribution-effect-pill
           {...(shortfallCount > 0
             ? { 'data-ops-distribution-effect-shortfall': 'true', ...(pillTitle ? { title: pillTitle } : {}) }
             : {})}

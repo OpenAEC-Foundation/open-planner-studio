@@ -15,10 +15,14 @@
 // DE BEZIG-TOESTAND IS ECHT, GEEN COSMETICA. `setBusy(true)` gebeurt synchroon, het rekenen pas in
 // een `setTimeout(…, 0)` daarna — anders blokkeert de synchrone solve de paint en ziet de gebruiker
 // nooit dat er iets gebeurt. Er loopt er precies één tegelijk; een verzoek dat tijdens een run
-// binnenkomt wordt daarna precies ÉÉN keer ingehaald (niet N keer). DÍT MECHANISME IS DE THROTTLE
-// DIE SPEC §5 VRAAGT: onder de ondersteunde schaal commit de balk élke gesnapte werkdag tijdens het
-// slepen, en deze in-flight-bewaking zorgt dat er maximaal één run loopt en de laatste stand wint.
-// Er hoort hier GEEN tweede timer bij te komen — die zou de laatste stand kunnen inslikken.
+// binnenkomt wordt daarna precies ÉÉN keer ingehaald (niet N keer).
+//
+// DEZE IN-FLIGHT-BEWAKING IS GEEN SLEEP-THROTTLE MEER (eigenaarsbesluit 2026-09-14). Tot die datum
+// commit de balk élke gesnapte werkdag tijdens het slepen en vormde deze bewaking de throttle die
+// spec §5 vroeg; sindsdien commit een sleep pas bij LOSLATEN, dus een sleep is nog maar één run.
+// Wat de bewaking hier houdt is de rest: toetsherhaling op de greep (←/→ ingedrukt houden), de
+// pin-knop, de gereedschapsschakelaar en de labelpas die achter een hoofdrun aan komt. Er hoort
+// nog steeds GEEN timer bij te komen — die zou de laatste stand kunnen inslikken.
 //
 // SCHAAL-DEGRADATIE (§3.4). Boven `MAX_TASKS_AUTO` taken in één deelnemend document of
 // `MAX_BOOKING_TASKS_AUTO` boekende taken op dít poolitem is automatisch doorrekenen bij elke

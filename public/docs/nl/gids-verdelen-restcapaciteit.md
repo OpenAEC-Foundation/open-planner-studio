@@ -102,11 +102,13 @@ project dus niets.
 Rechts van het laatste blokje staat een **greep** met drie streepjes. Trek die naar rechts om dit
 project meer uitloop toe te staan; de verdeler bepaalt vervolgens zelf op welke dagen hij pauzeert
 en hoeveel van die ruimte hij echt nodig heeft. Wat je toestond maar niet nodig bleek, staat als een
-**gestippeld kadertje** achter de balk. Terwijl je sleept rekent de app mee: de andere balken, de
-grafiek en de uitkomsten veranderen onder je hand. Op een heel groot overzicht doet hij dat niet —
-daar volgt de berekening zodra je loslaat.
+**gestippeld kadertje** achter de balk. Terwijl je sleept bewegen alleen de greep en het kadertje
+van deze ene balk mee; de berekening volgt zodra je loslaat. Pas dan veranderen de andere balken,
+de grafiek en de uitkomsten. Dat is met opzet: zou hij bij elke werkdag opnieuw rekenen, dan
+knippert het hele venster onder je hand.
 
-Met het toetsenbord werkt dezelfde greep: pijltjes verzetten één werkdag, PageUp en PageDown drie,
+Met het toetsenbord werkt dezelfde greep, en daar is elke toets wél meteen een rekenmoment:
+pijltjes verzetten één werkdag, PageUp en PageDown drie,
 Home zet het plafond op nul en End maakt het onbegrensd.
 
 Rechts van de balk staat de uitkomst: een gekleurde pil met wat er met de einddatum gebeurt (groen
