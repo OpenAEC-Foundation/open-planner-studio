@@ -5,7 +5,9 @@ import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import type { ResourceType } from '@/types/resource';
 import { formatDate } from '@/utils/dateUtils';
+import { makeMonthLabeler } from '@/utils/monthLabel';
 import type { ReportType, TableReportOptions } from '@/utils/reportSettings';
+import type { ReportingPeriod } from '@/engine/reports';
 import { isTableReportType } from '@/utils/reportSettings';
 import {
   type ReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
@@ -122,8 +124,17 @@ function resourcesText(names: string[]): string {
 }
 
 // ── Rapportbouwers ───────────────────────────────────────────────────────────────────────────────
+/**
+ * "Periode: 10 sep 2026 – 7 okt 2026" — dezelfde ondertitel voor elk rapport met een venster; bij
+ * *Hele project* staat de presetnaam erachter, zodat je ziet wélke spanne dat is.
+ */
+function periodSubtitle(t: T, dd: DD, from: string, to: string, preset?: ReportingPeriod['preset']): string {
+  const base = `${t('tableReports.period')}: ${dd.date(from)} – ${dd.date(to)}`;
+  return preset === 'project' ? `${base} · ${t('tableReports.periodPresets.project')}` : base;
+}
+
 function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, stale: boolean): TableReportSpec {
-  const r = computeLookAhead(ctx, { weeks: o.lookAheadWeeks, nearCriticalDays: o.nearCriticalDays });
+  const r = computeLookAhead(ctx, { period: o.lookAheadPeriod, nearCriticalDays: o.nearCriticalDays });
   const p = 'tableReports.lookAhead';
   const columns: ReportColumn<LookAheadRow>[] = [
     wbsCol(t), nameCol(t),
@@ -135,7 +146,7 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: `${t('tableReports.period')}: ${dd.date(r.from)} – ${dd.date(r.to)}`,
+    subtitle: periodSubtitle(t, dd, r.from, r.to, o.lookAheadPeriod.preset),
     notes: commonNotes(t, dd, ctx, stale, r.statusDateMissing),
     summary: [
       { label: t(`${p}.total`), value: String(r.counts.total) },
@@ -179,7 +190,7 @@ function buildCritical(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
 }
 
 function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, stale: boolean): TableReportSpec {
-  const r = computeProgressReport(ctx, { periodWeeks: o.progressPeriodWeeks, nearCriticalDays: o.nearCriticalDays });
+  const r = computeProgressReport(ctx, { period: o.progressPeriod, nearCriticalDays: o.nearCriticalDays });
   const p = 'tableReports.progress';
   const s = r.summary;
   const columns: ReportColumn<ProgressRow>[] = [
@@ -196,6 +207,7 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   const summary: ReportSummaryItem[] = [
     { label: t('tableReports.statusDate'), value: dd.date(s.statusDate) },
     { label: t('tableReports.period'), value: `${dd.date(s.periodFrom)} – ${dd.date(s.periodTo)}` },
+    { label: t(`${p}.lookAheadUntil`), value: dd.date(s.lookAheadTo) },
     { label: t(`${p}.baselineFinish`), value: dd.date(s.baselineFinish) || '—' },
     { label: t(`${p}.forecastFinish`), value: dd.date(s.forecastFinish) || '—' },
     { label: t(`${p}.finishVariance`), value: s.finishVarianceDays === undefined ? '—' : signed(s.finishVarianceDays), color: varianceColor },
@@ -278,13 +290,37 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
   };
 }
 
-function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean): TableReportSpec {
-  const r = computeResourceLoading(ctx, { onlyOverloaded: o.resourceLoadOnlyOverloaded });
+/**
+ * Groepering per resource (issue #119): de resourcenaam en het type alleen op de eerste rij van elke
+ * groep, vet — DOM én PDF. Vooraf bepaald op de rijenlijst: een teller in `text()` zou bij een
+ * her-render (StrictMode, PDF ná DOM) met de vorige eindstand beginnen en de eerste groepsnaam
+ * laten wegvallen.
+ */
+function firstOfResourceGroup<R extends { resourceId: string }>(rows: R[], keyOf: (r: R) => string): Set<string> {
+  const first = new Set<string>();
+  let prev = '';
+  for (const row of rows) {
+    if (row.resourceId !== prev) first.add(keyOf(row));
+    prev = row.resourceId;
+  }
+  return first;
+}
+
+
+function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean, locale: string): TableReportSpec {
+  const r = computeResourceLoading(ctx, { period: o.resourceLoadPeriod, bucket: o.resourceLoadBucket, onlyOverloaded: o.resourceLoadOnlyOverloaded });
   const p = 'tableReports.resourceLoading';
+  const monthly = o.resourceLoadBucket === 'month';
+  const rowKey = (row: ResourceLoadingRow) => `${row.resourceId}\u0000${row.bucketStart}`;
+  const firstOfGroup = firstOfResourceGroup(r.rows, rowKey);
+  // Eén formatter per rapport, niet per cel; Gregoriaans + Latijnse cijfers (zie `monthLabel.ts`).
+  const monthLabel = makeMonthLabeler(locale);
   const columns: ReportColumn<ResourceLoadingRow>[] = [
-    { key: 'resource', header: t(`${p}.resource`), width: 180, align: 'left', text: r => r.resourceName },
-    { key: 'type', header: t(`${p}.type`), width: 100, align: 'left', text: r => tCommon(RESOURCE_TYPE_KEY[r.resourceType]) },
-    dateCol('week', t(`${p}.week`), r => r.weekStart, dd),
+    { key: 'resource', header: t(`${p}.resource`), width: 180, align: 'left', text: row => (firstOfGroup.has(rowKey(row)) ? row.resourceName : ''), bold: () => true },
+    { key: 'type', header: t(`${p}.type`), width: 100, align: 'left', text: row => (firstOfGroup.has(rowKey(row)) ? tCommon(RESOURCE_TYPE_KEY[row.resourceType]) : '') },
+    monthly
+      ? { key: 'month', header: t(`${p}.month`), width: 95, align: 'left', text: row => monthLabel(row.bucketStart) }
+      : dateCol('week', t(`${p}.week`), row => row.bucketStart, dd),
     { key: 'required', header: t(`${p}.required`), width: 85, align: 'right', text: r => num(r.required) },
     { key: 'available', header: t(`${p}.available`), width: 90, align: 'right', text: r => num(r.available) },
     { key: 'variance', header: t(`${p}.variance`), width: 80, align: 'right', text: r => signed(r.variance), color: r => (r.variance < 0 ? REPORT_COLORS.error : undefined), bold: r => r.variance < 0 },
@@ -292,14 +328,19 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
     // Aantal overbelaste dagen als getal: geen taalkundig meervoud nodig (Pools "dni" was fout bij 1).
     { key: 'overloaded', header: t(`${p}.overloaded`), width: 100, align: 'right', text: r => (r.overloaded ? String(r.overloadedDays) : ''), color: r => (r.overloaded ? REPORT_COLORS.error : undefined), bold: r => r.overloaded },
   ];
+  const subtitleParts = [
+    periodSubtitle(t, dd, r.from, r.to, o.resourceLoadPeriod.preset),
+    t(`tableReports.options.aggregation_${o.resourceLoadBucket}`),
+    ...(o.resourceLoadOnlyOverloaded ? [t('tableReports.options.onlyOverloaded')] : []),
+  ];
   return {
     title: t(`${p}.title`),
-    subtitle: o.resourceLoadOnlyOverloaded ? t('tableReports.options.onlyOverloaded') : undefined,
-    notes: commonNotes(t, dd, ctx, stale),
+    subtitle: subtitleParts.join(' · '),
+    notes: commonNotes(t, dd, ctx, stale, r.statusDateMissing),
     summary: [
       { label: t(`${p}.resources`), value: String(r.counts.resources) },
-      { label: t(`${p}.weeks`), value: String(r.counts.weeks) },
-      { label: t(`${p}.overloadedWeeks`), value: String(r.counts.overloadedWeeks), color: r.counts.overloadedWeeks ? REPORT_COLORS.error : REPORT_COLORS.ok },
+      { label: t(monthly ? `${p}.months` : `${p}.weeks`), value: String(r.counts.buckets) },
+      { label: t(monthly ? `${p}.overloadedMonths` : `${p}.overloadedWeeks`), value: String(r.counts.overloadedBuckets), color: r.counts.overloadedBuckets ? REPORT_COLORS.error : REPORT_COLORS.ok },
       { label: t(`${p}.overloadedResources`), value: String(r.counts.overloadedResources), color: r.counts.overloadedResources ? REPORT_COLORS.error : undefined },
     ],
     sections: [section<ResourceLoadingRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
@@ -308,20 +349,14 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
 }
 
 function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean): TableReportSpec {
-  const r = computeResourceAssignments(ctx, { weeks: o.resourceAssignmentWeeks, includeCompleted: o.resourceAssignmentIncludeCompleted });
+  const r = computeResourceAssignments(ctx, { period: o.resourceAssignmentPeriod, includeCompleted: o.resourceAssignmentIncludeCompleted });
   const p = 'tableReports.resourceAssignments';
-  // Groepering per resource: de naam alleen op de eerste rij van elke groep (DOM én PDF). Vooraf
-  // bepaald op de rijenlijst — een teller in `text()` zou bij een her-render (StrictMode, PDF ná
-  // DOM) met de vorige eindstand beginnen en de eerste groepsnaam laten wegvallen.
-  const firstOfGroup = new Set<string>();
-  let prev = '';
-  for (const row of r.rows) {
-    if (row.resourceId !== prev) firstOfGroup.add(row.assignmentId);
-    prev = row.resourceId;
-  }
+  // Groepering per resource: naam en type alleen op de eerste rij van elke groep (DOM én PDF) —
+  // dezelfde stijl als het belastingsrapport (issue #119).
+  const firstOfGroup = firstOfResourceGroup(r.rows, row => row.assignmentId);
   const columns: ReportColumn<ResourceAssignmentRow>[] = [
     { key: 'resource', header: t(`${p}.resource`), width: 170, align: 'left', text: row => (firstOfGroup.has(row.assignmentId) ? row.resourceName : ''), bold: () => true },
-    { key: 'type', header: t('tableReports.resourceLoading.type'), width: 95, align: 'left', text: r => tCommon(RESOURCE_TYPE_KEY[r.resourceType]) },
+    { key: 'type', header: t('tableReports.resourceLoading.type'), width: 95, align: 'left', text: row => (firstOfGroup.has(row.assignmentId) ? tCommon(RESOURCE_TYPE_KEY[row.resourceType]) : '') },
     wbsCol(t), nameCol(t, 200),
     dateCol('start', t('tableReports.common.start'), r => r.start, dd),
     dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
@@ -333,8 +368,8 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: r.from && r.to ? `${t('tableReports.period')}: ${dd.date(r.from)} – ${dd.date(r.to)}` : undefined,
-    notes: commonNotes(t, dd, ctx, stale, r.from ? r.statusDateMissing : false),
+    subtitle: periodSubtitle(t, dd, r.from, r.to, o.resourceAssignmentPeriod.preset),
+    notes: commonNotes(t, dd, ctx, stale, r.statusDateMissing),
     summary: [
       { label: t(`${p}.resources`), value: String(r.counts.resources) },
       { label: t(`${p}.assignments`), value: String(r.counts.assignments) },
@@ -379,10 +414,11 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
 
 /** De spec voor `reportType`, of null wanneer het geen tabelrapport is (gantt/milestones/variance). */
 export function useTableReportSpec(reportType: ReportType, options: TableReportOptions): TableReportSpec | null {
-  const { t } = useTranslation('report');
+  const { t, i18n } = useTranslation('report');
   const { t: tCommon } = useTranslation('common');
   const dd = useDisplayDate();
   const { ctx, stale } = useReportContext();
+  const locale = i18n.language;
   return useMemo(() => {
     if (!isTableReportType(reportType)) return null;
     switch (reportType) {
@@ -390,10 +426,10 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
       case 'critical': return buildCritical(ctx, options, t, dd, stale);
       case 'progress': return buildProgress(ctx, options, t, dd, stale);
       case 'health': return buildHealth(ctx, options, t, dd, stale);
-      case 'resourceLoading': return buildResourceLoading(ctx, options, t, tCommon, dd, stale);
+      case 'resourceLoading': return buildResourceLoading(ctx, options, t, tCommon, dd, stale, locale);
       case 'resourceAssignments': return buildResourceAssignments(ctx, options, t, tCommon, dd, stale);
       case 'wbsSummary': return buildWbsSummary(ctx, options, t, dd, stale);
       default: return null;
     }
-  }, [reportType, options, ctx, stale, t, tCommon, dd]);
+  }, [reportType, options, ctx, stale, t, tCommon, dd, locale]);
 }

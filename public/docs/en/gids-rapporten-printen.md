@@ -153,10 +153,29 @@ a few conventions:
 - A task can appear in several sections of one report when those sections each answer a different
   question (in progress and critical, for instance).
 
+### Reporting period
+
+Four reports work on a time window: look-ahead, progress, resource loading and resource
+assignments. They share one *Reporting period* control in the report options, with its own
+remembered setting per report:
+
+- **Next / last week, 2, 4, 6, 8 or 12 weeks** and **next / last month** — counted from the
+  project's status date (or today if none is set). A preset is inclusive on both ends: *next 4
+  weeks* on Thursday 10 September runs through Wednesday 7 October. Change the status date and the
+  window moves with it.
+- **Project duration** — from the earliest start to the latest finish in the schedule.
+- **Custom** — two dates of your own. The *From* and *To* fields become editable (type or use the
+  date picker); with a preset they show the calculated dates read-only. An end date before the
+  start date, or an empty date field, is highlighted in red and not applied. Pick a preset again and the preset dates
+  replace your custom range.
+
+The chosen period appears as the subtitle of the report and of the PDF; the progress report shows
+it in its summary.
+
 ### Look-ahead
 
-The list for the weekly site meeting: every activity that is on the agenda for the next *N* weeks
-(four by default) — what starts, what continues, what finishes — plus what should already have
+The list for the weekly site meeting: every activity in the reporting period (the next month by
+default) — what starts, what continues, what finishes — plus what should already have
 happened. Each row shows WBS, name, start and finish, remaining duration, completion, total float,
 whether the task is critical or near-critical, the assigned resources and a status: **Starting**
 (begins in the window), **In progress**, **Should have started** (start before the reference day,
@@ -179,9 +198,13 @@ forecast finish with the difference in working days, **planned** versus **actual
 the counts per state. Both percentages are duration-weighted over the leaf tasks: a milestone
 weighs nothing, a month of work weighs a lot. Planned is measured on the dates of the active
 baseline (the agreement you measure against); without a baseline on the current schedule, and the
-report says so. Below that, five sections: completed in the past period, in progress, starting in
-the next period, overdue, and the open critical activities. The period (two weeks by default)
-looks back as far as it looks ahead.
+report says so. Below that, five sections: completed in the reporting period, in progress, starting in
+the next period, overdue, and the open critical activities. The reporting period (the last
+month by default) decides what counts as *completed in the period*; the *starting in the next
+period* section looks ahead from the status date — to the end of the period when it lies (partly)
+after the status date; for a *last …* preset as far ahead as the period looks back; for a custom or
+project period that lies entirely in the past the section stays empty. The summary shows both
+bounds.
 
 ### Schedule health
 
@@ -199,20 +222,25 @@ The thresholds are in the report options. By default they follow DCMA: high floa
 duration above 44 working days; a lag above 10 working days. A clean schedule has zero errors;
 warnings and information are a reason to look, not necessarily to change.
 
-### Resource loading per week
+### Resource loading
 
-Per resource and per week the required effort against the available capacity (in unit-days), the
-difference, the peak load on a single day and whether the week is overloaded. It is the same
-calculation as the histogram on the **Resources** tab, but as a table to lay side by side in a
-staffing meeting. Only weeks with demand are listed; with *Overloaded weeks only* you keep just the
-bottlenecks.
+Per resource and per week or month the required effort against the available capacity (in
+unit-days), the difference, the peak load on a single day and whether the period is overloaded. It
+is the same calculation as the histogram on the **Resources** tab, but as a table to lay side by
+side in a staffing meeting. Rows are grouped per resource — name and type appear on the first row
+of each group only, just like the resource assignments report. Use *Aggregation* to choose between
+calendar weeks and calendar months; the reporting period decides which weeks or months are
+included (every week or month that touches the period, as a whole — so always the same number as
+the histogram). Only periods with demand are listed; with *Overloaded periods only* you keep just
+the bottlenecks. When a page break in the PDF falls inside a group, the resource name is not
+repeated on the next page.
 
 ### Resource assignments
 
 Per resource which activities it is assigned to: WBS, name, start and finish, remaining duration,
 units per day, completion, critical and status. Completed tasks are excluded by default. With a
-window in weeks it becomes the *resource look-ahead*: only what this crew or piece of equipment has
-to do in the coming weeks, plus what is still open. The summary also counts the tasks without a
+reporting period (the whole project by default) it becomes the *resource look-ahead*: only what
+this crew or piece of equipment has to do in that period, plus what is still open. The summary also counts the tasks without a
 resource.
 
 ### WBS summary

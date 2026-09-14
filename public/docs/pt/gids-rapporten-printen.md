@@ -100,10 +100,29 @@ o relatório usa hoje e diz isso; datas e folgas vêm do último **cálculo** (F
 cronograma alterado desde então e a exportação PDF recalcula sempre primeiro; cada relatório tem um
 pequeno bloco **Opções do relatório**, lembrado entre sessões. Os dias úteis abreviam-se para *du*.
 
+### Período do relatório
+
+Quatro relatórios trabalham sobre uma janela de tempo: previsão, progresso, carga de recursos e
+atribuições de recursos. Partilham um único controlo *Período do relatório* nas opções do
+relatório, com uma definição memorizada por relatório:
+
+- **Próxima / última semana, 2, 4, 6, 8 ou 12 semanas** e **próximo / último mês** — contados a
+  partir da data de estado do projeto (ou de hoje, se não existir). Um predefinido é inclusivo em
+  ambas as pontas: *próximas 4 semanas* na quinta-feira 10 de setembro vai até quarta-feira 7 de
+  outubro. Altere a data de estado e a janela acompanha.
+- **Projeto inteiro** — do início mais cedo ao fim mais tardio do cronograma.
+- **Personalizado** — duas datas à sua escolha. Os campos *De* e *Até* passam a ser editáveis
+  (escrever ou seletor de data); com um predefinido mostram as datas calculadas só de leitura. Uma
+  data final anterior à inicial, ou um campo de data vazio, é marcada a vermelho e não é aplicada. Ao voltar a um predefinido,
+  as datas dele substituem o seu intervalo.
+
+O período escolhido surge como subtítulo do relatório e do PDF; o relatório de progresso mostra-o
+no resumo.
+
 ### Previsão (look-ahead)
 
-A lista para a reunião semanal de obra: todas as atividades das próximas *N* semanas (quatro por
-defeito) — o que começa, continua ou termina — mais o que já devia ter acontecido. Por linha: EAP,
+A lista para a reunião semanal de obra: todas as atividades do período do relatório (o próximo mês
+por defeito) — o que começa, continua ou termina — mais o que já devia ter acontecido. Por linha: EAP,
 nome, início e fim, duração restante, progresso, folga total, crítica ou quase crítica, recursos
 atribuídos e um estado: **Começa**, **Em curso**, **Devia ter começado** ou **Atrasada**. Uma
 atividade que abrange toda a janela também aparece.
@@ -121,8 +140,12 @@ O ponto de situação periódico «onde estamos» na data de estado. O resumo d�
 e o fim previsto com a diferença em dias úteis, o progresso **planeado** face ao **real** (ambos
 ponderados pela duração das tarefas folha; planeado nas datas da linha de base ativa, senão no
 cronograma atual) e as contagens por estado. Por baixo, cinco secções: concluídas no período
-anterior, em curso, começam no próximo período, atrasadas e atividades críticas em aberto. O período
-(duas semanas por defeito) olha tanto para trás como para a frente.
+anterior, em curso, começam no próximo período, atrasadas e atividades críticas em aberto. O período do
+relatório (o último mês por defeito) decide o que conta como *concluído no período*; a secção
+*começam no próximo período* olha para a frente a partir da data de estado: até ao fim do período se
+este ficar (em parte) depois da data de estado, com um predefinido *último(s) …* tão longe para a
+frente quanto o período olha para trás; com um período personalizado ou do projeto inteiro que fica
+totalmente no passado, a secção fica vazia. O resumo mostra ambos os limites.
 
 ### Saúde do cronograma
 
@@ -133,18 +156,21 @@ longa, avanços, restrições rígidas, progresso fora de sequência) e **inform
 folga alta, atrasos longos). Os limiares estão nas opções; por defeito segundo DCMA: 44 dias úteis
 para folga alta e duração longa, 10 para atrasos. Um cronograma limpo tem zero erros.
 
-### Carga de recursos por semana
+### Carga de recursos
 
-Por recurso e semana, a necessidade face à capacidade disponível (em unidades-dia), a diferença, o
-pico diário e se a semana está sobrecarregada — o mesmo cálculo do histograma no separador
-**Recursos**, em forma de tabela. Só aparecem semanas com necessidade; com *Apenas semanas
-sobrecarregadas* ficam só os estrangulamentos.
+As linhas são agrupadas por recurso (nome e tipo apenas na primeira linha de cada grupo, como nas atribuições de recursos); com *Agregação* escolhe entre semanas e meses de calendário, e o período do relatório determina que semanas ou meses aparecem.
+
+Por recurso e semana ou mês, a necessidade face à capacidade disponível (em unidades-dia), a
+diferença, o pico diário e se o período está sobrecarregado — o mesmo cálculo do histograma no
+separador **Recursos**, em forma de tabela. Só aparecem períodos com necessidade; com *Apenas
+períodos sobrecarregados* ficam só os estrangulamentos. Se uma quebra de página do PDF cair a meio
+de um grupo, o nome do recurso não se repete na página seguinte.
 
 ### Atribuições de recursos
 
 Por recurso, as atividades atribuídas: EAP, nome, início e fim, duração restante, unidades por dia,
-progresso, crítica e estado. As tarefas concluídas são excluídas por defeito. Com uma janela em
-semanas torna-se a *previsão por recurso*. O resumo conta também as tarefas sem recurso.
+progresso, crítica e estado. As tarefas concluídas são excluídas por defeito. Com um período do
+relatório (projeto inteiro por defeito) torna-se a *previsão por recurso*. O resumo conta também as tarefas sem recurso.
 
 ### Resumo EAP
 

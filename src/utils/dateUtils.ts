@@ -135,6 +135,18 @@ export function getMonthStart(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
+/**
+ * Kalendermaanden optellen met klem op de maandlengte: 31 jan + 1 maand = 28/29 feb, niet 3 mrt.
+ * Zo blijft "een maand vanaf de statusdatum" altijd één kalendermaand en lekt de rapportageperiode
+ * (issue #120) nooit een paar dagen de volgende maand in. UTC-velden, net als de rest van dit bestand.
+ */
+export function addCalendarMonths(d: Date, months: number): Date {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + months;
+  const lastDayOfTarget = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(d.getUTCDate(), lastDayOfTarget)));
+}
+
 /** Format a date for display (e.g., "2 Mar 2026") using Intl */
 export function formatDisplayDate(d: Date, locale = 'en'): string {
   return new Intl.DateTimeFormat(locale, {

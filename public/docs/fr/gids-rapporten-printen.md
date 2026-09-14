@@ -71,10 +71,30 @@ marges viennent du dernier **calcul** (F5), une note signale un planning modifi�
 PDF recalcule toujours d'abord ; chaque rapport a un petit bloc **Options du rapport**, mémorisé
 entre les sessions. Les jours ouvrés sont abrégés en *jo*.
 
+### Période de rapport
+
+Quatre rapports travaillent sur une fenêtre de temps : prévision, avancement, charge des ressources
+et affectations des ressources. Ils partagent un même réglage *Période de rapport* dans les options
+du rapport, avec un choix mémorisé par rapport :
+
+- **Semaine / 2, 4, 6, 8 ou 12 semaines prochaines ou dernières** et **mois prochain / dernier** —
+  comptés à partir de la date d'état du projet (ou d'aujourd'hui s'il n'y en a pas). Un préréglage
+  est inclusif aux deux bouts : *4 prochaines semaines* le jeudi 10 septembre va jusqu'au mercredi
+  7 octobre. Changez la date d'état et la fenêtre suit.
+- **Tout le projet** — du premier début à la dernière fin du planning.
+- **Personnalisée** — deux dates de votre choix. Les champs *Du* et *Au* deviennent modifiables (saisie ou
+  sélecteur de date) ; avec un préréglage ils affichent les dates calculées en lecture seule. Une
+  date de fin antérieure à la date de début, ou un champ de date vide, est signalée en rouge et n'est
+  pas appliquée. En
+  revenant à un préréglage, ses dates remplacent votre plage.
+
+La période choisie apparaît en sous-titre du rapport et du PDF ; le rapport d'avancement l'affiche
+dans sa synthèse.
+
 ### Prévision (look-ahead)
 
-La liste de la réunion de chantier hebdomadaire : toutes les activités des *N* prochaines semaines
-(quatre par défaut) — ce qui démarre, continue ou se termine — plus ce qui aurait déjà dû se faire.
+La liste de la réunion de chantier hebdomadaire : toutes les activités de la période de rapport
+(le mois prochain par défaut) — ce qui démarre, continue ou se termine — plus ce qui aurait déjà dû se faire.
 Par ligne : WBS, nom, début et fin, durée restante, avancement, marge totale, critique ou quasi
 critique, ressources affectées et un statut : **Démarre**, **En cours**, **Aurait dû démarrer** ou
 **En retard**. Une activité qui couvre toute la fenêtre y figure aussi.
@@ -94,7 +114,11 @@ et la fin prévue avec l'écart en jours ouvrés, l'avancement **prévu** contre
 pondérés par la durée des tâches feuilles ; prévu sur les dates de la référence active, sinon sur
 le planning actuel) et les comptages par état. Dessous, cinq sections : terminé pendant la période
 écoulée, en cours, démarre pendant la prochaine période, en retard, et activités critiques ouvertes.
-La période (deux semaines par défaut) regarde autant en arrière qu'en avant.
+La période de rapport (le mois dernier par défaut) détermine ce qui compte comme *terminé pendant la
+période* ; la section *démarre pendant la prochaine période* regarde en avant à partir de la date
+d'état — jusqu'à la fin de la période si elle se situe (en partie) après la date d'état, pour un préréglage *dernier(s) …*
+aussi loin en avant que la période regarde en arrière ; pour une période personnalisée ou « tout le
+projet » entièrement passée, la section reste vide. La synthèse affiche les deux bornes.
 
 ### Santé du planning
 
@@ -106,18 +130,21 @@ marge élevée, décalages longs). Les seuils sont dans les options ; par défau
 ouvrés pour la marge élevée et la longue durée, 10 pour les décalages. Un planning propre a zéro
 erreur.
 
-### Charge des ressources par semaine
+### Charge des ressources
 
-Par ressource et par semaine, le besoin face à la capacité disponible (en unités-jours), l'écart,
-le pic journalier et si la semaine est surchargée — le même calcul que l'histogramme de l'onglet
-**Ressources**, sous forme de tableau. Seules les semaines avec un besoin figurent ; *Semaines
-surchargées uniquement* ne garde que les goulots.
+Les lignes sont regroupées par ressource (nom et type uniquement sur la première ligne de chaque groupe, comme pour les affectations des ressources) ; *Agrégation* permet de choisir entre semaines et mois civils, et la période de rapport détermine quelles semaines ou quels mois apparaissent.
+
+Par ressource et par semaine ou par mois, le besoin face à la capacité disponible (en unités-jours),
+l'écart, le pic journalier et si la période est surchargée — le même calcul que l'histogramme de
+l'onglet **Ressources**, sous forme de tableau. Seules les périodes avec un besoin figurent ;
+*Périodes surchargées uniquement* ne garde que les goulots. Si un saut de page du PDF tombe au
+milieu d'un groupe, le nom de la ressource n'est pas répété sur la page suivante.
 
 ### Affectations des ressources
 
 Par ressource, les activités qui lui sont affectées : WBS, nom, début et fin, durée restante, unités
 par jour, avancement, critique et statut. Les tâches terminées sont exclues par défaut. Avec une
-fenêtre en semaines, cela devient la *prévision par ressource*. La synthèse compte aussi les tâches
+période de rapport (tout le projet par défaut), cela devient la *prévision par ressource*. La synthèse compte aussi les tâches
 sans ressource.
 
 ### Synthèse WBS

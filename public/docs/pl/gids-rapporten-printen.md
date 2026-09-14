@@ -100,10 +100,30 @@ statusu raport przyjmuje dzisiaj i o tym informuje; daty i zapasy pochodzą z os
 najpierw przelicza; każdy raport ma mały blok **Opcje raportu**, zapamiętywany między sesjami. Dni
 robocze skracane są do *dr*.
 
+### Okres raportu
+
+Cztery raporty pracują na oknie czasowym: prognoza, postęp, obciążenie zasobów i przypisania
+zasobów. Dzielą jeden wybór *Okres raportu* w opcjach raportu, z osobno zapamiętanym ustawieniem
+dla każdego raportu:
+
+- **Następny / ostatni tydzień, 2, 4, 6, 8 lub 12 tygodni** oraz **następny / ostatni miesiąc** —
+  liczone od daty stanu projektu (lub od dziś, gdy jej brak). Ustawienie wstępne jest domknięte z
+  obu stron: *następne 4 tygodnie* w czwartek 10 września sięgają do środy 7 października. Zmień
+  datę stanu, a okno przesunie się razem z nią.
+- **Cały projekt** — od najwcześniejszego startu do najpóźniejszego końca harmonogramu.
+- **Niestandardowy** — dwie własne daty. Pola *Od* i *Do* stają się edytowalne (wpisanie lub
+  wybór z kalendarza); przy ustawieniu wstępnym pokazują obliczone daty tylko do odczytu. Data
+  końcowa wcześniejsza niż początkowa lub puste pole daty jest oznaczana na czerwono i nie jest
+  stosowana. Po powrocie
+  do ustawienia wstępnego jego daty zastępują własny zakres.
+
+Wybrany okres pojawia się jako podtytuł raportu i pliku PDF; raport postępu pokazuje go w
+podsumowaniu.
+
 ### Prognoza (look-ahead)
 
-Lista na cotygodniową naradę budowy: wszystkie czynności najbliższych *N* tygodni (domyślnie
-czterech) — co się zaczyna, trwa lub kończy — plus to, co już powinno było się wydarzyć. W wierszu:
+Lista na cotygodniową naradę budowy: wszystkie czynności z okresu raportu (domyślnie
+następny miesiąc) — co się zaczyna, trwa lub kończy — plus to, co już powinno było się wydarzyć. W wierszu:
 WBS, nazwa, start i koniec, pozostały czas, ukończenie, zapas całkowity, krytyczne lub prawie
 krytyczne, przydzielone zasoby i status: **Rozpoczyna się**, **W toku**, **Powinno się rozpocząć**
 lub **Zaległe**. Czynność obejmująca całe okno również się pojawia.
@@ -122,7 +142,12 @@ prognozowany z różnicą w dniach roboczych, postęp **planowany** wobec **rzec
 czasem trwania zadań liściowych; planowany na datach aktywnego planu bazowego, w przeciwnym razie na
 bieżącym harmonogramie) oraz liczby według stanu. Poniżej pięć sekcji: ukończone w minionym okresie,
 w toku, rozpoczynające się w następnym okresie, zaległe i otwarte czynności krytyczne. Okres
-(domyślnie dwa tygodnie) sięga tak samo wstecz, jak w przód.
+raportu (domyślnie ostatni miesiąc) decyduje, co liczy się jako *ukończone w okresie*; sekcja
+*rozpoczynające się w następnym okresie* patrzy w przód od daty stanu — do końca okresu, jeśli leży on
+(częściowo) po dacie stanu, przy ustawieniu wstępnym *ostatni(e) …* tak daleko w
+przód, jak okres sięga wstecz; przy okresie niestandardowym lub całego projektu leżącym w całości
+w przeszłości sekcja pozostaje pusta.
+Podsumowanie pokazuje obie granice.
 
 ### Kondycja harmonogramu
 
@@ -133,18 +158,21 @@ trwania, wyprzedzenia, twarde ograniczenia, postęp poza kolejnością) i **info
 krytyczne, duży zapas, długie zwłoki). Progi są w opcjach; domyślnie według DCMA: 44 dni robocze
 dla dużego zapasu i długiego czasu trwania, 10 dla zwłok. Czysty harmonogram ma zero błędów.
 
-### Obciążenie zasobów tygodniowo
+### Obciążenie zasobów
 
-Dla zasobu i tygodnia zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach), różnica,
-dzienny szczyt i czy tydzień jest przeciążony — to samo obliczenie co histogram na karcie **Zasoby**,
-w postaci tabeli. Pokazywane są tylko tygodnie z zapotrzebowaniem; opcja *Tylko przeciążone
-tygodnie* zostawia same wąskie gardła.
+Wiersze są pogrupowane według zasobu (nazwa i typ tylko w pierwszym wierszu każdej grupy, jak w przypisaniach zasobów); opcja *Agregacja* pozwala wybrać tygodnie lub miesiące kalendarzowe, a okres raportu decyduje, które tygodnie lub miesiące się pojawią.
+
+Dla zasobu i tygodnia lub miesiąca zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach),
+różnica, dzienny szczyt i czy okres jest przeciążony — to samo obliczenie co histogram na karcie
+**Zasoby**, w postaci tabeli. Pokazywane są tylko okresy z zapotrzebowaniem; opcja *Tylko
+przeciążone okresy* zostawia same wąskie gardła. Gdy podział strony w PDF wypadnie w środku grupy,
+nazwa zasobu nie powtarza się na następnej stronie.
 
 ### Przydziały zasobów
 
 Dla zasobu przydzielone czynności: WBS, nazwa, start i koniec, pozostały czas, jednostki na dzień,
-ukończenie, krytyczność i status. Ukończone zadania są domyślnie pomijane. Z oknem w tygodniach
-staje się to *prognozą zasobów*. Podsumowanie liczy też zadania bez zasobu.
+ukończenie, krytyczność i status. Ukończone zadania są domyślnie pomijane. Z okresem raportu
+(domyślnie cały projekt) staje się to *prognozą zasobów*. Podsumowanie liczy też zadania bez zasobu.
 
 ### Podsumowanie WBS
 

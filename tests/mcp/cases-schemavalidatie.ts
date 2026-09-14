@@ -311,7 +311,7 @@ test('batch: een foute ENUM-waarde in een stap wordt geweigerd', async () => {
   registerAllTools();
   store.getState().newProject();
   const err = await expectBatchSchemaReject(
-    [{ tool: 'planner_get_resource_histogram', args: { bucket: 'maand' } }],
+    [{ tool: 'planner_get_resource_histogram', args: { bucket: 'jaar' } }],
     1, 'planner_get_resource_histogram', 'bucket',
   );
   assert(err.includes('moet één van'), `de toegestane waarden staan erin: ${err}`);

@@ -155,10 +155,29 @@ delen een paar afspraken:
 - Een taak kan in meerdere secties van één rapport staan wanneer die secties elk een andere vraag
   beantwoorden (in uitvoering én kritiek, bijvoorbeeld).
 
+### Rapportageperiode
+
+Vier rapporten werken op een tijdvenster: look-ahead, voortgang, resourcebelasting en
+resourcetoewijzingen. Ze delen één *Rapportageperiode*-keuze in de rapportopties, met een eigen
+onthouden instelling per rapport:
+
+- **Volgende / afgelopen week, 2, 4, 6, 8 of 12 weken** en **volgende / afgelopen maand** — gerekend
+  vanaf de statusdatum van het project (of vandaag als die ontbreekt). Een preset is inclusief aan
+  beide kanten: *volgende 4 weken* op donderdag 10 september loopt t/m woensdag 7 oktober. Wijzig je
+  de statusdatum, dan schuift het venster automatisch mee.
+- **Hele project** — van de vroegste start tot het laatste einde in de planning.
+- **Aangepast** — twee eigen datums. De velden *Van* en *Tot* worden dan bewerkbaar (typen of de
+  datumkiezer); bij een preset tonen ze alleen-lezen de berekende datums. Een einddatum vóór de
+  begindatum, of een leeg datumveld, wordt rood gemarkeerd en niet toegepast. Kies je daarna weer een preset, dan
+  vervangen de presetdatums je eigen bereik.
+
+De gekozen periode staat als ondertitel in het rapport en in de PDF; het voortgangsrapport toont
+hem in de samenvatting.
+
 ### Look-ahead
 
-De lijst voor het weekoverleg op de bouw: alle activiteiten die de komende *N* weken (standaard
-vier) aan de orde zijn — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
+De lijst voor het weekoverleg op de bouw: alle activiteiten in de rapportageperiode (standaard de
+komende maand) — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
 gebeuren. Per rij zie je WBS, naam, start en einde, de resterende duur, de voltooiing, de totale
 speling, of de taak kritiek of near-critical is, de toegewezen resources en een status:
 **Start** (begint in het venster), **In uitvoering**, **Had moeten starten** (start vóór de
@@ -182,9 +201,13 @@ prognose-einde met het verschil in werkdagen, de **geplande** tegenover de **wer
 voortgang en de tellingen per staat. Beide percentages zijn duurgewogen over de bladtaken: een
 mijlpaal weegt niets, een maand werk weegt zwaar. Gepland wordt gemeten op de datums van de
 actieve baseline (de afspraak waartegen je meet); zonder baseline op de huidige planning, en dat
-staat er dan bij. Daaronder vijf secties: voltooid in de afgelopen periode, in uitvoering, start
-in de komende periode, achterstallig, en de open kritieke activiteiten. De periode (standaard twee
-weken) kijkt evenveel terug als vooruit.
+staat er dan bij. Daaronder vijf secties: voltooid in de rapportageperiode, in uitvoering, start
+in de komende periode, achterstallig, en de open kritieke activiteiten. De rapportageperiode
+(standaard de afgelopen maand) bepaalt wat als *voltooid in de periode* telt; de sectie *start
+in de komende periode* kijkt vanaf de statusdatum vooruit — tot het einde van de periode als die
+(deels) ná de statusdatum ligt; bij een *afgelopen …*-preset even ver vooruit als de periode
+terugkijkt; bij een aangepaste of projectperiode die helemaal in het verleden ligt blijft de sectie
+leeg. De samenvatting toont beide grenzen.
 
 ### Planningsgezondheid
 
@@ -202,20 +225,25 @@ De drempels staan in de rapportopties. Standaard volgen ze DCMA: hoge speling en
 44 werkdagen; een lag boven 10 werkdagen. Een schone planning heeft nul fouten; waarschuwingen en
 informatie zijn aanleiding om te kijken, niet per se om te veranderen.
 
-### Resourcebelasting per week
+### Resourcebelasting
 
-Per resource en per week de gevraagde inzet tegenover de beschikbare capaciteit (in eenheid-dagen),
-het verschil, de piekbelasting op één dag en of de week overbelast is. Het is dezelfde berekening
-als het histogram op het tabblad **Resources**, maar dan als tabel om naast elkaar te leggen in
-een bemensingsoverleg. Alleen weken met vraag staan erin; met de optie *Alleen overbelaste weken*
-houd je uitsluitend de knelpunten over.
+Per resource en per week of maand de gevraagde inzet tegenover de beschikbare capaciteit (in
+eenheid-dagen), het verschil, de piekbelasting op één dag en of de periode overbelast is. Het is
+dezelfde berekening als het histogram op het tabblad **Resources**, maar dan als tabel om naast
+elkaar te leggen in een bemensingsoverleg. De rijen zijn per resource gegroepeerd — naam en type
+staan alleen op de eerste rij van elke groep, net als bij de resourcetoewijzingen. Kies met
+*Aggregatie* tussen kalenderweken en kalendermaanden; de rapportageperiode bepaalt welke weken of
+maanden meedoen (elke week of maand die de periode raakt, als geheel — dus altijd hetzelfde getal
+als in het histogram). Alleen periodes met vraag staan erin; met de optie *Alleen overbelaste
+periodes* houd je uitsluitend de knelpunten over. Valt in de PDF een paginaovergang midden in een
+groep, dan herhaalt de resourcenaam zich niet op de volgende pagina.
 
 ### Resourcetoewijzingen
 
 Per resource welke activiteiten eraan hangen: WBS, naam, start en einde, resterende duur, inzet in
 eenheden per dag, voltooiing, kritiek en status. Voltooide taken staan er standaard niet in. Met een
-venster in weken wordt het de *resource-look-ahead*: alleen wat deze ploeg of dit materieel de
-komende weken te doen heeft, plus wat er nog open staat. De samenvatting telt ook de taken zonder
+rapportageperiode (standaard het hele project) wordt het de *resource-look-ahead*: alleen wat deze
+ploeg of dit materieel in die periode te doen heeft, plus wat er nog open staat. De samenvatting telt ook de taken zonder
 resource.
 
 ### WBS-samenvatting

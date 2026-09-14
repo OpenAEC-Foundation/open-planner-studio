@@ -1,4 +1,5 @@
 export * from './reportCommon';
+export * from './reportingPeriod';
 export * from './lookAhead';
 export * from './criticalReport';
 export * from './progressReport';
