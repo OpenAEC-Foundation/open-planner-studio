@@ -19,41 +19,43 @@
 // actieknoppen en ruimt een `info` na 5 s op. De melding die er daarnaast uit gaat is puur
 // informatief.
 //
-// RANGORDE MET DE MUIS (taak 10, spec §4 stap 1) — POINTER-EVENTS, NIET HTML5-DND.
+// DE RANGORDELIJST IS WEG (eigenaarsbesluit 2026-09-12, spec §2.1). Hij trok in de gebruikstest alle
+// aandacht weg van de balken, terwijl de balk zelf de bediening hoort te zijn. De rijvolgorde is
+// sindsdien puur de plaatsingsvolgorde van de rekenaar — de spelingsvolgorde die
+// `freshDistributionUi` bij het openen in `tune.order` zet — en sturen doe je uitsluitend met de
+// handle en de pin. `order` blijft in de tune-state bestaan zodat de kern en het schrijfpad
+// ONGEWIJZIGD blijven; er is alleen geen bediening meer die hem verandert. Een tweede
+// afleidingsmoment (order herberekenen en terugschrijven) zou via `diffReason('rank')` een
+// oneindige herberekening geven — zie het plan bij taak 3.
 //
-// Dit was native HTML5 drag-and-drop (`draggable` + `onDragStart`/`onDragOver`/`onDrop`), naar het
-// model van `DataGridHeader`'s kolomherordening. In de GEBRUIKSTEST van de eigenaar (2026-09-12)
-// deed "Sleep om de volgorde te veranderen" simpelweg niets. Dat is geen toeval en ook geen bug in
-// deze component: HTML5-dnd hangt aan een apart, door de host geleverd drag-protocol
-// (`dragstart` → `DataTransfer` → `drop`) dat buiten een gewoon browsertabblad onbetrouwbaar is.
-// De app draait juist óók in een iframe-preview (de t3-omgeving) en in een Tauri-webview (WebKitGTK
-// op Linux), en daar wordt de dragstart geregeld door de host afgevangen of nooit uitgezonden —
-// dan valt het hele mechanisme stil, zónder foutmelding. Pointer-events kennen dat probleem niet:
-// `setPointerCapture` houdt de gebeurtenissen binnen dit document, ongeacht de host.
+// DE HOOGTE LIGT VAST (B1c-plan4 taak 4, spec §7). Geen enkele REKENtoestand — bezig, stale,
+// gedegradeerd, tekort — mag de dialoog van maat laten veranderen; anders verspringt de balk onder
+// de muis precies tijdens het slepen. Daarom: de validatiestrook is ALTIJD gerenderd met een vaste
+// hoogte (leeg = onzichtbare tekst, geen weggehaald blok), de degradatiemelding heeft een
+// gereserveerde regel, het prijsvak een vaste breedte, en de dialoog hangt via `alignTop` aan de
+// BOVENkant — bij verticaal centreren zou elke hoogtewijziging het hele paneel verschuiven.
 //
-// Het patroon is daarom letterlijk dat van de plafond-handle in `PhaseStrip.tsx`: capture op de
-// GREEP zelf (het ⋮⋮-icoon, `cursor: grab`), geen document-brede listeners, één actieve pointer,
-// en `pointercancel` als opruimpad. Tijdens het slepen licht de gesleepte rij op en toont de
-// doelrij een invoegindicator (inset-boxshadow, dus geen layoutverschuiving).
-//
-// De "naar boven/beneden"-knoppen (`move`) blijven onveranderd de toetsenbordroute en het
-// testanker; slepen (`reorderTo`) roept dezelfde `setUI` aan, dus een herordening met de muis zet
-// net als de knoppen `staleReason = 'rank'` via `diffReason` in `useDistributionProposal`.
-import { useCallback, useMemo, useRef, useState } from 'react';
+// ÉÉN HORIZONTALE SCROLL-CONTAINER (spec §3.4). Balken, legenda, einddatum-badges en het histogram
+// staan samen in één `overflow-x-auto`. Had elk zijn eigen scroller — zoals vóór deze taak — dan
+// stonden de kolommen scheef zodra je er één van verschoof. De badgerij en het histogram krijgen
+// links `STRIP.labelWidth + STRIP.gap` en rechts `STRIP.endWidth + STRIP.gap` marge, zodat hun
+// plotgebied exact samenvalt met de tracks; de `AXIS.padLeft` van 34 px zit ín de as en geldt dus
+// voor beide.
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Switch } from '@/components/common/Switch';
 import { Dialog } from '@/components/common/Dialog';
 import { DISTRIBUTION_BLOCK_KEY } from '@/utils/levelingReasonKey';
 import { planDistributionWrites } from '@/services/library/applyDistribution';
 import { scopeTaskIdsFor } from '@/services/library/distribute';
-import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { buildOccupancyAxis, expandDays } from '@/components/panels/occupancyAxis';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { documentFloatOn, useDistributionProposal } from './useDistributionProposal';
 import { assignDocColors } from './chartGeometry';
+import { STRIP } from './stripGeometry';
 import { PhaseStrip } from './PhaseStrip';
 import { DistributionPicker } from './DistributionPicker';
 import { BeforeAfterChart } from './BeforeAfterChart';
@@ -69,69 +71,17 @@ export function DistributionDialog() {
 
   const {
     proposal, busy, labelsBusy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
-    costByDoc, toolPrice,
+    savings,
   } = useDistributionProposal(tune);
-
-  // Taak 13 (spec §4 stap 1 / §6): de labels zijn gecachet (zie de hook), maar mogen NOOIT getoond
-  // worden zolang het voorstel zelf niet meer bij de documenten hoort — een gecachet getal bij een
-  // vervallen voorstel is misleidender dan geen getal. Dus: staleReason of degraded ⇒ altijd de
-  // "druk op Herbereken"-tekst, ongeacht wat er nog in de cache staat.
-  const labelsValid = staleReason === null && !degraded;
-  // De labelpas loopt in eigen macrotasks ná het hoofdvoorstel (fixronde-2 bevinding B6), dus er is
-  // een echt venster waarin het voorstel al staat en de getallen nog niet. Dat venster hoort
-  // ZICHTBAAR te zijn: "Bezig…" bij de labels, terwijl de hoofdknoppen gewoon bruikbaar blijven —
-  // deze pas raakt het voorstel zelf niet. Zonder deze toestand las hetzelfde venster als "druk op
-  // Herbereken", terwijl er juist gerekend werd.
-  const labelsPending = busy || labelsBusy;
-  const costLabel = (docId: string): string => {
-    if (labelsPending) return t('resource.distribution.compute.busy');
-    const cost = labelsValid ? costByDoc[docId] : undefined;
-    if (cost === undefined) return t('resource.distribution.compute.pressRecompute');
-    return cost === 0
-      ? t('resource.distribution.rank.costNone')
-      : t('resource.distribution.rank.cost', { count: cost });
-  };
-  const priceText = (workdays: number): string => (workdays === 0
-    ? t('resource.distribution.tool.priceNone')
-    : t('resource.distribution.tool.price', { count: workdays }));
-  // Het prijskaartje benoemt WELKE STAND het getal hoort (gebruikstest 2026-09-12, gebrek 1). Er
-  // stonden twee kale prijzen naast elkaar ("kost 27 werkdagen uitloop · kost 27 werkdagen
-  // uitloop"): zonder "uit:"/"aan:" leest dat als een weergavefout in plaats van als twee standen.
-  // En als beide standen even duur zijn — wat op de showcase-fixture aantoonbaar het geval is,
-  // want daar lost onderbreken de interne overallocatie van het grote project niet op — is één
-  // prijs met "in beide standen" eerlijker dan hetzelfde getal twee keer.
-  const toolPriceLabel = (): string => {
-    if (labelsPending) return t('resource.distribution.compute.busy');
-    if (!labelsValid || !toolPrice) return t('resource.distribution.tool.priceUnknown');
-    if (toolPrice.off === toolPrice.on) {
-      return t('resource.distribution.tool.priceSame', { price: priceText(toolPrice.off) });
-    }
-    return `${t('resource.distribution.tool.priceOff', { price: priceText(toolPrice.off) })}`
-      + ` · ${t('resource.distribution.tool.priceOn', { price: priceText(toolPrice.on) })}`;
-  };
-  // Gepind/#63/cannotMove-documenten krijgen GEEN kostenlabel (§4 stap 1: "ze wijken niet") — dat
-  // leest rechtstreeks uit het LAATST BEREKENDE voorstel (`participated`/`cannotMove`), niet uit
-  // `costByDoc`: die twee vragen zijn onafhankelijk van elkaar (een document kan best deelnemen
-  // terwijl zijn label nog niet — of niet meer — gecached is).
-  const isCostCandidate = (docId: string): boolean => {
-    if (!proposal || proposal.blocked) return false;
-    const docResult = proposal.docs.find(d => d.docId === docId);
-    return docResult !== undefined && docResult.participated && !docResult.cannotMove;
-  };
 
   const close = () => setUI({ showDistributionDialog: false });
 
   const poolItem = tune ? pools[tune.companyId]?.resources.find(r => r.id === tune.libraryItemId) : undefined;
   const itemName = poolItem?.name || tune?.libraryItemId || '';
 
-  const numberFmt = useMemo(
-    () => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }),
-    [i18n.language],
-  );
-
-  // B1c-plan4 taak 2 — ÉÉN datumnotatie voor alle balken (de plafonddatum in het uitkomstlabel),
-  // net als `numberFmt` hierboven: per rij een eigen `Intl.DateTimeFormat` bouwen is duur en zou
-  // per rij anders kunnen uitpakken.
+  // B1c-plan4 taak 2 — ÉÉN datumnotatie voor alle balken (de plafonddatum in het uitkomstlabel en
+  // de einddatum-badges): per rij een eigen `Intl.DateTimeFormat` bouwen is duur en zou per rij
+  // anders kunnen uitpakken.
   const dayFmt = useMemo(
     () => new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short' }),
     [i18n.language],
@@ -143,13 +93,20 @@ export function DistributionDialog() {
   // een balk arceert alleen dagen die voor de verdeler ook echt werkdagen zijn. KANTTEKENING (taak
   // 1): een individuele taak kan een afwijkende taakkalender hebben — de balk leest die bewust niet,
   // want hij toont de fase van een PROJECT, niet van één taak. Eén `CalendarEngine` per document,
-  // gememoïseerd: die constructor materialiseert feestdagen en uitzonderingen, en de balken vragen
-  // per kalenderdag opnieuw.
+  // gememoïseerd en met een eigen dagcache: die constructor materialiseert feestdagen en
+  // uitzonderingen, en de balken vragen per kalenderdag opnieuw — bij elke sleepstap.
   const isWorkingDayByDoc = useMemo(() => {
     const byDoc = new Map<string, (iso: string) => boolean>();
     for (const doc of inputs) {
       const engine = new CalendarEngine(doc.calendar);
-      byDoc.set(doc.docId, (iso: string) => engine.isWorkDay(parseDate(iso)));
+      const cache = new Map<string, boolean>();
+      byDoc.set(doc.docId, (iso: string) => {
+        const hit = cache.get(iso);
+        if (hit !== undefined) return hit;
+        const value = engine.isWorkDay(parseDate(iso));
+        cache.set(iso, value);
+        return value;
+      });
     }
     return byDoc;
   }, [inputs]);
@@ -175,140 +132,28 @@ export function DistributionDialog() {
     return out;
   }, [proposal]);
 
-  // De eigen speling per document (`documentFloatOn`) — het ankerpunt van de grijze meetlat.
+  // De eigen speling per document (`documentFloatOn`) — het ankerpunt van de grijze meetlat. Naar
+  // beneden geklemd en afgerond op hele werkdagen: de meetlat rekent in werkdagen, en een negatieve
+  // float (een al te krappe planning) zou daar een meetlat mét negatieve breedte van maken.
   const slackByDoc = useMemo(() => {
     const byDoc = new Map<string, number | null>();
     if (!tune) return byDoc;
     for (const doc of inputs) {
-      byDoc.set(doc.docId, documentFloatOn(doc, tune.companyId, tune.libraryItemId));
+      const slack = documentFloatOn(doc, tune.companyId, tune.libraryItemId);
+      byDoc.set(doc.docId, slack === null ? null : Math.max(0, Math.floor(slack)));
     }
     return byDoc;
   }, [inputs, tune]);
 
   // De VOLLEDIGE rangorde, inclusief docId's die de LAATSTE run niet gezien heeft (fixronde-2
-  // bevinding B10). `rankRows` hieronder toont alleen wat er in `inputs` zit — dat is juist voor de
-  // weergave, maar een herordening mag daar niet uit gebouwd worden: `order = rankRows.map(...)`
-  // gooide elk id weg dat toevallig niet in het laatste voorstel zat (een document dat nog niet in
-  // `inputs` stond omdat er sinds het openen nog niet gerekend is). Die rangorde was dan stilletjes
-  // weg. Dus: `tune.order` is de basis, en alleen nieuw gezien docId's sluiten achteraan aan.
+  // bevinding B10). Sinds de rangordelijst weg is, is dit uitsluitend nog de RIJVOLGORDE van de
+  // balken — de plaatsingsvolgorde waarin de rekenaar de documenten zag. `tune.order` is de basis,
+  // en alleen nieuw gezien docId's sluiten achteraan aan.
   const orderBase = useMemo(() => {
     if (!tune) return [];
     const known = new Set(tune.order);
     return [...tune.order, ...inputs.map(doc => doc.docId).filter(id => !known.has(id))];
   }, [tune, inputs]);
-
-  // De rangordelijst leest UITSLUITEND uit `tune.order` — de bron van waarheid voor de rangorde.
-  // Documenten die na het openen zijn bijgekomen sluiten achteraan aan (zie `buildDistributionInputs`).
-  const rankRows = useMemo(() => {
-    if (!tune) return [];
-    const byId = new Map(inputs.map(doc => [doc.docId, doc]));
-    return orderBase.filter(id => byId.has(id)).map(docId => {
-      const doc = byId.get(docId)!;
-      return { docId, title: doc.title, float: documentFloatOn(doc, tune.companyId, tune.libraryItemId) };
-    });
-  }, [tune, inputs, orderBase]);
-
-  // Eén plaats omhoog/omlaag = een VERWISSELING met de dichtstbijzijnde ZICHTBARE buur binnen
-  // `orderBase`. Onbekende id's ertussen worden overgeslagen en blijven op hun eigen index staan —
-  // een verwisseling raakt per definitie alleen de twee betrokken plekken (bevinding B10).
-  const move = (docId: string, delta: -1 | 1) => {
-    if (!tune) return;
-    const order = [...orderBase];
-    const visible = new Set(rankRows.map(row => row.docId));
-    const from = order.indexOf(docId);
-    if (from < 0) return;
-    let to = from + delta;
-    while (to >= 0 && to < order.length && !visible.has(order[to])) to += delta;
-    if (to < 0 || to >= order.length) return;
-    [order[from], order[to]] = [order[to], order[from]];
-    setUI({ levelingDistribution: { ...tune, order } });
-  };
-
-  // Slepen verplaatst ÉÉN id binnen `orderBase` (bevinding B10): alleen het gesleepte id wordt
-  // eruit gehaald en opnieuw ingevoegd, de rest — inclusief de docId's die dit voorstel niet gezien
-  // heeft — houdt zijn onderlinge volgorde.
-  const reorderTo = (docId: string, targetDocId: string, placement: 'before' | 'after') => {
-    if (!tune || docId === targetDocId) return;
-    const order = [...orderBase];
-    const from = order.indexOf(docId);
-    if (from < 0) return;
-    order.splice(from, 1);
-    let to = order.indexOf(targetDocId);
-    if (to < 0) return;
-    if (placement === 'after') to += 1;
-    order.splice(to, 0, docId);
-    setUI({ levelingDistribution: { ...tune, order } });
-  };
-
-  // Slepen (zie het moduleblok): `draggedDocId` is de rij die vastgehouden wordt, `dropTarget` de
-  // rij + plaatsing (boven/onder de rijmidden) waar hij op dit moment op zou landen — puur voor
-  // visuele feedback tijdens het slepen, het loslaten is het enige commit-moment.
-  const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ docId: string; placement: 'before' | 'after' } | null>(null);
-  // De levende rij-elementen, zodat een pointermove de doelrij uit de ECHTE geometrie kan halen.
-  // Bij HTML5-dnd deed de browser die hit-test (per-rij `onDragOver`); met pointer capture komen
-  // alle moves op de greep binnen, dus doen we het zelf. Een `ref`-map en geen `querySelectorAll`:
-  // die zou ook de rijen van een eventuele tweede lijst vangen.
-  const rowRefs = useRef(new Map<string, HTMLDivElement>());
-  // Eén actieve pointer tegelijk (zoals `PhaseStrip`): `moved` onderscheidt een zuivere klik op de
-  // greep — die commit niets — van een echte sleep.
-  const dragRef = useRef<{ pointerId: number; docId: string; moved: boolean } | null>(null);
-
-  /** De rij + plaatsing onder deze y-coördinaat. Buiten de lijst: de dichtstbijzijnde rand, zodat
-   *  een sleep die boven of onder de lijst uitschiet nog steeds een zinnig doel houdt. */
-  const dropTargetAt = (clientY: number, dragged: string): { docId: string; placement: 'before' | 'after' } | null => {
-    let best: { docId: string; placement: 'before' | 'after'; distance: number } | null = null;
-    for (const row of rankRows) {
-      if (row.docId === dragged) continue;
-      const el = rowRefs.current.get(row.docId);
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const middle = rect.top + rect.height / 2;
-      const placement: 'before' | 'after' = clientY < middle ? 'before' : 'after';
-      const distance = clientY < rect.top ? rect.top - clientY : clientY > rect.bottom ? clientY - rect.bottom : 0;
-      if (best === null || distance < best.distance) best = { docId: row.docId, placement, distance };
-    }
-    return best === null ? null : { docId: best.docId, placement: best.placement };
-  };
-
-  const onGripPointerDown = (docId: string) => (event: React.PointerEvent<HTMLSpanElement>) => {
-    if (dragRef.current) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, docId, moved: false };
-    setDraggedDocId(docId);
-    setDropTarget(null);
-  };
-
-  const onGripPointerMove = (event: React.PointerEvent<HTMLSpanElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    drag.moved = true;
-    setDropTarget(dropTargetAt(event.clientY, drag.docId));
-  };
-
-  const endDrag = (commit: boolean) => {
-    const drag = dragRef.current;
-    dragRef.current = null;
-    if (commit && drag !== null && drag.moved && dropTarget !== null) {
-      reorderTo(drag.docId, dropTarget.docId, dropTarget.placement);
-    }
-    setDraggedDocId(null);
-    setDropTarget(null);
-  };
-
-  const onGripPointerUp = (event: React.PointerEvent<HTMLSpanElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    endDrag(true);
-  };
-
-  const onGripPointerCancel = (event: React.PointerEvent<HTMLSpanElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    endDrag(false);
-  };
 
   const toggleSplits = () => {
     if (!tune) return;
@@ -324,41 +169,64 @@ export function DistributionDialog() {
     setUI({ levelingDistribution: { ...tune, ceilings: { ...tune.ceilings, [docId]: value } } });
   };
 
-  // De BOEKING per document per dag (§6, de gevulde blokken van een fasestrook + taak 11b de
-  // VOOR-stand van de voor/na-grafiek). `computeDistribution` levert dat zelf terug als
-  // `proposal.bookingByDay` (letterlijk het grootboek dat de kern al opbouwt) — een tweede aanroep
-  // van `computeLibraryOccupancy` hier zou stilzwijgend van diezelfde bron kunnen afwijken, dus die
-  // is verwijderd; dit leest uitsluitend uit het voorstel dat toch al berekend wordt.
+  // Reset (§3.6): alle plafonds en pins terug naar neutraal, de schakelaar ONGEMOEID — die is een
+  // gereedschapskeuze en geen per-project-bijstelling.
+  const onReset = () => {
+    if (!tune) return;
+    setUI({ levelingDistribution: { ...tune, pinned: {}, ceilings: {} } });
+  };
+
+  // De BOEKING per document per dag (§6, het ankerpunt van de meetlat + taak 11b de VOOR-stand van
+  // de voor/na-grafiek). `computeDistribution` levert dat zelf terug als `proposal.bookingByDay`
+  // (letterlijk het grootboek dat de kern al opbouwt) — een tweede aanroep van
+  // `computeLibraryOccupancy` hier zou stilzwijgend van diezelfde bron kunnen afwijken.
   const bookingByDoc = useMemo(() => {
     const empty = new Map<string, Record<string, number>>();
     if (!proposal || proposal.blocked) return empty;
     return new Map(Object.entries(proposal.bookingByDay));
   }, [proposal]);
 
-  // De GEDEELDE tijdas van alle stroken plus de verticale schaal VAN DE STROKEN. De as loopt door
-  // tot voorbij de laatste geboekte dag, zodat een gestippelde staart (toegestaan-maar-niet-benut)
-  // er nog binnen past; werkdagen worden daarbij als kolommen van één dagbreedte getekend.
-  //
-  // `scaleMax` hier is bewust de PER-DOCUMENT-schaal: een fasestrook toont de vaste last plus de
-  // boeking van ÉÉN document, dus het hoogste van die per-document-stapelingen is precies de juiste
-  // bovengrens. De voor/na-grafiek stapelt ALLE documenten en heeft daarom een eigen, hogere schaal
-  // (`chartScaleMax` in `chartGeometry.ts`) — deze waarde daar hergebruiken liet het conflict
-  // letterlijk van de grafiek af vallen (fixronde-2 bevinding B1).
+  // De boeking NA de verdeling per document — de stand die de balken als dagblokjes tekenen (§4).
+  // Dít moet de NA-stand zijn en niet de VOOR-stand: anders beweegt de balk niet mee tijdens het
+  // slepen en is de hele bediening zinloos.
+  const afterByDoc = useMemo(() => {
+    const empty = new Map<string, Record<string, number>>();
+    if (!proposal || proposal.blocked) return empty;
+    return new Map(Object.entries(proposal.afterLoadByDay));
+  }, [proposal]);
+
+  // De GEDEELDE tijdas van balken én histogram. De as loopt door tot voorbij de laatste geboekte
+  // dag, zodat een gestippelde rest (toegestaan-maar-niet-benut) er nog binnen past. De VERTICALE
+  // schaal van de stroken is hier geen onderwerp meer: sinds de balk per werkdag een blokje van
+  // vaste hoogte tekent (taak 2) bestaat er geen strookschaal — `stripGeometry.ts` rekent alleen
+  // nog in x. De grafiek houdt zijn eigen `chartScaleMax` (fixronde-2 bevinding B1).
   const stripView = useMemo(() => {
     if (!tune || !proposal || proposal.blocked || !poolItem) return null;
-    const rankIndex = new Map(rankRows.map((row, index) => [row.docId, index]));
+    const rankIndex = new Map(orderBase.map((docId, index) => [docId, index]));
     const docs = [...proposal.docs].sort((a, b) =>
-      (rankIndex.get(a.docId) ?? rankRows.length) - (rankIndex.get(b.docId) ?? rankRows.length));
+      (rankIndex.get(a.docId) ?? orderBase.length) - (rankIndex.get(b.docId) ?? orderBase.length));
 
     const days = new Set<string>(Object.keys(proposal.fixedLoadByDay));
-    for (const doc of docs) for (const iso of Object.keys(bookingByDoc.get(doc.docId) ?? {})) days.add(iso);
-    if (days.size === 0) return { axis: null, docs, scaleMax: 1 };
+    for (const doc of docs) {
+      for (const iso of Object.keys(bookingByDoc.get(doc.docId) ?? {})) days.add(iso);
+      for (const iso of Object.keys(afterByDoc.get(doc.docId) ?? {})) days.add(iso);
+    }
+    if (days.size === 0) return { axis: null, docs };
 
+    // De STAART van de as. Hij hoeft alleen nog de PLAFOND-ruimte te dekken: de dagen waarop de
+    // gestippelde rest en de handle terechtkomen wanneer je meer uitloop toestaat dan er benut is.
+    // `endShiftWorkdays` stond hier eerder óók in en dat was fout (probe 2026-09-14, case 18 in
+    // `check-distribute.ts`): bij HANDMATIG GEPLANDE taken blijft `endShiftWorkdays` 0 terwijl de
+    // boeking wél tien werkdagen opschuift. De as stopte dan vóór de nieuwe boeking en het document
+    // kreeg een LEGE balk én een lege "Na"-kolom — een weergavefout die als een rekenfout las. De
+    // echte dekking van de verschoven boeking komt sinds deze ronde uit `afterLoadByDay` hierboven,
+    // dat volwaardig in de dagenset zit; de staart gaat dus alleen nog over wat er nog NIET geboekt
+    // is.
     const outlook = docs.reduce(
-      (n, doc) => Math.max(n, doc.endShiftWorkdays, tune.ceilings[doc.docId] ?? 0), 0);
+      (n, doc) => Math.max(n, tune.ceilings[doc.docId] ?? 0), 0);
     if (outlook > 0) {
       const last = [...days].sort()[days.size - 1];
-      // Werkdagen → kalenderdagen (5/7) plus een marge, en hoe dan ook begrensd: de staart mag de
+      // Werkdagen → kalenderdagen (5/7) plus een marge, en hoe dan ook begrensd: de rest mag de
       // as verbreden, niet laten ontsporen.
       const extra = Math.min(90, Math.ceil(outlook * 7 / 5) + 2);
       for (const iso of expandDays(
@@ -367,28 +235,13 @@ export function DistributionDialog() {
       )) days.add(iso);
     }
 
-    const axis = buildOccupancyAxis([...days], { targetWidth: 560 });
-    let scaleMax = 1;
-    if (axis) {
-      for (const segment of axis.segments) {
-        for (const iso of segment.days) {
-          const capacity = maxUnitsOn(poolItem, iso);
-          if (capacity > scaleMax) scaleMax = capacity;
-          const fixed = proposal.fixedLoadByDay[iso] ?? 0;
-          for (const doc of docs) {
-            const stacked = fixed + (bookingByDoc.get(doc.docId)?.[iso] ?? 0);
-            if (stacked > scaleMax) scaleMax = stacked;
-          }
-        }
-      }
-    }
-    return { axis, docs, scaleMax };
-  }, [tune, proposal, poolItem, rankRows, bookingByDoc]);
+    return { axis: buildOccupancyAxis([...days], { targetWidth: 560 }), docs };
+  }, [tune, proposal, poolItem, orderBase, bookingByDoc, afterByDoc]);
 
-  // Eén kleurtoewijzing voor de hele dialoog (fixronde-2 bevinding B9): de fasestroken EN de
+  // Eén kleurtoewijzing voor de hele dialoog (fixronde-2 bevinding B9): de balken EN de
   // legenda/staven van de voor/na-grafiek lezen dezelfde map, zodat "project B" boven en onder
-  // dezelfde kleur heeft. Stond dit in de grafiek, dan tekende de strook zijn boeking in het
-  // accentkleur en klopte de belofte "strook en grafiek matchen" alleen op de x-as.
+  // dezelfde kleur heeft. Stond dit in de grafiek, dan tekende de balk zijn boeking in het
+  // accentkleur en klopte de belofte "balk en grafiek matchen" alleen op de x-as.
   const docColors = useMemo(
     () => assignDocColors((stripView?.docs ?? []).map(doc => doc.docId)),
     [stripView],
@@ -410,6 +263,52 @@ export function DistributionDialog() {
     for (const doc of inputs) out[doc.docId] = scopeTaskIdsFor(doc, tune.companyId, tune.libraryItemId);
     return out;
   }, [inputs, tune]);
+
+  // Het VERSCHIL-prijskaartje (§2.2). De schakelaar-stand bepaalt de ZIN, niet het getal: uit ⇒
+  // "zou N besparen" (een belofte), aan ⇒ "bespaart N" (een constatering). De labelpas loopt in
+  // eigen macrotasks ná het hoofdvoorstel (fixronde-2 bevinding B6), dus er is een echt venster
+  // waarin het voorstel al staat en het getal nog niet; dat venster hoort ZICHTBAAR te zijn als
+  // "Bezig…" en niet als "druk op Herbereken".
+  const savingsLabel = (): string => {
+    if (busy || labelsBusy) return t('resource.distribution.compute.busy');
+    if (staleReason !== null || degraded || savings === null) {
+      return t('resource.distribution.tool.priceUnknown');
+    }
+    if (savings.workdays === 0) {
+      return tune?.allowSplits
+        ? t('resource.distribution.tool.savesNoneOn')
+        : t('resource.distribution.tool.savesNoneOff');
+    }
+    return tune?.allowSplits
+      ? t('resource.distribution.tool.savesOn', { count: savings.workdays })
+      : t('resource.distribution.tool.savesOff', { count: savings.workdays });
+  };
+
+  // Welke documenten een tekort houden, met hun teller — dezelfde `DistributionDocResult.shortfalls`
+  // die de voor/na-grafiek gebruikt om de NA-onvolledigheid te melden, en die de validatiestrook
+  // gebruikt om het tekort BIJ NAAM te noemen.
+  const shortfallDocs = useMemo(() => {
+    if (!proposal || proposal.blocked) return [];
+    return proposal.docs
+      .filter(doc => doc.shortfalls.length > 0)
+      .map(doc => ({ docId: doc.docId, title: doc.title, count: doc.shortfalls.length }));
+  }, [proposal]);
+
+  // De UNIEKE tekortdagen over alle documenten. Uniek en niet het aantal (taak, dag)-paren: dat zou
+  // hetzelfde tekort dubbel tellen zodra twee taken op dezelfde dag vastlopen, terwijl de gebruiker
+  // op de tijdas juist die dagen terugziet.
+  const shortfallDays = useMemo(() => {
+    if (!proposal || proposal.blocked) return [] as string[];
+    const days = new Set<string>();
+    for (const doc of proposal.docs) for (const s of doc.shortfalls) for (const iso of s.days) days.add(iso);
+    return [...days].sort();
+  }, [proposal]);
+
+  // Alle deelnemers vast ⇒ er valt niets te herverdelen (§6).
+  const allPinned = useMemo(() => {
+    if (!proposal || proposal.blocked || proposal.docs.length === 0) return false;
+    return proposal.docs.every(doc => !doc.participated || doc.cannotMove);
+  }, [proposal]);
 
   // Waarom Toepassen wel of niet mag — en zo niet, met welke tekst (spec §4 stap 3: validatie wijst
   // altijd een uitweg aan). De volgorde is die van de taakomschrijving: eerst "er is nog niets",
@@ -436,6 +335,64 @@ export function DistributionDialog() {
     }
     return { ok: true, reason: '' };
   }, [busy, proposal, staleReason, staleDocs, blockedDocTitles, scopeTaskIdsByDoc, t]);
+
+  /**
+   * De VALIDATIESTROOK (spec §3.5/§7). Altijd gerenderd, altijd één regel hoog — ook wanneer er
+   * niets te melden valt: een strook die verschijnt en verdwijnt verschuift alles eronder, en dat
+   * is precies het flitsen dat §7 verbiedt. De volgorde is die van dringendheid: een voorstel dat
+   * niet meer bij de documenten hoort gaat vóór alles, dan "alles staat vast", dan het tekort, en
+   * pas als niets daarvan speelt de groene uitkomst.
+   *
+   * IN DE GEDEGRADEERDE STAND IS DIT DE ENIGE PLEK DIE HET ZEGT. De uitkomstpil van een balk toont
+   * daar sinds taak 2 geen "druk op Herbereken" meer — hij toont het effect van de LAATSTE
+   * berekening, terwijl de handle al ergens anders staat. Zonder deze zin leest dat als "mijn
+   * sleep deed niets". Daarom plakt `compute.pressRecompute` hier achter elke stale-reden zodra er
+   * gedegradeerd gerekend wordt.
+   */
+  const statusLine = useMemo<{ tone: 'ok' | 'bad' | 'neutral'; text: string; stale: boolean }>(() => {
+    if (busy) return { tone: 'neutral', text: t('resource.distribution.compute.busy'), stale: false };
+    if (staleReason !== null) {
+      return {
+        tone: 'neutral',
+        text: t(`resource.distribution.stale.${staleReason}`, { docs: staleDocs })
+          + (degraded || staleReason === 'edited' ? ` ${t('resource.distribution.compute.pressRecompute')}` : ''),
+        stale: true,
+      };
+    }
+    if (!proposal || proposal.blocked) return { tone: 'neutral', text: '', stale: false };
+    if (allPinned) return { tone: 'bad', text: t('resource.distribution.status.allPinned'), stale: false };
+    if (proposal.hasShortfall) {
+      // Het tekort MET PROJECTNAAM. Een document waarvan geen enkele taak geplaatst kon worden
+      // heeft een LEGE na-boeking en dus een lege balk; zonder de naam erbij is er niets op het
+      // scherm dat uitlegt waaróm die rij leeg is. `shortfall.doc` is de bestaande zin die het
+      // tekortblok hiervóór per document toonde — die inhoud verhuist hiernaartoe.
+      const named = shortfallDocs
+        .map(doc => t('resource.distribution.shortfall.doc', { doc: doc.title, count: doc.count }))
+        .join(' · ');
+      const head = t('resource.distribution.status.shortfall', {
+        count: shortfallDays.length,
+        days: shortfallDays.slice(0, 3).map(formatDay).join(', '),
+      });
+      return { tone: 'bad', text: named ? `${head} ${named}` : head, stale: false };
+    }
+    const worst = proposal.docs.reduce(
+      (best, doc) => (doc.endShiftWorkdays > best.endShiftWorkdays ? doc : best),
+      proposal.docs[0] ?? { endShiftWorkdays: 0, title: '' },
+    );
+    return {
+      tone: 'ok',
+      text: t('resource.distribution.status.resolved', {
+        // Hergebruikt de BESTAANDE `strip.endShift`-meervoudfamilie, die al in alle veertien
+        // locales met de juiste CLDR-categorieën staat — zo hoeft er voor deze zin geen vijftiende
+        // meervoudfamilie bij.
+        shift: worst.endShiftWorkdays === 0
+          ? t('resource.distribution.strip.endUnchanged')
+          : t('resource.distribution.strip.endShift', { count: worst.endShiftWorkdays }),
+        doc: worst.title,
+      }),
+      stale: false,
+    };
+  }, [busy, staleReason, staleDocs, degraded, proposal, allPinned, shortfallDocs, shortfallDays, formatDay, t]);
 
   /** Het laatst toegepaste record — leeft in de tune-state en overleeft dus een sluiting van de
    *  dialoog (§7) én een documentwissel (fixronde B1c-etappe-3, bevinding B3), zodat opnieuw openen
@@ -495,20 +452,11 @@ export function DistributionDialog() {
     }
   };
 
-  // Taak 11b (voor/na-grafiek): welke documenten een tekort houden, met hun teller — dezelfde
-  // `DistributionDocResult.shortfalls` als het bestaande tekortblok (7), hier omgezet naar de vorm
-  // die `BeforeAfterChart` nodig heeft om de NA-onvolledigheid bij de na-grafiek zelf te melden.
-  const shortfallDocs = useMemo(() => {
-    if (!proposal || proposal.blocked) return [];
-    return proposal.docs
-      .filter(doc => doc.shortfalls.length > 0)
-      .map(doc => ({ docId: doc.docId, title: doc.title, count: doc.shortfalls.length }));
-  }, [proposal]);
-
-  const showStale = staleReason !== null || busy;
+  const shortfallTitleByDoc = new Map(shortfallDocs.map(doc => [doc.docId, doc]));
 
   return (
     <Dialog
+      alignTop
       onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[960px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden"
@@ -563,14 +511,10 @@ export function DistributionDialog() {
           </div>
         ) : (
           <>
-            {/* (3) Gereedschap — schakelaar met prijskaartje (taak 13, spec §6): `computeDistribution`
-                één keer met `allowSplits: false` en één keer met `true` — de prijs is de grootste
-                `endShiftWorkdays` over de deelnemers. Gecachet in de hook tot invalidatie; zolang het
-                voorstel niet actueel is staat er eerlijk "prijs onbekend". */}
+            {/* (2) GEREEDSCHAP — de schakelaar met het VERSCHIL-prijskaartje (§2.2/§3.2). Het
+                prijsvak heeft een VASTE breedte: "Bezig…" mag de schakelaar er niet naast
+                wegduwen (§7). */}
             <section className="flex flex-col gap-1.5">
-              <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
-                {t('resource.distribution.tool.title')}
-              </span>
               <div className="flex items-center gap-2">
                 <Switch
                   checked={tune.allowSplits}
@@ -584,202 +528,135 @@ export function DistributionDialog() {
                   {t('resource.distribution.tool.allowSplits')}
                 </span>
                 <span
-                  className="text-text-secondary"
+                  className="text-text-secondary shrink-0 truncate"
+                  style={{ width: 210 }}
                   title={t('resource.distribution.help.price')}
                   data-ops-distribution-tool-price
                 >
-                  {toolPriceLabel()}
+                  {savingsLabel()}
                 </span>
               </div>
               <span className="text-[10px] text-text-secondary">{t('resource.distribution.tool.allowSplitsHint')}</span>
             </section>
 
-            {/* (4) Rangorde */}
-            <section className="flex flex-col gap-1.5">
-              <span
-                className="text-[10px] uppercase tracking-wide"
-                style={{ color: 'var(--theme-text-muted)' }}
-                title={t('resource.distribution.help.rank')}
-              >
-                {t('resource.distribution.rank.title')}
-              </span>
-              <span className="text-[10px] text-text-secondary" title={t('resource.distribution.help.rank')}>
-                {t('resource.distribution.rank.hint')}
-              </span>
-              <div className="flex flex-col">
-                {rankRows.map((row, index) => (
-                  <div
-                    key={row.docId}
-                    ref={el => {
-                      if (el) rowRefs.current.set(row.docId, el);
-                      else rowRefs.current.delete(row.docId);
-                    }}
-                    className={`flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0 ${
-                      draggedDocId === row.docId ? 'bg-surface-hover' : ''}`}
-                    // De invoegindicator is een INSET-boxshadow en geen border: een echte rand van
-                    // 2px zou de rij hoger maken en de lijst onder de muis laten verspringen —
-                    // precies tijdens het mikken.
-                    style={{
-                      boxShadow: dropTarget?.docId === row.docId
-                        ? dropTarget.placement === 'before'
-                          ? 'inset 0 2px 0 0 var(--accent)'
-                          : 'inset 0 -2px 0 0 var(--accent)'
-                        : undefined,
-                    }}
-                    data-ops-distribution-rank-row
-                    data-ops-doc-id={row.docId}
-                    data-ops-distribution-rank-dragging={draggedDocId === row.docId ? 'true' : undefined}
-                    data-ops-distribution-rank-drop-before={
-                      dropTarget?.docId === row.docId && dropTarget.placement === 'before' ? 'true' : undefined
-                    }
-                    data-ops-distribution-rank-drop-after={
-                      dropTarget?.docId === row.docId && dropTarget.placement === 'after' ? 'true' : undefined
-                    }
-                  >
-                    {/* De GREEP (gebruikstest 2026-09-12, gebrek 2). Slepen was onzichtbaar: de hele
-                        rij was `draggable`, zonder greep en zonder `cursor: grab`, dus niets aan de
-                        rij verried dat hij te verslepen was — laat staan dat het mechanisme het in
-                        een webview deed. `touchAction: 'none'` houdt de sleep bij de pointer in
-                        plaats van bij de scroll van de dialoog. */}
-                    <span
-                      role="button"
-                      tabIndex={-1}
-                      aria-label={t('resource.distribution.rank.drag')}
-                      title={t('resource.distribution.help.dragHandle')}
-                      className="shrink-0 text-text-secondary hover:text-text-primary"
-                      style={{ cursor: draggedDocId === row.docId ? 'grabbing' : 'grab', touchAction: 'none' }}
-                      data-ops-distribution-rank-grip
-                      onPointerDown={onGripPointerDown(row.docId)}
-                      onPointerMove={onGripPointerMove}
-                      onPointerUp={onGripPointerUp}
-                      onPointerCancel={onGripPointerCancel}
-                    >
-                      <GripVertical size={13} />
-                    </span>
-                    <span className="tabular-nums text-text-secondary w-5">{index + 1}</span>
-                    <span className="truncate font-medium flex-1 min-w-0">{row.title}</span>
-                    <span className="tabular-nums text-text-secondary">
-                      {t('resource.distribution.rank.float', {
-                        days: row.float === null ? '—' : numberFmt.format(row.float),
-                      })}
-                    </span>
-                    {isCostCandidate(row.docId) && (
+            {/* (3)(4) DE BALKEN EN DE UITKOMST, in ÉÉN horizontale scroll-container zodat ze
+                kolom-op-kolom uitgelijnd blijven — ook tijdens het scrollen (spec §3.4). */}
+            <div className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
+              <div className="inline-flex flex-col gap-1 min-w-full" data-ops-distribution-strips>
+                {(stripView?.docs ?? []).map(doc => {
+                  const recorded = doc.pinnedReason === 'dates-as-recorded';
+                  const pinnedNow = recorded || tune.pinned[doc.docId] === true;
+                  return (
+                    <PhaseStrip
+                      key={doc.docId}
+                      docId={doc.docId}
+                      title={doc.title}
+                      axis={stripView?.axis ?? null}
+                      beforeLoadByDay={bookingByDoc.get(doc.docId) ?? {}}
+                      afterLoadByDay={afterByDoc.get(doc.docId) ?? {}}
+                      fixedLoadByDay={fixedLoadFor(doc.docId, pinnedNow)}
+                      isWorkingDay={isWorkingDayByDoc.get(doc.docId) ?? isWorkingDayFallback}
+                      color={docColors.get(doc.docId) ?? 'var(--theme-accent)'}
+                      slackWorkdays={slackByDoc.get(doc.docId) ?? null}
+                      endShiftWorkdays={doc.endShiftWorkdays}
+                      ceiling={tune.ceilings[doc.docId] ?? null}
+                      pinned={pinnedNow}
+                      recorded={recorded}
+                      cannotMove={doc.cannotMove}
+                      liveCommit={!degraded}
+                      busy={busy}
+                      formatDay={formatDay}
+                      onTogglePin={() => setPinned(doc.docId, tune.pinned[doc.docId] !== true)}
+                      onCeilingChange={next => setCeiling(doc.docId, next)}
+                    />
+                  );
+                })}
+
+                {/* De legenda-regel (§4), ingesprongen tot waar de tracks beginnen. */}
+                <div
+                  className="text-[10px] text-text-secondary"
+                  style={{ marginLeft: STRIP.labelWidth + STRIP.gap }}
+                  data-ops-distribution-legend
+                >
+                  {t('resource.distribution.strip.legend')}
+                </div>
+
+                {/* De einddatum-badges per project, boven het histogram (§3.4). Een project met een
+                    tekort krijgt hier zijn markering: zijn balk is dan (deels) LEEG omdat de motor
+                    zijn werk nergens kwijt kon, en dat moet bij die kleur staan en niet alleen
+                    onderin de validatiestrook. */}
+                <div
+                  className="flex flex-wrap gap-x-3 gap-y-1 mt-1"
+                  style={{ marginLeft: STRIP.labelWidth + STRIP.gap, marginRight: STRIP.endWidth + STRIP.gap }}
+                  data-ops-distribution-end-badges
+                >
+                  {(stripView?.docs ?? []).map(doc => {
+                    const short = shortfallTitleByDoc.get(doc.docId);
+                    const shortText = short
+                      ? t('resource.distribution.shortfall.doc', { doc: short.title, count: short.count })
+                      : undefined;
+                    return (
                       <span
-                        className="tabular-nums text-text-secondary"
-                        title={t('resource.distribution.help.rankCost')}
-                        data-ops-distribution-cost
+                        key={doc.docId}
+                        className="inline-flex items-center gap-1.5 min-w-0"
+                        data-ops-doc-id={doc.docId}
+                        {...(short ? { 'data-ops-distribution-badge-shortfall': 'true', title: shortText } : {})}
                       >
-                        {costLabel(row.docId)}
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                          style={{ background: docColors.get(doc.docId) }}
+                          aria-hidden
+                        />
+                        <span
+                          className="text-[10px] truncate"
+                          style={{ color: short ? 'var(--error)' : 'var(--theme-text-secondary)' }}
+                        >
+                          {`${doc.title}: ${doc.projectEndAfter ? formatDay(doc.projectEndAfter) : '—'}`}
+                        </span>
                       </span>
-                    )}
-                    <button
-                      type="button"
-                      className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-40"
-                      title={t('resource.distribution.rank.moveUp')}
-                      aria-label={t('resource.distribution.rank.moveUp')}
-                      disabled={index === 0}
-                      onClick={() => move(row.docId, -1)}
-                    >
-                      <ChevronUp size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-40"
-                      title={t('resource.distribution.rank.moveDown')}
-                      aria-label={t('resource.distribution.rank.moveDown')}
-                      disabled={index === rankRows.length - 1}
-                      onClick={() => move(row.docId, 1)}
-                    >
-                      <ChevronDown size={13} />
-                    </button>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
+
+                {/* Het histogram Nu/Na op DEZELFDE as-instantie, met dezelfde marges als de tracks —
+                    daardoor staan de kolommen per constructie onder de dagblokjes. */}
+                {/* GEEN horizontale padding, en de marge compenseert de 1 px rand: het plotgebied
+                    van het histogram moet exact op de tracks vallen. Met `px-2` stond elke
+                    histogramkolom 8 px rechts van zijn dagblokje — gemeten 2026-09-14, blokje op
+                    x=428 tegen staaf op x=436. */}
+                <section
+                  className="rounded-[8px] border border-border py-3 mt-1"
+                  style={{
+                    marginLeft: STRIP.labelWidth + STRIP.gap - 1,
+                    marginRight: STRIP.endWidth + STRIP.gap - 1,
+                  }}
+                  title={t('resource.distribution.help.chart')}
+                  data-ops-distribution-histogram
+                >
+                  {poolItem ? (
+                    <BeforeAfterChart
+                      poolItem={poolItem}
+                      axis={stripView?.axis ?? null}
+                      docs={(stripView?.docs ?? []).map(doc => ({ docId: doc.docId, title: doc.title }))}
+                      docColors={docColors}
+                      bookingByDay={proposal?.bookingByDay ?? {}}
+                      afterLoadByDay={proposal?.afterLoadByDay ?? {}}
+                      afterIncomplete={proposal?.afterIncomplete ?? false}
+                      shortfallDocs={shortfallDocs}
+                    />
+                  ) : (
+                    <span className="text-text-secondary">
+                      {t('resource.distribution.preview.before')} / {t('resource.distribution.preview.after')} / {t('resource.distribution.preview.capacity')}
+                    </span>
+                  )}
+                </section>
               </div>
-            </section>
-
-            {/* (5) Fasestroken (§6). Eén rij per document, in RANGORDE — dezelfde volgorde als de
-                lijst hierboven, zodat een pin of plafond de stroken niet onder de muis vandaan
-                herschikt. De legenda benoemt de achtergrondband; de blokken zijn de eigen boeking. */}
-            <section className="flex flex-col gap-1" data-ops-distribution-strips>
-              <span className="text-[10px] text-text-secondary flex items-center gap-1.5">
-                <span
-                  className="inline-block rounded-[2px] shrink-0"
-                  style={{ width: 8, height: 8, background: 'var(--theme-text-dim)', opacity: 0.35 }}
-                />
-                {t('resource.distribution.strip.fixedLoad')}
-              </span>
-              {(stripView?.docs ?? []).map(doc => {
-                const recorded = doc.pinnedReason === 'dates-as-recorded';
-                const pinnedNow = recorded || tune.pinned[doc.docId] === true;
-                return (
-                  <PhaseStrip
-                    key={doc.docId}
-                    docId={doc.docId}
-                    title={doc.title}
-                    axis={stripView?.axis ?? null}
-                    beforeLoadByDay={bookingByDoc.get(doc.docId) ?? {}}
-                    afterLoadByDay={proposal?.afterLoadByDay[doc.docId] ?? {}}
-                    fixedLoadByDay={fixedLoadFor(doc.docId, pinnedNow)}
-                    isWorkingDay={isWorkingDayByDoc.get(doc.docId) ?? isWorkingDayFallback}
-                    color={docColors.get(doc.docId) ?? 'var(--theme-accent)'}
-                    slackWorkdays={slackByDoc.get(doc.docId) ?? null}
-                    endShiftWorkdays={doc.endShiftWorkdays}
-                    ceiling={tune.ceilings[doc.docId] ?? null}
-                    pinned={pinnedNow}
-                    recorded={recorded}
-                    cannotMove={doc.cannotMove}
-                    liveCommit={!degraded}
-                    busy={busy}
-                    formatDay={formatDay}
-                    onTogglePin={() => setPinned(doc.docId, tune.pinned[doc.docId] !== true)}
-                    onCeilingChange={next => setCeiling(doc.docId, next)}
-                  />
-                );
-              })}
-            </section>
-
-            {/* (6) Voor/na-histogram (taak 11b, spec §7): dezelfde as als de fasestroken hierboven. */}
-            <section
-              className="rounded-[8px] border border-border px-2 py-3"
-              title={t('resource.distribution.help.chart')}
-              data-ops-distribution-histogram
-            >
-              {poolItem ? (
-                <BeforeAfterChart
-                  poolItem={poolItem}
-                  axis={stripView?.axis ?? null}
-                  docs={(stripView?.docs ?? []).map(doc => ({ docId: doc.docId, title: doc.title }))}
-                  docColors={docColors}
-                  bookingByDay={proposal?.bookingByDay ?? {}}
-                  afterLoadByDay={proposal?.afterLoadByDay ?? {}}
-                  afterIncomplete={proposal?.afterIncomplete ?? false}
-                  shortfallDocs={shortfallDocs}
-                />
-              ) : (
-                <span className="text-text-secondary">
-                  {t('resource.distribution.preview.before')} / {t('resource.distribution.preview.after')} / {t('resource.distribution.preview.capacity')}
-                </span>
-              )}
-            </section>
-
-            {/* Tekorten (§4 stap 3): een geldige preview, maar Toepassen blijft uit. */}
-            {proposal?.hasShortfall && (
-              <section className="flex flex-col gap-0.5" data-ops-distribution-shortfall>
-                <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
-                  {t('resource.distribution.shortfall.title')}
-                </span>
-                {proposal.docs.filter(doc => doc.shortfalls.length > 0).map(doc => (
-                  <span key={doc.docId} style={{ color: 'var(--error)' }}>
-                    {t('resource.distribution.shortfall.doc', { doc: doc.title, count: doc.shortfalls.length })}
-                  </span>
-                ))}
-              </section>
-            )}
+            </div>
           </>
         )}
       </div>
 
-      {/* (7) Stale-strook + knoppenbalk.
+      {/* (5) Validatiestrook + knoppenbalk.
 
           IN DE KIEZER-STAND STAAT HIER NIETS BEHALVE "SLUITEN" (bedieningsreparatie 2026-09-11).
           "Verdeel automatisch", "Toepassen" en "Verwerpen" slaan zonder gekozen poolitem nergens
@@ -799,31 +676,71 @@ export function DistributionDialog() {
           </div>
         ) : (
         <>
-        {degraded && (
-          <div className="text-text-secondary" data-ops-distribution-degraded>
-            {t('resource.distribution.compute.degraded')}
-          </div>
-        )}
-        {showStale && (
-          <div
-            className="px-2.5 py-1.5 rounded-[8px] border text-text-secondary"
-            style={{
-              background: 'color-mix(in srgb, var(--theme-text-dim) 12%, transparent)',
-              borderColor: 'var(--theme-text-dim)',
-            }}
-            role="status"
-            data-ops-distribution-stale
-            data-ops-distribution-stale-reason={staleReason ?? ''}
+        {/* De degradatiemelding blijft bestaan (§5), maar op een GERESERVEERDE regel: aan- en
+            uitgaan mag de knoppenbalk niet verschuiven. */}
+        <div className="text-[10px] text-text-secondary" style={{ minHeight: 14 }} data-ops-distribution-degraded-slot>
+          {degraded ? (
+            <span data-ops-distribution-degraded>{t('resource.distribution.compute.degraded')}</span>
+          ) : null}
+        </div>
+
+        {/* VALIDATIESTROOK — `role="status"`, ALTIJD gerenderd, VASTE hoogte (§3.5/§7). Leeg =
+            onzichtbare tekst, geen weggehaald blok: alleen zó verschuift er nooit iets. Het anker
+            `data-ops-distribution-stale` blijft bestaan, maar als een SPAN bínnen deze strook —
+            zo blijven de bestaande asserties ("geen stale ⇒ count 0") geldig zonder dat de strook
+            zelf van hoogte wisselt. */}
+        <div
+          className="flex items-center gap-2 px-2.5 rounded-[8px] border"
+          style={{
+            height: 30,
+            background: statusLine.tone === 'ok'
+              ? 'color-mix(in srgb, var(--success) 10%, transparent)'
+              : statusLine.tone === 'bad'
+                ? 'color-mix(in srgb, var(--error) 10%, transparent)'
+                : 'color-mix(in srgb, var(--theme-text-dim) 10%, transparent)',
+            borderColor: statusLine.tone === 'ok'
+              ? 'var(--success)'
+              : statusLine.tone === 'bad' ? 'var(--error)' : 'var(--theme-text-dim)',
+            color: statusLine.tone === 'ok'
+              ? 'var(--success)'
+              : statusLine.tone === 'bad' ? 'var(--error)' : 'var(--theme-text-secondary)',
+          }}
+          role="status"
+          aria-live="polite"
+          data-ops-distribution-status
+        >
+          {statusLine.stale ? (
+            <span
+              className="flex-1 min-w-0 truncate"
+              title={statusLine.text}
+              data-ops-distribution-stale
+              data-ops-distribution-stale-reason={staleReason ?? ''}
+            >
+              {statusLine.text}
+            </span>
+          ) : (
+            <span className="flex-1 min-w-0 truncate" title={statusLine.text}>{statusLine.text}</span>
+          )}
+          {/* De reden waarom Toepassen uit staat, rechts in dezelfde strook. Bij een VERVALLEN
+              voorstel is die reden woordelijk de stale-zin die links al staat; dan blijft dit vak
+              leeg in plaats van dezelfde zin twee keer op één regel te zetten (gezien in de
+              gebruiksfoto van 2026-09-14). Het anker blijft altijd bestaan, zodat een test op
+              "welke reden staat er" niet van de toestand afhangt. */}
+          <span
+            className="text-text-secondary shrink-0 truncate"
+            style={{ maxWidth: 320 }}
+            title={statusLine.stale ? undefined : applyGate.reason}
+            data-ops-distribution-apply-reason
           >
-            {staleReason
-              ? `${t(`resource.distribution.stale.${staleReason}`, { docs: staleDocs })}${busy ? ` ${t('resource.distribution.compute.busy')}` : degraded || staleReason === 'edited' ? ` ${t('resource.distribution.compute.pressRecompute')}` : ''}`
-              : t('resource.distribution.compute.busy')}
-          </div>
-        )}
+            {statusLine.stale ? '' : applyGate.reason}
+          </span>
+        </div>
 
         {/* Spec §5: de terugweg woont HIER, niet in het meldingenkanaal (dat kent geen actieknoppen
             en ruimt info na 5 s op). Permanent zolang het record geldig is — hij verdwijnt alleen
-            door "Alles terugdraaien" of doordat een NIEUW Toepassen hem vervangt. */}
+            door "Alles terugdraaien" of doordat een NIEUW Toepassen hem vervangt. Dit blok mág van
+            hoogte wisselen: het verschijnt door een expliciete HANDELING van de gebruiker, niet
+            door een rekentoestand — en dat is precies het onderscheid dat §7 maakt. */}
         {applied && (
           <div
             className="px-2.5 py-1.5 rounded-[8px] border flex items-center gap-2"
@@ -846,7 +763,8 @@ export function DistributionDialog() {
             </button>
           </div>
         )}
-        <div className="flex items-center justify-end gap-2">
+
+        <div className="flex items-center gap-2">
           {/* Terug naar de kiezer. Geen bevestigingsdialoog (die zou over een dialoog heen moeten,
               en `hasBlockingDialogOpen` weert dat terecht) — in plaats daarvan ZEGT de knop wat er
               verdwijnt zodra er een `applied`-record staat: twee losse sleutels, want de waarschuwende
@@ -856,7 +774,7 @@ export function DistributionDialog() {
               documenten blijft staan (die draai je terug met de gewone undo per document). */}
           <button
             type="button"
-            className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover mr-auto"
+            className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover"
             data-ops-distribution-pick-another
             title={t('resource.distribution.help.pickAnother')}
             onClick={() => setUI({ levelingDistribution: null })}
@@ -865,6 +783,18 @@ export function DistributionDialog() {
               ? t('resource.distribution.pickAnotherApplied')
               : t('resource.distribution.pickAnother')}
           </button>
+          {/* Reset (§3.6): alle plafonds en pins terug naar neutraal, de schakelaar ONGEMOEID —
+              die is een gereedschapskeuze, geen per-project-bijstelling. */}
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover"
+            data-ops-distribution-reset
+            title={t('resource.distribution.help.reset')}
+            onClick={onReset}
+          >
+            {t('resource.distribution.reset')}
+          </button>
+          <span className="flex-1" />
           <button
             type="button"
             className="px-3 py-1.5 rounded-[8px] border border-border hover:bg-surface-hover disabled:opacity-40"
@@ -876,9 +806,6 @@ export function DistributionDialog() {
               ? t('resource.distribution.compute.auto')
               : t('resource.distribution.compute.recalculate')}
           </button>
-          <span className="text-text-secondary flex-1 min-w-0 truncate" data-ops-distribution-apply-reason>
-            {applyGate.reason}
-          </span>
           <button
             type="button"
             className="px-3 py-1.5 rounded-[8px] bg-accent text-white disabled:opacity-40"
