@@ -62,6 +62,16 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await page.locator('[data-ops-report-option="groupByType"]').check();
   await expect(pages).toHaveCount(3);
 
+  // Toewijzingskolommen (manuvarkey punt 1): standaard aan; uitzetten maakt de tabel smaller en
+  // rastert de preview dus opnieuw.
+  const colsToggle = page.locator('[data-ops-report-option="showAssignmentColumns"]');
+  await expect(colsToggle).toBeChecked();
+  const firstImg = pages.first().locator('img');
+  const beforeCols = await firstImg.getAttribute('src');
+  await colsToggle.uncheck();
+  await expect.poll(() => firstImg.getAttribute('src'), { timeout: 20_000 }).not.toBe(beforeCols);
+  await colsToggle.check();
+
   // Rapportageperiode (manuvarkey punt 3): een eigen bereik dat alleen Fundering raakt ⇒ alleen Ploeg A
   // blijft over; Casco (met Kraan) en Gevel vallen buiten de periode en de telling zegt dat. Terug naar
   // Hele project herstelt alles — de export hieronder telt dan weer drie pagina's.

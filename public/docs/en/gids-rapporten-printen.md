@@ -111,7 +111,12 @@ only tasks that touch the window take part, the time axis runs exactly from the 
 date, and a bar that continues beyond it is cut off at the edge. That lets a meeting put the
 look-ahead report and the resource diagram side by side over exactly the same weeks. *Project
 duration* (the default) is the usual behaviour; with a window the summary block also counts how
-many tasks fall outside it.
+many tasks fall outside it. After the task name two columns **Units/d** and **Curve** are shown by
+default: how many units per day the band's resource is assigned to the task, and with which
+distribution curve — "you are on Foundations half days, front loaded" says more than "you are on
+Foundations". A task under two bands shows each band's own load; two assignments of the same
+resource on one task are added up, and a dash in the curve column means those assignments carry
+different curves. Turn **Show units/day and curve** off for a narrower table.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from

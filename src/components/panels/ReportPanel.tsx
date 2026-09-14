@@ -454,6 +454,13 @@ export function ReportPanel() {
     SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
     MATERIAL: tCommon('resource.type.material'),
   }), [tCommon]);
+  // Vertaalde curvenamen voor de toewijzingskolommen (punt 1): dezelfde sleutels als het taakraster.
+  const curveLabels = useMemo(() => ({
+    UNIFORM: tCommon('resource.curve.uniform'), FRONT_LOADED: tCommon('resource.curve.frontLoaded'),
+    BACK_LOADED: tCommon('resource.curve.backLoaded'), BELL: tCommon('resource.curve.bell'),
+    EARLY_PEAK: tCommon('resource.curve.earlyPeak'), LATE_PEAK: tCommon('resource.curve.latePeak'),
+    DOUBLE_PEAK: tCommon('resource.curve.doublePeak'), TURTLE: tCommon('resource.curve.turtle'),
+  }), [tCommon]);
   // Rapportageperiode als tijdvenster (punt 3): dezelfde oplossing als het control toont; bij
   // *Hele project* geen venster, zodat het rapport byte-identiek blijft aan vóór deze optie.
   const resourceGanttPeriod = useResolvedPeriod(resourceGanttOptions.period);
@@ -572,6 +579,8 @@ export function ReportPanel() {
       tableHeaders: {
         wbs: t('tableHeaders.wbs'),
         taskName: t('tableHeaders.taskName'),
+        unitsPerDay: t('tableHeaders.unitsPerDay'),
+        curve: t('tableHeaders.curve'),
         start: t('tableHeaders.start'),
         end: t('tableHeaders.end'),
         duration: t('tableHeaders.duration'),
@@ -616,6 +625,10 @@ export function ReportPanel() {
     pageBreakBeforeGroups: reportType === 'resourceGantt' && resourceGanttOptions.pageBreakPerResource,
     // Punt 3: de tijdas op de rapportageperiode (alleen resourcediagram, alleen buiten *Hele project*).
     timeWindow: resourceGanttWindow,
+    // Punt 1: eenheden/dag en curve van de band op de taak als tabelkolommen (alleen resourcediagram).
+    assignmentColumns: reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns,
+    rowAssignments: resourceGantt?.assignmentByRowKey,
+    curveLabels,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -626,7 +639,7 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
-    resourceGantt, resourceGanttWindow]);
+    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -638,7 +651,10 @@ export function ReportPanel() {
       ? (value as ViewRow[]).map(r => (r.kind === 'group'
         ? `g:${r.key}:${r.label}:${r.count}:${r.depth}`
         : `t:${r.rowKey}:${r.depth}:${r.dimmed ? 1 : 0}`))
-      : value
+      // Een Map serialiseert als `{}`; de toewijzingskolommen (punt 1) moeten wél een herrender geven.
+      : key === 'rowAssignments' && value instanceof Map
+        ? [...(value as Map<string, unknown>).entries()]
+        : value
   )), [options]);
 
   // Eén generatie beheert één layout + één begrensde renderqueue. Een optiewijziging annuleert het
@@ -1438,6 +1454,16 @@ export function ReportPanel() {
                     data-ops-report-option="groupByType"
                   />
                   <span className="min-w-0">{t('resourceGantt.groupByType')}</span>
+                </label>
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={resourceGanttOptions.showAssignmentColumns}
+                    onChange={e => patchResourceGanttOptions({ showAssignmentColumns: e.target.checked })}
+                    className="accent-accent flex-shrink-0"
+                    data-ops-report-option="showAssignmentColumns"
+                  />
+                  <span className="min-w-0">{t('resourceGantt.showAssignmentColumns')}</span>
                 </label>
                 {/* Punt 3: de gedeelde rapportageperiode (issue #120) als tijdvenster van dit rapport. */}
                 <ReportingPeriodField

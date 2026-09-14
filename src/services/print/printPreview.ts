@@ -26,10 +26,11 @@ import {
   visibleBarColorCategories,
   type BarColorContext,
 } from '@/services/print/barColorCategories';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import type { RowAssignment } from '@/engine/reports/resourceGantt';
 import type { BaselineOverlay } from '@/types/baseline';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
@@ -89,6 +90,10 @@ const COL = {
   start:     { w: 55 },
   end:       { w: 55 },
   complete:  { w: 45 },
+  // Toewijzingskolommen van het resourcediagram (manuvarkey punt 1): eenheden per dag en de
+  // verdeelcurve van de resource van de band op die taak. Alleen bij `assignmentColumns`.
+  units:     { w: 45 },
+  curve:     { w: 75 },
 };
 
 /**
@@ -120,20 +125,24 @@ function resolveNameColumnWidth(raw: number | undefined): number {
  * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
  * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
  */
-function tableWidthFor(showCompletion: boolean, nameW: number): number {
-  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0);
+function tableWidthFor(showCompletion: boolean, nameW: number, assignmentColumns = false): number {
+  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0)
+    + (assignmentColumns ? COL.units.w + COL.curve.w : 0);
 }
 
 // Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
 // kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
 // `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
-function getColPositions(k: number, showCompletion: boolean, nameW: number) {
+function getColPositions(k: number, showCompletion: boolean, nameW: number, assignmentColumns = false) {
   let x = 0;
   const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
   return {
     wbs: next(COL.wbs.w),
     name: next(nameW),
+    // Direct achter de naam: ze horen bij "wie staat hierop en hoe", niet bij de datums.
+    units: assignmentColumns ? next(COL.units.w) : undefined,
+    curve: assignmentColumns ? next(COL.curve.w) : undefined,
     duration: next(COL.duration.w),
     start: next(COL.start.w),
     end: next(COL.end.w),
@@ -153,6 +162,8 @@ export interface PrintRow {
   depth: number;
   label?: string;   // groepsband-label
   count?: number;   // groepsband-aantal bladrijen
+  /** Toewijzing van de band op deze taak (resourcediagram, `PrintOptions.rowAssignments`). */
+  assignment?: RowAssignment;
 }
 
 /**
@@ -161,11 +172,15 @@ export interface PrintRow {
  * de volledige takenboom (oud gedrag, self-flatten), met wezen zonder gevonden ouder achteraan.
  * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
  */
-export function buildPrintRows(tasks: Task[], rows: ViewRow[] | undefined): PrintRow[] {
+export function buildPrintRows(
+  tasks: Task[],
+  rows: ViewRow[] | undefined,
+  rowAssignments?: ReadonlyMap<string, RowAssignment>,
+): PrintRow[] {
   const printRows: PrintRow[] = [];
   if (rows) {
     for (const row of rows) {
-      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth });
+      if (row.kind === 'task') printRows.push({ kind: 'task', task: row.task, depth: row.depth, assignment: rowAssignments?.get(row.rowKey) });
       else printRows.push({ kind: 'group', depth: row.depth, label: row.label, count: row.count });
     }
     return printRows;
@@ -270,7 +285,12 @@ export const REPORT_FONT_SCALES = [90, 100, 110, 125] as const;
  * geen enkele Select kan tonen en die na een herstart dus niet reproduceerbaar is. Zelfde semantiek
  * als in de settings- en rapport-loaders, allemaal via {@link snapToChoice}.
  */
-function makeMetrics(reportFontScale: number | undefined, showCompletion: boolean, taskNameColumnWidth: number | undefined): ReportMetrics {
+function makeMetrics(
+  reportFontScale: number | undefined,
+  showCompletion: boolean,
+  taskNameColumnWidth: number | undefined,
+  assignmentColumns = false,
+): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
   const nameW = resolveNameColumnWidth(taskNameColumnWidth);
@@ -286,9 +306,9 @@ function makeMetrics(reportFontScale: number | undefined, showCompletion: boolea
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: tableWidthFor(showCompletion, nameW) * k,
+    tableWidth: tableWidthFor(showCompletion, nameW, assignmentColumns) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k, showCompletion, nameW),
+    cols: getColPositions(k, showCompletion, nameW, assignmentColumns),
   };
 }
 
@@ -327,7 +347,11 @@ export interface PrintOptions {
        *  bindend-informatie beschikbaar is (zie {@link PrintOptions.drivingSequenceIds}). */
       relationStyle: string;
     };
-    tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
+    tableHeaders: {
+      wbs: string; taskName: string; start: string; end: string; duration: string; completion: string;
+      /** Koppen van de toewijzingskolommen (resourcediagram); ontbreken ⇒ Nederlandse terugval. */
+      unitsPerDay?: string; curve?: string;
+    };
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
     /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
@@ -371,6 +395,18 @@ export interface PrintOptions {
    * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ byte-identiek.
    */
   timeWindow?: { from: string; to: string };
+  /**
+   * OPTIONEEL — TOEWIJZINGSKOLOMMEN (manuvarkey op #113, punt 1; resourcediagram): twee extra
+   * tabelkolommen direct achter de naam — eenheden per dag en verdeelcurve van de resource van de
+   * band op die taak — gevuld uit `rowAssignments` (per `ViewRow.rowKey`, uit
+   * `computeResourceGanttRows().assignmentByRowKey`). Een rij zonder entry (bandrij, "(geen)")
+   * laat de cellen leeg. De tabel wordt precies de twee kolombreedtes breder; afwezig ⇒
+   * byte-identiek.
+   */
+  assignmentColumns?: boolean;
+  rowAssignments?: ReadonlyMap<string, RowAssignment>;
+  /** Vertaalde curvenamen (`common:resource.curve.*`); een ontbrekend label valt terug op de enum. */
+  curveLabels?: Partial<Record<ResourceCurve, string>>;
   /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
@@ -458,6 +494,11 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
 /** Format duration as "15d" */
 function formatDuration(days: number): string {
   return `${days}d`;
+}
+
+/** Eenheden per dag: geheel als "2", anders tot twee decimalen zonder nullen ("0.5", "1.25"). */
+function formatUnitsPerDay(units: number): string {
+  return String(Math.round(units * 100) / 100);
 }
 
 /** Format completion as "75%" */
@@ -635,11 +676,11 @@ export function renderReport(
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
-  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth);
+  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, !!options.assignmentColumns);
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
   // als samenvattings-strook tekenen.
-  const printRows = buildPrintRows(tasks, options.rows);
+  const printRows = buildPrintRows(tasks, options.rows, options.rowAssignments);
   const flatTasks: PrintTask[] = printRows
     .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
     .map(r => ({ ...r.task, _depth: r.depth }));
@@ -1832,8 +1873,10 @@ function drawTimelineHeader(
 
   d2d.textAlign = 'left';
   d2d.fillText(th?.taskName ?? 'Taaknaam', cols.name.x + m.s(4), headerY);
+  if (cols.curve) d2d.fillText(th?.curve ?? 'Curve', cols.curve.x + m.s(4), headerY);
 
   d2d.textAlign = 'center';
+  if (cols.units) d2d.fillText(th?.unitsPerDay ?? 'Eenh./d', cols.units.x + cols.units.w / 2, headerY);
   d2d.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
   d2d.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
   d2d.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
@@ -1846,6 +1889,7 @@ function drawTimelineHeader(
   d2d.lineWidth = 0.5;
   const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x, m.tableWidth];
   if (cols.complete) colBorders.push(cols.complete.x);
+  if (cols.units && cols.curve) colBorders.push(cols.units.x, cols.curve.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, top);
@@ -1870,7 +1914,7 @@ function drawTimelineHeader(
 function drawTaskTable(
   d2d: Draw2D,
   m: ReportMetrics,
-  printRows: { kind: 'task' | 'group'; task?: Task; depth: number; label?: string; count?: number }[],
+  printRows: PrintRow[],
   canvasHeight: number,
   cols: ColPositions,
   options: PrintOptions,
@@ -1943,6 +1987,17 @@ function drawTaskTable(
     const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
     d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
 
+    // Toewijzingskolommen (resourcediagram): eenheden rechts uitgelijnd, de curve links en afgekort.
+    if (cols.units && cols.curve && row.assignment) {
+      d2d.fillStyle = PRINT_COLORS.textSecondary;
+      d2d.font = m.font(8);
+      d2d.textAlign = 'right';
+      d2d.fillText(formatUnitsPerDay(row.assignment.unitsPerDay), cols.units.x + cols.units.w - cellPad, textY);
+      d2d.textAlign = 'left';
+      const curveText = row.assignment.curve === null ? '—' : (options.curveLabels?.[row.assignment.curve] ?? row.assignment.curve);
+      d2d.fillText(fitText(d2d, curveText, cols.curve.w - 2 * cellPad), cols.curve.x + cellPad, textY);
+    }
+
     // Duration
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(8);
@@ -1978,6 +2033,7 @@ function drawTaskTable(
   d2d.lineWidth = 0.5;
   const colBorders = [cols.name.x, cols.duration.x, cols.start.x, cols.end.x];
   if (cols.complete) colBorders.push(cols.complete.x);
+  if (cols.units && cols.curve) colBorders.push(cols.units.x, cols.curve.x);
   for (const cx of colBorders) {
     d2d.beginPath();
     d2d.moveTo(cx, m.totalHeaderHeight);

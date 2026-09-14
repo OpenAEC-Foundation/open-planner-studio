@@ -114,6 +114,12 @@ venster raken doen mee, de tijdas loopt precies van de begin- tot de einddatum, 
 verder doorloopt wordt aan de rand afgekapt. Zo leg je in dezelfde vergadering het look-ahead-rapport
 en het resourcediagram over exact dezelfde weken naast elkaar. *Hele project* (standaard) is het
 gewone gedrag; bij een venster telt het overzichtsblok ook hoeveel taken erbuiten vallen.
+Achter de taaknaam staan standaard twee kolommen **Eenh./d** en **Curve**: hoeveel eenheden per
+dag de resource van die band op de taak staat en met welke verdeelcurve — "je staat halve dagen
+op Fundering, vooraan belast" zegt meer dan "je staat op Fundering". Een taak onder twee banden
+toont per band de eigen inzet; twee toewijzingen van dezelfde resource op één taak worden
+opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillende curves hebben.
+Zet **Eenheden/dag en curve tonen** uit voor een smallere tabel.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het

@@ -524,6 +524,39 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(JSON.stringify(record(FIX_TASKS, [], cal, fixed)) === JSON.stringify(record(FIX_TASKS, [], cal, { ...fixed, timeWindow: undefined })),
         'zonder venster byte-identiek');
     }
+
+    // Toewijzingskolommen (manuvarkey punt 1): twee kolommen direct achter de naam (x 180–225 en
+    // 225–300 bij de standaardnaamkolom van 130), gevuld per rijsleutel; de tabel wordt precies de
+    // twee kolombreedtes breder; zonder de optie (ook mét `rowAssignments`) byte-identiek.
+    {
+      const aBands: ViewRow[] = [
+        { kind: 'group', rowKey: 'b', key: 'b', label: 'Metselaar', count: 2, depth: 0, levelIndex: 0, collapsed: false },
+        { kind: 'task', rowKey: 'b/norm', task: T_NORM, depth: 1, dimmed: false },
+        { kind: 'task', rowKey: 'b/crit', task: T_CRIT, depth: 1, dimmed: false },
+      ];
+      const rowAssignments = new Map([
+        ['b/norm', { unitsPerDay: 1.5, curve: 'FRONT_LOADED' as const }],
+        ['b/crit', { unitsPerDay: 2, curve: null }],
+      ]);
+      const plainA = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands }));
+      const withCols = record([T_NORM, T_CRIT], [], cal, baseOptions({
+        rows: aBands, assignmentColumns: true, rowAssignments, curveLabels: { FRONT_LOADED: 'Vooraan belast' },
+      }));
+      ok(withCols.dims.tableWidth === plainA.dims.tableWidth + 45 + 75, `tabel precies twee kolommen breder (got +${withCols.dims.tableWidth - plainA.dims.tableWidth})`);
+      const inCol = (t: { x: number; y: number }, x0: number, x1: number) => t.x >= x0 && t.x <= x1 && t.y > withCols.dims.headerHeight && t.y < withCols.dims.height - withCols.dims.footerHeight;
+      const unitsTexts = withCols.texts.filter(t => inCol(t, 180, 225)).map(t => t.text).sort();
+      const curveTexts = withCols.texts.filter(t => inCol(t, 225, 300)).map(t => t.text).sort();
+      ok(JSON.stringify(unitsTexts) === JSON.stringify(['1.5', '2']), `eenheden per rij in de kolom (got ${JSON.stringify(unitsTexts)})`);
+      // De testmeter rekent 6 px per teken, dus "Vooraan belast" (84 px) kapt in de 75 px-kolom af op
+      // een beletselteken — dat is het bedoelde `fitText`-gedrag; met het echte 8 px-font past het.
+      ok(curveTexts.length === 2 && curveTexts.some(t => t.startsWith('Vooraan be')) && curveTexts.includes('—'),
+        `vertaalde curve (desnoods afgekort), streepje bij verschillende curves (got ${JSON.stringify(curveTexts)})`);
+      const heads = withCols.texts.filter(t => t.y <= withCols.dims.headerHeight).map(t => t.text);
+      ok(heads.includes('Eenh./d') && heads.includes('Curve'), 'kolomkoppen aanwezig (Nederlandse terugval zonder label)');
+      ok(!plainA.texts.some(t => t.text === 'Eenh./d' || t.text === 'Vooraan belast'), 'zonder optie geen kolommen');
+      ok(JSON.stringify(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, rowAssignments }))) === JSON.stringify(plainA),
+        'rowAssignments zonder assignmentColumns ⇒ byte-identiek');
+    }
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
     // paginabreedtes — steeds drie body-rijen die exact op de bandgrenzen eindigen.

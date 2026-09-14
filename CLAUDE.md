@@ -155,7 +155,14 @@ start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan 
 relatielijnen en legendaregel, de balken volgen `barColorSelection` via `criticalFill`); optie "blad
 per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
-positie zonder vulgraaddrempel wint; `isGanttReportType()` bundelt beide Gantt-achtige typen; de voet
+positie zonder vulgraaddrempel wint — een band direct onder een band (de optionele typelaag
+`groupByType`: eerst een band per resourcetype in de vaste volgorde `RESOURCE_TYPE_BAND_ORDER`) krijgt
+geen eigen gedwongen positie; optie *Rapportageperiode* = de gedeelde `ReportingPeriod` als
+`PrintOptions.timeWindow` (tijdas exact op het venster, geometrie geklemd op het chartgebied want
+`Draw2D` kent geen clip; de rijenbron filtert op overlap en telt `counts.outsidePeriod`); optie
+*Eenheden/dag en curve tonen* = `PrintOptions.assignmentColumns` + `rowAssignments` (per `rowKey`
+uit `assignmentByRowKey`: eenheden opgeteld, curve alleen bij eensluidende records) als twee
+tabelkolommen achter de naam; `isGanttReportType()` bundelt beide Gantt-achtige typen; de voet
 met legenda is sinds #113 net als de kop een herhaalbaar blok — `RenderReportResult.footerHeight` →
 `repeatFooterHeightPx`/`repeatFooter`, instelling `repeatFooter` standaard aan; let op: de preview
 rendert per pagina één volledige `renderReport`-pass extra voor die strook, net als voor de kop), het

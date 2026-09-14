@@ -55,6 +55,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "Units/d",
+    "curve": "Curve",
     "taskName": "Task Name",
     "start": "Start",
     "end": "End",
@@ -135,6 +137,7 @@
     "pageBreakPerResource": "Each resource on a new page",
     "includeUnassigned": "Include tasks without a resource",
     "groupByType": "Group by resource type",
+    "showAssignmentColumns": "Show units/day and curve",
     "emptyPeriod": "No tasks in the reporting period — choose another period or Whole project.",
     "outsidePeriod": "Outside the period:",
     "empty": "No resource assignments — assign resources to tasks first.",

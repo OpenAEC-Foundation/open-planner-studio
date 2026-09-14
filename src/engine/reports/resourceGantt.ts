@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceCurve, ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
 import { dayOf, taskFinish, taskStart } from './reportCommon';
 import type { ResolvedPeriod } from './reportingPeriod';
@@ -43,6 +43,13 @@ import type { ResolvedPeriod } from './reportingPeriod';
  * tellingen volgen die gefilterde set; `counts.outsidePeriod` telt wat er is weggelaten, zodat de
  * UI een lege uitkomst kan verklaren. De render krijgt hetzelfde venster als `timeWindow`.
  *
+ * Per taakrij onder een resourceband levert `assignmentByRowKey` de TOEWIJZING van die band op
+ * die taak (punt 1): eenheden per dag en de verdeelcurve — de rij is een taak, maar wat de lezer
+ * wil weten is "hoe zwaar staat déze resource erop". Twee records van dezelfde resource op één
+ * taak (één rij) worden opgeteld; de curve is alleen bekend als alle records dezelfde hebben
+ * (anders `null`, de render toont een streepje). De "(geen)"-band heeft geen toewijzing en dus
+ * geen entry. De render tekent dit als twee tabelkolommen (`PrintOptions.assignmentColumns`).
+ *
  * Invoer is structureel een `ReportContext`-subset, zoals de rest van `src/engine/reports/`. Puur:
  * geen React-/store-imports, headless getest in `tests/planning/check-reports.ts`.
  */
@@ -71,6 +78,8 @@ export interface ResourceGanttRowsOptions {
 export interface ResourceGanttRowsResult {
   /** De rijen voor `PrintOptions.rows`: bandrij per resource, taakrijen eronder (diepte 1). */
   rows: ViewRow[];
+  /** Per taakrij-sleutel (`rowKey`) onder een resourceband: de toewijzing van die band op die taak. */
+  assignmentByRowKey: Map<string, RowAssignment>;
   counts: {
     /** Resources (op identiteit) met minstens één bladtaak. */
     resources: number;
@@ -83,6 +92,14 @@ export interface ResourceGanttRowsResult {
     /** Bladtaken die door het tijdvenster zijn weggelaten (0 zonder venster). */
     outsidePeriod: number;
   };
+}
+
+/** De toewijzing achter één taakrij van een resourceband (zie de moduledoc). */
+export interface RowAssignment {
+  /** Som van `unitsPerDay` over de records van deze resource op deze taak. */
+  unitsPerDay: number;
+  /** De curve als alle records dezelfde hebben (`undefined` in een record = UNIFORM), anders null. */
+  curve: ResourceCurve | null;
 }
 
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
@@ -164,6 +181,8 @@ export function computeResourceGanttRows(
   // een toewijzing aan een onbekende resource telt niet (zelfde regel als `resourceNames` op het
   // scherm: die taak is dan "zonder resource").
   const tasksByResource = new Map<string, Map<string, Task>>();
+  // Per resource-id × taak-id de opgetelde eenheden en de verzameling curves (punt 1).
+  const loadByResourceTask = new Map<string, { unitsPerDay: number; curves: Set<ResourceCurve> }>();
   const assignedTaskIds = new Set<string>();
   let assignments = 0;
   for (const a of ctx.assignments) {
@@ -174,6 +193,11 @@ export function computeResourceGanttRows(
     if (!bucket) { bucket = new Map(); tasksByResource.set(a.resourceId, bucket); }
     bucket.set(task.id, task);
     assignedTaskIds.add(task.id);
+    const loadKey = `${a.resourceId}\u0000${task.id}`;
+    const load = loadByResourceTask.get(loadKey) ?? { unitsPerDay: 0, curves: new Set<ResourceCurve>() };
+    load.unitsPerDay += a.unitsPerDay;
+    load.curves.add(a.curve ?? 'UNIFORM');
+    loadByResourceTask.set(loadKey, load);
   }
 
   const labels = resourceBandLabels(ctx.resources, opts.locale);
@@ -185,6 +209,7 @@ export function computeResourceGanttRows(
     .sort((a, b) => collator.compare(a.label, b.label) || a.index - b.index);
 
   const rows: ViewRow[] = [];
+  const assignmentByRowKey = new Map<string, RowAssignment>();
   // Eén resourceband met zijn taakrijen, onder een optioneel typepad (diepte +1).
   const pushBand = (band: (typeof bands)[number], path: string[]) => {
     const groupPath = [...path, band.id];
@@ -194,7 +219,15 @@ export function computeResourceGanttRows(
       depth: path.length, levelIndex: path.length, collapsed: false,
     });
     for (const task of sortByStart([...band.tasks.values()])) {
-      rows.push({ kind: 'task', rowKey: encodeGroupedTaskRowKey(groupPath, task.id), task, depth: path.length + 1, dimmed: false });
+      const rowKey = encodeGroupedTaskRowKey(groupPath, task.id);
+      rows.push({ kind: 'task', rowKey, task, depth: path.length + 1, dimmed: false });
+      const load = loadByResourceTask.get(`${band.id}\u0000${task.id}`);
+      if (load) {
+        assignmentByRowKey.set(rowKey, {
+          unitsPerDay: load.unitsPerDay,
+          curve: load.curves.size === 1 ? [...load.curves][0] : null,
+        });
+      }
     }
   };
   if (opts.groupByType) {
@@ -232,6 +265,7 @@ export function computeResourceGanttRows(
 
   return {
     rows,
+    assignmentByRowKey,
     counts: { resources: bands.length, assignments, unassignedTasks: unassigned.length, outsidePeriod: allLeaves.length - leaves.length },
   };
 }

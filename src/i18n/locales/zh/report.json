@@ -52,6 +52,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "单位/天",
+    "curve": "曲线",
     "taskName": "任务名称",
     "start": "开始",
     "end": "结束",
@@ -132,6 +134,7 @@
     "pageBreakPerResource": "每个资源另起一页",
     "includeUnassigned": "包含未分配资源的任务",
     "groupByType": "按资源类型分组",
+    "showAssignmentColumns": "显示单位/天和曲线",
     "emptyPeriod": "报告期间内没有任务 — 请选择其他期间或整个项目。",
     "outsidePeriod": "期间之外：",
     "empty": "没有资源分配——请先为任务分配资源。",

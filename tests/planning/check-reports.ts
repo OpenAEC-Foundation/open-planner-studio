@@ -20,7 +20,7 @@ import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
 import { makeMonthLabeler } from '@/utils/monthLabel';
 import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -572,6 +572,29 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('resourceGantt/venster: venster zonder taken ⇒ geen rijen, alles buiten de periode', [buiten.rows.length, buiten.counts.outsidePeriod, buiten.counts.resources], [0, leavesAll.length, 0]);
   const ruim = computeResourceGanttRows(base, { ...opts, window: { from: '2020-01-01', to: '2035-12-31' } });
   ok('resourceGantt/venster: een venster dat alles omvat ⇒ dezelfde rijen als zonder venster', JSON.stringify(ruim.rows) === JSON.stringify(r.rows) && ruim.counts.outsidePeriod === 0);
+
+  // manuvarkey op #113, punt 1: per taakrij de toewijzing van de band op die taak — eenheden opgeteld
+  // over records van dezelfde resource, curve alleen als alle records dezelfde hebben (afwezig =
+  // UNIFORM), anders null; taakrijen onder "(geen)" hebben geen entry.
+  const asgFull = (id: string, taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve): ResourceAssignment => ({ id, taskId, resourceId, unitsPerDay, curve });
+  const loaded = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan, jan1],
+    assignments: [
+      asgFull('l1', A, kraan.id, 0.5, 'FRONT_LOADED'), asgFull('l2', A, kraan.id, 1, 'FRONT_LOADED'),
+      asgFull('l3', B, kraan.id, 2), asgFull('l4', B, jan1.id, 1, 'BELL'), asgFull('l5', B, jan1.id, 1, 'BACK_LOADED'),
+    ],
+  }, { ...opts, includeUnassigned: true });
+  const rowOf = (bandName: string, taskId: string) => {
+    const start = loaded.rows.findIndex(x => label(x) === bandName);
+    return loaded.rows.slice(start + 1).find(x => x.kind === 'task' && x.task.id === taskId)!;
+  };
+  eq('resourceGantt/toewijzing: Kraan op A — twee records opgeteld, zelfde curve', loaded.assignmentByRowKey.get(rowOf('Kraan', A).rowKey), { unitsPerDay: 1.5, curve: 'FRONT_LOADED' });
+  eq('resourceGantt/toewijzing: Kraan op B — record zonder curve telt als UNIFORM', loaded.assignmentByRowKey.get(rowOf('Kraan', B).rowKey), { unitsPerDay: 2, curve: 'UNIFORM' });
+  eq('resourceGantt/toewijzing: Jan op B — verschillende curves ⇒ null', loaded.assignmentByRowKey.get(rowOf('Jan', B).rowKey), { unitsPerDay: 2, curve: null });
+  const noneStart = loaded.rows.findIndex(x => label(x) === '(geen)');
+  ok('resourceGantt/toewijzing: elke taakrij onder een resourceband heeft een entry', loaded.rows.slice(0, noneStart).every(x => x.kind !== 'task' || loaded.assignmentByRowKey.has(x.rowKey)));
+  ok('resourceGantt/toewijzing: "(geen)"-rijen hebben geen entry', noneStart > 0 && loaded.rows.slice(noneStart).every(x => x.kind !== 'task' || !loaded.assignmentByRowKey.has(x.rowKey)));
+  eq('resourceGantt/toewijzing: aantal entries = aantal taakrijen onder resourcebanden', loaded.assignmentByRowKey.size, loaded.rows.slice(0, noneStart).filter(x => x.kind === 'task').length);
 
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).

@@ -52,6 +52,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "単位/日",
+    "curve": "カーブ",
     "taskName": "タスク名",
     "start": "開始",
     "end": "終了",
@@ -132,6 +134,7 @@
     "pageBreakPerResource": "リソースごとに改ページ",
     "includeUnassigned": "リソース未割当のタスクを含める",
     "groupByType": "リソース種別でグループ化",
+    "showAssignmentColumns": "単位/日とカーブを表示",
     "emptyPeriod": "レポート期間内にタスクがありません — 別の期間またはプロジェクト全体を選択してください。",
     "outsidePeriod": "期間外：",
     "empty": "リソースの割当がありません — まずタスクにリソースを割り当ててください。",

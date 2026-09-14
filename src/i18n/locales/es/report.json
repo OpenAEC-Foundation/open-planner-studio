@@ -58,6 +58,8 @@
   },
   "tableHeaders": {
     "wbs": "WBS",
+    "unitsPerDay": "Unid./d",
+    "curve": "Curva",
     "taskName": "Nombre de tarea",
     "start": "Inicio",
     "end": "Fin",
@@ -138,6 +140,7 @@
     "pageBreakPerResource": "Cada recurso en una página nueva",
     "includeUnassigned": "Incluir tareas sin recurso",
     "groupByType": "Agrupar por tipo de recurso",
+    "showAssignmentColumns": "Mostrar unidades/día y curva",
     "emptyPeriod": "No hay tareas en el período del informe — elija otro período o Proyecto completo.",
     "outsidePeriod": "Fuera del período:",
     "empty": "No hay asignaciones de recursos — asigne primero recursos a las tareas.",
