@@ -675,7 +675,6 @@
         "noDemand": "Ninguno de los proyectos reserva trabajo realmente aquí."
       },
       "tool": {
-        "title": "Herramienta",
         "allowSplits": "Permitir interrupciones",
         "allowSplitsHint": "El trabajo puede recibir días de pausa en lugar de desplazarse de una sola vez. En MS Project esto se llama \"Leveling can create splits in remaining work\".",
         "priceUnknown": "precio desconocido — pulsa Recalcular",

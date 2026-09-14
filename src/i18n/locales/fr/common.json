@@ -675,7 +675,6 @@
         "noDemand": "Aucun des projets ne réserve réellement du travail ici."
       },
       "tool": {
-        "title": "Outil",
         "allowSplits": "Autoriser les interruptions",
         "allowSplitsHint": "Le travail peut recevoir des jours de pause plutôt que de se décaler d'un bloc. Dans MS Project, cela s'appelle « Leveling can create splits in remaining work ».",
         "priceUnknown": "prix inconnu — appuyez sur Recalculer",

@@ -663,7 +663,6 @@
         "noDemand": "Geen van de projecten boekt hier daadwerkelijk werk op."
       },
       "tool": {
-        "title": "Gereedschap",
         "allowSplits": "Onderbrekingen toestaan",
         "allowSplitsHint": "Het werk mag pauzedagen krijgen in plaats van in één stuk op te schuiven. In MS Project heet dit \"Leveling can create splits in remaining work\".",
         "priceUnknown": "prijs onbekend — druk op Herbereken",

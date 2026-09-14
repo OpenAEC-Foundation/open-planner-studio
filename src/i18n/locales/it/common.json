@@ -675,7 +675,6 @@
         "noDemand": "Nessuno dei progetti prenota effettivamente lavoro qui."
       },
       "tool": {
-        "title": "Strumento",
         "allowSplits": "Consenti interruzioni",
         "allowSplitsHint": "Il lavoro può ricevere giorni di pausa invece di spostarsi in un unico blocco. In MS Project questo si chiama \"Leveling can create splits in remaining work\".",
         "priceUnknown": "prezzo sconosciuto — premi Ricalcola",

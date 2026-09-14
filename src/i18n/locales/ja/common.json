@@ -651,7 +651,6 @@
         "noDemand": "どのプロジェクトもここで実際に作業を予約していません。"
       },
       "tool": {
-        "title": "ツール",
         "allowSplits": "中断を許可",
         "allowSplitsHint": "作業は一気に移動する代わりに休止日を挟むことができます。MS Project ではこれを「Leveling can create splits in remaining work」と呼びます。",
         "priceUnknown": "価格不明 — 再計算を押してください",

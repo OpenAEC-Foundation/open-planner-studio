@@ -663,7 +663,6 @@
         "noDemand": "هیچ‌کدام از پروژه‌ها در اینجا واقعاً کاری رزرو نمی‌کنند."
       },
       "tool": {
-        "title": "ابزار",
         "allowSplits": "اجازه دادن به وقفه‌ها",
         "allowSplitsHint": "کار می‌تواند به‌جای جابه‌جایی یکجا، روزهای وقفه بگیرد. در MS Project به این «Leveling can create splits in remaining work» گفته می‌شود.",
         "priceUnknown": "قیمت نامشخص — روی محاسبه مجدد بزنید",

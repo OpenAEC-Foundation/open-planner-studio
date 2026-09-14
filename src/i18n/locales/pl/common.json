@@ -687,7 +687,6 @@
         "noDemand": "Żaden z projektów faktycznie tu nie rezerwuje pracy."
       },
       "tool": {
-        "title": "Narzędzie",
         "allowSplits": "Zezwól na przerwy",
         "allowSplitsHint": "Praca może dostać dni przerwy zamiast przesuwać się w całości. W MS Project nazywa się to \"Leveling can create splits in remaining work\".",
         "priceUnknown": "cena nieznana — naciśnij Przelicz ponownie",

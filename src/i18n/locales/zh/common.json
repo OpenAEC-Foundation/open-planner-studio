@@ -651,7 +651,6 @@
         "noDemand": "没有任何项目在此实际预订工作。"
       },
       "tool": {
-        "title": "工具",
         "allowSplits": "允许中断",
         "allowSplitsHint": "工作可以插入暂停日，而不是整体顺延。在 MS Project 中这称为\"Leveling can create splits in remaining work\"。",
         "priceUnknown": "价格未知 — 按下重新计算",

@@ -663,7 +663,6 @@
         "noDemand": "None of the projects actually book work here."
       },
       "tool": {
-        "title": "Tool",
         "allowSplits": "Allow interruptions",
         "allowSplitsHint": "The work may get pause days instead of shifting in one piece. In MS Project this is called \"Leveling can create splits in remaining work\".",
         "priceUnknown": "price unknown — press Recalculate",

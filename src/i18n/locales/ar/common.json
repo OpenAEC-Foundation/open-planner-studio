@@ -711,7 +711,6 @@
         "noDemand": "لا يحجز أي من المشاريع عملاً هنا فعليًا."
       },
       "tool": {
-        "title": "الأداة",
         "allowSplits": "السماح بالانقطاعات",
         "allowSplitsHint": "يمكن أن يحصل العمل على أيام توقف بدلاً من الانزياح دفعة واحدة. في MS Project يسمى هذا \"Leveling can create splits in remaining work\".",
         "priceUnknown": "السعر غير معروف — اضغط على إعادة الحساب",

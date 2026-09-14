@@ -663,7 +663,6 @@
         "noDemand": "Keines der Projekte bucht hier tatsächlich Arbeit."
       },
       "tool": {
-        "title": "Werkzeug",
         "allowSplits": "Unterbrechungen zulassen",
         "allowSplitsHint": "Die Arbeit darf Pausentage bekommen, statt sich am Stück zu verschieben. In MS Project heißt das \"Leveling can create splits in remaining work\".",
         "priceUnknown": "Preis unbekannt — Neu berechnen drücken",

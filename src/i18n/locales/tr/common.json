@@ -663,7 +663,6 @@
         "noDemand": "Projelerin hiçbiri burada gerçekten iş rezerve etmiyor."
       },
       "tool": {
-        "title": "Araç",
         "allowSplits": "Kesintilere izin ver",
         "allowSplitsHint": "İş, tek parça halinde kaymak yerine ara günler alabilir. MS Project'te buna \"Leveling can create splits in remaining work\" denir.",
         "priceUnknown": "fiyat bilinmiyor — Yeniden Hesapla'ya basın",
