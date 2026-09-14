@@ -54,7 +54,9 @@ levels: **View → Bar colors → By category → Resource** colors the whole ba
 each party's assignment, with the critical path as a red outline), and the separate **Resource
 accent** toggle (View → Baselines & progress) adds a thin stripe in the resource color under the
 bar. That accent is independent of the selected bar coloring, so it can also be combined with Task
-type, Discipline or automatic per-task colors.
+type, Discipline or automatic per-task colors. The compact Resources panel in the right rail shows
+the same color swatch in front of every resource, so you can tie an accent stripe to its resource at
+a glance.
 
 ## What follows the library — and what doesn't
 

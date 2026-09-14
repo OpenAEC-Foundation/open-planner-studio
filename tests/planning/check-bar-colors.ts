@@ -51,9 +51,12 @@ ok(nextFreePaletteColor([]) === RESOURCE_PALETTE[0], 'leeg veld → eerste kleur
 const taken = RESOURCE_PALETTE.slice(0, 5).map(c => ({ id: c, name: c, type: 'LABOR' as const, description: '', maxUnits: 1, color: c }));
 ok(nextFreePaletteColor(taken) === RESOURCE_PALETTE[5], 'eerste vijf bezet → zesde kleur');
 
-// 6. Geen paletkleur gelijk aan de kritiek-roodtint van het printpalet (PRINT_PALETTE.critical =
-//    '#DC2626') — de rode rand voor kritieke taken moet visueel vrij blijven.
-ok(!RESOURCE_PALETTE.includes('#DC2626'), 'palet vermijdt kritiek-rood');
+// 6. Geen paletkleur gelijk aan een kritiek-roodtint — de rode rand voor kritieke taken moet
+//    visueel vrij blijven. Er zijn er sinds U2 twee: '#DA5252' op het scherm (BRAND.critical, één
+//    palet voor licht én donker) en '#DC2626' op papier (PRINT_PALETTE.critical, dat bewust de
+//    verzadigde merkhex houdt).
+ok(!RESOURCE_PALETTE.includes('#DA5252'), 'palet vermijdt kritiek-rood (scherm)');
+ok(!RESOURCE_PALETTE.includes('#DC2626'), 'palet vermijdt kritiek-rood (print)');
 
 // ── barColors: modi, segmenten, randen (#21, ontwerp §4) ───────────────────────────────────────
 import { computeBarColors } from '@/services/print/barColors';
@@ -68,8 +71,8 @@ import type { Task, TaskTime } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 
 const PAL: BarPalette = {
-  critical: '#DC2626', normal: '#2563EB', nearCritical: '#F59E0B',
-  milestone: '#7C3AED', uncategorized: '#94A3B8',
+  critical: '#DA5252', normal: '#648BE0', nearCritical: '#F59E0B',
+  milestone: '#986DE2', uncategorized: '#94A3B8',
 };
 
 const mkTime = (over: Partial<TaskTime> = {}): TaskTime => ({

@@ -174,6 +174,9 @@
     "splitView": "Geteilte Ansicht",
     "miniMap": "Minimap",
     "moveProject": "Projekt verschieben…",
+    "progressImport": "Fortschritt aus einer Tabelle aktualisieren",
+    "progressExport": "Fortschrittsblatt exportieren",
+    "progressGroup": "Fortschritt",
     "relationDraw": "Beziehung zeichnen",
     "relationDrawOnHint": "Verknüpfungsmodus einschalten; danach im Gantt von Balken zu Balken ziehen",
     "relationDrawOffHint": "Verknüpfungsmodus ausschalten",
@@ -285,6 +288,8 @@
     "examplesShowcaseBadge": "Alle Funktionen",
     "exportTitle": "Exportieren",
     "exportSubtitle": "Format auswählen. Das Projekt wird konvertiert und gespeichert.",
+    "progressImportCardTitle": "Fortschritt aus einer Tabelle aktualisieren",
+    "progressImportCardDesc": "Ein zurückgesandtes CSV-Blatt einlesen und Fertigstellung, tatsächlichen Start und tatsächliches Ende aktualisieren.",
     "printTitle": "Drucken",
     "printSubtitle": "Berichtsansicht für Druckvorschau und Einstellungen öffnen.",
     "openPrintPreview": "Druckvorschau öffnen",
@@ -307,6 +312,32 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Fortschrittsblatt (Excel)",
+    "progressXlsxDesc": "Schlankes Blatt mit nur ID, PSP, Name, Terminen und Fortschritt — mit festen Spaltenbreiten, gesperrten Feldern und Datumsprüfung.",
+    "progressXlsxShort": "Fortschritt (Excel)",
+    "progressXlsxSheetName": "Fortschritt",
+    "progressXlsxValidation": {
+      "percentTitle": "Fortschritt (%)",
+      "percentError": "Geben Sie eine Zahl von 0 bis 100 ein.",
+      "dateTitle": "Tatsächliches Datum",
+      "dateError": "Geben Sie ein gültiges Datum ein."
+    },
+    "progressXlsxNotes": {
+      "completion": "ausfüllen: 0 bis 100, Dezimalstellen erlaubt",
+      "actualStart": "ausfüllen: tatsächliches Startdatum (als Datum)",
+      "actualFinish": "ausfüllen: tatsächliches Enddatum (als Datum)"
+    },
+    "progressCsvLabel": "Fortschrittsblatt (CSV)",
+    "progressCsvDesc": "Dasselbe schlanke Fortschrittsblatt als reiner Text — für alle, die lieber mit einer CSV arbeiten.",
+    "progressCsvShort": "Fortschritt (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "nicht ändern",
+      "plannedReadOnly": "geplant, nicht ändern",
+      "completion": "ausfüllen: 0 bis 100, ganze Zahlen",
+      "actualStart": "ausfüllen: tatsächliches Startdatum (TT-MM-JJJJ)",
+      "actualFinish": "ausfüllen: tatsächliches Enddatum (TT-MM-JJJJ)",
+      "summaryRow": "— Sammelvorgang: nicht ausfüllen"
+    },
     "csvLabel": "CSV (semikolon-getrennt)",
     "csvDesc": "Universeller Tabellenexport. Alle Aufgaben mit Terminen und Dauer.",
     "mspdiLabel": "MS Project XML",

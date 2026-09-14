@@ -54,11 +54,12 @@ const EXPECTED_TOOLS = {
   baseline: 4,       // baselineTools — list/activate/rename/delete_baseline (beheer náást save_baseline)
   document: 4,       // T21 — list/new/switch/duplicate_document
   file: 2,           // T21 — export_ifc, import_schedule
+  guide: 1,          // D2b — get_planning_guide (gids + agent-skill, geen projectdata)
   batch: 1,          // T22 — planner_batch
 };
-const EXPECTED_TOTAL = Object.values(EXPECTED_TOOLS).reduce((a, b) => a + b, 0); // = 39
+const EXPECTED_TOTAL = Object.values(EXPECTED_TOOLS).reduce((a, b) => a + b, 0); // = 40
 
-test('tools/list levert exact de verwachte toolstelling (39) via de dispatcher', async () => {
+test('tools/list levert exact de verwachte toolstelling (40) via de dispatcher', async () => {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
     makeCtx(),

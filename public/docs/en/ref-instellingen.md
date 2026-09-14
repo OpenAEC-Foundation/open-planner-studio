@@ -8,58 +8,59 @@ The **Settings** window holds the app settings: preferences that apply to this d
 - **Settings** (ribbon tab) → ribbon group **Project** → **Settings**.
 - **File** → **Settings** (Backstage).
 
-All three show exactly the same settings. Depending on your version they're spread over three or
-four tabs — a fourth, **Application**, has recently split off the tail end of the first tab — but
-the settings themselves and what they do are identical either way; this article groups them as
-**General**, **Language** and **Timeline / Zoom**.
+All three show exactly the same settings, spread over three tabs: **Appearance**, **Planning** and **Advanced**.
 
-## General tab
+## Appearance tab
 
-**Appearance:**
+The look of the interface and the timeline.
 
 - **Theme** — **Dark**, **Light** or **High Contrast**; click a card to switch. Below them sits **Follow system theme**: with it on, the app follows your operating system's or browser's colour scheme and switches along the moment that changes, even while the app is open. The three cards are greyed out then — they only show you which theme the system currently yields. Switch it back off and you stay on exactly that theme. **High Contrast** is yours to pick, since a system only knows light and dark.
+- **Language** — the app's display language, applied immediately.
 - **Font** — **Default**, **System**, **Serif** or **Monospace**; overrides the interface's typeface. Web apps don't automatically follow your system font setting, so this and the next option are how you pick it yourself.
 - **Text size** — 90%, 100%, 110% or 125%; scales the interface text and layout.
-- **Document switch style** — how you switch between open documents: **Horizontal tabs**, **Vertical tabs** or **Pill**.
 - **Date format** — **dd-mm-yyyy**, **mm-dd-yyyy** or **yyyy-mm-dd**. Display only; files and calculations are unaffected.
+- **Duration display** — **Automatic (native unit per task)**, **Always days** or **Always hours**.
+- **Document switch style** — how you switch between open documents: **Horizontal tabs**, **Vertical tabs** or **Pill**.
+
+**Gantt** — settings for the timeline itself:
+
+- **Timeline axis** — **Show only working days** compresses the timeline: weekends and holidays from the project calendar are skipped, so a 5-workday task is exactly 5 columns wide, whatever the calendar between them looks like.
+- **Show quarter-hours when zoomed in far** — extra quarter-hour gradation on the hour time-scale.
+- **Task bars at interruptions** — **Never split**, **Split when selected** or **Always split**: whether a bar visually splits around non-working days.
+- **Scroll & zoom** — **Mode**:
+- **Zoom + drag** (the default) — the scroll wheel zooms (anchored on the cursor); drag the chart background to pan the view; Shift+scroll wheel scrolls through the rows; Ctrl/⌘+drag draws a selection box.
+- **Position** — the cursor's position determines the scroll direction; with **Screen division** (**Left/right**, **Top/bottom** or **Top-right corner**). Ctrl+scroll = zoom, Shift+scroll = horizontal.
+- **Keys** — assign which control (**Scroll**, **Ctrl + scroll**, **Shift + scroll**) gets which function (**Vertical**, **Horizontal**, **Zoom**) by dragging the chips; dropping on an occupied slot swaps the controls.
+
+## Planning tab
+
+Settings that determine how the schedule is planned and calculated.
+
 - **Construction mode** — **Enable construction mode** switches the defaults for *new* projects between construction-oriented (a construction calendar with Dutch public holidays, builders' holiday, phasing templates) and a neutral, construction-agnostic setup. Existing projects are unaffected either way.
+- **Hour planning** — **Enable hour planning** turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular. When it is on, **Allow mixed day/hour planning** appears; only when that is also on can you choose a unit per task. Existing hour tasks are never converted. See [Calendars & hour planning](docs://gids-kalenders-uren).
+- **Week starts on** — **Monday** or **Sunday** (week layout of the time scale).
+- **Calculation** — **Calculate automatically** recalculates the schedule as soon as it becomes out of date, instead of waiting for F5.
 
-**Application:**
+## Advanced tab
 
-- **Version** — the app's version number (read-only), with a **Check for updates** link that opens the update window. Installing updates only works in the desktop app; Snap and AppImage installs update through their own channel. Separately, the first time you open the app after it auto-updated itself, a one-off "You've just been updated" dialog appears on its own — the version jump, the installer size difference, the days since the previous release and the GitHub release notes, whichever of those it could fetch. That's a different, automatic moment from the manual **Check for updates** link here.
-- **Project information...** — a shortcut to the [Project Information](docs://ref-projectgegevens) window.
-- **Tour** — **Start tour** replays the introductory tour. The same restart also sits on the **View** ribbon tab → **Tour** and in the Backstage (**File** → **Start tour**).
-- **Benchmark** — opens the built-in benchmark tool, for measuring this machine's scheduling/rendering performance. You pick a schedule size and a number of resources; the generated schedule has a real relationship network, in which every task without subtasks gets at least one relationship. Pick zero resources to see what the resource load itself costs.
-- **AI mode** — **Enable AI mode** shows the **AI** ribbon tab with the MCP bridge, so an AI assistant can work with your schedule over the Model Context Protocol; turning it off stops a running bridge immediately. **Start bridge automatically** (only available with AI mode on) brings the bridge live as soon as the app starts, without visiting the AI tab first — desktop app only. See the in-app AI-assistant guide for the full picture.
+Less frequently used settings: the AI assistant, troubleshooting and device/version information. Project information deliberately no longer lives here — find it via **File** → **Project Information** or its own dialog.
+
+- **AI mode** — **Enable AI mode** shows the **AI** ribbon tab with the MCP bridge, so an AI assistant can work with your schedule over the Model Context Protocol; turning it off stops a running bridge immediately. **Start bridge automatically** (only available with AI mode on) brings the bridge live as soon as the app starts, without visiting the AI tab first — desktop app only. The rest of the AI connection options (port, token) live on the AI tab itself. See the in-app AI-assistant guide for the full picture.
 - **Debug terminal** — **Enable debug terminal** shows the log panel for troubleshooting.
+- **Benchmark** — opens the built-in benchmark tool, for measuring this machine's scheduling/rendering performance. You pick a schedule size and a number of resources; the generated schedule has a real relationship network, in which every task without subtasks gets at least one relationship. Pick zero resources to see what the resource load itself costs.
+- **Statistics** — opens **Statistics…**: how often Open Planner Studio has been downloaded, per operating system and per release. Deliberately a button next to Benchmark, not a tab of its own.
+- **Tour** — **Start tour** replays the introductory tour. The same restart also sits on the **View** ribbon tab → **Tour** and in the Backstage (**File** → **Start tour**).
+- **Version** — the app's version number (read-only), with a **Check for updates** link that opens the update window. Installing updates only works in the desktop app; Snap and AppImage installs update through their own channel. Separately, the first time you open the app after it auto-updated itself, a one-off "You've just been updated" dialog appears on its own — the version jump, the installer size difference, the days since the previous release and the GitHub release notes, whichever of those it could fetch. That's a different, automatic moment from the manual **Check for updates** link here.
 
-## Statistics (button on the Application tab)
+## Statistics (button on the Advanced tab)
 
-Open via **Settings** → **Application** tab → **Statistics…**; it is deliberately a separate window behind a button, not a tab of its own.
+Open via **Settings** → **Advanced** tab → **Statistics…**; it is deliberately a separate window behind a button, not a tab of its own.
 
 How often Open Planner Studio has been downloaded, per operating system and per release. The figures come from the public download counters of GitHub Releases and are refreshed weekly; the app only reads them, nothing is collected or sent about you.
 
 - **Downloads per operating system** — per system the number of downloads, split into installers (what a person downloads) and updates (what the in-app updater fetches). For Linux the two are one figure: the updater fetches the same `.deb`/`.rpm`/`.AppImage` that you also download by hand. On Linux only the snap file counts as an installer.
 - **Update checks from the app** — how often a desktop install looked for a new version at start-up; a rough measure of active use, not a download.
 - **Per release** — the same figures per version; the six newest by default, with **Show all … releases** for the rest.
-- **Source** — the date the figures were taken and **Refresh now**. The tab remembers the last fetched figures for half an hour; if refreshing fails, those stay visible with a notice.
+- **Source** — the date the figures were taken and **Refresh now**. The window remembers the last fetched figures for half an hour; if refreshing fails, those stay visible with a notice.
 
 Installs via the Snap Store do not go through GitHub and are not included here.
-
-## Language tab
-
-- **Language** — the app's display language, applied immediately.
-
-## Timeline / Zoom tab
-
-- **Hour planning** — **Enable hour planning** turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular. When it is on, **Allow mixed day/hour planning** appears; only when that is also on can you choose a unit per task. Existing hour tasks are never converted. See [Calendars & hour planning](docs://gids-kalenders-uren).
-- **Duration display** — **Automatic (native unit per task)**, **Always days** or **Always hours**.
-- **Task bars at interruptions** — **Never split**, **Split when selected** or **Always split**: whether a bar visually splits around non-working days.
-- **Timeline axis** — **Show only working days** compresses the timeline: weekends and holidays from the project calendar are skipped, so a 5-workday task is exactly 5 columns wide, whatever the calendar between them looks like.
-- **Week starts on** — **Monday** or **Sunday** (week layout of the time scale).
-- **Show quarter-hours when zoomed in far** — extra quarter-hour gradation on the hour time-scale.
-- **Calculation** — **Calculate automatically** recalculates the schedule as soon as it becomes out of date, instead of waiting for F5.
-- **Scroll & zoom** — **Mode**:
-- **Zoom + drag** (the default) — the scroll wheel zooms (anchored on the cursor); drag the chart background to pan the view; Shift+scroll wheel scrolls through the rows; Ctrl/⌘+drag draws a selection box.
-- **Position** — the cursor's position determines the scroll direction; with **Screen division** (**Left/right**, **Top/bottom** or **Top-right corner**). Ctrl+scroll = zoom, Shift+scroll = horizontal.
-- **Keys** — assign which control (**Scroll**, **Ctrl + scroll**, **Shift + scroll**) gets which function (**Vertical**, **Horizontal**, **Zoom**) by dragging the chips; dropping on an occupied slot swaps the controls.

@@ -579,6 +579,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RDCHECK="$DIR/.renderer-dateless.mjs"
   if bundle_check "$DIR/check-renderer-dateless.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
 
+  # Issue #114: de trace-tint (voorganger goud / opvolger paars) mag niet door de blauwe/rode
+  # voortgangsvulling worden overschilderd — een voltooide voorganger leek anders niet gemarkeerd.
+  TRACEPROGCHECK="$DIR/.gantt-trace-progress.mjs"
+  if bundle_check "$DIR/check-gantt-trace-progress.ts" "$TRACEPROGCHECK"; then node "$TRACEPROGCHECK" || STATUS=1; fi
+
   # Dev-only Gantt-testdriver: reverse locator gebruikt exact de renderer-eigen balkgeometrie en
   # behoudt het bestaande hit-testbeleid voor datumloze taken, mijlpalen en verzameltaken.
   GTDCHECK="$DIR/.gantt-test-driver.mjs"
@@ -589,6 +594,31 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # en sleep-/resize-baar zijn — dezelfde discriminator als de solver (isZeroDurationMilestone).
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
+
+  # U2: rasterdichtheid per zoom. De dagraster-lus tekende op elk zoomniveau een lijn per kalender-
+  # dag; op jaarzoom werd het canvas daardoor een streeppatroon. Telt met de echte renderer de
+  # verticale rasterlijnen bij dag-/week-/maandzoom (dagzoom moet ONGEWIJZIGD blijven).
+  GGDCHECK="$DIR/.gantt-grid-density.mjs"
+  if bundle_check "$DIR/check-gantt-grid-density.ts" "$GGDCHECK"; then node "$GGDCHECK" || STATUS=1; fi
+
+  # U2: balklabels worden met "…" afgekapt i.p.v. hard geclipt ("Sheet pil") of samengeknepen via
+  # fillText-maxWidth. Toetst met de echte renderer welke string er in de fillText ging.
+  GLECHECK="$DIR/.gantt-label-ellipsis.mjs"
+  if bundle_check "$DIR/check-gantt-label-ellipsis.ts" "$GLECHECK"; then node "$GLECHECK" || STATUS=1; fi
+
+  # U2: labelkleur op de balk. Eén balkpalet voor licht én donker laat geen vaste witte tekst toe;
+  # `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding. Pint zwart op de zes
+  # balktinten en wit op de voortgangsvulling en de 25%-zwart-overlay.
+  BLCCHECK="$DIR/.bar-label-color.mjs"
+  if bundle_check "$DIR/check-bar-label-color.ts" "$BLCCHECK"; then node "$BLCCHECK" || STATUS=1; fi
+
+  # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
+  # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
+  # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem
+  # en hit-test). Standaardgeval, exact passende lijst, nul resources en de laatste-resource-hit
+  # bij volle scroll.
+  HISTPICKCHECK="$DIR/.histogram-picker-geometry.mjs"
+  if bundle_check "$DIR/check-histogram-picker-geometry.ts" "$HISTPICKCHECK"; then node "$HISTPICKCHECK" || STATUS=1; fi
 
   # Z15 (etappe "nul afwijkingen", baan D): onderbroken balken (Task.splitGaps) in de Gantt-canvas
   # ÉN print/PDF — gatentelling ⇒ segmentaantal + necking-connector, O5 (splitGaps ALTIJD gesplitst,
@@ -606,6 +636,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
   RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
   if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
+
+  # R1: `computeResourceLoad` levert per overbezette dag ook de REDEN (`overallocatedReasons`) —
+  # `non-working-day` (resourcekalender kent de dag geen werkdag) vs. `over-capacity` (inzet groter
+  # dan capaciteit > 0), zodat het histogram-tooltip en het waarschuwingenpaneel kunnen uitleggen
+  # waaróm een dag rood staat.
+  RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
+  if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
 
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
@@ -986,6 +1023,27 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # TZ-onafhankelijkheid moet bewezen worden.
   RECDATES="$DIR/.check-recorded-dates.mjs"
   if bundle_check "$DIR/check-recorded-dates.ts" "$RECDATES"; then node "$RECDATES" || STATUS=1; fi
+
+  # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
+  # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
+  PICHECK="$DIR/.progress-import.mjs"
+  if bundle_check "$DIR/check-progress-import.ts" "$PICHECK"; then node "$PICHECK" || STATUS=1; fi
+  # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
+  PICSVCHECK="$DIR/.progress-import-csv.mjs"
+  if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+
+  # Issue #27 etappe 3: de `.xlsx`-laag onder het voortgangsblad. Vier batterijen, van onder naar
+  # boven: de XML-/serialdatum-primitieven, de eigen ZIP-schrijver en -lezer (inclusief de
+  # zip-bom- en Zip64-weigeringen), de OOXML-schrijver van het blad (kindvolgordes, bescherming,
+  # invoervalidatie) en ten slotte `parseProgressXlsx` met de ECHTE round-trip door beide.
+  XLSXPRIMCHECK="$DIR/.xlsx-primitives.mjs"
+  if bundle_check "$DIR/check-xlsx-primitives.ts" "$XLSXPRIMCHECK"; then node "$XLSXPRIMCHECK" || STATUS=1; fi
+  ZIPCHECK="$DIR/.zip.mjs"
+  if bundle_check "$DIR/check-zip.ts" "$ZIPCHECK"; then node "$ZIPCHECK" || STATUS=1; fi
+  PXLSXWCHECK="$DIR/.progress-xlsx-writer.mjs"
+  if bundle_check "$DIR/check-progress-xlsx-writer.ts" "$PXLSXWCHECK"; then node "$PXLSXWCHECK" || STATUS=1; fi
+  PIXLSXCHECK="$DIR/.progress-import-xlsx.mjs"
+  if bundle_check "$DIR/check-progress-import-xlsx.ts" "$PIXLSXCHECK"; then node "$PIXLSXCHECK" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

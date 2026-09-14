@@ -85,9 +85,21 @@ export function WarningsPanel() {
       case 'droppedSequence': return t('warnings.kind.droppedSequence');
       case 'hammockNoFinishDriver': return t('warnings.kind.hammockNoFinishDriver');
       case 'cappedTask': return t('warnings.kind.cappedTask');
-      case 'overallocation': return t('warnings.kind.overallocation', {
-        count: f.days ?? 0, first: dd.date(f.firstDay), last: dd.date(f.lastDay),
-      });
+      case 'overallocation': {
+        const count = f.days ?? 0;
+        const nonWorking = f.nonWorkingDays ?? 0;
+        const first = dd.date(f.firstDay);
+        const last = dd.date(f.lastDay);
+        // R1: alle overbezette dagen zijn vrije dagen van de resourcekalender ⇒ eigen tekst; een
+        // mix van reden krijgt beide aantallen; puur over-capacity blijft de bestaande tekst.
+        if (nonWorking > 0 && nonWorking === count) {
+          return t('warnings.kind.overallocationNonWorkingDay', { count, first, last });
+        }
+        if (nonWorking > 0) {
+          return t('warnings.kind.overallocationMixed', { count, nonWorking, first, last });
+        }
+        return t('warnings.kind.overallocation', { count, first, last });
+      }
     }
   };
 

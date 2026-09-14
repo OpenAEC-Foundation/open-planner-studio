@@ -33,10 +33,11 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   graph, no false positives on `import type`).
 - **`npm run verify` is one definition, in `package.json`** — ci.yml, the
   release gate and the deploy gate all run that single line, so what passes
-  locally is exactly what passes in CI. Ten steps, run in this order:
+  locally is exactly what passes in CI. Eleven steps, run in this order:
   `typecheck` → `lint` → `test` (all five suites) → `verify:examples` →
-  `verify:docs` → `verify:i18n` → `verify:store-boundaries` →
-  `verify:gantt-boundaries` → `verify:cycles` → `verify:audit`.
+  `verify:docs` → `verify:i18n` → `verify:release-highlights-json` →
+  `verify:store-boundaries` → `verify:gantt-boundaries` → `verify:cycles` →
+  `verify:audit`.
 - Five behavioral suites behind `npm test`: `tests/planning/` (data-driven
   CPM/calendar cases + a large set of `check-*.ts` contract batteries plus a
   timezone matrix, headless on Node via esbuild), `tests/library/`, `tests/mcp/`,
@@ -180,7 +181,7 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   store (`getState`/`setState`/`subscribe`), the log-bus, `extensions.*`, and
   observer-only Canvas/Gantt geometry. Prefer asserting via store state over
   canvas pixels; it must never perform the tested user action itself.
-- The app also exposes its own **MCP bridge** with 39 `planner_*` tools
+- The app also exposes its own **MCP bridge** with 40 `planner_*` tools
   (`src/services/mcp/`) — the real AI-assistant surface, Tauri-only, gated
   behind `ui.aiMode` (see CLAUDE.md's *AI-assistent (MCP-bridge)* section).
   Not a dev-only test hook and not a substitute for the two mechanisms above.

@@ -189,12 +189,12 @@
 
 .task-grid-data-row.task-grid-trace-predecessor,
 .task-grid-data-row.task-grid-trace-predecessor-driving {
-  border-inline-start: 3px solid var(--trace-predecessor, #7c3aed);
+  border-inline-start: 3px solid var(--trace-predecessor, #F59E0B);
 }
 
 .task-grid-data-row.task-grid-trace-successor,
 .task-grid-data-row.task-grid-trace-successor-driving {
-  border-inline-start: 3px dashed var(--trace-successor, #0284c7);
+  border-inline-start: 3px dashed var(--trace-successor, #A78BFA);
 }
 
 .task-grid-data-row.task-grid-trace-predecessor-driving,
@@ -1150,6 +1150,12 @@ button.task-grid-relation-reference {
   /* Brand — primary */
   --deep-forge:      #36363E;
 
+  /* Path tracing (issue #114): de rijmarkering in het taakraster gebruikt dezelfde tinten als de
+     Gantt-balken — GANTT_TRACE_COLORS in src/engine/renderer/themePalette.ts is de bron;
+     tests/planning/check-dependency-presentation.ts bewaakt dat beide gelijk blijven. */
+  --trace-predecessor: #F59E0B;
+  --trace-successor:   #A78BFA;
+
   /* Brand — secondary */
   --signal-orange:   #EA580C;
   --warm-gold:       #F59E0B;
@@ -1247,12 +1253,25 @@ button.task-grid-relation-reference {
   --color-accent: var(--theme-accent);
   --color-accent-hover: var(--theme-accent-hover);
   --color-accent-on: var(--theme-accent-on);
-  --color-critical: #DC2626;
-  --color-task-normal: #2563EB;
-  --color-task-milestone: #7C3AED;
-  --color-task-float: #10B981;
-  --color-task-baseline: #6B7280;
-  --color-task-complete: #1D4ED8;
+  /* U2 — ÉÉN balkpalet voor licht én donker (besluit eigenaar). Elke waarde haalt >=3:1 tegen
+     ZOWEL de lichte kaart (#FAFAFA) als de donkere kaart (#2E3239); vroeger waren de balken op
+     merk-verzadiging afgestemd op wit en haalden ze op de donkere kaart 1.9-2.7:1. Eén stap minder
+     verzadigd, zelfde tintfamilie, zodat legenda, gidsen en rapport dezelfde taal blijven spreken.
+     Gemeten (WCAG 2.x relatieve luminantie), licht / donker / wit-label-op-balk:
+       critical  #DA5252  3.79 / 3.25 / 3.95
+       normal    #648BE0  3.19 / 3.87 / 3.33
+       complete  #5778D6  3.97 / 3.10 / 4.15
+       milestone #986DE2  3.58 / 3.45 / 3.74
+       baseline  #808694  3.50 / 3.53 / 3.65
+       float     #1E976F  3.52 / 3.50 / 3.68
+     LET OP: dezelfde zes waarden staan als merk-hex in `src/engine/renderer/themePalette.ts`
+     (BRAND/`--theme-bar-float`-fallback) — die tekenlaag leest geen CSS in headless tests. */
+  --color-critical: #DA5252;
+  --color-task-normal: #648BE0;
+  --color-task-milestone: #986DE2;
+  --color-task-float: #1E976F;
+  --color-task-baseline: #808694;
+  --color-task-complete: #5778D6;
 }
 
 /* Dark theme — OpenAEC default
@@ -1290,7 +1309,8 @@ button.task-grid-relation-reference {
      (beter leesbaar op donkere kaarten dan --color-task-milestone zelf). */
   --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
   --theme-grid-milestone-text: #A78BFA;
-  --theme-bar-float: #10B981;
+  /* U2: één balkpalet — gelijk aan --color-task-float, geen thema-eigen groen meer. */
+  --theme-bar-float: #1E976F;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
   --theme-dropdown-bg: #2E3239;
@@ -1379,7 +1399,8 @@ button.task-grid-relation-reference {
      --color-task-milestone (#7C3AED) voor voldoende contrast op de kaart (AA). */
   --theme-grid-summary-bg: rgba(54, 54, 62, 0.06);
   --theme-grid-milestone-text: #6D28D9;
-  --theme-bar-float: #059669;
+  /* U2: één balkpalet — gelijk aan --color-task-float, geen thema-eigen groen meer. */
+  --theme-bar-float: #1E976F;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
@@ -1444,7 +1465,8 @@ button.task-grid-relation-reference {
      van dit thema (geen alpha, expliciete tint zoals --theme-grid-weekend hierboven). */
   --theme-grid-summary-bg: #1c1c1c;
   --theme-grid-milestone-text: #D9A6FF;
-  /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
+  /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). Het U2-besluit "één
+     balkpalet" gold voor licht en dark; high-contrast houdt bewust zijn eigen, hardere tint. */
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
   --theme-critical-text: #FF6B6B;
@@ -1763,6 +1785,93 @@ html, body, #root {
   align-items: center;
   justify-content: center;
 }
+
+/* Relatie toevoegen vanuit het eigenschappenpaneel (2026-09). De conceptrij hergebruikt bewust
+   `.dependency-row` voor type/lag/bevestigen, zodat hij exact onder de bestaande relaties uitlijnt
+   — ook in de smalle container-query-variant. Alleen de kop (richting + zoekveld) staat erboven,
+   want die twee passen niet in dezelfde vijf kolommen. */
+.dependency-add-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.dependency-add-button:hover {
+  background: var(--theme-hover);
+  color: var(--theme-text);
+}
+
+.dependency-add-button:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
+}
+
+.dependency-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-hover);
+}
+
+.dependency-draft-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* De trefferlijst zweeft boven de rest van het paneel: hij mag de conceptrij en de knoppen
+   eronder niet verspringen terwijl er getypt wordt. */
+.dependency-draft-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dependency-draft-options {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 2px);
+  z-index: var(--z-dropdown);
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-elevated);
+  box-shadow: var(--shadow-pop);
+}
+
+.dependency-draft-option {
+  display: block;
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  text-align: start;
+  color: var(--theme-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dependency-draft-option:hover,
+[data-ops-dependency-highlighted].dependency-draft-option {
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+}
+
 
 /* Toast notification — gecentraliseerde gebruikersmeldingen (bevinding K8). De stapel-container
    positioneert; de losse melding verzorgt alleen inhoud + klik. De naam is ops-toast (was

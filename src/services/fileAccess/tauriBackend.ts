@@ -1,4 +1,4 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveOutcome } from './index';
+import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { ensureExtension, extensionOf } from '@/utils/filePath';
 
 const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
@@ -19,15 +19,51 @@ export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDial
   return { name: basename(path), content, ref: { kind: 'path', path } };
 }
 
-export async function saveFileDialogTauri(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
+/**
+ * De dialoogkant van beide opslaan-als-varianten: downloadmap-voorkeur, de kiezer zelf en de
+ * extensienormalisatie. Alleen het wegschrijven verschilt tussen tekst en bytes, dus dat blijft
+ * bij de aanroeper — één plek voor het gedrag dat de gebruiker ziet.
+ */
+async function pickSavePathTauri(
+  defaultName: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog');
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-  const picked = await save({ defaultPath: defaultName, filters });
+  let defaultPath = defaultName;
+  if (opts?.preferDownloads) {
+    try {
+      const { downloadDir, join } = await import('@tauri-apps/api/path');
+      defaultPath = await join(await downloadDir(), defaultName);
+    } catch {
+      // Downloadmap onbekend/ontoegankelijk (zeldzaam) — val terug op de kale bestandsnaam,
+      // net als het bestaande gedrag van elke andere export.
+    }
+  }
+  const picked = await save({ defaultPath, filters });
   if (!picked) return null;
   // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren (net als de oude code).
   const ext = filters[0]?.extensions[0] ?? '';
-  const savedPath = ext ? ensureExtension(picked, ext) : picked;
+  return ext ? ensureExtension(picked, ext) : picked;
+}
+
+export async function saveFileDialogTauri(
+  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  const savedPath = await pickSavePathTauri(defaultName, filters, opts);
+  if (!savedPath) return null;
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
   await writeTextFile(savedPath, content);
+  return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
+}
+
+/** Binaire tegenhanger van `saveFileDialogTauri` (X8): zelfde kiezer, `writeFile` i.p.v.
+ *  `writeTextFile`. Geen `viaDownload` — op desktop bestaat die route niet. */
+export async function saveBytesDialogTauri(
+  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  const savedPath = await pickSavePathTauri(defaultName, filters, opts);
+  if (!savedPath) return null;
+  const { writeFile } = await import('@tauri-apps/plugin-fs');
+  await writeFile(savedPath, bytes);
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
