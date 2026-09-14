@@ -1,9 +1,9 @@
 /**
  * Ribbon-groep Baselines & Progress — layoutcontract.
  *
- * De drie baseline-/voortgangsregels vormen de linker RibbonButtonStack; balkkleuren en
- * resource-accent vormen de rechter. Elke stack rendert zijn kinderen onder elkaar. Zo blijven
- * beide kleurcontrols zichtbaar binnen de vaste linthoogte, zonder naast elkaar te staan.
+ * De drie baseline-/voortgangsregels vormen de linker RibbonButtonStack; balkkleuren,
+ * resource-accent en de spelingsband (#130) vormen de rechter. Elke stack rendert zijn kinderen
+ * onder elkaar (maximaal drie per stack binnen de vaste linthoogte), zonder naast elkaar te staan.
  */
 // De ribbon-config laadt i18n, dat bij module-initialisatie de documentrichting zet. De test leest
 // alleen declaratieve config en heeft dus geen DOM nodig, behalve deze minimale Node-shim.
@@ -40,9 +40,9 @@ eq(
 );
 eq('Baselines & Progress tweede item is de kleurstack', colorAccentStack?.kind, 'stack');
 eq(
-  'Balkkleuren en resource-accent staan onder elkaar',
+  'Balkkleuren, resource-accent en spelingsband staan onder elkaar',
   colorAccentStack?.kind === 'stack' ? colorAccentStack.items.map(item => item.id) : [],
-  ['screenColors', 'toggleResourceAccent'],
+  ['screenColors', 'toggleResourceAccent', 'toggleFloatBand'],
 );
 
 if (diffs.length === 0) {
