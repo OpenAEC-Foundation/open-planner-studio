@@ -123,8 +123,14 @@ opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillen
 Heeft de toewijzing een eigen urenverdeling, dan staat er *Contour*; is de curve uit MS Project of
 P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmporteerde curve* —
 hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel ruim 130 px breder en de
-tijdas dus smaller; bij lange taaknamen met *Taaknamen afkappen* uit kan de tijdas daardoor bijna
-verdwijnen. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
+tijdas dus smaller. Blijft er voor de tijdlijn minder over dan ongeveer een vijfde van de
+papierbreedte — door een brede naamkolom, een grote lettergrootte (de tabel schaalt mee, de tijdlijn
+niet) of klein of staand papier — dan laat het rapport de twee kolommen zelf weg en meldt dat in het
+overzichtsblok. Op A4 staand met de standaardinstellingen passen ze. Meer ruimte voor de tijdlijn
+geeft groter of liggend papier, een kleinere lettergrootte of een smallere tabel (een smallere
+naamkolom bij *Taaknamen afkappen*, of *Voltooiing tonen* uit); zodra de tabel weer ruimte laat komen
+de kolommen vanzelf terug. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de
+Gantt-afdruk.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
@@ -187,7 +193,10 @@ onthouden instelling per rapport (het resourcediagram hierboven kent dezelfde ke
 - **Volgende / afgelopen week, 2, 4, 6, 8 of 12 weken** en **volgende / afgelopen maand** — gerekend
   vanaf de statusdatum van het project (of vandaag als die ontbreekt). Een preset is inclusief aan
   beide kanten: *volgende 4 weken* op donderdag 10 september loopt t/m woensdag 7 oktober. Wijzig je
-  de statusdatum, dan schuift het venster automatisch mee.
+  de statusdatum, dan schuift het venster automatisch mee. Zonder statusdatum rekent een preset
+  vanaf vandaag, en "vandaag" wordt bij elke weergave van het paneel opnieuw bepaald — op de
+  UTC-kalender, niet op de lokale klok: in Nederland kantelt de dag dus om 01:00 (wintertijd) of
+  02:00 (zomertijd). Blijft de app 's nachts open, dan schuift het venster daarna een dag op.
 - **Hele project** — van de vroegste start tot het laatste einde in de planning.
 - **Aangepast** — twee eigen datums. De velden *Van* en *Tot* worden dan bewerkbaar (typen of de
   datumkiezer); bij een preset tonen ze alleen-lezen de berekende datums. Een einddatum vóór de

@@ -141,6 +141,7 @@
     "includeUnassigned": "Inclure les tâches sans ressource",
     "groupByType": "Grouper par type de ressource",
     "showAssignmentColumns": "Afficher unités/jour et courbe",
+    "columnsDropped": "Les colonnes Unités/j et Courbe ont été omises : le tableau ne laissait pas assez de place à l'axe du temps. Un papier plus grand ou en paysage, une police plus petite ou un tableau plus étroit donne plus de place.",
     "emptyPeriod": "Aucune tâche dans la période de rapport — choisissez une autre période ou Projet entier.",
     "outsidePeriod": "Hors période :",
     "empty": "Aucune affectation de ressource — affectez d'abord des ressources aux tâches.",

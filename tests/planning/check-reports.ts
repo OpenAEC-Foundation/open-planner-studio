@@ -14,6 +14,11 @@ import {
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
   remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
+} from '@/engine/reports';
+import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
+import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
+import { layoutRuns, stripBidiControls, type ShapeFontkitFont, type ShapingFonts } from '@/services/pdf/bidiShape';
+import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
 import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
@@ -627,6 +632,54 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     assignments: [asgFull('g1', D, kraan.id, 1), asgFull('g2', D, 'res-onbekend', 1)],
   }, opts);
   eq('resourceGantt/curve: legacy-contour telt niet bij twee records (ook als er één naar een onbekende resource wijst)', legacy.assignmentByRowKey.get(legacy.rows.find(x => x.kind === 'task' && x.task.id === D)!.rowKey)?.curve, 'UNIFORM');
+
+  // Restpunt review #138: de gedeelde weergaveregel zelf (paneel én rapport lezen deze ene functie).
+  const bare = asgFull('s1', A, kraan.id, 1);
+  eq('curveState: contour wint', assignmentCurveState({ ...bare, curve: 'BELL', curveValues }, true), 'contoured');
+  eq('curveState: curveValues zonder vorm ⇒ imported', assignmentCurveState({ ...bare, curveValues }, false), 'imported');
+  eq('curveState: curveValues mét vorm ⇒ de vorm', assignmentCurveState({ ...bare, curve: 'FRONT_LOADED', curveValues }, false), 'FRONT_LOADED');
+  eq('curveState: niets ⇒ UNIFORM', assignmentCurveState(bare, false), 'UNIFORM');
+  eq('curveState: contouredAssignmentIds koppelt op resourceId', [...contouredAssignmentIds(dMetContour, [asgFull('k1', D, jan1.id, 1), asgFull('k2', D, kraan.id, 1)])], ['k1']);
+  eq('curveState: zonder contouren een lege set', contouredAssignmentIds(byId(D), [bare]).size, 0);
+
+  // Restpunt review #138: één getalnotatie voor alle rapporten — app-taal bepaalt het decimaalteken.
+  eq('reportNumber: nl ⇒ komma', formatReportNumber(0.5, 'nl'), '0,5');
+  eq('reportNumber: en ⇒ punt', formatReportNumber(0.5, 'en'), '0.5');
+  eq('reportNumber: zonder taal ⇒ punt', formatReportNumber(0.5), '0.5');
+  eq('reportNumber: geheel zonder decimalen', formatReportNumber(2, 'nl'), '2');
+  eq('reportNumber: hoogstens twee decimalen, geen duizendtalscheiding', formatReportNumber(1234.567, 'de'), '1234,57');
+  eq('reportNumber: plus bij positief', formatSignedReportNumber(1.25, 'nl'), '+1,25');
+  eq('reportNumber: geen plus bij nul of negatief', [formatSignedReportNumber(0, 'nl'), formatSignedReportNumber(-2, 'nl')], ['0', '-2']);
+  // Review #139, bevindingen 5–7: Latijnse cijfers in élke taal, geen bidi-markering, geen "-0".
+  eq('reportNumber: fa ⇒ Latijnse cijfers', formatReportNumber(1.5, 'fa'), '1.5');
+  // De U+200E die Intl vóór het teken zet BLIJFT: zonder staat "-2" in een RTL-alinea als "2-" (ronde 2, bevinding 1).
+  eq('reportNumber: ar negatief houdt de bidi-markering', [...formatReportNumber(-2, 'ar')].map(c => c.charCodeAt(0)), [0x200e, 45, 50]);
+  eq('reportNumber: fa signed positief houdt de bidi-markering', [...formatSignedReportNumber(2, 'fa')].map(c => c.charCodeAt(0)), [0x200e, 43, 50]);
+  eq('reportNumber: welgevormde maar onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz'), '0.5');
+  eq('reportNumber: gecachete formatter geeft dezelfde uitkomst', [formatReportNumber(1.25, 'de'), formatReportNumber(1.25, 'de')], ['1,25', '1,25']);
+  eq('reportNumber: -0,001 rondt af op "0", niet "-0"', [formatReportNumber(-0.001, 'nl'), formatReportNumber(-0.001), formatSignedReportNumber(-0.001, 'nl'), formatSignedReportNumber(-0.001)], ['0', '0', '0', '0']);
+  eq('reportNumber: NaN/oneindig ⇒ leeg', [formatReportNumber(NaN, 'nl'), formatSignedReportNumber(Infinity, 'nl')], ['', '']);
+  eq('reportNumber: onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz-!!'), '0.5');
+  eq('reportNumber: lag-tekst krijgt het decimaalteken van de taal', [localizeDecimalPoint('+1.5d', 'nl'), localizeDecimalPoint('+1.5d', 'en'), localizeDecimalPoint('+2d', 'nl'), localizeDecimalPoint('+1.5d')], ['+1,5d', '+1.5d', '+2d', '+1.5d']);
+  eq('curveState: lege curveValues zijn geen geïmporteerde curve', assignmentCurveState({ ...bare, curveValues: [] }, false), 'UNIFORM');
+
+  // Vector-PDF: de bidi-markering stuurt de levels (min links van het cijfer in een RTL-alinea) maar
+  // krijgt nooit een glyph — anders tekent Inter een `.notdef` van 0,66 em (ronde 2, bevinding 1/6).
+  eq('bidi: stripBidiControls haalt LRM/RLM/ALM/isolaten weg', stripBidiControls('\u200E-2 \u202Bx\u202C \u2067y\u2069 \u061Cz'), '-2 x y z');
+  {
+    const seen: string[] = [];
+    const fakeFont = (tag: string): ShapeFontkitFont => ({
+      unitsPerEm: 1000,
+      layout: (str: string) => { seen.push(`${tag}:${str}`); return { glyphs: [...str].map((_, i) => ({ id: i + 1 })), positions: [...str].map(() => ({ xAdvance: 500 })) }; },
+      hasGlyphForCodePoint: (cp: number) => cp !== 0x200e,
+    });
+    const fonts: ShapingFonts = { latinRegular: fakeFont('L'), latinBold: fakeFont('LB'), arabicRegular: fakeFont('A'), arabicBold: fakeFont('AB') };
+    const runs = layoutRuns('\u0645 \u200E-2', 'rtl', fonts, false, 10);
+    ok('bidi: geen run bevat nog de LRM bij het shapen', !seen.some(str => str.includes('\u200E')), JSON.stringify(seen));
+    ok('bidi: glyphs = tekens zonder stuurtekens', runs.every(r => r.glyphIds.length === stripBidiControls(r.text).length));
+    const minus = runs.find(r => r.text.includes('-'));
+    ok('bidi: "-2" blijft één LTR-run met de min vooraan', !!minus && minus.dir === 'ltr' && minus.text.startsWith('-'), JSON.stringify(runs.map(r => [r.text, r.dir])));
+  }
 
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).

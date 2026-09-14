@@ -1,7 +1,7 @@
 import type { Task } from '@/types/task';
-import type { Resource, ResourceAssignment, ResourceCurve, ResourceType } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
-import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
+import { type AssignmentCurveState, assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { dayOf, taskFinish, taskStart } from './reportCommon';
 import type { ResolvedPeriod } from './reportingPeriod';
 
@@ -46,17 +46,10 @@ import type { ResolvedPeriod } from './reportingPeriod';
  *
  * Per taakrij onder een resourceband levert `assignmentByRowKey` de TOEWIJZING van die band op
  * die taak (punt 1): eenheden per dag en de verdeelcurve — de rij is een taak, maar wat de lezer
- * wil weten is "hoe zwaar staat déze resource erop". De curveTOESTAND is exact de weergaveregel
- * van het eigenschappenpaneel (`TaskAssignmentsSection`), zodat rapport en paneel nooit twee
- * antwoorden geven: een aan de toewijzing gekoppelde CONTOUR op de taak ⇒ `'contoured'`, anders
- * `curveValues` zonder OPS-vorm (`curve` afwezig) ⇒ `'imported'`, anders `curve` (afwezig =
- * UNIFORM). Let op: dat is een WEERGAVEregel, niet de verdeelregel van `ResourceLoad.ts`'s
- * `assignmentDayUnits` — die verdeelt met `curveValues` zodra die er zijn, óók naast een `curve`
- * (het gewone P6-pad: naamterugval + exacte waarden), en negeert een contour zonder periodes. Het
- * rapport toont dus wat het paneel toont ("Vooraan belast"), terwijl het histogram P6's exacte
- * waarden gebruikt; een echt gedeelde toestandshelper is een vervolgstap (review ronde 2). Een
- * P6-/MSP-import met een curve zonder OPS-vorm heet hier in elk geval nooit "Uniform"
- * (ronde 1, bevinding 1). Twee records van dezelfde resource op één
+ * wil weten is "hoe zwaar staat déze resource erop". De curveTOESTAND komt uit de gedeelde
+ * weergaveregel `assignmentCurveState` (`src/engine/contour/curveState.ts`) — dezelfde als het
+ * eigenschappenpaneel, zodat rapport en paneel nooit twee antwoorden geven; het verschil met de
+ * verdeelregel van de lastverdeling staat dáár gedocumenteerd. Twee records van dezelfde resource op één
  * taak (één rij) worden opgeteld; de curve is alleen bekend als alle records dezelfde hebben
  * (anders `null`, de render toont een streepje). De "(geen)"-band heeft geen toewijzing en dus
  * geen entry. De render tekent dit als twee tabelkolommen (`PrintOptions.assignmentColumns`).
@@ -107,8 +100,8 @@ export interface ResourceGanttRowsResult {
   };
 }
 
-/** De curvetoestand van een toewijzing: contour op de taak, geïmporteerde exacte curve, of de OPS-vorm. */
-export type RowCurve = ResourceCurve | 'contoured' | 'imported';
+/** De curvetoestand van een toewijzing — zie `assignmentCurveState`. */
+export type RowCurve = AssignmentCurveState;
 
 /** De toewijzing achter één taakrij van een resourceband (zie de moduledoc). */
 export interface RowAssignment {
@@ -214,13 +207,9 @@ export function computeResourceGanttRows(
   }
   const contouredIds = new Set<string>();
   for (const [taskId, list] of recordsByTask) {
-    const task = leafById.get(taskId)!;
-    if (task.timephasedContours && task.timephasedContours.length > 0) {
-      for (const id of matchContoursToAssignments(task.timephasedContours, list).keys()) contouredIds.add(id);
-    }
+    for (const id of contouredAssignmentIds(leafById.get(taskId)!, list)) contouredIds.add(id);
   }
-  const curveOf = (a: ResourceAssignment): RowCurve =>
-    contouredIds.has(a.id) ? 'contoured' : (!a.curve && a.curveValues ? 'imported' : (a.curve ?? 'UNIFORM'));
+  const curveOf = (a: ResourceAssignment): RowCurve => assignmentCurveState(a, contouredIds.has(a.id));
   let assignments = 0;
   for (const a of ctx.assignments) {
     const task = leafById.get(a.taskId);
