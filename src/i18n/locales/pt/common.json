@@ -691,7 +691,7 @@
         "allowSplits": "Permite que o trabalho tenha dias de pausa em vez de se deslocar de uma só vez; dá mais folga à distribuição, mas gera tarefas divididas.",
         "price": "A etiqueta de preço mostra, por posição, quantos dias úteis a data de fim do projeto mais afetado se desloca; um único preço com «em ambos os casos» significa que interromper não muda nada aqui.",
         "pin": "Fixa este projeto: mantém a data de fim e os seus dias úteis e conta como carga fixa que os outros projetos têm de contornar.",
-        "ceiling": "Quantos dias úteis a data de fim deste projeto pode deslocar-se no máximo. Arraste a alça ou use as setas, Home (sem excesso) e End (ilimitado). A etiqueta mostra o efeito na data de fim, não a distância arrastada.",
+        "ceiling": "Teto: excesso máximo da data de fim — arraste, ou setas/Home/End",
         "chart": "Agora = a reserva atual de todos os projetos abertos em conjunto; Depois de distribuir = o que resta após a distribuição. O vermelho ultrapassa a capacidade.",
         "recompute": "Recalcula a proposta com a ordem, as fixações e os limites atuais.",
         "apply": "Escreve os deslocamentos em todos os projetos envolvidos; cada projeto recebe o seu próprio passo de anulação.",

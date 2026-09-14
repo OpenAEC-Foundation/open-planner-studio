@@ -677,7 +677,7 @@
         "allowSplits": "Erlaubt, dass die Arbeit Pausentage erhält, statt am Stück zu verschieben; das gibt der Verteilung mehr Spielraum, erzeugt aber unterbrochene Vorgänge.",
         "price": "Das Preisschild zeigt je Stellung, um wie viele Arbeitstage sich das Enddatum des am stärksten betroffenen Projekts verschiebt; ein einzelner Preis mit „in beiden Stellungen“ heißt, dass Unterbrechen hier nichts ändert.",
         "pin": "Fixiert dieses Projekt: Es behält sein Enddatum und seine Arbeitstage und zählt als feste Last, um die die anderen Projekte herum müssen.",
-        "ceiling": "Um wie viele Arbeitstage sich das Enddatum dieses Projekts höchstens verschieben darf. Ziehen Sie den Griff, oder nutzen Sie die Pfeiltasten, Pos1 (kein Überlauf) und Ende (unbegrenzt). Die Beschriftung zeigt die Wirkung auf das Enddatum, nicht die Ziehdistanz.",
+        "ceiling": "Obergrenze: maximaler Überlauf des Enddatums — ziehen, oder Pfeiltasten/Pos1/Ende",
         "chart": "Jetzt = die aktuelle Buchung aller geöffneten Projekte zusammen; Nach dem Verteilen = was nach der Verteilung übrig bleibt. Rot liegt über der Kapazität.",
         "recompute": "Berechnet den Vorschlag mit der aktuellen Reihenfolge, den Fixierungen und Obergrenzen neu.",
         "apply": "Schreibt die Verschiebungen in alle beteiligten Projekte; jedes Projekt erhält einen eigenen Rückgängig-Schritt.",

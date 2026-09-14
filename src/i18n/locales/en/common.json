@@ -677,7 +677,7 @@
         "allowSplits": "Allows the work to take pause days instead of shifting in one piece; this gives the distribution more room, but produces split tasks.",
         "price": "The price tag shows, per setting, how many working days the end date of the worst-affected project shifts; a single price with \"in both settings\" means interrupting makes no difference here.",
         "pin": "Pin this project: it keeps its end date and its working days, and counts as a fixed load the other projects have to work around.",
-        "ceiling": "How many working days this project's end date may shift at most. Drag the handle, or use the arrow keys, Home (no overrun) and End (unlimited). The label shows the effect on the end date, not how far you dragged.",
+        "ceiling": "Ceiling: maximum end-date overrun — drag, or arrow keys/Home/End",
         "chart": "Now = the current booking of all open projects together; After distributing = what remains once the work is spread. Red is whatever exceeds the capacity.",
         "recompute": "Recalculates the proposal with the current order, pins and caps.",
         "apply": "Writes the shifts into every project involved; each project gets its own undo step.",

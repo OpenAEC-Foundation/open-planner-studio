@@ -691,7 +691,7 @@
         "allowSplits": "Permite que el trabajo tenga días de pausa en lugar de desplazarse de una pieza; da más margen al reparto, pero genera tareas divididas.",
         "price": "La etiqueta de precio muestra, por posición, cuántos días laborables se desplaza la fecha de fin del proyecto más afectado; un único precio con «en ambos casos» significa que interrumpir no cambia nada aquí.",
         "pin": "Fija este proyecto: conserva su fecha de fin y sus días laborables, y cuenta como carga fija que los demás proyectos deben rodear.",
-        "ceiling": "Cuántos días laborables puede desplazarse como máximo la fecha de fin de este proyecto. Arrastre el asa o use las flechas, Inicio (sin desbordamiento) y Fin (ilimitado). La etiqueta muestra el efecto en la fecha de fin, no cuánto ha arrastrado.",
+        "ceiling": "Techo: desbordamiento máximo de la fecha de fin — arrastre, o flechas/Inicio/Fin",
         "chart": "Ahora = la reserva actual de todos los proyectos abiertos juntos; Después de repartir = lo que queda tras el reparto. El rojo supera la capacidad.",
         "recompute": "Vuelve a calcular la propuesta con el orden, las fijaciones y los límites actuales.",
         "apply": "Escribe los desplazamientos en todos los proyectos implicados; cada proyecto recibe su propio paso de deshacer.",

@@ -705,7 +705,7 @@
         "allowSplits": "Pozwala, aby praca miała dni przerwy zamiast przesuwać się w jednym kawałku; daje to rozdziałowi więcej miejsca, ale powstają zadania pocięte.",
         "price": "Metka ceny pokazuje dla każdego ustawienia, o ile dni roboczych przesuwa się data zakończenia najbardziej dotkniętego projektu; jedna cena z „w obu ustawieniach” oznacza, że przerywanie niczego tu nie zmienia.",
         "pin": "Przypina ten projekt: zachowuje swoją datę zakończenia i swoje dni robocze oraz liczy się jako stałe obciążenie, które pozostałe projekty muszą ominąć.",
-        "ceiling": "O ile dni roboczych data zakończenia tego projektu może się najwyżej przesunąć. Przeciągnij uchwyt albo użyj strzałek, Home (bez przekroczenia) i End (bez ograniczenia). Etykieta pokazuje skutek dla daty zakończenia, a nie odległość przeciągnięcia.",
+        "ceiling": "Pułap: maksymalne przekroczenie daty zakończenia — przeciągnij lub strzałki/Home/End",
         "chart": "Teraz = bieżąca rezerwacja wszystkich otwartych projektów razem; Po rozdzieleniu = to, co zostaje po rozdzieleniu. Czerwień wykracza ponad wydajność.",
         "recompute": "Przelicza propozycję z bieżącą kolejnością, przypięciami i limitami.",
         "apply": "Zapisuje przesunięcia we wszystkich objętych projektach; każdy projekt otrzymuje własny krok cofnięcia.",

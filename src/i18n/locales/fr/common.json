@@ -691,7 +691,7 @@
         "allowSplits": "Autorise le travail à comporter des jours de pause au lieu de se décaler d'un seul bloc ; cela donne plus de marge à la répartition, mais découpe les tâches.",
         "price": "L'étiquette de prix indique, pour chaque position, de combien de jours ouvrés la date de fin du projet le plus touché se décale ; un prix unique avec « dans les deux cas » signifie qu'interrompre ne change rien ici.",
         "pin": "Épingle ce projet : il conserve sa date de fin et ses jours ouvrés, et compte comme charge fixe que les autres projets doivent contourner.",
-        "ceiling": "De combien de jours ouvrés la date de fin de ce projet peut se décaler au maximum. Faites glisser la poignée, ou utilisez les flèches, Début (aucun dépassement) et Fin (illimité). L'étiquette montre l'effet sur la date de fin, pas la distance parcourue.",
+        "ceiling": "Plafond : dépassement maximal de la date de fin — faites glisser, ou flèches/Début/Fin",
         "chart": "Maintenant = la réservation actuelle de tous les projets ouverts réunis ; Après répartition = ce qu'il reste une fois le travail réparti. Le rouge dépasse la capacité.",
         "recompute": "Recalcule la proposition avec l'ordre, les épingles et les plafonds actuels.",
         "apply": "Écrit les décalages dans tous les projets concernés ; chaque projet reçoit sa propre étape d'annulation.",

@@ -691,7 +691,7 @@
         "allowSplits": "Consente al lavoro di avere giorni di pausa invece di spostarsi in un unico blocco; dà più margine alla distribuzione, ma produce attività spezzate.",
         "price": "Il cartellino mostra, per ciascuna posizione, di quanti giorni lavorativi si sposta la data di fine del progetto più colpito; un unico prezzo con «in entrambi i casi» significa che interrompere qui non cambia nulla.",
         "pin": "Fissa questo progetto: mantiene la data di fine e i suoi giorni lavorativi e conta come carico fisso attorno al quale gli altri progetti devono muoversi.",
-        "ceiling": "Di quanti giorni lavorativi può spostarsi al massimo la data di fine di questo progetto. Trascina la maniglia oppure usa i tasti freccia, Home (nessuno sforamento) e Fine (illimitato). L'etichetta mostra l'effetto sulla data di fine, non quanto hai trascinato.",
+        "ceiling": "Tetto: sforamento massimo della data di fine — trascina, o frecce/Home/Fine",
         "chart": "Ora = la prenotazione attuale di tutti i progetti aperti insieme; Dopo la distribuzione = ciò che resta dopo aver distribuito. Il rosso supera la capacità.",
         "recompute": "Ricalcola la proposta con l'ordine, i fissaggi e i limiti attuali.",
         "apply": "Scrive gli spostamenti in tutti i progetti coinvolti; ogni progetto riceve il proprio passo di annullamento.",

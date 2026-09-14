@@ -677,7 +677,7 @@
         "allowSplits": "İşin tek parça hâlinde kaymak yerine ara günler almasına izin verir; dağıtıma daha çok alan tanır, ancak bölünmüş görevler oluşturur.",
         "price": "Fiyat etiketi, her konum için en çok etkilenen projenin bitiş tarihinin kaç iş günü kaydığını gösterir; «her iki durumda da» yazan tek bir fiyat, bölmenin burada bir fark yaratmadığı anlamına gelir.",
         "pin": "Bu projeyi sabitler: bitiş tarihini ve iş günlerini korur ve diğer projelerin etrafından dolaşması gereken sabit bir yük olarak sayılır.",
-        "ceiling": "Bu projenin bitiş tarihinin en fazla kaç iş günü kayabileceği. Tutamacı sürükleyin veya ok tuşlarını, Home (taşma yok) ve End (sınırsız) tuşlarını kullanın. Etiket, ne kadar sürüklediğinizi değil, bitiş tarihine etkisini gösterir.",
+        "ceiling": "Tavan: bitiş tarihinin azami taşması — sürükleyin veya ok tuşları/Home/End",
         "chart": "Şimdi = açık tüm projelerin şu anki toplam rezervasyonu; Dağıtımdan sonra = dağıtımdan sonra geriye kalan. Kırmızı, kapasitenin üzerine çıkan kısımdır.",
         "recompute": "Öneriyi mevcut sıra, sabitlemeler ve tavanlarla yeniden hesaplar.",
         "apply": "Kaymaları ilgili tüm projelere yazar; her proje kendi geri alma adımını alır.",
