@@ -615,7 +615,7 @@ export function DistributionDialog() {
                         />
                         <span
                           className="text-[10px] truncate"
-                          style={{ color: short ? 'var(--error)' : 'var(--theme-text-secondary)' }}
+                          style={{ color: short ? 'var(--error)' : 'var(--theme-text-dim)' }}
                         >
                           {`${doc.title}: ${doc.projectEndAfter ? formatDay(doc.projectEndAfter) : '—'}`}
                         </span>
@@ -709,7 +709,7 @@ export function DistributionDialog() {
               : statusLine.tone === 'bad' ? 'var(--error)' : 'var(--theme-text-dim)',
             color: statusLine.tone === 'ok'
               ? 'var(--success)'
-              : statusLine.tone === 'bad' ? 'var(--error)' : 'var(--theme-text-secondary)',
+              : statusLine.tone === 'bad' ? 'var(--error)' : 'var(--theme-text-dim)',
           }}
           role="status"
           aria-live="polite"

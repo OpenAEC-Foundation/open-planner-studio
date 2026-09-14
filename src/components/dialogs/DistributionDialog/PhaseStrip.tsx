@@ -120,6 +120,12 @@ export function PhaseStrip({
   // event-grenzen heen), `dragValue` de renderbare afgeleide. Niet-`null` ⇒ er wordt nu gesleept.
   const dragRef = useRef<{ pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number } | null>(null);
   const [dragValue, setDragValue] = useState<number | null>(null);
+  // De greep moet ZICHTBAAR de focus hebben (spec §5): hij wordt met pijltjes bediend, en zonder
+  // omranding weet je niet welke van de rijen die toets opvangt. Dat kan hier niet met
+  // `:focus-visible` in CSS omdat de hele greep inline gestyled is (zijn x volgt de geometrie), dus
+  // de focus is gewone React-state. `onFocus`/`onBlur` en niet `:focus-within`: de greep IS het
+  // focusbare element.
+  const [focused, setFocused] = useState(false);
 
   const dayWidth = axis?.dayWidth ?? 0;
   const trackWidth = axis?.width ?? AXIS.padLeft + 200;
@@ -431,26 +437,38 @@ export function PhaseStrip({
           onPointerMove={onHandlePointerMove}
           onPointerUp={onHandlePointerUp}
           onPointerCancel={onHandlePointerCancel}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           data-ops-distribution-handle
+          {...(focused ? { 'data-ops-distribution-handle-focused': 'true' } : {})}
           className="absolute flex items-center justify-center rounded-[4px] border"
           style={{
             left: handleX - STRIP.handleWidth / 2,
             top: STRIP.handleTop,
             width: STRIP.handleWidth,
             height: STRIP.handleHeight,
-            borderColor: 'var(--theme-text-secondary)',
-            background: 'var(--theme-surface)',
+            // ZWEVEND OPPERVLAK MET EEN BEDIENINGSRAND, geen wit blokje. Vóór deze polishronde stond
+            // hier `var(--theme-text-secondary)` — een variabele die in geen enkel thema bestaat,
+            // dus viel de rand terug op `currentColor` en was de greep in het donkere thema knalwit
+            // (gemeten 2026-09-14: `borderTopColor: rgb(241,243,245)`), terwijl de drie
+            // grijpstreepjes op diezelfde niet-bestaande variabele juist ONZICHTBAAR waren
+            // (achtergrond → transparant). `--theme-control-border` is de bestaande rand van
+            // bedienbare elementen; in focus wordt dat het accent.
+            borderColor: focused && !pinned ? 'var(--theme-accent)' : 'var(--theme-control-border)',
+            background: 'var(--theme-surface-elevated)',
+            boxShadow: focused && !pinned ? '0 0 0 2px color-mix(in srgb, var(--theme-accent) 35%, transparent)' : 'none',
             cursor: pinned ? 'not-allowed' : 'ew-resize',
             opacity: pinned ? 0.45 : 1,
             touchAction: 'none',
             padding: 0,
+            outline: 'none',
           }}
         >
           {/* Drie grijpstreepjes (`.phandle::before` met twee box-shadows in het prototype). */}
           <span aria-hidden className="flex items-center" style={{ gap: 2 }}>
-            <span style={{ width: 1, height: 13, background: 'var(--theme-text-secondary)' }} />
-            <span style={{ width: 1, height: 13, background: 'var(--theme-text-secondary)' }} />
-            <span style={{ width: 1, height: 13, background: 'var(--theme-text-secondary)' }} />
+            <span style={{ width: 1, height: 13, background: 'var(--theme-text-dim)' }} />
+            <span style={{ width: 1, height: 13, background: 'var(--theme-text-dim)' }} />
+            <span style={{ width: 1, height: 13, background: 'var(--theme-text-dim)' }} />
           </span>
         </button>
       </div>
@@ -467,7 +485,7 @@ export function PhaseStrip({
             ? { 'data-ops-distribution-effect-shortfall': 'true', ...(pillTitle ? { title: pillTitle } : {}) }
             : {})}
           style={busy
-            ? { background: 'color-mix(in srgb, var(--theme-text-dim) 14%, transparent)', color: 'var(--theme-text-secondary)' }
+            ? { background: 'color-mix(in srgb, var(--theme-text-dim) 14%, transparent)', color: 'var(--theme-text-dim)' }
             : tone}
         >
           {pillText}
