@@ -380,6 +380,43 @@ test('plafond-handle: tijdens het slepen rekent de dialoog live mee', async ({ p
   }, shiftedDocId)).toBe(5);
 });
 
+// --- Fixronde bevinding B9 — de greep houdt de focus na een muisgebaar ---------------------------
+
+test('plafond-handle: na loslaten heeft de greep de focus en werkt een pijltje meteen', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const strip = page.locator('[data-ops-distribution-strip]').nth(1);
+  const handle = strip.locator('[data-ops-distribution-handle]');
+  const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
+  expect(dayWidth).toBeGreaterThan(0);
+
+  // BEWUST GEEN `handle.focus()` VOORAF — dat is precies wat deze test moet aantonen. De greep
+  // roept `preventDefault()` aan op `pointerdown` (nodig om tekstselectie tijdens het slepen te
+  // voorkomen), en dat onderdrukt óók de focus-stap van de browser. Zonder de eigen `focus()` in
+  // de component staat de focus na dit gebaar nog op wat er daarvóór actief was.
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 2 * dayWidth, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+
+  // (1) De focus staat op DEZE greep — niet ergens anders in de dialoog.
+  await expect.poll(() => page.evaluate(() =>
+    document.activeElement?.hasAttribute('data-ops-distribution-handle') ?? false,
+  )).toBe(true);
+  const focusedDocId = await page.evaluate(() =>
+    document.activeElement?.closest('[data-ops-distribution-strip]')?.getAttribute('data-ops-doc-id') ?? null);
+  expect(focusedDocId).toBe(await strip.getAttribute('data-ops-doc-id'));
+
+  // (2) En een pijltje werkt meteen, zónder eerst ergens te klikken of te tabben: de toets gaat
+  // naar `document.activeElement`, dus dit kan alleen slagen als de greep de focus echt heeft.
+  const before = Number(await handle.getAttribute('aria-valuenow'));
+  await page.keyboard.press('ArrowRight');
+  await expect(handle).toHaveAttribute('aria-valuenow', String(before + 1));
+});
+
 // --- B1c-plan3 taak 11b — de voor/na-grafiek (spec §7) ---------------------------------------------
 
 test('voor/na-preview: de na-stand blijft binnen de capaciteitslijn', async ({ page, ops: _ops }) => {
