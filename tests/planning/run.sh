@@ -711,6 +711,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DISTCHARTCHECK="$DIR/.distribution-chart-scale.mjs"
   if bundle_check "$DIR/check-distribution-chart-scale.ts" "$DISTCHARTCHECK"; then node "$DISTCHARTCHECK" || STATUS=1; fi
 
+  # B1c-plan4 taak 1: de pure balkgeometrie van de verdeeldialoog — dagblokjes, pauzedagen (een
+  # weekend is er GEEN), de gestippelde rest tot het plafond, de meetlat grijs/rood, en de
+  # verschil-prijs van de onderbrekingsschakelaar.
+  DISTSTRIPCHECK="$DIR/.distribution-strip-geometry.mjs"
+  if bundle_check "$DIR/check-distribution-strip-geometry.ts" "$DISTSTRIPCHECK"; then node "$DISTSTRIPCHECK" || STATUS=1; fi
+
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
   OVERLAYRIBBONCHECK="$DIR/.ribbon-overlays.mjs"
