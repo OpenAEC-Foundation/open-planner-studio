@@ -12,7 +12,8 @@
 // DE VERTICALE SCHAAL IS EEN EIGEN SCHAAL (fixronde-2 bevinding B1). Deze grafiek STAPELT alle
 // documenten; de fasestroken tekenen er één per rij. Leende de grafiek de strookschaal, dan viel de
 // stapelsom boven de schaal en werd het conflict onzichtbaar. `chartScaleMax` rekent daarom over de
-// stapelsom van VOOR én NA plus de capaciteit; `PhaseStrip` houdt zijn eigen `scaleMax`.
+// stapelsom van VOOR én NA plus de capaciteit. De balken erboven kennen sinds B1c-plan4 taak 2
+// helemaal geen verticale schaal meer: die tekenen per werkdag een blokje van vaste hoogte.
 //
 // CONFLICTDEFINITIE (ongewijzigd t.o.v. het bezettingsoverzicht): som van de boeking over alle
 // documenten op een dag STRIKT GROTER dan `maxUnitsOn(poolItem, dag)` — geen tweede definitie. Voor
@@ -30,7 +31,6 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Resource } from '@/types/resource';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
-import { DOC_PALETTE } from '@/utils/documents';
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
 import {
   CHART_PLOT, buildStackedChart, chartScaleMax, type StackedChartGeometry,
@@ -92,9 +92,13 @@ function MiniHistogram({
       {...(kind === 'before' ? { 'data-ops-distribution-chart-before': '' } : { 'data-ops-distribution-chart-after': '' })}
     >
       <span className="text-[10px] text-text-secondary">{label}</span>
-      {/* Geforceerd LTR, net als het bezettingshistogram en de fasestroken: een tijdas spiegelt
-          nergens in dit product. */}
-      <div className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
+      {/* Geforceerd LTR, net als het bezettingshistogram en de balken: een tijdas spiegelt nergens
+          in dit product. GEEN eigen `overflow-x-auto` meer (B1c-plan4 taak 4): de horizontale
+          scroll zit sinds dit herontwerp om de HELE stapel balken+histogram heen, in
+          `DistributionDialog`. Had dit blok zijn eigen scroller, dan schoven de histogramkolommen
+          weg onder de dagblokjes zodra je er één van verschoof — precies de kolom-op-kolom-
+          uitlijning die spec §3.4 eist. */}
+      <div dir="ltr" style={{ direction: 'ltr' }}>
         <svg
           width={width}
           height={height}
@@ -107,7 +111,11 @@ function MiniHistogram({
             <rect
               key={b.key}
               x={b.x} y={b.y} width={b.w} height={b.h}
-              fill={docColors.get(b.docId) ?? DOC_PALETTE[0]}
+              // Eén kleurtoewijzing voor de hele dialoog (spec §8): de map komt van
+              // `assignDocColors` in `DistributionDialog` en dekt per constructie élk document dat
+              // hier een staaf krijgt. Een eigen terugval zou een tweede kleurbron zijn en precies
+              // de mismatch tussen balk en histogram kunnen terugbrengen die B9 opleverde.
+              fill={docColors.get(b.docId)}
               data-ops-doc-id={b.docId}
             />
           ))}
