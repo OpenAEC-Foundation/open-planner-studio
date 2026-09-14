@@ -95,7 +95,7 @@ informe, con un ajuste recordado por informe:
 - **Todo el proyecto** — desde el inicio más temprano hasta el fin más tardío del cronograma.
 - **Personalizado** — dos fechas propias. Los campos *Desde* y *Hasta* pasan a ser editables
   (escribir o selector de fecha); con un preajuste muestran las fechas calculadas en solo lectura.
-  Una fecha final anterior a la inicial se marca en rojo y no se aplica. Si vuelve a un preajuste,
+  Una fecha final anterior a la inicial, o un campo de fecha vacío, se marca en rojo y no se aplica. Si vuelve a un preajuste,
   sus fechas sustituyen su rango.
 
 El periodo elegido aparece como subtítulo del informe y del PDF.
@@ -124,8 +124,9 @@ activa, si no sobre el cronograma actual) y los recuentos por estado. Debajo, ci
 completadas en el periodo anterior, en curso, empiezan en el próximo periodo, atrasadas y
 actividades críticas abiertas. El periodo del informe (el último mes por defecto) decide qué cuenta como *completado en el
 periodo*; la sección *empiezan en el próximo periodo* mira adelante desde la fecha de estado: hasta el
-fin del periodo si este queda (en parte) después de la fecha de estado, y si no, tan lejos adelante
-como el periodo mira atrás. El resumen muestra ambos límites.
+fin del periodo si este queda (en parte) después de la fecha de estado, con un preajuste *último(s) …*, tan
+lejos adelante como el periodo mira atrás; con un periodo personalizado o de todo el proyecto que
+queda por completo en el pasado, la sección queda vacía. El resumen muestra ambos límites.
 
 ### Salud del cronograma
 
@@ -141,10 +142,10 @@ Un cronograma limpio tiene cero errores.
 
 Las filas se agrupan por recurso (nombre y tipo solo en la primera fila de cada grupo, como en las asignaciones de recursos); con *Agregación* elige entre semanas y meses naturales, y el periodo del informe determina qué semanas o meses aparecen.
 
-Por recurso y semana, la demanda frente a la capacidad disponible (en unidades-día), la diferencia,
-el pico diario y si la semana está sobrecargada — el mismo cálculo que el histograma de la pestaña
-**Recursos**, en forma de tabla. Solo aparecen semanas con demanda; con *Solo periodos sobrecargados*
-quedan únicamente los cuellos de botella.
+Por recurso y semana o mes, la demanda frente a la capacidad disponible (en unidades-día), la
+diferencia, el pico diario y si el periodo está sobrecargado — el mismo cálculo que el histograma de
+la pestaña **Recursos**, en forma de tabla. Solo aparecen periodos con demanda; con *Solo periodos
+sobrecargados* quedan únicamente los cuellos de botella.
 
 ### Asignaciones de recursos
 

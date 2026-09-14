@@ -135,7 +135,7 @@ onthouden instelling per rapport:
 - **Hele project** — van de vroegste start tot het laatste einde in de planning.
 - **Aangepast** — twee eigen datums. De velden *Van* en *Tot* worden dan bewerkbaar (typen of de
   datumkiezer); bij een preset tonen ze alleen-lezen de berekende datums. Een einddatum vóór de
-  begindatum wordt rood gemarkeerd en niet toegepast. Kies je daarna weer een preset, dan
+  begindatum, of een leeg datumveld, wordt rood gemarkeerd en niet toegepast. Kies je daarna weer een preset, dan
   vervangen de presetdatums je eigen bereik.
 
 De gekozen periode staat als ondertitel in het rapport en in de PDF.
@@ -171,8 +171,9 @@ staat er dan bij. Daaronder vijf secties: voltooid in de rapportageperiode, in u
 in de komende periode, achterstallig, en de open kritieke activiteiten. De rapportageperiode
 (standaard de afgelopen maand) bepaalt wat als *voltooid in de periode* telt; de sectie *start
 in de komende periode* kijkt vanaf de statusdatum vooruit — tot het einde van de periode als die
-(deels) ná de statusdatum ligt, en anders even ver vooruit als de periode terugkijkt. De
-samenvatting toont beide grenzen.
+(deels) ná de statusdatum ligt; bij een *afgelopen …*-preset even ver vooruit als de periode
+terugkijkt; bij een aangepaste of projectperiode die helemaal in het verleden ligt blijft de sectie
+leeg. De samenvatting toont beide grenzen.
 
 ### Planningsgezondheid
 

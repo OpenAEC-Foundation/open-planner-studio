@@ -92,7 +92,7 @@ con un'impostazione memorizzata per ciascun report:
 - **Intero progetto** — dall'inizio più anticipato alla fine più tardiva del programma.
 - **Personalizzato** — due date a scelta. I campi *Dal* e *Al* diventano modificabili (digitazione
   o selettore di data); con un preset mostrano le date calcolate in sola lettura. Una data finale
-  precedente a quella iniziale viene evidenziata in rosso e non applicata. Tornando a un preset,
+  precedente a quella iniziale, o un campo data vuoto, viene evidenziata in rosso e non applicata. Tornando a un preset,
   le sue date sostituiscono l'intervallo personalizzato.
 
 Il periodo scelto compare come sottotitolo del report e del PDF.
@@ -121,8 +121,9 @@ baseline attiva, altrimenti sul programma attuale) e i conteggi per stato. Sotto
 completate nel periodo passato, in corso, iniziano nel prossimo periodo, in ritardo e attività
 critiche aperte. Il periodo del report (l'ultimo mese per default) decide cosa conta come *completato nel periodo*;
 la sezione *iniziano nel prossimo periodo* guarda avanti dalla data di stato: fino alla fine del
-periodo se questo cade (in parte) dopo la data di stato, altrimenti tanto avanti quanto il periodo
-guarda indietro. Il riepilogo mostra entrambi i limiti.
+periodo se questo cade (in parte) dopo la data di stato, con un preset *ultimo/i …* tanto avanti
+quanto il periodo guarda indietro; con un periodo personalizzato o dell'intero progetto che cade
+del tutto nel passato, la sezione resta vuota. Il riepilogo mostra entrambi i limiti.
 
 ### Salute del programma
 
@@ -137,9 +138,9 @@ per slack elevato e durata lunga, 10 per i ritardi. Un programma pulito ha zero 
 
 Le righe sono raggruppate per risorsa (nome e tipo solo sulla prima riga di ogni gruppo, come nelle assegnazioni risorse); con *Aggregazione* scegli tra settimane e mesi di calendario, e il periodo del report determina quali settimane o mesi compaiono.
 
-Per risorsa e settimana, il fabbisogno rispetto alla capacità disponibile (in unità-giorno), la
-differenza, il picco giornaliero e se la settimana è sovraccarica — lo stesso calcolo
-dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo le settimane con
+Per risorsa e settimana o mese, il fabbisogno rispetto alla capacità disponibile (in unità-giorno),
+la differenza, il picco giornaliero e se il periodo è sovraccarico — lo stesso calcolo
+dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo i periodi con
 fabbisogno; con *Solo periodi sovraccarichi* restano solo i colli di bottiglia.
 
 ### Assegnazioni risorse

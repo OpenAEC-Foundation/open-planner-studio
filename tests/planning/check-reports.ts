@@ -314,7 +314,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('resourceLoading: weken = rijen zonder filter', r.counts.buckets, r.rows.length);
   const r2 = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: true });
   ok('resourceLoading: filter houdt alleen overbelaste weken', r2.rows.every(x => x.overloaded));
-  eq('resourceLoading: filter verandert de tellingen niet', r2.counts.buckets, r.counts.buckets);
+  eq('resourceLoading: tellingen gaan over de tabel — met filter tellen alleen overbelaste buckets', r2.counts.buckets, r2.rows.length);
+  eq('resourceLoading: … en overbelaste buckets blijven gelijk', r2.counts.overloadedBuckets, r.counts.overloadedBuckets);
   ok('resourceLoading: overbelaste rijen zijn een deelverzameling', r2.rows.length <= r.rows.length);
   eq('resourceLoading: project-periode = projectspanne', [r.from, r.to], [projectSpan(ctx.tasks)!.from, projectSpan(ctx.tasks)!.to]);
   eq('resourceLoading: project-periode meldt geen ontbrekende statusdatum', computeResourceLoading({ ...ctx, statusDate: undefined }, { ...weekly, onlyOverloaded: false }).statusDateMissing, false);
@@ -408,6 +409,12 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('progress: A (voltooid 11 sep) valt in de afgelopen maand', pm.completedInPeriod.some(x => x.taskId === A));
   const pc = computeProgressReport(ctx, { period: { preset: 'custom', from: '2026-09-14', to: '2026-09-15' }, nearCriticalDays: 5 });
   ok('progress: aangepaste periode 14–15 sep ⇒ A (klaar 11 sep) valt erbuiten', !pc.completedInPeriod.some(x => x.taskId === A));
+  // Reviewbevinding ronde 2: een aangepaste periode in het verleden wordt NIET gespiegeld — een
+  // venster in 2020 zegt niets over de komende periode; de vooruitkijksectie blijft dan leeg.
+  const p2020 = computeProgressReport(ctx, { period: { preset: 'custom', from: '2020-01-01', to: '2020-12-31' }, nearCriticalDays: 5 });
+  eq('progress: aangepaste periode in 2020 ⇒ vooruitblik t/m het periode-einde, niet een jaar vooruit', p2020.summary.lookAheadTo, '2020-12-31');
+  eq('progress: … en de sectie "start in de komende periode" is leeg', p2020.startingNext.length, 0);
+  eq('progress: "afgelopen …"-preset spiegelt wél', computeProgressReport(ctx, { period: { preset: 'lastWeek' }, nearCriticalDays: 5 }).summary.lookAheadTo, '2026-09-25');
 }
 
 // ── WBS-samenvatting ─────────────────────────────────────────────────────────────────────────────

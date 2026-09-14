@@ -7,7 +7,7 @@ import type { ReportingPeriod } from './reportingPeriod';
 
 /**
  * Look-ahead-rapport (discussie #31, rapport 2): de activiteiten in de rapportageperiode (issue
- * #120; standaard de komende vier weken vanaf de statusdatum) — het lijstje voor de weekvergadering
+ * #120; standaard de komende maand vanaf de statusdatum) — het lijstje voor de weekvergadering
  * op de bouw.
  *
  * Opgenomen worden de niet-voltooide bladtaken die het venster raken (interval-overlap, dus óók een
@@ -44,7 +44,7 @@ export interface LookAheadRow {
 }
 
 export interface LookAheadOptions {
-  /** Rapportageperiode (issue #120); standaard `next4Weeks`. */
+  /** Rapportageperiode (issue #120); standaard `nextMonth`. */
   period: ReportingPeriod;
   /** Drempel voor near-critical (werkdagen); 0 = alleen de planningsoptie. */
   nearCriticalDays: number;

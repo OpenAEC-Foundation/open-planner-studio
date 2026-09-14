@@ -26,11 +26,13 @@ import { type ReportingPeriod, periodDays } from './reportingPeriod';
  * een eigen vraag.
  *
  * DE PERIODE (issue #120) is de rapportageperiode van het statusrapport — standaard de afgelopen
- * twee weken t/m de statusdatum. "Voltooid" telt binnen die periode. "Start in de komende periode"
- * kijkt vanaf de statusdatum VOORUIT: ligt de periode (deels) ná de statusdatum, dan tot het einde
- * van de periode; ligt hij er helemaal vóór (de gebruikelijke "afgelopen maand"), dan wordt hij
- * gespiegeld — even ver vooruit als de periode terugkijkt. Zo blijft de standaard byte-identiek
- * aan de oude "periode (weken)"-optie (2 weken terug, 2 weken vooruit) én dekt "project" alles.
+ * maand t/m de statusdatum. "Voltooid" telt binnen die periode. "Start in de komende periode" kijkt
+ * vanaf de statusdatum VOORUIT: ligt de periode (deels) ná de statusdatum, dan tot het einde van de
+ * periode. Bij een "afgelopen …"-preset (die per definitie op de statusdatum eindigt) wordt de
+ * periode gespiegeld — even ver vooruit als hij terugkijkt; zo blijft "afgelopen 2 weken"
+ * byte-identiek aan de oude "periode (weken)"-optie (2 weken terug, 2 weken vooruit). Een
+ * aangepaste of project-periode die helemaal in het verleden ligt wordt NIET gespiegeld (een
+ * venster in 2020 zegt niets over de toekomst): de sectie blijft dan leeg.
  */
 export type ProgressRowStatus = 'complete' | 'inProgress' | 'notStarted' | 'overdueStart' | 'overdueFinish';
 
@@ -56,7 +58,7 @@ export interface ProgressRow {
 }
 
 export interface ProgressReportOptions {
-  /** Rapportageperiode (issue #120); standaard `last2Weeks`. */
+  /** Rapportageperiode (issue #120); standaard `lastMonth`. */
   period: ReportingPeriod;
   nearCriticalDays: number;
 }
@@ -99,9 +101,13 @@ function overdueOf(t: Task, state: ProgressState, refDay: string): ProgressRow['
 
 export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOptions): ProgressReportResult {
   const { from: periodFrom, to: periodTo, refDay: ref, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
-  // Vooruitkijken vanaf de statusdatum: tot het periode-einde als dat erná ligt, anders gespiegeld
-  // (2 weken terug ⇒ ref + 14 dagen, exact de oude `periodWeeks`-conventie).
-  const lookAheadTo = periodTo > ref ? periodTo : windowEnd(ref, periodDays({ from: periodFrom, to: periodTo }) + 1);
+  // Vooruitkijken vanaf de statusdatum: tot het periode-einde als dat erná ligt; een "afgelopen …"-
+  // preset wordt gespiegeld (2 weken terug ⇒ ref + 14 dagen, exact de oude `periodWeeks`-conventie);
+  // een aangepaste/project-periode in het verleden niet (zie de kop).
+  const mirrored = opts.period.preset.startsWith('last');
+  const lookAheadTo = periodTo > ref ? periodTo
+    : mirrored ? windowEnd(ref, periodDays({ from: periodFrom, to: periodTo }) + 1)
+    : periodTo;
   const engineFor = makeEngineCache(ctx);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const refDate = parseDate(ref);

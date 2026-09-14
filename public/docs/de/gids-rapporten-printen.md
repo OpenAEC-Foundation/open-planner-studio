@@ -63,9 +63,9 @@ einer eigenen gemerkten Einstellung pro Bericht:
   Enden inklusiv: *nächste 4 Wochen* am Donnerstag, 10. September, läuft bis Mittwoch, 7. Oktober.
   Ändern Sie das Statusdatum, wandert das Fenster mit.
 - **Gesamtes Projekt** — vom frühesten Start bis zum spätesten Ende im Terminplan.
-- **Benutzerdefiniert** — zwei eigene Daten. Die Felder *Von* und *Bis* werden bearbeitbar (tippen
+- **Benutzerdefiniert** — zwei eigene Datumsangaben. Die Felder *Von* und *Bis* werden bearbeitbar (tippen
   oder Datumsauswahl); bei einer Vorgabe zeigen sie die berechneten Daten schreibgeschützt. Ein
-  Enddatum vor dem Startdatum wird rot markiert und nicht übernommen. Wählen Sie danach wieder eine
+  Enddatum vor dem Startdatum oder ein leeres Datumsfeld wird rot markiert und nicht übernommen. Wählen Sie danach wieder eine
   Vorgabe, ersetzen deren Daten Ihren eigenen Bereich.
 
 Der gewählte Zeitraum steht als Untertitel im Bericht und im PDF.
@@ -94,8 +94,9 @@ Basisplans, sonst auf der aktuellen Planung) und die Zählungen je Zustand. Daru
 Abschnitte: im vergangenen Zeitraum abgeschlossen, in Arbeit, Beginn im kommenden Zeitraum,
 überfällig und offene kritische Vorgänge. Der Berichtszeitraum (Standard: letzter Monat) bestimmt, was als *im Zeitraum abgeschlossen*
 zählt; der Abschnitt *Beginn im kommenden Zeitraum* blickt vom Statusdatum voraus — bis zum Ende
-des Zeitraums, wenn dieser (teilweise) nach dem Statusdatum liegt, sonst so weit voraus, wie der
-Zeitraum zurückblickt. Die Zusammenfassung zeigt beide Grenzen.
+des Zeitraums, wenn dieser (teilweise) nach dem Statusdatum liegt, bei einer *Letzte …*-Vorgabe so weit
+voraus, wie der Zeitraum zurückblickt; bei einem benutzerdefinierten oder Projekt-Zeitraum, der ganz
+in der Vergangenheit liegt, bleibt der Abschnitt leer. Die Zusammenfassung zeigt beide Grenzen.
 
 ### Terminplan-Qualität
 
@@ -111,10 +112,10 @@ Dauer, 10 Arbeitstage für Verzögerungen. Eine saubere Planung hat null Fehler.
 
 Die Zeilen sind pro Ressource gruppiert (Name und Typ nur in der ersten Zeile jeder Gruppe, wie bei den Ressourcenzuweisungen); mit *Aggregation* wählen Sie zwischen Kalenderwochen und Kalendermonaten, und der Berichtszeitraum bestimmt, welche Wochen oder Monate erscheinen.
 
-Je Ressource und Woche der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen), die
-Differenz, die Tagesspitze und ob die Woche überlastet ist — dieselbe Berechnung wie das Histogramm
-auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Wochen mit Bedarf sind enthalten; mit
-*Nur überlastete Zeiträume* bleiben nur die Engpässe.
+Je Ressource und Woche oder Monat der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen),
+die Differenz, die Tagesspitze und ob der Zeitraum überlastet ist — dieselbe Berechnung wie das
+Histogramm auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Zeiträume mit Bedarf sind
+enthalten; mit *Nur überlastete Zeiträume* bleiben nur die Engpässe.
 
 ### Ressourcenzuweisungen
 

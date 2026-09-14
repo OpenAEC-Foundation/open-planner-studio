@@ -65,7 +65,7 @@ hatırlanan ayarı vardır:
 - **Tüm proje** — programdaki en erken başlangıçtan en geç bitişe.
 - **Özel** — kendi seçtiğiniz iki tarih. *Başlangıç* ve *Bitiş* alanları düzenlenebilir olur (yazın
   veya tarih seçiciyi kullanın); bir ön ayarla hesaplanan tarihleri salt okunur gösterirler.
-  Başlangıçtan önceki bir bitiş tarihi kırmızıyla işaretlenir ve uygulanmaz. Yeniden bir ön ayar
+  Başlangıçtan önceki bir bitiş tarihi veya boş bir tarih alanı kırmızıyla işaretlenir ve uygulanmaz. Yeniden bir ön ayar
   seçtiğinizde ön ayarın tarihleri sizin aralığınızın yerini alır.
 
 Seçilen dönem raporun ve PDF'nin alt başlığında görünür.
@@ -93,7 +93,8 @@ ağırlıklı; planlanan etkin temel planın tarihlerinde, yoksa mevcut programd
 sayımları verir. Altında beş bölüm: geçen dönemde tamamlananlar, devam edenler, gelecek dönemde
 başlayanlar, gecikmişler ve açık kritik aktiviteler. Raporlama dönemi (varsayılan geçen ay) neyin *dönemde tamamlanan* sayılacağını belirler;
 *gelecek dönemde başlayanlar* bölümü durum tarihinden ileriye bakar — dönem (kısmen) durum tarihinden
-sonraysa dönemin sonuna kadar, aksi halde dönemin geriye baktığı kadar ileriye. Özet her iki sınırı da
+sonraysa dönemin sonuna kadar, *Geçen/Son …* ön ayarında dönemin geriye baktığı kadar
+ileriye; tamamen geçmişte kalan özel veya tüm proje döneminde bölüm boş kalır. Özet her iki sınırı da
 gösterir.
 
 ### Program sağlığı
@@ -109,10 +110,10 @@ iş günü, gecikmeler için 10. Temiz bir programda sıfır hata vardır.
 
 Satırlar kaynağa göre gruplanır (ad ve tür yalnızca her grubun ilk satırında, kaynak atamalarında olduğu gibi); *Toplama* ile takvim haftası veya takvim ayı seçersiniz ve raporlama dönemi hangi haftaların veya ayların görüneceğini belirler.
 
-Kaynak ve hafta başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve haftanın
-aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo halinde.
-Yalnızca gereksinimi olan haftalar listelenir; *Yalnızca aşırı yüklü dönemler* ile sadece darboğazlar
-kalır.
+Kaynak ve hafta ya da ay başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve
+dönemin aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo
+halinde. Yalnızca gereksinimi olan dönemler listelenir; *Yalnızca aşırı yüklü dönemler* ile sadece
+darboğazlar kalır.
 
 ### Kaynak atamaları
 

@@ -94,7 +94,7 @@ relatório, com uma definição memorizada por relatório:
 - **Projeto inteiro** — do início mais cedo ao fim mais tardio do cronograma.
 - **Personalizado** — duas datas à sua escolha. Os campos *De* e *Até* passam a ser editáveis
   (escrever ou seletor de data); com um predefinido mostram as datas calculadas só de leitura. Uma
-  data final anterior à inicial é marcada a vermelho e não é aplicada. Ao voltar a um predefinido,
+  data final anterior à inicial, ou um campo de data vazio, é marcada a vermelho e não é aplicada. Ao voltar a um predefinido,
   as datas dele substituem o seu intervalo.
 
 O período escolhido surge como subtítulo do relatório e do PDF.
@@ -123,8 +123,9 @@ cronograma atual) e as contagens por estado. Por baixo, cinco secções: conclu�
 anterior, em curso, começam no próximo período, atrasadas e atividades críticas em aberto. O período do
 relatório (o último mês por defeito) decide o que conta como *concluído no período*; a secção
 *começam no próximo período* olha para a frente a partir da data de estado: até ao fim do período se
-este ficar (em parte) depois da data de estado, senão tão longe para a frente quanto o período olha
-para trás. O resumo mostra ambos os limites.
+este ficar (em parte) depois da data de estado, com um predefinido *último(s) …* tão longe para a
+frente quanto o período olha para trás; com um período personalizado ou do projeto inteiro que fica
+totalmente no passado, a secção fica vazia. O resumo mostra ambos os limites.
 
 ### Saúde do cronograma
 
@@ -139,10 +140,10 @@ para folga alta e duração longa, 10 para atrasos. Um cronograma limpo tem zero
 
 As linhas são agrupadas por recurso (nome e tipo apenas na primeira linha de cada grupo, como nas atribuições de recursos); com *Agregação* escolhe entre semanas e meses de calendário, e o período do relatório determina que semanas ou meses aparecem.
 
-Por recurso e semana, a necessidade face à capacidade disponível (em unidades-dia), a diferença, o
-pico diário e se a semana está sobrecarregada — o mesmo cálculo do histograma no separador
-**Recursos**, em forma de tabela. Só aparecem semanas com necessidade; com *Apenas períodos
-sobrecarregados* ficam só os estrangulamentos.
+Por recurso e semana ou mês, a necessidade face à capacidade disponível (em unidades-dia), a
+diferença, o pico diário e se o período está sobrecarregado — o mesmo cálculo do histograma no
+separador **Recursos**, em forma de tabela. Só aparecem períodos com necessidade; com *Apenas
+períodos sobrecarregados* ficam só os estrangulamentos.
 
 ### Atribuições de recursos
 

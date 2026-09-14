@@ -1106,7 +1106,7 @@ export const readTools: McpToolDef[] = [
       'een samenvatting (peakLoad + peakDate, overallocatedDayCount, spanStart/spanEnd, loadSum, ' +
       'capacitySum) mét `detailAvailable:true`; pieken blijven zo zichtbaar maar de respons is klein. ' +
       'Geef `resourceIds` en/of `van`/`tot` voor `mode:"detail"` met de volledige bucket-arrays: per ' +
-      'bucket `load` (weekbucket = som over de week), `peakDayLoad`, `capacity`, dag-granulaire ' +
+      'bucket `load` (week-/maandbucket = som over de periode), `peakDayLoad`, `capacity`, dag-granulaire ' +
       '`overallocatedDays` en per overbelaste bucket de veroorzakende toewijzingen (`causes`). ' +
       'LET OP — WEEKMODUS-OVERHANG: weekvensters snappen naar hele ISO-weken (ma..zo), dus een venster ' +
       'kan aan de randen dagen buiten [van,tot] meenemen; de capaciteit telt álle werkdagen van het ' +

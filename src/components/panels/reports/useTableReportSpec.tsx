@@ -305,10 +305,14 @@ function firstOfResourceGroup<R extends { resourceId: string }>(rows: R[], keyOf
   return first;
 }
 
-/** Maandnaam + jaar voor een maandbucket ("sep 2026"), in de UI-taal. */
-function monthLabel(iso: string, locale: string): string {
-  const [y, m] = iso.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 1)));
+/** Maandnaam + jaar voor een maandbucket ("sep 2026"), in de UI-taal — één formatter per rapport,
+ *  niet één per cel (`text()` draait per rij per render, en nog eens voor de PDF). */
+function monthLabeler(locale: string): (iso: string) => string {
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return (iso) => {
+    const [y, m] = iso.split('-').map(Number);
+    return fmt.format(new Date(Date.UTC(y, m - 1, 1)));
+  };
 }
 
 function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean, locale: string): TableReportSpec {
@@ -317,11 +321,12 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
   const monthly = o.resourceLoadBucket === 'month';
   const rowKey = (row: ResourceLoadingRow) => `${row.resourceId}\u0000${row.bucketStart}`;
   const firstOfGroup = firstOfResourceGroup(r.rows, rowKey);
+  const monthLabel = monthLabeler(locale);
   const columns: ReportColumn<ResourceLoadingRow>[] = [
     { key: 'resource', header: t(`${p}.resource`), width: 180, align: 'left', text: row => (firstOfGroup.has(rowKey(row)) ? row.resourceName : ''), bold: () => true },
     { key: 'type', header: t(`${p}.type`), width: 100, align: 'left', text: row => (firstOfGroup.has(rowKey(row)) ? tCommon(RESOURCE_TYPE_KEY[row.resourceType]) : '') },
     monthly
-      ? { key: 'month', header: t(`${p}.month`), width: 95, align: 'left', text: row => monthLabel(row.bucketStart, locale) }
+      ? { key: 'month', header: t(`${p}.month`), width: 95, align: 'left', text: row => monthLabel(row.bucketStart) }
       : dateCol('week', t(`${p}.week`), row => row.bucketStart, dd),
     { key: 'required', header: t(`${p}.required`), width: 85, align: 'right', text: r => num(r.required) },
     { key: 'available', header: t(`${p}.available`), width: 90, align: 'right', text: r => num(r.available) },

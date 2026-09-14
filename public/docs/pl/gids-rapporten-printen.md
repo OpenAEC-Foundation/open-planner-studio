@@ -95,7 +95,8 @@ dla każdego raportu:
 - **Cały projekt** — od najwcześniejszego startu do najpóźniejszego końca harmonogramu.
 - **Niestandardowy** — dwie własne daty. Pola *Od* i *Do* stają się edytowalne (wpisanie lub
   wybór z kalendarza); przy ustawieniu wstępnym pokazują obliczone daty tylko do odczytu. Data
-  końcowa wcześniejsza niż początkowa jest oznaczana na czerwono i nie jest stosowana. Po powrocie
+  końcowa wcześniejsza niż początkowa lub puste pole daty jest oznaczana na czerwono i nie jest
+  stosowana. Po powrocie
   do ustawienia wstępnego jego daty zastępują własny zakres.
 
 Wybrany okres pojawia się jako podtytuł raportu i pliku PDF.
@@ -124,7 +125,9 @@ bieżącym harmonogramie) oraz liczby według stanu. Poniżej pięć sekcji: uko
 w toku, rozpoczynające się w następnym okresie, zaległe i otwarte czynności krytyczne. Okres
 raportu (domyślnie ostatni miesiąc) decyduje, co liczy się jako *ukończone w okresie*; sekcja
 *rozpoczynające się w następnym okresie* patrzy w przód od daty stanu — do końca okresu, jeśli leży on
-(częściowo) po dacie stanu, a w przeciwnym razie tak daleko w przód, jak okres sięga wstecz.
+(częściowo) po dacie stanu, przy ustawieniu wstępnym *ostatni(e) …* tak daleko w
+przód, jak okres sięga wstecz; przy okresie niestandardowym lub całego projektu leżącym w całości
+w przeszłości sekcja pozostaje pusta.
 Podsumowanie pokazuje obie granice.
 
 ### Kondycja harmonogramu
@@ -140,10 +143,10 @@ dla dużego zapasu i długiego czasu trwania, 10 dla zwłok. Czysty harmonogram 
 
 Wiersze są pogrupowane według zasobu (nazwa i typ tylko w pierwszym wierszu każdej grupy, jak w przypisaniach zasobów); opcja *Agregacja* pozwala wybrać tygodnie lub miesiące kalendarzowe, a okres raportu decyduje, które tygodnie lub miesiące się pojawią.
 
-Dla zasobu i tygodnia zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach), różnica,
-dzienny szczyt i czy tydzień jest przeciążony — to samo obliczenie co histogram na karcie **Zasoby**,
-w postaci tabeli. Pokazywane są tylko tygodnie z zapotrzebowaniem; opcja *Tylko przeciążone
-okresy* zostawia same wąskie gardła.
+Dla zasobu i tygodnia lub miesiąca zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach),
+różnica, dzienny szczyt i czy okres jest przeciążony — to samo obliczenie co histogram na karcie
+**Zasoby**, w postaci tabeli. Pokazywane są tylko okresy z zapotrzebowaniem; opcja *Tylko
+przeciążone okresy* zostawia same wąskie gardła.
 
 ### Przydziały zasobów
 

@@ -135,7 +135,7 @@ remembered setting per report:
 - **Project duration** — from the earliest start to the latest finish in the schedule.
 - **Custom** — two dates of your own. The *From* and *To* fields become editable (type or use the
   date picker); with a preset they show the calculated dates read-only. An end date before the
-  start date is highlighted in red and not applied. Pick a preset again and the preset dates
+  start date, or an empty date field, is highlighted in red and not applied. Pick a preset again and the preset dates
   replace your custom range.
 
 The chosen period appears as the subtitle of the report and of the PDF.
@@ -170,7 +170,8 @@ report says so. Below that, five sections: completed in the reporting period, in
 the next period, overdue, and the open critical activities. The reporting period (the last
 month by default) decides what counts as *completed in the period*; the *starting in the next
 period* section looks ahead from the status date — to the end of the period when it lies (partly)
-after the status date, and otherwise as far ahead as the period looks back. The summary shows both
+after the status date; for a *last …* preset as far ahead as the period looks back; for a custom or
+project period that lies entirely in the past the section stays empty. The summary shows both
 bounds.
 
 ### Schedule health

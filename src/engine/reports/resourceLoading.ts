@@ -51,6 +51,7 @@ export interface ResourceLoadingResult {
   to: string;
   statusDateMissing: boolean;
   rows: ResourceLoadingRow[];
+  /** Alle tellingen gaan over de rijen in de tabel — dus ná het `onlyOverloaded`-filter. */
   counts: { resources: number; buckets: number; overloadedBuckets: number; overloadedResources: number };
 }
 
@@ -79,10 +80,10 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
       // Alleen buckets MET vraag: een lege week met capaciteit is geen belasting, en zou de tabel
       // voor elke resource over de hele projectspanne volspoelen met nullen.
       if (b.load === 0) continue;
-      buckets++;
       const overloaded = b.overallocatedDays.length > 0;
-      if (overloaded) overloadedResources.add(res.id);
       if (opts.onlyOverloaded && !overloaded) continue;
+      buckets++;
+      if (overloaded) overloadedResources.add(res.id);
       rows.push({
         resourceId: res.id,
         resourceName: res.name,
@@ -104,7 +105,7 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
     statusDateMissing: relative && statusDateMissing,
     rows,
     counts: {
-      // Alleen resources die in de tabel staan — dezelfde telling als het toewijzingenrapport (#119).
+      // Resources in de tabel — dezelfde telling als het toewijzingenrapport (#119).
       resources: new Set(rows.map(r => r.resourceId)).size,
       buckets,
       overloadedBuckets: rows.filter(r => r.overloaded).length,

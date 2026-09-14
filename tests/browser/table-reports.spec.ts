@@ -41,14 +41,16 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   await expect(report).not.toContainText('Casco');
   const fromInput = periodField.locator('[data-ops-report-option="lookAheadPeriod.from"]');
   const toInput = periodField.locator('[data-ops-report-option="lookAheadPeriod.to"]');
-  await expect(fromInput).toBeDisabled();
-  await expect(fromInput).toHaveValue('2026-09-14');
-  await expect(toInput).toHaveValue('2026-09-20');
-  // Reviewbevinding: de velden moeten bij de standaardbreedte van de instellingenkolom een volledige
-  // datum plus kalenderknop kunnen tonen — `toHaveValue` slaagt ook op een veld van 18 px.
-  for (const input of [fromInput, toInput]) {
-    const box = await input.boundingBox();
-    expect(box?.width ?? 0).toBeGreaterThanOrEqual(120);
+  // Bij een preset zijn het alleen-lezen teksten in de datumnotatie van de app (standaard d-m-j),
+  // geen invoervelden.
+  await expect(fromInput).toHaveAttribute('data-ops-readonly', 'true');
+  await expect(fromInput).toHaveText('14-09-2026');
+  await expect(toInput).toHaveText('20-09-2026');
+  // Reviewbevinding: labels en waarden mogen bij de standaardbreedte van de instellingenkolom
+  // niet afkappen — gemeten op scroll- versus clientbreedte, niet alleen op de tekst.
+  const fitsOwnBox = (el: HTMLElement) => el.scrollWidth <= el.clientWidth + 1;
+  for (const el of await periodField.locator('[data-ops-report-period-label], [data-ops-readonly]').all()) {
+    expect(await el.evaluate(fitsOwnBox)).toBe(true);
   }
 
   // Aangepast: de velden worden bewerkbaar en starten op de presetdatums; een eigen bereik in
@@ -59,6 +61,14 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   await page.getByRole('option', { name: /^(Custom|Aangepast)$/ }).click();
   await expect(fromInput).toBeEnabled();
   await expect(fromInput).toHaveValue('2026-09-14');
+  // De invoervelden moeten een volledige datum plus kalenderknop kunnen tonen (eerste review: 18 px),
+  // en het label ervoor mag niet afkappen (tweede review: "Başlang" in het Turks).
+  for (const input of [fromInput, toInput]) {
+    expect((await input.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(120);
+  }
+  for (const el of await periodField.locator('[data-ops-report-period-label]').all()) {
+    expect(await el.evaluate(fitsOwnBox)).toBe(true);
+  }
   await toInput.fill('2026-10-16');
   await fromInput.fill('2026-10-05');
   await expect(rows).toHaveCount(2);

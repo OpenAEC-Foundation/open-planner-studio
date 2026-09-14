@@ -63,9 +63,10 @@ du rapport, avec un choix mémorisé par rapport :
   est inclusif aux deux bouts : *4 prochaines semaines* le jeudi 10 septembre va jusqu'au mercredi
   7 octobre. Changez la date d'état et la fenêtre suit.
 - **Tout le projet** — du premier début à la dernière fin du planning.
-- **Personnalisée** — deux dates à vous. Les champs *Du* et *Au* deviennent modifiables (saisie ou
+- **Personnalisée** — deux dates de votre choix. Les champs *Du* et *Au* deviennent modifiables (saisie ou
   sélecteur de date) ; avec un préréglage ils affichent les dates calculées en lecture seule. Une
-  date de fin antérieure à la date de début est signalée en rouge et n'est pas appliquée. En
+  date de fin antérieure à la date de début, ou un champ de date vide, est signalée en rouge et n'est
+  pas appliquée. En
   revenant à un préréglage, ses dates remplacent votre plage.
 
 La période choisie apparaît en sous-titre du rapport et du PDF.
@@ -95,8 +96,9 @@ le planning actuel) et les comptages par état. Dessous, cinq sections : termin�
 écoulée, en cours, démarre pendant la prochaine période, en retard, et activités critiques ouvertes.
 La période de rapport (le mois dernier par défaut) détermine ce qui compte comme *terminé pendant la
 période* ; la section *démarre pendant la prochaine période* regarde en avant à partir de la date
-d'état — jusqu'à la fin de la période si elle se situe (en partie) après la date d'état, sinon aussi
-loin en avant que la période regarde en arrière. La synthèse affiche les deux bornes.
+d'état — jusqu'à la fin de la période si elle se situe (en partie) après la date d'état, pour un préréglage *dernier(s) …*
+aussi loin en avant que la période regarde en arrière ; pour une période personnalisée ou « tout le
+projet » entièrement passée, la section reste vide. La synthèse affiche les deux bornes.
 
 ### Santé du planning
 
@@ -112,10 +114,10 @@ erreur.
 
 Les lignes sont regroupées par ressource (nom et type uniquement sur la première ligne de chaque groupe, comme pour les affectations des ressources) ; *Agrégation* permet de choisir entre semaines et mois civils, et la période de rapport détermine quelles semaines ou quels mois apparaissent.
 
-Par ressource et par semaine, le besoin face à la capacité disponible (en unités-jours), l'écart,
-le pic journalier et si la semaine est surchargée — le même calcul que l'histogramme de l'onglet
-**Ressources**, sous forme de tableau. Seules les semaines avec un besoin figurent ; *Périodes
-surchargées uniquement* ne garde que les goulots.
+Par ressource et par semaine ou par mois, le besoin face à la capacité disponible (en unités-jours),
+l'écart, le pic journalier et si la période est surchargée — le même calcul que l'histogramme de
+l'onglet **Ressources**, sous forme de tableau. Seules les périodes avec un besoin figurent ;
+*Périodes surchargées uniquement* ne garde que les goulots.
 
 ### Affectations des ressources
 
