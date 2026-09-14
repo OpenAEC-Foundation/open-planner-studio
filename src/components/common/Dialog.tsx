@@ -28,6 +28,11 @@ export interface DialogProps {
   onConfirm?: () => void;
   /** Overschrijft de standaard-overlaytint + z-laag (`bg-black/60 z-50`). */
   overlayClassName?: string;
+  /** Verankert het paneel aan de BOVENkant in plaats van verticaal te centreren. Nodig voor
+   *  dialogen waarvan de inhoud van hoogte wisselt: bij verticaal centreren verschuift het hele
+   *  paneel dan onder de muis vandaan (B1c-plan4, spec §7 "de dialoog flitst niet"). Opt-in, dus
+   *  alle bestaande dialogen blijven letterlijk gecentreerd. */
+  alignTop?: boolean;
   /** `stopPropagation` op de backdrop-klik (nodig bij stapeling boven een andere dialoog). */
   stopBackdropPropagation?: boolean;
   /** Extra attributen op de overlay (bv. `data-ops-task-dialog` voor de self-test-harness). */
@@ -39,7 +44,7 @@ export interface DialogProps {
 
 export function Dialog({
   panelClassName, onBackdropClick, onCancel, onConfirm,
-  overlayClassName = 'bg-black/60 z-50', stopBackdropPropagation = false,
+  overlayClassName = 'bg-black/60 z-50', stopBackdropPropagation = false, alignTop = false,
   overlayProps, panelProps, children,
 }: DialogProps) {
   useDialogKeys({ onConfirm, onCancel });
@@ -56,9 +61,11 @@ export function Dialog({
       }
     : undefined;
 
+  // `items-start` en `items-center` komen bewust nooit samen in de class-lijst: welke van de twee
+  // zou gelden hangt dan van de CSS-volgorde af in plaats van van `alignTop`.
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center ${overlayClassName}`}
+      className={`fixed inset-0 flex ${alignTop ? 'items-start pt-[4vh]' : 'items-center'} justify-center ${overlayClassName}`}
       onClick={handleBackdrop}
       {...overlayProps}
     >

@@ -5,6 +5,7 @@ import { isTauri } from '@/utils/platform';
 import {
   FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
+import { Switch } from '@/components/common/Switch';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { canRedo, canUndo } from '@/state/sessionHistory';
@@ -115,19 +116,16 @@ export function TitleBar() {
             <Save size={16} />
           </button>
 
-          <button
+          <Switch
             className={`title-bar-autosave${autoSaveToFile ? ' active' : ''}`}
-            role="switch"
-            aria-checked={autoSaveToFile}
-            aria-label={tCommon('autosave.label')}
+            checked={autoSaveToFile}
+            onChange={toggleAutoSave}
+            label={tCommon('autosave.label')}
+            ariaLabel={tCommon('autosave.label')}
             disabled={!autoSaveRef}
             title={autoSaveTitle}
-            onClick={toggleAutoSave}
             data-ops-autosave
-          >
-            <span>{tCommon('autosave.label')}</span>
-            <span className="title-bar-autosave-track" aria-hidden><span /></span>
-          </button>
+          />
 
           <div className="quick-access-separator" />
 
