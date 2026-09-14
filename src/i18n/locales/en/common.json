@@ -656,7 +656,7 @@
       "title": "Distribute over projects",
       "back": "Back to occupancy",
       "subtitle": "{{item}} — distribute residual capacity over the open projects",
-      "intro": "Choose who is spared the most, pin or cap a project where needed, and look at the chart to see what remains of the double booking. Apply writes the shifts into every project involved.",
+      "intro": "Drag the end of a bar to the right to let that project run on; pin a project that must not move. Apply writes the shifts into every project involved.",
       "blocked": {
         "uncounted": "Calculate first: {{docs}} has not been calculated yet, so there is nothing to distribute.",
         "material": "This is a material item; distributing only works for people and equipment.",
@@ -672,7 +672,13 @@
         "priceOff": "off: {{price}}",
         "priceOn": "on: {{price}}",
         "priceSame": "{{price}} — in both settings",
-        "priceUnknown": "price unknown — press Recalculate"
+        "priceUnknown": "price unknown — press Recalculate",
+        "savesOff_one": "would save {{count}} workday",
+        "savesOff_other": "would save {{count}} workdays",
+        "savesOn_one": "saves {{count}} workday",
+        "savesOn_other": "saves {{count}} workdays",
+        "savesNoneOff": "would save nothing",
+        "savesNoneOn": "saves nothing"
       },
       "rank": {
         "title": "Who gets spared the most?",
@@ -697,7 +703,8 @@
         "recompute": "Recalculates the proposal with the current order, pins and caps.",
         "apply": "Writes the shifts into every project involved; each project gets its own undo step.",
         "discard": "Closes the dialog without changing anything.",
-        "pickAnother": "Back to the list of library items, to distribute a different item."
+        "pickAnother": "Back to the list of library items, to distribute a different item.",
+        "reset": "Puts all ceilings and pins back to neutral. The \"Allow interruptions\" switch stays as it is."
       },
       "strip": {
         "pin": "Pin",
@@ -713,7 +720,13 @@
         "endShift_one": "end +{{count}} day",
         "endShift_other": "end +{{count}} days",
         "requestedVsAchievable": "requested {{requested}}, closest achievable {{achievable}}",
-        "handleLabel": "Overrun ceiling for {{doc}}"
+        "handleLabel": "Overrun ceiling for {{doc}}",
+        "legend": "Solid blocks = workdays · hatched = pause day · gauge: grey = slack, red = end-date shift · dotted = allowed but not used",
+        "slack": "slack {{days}} days",
+        "pinButton": "pin",
+        "unpinButton": "pinned — unpin",
+        "maxDate": "max {{date}}",
+        "used": "used {{used}}"
       },
       "compute": {
         "recalculate": "Recalculate",
@@ -751,7 +764,14 @@
       "selectHint": "Choose a library item with a conflict to start distributing.",
       "noConflicts": "No library item is currently double-booked across the open projects.",
       "pickAnother": "Choose another item…",
-      "pickAnotherApplied": "Choose another item (the undo bar goes away)…"
+      "pickAnotherApplied": "Choose another item (the undo bar goes away)…",
+      "reset": "Reset",
+      "status": {
+        "resolved": "Conflict resolved — largest end-date shift: {{shift}} ({{doc}})",
+        "shortfall_one": "Still {{count}} crew day short on {{days}}…",
+        "shortfall_other": "Still {{count}} crew days short on {{days}}…",
+        "allPinned": "Every project is pinned — there is nothing to redistribute. Unpin one."
+      }
     },
     "color": "Color"
   },

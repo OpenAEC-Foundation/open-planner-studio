@@ -656,7 +656,7 @@
       "title": "Projeler arasında dağıt",
       "back": "Doluluğa dön",
       "subtitle": "{{item}} — kalan kapasiteyi açık projeler arasında dağıt",
-      "intro": "En çok kimin korunacağını seçin, gerekirse bir projeyi sabitleyin veya ona bir tavan verin ve çift rezervasyondan geriye ne kaldığını grafikte görün. Uygula, kaymaları ilgili tüm projelere yazar.",
+      "intro": "Bir projenin taşmasına izin vermek için çubuğun ucunu sağa sürükleyin; hareket etmemesi gereken projeyi sabitleyin. Uygula, kaymaları ilgili tüm projelere yazar.",
       "blocked": {
         "uncounted": "Önce hesapla: {{docs}} henüz hesaplanmadı, bu yüzden dağıtılacak bir şey yok.",
         "material": "Bu bir malzeme kalemi; dağıtım yalnızca kişiler ve ekipman için çalışır.",
@@ -672,7 +672,13 @@
         "priceOff": "kapalı: {{price}}",
         "priceOn": "açık: {{price}}",
         "priceSame": "{{price}} — her iki durumda da",
-        "priceUnknown": "fiyat bilinmiyor — Yeniden Hesapla'ya basın"
+        "priceUnknown": "fiyat bilinmiyor — Yeniden Hesapla'ya basın",
+        "savesOff_one": "{{count}} iş günü kazandırırdı",
+        "savesOff_other": "{{count}} iş günü kazandırırdı",
+        "savesOn_one": "{{count}} iş günü kazandırıyor",
+        "savesOn_other": "{{count}} iş günü kazandırıyor",
+        "savesNoneOff": "hiçbir şey kazandırmazdı",
+        "savesNoneOn": "hiçbir şey kazandırmıyor"
       },
       "rank": {
         "title": "En çok kim korunuyor?",
@@ -697,7 +703,8 @@
         "recompute": "Öneriyi mevcut sıra, sabitlemeler ve tavanlarla yeniden hesaplar.",
         "apply": "Kaymaları ilgili tüm projelere yazar; her proje kendi geri alma adımını alır.",
         "discard": "İletişim kutusunu hiçbir şeyi değiştirmeden kapatır.",
-        "pickAnother": "Başka bir öğeyi dağıtmak için kitaplık öğeleri listesine dönün."
+        "pickAnother": "Başka bir öğeyi dağıtmak için kitaplık öğeleri listesine dönün.",
+        "reset": "Tüm tavanları ve sabitlemeleri nötr duruma döndürür. \"Kesintilere izin ver\" anahtarı olduğu gibi kalır."
       },
       "strip": {
         "pin": "Sabitle",
@@ -713,7 +720,13 @@
         "endShift_one": "bitiş +{{count}} gün",
         "endShift_other": "bitiş +{{count}} gün",
         "requestedVsAchievable": "istenen {{requested}}, en yakın ulaşılabilir {{achievable}}",
-        "handleLabel": "{{doc}} için kaydırma tavanı"
+        "handleLabel": "{{doc}} için kaydırma tavanı",
+        "legend": "Dolu bloklar = iş günleri · taralı = mola günü · cetvel: gri = bolluk, kırmızı = bitiş tarihi kayması · noktalı = izin verildi ama kullanılmadı",
+        "slack": "bolluk {{days}} gün",
+        "pinButton": "sabitle",
+        "unpinButton": "sabit — çöz",
+        "maxDate": "en geç {{date}}",
+        "used": "kullanılan {{used}}"
       },
       "compute": {
         "recalculate": "Yeniden hesapla",
@@ -751,7 +764,14 @@
       "selectHint": "Dağıtmaya başlamak için çakışan bir kitaplık öğesi seçin.",
       "noConflicts": "Şu anda açık projeler arasında çift rezerve edilmiş bir kitaplık öğesi yok.",
       "pickAnother": "Başka bir öğe seç…",
-      "pickAnotherApplied": "Başka bir öğe seç (geri alma çubuğu kaybolur)…"
+      "pickAnotherApplied": "Başka bir öğe seç (geri alma çubuğu kaybolur)…",
+      "reset": "Sıfırla",
+      "status": {
+        "resolved": "Çakışma çözüldü — en büyük bitiş kayması: {{shift}} ({{doc}})",
+        "shortfall_one": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik…",
+        "shortfall_other": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik…",
+        "allPinned": "Tüm projeler sabit — yeniden dağıtılacak bir şey yok. Birini çözün."
+      }
     },
     "color": "Renk"
   },

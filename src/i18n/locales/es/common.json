@@ -668,7 +668,7 @@
       "title": "Repartir entre proyectos",
       "back": "Volver a la ocupación",
       "subtitle": "{{item}} — repartir la capacidad residual entre los proyectos abiertos",
-      "intro": "Elija a quién se protege más, fije o limite un proyecto si hace falta y mire en el gráfico qué queda de la doble reserva. Aplicar escribe los desplazamientos en todos los proyectos implicados.",
+      "intro": "Arrastra el final de una barra hacia la derecha para dejar que ese proyecto se prolongue; fija un proyecto que no deba moverse. Aplicar escribe los desplazamientos en todos los proyectos implicados.",
       "blocked": {
         "uncounted": "Calcula primero: {{docs}} aún no está calculado, así que no hay nada que repartir.",
         "material": "Esto es un artículo de material; el reparto solo funciona para personas y equipos.",
@@ -685,7 +685,15 @@
         "priceOff": "desactivado: {{price}}",
         "priceOn": "activado: {{price}}",
         "priceSame": "{{price}} — en ambos casos",
-        "priceUnknown": "precio desconocido — pulsa Recalcular"
+        "priceUnknown": "precio desconocido — pulsa Recalcular",
+        "savesOff_one": "ahorraría {{count}} día laborable",
+        "savesOff_many": "ahorraría {{count}} días laborables",
+        "savesOff_other": "ahorraría {{count}} días laborables",
+        "savesOn_one": "ahorra {{count}} día laborable",
+        "savesOn_many": "ahorra {{count}} días laborables",
+        "savesOn_other": "ahorra {{count}} días laborables",
+        "savesNoneOff": "no ahorraría nada",
+        "savesNoneOn": "no ahorra nada"
       },
       "rank": {
         "title": "¿A quién se respeta más?",
@@ -711,7 +719,8 @@
         "recompute": "Vuelve a calcular la propuesta con el orden, las fijaciones y los límites actuales.",
         "apply": "Escribe los desplazamientos en todos los proyectos implicados; cada proyecto recibe su propio paso de deshacer.",
         "discard": "Cierra el diálogo sin cambiar nada.",
-        "pickAnother": "Volver a la lista de elementos de la biblioteca para repartir otro elemento."
+        "pickAnother": "Volver a la lista de elementos de la biblioteca para repartir otro elemento.",
+        "reset": "Devuelve todos los topes y fijaciones al estado neutro. El interruptor «Permitir interrupciones» no cambia."
       },
       "strip": {
         "pin": "Fijar",
@@ -729,7 +738,13 @@
         "endShift_many": "fin +{{count}} días",
         "endShift_other": "fin +{{count}} días",
         "requestedVsAchievable": "solicitado {{requested}}, más cercano alcanzable {{achievable}}",
-        "handleLabel": "Techo de retraso para {{doc}}"
+        "handleLabel": "Techo de retraso para {{doc}}",
+        "legend": "Bloques sólidos = días laborables · rayado = día de pausa · regla: gris = holgura, rojo = desplazamiento de la fecha de fin · punteado = permitido pero no usado",
+        "slack": "holgura {{days}} días",
+        "pinButton": "fijar",
+        "unpinButton": "fijado — soltar",
+        "maxDate": "máx. {{date}}",
+        "used": "usado {{used}}"
       },
       "compute": {
         "recalculate": "Recalcular",
@@ -769,7 +784,15 @@
       "selectHint": "Elige un artículo de biblioteca con un conflicto para empezar a repartir.",
       "noConflicts": "Ningún elemento de la biblioteca tiene actualmente doble reserva en los proyectos abiertos.",
       "pickAnother": "Elegir otro elemento…",
-      "pickAnotherApplied": "Elegir otro elemento (la barra de deshacer desaparece)…"
+      "pickAnotherApplied": "Elegir otro elemento (la barra de deshacer desaparece)…",
+      "reset": "Restablecer",
+      "status": {
+        "resolved": "Conflicto resuelto — mayor desplazamiento de fin: {{shift}} ({{doc}})",
+        "shortfall_one": "Todavía falta {{count}} día-cuadrilla el {{days}}…",
+        "shortfall_many": "Todavía faltan {{count}} días-cuadrilla el {{days}}…",
+        "shortfall_other": "Todavía faltan {{count}} días-cuadrilla el {{days}}…",
+        "allPinned": "Todos los proyectos están fijados: no hay nada que redistribuir. Suelta uno."
+      }
     },
     "color": "Color"
   },

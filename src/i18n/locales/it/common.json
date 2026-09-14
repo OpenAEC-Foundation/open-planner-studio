@@ -668,7 +668,7 @@
       "title": "Distribuisci tra i progetti",
       "back": "Torna all'occupazione",
       "subtitle": "{{item}} — distribuisci la capacità residua tra i progetti aperti",
-      "intro": "Scegli chi viene risparmiato di più, fissa o limita un progetto se serve e guarda nel grafico che cosa resta della doppia prenotazione. Applica scrive gli spostamenti in tutti i progetti coinvolti.",
+      "intro": "Trascina la fine di una barra verso destra per lasciare che quel progetto sfori; blocca un progetto che non deve muoversi. Applica scrive gli slittamenti in tutti i progetti coinvolti.",
       "blocked": {
         "uncounted": "Calcola prima: {{docs}} non è ancora stato calcolato, quindi non c'è nulla da distribuire.",
         "material": "Questo è un articolo di materiale; la distribuzione funziona solo per persone e attrezzature.",
@@ -685,7 +685,15 @@
         "priceOff": "disattivato: {{price}}",
         "priceOn": "attivato: {{price}}",
         "priceSame": "{{price}} — in entrambi i casi",
-        "priceUnknown": "prezzo sconosciuto — premi Ricalcola"
+        "priceUnknown": "prezzo sconosciuto — premi Ricalcola",
+        "savesOff_one": "risparmierebbe {{count}} giorno lavorativo",
+        "savesOff_many": "risparmierebbe {{count}} giorni lavorativi",
+        "savesOff_other": "risparmierebbe {{count}} giorni lavorativi",
+        "savesOn_one": "risparmia {{count}} giorno lavorativo",
+        "savesOn_many": "risparmia {{count}} giorni lavorativi",
+        "savesOn_other": "risparmia {{count}} giorni lavorativi",
+        "savesNoneOff": "non risparmierebbe nulla",
+        "savesNoneOn": "non risparmia nulla"
       },
       "rank": {
         "title": "Chi viene risparmiato di più?",
@@ -711,7 +719,8 @@
         "recompute": "Ricalcola la proposta con l'ordine, i fissaggi e i limiti attuali.",
         "apply": "Scrive gli spostamenti in tutti i progetti coinvolti; ogni progetto riceve il proprio passo di annullamento.",
         "discard": "Chiude la finestra senza modificare nulla.",
-        "pickAnother": "Torna all'elenco degli elementi della libreria per distribuire un altro elemento."
+        "pickAnother": "Torna all'elenco degli elementi della libreria per distribuire un altro elemento.",
+        "reset": "Riporta tutti i tetti e i blocchi allo stato neutro. L'interruttore «Consenti interruzioni» resta invariato."
       },
       "strip": {
         "pin": "Blocca",
@@ -729,7 +738,13 @@
         "endShift_many": "fine +{{count}} giorni",
         "endShift_other": "fine +{{count}} giorni",
         "requestedVsAchievable": "richiesto {{requested}}, il più vicino raggiungibile {{achievable}}",
-        "handleLabel": "Tetto di ritardo per {{doc}}"
+        "handleLabel": "Tetto di ritardo per {{doc}}",
+        "legend": "Blocchi pieni = giorni lavorativi · tratteggio = giorno di pausa · righello: grigio = scorrimento, rosso = slittamento della data di fine · punteggiato = consentito ma non usato",
+        "slack": "scorrimento {{days}} giorni",
+        "pinButton": "blocca",
+        "unpinButton": "bloccato — sblocca",
+        "maxDate": "max {{date}}",
+        "used": "usato {{used}}"
       },
       "compute": {
         "recalculate": "Ricalcola",
@@ -769,7 +784,15 @@
       "selectHint": "Scegli un articolo di libreria con un conflitto per iniziare a distribuire.",
       "noConflicts": "Nessun elemento della libreria è attualmente prenotato due volte nei progetti aperti.",
       "pickAnother": "Scegli un altro elemento…",
-      "pickAnotherApplied": "Scegli un altro elemento (la barra di annullamento scompare)…"
+      "pickAnotherApplied": "Scegli un altro elemento (la barra di annullamento scompare)…",
+      "reset": "Reimposta",
+      "status": {
+        "resolved": "Conflitto risolto — slittamento di fine maggiore: {{shift}} ({{doc}})",
+        "shortfall_one": "Manca ancora {{count}} giorno-squadra il {{days}}…",
+        "shortfall_many": "Mancano ancora {{count}} giorni-squadra il {{days}}…",
+        "shortfall_other": "Mancano ancora {{count}} giorni-squadra il {{days}}…",
+        "allPinned": "Tutti i progetti sono bloccati: non c'è nulla da ridistribuire. Sbloccane uno."
+      }
     },
     "color": "Colore"
   },
