@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
@@ -367,8 +368,15 @@ export function GanttCanvas({
     state.setScroll(Math.max(0, startX - 40), currentView.scrollY);
   }, [canvasRef, sharedAxis]);
 
+  // Issue #118: een onthulverzoek is eenmalig. `revealTaskIfOffscreen` hangt aan `sharedAxis`,
+  // die bij iedere scrollX-wijziging opnieuw gebouwd wordt; zonder deze poort vuurde het effect
+  // daardoor bij élke scroll opnieuw voor hetzelfde verzoek en trok het de balk telkens terug in
+  // beeld — de Gantt zat "vast" aan de laatst in de tabel aangeklikte taak, ook na deselectie.
+  const handledRevealNonceRef = useRef<number | null>(null);
   useEffect(() => {
     if (!revealRequest) return;
+    if (handledRevealNonceRef.current === revealRequest.nonce) return;
+    handledRevealNonceRef.current = revealRequest.nonce;
     const task = tasks.find(candidate => candidate.id === revealRequest.taskId);
     if (task) revealTaskIfOffscreen(task);
   }, [revealRequest, tasks, revealTaskIfOffscreen]);
