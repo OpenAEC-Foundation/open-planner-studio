@@ -264,10 +264,22 @@ export function PhaseStrip({
       data-ops-distribution-day-width={dayWidth}
       {...(pinned ? { 'data-ops-distribution-pinned': 'true' } : {})}
     >
-      {/* (a) LABEL — kleurstip, projectnaam, speling, pin-tekstknop (§4/§6). */}
+      {/* (a) LABEL — kleurstip, projectnaam, speling, pin-tekstknop (§4/§6).
+
+          VASTGEZETTE KOLOM (gebruikstest eigenaar 2026-09-14). De rij staat in één horizontale
+          scroll-container samen met de tracks; rekt het plafond de tijdas voorbij de dialoogbreedte,
+          dan schoof deze kolom mee naar links en verdween de projectnaam uit beeld — precies
+          wanneer je 'm nodig hebt, want je bent dán aan het vergelijken. `position: sticky` is hier
+          de bevriezing en niet een aparte kolom-buiten-de-scroller: alleen zo blijven de rijhoogtes
+          van label, track en uitkomst per constructie gelijk (ze zitten in dezelfde flexrij) en
+          blijft de sleepstate LOKAAL in deze component. Zou de kolom een eigen stapel buiten de
+          scroller zijn, dan moest `dragValue` naar de dialoog — en dan hertekent elke sleepstap de
+          hele dialoog, inclusief het histogram, wat reparatie 2 hieronder juist wegneemt.
+          Ondoorzichtige achtergrond: de track schuift eronderdoor. */}
       <div
-        className="flex flex-col justify-center shrink-0 min-w-0"
+        className="flex flex-col justify-center shrink-0 min-w-0 sticky left-0 z-[2] bg-surface"
         style={{ width: STRIP.labelWidth }}
+        data-ops-distribution-label
       >
         <span className="flex items-center gap-1.5 min-w-0">
           <span
@@ -509,9 +521,13 @@ export function PhaseStrip({
         </button>
       </div>
 
-      {/* (c) UITKOMSTLABEL — vaste breedte, dus een toestandswissel verandert de maat niet (§7). */}
+      {/* (c) UITKOMSTLABEL — vaste breedte, dus een toestandswissel verandert de maat niet (§7).
+          VASTGEZET aan de RECHTERrand om dezelfde reden als het label links: de eigenaar zag
+          "eind +5 dage" en "max onbegrensd · benu" halverwege afgekapt tegen de dialoogrand zodra
+          de as voorbij de zichtbare breedte gerekt was. De uitkomst is de reden dat je sleept; die
+          mag nooit uit beeld schuiven. */}
       <div
-        className="flex flex-col items-end shrink-0 text-right"
+        className="flex flex-col items-end shrink-0 text-right sticky right-0 z-[2] bg-surface"
         style={{ width: STRIP.endWidth }}
         data-ops-distribution-effect
       >

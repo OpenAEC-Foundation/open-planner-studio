@@ -863,3 +863,55 @@ test('van document wisselen sluit de dialoog', async ({ page, ops: _ops }) => {
   // Het bezettingsoverzicht blijft gewoon staan; de gebruiker opent opnieuw op de conflictregel.
   await expect(page.locator('[data-ops-occupancy-view]')).toBeVisible();
 });
+
+// --- Gebruikstest eigenaar 2026-09-14 — de vaste kolommen blijven in beeld -----------------------
+
+test('een opgerekt plafond schuift de label- en uitkomstkolom niet uit de dialoog', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const strip = page.locator('[data-ops-distribution-strip]').nth(1);
+  const handle = strip.locator('[data-ops-distribution-handle]');
+  const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
+  expect(dayWidth).toBeGreaterThan(0);
+
+  // Een ECHTE sleep, zo ver naar rechts als het venster toelaat: de dagenset groeit mee met het
+  // plafond, dus de tijdas wordt hierdoor een veelvoud breder dan de dialoog zelf. Dat is precies
+  // de stand waarin de eigenaar "eind +5 dage" en "max onbegrensd · benu" afgekapt zag.
+  const viewport = page.viewportSize()!;
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.width - 8, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  // De as is echt buiten de dialoog gegroeid — zonder die overloop bewijst deze test niets.
+  const scroller = page.locator('[data-ops-distribution-scroller]');
+  await expect.poll(() => scroller.evaluate(el => el.scrollWidth - el.clientWidth))
+    .toBeGreaterThan(100);
+
+  const dialogBox = (await page.locator('[data-ops-distribution-dialog]').boundingBox())!;
+  const within = async (selector: string) => {
+    const cells = page.locator(selector);
+    await expect(cells).toHaveCount(2);
+    for (let i = 0; i < 2; i++) {
+      const cell = (await cells.nth(i).boundingBox())!;
+      expect(cell.width).toBeGreaterThan(0);
+      expect(cell.x).toBeGreaterThanOrEqual(dialogBox.x - 1);
+      expect(cell.x + cell.width).toBeLessThanOrEqual(dialogBox.x + dialogBox.width + 1);
+    }
+  };
+
+  // (1) Op de niet-gescrolde stand: de uitkomstkolom is aan de rechterrand vastgezet en staat dus
+  // niet meer achter de as aan, ver buiten het paneel.
+  await within('[data-ops-distribution-effect]');
+  await within('[data-ops-distribution-label]');
+
+  // (2) En met de as helemaal naar rechts gescrold blijven beide kolommen staan — dat is wat
+  // "bevroren" betekent, en het is de enige manier om de projectnaam bij de uitkomst te houden.
+  await scroller.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  await within('[data-ops-distribution-effect]');
+  await within('[data-ops-distribution-label]');
+  await expect(page.locator('[data-ops-distribution-label]').first()).toContainText(/Eendaags project/);
+});
