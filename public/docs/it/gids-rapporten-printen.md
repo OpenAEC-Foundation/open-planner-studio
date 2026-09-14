@@ -99,8 +99,8 @@ Il periodo scelto compare come sottotitolo del report e del PDF.
 
 ### Previsione (look-ahead)
 
-L'elenco per la riunione settimanale di cantiere: tutte le attività delle prossime *N* settimane
-(quattro per default) — cosa inizia, prosegue o finisce — più ciò che avrebbe già dovuto accadere.
+L'elenco per la riunione settimanale di cantiere: tutte le attività del periodo del report
+(il prossimo mese per default) — cosa inizia, prosegue o finisce — più ciò che avrebbe già dovuto accadere.
 Per riga: WBS, nome, inizio e fine, durata residua, avanzamento, slack totale, critica o quasi
 critica, risorse assegnate e uno stato: **Inizia**, **In corso**, **Doveva iniziare** o **In
 ritardo**. Compare anche un'attività che copre l'intera finestra.
@@ -119,7 +119,10 @@ prevista con la differenza in giorni lavorativi, l'avanzamento **pianificato** c
 **effettivo** (entrambi pesati sulla durata delle attività foglia; pianificato sulle date della
 baseline attiva, altrimenti sul programma attuale) e i conteggi per stato. Sotto, cinque sezioni:
 completate nel periodo passato, in corso, iniziano nel prossimo periodo, in ritardo e attività
-critiche aperte. Il periodo (due settimane per default) guarda indietro quanto avanti.
+critiche aperte. Il periodo del report (l'ultimo mese per default) decide cosa conta come *completato nel periodo*;
+la sezione *iniziano nel prossimo periodo* guarda avanti dalla data di stato: fino alla fine del
+periodo se questo cade (in parte) dopo la data di stato, altrimenti tanto avanti quanto il periodo
+guarda indietro. Il riepilogo mostra entrambi i limiti.
 
 ### Salute del programma
 
@@ -137,13 +140,13 @@ Le righe sono raggruppate per risorsa (nome e tipo solo sulla prima riga di ogni
 Per risorsa e settimana, il fabbisogno rispetto alla capacità disponibile (in unità-giorno), la
 differenza, il picco giornaliero e se la settimana è sovraccarica — lo stesso calcolo
 dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo le settimane con
-fabbisogno; con *Solo settimane sovraccariche* restano solo i colli di bottiglia.
+fabbisogno; con *Solo periodi sovraccarichi* restano solo i colli di bottiglia.
 
 ### Assegnazioni risorse
 
 Per risorsa, le attività assegnate: WBS, nome, inizio e fine, durata residua, unità al giorno,
-avanzamento, critica e stato. Le attività completate sono escluse per default. Con una finestra in
-settimane diventa la *previsione per risorsa*. Il riepilogo conta anche le attività senza risorsa.
+avanzamento, critica e stato. Le attività completate sono escluse per default. Con un periodo del
+report (intero progetto per default) diventa la *previsione per risorsa*. Il riepilogo conta anche le attività senza risorsa.
 
 ### Riepilogo WBS
 

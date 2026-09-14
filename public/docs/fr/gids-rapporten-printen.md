@@ -72,8 +72,8 @@ La période choisie apparaît en sous-titre du rapport et du PDF.
 
 ### Prévision (look-ahead)
 
-La liste de la réunion de chantier hebdomadaire : toutes les activités des *N* prochaines semaines
-(quatre par défaut) — ce qui démarre, continue ou se termine — plus ce qui aurait déjà dû se faire.
+La liste de la réunion de chantier hebdomadaire : toutes les activités de la période de rapport
+(le mois prochain par défaut) — ce qui démarre, continue ou se termine — plus ce qui aurait déjà dû se faire.
 Par ligne : WBS, nom, début et fin, durée restante, avancement, marge totale, critique ou quasi
 critique, ressources affectées et un statut : **Démarre**, **En cours**, **Aurait dû démarrer** ou
 **En retard**. Une activité qui couvre toute la fenêtre y figure aussi.
@@ -93,7 +93,10 @@ et la fin prévue avec l'écart en jours ouvrés, l'avancement **prévu** contre
 pondérés par la durée des tâches feuilles ; prévu sur les dates de la référence active, sinon sur
 le planning actuel) et les comptages par état. Dessous, cinq sections : terminé pendant la période
 écoulée, en cours, démarre pendant la prochaine période, en retard, et activités critiques ouvertes.
-La période (deux semaines par défaut) regarde autant en arrière qu'en avant.
+La période de rapport (le mois dernier par défaut) détermine ce qui compte comme *terminé pendant la
+période* ; la section *démarre pendant la prochaine période* regarde en avant à partir de la date
+d'état — jusqu'à la fin de la période si elle se situe (en partie) après la date d'état, sinon aussi
+loin en avant que la période regarde en arrière. La synthèse affiche les deux bornes.
 
 ### Santé du planning
 
@@ -111,14 +114,14 @@ Les lignes sont regroupées par ressource (nom et type uniquement sur la premiè
 
 Par ressource et par semaine, le besoin face à la capacité disponible (en unités-jours), l'écart,
 le pic journalier et si la semaine est surchargée — le même calcul que l'histogramme de l'onglet
-**Ressources**, sous forme de tableau. Seules les semaines avec un besoin figurent ; *Semaines
+**Ressources**, sous forme de tableau. Seules les semaines avec un besoin figurent ; *Périodes
 surchargées uniquement* ne garde que les goulots.
 
 ### Affectations des ressources
 
 Par ressource, les activités qui lui sont affectées : WBS, nom, début et fin, durée restante, unités
 par jour, avancement, critique et statut. Les tâches terminées sont exclues par défaut. Avec une
-fenêtre en semaines, cela devient la *prévision par ressource*. La synthèse compte aussi les tâches
+période de rapport (tout le projet par défaut), cela devient la *prévision par ressource*. La synthèse compte aussi les tâches
 sans ressource.
 
 ### Synthèse WBS

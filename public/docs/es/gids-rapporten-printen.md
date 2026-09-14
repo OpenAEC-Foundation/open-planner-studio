@@ -102,8 +102,8 @@ El periodo elegido aparece como subtítulo del informe y del PDF.
 
 ### Previsión (look-ahead)
 
-La lista para la reunión semanal de obra: todas las actividades de las próximas *N* semanas
-(cuatro por defecto) — lo que empieza, continúa o termina — más lo que ya debería haber ocurrido.
+La lista para la reunión semanal de obra: todas las actividades del periodo del informe
+(el próximo mes por defecto) — lo que empieza, continúa o termina — más lo que ya debería haber ocurrido.
 Por fila: EDT, nombre, inicio y fin, duración restante, avance, holgura total, crítica o casi
 crítica, recursos asignados y un estado: **Empieza**, **En curso**, **Debió empezar** o
 **Atrasada**. Una actividad que abarca toda la ventana también aparece.
@@ -122,7 +122,10 @@ y el fin previsto con la diferencia en días laborables, el avance **planificado
 (ambos ponderados por duración sobre las tareas hoja; planificado sobre las fechas de la línea base
 activa, si no sobre el cronograma actual) y los recuentos por estado. Debajo, cinco secciones:
 completadas en el periodo anterior, en curso, empiezan en el próximo periodo, atrasadas y
-actividades críticas abiertas. El periodo (dos semanas por defecto) mira tanto atrás como adelante.
+actividades críticas abiertas. El periodo del informe (el último mes por defecto) decide qué cuenta como *completado en el
+periodo*; la sección *empiezan en el próximo periodo* mira adelante desde la fecha de estado: hasta el
+fin del periodo si este queda (en parte) después de la fecha de estado, y si no, tan lejos adelante
+como el periodo mira atrás. El resumen muestra ambos límites.
 
 ### Salud del cronograma
 
@@ -140,14 +143,14 @@ Las filas se agrupan por recurso (nombre y tipo solo en la primera fila de cada 
 
 Por recurso y semana, la demanda frente a la capacidad disponible (en unidades-día), la diferencia,
 el pico diario y si la semana está sobrecargada — el mismo cálculo que el histograma de la pestaña
-**Recursos**, en forma de tabla. Solo aparecen semanas con demanda; con *Solo semanas sobrecargadas*
+**Recursos**, en forma de tabla. Solo aparecen semanas con demanda; con *Solo periodos sobrecargados*
 quedan únicamente los cuellos de botella.
 
 ### Asignaciones de recursos
 
 Por recurso, las actividades asignadas: EDT, nombre, inicio y fin, duración restante, unidades por
-día, avance, crítica y estado. Las tareas completadas se excluyen por defecto. Con una ventana en
-semanas se convierte en la *previsión por recurso*. El resumen cuenta también las tareas sin recurso.
+día, avance, crítica y estado. Las tareas completadas se excluyen por defecto. Con un periodo del
+informe (todo el proyecto por defecto) se convierte en la *previsión por recurso*. El resumen cuenta también las tareas sin recurso.
 
 ### Resumen EDT
 

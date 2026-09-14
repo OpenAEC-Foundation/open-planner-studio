@@ -72,7 +72,7 @@ Der gewählte Zeitraum steht als Untertitel im Bericht und im PDF.
 
 ### Vorschau (Look-ahead)
 
-Die Liste für die wöchentliche Baubesprechung: alle Vorgänge der nächsten *N* Wochen (Standard vier)
+Die Liste für die wöchentliche Baubesprechung: alle Vorgänge im Berichtszeitraum (Standard: nächster Monat)
 — was beginnt, was weiterläuft, was endet — plus das, was bereits hätte passieren müssen. Je Zeile:
 PSP, Name, Start und Ende, Restdauer, Fertigstellung, Gesamtpuffer, kritisch/fast kritisch, die
 zugewiesenen Ressourcen und ein Status: **Beginnt**, **In Arbeit**, **Hätte starten müssen** oder
@@ -92,8 +92,10 @@ Prognose-Ende mit der Differenz in Arbeitstagen, **geplanten** gegenüber **tats
 Fortschritt (beide dauergewichtet über die Blattvorgänge; geplant auf den Terminen des aktiven
 Basisplans, sonst auf der aktuellen Planung) und die Zählungen je Zustand. Darunter fünf
 Abschnitte: im vergangenen Zeitraum abgeschlossen, in Arbeit, Beginn im kommenden Zeitraum,
-überfällig und offene kritische Vorgänge. Der Zeitraum (Standard zwei Wochen) blickt gleich weit
-zurück wie voraus.
+überfällig und offene kritische Vorgänge. Der Berichtszeitraum (Standard: letzter Monat) bestimmt, was als *im Zeitraum abgeschlossen*
+zählt; der Abschnitt *Beginn im kommenden Zeitraum* blickt vom Statusdatum voraus — bis zum Ende
+des Zeitraums, wenn dieser (teilweise) nach dem Statusdatum liegt, sonst so weit voraus, wie der
+Zeitraum zurückblickt. Die Zusammenfassung zeigt beide Grenzen.
 
 ### Terminplan-Qualität
 
@@ -112,13 +114,13 @@ Die Zeilen sind pro Ressource gruppiert (Name und Typ nur in der ersten Zeile je
 Je Ressource und Woche der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen), die
 Differenz, die Tagesspitze und ob die Woche überlastet ist — dieselbe Berechnung wie das Histogramm
 auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Wochen mit Bedarf sind enthalten; mit
-*Nur überlastete Wochen* bleiben nur die Engpässe.
+*Nur überlastete Zeiträume* bleiben nur die Engpässe.
 
 ### Ressourcenzuweisungen
 
 Je Ressource die zugewiesenen Vorgänge: PSP, Name, Start und Ende, Restdauer, Einheiten pro Tag,
-Fertigstellung, kritisch und Status. Abgeschlossene Vorgänge fehlen standardmäßig. Mit einem Fenster
-in Wochen wird daraus die *Ressourcen-Vorschau*. Die Zusammenfassung zählt auch die Vorgänge ohne
+Fertigstellung, kritisch und Status. Abgeschlossene Vorgänge fehlen standardmäßig. Mit einem
+Berichtszeitraum (Standard: gesamtes Projekt) wird daraus die *Ressourcen-Vorschau*. Die Zusammenfassung zählt auch die Vorgänge ohne
 Ressource.
 
 ### PSP-Zusammenfassung
