@@ -5,7 +5,7 @@ import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
-import { clearTimephasedWindow, clearTimephasedDurationWalks } from '@/utils/taskDefaults';
+import { clearTimephasedWindow, clearTimephasedDurationWalks, clearLevelingGaps } from '@/utils/taskDefaults';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 
@@ -154,6 +154,9 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const clearedWindow = clearTimephasedWindow(task);
       const clearedWalks = clearTimephasedDurationWalks(task);
       lostTimephasedGuidance = clearedWindow || clearedWalks;
+      // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `taskSlice.ts`'s `updateTask` voor de
+      // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
+      clearLevelingGaps(task);
       runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -237,6 +240,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         const clearedWindow = clearTimephasedWindow(removedTask);
         const clearedWalks = clearTimephasedDurationWalks(removedTask);
         lostTimephasedGuidance = clearedWindow || clearedWalks;
+        // B1c-plan3 taak 3 — zie `assignResource` hierboven.
+        clearLevelingGaps(removedTask);
       }
       runtime.finishMutation(s);
     });
@@ -289,10 +294,14 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         const clearedOldWindow = clearTimephasedWindow(oldTaskForWindow);
         const clearedOldWalks = clearTimephasedDurationWalks(oldTaskForWindow);
         if (clearedOldWindow || clearedOldWalks) lostCount++;
+        // B1c-plan3 taak 3 — zie `assignResource` hierboven.
+        clearLevelingGaps(oldTaskForWindow);
       }
       const clearedNewWindow = clearTimephasedWindow(newTask);
       const clearedNewWalks = clearTimephasedDurationWalks(newTask);
       if (clearedNewWindow || clearedNewWalks) lostCount++;
+      // B1c-plan3 taak 3 — zie `assignResource` hierboven.
+      clearLevelingGaps(newTask);
       runtime.finishMutation(s);
       moved = true;
     });
@@ -350,6 +359,9 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
           // via een ander pad (rechtstreekse mutatie i.p.v. de dedicated actie). Zonder deze
           // aanroep bleef een bevroren Z8-venster staan terwijl de taak-kalender onder 'm wegviel.
           if (clearTimephasedWindow(t)) lostCount++;
+          // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `assignResource` hierboven voor de
+          // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
+          clearLevelingGaps(t);
         }
       }
       // Was dit de projectdefault, dan de projectkalender op een fallback zetten (§9.2).
@@ -385,6 +397,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
           t.calendarId = undefined;
           // Z14b (F3-fixronde) — zelfde reden als removeCalendar hierboven.
           if (clearTimephasedWindow(t)) lostCount++;
+          // B1c-plan3 taak 3 — zie `assignResource` hierboven.
+          clearLevelingGaps(t);
         }
       }
       // Projectdefault: het meegegeven id als het (nog) bestaat, anders de eerste entry (§9.2).
