@@ -38,8 +38,6 @@
   "exportPDF": "PDF dışa aktar",
   "noTasks": "Görüntülenecek görev yok",
   "printed": "Yazdırıldı:",
-  "page": "Sayfa",
-  "of": "/",
   "today": "Bugün",
   "previewPageLimit_one": "… ve {{count}} sayfa daha — tam belge için dışa aktarın",
   "previewPageLimit_other": "… ve {{count}} sayfa daha — tam belge için dışa aktarın",

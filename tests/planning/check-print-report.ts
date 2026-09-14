@@ -535,6 +535,32 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       'kop + body + voet passen samen in het printgebied');
     ok(Math.abs(withFooter.footerTopPt - (withFooter.marginPt + withFooter.printH - withFooter.repeatFooterPtH)) < 1e-9, 'voetstrook staat onderaan het printgebied');
     ok(withFooter.rows >= plain.rows, 'de voet kost hooguit pagina\'s, nooit minder');
+    // Review #135 bevinding 1: de voet wordt uit één vast venster getekend (x vanaf 0, één
+    // paginabreedte) — op elke kolompagina hetzelfde — en de render legt de voetinhoud binnen die
+    // breedte, zodat merk én legenda op elk vel staan, ook met de tijdlijn over meerdere pagina's.
+    const twoCols = computeTileLayout({ ...tile, timelineColumns: 2, repeatFooterHeightPx: dims.footerHeight });
+    ok(twoCols.cols === 2 && twoCols.repeatFooterPx === dims.footerHeight, 'twee kolommen: voet herhaald');
+    ok(twoCols.footerWindow.srcX === 0 && twoCols.footerWindow.pageX === twoCols.marginPt
+      && Math.abs(twoCols.footerWindow.srcW * twoCols.scale - twoCols.printW) < 1e-6,
+      `voetvenster = één paginabreedte vanaf x=0 (got srcW·scale=${twoCols.footerWindow.srcW * twoCols.scale}, printW=${twoCols.printW})`);
+    ok(twoCols.footerLayoutWidthPx < dims.width && twoCols.footerLayoutWidthPx === twoCols.footerWindow.srcW,
+      'de voet-layoutbreedte is die paginabreedte, kleiner dan het canvas');
+    const narrow = record(many, [], cal, baseOptions({ footerLayoutWidth: twoCols.footerLayoutWidthPx }));
+    const footerTexts = narrow.texts.filter(t => t.y > narrow.dims.height - narrow.dims.footerHeight);
+    ok(footerTexts.some(t => t.text === 'Open Planner Studio') && footerTexts.every(t => t.x <= twoCols.footerLayoutWidthPx + 1e-6),
+      `met footerLayoutWidth staat alle voettekst (merk incl.) binnen één paginabreedte (max x ${Math.max(...footerTexts.map(t => t.x)).toFixed(1)} ≤ ${twoCols.footerLayoutWidthPx.toFixed(1)})`);
+    const wide = record(many, [], cal, baseOptions());
+    ok(wide.texts.some(t => t.text === 'Open Planner Studio' && t.x > twoCols.footerLayoutWidthPx), 'zonder footerLayoutWidth staat het merk rechts op het canvas (controle dat de meting iets meet)');
+    ok(Math.abs(narrow.dims.width - wide.dims.width) < 1e-9 && Math.abs(narrow.dims.height - wide.dims.height) < 1e-9, 'de voetbreedte verandert de canvasmaten niet');
+    // Review #135 bevinding 4: past alles op één pagina, dan valt er niets te herhalen — de voet blijft
+    // onder de laatste rij en de tegeling is byte-identiek aan die zonder optie.
+    const few = Array.from({ length: 5 }, (_, i) => ({ ...T_NORM, id: `s${i}`, name: `Taak ${i}`, wbsCode: String(i + 1) }));
+    const small = measurePrintReport(few, [], cal, 'Eén pagina', baseOptions());
+    const smallTile = { ...tile, logicalWidth: small.width, logicalHeight: small.height, frozenColumnWidthPx: small.tableWidth, repeatHeaderHeightPx: small.headerHeight, breakOffsetsPx: small.breakOffsets };
+    const smallPlain = computeTileLayout(smallTile);
+    const smallFooter = computeTileLayout({ ...smallTile, repeatFooterHeightPx: small.footerHeight });
+    ok(smallPlain.rows === 1 && smallFooter.repeatFooterPx === 0 && JSON.stringify(smallFooter.bodyRows) === JSON.stringify(smallPlain.bodyRows),
+      'éénpagina-afdruk: voet niet herhaald, tegeling identiek');
     // Degeneratie: een voet die (met de kop) de hele pagina of de hele bron opeet wordt niet herhaald.
     const tooTall = computeTileLayout({ ...tile, repeatFooterHeightPx: dims.height });
     ok(tooTall.repeatFooterPx === 0 && JSON.stringify(tooTall.bodyRows) === JSON.stringify(plain.bodyRows), 'te hoge voet ⇒ niet herhaald, tegeling als zonder');
@@ -560,7 +586,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       repeatHeaderHeightPx: perBand.headerHeight, breakOffsetsPx: perBand.breakOffsets,
       forcedBreakOffsetsPx: perBand.forcedBreakOffsets, repeatFooterHeightPx: perBand.footerHeight,
     });
-    ok(l.rows === 3 && l.repeatFooterPx === perBand.footerHeight, `blad per resource mét voet: drie pagina's, elk met voetstrook (got ${l.rows}, voet ${l.repeatFooterPx})`);
+    ok(l.rows === 3 && l.repeatFooterPx === perBand.footerHeight, `blad per resource mét voet: drie pagina's, elk met voetstrook — de gedwongen posities maken het meerpagina, ook al past alles op één (got ${l.rows}, voet ${l.repeatFooterPx})`);
     const forcedSet = new Set(perBand.forcedBreakOffsets);
     ok(l.bodyRows.slice(0, -1).every(r => forcedSet.has(r.srcY + r.srcH)), 'blad per resource mét voet: pagina 1 en 2 eindigen op de bandgrens');
     // De voet zelf bevat geen nep-paginanummer meer: de pagineerders drukken "n / totaal" in de marge.

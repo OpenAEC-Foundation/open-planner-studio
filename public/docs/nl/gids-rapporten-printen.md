@@ -43,7 +43,11 @@ instellingenblok:
   pagina in plaats van alleen de eerste.
 - **Voet op elke pagina herhalen** — standaard aan; zet de voet met projectnaam, afdrukdatum en
   legenda onderaan elke pagina in plaats van alleen de laatste, zodat een los uitgedeeld vel zijn
-  eigen legenda heeft. Uit = iets meer rijen per pagina.
+  eigen legenda heeft — ook wanneer de tijdlijn over meerdere pagina's naast elkaar staat. Past de
+  hele afdruk op één pagina, dan blijft de voet gewoon onder de laatste rij staan. De strook kost
+  per pagina ruimte: ongeveer twee rijen minder per vel, dus soms een pagina meer, en een resource
+  die met *Elke resource op een nieuwe pagina* nét op één vel paste kan daardoor over twee vellen
+  gaan. Uit = de voet alleen op de laatste pagina.
 - **Tijdlijn over** — verdeelt de Gantt-tijdlijn over 1 tot 8 pagina's naast elkaar; alleen
   beschikbaar met auto-fit aan. Kies meer pagina's wanneer je de tijdas minder wilt comprimeren
   zonder de tabeltekst kleiner te maken.

@@ -6,7 +6,7 @@ import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { projectFileBase } from '@/utils/documents';
 import { computeHighResScale } from '@/utils/miniPdf';
-import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
+import { paginateCanvasToPdfBytes, type PaginateOptions } from '@/services/print/paginate';
 import { computeTileLayout } from '@/services/print/tileLayout';
 import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
@@ -552,8 +552,6 @@ export function ReportPanel() {
         duration: t('tableHeaders.duration'),
         completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
       },
-      page: t('page', { defaultValue: 'Pagina' }),
-      of: t('of', { defaultValue: 'van' }),
       today: t('today', { defaultValue: 'Vandaag' }),
       statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
       progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
@@ -669,7 +667,7 @@ export function ReportPanel() {
         // Kop herhalen per pagina (issue #25 punt 1): de hoogte komt uit de render zelf; 0 = niet
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
-        repeatFooterHeightPx: repeatFooter ? (footerHeight ?? 0) : 0,
+        repeatFooterHeightPx: repeatFooter ? footerHeight : 0,
         timelineColumns: options.timelineColumns,
         // Rij-bewuste paginering (issue #110): preview en export delen dezelfde breekposities;
         // het resourcediagram (issue #113) ook zijn gedwongen overgangen per resource.
@@ -678,6 +676,8 @@ export function ReportPanel() {
         supersample: previewLimits.pageSupersample,
       };
       const layout = computeTileLayout(tileOptions);
+      // De herhaalde voet wordt binnen één paginabreedte gelegd (meerdere kolommen ⇒ compleet op elk vel).
+      const pageOptions: PrintOptions = { ...options, footerLayoutWidth: layout.footerLayoutWidthPx };
       const total = layout.rows * layout.cols;
       const root = previewViewportRef.current;
       const anchor = root ? capturePreviewScrollAnchor(root) : { index: 0, offset: 0, scrollTop: 0 };
@@ -757,7 +757,7 @@ export function ReportPanel() {
         const canvas = document.createElement('canvas');
         let pendingObjectUrl: string | undefined;
         try {
-          renderPrintPreviewPage(canvas, tasks, sequences, calendar, projectName, options, {
+          renderPrintPreviewPage(canvas, tasks, sequences, calendar, projectName, pageOptions, {
             layout,
             pageIndex: index,
             rasterWidth: previewLimits.pageRasterWidth,
@@ -926,19 +926,22 @@ export function ReportPanel() {
         const {
           width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, footerHeight, breakOffsets, forcedBreakOffsets,
         } = renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, 1);
-        const exportScale = computeHighResScale(logicalWidth, logicalHeight);
-        renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
-        return paginateCanvasToPdfBytes(exportCanvas, {
+        const rasterTile: PaginateOptions = {
           paperSize: lowerPaper, orientation, mode,
           logicalWidth, logicalHeight, frozenColumnWidthPx: tableWidth,
-          // Zelfde kopherhaling (px) en tijdlijn-spreiding als de preview en de vector-tak, zodat de
-          // raster-terugval WYSIWYG gelijk is aan beide (issue #25 punt 1 + 5).
+          // Zelfde kop-/voetherhaling (px) en tijdlijn-spreiding als de preview en de vector-tak,
+          // zodat de raster-terugval WYSIWYG gelijk is aan beide (issue #25 punt 1 + 5, #113).
           repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
-          repeatFooterHeightPx: repeatFooter ? (footerHeight ?? 0) : 0,
+          repeatFooterHeightPx: repeatFooter ? footerHeight : 0,
           timelineColumns,
           breakOffsetsPx: breakOffsets,
           forcedBreakOffsetsPx: forcedBreakOffsets,
-        });
+        };
+        // De high-res render legt de voet binnen één paginabreedte (zie `footerLayoutWidth`).
+        const exportScale = computeHighResScale(logicalWidth, logicalHeight);
+        renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName,
+          { ...options, footerLayoutWidth: computeTileLayout(rasterTile).footerLayoutWidthPx }, exportScale);
+        return paginateCanvasToPdfBytes(exportCanvas, rasterTile);
       };
 
       // Vector-tak (fase 2): échte vector-PDF met selecteerbare tekst + ingebedde Inter. Bij een fout
@@ -954,7 +957,7 @@ export function ReportPanel() {
           getArabicFontBytes(700),
         ]);
         pdfBytes = await paginateVectorToPdfBytes(
-          (make) => renderReport(make, tasks, sequences, calendar, projectName, options),
+          (make, footerLayoutWidth) => renderReport(make, tasks, sequences, calendar, projectName, { ...options, footerLayoutWidth }),
           {
             paperSize: lowerPaper,
             orientation,

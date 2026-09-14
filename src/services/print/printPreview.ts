@@ -328,8 +328,6 @@ export interface PrintOptions {
       relationStyle: string;
     };
     tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
-    page: string;
-    of: string;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
     /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
@@ -411,6 +409,14 @@ export interface PrintOptions {
    * `rows` met bandrijen is er niets te breken en is dit een no-op.
    */
   pageBreakBeforeGroups?: boolean;
+  /**
+   * Breedte (logische px, vanaf x = 0) waarbinnen de VOETinhoud gelegd wordt — naam/datum links,
+   * legenda in het midden, merk rechts. Ontbreekt ⇒ de volle canvasbreedte (één kolom). De
+   * pagineerders geven hier `TileLayout.footerLayoutWidthPx` door (één paginabreedte) zodra de
+   * afdruk meer dan één kolom telt: de herhaalde voet wordt uit één vast bronvenster getekend en
+   * moet dus op één pagina compleet zijn. De grijze achtergrondstrook blijft canvasbreed.
+   */
+  footerLayoutWidth?: number;
   /** Legendalabels voor de kleurmodi (reeds vertaald door de aanroeper — print heeft geen `t()`). */
   barColorsLegendLabels?: {
     criticalOutline: string;
@@ -577,12 +583,13 @@ export interface RenderReportResult {
    */
   headerHeight: number;
   /**
-   * OPTIONEEL — hoogte (LOGISCHE px, gemeten vanaf de ONDERkant van de render) van de voetstrook:
-   * projectnaam, afdrukdatum, legenda. De pagineerders herhalen precies deze strook onderaan elke
-   * pagina wanneer daarom gevraagd wordt (`repeatFooter`). Afwezig/0 = geen herhaalbare voet
-   * (tabelrenders, de lege-project-render).
+   * Hoogte (LOGISCHE px, gemeten vanaf de ONDERkant van de render) van de voetstrook: projectnaam,
+   * afdrukdatum, legenda. De pagineerders herhalen precies deze strook onderaan elke pagina wanneer
+   * daarom gevraagd wordt (`repeatFooter`). 0 = geen herhaalbare voet (tabelrenders, de lege-
+   * project-render). Verplicht, net als `headerHeight`: een renderer die het vergeet moet de
+   * compiler tegenhouden, niet stil "geen voet" opleveren.
    */
-  footerHeight?: number;
+  footerHeight: number;
   /**
    * OPTIONEEL — toegestane paginabreekposities (logische px vanaf de bovenkant), bv. de onderrand
    * van elke tabelrij (`pdfTable.ts`). De pagineerders eindigen een pagina dan op de laatste
@@ -637,7 +644,7 @@ export function renderReport(
     d2d.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
     // Geen kop-/tijdschaalstrook in de lege-staat (alleen een centrale melding) ⇒ niets te herhalen.
     // Het meldingsvak zelf houdt z'n vaste 600×200; alleen de tekst erin volgt de schaal.
-    return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0 };
+    return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0, footerHeight: 0 };
   }
 
   // Compute date range
@@ -1359,16 +1366,17 @@ export function renderPrintPreviewPage(
       destinationX,
       layout.bodyTopPt * pxPt,
     );
-    if (layout.repeatFooterPx > 0) {
-      renderWindow(
-        win.srcX,
-        layout.repeatFooterSrcY,
-        win.srcW,
-        layout.repeatFooterPx,
-        destinationX,
-        layout.footerTopPt * pxPt,
-      );
-    }
+  }
+  // Voetstrook: één keer per pagina uit het vaste `footerWindow` (zie tileLayout), niet per kolomvenster.
+  if (layout.repeatFooterPx > 0) {
+    renderWindow(
+      layout.footerWindow.srcX,
+      layout.repeatFooterSrcY,
+      layout.footerWindow.srcW,
+      layout.repeatFooterPx,
+      layout.footerWindow.pageX * pxPt,
+      layout.footerTopPt * pxPt,
+    );
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2119,6 +2127,9 @@ function drawFooter(
   // Alles in de voettekst is tekst-zone: de marge, de regelafstanden en de legenda-blokjes schalen
   // mee met de strookhoogte, anders staan de twee regels bij 125% over elkaar.
   const pad = m.s(10);
+  // De inhoud wordt binnen `footerLayoutWidth` gelegd (één paginabreedte bij meerdere kolommen);
+  // de achtergrondstrook blijft canvasbreed.
+  const layoutWidth = Math.min(canvasWidth, options.footerLayoutWidth && options.footerLayoutWidth > 0 ? options.footerLayoutWidth : canvasWidth);
 
   // Background
   d2d.fillStyle = PRINT_COLORS.surface;
@@ -2156,13 +2167,13 @@ function drawFooter(
   const brandText = 'Open Planner Studio';
   d2d.font = m.font(8);
   const brandW = d2d.measureText(brandText).width;
-  const rightBlockLeft = canvasWidth - pad - brandW;
+  const rightBlockLeft = layoutWidth - pad - brandW;
 
   d2d.fillStyle = PRINT_COLORS.textSecondary;
   d2d.textAlign = 'right';
   d2d.textBaseline = 'middle';
   d2d.font = m.font(8);
-  d2d.fillText(brandText, canvasWidth - pad, midY + m.s(8));
+  d2d.fillText(brandText, layoutWidth - pad, midY + m.s(8));
 
   // Center: Legend — dynamisch tussen het linker- en rechterblok, items weglaten bij te weinig
   // ruimte i.p.v. over de blokken heen tekenen (klacht 7).

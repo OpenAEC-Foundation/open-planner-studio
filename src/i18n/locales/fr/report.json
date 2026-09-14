@@ -39,8 +39,6 @@
   "exportPDF": "Exporter en PDF",
   "noTasks": "Aucune tâche à afficher",
   "printed": "Imprimé :",
-  "page": "Page",
-  "of": "sur",
   "today": "Aujourd’hui",
   "previewPageLimit_one": "… et {{count}} page de plus — exportez pour le document complet",
   "previewPageLimit_many": "… et {{count}} pages de plus — exportez pour le document complet",

@@ -38,8 +38,6 @@
   "exportPDF": "Export PDF",
   "noTasks": "No tasks to display",
   "printed": "Printed:",
-  "page": "Page",
-  "of": "of",
   "today": "Today",
   "previewPageLimit_one": "… and {{count}} more page — export for the full document",
   "previewPageLimit_other": "… and {{count}} more pages — export for the full document",

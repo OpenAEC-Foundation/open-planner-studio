@@ -38,8 +38,6 @@
   "exportPDF": "خروجی PDF",
   "noTasks": "وظیفه‌ای برای نمایش وجود ندارد",
   "printed": "چاپ شده:",
-  "page": "صفحه",
-  "of": "از",
   "today": "امروز",
   "previewPageLimit_one": "… و {{count}} صفحه دیگر — برای سند کامل خروجی بگیرید",
   "previewPageLimit_other": "… و {{count}} صفحه دیگر — برای سند کامل خروجی بگیرید",

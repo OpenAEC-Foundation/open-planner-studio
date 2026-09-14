@@ -42,8 +42,6 @@
   "exportPDF": "تصدير PDF",
   "noTasks": "لا توجد مهام لعرضها",
   "printed": "طبع في:",
-  "page": "صفحة",
-  "of": "من",
   "today": "اليوم",
   "previewPageLimit_zero": "… و{{count}} صفحة أخرى — صدّر للحصول على المستند الكامل",
   "previewPageLimit_one": "… وصفحة واحدة أخرى — صدّر للحصول على المستند الكامل",

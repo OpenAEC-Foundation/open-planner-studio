@@ -39,8 +39,6 @@
   "exportPDF": "Exportar PDF",
   "noTasks": "No hay tareas para mostrar",
   "printed": "Impreso:",
-  "page": "Página",
-  "of": "de",
   "today": "Hoy",
   "previewPageLimit_one": "… y {{count}} página más — exporta para ver el documento completo",
   "previewPageLimit_many": "… y {{count}} páginas más — exporta para ver el documento completo",

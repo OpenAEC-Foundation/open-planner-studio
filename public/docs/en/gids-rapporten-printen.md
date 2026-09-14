@@ -42,7 +42,11 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   page instead of only the first.
 - **Repeat footer on each page** — on by default; puts the footer with project name, print date and
   legend at the bottom of every page instead of only the last, so a sheet handed out on its own
-  carries its own legend. Off = slightly more rows per page.
+  carries its own legend — also when the timeline is spread over several pages side by side. If
+  the whole print fits on one page, the footer simply stays below the last row. The strip costs
+  space on every page: roughly two rows fewer per sheet, so occasionally one page more, and a
+  resource that just fitted on one sheet with *Each resource on a new page* can spill onto two.
+  Off = the footer on the last page only.
 - **Timeline over** — spreads the Gantt timeline across 1 to 8 pages side by side; only available
   with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
   the table text.

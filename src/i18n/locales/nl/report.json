@@ -38,8 +38,6 @@
   "exportPDF": "Exporteer PDF",
   "noTasks": "Geen taken om weer te geven",
   "printed": "Afgedrukt:",
-  "page": "Pagina",
-  "of": "van",
   "today": "Vandaag",
   "previewPageLimit_one": "… en nog {{count}} pagina — exporteer voor het volledige document",
   "previewPageLimit_other": "… en nog {{count}} pagina's — exporteer voor het volledige document",
