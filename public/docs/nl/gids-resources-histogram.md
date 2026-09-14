@@ -103,7 +103,7 @@ Staat er "Herbereken (F5) om de belasting te tonen" in plaats van staafjes, dan 
 
 ## Het gedockte resourcepaneel
 
-Naast het volledige resourcepaneel (lintknop **Resources**) is er een compacte variant die je aan de rechterkant kunt vastzetten: knop **Resourcedock** in de lintgroep **Beheer**. Dit gedockte paneel toont alleen naam, **Max. eenheden** (direct bewerkbaar) en een rood/groen bolletje voor overallocatie — een snel overzicht naast je Gantt zonder het volledige paneel open te zetten.
+Naast het volledige resourcepaneel (lintknop **Resources**) is er een compacte variant die je aan de rechterkant kunt vastzetten: knop **Resourcedock** in de lintgroep **Beheer**. Dit gedockte paneel toont per resource een kleurbalkje in de resourcekleur, de naam en **Max. eenheden** (direct bewerkbaar); is een resource overgealloceerd, dan verschijnt links van het invoerveld een rood waarschuwingsdriehoekje — een snel overzicht naast je Gantt zonder het volledige paneel open te zetten.
 
 De zijkolom huisvest **twee gelijkwaardige panelen** onder elkaar: **Eigenschappen** en de gedockte resourcelijst. Ze vervangen elkaar niet en ze vouwen niet samen — staat een paneel aan, dan zie je gewoon zijn inhoud. Elk paneel heeft daarvoor één eigen schakelaar: de lintknop **Eigenschappen** en de lintknop **Resourcedock**, allebei in de lintgroep **Panelen** op het tabblad **Beeld**. Dezelfde schakelaar zit als **✕** in de kopbalk van het paneel zelf.
 
