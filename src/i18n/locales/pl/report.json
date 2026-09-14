@@ -168,6 +168,7 @@
       "periodFrom": "Od",
       "periodTo": "Do",
       "periodInvalid": "Data końcowa jest wcześniejsza niż początkowa.",
+      "periodIncomplete": "Wpisz obie daty.",
       "aggregation": "Agregacja:",
       "aggregation_week": "Tygodniowo",
       "aggregation_month": "Miesięcznie",

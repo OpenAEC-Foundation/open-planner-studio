@@ -309,7 +309,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('resourceLoading: alleen weken met vraag', r.rows.every(x => x.required > 0));
   eq('resourceLoading: A (7–11 sep), B (14–25 sep, rest ná de statusdatum) en D ⇒ 3 weken', r.rows.length, 3);
   ok('resourceLoading: B en D overlappen ⇒ overbelaste week', r.rows.some(x => x.overloaded));
-  eq('resourceLoading: aantal resources', r.counts.resources, 1);
+  eq('resourceLoading: aantal resources = resources in de tabel (zelfde telling als toewijzingen)', r.counts.resources, 1);
+  eq('resourceLoading: een resource zonder rijen telt niet mee', computeResourceLoading({ ...ctx, resources: [...ctx.resources, { ...ctx.resources[0], id: 'leeg', name: 'Leeg' }] }, { ...weekly, onlyOverloaded: false }).counts.resources, 1);
   eq('resourceLoading: weken = rijen zonder filter', r.counts.buckets, r.rows.length);
   const r2 = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: true });
   ok('resourceLoading: filter houdt alleen overbelaste weken', r2.rows.every(x => x.overloaded));
@@ -351,7 +352,9 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('assignments: B (in uitvoering) valt in het venster', r3.rows.some(x => x.taskId === B));
   const r4 = computeResourceAssignments(ctx, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false });
   ok('assignments: aangepast venster in oktober ⇒ D (30 sep – 2 okt) valt eruit', !r4.rows.some(x => x.taskId === D));
-  eq('assignments: aangepast venster meldt geen ontbrekende statusdatum', computeResourceAssignments({ ...ctx, statusDate: undefined }, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false }).statusDateMissing, false);
+  // Ook bij een aangepast venster stuurt de referentiedag de insluiting van achterstallig werk.
+  eq('assignments: aangepast venster zonder statusdatum meldt dat wél', computeResourceAssignments({ ...ctx, statusDate: undefined }, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false }).statusDateMissing, true);
+  eq('assignments: hele project meldt geen ontbrekende statusdatum', computeResourceAssignments({ ...ctx, statusDate: undefined }, { period: { preset: 'project' }, includeCompleted: false }).statusDateMissing, false);
 }
 
 // ── Rapportageperiode (issue #120) ───────────────────────────────────────────────────────────────
@@ -388,7 +391,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   const kept = parseTableReportOptions({ lookAheadWeeks: 3, lookAheadPeriod: { preset: 'nextMonth' }, resourceLoadBucket: 'month' });
   eq('settings: het nieuwe periodeveld wint van het oude getal', kept.lookAheadPeriod, { preset: 'nextMonth' });
   eq('settings: maandaggregatie bewaard', kept.resourceLoadBucket, 'month');
-  eq('settings: aangepaste periode met omgekeerde datums ⇒ default', parseReportingPeriod({ preset: 'custom', from: '2026-10-31', to: '2026-10-01' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'next4Weeks' });
+  eq('settings: defaults volgen issue #120 (volgende maand / afgelopen maand)', [DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod, DEFAULT_TABLE_REPORT_OPTIONS.progressPeriod], [{ preset: 'nextMonth' }, { preset: 'lastMonth' }]);
+  eq('settings: aangepaste periode met omgekeerde datums ⇒ default', parseReportingPeriod({ preset: 'custom', from: '2026-10-31', to: '2026-10-01' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'nextMonth' });
   eq('settings: aangepaste periode met geldige datums blijft', parseReportingPeriod({ preset: 'custom', from: '2026-10-01', to: '2026-10-31' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'custom', from: '2026-10-01', to: '2026-10-31' });
   eq('settings: onbekende preset ⇒ default', parseReportingPeriod({ preset: 'nextYear' }, { preset: 'project' }), { preset: 'project' });
 

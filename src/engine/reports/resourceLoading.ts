@@ -11,8 +11,9 @@ import type { ReportingPeriod } from './reportingPeriod';
  * resource per periode de gevraagde inzet tegenover de beschikbare capaciteit, met het verschil en
  * een overbelastingsvlag.
  *
- * Rekenkern is `computeHistogramReport` (week- of maandbuckets) — exact dezelfde verdeling als het
- * histogram op het Resources-tabblad, dus tabel en scherm spreken elkaar nooit tegen. Eenheid:
+ * Rekenkern is `computeHistogramReport` (week- of maandbuckets) — exact dezelfde dagverdeling als
+ * het histogram op het Resources-tabblad, dus een weekrij toont hetzelfde getal als de grafiek (de
+ * maandbucket kent het scherm niet; die is dezelfde verdeling, anders opgeteld). Eenheid:
  * eenheid-dagen per bucket (som over de werkdagen van units/dag). De rapportageperiode kiest welke
  * buckets meedoen: elke kalenderweek/-maand die de periode raakt, in z'n geheel — de buckets
  * blijven hele kalenderweken/-maanden, net als in het histogram, zodat een rij altijd hetzelfde
@@ -103,7 +104,8 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
     statusDateMissing: relative && statusDateMissing,
     rows,
     counts: {
-      resources: report.resources.length,
+      // Alleen resources die in de tabel staan — dezelfde telling als het toewijzingenrapport (#119).
+      resources: new Set(rows.map(r => r.resourceId)).size,
       buckets,
       overloadedBuckets: rows.filter(r => r.overloaded).length,
       overloadedResources: overloadedResources.size,

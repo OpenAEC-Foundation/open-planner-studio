@@ -165,6 +165,7 @@
       "periodFrom": "Dal",
       "periodTo": "Al",
       "periodInvalid": "La data finale precede quella iniziale.",
+      "periodIncomplete": "Inserisci entrambe le date.",
       "aggregation": "Aggregazione:",
       "aggregation_week": "Settimanale",
       "aggregation_month": "Mensile",

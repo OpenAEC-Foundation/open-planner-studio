@@ -103,7 +103,9 @@ tarih, ihlal edilen kısıt, tutarsız ilerleme), **uyarılar** (açık başlang
 gecikmeler). Eşikler seçeneklerdedir; varsayılan DCMA'ya göre: yüksek bolluk ve uzun süre için 44
 iş günü, gecikmeler için 10. Temiz bir programda sıfır hata vardır.
 
-### Haftalık kaynak yükü
+### Kaynak yükü
+
+Satırlar kaynağa göre gruplanır (ad ve tür yalnızca her grubun ilk satırında, kaynak atamalarında olduğu gibi); *Toplama* ile takvim haftası veya takvim ayı seçersiniz ve raporlama dönemi hangi haftaların veya ayların görüneceğini belirler.
 
 Kaynak ve hafta başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve haftanın
 aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo halinde.

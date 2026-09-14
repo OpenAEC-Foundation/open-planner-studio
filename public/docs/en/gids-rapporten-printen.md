@@ -142,8 +142,8 @@ The chosen period appears as the subtitle of the report and of the PDF.
 
 ### Look-ahead
 
-The list for the weekly site meeting: every activity in the reporting period (the next four weeks
-by default) — what starts, what continues, what finishes — plus what should already have
+The list for the weekly site meeting: every activity in the reporting period (the next month by
+default) — what starts, what continues, what finishes — plus what should already have
 happened. Each row shows WBS, name, start and finish, remaining duration, completion, total float,
 whether the task is critical or near-critical, the assigned resources and a status: **Starting**
 (begins in the window), **In progress**, **Should have started** (start before the reference day,
@@ -167,8 +167,8 @@ the counts per state. Both percentages are duration-weighted over the leaf tasks
 weighs nothing, a month of work weighs a lot. Planned is measured on the dates of the active
 baseline (the agreement you measure against); without a baseline on the current schedule, and the
 report says so. Below that, five sections: completed in the reporting period, in progress, starting in
-the next period, overdue, and the open critical activities. The reporting period (the last two
-weeks by default) decides what counts as *completed in the period*; the *starting in the next
+the next period, overdue, and the open critical activities. The reporting period (the last
+month by default) decides what counts as *completed in the period*; the *starting in the next
 period* section looks ahead from the status date — to the end of the period when it lies (partly)
 after the status date, and otherwise as far ahead as the period looks back. The summary shows both
 bounds.

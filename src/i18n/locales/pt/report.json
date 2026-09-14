@@ -165,6 +165,7 @@
       "periodFrom": "De",
       "periodTo": "Até",
       "periodInvalid": "A data final é anterior à data inicial.",
+      "periodIncomplete": "Preencha ambas as datas.",
       "aggregation": "Agregação:",
       "aggregation_week": "Semanal",
       "aggregation_month": "Mensal",

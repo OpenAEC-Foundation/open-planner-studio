@@ -133,7 +133,9 @@ trwania, wyprzedzenia, twarde ograniczenia, postęp poza kolejnością) i **info
 krytyczne, duży zapas, długie zwłoki). Progi są w opcjach; domyślnie według DCMA: 44 dni robocze
 dla dużego zapasu i długiego czasu trwania, 10 dla zwłok. Czysty harmonogram ma zero błędów.
 
-### Obciążenie zasobów tygodniowo
+### Obciążenie zasobów
+
+Wiersze są pogrupowane według zasobu (nazwa i typ tylko w pierwszym wierszu każdej grupy, jak w przypisaniach zasobów); opcja *Agregacja* pozwala wybrać tygodnie lub miesiące kalendarzowe, a okres raportu decyduje, które tygodnie lub miesiące się pojawią.
 
 Dla zasobu i tygodnia zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach), różnica,
 dzienny szczyt i czy tydzień jest przeciążony — to samo obliczenie co histogram na karcie **Zasoby**,

@@ -12,10 +12,15 @@ import {
  * Het gedeelde rapportageperiode-control (issue #120): één preset-keuzelijst (volgende/afgelopen
  * N weken of maand, hele project, aangepast) plus twee datumvelden. Bij een preset tonen de velden
  * de berekende datums alleen-lezen; bij *Aangepast* zijn ze bewerkbaar (tekstinvoer én de
- * browser-datumkiezer van `<input type="date">`). Een omgekeerd bereik (tot < van) wordt niet
- * doorgegeven maar rood gemarkeerd met een melding — het rapport blijft op de laatste geldige
- * periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen datums vallen;
- * wisselen náár *Aangepast* start met de datums van de preset die op dat moment gold.
+ * browser-datumkiezer van `<input type="date">`). Een omgekeerd bereik (tot < van) of een leeg/
+ * onvolledig veld wordt niet doorgegeven maar rood gemarkeerd met een melding — het rapport blijft
+ * op de laatste geldige periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen
+ * datums vallen; wisselen náár *Aangepast* start met de datums van de preset die op dat moment gold.
+ *
+ * LAYOUT: de datumvelden staan op een eigen rij die bij de standaardbreedte van de instellingen-
+ * kolom (256 px) omslaat naar twee volle regels — een `<input type="date">` heeft ~9 rem nodig om
+ * een datum plus kalenderknop te tonen; onder het `w-32`-label ingesprongen bleef er 18 px over
+ * (reviewbevinding op de eerste versie).
  *
  * De opgeloste datums komen uit dezelfde pure functie als de engine (`resolveReportingPeriod`,
  * tegen dezelfde referentiedag en projectspanne), zodat wat hier staat exact het venster is dat het
@@ -50,7 +55,9 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
   const [draftTo, setDraftTo] = useState(resolved.to);
   useEffect(() => { setDraftFrom(resolved.from); setDraftTo(resolved.to); }, [resolved.from, resolved.to]);
 
-  const invalidRange = isCustom && isIsoDay(draftFrom) && isIsoDay(draftTo) && draftTo < draftFrom;
+  const incomplete = isCustom && (!isIsoDay(draftFrom) || !isIsoDay(draftTo));
+  const invalidRange = isCustom && !incomplete && draftTo < draftFrom;
+  const invalid = incomplete || invalidRange;
 
   const commitCustom = (from: string, to: string) => {
     if (!isIsoDay(from) || !isIsoDay(to) || to < from) return;
@@ -69,21 +76,21 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
     const draft = which === 'from' ? draftFrom : draftTo;
     const setDraft = which === 'from' ? setDraftFrom : setDraftTo;
     return (
-      <label className="flex items-center gap-1 min-w-0 flex-1">
-        <span className="text-text-secondary flex-shrink-0">{t(which === 'from' ? 'tableReports.options.periodFrom' : 'tableReports.options.periodTo')}</span>
+      <label className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: '11rem' }}>
+        <span className="text-text-secondary flex-shrink-0 w-8">{t(which === 'from' ? 'tableReports.options.periodFrom' : 'tableReports.options.periodTo')}</span>
         <input
           type="date"
           value={draft}
           disabled={!isCustom}
-          aria-invalid={invalidRange ? true : undefined}
-          aria-describedby={invalidRange ? `${id}-invalid` : undefined}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={invalid ? `${id}-invalid` : undefined}
           onChange={e => {
             const next = e.target.value;
             setDraft(next);
             if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
           }}
           className="input flex-1 min-w-0 !text-xs !px-2 !py-1"
-          style={invalidRange ? { borderColor: 'var(--error)' } : undefined}
+          style={{ minWidth: '8.5rem', ...(invalid ? { borderColor: 'var(--error)' } : {}) }}
           data-ops-report-option={`${dataKey}.${which}`}
         />
       </label>
@@ -103,13 +110,13 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
           options={REPORTING_PERIOD_PRESETS.map(p => ({ value: p, label: t(`tableReports.periodPresets.${p}`) }))}
         />
       </div>
-      <div className="flex items-center gap-2 min-w-0 pl-[8.5rem]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
         {dateInput('from')}
         {dateInput('to')}
       </div>
-      {invalidRange && (
-        <div id={`${id}-invalid`} className="text-[11px] pl-[8.5rem]" style={{ color: 'var(--error)' }} role="alert">
-          {t('tableReports.options.periodInvalid')}
+      {invalid && (
+        <div id={`${id}-invalid`} className="text-[11px]" style={{ color: 'var(--error)' }} role="alert">
+          {t(incomplete ? 'tableReports.options.periodIncomplete' : 'tableReports.options.periodInvalid')}
         </div>
       )}
     </div>

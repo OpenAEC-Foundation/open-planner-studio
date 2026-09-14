@@ -163,6 +163,7 @@
       "periodFrom": "از",
       "periodTo": "تا",
       "periodInvalid": "تاریخ پایان پیش از تاریخ شروع است.",
+      "periodIncomplete": "هر دو تاریخ را وارد کنید.",
       "aggregation": "تجمیع:",
       "aggregation_week": "هفتگی",
       "aggregation_month": "ماهانه",

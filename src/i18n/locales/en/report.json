@@ -162,6 +162,7 @@
       "periodFrom": "From",
       "periodTo": "To",
       "periodInvalid": "The end date is before the start date.",
+      "periodIncomplete": "Fill in both dates.",
       "aggregation": "Aggregation:",
       "aggregation_week": "Weekly",
       "aggregation_month": "Monthly",

@@ -174,6 +174,7 @@
       "periodFrom": "من",
       "periodTo": "إلى",
       "periodInvalid": "تاريخ الانتهاء يسبق تاريخ البداية.",
+      "periodIncomplete": "أدخل التاريخين معاً.",
       "aggregation": "التجميع:",
       "aggregation_week": "أسبوعياً",
       "aggregation_month": "شهرياً",

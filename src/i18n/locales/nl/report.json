@@ -162,6 +162,7 @@
       "periodFrom": "Van",
       "periodTo": "Tot",
       "periodInvalid": "De einddatum ligt vóór de begindatum.",
+      "periodIncomplete": "Vul beide datums in.",
       "aggregation": "Aggregatie:",
       "aggregation_week": "Per week",
       "aggregation_month": "Per maand",

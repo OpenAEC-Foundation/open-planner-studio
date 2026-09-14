@@ -6,6 +6,7 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import type { ResourceType } from '@/types/resource';
 import { formatDate } from '@/utils/dateUtils';
 import type { ReportType, TableReportOptions } from '@/utils/reportSettings';
+import type { ReportingPeriod } from '@/engine/reports';
 import { isTableReportType } from '@/utils/reportSettings';
 import {
   type ReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
@@ -122,9 +123,13 @@ function resourcesText(names: string[]): string {
 }
 
 // ── Rapportbouwers ───────────────────────────────────────────────────────────────────────────────
-/** "Periode: 10 sep 2026 – 7 okt 2026" — dezelfde ondertitel voor elk rapport met een venster. */
-function periodSubtitle(t: T, dd: DD, from: string, to: string): string {
-  return `${t('tableReports.period')}: ${dd.date(from)} – ${dd.date(to)}`;
+/**
+ * "Periode: 10 sep 2026 – 7 okt 2026" — dezelfde ondertitel voor elk rapport met een venster; bij
+ * *Hele project* staat de presetnaam erachter, zodat je ziet wélke spanne dat is.
+ */
+function periodSubtitle(t: T, dd: DD, from: string, to: string, preset?: ReportingPeriod['preset']): string {
+  const base = `${t('tableReports.period')}: ${dd.date(from)} – ${dd.date(to)}`;
+  return preset === 'project' ? `${base} · ${t('tableReports.periodPresets.project')}` : base;
 }
 
 function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, stale: boolean): TableReportSpec {
@@ -140,7 +145,7 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: periodSubtitle(t, dd, r.from, r.to),
+    subtitle: periodSubtitle(t, dd, r.from, r.to, o.lookAheadPeriod.preset),
     notes: commonNotes(t, dd, ctx, stale, r.statusDateMissing),
     summary: [
       { label: t(`${p}.total`), value: String(r.counts.total) },
@@ -326,7 +331,7 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
     { key: 'overloaded', header: t(`${p}.overloaded`), width: 100, align: 'right', text: r => (r.overloaded ? String(r.overloadedDays) : ''), color: r => (r.overloaded ? REPORT_COLORS.error : undefined), bold: r => r.overloaded },
   ];
   const subtitleParts = [
-    periodSubtitle(t, dd, r.from, r.to),
+    periodSubtitle(t, dd, r.from, r.to, o.resourceLoadPeriod.preset),
     t(`tableReports.options.aggregation_${o.resourceLoadBucket}`),
     ...(o.resourceLoadOnlyOverloaded ? [t('tableReports.options.onlyOverloaded')] : []),
   ];
@@ -365,7 +370,7 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
   ];
   return {
     title: t(`${p}.title`),
-    subtitle: o.resourceAssignmentPeriod.preset === 'project' ? t('tableReports.periodPresets.project') : periodSubtitle(t, dd, r.from, r.to),
+    subtitle: periodSubtitle(t, dd, r.from, r.to, o.resourceAssignmentPeriod.preset),
     notes: commonNotes(t, dd, ctx, stale, r.statusDateMissing),
     summary: [
       { label: t(`${p}.resources`), value: String(r.counts.resources) },

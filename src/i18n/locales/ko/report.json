@@ -159,6 +159,7 @@
       "periodFrom": "시작",
       "periodTo": "종료",
       "periodInvalid": "종료일이 시작일보다 앞섭니다.",
+      "periodIncomplete": "두 날짜를 모두 입력하세요.",
       "aggregation": "집계:",
       "aggregation_week": "주별",
       "aggregation_month": "월별",

@@ -105,7 +105,9 @@ Reihenfolge) und **Hinweise** (fast kritisch, hoher Puffer, lange Verzögerungen
 stehen in den Berichtsoptionen; Standard nach DCMA: 44 Arbeitstage für hohen Puffer und lange
 Dauer, 10 Arbeitstage für Verzögerungen. Eine saubere Planung hat null Fehler.
 
-### Ressourcenauslastung pro Woche
+### Ressourcenauslastung
+
+Die Zeilen sind pro Ressource gruppiert (Name und Typ nur in der ersten Zeile jeder Gruppe, wie bei den Ressourcenzuweisungen); mit *Aggregation* wählen Sie zwischen Kalenderwochen und Kalendermonaten, und der Berichtszeitraum bestimmt, welche Wochen oder Monate erscheinen.
 
 Je Ressource und Woche der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen), die
 Differenz, die Tagesspitze und ob die Woche überlastet ist — dieselbe Berechnung wie das Histogramm

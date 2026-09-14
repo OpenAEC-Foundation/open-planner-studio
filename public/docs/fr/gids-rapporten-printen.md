@@ -105,7 +105,9 @@ marge élevée, décalages longs). Les seuils sont dans les options ; par défau
 ouvrés pour la marge élevée et la longue durée, 10 pour les décalages. Un planning propre a zéro
 erreur.
 
-### Charge des ressources par semaine
+### Charge des ressources
+
+Les lignes sont regroupées par ressource (nom et type uniquement sur la première ligne de chaque groupe, comme pour les affectations des ressources) ; *Agrégation* permet de choisir entre semaines et mois civils, et la période de rapport détermine quelles semaines ou quels mois apparaissent.
 
 Par ressource et par semaine, le besoin face à la capacité disponible (en unités-jours), l'écart,
 le pic journalier et si la semaine est surchargée — le même calcul que l'histogramme de l'onglet

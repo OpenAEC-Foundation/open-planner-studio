@@ -49,9 +49,10 @@ export function isTableReportType(type: ReportType): boolean {
  * Opties van de tabelrapporten — één object, samen bewaard met de rest van de rapportinstellingen.
  * De drempels zijn werkdagen; de vensters zijn rapportageperiodes (issue #120: één gedeeld
  * periodemodel met presets rond de statusdatum, de projectspanne of een eigen datumbereik — zie
- * `src/engine/reports/reportingPeriod.ts`). Defaults: look-ahead de komende 4 weken (het gangbare
- * "four-week look-ahead"), voortgang de afgelopen 2 weken, belasting en toewijzingen de hele
- * projectspanne, near-critical ≤ 5 wd, gezondheid volgens DCMA (44 wd).
+ * `src/engine/reports/reportingPeriod.ts`). Defaults volgen issue #120: look-ahead de komende maand,
+ * voortgang de afgelopen maand, belasting en toewijzingen de hele projectspanne; near-critical ≤ 5 wd,
+ * gezondheid volgens DCMA (44 wd). Bestaande gebruikers raken die defaults niet: hun opgeslagen
+ * weken-getal migreert naar de bijbehorende preset (zie `legacyWeeksPeriod`).
  */
 export interface TableReportOptions {
   lookAheadPeriod: ReportingPeriod;
@@ -72,9 +73,9 @@ export interface TableReportOptions {
 }
 
 export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
-  lookAheadPeriod: { preset: 'next4Weeks' },
+  lookAheadPeriod: { preset: 'nextMonth' },
   nearCriticalDays: 5,
-  progressPeriod: { preset: 'last2Weeks' },
+  progressPeriod: { preset: 'lastMonth' },
   healthHighFloatDays: 44,
   healthLongDurationDays: 44,
   healthLagDays: 10,

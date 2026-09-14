@@ -162,6 +162,7 @@
       "periodFrom": "Von",
       "periodTo": "Bis",
       "periodInvalid": "Das Enddatum liegt vor dem Startdatum.",
+      "periodIncomplete": "Beide Daten ausfüllen.",
       "aggregation": "Aggregation:",
       "aggregation_week": "Wöchentlich",
       "aggregation_month": "Monatlich",

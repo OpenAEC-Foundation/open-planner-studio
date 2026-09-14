@@ -159,6 +159,7 @@
       "periodFrom": "从",
       "periodTo": "至",
       "periodInvalid": "结束日期早于开始日期。",
+      "periodIncomplete": "请填写两个日期。",
       "aggregation": "汇总:",
       "aggregation_week": "按周",
       "aggregation_month": "按月",

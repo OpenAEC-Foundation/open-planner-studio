@@ -162,6 +162,7 @@
       "periodFrom": "Başlangıç",
       "periodTo": "Bitiş",
       "periodInvalid": "Bitiş tarihi başlangıç tarihinden önce.",
+      "periodIncomplete": "Her iki tarihi de girin.",
       "aggregation": "Toplama:",
       "aggregation_week": "Haftalık",
       "aggregation_month": "Aylık",

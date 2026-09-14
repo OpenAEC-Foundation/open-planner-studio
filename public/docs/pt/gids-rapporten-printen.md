@@ -132,7 +132,9 @@ longa, avanços, restrições rígidas, progresso fora de sequência) e **inform
 folga alta, atrasos longos). Os limiares estão nas opções; por defeito segundo DCMA: 44 dias úteis
 para folga alta e duração longa, 10 para atrasos. Um cronograma limpo tem zero erros.
 
-### Carga de recursos por semana
+### Carga de recursos
+
+As linhas são agrupadas por recurso (nome e tipo apenas na primeira linha de cada grupo, como nas atribuições de recursos); com *Agregação* escolhe entre semanas e meses de calendário, e o período do relatório determina que semanas ou meses aparecem.
 
 Por recurso e semana, a necessidade face à capacidade disponível (em unidades-dia), a diferença, o
 pico diário e se a semana está sobrecarregada — o mesmo cálculo do histograma no separador

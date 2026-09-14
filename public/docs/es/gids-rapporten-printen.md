@@ -134,7 +134,9 @@ fin abiertos, duración larga, adelantos, restricciones duras, avance fuera de s
 por defecto según DCMA: 44 días laborables para holgura alta y duración larga, 10 para retardos.
 Un cronograma limpio tiene cero errores.
 
-### Carga de recursos por semana
+### Carga de recursos
+
+Las filas se agrupan por recurso (nombre y tipo solo en la primera fila de cada grupo, como en las asignaciones de recursos); con *Agregación* elige entre semanas y meses naturales, y el periodo del informe determina qué semanas o meses aparecen.
 
 Por recurso y semana, la demanda frente a la capacidad disponible (en unidades-día), la diferencia,
 el pico diario y si la semana está sobrecargada — el mismo cálculo que el histograma de la pestaña

@@ -22,8 +22,8 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
 
   const report = page.locator('[data-ops-table-report="look-ahead"]');
   await expect(report).toBeVisible();
-  // Beide taken raken het 4-wekenvenster vanaf de statusdatum (14 sep – 11 okt): twee echte rijen
-  // (op naam, niet op aantal — de lege-staat is óók één <tr>).
+  // Beide taken raken de standaardperiode "volgende maand" vanaf de statusdatum (14 sep – 13 okt):
+  // twee echte rijen (op naam, niet op aantal — de lege-staat is óók één <tr>).
   const rows = report.locator('[data-ops-report-section="rows"] tbody tr');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText('Fundering');
@@ -44,6 +44,12 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   await expect(fromInput).toBeDisabled();
   await expect(fromInput).toHaveValue('2026-09-14');
   await expect(toInput).toHaveValue('2026-09-20');
+  // Reviewbevinding: de velden moeten bij de standaardbreedte van de instellingenkolom een volledige
+  // datum plus kalenderknop kunnen tonen — `toHaveValue` slaagt ook op een veld van 18 px.
+  for (const input of [fromInput, toInput]) {
+    const box = await input.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(120);
+  }
 
   // Aangepast: de velden worden bewerkbaar en starten op de presetdatums; een eigen bereik in
   // oktober haalt Casco terug (Fundering blijft: die had vóór de statusdatum moeten starten en
@@ -61,6 +67,12 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   await expect(periodField.getByRole('alert')).toBeVisible();
   await expect(rows).toHaveCount(2);
   await toInput.fill('2026-10-16');
+  await expect(periodField.getByRole('alert')).toHaveCount(0);
+  // Een leeggemaakt veld is óók ongeldig: gemeld, niet toegepast (het rapport houdt 5–16 okt).
+  await fromInput.fill('');
+  await expect(periodField.getByRole('alert')).toBeVisible();
+  await expect(report).toContainText('Casco');
+  await fromInput.fill('2026-10-05');
   await expect(periodField.getByRole('alert')).toHaveCount(0);
 
   // Review-bevinding 1: een export op een VEROUDERDE planning rekent eerst door én exporteert pas

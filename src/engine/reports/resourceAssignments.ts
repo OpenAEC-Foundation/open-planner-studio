@@ -87,7 +87,9 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
     || a.wbs.localeCompare(b.wbs));
   const unassignedTasks = activityTasks(ctx.tasks).filter(t => !t.isMilestone && !assignedTaskIds.has(t.id)).length;
   return {
-    from, to, statusDateMissing: windowed && opts.period.preset !== 'custom' && statusDateMissing, rows,
+    // De referentiedag stuurt bij élk venster (ook `custom`) de insluiting van achterstallig werk,
+    // dus zonder statusdatum hoort de melding er dan bij.
+    from, to, statusDateMissing: windowed && statusDateMissing, rows,
     counts: {
       resources: new Set(rows.map(r => r.resourceId)).size,
       assignments: rows.length,

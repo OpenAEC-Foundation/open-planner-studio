@@ -165,6 +165,7 @@
       "periodFrom": "Du",
       "periodTo": "Au",
       "periodInvalid": "La date de fin précède la date de début.",
+      "periodIncomplete": "Renseignez les deux dates.",
       "aggregation": "Agrégation :",
       "aggregation_week": "Par semaine",
       "aggregation_month": "Par mois",

@@ -159,6 +159,7 @@
       "periodFrom": "開始",
       "periodTo": "終了",
       "periodInvalid": "終了日が開始日より前です。",
+      "periodIncomplete": "両方の日付を入力してください。",
       "aggregation": "集計:",
       "aggregation_week": "週別",
       "aggregation_month": "月別",

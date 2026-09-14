@@ -143,7 +143,7 @@ De gekozen periode staat als ondertitel in het rapport en in de PDF.
 ### Look-ahead
 
 De lijst voor het weekoverleg op de bouw: alle activiteiten in de rapportageperiode (standaard de
-komende vier weken) — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
+komende maand) — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
 gebeuren. Per rij zie je WBS, naam, start en einde, de resterende duur, de voltooiing, de totale
 speling, of de taak kritiek of near-critical is, de toegewezen resources en een status:
 **Start** (begint in het venster), **In uitvoering**, **Had moeten starten** (start vóór de
@@ -169,7 +169,7 @@ mijlpaal weegt niets, een maand werk weegt zwaar. Gepland wordt gemeten op de da
 actieve baseline (de afspraak waartegen je meet); zonder baseline op de huidige planning, en dat
 staat er dan bij. Daaronder vijf secties: voltooid in de rapportageperiode, in uitvoering, start
 in de komende periode, achterstallig, en de open kritieke activiteiten. De rapportageperiode
-(standaard de afgelopen twee weken) bepaalt wat als *voltooid in de periode* telt; de sectie *start
+(standaard de afgelopen maand) bepaalt wat als *voltooid in de periode* telt; de sectie *start
 in de komende periode* kijkt vanaf de statusdatum vooruit — tot het einde van de periode als die
 (deels) ná de statusdatum ligt, en anders even ver vooruit als de periode terugkijkt. De
 samenvatting toont beide grenzen.

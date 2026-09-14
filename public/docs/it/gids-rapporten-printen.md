@@ -130,7 +130,9 @@ anticipi, vincoli rigidi, avanzamento fuori sequenza) e **informazioni** (quasi 
 elevato, ritardi lunghi). Le soglie sono nelle opzioni; default secondo DCMA: 44 giorni lavorativi
 per slack elevato e durata lunga, 10 per i ritardi. Un programma pulito ha zero errori.
 
-### Carico risorse per settimana
+### Carico risorse
+
+Le righe sono raggruppate per risorsa (nome e tipo solo sulla prima riga di ogni gruppo, come nelle assegnazioni risorse); con *Aggregazione* scegli tra settimane e mesi di calendario, e il periodo del report determina quali settimane o mesi compaiono.
 
 Per risorsa e settimana, il fabbisogno rispetto alla capacità disponibile (in unità-giorno), la
 differenza, il picco giornaliero e se la settimana è sovraccarica — lo stesso calcolo

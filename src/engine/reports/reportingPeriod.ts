@@ -54,7 +54,7 @@ export function isValidReportingPeriod(p: ReportingPeriod): boolean {
 }
 
 /** Aantal weken van een `next*Weeks`/`last*Weeks`-preset, anders undefined. */
-export function presetWeeks(preset: ReportingPeriodPreset): number | undefined {
+function presetWeeks(preset: ReportingPeriodPreset): number | undefined {
   const m = /^(next|last)(\d*)Weeks?$/.exec(preset);
   if (!m) return undefined;
   return m[2] === '' ? 1 : Number(m[2]);
