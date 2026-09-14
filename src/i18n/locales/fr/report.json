@@ -25,6 +25,7 @@
   "zoom": "Zoom :",
   "previewQuality": { "label": "Qualité de l’aperçu", "standard": "Standard", "high": "Élevée", "maximum": "Maximale" },
   "repeatHeader": "Répéter l'en-tête sur chaque page",
+  "repeatFooter": "Répéter le pied de page sur chaque page",
   "reportFontScaleLabel": "Taille de police :",
   "timelineColumnsLabel": "Chronologie sur :",
   "timelineColumnsHint": "Uniquement avec ajustement automatique",

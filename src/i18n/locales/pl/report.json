@@ -25,6 +25,7 @@
   "zoom": "Powiększenie:",
   "previewQuality": { "label": "Jakość podglądu", "standard": "Standardowa", "high": "Wysoka", "maximum": "Maksymalna" },
   "repeatHeader": "Powtarzaj nagłówek na każdej stronie",
+  "repeatFooter": "Powtarzaj stopkę na każdej stronie",
   "reportFontScaleLabel": "Rozmiar czcionki:",
   "timelineColumnsLabel": "Oś czasu na:",
   "timelineColumnsHint": "Tylko przy automatycznym dopasowaniu",

@@ -577,6 +577,13 @@ export interface RenderReportResult {
    */
   headerHeight: number;
   /**
+   * OPTIONEEL — hoogte (LOGISCHE px, gemeten vanaf de ONDERkant van de render) van de voetstrook:
+   * projectnaam, afdrukdatum, legenda. De pagineerders herhalen precies deze strook onderaan elke
+   * pagina wanneer daarom gevraagd wordt (`repeatFooter`). Afwezig/0 = geen herhaalbare voet
+   * (tabelrenders, de lege-project-render).
+   */
+  footerHeight?: number;
+  /**
    * OPTIONEEL — toegestane paginabreekposities (logische px vanaf de bovenkant), bv. de onderrand
    * van elke tabelrij (`pdfTable.ts`). De pagineerders eindigen een pagina dan op de laatste
    * positie die past, zodat een rij nooit over twee pagina's wordt gesneden (issue #110 punt 3).
@@ -1196,6 +1203,7 @@ export function renderReport(
     : undefined;
   return {
     width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
+    footerHeight: m.footerHeight,
     breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
   };
 }
@@ -1351,6 +1359,16 @@ export function renderPrintPreviewPage(
       destinationX,
       layout.bodyTopPt * pxPt,
     );
+    if (layout.repeatFooterPx > 0) {
+      renderWindow(
+        win.srcX,
+        layout.repeatFooterSrcY,
+        win.srcW,
+        layout.repeatFooterPx,
+        destinationX,
+        layout.footerTopPt * pxPt,
+      );
+    }
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2132,22 +2150,17 @@ function drawFooter(
   d2d.fillText(dateText, pad, midY + m.s(8));
   const leftBlockRight = pad + Math.max(leftNameW, d2d.measureText(dateText).width);
 
-  // Right: Page number + branding (breedtes meten, dan tekenen)
-  const pageLabel = options.labels?.page ?? 'Pagina';
-  const ofLabel = options.labels?.of ?? 'van';
-  const pageText = `${pageLabel} 1 ${ofLabel} 1`;
+  // Right: branding. Hier stond ook een vast "Pagina 1 van 1": de render kent het paginatotaal
+  // niet, en nu de voet op elke pagina terugkomt zou dat op pagina 3 van 5 letterlijk zo staan.
+  // Het echte "n / totaal" drukken de pagineerders zelf in de ondermarge.
   const brandText = 'Open Planner Studio';
-  d2d.font = m.font(9);
-  const pageW = d2d.measureText(pageText).width;
   d2d.font = m.font(8);
   const brandW = d2d.measureText(brandText).width;
-  const rightBlockLeft = canvasWidth - pad - Math.max(pageW, brandW);
+  const rightBlockLeft = canvasWidth - pad - brandW;
 
   d2d.fillStyle = PRINT_COLORS.textSecondary;
   d2d.textAlign = 'right';
   d2d.textBaseline = 'middle';
-  d2d.font = m.font(9);
-  d2d.fillText(pageText, canvasWidth - pad, midY - m.s(6));
   d2d.font = m.font(8);
   d2d.fillText(brandText, canvasWidth - pad, midY + m.s(8));
 

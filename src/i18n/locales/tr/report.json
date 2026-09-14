@@ -25,6 +25,7 @@
   "zoom": "Yakınlaştırma:",
   "previewQuality": { "label": "Önizleme kalitesi", "standard": "Standart", "high": "Yüksek", "maximum": "Maksimum" },
   "repeatHeader": "Üstbilgiyi her sayfada yinele",
+  "repeatFooter": "Altbilgiyi her sayfada yinele",
   "reportFontScaleLabel": "Yazı boyutu:",
   "timelineColumnsLabel": "Zaman çizelgesi:",
   "timelineColumnsHint": "Yalnızca otomatik sığdırmada",

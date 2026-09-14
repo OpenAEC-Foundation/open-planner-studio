@@ -41,6 +41,9 @@ instellingenblok:
   van het zoomniveau hierboven.
 - **Kop op elke pagina herhalen** — standaard aan; houdt de rapportkop zichtbaar op elke afgedrukte
   pagina in plaats van alleen de eerste.
+- **Voet op elke pagina herhalen** — standaard aan; zet de voet met projectnaam, afdrukdatum en
+  legenda onderaan elke pagina in plaats van alleen de laatste, zodat een los uitgedeeld vel zijn
+  eigen legenda heeft. Uit = iets meer rijen per pagina.
 - **Tijdlijn over** — verdeelt de Gantt-tijdlijn over 1 tot 8 pagina's naast elkaar; alleen
   beschikbaar met auto-fit aan. Kies meer pagina's wanneer je de tijdas minder wilt comprimeren
   zonder de tabeltekst kleiner te maken.
@@ -104,8 +107,8 @@ niet eerst zelf op resource te groeperen. Banden zijn per resource, niet per naa
 toevallig hetzelfde heten krijgen elk een eigen band (*Jan #1*, *Jan #2*), en een resource zonder
 naam een volgnummer. Het overzichtsblok telt de resources, de toewijzingen en de taken zonder
 resource — die laatste telling omvat ook mijlpalen en hammocks, want die worden hier getekend (het
-tabelrapport *Resourcetoewijzingen* telt alleen echte activiteiten). De voet met legenda en
-afdrukdatum staat, zoals bij elke meerpagina-afdruk, op het laatste vel. Zijn er nog geen
+tabelrapport *Resourcetoewijzingen* telt alleen echte activiteiten). Met *Voet op elke pagina
+herhalen* (standaard aan) heeft elk uitgedeeld vel zijn eigen legenda. Zijn er nog geen
 toewijzingen, dan zegt het voorbeeld dat in plaats van een lege pagina te tonen; toewijzen gebeurt
 op het tabblad **Resources** (zie [Resources & histogram](docs://gids-resources-histogram)).
 

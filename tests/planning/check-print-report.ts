@@ -502,6 +502,72 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       `blad per band met tijdlijn over 2 pagina's: 3 × 2 = 6 pagina's (got ${twoCols.rows}×${twoCols.cols})`);
   }
 
+  // Voet op elke pagina (issue #113, "een blad per persoon"): de render meldt zijn voethoogte, de
+  // tegeling houdt onderaan elke pagina die strook vrij (body tot `logicalHeight - voet`), en zonder
+  // de optie is alles byte-identiek — inclusief de oude situatie waarin de voet aan de laatste
+  // body-tegel hangt.
+  {
+    const many = Array.from({ length: 120 }, (_, i) => ({ ...T_NORM, id: `f${i}`, name: `Taak ${i}`, wbsCode: String(i + 1) }));
+    const dims = measurePrintReport(many, [], cal, 'Voet', baseOptions());
+    ok((dims.footerHeight ?? 0) > 0, `Gantt-render meldt een voethoogte (got ${dims.footerHeight})`);
+    const lastBreak = (dims.breakOffsets ?? [])[dims.breakOffsets!.length - 1];
+    ok(Math.abs(lastBreak + dims.footerHeight! - dims.height) < 1e-9, 'de voet is precies het stuk onder de laatste rijgrens');
+    const scaled = measurePrintReport(many, [], cal, 'Voet', baseOptions({ reportFontScale: 125 }));
+    ok(Math.abs(scaled.footerHeight! - dims.footerHeight! * 1.25) < 1e-9, 'de voethoogte schaalt met de rapport-lettergrootte');
+    const tile = {
+      paperSize: 'a4' as const, orientation: 'landscape' as const, mode: 'fit-width' as const,
+      logicalWidth: dims.width, logicalHeight: dims.height, frozenColumnWidthPx: dims.tableWidth,
+      repeatHeaderHeightPx: dims.headerHeight, breakOffsetsPx: dims.breakOffsets,
+    };
+    const plain = computeTileLayout(tile);
+    const withFooter = computeTileLayout({ ...tile, repeatFooterHeightPx: dims.footerHeight });
+    ok(plain.repeatFooterPx === 0 && plain.footerTopPt === plain.marginPt + plain.printH, 'zonder optie: geen voetstrook, voetrand = onderrand printgebied');
+    ok(JSON.stringify(computeTileLayout({ ...tile, repeatFooterHeightPx: 0 }).bodyRows) === JSON.stringify(plain.bodyRows), 'repeatFooterHeightPx 0 ⇒ byte-identiek');
+    const lastPlain = plain.bodyRows[plain.bodyRows.length - 1];
+    ok(Math.abs(lastPlain.srcY + lastPlain.srcH - dims.height) < 1e-9, 'zonder optie hangt de voet aan de laatste body-tegel (oud gedrag)');
+    ok(withFooter.repeatFooterPx === dims.footerHeight && withFooter.repeatFooterSrcY === dims.height - dims.footerHeight!,
+      'met optie: voetstrook = onderste voethoogte van de bron');
+    const lastFooter = withFooter.bodyRows[withFooter.bodyRows.length - 1];
+    ok(Math.abs(lastFooter.srcY + lastFooter.srcH - withFooter.repeatFooterSrcY) < 1e-9, 'met optie eindigt de laatste body-tegel boven de voet');
+    const set = new Set(dims.breakOffsets);
+    ok(withFooter.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)), 'met voet eindigt elke pagina nog steeds op een rijgrens');
+    ok(withFooter.bodyRows.every(r => r.srcH * withFooter.scale <= withFooter.printH - withFooter.repeatHeaderPtH - withFooter.repeatFooterPtH + 1e-9),
+      'kop + body + voet passen samen in het printgebied');
+    ok(Math.abs(withFooter.footerTopPt - (withFooter.marginPt + withFooter.printH - withFooter.repeatFooterPtH)) < 1e-9, 'voetstrook staat onderaan het printgebied');
+    ok(withFooter.rows >= plain.rows, 'de voet kost hooguit pagina\'s, nooit minder');
+    // Degeneratie: een voet die (met de kop) de hele pagina of de hele bron opeet wordt niet herhaald.
+    const tooTall = computeTileLayout({ ...tile, repeatFooterHeightPx: dims.height });
+    ok(tooTall.repeatFooterPx === 0 && JSON.stringify(tooTall.bodyRows) === JSON.stringify(plain.bodyRows), 'te hoge voet ⇒ niet herhaald, tegeling als zonder');
+    // Zonder kopherhaling en in 'actual': dezelfde voetgarantie.
+    for (const variant of [{ repeatHeaderHeightPx: 0 }, { mode: 'actual' as const }]) {
+      const l = computeTileLayout({ ...tile, ...variant, repeatFooterHeightPx: dims.footerHeight });
+      const last = l.bodyRows[l.bodyRows.length - 1];
+      ok(l.repeatFooterPx === dims.footerHeight && Math.abs(last.srcY + last.srcH - l.repeatFooterSrcY) < 1e-9,
+        `voet herhaald in variant ${JSON.stringify(variant)}`);
+    }
+    // Samen met een blad per resource (#113): de gedwongen posities blijven bandgrenzen, de voet komt op elk vel.
+    const bands: ViewRow[] = [];
+    for (let b = 0; b < 3; b++) {
+      bands.push({ kind: 'group', rowKey: `vb${b}`, key: `vb${b}`, label: `Resource ${b}`, count: 2, depth: 0, levelIndex: 0, collapsed: false });
+      for (let i = 0; i < 2; i++) {
+        const task = { ...T_NORM, id: `vb${b}t${i}`, name: `Taak ${b}.${i}` };
+        bands.push({ kind: 'task', rowKey: task.id, task, depth: 1, dimmed: false });
+      }
+    }
+    const perBand = measurePrintReport(bands.flatMap(r => (r.kind === 'task' ? [r.task] : [])), [], cal, 'Blad per resource', baseOptions({ rows: bands, pageBreakBeforeGroups: true }));
+    const l = computeTileLayout({
+      ...tile, logicalWidth: perBand.width, logicalHeight: perBand.height, frozenColumnWidthPx: perBand.tableWidth,
+      repeatHeaderHeightPx: perBand.headerHeight, breakOffsetsPx: perBand.breakOffsets,
+      forcedBreakOffsetsPx: perBand.forcedBreakOffsets, repeatFooterHeightPx: perBand.footerHeight,
+    });
+    ok(l.rows === 3 && l.repeatFooterPx === perBand.footerHeight, `blad per resource mét voet: drie pagina's, elk met voetstrook (got ${l.rows}, voet ${l.repeatFooterPx})`);
+    const forcedSet = new Set(perBand.forcedBreakOffsets);
+    ok(l.bodyRows.slice(0, -1).every(r => forcedSet.has(r.srcY + r.srcH)), 'blad per resource mét voet: pagina 1 en 2 eindigen op de bandgrens');
+    // De voet zelf bevat geen nep-paginanummer meer: de pagineerders drukken "n / totaal" in de marge.
+    const rec = record(many.slice(0, 3), [], cal, baseOptions());
+    ok(!rec.texts.some(t => /^(Pagina|Page) 1 (van|of) 1$/.test(t.text)), 'geen vast "Pagina 1 van 1" in de voet');
+  }
+
   // Contract pdfTable → tileLayout (issue #110 punt 3): de breekposities die de tabelrender levert
   // vallen precies op rijgrenzen, en de pagineerder eindigt elke pagina op zo'n grens.
   {

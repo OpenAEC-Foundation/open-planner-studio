@@ -142,6 +142,8 @@ export interface ReportSettings {
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
   repeatHeader: boolean;
+  /** Voet (projectnaam, afdrukdatum, legenda) op elke pagina — anders alleen op de laatste. */
+  repeatFooter: boolean;
   timelineColumns: number;
   reportFontScale: number;
   /** Statuslijn in de export (#54), letterlijk drie opties zoals gevraagd. */
@@ -176,6 +178,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   paperSize: 'A3',
   orientation: 'landscape',
   repeatHeader: true,
+  // Standaard aan, net als de kop: een uitdeelvel zonder legenda is onleesbaar (issue #113).
+  repeatFooter: true,
   timelineColumns: 1,
   reportFontScale: 100,
   statusLine: 'none',
@@ -285,6 +289,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     paperSize: parseEnum(PAPER_SIZES, s.paperSize) ?? d.paperSize,
     orientation: parseEnum(ORIENTATIONS, s.orientation) ?? d.orientation,
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,
+    repeatFooter: parseBoolean(s.repeatFooter) ?? d.repeatFooter,
     timelineColumns: parseClampedInt(s.timelineColumns, TIMELINE_COLUMNS_MIN, TIMELINE_COLUMNS_MAX) ?? d.timelineColumns,
     reportFontScale: parseNumberChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,

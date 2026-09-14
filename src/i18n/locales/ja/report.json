@@ -25,6 +25,7 @@
   "zoom": "ズーム：",
   "previewQuality": { "label": "プレビュー品質", "standard": "標準", "high": "高", "maximum": "最大" },
   "repeatHeader": "各ページにヘッダーを繰り返す",
+  "repeatFooter": "各ページにフッターを繰り返す",
   "reportFontScaleLabel": "文字サイズ：",
   "timelineColumnsLabel": "タイムライン：",
   "timelineColumnsHint": "自動調整時のみ",

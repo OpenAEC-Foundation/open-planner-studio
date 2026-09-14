@@ -25,6 +25,7 @@
   "zoom": "Zoom:",
   "previewQuality": { "label": "Qualità anteprima", "standard": "Standard", "high": "Alta", "maximum": "Massima" },
   "repeatHeader": "Ripeti intestazione su ogni pagina",
+  "repeatFooter": "Ripeti piè di pagina su ogni pagina",
   "reportFontScaleLabel": "Dimensione carattere:",
   "timelineColumnsLabel": "Cronologia su:",
   "timelineColumnsHint": "Solo con adattamento automatico",

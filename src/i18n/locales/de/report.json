@@ -25,6 +25,7 @@
   "zoom": "Zoom:",
   "previewQuality": { "label": "Vorschauqualität", "standard": "Standard", "high": "Hoch", "maximum": "Maximal" },
   "repeatHeader": "Kopfzeile auf jeder Seite wiederholen",
+  "repeatFooter": "Fußzeile auf jeder Seite wiederholen",
   "reportFontScaleLabel": "Schriftgröße:",
   "timelineColumnsLabel": "Zeitleiste über:",
   "timelineColumnsHint": "Nur bei automatischer Anpassung",

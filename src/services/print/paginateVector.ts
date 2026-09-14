@@ -48,6 +48,12 @@ export interface VectorPaginateOptions {
    */
   repeatHeader?: boolean;
   /**
+   * Herhaal de voetstrook (projectnaam, afdrukdatum, legenda) onderaan ELKE pagina. Zelfde
+   * boolean-vorm als `repeatHeader`, om dezelfde reden: de hoogte komt uit
+   * {@link RenderReportResult.footerHeight}. Default false = voet alleen op de laatste pagina.
+   */
+  repeatFooter?: boolean;
+  /**
    * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt (issue #25 punt 5). Alleen in
    * `'fit-width'`; default 1 = alles op één paginabreedte persen (oud gedrag).
    */
@@ -281,12 +287,16 @@ export async function paginateVectorToPdfBytes(
     frozenColumnWidthPx: dims.tableWidth,
     // De kopstrookhoogte komt uit de render zelf (zie `VectorPaginateOptions.repeatHeader`).
     repeatHeaderHeightPx: opts.repeatHeader ? dims.headerHeight : 0,
+    repeatFooterHeightPx: opts.repeatFooter ? (dims.footerHeight ?? 0) : 0,
     timelineColumns: opts.timelineColumns,
     marginPt: opts.marginPt,
     breakOffsetsPx: dims.breakOffsets,
     forcedBreakOffsetsPx: dims.forcedBreakOffsets,
   });
-  const { pageWidthPt: pageW, pageHeightPt: pageH, marginPt, scale, rows, cols, repeatHeaderPx, bodyTopPt } = layout;
+  const {
+    pageWidthPt: pageW, pageHeightPt: pageH, marginPt, scale, rows, cols, repeatHeaderPx, bodyTopPt,
+    repeatFooterPx, repeatFooterSrcY, footerTopPt,
+  } = layout;
 
   const ch = dims.height;
   const totalPages = rows * cols;
@@ -344,6 +354,7 @@ export async function paginateVectorToPdfBytes(
   // Top van het printgebied in PDF-punten (y-omhoog); de kopstrook begint hier, de body eronder.
   const printTopYUp = pageH - marginPt;
   const bodyTopYUp = pageH - bodyTopPt;
+  const footerTopYUp = pageH - footerTopPt;
 
   let pageIndex = 0;
   for (const row of layout.bodyRows) {
@@ -374,6 +385,11 @@ export async function paginateVectorToPdfBytes(
           drawTile(pageOps, win.srcX, 0, win.srcW, repeatHeaderPx, win.pageX, printTopYUp);
         }
         drawTile(pageOps, win.srcX, row.srcY, win.srcW, row.srcH, win.pageX, bodyTopYUp);
+        // Voetstrook onderaan het printgebied, zelfde x-venster; de voettekst valt in dit
+        // bronvenster en wordt dus — net als de koptekst — per pagina geëmit.
+        if (repeatFooterPx > 0) {
+          drawTile(pageOps, win.srcX, repeatFooterSrcY, win.srcW, repeatFooterPx, win.pageX, footerTopYUp);
+        }
       }
 
       // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject.

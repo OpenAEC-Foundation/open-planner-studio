@@ -575,6 +575,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RRGSETTINGSCHECK="$DIR/.report-resource-gantt-setting.mjs"
   if bundle_check "$DIR/check-report-resource-gantt-setting.ts" "$RRGSETTINGSCHECK"; then node "$RRGSETTINGSCHECK" || STATUS=1; fi
 
+  # Voet op elke pagina (issue #113): default aan, round-trip, tolerantie.
+  RFSETTINGSCHECK="$DIR/.report-footer-setting.mjs"
+  if bundle_check "$DIR/check-report-footer-setting.ts" "$RFSETTINGSCHECK"; then node "$RFSETTINGSCHECK" || STATUS=1; fi
+
   # Renderer-datumloos-regressie (TODO-item 2026-07-28): `barGeometry` (en `drawMilestone`) gooide
   # per frame een TypeError op een taak zonder start-/finishdatums (`undefined.includes('T')`) en
   # liet de hele Gantt zwart. Draait de echte renderer over datumloze leaf-/summary-/mijlpaal-rijen:

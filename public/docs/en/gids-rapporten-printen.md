@@ -40,6 +40,9 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   independently of the zoom level above.
 - **Repeat header on each page** — on by default; keeps the report header visible on every printed
   page instead of only the first.
+- **Repeat footer on each page** — on by default; puts the footer with project name, print date and
+  legend at the bottom of every page instead of only the last, so a sheet handed out on its own
+  carries its own legend. Off = slightly more rows per page.
 - **Timeline over** — spreads the Gantt timeline across 1 to 8 pages side by side; only available
   with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
   the table text.
@@ -102,8 +105,8 @@ resource yourself first. Bands are per resource, not per name: two resources tha
 name each get their own band (*Jan #1*, *Jan #2*), and a resource without a name gets a sequence
 number. The summary block counts the resources, the assignments and the tasks without a resource —
 that last count includes milestones and hammocks, because they are drawn here (the *Resource
-assignments* table report counts real activities only). The footer with the legend and print date
-sits, as in every multi-page print, on the last sheet. If there are no assignments yet, the preview
+assignments* table report counts real activities only). With *Repeat footer on each page* (on by
+default) every sheet you hand out carries its own legend. If there are no assignments yet, the preview
 says so instead of showing an empty page; assigning happens on the **Resources** tab (see
 [Resources & histogram](docs://gids-resources-histogram)).
 

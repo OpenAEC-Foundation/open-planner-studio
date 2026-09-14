@@ -305,6 +305,9 @@ export function ReportPanel() {
   // Bewust géén veld in `PrintOptions`: de kopherhaling is puur een pagineerder-zaak (raster:
   // hoogte in px; vector: boolean), niet iets dat de render-zoom raakt.
   const [repeatHeader, setRepeatHeader] = useState(DEFAULT_REPORT_SETTINGS.repeatHeader);
+  // Voet (projectnaam, afdrukdatum, legenda) op elke pagina — issue #113: een blad per persoon
+  // zonder legenda is onleesbaar. Zelfde pagineerder-zaak als de kop, dus óók geen PrintOptions-veld.
+  const [repeatFooter, setRepeatFooter] = useState(DEFAULT_REPORT_SETTINGS.repeatFooter);
   // Issue #25 punt 5 — smeert de tijdlijn uit over N paginabreedtes (1 = oud gedrag, geen
   // verrassing voor bestaande gebruikers). Alleen zinvol in fit-width-modus; daarom `disabled`
   // wanneer `autoFit` uit staat (dan tegelt de export in 'actual'-modus toch al horizontaal).
@@ -387,6 +390,7 @@ export function ReportPanel() {
       setPaperSize(s.paperSize);
       setOrientation(s.orientation);
       setRepeatHeader(s.repeatHeader);
+      setRepeatFooter(s.repeatFooter);
       setTimelineColumns(s.timelineColumns);
       setReportFontScale(s.reportFontScale);
       setStatusLine(s.statusLine);
@@ -427,14 +431,14 @@ export function ReportPanel() {
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
-      paperSize, orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
       tableReports: tableOptions,
       resourceGantt: resourceGanttOptions,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
-      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality, tableOptions,
-      resourceGanttOptions]);
+      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      tableOptions, resourceGanttOptions]);
 
   // Resourcediagram (issue #113): dezelfde Gantt-render, maar de rijen komen uit de pure rekenmodule
   // (per resource-identiteit een band, daaronder zijn taken) en niet van het scherm.
@@ -647,7 +651,7 @@ export function ReportPanel() {
     const renderPreview = () => {
       if (cancelled) return;
       const {
-        width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets, forcedBreakOffsets,
+        width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, footerHeight, breakOffsets, forcedBreakOffsets,
       } = measurePrintReport(tasks, sequences, calendar, projectName, options);
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
       const cssPageWidth = previewCssWidth;
@@ -665,6 +669,7 @@ export function ReportPanel() {
         // Kop herhalen per pagina (issue #25 punt 1): de hoogte komt uit de render zelf; 0 = niet
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
+        repeatFooterHeightPx: repeatFooter ? (footerHeight ?? 0) : 0,
         timelineColumns: options.timelineColumns,
         // Rij-bewuste paginering (issue #110): preview en export delen dezelfde breekposities;
         // het resourcediagram (issue #113) ook zijn gedwongen overgangen per resource.
@@ -828,7 +833,7 @@ export function ReportPanel() {
     // toevoegen zou iedere preview-state-update opnieuw laten rasteren.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportSettingsHydrated, isGanttLike, tasks, sequences, calendar, projectName, previewOptionsSignature,
-    repeatHeader, previewCssWidth, previewQuality, replacePreviewPages]);
+    repeatHeader, repeatFooter, previewCssWidth, previewQuality, replacePreviewPages]);
 
   // Eén stabiele observer per layout. Een nieuwe afbeelding verandert zijn dependencies niet en kan
   // dus geen observer-rebuild/ping-pong veroorzaken. De queue dedupliceert callbacks.
@@ -919,7 +924,7 @@ export function ReportPanel() {
       const exportRaster = (): Uint8Array => {
         const exportCanvas = document.createElement('canvas');
         const {
-          width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets, forcedBreakOffsets,
+          width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, footerHeight, breakOffsets, forcedBreakOffsets,
         } = renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, 1);
         const exportScale = computeHighResScale(logicalWidth, logicalHeight);
         renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
@@ -929,6 +934,7 @@ export function ReportPanel() {
           // Zelfde kopherhaling (px) en tijdlijn-spreiding als de preview en de vector-tak, zodat de
           // raster-terugval WYSIWYG gelijk is aan beide (issue #25 punt 1 + 5).
           repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
+          repeatFooterHeightPx: repeatFooter ? (footerHeight ?? 0) : 0,
           timelineColumns,
           breakOffsetsPx: breakOffsets,
           forcedBreakOffsetsPx: forcedBreakOffsets,
@@ -954,8 +960,10 @@ export function ReportPanel() {
             orientation,
             mode,
             baseDir: exportBaseDir,
-            // Kop per pagina herhalen (issue #25 punt 1) + tijdlijn over N pagina's (punt 5).
+            // Kop per pagina herhalen (issue #25 punt 1) + tijdlijn over N pagina's (punt 5); voet
+            // per pagina (issue #113).
             repeatHeader,
+            repeatFooter,
             timelineColumns,
           },
           { regular, bold },
@@ -1061,7 +1069,7 @@ export function ReportPanel() {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, isGanttLike, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
+    autoFit, repeatHeader, repeatFooter, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
 
   // K7-guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
   // leest `tasks`/`options`/`tableSpec` uit de closure van de HUIDIGE render, en die kent de
@@ -1432,6 +1440,10 @@ export function ReportPanel() {
             <label className="flex items-center gap-2 mt-1 min-w-0">
               <input type="checkbox" checked={repeatHeader} onChange={e => setRepeatHeader(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('repeatHeader')}</span>
+            </label>
+            <label className="flex items-center gap-2 min-w-0">
+              <input type="checkbox" checked={repeatFooter} onChange={e => setRepeatFooter(e.target.checked)} className="accent-accent flex-shrink-0" data-ops-report-repeat-footer />
+              <span className="min-w-0">{t('repeatFooter')}</span>
             </label>
 
             <label className="flex items-center gap-2 mt-1 min-w-0">

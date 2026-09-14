@@ -153,7 +153,9 @@ schermgroepering: gelijknamigen krijgen `#n`, naamlozen een surrogaat), daaronde
 start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan; optie "blad
 per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
-positie zonder vulgraaddrempel wint; `isGanttReportType()` bundelt beide Gantt-achtige typen), het
+positie zonder vulgraaddrempel wint; `isGanttReportType()` bundelt beide Gantt-achtige typen; de voet
+met legenda is sinds #113 net als de kop een herhaalbaar blok — `RenderReportResult.footerHeight` →
+`repeatFooterHeightPx`/`repeatFooter`, instelling `repeatFooter` standaard aan), het
 mijlpalen- en variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
 uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
 resourcebelasting per week, resourcetoewijzingen en WBS-samenvatting. Die zeven hebben een pure
