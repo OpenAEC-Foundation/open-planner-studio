@@ -546,6 +546,8 @@ export function DistributionDialog() {
                 {(stripView?.docs ?? []).map(doc => {
                   const recorded = doc.pinnedReason === 'dates-as-recorded';
                   const pinnedNow = recorded || tune.pinned[doc.docId] === true;
+                  // Een tekort kleurt de uitkomstpil rood — dezelfde bron als de badge hieronder.
+                  const short = shortfallTitleByDoc.get(doc.docId);
                   return (
                     <PhaseStrip
                       key={doc.docId}
@@ -565,6 +567,10 @@ export function DistributionDialog() {
                       cannotMove={doc.cannotMove}
                       liveCommit={!degraded}
                       busy={busy}
+                      shortfallCount={short?.count ?? 0}
+                      {...(short
+                        ? { shortfallTitle: t('resource.distribution.shortfall.doc', { doc: short.title, count: short.count }) }
+                        : {})}
                       formatDay={formatDay}
                       onTogglePin={() => setPinned(doc.docId, tune.pinned[doc.docId] !== true)}
                       onCeilingChange={next => setCeiling(doc.docId, next)}

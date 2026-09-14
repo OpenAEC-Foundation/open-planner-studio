@@ -95,6 +95,14 @@ export interface PhaseStripProps {
   liveCommit: boolean;
   /** Er loopt een berekening: de uitkomstpil toont "Bezig…" ZONDER van maat te veranderen (§7). */
   busy: boolean;
+  /**
+   * Hoeveel taken van dit document niet passen (0 = geen tekort). Een tekort maakt de uitkomstpil
+   * ROOD, ook bij een ongewijzigde einddatum: "eind ongewijzigd" in het groen naast een rode badge
+   * en een rode strook las als "alles in orde", terwijl er juist taken onbediend blijven.
+   */
+  shortfallCount: number;
+  /** De volle tekortzin voor de `title` van de pil (leeg bij geen tekort). */
+  shortfallTitle?: string;
   /** Datumnotatie voor de plafonddatum — de dialoog levert één `Intl.DateTimeFormat` voor alle rijen. */
   formatDay: (iso: string) => string;
   onTogglePin: () => void;
@@ -104,7 +112,7 @@ export interface PhaseStripProps {
 export function PhaseStrip({
   docId, title, axis, beforeLoadByDay, afterLoadByDay, fixedLoadByDay, isWorkingDay, color,
   slackWorkdays, endShiftWorkdays, ceiling, pinned, recorded, cannotMove, liveCommit, busy,
-  formatDay, onTogglePin, onCeilingChange,
+  shortfallCount, shortfallTitle, formatDay, onTogglePin, onCeilingChange,
 }: PhaseStripProps) {
   const { t } = useTranslation('common');
 
@@ -213,7 +221,9 @@ export function PhaseStrip({
     setDragValue(null);
   };
 
-  const tone = shiftTone(endShiftWorkdays);
+  // Een tekort weegt zwaarder dan de einddatum: past er een taak niet, dan is de rij rood, ook
+  // als het eind niet verschuift. Anders staat er een groene pil naast een rode badge.
+  const tone = shortfallCount > 0 ? shiftTone(Number.POSITIVE_INFINITY) : shiftTone(endShiftWorkdays);
 
   return (
     <div
@@ -417,6 +427,9 @@ export function PhaseStrip({
       >
         <span
           className="inline-block rounded-full px-2 py-0.5 tabular-nums"
+          {...(shortfallCount > 0
+            ? { 'data-ops-distribution-effect-shortfall': 'true', ...(shortfallTitle ? { title: shortfallTitle } : {}) }
+            : {})}
           style={busy
             ? { background: 'color-mix(in srgb, var(--theme-text-dim) 14%, transparent)', color: 'var(--theme-text-secondary)' }
             : tone}
