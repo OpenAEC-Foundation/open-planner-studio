@@ -380,6 +380,85 @@ test('plafond-handle: tijdens het slepen rekent de dialoog live mee', async ({ p
   }, shiftedDocId)).toBe(5);
 });
 
+// --- Polishronde bevinding 3 — de tijdas groeit niet onder de muis weg ---------------------------
+
+test('plafond-handle: een sleep in rij 2 laat de as en de greep van rij 1 staan', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const first = page.locator('[data-ops-distribution-strip]').nth(0);
+  const second = page.locator('[data-ops-distribution-strip]').nth(1);
+  const anchorHandle = first.locator('[data-ops-distribution-handle]');
+  const handle = second.locator('[data-ops-distribution-handle]');
+
+  const dayWidth = Number(await second.getAttribute('data-ops-distribution-day-width'));
+  expect(dayWidth).toBeGreaterThan(0);
+
+  // Plafond 0 als deterministisch startpunt, net als de live-sleeptest hierboven.
+  await handle.focus();
+  await handle.press('Home');
+  await expect(handle).toHaveAttribute('aria-valuenow', '0');
+  await expect.poll(() => second.locator('[data-ops-distribution-effect]').textContent())
+    .not.toContain('…');
+
+  // Het ankerpunt: de greep van de rij die NIET gesleept wordt. Vóór deze ronde fitte de as zich
+  // bij élke commit opnieuw op de beschikbare breedte; de dagenset groeit mee met het plafond, dus
+  // kromp de dagbreedte onderweg en sprong deze greep mee — terwijl er aan die rij niets gebeurde.
+  const anchorBefore = (await anchorHandle.boundingBox())!;
+
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 4 * dayWidth, box.y + box.height / 2, { steps: 8 });
+  await expect(handle).toHaveAttribute('aria-valuenow', '4');
+
+  // TIJDENS het slepen — dit is het moment waarop het misging.
+  const anchorDuring = (await anchorHandle.boundingBox())!;
+  expect(Math.abs(anchorDuring.x - anchorBefore.x)).toBeLessThan(1);
+  expect(Number(await second.getAttribute('data-ops-distribution-day-width'))).toBe(dayWidth);
+
+  await page.mouse.move(box.x + box.width / 2 + 9 * dayWidth, box.y + box.height / 2, { steps: 8 });
+  await expect(handle).toHaveAttribute('aria-valuenow', '9');
+  await page.mouse.up();
+
+  // En ná het loslaten, wanneer de herberekening binnen is: de dagbreedte ligt vast voor de hele
+  // dialoogsessie, dus ook een veel ruimere dagenset verzet geen bestaande x.
+  await expect.poll(() => second.getAttribute('data-ops-distribution-day-width')).toBe(String(dayWidth));
+  const anchorAfter = (await anchorHandle.boundingBox())!;
+  expect(Math.abs(anchorAfter.x - anchorBefore.x)).toBeLessThan(1);
+});
+
+// --- Polishronde bevinding 6 — een project dat niet past toont zijn oude boeking -----------------
+
+test('een tekort tekent de VÓÓR-boeking als spookblokjes in plaats van een lege balk', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  // Plafond 0 op de rij die moet wijken: hij mag geen werkdag opschuiven, dus zijn ene taak kan
+  // nergens heen. Dat is de echte gebruikersroute naar een tekort — Home op de greep.
+  const handle = page.locator('[data-ops-distribution-strip]').nth(1)
+    .locator('[data-ops-distribution-handle]');
+  await handle.focus();
+  await handle.press('Home');
+  await expect(handle).toHaveAttribute('aria-valuenow', '0');
+
+  // De rij met het tekort is de rij die zijn uitkomstpil rood heeft.
+  const shortStrip = page.locator('[data-ops-distribution-strip]')
+    .filter({ has: page.locator('[data-ops-distribution-effect-shortfall]') });
+  await expect(shortStrip).toHaveCount(1);
+
+  // Geen enkel echt dagblokje — en tóch iets te zien: de spoken van waar dit werk stond.
+  await expect(shortStrip.locator('[data-ops-distribution-day="work"]')).toHaveCount(0);
+  await expect(shortStrip.locator('[data-ops-distribution-day="unplaced"]').first()).toBeVisible();
+
+  // De rij die wél geplaatst is heeft geen spoken: dit is een tekort-markering, geen achtergrond.
+  const okStrip = page.locator('[data-ops-distribution-strip]')
+    .filter({ hasNot: page.locator('[data-ops-distribution-effect-shortfall]') });
+  await expect(okStrip.locator('[data-ops-distribution-day="unplaced"]')).toHaveCount(0);
+});
+
 // --- Fixronde bevinding B9 — de greep houdt de focus na een muisgebaar ---------------------------
 
 test('plafond-handle: na loslaten heeft de greep de focus en werkt een pijltje meteen', async ({ page, ops: _ops }) => {
