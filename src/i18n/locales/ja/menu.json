@@ -196,6 +196,7 @@
     "columnsHintTable": "テーブル ビューの列を選択",
     "columnsHintGoToTable": "テーブル ビューの列を選択 — テーブル タブに表示されます",
     "toggleResourceAccent": "リソースアクセント",
+    "toggleFloatBand": "フロート帯",
     "screenColors": "バーの色",
     "screenColors_critical": "クリティカルパス",
     "screenColors_auto": "タスクごと — 自動",

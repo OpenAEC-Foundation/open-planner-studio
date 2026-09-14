@@ -51,6 +51,26 @@ e il resto tornano esattamente come li hai lasciati. Solo il campo azienda si az
 dall'impostazione propria del progetto, così un report non trascina mai il nome dell'azienda di un
 altro progetto.
 
+### Diagramma delle risorse
+
+La stessa stampa Gantt, ma raggruppata **per risorsa**: ogni squadra, persona o macchina ha una
+propria fascia con sotto le attività assegnate, in ordine di inizio. È la vista «chi fa cosa, e
+quando» per la riunione di cantiere, oppure — con l'opzione **Ogni risorsa su una nuova pagina** —
+un foglio separato per persona da distribuire. Un'attività con due risorse compare sotto entrambe
+le fasce; le attività di riepilogo sono escluse: un'assegnazione su un'attività di riepilogo (possibile
+dopo un'importazione) qui non compare. **Includi le
+attività senza risorsa** aggiunge in fondo una fascia *(nessuno)*, così in riunione si vede subito
+cosa non ha ancora nessuno.
+
+Tutte le impostazioni della stampa Gantt valgono invariate — percorso critico, slack, colori delle
+barre, linea di stato, carta, ripetizione dell'intestazione — tranne *Segui vista* (questo report
+non prende le righe dallo schermo) e *Dipendenze* (un'attività compare sotto ogni risorsa che le è
+assegnata, quindi una freccia non avrebbe un ancoraggio univoco; questo report non ne disegna). Le
+fasce sono per risorsa, non per nome: due risorse omonime hanno ciascuna la propria fascia (*Jan #1*, *Jan #2*). Non serve quindi raggruppare prima la vista Gantt
+per risorsa. Il blocco di riepilogo conta le risorse, le assegnazioni e le attività senza risorsa.
+Se non ci sono ancora assegnazioni, l'anteprima lo dice invece di mostrare una pagina vuota;
+l'assegnazione avviene nella scheda **Risorse** (vedi [Risorse e istogramma](docs://gids-resources-histogram)).
+
 ### Panoramica attività cardine
 
 Una tabella di ogni traguardo nel progetto: WBS, nome, tipo (automatico/inizio/fine), data, il vincolo
@@ -79,10 +99,29 @@ progetto — senza data di stato il rapporto usa oggi e lo segnala; date e slack
 sempre prima; ogni rapporto ha un piccolo blocco **Opzioni del rapporto**, ricordato tra le sessioni.
 I giorni lavorativi sono abbreviati in *gl*.
 
+### Periodo del report
+
+Quattro report lavorano su una finestra temporale: previsione, avanzamento, carico risorse e
+assegnazioni risorse. Condividono un unico controllo *Periodo del report* nelle opzioni del report,
+con un'impostazione memorizzata per ciascun report:
+
+- **Prossima / ultima settimana, 2, 4, 6, 8 o 12 settimane** e **prossimo / ultimo mese** —
+  contati dalla data di stato del progetto (o da oggi se manca). Un preset è inclusivo a entrambi
+  gli estremi: *prossime 4 settimane* giovedì 10 settembre arriva a mercoledì 7 ottobre. Cambiando
+  la data di stato la finestra si sposta di conseguenza.
+- **Intero progetto** — dall'inizio più anticipato alla fine più tardiva del programma.
+- **Personalizzato** — due date a scelta. I campi *Dal* e *Al* diventano modificabili (digitazione
+  o selettore di data); con un preset mostrano le date calcolate in sola lettura. Una data finale
+  precedente a quella iniziale, o un campo data vuoto, viene evidenziata in rosso e non applicata. Tornando a un preset,
+  le sue date sostituiscono l'intervallo personalizzato.
+
+Il periodo scelto compare come sottotitolo del report e del PDF; il rapporto di avanzamento lo
+mostra nel riepilogo.
+
 ### Previsione (look-ahead)
 
-L'elenco per la riunione settimanale di cantiere: tutte le attività delle prossime *N* settimane
-(quattro per default) — cosa inizia, prosegue o finisce — più ciò che avrebbe già dovuto accadere.
+L'elenco per la riunione settimanale di cantiere: tutte le attività del periodo del report
+(il prossimo mese per default) — cosa inizia, prosegue o finisce — più ciò che avrebbe già dovuto accadere.
 Per riga: WBS, nome, inizio e fine, durata residua, avanzamento, slack totale, critica o quasi
 critica, risorse assegnate e uno stato: **Inizia**, **In corso**, **Doveva iniziare** o **In
 ritardo**. Compare anche un'attività che copre l'intera finestra.
@@ -101,7 +140,11 @@ prevista con la differenza in giorni lavorativi, l'avanzamento **pianificato** c
 **effettivo** (entrambi pesati sulla durata delle attività foglia; pianificato sulle date della
 baseline attiva, altrimenti sul programma attuale) e i conteggi per stato. Sotto, cinque sezioni:
 completate nel periodo passato, in corso, iniziano nel prossimo periodo, in ritardo e attività
-critiche aperte. Il periodo (due settimane per default) guarda indietro quanto avanti.
+critiche aperte. Il periodo del report (l'ultimo mese per default) decide cosa conta come *completato nel periodo*;
+la sezione *iniziano nel prossimo periodo* guarda avanti dalla data di stato: fino alla fine del
+periodo se questo cade (in parte) dopo la data di stato, con un preset *ultimo/i …* tanto avanti
+quanto il periodo guarda indietro; con un periodo personalizzato o dell'intero progetto che cade
+del tutto nel passato, la sezione resta vuota. Il riepilogo mostra entrambi i limiti.
 
 ### Salute del programma
 
@@ -112,18 +155,21 @@ anticipi, vincoli rigidi, avanzamento fuori sequenza) e **informazioni** (quasi 
 elevato, ritardi lunghi). Le soglie sono nelle opzioni; default secondo DCMA: 44 giorni lavorativi
 per slack elevato e durata lunga, 10 per i ritardi. Un programma pulito ha zero errori.
 
-### Carico risorse per settimana
+### Carico risorse
 
-Per risorsa e settimana, il fabbisogno rispetto alla capacità disponibile (in unità-giorno), la
-differenza, il picco giornaliero e se la settimana è sovraccarica — lo stesso calcolo
-dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo le settimane con
-fabbisogno; con *Solo settimane sovraccariche* restano solo i colli di bottiglia.
+Le righe sono raggruppate per risorsa (nome e tipo solo sulla prima riga di ogni gruppo, come nelle assegnazioni risorse); con *Aggregazione* scegli tra settimane e mesi di calendario, e il periodo del report determina quali settimane o mesi compaiono.
+
+Per risorsa e settimana o mese, il fabbisogno rispetto alla capacità disponibile (in unità-giorno),
+la differenza, il picco giornaliero e se il periodo è sovraccarico — lo stesso calcolo
+dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo i periodi con
+fabbisogno; con *Solo periodi sovraccarichi* restano solo i colli di bottiglia. Se un'interruzione di pagina
+del PDF cade a metà di un gruppo, il nome della risorsa non viene ripetuto nella pagina seguente.
 
 ### Assegnazioni risorse
 
 Per risorsa, le attività assegnate: WBS, nome, inizio e fine, durata residua, unità al giorno,
-avanzamento, critica e stato. Le attività completate sono escluse per default. Con una finestra in
-settimane diventa la *previsione per risorsa*. Il riepilogo conta anche le attività senza risorsa.
+avanzamento, critica e stato. Le attività completate sono escluse per default. Con un periodo del
+report (intero progetto per default) diventa la *previsione per risorsa*. Il riepilogo conta anche le attività senza risorsa.
 
 ### Riepilogo WBS
 

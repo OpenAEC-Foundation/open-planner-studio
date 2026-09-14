@@ -196,6 +196,7 @@
     "columnsHintTable": "Spalten der Tabellenansicht wählen",
     "columnsHintGoToTable": "Spalten der Tabellenansicht wählen — sichtbar im Register Tabelle",
     "toggleResourceAccent": "Ressourcen-Akzent",
+    "toggleFloatBand": "Pufferband",
     "screenColors": "Balkenfarben",
     "screenColors_critical": "Kritischer Pfad",
     "screenColors_auto": "Pro Aufgabe — automatisch",

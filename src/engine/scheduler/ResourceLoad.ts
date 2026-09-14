@@ -14,7 +14,7 @@ import {
   CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
   slotWeightsFromValues,
 } from '@/engine/contour/contourEngine';
-import { parseDate, formatDate, addCalendarDays, getWeekStart } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, getMonthStart, getWeekStart } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
@@ -467,8 +467,8 @@ export function maxUnitsOn(resource: Resource, iso: string): number {
 //
 // Een aparte, gescopete engine-pass bovenop dezelfde bouwstenen als `computeResourceLoad`
 // (`distributeUnits` + werkdag-enumeratie), met drie dingen die de UI-load-pass NIET levert:
-//   1. Bucketing (dag/week) — weekbucket levert zowel de weeksom (`load`) als de piekdag
-//      (`peakDayLoad`), zodat een eendaagse piek niet in de weeksom verdwijnt.
+//   1. Bucketing (dag/week/maand) — week- en maandbucket leveren zowel de periodesom (`load`) als
+//      de piekdag (`peakDayLoad`), zodat een eendaagse piek niet in de som verdwijnt.
 //   2. Venster-capaciteit — een EIGEN enumeratie over ÁLLE werkdagen van het bucketvenster (ook
 //      onbelaste). De load-pass levert capaciteit enkel op belaste dagen; dat zou een week-som
 //      onderschatten (review-bevinding). Kalender per resource: `resource.calendarId` → bibliotheek,
@@ -491,7 +491,7 @@ export interface HistogramBucket {
   /** ISO-grenzen van het bucketvenster (inclusief). Dagbucket: start == end. */
   start: string;
   end: string;
-  /** Weekbucket: som van de belasting over de week. Dagbucket: gelijk aan `peakDayLoad`. */
+  /** Week-/maandbucket: som van de belasting over de periode. Dagbucket: gelijk aan `peakDayLoad`. */
   load: number;
   /** Hoogste dag-belasting binnen het venster (dagbucket: gelijk aan `load`). */
   peakDayLoad: number;
@@ -520,7 +520,7 @@ export interface HistogramInput {
   /** Vensterstart/-einde (ISO). Default = projectspanne uit de taakdatums (min earlyStart..max earlyFinish). */
   from?: string;
   to?: string;
-  bucket: 'dag' | 'week';
+  bucket: 'dag' | 'week' | 'maand';
 }
 
 /**
@@ -587,11 +587,20 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     toIso = toIso ?? maxF;
   }
 
-  // 3. Bucketvensters — dichte tegeling van [from,to]. Week = ISO-week (ma..zo); dag = één dag.
+  // 3. Bucketvensters — dichte tegeling van [from,to]. Week = ISO-week (ma..zo); maand =
+  //    kalendermaand; dag = één dag.
   const windows: Array<{ start: string; end: string }> = [];
   if (fromIso && toIso && fromIso <= toIso) {
     const toDate = parseDate(toIso);
-    if (bucket === 'week') {
+    if (bucket === 'maand') {
+      let ms = getMonthStart(parseDate(fromIso));
+      let guard = 0;
+      while (ms <= toDate && guard++ < 100_000) {
+        const next = getMonthStart(addCalendarDays(ms, 32));
+        windows.push({ start: formatDate(ms), end: formatDate(addCalendarDays(next, -1)) });
+        ms = next;
+      }
+    } else if (bucket === 'week') {
       let ws = getWeekStart(parseDate(fromIso)); // maandag van de week rond `from`
       let guard = 0;
       while (ws <= toDate && guard++ < 100_000) {

@@ -699,9 +699,9 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   //     schakelde de tool stil naar de AGGREGAAT-modus — een heel andere respons dan gevraagd;
   //   - een onbekend resource-id gaf een lege reeks die leest als "geen belasting".
   requireOnlyKeys(args, HISTOGRAM_KEYS, 'get_resource_histogram');
-  if (args.bucket !== undefined && args.bucket !== 'dag' && args.bucket !== 'week') {
+  if (args.bucket !== undefined && args.bucket !== 'dag' && args.bucket !== 'week' && args.bucket !== 'maand') {
     throw new ToolError('VALIDATION',
-      `\`bucket\` moet 'dag' of 'week' zijn (Nederlandse waarden), kreeg '${String(args.bucket)}'.`);
+      `\`bucket\` moet 'dag', 'week' of 'maand' zijn (Nederlandse waarden), kreeg '${String(args.bucket)}'.`);
   }
   requireIsoDate(args.van, 'van');
   requireIsoDate(args.tot, 'tot');
@@ -728,7 +728,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   const fresh = ensureFreshSchedule(ctx.app);
   const s = ctx.app.store.getState(); // verse contextstate ná een eventuele recompute
 
-  const bucket: 'dag' | 'week' = args.bucket === 'dag' ? 'dag' : 'week';
+  const bucket: 'dag' | 'week' | 'maand' = args.bucket === 'dag' ? 'dag' : args.bucket === 'maand' ? 'maand' : 'week';
   const from = typeof args.van === 'string' ? args.van : undefined;
   const to = typeof args.tot === 'string' ? args.tot : undefined;
 
@@ -1099,14 +1099,14 @@ export const readTools: McpToolDef[] = [
     description:
       'Belasting/capaciteit-histogram per resource. Params: `resourceIds` (weglaten = alle; een ' +
       'onbekend id geeft een nette fout, geen lege reeks), `van`/`tot` (ISO-venster), `bucket` (exact ' +
-      '"dag" of "week" — Nederlandse waarden, default "week"). HERREKENT de planning vers wanneer die ' +
+      '"dag", "week" of "maand" — Nederlandse waarden, default "week"). HERREKENT de planning vers wanneer die ' +
       'verouderd is of nog nooit is doorgerekend (en meldt dat via `recomputed`/`warning`). ' +
       'DETAIL-OP-AANVRAAG: zónder venster ' +
       'ÉN zónder resourceIds (de naïeve eerste call) levert de tool `mode:"aggregate"` — per resource ' +
       'een samenvatting (peakLoad + peakDate, overallocatedDayCount, spanStart/spanEnd, loadSum, ' +
       'capacitySum) mét `detailAvailable:true`; pieken blijven zo zichtbaar maar de respons is klein. ' +
       'Geef `resourceIds` en/of `van`/`tot` voor `mode:"detail"` met de volledige bucket-arrays: per ' +
-      'bucket `load` (weekbucket = som over de week), `peakDayLoad`, `capacity`, dag-granulaire ' +
+      'bucket `load` (week-/maandbucket = som over de periode), `peakDayLoad`, `capacity`, dag-granulaire ' +
       '`overallocatedDays` en per overbelaste bucket de veroorzakende toewijzingen (`causes`). ' +
       'LET OP — WEEKMODUS-OVERHANG: weekvensters snappen naar hele ISO-weken (ma..zo), dus een venster ' +
       'kan aan de randen dagen buiten [van,tot] meenemen; de capaciteit telt álle werkdagen van het ' +
@@ -1119,7 +1119,7 @@ export const readTools: McpToolDef[] = [
         resourceIds: { type: 'array', items: { type: 'string' } },
         van: { type: 'string', description: 'ISO-datum vensterstart' },
         tot: { type: 'string', description: 'ISO-datum venstereinde' },
-        bucket: { type: 'string', enum: ['dag', 'week'], description: 'Bucketbreedte (default week)' },
+        bucket: { type: 'string', enum: ['dag', 'week', 'maand'], description: 'Bucketbreedte (default week)' },
       },
       additionalProperties: false,
     },

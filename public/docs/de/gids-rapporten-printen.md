@@ -34,6 +34,25 @@ Beziehungslinien im Bericht verwenden dieselbe visuelle Sprache wie die Gantt-An
 
 Der Zusammenfassungsblock darüber zeigt die Live-Anzahl der Aufgaben, Blattaufgaben, kritischen Aufgaben und Beziehungen im Projekt. Das Einstellungs-Panel merkt sich Ihre Wahl über Sitzungen hinweg — öffnen Sie die Registerkarte Bericht später erneut, kommen Papierformat, Schalter, Schriftgröße und der Rest genau so zurück, wie Sie sie verlassen haben. Nur das Feld Unternehmen setzt sich zurück: Es startet immer von der eigenen Einstellung des Projekts, sodass ein Bericht nie den Unternehmensnamen eines anderen Projekts übernimmt.
 
+### Ressourcendiagramm
+
+Derselbe Gantt-Ausdruck, aber gruppiert **pro Ressource**: Jede Kolonne, Person oder Maschine
+bekommt ein eigenes Band mit den ihr zugewiesenen Aufgaben darunter, in Reihenfolge des Starts. Das
+ist die „Wer macht was, und wann“-Übersicht für die Baubesprechung, oder — mit der Option **Jede
+Ressource auf einer neuen Seite** — ein eigenes Blatt pro Person zum Verteilen. Eine Aufgabe mit zwei
+Ressourcen erscheint unter beiden Bändern; Sammelaufgaben bleiben außen vor — eine Zuweisung
+auf einer Sammelaufgabe (etwa aus einem Import) wird hier nicht gezeigt. **Aufgaben ohne Ressource einbeziehen** fügt unten ein Band *(keine)* hinzu, sodass die
+Besprechung sofort sieht, was noch niemand hat.
+
+Alle Einstellungen des Gantt-Ausdrucks gelten unverändert — kritischer Pfad, Puffer, Balkenfarben,
+Statuslinie, Papier, Kopfwiederholung — außer *Ansicht folgen* (dieser Bericht nimmt seine Zeilen
+nicht vom Bildschirm) und *Abhängigkeiten* (eine Aufgabe steht unter jeder ihr zugewiesenen
+Ressource, ein Pfeil hätte also keinen eindeutigen Anker; dieser Bericht zeichnet keine). Bänder
+gelten je Ressource, nicht je Name: zwei gleichnamige Ressourcen bekommen je ein eigenes Band (*Jan #1*, *Jan #2*). Sie müssen die Gantt-Ansicht also nicht erst selbst nach Ressource
+gruppieren. Der Übersichtsblock zählt die Ressourcen, die Zuweisungen und die Aufgaben ohne
+Ressource. Gibt es noch keine Zuweisungen, sagt die Vorschau das, statt eine leere Seite zu zeigen;
+zugewiesen wird im Tab **Ressourcen** (siehe [Ressourcen & Histogramm](docs://gids-resources-histogram)).
+
 ### Meilensteinübersicht
 
 Eine Tabelle aller Meilensteine im Projekt: PSP, Name, Art (automatisch/Anfang/Ende), Datum, die zugrunde liegende Einschränkung oder der Stichtag, Puffer, ob der Meilenstein verbindlich ist, und Status (im Plan / kritisch / verspätet). Der Zusammenfassungsblock zeigt die Gesamtzahl der Meilensteine, wie viele verbindlich und wie viele verspätet sind. Dieser Bericht hat keine Einstellungen für Papierformat/Ausrichtung — er druckt die Tabelle exakt wie angezeigt.
@@ -52,9 +71,28 @@ rechnet der Bericht mit heute und sagt das; Termine und Puffer stammen aus der l
 jeder Bericht hat einen kleinen Block **Berichtsoptionen**, der zwischen Sitzungen gemerkt wird.
 Arbeitstage werden mit *AT* abgekürzt.
 
+### Berichtszeitraum
+
+Vier Berichte arbeiten mit einem Zeitfenster: Vorschau, Fortschritt, Ressourcenauslastung und
+Ressourcenzuweisungen. Sie teilen sich eine Auswahl *Berichtszeitraum* in den Berichtsoptionen, mit
+einer eigenen gemerkten Einstellung pro Bericht:
+
+- **Nächste / letzte Woche, 2, 4, 6, 8 oder 12 Wochen** und **nächster / letzter Monat** — gerechnet
+  ab dem Statusdatum des Projekts (oder heute, wenn keins gesetzt ist). Eine Vorgabe ist an beiden
+  Enden inklusiv: *nächste 4 Wochen* am Donnerstag, 10. September, läuft bis Mittwoch, 7. Oktober.
+  Ändern Sie das Statusdatum, wandert das Fenster mit.
+- **Gesamtes Projekt** — vom frühesten Start bis zum spätesten Ende im Terminplan.
+- **Benutzerdefiniert** — zwei eigene Datumsangaben. Die Felder *Von* und *Bis* werden bearbeitbar (tippen
+  oder Datumsauswahl); bei einer Vorgabe zeigen sie die berechneten Daten schreibgeschützt. Ein
+  Enddatum vor dem Startdatum oder ein leeres Datumsfeld wird rot markiert und nicht übernommen. Wählen Sie danach wieder eine
+  Vorgabe, ersetzen deren Daten Ihren eigenen Bereich.
+
+Der gewählte Zeitraum steht als Untertitel im Bericht und im PDF; der Fortschrittsbericht zeigt ihn
+in der Zusammenfassung.
+
 ### Vorschau (Look-ahead)
 
-Die Liste für die wöchentliche Baubesprechung: alle Vorgänge der nächsten *N* Wochen (Standard vier)
+Die Liste für die wöchentliche Baubesprechung: alle Vorgänge im Berichtszeitraum (Standard: nächster Monat)
 — was beginnt, was weiterläuft, was endet — plus das, was bereits hätte passieren müssen. Je Zeile:
 PSP, Name, Start und Ende, Restdauer, Fertigstellung, Gesamtpuffer, kritisch/fast kritisch, die
 zugewiesenen Ressourcen und ein Status: **Beginnt**, **In Arbeit**, **Hätte starten müssen** oder
@@ -74,8 +112,11 @@ Prognose-Ende mit der Differenz in Arbeitstagen, **geplanten** gegenüber **tats
 Fortschritt (beide dauergewichtet über die Blattvorgänge; geplant auf den Terminen des aktiven
 Basisplans, sonst auf der aktuellen Planung) und die Zählungen je Zustand. Darunter fünf
 Abschnitte: im vergangenen Zeitraum abgeschlossen, in Arbeit, Beginn im kommenden Zeitraum,
-überfällig und offene kritische Vorgänge. Der Zeitraum (Standard zwei Wochen) blickt gleich weit
-zurück wie voraus.
+überfällig und offene kritische Vorgänge. Der Berichtszeitraum (Standard: letzter Monat) bestimmt, was als *im Zeitraum abgeschlossen*
+zählt; der Abschnitt *Beginn im kommenden Zeitraum* blickt vom Statusdatum voraus — bis zum Ende
+des Zeitraums, wenn dieser (teilweise) nach dem Statusdatum liegt, bei einer *Letzte …*-Vorgabe so weit
+voraus, wie der Zeitraum zurückblickt; bei einem benutzerdefinierten oder Projekt-Zeitraum, der ganz
+in der Vergangenheit liegt, bleibt der Abschnitt leer. Die Zusammenfassung zeigt beide Grenzen.
 
 ### Terminplan-Qualität
 
@@ -87,18 +128,21 @@ Reihenfolge) und **Hinweise** (fast kritisch, hoher Puffer, lange Verzögerungen
 stehen in den Berichtsoptionen; Standard nach DCMA: 44 Arbeitstage für hohen Puffer und lange
 Dauer, 10 Arbeitstage für Verzögerungen. Eine saubere Planung hat null Fehler.
 
-### Ressourcenauslastung pro Woche
+### Ressourcenauslastung
 
-Je Ressource und Woche der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen), die
-Differenz, die Tagesspitze und ob die Woche überlastet ist — dieselbe Berechnung wie das Histogramm
-auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Wochen mit Bedarf sind enthalten; mit
-*Nur überlastete Wochen* bleiben nur die Engpässe.
+Die Zeilen sind pro Ressource gruppiert (Name und Typ nur in der ersten Zeile jeder Gruppe, wie bei den Ressourcenzuweisungen); mit *Aggregation* wählen Sie zwischen Kalenderwochen und Kalendermonaten, und der Berichtszeitraum bestimmt, welche Wochen oder Monate erscheinen.
+
+Je Ressource und Woche oder Monat der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen),
+die Differenz, die Tagesspitze und ob der Zeitraum überlastet ist — dieselbe Berechnung wie das
+Histogramm auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Zeiträume mit Bedarf sind
+enthalten; mit *Nur überlastete Zeiträume* bleiben nur die Engpässe. Fällt im PDF ein Seitenumbruch mitten
+in eine Gruppe, wird der Ressourcenname auf der nächsten Seite nicht wiederholt.
 
 ### Ressourcenzuweisungen
 
 Je Ressource die zugewiesenen Vorgänge: PSP, Name, Start und Ende, Restdauer, Einheiten pro Tag,
-Fertigstellung, kritisch und Status. Abgeschlossene Vorgänge fehlen standardmäßig. Mit einem Fenster
-in Wochen wird daraus die *Ressourcen-Vorschau*. Die Zusammenfassung zählt auch die Vorgänge ohne
+Fertigstellung, kritisch und Status. Abgeschlossene Vorgänge fehlen standardmäßig. Mit einem
+Berichtszeitraum (Standard: gesamtes Projekt) wird daraus die *Ressourcen-Vorschau*. Die Zusammenfassung zählt auch die Vorgänge ohne
 Ressource.
 
 ### PSP-Zusammenfassung

@@ -374,6 +374,7 @@ export interface UIState {
   /** #21: dun streepje in de resourcekleur onder taakbalken (scherm-accent; de balkvulling zelf
    *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
   showResourceAccent: boolean;               // persisted
+  showFloatBand: boolean;                    // persisted — groene spelingsband ná niet-kritieke balken (issue #130)
   /** #21: canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
   barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus (fase 2.7, §9); niet gepersisteerd

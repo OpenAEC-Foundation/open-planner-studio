@@ -328,8 +328,6 @@ export interface PrintOptions {
       relationStyle: string;
     };
     tableHeaders: { wbs: string; taskName: string; start: string; end: string; duration: string; completion: string };
-    page: string;
-    of: string;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
     /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
@@ -404,6 +402,21 @@ export interface PrintOptions {
    * de printlaag bouwt géén eigen view-pijplijn (één bron van waarheid: `computeViewRows`).
    */
   rows?: ViewRow[];
+  /**
+   * Resourcediagram (issue #113, "een blad per persoon"): vóór elke groepsband-rij (behalve de
+   * eerste) een GEDWONGEN paginaovergang. De render tekent er niets anders door; hij levert de
+   * posities alleen als {@link RenderReportResult.forcedBreakOffsets} aan de pagineerders. Zonder
+   * `rows` met bandrijen is er niets te breken en is dit een no-op.
+   */
+  pageBreakBeforeGroups?: boolean;
+  /**
+   * Breedte (logische px, vanaf x = 0) waarbinnen de VOETinhoud gelegd wordt — naam/datum links,
+   * legenda in het midden, merk rechts. Ontbreekt ⇒ de volle canvasbreedte (één kolom). De
+   * pagineerders geven hier `TileLayout.footerLayoutWidthPx` door (één paginabreedte) zodra de
+   * afdruk meer dan één kolom telt: de herhaalde voet wordt uit één vast bronvenster getekend en
+   * moet dus op één pagina compleet zijn. De grijze achtergrondstrook blijft canvasbreed.
+   */
+  footerLayoutWidth?: number;
   /** Legendalabels voor de kleurmodi (reeds vertaald door de aanroeper — print heeft geen `t()`). */
   barColorsLegendLabels?: {
     criticalOutline: string;
@@ -570,12 +583,27 @@ export interface RenderReportResult {
    */
   headerHeight: number;
   /**
+   * Hoogte (LOGISCHE px, gemeten vanaf de ONDERkant van de render) van de voetstrook: projectnaam,
+   * afdrukdatum, legenda. De pagineerders herhalen precies deze strook onderaan elke pagina wanneer
+   * daarom gevraagd wordt (`repeatFooter`). 0 = geen herhaalbare voet (tabelrenders, de lege-
+   * project-render). Verplicht, net als `headerHeight`: een renderer die het vergeet moet de
+   * compiler tegenhouden, niet stil "geen voet" opleveren.
+   */
+  footerHeight: number;
+  /**
    * OPTIONEEL — toegestane paginabreekposities (logische px vanaf de bovenkant), bv. de onderrand
    * van elke tabelrij (`pdfTable.ts`). De pagineerders eindigen een pagina dan op de laatste
    * positie die past, zodat een rij nooit over twee pagina's wordt gesneden (issue #110 punt 3).
    * Afwezig ⇒ vaste tegeling (de Gantt-render).
    */
   breakOffsets?: number[];
+  /**
+   * OPTIONEEL — GEDWONGEN paginabreekposities (logische px vanaf de bovenkant): daar eindigt een
+   * pagina altijd, ook als er nog ruimte over is. Gevuld bij `PrintOptions.pageBreakBeforeGroups`
+   * (resourcediagram, issue #113: elke resource op een eigen vel). Elke positie hier is ook een
+   * toegestane positie uit `breakOffsets` (een bandrij begint waar de vorige rij eindigt).
+   */
+  forcedBreakOffsets?: number[];
 }
 
 /**
@@ -616,7 +644,7 @@ export function renderReport(
     d2d.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
     // Geen kop-/tijdschaalstrook in de lege-staat (alleen een centrale melding) ⇒ niets te herhalen.
     // Het meldingsvak zelf houdt z'n vaste 600×200; alleen de tekst erin volgt de schaal.
-    return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0 };
+    return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0, footerHeight: 0 };
   }
 
   // Compute date range
@@ -1175,7 +1203,16 @@ export function renderReport(
   // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen (issue #110, Manu's nabespreking:
   // ook de Gantt-afdruk sneed rijen). De voet (legenda) is één blok; die volgt de laatste rijgrens.
   const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
-  return { width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight, breakOffsets };
+  // Resourcediagram (issue #113): een gedwongen overgang vóór elke bandrij ná de eerste — de
+  // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
+  const forcedBreakOffsets = options.pageBreakBeforeGroups
+    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 ? [m.totalHeaderHeight + i * m.rowHeight] : []))
+    : undefined;
+  return {
+    width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
+    footerHeight: m.footerHeight,
+    breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
+  };
 }
 
 
@@ -1328,6 +1365,17 @@ export function renderPrintPreviewPage(
       row.srcH,
       destinationX,
       layout.bodyTopPt * pxPt,
+    );
+  }
+  // Voetstrook: één keer per pagina uit het vaste `footerWindow` (zie tileLayout), niet per kolomvenster.
+  if (layout.repeatFooterPx > 0) {
+    renderWindow(
+      layout.footerWindow.srcX,
+      layout.repeatFooterSrcY,
+      layout.footerWindow.srcW,
+      layout.repeatFooterPx,
+      layout.footerWindow.pageX * pxPt,
+      layout.footerTopPt * pxPt,
     );
   }
 
@@ -1923,9 +1971,10 @@ function drawTaskTable(
  *  1. GRIJSTINT. Papier vraagt een lichtere neutrale lijn dan een beeldscherm; `PRINT_PALETTE`
  *     houdt daarom bewust `#9CA3AF` waar het schermpalet `#6B7280` gebruikt (zie de waarschuwing
  *     bovenin themePalette.ts). Alleen het KRITIEK-rood is in beide paletten dezelfde merk-hex.
- *  2. `options.showCritical`. Zet de gebruiker "kritiek pad tonen" uit, dan tekent de balklaag
- *     hierboven ook de kritieke taken neutraal blauw; rode lijnen tussen blauwe balken zou een
- *     kritiek pad tonen dat de gebruiker net heeft uitgezet.
+ *  2. `options.showCritical` stuurt hier alléén de lijnkleur (en de legendaregel). De balken
+ *     volgen sinds de balkkleurkeuze `computeBarColors` (barColors.ts: `criticalFill` in de modus
+ *     *Kritiek pad*, een rode rand daarbuiten) en kijken niet naar het vinkje — een rapporttype
+ *     zonder lijnen verbergt het vinkje daarom (`reportTypeShowsCriticalToggle`).
  *  3. TRACE-DIMMING wordt NIET overgenomen: dat is interactieve state (het gedimd tonen van alles
  *     buiten een aangeklikt pad) waar een statisch papieren rapport niets aan heeft.
  *
@@ -2079,6 +2128,9 @@ function drawFooter(
   // Alles in de voettekst is tekst-zone: de marge, de regelafstanden en de legenda-blokjes schalen
   // mee met de strookhoogte, anders staan de twee regels bij 125% over elkaar.
   const pad = m.s(10);
+  // De inhoud wordt binnen `footerLayoutWidth` gelegd (één paginabreedte bij meerdere kolommen);
+  // de achtergrondstrook blijft canvasbreed.
+  const layoutWidth = Math.min(canvasWidth, options.footerLayoutWidth && options.footerLayoutWidth > 0 ? options.footerLayoutWidth : canvasWidth);
 
   // Background
   d2d.fillStyle = PRINT_COLORS.surface;
@@ -2110,24 +2162,19 @@ function drawFooter(
   d2d.fillText(dateText, pad, midY + m.s(8));
   const leftBlockRight = pad + Math.max(leftNameW, d2d.measureText(dateText).width);
 
-  // Right: Page number + branding (breedtes meten, dan tekenen)
-  const pageLabel = options.labels?.page ?? 'Pagina';
-  const ofLabel = options.labels?.of ?? 'van';
-  const pageText = `${pageLabel} 1 ${ofLabel} 1`;
+  // Right: branding. Hier stond ook een vast "Pagina 1 van 1": de render kent het paginatotaal
+  // niet, en nu de voet op elke pagina terugkomt zou dat op pagina 3 van 5 letterlijk zo staan.
+  // Het echte "n / totaal" drukken de pagineerders zelf in de ondermarge.
   const brandText = 'Open Planner Studio';
-  d2d.font = m.font(9);
-  const pageW = d2d.measureText(pageText).width;
   d2d.font = m.font(8);
   const brandW = d2d.measureText(brandText).width;
-  const rightBlockLeft = canvasWidth - pad - Math.max(pageW, brandW);
+  const rightBlockLeft = layoutWidth - pad - brandW;
 
   d2d.fillStyle = PRINT_COLORS.textSecondary;
   d2d.textAlign = 'right';
   d2d.textBaseline = 'middle';
-  d2d.font = m.font(9);
-  d2d.fillText(pageText, canvasWidth - pad, midY - m.s(6));
   d2d.font = m.font(8);
-  d2d.fillText(brandText, canvasWidth - pad, midY + m.s(8));
+  d2d.fillText(brandText, layoutWidth - pad, midY + m.s(8));
 
   // Center: Legend — dynamisch tussen het linker- en rechterblok, items weglaten bij te weinig
   // ruimte i.p.v. over de blokken heen tekenen (klacht 7).

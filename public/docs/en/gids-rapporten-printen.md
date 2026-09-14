@@ -2,13 +2,14 @@
 
 A schedule isn't finished until you can share it — on paper for a site meeting, as an image in a
 presentation, or as an overview of what's coming up and what has already shifted. That's what the
-**Report** tab is for, with ten report types and a print preview.
+**Report** tab is for, with eleven report types and a print preview.
 
 ## What you'll learn here
 
-- The report types on the **Report** tab: the Gantt print, two table reports on milestones and
-  variance, and seven table reports for the weekly site meeting, progress reporting, the schedule
-  review, resources and management.
+- The report types on the **Report** tab: the Gantt print, the resource diagram ("who does what,
+  and when" — one sheet per person if you like), two table reports on milestones and variance, and
+  seven table reports for the weekly site meeting, progress reporting, the schedule review,
+  resources and management.
 - How the print preview works: paper size, orientation and which elements you toggle on/off.
 - How to actually print a report or save it as a file.
 - What **Ctrl+P** does in this app.
@@ -39,6 +40,14 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   independently of the zoom level above.
 - **Repeat header on each page** — on by default; keeps the report header visible on every printed
   page instead of only the first.
+- **Repeat footer on each page** — on by default; puts the footer with project name, print date and
+  legend at the bottom of every page instead of only the last, so a sheet handed out on its own
+  carries its own legend — also when the timeline is spread over several pages side by side. If
+  the whole print fits on one page, the footer simply stays below the last row. The strip costs
+  space on every page: roughly two rows fewer per sheet, so occasionally one page more, and a
+  resource that just fitted on one sheet with *Each resource on a new page* can spill onto two.
+  Off = the footer on the last page only. The page number ("3 / 7") always sits in the bottom
+  margin, separate from the footer; the footer itself no longer carries a page number.
 - **Timeline over** — spreads the Gantt timeline across 1 to 8 pages side by side; only available
   with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
   the table text.
@@ -74,8 +83,9 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
 
 Relationship lines in the report use the same visual language as the Gantt view: a **solid** line is
 a driving relationship, a **dashed** line a non-driving one, and a driving relationship between two
-critical tasks is **red**. Turn *critical path* off and those lines go neutral as well. The legend at
-the bottom summarises the difference. Before the first calculation every line is drawn neutral and
+critical tasks is **red**. Turn *critical path* off and those lines go neutral and the legend entry
+disappears; the bar colour itself follows the **Bar colors** choice. The legend at the bottom
+summarises the difference. Before the first calculation every line is drawn neutral and
 solid — press *Calculate* (F5) first.
 
 The summary block above it shows the live count of tasks, leaf tasks, critical tasks and relations
@@ -83,6 +93,30 @@ in the project. The settings panel remembers your choices between sessions — r
 later and paper size, toggles, font size and the rest come back exactly as you left them. Only the
 company field resets: it always starts from the project's own setting, so a report never carries
 over another project's company name.
+
+### Resource diagram
+
+The same Gantt print, but grouped **per resource**: every crew, person or machine gets its own band
+with the tasks assigned to it underneath, in order of start. That is the "who does what, and when"
+overview for the site meeting, or — with the option **Each resource on a new page** — a separate
+sheet per person to hand out. A task with two resources appears under both bands; summary tasks are
+left out — an assignment on a summary task (which an import can produce) is not shown here. **Include tasks without a resource** adds a *(none)* band
+at the bottom, so the meeting can see at a glance what nobody owns yet.
+
+The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
+paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from
+the screen), *Dependencies* (a task can sit under several bands, and with one sheet per resource arrows
+would run off the sheet; so this report draws none) and *Critical path* (that toggle only colours
+relationship lines, and there are none here — the bars simply follow the **Bar colors** choice, and
+the legend explains them). So there's no need to group the Gantt view by
+resource yourself first. Bands are per resource, not per name: two resources that happen to share a
+name each get their own band (*Jan #1*, *Jan #2*), and a resource without a name gets a sequence
+number. The summary block counts the resources, the assignments and the tasks without a resource —
+that last count includes milestones and hammocks, because they are drawn here (the *Resource
+assignments* table report counts real activities only). With *Repeat footer on each page* (on by
+default) every sheet you hand out carries its own legend. If there are no assignments yet, the preview
+says so instead of showing an empty page; assigning happens on the **Resources** tab (see
+[Resources & histogram](docs://gids-resources-histogram)).
 
 ### Milestone overview
 
@@ -122,10 +156,29 @@ a few conventions:
 - A task can appear in several sections of one report when those sections each answer a different
   question (in progress and critical, for instance).
 
+### Reporting period
+
+Four reports work on a time window: look-ahead, progress, resource loading and resource
+assignments. They share one *Reporting period* control in the report options, with its own
+remembered setting per report:
+
+- **Next / last week, 2, 4, 6, 8 or 12 weeks** and **next / last month** — counted from the
+  project's status date (or today if none is set). A preset is inclusive on both ends: *next 4
+  weeks* on Thursday 10 September runs through Wednesday 7 October. Change the status date and the
+  window moves with it.
+- **Project duration** — from the earliest start to the latest finish in the schedule.
+- **Custom** — two dates of your own. The *From* and *To* fields become editable (type or use the
+  date picker); with a preset they show the calculated dates read-only. An end date before the
+  start date, or an empty date field, is highlighted in red and not applied. Pick a preset again and the preset dates
+  replace your custom range.
+
+The chosen period appears as the subtitle of the report and of the PDF; the progress report shows
+it in its summary.
+
 ### Look-ahead
 
-The list for the weekly site meeting: every activity that is on the agenda for the next *N* weeks
-(four by default) — what starts, what continues, what finishes — plus what should already have
+The list for the weekly site meeting: every activity in the reporting period (the next month by
+default) — what starts, what continues, what finishes — plus what should already have
 happened. Each row shows WBS, name, start and finish, remaining duration, completion, total float,
 whether the task is critical or near-critical, the assigned resources and a status: **Starting**
 (begins in the window), **In progress**, **Should have started** (start before the reference day,
@@ -148,9 +201,13 @@ forecast finish with the difference in working days, **planned** versus **actual
 the counts per state. Both percentages are duration-weighted over the leaf tasks: a milestone
 weighs nothing, a month of work weighs a lot. Planned is measured on the dates of the active
 baseline (the agreement you measure against); without a baseline on the current schedule, and the
-report says so. Below that, five sections: completed in the past period, in progress, starting in
-the next period, overdue, and the open critical activities. The period (two weeks by default)
-looks back as far as it looks ahead.
+report says so. Below that, five sections: completed in the reporting period, in progress, starting in
+the next period, overdue, and the open critical activities. The reporting period (the last
+month by default) decides what counts as *completed in the period*; the *starting in the next
+period* section looks ahead from the status date — to the end of the period when it lies (partly)
+after the status date; for a *last …* preset as far ahead as the period looks back; for a custom or
+project period that lies entirely in the past the section stays empty. The summary shows both
+bounds.
 
 ### Schedule health
 
@@ -168,20 +225,25 @@ The thresholds are in the report options. By default they follow DCMA: high floa
 duration above 44 working days; a lag above 10 working days. A clean schedule has zero errors;
 warnings and information are a reason to look, not necessarily to change.
 
-### Resource loading per week
+### Resource loading
 
-Per resource and per week the required effort against the available capacity (in unit-days), the
-difference, the peak load on a single day and whether the week is overloaded. It is the same
-calculation as the histogram on the **Resources** tab, but as a table to lay side by side in a
-staffing meeting. Only weeks with demand are listed; with *Overloaded weeks only* you keep just the
-bottlenecks.
+Per resource and per week or month the required effort against the available capacity (in
+unit-days), the difference, the peak load on a single day and whether the period is overloaded. It
+is the same calculation as the histogram on the **Resources** tab, but as a table to lay side by
+side in a staffing meeting. Rows are grouped per resource — name and type appear on the first row
+of each group only, just like the resource assignments report. Use *Aggregation* to choose between
+calendar weeks and calendar months; the reporting period decides which weeks or months are
+included (every week or month that touches the period, as a whole — so always the same number as
+the histogram). Only periods with demand are listed; with *Overloaded periods only* you keep just
+the bottlenecks. When a page break in the PDF falls inside a group, the resource name is not
+repeated on the next page.
 
 ### Resource assignments
 
 Per resource which activities it is assigned to: WBS, name, start and finish, remaining duration,
 units per day, completion, critical and status. Completed tasks are excluded by default. With a
-window in weeks it becomes the *resource look-ahead*: only what this crew or piece of equipment has
-to do in the coming weeks, plus what is still open. The summary also counts the tasks without a
+reporting period (the whole project by default) it becomes the *resource look-ahead*: only what
+this crew or piece of equipment has to do in that period, plus what is still open. The summary also counts the tasks without a
 resource.
 
 ### WBS summary
@@ -235,8 +297,8 @@ Each report type serves a different conversation:
   look-ahead what has to happen now.
 - **Schedule health** belongs to a schedule review before you record a baseline or attach a
   schedule to a contract: zero errors is the bar.
-- The two **resource** reports and the **WBS summary** serve the staffing meeting and the
-  management overview respectively. All seven table reports also work on the showcase above, which
+- The **resource diagram** is the hand-out "who does what" sheet; the two **resource** tables and
+  the **WBS summary** serve the staffing meeting and the management overview respectively. All seven table reports also work on the showcase above, which
   has a status date, baselines and progress.
 
 The live preview on the right refreshes on every change to the settings on the left — there's no

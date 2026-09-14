@@ -103,7 +103,7 @@ If you see "Recalculate (F5) to show the load" instead of bars, the schedule has
 
 ## The docked resource panel
 
-Besides the full resource panel (ribbon button **Resources**), there's a compact variant you can dock on the right: the **Resource dock** button in the **Manage** ribbon group. This docked panel shows only the name, **Max units** (editable directly) and a red/green dot for overallocation — a quick overview next to your Gantt without opening the full panel.
+Besides the full resource panel (ribbon button **Resources**), there's a compact variant you can dock on the right: the **Resource dock** button in the **Manage** ribbon group. This docked panel shows per resource a colour bar in the resource colour, the name and **Max units** (editable directly); when a resource is overallocated, a red warning triangle appears to the left of the input field — a quick overview next to your Gantt without opening the full panel.
 
 The side column holds **two equal panels** stacked on top of each other: **Properties** and the docked resource list. They don't replace one another and they don't fold away — if a panel is on, you simply see its content. Each panel has one switch of its own for that: the **Properties** and **Resource dock** ribbon buttons, both in the **Panels** group on the **View** tab. The same switch sits as an **✕** in the panel's own header bar.
 

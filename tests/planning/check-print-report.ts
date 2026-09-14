@@ -17,7 +17,7 @@ import {
   renderReport, measurePrintReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth,
   NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
 } from '@/services/print/printPreview';
-import { computeTileLayout, PAPER_PT } from '@/services/print/tileLayout';
+import { computeTileLayout, footerLayoutWidthFor, PAPER_PT } from '@/services/print/tileLayout';
 import { makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
 import {
   computePreviewRasterLimits,
@@ -137,7 +137,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   // De labels komen in het product vanuit ReportPanel. De voortgangsdatum moet een eigen label
   // krijgen: met alleen `statusDate` zou de export bij beide lijnsoorten "Statusdatum" afdrukken.
   labels: {
-    noTasks: '-', printed: '-', page: '-', of: '-', today: '-', statusDate: 'Statusdatum',
+    noTasks: '-', printed: '-', today: '-', statusDate: 'Statusdatum',
     progressDate: 'Voortgangsdatum',
     legend: {
       criticalPath: 'Kritiek pad', normal: 'Normaal', nearCritical: 'Bijna-kritiek',
@@ -411,6 +411,22 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     // Een breek vlak onder de kop (10 px) mag de eerste pagina niet tot 10 px reduceren.
     const early = computeTileLayout({ ...base, logicalHeight: 3000, breakOffsetsPx: [10, 2500] });
     ok(early.bodyRows[0].srcH >= 0.5 * pageSrcH, 'vroege breek ⇒ eerste pagina geen runt');
+    // Issue #113 — GEDWONGEN posities: een tegel eindigt op de eerste gedwongen positie die past, óók
+    // als dat een dunne pagina geeft (blad per resource); één die niet past telt als gewone positie en
+    // wordt op een latere pagina alsnog gehonoreerd; een lege lijst is byte-identiek.
+    const thinY = 66 + 26 * 3;
+    const forcedThin = computeTileLayout({ ...base, breakOffsetsPx: rowBreaks, forcedBreakOffsetsPx: [thinY] });
+    ok(forcedThin.bodyRows[0].srcY + forcedThin.bodyRows[0].srcH === thinY, `gedwongen positie ⇒ dunne eerste pagina (got ${forcedThin.bodyRows[0].srcH})`);
+    ok(forcedThin.bodyRows[1].srcY === thinY, 'de tweede pagina begint precies op de gedwongen positie');
+    ok(forcedThin.bodyRows.slice(1, -1).every(r => rowBreaks.includes(r.srcY + r.srcH)), 'na de gedwongen positie weer gewone rijgrenzen');
+    const farY = 4000;
+    const tallBreaks: number[] = [];
+    for (let y = 66 + 26; y < 6000; y += 26) tallBreaks.push(y);
+    const forcedFar = computeTileLayout({ ...base, logicalHeight: 6000, breakOffsetsPx: tallBreaks, forcedBreakOffsetsPx: [farY] });
+    ok(forcedFar.bodyRows[0].srcH >= 0.5 * pageSrcH, 'gedwongen positie buiten de eerste pagina ⇒ eerste pagina gewoon gevuld');
+    ok(forcedFar.bodyRows.some(r => r.srcY + r.srcH === farY), 'een verre gedwongen positie wordt later alsnog gehonoreerd');
+    ok(forcedFar.bodyRows.every(r => r.srcH <= pageSrcH + 1e-9), 'gedwongen posities laten geen tegel boven de paginahoogte uitkomen');
+    ok(JSON.stringify(computeTileLayout({ ...base, breakOffsetsPx: rowBreaks, forcedBreakOffsetsPx: [] }).bodyRows) === JSON.stringify(broken.bodyRows), 'lege gedwongen lijst ⇒ byte-identiek');
   }
 
   // Gantt-afdruk (issue #110, Manu's nabespreking): de render levert per taakrij een breekpositie,
@@ -433,6 +449,167 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(layout.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)),
         `Gantt (kop ${repeat ? 'herhaald' : 'niet herhaald'}): elke pagina eindigt op een rijgrens`);
     }
+  }
+
+  // Resourcediagram (issue #113, "een blad per persoon"): met `pageBreakBeforeGroups` levert de render
+  // vóór elke bandrij ná de eerste een gedwongen breekpositie — op een bestaande rijgrens — en de
+  // pagineerder begint elke band op een nieuwe pagina, ook al passen alle rijen samen op één.
+  {
+    const bands: ViewRow[] = [];
+    for (let b = 0; b < 3; b++) {
+      bands.push({ kind: 'group', rowKey: `band${b}`, key: `band${b}`, label: `Resource ${b}`, count: 2, depth: 0, levelIndex: 0, collapsed: false });
+      for (let i = 0; i < 2; i++) {
+        const task = { ...T_NORM, id: `b${b}t${i}`, name: `Taak ${b}.${i}` };
+        bands.push({ kind: 'task', rowKey: task.id, task, depth: 1, dimmed: false });
+      }
+    }
+    const bandTasks = bands.flatMap(r => (r.kind === 'task' ? [r.task] : []));
+    const plain = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: bands }));
+    ok(plain.forcedBreakOffsets === undefined, 'zonder pageBreakBeforeGroups: geen gedwongen posities');
+    const forced = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: bands, pageBreakBeforeGroups: true }));
+    const rowH = (forced.breakOffsets ?? [])[1] - (forced.breakOffsets ?? [])[0];
+    ok(JSON.stringify(forced.forcedBreakOffsets) === JSON.stringify([forced.headerHeight + 3 * rowH, forced.headerHeight + 6 * rowH]),
+      `gedwongen posities vóór band 2 en 3 (got ${JSON.stringify(forced.forcedBreakOffsets)})`);
+    const allowed = new Set(forced.breakOffsets);
+    ok((forced.forcedBreakOffsets ?? []).every(y => allowed.has(y)), 'elke gedwongen positie is ook een toegestane rijgrens');
+    const tile = {
+      paperSize: 'a4' as const, orientation: 'landscape' as const, mode: 'fit-width' as const,
+      logicalWidth: forced.width, logicalHeight: forced.height, frozenColumnWidthPx: forced.tableWidth,
+      repeatHeaderHeightPx: forced.headerHeight, breakOffsetsPx: forced.breakOffsets,
+    };
+    ok(computeTileLayout(tile).rows === 1, 'negen rijen passen zonder gedwongen posities op één pagina');
+    const perBand = computeTileLayout({ ...tile, forcedBreakOffsetsPx: forced.forcedBreakOffsets });
+    ok(perBand.rows === 3, `drie banden ⇒ drie pagina's (got ${perBand.rows})`);
+    ok(perBand.bodyRows[0].srcY + perBand.bodyRows[0].srcH === forced.forcedBreakOffsets![0]
+      && perBand.bodyRows[1].srcY + perBand.bodyRows[1].srcH === forced.forcedBreakOffsets![1],
+      'pagina 1 en 2 eindigen exact op de bandgrens');
+    // Eén band ⇒ niets te breken: geen gedwongen posities, dus ook geen lege eerste pagina.
+    const single = measurePrintReport(bandTasks.slice(0, 2), [], cal, 'Eén resource', baseOptions({ rows: bands.slice(0, 3), pageBreakBeforeGroups: true }));
+    ok(single.forcedBreakOffsets === undefined, 'één band ⇒ geen gedwongen posities');
+    // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
+    // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
+    // paginabreedtes — steeds drie body-rijen die exact op de bandgrenzen eindigen.
+    const forcedSet = new Set(forced.forcedBreakOffsets);
+    const endsOnBands = (l: ReturnType<typeof computeTileLayout>) =>
+      l.bodyRows.length === 3 && l.bodyRows.slice(0, -1).every(r => forcedSet.has(r.srcY + r.srcH));
+    ok(endsOnBands(computeTileLayout({ ...tile, repeatHeaderHeightPx: 0, forcedBreakOffsetsPx: forced.forcedBreakOffsets })),
+      'blad per band zonder kopherhaling: drie pagina\'s op de bandgrenzen');
+    const actual = computeTileLayout({ ...tile, mode: 'actual', forcedBreakOffsetsPx: forced.forcedBreakOffsets });
+    ok(endsOnBands(actual) && actual.rows * actual.cols === 3 * actual.cols,
+      `blad per band in 'actual': drie rijen × ${actual.cols} kolom(men) (got ${actual.rows}×${actual.cols})`);
+    const twoCols = computeTileLayout({ ...tile, timelineColumns: 2, forcedBreakOffsetsPx: forced.forcedBreakOffsets });
+    ok(endsOnBands(twoCols) && twoCols.cols === 2 && twoCols.rows * twoCols.cols === 6,
+      `blad per band met tijdlijn over 2 pagina's: 3 × 2 = 6 pagina's (got ${twoCols.rows}×${twoCols.cols})`);
+  }
+
+  // Voet op elke pagina (issue #113, "een blad per persoon"): de render meldt zijn voethoogte, de
+  // tegeling houdt onderaan elke pagina die strook vrij (body tot `logicalHeight - voet`), en zonder
+  // de optie is alles byte-identiek — inclusief de oude situatie waarin de voet aan de laatste
+  // body-tegel hangt.
+  {
+    const many = Array.from({ length: 120 }, (_, i) => ({ ...T_NORM, id: `f${i}`, name: `Taak ${i}`, wbsCode: String(i + 1) }));
+    const dims = measurePrintReport(many, [], cal, 'Voet', baseOptions());
+    ok((dims.footerHeight ?? 0) > 0, `Gantt-render meldt een voethoogte (got ${dims.footerHeight})`);
+    const lastBreak = (dims.breakOffsets ?? [])[dims.breakOffsets!.length - 1];
+    ok(Math.abs(lastBreak + dims.footerHeight! - dims.height) < 1e-9, 'de voet is precies het stuk onder de laatste rijgrens');
+    const scaled = measurePrintReport(many, [], cal, 'Voet', baseOptions({ reportFontScale: 125 }));
+    ok(Math.abs(scaled.footerHeight! - dims.footerHeight! * 1.25) < 1e-9, 'de voethoogte schaalt met de rapport-lettergrootte');
+    const tile = {
+      paperSize: 'a4' as const, orientation: 'landscape' as const, mode: 'fit-width' as const,
+      logicalWidth: dims.width, logicalHeight: dims.height, frozenColumnWidthPx: dims.tableWidth,
+      repeatHeaderHeightPx: dims.headerHeight, breakOffsetsPx: dims.breakOffsets,
+    };
+    const plain = computeTileLayout(tile);
+    const withFooter = computeTileLayout({ ...tile, repeatFooterHeightPx: dims.footerHeight });
+    ok(plain.repeatFooterPx === 0 && plain.footerTopPt === plain.marginPt + plain.printH, 'zonder optie: geen voetstrook, voetrand = onderrand printgebied');
+    ok(JSON.stringify(computeTileLayout({ ...tile, repeatFooterHeightPx: 0 }).bodyRows) === JSON.stringify(plain.bodyRows), 'repeatFooterHeightPx 0 ⇒ byte-identiek');
+    const lastPlain = plain.bodyRows[plain.bodyRows.length - 1];
+    ok(Math.abs(lastPlain.srcY + lastPlain.srcH - dims.height) < 1e-9, 'zonder optie hangt de voet aan de laatste body-tegel (oud gedrag)');
+    ok(withFooter.repeatFooterPx === dims.footerHeight && withFooter.repeatFooterSrcY === dims.height - dims.footerHeight!,
+      'met optie: voetstrook = onderste voethoogte van de bron');
+    const lastFooter = withFooter.bodyRows[withFooter.bodyRows.length - 1];
+    ok(Math.abs(lastFooter.srcY + lastFooter.srcH - withFooter.repeatFooterSrcY) < 1e-9, 'met optie eindigt de laatste body-tegel boven de voet');
+    const set = new Set(dims.breakOffsets);
+    ok(withFooter.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)), 'met voet eindigt elke pagina nog steeds op een rijgrens');
+    ok(withFooter.bodyRows.every(r => r.srcH * withFooter.scale <= withFooter.printH - withFooter.repeatHeaderPtH - withFooter.repeatFooterPtH + 1e-9),
+      'kop + body + voet passen samen in het printgebied');
+    ok(Math.abs(withFooter.footerTopPt - (withFooter.marginPt + withFooter.printH - withFooter.repeatFooterPtH)) < 1e-9, 'voetstrook staat onderaan het printgebied');
+    ok(withFooter.rows >= plain.rows, 'de voet kost hooguit pagina\'s, nooit minder');
+    // Review #135 bevinding 1: de voet wordt uit één vast venster getekend (x vanaf 0, één
+    // paginabreedte) — op elke kolompagina hetzelfde — en de render legt de voetinhoud binnen die
+    // breedte, zodat merk én legenda op elk vel staan, ook met de tijdlijn over meerdere pagina's.
+    const twoCols = computeTileLayout({ ...tile, timelineColumns: 2, repeatFooterHeightPx: dims.footerHeight });
+    ok(twoCols.cols === 2 && twoCols.repeatFooterPx === dims.footerHeight, 'twee kolommen: voet herhaald');
+    ok(twoCols.footerWindow.srcX === 0 && twoCols.footerWindow.pageX === twoCols.marginPt
+      && Math.abs(twoCols.footerWindow.srcW * twoCols.scale - twoCols.printW) < 1e-6,
+      `voetvenster = één paginabreedte vanaf x=0 (got srcW·scale=${twoCols.footerWindow.srcW * twoCols.scale}, printW=${twoCols.printW})`);
+    ok(twoCols.footerLayoutWidthPx < dims.width && twoCols.footerLayoutWidthPx === twoCols.footerWindow.srcW,
+      'de voet-layoutbreedte is die paginabreedte, kleiner dan het canvas');
+    const narrow = record(many, [], cal, baseOptions({ footerLayoutWidth: twoCols.footerLayoutWidthPx }));
+    const footerTexts = narrow.texts.filter(t => t.y > narrow.dims.height - narrow.dims.footerHeight);
+    ok(footerTexts.some(t => t.text === 'Open Planner Studio') && footerTexts.every(t => t.x <= twoCols.footerLayoutWidthPx + 1e-6),
+      `met footerLayoutWidth staat alle voettekst (merk incl.) binnen één paginabreedte (max x ${Math.max(...footerTexts.map(t => t.x)).toFixed(1)} ≤ ${twoCols.footerLayoutWidthPx.toFixed(1)})`);
+    const wide = record(many, [], cal, baseOptions());
+    ok(wide.texts.some(t => t.text === 'Open Planner Studio' && t.x > twoCols.footerLayoutWidthPx), 'zonder footerLayoutWidth staat het merk rechts op het canvas (controle dat de meting iets meet)');
+    ok(Math.abs(narrow.dims.width - wide.dims.width) < 1e-9 && Math.abs(narrow.dims.height - wide.dims.height) < 1e-9, 'de voetbreedte verandert de canvasmaten niet');
+    // Review #135 bevinding 4: past alles op één pagina, dan valt er niets te herhalen — de voet blijft
+    // onder de laatste rij en de tegeling is byte-identiek aan die zonder optie.
+    const few = Array.from({ length: 5 }, (_, i) => ({ ...T_NORM, id: `s${i}`, name: `Taak ${i}`, wbsCode: String(i + 1) }));
+    const small = measurePrintReport(few, [], cal, 'Eén pagina', baseOptions());
+    const smallTile = { ...tile, logicalWidth: small.width, logicalHeight: small.height, frozenColumnWidthPx: small.tableWidth, repeatHeaderHeightPx: small.headerHeight, breakOffsetsPx: small.breakOffsets };
+    const smallPlain = computeTileLayout(smallTile);
+    const smallFooter = computeTileLayout({ ...smallTile, repeatFooterHeightPx: small.footerHeight });
+    ok(smallPlain.rows === 1 && smallFooter.repeatFooterPx === 0 && JSON.stringify(smallFooter.bodyRows) === JSON.stringify(smallPlain.bodyRows),
+      'éénpagina-afdruk: voet niet herhaald, tegeling identiek');
+    ok(footerLayoutWidthFor(smallFooter) === undefined && footerLayoutWidthFor(withFooter) === withFooter.footerLayoutWidthPx,
+      'footerLayoutWidthFor: undefined zonder herhaling (oude render), de paginabreedte mét');
+    // Review #135 ronde 2, B1: één rij hoog maar over meerdere kolommen getegeld is óók meer dan één
+    // vel — dan hoort de voet wél herhaald (en dus binnen één paginabreedte gelegd) te worden.
+    const smallTwoCols = computeTileLayout({ ...smallTile, timelineColumns: 2, repeatFooterHeightPx: small.footerHeight });
+    ok(smallTwoCols.rows === 1 && smallTwoCols.cols === 2 && smallTwoCols.repeatFooterPx === small.footerHeight,
+      `één rij × twee kolommen: voet herhaald (got rows ${smallTwoCols.rows}, cols ${smallTwoCols.cols}, voet ${smallTwoCols.repeatFooterPx})`);
+    ok(Math.abs(smallTwoCols.bodyRows[0].srcY + smallTwoCols.bodyRows[0].srcH - smallTwoCols.repeatFooterSrcY) < 1e-9,
+      'één rij × twee kolommen: de body-tegel eindigt boven de voet');
+    const smallActual = computeTileLayout({ ...smallTile, mode: 'actual', repeatFooterHeightPx: small.footerHeight });
+    ok(smallActual.cols > 1 ? smallActual.repeatFooterPx === small.footerHeight : smallActual.repeatFooterPx === 0,
+      `'actual' met ${smallActual.cols} kolom(men): voet ${smallActual.cols > 1 ? 'wel' : 'niet'} herhaald`);
+    // B5: een gedwongen positie ín de voetstrook (onbereikbaar voor de echte render, maar de functie
+    // is de bron van waarheid voor beide backends) zet de herhaling niet aan — anders zou hij de
+    // voet loskoppelen en daarna als breekpositie wegvallen. Zonder herhaling is de voet gewoon body
+    // en mag zo'n positie hem als elke andere gedwongen positie afsplitsen; dat is niet deze zaak.
+    const inFooter = computeTileLayout({ ...smallTile, repeatFooterHeightPx: small.footerHeight, forcedBreakOffsetsPx: [small.height - small.footerHeight / 2] });
+    ok(inFooter.repeatFooterPx === 0, 'gedwongen positie in de voetstrook zet de herhaling niet aan');
+    // Degeneratie: een voet die (met de kop) de hele pagina of de hele bron opeet wordt niet herhaald.
+    const tooTall = computeTileLayout({ ...tile, repeatFooterHeightPx: dims.height });
+    ok(tooTall.repeatFooterPx === 0 && JSON.stringify(tooTall.bodyRows) === JSON.stringify(plain.bodyRows), 'te hoge voet ⇒ niet herhaald, tegeling als zonder');
+    // Zonder kopherhaling en in 'actual': dezelfde voetgarantie.
+    for (const variant of [{ repeatHeaderHeightPx: 0 }, { mode: 'actual' as const }]) {
+      const l = computeTileLayout({ ...tile, ...variant, repeatFooterHeightPx: dims.footerHeight });
+      const last = l.bodyRows[l.bodyRows.length - 1];
+      ok(l.repeatFooterPx === dims.footerHeight && Math.abs(last.srcY + last.srcH - l.repeatFooterSrcY) < 1e-9,
+        `voet herhaald in variant ${JSON.stringify(variant)}`);
+    }
+    // Samen met een blad per resource (#113): de gedwongen posities blijven bandgrenzen, de voet komt op elk vel.
+    const bands: ViewRow[] = [];
+    for (let b = 0; b < 3; b++) {
+      bands.push({ kind: 'group', rowKey: `vb${b}`, key: `vb${b}`, label: `Resource ${b}`, count: 2, depth: 0, levelIndex: 0, collapsed: false });
+      for (let i = 0; i < 2; i++) {
+        const task = { ...T_NORM, id: `vb${b}t${i}`, name: `Taak ${b}.${i}` };
+        bands.push({ kind: 'task', rowKey: task.id, task, depth: 1, dimmed: false });
+      }
+    }
+    const perBand = measurePrintReport(bands.flatMap(r => (r.kind === 'task' ? [r.task] : [])), [], cal, 'Blad per resource', baseOptions({ rows: bands, pageBreakBeforeGroups: true }));
+    const l = computeTileLayout({
+      ...tile, logicalWidth: perBand.width, logicalHeight: perBand.height, frozenColumnWidthPx: perBand.tableWidth,
+      repeatHeaderHeightPx: perBand.headerHeight, breakOffsetsPx: perBand.breakOffsets,
+      forcedBreakOffsetsPx: perBand.forcedBreakOffsets, repeatFooterHeightPx: perBand.footerHeight,
+    });
+    ok(l.rows === 3 && l.repeatFooterPx === perBand.footerHeight, `blad per resource mét voet: drie pagina's, elk met voetstrook — de gedwongen posities maken het meerpagina, ook al past alles op één (got ${l.rows}, voet ${l.repeatFooterPx})`);
+    const forcedSet = new Set(perBand.forcedBreakOffsets);
+    ok(l.bodyRows.slice(0, -1).every(r => forcedSet.has(r.srcY + r.srcH)), 'blad per resource mét voet: pagina 1 en 2 eindigen op de bandgrens');
+    // De voet zelf bevat geen nep-paginanummer meer: de pagineerders drukken "n / totaal" in de marge.
+    const rec = record(many.slice(0, 3), [], cal, baseOptions());
+    ok(!rec.texts.some(t => /^(Pagina|Page) 1 (van|of) 1$/.test(t.text)), 'geen vast "Pagina 1 van 1" in de voet');
   }
 
   // Contract pdfTable → tileLayout (issue #110 punt 3): de breekposities die de tabelrender levert

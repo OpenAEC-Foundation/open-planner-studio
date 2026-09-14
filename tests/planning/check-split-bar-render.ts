@@ -431,7 +431,7 @@ const printOptions: PrintOptions = {
   autoFit: true, customZoom: 1, paperSize: 'A4', orientation: 'landscape',
   companyName: '', labels: {
     noTasks: '-', printed: '-', legend: {} as any, tableHeaders: {} as any,
-    page: '-', of: '-', today: '-',
+    today: '-',
   }, locale: 'nl', reportFontScale: 100,
 } as PrintOptions;
 
