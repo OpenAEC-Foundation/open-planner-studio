@@ -17,9 +17,26 @@ import type { ProjectSpec, TaskSpec, LinkSpec } from './spec';
 
 // ── Showcase 1 — KLEIN: verbouwing eengezinswoning (~20 taken) ─────────────────────────────
 // Instapniveau: taken + relaties (incl. 1 SS + 1 FF) + mijlpalen + kalender + 1 baseline. Bewust
-// GEEN resources/activity codes (zie spec §3.1) — dit is de kern-workflow voor een nieuwe
-// gebruiker, geen "kitchen sink". Eén comfortabele deadline (géén conflict) — bewust contrast met
-// MIDDEL, die wél een deadline-conflict (negatieve float) toont.
+// GEEN activity codes (zie spec §3.1) — dit is de kern-workflow voor een nieuwe gebruiker, geen
+// "kitchen sink". Eén comfortabele deadline (géén conflict) — bewust contrast met MIDDEL, die wél
+// een deadline-conflict (negatieve float) toont.
+//
+// RESOURCES (B1c, "Verdelen over projecten"): KLEIN had bewust géén resources, maar dat maakte de
+// showcase-set ongeschikt om het bezettingsoverzicht en "Verdelen…" te demonstreren — het conflict
+// dat `demoLibraryShowcase.ts` letterlijk belooft ("dezelfde ploeg in twee projecten") kon nergens
+// ontstaan, want KLEIN boekte niets. KLEIN draagt nu een MINIMALE set met exact de namen uit de
+// demo-resourcebibliotheek (`src/services/library/demoLibrary.ts`), zodat het openen van de
+// showcase ze ondubbelzinnig koppelt. Bewust entry-level: zes resources, één ploeg-hiërarchie,
+// UITSLUITEND UNIFORM-curves (curve-variatie is showcase-materiaal van MIDDEL/GROOT — zie de
+// CURVE_VARIATION_REQUIRED/FORBIDDEN-indeling in verify-examples.ts) en GEEN eigen overallocatie.
+//
+// ANKERSCHUIF (`anchorShiftDays`): de enige spec-wijziging die het bedoelde KRUIS-project-conflict
+// oplevert. Alle voorbeelden ankeren normaal op dezelfde datum; KLEIN's metselwerk viel daardoor
+// nét vóór de eerste metselweek van MIDDEL en de twee raakten elkaar nooit. Met de schuif valt
+// "Build masonry walls" in dezelfde week als "Ground floor masonry — House 6" van MIDDEL: beide
+// boeken de Masonry crew (bedrijfscapaciteit 1), beide liggen ná MIDDEL's statusdatum en zijn dus
+// écht verschuifbaar — een conflict dat "Verdeel automatisch" met een paar werkdagen oplost.
+// Verhaal: deze verbouwing loopt náást de rijwoningen, niet ervoor.
 const KLEIN: ProjectSpec = {
   slug: 'showcase-verbouwing-eengezinswoning',
   name: 'Refurbishment & Extension of a Family Home',
@@ -31,8 +48,12 @@ const KLEIN: ProjectSpec = {
     'Entry-level showcase: an extension to a family home with WBS phasing, a finish-start chain with one ' +
     'start-start overlap (walls/roof) and one finish-finish link (painting just after tiling), an ' +
     'SNET permit constraint, a start milestone and a mandatory handover milestone, a comfortable deadline ' +
-    '(no conflict) and one baseline taken right after set-up.',
-  tags: ['residential', 'small', 'entry-level', 'milestones', 'constraints', 'baseline'],
+    '(no conflict) and one baseline taken right after set-up. A small crew set from the shared demo ' +
+    'resource library, without any overallocation of its own — the masonry crew is booked in the same ' +
+    'week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict ' +
+    'that "Distribute" can resolve.',
+  tags: ['residential', 'small', 'entry-level', 'milestones', 'constraints', 'baseline', 'resources'],
+  anchorShiftDays: 63,
   tasks: [
     // 1. Voorbereiding
     { key: 'ms_start', name: 'Start of refurbishment', milestone: true, milestoneKind: 'START' },
@@ -45,15 +66,22 @@ const KLEIN: ProjectSpec = {
     { key: 'f1', name: 'Earthworks for extension', parent: 'P2', dur: 3, taskType: 'CONSTRUCTION' },
     { key: 'f2', name: 'Extension foundations', parent: 'P2', dur: 4, taskType: 'CONSTRUCTION' },
     { key: 'f3', name: 'Pour ground floor slab', parent: 'P2', dur: 3, taskType: 'CONSTRUCTION' },
-    { key: 'f4', name: 'Build masonry walls', parent: 'P2', dur: 6, taskType: 'CONSTRUCTION' },
-    { key: 'f5', name: 'Install roof structure', parent: 'P2', dur: 4, taskType: 'CONSTRUCTION' },
+    { key: 'f4', name: 'Build masonry walls', parent: 'P2', dur: 6, taskType: 'CONSTRUCTION',
+      assign: [{ res: 'Masonry crew', units: 1 }, { res: 'Bricklayers', units: 2 }] },
+    { key: 'f5', name: 'Install roof structure', parent: 'P2', dur: 4, taskType: 'CONSTRUCTION',
+      assign: [{ res: 'Carpenters', units: 2 }] },
     // 3. Afbouw
     { key: 'P3', name: '3. Fit-out', taskType: 'CONSTRUCTION' },
-    { key: 'a1', name: 'Apply roofing', parent: 'P3', dur: 3, taskType: 'CONSTRUCTION' },
-    { key: 'a2', name: 'Install window frames', parent: 'P3', dur: 4, taskType: 'INSTALLATION' },
-    { key: 'a3', name: 'Plastering', parent: 'P3', dur: 5, taskType: 'CONSTRUCTION' },
-    { key: 'a4', name: 'Tiling', parent: 'P3', dur: 4, taskType: 'INSTALLATION' },
-    { key: 'a5', name: 'Painting', parent: 'P3', dur: 3, taskType: 'CONSTRUCTION' },
+    { key: 'a1', name: 'Apply roofing', parent: 'P3', dur: 3, taskType: 'CONSTRUCTION',
+      assign: [{ res: 'Carpenters', units: 2 }] },
+    { key: 'a2', name: 'Install window frames', parent: 'P3', dur: 4, taskType: 'INSTALLATION',
+      assign: [{ res: 'Carpenters', units: 2 }] },
+    { key: 'a3', name: 'Plastering', parent: 'P3', dur: 5, taskType: 'CONSTRUCTION',
+      assign: [{ res: 'Plasterers', units: 2 }] },
+    { key: 'a4', name: 'Tiling', parent: 'P3', dur: 4, taskType: 'INSTALLATION',
+      assign: [{ res: 'Tilers', units: 2 }] },
+    { key: 'a5', name: 'Painting', parent: 'P3', dur: 3, taskType: 'CONSTRUCTION',
+      assign: [{ res: 'Painters', units: 2 }] },
     // 4. Oplevering
     { key: 'P4', name: '4. Handover', taskType: 'ATTENDANCE' },
     { key: 'o1', name: 'Final cleaning', parent: 'P4', dur: 1, taskType: 'LOGISTIC' },
@@ -71,13 +99,29 @@ const KLEIN: ProjectSpec = {
     { pred: 'a4', succ: 'a5', type: 'FINISH_FINISH', lag: 1 }, // schilderwerk gereed vlak na tegelwerk
     { pred: 'a5', succ: 'o1' }, { pred: 'o1', succ: 'ms_opl' }, { pred: 'ms_opl', succ: 'o2' },
   ],
+  // Zes resources met EXACT de namen uit de demo-resourcebibliotheek, zodat
+  // `applyDemoLibraryToShowcaseProject` ze ondubbelzinnig koppelt bij het openen van de showcase.
+  // De ploeg-hiërarchie (Bricklayers onder Masonry crew) spiegelt die van MIDDEL: dezelfde ploeg,
+  // hier op de uitbouw.
+  // Aantallen bewust klein — de projectinzet blijft binnen de bedrijfscapaciteit van elk poolitem,
+  // dus KLEIN zelf toont NOOIT overallocatie; de enige rode rij die een gebruiker te zien krijgt is
+  // de bedrijfsbrede Masonry crew-rij, en die ontstaat pas samen met MIDDEL.
+  resources: [
+    { name: 'Masonry crew', type: 'CREW', maxUnits: 1,
+      description: 'The same masonry crew as on the terraced houses — it comes over for the extension walls' },
+    { name: 'Bricklayers', type: 'LABOR', maxUnits: 2, costPerHour: 46, parent: 'Masonry crew' },
+    { name: 'Carpenters', type: 'LABOR', maxUnits: 2, costPerHour: 45 },
+    { name: 'Plasterers', type: 'LABOR', maxUnits: 2, costPerHour: 42 },
+    { name: 'Tilers', type: 'LABOR', maxUnits: 2, costPerHour: 43 },
+    { name: 'Painters', type: 'LABOR', maxUnits: 2, costPerHour: 38 },
+  ],
   baselines: [{ name: 'Baseline plan' }],
 };
 
 // ── Showcase 2 — MIDDEL: 6 grondgebonden rijwoningen (~80 taken) ───────────────────────────
 // Genoeg herhaling om repeterende structuur + resources + voortgang te tonen: gedeelde fundering
 // met vorstverlet (extraHolidays), ruwbouw per woning met een doorschuivende metselploeg
-// (CREW+LABOR), installaties op een 4-daagse resource-kalender, afbouw met curve-variatie en
+// (CREW+LABOR) die ook in de KLEIN-showcase geboekt wordt, afbouw met curve-variatie en
 // zichtbare (met nivellering oplosbare) overallocatie op de stukadoors, per-woning verplichte
 // opleverinspecties + een BEWUST te krappe contractdeadline (negatieve float), activity codes
 // Woning×Discipline, voortgang+statusdatum halverwege, en een baseline vóór start. Bewust GEEN
@@ -159,7 +203,15 @@ const RUWBOUW_PROGRESS: Record<number, { mg?: [number, number]; vl?: [number, nu
   1: { mg: [27, 33], vl: [33, 37], mv: [37, 43], kap: [43, 48] },
   2: { mg: [33, 39], vl: [39, 43], mv: [43, 49], kap: [49, 54] },
   3: { mg: [39, 45], vl: [45, 49], mv: [49, 55], kap: [55, 58] },
-  4: { mg: [45, 51], vl: 51 }, // vl: alleen actualStartDay (51) — completion hieronder apart gezet
+  // B1c: mg van woning 4 start op dag 46 i.p.v. 45. De dag-offsets in deze tabel worden met
+  // `addBusinessDays` (alleen weekenden) naar datums vertaald, terwijl de resourcebelasting op de
+  // PROJECTkalender (weekenden + feestdagen) valt. Het metselwerk van woning 3 loopt over
+  // Koningsdag heen en beslaat daardoor één werkdag méér dan de tabel suggereert — precies tot en
+  // met de dag waarop woning 4 volgens de tabel begon. Zolang alleen de metselaars (pool 6) op deze
+  // taken zaten viel dat niet op; sinds de Masonry crew (capaciteit 1) hier geboekt wordt is die
+  // ene gedeelde dag een overallocatie op VOLTOOID werk — feiten, dus voor de nivelleerder
+  // onoplosbaar. Eén dag opschuiven haalt de overlap weg en laat de voortgangsdemonstratie intact.
+  4: { mg: [46, 51], vl: 51 }, // vl: alleen actualStartDay (51) — completion hieronder apart gezet
 };
 for (const i of HOUSES) {
   const prog = RUWBOUW_PROGRESS[i];
@@ -170,8 +222,16 @@ for (const i of HOUSES) {
   const mvProg = prog?.mv ? { completion: 1 as const, actualStartDay: prog.mv[0], actualFinishDay: prog.mv[1] } : {};
   const kapProg = prog?.kap ? { completion: 1 as const, actualStartDay: prog.kap[0], actualFinishDay: prog.kap[1] } : {};
   middelTasks.push(
+    // De CREW-resource "Masonry crew" was tot B1c uitsluitend ploeg-OUDER van de metselaars en had
+    // zelf geen enkele toewijzing — hij verscheen daardoor nooit in het bezettingsoverzicht, terwijl
+    // hij (bedrijfscapaciteit 1) juist het schaarse poolitem is dat "dezelfde ploeg in twee
+    // projecten" moet aantonen. Hij wordt nu geboekt op precies de taken die de doorschuivende
+    // ploeg definiëren: de `r{i-1}_mg → r{i}_mg`-keten hieronder. Die keten is strikt FS, dus de
+    // ploeg staat binnen MIDDEL nooit op twee woningen tegelijk (load exact 1, geen eigen
+    // overallocatie); het enige conflict ontstaat bedrijfsbreed, samen met KLEIN.
     { key: `r${i}_mg`, name: `Ground floor masonry — House ${i}`, parent: 'P3', dur: 6, taskType: 'CONSTRUCTION',
-      codes: { House: String(i), Discipline: 'STR' }, assign: [{ res: 'Bricklayers', units: 2 }], ...mgProg },
+      codes: { House: String(i), Discipline: 'STR' },
+      assign: [{ res: 'Masonry crew', units: 1 }, { res: 'Bricklayers', units: 2 }], ...mgProg },
     { key: `r${i}_vl`, name: `Upper floor slab — House ${i}`, parent: 'P3', dur: 4, taskType: 'CONSTRUCTION',
       codes: { House: String(i), Discipline: 'STR' },
       ...(i === 4
@@ -279,8 +339,9 @@ const MIDDEL: ProjectSpec = {
   description: 'New-build block of six identical terraced houses — repeating structure, resources and progress reporting.',
   publicDescription:
     'Mid-sized showcase: six terraced houses with a shared foundation (frost delay via extraHolidays), ' +
-    'a masonry crew (CREW+LABOR) moving from house to house, MEP fitters on a four-day ' +
-    'resource calendar, fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible ' +
+    'a masonry crew (CREW+LABOR) moving from house to house — the same crew as in the small ' +
+    'refurbishment showcase, so the occupancy overview shows a cross-project conflict on it — ' +
+    'fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible ' +
     'over-allocation on the plasterers, a mandatory handover inspection per house plus a deliberately ' +
     'tight contract deadline (negative total float), activity codes House x Discipline, notes ' +
     '(open and completed), progress plus a status date halfway through, and a baseline before start.',
@@ -308,8 +369,16 @@ const MIDDEL: ProjectSpec = {
     // doet dat), dus deze kalender kan de belasting/overallocatie-berekening per definitie nooit
     // raken (geen assignment ⇒ geen load-bucket ⇒ nooit in `overallocatedDays`) — een risicoloze
     // plek voor de "resource-kalender aanwezig"-dekking, puur decoratief op de ploeg-hiërarchie.
-    { name: 'Masonry crew', type: 'CREW', maxUnits: 1, description: 'Overarching masonry crew (moves from house to house)',
-      calendar: { workDays: [1, 2, 3, 4], name: 'Masonry crew, 4-day week', description: 'Mon-Thu' } },
+    // B1c: de 4-daagse resource-kalender (Mon-Thu) is hier weg. Dezelfde reden als bij MEP fitters
+    // hieronder: zodra een resource met een Mon-Thu-kalender wordt geboekt op taken die op de
+    // 5-daagse projectkalender lopen, is zijn capaciteit op elke vrijdag 0 en levert élke taak die
+    // over een vrijdag heen loopt een overallocatie op — een kalender-mismatch, geen
+    // hoeveelheidsprobleem, en dus niet met nivelleren op te lossen. Tot B1c was die kalender
+    // ONZICHTBAAR (de crew was uitsluitend ploeg-ouder en had nul toewijzingen); nu de crew echt
+    // geboekt wordt, moet hij weg. De 4-daagse week van deze ploeg blijft wél staan in de
+    // demo-resourcebibliotheek (`demoLibrary.ts`, "Masonry crew, 4-day week") en is daar in de
+    // Bibliotheekweergave te zien.
+    { name: 'Masonry crew', type: 'CREW', maxUnits: 1, description: 'Overarching masonry crew (moves from house to house)' },
     // Fase 2.10 (QA-bevinding): 3 → 6. In de korte overgangsvensters tussen woningen (metselwerk-
     // verdieping van woning i loopt nog terwijl metselwerk-begane-grond van woning i+1 én i+2 kort
     // overlappen) piekt de vraag tot 3 taken × 2 man = 6 — en dit venster valt op reeds VOLTOOIDE
