@@ -149,6 +149,22 @@ export function PhaseStrip({
     ? t('resource.distribution.strip.maxDate', { date: formatDay(geometry.ceilingEndIso) })
     : t('resource.distribution.strip.maxDate', { date: t('resource.distribution.strip.ceilingUnlimited') });
   const usedText = t('resource.distribution.strip.used', { used: endShiftWorkdays });
+  // BIJ EEN TEKORT STAAT DE TEKORTZIN ZÉLF IN DE PIL (bevinding B6 van de review). De pil wordt
+  // rood zodra er een taak niet past, maar de tekst bleef "eind ongewijzigd" — rood met een
+  // geruststellende zin erin las als een tegenspraak. De korte vorm hergebruikt de bestaande
+  // tekortsleutel met een LEGE documentnaam: die naam staat al in het label links, en in alle
+  // veertien locales staat `{{doc}}` vooraan, gevolgd door een scheidingsteken dat er hier dus
+  // afgesneden wordt. De volle zin blijft in de `title` staan, samen met de einddatum-uitkomst.
+  const shortfallText = shortfallCount > 0
+    ? t('resource.distribution.shortfall.doc', { doc: '', count: shortfallCount })
+      .replace(/^[\s:\uff1a\u00b7\u2013-]+/, '')
+    : '';
+  const pillText = busy
+    ? t('resource.distribution.compute.busy')
+    : (shortfallCount > 0 ? shortfallText : shiftText);
+  const pillTitle = shortfallCount > 0
+    ? `${shortfallTitle ?? shortfallText} · ${shiftText}`
+    : undefined;
   const valueText = `${ceilingText} — ${shiftText}`;
 
   const clamp = (value: number) => Math.max(0, Math.min(CEILING_MAX_WORKDAYS, value));
@@ -184,6 +200,11 @@ export function PhaseStrip({
     if (pinned || dragRef.current) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+    // `preventDefault()` onderdrukt óók de standaard focus-stap van de browser (bevinding B9): na
+    // een klik op de greep stond de focus nog op wat er daarvóór actief was, en deed een pijltje
+    // dus niets — terwijl de greep er wel "aangeraakt" uitzag. Focus dus zelf zetten, ná het
+    // capturen, zodat toetsenbordbediening naadloos op de muis aansluit.
+    event.currentTarget.focus();
     dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase, moved: false, value: stepBase };
     setDragValue(stepBase);
   };
@@ -440,15 +461,15 @@ export function PhaseStrip({
         data-ops-distribution-effect
       >
         <span
-          className="inline-block rounded-full px-2 py-0.5 tabular-nums"
+          className="inline-block max-w-full truncate rounded-full px-2 py-0.5 tabular-nums"
           {...(shortfallCount > 0
-            ? { 'data-ops-distribution-effect-shortfall': 'true', ...(shortfallTitle ? { title: shortfallTitle } : {}) }
+            ? { 'data-ops-distribution-effect-shortfall': 'true', ...(pillTitle ? { title: pillTitle } : {}) }
             : {})}
           style={busy
             ? { background: 'color-mix(in srgb, var(--theme-text-dim) 14%, transparent)', color: 'var(--theme-text-secondary)' }
             : tone}
         >
-          {busy ? t('resource.distribution.compute.busy') : shiftText}
+          {pillText}
         </span>
         <span className="text-[10px] text-text-secondary truncate w-full">
           {`${maxDateText} · ${usedText}`}
