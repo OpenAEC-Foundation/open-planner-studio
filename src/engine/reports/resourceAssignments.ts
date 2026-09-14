@@ -61,8 +61,10 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
     const state = progressState(t);
     if (!opts.includeCompleted && state === 'complete') continue;
     // Venster: overlap, plus achterstallig werk van vóór de referentiedag (net als het look-ahead-
-    // rapport). `project` is bewust geen venster: dan telt élke toewijzing, ook buiten de taakdatums.
-    if (windowed && !overlapsWindow(t, from, to) && !(state !== 'complete' && dayOf(taskFinish(t)) < refDay)) continue;
+    // rapport) — maar niet bij een venster dat helemaal in het verleden ligt (zie `lookAhead.ts`).
+    // `project` is bewust geen venster: dan telt élke toewijzing, ook buiten de taakdatums.
+    const backlog = to >= refDay && state !== 'complete' && dayOf(taskFinish(t)) < refDay;
+    if (windowed && !overlapsWindow(t, from, to) && !backlog) continue;
     rows.push({
       assignmentId: a.id,
       resourceId: r.id,

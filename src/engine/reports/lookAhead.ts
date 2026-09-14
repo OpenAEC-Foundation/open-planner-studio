@@ -69,12 +69,18 @@ function statusOf(t: Task, refDay: string): LookAheadStatus | null {
 
 export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): LookAheadResult {
   const { from, to, refDay, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
+  // Achterstallig en had-moeten-starten werk hoort bij elk venster dat de referentiedag raakt of
+  // erná ligt. Een venster dat helemaal in het verleden ligt (aangepast 2020) is een terugblik en
+  // sleept de actuele achterstand niet mee — dezelfde regel als de vooruitblik van het voortgangs-
+  // rapport (reviewbevinding ronde 3).
+  const includeBacklog = to >= refDay;
   const rows: LookAheadRow[] = [];
   const resourceNames = assignedResourceNamesIndex(ctx);
   for (const t of activityTasks(ctx.tasks)) {
     const status = statusOf(t, refDay);
     if (!status) continue;
-    if (status !== 'overdue' && !overlapsWindow(t, from, to) && !(status === 'lateStart')) continue;
+    const backlog = status === 'overdue' || status === 'lateStart';
+    if (!overlapsWindow(t, from, to) && !(backlog && includeBacklog)) continue;
     rows.push({
       taskId: t.id,
       wbs: t.wbsCode,

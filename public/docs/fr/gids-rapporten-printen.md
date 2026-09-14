@@ -69,7 +69,8 @@ du rapport, avec un choix mémorisé par rapport :
   pas appliquée. En
   revenant à un préréglage, ses dates remplacent votre plage.
 
-La période choisie apparaît en sous-titre du rapport et du PDF.
+La période choisie apparaît en sous-titre du rapport et du PDF ; le rapport d'avancement l'affiche
+dans sa synthèse.
 
 ### Prévision (look-ahead)
 
@@ -117,7 +118,8 @@ Les lignes sont regroupées par ressource (nom et type uniquement sur la premiè
 Par ressource et par semaine ou par mois, le besoin face à la capacité disponible (en unités-jours),
 l'écart, le pic journalier et si la période est surchargée — le même calcul que l'histogramme de
 l'onglet **Ressources**, sous forme de tableau. Seules les périodes avec un besoin figurent ;
-*Périodes surchargées uniquement* ne garde que les goulots.
+*Périodes surchargées uniquement* ne garde que les goulots. Si un saut de page du PDF tombe au
+milieu d'un groupe, le nom de la ressource n'est pas répété sur la page suivante.
 
 ### Affectations des ressources
 

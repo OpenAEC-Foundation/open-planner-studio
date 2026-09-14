@@ -16,6 +16,7 @@ import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
 import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
+import { makeMonthLabeler } from '@/utils/monthLabel';
 import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
 
@@ -415,6 +416,31 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('progress: aangepaste periode in 2020 ⇒ vooruitblik t/m het periode-einde, niet een jaar vooruit', p2020.summary.lookAheadTo, '2020-12-31');
   eq('progress: … en de sectie "start in de komende periode" is leeg', p2020.startingNext.length, 0);
   eq('progress: "afgelopen …"-preset spiegelt wél', computeProgressReport(ctx, { period: { preset: 'lastWeek' }, nearCriticalDays: 5 }).summary.lookAheadTo, '2026-09-25');
+
+  // Reviewbevinding ronde 3: een venster dat helemaal in het verleden ligt is een terugblik en sleept
+  // de actuele achterstand (overdue / had-moeten-starten) niet mee — look-ahead én toewijzingen.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const g = clone.find(t => t.id === G)!;
+    g.time.earlyStart = '2026-09-08'; g.time.earlyFinish = '2026-09-09'; // achterstallig t.o.v. 18 sep
+    const past = { preset: 'custom' as const, from: '2020-01-01', to: '2020-12-31' };
+    eq('lookAhead: venster in 2020 ⇒ geen rijen, ook geen achterstand', computeLookAhead({ ...ctx, tasks: clone }, { period: past, nearCriticalDays: 5 }).rows.length, 0);
+    ok('lookAhead: venster dat de statusdatum raakt ⇒ achterstand wél', computeLookAhead({ ...ctx, tasks: clone }, { period: { preset: 'custom', from: '2026-09-18', to: '2026-09-18' }, nearCriticalDays: 5 }).rows.some(x => x.taskId === G && x.status === 'overdue'));
+    eq('assignments: venster in 2020 ⇒ geen rijen', computeResourceAssignments({ ...ctx, tasks: clone }, { period: past, includeCompleted: false }).rows.length, 0);
+  }
+
+  // Reviewbevinding ronde 3: het maandlabel is Gregoriaans met Latijnse cijfers in élke taal —
+  // zonder de unicode-extensies gaf `fa` "شهریور ۱۴۰۵" naast een ondertitel met 2026.
+  {
+    const persianDigits = /[\u06F0-\u06F9\u0660-\u0669]/;
+    for (const loc of ['nl', 'en', 'fa', 'ar', 'ja', 'zh', 'ko', 'de', 'tr', 'pl']) {
+      const label = makeMonthLabeler(loc)('2026-09-01');
+      ok(`monthLabel: ${loc} bevat het Gregoriaanse jaar 2026 ("${label}")`, label.includes('2026'));
+      ok(`monthLabel: ${loc} gebruikt Latijnse cijfers`, !persianDigits.test(label));
+    }
+    ok('monthLabel: fa is niet de Solar-Hijri-kalender', !makeMonthLabeler('fa')('2026-09-01').includes('1405'));
+    eq('monthLabel: onbekende locale valt terug op Engels', makeMonthLabeler('xx-YY')('2026-09-01'), 'Sep 2026');
+  }
 }
 
 // ── WBS-samenvatting ─────────────────────────────────────────────────────────────────────────────

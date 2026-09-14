@@ -52,6 +52,13 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   for (const el of await periodField.locator('[data-ops-report-period-label], [data-ops-readonly]').all()) {
     expect(await el.evaluate(fitsOwnBox)).toBe(true);
   }
+  // Ronde 3: óók de gekozen waarde in de keuzelijsten van het optieblok mag niet afkappen
+  // ("Hele pr…" bij een label naast de Select).
+  const optionValues = page.locator('[data-ops-report-options] .ops-select__value');
+  expect(await optionValues.count()).toBeGreaterThan(0);
+  for (const el of await optionValues.all()) {
+    expect(await el.evaluate(fitsOwnBox)).toBe(true);
+  }
 
   // Aangepast: de velden worden bewerkbaar en starten op de presetdatums; een eigen bereik in
   // oktober haalt Casco terug (Fundering blijft: die had vóór de statusdatum moeten starten en
@@ -130,10 +137,15 @@ test('table reports: resourcebelasting groepeert per resource en aggregeert per 
   await expect(rows.nth(0).locator('td').first()).toHaveText('Ploeg A');
   await expect(rows.nth(1).locator('td').first()).toHaveText('');
 
-  // Maandaggregatie: september en oktober — twee rijen, opnieuw gegroepeerd.
-  await page.getByLabel(/^(Aggregation:|Aggregatie:)$/).click();
+  // Maandaggregatie: september en oktober — twee rijen, opnieuw gegroepeerd; de gekozen waarde
+  // en de maandlabels blijven leesbaar bij de standaardkolombreedte.
+  await page.getByLabel(/^(Aggregation:|Aggregatie:)$/).first().click();
   await page.getByRole('option', { name: /^(Monthly|Per maand)$/ }).click();
   await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).locator('td').nth(2)).toHaveText(/2026/);
+  for (const el of await page.locator('[data-ops-report-options] .ops-select__value').all()) {
+    expect(await el.evaluate((node: HTMLElement) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  }
   await expect(rows.nth(0).locator('td').first()).toHaveText('Ploeg A');
   await expect(rows.nth(1).locator('td').first()).toHaveText('');
   await expect(report.locator('[data-ops-report-summary]')).toContainText(/^(Resources1(Months|Maanden)2)/);

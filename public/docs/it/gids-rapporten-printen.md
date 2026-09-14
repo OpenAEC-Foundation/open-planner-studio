@@ -95,7 +95,8 @@ con un'impostazione memorizzata per ciascun report:
   precedente a quella iniziale, o un campo data vuoto, viene evidenziata in rosso e non applicata. Tornando a un preset,
   le sue date sostituiscono l'intervallo personalizzato.
 
-Il periodo scelto compare come sottotitolo del report e del PDF.
+Il periodo scelto compare come sottotitolo del report e del PDF; il rapporto di avanzamento lo
+mostra nel riepilogo.
 
 ### Previsione (look-ahead)
 
@@ -141,7 +142,8 @@ Le righe sono raggruppate per risorsa (nome e tipo solo sulla prima riga di ogni
 Per risorsa e settimana o mese, il fabbisogno rispetto alla capacità disponibile (in unità-giorno),
 la differenza, il picco giornaliero e se il periodo è sovraccarico — lo stesso calcolo
 dell'istogramma nella scheda **Risorse**, in forma di tabella. Compaiono solo i periodi con
-fabbisogno; con *Solo periodi sovraccarichi* restano solo i colli di bottiglia.
+fabbisogno; con *Solo periodi sovraccarichi* restano solo i colli di bottiglia. Se un'interruzione di pagina
+del PDF cade a metà di un gruppo, il nome della risorsa non viene ripetuto nella pagina seguente.
 
 ### Assegnazioni risorse
 

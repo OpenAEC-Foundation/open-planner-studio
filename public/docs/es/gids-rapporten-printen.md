@@ -98,7 +98,8 @@ informe, con un ajuste recordado por informe:
   Una fecha final anterior a la inicial, o un campo de fecha vacío, se marca en rojo y no se aplica. Si vuelve a un preajuste,
   sus fechas sustituyen su rango.
 
-El periodo elegido aparece como subtítulo del informe y del PDF.
+El periodo elegido aparece como subtítulo del informe y del PDF; el informe de avance lo muestra
+en su resumen.
 
 ### Previsión (look-ahead)
 
@@ -145,7 +146,8 @@ Las filas se agrupan por recurso (nombre y tipo solo en la primera fila de cada 
 Por recurso y semana o mes, la demanda frente a la capacidad disponible (en unidades-día), la
 diferencia, el pico diario y si el periodo está sobrecargado — el mismo cálculo que el histograma de
 la pestaña **Recursos**, en forma de tabla. Solo aparecen periodos con demanda; con *Solo periodos
-sobrecargados* quedan únicamente los cuellos de botella.
+sobrecargados* quedan únicamente los cuellos de botella. Si un salto de página del PDF cae en medio
+de un grupo, el nombre del recurso no se repite en la página siguiente.
 
 ### Asignaciones de recursos
 

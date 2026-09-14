@@ -116,11 +116,13 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
 
   return (
     <div className="flex flex-col gap-1 min-w-0" data-ops-report-period={dataKey}>
-      <div className="flex items-center gap-2 min-w-0">
-        <label className="text-text-secondary w-32 flex-shrink-0" htmlFor={id}>{t('tableReports.options.reportingPeriod')}</label>
+      {/* Label bóven de keuzelijst: naast een `w-32`-label bleven bij de standaardkolom 53 px over
+          en las élke preset als "Hele pr…" (reviewbevinding ronde 3). */}
+      <div className="flex flex-col gap-1 min-w-0">
+        <label className="text-text-secondary" htmlFor={id}>{t('tableReports.options.reportingPeriod')}</label>
         <Select
           id={id}
-          className="flex-1 min-w-0"
+          className="w-full min-w-0"
           aria-label={t('tableReports.options.reportingPeriod')}
           value={value.preset}
           onChange={v => changePreset(v as ReportingPeriodPreset)}

@@ -138,7 +138,8 @@ onthouden instelling per rapport:
   begindatum, of een leeg datumveld, wordt rood gemarkeerd en niet toegepast. Kies je daarna weer een preset, dan
   vervangen de presetdatums je eigen bereik.
 
-De gekozen periode staat als ondertitel in het rapport en in de PDF.
+De gekozen periode staat als ondertitel in het rapport en in de PDF; het voortgangsrapport toont
+hem in de samenvatting.
 
 ### Look-ahead
 
@@ -201,7 +202,8 @@ staan alleen op de eerste rij van elke groep, net als bij de resourcetoewijzinge
 *Aggregatie* tussen kalenderweken en kalendermaanden; de rapportageperiode bepaalt welke weken of
 maanden meedoen (elke week of maand die de periode raakt, als geheel — dus altijd hetzelfde getal
 als in het histogram). Alleen periodes met vraag staan erin; met de optie *Alleen overbelaste
-periodes* houd je uitsluitend de knelpunten over.
+periodes* houd je uitsluitend de knelpunten over. Valt in de PDF een paginaovergang midden in een
+groep, dan herhaalt de resourcenaam zich niet op de volgende pagina.
 
 ### Resourcetoewijzingen
 

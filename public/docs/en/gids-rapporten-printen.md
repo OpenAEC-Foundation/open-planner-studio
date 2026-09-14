@@ -138,7 +138,8 @@ remembered setting per report:
   start date, or an empty date field, is highlighted in red and not applied. Pick a preset again and the preset dates
   replace your custom range.
 
-The chosen period appears as the subtitle of the report and of the PDF.
+The chosen period appears as the subtitle of the report and of the PDF; the progress report shows
+it in its summary.
 
 ### Look-ahead
 
@@ -200,7 +201,8 @@ of each group only, just like the resource assignments report. Use *Aggregation*
 calendar weeks and calendar months; the reporting period decides which weeks or months are
 included (every week or month that touches the period, as a whole — so always the same number as
 the histogram). Only periods with demand are listed; with *Overloaded periods only* you keep just
-the bottlenecks.
+the bottlenecks. When a page break in the PDF falls inside a group, the resource name is not
+repeated on the next page.
 
 ### Resource assignments
 

@@ -97,7 +97,8 @@ relatório, com uma definição memorizada por relatório:
   data final anterior à inicial, ou um campo de data vazio, é marcada a vermelho e não é aplicada. Ao voltar a um predefinido,
   as datas dele substituem o seu intervalo.
 
-O período escolhido surge como subtítulo do relatório e do PDF.
+O período escolhido surge como subtítulo do relatório e do PDF; o relatório de progresso mostra-o
+no resumo.
 
 ### Previsão (look-ahead)
 
@@ -143,7 +144,8 @@ As linhas são agrupadas por recurso (nome e tipo apenas na primeira linha de ca
 Por recurso e semana ou mês, a necessidade face à capacidade disponível (em unidades-dia), a
 diferença, o pico diário e se o período está sobrecarregado — o mesmo cálculo do histograma no
 separador **Recursos**, em forma de tabela. Só aparecem períodos com necessidade; com *Apenas
-períodos sobrecarregados* ficam só os estrangulamentos.
+períodos sobrecarregados* ficam só os estrangulamentos. Se uma quebra de página do PDF cair a meio
+de um grupo, o nome do recurso não se repete na página seguinte.
 
 ### Atribuições de recursos
 

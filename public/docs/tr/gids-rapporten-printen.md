@@ -68,7 +68,7 @@ hatırlanan ayarı vardır:
   Başlangıçtan önceki bir bitiş tarihi veya boş bir tarih alanı kırmızıyla işaretlenir ve uygulanmaz. Yeniden bir ön ayar
   seçtiğinizde ön ayarın tarihleri sizin aralığınızın yerini alır.
 
-Seçilen dönem raporun ve PDF'nin alt başlığında görünür.
+Seçilen dönem raporun ve PDF'nin alt başlığında görünür; ilerleme raporu bunu özetinde gösterir.
 
 ### İleriye bakış (look-ahead)
 
@@ -113,7 +113,8 @@ Satırlar kaynağa göre gruplanır (ad ve tür yalnızca her grubun ilk satır�
 Kaynak ve hafta ya da ay başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve
 dönemin aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo
 halinde. Yalnızca gereksinimi olan dönemler listelenir; *Yalnızca aşırı yüklü dönemler* ile sadece
-darboğazlar kalır.
+darboğazlar kalır. PDF'de sayfa sonu bir grubun ortasına denk gelirse kaynak adı sonraki sayfada
+yinelenmez.
 
 ### Kaynak atamaları
 

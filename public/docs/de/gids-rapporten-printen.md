@@ -68,7 +68,8 @@ einer eigenen gemerkten Einstellung pro Bericht:
   Enddatum vor dem Startdatum oder ein leeres Datumsfeld wird rot markiert und nicht übernommen. Wählen Sie danach wieder eine
   Vorgabe, ersetzen deren Daten Ihren eigenen Bereich.
 
-Der gewählte Zeitraum steht als Untertitel im Bericht und im PDF.
+Der gewählte Zeitraum steht als Untertitel im Bericht und im PDF; der Fortschrittsbericht zeigt ihn
+in der Zusammenfassung.
 
 ### Vorschau (Look-ahead)
 
@@ -115,7 +116,8 @@ Die Zeilen sind pro Ressource gruppiert (Name und Typ nur in der ersten Zeile je
 Je Ressource und Woche oder Monat der Bedarf gegenüber der verfügbaren Kapazität (in Einheiten-Tagen),
 die Differenz, die Tagesspitze und ob der Zeitraum überlastet ist — dieselbe Berechnung wie das
 Histogramm auf der Registerkarte **Ressourcen**, aber als Tabelle. Nur Zeiträume mit Bedarf sind
-enthalten; mit *Nur überlastete Zeiträume* bleiben nur die Engpässe.
+enthalten; mit *Nur überlastete Zeiträume* bleiben nur die Engpässe. Fällt im PDF ein Seitenumbruch mitten
+in eine Gruppe, wird der Ressourcenname auf der nächsten Seite nicht wiederholt.
 
 ### Ressourcenzuweisungen
 

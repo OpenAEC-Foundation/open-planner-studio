@@ -52,7 +52,10 @@ export function isTableReportType(type: ReportType): boolean {
  * `src/engine/reports/reportingPeriod.ts`). Defaults volgen issue #120: look-ahead de komende maand,
  * voortgang de afgelopen maand, belasting en toewijzingen de hele projectspanne; near-critical ≤ 5 wd,
  * gezondheid volgens DCMA (44 wd). Bestaande gebruikers raken die defaults niet: hun opgeslagen
- * weken-getal migreert naar de bijbehorende preset (zie `legacyWeeksPeriod`).
+ * weken-getal migreert naar de bijbehorende preset (zie `legacyWeeksPeriod`). De oude sleutels
+ * worden daarna NIET teruggeschreven — wie terugrolt naar een oudere appversie valt voor deze
+ * vier opties stil terug op de fabrieksdefault. Dat is aanvaardbaar voor een rapportvoorkeur
+ * (geen projectdata), maar het is een bewuste keuze, geen vergissing.
  */
 export interface TableReportOptions {
   lookAheadPeriod: ReportingPeriod;

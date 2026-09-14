@@ -99,7 +99,8 @@ dla każdego raportu:
   stosowana. Po powrocie
   do ustawienia wstępnego jego daty zastępują własny zakres.
 
-Wybrany okres pojawia się jako podtytuł raportu i pliku PDF.
+Wybrany okres pojawia się jako podtytuł raportu i pliku PDF; raport postępu pokazuje go w
+podsumowaniu.
 
 ### Prognoza (look-ahead)
 
@@ -146,7 +147,8 @@ Wiersze są pogrupowane według zasobu (nazwa i typ tylko w pierwszym wierszu ka
 Dla zasobu i tygodnia lub miesiąca zapotrzebowanie wobec dostępnej zdolności (w jednostko-dniach),
 różnica, dzienny szczyt i czy okres jest przeciążony — to samo obliczenie co histogram na karcie
 **Zasoby**, w postaci tabeli. Pokazywane są tylko okresy z zapotrzebowaniem; opcja *Tylko
-przeciążone okresy* zostawia same wąskie gardła.
+przeciążone okresy* zostawia same wąskie gardła. Gdy podział strony w PDF wypadnie w środku grupy,
+nazwa zasobu nie powtarza się na następnej stronie.
 
 ### Przydziały zasobów
 

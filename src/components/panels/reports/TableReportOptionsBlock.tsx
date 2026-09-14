@@ -87,11 +87,13 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     <ReportingPeriodField id={`report-opt-${key}`} value={options[key]} onChange={next => onChange({ [key]: next })} dataKey={key} />
   );
 
+  // Label bóven de keuzelijst, net als bij de rapportageperiode: "Per maand" paste anders niet.
   const aggregationRow = (
-    <div className="flex items-center gap-2 min-w-0">
-      <label className="text-text-secondary w-32 flex-shrink-0">{t('tableReports.options.aggregation')}</label>
+    <div className="flex flex-col gap-1 min-w-0">
+      <label className="text-text-secondary" htmlFor="report-opt-resourceLoadBucket">{t('tableReports.options.aggregation')}</label>
       <Select
-        className="flex-1 min-w-0"
+        id="report-opt-resourceLoadBucket"
+        className="w-full min-w-0"
         aria-label={t('tableReports.options.aggregation')}
         value={options.resourceLoadBucket}
         onChange={v => onChange({ resourceLoadBucket: v as ResourceLoadingBucket })}
@@ -171,28 +173,35 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }} data-ops-report-options>
       <h3 className="ui-card-header !text-xs mb-2">{t('tableReports.options.sectionTitle')}</h3>
       <div className="flex flex-col gap-2 text-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <label className="text-text-secondary w-32 flex-shrink-0">{t('paper')}</label>
-          <Select
-            className="flex-1 min-w-0"
-            aria-label={t('paper')}
-            value={paperSize}
-            onChange={v => onPaperSize(v as ReportPaperSize)}
-            options={(['A4', 'A3', 'A2', 'A1'] as const).map(p => ({ value: p, label: p }))}
-          />
-        </div>
-        <div className="flex items-center gap-2 min-w-0">
-          <label className="text-text-secondary w-32 flex-shrink-0">{t('orientation')}</label>
-          <Select
-            className="flex-1 min-w-0"
-            aria-label={t('orientation')}
-            value={orientation}
-            onChange={v => onOrientation(v as ReportOrientation)}
-            options={[
-              { value: 'landscape', label: t('landscape') },
-              { value: 'portrait', label: t('portrait') },
-            ]}
-          />
+        {/* Papier en oriëntatie elk op een eigen rij met het label erboven: naast een `w-32`-label
+            (en ook in twee kolommen) bleef bij de standaardkolom ~53 px over en las "Landscape"
+            als "Landsc…" (dezelfde meting als bij de rapportageperiode, reviewronde 3). */}
+        <div className="flex flex-col gap-2 min-w-0">
+          <div className="flex flex-col gap-1 min-w-0">
+            <label className="text-text-secondary" htmlFor="report-opt-paper">{t('paper')}</label>
+            <Select
+              id="report-opt-paper"
+              className="w-full min-w-0"
+              aria-label={t('paper')}
+              value={paperSize}
+              onChange={v => onPaperSize(v as ReportPaperSize)}
+              options={(['A4', 'A3', 'A2', 'A1'] as const).map(p => ({ value: p, label: p }))}
+            />
+          </div>
+          <div className="flex flex-col gap-1 min-w-0">
+            <label className="text-text-secondary" htmlFor="report-opt-orientation">{t('orientation')}</label>
+            <Select
+              id="report-opt-orientation"
+              className="w-full min-w-0"
+              aria-label={t('orientation')}
+              value={orientation}
+              onChange={v => onOrientation(v as ReportOrientation)}
+              options={[
+                { value: 'landscape', label: t('landscape') },
+                { value: 'portrait', label: t('portrait') },
+              ]}
+            />
+          </div>
         </div>
         {body}
       </div>
