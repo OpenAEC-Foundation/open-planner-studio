@@ -715,7 +715,13 @@ export function DistributionDialog() {
                   style={{
                     marginLeft: STRIP.labelWidth + STRIP.gap,
                     left: STRIP.labelWidth + STRIP.gap,
-                    maxWidth: (stripView?.axis?.width ?? trackSpace) + STRIP.gap + STRIP.endWidth,
+                    // NIET de as-breedte zoals de legenda, maar de ZICHTBARE track (`trackSpace`).
+                    // De legenda is één korte regel en past altijd; de definities zijn lopende
+                    // tekst, dus met de as als cap liepen ze bij een opgerekt plafond gewoon de
+                    // rand uit en stond er "… zonder dat zijn einddatum opschu" — gemeten op de
+                    // eindscreenshot van 2026-09-14. `trackSpace` is per constructie de breedte
+                    // die naast de bevroren labelkolom overblijft, dus hier wordt gewrapt.
+                    maxWidth: trackSpace + STRIP.gap + STRIP.endWidth,
                   }}
                 >
                   <DistributionGlossary />
