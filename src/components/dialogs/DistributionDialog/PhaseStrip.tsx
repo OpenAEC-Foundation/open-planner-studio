@@ -393,6 +393,12 @@ export function PhaseStrip({
               x={geometry.freeBox.x} y={STRIP.blockTop}
               width={Math.max(1, geometry.freeBox.w)} height={STRIP.blockHeight}
               fill="none" stroke="var(--theme-text-dim)" strokeWidth={1} strokeDasharray="3 3" rx={2}
+              // GEDEMPT (polishronde 2026-09-14). Bij een onbegrensd plafond staat de greep aan de
+              // rechterrand, dus deze doos beslaat sinds de breedtefix de HELE track in plaats van
+              // een paar dagen. Op volle sterkte was hij daarmee het luidste element in de dialoog,
+              // terwijl hij ruimte aanduidt en geen boeking. Hij blijft leesbaar, maar achter de
+              // dagblokjes.
+              opacity={0.5}
               data-ops-distribution-tail
             />
           )}
