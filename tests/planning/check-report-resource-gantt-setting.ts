@@ -6,7 +6,7 @@
 import './domStub';
 import {
   DEFAULT_REPORT_SETTINGS, DEFAULT_RESOURCE_GANTT_OPTIONS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations,
-  saveReportSettings,
+  reportTypeShowsCriticalToggle, saveReportSettings,
 } from '@/utils/reportSettings';
 
 const failures: string[] = [];
@@ -21,6 +21,9 @@ expect('isGanttReportType: gantt én resourceGantt', [isGanttReportType('gantt')
 // verborgen vinkje hangen er allebei aan; showDeps staat standaard aan, dus de forcering is dragend.
 expect('reportTypeDrawsRelations: alleen het resourcediagram tekent geen relaties', [reportTypeDrawsRelations('gantt'), reportTypeDrawsRelations('resourceGantt'), reportTypeDrawsRelations('lookAhead')], [true, false, true]);
 expect('showDeps staat standaard aan (de forcering doet dus echt iets)', DEFAULT_REPORT_SETTINGS.showDeps, true);
+// manuvarkey op #113: het kritiek-pad-vinkje stuurt alleen relatielijnen + legendaregel (de balken volgen
+// barColorSelection), dus zonder lijnen is het misleidend — verborgen op hetzelfde predicaat als de relaties.
+expect('reportTypeShowsCriticalToggle: verborgen waar geen relaties getekend worden', [reportTypeShowsCriticalToggle('gantt'), reportTypeShowsCriticalToggle('resourceGantt'), reportTypeShowsCriticalToggle('milestones')], [true, false, true]);
 
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: true } }));
 const loaded = await loadReportSettings();

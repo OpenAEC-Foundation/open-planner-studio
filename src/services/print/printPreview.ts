@@ -1971,9 +1971,10 @@ function drawTaskTable(
  *  1. GRIJSTINT. Papier vraagt een lichtere neutrale lijn dan een beeldscherm; `PRINT_PALETTE`
  *     houdt daarom bewust `#9CA3AF` waar het schermpalet `#6B7280` gebruikt (zie de waarschuwing
  *     bovenin themePalette.ts). Alleen het KRITIEK-rood is in beide paletten dezelfde merk-hex.
- *  2. `options.showCritical`. Zet de gebruiker "kritiek pad tonen" uit, dan tekent de balklaag
- *     hierboven ook de kritieke taken neutraal blauw; rode lijnen tussen blauwe balken zou een
- *     kritiek pad tonen dat de gebruiker net heeft uitgezet.
+ *  2. `options.showCritical` stuurt hier alléén de lijnkleur (en de legendaregel). De balken
+ *     volgen sinds de balkkleurkeuze `computeBarColors` (barColors.ts: `criticalFill` in de modus
+ *     *Kritiek pad*, een rode rand daarbuiten) en kijken niet naar het vinkje — een rapporttype
+ *     zonder lijnen verbergt het vinkje daarom (`reportTypeShowsCriticalToggle`).
  *  3. TRACE-DIMMING wordt NIET overgenomen: dat is interactieve state (het gedimd tonen van alles
  *     buiten een aangeklikt pad) waar een statisch papieren rapport niets aan heeft.
  *

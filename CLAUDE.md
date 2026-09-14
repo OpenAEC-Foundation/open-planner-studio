@@ -150,7 +150,9 @@ Het Rapport-tabblad (`ReportPanel.tsx`) kent elf rapporttypen (`ReportType` in
 (issue #113: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
 `src/engine/reports/resourceGantt.ts` — per resource-IDENTITEIT een band (niet per naam, zoals de
 schermgroepering: gelijknamigen krijgen `#n`, naamlozen een surrogaat), daaronder zijn bladtaken op
-start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan; optie "blad
+start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan, en het vinkje
+*Kritiek pad* is er verborgen en geforceerd aan (`reportTypeShowsCriticalToggle`: het vinkje kleurt alleen
+relatielijnen en legendaregel, de balken volgen `barColorSelection` via `criticalFill`); optie "blad
 per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
 positie zonder vulgraaddrempel wint; `isGanttReportType()` bundelt beide Gantt-achtige typen; de voet

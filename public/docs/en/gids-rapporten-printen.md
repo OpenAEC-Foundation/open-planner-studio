@@ -83,8 +83,9 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
 
 Relationship lines in the report use the same visual language as the Gantt view: a **solid** line is
 a driving relationship, a **dashed** line a non-driving one, and a driving relationship between two
-critical tasks is **red**. Turn *critical path* off and those lines go neutral as well. The legend at
-the bottom summarises the difference. Before the first calculation every line is drawn neutral and
+critical tasks is **red**. Turn *critical path* off and those lines go neutral and the legend entry
+disappears; the bar colour itself follows the **Bar colors** choice. The legend at the bottom
+summarises the difference. Before the first calculation every line is drawn neutral and
 solid — press *Calculate* (F5) first.
 
 The summary block above it shows the live count of tasks, leaf tasks, critical tasks and relations
@@ -103,9 +104,11 @@ left out — an assignment on a summary task (which an import can produce) is no
 at the bottom, so the meeting can see at a glance what nobody owns yet.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
-paper, header repeat — with two exceptions: *Follow view* (this report doesn't take its rows from
-the screen) and *Dependencies* (a task can sit under several bands, and with one sheet per resource arrows
-would run off the sheet; so this report draws none). So there's no need to group the Gantt view by
+paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from
+the screen), *Dependencies* (a task can sit under several bands, and with one sheet per resource arrows
+would run off the sheet; so this report draws none) and *Critical path* (that toggle only colours
+relationship lines, and there are none here — the bars simply follow the **Bar colors** choice, and
+the legend explains them). So there's no need to group the Gantt view by
 resource yourself first. Bands are per resource, not per name: two resources that happen to share a
 name each get their own band (*Jan #1*, *Jan #2*), and a resource without a name gets a sequence
 number. The summary block counts the resources, the assignments and the tasks without a resource —
