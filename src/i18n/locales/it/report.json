@@ -141,6 +141,7 @@
     "includeUnassigned": "Includi le attività senza risorsa",
     "groupByType": "Raggruppa per tipo di risorsa",
     "showAssignmentColumns": "Mostra unità/giorno e curva",
+    "columnsDropped": "Le colonne Unità/g e Curva sono state omesse: la tabella lasciava troppo poco spazio all'asse temporale. Una carta più grande o orizzontale, un carattere più piccolo o una tabella più stretta danno più spazio.",
     "emptyPeriod": "Nessuna attività nel periodo del report — scegli un altro periodo o Intero progetto.",
     "outsidePeriod": "Fuori dal periodo:",
     "empty": "Nessuna assegnazione di risorse — assegna prima le risorse alle attività.",

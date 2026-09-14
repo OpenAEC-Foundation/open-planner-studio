@@ -92,7 +92,7 @@ function buildMilestoneColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTabl
  * `VarianceReport.tsx`: zelfde `COLUMNS`-volgorde/headers, `fmtDelta`, deltaStart/deltaFinish `> 0`
  * rood+bold, en de `STATUS_COLOR`-badge (altijd bold).
  */
-function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTableColumn<VarianceRow>[] {
+function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate, locale: string): PdfTableColumn<VarianceRow>[] {
   return [
     { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
     { header: t('milestoneReport.name'), width: 220, align: 'left', text: r => r.name },
@@ -102,13 +102,13 @@ function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTable
     { header: t('variance.currentFinish'), width: 110, align: 'left', text: r => dd.date(r.currentFinish) || '—' },
     {
       header: t('variance.deltaStart'), width: 90, align: 'right',
-      text: r => fmtDelta(r.deltaStart),
+      text: r => fmtDelta(r.deltaStart, locale),
       color: r => (r.deltaStart !== undefined && r.deltaStart > 0 ? '#DC2626' : undefined),
       bold: r => r.deltaStart !== undefined && r.deltaStart > 0,
     },
     {
       header: t('variance.deltaFinish'), width: 90, align: 'right',
-      text: r => fmtDelta(r.deltaFinish),
+      text: r => fmtDelta(r.deltaFinish, locale),
       color: r => (r.deltaFinish !== undefined && r.deltaFinish > 0 ? '#DC2626' : undefined),
       bold: r => r.deltaFinish !== undefined && r.deltaFinish > 0,
     },
@@ -263,6 +263,9 @@ export function ReportPanel() {
   }, []);
   // Resourcediagram (issue #113): blad per resource + taken zonder resource — samen bewaard met de rest.
   const [resourceGanttOptions, setResourceGanttOptions] = useState<ResourceGanttReportOptions>(DEFAULT_REPORT_SETTINGS.resourceGantt);
+  // Gezet door de preview-meting: de render liet de toewijzingskolommen vallen omdat de tabel
+  // anders geen tijdlijn overliet (zie `minChartWidthPx` in printPreview).
+  const [assignmentColumnsDropped, setAssignmentColumnsDropped] = useState(false);
   const patchResourceGanttOptions = useCallback((patch: Partial<ResourceGanttReportOptions>) => {
     setResourceGanttOptions(prev => ({ ...prev, ...patch }));
   }, []);
@@ -633,6 +636,7 @@ export function ReportPanel() {
     assignmentColumns: reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns,
     rowAssignments: resourceGantt?.assignmentByRowKey,
     curveLabels,
+    numberLocale: i18n.language,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -643,7 +647,7 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
-    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels]);
+    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -691,6 +695,9 @@ export function ReportPanel() {
       for (const page of previewPagesRef.current.values()) URL.revokeObjectURL(page.objectUrl);
       replacePreviewPages(new Map());
       setPreviewLayout(previous => ({ ...previous, totalPages: 0 }));
+      // Geen Gantt-render ⇒ geen meting die de vlag zet; wis hem, anders blijft een oude "weggelaten"
+      // hangen tot de volgende Gantt-preview (review #139, bevinding 11).
+      setAssignmentColumnsDropped(false);
       return release;
     }
 
@@ -698,7 +705,9 @@ export function ReportPanel() {
       if (cancelled) return;
       const {
         width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, footerHeight, breakOffsets, forcedBreakOffsets,
+        assignmentColumnsDropped: columnsDropped,
       } = measurePrintReport(tasks, sequences, calendar, projectName, options);
+      setAssignmentColumnsDropped(!!columnsDropped);
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
       const cssPageWidth = previewCssWidth;
       const previewLimits = computePreviewRasterLimits(
@@ -1106,7 +1115,7 @@ export function ReportPanel() {
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeTableRenderReport({
             title: t('variance.title'),
-            columns: buildVarianceColumns(t, dd),
+            columns: buildVarianceColumns(t, dd, locale),
             rows: varianceResult.rows,
             emptyText: t('variance.noBaseline'),
           }),
@@ -1122,7 +1131,7 @@ export function ReportPanel() {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, isGanttLike, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    autoFit, repeatHeader, repeatFooter, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
+    autoFit, repeatHeader, repeatFooter, timelineColumns, writePdf, t, dd, locale, milestoneRows, varianceResult, tableSpec]);
 
   // K7-guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
   // leest `tasks`/`options`/`tableSpec` uit de closure van de HUIDIGE render, en die kent de
@@ -1235,6 +1244,11 @@ export function ReportPanel() {
                     <span className="text-text-secondary">{t('resourceGantt.outsidePeriod')}</span>
                     <span data-ops-resource-gantt-count="outsidePeriod">{resourceGantt.counts.outsidePeriod}</span>
                   </>
+                )}
+                {assignmentColumnsDropped && resourceGanttOptions.showAssignmentColumns && (
+                  <span className="col-span-2 text-text-secondary" data-ops-resource-gantt-note="columnsDropped">
+                    {t('resourceGantt.columnsDropped')}
+                  </span>
                 )}
               </>
             ) : reportType === 'gantt' ? (

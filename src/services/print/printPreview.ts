@@ -31,6 +31,7 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
+import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
@@ -95,6 +96,27 @@ const COL = {
   units:     { w: 45 },
   curve:     { w: 98 },
 };
+
+/**
+ * Minimale chartbreedte die de tabel per paginabreedte moet overlaten vóór de render de twee
+ * toewijzingskolommen (Eenh./d + Curve) laat vallen: een vijfde van de printbreedte, met een vloer
+ * van 160 logische px voor klein papier (A4 staand: 730 px breed, dus 160 in plaats van 146). Komt de
+ * tabel mét kolommen daaronder — door een brede naamkolom, een grote rapportlettergrootte (de tabel
+ * schaalt mee, deze grens niet) of klein/staand papier — dan vallen de twee kolommen en meldt de
+ * render dat via `RenderReportResult.assignmentColumnsDropped`. De regel is bewust MONOTOON in de
+ * tabelbreedte: elke bredere tabel laat de kolommen óók vallen. Een tussenvariant "alleen weglaten
+ * als de tabel zónder de kolommen wél past" liet een dode zone open waarin een tabel die de pagina
+ * al niet paste zijn optionele kolommen hield en de tijdas op 1 px klemde, zonder melding; en een
+ * bredere naamkolom bracht de kolommen dan terug (review #139, ronde 2, bevinding 3). Weglaten maakt
+ * de tijdas nooit smaller — helpt het niet genoeg, dan zegt de melding wat wél ruimte geeft. Review
+ * #138 ronde 2 bevinding 5; de vaste 240 px van de eerste versie gooide op A4 staand de kolommen al
+ * bij verse instellingen weg (review #139, ronde 1, bevindingen 1 en 2).
+ */
+const MIN_CHART_WIDTH_FRACTION = 0.2;
+const MIN_CHART_WIDTH_FLOOR_PX = 160;
+function minChartWidthPx(printableWidth: number): number {
+  return Math.max(MIN_CHART_WIDTH_FLOOR_PX, printableWidth * MIN_CHART_WIDTH_FRACTION);
+}
 
 /**
  * Grenzen van de instelbare naamkolom (ongeschaalde px). `DEFAULT` is exact de breedte die de
@@ -410,6 +432,8 @@ export interface PrintOptions {
   /** Vertaalde curvenamen (`common:resource.curve.*`, plus `contoured`/`imported` uit
    *  `task:properties.assignments.*`); een ontbrekend label valt terug op de enum-/toestandsnaam. */
   curveLabels?: Partial<Record<RowCurve, string>>;
+  /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
+  numberLocale?: string;
   /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
@@ -494,9 +518,14 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
   }
 }
 
-/** Format duration as "15d" */
-function formatDuration(days: number): string {
-  return `${days}d`;
+/**
+ * Duur-cel: "15d", "1,5d" in nl — hetzelfde getal en decimaalteken als de Eenh./d-cel en de
+ * tabelrapporten (`formatReportNumber`; review #139 bevinding 5: één tabel, één notatie). Zonder
+ * `numberLocale` de neutrale punt, op twee decimalen afgerond.
+ */
+function formatDuration(days: number, locale: string | undefined): string {
+  const text = formatReportNumber(days, locale);
+  return text ? `${text}d` : '—'; // niet-eindig: een streepje, geen losse eenheid
 }
 
 /**
@@ -514,11 +543,6 @@ function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
   }
   if (line) lines.push(line);
   return lines.length > 0 ? lines : [''];
-}
-
-/** Eenheden per dag: geheel als "2", anders tot twee decimalen zonder nullen ("0.5", "1.25"). */
-function formatUnitsPerDay(units: number): string {
-  return String(Math.round(units * 100) / 100);
 }
 
 /** Format completion as "75%" */
@@ -675,6 +699,12 @@ export interface RenderReportResult {
    * toegestane positie uit `breakOffsets` (een bandrij begint waar de vorige rij eindigt).
    */
   forcedBreakOffsets?: number[];
+  /**
+   * OPTIONEEL — `true` wanneer `PrintOptions.assignmentColumns` gevraagd was maar de tabel daarmee
+   * minder dan {@link minChartWidthPx} chart per paginabreedte overliet en de twee kolommen
+   * daarom zijn weggelaten. Het paneel meldt dat naast de optie.
+   */
+  assignmentColumnsDropped?: boolean;
 }
 
 /**
@@ -696,11 +726,24 @@ export function renderReport(
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
-  const m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, !!options.assignmentColumns);
+  // Bronbreedte van één papierbreedte (zie de uitleg bij `availableChartWidth` verderop); hier al
+  // nodig om te beslissen of de toewijzingskolommen erbij passen.
+  const printableWidth = printableWidthLogicalPx(
+    options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1',
+    options.orientation,
+  );
+  let assignmentColumns = !!options.assignmentColumns;
+  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns);
+  let assignmentColumnsDropped = false;
+  if (assignmentColumns && m.tableWidth > printableWidth - minChartWidthPx(printableWidth)) {
+    assignmentColumns = false;
+    assignmentColumnsDropped = true;
+    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false);
+  }
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
   // als samenvattings-strook tekenen.
-  const printRows = buildPrintRows(tasks, options.rows, options.rowAssignments);
+  const printRows = buildPrintRows(tasks, options.rows, assignmentColumns ? options.rowAssignments : undefined);
   const flatTasks: PrintTask[] = printRows
     .filter((r): r is PrintRow & { kind: 'task'; task: Task } => r.kind === 'task')
     .map(r => ({ ...r.task, _depth: r.depth }));
@@ -762,8 +805,10 @@ export function renderReport(
   });
   // Tijdvenster zonder één werkdag (b.v. een weekend) op de gecomprimeerde as: de as zou dan naar
   // de eerstvolgende werkdag búiten het venster kleven. Val voor dít venster terug op de kalender-as.
+  let windowOnCalendarAxis = false;
   if (options.timeWindow && compressed && measureAxis.daySpan(minDate, maxDate) < 1) {
     compressed = false;
+    windowOnCalendarAxis = true;
     measureAxis = resolveGanttAxis({
       calendar: calEngine, compressNonWorkdays: false,
       origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
@@ -787,10 +832,6 @@ export function renderReport(
   // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
   // meer of minder pixels per dag. De oude ondergrens van 5 px/dag maakte een meerjarenplanning
   // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleinde.
-  const printableWidth = printableWidthLogicalPx(
-    options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1',
-    options.orientation,
-  );
   const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
 
   let zoom: number;
@@ -1335,7 +1376,7 @@ export function renderReport(
   // ---- TIMELINE HEADER ----
   drawTimelineHeader(
     d2d, m, canvasWidth, minDate, calendarDays, timelineDates, compressed, zoom, dateToX, options,
-    todayVisible ? todayX : null, statusLineX,
+    todayVisible ? todayX : null, statusLineX, windowOnCalendarAxis,
   );
 
   // ---- TASK TABLE ----
@@ -1360,6 +1401,7 @@ export function renderReport(
     width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
     footerHeight: m.footerHeight,
     breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
+    ...(assignmentColumnsDropped ? { assignmentColumnsDropped } : {}),
   };
 }
 
@@ -1735,6 +1777,9 @@ function drawTimelineHeader(
   options: PrintOptions,
   todayX: number | null,
   statusLineX: number | null = null,
+  /** Tijdvenster dat op de kalender-as is teruggevallen (geen werkdag erin): dan óók de
+   *  weekenddagen nummeren, anders staat er geen enkel dagcijfer (review #138, bevinding 8). */
+  showWeekendDayNumbers = false,
 ) {
   const top = m.projectHeaderHeight;
   const h = m.timelineHeaderHeight;
@@ -1874,7 +1919,7 @@ function drawTimelineHeader(
       const x = dateToX(date);
       const dow = isoDayOfWeek(date);
       const dayNum = date.getUTCDate();
-      if (compressed || (dow !== 6 && dow !== 7)) { // Weekenddagen staan alleen op de gewone kalender-as.
+      if (compressed || showWeekendDayNumbers || (dow !== 6 && dow !== 7)) { // Weekenddagen staan alleen op de gewone kalender-as.
         d2d.fillStyle = PRINT_COLORS.textSecondary;
         d2d.font = m.font(7);
         d2d.textAlign = 'center';
@@ -2054,7 +2099,7 @@ function drawTaskTable(
       d2d.fillStyle = PRINT_COLORS.textSecondary;
       d2d.font = m.font(8);
       d2d.textAlign = 'right';
-      d2d.fillText(formatUnitsPerDay(row.assignment.unitsPerDay), cols.units.x + cols.units.w - cellPad, textY);
+      d2d.fillText(formatReportNumber(row.assignment.unitsPerDay, options.numberLocale), cols.units.x + cols.units.w - cellPad, textY);
       d2d.textAlign = 'left';
       const curveText = row.assignment.curve === null ? '—' : (options.curveLabels?.[row.assignment.curve] ?? row.assignment.curve);
       d2d.fillText(fitText(d2d, curveText, cols.curve.w - 2 * cellPad), cols.curve.x + cellPad, textY);
@@ -2065,7 +2110,7 @@ function drawTaskTable(
     d2d.font = m.font(8);
     d2d.textAlign = 'right';
     d2d.textBaseline = 'middle';
-    d2d.fillText(formatDuration(task.time.scheduleDuration), cols.duration.x + cols.duration.w - cellPad, textY);
+    d2d.fillText(formatDuration(task.time.scheduleDuration, options.numberLocale), cols.duration.x + cols.duration.w - cellPad, textY);
 
     // Start date
     const startStr = task.time.earlyStart || task.time.scheduleStart;

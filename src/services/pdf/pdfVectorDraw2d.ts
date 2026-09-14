@@ -24,6 +24,8 @@ import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
 import {
   shapeAndPlace, isArabicScriptCp, isNeutralCp,
   type ShapingFonts, type ShapedRun, type FontKey,
+  isBidiControlCp,
+  stripBidiControls,
 } from './bidiShape';
 
 /** Bezier-benadering van een kwart-cirkel: controle-afstand = kappa × r. */
@@ -293,7 +295,7 @@ export class PdfVectorDraw2D implements Draw2D {
   private checkCoverage(text: string, fk: FontkitFont): void {
     for (const ch of text) {
       const cp = ch.codePointAt(0);
-      if (cp === undefined) continue;
+      if (cp === undefined || isBidiControlCp(cp)) continue; // stuurtekens worden nooit getekend
       if (isRtlCodepoint(cp)) this.hasRtl = true;
       let covered = this.coverageCache.get(cp);
       if (covered === undefined) {
@@ -334,7 +336,7 @@ export class PdfVectorDraw2D implements Draw2D {
     const arabicHas = (cp: number) => this.fkArabic?.hasGlyphForCodePoint(cp) ?? false;
     for (const ch of text) {
       const cp = ch.codePointAt(0);
-      if (cp === undefined) continue;
+      if (cp === undefined || isBidiControlCp(cp)) continue; // sturen de levels, worden nooit getekend
       if (isRtlCodepoint(cp)) this.hasRtl = true;
       let covered = this.coverageCacheComplex.get(cp);
       if (covered === undefined) {
@@ -488,6 +490,11 @@ export class PdfVectorDraw2D implements Draw2D {
       this.fillTextComplex(text, x, y, bold, size, metrics);
       return;
     }
+
+    // LTR-paden kennen geen herordening, dus de bidi-stuurtekens (U+200E uit `Intl` vóór een minteken
+    // in ar/fa) doen hier niets — en pdf-lib zou ze als `.notdef`-tofu encoden. Weg ermee.
+    text = stripBidiControls(text);
+    if (!text) return;
 
     // Niet-complex pad (Latijn/CJK, LTR): glyph-dekking checken vóór het encoden. Een ongedekte
     // codepoint mapt bij subset:false op `.notdef` (tofu) zónder fout; de pagineerder leest
@@ -737,6 +744,7 @@ export class PdfVectorDraw2D implements Draw2D {
     if (this.shapingFonts && this.hasRtlText(text)) {
       return { width: this.shapeComplex(text, bold, size).width };
     }
+    text = stripBidiControls(text); // zie `fillText`: nooit getekend, dus ook niet gemeten
     // CJK-pad: som van de run-breedtes (Inter + providerfonts), consistent tussen beide render-passes
     // (fontkit-breedtes zijn in beide passes beschikbaar) zodat de paginering niet tussen de passes schuift.
     if (this.textHasCjk(text)) {

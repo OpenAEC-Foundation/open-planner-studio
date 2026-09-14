@@ -4,6 +4,7 @@ import { AlertTriangle, OctagonAlert, CheckCircle2, RefreshCw } from 'lucide-rea
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { formatLagShort } from '@/utils/lagFormat';
+import { localizeDecimalPoint } from '@/utils/reportNumber';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import {
   collectScheduleWarnings, summarizeScheduleWarnings, hasScheduleWarningTarget,
@@ -26,7 +27,7 @@ import type { Task } from '@/types/task';
  * verborgen maar benoemd, met de Bereken-knop ernaast — hetzelfde F5-pad als het lint.
  */
 export function WarningsPanel() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const { t: tMenu } = useTranslation('menu');
   const dd = useDisplayDate();
@@ -110,7 +111,8 @@ export function WarningsPanel() {
       case 'sequence': {
         const seq = seqById.get(tg.sequenceId);
         const type = seq ? (SEQUENCE_TYPE_OPTIONS.find(o => o.value === seq.type)?.label ?? seq.type) : '';
-        const lag = seq ? formatLagShort(seq) : '';
+        // Weergave-only: het decimaalteken van de app-taal, net als het gezondheidsrapport (review #139).
+        const lag = seq ? localizeDecimalPoint(formatLagShort(seq), i18n.language) : '';
         const relation = t('warnings.target.relation', {
           predecessor: taskLabel(tg.predecessorId), successor: taskLabel(tg.successorId),
         });

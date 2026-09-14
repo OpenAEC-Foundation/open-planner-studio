@@ -6,6 +6,7 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import type { ResourceType } from '@/types/resource';
 import { formatDate } from '@/utils/dateUtils';
 import { makeMonthLabeler } from '@/utils/monthLabel';
+import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
 import type { ReportType, TableReportOptions } from '@/utils/reportSettings';
 import type { ReportingPeriod } from '@/engine/reports';
 import { isTableReportType } from '@/utils/reportSettings';
@@ -26,7 +27,8 @@ import { REPORT_COLORS, section, type ReportColumn, type ReportSummaryItem, type
  * met een F5/Bereken, een voortgangsinvoer of een baselinewissel.
  */
 type T = TFunction<'report'>;
-type DD = ReturnType<typeof useDisplayDate>;
+/** Datum- én getalnotatie van het rapport, gebonden aan de app-instellingen en -taal. */
+type DD = ReturnType<typeof useDisplayDate> & { num: (n: number) => string; signed: (n: number) => string; lagText: (lag: string) => string };
 
 /** Zelfde sleutelmap als `ResourcePanel.tsx` — `t()` is strikt getypeerd, dus geen template-sleutel. */
 const RESOURCE_TYPE_KEY = {
@@ -38,8 +40,6 @@ const RESOURCE_TYPE_KEY = {
 } as const satisfies Record<ResourceType, string>;
 
 const pct = (c: number) => `${Math.round(c * 100)}%`;
-const num = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-const signed = (n: number) => (n > 0 ? `+${num(n)}` : num(n));
 const floatColor = (tf: number) => (tf < 0 ? REPORT_COLORS.error : tf === 0 ? REPORT_COLORS.warn : undefined);
 
 function useReportContext(): { ctx: ReportContext; stale: boolean } {
@@ -74,16 +74,16 @@ function nameCol<R extends { name: string }>(t: T, width = 220): ReportColumn<R>
 function dateCol<R>(key: string, header: string, get: (r: R) => string | undefined, dd: DD, width = 95): ReportColumn<R> {
   return { key, header, width, align: 'left', text: r => dd.date(get(r)) || '—' };
 }
-function remainingCol<R extends { remainingDays: number }>(t: T): ReportColumn<R> {
-  return { key: 'remaining', header: t('tableReports.common.remaining'), width: 70, align: 'right', text: r => num(r.remainingDays) };
+function remainingCol<R extends { remainingDays: number }>(t: T, dd: DD): ReportColumn<R> {
+  return { key: 'remaining', header: t('tableReports.common.remaining'), width: 70, align: 'right', text: r => dd.num(r.remainingDays) };
 }
 function completionCol<R extends { completion: number }>(t: T): ReportColumn<R> {
   return { key: 'completion', header: t('tableReports.common.completion'), width: 60, align: 'right', text: r => pct(r.completion) };
 }
-function tfCol<R extends { totalFloat: number }>(t: T): ReportColumn<R> {
+function tfCol<R extends { totalFloat: number }>(t: T, dd: DD): ReportColumn<R> {
   return {
     key: 'tf', header: t('tableReports.common.totalFloat'), width: 70, align: 'right',
-    text: r => num(r.totalFloat), color: r => floatColor(r.totalFloat), bold: r => r.totalFloat < 0,
+    text: r => dd.num(r.totalFloat), color: r => floatColor(r.totalFloat), bold: r => r.totalFloat < 0,
   };
 }
 function statusCol<R>(t: T, text: (r: R) => string, color: (r: R) => string | undefined, width = 110): ReportColumn<R> {
@@ -140,7 +140,7 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
     wbsCol(t), nameCol(t),
     dateCol('start', t('tableReports.common.start'), r => r.start, dd),
     dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
-    remainingCol(t), completionCol(t), tfCol(t), criticalCol(t),
+    remainingCol(t, dd), completionCol(t), tfCol(t, dd), criticalCol(t),
     { key: 'resources', header: t('tableReports.common.resources'), width: 150, align: 'left', text: r => resourcesText(r.resources) },
     statusCol(t, r => t(`tableReports.lookAhead.status_${r.status}`), r => LOOK_AHEAD_COLOR[r.status], 120),
   ];
@@ -169,8 +169,8 @@ function buildCritical(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
     wbsCol(t), nameCol(t, 260),
     dateCol('start', t('tableReports.common.start'), r => r.start, dd),
     dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
-    remainingCol(t), tfCol(t),
-    { key: 'ff', header: t('tableReports.common.freeFloat'), width: 70, align: 'right', text: r => num(r.freeFloat) },
+    remainingCol(t, dd), tfCol(t, dd),
+    { key: 'ff', header: t('tableReports.common.freeFloat'), width: 70, align: 'right', text: r => dd.num(r.freeFloat) },
     { key: 'path', header: t(`${p}.floatPath`), width: 60, align: 'right', text: r => (r.floatPath === undefined ? '—' : String(r.floatPath)) },
     statusCol(t, r => t(`tableReports.critical.status_${r.status}`), r => (r.status === 'critical' ? REPORT_COLORS.error : REPORT_COLORS.warn)),
   ];
@@ -197,7 +197,7 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
     wbsCol(t), nameCol(t),
     dateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, dd),
     dateCol('finish', t(`${p}.forecastFinish`), r => r.finish, dd),
-    completionCol(t), remainingCol(t), tfCol(t), criticalCol(t),
+    completionCol(t), remainingCol(t, dd), tfCol(t, dd), criticalCol(t),
     statusCol(t, r => t(`tableReports.progress.status_${r.status}`), r => PROGRESS_COLOR[r.status], 130),
   ];
   const sec = (key: 'completed' | 'inProgress' | 'startingNext' | 'overdue' | 'critical', rows: ProgressRow[]) =>
@@ -210,9 +210,9 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
     { label: t(`${p}.lookAheadUntil`), value: dd.date(s.lookAheadTo) },
     { label: t(`${p}.baselineFinish`), value: dd.date(s.baselineFinish) || '—' },
     { label: t(`${p}.forecastFinish`), value: dd.date(s.forecastFinish) || '—' },
-    { label: t(`${p}.finishVariance`), value: s.finishVarianceDays === undefined ? '—' : signed(s.finishVarianceDays), color: varianceColor },
-    { label: `${t(`${p}.planned`)} ${t(`${p}.plannedBasis_${s.plannedBasis}`)}`, value: `${num(s.plannedPct)}%` },
-    { label: t(`${p}.actual`), value: `${num(s.actualPct)}%`, color: s.actualPct + 0.05 < s.plannedPct ? REPORT_COLORS.error : REPORT_COLORS.ok },
+    { label: t(`${p}.finishVariance`), value: s.finishVarianceDays === undefined ? '—' : dd.signed(s.finishVarianceDays), color: varianceColor },
+    { label: `${t(`${p}.planned`)} ${t(`${p}.plannedBasis_${s.plannedBasis}`)}`, value: `${dd.num(s.plannedPct)}%` },
+    { label: t(`${p}.actual`), value: `${dd.num(s.actualPct)}%`, color: s.actualPct + 0.05 < s.plannedPct ? REPORT_COLORS.error : REPORT_COLORS.ok },
     { label: t(`${p}.status_complete`), value: `${s.counts.complete} / ${s.counts.total}` },
     { label: t(`${p}.status_inProgress`), value: String(s.counts.inProgress) },
     { label: t(`${p}.status_notStarted`), value: String(s.counts.notStarted) },
@@ -243,9 +243,11 @@ function healthDetailText(t: T, dd: DD, item: HealthItem): string {
   const parts: string[] = [];
   if (d.reason) parts.push(t(`tableReports.health.reason_${d.reason}`));
   if (d.constraintType) parts.push(d.constraintType);
-  if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: d.lag }));
-  else if (d.days !== undefined) parts.push(t('tableReports.health.detail_days', { value: num(d.days) }));
-  if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: num(d.float) }));
+  // De engine levert de lag taalneutraal ("+1.5d", `formatLagShort`); hier krijgt hij hetzelfde
+  // decimaalteken als `dd.num(d.float)` verderop in dezelfde cel (review #139, bevinding 5).
+  if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: dd.lagText(d.lag) }));
+  else if (d.days !== undefined) parts.push(t('tableReports.health.detail_days', { value: dd.num(d.days) }));
+  if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: dd.num(d.float) }));
   if (d.date) parts.push(dd.date(d.date));
   return parts.join(' · ');
 }
@@ -321,10 +323,10 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
     monthly
       ? { key: 'month', header: t(`${p}.month`), width: 95, align: 'left', text: row => monthLabel(row.bucketStart) }
       : dateCol('week', t(`${p}.week`), row => row.bucketStart, dd),
-    { key: 'required', header: t(`${p}.required`), width: 85, align: 'right', text: r => num(r.required) },
-    { key: 'available', header: t(`${p}.available`), width: 90, align: 'right', text: r => num(r.available) },
-    { key: 'variance', header: t(`${p}.variance`), width: 80, align: 'right', text: r => signed(r.variance), color: r => (r.variance < 0 ? REPORT_COLORS.error : undefined), bold: r => r.variance < 0 },
-    { key: 'peak', header: t(`${p}.peak`), width: 80, align: 'right', text: r => num(r.peakDayLoad) },
+    { key: 'required', header: t(`${p}.required`), width: 85, align: 'right', text: r => dd.num(r.required) },
+    { key: 'available', header: t(`${p}.available`), width: 90, align: 'right', text: r => dd.num(r.available) },
+    { key: 'variance', header: t(`${p}.variance`), width: 80, align: 'right', text: r => dd.signed(r.variance), color: r => (r.variance < 0 ? REPORT_COLORS.error : undefined), bold: r => r.variance < 0 },
+    { key: 'peak', header: t(`${p}.peak`), width: 80, align: 'right', text: r => dd.num(r.peakDayLoad) },
     // Aantal overbelaste dagen als getal: geen taalkundig meervoud nodig (Pools "dni" was fout bij 1).
     { key: 'overloaded', header: t(`${p}.overloaded`), width: 100, align: 'right', text: r => (r.overloaded ? String(r.overloadedDays) : ''), color: r => (r.overloaded ? REPORT_COLORS.error : undefined), bold: r => r.overloaded },
   ];
@@ -360,8 +362,8 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
     wbsCol(t), nameCol(t, 200),
     dateCol('start', t('tableReports.common.start'), r => r.start, dd),
     dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
-    remainingCol(t),
-    { key: 'units', header: t(`${p}.units`), width: 75, align: 'right', text: r => num(r.unitsPerDay) },
+    remainingCol(t, dd),
+    { key: 'units', header: t(`${p}.units`), width: 75, align: 'right', text: r => dd.num(r.unitsPerDay) },
     completionCol(t),
     { key: 'critical', header: t('tableReports.common.critical'), width: 60, align: 'left', text: r => (r.isCritical ? t('tableReports.common.yes') : ''), color: r => (r.isCritical ? REPORT_COLORS.error : undefined), bold: r => r.isCritical },
     statusCol(t, r => t(`tableReports.progress.status_${r.state}`), r => PROGRESS_COLOR[r.state], 110),
@@ -390,10 +392,10 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
     dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
     dateCol('baselineStart', t(`${p}.baselineStart`), r => r.baselineStart, dd),
     dateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, dd),
-    { key: 'duration', header: t(`${p}.duration`), width: 70, align: 'right', text: r => num(r.durationDays) },
+    { key: 'duration', header: t(`${p}.duration`), width: 70, align: 'right', text: r => dd.num(r.durationDays) },
     { key: 'completion', header: t('tableReports.common.completion'), width: 60, align: 'right', text: r => pct(r.completion) },
-    { key: 'variance', header: t(`${p}.finishVariance`), width: 80, align: 'right', text: r => (r.finishVarianceDays === undefined ? '—' : signed(r.finishVarianceDays)), color: r => (r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 ? REPORT_COLORS.error : undefined), bold: r => r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 },
-    { key: 'minFloat', header: t(`${p}.minFloat`), width: 70, align: 'right', text: r => num(r.minTotalFloat), color: r => floatColor(r.minTotalFloat), bold: r => r.minTotalFloat < 0 },
+    { key: 'variance', header: t(`${p}.finishVariance`), width: 80, align: 'right', text: r => (r.finishVarianceDays === undefined ? '—' : dd.signed(r.finishVarianceDays)), color: r => (r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 ? REPORT_COLORS.error : undefined), bold: r => r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 },
+    { key: 'minFloat', header: t(`${p}.minFloat`), width: 70, align: 'right', text: r => dd.num(r.minTotalFloat), color: r => floatColor(r.minTotalFloat), bold: r => r.minTotalFloat < 0 },
     { key: 'activities', header: t(`${p}.activities`), width: 55, align: 'right', text: r => (r.isSummary ? String(r.counts.total) : '') },
     { key: 'critical', header: t(`${p}.critical`), width: 55, align: 'right', text: r => (r.isSummary ? String(r.counts.critical) : ''), color: r => (r.counts.critical ? REPORT_COLORS.error : undefined) },
     { key: 'inProgress', header: t(`${p}.inProgress`), width: 55, align: 'right', text: r => (r.isSummary ? String(r.counts.inProgress) : '') },
@@ -416,9 +418,17 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
 export function useTableReportSpec(reportType: ReportType, options: TableReportOptions): TableReportSpec | null {
   const { t, i18n } = useTranslation('report');
   const { t: tCommon } = useTranslation('common');
-  const dd = useDisplayDate();
+  const dates = useDisplayDate();
   const { ctx, stale } = useReportContext();
   const locale = i18n.language;
+  // Getallen in de app-taal (komma in nl/de/fr): dezelfde notatie als de toewijzingskolommen van het
+  // resourcediagram (`formatReportNumber`), zodat de rapporten in één paneel niet uiteenlopen.
+  const dd = useMemo<DD>(() => ({
+    ...dates,
+    num: n => formatReportNumber(n, locale),
+    signed: n => formatSignedReportNumber(n, locale),
+    lagText: lag => localizeDecimalPoint(lag, locale),
+  }), [dates, locale]);
   return useMemo(() => {
     if (!isTableReportType(reportType)) return null;
     switch (reportType) {

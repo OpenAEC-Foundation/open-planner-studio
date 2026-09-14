@@ -72,6 +72,26 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await expect.poll(() => firstImg.getAttribute('src'), { timeout: 20_000 }).not.toBe(beforeCols);
   await colsToggle.check();
 
+  // Passen de kolommen niet naast een bruikbare tijdlijn, dan laat de render ze vallen en zegt het
+  // overzichtsblok dat (review #139, bevinding 10): A4 staand op 125 % is te krap, 100 % past weer.
+  const droppedNote = page.locator('[data-ops-resource-gantt-note="columnsDropped"]');
+  await expect(droppedNote).toHaveCount(0);
+  await page.getByLabel(/^(Paper:|Papier:)$/).click();
+  await page.getByRole('option', { name: 'A4' }).click();
+  await page.getByLabel(/^(Orientation:|Orientatie:)$/).click();
+  await page.getByRole('option', { name: /^(Portrait|Staand)$/ }).click();
+  const fontSize = page.getByLabel(/^(Font size:|Lettergrootte:)$/);
+  await fontSize.click();
+  await page.getByRole('option', { name: '125%' }).click();
+  await expect(droppedNote).toBeVisible({ timeout: 20_000 });
+  await fontSize.click();
+  await page.getByRole('option', { name: '100%' }).click();
+  await expect(droppedNote).toHaveCount(0, { timeout: 20_000 });
+  await page.getByLabel(/^(Paper:|Papier:)$/).click();
+  await page.getByRole('option', { name: 'A3' }).click();
+  await page.getByLabel(/^(Orientation:|Orientatie:)$/).click();
+  await page.getByRole('option', { name: /^(Landscape|Liggend)$/ }).click();
+
   // Rapportageperiode (manuvarkey punt 3): een eigen bereik dat alleen Fundering raakt ⇒ alleen Ploeg A
   // blijft over; Casco (met Kraan) en Gevel vallen buiten de periode en de telling zegt dat. Terug naar
   // Hele project herstelt alles — de export hieronder telt dan weer drie pagina's.
