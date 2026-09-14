@@ -77,7 +77,8 @@ export interface StripGeometry {
   overrunBar: StripBand | null;
   /** x van het MIDDEN van de handle. */
   handleX: number;
-  /** x van de rechterrand van de laatste geboekte dag. */
+  /** x van de rechterrand van de laatste geboekte dag — of, bij een volledig tekort (niets meer
+   *  geboekt ná de verdeling), van het oorspronkelijke fase-einde. */
   phaseEndX: number;
   /** De kalenderdag waarop het plafond uitkomt; `null` bij een onbegrensd plafond. */
   ceilingEndIso: string | null;
@@ -219,7 +220,16 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
       // Een niet-werkdag zonder boeking is geen pauze maar gewoon weekend: niets tekenen.
     }
   }
-  const phaseEndX = last === null ? AXIS.padLeft : rightEdgeX(axis, last);
+  // HET ANKER VAN DE RIJ (bevinding B2 van de review). Bij een VOLLEDIG tekort boekt dit document
+  // na de verdeling geen enkele dag meer — `last` is dan `null`. Het fase-einde op `padLeft` zetten
+  // legde de hele rij aan het BEGIN van de as: de greep landde links onder de balken van andere
+  // projecten, de meetlat raakte losgekoppeld en de pil beloofde een plafonddatum die met dit
+  // document niets te maken had. Het eerlijke anker is dan de VÓÓR-stand: daar stond dit werk,
+  // en daar hoort de bediening bij. Alleen als ook die leeg is (niets vóór, niets ná) valt er
+  // niets te ankeren en blijft `padLeft` over.
+  const origEnd = lastBookedDay(beforeLoadByDay);
+  const anchorEnd = last ?? origEnd;
+  const phaseEndX = anchorEnd === null ? AXIS.padLeft : rightEdgeX(axis, anchorEnd);
 
   // (2) De vaste last, samengevoegd tot aaneengesloten banden.
   const fixedBands: StripBand[] = [];
@@ -234,7 +244,6 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
   }
 
   // (3) De meetlat, verankerd aan het OORSPRONKELIJKE fase-einde.
-  const origEnd = lastBookedDay(beforeLoadByDay);
   const origEndX = origEnd === null ? AXIS.padLeft : rightEdgeX(axis, origEnd);
   const slack = advanceWorkdays(axis, origEnd, Math.max(0, Math.floor(slackWorkdays)), isWorkingDay);
   const slackEndX = Math.min(trackRight, slack.xEnd);
@@ -258,7 +267,7 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
     // de vrije ruimte dan stilzwijgend met die verschuiving krimpen terwijl er niets van de uitloop
     // verbruikt is.
     const remaining = Math.max(0, Math.floor(ceilingWorkdays) - Math.max(0, Math.floor(endShiftWorkdays)));
-    const ceiling = advanceWorkdays(axis, last, remaining, isWorkingDay);
+    const ceiling = advanceWorkdays(axis, anchorEnd, remaining, isWorkingDay);
     handleX = Math.max(AXIS.padLeft, Math.min(trackRight, ceiling.xEnd));
     ceilingEndIso = ceiling.iso;
   }
