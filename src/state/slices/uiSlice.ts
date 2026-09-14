@@ -131,6 +131,7 @@ export function createDefaultUI(): UIState {
     showProgressLine: true,
     showStatusDateLine: true,
     showResourceAccent: false,   // #21: schermbeeld verandert eerst niet — expliciet aanzetten
+    showFloatBand: true,         // #130: de speling-band was altijd zichtbaar; uitzetten is de nieuwe keuze
     barColorSelection: DEFAULT_BAR_COLOR_SELECTION,
     presentationMode: false,
     showMiniMap: false,

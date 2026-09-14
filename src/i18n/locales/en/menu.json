@@ -196,6 +196,7 @@
     "columnsHintTable": "Choose the columns of the Table view",
     "columnsHintGoToTable": "Choose the columns of the Table view — shown on the Table tab",
     "toggleResourceAccent": "Resource accent",
+    "toggleFloatBand": "Float band",
     "screenColors": "Bar colors",
     "screenColors_critical": "Critical path",
     "screenColors_auto": "Per task — automatic",

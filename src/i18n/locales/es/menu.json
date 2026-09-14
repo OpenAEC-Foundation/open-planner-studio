@@ -196,6 +196,7 @@
     "columnsHintTable": "Elegir las columnas de la vista Tabla",
     "columnsHintGoToTable": "Elegir las columnas de la vista Tabla: se ven en la pestaña Tabla",
     "toggleResourceAccent": "Acento de recurso",
+    "toggleFloatBand": "Banda de holgura",
     "screenColors": "Colores de barras",
     "screenColors_critical": "Ruta crítica",
     "screenColors_auto": "Por tarea — automático",

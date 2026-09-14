@@ -468,6 +468,7 @@ const cpmDistinct = {
 // dan zijn ze onderling niet te onderscheiden en overleeft een kruisbedrading
 // (`showStatusDateLine: input.showProgressLine`) — de meest waarschijnlijke fout bij overtypen.
 // Gemeten: drie van zulke verwisselingen bleven groen. Vandaar drie op `false` en drie op `true`.
+// (#130: `showFloatBand` kwam er als zevende bij, op `false` — de renderer-default is `true`.)
 const baseInput: GanttRenderOptionsInput = {
   rows: S().viewRows,
   sequences,
@@ -481,6 +482,7 @@ const baseInput: GanttRenderOptionsInput = {
   showStatusDateLine: false,
   showProgressLine: true,
   showResourceAccent: true,
+  showFloatBand: false,
   barColorSelection: { mode: 'category', field: { src: 'activityCode', typeId: 'discipline' } },
   activityCodeTypes: [{
     id: 'discipline', name: 'Discipline',
@@ -551,6 +553,7 @@ const passthrough: [string, unknown, unknown][] = [
   ['showStatusDateLine', optsOk.showStatusDateLine, baseInput.showStatusDateLine],
   ['showProgressLine', optsOk.showProgressLine, baseInput.showProgressLine],
   ['showResourceAccent', optsOk.showResourceAccent, baseInput.showResourceAccent],
+  ['showFloatBand', optsOk.showFloatBand, baseInput.showFloatBand],
   ['barColorSelection', optsOk.barColorSelection, baseInput.barColorSelection],
   ['activityCodeTypes', optsOk.activityCodeTypes, baseInput.activityCodeTypes],
   ['customFieldDefs', optsOk.customFieldDefs, baseInput.customFieldDefs],

@@ -196,6 +196,7 @@
     "columnsHintTable": "Escolher as colunas da vista Tabela",
     "columnsHintGoToTable": "Escolher as colunas da vista Tabela — visíveis no separador Tabela",
     "toggleResourceAccent": "Acento de recurso",
+    "toggleFloatBand": "Faixa de folga",
     "screenColors": "Cores das barras",
     "screenColors_critical": "Caminho crítico",
     "screenColors_auto": "Por tarefa — automático",
