@@ -1,5 +1,6 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { AlertTriangle } from 'lucide-react';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { ensureThemeVisible, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
@@ -47,6 +48,16 @@ export function ResourcePanelCompact() {
               data-ops-resource-color={r.id}
             />
             <span className="flex-1 truncate" title={r.name || r.id}>{r.name || r.id}</span>
+            {overallocated && (
+            <span
+                title={t('resource.compact.overallocated')}
+                aria-label={t('resource.compact.overallocated')}
+                className="flex items-center flex-shrink-0"
+                style={{ color: 'var(--error)' }}
+            >
+                <AlertTriangle size={14} />
+            </span>
+            )}
             <UnitsInput
               value={r.maxUnits}
               ariaLabel={t('resource.maxUnits')}
@@ -57,11 +68,6 @@ export function ResourcePanelCompact() {
               // 100% breed en krimpt de naam-span hiernaast naar 0 px (issue #46a).
               className="input !text-[11px] !px-1 !py-0.5 !w-14 text-right"
               title={t('resource.maxUnits')}
-            />
-            <span
-              title={overallocated ? t('resource.compact.overallocated') : undefined}
-              className={`w-2 h-2 rounded-full flex-shrink-0 ${overallocated ? '' : 'invisible'}`}
-              style={{ background: 'var(--error)' }}
             />
           </div>
         );
