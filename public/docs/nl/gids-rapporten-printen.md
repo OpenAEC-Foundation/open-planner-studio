@@ -85,7 +85,8 @@ instellingenblok:
 De relatielijnen in het rapport gebruiken dezelfde tekentaal als het Gantt-scherm: een
 **doorgetrokken** lijn is een bepalende (driving) relatie, een **gestreepte** lijn een
 niet-bepalende, en een bepalende relatie tussen twee kritieke taken is **rood**. Zet je *kritiek pad*
-uit, dan worden ook die lijnen neutraal. De legenda onderaan vat het verschil samen. Is er nog niet
+uit, dan worden die lijnen neutraal en verdwijnt de legendaregel; de balkkleur zelf volgt de keuze
+**Balkkleuren**. De legenda onderaan vat het verschil samen. Is er nog niet
 gerekend, dan staan alle lijnen neutraal doorgetrokken — druk eerst op *Bereken* (F5).
 
 Het overzichtsblok erboven toont live het aantal taken, bladtaken, kritieke taken en relaties in
@@ -106,9 +107,11 @@ resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het over
 nog niemand heeft.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
-papier, kopherhaling — op twee na: *Volg weergave* (de rijen komen bij dit rapport niet van het
-scherm) en *Afhankelijkheden* (een taak kan onder meerdere banden staan en pijlen zouden bij een blad per
-resource van het vel af lopen; dit rapport tekent er daarom geen). Je hoeft de Gantt-weergave dus
+papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
+scherm), *Afhankelijkheden* (een taak kan onder meerdere banden staan en pijlen zouden bij een blad per
+resource van het vel af lopen; dit rapport tekent er daarom geen) en *Kritiek pad* (dat vinkje kleurt
+alleen relatielijnen, en die zijn er hier niet — de balken volgen gewoon de keuze **Balkkleuren**, en
+de legenda verklaart ze). Je hoeft de Gantt-weergave dus
 niet eerst zelf op resource te groeperen. Banden zijn per resource, niet per naam: twee resources die
 toevallig hetzelfde heten krijgen elk een eigen band (*Jan #1*, *Jan #2*), en een resource zonder
 naam een volgnummer. Het overzichtsblok telt de resources, de toewijzingen en de taken zonder

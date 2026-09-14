@@ -20,7 +20,8 @@ import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbo
 import { useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import {
-  DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations, saveReportSettings, TABLE_REPORT_TYPES,
+  DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations, reportTypeShowsCriticalToggle, saveReportSettings,
+  TABLE_REPORT_TYPES,
   type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
@@ -522,7 +523,11 @@ export function ReportPanel() {
   // vervangt die één render later. Bewust geen "leeg" tussenframe.
   const effectiveNameColumnWidth = truncateTaskNames ? taskNameColumnWidth : (autoNameColumnWidth ?? taskNameColumnWidth);
   const options = useMemo<PrintOptions>(() => ({
-    showCritical, showFloat, showWeekends, showLegend,
+    // Resourcediagram: het vinkje *Kritiek pad* stuurt alleen relatielijnen en legendaregel, en dit
+    // type tekent geen lijnen — vinkje verborgen, waarde geforceerd zodat de legenda de rode balken
+    // blijft verklaren (zie `reportTypeShowsCriticalToggle`).
+    showCritical: reportTypeShowsCriticalToggle(reportType) ? showCritical : true,
+    showFloat, showWeekends, showLegend,
     // Resourcediagram: geen relatiepijlen (zie `reportTypeDrawsRelations`).
     showDeps: reportTypeDrawsRelations(reportType) && showDeps,
     showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
@@ -1486,10 +1491,13 @@ export function ReportPanel() {
               <input data-ops-report-baseline-overlay type="checkbox" checked={showBaselineOverlay} onChange={e => setShowBaselineOverlay(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showBaselineOverlay')}</span>
             </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showCritical} onChange={e => setShowCritical(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showCriticalPath')}</span>
-            </label>
+            {/* Kritiek pad niet bij het resourcediagram — hetzelfde predicaat als de forcering in `options`. */}
+            {reportTypeShowsCriticalToggle(reportType) && (
+              <label className="flex items-center gap-2 min-w-0">
+                <input type="checkbox" checked={showCritical} onChange={e => setShowCritical(e.target.checked)} className="accent-accent flex-shrink-0" />
+                <span className="min-w-0">{t('showCriticalPath')}</span>
+              </label>
+            )}
             <label className="flex items-center gap-2 min-w-0">
               <input type="checkbox" checked={showFloat} onChange={e => setShowFloat(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showFloat')}</span>

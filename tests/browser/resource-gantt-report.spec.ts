@@ -24,6 +24,9 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   });
 
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  // Bij het gewone Gantt-rapport (standaardtype) staat het vinkje Kritiek pad er wél — de negatieve
+  // assertie hieronder zegt anders niets.
+  await expect(page.getByLabel(/^(Critical path|Kritiek pad)$/)).toHaveCount(1);
   const typePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
   await typePicker.click();
   await page.getByRole('option', { name: /^(Resource diagram|Resourcediagram)$/ }).click();
@@ -33,9 +36,12 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await expect(count('resources')).toHaveText('2');
   await expect(count('assignments')).toHaveText('3');
   await expect(count('unassigned')).toHaveText('1');
-  // Geen relatie-optie bij dit type (een taak kan onder meerdere banden staan); Volg weergave evenmin.
+  // Geen relatie-optie bij dit type (een taak kan onder meerdere banden staan); Volg weergave evenmin,
+  // en ook geen Kritiek pad: dat vinkje kleurt alleen relatielijnen en zou hier enkel de legendaregel
+  // wegnemen terwijl de balken rood blijven (manuvarkey op #113). Bij het gewone Gantt-rapport staat het wel.
   await expect(page.getByLabel(/^(Dependencies|Afhankelijkheden)$/)).toHaveCount(0);
   await expect(page.getByLabel(/^(Follow view|Volg weergave)/)).toHaveCount(0);
+  await expect(page.getByLabel(/^(Critical path|Kritiek pad)$/)).toHaveCount(0);
 
   // Preview: alles past op één pagina, en die pagina is een echte gerasterde afbeelding.
   const pages = page.locator('[data-preview-page]');

@@ -61,6 +61,18 @@ export function reportTypeDrawsRelations(type: ReportType): boolean {
   return type !== 'resourceGantt';
 }
 
+/**
+ * Toont dit rapporttype het vinkje *Kritiek pad*? Sinds de balkkleurkeuze (`barColorSelection`)
+ * stuurt dat vinkje alléén de relatielijnen (rood tussen twee kritieke taken) en de legendaregel;
+ * de balken zelf volgen `criticalFill` in `barColors.ts`, ongeacht het vinkje. Bij een type zonder
+ * relatiepijlen zou het vinkje dus nog uitsluitend de legendaregel wegnemen terwijl de balken rood
+ * blijven — misleidend (manuvarkey op #113). Daarom hetzelfde predicaat als de relaties; het paneel
+ * forceert `showCritical` dan op `true`, zodat de legenda bij de rode balken past.
+ */
+export function reportTypeShowsCriticalToggle(type: ReportType): boolean {
+  return reportTypeDrawsRelations(type);
+}
+
 /** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
   'lookAhead', 'critical', 'progress', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',
