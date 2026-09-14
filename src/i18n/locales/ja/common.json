@@ -672,6 +672,7 @@
         "reset": "すべての上限と固定を中立に戻します。「中断を許可」スイッチはそのままです。"
       },
       "strip": {
+        "shortfall_other": "{{count}} 件のタスクが収まりません",
         "pinnedRecorded": "固定済み：記録された日付のとおり",
         "cannotMove": "動かせません — ここの作業はすべて確定しています",
         "ceilingUnlimited": "無制限",

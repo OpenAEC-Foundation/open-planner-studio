@@ -686,6 +686,8 @@
         "reset": "Puts all ceilings and pins back to neutral. The \"Allow interruptions\" switch stays as it is."
       },
       "strip": {
+        "shortfall_one": "{{count}} task does not fit",
+        "shortfall_other": "{{count}} tasks do not fit",
         "pinnedRecorded": "Pinned: dates as recorded",
         "cannotMove": "Cannot shift — all the work here is fixed",
         "ceilingUnlimited": "unlimited",

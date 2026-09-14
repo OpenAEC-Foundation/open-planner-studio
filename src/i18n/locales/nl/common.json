@@ -686,6 +686,8 @@
         "reset": "Zet alle plafonds en vastzettingen terug op neutraal. De schakelaar \"Onderbrekingen toestaan\" blijft staan."
       },
       "strip": {
+        "shortfall_one": "{{count}} taak past niet",
+        "shortfall_other": "{{count}} taken passen niet",
         "pinnedRecorded": "Vastgezet: datums zoals opgeslagen",
         "cannotMove": "Kan niet wijken — al het werk hier staat vast",
         "ceilingUnlimited": "onbegrensd",

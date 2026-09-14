@@ -714,6 +714,10 @@
         "reset": "Przywraca wszystkie limity i przypięcia do stanu neutralnego. Przełącznik „Zezwalaj na przerwy” pozostaje bez zmian."
       },
       "strip": {
+        "shortfall_one": "{{count}} zadanie nie mieści się",
+        "shortfall_few": "{{count}} zadania nie mieszczą się",
+        "shortfall_many": "{{count}} zadań nie mieści się",
+        "shortfall_other": "{{count}} zadania nie mieści się",
         "pinnedRecorded": "Przypięty: daty tak jak zapisane",
         "cannotMove": "Nie może się przesunąć — cała praca tutaj jest ustalona",
         "ceilingUnlimited": "bez ograniczeń",

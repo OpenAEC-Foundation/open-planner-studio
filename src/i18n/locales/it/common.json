@@ -700,6 +700,9 @@
         "reset": "Riporta tutti i tetti e i blocchi allo stato neutro. L'interruttore «Consenti interruzioni» resta invariato."
       },
       "strip": {
+        "shortfall_one": "{{count}} attività non entra",
+        "shortfall_many": "{{count}} attività non entrano",
+        "shortfall_other": "{{count}} attività non entrano",
         "pinnedRecorded": "Bloccato: date come registrate",
         "cannotMove": "Non può slittare — tutto il lavoro qui è fisso",
         "ceilingUnlimited": "illimitato",

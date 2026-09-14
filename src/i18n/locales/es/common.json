@@ -700,6 +700,9 @@
         "reset": "Devuelve todos los topes y fijaciones al estado neutro. El interruptor «Permitir interrupciones» no cambia."
       },
       "strip": {
+        "shortfall_one": "{{count}} tarea no cabe",
+        "shortfall_many": "{{count}} tareas no caben",
+        "shortfall_other": "{{count}} tareas no caben",
         "pinnedRecorded": "Fijado: fechas tal como se guardaron",
         "cannotMove": "No puede desplazarse — todo el trabajo aquí está fijo",
         "ceilingUnlimited": "sin límite",

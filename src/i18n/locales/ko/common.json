@@ -672,6 +672,7 @@
         "reset": "모든 상한과 고정을 중립 상태로 되돌립니다. '중단 허용' 스위치는 그대로 유지됩니다."
       },
       "strip": {
+        "shortfall_other": "{{count}}개 작업이 맞지 않습니다",
         "pinnedRecorded": "고정됨: 기록된 날짜대로",
         "cannotMove": "이동할 수 없음 — 여기의 모든 작업이 고정되어 있습니다",
         "ceilingUnlimited": "무제한",

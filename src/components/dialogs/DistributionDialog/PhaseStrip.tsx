@@ -151,13 +151,14 @@ export function PhaseStrip({
   const usedText = t('resource.distribution.strip.used', { used: endShiftWorkdays });
   // BIJ EEN TEKORT STAAT DE TEKORTZIN ZÉLF IN DE PIL (bevinding B6 van de review). De pil wordt
   // rood zodra er een taak niet past, maar de tekst bleef "eind ongewijzigd" — rood met een
-  // geruststellende zin erin las als een tegenspraak. De korte vorm hergebruikt de bestaande
-  // tekortsleutel met een LEGE documentnaam: die naam staat al in het label links, en in alle
-  // veertien locales staat `{{doc}}` vooraan, gevolgd door een scheidingsteken dat er hier dus
-  // afgesneden wordt. De volle zin blijft in de `title` staan, samen met de einddatum-uitkomst.
+  // geruststellende zin erin las als een tegenspraak. De pil krijgt de KORTE vorm zonder
+  // documentnaam: die naam staat al in het label links van dezelfde rij. Dat is een eigen
+  // meervoudfamilie (`strip.shortfall_*`) en niet de langere `shortfall.doc_*` met een lege
+  // `{{doc}}` — zo'n truc leunt op de woordvolgorde van veertien vertalingen en breekt stil zodra
+  // een vertaler de documentnaam achteraan zet. De volle zin blijft in de `title` staan, samen met
+  // de einddatum-uitkomst.
   const shortfallText = shortfallCount > 0
-    ? t('resource.distribution.shortfall.doc', { doc: '', count: shortfallCount })
-      .replace(/^[\s:\uff1a\u00b7\u2013-]+/, '')
+    ? t('resource.distribution.strip.shortfall', { count: shortfallCount })
     : '';
   const pillText = busy
     ? t('resource.distribution.compute.busy')

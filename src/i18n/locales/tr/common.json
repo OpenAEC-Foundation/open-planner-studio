@@ -686,6 +686,8 @@
         "reset": "Tüm tavanları ve sabitlemeleri nötr duruma döndürür. \"Kesintilere izin ver\" anahtarı olduğu gibi kalır."
       },
       "strip": {
+        "shortfall_one": "{{count}} görev sığmıyor",
+        "shortfall_other": "{{count}} görev sığmıyor",
         "pinnedRecorded": "Sabitlendi: kayıtlı tarihler",
         "cannotMove": "Kayamaz — buradaki tüm iş sabit",
         "ceilingUnlimited": "sınırsız",

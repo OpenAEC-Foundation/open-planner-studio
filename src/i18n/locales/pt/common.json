@@ -700,6 +700,9 @@
         "reset": "Repõe todos os limites e fixações no estado neutro. O interruptor «Permitir interrupções» fica como está."
       },
       "strip": {
+        "shortfall_one": "{{count}} tarefa não cabe",
+        "shortfall_many": "{{count}} tarefas não cabem",
+        "shortfall_other": "{{count}} tarefas não cabem",
         "pinnedRecorded": "Fixado: datas como registadas",
         "cannotMove": "Não pode deslocar-se — todo o trabalho aqui está fixo",
         "ceilingUnlimited": "ilimitado",

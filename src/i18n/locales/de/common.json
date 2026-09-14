@@ -686,6 +686,8 @@
         "reset": "Setzt alle Obergrenzen und Fixierungen auf neutral zurück. Der Schalter „Unterbrechungen zulassen“ bleibt unverändert."
       },
       "strip": {
+        "shortfall_one": "{{count}} Vorgang passt nicht",
+        "shortfall_other": "{{count}} Vorgänge passen nicht",
         "pinnedRecorded": "Angeheftet: Datumsangaben wie gespeichert",
         "cannotMove": "Kann nicht ausweichen — die gesamte Arbeit hier steht fest",
         "ceilingUnlimited": "unbegrenzt",

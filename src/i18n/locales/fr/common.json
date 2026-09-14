@@ -700,6 +700,9 @@
         "reset": "Remet tous les plafonds et épinglages à l'état neutre. L'interrupteur « Autoriser les interruptions » reste tel quel."
       },
       "strip": {
+        "shortfall_one": "{{count}} tâche ne tient pas",
+        "shortfall_many": "{{count}} tâches ne tiennent pas",
+        "shortfall_other": "{{count}} tâches ne tiennent pas",
         "pinnedRecorded": "Épinglé : dates telles qu'enregistrées",
         "cannotMove": "Ne peut pas se décaler — tout le travail ici est figé",
         "ceilingUnlimited": "illimité",

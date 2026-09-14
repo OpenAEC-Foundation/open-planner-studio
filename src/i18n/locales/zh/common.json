@@ -672,6 +672,7 @@
         "reset": "将所有上限和固定恢复为中立状态。「允许中断」开关保持不变。"
       },
       "strip": {
+        "shortfall_other": "{{count}} 项任务无法安排",
         "pinnedRecorded": "已固定：按记录的日期",
         "cannotMove": "无法顺延 — 这里的所有工作都已固定",
         "ceilingUnlimited": "无限制",
