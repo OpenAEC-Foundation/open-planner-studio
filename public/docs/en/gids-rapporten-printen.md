@@ -46,7 +46,8 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   the whole print fits on one page, the footer simply stays below the last row. The strip costs
   space on every page: roughly two rows fewer per sheet, so occasionally one page more, and a
   resource that just fitted on one sheet with *Each resource on a new page* can spill onto two.
-  Off = the footer on the last page only.
+  Off = the footer on the last page only. The page number ("3 / 7") always sits in the bottom
+  margin, separate from the footer; the footer itself no longer carries a page number.
 - **Timeline over** — spreads the Gantt timeline across 1 to 8 pages side by side; only available
   with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
   the table text.

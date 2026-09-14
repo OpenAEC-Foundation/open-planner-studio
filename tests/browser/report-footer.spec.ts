@@ -43,15 +43,31 @@ async function pageShapes(pdfBytes: Uint8Array): Promise<PageShape[]> {
   };
   return doc.getPages().map(page => {
     const text = streamText(page);
-    // Per `q … Q`-venster: de clip-rechthoek en het aantal tekstoperatoren eronder.
-    const windows = [...text.matchAll(/\bq\s+(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re\b([\s\S]*?)\bQ\b/g)]
-      .map(m => ({
-        x: Number(m[1]), y: Number(m[2]), w: Number(m[3]), h: Number(m[4]),
-        textOps: (m[5].match(/\b(Tj|TJ)\b/g) ?? []).length,
-      }));
-    // Een lage clip-rechthoek op de onderrand van het printgebied is de voetstrook; een body-tegel
-    // die tot die onderrand reikt is een volle pagina en dus honderden punten hoog.
-    const footerRects = windows.filter(r => Math.abs(r.y - (MARGIN_PT + PAGE_NUMBER_PT)) < 0.01 && r.h > 15 && r.h < 80);
+    // Per tegelvenster (`q  x y w h re … Q`, met een stack voor geneste `q`/`Q` van halfdoorzichtige
+    // tekst): de clip-rechthoek en het aantal tekstoperatoren erbinnen.
+    const windows: { x: number; y: number; w: number; h: number; textOps: number }[] = [];
+    const tokens = text.split(/\s+/);
+    let depth = 0;
+    let current: { depth: number; win: typeof windows[number] } | null = null;
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      if (tok === 'q') {
+        depth++;
+        if (!current && tokens[i + 5] === 're') {
+          current = { depth, win: { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]), w: Number(tokens[i + 3]), h: Number(tokens[i + 4]), textOps: 0 } };
+        }
+      } else if (tok === 'Q') {
+        if (current && depth === current.depth) { windows.push(current.win); current = null; }
+        depth--;
+      } else if (current && (tok === 'Tj' || tok === 'TJ')) {
+        current.win.textOps++;
+      }
+    }
+    // Een clip-rechthoek op de onderrand van het printgebied die geen volle pagina hoog is, is de
+    // voetstrook (50 logische px × schaal; bij een smal rapport is de schaal groter dan 0,75, bij
+    // lettergrootte 125 % de strook hoger — vandaar geen krappe band). Een body-tegel die tot die
+    // onderrand reikt is een volle pagina en dus meer dan de halve papierhoogte.
+    const footerRects = windows.filter(r => Math.abs(r.y - (MARGIN_PT + PAGE_NUMBER_PT)) < 0.01 && r.h > 15 && r.h < page.getHeight() / 2);
     return { width: page.getWidth(), draws: (text.match(/\/X0 Do/g) ?? []).length, footerRects };
   });
 }

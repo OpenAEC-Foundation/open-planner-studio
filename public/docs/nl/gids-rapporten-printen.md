@@ -47,7 +47,8 @@ instellingenblok:
   hele afdruk op één pagina, dan blijft de voet gewoon onder de laatste rij staan. De strook kost
   per pagina ruimte: ongeveer twee rijen minder per vel, dus soms een pagina meer, en een resource
   die met *Elke resource op een nieuwe pagina* nét op één vel paste kan daardoor over twee vellen
-  gaan. Uit = de voet alleen op de laatste pagina.
+  gaan. Uit = de voet alleen op de laatste pagina. Het paginanummer ("3 / 7") staat altijd in de
+  ondermarge, los van de voet; de voet zelf draagt geen paginanummer meer.
 - **Tijdlijn over** — verdeelt de Gantt-tijdlijn over 1 tot 8 pagina's naast elkaar; alleen
   beschikbaar met auto-fit aan. Kies meer pagina's wanneer je de tijdas minder wilt comprimeren
   zonder de tabeltekst kleiner te maken.

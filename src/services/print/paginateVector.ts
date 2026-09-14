@@ -287,14 +287,23 @@ export async function paginateVectorToPdfBytes(
   });
   let layout = computeTileLayout(tileInput(dims));
 
-  // Voet op elke pagina bij méér dan één kolom: de voetinhoud moet binnen één paginabreedte gelegd
-  // zijn (anders staat het merk in kolom N en de legenda in kolom 2). De render kent die breedte
-  // pas ná de tegelwiskunde, dus één extra pass met `footerLayoutWidth`; de maten veranderen daar
-  // niet door (de voet bepaalt de canvasbreedte niet), maar we herrekenen de layout voor de zekerheid.
+  // Voet op elke pagina: de voetinhoud moet binnen één paginabreedte gelegd zijn (anders staat bij
+  // meerdere kolommen het merk in kolom N en de legenda in kolom 2). De render kent die breedte pas
+  // ná de tegelwiskunde, dus één extra pass met `footerLayoutWidth` — alleen wanneer die breedte
+  // écht kleiner is dan het canvas. In fit-width met één kolom zijn beide analytisch gelijk
+  // (`col0Bodypx = printW/scale = cw`) maar als floats soms 1e-13 uit elkaar; zonder de marge draaide
+  // ~5 % van de exports een tweede volledige render voor niets (review #135 ronde 3, F1). De maten
+  // veranderen niet door de pass (de voet bepaalt de canvasbreedte niet); de layout wordt toch
+  // herrekend. Een smallere voet kan alleen legenda-items wéglaten, dus nieuwe codepoints zijn
+  // uitgesloten — de coverage-poort wordt hieronder tóch herhaald, zodat die invariant geen
+  // ongeschreven aanname blijft (F2).
   const footerLayoutWidth = footerLayoutWidthFor(layout);
-  if (footerLayoutWidth !== undefined && footerLayoutWidth < dims.width) {
+  if (footerLayoutWidth !== undefined && footerLayoutWidth < dims.width - 0.5) {
     ({ d2d, dims } = runRender(lastCjk, footerLayoutWidth));
     layout = computeTileLayout(tileInput(dims));
+    if (d2d.uncoveredCodepoints.size > 0) {
+      throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
+    }
   }
 
   // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
