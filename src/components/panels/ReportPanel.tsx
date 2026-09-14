@@ -460,7 +460,9 @@ export function ReportPanel() {
     BACK_LOADED: tCommon('resource.curve.backLoaded'), BELL: tCommon('resource.curve.bell'),
     EARLY_PEAK: tCommon('resource.curve.earlyPeak'), LATE_PEAK: tCommon('resource.curve.latePeak'),
     DOUBLE_PEAK: tCommon('resource.curve.doublePeak'), TURTLE: tCommon('resource.curve.turtle'),
-  }), [tCommon]);
+    // Dezelfde twee toestanden als het eigenschappenpaneel: contour op de taak, geïmporteerde curve.
+    contoured: tTask('properties.assignments.contoured'), imported: tTask('properties.assignments.importedCurve'),
+  }), [tCommon, tTask]);
   // Rapportageperiode als tijdvenster (punt 3): dezelfde oplossing als het control toont; bij
   // *Hele project* geen venster, zodat het rapport byte-identiek blijft aan vóór deze optie.
   const resourceGanttPeriod = useResolvedPeriod(resourceGanttOptions.period);
@@ -559,8 +561,10 @@ export function ReportPanel() {
     labels: {
       // Resourcediagram zonder één toewijzing: zeg wat er ontbreekt, niet "geen taken" — tenzij er
       // écht geen taken zijn, dan is "wijs resources toe" het verkeerde advies.
+      // Leeg door het venster (géén bladtaak meer in de periode) ⇒ wijs naar de periode; leeg terwijl
+      // er wél taken in de periode staan ⇒ die zijn niet toegewezen, en een andere periode helpt niet.
       noTasks: reportType === 'resourceGantt' && tasks.length > 0
-        ? (resourceGantt && resourceGantt.rows.length === 0 && resourceGantt.counts.outsidePeriod > 0
+        ? (resourceGantt && resourceGantt.counts.inPeriod === 0 && resourceGantt.counts.outsidePeriod > 0
           ? t('resourceGantt.emptyPeriod')
           : t('resourceGantt.empty'))
         : t('noTasks'),

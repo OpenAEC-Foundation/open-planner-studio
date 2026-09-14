@@ -26,11 +26,11 @@ import {
   visibleBarColorCategories,
   type BarColorContext,
 } from '@/services/print/barColorCategories';
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
-import type { RowAssignment } from '@/engine/reports/resourceGantt';
+import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import type { BaselineOverlay } from '@/types/baseline';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
@@ -93,7 +93,7 @@ const COL = {
   // Toewijzingskolommen van het resourcediagram (manuvarkey punt 1): eenheden per dag en de
   // verdeelcurve van de resource van de band op die taak. Alleen bij `assignmentColumns`.
   units:     { w: 45 },
-  curve:     { w: 75 },
+  curve:     { w: 92 },
 };
 
 /**
@@ -389,7 +389,9 @@ export interface PrintOptions {
    * OPTIONEEL — rapportageperiode als TIJDVENSTER (manuvarkey op #113, punt 3; resourcediagram): de
    * tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de gebruikelijke marge van
    * 7/14 dagen, en balken, mijlpalen, speling, voortgang en baseline worden op de chartrand
-   * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd. Welke rijen in het
+   * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd (ook de 3 px-
+   * minimumbreedte van een balk en het middelpunt van een ruit; relatiepijlen worden bij een
+   * venster helemaal niet getekend). Welke rijen in het
    * venster horen beslist de rijenbron (`computeResourceGanttRows`), niet de render; een rij die
    * er toch buiten valt tekent gewoon geen balk. Relatiepijlen worden niet geklemd: het venster
    * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ byte-identiek.
@@ -405,8 +407,9 @@ export interface PrintOptions {
    */
   assignmentColumns?: boolean;
   rowAssignments?: ReadonlyMap<string, RowAssignment>;
-  /** Vertaalde curvenamen (`common:resource.curve.*`); een ontbrekend label valt terug op de enum. */
-  curveLabels?: Partial<Record<ResourceCurve, string>>;
+  /** Vertaalde curvenamen (`common:resource.curve.*`, plus `contoured`/`imported` uit
+   *  `task:properties.assignments.*`); een ontbrekend label valt terug op de enum-/toestandsnaam. */
+  curveLabels?: Partial<Record<RowCurve, string>>;
   /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
@@ -692,7 +695,7 @@ export function renderReport(
     d2d.fillStyle = PRINT_COLORS.textSecondary;
     d2d.font = m.font(14);
     d2d.textAlign = 'center';
-    d2d.fillText(options.labels?.noTasks ?? 'No tasks to display', 300, 100);
+    d2d.fillText(fitText(d2d, options.labels?.noTasks ?? 'No tasks to display', 580), 300, 100);
     // Geen kop-/tijdschaalstrook in de lege-staat (alleen een centrale melding) ⇒ niets te herhalen.
     // Het meldingsvak zelf houdt z'n vaste 600×200; alleen de tekst erin volgt de schaal.
     return { width: 600, height: 200, tableWidth: m.tableWidth, headerHeight: 0, footerHeight: 0 };
@@ -730,11 +733,20 @@ export function renderReport(
   // scherm-Gantt beslist of de kalender werkelijk gecomprimeerd kan worden (een kalender zonder
   // werkdag valt gecontroleerd terug op de gewone kalender-as).
   const calEngine = new CalendarEngine(calendar);
-  const compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
-  const measureAxis = resolveGanttAxis({
+  let compressed = isCompressedEffective(calEngine, !!options.compressNonWorkdays);
+  let measureAxis = resolveGanttAxis({
     calendar: calEngine, compressNonWorkdays: compressed,
     origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
   });
+  // Tijdvenster zonder één werkdag (b.v. een weekend) op de gecomprimeerde as: de as zou dan naar
+  // de eerstvolgende werkdag búiten het venster kleven. Val voor dít venster terug op de kalender-as.
+  if (options.timeWindow && compressed && measureAxis.daySpan(minDate, maxDate) < 1) {
+    compressed = false;
+    measureAxis = resolveGanttAxis({
+      calendar: calEngine, compressNonWorkdays: false,
+      origin: minDate, chartOriginX: 0, zoom: 1, scrollX: 0,
+    });
+  }
   const timelineDays = compressed
     ? Math.max(1, Math.ceil(measureAxis.daySpan(minDate, maxDate)))
     : calendarDays;
@@ -1038,8 +1050,11 @@ export function renderReport(
       const x = dateToX(date) + zoom / 2;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
-      // Tijdvenster: een ruit buiten het chartgebied wordt niet getekend (geen halve ruit).
+      // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
+      // rand wordt met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of
+      // over de rechterrand hangt (hyperkritische review, bevinding 2).
       const inWindow = !windowed || (x + size >= m.tableWidth && x - size <= canvasWidth);
+      const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
       if (inWindow) {
         const advies = colorAdvice(task);
@@ -1050,17 +1065,17 @@ export function renderReport(
           d2d.lineWidth = 1;
         }
         d2d.beginPath();
-        d2d.moveTo(x, cy - size);
-        d2d.lineTo(x + size, cy);
-        d2d.lineTo(x, cy + size);
-        d2d.lineTo(x - size, cy);
+        d2d.moveTo(cx, cy - size);
+        d2d.lineTo(cx + size, cy);
+        d2d.lineTo(cx, cy + size);
+        d2d.lineTo(cx - size, cy);
         d2d.closePath();
         d2d.fill();
         if (advies.outline) d2d.stroke();
 
         // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
         if (options.showTaskNames) {
-          barLabelJobs.push({ name: task.name, barRightX: x + size, barLeftX: x - size, y: cy + m.s(3), bold: false });
+          barLabelJobs.push({ name: task.name, barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false });
         }
       }
     } else if (task.childIds.length > 0) {
@@ -1126,10 +1141,11 @@ export function renderReport(
       const segments = task.splitGaps && task.splitGaps.length > 0
         ? computeSplitSegments(task.splitGaps, start, end, false, calEngine)
         : [{ start, end }];
-      const segs = segments.map((s, i) => ({
-        x1: clampX(i === 0 ? rawX1 : dateToX(s.start)),
-        x2: clampX(i === segments.length - 1 ? rawX2 : dateToX(s.end)),
-      })).filter(s => !windowed || s.x2 > s.x1);
+      const segs = segments.map((s, i) => {
+        const rx1 = i === 0 ? rawX1 : dateToX(s.start);
+        const rx2 = i === segments.length - 1 ? rawX2 : dateToX(s.end);
+        return { rx1, rx2, x1: clampX(rx1), x2: clampX(rx2) };
+      }).filter(s => !windowed || s.x2 > s.x1);
       const split = segs.length > 1;
 
       if (split) {
@@ -1142,15 +1158,24 @@ export function renderReport(
       }
 
       for (const s of segs) {
-        const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
+        // De minimumbreedte (3 px, 2 bij splits) op de RUWE maat, en het einde bij een venster op de
+        // chartrand geklemd zodat dat minimum er niet overheen steekt.
+        const rawSw = Math.max(s.rx2 - s.rx1, split ? 2 : 3);
+        const sw = (windowed ? Math.min(s.rx1 + rawSw, canvasWidth) : s.rx1 + rawSw) - s.x1;
         if (advies.kind === 'segments') {
-          let sx = s.x1;
+          // Kleurvakken op de ruwe tijdas verdeeld en daarna per vak op het chartgebied geknipt: een
+          // afgekapte balk toont zo de kleuren die bij het zichtbare stuk horen (review, bevinding 8).
+          let sx = s.rx1;
           advies.segments.forEach((seg, si) => {
             const isLast = si === advies.segments.length - 1;
-            const w = isLast ? s.x1 + sw - sx : Math.round(sw * seg.weight);
-            d2d.fillStyle = seg.color;
-            d2d.roundRect(sx, y, w, barHeight, si === 0 ? 3 : 0);
-            d2d.fill();
+            const w = isLast ? s.rx1 + rawSw - sx : Math.round(rawSw * seg.weight);
+            const vx1 = windowed ? Math.max(sx, m.tableWidth) : sx;
+            const vx2 = windowed ? Math.min(sx + w, canvasWidth) : sx + w;
+            if (!windowed || vx2 > vx1) {
+              d2d.fillStyle = seg.color;
+              d2d.roundRect(vx1, y, vx2 - vx1, barHeight, si === 0 ? 3 : 0);
+              d2d.fill();
+            }
             sx += w;
           });
         } else {
@@ -1212,11 +1237,12 @@ export function renderReport(
         const x = dateToX(parseDate(baseline.start)) + zoom / 2;
         const cy = baseY + baseHeight / 2;
         if (!windowed || (x + baseHeight >= m.tableWidth && x - baseHeight <= canvasWidth)) {
+          const bcx = windowed ? Math.min(canvasWidth - baseHeight, Math.max(m.tableWidth + baseHeight, x)) : x;
           d2d.beginPath();
-          d2d.moveTo(x, cy - baseHeight);
-          d2d.lineTo(x + baseHeight, cy);
-          d2d.lineTo(x, cy + baseHeight);
-          d2d.lineTo(x - baseHeight, cy);
+          d2d.moveTo(bcx, cy - baseHeight);
+          d2d.lineTo(bcx + baseHeight, cy);
+          d2d.lineTo(bcx, cy + baseHeight);
+          d2d.lineTo(bcx - baseHeight, cy);
           d2d.closePath();
           d2d.fill();
         }
@@ -1249,7 +1275,9 @@ export function renderReport(
   // tegel geëmit), dus daar was dit nooit stuk. De omkering repareert dus feitelijk de RASTER-preview
   // en brengt die in lijn met wat de export altijd al deed — wat precies de bedoeling is, want die
   // twee horen WYSIWYG te zijn.
-  if (options.showDeps) {
+  // Bij een tijdvenster worden relaties nooit getekend: `drawDependencies` klemt niet, en het
+  // venster wordt alleen op het resourcediagram aangeboden, dat sowieso geen relaties tekent.
+  if (options.showDeps && !windowed) {
     // #54 volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
     // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
     // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus (= alle taken

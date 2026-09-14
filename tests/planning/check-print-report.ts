@@ -47,6 +47,9 @@ function record(tasks: Task[], sequences: Sequence[], calendar: WorkCalendar, op
   const rects: RectEv[] = [];
   const paths: PathEv[] = [];
   const roundRects: RoundRectEv[] = [];
+  // Gevulde paden (mijlpaal- en baselineruiten, samenvattingshaakjes) — `fill()` legde ze eerder
+  // stil weg, waardoor een ruit die over de tabel steekt onzichtbaar bleef voor de tests.
+  const fills: PathEv[] = [];
   let seq = 0;
   let curPath: { x: number; y: number }[] | null = null;
   const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline, dash: [] as number[] };
@@ -62,14 +65,14 @@ function record(tasks: Task[], sequences: Sequence[], calendar: WorkCalendar, op
     fillRect(x, y, w, h) { rects.push({ x, y, w, h, color: st.fillStyle, seq: seq++ }); },
     strokeRect() {}, beginPath() { curPath = []; }, moveTo(x, y) { if (!curPath) curPath = []; curPath.push({ x, y }); },
     lineTo(x, y) { if (!curPath) curPath = []; curPath.push({ x, y }); },
-    closePath() {}, fill() { curPath = null; },
+    closePath() {}, fill() { if (curPath) fills.push({ pts: curPath, color: st.fillStyle, dash: [], seq: seq++ }); curPath = null; },
     stroke() { if (curPath) paths.push({ pts: curPath, color: st.strokeStyle, dash: [...st.dash], seq: seq++ }); curPath = null; },
     roundRect(x, y, w, h) { roundRects.push({ x, y, w, h, color: st.fillStyle, strokeColor: st.strokeStyle, mode: 'fill', seq: seq++ }); },
     fillText(text, x, y) { texts.push({ text, x, y, color: st.fillStyle, font: st.font, seq: seq++ }); },
     measureText(t) { return measure(t); },
   };
   const dims = renderReport(() => d2d, tasks, sequences, calendar, 'P', options);
-  return { texts, rects, paths, roundRects, dims };
+  return { texts, rects, paths, roundRects, fills, dims };
 }
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────────────────────
@@ -523,6 +526,24 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(rec.texts.filter(t => t.text === T_HIDDEN.name && t.x < d.tableWidth).length === 1, 'taak buiten het venster houdt zijn tabelrij');
       ok(JSON.stringify(record(FIX_TASKS, [], cal, fixed)) === JSON.stringify(record(FIX_TASKS, [], cal, { ...fixed, timeWindow: undefined })),
         'zonder venster byte-identiek');
+
+      // Review-bevinding 2: een mijlpaal op de eerste vensterdag bij lage zoom (4 px/dag, ruit ± 6 px)
+      // hangt niet half over de tabel — het middelpunt wordt naar binnen geklemd. Niets in het
+      // chartgebied (gevulde paden, balken, lijnen) ligt links van de tabelrand of rechts van de chart.
+      const ms = mkTask('t-ms', 'Mijlpaal', { isMilestone: true, time: mkTime({ earlyStart: '2026-01-10', earlyFinish: '2026-01-10', scheduleStart: '2026-01-10', scheduleFinish: '2026-01-10' }) });
+      const low = record([ms, T_CRIT], [], cal, { ...fixed, customZoom: 4, timeWindow: win });
+      const ld = low.dims;
+      const inBodyPt = (y: number) => y >= ld.headerHeight && y < ld.height - ld.footerHeight;
+      const bodyFills = low.fills.filter(f => f.pts.every(p => inBodyPt(p.y)));
+      ok(bodyFills.length >= 1, `de ruit wordt getekend (got ${bodyFills.length} gevulde paden)`);
+      ok(bodyFills.every(f => f.pts.every(p => p.x >= ld.tableWidth - 1e-6 && p.x <= ld.width + 1e-6)),
+        `ruit binnen het chartgebied (got ${JSON.stringify(bodyFills.map(f => f.pts.map(p => Math.round(p.x * 100) / 100)))}, tabel ${ld.tableWidth}, chart tot ${ld.width})`);
+      const lowBars = low.roundRects.filter(r => (r.color === CRITICAL || r.color === NORMAL) && inBodyPt(r.y));
+      ok(lowBars.every(b => b.x >= ld.tableWidth - 1e-6 && b.x + b.w <= ld.width + 1e-6), 'ook bij 4 px/dag blijft de balk binnen de chart');
+      // Review-bevinding 7: de 3 px-minimumbreedte steekt niet meer over de rechter chartrand.
+      const tiny = record([T_CRIT], [], cal, { ...fixed, customZoom: 1, timeWindow: { from: '2026-01-10', to: '2026-01-12' } });
+      const tinyBar = tiny.roundRects.find(r => r.color === CRITICAL && r.y >= tiny.dims.headerHeight && r.y < tiny.dims.height - tiny.dims.footerHeight);
+      ok(!!tinyBar && tinyBar.x + tinyBar.w <= tiny.dims.width + 1e-6 && tinyBar.w > 0, `minimumbreedte geklemd op de chartrand (got ${JSON.stringify(tinyBar)}, chart tot ${tiny.dims.width})`);
     }
 
     // Toewijzingskolommen (manuvarkey punt 1): twee kolommen direct achter de naam (x 180–225 en
@@ -542,7 +563,7 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       const withCols = record([T_NORM, T_CRIT], [], cal, baseOptions({
         rows: aBands, assignmentColumns: true, rowAssignments, curveLabels: { FRONT_LOADED: 'Vooraan belast' },
       }));
-      ok(withCols.dims.tableWidth === plainA.dims.tableWidth + 45 + 75, `tabel precies twee kolommen breder (got +${withCols.dims.tableWidth - plainA.dims.tableWidth})`);
+      ok(withCols.dims.tableWidth === plainA.dims.tableWidth + 45 + 92, `tabel precies twee kolommen breder (got +${withCols.dims.tableWidth - plainA.dims.tableWidth})`);
       const inCol = (t: { x: number; y: number }, x0: number, x1: number) => t.x >= x0 && t.x <= x1 && t.y > withCols.dims.headerHeight && t.y < withCols.dims.height - withCols.dims.footerHeight;
       const unitsTexts = withCols.texts.filter(t => inCol(t, 180, 225)).map(t => t.text).sort();
       const curveTexts = withCols.texts.filter(t => inCol(t, 225, 300)).map(t => t.text).sort();

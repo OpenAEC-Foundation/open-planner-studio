@@ -107,8 +107,9 @@ resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het over
 nog niemand heeft. Met **Groeperen op resourcetype** komt er een laag boven: eerst een band per type
 — arbeid, ploeg, onderaannemer, materieel, materiaal, in die vaste volgorde — en daarbinnen de
 resources; handig als je in het overleg eerst de mensen en dan het materieel bespreekt, of alleen het
-materieelblok wilt afdrukken. Bij *Elke resource op een nieuwe pagina* begint een typeband op een
-nieuw vel samen met zijn eerste resource. Met **Rapportageperiode** — dezelfde keuze als bij de
+materieelblok wilt afdrukken; het getal achter een typeband telt de taakrijen eronder, dus een taak
+die onder twee resources van hetzelfde type staat telt twee keer. Bij *Elke resource op een nieuwe
+pagina* begint een typeband op een nieuw vel samen met zijn eerste resource. Met **Rapportageperiode** — dezelfde keuze als bij de
 tabelrapporten, zie verderop — beperk je het diagram tot een tijdvenster: alleen taken die het
 venster raken doen mee, de tijdas loopt precies van de begin- tot de einddatum, en een balk die
 verder doorloopt wordt aan de rand afgekapt. Zo leg je in dezelfde vergadering het look-ahead-rapport
@@ -119,7 +120,10 @@ dag de resource van die band op de taak staat en met welke verdeelcurve — "je 
 op Fundering, vooraan belast" zegt meer dan "je staat op Fundering". Een taak onder twee banden
 toont per band de eigen inzet; twee toewijzingen van dezelfde resource op één taak worden
 opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillende curves hebben.
-Zet **Eenheden/dag en curve tonen** uit voor een smallere tabel.
+Heeft de toewijzing een eigen urenverdeling of een uit MS Project of P6 geïmporteerde exacte curve,
+dan staat er *Contour* respectievelijk *Geïmporteerde curve* — hetzelfde als in het
+eigenschappenpaneel. De twee kolommen maken de tabel breder en de tijdas dus smaller; zet
+**Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het

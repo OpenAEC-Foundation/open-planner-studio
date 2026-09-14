@@ -104,8 +104,9 @@ left out — an assignment on a summary task (which an import can produce) is no
 at the bottom, so the meeting can see at a glance what nobody owns yet. **Group by resource type**
 adds a layer above: first a band per type — labour, crew, subcontractor, equipment, material, in
 that fixed order — with the resources inside it; useful when a meeting discusses the people first
-and the equipment after, or when you only want to print the equipment block. With *Each resource on
-a new page* a type band starts a new sheet together with its first resource. **Reporting period** —
+and the equipment after, or when you only want to print the equipment block; the number after a type
+band counts the task rows below it, so a task under two resources of the same type counts twice.
+With *Each resource on a new page* a type band starts a new sheet together with its first resource. **Reporting period** —
 the same control as on the table reports, see further down — limits the diagram to a time window:
 only tasks that touch the window take part, the time axis runs exactly from the start to the end
 date, and a bar that continues beyond it is cut off at the edge. That lets a meeting put the
@@ -116,7 +117,10 @@ default: how many units per day the band's resource is assigned to the task, and
 distribution curve — "you are on Foundations half days, front loaded" says more than "you are on
 Foundations". A task under two bands shows each band's own load; two assignments of the same
 resource on one task are added up, and a dash in the curve column means those assignments carry
-different curves. Turn **Show units/day and curve** off for a narrower table.
+different curves. If the assignment has its own hour distribution or an exact curve imported from
+MS Project or P6, the column says *Contour* or *Imported curve* respectively — the same as in the
+properties panel. The two columns make the table wider and the time axis narrower; turn **Show
+units/day and curve** off for the narrow table of the Gantt print.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from

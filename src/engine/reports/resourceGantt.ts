@@ -1,6 +1,7 @@
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment, ResourceCurve, ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
+import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
 import { dayOf, taskFinish, taskStart } from './reportCommon';
 import type { ResolvedPeriod } from './reportingPeriod';
 
@@ -45,7 +46,12 @@ import type { ResolvedPeriod } from './reportingPeriod';
  *
  * Per taakrij onder een resourceband levert `assignmentByRowKey` de TOEWIJZING van die band op
  * die taak (punt 1): eenheden per dag en de verdeelcurve — de rij is een taak, maar wat de lezer
- * wil weten is "hoe zwaar staat déze resource erop". Twee records van dezelfde resource op één
+ * wil weten is "hoe zwaar staat déze resource erop". De curve volgt dezelfde drie lagen als de
+ * lastverdeling zelf (`ResourceLoad.ts`'s `assignmentDayUnits`) en het eigenschappenpaneel
+ * (`TaskAssignmentsSection`): een opgeslagen CONTOUR op de taak wint (`'contoured'`), dan een
+ * exacte geïmporteerde curve zonder OPS-vorm (`curveValues` zonder `curve` ⇒ `'imported'`), dan
+ * pas `curve` (afwezig = UNIFORM) — een P6-/MSP-import met een front-loaded curve mag hier nooit
+ * "Uniform" heten (hyperkritische review, bevinding 1). Twee records van dezelfde resource op één
  * taak (één rij) worden opgeteld; de curve is alleen bekend als alle records dezelfde hebben
  * (anders `null`, de render toont een streepje). De "(geen)"-band heeft geen toewijzing en dus
  * geen entry. De render tekent dit als twee tabelkolommen (`PrintOptions.assignmentColumns`).
@@ -91,15 +97,20 @@ export interface ResourceGanttRowsResult {
     unassignedTasks: number;
     /** Bladtaken die door het tijdvenster zijn weggelaten (0 zonder venster). */
     outsidePeriod: number;
+    /** Bladtaken ín het venster (zonder venster: alle bladtaken) — ook als er geen toewijzing op zit. */
+    inPeriod: number;
   };
 }
+
+/** De curvetoestand van een toewijzing: contour op de taak, geïmporteerde exacte curve, of de OPS-vorm. */
+export type RowCurve = ResourceCurve | 'contoured' | 'imported';
 
 /** De toewijzing achter één taakrij van een resourceband (zie de moduledoc). */
 export interface RowAssignment {
   /** Som van `unitsPerDay` over de records van deze resource op deze taak. */
   unitsPerDay: number;
-  /** De curve als alle records dezelfde hebben (`undefined` in een record = UNIFORM), anders null. */
-  curve: ResourceCurve | null;
+  /** De curvetoestand als alle records dezelfde hebben (`curve` afwezig = UNIFORM), anders null. */
+  curve: RowCurve | null;
 }
 
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
@@ -181,9 +192,27 @@ export function computeResourceGanttRows(
   // een toewijzing aan een onbekende resource telt niet (zelfde regel als `resourceNames` op het
   // scherm: die taak is dan "zonder resource").
   const tasksByResource = new Map<string, Map<string, Task>>();
-  // Per resource-id × taak-id de opgetelde eenheden en de verzameling curves (punt 1).
-  const loadByResourceTask = new Map<string, { unitsPerDay: number; curves: Set<ResourceCurve> }>();
+  // Per resource-id × taak-id de opgetelde eenheden en de verzameling curvetoestanden (punt 1).
+  const loadByResourceTask = new Map<string, { unitsPerDay: number; curves: Set<RowCurve> }>();
   const assignedTaskIds = new Set<string>();
+  // Geldige records per taak, voor de contourkoppeling (dezelfde `matchContoursToAssignments` als
+  // de lastverdeling en het eigenschappenpaneel: per taak, in recordvolgorde).
+  const validByTask = new Map<string, ResourceAssignment[]>();
+  for (const a of ctx.assignments) {
+    if (!leafById.has(a.taskId) || !resourceIds.has(a.resourceId)) continue;
+    const list = validByTask.get(a.taskId) ?? [];
+    list.push(a);
+    validByTask.set(a.taskId, list);
+  }
+  const contouredIds = new Set<string>();
+  for (const [taskId, list] of validByTask) {
+    const task = leafById.get(taskId)!;
+    if (task.timephasedContours && task.timephasedContours.length > 0) {
+      for (const id of matchContoursToAssignments(task.timephasedContours, list).keys()) contouredIds.add(id);
+    }
+  }
+  const curveOf = (a: ResourceAssignment): RowCurve =>
+    contouredIds.has(a.id) ? 'contoured' : (!a.curve && a.curveValues ? 'imported' : (a.curve ?? 'UNIFORM'));
   let assignments = 0;
   for (const a of ctx.assignments) {
     const task = leafById.get(a.taskId);
@@ -194,9 +223,9 @@ export function computeResourceGanttRows(
     bucket.set(task.id, task);
     assignedTaskIds.add(task.id);
     const loadKey = `${a.resourceId}\u0000${task.id}`;
-    const load = loadByResourceTask.get(loadKey) ?? { unitsPerDay: 0, curves: new Set<ResourceCurve>() };
+    const load = loadByResourceTask.get(loadKey) ?? { unitsPerDay: 0, curves: new Set<RowCurve>() };
     load.unitsPerDay += a.unitsPerDay;
-    load.curves.add(a.curve ?? 'UNIFORM');
+    load.curves.add(curveOf(a));
     loadByResourceTask.set(loadKey, load);
   }
 
@@ -266,6 +295,9 @@ export function computeResourceGanttRows(
   return {
     rows,
     assignmentByRowKey,
-    counts: { resources: bands.length, assignments, unassignedTasks: unassigned.length, outsidePeriod: allLeaves.length - leaves.length },
+    counts: {
+      resources: bands.length, assignments, unassignedTasks: unassigned.length,
+      outsidePeriod: allLeaves.length - leaves.length, inPeriod: leaves.length,
+    },
   };
 }
