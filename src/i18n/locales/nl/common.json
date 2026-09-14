@@ -656,7 +656,7 @@
       "title": "Verdelen over projecten",
       "back": "Terug naar bezetting",
       "subtitle": "{{item}} — restcapaciteit verdelen over de geopende projecten",
-      "intro": "Kies wie het meest ontzien wordt, zet zo nodig een project vast of geef het een plafond, en kijk in de grafiek wat er van de dubbele boeking overblijft. Toepassen schrijft de verschuivingen in alle betrokken projecten.",
+      "intro": "Trek het einde van een balk naar rechts om dat project te laten uitlopen; zet een project vast als het niet mag bewegen. Toepassen schrijft de verschuivingen in alle betrokken projecten.",
       "blocked": {
         "uncounted": "Eerst doorrekenen: {{docs}} is nog niet berekend, dus er valt niets tegen te verdelen.",
         "material": "Dit is een materiaal-item; verdelen werkt alleen voor mensen en materieel.",
@@ -672,7 +672,13 @@
         "priceOff": "uit: {{price}}",
         "priceOn": "aan: {{price}}",
         "priceSame": "{{price}} — in beide standen",
-        "priceUnknown": "prijs onbekend — druk op Herbereken"
+        "priceUnknown": "prijs onbekend — druk op Herbereken",
+        "savesOff_one": "zou {{count}} werkdag besparen",
+        "savesOff_other": "zou {{count}} werkdagen besparen",
+        "savesOn_one": "bespaart {{count}} werkdag",
+        "savesOn_other": "bespaart {{count}} werkdagen",
+        "savesNoneOff": "zou niets besparen",
+        "savesNoneOn": "bespaart niets"
       },
       "rank": {
         "title": "Wie wordt het meest ontzien?",
@@ -697,7 +703,8 @@
         "recompute": "Rekent het voorstel opnieuw door met de huidige volgorde, vastzettingen en plafonds.",
         "apply": "Schrijft de verschuivingen weg in alle betrokken projecten; elk project krijgt een eigen ongedaan-maken-stap.",
         "discard": "Sluit de dialoog zonder iets te wijzigen.",
-        "pickAnother": "Terug naar de lijst met bibliotheekitems, om een ander item te verdelen."
+        "pickAnother": "Terug naar de lijst met bibliotheekitems, om een ander item te verdelen.",
+        "reset": "Zet alle plafonds en vastzettingen terug op neutraal. De schakelaar \"Onderbrekingen toestaan\" blijft staan."
       },
       "strip": {
         "pin": "Vastzetten",
@@ -713,7 +720,13 @@
         "endShift_one": "eind +{{count}} dag",
         "endShift_other": "eind +{{count}} dagen",
         "requestedVsAchievable": "gevraagd {{requested}}, dichtst haalbare {{achievable}}",
-        "handleLabel": "Uitloop-plafond voor {{doc}}"
+        "handleLabel": "Uitloop-plafond voor {{doc}}",
+        "legend": "Volle blokjes = werkdagen · gearceerd = pauzedag · meetlat: grijs = speling, rood = einddatum-verschuiving · gestippeld = toegestaan maar niet benut",
+        "slack": "speling {{days}} dagen",
+        "pinButton": "vastzetten",
+        "unpinButton": "vast — losmaken",
+        "maxDate": "max {{date}}",
+        "used": "benut {{used}}"
       },
       "compute": {
         "recalculate": "Herbereken",
@@ -751,7 +764,14 @@
       "selectHint": "Kies een bibliotheekitem met een conflict om te gaan verdelen.",
       "noConflicts": "Er is nu geen enkel bibliotheekitem dubbel geboekt over de geopende projecten.",
       "pickAnother": "Ander item kiezen…",
-      "pickAnotherApplied": "Ander item kiezen (de terugdraai-strook vervalt)…"
+      "pickAnotherApplied": "Ander item kiezen (de terugdraai-strook vervalt)…",
+      "reset": "Reset",
+      "status": {
+        "resolved": "Conflict opgelost — grootste einddatum-verschuiving: {{shift}} ({{doc}})",
+        "shortfall_one": "Nog {{count}} ploegdag tekort op {{days}}…",
+        "shortfall_other": "Nog {{count}} ploegdagen tekort op {{days}}…",
+        "allPinned": "Alle projecten staan vast — er is niets te herverdelen. Maak er één los."
+      }
     },
     "color": "Kleur"
   },

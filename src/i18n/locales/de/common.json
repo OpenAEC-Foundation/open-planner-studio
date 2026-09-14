@@ -656,7 +656,7 @@
       "title": "Über Projekte verteilen",
       "back": "Zurück zur Belegung",
       "subtitle": "{{item}} — Restkapazität über die geöffneten Projekte verteilen",
-      "intro": "Wählen Sie, wer am meisten geschont wird, fixieren oder begrenzen Sie bei Bedarf ein Projekt, und sehen Sie im Diagramm, was von der Doppelbuchung übrig bleibt. Übernehmen schreibt die Verschiebungen in alle beteiligten Projekte.",
+      "intro": "Ziehen Sie das Ende eines Balkens nach rechts, damit dieses Projekt überlaufen darf; fixieren Sie ein Projekt, das sich nicht bewegen darf. Übernehmen schreibt die Verschiebungen in alle beteiligten Projekte.",
       "blocked": {
         "uncounted": "Zuerst berechnen: {{docs}} ist noch nicht berechnet, daher gibt es nichts zu verteilen.",
         "material": "Dies ist ein Materialartikel; Verteilen funktioniert nur für Personen und Geräte.",
@@ -672,7 +672,13 @@
         "priceOff": "aus: {{price}}",
         "priceOn": "ein: {{price}}",
         "priceSame": "{{price}} — in beiden Stellungen",
-        "priceUnknown": "Preis unbekannt — Neu berechnen drücken"
+        "priceUnknown": "Preis unbekannt — Neu berechnen drücken",
+        "savesOff_one": "würde {{count}} Arbeitstag sparen",
+        "savesOff_other": "würde {{count}} Arbeitstage sparen",
+        "savesOn_one": "spart {{count}} Arbeitstag",
+        "savesOn_other": "spart {{count}} Arbeitstage",
+        "savesNoneOff": "würde nichts sparen",
+        "savesNoneOn": "spart nichts"
       },
       "rank": {
         "title": "Wer wird am meisten geschont?",
@@ -697,7 +703,8 @@
         "recompute": "Berechnet den Vorschlag mit der aktuellen Reihenfolge, den Fixierungen und Obergrenzen neu.",
         "apply": "Schreibt die Verschiebungen in alle beteiligten Projekte; jedes Projekt erhält einen eigenen Rückgängig-Schritt.",
         "discard": "Schließt den Dialog, ohne etwas zu ändern.",
-        "pickAnother": "Zurück zur Liste der Bibliothekselemente, um ein anderes Element zu verteilen."
+        "pickAnother": "Zurück zur Liste der Bibliothekselemente, um ein anderes Element zu verteilen.",
+        "reset": "Setzt alle Obergrenzen und Fixierungen auf neutral zurück. Der Schalter „Unterbrechungen zulassen“ bleibt unverändert."
       },
       "strip": {
         "pin": "Anheften",
@@ -713,7 +720,13 @@
         "endShift_one": "Ende +{{count}} Tag",
         "endShift_other": "Ende +{{count}} Tage",
         "requestedVsAchievable": "angefragt {{requested}}, am ehesten erreichbar {{achievable}}",
-        "handleLabel": "Verzugsobergrenze für {{doc}}"
+        "handleLabel": "Verzugsobergrenze für {{doc}}",
+        "legend": "Volle Blöcke = Arbeitstage · schraffiert = Pausentag · Messlatte: grau = Puffer, rot = Endterminverschiebung · gepunktet = erlaubt, aber nicht genutzt",
+        "slack": "Puffer {{days}} Tage",
+        "pinButton": "fixieren",
+        "unpinButton": "fixiert — lösen",
+        "maxDate": "max. {{date}}",
+        "used": "genutzt {{used}}"
       },
       "compute": {
         "recalculate": "Neu berechnen",
@@ -751,7 +764,14 @@
       "selectHint": "Wählen Sie einen Bibliotheksartikel mit einem Konflikt, um mit dem Verteilen zu beginnen.",
       "noConflicts": "Zurzeit ist kein Bibliothekselement über die geöffneten Projekte hinweg doppelt belegt.",
       "pickAnother": "Anderes Element wählen…",
-      "pickAnotherApplied": "Anderes Element wählen (die Rückgängig-Leiste entfällt)…"
+      "pickAnotherApplied": "Anderes Element wählen (die Rückgängig-Leiste entfällt)…",
+      "reset": "Zurücksetzen",
+      "status": {
+        "resolved": "Konflikt gelöst — größte Endterminverschiebung: {{shift}} ({{doc}})",
+        "shortfall_one": "Es fehlt noch {{count}} Schichttag am {{days}}…",
+        "shortfall_other": "Es fehlen noch {{count}} Schichttage am {{days}}…",
+        "allPinned": "Alle Projekte sind fixiert — es gibt nichts umzuverteilen. Lösen Sie eines."
+      }
     },
     "color": "Farbe"
   },

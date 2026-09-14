@@ -644,7 +644,7 @@
       "title": "在项目间分配",
       "back": "返回占用情况",
       "subtitle": "{{item}} — 在打开的项目之间分配剩余产能",
-      "intro": "选择最应被保全的项目，必要时固定某个项目或为其设置上限，然后在图表中查看重复占用还剩下多少。应用会把位移写入所有相关项目。",
+      "intro": "向右拖动条形的末端，让该项目延期；将不能移动的项目固定。应用会把偏移写入所有相关项目。",
       "blocked": {
         "uncounted": "请先计算：{{docs}} 尚未计算，因此没有可分配的内容。",
         "material": "这是一个材料项；分配仅适用于人员和设备。",
@@ -659,7 +659,11 @@
         "priceOff": "关闭：{{price}}",
         "priceOn": "开启：{{price}}",
         "priceSame": "{{price}} — 两种设置下相同",
-        "priceUnknown": "价格未知 — 按下重新计算"
+        "priceUnknown": "价格未知 — 按下重新计算",
+        "savesOff_other": "可节省 {{count}} 个工作日",
+        "savesOn_other": "节省 {{count}} 个工作日",
+        "savesNoneOff": "不会节省时间",
+        "savesNoneOn": "没有节省"
       },
       "rank": {
         "title": "谁得到最大程度的照顾？",
@@ -683,7 +687,8 @@
         "recompute": "按当前的顺序、固定项和上限重新计算方案。",
         "apply": "把位移写入所有相关项目；每个项目都会获得自己的撤销步骤。",
         "discard": "关闭对话框，不做任何更改。",
-        "pickAnother": "返回资源库项目列表，以分配其他项目。"
+        "pickAnother": "返回资源库项目列表，以分配其他项目。",
+        "reset": "将所有上限和固定恢复为中立状态。「允许中断」开关保持不变。"
       },
       "strip": {
         "pin": "固定",
@@ -697,7 +702,13 @@
         "endUnchanged": "结束日期不变",
         "endShift_other": "结束日期 +{{count}} 天",
         "requestedVsAchievable": "请求 {{requested}}，最接近可实现 {{achievable}}",
-        "handleLabel": "{{doc}} 的延误上限"
+        "handleLabel": "{{doc}} 的延误上限",
+        "legend": "实心方块＝工作日 · 斜纹＝暂停日 · 标尺：灰色＝浮时，红色＝完工日期偏移 · 虚线＝已允许但未使用",
+        "slack": "浮时 {{days}} 天",
+        "pinButton": "固定",
+        "unpinButton": "已固定 — 解除",
+        "maxDate": "最迟 {{date}}",
+        "used": "已用 {{used}}"
       },
       "compute": {
         "recalculate": "重新计算",
@@ -733,7 +744,13 @@
       "selectHint": "选择一个存在冲突的资源库项目开始分配。",
       "noConflicts": "当前没有任何资源库条目在已打开的项目之间被重复预订。",
       "pickAnother": "选择其他条目…",
-      "pickAnotherApplied": "选择其他条目（撤销条将消失）…"
+      "pickAnotherApplied": "选择其他条目（撤销条将消失）…",
+      "reset": "重置",
+      "status": {
+        "resolved": "冲突已解决 — 最大完工日期偏移：{{shift}}（{{doc}}）",
+        "shortfall_other": "{{days}} 仍缺 {{count}} 个班组日…",
+        "allPinned": "所有项目都已固定 — 没有可重新分配的内容。请解除其中一个。"
+      }
     },
     "color": "颜色"
   },

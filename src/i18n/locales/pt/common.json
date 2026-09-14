@@ -668,7 +668,7 @@
       "title": "Distribuir entre projetos",
       "back": "Voltar à ocupação",
       "subtitle": "{{item}} — distribuir a capacidade residual entre os projetos abertos",
-      "intro": "Escolha quem é mais poupado, fixe ou limite um projeto quando necessário e veja no gráfico o que resta da reserva dupla. Aplicar escreve os deslocamentos em todos os projetos envolvidos.",
+      "intro": "Arraste o fim de uma barra para a direita para deixar esse projeto estender-se; fixe um projeto que não pode mover-se. Aplicar escreve os deslocamentos em todos os projetos envolvidos.",
       "blocked": {
         "uncounted": "Calcule primeiro: {{docs}} ainda não foi calculado, por isso não há nada para distribuir.",
         "material": "Este é um item de material; a distribuição só funciona para pessoas e equipamentos.",
@@ -685,7 +685,15 @@
         "priceOff": "desativado: {{price}}",
         "priceOn": "ativado: {{price}}",
         "priceSame": "{{price}} — em ambos os casos",
-        "priceUnknown": "preço desconhecido — prima Recalcular"
+        "priceUnknown": "preço desconhecido — prima Recalcular",
+        "savesOff_one": "pouparia {{count}} dia útil",
+        "savesOff_many": "pouparia {{count}} dias úteis",
+        "savesOff_other": "pouparia {{count}} dias úteis",
+        "savesOn_one": "poupa {{count}} dia útil",
+        "savesOn_many": "poupa {{count}} dias úteis",
+        "savesOn_other": "poupa {{count}} dias úteis",
+        "savesNoneOff": "não pouparia nada",
+        "savesNoneOn": "não poupa nada"
       },
       "rank": {
         "title": "Quem é mais poupado?",
@@ -711,7 +719,8 @@
         "recompute": "Recalcula a proposta com a ordem, as fixações e os limites atuais.",
         "apply": "Escreve os deslocamentos em todos os projetos envolvidos; cada projeto recebe o seu próprio passo de anulação.",
         "discard": "Fecha a caixa de diálogo sem alterar nada.",
-        "pickAnother": "Voltar à lista de itens da biblioteca, para distribuir outro item."
+        "pickAnother": "Voltar à lista de itens da biblioteca, para distribuir outro item.",
+        "reset": "Repõe todos os limites e fixações no estado neutro. O interruptor «Permitir interrupções» fica como está."
       },
       "strip": {
         "pin": "Fixar",
@@ -729,7 +738,13 @@
         "endShift_many": "fim +{{count}} dias",
         "endShift_other": "fim +{{count}} dias",
         "requestedVsAchievable": "pedido {{requested}}, mais próximo alcançável {{achievable}}",
-        "handleLabel": "Teto de atraso para {{doc}}"
+        "handleLabel": "Teto de atraso para {{doc}}",
+        "legend": "Blocos cheios = dias úteis · tracejado = dia de pausa · régua: cinzento = folga, vermelho = deslocamento da data de fim · pontilhado = permitido mas não usado",
+        "slack": "folga {{days}} dias",
+        "pinButton": "fixar",
+        "unpinButton": "fixado — soltar",
+        "maxDate": "máx. {{date}}",
+        "used": "usado {{used}}"
       },
       "compute": {
         "recalculate": "Recalcular",
@@ -769,7 +784,15 @@
       "selectHint": "Escolha um item de biblioteca com um conflito para começar a distribuir.",
       "noConflicts": "Nenhum item da biblioteca está atualmente com reserva dupla nos projetos abertos.",
       "pickAnother": "Escolher outro item…",
-      "pickAnotherApplied": "Escolher outro item (a barra de desfazer desaparece)…"
+      "pickAnotherApplied": "Escolher outro item (a barra de desfazer desaparece)…",
+      "reset": "Repor",
+      "status": {
+        "resolved": "Conflito resolvido — maior deslocamento de fim: {{shift}} ({{doc}})",
+        "shortfall_one": "Ainda falta {{count}} dia-equipa em {{days}}…",
+        "shortfall_many": "Ainda faltam {{count}} dias-equipa em {{days}}…",
+        "shortfall_other": "Ainda faltam {{count}} dias-equipa em {{days}}…",
+        "allPinned": "Todos os projetos estão fixados — não há nada para redistribuir. Solte um."
+      }
     },
     "color": "Cor"
   },

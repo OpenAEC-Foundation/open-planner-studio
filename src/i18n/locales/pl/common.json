@@ -680,7 +680,7 @@
       "title": "Rozdziel między projekty",
       "back": "Powrót do obłożenia",
       "subtitle": "{{item}} — rozdziel zdolność rezydualną między otwarte projekty",
-      "intro": "Wybierz, kto ma być najbardziej oszczędzony, w razie potrzeby przypnij projekt albo nadaj mu limit i sprawdź na wykresie, co zostaje z podwójnej rezerwacji. Zastosuj zapisuje przesunięcia we wszystkich objętych projektach.",
+      "intro": "Przeciągnij koniec paska w prawo, aby ten projekt mógł się przedłużyć; przypnij projekt, który nie może się przesuwać. Zastosuj zapisuje przesunięcia we wszystkich powiązanych projektach.",
       "blocked": {
         "uncounted": "Najpierw przelicz: {{docs}} nie jest jeszcze obliczony, więc nie ma czego rozdzielać.",
         "material": "To jest pozycja materiałowa; rozdzielanie działa tylko dla osób i sprzętu.",
@@ -698,7 +698,17 @@
         "priceOff": "wyłączone: {{price}}",
         "priceOn": "włączone: {{price}}",
         "priceSame": "{{price}} — w obu ustawieniach",
-        "priceUnknown": "cena nieznana — naciśnij Przelicz ponownie"
+        "priceUnknown": "cena nieznana — naciśnij Przelicz ponownie",
+        "savesOff_one": "zaoszczędziłoby {{count}} dzień roboczy",
+        "savesOff_few": "zaoszczędziłoby {{count}} dni robocze",
+        "savesOff_many": "zaoszczędziłoby {{count}} dni roboczych",
+        "savesOff_other": "zaoszczędziłoby {{count}} dnia roboczego",
+        "savesOn_one": "oszczędza {{count}} dzień roboczy",
+        "savesOn_few": "oszczędza {{count}} dni robocze",
+        "savesOn_many": "oszczędza {{count}} dni roboczych",
+        "savesOn_other": "oszczędza {{count}} dnia roboczego",
+        "savesNoneOff": "nic by nie zaoszczędziło",
+        "savesNoneOn": "nic nie oszczędza"
       },
       "rank": {
         "title": "Kto jest najbardziej oszczędzany?",
@@ -725,7 +735,8 @@
         "recompute": "Przelicza propozycję z bieżącą kolejnością, przypięciami i limitami.",
         "apply": "Zapisuje przesunięcia we wszystkich objętych projektach; każdy projekt otrzymuje własny krok cofnięcia.",
         "discard": "Zamyka okno bez żadnych zmian.",
-        "pickAnother": "Powrót do listy elementów biblioteki, aby rozdzielić inny element."
+        "pickAnother": "Powrót do listy elementów biblioteki, aby rozdzielić inny element.",
+        "reset": "Przywraca wszystkie limity i przypięcia do stanu neutralnego. Przełącznik „Zezwalaj na przerwy” pozostaje bez zmian."
       },
       "strip": {
         "pin": "Przypnij",
@@ -745,7 +756,13 @@
         "endShift_many": "koniec +{{count}} dni",
         "endShift_other": "koniec +{{count}} dnia",
         "requestedVsAchievable": "żądano {{requested}}, najbliższe osiągalne {{achievable}}",
-        "handleLabel": "Pułap wydłużenia dla {{doc}}"
+        "handleLabel": "Pułap wydłużenia dla {{doc}}",
+        "legend": "Pełne bloki = dni robocze · kreskowanie = dzień przerwy · miarka: szary = zapas, czerwony = przesunięcie daty zakończenia · kropkowany = dozwolone, ale niewykorzystane",
+        "slack": "zapas {{days}} dni",
+        "pinButton": "przypnij",
+        "unpinButton": "przypięty — odepnij",
+        "maxDate": "maks. {{date}}",
+        "used": "wykorzystano {{used}}"
       },
       "compute": {
         "recalculate": "Przelicz ponownie",
@@ -787,7 +804,16 @@
       "selectHint": "Wybierz pozycję biblioteki z konfliktem, aby rozpocząć rozdzielanie.",
       "noConflicts": "Żaden element biblioteki nie jest obecnie podwójnie zarezerwowany w otwartych projektach.",
       "pickAnother": "Wybierz inny element…",
-      "pickAnotherApplied": "Wybierz inny element (pasek cofania zniknie)…"
+      "pickAnotherApplied": "Wybierz inny element (pasek cofania zniknie)…",
+      "reset": "Resetuj",
+      "status": {
+        "resolved": "Konflikt rozwiązany — największe przesunięcie zakończenia: {{shift}} ({{doc}})",
+        "shortfall_one": "Brakuje jeszcze {{count}} dnia brygady w {{days}}…",
+        "shortfall_few": "Brakuje jeszcze {{count}} dni brygady w {{days}}…",
+        "shortfall_many": "Brakuje jeszcze {{count}} dni brygady w {{days}}…",
+        "shortfall_other": "Brakuje jeszcze {{count}} dnia brygady w {{days}}…",
+        "allPinned": "Wszystkie projekty są przypięte — nie ma czego rozdzielać. Odepnij jeden."
+      }
     },
     "color": "Kolor"
   },

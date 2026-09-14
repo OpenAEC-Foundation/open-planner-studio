@@ -644,7 +644,7 @@
       "title": "프로젝트 간 분배",
       "back": "점유 현황으로 돌아가기",
       "subtitle": "{{item}} — 열린 프로젝트 간에 잔여 용량 분배",
-      "intro": "가장 많이 보호할 프로젝트를 고르고, 필요하면 프로젝트를 고정하거나 상한을 주고, 이중 예약이 얼마나 남는지 차트에서 확인하세요. 적용하면 관련된 모든 프로젝트에 이동이 기록됩니다.",
+      "intro": "막대 끝을 오른쪽으로 끌면 해당 프로젝트를 연장할 수 있습니다. 움직이면 안 되는 프로젝트는 고정하세요. [적용]은 관련된 모든 프로젝트에 이동을 기록합니다.",
       "blocked": {
         "uncounted": "먼저 계산하세요: {{docs}} 이(가) 아직 계산되지 않아 분배할 것이 없습니다.",
         "material": "이것은 자재 항목입니다. 분배는 인력과 장비에만 작동합니다.",
@@ -659,7 +659,11 @@
         "priceOff": "끔: {{price}}",
         "priceOn": "켬: {{price}}",
         "priceSame": "{{price}} — 두 설정 모두 동일",
-        "priceUnknown": "가격 알 수 없음 — 다시 계산을 누르세요"
+        "priceUnknown": "가격 알 수 없음 — 다시 계산을 누르세요",
+        "savesOff_other": "작업일 {{count}}일을 절약할 수 있습니다",
+        "savesOn_other": "작업일 {{count}}일을 절약합니다",
+        "savesNoneOff": "절약할 수 있는 시간이 없습니다",
+        "savesNoneOn": "절약되지 않습니다"
       },
       "rank": {
         "title": "누가 가장 많이 보호받나요?",
@@ -683,7 +687,8 @@
         "recompute": "현재 순서와 고정, 상한으로 제안을 다시 계산합니다.",
         "apply": "관련된 모든 프로젝트에 이동을 기록합니다. 프로젝트마다 별도의 실행 취소 단계가 생깁니다.",
         "discard": "아무것도 바꾸지 않고 대화 상자를 닫습니다.",
-        "pickAnother": "라이브러리 항목 목록으로 돌아가 다른 항목을 분배합니다."
+        "pickAnother": "라이브러리 항목 목록으로 돌아가 다른 항목을 분배합니다.",
+        "reset": "모든 상한과 고정을 중립 상태로 되돌립니다. '중단 허용' 스위치는 그대로 유지됩니다."
       },
       "strip": {
         "pin": "고정",
@@ -697,7 +702,13 @@
         "endUnchanged": "종료일 변경 없음",
         "endShift_other": "종료일 +{{count}}일",
         "requestedVsAchievable": "요청 {{requested}}, 가장 가까운 달성 가능값 {{achievable}}",
-        "handleLabel": "{{doc}}의 연장 상한"
+        "handleLabel": "{{doc}}의 연장 상한",
+        "legend": "채워진 블록 = 작업일 · 빗금 = 휴지일 · 눈금: 회색 = 여유, 빨강 = 종료일 이동 · 점선 = 허용했지만 사용하지 않음",
+        "slack": "여유 {{days}}일",
+        "pinButton": "고정",
+        "unpinButton": "고정됨 — 해제",
+        "maxDate": "최대 {{date}}",
+        "used": "사용 {{used}}"
       },
       "compute": {
         "recalculate": "다시 계산",
@@ -733,7 +744,13 @@
       "selectHint": "분배를 시작하려면 충돌이 있는 라이브러리 항목을 선택하세요.",
       "noConflicts": "현재 열려 있는 프로젝트에서 이중 예약된 라이브러리 항목이 없습니다.",
       "pickAnother": "다른 항목 선택…",
-      "pickAnotherApplied": "다른 항목 선택(되돌리기 막대가 사라집니다)…"
+      "pickAnotherApplied": "다른 항목 선택(되돌리기 막대가 사라집니다)…",
+      "reset": "초기화",
+      "status": {
+        "resolved": "충돌 해결 — 최대 종료일 이동: {{shift}} ({{doc}})",
+        "shortfall_other": "{{days}}에 작업조 {{count}}일이 부족합니다…",
+        "allPinned": "모든 프로젝트가 고정되어 재분배할 것이 없습니다. 하나를 해제하세요."
+      }
     },
     "color": "색상"
   },
