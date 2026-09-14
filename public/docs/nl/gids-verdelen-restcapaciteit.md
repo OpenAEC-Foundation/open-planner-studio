@@ -79,9 +79,9 @@ Onder de schakelaar staat per project één balk op één gedeelde tijdas. Links
 kleurstip en de speling die dat project nog heeft, in het midden de balk zelf, rechts de uitkomst.
 
 In de balk zie je per werkdag een apart blokje in de kleur van het project, met een dun wit lijntje
-ertussen — zo kun je de dagen letterlijk tellen. Een **gearceerd** blokje is een pauzedag: een
-werkdag waarop de verdeler het werk even stillegt om ruimte te maken voor een ander project. Die
-verschijnen alleen als je "Onderbrekingen toestaan" aan hebt staan.
+ertussen — zo kun je de dagen letterlijk tellen. Een **gearceerd** blokje is een dag binnen de
+looptijd waarop dit project deze resource niet gebruikt: een ingevoegde pauze (die ontstaat als je
+"Onderbrekingen toestaan" aan hebt staan) óf een natuurlijk gat tussen twee taken.
 
 Onderin de balk loopt een dunne meetlat mee. Het **grijs gestippelde** deel is de speling die dit
 project nog had: zoveel mag het opschuiven zonder dat de einddatum meegaat. Het **massief rode**

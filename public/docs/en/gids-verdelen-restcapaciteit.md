@@ -76,9 +76,9 @@ Below the switch, each project gets one bar on one shared timeline. On the left 
 a colour dot and the slack it still has, in the middle the bar itself, on the right the outcome.
 
 Inside the bar you see one block per workday in the project's colour, separated by a thin white line
-— so you can literally count the days. A **hatched** block is a pause day: a workday on which the
-distributor holds the work still to make room for another project. Those only appear when "Allow
-interruptions" is on.
+— so you can literally count the days. A **hatched** block is a day inside the run in which this
+project does not use this resource: an inserted pause (which happens when "Allow interruptions" is
+on) or a natural gap between two tasks.
 
 A thin gauge runs along the bottom of the bar. The **grey dotted** part is the slack this project
 still had: it may shift that far without moving its end date. The **solid red** part is everything
