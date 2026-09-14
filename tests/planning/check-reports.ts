@@ -10,10 +10,13 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import {
-  type ReportContext,
+  type ReportContext, type ReportingPeriod,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeWbsSummary, progressState, remainingDays, taskDepths,
+  isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
+import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
+import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
 
 const S = () => useAppStore.getState();
@@ -95,7 +98,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
 // ── Look-ahead ───────────────────────────────────────────────────────────────────────────────────
 {
-  const r = computeLookAhead(ctx, { weeks: 2, nearCriticalDays: 5 });
+  const r = computeLookAhead(ctx, { period: { preset: 'next2Weeks' }, nearCriticalDays: 5 });
   eq('lookAhead: venster start op de statusdatum', r.from, '2026-09-18');
   eq('lookAhead: venster van 2 weken (14 dagen, inclusief)', r.to, '2026-10-01');
   eq('lookAhead: geen statusdatum-melding', r.statusDateMissing, false);
@@ -111,7 +114,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('lookAhead: near-critical geteld', r.counts.nearCritical, r.rows.filter(x => x.isNearCritical).length);
 
   // Zonder statusdatum ⇒ vandaag als referentie + melding.
-  const r2 = computeLookAhead({ ...ctx, statusDate: undefined, today: '2026-09-25' }, { weeks: 1, nearCriticalDays: 0 });
+  const r2 = computeLookAhead({ ...ctx, statusDate: undefined, today: '2026-09-25' }, { period: { preset: 'nextWeek' }, nearCriticalDays: 0 });
   eq('lookAhead: zonder statusdatum meldt het rapport dat', r2.statusDateMissing, true);
   eq('lookAhead: en rekent met vandaag', r2.from, '2026-09-25');
 
@@ -123,7 +126,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   d.time.earlyStart = '2026-09-10'; d.time.earlyFinish = '2026-09-30';
   const f = clone.find(t => t.id === F)!;
   f.time.isCritical = false; f.time.totalFloat = 4;
-  const r3 = computeLookAhead({ ...ctx, tasks: clone }, { weeks: 2, nearCriticalDays: 5 });
+  const r3 = computeLookAhead({ ...ctx, tasks: clone }, { period: { preset: 'next2Weeks' }, nearCriticalDays: 5 });
   eq('lookAhead: TF 4 ≤ 5 ⇒ near-critical-telling 1', r3.counts.nearCritical, 1);
   eq('lookAhead: finish vóór de statusdatum ⇒ achterstallig', r3.rows.find(x => x.taskId === G)?.status, 'overdue');
   eq('lookAhead: start vóór de statusdatum, niet gestart ⇒ had moeten starten', r3.rows.find(x => x.taskId === D)?.status, 'lateStart');
@@ -151,11 +154,12 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
 // ── Voortgangsrapport ────────────────────────────────────────────────────────────────────────────
 {
-  const r = computeProgressReport(ctx, { periodWeeks: 2, nearCriticalDays: 5 });
+  const r = computeProgressReport(ctx, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
   const s = r.summary;
   eq('progress: statusdatum', s.statusDate, '2026-09-18');
   eq('progress: periode terug 14 dagen', s.periodFrom, '2026-09-05');
-  eq('progress: periode vooruit 14 dagen', s.periodTo, '2026-10-02');
+  eq('progress: periode t/m de statusdatum', s.periodTo, '2026-09-18');
+  eq('progress: vooruitblik gespiegeld, 14 dagen (byte-identiek aan de oude 2-wekenoptie)', s.lookAheadTo, '2026-10-02');
   eq('progress: gepland t.o.v. de baseline', s.plannedBasis, 'baseline');
   eq('progress: 1 voltooid', s.counts.complete, 1);
   eq('progress: 1 in uitvoering', s.counts.inProgress, 1);
@@ -173,7 +177,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
   // Zonder baseline: gepland t.o.v. de huidige planning; het gewicht is ALTIJD de huidige duur
   // (C = 8), ook mét baseline (review-bevinding 5: baseline.duration is voor uur-taken niet canoniek).
-  const r2 = computeProgressReport({ ...ctx, baseline: null }, { periodWeeks: 1, nearCriticalDays: 5 });
+  const r2 = computeProgressReport({ ...ctx, baseline: null }, { period: { preset: 'lastWeek' }, nearCriticalDays: 5 });
   eq('progress: zonder baseline ⇒ huidige planning als basis', r2.summary.plannedBasis, 'current');
   near('progress: zonder baseline weegt C 8', r2.summary.actualPct, (9 / 74) * 100, 0.2);
   near('progress: mét baseline hetzelfde gewicht (huidige duur)', s.actualPct, (9 / 74) * 100, 0.2);
@@ -185,7 +189,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
     const b = clone.find(t => t.id === B)!;
     b.time.earlyStart = '2026-09-07'; b.time.earlyFinish = '2026-09-11'; // einde vóór de statusdatum, 40% klaar
-    const r3 = computeProgressReport({ ...ctx, tasks: clone }, { periodWeeks: 2, nearCriticalDays: 5 });
+    const r3 = computeProgressReport({ ...ctx, tasks: clone }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
     const c = r3.summary.counts;
     eq('progress: staat-tellingen sommeren tot het totaal', c.complete + c.inProgress + c.notStarted, c.total);
     ok('progress: te late lopende taak staat in "in uitvoering"', r3.inProgress.some(x => x.taskId === B));
@@ -199,8 +203,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
     const g = clone.find(t => t.id === G)!;
     g.time.durationUnit = 'hours'; g.time.durationMinutes = 4 * 60; g.time.scheduleDuration = 5; // 4 u = 0,5 wd
-    const withBase = computeProgressReport({ ...ctx, tasks: clone }, { periodWeeks: 2, nearCriticalDays: 5 });
-    const noBase = computeProgressReport({ ...ctx, tasks: clone, baseline: null }, { periodWeeks: 2, nearCriticalDays: 5 });
+    const withBase = computeProgressReport({ ...ctx, tasks: clone }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+    const noBase = computeProgressReport({ ...ctx, tasks: clone, baseline: null }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
     near('progress: uur-taak weegt 0,5 wd — baseline aan/uit maakt geen verschil', withBase.summary.actualPct, noBase.summary.actualPct, 0.01);
     near('progress: gewicht G = 0,5 (A 5 + B 10 + C 8 + G 0,5 + D 3 + F 46 = 72,5)', noBase.summary.actualPct, (9 / 72.5) * 100, 0.2);
   }
@@ -297,34 +301,109 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
 // ── Resourcebelasting ────────────────────────────────────────────────────────────────────────────
 {
-  const r = computeResourceLoading(ctx, { onlyOverloaded: false });
+  const weekly = { period: { preset: 'project' } as ReportingPeriod, bucket: 'week' as const };
+  const r = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: false });
   ok('resourceLoading: rijen voor Ploeg 1', r.rows.length > 0 && r.rows.every(x => x.resourceName === 'Ploeg 1'));
-  ok('resourceLoading: weken chronologisch', r.rows.every((x, i) => i === 0 || x.weekStart > r.rows[i - 1].weekStart));
+  ok('resourceLoading: weken chronologisch', r.rows.every((x, i) => i === 0 || x.bucketStart > r.rows[i - 1].bucketStart));
   ok('resourceLoading: variance = beschikbaar − gevraagd', r.rows.every(x => Math.abs(x.variance - (x.available - x.required)) < 0.001));
   ok('resourceLoading: alleen weken met vraag', r.rows.every(x => x.required > 0));
   eq('resourceLoading: A (7–11 sep), B (14–25 sep, rest ná de statusdatum) en D ⇒ 3 weken', r.rows.length, 3);
   ok('resourceLoading: B en D overlappen ⇒ overbelaste week', r.rows.some(x => x.overloaded));
   eq('resourceLoading: aantal resources', r.counts.resources, 1);
-  eq('resourceLoading: weken = rijen zonder filter', r.counts.weeks, r.rows.length);
-  const r2 = computeResourceLoading(ctx, { onlyOverloaded: true });
+  eq('resourceLoading: weken = rijen zonder filter', r.counts.buckets, r.rows.length);
+  const r2 = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: true });
   ok('resourceLoading: filter houdt alleen overbelaste weken', r2.rows.every(x => x.overloaded));
-  eq('resourceLoading: filter verandert de tellingen niet', r2.counts.weeks, r.counts.weeks);
+  eq('resourceLoading: filter verandert de tellingen niet', r2.counts.buckets, r.counts.buckets);
   ok('resourceLoading: overbelaste rijen zijn een deelverzameling', r2.rows.length <= r.rows.length);
+  eq('resourceLoading: project-periode = projectspanne', [r.from, r.to], [projectSpan(ctx.tasks)!.from, projectSpan(ctx.tasks)!.to]);
+  eq('resourceLoading: project-periode meldt geen ontbrekende statusdatum', computeResourceLoading({ ...ctx, statusDate: undefined }, { ...weekly, onlyOverloaded: false }).statusDateMissing, false);
+
+  // Issue #119: maandaggregatie — één bucket voor september die de drie weken samenneemt.
+  const m = computeResourceLoading(ctx, { period: { preset: 'project' }, bucket: 'month', onlyOverloaded: false });
+  eq('resourceLoading: maandbucket ⇒ één rij (alles in september)', m.rows.map(x => [x.bucketStart, x.bucketEnd]), [['2026-09-01', '2026-09-30']]);
+  near('resourceLoading: maandsom = som van de weken', m.rows[0].required, r.rows.reduce((n, x) => n + x.required, 0), 0.11);
+  ok('resourceLoading: maand-capaciteit ≥ som van de weekcapaciteiten binnen de maand', m.rows[0].available >= r.rows.reduce((n, x) => n + x.available, 0) - 0.01);
+  eq('resourceLoading: overbelaste maand', m.counts.overloadedBuckets, 1);
+  ok('resourceLoading: piekdag van de maand = hoogste weekpiek', Math.abs(m.rows[0].peakDayLoad - Math.max(...r.rows.map(x => x.peakDayLoad))) < 0.01);
+
+  // Issue #120: een rapportageperiode beperkt de buckets tot de weken die de periode raken.
+  const w = computeResourceLoading(ctx, { period: { preset: 'nextWeek' }, bucket: 'week', onlyOverloaded: false });
+  eq('resourceLoading: "volgende week" vanaf vr 18 sep ⇒ [18 sep, 24 sep]', [w.from, w.to], ['2026-09-18', '2026-09-24']);
+  eq('resourceLoading: … raakt de weken van 14 en 21 sep', w.rows.map(x => x.bucketStart), ['2026-09-14', '2026-09-21']);
+  eq('resourceLoading: de weekrij is dezelfde hele kalenderweek als zonder periode', w.rows[0].required, r.rows.find(x => x.bucketStart === '2026-09-14')!.required);
+  const c = computeResourceLoading(ctx, { period: { preset: 'custom', from: '2026-09-07', to: '2026-09-11' }, bucket: 'week', onlyOverloaded: false });
+  eq('resourceLoading: aangepaste periode ⇒ alleen de week van 7 sep', c.rows.map(x => x.bucketStart), ['2026-09-07']);
+  eq('resourceLoading: zonder statusdatum meldt een relatieve periode dat wél', computeResourceLoading({ ...ctx, statusDate: undefined }, { period: { preset: 'lastWeek' }, bucket: 'week', onlyOverloaded: false }).statusDateMissing, true);
 }
 
 // ── Resourcetoewijzingen ─────────────────────────────────────────────────────────────────────────
 {
-  const r = computeResourceAssignments(ctx, { weeks: 0, includeCompleted: false });
+  const r = computeResourceAssignments(ctx, { period: { preset: 'project' }, includeCompleted: false });
   eq('assignments: voltooide A weggelaten ⇒ B en D', r.rows.map(x => x.taskId).sort(), [B, D].sort());
-  eq('assignments: geen venster', r.from, undefined);
+  eq('assignments: hele project ⇒ venster = projectspanne', [r.from, r.to], [projectSpan(ctx.tasks)!.from, projectSpan(ctx.tasks)!.to]);
   ok('assignments: gesorteerd op start binnen de resource', r.rows.every((x, i) => i === 0 || r.rows[i - 1].start <= x.start));
   eq('assignments: taken zonder resource (C, F, G — E is mijlpaal)', r.counts.unassignedTasks, 3);
-  const r2 = computeResourceAssignments(ctx, { weeks: 0, includeCompleted: true });
+  const r2 = computeResourceAssignments(ctx, { period: { preset: 'project' }, includeCompleted: true });
   eq('assignments: met voltooide ⇒ ook A', r2.rows.length, 3);
   eq('assignments: A voltooid', r2.rows.find(x => x.taskId === A)?.state, 'complete');
-  const r3 = computeResourceAssignments(ctx, { weeks: 1, includeCompleted: false });
+  const r3 = computeResourceAssignments(ctx, { period: { preset: 'nextWeek' }, includeCompleted: false });
   eq('assignments: venster van 1 week vanaf de statusdatum', [r3.from, r3.to], ['2026-09-18', '2026-09-24']);
   ok('assignments: B (in uitvoering) valt in het venster', r3.rows.some(x => x.taskId === B));
+  const r4 = computeResourceAssignments(ctx, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false });
+  ok('assignments: aangepast venster in oktober ⇒ D (30 sep – 2 okt) valt eruit', !r4.rows.some(x => x.taskId === D));
+  eq('assignments: aangepast venster meldt geen ontbrekende statusdatum', computeResourceAssignments({ ...ctx, statusDate: undefined }, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false }).statusDateMissing, false);
+}
+
+// ── Rapportageperiode (issue #120) ───────────────────────────────────────────────────────────────
+{
+  const ref = '2026-09-10'; // donderdag, het voorbeeld uit het issue
+  const span = { from: '2026-09-01', to: '2026-12-31' };
+  const res = (p: ReportingPeriod) => resolveReportingPeriod(p, ref, span);
+  eq('period: volgende 4 weken = 10 sep t/m 7 okt (het voorbeeld uit het issue)', res({ preset: 'next4Weeks' }), { from: '2026-09-10', to: '2026-10-07' });
+  eq('period: volgende week = 7 dagen inclusief', res({ preset: 'nextWeek' }), { from: '2026-09-10', to: '2026-09-16' });
+  eq('period: afgelopen 2 weken eindigt op de referentiedag', res({ preset: 'last2Weeks' }), { from: '2026-08-28', to: '2026-09-10' });
+  eq('period: volgende maand = t/m 9 okt', res({ preset: 'nextMonth' }), { from: '2026-09-10', to: '2026-10-09' });
+  eq('period: afgelopen maand = vanaf 11 aug', res({ preset: 'lastMonth' }), { from: '2026-08-11', to: '2026-09-10' });
+  eq('period: volgende maand vanaf 31 jan klemt op februari', resolveReportingPeriod({ preset: 'nextMonth' }, '2026-01-31', span), { from: '2026-01-31', to: '2026-02-27' });
+  eq('period: addCalendarMonths klemt op de maandlengte', formatDate(addCalendarMonths(parseDate('2026-01-31'), 1)), '2026-02-28');
+  eq('period: hele project = projectspanne', res({ preset: 'project' }), span);
+  eq('period: hele project zonder taken = de referentiedag', resolveReportingPeriod({ preset: 'project' }, ref, undefined), { from: ref, to: ref });
+  eq('period: aangepast = de eigen datums', res({ preset: 'custom', from: '2026-10-01', to: '2026-10-31' }), { from: '2026-10-01', to: '2026-10-31' });
+  eq('period: aangepast zonder datums valt terug op de projectspanne', res({ preset: 'custom' }), span);
+  eq('period: to < from is ongeldig', isValidReportingPeriod({ preset: 'custom', from: '2026-10-31', to: '2026-10-01' }), false);
+  eq('period: 2026-02-31 is ongeldig', isValidReportingPeriod({ preset: 'custom', from: '2026-02-31', to: '2026-03-01' }), false);
+  eq('period: lengte in dagen, inclusief', periodDays({ from: '2026-09-10', to: '2026-10-07' }), 28);
+  ok('period: alle 12 weekpresets sluiten aan op de referentiedag', ([1, 2, 4, 6, 8, 12] as const).every(n => {
+    const nx = res({ preset: weeksToPreset(n, 'next') }); const ls = res({ preset: weeksToPreset(n, 'last') });
+    return nx.from === ref && periodDays(nx) === 7 * n && ls.to === ref && periodDays(ls) === 7 * n;
+  }));
+
+  // Migratie van de oude "N weken"-getallen (reportSettings) naar presets.
+  eq('period: weeksToPreset 3 ⇒ 4 weken, 9 ⇒ 12, 1 ⇒ week', [weeksToPreset(3, 'next'), weeksToPreset(9, 'last'), weeksToPreset(1, 'next')], ['next4Weeks', 'last12Weeks', 'nextWeek']);
+  const migrated = parseTableReportOptions({ lookAheadWeeks: 3, progressPeriodWeeks: 1, resourceAssignmentWeeks: 0 });
+  eq('settings: oude look-ahead 3 weken ⇒ volgende 4 weken', migrated.lookAheadPeriod, { preset: 'next4Weeks' });
+  eq('settings: oude voortgang 1 week ⇒ afgelopen week', migrated.progressPeriod, { preset: 'lastWeek' });
+  eq('settings: oude toewijzingen 0 ⇒ hele project', migrated.resourceAssignmentPeriod, { preset: 'project' });
+  eq('settings: belasting krijgt de defaults', [migrated.resourceLoadPeriod, migrated.resourceLoadBucket], [{ preset: 'project' }, 'week']);
+  const kept = parseTableReportOptions({ lookAheadWeeks: 3, lookAheadPeriod: { preset: 'nextMonth' }, resourceLoadBucket: 'month' });
+  eq('settings: het nieuwe periodeveld wint van het oude getal', kept.lookAheadPeriod, { preset: 'nextMonth' });
+  eq('settings: maandaggregatie bewaard', kept.resourceLoadBucket, 'month');
+  eq('settings: aangepaste periode met omgekeerde datums ⇒ default', parseReportingPeriod({ preset: 'custom', from: '2026-10-31', to: '2026-10-01' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'next4Weeks' });
+  eq('settings: aangepaste periode met geldige datums blijft', parseReportingPeriod({ preset: 'custom', from: '2026-10-01', to: '2026-10-31' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'custom', from: '2026-10-01', to: '2026-10-31' });
+  eq('settings: onbekende preset ⇒ default', parseReportingPeriod({ preset: 'nextYear' }, { preset: 'project' }), { preset: 'project' });
+
+  // Look-ahead en voortgang volgen dezelfde periode-keuze.
+  const la = computeLookAhead(ctx, { period: { preset: 'nextMonth' }, nearCriticalDays: 5 });
+  eq('lookAhead: volgende maand vanaf 18 sep = t/m 17 okt', [la.from, la.to], ['2026-09-18', '2026-10-17']);
+  const laProject = computeLookAhead(ctx, { period: { preset: 'project' }, nearCriticalDays: 5 });
+  ok('lookAhead: hele project ⇒ minstens zoveel open activiteiten als een maand', laProject.rows.length >= la.rows.length);
+  const pr = computeProgressReport(ctx, { period: { preset: 'next4Weeks' }, nearCriticalDays: 5 });
+  eq('progress: periode ná de statusdatum ⇒ vooruitblik tot het periode-einde (niet gespiegeld)', [pr.summary.periodFrom, pr.summary.periodTo, pr.summary.lookAheadTo], ['2026-09-18', '2026-10-15', '2026-10-15']);
+  const pm = computeProgressReport(ctx, { period: { preset: 'lastMonth' }, nearCriticalDays: 5 });
+  eq('progress: afgelopen maand ⇒ 19 aug t/m 18 sep, vooruitblik gespiegeld t/m 19 okt', [pm.summary.periodFrom, pm.summary.periodTo, pm.summary.lookAheadTo], ['2026-08-19', '2026-09-18', '2026-10-19']);
+  ok('progress: A (voltooid 11 sep) valt in de afgelopen maand', pm.completedInPeriod.some(x => x.taskId === A));
+  const pc = computeProgressReport(ctx, { period: { preset: 'custom', from: '2026-09-14', to: '2026-09-15' }, nearCriticalDays: 5 });
+  ok('progress: aangepaste periode 14–15 sep ⇒ A (klaar 11 sep) valt erbuiten', !pc.completedInPeriod.some(x => x.taskId === A));
 }
 
 // ── WBS-samenvatting ─────────────────────────────────────────────────────────────────────────────

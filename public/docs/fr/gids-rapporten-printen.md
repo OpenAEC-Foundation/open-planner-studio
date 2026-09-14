@@ -52,6 +52,24 @@ marges viennent du dernier **calcul** (F5), une note signale un planning modifi�
 PDF recalcule toujours d'abord ; chaque rapport a un petit bloc **Options du rapport**, mémorisé
 entre les sessions. Les jours ouvrés sont abrégés en *jo*.
 
+### Période de rapport
+
+Quatre rapports travaillent sur une fenêtre de temps : prévision, avancement, charge des ressources
+et affectations des ressources. Ils partagent un même réglage *Période de rapport* dans les options
+du rapport, avec un choix mémorisé par rapport :
+
+- **Semaine / 2, 4, 6, 8 ou 12 semaines prochaines ou dernières** et **mois prochain / dernier** —
+  comptés à partir de la date d'état du projet (ou d'aujourd'hui s'il n'y en a pas). Un préréglage
+  est inclusif aux deux bouts : *4 prochaines semaines* le jeudi 10 septembre va jusqu'au mercredi
+  7 octobre. Changez la date d'état et la fenêtre suit.
+- **Tout le projet** — du premier début à la dernière fin du planning.
+- **Personnalisée** — deux dates à vous. Les champs *Du* et *Au* deviennent modifiables (saisie ou
+  sélecteur de date) ; avec un préréglage ils affichent les dates calculées en lecture seule. Une
+  date de fin antérieure à la date de début est signalée en rouge et n'est pas appliquée. En
+  revenant à un préréglage, ses dates remplacent votre plage.
+
+La période choisie apparaît en sous-titre du rapport et du PDF.
+
 ### Prévision (look-ahead)
 
 La liste de la réunion de chantier hebdomadaire : toutes les activités des *N* prochaines semaines

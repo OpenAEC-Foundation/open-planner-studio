@@ -1,14 +1,15 @@
 import type { Resource } from '@/types/resource';
 import {
-  type ReportContext, type ProgressState, activityTasks, dayOf, overlapsWindow, progressState, referenceDay,
-  remainingDays, taskFinish, taskStart, windowEnd,
+  type ReportContext, type ProgressState, activityTasks, dayOf, overlapsWindow, progressState,
+  remainingDays, resolvePeriodFor, taskFinish, taskStart,
 } from './reportCommon';
+import type { ReportingPeriod } from './reportingPeriod';
 
 /**
  * Resourcetoewijzingen (discussie #31, rapport 9): per resource welke activiteiten eraan hangen —
- * "wat doet deze ploeg/kraan/onderaannemer?". Met een look-ahead-venster in weken (0 = alles)
- * wordt het meteen de "Resource Look-Ahead"-variant uit het voorstel. Rijen zijn gesorteerd op
- * resource en dan op start; de UI groepeert per resource.
+ * "wat doet deze ploeg/kraan/onderaannemer?". Met een rapportageperiode (issue #120; standaard de
+ * hele projectspanne) wordt het meteen de "Resource Look-Ahead"-variant uit het voorstel. Rijen
+ * zijn gesorteerd op resource en dan op start; de UI groepeert per resource.
  */
 export interface ResourceAssignmentRow {
   assignmentId: string;
@@ -28,24 +29,23 @@ export interface ResourceAssignmentRow {
 }
 
 export interface ResourceAssignmentOptions {
-  /** Look-ahead-venster in weken; 0 = alle toewijzingen. */
-  weeks: number;
+  /** Rapportageperiode; `project` = alle toewijzingen. */
+  period: ReportingPeriod;
   includeCompleted: boolean;
 }
 
 export interface ResourceAssignmentResult {
-  from?: string;
-  to?: string;
+  from: string;
+  to: string;
+  /** Alleen relevant als de periode relatief aan de referentiedag is (geen `project`/`custom`). */
   statusDateMissing: boolean;
   rows: ResourceAssignmentRow[];
   counts: { resources: number; assignments: number; unassignedTasks: number };
 }
 
 export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAssignmentOptions): ResourceAssignmentResult {
-  const { day: ref, statusDateMissing } = referenceDay(ctx);
-  const weeks = Math.max(0, Math.round(opts.weeks));
-  const from = weeks > 0 ? ref : undefined;
-  const to = weeks > 0 ? windowEnd(ref, weeks * 7) : undefined;
+  const { from, to, refDay, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
+  const windowed = opts.period.preset !== 'project';
   const taskById = new Map(ctx.tasks.map(t => [t.id, t]));
   const resById = new Map(ctx.resources.map(r => [r.id, r]));
   const rows: ResourceAssignmentRow[] = [];
@@ -60,8 +60,9 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
     assignedTaskIds.add(t.id);
     const state = progressState(t);
     if (!opts.includeCompleted && state === 'complete') continue;
-    // Venster: overlap, plus achterstallig werk vóór het venster (net als het look-ahead-rapport).
-    if (from && to && !overlapsWindow(t, from, to) && !(state !== 'complete' && dayOf(taskFinish(t)) < from)) continue;
+    // Venster: overlap, plus achterstallig werk van vóór de referentiedag (net als het look-ahead-
+    // rapport). `project` is bewust geen venster: dan telt élke toewijzing, ook buiten de taakdatums.
+    if (windowed && !overlapsWindow(t, from, to) && !(state !== 'complete' && dayOf(taskFinish(t)) < refDay)) continue;
     rows.push({
       assignmentId: a.id,
       resourceId: r.id,
@@ -86,7 +87,7 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
     || a.wbs.localeCompare(b.wbs));
   const unassignedTasks = activityTasks(ctx.tasks).filter(t => !t.isMilestone && !assignedTaskIds.has(t.id)).length;
   return {
-    from, to, statusDateMissing, rows,
+    from, to, statusDateMissing: windowed && opts.period.preset !== 'custom' && statusDateMissing, rows,
     counts: {
       resources: new Set(rows.map(r => r.resourceId)).size,
       assignments: rows.length,

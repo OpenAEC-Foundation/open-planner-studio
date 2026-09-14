@@ -52,6 +52,24 @@ rechnet der Bericht mit heute und sagt das; Termine und Puffer stammen aus der l
 jeder Bericht hat einen kleinen Block **Berichtsoptionen**, der zwischen Sitzungen gemerkt wird.
 Arbeitstage werden mit *AT* abgekürzt.
 
+### Berichtszeitraum
+
+Vier Berichte arbeiten mit einem Zeitfenster: Vorschau, Fortschritt, Ressourcenauslastung und
+Ressourcenzuweisungen. Sie teilen sich eine Auswahl *Berichtszeitraum* in den Berichtsoptionen, mit
+einer eigenen gemerkten Einstellung pro Bericht:
+
+- **Nächste / letzte Woche, 2, 4, 6, 8 oder 12 Wochen** und **nächster / letzter Monat** — gerechnet
+  ab dem Statusdatum des Projekts (oder heute, wenn keins gesetzt ist). Eine Vorgabe ist an beiden
+  Enden inklusiv: *nächste 4 Wochen* am Donnerstag, 10. September, läuft bis Mittwoch, 7. Oktober.
+  Ändern Sie das Statusdatum, wandert das Fenster mit.
+- **Gesamtes Projekt** — vom frühesten Start bis zum spätesten Ende im Terminplan.
+- **Benutzerdefiniert** — zwei eigene Daten. Die Felder *Von* und *Bis* werden bearbeitbar (tippen
+  oder Datumsauswahl); bei einer Vorgabe zeigen sie die berechneten Daten schreibgeschützt. Ein
+  Enddatum vor dem Startdatum wird rot markiert und nicht übernommen. Wählen Sie danach wieder eine
+  Vorgabe, ersetzen deren Daten Ihren eigenen Bereich.
+
+Der gewählte Zeitraum steht als Untertitel im Bericht und im PDF.
+
 ### Vorschau (Look-ahead)
 
 Die Liste für die wöchentliche Baubesprechung: alle Vorgänge der nächsten *N* Wochen (Standard vier)

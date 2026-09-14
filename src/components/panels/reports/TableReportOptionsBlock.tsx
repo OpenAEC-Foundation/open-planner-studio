@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/common/Select';
 import {
   TABLE_REPORT_LIMITS, type ReportOrientation, type ReportPaperSize, type ReportType, type TableReportOptions,
+  type TableReportPeriodKey,
 } from '@/utils/reportSettings';
+import type { ResourceLoadingBucket } from '@/engine/reports';
+import { ReportingPeriodField } from './ReportingPeriodField';
 
 /**
  * Optieblok van de tabelrapporten (discussie #31): per rapporttype alleen de knoppen die dat
@@ -79,17 +82,22 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     </div>
   );
 
-  const weeksRow = (key: 'lookAheadWeeks' | 'progressPeriodWeeks' | 'resourceAssignmentWeeks', label: string, allowAll: boolean) => (
+  // Het gedeelde rapportageperiode-control (issue #120) — per rapport een eigen opgeslagen keuze.
+  const periodRow = (key: TableReportPeriodKey) => (
+    <ReportingPeriodField id={`report-opt-${key}`} value={options[key]} onChange={next => onChange({ [key]: next })} dataKey={key} />
+  );
+
+  const aggregationRow = (
     <div className="flex items-center gap-2 min-w-0">
-      <label className="text-text-secondary w-32 flex-shrink-0">{label}</label>
+      <label className="text-text-secondary w-32 flex-shrink-0">{t('tableReports.options.aggregation')}</label>
       <Select
         className="flex-1 min-w-0"
-        aria-label={label}
-        value={String(options[key])}
-        onChange={v => onChange({ [key]: Number(v) })}
+        aria-label={t('tableReports.options.aggregation')}
+        value={options.resourceLoadBucket}
+        onChange={v => onChange({ resourceLoadBucket: v as ResourceLoadingBucket })}
         options={[
-          ...(allowAll ? [{ value: '0', label: t('tableReports.options.allWeeks') }] : []),
-          ...range(L.weeks.min, L.weeks.max).map(n => ({ value: String(n), label: String(n) })),
+          { value: 'week', label: t('tableReports.options.aggregation_week') },
+          { value: 'month', label: t('tableReports.options.aggregation_month') },
         ]}
       />
     </div>
@@ -111,13 +119,13 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
   let body: React.ReactNode = null;
   switch (reportType) {
     case 'lookAhead':
-      body = <>{weeksRow('lookAheadWeeks', t('tableReports.options.lookAheadWeeks'), false)}{numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max)}</>;
+      body = <>{periodRow('lookAheadPeriod')}{numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max)}</>;
       break;
     case 'critical':
       body = numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max);
       break;
     case 'progress':
-      body = <>{weeksRow('progressPeriodWeeks', t('tableReports.options.periodWeeks'), false)}{numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max)}</>;
+      body = <>{periodRow('progressPeriod')}{numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max)}</>;
       break;
     case 'health':
       body = (
@@ -130,10 +138,10 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
       );
       break;
     case 'resourceLoading':
-      body = checkRow('resourceLoadOnlyOverloaded', t('tableReports.options.onlyOverloaded'));
+      body = <>{periodRow('resourceLoadPeriod')}{aggregationRow}{checkRow('resourceLoadOnlyOverloaded', t('tableReports.options.onlyOverloaded'))}</>;
       break;
     case 'resourceAssignments':
-      body = <>{weeksRow('resourceAssignmentWeeks', t('tableReports.options.assignmentWeeks'), true)}{checkRow('resourceAssignmentIncludeCompleted', t('tableReports.options.includeCompleted'))}</>;
+      body = <>{periodRow('resourceAssignmentPeriod')}{checkRow('resourceAssignmentIncludeCompleted', t('tableReports.options.includeCompleted'))}</>;
       break;
     case 'wbsSummary':
       body = (

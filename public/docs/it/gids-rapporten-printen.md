@@ -79,6 +79,24 @@ progetto — senza data di stato il rapporto usa oggi e lo segnala; date e slack
 sempre prima; ogni rapporto ha un piccolo blocco **Opzioni del rapporto**, ricordato tra le sessioni.
 I giorni lavorativi sono abbreviati in *gl*.
 
+### Periodo del report
+
+Quattro report lavorano su una finestra temporale: previsione, avanzamento, carico risorse e
+assegnazioni risorse. Condividono un unico controllo *Periodo del report* nelle opzioni del report,
+con un'impostazione memorizzata per ciascun report:
+
+- **Prossima / ultima settimana, 2, 4, 6, 8 o 12 settimane** e **prossimo / ultimo mese** —
+  contati dalla data di stato del progetto (o da oggi se manca). Un preset è inclusivo a entrambi
+  gli estremi: *prossime 4 settimane* giovedì 10 settembre arriva a mercoledì 7 ottobre. Cambiando
+  la data di stato la finestra si sposta di conseguenza.
+- **Intero progetto** — dall'inizio più anticipato alla fine più tardiva del programma.
+- **Personalizzato** — due date a scelta. I campi *Dal* e *Al* diventano modificabili (digitazione
+  o selettore di data); con un preset mostrano le date calcolate in sola lettura. Una data finale
+  precedente a quella iniziale viene evidenziata in rosso e non applicata. Tornando a un preset,
+  le sue date sostituiscono l'intervallo personalizzato.
+
+Il periodo scelto compare come sottotitolo del report e del PDF.
+
 ### Previsione (look-ahead)
 
 L'elenco per la riunione settimanale di cantiere: tutte le attività delle prossime *N* settimane

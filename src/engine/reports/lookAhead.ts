@@ -1,17 +1,19 @@
 import type { Task } from '@/types/task';
 import {
   type ReportContext, assignedResourceNamesIndex, dayOf, isNearCritical, activityTasks, overlapsWindow,
-  progressState, referenceDay, remainingDays, taskFinish, taskStart, windowEnd,
+  progressState, remainingDays, resolvePeriodFor, taskFinish, taskStart,
 } from './reportCommon';
+import type { ReportingPeriod } from './reportingPeriod';
 
 /**
- * Look-ahead-rapport (discussie #31, rapport 2): de activiteiten van de komende N weken vanaf de
- * statusdatum — het lijstje voor de weekvergadering op de bouw.
+ * Look-ahead-rapport (discussie #31, rapport 2): de activiteiten in de rapportageperiode (issue
+ * #120; standaard de komende vier weken vanaf de statusdatum) — het lijstje voor de weekvergadering
+ * op de bouw.
  *
  * Opgenomen worden de niet-voltooide bladtaken die het venster raken (interval-overlap, dus óók een
  * taak die het hele venster overspant — precies het gat dat discussie #32 aankaartte) PLUS de
- * achterstallige taken van vóór het venster: wie het venster inplant moet weten wat er nog open
- * staat. Status per rij:
+ * achterstallige taken van vóór de referentiedag: wie het venster inplant moet weten wat er nog
+ * open staat. Status per rij (altijd t.o.v. de referentiedag, niet t.o.v. het venster):
  * - `overdue`     — niet voltooid en de (berekende) finish ligt vóór de referentiedag;
  * - `lateStart`   — nog niet gestart terwijl de start vóór de referentiedag lag;
  * - `inProgress`  — gestart, nog niet voltooid;
@@ -42,8 +44,8 @@ export interface LookAheadRow {
 }
 
 export interface LookAheadOptions {
-  /** Vensterlengte in weken (kalenderweken vanaf de referentiedag). */
-  weeks: number;
+  /** Rapportageperiode (issue #120); standaard `next4Weeks`. */
+  period: ReportingPeriod;
   /** Drempel voor near-critical (werkdagen); 0 = alleen de planningsoptie. */
   nearCriticalDays: number;
 }
@@ -66,12 +68,11 @@ function statusOf(t: Task, refDay: string): LookAheadStatus | null {
 }
 
 export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): LookAheadResult {
-  const { day: from, statusDateMissing } = referenceDay(ctx);
-  const to = windowEnd(from, Math.max(1, Math.round(opts.weeks)) * 7);
+  const { from, to, refDay, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
   const rows: LookAheadRow[] = [];
   const resourceNames = assignedResourceNamesIndex(ctx);
   for (const t of activityTasks(ctx.tasks)) {
-    const status = statusOf(t, from);
+    const status = statusOf(t, refDay);
     if (!status) continue;
     if (status !== 'overdue' && !overlapsWindow(t, from, to) && !(status === 'lateStart')) continue;
     rows.push({

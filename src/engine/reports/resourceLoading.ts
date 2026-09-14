@@ -3,24 +3,31 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
-import { type ReportContext, round1 } from './reportCommon';
+import { type ReportContext, resolvePeriodFor, round1 } from './reportCommon';
+import type { ReportingPeriod } from './reportingPeriod';
 
 /**
- * Resourcebelasting per week (discussie #31, rapport 8, tabelvorm): per resource per week de
- * gevraagde inzet tegenover de beschikbare capaciteit, met het verschil en een overbelastingsvlag.
+ * Resourcebelasting per week of maand (discussie #31, rapport 8, tabelvorm; issue #119/#120): per
+ * resource per periode de gevraagde inzet tegenover de beschikbare capaciteit, met het verschil en
+ * een overbelastingsvlag.
  *
- * Rekenkern is `computeHistogramReport` (week-buckets) — exact dezelfde verdeling als het
+ * Rekenkern is `computeHistogramReport` (week- of maandbuckets) — exact dezelfde verdeling als het
  * histogram op het Resources-tabblad, dus tabel en scherm spreken elkaar nooit tegen. Eenheid:
- * eenheid-dagen per week (som over de werkdagen van units/dag). De histogramGRAFIEK zelf zit
- * bewust niet in dit rapport: die staat al op het scherm, en een tabel is wat je in een
- * bemensingsoverleg naast elkaar legt.
+ * eenheid-dagen per bucket (som over de werkdagen van units/dag). De rapportageperiode kiest welke
+ * buckets meedoen: elke kalenderweek/-maand die de periode raakt, in z'n geheel — de buckets
+ * blijven hele kalenderweken/-maanden, net als in het histogram, zodat een rij altijd hetzelfde
+ * getal toont als de grafiek. De histogramGRAFIEK zelf zit bewust niet in dit rapport: die staat
+ * al op het scherm, en een tabel is wat je in een bemensingsoverleg naast elkaar legt.
  */
+export type ResourceLoadingBucket = 'week' | 'month';
+
 export interface ResourceLoadingRow {
   resourceId: string;
   resourceName: string;
   resourceType: Resource['type'];
-  weekStart: string;
-  weekEnd: string;
+  /** Eerste dag van de bucket (maandag resp. de 1e van de maand). */
+  bucketStart: string;
+  bucketEnd: string;
   required: number;
   available: number;
   /** available − required (negatief = tekort). */
@@ -31,15 +38,23 @@ export interface ResourceLoadingRow {
 }
 
 export interface ResourceLoadingOptions {
+  /** Rapportageperiode (issue #120); `project` = de hele projectspanne. */
+  period: ReportingPeriod;
+  /** Aggregatie per kalenderweek of per kalendermaand (issue #119). */
+  bucket: ResourceLoadingBucket;
   onlyOverloaded: boolean;
 }
 
 export interface ResourceLoadingResult {
+  from: string;
+  to: string;
+  statusDateMissing: boolean;
   rows: ResourceLoadingRow[];
-  counts: { resources: number; weeks: number; overloadedWeeks: number; overloadedResources: number };
+  counts: { resources: number; buckets: number; overloadedBuckets: number; overloadedResources: number };
 }
 
 export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoadingOptions): ResourceLoadingResult {
+  const { from, to, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
   const report = computeHistogramReport({
     tasks: ctx.tasks as Task[],
     sequences: ctx.sequences as Sequence[],
@@ -48,20 +63,22 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
     calendar: ctx.calendar,
     calendars: ctx.calendars as WorkCalendar[],
     cpmResult: ctx.cpmResult,
-    bucket: 'week',
+    from,
+    to,
+    bucket: opts.bucket === 'month' ? 'maand' : 'week',
   });
   const byId = new Map(ctx.resources.map(r => [r.id, r]));
   const rows: ResourceLoadingRow[] = [];
   const overloadedResources = new Set<string>();
-  let weeks = 0;
+  let buckets = 0;
   for (const entry of report.resources) {
     const res = byId.get(entry.resourceId);
     if (!res) continue;
     for (const b of entry.buckets) {
-      // Alleen weken MET vraag: een lege week met capaciteit is geen belasting, en zou de tabel
+      // Alleen buckets MET vraag: een lege week met capaciteit is geen belasting, en zou de tabel
       // voor elke resource over de hele projectspanne volspoelen met nullen.
       if (b.load === 0) continue;
-      weeks++;
+      buckets++;
       const overloaded = b.overallocatedDays.length > 0;
       if (overloaded) overloadedResources.add(res.id);
       if (opts.onlyOverloaded && !overloaded) continue;
@@ -69,8 +86,8 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
         resourceId: res.id,
         resourceName: res.name,
         resourceType: res.type,
-        weekStart: b.start,
-        weekEnd: b.end,
+        bucketStart: b.start,
+        bucketEnd: b.end,
         required: round1(b.load),
         available: round1(b.capacity),
         variance: round1(b.capacity - b.load),
@@ -80,12 +97,15 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
       });
     }
   }
+  const relative = opts.period.preset !== 'project' && opts.period.preset !== 'custom';
   return {
+    from, to,
+    statusDateMissing: relative && statusDateMissing,
     rows,
     counts: {
       resources: report.resources.length,
-      weeks,
-      overloadedWeeks: rows.filter(r => r.overloaded).length,
+      buckets,
+      overloadedBuckets: rows.filter(r => r.overloaded).length,
       overloadedResources: overloadedResources.size,
     },
   };

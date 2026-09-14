@@ -149,15 +149,20 @@ Het Rapport-tabblad (`ReportPanel.tsx`) kent tien rapporttypen (`ReportType` in
 `src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het mijlpalen- en
 variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
 uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
-resourcebelasting per week, resourcetoewijzingen en WBS-samenvatting. Die zeven hebben een pure
-rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit; headless
-getest in `tests/planning/check-reports.ts`) en één presentatielaag: `useTableReportSpec.tsx` bouwt
+resourcebelasting (per week of maand), resourcetoewijzingen en WBS-samenvatting. Die zeven hebben
+een pure rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit;
+headless getest in `tests/planning/check-reports.ts`) en één presentatielaag: `useTableReportSpec.tsx` bouwt
 per type een `TableReportSpec` (titel, meldingen, samenvatting, secties met een `ReportColumn`-
 lijst), `TableReportView.tsx` tekent daar de `<table>`s uit en `makeSectionedRenderReport`
 (`pdfTable.ts`) de vector-PDF — dezelfde kolomspec, dus DOM en PDF kunnen niet uit elkaar lopen.
 Nieuw tabelrapport ⇒ engine-module, een `build*`-functie in `useTableReportSpec`, opties in
 `TableReportOptions` + `TableReportOptionsBlock`, sleutels onder `tableReports.*` in alle 14
-`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en).
+`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en). Rapporten met een
+tijdvenster (look-ahead, voortgang, belasting, toewijzingen) delen de **rapportageperiode** (issue
+#120): een `ReportingPeriod` (preset rond de statusdatum, `project` of `custom` met twee ISO-dagen)
+uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableReportOptions`, in de
+UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePeriodFor(ctx, period)`
+— nooit een eigen weken-getal erbij bouwen.
 
 ### State: één Zustand + Immer store, samengesteld uit slices
 

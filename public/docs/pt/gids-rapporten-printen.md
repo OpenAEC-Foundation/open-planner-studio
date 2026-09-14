@@ -81,6 +81,24 @@ o relatório usa hoje e diz isso; datas e folgas vêm do último **cálculo** (F
 cronograma alterado desde então e a exportação PDF recalcula sempre primeiro; cada relatório tem um
 pequeno bloco **Opções do relatório**, lembrado entre sessões. Os dias úteis abreviam-se para *du*.
 
+### Período do relatório
+
+Quatro relatórios trabalham sobre uma janela de tempo: previsão, progresso, carga de recursos e
+atribuições de recursos. Partilham um único controlo *Período do relatório* nas opções do
+relatório, com uma definição memorizada por relatório:
+
+- **Próxima / última semana, 2, 4, 6, 8 ou 12 semanas** e **próximo / último mês** — contados a
+  partir da data de estado do projeto (ou de hoje, se não existir). Um predefinido é inclusivo em
+  ambas as pontas: *próximas 4 semanas* na quinta-feira 10 de setembro vai até quarta-feira 7 de
+  outubro. Altere a data de estado e a janela acompanha.
+- **Projeto inteiro** — do início mais cedo ao fim mais tardio do cronograma.
+- **Personalizado** — duas datas à sua escolha. Os campos *De* e *Até* passam a ser editáveis
+  (escrever ou seletor de data); com um predefinido mostram as datas calculadas só de leitura. Uma
+  data final anterior à inicial é marcada a vermelho e não é aplicada. Ao voltar a um predefinido,
+  as datas dele substituem o seu intervalo.
+
+O período escolhido surge como subtítulo do relatório e do PDF.
+
 ### Previsão (look-ahead)
 
 A lista para a reunião semanal de obra: todas as atividades das próximas *N* semanas (quatro por

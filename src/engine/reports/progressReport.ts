@@ -2,8 +2,9 @@ import type { Task } from '@/types/task';
 import { parseDate } from '@/utils/dateUtils';
 import {
   type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState,
-  referenceDay, remainingDays, round1, signedWorkDays, taskFinish, taskStart, windowEnd, windowStart,
+  remainingDays, resolvePeriodFor, round1, signedWorkDays, taskFinish, taskStart, windowEnd,
 } from './reportCommon';
+import { type ReportingPeriod, periodDays } from './reportingPeriod';
 
 /**
  * Voortgangs-/statusrapport (discussie #31, rapport 4): het periodieke "waar staan we"-overzicht
@@ -19,10 +20,17 @@ import {
  * waartegen je meet), anders op de huidige planning (`plannedBasis` vertelt welke). Werkelijk =
  * de ingevoerde completion, gewogen met dezelfde duur.
  *
- * SECTIES — voltooid in de afgelopen periode, in uitvoering, start in de komende periode,
+ * SECTIES — voltooid in de rapportageperiode, in uitvoering, start in de komende periode,
  * achterstallig (had moeten starten/eindigen) en kritieke open activiteiten. Eén taak kan in
  * meerdere secties staan (in uitvoering én kritiek); dat is bewust — elke sectie beantwoordt
  * een eigen vraag.
+ *
+ * DE PERIODE (issue #120) is de rapportageperiode van het statusrapport — standaard de afgelopen
+ * twee weken t/m de statusdatum. "Voltooid" telt binnen die periode. "Start in de komende periode"
+ * kijkt vanaf de statusdatum VOORUIT: ligt de periode (deels) ná de statusdatum, dan tot het einde
+ * van de periode; ligt hij er helemaal vóór (de gebruikelijke "afgelopen maand"), dan wordt hij
+ * gespiegeld — even ver vooruit als de periode terugkijkt. Zo blijft de standaard byte-identiek
+ * aan de oude "periode (weken)"-optie (2 weken terug, 2 weken vooruit) én dekt "project" alles.
  */
 export type ProgressRowStatus = 'complete' | 'inProgress' | 'notStarted' | 'overdueStart' | 'overdueFinish';
 
@@ -48,8 +56,8 @@ export interface ProgressRow {
 }
 
 export interface ProgressReportOptions {
-  /** Rapportageperiode in weken: terugkijken (voltooid) en vooruitkijken (start binnenkort). */
-  periodWeeks: number;
+  /** Rapportageperiode (issue #120); standaard `last2Weeks`. */
+  period: ReportingPeriod;
   nearCriticalDays: number;
 }
 
@@ -58,6 +66,8 @@ export interface ProgressSummary {
   statusDateMissing: boolean;
   periodFrom: string;
   periodTo: string;
+  /** Einde van het vooruitkijkvenster van "start in de komende periode" (vanaf de statusdatum). */
+  lookAheadTo: string;
   baselineFinish?: string;
   forecastFinish?: string;
   /** Werkdagen, getekend (+ = later dan de baseline). */
@@ -88,10 +98,10 @@ function overdueOf(t: Task, state: ProgressState, refDay: string): ProgressRow['
 }
 
 export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOptions): ProgressReportResult {
-  const { day: ref, statusDateMissing } = referenceDay(ctx);
-  const periodDays = Math.max(1, Math.round(opts.periodWeeks)) * 7;
-  const periodFrom = windowStart(ref, periodDays);
-  const periodTo = windowEnd(ref, periodDays + 1).slice(0, 10); // ref + periodDays kalenderdagen
+  const { from: periodFrom, to: periodTo, refDay: ref, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
+  // Vooruitkijken vanaf de statusdatum: tot het periode-einde als dat erná ligt, anders gespiegeld
+  // (2 weken terug ⇒ ref + 14 dagen, exact de oude `periodWeeks`-conventie).
+  const lookAheadTo = periodTo > ref ? periodTo : windowEnd(ref, periodDays({ from: periodFrom, to: periodTo }) + 1);
   const engineFor = makeEngineCache(ctx);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const refDate = parseDate(ref);
@@ -156,13 +166,13 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   const completedInPeriod = all.filter(r => {
     if (r.state !== 'complete') return false;
     const done = dayOf(r.actualFinish ?? r.finish);
-    return done >= periodFrom && done <= ref;
+    return done >= periodFrom && done <= periodTo;
   });
   const inProgress = all.filter(r => r.state === 'inProgress');
   const startingNext = all.filter(r => {
     if (r.state !== 'notStarted' || r.overdue) return false;
     const s = dayOf(taskStart(leafById.get(r.taskId)!));
-    return s >= ref && s <= periodTo;
+    return s >= ref && s <= lookAheadTo;
   });
   const overdue = all.filter(r => r.overdue !== undefined);
   const critical = all.filter(r => r.state !== 'complete' && r.isCritical);
@@ -176,6 +186,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
       statusDateMissing,
       periodFrom,
       periodTo,
+      lookAheadTo,
       baselineFinish,
       forecastFinish,
       finishVarianceDays,

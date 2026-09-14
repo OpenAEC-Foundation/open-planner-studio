@@ -52,6 +52,24 @@ program bir notla belirtilir ve PDF dışa aktarımı her zaman önce yeniden he
 oturumlar arasında hatırlanan küçük bir **Rapor seçenekleri** bloğu vardır. İş günleri *ig* olarak
 kısaltılır.
 
+### Raporlama dönemi
+
+Dört rapor bir zaman penceresi üzerinde çalışır: ileriye bakış, ilerleme, kaynak yükü ve kaynak
+atamaları. Rapor seçeneklerinde tek bir *Raporlama dönemi* denetimini paylaşırlar; her raporun kendi
+hatırlanan ayarı vardır:
+
+- **Gelecek / geçen hafta, 2, 4, 6, 8 veya 12 hafta** ve **gelecek / geçen ay** — projenin durum
+  tarihinden (yoksa bugünden) sayılır. Bir ön ayar iki uçta da dahildir: 10 Eylül Perşembe günü
+  *gelecek 4 hafta*, 7 Ekim Çarşamba'ya kadar sürer. Durum tarihini değiştirirseniz pencere onunla
+  birlikte kayar.
+- **Tüm proje** — programdaki en erken başlangıçtan en geç bitişe.
+- **Özel** — kendi seçtiğiniz iki tarih. *Başlangıç* ve *Bitiş* alanları düzenlenebilir olur (yazın
+  veya tarih seçiciyi kullanın); bir ön ayarla hesaplanan tarihleri salt okunur gösterirler.
+  Başlangıçtan önceki bir bitiş tarihi kırmızıyla işaretlenir ve uygulanmaz. Yeniden bir ön ayar
+  seçtiğinizde ön ayarın tarihleri sizin aralığınızın yerini alır.
+
+Seçilen dönem raporun ve PDF'nin alt başlığında görünür.
+
 ### İleriye bakış (look-ahead)
 
 Haftalık şantiye toplantısının listesi: önümüzdeki *N* haftanın (varsayılan dört) tüm aktiviteleri —

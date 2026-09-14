@@ -10,6 +10,7 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
+import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
 /**
  * Gedeelde bouwstenen van de tabelrapporten (discussie #31, manuvarkey — de rapportuitbreiding).
@@ -66,8 +67,13 @@ export function activityTasks(tasks: readonly Task[]): Task[] {
 
 /** Referentiedag van het rapport: de statusdatum, anders vandaag. */
 export function referenceDay(ctx: ReportContext): { day: string; statusDateMissing: boolean } {
-  if (ctx.statusDate) return { day: dayOf(ctx.statusDate), statusDateMissing: false };
-  return { day: dayOf(ctx.today), statusDateMissing: true };
+  return referenceDayOf(ctx.statusDate, ctx.today);
+}
+
+/** Zelfde regel, zonder volledige context — voor de UI die het periodevenster vooraf toont. */
+export function referenceDayOf(statusDate: string | undefined, today: string): { day: string; statusDateMissing: boolean } {
+  if (statusDate) return { day: dayOf(statusDate), statusDateMissing: false };
+  return { day: dayOf(today), statusDateMissing: true };
 }
 
 export function taskStart(t: Task): string {
@@ -149,6 +155,33 @@ export function windowEnd(fromDay: string, days: number): string {
 /** Vensterstart: `days − 1` kalenderdagen vóór `toDay` (inclusief). */
 export function windowStart(toDay: string, days: number): string {
   return formatDate(addCalendarDays(parseDate(toDay), -Math.max(0, days - 1)));
+}
+
+/**
+ * De projectspanne uit de (berekende) taakdatums: vroegste start t/m laatste einde over alle taken,
+ * op dagniveau. Undefined bij een project zonder taken.
+ */
+export function projectSpan(tasks: readonly Task[]): ResolvedPeriod | undefined {
+  let from: string | undefined;
+  let to: string | undefined;
+  for (const t of tasks) {
+    const s = dayOf(taskStart(t));
+    const f = dayOf(taskFinish(t));
+    if (!s || !f) continue;
+    if (!from || s < from) from = s;
+    if (!to || f > to) to = f;
+  }
+  return from && to ? { from, to } : undefined;
+}
+
+/**
+ * De rapportageperiode (issue #120) opgelost tegen de referentiedag van dit rapport — één plek,
+ * zodat look-ahead, voortgang, belasting en toewijzingen hetzelfde venster uit dezelfde keuze halen.
+ */
+export function resolvePeriodFor(ctx: ReportContext, period: ReportingPeriod): ResolvedPeriod & { refDay: string; statusDateMissing: boolean } {
+  const { day, statusDateMissing } = referenceDay(ctx);
+  const resolved = resolveReportingPeriod(period, day, projectSpan(ctx.tasks));
+  return { ...resolved, refDay: day, statusDateMissing };
 }
 
 /** Interval-overlap op dagniveau (inclusieve grenzen) — dezelfde test als het "Actief tussen"-filter. */

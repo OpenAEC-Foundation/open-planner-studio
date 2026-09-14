@@ -23,6 +23,10 @@
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
+import {
+  REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
+} from '@/engine/reports/reportingPeriod';
+import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 
 /** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
 const STORAGE_KEY = 'reportSettings';
@@ -43,19 +47,24 @@ export function isTableReportType(type: ReportType): boolean {
 
 /**
  * Opties van de tabelrapporten — één object, samen bewaard met de rest van de rapportinstellingen.
- * De drempels zijn werkdagen; de vensters kalenderweken. Defaults: look-ahead 4 weken (het
- * gangbare "four-week look-ahead"), near-critical ≤ 5 wd, gezondheid volgens DCMA (44 wd).
+ * De drempels zijn werkdagen; de vensters zijn rapportageperiodes (issue #120: één gedeeld
+ * periodemodel met presets rond de statusdatum, de projectspanne of een eigen datumbereik — zie
+ * `src/engine/reports/reportingPeriod.ts`). Defaults: look-ahead de komende 4 weken (het gangbare
+ * "four-week look-ahead"), voortgang de afgelopen 2 weken, belasting en toewijzingen de hele
+ * projectspanne, near-critical ≤ 5 wd, gezondheid volgens DCMA (44 wd).
  */
 export interface TableReportOptions {
-  lookAheadWeeks: number;
+  lookAheadPeriod: ReportingPeriod;
   nearCriticalDays: number;
-  progressPeriodWeeks: number;
+  progressPeriod: ReportingPeriod;
   healthHighFloatDays: number;
   healthLongDurationDays: number;
   healthLagDays: number;
+  resourceLoadPeriod: ReportingPeriod;
+  /** Aggregatie van het belastingsrapport: per kalenderweek of per kalendermaand (issue #119). */
+  resourceLoadBucket: ResourceLoadingBucket;
   resourceLoadOnlyOverloaded: boolean;
-  /** 0 = alle toewijzingen. */
-  resourceAssignmentWeeks: number;
+  resourceAssignmentPeriod: ReportingPeriod;
   resourceAssignmentIncludeCompleted: boolean;
   /** 0 = volledige WBS. */
   wbsSummaryLevel: number;
@@ -63,23 +72,27 @@ export interface TableReportOptions {
 }
 
 export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
-  lookAheadWeeks: 4,
+  lookAheadPeriod: { preset: 'next4Weeks' },
   nearCriticalDays: 5,
-  progressPeriodWeeks: 2,
+  progressPeriod: { preset: 'last2Weeks' },
   healthHighFloatDays: 44,
   healthLongDurationDays: 44,
   healthLagDays: 10,
+  resourceLoadPeriod: { preset: 'project' },
+  resourceLoadBucket: 'week',
   resourceLoadOnlyOverloaded: false,
-  resourceAssignmentWeeks: 0,
+  resourceAssignmentPeriod: { preset: 'project' },
   resourceAssignmentIncludeCompleted: false,
   wbsSummaryLevel: 2,
   wbsSummaryIncludeActivities: false,
 };
 
+/** De periode-opties — één lijst, zodat UI en loader dezelfde velden kennen. */
+export const TABLE_REPORT_PERIOD_KEYS = ['lookAheadPeriod', 'progressPeriod', 'resourceLoadPeriod', 'resourceAssignmentPeriod'] as const;
+export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
+
 /** Grenzen van de numerieke opties (de UI en de loader delen ze). */
 export const TABLE_REPORT_LIMITS = {
-  weeks: { min: 1, max: 12 },
-  assignmentWeeks: { min: 0, max: 12 },
   nearCriticalDays: { min: 0, max: 60 },
   thresholdDays: { min: 1, max: 365 },
   lagDays: { min: 0, max: 365 },
@@ -195,20 +208,52 @@ function parseClampedInt(raw: unknown, min: number, max: number): number | undef
   return Math.min(max, Math.max(min, Math.round(raw)));
 }
 
-function parseTableReportOptions(raw: unknown): TableReportOptions {
+/**
+ * Een opgeslagen rapportageperiode: een geldige preset, bij `custom` met twee geordende ISO-dagen.
+ * Een `custom` zonder bruikbare datums valt terug op de default (niet op een halve periode).
+ */
+export function parseReportingPeriod(raw: unknown, fallback: ReportingPeriod): ReportingPeriod {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...fallback };
+  const s = raw as Record<string, unknown>;
+  const preset = parseEnum(REPORTING_PERIOD_PRESETS, s.preset);
+  if (!preset) return { ...fallback };
+  if (preset !== 'custom') return { preset };
+  if (isIsoDay(s.from) && isIsoDay(s.to) && s.from <= s.to) return { preset, from: s.from, to: s.to };
+  return { ...fallback };
+}
+
+/**
+ * Migratie van de oude "N weken"-getallen (vóór issue #120) naar een preset: de kleinste preset
+ * die N dekt (3 weken ⇒ 4 weken), 0 toewijzingsweken ⇒ hele project. Alleen gebruikt wanneer het
+ * nieuwe periodeveld ontbreekt; de oude sleutel wordt daarna niet meer teruggeschreven.
+ */
+function legacyWeeksPeriod(raw: unknown, direction: 'next' | 'last', zeroIsProject: boolean): ReportingPeriod | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+  const n = Math.round(raw);
+  if (n <= 0) return zeroIsProject ? { preset: 'project' } : undefined;
+  return { preset: weeksToPreset(n, direction) };
+}
+
+const LOAD_BUCKETS: readonly ResourceLoadingBucket[] = ['week', 'month'];
+
+export function parseTableReportOptions(raw: unknown): TableReportOptions {
   const d = DEFAULT_TABLE_REPORT_OPTIONS;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...d };
   const s = raw as Record<string, unknown>;
   const L = TABLE_REPORT_LIMITS;
+  const period = (key: TableReportPeriodKey, legacy: ReportingPeriod | undefined): ReportingPeriod =>
+    parseReportingPeriod(s[key], legacy ?? d[key]);
   return {
-    lookAheadWeeks: parseClampedInt(s.lookAheadWeeks, L.weeks.min, L.weeks.max) ?? d.lookAheadWeeks,
+    lookAheadPeriod: period('lookAheadPeriod', legacyWeeksPeriod(s.lookAheadWeeks, 'next', false)),
     nearCriticalDays: parseClampedInt(s.nearCriticalDays, L.nearCriticalDays.min, L.nearCriticalDays.max) ?? d.nearCriticalDays,
-    progressPeriodWeeks: parseClampedInt(s.progressPeriodWeeks, L.weeks.min, L.weeks.max) ?? d.progressPeriodWeeks,
+    progressPeriod: period('progressPeriod', legacyWeeksPeriod(s.progressPeriodWeeks, 'last', false)),
     healthHighFloatDays: parseClampedInt(s.healthHighFloatDays, L.thresholdDays.min, L.thresholdDays.max) ?? d.healthHighFloatDays,
     healthLongDurationDays: parseClampedInt(s.healthLongDurationDays, L.thresholdDays.min, L.thresholdDays.max) ?? d.healthLongDurationDays,
     healthLagDays: parseClampedInt(s.healthLagDays, L.lagDays.min, L.lagDays.max) ?? d.healthLagDays,
+    resourceLoadPeriod: period('resourceLoadPeriod', undefined),
+    resourceLoadBucket: parseEnum(LOAD_BUCKETS, s.resourceLoadBucket) ?? d.resourceLoadBucket,
     resourceLoadOnlyOverloaded: parseBoolean(s.resourceLoadOnlyOverloaded) ?? d.resourceLoadOnlyOverloaded,
-    resourceAssignmentWeeks: parseClampedInt(s.resourceAssignmentWeeks, L.assignmentWeeks.min, L.assignmentWeeks.max) ?? d.resourceAssignmentWeeks,
+    resourceAssignmentPeriod: period('resourceAssignmentPeriod', legacyWeeksPeriod(s.resourceAssignmentWeeks, 'next', true)),
     resourceAssignmentIncludeCompleted: parseBoolean(s.resourceAssignmentIncludeCompleted) ?? d.resourceAssignmentIncludeCompleted,
     wbsSummaryLevel: parseClampedInt(s.wbsSummaryLevel, L.wbsLevel.min, L.wbsLevel.max) ?? d.wbsSummaryLevel,
     wbsSummaryIncludeActivities: parseBoolean(s.wbsSummaryIncludeActivities) ?? d.wbsSummaryIncludeActivities,

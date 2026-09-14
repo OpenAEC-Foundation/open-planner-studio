@@ -82,6 +82,24 @@ sin fecha de estado el informe usa hoy y lo indica; fechas y holguras vienen del
 recalcula antes; cada informe tiene un pequeño bloque **Opciones del informe** que se recuerda
 entre sesiones. Los días laborables se abrevian *dl*.
 
+### Periodo del informe
+
+Cuatro informes trabajan sobre una ventana de tiempo: previsión, avance, carga de recursos y
+asignaciones de recursos. Comparten un mismo control *Periodo del informe* en las opciones del
+informe, con un ajuste recordado por informe:
+
+- **Próxima / última semana, 2, 4, 6, 8 o 12 semanas** y **próximo / último mes** — contados desde
+  la fecha de estado del proyecto (o hoy si no hay ninguna). Un preajuste es inclusivo en ambos
+  extremos: *próximas 4 semanas* el jueves 10 de septiembre llega hasta el miércoles 7 de octubre.
+  Cambie la fecha de estado y la ventana se mueve con ella.
+- **Todo el proyecto** — desde el inicio más temprano hasta el fin más tardío del cronograma.
+- **Personalizado** — dos fechas propias. Los campos *Desde* y *Hasta* pasan a ser editables
+  (escribir o selector de fecha); con un preajuste muestran las fechas calculadas en solo lectura.
+  Una fecha final anterior a la inicial se marca en rojo y no se aplica. Si vuelve a un preajuste,
+  sus fechas sustituyen su rango.
+
+El periodo elegido aparece como subtítulo del informe y del PDF.
+
 ### Previsión (look-ahead)
 
 La lista para la reunión semanal de obra: todas las actividades de las próximas *N* semanas

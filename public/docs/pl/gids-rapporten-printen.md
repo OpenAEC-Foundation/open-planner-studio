@@ -82,6 +82,24 @@ statusu raport przyjmuje dzisiaj i o tym informuje; daty i zapasy pochodzą z os
 najpierw przelicza; każdy raport ma mały blok **Opcje raportu**, zapamiętywany między sesjami. Dni
 robocze skracane są do *dr*.
 
+### Okres raportu
+
+Cztery raporty pracują na oknie czasowym: prognoza, postęp, obciążenie zasobów i przypisania
+zasobów. Dzielą jeden wybór *Okres raportu* w opcjach raportu, z osobno zapamiętanym ustawieniem
+dla każdego raportu:
+
+- **Następny / ostatni tydzień, 2, 4, 6, 8 lub 12 tygodni** oraz **następny / ostatni miesiąc** —
+  liczone od daty stanu projektu (lub od dziś, gdy jej brak). Ustawienie wstępne jest domknięte z
+  obu stron: *następne 4 tygodnie* w czwartek 10 września sięgają do środy 7 października. Zmień
+  datę stanu, a okno przesunie się razem z nią.
+- **Cały projekt** — od najwcześniejszego startu do najpóźniejszego końca harmonogramu.
+- **Niestandardowy** — dwie własne daty. Pola *Od* i *Do* stają się edytowalne (wpisanie lub
+  wybór z kalendarza); przy ustawieniu wstępnym pokazują obliczone daty tylko do odczytu. Data
+  końcowa wcześniejsza niż początkowa jest oznaczana na czerwono i nie jest stosowana. Po powrocie
+  do ustawienia wstępnego jego daty zastępują własny zakres.
+
+Wybrany okres pojawia się jako podtytuł raportu i pliku PDF.
+
 ### Prognoza (look-ahead)
 
 Lista na cotygodniową naradę budowy: wszystkie czynności najbliższych *N* tygodni (domyślnie
