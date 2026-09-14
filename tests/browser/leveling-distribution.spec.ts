@@ -266,8 +266,9 @@ test('fasestroken: pin en plafond zijn met het toetsenbord te bedienen', async (
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
 
   const strip = page.locator('[data-ops-distribution-strip]').first();
-  // De pin is een echte toggle-knop: STABIELE naam, toestand uitsluitend via `aria-pressed` (§6).
-  const pin = strip.getByRole('button', { name: /Vastzetten|Pin/ });
+  // De pin is sinds het herontwerp een TEKSTknop ("vastzetten" ↔ "vast — losmaken", spec §6), geen
+  // icoon meer. Het testanker blijft `data-ops-distribution-pin`; de toestand blijft `aria-pressed`.
+  const pin = strip.locator('[data-ops-distribution-pin]');
   await expect(pin).toHaveAttribute('aria-pressed', 'false');
   await pin.click();
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
@@ -287,10 +288,21 @@ test('fasestroken: pin en plafond zijn met het toetsenbord te bedienen', async (
     .ui.levelingDistribution!.ceilings[Object.keys(window.__OPS__!.store.getState().ui.levelingDistribution!.ceilings)[0]]))
     .toBe(1);
 
+  // PageUp/PageDown zijn drie werkdagen tegelijk (§5) — het grovere stapje naast de pijltjes.
+  await handle.press('PageUp');
+  await expect(handle).toHaveAttribute('aria-valuenow', '4');
+  await handle.press('PageDown');
+  await expect(handle).toHaveAttribute('aria-valuenow', '1');
+
   await handle.press('Home');
   await expect(handle).toHaveAttribute('aria-valuenow', '0');
   await handle.press('End');
   await expect(handle).toHaveAttribute('aria-valuetext', /onbegrensd|unlimited/i);
+  // Onbegrensd zet de handle aan het einde van de as (spec §5) — meetbaar: hij staat rechts van
+  // het laatste dagblokje van dezelfde rij.
+  const handleBox = (await handle.boundingBox())!;
+  const lastDay = (await strip.locator('[data-ops-distribution-day="work"]').last().boundingBox())!;
+  expect(handleBox.x).toBeGreaterThan(lastDay.x + lastDay.width);
 });
 
 test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', async ({ page, ops: _ops }) => {
@@ -311,42 +323,49 @@ test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', 
   await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
   // Het label meldt wat er met de EINDDATUM gebeurt (+1 werkdag), niet hoe ver de handle stond (3).
   await expect(strip.locator('[data-ops-distribution-effect]')).toContainText(/eind \+1 dag|end \+1 day/i);
-  // Toegestaan maar niet benut: gevraagd 3, dichtst haalbare 1.
-  await expect(strip.locator('[data-ops-distribution-achievable]')).toBeVisible();
+  // "Toegestaan maar niet benut" is sinds het herontwerp geen ZIN meer maar een VORM (spec §4): de
+  // gestippelde lege doos van het nieuwe fase-einde tot de handle-stand. Gevraagd 3, benut 1 ⇒ die
+  // doos bestaat en heeft een meetbare breedte.
+  const tail = strip.locator('[data-ops-distribution-tail]');
+  await expect(tail).toHaveCount(1);
+  expect((await tail.boundingBox())!.width).toBeGreaterThan(0);
+  // De legenda die uitlegt wat de blokjes, de arcering en de meetlat betekenen staat er één keer.
+  await expect(page.locator('[data-ops-distribution-legend]')).toBeVisible();
 });
 
-// --- B1c-plan3 taak 10 — pointer-slepen op de plafond-handle, en rangorde met de muis -------------
+// --- B1c-plan4 taak 6 — pointer-slepen op de plafond-handle, nu met LIVE meerekenen ---------------
 
-test('plafond-handle: slepen snapt op hele werkdagen en rekent pas bij loslaten', async ({ page, ops: _ops }) => {
+test('plafond-handle: tijdens het slepen rekent de dialoog live mee', async ({ page, ops: _ops }) => {
   await seedTwoSingleDayDocuments(page);
   await openDistributionFromConflictRow(page);
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
 
-  // De stroken staan in RANGORDE; nr. 2 is degene die moet wijken (zelfde fixture als de vorige
-  // test). Home = plafond 0 — een deterministisch startpunt voor de sleep, ongeacht de benutte
-  // uitloop; expliciet herberekend zodat het effectlabel al bij díé stand hoort vóór de sleep begint.
+  // De rijen staan in plaatsingsvolgorde; nr. 2 is degene die moet wijken. Home = plafond 0, een
+  // deterministisch startpunt ongeacht de benutte uitloop.
   const strip = page.locator('[data-ops-distribution-strip]').nth(1);
   const handle = strip.locator('[data-ops-distribution-handle]');
   await handle.focus();
   await handle.press('Home');
-  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
   await expect(handle).toHaveAttribute('aria-valuenow', '0');
+  await expect.poll(() => strip.locator('[data-ops-distribution-effect]').textContent())
+    .not.toContain('…');
 
-  // Geen magisch getal: de dagbreedte komt uit de gedeelde tijdas (`occupancyAxis.ts`), zichtbaar via
-  // hetzelfde `data-ops-distribution-day-width`-attribuut dat de sleeppositie zelf ook gebruikt.
+  // Geen magisch getal: de dagbreedte komt uit de gedeelde tijdas, zichtbaar via hetzelfde
+  // attribuut dat de sleeppositie zelf ook gebruikt.
   const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
   expect(dayWidth).toBeGreaterThan(0);
 
+  const effectBefore = await strip.locator('[data-ops-distribution-effect]').textContent();
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
 
-  // Tijdens het slepen: de PLAFOND-waarde beweegt mee, het EFFECT-label niet (spec §3.4 — "nooit per
-  // sleep-pixel").
-  const effectBefore = await strip.locator('[data-ops-distribution-effect]').textContent();
+  // Spec §5, het eigenaarsbesluit dat §3.4 van de oude spec bijstelt: tijdens het slepen wordt er
+  // ECHT gerekend. Zowel de waarde als het uitkomstlabel moeten VÓÓR `mouse.up()` meebewegen.
   await page.mouse.move(box.x + box.width / 2 + 3 * dayWidth, box.y + box.height / 2, { steps: 6 });
   await expect(handle).toHaveAttribute('aria-valuenow', '3');
-  expect(await strip.locator('[data-ops-distribution-effect]').textContent()).toBe(effectBefore);
+  await expect.poll(() => strip.locator('[data-ops-distribution-effect]').textContent())
+    .not.toBe(effectBefore);
 
   // De muis verlaat het element en het slepen loopt door — `setPointerCapture` op de handle, geen
   // document-brede listener nodig.
@@ -354,49 +373,11 @@ test('plafond-handle: slepen snapt op hele werkdagen en rekent pas bij loslaten'
   await expect(handle).toHaveAttribute('aria-valuenow', '5');
   await page.mouse.up();
 
-  // Loslaten is een discreet rekenmoment (§3.4) ⇒ de waarde gaat de ui-state in en het overzicht
-  // rekent automatisch door (dezelfde route als een toetsaanslag of de pin-knop) — het effectlabel
-  // wordt dus uiteindelijk bijgewerkt, zonder dat de test zelf op "Herbereken" hoeft te klikken.
-  await expect.poll(() => strip.locator('[data-ops-distribution-effect]').textContent()).not.toBe(effectBefore);
   const shiftedDocId = await strip.getAttribute('data-ops-doc-id') ?? '';
   await expect.poll(() => page.evaluate(docId => {
     const ui = window.__OPS__!.store.getState().ui.levelingDistribution!;
     return ui.ceilings[docId];
   }, shiftedDocId)).toBe(5);
-});
-
-test('rangorde: slepen verandert de volgorde en laat het voorstel vervallen', async ({ page, ops: _ops }) => {
-  await seedTwoConflictingDocuments(page);
-  await openDistributionFromConflictRow(page);
-
-  const rows = page.locator('[data-ops-distribution-rank-row]');
-  await expect(rows).toHaveCount(2);
-  const firstDocId = await rows.nth(0).getAttribute('data-ops-doc-id');
-  const secondDocId = await rows.nth(1).getAttribute('data-ops-doc-id');
-
-  // Sleep rij 2 boven rij 1 — POINTER-EVENTS aan de greep (gebruikstest 2026-09-12, gebrek 2:
-  // HTML5-dnd deed in de iframe-preview en de Tauri-webview niets). Dus echte muisbewegingen met
-  // `steps`: een pointerdown op de greep, een paar tussenstappen zodat `pointermove` het doel kan
-  // bepalen (zonder move commit de sleep bewust niets), en loslaten boven de BOVENSTE helft van
-  // rij 1 — een loslaten op de onderste helft zou de rij weer op zijn oude plek laten vallen.
-  const grip = rows.nth(1).locator('[data-ops-distribution-rank-grip]');
-  const gripBox = (await grip.boundingBox())!;
-  const targetBox = (await rows.nth(0).boundingBox())!;
-  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(targetBox.x + 20, targetBox.y + targetBox.height * 0.2, { steps: 8 });
-  // De rij licht op tijdens het slepen en de doelrij toont de invoegindicator.
-  await expect(rows.nth(1)).toHaveAttribute('data-ops-distribution-rank-dragging', 'true');
-  await expect(rows.nth(0)).toHaveAttribute('data-ops-distribution-rank-drop-before', 'true');
-  await page.mouse.up();
-
-  await expect(page.locator('[data-ops-distribution-rank-row]').first())
-    .toHaveAttribute('data-ops-doc-id', secondDocId!);
-  await expect(page.locator('[data-ops-distribution-rank-row]').last())
-    .toHaveAttribute('data-ops-doc-id', firstDocId!);
-  // Een herordening is een rangordewijziging ⇒ hetzelfde `staleReason = 'rank'` als de knoppen.
-  await expect(page.locator('[data-ops-distribution-dialog]'))
-    .toHaveAttribute('data-ops-distribution-last-stale-reason', 'rank');
 });
 
 // --- B1c-plan3 taak 11b — de voor/na-grafiek (spec §7) ---------------------------------------------
@@ -500,13 +481,99 @@ test('toepassen: schrijft in beide projecten en biedt daarna "alles terugdraaien
   await expect(page.locator('[data-ops-distribution-applied]')).toHaveCount(0);
 });
 
-test('toepassen is uitgeschakeld-met-reden zolang er een tekort is', async ({ page, ops: _ops }) => {
+test('een tekort kleurt de validatiestrook rood en houdt Toepassen tegen', async ({ page, ops: _ops }) => {
   await seedUnsolvableShortfall(page);
   await openDistributionFromConflictRow(page);
-  await expect(page.locator('[data-ops-distribution-shortfall]')).toBeVisible();
+
+  // Het tekortblok is weg (spec §3.5): het tekort staat nu BIJ NAAM in de validatiestrook, en de
+  // einddatum-badge van het getroffen document draagt dezelfde markering — een lege balk zonder
+  // uitleg was de klacht uit de gebruikstest.
+  const status = page.locator('[data-ops-distribution-status]');
+  await expect(status).toContainText(/tekort|short/i);
+  await expect(page.locator('[data-ops-distribution-end-badges] [data-ops-distribution-badge-shortfall]'))
+    .not.toHaveCount(0);
+  await expect(page.locator('[data-ops-distribution-preview-shortfall]')).toBeVisible();
 
   await expect(page.getByRole('button', { name: /^(Toepassen|Apply)$/ })).toBeDisabled();
   await expect(page.locator('[data-ops-distribution-apply-reason]')).toContainText(/tekort|shortfall/i);
+});
+
+test('de validatiestrook staat er altijd en meldt de uitkomst of het tekort', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+
+  // Spec §3.5/§7: ALTIJD gerenderd, ook wanneer alles goed is — en dan groen met de grootste
+  // einddatum-verschuiving erin.
+  const status = page.locator('[data-ops-distribution-status]');
+  await expect(status).toBeVisible();
+  await expect(status).toContainText(/Conflict opgelost|Conflict resolved/i);
+
+  // Alle deelnemers vastzetten ⇒ er valt niets te herverdelen, en de strook zegt dat met een uitweg.
+  for (const pin of await page.locator('[data-ops-distribution-pin]').all()) await pin.click();
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  await expect(status).toContainText(/staan vast|is pinned/i);
+});
+
+test('Reset zet plafonds en vastzettingen terug, en laat de schakelaar staan', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+
+  await page.getByRole('switch', { name: /Onderbrekingen toestaan|Allow interruptions/ }).click();
+  const strip = page.locator('[data-ops-distribution-strip]').nth(1);
+  await strip.locator('[data-ops-distribution-handle]').focus();
+  await strip.locator('[data-ops-distribution-handle]').press('ArrowRight');
+  await page.locator('[data-ops-distribution-pin]').first().click();
+  await expect.poll(() => page.evaluate(() => {
+    const ui = window.__OPS__!.store.getState().ui.levelingDistribution!;
+    return Object.keys(ui.ceilings).length + Object.values(ui.pinned).filter(Boolean).length;
+  })).toBeGreaterThan(1);
+
+  await page.locator('[data-ops-distribution-reset]').click();
+
+  // Spec §3.6: alle plafonds en pins terug, de SCHAKELAAR ongemoeid.
+  await expect.poll(() => page.evaluate(() => {
+    const ui = window.__OPS__!.store.getState().ui.levelingDistribution!;
+    return {
+      ceilings: Object.values(ui.ceilings).filter(v => v !== null).length,
+      pins: Object.values(ui.pinned).filter(Boolean).length,
+      splits: ui.allowSplits,
+    };
+  })).toEqual({ ceilings: 0, pins: 0, splits: true });
+});
+
+test('de dialoog flitst niet: dezelfde boundingBox over een herberekening en een sleep', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const dialog = page.locator('[data-ops-distribution-dialog]');
+  const before = (await dialog.boundingBox())!;
+
+  // (1) Een herberekening. De bezig-toestand mag zich alleen via kleur/opaciteit tonen — nooit door
+  // een blok toe te voegen of weg te halen (spec §7).
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  const during = (await dialog.boundingBox())!;
+  await expect(page.locator('[data-ops-distribution-status]')).toBeVisible();
+  const after = (await dialog.boundingBox())!;
+
+  // (2) Een sleep, inclusief de live herberekening die eronder loopt.
+  const strip = page.locator('[data-ops-distribution-strip]').nth(1);
+  const handle = strip.locator('[data-ops-distribution-handle]');
+  const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 4 * dayWidth, box.y + box.height / 2, { steps: 8 });
+  const dragging = (await dialog.boundingBox())!;
+  await page.mouse.up();
+  const released = (await dialog.boundingBox())!;
+
+  for (const [name, box2] of [['tijdens', during], ['erna', after], ['slepend', dragging], ['losgelaten', released]] as const) {
+    expect(box2.x, `x ${name}`).toBeCloseTo(before.x, 0);
+    expect(box2.y, `y ${name}`).toBeCloseTo(before.y, 0);
+    expect(box2.width, `breedte ${name}`).toBeCloseTo(before.width, 0);
+    expect(box2.height, `hoogte ${name}`).toBeCloseTo(before.height, 0);
+  }
 });
 
 test('het voorstel vervalt met reden zodra er in een betrokken document gewerkt wordt', async ({ page, ops: _ops }) => {
@@ -534,37 +601,33 @@ test('het voorstel vervalt met reden zodra er in een betrokken document gewerkt 
   await expect(page.locator('[data-ops-distribution-stale]')).toHaveCount(0);
 });
 
-// --- B1c-plan3 taak 13 — kostenlabels per project en prijskaartjes per gereedschapsstand (spec §4
-// stap 1 / §6) --------------------------------------------------------------------------------
+// --- B1c-plan4 taak 6 — het VERSCHIL-prijskaartje bij de gereedschapsschakelaar (spec §2.2) ------
 
-test('kostenlabels en prijskaartjes verschijnen en verdwijnen met het voorstel', async ({ page, ops: _ops }) => {
+test('het prijskaartje is één VERSCHIL en volgt de stand van de schakelaar', async ({ page, ops: _ops }) => {
   await seedTwoConflictingDocuments(page);
   await openDistributionFromConflictRow(page);
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
 
-  // Klein project, onder de ondersteunde schaal: beide rangorderijen krijgen een gecacht kostenlabel
-  // en de gereedschapsschakelaar krijgt een prijskaartje van BEIDE standen (§6) — geen "prijs
-  // onbekend" meer.
-  await expect(page.locator('[data-ops-distribution-rank-row] [data-ops-distribution-cost]')).toHaveCount(2);
-  await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/werkdag|no overrun|geen uitloop|workday/i);
-  // Gebruikstest 2026-09-12, gebrek 1: de prijs mag nooit als twee kale, naamloze getallen naast
-  // elkaar staan. Er staat óf "uit: … · aan: …", óf — wanneer beide standen even duur zijn — één
-  // prijs met "in beide standen".
-  await expect(page.locator('[data-ops-distribution-tool-price]'))
-    .toContainText(/uit:|off:|in beide standen|in both settings/i);
+  // Eigenaarsbesluit 2026-09-12 (spec §2.2): geen twee bedragen naast elkaar meer, maar één
+  // verschil. Schakelaar UIT ⇒ een belofte ("zou … besparen"); AAN ⇒ een constatering ("bespaart
+  // …"). Nul is expliciet, niet leeg.
+  const price = page.locator('[data-ops-distribution-tool-price]');
+  await expect.poll(() => price.textContent())
+    .toMatch(/zou .*besparen|would save|zou niets besparen|would save nothing/i);
 
-  // Een externe bewerking laat het voorstel vervallen (§6a — buiten de modale dialoog om, zie de
-  // bestaande taak-12-test hierboven). De labels zijn gecachet TOT invalidatie, niet live: zodra het
-  // voorstel niet meer actueel is, vervalt ook het label — geen oud getal tonen bij een vervallen
-  // voorstel.
+  await page.getByRole('switch', { name: /Onderbrekingen toestaan|Allow interruptions/ }).click();
+  await page.getByRole('button', { name: /Herbereken|Recalculate/ }).click();
+  await expect.poll(() => price.textContent())
+    .toMatch(/^(?!.*zou)(?=.*(bespaart|saves))/i);
+
+  // Een externe bewerking laat het voorstel vervallen (§6a); een prijs bij een vervallen voorstel
+  // zou liegen, dus die gaat terug naar "prijs onbekend".
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const task = s.tasks[0];
     s.updateTask(task.id, { time: { ...task.time, scheduleDuration: 4 } });
   });
-
-  await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
-  await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/prijs onbekend|price unknown/i);
+  await expect(price).toContainText(/prijs onbekend|price unknown/i);
 });
 
 /**
@@ -624,8 +687,8 @@ test('boven het documentenplafond rekent de dialoog alleen op de knop', async ({
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(7);
 
   await expect(page.locator('[data-ops-distribution-degraded]')).toBeVisible();
-  // Gedegradeerd ⇒ geen labelpas, dus geen "Bezig…" maar de expliciete route.
-  await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
+  // Gedegradeerd ⇒ geen verschil-pas, dus geen prijs maar de expliciete route.
+  await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/prijs onbekend|price unknown/i);
 });
 
 test('boven de ondersteunde schaal rekent de dialoog alleen op de knop', async ({ page, ops: _ops }) => {
@@ -636,15 +699,16 @@ test('boven de ondersteunde schaal rekent de dialoog alleen op de knop', async (
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
 
   await expect(page.locator('[data-ops-distribution-degraded]')).toBeVisible();
-  // Boven de schaal is elk label zelf een volledige extra run — dat is precies de kost die de
-  // degradatie voorkomt, dus er wordt niet automatisch gerekend: "druk op Herbereken" i.p.v. een
-  // getal.
-  await expect(page.locator('[data-ops-distribution-cost]').first()).toContainText(/Herbereken|Recalculate/);
+  // Boven de schaal is de verschil-pas zelf een volledige extra run — dat is precies de kost die de
+  // degradatie voorkomt, dus er wordt niet automatisch gerekend: "prijs onbekend" i.p.v. een getal.
+  await expect(page.locator('[data-ops-distribution-tool-price]')).toContainText(/prijs onbekend|price unknown/i);
 
-  const handle = page.locator('[data-ops-distribution-strip]').first().getByRole('slider');
+  const handle = page.locator('[data-ops-distribution-strip]').first().locator('[data-ops-distribution-handle]');
   await handle.focus();
   await handle.press('ArrowRight');
-  await expect(page.locator('[data-ops-distribution-effect]').first()).toContainText(/Herbereken|Recalculate/);
+  // Boven de schaal rekent een plafondwijziging NIET door (spec §5): de reden staat in de
+  // validatiestrook, met de expliciete route erbij.
+  await expect(page.locator('[data-ops-distribution-status]')).toContainText(/Herbereken|Recalculate/);
 
   console.log(`seedLargeDegradedProject-test duur: ${Date.now() - start}ms`);
 });
