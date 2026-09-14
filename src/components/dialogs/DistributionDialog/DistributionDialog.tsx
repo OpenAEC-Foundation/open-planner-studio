@@ -41,7 +41,7 @@
 // links `STRIP.labelWidth + STRIP.gap` en rechts `STRIP.endWidth + STRIP.gap` marge, zodat hun
 // plotgebied exact samenvalt met de tracks; de `AXIS.padLeft` van 34 px zit ín de as en geldt dus
 // voor beide.
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -60,6 +60,15 @@ import { PhaseStrip } from './PhaseStrip';
 import { DistributionPicker } from './DistributionPicker';
 import { BeforeAfterChart } from './BeforeAfterChart';
 
+/** De inhoudsbreedte van het dialoogpaneel: `w-[960px]` min de `p-4`-padding aan weerszijden.
+ *  Alleen de terugval vóór de eerste ResizeObserver-meting; daarna telt de gemeten breedte. */
+const DIALOG_CONTENT_WIDTH = 960 - 32;
+
+/** Het plafond op de dagbreedte IN DE DIALOOG. Het bezettingshistogram houdt zijn eigen, smallere
+ *  plafond (`AXIS.maxDayWidth` = 16) omdat het een heel project moet tonen; hier gaat het vaak om
+ *  een handvol dagen die je moet kunnen aanwijzen en tellen. Boven ~28 px worden het luiken. */
+const DIALOG_MAX_DAY_WIDTH = 28;
+
 export function DistributionDialog() {
   const { t, i18n } = useTranslation('common');
   const tune = useAppStore(s => s.ui.levelingDistribution);
@@ -75,6 +84,41 @@ export function DistributionDialog() {
   } = useDistributionProposal(tune);
 
   const close = () => setUI({ showDistributionDialog: false });
+
+  // --- DE BREEDTE VAN DE TRACK (polishronde 2026-09-14, bevinding 2) ------------------------------
+  //
+  // De as werd met een vaste `targetWidth: 560` gebouwd terwijl de dialoog 960 px breed is, en dat
+  // getal deed er bovendien niets toe: met een handvol dagen liep de dagbreedte tegen zijn plafond
+  // van 16 px aan en was de hele track 74 px — twee blokjes tegen de linkerrand met driekwart
+  // dialoog leeg ernaast. De track hoort de volle ruimte TUSSEN het label en het uitkomstlabel te
+  // beslaan; we meten die ruimte dus echt, in plaats van 960 aan te nemen (de dialoog is
+  // `max-w-[95vw]` en wordt op een smal scherm smaller).
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const hasTune = tune !== null;
+  const [scrollerWidth, setScrollerWidth] = useState(0);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setScrollerWidth(el.clientWidth));
+    observer.observe(el);
+    setScrollerWidth(el.clientWidth);
+    return () => observer.disconnect();
+  }, [hasTune]);
+  /** De ruimte die er voor de track zelf overblijft; vóór de eerste meting de 960-px-rekensom. */
+  const trackSpace = Math.max(
+    240,
+    (scrollerWidth > 0 ? scrollerWidth : DIALOG_CONTENT_WIDTH) - STRIP.labelWidth - STRIP.endWidth - 2 * STRIP.gap,
+  );
+
+  // DE DAGBREEDTE LIGT VAST ZOLANG DE DIALOOG OPEN STAAT (bevinding 3). De dagenset groeit mee met
+  // het plafond, dus een as die zich elke herberekening opnieuw op de beschikbare breedte fit
+  // kreeg bij élke commit een andere dagbreedte: de tijdas kromp onder de muis tijdens het slepen
+  // en de x van de ándere rij sprong mee. Nu bepaalt de eerste as van een dialoogsessie de
+  // dagbreedte en houden alle volgende die vast; groeit de dagenset, dan wordt de as breder naar
+  // RECHTS, in de horizontale scroll-container die er toch al omheen zit.
+  const dayWidthRef = useRef<{ key: string; dayWidth: number } | null>(null);
+  const sessionKey = tune ? `${tune.companyId}/${tune.libraryItemId}` : '';
+  if (dayWidthRef.current !== null && dayWidthRef.current.key !== sessionKey) dayWidthRef.current = null;
 
   const poolItem = tune ? pools[tune.companyId]?.resources.find(r => r.id === tune.libraryItemId) : undefined;
   const itemName = poolItem?.name || tune?.libraryItemId || '';
@@ -235,8 +279,23 @@ export function DistributionDialog() {
       )) days.add(iso);
     }
 
-    return { axis: buildOccupancyAxis([...days], { targetWidth: 560 }), docs };
-  }, [tune, proposal, poolItem, orderBase, bookingByDoc, afterByDoc]);
+    // De as vult de GEMETEN ruimte tussen label en uitkomstlabel (`minWidth`), met een dagbreedte
+    // die de eerste as van deze dialoogsessie vastlegde (`fixedDayWidth`). Zijn er weinig dagen,
+    // dan blijft de rest lege track met week- en maandlijnen — dat is precies de bedoeling: je
+    // ziet dan waar de ruimte is die je met de greep kunt pakken.
+    const axis = buildOccupancyAxis([...days], {
+      targetWidth: trackSpace,
+      maxDayWidth: DIALOG_MAX_DAY_WIDTH,
+      minWidth: trackSpace,
+      ...(dayWidthRef.current ? { fixedDayWidth: dayWidthRef.current.dayWidth } : {}),
+    });
+    if (axis && !dayWidthRef.current) dayWidthRef.current = { key: sessionKey, dayWidth: axis.dayWidth };
+    return { axis, docs };
+    // `dayWidthRef`/`sessionKey` horen bewust NIET in de deps: de ref is een sessiecache, geen
+    // invoer — hem hier opnemen zou de as juist opnieuw laten fitten, wat deze hele constructie
+    // moet voorkomen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tune, proposal, poolItem, orderBase, bookingByDoc, afterByDoc, trackSpace]);
 
   // Eén kleurtoewijzing voor de hele dialoog (fixronde-2 bevinding B9): de balken EN de
   // legenda/staven van de voor/na-grafiek lezen dezelfde map, zodat "project B" boven en onder
@@ -541,7 +600,7 @@ export function DistributionDialog() {
 
             {/* (3)(4) DE BALKEN EN DE UITKOMST, in ÉÉN horizontale scroll-container zodat ze
                 kolom-op-kolom uitgelijnd blijven — ook tijdens het scrollen (spec §3.4). */}
-            <div className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
+            <div ref={scrollerRef} className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
               <div className="inline-flex flex-col gap-1 min-w-full" data-ops-distribution-strips>
                 {(stripView?.docs ?? []).map(doc => {
                   const recorded = doc.pinnedReason === 'dates-as-recorded';

@@ -65,10 +65,23 @@ export function expandDays(from: string, to: string): string[] {
  * zodat de tijd daar proportioneel blijft.
  *
  * Geeft `null` wanneer er geen enkele dag is — de aanroeper toont dan zijn eigen lege toestand.
+ *
+ * DE DRIE EXTRA OPTIES ZIJN ER VOOR DE VERDEELDIALOOG (polishronde 2026-09-14) en veranderen het
+ * bestaande pad — een aanroep zónder die opties, zoals het bezettingshistogram — in niets:
+ *
+ * - `maxDayWidth` verruimt het plafond op de dagbreedte. Het histogram wil smalle kolommen over een
+ *   heel project; de dialoog toont vaak maar een handvol dagen en mag die breder tekenen.
+ * - `minWidth` rekt alleen de TOTALE breedte op, nooit de dagbreedte: de dagen blijven staan waar ze
+ *   stonden en de rest is lege track. Zo vult de balk de dialoog zonder dat twee dagen metersbrede
+ *   blokken worden.
+ * - `fixedDayWidth` slaat de fit-berekening over. De dialoog bepaalt de dagbreedte ÉÉN keer bij het
+ *   openen en houdt hem daarna vast: zonder dat verandert elke herberekening de dagbreedte (de
+ *   dagenset groeit mee met het plafond), schoof de as onder de muis weg tijdens het slepen en
+ *   sprong de andere rij mee.
  */
 export function buildOccupancyAxis(
   bookedDays: string[],
-  opts?: { targetWidth?: number },
+  opts?: { targetWidth?: number; maxDayWidth?: number; minWidth?: number; fixedDayWidth?: number },
 ): OccupancyAxis | null {
   const sortedBooked = [...new Set(bookedDays)].sort();
   if (sortedBooked.length === 0) return null;
@@ -89,9 +102,9 @@ export function buildOccupancyAxis(
   ranges.push({ from, to: prev });
 
   const totalDays = ranges.reduce((n, r) => n + diffDays(r.from, r.to) + 1, 0);
-  const dayWidth = Math.max(
+  const dayWidth = opts?.fixedDayWidth ?? Math.max(
     AXIS.minDayWidth,
-    Math.min(AXIS.maxDayWidth, Math.floor((opts?.targetWidth ?? AXIS.targetWidth) / totalDays)),
+    Math.min(opts?.maxDayWidth ?? AXIS.maxDayWidth, Math.floor((opts?.targetWidth ?? AXIS.targetWidth) / totalDays)),
   );
 
   const segments: OccupancyAxisSegment[] = [];
@@ -106,7 +119,10 @@ export function buildOccupancyAxis(
     segments.push({ days, x0: cursor });
     cursor += days.length * dayWidth;
   }
-  const width = cursor + AXIS.padRight;
+  // `minWidth` rekt ALLEEN dit eindgetal op — `cursor` en dus elke dag-x is er al langs. De extra
+  // breedte is lege track rechts van de laatste dag; week- en maandlijnen tekent de aanroeper op
+  // zijn eigen segmentdagen en lopen daar dus niet doorheen.
+  const width = Math.max(cursor + AXIS.padRight, opts?.minWidth ?? 0);
 
   const xByIso = new Map<string, number>();
   for (const segment of segments) {
