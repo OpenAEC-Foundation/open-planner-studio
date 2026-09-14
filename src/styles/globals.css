@@ -1299,6 +1299,17 @@ button.task-grid-relation-reference {
   --theme-active: #D97706;
   --theme-active-border: #EA580C;
   --theme-warning-text: #F59E0B;
+  /* Semantische tekstkleuren, donkere variant — LET OP: dit blok is `:root, [data-theme="dark"]`,
+     dus dit is de basis en het lichte thema zet verderop zijn eigen, verzadigde waarden terug.
+     De oorspronkelijke waarden waren op wit gekozen: als TEKST op een donkere kaart haalt #DC2626
+     maar 2,55:1 (gemeten 2026-09-14 op de validatiestrook van de verdeeldialoog, tekst op een
+     10%-color-mix-tint). Deze lichtere tinten halen daar >=4,5:1.
+     Let op: waar deze tokens als ACHTERGROND met witte tekst dienen (.ops-toast, .btn--danger)
+     zetten de regels verderop in dit bestand een eigen donkere tint terug — een lichte tint is
+     een tekstkleur, geen vlakkleur. */
+  --success: #4ADE80;
+  --error: #FCA5A5;
+  --warning: #FBBF24;
   --theme-grid-weekend: rgba(255, 255, 255, 0.035);
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
      aaneen), dus bewust nog subtieler dan de per-dag weekend-arcering hierboven. */
@@ -1402,6 +1413,11 @@ button.task-grid-relation-reference {
   /* U2: één balkpalet — gelijk aan --color-task-float, geen thema-eigen groen meer. */
   --theme-bar-float: #1E976F;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
+  /* Semantische tekstkleuren, verzadigd — op een witte kaart is dit de leesbare kant (de lichtere
+     tinten uit het gedeelde blok hierboven zijn daar juist onleesbaar). */
+  --success: #16A34A;
+  --error: #DC2626;
+  --warning: #F59E0B;
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;
   --theme-scrollbar-track: #E5E5E8;
@@ -1470,6 +1486,11 @@ button.task-grid-relation-reference {
   --theme-bar-float: #34D399;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
   --theme-critical-text: #FF6B6B;
+  /* Semantische tekstkleuren, nog helderder dan in dark — dit thema mikt op AAA op zwart
+     (>=7:1 als tekst op de 10%-tint). Zie de noot in het dark-blok over achtergrondgebruik. */
+  --success: #86EFAC;
+  --error: #FCA5A5;
+  --warning: #FDE047;
   --theme-input-bg: #000000;
   --theme-dropdown-bg: #0a0a0a;
   --theme-scrollbar-track: #0a0a0a;
@@ -2253,4 +2274,22 @@ input[type="checkbox"]:disabled {
 .table-cell-cursor {
   text-decoration: underline dotted var(--theme-text-dim);
   text-underline-offset: 3px;
+}
+
+/* ── Semantische tokens als VLAK, niet als tekst ───────────────────────────────────────────────
+   In dark/high-contrast zijn --success/--error/--warning opgetild tot leesbare TEKSTkleuren op een
+   donkere kaart (zie de noot in het [data-theme="dark"]-blok). Op de handvol plekken waar zo'n
+   token juist een ACHTERGROND onder witte tekst is, zou die verhoging het omgekeerde doen: wit op
+   #FCA5A5 haalt 1,9:1. Daar gaat het vlak daarom terug naar de verzadigde variant; de witte tekst
+   houdt zo zijn 4,8:1. */
+[data-theme="dark"] .ops-toast,
+[data-theme="dark"] .ops-toast.toast-error,
+[data-theme="dark"] .btn--danger,
+[data-theme="dark"] .ribbon-btn.danger:hover,
+[data-theme="high-contrast"] .ops-toast,
+[data-theme="high-contrast"] .ops-toast.toast-error,
+[data-theme="high-contrast"] .btn--danger,
+[data-theme="high-contrast"] .ribbon-btn.danger:hover {
+  background: #DC2626;
+  border-color: #DC2626;
 }
