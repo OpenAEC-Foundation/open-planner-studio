@@ -8,7 +8,7 @@ import {
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
+  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette, MoveHorizontal,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
   FileDown, FileUp,
@@ -19,7 +19,7 @@ import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import {
-  saveShowBaselineOverlay, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
+  saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
 import type { RibbonTab } from '@/state/slices/types';
 import {
@@ -786,6 +786,16 @@ const beeldTab: RibbonTabConfig = [
               const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
               const setUI = useAppStore(s => s.setUI);
               return { active: showResourceAccent, onClick: () => { const next = !showResourceAccent; setUI({ showResourceAccent: next }); void saveShowResourceAccent(next); } };
+            },
+          },
+          {
+            // #130: de groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
+            // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
+            kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
+            use: () => {
+              const showFloatBand = useAppStore(s => s.ui.showFloatBand);
+              const setUI = useAppStore(s => s.setUI);
+              return { active: showFloatBand, onClick: () => { const next = !showFloatBand; setUI({ showFloatBand: next }); void saveShowFloatBand(next); } };
             },
           },
         ],

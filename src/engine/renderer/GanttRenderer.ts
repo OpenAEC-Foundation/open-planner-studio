@@ -52,6 +52,9 @@ export interface GanttRenderOptions {
   /** #21: dun streepje resourcekleur ónder elke bladbalk (gesegmenteerd bij meerdere resources).
    *  Supplement, geen vervanging: de balkvulling blijft kritiek-pad-gekleurd. */
   showResourceAccent?: boolean;                          // UI-toggle
+  /** #130: de groene speling-band ná een niet-kritieke balk. Ontbreekt of `true` ⇒ tekenen (het
+   *  gedrag van vóór de toggle); `false` ⇒ de band bestaat niet, ook niet in de cull-test. */
+  showFloatBand?: boolean;                               // UI-toggle
   /** Donker schermthema: het resource-accent verlicht te donkere kleuren naar een minimale
    *  zichtbaarheid (#21 — gemeten: slate-achtige tinten vielen weg op de donkere werkruimte).
    *  De EXPORT past dit NIET toe: papier is licht, daar staat de exacte kleur. */
@@ -1176,7 +1179,8 @@ export class GanttRenderer {
     // — ook voor een gesplitste taak. De segmenten (`segs`, hieronder) worden pas ná deze return
     // berekend en zijn nooit breder dan `[x1,x2]`, dus "volledig buiten beeld" op de volle extent
     // impliceert hetzelfde voor elk segment (`check-gantt-float-cull.ts` bewaakt dit).
-    const floatWidth = task.time.totalFloat > 0 && !task.time.isCritical
+    // #130: staat de band uit, dan is zijn breedte 0 — de cull-test valt dan terug op de balk zelf.
+    const floatWidth = this.opts.showFloatBand !== false && task.time.totalFloat > 0 && !task.time.isCritical
       ? task.time.totalFloat * this.opts.view.zoom
       : 0;
     if (x2 + floatWidth < 0 || x1 > this.opts.canvasWidth) return 0;

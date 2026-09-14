@@ -198,6 +198,47 @@ test('Gantt viewport: de werkdag-as onthult een bestaande berekende taak zonder 
   expect((await state(page)).view.scrollX).toBe(afterPlainClick.view.scrollX);
 });
 
+test('Gantt viewport: na onthulling vanuit de tabel blijft de tijdlijn vrij scrollbaar (issue #118)', async ({ page, ops: _ops }) => {
+  const [, farId] = await seedProject(page, [
+    { name: 'Vrij begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
+    { name: 'Vrij doel', start: '2028-07-03', finish: '2028-07-14', durationDays: 10 },
+  ]);
+  const bounds = await primaryCanvasBounds(page);
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({
+      scrollMode: 'modifier',
+      modifierMap: { plain: 'horizontal', ctrl: 'zoom', shift: 'vertical' },
+    });
+    s.runCPM();
+    s.setZoom(60);
+    s.setScroll(0, 0);
+  });
+  const farPoint = await barPoint(page, farId);
+  expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
+
+  const farCell = ganttTaskCell(page, farId);
+  await farCell.click();
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([farId]);
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
+  const revealedX = (await state(page)).view.scrollX;
+
+  // Escape deselecteert de taak in het raster; het onthulverzoek mag daarna niet blijven hangen.
+  await farCell.press('Escape');
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([]);
+
+  // Een echt wielevent scrolt terug naar het begin. Vóór de fix trok het onthuleffect de balk bij
+  // iedere scroll meteen weer in beeld, zodat scrollX nooit onder de onthulwaarde bleef.
+  await page.mouse.move(bounds.x + bounds.width * 0.6, bounds.y + bounds.height * 0.6);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeLessThan(revealedX);
+  const afterFirstWheel = (await state(page)).view.scrollX;
+  await page.mouse.wheel(0, -400);
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeLessThanOrEqual(afterFirstWheel);
+  await expect.poll(() => barPoint(page, farId).then(point => point.x)).toBeGreaterThan(bounds.x + bounds.width);
+  expect((await state(page)).view.scrollX).toBeLessThan(revealedX);
+});
+
 test('Gantt viewport: pijlnavigatie onthult op de werkdag-as de volgende verborgen taak zonder zoomsprong', async ({ page, ops: _ops }) => {
   const [nearId, farId] = await seedProject(page, [
     { name: 'Toets werkdag begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },

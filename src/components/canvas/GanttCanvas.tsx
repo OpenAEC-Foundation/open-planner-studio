@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
@@ -179,6 +180,7 @@ export function GanttCanvas({
   // #21: resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/
   // tabelweergave — de renderer krijgt alles doorgegeven en leeft buiten de store).
   const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
+  const showFloatBand = useAppStore(s => s.ui.showFloatBand);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
@@ -367,8 +369,15 @@ export function GanttCanvas({
     state.setScroll(Math.max(0, startX - 40), currentView.scrollY);
   }, [canvasRef, sharedAxis]);
 
+  // Issue #118: een onthulverzoek is eenmalig. `revealTaskIfOffscreen` hangt aan `sharedAxis`,
+  // die bij iedere scrollX-wijziging opnieuw gebouwd wordt; zonder deze poort vuurde het effect
+  // daardoor bij élke scroll opnieuw voor hetzelfde verzoek en trok het de balk telkens terug in
+  // beeld — de Gantt zat "vast" aan de laatst in de tabel aangeklikte taak, ook na deselectie.
+  const handledRevealNonceRef = useRef<number | null>(null);
   useEffect(() => {
     if (!revealRequest) return;
+    if (handledRevealNonceRef.current === revealRequest.nonce) return;
+    handledRevealNonceRef.current = revealRequest.nonce;
     const task = tasks.find(candidate => candidate.id === revealRequest.taskId);
     if (task) revealTaskIfOffscreen(task);
   }, [revealRequest, tasks, revealTaskIfOffscreen]);
@@ -501,6 +510,7 @@ export function GanttCanvas({
     showStatusDateLine,
     showProgressLine,
     showResourceAccent,
+    showFloatBand,
     barColorSelection,
     activityCodeTypes,
     customFieldDefs,
@@ -531,7 +541,7 @@ export function GanttCanvas({
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
   // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
@@ -550,6 +560,7 @@ export function GanttCanvas({
       showStatusDateLine,
       showProgressLine,
       showResourceAccent,
+      showFloatBand,
       barColorSelection,
       activityCodeTypes,
       customFieldDefs,
@@ -584,7 +595,7 @@ export function GanttCanvas({
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {

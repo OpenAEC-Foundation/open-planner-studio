@@ -21,6 +21,8 @@ Press **F5** (or the **Calculate** button) to run the schedule. The status bar a
 
 Double-click a task and look in the **CPM Result** section for the exact numbers: **Early start**, **Early finish**, **Late start**, **Late finish**, **Total float**, **Free float** and (where applicable) **Interfering float**, plus whether the task is on the **Critical path**. Want these fields as columns in the task table? **View → Columns…** and check them.
 
+In the Gantt chart, the total float of a non-critical task is drawn as a light green band that continues after the bar up to the late finish date. If you would rather not see those bands — for a calmer picture in a presentation, say — switch them off via **View → ribbon group Baselines & progress → Float band**. The choice is remembered; the computed float itself stays available in the properties panel and the columns.
+
 ### Total, free and interfering float
 
 - **Total float** — how much a task can slip in total without touching the project end date. Zero means critical.
