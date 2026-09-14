@@ -140,6 +140,8 @@ export function PhaseStrip({
     slackWorkdays: slackWorkdays ?? 0,
     ceilingWorkdays: displayCeiling,
     endShiftWorkdays,
+    // Bij een tekort tekent de rij ook waar het werk VÓÓR de verdeling stond — zie `ghostBlocks`.
+    showGhosts: shortfallCount > 0,
   });
 
   const handleX = geometry?.handleX ?? AXIS.padLeft;
@@ -381,6 +383,21 @@ export function PhaseStrip({
               data-ops-distribution-tail
             />
           )}
+
+          {/* SPOOKBLOKJES bij een tekort: waar dit werk stond vóór de verdeling, omlijnd in de
+              projectkleur en zonder vulling. Vóór de polishronde van 2026-09-14 was de track van
+              een project dat nergens paste helemaal LEEG — nu zie je wát er niet past. Ze staan
+              ONDER de echte dagblokjes zodat een deels geplaatst project geen dubbel blokje geeft. */}
+          {(geometry?.ghostBlocks ?? []).map(block => (
+            <rect
+              key={`g-${block.iso}`}
+              x={block.x + 0.5} y={STRIP.blockTop}
+              width={Math.max(1, block.w - 1)} height={STRIP.blockHeight}
+              fill="none" stroke={color} strokeWidth={1} strokeDasharray="2 2" rx={2}
+              opacity={0.8}
+              data-ops-doc-id={docId} data-ops-distribution-day="unplaced"
+            />
+          ))}
 
           {/* De dagblokjes. Een werkdag in de projectkleur met een 1 px witte scheiding rechts
               (`.pwork`), een pauzedag gearceerd met een dun grijs randje (`.ppause`). */}

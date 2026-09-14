@@ -254,6 +254,42 @@ ok(dw > 0, `de dagbreedte is positief (${dw})`);
     `7 — de plafonddatum blijft de ECHTE kalenderdatum, ook buiten de as (kreeg ${g.ceilingEndIso})`);
 }
 
+// ── Geval 8: DE SPOOKBLOKJES BIJ EEN TEKORT (polishronde 2026-09-14, bevinding 6) ────────────
+// Een project dat de motor nergens kwijt kon boekt ná de verdeling niets meer. Zonder spoken is
+// zijn track dan volkomen leeg en lijkt er iets stuk; mét spoken zie je precies wát er niet past.
+{
+  const before = load(['2026-09-07', '2026-09-08', '2026-09-09']);
+  const input = {
+    axis,
+    beforeLoadByDay: before,
+    loadByDay: {},
+    fixedLoadByDay: {},
+    isWorkingDay,
+    slackWorkdays: 2,
+    ceilingWorkdays: 2,
+    endShiftWorkdays: 0,
+  };
+
+  const off = buildStripGeometry(input);
+  ok(off.ghostBlocks.length === 0, '8 — zonder `showGhosts` blijft de spooklijst leeg (bestaand pad)');
+
+  const on = buildStripGeometry({ ...input, showGhosts: true });
+  ok(on.blocks.length === 0, '8 — er staat na de verdeling nog steeds geen enkel echt dagblokje');
+  ok(on.ghostBlocks.length === 3, `8 — de drie VÓÓR-dagen komen terug als spook (kreeg ${on.ghostBlocks.length})`);
+  ok(on.ghostBlocks[0].x === xAt('2026-09-07'), '8 — het eerste spook staat op de oorspronkelijke startdag');
+  ok(on.ghostBlocks[0].w === dw, '8 — een spook is precies één dagbreedte');
+
+  // Een DEELS geplaatst project: de dag die wél geplaatst is hoort géén spook te krijgen, anders
+  // staan er twee blokjes over elkaar heen.
+  const partly = buildStripGeometry({
+    ...input,
+    loadByDay: load(['2026-09-08']),
+    showGhosts: true,
+  });
+  ok(partly.ghostBlocks.length === 2, '8 — een dag die wél geplaatst is krijgt geen spook');
+  ok(partly.ghostBlocks.every(b => b.iso !== '2026-09-08'), '8 — en dat is precies de geplaatste dag');
+}
+
 // ── De verschil-prijs (§2.2) ─────────────────────────────────────────────────────────────────
 ok(savingsWorkdays(5, 2) === 3, 'prijs — uit 5, aan 2 ⇒ bespaart 3 werkdagen');
 ok(savingsWorkdays(4, 4) === 0, 'prijs — even duur ⇒ bespaart niets');

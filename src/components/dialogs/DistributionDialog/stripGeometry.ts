@@ -67,6 +67,13 @@ export interface StripBand {
 
 export interface StripGeometry {
   blocks: StripBlock[];
+  /**
+   * SPOOKBLOKJES: waar het werk VÓÓR de verdeling stond, op de dagen waar de NA-stand niets meer
+   * heeft staan. Alleen gevuld wanneer de aanroeper `showGhosts` zet — dat doet hij bij een tekort.
+   * Zonder dit toont een project dat de motor nergens kwijt kon een volkomen LEGE track, en dat las
+   * als een weergavefout in plaats van als "dit past niet"; nu zie je wát er niet past.
+   */
+  ghostBlocks: StripBlock[];
   /** De vaste last van gepinde/#63-documenten, samengevoegd tot aaneengesloten banden. */
   fixedBands: StripBand[];
   /** "Toegestaan maar niet benut": van het fase-einde tot de handle. `null` ⇒ niets over. */
@@ -105,6 +112,9 @@ export interface StripGeometryInput {
   ceilingWorkdays: number | null;
   /** De benutte uitloop (`DistributionDocResult.endShiftWorkdays`). */
   endShiftWorkdays: number;
+  /** Teken de VÓÓR-boeking als spookblokjes waar de NA-stand leeg is (zie `ghostBlocks`). De
+   *  aanroeper zet dit bij een tekort; standaard uit, dus een bestaande aanroep verandert niets. */
+  showGhosts?: boolean;
 }
 
 /** Alle kalenderdagen van de as met hun x, in tekenvolgorde. */
@@ -201,7 +211,7 @@ function advanceWorkdays(
 export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
   const {
     axis, beforeLoadByDay, loadByDay, fixedLoadByDay, isWorkingDay,
-    slackWorkdays, ceilingWorkdays, endShiftWorkdays,
+    slackWorkdays, ceilingWorkdays, endShiftWorkdays, showGhosts = false,
   } = input;
   const dayWidth = axis.dayWidth;
   const days = axisDayXs(axis);
@@ -227,6 +237,18 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
   // document niets te maken had. Het eerlijke anker is dan de VÓÓR-stand: daar stond dit werk,
   // en daar hoort de bediening bij. Alleen als ook die leeg is (niets vóór, niets ná) valt er
   // niets te ankeren en blijft `padLeft` over.
+  // (1b) De spookblokjes van de VÓÓR-stand op de dagen die de NA-stand niet meer bezet. Alleen
+  // WERKDAGEN met een echte boeking: een spook is "hier stond werk dat nu nergens staat", geen
+  // arcering van weekenden.
+  const ghostBlocks: StripBlock[] = [];
+  if (showGhosts) {
+    for (const day of days) {
+      if ((beforeLoadByDay[day.iso] ?? 0) <= 0) continue;
+      if ((loadByDay[day.iso] ?? 0) > 0) continue;
+      ghostBlocks.push({ iso: day.iso, x: day.x, w: dayWidth, kind: 'work' });
+    }
+  }
+
   const origEnd = lastBookedDay(beforeLoadByDay);
   const anchorEnd = last ?? origEnd;
   const phaseEndX = anchorEnd === null ? AXIS.padLeft : rightEdgeX(axis, anchorEnd);
@@ -282,7 +304,7 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
   }
 
   return {
-    blocks, fixedBands, freeBox, slackBar, overrunBar,
+    blocks, ghostBlocks, fixedBands, freeBox, slackBar, overrunBar,
     handleX, phaseEndX, ceilingEndIso, weekLines, monthLines,
   };
 }
