@@ -25,6 +25,7 @@
   "zoom": "Powiększenie:",
   "previewQuality": { "label": "Jakość podglądu", "standard": "Standardowa", "high": "Wysoka", "maximum": "Maksymalna" },
   "repeatHeader": "Powtarzaj nagłówek na każdej stronie",
+  "repeatFooter": "Powtarzaj stopkę na każdej stronie",
   "reportFontScaleLabel": "Rozmiar czcionki:",
   "timelineColumnsLabel": "Oś czasu na:",
   "timelineColumnsHint": "Tylko przy automatycznym dopasowaniu",
@@ -39,8 +40,6 @@
   "exportPDF": "Eksportuj PDF",
   "noTasks": "Brak zadań do wyświetlenia",
   "printed": "Wydrukowano:",
-  "page": "Strona",
-  "of": "z",
   "today": "Dzisiaj",
   "previewPageLimit_one": "… i jeszcze {{count}} strona — wyeksportuj, aby zobaczyć cały dokument",
   "previewPageLimit_few": "… i jeszcze {{count}} strony — wyeksportuj, aby zobaczyć cały dokument",
@@ -71,6 +70,7 @@
   "reportType": {
     "label": "Typ raportu",
     "gantt": "Wykres Gantta",
+    "resourceGantt": "Diagram zasobów",
     "milestones": "Przegląd punktów kontrolnych",
     "variance": "Variance",
     "lookAhead": "Prognoza (look-ahead)",
@@ -137,6 +137,14 @@
   "followView": "Podążaj za widokiem (filtr, grupowanie, sortowanie)",
   "statusDateLabel": "Data statusu",
   "progressDateLabel": "Data postępu",
+  "resourceGantt": {
+    "pageBreakPerResource": "Każdy zasób na nowej stronie",
+    "includeUnassigned": "Uwzględnij zadania bez zasobu",
+    "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",
+    "resources": "Zasoby:",
+    "assignments": "Przypisania:",
+    "unassigned": "Bez zasobu:"
+  },
   "tableReports": {
     "notCalculatedNote": "Jeszcze nie obliczono — naciśnij Oblicz (F5), aby uzyskać daty i zapasy.",
     "staleNote": "Harmonogram zmienił się od ostatniego obliczenia — naciśnij Oblicz (F5), aby zobaczyć aktualne wartości.",

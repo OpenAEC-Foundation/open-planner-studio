@@ -25,6 +25,7 @@
   "zoom": "Yakınlaştırma:",
   "previewQuality": { "label": "Önizleme kalitesi", "standard": "Standart", "high": "Yüksek", "maximum": "Maksimum" },
   "repeatHeader": "Üstbilgiyi her sayfada yinele",
+  "repeatFooter": "Altbilgiyi her sayfada yinele",
   "reportFontScaleLabel": "Yazı boyutu:",
   "timelineColumnsLabel": "Zaman çizelgesi:",
   "timelineColumnsHint": "Yalnızca otomatik sığdırmada",
@@ -37,8 +38,6 @@
   "exportPDF": "PDF dışa aktar",
   "noTasks": "Görüntülenecek görev yok",
   "printed": "Yazdırıldı:",
-  "page": "Sayfa",
-  "of": "/",
   "today": "Bugün",
   "previewPageLimit_one": "… ve {{count}} sayfa daha — tam belge için dışa aktarın",
   "previewPageLimit_other": "… ve {{count}} sayfa daha — tam belge için dışa aktarın",
@@ -65,6 +64,7 @@
   "reportType": {
     "label": "Rapor türü",
     "gantt": "Gantt şeması",
+    "resourceGantt": "Kaynak diyagramı",
     "milestones": "Kilometre taşı özeti",
     "variance": "Variance",
     "lookAhead": "İleriye bakış (look-ahead)",
@@ -131,6 +131,14 @@
   "followView": "Görünüme uy (filtre, gruplama, sıralama)",
   "statusDateLabel": "Durum tarihi",
   "progressDateLabel": "İlerleme tarihi",
+  "resourceGantt": {
+    "pageBreakPerResource": "Her kaynak yeni bir sayfada",
+    "includeUnassigned": "Kaynaksız görevleri dahil et",
+    "empty": "Kaynak ataması yok — önce görevlere kaynak atayın.",
+    "resources": "Kaynaklar:",
+    "assignments": "Atamalar:",
+    "unassigned": "Kaynaksız:"
+  },
   "tableReports": {
     "notCalculatedNote": "Henüz hesaplanmadı — tarihler ve bolluklar için Hesapla (F5) tuşuna basın.",
     "staleNote": "Program son hesaplamadan beri değişti — güncel değerler için Hesapla (F5) tuşuna basın.",

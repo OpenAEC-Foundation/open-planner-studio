@@ -34,6 +34,25 @@ Rapordaki ilişki çizgileri, Gantt görünümüyle aynı görsel dili kullanır
 
 Üstteki özet bloğu, projedeki görevlerin, yaprak görevlerin, kritik görevlerin ve ilişkilerin canlı sayısını gösterir. Ayarlar paneli seçimlerinizi oturumlar arasında hatırlar — Rapor sekmesini daha sonra tekrar açtığınızda kağıt boyutu, açma/kapamalar, yazı boyutu ve gerisi tam olarak bıraktığınız gibi geri gelir. Yalnızca şirket alanı sıfırlanır: her zaman projenin kendi ayarından başlar, böylece bir rapor asla başka bir projenin şirket adını devralmaz.
 
+### Kaynak diyagramı
+
+Aynı Gantt çıktısı, ancak **kaynağa göre** gruplanmış: her ekip, kişi veya makine kendi bandını
+alır ve altında kendisine atanan görevler başlangıç sırasına göre listelenir. Bu, şantiye toplantısı
+için "kim, neyi, ne zaman yapıyor" görünümüdür; **Her kaynak yeni bir sayfada** seçeneğiyle de
+dağıtılacak kişi başına ayrı bir sayfa olur. İki kaynağı olan bir görev her iki bandın altında da
+görünür; özet görevler dışarıda kalır; bir özet göreve yapılan atama (içe aktarmadan gelebilir) burada
+gösterilmez. **Kaynaksız görevleri dahil et** en alta
+bir *(yok)* bandı ekler; böylece toplantıda henüz kimsenin üstlenmediği işler bir bakışta görülür.
+
+Gantt çıktısının tüm ayarları olduğu gibi geçerlidir — kritik yol, bolluk, çubuk renkleri,
+durum çizgisi, kâğıt, başlık tekrarı — iki istisna dışında: *Görünümü izle* (bu rapor satırlarını
+ekrandan almaz) ve *Bağımlılıklar* (bir görev kendisine atanan her kaynağın altında yer alır, bu
+yüzden bir okun tek bir bağlantı noktası olmaz; bu rapor ok çizmez). Bantlar ada göre değil kaynağa
+göre oluşur: aynı adı taşıyan iki kaynak ayrı ayrı bant alır (*Jan #1*, *Jan #2*). Dolayısıyla Gantt görünümünü önce kendiniz kaynağa göre gruplamanız
+gerekmez. Özet bloğu kaynakları, atamaları ve kaynaksız görevleri sayar. Henüz atama yoksa önizleme
+boş bir sayfa göstermek yerine bunu söyler; atama **Kaynaklar** sekmesinde yapılır (bkz.
+[Kaynaklar ve histogram](docs://gids-resources-histogram)).
+
 ### Kilometre taşı özeti
 
 Projedeki her kilometre taşının bir tablosu: WBS, ad, tür (otomatik/başlangıç/bitiş), tarih, temeldeki kısıtlama veya son tarih, bolluk, kilometre taşının zorunlu olup olmadığı ve durum (planında / kritik / gecikmiş). Özet bloğu, toplam kilometre taşı sayısını, kaçının zorunlu ve kaçının gecikmiş olduğunu gösterir. Bu raporun kağıt boyutu/yön ayarları yoktur — tabloyu gösterildiği gibi tam olarak yazdırır.

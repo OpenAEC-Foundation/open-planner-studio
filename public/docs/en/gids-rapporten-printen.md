@@ -2,13 +2,14 @@
 
 A schedule isn't finished until you can share it — on paper for a site meeting, as an image in a
 presentation, or as an overview of what's coming up and what has already shifted. That's what the
-**Report** tab is for, with ten report types and a print preview.
+**Report** tab is for, with eleven report types and a print preview.
 
 ## What you'll learn here
 
-- The report types on the **Report** tab: the Gantt print, two table reports on milestones and
-  variance, and seven table reports for the weekly site meeting, progress reporting, the schedule
-  review, resources and management.
+- The report types on the **Report** tab: the Gantt print, the resource diagram ("who does what,
+  and when" — one sheet per person if you like), two table reports on milestones and variance, and
+  seven table reports for the weekly site meeting, progress reporting, the schedule review,
+  resources and management.
 - How the print preview works: paper size, orientation and which elements you toggle on/off.
 - How to actually print a report or save it as a file.
 - What **Ctrl+P** does in this app.
@@ -39,6 +40,14 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   independently of the zoom level above.
 - **Repeat header on each page** — on by default; keeps the report header visible on every printed
   page instead of only the first.
+- **Repeat footer on each page** — on by default; puts the footer with project name, print date and
+  legend at the bottom of every page instead of only the last, so a sheet handed out on its own
+  carries its own legend — also when the timeline is spread over several pages side by side. If
+  the whole print fits on one page, the footer simply stays below the last row. The strip costs
+  space on every page: roughly two rows fewer per sheet, so occasionally one page more, and a
+  resource that just fitted on one sheet with *Each resource on a new page* can spill onto two.
+  Off = the footer on the last page only. The page number ("3 / 7") always sits in the bottom
+  margin, separate from the footer; the footer itself no longer carries a page number.
 - **Timeline over** — spreads the Gantt timeline across 1 to 8 pages side by side; only available
   with auto-fit on. Choose more pages when you want a less compressed timeline without reducing
   the table text.
@@ -83,6 +92,28 @@ in the project. The settings panel remembers your choices between sessions — r
 later and paper size, toggles, font size and the rest come back exactly as you left them. Only the
 company field resets: it always starts from the project's own setting, so a report never carries
 over another project's company name.
+
+### Resource diagram
+
+The same Gantt print, but grouped **per resource**: every crew, person or machine gets its own band
+with the tasks assigned to it underneath, in order of start. That is the "who does what, and when"
+overview for the site meeting, or — with the option **Each resource on a new page** — a separate
+sheet per person to hand out. A task with two resources appears under both bands; summary tasks are
+left out — an assignment on a summary task (which an import can produce) is not shown here. **Include tasks without a resource** adds a *(none)* band
+at the bottom, so the meeting can see at a glance what nobody owns yet.
+
+The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
+paper, header repeat — with two exceptions: *Follow view* (this report doesn't take its rows from
+the screen) and *Dependencies* (a task can sit under several bands, and with one sheet per resource arrows
+would run off the sheet; so this report draws none). So there's no need to group the Gantt view by
+resource yourself first. Bands are per resource, not per name: two resources that happen to share a
+name each get their own band (*Jan #1*, *Jan #2*), and a resource without a name gets a sequence
+number. The summary block counts the resources, the assignments and the tasks without a resource —
+that last count includes milestones and hammocks, because they are drawn here (the *Resource
+assignments* table report counts real activities only). With *Repeat footer on each page* (on by
+default) every sheet you hand out carries its own legend. If there are no assignments yet, the preview
+says so instead of showing an empty page; assigning happens on the **Resources** tab (see
+[Resources & histogram](docs://gids-resources-histogram)).
 
 ### Milestone overview
 
@@ -263,8 +294,8 @@ Each report type serves a different conversation:
   look-ahead what has to happen now.
 - **Schedule health** belongs to a schedule review before you record a baseline or attach a
   schedule to a contract: zero errors is the bar.
-- The two **resource** reports and the **WBS summary** serve the staffing meeting and the
-  management overview respectively. All seven table reports also work on the showcase above, which
+- The **resource diagram** is the hand-out "who does what" sheet; the two **resource** tables and
+  the **WBS summary** serve the staffing meeting and the management overview respectively. All seven table reports also work on the showcase above, which
   has a status date, baselines and progress.
 
 The live preview on the right refreshes on every change to the settings on the left — there's no

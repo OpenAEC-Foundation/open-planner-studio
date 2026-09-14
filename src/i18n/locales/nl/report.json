@@ -25,6 +25,7 @@
   "zoom": "Zoomen:",
   "previewQuality": { "label": "Previewkwaliteit", "standard": "Standaard", "high": "Hoog", "maximum": "Maximaal" },
   "repeatHeader": "Kop op elke pagina herhalen",
+  "repeatFooter": "Voet op elke pagina herhalen",
   "reportFontScaleLabel": "Lettergrootte:",
   "timelineColumnsLabel": "Tijdlijn over:",
   "timelineColumnsHint": "Alleen bij automatische passing",
@@ -37,8 +38,6 @@
   "exportPDF": "Exporteer PDF",
   "noTasks": "Geen taken om weer te geven",
   "printed": "Afgedrukt:",
-  "page": "Pagina",
-  "of": "van",
   "today": "Vandaag",
   "previewPageLimit_one": "… en nog {{count}} pagina — exporteer voor het volledige document",
   "previewPageLimit_other": "… en nog {{count}} pagina's — exporteer voor het volledige document",
@@ -65,6 +64,7 @@
   "reportType": {
     "label": "Rapporttype",
     "gantt": "Gantt-afdruk",
+    "resourceGantt": "Resourcediagram",
     "milestones": "Mijlpalen-overzicht",
     "variance": "Variance",
     "lookAhead": "Look-ahead",
@@ -131,6 +131,14 @@
   "followView": "Volg weergave (filter, groepering, sortering)",
   "statusDateLabel": "Statusdatum",
   "progressDateLabel": "Voortgangsdatum",
+  "resourceGantt": {
+    "pageBreakPerResource": "Elke resource op een nieuwe pagina",
+    "includeUnassigned": "Taken zonder resource meenemen",
+    "empty": "Geen resourcetoewijzingen — wijs eerst resources toe aan taken.",
+    "resources": "Resources:",
+    "assignments": "Toewijzingen:",
+    "unassigned": "Zonder resource:"
+  },
   "tableReports": {
     "notCalculatedNote": "Nog niet berekend — druk op Bereken (F5) voor datums en speling.",
     "staleNote": "De planning is gewijzigd sinds de laatste berekening — druk op Bereken (F5) voor actuele waarden.",

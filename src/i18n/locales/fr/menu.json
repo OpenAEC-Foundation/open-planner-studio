@@ -196,6 +196,7 @@
     "columnsHintTable": "Choisir les colonnes de la vue Tableau",
     "columnsHintGoToTable": "Choisir les colonnes de la vue Tableau — visibles sous l’onglet Tableau",
     "toggleResourceAccent": "Accent ressource",
+    "toggleFloatBand": "Bande de marge",
     "screenColors": "Couleurs des barres",
     "screenColors_critical": "Chemin critique",
     "screenColors_auto": "Par tâche — automatique",

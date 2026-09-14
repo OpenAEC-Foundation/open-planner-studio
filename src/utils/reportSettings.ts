@@ -32,9 +32,34 @@ import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 const STORAGE_KEY = 'reportSettings';
 
 export type ReportType =
-  | 'gantt' | 'milestones' | 'variance'
+  | 'gantt'
+  // Resourcediagram (issue #113, gfayat): de Gantt-afdruk gegroepeerd per resource — "wie doet
+  // wat, en wanneer" — met desgewenst een pagina per resource. Zie `src/engine/reports/resourceGantt.ts`.
+  | 'resourceGantt'
+  | 'milestones' | 'variance'
   // Tabelrapporten uit discussie #31 (manuvarkey) — zie `src/engine/reports/`.
   | 'lookAhead' | 'critical' | 'progress' | 'health' | 'resourceLoading' | 'resourceAssignments' | 'wbsSummary';
+
+/**
+ * De rapporttypen die door de Gantt-printpijplijn lopen (`renderReport` → raster-/vector-PDF met
+ * de gepagineerde live preview). Het resourcediagram is dezelfde render met een andere rijenbron;
+ * alle Gantt-tekenopties (kritiek pad, speling, relaties, balkkleuren, statuslijn, …) gelden er dus
+ * onverkort — alleen *Volg weergave* niet, want de rijen komen dan niet van het scherm.
+ */
+export function isGanttReportType(type: ReportType): boolean {
+  return type === 'gantt' || type === 'resourceGantt';
+}
+
+/**
+ * Tekent dit rapporttype relatiepijlen? Het resourcediagram niet: een taak staat er onder élke
+ * resource die eraan hangt, dus de printrender (`rowIndexOf`, laatste kopie wint) zou een pijl op
+ * een willekeurige kopie ankeren en bij "blad per resource" de bladrand af sturen. Eén predicaat voor
+ * de forcering van `showDeps` én het verbergen van het vinkje — twee losse condities lopen uit
+ * elkaar (hyperkritische review op #132, tweede ronde, N6).
+ */
+export function reportTypeDrawsRelations(type: ReportType): boolean {
+  return type !== 'resourceGantt';
+}
 
 /** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
@@ -95,6 +120,22 @@ export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
 export const TABLE_REPORT_PERIOD_KEYS = ['lookAheadPeriod', 'progressPeriod', 'resourceLoadPeriod', 'resourceAssignmentPeriod'] as const;
 export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
 
+/**
+ * Opties van het resourcediagram (issue #113). `pageBreakPerResource` = "een blad per persoon":
+ * elke resource begint op een nieuwe pagina, zodat je per ploeg of medewerker één vel kunt
+ * uitdelen; uit = één doorlopend overlegdocument. `includeUnassigned` neemt de taken zonder
+ * resource als laatste band mee — handig om in een overleg te zien wat nog niemand heeft.
+ */
+export interface ResourceGanttReportOptions {
+  pageBreakPerResource: boolean;
+  includeUnassigned: boolean;
+}
+
+export const DEFAULT_RESOURCE_GANTT_OPTIONS: ResourceGanttReportOptions = {
+  pageBreakPerResource: false,
+  includeUnassigned: false,
+};
+
 /** Grenzen van de numerieke opties (de UI en de loader delen ze). */
 export const TABLE_REPORT_LIMITS = {
   nearCriticalDays: { min: 0, max: 60 },
@@ -129,6 +170,8 @@ export interface ReportSettings {
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
   repeatHeader: boolean;
+  /** Voet (projectnaam, afdrukdatum, legenda) op elke pagina — anders alleen op de laatste. */
+  repeatFooter: boolean;
   timelineColumns: number;
   reportFontScale: number;
   /** Statuslijn in de export (#54), letterlijk drie opties zoals gevraagd. */
@@ -137,6 +180,7 @@ export interface ReportSettings {
   followView: boolean;
   previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
+  resourceGantt: ResourceGanttReportOptions;
 }
 
 /**
@@ -162,16 +206,19 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   paperSize: 'A3',
   orientation: 'landscape',
   repeatHeader: true,
+  // Standaard aan, net als de kop: een uitdeelvel zonder legenda is onleesbaar (issue #113).
+  repeatFooter: true,
   timelineColumns: 1,
   reportFontScale: 100,
   statusLine: 'none',
   followView: false,
   previewQuality: '200',
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
+  resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
 };
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
-const REPORT_TYPES: readonly ReportType[] = ['gantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
+const REPORT_TYPES: readonly ReportType[] = ['gantt', 'resourceGantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
@@ -264,6 +311,16 @@ export function parseTableReportOptions(raw: unknown): TableReportOptions {
   };
 }
 
+function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
+  const d = DEFAULT_RESOURCE_GANTT_OPTIONS;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...d };
+  const s = raw as Record<string, unknown>;
+  return {
+    pageBreakPerResource: parseBoolean(s.pageBreakPerResource) ?? d.pageBreakPerResource,
+    includeUnassigned: parseBoolean(s.includeUnassigned) ?? d.includeUnassigned,
+  };
+}
+
 /**
  * Laad de rapportinstellingen. Tolerant op alle drie de manieren waarop de sleutel "fout" kan staan:
  * hij ontbreekt (verse installatie), hij mist velden (opgeslagen door een oudere versie), of een
@@ -292,6 +349,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     paperSize: parseEnum(PAPER_SIZES, s.paperSize) ?? d.paperSize,
     orientation: parseEnum(ORIENTATIONS, s.orientation) ?? d.orientation,
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,
+    repeatFooter: parseBoolean(s.repeatFooter) ?? d.repeatFooter,
     timelineColumns: parseClampedInt(s.timelineColumns, TIMELINE_COLUMNS_MIN, TIMELINE_COLUMNS_MAX) ?? d.timelineColumns,
     reportFontScale: parseNumberChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
@@ -300,6 +358,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     // sindsdien nooit meer van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
     previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
     tableReports: parseTableReportOptions(s.tableReports),
+    resourceGantt: parseResourceGanttOptions(s.resourceGantt),
   };
 }
 

@@ -12,13 +12,15 @@ import { useAppStore } from '@/state/appStore';
 import {
   type ReportContext, type ReportingPeriod,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
-  computeResourceLoading, computeResourceAssignments, computeWbsSummary, progressState, remainingDays, taskDepths,
+  computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
+  remainingDays, resourceBandLabels, taskDepths,
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
 import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
 import { makeMonthLabeler } from '@/utils/monthLabel';
 import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -460,6 +462,113 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('wbs: volledige boom met activiteiten ⇒ 8 rijen in documentvolgorde', r2.rows.map(x => x.name), ['Fase 1', 'A fundering', 'B casco', 'C gevel', 'E oplevering casco', 'D los werk', 'F lange taak', 'G kort los werk']);
   eq('wbs: niveaus', r2.rows.map(x => x.level), [1, 2, 2, 2, 2, 1, 1, 1]);
   eq('wbs: tellingen', [r2.counts.elements, r2.counts.activities], [1, 7]);
+}
+
+// ── Resourcediagram (issue #113) ─────────────────────────────────────────────────────────────────
+// Per resource-IDENTITEIT een band (niet per naam — review op #132, bevinding 1), daaronder zijn
+// bladtaken op start; een taak met twee resources staat onder beide banden; de "(geen)"-band alleen
+// op verzoek. Op de ReportContext van het hoofdscenario (de store staat inmiddels op een ander
+// project), met synthetische extra resources/toewijzingen.
+{
+  const res = (id: string, name: string): Resource => ({ id, name, type: 'EQUIPMENT', description: '', maxUnits: 1 });
+  const asg = (id: string, taskId: string, resourceId: string): ResourceAssignment => ({ id, taskId, resourceId, unitsPerDay: 1 });
+  const kraan = res('res-kraan', 'Kraan');
+  const base = {
+    tasks: ctx.tasks,
+    resources: [...ctx.resources, kraan],
+    assignments: [...ctx.assignments, asg('asg-kraan', B, kraan.id)],
+  };
+  const opts = { includeUnassigned: false, noneLabel: '(geen)', locale: 'nl' };
+  const label = (row: { kind: string; label?: string }) => (row.kind === 'group' ? row.label : undefined);
+  const bandTasks = (rows: ReturnType<typeof computeResourceGanttRows>['rows'], name: string) => {
+    const start = rows.findIndex(x => label(x) === name);
+    const out: string[] = [];
+    if (start < 0) return out;
+    for (const x of rows.slice(start + 1)) { if (x.kind !== 'task') break; out.push(x.task.id); }
+    return out;
+  };
+
+  const r = computeResourceGanttRows(base, opts);
+  eq('resourceGantt: één band per resource, op naam', r.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1']);
+  // Ploeg 1 → A, B, D; Kraan → B; zonder resource: C, E (mijlpaal is óók een bladtaak), F, G.
+  eq('resourceGantt: tellingen', r.counts, { resources: 2, assignments: 4, unassignedTasks: 4 });
+  eq('resourceGantt: Ploeg 1 heeft A, B en D', [...bandTasks(r.rows, 'Ploeg 1')].sort(), [A, B, D].sort());
+  eq('resourceGantt: Kraan heeft alleen B', bandTasks(r.rows, 'Kraan'), [B]);
+  ok('resourceGantt: B staat onder beide banden', r.rows.filter(x => x.kind === 'task' && x.task.id === B).length === 2);
+  ok('resourceGantt: alle rijsleutels uniek', new Set(r.rows.map(x => x.rowKey)).size === r.rows.length);
+  const starts = bandTasks(r.rows, 'Ploeg 1').map(id => byId(id).time.earlyStart || byId(id).time.scheduleStart);
+  ok('resourceGantt: binnen een band op start gesorteerd', starts.every((d, i) => i === 0 || starts[i - 1] <= d), starts.join(','));
+  ok('resourceGantt: zonder optie geen "(geen)"-band', !r.rows.some(x => label(x) === '(geen)'));
+  ok('resourceGantt: geen verzameltaak tussen de rijen', !r.rows.some(x => x.kind === 'task' && x.task.id === fase));
+  ok('resourceGantt: taakrijen hangen op diepte 1 onder hun band', r.rows.every(x => x.kind !== 'task' || x.depth === 1));
+
+  const r2 = computeResourceGanttRows(base, { ...opts, includeUnassigned: true });
+  eq('resourceGantt: met optie staat "(geen)" als laatste band', r2.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1', '(geen)']);
+  eq('resourceGantt: tellingen ongewijzigd door de optie', r2.counts, r.counts);
+  eq('resourceGantt: de vier taken zonder resource staan onder "(geen)"', [...bandTasks(r2.rows, '(geen)')].sort(), [C, E, F, G].sort());
+
+  // Review-bevinding 1: twee resources met dezelfde naam zijn twee banden, elk met een eigen sleutel;
+  // een taak van beiden staat onder beide — en niet twee keer onder één.
+  const jan1 = res('res-jan-1', 'Jan');
+  const jan2 = res('res-jan-2', 'Jan');
+  const twins = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [jan1, jan2],
+    assignments: [asg('a1', A, jan1.id), asg('a2', A, jan2.id), asg('a3', B, jan2.id)],
+  }, opts);
+  eq('resourceGantt: gelijknamige resources ⇒ twee banden met volgnummer', twins.rows.filter(x => x.kind === 'group').map(label), ['Jan #1', 'Jan #2']);
+  eq('resourceGantt: gelijknamig — tellingen op identiteit', twins.counts, { resources: 2, assignments: 3, unassignedTasks: 5 });
+  eq('resourceGantt: gelijknamig — Jan #1 heeft A', bandTasks(twins.rows, 'Jan #1'), [A]);
+  eq('resourceGantt: gelijknamig — Jan #2 heeft A en B', [...bandTasks(twins.rows, 'Jan #2')].sort(), [A, B].sort());
+  ok('resourceGantt: gelijknamig — rijsleutels uniek', new Set(twins.rows.map(x => x.rowKey)).size === twins.rows.length);
+
+  // Review-bevinding 4: een resource zonder naam verdwijnt niet stil in "(geen)" maar krijgt een surrogaat.
+  const naamloos = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan, res('res-leeg', '  ')],
+    assignments: [asg('a1', A, 'res-leeg')],
+  }, opts);
+  eq('resourceGantt: naamloze resource ⇒ band "#2" (positie in de projectlijst)', naamloos.rows.filter(x => x.kind === 'group').map(label), ['#2']);
+  eq('resourceGantt: naamloze resource — A telt als toegewezen', naamloos.counts, { resources: 1, assignments: 1, unassignedTasks: 6 });
+
+  // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
+  // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).
+  const dubbel = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan],
+    assignments: [asg('a1', A, kraan.id), asg('a2', A, kraan.id), asg('a3', B, 'res-bestaat-niet')],
+  }, opts);
+  eq('resourceGantt: dubbele toewijzing ⇒ één rij', bandTasks(dubbel.rows, 'Kraan'), [A]);
+  // …maar de telling volgt de records, zoals het tabelrapport Resourcetoewijzingen (review N8).
+  eq('resourceGantt: onbekende resource ⇒ taak zonder resource; toewijzingen tellen records', dubbel.counts, { resources: 1, assignments: 2, unassignedTasks: 6 });
+
+  // Bandvolgorde: taal-/cijferbewust ("Ploeg 2" vóór "Ploeg 10"), hoofdletterongevoelig.
+  const p10 = res('p10', 'Ploeg 10'); const p2 = res('p2', 'ploeg 2'); const aa = res('aa', 'Aannemer');
+  const volgorde = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [p10, p2, aa],
+    assignments: [asg('a1', A, p10.id), asg('a2', A, p2.id), asg('a3', A, aa.id)],
+  }, opts);
+  eq('resourceGantt: bandvolgorde cijferbewust en hoofdletterongevoelig', volgorde.rows.filter(x => x.kind === 'group').map(label), ['Aannemer', 'ploeg 2', 'Ploeg 10']);
+
+  // Review N1: de bandvolgorde volgt de meegegeven app-taal, niet de OS-taal van de afdrukker. Het
+  // Zweeds sorteert Å/Ä/Ö ná Z, het Engels/Nederlands bij de A — hetzelfde project, twee volgordes,
+  // dus de parameter moet dragend zijn (en het scherm van de afdrukker irrelevant).
+  const alg = res('alg', 'Älg'); const ost = res('ost', 'Ostersund'); const zorg = res('zorg', 'Zorg');
+  const noords = { tasks: ctx.tasks, resources: [zorg, alg, ost], assignments: [asg('a1', A, alg.id), asg('a2', A, ost.id), asg('a3', A, zorg.id)] };
+  eq('resourceGantt: bandvolgorde in het Engels', computeResourceGanttRows(noords, { ...opts, locale: 'en' }).rows.filter(x => x.kind === 'group').map(label), ['Älg', 'Ostersund', 'Zorg']);
+  eq('resourceGantt: bandvolgorde in het Zweeds (Ä ná Z)', computeResourceGanttRows(noords, { ...opts, locale: 'sv' }).rows.filter(x => x.kind === 'group').map(label), ['Ostersund', 'Zorg', 'Älg']);
+
+  // Review N5: gelijknaamdetectie gebruikt dezelfde collator als de sortering — Jan/jan/" Jan " zijn
+  // drie banden mét volgnummer, in projectvolgorde, en sorteren bij elkaar.
+  const jan = [res('j1', 'Jan'), res('j2', 'jan'), res('j3', ' Jan ')];
+  eq('resourceBandLabels: hoofdletter-/spatievarianten krijgen alle drie een volgnummer', [...resourceBandLabels(jan, 'nl').values()], ['Jan #1', 'jan #2', 'Jan #3']);
+  const janRows = computeResourceGanttRows({ tasks: ctx.tasks, resources: jan, assignments: jan.map((r, i) => asg(`j${i}`, A, r.id)) }, opts);
+  eq('resourceGantt: gelijkende namen sorteren bij elkaar in projectvolgorde', janRows.rows.filter(x => x.kind === 'group').map(label), ['Jan #1', 'jan #2', 'Jan #3']);
+  // Review N4: een surrogaat "#2" naast een resource die letterlijk "#2" heet — beide genummerd.
+  eq('resourceBandLabels: surrogaat botst niet stil met een letterlijke "#2"', [...resourceBandLabels([res('x1', '#2'), res('x2', '')], 'nl').values()], ['#2 #1', '#2 #2']);
+  eq('resourceBandLabels: unieke namen blijven kaal, accentgelijk telt als gelijk', [...resourceBandLabels([res('e1', 'Renée'), res('e2', 'Renee'), res('e3', 'Piet')], 'nl').values()], ['Renée #1', 'Renee #2', 'Piet']);
+
+  // Leeg: geen toewijzingen ⇒ geen rijen; geen taken ⇒ ook geen "(geen)"-band en nultellingen.
+  ok('resourceGantt: geen toewijzingen ⇒ leeg', computeResourceGanttRows({ ...base, assignments: [] }, opts).rows.length === 0);
+  const leeg = computeResourceGanttRows({ tasks: [], resources: base.resources, assignments: base.assignments }, { ...opts, includeUnassigned: true });
+  eq('resourceGantt: leeg project ⇒ geen rijen, nultellingen', [leeg.rows.length, leeg.counts], [0, { resources: 0, assignments: 0, unassignedTasks: 0 }]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

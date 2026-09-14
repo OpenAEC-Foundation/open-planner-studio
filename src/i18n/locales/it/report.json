@@ -25,6 +25,7 @@
   "zoom": "Zoom:",
   "previewQuality": { "label": "Qualità anteprima", "standard": "Standard", "high": "Alta", "maximum": "Massima" },
   "repeatHeader": "Ripeti intestazione su ogni pagina",
+  "repeatFooter": "Ripeti piè di pagina su ogni pagina",
   "reportFontScaleLabel": "Dimensione carattere:",
   "timelineColumnsLabel": "Cronologia su:",
   "timelineColumnsHint": "Solo con adattamento automatico",
@@ -38,8 +39,6 @@
   "exportPDF": "Esporta PDF",
   "noTasks": "Nessuna attività da visualizzare",
   "printed": "Stampato:",
-  "page": "Pagina",
-  "of": "di",
   "today": "Oggi",
   "previewPageLimit_one": "… e {{count}} pagina in più — esporta per il documento completo",
   "previewPageLimit_many": "… e {{count}} pagine in più — esporta per il documento completo",
@@ -68,6 +67,7 @@
   "reportType": {
     "label": "Tipo di report",
     "gantt": "Diagramma di Gantt",
+    "resourceGantt": "Diagramma delle risorse",
     "milestones": "Panoramica attività cardine",
     "variance": "Variance",
     "lookAhead": "Previsione (look-ahead)",
@@ -134,6 +134,14 @@
   "followView": "Segui vista (filtro, raggruppamento, ordine)",
   "statusDateLabel": "Data di stato",
   "progressDateLabel": "Data di avanzamento",
+  "resourceGantt": {
+    "pageBreakPerResource": "Ogni risorsa su una nuova pagina",
+    "includeUnassigned": "Includi le attività senza risorsa",
+    "empty": "Nessuna assegnazione di risorse — assegna prima le risorse alle attività.",
+    "resources": "Risorse:",
+    "assignments": "Assegnazioni:",
+    "unassigned": "Senza risorsa:"
+  },
   "tableReports": {
     "notCalculatedNote": "Non ancora calcolato — premi Calcola (F5) per date e slack.",
     "staleNote": "Il programma è cambiato dall'ultimo calcolo — premi Calcola (F5) per valori aggiornati.",

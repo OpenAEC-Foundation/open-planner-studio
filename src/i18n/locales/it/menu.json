@@ -196,6 +196,7 @@
     "columnsHintTable": "Scegli le colonne della vista Tabella",
     "columnsHintGoToTable": "Scegli le colonne della vista Tabella — visibili nella scheda Tabella",
     "toggleResourceAccent": "Accento risorsa",
+    "toggleFloatBand": "Banda di slack",
     "screenColors": "Colori barre",
     "screenColors_critical": "Percorso critico",
     "screenColors_auto": "Per attività — automatico",

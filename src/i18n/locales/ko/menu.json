@@ -196,6 +196,7 @@
     "columnsHintTable": "테이블 보기의 열 선택",
     "columnsHintGoToTable": "테이블 보기의 열 선택 — 테이블 탭에 표시됩니다",
     "toggleResourceAccent": "리소스 강조",
+    "toggleFloatBand": "여유 시간 띠",
     "screenColors": "막대 색상",
     "screenColors_critical": "임계 경로",
     "screenColors_auto": "작업별 — 자동",

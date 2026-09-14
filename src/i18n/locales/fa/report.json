@@ -25,6 +25,7 @@
   "zoom": "بزرگنمایی:",
   "previewQuality": { "label": "کیفیت پیش‌نمایش", "standard": "استاندارد", "high": "بالا", "maximum": "حداکثر" },
   "repeatHeader": "تکرار سرصفحه در هر صفحه",
+  "repeatFooter": "تکرار پانویس در هر صفحه",
   "reportFontScaleLabel": "اندازه قلم:",
   "timelineColumnsLabel": "خط زمانی روی:",
   "timelineColumnsHint": "تنها با تنظیم خودکار",
@@ -37,8 +38,6 @@
   "exportPDF": "خروجی PDF",
   "noTasks": "وظیفه‌ای برای نمایش وجود ندارد",
   "printed": "چاپ شده:",
-  "page": "صفحه",
-  "of": "از",
   "today": "امروز",
   "previewPageLimit_one": "… و {{count}} صفحه دیگر — برای سند کامل خروجی بگیرید",
   "previewPageLimit_other": "… و {{count}} صفحه دیگر — برای سند کامل خروجی بگیرید",
@@ -66,6 +65,7 @@
   "reportType": {
     "label": "نوع گزارش",
     "gantt": "نمودار گانت",
+    "resourceGantt": "نمودار منابع",
     "milestones": "نمای کلی نقاط عطف",
     "variance": "انحراف",
     "lookAhead": "پیش‌نگر (Look-ahead)",
@@ -132,6 +132,14 @@
   "followView": "دنبال‌کردن نما (فیلتر، گروه‌بندی، مرتب‌سازی)",
   "statusDateLabel": "تاریخ وضعیت",
   "progressDateLabel": "تاریخ پیشرفت",
+  "resourceGantt": {
+    "pageBreakPerResource": "هر منبع در صفحه‌ای جدید",
+    "includeUnassigned": "شامل کردن کارهای بدون منبع",
+    "empty": "هیچ تخصیص منبعی وجود ندارد — ابتدا منابع را به کارها تخصیص دهید.",
+    "resources": "منابع:",
+    "assignments": "تخصیص‌ها:",
+    "unassigned": "بدون منبع:"
+  },
   "tableReports": {
     "notCalculatedNote": "هنوز محاسبه نشده — برای تاریخ‌ها و شناوری‌ها، محاسبه (F5) را بزنید.",
     "staleNote": "برنامه از آخرین محاسبه تغییر کرده — برای مقادیر به‌روز، محاسبه (F5) را بزنید.",

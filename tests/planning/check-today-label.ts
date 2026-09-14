@@ -112,7 +112,7 @@ function labelsOf(loc: string): NonNullable<PrintOptions['labels']> {
     noTasks: j.noTasks, printed: j.printed,
     legend: j.legend,
     tableHeaders: j.tableHeaders,
-    page: j.page, of: j.of, today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
+    today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
   };
 }
 

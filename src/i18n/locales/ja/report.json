@@ -25,6 +25,7 @@
   "zoom": "ズーム：",
   "previewQuality": { "label": "プレビュー品質", "standard": "標準", "high": "高", "maximum": "最大" },
   "repeatHeader": "各ページにヘッダーを繰り返す",
+  "repeatFooter": "各ページにフッターを繰り返す",
   "reportFontScaleLabel": "文字サイズ：",
   "timelineColumnsLabel": "タイムライン：",
   "timelineColumnsHint": "自動調整時のみ",
@@ -36,8 +37,6 @@
   "exportPDF": "PDF エクスポート",
   "noTasks": "表示するタスクがありません",
   "printed": "印刷日：",
-  "page": "ページ",
-  "of": "/",
   "today": "今日",
   "previewPageLimit_other": "… 他 {{count}} ページ — 完全な文書はエクスポートしてください",
   "legend": {
@@ -62,6 +61,7 @@
   "reportType": {
     "label": "レポートの種類",
     "gantt": "ガントチャート",
+    "resourceGantt": "リソース図",
     "milestones": "マイルストーン一覧",
     "variance": "差異",
     "lookAhead": "先行計画 (Look-ahead)",
@@ -128,6 +128,14 @@
   "followView": "ビューに追従（フィルター・グループ化・並べ替え）",
   "statusDateLabel": "ステータス日付",
   "progressDateLabel": "進捗日",
+  "resourceGantt": {
+    "pageBreakPerResource": "リソースごとに改ページ",
+    "includeUnassigned": "リソース未割当のタスクを含める",
+    "empty": "リソースの割当がありません — まずタスクにリソースを割り当ててください。",
+    "resources": "リソース：",
+    "assignments": "割当：",
+    "unassigned": "リソースなし："
+  },
   "tableReports": {
     "notCalculatedNote": "未計算です — 日付とフロートを得るには「計算」(F5) を押してください。",
     "staleNote": "前回の計算以降にスケジュールが変更されました — 最新の値を得るには「計算」(F5) を押してください。",

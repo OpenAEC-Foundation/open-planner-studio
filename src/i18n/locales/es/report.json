@@ -25,6 +25,7 @@
   "zoom": "Zoom:",
   "previewQuality": { "label": "Calidad de vista previa", "standard": "Estándar", "high": "Alta", "maximum": "Máxima" },
   "repeatHeader": "Repetir encabezado en cada página",
+  "repeatFooter": "Repetir pie de página en cada página",
   "reportFontScaleLabel": "Tamaño de letra:",
   "timelineColumnsLabel": "Cronograma en:",
   "timelineColumnsHint": "Solo con ajuste automático",
@@ -38,8 +39,6 @@
   "exportPDF": "Exportar PDF",
   "noTasks": "No hay tareas para mostrar",
   "printed": "Impreso:",
-  "page": "Página",
-  "of": "de",
   "today": "Hoy",
   "previewPageLimit_one": "… y {{count}} página más — exporta para ver el documento completo",
   "previewPageLimit_many": "… y {{count}} páginas más — exporta para ver el documento completo",
@@ -68,6 +67,7 @@
   "reportType": {
     "label": "Tipo de informe",
     "gantt": "Diagrama de Gantt",
+    "resourceGantt": "Diagrama de recursos",
     "milestones": "Resumen de hitos",
     "variance": "Variance",
     "lookAhead": "Previsión (look-ahead)",
@@ -134,6 +134,14 @@
   "followView": "Seguir la vista (filtro, agrupación, orden)",
   "statusDateLabel": "Fecha de estado",
   "progressDateLabel": "Fecha de progreso",
+  "resourceGantt": {
+    "pageBreakPerResource": "Cada recurso en una página nueva",
+    "includeUnassigned": "Incluir tareas sin recurso",
+    "empty": "No hay asignaciones de recursos — asigne primero recursos a las tareas.",
+    "resources": "Recursos:",
+    "assignments": "Asignaciones:",
+    "unassigned": "Sin recurso:"
+  },
   "tableReports": {
     "notCalculatedNote": "Aún no calculado — pulse Calcular (F5) para fechas y holguras.",
     "staleNote": "El cronograma cambió desde el último cálculo — pulse Calcular (F5) para valores actuales.",

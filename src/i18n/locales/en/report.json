@@ -25,6 +25,7 @@
   "zoom": "Zoom:",
   "previewQuality": { "label": "Preview quality", "standard": "Standard", "high": "High", "maximum": "Maximum" },
   "repeatHeader": "Repeat header on each page",
+  "repeatFooter": "Repeat footer on each page",
   "reportFontScaleLabel": "Font size:",
   "timelineColumnsLabel": "Timeline over:",
   "timelineColumnsHint": "Only with auto-fit",
@@ -37,8 +38,6 @@
   "exportPDF": "Export PDF",
   "noTasks": "No tasks to display",
   "printed": "Printed:",
-  "page": "Page",
-  "of": "of",
   "today": "Today",
   "previewPageLimit_one": "… and {{count}} more page — export for the full document",
   "previewPageLimit_other": "… and {{count}} more pages — export for the full document",
@@ -65,6 +64,7 @@
   "reportType": {
     "label": "Report type",
     "gantt": "Gantt chart",
+    "resourceGantt": "Resource diagram",
     "milestones": "Milestone overview",
     "variance": "Variance",
     "lookAhead": "Look-ahead",
@@ -131,6 +131,14 @@
   "followView": "Follow view (filter, grouping, sort)",
   "statusDateLabel": "Status date",
   "progressDateLabel": "Progress date",
+  "resourceGantt": {
+    "pageBreakPerResource": "Each resource on a new page",
+    "includeUnassigned": "Include tasks without a resource",
+    "empty": "No resource assignments — assign resources to tasks first.",
+    "resources": "Resources:",
+    "assignments": "Assignments:",
+    "unassigned": "Without resource:"
+  },
   "tableReports": {
     "notCalculatedNote": "Not calculated yet — press Calculate (F5) for dates and float.",
     "staleNote": "The schedule changed since the last calculation — press Calculate (F5) for current values.",
