@@ -25,6 +25,7 @@
   "zoom": "缩放：",
   "previewQuality": { "label": "预览质量", "standard": "标准", "high": "高", "maximum": "最高" },
   "repeatHeader": "在每页重复页眉",
+  "repeatFooter": "在每页重复页脚",
   "reportFontScaleLabel": "字号：",
   "timelineColumnsLabel": "时间轴跨：",
   "timelineColumnsHint": "仅在自动适配时可用",
@@ -36,8 +37,6 @@
   "exportPDF": "导出 PDF",
   "noTasks": "没有可显示的任务",
   "printed": "打印时间：",
-  "page": "第",
-  "of": "页，共",
   "today": "今天",
   "previewPageLimit_other": "… 还有 {{count}} 页 — 导出以查看完整文档",
   "legend": {

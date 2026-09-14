@@ -48,6 +48,12 @@ export interface PaginateOptions {
    */
   repeatHeaderHeightPx?: number;
   /**
+   * Hoogte (LOGISCHE px, vanaf de ONDERkant van de bron) van de voetstrook — projectnaam,
+   * afdrukdatum, legenda — die op ELKE pagina onderaan herhaald wordt. Vul hier
+   * `renderPrintCanvas().footerHeight` in; 0/afwezig = alleen op de laatste pagina (oud gedrag).
+   */
+  repeatFooterHeightPx?: number;
+  /**
    * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt (issue #25 punt 5). Alleen in
    * `'fit-width'`; default 1 = alles op één paginabreedte persen (oud gedrag).
    */
@@ -120,6 +126,13 @@ export function paginateCanvasToTile(
     }
     drawTile(ctx, canvas, srcScale, win.srcX, row.srcY, win.srcW, row.srcH,
       destXpx, layout.bodyTopPt * pxPt, destWpx, row.srcH * layout.scale * pxPt);
+  }
+  // Voetstrook: één keer per pagina uit het vaste `footerWindow` (x vanaf 0, één paginabreedte) —
+  // niet per kolomvenster gesneden, anders staat de legenda alleen in de kolom waar hij toevallig valt.
+  if (layout.repeatFooterPx > 0) {
+    const fw = layout.footerWindow;
+    drawTile(ctx, canvas, srcScale, fw.srcX, layout.repeatFooterSrcY, fw.srcW, layout.repeatFooterPx,
+      fw.pageX * pxPt, layout.footerTopPt * pxPt, fw.srcW * layout.scale * pxPt, layout.repeatFooterPtH * pxPt);
   }
   ctx.fillStyle = '#999999';
   ctx.font = `${Math.round(8 * pxPt)}px sans-serif`;

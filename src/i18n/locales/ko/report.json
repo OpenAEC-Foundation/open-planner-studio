@@ -25,6 +25,7 @@
   "zoom": "확대/축소:",
   "previewQuality": { "label": "미리 보기 품질", "standard": "표준", "high": "높음", "maximum": "최대" },
   "repeatHeader": "각 페이지에 머리글 반복",
+  "repeatFooter": "각 페이지에 바닥글 반복",
   "reportFontScaleLabel": "글자 크기:",
   "timelineColumnsLabel": "타임라인:",
   "timelineColumnsHint": "자동 맞춤일 때만",
@@ -36,8 +37,6 @@
   "exportPDF": "PDF 내보내기",
   "noTasks": "표시할 작업이 없습니다",
   "printed": "인쇄일:",
-  "page": "페이지",
-  "of": "/",
   "today": "오늘",
   "previewPageLimit_other": "… 외 {{count}}페이지 — 전체 문서를 보려면 내보내세요",
   "legend": {
