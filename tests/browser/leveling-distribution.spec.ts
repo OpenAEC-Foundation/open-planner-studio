@@ -373,6 +373,13 @@ test('plafond-handle: tijdens het slepen beweegt alleen de greep; bij loslaten w
   await page.mouse.move(box.x + box.width / 2 + 5 * dayWidth, box.y - 200, { steps: 4 });
   await expect(handle).toHaveAttribute('aria-valuenow', '5');
 
+  // ...en de GREEP beweegt echt mee onder de muis. Dat is niet vanzelfsprekend zonder de
+  // herberekening: de tijdas groeit tijdens het slepen niet meer mee, dus zonder extrapolatie klemt
+  // de geometrie de greep vast op de rechterrand van het laatste assegment en sleep je een greep
+  // die blijft staan (gemeten 2026-09-14, vóór de extrapolatie in `PhaseStrip`).
+  const handleDuring = (await handle.boundingBox())!;
+  expect(handleDuring.x).toBeGreaterThan(box.x + 4 * dayWidth);
+
   // ...maar de UITKOMST niet: geen herberekening, dus de pil en de validatiestrook staan er nog
   // precies zoals vóór het gebaar. Dít is de flikkering die de eigenaar wegwilde.
   expect(await pill.textContent()).toBe(pillBefore);

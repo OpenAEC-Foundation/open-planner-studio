@@ -127,8 +127,26 @@ export function PhaseStrip({
 
   // Sleepstate: `dragRef` is de bron van waarheid TIJDENS het slepen (geen staleness over
   // event-grenzen heen), `dragValue` de renderbare afgeleide. Niet-`null` ⇒ er wordt nu gesleept.
-  const dragRef = useRef<{ pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number;
+    /** De getekende x van de greep bij `startCeiling`, pas op de EERSTE beweging vastgelegd. */
+    baseHandleX: number | null;
+  } | null>(null);
   const [dragValue, setDragValue] = useState<number | null>(null);
+  // DE GETEKENDE x VAN DE GREEP TIJDENS HET SLEPEN (eigenaarsbesluit 2026-09-14, vervolg).
+  //
+  // Zonder herberekening groeit de TIJDAS tijdens het slepen niet mee, en dan kan de geometrie de
+  // greep niet meer plaatsen: `advanceWorkdays` landt op een datum die niet op de as staat en
+  // `rightEdgeX` klemt die terug op de rechterrand van het laatste assegment. Gemeten op de
+  // screenshot van deze ronde: het uitkomstlabel liep netjes door naar "max 22 okt" terwijl de
+  // greep bij het fase-einde bleef plakken — je sleepte en er bewoog niets.
+  //
+  // Vandaar deze afgeleide: zodra er echt bewogen wordt, tekenen we de greep op zijn ANKER plus het
+  // aantal gesnapte werkdagen × de dagbreedte. Dat is exact de omrekening die `onHandlePointerMove`
+  // óók gebruikt om de waarde te bepalen, dus greep en muis lopen per constructie synchroon. Blijft
+  // `null` tot de eerste beweging — dan staat de geometrie er nog gewoon goed op, ook bij een
+  // plafond dat van ONBEGRENSD komt (waar de greep aan de rechterrand van de as staat).
+  const [dragHandleX, setDragHandleX] = useState<number | null>(null);
   // De greep moet ZICHTBAAR de focus hebben (spec §5): hij wordt met pijltjes bediend, en zonder
   // omranding weet je niet welke van de rijen die toets opvangt. Dat kan hier niet met
   // `:focus-visible` in CSS omdat de hele greep inline gestyled is (zijn x volgt de geometrie), dus
@@ -153,7 +171,15 @@ export function PhaseStrip({
     showGhosts: shortfallCount > 0,
   });
 
-  const handleX = geometry?.handleX ?? AXIS.padLeft;
+  const handleX = dragHandleX ?? geometry?.handleX ?? AXIS.padLeft;
+  // De "toegestaan maar niet benut"-doos loopt van het fase-einde tot de greep (§4), dus zodra de
+  // greep tijdens het slepen geëxtrapoleerd wordt, moet de doos mee — anders zou hij achterblijven
+  // op de oude asrand en de greep los van de balk lijken te zweven.
+  const freeBox = dragHandleX !== null && geometry !== null
+    ? (dragHandleX > geometry.phaseEndX
+      ? { x: geometry.phaseEndX, w: dragHandleX - geometry.phaseEndX }
+      : null)
+    : geometry?.freeBox ?? null;
   const patternId = `ops-pause-${docId}`;
 
   const ceilingText = displayCeiling === null
@@ -223,7 +249,10 @@ export function PhaseStrip({
     // dus niets — terwijl de greep er wel "aangeraakt" uitzag. Focus dus zelf zetten, ná het
     // capturen, zodat toetsenbordbediening naadloos op de muis aansluit.
     event.currentTarget.focus();
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase, moved: false, value: stepBase };
+    dragRef.current = {
+      pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase,
+      moved: false, value: stepBase, baseHandleX: null,
+    };
     setDragValue(stepBase);
   };
 
@@ -232,6 +261,10 @@ export function PhaseStrip({
     if (!drag || drag.pointerId !== event.pointerId) return;
     drag.moved = true;
     if (dayWidth <= 0) return;
+    // Het anker: de x die de geometrie NU voor `startCeiling` tekent. Pas hier vastgelegd en niet
+    // bij `pointerdown`, want daar staat `displayCeiling` nog op de oude waarde — bij een plafond
+    // dat van ONBEGRENSD komt zou dat de rechterrand van de as zijn in plaats van de benutte stand.
+    if (drag.baseHandleX === null) drag.baseHandleX = geometry?.handleX ?? AXIS.padLeft;
     // Snappen op hele werkdagen: dezelfde dayWidth-per-werkdag-conventie die de tekenpositie van de
     // handle hierboven gebruikt. Een tweede, kalenderdaggetrouwe omrekening zou de handle tijdens
     // het slepen van zijn eigen getekende positie laten afwijken.
@@ -241,6 +274,10 @@ export function PhaseStrip({
     // ALLEEN lokale state — géén `commit` hier. Zie de kop van dit bestand: het herrekenen hoort
     // bij het loslaten, zodat de dialoog tijdens het slepen niet staat te knipperen.
     setDragValue(next);
+    setDragHandleX(Math.max(AXIS.padLeft, Math.min(
+      trackWidth - AXIS.padRight,
+      drag.baseHandleX + (next - drag.startCeiling) * dayWidth,
+    )));
   };
 
   const onHandlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -254,6 +291,7 @@ export function PhaseStrip({
     // stand voordat de nieuwe prop binnenkomt. Een zuivere klik (niet bewogen) commit niets.
     if (drag.moved) commit(drag.value);
     setDragValue(null);
+    setDragHandleX(null);
   };
 
   const onHandlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -261,6 +299,7 @@ export function PhaseStrip({
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setDragValue(null);
+    setDragHandleX(null);
   };
 
   // Een tekort weegt zwaarder dan de einddatum: past er een taak niet, dan is de rij rood, ook
@@ -412,10 +451,10 @@ export function PhaseStrip({
           ))}
 
           {/* "Toegestaan maar niet benut" — lege doos met gestippelde rand (§4). */}
-          {geometry?.freeBox && (
+          {freeBox && (
             <rect
-              x={geometry.freeBox.x} y={STRIP.blockTop}
-              width={Math.max(1, geometry.freeBox.w)} height={STRIP.blockHeight}
+              x={freeBox.x} y={STRIP.blockTop}
+              width={Math.max(1, freeBox.w)} height={STRIP.blockHeight}
               fill="none" stroke="var(--theme-text-dim)" strokeWidth={1} strokeDasharray="3 3" rx={2}
               // GEDEMPT (polishronde 2026-09-14). Bij een onbegrensd plafond staat de greep aan de
               // rechterrand, dus deze doos beslaat sinds de breedtefix de HELE track in plaats van
