@@ -763,9 +763,9 @@
       "reset": "Réinitialiser",
       "status": {
         "resolved": "Conflit résolu — plus grand décalage de fin : {{shift}} ({{doc}})",
-        "shortfall_one": "Il manque encore {{count}} jour-équipe le {{days}}…",
-        "shortfall_many": "Il manque encore {{count}} jours-équipe les {{days}}…",
-        "shortfall_other": "Il manque encore {{count}} jours-équipe les {{days}}…",
+        "shortfall_one": "Il manque encore {{count}} jour-équipe le {{days}}",
+        "shortfall_many": "Il manque encore {{count}} jours-équipe les {{days}}",
+        "shortfall_other": "Il manque encore {{count}} jours-équipe les {{days}}",
         "allPinned": "Tous les projets sont épinglés — il n'y a rien à redistribuer. Détachez-en un."
       },
       "glossary": {

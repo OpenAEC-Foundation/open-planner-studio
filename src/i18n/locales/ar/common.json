@@ -821,11 +821,11 @@
       "status": {
         "resolved": "تم حل التعارض — أكبر إزاحة للانتهاء: {{shift}} ({{doc}})",
         "shortfall_zero": "لا يوجد نقص",
-        "shortfall_one": "ما زال ينقص يوم فريق واحد في {{days}}…",
-        "shortfall_two": "ما زال ينقص يوما فريق في {{days}}…",
-        "shortfall_few": "ما زال ينقص {{count}} أيام فريق في {{days}}…",
-        "shortfall_many": "ما زال ينقص {{count}} يوم فريق في {{days}}…",
-        "shortfall_other": "ما زال ينقص {{count}} يوم فريق في {{days}}…",
+        "shortfall_one": "ما زال ينقص يوم فريق واحد في {{days}}",
+        "shortfall_two": "ما زال ينقص يوما فريق في {{days}}",
+        "shortfall_few": "ما زال ينقص {{count}} أيام فريق في {{days}}",
+        "shortfall_many": "ما زال ينقص {{count}} يوم فريق في {{days}}",
+        "shortfall_other": "ما زال ينقص {{count}} يوم فريق في {{days}}",
         "allPinned": "جميع المشاريع مثبّتة — لا يوجد ما يُعاد توزيعه. فُكّ تثبيت أحدها."
       },
       "glossary": {

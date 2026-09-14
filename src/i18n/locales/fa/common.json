@@ -744,8 +744,8 @@
       "reset": "بازنشانی",
       "status": {
         "resolved": "تعارض حل شد — بیشترین جابه‌جایی پایان: {{shift}} ({{doc}})",
-        "shortfall_one": "هنوز {{count}} روزِ اکیپ در {{days}} کم است…",
-        "shortfall_other": "هنوز {{count}} روزِ اکیپ در {{days}} کم است…",
+        "shortfall_one": "هنوز {{count}} روزِ اکیپ در {{days}} کم است",
+        "shortfall_other": "هنوز {{count}} روزِ اکیپ در {{days}} کم است",
         "allPinned": "همهٔ پروژه‌ها سنجاق شده‌اند — چیزی برای توزیع مجدد نیست. یکی را باز کنید."
       },
       "glossary": {

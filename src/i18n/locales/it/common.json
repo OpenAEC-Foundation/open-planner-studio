@@ -763,9 +763,9 @@
       "reset": "Reimposta",
       "status": {
         "resolved": "Conflitto risolto — slittamento di fine maggiore: {{shift}} ({{doc}})",
-        "shortfall_one": "Manca ancora {{count}} giorno-squadra il {{days}}…",
-        "shortfall_many": "Mancano ancora {{count}} giorni-squadra il {{days}}…",
-        "shortfall_other": "Mancano ancora {{count}} giorni-squadra il {{days}}…",
+        "shortfall_one": "Manca ancora {{count}} giorno-squadra il {{days}}",
+        "shortfall_many": "Mancano ancora {{count}} giorni-squadra il {{days}}",
+        "shortfall_other": "Mancano ancora {{count}} giorni-squadra il {{days}}",
         "allPinned": "Tutti i progetti sono bloccati: non c'è nulla da ridistribuire. Sbloccane uno."
       },
       "glossary": {

@@ -725,7 +725,7 @@
       "reset": "リセット",
       "status": {
         "resolved": "競合を解消しました — 最大の終了日のずれ：{{shift}}（{{doc}}）",
-        "shortfall_other": "{{days}} に {{count}} 班日ぶん不足しています…",
+        "shortfall_other": "{{days}} に {{count}} 班日ぶん不足しています",
         "allPinned": "すべてのプロジェクトが固定されています。再配分するものがありません。1 つ解除してください。"
       },
       "glossary": {

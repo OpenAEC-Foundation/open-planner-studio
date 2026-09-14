@@ -744,8 +744,8 @@
       "reset": "Sıfırla",
       "status": {
         "resolved": "Çakışma çözüldü — en büyük bitiş kayması: {{shift}} ({{doc}})",
-        "shortfall_one": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik…",
-        "shortfall_other": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik…",
+        "shortfall_one": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik",
+        "shortfall_other": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik",
         "allPinned": "Tüm projeler sabit — yeniden dağıtılacak bir şey yok. Birini çözün."
       },
       "glossary": {

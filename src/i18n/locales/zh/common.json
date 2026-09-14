@@ -725,7 +725,7 @@
       "reset": "重置",
       "status": {
         "resolved": "冲突已解决 — 最大完工日期偏移：{{shift}}（{{doc}}）",
-        "shortfall_other": "{{days}} 仍缺 {{count}} 个班组日…",
+        "shortfall_other": "{{days}} 仍缺 {{count}} 个班组日",
         "allPinned": "所有项目都已固定 — 没有可重新分配的内容。请解除其中一个。"
       },
       "glossary": {

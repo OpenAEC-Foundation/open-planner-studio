@@ -744,8 +744,8 @@
       "reset": "Reset",
       "status": {
         "resolved": "Conflict resolved — largest end-date shift: {{shift}} ({{doc}})",
-        "shortfall_one": "Still {{count}} crew day short on {{days}}…",
-        "shortfall_other": "Still {{count}} crew days short on {{days}}…",
+        "shortfall_one": "Still {{count}} crew day short on {{days}}",
+        "shortfall_other": "Still {{count}} crew days short on {{days}}",
         "allPinned": "Every project is pinned — there is nothing to redistribute. Unpin one."
       },
       "glossary": {

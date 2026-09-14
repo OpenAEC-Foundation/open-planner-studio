@@ -763,9 +763,9 @@
       "reset": "Restablecer",
       "status": {
         "resolved": "Conflicto resuelto — mayor desplazamiento de fin: {{shift}} ({{doc}})",
-        "shortfall_one": "Todavía falta {{count}} día-cuadrilla el {{days}}…",
-        "shortfall_many": "Todavía faltan {{count}} días-cuadrilla el {{days}}…",
-        "shortfall_other": "Todavía faltan {{count}} días-cuadrilla el {{days}}…",
+        "shortfall_one": "Todavía falta {{count}} día-cuadrilla el {{days}}",
+        "shortfall_many": "Todavía faltan {{count}} días-cuadrilla el {{days}}",
+        "shortfall_other": "Todavía faltan {{count}} días-cuadrilla el {{days}}",
         "allPinned": "Todos los proyectos están fijados: no hay nada que redistribuir. Suelta uno."
       },
       "glossary": {

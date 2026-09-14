@@ -459,9 +459,13 @@ export function DistributionDialog() {
       const named = shortfallDocs
         .map(doc => t('resource.distribution.shortfall.doc', { doc: doc.title, count: doc.count }))
         .join(' · ');
+      // Alleen de eerste drie data in de zin, met een AFKAPTEKEN als er meer zijn. Het teken
+      // hoort bij de LIJST en niet bij de zin: stond het in de vertaalstring (zoals eerst), dan
+      // beloofde "kort op 7 sep…" ook bij precies één datum dat er nog meer kwamen.
+      const shownDays = shortfallDays.slice(0, 3).map(formatDay).join(', ');
       const head = t('resource.distribution.status.shortfall', {
         count: shortfallDays.length,
-        days: shortfallDays.slice(0, 3).map(formatDay).join(', '),
+        days: shortfallDays.length > 3 ? `${shownDays}…` : shownDays,
       });
       return { tone: 'bad', text: joinClauses(head, named), stale: false };
     }

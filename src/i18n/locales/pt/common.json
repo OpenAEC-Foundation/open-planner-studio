@@ -763,9 +763,9 @@
       "reset": "Repor",
       "status": {
         "resolved": "Conflito resolvido — maior deslocamento de fim: {{shift}} ({{doc}})",
-        "shortfall_one": "Ainda falta {{count}} dia-equipa em {{days}}…",
-        "shortfall_many": "Ainda faltam {{count}} dias-equipa em {{days}}…",
-        "shortfall_other": "Ainda faltam {{count}} dias-equipa em {{days}}…",
+        "shortfall_one": "Ainda falta {{count}} dia-equipa em {{days}}",
+        "shortfall_many": "Ainda faltam {{count}} dias-equipa em {{days}}",
+        "shortfall_other": "Ainda faltam {{count}} dias-equipa em {{days}}",
         "allPinned": "Todos os projetos estão fixados — não há nada para redistribuir. Solte um."
       },
       "glossary": {

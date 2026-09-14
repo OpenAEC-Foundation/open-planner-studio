@@ -744,8 +744,8 @@
       "reset": "Zurücksetzen",
       "status": {
         "resolved": "Konflikt gelöst — größte Endterminverschiebung: {{shift}} ({{doc}})",
-        "shortfall_one": "Es fehlt noch {{count}} Schichttag am {{days}}…",
-        "shortfall_other": "Es fehlen noch {{count}} Schichttage am {{days}}…",
+        "shortfall_one": "Es fehlt noch {{count}} Schichttag am {{days}}",
+        "shortfall_other": "Es fehlen noch {{count}} Schichttage am {{days}}",
         "allPinned": "Alle Projekte sind fixiert — es gibt nichts umzuverteilen. Lösen Sie eines."
       },
       "glossary": {

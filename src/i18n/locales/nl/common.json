@@ -744,8 +744,8 @@
       "reset": "Reset",
       "status": {
         "resolved": "Conflict opgelost — grootste einddatum-verschuiving: {{shift}} ({{doc}})",
-        "shortfall_one": "Nog {{count}} ploegdag tekort op {{days}}…",
-        "shortfall_other": "Nog {{count}} ploegdagen tekort op {{days}}…",
+        "shortfall_one": "Nog {{count}} ploegdag tekort op {{days}}",
+        "shortfall_other": "Nog {{count}} ploegdagen tekort op {{days}}",
         "allPinned": "Alle projecten staan vast — er is niets te herverdelen. Maak er één los."
       },
       "glossary": {

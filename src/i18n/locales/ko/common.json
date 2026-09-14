@@ -725,7 +725,7 @@
       "reset": "초기화",
       "status": {
         "resolved": "충돌 해결 — 최대 종료일 이동: {{shift}} ({{doc}})",
-        "shortfall_other": "{{days}}에 작업조 {{count}}일이 부족합니다…",
+        "shortfall_other": "{{days}}에 작업조 {{count}}일이 부족합니다",
         "allPinned": "모든 프로젝트가 고정되어 재분배할 것이 없습니다. 하나를 해제하세요."
       },
       "glossary": {

@@ -782,10 +782,10 @@
       "reset": "Resetuj",
       "status": {
         "resolved": "Konflikt rozwiązany — największe przesunięcie zakończenia: {{shift}} ({{doc}})",
-        "shortfall_one": "Brakuje jeszcze {{count}} dnia brygady w {{days}}…",
-        "shortfall_few": "Brakuje jeszcze {{count}} dni brygady w {{days}}…",
-        "shortfall_many": "Brakuje jeszcze {{count}} dni brygady w {{days}}…",
-        "shortfall_other": "Brakuje jeszcze {{count}} dnia brygady w {{days}}…",
+        "shortfall_one": "Brakuje jeszcze {{count}} dnia brygady w {{days}}",
+        "shortfall_few": "Brakuje jeszcze {{count}} dni brygady w {{days}}",
+        "shortfall_many": "Brakuje jeszcze {{count}} dni brygady w {{days}}",
+        "shortfall_other": "Brakuje jeszcze {{count}} dnia brygady w {{days}}",
         "allPinned": "Wszystkie projekty są przypięte — nie ma czego rozdzielać. Odepnij jeden."
       },
       "glossary": {
