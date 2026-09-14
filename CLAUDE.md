@@ -145,9 +145,16 @@ De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/re
 
 ### Rapporten: één kolomspec voor DOM én PDF
 
-Het Rapport-tabblad (`ReportPanel.tsx`) kent tien rapporttypen (`ReportType` in
-`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het mijlpalen- en
-variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
+Het Rapport-tabblad (`ReportPanel.tsx`) kent elf rapporttypen (`ReportType` in
+`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het **resourcediagram**
+(issue #113: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
+`src/engine/reports/resourceGantt.ts` — per resource-IDENTITEIT een band (niet per naam, zoals de
+schermgroepering: gelijknamigen krijgen `#n`, naamlozen een surrogaat), daaronder zijn bladtaken op
+start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan; optie "blad
+per resource" = `PrintOptions.pageBreakBeforeGroups`
+→ `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
+positie zonder vulgraaddrempel wint; `isGanttReportType()` bundelt beide Gantt-achtige typen), het
+mijlpalen- en variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
 uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
 resourcebelasting per week, resourcetoewijzingen en WBS-samenvatting. Die zeven hebben een pure
 rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit; headless

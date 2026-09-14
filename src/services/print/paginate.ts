@@ -60,6 +60,11 @@ export interface PaginateOptions {
    * Afwezig ⇒ vaste tegeling op paginahoogte.
    */
   breakOffsetsPx?: readonly number[];
+  /**
+   * Gedwongen paginabreekposities (logische px; `renderPrintCanvas().forcedBreakOffsets`): daar
+   * eindigt een pagina altijd (resourcediagram, issue #113). Afwezig ⇒ alleen de toegestane posities.
+   */
+  forcedBreakOffsetsPx?: readonly number[];
   /** JPEG-kwaliteit voor elke pagina (0..1). Default 0.9. */
   quality?: number;
   /**

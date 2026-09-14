@@ -65,6 +65,7 @@
   "reportType": {
     "label": "Berichtstyp",
     "gantt": "Gantt-Diagramm",
+    "resourceGantt": "Ressourcendiagramm",
     "milestones": "Meilensteinübersicht",
     "variance": "Variance",
     "lookAhead": "Vorschau (Look-ahead)",
@@ -131,6 +132,14 @@
   "followView": "Ansicht folgen (Filter, Gruppierung, Sortierung)",
   "statusDateLabel": "Statusdatum",
   "progressDateLabel": "Fortschrittsdatum",
+  "resourceGantt": {
+    "pageBreakPerResource": "Jede Ressource auf einer neuen Seite",
+    "includeUnassigned": "Aufgaben ohne Ressource einbeziehen",
+    "empty": "Keine Ressourcenzuweisungen — weisen Sie zuerst Ressourcen zu Aufgaben zu.",
+    "resources": "Ressourcen:",
+    "assignments": "Zuweisungen:",
+    "unassigned": "Ohne Ressource:"
+  },
   "tableReports": {
     "notCalculatedNote": "Noch nicht berechnet — drücken Sie Berechnen (F5) für Termine und Puffer.",
     "staleNote": "Der Terminplan wurde seit der letzten Berechnung geändert — drücken Sie Berechnen (F5) für aktuelle Werte.",

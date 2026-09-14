@@ -404,6 +404,13 @@ export interface PrintOptions {
    * de printlaag bouwt géén eigen view-pijplijn (één bron van waarheid: `computeViewRows`).
    */
   rows?: ViewRow[];
+  /**
+   * Resourcediagram (issue #113, "een blad per persoon"): vóór elke groepsband-rij (behalve de
+   * eerste) een GEDWONGEN paginaovergang. De render tekent er niets anders door; hij levert de
+   * posities alleen als {@link RenderReportResult.forcedBreakOffsets} aan de pagineerders. Zonder
+   * `rows` met bandrijen is er niets te breken en is dit een no-op.
+   */
+  pageBreakBeforeGroups?: boolean;
   /** Legendalabels voor de kleurmodi (reeds vertaald door de aanroeper — print heeft geen `t()`). */
   barColorsLegendLabels?: {
     criticalOutline: string;
@@ -576,6 +583,13 @@ export interface RenderReportResult {
    * Afwezig ⇒ vaste tegeling (de Gantt-render).
    */
   breakOffsets?: number[];
+  /**
+   * OPTIONEEL — GEDWONGEN paginabreekposities (logische px vanaf de bovenkant): daar eindigt een
+   * pagina altijd, ook als er nog ruimte over is. Gevuld bij `PrintOptions.pageBreakBeforeGroups`
+   * (resourcediagram, issue #113: elke resource op een eigen vel). Elke positie hier is ook een
+   * toegestane positie uit `breakOffsets` (een bandrij begint waar de vorige rij eindigt).
+   */
+  forcedBreakOffsets?: number[];
 }
 
 /**
@@ -1175,7 +1189,15 @@ export function renderReport(
   // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen (issue #110, Manu's nabespreking:
   // ook de Gantt-afdruk sneed rijen). De voet (legenda) is één blok; die volgt de laatste rijgrens.
   const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
-  return { width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight, breakOffsets };
+  // Resourcediagram (issue #113): een gedwongen overgang vóór elke bandrij ná de eerste — de
+  // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
+  const forcedBreakOffsets = options.pageBreakBeforeGroups
+    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 ? [m.totalHeaderHeight + i * m.rowHeight] : []))
+    : undefined;
+  return {
+    width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
+    breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
+  };
 }
 
 

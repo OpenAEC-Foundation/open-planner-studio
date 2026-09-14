@@ -77,6 +77,7 @@
   "reportType": {
     "label": "نوع التقرير",
     "gantt": "مخطط جانت",
+    "resourceGantt": "مخطط الموارد",
     "milestones": "نظرة عامة على المعالم",
     "variance": "الانحراف",
     "lookAhead": "استشراف (Look-ahead)",
@@ -143,6 +144,14 @@
   "followView": "متابعة العرض (تصفية، تجميع، فرز)",
   "statusDateLabel": "تاريخ الحالة",
   "progressDateLabel": "تاريخ التقدم",
+  "resourceGantt": {
+    "pageBreakPerResource": "كل مورد في صفحة جديدة",
+    "includeUnassigned": "تضمين المهام بدون مورد",
+    "empty": "لا توجد تعيينات موارد — عيّن الموارد للمهام أولاً.",
+    "resources": "الموارد:",
+    "assignments": "التعيينات:",
+    "unassigned": "بدون مورد:"
+  },
   "tableReports": {
     "notCalculatedNote": "لم يُحسب بعد — اضغط احسب (F5) للحصول على التواريخ والفوائض.",
     "staleNote": "تغيّر الجدول منذ آخر حساب — اضغط احسب (F5) للحصول على القيم الحالية.",

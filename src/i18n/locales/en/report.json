@@ -65,6 +65,7 @@
   "reportType": {
     "label": "Report type",
     "gantt": "Gantt chart",
+    "resourceGantt": "Resource diagram",
     "milestones": "Milestone overview",
     "variance": "Variance",
     "lookAhead": "Look-ahead",
@@ -131,6 +132,14 @@
   "followView": "Follow view (filter, grouping, sort)",
   "statusDateLabel": "Status date",
   "progressDateLabel": "Progress date",
+  "resourceGantt": {
+    "pageBreakPerResource": "Each resource on a new page",
+    "includeUnassigned": "Include tasks without a resource",
+    "empty": "No resource assignments — assign resources to tasks first.",
+    "resources": "Resources:",
+    "assignments": "Assignments:",
+    "unassigned": "Without resource:"
+  },
   "tableReports": {
     "notCalculatedNote": "Not calculated yet — press Calculate (F5) for dates and float.",
     "staleNote": "The schedule changed since the last calculation — press Calculate (F5) for current values.",

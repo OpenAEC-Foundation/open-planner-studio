@@ -284,6 +284,7 @@ export async function paginateVectorToPdfBytes(
     timelineColumns: opts.timelineColumns,
     marginPt: opts.marginPt,
     breakOffsetsPx: dims.breakOffsets,
+    forcedBreakOffsetsPx: dims.forcedBreakOffsets,
   });
   const { pageWidthPt: pageW, pageHeightPt: pageH, marginPt, scale, rows, cols, repeatHeaderPx, bodyTopPt } = layout;
 

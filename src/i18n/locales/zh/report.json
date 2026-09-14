@@ -62,6 +62,7 @@
   "reportType": {
     "label": "报表类型",
     "gantt": "甘特图",
+    "resourceGantt": "资源图",
     "milestones": "里程碑一览",
     "variance": "差异",
     "lookAhead": "前瞻计划 (Look-ahead)",
@@ -128,6 +129,14 @@
   "followView": "跟随视图（筛选、分组、排序）",
   "statusDateLabel": "状态日期",
   "progressDateLabel": "进度日期",
+  "resourceGantt": {
+    "pageBreakPerResource": "每个资源另起一页",
+    "includeUnassigned": "包含未分配资源的任务",
+    "empty": "没有资源分配——请先为任务分配资源。",
+    "resources": "资源：",
+    "assignments": "分配：",
+    "unassigned": "无资源："
+  },
   "tableReports": {
     "notCalculatedNote": "尚未计算——按“计算”(F5) 以获取日期和浮时。",
     "staleNote": "自上次计算以来进度计划已更改——按“计算”(F5) 以获取最新值。",

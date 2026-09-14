@@ -112,6 +112,15 @@ export interface TileLayoutInput {
    */
   breakOffsetsPx?: readonly number[];
   /**
+   * OPTIONEEL — GEDWONGEN breekposities (y in logische px): een body-tegel eindigt op de EERSTE
+   * gedwongen positie die binnen de paginahoogte valt, óók als de pagina daardoor grotendeels leeg
+   * blijft (resourcediagram, issue #113: "een blad per persoon" — een resource met één taak krijgt
+   * bewust een bijna lege pagina). Een gedwongen positie die niet op de pagina past gedraagt zich
+   * als een gewone: de pagina breekt dan op de laatste toegestane positie ervoor. Afwezig/leeg ⇒
+   * byte-identiek aan de tegeling zonder.
+   */
+  forcedBreakOffsetsPx?: readonly number[];
+  /**
    * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen van toepassing in
    * `'fit-width'`; in `'actual'` volgt het kolom-aantal uit de bronbreedte en wordt dit genegeerd.
    * Default 1 = alles op één paginabreedte, oud gedrag.
@@ -295,16 +304,23 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
   // snede een flinterdunne restpagina (review-bevinding 10). Voor gewone tabel-/Gantt-rijen (tientallen
   // px op een pagina van honderden) is die drempel nooit bindend. Zonder breekposities (de
   // DOM-screenshot-fallback) is dit byte-identiek de oude vaste tegeling.
-  const breaks = (input.breakOffsetsPx ?? [])
-    .filter(y => Number.isFinite(y) && y > repeatHeaderPx && y < ch)
-    .sort((x, y) => x - y);
+  const inBody = (y: number) => Number.isFinite(y) && y > repeatHeaderPx && y < ch;
+  const breaks = (input.breakOffsetsPx ?? []).filter(inBody).sort((x, y) => x - y);
+  // Gedwongen posities (issue #113) zijn ook toegestane posities: wie hier breekt, mag daar breken.
+  const forced = (input.forcedBreakOffsetsPx ?? []).filter(inBody).sort((x, y) => x - y);
+  const allowed = forced.length > 0 ? [...new Set([...breaks, ...forced])].sort((x, y) => x - y) : breaks;
   let srcY = repeatHeaderPx;
   while (srcY < ch || bodyRows.length === 0) {
     const maxEnd = Math.min(ch, srcY + bodyRowHpx);
     let end = maxEnd;
-    if (breaks.length > 0 && maxEnd < ch) {
+    // Eerste gedwongen positie ná de tegelstart: past hij op de pagina, dan eindigt de tegel dáár —
+    // zonder vulgraaddrempel, want een dunne pagina is hier precies de bedoeling.
+    const nextForced = forced.find(y => y > srcY);
+    if (nextForced !== undefined && nextForced <= maxEnd) {
+      end = nextForced;
+    } else if (allowed.length > 0 && maxEnd < ch) {
       let best = -1;
-      for (const y of breaks) {
+      for (const y of allowed) {
         if (y <= srcY) continue;
         if (y > maxEnd) break;
         best = y;

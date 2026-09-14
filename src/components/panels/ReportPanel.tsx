@@ -20,9 +20,11 @@ import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbo
 import { useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import {
-  DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, TABLE_REPORT_TYPES,
-  type ReportType, type TableReportOptions,
+  DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations, saveReportSettings, TABLE_REPORT_TYPES,
+  type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
+import { computeResourceGanttRows } from '@/engine/reports';
+import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { useTableReportSpec } from './reports/useTableReportSpec';
@@ -257,6 +259,11 @@ export function ReportPanel() {
   const patchTableOptions = useCallback((patch: Partial<TableReportOptions>) => {
     setTableOptions(prev => ({ ...prev, ...patch }));
   }, []);
+  // Resourcediagram (issue #113): blad per resource + taken zonder resource — samen bewaard met de rest.
+  const [resourceGanttOptions, setResourceGanttOptions] = useState<ResourceGanttReportOptions>(DEFAULT_REPORT_SETTINGS.resourceGantt);
+  const patchResourceGanttOptions = useCallback((patch: Partial<ResourceGanttReportOptions>) => {
+    setResourceGanttOptions(prev => ({ ...prev, ...patch }));
+  }, []);
   const [showCritical, setShowCritical] = useState(DEFAULT_REPORT_SETTINGS.showCritical);
   const [showFloat, setShowFloat] = useState(DEFAULT_REPORT_SETTINGS.showFloat);
   const [showDeps, setShowDeps] = useState(DEFAULT_REPORT_SETTINGS.showDeps);
@@ -386,6 +393,7 @@ export function ReportPanel() {
       setFollowView(s.followView);
       setPreviewQuality(s.previewQuality);
       setTableOptions(s.tableReports);
+      setResourceGanttOptions(s.resourceGantt);
       hydratedRef.current = true;
       setReportSettingsHydrated(true);
     }, () => {
@@ -421,10 +429,28 @@ export function ReportPanel() {
       showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
       paperSize, orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
       tableReports: tableOptions,
+      resourceGantt: resourceGanttOptions,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
-      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality, tableOptions]);
+      orientation, repeatHeader, timelineColumns, reportFontScale, statusLine, followView, previewQuality, tableOptions,
+      resourceGanttOptions]);
+
+  // Resourcediagram (issue #113): dezelfde Gantt-render, maar de rijen komen uit de pure rekenmodule
+  // (per resource-identiteit een band, daaronder zijn taken) en niet van het scherm.
+  // `tTask('structure.none')` is hetzelfde "(geen)"-label dat de schermgroepering gebruikt.
+  const isGanttLike = isGanttReportType(reportType);
+  const noneLabel = tTask('structure.none');
+  // De bandvolgorde volgt de app-taal (nooit de OS-taal van de afdrukker: zelfde vel, zelfde nummering).
+  const resourceGantt = useMemo(() => (reportType === 'resourceGantt'
+    ? computeResourceGanttRows({ tasks, resources, assignments }, {
+      includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel, locale: i18n.language,
+    })
+    : null),
+  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned, i18n.language]);
+  // Rijenbron van de Gantt-render: resourcediagram ⇒ de resourcebanden; Gantt-afdruk ⇒ de schermrijen
+  // bij Volg weergave (#54), anders `undefined` = de volledige takenboom (oud gedrag, geen verrassingen).
+  const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
 
   // Afkappen uit ⇒ meet de langste naam op dezelfde rijen die het rapport tekent, op het geladen
   // Inter-font (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
@@ -437,14 +463,14 @@ export function ReportPanel() {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
       if (!ctx) { setAutoNameColumnWidth(NAME_COLUMN_WIDTH_DEFAULT); return; }
-      const rows = buildPrintRows(tasks, followView ? viewRows : undefined);
+      const rows = buildPrintRows(tasks, reportRows);
       setAutoNameColumnWidth(measureTaskNameColumnWidth(rows, (text, bold) => {
         ctx.font = nameCellFont(bold);
         return ctx.measureText(text).width;
       }));
     });
     return () => { cancelled = true; };
-  }, [truncateTaskNames, tasks, viewRows, followView]);
+  }, [truncateTaskNames, tasks, reportRows]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -492,12 +518,16 @@ export function ReportPanel() {
   // vervangt die één render later. Bewust geen "leeg" tussenframe.
   const effectiveNameColumnWidth = truncateTaskNames ? taskNameColumnWidth : (autoNameColumnWidth ?? taskNameColumnWidth);
   const options = useMemo<PrintOptions>(() => ({
-    showCritical, showFloat, showDeps, showWeekends, showLegend,
+    showCritical, showFloat, showWeekends, showLegend,
+    // Resourcediagram: geen relatiepijlen (zie `reportTypeDrawsRelations`).
+    showDeps: reportTypeDrawsRelations(reportType) && showDeps,
     showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
     taskNameColumnWidth: effectiveNameColumnWidth,
     labels: {
-      noTasks: t('noTasks'),
+      // Resourcediagram zonder één toewijzing: zeg wat er ontbreekt, niet "geen taken" — tenzij er
+      // écht geen taken zijn, dan is "wijs resources toe" het verkeerde advies.
+      noTasks: reportType === 'resourceGantt' && tasks.length > 0 ? t('resourceGantt.empty') : t('noTasks'),
       printed: t('printed'),
       legend: {
         criticalPath: t('legend.criticalPath'),
@@ -543,8 +573,7 @@ export function ReportPanel() {
     // Bij een cyclus (`cpmResult.error`) of vóór de eerste berekening blijft het `undefined`, en
     // tekent het rapport alles neutraal doorgetrokken — dezelfde eerlijke terugval als het scherm.
     drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
-    // #21/#54 — gedeelde balkkleurkeuze, statuslijn en volg-weergave. `rows` alléén bij followView: zonder
-    // die optie tekent de export de volledige boom (oud gedrag, geen verrassingen).
+    // #21/#54 — gedeelde balkkleurkeuze, statuslijn en de rijenbron (`reportRows`, zie hierboven).
     barColorSelection,
     activityCodeTypes: fieldCtx.activityCodeTypes,
     customFieldDefs: fieldCtx.customFieldDefs,
@@ -555,7 +584,9 @@ export function ReportPanel() {
     resources,
     assignments,
     baselineOverlay,
-    rows: followView ? viewRows : undefined,
+    rows: reportRows,
+    // Issue #113 "een blad per persoon": gedwongen paginaovergang vóór elke resourceband.
+    pageBreakBeforeGroups: reportType === 'resourceGantt' && resourceGanttOptions.pageBreakPerResource,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -565,11 +596,20 @@ export function ReportPanel() {
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
-    assignments, baselineOverlay, followView, viewRows]);
+    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
-  const previewOptionsSignature = useMemo(() => JSON.stringify(options), [options]);
+  // `rows` bevat volledige Task-objecten (één per toewijzing bij het resourcediagram): die worden
+  // hier tot hun structuur (sleutel, label, diepte) teruggebracht — de taakinhoud zelf zit al in de
+  // `tasks`-dependency van het preview-effect, dus dubbel serialiseren is puur verspilling.
+  const previewOptionsSignature = useMemo(() => JSON.stringify(options, (key, value) => (
+    key === 'rows' && Array.isArray(value)
+      ? (value as ViewRow[]).map(r => (r.kind === 'group'
+        ? `g:${r.key}:${r.label}:${r.count}:${r.depth}`
+        : `t:${r.rowKey}:${r.depth}:${r.dimmed ? 1 : 0}`))
+      : value
+  )), [options]);
 
   // Eén generatie beheert één layout + één begrensde renderqueue. Een optiewijziging annuleert het
   // nog niet begonnen werk van de vorige generatie, maar laat de bestaande pagina-afbeeldingen
@@ -597,7 +637,7 @@ export function ReportPanel() {
       if (previewJobRef.current?.release === release) previewJobRef.current = null;
     };
 
-    if (reportType !== 'gantt') {
+    if (!isGanttLike) {
       for (const page of previewPagesRef.current.values()) URL.revokeObjectURL(page.objectUrl);
       replacePreviewPages(new Map());
       setPreviewLayout(previous => ({ ...previous, totalPages: 0 }));
@@ -606,9 +646,9 @@ export function ReportPanel() {
 
     const renderPreview = () => {
       if (cancelled) return;
-      const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets } = measurePrintReport(
-        tasks, sequences, calendar, projectName, options,
-      );
+      const {
+        width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets, forcedBreakOffsets,
+      } = measurePrintReport(tasks, sequences, calendar, projectName, options);
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
       const cssPageWidth = previewCssWidth;
       const previewLimits = computePreviewRasterLimits(
@@ -626,8 +666,10 @@ export function ReportPanel() {
         // herhalen (oud gedrag). De raster-tak wil px, de vector-tak een boolean.
         repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
         timelineColumns: options.timelineColumns,
-        // Rij-bewuste paginering (issue #110): preview en export delen dezelfde breekposities.
+        // Rij-bewuste paginering (issue #110): preview en export delen dezelfde breekposities;
+        // het resourcediagram (issue #113) ook zijn gedwongen overgangen per resource.
         breakOffsetsPx: breakOffsets,
+        forcedBreakOffsetsPx: forcedBreakOffsets,
         supersample: previewLimits.pageSupersample,
       };
       const layout = computeTileLayout(tileOptions);
@@ -785,14 +827,14 @@ export function ReportPanel() {
     // identiteit kunnen krijgen. De inhoudssignatuur hierboven is bewust de effectgrens; `options`
     // toevoegen zou iedere preview-state-update opnieuw laten rasteren.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportSettingsHydrated, reportType, tasks, sequences, calendar, projectName, previewOptionsSignature,
+  }, [reportSettingsHydrated, isGanttLike, tasks, sequences, calendar, projectName, previewOptionsSignature,
     repeatHeader, previewCssWidth, previewQuality, replacePreviewPages]);
 
   // Eén stabiele observer per layout. Een nieuwe afbeelding verandert zijn dependencies niet en kan
   // dus geen observer-rebuild/ping-pong veroorzaken. De queue dedupliceert callbacks.
   useEffect(() => {
     const root = previewViewportRef.current;
-    if (!root || reportType !== 'gantt' || previewLayout.totalPages === 0) return;
+    if (!root || !isGanttLike || previewLayout.totalPages === 0) return;
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
@@ -802,7 +844,7 @@ export function ReportPanel() {
     }, { root, rootMargin: '700px 0px' });
     root.querySelectorAll<HTMLElement>('[data-preview-page]').forEach(node => observer.observe(node));
     return () => observer.disconnect();
-  }, [reportType, previewLayout.totalPages, previewLayout.wPt, previewLayout.hPt]);
+  }, [isGanttLike, previewLayout.totalPages, previewLayout.wPt, previewLayout.hPt]);
 
   const milestoneRows = useMilestoneRows();
   const varianceResult = useVarianceResult();
@@ -866,7 +908,7 @@ export function ReportPanel() {
     // raster-export het deterministische Inter gebruikt (measureText-pariteit met de preview, §5.2).
     await ensureInterLoaded();
 
-    if (reportType === 'gantt') {
+    if (isGanttLike) {
       const mode = autoFit ? 'fit-width' : 'actual';
 
       // De raster-tak (JPEG-tegels) als betrouwbare terugval: exact het bestaande pad, uitgesplitst
@@ -876,9 +918,9 @@ export function ReportPanel() {
       // 1) levert de LOGISCHE maten + naam-kolombreedte; de tweede render het high-res raster.
       const exportRaster = (): Uint8Array => {
         const exportCanvas = document.createElement('canvas');
-        const { width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets } = renderPrintCanvas(
-          exportCanvas, tasks, sequences, calendar, projectName, options, 1,
-        );
+        const {
+          width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, breakOffsets, forcedBreakOffsets,
+        } = renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, 1);
         const exportScale = computeHighResScale(logicalWidth, logicalHeight);
         renderPrintCanvas(exportCanvas, tasks, sequences, calendar, projectName, options, exportScale);
         return paginateCanvasToPdfBytes(exportCanvas, {
@@ -889,6 +931,7 @@ export function ReportPanel() {
           repeatHeaderHeightPx: repeatHeader ? headerHeight : 0,
           timelineColumns,
           breakOffsetsPx: breakOffsets,
+          forcedBreakOffsetsPx: forcedBreakOffsets,
         });
       };
 
@@ -922,7 +965,7 @@ export function ReportPanel() {
         console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', describeVectorFallback(err));
         pdfBytes = exportRaster();
       }
-      await writePdf(pdfBytes, `${fileBase}-planning.pdf`);
+      await writePdf(pdfBytes, `${fileBase}-${reportType === 'resourceGantt' ? 'resourcediagram' : 'planning'}.pdf`);
       return;
     }
 
@@ -1017,7 +1060,7 @@ export function ReportPanel() {
     }
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
-  }, [reportType, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
+  }, [reportType, isGanttLike, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
     autoFit, repeatHeader, timelineColumns, writePdf, t, dd, milestoneRows, varianceResult, tableSpec]);
 
   // K7-guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
@@ -1100,6 +1143,7 @@ export function ReportPanel() {
           onChange={v => setReportType(v as ReportType)}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
+            { value: 'resourceGantt', label: t('reportType.resourceGantt') },
             { value: 'milestones', label: t('reportType.milestones') },
             { value: 'variance', label: t('reportType.variance') },
             ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: t(`reportType.${type}`) })),
@@ -1117,6 +1161,15 @@ export function ReportPanel() {
                   <span style={{ color: item.color, fontWeight: item.color ? 700 : undefined }}>{item.value}</span>
                 </span>
               ))
+            ) : resourceGantt ? (
+              <>
+                <span className="text-text-secondary">{t('resourceGantt.resources')}</span>
+                <span data-ops-resource-gantt-count="resources">{resourceGantt.counts.resources}</span>
+                <span className="text-text-secondary">{t('resourceGantt.assignments')}</span>
+                <span data-ops-resource-gantt-count="assignments">{resourceGantt.counts.assignments}</span>
+                <span className="text-text-secondary">{t('resourceGantt.unassigned')}</span>
+                <span data-ops-resource-gantt-count="unassigned">{resourceGantt.counts.unassignedTasks}</span>
+              </>
             ) : reportType === 'gantt' ? (
               <>
                 <span className="text-text-secondary">{t('tasks')}</span>
@@ -1157,8 +1210,8 @@ export function ReportPanel() {
           </div>
         </div>
 
-        {/* Report options */}
-        {reportType === 'gantt' && (
+        {/* Report options — gedeeld door de Gantt-afdruk en het resourcediagram (issue #113). */}
+        {isGanttLike && (
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
           <h3 className="ui-card-header !text-xs mb-2">{t('settings')}</h3>
           <div className="flex flex-col gap-2 text-xs">
@@ -1297,11 +1350,40 @@ export function ReportPanel() {
             )}
 
             {/* Volg weergave (issue #54 punt 2): export = wat het scherm toont (filter, groepering,
-                sortering, inklapstatus). Uit (default) = de volledige takenboom, zoals altijd. */}
-            <label className="flex items-center gap-2 mt-1 min-w-0">
-              <input type="checkbox" checked={followView} onChange={e => setFollowView(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('followView')}</span>
-            </label>
+                sortering, inklapstatus). Uit (default) = de volledige takenboom, zoals altijd. Niet bij
+                het resourcediagram: daar komen de rijen per definitie niet van het scherm. */}
+            {reportType === 'gantt' && (
+              <label className="flex items-center gap-2 mt-1 min-w-0">
+                <input type="checkbox" checked={followView} onChange={e => setFollowView(e.target.checked)} className="accent-accent flex-shrink-0" />
+                <span className="min-w-0">{t('followView')}</span>
+              </label>
+            )}
+
+            {/* Resourcediagram (issue #113): een blad per resource, en de taken zonder resource erbij. */}
+            {reportType === 'resourceGantt' && (
+              <>
+                <label className="flex items-center gap-2 mt-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={resourceGanttOptions.pageBreakPerResource}
+                    onChange={e => patchResourceGanttOptions({ pageBreakPerResource: e.target.checked })}
+                    className="accent-accent flex-shrink-0"
+                    data-ops-report-option="pageBreakPerResource"
+                  />
+                  <span className="min-w-0">{t('resourceGantt.pageBreakPerResource')}</span>
+                </label>
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={resourceGanttOptions.includeUnassigned}
+                    onChange={e => patchResourceGanttOptions({ includeUnassigned: e.target.checked })}
+                    className="accent-accent flex-shrink-0"
+                    data-ops-report-option="includeUnassigned"
+                  />
+                  <span className="min-w-0">{t('resourceGantt.includeUnassigned')}</span>
+                </label>
+              </>
+            )}
 
             {/* Auto-fit checkbox */}
             <label className="flex items-center gap-2 mt-1 min-w-0">
@@ -1395,10 +1477,13 @@ export function ReportPanel() {
               <input type="checkbox" checked={showFloat} onChange={e => setShowFloat(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showFloat')}</span>
             </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showDependencies')}</span>
-            </label>
+            {/* Relaties niet bij het resourcediagram — hetzelfde predicaat als de forcering in `options`. */}
+            {reportTypeDrawsRelations(reportType) && (
+              <label className="flex items-center gap-2 min-w-0">
+                <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
+                <span className="min-w-0">{t('showDependencies')}</span>
+              </label>
+            )}
             <label className="flex items-center gap-2 min-w-0">
               <input data-ops-report-compress-workdays type="checkbox" checked={reportCompressNonWorkdays} onChange={e => setReportCompressNonWorkdays(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{tCommon('settings.compressNonWorkdays')}</span>
@@ -1446,7 +1531,7 @@ export function ReportPanel() {
 
       {/* Right: Live preview */}
       <div data-tour-anchor="report-panel" className="flex-1 min-w-0 min-h-0" style={{ background: 'var(--theme-bg)' }}>
-        {reportType === 'gantt' ? (
+        {isGanttLike ? (
           <div className="flex h-full min-h-0 flex-col">
             <div
               className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-xs"
