@@ -30,6 +30,22 @@
 // is per taak minimaal; de rangorde bepaalt wie de vroege ruimte krijgt. Er is dus geen aparte
 // "float-pass" nodig — dat zou het bestaande, al-geteste SGS-gedrag dupliceren.
 //
+// `afterLoadByDay` KAN BUITEN DE VOOR-DAGEN VALLEN — EN `endShiftWorkdays` IS GEEN MAAT DAARVOOR
+// (onderzoek 2026-09-14, naar aanleiding van een "lege na-balk" in de verdeeldialoog). Een deelnemer
+// die wijkt boekt per definitie op ANDERE dagen dan in `bookingByDay`, en die dagen kunnen volledig
+// buiten de vereniging van `bookingByDay` + `fixedLoadByDay` liggen: twee documenten met elk tien
+// werkdagen op hetzelfde poolitem van capaciteit 1 geven na verdeling een B-boeking die pas ná de
+// laatste voor-dag begint. Een afnemer die zijn tijdas uit de VOOR-stand opbouwt tekent zo'n
+// document als een LEGE balk — terwijl het voorstel eerlijk is: de boeking staat gewoon in
+// `afterLoadByDay`, er is geen tekort, en niets is stil verdwenen. Dat is dus een presentatiefout,
+// geen verdelerfout; hier een tekort of blokkade van maken zou liegen over een geslaagde plaatsing.
+//
+// `endShiftWorkdays` mag daarbij NIET als staartmarge voor zo'n as gebruikt worden. Dat getal meet
+// de PROJECTeinddatum, en een `manuallyScheduled`-taak houdt haar eigen opgeslagen datums in de
+// CPM-solve (`CPMSolver.ts`): haar boeking schuift dan tien werkdagen op terwijl `endShiftWorkdays`
+// gewoon 0 blijft. De enige betrouwbare bron voor "welke dagen moet ik tonen" is de vereniging van
+// `fixedLoadByDay`, `bookingByDay` ÉN `afterLoadByDay`. `check-distribute.ts` (case 18) pint dit.
+//
 // DE KOSTENLABELS EN DE GEREEDSCHAPSSCHAKELAAR ZIJN GEEN APARTE API (spec §4 stap 1 / §6). "Alleen
 // dit project laten opschuiven kost +N werkdagen" en het prijskaartje van "onderbrekingen toestaan"
 // zijn `computeDistribution` opnieuw draaien met een andere rangorde resp. `allowSplits` — de kern

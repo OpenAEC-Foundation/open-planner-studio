@@ -768,6 +768,64 @@ console.log('-- distribute: bookingByDay bevat elk boekend document, gelijk aan 
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Case 18 (onderzoek 2026-09-14, "lege na-balk"): een deelnemer die wijkt mag zijn boeking NOOIT
+// stilzwijgend kwijtraken. Repro van de browserfixture `seedTwoConflictingDocuments`: twee
+// documenten met elk tien werkdagen werk (ma 2026-09-07 t/m vr 2026-09-18) op één poolitem met
+// capaciteit 1. B kan er niet bij en schuift er volledig achter — zijn na-boeking valt daarmee
+// GEHEEL buiten de voor-dagen.
+//
+// De twee dingen die deze case vastlegt (zie het moduleblok van distribute.ts):
+//  (a) B's boeking staat volledig en ongeschonden in `afterLoadByDay`, zonder tekort — een lege
+//      na-balk in de UI is dus een presentatiefout (as uit de VOOR-stand), geen verdelerfout;
+//  (b) `endShiftWorkdays` is GEEN maat voor hoe ver de boeking opschoof: met
+//      `manuallyScheduled: true` houdt de taak haar eigen datums in de CPM-solve, dus dat getal
+//      blijft 0 terwijl de boeking tien werkdagen verderop ligt. Met `false` is het wél 10.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: na-boeking buiten de voor-dagen, endShiftWorkdays is geen maat (case 18) --');
+for (const manual of [true, false]) {
+  const p = pool([poolRes('lib-1', 'Gedeelde kraan', 1)]);
+  const mk = (docId: string, rank: number): DistributionDocInput => {
+    const t = task(`${docId}-t1`, '2026-09-07', '2026-09-18', 10, { manuallyScheduled: manual });
+    return distDoc(docId, {
+      rank,
+      resources: [stamped(`${docId}-r1`, 'lib-1')],
+      tasks: [t],
+      assignments: [assign(`${docId}-a1`, t.id, `${docId}-r1`, 1)],
+    });
+  };
+  const label = `case 18 (manuallyScheduled=${manual})`;
+  const result = computeDistribution('c1', p, 'lib-1', [mk('A', 1), mk('B', 2)], OPTS_OFF);
+  assert(result.blocked === null, `${label}: geen blokkade`);
+
+  const docB = result.docs.find(d => d.docId === 'B')!;
+  assert(docB !== undefined && docB.participated, `${label}: B doet mee als deelnemer`);
+  assert(docB.shortfalls.length === 0, `${label}: B is geplaatst, dus geen tekort (kreeg ${JSON.stringify(docB.shortfalls)})`);
+  assert(result.hasShortfall === false, `${label}: geen tekort in het voorstel`);
+
+  // (a) De kern van de bevinding: geplaatst ⇒ de boeking staat er, en wel volledig.
+  const before = result.bookingByDay['B'] ?? {};
+  const after = result.afterLoadByDay['B'] ?? {};
+  const sum = (m: Record<string, number>): number => Object.values(m).reduce((n, v) => n + v, 0);
+  assert(Object.keys(after).length > 0, `${label}: afterLoadByDay['B'] is NIET leeg — een geplaatste boeking mag niet stil verdwijnen`);
+  assert(sum(after) === sum(before), `${label}: B houdt zonder tekort exact evenveel werk (voor ${sum(before)}, na ${sum(after)})`);
+
+  // De na-dagen liggen GEHEEL buiten de voor-dagen: precies de stand waarin een as uit de
+  // voor-stand een lege balk tekent.
+  const beforeDays = new Set([...Object.keys(result.fixedLoadByDay), ...Object.values(result.bookingByDay).flatMap(m => Object.keys(m))]);
+  assert(
+    Object.keys(after).every(iso => !beforeDays.has(iso)),
+    `${label}: B's na-dagen vallen buiten de voor-dagen (na ${JSON.stringify(Object.keys(after))})`,
+  );
+
+  // (b) endShiftWorkdays volgt de PROJECTeinddatum, niet de boeking.
+  assert(
+    docB.endShiftWorkdays === (manual ? 0 : 10),
+    `${label}: endShiftWorkdays is ${manual ? 0 : 10} (kreeg ${docB.endShiftWorkdays}) — een handmatig geplande taak schuift haar einddatum niet op`,
+  );
+  assert(docB.delays['B-t1'] === 10, `${label}: de boeking schuift wél tien werkdagen (kreeg ${JSON.stringify(docB.delays)})`);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (fails === 0) {
   console.log(`OK  distribute: alle checks groen (${checks})`);
