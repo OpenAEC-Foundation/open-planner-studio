@@ -486,6 +486,18 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     // Eén band ⇒ niets te breken: geen gedwongen posities, dus ook geen lege eerste pagina.
     const single = measurePrintReport(bandTasks.slice(0, 2), [], cal, 'Eén resource', baseOptions({ rows: bands.slice(0, 3), pageBreakBeforeGroups: true }));
     ok(single.forcedBreakOffsets === undefined, 'één band ⇒ geen gedwongen posities');
+    // Typelaag (manuvarkey punt 2): een band direct ónder een band krijgt géén eigen gedwongen
+    // positie — de typekop blijft bij zijn eerste resource; de tweede resource onder hetzelfde type
+    // en de volgende typekop breken wél.
+    const typed: ViewRow[] = [
+      { kind: 'group', rowKey: 'type0', key: 'type0', label: 'Ploeg', count: 4, depth: 0, levelIndex: 0, collapsed: false },
+      ...bands.slice(0, 6).map(r => ({ ...r, depth: r.depth + 1 })),
+      { kind: 'group', rowKey: 'type1', key: 'type1', label: 'Materieel', count: 2, depth: 0, levelIndex: 0, collapsed: false },
+      ...bands.slice(6).map(r => ({ ...r, depth: r.depth + 1 })),
+    ];
+    const typedForced = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: typed, pageBreakBeforeGroups: true }));
+    ok(JSON.stringify(typedForced.forcedBreakOffsets) === JSON.stringify([typedForced.headerHeight + 4 * rowH, typedForced.headerHeight + 7 * rowH]),
+      `typelaag: gedwongen posities vóór resource 2 (rij 4) en typeband 2 (rij 7), niet vóór een band direct onder een typekop (got ${JSON.stringify(typedForced.forcedBreakOffsets)})`);
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
     // paginabreedtes — steeds drie body-rijen die exact op de bandgrenzen eindigen.

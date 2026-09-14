@@ -131,6 +131,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "リソースごとに改ページ",
     "includeUnassigned": "リソース未割当のタスクを含める",
+    "groupByType": "リソース種別でグループ化",
     "empty": "リソースの割当がありません — まずタスクにリソースを割り当ててください。",
     "resources": "リソース：",
     "assignments": "割当：",

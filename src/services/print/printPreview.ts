@@ -1206,7 +1206,9 @@ export function renderReport(
   // Resourcediagram (issue #113): een gedwongen overgang vóór elke bandrij ná de eerste — de
   // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
   const forcedBreakOffsets = options.pageBreakBeforeGroups
-    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 ? [m.totalHeaderHeight + i * m.rowHeight] : []))
+    // Een band direct ónder een band (typelaag, punt 2) blijft bij zijn ouder: anders zou de typekop
+    // alleen op een verder leeg vel staan.
+    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
     : undefined;
   return {
     width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,

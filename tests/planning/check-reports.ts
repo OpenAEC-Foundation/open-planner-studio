@@ -529,6 +529,31 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('resourceGantt: naamloze resource ⇒ band "#2" (positie in de projectlijst)', naamloos.rows.filter(x => x.kind === 'group').map(label), ['#2']);
   eq('resourceGantt: naamloze resource — A telt als toegewezen', naamloos.counts, { resources: 1, assignments: 1, unassignedTasks: 6 });
 
+  // manuvarkey op #113, punt 2: twee lagen — typeband (vaste volgorde: mensen, dan materieel, dan
+  // materiaal), daarin de resourcebanden op diepte 1, de taken op diepte 2; "(geen)" blijft achteraan
+  // op diepte 0 (taken zonder resource hebben geen type). Zonder de optie byte-identiek.
+  const typeLabels = { LABOR: 'Arbeid', CREW: 'Ploeg', SUBCONTRACTOR: 'Onderaannemer', EQUIPMENT: 'Materieel', MATERIAL: 'Materiaal' };
+  const typed = computeResourceGanttRows(base, { ...opts, groupByType: true, typeLabels });
+  const typedGroups = typed.rows.filter(x => x.kind === 'group');
+  eq('resourceGantt/type: typebanden vóór hun resources, mensen eerst', typedGroups.map(x => `${x.depth}:${label(x)}`), ['0:Ploeg', '1:Ploeg 1', '0:Materieel', '1:Kraan']);
+  ok('resourceGantt/type: taakrijen op diepte 2', typed.rows.every(x => x.kind !== 'task' || x.depth === 2));
+  ok('resourceGantt/type: rijsleutels uniek', new Set(typed.rows.map(x => x.rowKey)).size === typed.rows.length);
+  eq('resourceGantt/type: typeband telt de taakrijen eronder', typedGroups.filter(x => x.depth === 0).map(x => x.count), [3, 1]);
+  eq('resourceGantt/type: tellingen ongewijzigd', typed.counts, r.counts);
+  eq('resourceGantt/type: dezelfde taken onder Ploeg 1', [...bandTasks(typed.rows, 'Ploeg 1')].sort(), [A, B, D].sort());
+  const typedNone = computeResourceGanttRows(base, { ...opts, groupByType: true, typeLabels, includeUnassigned: true });
+  const typedNoneGroups = typedNone.rows.filter(x => x.kind === 'group');
+  const lastGroup = typedNoneGroups[typedNoneGroups.length - 1];
+  ok('resourceGantt/type: "(geen)" blijft als laatste band op diepte 0', label(lastGroup) === '(geen)' && lastGroup.depth === 0);
+  ok('resourceGantt/type: zonder de optie byte-identiek', JSON.stringify(computeResourceGanttRows(base, { ...opts, typeLabels }).rows) === JSON.stringify(r.rows));
+  eq('resourceGantt/type: ontbrekend label ⇒ enum-naam', computeResourceGanttRows(base, { ...opts, groupByType: true }).rows.filter(x => x.kind === 'group' && x.depth === 0).map(label), ['CREW', 'EQUIPMENT']);
+  // Gelijknamigen binnen één type houden hun volgnummer; de nummering loopt over de hele lijst.
+  const typedTwins = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [jan1, { ...jan2, type: 'LABOR' }],
+    assignments: [asg('a1', A, jan1.id), asg('a2', B, jan2.id)],
+  }, { ...opts, groupByType: true, typeLabels });
+  eq('resourceGantt/type: gelijknamigen over twee typen houden hun volgnummer', typedTwins.rows.filter(x => x.kind === 'group').map(x => `${x.depth}:${label(x)}`), ['0:Arbeid', '1:Jan #2', '0:Materieel', '1:Jan #1']);
+
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).
   const dubbel = computeResourceGanttRows({

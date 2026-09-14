@@ -101,7 +101,11 @@ with the tasks assigned to it underneath, in order of start. That is the "who do
 overview for the site meeting, or — with the option **Each resource on a new page** — a separate
 sheet per person to hand out. A task with two resources appears under both bands; summary tasks are
 left out — an assignment on a summary task (which an import can produce) is not shown here. **Include tasks without a resource** adds a *(none)* band
-at the bottom, so the meeting can see at a glance what nobody owns yet.
+at the bottom, so the meeting can see at a glance what nobody owns yet. **Group by resource type**
+adds a layer above: first a band per type — labour, crew, subcontractor, equipment, material, in
+that fixed order — with the resources inside it; useful when a meeting discusses the people first
+and the equipment after, or when you only want to print the equipment block. With *Each resource on
+a new page* a type band starts a new sheet together with its first resource.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from

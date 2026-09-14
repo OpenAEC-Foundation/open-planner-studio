@@ -134,6 +134,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "Each resource on a new page",
     "includeUnassigned": "Include tasks without a resource",
+    "groupByType": "Group by resource type",
     "empty": "No resource assignments — assign resources to tasks first.",
     "resources": "Resources:",
     "assignments": "Assignments:",

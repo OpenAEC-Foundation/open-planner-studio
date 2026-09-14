@@ -134,6 +134,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "Her kaynak yeni bir sayfada",
     "includeUnassigned": "Kaynaksız görevleri dahil et",
+    "groupByType": "Kaynak türüne göre grupla",
     "empty": "Kaynak ataması yok — önce görevlere kaynak atayın.",
     "resources": "Kaynaklar:",
     "assignments": "Atamalar:",

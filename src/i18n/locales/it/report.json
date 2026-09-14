@@ -137,6 +137,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "Ogni risorsa su una nuova pagina",
     "includeUnassigned": "Includi le attività senza risorsa",
+    "groupByType": "Raggruppa per tipo di risorsa",
     "empty": "Nessuna assegnazione di risorse — assegna prima le risorse alle attività.",
     "resources": "Risorse:",
     "assignments": "Assegnazioni:",

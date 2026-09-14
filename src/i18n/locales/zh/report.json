@@ -131,6 +131,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "每个资源另起一页",
     "includeUnassigned": "包含未分配资源的任务",
+    "groupByType": "按资源类型分组",
     "empty": "没有资源分配——请先为任务分配资源。",
     "resources": "资源：",
     "assignments": "分配：",

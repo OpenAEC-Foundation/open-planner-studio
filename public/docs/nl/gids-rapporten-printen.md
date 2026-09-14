@@ -104,7 +104,11 @@ een nieuwe pagina** — een los vel per persoon om uit te delen. Een taak met tw
 onder beide banden; verzameltaken doen niet mee — een toewijzing op een verzameltaak (die uit een
 import kan komen) wordt hier niet getoond. Met **Taken zonder
 resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het overleg meteen ziet wat
-nog niemand heeft.
+nog niemand heeft. Met **Groeperen op resourcetype** komt er een laag boven: eerst een band per type
+— arbeid, ploeg, onderaannemer, materieel, materiaal, in die vaste volgorde — en daarbinnen de
+resources; handig als je in het overleg eerst de mensen en dan het materieel bespreekt, of alleen het
+materieelblok wilt afdrukken. Bij *Elke resource op een nieuwe pagina* begint een typeband op een
+nieuw vel samen met zijn eerste resource.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het

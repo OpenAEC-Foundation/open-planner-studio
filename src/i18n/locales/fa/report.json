@@ -135,6 +135,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "هر منبع در صفحه‌ای جدید",
     "includeUnassigned": "شامل کردن کارهای بدون منبع",
+    "groupByType": "گروه‌بندی بر اساس نوع منبع",
     "empty": "هیچ تخصیص منبعی وجود ندارد — ابتدا منابع را به کارها تخصیص دهید.",
     "resources": "منابع:",
     "assignments": "تخصیص‌ها:",

@@ -146,6 +146,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "كل مورد في صفحة جديدة",
     "includeUnassigned": "تضمين المهام بدون مورد",
+    "groupByType": "تجميع حسب نوع المورد",
     "empty": "لا توجد تعيينات موارد — عيّن الموارد للمهام أولاً.",
     "resources": "الموارد:",
     "assignments": "التعيينات:",

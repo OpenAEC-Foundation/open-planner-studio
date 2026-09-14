@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
 import { taskStart } from './reportCommon';
 
@@ -30,6 +30,12 @@ import { taskStart } from './reportCommon';
  * eenduidig anker en zou op een blad per persoon de bladrand af lopen — het paneel zet `showDeps`
  * voor dit type uit (bevinding 2).
  *
+ * Optioneel in TWEE LAGEN (manuvarkey op #113, punt 2): eerst een band per resourceTYPE (mensen
+ * eerst — arbeid, ploeg, onderaannemer — dan materieel, dan materiaal; een vaste volgorde, niet
+ * de vertaalde labelvolgorde, zodat een uitgedeeld vel in elke taal dezelfde blokvolgorde heeft),
+ * daarbinnen de resourcebanden zoals hierboven, en de taken op diepte 2. De "(geen)"-band blijft
+ * op diepte 0 als laatste: taken zonder resource hebben geen type.
+ *
  * Invoer is structureel een `ReportContext`-subset, zoals de rest van `src/engine/reports/`. Puur:
  * geen React-/store-imports, headless getest in `tests/planning/check-reports.ts`.
  */
@@ -46,6 +52,11 @@ export interface ResourceGanttRowsOptions {
   noneLabel: string;
   /** BCP-47-taal voor de bandvolgorde en de gelijknaamdetectie (de app-taal, `i18n.language`). */
   locale: string;
+  /** Twee lagen: een band per resourcetype, daarbinnen per resource (default uit). */
+  groupByType?: boolean;
+  /** Labels per resourcetype — `t('common:resource.type.<lower>')`; een ontbrekend label valt
+   *  terug op de enum-naam. Alleen gelezen bij `groupByType`. */
+  typeLabels?: Partial<Record<ResourceType, string>>;
 }
 
 export interface ResourceGanttRowsResult {
@@ -65,6 +76,18 @@ export interface ResourceGanttRowsResult {
 
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
 const NONE_BAND_KEY = encodeBandKey([NONE_RAWKEY]);
+
+/**
+ * Bandvolgorde van de typen bij `groupByType`: wie het werk doet eerst, dan waarmee, dan waarvan.
+ * Bewust vast en niet op vertaald label gesorteerd — zie de moduledoc. Een type dat hier zou
+ * ontbreken (kan niet met het huidige enum) komt achteraan.
+ */
+export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL'];
+
+/** Ruwe bandsleutel van een typeband — met prefix, zodat hij nooit botst met een resource-id. */
+function typeRawKey(type: ResourceType): string {
+  return `type:${type}`;
+}
 
 /** Op start (`taskStart`, dezelfde definitie als de tabelrapporten), lege datums achteraan,
  *  gelijke starts in invoervolgorde (stabiel). */
@@ -144,15 +167,38 @@ export function computeResourceGanttRows(
     .sort((a, b) => collator.compare(a.label, b.label) || a.index - b.index);
 
   const rows: ViewRow[] = [];
-  for (const band of bands) {
-    const key = encodeBandKey([band.id]);
+  // Eén resourceband met zijn taakrijen, onder een optioneel typepad (diepte +1).
+  const pushBand = (band: (typeof bands)[number], path: string[]) => {
+    const groupPath = [...path, band.id];
+    const key = encodeBandKey(groupPath);
     rows.push({
       kind: 'group', rowKey: key, key, label: band.label, count: band.tasks.size,
-      depth: 0, levelIndex: 0, collapsed: false,
+      depth: path.length, levelIndex: path.length, collapsed: false,
     });
     for (const task of sortByStart([...band.tasks.values()])) {
-      rows.push({ kind: 'task', rowKey: encodeGroupedTaskRowKey([band.id], task.id), task, depth: 1, dimmed: false });
+      rows.push({ kind: 'task', rowKey: encodeGroupedTaskRowKey(groupPath, task.id), task, depth: path.length + 1, dimmed: false });
     }
+  };
+  if (opts.groupByType) {
+    const typeOf = new Map(ctx.resources.map(r => [r.id, r.type]));
+    const rank = (type: ResourceType) => {
+      const i = RESOURCE_TYPE_BAND_ORDER.indexOf(type);
+      return i < 0 ? RESOURCE_TYPE_BAND_ORDER.length : i;
+    };
+    // Typen in de vaste volgorde; binnen een type blijft de collator-volgorde van `bands`.
+    const types = [...new Set(bands.map(b => typeOf.get(b.id) as ResourceType))].sort((a, b) => rank(a) - rank(b));
+    for (const type of types) {
+      const members = bands.filter(b => typeOf.get(b.id) === type);
+      const raw = typeRawKey(type);
+      const key = encodeBandKey([raw]);
+      rows.push({
+        kind: 'group', rowKey: key, key, label: opts.typeLabels?.[type] ?? type,
+        count: members.reduce((n, b) => n + b.tasks.size, 0), depth: 0, levelIndex: 0, collapsed: false,
+      });
+      for (const band of members) pushBand(band, [raw]);
+    }
+  } else {
+    for (const band of bands) pushBand(band, []);
   }
 
   const unassigned = sortByStart(leaves.filter(t => !assignedTaskIds.has(t.id)));

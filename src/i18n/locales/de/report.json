@@ -134,6 +134,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "Jede Ressource auf einer neuen Seite",
     "includeUnassigned": "Aufgaben ohne Ressource einbeziehen",
+    "groupByType": "Nach Ressourcentyp gruppieren",
     "empty": "Keine Ressourcenzuweisungen — weisen Sie zuerst Ressourcen zu Aufgaben zu.",
     "resources": "Ressourcen:",
     "assignments": "Zuweisungen:",

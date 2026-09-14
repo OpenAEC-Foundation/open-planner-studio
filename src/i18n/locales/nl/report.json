@@ -134,6 +134,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "Elke resource op een nieuwe pagina",
     "includeUnassigned": "Taken zonder resource meenemen",
+    "groupByType": "Groeperen op resourcetype",
     "empty": "Geen resourcetoewijzingen — wijs eerst resources toe aan taken.",
     "resources": "Resources:",
     "assignments": "Toewijzingen:",

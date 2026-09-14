@@ -140,6 +140,7 @@
   "resourceGantt": {
     "pageBreakPerResource": "Każdy zasób na nowej stronie",
     "includeUnassigned": "Uwzględnij zadania bez zasobu",
+    "groupByType": "Grupuj według typu zasobu",
     "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",
     "resources": "Zasoby:",
     "assignments": "Przypisania:",

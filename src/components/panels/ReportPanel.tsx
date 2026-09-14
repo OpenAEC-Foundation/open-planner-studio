@@ -447,12 +447,20 @@ export function ReportPanel() {
   const isGanttLike = isGanttReportType(reportType);
   const noneLabel = tTask('structure.none');
   // De bandvolgorde volgt de app-taal (nooit de OS-taal van de afdrukker: zelfde vel, zelfde nummering).
+  // Typelabels voor de optionele typelaag (punt 2): dezelfde sleutels als het resourcepaneel.
+  const resourceTypeLabels = useMemo(() => ({
+    LABOR: tCommon('resource.type.labor'), CREW: tCommon('resource.type.crew'),
+    SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
+    MATERIAL: tCommon('resource.type.material'),
+  }), [tCommon]);
   const resourceGantt = useMemo(() => (reportType === 'resourceGantt'
     ? computeResourceGanttRows({ tasks, resources, assignments }, {
       includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel, locale: i18n.language,
+      groupByType: resourceGanttOptions.groupByType, typeLabels: resourceTypeLabels,
     })
     : null),
-  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned, i18n.language]);
+  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned,
+    resourceGanttOptions.groupByType, resourceTypeLabels, i18n.language]);
   // Rijenbron van de Gantt-render: resourcediagram ⇒ de resourcebanden; Gantt-afdruk ⇒ de schermrijen
   // bij Volg weergave (#54), anders `undefined` = de volledige takenboom (oud gedrag, geen verrassingen).
   const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
@@ -1399,6 +1407,16 @@ export function ReportPanel() {
                     data-ops-report-option="includeUnassigned"
                   />
                   <span className="min-w-0">{t('resourceGantt.includeUnassigned')}</span>
+                </label>
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={resourceGanttOptions.groupByType}
+                    onChange={e => patchResourceGanttOptions({ groupByType: e.target.checked })}
+                    className="accent-accent flex-shrink-0"
+                    data-ops-report-option="groupByType"
+                  />
+                  <span className="min-w-0">{t('resourceGantt.groupByType')}</span>
                 </label>
               </>
             )}

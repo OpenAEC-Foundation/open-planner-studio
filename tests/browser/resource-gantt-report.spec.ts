@@ -57,6 +57,11 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await expect(pages).toHaveCount(3);
   await expect(count('unassigned')).toHaveText('1');
 
+  // Typelaag (manuvarkey punt 2): Ploeg A (ploeg) en Kraan (materieel) krijgen elk een typekop, en die
+  // blijft bij zijn eerste resource op hetzelfde vel — nog steeds drie pagina's, geen leeg vel per type.
+  await page.locator('[data-ops-report-option="groupByType"]').check();
+  await expect(pages).toHaveCount(3);
+
   // De échte export (vector-tak, zie paginateVector) moet dezelfde drie pagina's opleveren als de
   // preview: dat is het pad dat de gebruiker in handen krijgt, en de enige plek waar de gedwongen
   // breekposities de PDF in gaan.
