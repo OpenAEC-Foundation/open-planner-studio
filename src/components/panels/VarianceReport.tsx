@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance, type VarianceResult, type VarianceStatus } from '@/engine/variance';
 import { useDisplayDate } from '@/hooks/displayDate';
+import { formatSignedReportNumber } from '@/utils/reportNumber';
 
 /**
  * Variance-rapport (fase 2.6, §7): vergelijkt de huidige (CPM-)datums met de actieve baseline.
@@ -39,14 +40,19 @@ export const STATUS_COLOR: Record<VarianceStatus, string> = {
 
 const COLUMNS = ['wbs', 'name', 'baselineStart', 'baselineFinish', 'currentStart', 'currentFinish', 'deltaStart', 'deltaFinish', 'status'] as const;
 
-/** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde delta-formattering gebruikt. */
-export function fmtDelta(v: number | undefined): string {
+/**
+ * Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde delta-formattering gebruikt.
+ * Zelfde notatie als de andere rapporten (`formatSignedReportNumber`: plus bij positief, het
+ * decimaalteken van de app-taal — review #139 bevinding 5); de delta's zijn hele werkdagen, dus in
+ * de praktijk verandert alleen het teken mee.
+ */
+export function fmtDelta(v: number | undefined, locale?: string): string {
   if (v === undefined) return '—';
-  return v > 0 ? `+${v}` : `${v}`;
+  return formatSignedReportNumber(v, locale);
 }
 
 export function VarianceReport() {
-  const { t } = useTranslation('report');
+  const { t, i18n } = useTranslation('report');
   const { rows } = useVarianceResult();
   const dd = useDisplayDate();
 
@@ -74,10 +80,10 @@ export function VarianceReport() {
             <td className="px-2 py-1.5">{dd.date(r.currentStart) || '—'}</td>
             <td className="px-2 py-1.5">{dd.date(r.currentFinish) || '—'}</td>
             <td className="px-2 py-1.5 text-right" style={r.deltaStart !== undefined && r.deltaStart > 0 ? { color: '#DC2626', fontWeight: 600 } : undefined}>
-              {fmtDelta(r.deltaStart)}
+              {fmtDelta(r.deltaStart, i18n.language)}
             </td>
             <td className="px-2 py-1.5 text-right" style={r.deltaFinish !== undefined && r.deltaFinish > 0 ? { color: '#DC2626', fontWeight: 600 } : undefined}>
-              {fmtDelta(r.deltaFinish)}
+              {fmtDelta(r.deltaFinish, i18n.language)}
             </td>
             <td className="px-2 py-1.5">
               <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600 }}>

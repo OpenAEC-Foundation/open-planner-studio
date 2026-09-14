@@ -38,6 +38,6 @@ export function contouredAssignmentIds(
 
 export function assignmentCurveState(a: ResourceAssignment, contoured: boolean): AssignmentCurveState {
   if (contoured) return 'contoured';
-  if (!a.curve && a.curveValues) return 'imported';
+  if (!a.curve && a.curveValues && a.curveValues.length > 0) return 'imported';
   return a.curve ?? 'UNIFORM';
 }

@@ -16,7 +16,7 @@ import {
   remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
 } from '@/engine/reports';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
-import { formatReportNumber, formatSignedReportNumber } from '@/utils/reportNumber';
+import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
 import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
@@ -649,6 +649,14 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('reportNumber: hoogstens twee decimalen, geen duizendtalscheiding', formatReportNumber(1234.567, 'de'), '1234,57');
   eq('reportNumber: plus bij positief', formatSignedReportNumber(1.25, 'nl'), '+1,25');
   eq('reportNumber: geen plus bij nul of negatief', [formatSignedReportNumber(0, 'nl'), formatSignedReportNumber(-2, 'nl')], ['0', '-2']);
+  // Review #139, bevindingen 5–7: Latijnse cijfers in élke taal, geen bidi-markering, geen "-0".
+  eq('reportNumber: fa ⇒ Latijnse cijfers', formatReportNumber(1.5, 'fa'), '1.5');
+  eq('reportNumber: ar negatief zonder U+200E', [...formatReportNumber(-2, 'ar')].map(c => c.charCodeAt(0)), [45, 50]);
+  eq('reportNumber: -0,001 rondt af op "0", niet "-0"', [formatReportNumber(-0.001, 'nl'), formatReportNumber(-0.001), formatSignedReportNumber(-0.001, 'nl'), formatSignedReportNumber(-0.001)], ['0', '0', '0', '0']);
+  eq('reportNumber: NaN/oneindig ⇒ leeg', [formatReportNumber(NaN, 'nl'), formatSignedReportNumber(Infinity, 'nl')], ['', '']);
+  eq('reportNumber: onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz-!!'), '0.5');
+  eq('reportNumber: lag-tekst krijgt het decimaalteken van de taal', [localizeDecimalPoint('+1.5d', 'nl'), localizeDecimalPoint('+1.5d', 'en'), localizeDecimalPoint('+2d', 'nl'), localizeDecimalPoint('+1.5d')], ['+1,5d', '+1.5d', '+2d', '+1.5d']);
+  eq('curveState: lege curveValues zijn geen geïmporteerde curve', assignmentCurveState({ ...bare, curveValues: [] }, false), 'UNIFORM');
 
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).

@@ -587,17 +587,30 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(JSON.stringify(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, rowAssignments }))) === JSON.stringify(plainA),
         'rowAssignments zonder assignmentColumns ⇒ byte-identiek');
 
-      // Restpunt review #138 (ronde 2, bevinding 5): laat de tabel mét kolommen minder dan
-      // MIN_CHART_WIDTH_PX (240) tijdlijn over op één papierbreedte, dan laat de render de twee
-      // kolommen vallen en meldt dat — op A4 liggend (1058 px printbreedte) is een naamkolom van
-      // 800 px daarvoor genoeg; de gewone naamkolom niet.
-      const wideOpts = baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'landscape', taskNameColumnWidth: 800 });
+      // Restpunt review #138 (ronde 2, bevinding 5), aangescherpt na review #139 (bevindingen 1, 2
+      // en 4): laat de tabel mét kolommen minder dan `minChartWidthPx` (een vijfde van de
+      // printbreedte, vloer 160 px) tijdlijn over op één papierbreedte ÉN lost weglaten dat op, dan
+      // laat de render de twee kolommen vallen en meldt dat. A4 liggend is 1058,5 px breed ⇒ de tabel
+      // mag 846,8 px zijn: een naamkolom van 500 px geeft 893 px mét en 750 px zónder de kolommen.
+      const a4 = { paperSize: 'A4' as const, orientation: 'landscape' as const };
+      const wideOpts = baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, ...a4, taskNameColumnWidth: 500 });
       const wide = record([T_NORM, T_CRIT], [], cal, wideOpts);
       const wideNoCols = record([T_NORM, T_CRIT], [], cal, { ...wideOpts, assignmentColumns: false, rowAssignments: undefined });
       ok(wide.dims.assignmentColumnsDropped === true, 'brede naamkolom ⇒ toewijzingskolommen weggelaten en gemeld');
       ok(wide.dims.tableWidth === wideNoCols.dims.tableWidth && !wide.texts.some(t => t.text === 'Eenh./d'),
         'weggelaten ⇒ dezelfde tabel als zonder de optie, geen kolomkop');
       ok(withCols.dims.assignmentColumnsDropped === undefined, 'gewone naamkolom ⇒ kolommen blijven, geen melding');
+      // Lost weglaten niets op (800 px naamkolom: 1050 px zónder de kolommen), dan blijven ze staan.
+      const hopeless = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, ...a4, taskNameColumnWidth: 800 }));
+      ok(hopeless.dims.assignmentColumnsDropped === undefined && hopeless.texts.some(t => t.text === 'Eenh./d'),
+        'tabel ook zonder de kolommen te breed ⇒ kolommen blijven, geen melding');
+      // A4 staand (729,7 px, vloer 160 ⇒ 569,7 px tabel) met verse instellingen: 523 px past.
+      const portrait = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'portrait' }));
+      ok(portrait.dims.assignmentColumnsDropped === undefined && portrait.texts.some(t => t.text === 'Eenh./d'),
+        'A4 staand met standaardinstellingen ⇒ kolommen blijven');
+      // De lettergrootte schaalt de tabel mee, de grens niet: 125 % op A4 staand geeft 654 px ⇒ weg, 475 px zonder ⇒ past.
+      const bigFont = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'portrait', reportFontScale: 125 }));
+      ok(bigFont.dims.assignmentColumnsDropped === true, 'grote lettergrootte op A4 staand ⇒ kolommen weggelaten');
 
       // Restpunt bevinding 8: een venster zonder werkdag valt op de kalender-as terug — en nummert
       // dan óók de weekenddagen, anders staat er geen enkel dagcijfer in de kop.
@@ -609,6 +622,12 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       const nlUnits = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, numberLocale: 'nl' }));
       ok(nlUnits.texts.some(t => t.text === '1,5' && inCol(t, 180, 225)), 'numberLocale nl ⇒ "1,5" in de eenhedenkolom');
       ok(withCols.texts.some(t => t.text === '1.5' && inCol(t, 180, 225)), 'zonder numberLocale ⇒ "1.5"');
+      // Review #139 bevinding 5: de Duur-cel in dezelfde tabel volgt dezelfde notatie.
+      const T_HALF = mkTask('t-half', 'Halve dag', { time: mkTime({ scheduleDuration: 2.5 }) });
+      const nlDur = record([T_HALF], [], cal, baseOptions({ numberLocale: 'nl' }));
+      const plainDur = record([T_HALF], [], cal, baseOptions());
+      ok(nlDur.texts.some(t => t.text === '2,5d') && plainDur.texts.some(t => t.text === '2.5d'),
+        `duurcel volgt numberLocale ("2,5d" in nl, "2.5d" zonder; got ${JSON.stringify(nlDur.texts.filter(t => t.text.endsWith('d')).map(t => t.text))})`);
     }
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee

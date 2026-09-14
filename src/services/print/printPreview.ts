@@ -98,12 +98,22 @@ const COL = {
 };
 
 /**
- * Minimale chartbreedte (logische px, per paginabreedte) die de tabel moet overlaten. Komt de
- * tabel mét toewijzingskolommen daaronder (lange taaknamen met afkappen uit), dan laat de render
- * die twee kolommen vallen en meldt dat via `RenderReportResult.assignmentColumnsDropped` — beter
- * een smallere tabel dan een tijdas van een paar pixels (review #138, ronde 2, bevinding 5).
+ * Minimale chartbreedte die de tabel per paginabreedte moet overlaten vóór de render de twee
+ * toewijzingskolommen (Eenh./d + Curve) laat vallen: een vijfde van de printbreedte, met een vloer
+ * van 160 logische px voor klein papier (A4 staand: 730 px breed, dus 160 in plaats van 146). Komt de
+ * tabel mét kolommen daaronder — door een brede naamkolom, een grote rapportlettergrootte (de tabel
+ * schaalt mee, deze grens niet) of klein/staand papier — én lost weglaten dat op (zonder de kolommen
+ * blijft er wél genoeg chart over), dan vallen de twee kolommen en meldt de render dat via
+ * `RenderReportResult.assignmentColumnsDropped`. Lost weglaten niets op, dan blijven ze staan: de
+ * gebruiker koos ze, en een tijdas van een paar pixels heeft hij dan toch al. Review #138 ronde 2
+ * bevinding 5; de vaste 240 px van de eerste versie gooide op A4 staand de kolommen al bij verse
+ * instellingen weg (review #139, bevindingen 1, 2 en 4).
  */
-const MIN_CHART_WIDTH_PX = 240;
+const MIN_CHART_WIDTH_FRACTION = 0.2;
+const MIN_CHART_WIDTH_FLOOR_PX = 160;
+function minChartWidthPx(printableWidth: number): number {
+  return Math.max(MIN_CHART_WIDTH_FLOOR_PX, printableWidth * MIN_CHART_WIDTH_FRACTION);
+}
 
 /**
  * Grenzen van de instelbare naamkolom (ongeschaalde px). `DEFAULT` is exact de breedte die de
@@ -505,9 +515,13 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
   }
 }
 
-/** Format duration as "15d" */
-function formatDuration(days: number): string {
-  return `${days}d`;
+/**
+ * Duur-cel: "15d", "1,5d" in nl — hetzelfde getal en decimaalteken als de Eenh./d-cel en de
+ * tabelrapporten (`formatReportNumber`; review #139 bevinding 5: één tabel, één notatie). Zonder
+ * `numberLocale` de neutrale punt, op twee decimalen afgerond.
+ */
+function formatDuration(days: number, locale: string | undefined): string {
+  return `${formatReportNumber(days, locale)}d`;
 }
 
 /**
@@ -683,7 +697,7 @@ export interface RenderReportResult {
   forcedBreakOffsets?: number[];
   /**
    * OPTIONEEL — `true` wanneer `PrintOptions.assignmentColumns` gevraagd was maar de tabel daarmee
-   * minder dan {@link MIN_CHART_WIDTH_PX} chart per paginabreedte overliet en de twee kolommen
+   * minder dan {@link minChartWidthPx} chart per paginabreedte overliet en de twee kolommen
    * daarom zijn weggelaten. Het paneel meldt dat naast de optie.
    */
   assignmentColumnsDropped?: boolean;
@@ -717,10 +731,14 @@ export function renderReport(
   let assignmentColumns = !!options.assignmentColumns;
   let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns);
   let assignmentColumnsDropped = false;
-  if (assignmentColumns && m.tableWidth > printableWidth - MIN_CHART_WIDTH_PX) {
-    assignmentColumns = false;
-    assignmentColumnsDropped = true;
-    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false);
+  const maxTableWidth = printableWidth - minChartWidthPx(printableWidth);
+  if (assignmentColumns && m.tableWidth > maxTableWidth) {
+    const without = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false);
+    if (without.tableWidth <= maxTableWidth) {
+      assignmentColumns = false;
+      assignmentColumnsDropped = true;
+      m = without;
+    }
   }
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
@@ -2092,7 +2110,7 @@ function drawTaskTable(
     d2d.font = m.font(8);
     d2d.textAlign = 'right';
     d2d.textBaseline = 'middle';
-    d2d.fillText(formatDuration(task.time.scheduleDuration), cols.duration.x + cols.duration.w - cellPad, textY);
+    d2d.fillText(formatDuration(task.time.scheduleDuration, options.numberLocale), cols.duration.x + cols.duration.w - cellPad, textY);
 
     // Start date
     const startStr = task.time.earlyStart || task.time.scheduleStart;

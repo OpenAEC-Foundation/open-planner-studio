@@ -6,7 +6,7 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import type { ResourceType } from '@/types/resource';
 import { formatDate } from '@/utils/dateUtils';
 import { makeMonthLabeler } from '@/utils/monthLabel';
-import { formatReportNumber, formatSignedReportNumber } from '@/utils/reportNumber';
+import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
 import type { ReportType, TableReportOptions } from '@/utils/reportSettings';
 import type { ReportingPeriod } from '@/engine/reports';
 import { isTableReportType } from '@/utils/reportSettings';
@@ -28,7 +28,7 @@ import { REPORT_COLORS, section, type ReportColumn, type ReportSummaryItem, type
  */
 type T = TFunction<'report'>;
 /** Datum- én getalnotatie van het rapport, gebonden aan de app-instellingen en -taal. */
-type DD = ReturnType<typeof useDisplayDate> & { num: (n: number) => string; signed: (n: number) => string };
+type DD = ReturnType<typeof useDisplayDate> & { num: (n: number) => string; signed: (n: number) => string; lagText: (lag: string) => string };
 
 /** Zelfde sleutelmap als `ResourcePanel.tsx` — `t()` is strikt getypeerd, dus geen template-sleutel. */
 const RESOURCE_TYPE_KEY = {
@@ -243,7 +243,9 @@ function healthDetailText(t: T, dd: DD, item: HealthItem): string {
   const parts: string[] = [];
   if (d.reason) parts.push(t(`tableReports.health.reason_${d.reason}`));
   if (d.constraintType) parts.push(d.constraintType);
-  if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: d.lag }));
+  // De engine levert de lag taalneutraal ("+1.5d", `formatLagShort`); hier krijgt hij hetzelfde
+  // decimaalteken als `dd.num(d.float)` verderop in dezelfde cel (review #139, bevinding 5).
+  if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: dd.lagText(d.lag) }));
   else if (d.days !== undefined) parts.push(t('tableReports.health.detail_days', { value: dd.num(d.days) }));
   if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: dd.num(d.float) }));
   if (d.date) parts.push(dd.date(d.date));
@@ -425,6 +427,7 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
     ...dates,
     num: n => formatReportNumber(n, locale),
     signed: n => formatSignedReportNumber(n, locale),
+    lagText: lag => localizeDecimalPoint(lag, locale),
   }), [dates, locale]);
   return useMemo(() => {
     if (!isTableReportType(reportType)) return null;

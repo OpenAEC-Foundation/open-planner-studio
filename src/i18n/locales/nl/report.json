@@ -138,7 +138,7 @@
     "includeUnassigned": "Taken zonder resource meenemen",
     "groupByType": "Groeperen op resourcetype",
     "showAssignmentColumns": "Eenheden/dag en curve tonen",
-    "columnsDropped": "De kolommen Eenh./d en Curve zijn weggelaten: met deze naamkolom bleef er geen tijdlijn over. Kap de taaknamen af of kies groter papier.",
+    "columnsDropped": "De kolommen Eenh./d en Curve zijn weggelaten: de tabel liet te weinig tijdlijn over. Kies groter of liggend papier, een kleinere lettergrootte of een smallere naamkolom, of zet Voltooiing tonen uit.",
     "emptyPeriod": "Geen taken in de rapportageperiode — kies een andere periode of Hele project.",
     "outsidePeriod": "Buiten de periode:",
     "empty": "Geen resourcetoewijzingen — wijs eerst resources toe aan taken.",
