@@ -7,6 +7,18 @@ declare global {
   }
 }
 
+/**
+ * De dialoog bevraagt de GitHub Releases-API voor de releasevergelijking (grootteverschil, tijd
+ * tussen releases). Onbevoegd is die API op een gedeelde CI-runner rate-limited (403) en achter
+ * een sandboxproxy niet vertrouwd (ERR_CERT_AUTHORITY_INVALID); beide geven een console.error die
+ * de harness als fout telt, terwijl deze tests niets uit die vergelijking asserteren. Antwoord
+ * daarom deterministisch met een lege lijst — de pure functies erachter zijn headless getest in
+ * tests/planning/check-just-updated.ts.
+ */
+async function stubReleasesApi(page: Page): Promise<void> {
+  await page.route('https://api.github.com/repos/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+}
+
 async function selectLocale(page: Page, option: string, expectedLocale: string): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.locator('.settings-dialog');
@@ -21,6 +33,7 @@ async function selectLocale(page: Page, option: string, expectedLocale: string):
 }
 
 test('update-highlights volgen de app-ready route en houden externe link open', async ({ page, ops: _ops }) => {
+  await stubReleasesApi(page);
   await page.evaluate(() => {
     window.openedReleaseUrls = [];
     window.open = ((url?: string | URL) => {
@@ -50,6 +63,7 @@ test('update-highlights volgen de app-ready route en houden externe link open', 
 });
 
 test('update-highlights werken smal, licht/donker en RTL', async ({ page, ops: _ops }) => {
+  await stubReleasesApi(page);
   await page.setViewportSize({ width: 390, height: 420 });
   await selectLocale(page, 'NL — Nederlands', 'nl');
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiTheme: 'light', justUpdated: { from: null, to: '2026.8.1' } }));
