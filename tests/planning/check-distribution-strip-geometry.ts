@@ -290,6 +290,27 @@ ok(dw > 0, `de dagbreedte is positief (${dw})`);
   ok(partly.ghostBlocks.every(b => b.iso !== '2026-09-08'), '8 — en dat is precies de geplaatste dag');
 }
 
+// ── Geval 9 (§4-noot 2026-09-14): ONBEGRENSD PLAFOND ⇒ GEEN GESTIPPELDE DOOS ────────────────
+// Een onbegrensde maat tekent niet: de doos zou de hele track tot de asrand vullen. De greep
+// staat wél aan de rechterrand, en er is geen plafonddatum.
+{
+  const before = load(['2026-09-07', '2026-09-08', '2026-09-09']);
+  const g = buildStripGeometry({
+    axis,
+    beforeLoadByDay: before,
+    loadByDay: before,
+    fixedLoadByDay: {},
+    isWorkingDay,
+    slackWorkdays: 2,
+    ceilingWorkdays: null,
+    endShiftWorkdays: 0,
+  });
+
+  ok(g.freeBox === null, '9 — bij een onbegrensd plafond is er geen gestippelde doos');
+  ok(g.ceilingEndIso === null, '9 — en dus ook geen plafonddatum');
+  ok(g.handleX > g.phaseEndX, '9 — de greep staat wel degelijk rechts van het fase-einde');
+}
+
 // ── De verschil-prijs (§2.2) ─────────────────────────────────────────────────────────────────
 ok(savingsWorkdays(5, 2) === 3, 'prijs — uit 5, aan 2 ⇒ bespaart 3 werkdagen');
 ok(savingsWorkdays(4, 4) === 0, 'prijs — even duur ⇒ bespaart niets');

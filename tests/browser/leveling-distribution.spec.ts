@@ -303,6 +303,9 @@ test('fasestroken: pin en plafond zijn met het toetsenbord te bedienen', async (
   const handleBox = (await handle.boundingBox())!;
   const lastDay = (await strip.locator('[data-ops-distribution-day="work"]').last().boundingBox())!;
   expect(handleBox.x).toBeGreaterThan(lastDay.x + lastDay.width);
+  // ... maar de gestippelde "toegestaan maar niet benut"-doos hoort er NIET te zijn: die is een
+  // maat, en onbegrensd is geen maat (§4-noot 2026-09-14). Eerder vulde hij de hele track.
+  await expect(strip.locator('[data-ops-distribution-tail]')).toHaveCount(0);
 });
 
 test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', async ({ page, ops: _ops }) => {

@@ -76,7 +76,8 @@ export interface StripGeometry {
   ghostBlocks: StripBlock[];
   /** De vaste last van gepinde/#63-documenten, samengevoegd tot aaneengesloten banden. */
   fixedBands: StripBand[];
-  /** "Toegestaan maar niet benut": van het fase-einde tot de handle. `null` ⇒ niets over. */
+  /** "Toegestaan maar niet benut": van het fase-einde tot de handle. `null` ⇒ niets over — en ook
+   *  altijd `null` bij een ONBEGRENSD plafond (§4-noot 2026-09-14): een oneindige maat tekent niet. */
   freeBox: StripBand | null;
   /** De beschikbare eigen speling, vanaf het OORSPRONKELIJKE fase-einde. */
   slackBar: StripBand | null;
@@ -275,6 +276,12 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
   // (4) Het plafond: de handle en de gestippelde rest. Onbegrensd ⇒ aan het einde van de as (§5).
   let handleX: number;
   let ceilingEndIso: string | null;
+  // GEEN GESTIPPELDE DOOS BIJ EEN ONBEGRENSD PLAFOND (eigenaarsbesluit 2026-09-14, noot bij §4).
+  // "Toegestaan maar niet benut" is een MAAT; bij een onbegrensd plafond is die maat oneindig en
+  // vulde de doos domweg de hele track tot de rechterrand van de as — dat las als "hier mag nog
+  // een berg werk bij tot ergens in de toekomst" terwijl de as-rand niets betekent. Onbegrensd
+  // spreekt nu alleen nog uit de greep aan de rechterrand en de plafondtekst "onbegrensd".
+  let freeBox: StripBand | null = null;
   if (ceilingWorkdays === null) {
     handleX = trackRight;
     ceilingEndIso = null;
@@ -292,8 +299,8 @@ export function buildStripGeometry(input: StripGeometryInput): StripGeometry {
     const ceiling = advanceWorkdays(axis, anchorEnd, remaining, isWorkingDay);
     handleX = Math.max(AXIS.padLeft, Math.min(trackRight, ceiling.xEnd));
     ceilingEndIso = ceiling.iso;
+    freeBox = handleX > phaseEndX ? { x: phaseEndX, w: handleX - phaseEndX } : null;
   }
-  const freeBox = handleX > phaseEndX ? { x: phaseEndX, w: handleX - phaseEndX } : null;
 
   // (5) Week- en maandlijnen.
   const weekLines: number[] = [];

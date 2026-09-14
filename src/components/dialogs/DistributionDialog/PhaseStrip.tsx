@@ -175,7 +175,9 @@ export function PhaseStrip({
   // De "toegestaan maar niet benut"-doos loopt van het fase-einde tot de greep (§4), dus zodra de
   // greep tijdens het slepen geëxtrapoleerd wordt, moet de doos mee — anders zou hij achterblijven
   // op de oude asrand en de greep los van de balk lijken te zweven.
-  const freeBox = dragHandleX !== null && geometry !== null
+  // Bij een ONBEGRENSD plafond is er geen gestippelde doos (§4-noot 2026-09-14) — ook niet tijdens
+  // een sleep, waar de geëxtrapoleerde greep anders alsnog een doos zou opspannen.
+  const freeBox = displayCeiling !== null && dragHandleX !== null && geometry !== null
     ? (dragHandleX > geometry.phaseEndX
       ? { x: geometry.phaseEndX, w: dragHandleX - geometry.phaseEndX }
       : null)

@@ -68,6 +68,13 @@ In de track, op de gedeelde as:
   (`repeating-linear-gradient(135deg, …)`, dun grijs randje);
 - **"toegestaan maar niet benut"** als lege doos met gestippelde rand, van het nieuwe fase-einde
   tot de handle-stand;
+
+  > **Eigenaarsbesluit 2026-09-14: bij een ONBEGRENSD plafond géén gestippelde doos.** De doos is
+  > een maat, en een onbegrensde maat vulde simpelweg de hele track tot de rand van de as — dat las
+  > als een belofte over ruimte die de as niet uitdrukt. Onbegrensd toont zich nu alleen nog in de
+  > greep aan de rechterrand en in de plafondtekst "onbegrensd"; `buildStripGeometry` geeft in dat
+  > geval `freeBox: null`.
+
 - onderin een **meetlat** van 3 px: grijs gestippeld = de eigen speling (vanaf de oorspronkelijke
   einddatum), massief rood = alles voorbij de speling, dus echte einddatum-verschuiving;
 - de **vaste last** van gepinde/#63-documenten als lichte achtergrondband (bestaand).
