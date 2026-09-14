@@ -498,6 +498,32 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     const typedForced = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: typed, pageBreakBeforeGroups: true }));
     ok(JSON.stringify(typedForced.forcedBreakOffsets) === JSON.stringify([typedForced.headerHeight + 4 * rowH, typedForced.headerHeight + 7 * rowH]),
       `typelaag: gedwongen posities vóór resource 2 (rij 4) en typeband 2 (rij 7), niet vóór een band direct onder een typekop (got ${JSON.stringify(typedForced.forcedBreakOffsets)})`);
+
+    // Tijdvenster (manuvarkey punt 3): de tijdas loopt exact over het venster (einde inclusief, geen
+    // marge van 7/14 dagen), balken worden op de chartrand geklemd, en een taak buiten het venster
+    // tekent geen balk en geen balklabel (zijn tabelrij blijft: welke rijen meedoen beslist de
+    // rijenbron). Zonder venster byte-identiek. Venster 10–14 jan bij 60 px/dag: de kritieke taak
+    // (12–16 jan) begint 120 px in de chart — ruimte voor het label links van de balk — en wordt
+    // rechts afgekapt; de zichtbare (5–9 jan) en de gefilterde (19–23 jan) taak vallen erbuiten.
+    {
+      const win = { from: '2026-01-10', to: '2026-01-14' };
+      const fixed = baseOptions({ autoFit: false, customZoom: 60, showFloat: false });
+      const rec = record(FIX_TASKS, [], cal, { ...fixed, timeWindow: win });
+      const d = rec.dims;
+      ok(Math.abs(d.width - (d.tableWidth + 5 * 60)) < 1e-6, `venster van 5 dagen ⇒ chart 5 × zoom breed (got ${d.width - d.tableWidth})`);
+      const inBody = (y: number) => y >= d.headerHeight && y < d.height - d.footerHeight;
+      const bars = rec.roundRects.filter(r => (r.color === CRITICAL || r.color === NORMAL) && inBody(r.y));
+      ok(bars.length === 1 && bars[0].color === CRITICAL, `alleen de kritieke taak tekent een balk (got ${bars.length})`);
+      ok(bars.every(b => b.x >= d.tableWidth - 1e-6 && b.x + b.w <= d.width + 1e-6), 'de balk ligt binnen het chartgebied');
+      ok(Math.abs(bars[0].x - (d.tableWidth + 2 * 60)) < 1e-6 && Math.abs(bars[0].x + bars[0].w - d.width) < 1e-6,
+        'de balk begint op 12 jan en eindigt op de rechter chartrand, niet erbuiten');
+      const chartTexts = rec.texts.filter(t => t.x >= d.tableWidth && inBody(t.y)).map(t => t.text);
+      ok(chartTexts.some(t => t.startsWith('Kritieke')), `balklabel van de kritieke taak in de chart (got ${JSON.stringify(chartTexts)})`);
+      ok(!chartTexts.some(t => t.startsWith('Gefilterde') || t.startsWith('Zichtbare')), 'taken buiten het venster: geen balklabel');
+      ok(rec.texts.filter(t => t.text === T_HIDDEN.name && t.x < d.tableWidth).length === 1, 'taak buiten het venster houdt zijn tabelrij');
+      ok(JSON.stringify(record(FIX_TASKS, [], cal, fixed)) === JSON.stringify(record(FIX_TASKS, [], cal, { ...fixed, timeWindow: undefined })),
+        'zonder venster byte-identiek');
+    }
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
     // paginabreedtes — steeds drie body-rijen die exact op de bandgrenzen eindigen.

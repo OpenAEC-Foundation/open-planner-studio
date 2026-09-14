@@ -1,7 +1,8 @@
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
-import { taskStart } from './reportCommon';
+import { dayOf, taskFinish, taskStart } from './reportCommon';
+import type { ResolvedPeriod } from './reportingPeriod';
 
 /**
  * Resourcediagram (issue #113, gfayat): "wie doet wat, en wanneer" als GRAFISCH rapport — de
@@ -36,6 +37,12 @@ import { taskStart } from './reportCommon';
  * daarbinnen de resourcebanden zoals hierboven, en de taken op diepte 2. De "(geen)"-band blijft
  * op diepte 0 als laatste: taken zonder resource hebben geen type.
  *
+ * Optioneel binnen een TIJDVENSTER (punt 3): met `window` (de opgeloste rapportageperiode, issue
+ * #120) doen alleen bladtaken mee die het venster raken — start ≤ tot én einde ≥ van, op dagniveau,
+ * dezelfde overlapregel als de tabelrapporten; een taak zonder datums valt erbuiten. Alle
+ * tellingen volgen die gefilterde set; `counts.outsidePeriod` telt wat er is weggelaten, zodat de
+ * UI een lege uitkomst kan verklaren. De render krijgt hetzelfde venster als `timeWindow`.
+ *
  * Invoer is structureel een `ReportContext`-subset, zoals de rest van `src/engine/reports/`. Puur:
  * geen React-/store-imports, headless getest in `tests/planning/check-reports.ts`.
  */
@@ -57,6 +64,8 @@ export interface ResourceGanttRowsOptions {
   /** Labels per resourcetype — `t('common:resource.type.<lower>')`; een ontbrekend label valt
    *  terug op de enum-naam. Alleen gelezen bij `groupByType`. */
   typeLabels?: Partial<Record<ResourceType, string>>;
+  /** Tijdvenster (opgeloste rapportageperiode, ISO-dagen inclusief). Afwezig = hele project. */
+  window?: ResolvedPeriod;
 }
 
 export interface ResourceGanttRowsResult {
@@ -71,6 +80,8 @@ export interface ResourceGanttRowsResult {
     /** Bladtaken zonder resource — ook geteld wanneer ze niet in de rijen staan. Telt, anders dan
      *  het tabelrapport Resourcetoewijzingen, óók mijlpalen en hammocks: dit rapport tekent ze. */
     unassignedTasks: number;
+    /** Bladtaken die door het tijdvenster zijn weggelaten (0 zonder venster). */
+    outsidePeriod: number;
   };
 }
 
@@ -138,7 +149,14 @@ export function computeResourceGanttRows(
   ctx: ResourceGanttInput,
   opts: ResourceGanttRowsOptions,
 ): ResourceGanttRowsResult {
-  const leaves = ctx.tasks.filter(t => t.childIds.length === 0);
+  const allLeaves = ctx.tasks.filter(t => t.childIds.length === 0);
+  const inWindow = (t: Task): boolean => {
+    if (!opts.window) return true;
+    const s = dayOf(taskStart(t));
+    const f = dayOf(taskFinish(t));
+    return s !== '' && f !== '' && s <= opts.window.to && f >= opts.window.from;
+  };
+  const leaves = allLeaves.filter(inWindow);
   const leafById = new Map(leaves.map(t => [t.id, t]));
   const resourceIds = new Set(ctx.resources.map(r => r.id));
 
@@ -212,5 +230,8 @@ export function computeResourceGanttRows(
     }
   }
 
-  return { rows, counts: { resources: bands.length, assignments, unassignedTasks: unassigned.length } };
+  return {
+    rows,
+    counts: { resources: bands.length, assignments, unassignedTasks: unassigned.length, outsidePeriod: allLeaves.length - leaves.length },
+  };
 }

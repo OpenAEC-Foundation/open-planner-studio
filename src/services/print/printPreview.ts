@@ -362,6 +362,16 @@ export interface PrintOptions {
    */
   timelineColumns?: number;
   /**
+   * OPTIONEEL — rapportageperiode als TIJDVENSTER (manuvarkey op #113, punt 3; resourcediagram): de
+   * tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de gebruikelijke marge van
+   * 7/14 dagen, en balken, mijlpalen, speling, voortgang en baseline worden op de chartrand
+   * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd. Welke rijen in het
+   * venster horen beslist de rijenbron (`computeResourceGanttRows`), niet de render; een rij die
+   * er toch buiten valt tekent gewoon geen balk. Relatiepijlen worden niet geklemd: het venster
+   * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ byte-identiek.
+   */
+  timeWindow?: { from: string; to: string };
+  /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
    * kopstroken en tabelbreedte schalen mee, de tijdlijn-zoom niet — zie de uitgebreide afleiding
@@ -663,9 +673,15 @@ export function renderReport(
     }
   }
 
-  // Add padding days
-  minDate = addCalendarDays(minDate, -7);
-  maxDate = addCalendarDays(maxDate, 14);
+  if (options.timeWindow) {
+    // Tijdvenster: de as is precies het venster (einde exclusief, dus `to` + 1), zonder marge.
+    minDate = parseDate(options.timeWindow.from);
+    maxDate = addCalendarDays(parseDate(options.timeWindow.to), 1);
+  } else {
+    // Add padding days
+    minDate = addCalendarDays(minDate, -7);
+    maxDate = addCalendarDays(maxDate, 14);
+  }
 
   const calendarDays = diffCalendarDays(minDate, maxDate);
 
@@ -711,6 +727,10 @@ export function renderReport(
 
   const chartWidth = timelineDays * zoom;
   const canvasWidth = m.tableWidth + chartWidth;
+  // Tijdvenster: chart-x klemmen op het chartgebied (zie `PrintOptions.timeWindow`). Zonder venster
+  // is dit de identiteit, zodat de oude render byte-identiek blijft.
+  const windowed = !!options.timeWindow;
+  const clampX = (x: number) => (windowed ? Math.min(canvasWidth, Math.max(m.tableWidth, x)) : x);
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
   const canvasHeight = m.totalHeaderHeight + printRows.length * m.rowHeight + m.footerHeight;
 
@@ -890,7 +910,7 @@ export function renderReport(
               const statusUtc = Date.UTC(statusDay.getUTCFullYear(), statusDay.getUTCMonth(), statusDay.getUTCDate());
               const fullyDone = c >= 1 && finishDay <= statusUtc;
               const notStarted = c === 0 && startDay >= statusUtc;
-              if (!fullyDone && !notStarted) px = bx1 + (bx2 - bx1) * c;
+              if (!fullyDone && !notStarted) px = clampX(bx1 + (bx2 - bx1) * c);
             }
             d2d.lineTo(statusLineX!, rowTop);
             d2d.lineTo(px, rowMid);
@@ -977,33 +997,42 @@ export function renderReport(
       const x = dateToX(date) + zoom / 2;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
+      // Tijdvenster: een ruit buiten het chartgebied wordt niet getekend (geen halve ruit).
+      const inWindow = !windowed || (x + size >= m.tableWidth && x - size <= canvasWidth);
 
-      const advies = colorAdvice(task);
-      d2d.fillStyle = advies.kind === 'solid' ? advies.fill : advies.segments[0].color;
-      if (advies.outline) {
-        // Rode rand om een kritieke mijlpaal in de niet-critical-modi: de ruit omtrekken.
-        d2d.strokeStyle = advies.outline;
-        d2d.lineWidth = 1;
-      }
-      d2d.beginPath();
-      d2d.moveTo(x, cy - size);
-      d2d.lineTo(x + size, cy);
-      d2d.lineTo(x, cy + size);
-      d2d.lineTo(x - size, cy);
-      d2d.closePath();
-      d2d.fill();
-      if (advies.outline) d2d.stroke();
+      if (inWindow) {
+        const advies = colorAdvice(task);
+        d2d.fillStyle = advies.kind === 'solid' ? advies.fill : advies.segments[0].color;
+        if (advies.outline) {
+          // Rode rand om een kritieke mijlpaal in de niet-critical-modi: de ruit omtrekken.
+          d2d.strokeStyle = advies.outline;
+          d2d.lineWidth = 1;
+        }
+        d2d.beginPath();
+        d2d.moveTo(x, cy - size);
+        d2d.lineTo(x + size, cy);
+        d2d.lineTo(x, cy + size);
+        d2d.lineTo(x - size, cy);
+        d2d.closePath();
+        d2d.fill();
+        if (advies.outline) d2d.stroke();
 
-      // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
-      if (options.showTaskNames) {
-        barLabelJobs.push({ name: task.name, barRightX: x + size, barLeftX: x - size, y: cy + m.s(3), bold: false });
+        // Task name label (rechts van de ruit, valt terug naar links/ellipsis bij de rand)
+        if (options.showTaskNames) {
+          barLabelJobs.push({ name: task.name, barRightX: x + size, barLeftX: x - size, y: cy + m.s(3), bold: false });
+        }
       }
     } else if (task.childIds.length > 0) {
       // Summary bracket bar
       const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
       const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-      const x1 = dateToX(start);
-      const x2 = dateToX(end) + zoom;
+      const rawX1 = dateToX(start);
+      const rawX2 = dateToX(end) + zoom;
+      // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
+      // een echt begin/einde suggereren). Valt de hele haak buiten het venster, dan niets.
+      const x1 = clampX(rawX1);
+      const x2 = clampX(rawX2);
+      if (windowed && x2 <= x1) continue;
       const width = Math.max(x2 - x1, 3);
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
@@ -1012,20 +1041,24 @@ export function renderReport(
       d2d.fillRect(x1, barY, width, barH);
 
       // Left triangle
-      d2d.beginPath();
-      d2d.moveTo(x1, barY);
-      d2d.lineTo(x1, barY + barH + 5);
-      d2d.lineTo(x1 + 6, barY + barH);
-      d2d.closePath();
-      d2d.fill();
+      if (x1 === rawX1) {
+        d2d.beginPath();
+        d2d.moveTo(x1, barY);
+        d2d.lineTo(x1, barY + barH + 5);
+        d2d.lineTo(x1 + 6, barY + barH);
+        d2d.closePath();
+        d2d.fill();
+      }
 
       // Right triangle
-      d2d.beginPath();
-      d2d.moveTo(x1 + width, barY);
-      d2d.lineTo(x1 + width, barY + barH + 5);
-      d2d.lineTo(x1 + width - 6, barY + barH);
-      d2d.closePath();
-      d2d.fill();
+      if (x2 === rawX2) {
+        d2d.beginPath();
+        d2d.moveTo(x1 + width, barY);
+        d2d.lineTo(x1 + width, barY + barH + 5);
+        d2d.lineTo(x1 + width - 6, barY + barH);
+        d2d.closePath();
+        d2d.fill();
+      }
 
       // Task name label (rechts van de balk, valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
@@ -1035,9 +1068,15 @@ export function renderReport(
       // Normal task bar
       const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
       const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
-      const x1 = dateToX(start);
-      const x2 = dateToX(end) + zoom;
-      const width = Math.max(x2 - x1, 3);
+      const rawX1 = dateToX(start);
+      const rawX2 = dateToX(end) + zoom;
+      const width = Math.max(rawX2 - rawX1, 3);
+      // Tijdvenster: de balkuiteinden geklemd op het chartgebied; de voortgangsgrens en de
+      // speling hieronder klemmen op dezelfde manier. Een balk die helemaal buiten het venster
+      // valt tekent niets (ook geen label).
+      const x1 = clampX(rawX1);
+      const x2 = clampX(rawX2);
+      if (windowed && x2 <= x1) continue;
 
       // Kleurmodi (#21) en onderbroken balken (Z15) zijn onafhankelijke dimensies: dezelfde
       // kleurverhouding komt terug in elk werkblok van één taak.
@@ -1047,9 +1086,9 @@ export function renderReport(
         ? computeSplitSegments(task.splitGaps, start, end, false, calEngine)
         : [{ start, end }];
       const segs = segments.map((s, i) => ({
-        x1: i === 0 ? x1 : dateToX(s.start),
-        x2: i === segments.length - 1 ? x2 : dateToX(s.end),
-      }));
+        x1: clampX(i === 0 ? rawX1 : dateToX(s.start)),
+        x2: clampX(i === segments.length - 1 ? rawX2 : dateToX(s.end)),
+      })).filter(s => !windowed || s.x2 > s.x1);
       const split = segs.length > 1;
 
       if (split) {
@@ -1088,7 +1127,7 @@ export function renderReport(
 
       // Eén globale voortgangsgrens over de volle taakduur, maar nooit kleur over de tijdgaten.
       if (options.showCompletion && task.time.completion > 0) {
-        const progressEnd = x1 + width * task.time.completion;
+        const progressEnd = clampX(rawX1 + width * task.time.completion);
         d2d.fillStyle = 'rgba(0, 0, 0, 0.25)';
         for (const s of segs) {
           const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
@@ -1104,17 +1143,17 @@ export function renderReport(
       }
 
       // Float indicator
-      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical) {
-        const floatWidth = task.time.totalFloat * zoom;
+      const floatEndX = clampX(rawX2 + task.time.totalFloat * zoom);
+      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
-        d2d.roundRect(x2, y + barHeight * 0.2, floatWidth, barHeight * 0.6, 2);
+        d2d.roundRect(x2, y + barHeight * 0.2, floatEndX - x2, barHeight * 0.6, 2);
         d2d.fill();
       }
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
         const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
-        const barRightX = x2 + (hasFloat ? task.time.totalFloat * zoom : 0);
+        const barRightX = hasFloat ? Math.max(x2, floatEndX) : x2;
         barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
       }
     }
@@ -1131,19 +1170,23 @@ export function renderReport(
       if (baseline.isMilestone) {
         const x = dateToX(parseDate(baseline.start)) + zoom / 2;
         const cy = baseY + baseHeight / 2;
-        d2d.beginPath();
-        d2d.moveTo(x, cy - baseHeight);
-        d2d.lineTo(x + baseHeight, cy);
-        d2d.lineTo(x, cy + baseHeight);
-        d2d.lineTo(x - baseHeight, cy);
-        d2d.closePath();
-        d2d.fill();
+        if (!windowed || (x + baseHeight >= m.tableWidth && x - baseHeight <= canvasWidth)) {
+          d2d.beginPath();
+          d2d.moveTo(x, cy - baseHeight);
+          d2d.lineTo(x + baseHeight, cy);
+          d2d.lineTo(x, cy + baseHeight);
+          d2d.lineTo(x - baseHeight, cy);
+          d2d.closePath();
+          d2d.fill();
+        }
       } else {
-        const x1 = dateToX(parseDate(baseline.start));
-        const x2 = dateToX(parseDate(baseline.finish)) + zoom;
-        d2d.beginPath();
-        d2d.roundRect(x1, baseY, Math.max(x2 - x1, 2), baseHeight, 1);
-        d2d.fill();
+        const x1 = clampX(dateToX(parseDate(baseline.start)));
+        const x2 = clampX(dateToX(parseDate(baseline.finish)) + zoom);
+        if (!windowed || x2 > x1) {
+          d2d.beginPath();
+          d2d.roundRect(x1, baseY, Math.max(x2 - x1, 2), baseHeight, 1);
+          d2d.fill();
+        }
       }
     }
   }

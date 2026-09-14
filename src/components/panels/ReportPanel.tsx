@@ -27,6 +27,7 @@ import {
 import { computeResourceGanttRows } from '@/engine/reports';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
+import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeriodField';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
@@ -453,14 +454,21 @@ export function ReportPanel() {
     SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
     MATERIAL: tCommon('resource.type.material'),
   }), [tCommon]);
+  // Rapportageperiode als tijdvenster (punt 3): dezelfde oplossing als het control toont; bij
+  // *Hele project* geen venster, zodat het rapport byte-identiek blijft aan vóór deze optie.
+  const resourceGanttPeriod = useResolvedPeriod(resourceGanttOptions.period);
+  const resourceGanttWindow = reportType === 'resourceGantt' && resourceGanttOptions.period.preset !== 'project'
+    ? resourceGanttPeriod
+    : undefined;
   const resourceGantt = useMemo(() => (reportType === 'resourceGantt'
     ? computeResourceGanttRows({ tasks, resources, assignments }, {
       includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel, locale: i18n.language,
       groupByType: resourceGanttOptions.groupByType, typeLabels: resourceTypeLabels,
+      window: resourceGanttWindow,
     })
     : null),
   [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned,
-    resourceGanttOptions.groupByType, resourceTypeLabels, i18n.language]);
+    resourceGanttOptions.groupByType, resourceTypeLabels, resourceGanttWindow, i18n.language]);
   // Rijenbron van de Gantt-render: resourcediagram ⇒ de resourcebanden; Gantt-afdruk ⇒ de schermrijen
   // bij Volg weergave (#54), anders `undefined` = de volledige takenboom (oud gedrag, geen verrassingen).
   const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
@@ -544,7 +552,11 @@ export function ReportPanel() {
     labels: {
       // Resourcediagram zonder één toewijzing: zeg wat er ontbreekt, niet "geen taken" — tenzij er
       // écht geen taken zijn, dan is "wijs resources toe" het verkeerde advies.
-      noTasks: reportType === 'resourceGantt' && tasks.length > 0 ? t('resourceGantt.empty') : t('noTasks'),
+      noTasks: reportType === 'resourceGantt' && tasks.length > 0
+        ? (resourceGantt && resourceGantt.rows.length === 0 && resourceGantt.counts.outsidePeriod > 0
+          ? t('resourceGantt.emptyPeriod')
+          : t('resourceGantt.empty'))
+        : t('noTasks'),
       printed: t('printed'),
       legend: {
         criticalPath: t('legend.criticalPath'),
@@ -602,6 +614,8 @@ export function ReportPanel() {
     rows: reportRows,
     // Issue #113 "een blad per persoon": gedwongen paginaovergang vóór elke resourceband.
     pageBreakBeforeGroups: reportType === 'resourceGantt' && resourceGanttOptions.pageBreakPerResource,
+    // Punt 3: de tijdas op de rapportageperiode (alleen resourcediagram, alleen buiten *Hele project*).
+    timeWindow: resourceGanttWindow,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -611,7 +625,8 @@ export function ReportPanel() {
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
-    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length]);
+    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
+    resourceGantt, resourceGanttWindow]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -1195,6 +1210,12 @@ export function ReportPanel() {
                 <span data-ops-resource-gantt-count="assignments">{resourceGantt.counts.assignments}</span>
                 <span className="text-text-secondary">{t('resourceGantt.unassigned')}</span>
                 <span data-ops-resource-gantt-count="unassigned">{resourceGantt.counts.unassignedTasks}</span>
+                {resourceGanttWindow && (
+                  <>
+                    <span className="text-text-secondary">{t('resourceGantt.outsidePeriod')}</span>
+                    <span data-ops-resource-gantt-count="outsidePeriod">{resourceGantt.counts.outsidePeriod}</span>
+                  </>
+                )}
               </>
             ) : reportType === 'gantt' ? (
               <>
@@ -1418,6 +1439,13 @@ export function ReportPanel() {
                   />
                   <span className="min-w-0">{t('resourceGantt.groupByType')}</span>
                 </label>
+                {/* Punt 3: de gedeelde rapportageperiode (issue #120) als tijdvenster van dit rapport. */}
+                <ReportingPeriodField
+                  id="report-opt-resourceGanttPeriod"
+                  value={resourceGanttOptions.period}
+                  onChange={next => patchResourceGanttOptions({ period: next })}
+                  dataKey="resourceGanttPeriod"
+                />
               </>
             )}
 

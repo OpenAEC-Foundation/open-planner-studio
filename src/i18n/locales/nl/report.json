@@ -135,6 +135,8 @@
     "pageBreakPerResource": "Elke resource op een nieuwe pagina",
     "includeUnassigned": "Taken zonder resource meenemen",
     "groupByType": "Groeperen op resourcetype",
+    "emptyPeriod": "Geen taken in de rapportageperiode — kies een andere periode of Hele project.",
+    "outsidePeriod": "Buiten de periode:",
     "empty": "Geen resourcetoewijzingen — wijs eerst resources toe aan taken.",
     "resources": "Resources:",
     "assignments": "Toewijzingen:",

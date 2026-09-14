@@ -141,6 +141,8 @@
     "pageBreakPerResource": "Każdy zasób na nowej stronie",
     "includeUnassigned": "Uwzględnij zadania bez zasobu",
     "groupByType": "Grupuj według typu zasobu",
+    "emptyPeriod": "Brak zadań w okresie raportu — wybierz inny okres lub Cały projekt.",
+    "outsidePeriod": "Poza okresem:",
     "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",
     "resources": "Zasoby:",
     "assignments": "Przypisania:",

@@ -39,8 +39,10 @@ interface Props {
   dataKey: string;
 }
 
-/** De referentiedag en projectspanne uit de live store — dezelfde bron als `useReportContext`. */
-function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
+/** De referentiedag en projectspanne uit de live store — dezelfde bron als `useReportContext`.
+ *  Ook gebruikt door `ReportPanel` voor het tijdvenster van het resourcediagram, zodat de rijen en
+ *  de tijdas exact het venster nemen dat dit control toont. */
+export function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
   const tasks = useAppStore(s => s.tasks);
   const statusDate = useAppStore(s => s.project.statusDate);
   const today = formatDate(new Date());

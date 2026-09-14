@@ -138,6 +138,8 @@
     "pageBreakPerResource": "Cada recurso numa nova página",
     "includeUnassigned": "Incluir tarefas sem recurso",
     "groupByType": "Agrupar por tipo de recurso",
+    "emptyPeriod": "Nenhuma tarefa no período do relatório — escolha outro período ou Projeto inteiro.",
+    "outsidePeriod": "Fora do período:",
     "empty": "Sem atribuições de recursos — atribua primeiro recursos às tarefas.",
     "resources": "Recursos:",
     "assignments": "Atribuições:",

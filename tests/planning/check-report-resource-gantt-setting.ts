@@ -14,7 +14,7 @@ const expect = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) failures.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-expect('defaults: blad per resource uit, taken zonder resource uit, typelaag uit', DEFAULT_REPORT_SETTINGS.resourceGantt, { pageBreakPerResource: false, includeUnassigned: false, groupByType: false });
+expect('defaults: blad per resource uit, taken zonder resource uit, typelaag uit', DEFAULT_REPORT_SETTINGS.resourceGantt, { pageBreakPerResource: false, includeUnassigned: false, groupByType: false, period: { preset: 'project' } });
 expect('defaults: één bron', DEFAULT_REPORT_SETTINGS.resourceGantt, DEFAULT_RESOURCE_GANTT_OPTIONS);
 expect('isGanttReportType: gantt én resourceGantt', [isGanttReportType('gantt'), isGanttReportType('resourceGantt'), isGanttReportType('milestones'), isGanttReportType('resourceAssignments')], [true, true, false, false]);
 // Review N6: één predicaat voor "dit type tekent geen relaties" — de forcering van showDeps én het
@@ -25,10 +25,10 @@ expect('showDeps staat standaard aan (de forcering doet dus echt iets)', DEFAULT
 // barColorSelection), dus zonder lijnen is het misleidend — verborgen op hetzelfde predicaat als de relaties.
 expect('reportTypeShowsCriticalToggle: verborgen waar geen relaties getekend worden', [reportTypeShowsCriticalToggle('gantt'), reportTypeShowsCriticalToggle('resourceGantt'), reportTypeShowsCriticalToggle('milestones')], [true, false, true]);
 
-localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: true, groupByType: true } }));
+localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: true, groupByType: true, period: { preset: 'next4Weeks' } } }));
 const loaded = await loadReportSettings();
 expect('opgeslagen rapporttype resourceGantt wordt geladen', loaded.reportType, 'resourceGantt');
-expect('opgeslagen opties worden geladen', loaded.resourceGantt, { pageBreakPerResource: true, includeUnassigned: true, groupByType: true });
+expect('opgeslagen opties worden geladen', loaded.resourceGantt, { pageBreakPerResource: true, includeUnassigned: true, groupByType: true, period: { preset: 'next4Weeks' } });
 
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'gantt', showLegend: false }));
 const zonderBlok = await loadReportSettings();
@@ -37,16 +37,21 @@ expect('… en de overige voorkeuren blijven staan', zonderBlok.showLegend, fals
 
 localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { pageBreakPerResource: 'ja', includeUnassigned: true } }));
 const rommel = await loadReportSettings();
-expect('rommel in één veld ⇒ alleen dat veld terug op de default', rommel.resourceGantt, { pageBreakPerResource: false, includeUnassigned: true, groupByType: false });
+expect('rommel in één veld ⇒ alleen dat veld terug op de default', rommel.resourceGantt, { pageBreakPerResource: false, includeUnassigned: true, groupByType: false, period: { preset: 'project' } });
+// Punt 3: de rapportageperiode gaat door dezelfde tolerante parser als de tabelrapporten.
+localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { period: { preset: 'nonsense' } } }));
+expect('onbekende periode-preset ⇒ Hele project', (await loadReportSettings()).resourceGantt.period, { preset: 'project' });
+localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: { period: { preset: 'custom', from: '2026-09-30', to: '2026-09-01' } } }));
+expect('omgekeerd eigen bereik ⇒ Hele project', (await loadReportSettings()).resourceGantt.period, { preset: 'project' });
 localStorage.setItem('ops-reportSettings', JSON.stringify({ resourceGantt: 'aan' }));
 expect('rommel in het hele blok ⇒ defaults', (await loadReportSettings()).resourceGantt, DEFAULT_RESOURCE_GANTT_OPTIONS);
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceDiagram' }));
 expect('onbekend rapporttype ⇒ default rapporttype', (await loadReportSettings()).reportType, DEFAULT_REPORT_SETTINGS.reportType);
 
-await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: false, groupByType: true } });
+await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' } } });
 const saved = await loadReportSettings();
 expect('rapporttype overleeft een round-trip', saved.reportType, 'resourceGantt');
-expect('opties overleven een round-trip', saved.resourceGantt, { pageBreakPerResource: true, includeUnassigned: false, groupByType: true });
+expect('opties overleven een round-trip', saved.resourceGantt, { pageBreakPerResource: true, includeUnassigned: false, groupByType: true, period: { preset: 'custom', from: '2026-09-01', to: '2026-09-30' } });
 
 if (failures.length > 0) {
   console.log(`XX report-resource-gantt-setting: ${failures.length} afwijking(en)`);

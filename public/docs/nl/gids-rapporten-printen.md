@@ -108,7 +108,12 @@ nog niemand heeft. Met **Groeperen op resourcetype** komt er een laag boven: eer
 — arbeid, ploeg, onderaannemer, materieel, materiaal, in die vaste volgorde — en daarbinnen de
 resources; handig als je in het overleg eerst de mensen en dan het materieel bespreekt, of alleen het
 materieelblok wilt afdrukken. Bij *Elke resource op een nieuwe pagina* begint een typeband op een
-nieuw vel samen met zijn eerste resource.
+nieuw vel samen met zijn eerste resource. Met **Rapportageperiode** — dezelfde keuze als bij de
+tabelrapporten, zie verderop — beperk je het diagram tot een tijdvenster: alleen taken die het
+venster raken doen mee, de tijdas loopt precies van de begin- tot de einddatum, en een balk die
+verder doorloopt wordt aan de rand afgekapt. Zo leg je in dezelfde vergadering het look-ahead-rapport
+en het resourcediagram over exact dezelfde weken naast elkaar. *Hele project* (standaard) is het
+gewone gedrag; bij een venster telt het overzichtsblok ook hoeveel taken erbuiten vallen.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
@@ -166,7 +171,7 @@ delen een paar afspraken:
 
 Vier rapporten werken op een tijdvenster: look-ahead, voortgang, resourcebelasting en
 resourcetoewijzingen. Ze delen één *Rapportageperiode*-keuze in de rapportopties, met een eigen
-onthouden instelling per rapport:
+onthouden instelling per rapport (het resourcediagram hierboven kent dezelfde keuze):
 
 - **Volgende / afgelopen week, 2, 4, 6, 8 of 12 weken** en **volgende / afgelopen maand** — gerekend
   vanaf de statusdatum van het project (of vandaag als die ontbreekt). Een preset is inclusief aan

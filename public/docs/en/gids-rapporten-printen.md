@@ -105,7 +105,13 @@ at the bottom, so the meeting can see at a glance what nobody owns yet. **Group 
 adds a layer above: first a band per type — labour, crew, subcontractor, equipment, material, in
 that fixed order — with the resources inside it; useful when a meeting discusses the people first
 and the equipment after, or when you only want to print the equipment block. With *Each resource on
-a new page* a type band starts a new sheet together with its first resource.
+a new page* a type band starts a new sheet together with its first resource. **Reporting period** —
+the same control as on the table reports, see further down — limits the diagram to a time window:
+only tasks that touch the window take part, the time axis runs exactly from the start to the end
+date, and a bar that continues beyond it is cut off at the edge. That lets a meeting put the
+look-ahead report and the resource diagram side by side over exactly the same weeks. *Project
+duration* (the default) is the usual behaviour; with a window the summary block also counts how
+many tasks fall outside it.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from
@@ -164,7 +170,7 @@ a few conventions:
 
 Four reports work on a time window: look-ahead, progress, resource loading and resource
 assignments. They share one *Reporting period* control in the report options, with its own
-remembered setting per report:
+remembered setting per report (the resource diagram above offers the same control):
 
 - **Next / last week, 2, 4, 6, 8 or 12 weeks** and **next / last month** — counted from the
   project's status date (or today if none is set). A preset is inclusive on both ends: *next 4
