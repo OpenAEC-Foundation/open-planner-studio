@@ -37,6 +37,26 @@ import type { ProjectSpec, TaskSpec, LinkSpec } from './spec';
 // boeken de Masonry crew (bedrijfscapaciteit 1), beide liggen ná MIDDEL's statusdatum en zijn dus
 // écht verschuifbaar — een conflict dat "Verdeel automatisch" met een paar werkdagen oplost.
 // Verhaal: deze verbouwing loopt náást de rijwoningen, niet ervoor.
+//
+// WAAROM 66 EN NIET 63 (2026-09-14, "onderbrekingen toestaan moet verschil maken"). De schakelaar
+// **Onderbrekingen toestaan** in de verdeeldialoog is in de nivelleerder géén tweede zoekstrategie
+// maar een TERUGVAL: `ResourceLeveler.findSlot` scant eerst naar een AANEENGESLOTEN venster en komt
+// pas bij `scatterSlot` (de pauzedagen) als díé scan binnen het venster faalt. Zonder venster
+// (`constrainToFloat: false` + geen "maximale uitloop") is er geen bovengrens, vindt de
+// aaneengesloten scan altijd iets, en is de schakelaar per constructie een no-op — precies wat het
+// prijskaartje meldde ("zou niets besparen"). Hij doet dus alleen iets in combinatie met een
+// PLAFOND, en het bruikbare plafondbereik is exact zo breed als het aantal VRIJE werkdagen dat de
+// wijkende taak vóór de blokkade heeft:
+//   - bij 63 begon KLEIN's metselwerk op 2027-05-31 en had MIDDEL's "Ground floor masonry —
+//     House 6" (2027-05-28…06-04) precies ÉÉN vrije dag ervóór ⇒ alleen plafond 14 gaf verschil;
+//     één getal breed, dus in de praktijk onvindbaar voor wie het niet toevallig intikt.
+//   - bij 66 begint KLEIN's metselwerk op 2027-06-03 en heeft House 6 er VIER vrije dagen vóór
+//     (05-28, 05-31, 06-01, 06-02) ⇒ elk plafond van 14 t/m 17 werkdagen laat het verschil zien,
+//     met het ronde "15 werkdagen (drie weken)" in het midden. Zie de bewijsassert in
+//     tests/library/check-showcase-occupancy.ts en de gids `gids-verdelen-restcapaciteit.md`.
+// De prijs van de schuif: de Masonry crew-conflictstrook wordt korter (2 dagen i.p.v. 5) en de
+// Plasterers-kruisdagen verschuiven mee — beide kruisconflicten blijven bestaan (de exacte-set-poort
+// in check-showcase-occupancy.ts bewaakt dat).
 const KLEIN: ProjectSpec = {
   slug: 'showcase-verbouwing-eengezinswoning',
   name: 'Refurbishment & Extension of a Family Home',
@@ -53,7 +73,7 @@ const KLEIN: ProjectSpec = {
     'week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict ' +
     'that "Distribute" can resolve.',
   tags: ['residential', 'small', 'entry-level', 'milestones', 'constraints', 'baseline', 'resources'],
-  anchorShiftDays: 63,
+  anchorShiftDays: 66,
   tasks: [
     // 1. Voorbereiding
     { key: 'ms_start', name: 'Start of refurbishment', milestone: true, milestoneKind: 'START' },
