@@ -5,7 +5,7 @@ import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { BarChart3, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
-import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
+import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
 
 /** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine
@@ -40,7 +40,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
 
   // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
-  const contourOf = matchContoursToAssignments(task.timephasedContours, taskAssignments);
+  // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
+  const contouredIds = contouredAssignmentIds(task, taskAssignments);
   const assignmentsDisabled = task.isMilestone || task.childIds.length > 0;
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
   const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
@@ -70,9 +71,10 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
           {taskAssignments.map(a => {
             const res = resources.find(r => r.id === a.resourceId);
             const candidates = moveCandidates(a.resourceId);
-            const contoured = contourOf.has(a.id);
-            const importedCurve = !contoured && !a.curve && !!a.curveValues;
-            const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : (a.curve ?? 'UNIFORM');
+            const curveState = assignmentCurveState(a, contouredIds.has(a.id));
+            const contoured = curveState === 'contoured';
+            const importedCurve = curveState === 'imported';
+            const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : curveState;
             return (
               <div key={a.id} className="flex items-center gap-1 text-[10px]" data-ops-assignment-row={a.id}>
                 <span className="flex-1 truncate" title={res?.name}>{res?.name || '?'}</span>

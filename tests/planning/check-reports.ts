@@ -14,6 +14,10 @@ import {
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
   remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
+} from '@/engine/reports';
+import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
+import { formatReportNumber, formatSignedReportNumber } from '@/utils/reportNumber';
+import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
 import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
@@ -627,6 +631,24 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     assignments: [asgFull('g1', D, kraan.id, 1), asgFull('g2', D, 'res-onbekend', 1)],
   }, opts);
   eq('resourceGantt/curve: legacy-contour telt niet bij twee records (ook als er één naar een onbekende resource wijst)', legacy.assignmentByRowKey.get(legacy.rows.find(x => x.kind === 'task' && x.task.id === D)!.rowKey)?.curve, 'UNIFORM');
+
+  // Restpunt review #138: de gedeelde weergaveregel zelf (paneel én rapport lezen deze ene functie).
+  const bare = asgFull('s1', A, kraan.id, 1);
+  eq('curveState: contour wint', assignmentCurveState({ ...bare, curve: 'BELL', curveValues }, true), 'contoured');
+  eq('curveState: curveValues zonder vorm ⇒ imported', assignmentCurveState({ ...bare, curveValues }, false), 'imported');
+  eq('curveState: curveValues mét vorm ⇒ de vorm', assignmentCurveState({ ...bare, curve: 'FRONT_LOADED', curveValues }, false), 'FRONT_LOADED');
+  eq('curveState: niets ⇒ UNIFORM', assignmentCurveState(bare, false), 'UNIFORM');
+  eq('curveState: contouredAssignmentIds koppelt op resourceId', [...contouredAssignmentIds(dMetContour, [asgFull('k1', D, jan1.id, 1), asgFull('k2', D, kraan.id, 1)])], ['k1']);
+  eq('curveState: zonder contouren een lege set', contouredAssignmentIds(byId(D), [bare]).size, 0);
+
+  // Restpunt review #138: één getalnotatie voor alle rapporten — app-taal bepaalt het decimaalteken.
+  eq('reportNumber: nl ⇒ komma', formatReportNumber(0.5, 'nl'), '0,5');
+  eq('reportNumber: en ⇒ punt', formatReportNumber(0.5, 'en'), '0.5');
+  eq('reportNumber: zonder taal ⇒ punt', formatReportNumber(0.5), '0.5');
+  eq('reportNumber: geheel zonder decimalen', formatReportNumber(2, 'nl'), '2');
+  eq('reportNumber: hoogstens twee decimalen, geen duizendtalscheiding', formatReportNumber(1234.567, 'de'), '1234,57');
+  eq('reportNumber: plus bij positief', formatSignedReportNumber(1.25, 'nl'), '+1,25');
+  eq('reportNumber: geen plus bij nul of negatief', [formatSignedReportNumber(0, 'nl'), formatSignedReportNumber(-2, 'nl')], ['0', '-2']);
 
   // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
   // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).

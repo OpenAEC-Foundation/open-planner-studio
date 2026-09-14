@@ -120,9 +120,10 @@ resource on one task are added up, and a dash in the curve column means those as
 different curves. If the assignment has its own hour distribution the column says *Contour*; if
 the curve was imported from MS Project or P6 and is none of the eight built-in shapes it says
 *Imported curve* — the same as in the properties panel. The two columns make the table a good 130 px
-wider and the time axis narrower; with long task names and *Truncate task names* off the time axis
-can all but disappear. Turn **Show units/day and curve** off for the narrow table of the Gantt
-print.
+wider and the time axis narrower. If a wide name column (long task names with *Truncate task
+names* off) would leave less than a quarter of the paper width for the timeline, the report drops
+the two columns itself and says so in the summary block; truncate the names or choose a larger
+paper size. Turn **Show units/day and curve** off for the narrow table of the Gantt print.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with three exceptions: *Follow view* (this report doesn't take its rows from
@@ -186,7 +187,8 @@ remembered setting per report (the resource diagram above offers the same contro
 - **Next / last week, 2, 4, 6, 8 or 12 weeks** and **next / last month** — counted from the
   project's status date (or today if none is set). A preset is inclusive on both ends: *next 4
   weeks* on Thursday 10 September runs through Wednesday 7 October. Change the status date and the
-  window moves with it.
+  window moves with it. Without a status date a preset counts from today and is resolved again on
+  every recalculation: leave the app open overnight and the window shifts by a day after midnight.
 - **Project duration** — from the earliest start to the latest finish in the schedule.
 - **Custom** — two dates of your own. The *From* and *To* fields become editable (type or use the
   date picker); with a preset they show the calculated dates read-only. An end date before the

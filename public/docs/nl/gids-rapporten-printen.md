@@ -123,8 +123,10 @@ opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillen
 Heeft de toewijzing een eigen urenverdeling, dan staat er *Contour*; is de curve uit MS Project of
 P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmporteerde curve* —
 hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel ruim 130 px breder en de
-tijdas dus smaller; bij lange taaknamen met *Taaknamen afkappen* uit kan de tijdas daardoor bijna
-verdwijnen. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
+tijdas dus smaller. Blijft er door een brede naamkolom (lange taaknamen met *Taaknamen afkappen*
+uit) minder dan een kwart papierbreedte tijdlijn over, dan laat het rapport de twee kolommen zelf
+weg en meldt dat in het overzichtsblok; kap dan de namen af of kies groter papier. Zet **Eenheden/dag
+en curve tonen** uit voor de smalle tabel van de Gantt-afdruk.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
@@ -187,7 +189,9 @@ onthouden instelling per rapport (het resourcediagram hierboven kent dezelfde ke
 - **Volgende / afgelopen week, 2, 4, 6, 8 of 12 weken** en **volgende / afgelopen maand** — gerekend
   vanaf de statusdatum van het project (of vandaag als die ontbreekt). Een preset is inclusief aan
   beide kanten: *volgende 4 weken* op donderdag 10 september loopt t/m woensdag 7 oktober. Wijzig je
-  de statusdatum, dan schuift het venster automatisch mee.
+  de statusdatum, dan schuift het venster automatisch mee. Zonder statusdatum rekent een preset
+  vanaf vandaag en wordt hij bij elke herberekening opnieuw opgelost: blijft de app 's nachts open,
+  dan schuift het venster na middernacht een dag op.
 - **Hele project** — van de vroegste start tot het laatste einde in de planning.
 - **Aangepast** — twee eigen datums. De velden *Van* en *Tot* worden dan bewerkbaar (typen of de
   datumkiezer); bij een preset tonen ze alleen-lezen de berekende datums. Een einddatum vóór de

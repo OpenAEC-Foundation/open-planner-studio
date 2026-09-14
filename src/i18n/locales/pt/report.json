@@ -141,6 +141,7 @@
     "includeUnassigned": "Incluir tarefas sem recurso",
     "groupByType": "Agrupar por tipo de recurso",
     "showAssignmentColumns": "Mostrar unidades/dia e curva",
+    "columnsDropped": "As colunas Unid./d e Curva foram omitidas: com esta coluna de nome não sobraria eixo de tempo. Trunque os nomes das tarefas ou escolha um papel maior.",
     "emptyPeriod": "Nenhuma tarefa no período do relatório — escolha outro período ou Projeto inteiro.",
     "outsidePeriod": "Fora do período:",
     "empty": "Sem atribuições de recursos — atribua primeiro recursos às tarefas.",

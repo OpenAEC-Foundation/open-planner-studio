@@ -263,6 +263,9 @@ export function ReportPanel() {
   }, []);
   // Resourcediagram (issue #113): blad per resource + taken zonder resource — samen bewaard met de rest.
   const [resourceGanttOptions, setResourceGanttOptions] = useState<ResourceGanttReportOptions>(DEFAULT_REPORT_SETTINGS.resourceGantt);
+  // Gezet door de preview-meting: de render liet de toewijzingskolommen vallen omdat de tabel
+  // anders geen tijdlijn overliet (zie `MIN_CHART_WIDTH_PX` in printPreview).
+  const [assignmentColumnsDropped, setAssignmentColumnsDropped] = useState(false);
   const patchResourceGanttOptions = useCallback((patch: Partial<ResourceGanttReportOptions>) => {
     setResourceGanttOptions(prev => ({ ...prev, ...patch }));
   }, []);
@@ -633,6 +636,7 @@ export function ReportPanel() {
     assignmentColumns: reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns,
     rowAssignments: resourceGantt?.assignmentByRowKey,
     curveLabels,
+    numberLocale: i18n.language,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -643,7 +647,7 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
-    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels]);
+    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -698,7 +702,9 @@ export function ReportPanel() {
       if (cancelled) return;
       const {
         width: logicalWidth, height: logicalHeight, tableWidth, headerHeight, footerHeight, breakOffsets, forcedBreakOffsets,
+        assignmentColumnsDropped: columnsDropped,
       } = measurePrintReport(tasks, sequences, calendar, projectName, options);
+      setAssignmentColumnsDropped(!!columnsDropped);
       const lowerPaper = options.paperSize.toLowerCase() as 'a4' | 'a3' | 'a2' | 'a1';
       const cssPageWidth = previewCssWidth;
       const previewLimits = computePreviewRasterLimits(
@@ -1235,6 +1241,11 @@ export function ReportPanel() {
                     <span className="text-text-secondary">{t('resourceGantt.outsidePeriod')}</span>
                     <span data-ops-resource-gantt-count="outsidePeriod">{resourceGantt.counts.outsidePeriod}</span>
                   </>
+                )}
+                {assignmentColumnsDropped && resourceGanttOptions.showAssignmentColumns && (
+                  <span className="col-span-2 text-text-secondary" data-ops-resource-gantt-note="columnsDropped">
+                    {t('resourceGantt.columnsDropped')}
+                  </span>
                 )}
               </>
             ) : reportType === 'gantt' ? (

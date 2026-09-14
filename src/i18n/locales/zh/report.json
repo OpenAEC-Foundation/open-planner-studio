@@ -135,6 +135,7 @@
     "includeUnassigned": "包含未分配资源的任务",
     "groupByType": "按资源类型分组",
     "showAssignmentColumns": "显示单位/天和曲线",
+    "columnsDropped": "已省略“单位/天”和“曲线”列：使用此名称列宽度时将没有时间轴。请截断任务名称或选择更大的纸张。",
     "emptyPeriod": "报告期间内没有任务 — 请选择其他期间或整个项目。",
     "outsidePeriod": "期间之外：",
     "empty": "没有资源分配——请先为任务分配资源。",

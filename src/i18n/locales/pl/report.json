@@ -144,6 +144,7 @@
     "includeUnassigned": "Uwzględnij zadania bez zasobu",
     "groupByType": "Grupuj według typu zasobu",
     "showAssignmentColumns": "Pokaż jednostki/dzień i krzywą",
+    "columnsDropped": "Pominięto kolumny Jedn./d i Krzywa: przy tej kolumnie nazwy nie zostałaby oś czasu. Skróć nazwy zadań lub wybierz większy papier.",
     "emptyPeriod": "Brak zadań w okresie raportu — wybierz inny okres lub Cały projekt.",
     "outsidePeriod": "Poza okresem:",
     "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",

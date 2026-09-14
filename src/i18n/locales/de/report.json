@@ -138,6 +138,7 @@
     "includeUnassigned": "Aufgaben ohne Ressource einbeziehen",
     "groupByType": "Nach Ressourcentyp gruppieren",
     "showAssignmentColumns": "Einheiten/Tag und Kurve anzeigen",
+    "columnsDropped": "Die Spalten Einh./T und Kurve wurden weggelassen: mit dieser Namensspalte bliebe keine Zeitachse übrig. Kürzen Sie die Vorgangsnamen oder wählen Sie ein größeres Papierformat.",
     "emptyPeriod": "Keine Vorgänge im Berichtszeitraum — wählen Sie einen anderen Zeitraum oder Gesamtes Projekt.",
     "outsidePeriod": "Außerhalb des Zeitraums:",
     "empty": "Keine Ressourcenzuweisungen — weisen Sie zuerst Ressourcen zu Aufgaben zu.",

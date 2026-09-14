@@ -586,6 +586,29 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(!plainA.texts.some(t => t.text === 'Eenh./d' || t.text === 'Vooraan belast'), 'zonder optie geen kolommen');
       ok(JSON.stringify(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, rowAssignments }))) === JSON.stringify(plainA),
         'rowAssignments zonder assignmentColumns ⇒ byte-identiek');
+
+      // Restpunt review #138 (ronde 2, bevinding 5): laat de tabel mét kolommen minder dan
+      // MIN_CHART_WIDTH_PX (240) tijdlijn over op één papierbreedte, dan laat de render de twee
+      // kolommen vallen en meldt dat — op A4 liggend (1058 px printbreedte) is een naamkolom van
+      // 800 px daarvoor genoeg; de gewone naamkolom niet.
+      const wideOpts = baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, paperSize: 'A4', orientation: 'landscape', taskNameColumnWidth: 800 });
+      const wide = record([T_NORM, T_CRIT], [], cal, wideOpts);
+      const wideNoCols = record([T_NORM, T_CRIT], [], cal, { ...wideOpts, assignmentColumns: false, rowAssignments: undefined });
+      ok(wide.dims.assignmentColumnsDropped === true, 'brede naamkolom ⇒ toewijzingskolommen weggelaten en gemeld');
+      ok(wide.dims.tableWidth === wideNoCols.dims.tableWidth && !wide.texts.some(t => t.text === 'Eenh./d'),
+        'weggelaten ⇒ dezelfde tabel als zonder de optie, geen kolomkop');
+      ok(withCols.dims.assignmentColumnsDropped === undefined, 'gewone naamkolom ⇒ kolommen blijven, geen melding');
+
+      // Restpunt bevinding 8: een venster zonder werkdag valt op de kalender-as terug — en nummert
+      // dan óók de weekenddagen, anders staat er geen enkel dagcijfer in de kop.
+      const weekend = record([T_CRIT], [], cal, baseOptions({ compressNonWorkdays: true, autoFit: false, customZoom: 20, timeWindow: { from: '2026-01-10', to: '2026-01-11' } }));
+      const headTexts = weekend.texts.filter(t => t.y <= weekend.dims.headerHeight).map(t => t.text);
+      ok(headTexts.includes('10') && headTexts.includes('11'), `weekendvenster op de kalender-as toont de dagcijfers 10 en 11 (got ${JSON.stringify(headTexts)})`);
+
+      // Restpunt bevinding 10: het decimaalteken volgt de app-taal via `numberLocale`.
+      const nlUnits = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, numberLocale: 'nl' }));
+      ok(nlUnits.texts.some(t => t.text === '1,5' && inCol(t, 180, 225)), 'numberLocale nl ⇒ "1,5" in de eenhedenkolom');
+      ok(withCols.texts.some(t => t.text === '1.5' && inCol(t, 180, 225)), 'zonder numberLocale ⇒ "1.5"');
     }
     // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
     // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
