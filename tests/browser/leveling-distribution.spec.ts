@@ -943,3 +943,39 @@ test('een opgerekt plafond schuift de label- en uitkomstkolom niet uit de dialoo
   await within('[data-ops-distribution-label]');
   await expect(page.locator('[data-ops-distribution-label]').first()).toContainText(/Eendaags project/);
 });
+
+// --- De begrippenlijst (eigenaarsvraag 2026-09-14: "wat betekent 'taken passen niet'?") ----------
+
+test('begrippenlijst: uitklappen toont de uitleg, inklappen geeft de dialoog zijn maat terug', async ({ page, ops: _ops }) => {
+  await seedTwoSingleDayDocuments(page);
+  await openDistributionFromConflictRow(page);
+  await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
+
+  const dialog = page.locator('[data-ops-distribution-dialog]');
+  const toggle = page.locator('[data-ops-distribution-glossary-toggle]');
+  const glossary = page.locator('[data-ops-distribution-glossary]');
+
+  // Ingeklapt bij het openen: de dialoog is bediening, geen naslagwerk.
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(glossary).toHaveCount(0);
+  const closedBox = (await dialog.boundingBox())!;
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(glossary).toBeVisible();
+  // Alle niet-vanzelfsprekende termen van deze dialoog staan erin; minder dan acht betekent dat er
+  // een term uit de lijst gevallen is.
+  expect(await glossary.locator('dt').count()).toBeGreaterThanOrEqual(8);
+  await expect(glossary).toContainText(/past niet|does not fit/i);
+
+  // Uitklappen mag de hoogte veranderen — het is een gebruikershandeling, geen REKENtoestand.
+  // Maar inklappen moet de dialoog exact op zijn oude maat terugzetten (spec §7).
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(glossary).toHaveCount(0);
+  const reclosedBox = (await dialog.boundingBox())!;
+  expect(reclosedBox.x).toBeCloseTo(closedBox.x, 0);
+  expect(reclosedBox.y).toBeCloseTo(closedBox.y, 0);
+  expect(reclosedBox.width).toBeCloseTo(closedBox.width, 0);
+  expect(reclosedBox.height).toBeCloseTo(closedBox.height, 0);
+});
