@@ -63,9 +63,11 @@ osoby do rozdania. Zadanie z dwoma zasobami pojawia się pod oboma pasmami; zada
 pomijane, bo nigdy nie są przypisywane. **Uwzględnij zadania bez zasobu** dodaje na dole pasmo
 *(brak)*, żeby na naradzie od razu było widać, czego jeszcze nikt nie ma.
 
-Wszystkie ustawienia wydruku Gantta obowiązują bez zmian — ścieżka krytyczna, zapas, relacje,
-kolory pasków, linia stanu, papier, powtarzanie nagłówka — z wyjątkiem *Podążaj za widokiem*: ten
-raport nie bierze wierszy z ekranu. Nie trzeba więc najpierw samemu grupować widoku Gantta według
+Wszystkie ustawienia wydruku Gantta obowiązują bez zmian — ścieżka krytyczna, zapas, kolory
+pasków, linia stanu, papier, powtarzanie nagłówka — z dwoma wyjątkami: *Podążaj za widokiem* (ten
+raport nie bierze wierszy z ekranu) i *Zależności* (zadanie pojawia się pod każdym przypisanym mu
+zasobem, więc strzałka nie miałaby jednoznacznego zakotwiczenia; ten raport ich nie rysuje). Pasma są
+według zasobu, nie według nazwy: dwa zasoby o tej samej nazwie dostają osobne pasma (*Jan #1*, *Jan #2*). Nie trzeba więc najpierw samemu grupować widoku Gantta według
 zasobu. Blok podsumowania liczy zasoby, przypisania i zadania bez zasobu. Jeśli nie ma jeszcze
 przypisań, podgląd o tym informuje zamiast pokazywać pustą stronę; przypisuje się w karcie **Zasoby**
 (zob. [Zasoby i histogram](docs://gids-resources-histogram)).

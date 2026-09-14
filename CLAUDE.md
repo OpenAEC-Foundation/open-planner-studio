@@ -148,8 +148,10 @@ De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/re
 Het Rapport-tabblad (`ReportPanel.tsx`) kent elf rapporttypen (`ReportType` in
 `src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het **resourcediagram**
 (issue #113: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
-`src/engine/reports/resourceGantt.ts` — per resource een band, daaronder zijn bladtaken via de
-schermgroepeerpijplijn `computeViewRows`; optie "blad per resource" = `PrintOptions.pageBreakBeforeGroups`
+`src/engine/reports/resourceGantt.ts` — per resource-IDENTITEIT een band (niet per naam, zoals de
+schermgroepering: gelijknamigen krijgen `#n`, naamlozen een surrogaat), daaronder zijn bladtaken op
+start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan; optie "blad
+per resource" = `PrintOptions.pageBreakBeforeGroups`
 → `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
 positie zonder vulgraaddrempel wint; `isGanttReportType()` bundelt beide Gantt-achtige typen), het
 mijlpalen- en variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**

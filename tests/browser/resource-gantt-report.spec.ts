@@ -2,6 +2,8 @@
 // gegroepeerd per resource — zonder eerst de schermweergave te verbouwen. De rijen en de gedwongen
 // paginaovergangen worden headless bewaakt (tests/planning/check-reports.ts en check-print-report.ts);
 // hier alleen de echte gebruikersflow: samenvatting, preview-pagina's per optie en het exportsuffix.
+import { readFile } from 'node:fs/promises';
+import { PDFDocument } from 'pdf-lib';
 import { expect, seedProject, test } from './fixtures/ops';
 
 test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatting en paginering, export krijgt eigen suffix', async ({ page, ops: _ops }) => {
@@ -31,6 +33,9 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await expect(count('resources')).toHaveText('2');
   await expect(count('assignments')).toHaveText('3');
   await expect(count('unassigned')).toHaveText('1');
+  // Geen relatie-optie bij dit type (een taak kan onder meerdere banden staan); Volg weergave evenmin.
+  await expect(page.getByLabel(/^(Dependencies|Afhankelijkheden)$/)).toHaveCount(0);
+  await expect(page.getByLabel(/^(Follow view|Volg weergave)/)).toHaveCount(0);
 
   // Preview: alles past op één pagina, en die pagina is een echte gerasterde afbeelding.
   const pages = page.locator('[data-preview-page]');
@@ -46,8 +51,15 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await expect(pages).toHaveCount(3);
   await expect(count('unassigned')).toHaveText('1');
 
+  // De échte export (vector-tak, zie paginateVector) moet dezelfde drie pagina's opleveren als de
+  // preview: dat is het pad dat de gebruiker in handen krijgt, en de enige plek waar de gedwongen
+  // breekposities de PDF in gaan.
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/-resourcediagram\.pdf$/);
+  const pdfPath = await download.path();
+  expect(pdfPath).not.toBeNull();
+  const pdf = await PDFDocument.load(await readFile(pdfPath!));
+  expect(pdf.getPageCount()).toBe(3);
 });

@@ -43,9 +43,11 @@ dağıtılacak kişi başına ayrı bir sayfa olur. İki kaynağı olan bir gör
 görünür; özet görevler hiç atanmadığı için dışarıda kalır. **Kaynaksız görevleri dahil et** en alta
 bir *(yok)* bandı ekler; böylece toplantıda henüz kimsenin üstlenmediği işler bir bakışta görülür.
 
-Gantt çıktısının tüm ayarları olduğu gibi geçerlidir — kritik yol, bolluk, ilişkiler, çubuk
-renkleri, durum çizgisi, kâğıt, başlık tekrarı — yalnızca *Görünümü izle* hariç: bu rapor
-satırlarını ekrandan almaz. Dolayısıyla Gantt görünümünü önce kendiniz kaynağa göre gruplamanız
+Gantt çıktısının tüm ayarları olduğu gibi geçerlidir — kritik yol, bolluk, çubuk renkleri,
+durum çizgisi, kâğıt, başlık tekrarı — iki istisna dışında: *Görünümü izle* (bu rapor satırlarını
+ekrandan almaz) ve *Bağımlılıklar* (bir görev kendisine atanan her kaynağın altında yer alır, bu
+yüzden bir okun tek bir bağlantı noktası olmaz; bu rapor ok çizmez). Bantlar ada göre değil kaynağa
+göre oluşur: aynı adı taşıyan iki kaynak ayrı ayrı bant alır (*Jan #1*, *Jan #2*). Dolayısıyla Gantt görünümünü önce kendiniz kaynağa göre gruplamanız
 gerekmez. Özet bloğu kaynakları, atamaları ve kaynaksız görevleri sayar. Henüz atama yoksa önizleme
 boş bir sayfa göstermek yerine bunu söyler; atama **Kaynaklar** sekmesinde yapılır (bkz.
 [Kaynaklar ve histogram](docs://gids-resources-histogram)).

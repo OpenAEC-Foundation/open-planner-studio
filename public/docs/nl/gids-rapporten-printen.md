@@ -96,10 +96,16 @@ onder beide banden; verzameltaken doen niet mee, want die worden niet toegewezen
 resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het overleg meteen ziet wat
 nog niemand heeft.
 
-Alle instellingen van de Gantt-afdruk gelden hier onverkort — kritiek pad, speling, relaties,
-balkkleuren, statuslijn, papier, kopherhaling — alleen *Volg weergave* niet: de rijen komen bij dit
-rapport niet van het scherm. Je hoeft de Gantt-weergave dus niet eerst zelf op resource te groeperen.
-Het overzichtsblok telt de resources, de toewijzingen en de taken zonder resource. Zijn er nog geen
+De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
+papier, kopherhaling — op twee na: *Volg weergave* (de rijen komen bij dit rapport niet van het
+scherm) en *Afhankelijkheden* (een taak staat onder élke resource die eraan hangt, dus een
+relatiepijl heeft geen eenduidig anker; dit rapport tekent er geen). Je hoeft de Gantt-weergave dus
+niet eerst zelf op resource te groeperen. Banden zijn per resource, niet per naam: twee resources die
+toevallig hetzelfde heten krijgen elk een eigen band (*Jan #1*, *Jan #2*), en een resource zonder
+naam een volgnummer. Het overzichtsblok telt de resources, de toewijzingen en de taken zonder
+resource — die laatste telling omvat ook mijlpalen en hammocks, want die worden hier getekend (het
+tabelrapport *Resourcetoewijzingen* telt alleen echte activiteiten). De voet met legenda en
+afdrukdatum staat, zoals bij elke meerpagina-afdruk, op het laatste vel. Zijn er nog geen
 toewijzingen, dan zegt het voorbeeld dat in plaats van een lege pagina te tonen; toewijzen gebeurt
 op het tabblad **Resources** (zie [Resources & histogram](docs://gids-resources-histogram)).
 

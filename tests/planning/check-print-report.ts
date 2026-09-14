@@ -486,6 +486,20 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     // Eén band ⇒ niets te breken: geen gedwongen posities, dus ook geen lege eerste pagina.
     const single = measurePrintReport(bandTasks.slice(0, 2), [], cal, 'Eén resource', baseOptions({ rows: bands.slice(0, 3), pageBreakBeforeGroups: true }));
     ok(single.forcedBreakOffsets === undefined, 'één band ⇒ geen gedwongen posities');
+    // Dezelfde drie banden in de overige pagineermodi (review op #132, bevinding 9): zonder
+    // kopherhaling, in 'actual' (1 pt = 1 px, horizontaal getegeld) en met de tijdlijn over twee
+    // paginabreedtes — steeds drie body-rijen die exact op de bandgrenzen eindigen.
+    const forcedSet = new Set(forced.forcedBreakOffsets);
+    const endsOnBands = (l: ReturnType<typeof computeTileLayout>) =>
+      l.bodyRows.length === 3 && l.bodyRows.slice(0, -1).every(r => forcedSet.has(r.srcY + r.srcH));
+    ok(endsOnBands(computeTileLayout({ ...tile, repeatHeaderHeightPx: 0, forcedBreakOffsetsPx: forced.forcedBreakOffsets })),
+      'blad per band zonder kopherhaling: drie pagina\'s op de bandgrenzen');
+    const actual = computeTileLayout({ ...tile, mode: 'actual', forcedBreakOffsetsPx: forced.forcedBreakOffsets });
+    ok(endsOnBands(actual) && actual.rows * actual.cols === 3 * actual.cols,
+      `blad per band in 'actual': drie rijen × ${actual.cols} kolom(men) (got ${actual.rows}×${actual.cols})`);
+    const twoCols = computeTileLayout({ ...tile, timelineColumns: 2, forcedBreakOffsetsPx: forced.forcedBreakOffsets });
+    ok(endsOnBands(twoCols) && twoCols.cols === 2 && twoCols.rows * twoCols.cols === 6,
+      `blad per band met tijdlijn over 2 pagina's: 3 × 2 = 6 pagina's (got ${twoCols.rows}×${twoCols.cols})`);
   }
 
   // Contract pdfTable → tileLayout (issue #110 punt 3): de breekposities die de tabelrender levert

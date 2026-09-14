@@ -63,9 +63,11 @@ hace qué, y cuándo» para la reunión de obra, o — con la opción **Cada rec
 las tareas resumen quedan fuera, porque nunca se asignan. **Incluir tareas sin recurso** añade abajo
 una banda *(ninguno)*, para ver de un vistazo lo que todavía no tiene nadie.
 
-Todos los ajustes de la impresión Gantt se aplican sin cambios — ruta crítica, holgura, relaciones,
-colores de barras, línea de estado, papel, repetición de cabecera — salvo *Seguir vista*: este
-informe no toma sus filas de la pantalla. Así que no hace falta agrupar antes la vista Gantt por
+Todos los ajustes de la impresión Gantt se aplican sin cambios — ruta crítica, holgura, colores de
+barras, línea de estado, papel, repetición de cabecera — salvo *Seguir vista* (este informe no toma
+sus filas de la pantalla) y *Dependencias* (una tarea aparece bajo cada recurso que tiene asignado,
+así que una flecha no tendría un anclaje único; este informe no dibuja ninguna). Las bandas son por
+recurso, no por nombre: dos recursos con el mismo nombre reciben cada uno su banda (*Jan #1*, *Jan #2*). Así que no hace falta agrupar antes la vista Gantt por
 recurso. El bloque de resumen cuenta los recursos, las asignaciones y las tareas sin recurso. Si aún
 no hay asignaciones, la vista previa lo dice en lugar de mostrar una página vacía; asignar se hace en
 la pestaña **Recursos** (ver [Recursos e histograma](docs://gids-resources-histogram)).

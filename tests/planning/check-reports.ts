@@ -16,6 +16,7 @@ import {
   remainingDays, taskDepths,
 } from '@/engine/reports';
 import type { Task } from '@/types/task';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -348,43 +349,91 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 }
 
 // ── Resourcediagram (issue #113) ─────────────────────────────────────────────────────────────────
-// Dezelfde groepeerpijplijn als het scherm: per resource een band, daaronder zijn bladtaken op start;
-// een taak met twee resources staat onder beide banden; de "(geen)"-band alleen op verzoek.
+// Per resource-IDENTITEIT een band (niet per naam — review op #132, bevinding 1), daaronder zijn
+// bladtaken op start; een taak met twee resources staat onder beide banden; de "(geen)"-band alleen
+// op verzoek. Op de ReportContext van het hoofdscenario (de store staat inmiddels op een ander
+// project), met synthetische extra resources/toewijzingen.
 {
-  // Op de ReportContext van het hoofdscenario (de store staat inmiddels op een ander project), plus
-  // een synthetische tweede resource op B: een taak met twee resources hoort onder BEIDE banden.
-  const kraan = { id: 'res-kraan', name: 'Kraan', type: 'EQUIPMENT' as const, description: '', maxUnits: 1 };
-  const viewCtx = {
-    activityCodeTypes: [], customFieldDefs: [],
+  const res = (id: string, name: string): Resource => ({ id, name, type: 'EQUIPMENT', description: '', maxUnits: 1 });
+  const asg = (id: string, taskId: string, resourceId: string): ResourceAssignment => ({ id, taskId, resourceId, unitsPerDay: 1 });
+  const kraan = res('res-kraan', 'Kraan');
+  const base = {
+    tasks: ctx.tasks,
     resources: [...ctx.resources, kraan],
-    assignments: [...ctx.assignments, { id: 'asg-kraan', taskId: B, resourceId: kraan.id, unitsPerDay: 1 }],
-    noneLabel: '(geen)',
+    assignments: [...ctx.assignments, asg('asg-kraan', B, kraan.id)],
   };
+  const opts = { includeUnassigned: false, noneLabel: '(geen)' };
   const label = (row: { kind: string; label?: string }) => (row.kind === 'group' ? row.label : undefined);
-  const r = computeResourceGanttRows(ctx.tasks as Task[], viewCtx, { includeUnassigned: false });
+  const bandTasks = (rows: ReturnType<typeof computeResourceGanttRows>['rows'], name: string) => {
+    const start = rows.findIndex(x => label(x) === name);
+    const out: string[] = [];
+    if (start < 0) return out;
+    for (const x of rows.slice(start + 1)) { if (x.kind !== 'task') break; out.push(x.task.id); }
+    return out;
+  };
+
+  const r = computeResourceGanttRows(base, opts);
   eq('resourceGantt: één band per resource, op naam', r.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1']);
   // Ploeg 1 → A, B, D; Kraan → B; zonder resource: C, E (mijlpaal is óók een bladtaak), F, G.
   eq('resourceGantt: tellingen', r.counts, { resources: 2, assignments: 4, unassignedTasks: 4 });
-  const bandTasks = (name: string) => {
-    const start = r.rows.findIndex(x => label(x) === name);
-    const out: string[] = [];
-    for (const x of r.rows.slice(start + 1)) { if (x.kind !== 'task') break; out.push(x.task.id); }
-    return out;
-  };
-  eq('resourceGantt: Ploeg 1 heeft A, B en D', [...bandTasks('Ploeg 1')].sort(), [A, B, D].sort());
-  eq('resourceGantt: Kraan heeft alleen B', bandTasks('Kraan'), [B]);
+  eq('resourceGantt: Ploeg 1 heeft A, B en D', [...bandTasks(r.rows, 'Ploeg 1')].sort(), [A, B, D].sort());
+  eq('resourceGantt: Kraan heeft alleen B', bandTasks(r.rows, 'Kraan'), [B]);
   ok('resourceGantt: B staat onder beide banden', r.rows.filter(x => x.kind === 'task' && x.task.id === B).length === 2);
-  const starts = bandTasks('Ploeg 1').map(id => byId(id).time.earlyStart || byId(id).time.scheduleStart);
+  ok('resourceGantt: alle rijsleutels uniek', new Set(r.rows.map(x => x.rowKey)).size === r.rows.length);
+  const starts = bandTasks(r.rows, 'Ploeg 1').map(id => byId(id).time.earlyStart || byId(id).time.scheduleStart);
   ok('resourceGantt: binnen een band op start gesorteerd', starts.every((d, i) => i === 0 || starts[i - 1] <= d), starts.join(','));
   ok('resourceGantt: zonder optie geen "(geen)"-band', !r.rows.some(x => label(x) === '(geen)'));
   ok('resourceGantt: geen verzameltaak tussen de rijen', !r.rows.some(x => x.kind === 'task' && x.task.id === fase));
   ok('resourceGantt: taakrijen hangen op diepte 1 onder hun band', r.rows.every(x => x.kind !== 'task' || x.depth === 1));
-  const r2 = computeResourceGanttRows(ctx.tasks as Task[], viewCtx, { includeUnassigned: true });
-  const bands2 = r2.rows.filter(x => x.kind === 'group').map(label);
-  eq('resourceGantt: met optie staat "(geen)" als laatste band', bands2, ['Kraan', 'Ploeg 1', '(geen)']);
+
+  const r2 = computeResourceGanttRows(base, { ...opts, includeUnassigned: true });
+  eq('resourceGantt: met optie staat "(geen)" als laatste band', r2.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1', '(geen)']);
   eq('resourceGantt: tellingen ongewijzigd door de optie', r2.counts, r.counts);
-  eq('resourceGantt: de vier taken zonder resource staan onder "(geen)"', r2.rows.slice(r2.rows.findIndex(x => label(x) === '(geen)') + 1).map(x => (x.kind === 'task' ? x.task.id : '?')).sort(), [C, E, F, G].sort());
-  ok('resourceGantt: rijen zonder toewijzingen ⇒ leeg', computeResourceGanttRows(ctx.tasks as Task[], { ...viewCtx, assignments: [] }, { includeUnassigned: false }).rows.length === 0);
+  eq('resourceGantt: de vier taken zonder resource staan onder "(geen)"', [...bandTasks(r2.rows, '(geen)')].sort(), [C, E, F, G].sort());
+
+  // Review-bevinding 1: twee resources met dezelfde naam zijn twee banden, elk met een eigen sleutel;
+  // een taak van beiden staat onder beide — en niet twee keer onder één.
+  const jan1 = res('res-jan-1', 'Jan');
+  const jan2 = res('res-jan-2', 'Jan');
+  const twins = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [jan1, jan2],
+    assignments: [asg('a1', A, jan1.id), asg('a2', A, jan2.id), asg('a3', B, jan2.id)],
+  }, opts);
+  eq('resourceGantt: gelijknamige resources ⇒ twee banden met volgnummer', twins.rows.filter(x => x.kind === 'group').map(label), ['Jan #1', 'Jan #2']);
+  eq('resourceGantt: gelijknamig — tellingen op identiteit', twins.counts, { resources: 2, assignments: 3, unassignedTasks: 5 });
+  eq('resourceGantt: gelijknamig — Jan #1 heeft A', bandTasks(twins.rows, 'Jan #1'), [A]);
+  eq('resourceGantt: gelijknamig — Jan #2 heeft A en B', [...bandTasks(twins.rows, 'Jan #2')].sort(), [A, B].sort());
+  ok('resourceGantt: gelijknamig — rijsleutels uniek', new Set(twins.rows.map(x => x.rowKey)).size === twins.rows.length);
+
+  // Review-bevinding 4: een resource zonder naam verdwijnt niet stil in "(geen)" maar krijgt een surrogaat.
+  const naamloos = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan, res('res-leeg', '  ')],
+    assignments: [asg('a1', A, 'res-leeg')],
+  }, opts);
+  eq('resourceGantt: naamloze resource ⇒ band "#2" (positie in de projectlijst)', naamloos.rows.filter(x => x.kind === 'group').map(label), ['#2']);
+  eq('resourceGantt: naamloze resource — A telt als toegewezen', naamloos.counts, { resources: 1, assignments: 1, unassignedTasks: 6 });
+
+  // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
+  // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).
+  const dubbel = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan],
+    assignments: [asg('a1', A, kraan.id), asg('a2', A, kraan.id), asg('a3', B, 'res-bestaat-niet')],
+  }, opts);
+  eq('resourceGantt: dubbele toewijzing ⇒ één rij', bandTasks(dubbel.rows, 'Kraan'), [A]);
+  eq('resourceGantt: onbekende resource ⇒ taak zonder resource', dubbel.counts, { resources: 1, assignments: 1, unassignedTasks: 6 });
+
+  // Bandvolgorde: taal-/cijferbewust ("Ploeg 2" vóór "Ploeg 10"), hoofdletterongevoelig.
+  const p10 = res('p10', 'Ploeg 10'); const p2 = res('p2', 'ploeg 2'); const aa = res('aa', 'Aannemer');
+  const volgorde = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [p10, p2, aa],
+    assignments: [asg('a1', A, p10.id), asg('a2', A, p2.id), asg('a3', A, aa.id)],
+  }, opts);
+  eq('resourceGantt: bandvolgorde cijferbewust en hoofdletterongevoelig', volgorde.rows.filter(x => x.kind === 'group').map(label), ['Aannemer', 'ploeg 2', 'Ploeg 10']);
+
+  // Leeg: geen toewijzingen ⇒ geen rijen; geen taken ⇒ ook geen "(geen)"-band en nultellingen.
+  ok('resourceGantt: geen toewijzingen ⇒ leeg', computeResourceGanttRows({ ...base, assignments: [] }, opts).rows.length === 0);
+  const leeg = computeResourceGanttRows({ tasks: [], resources: base.resources, assignments: base.assignments }, { ...opts, includeUnassigned: true });
+  eq('resourceGantt: leeg project ⇒ geen rijen, nultellingen', [leeg.rows.length, leeg.counts], [0, { resources: 0, assignments: 0, unassignedTasks: 0 }]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

@@ -44,9 +44,11 @@ deux ressources apparaît sous les deux bandes ; les tâches récapitulatives so
 ne sont jamais affectées. **Inclure les tâches sans ressource** ajoute en bas une bande *(aucun)*,
 pour voir d'un coup d'œil ce que personne n'a encore.
 
-Tous les réglages de l'impression Gantt s'appliquent tels quels — chemin critique, marge, relations,
-couleurs des barres, ligne d'état, papier, répétition de l'en-tête — sauf *Suivre la vue* : ce
-rapport ne prend pas ses lignes à l'écran. Inutile donc de grouper d'abord vous-même la vue Gantt par
+Tous les réglages de l'impression Gantt s'appliquent tels quels — chemin critique, marge, couleurs des
+barres, ligne d'état, papier, répétition de l'en-tête — sauf *Suivre la vue* (ce rapport ne prend
+pas ses lignes à l'écran) et *Dépendances* (une tâche figure sous chaque ressource qui lui est
+affectée, une flèche n'aurait donc pas d'ancrage unique ; ce rapport n'en dessine pas). Les bandes
+sont par ressource, pas par nom : deux ressources homonymes ont chacune leur bande (*Jan #1*, *Jan #2*). Inutile donc de grouper d'abord vous-même la vue Gantt par
 ressource. Le bloc de synthèse compte les ressources, les affectations et les tâches sans ressource.
 S'il n'y a pas encore d'affectation, l'aperçu le dit au lieu d'afficher une page vide ; l'affectation
 se fait dans l'onglet **Ressources** (voir [Ressources & histogramme](docs://gids-resources-histogram)).

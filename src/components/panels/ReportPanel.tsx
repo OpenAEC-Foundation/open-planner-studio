@@ -24,6 +24,7 @@ import {
   type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
+import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { useTableReportSpec } from './reports/useTableReportSpec';
@@ -436,21 +437,16 @@ export function ReportPanel() {
       resourceGanttOptions]);
 
   // Resourcediagram (issue #113): dezelfde Gantt-render, maar de rijen komen uit de pure rekenmodule
-  // (per resource een band, daaronder zijn taken) en niet van het scherm. `tTask('structure.none')`
-  // is hetzelfde "(geen)"-label dat de schermgroepering gebruikt.
+  // (per resource-identiteit een band, daaronder zijn taken) en niet van het scherm.
+  // `tTask('structure.none')` is hetzelfde "(geen)"-label dat de schermgroepering gebruikt.
   const isGanttLike = isGanttReportType(reportType);
   const noneLabel = tTask('structure.none');
   const resourceGantt = useMemo(() => (reportType === 'resourceGantt'
-    ? computeResourceGanttRows(tasks, {
-      activityCodeTypes: fieldCtx.activityCodeTypes,
-      customFieldDefs: fieldCtx.customFieldDefs,
-      resources,
-      assignments,
-      noneLabel,
-    }, { includeUnassigned: resourceGanttOptions.includeUnassigned })
+    ? computeResourceGanttRows({ tasks, resources, assignments }, {
+      includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel,
+    })
     : null),
-  [reportType, tasks, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, resources, assignments, noneLabel,
-    resourceGanttOptions.includeUnassigned]);
+  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned]);
   // Rijenbron van de Gantt-render: resourcediagram ⇒ de resourcebanden; Gantt-afdruk ⇒ de schermrijen
   // bij Volg weergave (#54), anders `undefined` = de volledige takenboom (oud gedrag, geen verrassingen).
   const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
@@ -521,13 +517,17 @@ export function ReportPanel() {
   // vervangt die één render later. Bewust geen "leeg" tussenframe.
   const effectiveNameColumnWidth = truncateTaskNames ? taskNameColumnWidth : (autoNameColumnWidth ?? taskNameColumnWidth);
   const options = useMemo<PrintOptions>(() => ({
-    showCritical, showFloat, showDeps, showWeekends, showLegend,
+    showCritical, showFloat, showWeekends, showLegend,
+    // Resourcediagram: geen relatiepijlen — een taak staat er onder élke resource die eraan hangt,
+    // dus een pijl heeft geen eenduidig anker en zou bij "blad per resource" de bladrand af lopen.
+    showDeps: reportType === 'resourceGantt' ? false : showDeps,
     showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
     taskNameColumnWidth: effectiveNameColumnWidth,
     labels: {
-      // Resourcediagram zonder één toewijzing: zeg wat er ontbreekt, niet "geen taken".
-      noTasks: reportType === 'resourceGantt' ? t('resourceGantt.empty') : t('noTasks'),
+      // Resourcediagram zonder één toewijzing: zeg wat er ontbreekt, niet "geen taken" — tenzij er
+      // écht geen taken zijn, dan is "wijs resources toe" het verkeerde advies.
+      noTasks: reportType === 'resourceGantt' && tasks.length > 0 ? t('resourceGantt.empty') : t('noTasks'),
       printed: t('printed'),
       legend: {
         criticalPath: t('legend.criticalPath'),
@@ -596,11 +596,20 @@ export function ReportPanel() {
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
-    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource]);
+    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
-  const previewOptionsSignature = useMemo(() => JSON.stringify(options), [options]);
+  // `rows` bevat volledige Task-objecten (één per toewijzing bij het resourcediagram): die worden
+  // hier tot hun structuur (sleutel, label, diepte) teruggebracht — de taakinhoud zelf zit al in de
+  // `tasks`-dependency van het preview-effect, dus dubbel serialiseren is puur verspilling.
+  const previewOptionsSignature = useMemo(() => JSON.stringify(options, (key, value) => (
+    key === 'rows' && Array.isArray(value)
+      ? (value as ViewRow[]).map(r => (r.kind === 'group'
+        ? `g:${r.key}:${r.label}:${r.count}:${r.depth}`
+        : `t:${r.rowKey}:${r.depth}:${r.dimmed ? 1 : 0}`))
+      : value
+  )), [options]);
 
   // Eén generatie beheert één layout + één begrensde renderqueue. Een optiewijziging annuleert het
   // nog niet begonnen werk van de vorige generatie, maar laat de bestaande pagina-afbeeldingen
@@ -1468,10 +1477,13 @@ export function ReportPanel() {
               <input type="checkbox" checked={showFloat} onChange={e => setShowFloat(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showFloat')}</span>
             </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showDependencies')}</span>
-            </label>
+            {/* Relaties niet bij het resourcediagram: een taak staat daar onder meerdere banden (zie `options`). */}
+            {reportType === 'gantt' && (
+              <label className="flex items-center gap-2 min-w-0">
+                <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
+                <span className="min-w-0">{t('showDependencies')}</span>
+              </label>
+            )}
             <label className="flex items-center gap-2 min-w-0">
               <input data-ops-report-compress-workdays type="checkbox" checked={reportCompressNonWorkdays} onChange={e => setReportCompressNonWorkdays(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{tCommon('settings.compressNonWorkdays')}</span>

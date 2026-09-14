@@ -44,9 +44,11 @@ Ressourcen erscheint unter beiden Bändern; Sammelaufgaben bleiben außen vor, d
 werden. **Aufgaben ohne Ressource einbeziehen** fügt unten ein Band *(keine)* hinzu, sodass die
 Besprechung sofort sieht, was noch niemand hat.
 
-Alle Einstellungen des Gantt-Ausdrucks gelten unverändert — kritischer Pfad, Puffer, Beziehungen,
-Balkenfarben, Statuslinie, Papier, Kopfwiederholung — außer *Ansicht folgen*: Dieser Bericht nimmt
-seine Zeilen nicht vom Bildschirm. Sie müssen die Gantt-Ansicht also nicht erst selbst nach Ressource
+Alle Einstellungen des Gantt-Ausdrucks gelten unverändert — kritischer Pfad, Puffer, Balkenfarben,
+Statuslinie, Papier, Kopfwiederholung — außer *Ansicht folgen* (dieser Bericht nimmt seine Zeilen
+nicht vom Bildschirm) und *Abhängigkeiten* (eine Aufgabe steht unter jeder ihr zugewiesenen
+Ressource, ein Pfeil hätte also keinen eindeutigen Anker; dieser Bericht zeichnet keine). Bänder
+gelten je Ressource, nicht je Name: zwei gleichnamige Ressourcen bekommen je ein eigenes Band (*Jan #1*, *Jan #2*). Sie müssen die Gantt-Ansicht also nicht erst selbst nach Ressource
 gruppieren. Der Übersichtsblock zählt die Ressourcen, die Zuweisungen und die Aufgaben ohne
 Ressource. Gibt es noch keine Zuweisungen, sagt die Vorschau das, statt eine leere Seite zu zeigen;
 zugewiesen wird im Tab **Ressourcen** (siehe [Ressourcen & Histogramm](docs://gids-resources-histogram)).
