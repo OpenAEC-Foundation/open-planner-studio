@@ -54,6 +54,22 @@ mais tarde e o tamanho de papel, os interruptores, o tamanho da fonte e o resto 
 deixou. Só o campo empresa é reposto: parte sempre da definição própria do projeto, para que um relatório
 nunca herde o nome da empresa de outro projeto.
 
+### Diagrama de recursos
+
+A mesma impressão Gantt, mas agrupada **por recurso**: cada equipa, pessoa ou máquina recebe a sua
+própria faixa com as tarefas que lhe estão atribuídas por baixo, por ordem de início. É a vista
+«quem faz o quê, e quando» para a reunião de obra, ou — com a opção **Cada recurso numa nova
+página** — uma folha separada por pessoa para distribuir. Uma tarefa com dois recursos aparece sob
+ambas as faixas; as tarefas resumo ficam de fora, porque nunca são atribuídas. **Incluir tarefas sem
+recurso** acrescenta em baixo uma faixa *(nenhum)*, para ver de relance o que ainda ninguém tem.
+
+Todas as definições da impressão Gantt aplicam-se sem alterações — caminho crítico, folga, relações,
+cores das barras, linha de estado, papel, repetição do cabeçalho — exceto *Seguir vista*: este
+relatório não tira as linhas do ecrã. Não é preciso, portanto, agrupar primeiro a vista Gantt por
+recurso. O bloco de resumo conta os recursos, as atribuições e as tarefas sem recurso. Se ainda não
+houver atribuições, a pré-visualização di-lo em vez de mostrar uma página vazia; a atribuição faz-se
+no separador **Recursos** (ver [Recursos e histograma](docs://gids-resources-histogram)).
+
 ### Visão geral de marcos
 
 Uma tabela de todos os marcos no projeto: EAP, nome, tipo (automático/início/fim), data, a

@@ -34,6 +34,23 @@ Les lignes de relation dans le rapport utilisent le même langage visuel que la 
 
 Le bloc de résumé au-dessus affiche le décompte en direct des tâches, tâches feuilles, tâches critiques et relations dans le projet. Le panneau de paramètres retient vos choix d'une session à l'autre — rouvrez l'onglet Rapport plus tard et le format de papier, les interrupteurs, la taille de police et le reste reviennent exactement comme vous les aviez laissés. Seul le champ entreprise est réinitialisé : il part toujours du paramètre propre au projet, de sorte qu'un rapport ne reprend jamais le nom d'entreprise d'un autre projet.
 
+### Diagramme des ressources
+
+La même impression Gantt, mais regroupée **par ressource** : chaque équipe, personne ou machine
+reçoit sa propre bande avec, en dessous, les tâches qui lui sont affectées, dans l'ordre de début.
+C'est la vue « qui fait quoi, et quand » pour la réunion de chantier, ou — avec l'option **Chaque
+ressource sur une nouvelle page** — une feuille séparée par personne à distribuer. Une tâche avec
+deux ressources apparaît sous les deux bandes ; les tâches récapitulatives sont exclues, car elles
+ne sont jamais affectées. **Inclure les tâches sans ressource** ajoute en bas une bande *(aucun)*,
+pour voir d'un coup d'œil ce que personne n'a encore.
+
+Tous les réglages de l'impression Gantt s'appliquent tels quels — chemin critique, marge, relations,
+couleurs des barres, ligne d'état, papier, répétition de l'en-tête — sauf *Suivre la vue* : ce
+rapport ne prend pas ses lignes à l'écran. Inutile donc de grouper d'abord vous-même la vue Gantt par
+ressource. Le bloc de synthèse compte les ressources, les affectations et les tâches sans ressource.
+S'il n'y a pas encore d'affectation, l'aperçu le dit au lieu d'afficher une page vide ; l'affectation
+se fait dans l'onglet **Ressources** (voir [Ressources & histogramme](docs://gids-resources-histogram)).
+
 ### Aperçu des jalons
 
 Un tableau de chaque jalon du projet : WBS, nom, type (automatique/début/fin), date, la contrainte ou l'échéance sous-jacente, marge, si le jalon est obligatoire, et statut (dans les délais / critique / en retard). Le bloc de résumé affiche le nombre total de jalons, combien sont obligatoires et combien sont en retard. Ce rapport n'a pas de paramètres de format de papier/orientation — il imprime le tableau exactement tel qu'affiché.

@@ -65,6 +65,7 @@
   "reportType": {
     "label": "Rapor türü",
     "gantt": "Gantt şeması",
+    "resourceGantt": "Kaynak diyagramı",
     "milestones": "Kilometre taşı özeti",
     "variance": "Variance",
     "lookAhead": "İleriye bakış (look-ahead)",
@@ -131,6 +132,14 @@
   "followView": "Görünüme uy (filtre, gruplama, sıralama)",
   "statusDateLabel": "Durum tarihi",
   "progressDateLabel": "İlerleme tarihi",
+  "resourceGantt": {
+    "pageBreakPerResource": "Her kaynak yeni bir sayfada",
+    "includeUnassigned": "Kaynaksız görevleri dahil et",
+    "empty": "Kaynak ataması yok — önce görevlere kaynak atayın.",
+    "resources": "Kaynaklar:",
+    "assignments": "Atamalar:",
+    "unassigned": "Kaynaksız:"
+  },
   "tableReports": {
     "notCalculatedNote": "Henüz hesaplanmadı — tarihler ve bolluklar için Hesapla (F5) tuşuna basın.",
     "staleNote": "Program son hesaplamadan beri değişti — güncel değerler için Hesapla (F5) tuşuna basın.",

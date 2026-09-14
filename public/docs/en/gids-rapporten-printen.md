@@ -2,13 +2,14 @@
 
 A schedule isn't finished until you can share it — on paper for a site meeting, as an image in a
 presentation, or as an overview of what's coming up and what has already shifted. That's what the
-**Report** tab is for, with ten report types and a print preview.
+**Report** tab is for, with eleven report types and a print preview.
 
 ## What you'll learn here
 
-- The report types on the **Report** tab: the Gantt print, two table reports on milestones and
-  variance, and seven table reports for the weekly site meeting, progress reporting, the schedule
-  review, resources and management.
+- The report types on the **Report** tab: the Gantt print, the resource diagram ("who does what,
+  and when" — one sheet per person if you like), two table reports on milestones and variance, and
+  seven table reports for the weekly site meeting, progress reporting, the schedule review,
+  resources and management.
 - How the print preview works: paper size, orientation and which elements you toggle on/off.
 - How to actually print a report or save it as a file.
 - What **Ctrl+P** does in this app.
@@ -83,6 +84,22 @@ in the project. The settings panel remembers your choices between sessions — r
 later and paper size, toggles, font size and the rest come back exactly as you left them. Only the
 company field resets: it always starts from the project's own setting, so a report never carries
 over another project's company name.
+
+### Resource diagram
+
+The same Gantt print, but grouped **per resource**: every crew, person or machine gets its own band
+with the tasks assigned to it underneath, in order of start. That is the "who does what, and when"
+overview for the site meeting, or — with the option **Each resource on a new page** — a separate
+sheet per person to hand out. A task with two resources appears under both bands; summary tasks are
+left out, since they are never assigned. **Include tasks without a resource** adds a *(none)* band
+at the bottom, so the meeting can see at a glance what nobody owns yet.
+
+All settings of the Gantt print apply unchanged — critical path, float, relations, bar colours,
+status line, paper, header repeat — except *Follow view*: this report doesn't take its rows from the
+screen. So there's no need to group the Gantt view by resource yourself first. The summary block
+counts the resources, the assignments and the tasks without a resource. If there are no assignments
+yet, the preview says so instead of showing an empty page; assigning happens on the **Resources**
+tab (see [Resources & histogram](docs://gids-resources-histogram)).
 
 ### Milestone overview
 
@@ -235,8 +252,8 @@ Each report type serves a different conversation:
   look-ahead what has to happen now.
 - **Schedule health** belongs to a schedule review before you record a baseline or attach a
   schedule to a contract: zero errors is the bar.
-- The two **resource** reports and the **WBS summary** serve the staffing meeting and the
-  management overview respectively. All seven table reports also work on the showcase above, which
+- The **resource diagram** is the hand-out "who does what" sheet; the two **resource** tables and
+  the **WBS summary** serve the staffing meeting and the management overview respectively. All seven table reports also work on the showcase above, which
   has a status date, baselines and progress.
 
 The live preview on the right refreshes on every change to the settings on the left — there's no

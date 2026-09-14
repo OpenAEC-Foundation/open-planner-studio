@@ -68,6 +68,7 @@
   "reportType": {
     "label": "Tipo de relatório",
     "gantt": "Gráfico de Gantt",
+    "resourceGantt": "Diagrama de recursos",
     "milestones": "Visão geral de marcos",
     "variance": "Variance",
     "lookAhead": "Previsão (look-ahead)",
@@ -134,6 +135,14 @@
   "followView": "Seguir a vista (filtro, agrupamento, ordenação)",
   "statusDateLabel": "Data de status",
   "progressDateLabel": "Data de progresso",
+  "resourceGantt": {
+    "pageBreakPerResource": "Cada recurso numa nova página",
+    "includeUnassigned": "Incluir tarefas sem recurso",
+    "empty": "Sem atribuições de recursos — atribua primeiro recursos às tarefas.",
+    "resources": "Recursos:",
+    "assignments": "Atribuições:",
+    "unassigned": "Sem recurso:"
+  },
   "tableReports": {
     "notCalculatedNote": "Ainda não calculado — prima Calcular (F5) para datas e folgas.",
     "staleNote": "O cronograma mudou desde o último cálculo — prima Calcular (F5) para valores atuais.",

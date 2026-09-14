@@ -2,13 +2,14 @@
 
 Een planning is pas af als je hem ook kunt delen — op papier voor een bouwvergadering, als
 afbeelding in een presentatie, of als overzicht van wat er straks moet gebeuren en wat er al
-verschoven is. Daarvoor is er het tabblad **Rapport**, met tien rapporttypen en een printvoorbeeld.
+verschoven is. Daarvoor is er het tabblad **Rapport**, met elf rapporttypen en een printvoorbeeld.
 
 ## Wat je hier leert
 
-- De rapporttypen op het tabblad **Rapport**: de Gantt-afdruk, twee tabelrapporten over mijlpalen
-  en variance, en zeven tabelrapporten voor de weekvergadering, de voortgangsrapportage, de
-  planningsreview, de resources en het management.
+- De rapporttypen op het tabblad **Rapport**: de Gantt-afdruk, het resourcediagram ("wie doet wat,
+  en wanneer" — desgewenst een blad per persoon), twee tabelrapporten over mijlpalen en variance,
+  en zeven tabelrapporten voor de weekvergadering, de voortgangsrapportage, de planningsreview, de
+  resources en het management.
 - Hoe het printvoorbeeld werkt: papierformaat, oriëntatie en welke elementen je aan/uit zet.
 - Hoe je een rapport daadwerkelijk afdrukt of als bestand bewaart.
 - Wat **Ctrl+P** doet in deze app.
@@ -84,6 +85,23 @@ het project. Het instellingenpaneel onthoudt je keuzes tussen sessies — open h
 later opnieuw en papierformaat, schakelaars, lettergrootte en de rest staan er weer precies zo bij
 als je ze achterliet. Alleen het bedrijfsveld reset: dat begint altijd bij de eigen instelling van
 het project, zodat een rapport nooit de bedrijfsnaam van een ander project meesleept.
+
+### Resourcediagram
+
+Dezelfde Gantt-afdruk, maar gegroepeerd **per resource**: elke ploeg, medewerker of machine krijgt
+een eigen band met daaronder de taken die eraan zijn toegewezen, op volgorde van start. Dat is het
+"wie doet wat, en wanneer"-overzicht voor de bouwvergadering, of — met de optie **Elke resource op
+een nieuwe pagina** — een los vel per persoon om uit te delen. Een taak met twee resources staat
+onder beide banden; verzameltaken doen niet mee, want die worden niet toegewezen. Met **Taken zonder
+resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het overleg meteen ziet wat
+nog niemand heeft.
+
+Alle instellingen van de Gantt-afdruk gelden hier onverkort — kritiek pad, speling, relaties,
+balkkleuren, statuslijn, papier, kopherhaling — alleen *Volg weergave* niet: de rijen komen bij dit
+rapport niet van het scherm. Je hoeft de Gantt-weergave dus niet eerst zelf op resource te groeperen.
+Het overzichtsblok telt de resources, de toewijzingen en de taken zonder resource. Zijn er nog geen
+toewijzingen, dan zegt het voorbeeld dat in plaats van een lege pagina te tonen; toewijzen gebeurt
+op het tabblad **Resources** (zie [Resources & histogram](docs://gids-resources-histogram)).
 
 ### Mijlpalen-overzicht
 
@@ -238,8 +256,8 @@ Elk rapporttype dient een ander gesprek:
   staat, de look-ahead wat er nu moet gebeuren.
 - **Planningsgezondheid** hoort bij een planningsreview vóór je een baseline vastlegt of een
   planning bij een contract voegt: nul fouten is de lat.
-- De twee **resource**-rapporten en de **WBS-samenvatting** zijn er voor respectievelijk het
-  bemensingsoverleg en het managementoverzicht. Alle zeven tabelrapporten werken ook op de
+- Het **resourcediagram** is het uitdeelbare "wie doet wat"-vel; de twee **resource**-tabellen en de
+  **WBS-samenvatting** zijn er voor respectievelijk het bemensingsoverleg en het managementoverzicht. Alle zeven tabelrapporten werken ook op de
   showcase hierboven, die een statusdatum, baselines en voortgang bevat.
 
 Het live voorbeeld rechts ververst bij elke wijziging aan de instellingen links — er is geen aparte

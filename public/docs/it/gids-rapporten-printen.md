@@ -51,6 +51,23 @@ e il resto tornano esattamente come li hai lasciati. Solo il campo azienda si az
 dall'impostazione propria del progetto, così un report non trascina mai il nome dell'azienda di un
 altro progetto.
 
+### Diagramma delle risorse
+
+La stessa stampa Gantt, ma raggruppata **per risorsa**: ogni squadra, persona o macchina ha una
+propria fascia con sotto le attività assegnate, in ordine di inizio. È la vista «chi fa cosa, e
+quando» per la riunione di cantiere, oppure — con l'opzione **Ogni risorsa su una nuova pagina** —
+un foglio separato per persona da distribuire. Un'attività con due risorse compare sotto entrambe
+le fasce; le attività di riepilogo sono escluse, perché non vengono mai assegnate. **Includi le
+attività senza risorsa** aggiunge in fondo una fascia *(nessuna)*, così in riunione si vede subito
+cosa non ha ancora nessuno.
+
+Tutte le impostazioni della stampa Gantt valgono invariate — percorso critico, slack, relazioni,
+colori delle barre, linea di stato, carta, ripetizione dell'intestazione — tranne *Segui vista*:
+questo report non prende le righe dallo schermo. Non serve quindi raggruppare prima la vista Gantt
+per risorsa. Il blocco di riepilogo conta le risorse, le assegnazioni e le attività senza risorsa.
+Se non ci sono ancora assegnazioni, l'anteprima lo dice invece di mostrare una pagina vuota;
+l'assegnazione avviene nella scheda **Risorse** (vedi [Risorse e istogramma](docs://gids-resources-histogram)).
+
 ### Panoramica attività cardine
 
 Una tabella di ogni traguardo nel progetto: WBS, nome, tipo (automatico/inizio/fine), data, il vincolo

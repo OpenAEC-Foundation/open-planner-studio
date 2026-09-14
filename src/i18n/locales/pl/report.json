@@ -71,6 +71,7 @@
   "reportType": {
     "label": "Typ raportu",
     "gantt": "Wykres Gantta",
+    "resourceGantt": "Diagram zasobów",
     "milestones": "Przegląd punktów kontrolnych",
     "variance": "Variance",
     "lookAhead": "Prognoza (look-ahead)",
@@ -137,6 +138,14 @@
   "followView": "Podążaj za widokiem (filtr, grupowanie, sortowanie)",
   "statusDateLabel": "Data statusu",
   "progressDateLabel": "Data postępu",
+  "resourceGantt": {
+    "pageBreakPerResource": "Każdy zasób na nowej stronie",
+    "includeUnassigned": "Uwzględnij zadania bez zasobu",
+    "empty": "Brak przypisań zasobów — najpierw przypisz zasoby do zadań.",
+    "resources": "Zasoby:",
+    "assignments": "Przypisania:",
+    "unassigned": "Bez zasobu:"
+  },
   "tableReports": {
     "notCalculatedNote": "Jeszcze nie obliczono — naciśnij Oblicz (F5), aby uzyskać daty i zapasy.",
     "staleNote": "Harmonogram zmienił się od ostatniego obliczenia — naciśnij Oblicz (F5), aby zobaczyć aktualne wartości.",

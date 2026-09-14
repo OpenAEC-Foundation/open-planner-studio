@@ -12,7 +12,8 @@ import { useAppStore } from '@/state/appStore';
 import {
   type ReportContext,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
-  computeResourceLoading, computeResourceAssignments, computeWbsSummary, progressState, remainingDays, taskDepths,
+  computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
+  remainingDays, taskDepths,
 } from '@/engine/reports';
 import type { Task } from '@/types/task';
 
@@ -344,6 +345,46 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('wbs: volledige boom met activiteiten ⇒ 8 rijen in documentvolgorde', r2.rows.map(x => x.name), ['Fase 1', 'A fundering', 'B casco', 'C gevel', 'E oplevering casco', 'D los werk', 'F lange taak', 'G kort los werk']);
   eq('wbs: niveaus', r2.rows.map(x => x.level), [1, 2, 2, 2, 2, 1, 1, 1]);
   eq('wbs: tellingen', [r2.counts.elements, r2.counts.activities], [1, 7]);
+}
+
+// ── Resourcediagram (issue #113) ─────────────────────────────────────────────────────────────────
+// Dezelfde groepeerpijplijn als het scherm: per resource een band, daaronder zijn bladtaken op start;
+// een taak met twee resources staat onder beide banden; de "(geen)"-band alleen op verzoek.
+{
+  // Op de ReportContext van het hoofdscenario (de store staat inmiddels op een ander project), plus
+  // een synthetische tweede resource op B: een taak met twee resources hoort onder BEIDE banden.
+  const kraan = { id: 'res-kraan', name: 'Kraan', type: 'EQUIPMENT' as const, description: '', maxUnits: 1 };
+  const viewCtx = {
+    activityCodeTypes: [], customFieldDefs: [],
+    resources: [...ctx.resources, kraan],
+    assignments: [...ctx.assignments, { id: 'asg-kraan', taskId: B, resourceId: kraan.id, unitsPerDay: 1 }],
+    noneLabel: '(geen)',
+  };
+  const label = (row: { kind: string; label?: string }) => (row.kind === 'group' ? row.label : undefined);
+  const r = computeResourceGanttRows(ctx.tasks as Task[], viewCtx, { includeUnassigned: false });
+  eq('resourceGantt: één band per resource, op naam', r.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1']);
+  // Ploeg 1 → A, B, D; Kraan → B; zonder resource: C, E (mijlpaal is óók een bladtaak), F, G.
+  eq('resourceGantt: tellingen', r.counts, { resources: 2, assignments: 4, unassignedTasks: 4 });
+  const bandTasks = (name: string) => {
+    const start = r.rows.findIndex(x => label(x) === name);
+    const out: string[] = [];
+    for (const x of r.rows.slice(start + 1)) { if (x.kind !== 'task') break; out.push(x.task.id); }
+    return out;
+  };
+  eq('resourceGantt: Ploeg 1 heeft A, B en D', [...bandTasks('Ploeg 1')].sort(), [A, B, D].sort());
+  eq('resourceGantt: Kraan heeft alleen B', bandTasks('Kraan'), [B]);
+  ok('resourceGantt: B staat onder beide banden', r.rows.filter(x => x.kind === 'task' && x.task.id === B).length === 2);
+  const starts = bandTasks('Ploeg 1').map(id => byId(id).time.earlyStart || byId(id).time.scheduleStart);
+  ok('resourceGantt: binnen een band op start gesorteerd', starts.every((d, i) => i === 0 || starts[i - 1] <= d), starts.join(','));
+  ok('resourceGantt: zonder optie geen "(geen)"-band', !r.rows.some(x => label(x) === '(geen)'));
+  ok('resourceGantt: geen verzameltaak tussen de rijen', !r.rows.some(x => x.kind === 'task' && x.task.id === fase));
+  ok('resourceGantt: taakrijen hangen op diepte 1 onder hun band', r.rows.every(x => x.kind !== 'task' || x.depth === 1));
+  const r2 = computeResourceGanttRows(ctx.tasks as Task[], viewCtx, { includeUnassigned: true });
+  const bands2 = r2.rows.filter(x => x.kind === 'group').map(label);
+  eq('resourceGantt: met optie staat "(geen)" als laatste band', bands2, ['Kraan', 'Ploeg 1', '(geen)']);
+  eq('resourceGantt: tellingen ongewijzigd door de optie', r2.counts, r.counts);
+  eq('resourceGantt: de vier taken zonder resource staan onder "(geen)"', r2.rows.slice(r2.rows.findIndex(x => label(x) === '(geen)') + 1).map(x => (x.kind === 'task' ? x.task.id : '?')).sort(), [C, E, F, G].sort());
+  ok('resourceGantt: rijen zonder toewijzingen ⇒ leeg', computeResourceGanttRows(ctx.tasks as Task[], { ...viewCtx, assignments: [] }, { includeUnassigned: false }).rows.length === 0);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

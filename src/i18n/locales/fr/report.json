@@ -68,6 +68,7 @@
   "reportType": {
     "label": "Type de rapport",
     "gantt": "Diagramme de Gantt",
+    "resourceGantt": "Diagramme des ressources",
     "milestones": "Aperçu des jalons",
     "variance": "Variance",
     "lookAhead": "Prévision (look-ahead)",
@@ -134,6 +135,14 @@
   "followView": "Suivre la vue (filtre, groupe, tri)",
   "statusDateLabel": "Date d’état",
   "progressDateLabel": "Date d’avancement",
+  "resourceGantt": {
+    "pageBreakPerResource": "Chaque ressource sur une nouvelle page",
+    "includeUnassigned": "Inclure les tâches sans ressource",
+    "empty": "Aucune affectation de ressource — affectez d'abord des ressources aux tâches.",
+    "resources": "Ressources :",
+    "assignments": "Affectations :",
+    "unassigned": "Sans ressource :"
+  },
   "tableReports": {
     "notCalculatedNote": "Pas encore calculé — appuyez sur Calculer (F5) pour les dates et les marges.",
     "staleNote": "Le planning a changé depuis le dernier calcul — appuyez sur Calculer (F5) pour des valeurs à jour.",

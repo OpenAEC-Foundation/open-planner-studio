@@ -54,6 +54,22 @@ później, a rozmiar papieru, przełączniki, rozmiar czcionki i reszta wracają
 zostawiłeś. Resetuje się tylko pole firmy: zawsze zaczyna od własnego ustawienia projektu, więc raport
 nigdy nie przenosi nazwy firmy z innego projektu.
 
+### Diagram zasobów
+
+Ten sam wydruk Gantta, ale pogrupowany **według zasobu**: każda brygada, osoba lub maszyna dostaje
+własne pasmo, a pod nim przypisane jej zadania w kolejności rozpoczęcia. To widok „kto co robi
+i kiedy” na naradę budowy albo — z opcją **Każdy zasób na nowej stronie** — osobna kartka dla każdej
+osoby do rozdania. Zadanie z dwoma zasobami pojawia się pod oboma pasmami; zadania sumaryczne są
+pomijane, bo nigdy nie są przypisywane. **Uwzględnij zadania bez zasobu** dodaje na dole pasmo
+*(brak)*, żeby na naradzie od razu było widać, czego jeszcze nikt nie ma.
+
+Wszystkie ustawienia wydruku Gantta obowiązują bez zmian — ścieżka krytyczna, zapas, relacje,
+kolory pasków, linia stanu, papier, powtarzanie nagłówka — z wyjątkiem *Podążaj za widokiem*: ten
+raport nie bierze wierszy z ekranu. Nie trzeba więc najpierw samemu grupować widoku Gantta według
+zasobu. Blok podsumowania liczy zasoby, przypisania i zadania bez zasobu. Jeśli nie ma jeszcze
+przypisań, podgląd o tym informuje zamiast pokazywać pustą stronę; przypisuje się w karcie **Zasoby**
+(zob. [Zasoby i histogram](docs://gids-resources-histogram)).
+
 ### Przegląd punktów kontrolnych
 
 Tabela każdego kamienia milowego w projekcie: WBS, nazwa, rodzaj (automatycznie/start/koniec), data,

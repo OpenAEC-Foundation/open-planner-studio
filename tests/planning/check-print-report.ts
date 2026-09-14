@@ -409,6 +409,22 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     // Een breek vlak onder de kop (10 px) mag de eerste pagina niet tot 10 px reduceren.
     const early = computeTileLayout({ ...base, logicalHeight: 3000, breakOffsetsPx: [10, 2500] });
     ok(early.bodyRows[0].srcH >= 0.5 * pageSrcH, 'vroege breek ⇒ eerste pagina geen runt');
+    // Issue #113 — GEDWONGEN posities: een tegel eindigt op de eerste gedwongen positie die past, óók
+    // als dat een dunne pagina geeft (blad per resource); één die niet past telt als gewone positie en
+    // wordt op een latere pagina alsnog gehonoreerd; een lege lijst is byte-identiek.
+    const thinY = 66 + 26 * 3;
+    const forcedThin = computeTileLayout({ ...base, breakOffsetsPx: rowBreaks, forcedBreakOffsetsPx: [thinY] });
+    ok(forcedThin.bodyRows[0].srcY + forcedThin.bodyRows[0].srcH === thinY, `gedwongen positie ⇒ dunne eerste pagina (got ${forcedThin.bodyRows[0].srcH})`);
+    ok(forcedThin.bodyRows[1].srcY === thinY, 'de tweede pagina begint precies op de gedwongen positie');
+    ok(forcedThin.bodyRows.slice(1, -1).every(r => rowBreaks.includes(r.srcY + r.srcH)), 'na de gedwongen positie weer gewone rijgrenzen');
+    const farY = 4000;
+    const tallBreaks: number[] = [];
+    for (let y = 66 + 26; y < 6000; y += 26) tallBreaks.push(y);
+    const forcedFar = computeTileLayout({ ...base, logicalHeight: 6000, breakOffsetsPx: tallBreaks, forcedBreakOffsetsPx: [farY] });
+    ok(forcedFar.bodyRows[0].srcH >= 0.5 * pageSrcH, 'gedwongen positie buiten de eerste pagina ⇒ eerste pagina gewoon gevuld');
+    ok(forcedFar.bodyRows.some(r => r.srcY + r.srcH === farY), 'een verre gedwongen positie wordt later alsnog gehonoreerd');
+    ok(forcedFar.bodyRows.every(r => r.srcH <= pageSrcH + 1e-9), 'gedwongen posities laten geen tegel boven de paginahoogte uitkomen');
+    ok(JSON.stringify(computeTileLayout({ ...base, breakOffsetsPx: rowBreaks, forcedBreakOffsetsPx: [] }).bodyRows) === JSON.stringify(broken.bodyRows), 'lege gedwongen lijst ⇒ byte-identiek');
   }
 
   // Gantt-afdruk (issue #110, Manu's nabespreking): de render levert per taakrij een breekpositie,
@@ -431,6 +447,43 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       ok(layout.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)),
         `Gantt (kop ${repeat ? 'herhaald' : 'niet herhaald'}): elke pagina eindigt op een rijgrens`);
     }
+  }
+
+  // Resourcediagram (issue #113, "een blad per persoon"): met `pageBreakBeforeGroups` levert de render
+  // vóór elke bandrij ná de eerste een gedwongen breekpositie — op een bestaande rijgrens — en de
+  // pagineerder begint elke band op een nieuwe pagina, ook al passen alle rijen samen op één.
+  {
+    const bands: ViewRow[] = [];
+    for (let b = 0; b < 3; b++) {
+      bands.push({ kind: 'group', rowKey: `band${b}`, key: `band${b}`, label: `Resource ${b}`, count: 2, depth: 0, levelIndex: 0, collapsed: false });
+      for (let i = 0; i < 2; i++) {
+        const task = { ...T_NORM, id: `b${b}t${i}`, name: `Taak ${b}.${i}` };
+        bands.push({ kind: 'task', rowKey: task.id, task, depth: 1, dimmed: false });
+      }
+    }
+    const bandTasks = bands.flatMap(r => (r.kind === 'task' ? [r.task] : []));
+    const plain = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: bands }));
+    ok(plain.forcedBreakOffsets === undefined, 'zonder pageBreakBeforeGroups: geen gedwongen posities');
+    const forced = measurePrintReport(bandTasks, [], cal, 'Resourcediagram', baseOptions({ rows: bands, pageBreakBeforeGroups: true }));
+    const rowH = (forced.breakOffsets ?? [])[1] - (forced.breakOffsets ?? [])[0];
+    ok(JSON.stringify(forced.forcedBreakOffsets) === JSON.stringify([forced.headerHeight + 3 * rowH, forced.headerHeight + 6 * rowH]),
+      `gedwongen posities vóór band 2 en 3 (got ${JSON.stringify(forced.forcedBreakOffsets)})`);
+    const allowed = new Set(forced.breakOffsets);
+    ok((forced.forcedBreakOffsets ?? []).every(y => allowed.has(y)), 'elke gedwongen positie is ook een toegestane rijgrens');
+    const tile = {
+      paperSize: 'a4' as const, orientation: 'landscape' as const, mode: 'fit-width' as const,
+      logicalWidth: forced.width, logicalHeight: forced.height, frozenColumnWidthPx: forced.tableWidth,
+      repeatHeaderHeightPx: forced.headerHeight, breakOffsetsPx: forced.breakOffsets,
+    };
+    ok(computeTileLayout(tile).rows === 1, 'negen rijen passen zonder gedwongen posities op één pagina');
+    const perBand = computeTileLayout({ ...tile, forcedBreakOffsetsPx: forced.forcedBreakOffsets });
+    ok(perBand.rows === 3, `drie banden ⇒ drie pagina's (got ${perBand.rows})`);
+    ok(perBand.bodyRows[0].srcY + perBand.bodyRows[0].srcH === forced.forcedBreakOffsets![0]
+      && perBand.bodyRows[1].srcY + perBand.bodyRows[1].srcH === forced.forcedBreakOffsets![1],
+      'pagina 1 en 2 eindigen exact op de bandgrens');
+    // Eén band ⇒ niets te breken: geen gedwongen posities, dus ook geen lege eerste pagina.
+    const single = measurePrintReport(bandTasks.slice(0, 2), [], cal, 'Eén resource', baseOptions({ rows: bands.slice(0, 3), pageBreakBeforeGroups: true }));
+    ok(single.forcedBreakOffsets === undefined, 'één band ⇒ geen gedwongen posities');
   }
 
   // Contract pdfTable → tileLayout (issue #110 punt 3): de breekposities die de tabelrender levert

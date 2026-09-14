@@ -34,6 +34,23 @@ Beziehungslinien im Bericht verwenden dieselbe visuelle Sprache wie die Gantt-An
 
 Der Zusammenfassungsblock darüber zeigt die Live-Anzahl der Aufgaben, Blattaufgaben, kritischen Aufgaben und Beziehungen im Projekt. Das Einstellungs-Panel merkt sich Ihre Wahl über Sitzungen hinweg — öffnen Sie die Registerkarte Bericht später erneut, kommen Papierformat, Schalter, Schriftgröße und der Rest genau so zurück, wie Sie sie verlassen haben. Nur das Feld Unternehmen setzt sich zurück: Es startet immer von der eigenen Einstellung des Projekts, sodass ein Bericht nie den Unternehmensnamen eines anderen Projekts übernimmt.
 
+### Ressourcendiagramm
+
+Derselbe Gantt-Ausdruck, aber gruppiert **pro Ressource**: Jede Kolonne, Person oder Maschine
+bekommt ein eigenes Band mit den ihr zugewiesenen Aufgaben darunter, in Reihenfolge des Starts. Das
+ist die „Wer macht was, und wann“-Übersicht für die Baubesprechung, oder — mit der Option **Jede
+Ressource auf einer neuen Seite** — ein eigenes Blatt pro Person zum Verteilen. Eine Aufgabe mit zwei
+Ressourcen erscheint unter beiden Bändern; Sammelaufgaben bleiben außen vor, da sie nie zugewiesen
+werden. **Aufgaben ohne Ressource einbeziehen** fügt unten ein Band *(keine)* hinzu, sodass die
+Besprechung sofort sieht, was noch niemand hat.
+
+Alle Einstellungen des Gantt-Ausdrucks gelten unverändert — kritischer Pfad, Puffer, Beziehungen,
+Balkenfarben, Statuslinie, Papier, Kopfwiederholung — außer *Ansicht folgen*: Dieser Bericht nimmt
+seine Zeilen nicht vom Bildschirm. Sie müssen die Gantt-Ansicht also nicht erst selbst nach Ressource
+gruppieren. Der Übersichtsblock zählt die Ressourcen, die Zuweisungen und die Aufgaben ohne
+Ressource. Gibt es noch keine Zuweisungen, sagt die Vorschau das, statt eine leere Seite zu zeigen;
+zugewiesen wird im Tab **Ressourcen** (siehe [Ressourcen & Histogramm](docs://gids-resources-histogram)).
+
 ### Meilensteinübersicht
 
 Eine Tabelle aller Meilensteine im Projekt: PSP, Name, Art (automatisch/Anfang/Ende), Datum, die zugrunde liegende Einschränkung oder der Stichtag, Puffer, ob der Meilenstein verbindlich ist, und Status (im Plan / kritisch / verspätet). Der Zusammenfassungsblock zeigt die Gesamtzahl der Meilensteine, wie viele verbindlich und wie viele verspätet sind. Dieser Bericht hat keine Einstellungen für Papierformat/Ausrichtung — er druckt die Tabelle exakt wie angezeigt.

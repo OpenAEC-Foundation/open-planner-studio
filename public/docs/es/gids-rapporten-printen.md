@@ -54,6 +54,22 @@ pestaña Informe más tarde y el tamaño de papel, los interruptores, el tamaño
 vuelven exactamente como los dejó. Solo el campo de empresa se restablece: siempre empieza desde el
 ajuste propio del proyecto, así que un informe nunca arrastra el nombre de empresa de otro proyecto.
 
+### Diagrama de recursos
+
+La misma impresión Gantt, pero agrupada **por recurso**: cada cuadrilla, persona o máquina recibe su
+propia banda con las tareas que tiene asignadas debajo, en orden de inicio. Es la vista de «quién
+hace qué, y cuándo» para la reunión de obra, o — con la opción **Cada recurso en una página nueva**
+— una hoja aparte por persona para repartir. Una tarea con dos recursos aparece bajo ambas bandas;
+las tareas resumen quedan fuera, porque nunca se asignan. **Incluir tareas sin recurso** añade abajo
+una banda *(ninguno)*, para ver de un vistazo lo que todavía no tiene nadie.
+
+Todos los ajustes de la impresión Gantt se aplican sin cambios — ruta crítica, holgura, relaciones,
+colores de barras, línea de estado, papel, repetición de cabecera — salvo *Seguir vista*: este
+informe no toma sus filas de la pantalla. Así que no hace falta agrupar antes la vista Gantt por
+recurso. El bloque de resumen cuenta los recursos, las asignaciones y las tareas sin recurso. Si aún
+no hay asignaciones, la vista previa lo dice en lugar de mostrar una página vacía; asignar se hace en
+la pestaña **Recursos** (ver [Recursos e histograma](docs://gids-resources-histogram)).
+
 ### Resumen de hitos
 
 Una tabla de cada hito del proyecto: WBS, nombre, tipo (automático/comienzo/fin), fecha, la

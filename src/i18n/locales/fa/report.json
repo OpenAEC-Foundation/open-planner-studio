@@ -66,6 +66,7 @@
   "reportType": {
     "label": "نوع گزارش",
     "gantt": "نمودار گانت",
+    "resourceGantt": "نمودار منابع",
     "milestones": "نمای کلی نقاط عطف",
     "variance": "انحراف",
     "lookAhead": "پیش‌نگر (Look-ahead)",
@@ -132,6 +133,14 @@
   "followView": "دنبال‌کردن نما (فیلتر، گروه‌بندی، مرتب‌سازی)",
   "statusDateLabel": "تاریخ وضعیت",
   "progressDateLabel": "تاریخ پیشرفت",
+  "resourceGantt": {
+    "pageBreakPerResource": "هر منبع در صفحه‌ای جدید",
+    "includeUnassigned": "شامل کردن کارهای بدون منبع",
+    "empty": "هیچ تخصیص منبعی وجود ندارد — ابتدا منابع را به کارها تخصیص دهید.",
+    "resources": "منابع:",
+    "assignments": "تخصیص‌ها:",
+    "unassigned": "بدون منبع:"
+  },
   "tableReports": {
     "notCalculatedNote": "هنوز محاسبه نشده — برای تاریخ‌ها و شناوری‌ها، محاسبه (F5) را بزنید.",
     "staleNote": "برنامه از آخرین محاسبه تغییر کرده — برای مقادیر به‌روز، محاسبه (F5) را بزنید.",
