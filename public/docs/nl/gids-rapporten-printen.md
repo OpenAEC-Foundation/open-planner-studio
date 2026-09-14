@@ -99,14 +99,15 @@ Dezelfde Gantt-afdruk, maar gegroepeerd **per resource**: elke ploeg, medewerker
 een eigen band met daaronder de taken die eraan zijn toegewezen, op volgorde van start. Dat is het
 "wie doet wat, en wanneer"-overzicht voor de bouwvergadering, of — met de optie **Elke resource op
 een nieuwe pagina** — een los vel per persoon om uit te delen. Een taak met twee resources staat
-onder beide banden; verzameltaken doen niet mee, want die worden niet toegewezen. Met **Taken zonder
+onder beide banden; verzameltaken doen niet mee — een toewijzing op een verzameltaak (die uit een
+import kan komen) wordt hier niet getoond. Met **Taken zonder
 resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het overleg meteen ziet wat
 nog niemand heeft.
 
 De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
 papier, kopherhaling — op twee na: *Volg weergave* (de rijen komen bij dit rapport niet van het
-scherm) en *Afhankelijkheden* (een taak staat onder élke resource die eraan hangt, dus een
-relatiepijl heeft geen eenduidig anker; dit rapport tekent er geen). Je hoeft de Gantt-weergave dus
+scherm) en *Afhankelijkheden* (een taak kan onder meerdere banden staan en pijlen zouden bij een blad per
+resource van het vel af lopen; dit rapport tekent er daarom geen). Je hoeft de Gantt-weergave dus
 niet eerst zelf op resource te groeperen. Banden zijn per resource, niet per naam: twee resources die
 toevallig hetzelfde heten krijgen elk een eigen band (*Jan #1*, *Jan #2*), en een resource zonder
 naam een volgnummer. Het overzichtsblok telt de resources, de toewijzingen en de taken zonder

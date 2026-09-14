@@ -57,7 +57,8 @@ La stessa stampa Gantt, ma raggruppata **per risorsa**: ogni squadra, persona o 
 propria fascia con sotto le attività assegnate, in ordine di inizio. È la vista «chi fa cosa, e
 quando» per la riunione di cantiere, oppure — con l'opzione **Ogni risorsa su una nuova pagina** —
 un foglio separato per persona da distribuire. Un'attività con due risorse compare sotto entrambe
-le fasce; le attività di riepilogo sono escluse, perché non vengono mai assegnate. **Includi le
+le fasce; le attività di riepilogo sono escluse: un'assegnazione su un'attività di riepilogo (possibile
+dopo un'importazione) qui non compare. **Includi le
 attività senza risorsa** aggiunge in fondo una fascia *(nessuno)*, così in riunione si vede subito
 cosa non ha ancora nessuno.
 

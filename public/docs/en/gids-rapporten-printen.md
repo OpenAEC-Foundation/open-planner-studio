@@ -98,13 +98,13 @@ The same Gantt print, but grouped **per resource**: every crew, person or machin
 with the tasks assigned to it underneath, in order of start. That is the "who does what, and when"
 overview for the site meeting, or — with the option **Each resource on a new page** — a separate
 sheet per person to hand out. A task with two resources appears under both bands; summary tasks are
-left out, since they are never assigned. **Include tasks without a resource** adds a *(none)* band
+left out — an assignment on a summary task (which an import can produce) is not shown here. **Include tasks without a resource** adds a *(none)* band
 at the bottom, so the meeting can see at a glance what nobody owns yet.
 
 The settings of the Gantt print apply here too — critical path, float, bar colours, status line,
 paper, header repeat — with two exceptions: *Follow view* (this report doesn't take its rows from
-the screen) and *Dependencies* (a task sits under every resource assigned to it, so a relation arrow
-has no single anchor; this report draws none). So there's no need to group the Gantt view by
+the screen) and *Dependencies* (a task can sit under several bands, and with one sheet per resource arrows
+would run off the sheet; so this report draws none). So there's no need to group the Gantt view by
 resource yourself first. Bands are per resource, not per name: two resources that happen to share a
 name each get their own band (*Jan #1*, *Jan #2*), and a resource without a name gets a sequence
 number. The summary block counts the resources, the assignments and the tasks without a resource —

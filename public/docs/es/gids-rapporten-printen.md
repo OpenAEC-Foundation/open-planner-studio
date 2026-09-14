@@ -60,7 +60,8 @@ La misma impresión Gantt, pero agrupada **por recurso**: cada cuadrilla, person
 propia banda con las tareas que tiene asignadas debajo, en orden de inicio. Es la vista de «quién
 hace qué, y cuándo» para la reunión de obra, o — con la opción **Cada recurso en una página nueva**
 — una hoja aparte por persona para repartir. Una tarea con dos recursos aparece bajo ambas bandas;
-las tareas resumen quedan fuera, porque nunca se asignan. **Incluir tareas sin recurso** añade abajo
+las tareas resumen quedan fuera: una asignación a una tarea resumen (posible tras una
+importación) no se muestra aquí. **Incluir tareas sin recurso** añade abajo
 una banda *(ninguno)*, para ver de un vistazo lo que todavía no tiene nadie.
 
 Todos los ajustes de la impresión Gantt se aplican sin cambios — ruta crítica, holgura, colores de

@@ -40,8 +40,8 @@ La même impression Gantt, mais regroupée **par ressource** : chaque équipe, p
 reçoit sa propre bande avec, en dessous, les tâches qui lui sont affectées, dans l'ordre de début.
 C'est la vue « qui fait quoi, et quand » pour la réunion de chantier, ou — avec l'option **Chaque
 ressource sur une nouvelle page** — une feuille séparée par personne à distribuer. Une tâche avec
-deux ressources apparaît sous les deux bandes ; les tâches récapitulatives sont exclues, car elles
-ne sont jamais affectées. **Inclure les tâches sans ressource** ajoute en bas une bande *(aucun)*,
+deux ressources apparaît sous les deux bandes ; les tâches récapitulatives sont exclues — une
+affectation sur une tâche récapitulative (possible après un import) n'apparaît pas ici. **Inclure les tâches sans ressource** ajoute en bas une bande *(aucun)*,
 pour voir d'un coup d'œil ce que personne n'a encore.
 
 Tous les réglages de l'impression Gantt s'appliquent tels quels — chemin critique, marge, couleurs des

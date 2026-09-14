@@ -46,6 +46,17 @@ export function isGanttReportType(type: ReportType): boolean {
   return type === 'gantt' || type === 'resourceGantt';
 }
 
+/**
+ * Tekent dit rapporttype relatiepijlen? Het resourcediagram niet: een taak staat er onder élke
+ * resource die eraan hangt, dus de printrender (`rowIndexOf`, laatste kopie wint) zou een pijl op
+ * een willekeurige kopie ankeren en bij "blad per resource" de bladrand af sturen. Eén predicaat voor
+ * de forcering van `showDeps` én het verbergen van het vinkje — twee losse condities lopen uit
+ * elkaar (hyperkritische review op #132, tweede ronde, N6).
+ */
+export function reportTypeDrawsRelations(type: ReportType): boolean {
+  return type !== 'resourceGantt';
+}
+
 /** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
   'lookAhead', 'critical', 'progress', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',

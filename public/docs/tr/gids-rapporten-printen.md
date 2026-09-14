@@ -40,7 +40,8 @@ Aynı Gantt çıktısı, ancak **kaynağa göre** gruplanmış: her ekip, kişi 
 alır ve altında kendisine atanan görevler başlangıç sırasına göre listelenir. Bu, şantiye toplantısı
 için "kim, neyi, ne zaman yapıyor" görünümüdür; **Her kaynak yeni bir sayfada** seçeneğiyle de
 dağıtılacak kişi başına ayrı bir sayfa olur. İki kaynağı olan bir görev her iki bandın altında da
-görünür; özet görevler hiç atanmadığı için dışarıda kalır. **Kaynaksız görevleri dahil et** en alta
+görünür; özet görevler dışarıda kalır; bir özet göreve yapılan atama (içe aktarmadan gelebilir) burada
+gösterilmez. **Kaynaksız görevleri dahil et** en alta
 bir *(yok)* bandı ekler; böylece toplantıda henüz kimsenin üstlenmediği işler bir bakışta görülür.
 
 Gantt çıktısının tüm ayarları olduğu gibi geçerlidir — kritik yol, bolluk, çubuk renkleri,

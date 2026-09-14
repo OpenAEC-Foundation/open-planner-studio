@@ -60,7 +60,7 @@ Ten sam wydruk Gantta, ale pogrupowany **według zasobu**: każda brygada, osoba
 własne pasmo, a pod nim przypisane jej zadania w kolejności rozpoczęcia. To widok „kto co robi
 i kiedy” na naradę budowy albo — z opcją **Każdy zasób na nowej stronie** — osobna kartka dla każdej
 osoby do rozdania. Zadanie z dwoma zasobami pojawia się pod oboma pasmami; zadania sumaryczne są
-pomijane, bo nigdy nie są przypisywane. **Uwzględnij zadania bez zasobu** dodaje na dole pasmo
+pomijane — przypisanie do zadania sumarycznego (możliwe po imporcie) nie jest tu pokazywane. **Uwzględnij zadania bez zasobu** dodaje na dole pasmo
 *(brak)*, żeby na naradzie od razu było widać, czego jeszcze nikt nie ma.
 
 Wszystkie ustawienia wydruku Gantta obowiązują bez zmian — ścieżka krytyczna, zapas, kolory
