@@ -208,20 +208,25 @@ export function BeforeAfterChart({
         </span>
       </div>
       {/* NA-onvolledigheid (moduleblok hierboven): de na-balken missen de vraag van niet-geplaatste
-          taken — dat moet bij de na-grafiek zelf staan, niet alleen in het aparte tekortblok
-          onderaan de dialoog, anders leest een lezer de na-stand als "opgelost". */}
-      {afterIncomplete && (
-        <div className="flex flex-col gap-0.5" data-ops-distribution-preview-shortfall>
-          <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
-            {t('resource.distribution.shortfall.title')}
+          taken — dat moet bij de na-grafiek zelf staan, anders leest een lezer de na-stand als
+          "opgelost". Sinds B1c-plan4 taak 4 is dit een GERESERVEERDE regel van vaste hoogte en geen
+          blok dat verschijnt en verdwijnt: een tekort is een REKENtoestand, en spec §7 verbiedt dat
+          een rekentoestand de dialoog van maat laat veranderen. Gemeten vóór deze reservering: één
+          sleep die een tekort opleverde maakte de dialoog 34 px hoger, precies onder de muis. De
+          volledige opsomming per document staat in de validatiestrook onderin. */}
+      <div
+        className="text-[10px] truncate"
+        style={{ minHeight: 14, color: 'var(--error)' }}
+        title={afterIncomplete ? shortfallDocs.map(doc =>
+          t('resource.distribution.shortfall.doc', { doc: doc.title, count: doc.count })).join(' · ') : undefined}
+      >
+        {afterIncomplete ? (
+          <span data-ops-distribution-preview-shortfall>
+            {`${t('resource.distribution.shortfall.title')}: ${shortfallDocs.map(doc =>
+              t('resource.distribution.shortfall.doc', { doc: doc.title, count: doc.count })).join(' · ')}`}
           </span>
-          {shortfallDocs.map(doc => (
-            <span key={doc.docId} style={{ color: 'var(--error)' }}>
-              {t('resource.distribution.shortfall.doc', { doc: doc.title, count: doc.count })}
-            </span>
-          ))}
-        </div>
-      )}
+        ) : null}
+      </div>
     </div>
   );
 }

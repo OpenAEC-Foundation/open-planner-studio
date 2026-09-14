@@ -620,9 +620,16 @@ export function DistributionDialog() {
 
                 {/* Het histogram Nu/Na op DEZELFDE as-instantie, met dezelfde marges als de tracks —
                     daardoor staan de kolommen per constructie onder de dagblokjes. */}
+                {/* GEEN horizontale padding, en de marge compenseert de 1 px rand: het plotgebied
+                    van het histogram moet exact op de tracks vallen. Met `px-2` stond elke
+                    histogramkolom 8 px rechts van zijn dagblokje — gemeten 2026-09-14, blokje op
+                    x=428 tegen staaf op x=436. */}
                 <section
-                  className="rounded-[8px] border border-border px-2 py-3 mt-1"
-                  style={{ marginLeft: STRIP.labelWidth + STRIP.gap, marginRight: STRIP.endWidth + STRIP.gap }}
+                  className="rounded-[8px] border border-border py-3 mt-1"
+                  style={{
+                    marginLeft: STRIP.labelWidth + STRIP.gap - 1,
+                    marginRight: STRIP.endWidth + STRIP.gap - 1,
+                  }}
                   title={t('resource.distribution.help.chart')}
                   data-ops-distribution-histogram
                 >
@@ -714,13 +721,18 @@ export function DistributionDialog() {
           ) : (
             <span className="flex-1 min-w-0 truncate" title={statusLine.text}>{statusLine.text}</span>
           )}
+          {/* De reden waarom Toepassen uit staat, rechts in dezelfde strook. Bij een VERVALLEN
+              voorstel is die reden woordelijk de stale-zin die links al staat; dan blijft dit vak
+              leeg in plaats van dezelfde zin twee keer op één regel te zetten (gezien in de
+              gebruiksfoto van 2026-09-14). Het anker blijft altijd bestaan, zodat een test op
+              "welke reden staat er" niet van de toestand afhangt. */}
           <span
             className="text-text-secondary shrink-0 truncate"
             style={{ maxWidth: 320 }}
-            title={applyGate.reason}
+            title={statusLine.stale ? undefined : applyGate.reason}
             data-ops-distribution-apply-reason
           >
-            {applyGate.reason}
+            {statusLine.stale ? '' : applyGate.reason}
           </span>
         </div>
 
