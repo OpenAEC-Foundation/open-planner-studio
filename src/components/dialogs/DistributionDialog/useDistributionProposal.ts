@@ -44,9 +44,7 @@ import {
   type DistributionProposal,
 } from '@/services/library/distribute';
 import { documentFingerprint } from '@/services/library/proposalFingerprint';
-// TODO(plan4-T1): vervang deze twee lokale helpers door
-// `import { maxEndShiftWorkdays, savingsWorkdays } from './stripGeometry';` zodra taak 1 die module
-// heeft toegevoegd — de signaturen en het gedrag hieronder zijn letterlijk die van het plan.
+import { maxEndShiftWorkdays, savingsWorkdays } from './stripGeometry';
 import { documentTitle, untitledOrdinals, displayDocumentTitle } from '@/utils/documents';
 
 /** Meer taken dan dit in één deelnemend document ⇒ handmatig herberekenen (§3.4). */
@@ -66,24 +64,6 @@ export const MAX_BOOKING_TASKS_AUTO = 40;
  * 1,6 s plus een labelpas van 3,8 s — en dat bij élke tune-wijziging.
  */
 export const MAX_DOCS_AUTO = 6;
-
-// TODO(plan4-T1): deze twee helpers horen in `./stripGeometry.ts` (taak 1 van plan 4) en staan hier
-// tijdelijk lokaal omdat die module in deze worktree nog niet bestaat. Bij het samenvoegen: dit blok
-// schrappen en de import bovenaan activeren — signatuur en gedrag zijn identiek aan de plantekst.
-
-/** De grootste einddatum-verschuiving over de deelnemers — de UITSCHIETER, niet de som (§2.2). */
-export function maxEndShiftWorkdays(docs: { endShiftWorkdays: number }[]): number {
-  return docs.reduce((max, doc) => Math.max(max, doc.endShiftWorkdays), 0);
-}
-
-/**
- * Het verschil-prijskaartje van "Onderbrekingen toestaan" (§2.2): hoeveel werkdagen de aan-stand
- * bespaart ten opzichte van de uit-stand. Geklemd op 0 — onderbreken kán in theorie duurder
- * uitvallen, en dan is "bespaart niets" het eerlijke antwoord.
- */
-export function savingsWorkdays(offMax: number, onMax: number): number {
-  return Math.max(0, offMax - onMax);
-}
 
 /** Waarom het huidige voorstel niet meer actueel is — 1-op-1 de `resource.distribution.stale.*`
  *  sleutels. De vier tune-assen komen uit `diffReason`; `'edited'` komt uit de
@@ -161,19 +141,6 @@ export interface DistributionProposalState {
    * `null` ⇒ nog niet (her)berekend; de dialoog zegt dan eerlijk "prijs onbekend".
    */
   savings: { workdays: number } | null;
-  /**
-   * @deprecated COMPAT — TAAK 4 RUIMT DIT OP. De rangordelijst met haar kostenlabels is met deze
-   * taak vervallen (§2.1/§8) en de per-deelnemer-isolatieruns die deze map vulden zijn verdwenen;
-   * hij staat hier alleen nog omdat `DistributionDialog.tsx` pas in taak 4 herbouwd wordt en
-   * anders niet compileert. Altijd leeg. Verwijder dit veld zodra de dialoog het niet meer leest.
-   */
-  costByDoc: Record<string, number>;
-  /**
-   * @deprecated COMPAT — TAAK 4 RUIMT DIT OP. Vervangen door `savings` (één verschil in plaats van
-   * twee bedragen, §2.2). Wordt gevuld uit dezelfde twee prijsruns als `savings`, dus hij kost niets
-   * extra; alleen de dialoog van vóór taak 4 leest hem nog.
-   */
-  toolPrice: { off: number; on: number } | null;
 }
 
 /**
@@ -377,7 +344,7 @@ export function diffReason(
   next: DistributionUiState,
 ): DistributionStaleReason | null {
   if (prev.allowSplits !== next.allowSplits) return 'tool';
-  if (prev.order.join(' ') !== next.order.join(' ')) return 'rank';
+  if (prev.order.join('\u0000') !== next.order.join('\u0000')) return 'rank';
   if (!samePins(prev.pinned, next.pinned)) return 'pin';
   if (!sameCeilings(prev.ceilings, next.ceilings)) return 'ceiling';
   return null;
@@ -399,12 +366,6 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   const [lastStaleReason, setLastStaleReason] = useState<DistributionStaleReason | null>(null);
   const [staleDocs, setStaleDocs] = useState('');
   const [savings, setSavings] = useState<{ workdays: number } | null>(null);
-  // COMPAT — TAAK 4 RUIMT DEZE TWEE OP. `costByDoc` blijft per definitie leeg (de isolatieruns die
-  // hem vulden zijn met de rangordelijst verdwenen); `toolPrice` wordt uit dezelfde twee prijsruns
-  // als `savings` gevuld. Beide bestaan alleen zolang `DistributionDialog.tsx` ze nog leest.
-  const [costByDoc] = useState<Record<string, number>>({});
-  const [toolPrice, setToolPrice] = useState<{ off: number; on: number } | null>(null);
-
   // Bewaakt de labelpas (taak 13) tegen twee soorten inhaalslag: (1) een NIEUWE hoofdrun start —
   // elke run verhoogt de teller, dus een oudere labelpas herkent zichzelf als ingehaald; (2) een
   // 'edited'-invalidatie zónder nieuwe run (§6a rekent bewust niet automatisch door) — die zet
@@ -506,9 +467,6 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
       () => {
         if (offPrice !== null && onPrice !== null) {
           setSavings({ workdays: savingsWorkdays(offPrice, onPrice) });
-          // COMPAT — TAAK 4 RUIMT DIT OP: dezelfde twee getallen nog even in de oude vorm, zodat
-          // de nog niet herbouwde dialoog blijft compileren en draaien. Kost niets extra.
-          setToolPrice({ off: offPrice, on: onPrice });
         }
       },
     ];
@@ -543,7 +501,6 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     // een nieuwe run start. Een oud getal tijdens "Bezig met verdelen…" is even misleidend als een
     // oud getal na een invalidatie.
     setSavings(null);
-    setToolPrice(null); // COMPAT — TAAK 4 RUIMT DIT OP.
     // De labelpas van de vorige generatie is hiermee ingehaald; zijn bezig-toestand hoort dus ook
     // weg. Wordt er straks weer een pas gepland, dan zet die 'm zelf terug aan.
     setLabelsBusy(false);
@@ -595,7 +552,7 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
 
   // Rekenmoment 1: OPENEN, en het wisselen naar een ander poolitem. Beide zijn "een nieuw onderwerp",
   // dus het oude voorstel gaat weg vóór de nieuwe run.
-  const subjectKey = tune ? `${tune.companyId} ${tune.libraryItemId}` : null;
+  const subjectKey = tune ? `${tune.companyId}\u0000${tune.libraryItemId}` : null;
   const lastSubjectRef = useRef<string | null>(null);
   const lastTuneRef = useRef<DistributionUiState | null>(null);
   useEffect(() => {
@@ -610,7 +567,6 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
     setLastStaleReason(null);
     setStaleDocs('');
     setSavings(null);
-    setToolPrice(null); // COMPAT — TAAK 4 RUIMT DIT OP.
     if (subjectKey !== null) runRef.current();
     // `tune` bewust buiten de deps: alleen het ONDERWERP is hier de trigger, niet elke tune-tik.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -668,7 +624,5 @@ export function useDistributionProposal(tune: DistributionUiState | null): Distr
   return {
     proposal, busy, labelsBusy, staleReason, lastStaleReason, staleDocs, degraded, recompute, inputs,
     savings,
-    // COMPAT — TAAK 4 RUIMT DEZE TWEE OP.
-    costByDoc, toolPrice,
   };
 }
