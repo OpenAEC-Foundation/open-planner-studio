@@ -535,7 +535,11 @@ export function DistributionDialog() {
               een paneel dat meldt dat er geen conflict is. */}
           {tune && (
             <div className="text-[11px] text-text-secondary truncate">
-              {t('resource.distribution.subtitle', { item: itemName })}
+              {/* ZONDER DE ITEMNAAM (polishronde 2026-09-14, bevinding 5). De titel erboven IS de
+                  itemnaam; hem hier herhalen gaf "Gedeelde kraan" met eronder "Gedeelde kraan —
+                  restcapaciteit verdelen…". De ondertitel zegt sindsdien alleen nog wát je hier
+                  doet. */}
+              {t('resource.distribution.subtitle')}
             </div>
           )}
           {/* Eén regel die de hele handeling uitlegt (gebruikstest 2026-09-12, gebrek 4). Bewust

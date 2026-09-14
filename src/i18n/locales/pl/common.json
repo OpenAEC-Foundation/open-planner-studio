@@ -679,7 +679,7 @@
       "open": "Rozdziel…",
       "title": "Rozdziel między projekty",
       "back": "Powrót do obłożenia",
-      "subtitle": "{{item}} — rozdziel zdolność rezydualną między otwarte projekty",
+      "subtitle": "Rozdziel zdolność rezydualną między otwarte projekty",
       "intro": "Przeciągnij koniec paska w prawo, aby ten projekt mógł się przedłużyć; przypnij projekt, który nie może się przesuwać. Zastosuj zapisuje przesunięcia we wszystkich powiązanych projektach.",
       "blocked": {
         "uncounted": "Najpierw przelicz: {{docs}} nie jest jeszcze obliczony, więc nie ma czego rozdzielać.",

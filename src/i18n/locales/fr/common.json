@@ -667,7 +667,7 @@
       "open": "Répartir…",
       "title": "Répartir entre les projets",
       "back": "Retour à l'occupation",
-      "subtitle": "{{item}} — répartir la capacité résiduelle entre les projets ouverts",
+      "subtitle": "Répartir la capacité résiduelle entre les projets ouverts",
       "intro": "Faites glisser la fin d'une barre vers la droite pour laisser ce projet déborder ; épinglez un projet qui ne doit pas bouger. Appliquer écrit les décalages dans tous les projets concernés.",
       "blocked": {
         "uncounted": "Calculez d'abord : {{docs}} n'est pas encore calculé, il n'y a donc rien à répartir.",

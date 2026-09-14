@@ -18,7 +18,11 @@ import type { OccupancyAxis } from '@/components/panels/occupancyAxis';
 
 /** Verticale tekenmaten van één mini-histogram (viewBox-eenheden ≈ px). */
 export const CHART_PLOT = {
-  height: 72,
+  // 56 px plot + 4 px kop = 60 px per stand; met het "Nu"/"Na"-label erboven is dat ongeveer 76 px
+  // per rij. Vóór de polishronde van 2026-09-14 was dit 72 px en stonden er twee lage staafjes in
+  // een paneel van 253 px hoog — veel leeg vlak dat de indruk gaf dat er iets niet geladen was. De
+  // hoogte blijft VAST (spec §7): dit is een maatvoering, geen rekentoestand.
+  height: 56,
   padTop: 4,
 };
 

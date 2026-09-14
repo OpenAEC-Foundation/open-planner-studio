@@ -667,7 +667,7 @@
       "open": "Distribuir…",
       "title": "Distribuir entre projetos",
       "back": "Voltar à ocupação",
-      "subtitle": "{{item}} — distribuir a capacidade residual entre os projetos abertos",
+      "subtitle": "Distribuir a capacidade residual entre os projetos abertos",
       "intro": "Arraste o fim de uma barra para a direita para deixar esse projeto estender-se; fixe um projeto que não pode mover-se. Aplicar escreve os deslocamentos em todos os projetos envolvidos.",
       "blocked": {
         "uncounted": "Calcule primeiro: {{docs}} ainda não foi calculado, por isso não há nada para distribuir.",

@@ -655,7 +655,7 @@
       "open": "Distribute…",
       "title": "Distribute over projects",
       "back": "Back to occupancy",
-      "subtitle": "{{item}} — distribute residual capacity over the open projects",
+      "subtitle": "Distribute residual capacity over the open projects",
       "intro": "Drag the end of a bar to the right to let that project run on; pin a project that must not move. Apply writes the shifts into every project involved.",
       "blocked": {
         "uncounted": "Calculate first: {{docs}} has not been calculated yet, so there is nothing to distribute.",

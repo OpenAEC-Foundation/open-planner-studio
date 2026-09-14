@@ -655,7 +655,7 @@
       "open": "Verteilen…",
       "title": "Über Projekte verteilen",
       "back": "Zurück zur Belegung",
-      "subtitle": "{{item}} — Restkapazität über die geöffneten Projekte verteilen",
+      "subtitle": "Restkapazität über die geöffneten Projekte verteilen",
       "intro": "Ziehen Sie das Ende eines Balkens nach rechts, damit dieses Projekt überlaufen darf; fixieren Sie ein Projekt, das sich nicht bewegen darf. Übernehmen schreibt die Verschiebungen in alle beteiligten Projekte.",
       "blocked": {
         "uncounted": "Zuerst berechnen: {{docs}} ist noch nicht berechnet, daher gibt es nichts zu verteilen.",

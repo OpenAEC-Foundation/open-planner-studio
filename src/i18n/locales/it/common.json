@@ -667,7 +667,7 @@
       "open": "Distribuisci…",
       "title": "Distribuisci tra i progetti",
       "back": "Torna all'occupazione",
-      "subtitle": "{{item}} — distribuisci la capacità residua tra i progetti aperti",
+      "subtitle": "Distribuisci la capacità residua tra i progetti aperti",
       "intro": "Trascina la fine di una barra verso destra per lasciare che quel progetto sfori; blocca un progetto che non deve muoversi. Applica scrive gli slittamenti in tutti i progetti coinvolti.",
       "blocked": {
         "uncounted": "Calcola prima: {{docs}} non è ancora stato calcolato, quindi non c'è nulla da distribuire.",

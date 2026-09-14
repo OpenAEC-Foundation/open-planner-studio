@@ -655,7 +655,7 @@
       "open": "Dağıt…",
       "title": "Projeler arasında dağıt",
       "back": "Doluluğa dön",
-      "subtitle": "{{item}} — kalan kapasiteyi açık projeler arasında dağıt",
+      "subtitle": "Kalan kapasiteyi açık projeler arasında dağıt",
       "intro": "Bir projenin taşmasına izin vermek için çubuğun ucunu sağa sürükleyin; hareket etmemesi gereken projeyi sabitleyin. Uygula, kaymaları ilgili tüm projelere yazar.",
       "blocked": {
         "uncounted": "Önce hesapla: {{docs}} henüz hesaplanmadı, bu yüzden dağıtılacak bir şey yok.",

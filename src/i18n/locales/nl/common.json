@@ -655,7 +655,7 @@
       "open": "Verdelen…",
       "title": "Verdelen over projecten",
       "back": "Terug naar bezetting",
-      "subtitle": "{{item}} — restcapaciteit verdelen over de geopende projecten",
+      "subtitle": "Restcapaciteit verdelen over de geopende projecten",
       "intro": "Trek het einde van een balk naar rechts om dat project te laten uitlopen; zet een project vast als het niet mag bewegen. Toepassen schrijft de verschuivingen in alle betrokken projecten.",
       "blocked": {
         "uncounted": "Eerst doorrekenen: {{docs}} is nog niet berekend, dus er valt niets tegen te verdelen.",
