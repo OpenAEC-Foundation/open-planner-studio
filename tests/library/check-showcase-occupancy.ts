@@ -200,6 +200,79 @@ if (poolItem) {
   }
 }
 
+// ═══ (b3) "Onderbrekingen toestaan" maakt op de showcases ECHT verschil ══════════════════════════
+// De aanleiding (2026-09-14): met de drie showcases open meldde het prijskaartje van de schakelaar
+// in beide standen exact hetzelfde getal — "zou niets besparen". De demo bevatte dus een knop die
+// aantoonbaar niets deed.
+//
+// WAT ER GEMETEN IS, EN WAAROM DE EIS NIET "KLEINERE UITLOOP" IS. `allowSplits` is in
+// `ResourceLeveler.findSlot` geen tweede zoekstrategie maar een TERUGVAL: de aaneengesloten
+// kandidaatscan loopt eerst, en `scatterSlot` (de pauzedagen) komt pas aan bod als díé scan binnen
+// het venster faalt. Twee gevolgen die je moet kennen voor je deze assert "strenger" maakt:
+//  1. Zónder venster — en `computeDistribution` zet `constrainToFloat: false`, dus het venster
+//     bestaat alleen bij een expliciete "maximale uitloop" (`ceilingWorkdays`) — vindt de
+//     aaneengesloten scan ALTIJD een slot en is de schakelaar per constructie een no-op. Gemeten op
+//     deze drie showcases: 10 werkdagen uitloop in beide standen. Dat is engine-gedrag en met geen
+//     enkele spec-tweak aan de voorbeelden te veranderen.
+//  2. Slaat de aaneengesloten scan WEL af (plafond bindt), dan blijft de taak in de uit-stand op
+//     haar PF liggen MET conflictdagen — een TEKORT, geen grotere uitloop. Een eis van de vorm
+//     "kleinere uitloop in beide standen, zonder tekort" is daarom niet alleen niet gehaald maar
+//     onbereikbaar: de twee standen kunnen per definitie alleen verschillen op het punt waar de
+//     uit-stand een tekort heeft.
+// De eerlijke, wél demonstreerbare belofte is dus deze: mét een plafond verandert de schakelaar een
+// ONOPLOSBAAR voorstel (tekort ⇒ Toepassen geblokkeerd) in een toepasbaar voorstel binnen datzelfde
+// plafond. Dat is het verschil dat de gids "Uitproberen met de voorbeelden" beschrijft.
+{
+  const CEILING = 15;        // werkdagen — het midden van het werkzame bereik 14 t/m 17 (zie hieronder)
+  const AKKERS = 1;          // index van MIDDEL in SLUGS
+  const withCeiling: DistributionDocInput[] = distInputs.map((d, i) => ({
+    ...d, ceilingWorkdays: i === AKKERS ? CEILING : null,
+  }));
+  if (poolItem) {
+    const off = computeDistribution(DEMO_COMPANY_ID, pool, poolItem.id, withCeiling, { allowSplits: false });
+    const on = computeDistribution(DEMO_COMPANY_ID, pool, poolItem.id, withCeiling, { allowSplits: true });
+    const shortfallsOf = (p: typeof off): number => p.docs.reduce((a, d) => a + d.shortfalls.length, 0);
+    const gapTasksOf = (p: typeof off): number => p.docs.reduce((a, d) => a + Object.keys(d.gaps).length, 0);
+
+    assert(off.blocked === null && on.blocked === null,
+      `"${CONFLICT_ITEM}" met plafond ${CEILING}: de actie mag in geen van beide standen geblokkeerd zijn`);
+    assert(shortfallsOf(off) > 0,
+      `"${CONFLICT_ITEM}" met plafond ${CEILING} en onderbrekingen UIT: verwacht een tekort (kreeg ${shortfallsOf(off)}). ` +
+      'Zonder dat tekort valt er niets te winnen en meldt het prijskaartje weer "zou niets besparen".');
+    assert(shortfallsOf(on) === 0,
+      `"${CONFLICT_ITEM}" met plafond ${CEILING} en onderbrekingen AAN: verwacht GEEN tekort (kreeg ${shortfallsOf(on)})`);
+    assert(gapTasksOf(on) >= 1,
+      `"${CONFLICT_ITEM}" met onderbrekingen AAN: verwacht minstens één taak met leveling-gaten (kreeg ${gapTasksOf(on)})`);
+    const maxOn = Math.max(0, ...on.docs.map((d) => d.endShiftWorkdays));
+    assert(maxOn > 0 && maxOn <= CEILING,
+      `"${CONFLICT_ITEM}" met onderbrekingen AAN: uitloop ${maxOn} werkdagen — verwacht > 0 en binnen het plafond ${CEILING}`);
+  }
+}
+
+// ═══ (b4) Het werkzame plafondbereik is breed genoeg om te DEMONSTREREN ══════════════════════════
+// Waarom dit een eigen poort is: vóór de ankerschuif van KLEIN (63 → 66, zie `scripts/showcases.ts`)
+// werkte exact ÉÉN plafondwaarde (14) — wie 13 of 15 intikte zag niets en concludeerde terecht dat
+// de schakelaar niets doet. Het bereik is precies zo breed als het aantal VRIJE werkdagen dat de
+// wijkende taak vóór de blokkade heeft; deze assert is dus de mechanische bewaking op dat aantal.
+{
+  if (poolItem) {
+    const werkt: number[] = [];
+    for (const c of [13, 14, 15, 16, 17, 18]) {
+      const inp: DistributionDocInput[] = distInputs.map((d, i) => ({ ...d, ceilingWorkdays: i === 1 ? c : null }));
+      const off = computeDistribution(DEMO_COMPANY_ID, pool, poolItem.id, inp, { allowSplits: false });
+      const on = computeDistribution(DEMO_COMPANY_ID, pool, poolItem.id, inp, { allowSplits: true });
+      const sf = (p: typeof off): number => p.docs.reduce((a, d) => a + d.shortfalls.length, 0);
+      if (sf(off) > 0 && sf(on) === 0) werkt.push(c);
+    }
+    assert(werkt.length >= 3,
+      `het plafondbereik waarin de schakelaar verschil maakt is [${werkt.join(', ')}] — verwacht ≥3 opeenvolgende ` +
+      'waarden, anders is het verschil in de demo niet te vinden. Vergroot het aantal vrije werkdagen vóór de ' +
+      'blokkade via KLEIN\'s `anchorShiftDays` in scripts/showcases.ts.');
+    assert(werkt.includes(15),
+      `het ronde plafond van 15 werkdagen (drie weken) — dat de gids noemt — zit niet in het werkzame bereik [${werkt.join(', ')}]`);
+  }
+}
+
 // ═══ (c) Geen intrinsieke overvraag: geen showcase-taak vraagt op één dag meer dan de poolcapaciteit ══
 // Zou één taak méér vragen dan het bedrijf heeft, dan is het conflict per definitie onoplosbaar en
 // levert "Verdeel automatisch" altijd een tekort — hoe de documenten ook geschoven worden.

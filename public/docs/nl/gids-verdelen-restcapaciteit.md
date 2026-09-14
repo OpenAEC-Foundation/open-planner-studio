@@ -52,6 +52,17 @@ Klik op **Masonry crew** en dan op **Verdelen…**, en laat **Verdeel
 automatisch** het voorstel maken; trek daarna eens de greep van een project naar rechts of zet een
 project vast, en kijk wat er met de voorgestelde verschuiving gebeurt.
 
+**Masonry crew** is ook het item waarop u **"Onderbrekingen toestaan"** zelf ziet werken. Die
+schakelaar doet alleen iets zodra er ook een grens op de uitloop staat — zonder grens vindt de
+verdeler altijd wel een aaneengesloten plek verderop, en is er niets te winnen. Zet daarom bij
+**Nieuwbouw 6 Rijwoningen De Akkers** de maximale uitloop op **15 werkdagen** (drie weken) en laat
+de schakelaar nog uit: het voorstel meldt dan een tekort en **Toepassen** blijft uit — het
+metselwerk van woning 6 past in één aaneengesloten stuk niet meer binnen die grens. Zet de
+schakelaar vervolgens aan en het voorstel klopt wél: woning 6 metselt de dagen vóór de uitbouw
+gewoon door, pauzeert zolang de ploeg bij de eengezinswoning staat, en maakt daarna af — zes
+werkdagen uitloop, ruim binnen de drie weken. Elke grens tussen 14 en 17 werkdagen laat hetzelfde
+zien.
+
 Een paar situaties blokkeren de verdeling meteen, met een duidelijke reden:
 
 - Een van de betrokken projecten is nog niet doorgerekend — reken het eerst door (F5) in dat

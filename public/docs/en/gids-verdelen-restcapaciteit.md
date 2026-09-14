@@ -51,6 +51,16 @@ Click **Masonry crew**, then **Distribute…** on that row and let
 **Distribute automatically** build the proposal; then drag a project's grip to the right, or pin a
 project, and watch what happens to the proposed shift.
 
+**Masonry crew** is also the item that shows **"Allow interruptions"** doing real work. That switch
+only bites once there is a limit on the overrun as well — without one, the distributor always finds
+an uninterrupted slot further along, so there is nothing to gain. So set the maximum overrun on
+**6 New Terraced Houses, De Akkers** to **15 working days** (three weeks) and leave the switch off:
+the proposal now reports a shortfall and **Apply** stays disabled — house 6's masonry no longer fits
+inside that limit as one uninterrupted stretch. Switch it on and the proposal does work out: house 6
+keeps bricklaying on the days before the extension starts, pauses while the crew is at the family
+home, and finishes afterwards — six working days of overrun, comfortably inside the three weeks. Any
+limit between 14 and 17 working days shows the same thing.
+
 A few situations block the distribution right away, with a clear reason:
 
 - One of the involved projects hasn't been calculated yet — calculate it first (F5) in that project.
