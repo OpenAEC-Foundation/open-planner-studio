@@ -39,7 +39,7 @@
 // De "naar boven/beneden"-knoppen (`move`) blijven onveranderd de toetsenbordroute en het
 // testanker; slepen (`reorderTo`) roept dezelfde `setUI` aan, dus een herordening met de muis zet
 // net als de knoppen `staleReason = 'rank'` via `diffReason` in `useDistributionProposal`.
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -49,6 +49,7 @@ import { DISTRIBUTION_BLOCK_KEY } from '@/utils/levelingReasonKey';
 import { planDistributionWrites } from '@/services/library/applyDistribution';
 import { scopeTaskIdsFor } from '@/services/library/distribute';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { buildOccupancyAxis, expandDays } from '@/components/panels/occupancyAxis';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { documentFloatOn, useDistributionProposal } from './useDistributionProposal';
@@ -127,6 +128,62 @@ export function DistributionDialog() {
     () => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }),
     [i18n.language],
   );
+
+  // B1c-plan4 taak 2 — ÉÉN datumnotatie voor alle balken (de plafonddatum in het uitkomstlabel),
+  // net als `numberFmt` hierboven: per rij een eigen `Intl.DateTimeFormat` bouwen is duur en zou
+  // per rij anders kunnen uitpakken.
+  const dayFmt = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short' }),
+    [i18n.language],
+  );
+  const formatDay = useCallback((iso: string) => dayFmt.format(parseDate(iso)), [dayFmt]);
+
+  // B1c-plan4 taak 2 — de WERKDAGVRAAG per document, uit de PROJECTkalender van dat document
+  // (`CalendarEngine.isWorkDay`): dezelfde eenheid als `endShiftWorkdays` in `distribute.ts`, dus
+  // een balk arceert alleen dagen die voor de verdeler ook echt werkdagen zijn. KANTTEKENING (taak
+  // 1): een individuele taak kan een afwijkende taakkalender hebben — de balk leest die bewust niet,
+  // want hij toont de fase van een PROJECT, niet van één taak. Eén `CalendarEngine` per document,
+  // gememoïseerd: die constructor materialiseert feestdagen en uitzonderingen, en de balken vragen
+  // per kalenderdag opnieuw.
+  const isWorkingDayByDoc = useMemo(() => {
+    const byDoc = new Map<string, (iso: string) => boolean>();
+    for (const doc of inputs) {
+      const engine = new CalendarEngine(doc.calendar);
+      byDoc.set(doc.docId, (iso: string) => engine.isWorkDay(parseDate(iso)));
+    }
+    return byDoc;
+  }, [inputs]);
+
+  /** Terugval voor een document dat de laatste run niet gezien heeft: ma t/m vr. */
+  const isWorkingDayFallback = useCallback(
+    (iso: string) => { const day = parseDate(iso).getDay(); return day >= 1 && day <= 5; },
+    [],
+  );
+
+  // B1c-plan4 taak 2 — de vaste last ZOALS ÉÉN BALK HEM ZIET. Een gepind document zit ZELF in de
+  // vaste last (dat is wat pinnen betekent); zonder deze aftrek zou zijn eigen boeking twee keer in
+  // dezelfde rij staan — één keer als achtergrondband, één keer als dagblokje. De oude `PhaseStrip`
+  // deed die aftrek binnenin; nu de component alleen nog tekent, hoort hij hier.
+  const fixedLoadFor = useCallback((docId: string, pinned: boolean): Record<string, number> => {
+    const fixed = proposal?.fixedLoadByDay ?? {};
+    if (!pinned) return fixed;
+    const own = proposal?.bookingByDay[docId] ?? {};
+    const out: Record<string, number> = {};
+    for (const [iso, units] of Object.entries(fixed)) {
+      out[iso] = Math.max(0, units - (own[iso] ?? 0));
+    }
+    return out;
+  }, [proposal]);
+
+  // De eigen speling per document (`documentFloatOn`) — het ankerpunt van de grijze meetlat.
+  const slackByDoc = useMemo(() => {
+    const byDoc = new Map<string, number | null>();
+    if (!tune) return byDoc;
+    for (const doc of inputs) {
+      byDoc.set(doc.docId, documentFloatOn(doc, tune.companyId, tune.libraryItemId));
+    }
+    return byDoc;
+  }, [inputs, tune]);
 
   // De VOLLEDIGE rangorde, inclusief docId's die de LAATSTE run niet gezien heeft (fixronde-2
   // bevinding B10). `rankRows` hieronder toont alleen wat er in `inputs` zit — dat is juist voor de
@@ -653,22 +710,27 @@ export function DistributionDialog() {
               </span>
               {(stripView?.docs ?? []).map(doc => {
                 const recorded = doc.pinnedReason === 'dates-as-recorded';
+                const pinnedNow = recorded || tune.pinned[doc.docId] === true;
                 return (
                   <PhaseStrip
                     key={doc.docId}
                     docId={doc.docId}
                     title={doc.title}
                     axis={stripView?.axis ?? null}
-                    dailyLoad={bookingByDoc.get(doc.docId) ?? {}}
-                    fixedLoadByDay={proposal?.fixedLoadByDay ?? {}}
-                    scaleMax={stripView?.scaleMax ?? 1}
+                    beforeLoadByDay={bookingByDoc.get(doc.docId) ?? {}}
+                    afterLoadByDay={proposal?.afterLoadByDay[doc.docId] ?? {}}
+                    fixedLoadByDay={fixedLoadFor(doc.docId, pinnedNow)}
+                    isWorkingDay={isWorkingDayByDoc.get(doc.docId) ?? isWorkingDayFallback}
                     color={docColors.get(doc.docId) ?? 'var(--theme-accent)'}
+                    slackWorkdays={slackByDoc.get(doc.docId) ?? null}
                     endShiftWorkdays={doc.endShiftWorkdays}
                     ceiling={tune.ceilings[doc.docId] ?? null}
-                    pinned={recorded || tune.pinned[doc.docId] === true}
+                    pinned={pinnedNow}
                     recorded={recorded}
                     cannotMove={doc.cannotMove}
-                    degraded={degraded}
+                    liveCommit={!degraded}
+                    busy={busy}
+                    formatDay={formatDay}
                     onTogglePin={() => setPinned(doc.docId, tune.pinned[doc.docId] !== true)}
                     onCeilingChange={next => setCeiling(doc.docId, next)}
                   />

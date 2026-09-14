@@ -1,53 +1,42 @@
-// B1c-plan3 taak 9/10 — de FASESTROOK van één document in de verdeeldialoog (spec §6).
+// B1c-plan4 taak 2 — de BALK van één project in de verdeeldialoog (spec §4/§5/§6).
 //
-// WAT DE STROOK TOONT. Eén SVG-rij op de tijdas die de dialoog één keer bouwt (`occupancyAxis.ts`)
-// en aan alle stroken én aan de voor/na-grafiek doorgeeft — binnen déze dialoog komen die dus per
-// constructie op dezelfde x-posities uit. Met het histogram van het bezettingsoverzicht deelt hij
-// alleen de as-CODE, niet de as-instantie: dat overzicht rekent op een andere richtbreedte
-// (`targetWidth` 760 tegen 560 hier) en heeft dus een eigen dagbreedte (bevinding B9).
-//  - de VASTE LAST als achtergrondband: wat gepinde/#63-documenten al van het poolitem opeisen;
-//  - de BOEKING van dít document als gevulde blokken over de dagen waarop het echt boekt. Dagen
-//    zonder boeking binnen de spanne blijven leeg — dat is precies wat een bestaande split of een
-//    ingevoegde pauze zichtbaar maakt;
-//  - een GESTIPPELDE STAART van het einde van de benutte uitloop tot het plafond: toegestaan, maar
-//    niet benut.
+// DE BALK IS DE BEDIENING. Vóór dit herontwerp was de strook een dun blokje van 24 px waarin je
+// dagen niet kon tellen, pauzes niet zag en tijdens het slepen niets bewoog; de eigenaar vatte dat
+// op 2026-09-12 samen als "ik snap niet wat alle knoppen doen". De vorm hier is die van het
+// gekozen prototype (`docs/superpowers/prototypes/2026-08-27-b1c-interface-lab.html`, tabblad 4):
+// een rij van drie kolommen — label 150 px | track 32 px | uitkomstlabel 132 px — met per werkdag
+// een apart blokje, zodat je de dagen letterlijk kunt tellen.
 //
-// HET LABEL BIJ DE HANDLE TOONT HET EINDDATUM-EFFECT, NIET DE SLEEPAFSTAND (§6). Een gebruiker
-// verplaatst een plafond om te zien wat er met zijn EINDDATUM gebeurt; "handle 3 werkdagen naar
-// rechts" is een handeling, geen uitkomst. Staat er meer toe dan er benut wordt, dan zegt de strook
-// dat er apart bij ("gevraagd 3, dichtst haalbare 1") — anders leest een ongebruikte ruimte als een
-// mislukking.
+// DE GEOMETRIE ZIT NIET HIER. `stripGeometry.ts` rekent uit een voorstel-doorsnede de dagblokjes,
+// pauzedagen, de gestippelde rest en de meetlat uit; deze component tekent ze en vangt de gebaren
+// op. Dat is dezelfde knip als tussen `chartGeometry.ts` en `BeforeAfterChart.tsx`.
 //
-// TOETSENBORD IS EEN VOLWAARDIGE ROUTE, GEEN NAZORG. De handle is een `role="slider"` met
-// `aria-valuetext` (plafond, benutting én einddatum-effect); pijltjes verzetten één werkdag,
-// PageUp/PageDown vijf, Home zet het plafond op 0 en End maakt het onbegrensd. Snappen op hele
-// werkdagen is inherent: het plafond ís een geheel aantal werkdagen.
+// SVG VOOR DE TRACK, DOM VOOR DE HANDLE. Zie het plan bij taak 2: de tekenlaag neemt de x/w van de
+// pure module 1-op-1 over, en de handle is een echte `<button>` omdat hij focus, toetsen en een
+// `:focus-visible`-omranding nodig heeft.
 //
-// WAAROM `ceiling ?? endShiftWorkdays` HET STAPPUNT IS. Een onbegrensd plafond is geen getal op de
-// as maar de End-stand; de handle staat dan visueel aan het einde van wat er BENUT wordt. Een
-// pijltje pakt hem dus op waar hij staat. Dat is ook de enige lezing waarin de handle niet
-// verspringt op het moment dat je hem voor het eerst aanraakt. De pointer-route (taak 10) deelt
-// hetzelfde stappunt — één definitie voor toetsenbord én muis.
+// DE HANDLE ANKERT OP HET NIEUWE FASE-EINDE. `buildStripGeometry` zet hem op `phaseEndX` plus de
+// nog OPENSTAANDE uitloop (`max(0, plafond − benut)` werkdagen); hij valt daarmee nooit ín de balk,
+// en bij een volledig benutte uitloop is er geen gestippelde doos (`freeBox === null`). Deze
+// component leest die posities dus uitsluitend uit de geometrie en rekent ze niet zelf na.
 //
-// POINTER-SLEPEN (taak 10, spec §6/§3.4). `setPointerCapture` op de handle zelf, GEEN document-brede
-// listener: het slepen loopt door zodra de muis het element verlaat (zoals `ContourPhaseStrip.tsx`
-// dat ook doet), en stopt gegarandeerd op pointerup/pointercancel zonder dat er iets kan "vastplakken".
-// Tijdens het slepen is er een LOKALE `dragValue` — de aria-valuenow, de plafondtekst en de
-// handlepositie volgen die waarde live, maar `endEffectText` (het label bij `data-ops-distribution-
-// effect`) blijft het effect van de vorige, WÉL doorgerekende stand tonen: dat klopt, want het effect
-// van de nieuwe stand is nog niet berekend (§3.4, "nooit per sleep-pixel"). Pas op pointerup gaat de
-// waarde via `onCeilingChange` de ui-state in — hetzelfde discrete rekenmoment als een toetsaanslag of
-// de pin-knop, en in de gedegradeerde modus dus ook: de waarde wordt gezet, er wordt niet doorgerekend.
-// Snappen op hele werkdagen: de sleepafstand in pixels deelt door `dayWidth` en rondt af — dezelfde
-// dayWidth-per-werkdag-conventie die de tekenpositie van de staart/handle hierboven al gebruikt (taak
-// 9); een tweede, kalenderdaggetrouwe omrekening zou de handle tijdens het slepen van zijn eigen
-// getekende positie laten afwijken. Een zuivere klik (pointerdown/-up zonder tussenliggende move)
-// commit NIETS: anders zou een klik op een onbegrensde handle 'm stiekem naar een concreet getal
-// verzetten.
+// DE WERKDAGVRAAG KOMT VAN BUITEN. `isWorkingDay` levert de aanroeper uit de PROJECTkalender van
+// het betreffende document (`CalendarEngine.isWorkDay`) — dezelfde eenheid als `endShiftWorkdays`
+// in `distribute.ts`. KANTTEKENING (taak 1): een individuele taak kan een afwijkende taakkalender
+// hebben; de arcering van een pauzedag leest dan de projectkalender, niet die van de taak. Voor de
+// bedoeling van de balk — "hier zit een ingevoegde onderbreking" — is dat de juiste grofheid.
+//
+// LIVE MEEREKENEN TIJDENS HET SLEPEN (§5). Onder de ondersteunde schaal gaat élke gesnapte
+// werkdagverandering meteen naar `onCeilingChange` — de hook coalesceert die runs zelf (één in
+// vlucht, de laatste stand wint), dus er is hier GEEN eigen timer nodig en er mag er ook geen
+// bijkomen: een tweede throttle zou de laatste stand kunnen inslikken. Boven de schaal
+// (`liveCommit === false`) commit alleen het loslaten, en beweegt tijdens het slepen dus alleen de
+// handle en de plafondtekst. Een zuivere klik (pointerdown/-up zonder move) commit nooit iets:
+// anders zou een klik op een onbegrensde handle 'm stiekem op een concreet getal zetten.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pin } from 'lucide-react';
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
+import { STRIP, buildStripGeometry } from './stripGeometry';
 
 /** Eindige bovengrens voor `aria-valuemax`. Het plafond zélf kent ook `null` = ONBEGRENSD (de
  *  End-toets); dat is geen 61e waarde maar het ontbreken van een grens, en wordt aan
@@ -55,27 +44,44 @@ import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
  *  zegt — een slider zonder eindige `valuemax` is voor screenreaders betekenisloos. */
 export const CEILING_MAX_WORKDAYS = 60;
 
-/** Hoogte van de tekenstrook (viewBox-eenheden ≈ px). */
-const STRIP_HEIGHT = 24;
+/** De pil-toon bij een einddatum-verschuiving (§4): 0 groen, 1–2 amber, meer rood. */
+function shiftTone(workdays: number): { background: string; color: string } {
+  if (workdays <= 0) {
+    return {
+      background: 'color-mix(in srgb, var(--success) 18%, transparent)',
+      color: 'var(--success)',
+    };
+  }
+  if (workdays <= 2) {
+    return {
+      background: 'color-mix(in srgb, var(--warning) 20%, transparent)',
+      color: 'var(--warning)',
+    };
+  }
+  return {
+    background: 'color-mix(in srgb, var(--error) 16%, transparent)',
+    color: 'var(--error)',
+  };
+}
 
 export interface PhaseStripProps {
   docId: string;
   title: string;
   /** De gedeelde tijdas, of `null` wanneer er geen enkele geboekte dag te tekenen valt. */
   axis: OccupancyAxis | null;
-  /** ISO-dag → eenheden die dít document op het poolitem boekt (uit `computeLibraryOccupancy`). */
-  dailyLoad: Record<string, number>;
-  /** ISO-dag → vaste last van gepinde/#63-documenten (uit `DistributionProposal`). */
+  /** `proposal.bookingByDay[docId]` — de stand VÓÓR (ankerpunt van de meetlat). */
+  beforeLoadByDay: Record<string, number>;
+  /** `proposal.afterLoadByDay[docId]` — de stand NÁ; dít wordt als dagblokjes getekend. */
+  afterLoadByDay: Record<string, number>;
+  /** `proposal.fixedLoadByDay` met de eigen boeking er al af wanneer dit document gepind is. */
   fixedLoadByDay: Record<string, number>;
-  /** Bovengrens van de verticale as in eenheden (capaciteit of hoogste per-document-stapeling).
-   *  BEWUST de per-document-schaal: een strook toont de vaste last plus de boeking van ÉÉN
-   *  document. De voor/na-grafiek stapelt alle documenten en heeft daarom een eigen, hogere schaal
-   *  (`chartGeometry.ts`s `chartScaleMax`). */
-  scaleMax: number;
-  /** De identiteitskleur van dít document, door de dialoog toegewezen (`assignDocColors`) en
-   *  gedeeld met de legenda en de staven van de voor/na-grafiek — daar hoort hetzelfde project
-   *  dezelfde kleur te hebben (fixronde-2 bevinding B9). */
+  /** Is deze kalenderdag een werkdag in de kalender van dít document? Bepaalt of een boekingsloze
+   *  dag binnen de fase een PAUZEDAG is of gewoon weekend. */
+  isWorkingDay: (iso: string) => boolean;
+  /** De identiteitskleur van dít document (`assignDocColors`) — gedeeld met het histogram. */
   color: string;
+  /** De eigen speling in werkdagen; `null` ⇒ onbekend (geen boekende taak). */
+  slackWorkdays: number | null;
   /** Werkdagen die de einddatum van dít document opschuift in het huidige voorstel. */
   endShiftWorkdays: number;
   /** Het ingestelde plafond in werkdagen; `null` = onbegrensd. */
@@ -85,90 +91,68 @@ export interface PhaseStripProps {
   recorded: boolean;
   /** Alle betrokken taken staan vast (priority 1000) — het document KAN niet wijken. */
   cannotMove: boolean;
-  /** Gedegradeerd overzicht (§3.4): een plafondwijziging rekent niet automatisch door. */
-  degraded: boolean;
+  /** Onder de ondersteunde schaal ⇒ élke gesnapte werkdag commit meteen (§5). */
+  liveCommit: boolean;
+  /** Er loopt een berekening: de uitkomstpil toont "Bezig…" ZONDER van maat te veranderen (§7). */
+  busy: boolean;
+  /** Datumnotatie voor de plafonddatum — de dialoog levert één `Intl.DateTimeFormat` voor alle rijen. */
+  formatDay: (iso: string) => string;
   onTogglePin: () => void;
   onCeilingChange: (next: number | null) => void;
 }
 
 export function PhaseStrip({
-  docId, title, axis, dailyLoad, fixedLoadByDay, scaleMax, color,
-  endShiftWorkdays, ceiling, pinned, recorded, cannotMove, degraded,
-  onTogglePin, onCeilingChange,
+  docId, title, axis, beforeLoadByDay, afterLoadByDay, fixedLoadByDay, isWorkingDay, color,
+  slackWorkdays, endShiftWorkdays, ceiling, pinned, recorded, cannotMove, liveCommit, busy,
+  formatDay, onTogglePin, onCeilingChange,
 }: PhaseStripProps) {
   const { t } = useTranslation('common');
 
-  // Sleepstate (taak 10): `dragRef` is de ene bron van waarheid TIJDENS het slepen (geen staleness
-  // over event-grenzen heen), `dragValue` is de renderbare afgeleide ervan. Niet-`null` ⇒ er wordt nu
-  // gesleept; zie het moduleblok hierboven voor waarom effect/plafond dan uit elkaar lopen.
+  // Sleepstate: `dragRef` is de bron van waarheid TIJDENS het slepen (geen staleness over
+  // event-grenzen heen), `dragValue` de renderbare afgeleide. Niet-`null` ⇒ er wordt nu gesleept.
   const dragRef = useRef<{ pointerId: number; startX: number; startCeiling: number; moved: boolean; value: number } | null>(null);
   const [dragValue, setDragValue] = useState<number | null>(null);
 
   const dayWidth = axis?.dayWidth ?? 0;
-  const stripWidth = axis?.width ?? AXIS.padLeft + 200;
-  const yOf = (units: number) =>
-    STRIP_HEIGHT * (1 - Math.min(1, Math.max(0, units) / Math.max(0.01, scaleMax)));
-
-  // Blokken per kalenderdag van de as: de vaste last onderaan, de eigen boeking daarbovenop.
-  const fixedRects: { key: string; x: number; y: number; h: number }[] = [];
-  const bookedRects: { key: string; x: number; y: number; h: number }[] = [];
-  let lastBookedX: number | null = null;
-  if (axis !== null) {
-    for (const segment of axis.segments) {
-      for (let i = 0; i < segment.days.length; i++) {
-        const iso = segment.days[i];
-        const x = segment.x0 + i * dayWidth;
-        const booked = dailyLoad[iso] ?? 0;
-        // Een gepind document zit ZELF in de vaste last (dat is wat pinnen betekent). Zonder deze
-        // aftrek zou zijn eigen boeking twee keer in dezelfde staaf staan.
-        const fixed = Math.max(0, (fixedLoadByDay[iso] ?? 0) - (pinned ? booked : 0));
-        if (fixed > 0) {
-          const y = yOf(fixed);
-          fixedRects.push({ key: iso, x, y, h: STRIP_HEIGHT - y });
-        }
-        if (booked > 0) {
-          const y0 = yOf(fixed);
-          const y1 = yOf(fixed + booked);
-          bookedRects.push({ key: iso, x, y: y1, h: Math.max(1, y0 - y1) });
-          lastBookedX = x;
-        }
-      }
-    }
-  }
-
-  // Rechterrand van de benutte boeking; de handle en de staart hangen daaraan.
-  const usedEndX = lastBookedX === null ? AXIS.padLeft : lastBookedX + dayWidth;
-  // Tijdens het slepen toont de handle de LOKALE waarde, niet het gecommitte plafond — zie het
-  // moduleblok. Buiten het slepen is dat gewoon `ceiling`.
+  const trackWidth = axis?.width ?? AXIS.padLeft + 200;
   const displayCeiling = dragValue !== null ? dragValue : ceiling;
-  // Het plafond ligt `displayCeiling - benutte uitloop` werkdagen voorbij die rand (kan negatief
-  // zijn: een plafond dat krapper is dan wat er nu benut wordt — dan valt de handle ín de strook).
-  const tailWorkdays = displayCeiling === null ? 0 : displayCeiling - endShiftWorkdays;
-  const handleX = Math.max(
-    AXIS.padLeft,
-    Math.min(stripWidth - AXIS.padRight, usedEndX + tailWorkdays * dayWidth),
-  );
+
+  const geometry = axis === null ? null : buildStripGeometry({
+    axis,
+    beforeLoadByDay,
+    loadByDay: afterLoadByDay,
+    fixedLoadByDay,
+    isWorkingDay,
+    slackWorkdays: slackWorkdays ?? 0,
+    ceilingWorkdays: displayCeiling,
+    endShiftWorkdays,
+  });
+
+  const handleX = geometry?.handleX ?? AXIS.padLeft;
+  const patternId = `ops-pause-${docId}`;
 
   const ceilingText = displayCeiling === null
     ? t('resource.distribution.strip.ceilingUnlimited')
     : t('resource.distribution.strip.ceilingDays', { count: displayCeiling });
-  const endEffectText = endShiftWorkdays === 0
+  const shiftText = endShiftWorkdays === 0
     ? t('resource.distribution.strip.endUnchanged')
     : t('resource.distribution.strip.endShift', { count: endShiftWorkdays });
-  // "Toegestaan maar niet benut" (§6): pas melden zodra er echt ruimte overblijft.
-  const achievableText = displayCeiling !== null && endShiftWorkdays < displayCeiling
-    ? t('resource.distribution.strip.requestedVsAchievable', {
-        requested: displayCeiling, achievable: endShiftWorkdays,
-      })
-    : null;
-  // Gedegradeerd overzicht (§3.4): de waarde is gezet, maar er is niet doorgerekend — dan zou het
-  // oude effect een LEUGEN zijn bij de nieuwe handle-stand.
-  const effectText = degraded ? t('resource.distribution.compute.pressRecompute') : endEffectText;
-  const valueText = [ceilingText, effectText, achievableText].filter(Boolean).join(' — ');
+  const maxDateText = geometry?.ceilingEndIso
+    ? t('resource.distribution.strip.maxDate', { date: formatDay(geometry.ceilingEndIso) })
+    : t('resource.distribution.strip.maxDate', { date: t('resource.distribution.strip.ceilingUnlimited') });
+  const usedText = t('resource.distribution.strip.used', { used: endShiftWorkdays });
+  const valueText = `${ceilingText} — ${shiftText}`;
 
   const clamp = (value: number) => Math.max(0, Math.min(CEILING_MAX_WORKDAYS, value));
-  // Zie het moduleblok: onbegrensd is geen getal, dus een pijltje pakt de handle op waar hij staat.
+  // Onbegrensd is geen getal op de as, dus een pijltje pakt de handle op waar hij staat: bij de
+  // benutte uitloop. Dat is de enige lezing waarin de handle niet verspringt op het moment dat je
+  // hem voor het eerst aanraakt. Pointer en toetsenbord delen dit stappunt — één definitie.
   const stepBase = ceiling ?? Math.max(0, endShiftWorkdays);
+
+  const commit = (next: number | null) => {
+    if (pinned) return;
+    onCeilingChange(next);
+  };
 
   const onHandleKey = (event: React.KeyboardEvent) => {
     if (pinned) return;
@@ -176,8 +160,8 @@ export function PhaseStrip({
     switch (event.key) {
       case 'ArrowRight': case 'ArrowUp': next = clamp(stepBase + 1); break;
       case 'ArrowLeft': case 'ArrowDown': next = clamp(stepBase - 1); break;
-      case 'PageUp': next = clamp(stepBase + 5); break;
-      case 'PageDown': next = clamp(stepBase - 5); break;
+      case 'PageUp': next = clamp(stepBase + 3); break;
+      case 'PageDown': next = clamp(stepBase - 3); break;
       case 'Home': next = 0; break;
       case 'End': next = null; break;
       default: return;
@@ -185,166 +169,263 @@ export function PhaseStrip({
     // De dialoog scrollt; pijltjes en Home/End mogen die scroll niet óók verzetten.
     event.preventDefault();
     event.stopPropagation();
-    onCeilingChange(next);
+    commit(next);
   };
 
-  // Pointer-slepen (taak 10): `setPointerCapture` op de handle zelf — geen document-brede listener,
-  // zie het moduleblok. Alleen ÉÉN actieve pointer per handle: een tweede pointerdown terwijl er al
-  // gesleept wordt (multitouch) wordt genegeerd zolang de eerste nog loopt.
-  const onHandlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onHandlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (pinned || dragRef.current) return;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startCeiling: stepBase, moved: false, value: stepBase };
     setDragValue(stepBase);
   };
 
-  const onHandlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onHandlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     drag.moved = true;
     if (dayWidth <= 0) return;
-    // Snappen op hele werkdagen: zie het moduleblok voor de dayWidth-per-werkdag-conventie.
-    const deltaWorkdays = Math.round((event.clientX - drag.startX) / dayWidth);
-    drag.value = clamp(drag.startCeiling + deltaWorkdays);
-    setDragValue(drag.value);
+    // Snappen op hele werkdagen: dezelfde dayWidth-per-werkdag-conventie die de tekenpositie van de
+    // handle hierboven gebruikt. Een tweede, kalenderdaggetrouwe omrekening zou de handle tijdens
+    // het slepen van zijn eigen getekende positie laten afwijken.
+    const next = clamp(drag.startCeiling + Math.round((event.clientX - drag.startX) / dayWidth));
+    if (next === drag.value) return;
+    drag.value = next;
+    setDragValue(next);
+    // Onder de schaal is ELKE gesnapte werkdag een rekenmoment (§5). De hook coalesceert.
+    if (liveCommit) commit(next);
   };
 
-  const onHandlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onHandlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
     setDragValue(null);
-    // DISCREET rekenmoment (§3.4): een zuivere klik (geen tussenliggende move) commit niets — zie
-    // het moduleblok.
-    if (drag.moved) onCeilingChange(drag.value);
+    // Een zuivere klik commit niets; in de live-stand is de waarde al onderweg.
+    if (drag.moved && !liveCommit) commit(drag.value);
   };
 
-  const onHandlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onHandlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setDragValue(null);
   };
 
+  const tone = shiftTone(endShiftWorkdays);
+
   return (
     <div
-      className="flex flex-col gap-1 px-2 py-1.5 rounded-[8px] border border-border-light"
+      className="flex items-center"
+      style={{ gap: STRIP.gap }}
       data-ops-distribution-strip
       data-ops-doc-id={docId}
       data-ops-distribution-day-width={dayWidth}
       {...(pinned ? { 'data-ops-distribution-pinned': 'true' } : {})}
     >
-      <div className="flex items-center gap-2">
-        <span className="truncate font-medium flex-1 min-w-0">{title}</span>
-
-        {recorded ? (
-          // #63: geen bedienbare pin — het document doet pas mee als de gebruiker dáár herberekent.
+      {/* (a) LABEL — kleurstip, projectnaam, speling, pin-tekstknop (§4/§6). */}
+      <div
+        className="flex flex-col justify-center shrink-0 min-w-0"
+        style={{ width: STRIP.labelWidth }}
+      >
+        <span className="flex items-center gap-1.5 min-w-0">
           <span
-            className="text-text-secondary shrink-0"
+            className="inline-block rounded-[2px] shrink-0"
+            style={{ width: 8, height: 8, background: color }}
+            aria-hidden
+          />
+          <span className="truncate font-medium">{title}</span>
+        </span>
+        <span className="text-[10px] text-text-secondary truncate">
+          {t('resource.distribution.strip.slack', {
+            days: slackWorkdays === null ? '—' : String(slackWorkdays),
+          })}
+        </span>
+        {recorded ? (
+          <span
+            className="text-[10px] text-text-secondary truncate"
             title={`${t('recordedDates.active')} ${t('recordedDates.recalculate')}`}
             data-ops-distribution-recorded
           >
             {t('resource.distribution.strip.pinnedRecorded')}
           </span>
+        ) : cannotMove ? (
+          <span className="text-[10px] text-text-secondary truncate">
+            {t('resource.distribution.strip.cannotMove')}
+          </span>
         ) : (
           <button
             type="button"
             aria-pressed={pinned}
-            aria-label={t('resource.distribution.strip.pin')}
-            title={`${pinned ? t('resource.distribution.strip.pinned') : t('resource.distribution.strip.pin')} — ${t('resource.distribution.help.pin')}`}
+            title={t('resource.distribution.help.pin')}
             onClick={onTogglePin}
-            className={`p-0.5 rounded shrink-0 hover:bg-surface-hover ${pinned ? 'text-accent' : 'text-text-secondary'}`}
+            className="text-[10px] text-left underline underline-offset-2 text-text-secondary hover:text-text-primary"
             data-ops-distribution-pin
           >
-            <Pin size={13} />
+            {pinned
+              ? t('resource.distribution.strip.unpinButton')
+              : t('resource.distribution.strip.pinButton')}
           </button>
         )}
-        {pinned && !recorded && (
-          <span className="text-text-secondary truncate">{t('resource.distribution.strip.pinned')}</span>
-        )}
-        {cannotMove && (
-          <span className="text-text-secondary truncate">{t('resource.distribution.strip.cannotMove')}</span>
-        )}
-
-        {achievableText !== null && (
-          <span className="text-text-secondary tabular-nums shrink-0" data-ops-distribution-achievable>
-            {achievableText}
-          </span>
-        )}
-        <span className="tabular-nums text-text-secondary shrink-0" data-ops-distribution-effect>
-          {effectText}
-        </span>
       </div>
 
-      {/* Geforceerd LTR, net als het histogram: een tijdas spiegelt nergens in dit product. */}
-      <div className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
-        <div className="relative" style={{ width: stripWidth }}>
-          <svg
-            width={stripWidth}
-            height={STRIP_HEIGHT}
-            viewBox={`0 0 ${stripWidth} ${STRIP_HEIGHT}`}
-            role="img"
-            aria-label={title}
-            style={{ display: 'block' }}
-          >
-            <rect
-              x={AXIS.padLeft} y={0}
-              width={Math.max(0, stripWidth - AXIS.padLeft - AXIS.padRight)}
-              height={STRIP_HEIGHT}
-              fill="var(--theme-surface-alt, transparent)"
-              stroke="var(--theme-border-light)"
-            />
-            {/* Vaste last: wat gepinde/#63-documenten al opeisen (§6 achtergrondband). */}
-            {fixedRects.map(r => (
-              <rect key={`f-${r.key}`} x={r.x} y={r.y} width={dayWidth} height={r.h}
-                fill="var(--theme-text-dim)" opacity={0.35} />
-            ))}
-            {/* De boeking van dít document, in de DOCUMENTKLEUR (bevinding B9) — dezelfde die de
-                legenda en de staven van de voor/na-grafiek eronder gebruiken; boekingsloze dagen
-                binnen de spanne blijven leeg. */}
-            {bookedRects.map(r => (
-              <rect key={`b-${r.key}`} x={r.x + 0.5} y={r.y} width={Math.max(1, dayWidth - 1)} height={r.h}
-                fill={color} opacity={pinned ? 0.45 : 0.85} data-ops-doc-id={docId} />
-            ))}
-            {/* Toegestaan maar niet benut. */}
-            {tailWorkdays > 0 && dayWidth > 0 && (
-              <rect
-                x={usedEndX} y={2} width={Math.max(1, handleX - usedEndX)} height={STRIP_HEIGHT - 4}
-                fill="none" stroke={color} strokeWidth={1} strokeDasharray="3 3"
-                data-ops-distribution-tail
-              />
-            )}
-          </svg>
-          <div
-            role="slider"
-            tabIndex={0}
-            aria-label={t('resource.distribution.strip.handleLabel', { doc: title })}
-            aria-valuemin={0}
-            aria-valuemax={CEILING_MAX_WORKDAYS}
-            aria-valuenow={displayCeiling ?? CEILING_MAX_WORKDAYS}
-            aria-valuetext={valueText}
-            aria-disabled={pinned || undefined}
-            title={`${t('resource.distribution.strip.ceiling')} — ${t('resource.distribution.help.ceiling')}`}
-            onKeyDown={onHandleKey}
-            onPointerDown={onHandlePointerDown}
-            onPointerMove={onHandlePointerMove}
-            onPointerUp={onHandlePointerUp}
-            onPointerCancel={onHandlePointerCancel}
-            data-ops-distribution-handle
-            className="absolute rounded-[2px]"
-            style={{
-              left: handleX - 2,
-              top: 0,
-              width: 5,
-              height: STRIP_HEIGHT,
-              background: pinned ? 'var(--theme-text-dim)' : 'var(--theme-accent)',
-              cursor: pinned ? 'not-allowed' : 'ew-resize',
-              opacity: pinned ? 0.5 : 1,
-              touchAction: 'none',
-            }}
+      {/* (b) TRACK. Geforceerd LTR, net als het histogram: een tijdas spiegelt nergens in dit
+          product. De horizontale scroll zit BEWUST niet hier maar om de hele stapel heen (de
+          dialoog), zodat balken en histogram kolom-op-kolom blijven staan tijdens het scrollen. */}
+      <div
+        className="relative shrink-0"
+        dir="ltr"
+        style={{ width: trackWidth, height: STRIP.trackHeight, direction: 'ltr' }}
+        data-ops-distribution-track
+      >
+        <svg
+          width={trackWidth}
+          height={STRIP.trackHeight}
+          viewBox={`0 0 ${trackWidth} ${STRIP.trackHeight}`}
+          role="img"
+          aria-label={title}
+          style={{ display: 'block' }}
+        >
+          <defs>
+            {/* De arcering van een pauzedag: `repeating-linear-gradient(135deg, …)` uit het
+                prototype, hier als SVG-pattern zodat hij met het thema meekleurt. */}
+            <pattern id={patternId} width={6} height={6} patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <rect width={6} height={6} fill="var(--theme-text-dim)" opacity={0.05} />
+              <rect width={3} height={6} fill="var(--theme-text-dim)" opacity={0.17} />
+            </pattern>
+          </defs>
+
+          {/* De track zelf: lichte achtergrond met een randje (`.ptrack`). */}
+          <rect
+            x={AXIS.padLeft} y={0}
+            width={Math.max(0, trackWidth - AXIS.padLeft - AXIS.padRight)}
+            height={STRIP.trackHeight}
+            rx={6}
+            fill="var(--theme-surface-alt, transparent)"
+            stroke="var(--theme-border-light)"
           />
-        </div>
+
+          {/* Vaste last van gepinde/#63-documenten (§4, achtergrondband). */}
+          {(geometry?.fixedBands ?? []).map((band, i) => (
+            <rect key={`fx-${i}`} x={band.x} y={0} width={band.w} height={STRIP.trackHeight}
+              fill="var(--theme-text-dim)" opacity={0.14} />
+          ))}
+
+          {/* Weekscheidingen (1 px) en de donkerdere maandlijn. */}
+          {(geometry?.weekLines ?? []).map((x, i) => (
+            <rect key={`w-${i}`} x={x} y={0} width={1} height={STRIP.trackHeight} fill="var(--theme-border-light)" />
+          ))}
+          {(geometry?.monthLines ?? []).map((x, i) => (
+            <rect key={`m-${i}`} x={x} y={0} width={1} height={STRIP.trackHeight} fill="var(--theme-border)" />
+          ))}
+
+          {/* "Toegestaan maar niet benut" — lege doos met gestippelde rand (§4). */}
+          {geometry?.freeBox && (
+            <rect
+              x={geometry.freeBox.x} y={STRIP.blockTop}
+              width={Math.max(1, geometry.freeBox.w)} height={STRIP.blockHeight}
+              fill="none" stroke="var(--theme-text-dim)" strokeWidth={1} strokeDasharray="3 3" rx={2}
+              data-ops-distribution-tail
+            />
+          )}
+
+          {/* De dagblokjes. Een werkdag in de projectkleur met een 1 px witte scheiding rechts
+              (`.pwork`), een pauzedag gearceerd met een dun grijs randje (`.ppause`). */}
+          {(geometry?.blocks ?? []).map(block => (block.kind === 'work' ? (
+            <rect
+              key={`b-${block.iso}`}
+              x={block.x} y={STRIP.blockTop}
+              width={Math.max(1, block.w - 1)} height={STRIP.blockHeight}
+              fill={color} opacity={pinned ? 0.45 : 0.9}
+              data-ops-doc-id={docId} data-ops-distribution-day="work"
+            />
+          ) : (
+            <rect
+              key={`p-${block.iso}`}
+              x={block.x + 0.5} y={STRIP.blockTop}
+              width={Math.max(1, block.w - 1)} height={STRIP.blockHeight}
+              fill={`url(#${patternId})`} stroke="var(--theme-border)" strokeWidth={1} rx={2}
+              data-ops-distribution-day="pause"
+            />
+          )))}
+
+          {/* De meetlat: grijs gestippeld = speling, massief rood = einddatum-verschuiving (§4). */}
+          {geometry?.slackBar && (
+            <rect
+              x={geometry.slackBar.x} y={STRIP.trackHeight - STRIP.measureBottom - STRIP.measureHeight}
+              width={Math.max(1, geometry.slackBar.w)} height={STRIP.measureHeight}
+              fill="var(--theme-text-dim)" opacity={0.55} strokeDasharray="3 3"
+              data-ops-distribution-slack-bar
+            />
+          )}
+          {geometry?.overrunBar && (
+            <rect
+              x={geometry.overrunBar.x} y={STRIP.trackHeight - STRIP.measureBottom - STRIP.measureHeight}
+              width={Math.max(1, geometry.overrunBar.w)} height={STRIP.measureHeight}
+              fill="var(--error)"
+              data-ops-distribution-overrun-bar
+            />
+          )}
+        </svg>
+
+        {/* De HANDLE (§5): een echte knop van 15×30 met drie grijpstreepjes. */}
+        <button
+          type="button"
+          role="slider"
+          aria-label={t('resource.distribution.strip.handleLabel', { doc: title })}
+          aria-valuemin={0}
+          aria-valuemax={CEILING_MAX_WORKDAYS}
+          aria-valuenow={displayCeiling ?? CEILING_MAX_WORKDAYS}
+          aria-valuetext={valueText}
+          aria-disabled={pinned || undefined}
+          title={t('resource.distribution.help.ceiling')}
+          onKeyDown={onHandleKey}
+          onPointerDown={onHandlePointerDown}
+          onPointerMove={onHandlePointerMove}
+          onPointerUp={onHandlePointerUp}
+          onPointerCancel={onHandlePointerCancel}
+          data-ops-distribution-handle
+          className="absolute flex items-center justify-center rounded-[4px] border"
+          style={{
+            left: handleX - STRIP.handleWidth / 2,
+            top: STRIP.handleTop,
+            width: STRIP.handleWidth,
+            height: STRIP.handleHeight,
+            borderColor: 'var(--theme-text-secondary)',
+            background: 'var(--theme-surface)',
+            cursor: pinned ? 'not-allowed' : 'ew-resize',
+            opacity: pinned ? 0.45 : 1,
+            touchAction: 'none',
+            padding: 0,
+          }}
+        >
+          {/* Drie grijpstreepjes (`.phandle::before` met twee box-shadows in het prototype). */}
+          <span aria-hidden className="flex items-center" style={{ gap: 2 }}>
+            <span style={{ width: 1, height: 13, background: 'var(--theme-text-secondary)' }} />
+            <span style={{ width: 1, height: 13, background: 'var(--theme-text-secondary)' }} />
+            <span style={{ width: 1, height: 13, background: 'var(--theme-text-secondary)' }} />
+          </span>
+        </button>
+      </div>
+
+      {/* (c) UITKOMSTLABEL — vaste breedte, dus een toestandswissel verandert de maat niet (§7). */}
+      <div
+        className="flex flex-col items-end shrink-0 text-right"
+        style={{ width: STRIP.endWidth }}
+        data-ops-distribution-effect
+      >
+        <span
+          className="inline-block rounded-full px-2 py-0.5 tabular-nums"
+          style={busy
+            ? { background: 'color-mix(in srgb, var(--theme-text-dim) 14%, transparent)', color: 'var(--theme-text-secondary)' }
+            : tone}
+        >
+          {busy ? t('resource.distribution.compute.busy') : shiftText}
+        </span>
+        <span className="text-[10px] text-text-secondary truncate w-full">
+          {`${maxDateText} · ${usedText}`}
+        </span>
       </div>
     </div>
   );
