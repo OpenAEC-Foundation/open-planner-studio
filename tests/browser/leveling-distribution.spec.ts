@@ -887,6 +887,16 @@ test('een opgerekt plafond schuift de label- en uitkomstkolom niet uit de dialoo
   const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
   expect(dayWidth).toBeGreaterThan(0);
 
+  // Home eerst: het plafond staat standaard op ONBEGRENSD, en dan zit de greep al tegen de
+  // rechterrand van de as — er is dan nauwelijks sleepruimte over binnen het venster. Vanaf
+  // plafond 0 staat hij bij het fase-einde en levert één sleep naar de vensterrand tientallen
+  // werkdagen op. Zelfde deterministische startpunt als de sleeptests hierboven.
+  await handle.focus();
+  await handle.press('Home');
+  await expect(handle).toHaveAttribute('aria-valuenow', '0');
+  await expect.poll(() => strip.locator('[data-ops-distribution-effect]').textContent())
+    .not.toContain('…');
+
   // Een ECHTE sleep, zo ver naar rechts als het venster toelaat: de dagenset groeit mee met het
   // plafond, dus de tijdas wordt hierdoor een veelvoud breder dan de dialoog zelf. Dat is precies
   // de stand waarin de eigenaar "eind +5 dage" en "max onbegrensd · benu" afgekapt zag.
