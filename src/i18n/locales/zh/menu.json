@@ -196,6 +196,7 @@
     "columnsHintTable": "选择“表格”视图的列",
     "columnsHintGoToTable": "选择“表格”视图的列 — 在“表格”选项卡中显示",
     "toggleResourceAccent": "资源强调色",
+    "toggleFloatBand": "浮动时间带",
     "screenColors": "条形图颜色",
     "screenColors_critical": "关键路径",
     "screenColors_auto": "按任务 — 自动",

@@ -188,6 +188,11 @@ export async function saveShowStatusDateLine(value: boolean): Promise<void> {
   await setSetting('showStatusDateLine', value);
 }
 
+/** #130: de groene speling-band in de Gantt aan/uit — view-state, zelfde model als hierboven. */
+export async function saveShowFloatBand(value: boolean): Promise<void> {
+  await setSetting('showFloatBand', value);
+}
+
 export async function saveShowResourceAccent(value: boolean): Promise<void> {
   await setSetting('showResourceAccent', value);
 }
