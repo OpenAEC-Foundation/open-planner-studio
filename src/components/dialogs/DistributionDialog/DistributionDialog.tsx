@@ -213,8 +213,17 @@ export function DistributionDialog() {
     }
     if (days.size === 0) return { axis: null, docs };
 
+    // De STAART van de as. Hij hoeft alleen nog de PLAFOND-ruimte te dekken: de dagen waarop de
+    // gestippelde rest en de handle terechtkomen wanneer je meer uitloop toestaat dan er benut is.
+    // `endShiftWorkdays` stond hier eerder óók in en dat was fout (probe 2026-09-14, case 18 in
+    // `check-distribute.ts`): bij HANDMATIG GEPLANDE taken blijft `endShiftWorkdays` 0 terwijl de
+    // boeking wél tien werkdagen opschuift. De as stopte dan vóór de nieuwe boeking en het document
+    // kreeg een LEGE balk én een lege "Na"-kolom — een weergavefout die als een rekenfout las. De
+    // echte dekking van de verschoven boeking komt sinds deze ronde uit `afterLoadByDay` hierboven,
+    // dat volwaardig in de dagenset zit; de staart gaat dus alleen nog over wat er nog NIET geboekt
+    // is.
     const outlook = docs.reduce(
-      (n, doc) => Math.max(n, doc.endShiftWorkdays, tune.ceilings[doc.docId] ?? 0), 0);
+      (n, doc) => Math.max(n, tune.ceilings[doc.docId] ?? 0), 0);
     if (outlook > 0) {
       const last = [...days].sort()[days.size - 1];
       // Werkdagen → kalenderdagen (5/7) plus een marge, en hoe dan ook begrensd: de rest mag de
