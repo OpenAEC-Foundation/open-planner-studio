@@ -554,8 +554,16 @@ export function DistributionDialog() {
         ...(lastStaleReason ? { 'data-ops-distribution-last-stale-reason': lastStaleReason } : {}),
       }}
     >
-      {/* (1) Kop */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface gap-3">
+      {/* (1) Kop.
+
+          `items-start`, NIET `items-center` (gebruikstest eigenaar 2026-09-14). De kop van déze
+          dialoog is in de gevulde stand DRIE regels hoog — itemnaam, ondertitel, introregel —
+          terwijl hij in bijvoorbeeld `ProjectInfoDialog` één regel is. Met `items-center` centreert
+          het sluitkruisje zich over die hele hoogte, en stond het dus halverwege de kop te zweven:
+          precies waar niemand een sluitknop zoekt. Uitgelijnd op de TITELregel staat hij weer waar
+          hij hoort. De hoogte van de kop verandert hier niet door (§7) — dit is alleen de verticale
+          uitlijning van twee bestaande kinderen, geen extra of weggehaald blok. */}
+      <div className="flex items-start justify-between px-4 py-3 border-b border-border bg-surface gap-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold truncate" style={{ fontFamily: 'var(--font-heading)' }}>
             {tune ? itemName : t('resource.distribution.title')}
