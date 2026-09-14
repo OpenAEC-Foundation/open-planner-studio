@@ -13,7 +13,7 @@ import {
   type ReportContext,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
-  remainingDays, taskDepths,
+  remainingDays, resourceBandLabels, taskDepths,
 } from '@/engine/reports';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
@@ -362,7 +362,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     resources: [...ctx.resources, kraan],
     assignments: [...ctx.assignments, asg('asg-kraan', B, kraan.id)],
   };
-  const opts = { includeUnassigned: false, noneLabel: '(geen)' };
+  const opts = { includeUnassigned: false, noneLabel: '(geen)', locale: 'nl' };
   const label = (row: { kind: string; label?: string }) => (row.kind === 'group' ? row.label : undefined);
   const bandTasks = (rows: ReturnType<typeof computeResourceGanttRows>['rows'], name: string) => {
     const start = rows.findIndex(x => label(x) === name);
@@ -420,7 +420,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     assignments: [asg('a1', A, kraan.id), asg('a2', A, kraan.id), asg('a3', B, 'res-bestaat-niet')],
   }, opts);
   eq('resourceGantt: dubbele toewijzing ⇒ één rij', bandTasks(dubbel.rows, 'Kraan'), [A]);
-  eq('resourceGantt: onbekende resource ⇒ taak zonder resource', dubbel.counts, { resources: 1, assignments: 1, unassignedTasks: 6 });
+  // …maar de telling volgt de records, zoals het tabelrapport Resourcetoewijzingen (review N8).
+  eq('resourceGantt: onbekende resource ⇒ taak zonder resource; toewijzingen tellen records', dubbel.counts, { resources: 1, assignments: 2, unassignedTasks: 6 });
 
   // Bandvolgorde: taal-/cijferbewust ("Ploeg 2" vóór "Ploeg 10"), hoofdletterongevoelig.
   const p10 = res('p10', 'Ploeg 10'); const p2 = res('p2', 'ploeg 2'); const aa = res('aa', 'Aannemer');
@@ -429,6 +430,24 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     assignments: [asg('a1', A, p10.id), asg('a2', A, p2.id), asg('a3', A, aa.id)],
   }, opts);
   eq('resourceGantt: bandvolgorde cijferbewust en hoofdletterongevoelig', volgorde.rows.filter(x => x.kind === 'group').map(label), ['Aannemer', 'ploeg 2', 'Ploeg 10']);
+
+  // Review N1: de bandvolgorde volgt de meegegeven app-taal, niet de OS-taal van de afdrukker. Het
+  // Zweeds sorteert Å/Ä/Ö ná Z, het Engels/Nederlands bij de A — hetzelfde project, twee volgordes,
+  // dus de parameter moet dragend zijn (en het scherm van de afdrukker irrelevant).
+  const alg = res('alg', 'Älg'); const ost = res('ost', 'Ostersund'); const zorg = res('zorg', 'Zorg');
+  const noords = { tasks: ctx.tasks, resources: [zorg, alg, ost], assignments: [asg('a1', A, alg.id), asg('a2', A, ost.id), asg('a3', A, zorg.id)] };
+  eq('resourceGantt: bandvolgorde in het Engels', computeResourceGanttRows(noords, { ...opts, locale: 'en' }).rows.filter(x => x.kind === 'group').map(label), ['Älg', 'Ostersund', 'Zorg']);
+  eq('resourceGantt: bandvolgorde in het Zweeds (Ä ná Z)', computeResourceGanttRows(noords, { ...opts, locale: 'sv' }).rows.filter(x => x.kind === 'group').map(label), ['Ostersund', 'Zorg', 'Älg']);
+
+  // Review N5: gelijknaamdetectie gebruikt dezelfde collator als de sortering — Jan/jan/" Jan " zijn
+  // drie banden mét volgnummer, in projectvolgorde, en sorteren bij elkaar.
+  const jan = [res('j1', 'Jan'), res('j2', 'jan'), res('j3', ' Jan ')];
+  eq('resourceBandLabels: hoofdletter-/spatievarianten krijgen alle drie een volgnummer', [...resourceBandLabels(jan, 'nl').values()], ['Jan #1', 'jan #2', 'Jan #3']);
+  const janRows = computeResourceGanttRows({ tasks: ctx.tasks, resources: jan, assignments: jan.map((r, i) => asg(`j${i}`, A, r.id)) }, opts);
+  eq('resourceGantt: gelijkende namen sorteren bij elkaar in projectvolgorde', janRows.rows.filter(x => x.kind === 'group').map(label), ['Jan #1', 'jan #2', 'Jan #3']);
+  // Review N4: een surrogaat "#2" naast een resource die letterlijk "#2" heet — beide genummerd.
+  eq('resourceBandLabels: surrogaat botst niet stil met een letterlijke "#2"', [...resourceBandLabels([res('x1', '#2'), res('x2', '')], 'nl').values()], ['#2 #1', '#2 #2']);
+  eq('resourceBandLabels: unieke namen blijven kaal, accentgelijk telt als gelijk', [...resourceBandLabels([res('e1', 'Renée'), res('e2', 'Renee'), res('e3', 'Piet')], 'nl').values()], ['Renée #1', 'Renee #2', 'Piet']);
 
   // Leeg: geen toewijzingen ⇒ geen rijen; geen taken ⇒ ook geen "(geen)"-band en nultellingen.
   ok('resourceGantt: geen toewijzingen ⇒ leeg', computeResourceGanttRows({ ...base, assignments: [] }, opts).rows.length === 0);

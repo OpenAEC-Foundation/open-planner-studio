@@ -60,7 +60,8 @@ A mesma impressão Gantt, mas agrupada **por recurso**: cada equipa, pessoa ou m
 própria faixa com as tarefas que lhe estão atribuídas por baixo, por ordem de início. É a vista
 «quem faz o quê, e quando» para a reunião de obra, ou — com a opção **Cada recurso numa nova
 página** — uma folha separada por pessoa para distribuir. Uma tarefa com dois recursos aparece sob
-ambas as faixas; as tarefas resumo ficam de fora, porque nunca são atribuídas. **Incluir tarefas sem
+ambas as faixas; as tarefas resumo ficam de fora: uma atribuição a uma tarefa resumo (possível após uma
+importação) não aparece aqui. **Incluir tarefas sem
 recurso** acrescenta em baixo uma faixa *(nenhum)*, para ver de relance o que ainda ninguém tem.
 
 Todas as definições da impressão Gantt aplicam-se sem alterações — caminho crítico, folga, cores das

@@ -20,7 +20,7 @@ import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbo
 import { useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import {
-  DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, saveReportSettings, TABLE_REPORT_TYPES,
+  DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations, saveReportSettings, TABLE_REPORT_TYPES,
   type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
@@ -441,12 +441,13 @@ export function ReportPanel() {
   // `tTask('structure.none')` is hetzelfde "(geen)"-label dat de schermgroepering gebruikt.
   const isGanttLike = isGanttReportType(reportType);
   const noneLabel = tTask('structure.none');
+  // De bandvolgorde volgt de app-taal (nooit de OS-taal van de afdrukker: zelfde vel, zelfde nummering).
   const resourceGantt = useMemo(() => (reportType === 'resourceGantt'
     ? computeResourceGanttRows({ tasks, resources, assignments }, {
-      includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel,
+      includeUnassigned: resourceGanttOptions.includeUnassigned, noneLabel, locale: i18n.language,
     })
     : null),
-  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned]);
+  [reportType, tasks, resources, assignments, noneLabel, resourceGanttOptions.includeUnassigned, i18n.language]);
   // Rijenbron van de Gantt-render: resourcediagram ⇒ de resourcebanden; Gantt-afdruk ⇒ de schermrijen
   // bij Volg weergave (#54), anders `undefined` = de volledige takenboom (oud gedrag, geen verrassingen).
   const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
@@ -518,9 +519,8 @@ export function ReportPanel() {
   const effectiveNameColumnWidth = truncateTaskNames ? taskNameColumnWidth : (autoNameColumnWidth ?? taskNameColumnWidth);
   const options = useMemo<PrintOptions>(() => ({
     showCritical, showFloat, showWeekends, showLegend,
-    // Resourcediagram: geen relatiepijlen — een taak staat er onder élke resource die eraan hangt,
-    // dus een pijl heeft geen eenduidig anker en zou bij "blad per resource" de bladrand af lopen.
-    showDeps: reportType === 'resourceGantt' ? false : showDeps,
+    // Resourcediagram: geen relatiepijlen (zie `reportTypeDrawsRelations`).
+    showDeps: reportTypeDrawsRelations(reportType) && showDeps,
     showTaskNames, showCompletion, showBaselineOverlay, autoFit, customZoom,
     paperSize, orientation, companyName,
     taskNameColumnWidth: effectiveNameColumnWidth,
@@ -1477,8 +1477,8 @@ export function ReportPanel() {
               <input type="checkbox" checked={showFloat} onChange={e => setShowFloat(e.target.checked)} className="accent-accent flex-shrink-0" />
               <span className="min-w-0">{t('showFloat')}</span>
             </label>
-            {/* Relaties niet bij het resourcediagram: een taak staat daar onder meerdere banden (zie `options`). */}
-            {reportType === 'gantt' && (
+            {/* Relaties niet bij het resourcediagram — hetzelfde predicaat als de forcering in `options`. */}
+            {reportTypeDrawsRelations(reportType) && (
               <label className="flex items-center gap-2 min-w-0">
                 <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
                 <span className="min-w-0">{t('showDependencies')}</span>

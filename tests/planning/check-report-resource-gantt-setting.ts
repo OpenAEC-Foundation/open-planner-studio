@@ -5,7 +5,8 @@
 // nooit de rest van de voorkeuren wegvagen).
 import './domStub';
 import {
-  DEFAULT_REPORT_SETTINGS, DEFAULT_RESOURCE_GANTT_OPTIONS, isGanttReportType, loadReportSettings, saveReportSettings,
+  DEFAULT_REPORT_SETTINGS, DEFAULT_RESOURCE_GANTT_OPTIONS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations,
+  saveReportSettings,
 } from '@/utils/reportSettings';
 
 const failures: string[] = [];
@@ -16,6 +17,10 @@ const expect = (label: string, got: unknown, want: unknown) => {
 expect('defaults: blad per resource uit, taken zonder resource uit', DEFAULT_REPORT_SETTINGS.resourceGantt, { pageBreakPerResource: false, includeUnassigned: false });
 expect('defaults: één bron', DEFAULT_REPORT_SETTINGS.resourceGantt, DEFAULT_RESOURCE_GANTT_OPTIONS);
 expect('isGanttReportType: gantt én resourceGantt', [isGanttReportType('gantt'), isGanttReportType('resourceGantt'), isGanttReportType('milestones'), isGanttReportType('resourceAssignments')], [true, true, false, false]);
+// Review N6: één predicaat voor "dit type tekent geen relaties" — de forcering van showDeps én het
+// verborgen vinkje hangen er allebei aan; showDeps staat standaard aan, dus de forcering is dragend.
+expect('reportTypeDrawsRelations: alleen het resourcediagram tekent geen relaties', [reportTypeDrawsRelations('gantt'), reportTypeDrawsRelations('resourceGantt'), reportTypeDrawsRelations('lookAhead')], [true, false, true]);
+expect('showDeps staat standaard aan (de forcering doet dus echt iets)', DEFAULT_REPORT_SETTINGS.showDeps, true);
 
 localStorage.setItem('ops-reportSettings', JSON.stringify({ reportType: 'resourceGantt', resourceGantt: { pageBreakPerResource: true, includeUnassigned: true } }));
 const loaded = await loadReportSettings();

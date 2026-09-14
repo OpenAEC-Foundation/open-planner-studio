@@ -1,6 +1,7 @@
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
+import { taskStart } from './reportCommon';
 
 /**
  * Resourcediagram (issue #113, gfayat): "wie doet wat, en wanneer" als GRAFISCH rapport — de
@@ -14,12 +15,17 @@ import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } fro
  * letterlijk "een blad per persoon" — twee medewerkers die allebei "Jan" heten zouden dan één vel
  * krijgen, met hun gedeelde taak twee keer onder dezelfde band (hyperkritische review op #132,
  * bevinding 1). Hier bandt alles op resource-IDENTITEIT: de naam is alleen het label, gelijknamige
- * resources krijgen een volgnummer (`Jan #1`, `Jan #2`), en een naamloze resource een surrogaat
- * (`#3`, zijn positie in de projectlijst) in plaats van stil in de "(geen)"-band te verdwijnen
- * (bevinding 4). De `ViewRow`-sleutels zijn daardoor per definitie uniek.
+ * resources — gelijk volgens dezelfde collator als de sortering, dus ook `Jan`/`jan`/` Jan ` —
+ * krijgen een volgnummer (`Jan #1`, `jan #2`), en een naamloze resource een surrogaat (`#3`, zijn
+ * positie in de projectlijst) in plaats van stil in de "(geen)"-band te verdwijnen (bevinding 4).
+ * De `ViewRow`-sleutels zijn daardoor per definitie uniek. De bandvolgorde volgt de meegegeven
+ * `locale` (de app-taal) en nooit de OS-taal van de afdrukker: een uitgedeeld vel moet op elke
+ * machine dezelfde bladnummering krijgen.
  *
- * Wat WEL gelijk is aan het scherm: alleen bladtaken (een verzameltaak wordt nooit toegewezen), een
- * taak met n resources staat onder n banden, hammocks en mijlpalen tellen mee (ze worden getekend).
+ * Wat WEL gelijk is aan het scherm: alleen bladtaken (de store weigert een toewijzing op een
+ * verzameltaak; een importeur kan er wel een aanleveren en die wordt hier niet getoond — de gids
+ * zegt dat), een taak met n resources staat onder n banden, hammocks en mijlpalen tellen mee (ze
+ * worden getekend).
  * Relaties horen hier niet: een taak kan onder meerdere banden staan, dus een pijl heeft geen
  * eenduidig anker en zou op een blad per persoon de bladrand af lopen — het paneel zet `showDeps`
  * voor dit type uit (bevinding 2).
@@ -38,6 +44,8 @@ export interface ResourceGanttRowsOptions {
   includeUnassigned: boolean;
   /** Label van die band — `t('task:structure.none')`, dezelfde sleutel als de schermgroepering. */
   noneLabel: string;
+  /** BCP-47-taal voor de bandvolgorde en de gelijknaamdetectie (de app-taal, `i18n.language`). */
+  locale: string;
 }
 
 export interface ResourceGanttRowsResult {
@@ -46,7 +54,8 @@ export interface ResourceGanttRowsResult {
   counts: {
     /** Resources (op identiteit) met minstens één bladtaak. */
     resources: number;
-    /** Taakrijen onder een resourceband (een taak met n resources telt n keer). */
+    /** Toewijzingsrecords die een band opleveren — dezelfde telling als het tabelrapport
+     *  Resourcetoewijzingen (twee records van één resource op één taak tellen twee, tekenen één rij). */
     assignments: number;
     /** Bladtaken zonder resource — ook geteld wanneer ze niet in de rijen staan. Telt, anders dan
      *  het tabelrapport Resourcetoewijzingen, óók mijlpalen en hammocks: dit rapport tekent ze. */
@@ -55,17 +64,13 @@ export interface ResourceGanttRowsResult {
 }
 
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
-export const RESOURCE_GANTT_NONE_KEY = encodeBandKey([NONE_RAWKEY]);
+const NONE_BAND_KEY = encodeBandKey([NONE_RAWKEY]);
 
-/** Startdatum voor de volgorde binnen een band: berekend als die er is, anders gepland. */
-function startOf(task: Task): string {
-  return task.time.earlyStart || task.time.scheduleStart || '';
-}
-
-/** Op start, lege datums achteraan, gelijke starts in invoervolgorde (stabiel). */
+/** Op start (`taskStart`, dezelfde definitie als de tabelrapporten), lege datums achteraan,
+ *  gelijke starts in invoervolgorde (stabiel). */
 function sortByStart(tasks: Task[]): Task[] {
   return tasks
-    .map((task, index) => ({ task, index, start: startOf(task) }))
+    .map((task, index) => ({ task, index, start: taskStart(task) }))
     .sort((a, b) => {
       if (a.start === b.start) return a.index - b.index;
       if (a.start === '') return 1;
@@ -75,35 +80,35 @@ function sortByStart(tasks: Task[]): Task[] {
     .map(entry => entry.task);
 }
 
-/**
- * Bandlabels per resource-id. Naam = label; gelijknamigen (na trimmen, exact) krijgen `#n` in
- * projectvolgorde; een lege naam wordt `#<positie>` zodat de band bestaat én herkenbaar is.
- */
-export function resourceBandLabels(resources: readonly Resource[]): Map<string, string> {
-  const nameCount = new Map<string, number>();
-  for (const r of resources) {
-    const name = r.name.trim();
-    if (name) nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
-  }
-  const seen = new Map<string, number>();
-  const labels = new Map<string, string>();
-  resources.forEach((r, i) => {
-    const name = r.name.trim();
-    if (!name) { labels.set(r.id, `#${i + 1}`); return; }
-    if ((nameCount.get(name) ?? 0) > 1) {
-      const n = (seen.get(name) ?? 0) + 1;
-      seen.set(name, n);
-      labels.set(r.id, `${name} #${n}`);
-    } else {
-      labels.set(r.id, name);
-    }
-  });
-  return labels;
+/** Eén collator voor sortering én gelijknaamdetectie: cijferbewust, hoofdletter- en accentongevoelig. */
+function bandCollator(locale: string): Intl.Collator {
+  return new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
 }
 
-/** Bandvolgorde: op label, taal-/cijferbewust en hoofdletterongevoelig; gelijk ⇒ projectvolgorde. */
-function compareLabels(a: string, b: string): number {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+/**
+ * Bandlabels per resource-id. Basis = getrimde naam, of het surrogaat `#<positie>` bij een lege
+ * naam. Alle basislabels die volgens de collator gelijk zijn (dus ook `Jan`/`jan`/` Jan `, en een
+ * surrogaat `#2` naast een resource die letterlijk "#2" heet) krijgen `#n` in projectvolgorde —
+ * dezelfde gelijkheidsregel als de sortering, anders zouden ongenummerde "unieke" namen tussen de
+ * genummerde in sorteren.
+ */
+export function resourceBandLabels(resources: readonly Resource[], locale: string): Map<string, string> {
+  const collator = bandCollator(locale);
+  const bases = resources.map((r, i) => r.name.trim() || `#${i + 1}`);
+  // Groepen van collator-gelijke basislabels; n is klein (resources per project), dus lineair zoeken.
+  const groups: { base: string; members: number[] }[] = [];
+  bases.forEach((base, i) => {
+    const group = groups.find(g => collator.compare(g.base, base) === 0);
+    if (group) group.members.push(i);
+    else groups.push({ base, members: [i] });
+  });
+  const labels = new Map<string, string>();
+  for (const group of groups) {
+    group.members.forEach((i, n) => {
+      labels.set(resources[i].id, group.members.length > 1 ? `${bases[i]} #${n + 1}` : bases[i]);
+    });
+  }
+  return labels;
 }
 
 export function computeResourceGanttRows(
@@ -119,23 +124,26 @@ export function computeResourceGanttRows(
   // scherm: die taak is dan "zonder resource").
   const tasksByResource = new Map<string, Map<string, Task>>();
   const assignedTaskIds = new Set<string>();
+  let assignments = 0;
   for (const a of ctx.assignments) {
     const task = leafById.get(a.taskId);
     if (!task || !resourceIds.has(a.resourceId)) continue;
+    assignments++;
     let bucket = tasksByResource.get(a.resourceId);
     if (!bucket) { bucket = new Map(); tasksByResource.set(a.resourceId, bucket); }
     bucket.set(task.id, task);
     assignedTaskIds.add(task.id);
   }
 
-  const labels = resourceBandLabels(ctx.resources);
+  const labels = resourceBandLabels(ctx.resources, opts.locale);
+  const collator = bandCollator(opts.locale);
+  // Bandvolgorde: op label via de collator van de app-taal; gelijk ⇒ projectvolgorde.
   const bands = ctx.resources
     .map((r, index) => ({ id: r.id, index, label: labels.get(r.id) ?? r.id, tasks: tasksByResource.get(r.id) }))
     .filter((b): b is typeof b & { tasks: Map<string, Task> } => b.tasks !== undefined)
-    .sort((a, b) => compareLabels(a.label, b.label) || a.index - b.index);
+    .sort((a, b) => collator.compare(a.label, b.label) || a.index - b.index);
 
   const rows: ViewRow[] = [];
-  let assignments = 0;
   for (const band of bands) {
     const key = encodeBandKey([band.id]);
     rows.push({
@@ -144,14 +152,13 @@ export function computeResourceGanttRows(
     });
     for (const task of sortByStart([...band.tasks.values()])) {
       rows.push({ kind: 'task', rowKey: encodeGroupedTaskRowKey([band.id], task.id), task, depth: 1, dimmed: false });
-      assignments++;
     }
   }
 
   const unassigned = sortByStart(leaves.filter(t => !assignedTaskIds.has(t.id)));
   if (opts.includeUnassigned && unassigned.length > 0) {
     rows.push({
-      kind: 'group', rowKey: RESOURCE_GANTT_NONE_KEY, key: RESOURCE_GANTT_NONE_KEY, label: opts.noneLabel,
+      kind: 'group', rowKey: NONE_BAND_KEY, key: NONE_BAND_KEY, label: opts.noneLabel,
       count: unassigned.length, depth: 0, levelIndex: 0, collapsed: false,
     });
     for (const task of unassigned) {

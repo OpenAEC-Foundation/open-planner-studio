@@ -40,8 +40,8 @@ Derselbe Gantt-Ausdruck, aber gruppiert **pro Ressource**: Jede Kolonne, Person 
 bekommt ein eigenes Band mit den ihr zugewiesenen Aufgaben darunter, in Reihenfolge des Starts. Das
 ist die „Wer macht was, und wann“-Übersicht für die Baubesprechung, oder — mit der Option **Jede
 Ressource auf einer neuen Seite** — ein eigenes Blatt pro Person zum Verteilen. Eine Aufgabe mit zwei
-Ressourcen erscheint unter beiden Bändern; Sammelaufgaben bleiben außen vor, da sie nie zugewiesen
-werden. **Aufgaben ohne Ressource einbeziehen** fügt unten ein Band *(keine)* hinzu, sodass die
+Ressourcen erscheint unter beiden Bändern; Sammelaufgaben bleiben außen vor — eine Zuweisung
+auf einer Sammelaufgabe (etwa aus einem Import) wird hier nicht gezeigt. **Aufgaben ohne Ressource einbeziehen** fügt unten ein Band *(keine)* hinzu, sodass die
 Besprechung sofort sieht, was noch niemand hat.
 
 Alle Einstellungen des Gantt-Ausdrucks gelten unverändert — kritischer Pfad, Puffer, Balkenfarben,
