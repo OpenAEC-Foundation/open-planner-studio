@@ -87,11 +87,13 @@ beyond that — real end-date shift. A bar without red costs the project nothing
 To the right of the last block sits a **grip** with three strokes. Drag it to the right to allow this
 project more overrun; the distributor then decides for itself which days to pause on and how much of
 that room it actually needs. Whatever you allowed but turned out not to be needed shows up as a
-**dotted box** behind the bar. While you drag, the app recalculates: the other bars, the chart and
-the outcomes move under your hand. On a very large overview it does not — there the calculation
-follows when you release.
+**dotted box** behind the bar. While you drag, only the grip and the dotted box of this one bar
+move; the calculation follows when you release. Only then do the other bars, the chart and the
+outcomes change. That is deliberate: recalculating on every workday made the whole window flicker
+under your hand.
 
-The same grip works from the keyboard: the arrow keys move one workday, PageUp and PageDown three,
+The same grip works from the keyboard, and there every key press *is* a calculation moment right
+away: the arrow keys move one workday, PageUp and PageDown three,
 Home sets the ceiling to zero and End makes it unlimited.
 
 To the right of the bar sits the outcome: a coloured pill with what happens to the end date (green at

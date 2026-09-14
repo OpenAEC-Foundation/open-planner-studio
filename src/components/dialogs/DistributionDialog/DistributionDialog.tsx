@@ -664,7 +664,6 @@ export function DistributionDialog() {
                       pinned={pinnedNow}
                       recorded={recorded}
                       cannotMove={doc.cannotMove}
-                      liveCommit={!degraded}
                       busy={busy}
                       shortfallCount={short?.count ?? 0}
                       {...(short

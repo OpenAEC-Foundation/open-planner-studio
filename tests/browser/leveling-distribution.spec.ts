@@ -333,9 +333,9 @@ test('fasestroken: het label toont het EINDDATUM-effect, niet de sleepafstand', 
   await expect(page.locator('[data-ops-distribution-legend]')).toBeVisible();
 });
 
-// --- B1c-plan4 taak 6 — pointer-slepen op de plafond-handle, nu met LIVE meerekenen ---------------
+// --- Eigenaarsbesluit 2026-09-14 — slepen is stil, loslaten rekent ------------------------------
 
-test('plafond-handle: tijdens het slepen rekent de dialoog live mee', async ({ page, ops: _ops }) => {
+test('plafond-handle: tijdens het slepen beweegt alleen de greep; bij loslaten wordt herberekend', async ({ page, ops: _ops }) => {
   await seedTwoSingleDayDocuments(page);
   await openDistributionFromConflictRow(page);
   await expect(page.locator('[data-ops-distribution-strip]')).toHaveCount(2);
@@ -355,23 +355,33 @@ test('plafond-handle: tijdens het slepen rekent de dialoog live mee', async ({ p
   const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));
   expect(dayWidth).toBeGreaterThan(0);
 
-  const effectBefore = await strip.locator('[data-ops-distribution-effect]').textContent();
+  const pill = strip.locator('[data-ops-distribution-effect-pill]');
+  const status = page.locator('[data-ops-distribution-status]');
+  const pillBefore = await pill.textContent();
+  const statusBefore = await status.textContent();
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
 
-  // Spec §5, het eigenaarsbesluit dat §3.4 van de oude spec bijstelt: tijdens het slepen wordt er
-  // ECHT gerekend. Zowel de waarde als het uitkomstlabel moeten VÓÓR `mouse.up()` meebewegen.
+  // Eigenaarsbesluit 2026-09-14 (spec §5-noot): tijdens het slepen beweegt ALLEEN de greep. De
+  // gesnapte waarde loopt dus wél mee...
   await page.mouse.move(box.x + box.width / 2 + 3 * dayWidth, box.y + box.height / 2, { steps: 6 });
   await expect(handle).toHaveAttribute('aria-valuenow', '3');
-  await expect.poll(() => strip.locator('[data-ops-distribution-effect]').textContent())
-    .not.toBe(effectBefore);
 
   // De muis verlaat het element en het slepen loopt door — `setPointerCapture` op de handle, geen
   // document-brede listener nodig.
   await page.mouse.move(box.x + box.width / 2 + 5 * dayWidth, box.y - 200, { steps: 4 });
   await expect(handle).toHaveAttribute('aria-valuenow', '5');
+
+  // ...maar de UITKOMST niet: geen herberekening, dus de pil en de validatiestrook staan er nog
+  // precies zoals vóór het gebaar. Dít is de flikkering die de eigenaar wegwilde.
+  expect(await pill.textContent()).toBe(pillBefore);
+  expect(await status.textContent()).toBe(statusBefore);
+
   await page.mouse.up();
+
+  // Pas het loslaten is het rekenmoment — en dan verandert de uitkomst wél.
+  await expect.poll(() => pill.textContent()).not.toBe(pillBefore);
 
   const shiftedDocId = await strip.getAttribute('data-ops-doc-id') ?? '';
   await expect.poll(() => page.evaluate(docId => {
@@ -672,7 +682,8 @@ test('de dialoog flitst niet: dezelfde boundingBox over een herberekening en een
   await expect(page.locator('[data-ops-distribution-status]')).toBeVisible();
   const after = (await dialog.boundingBox())!;
 
-  // (2) Een sleep, inclusief de live herberekening die eronder loopt.
+  // (2) Een sleep plus het loslaten — het loslaten is sinds 2026-09-14 het enige rekenmoment van
+  // een muisgebaar, dus `dragging` toetst de stille sleep en `released` de run die erop volgt.
   const strip = page.locator('[data-ops-distribution-strip]').nth(1);
   const handle = strip.locator('[data-ops-distribution-handle]');
   const dayWidth = Number(await strip.getAttribute('data-ops-distribution-day-width'));

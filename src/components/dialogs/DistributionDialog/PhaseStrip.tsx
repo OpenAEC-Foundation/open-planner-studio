@@ -26,13 +26,24 @@
 // hebben; de arcering van een pauzedag leest dan de projectkalender, niet die van de taak. Voor de
 // bedoeling van de balk — "hier zit een ingevoegde onderbreking" — is dat de juiste grofheid.
 //
-// LIVE MEEREKENEN TIJDENS HET SLEPEN (§5). Onder de ondersteunde schaal gaat élke gesnapte
-// werkdagverandering meteen naar `onCeilingChange` — de hook coalesceert die runs zelf (één in
-// vlucht, de laatste stand wint), dus er is hier GEEN eigen timer nodig en er mag er ook geen
-// bijkomen: een tweede throttle zou de laatste stand kunnen inslikken. Boven de schaal
-// (`liveCommit === false`) commit alleen het loslaten, en beweegt tijdens het slepen dus alleen de
-// handle en de plafondtekst. Een zuivere klik (pointerdown/-up zonder move) commit nooit iets:
-// anders zou een klik op een onbegrensde handle 'm stiekem op een concreet getal zetten.
+// HERREKENEN PAS BIJ LOSLATEN (eigenaarsbesluit 2026-09-14, vervangt het "live per gesnapte
+// werkdag" uit spec §5). De vorige stand commit élke gesnapte werkdag tijdens het slepen; de hook
+// coalesceerde die runs wel, maar elke binnenkomende run wisselde de bezig-toestand om en tekende
+// pil, badges, histogram, validatiestrook en prijskaartje opnieuw. De eigenaar in de gebruikstest:
+// "het flikkert enorm omdat het elke keer herberekent; het moet pas herberekenen en de nieuwe
+// statusmelding tonen wanneer ik de muis loslaat."
+//
+// Dus: tijdens een pointer-sleep is ALLES lokaal. `dragValue` stuurt de greep, de gestippelde rest
+// (`freeBox`) en de plafondtekst van DEZE rij; er gaat geen `onCeilingChange` uit, dus er is geen
+// `computeDistribution`, geen store-mutatie en geen hertekening van de rest van de dialoog. Pas
+// `pointerup` commit één keer — één run, dus de bezig-toestand gaat precies één keer aan en uit in
+// plaats van te knipperen. `pointercancel` breekt af zonder te committen.
+//
+// HET TOETSENBORD BLIJFT WÉL EEN DISCREET REKENMOMENT (spec §3.4): één toets = één stand = één run.
+// Daar is niets aan te flikkeren, en zonder run zou een pijltje niets lijken te doen.
+//
+// Een zuivere klik (pointerdown/-up zonder move) commit nooit iets: anders zou een klik op een
+// onbegrensde handle 'm stiekem op een concreet getal zetten.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AXIS, type OccupancyAxis } from '@/components/panels/occupancyAxis';
@@ -91,8 +102,6 @@ export interface PhaseStripProps {
   recorded: boolean;
   /** Alle betrokken taken staan vast (priority 1000) — het document KAN niet wijken. */
   cannotMove: boolean;
-  /** Onder de ondersteunde schaal ⇒ élke gesnapte werkdag commit meteen (§5). */
-  liveCommit: boolean;
   /** Er loopt een berekening: de uitkomstpil toont "Bezig…" ZONDER van maat te veranderen (§7). */
   busy: boolean;
   /**
@@ -111,7 +120,7 @@ export interface PhaseStripProps {
 
 export function PhaseStrip({
   docId, title, axis, beforeLoadByDay, afterLoadByDay, fixedLoadByDay, isWorkingDay, color,
-  slackWorkdays, endShiftWorkdays, ceiling, pinned, recorded, cannotMove, liveCommit, busy,
+  slackWorkdays, endShiftWorkdays, ceiling, pinned, recorded, cannotMove, busy,
   shortfallCount, shortfallTitle, formatDay, onTogglePin, onCeilingChange,
 }: PhaseStripProps) {
   const { t } = useTranslation('common');
@@ -229,9 +238,9 @@ export function PhaseStrip({
     const next = clamp(drag.startCeiling + Math.round((event.clientX - drag.startX) / dayWidth));
     if (next === drag.value) return;
     drag.value = next;
+    // ALLEEN lokale state — géén `commit` hier. Zie de kop van dit bestand: het herrekenen hoort
+    // bij het loslaten, zodat de dialoog tijdens het slepen niet staat te knipperen.
     setDragValue(next);
-    // Onder de schaal is ELKE gesnapte werkdag een rekenmoment (§5). De hook coalesceert.
-    if (liveCommit) commit(next);
   };
 
   const onHandlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -239,9 +248,12 @@ export function PhaseStrip({
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
+    // HET ENIGE REKENMOMENT VAN EEN SLEEP. `commit` vóór `setDragValue(null)`, en allebei binnen
+    // dezelfde eventhandler: React batcht ze, dus de volgende render heeft `dragValue === null`
+    // én het nieuwe `ceiling` al. Andersom zou de greep één frame terugspringen naar zijn oude
+    // stand voordat de nieuwe prop binnenkomt. Een zuivere klik (niet bewogen) commit niets.
+    if (drag.moved) commit(drag.value);
     setDragValue(null);
-    // Een zuivere klik commit niets; in de live-stand is de waarde al onderweg.
-    if (drag.moved && !liveCommit) commit(drag.value);
   };
 
   const onHandlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -533,6 +545,10 @@ export function PhaseStrip({
       >
         <span
           className="inline-block max-w-full truncate rounded-full px-2 py-0.5 tabular-nums"
+          // Een eigen anker naast `data-ops-distribution-effect`: de REGEL eronder ("max … · benut
+          // …") draagt de plafondtekst en beweegt dus wél mee tijdens het slepen. Alleen de pil
+          // hoort stil te staan tot het loslaten, dus alleen de pil is daar toetsbaar op.
+          data-ops-distribution-effect-pill
           {...(shortfallCount > 0
             ? { 'data-ops-distribution-effect-shortfall': 'true', ...(pillTitle ? { title: pillTitle } : {}) }
             : {})}

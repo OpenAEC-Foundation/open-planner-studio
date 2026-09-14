@@ -82,6 +82,17 @@ grijs = speling, rood = einddatum-verschuiving · gestippeld = toegestaan maar n
 
 ## 5. Het slepen
 
+> **Eigenaarsbesluit 2026-09-14: geen herberekening tijdens het slepen; alleen bij loslaten (en per
+> toetsenbordstap).** Het "live meerekenen" hieronder is in de gebruikstest afgevallen — elke
+> gesnapte werkdag gaf een nieuwe run, en daarmee een knipperende bezig-toestand over pil, badges,
+> histogram, validatiestrook en prijskaartje ("het flikkert enorm"). Tijdens een pointer-sleep
+> bewegen nu alleen de greep, de gestippelde rest en de plafondtekst van de eigen rij mee; het
+> `pointerup` commit één keer en levert één run. `pointercancel` breekt af zonder te committen.
+> De toetsenbordstappen blijven wél discrete rekenmomenten, zoals §3.4 oorspronkelijk voorschreef.
+> De twee opsommingsregels over "live meerekenen" en over het gedrag "boven de schaal" gelden
+> daarmee niet meer als twee standen: er is nog één stand, en die is de oude
+> boven-de-schaal-stand.
+
 - Alleen de **handle** aan het einde van de fase is te pakken: een knop van 15×30 px met drie
   grijpstreepjes, `cursor: ew-resize`, `role="slider"`, `aria-valuemin=0`,
   `aria-valuemax=CEILING_MAX_WORKDAYS`, `aria-valuetext` met de echte datum ("einde uiterlijk
