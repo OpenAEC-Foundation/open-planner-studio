@@ -122,8 +122,8 @@ toont per band de eigen inzet; twee toewijzingen van dezelfde resource op één 
 opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillende curves hebben.
 Heeft de toewijzing een eigen urenverdeling, dan staat er *Contour*; is de curve uit MS Project of
 P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmporteerde curve* —
-hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel ruim 130 px breder en de
-tijdas dus smaller. Blijft er voor de tijdlijn minder over dan ongeveer een vijfde van de
+hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel tot ruim 130 px breder (de curvekolom is zo breed
+als de langste curvenaam in het rapport) en de tijdas dus smaller. Blijft er voor de tijdlijn minder over dan ongeveer een vijfde van de
 papierbreedte — door een brede naamkolom, een grote lettergrootte (de tabel schaalt mee, de tijdlijn
 niet) of klein of staand papier — dan laat het rapport de twee kolommen zelf weg en meldt dat in het
 overzichtsblok. Op A4 staand met de standaardinstellingen passen ze. Meer ruimte voor de tijdlijn

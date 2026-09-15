@@ -14,7 +14,7 @@
  *  4. LEGENDA: resource-modus toont resourcenamen + rand-verklaring; critical-modus niet.
  */
 import {
-  renderReport, measurePrintReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth,
+  renderReport, measurePrintReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth, measureCurveColumnWidth,
   NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
 } from '@/services/print/printPreview';
 import { computeTileLayout, footerLayoutWidthFor, PAPER_PT } from '@/services/print/tileLayout';
@@ -634,6 +634,18 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       const plainDur = record([T_HALF], [], cal, baseOptions());
       ok(nlDur.texts.some(t => t.text === '2,5d') && plainDur.texts.some(t => t.text === '2.5d'),
         `duurcel volgt numberLocale ("2,5d" in nl, "2.5d" zonder; got ${JSON.stringify(nlDur.texts.filter(t => t.text.endsWith('d')).map(t => t.text))})`);
+      // manuvarkey op #113: de curvekolom is zo breed als de langste curvenaam in dít rapport, met
+      // 98 px als maximum (alle talen) en 40 px als vloer; zonder meting het maximum, byte-identiek.
+      const narrow = record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, curveColumnWidth: 50 }));
+      ok(withCols.dims.tableWidth - narrow.dims.tableWidth === 48, `curveColumnWidth 50 ⇒ tabel 48 px smaller (got ${withCols.dims.tableWidth - narrow.dims.tableWidth})`);
+      ok(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, curveColumnWidth: 10 })).dims.tableWidth === withCols.dims.tableWidth - 58,
+        'curveColumnWidth onder de vloer ⇒ 40 px');
+      ok(record([T_NORM, T_CRIT], [], cal, baseOptions({ rows: aBands, assignmentColumns: true, rowAssignments, curveColumnWidth: 500 })).dims.tableWidth === withCols.dims.tableWidth,
+        'curveColumnWidth boven het maximum ⇒ 98 px');
+      const meter = (text: string) => text.length * 6;
+      ok(measureCurveColumnWidth(['Curve', 'Uniform'], meter) === 51 && measureCurveColumnWidth(['—'], meter) === 40
+        && measureCurveColumnWidth(['Een heel erg lange curvenaam'], meter) === 98,
+        `measureCurveColumnWidth: langste label + 2×celmarge + 1, geklemd op 40..98 (got ${measureCurveColumnWidth(['Curve', 'Uniform'], meter)})`);
       const T_NAN = mkTask('t-nan', 'Onbekende duur', { time: mkTime({ scheduleDuration: NaN }) });
       const nanDur = record([T_NAN], [], cal, baseOptions());
       ok(nanDur.texts.some(t => t.text === '—') && !nanDur.texts.some(t => t.text === 'd'), 'niet-eindige duur ⇒ streepje, geen losse "d"');

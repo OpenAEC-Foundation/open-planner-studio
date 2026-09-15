@@ -98,6 +98,32 @@ const COL = {
 };
 
 /**
+ * De curvekolom is niet vast maar zo breed als de langste curvenaam die het rapport écht toont
+ * (manuvarkey op #113: een tabel vol "Uniform" verdient geen 98 px kolom). `COL.curve.w` is het
+ * maximum — de breedte waarop álle veertien talen hun langste curvenaam kwijt kunnen — en dit de
+ * vloer, zodat de kop "Curve" en een streepje altijd passen. De meting gebeurt in het paneel op het
+ * geladen Inter-font ({@link measureCurveColumnWidth}), om dezelfde reden als de naamkolom:
+ * `measurePrintReport` heeft geen canvas. Zonder meting geldt het maximum, byte-identiek aan vóór.
+ */
+export const CURVE_COLUMN_WIDTH_MIN = 40;
+
+/**
+ * Breedte (ongeschaald) van de curvekolom voor deze set labels: de langste gemeten tekst plus
+ * celmarge, tussen {@link CURVE_COLUMN_WIDTH_MIN} en `COL.curve.w`. Geef de kop mee als een van de
+ * labels; `measure` meet op het font van de cel (8 px) of de kop (9 px vet) — de aanroeper weet welke.
+ */
+export function measureCurveColumnWidth(labels: Iterable<string>, measure: (text: string) => number): number {
+  let needed = 0;
+  for (const label of labels) needed = Math.max(needed, Math.ceil(measure(label) + 2 * CELL_PAD + 1));
+  return Math.min(COL.curve.w, Math.max(CURVE_COLUMN_WIDTH_MIN, needed));
+}
+
+function resolveCurveColumnWidth(raw: number | undefined): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return COL.curve.w;
+  return Math.min(COL.curve.w, Math.max(CURVE_COLUMN_WIDTH_MIN, raw));
+}
+
+/**
  * Minimale chartbreedte die de tabel per paginabreedte moet overlaten vóór de render de twee
  * toewijzingskolommen (Eenh./d + Curve) laat vallen: een vijfde van de printbreedte, met een vloer
  * van 160 logische px voor klein papier (A4 staand: 730 px breed, dus 160 in plaats van 146). Komt de
@@ -147,16 +173,16 @@ function resolveNameColumnWidth(raw: number | undefined): number {
  * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
  * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
  */
-function tableWidthFor(showCompletion: boolean, nameW: number, assignmentColumns = false): number {
+function tableWidthFor(showCompletion: boolean, nameW: number, assignmentColumns = false, curveW = COL.curve.w): number {
   return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0)
-    + (assignmentColumns ? COL.units.w + COL.curve.w : 0);
+    + (assignmentColumns ? COL.units.w + curveW : 0);
 }
 
 // Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
 // kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
 // `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
-function getColPositions(k: number, showCompletion: boolean, nameW: number, assignmentColumns = false) {
+function getColPositions(k: number, showCompletion: boolean, nameW: number, assignmentColumns = false, curveW = COL.curve.w) {
   let x = 0;
   const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
   return {
@@ -164,7 +190,7 @@ function getColPositions(k: number, showCompletion: boolean, nameW: number, assi
     name: next(nameW),
     // Direct achter de naam: ze horen bij "wie staat hierop en hoe", niet bij de datums.
     units: assignmentColumns ? next(COL.units.w) : undefined,
-    curve: assignmentColumns ? next(COL.curve.w) : undefined,
+    curve: assignmentColumns ? next(curveW) : undefined,
     duration: next(COL.duration.w),
     start: next(COL.start.w),
     end: next(COL.end.w),
@@ -175,6 +201,11 @@ function getColPositions(k: number, showCompletion: boolean, nameW: number, assi
 /** De letter van een naamcel in de taaktabel (9 px, vet voor samenvattingen), ongeschaald. */
 export function nameCellFont(bold: boolean): string {
   return `${bold ? 'bold ' : ''}9px ${FONT_FAMILY}`;
+}
+
+/** De letter van de curvekolom, ongeschaald: de kop (9 px vet) of een cel (8 px) — voor de meting in het paneel. */
+export function curveCellFont(header: boolean): string {
+  return header ? `bold 9px ${FONT_FAMILY}` : `8px ${FONT_FAMILY}`;
 }
 
 /** Eén rij van de taaktabel: een taak met diepte, of een groepsband (#54 volg-weergave). */
@@ -312,10 +343,12 @@ function makeMetrics(
   showCompletion: boolean,
   taskNameColumnWidth: number | undefined,
   assignmentColumns = false,
+  curveColumnWidth?: number,
 ): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
   const nameW = resolveNameColumnWidth(taskNameColumnWidth);
+  const curveW = resolveCurveColumnWidth(curveColumnWidth);
   const projectHeaderHeight = PROJECT_HEADER_HEIGHT * k;
   const timelineHeaderHeight = TIMELINE_HEADER_HEIGHT * k;
   return {
@@ -328,9 +361,9 @@ function makeMetrics(
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: tableWidthFor(showCompletion, nameW, assignmentColumns) * k,
+    tableWidth: tableWidthFor(showCompletion, nameW, assignmentColumns, curveW) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k, showCompletion, nameW, assignmentColumns),
+    cols: getColPositions(k, showCompletion, nameW, assignmentColumns, curveW),
   };
 }
 
@@ -432,6 +465,11 @@ export interface PrintOptions {
   /** Vertaalde curvenamen (`common:resource.curve.*`, plus `contoured`/`imported` uit
    *  `task:properties.assignments.*`); een ontbrekend label valt terug op de enum-/toestandsnaam. */
   curveLabels?: Partial<Record<RowCurve, string>>;
+  /**
+   * Ongeschaalde breedte van de curvekolom, gemeten door het paneel op de labels die dit rapport
+   * toont ({@link measureCurveColumnWidth}); ontbreekt hij, dan het maximum (`COL.curve.w`).
+   */
+  curveColumnWidth?: number;
   /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
   numberLocale?: string;
   /**
@@ -733,7 +771,7 @@ export function renderReport(
     options.orientation,
   );
   let assignmentColumns = !!options.assignmentColumns;
-  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns);
+  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth);
   let assignmentColumnsDropped = false;
   if (assignmentColumns && m.tableWidth > printableWidth - minChartWidthPx(printableWidth)) {
     assignmentColumns = false;
