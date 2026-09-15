@@ -119,8 +119,9 @@ Foundations". A task under two bands shows each band's own load; two assignments
 resource on one task are added up, and a dash in the curve column means those assignments carry
 different curves. If the assignment has its own hour distribution the column says *Contour*; if
 the curve was imported from MS Project or P6 and is none of the eight built-in shapes it says
-*Imported curve* — the same as in the properties panel. The two columns make the table a good 130 px
-wider and the time axis narrower. If less than about a fifth of the paper width would remain for
+*Imported curve* — the same as in the properties panel. The two columns make the table up to a good 130 px
+wider (the curve column is as wide as the longest curve name in the report) and the time axis
+narrower. If less than about a fifth of the paper width would remain for
 the timeline — because of a wide name column, a large font size (the table scales with it, the
 timeline does not) or small or portrait paper — the report drops the two columns itself and says so
 in the summary block. On portrait A4 with the default settings they fit. A larger paper size or

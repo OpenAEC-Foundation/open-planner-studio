@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { buildPrintRows, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { projectFileBase } from '@/utils/documents';
@@ -505,6 +505,34 @@ export function ReportPanel() {
     return () => { cancelled = true; };
   }, [truncateTaskNames, tasks, reportRows]);
 
+  // Curvekolom van het resourcediagram: zo breed als de langste curvenaam die dít rapport toont
+  // (manuvarkey op #113), gemeten op het geladen Inter-font — om dezelfde reden hier en niet in de
+  // printlaag als de naamkolom hierboven.
+  const [curveColumnWidth, setCurveColumnWidth] = useState<number | undefined>(undefined);
+  const curveHeaderLabel = t('tableHeaders.curve');
+  useEffect(() => {
+    if (reportType !== 'resourceGantt' || !resourceGantt || !resourceGanttOptions.showAssignmentColumns) {
+      setCurveColumnWidth(undefined);
+      return;
+    }
+    let cancelled = false;
+    void ensureInterLoaded().then(() => {
+      if (cancelled) return;
+      const ctx = document.createElement('canvas').getContext('2d');
+      if (!ctx) { setCurveColumnWidth(undefined); return; }
+      const cellLabels = new Set<string>();
+      for (const a of resourceGantt.assignmentByRowKey.values()) {
+        cellLabels.add(a.curve === null ? '—' : (curveLabels[a.curve] ?? a.curve));
+      }
+      const measure = (font: string) => (text: string) => { ctx.font = font; return ctx.measureText(text).width; };
+      setCurveColumnWidth(Math.max(
+        measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true))),
+        measureCurveColumnWidth(cellLabels, measure(curveCellFont(false))),
+      ));
+    });
+    return () => { cancelled = true; };
+  }, [reportType, resourceGantt, resourceGanttOptions.showAssignmentColumns, curveLabels, curveHeaderLabel]);
+
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
   const tableReportRef = useRef<HTMLDivElement>(null);
@@ -636,6 +664,7 @@ export function ReportPanel() {
     assignmentColumns: reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns,
     rowAssignments: resourceGantt?.assignmentByRowKey,
     curveLabels,
+    curveColumnWidth,
     numberLocale: i18n.language,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
@@ -647,7 +676,7 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
-    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels, i18n.language]);
+    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels, curveColumnWidth, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
