@@ -89,6 +89,18 @@ task's row instead, and it nests: the task becomes that summary task's new last 
 it in one motion — that's the mouse equivalent of Alt+→. Select several tasks first (Ctrl/Cmd-click,
 or a box-select) and the whole selection drags and drops together.
 
+You can do the same with the **bar** itself: grab a task bar by its middle in the Gantt chart and
+drag mostly up or down. The bar then follows the same row drag as the task table — same drop
+positions, same nesting rule, one undo step — and the task's dates stay unchanged. The insertion
+marker appears on the target row in the task table, next to the timeline. Drag mostly sideways
+instead and you shift the dates, as always. Which of the two it becomes is decided by the first few pixels of your
+movement: the gesture then sticks with that choice, even if you head the other way afterwards. So a
+single drag never changes both the dates and the position in the structure.
+
+Two differences from dragging a row. The bar always moves **one** task, even when several are
+selected — to move a whole selection, drag the rows. And when the view is sorted or grouped, the
+structure is locked: you get the same message as when dragging a row, and nothing changes.
+
 The **Table** ribbon tab shows this same structure as a plain, editable grid, useful when you're
 entering or correcting a lot of tasks at once: a single click on a cell only selects it — booleans,
 dropdowns and dates never change just from clicking. Editing happens with **F2** or **Enter**, or by
