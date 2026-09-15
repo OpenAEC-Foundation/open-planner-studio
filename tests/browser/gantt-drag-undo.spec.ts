@@ -104,6 +104,66 @@ test('Gantt-rij vertical slepen verplaatst de taak zonder haar datums te wijzige
   expect(after.undoDepth).toBe(before.undoDepth + 1);
 });
 
+// Hersteld gebaar (bestond sinds f4390a0, weggevallen in de tabel-overhaul-merge van 2026-08-31):
+// een overwegend verticale sleep op de BALK zelf wordt aan de rijsleep van de taakgrid overgedragen.
+// De pointer staat daarbij boven het canvas, niet boven een grid-rij — de rij wordt op dezelfde
+// hoogte in de grid gemeten (`probeRootRef`), dus de indicator verschijnt links op de doelrij.
+test('Gantt-balk vertical slepen verplaatst de taak zonder haar datums te wijzigen', async ({ page, ops: _ops }) => {
+  const [firstId, secondId, thirdId] = await seedProject(page, [
+    { name: 'Balk die verhuist', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Balk-doel', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Blijft derde', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  const before = await state(page);
+  const source = await barPoint(page, firstId, 'body');
+  const targetRow = ganttTaskRow(page, secondId);
+  const target = await rowPoint(targetRow, 'after');
+
+  await page.mouse.move(source.x, source.y);
+  await page.mouse.down();
+  await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'grabbing');
+  // Zuiver verticaal, ruim boven de drempel: de body kiest de rijsleep, niet de datumsleep.
+  await page.mouse.move(source.x + 2, target.y, { steps: 6 });
+  await expect(targetRow).toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await page.mouse.up();
+
+  await expect.poll(() => state(page).then(snapshot => snapshot.tasks.map(task => task.id)))
+    .toEqual([secondId, firstId, thirdId]);
+  const after = await state(page);
+  expect(after.tasks.find(task => task.id === firstId)).toMatchObject({
+    scheduleStart: '2026-09-07',
+    scheduleFinish: '2026-09-18',
+  });
+  expect(after.undoDepth).toBe(before.undoDepth + 1);
+  // De afsluitende canvas-click van het gebaar mag de selectie niet meer aanraken: de mousedown
+  // selecteerde de gesleepte balk, en dat blijft zo (geen deselectie naast een balk, geen toggle).
+  expect(after.selectedTaskIds).toEqual([firstId]);
+});
+
+test('Gantt-balk vertical slepen buiten boomweergave blijft een datumsleep', async ({ page, ops: _ops }) => {
+  const [firstId, secondId] = await seedProject(page, [
+    { name: 'Gesorteerd B', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Gesorteerd A', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  await page.evaluate(() => window.__OPS__!.store.getState().setSort([
+    { field: { src: 'builtin', key: 'name' }, dir: 'asc' },
+  ]));
+  const before = await state(page);
+  const source = await barPoint(page, firstId, 'body');
+  const targetRow = ganttTaskRow(page, secondId);
+  const target = await rowPoint(targetRow, 'after');
+
+  await page.mouse.move(source.x, source.y);
+  await page.mouse.down();
+  await page.mouse.move(source.x + 2, target.y, { steps: 6 });
+  await expect(targetRow).not.toHaveAttribute('data-grid-drop-zone', /before|after|nest/);
+  await page.mouse.up();
+
+  const after = await state(page);
+  expect(after.tasks.map(task => task.id)).toEqual(before.tasks.map(task => task.id));
+  expect(after.undoDepth).toBe(before.undoDepth);
+});
+
 for (const edge of ['left', 'right'] as const) {
   test(`Gantt ${edge}-randdrag wijzigt de juiste grens in één undoable handeling`, async ({ page, ops: _ops }) => {
     const [taskId] = await seedProject(page, [{

@@ -89,6 +89,13 @@ task's row instead, and it nests: the task becomes that summary task's new last 
 it in one motion — that's the mouse equivalent of Alt+→. Select several tasks first (Ctrl/Cmd-click,
 or a box-select) and the whole selection drags and drops together.
 
+You can do the same with the **bar** itself: grab a task bar by its middle in the Gantt chart and
+drag mostly up or down. The bar then follows the same row drag as the task table — same drop
+positions, same nesting rule, one undo step — and the task's dates stay unchanged. Drag mostly
+sideways instead and you shift the dates, as always. Vertical dragging on the bar only works in the
+tree view (no sorting or grouping), just like row dragging; in a sorted or grouped view the bar only
+knows the date drag.
+
 The **Table** ribbon tab shows this same structure as a plain, editable grid, useful when you're
 entering or correcting a lot of tasks at once: a single click on a cell only selects it — booleans,
 dropdowns and dates never change just from clicking. Editing happens with **F2** or **Enter**, or by

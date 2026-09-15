@@ -194,6 +194,14 @@ export interface GanttPointerCoordinatorInput {
   setScroll: (x: number, y: number) => void;
   openTask: (id: string) => void;
   clearHistogramTooltip: () => void;
+  /** Een overwegend verticale sleep op een balkBODY wordt hieraan overgedragen (de rijsleep van de
+   *  DOM-grid, via `ganttRowDragBridge`). Ontbreekt hij — geen grid, of geen boomweergave — dan
+   *  blijft de body een horizontale datumsleep zoals vóór 2026-08-27. Randen slepen altijd duur. */
+  startVerticalRowDrag?: (candidate: {
+    taskId: string;
+    startClientX: number;
+    startClientY: number;
+  }) => void;
 }
 
 /** React-bedrading en vluchtige presentatie die uitsluitend bij pointerinteractie hoort. */

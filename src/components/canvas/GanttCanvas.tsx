@@ -49,6 +49,7 @@ import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
 import { useGanttHistogramPickerScroll } from './hooks/useGanttHistogramPickerScroll';
 import { useGanttPointerCoordinator } from './hooks/useGanttPointerCoordinator';
+import { useGanttRowDragBridge } from './ganttRowDragBridge';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 
 // Basisgeometrie op Tekengrootte 100% (issue #60): de component leidt hieruit de EFFECTIEVE
@@ -386,6 +387,21 @@ export function GanttCanvas({
     setUI({ showTaskDialog: true, editingTaskId: taskId });
   }, [setUI]);
 
+  // Verticale balkbody-sleep ⇒ de rijsleep van de taakgrid links (zie `ganttRowDragBridge`).
+  // Alleen in de boomweergave: daar is de structurele doelvolgorde eenduidig, en dat is dezelfde
+  // poort als `useTableRowDrag`'s `enabled`. Gesorteerd/gegroepeerd blijft de body een datumsleep.
+  // De starter wordt via de ref op het gebaar zelf gelezen, zodat een (her)registratie van de
+  // grid geen rerender van de coördinator uitlokt.
+  const rowDragBridge = useGanttRowDragBridge();
+  const treeMode = isTreeMode(view);
+  const startVerticalRowDrag = useCallback((candidate: {
+    taskId: string;
+    startClientX: number;
+    startClientY: number;
+  }) => {
+    rowDragBridge?.startRef.current?.(candidate);
+  }, [rowDragBridge]);
+
   const pointer = useGanttPointerCoordinator({
     host: rendererHost,
     viewport,
@@ -406,6 +422,7 @@ export function GanttCanvas({
     setScroll,
     openTask,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
+    startVerticalRowDrag: treeMode && rowDragBridge ? startVerticalRowDrag : undefined,
   });
 
   // Canvas is wel tabbable, maar krijgt bij een gepositioneerde canvas-klik niet in elke browser
