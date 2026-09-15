@@ -388,12 +388,14 @@ export function GanttCanvas({
   }, [setUI]);
 
   // Verticale balkbody-sleep ⇒ de rijsleep van de taakgrid links (zie `ganttRowDragBridge`).
-  // Alleen in de boomweergave: daar is de structurele doelvolgorde eenduidig, en dat is dezelfde
-  // poort als `useTableRowDrag`'s `enabled`. Gesorteerd/gegroepeerd blijft de body een datumsleep.
+  // BEWUST geen `isTreeMode`-poort hier: die hoort bij de ontvanger. `useTableRowDrag` kent hem al
+  // als `enabled`, en koppelt er `onBlocked` aan — de melding die uitlegt dat de structuur op slot
+  // zit zolang er gesorteerd of gegroepeerd wordt. Zeefde het canvas de kandidaat er zelf uit, dan
+  // kreeg de balk-gebruiker die uitleg niet terwijl de rij-gebruiker hem wél kreeg, en werd het
+  // gebaar bovendien stil afgebroken (review 2026-09-15). Eén poort, bij de eigenaar van de sleep.
   // De starter wordt via de ref op het gebaar zelf gelezen, zodat een (her)registratie van de
   // grid geen rerender van de coördinator uitlokt.
   const rowDragBridge = useGanttRowDragBridge();
-  const treeMode = isTreeMode(view);
   const startVerticalRowDrag = useCallback((candidate: {
     taskId: string;
     startClientX: number;
@@ -422,7 +424,7 @@ export function GanttCanvas({
     setScroll,
     openTask,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
-    startVerticalRowDrag: treeMode && rowDragBridge ? startVerticalRowDrag : undefined,
+    startVerticalRowDrag: rowDragBridge ? startVerticalRowDrag : undefined,
   });
 
   // Canvas is wel tabbable, maar krijgt bij een gepositioneerde canvas-klik niet in elke browser

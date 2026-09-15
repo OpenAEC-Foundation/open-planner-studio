@@ -55,24 +55,35 @@ export interface UseTableRowDragOptions {
   onBlocked?: () => void;
   /** Gedeelde vlag met de click-handler: onderdrukt de eerstvolgende click ná een rijsleep. */
   justDraggedRef: RefObject<boolean>;
-  /** Het grid-element zelf. Staat de pointer NIET boven een rij (bv. boven het Gantt-canvas rechts
-   *  ervan, bij een overgedragen balkbody-sleep — zie `ganttRowDragBridge`), dan wordt de rij op
-   *  dezelfde hoogte BINNEN dit element gemeten. Rijen in grid en canvas delen hun verticale
+  /** Het grid-element zelf. Staat de pointer NIET boven een rij (bv. boven het Gantt-canvas naast
+   *  het grid, bij een overgedragen balkbody-sleep — zie `ganttRowDragBridge`), dan wordt de rij op
+   *  dezelfde HOOGTE binnen dit element gezocht. Rijen in grid en canvas delen hun verticale
    *  positie, dus dat is exact de rij waar de balk visueel overheen hangt. Zonder ref: alleen
    *  rijen recht onder de pointer. */
   probeRootRef?: RefObject<HTMLElement | null>;
 }
 
-/** Terugval voor een pointer buiten het grid: meet de rij op dezelfde hoogte binnen `root`, maar
- *  alleen als de pointer óók horizontaal naast het grid staat — recht boven een niet-rij-element
- *  in het grid zelf (kop, lege ruimte onder de laatste rij) blijft het antwoord "geen rij". */
-function probeRowInRoot(root: HTMLElement | null, clientX: number, clientY: number): Element | null {
+/** Terugval voor een pointer die niet boven een rij staat: zoek binnen `root` de rij die deze
+ *  hoogte beslaat.
+ *
+ *  Uitsluitend op Y, en zonder `elementFromPoint`. Een eerdere versie prikte op een vaste
+ *  X (`rect.left + 8`) en was daarmee afhankelijk van wat er toevallig op die X lag: in RTL
+ *  (`ar`/`fa`) staat de takenlijst rechts en landde die prik midden op `.gantt-workspace-splitter`,
+ *  waardoor het hele balkgebaar in twee van de veertien talen niets deed (review 2026-09-15). De
+ *  rijen dragen hun index al als attribuut, dus er valt niets te raden — dit is ook immuun voor
+ *  overlays en portals boven het grid.
+ *
+ *  Buiten de verticale band van het grid, boven de kop of onder de laatste rij beslaat geen enkele
+ *  rij deze hoogte, dus blijft het antwoord "geen rij". */
+function probeRowInRoot(root: HTMLElement | null, clientY: number): Element | null {
   if (!root) return null;
   const rect = root.getBoundingClientRect();
-  if (clientX >= rect.left && clientX <= rect.right) return null;
-  // Iets binnen de linkerrand meten, niet exact erop: daar kan een rand/splitter liggen.
-  const probeX = Math.min(rect.left + 8, rect.right);
-  return document.elementFromPoint(probeX, clientY)?.closest('[data-ops-row-index]') ?? null;
+  if (clientY < rect.top || clientY > rect.bottom) return null;
+  for (const row of root.querySelectorAll('[data-ops-row-index]')) {
+    const rowRect = row.getBoundingClientRect();
+    if (clientY >= rowRect.top && clientY < rowRect.bottom) return row;
+  }
+  return null;
 }
 
 export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, moveTasksTo, enabled, onBlocked, justDraggedRef, probeRootRef }: UseTableRowDragOptions) {
@@ -107,7 +118,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   ): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
     const current = optionsRef.current;
     const el = document.elementFromPoint(clientX, clientY)?.closest('[data-ops-row-index]')
-      ?? probeRowInRoot(current.probeRootRef?.current ?? null, clientX, clientY);
+      ?? probeRowInRoot(current.probeRootRef?.current ?? null, clientY);
     if (!el) return null;
     const rowIndex = Number(el.getAttribute('data-ops-row-index'));
     if (!Number.isFinite(rowIndex)) return null; // kapot/afwezig attribuut ⇒ als "niet gevonden"
