@@ -148,6 +148,27 @@
       "cluster": "bezettingsoverzicht"
     },
     {
+      "id": "gids-verdelen-restcapaciteit",
+      "title": {
+        "nl": "Verdelen over projecten",
+        "en": "Distributing across projects",
+        "de": "Über Projekte verteilen",
+        "fr": "Répartir entre les projets",
+        "es": "Distribuir entre proyectos",
+        "zh": "跨项目分配",
+        "it": "Distribuire tra i progetti",
+        "pt": "Distribuir entre projetos",
+        "pl": "Rozdzielanie między projekty",
+        "tr": "Projeler arasında dağıtma",
+        "ar": "التوزيع بين المشاريع",
+        "ja": "プロジェクト間で分配",
+        "ko": "프로젝트 간 분배",
+        "fa": "توزیع بین پروژه‌ها"
+      },
+      "layer": "gidsen",
+      "cluster": "bezettingsoverzicht"
+    },
+    {
       "id": "gids-baselines-voortgang",
       "title": {
         "nl": "Baselines & voortgang",

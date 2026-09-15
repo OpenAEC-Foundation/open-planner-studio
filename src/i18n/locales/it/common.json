@@ -22,6 +22,7 @@
     "recoveryDocumentsSkipped_many": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "recoveryDocumentsSkipped_other": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "scheduleFailed": "Impossibile calcolare la programmazione",
+    "distributionApplyFailed": "Non è stato possibile applicare la distribuzione",
     "ifcParseFailed": "Impossibile leggere l'IFC",
     "templateSaved": "Ramo salvato come modello '{{name}}'",
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
@@ -526,6 +527,7 @@
     "projectView": "Progetto",
     "companyViewHint": "Questo modifica la libreria e vale per tutti i progetti — fuori dall'annulla.",
     "assignFromCompany": "Assegna al progetto",
+    "inProject": "Nel progetto ({{count}}×)",
     "removeFromProject": "Rimuovi dal progetto",
     "confirmRemoveResource": "Rimuovere «{{name}}» dalla libreria? Questo vale per tutti i progetti e non può essere annullato.",
     "field": {
@@ -619,7 +621,11 @@
       "conflictDays": "{{count}} giorno/i",
       "reason": {
         "calendarMismatch": "La risorsa non lavora in tutti i giorni richiesti da questa attività — lo spostamento non risolve il problema.",
-        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto."
+        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto.",
+        "ceilingTooTight": "Il tetto di slittamento lascia troppo poco spazio: entro quel numero di giorni lavorativi non c'è una finestra libera.",
+        "ceilingUnreachable": "Concedere slittamento qui non aiuta — una scadenza o un vincolo tiene questa attività al suo posto.",
+        "noWindowInHorizon": "Nel periodo esplorato non è stata trovata alcuna finestra libera; oltre non si sa.",
+        "residualFull": "L'impegno proprio aveva spazio, ma la capacità residua della libreria è esaurita — altri progetti la occupano."
       }
     },
     "curve": {
@@ -656,6 +662,151 @@
       "capacity": "Capacità",
       "documents": "Documenti",
       "selectHint": "Seleziona una risorsa per vedere l'istogramma."
+    },
+    "distribution": {
+      "open": "Distribuisci…",
+      "title": "Distribuisci tra i progetti",
+      "back": "Torna all'occupazione",
+      "subtitle": "Distribuisci la capacità residua tra i progetti aperti",
+      "intro": "Trascina la fine di una barra verso destra per lasciare che quel progetto sfori; blocca un progetto che non deve muoversi. Applica scrive gli slittamenti in tutti i progetti coinvolti.",
+      "blocked": {
+        "uncounted": "Calcola prima: {{docs}} non è ancora stato calcolato, quindi non c'è nulla da distribuire.",
+        "material": "Questo è un articolo di materiale; la distribuzione funziona solo per persone e attrezzature.",
+        "noDemand": "Nessuno dei progetti prenota effettivamente lavoro qui."
+      },
+      "tool": {
+        "allowSplits": "Consenti interruzioni",
+        "allowSplitsHint": "Il lavoro può ricevere giorni di pausa invece di spostarsi in un unico blocco. In MS Project questo si chiama \"Leveling can create splits in remaining work\".",
+        "priceUnknown": "prezzo sconosciuto — premi Ricalcola",
+        "savesOff_one": "risparmierebbe {{count}} giorno lavorativo",
+        "savesOff_many": "risparmierebbe {{count}} giorni lavorativi",
+        "savesOff_other": "risparmierebbe {{count}} giorni lavorativi",
+        "savesOn_one": "risparmia {{count}} giorno lavorativo",
+        "savesOn_many": "risparmia {{count}} giorni lavorativi",
+        "savesOn_other": "risparmia {{count}} giorni lavorativi",
+        "savesNoneOff": "non risparmierebbe nulla",
+        "savesNoneOn": "non risparmia nulla"
+      },
+      "help": {
+        "allowSplits": "Consente al lavoro di avere giorni di pausa invece di spostarsi in un unico blocco; dà più margine alla distribuzione, ma produce attività spezzate.",
+        "price": "Il cartellino mostra, per ciascuna posizione, di quanti giorni lavorativi si sposta la data di fine del progetto più colpito; un unico prezzo con «in entrambi i casi» significa che interrompere qui non cambia nulla.",
+        "pin": "Fissa questo progetto: mantiene la data di fine e i suoi giorni lavorativi e conta come carico fisso attorno al quale gli altri progetti devono muoversi.",
+        "ceiling": "Tetto: sforamento massimo della data di fine — trascina, o frecce/Home/Fine",
+        "chart": "Ora = la prenotazione attuale di tutti i progetti aperti insieme; Dopo la distribuzione = ciò che resta dopo aver distribuito. Il rosso supera la capacità.",
+        "recompute": "Ricalcola la proposta con l'ordine, i fissaggi e i limiti attuali.",
+        "apply": "Scrive gli spostamenti in tutti i progetti coinvolti; ogni progetto riceve il proprio passo di annullamento.",
+        "discard": "Chiude la finestra senza modificare nulla.",
+        "pickAnother": "Torna all'elenco degli elementi della libreria per distribuire un altro elemento.",
+        "reset": "Riporta tutti i tetti e i blocchi allo stato neutro. L'interruttore «Consenti interruzioni» resta invariato."
+      },
+      "strip": {
+        "shortfall_one": "{{count}} attività non entra",
+        "shortfall_many": "{{count}} attività non entrano",
+        "shortfall_other": "{{count}} attività non entrano",
+        "pinnedRecorded": "Bloccato: date come registrate",
+        "cannotMove": "Non può slittare — tutto il lavoro qui è fisso",
+        "ceilingUnlimited": "illimitato",
+        "ceilingDays_one": "tetto {{count}} giorno lavorativo",
+        "ceilingDays_many": "tetto {{count}} giorni lavorativi",
+        "ceilingDays_other": "tetto {{count}} giorni lavorativi",
+        "endUnchanged": "fine invariata",
+        "endShift_one": "fine +{{count}} giorno",
+        "endShift_many": "fine +{{count}} giorni",
+        "endShift_other": "fine +{{count}} giorni",
+        "handleLabel": "Tetto di ritardo per {{doc}}",
+        "legend": "Blocchi pieni = giorni lavorativi · tratteggio = giorno di pausa · righello: grigio = scorrimento, rosso = slittamento della data di fine · punteggiato = consentito ma non usato",
+        "slack": "scorrimento {{days}} giorni",
+        "pinButton": "blocca",
+        "unpinButton": "bloccato — sblocca",
+        "maxDate": "max {{date}}",
+        "used": "usato {{used}}"
+      },
+      "compute": {
+        "recalculate": "Ricalcola",
+        "auto": "Distribuisci automaticamente",
+        "busy": "Distribuzione in corso…",
+        "pressRecompute": "— premi Ricalcola",
+        "degraded": "Questa è una panoramica ampia; calcola solo quando premi Ricalcola."
+      },
+      "stale": {
+        "rank": "L'ordine è cambiato — ricalcola per vedere l'effetto.",
+        "ceiling": "Un tetto è cambiato — ricalcola per vedere l'effetto.",
+        "pin": "Un blocco è cambiato — ricalcola per vedere l'effetto.",
+        "tool": "Lo strumento è cambiato — ricalcola per vedere l'effetto.",
+        "edited": "Qualcosa è cambiato in {{docs}} — questa proposta non è più aggiornata."
+      },
+      "shortfall": {
+        "title": "Rimane",
+        "doc_one": "{{doc}}: {{count}} attività non entra",
+        "doc_many": "{{doc}}: {{count}} attività non entrano",
+        "doc_other": "{{doc}}: {{count}} attività non entrano"
+      },
+      "preview": {
+        "before": "Ora",
+        "after": "Dopo la distribuzione",
+        "capacity": "Capacità"
+      },
+      "apply": "Applica",
+      "discard": "Scarta",
+      "applyBlockedShortfall": "Risolvi prima la carenza — allarga un tetto, oppure consenti le interruzioni.",
+      "applyBlockedNothing": "Non c'è nulla da applicare: questa proposta non cambia nulla.",
+      "applied_one": "Applicato in {{count}} progetto.",
+      "applied_many": "Applicato in {{count}} progetti.",
+      "applied_other": "Applicato in {{count}} progetti.",
+      "undoAll": "Annulla tutto",
+      "undoneAll": "Tutto è stato annullato.",
+      "undonePartial": "Annullato, tranne {{docs}} — lì nel frattempo si è lavorato.",
+      "selectHint": "Scegli un articolo di libreria con un conflitto per iniziare a distribuire.",
+      "noConflicts": "Nessun elemento della libreria è attualmente prenotato due volte nei progetti aperti.",
+      "pickAnother": "Scegli un altro elemento…",
+      "pickAnotherApplied": "Scegli un altro elemento (la barra di annullamento scompare)…",
+      "reset": "Reimposta",
+      "status": {
+        "resolved": "Conflitto risolto — slittamento di fine maggiore: {{shift}} ({{doc}})",
+        "shortfall_one": "Manca ancora {{count}} giorno-squadra il {{days}}",
+        "shortfall_many": "Mancano ancora {{count}} giorni-squadra il {{days}}",
+        "shortfall_other": "Mancano ancora {{count}} giorni-squadra il {{days}}",
+        "allPinned": "Tutti i progetti sono bloccati: non c'è nulla da ridistribuire. Sbloccane uno."
+      },
+      "glossary": {
+        "toggle": "Che cosa significano questi termini?",
+        "slack": {
+          "term": "scorrimento",
+          "text": "Il numero di giorni lavorativi di cui questo progetto può iniziare più tardi con questa risorsa senza che la sua data di fine si sposti. Chi ha meno scorrimento sta in alto ed è il più risparmiato."
+        },
+        "ceiling": {
+          "term": "tetto · «max …»",
+          "text": "Lo slittamento massimo della data di fine che concedi a questo progetto, in giorni lavorativi; lo imposti con la maniglia alla fine della barra. «max <data>» è il giorno a cui arriva quel tetto. Tetto 0 significa: la data di fine è fissa, ma entro lo scorrimento si può ancora spostare."
+        },
+        "used": {
+          "term": "usato",
+          "text": "Quanti giorni lavorativi del tetto la distribuzione ha effettivamente usato. Meno del tetto va benissimo: il resto punteggiato è consentito ma non usato."
+        },
+        "fixedLoad": {
+          "term": "carico fisso",
+          "text": "Prenotazioni su questa risorsa che non possono muoversi: i progetti che hai bloccato e i progetti con le date come registrate. La distribuzione pianifica intorno a essi."
+        },
+        "pauseDay": {
+          "term": "giorno di pausa · interruzioni",
+          "text": "Un giorno lavorativo all'interno della durata in cui questo progetto non usa questa risorsa. Con «Consenti interruzioni» attivo, la distribuzione può inserire tali pause perché un'attività aggiri un altro progetto invece di attenderlo del tutto. Anche un vuoto tra due attività conta come giorno di pausa."
+        },
+        "shortfall": {
+          "term": "«non entra» · carenza",
+          "text": "Per quell'attività la distribuzione non ha trovato giorni in cui la risorsa sia ancora libera, entro il tetto che hai dato a questo progetto. Non la prenota quindi deliberatamente oltre la capacità. Vie d'uscita: concedi più slittamento a questo progetto, blocca un altro progetto o sbloccalo, oppure consenti le interruzioni."
+        },
+        "endShift": {
+          "term": "slittamento della data di fine · «fine +N giorni»",
+          "text": "Di quanti giorni lavorativi la data di fine dell'intero progetto arriva più tardi per effetto di questa distribuzione. «Fine invariata» significa che lo spostamento rientrava nello scorrimento."
+        },
+        "pin": {
+          "term": "blocca",
+          "text": "Questo progetto non partecipa alla distribuzione: mantiene la sua data di fine e i suoi giorni lavorativi e conta come carico fisso per gli altri."
+        },
+        "savings": {
+          "term": "«risparmierebbe N giorni lavorativi» · «risparmia»",
+          "text": "Quanti giorni lavorativi di slittamento farebbe l'altra posizione di «Consenti interruzioni». «Non risparmierebbe nulla» significa che per questo conflitto non fa differenza."
+        }
+      }
     },
     "color": "Colore"
   },

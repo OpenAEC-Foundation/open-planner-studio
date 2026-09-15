@@ -21,6 +21,7 @@
     "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "recoveryDocumentsSkipped_other": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "scheduleFailed": "Planlama hesaplanamadı",
+    "distributionApplyFailed": "Dağıtım uygulanamadı",
     "ifcParseFailed": "IFC okunamadı",
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi",
     "relationCreated": "İlişki oluşturuldu: {{predecessor}} → {{successor}}",
@@ -517,6 +518,7 @@
     "projectView": "Proje",
     "companyViewHint": "Bu, kitaplığı düzenler ve tüm projeler için geçerlidir — geri almanın dışında.",
     "assignFromCompany": "Projeye ata",
+    "inProject": "Projede ({{count}}×)",
     "removeFromProject": "Projeden kaldır",
     "confirmRemoveResource": "'{{name}}' kitaplıktan kaldırılsın mı? Bu, tüm projeler için geçerlidir ve geri alınamaz.",
     "field": {
@@ -610,7 +612,11 @@
       "conflictDays": "{{count}} gün",
       "reason": {
         "calendarMismatch": "Kaynak bu görevin ihtiyaç duyduğu tüm günlerde çalışmıyor — kaydırma bunu çözmez.",
-        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok."
+        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok.",
+        "ceilingTooTight": "Kaydırma tavanı çok az yer bırakıyor: bu kadar iş günü içinde boş pencere yok.",
+        "ceilingUnreachable": "Burada kaydırma vermek yardımcı olmuyor — bir teslim tarihi veya kısıt bu görevi yerinde tutuyor.",
+        "noWindowInHorizon": "Taranan dönem içinde boş pencere bulunamadı; ötesinde bilinmiyor.",
+        "residualFull": "Kendi kullanımın yer vardı, ama kitaplığın kalan kapasitesi tükendi — başka projeler onu kullanıyor."
       }
     },
     "curve": {
@@ -644,6 +650,143 @@
       "capacity": "Kapasite",
       "documents": "Belgeler",
       "selectHint": "Histogramı görmek için bir kaynak seçin."
+    },
+    "distribution": {
+      "open": "Dağıt…",
+      "title": "Projeler arasında dağıt",
+      "back": "Doluluğa dön",
+      "subtitle": "Kalan kapasiteyi açık projeler arasında dağıt",
+      "intro": "Bir projenin taşmasına izin vermek için çubuğun ucunu sağa sürükleyin; hareket etmemesi gereken projeyi sabitleyin. Uygula, kaymaları ilgili tüm projelere yazar.",
+      "blocked": {
+        "uncounted": "Önce hesapla: {{docs}} henüz hesaplanmadı, bu yüzden dağıtılacak bir şey yok.",
+        "material": "Bu bir malzeme kalemi; dağıtım yalnızca kişiler ve ekipman için çalışır.",
+        "noDemand": "Projelerin hiçbiri burada gerçekten iş rezerve etmiyor."
+      },
+      "tool": {
+        "allowSplits": "Kesintilere izin ver",
+        "allowSplitsHint": "İş, tek parça halinde kaymak yerine ara günler alabilir. MS Project'te buna \"Leveling can create splits in remaining work\" denir.",
+        "priceUnknown": "fiyat bilinmiyor — Yeniden Hesapla'ya basın",
+        "savesOff_one": "{{count}} iş günü kazandırırdı",
+        "savesOff_other": "{{count}} iş günü kazandırırdı",
+        "savesOn_one": "{{count}} iş günü kazandırıyor",
+        "savesOn_other": "{{count}} iş günü kazandırıyor",
+        "savesNoneOff": "hiçbir şey kazandırmazdı",
+        "savesNoneOn": "hiçbir şey kazandırmıyor"
+      },
+      "help": {
+        "allowSplits": "İşin tek parça hâlinde kaymak yerine ara günler almasına izin verir; dağıtıma daha çok alan tanır, ancak bölünmüş görevler oluşturur.",
+        "price": "Fiyat etiketi, her konum için en çok etkilenen projenin bitiş tarihinin kaç iş günü kaydığını gösterir; «her iki durumda da» yazan tek bir fiyat, bölmenin burada bir fark yaratmadığı anlamına gelir.",
+        "pin": "Bu projeyi sabitler: bitiş tarihini ve iş günlerini korur ve diğer projelerin etrafından dolaşması gereken sabit bir yük olarak sayılır.",
+        "ceiling": "Tavan: bitiş tarihinin azami taşması — sürükleyin veya ok tuşları/Home/End",
+        "chart": "Şimdi = açık tüm projelerin şu anki toplam rezervasyonu; Dağıtımdan sonra = dağıtımdan sonra geriye kalan. Kırmızı, kapasitenin üzerine çıkan kısımdır.",
+        "recompute": "Öneriyi mevcut sıra, sabitlemeler ve tavanlarla yeniden hesaplar.",
+        "apply": "Kaymaları ilgili tüm projelere yazar; her proje kendi geri alma adımını alır.",
+        "discard": "İletişim kutusunu hiçbir şeyi değiştirmeden kapatır.",
+        "pickAnother": "Başka bir öğeyi dağıtmak için kitaplık öğeleri listesine dönün.",
+        "reset": "Tüm tavanları ve sabitlemeleri nötr duruma döndürür. \"Kesintilere izin ver\" anahtarı olduğu gibi kalır."
+      },
+      "strip": {
+        "shortfall_one": "{{count}} görev sığmıyor",
+        "shortfall_other": "{{count}} görev sığmıyor",
+        "pinnedRecorded": "Sabitlendi: kayıtlı tarihler",
+        "cannotMove": "Kayamaz — buradaki tüm iş sabit",
+        "ceilingUnlimited": "sınırsız",
+        "ceilingDays_one": "tavan {{count}} iş günü",
+        "ceilingDays_other": "tavan {{count}} iş günü",
+        "endUnchanged": "bitiş değişmedi",
+        "endShift_one": "bitiş +{{count}} gün",
+        "endShift_other": "bitiş +{{count}} gün",
+        "handleLabel": "{{doc}} için kaydırma tavanı",
+        "legend": "Dolu bloklar = iş günleri · taralı = mola günü · cetvel: gri = bolluk, kırmızı = bitiş tarihi kayması · noktalı = izin verildi ama kullanılmadı",
+        "slack": "bolluk {{days}} gün",
+        "pinButton": "sabitle",
+        "unpinButton": "sabit — çöz",
+        "maxDate": "en geç {{date}}",
+        "used": "kullanılan {{used}}"
+      },
+      "compute": {
+        "recalculate": "Yeniden hesapla",
+        "auto": "Otomatik dağıt",
+        "busy": "Dağıtılıyor…",
+        "pressRecompute": "— Yeniden Hesapla'ya basın",
+        "degraded": "Bu büyük bir genel görünüm; yalnızca Yeniden Hesapla'ya bastığınızda hesaplar."
+      },
+      "stale": {
+        "rank": "Sıra değişti — etkisini görmek için yeniden hesaplayın.",
+        "ceiling": "Bir tavan değişti — etkisini görmek için yeniden hesaplayın.",
+        "pin": "Bir sabitleme değişti — etkisini görmek için yeniden hesaplayın.",
+        "tool": "Araç değişti — etkisini görmek için yeniden hesaplayın.",
+        "edited": "{{docs}} içinde bir şey değişti — bu öneri artık güncel değil."
+      },
+      "shortfall": {
+        "title": "Kalan",
+        "doc_one": "{{doc}}: {{count}} görev sığmıyor",
+        "doc_other": "{{doc}}: {{count}} görev sığmıyor"
+      },
+      "preview": {
+        "before": "Şimdi",
+        "after": "Dağıtımdan sonra",
+        "capacity": "Kapasite"
+      },
+      "apply": "Uygula",
+      "discard": "At",
+      "applyBlockedShortfall": "Önce eksikliği çözün — bir tavanı genişletin ya da kesintilere izin verin.",
+      "applyBlockedNothing": "Uygulanacak bir şey yok: bu öneri hiçbir şeyi değiştirmiyor.",
+      "applied_one": "{{count}} projede uygulandı.",
+      "applied_other": "{{count}} projede uygulandı.",
+      "undoAll": "Tümünü geri al",
+      "undoneAll": "Her şey geri alındı.",
+      "undonePartial": "{{docs}} hariç geri alındı — orada bu arada çalışılmış.",
+      "selectHint": "Dağıtmaya başlamak için çakışan bir kitaplık öğesi seçin.",
+      "noConflicts": "Şu anda açık projeler arasında çift rezerve edilmiş bir kitaplık öğesi yok.",
+      "pickAnother": "Başka bir öğe seç…",
+      "pickAnotherApplied": "Başka bir öğe seç (geri alma çubuğu kaybolur)…",
+      "reset": "Sıfırla",
+      "status": {
+        "resolved": "Çakışma çözüldü — en büyük bitiş kayması: {{shift}} ({{doc}})",
+        "shortfall_one": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik",
+        "shortfall_other": "{{days}} tarihinde hâlâ {{count}} ekip günü eksik",
+        "allPinned": "Tüm projeler sabit — yeniden dağıtılacak bir şey yok. Birini çözün."
+      },
+      "glossary": {
+        "toggle": "Bu terimler ne anlama geliyor?",
+        "slack": {
+          "term": "bolluk",
+          "text": "Bu projenin, bitiş tarihi kaymadan bu kaynakla kaç iş günü daha geç başlayabileceği. En az bolluğu olan en üstte durur ve en çok o korunur."
+        },
+        "ceiling": {
+          "term": "tavan · “en geç …”",
+          "text": "Bu projeye izin verdiğiniz azami bitiş tarihi kayması, iş günü olarak; çubuğun ucundaki tutamakla ayarlarsınız. “en geç <tarih>”, bu tavanın denk geldiği gündür. Tavan 0 şu demektir: bitiş tarihi sabittir, ama bolluk içinde hâlâ kaydırma yapılabilir."
+        },
+        "used": {
+          "term": "kullanılan",
+          "text": "Dağıtımın tavandan gerçekte kaç iş günü kullandığı. Tavandan az olması sorun değildir: noktalı kalan kısım izinli ama kullanılmamıştır."
+        },
+        "fixedLoad": {
+          "term": "sabit yük",
+          "text": "Bu kaynaktaki hareket edemeyen rezervasyonlar: sabitlediğiniz projeler ve kayıtlı tarihlerle gösterilen projeler. Dağıtım onların etrafından planlar."
+        },
+        "pauseDay": {
+          "term": "mola günü · kesintiler",
+          "text": "Süre içinde bu projenin bu kaynağı kullanmadığı bir iş günü. “Kesintilere izin ver” açıkken dağıtım böyle molalar ekleyebilir; böylece bir görev başka bir projenin tamamen arkasında beklemek yerine onun etrafından çalışır. İki görev arasındaki boşluk da mola günü sayılır."
+        },
+        "shortfall": {
+          "term": "“sığmıyor” · açık",
+          "text": "Bu projeye verdiğiniz tavan içinde, dağıtım o görev için kaynağın hâlâ boş olduğu gün bulamadı. O zaman görevi bilerek kapasitenin üstüne rezerve etmez. Çıkış yolları: bu projeye daha fazla kayma tanıyın, başka bir projeyi sabitleyin veya tam tersine serbest bırakın ya da kesintilere izin verin."
+        },
+        "endShift": {
+          "term": "bitiş tarihi kayması · “bitiş +N gün”",
+          "text": "Bu dağıtım yüzünden tüm projenin bitiş tarihinin kaç iş günü geriye kaydığı. “Bitiş değişmedi”, kaydırmanın bolluk içine sığdığı anlamına gelir."
+        },
+        "pin": {
+          "term": "sabitle",
+          "text": "Bu proje dağıtıma katılmaz: hem bitiş tarihini hem iş günlerini korur ve diğerleri için sabit yük sayılır."
+        },
+        "savings": {
+          "term": "“N iş günü kazandırırdı” · “kazandırır”",
+          "text": "“Kesintilere izin ver” ayarının diğer konumunun kaç iş günü kayma kazandıracağı. “Hiçbir şey kazandırmazdı”, bu çakışma için fark yaratmadığı anlamına gelir."
+        }
+      }
     },
     "color": "Renk"
   },
