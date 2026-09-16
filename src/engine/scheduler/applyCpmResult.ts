@@ -3,6 +3,9 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit } from './duration';
+import { CalendarEngine } from './CalendarEngine';
+import { resolveCalendar } from './resolveCalendar';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -25,7 +28,77 @@ export interface ApplyCpmCalendars {
   calendars: WorkCalendar[];
 }
 
-export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpmCalendars): void {
+/**
+ * Kalender-engine-fabriek voor de verzameltaak-rollup, met cache per kalender.
+ *
+ * Spiegelt `CPMSolver.engineForCal`/`calendarFor` (zelfde regel, zelfde cache-sleutel): de engine
+ * volgt de EIGEN duur-eenheid van de taak, en alleen een urentaak krijgt de gematerialiseerde
+ * uurbanden. De aparte sleutel voorkomt dat de dag- en uurvorm van dezelfde kalender elkaar
+ * overschrijven.
+ */
+function summaryEngineFactory(cals: ApplyCpmCalendars): (task: Task) => CalendarEngine {
+  const cache = new Map<string, CalendarEngine>();
+  return (task: Task): CalendarEngine => {
+    const cal = resolveCalendar(task.calendarId, cals.calendars, cals.projectCalendar);
+    const hourMode = taskDurationUnit(task) === 'hours';
+    const key = hourMode ? `${cal.id}\u0000effective-hour` : cal.id;
+    let engine = cache.get(key);
+    if (!engine) {
+      engine = new CalendarEngine(hourMode ? calendarForEngine(cal) : cal);
+      cache.set(key, engine);
+    }
+    return engine;
+  };
+}
+
+/**
+ * Issue #145 — de AFGELEIDE duur en datums van een auto-verzameltaak.
+ *
+ * Een verzameltaak komt nooit in de CPM-graaf (de solver krijgt alleen bladtaken), dus haar
+ * `scheduleDuration`/`scheduleStart`/`scheduleFinish` werden door NIEMAND bijgewerkt: de rollup
+ * hieronder zette alleen `earlyStart`/`earlyFinish`. Gevolg (gemeld gedrag): de balk rekte netjes
+ * mee met een nieuw kind, maar de Duur-kolom bleef op de waarde staan die de taak toevallig had —
+ * 5d uit `addTask`, of het getal uit het geïmporteerde `.mpp`. Berekenen/F5 hielp niet, want dat
+ * IS dit pad. Onzichtbaar in een vers project, omdat een nieuwe taak én haar nieuwe kind allebei
+ * op 5 dagen vanaf de projectstart beginnen en het getal dan toevallig klopt.
+ *
+ * De afleiding is dezelfde die `CPMSolver.forwardPass` al voor een hammock doet — "duur die
+ * volledig afgeleid is, legt precies één passende bron vast" — hier toegepast op de span die de
+ * rollup zojuist zelf bepaalde. De EENHEID van de taak blijft staan (anders dan bij de hammock,
+ * die 'm naar de kalendermodus herschrijft): een verzameltaak is geen solver-taak, en een
+ * geïmporteerd plan mag zijn dag-verzameltaken niet stil in uren zien omslaan omdat de
+ * MSP-kalender toevallig werkbanden draagt.
+ *
+ * `scheduleStart`/`scheduleFinish` volgen de opgerolde datums RAUW (geen herformattering: die zou
+ * een uur-component van een kind wegkappen). Dat mag hier wél, anders dan bij een bladtaak, waar
+ * `scheduleStart` het planningsANKER is waarop de forward-pass voortbouwt: een verzameltaak heeft
+ * geen anker — niets leest deze velden als solver-invoer (ze staat niet in de graaf, en
+ * `GanttRenderer` weigert een sleep-hit op een rij met kinderen). Zonder deze regel zou het
+ * bestand bovendien een verzameltaak wegschrijven wiens duur en eigen datums elkaar tegenspreken
+ * — `ifcWriter`, CSV, MSPDI en P6 XML schrijven die velden allemaal.
+ *
+ * Defensief: zonder opgerolde datums (een lege/kapotte `earlyStart`/`earlyFinish` — afgeleide data,
+ * dus in theorie te vervuilen via een hostiel bestand of de MCP-laag) gebeurt er NIETS, in plaats
+ * van een `Invalid Date` als duur 0 en een leeg anker weg te schrijven.
+ */
+function applyDerivedSummarySpan(task: Task, engine: CalendarEngine): void {
+  if (!task.time.earlyStart || !task.time.earlyFinish) return;
+  const es = parseInstant(task.time.earlyStart);
+  const ef = parseInstant(task.time.earlyFinish);
+  if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
+  if (taskDurationUnit(task) === 'hours') {
+    const minutes = engine.workMinutesBetween(es, ef);
+    task.time.durationMinutes = minutes;
+    task.time.scheduleDuration = engine.hoursPerDay > 0 ? minutes / (engine.hoursPerDay * 60) : 0;
+  } else {
+    task.time.scheduleDuration = engine.workDaysBetween(es, ef);
+    task.time.durationMinutes = undefined;
+  }
+  task.time.scheduleStart = task.time.earlyStart;
+  task.time.scheduleFinish = task.time.earlyFinish;
+}
+
+export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmCalendars): void {
   for (const task of tasks) {
     const r = result.tasks.get(task.id);
     if (!r) continue;
@@ -64,6 +137,7 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpm
   // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `find` per taak én per kind (recursief) —
   // dat was O(n²) op de rollup.
   const byId = new Map<string, Task>(tasks.map(t => [t.id, t]));
+  const engineFor = summaryEngineFactory(cals);
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
     if (!task || task.childIds.length === 0) return;
@@ -138,6 +212,14 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpm
       // Interfererende speling op de samenvatting = tf−ff (fase 2.9 golf 2, §4.6) — houdt de
       // invariant ook op verzameltaken en vult de kolom voor WBS-rijen.
       task.time.interferingFloat = task.time.totalFloat - task.time.freeFloat;
+
+      // Issue #145: duur + eigen datums uit de zojuist opgerolde span. Bewust ALLEEN in deze
+      // auto-tak: een `manuallyScheduled` verzameltaak (de tak hierboven) houdt haar eigen
+      // opgeslagen datums ÉN haar eigen opgeslagen duur — daar is niets afgeleid, dus is er ook
+      // niets te herberekenen, en een `.mpp`-geïmporteerde manual-fase mag haar bestandswaarde
+      // niet kwijtraken aan een afleiding die de fidelity-poort (die alleen start/finish meet)
+      // niet zou zien.
+      applyDerivedSummarySpan(task, engineFor(task));
     }
   };
 

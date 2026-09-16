@@ -1025,6 +1025,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
+  # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
+  # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
+  SUMDUR="$DIR/.summary-duration.mjs"
+  if bundle_check "$DIR/check-summary-duration.ts" "$SUMDUR"; then node "$SUMDUR" || STATUS=1; fi
+
   # Datums zoals opgeslagen (issue #63) — de pure laag: aanwezigheidsregistratie, verschiltelling,
   # reconstructie. Betreden/verlaten en de undo-keten volgen later (aparte taak, hangt de store/UI
   # eraan). Draait mee in de tijdzone-matrix — de reconstructie rekent met datums, dus
