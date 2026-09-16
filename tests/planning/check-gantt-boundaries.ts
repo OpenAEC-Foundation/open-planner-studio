@@ -57,6 +57,11 @@ const cleanRoot = fixture({
   ].join('\n'),
   'src/engine/renderer/GanttRenderer.ts': "import { barGeometry } from './barGeometry';\nexport class GanttRenderer {}\n",
   'src/components/panels/TableEditor.tsx': 'export function TableEditor() { return <table />; }\n',
+  // De brug is de ENE canvaszijdige plek die de rijsleep mag kennen; hier moet de import dus mogen.
+  'src/components/canvas/ganttRowDragBridge.ts': [
+    "import type { TableRowDragCandidate } from '@/components/panels/hooks/useTableRowDrag';",
+    'export type Starter = (candidate: TableRowDragCandidate) => void;',
+  ].join('\n'),
 });
 try {
   const clean = run(cleanRoot);
@@ -92,6 +97,10 @@ const brokenRoot = fixture({
     "import { useGanttPointerCoordinator } from '../canvas/hooks/useGanttPointerCoordinator';",
     'export const TableEditor = useGanttPointerCoordinator;',
   ].join('\n'),
+  'src/components/canvas/RogueRowDrag.tsx': [
+    "import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';",
+    'export const rogue = useTableRowDrag;',
+  ].join('\n'),
 });
 try {
   const broken = run(brokenRoot);
@@ -110,6 +119,8 @@ try {
     && output.includes('react'), output.trim());
   ok('3g TableEditor-import van een coordinator wordt gemeld', output.includes('TableEditor.tsx')
     && output.includes('useGanttPointerCoordinator'), output.trim());
+  ok('3h rijsleep-import in het canvas buiten de brug wordt gemeld', output.includes('RogueRowDrag.tsx')
+    && output.includes('ganttRowDragBridge'), output.trim());
 } finally {
   rmSync(brokenRoot, { recursive: true, force: true });
 }
