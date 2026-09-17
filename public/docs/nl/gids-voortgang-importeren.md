@@ -32,7 +32,7 @@ je de statusdatum zet en wat hij verder betekent, lees je in de gids
 
 ## Het blad exporteren
 
-De snelste weg is de knop **Voortgangsblad exporteren** op het Planning- of Tabel-tabblad, in de groep
+De snelste weg is de knop **Voortgangsblad exporteren** op het Planning-, Tabel- of Rapport-tabblad, in de groep
 Voortgang. Die knop levert een **Excel-werkmap** (`.xlsx`) op met precies de kolommen die een
 uitvoerder nodig heeft: taak-id, WBS, naam, Start, Finish, Completion (%), Actual Start en Actual
 Finish — verder niets. Het bestand krijgt de naam `<projectnaam>-voortgang.xlsx` en landt waar mogelijk
@@ -70,11 +70,12 @@ terugsturen. Meer over de volledige CSV-export staat in de gids [Im-/export](doc
 
 ## Waar je de functie vindt
 
-Je kunt een teruggestuurd blad op drie plekken inlezen — ze openen alle drie hetzelfde scherm:
+Je kunt een teruggestuurd blad op vier plekken inlezen — ze openen alle vier hetzelfde scherm:
 
 - Backstage → Importeren, bovenaan de kaart "Voortgang bijwerken uit een blad".
-- Het Planning-tabblad, in de groep Baselines & voortgang.
+- Het Planning-tabblad, in de groep Voortgang.
 - Het Tabel-tabblad, in de groep Voortgang.
+- Het Rapport-tabblad, in de groep Voortgang.
 
 ## Welke kolommen worden gelezen
 

@@ -30,7 +30,7 @@ covered in the [Baselines & progress](docs://gids-baselines-voortgang) guide.
 
 ## Exporting the sheet
 
-The fastest route is the **Export progress sheet** button on the Planning or Table tab, in the
+The fastest route is the **Export progress sheet** button on the Planning, Table or Report tab, in the
 Progress group. That button produces an **Excel workbook** (`.xlsx`) with exactly the columns a foreman
 needs: task id, WBS, name, Start, Finish, Completion (%), Actual Start and Actual Finish — nothing
 else. The file is named `<project name>-voortgang.xlsx` and lands in your downloads folder wherever
@@ -69,11 +69,12 @@ foreman, have them fill in the progress columns and send it back. More on the fu
 
 ## Where to find the feature
 
-You can read a returned sheet back in from three places — all three open the same screen:
+You can read a returned sheet back in from four places — all four open the same screen:
 
 - Backstage → Import, the card "Update progress from a spreadsheet" at the top.
-- The Planning tab, in the Baselines & progress group.
+- The Planning tab, in the Progress group.
 - The Table tab, in the Progress group.
+- The Report tab, in the Progress group.
 
 ## Which columns are read
 
