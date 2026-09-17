@@ -54,6 +54,57 @@ export interface DurationCalendar {
   readonly hoursPerDay: number;
 }
 
+/** `DurationCalendar` plus de twee spanmetingen die een AFGELEIDE duur nodig heeft. Structureel,
+ *  net als `DurationCalendar` zelf: `CalendarEngine` vervult dit contract zonder dat deze
+ *  bladmodule ernaar hoeft te importeren (dat zou een cyclus richting de solver openen). */
+export interface SpanCalendar extends DurationCalendar {
+  workMinutesBetween(a: Date, b: Date): number;
+  workDaysBetween(start: Date, end: Date): number;
+}
+
+/**
+ * Schrijf een VOLLEDIG AFGELEIDE duur op `task`: de span `es`→`ef`, uitgedrukt in precies één
+ * bron (minuten als de kalender concrete banden heeft, anders werkdagen), met de duur-eenheid
+ * meegeschreven.
+ *
+ * HERKOMST (issue #145): dit blok stond letterlijk in `CPMSolver.forwardPass`s hammock-tak, als
+ * de enige plek die "duur = span" kende. De verzameltaak-rollup in `applyCpmResult` heeft exact
+ * dezelfde behoefte — een verzameltaak staat net zomin in de CPM-graaf als haar duur door de
+ * gebruiker gekozen is — en kreeg daar eerst een eigen, met de hand nageschreven kopie. Die kopie
+ * liet twee van de vier takken weg (ELAPSEDTIME-uur en ELAPSEDTIME-dag) en dispatchte op de
+ * TAAK-eenheid in plaats van op de KALENDER-modus, waardoor `workMinutesBetween` (half-open
+ * `[a,b)`) op een date-only `ef` van een dagtaak losgelaten werd en er stil één werkdag verdween.
+ * Vandaar één definitie, hier, gedeeld door beide aanroepers.
+ *
+ * DE DISPATCH IS `cal.isHourMode`, NOOIT de eenheid die de taak toevallig draagt. Dat is geen
+ * detail maar de correctheidsvoorwaarde: `workMinutesBetween` telt half-open en mag dus alleen op
+ * échte instants; `workDaysBetween` telt inclusief en hoort bij date-only datums. De kalender
+ * bepaalt welke van de twee de datums zijn, de taak niet.
+ *
+ * ELAPSEDTIME rekent 24/7 in KLOK-tijd: de dag-tak deelt door de VASTE klokdag, nooit door
+ * `hoursPerDay` (dat zou de dubbele-deling-valkuil zijn die T10 in de lezer fixte).
+ */
+export function writeDerivedSpan(task: Task, es: Date, ef: Date, cal: SpanCalendar): void {
+  task.time.durationUnit = cal.isHourMode ? 'hours' : 'days';
+  if (task.time.durationType === 'ELAPSEDTIME') {
+    if (cal.isHourMode) {
+      const mins = Math.round((ef.getTime() - es.getTime()) / MS_PER_MIN);
+      task.time.durationMinutes = mins;
+      task.time.scheduleDuration = mins / (24 * 60);
+    } else {
+      task.time.durationMinutes = undefined;
+      task.time.scheduleDuration = (ef.getTime() - es.getTime()) / (24 * 60 * MS_PER_MIN);
+    }
+  } else if (cal.isHourMode) {
+    const mins = cal.workMinutesBetween(es, ef);
+    task.time.durationMinutes = mins;
+    task.time.scheduleDuration = mins / (cal.hoursPerDay * 60);
+  } else {
+    task.time.durationMinutes = undefined;
+    task.time.scheduleDuration = cal.workDaysBetween(es, ef);
+  }
+}
+
 /**
  * Duur van een taak in MINUTEN, in de effectieve kalender.
  *

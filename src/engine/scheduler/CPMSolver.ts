@@ -11,11 +11,11 @@ import {
 import {
   durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
-  taskDurationUnit,
+  taskDurationUnit, writeDerivedSpan,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import {
-  forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
+  forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, type RelationDeps,
 } from './relationMath';
 
 export interface CPMResult {
@@ -1160,24 +1160,10 @@ export class CPMSolver {
         // Hammockduur is volledig afgeleid en dus niet door de gebruiker gekozen. Leg na elke
         // solve precies één passende bron vast: minuten als de kalender concrete banden heeft,
         // anders werkdagen. Zo blijven er ook hier geen twee concurrerende invoerbronnen staan.
-        task.time.durationUnit = cal.isHourMode ? 'hours' : 'days';
-        if (task.time.durationType === 'ELAPSEDTIME') {
-          if (cal.isHourMode) {
-            const mins = Math.round((ef.getTime() - es.getTime()) / MS_PER_MIN);
-            task.time.durationMinutes = mins;
-            task.time.scheduleDuration = mins / (24 * 60);
-          } else {
-            task.time.durationMinutes = undefined;
-            task.time.scheduleDuration = (ef.getTime() - es.getTime()) / MS_PER_DAY;
-          }
-        } else if (cal.isHourMode) {
-          const mins = cal.workMinutesBetween(es, ef);
-          task.time.durationMinutes = mins;
-          task.time.scheduleDuration = mins / (cal.hoursPerDay * 60);
-        } else {
-          task.time.durationMinutes = undefined;
-          task.time.scheduleDuration = cal.workDaysBetween(es, ef);
-        }
+        // Issue #145: deze vier takken staan sinds die fix in `duration.ts`s `writeDerivedSpan` —
+        // de verzameltaak-rollup (`applyCpmResult`) heeft exact dezelfde behoefte en deelt nu
+        // dezelfde definitie in plaats van er een eigen, incomplete kopie naast te zetten.
+        writeDerivedSpan(task, es, ef, cal);
         results.set(taskId, { es, ef });
         continue;
       }

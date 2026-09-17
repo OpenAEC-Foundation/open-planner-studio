@@ -2,7 +2,8 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
-import { taskDurationUnit } from './duration';
+import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './duration';
+import { CalendarEngine } from './CalendarEngine';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -25,7 +26,51 @@ export interface ApplyCpmCalendars {
   calendars: WorkCalendar[];
 }
 
-export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpmCalendars): void {
+/**
+ * Issue #145 — de AFGELEIDE duur van een auto-verzameltaak.
+ *
+ * Een verzameltaak komt nooit in de CPM-graaf (`solveProject` geeft de solver alleen bladtaken),
+ * dus werd haar `scheduleDuration` door NIEMAND bijgewerkt: de rollup hieronder zette alleen
+ * `earlyStart`/`earlyFinish`. De Gantt-balk rekte daardoor netjes mee met een nieuw kind, maar de
+ * Duur-kolom bleef staan op de waarde die de taak toevallig droeg — 5d uit `addTask`, of het getal
+ * uit het geïmporteerde `.mpp`. Berekenen/F5 hielp niet, want dát IS dit pad. Onzichtbaar in een
+ * vers project, omdat een nieuwe taak én haar nieuwe kind allebei op 5 dagen vanaf de projectstart
+ * beginnen en het getal dan toevallig klopt.
+ *
+ * DE AFLEIDING ZELF IS NIET VAN HIER: `writeDerivedSpan` (`duration.ts`) is het blok dat al in
+ * `CPMSolver.forwardPass`s hammock-tak stond. Een hammock en een verzameltaak zitten in dezelfde
+ * categorie — duur volledig afgeleid, niet door de gebruiker gekozen — dus delen ze de definitie
+ * in plaats van dat hier een derde kopie staat. Een eerdere versie van deze fix dééd dat wel, en
+ * liet daarbij de twee ELAPSEDTIME-takken vallen en verving de kalender-dispatch door een
+ * taak-eenheid-dispatch; dat kostte stil één werkdag op een uur-taak met dag-kinderen.
+ *
+ * DE PROJECTKALENDER, NIET `task.calendarId`. Een verzameltaak heeft geen eigen werk, dus haar
+ * taakkalender is betekenisloos — MS Project biedt dat veld op een samenvattingstaak niet eens
+ * aan. Rekende deze afleiding wél in de eigen kalender, dan kreeg een fase met een 7-daagse
+ * kalender "14d" te zien terwijl haar enige kind over exact hetzelfde datumbereik "10d" is.
+ *
+ * WAT HIER BEWUST NIET GEBEURT: `scheduleStart`/`scheduleFinish` worden NIET meegeschreven. Die
+ * twee staan in `ifcTaskSlots.ts` geregistreerd als `RECORDED_INPUT_SLOT_KEYS` — "wat het bestand
+ * zei" — en `captureRecordedDates` leest ze als de datumlaag van issue #63 terwijl
+ * `showRecordedDates` ze niet herstelt. Ze hier overschrijven laat "Datums zoals opgeslagen" op
+ * verzameltaakrijen twee elkaar tegensprekende kolommen tonen en schrijft bij een save in die
+ * modus een herberekening het IFC in, precies wat die modus belooft niet te doen.
+ */
+function applyDerivedSummaryDuration(task: Task, engine: CalendarEngine): void {
+  // Een als mijlpaal gemarkeerde rij met duur 0 blijft een ruit: `isZeroDurationMilestone` stuurt
+  // de ruit-tekening in `GanttRenderer`, en de Duur-kolom hanteert al dezelfde uitzondering. Een
+  // afgeleide duur zou die markering stil in een balk veranderen.
+  if (isZeroDurationMilestone(task)) return;
+  // Zonder opgerolde datums gebeurt er niets. Dit is geen theoretische netheid: een `Invalid Date`
+  // levert `workDaysBetween` 0 op, en duur 0 maakt van de rij visueel een mijlpaal.
+  if (!task.time.earlyStart || !task.time.earlyFinish) return;
+  const es = parseInstant(task.time.earlyStart);
+  const ef = parseInstant(task.time.earlyFinish);
+  if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
+  writeDerivedSpan(task, es, ef, engine);
+}
+
+export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmCalendars): void {
   for (const task of tasks) {
     const r = result.tasks.get(task.id);
     if (!r) continue;
@@ -64,6 +109,9 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpm
   // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `find` per taak én per kind (recursief) —
   // dat was O(n²) op de rollup.
   const byId = new Map<string, Task>(tasks.map(t => [t.id, t]));
+  // Eén engine voor alle verzameltaken: de afleiding rekent per definitie in de projectkalender,
+  // dus is er niets per taak te resolven en niets te cachen.
+  const summaryEngine = new CalendarEngine(cals.projectCalendar);
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
     if (!task || task.childIds.length === 0) return;
@@ -138,6 +186,13 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, _cals: ApplyCpm
       // Interfererende speling op de samenvatting = tf−ff (fase 2.9 golf 2, §4.6) — houdt de
       // invariant ook op verzameltaken en vult de kolom voor WBS-rijen.
       task.time.interferingFloat = task.time.totalFloat - task.time.freeFloat;
+
+      // Issue #145: de duur uit de zojuist opgerolde span. Bewust ALLEEN in deze auto-tak: een
+      // `manuallyScheduled` verzameltaak (de tak hierboven) houdt haar eigen opgeslagen datums ÉN
+      // haar eigen opgeslagen duur — daar is niets afgeleid, en een `.mpp`-geïmporteerde
+      // manual-fase mag haar bestandswaarde niet kwijtraken aan een afleiding die de
+      // fidelity-poort (die alleen start/finish meet) niet zou zien.
+      applyDerivedSummaryDuration(task, summaryEngine);
     }
   };
 
