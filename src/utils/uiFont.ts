@@ -16,11 +16,47 @@ import type { UIFontFamily } from '@/state/slices/types';
  *  constante mee — anders wijkt het canvas af van de DOM. */
 export const DEFAULT_UI_FONT_STACK = '"Inter", system-ui, sans-serif';
 
-/** CSS font-stacks per expliciete lettertypekeuze. 'default' ontbreekt bewust: dat is geen eigen
- *  stack maar "geen override" (zie `DEFAULT_UI_FONT_STACK` / `resolveUIFontStack`). 'system' is de
- *  expliciete OS-font-optie — web-apps volgen die, anders dan native apps, niet automatisch. */
+/**
+ * Bepaalt de font-stack voor de expliciete keuze `system`.
+ *
+ * De systeemlettertypen worden per platform anders afgehandeld:
+ *
+ * - Windows gebruikt standaard Segoe UI.
+ * - macOS gebruikt de native Apple-systeemfont.
+ * - Linux gebruikt `-webkit-system-font`. In WebKitGTK wordt deze waarde gekoppeld aan
+ *   het GTK-interfacelettertype van de desktopomgeving. Daardoor wordt bijvoorbeeld het
+ *   door de gebruiker ingestelde GNOME-interfacelettertype gebruikt in plaats van een
+ *   hardgecodeerd Linux-lettertype zoals Ubuntu, Cantarell of Noto Sans.
+ *
+ * De fallback `sans-serif` wordt gebruikt wanneer het platform niet beschikbaar is,
+ * bijvoorbeeld tijdens server-side verwerking of bepaalde testomgevingen.
+ */
+function resolveSystemFontStack(): string {
+  if (typeof navigator === 'undefined') {
+    return 'sans-serif';
+  }
+  const platform = navigator.platform.toLowerCase();
+  if (platform.includes('win')) {
+    return '"Segoe UI", sans-serif';
+  }
+  if (platform.includes('mac')) {
+    return '-apple-system, BlinkMacSystemFont, sans-serif';
+  }
+  // WebKitGTK haalt hiermee het systeemlettertype uit de GTK-desktopinstellingen.
+  return '-webkit-system-font';
+}
+
+/**
+ * CSS font-stacks voor expliciete lettertypekeuzes.
+ *
+ * `default` ontbreekt bewust. Dit is geen afzonderlijke font-stack, maar betekent
+ * "geen override". De DOM valt dan terug op de stylesheet-default en canvas-renderers
+ * gebruiken `DEFAULT_UI_FONT_STACK`.
+ *
+ * Voor `system` wordt de stack tijdens initialisatie bepaald op basis van het platform.
+ */
 export const UI_FONT_STACKS: Record<Exclude<UIFontFamily, 'default'>, string> = {
-  system: 'system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, sans-serif',
+  system: resolveSystemFontStack(),
   serif: 'Georgia, "Times New Roman", serif',
   mono: '"JetBrains Mono", ui-monospace, monospace',
 };
