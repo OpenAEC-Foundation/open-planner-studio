@@ -68,7 +68,7 @@ Wél verplaatst, omdat ze nergens meer bij horen:
 |---|---|
 | `HANDOFF-2026-08-14-roadmap.md` | **actief** — wat er nog op de roadmap staat, met peildatum en afhankelijkheden |
 | `werkdagen-as-ontwerp.md` | naslag; aangehaald vanuit `timeAxis.ts`, `workdayAxis.ts` en `check-workday-axis.ts` |
-| `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | ontwerp; nog niet (volledig) geïmplementeerd, twee varianten van hetzelfde ontwerp |
+| `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | ontwerp; balk-slepen op het canvas is vervallen, rij-slepen bestaat — twee varianten van hetzelfde ontwerp |
 | `modulariteit-audit.md`, `prestatie-modulariteit-audit.md` | de audits waar de P-bevindingen uit komen; aangehaald vanuit testkoppen |
 | `lagen-en-federatie-conceptplan.md` | conceptplan, niet uitgevoerd |
 | `workflows/triple-verify.js` | hulpscript, aangehaald vanuit `docs/TODO.md` |
@@ -79,7 +79,9 @@ zijn vooral naslag; de vijf hierboven genoemde bestanden zijn uitvoerwerk. **Bij
 actuele code, behalve wanneer een nog uit te voeren plan juist expliciet een gewenste grens
 definieert.**
 
-## Overzicht per stuk (peildatum 2026-09-14)
+## Overzicht per stuk (peildatum 2026-09-14, bijgewerkt 2026-09-15)
+
+Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde stukken.
 
 | stuk | stand | verwijzingen |
 |---|---|---|
@@ -112,7 +114,7 @@ definieert.**
 | `specs/2026-08-14-b1b-bezettingsoverzicht-design.md` | naslag (opgeleverd) | 5 |
 | `specs/2026-08-14-mijlpaal-relaties-design.md` | naslag (opgeleverd) | 1 |
 | `specs/2026-08-14-rapport-code-inventaris.md` | naslag (opgeleverd) | 1 |
-| `specs/2026-08-14-rapport-critreview-f0.md` | actief (in uitvoering) | 0 |
+| `specs/2026-08-14-rapport-critreview-f0.md` | invoer voor lopend XER-werk (etappe 2) | 0 |
 | `specs/2026-08-14-rapport-export-opties-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-08-14-rapport-formaat-specs.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-08-14-task-type-inheritance-parent-design.md` | verhuisd naar archief (2026-09-14) | 0 |
@@ -126,7 +128,7 @@ definieert.**
 | `plans/2026-06-24-auto-update-cross-platform.md` | naslag (opgeleverd) | 3 |
 | `plans/2026-07-13-browser-bestandstoegang.md` | naslag (opgeleverd) | 2 |
 | `plans/2026-07-23-b1-1-bedrijfscentrisch-model.md` | naslag (opgeleverd) | 1 |
-| `plans/2026-08-14-f0-brief-definitief.md` | naslag (opgeleverd) | 0 |
+| `plans/2026-08-14-f0-brief-definitief.md` | verhuisd naar archief (2026-09-15) | 0 |
 | `plans/2026-08-15-plan-mpp-datumgetrouwheid.md` | naslag (opgeleverd) | 3 |
 | `plans/2026-08-17-plan-mpp-nul-afwijkingen.md` | naslag (opgeleverd) | 2 |
 | `plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md` | actief | 0 |
@@ -138,8 +140,8 @@ definieert.**
 | `lagen-en-federatie-conceptplan.md` | concept, niet uitgevoerd | 1 |
 | `modulariteit-audit.md` | naslag (opgeleverd) | 8 |
 | `prestatie-modulariteit-audit.md` | naslag (opgeleverd) | 5 |
-| `verticale-drag-ontwerp-B.md` | ontwerp (nog niet uitgevoerd) | 0 |
-| `verticale-drag-ontwerp.md` | ontwerp (nog niet uitgevoerd) | 0 |
+| `verticale-drag-ontwerp-B.md` | deels uitgevoerd (rij-slepen wel, balk-slepen op canvas niet) | 0 |
+| `verticale-drag-ontwerp.md` | deels uitgevoerd (rij-slepen wel, balk-slepen op canvas niet) | 0 |
 | `werkdagen-as-ontwerp.md` | naslag (opgeleverd) | 8 |
 | `specs/2026-06-19-ui-modern-overhaul-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-07-07-2.10-onderdeel2-ux-design.md` | verhuisd naar archief (2026-09-14) | 0 |
@@ -165,10 +167,10 @@ definieert.**
 | `plans/2026-09-11-plan-issue27-xlsx-voortgangsblad.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `plans/archief-2026-08-14-f0-brief-concept.md` | verhuisd naar archief (2026-09-14) | 0 |
 
-Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma
-(ook een stuk in uitvoering zonder verwijzingen blijft actief staan);
+Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma;
 **naslag** = het werk is gedaan, het stuk blijft als uitleg bij de code;
-**ontwerp** = ontwerp dat nog niet (volledig) is uitgevoerd;
+**deels uitgevoerd** = een deel van het ontwerp bestaat, een deel niet (welk deel staat erbij);
+**invoer voor lopend werk** = het stuk zelf is geen actief werk, maar voedt een nog lopende etappe;
 **concept** = idee dat niet is uitgevoerd;
 **verhuisd naar archief** = op de genoemde datum verplaatst naar
 `docs/archive/superpowers/`, omdat het werk erop afgerond was én er nergens meer naar
