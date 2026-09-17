@@ -68,7 +68,7 @@ Wél verplaatst, omdat ze nergens meer bij horen:
 |---|---|
 | `HANDOFF-2026-08-14-roadmap.md` | **actief** — wat er nog op de roadmap staat, met peildatum en afhankelijkheden |
 | `werkdagen-as-ontwerp.md` | naslag; aangehaald vanuit `timeAxis.ts`, `workdayAxis.ts` en `check-workday-axis.ts` |
-| `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | naslag; twee varianten van hetzelfde ontwerp |
+| `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | ontwerp; balk-slepen op het canvas is vervallen, rij-slepen bestaat — twee varianten van hetzelfde ontwerp |
 | `modulariteit-audit.md`, `prestatie-modulariteit-audit.md` | de audits waar de P-bevindingen uit komen; aangehaald vanuit testkoppen |
 | `lagen-en-federatie-conceptplan.md` | conceptplan, niet uitgevoerd |
 | `workflows/triple-verify.js` | hulpscript, aangehaald vanuit `docs/TODO.md` |
@@ -78,6 +78,111 @@ begint met de datum, dus chronologisch bladeren werkt. Documenten van vóór het
 zijn vooral naslag; de vijf hierboven genoemde bestanden zijn uitvoerwerk. **Bij twijfel wint de
 actuele code, behalve wanneer een nog uit te voeren plan juist expliciet een gewenste grens
 definieert.**
+
+## Overzicht per stuk (peildatum 2026-09-14, bijgewerkt 2026-09-15)
+
+Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde stukken.
+
+| stuk | stand | verwijzingen |
+|---|---|---|
+| `specs/2026-06-05-multi-worktree-dev-isolation-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-06-26-planning-correctheid-testplan-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-06-26-snap-packaging-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-02-constraints-deadlines-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-02-mijlpalen-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-02-volledige-dependencies-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-07-02-wbs-structuur-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-03-resources-design.md` | naslag (opgeleverd) | 5 |
+| `specs/2026-07-04-baselines-voortgang-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-04-kalenders-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-04-weergaven-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-07-06-2.8b-research-codebase.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-06-2.8b-research-domein.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-06-2.9-research-codebase.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-06-2.9-research-domein.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-06-geavanceerde-cpm-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-06-uren-scheduling-design.md` | naslag (opgeleverd) | 3 |
+| `specs/2026-07-07-2.10-onderdeel4-showcases-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-07-07-2.10-onderdeel5-docs-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-07-13-bouwmodus-toggle-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-20-move-project-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-07-22-vector-pdf-export-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-23-b1-1-bedrijfscentrisch-model-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-07-23-dev-server-dual-guard-prevention-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-24-github-wiki-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-07-24-mcp-bridge-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-08-14-b1b-bezettingsoverzicht-design.md` | naslag (opgeleverd) | 5 |
+| `specs/2026-08-14-mijlpaal-relaties-design.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-08-14-rapport-code-inventaris.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-08-14-rapport-critreview-f0.md` | invoer voor lopend XER-werk (etappe 2) | 0 |
+| `specs/2026-08-14-rapport-export-opties-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-08-14-rapport-formaat-specs.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-08-14-task-type-inheritance-parent-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-08-17-datums-zoals-opgeslagen-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-08-18-issue-65-dependency-jump-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-08-18-spec-taaktypes-effort-driven.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-08-24-hooksite-ledger.md` | naslag (opgeleverd) | 1 |
+| `specs/2026-08-24-onderhoudbaarheidsprogramma-design.md` | actief | 4 |
+| `specs/2026-08-24-tabel-overhaul-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-06-24-auto-update-cross-platform.md` | naslag (opgeleverd) | 3 |
+| `plans/2026-07-13-browser-bestandstoegang.md` | naslag (opgeleverd) | 2 |
+| `plans/2026-07-23-b1-1-bedrijfscentrisch-model.md` | naslag (opgeleverd) | 1 |
+| `plans/2026-08-14-f0-brief-definitief.md` | verhuisd naar archief (2026-09-15) | 0 |
+| `plans/2026-08-15-plan-mpp-datumgetrouwheid.md` | naslag (opgeleverd) | 3 |
+| `plans/2026-08-17-plan-mpp-nul-afwijkingen.md` | naslag (opgeleverd) | 2 |
+| `plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md` | actief | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-1-extensiecontract.md` | actief | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-2-store-runtime-isolatie.md` | actief | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-3-gantt-grenzen.md` | actief | 0 |
+| `plans/2026-09-01-plan-issue27-voortgangsimport.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `HANDOFF-2026-08-14-roadmap.md` | actief | 0 |
+| `lagen-en-federatie-conceptplan.md` | concept, niet uitgevoerd | 1 |
+| `modulariteit-audit.md` | naslag (opgeleverd) | 8 |
+| `prestatie-modulariteit-audit.md` | naslag (opgeleverd) | 5 |
+| `verticale-drag-ontwerp-B.md` | deels uitgevoerd (rij-slepen wel, balk-slepen op canvas niet) | 0 |
+| `verticale-drag-ontwerp.md` | deels uitgevoerd (rij-slepen wel, balk-slepen op canvas niet) | 0 |
+| `werkdagen-as-ontwerp.md` | naslag (opgeleverd) | 8 |
+| `specs/2026-06-19-ui-modern-overhaul-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-07-07-2.10-onderdeel2-ux-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-07-07-2.10-onderdeel3-firststartup-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-07-07-2.10-sneltoetsen-contextmenu-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-07-13-browser-bestandstoegang-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-07-23-just-updated-dialog-design.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `specs/2026-08-14-bestandsformaten-ontwerpskelet.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-06-12-store-slices-en-extensies.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-07-23-dev-server-dual-guard-prevention.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-07-23-just-updated-dialog.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-07-24-mcp-bridge-fase1.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-14-mijlpaal-relaties.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-14-mpp-import-etappe-1.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-14-rapport-export-opties.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-14-task-type-inheritance-parent.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-17-datums-zoals-opgeslagen.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-18-issue-65-dependency-jump.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-24-gedeelde-categoriekleuren.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-24-tabel-overhaul-implementation-plan.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-27-b1c-w0-split-bewuste-fundamenten.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-08-31-b1c-plan2-verdeler-kern.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/2026-09-11-plan-issue27-xlsx-voortgangsblad.md` | verhuisd naar archief (2026-09-14) | 0 |
+| `plans/archief-2026-08-14-f0-brief-concept.md` | verhuisd naar archief (2026-09-14) | 0 |
+
+Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma;
+**naslag** = het werk is gedaan, het stuk blijft als uitleg bij de code;
+**deels uitgevoerd** = een deel van het ontwerp bestaat, een deel niet (welk deel staat erbij);
+**invoer voor lopend werk** = het stuk zelf is geen actief werk, maar voedt een nog lopende etappe;
+**concept** = idee dat niet is uitgevoerd;
+**verhuisd naar archief** = op de genoemde datum verplaatst naar
+`docs/archive/superpowers/`, omdat het werk erop afgerond was én er nergens meer naar
+verwezen werd. Als regel gaat een stuk naar het archief zodra het werk erop afgerond is en
+de laatste verwijzing ernaartoe verdwenen is; wat nog loopt of nog aangehaald wordt, blijft staan.
+De verwijzingentelling is gemeten op de peildatum over `src/`, `tests/`, `docs/`, `public/` en
+`scripts/`, per letterlijke bestandsnaam; het archief en deze tabel zelf zijn buiten de telling
+gelaten.
+
+**De vakjes in de werkplannen worden niet bijgehouden.** Vrijwel alle plannen tonen nul
+afgevinkte vakjes terwijl het werk wel gedaan is. Leid de voortgang af uit de code en uit de
+stand in de tabel hierboven, niet uit de vakjes.
 
 ## Verwante mappen
 
