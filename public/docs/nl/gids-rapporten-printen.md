@@ -61,6 +61,12 @@ instellingenblok:
   wordt precies zo breed als de langste naam in het rapport (inclusief inspringing), zodat niets
   wordt afgekapt; de tijdlijn wordt navenant smaller. Alleen bij een extreem lange naam kapt de
   kolom alsnog af, zodat één naam nooit de hele pagina opeist.
+- De overige tabelkolommen — *WBS*, *Duur*, *Start*, *Einde*, *Volt.* en bij het resourcediagram
+  *Eenh./d* en *Curve* — hebben geen instelling nodig: elke kolom wordt precies zo breed als haar
+  kop en haar breedste cel in dít rapport. Een lange vertaalde kop krijgt daarmee de ruimte die hij
+  nodig heeft in plaats van over de buurkolom te lopen, en korte inhoud (WBS-codes van één niveau,
+  duren van één cijfer) geeft de overgebleven millimeters aan de tijdlijn. Alleen een uitzonderlijk
+  brede waarde stopt bij het maximum van de kolom; die cel eindigt dan op een beletselteken.
 - **Balkkleuren** — één keuze die het Gantt-scherm en het rapport samen gebruiken. *Kritiek pad*
   geeft het vertrouwde rood/oranje/blauw; *Per taak — automatisch* geeft iedere taak een vaste
   paletkleur; met *Op categorie* kiest u een veld uit dezelfde lijst als bij **Groeperen**. Kies
@@ -291,6 +297,11 @@ activiteiten zelf onder hun element.
 Er is geen aparte printknop met een systeemdialoog: afdrukken gaat via de PDF. Exporteer het
 rapport, open de PDF en print die — zo komt op papier precies wat het voorbeeld toont, met dezelfde
 paginaovergangen (nooit dwars door een rij).
+
+Kolomkoppen staan in de PDF altijd voluit: past een vertaalde kop niet in de breedte waarop de
+kolom ontworpen is, dan groeit de kolom mee in plaats van de kop af te kappen — net als in de
+tabel op het scherm. Celinhoud die te lang is (een lange taaknaam, een rij resources) eindigt wél
+op een beletselteken; dat is de bedoelde ruimteverdeling.
 
 Elk rapporttype heeft een knop **Exporteer PDF**. Bij het Gantt-rapport bewaart die het huidige
 voorbeeld als een echt PDF-bestand (bestandsnaam eindigend op `-planning.pdf`) — één pagina op de

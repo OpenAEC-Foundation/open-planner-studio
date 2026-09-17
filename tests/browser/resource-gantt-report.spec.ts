@@ -74,8 +74,14 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
 
   // Passen de kolommen niet naast een bruikbare tijdlijn, dan laat de render ze vallen en zegt het
   // overzichtsblok dat (review #139, bevinding 10): A4 staand op 125 % is te krap, 100 % past weer.
+  // Sinds de datakolommen zich op hun eigen inhoud meten is de tabel ~30 px smaller en past A4 staand
+  // op 125 % uit zichzelf wél — de naamkolom op 220 px duwt hem er weer overheen, zodat deze flow de
+  // weglaat-regel blijft testen in plaats van de kolombreedte. Daarna terug naar de standaard, zodat
+  // de rest van de test op dezelfde tabel draait als ervoor.
   const droppedNote = page.locator('[data-ops-resource-gantt-note="columnsDropped"]');
   await expect(droppedNote).toHaveCount(0);
+  const nameWidth = page.locator('[data-ops-report-name-column-width]');
+  await nameWidth.fill('220');
   await page.getByLabel(/^(Paper:|Papier:)$/).click();
   await page.getByRole('option', { name: 'A4' }).click();
   await page.getByLabel(/^(Orientation:|Orientatie:)$/).click();
@@ -87,6 +93,7 @@ test('resourcediagram: rapporttype rendert per resource, opties sturen samenvatt
   await fontSize.click();
   await page.getByRole('option', { name: '100%' }).click();
   await expect(droppedNote).toHaveCount(0, { timeout: 20_000 });
+  await nameWidth.fill('130');
   await page.getByLabel(/^(Paper:|Papier:)$/).click();
   await page.getByRole('option', { name: 'A3' }).click();
   await page.getByLabel(/^(Orientation:|Orientatie:)$/).click();
