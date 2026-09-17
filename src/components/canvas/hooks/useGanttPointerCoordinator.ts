@@ -41,6 +41,7 @@ export function useGanttPointerCoordinator(
     setScroll,
     openTask,
     clearHistogramTooltip,
+    startVerticalRowDrag,
   } = input;
   const canvasRef = host.primaryCanvasRef;
   const rendererRef = host.primaryRendererRef;
@@ -48,6 +49,12 @@ export function useGanttPointerCoordinator(
   const view = viewport.effectiveView;
 
   const justBoxSelectedRef = useRef(false);
+  // Gezet zodra een balkbody-sleep aan de rijsleep van de DOM-grid is overgedragen: de mouseup van
+  // dat gebaar levert op het canvas nog een click op, en die mag de zojuist verplaatste taak niet
+  // her-selecteren of (naast een balk) de selectie wissen. Gewist bij de eerstvolgende mousedown,
+  // want eindigt de sleep boven de grid, dan komt er op het canvas helemaal geen click (zelfde
+  // vangnet als `useTableRowDrag`'s `justDraggedRef`).
+  const justRowDraggedRef = useRef(false);
   const [hoverCursor, setHoverCursor] = useState('default');
   const [contextMenu, setContextMenu] = useState<GanttContextMenuState | null>(null);
   const [relationPopover, setRelationPopover] = useState<GanttRelationPopoverState | null>(null);
@@ -66,6 +73,17 @@ export function useGanttPointerCoordinator(
     deselectAll,
     justBoxSelectedRef,
   });
+  // Verticale balkbody-sleep ⇒ dezelfde rijsleep als de taakrij links (zie `ganttRowDragBridge`).
+  // `useBarDrag` beslist pas ná de drempel over de richting en roept dit hooguit één keer per
+  // gebaar aan; daarna is zijn eigen dragState al gewist, dus er lopen nooit twee gebaren tegelijk.
+  const onVerticalBodyDrag = useCallback((candidate: {
+    taskId: string;
+    startClientX: number;
+    startClientY: number;
+  }) => {
+    justRowDraggedRef.current = true;
+    startVerticalRowDrag?.(candidate);
+  }, [startVerticalRowDrag]);
   const barDrag = useBarDrag({
     zoom: view.zoom,
     enableQuarterHourZoom,
@@ -75,6 +93,7 @@ export function useGanttPointerCoordinator(
     compressNonWorkdays,
     getTask,
     updateTask,
+    onVerticalBodyDrag: startVerticalRowDrag ? onVerticalBodyDrag : undefined,
     axis: viewport.sharedAxis,
     canvasRef,
   });
@@ -92,6 +111,10 @@ export function useGanttPointerCoordinator(
   const onClick = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
     if (justBoxSelectedRef.current) {
       justBoxSelectedRef.current = false;
+      return;
+    }
+    if (justRowDraggedRef.current) {
+      justRowDraggedRef.current = false;
       return;
     }
     clearHistogramTooltip();
@@ -164,6 +187,9 @@ export function useGanttPointerCoordinator(
    * 8 iedere overige achtergrondroute start kaderselectie.
    */
   const onMouseDown = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
+    // Een nieuwe mousedown is onmiskenbaar een nieuwe interactie: een eventueel blijven hangen
+    // rijsleep-vlag (sleep geëindigd boven de grid, dus zonder canvas-click) vervalt hier.
+    justRowDraggedRef.current = false;
     // 1–2. Middelklik pant alleen wanneer geen enkel ander gebaar actief is.
     if (event.button === 1) {
       event.preventDefault();

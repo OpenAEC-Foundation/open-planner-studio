@@ -18,6 +18,7 @@ import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { contextMenuBulk, contextMenuOutlineScope } from '@/components/canvas/contextMenuScope';
 import { buildTrace } from '@/engine/taskGrid/trace';
 import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';
+import { useGanttRowDragBridge } from '@/components/canvas/ganttRowDragBridge';
 import { createTaskGridAdapter, createTaskGridAdapterDomain } from '@/engine/taskGrid/taskGridAdapter';
 import { createTaskGridRowIndex } from '@/engine/taskGrid/rowIndex';
 import { taskNameIndent } from '@/engine/taskGrid/nameIndent';
@@ -592,7 +593,16 @@ export function TaskGridSurface({
     enabled: isTreeMode(view),
     onBlocked: notifyStructureLocked,
     justDraggedRef,
+    probeRootRef: containerRef,
   });
+  // Ingebed in de Gantt-werkruimte: het canvas rechts draagt een verticale balkbody-sleep aan
+  // déze rijsleep over (zie `ganttRowDragBridge`). Op de volledige Tabel-tab is er geen brug.
+  const rowDragBridge = useGanttRowDragBridge();
+  useEffect(() => {
+    if (!rowDragBridge) return;
+    rowDragBridge.startRef.current = startRowDrag;
+    return () => { rowDragBridge.startRef.current = null; };
+  }, [rowDragBridge, startRowDrag]);
 
   const renderedRows = useMemo(() => adapter.rows.map((row, absoluteIndex) => {
     if (row.kind !== 'data') return row;

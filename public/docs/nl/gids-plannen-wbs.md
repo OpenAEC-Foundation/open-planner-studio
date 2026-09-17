@@ -92,6 +92,19 @@ de taak wordt de nieuwe, laatste subtaak van die samenvattende taak — opnieuw 
 beweging, het muis-equivalent van Alt+→. Selecteer eerst meerdere taken (Ctrl/Cmd-klik, of een
 box-selectie) en de hele selectie sleept en landt samen.
 
+Dat kan ook aan de **balk** zelf: pak in het Gantt-diagram een taakbalk in het midden vast en sleep
+overwegend omhoog of omlaag. De balk volgt dan dezelfde rijsleep als de taaktabel — zelfde
+invoegplekken, zelfde nestregel, één undo-stap — en de datums van de taak veranderen niet. De
+invoegstreep verschijnt daarbij op de doelrij in de taaktabel, naast de tijdlijn. Sleep je overwegend
+opzij, dan verschuif je zoals altijd de datums. Welke van de twee het wordt, beslist de eerste paar
+pixels van je beweging: daarna blijft het gebaar bij die keuze, ook als je alsnog de andere kant op
+gaat. Eén sleep verandert dus nooit én de datums én de plek in de structuur.
+
+Twee verschillen met het slepen aan de rij. De balk verplaatst altijd **één** taak, ook als er
+meerdere geselecteerd zijn — wil je een hele selectie verplaatsen, sleep dan aan de rijen. En staat
+de weergave gesorteerd of gegroepeerd, dan is de structuur op slot: je krijgt dezelfde melding als
+bij het slepen van een rij, en er verandert niets.
+
 Het lint-tabblad **Tabel** toont diezelfde structuur als een gewoon, bewerkbaar raster, handig als je
 in één keer veel taken invoert of corrigeert: één klik op een cel selecteert hem alleen — booleans,
 keuzelijsten en datums wijzigen dus niet per ongeluk door te klikken. Bewerken doe je met **F2** of
