@@ -614,9 +614,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GLECHECK="$DIR/.gantt-label-ellipsis.mjs"
   if bundle_check "$DIR/check-gantt-label-ellipsis.ts" "$GLECHECK"; then node "$GLECHECK" || STATUS=1; fi
 
-  # U2: labelkleur op de balk. Eén balkpalet voor licht én donker laat geen vaste witte tekst toe;
-  # `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding. Pint zwart op de zes
-  # balktinten en wit op de voortgangsvulling en de 25%-zwart-overlay.
+  # Labelkleur op de balk. Een vaste witte tekst kan niet zodra de balkkleur uit projectdata komt
+  # (de kleurmodi); `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding.
+  # Pint wit op de vijf balktinten, de voortgangsvulling en de 25%-zwart-overlay, zwart op de
+  # spelinggroenen — de uitkomst, niet de formule.
   BLCCHECK="$DIR/.bar-label-color.mjs"
   if bundle_check "$DIR/check-bar-label-color.ts" "$BLCCHECK"; then node "$BLCCHECK" || STATUS=1; fi
 

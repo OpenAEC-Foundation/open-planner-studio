@@ -1253,25 +1253,27 @@ button.task-grid-relation-reference {
   --color-accent: var(--theme-accent);
   --color-accent-hover: var(--theme-accent-hover);
   --color-accent-on: var(--theme-accent-on);
-  /* U2 — ÉÉN balkpalet voor licht én donker (besluit eigenaar). Elke waarde haalt >=3:1 tegen
-     ZOWEL de lichte kaart (#FAFAFA) als de donkere kaart (#2E3239); vroeger waren de balken op
-     merk-verzadiging afgestemd op wit en haalden ze op de donkere kaart 1.9-2.7:1. Eén stap minder
-     verzadigd, zelfde tintfamilie, zodat legenda, gidsen en rapport dezelfde taal blijven spreken.
-     Gemeten (WCAG 2.x relatieve luminantie), licht / donker / wit-label-op-balk:
-       critical  #DA5252  3.79 / 3.25 / 3.95
-       normal    #648BE0  3.19 / 3.87 / 3.33
-       complete  #5778D6  3.97 / 3.10 / 4.15
-       milestone #986DE2  3.58 / 3.45 / 3.74
-       baseline  #808694  3.50 / 3.53 / 3.65
-       float     #1E976F  3.52 / 3.50 / 3.68
-     LET OP: dezelfde zes waarden staan als merk-hex in `src/engine/renderer/themePalette.ts`
+  /* Balkpalet — de VERZADIGDE merktinten (besluit eigenaar 18-09-2026). Werkblok U2 had ze één
+     stap ontzadigd zodat één set >=3:1 haalde tegen zowel de lichte kaart (#FAFAFA) als de donkere
+     (#2E3239); dat kostte het merkkarakter en is teruggedraaid. Gemeten (WCAG 2.x relatieve
+     luminantie), lichte kaart / donkere kaart / wit-label-op-balk:
+       critical  #DC2626  4.63 / 2.67 / 4.83
+       normal    #2563EB  4.95 / 2.49 / 5.17
+       complete  #1D4ED8  6.42 / 1.92 / 6.70
+       milestone #7C3AED  5.46 / 2.26 / 5.70
+       baseline  #6B7280  4.63 / 2.66 / 4.83
+     Op de donkere kaart blijft dat onder 3:1; aanvaard, want een balk is een gevuld vlak met eigen
+     rand en label, geen dunne lijn of tekst. De speling (`--theme-bar-float`) is als enige WEL per
+     thema gescheiden: dat is een halfdoorzichtige band zonder label die alleen van zijn ondergrond
+     moet winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61).
+     LET OP: dezelfde waarden staan als merk-hex in `src/engine/renderer/themePalette.ts`
      (BRAND/`--theme-bar-float`-fallback) — die tekenlaag leest geen CSS in headless tests. */
-  --color-critical: #DA5252;
-  --color-task-normal: #648BE0;
-  --color-task-milestone: #986DE2;
-  --color-task-float: #1E976F;
-  --color-task-baseline: #808694;
-  --color-task-complete: #5778D6;
+  --color-critical: #DC2626;
+  --color-task-normal: #2563EB;
+  --color-task-milestone: #7C3AED;
+  --color-task-float: #10B981;
+  --color-task-baseline: #6B7280;
+  --color-task-complete: #1D4ED8;
 }
 
 /* Dark theme — OpenAEC default
@@ -1309,8 +1311,8 @@ button.task-grid-relation-reference {
      (beter leesbaar op donkere kaarten dan --color-task-milestone zelf). */
   --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
   --theme-grid-milestone-text: #A78BFA;
-  /* U2: één balkpalet — gelijk aan --color-task-float, geen thema-eigen groen meer. */
-  --theme-bar-float: #1E976F;
+  /* Spelingband, donker thema: 5,07:1 op de donkere kaart (#2E3239). */
+  --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
   --theme-dropdown-bg: #2E3239;
@@ -1399,8 +1401,8 @@ button.task-grid-relation-reference {
      --color-task-milestone (#7C3AED) voor voldoende contrast op de kaart (AA). */
   --theme-grid-summary-bg: rgba(54, 54, 62, 0.06);
   --theme-grid-milestone-text: #6D28D9;
-  /* U2: één balkpalet — gelijk aan --color-task-float, geen thema-eigen groen meer. */
-  --theme-bar-float: #1E976F;
+  /* Spelingband, licht thema: donkerder groen dan --color-task-float, 3,61:1 op de lichte kaart. */
+  --theme-bar-float: #059669;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;

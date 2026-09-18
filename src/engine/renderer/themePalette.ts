@@ -7,8 +7,8 @@
 //   - readGanttPalette/readHistogramPalette/readMiniMapPalette lezen de CSS-vars (met per-renderer
 //     fallback, EXACT zoals voorheen) en stellen het palet samen;
 //   - PRINT_PALETTE is de parallelle, DOM-loze print-tabel. Die loopt sinds de U2-fixronde NIET
-//     met `BRAND` mee: papier is wit, dus het printpalet houdt de verzadigde merkhexen (zie de
-//     toelichting bij PRINT_PALETTE zelf).
+//     met `BRAND` mee, maar houdt eigen literalen: papier is wit en stelt andere eisen dan een
+//     scherm met twee thema's (zie de toelichting bij PRINT_PALETTE zelf).
 // De renderers krijgen hun palet via de constructor-opts geïnjecteerd; ontbreekt dat, dan roepen ze
 // zelf de bijbehorende read*-functie aan (identiek lees-moment/-resultaat als vroeger). Zo wordt de
 // renderer puur/headless-testbaar terwijl de GETEKENDE kleuren byte-identiek blijven.
@@ -33,15 +33,34 @@ export const GANTT_TRACE_COLORS = {
   successorDriving: '#7C3AED',   // path tracing: driving opvolger (donkerder paars)
 } as const;
 
+// De BALKKLEUREN zijn de verzadigde merktinten, en dat is een bewuste keuze van de eigenaar.
+// Tussenstand: werkblok U2 (12-09-2026) heeft ze één stap ontzadigd (#DA5252/#648BE0/#5778D6/
+// #986DE2/#808694) om met ÉÉN set >=3:1 te halen tegen zowel de lichte kaart (#FAFAFA) als de
+// donkere (#2E3239). Dat kostte het merkkarakter: de balken lazen als mat pastel. Besluit
+// 18-09-2026: het contrasteisenpaar wordt losgelaten voor de balken; de verzadigde set komt terug.
+// Gemeten (WCAG 2.x), lichte kaart / donkere kaart:
+//   critical  #DC2626  4,63 / 2,67
+//   normal    #2563EB  4,95 / 2,49
+//   complete  #1D4ED8  6,42 / 1,92
+//   milestone #7C3AED  5,46 / 2,26
+//   baseline  #6B7280  4,63 / 2,66
+// Op de donkere kaart blijft dat onder 3:1. Dat is hier aanvaard omdat een balk een GEVULD VLAK is
+// van tientallen pixels hoog met een eigen rand en label, geen dunne lijn of tekst — de leesbaarheid
+// hangt aan `barLabelColor` (hieronder), niet aan het vlak/kaart-contrast. De speling (`float`) is
+// daarom als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): dat is een halfdoorzichtige
+// band zonder label, die het alleen van zijn ondergrond moet winnen.
+// LET OP: deze vijf waarden plus de spelinggroenen staan óók als CSS-var in
+// `src/styles/globals.css` (`--color-*` / `--theme-bar-float`). De tekenlaag leest die CSS niet in
+// headless tests, dus de twee bronnen moeten met de hand gelijk blijven.
 const BRAND = {
-  critical: '#DA5252',          // kritiek (rood) — U2: >=3:1 op lichte EN donkere kaart
+  critical: '#DC2626',          // kritiek (rood)
   criticalLight: '#991B1B',     // voortgangsvulling kritiek
   nearCritical: '#F59E0B',      // bijna-kritiek (amber, fase 2.9 §5.4)
   hammock: '#0E7490',           // hammock/LOE-balk (teal, fase 2.9 §5.3)
-  normal: '#648BE0',            // normale taak (blauw) — U2: >=3:1 op lichte EN donkere kaart
-  normalLight: '#5778D6',       // voortgangsvulling / voltooid (blauw) — U2
-  milestone: '#986DE2',         // mijlpaal (paars, ruit) — U2
-  baseline: '#808694',          // baseline-onderbalk (grijs) — U2
+  normal: '#2563EB',            // normale taak (blauw)
+  normalLight: '#1D4ED8',       // voortgangsvulling / voltooid (blauw)
+  milestone: '#7C3AED',         // mijlpaal (paars, ruit)
+  baseline: '#6B7280',          // baseline-onderbalk (grijs)
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
   summary: '#475569',           // samenvattingsbalk (slate)
   ghost: '#94A3B8',             // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
@@ -61,24 +80,26 @@ const FLOAT_PATH_TINTS: string[] = [
 ];
 
 // ── Labelkleur op een gekleurd vlak (U2-fixronde) ────────────────────────────
-// Het balklabel was hardgecodeerd wit. Met ÉÉN balkpalet voor licht én donker is wit aantoonbaar
-// niet houdbaar: om 4,5:1 met wit te halen moet de balkluminantie <= 0,183 blijven, terwijl >=3:1
-// tegen de donkere kaart (#2E3239) juist >= 0,195 eist — die twee eisen sluiten elkaar uit. De
-// uitweg is niet een donkerder palet maar een labelkleur die de BALK volgt.
+// Het balklabel was ooit hardgecodeerd wit. Dat is niet houdbaar zodra de balkkleur niet vaststaat:
+// in de kleurmodi (`auto`, resource-, categorie-kleuring) tekent de gebruiker zijn eigen tinten op
+// de balk, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak de
+// beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
 //
-// `barLabelColor` kiest per vlak de beste van twee: bijna-zwart (#111827, hetzelfde als
-// PRINT_PALETTE.text) of wit. Gemeten (WCAG 2.x), zwart-label / wit-label:
-//   critical   #DA5252  4,49 / 3,95  ⇒ zwart
-//   normal     #648BE0  5,33 / 3,33  ⇒ zwart
-//   complete   #5778D6  4,28 / 4,15  ⇒ zwart
-//   milestone  #986DE2  4,75 / 3,74  ⇒ zwart
-//   baseline   #808694  4,86 / 3,65  ⇒ zwart
-//   float      #1E976F  4,82 / 3,68  ⇒ zwart
-// en juist WIT op de donkere voortgangsvullingen, waar het label vaak op begint:
+// Met het HERSTELDE verzadigde balkpalet (zie BRAND hierboven) wint wit op alle vaste balktinten —
+// het oude beeld dus, maar nu gemeten in plaats van aangenomen. Gemeten (WCAG 2.x),
+// zwart-label / wit-label:
+//   critical   #DC2626  3,67 / 4,83  ⇒ wit
+//   normal     #2563EB  3,43 / 5,17  ⇒ wit
+//   complete   #1D4ED8  2,65 / 6,70  ⇒ wit
+//   milestone  #7C3AED  3,11 / 5,70  ⇒ wit
+//   baseline   #6B7280  3,67 / 4,83  ⇒ wit
+// Ook op de donkere voortgangsvullingen, waar het label vaak op begint, blijft het wit:
 //   criticalLight #991B1B  2,13 / 8,31                       ⇒ wit
-//   moduskleur + 25% zwart (de rgba-overlay), bv. normal      2,70-3,26 / 5,45-6,56 ⇒ wit
-// Vier van de zes tinten halen met zwart >= 4,5:1 (AA voor normale tekst), de overige twee >= 4,2:1
-// op 10 px vetgedrukt-equivalent; met wit haalde GEEN van de zes 4,5:1 en drie bleven onder 3,7:1.
+//   moduskleur + 25% zwart (de rgba-overlay), bv. normal      1,84-2,40 / 7,39-9,63 ⇒ wit
+// De speling (`float`) draagt geen label, maar staat hier voor de volledigheid: #10B981 (donker
+// thema) 6,99 / 2,54 ⇒ zwart, #059669 (licht thema) 4,71 / 3,77 ⇒ zwart.
+// De functie blijft dus staan ook al kiest hij voor het standaardpalet overal wit: hij is de vangrail
+// voor de kleurmodi, waar de balkkleur uit projectdata komt en elke kant op kan.
 
 /** sRGB-hex ⇒ [r,g,b] (0-255). Accepteert `#rgb` en `#rrggbb`. */
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -218,9 +239,9 @@ export function readGanttPalette(): GanttPalette {
     normal: BRAND.normal,
     normalLight: BRAND.normalLight,
     milestone: BRAND.milestone,
-    float: v('--theme-bar-float', '#1E976F'),
+    float: v('--theme-bar-float', '#059669'),
     baseline: BRAND.baseline,
-    complete: BRAND.normalLight, // '#5778D6', zelfde hex als normalLight
+    complete: BRAND.normalLight, // '#1D4ED8', zelfde hex als normalLight
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
@@ -317,12 +338,12 @@ export const PRINT_PALETTE = {
   borderDark: '#9ca3af',
   text: '#111827',
   textSecondary: '#6b7280',
-  // U2-fixronde — het printpalet loopt BEWUST niet met `BRAND` mee. De U2-balkkleuren zijn één
-  // stap ontzadigd omdat ze >=3:1 moeten halen tegen ZOWEL de lichte als de donkere kaart; papier
-  // is altijd wit, dus die tweede eis bestaat hier niet. Op wit halen de verzadigde merkhexen meer
-  // contrast (kritiek #DC2626 5,9:1 vs #DA5252 3,9:1; normaal #2563EB 5,2:1 vs #648BE0 3,3:1) en
-  // ze drukken ook betrouwbaarder af — een ontzadigde tint verdwijnt sneller in grijstinten.
-  // Daarom staan hieronder de OUDE, verzadigde waarden als eigen literalen.
+  // Het printpalet loopt BEWUST niet met `BRAND` mee, ook al zijn de waarden sinds het herstel van
+  // 18-09-2026 weer identiek. De reden om ze apart te houden is dat ze op verschillende eisen zijn
+  // gekozen: het scherm weegt twee kaarten (licht/donker) tegen elkaar af, papier is altijd wit en
+  // moet daarnaast in grijstinten nog te onderscheiden zijn — een ontzadigde tint verdwijnt daar
+  // sneller. Wordt het schermpalet ooit opnieuw bijgesteld, dan hoeft de print daar niet in mee.
+  // De casing is hier lowercase waar dat vroeger zo stond; dat is load-bearing (zie de kop).
   critical: '#DC2626',
   criticalDark: '#991b1b',
   // Bijna-kritiek (#21 kleurmodi): de print tekende bijna-kritiek nooit zelf (critical/normal

@@ -1356,11 +1356,14 @@ export class GanttRenderer {
       // dekking i.p.v. ~90%. Op 90% domineerde de groene band het beeld: hij is vaak veel BREDER
       // dan de balk zelf, dus een even "harde" kleur trekt de blik weg van de planning.
       // U2-fixronde: 40% was te ver. Wat telt is het GEBLENDE contrast van de band tegen zijn
-      // ondergrond, niet dat van de ongemengde float-kleur (#1E976F, >=3:1 op beide kaarten).
-      // Gemeten (WCAG 2.x) voor #1E976F over de ondergrond:
-      //   dekking  lichte kaart #FAFAFA / weekendarcering licht / donkere kaart #2E3239
-      //     0.40     1,60 / 1,56 / 1,64   — op weekendarcering niet meer van een vrije dag te onderscheiden
-      //     0.60     2,07 / 1,98 / 2,13   — leesbaar als eigen band, nog steeds achtergrondinformatie
+      // ondergrond, niet dat van de ongemengde float-kleur. De kleur komt per thema uit
+      // `--theme-bar-float` (donker #10B981, licht #059669, high-contrast #34D399) — als enige
+      // balktint thema-afhankelijk, juist omdat de band halfdoorzichtig is en geen label draagt.
+      // Gemeten (WCAG 2.x) voor de band over zijn ondergrond, op 0.60 dekking:
+      //   #10B981 op de donkere kaart #2E3239 => 2,75
+      //   #059669 op de lichte kaart  #FAFAFA => 2,12
+      // Op 0.40 zakte dat naar ~1,6 — daar was de band op weekendarcering niet meer van een vrije
+      // dag te onderscheiden. Op 0.60 leest hij als eigen band en blijft hij achtergrondinformatie.
       // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 was wél te weinig.
       ctx.fillStyle = this.colors.float + '99'; // 0.6 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);

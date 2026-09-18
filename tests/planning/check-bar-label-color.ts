@@ -1,15 +1,20 @@
-// U2 — labelkleur op de taakbalk.
+// Labelkleur op de taakbalk.
 //
-// Het balklabel was hardgecodeerd wit. Met ÉÉN balkpalet voor licht én donker kan dat niet: om
-// 4,5:1 met wit te halen moet de balkluminantie laag blijven, terwijl >=3:1 tegen de donkere kaart
-// juist een lichtere balk eist. `barLabelColor` kiest daarom per vlak zwart of wit, op de gemeten
-// WCAG-contrastverhouding — en `compositeOver` lost de half-transparante voortgangslaag eerst op
-// tot een echte hex, zodat de keuze het vlak ziet dat de gebruiker ONDER de tekst ziet.
+// Het balklabel was ooit hardgecodeerd wit. Dat is niet houdbaar zodra de balkkleur uit projectdata
+// komt: in de kleurmodi (`auto`, resource- en categoriekleuring) kiest de gebruiker zijn eigen
+// tinten, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak
+// zwart of wit, op de gemeten WCAG-contrastverhouding — en `compositeOver` lost de half-
+// transparante voortgangslaag eerst op tot een echte hex, zodat de keuze het vlak ziet dat de
+// gebruiker ONDER de tekst ziet.
 //
-// Deze check pint de UITKOMST per vlak (niet de formule): zwart op de zes balktinten, wit op de
-// donkere kritieke voortgangsvulling en op de 25%-zwart-overlay van elke balktint. `contrastRatio`
-// wordt daarbij gebruikt als onafhankelijke meting: de gekozen kleur moet aantoonbaar de hoogste
-// verhouding halen van de twee kandidaten, en minimaal 3:1 (grote/vette tekst, WCAG AA).
+// Sinds het kleurherstel van 18-09-2026 (verzadigde merktinten terug op de balken) wint WIT op
+// alle vaste balktinten — het beeld van vóór werkblok U2 dus, maar nu gemeten in plaats van
+// aangenomen. Deze check pint die uitkomst per vlak (niet de formule): wit op de vijf balktinten,
+// wit op de donkere kritieke voortgangsvulling en op de 25%-zwart-overlay van elke tint, en zwart
+// op de speling — de enige tint die licht genoeg is, en tevens de enige die per thema verschilt.
+// `contrastRatio` wordt daarbij gebruikt als onafhankelijke meting: de gekozen kleur moet
+// aantoonbaar de hoogste verhouding halen van de twee kandidaten, en minimaal 3:1 (grote/vette
+// tekst, WCAG AA).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -59,18 +64,29 @@ function expectLabel(label: string, vlak: string, verwacht: string, minRatio: nu
   ok(`${label} (${vlak}): contrast ${gekozen.toFixed(2)} >= ${minRatio}`, gekozen >= minRatio);
 }
 
-// ── De zes balktinten: zwart label ──────────────────────────────────────────
+// ── De vijf balktinten: wit label ───────────────────────────────────────────
 // Exact de hexen uit BRAND/readGanttPalette die als BALKVLAK onder een label kunnen liggen.
 const BALKTINTEN: [string, string][] = [
-  ['kritiek', '#DA5252'],
-  ['normaal', '#648BE0'],
-  ['voltooid/normalLight', '#5778D6'],
-  ['mijlpaal', '#986DE2'],
-  ['baseline', '#808694'],
-  ['float', '#1E976F'],
+  ['kritiek', '#DC2626'],
+  ['normaal', '#2563EB'],
+  ['voltooid/normalLight', '#1D4ED8'],
+  ['mijlpaal', '#7C3AED'],
+  ['baseline', '#6B7280'],
 ];
 for (const [naam, hex] of BALKTINTEN) {
-  expectLabel(`balktint ${naam}`, hex, BAR_LABEL_DARK, 4.2);
+  expectLabel(`balktint ${naam}`, hex, BAR_LABEL_LIGHT, 4.5);
+}
+
+// ── De speling: zwart label ─────────────────────────────────────────────────
+// De spelingband draagt zelf geen label, maar hij is wel een balktint uit hetzelfde palet en de
+// enige die per thema verschilt (`--theme-bar-float`). Beide waarden staan hier gepind, zodat een
+// toekomstige groentint die naar wit-label zou kantelen hier opvalt en niet in de app.
+const FLOATTINTEN: [string, string][] = [
+  ['float donker thema', '#10B981'],
+  ['float licht thema', '#059669'],
+];
+for (const [naam, hex] of FLOATTINTEN) {
+  expectLabel(`balktint ${naam}`, hex, BAR_LABEL_DARK, 4.5);
 }
 
 // ── De donkere kritieke voortgangsvulling: wit label ────────────────────────
@@ -80,7 +96,7 @@ expectLabel('voortgangsvulling kritiek', '#991B1B', BAR_LABEL_LIGHT, 4.5);
 // In de kleurmodi en bij een trace-tint is de voortgangsvulling geen eigen hex maar
 // `rgba(0, 0, 0, 0.25)` over de balkkleur — precies de string die GanttRenderer gebruikt.
 const OVERLAY = 'rgba(0, 0, 0, 0.25)';
-for (const [naam, hex] of BALKTINTEN) {
+for (const [naam, hex] of [...BALKTINTEN, ...FLOATTINTEN]) {
   const vlak = compositeOver(OVERLAY, hex);
   ok(`overlay op ${naam}: compositeOver geeft een echte hex`, /^#[0-9a-f]{6}$/i.test(vlak));
   ok(`overlay op ${naam} is donkerder dan de balk zelf`, rgbOf(vlak).every((c, i) => c <= rgbOf(hex)[i]));
