@@ -16,7 +16,12 @@ import type { Resource } from '@/types/resource';
 // het volle bereik ~0.16 … ~0.87, elk ≥ ~0.06 uit elkaar — 10 van de 12 lichtheidsbanden uniek
 // (bewaakt door de check). Binnen een band verschilt de hue maximaal (grijs/rood/pink/oranje/
 // teal/indigo/amber/violet/sky/green/geel/lime). Noot: red-700 (#B91C1C) is donkerder én
-// duidelijk anders van tint dan critical-rood (#DC2626) — de rode kritiek-rand blijft leesbaar.
+// anders van tint dan critical-rood (#DC2626) — op de LICHTE kaart, waar hij ongewijzigd wordt
+// getekend (RGB-afstand 38). LET OP in het donkere thema: daar haalt `ensureThemeVisible` (zie
+// onderaan dit bestand) de "donkerder" er juist uit — #B91C1C wordt #e03232, RGB-afstand nog maar
+// 17 tot #DC2626. Dat is de pre-U2-toestand (U2's #DA5252 gaf 46), maar het betekent dat een
+// resource met paletkleur 1 op een donkere kaart nauwelijks van kritiek-rood te onderscheiden is.
+// Ontwerpeis 2 hieronder test op letterlijke gelijkheid en vangt dit NIET af.
 export const RESOURCE_PALETTE: readonly string[] = [
   '#1E293B', // 0  slate-800   (l ≈ 0.16)
   '#B91C1C', // 1  red-700     (l ≈ 0.24)

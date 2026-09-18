@@ -1404,9 +1404,11 @@ export class GanttRenderer {
 
     // Task name on bar (if wide enough) — U2: ellips i.p.v. een harde clip-snede.
     if (width > 40) {
-      // U2-fixronde — labelkleur volgt de BALK, niet een vaste witte hex. Met één balkpalet voor
-      // licht én donker is wit niet houdbaar (zie `barLabelColor` in themePalette.ts voor de
-      // gemeten verhoudingen). Kies de kleur op het vlak dat de gebruiker ONDER het label ziet:
+      // Labelkleur volgt de BALK, niet een vaste witte hex. Op de vijf standaard-balktinten kiest
+      // `barLabelColor` vanzelf wit, maar op nearCritical, ghost en de trace-/float-pad-tinten
+      // juist zwart — en in de kleurmodi komt de balkkleur helemaal uit projectdata (zie
+      // `barLabelColor` in themePalette.ts voor de gemeten verhoudingen). Kies de kleur daarom op
+      // het vlak dat de gebruiker ONDER het label ziet:
       // dat is de voortgangsvulling zodra die tot voorbij de tekststart loopt, anders de
       // (mogelijk moduseigen) balkkleur. `compositeOver` lost de half-transparante zwarte
       // voortgangslaag van de kleurmodi op tot een echte hex.

@@ -38,20 +38,36 @@ export const GANTT_TRACE_COLORS = {
 // #986DE2/#808694) om met ÉÉN set >=3:1 te halen tegen zowel de lichte kaart (#FAFAFA) als de
 // donkere (#2E3239). Dat kostte het merkkarakter: de balken lazen als mat pastel. Besluit
 // 18-09-2026: het contrasteisenpaar wordt losgelaten voor de balken; de verzadigde set komt terug.
-// Gemeten (WCAG 2.x), lichte kaart / donkere kaart:
-//   critical  #DC2626  4,63 / 2,67
-//   normal    #2563EB  4,95 / 2,49
-//   complete  #1D4ED8  6,42 / 1,92
-//   milestone #7C3AED  5,46 / 2,26
-//   baseline  #6B7280  4,63 / 2,66
-// Op de donkere kaart blijft dat onder 3:1. Dat is hier aanvaard omdat een balk een GEVULD VLAK is
-// van tientallen pixels hoog met een eigen rand en label, geen dunne lijn of tekst — de leesbaarheid
-// hangt aan `barLabelColor` (hieronder), niet aan het vlak/kaart-contrast. De speling (`float`) is
-// daarom als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): dat is een halfdoorzichtige
-// band zonder label, die het alleen van zijn ondergrond moet winnen.
-// LET OP: deze vijf waarden plus de spelinggroenen staan óók als CSS-var in
+// Gemeten (WCAG 2.x), lichte kaart #FAFAFA / donkere kaart #2E3239 / hoog-contrastkaart #0a0a0a:
+//   critical  #DC2626  4,63 / 2,67 / 4,10
+//   normal    #2563EB  4,95 / 2,49 / 3,83
+//   complete  #1D4ED8  6,42 / 1,92 / 2,95
+//   milestone #7C3AED  5,46 / 2,26 / 3,47
+//   baseline  #6B7280  4,63 / 2,66 / 4,10
+// Onder U2 haalden alle vijf op ELKE kaart >=3:1; die eis is dus bewust opgegeven. Noem het bij de
+// naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar 1,92-2,67 en in het
+// HOOG-CONTRASTTHEMA zakt `complete` naar 2,95 — dat is formeel non-conform met WCAG 1.4.11 (die
+// kent geen grootte-uitzondering voor grafische objecten), en in `mode: 'critical'` is de balkkleur
+// de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. De eigenaar heeft die afwijking
+// aanvaard voor licht en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
+// `rowHeight * 0,5`, bij de standaard ROW_HEIGHT 28 dus ~14 px, en in `mode: 'critical'` tekent
+// GanttRenderer er GEEN rand omheen (`modeAdvies` is daar `null`) — maar het LABEL: dat haalt via
+// `barLabelColor` (hieronder) 4,83-6,70 op elke balktint, en dat is wel gemeten.
+// De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die
+// band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn ondergrond winnen.
+// LET OP 1: deze vijf waarden plus de spelinggroenen staan óók als CSS-var in
 // `src/styles/globals.css` (`--color-*` / `--theme-bar-float`). De tekenlaag leest die CSS niet in
 // headless tests, dus de twee bronnen moeten met de hand gelijk blijven.
+// LET OP 2: `--color-critical` is niet alléén een balkkleur. Tailwind v4 leidt er de utility
+// `text-critical` uit af, die als ECHTE TEKST wordt gebruikt in ExtensionConsentDialog,
+// BenchmarkDialog en TaskCpmResultSection. Op #DC2626 haalt die tekst 4,83 op wit, maar 2,67 op de
+// donkere kaart en 2,33 op een elevated donker vlak — geen AA. Dat is de pre-U2-toestand (U2 gaf er
+// per ongeluk 3,25/2,85 van); wie dat wil oplossen verplaatst die zes gebruiken naar
+// `--theme-critical-text`, dat per thema bestaat en precies hiervoor bedoeld is.
+// LET OP 3: enkele tinten vallen samen, allemaal net als vóór U2 (dat had ze toevallig uit elkaar
+// getrokken): `baseline` == `dependency` (#6B7280), en `milestone` == GANTT_TRACE_COLORS
+// .successorDriving (#7C3AED), wat ook DOC_PALETTE[3] in utils/documents.ts is — bij 1 op de 8
+// documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
 const BRAND = {
   critical: '#DC2626',          // kritiek (rood)
   criticalLight: '#991B1B',     // voortgangsvulling kritiek
@@ -85,9 +101,9 @@ const FLOAT_PATH_TINTS: string[] = [
 // de balk, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak de
 // beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
 //
-// Met het HERSTELDE verzadigde balkpalet (zie BRAND hierboven) wint wit op alle vaste balktinten —
-// het oude beeld dus, maar nu gemeten in plaats van aangenomen. Gemeten (WCAG 2.x),
-// zwart-label / wit-label:
+// Met het HERSTELDE verzadigde balkpalet (zie BRAND hierboven) wint wit op de VIJF STANDAARD-
+// balktinten — daar komt het oude beeld dus vanzelf terug, nu gemeten in plaats van aangenomen.
+// Gemeten (WCAG 2.x), zwart-label / wit-label:
 //   critical   #DC2626  3,67 / 4,83  ⇒ wit
 //   normal     #2563EB  3,43 / 5,17  ⇒ wit
 //   complete   #1D4ED8  2,65 / 6,70  ⇒ wit
@@ -96,10 +112,16 @@ const FLOAT_PATH_TINTS: string[] = [
 // Ook op de donkere voortgangsvullingen, waar het label vaak op begint, blijft het wit:
 //   criticalLight #991B1B  2,13 / 8,31                       ⇒ wit
 //   moduskleur + 25% zwart (de rgba-overlay), bv. normal      1,84-2,40 / 7,39-9,63 ⇒ wit
-// De speling (`float`) draagt geen label, maar staat hier voor de volledigheid: #10B981 (donker
-// thema) 6,99 / 2,54 ⇒ zwart, #059669 (licht thema) 4,71 / 3,77 ⇒ zwart.
-// De functie blijft dus staan ook al kiest hij voor het standaardpalet overal wit: hij is de vangrail
-// voor de kleurmodi, waar de balkkleur uit projectdata komt en elke kant op kan.
+// "Alle balktinten" zou een overclaim zijn: er liggen meer vlakken onder een label, en die kiezen
+// juist ZWART — en dat hoort ook, want daar is zwart aantoonbaar leesbaarder:
+//   nearCritical #F59E0B  8,26 / 2,15  ⇒ zwart      ghost      #94A3B8  6,92 / 2,56  ⇒ zwart
+//   traceSucc    #A78BFA  6,52 / 2,72  ⇒ zwart      tracePred  #F59E0B  8,26 / 2,15  ⇒ zwart
+//   float-pad-tinten #0891B2 / #65A30D / #EA580C / #0D9488     ⇒ zwart (4,74-5,74 / 3,09-3,74)
+// Wit blijft winnen op `hammock` (#0E7490, 3,31 / 5,36) en `successorDriving` (#7C3AED, = milestone).
+// De speling draagt geen label, maar staat hier voor de volledigheid: #10B981 (donker thema)
+// 6,99 / 2,54 ⇒ zwart, #059669 (licht thema) 4,71 / 3,77 ⇒ zwart.
+// De functie is dus geen dode vangrail: hij kiest vandaag al op minstens zeven vlakken zwart, en hij
+// is onmisbaar voor de kleurmodi, waar de balkkleur uit projectdata komt en elke kant op kan.
 
 /** sRGB-hex ⇒ [r,g,b] (0-255). Accepteert `#rgb` en `#rrggbb`. */
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -232,16 +254,21 @@ export function readGanttPalette(): GanttPalette {
     border: v('--theme-border', '#E2E7EE'),
     text: v('--theme-text', '#333845'),
     textSecondary: v('--theme-text-dim', '#5B6472'),
-    critical: BRAND.critical,
-    criticalLight: BRAND.criticalLight,
+    // De balktinten komen uit BRAND, maar via een thema-var met BRAND als fallback — hetzelfde
+    // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
+    // valt alles terug op BRAND en is de uitkomst byte-identiek aan een directe `BRAND.x`. Alleen
+    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt (complete 2,95).
+    critical: v('--theme-bar-critical', BRAND.critical),
+    criticalLight: v('--theme-bar-critical-progress', BRAND.criticalLight),
     nearCritical: BRAND.nearCritical,
     hammock: BRAND.hammock,
-    normal: BRAND.normal,
-    normalLight: BRAND.normalLight,
-    milestone: BRAND.milestone,
+    normal: v('--theme-bar-normal', BRAND.normal),
+    normalLight: v('--theme-bar-complete', BRAND.normalLight),
+    milestone: v('--theme-bar-milestone', BRAND.milestone),
     float: v('--theme-bar-float', '#059669'),
-    baseline: BRAND.baseline,
-    complete: BRAND.normalLight, // '#1D4ED8', zelfde hex als normalLight
+    baseline: v('--theme-bar-baseline', BRAND.baseline),
+    // complete deelt bewust één bron met normalLight — het IS dezelfde vulling.
+    complete: v('--theme-bar-complete', BRAND.normalLight),
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
@@ -292,8 +319,10 @@ export function readHistogramPalette(): HistogramPalette {
     accent: v('--theme-accent', '#D97706'),
     hover: v('--theme-hover', 'rgba(0,0,0,0.05)'),
     active: v('--theme-active', 'rgba(0,0,0,0.08)'),
-    barNormal: BRAND.normal, // gelijk aan GanttRenderer's "normal" (blauw)
-    barOver: BRAND.critical, // gelijk aan GanttRenderer's "critical" (rood)
+    // Zelfde bron als GanttRenderer's normal/critical, thema-var met BRAND-fallback — zodat de
+    // staven in hoog contrast meelopen met de balken en niet ineens een ander blauw tonen.
+    barNormal: v('--theme-bar-normal', BRAND.normal),
+    barOver: v('--theme-bar-critical', BRAND.critical),
     capacity: v('--theme-text-dim', '#5B6472'),
   };
 }
@@ -313,8 +342,8 @@ export function readMiniMapPalette(): MiniMapPalette {
   return {
     bg: v('--theme-surface-alt', '#F6F8FB'),
     border: v('--theme-border', '#E2E7EE'),
-    bar: BRAND.normal,
-    critical: BRAND.critical,
+    bar: v('--theme-bar-normal', BRAND.normal),
+    critical: v('--theme-bar-critical', BRAND.critical),
     frame: v('--theme-accent', '#B45309'),
   };
 }
