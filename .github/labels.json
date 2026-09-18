@@ -1,0 +1,65 @@
+{
+  "$comment": "Bron van waarheid voor de labels van deze repository. Zie .github/workflows/label-sync.yml voor het waarom, de synchronisatieregels en wat er bewust NIET gebeurt (verwijderen). Contract per label: name (uniek), color (6 hexcijfers, zonder #), description (max 100 tekens).",
+  "labels": [
+    {
+      "name": "bug",
+      "color": "d73a4a",
+      "description": "Something isn't working"
+    },
+    {
+      "name": "enhancement",
+      "color": "a2eeef",
+      "description": "New feature or request"
+    },
+    {
+      "name": "area:reporting",
+      "color": "1d76db",
+      "description": "rapporten, printen, PDF-export, papierformaten, legenda, rapportageperiodes"
+    },
+    {
+      "name": "area:display",
+      "color": "bf3989",
+      "description": "visuele fouten: overloop, tooltips, thema, uitlijning, tekstgrootte"
+    },
+    {
+      "name": "area:resources",
+      "color": "0e8a16",
+      "description": "resourcebibliotheek, toewijzing, histogram, bezetting, capaciteit"
+    },
+    {
+      "name": "area:table-wbs",
+      "color": "fbca04",
+      "description": "tabel/WBS bewerken, invoegen, toetsenbordnavigatie, kolommen, filters"
+    },
+    {
+      "name": "area:relations",
+      "color": "d93f0b",
+      "description": "afhankelijkheden: types, lag, tekenen, bewerken, navigeren"
+    },
+    {
+      "name": "area:gantt-navigation",
+      "color": "006b75",
+      "description": "scrollen, zoomen, slepen, split view, minimap"
+    },
+    {
+      "name": "area:scheduling",
+      "color": "5319e7",
+      "description": "CPM, speling, oprollen verzameltaken, kalenders, gesplitste taken"
+    },
+    {
+      "name": "area:docs",
+      "color": "6a737d",
+      "description": "help, wegwijs, voorbeeldprojecten, vertaling van content"
+    },
+    {
+      "name": "area:reliability",
+      "color": "b60205",
+      "description": "opslaan, automatisch opslaan, herstel, documentlevenscyclus"
+    },
+    {
+      "name": "area:interop",
+      "color": "8b572a",
+      "description": "import/export: MSPDI, MPP, XER, P6, IFC, CSV/XLSX"
+    }
+  ]
+}
