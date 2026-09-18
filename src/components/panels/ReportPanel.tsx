@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions } from '@/services/print/printPreview';
+import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
 import { computePreviewRasterLimits } from '@/services/print/previewSafety';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { projectFileBase } from '@/utils/documents';
@@ -533,6 +533,45 @@ export function ReportPanel() {
     return () => { cancelled = true; };
   }, [reportType, resourceGantt, resourceGanttOptions.showAssignmentColumns, curveLabels, curveHeaderLabel]);
 
+  // De vertaalde kolomkoppen: ÉÉN object voor de meting hieronder en voor de render, zodat een
+  // kolom gemeten wordt op exact de kop die getekend wordt.
+  const tableHeaders = useMemo<TableHeaderLabels>(() => ({
+    wbs: t('tableHeaders.wbs'),
+    taskName: t('tableHeaders.taskName'),
+    unitsPerDay: t('tableHeaders.unitsPerDay'),
+    curve: t('tableHeaders.curve'),
+    start: t('tableHeaders.start'),
+    end: t('tableHeaders.end'),
+    duration: t('tableHeaders.duration'),
+    completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
+  }), [t]);
+
+  const assignmentColumns = reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns;
+
+  // De zes overgebleven datakolommen (WBS, Duur, Start, Einde, Volt., Eenh./d) schalen mee met wat
+  // dít rapport toont, net als de naam- en curvekolom hierboven. Ze stonden vast, en dat hield niet:
+  // de Poolse duur-kop "Czas trwania" (57 px in een kolom van 45) en een WBS-code van vijf niveaus
+  // liepen over de buurkolom heen, terwijl korte inhoud ruimte verspilde die de tijdlijn kan
+  // gebruiken. Meten gebeurt hier en niet in de printlaag — zelfde reden als bij de naamkolom:
+  // `measurePrintReport` (paginering) heeft geen canvas en zou anders een ándere tabelbreedte
+  // uitrekenen dan de raster- en vector-render.
+  const [columnWidths, setColumnWidths] = useState<TableColumnWidths | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    void ensureInterLoaded().then(() => {
+      if (cancelled) return;
+      const ctx = document.createElement('canvas').getContext('2d');
+      if (!ctx) { setColumnWidths(undefined); return; }
+      const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
+      setColumnWidths(measureTableColumnWidths(
+        rows,
+        { showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders },
+        (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
+      ));
+    });
+    return () => { cancelled = true; };
+  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders]);
+
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
   const tableReportRef = useRef<HTMLDivElement>(null);
@@ -611,16 +650,7 @@ export function ReportPanel() {
         completion: t('showCompletion', { defaultValue: 'Completion' }),
         relationStyle: t('legend.relationStyle'),
       },
-      tableHeaders: {
-        wbs: t('tableHeaders.wbs'),
-        taskName: t('tableHeaders.taskName'),
-        unitsPerDay: t('tableHeaders.unitsPerDay'),
-        curve: t('tableHeaders.curve'),
-        start: t('tableHeaders.start'),
-        end: t('tableHeaders.end'),
-        duration: t('tableHeaders.duration'),
-        completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
-      },
+      tableHeaders,
       today: t('today', { defaultValue: 'Vandaag' }),
       statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
       progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
@@ -661,10 +691,11 @@ export function ReportPanel() {
     // Punt 3: de tijdas op de rapportageperiode (alleen resourcediagram, alleen buiten *Hele project*).
     timeWindow: resourceGanttWindow,
     // Punt 1: eenheden/dag en curve van de band op de taak als tabelkolommen (alleen resourcediagram).
-    assignmentColumns: reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns,
+    assignmentColumns,
     rowAssignments: resourceGantt?.assignmentByRowKey,
     curveLabels,
     curveColumnWidth,
+    columnWidths,
     numberLocale: i18n.language,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
@@ -676,7 +707,7 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
-    resourceGantt, resourceGanttWindow, resourceGanttOptions.showAssignmentColumns, curveLabels, curveColumnWidth, i18n.language]);
+    resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -1118,12 +1149,21 @@ export function ReportPanel() {
         getArabicFontBytes(700),
       ]);
 
+      // Kolomkoppen die niet in hun kolom passen werden afgekapt ("Duration (wd)" past in geen
+      // enkele taal in 70 px) terwijl de DOM-tabel ernaast zichzelf gewoon opmeet. De meting loopt
+      // op het geladen Inter — hetzelfde font dat de PDF inbedt — zodat wat hier past ook daar past.
+      await ensureInterLoaded();
+      const headerCtx = document.createElement('canvas').getContext('2d');
+      const measureHeader = headerCtx
+        ? (text: string, font: string) => { headerCtx.font = font; return headerCtx.measureText(text).width; }
+        : undefined;
+
       // Twee losse takken i.p.v. één ternaire spec: `makeTableRenderReport<Row>` is generiek over de
       // rijtype, en een samengevoegde union-spec zou TS niet meer aan één Row-type kunnen binden.
       if (tableSpec) {
         // Tabelrapporten (discussie #31): dezelfde kolomspec als de DOM-weergave, gesectioneerd.
         tablePdfBytes = await paginateVectorToPdfBytes(
-          makeSectionedRenderReport(toPdfSpec(tableSpec)),
+          makeSectionedRenderReport(toPdfSpec(tableSpec), measureHeader),
           { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
           { regular, bold },
           { regular: arabicRegular, bold: arabicBold },
@@ -1135,7 +1175,7 @@ export function ReportPanel() {
             columns: buildMilestoneColumns(t, dd),
             rows: milestoneRows,
             emptyText: t('milestoneReport.empty'),
-          }),
+          }, measureHeader),
           { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
           { regular, bold },
           { regular: arabicRegular, bold: arabicBold },
@@ -1147,7 +1187,7 @@ export function ReportPanel() {
             columns: buildVarianceColumns(t, dd, locale),
             rows: varianceResult.rows,
             emptyText: t('variance.noBaseline'),
-          }),
+          }, measureHeader),
           { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
           { regular, bold },
           { regular: arabicRegular, bold: arabicBold },

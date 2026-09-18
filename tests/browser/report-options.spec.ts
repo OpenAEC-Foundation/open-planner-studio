@@ -139,3 +139,44 @@ test('report options: taaknamen afkappen en de naamkolom-slider sturen de tabel'
   }).toBeLessThan('Een bewust erg lange'.length + 1);
   expect(await drawn()).not.toContain(longName);
 });
+
+// Datakolommen van de rapporttabel (WBS/Duur/Start/Einde/Volt.): die stonden op een vaste breedte
+// die niet met de inhoud meebewoog — een vertaalde kop liep over de buurkolom heen en korte inhoud
+// verspilde ruimte die de tijdlijn kan gebruiken. Deze flow bewaakt dat de meting uit het paneel
+// ook echt in de getekende tabel landt (koppen voluit, kolom niet breder dan nodig).
+test('report options: de datakolommen van de tabel schalen mee met hun inhoud', async ({ page, ops: _ops }) => {
+  await seedProject(page, [
+    { name: 'Kolomtaak', start: '2026-09-07', finish: '2026-10-16', durationDays: 30 },
+  ], 'Kolombreedtes');
+  await page.evaluate(() => {
+    const original = CanvasRenderingContext2D.prototype.fillText;
+    const drawn: { text: string; x: number }[] = [];
+    CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
+      // Zie de eerste test: Gantt-paints ná het installeren van de haak horen niet bij het rapport.
+      if (!(this.canvas?.dataset.testid ?? '').startsWith('gantt-')) drawn.push({ text: String(text), x });
+      if (maxWidth === undefined) original.call(this, text, x, y);
+      else original.call(this, text, x, y, maxWidth);
+    };
+    Object.defineProperty(window, '__opsReportDrawnCells', { configurable: true, value: drawn });
+  });
+  const drawnCells = () => page.evaluate(() => (
+    (window as Window & { __opsReportDrawnCells?: { text: string; x: number }[] }).__opsReportDrawnCells ?? []
+  ));
+
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
+  await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
+
+  // De WBS-kolom stond vast op 50 px en tekent zijn kop gecentreerd, dus op x = 25. Zodra de meting
+  // (asynchroon, ná het laden van Inter) in de render landt, is de kolom nog zo breed als 'WBS' plus
+  // een WBS-code en schuift die kop naar links. "Kleiner dan 25" is dus precies het bewijs dat de
+  // gemeten breedte het tekenpad haalt, zonder een exacte pixelmaat vast te pinnen.
+  await expect.poll(async () => (await drawnCells()).filter(c => c.text === 'WBS').pop()?.x ?? Number.POSITIVE_INFINITY,
+    { timeout: 20_000 }).toBeLessThan(25);
+
+  // En de koppen zelf staan er voluit — de kolom groeit naar de kop in plaats van hem af te kappen.
+  const texts = (await drawnCells()).map(c => c.text);
+  expect(texts).toContainEqual(expect.stringMatching(/^(Duration|Duur)$/));
+  expect(texts).toContainEqual(expect.stringMatching(/^(Start)$/));
+  expect(texts).toContainEqual(expect.stringMatching(/^(End|Einde)$/));
+});

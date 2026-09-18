@@ -116,6 +116,36 @@ function fitText(d2d: Draw2D, text: string, maxWidth: number): string {
   return text.slice(0, lo) + ellipsis;
 }
 
+/** Meet tekst op een letter (CSS-fontstring) — het paneel levert dit vanuit een canvas. */
+export type MeasureText = (text: string, font: string) => number;
+
+/** De letter van een kolomkop — `drawTable` tekent ermee en {@link fitColumnsToHeaders} meet ermee. */
+const COLUMN_HEADER_FONT = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
+
+/**
+ * Verbreed elke kolom die haar eigen KOP niet kwijt kan. De kolombreedtes in een spec zijn een
+ * ontwerpkeuze die voor de Nederlandse/Engelse brontekst gemeten is; vertaalde koppen zijn langer
+ * en werden door `drawTable` met een beletselteken afgekapt — in het Engels al "Duration (wd)"
+ * (73 px in een kolom van 70, dus 54 px beschikbaar), in het Pools "Czas trwania (dr)" (92 px) en
+ * in het Arabisch bijna elke speling-/duurkop. Een kop is kort, vast en informatiedragend; die
+ * hoort niet af te kappen. De DOM-weergave (`TableReportView`) heeft dit probleem niet — een
+ * `<table>` meet zichzelf — dus dit brengt de PDF terug bij wat het scherm al toont.
+ *
+ * Bewust ALLEEN verbreden, nooit versmallen: de pagineerder perst de tabel op papierbreedte
+ * (`mode: 'fit-width'`, schaal = printbreedte / tabelbreedte, zonder bovengrens), dus een smallere
+ * tabel zou de tekst niet netter maken maar groter — en een kolom die met de inhoud meekrimpt zou
+ * de lettergrootte per rapport laten verspringen. Celinhoud kapt dus af zoals voorheen (dat is bij
+ * een vrije-tekstkolom als "Naam" of "Resources" ook de bedoeling); alleen de kop krijgt de ruimte
+ * die hij nodig heeft.
+ */
+export function fitColumnsToHeaders<Row>(columns: PdfTableColumn<Row>[], measure: MeasureText): PdfTableColumn<Row>[] {
+  return columns.map(col => {
+    // +1: afronding van subpixel-breedtes mag nooit nét een beletselteken uitlokken.
+    const needed = Math.ceil(measure(col.header, COLUMN_HEADER_FONT) + 2 * CELL_PAD_X + 1);
+    return needed > col.width ? { ...col, width: needed } : col;
+  });
+}
+
 function cellX(align: PdfTableAlign, colX: number, colW: number): number {
   if (align === 'left') return colX + CELL_PAD_X;
   if (align === 'right') return colX + colW - CELL_PAD_X;
@@ -143,7 +173,7 @@ function drawTable<Row>(
 
   // ---- Header-rij (bold, 2px onderlijn — spiegelt de DOM `2px solid var(--theme-border)`) ----
   let x = 0;
-  d2d.font = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
+  d2d.font = COLUMN_HEADER_FONT;
   d2d.fillStyle = COLORS.textMuted;
   d2d.textBaseline = 'middle';
   const headerMidY = y + HEADER_HEIGHT / 2;
@@ -210,9 +240,11 @@ function drawTable<Row>(
  */
 export function makeTableRenderReport<Row>(
   spec: PdfTableSpec<Row>,
+  measure?: MeasureText,
 ): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
+  const columns = measure ? fitColumnsToHeaders(spec.columns, measure) : spec.columns;
   return (makeDraw2D) => {
-    const tableWidth = spec.columns.reduce((sum, c) => sum + c.width, 0);
+    const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
     const titleH = spec.title ? TITLE_HEIGHT : 0;
     const height = titleH + tableHeight(spec.rows.length);
 
@@ -234,7 +266,7 @@ export function makeTableRenderReport<Row>(
     }
 
     const breakOffsets: number[] = [];
-    drawTable(d2d, y, spec.columns, spec.rows, spec.emptyText, breakOffsets);
+    drawTable(d2d, y, columns, spec.rows, spec.emptyText, breakOffsets);
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
@@ -252,9 +284,13 @@ export function makeTableRenderReport<Row>(
  */
 export function makeSectionedRenderReport(
   spec: PdfSectionedReportSpec,
+  measure?: MeasureText,
 ): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
+  const sections = measure
+    ? spec.sections.map(s => ({ ...s, columns: fitColumnsToHeaders(s.columns, measure) }))
+    : spec.sections;
   return (makeDraw2D) => {
-    const sectionWidths = spec.sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
+    const sectionWidths = sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
     const width = Math.max(SUMMARY_COLUMN_WIDTH, ...sectionWidths);
     const subtitleH = spec.subtitle ? SUBTITLE_HEIGHT : 0;
     const notes = spec.notes ?? [];
@@ -263,7 +299,7 @@ export function makeSectionedRenderReport(
     const summaryLines = Math.ceil(spec.summary.length / 2);
     const summaryH = summaryLines > 0 ? summaryLines * SUMMARY_LINE_HEIGHT + SUMMARY_GAP : 0;
     let height = TITLE_HEIGHT + subtitleH + notesH + summaryH;
-    for (const s of spec.sections) {
+    for (const s of sections) {
       height += (s.heading ? SECTION_HEADING_HEIGHT : 0) + tableHeight(s.rows.length) + SECTION_GAP;
     }
 
@@ -316,7 +352,7 @@ export function makeSectionedRenderReport(
 
     const breakOffsets: number[] = [];
     if (spec.summary.length > 0 || spec.subtitle || notes.length > 0) breakOffsets.push(y);
-    for (const s of spec.sections) {
+    for (const s of sections) {
       if (s.heading) {
         d2d.fillStyle = COLORS.text;
         d2d.font = `bold ${HEADER_FONT_SIZE + 1}px ${FONT_FAMILY}`;

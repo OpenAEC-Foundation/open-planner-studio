@@ -15,10 +15,11 @@
  */
 import {
   renderReport, measurePrintReport, PrintOptions, REPORT_MIN_ZOOM, buildPrintRows, measureTaskNameColumnWidth, measureCurveColumnWidth,
+  measureTableColumnWidths, AUTO_COLUMN_MIN_WIDTH,
   NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MIN, NAME_COLUMN_AUTO_MAX,
 } from '@/services/print/printPreview';
 import { computeTileLayout, footerLayoutWidthFor, PAPER_PT } from '@/services/print/tileLayout';
-import { makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
+import { fitColumnsToHeaders, makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
 import {
   computePreviewRasterLimits,
   PREVIEW_MAX_PAGE_PIXELS,
@@ -800,6 +801,27 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     ok(layout.bodyRows.slice(0, -1).every(r => set.has(r.srcY + r.srcH)), 'elke pagina eindigt op een rijgrens uit de render');
     const single = makeTableRenderReport({ title: 'T', columns, rows })(() => stub);
     ok(single.breakOffsets?.length === 300, 'losse tabelrender: één breekpositie per rij');
+
+    // Kolomkoppen die niet in hun kolom passen (een vertaalde kop is langer dan de Nederlandse
+    // brontekst waarop de breedte gemeten is) werden afgekapt; ze verbreden nu de kolom.
+    const meterPdf = (text: string) => text.length * 6;
+    const narrowCols = [
+      { header: 'Duration (wd)', width: 70, align: 'right' as const, text: () => '1' },
+      { header: 'Naam', width: 300, align: 'left' as const, text: () => 'x' },
+    ];
+    const fitted = fitColumnsToHeaders(narrowCols, meterPdf);
+    // 'Duration (wd)' = 13 tekens ⇒ 78 px + 2×8 celmarge + 1 = 95 > 70.
+    ok(fitted[0].width === 95, `tabelrapport: te smalle kolom groeit naar zijn kop (got ${fitted[0].width})`);
+    ok(fitted[1] === narrowCols[1], 'tabelrapport: een kolom die zijn kop wél kwijt kan blijft ongemoeid (ook qua identiteit)');
+    const wideRows = [{ n: 'x' }];
+    const noMeasure = makeTableRenderReport({ title: 'T', columns: narrowCols, rows: wideRows })(() => stub);
+    const measured = makeTableRenderReport({ title: 'T', columns: narrowCols, rows: wideRows }, meterPdf)(() => stub);
+    ok(noMeasure.width === 370 && measured.width === 395,
+      `tabelrapport: zonder meting de spec-breedte, met meting 25 px breder (got ${noMeasure.width}/${measured.width})`);
+    const sectioned = makeSectionedRenderReport({
+      title: 'T', summary: [], sections: [{ columns: narrowCols, rows: wideRows }],
+    }, meterPdf)(() => stub);
+    ok(sectioned.width === 395, `tabelrapport: ook gesectioneerd groeit de kolom mee (got ${sectioned.width})`);
   }
 
   const portrait = computeTileLayout({
@@ -938,6 +960,72 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   const exact = measureTaskNameColumnWidth(buildPrintRows([T_LONG], undefined), text => text.length * 6);
   const roundTrip = record([T_LONG], [], cal, baseOptions({ taskNameColumnWidth: exact }));
   ok(roundTrip.texts.some(t => t.text === longName), `naamkolom: gemeten breedte (${exact}) toont de naam onafgekapt`);
+}
+
+// ── 12. Automatisch meeschalende datakolommen (WBS/Duur/Start/Einde/Volt./Eenh./d) ────────────
+// De zes kolommen met een vaste breedte hielden hun inhoud niet: de Poolse duur-kop "Czas trwania"
+// (57 px in een kolom van 45) en een diepe WBS-code liepen over de buurkolom heen, terwijl korte
+// inhoud ruimte verspilde die de tijdlijn kan gebruiken. Ze meten nu — net als de naam- en de
+// curvekolom — op de kop én de cellen die dít rapport toont.
+{
+  const meter = (text: string) => text.length * 6;   // dezelfde meting als de opnemende Draw2D
+  const headers = { wbs: 'WBS', taskName: 'Taak', start: 'Start', end: 'Eind', duration: 'Duur', completion: 'Volt.' };
+  // Eén taak met bekende celteksten: WBS 'a.b' (3), duur '5d' (2), datums '05-01-2026' (10), 60 %.
+  const T_M = mkTask('t-meet', 'Meettaak', { wbsCode: 'a.b', time: mkTime({ scheduleDuration: 5, completion: 0.6 }) });
+  const rows = buildPrintRows([T_M], undefined);
+  const w = measureTableColumnWidths(rows, { showCompletion: true, tableHeaders: headers }, meter);
+  // Per kolom: max(kop, breedste cel) × 6 px + 2×celmarge (4) + 1.
+  ok(w.wbs === AUTO_COLUMN_MIN_WIDTH, `kolommeting WBS: kop 'WBS' en cel 'a.b' (18) ⇒ 27, geklemd op de vloer (got ${w.wbs})`);
+  ok(w.duration === 33, `kolommeting Duur: kop 'Duur' (24) wint van cel '5d' (12) ⇒ 33 (got ${w.duration})`);
+  ok(w.start === 69 && w.end === 69, `kolommeting datums: cel '05-01-2026' (60) ⇒ 69 (got ${w.start}/${w.end})`);
+  ok(w.complete === 39, `kolommeting Volt.: kop 'Volt.' (30) wint van cel '60%' (18) ⇒ 39 (got ${w.complete})`);
+  ok(w.units === undefined, 'kolommeting: zonder toewijzingskolommen wordt Eenh./d niet gemeten');
+  ok(measureTableColumnWidths(rows, { showCompletion: false, tableHeaders: headers }, meter).complete === undefined,
+    'kolommeting: zonder de Volt.-kolom wordt die niet gemeten');
+
+  // De Poolse duur-kop groeit voorbij de oude vaste 45 px in plaats van over de Start-kolom te lopen.
+  const pl = measureTableColumnWidths(rows, { showCompletion: true, tableHeaders: { ...headers, duration: 'Czas trwania' } }, meter);
+  ok(pl.duration === 81, `kolommeting: een lange vertaalde kop verbreedt de kolom (got ${pl.duration})`);
+
+  // Klemmen: een absurde kop/cel stopt op COL.max, een piepkleine kop op de vloer.
+  const huge = measureTableColumnWidths(rows, { showCompletion: true, tableHeaders: { ...headers, duration: 'x'.repeat(200) } }, meter);
+  ok(huge.duration === 90, `kolommeting: geklemd op het maximum van de Duur-kolom (got ${huge.duration})`);
+  const tiny = measureTableColumnWidths(buildPrintRows([mkTask('t-k', 'K', { wbsCode: '', time: mkTime({ scheduleDuration: 5 }) })], undefined),
+    { showCompletion: false, tableHeaders: { ...headers, wbs: '' } }, meter);
+  ok(tiny.wbs === AUTO_COLUMN_MIN_WIDTH, `kolommeting: geklemd op de vloer (got ${tiny.wbs})`);
+
+  // De gemeten breedtes komen 1-op-1 in de tabelbreedte terecht; een ontbrekende of onbruikbare
+  // sleutel valt terug op de vaste breedte van vóór de meting (byte-identiek).
+  const dflt = record([T_M], [], cal, baseOptions());
+  const measured = record([T_M], [], cal, baseOptions({ columnWidths: w }));
+  const delta = (w.wbs! - 50) + (w.duration! - 45) + (w.start! - 55) + (w.end! - 55) + (w.complete! - 45);
+  ok(measured.dims.tableWidth === dflt.dims.tableWidth + delta,
+    `gemeten kolommen: tabelbreedte verschuift met de som van de deltas (got ${measured.dims.tableWidth} vs ${dflt.dims.tableWidth + delta})`);
+  ok(record([T_M], [], cal, baseOptions({ columnWidths: {} })).dims.tableWidth === dflt.dims.tableWidth,
+    'geen gemeten kolommen ⇒ de vaste breedtes, byte-identiek');
+  ok(record([T_M], [], cal, baseOptions({ columnWidths: { duration: Number.NaN } })).dims.tableWidth === dflt.dims.tableWidth,
+    'onbruikbare kolombreedte ⇒ terugval op de vaste breedte');
+  ok(record([T_M], [], cal, baseOptions({ columnWidths: { wbs: 5 } })).dims.tableWidth === dflt.dims.tableWidth - (50 - AUTO_COLUMN_MIN_WIDTH),
+    'te kleine kolombreedte ⇒ geklemd op de vloer');
+  ok(record([T_M], [], cal, baseOptions({ columnWidths: { wbs: 9999 } })).dims.tableWidth === dflt.dims.tableWidth + 50,
+    'te grote kolombreedte ⇒ geklemd op het maximum (100)');
+
+  // Rondgang: op de gemeten breedte staat elke cel er onafgekapt; zónder meting kapt een te lange
+  // WBS-code af met een ellipsis in plaats van over de naamkolom heen te lopen.
+  const longWbs = '10.11.12.13.14';   // 14 tekens = 84 px: past in de kolom-max (100), niet in de vaste 50
+  const T_W = mkTask('t-wbs', 'Diepe code', { wbsCode: longWbs, time: mkTime({ scheduleDuration: 5 }) });
+  const wWide = measureTableColumnWidths(buildPrintRows([T_W], undefined), { showCompletion: true, tableHeaders: headers }, meter);
+  ok(record([T_W], [], cal, baseOptions({ columnWidths: wWide })).texts.some(t => t.text === longWbs),
+    `gemeten kolom toont de volledige WBS-code (breedte ${wWide.wbs})`);
+  const clipped = record([T_W], [], cal, baseOptions());
+  ok(clipped.texts.some(t => t.text.endsWith('…') && longWbs.startsWith(t.text.slice(0, -1))),
+    `zonder meting: WBS-cel afgekapt i.p.v. over de naamkolom (got ${JSON.stringify(clipped.texts.slice(0, 6).map(t => t.text))})`);
+  // Dezelfde vangnetregel voor een kop die zelfs boven het maximum uitkomt.
+  const clippedHead = record([T_M], [], cal, baseOptions({
+    labels: { ...baseOptions().labels!, tableHeaders: { ...headers, duration: 'Czas trwania' } },
+  }));
+  ok(clippedHead.texts.some(t => t.text.endsWith('…') && 'Czas trwania'.startsWith(t.text.slice(0, -1))),
+    'zonder meting: een te lange kop wordt afgekapt i.p.v. over de buurkolom getekend');
 }
 
 if (failures > 0) { console.log(`print-report: ${failures} faalregels`); process.exit(1); }
