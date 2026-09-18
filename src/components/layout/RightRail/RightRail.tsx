@@ -153,7 +153,7 @@ export function RightRail() {
       >
         <ChevronRight size={14} className="text-text-secondary ops-icon-inline-flip" />
         <span
-          className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider"
+          className="ops-text-10 font-semibold text-text-secondary uppercase tracking-wider"
           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
         >
           {label}
@@ -348,7 +348,7 @@ function RailPanel({
       data-ops-rail-panel={id}
     >
       <div className="flex items-center h-8 px-3 border-b border-border flex-shrink-0">
-        <span className="flex-1 min-w-0 text-[10px] font-bold uppercase tracking-wider text-text-secondary truncate">
+        <span className="flex-1 min-w-0 ops-text-10 font-bold uppercase tracking-wider text-text-secondary truncate">
           {title}
         </span>
         <div className="flex items-center gap-0.5 flex-shrink-0">

@@ -34,7 +34,7 @@
 .library-detail-actions button {
   display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px;
   background: var(--theme-surface); border: 1px solid var(--theme-control-border);
-  border-radius: var(--radius-md); color: var(--theme-text); font-size: 12px; cursor: pointer;
+  border-radius: var(--radius-md); color: var(--theme-text); font-size: calc(12px * var(--ui-font-scale, 1)); cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .library-detail-actions button:hover:not(:disabled) { background: var(--theme-hover); border-color: var(--theme-accent); }

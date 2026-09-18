@@ -28,12 +28,12 @@ export function ResourcePanelCompact() {
 
   if (resources.length === 0) {
     return (
-      <div className="p-3 text-[11px] text-text-secondary">{t('resource.panel.empty')}</div>
+      <div className="p-3 ops-text-11 text-text-secondary">{t('resource.panel.empty')}</div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1 p-2 text-[11px]">
+    <div className="flex flex-col gap-1 p-2 ops-text-11">
       {resources.map(r => {
         const overallocated = (resourceLoadResult?.overallocatedDays[r.id]?.length ?? 0) > 0;
         return (
@@ -66,7 +66,7 @@ export function ResourcePanelCompact() {
               // cascade-layer en zet `width:100%`, terwijl Tailwind-utilities in `@layer utilities`
               // zitten — unlayered CSS wint dus altijd van een kale `w-14`. Zonder `!` wordt de input
               // 100% breed en krimpt de naam-span hiernaast naar 0 px (issue #46a).
-              className="input !text-[11px] !px-1 !py-0.5 !w-14 text-right"
+              className="input ops-text-11 !px-1 !py-0.5 !w-14 text-right"
               title={t('resource.maxUnits')}
             />
           </div>

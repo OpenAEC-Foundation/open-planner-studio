@@ -44,9 +44,9 @@ function RuleValueEditor({
     const selected = Array.isArray(rule.value) ? rule.value : [];
     return (
       <div className="flex flex-col gap-0.5 max-h-28 overflow-y-auto border border-border rounded-[6px] p-1.5" style={{ minWidth: 140 }}>
-        {options.length === 0 && <span className="text-text-secondary text-[11px]">—</span>}
+        {options.length === 0 && <span className="text-text-secondary ops-text-11">—</span>}
         {options.map(o => (
-          <label key={o.value} className="flex items-center gap-1.5 text-[11px] cursor-pointer">
+          <label key={o.value} className="flex items-center gap-1.5 ops-text-11 cursor-pointer">
             <input
               type="checkbox"
               checked={selected.includes(o.value)}
@@ -225,7 +225,7 @@ function GroupEditor({
       </div>
 
       {node.children.length === 0 && (
-        <span className="text-text-secondary" style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))' }}>{t('view.filter.noRules')}</span>
+        <span className="text-text-secondary ops-text-11">{t('view.filter.noRules')}</span>
       )}
 
       <div className="flex flex-col gap-2">

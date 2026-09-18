@@ -40,7 +40,7 @@ export function TaskFreePeriodWarning({ taskId }: { taskId: string }) {
   return (
     <>
       {periods.map((p, i) => (
-        <div key={`${p.start}-${p.end}-${i}`} className="text-[11px]" style={{ color: 'var(--theme-warning-text)' }}>
+        <div key={`${p.start}-${p.end}-${i}`} className="ops-text-11" style={{ color: 'var(--theme-warning-text)' }}>
           ⚠ {p.name
             ? t('properties.longFreePeriodWarningNamed', { name: p.name, days: p.days, start: dd.date(p.start), end: dd.date(p.end) })
             : t('properties.longFreePeriodWarning', { days: p.days, start: dd.date(p.start), end: dd.date(p.end) })}

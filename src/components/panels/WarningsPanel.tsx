@@ -135,7 +135,7 @@ export function WarningsPanel() {
   const onReveal = (w: ScheduleWarning) => revealScheduleWarning(useAppStore.getState(), w);
 
   return (
-    <div className="flex flex-col h-full text-[11px]" data-ops-warnings-panel>
+    <div className="flex flex-col h-full ops-text-11" data-ops-warnings-panel>
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border text-text-secondary flex-shrink-0">
         <span className="flex-1 min-w-0 truncate" data-ops-warnings-summary>
           {cpmResult

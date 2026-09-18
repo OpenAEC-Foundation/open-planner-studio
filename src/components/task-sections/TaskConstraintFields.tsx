@@ -83,7 +83,7 @@ export function TaskConstraintFields({ task, onChange }: {
           </label>
           {pinHint && (
             <div
-              className="flex items-start gap-2 text-[10px] px-2 py-1.5 rounded"
+              className="flex items-start gap-2 ops-text-10 px-2 py-1.5 rounded"
               style={{ background: 'var(--theme-surface-alt)', color: 'var(--theme-text-muted)' }}
               data-ops-pin-hint
             >
@@ -129,7 +129,7 @@ export function TaskConstraintFields({ task, onChange }: {
             </Field>
           )}
           {!pairValidation.ok && (
-            <div className="text-[10px]" style={{ color: 'var(--error)' }} data-ops-constraint2-error>
+            <div className="ops-text-10" style={{ color: 'var(--error)' }} data-ops-constraint2-error>
               {pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ')}
             </div>
           )}

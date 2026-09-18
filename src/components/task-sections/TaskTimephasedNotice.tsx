@@ -54,7 +54,7 @@ export function TaskTimephasedNotice({ taskId }: { taskId: string }) {
       </span>
       <button
         type="button"
-        className="ops-textlink text-[11px]"
+        className="ops-textlink ops-text-11"
         onClick={() => openHelpArticle(MPP_TIMEPHASED_HELP_ARTICLE_ID)}
       >
         {tCommon('notifications.readMore')}

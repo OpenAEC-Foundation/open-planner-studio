@@ -101,7 +101,7 @@ export function StructureDialog() {
                 ))}
                 <button
                   onClick={() => addActivityCodeValue(type.id, { code: `${t('structure.newValuePrefix')}${type.values.length + 1}` })}
-                  className="btn btn--sm self-start flex items-center gap-1 !text-[11px]"
+                  className="btn btn--sm self-start flex items-center gap-1 ops-text-11"
                 >
                   <Plus size={11} />
                   {t('structure.addValue')}

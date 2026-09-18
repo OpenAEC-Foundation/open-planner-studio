@@ -484,7 +484,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                       <td colSpan={5} className="px-3 py-2">
                         <div className="flex flex-col gap-1">
                           {hasConflict && (
-                            <span className="text-[10px]" style={{ color: 'var(--error)' }}>
+                            <span className="ops-text-10" style={{ color: 'var(--error)' }}>
                               {conflictDatesLabel(row)}
                             </span>
                           )}
@@ -513,7 +513,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                   data-ops-occupancy-stale-doc
                                 >
                                   <AlertTriangle size={12} aria-hidden />
-                                  <span className="text-[10px]">{t('resource.occupancy.staleDoc')}</span>
+                                  <span className="ops-text-10">{t('resource.occupancy.staleDoc')}</span>
                                 </span>
                               ) : doc.scheduleStale && (
                                 // Twee informatieve varianten (dim-stijl, geen fout):
@@ -530,7 +530,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                     : { 'data-ops-occupancy-stale-as-shown-doc': '' })}
                                 >
                                   <AlertTriangle size={12} aria-hidden />
-                                  <span className="text-[10px]">
+                                  <span className="ops-text-10">
                                     {doc.ephemeralComputed
                                       ? t('resource.occupancy.staleComputedDoc')
                                       : t('resource.occupancy.staleAsShownDoc')}
@@ -574,7 +574,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
       )}
 
       {/* Permanente voetnoot (§5, scope-grens 2): zichtbaar in het product zelf, niet alleen docs. */}
-      <p className="px-3 py-2 text-[10px]" style={{ color: 'var(--theme-text-muted)' }} data-ops-occupancy-machine-only>
+      <p className="px-3 py-2 ops-text-10" style={{ color: 'var(--theme-text-muted)' }} data-ops-occupancy-machine-only>
         {t('resource.occupancy.machineOnly')}
       </p>
     </div>
@@ -802,7 +802,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
 
   return (
     <div className="flex flex-col gap-1.5" data-ops-occupancy-histogram={row.libraryItemId}>
-      <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+      <span className="ops-text-10 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
         {row.name}
       </span>
       {/* Geforceerd LTR (§5a): een tijdas spiegelt nergens in dit product, ook niet onder ar/fa. */}
@@ -875,7 +875,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
         {row.docs.map(doc => (
           <span key={doc.docId} className="inline-flex items-center gap-1.5 min-w-0">
             <span className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: docColors.get(doc.docId) }} aria-hidden />
-            <span className="truncate text-[10px] text-text-secondary">{doc.title || untitledLabel}</span>
+            <span className="truncate ops-text-10 text-text-secondary">{doc.title || untitledLabel}</span>
             {!doc.counted && (
               <AlertTriangle size={11} style={{ color: 'var(--theme-warning-text)' }} aria-label={t('resource.occupancy.staleDoc')} />
             )}
@@ -883,7 +883,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
         ))}
         <span className="inline-flex items-center gap-1.5">
           <svg width={18} height={8} aria-hidden><line x1={0} y1={4} x2={18} y2={4} stroke="var(--theme-text-dim)" strokeWidth={1.5} strokeDasharray="5 3" /></svg>
-          <span className="text-[10px] text-text-secondary">{t('resource.occupancy.capacity')}</span>
+          <span className="ops-text-10 text-text-secondary">{t('resource.occupancy.capacity')}</span>
         </span>
       </div>
     </div>

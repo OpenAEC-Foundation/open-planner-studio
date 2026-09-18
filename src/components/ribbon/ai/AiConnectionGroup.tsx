@@ -40,7 +40,6 @@ const fieldStyle: React.CSSProperties = {
   border: '1px solid var(--theme-control-border)',
   borderRadius: 'var(--radius-sm)',
   color: 'var(--theme-text)',
-  fontSize: 11,
 };
 
 const iconBtnStyle: React.CSSProperties = {
@@ -110,6 +109,7 @@ export function AiConnectionGroup() {
         disabled={portLocked}
         title={portLocked ? t('ai.portLockedHint') : undefined}
         onChange={e => onPortChange(e.target.value)}
+        className="ops-text-11"
         style={{ ...fieldStyle, width: 80, opacity: portLocked ? 0.6 : 1 }}
       />
     </label>
@@ -122,6 +122,7 @@ export function AiConnectionGroup() {
         type={showToken ? 'text' : 'password'}
         value={token}
         readOnly
+        className="ops-text-11"
         style={{ ...fieldStyle, flex: 1, minWidth: 120, fontFamily: 'monospace' }}
       />
       <button
@@ -182,9 +183,10 @@ export function AiConnectionGroup() {
           open={popoverOpen}
           onClose={() => setPopoverOpen(false)}
           align="right"
+          panelClassName="ops-text-11"
           panelStyle={{
             marginTop: 2, zIndex: 9999,
-            padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260, fontSize: 11,
+            padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260,
           }}
           trigger={
             <button
@@ -216,7 +218,7 @@ export function AiConnectionGroup() {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11 }}>
+    <div className="ops-text-11" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 240 }}>
         {portControl}
         {tokenControl}

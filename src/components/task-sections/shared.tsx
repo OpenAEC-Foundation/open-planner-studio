@@ -82,7 +82,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
   return (
     <div className="flex flex-col gap-1">
       <label
-        className="text-[10px] uppercase tracking-wide"
+        className="ops-text-10 uppercase tracking-wide"
         style={{ color: 'var(--theme-text-muted)' }}
       >
         {label}

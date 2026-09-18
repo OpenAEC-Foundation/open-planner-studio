@@ -106,13 +106,13 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
   const section = (title: string, hint: string, body: ReactNode) => (
     <div className="flex flex-col gap-1">
       <span className="text-xs font-semibold text-text-primary">{title}</span>
-      <span className="text-[11px] text-text-secondary">{hint}</span>
+      <span className="ops-text-11 text-text-secondary">{hint}</span>
       {body}
     </div>
   );
 
   const codeLine = (value: string) => (
-    <code className="flex-1 min-w-0 px-2 py-1 font-mono text-[11px] bg-surface-alt border border-border rounded-[8px] overflow-x-auto whitespace-nowrap select-all">
+    <code className="flex-1 min-w-0 px-2 py-1 font-mono ops-text-11 bg-surface-alt border border-border rounded-[8px] overflow-x-auto whitespace-nowrap select-all">
       {value}
     </code>
   );
@@ -160,7 +160,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
           t('ai.configSnippet'),
           t('ai.configSnippetHint'),
           <div className="flex items-start gap-2">
-            <pre className="flex-1 min-w-0 px-2 py-1 font-mono text-[11px] leading-relaxed bg-surface-alt border border-border rounded-[8px] overflow-x-auto select-all">
+            <pre className="flex-1 min-w-0 px-2 py-1 font-mono ops-text-11 leading-relaxed bg-surface-alt border border-border rounded-[8px] overflow-x-auto select-all">
               {snippetShown}
             </pre>
             {copyButton(snippetReal, 'snippet')}
@@ -172,14 +172,14 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
           t('ai.connectPrompt'),
           t('ai.connectPromptHint'),
           <div className="flex items-start gap-2">
-            <p className="flex-1 min-w-0 px-2 py-1 text-[11px] leading-relaxed bg-surface-alt border border-border rounded-[8px] select-all">
+            <p className="flex-1 min-w-0 px-2 py-1 ops-text-11 leading-relaxed bg-surface-alt border border-border rounded-[8px] select-all">
               {promptShown}
             </p>
             {copyButton(promptReal, 'prompt')}
           </div>,
         )}
 
-        <div className="flex items-start gap-2 text-[11px] text-text-secondary">
+        <div className="flex items-start gap-2 ops-text-11 text-text-secondary">
           <AlertTriangle size={14} className="shrink-0 mt-px" style={{ color: 'var(--theme-warning-text)' }} />
           <span>{t('ai.tokenWarning')}</span>
         </div>

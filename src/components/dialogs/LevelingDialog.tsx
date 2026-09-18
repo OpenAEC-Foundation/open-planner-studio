@@ -136,7 +136,7 @@ export function LevelingDialog() {
           </label>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+            <span className="ops-text-10 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
               {t('resource.leveling.resourceSelect')}
             </span>
             {renewables.length === 0 ? (
@@ -159,7 +159,7 @@ export function LevelingDialog() {
           </div>
 
           {needsCPM && (
-            <div className="text-[11px]" style={{ color: 'var(--error)' }}>
+            <div className="ops-text-11" style={{ color: 'var(--error)' }}>
               {t('resource.leveling.needsCPM')}
             </div>
           )}
@@ -177,7 +177,7 @@ export function LevelingDialog() {
           {/* Preview */}
           {result && (
             <div className="flex flex-col gap-3 border-t border-border pt-3">
-              <div className="text-[11px]" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
+              <div className="ops-text-11" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
                 {endChanged
                   ? t('resource.leveling.projectEndChanged', { before: fmt(result.projectEndBefore), after: fmt(result.projectEndAfter) })
                   : t('resource.leveling.projectEndUnchanged', { date: fmt(result.projectEndAfter) })}
@@ -213,7 +213,7 @@ export function LevelingDialog() {
                   <span className="ui-card-header !text-xs" style={{ color: 'var(--error)' }}>
                     {t('resource.leveling.remainingConflicts')}
                   </span>
-                  <span className="text-[10px] text-text-secondary">{t('resource.leveling.remainingConflictsHint')}</span>
+                  <span className="ops-text-10 text-text-secondary">{t('resource.leveling.remainingConflictsHint')}</span>
                   {conflicts.map(([taskId, days]) => {
                     const task = tasks.find(t => t.id === taskId);
                     const reason = result?.unresolvedReasons[taskId];
@@ -241,12 +241,12 @@ export function LevelingDialog() {
                     }
                     return (
                       <div key={taskId} className="flex flex-col gap-0.5">
-                        <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center justify-between ops-text-11">
                           <span className="truncate" style={{ maxWidth: 360 }}>{task?.name || taskId}</span>
                           <span style={{ color: 'var(--error)' }}>{t('resource.leveling.conflictDays', { count: days.length })}</span>
                         </div>
                         {explain && (
-                          <span className="text-[10px] pl-3" style={{ color: 'var(--error)' }}>{explain}</span>
+                          <span className="ops-text-10 pl-3" style={{ color: 'var(--error)' }}>{explain}</span>
                         )}
                       </div>
                     );

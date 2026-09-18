@@ -53,7 +53,7 @@ export function StatusBar() {
 
   return (
     <div
-      className="flex items-center bg-surface-alt border-t border-border px-3 text-[11px] text-text-secondary select-none gap-4"
+      className="flex items-center bg-surface-alt border-t border-border px-3 ops-text-11 text-text-secondary select-none gap-4"
       style={{ height: 'var(--statusbar-height)' }}
     >
       <span>{t('status.tasks')} {leafTasks.length}</span>

@@ -123,13 +123,12 @@ export function DebugTerminal() {
 
   return (
     <div
-      className="flex-shrink-0 flex flex-col border-t border-border"
+      className="flex-shrink-0 flex flex-col border-t border-border ops-text-11"
       style={{
         height: 200,
         background: 'var(--dashboard-bg)',
         color: 'var(--dashboard-text)',
         fontFamily: 'var(--font-code)',
-        fontSize: 'calc(11px * var(--ui-font-scale, 1))',
       }}
     >
       {/* Toolbar */}
@@ -144,8 +143,8 @@ export function DebugTerminal() {
               key={lvl}
               onClick={() => toggleLevel(lvl)}
               title={t('debugTerminal.toggleLevel', { level: lvl })}
+              className="ops-text-10"
               style={{
-                fontSize: 'calc(10px * var(--ui-font-scale, 1))',
                 padding: '1px 6px',
                 borderRadius: 'var(--radius-sm)',
                 border: `1px solid ${on ? LEVEL_COLOR[lvl] : 'var(--dashboard-border)'}`,
@@ -199,6 +198,7 @@ export function DebugTerminal() {
         {newCount > 0 && (
           <button
             onClick={jumpToBottom}
+            className="ops-text-10"
             style={{
               position: 'sticky',
               top: 4,
@@ -209,7 +209,6 @@ export function DebugTerminal() {
               border: '1px solid var(--dashboard-border)',
               borderRadius: 'var(--radius-full)',
               padding: '1px 8px',
-              fontSize: 'calc(10px * var(--ui-font-scale, 1))',
               cursor: 'pointer',
               zIndex: 1,
             }}

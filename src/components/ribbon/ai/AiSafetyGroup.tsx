@@ -139,8 +139,9 @@ export function AiSafetyGroup() {
       {/* Feedback-regel (handmatige backup succes/fout). */}
       {feedback && (
         <div
+          className="ops-text-11"
           style={{
-            display: 'flex', alignItems: 'center', gap: 4, maxWidth: 200, fontSize: 11,
+            display: 'flex', alignItems: 'center', gap: 4, maxWidth: 200,
             color: feedback.kind === 'ok' ? 'var(--success)' : 'var(--theme-critical-text)',
           }}
         >

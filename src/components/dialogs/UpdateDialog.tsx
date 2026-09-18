@@ -271,7 +271,7 @@ export function UpdateDialog() {
                     {copied ? t('updates.copied') : t('updates.copyCommand')}
                   </button>
                 </div>
-                <pre className="whitespace-pre-wrap break-all bg-surface-hover border border-border rounded-[8px] p-3 text-text-primary max-h-[140px] overflow-y-auto font-mono text-[11px] select-all">
+                <pre className="whitespace-pre-wrap break-all bg-surface-hover border border-border rounded-[8px] p-3 text-text-primary max-h-[140px] overflow-y-auto font-mono ops-text-11 select-all">
                   {DEB_INSTALL_COMMAND}
                 </pre>
               </div>

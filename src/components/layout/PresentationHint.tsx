@@ -18,6 +18,7 @@ export function PresentationHint() {
   return (
     <div
       aria-hidden={!visible}
+      className="ops-text-12"
       style={{
         position: 'fixed',
         bottom: 18,
@@ -27,7 +28,6 @@ export function PresentationHint() {
         borderRadius: 'var(--radius-md)',
         background: 'rgba(0,0,0,0.72)',
         color: '#fff',
-        fontSize: 'calc(12px * var(--ui-font-scale, 1))',
         pointerEvents: 'none',
         zIndex: 10000,
         opacity: visible ? 1 : 0,

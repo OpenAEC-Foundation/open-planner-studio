@@ -136,7 +136,7 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
         {dateInput('to')}
       </div>
       {invalid && (
-        <div id={`${id}-invalid`} className="text-[11px]" style={{ color: 'var(--error)' }} role="alert">
+        <div id={`${id}-invalid`} className="ops-text-11" style={{ color: 'var(--error)' }} role="alert">
           {t(incomplete ? 'tableReports.options.periodIncomplete' : 'tableReports.options.periodInvalid')}
         </div>
       )}

@@ -108,7 +108,7 @@ export function MoveProjectDialog() {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
         {/* R9 — zonder geldige huidige startdatum valt er niets te berekenen. */}
         {!hasCurrentStart ? (
-          <div className="text-[11px]" style={{ color: 'var(--error)' }}>
+          <div className="ops-text-11" style={{ color: 'var(--error)' }}>
             {t('moveProject.invalidCurrentStart')}
           </div>
         ) : (
@@ -129,13 +129,13 @@ export function MoveProjectDialog() {
             </label>
 
             {!validNewStart ? (
-              <div className="text-[11px]" style={{ color: 'var(--error)' }}>{t('moveProject.invalidDate')}</div>
+              <div className="ops-text-11" style={{ color: 'var(--error)' }}>{t('moveProject.invalidDate')}</div>
             ) : isZero ? (
-              <div className="text-[11px]" style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.deltaZero')}</div>
+              <div className="ops-text-11" style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.deltaZero')}</div>
             ) : null}
 
             {isPast && (
-              <div className="text-[11px]" style={{ color: 'var(--warning)' }}>
+              <div className="ops-text-11" style={{ color: 'var(--warning)' }}>
                 {t('moveProject.warnPast')}
               </div>
             )}
@@ -151,7 +151,7 @@ export function MoveProjectDialog() {
                 />
                 <span className="flex flex-col gap-0.5">
                   <span>{t('moveProject.shiftBaselines')}</span>
-                  <span className="text-[10px]" style={{ color: 'var(--theme-text-dim)' }}>
+                  <span className="ops-text-10" style={{ color: 'var(--theme-text-dim)' }}>
                     {t('moveProject.shiftBaselinesHint')}
                   </span>
                 </span>
@@ -170,12 +170,12 @@ export function MoveProjectDialog() {
 
             {preview && (
               <div className="flex flex-col gap-2 border-t border-border pt-3">
-                <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+                <span className="ops-text-10 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
                   {t('moveProject.previewTitle')}
                 </span>
 
                 {preview.error ? (
-                  <div className="text-[11px]" style={{ color: 'var(--error)' }}>
+                  <div className="ops-text-11" style={{ color: 'var(--error)' }}>
                     {t('moveProject.calcError', { error: preview.error })}
                   </div>
                 ) : (
@@ -197,7 +197,7 @@ export function MoveProjectDialog() {
                         {/* HET hart van de preview: hier wordt zichtbaar dat de kalender niet meeschuift. */}
                         {calendarIntervened ? (
                           <div
-                            className="flex items-start gap-2 rounded-[8px] p-2 text-[11px]"
+                            className="flex items-start gap-2 rounded-[8px] p-2 ops-text-11"
                             style={{ color: 'var(--error)', background: 'color-mix(in srgb, var(--error) 12%, transparent)' }}
                           >
                             <AlertTriangle size={14} className="shrink-0 mt-px" />
@@ -219,7 +219,7 @@ export function MoveProjectDialog() {
 
                         <div>{t('moveProject.affectedTasks', { count: preview.impact.taskCount })}</div>
                         {detailItems.length > 0 && (
-                          <div className="text-[11px]" style={{ color: 'var(--theme-text-dim)' }}>
+                          <div className="ops-text-11" style={{ color: 'var(--theme-text-dim)' }}>
                             {t('moveProject.affectedDetail', { items: detailItems.join(' · ') })}
                           </div>
                         )}
@@ -230,7 +230,7 @@ export function MoveProjectDialog() {
                     {(preview.impact.actualCount > 0 || preview.impact.hardPinCount > 0 ||
                       preview.impact.externalLinkCount > 0 || preview.holidayGapCalendars.length > 0 ||
                       preview.impact.dateCustomFieldCount > 0) && (
-                      <ul className="flex flex-col gap-1 text-[11px]" style={{ color: 'var(--theme-text-dim)' }}>
+                      <ul className="flex flex-col gap-1 ops-text-11" style={{ color: 'var(--theme-text-dim)' }}>
                         {preview.impact.actualCount > 0 && (
                           <li>{t('moveProject.warnActuals', { count: preview.impact.actualCount })}</li>
                         )}

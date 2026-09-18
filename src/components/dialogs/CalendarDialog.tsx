@@ -212,7 +212,7 @@ export function CalendarDialog() {
               <>
                 <div className="flex items-center justify-between px-4 pt-3">
                   {localProjectId === selected.id ? (
-                    <span className="text-[11px] font-medium text-accent flex items-center gap-1">
+                    <span className="ops-text-11 font-medium text-accent flex items-center gap-1">
                       <Star size={11} fill="currentColor" />
                       {tCommon('calendar.library.project')}
                     </span>

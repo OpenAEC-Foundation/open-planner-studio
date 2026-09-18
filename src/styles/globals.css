@@ -8,7 +8,7 @@
   background: var(--theme-surface);
   color: var(--theme-text);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   outline: none;
 }
 
@@ -57,7 +57,7 @@
   background: var(--theme-surface-alt);
   color: var(--theme-text-muted);
   font-family: var(--font-heading);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -504,7 +504,7 @@
   color: var(--error);
   background: var(--theme-surface);
   box-shadow: var(--shadow-pop);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .task-grid-group-cell {
@@ -537,7 +537,7 @@
   flex: none;
   color: var(--theme-text-muted);
   font-family: var(--font-code);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
 }
 
 /* Browserreview, observatie 7 (grijpzone-kant): was `inset-inline-end: -4px; width: 8px` — een
@@ -673,7 +673,7 @@
   align-items: center;
   padding-inline: 10px 40px;
   color: var(--theme-text-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   pointer-events: none;
 }
 
@@ -688,20 +688,20 @@
   border-radius: 6px;
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .task-grid-column-chooser-title {
   padding: 3px 5px 7px;
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 700;
 }
 
 .task-grid-column-chooser-section-label {
   padding: 7px 5px 3px;
   color: var(--theme-text-muted);
-  font-size: 9px;
+  font-size: calc(9px * var(--ui-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -786,7 +786,7 @@
   margin-inline-start: auto;
   color: var(--theme-text-muted);
   font-family: var(--font-code);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
 }
 
 .task-grid-column-chooser-category svg[data-expanded="true"] {
@@ -933,7 +933,7 @@
   border: 1px solid var(--theme-accent);
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .task-grid-relation-editor-anchor {
@@ -1136,7 +1136,7 @@ button.task-grid-relation-reference {
   background: var(--theme-surface-elevated);
   border: 1px solid var(--error);
   box-shadow: var(--shadow-pop);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   white-space: normal;
 }
 
@@ -1538,6 +1538,26 @@ html, body, #root {
   color: var(--theme-text);
 }
 
+/* Shared scaled text-size utilities — one source of truth for `calc(Npx * var(--ui-font-scale, 1))`
+   instead of repeating that expression at every call site. Two prior patterns both needed this:
+   `text-[Npx]` (Tailwind arbitrary value) compiles to a LITERAL px font-size — unlike `text-xs`/
+   `text-sm` (rem-based, follows html's scaled font-size above), it does not react to
+   `--ui-font-scale` at all — and inline `style={{ fontSize: 'calc(Npx * var(--ui-font-scale, 1))' }}`
+   duplicated the same expression per element. These sizes are the ones actually used across the app
+   (properties panel, resource dock, dialogs, ribbon inputs/popovers, status bar, chrome, …);
+   `!important` matches the behaviour of the `!text-[Npx]` call sites this also replaces (mostly
+   overriding `.input`'s own font-size) and is harmless on the plain call sites, since nothing else
+   sets font-size there. */
+.ops-text-8  { font-size: calc(8px  * var(--ui-font-scale, 1)) !important; }
+.ops-text-9  { font-size: calc(9px  * var(--ui-font-scale, 1)) !important; }
+.ops-text-10 { font-size: calc(10px * var(--ui-font-scale, 1)) !important; }
+.ops-text-11 { font-size: calc(11px * var(--ui-font-scale, 1)) !important; }
+.ops-text-12 { font-size: calc(12px * var(--ui-font-scale, 1)) !important; }
+.ops-text-13 { font-size: calc(13px * var(--ui-font-scale, 1)) !important; }
+.ops-text-14 { font-size: calc(14px * var(--ui-font-scale, 1)) !important; }
+.ops-text-15 { font-size: calc(15px * var(--ui-font-scale, 1)) !important; }
+.ops-text-16 { font-size: calc(16px * var(--ui-font-scale, 1)) !important; }
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -1797,7 +1817,7 @@ html, body, #root {
   align-self: flex-start;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   color: var(--theme-text-muted);
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
@@ -1858,7 +1878,7 @@ html, body, #root {
   width: 100%;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   text-align: start;
   color: var(--theme-text);
   cursor: pointer;

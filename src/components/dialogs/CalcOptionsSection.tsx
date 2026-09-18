@@ -65,7 +65,7 @@ export function CalcOptionsSection({ value, onChange }: CalcOptionsSectionProps)
         <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('projectInfo.calc.title')}
         </span>
-        <span className="text-[11px] text-text-secondary">{t('projectInfo.calc.subtitle')}</span>
+        <span className="ops-text-11 text-text-secondary">{t('projectInfo.calc.subtitle')}</span>
       </div>
 
       {/* Kritiek-definitie */}

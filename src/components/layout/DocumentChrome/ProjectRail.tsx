@@ -46,9 +46,9 @@ export function ProjectRail() {
             <span className="ops-flyout-name">{hover.card.title}</span>
           </div>
           {hover.card.fileName && (
-            <div style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--theme-text-muted)', marginBottom: 10 }}>{hover.card.fileName}</div>
+            <div className="ops-text-11" style={{ color: 'var(--theme-text-muted)', marginBottom: 10 }}>{hover.card.fileName}</div>
           )}
-          <div style={{ display: 'flex', gap: 14, fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)' }}>
+          <div className="ops-text-11" style={{ display: 'flex', gap: 14, color: 'var(--theme-text-dim)' }}>
             <span><b style={{ color: 'var(--theme-text)', fontWeight: 600 }}>{hover.card.taskCount}</b> {t('documents.tasksWord')}</span>
             <span><b style={{ color: 'var(--theme-critical-text)', fontWeight: 600 }}>{hover.card.criticalCount}</b> {t('documents.criticalWord')}</span>
             {hover.card.endDate && <span style={{ color: 'var(--theme-text)', fontWeight: 600 }}>{hover.card.endDate}</span>}
