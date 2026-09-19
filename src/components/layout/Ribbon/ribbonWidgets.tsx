@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,7 @@ import {
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId, loadSavedFilters,
+  saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId,
 } from '@/utils/settingsStore';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { ExportFormat } from '@/state/appStore';
@@ -21,7 +21,7 @@ import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsHandles } from '@/services/fileAccess';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
-import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type SavedFilter, type TimeScale } from '@/state/slices/types';
+import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -33,6 +33,11 @@ import {
 } from '@/components/viewControls/barColorFieldOptions';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
+import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
+import {
+  isBuiltinLayoutId, isFilterOnlyLayout, layoutMatchesView, layoutParts, pickLayoutParts,
+  type LayoutViewParts,
+} from '@/engine/view/layoutPresets';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
@@ -966,28 +971,49 @@ export function LayoutGroupContent() {
     void loadLastLayoutId().then(id => { if (id) setSelectedId(id); });
   }, [reload]);
 
-  // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de lijst verversen.
-  const prevOpenRef = useRef(showLayoutsDialog);
+  // Ná het sluiten van de layouts- of filterdialoog (mogelijke CRUD) de lijst verversen.
+  const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
+  const dialogOpen = showLayoutsDialog || showFilterDialog;
+  const prevOpenRef = useRef(dialogOpen);
   useEffect(() => {
-    if (prevOpenRef.current && !showLayoutsDialog) reload();
-    prevOpenRef.current = showLayoutsDialog;
-  }, [showLayoutsDialog, reload]);
+    if (prevOpenRef.current && !dialogOpen) reload();
+    prevOpenRef.current = dialogOpen;
+  }, [dialogOpen, reload]);
 
-  const activeLayout = layouts.find(l => l.id === selectedId);
+  // Issue #144: meegeleverde layouts staan in code (vertaalde naam, niet bewerkbaar), eigen
+  // layouts in de opslag; layouts die alleen een filter dragen krijgen een eigen blok.
+  const builtins = useMemo(() => builtinLayouts(tCommon), [tCommon]);
+  const ownLayouts = layouts.filter(l => !isFilterOnlyLayout(l));
+  const filterLayouts = layouts.filter(isFilterOnlyLayout);
+  const allLayouts = useMemo(() => [...builtins, ...layouts], [builtins, layouts]);
+
+  // De getoonde waarde is AFGELEID: de laatst gekozen layout zolang het scherm er nog mee
+  // overeenkomt, anders de eerste meegeleverde die klopt, anders "(aangepast)"/"(geen)". Zo licht
+  // "Resourcediagram" alleen op als het scherm dat ook echt toont.
+  const currentParts: LayoutViewParts = useMemo(() => ({
+    columns, filter: view.filter ?? null, group: view.group ?? [], sort: view.sort ?? [],
+    timeScale: scaleFromZoom(view.zoom),
+  }), [columns, view.filter, view.group, view.sort, view.zoom]);
+  const picked = allLayouts.find(l => l.id === selectedId);
+  const shownLayout = picked && layoutMatchesView(picked, currentParts)
+    ? picked
+    : builtins.find(l => layoutMatchesView(l, currentParts));
+  const shownId = shownLayout?.id ?? '';
+  const activeLayout = shownLayout && !isBuiltinLayoutId(shownLayout.id) ? shownLayout : undefined;
 
   const pick = (id: string) => {
+    const layout = allLayouts.find(l => l.id === id);
+    if (!layout) return;
     setSelectedId(id);
-    const layout = layouts.find(l => l.id === id);
-    if (layout) {
-      applyLayout(layout);
-      void saveLastLayoutId(id);
-    }
+    applyLayout(layout);
+    void saveLastLayoutId(id);
   };
 
   const update = () => {
     if (!activeLayout) return;
+    // Bijwerken ververst alleen de delen die de layout al draagt (issue #144).
     const next = layouts.map(l => (l.id === activeLayout.id
-      ? snapshotLayout(view, columns, l.name, l.id)
+      ? pickLayoutParts(snapshotLayout(view, columns, l.name, l.id), layoutParts(l))
       : l));
     setLayouts(next);
     void saveLayouts(next);
@@ -1006,16 +1032,31 @@ export function LayoutGroupContent() {
       alignItems: compact ? 'center' : 'stretch',
       gap: 4, padding: '2px 4px', minWidth: compact ? 0 : 210,
     }}>
-      <select
-        value={selectedId}
-        onChange={e => pick(e.target.value)}
-        className="input !text-[11px] !px-1.5 !py-1"
-        style={compact ? { width: 120 } : undefined}
-        aria-label={tCommon('view.layout.activeLayout')}
-      >
-        <option value="">{tCommon('view.layout.none')}</option>
-        {layouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-      </select>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+        <span className="ribbon-info" style={{ fontWeight: 600, flex: '0 0 auto' }}>{tCommon('view.layout.activeLayout')}</span>
+        <select
+          value={shownId}
+          onChange={e => pick(e.target.value)}
+          className="input !text-[11px] !px-1.5 !py-1"
+          style={compact ? { width: 120 } : { flex: '1 1 auto', minWidth: 0 }}
+          data-ops-layout-select="true"
+        >
+          {shownId === '' && <option value="">{tCommon('view.layout.custom')}</option>}
+          <optgroup label={tCommon('view.layout.groupBuiltin')}>
+            {builtins.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </optgroup>
+          {ownLayouts.length > 0 && (
+            <optgroup label={tCommon('view.layout.groupOwn')}>
+              {ownLayouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </optgroup>
+          )}
+          {filterLayouts.length > 0 && (
+            <optgroup label={tCommon('view.layout.groupFilters')}>
+              {filterLayouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </optgroup>
+          )}
+        </select>
+      </label>
       <div style={{ display: 'flex', gap: 2 }}>
         {/* Iconen zijn hier niet decoratief: in de icoon-dichtheid verbergt de CSS élk
             `.ribbon-btn-label`, dus een knop zonder icoon bleef als leeg stompje van ~14px over.
@@ -1202,22 +1243,28 @@ function SavedFilterDropdown() {
   const setUI = useAppStore(s => s.setUI);
   const filter = useAppStore(s => s.view.filter);
   const setFilter = useAppStore(s => s.setFilter);
+  const applyLayout = useAppStore(s => s.applyLayout);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
+  const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const [open, setOpen] = useState(false);
-  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  // Issue #144: opgeslagen filters zijn layouts die alleen een filter dragen — één opslag, en
+  // toepassen loopt via `applyLayout` (dus mét undo-stap), net als in de layoutlijst.
+  const [savedFilters, setSavedFilters] = useState<Layout[]>([]);
 
-  const reload = useCallback(() => { void loadSavedFilters().then(setSavedFilters); }, []);
+  const loadFilterLayouts = useCallback(() => loadLayouts().then(all => all.filter(isFilterOnlyLayout)), []);
+  const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters); }, [loadFilterLayouts]);
   useEffect(() => { reload(); }, [reload]);
-  const previousDialogOpen = useRef(showFilterDialog);
+  const dialogOpen = showFilterDialog || showLayoutsDialog;
+  const previousDialogOpen = useRef(dialogOpen);
   useEffect(() => {
-    if (previousDialogOpen.current && !showFilterDialog) reload();
-    previousDialogOpen.current = showFilterDialog;
-  }, [showFilterDialog, reload]);
+    if (previousDialogOpen.current && !dialogOpen) reload();
+    previousDialogOpen.current = dialogOpen;
+  }, [dialogOpen, reload]);
 
   const openFilterControls = () => {
     // Lees bij de klik opnieuw: bij het openen van de app kan de asynchrone initiële laadactie
     // nog lopen. Daardoor wordt een bestaande preset nooit ten onrechte als een lege lijst gezien.
-    void loadSavedFilters().then(filters => {
+    void loadFilterLayouts().then(filters => {
       setSavedFilters(filters);
       if (filters.length === 0) {
         setUI({ showFilterDialog: true });
@@ -1255,7 +1302,7 @@ function SavedFilterDropdown() {
         </button>
       )}
       {savedFilters.map(saved => (
-        <button key={saved.id} className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setFilter(structuredClone(saved.filter)); setOpen(false); }}>
+        <button key={saved.id} className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { applyLayout(saved); setOpen(false); }}>
           <span className="ribbon-btn-label">{saved.name}</span>
         </button>
       ))}

@@ -800,7 +800,13 @@
       "missingRefs": "Einige Felder sind in diesem Dokument nicht vorhanden und werden übersprungen.",
       "noLayouts": "Noch keine gespeicherten Layouts.",
       "activeLayout": "Layout",
-      "none": "(keins)"
+      "none": "(keins)",
+      "groupBuiltin": "Mitgeliefert",
+      "groupOwn": "Eigene Layouts",
+      "groupFilters": "Filter",
+      "custom": "(angepasst)",
+      "builtinGanttWbs": "Gantt-Diagramm (WBS)",
+      "builtinResourceDiagram": "Ressourcendiagramm"
     },
     "presentation": {
       "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."

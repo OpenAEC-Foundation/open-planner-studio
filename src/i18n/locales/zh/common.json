@@ -788,7 +788,13 @@
       "missingRefs": "此文档中不存在某些字段，将被跳过。",
       "noLayouts": "尚无已保存的布局。",
       "activeLayout": "布局",
-      "none": "(无)"
+      "none": "(无)",
+      "groupBuiltin": "内置",
+      "groupOwn": "我的布局",
+      "groupFilters": "筛选器",
+      "custom": "（自定义）",
+      "builtinGanttWbs": "甘特图 (WBS)",
+      "builtinResourceDiagram": "资源图"
     },
     "presentation": {
       "hint": "按 Esc 或 F11 退出全屏模式。"

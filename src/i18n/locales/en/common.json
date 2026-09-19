@@ -800,7 +800,13 @@
       "missingRefs": "Some fields don't exist in this document and will be skipped.",
       "noLayouts": "No saved layouts yet.",
       "activeLayout": "Layout",
-      "none": "(none)"
+      "none": "(none)",
+      "groupBuiltin": "Built-in",
+      "groupOwn": "My layouts",
+      "groupFilters": "Filters",
+      "custom": "(custom)",
+      "builtinGanttWbs": "Gantt chart (WBS)",
+      "builtinResourceDiagram": "Resource diagram"
     },
     "presentation": {
       "hint": "Press Esc or F11 to exit full screen."

@@ -800,7 +800,13 @@
       "missingRefs": "برخی فیلدها در این سند وجود ندارند و نادیده گرفته می‌شوند.",
       "noLayouts": "هنوز چیدمان ذخیره‌شده‌ای وجود ندارد.",
       "activeLayout": "چیدمان",
-      "none": "(هیچ‌کدام)"
+      "none": "(هیچ‌کدام)",
+      "groupBuiltin": "پیش‌فرض",
+      "groupOwn": "چیدمان‌های من",
+      "groupFilters": "فیلترها",
+      "custom": "(سفارشی)",
+      "builtinGanttWbs": "نمودار گانت (WBS)",
+      "builtinResourceDiagram": "نمودار منابع"
     },
     "presentation": {
       "hint": "برای خروج از تمام‌صفحه، Esc یا F11 را فشار دهید."

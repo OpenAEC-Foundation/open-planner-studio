@@ -800,7 +800,13 @@
       "missingRefs": "Bazı alanlar bu belgede yok ve atlanacak.",
       "noLayouts": "Henüz kaydedilmiş layout yok.",
       "activeLayout": "Layout",
-      "none": "(yok)"
+      "none": "(yok)",
+      "groupBuiltin": "Hazır",
+      "groupOwn": "Düzenlerim",
+      "groupFilters": "Filtreler",
+      "custom": "(özel)",
+      "builtinGanttWbs": "Gantt şeması (WBS)",
+      "builtinResourceDiagram": "Kaynak diyagramı"
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

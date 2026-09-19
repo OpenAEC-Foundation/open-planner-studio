@@ -788,7 +788,13 @@
       "missingRefs": "一部のフィールドはこのドキュメントに存在しないため、スキップされます。",
       "noLayouts": "保存されたレイアウトはまだありません。",
       "activeLayout": "レイアウト",
-      "none": "(なし)"
+      "none": "(なし)",
+      "groupBuiltin": "標準",
+      "groupOwn": "マイレイアウト",
+      "groupFilters": "フィルター",
+      "custom": "（カスタム）",
+      "builtinGanttWbs": "ガントチャート (WBS)",
+      "builtinResourceDiagram": "リソース図"
     },
     "presentation": {
       "hint": "Esc または F11 を押して全画面表示を終了します。"

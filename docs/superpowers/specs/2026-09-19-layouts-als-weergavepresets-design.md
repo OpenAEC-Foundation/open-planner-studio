@@ -83,8 +83,10 @@ verwerpt gedeeltelijke layouts in haar validator en toont ze niet — geen datav
    (`<optgroup>`): *Meegeleverd*, *Eigen layouts*, *Filters* (layouts die alleen een filter dragen).
    De getoonde waarde is afgeleid: de laatst gekozen layout zolang `layoutMatchesView` klopt, anders
    "(aangepast)". Daarmee licht "Resourcediagram" alleen op als het scherm dat ook echt toont.
-2. **Lint, groep Weergave.** `SavedFilterDropdown` vervalt; de filterknop (opent `FilterDialog`) blijft.
-   Snel wisselen van filter blijft één klik, nu via de layoutlijst.
+2. **Lint, groep Weergave.** De filterknop houdt zijn uitklaplijst, maar die wordt nu gevoed uit de
+   layouts die alleen een filter dragen (was: de losse `savedFilters`-opslag). Kiezen loopt via
+   `applyLayout` en is daarmee voortaan ook een undo-stap. Eén opslag, twee ingangen — bijgesteld
+   tijdens etappe 2: de snelle filterlijst weghalen zou voor bestaande gebruikers een stap terug zijn.
 3. **Opslaan als… (`LayoutsDialog`).** Vinkjes *Wat legt deze layout vast*: kolommen, filter,
    groepering, sortering, tijdschaal — standaard alle vijf aan (huidig gedrag). De beheerlijst toont
    per layout welke delen hij draagt; meegeleverde layouts staan erbij als alleen-lezen met

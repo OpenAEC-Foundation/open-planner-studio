@@ -824,7 +824,13 @@
       "missingRefs": "Niektóre pola nie istnieją w tym dokumencie i zostaną pominięte.",
       "noLayouts": "Brak zapisanych layoutów.",
       "activeLayout": "Layout",
-      "none": "(brak)"
+      "none": "(brak)",
+      "groupBuiltin": "Wbudowane",
+      "groupOwn": "Moje układy",
+      "groupFilters": "Filtry",
+      "custom": "(niestandardowy)",
+      "builtinGanttWbs": "Wykres Gantta (WBS)",
+      "builtinResourceDiagram": "Diagram zasobów"
     },
     "presentation": {
       "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."

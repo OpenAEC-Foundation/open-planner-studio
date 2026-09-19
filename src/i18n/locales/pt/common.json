@@ -812,7 +812,13 @@
       "missingRefs": "Alguns campos não existem neste documento e serão ignorados.",
       "noLayouts": "Ainda sem layouts guardados.",
       "activeLayout": "Layout",
-      "none": "(nenhum)"
+      "none": "(nenhum)",
+      "groupBuiltin": "Incluídos",
+      "groupOwn": "Meus layouts",
+      "groupFilters": "Filtros",
+      "custom": "(personalizado)",
+      "builtinGanttWbs": "Gráfico de Gantt (WBS)",
+      "builtinResourceDiagram": "Diagrama de recursos"
     },
     "presentation": {
       "hint": "Prima Esc ou F11 para sair do ecrã inteiro."

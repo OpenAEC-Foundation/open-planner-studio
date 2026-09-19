@@ -812,7 +812,13 @@
       "missingRefs": "Certains champs n'existent pas dans ce document et seront ignorés.",
       "noLayouts": "Aucun layout enregistré pour l'instant.",
       "activeLayout": "Layout",
-      "none": "(aucun)"
+      "none": "(aucun)",
+      "groupBuiltin": "Fournis",
+      "groupOwn": "Mes layouts",
+      "groupFilters": "Filtres",
+      "custom": "(personnalisé)",
+      "builtinGanttWbs": "Diagramme de Gantt (WBS)",
+      "builtinResourceDiagram": "Diagramme des ressources"
     },
     "presentation": {
       "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."

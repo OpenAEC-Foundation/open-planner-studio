@@ -848,7 +848,13 @@
       "missingRefs": "بعض الحقول غير موجودة في هذا المستند وسيتم تخطيها.",
       "noLayouts": "لا توجد تخطيطات محفوظة بعد.",
       "activeLayout": "التخطيط",
-      "none": "(بلا)"
+      "none": "(بلا)",
+      "groupBuiltin": "مضمّنة",
+      "groupOwn": "تخطيطاتي",
+      "groupFilters": "عوامل التصفية",
+      "custom": "(مخصص)",
+      "builtinGanttWbs": "مخطط جانت (WBS)",
+      "builtinResourceDiagram": "مخطط الموارد"
     },
     "presentation": {
       "hint": "اضغط Esc أو F11 للخروج من ملء الشاشة."
