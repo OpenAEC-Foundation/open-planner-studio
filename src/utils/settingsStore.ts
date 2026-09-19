@@ -14,6 +14,7 @@ import type {
   UIFontFamily,
 } from '@/state/slices/types';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
+import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -256,13 +257,16 @@ interface LegacyColumnConfigLike {
 function baseLayout(v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== 'object') return null;
   const l = v as Record<string, unknown>;
+  // Issue #144: elk deel is optioneel (afwezig = "laat met rust"), maar een AANWEZIG deel moet de
+  // juiste vorm hebben — een half kapotte layout wordt weggelaten, niet half toegepast.
   return (
     typeof l.id === 'string' &&
     typeof l.name === 'string' &&
-    Array.isArray(l.group) &&
-    Array.isArray(l.sort) &&
-    (l.filter === null || typeof l.filter === 'object') &&
-    typeof l.timeScale === 'string'
+    (l.group === undefined || Array.isArray(l.group)) &&
+    (l.sort === undefined || Array.isArray(l.sort)) &&
+    (l.filter === undefined || l.filter === null || typeof l.filter === 'object') &&
+    (l.timeScale === undefined || typeof l.timeScale === 'string') &&
+    (l.columns === undefined || Array.isArray(l.columns))
   ) ? l : null;
 }
 
@@ -280,22 +284,22 @@ function isLegacyColumnConfig(value: unknown): value is LegacyColumnConfigLike {
 
 function normalizeLayout(v: unknown): Layout | null {
   const l = baseLayout(v);
-  if (!l || !Array.isArray(l.columns)) return null;
-  const currentColumns = normalizeTaskGridColumnPreferences(l.columns);
-  const legacyColumns = currentColumns === null && l.columns.every(isLegacyColumnConfig)
-    ? legacyLayoutColumnsToTaskGridPreferences(l.columns)
-    : null;
-  const columns = currentColumns ?? legacyColumns;
-  if (columns === null) return null;
-  return {
-    id: l.id as string,
-    name: l.name as string,
-    columns,
-    group: l.group as Layout['group'],
-    sort: l.sort as Layout['sort'],
-    filter: l.filter as Layout['filter'],
-    timeScale: l.timeScale as Layout['timeScale'],
-  };
+  if (!l) return null;
+  const out: Layout = { id: l.id as string, name: l.name as string };
+  if (Array.isArray(l.columns)) {
+    const currentColumns = normalizeTaskGridColumnPreferences(l.columns);
+    const legacyColumns = currentColumns === null && l.columns.every(isLegacyColumnConfig)
+      ? legacyLayoutColumnsToTaskGridPreferences(l.columns)
+      : null;
+    const columns = currentColumns ?? legacyColumns;
+    if (columns === null) return null;
+    out.columns = columns;
+  }
+  if (l.group !== undefined) out.group = l.group as Layout['group'];
+  if (l.sort !== undefined) out.sort = l.sort as Layout['sort'];
+  if (l.filter !== undefined) out.filter = l.filter as Layout['filter'];
+  if (l.timeScale !== undefined) out.timeScale = l.timeScale as Layout['timeScale'];
+  return out;
 }
 
 function normalizeLayouts(raw: unknown): Layout[] | null {
@@ -305,7 +309,7 @@ function normalizeLayouts(raw: unknown): Layout[] | null {
   return raw.map(normalizeLayout).filter((layout): layout is Layout => layout !== null);
 }
 
-export async function loadLayouts(): Promise<Layout[]> {
+async function loadStoredLayouts(): Promise<Layout[]> {
   const current = await getSetting<unknown>('taskGridLayouts');
   if (current && typeof current === 'object') {
     const wrapper = current as Record<string, unknown>;
@@ -318,6 +322,22 @@ export async function loadLayouts(): Promise<Layout[]> {
   // opslaat/bijwerkt. Dynamische refs worden hier opaque, zonder actief project te raden.
   const legacy = await getSetting<unknown>('layouts');
   return normalizeLayouts(legacy) ?? [];
+}
+
+/**
+ * Issue #144: de losse opgeslagen filters (issue #85) gaan EENMALIG op in de layouts, als layouts
+ * die alleen een filter dragen. De vlag voorkomt dat een daarna verwijderde filter-layout bij de
+ * volgende start terugkomt. `ops-savedFilters` zelf blijft bewust staan: wie terugvalt naar een
+ * oudere versie houdt zijn filters.
+ */
+export async function loadLayouts(): Promise<Layout[]> {
+  const layouts = await loadStoredLayouts();
+  if (await getSetting<boolean>('savedFiltersMigrated')) return layouts;
+  const savedFilters = await loadSavedFilters();
+  const merged = migrateSavedFilters(layouts, savedFilters);
+  if (merged.length !== layouts.length) await saveLayouts(merged);
+  await setSetting('savedFiltersMigrated', true);
+  return merged;
 }
 
 export async function saveLayouts(layouts: Layout[]): Promise<void> {

@@ -244,13 +244,14 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
       columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
       scrollX: beforeState.taskGridSurfaces[surface].scrollX,
     };
+    // Issue #144: een layout zet alleen de delen die hij draagt; de rest van het beeld blijft staan.
     set((s) => {
-      s.view.group = layout.group;
-      s.view.sort = layout.sort;
-      s.view.filter = layout.filter;
+      if (layout.group !== undefined) s.view.group = layout.group;
+      if (layout.sort !== undefined) s.view.sort = layout.sort;
+      if (layout.filter !== undefined) s.view.filter = layout.filter;
     });
-    get().applyTaskGridLayoutColumns(layout.columns);
-    get().setTimeScale(layout.timeScale);
+    if (layout.columns !== undefined) get().applyTaskGridLayoutColumns(layout.columns);
+    if (layout.timeScale !== undefined) get().setTimeScale(layout.timeScale);
     get().recomputeViewRows();
     const afterState = get();
     const viewAfter = captureViewLayoutHistoryState(afterState.view);

@@ -85,18 +85,28 @@ export interface SortLevel {
   dir: 'asc' | 'desc';
 }
 
-/** App-globale presentatie-preset (§2.5). Bewust GEEN scroll/zoom-positie of sessie-flags. */
+/** App-globale presentatie-preset (§2.5). Bewust GEEN scroll/zoom-positie of sessie-flags.
+ *
+ *  Een layout legt alleen vast wat hij DRAAGT (issue #144): een ontbrekende sleutel betekent "laat
+ *  dat deel van het beeld met rust". Een opgeslagen filter is zo een layout met alleen `filter`, het
+ *  meegeleverde resourcediagram een layout met alleen `group` + `sort`. Layouts van vóór #144 dragen
+ *  alle vijf delen en gedragen zich dus ongewijzigd. Zie `src/engine/view/layoutPresets.ts`. */
 export interface Layout {
   id: string;
   name: string;
   /** Kolomindeling die op het actieve taakgridoppervlak wordt toegepast. De bron-surface wordt
    *  niet vastgelegd: dezelfde layout is bewust bruikbaar in Gantt en volledige Tabel. */
-  columns: TaskGridColumnPreference[];
-  group: GroupLevel[];
-  sort: SortLevel[];
-  filter: FilterNode | null;
-  timeScale: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
+  columns?: TaskGridColumnPreference[];
+  group?: GroupLevel[];
+  sort?: SortLevel[];
+  /** Aanwezig + `null` = "wis het filter"; afwezig = filter ongemoeid. */
+  filter?: FilterNode | null;
+  timeScale?: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
 }
+
+/** De vijf delen die een layout kan dragen, in vaste UI-volgorde. */
+export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale'] as const;
+export type LayoutPart = typeof LAYOUT_PARTS[number];
 
 /** Split view binnen één document (§10) — undefined = uit. */
 export interface SplitViewState {

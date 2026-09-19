@@ -562,6 +562,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SFLCHECK="$DIR/.saved-filters.mjs"
   if bundle_check "$DIR/check-saved-filters.ts" "$SFLCHECK"; then node "$SFLCHECK" || STATUS=1; fi
 
+  # Layouts als weergavepresets (issue #144): een layout zet alleen de delen die hij draagt, en de
+  # losse opgeslagen filters gaan eenmalig en idempotent op in de layouts, zonder de oude sleutel te wissen.
+  LPRCHECK="$DIR/.layout-presets.mjs"
+  if bundle_check "$DIR/check-layout-presets.ts" "$LPRCHECK"; then node "$LPRCHECK" || STATUS=1; fi
+
   # Rapportoptie voor de werkdagen-as (#21): staat bewust in ops-reportSettings, zodat de
   # rapportlay-out niet met de algemene scherminstelling meeschakelt.
   RWDSETTINGSCHECK="$DIR/.report-working-days-setting.mjs"
